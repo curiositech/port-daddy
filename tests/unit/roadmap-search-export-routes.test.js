@@ -180,7 +180,13 @@ describe('GET /roadmap/jira', () => {
 
     const jira = await app.inject({ method: 'GET', url: '/roadmap/jira' });
     expect(jira.statusCode).toBe(502);
-    expect(jira.json()).toMatchObject({ success: false, source: 'jira', configured: true });
+    expect(jira.json()).toMatchObject({
+      success: false,
+      source: 'jira',
+      configured: true,
+      error: 'Jira roadmap read failed',
+    });
+    expect(jira.payload).not.toContain('upstream offline');
     const local = await app.inject({ method: 'GET', url: '/roadmap/items?status=all' });
     expect(local.statusCode).toBe(200);
     expect(local.json().items).toHaveLength(1);

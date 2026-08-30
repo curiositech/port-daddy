@@ -69,6 +69,7 @@ export interface JiraFetch {
     method: string;
     headers: Record<string, string>;
     body?: string;
+    signal?: AbortSignal;
   }): Promise<JiraFetchResponse>;
 }
 
@@ -218,6 +219,7 @@ export interface JiraRoadmapReaderOptions {
   maxRetries?: number;
   retryBaseDelayMs?: number;
   maxRetryDelayMs?: number;
+  requestTimeoutMs?: number;
 }
 
 function retryAfterMs(response: JiraFetchResponse, nowMs: number): number | undefined {
@@ -250,8 +252,10 @@ export function createJiraRoadmapReader(options: JiraRoadmapReaderOptions = {}):
   const maxRetries = Math.min(4, Math.max(0, Math.trunc(options.maxRetries ?? 2)));
   const retryBaseDelayMs = Math.max(0, options.retryBaseDelayMs ?? 250);
   const maxRetryDelayMs = Math.max(0, options.maxRetryDelayMs ?? 10_000);
+  const requestTimeoutMs = Math.min(60_000, Math.max(250, options.requestTimeoutMs ?? 10_000));
   const cache = new Map<string, { expiresAt: number; value: JiraRoadmapResult }>();
   const inflight = new Map<string, Promise<JiraRoadmapResult>>();
+  let generation = 0;
 
   const keyFor = (cfg: JiraRoadmapConfig) => {
     const account = createHash('sha256').update(cfg.email).digest('hex').slice(0, 16);
@@ -266,7 +270,10 @@ export function createJiraRoadmapReader(options: JiraRoadmapReaderOptions = {}):
 
     for (let page = 0; page < maxPages && issues.length < maxIssues; page += 1) {
       const body: Record<string, unknown> = {
-        jql: `project = ${cfg.projectKey} ORDER BY rank ASC, updated DESC`,
+        // Rank is a Jira Software custom field and is not guaranteed to exist
+        // for every project. Use a universal system field for the transport
+        // default; the console exposes explicit user-controlled sorting.
+        jql: `project = ${cfg.projectKey} ORDER BY updated DESC`,
         fields: [
           'summary', 'status', 'priority', 'assignee', 'issuetype', 'parent',
           'labels', 'created', 'updated', 'duedate',
@@ -277,16 +284,29 @@ export function createJiraRoadmapReader(options: JiraRoadmapReaderOptions = {}):
 
       let response: JiraFetchResponse;
       for (let attempt = 0; ; attempt += 1) {
-        response = await fetchImpl(`${cfg.baseUrl}/rest/api/3/search/jql`, {
-          method: 'POST',
-          headers: {
-            Authorization: `Basic ${Buffer.from(`${cfg.email}:${cfg.apiToken}`).toString('base64')}`,
-            Accept: 'application/json',
-            'Content-Type': 'application/json',
-            'User-Agent': 'port-daddy-roadmap-read',
-          },
-          body: JSON.stringify(body),
-        });
+        try {
+          response = await fetchImpl(`${cfg.baseUrl}/rest/api/3/search/jql`, {
+            method: 'POST',
+            headers: {
+              Authorization: `Basic ${Buffer.from(`${cfg.email}:${cfg.apiToken}`).toString('base64')}`,
+              Accept: 'application/json',
+              'Content-Type': 'application/json',
+              'User-Agent': 'port-daddy-roadmap-read',
+            },
+            body: JSON.stringify(body),
+            signal: AbortSignal.timeout(requestTimeoutMs),
+          });
+        } catch {
+          const delayMs = retryBaseDelayMs * (2 ** attempt);
+          const canRetry = attempt < maxRetries
+            && Number.isFinite(delayMs)
+            && delayMs <= maxRetryDelayMs;
+          if (!canRetry) {
+            throw new JiraRoadmapError('Jira issue search request failed');
+          }
+          await sleep(delayMs);
+          continue;
+        }
         if (response.ok) break;
 
         const transient = response.status === 429
@@ -353,16 +373,23 @@ export function createJiraRoadmapReader(options: JiraRoadmapReaderOptions = {}):
       const pending = inflight.get(key);
       if (pending) return pending;
 
+      const requestGeneration = generation;
       const request = readFresh(cfg)
         .then((value) => {
-          cache.set(key, { expiresAt: now() + ttlMs, value });
+          if (generation === requestGeneration) {
+            cache.set(key, { expiresAt: now() + ttlMs, value });
+          }
           return value;
-        })
-        .finally(() => inflight.delete(key));
+        });
       inflight.set(key, request);
+      const cleanup = () => {
+        if (inflight.get(key) === request) inflight.delete(key);
+      };
+      void request.then(cleanup, cleanup);
       return request;
     },
     clear() {
+      generation += 1;
       cache.clear();
       inflight.clear();
     },

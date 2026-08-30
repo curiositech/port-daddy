@@ -81,8 +81,9 @@ describe('Jira roadmap reader', () => {
     expect(calls).toHaveLength(2);
     expect(calls[0].url).toBe('https://acme.atlassian.net/rest/api/3/search/jql');
     const firstBody = JSON.parse(calls[0].init.body);
-    expect(firstBody.jql).toBe('project = ROAD ORDER BY rank ASC, updated DESC');
+    expect(firstBody.jql).toBe('project = ROAD ORDER BY updated DESC');
     expect(firstBody.fields).toContain('assignee');
+    expect(typeof calls[0].init.signal?.addEventListener).toBe('function');
     expect(JSON.parse(calls[1].init.body).nextPageToken).toBe('page-two');
     expect(result).toMatchObject({
       source: 'jira', projectKey: 'ROAD', baseUrl: CONFIG.baseUrl, fetchedAt: 1234,
@@ -122,6 +123,76 @@ describe('Jira roadmap reader', () => {
     const cached = await reader.read(CONFIG);
     expect(calls).toBe(1);
     expect(cached.cached).toBe(true);
+  });
+
+  test('clear prevents an older pending read from replacing or untracking the new generation', async () => {
+    const releases = [];
+    let calls = 0;
+    const fetchImpl = async () => {
+      calls += 1;
+      return new Promise((resolve) => { releases.push(resolve); });
+    };
+    const reader = createJiraRoadmapReader({ fetchImpl, ttlMs: 60_000 });
+
+    const stale = reader.read(CONFIG);
+    await Promise.resolve();
+    reader.clear();
+    const current = reader.read(CONFIG);
+    await Promise.resolve();
+    expect(calls).toBe(2);
+
+    releases[1](response(200, { issues: [issue('ROAD-NEW')], isLast: true }));
+    await expect(current).resolves.toMatchObject({ issues: [{ key: 'ROAD-NEW' }] });
+    releases[0](response(200, { issues: [issue('ROAD-OLD')], isLast: true }));
+    await expect(stale).resolves.toMatchObject({ issues: [{ key: 'ROAD-OLD' }] });
+
+    const cached = await reader.read(CONFIG);
+    expect(calls).toBe(2);
+    expect(cached).toMatchObject({ cached: true, issues: [{ key: 'ROAD-NEW' }] });
+  });
+
+  test('retries bounded transport failures without echoing their details', async () => {
+    const delays = [];
+    let calls = 0;
+    const reader = createJiraRoadmapReader({
+      fetchImpl: async () => {
+        calls += 1;
+        if (calls === 1) throw new Error('socket included private-tenant-name');
+        return response(200, { issues: [issue('ROAD-9')], isLast: true });
+      },
+      sleep: async (delayMs) => { delays.push(delayMs); },
+      retryBaseDelayMs: 75,
+      maxRetries: 1,
+      requestTimeoutMs: 500,
+    });
+
+    const result = await reader.read(CONFIG);
+    expect(calls).toBe(2);
+    expect(delays).toEqual([75]);
+    expect(result.issues.map((item) => item.key)).toEqual(['ROAD-9']);
+  });
+
+  test('bounds a terminal transport error after the configured attempts', async () => {
+    let calls = 0;
+    const reader = createJiraRoadmapReader({
+      fetchImpl: async () => {
+        calls += 1;
+        throw new Error('socket included private-tenant-name');
+      },
+      sleep: async () => {},
+      maxRetries: 1,
+    });
+
+    let failure;
+    try {
+      await reader.read(CONFIG);
+    } catch (error) {
+      failure = error;
+    }
+    expect(failure).toBeInstanceOf(JiraRoadmapError);
+    expect(failure.message).toContain('request failed');
+    expect(failure.message).not.toContain('private-tenant-name');
+    expect(calls).toBe(2);
   });
 
   test('honors Retry-After and bounds retries for transient Jira responses', async () => {

@@ -610,7 +610,7 @@ export const roadmapPlugin: FastifyPluginAsync<{ deps: RoadmapDeps }> = async (f
         source: 'jira',
         configured: true,
         projectKey: state.config.projectKey,
-        error: error instanceof JiraRoadmapError || error instanceof Error
+        error: error instanceof JiraRoadmapError
           ? error.message
           : 'Jira roadmap read failed',
       };
