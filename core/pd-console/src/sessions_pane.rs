@@ -369,11 +369,7 @@ impl SessionsPane {
     /// sends; an actor id is not globally addressable by an arbitrary daemon.
     pub fn selected_active_agent_target(&self) -> Option<(String, String)> {
         let session = self.selected().filter(|session| session.status == "active")?;
-        if self
-            .selected_location_id
-            .as_deref()
-            .is_some_and(|location_id| location_id != session.primary_location_id)
-        {
+        if self.selected_location_id.as_deref() != Some(session.primary_location_id.as_str()) {
             return None;
         }
         let agent_id = session.agent_id.trim();
@@ -409,10 +405,8 @@ impl SessionsPane {
             .map(|session| session.id.clone());
     }
     fn inspector(&self, session: &SessionEntry) -> Vec<Block> {
-        let ownership_changed = self
-            .selected_location_id
-            .as_deref()
-            .is_some_and(|location_id| location_id != session.primary_location_id);
+        let ownership_changed =
+            self.selected_location_id.as_deref() != Some(session.primary_location_id.as_str());
         let workspace = [
             session.worktree_root.as_str(),
             session.branch.as_str(),
@@ -868,6 +862,22 @@ mod tests {
         let mut pane = SessionsPane {
             selected_id: Some("session-1".into()),
             selected_location_id: Some("profile:old-owner".into()),
+            ..SessionsPane::default()
+        };
+        pane.sessions = vec![SessionEntry::from_value(&session_value())];
+        assert_eq!(pane.selected_active_agent_target(), None);
+        assert!(pane.view().iter().any(|block| matches!(
+            block,
+            Block::KeyVal(key, value)
+                if key == "control" && value.contains("select this row again")
+        )));
+    }
+
+    #[test]
+    fn requires_confirmation_before_upgrading_a_legacy_session_only_selection() {
+        let mut pane = SessionsPane {
+            selected_id: Some("session-1".into()),
+            selected_location_id: None,
             ..SessionsPane::default()
         };
         pane.sessions = vec![SessionEntry::from_value(&session_value())];

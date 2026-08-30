@@ -78,9 +78,9 @@
         "cwd": "/Users/erichowens/coding/tmp/pd-console-agent-switcher-20260830"
       },
       {
-        "cmd": "cargo test --manifest-path core/pd-console/Cargo.toml --bin pd-console-repl sessions_pane",
+        "cmd": "cargo test -p pd-console sessions_pane::tests",
         "exitCode": 0,
-        "cwd": "/Users/erichowens/coding/tmp/pd-console-agent-switcher-20260830"
+        "cwd": "/Users/erichowens/coding/tmp/pd-console-agent-switcher-20260830/core"
       },
       {
         "cmd": "PORT_DADDY_URL=http://127.0.0.1:19993 core/target/debug/pd-console-repl --capture-agents artifacts/pd-console-agent-switcher/agents-520px.png --capture-width 520",
@@ -153,8 +153,8 @@
         "passed": true
       },
       {
-        "name": "Agents pane parsing, ledger inspection, transcript receipts, and explicit cross-berth rebind confirmation",
-        "command": "cargo test --manifest-path core/pd-console/Cargo.toml --bin pd-console-repl sessions_pane",
+        "name": "Agents pane parsing, ledger inspection, transcript receipts, explicit cross-berth rebind confirmation, and fail-closed legacy selection upgrade",
+        "command": "cargo test -p pd-console sessions_pane::tests",
         "exitCode": 0,
         "passed": true
       },
@@ -182,7 +182,7 @@
         "passed": true
       }
     ],
-    "manualVerification": "macOS Screen Recording and Accessibility permission blocked an automated click-through capture of the live GPUI framebuffer. The checked-in proof therefore uses pd-console's real Block projection against the live development daemon at 520px; the HTML-only layout-overflow checker cannot geometrically inspect a native GPUI or PNG surface. A reviewer should click an active row in a permitted build and confirm that Mission chat reaches the selected actor. The full Node inventory ran under the repository's Node 22 ABI; its feature-specific contract findings were fixed and rechecked. Hosted review additionally found that a saved conversation could silently resolve through another surviving berth; the selection file now preserves both session and berth identity, and a four-test Rust suite proves chat remains unbound until the operator confirms that switch."
+    "manualVerification": "macOS Screen Recording and Accessibility permission blocked an automated click-through capture of the live GPUI framebuffer. The checked-in proof therefore uses pd-console's real Block projection against the live development daemon at 520px; the HTML-only layout-overflow checker cannot geometrically inspect a native GPUI or PNG surface. A reviewer should click an active row in a permitted build and confirm that Mission chat reaches the selected actor. The full Node inventory ran under the repository's Node 22 ABI; its feature-specific contract findings were fixed and rechecked. Hosted review additionally found that a saved conversation could silently resolve through another surviving berth; the selection file now preserves both session and berth identity, and a five-test Rust suite proves chat remains unbound until the operator confirms that switch. Legacy session-only selection files are also inspect-only until the operator confirms the owning berth."
   },
   "spend": {
     "wallClockMs": 2560752
@@ -211,10 +211,10 @@
     "verified": false
   },
   "provenance": {
-    "contentHash": "sha256:c0de17fa5cc2c6f49a8162f977b4ae28c377545dd0f91ffef8d45218939f059a",
+    "contentHash": "sha256:0783d5795e10b0598975762e50d2a67f5b80d7c0df8235baa9dc5eeebf3a16e1",
     "signedBy": "codex:session-build-the-authoritative-cross-backend-pd-console-1fc9a67c401a",
     "signatureAlg": "none",
-    "timestamp": "2026-08-30T13:42:02Z",
-    "replayCommand": "npm test -- --runInBand tests/unit/daemon-profiles.test.js tests/unit/operator-session-directory.test.ts tests/unit/operator-routes.test.js && npm run typecheck && CARGO_BUILD_JOBS=2 cargo check --manifest-path core/pd-console/Cargo.toml --bin pd-console --features gpui && cargo test --manifest-path core/pd-console/Cargo.toml --bin pd-console-repl sessions_pane"
+    "timestamp": "2026-08-30T14:31:00Z",
+    "replayCommand": "npm test -- --runInBand tests/unit/daemon-profiles.test.js tests/unit/operator-session-directory.test.ts tests/unit/operator-routes.test.js && npm run typecheck && CARGO_BUILD_JOBS=2 cargo check --manifest-path core/pd-console/Cargo.toml --bin pd-console --features gpui && cd core && cargo test -p pd-console sessions_pane::tests"
   }
 }
