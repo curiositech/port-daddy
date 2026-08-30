@@ -1,37 +1,48 @@
-% Semantic contract: local key evidence is complete; cross-operator principal
-% binding is the single missing capability.
+% Figure IV.4 --- proof spans reveal the exact cross-operator gap.
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}[
-  font=\small,
-  row/.style={draw=hhink,line width=.5pt,minimum width=45mm,minimum height=9.5mm,
-    text width=42mm,inner sep=4pt,align=left,font=\scriptsize},
-  cell/.style={draw=hhink,line width=.5pt,minimum width=26mm,minimum height=9.5mm,
-    inner sep=4pt,align=center,font=\scriptsize},
-  head/.style={font=\scriptsize\bfseries,align=center,text width=24mm}
-]
-  \node[head,text width=42mm] at (-4.0,2.35) {identity evidence};
-  \node[head] at (-.35,2.35) {Alice\\local};
-  \node[head] at (2.35,2.35) {Bob\\local};
-  \node[head] at (5.05,2.35) {cross-\\operator};
-  \foreach \y/\itemtext in {1.35/daemon-minted key,.35/actor-to-key registry,-.65/witness-log integrity,-1.65/accountable principal binding}
-    \node[row] at (-4.0,\y) {\itemtext};
-  \foreach \x in {-.35,2.35} {
-    \node[cell,fill=hhsand!22] at (\x,1.35) {established};
-    \node[cell,fill=hhsand!22] at (\x,.35) {established};
-    \node[cell,fill=hhsand!22] at (\x,-.65) {established};
-    \node[cell,fill=hhsand!22] at (\x,-1.65) {established};
-  }
-  \node[cell,fill=hhsand!22] at (5.05,1.35) {key visible};
-  \node[cell,fill=hhsand!38] at (5.05,.35) {foreign registry};
-  \node[cell,fill=hhsand!22] at (5.05,-.65) {log verifiable};
-  \node[cell,fill=hhamber!22,draw=hhamber,line width=1pt,font=\bfseries\scriptsize]
-    at (5.05,-1.65) {MISSING};
-  \node[font=\scriptsize\itshape,text=hhgray,align=center] at (.55,-2.65)
-    {integrity proves what was recorded; it does not establish who controls a foreign key};
-\end{tikzpicture}
-\caption{Both operators have complete local identity evidence. Across operators,
-keys and logs remain inspectable, but the binding from a foreign key to a distinct
-accountable principal is missing. Log integrity cannot supply that capability.}
+\resizebox{0.93\textwidth}{!}{%
+\begin{tikzpicture}[pd figure]
+  \node[pd panel title,anchor=west] at (-6.5,2.8)
+    {what survives when the counterparty controls the foreign daemon?};
+  \fill[hhsand!12] (-6.5,-2.3) rectangle (0,2.25);
+  \fill[hhsand!5] (0,-2.3) rectangle (6.5,2.25);
+  \draw[pd caution rule,dashed] (0,-2.55)--(0,2.55);
+  \node[pd direct label,text=hhamber,fill=white,inner sep=1.5pt,rotate=90]
+    at (0,.98) {operator boundary};
+  \node[pd axis label] at (-3.25,2.40) {Alice's trusted daemon};
+  \node[pd axis label] at (3.25,2.40) {Bob's foreign view};
+  \foreach \y/\lab in {1.50/daemon-minted key,.45/append-only history,-.60/foreign registry,-1.65/accountable principal binding}
+    \node[pd direct label,anchor=east] at (-4.25,\y) {\lab};
+
+  \draw[pd focus rule,line width=1.25pt] (-4.00,1.50)--(4.45,1.50);
+  \node[pd focus datum] at (-4.00,1.50) {};
+  \node[pd focus datum] at (4.45,1.50) {};
+  \node[pd note,anchor=west] at (4.72,1.50) {signature checks};
+  \draw[pd focus rule,line width=1.25pt] (-4.00,.45)--(4.45,.45);
+  \node[pd focus datum] at (-4.00,.45) {};
+  \node[pd focus datum] at (4.45,.45) {};
+  \node[pd note,anchor=west] at (4.72,.45) {inclusion verifies};
+  \draw[pd rule] (-4.00,-.60)--(4.45,-.60);
+  \node[pd datum] at (-4.00,-.60) {};
+  \node[pd datum] at (4.45,-.60) {};
+  \node[pd note,anchor=west] at (4.72,-.60) {registry inspectable};
+
+  \draw[pd focus rule,line width=1.25pt] (-4.00,-1.65)--(-.45,-1.65);
+  \draw[pd caution rule,dashed,line width=1.25pt] (.45,-1.65)--(4.45,-1.65);
+  \draw[pd caution rule,line width=1.1pt] (-.25,-1.92)--(.25,-1.38);
+  \draw[pd caution rule,line width=1.1pt] (-.25,-1.38)--(.25,-1.92);
+  \node[pd caution datum] at (4.45,-1.65) {};
+  \node[pd direct label,text=hhamber,anchor=west] at (4.72,-1.65)
+    {no foreign binding proof};
+  \node[pd note,text=hhamber] at (1.0,-2.72)
+    {log integrity proves what was recorded; it does not prove who controls the key};
+\end{tikzpicture}}
+\caption{\textbf{Visibility crosses the boundary; accountable-principal binding
+does not.} Bob can verify Alice's key signature, append-only history, and registry
+entry. Those proof spans continue across the boundary. The load-bearing bottom
+span ends: none establishes that the foreign key belongs to one distinct principal
+rather than a sock-puppet set. The missing capability is therefore a boundary
+proof, not another local database field.}
 \label{fig:he-keystone-split}
 \end{figure}

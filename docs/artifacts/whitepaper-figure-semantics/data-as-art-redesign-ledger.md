@@ -474,6 +474,199 @@ false reading that the selected geometry must prevent.
 - Color job: amber is active fraudulent contribution and propagation delay; teal
   is the corrected score after receipt.
 
+## Volume IV — The Harbor Economy
+
+### IV.1 — market dependency section (`fig:he-stack-map`)
+
+- Reader question: which already-earned substrates carry market claims, and where
+  does the market still depend on an unbuilt cross-operator proof?
+- Selected grammar: stratigraphic evidence section with a vertical load path and
+  one visible amber fault at the federation boundary.
+- Rejected alternative: four full-width prose rungs; it made hierarchy dominate
+  dependency and spent most of the canvas restating chapter summaries.
+- False reading to prevent: chapter order is a maturity score, or the bond ledger
+  alone supports trade among mutually distrusting operators.
+- Color job: teal is inherited, evidenced support; amber is the unresolved
+  cross-operator load path.
+
+### IV.2 — three economic sides (`fig:he-three-sided`)
+
+- Reader question: how can one technical agent become three different economic
+  goods with different private information and exposure?
+- Selected grammar: three aligned exposure profiles converging on one conserved
+  settlement baseline.
+- Rejected alternative: three labeled input boxes feeding an escrow box; it named
+  the sides but did not reveal how their risk profiles differ.
+- False reading to prevent: labor, rented capital, and licensed IP are UI tabs or
+  interchangeable sellers. Each profile has a different information and loss axis.
+- Color job: neutral profiles distinguish the three goods; teal is the single
+  conserved close and amber marks exposure at risk.
+
+### IV.3 — float-plan atomicity (`fig:he-float-plan`)
+
+- Reader question: exactly which state transition makes execution admissible?
+- Selected grammar: synchronized wallet, escrow, and worker-state traces across an
+  atomic commit boundary.
+- Rejected alternative: requester/daemon/worker sequence boxes; it showed message
+  order but made the no-spawn invariant a caption claim.
+- False reading to prevent: signed intent or a debit attempt is enough to start
+  work. The worker trace changes state only after the committed escrow row exists.
+- Color job: teal is committed admissibility; amber is the aborted/nonexistent
+  execution branch.
+
+### IV.4 — identity keystone (`fig:he-keystone-split`)
+
+- Reader question: which identity evidence crosses the market boundary, and which
+  load-bearing proof stops there?
+- Selected grammar: proof-span rails across a marked operator boundary, with the
+  principal-binding rail ending in an explicit gap.
+- Rejected alternative: evidence-by-domain matrix; it made a missing theorem look
+  like one unfilled administrative cell.
+- False reading to prevent: a visible foreign key or verifiable log binds that key
+  to one distinct accountable principal.
+- Color job: teal spans are independently checkable evidence; amber is the missing
+  principal-binding span.
+
+### IV.5 — conservation and conversion (`fig:he-conservation-functor`)
+
+- Reader question: where is value exactly conserved, and where must an external
+  valuation assumption enter?
+- Selected grammar: a native-unit balance waterfall paired with a conversion
+  boundary carrying explicit fee, slippage, and exposure deltas.
+- Rejected alternative: state boxes and a valuation-passport box; it represented
+  accounting as architecture rather than quantities that close.
+- False reading to prevent: compositional notation creates a unit-free scalar
+  portfolio total.
+- Color job: teal closes the native-unit balance at zero; amber exposes every
+  non-native valuation term.
+
+### IV.6 — capability transfer (`fig:fh-xfer`)
+
+- Reader question: how does authority attenuate across the four-message ceremony,
+  and at what step does the hot path stop depending on Harbor A?
+- Selected grammar: message timeline aligned to a shrinking capability-envelope
+  profile and a reachback-dependency rail.
+- Rejected alternative: four lifelines plus two prose callout boxes; the messages
+  were visible but attenuation and hot-path independence were not.
+- False reading to prevent: transfer copies the original capability or every use
+  synchronously calls the source harbor.
+- Color job: teal is validated attenuation and destination-local verification;
+  amber is the stale-epoch revocation exposure.
+
+### IV.7 — federation topology (`fig:fh-topology`)
+
+- Reader question: what is shared between two sovereign harbors without making
+  either one the other's authority?
+- Selected grammar: mirrored sovereignty columns crossed by two independent public
+  rails: witness correlation above and conditional settlement below.
+- Rejected alternative: four-element box topology with labels on curved paths; it
+  tangled protocol traffic, authority, and custody into one ornamental diagram.
+- False reading to prevent: the witness log authorizes work or the escrow supplies
+  identity. The rails have distinct jobs and neither harbor controls the other.
+- Color job: teal is verifiable public correlation; amber is conditional custody.
+
+### IV.8 — conditional settlement (`fig:fh-settlement`)
+
+- Reader question: which transition restriction bounds custody loss, and what
+  happens if an operator can bypass it?
+- Selected grammar: paired outcome-state graphs for non-bypassable and bypassable
+  custody, aligned to worst-case loss.
+- Rejected alternative: actor lanes enclosed by a custody rectangle; the geometry
+  asserted a boundary without testing the counterfactual where it fails.
+- False reading to prevent: 2-of-3 signing by itself proves the loss bound. The
+  bound follows only from whitelist, fee cap, and one terminal transition.
+- Color job: teal is the Clear/Refuse partition; amber is the bypass-to-full-loss
+  counterexample.
+
+### IV.9 — revocation propagation (`fig:fh-revocation`)
+
+- Reader question: which verifier remains stale at each round, and how large is
+  the spendable revocation window?
+- Selected grammar: time-by-harbor staleness heatmap with a stepped synchronization
+  frontier.
+- Rejected alternative: nine labeled state cells and diagonal arrows; it encoded
+  the heatmap as boxes and obscured exposure duration.
+- False reading to prevent: expected logarithmic dissemination is a deadline, or a
+  shared witness implies a global clock.
+- Color job: amber area is spendable stale exposure; teal area is synchronized
+  refusal, with the frontier position redundantly carrying the state.
+
+### IV.10 — threat assurance landscape (`fig:fh-threat-bands`)
+
+- Reader question: how far toward mechanized assurance has each threat advanced,
+  and what condition blocks further movement?
+- Selected grammar: ordered assurance dot plot with confidence intervals and
+  direct failure-condition labels.
+- Rejected alternative: mechanized/bounded/open table; it was a colored prose
+  spreadsheet that hid the corpus-wide distribution.
+- False reading to prevent: bounded means solved, or every row can move left by
+  writing more prose. Movement requires a new artifact or theorem.
+- Color job: teal marks mechanized evidence; amber marks conditional or open
+  endpoints, redundantly separated along the assurance axis.
+
+### IV.11 — grading mechanisms (`fig:he-grading-oracle`)
+
+- Reader question: which evaluation mechanism minimizes capture for a given level
+  of criterion observability?
+- Selected grammar: observability-versus-discretion scatter with uncertainty halos
+  and a lower-envelope design frontier.
+- Rejected alternative: four shaded quadrants; quadrant labels became a substitute
+  for the relationships and created arbitrary categorical boundaries.
+- False reading to prevent: an evaluator is safe merely because its signal is
+  public, or every subjective task can be made deterministic.
+- Color job: teal is the defensible lower frontier; amber is capture exposure.
+
+### IV.12 — cold-start phase transition (`fig:he-cold-start`)
+
+- Reader question: what measured quantity triggers the subsidy flip, and how does
+  the price schedule respond?
+- Selected grammar: two aligned plots sharing settled outcomes: realized liquidity
+  above and the platform subsidy schedule below.
+- Rejected alternative: one filled S-curve divided into labeled regions; it mixed
+  the measured state with the policy applied to it.
+- False reading to prevent: the regime flips on a calendar or must eventually flip.
+  If liquidity never crosses the threshold, subsidy remains recoverable and active.
+- Color job: teal is observed liquidity; amber is the subsidy/threshold policy.
+
+### IV.13 — static bond versus underwriting (`fig:auction-inline`)
+
+- Reader question: how do static escrow and competitive underwriting trade tied-up
+  capital against tail coverage?
+- Selected grammar: capital-efficiency frontier with a static-reserve point and an
+  underwriting curve constrained by reserve adequacy.
+- Rejected alternative: two thick horizontal bars on a coverage rail; it showed
+  amounts but not the economic trade-off or the tail constraint.
+- False reading to prevent: a low premium replaces worst-case reserves. It only
+  reallocates who carries the tail.
+- Color job: teal is adequately reserved coverage; amber is the under-reserved
+  tail region.
+
+### IV.14 — cartel stability (`fig:cartel-game-inline`)
+
+- Reader question: which combinations of detection probability and loss make
+  collusion unsustainable?
+- Selected grammar: two-parameter phase diagram with the deterrence boundary
+  $V_C=\pi_D$.
+- Rejected alternative: a single payoff curve over the product $p_dL$; it hid that
+  different policy levers can reach the same deterrence product.
+- False reading to prevent: monitoring frequency alone defeats cartels, or the
+  boundary is a moral balance rather than a repeated-game inequality.
+- Color job: teal is the deviation-dominant region; amber is the cartel-sustainable
+  region and boundary.
+
+### IV.15 — purchased assurance (`fig:he-assurance`)
+
+- Reader question: what risk reduction is purchased by each additional independent
+  reviewer, and at what cumulative cost?
+- Selected grammar: one risk-cost Pareto trajectory with reviewer count labeled at
+  every operating point.
+- Rejected alternative: separate risk and cost panels; the reader had to mentally
+  join two plots to see the purchase frontier.
+- False reading to prevent: headcount buys geometric assurance without independence
+  and deterrence. A visible collapse-to-$k=1$ counterpoint preserves that limit.
+- Color job: teal is the valid independent-review frontier; amber is the shared-
+  blind-spot collapse.
+
 ## Corpus-wide controls
 
 - Neutral ink carries structure. Teal means verified, selected, conserved, or
