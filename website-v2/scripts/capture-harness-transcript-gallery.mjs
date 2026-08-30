@@ -295,7 +295,8 @@ if (mainHarnessUrl) {
     await page.waitForTimeout(4200);
 
     await page.getByRole('button', { name: /06 · shared decision/i }).click();
-    await workbench.locator('.ph-title', { hasText: 'A plan changes under three distinct roles.' }).waitFor();
+    await workbench.getByRole('heading', { name: 'A plan changes under three distinct roles.' }).waitFor();
+    await workbench.locator('.ph-title').waitFor();
     await workbench.locator('.ph-speed-chip', { hasText: '2×' }).click();
     await page.waitForTimeout(4200);
 
