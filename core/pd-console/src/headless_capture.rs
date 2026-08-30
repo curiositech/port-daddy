@@ -906,6 +906,12 @@ fn glyph(ch: char) -> [u8; 7] {
         ],
         '·' | '•' => [0, 0, 0b01110, 0b01110, 0b01110, 0, 0],
         '%' => [0b11001, 0b11010, 0b00100, 0b01000, 0b01011, 0b10011, 0],
+        '█' => [
+            0b11111, 0b11111, 0b11111, 0b11111, 0b11111, 0b11111, 0b11111,
+        ],
+        '▓' => [
+            0b10101, 0b11111, 0b01010, 0b11111, 0b10101, 0b11111, 0b01010,
+        ],
         _ => [
             0b11111, 0b10001, 0b10001, 0b10001, 0b10001, 0b10001, 0b11111,
         ], // unknown → box
@@ -1290,6 +1296,15 @@ mod geom_tests {
             .filter(|&(x, y)| c.pixel(x, y) != bg)
             .count();
         assert!(painted > 500, "too few painted pixels: {painted}");
+    }
+
+    #[test]
+    fn gantt_block_glyphs_have_native_quality_proof_raster_shapes() {
+        let solid = glyph('█');
+        let shaded = glyph('▓');
+        assert!(solid.iter().all(|row| *row == 0b11111));
+        assert_ne!(solid, shaded, "critical and slack bars must stay distinct");
+        assert!(shaded.iter().all(|row| *row != 0));
     }
 
     #[test]

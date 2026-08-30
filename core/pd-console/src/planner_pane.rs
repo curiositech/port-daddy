@@ -732,10 +732,12 @@ impl PlannerPane {
                     let lead = (r.start * BAR_CELLS / span) as usize;
                     let fill =
                         (((r.finish - r.start) * BAR_CELLS + span - 1) / span).max(1) as usize;
-                    // ASCII bars are deliberate: every renderer, including
-                    // the TCC-independent proof raster and emergency terminal,
-                    // can display them without missing-glyph boxes.
-                    let glyph = if r.critical { '#' } else { '=' };
+                    // Preserve the polished native distinction between a solid
+                    // critical path and a shaded non-critical path. The
+                    // deterministic proof raster carries explicit bitmap glyphs
+                    // for both characters, so visual proof does not dictate a
+                    // lower-quality alphabet for GPUI or the terminal renderer.
+                    let glyph = if r.critical { '█' } else { '▓' };
                     let bar = format!("{}{}", " ".repeat(lead), glyph.to_string().repeat(fill));
                     let claim = self
                         .claims
@@ -1548,12 +1550,12 @@ mod tests {
         };
         let long_bar = bar("c-long");
         assert!(
-            long_bar.contains('#') && !long_bar.contains('='),
+            long_bar.contains('█') && !long_bar.contains('▓'),
             "critical bar must render solid: {long_bar:?}"
         );
         let short_bar = bar("b-short");
         assert!(
-            short_bar.contains('=') && !short_bar.contains('#'),
+            short_bar.contains('▓') && !short_bar.contains('█'),
             "slack bar must render hatched, not solid: {short_bar:?}"
         );
     }
@@ -1827,7 +1829,7 @@ mod tests {
         assert!(rows.len() >= 4, "axis rows + bar rows expected");
         assert!(rows[0][1].starts_with("today"));
         assert!(rows[1][1].starts_with('|'));
-        assert!(rows[2][1].contains('#') || rows[3][1].contains('#'));
+        assert!(rows[2][1].contains('█') || rows[3][1].contains('█'));
     }
 
     #[test]
@@ -1849,7 +1851,7 @@ mod tests {
         // Bar rows render with critical fill for the critical chain.
         assert!(blocks
             .iter()
-            .any(|b| matches!(b, Block::Row(c) if c.len() == 3 && c[1].contains('#'))));
+            .any(|b| matches!(b, Block::Row(c) if c.len() == 3 && c[1].contains('█'))));
     }
 
     #[test]
