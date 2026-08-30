@@ -13,9 +13,11 @@ use futures_util::{stream, StreamExt};
 use serde_json::Value;
 use std::cmp::Ordering;
 use std::collections::{BTreeSet, HashMap};
+use std::time::Duration;
 
 const SESSION_JOIN_FAST_PATH_LIMIT: usize = 1_000;
 const SESSION_DETAIL_CONCURRENCY: usize = 8;
+const SESSION_DETAIL_TIMEOUT: Duration = Duration::from_secs(5);
 
 #[derive(Debug, Clone, Default)]
 struct SessionMeta {
@@ -84,13 +86,30 @@ async fn fetch_session_meta(
     base: String,
     session_id: String,
 ) -> std::result::Result<(String, SessionMeta), (String, String)> {
+    fetch_session_meta_with_timeout(client, base, session_id, SESSION_DETAIL_TIMEOUT).await
+}
+
+async fn fetch_session_meta_with_timeout(
+    client: reqwest::Client,
+    base: String,
+    session_id: String,
+    timeout: Duration,
+) -> std::result::Result<(String, SessionMeta), (String, String)> {
     let url =
         session_detail_url(&base, &session_id).map_err(|error| (session_id.clone(), error))?;
     let response = client
         .get(url)
+        .timeout(timeout)
         .send()
         .await
-        .map_err(|error| (session_id.clone(), format!("request failed: {error}")))?;
+        .map_err(|error| {
+            let reason = if error.is_timeout() {
+                format!("timed out after {} ms", timeout.as_millis())
+            } else {
+                format!("request failed: {error}")
+            };
+            (session_id.clone(), reason)
+        })?;
     let status = response.status();
     if !status.is_success() {
         return Err((session_id, format!("returned {status}")));
@@ -740,6 +759,21 @@ mod tests {
         (base, handle)
     }
 
+    fn stalled_session_daemon(hold: Duration) -> (String, thread::JoinHandle<()>) {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind stalled session daemon");
+        let base = format!(
+            "http://{}",
+            listener.local_addr().expect("stalled daemon address")
+        );
+        let handle = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("accept stalled request");
+            let mut request = [0_u8; 8_192];
+            let _ = stream.read(&mut request).expect("read stalled request");
+            thread::sleep(hold);
+        });
+        (base, handle)
+    }
+
     fn entry(path: &str, purpose: &str, claimed_at: i64) -> ClaimEntry {
         let mut sessions = HashMap::new();
         sessions.insert(
@@ -803,6 +837,28 @@ mod tests {
             url.as_str(),
             "http://127.0.0.1:43127/sessions/session%2Fwith%20space"
         );
+    }
+
+    #[tokio::test]
+    async fn exact_session_recovery_has_its_own_bounded_deadline() {
+        let (base, server) = stalled_session_daemon(Duration::from_millis(100));
+        let client = reqwest::Client::builder()
+            .timeout(Duration::from_secs(2))
+            .build()
+            .expect("claims test client");
+
+        let error = fetch_session_meta_with_timeout(
+            client,
+            base,
+            "session-stalled".into(),
+            Duration::from_millis(25),
+        )
+        .await
+        .expect_err("stalled exact recovery must time out");
+        server.join().expect("stalled session daemon");
+
+        assert_eq!(error.0, "session-stalled");
+        assert_eq!(error.1, "timed out after 25 ms");
     }
 
     #[tokio::test]

@@ -1981,6 +1981,63 @@ mod tests {
         )));
     }
 
+    #[tokio::test]
+    async fn jira_priority_and_assignee_sorts_follow_the_visible_order() {
+        let mut pane = PlannerPane::default();
+        pane.jira_loaded = true;
+        pane.jira_configured = true;
+        let mut critical = jira_item(
+            "HARBOR-22",
+            "Critical issue owned by Grace",
+            "2026-08-28T12:00:00.000+0000",
+        );
+        critical.priority = "Critical".into();
+        critical.assignee = "Grace Hopper".into();
+        let mut low = jira_item(
+            "HARBOR-11",
+            "Low issue owned by Ada",
+            "2026-08-29T12:00:00.000+0000",
+        );
+        low.priority = "Low".into();
+        low.assignee = "Ada Lovelace".into();
+        pane.jira_items = vec![low, critical];
+        let daemon = DaemonClient::new("http://127.0.0.1:9".into());
+
+        pane.mutate(
+            &daemon,
+            SurfaceAction::Sort {
+                key: "priority".into(),
+            },
+        )
+        .await
+        .unwrap();
+        pane.mutate(&daemon, SurfaceAction::SelectRow { index: 0 })
+            .await
+            .unwrap();
+        assert_eq!(pane.selected_jira_key.as_deref(), Some("HARBOR-22"));
+
+        pane.mutate(
+            &daemon,
+            SurfaceAction::Sort {
+                key: "assignee".into(),
+            },
+        )
+        .await
+        .unwrap();
+        pane.mutate(&daemon, SurfaceAction::SelectRow { index: 0 })
+            .await
+            .unwrap();
+        assert_eq!(pane.selected_jira_key.as_deref(), Some("HARBOR-11"));
+        assert!(pane.jira_blocks().iter().any(|block| matches!(
+            block,
+            Block::LedgerHeader {
+                active_sort,
+                descending: false,
+                ..
+            } if active_sort == "assignee"
+        )));
+    }
+
     /// Epoch ms of `now + days` — the same shape `lib/roadmap-items.ts` stores
     /// for `startedAt`/`dueAt` (see `PlannerItem::from_value`'s doc comment).
     fn ms_days_from_now(days: i64) -> i64 {

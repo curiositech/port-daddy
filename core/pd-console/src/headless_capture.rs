@@ -1342,6 +1342,36 @@ mod geom_tests {
     }
 
     #[test]
+    fn ledger_header_reserves_and_paints_every_sort_control() {
+        let columns = vec![
+            ("path".into(), "Path".into()),
+            ("owner".into(), "Owner".into()),
+            ("phase".into(), "Phase".into()),
+        ];
+        let canvas = render_blocks(
+            &[Block::LedgerHeader {
+                surface: "claims".into(),
+                columns,
+                active_sort: "owner".into(),
+                descending: true,
+            }],
+            &DARK,
+            180,
+        );
+
+        assert_eq!(
+            canvas.h,
+            HEADER_H + PAD + 3 * 22 + FOOTER_H + PAD,
+            "each sort control needs a complete geometry row"
+        );
+        assert_eq!(
+            canvas.pixel(PAD, HEADER_H + PAD + 22 + 10),
+            to_rgb(DARK.accent),
+            "the active sort row must retain its visible accent marker"
+        );
+    }
+
+    #[test]
     fn narrow_inspector_canvas_expands_vertically_for_every_visible_line() {
         let value = "FILE\n/Users/erichowens/coding/tmp/port-daddy-dispatch-2593fc6c/core/pd-console/src/claims_pane.rs::ClaimsPane::refresh";
         let width = 180;
