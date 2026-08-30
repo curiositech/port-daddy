@@ -797,11 +797,11 @@ mod tests {
 
     #[test]
     fn exact_session_url_encodes_the_server_supplied_id_as_one_segment() {
-        let url = session_detail_url("http://127.0.0.1:9876/", "session/with space")
+        let url = session_detail_url("http://127.0.0.1:43127/", "session/with space")
             .expect("session detail URL");
         assert_eq!(
             url.as_str(),
-            "http://127.0.0.1:9876/sessions/session%2Fwith%20space"
+            "http://127.0.0.1:43127/sessions/session%2Fwith%20space"
         );
     }
 
