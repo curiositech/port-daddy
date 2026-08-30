@@ -187,7 +187,7 @@ describe('whitepaper metadata sync', () => {
   test('audited Legible metadata names the collected-volume edition', () => {
     const byId = new Map(WHITE_PAPERS.map((paper) => [paper.id, paper]))
     expect(byId.get('legible-swarm')).toMatchObject({
-      pages: 47,
+      pages: 46,
       status: 'Version 1.2 (collected-volume edition)',
     })
   })

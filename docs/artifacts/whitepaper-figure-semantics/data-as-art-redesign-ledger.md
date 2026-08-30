@@ -1012,3 +1012,29 @@ not a license to skip page-level review.
   as an analytical substrate.
 - Generated art begins with zero entitlement to a page. It must survive a
   separate editorial-plate review and can never substitute for analytical marks.
+
+## Corpus integration receipt
+
+- Publication set: seven chapter PDFs plus one collected edition, rebuilt from
+  detached commit `4474d4e571e607d37a307eeb66b72c28ac2fd6f0` in
+  `/Users/erichowens/coding/tmp/pd-whitepaper-final-origin-main-build-20260829`.
+  The detached build excludes the separately owned, uncommitted Figure I.6 edit.
+- Final chapter facts: Volume I 46 pages / 890 KiB; Volume II 40 / 718 KiB;
+  Volume III 41 / 749 KiB; Volume IV 37 / 723 KiB; Volume V 28 / 697 KiB;
+  Volume VI 52 / 908 KiB; Volume VII 31 / 673 KiB.
+- Collected edition: 276 pages / 31,614 KiB. The jacket, inside-jacket image,
+  Chapter VII plate, and selected coda plates use `keepaspectratio`; they are not
+  trimmed, clipped, recolored, or overprinted.
+- Editorial boundary: illustration appears only in jacket, chapter-plate, and
+  coda roles. No analytical figure uses scenic art as evidence.
+- Appendix exception: exact method/result/artifact registries remain tables when
+  the reader's task is keyed retrieval. Analytical comparison remains in the
+  corresponding figure.
+- Terminal TeX logs contain no overfull box, undefined reference, multiply
+  defined label, PGF, undefined-control-sequence, emergency-stop, or fatal-error
+  hit. Metadata, palette, chapter metadata tests, and collected-volume generator
+  tests pass.
+- Human-copy gate: the structural and rubric-guided judge passes report zero
+  findings for the changed corpus prose. The operator-banned phrase is absent
+  from every chapter source, the collected edition, publication metadata, figure
+  captions/comments, and this ledger.
