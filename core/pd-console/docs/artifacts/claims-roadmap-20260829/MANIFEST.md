@@ -7,10 +7,14 @@ Captured 2026-08-29 and re-proved 2026-08-30 from branch
 ## Runtime witness
 
 - Exact-source development daemon: `claims-roadmap-20260829`
-- Exact source revision: `76b925455`
+- Exact source revision: `d6e8737d6`
 - Daemon URL: `http://127.0.0.1:19958`
+- Proof-time PID: `96263`
 - Source directory reported by `/health`:
   `/Users/erichowens/coding/tmp/pd-console-claims-roadmap-20260829`
+- `/health` reported tier `codebase`, branch
+  `codex/pd-console-claims-roadmap-20260829`, `canonical: false`, and no binary
+  drift between the running and on-disk compiled daemon
 - Live `/files` cohort rendered by Claims: 372 active claims
 - Live `/roadmap/jira`: configured `false`, with the four managed FleetBar
   credential keys named and no secret values exposed
@@ -42,6 +46,77 @@ the repository's render-agnostic `Block` raster against the live exact-source
 daemon. Every image carries the `HEADLESS CAPTURE` title and footer watermark.
 The roadmap images are top-viewport crops of the complete raster so a 590-item
 local roadmap does not turn the review artifact into a 24,000-pixel scroll.
+
+## Reproduction recipe
+
+Run these commands from the repository root after building the release REPL.
+The sibling scratch directory remains under `/Users/erichowens/coding/tmp`
+when the worktree does, so this recipe never depends on purge-prone system temp
+storage.
+
+```bash
+artifact_dir="core/pd-console/docs/artifacts/claims-roadmap-20260829"
+scratch_dir="../pd-console-claims-roadmap-proof"
+mkdir -p "$scratch_dir"
+
+PORT_DADDY_URL=http://127.0.0.1:19958 core/target/release/pd-console-repl \
+  --capture-claims "$artifact_dir/claims-ledger-wide.png" \
+  --capture-sort path --capture-select 0 --capture-ledger-rows 6 \
+  --capture-width 1180
+
+PORT_DADDY_URL=http://127.0.0.1:19958 core/target/release/pd-console-repl \
+  --capture-claims "$artifact_dir/claims-ledger-owner-sort.png" \
+  --capture-sort owner --capture-select 0 --capture-ledger-rows 6 \
+  --capture-width 1180
+
+PORT_DADDY_URL=http://127.0.0.1:19958 core/target/release/pd-console-repl \
+  --capture-claims "$artifact_dir/claims-ledger-narrow.png" \
+  --capture-sort path --capture-select 0 --capture-ledger-rows 6 \
+  --capture-width 520
+
+PORT_DADDY_URL=http://127.0.0.1:19958 core/target/release/pd-console-repl \
+  --capture-planner "$scratch_dir/roadmap-wide-complete.png" \
+  --capture-ledger-rows 8 --capture-width 1180
+magick "$scratch_dir/roadmap-wide-complete.png" \
+  -crop 1180x1700+0+0 +repage "$artifact_dir/roadmap-wide.png"
+
+PORT_DADDY_URL=http://127.0.0.1:19958 core/target/release/pd-console-repl \
+  --capture-planner "$scratch_dir/roadmap-narrow-complete.png" \
+  --capture-ledger-rows 8 --capture-width 520
+magick "$scratch_dir/roadmap-narrow-complete.png" \
+  -crop 520x2320+0+0 +repage "$artifact_dir/roadmap-narrow.png"
+```
+
+The `+0+0` ImageMagick geometry is intentional: it selects the top-left
+viewport containing the Planner header and source controls. The macOS `sips`
+crop command centers these very tall rasters and must not be substituted here.
+Create the two Claims GIF frames, losslessly optimize the checked-in PNGs, then
+assemble the motion proof:
+
+```bash
+magick "$artifact_dir/claims-ledger-wide.png" \
+  -crop 1180x1700+0+0 +repage "$scratch_dir/claims-path-top.png"
+magick "$artifact_dir/claims-ledger-owner-sort.png" \
+  -crop 1180x1700+0+0 +repage "$scratch_dir/claims-owner-top.png"
+
+for proof_png in \
+  "$artifact_dir/claims-ledger-wide.png" \
+  "$artifact_dir/claims-ledger-owner-sort.png" \
+  "$artifact_dir/claims-ledger-narrow.png" \
+  "$artifact_dir/roadmap-wide.png" \
+  "$artifact_dir/roadmap-narrow.png"
+do
+  optimized_png="${proof_png%.png}.zopfli.png"
+  zopflipng -y "$proof_png" "$optimized_png"
+  mv "$optimized_png" "$proof_png"
+done
+
+magick -delay 170 -loop 0 \
+  "$scratch_dir/claims-path-top.png" \
+  "$scratch_dir/claims-owner-top.png" \
+  "$artifact_dir/roadmap-wide.png" \
+  -resize 70% -layers Optimize "$artifact_dir/proof.gif"
+```
 
 The persistent capture entry points are:
 
