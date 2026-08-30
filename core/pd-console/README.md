@@ -30,6 +30,19 @@ The normal journey needs no terminal vocabulary:
    checks arrive.
 4. Open the attached pull request from the same screen.
 
+## Native terminal drawer
+
+The **>_ CLI** control raises one persistent login shell over the current Work
+context; `Ctrl-A` then <code>`</code> is the keyboard equivalent. Drag the named
+**RESIZE** edge to change its height. The PTY row count follows the authored
+height immediately, so full-screen commands reflow instead of being clipped.
+
+Wheel or trackpad input moves through retained shell history. While history is
+raised, the header shows the exact offset and a **RETURN LIVE** control; typing
+also returns to the live prompt. In alternate-screen programs such as `less` or
+`vim`, wheel rows are forwarded as up/down navigation rather than pretending the
+shell's primary scrollback is visible.
+
 ## Mission flow
 
 ![Mission-first Work screen](../../docs/artifacts/gpui/mission-first-running.png)

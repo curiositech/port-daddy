@@ -31,7 +31,7 @@ use crate::mux::{default_operator_workspace, Dir, Node, PaneId, SurfaceKind, Wor
 use crate::palette::{Theme, ThemeMode};
 use crate::pane::{Alert, AlertLevel, Block, OperatorTurn, Pane, Tone};
 use crate::shell_drawer::{
-    terminal_key_bytes, ShellEvent, ShellStatus, ShellTerminal, TerminalColor,
+    terminal_key_bytes, ShellDrawerGeometry, ShellEvent, ShellStatus, ShellTerminal, TerminalColor,
 };
 use crate::story_linework::{corner_ticks, micro_flag, state_stripe};
 use crate::tokens;
@@ -591,6 +591,33 @@ struct DragState {
     path: Vec<usize>,
     left: usize,
     dir: Dir,
+}
+
+/// Immutable origin of one terminal-drawer resize gesture.
+///
+/// The handle moves whenever the drawer is re-laid out, so resize math cannot
+/// safely accumulate deltas from that moving element. Window-space pointer and
+/// visible-height anchors keep upward, downward, and direction-reversing drags
+/// symmetric until the root releases capture.
+#[derive(Debug, Clone, Copy)]
+struct ShellResizeDrag {
+    pointer_start_y: f32,
+    drawer_start_height_px: f32,
+}
+
+/// GPUI drag token for the terminal edge. Unlike a normal bubbling mouse-move
+/// listener, `on_drag_move` delivers this gesture in the capture phase even
+/// while the pointer is over the drawer's intentionally occluding contents.
+#[derive(Debug, Clone, Copy)]
+struct ShellResizeGesture;
+
+/// Invisible drag image: the authored drawer edge itself is the feedback.
+struct ShellResizePreview;
+
+impl Render for ShellResizePreview {
+    fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
+        div().w(px(1.0)).h(px(1.0)).opacity(0.0)
+    }
 }
 
 /// One named tab — an independent pane tree, plus an optional zoomed (maximized)
@@ -2197,6 +2224,12 @@ pub struct ConsoleView {
     shell: ShellTerminal,
     /// Whether the PTY surface is currently raised over the pane tree.
     shell_open: bool,
+    /// Operator-controlled drawer height. Geometry stays separate from the PTY
+    /// model so a resize can synchronously update both authored pixels and rows.
+    shell_geometry: ShellDrawerGeometry,
+    /// Immutable gesture origin captured at drawer-edge mouse-down. `None` is
+    /// also the pointer-capture truth: no resize gesture is active.
+    shell_resize_drag: Option<ShellResizeDrag>,
 }
 
 /// One opened editor surface: the persistent pane (buffer + claims + wedge)
@@ -2539,6 +2572,8 @@ impl ConsoleView {
             editors: HashMap::new(),
             shell,
             shell_open: std::env::var("PD_CONSOLE_OPEN_CLI").is_ok(),
+            shell_geometry: ShellDrawerGeometry::default(),
+            shell_resize_drag: None,
         }
     }
 
@@ -2946,7 +2981,12 @@ impl ConsoleView {
             "g" => toggle_theme(),
             // The PTY is global chrome, not a pane: it rises over any operator
             // surface and preserves its process when hidden.
-            "`" | "grave" => self.shell_open = !self.shell_open,
+            "`" | "grave" => {
+                self.shell_open = !self.shell_open;
+                if !self.shell_open {
+                    self.shell_resize_drag = None;
+                }
+            }
             // Maximize / restore the focused pane.
             "z" => {
                 let id = self.ws().focused();
@@ -3014,6 +3054,9 @@ impl ConsoleView {
         modifiers: Modifiers,
         cx: &mut Context<Self>,
     ) {
+        // Reading retained output is sticky across new PTY bytes, but explicit
+        // keyboard input means the operator has resumed the live conversation.
+        self.shell.scroll_to_live();
         if let Some(bytes) = terminal_key_bytes(
             key,
             typed,
@@ -7834,10 +7877,57 @@ fn shell_failure_strip(
         .into_any_element()
 }
 
-fn render_shell_drawer(view: &ConsoleView, cx: &mut Context<ConsoleView>) -> AnyElement {
+const SHELL_ROW_HEIGHT_PX: f32 = 17.0;
+const SHELL_RESIZE_HANDLE_HEIGHT_PX: f32 = 12.0;
+const SHELL_HEADER_HEIGHT_PX: f32 = 34.0;
+const SHELL_FOOTER_HEIGHT_PX: f32 = 28.0;
+const SHELL_OUTPUT_PADDING_PX: f32 = 16.0;
+const SHELL_FAILURE_STRIP_HEIGHT_PX: f32 = 60.0;
+const SHELL_RECEIPT_STRIP_HEIGHT_PX: f32 = 56.0;
+
+/// Estimate the non-terminal height currently occupying the drawer.
+///
+/// These values mirror the authored GPUI elements below. Including transient
+/// failure and recovery strips keeps the PTY's row count honest when evidence
+/// appears instead of silently clipping rows behind operator-facing receipts.
+fn shell_drawer_chrome_height(view: &ConsoleView) -> f32 {
+    SHELL_RESIZE_HANDLE_HEIGHT_PX
+        + SHELL_HEADER_HEIGHT_PX
+        + SHELL_FOOTER_HEIGHT_PX
+        + SHELL_OUTPUT_PADDING_PX
+        + if view.shell.failure().is_some() {
+            SHELL_FAILURE_STRIP_HEIGHT_PX
+        } else {
+            0.0
+        }
+        + if view.shell.recovery_failure().is_some() {
+            SHELL_FAILURE_STRIP_HEIGHT_PX
+        } else {
+            0.0
+        }
+        + if view.shell.previous_receipt().is_some() {
+            SHELL_RECEIPT_STRIP_HEIGHT_PX
+        } else {
+            0.0
+        }
+}
+
+/// Render the one persistent terminal surface at its already-resolved height.
+///
+/// `terminal_rows` is calculated before this function and sent to the native
+/// PTY in the same render pass. The renderer therefore cannot show a geometry
+/// that disagrees with what an interactive child process believes it owns.
+fn render_shell_drawer(
+    view: &ConsoleView,
+    drawer_height_px: f32,
+    terminal_rows: u16,
+    cx: &mut Context<ConsoleView>,
+) -> AnyElement {
     let t = current_theme();
     let (shell_rows, shell_cols) = view.shell.size();
     let live = view.shell.is_live();
+    let history_offset = view.shell.scrollback_offset();
+    let show_cursor = live && history_offset == 0;
     let status_color = match view.shell.status() {
         ShellStatus::Starting => t.engaged,
         ShellStatus::Running => t.landed,
@@ -7855,8 +7945,13 @@ fn render_shell_drawer(view: &ConsoleView, cx: &mut Context<ConsoleView>) -> Any
     let previous_receipt = view.shell.previous_receipt().cloned();
     let terminal_failure = view.shell.failure().cloned();
     let recovery_failure = view.shell.recovery_failure().cloned();
+    let output_stripe_height = (drawer_height_px
+        - SHELL_RESIZE_HANDLE_HEIGHT_PX
+        - SHELL_HEADER_HEIGHT_PX
+        - SHELL_FOOTER_HEIGHT_PX)
+        .max(1.0);
 
-    let lines = view.shell.styled_lines(15);
+    let lines = view.shell.styled_lines(terminal_rows as usize);
     let output_rows = lines.into_iter().map(|line| {
         let mut highlights: Vec<(std::ops::Range<usize>, HighlightStyle)> = line
             .spans
@@ -7879,7 +7974,7 @@ fn render_shell_drawer(view: &ConsoleView, cx: &mut Context<ConsoleView>) -> Any
                 )
             })
             .collect();
-        if live {
+        if show_cursor {
             if let Some(cursor) = line.cursor.filter(|range| !range.is_empty()) {
                 highlights.push((
                     cursor,
@@ -7892,7 +7987,7 @@ fn render_shell_drawer(view: &ConsoleView, cx: &mut Context<ConsoleView>) -> Any
             }
         }
         div()
-            .h(px(17.0))
+            .h(px(SHELL_ROW_HEIGHT_PX))
             .w_full()
             .flex_shrink_0()
             .pl(px(10.0))
@@ -7917,7 +8012,7 @@ fn render_shell_drawer(view: &ConsoleView, cx: &mut Context<ConsoleView>) -> Any
         .left(px(16.0))
         .right(px(16.0))
         .bottom(px(64.0))
-        .h(px(360.0))
+        .h(px(drawer_height_px))
         .occlude()
         .flex()
         .flex_col()
@@ -7928,6 +8023,69 @@ fn render_shell_drawer(view: &ConsoleView, cx: &mut Context<ConsoleView>) -> Any
             blur_radius: px(28.0),
             spread_radius: px(1.0),
         }])
+        // A real, named affordance replaces the old invisible fixed-height
+        // boundary. Root-level pointer tracking below keeps the resize alive
+        // even when the pointer leaves this twelve-pixel hit target.
+        .child(
+            div()
+                .id("cli-drawer-resize-handle")
+                .h(px(SHELL_RESIZE_HANDLE_HEIGHT_PX))
+                .w_full()
+                .flex_shrink_0()
+                .occlude()
+                .flex()
+                .items_center()
+                .justify_center()
+                .gap(px(7.0))
+                .cursor(CursorStyle::ResizeUpDown)
+                .border_b_1()
+                .border_color(rgb(t.line))
+                .bg(rgb(t.panel))
+                .text_color(rgb(t.muted))
+                .font_family("IBM Plex Mono")
+                .font_weight(FontWeight::SEMIBOLD)
+                .text_size(px(9.0))
+                .hover(|style| style.bg(rgb(t.raised)).text_color(rgb(t.accent_ink)))
+                .child(div().w(px(38.0)).h(px(2.0)).bg(rgb(t.line)))
+                .child("RESIZE")
+                .child(div().w(px(38.0)).h(px(2.0)).bg(rgb(t.line)))
+                .on_drag(
+                    ShellResizeGesture,
+                    |_gesture, _position, _window, cx| cx.new(|_| ShellResizePreview),
+                )
+                .on_mouse_down(
+                    MouseButton::Left,
+                    cx.listener(
+                        |this, event: &MouseDownEvent, window, cx| {
+                            let viewport_height_px = f32::from(window.viewport_size().height);
+                            this.shell_resize_drag = Some(ShellResizeDrag {
+                                pointer_start_y: f32::from(event.position.y),
+                                drawer_start_height_px: this
+                                    .shell_geometry
+                                    .height_px(viewport_height_px),
+                            });
+                            cx.notify();
+                            cx.stop_propagation();
+                        },
+                    ),
+                )
+                .on_mouse_up(
+                    MouseButton::Left,
+                    cx.listener(|this, _event: &MouseUpEvent, _window, cx| {
+                        if this.shell_resize_drag.take().is_some() {
+                            cx.notify();
+                        }
+                    }),
+                )
+                .on_mouse_up_out(
+                    MouseButton::Left,
+                    cx.listener(|this, _event: &MouseUpEvent, _window, cx| {
+                        if this.shell_resize_drag.take().is_some() {
+                            cx.notify();
+                        }
+                    }),
+                ),
+        )
         // One large color zone: command context. The rest of the terminal stays
         // quiet enough that state stripes and actual ANSI output can speak.
         .child(
@@ -7964,6 +8122,32 @@ fn render_shell_drawer(view: &ConsoleView, cx: &mut Context<ConsoleView>) -> Any
                         .text_size(px(12.0))
                         .child(view.shell.status_label()),
                 )
+                .when(history_offset > 0, |header| {
+                    header.child(
+                        div()
+                            .id("cli-return-live")
+                            .ml(px(10.0))
+                            .px(px(7.0))
+                            .h(px(22.0))
+                            .flex()
+                            .items_center()
+                            .border_1()
+                            .border_color(rgb(0xffffff))
+                            .bg(rgba(0x00000022))
+                            .cursor_pointer()
+                            .font_family("IBM Plex Mono")
+                            .font_weight(FontWeight::BOLD)
+                            .text_size(px(10.0))
+                            .hover(|style| style.bg(rgba(0xffffff22)))
+                            .child(format!(
+                                "HISTORY ↑ {history_offset} · RETURN LIVE"
+                            ))
+                            .on_click(cx.listener(|this, _event, _window, cx| {
+                                this.shell.scroll_to_live();
+                                cx.notify();
+                            })),
+                    )
+                })
                 .child(
                     div()
                         .id("cycle-cli-receipt-retention")
@@ -8013,6 +8197,7 @@ fn render_shell_drawer(view: &ConsoleView, cx: &mut Context<ConsoleView>) -> Any
                         .child("×")
                         .on_click(cx.listener(|this, _event, _window, cx| {
                             this.shell_open = false;
+                            this.shell_resize_drag = None;
                             cx.notify();
                         })),
                 ),
@@ -8023,7 +8208,47 @@ fn render_shell_drawer(view: &ConsoleView, cx: &mut Context<ConsoleView>) -> Any
                 .overflow_hidden()
                 .flex()
                 .bg(rgb(t.sunken))
-                .child(state_stripe("cli-output-state", status_color, 3.0, 256.0))
+                .on_scroll_wheel(cx.listener(
+                    move |this, event: &ScrollWheelEvent, _window, cx| {
+                        let pixels = match event.delta {
+                            ScrollDelta::Pixels(delta) => f32::from(delta.y),
+                            ScrollDelta::Lines(delta) => delta.y * SHELL_ROW_HEIGHT_PX,
+                        };
+                        let alternate_screen = this.shell.is_alternate_screen();
+                        let rows = this
+                            .shell
+                            .scroll_wheel_pixels(pixels, SHELL_ROW_HEIGHT_PX);
+                        if alternate_screen && rows != 0 {
+                            let key = if rows > 0 { "up" } else { "down" };
+                            if let Some(sequence) =
+                                terminal_key_bytes(key, None, false, false, false, false)
+                            {
+                                let repeats = rows
+                                    .unsigned_abs()
+                                    .min(u32::from(terminal_rows))
+                                    as usize;
+                                if !this.shell.send(sequence.repeat(repeats)) {
+                                    this.control_flash = Some(
+                                        "PTY_INPUT_CHANNEL_CLOSED · wheel navigation did not reach the shell · next: relaunch pd-console"
+                                            .into(),
+                                    );
+                                }
+                            }
+                        }
+                        if rows != 0 {
+                            cx.notify();
+                        }
+                        // The terminal is an occluding surface. Its wheel must
+                        // never leak through and move the pane underneath it.
+                        cx.stop_propagation();
+                    },
+                ))
+                .child(state_stripe(
+                    "cli-output-state",
+                    status_color,
+                    3.0,
+                    output_stripe_height,
+                ))
                 .child(
                     div()
                         .flex_1()
@@ -8155,23 +8380,31 @@ impl Render for ConsoleView {
         // viewport-width change (resize / pane reflow → left/right); scrolling
         // feeds vy via on_scroll_wheel. A width change kicks the settle loop,
         // which decays the velocity over subsequent frames (cx.on_next_frame).
-        {
-            let vw = f32::from(window.viewport_size().width);
-            if self.prev_viewport_w == 0.0 {
-                self.prev_viewport_w = vw;
-            }
-            let dvw = vw - self.prev_viewport_w;
-            self.prev_viewport_w = vw;
-            if dvw.abs() > 0.5 {
-                self.flag_motion.vx = (self.flag_motion.vx + dvw / 60.0).clamp(-1.6, 1.6);
-                self.kick_flag_motion(window, cx);
-            }
-            // Keep the native PTY and vt100 model aligned with the drawer's
-            // measured text width. Resize is idempotent and only emits when the
-            // column count changes, so ordinary renders do not write to the PTY.
-            let shell_cols = ((vw - 52.0) / 7.8).floor().clamp(40.0, 220.0) as u16;
-            let _ = self.shell.resize(15, shell_cols);
+        let viewport_size = window.viewport_size();
+        let viewport_width_px = f32::from(viewport_size.width);
+        let viewport_height_px = f32::from(viewport_size.height);
+        if self.prev_viewport_w == 0.0 {
+            self.prev_viewport_w = viewport_width_px;
         }
+        let dvw = viewport_width_px - self.prev_viewport_w;
+        self.prev_viewport_w = viewport_width_px;
+        if dvw.abs() > 0.5 {
+            self.flag_motion.vx = (self.flag_motion.vx + dvw / 60.0).clamp(-1.6, 1.6);
+            self.kick_flag_motion(window, cx);
+        }
+        // Keep the native PTY, vt100 model, and authored drawer geometry in one
+        // render transaction. Resize is idempotent, so ordinary renders emit no
+        // PTY control message when rows and columns are unchanged.
+        let shell_drawer_height_px = self.shell_geometry.height_px(viewport_height_px);
+        let shell_terminal_rows = self.shell_geometry.terminal_rows(
+            viewport_height_px,
+            shell_drawer_chrome_height(self),
+            SHELL_ROW_HEIGHT_PX,
+        );
+        let shell_cols = ((viewport_width_px - 52.0) / 7.8)
+            .floor()
+            .clamp(40.0, 220.0) as u16;
+        let _ = self.shell.resize(shell_terminal_rows, shell_cols);
 
         let daemon_url = self.daemon_url.clone();
         let focused = self.ws().focused();
@@ -8209,10 +8442,16 @@ impl Render for ConsoleView {
             None
         };
         let shell_drawer = if self.shell_open {
-            Some(render_shell_drawer(self, cx))
+            Some(render_shell_drawer(
+                self,
+                shell_drawer_height_px,
+                shell_terminal_rows,
+                cx,
+            ))
         } else {
             None
         };
+        let shell_resizing = self.shell_resize_drag.is_some();
         // The launch splash overlays everything until the first refresh lands.
         // Suppressed for the launcher screenshot hook and the PD_CONSOLE_NO_SPLASH
         // opt-out, so capture tooling / opted-out users never see the boot flash.
@@ -8227,7 +8466,35 @@ impl Render for ConsoleView {
             .track_focus(&self.focus_handle)
             .relative()
             .size_full()
+            .when(shell_resizing, |root| {
+                root.cursor(CursorStyle::ResizeUpDown)
+            })
             .font_family("IBM Plex Mono")
+            // GPUI's capture-phase drag stream is the pointer-capture contract
+            // for resizers. It keeps delivering movement over the drawer's
+            // occluding children, which makes downward motion as immediate as
+            // upward motion.
+            .on_drag_move::<ShellResizeGesture>(cx.listener(
+                |this, ev: &DragMoveEvent<ShellResizeGesture>, window, cx| {
+                    let Some(drag) = this.shell_resize_drag else {
+                        return;
+                    };
+                    if ev.event.pressed_button != Some(MouseButton::Left) || !this.shell_open {
+                        this.shell_resize_drag = None;
+                        cx.notify();
+                        return;
+                    }
+                    let current_y = f32::from(ev.event.position.y);
+                    let total_delta_y = current_y - drag.pointer_start_y;
+                    let viewport_height_px = f32::from(window.viewport_size().height);
+                    this.shell_geometry.resize_from_anchor(
+                        drag.drawer_start_height_px,
+                        total_delta_y,
+                        viewport_height_px,
+                    );
+                    cx.notify();
+                },
+            ))
             // Grab-the-rope: while a divider drag is live, map the global mouse
             // position to the split's weight fraction and resize that boundary.
             .on_mouse_move(cx.listener(|this, ev: &MouseMoveEvent, _window, cx| {
@@ -8283,6 +8550,9 @@ impl Render for ConsoleView {
                 }
             }))
             .on_mouse_up(MouseButton::Left, cx.listener(|this, _ev: &MouseUpEvent, _window, cx| {
+                if this.shell_resize_drag.take().is_some() {
+                    cx.notify();
+                }
                 if this.dragging.take().is_some() {
                     cx.notify();
                 }
@@ -8585,6 +8855,9 @@ impl Render for ConsoleView {
                             )
                             .on_click(cx.listener(|this, _event, _window, cx| {
                                 this.shell_open = !this.shell_open;
+                                if !this.shell_open {
+                                    this.shell_resize_drag = None;
+                                }
                                 cx.notify();
                             }))
                     })
