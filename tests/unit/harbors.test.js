@@ -312,7 +312,7 @@ describe('Harbors Module', () => {
 
   // ─── Enter ────────────────────────────────────────────────────────────────
 
-  describe('enter (7 tests)', () => {
+  describe('enter (8 tests)', () => {
     beforeEach(() => {
       harbors.create('myapp:test-harbor', { capabilities: ['code:read'] });
     });
@@ -331,6 +331,35 @@ describe('Harbors Module', () => {
       const harbor = harbors.get('myapp:test-harbor');
       const member = harbor.members.find(m => m.agentId === 'agent-cap');
       expect(member.capabilities).toEqual(['code:read', 'code:write']);
+    });
+
+    it('awaits the canonical capability projection while keeping entry non-fatal', async () => {
+      let projected = false;
+      harbors.setCapabilityListener(async (agentId, harborName, phrases) => {
+        await Promise.resolve();
+        expect({ agentId, harborName, phrases }).toEqual({
+          agentId: 'agent-projected',
+          harborName: 'myapp:test-harbor',
+          phrases: ['coordination planning'],
+        });
+        projected = true;
+      });
+
+      const projectedEntry = await harbors.enter('myapp:test-harbor', 'agent-projected', {
+        capabilities: ['coordination planning'],
+      });
+      expect(projectedEntry.success).toBe(true);
+      expect(projected).toBe(true);
+
+      harbors.setCapabilityListener(async () => {
+        throw new Error('sidecar unavailable');
+      });
+      const failedProjection = await harbors.enter('myapp:test-harbor', 'agent-fail-open', {
+        capabilities: ['coordination planning'],
+      });
+      expect(failedProjection.success).toBe(true);
+      expect(harbors.get('myapp:test-harbor').members.map(m => m.agentId))
+        .toContain('agent-fail-open');
     });
 
     it('should record agent identity on enter', async () => {

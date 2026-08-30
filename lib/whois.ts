@@ -30,7 +30,7 @@
  */
 
 import type Database from 'better-sqlite3';
-import type { SemanticResolver } from './semantic-resolver.js';
+import { DEFAULT_SEMANTIC_REVIEW_THRESHOLD, type SemanticResolver } from './semantic-resolver.js';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -81,6 +81,22 @@ export interface WhoisHit {
   source: WhoisSource;
 }
 
+/**
+ * Shared admission rule for product experiences that act on a phonebook hit.
+ * Exact and BM25 stages may nominate candidates for the resolver, but only a
+ * final semantic or LLM-reviewed result above the shared cosine gate can
+ * initiate coordination.
+ */
+export function isReviewedSemanticWhoisHit(
+  hit: Pick<WhoisHit, 'stage' | 'score' | 'similarity'>,
+): boolean {
+  return (hit.stage === 'semantic' || hit.stage === 'llm')
+    && Number.isFinite(hit.score)
+    && Number.isFinite(hit.similarity)
+    && hit.score >= DEFAULT_SEMANTIC_REVIEW_THRESHOLD
+    && hit.similarity >= DEFAULT_SEMANTIC_REVIEW_THRESHOLD;
+}
+
 /** Search options. */
 export interface WhoisSearchOptions {
   /** Filter by entity kind. v1 only persists agents; 'human' returns []. */
@@ -91,6 +107,13 @@ export interface WhoisSearchOptions {
   limit?: number;
   /** Override the wall clock — tests pin time for deterministic decay. */
   nowMs?: number;
+  /**
+   * Require the resolver rerank even when the query exactly names a declared
+   * capability. Raw phonebook inspection keeps its fast exact response by
+   * default; product flows that may act on a peer set this flag so the shared
+   * semantic admission rule can evaluate a real vector result.
+   */
+  semanticReview?: boolean;
   /**
    * Optional pluggable LLM tiebreak. Returns the ranked agent IDs from
    * `candidates`. Only consulted when top-2 cosine within TIEBREAK_MARGIN.
@@ -412,6 +435,7 @@ export function createWhois(db: Database.Database, deps: WhoisDeps): Whois {
 
     const limit = Math.min(Math.max(opts.limit ?? 10, 1), 100);
     const nowMs = opts.nowMs ?? Date.now();
+    const semanticReview = opts.semanticReview === true;
     const freshFloorMs = opts.freshMinSeconds
       ? Math.max(0, nowMs - opts.freshMinSeconds * 1000)
       : null;
@@ -437,7 +461,10 @@ export function createWhois(db: Database.Database, deps: WhoisDeps): Whois {
       if (freshFloorMs !== null && (hit.lastHeartbeat ?? 0) < freshFloorMs) continue;
       exactRanked.push(hit);
     }
-    if (exactRanked.length > 0) {
+    // Raw `pd whois` remains an exact phonebook lookup. A product flow that
+    // could coordinate or otherwise act on a peer must instead obtain the
+    // canonical resolver review below, even for an identical phrase.
+    if (exactRanked.length > 0 && !semanticReview) {
       exactRanked.sort((a, b) => b.score - a.score);
       return exactRanked.slice(0, limit);
     }
@@ -482,7 +509,13 @@ export function createWhois(db: Database.Database, deps: WhoisDeps): Whois {
     })).sort((a, b) => b.similarity - a.similarity);
 
     // Stage 4: LLM tiebreak (only on top-2 cosine within margin)
-    const baseStage: WhoisHit['stage'] = positiveBM25.length > 0 ? 'bm25' : 'semantic';
+    // Semantic-review callers deliberately expose the vector-reviewed stage
+    // rather than the lexical candidate-selection stage. This is not a
+    // fallback: BM25 narrows candidates, then resolver cosine supplies the
+    // score that product admission evaluates.
+    const baseStage: WhoisHit['stage'] = semanticReview
+      ? 'semantic'
+      : positiveBM25.length > 0 ? 'bm25' : 'semantic';
 
     const hits: WhoisHit[] = [];
     for (const row of reranked) {

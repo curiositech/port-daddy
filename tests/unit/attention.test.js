@@ -241,6 +241,49 @@ describe('attention.compose', () => {
     expect((rendered.match(/message-/g) || [])).toHaveLength(50);
   });
 
+  test('linework assigns conflict treatment only to exact Parley delivery types', () => {
+    const stripAnsi = (value) => value.replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, '');
+    const signal = (code) => new RegExp(`(?:██${code}|\\[${code}\\])`);
+    const renderType = (type) => stripAnsi(renderAttentionLinework({
+      success: true,
+      agentId: 'agent-x',
+      items: [{
+        source: 'channel',
+        id: `channel:${type}`,
+        agentId: 'agent-x',
+        from: 'agent-y',
+        channel: 'coordination:inconsistency',
+        type,
+        content: 'state probe',
+        contentType: 'text',
+        receivedAt: Date.now(),
+      }],
+      counts: { total: 1, inbox: 0, channels: 1, inboxUnreadRemaining: 0 },
+    }));
+
+    for (const type of [
+      'parley_summons',
+      'parley_turn',
+      'sugar_parley_note',
+      'sugar_parley_message',
+      'sugar_parley_settlement_receipt',
+    ]) {
+      expect(renderType(type)).toMatch(signal('V'));
+    }
+
+    for (const type of [
+      'parley_turn_replay',
+      'conflict-looking-note',
+      'approval_required',
+      'guard-blocked-anyway',
+    ]) {
+      const rendered = renderType(type);
+      expect(rendered).toMatch(signal('K'));
+      expect(rendered).not.toMatch(signal('V'));
+      expect(rendered).not.toMatch(signal('F'));
+    }
+  });
+
   test('empty inbox + no subscriptions → zero items', () => {
     const { attention } = setup();
     const result = attention.compose('agent-x');

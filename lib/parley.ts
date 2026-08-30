@@ -13,6 +13,7 @@ import {
   createParleyStore,
   PARLEY_STORE_POLICY,
   type AutomaticTerminalState,
+  type AddTurnInput,
   type ParleyNotificationIntent,
   type ParleyStore,
   type StoredDeliveryOverflowReceipt,
@@ -22,6 +23,28 @@ import {
 export type ParleyStatus = 'SUMMONED' | 'CONVENED' | 'COLLAPSED' | 'ESCALATED' | 'VOIDED';
 export type ParleyPerformative = 'propose' | 'critique' | 'revise' | 'agree' | 'refuse' | 'inform';
 export type ParleyTrigger = 'operator' | 'claim_overlap' | 'detector' | 'swarm_fit';
+
+/** A deliberately short, human-facing start marker for a bounded Sugar Parley. */
+export const SUGAR_PARLEY_BEGUN_FANFARE = '⚑ PARLEY BEGUN ⚑' as const;
+/** Wire-format version shared by every normal Sugar Parley card, hook, and receipt. */
+export const SUGAR_PARLEY_SCHEMA_VERSION = 1 as const;
+
+/**
+ * The sealed Sugar-first context attached to a normal Parley summons and the
+ * immediate Resolve together receipt. Keeping this shape in Parley makes the
+ * durable outbox, receipt, and attention renderer agree without Sugar owning
+ * a parallel delivery contract.
+ */
+export interface SugarParleyHookContext {
+  kind: 'sugar_parley_hook_context';
+  schemaVersion: typeof SUGAR_PARLEY_SCHEMA_VERSION;
+  origin: 'sugar-parley';
+  parleyId: string;
+  cardId: string;
+  surface: string;
+  evidenceRefs: string[];
+  message: string;
+}
 
 export interface ParleyRecord {
   parleyId: string;
@@ -50,6 +73,12 @@ export interface AutomaticParleyMetadata {
   evidenceRefs: string[];
   confidence: number;
   magnitude: number;
+  /**
+   * A durable product-level origin. Sugar writes this only after re-deriving a
+   * card from semantic and structural evidence, so inbox consumers never need
+   * to infer provenance from free text or evidence-reference shapes.
+   */
+  origin?: 'sugar-parley' | null;
   participants: ParleyParticipant[];
 }
 
@@ -157,6 +186,95 @@ export interface RespondParleyResult {
   notifyFailures: string[];
 }
 
+/** The human-facing transport input for a bounded Sugar Parley exchange. */
+export interface RespondSugarParleyMessageInput {
+  parleyId: string;
+  harbor?: string;
+  /** Credential-derived summoned actor ID. */
+  party: string;
+  message: string;
+  idempotencyKey?: string;
+}
+
+export interface SugarParleySettlementClaimUpdate {
+  sessionId: string;
+  claimRef: string;
+  released: boolean;
+}
+
+export interface SugarParleySettlementPlanUpdate {
+  sessionId: string;
+  updated: boolean;
+}
+
+/**
+ * Durable effects the session authority has already committed. Parley owns
+ * the receipt schema; Sugar supplies only this proof of exact effects.
+ */
+export interface SugarParleySettlementFinalization {
+  claimUpdates: SugarParleySettlementClaimUpdate[];
+  planUpdates: SugarParleySettlementPlanUpdate[];
+  reason: string;
+}
+
+export interface SugarParleySettlementFinalizeContext {
+  parley: ParleyRecord;
+  outcome: ParleyOutcome;
+  proposalId: string;
+  evidenceRefs: string[];
+}
+
+/**
+ * The single terminal receipt contract for normal Sugar coordination. It is
+ * written to the outbox only after `finalize` committed its durable effects.
+ */
+export interface SugarParleySettledReceipt {
+  kind: 'sugar_parley_settlement_receipt';
+  schemaVersion: 1;
+  state: 'settled';
+  origin: 'sugar-parley';
+  parleyId: string;
+  harbor: string;
+  proposalId: string;
+  surface: string;
+  evidenceRefs: string[];
+  outcome: ParleyOutcome;
+  claimUpdates: SugarParleySettlementClaimUpdate[];
+  planUpdates: SugarParleySettlementPlanUpdate[];
+  remindersSuppressed: true;
+  replayed: false;
+  reason: string;
+}
+
+/**
+ * A server-owned settlement capability for normal Sugar coordination. It is
+ * deliberately separate from the generic `resolve` escape hatch: only a
+ * unanimous, typed agreement inside an automatic session-begin convergence
+ * can collapse the Parley.
+ */
+export interface SettleAutomaticConsensusInput {
+  parleyId: string;
+  harbor?: string;
+  party: string;
+  proposalId: string;
+  content: string;
+  decision: string;
+  reason: string;
+  /**
+   * Runs under the same SQLite transaction as the second unanimous agreement.
+   * It must commit exact session effects or throw, in which case no terminal
+   * outcome, cooldown, receipt, or agreeing turn survives.
+   */
+  finalize(context: SugarParleySettlementFinalizeContext): SugarParleySettlementFinalization;
+  idempotencyKey?: string;
+}
+
+export interface SettleAutomaticConsensusResult extends RespondParleyResult {
+  outcome: ParleyOutcome | null;
+  settled: boolean;
+  settlementReceipt: SugarParleySettledReceipt | null;
+}
+
 export interface MarkSeenInput {
   parleyId: string;
   harbor?: string;
@@ -240,6 +358,7 @@ const AUTOMATIC_CALLER = 'port-daddy:parley-auto-trigger';
 
 const TERMINAL: ReadonlySet<ParleyStatus> = new Set(['COLLAPSED', 'ESCALATED', 'VOIDED']);
 const BUDGETED_PERFORMATIVES: ReadonlySet<ParleyPerformative> = new Set(['propose', 'critique', 'revise', 'inform']);
+type TurnDeliveryMode = 'raw' | 'none' | 'sugar-message';
 
 function uniqueNonEmpty(values: string[]): string[] {
   const seen = new Set<string>();
@@ -274,6 +393,50 @@ function canonicalJson(value: unknown): string {
 
 function hash(value: unknown): string {
   return createHash('sha256').update(canonicalJson(value), 'utf8').digest('hex');
+}
+
+/**
+ * Derive the stable card identifier shared by Sugar's read-only card and
+ * Parley's durable outbox. The design intentionally binds the identifier to
+ * the canonical signal rather than a process-local object or delivery retry.
+ *
+ * @param signalId - Canonical conflict-signal identity that admitted the Parley.
+ * @returns The versioned, deterministic Sugar card identifier.
+ */
+export function sugarParleyCardId(signalId: string): string {
+  return `sugar-parley-card:v${SUGAR_PARLEY_SCHEMA_VERSION}:${createHash('sha256').update(signalId, 'utf8').digest('hex')}`;
+}
+
+/**
+ * Build the one canonical human-facing Sugar hook context for both the
+ * immediate convening receipt and durable summons. Its purpose is to prevent
+ * fanfare, identity, and evidence details from drifting across those paths.
+ *
+ * @param input - Already-authoritative Parley and signal facts to project.
+ * @returns A sealed, versioned context ready for receipt or outbox delivery.
+ */
+export function createSugarParleyHookContext(input: {
+  parleyId: string;
+  signalId: string;
+  surface: string;
+  evidenceRefs: readonly string[];
+}): SugarParleyHookContext {
+  const parleyId = input.parleyId?.trim();
+  const signalId = input.signalId?.trim();
+  const surface = input.surface?.trim();
+  if (!parleyId || !signalId || !surface) {
+    throw new Error('createSugarParleyHookContext: parleyId, signalId, and surface are required');
+  }
+  return {
+    kind: 'sugar_parley_hook_context',
+    schemaVersion: SUGAR_PARLEY_SCHEMA_VERSION,
+    origin: 'sugar-parley',
+    parleyId,
+    cardId: sugarParleyCardId(signalId),
+    surface,
+    evidenceRefs: canonicalSet([...input.evidenceRefs]),
+    message: `${SUGAR_PARLEY_BEGUN_FANFARE} A bounded Sugar Parley is active. Reply in natural language, keep the shared surface in view, and settle with the typed receipt.`,
+  };
 }
 
 export function automaticParleyId(harbor: string, idempotencyKey: string): string {
@@ -400,9 +563,24 @@ export function createParley(deps: ParleyDeps) {
         continue;
       }
       try {
+        // The durable outbox retains its small historical event enum. Sugar's
+        // sealed facade still gives normal inbox readers product-level types,
+        // so they never need to decode `inform`/`agree` plumbing.
+        const payloadKind = typeof message.payload.kind === 'string' ? message.payload.kind : null;
+        const payloadSchemaVersion = message.payload.schemaVersion;
+        const inboxType = payloadKind === 'sugar_parley_message'
+          && payloadSchemaVersion === 1
+          && message.payload.origin === 'sugar-parley'
+          ? payloadKind
+          : payloadKind === 'sugar_parley_settlement_receipt'
+            && payloadSchemaVersion === 1
+            && message.payload.origin === 'sugar-parley'
+            && message.payload.state === 'settled'
+            ? payloadKind
+            : message.eventType;
         const result = sendOnce(message.inboxTarget, message.payload, {
           from: message.fromActorId,
-          type: message.eventType,
+          type: inboxType,
           contentType: 'json',
           deliveryKey: message.deliveryKey,
         });
@@ -446,6 +624,14 @@ export function createParley(deps: ParleyDeps) {
   }
 
   function summonsNotifications(record: ParleyRecord, recipients: Array<{ actorId: string; inboxTarget: string }>): ParleyNotificationIntent[] {
+    const sugarHookContext = record.automatic?.origin === 'sugar-parley'
+      ? createSugarParleyHookContext({
+        parleyId: record.parleyId,
+        signalId: record.automatic.signalId,
+        surface: record.surface,
+        evidenceRefs: record.automatic.evidenceRefs,
+      })
+      : null;
     return recipients.map((recipient) => ({
       deliveryKey: `parley_summons:${record.parleyId}:${recipient.actorId}`,
       recipientActorId: recipient.actorId,
@@ -463,6 +649,10 @@ export function createParley(deps: ParleyDeps) {
         responseDueAt: record.responseDueAt,
         roundLimit: record.roundLimit,
         at: record.createdAt,
+        // Hook consumers can render this as a distinct coordination frame
+        // without reverse-engineering automatic metadata or showing raw
+        // Parley protocol verbs in the normal agent experience.
+        sugarHookContext,
       },
     }));
   }
@@ -570,6 +760,7 @@ export function createParley(deps: ParleyDeps) {
       evidenceRefs,
       confidence: input.automatic.confidence,
       magnitude: input.automatic.magnitude,
+      origin: input.automatic.origin === 'sugar-parley' ? ('sugar-parley' as const) : null,
       participants,
     };
     const callFingerprint = hash([
@@ -742,7 +933,11 @@ export function createParley(deps: ParleyDeps) {
     return snapshots.map(summarize);
   }
 
-  function respond(input: RespondParleyInput): RespondParleyResult {
+  function respondInternal(
+    input: RespondParleyInput,
+    automaticConsensus: NonNullable<AddTurnInput['automaticConsensus']> | null = null,
+    deliveryMode: TurnDeliveryMode = 'raw',
+  ): RespondParleyResult {
     const parleyId = input.parleyId?.trim();
     if (!parleyId) throw new Error('parley.respond: parleyId is required');
     const harborName = harbor(input.harbor);
@@ -787,26 +982,44 @@ export function createParley(deps: ParleyDeps) {
       evidenceRefs,
       idempotencyKey,
       intentFingerprint,
-      notifications: (sequence, committedAt) => recipients.map((recipient) => ({
-        deliveryKey: `parley_turn:${parleyId}:${sequence}:${recipient.actorId}`,
-        recipientActorId: recipient.actorId,
-        inboxTarget: recipient.inboxTarget!,
-        fromActorId: party,
-        eventType: 'parley_turn',
-        payload: {
-          kind: 'parley_turn',
-          harbor: harborName,
-          parleyId,
-          surface: snapshot.parley.surface,
-          channel: snapshot.parley.channel,
-          party,
-          performative: input.performative,
-          content,
-          proposalId,
-          evidenceRefs,
-          at: committedAt,
-        },
-      })),
+      notifications: (sequence, committedAt) => {
+        if (deliveryMode === 'none') return [];
+        return recipients.map((recipient) => ({
+          deliveryKey: `parley_turn:${parleyId}:${sequence}:${recipient.actorId}`,
+          recipientActorId: recipient.actorId,
+          inboxTarget: recipient.inboxTarget!,
+          fromActorId: party,
+          eventType: 'parley_turn' as const,
+          payload: deliveryMode === 'sugar-message'
+            ? {
+              kind: 'sugar_parley_message',
+              schemaVersion: 1,
+              origin: 'sugar-parley',
+              parleyId,
+              cardId: sugarParleyCardId(snapshot.parley.automatic!.signalId),
+              surface: snapshot.parley.surface,
+              fromActorId: party,
+              message: content,
+              evidenceRefs,
+              turnSequence: sequence,
+              at: committedAt,
+            }
+            : {
+              kind: 'parley_turn',
+              harbor: harborName,
+              parleyId,
+              surface: snapshot.parley.surface,
+              channel: snapshot.parley.channel,
+              party,
+              performative: input.performative,
+              content,
+              proposalId,
+              evidenceRefs,
+              at: committedAt,
+            },
+        }));
+      },
+      ...(automaticConsensus ? { automaticConsensus } : {}),
     });
     const delivery = notificationDelivery(harborName);
     if (!result.turn) {
@@ -827,6 +1040,172 @@ export function createParley(deps: ParleyDeps) {
       notifyFailures: delivery.failures
         .filter((item) => deliveryKeys.has(item.deliveryKey))
         .map((item) => `${item.actorId}: ${item.error}`),
+    };
+  }
+
+  function respond(input: RespondParleyInput): RespondParleyResult {
+    return respondInternal(input);
+  }
+
+  /**
+   * Sealed normal-language transport for a card-derived Sugar Parley. The
+   * durable turn remains an `inform` internally, but recipients receive a
+   * typed Sugar message rather than protocol vocabulary or a raw turn shape.
+   */
+  function respondSugarParleyMessage(
+    input: RespondSugarParleyMessageInput,
+  ): RespondParleyResult {
+    const parleyId = input.parleyId?.trim();
+    if (!parleyId) throw new Error('parley.respondSugarParleyMessage: parleyId is required');
+    const harborName = harbor(input.harbor);
+    const snapshot = store.getSnapshot(harborName, parleyId);
+    if (!snapshot) throw new Error(`parley.respondSugarParleyMessage: parley '${parleyId}' not found in harbor '${harborName}'`);
+    const automatic = snapshot.parley.automatic;
+    if (!automatic || automatic.origin !== 'sugar-parley') {
+      throw new Error('parley.respondSugarParleyMessage: only a card-derived Sugar Parley accepts natural-language delivery');
+    }
+    return respondInternal({
+      parleyId,
+      harbor: harborName,
+      party: input.party,
+      performative: 'inform',
+      content: input.message,
+      evidenceRefs: [...automatic.evidenceRefs],
+      idempotencyKey: input.idempotencyKey,
+    }, null, 'sugar-message');
+  }
+
+  function settleAutomaticConsensus(
+    input: SettleAutomaticConsensusInput,
+  ): SettleAutomaticConsensusResult {
+    const parleyId = input.parleyId?.trim();
+    if (!parleyId) throw new Error('parley.settleAutomaticConsensus: parleyId is required');
+    const harborName = harbor(input.harbor);
+    const party = input.party?.trim();
+    if (!party) throw new Error('parley.settleAutomaticConsensus: party is required');
+    const proposalId = input.proposalId?.trim();
+    if (!proposalId || proposalId.length > 256) {
+      throw new Error('parley.settleAutomaticConsensus: proposalId must be a canonical string of at most 256 characters');
+    }
+    const content = input.content?.trim();
+    const decision = input.decision?.trim();
+    const reason = input.reason?.trim();
+    if (!content || !decision || !reason) {
+      throw new Error('parley.settleAutomaticConsensus: content, decision, and reason are required');
+    }
+    if (Object.prototype.hasOwnProperty.call(input, 'evidenceRefs')) {
+      throw new Error('parley.settleAutomaticConsensus: caller-owned evidenceRefs are not accepted');
+    }
+    const snapshot = store.getSnapshot(harborName, parleyId);
+    if (!snapshot) throw new Error(`parley.settleAutomaticConsensus: parley '${parleyId}' not found in harbor '${harborName}'`);
+    const automatic = snapshot.parley.automatic;
+    if (!automatic
+      || automatic.origin !== 'sugar-parley'
+      || automatic.checkpoint !== 'session_begin'
+      || automatic.kind !== 'task_convergence') {
+      throw new Error('parley.settleAutomaticConsensus: only card-derived Sugar task-convergence Parleys may settle here');
+    }
+    if (!snapshot.parley.parties.includes(party)) {
+      throw new Error(`parley.settleAutomaticConsensus: party '${party}' was not summoned`);
+    }
+    const evidenceRefs = canonicalSet(automatic.evidenceRefs);
+    let terminalReceipt: SugarParleySettledReceipt | null = null;
+    const response = respondInternal({
+      parleyId,
+      harbor: harborName,
+      party,
+      performative: 'agree',
+      content,
+      proposalId,
+      evidenceRefs,
+      idempotencyKey: input.idempotencyKey,
+    }, {
+      proposalId,
+      decision,
+      reason,
+      finalize: (record, outcome) => {
+        const finalization = input.finalize({
+          parley: record,
+          outcome,
+          proposalId,
+          evidenceRefs: [...record.automatic!.evidenceRefs],
+        });
+        const expectedSessionIds = record.automatic!.participants
+          .map((participant) => participant.sessionId)
+          .sort();
+        const claimUpdates = Array.isArray(finalization?.claimUpdates)
+          ? finalization.claimUpdates.map((update) => ({
+            sessionId: typeof update?.sessionId === 'string' ? update.sessionId.trim() : '',
+            claimRef: typeof update?.claimRef === 'string' ? update.claimRef.trim() : '',
+            released: update?.released === true,
+          }))
+          : [];
+        const planUpdates = Array.isArray(finalization?.planUpdates)
+          ? finalization.planUpdates.map((update) => ({
+            sessionId: typeof update?.sessionId === 'string' ? update.sessionId.trim() : '',
+            updated: update?.updated === true,
+          }))
+          : [];
+        const finalReason = typeof finalization?.reason === 'string' ? finalization.reason.trim() : '';
+        const sameSessions = (values: string[]) => values.length === expectedSessionIds.length
+          && values.slice().sort().every((value, index) => value === expectedSessionIds[index]);
+        if (!sameSessions(claimUpdates.map((update) => update.sessionId))
+          || !sameSessions(planUpdates.map((update) => update.sessionId))
+          || claimUpdates.some((update) => !update.claimRef
+            || update.claimRef.length > 512
+            || !record.automatic!.evidenceRefs.includes(update.claimRef)
+            || !update.released)
+          || planUpdates.some((update) => !update.updated)
+          || !finalReason
+          || finalReason.length > CONFLICT_SIGNAL_LIMITS.maxReasonChars) {
+          throw new Error('parley.settleAutomaticConsensus: finalizer did not prove one successful exact effect per bounded participant');
+        }
+        terminalReceipt = {
+          kind: 'sugar_parley_settlement_receipt',
+          schemaVersion: 1,
+          state: 'settled',
+          origin: 'sugar-parley',
+          parleyId: record.parleyId,
+          harbor: record.harbor,
+          proposalId,
+          surface: record.surface,
+          evidenceRefs: [...record.automatic!.evidenceRefs],
+          outcome,
+          claimUpdates,
+          planUpdates,
+          remindersSuppressed: true,
+          replayed: false,
+          reason: finalReason,
+        };
+        return terminalReceipt;
+      },
+      notifications: (record, _outcome, finalized) => {
+        const receipt = terminalReceipt;
+        if (!receipt || finalized !== receipt) {
+          throw new Error('parley.settleAutomaticConsensus: final terminal receipt is unavailable');
+        }
+        return record.automatic!.participants.map((participant) => ({
+        deliveryKey: `parley-settlement:${record.parleyId}:${participant.actorId}`,
+        recipientActorId: participant.actorId,
+        inboxTarget: participant.inboxTarget,
+        fromActorId: 'port-daddy:sugar-parley-consensus',
+        // The durable outbox keeps its stable event enum. Inbox delivery maps
+        // this discriminant to `sugar_parley_settlement_receipt`, so normal
+        // consumers receive the canonical Sugar contract rather than a raw
+        // agreement turn.
+        eventType: 'parley_turn' as const,
+        payload: { ...receipt },
+        }));
+      },
+    }, 'none');
+    const settled = get(parleyId, harborName);
+    const outcome = settled?.outcome ?? null;
+    return {
+      ...response,
+      outcome,
+      settled: settled?.status === 'COLLAPSED'
+        && outcome?.resolvedBy === 'port-daddy:sugar-parley-consensus',
+      settlementReceipt: terminalReceipt,
     };
   }
 
@@ -921,6 +1300,8 @@ export function createParley(deps: ParleyDeps) {
     call,
     admitAutomatic,
     respond,
+    respondSugarParleyMessage,
+    settleAutomaticConsensus,
     resolve,
     markSeen,
     get,

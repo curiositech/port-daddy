@@ -76,9 +76,9 @@ describe('integration — /whois over real harbors → whois wiring', () => {
     const whois = createWhois(db, { resolver, logger: silentLogger });
 
     // Wire the write path exactly as server.ts does.
-    harbors.setCapabilityListener((agentId, harborName, phrases) => {
-      whois.registerCapabilities(agentId, harborName, phrases).catch(() => {});
-    });
+    harbors.setCapabilityListener((agentId, harborName, phrases) => (
+      whois.registerCapabilities(agentId, harborName, phrases)
+    ));
 
     // Stand up harbors and members through the real API so the listener fires.
     harbors.create('h:fleet');
@@ -117,6 +117,21 @@ describe('integration — /whois over real harbors → whois wiring', () => {
     expect(top.similarity).toBe(1.0);
     expect(top.harbor).toBe('h:fleet');
     expect(typeof top.score).toBe('number');
+  });
+
+  it('keeps raw exact lookup by default but exposes a reviewed semantic stage on request', async () => {
+    const res = await app.inject({
+      method: 'GET',
+      url: '/whois?q=react%20server%20components&semantic_review=true',
+    });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.hits[0]).toMatchObject({
+      agentId: 'agent-react',
+      stage: 'semantic',
+      similarity: 1,
+      score: 1,
+    });
   });
 
   it('returns 400 when q is missing', async () => {

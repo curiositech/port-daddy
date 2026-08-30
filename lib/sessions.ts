@@ -167,6 +167,65 @@ interface FileConflict {
   symbolPath?: string | null;
 }
 
+/**
+ * An evidence-bound session-file row to release when a Sugar Parley reaches a
+ * typed settlement. `sessionFileId` is the durable legacy row id mirrored by
+ * the claim forest; paths and regions are deliberately not mutation keys.
+ */
+export interface SugarParleySettlementClaim {
+  sessionId: string;
+  agentId: string;
+  sessionFileId: number;
+  /** Canonical evidence label echoed into the terminal settlement receipt. */
+  claimRef: string;
+}
+
+/** A checked plan receipt to append as part of one Sugar Parley settlement. */
+export interface SugarParleySettlementPlan {
+  sessionId: string;
+  agentId: string;
+  content: string;
+  type?: 'todo_list';
+}
+
+export interface SugarParleySettlementInput {
+  claims: SugarParleySettlementClaim[];
+  plans: SugarParleySettlementPlan[];
+}
+
+export interface SugarParleySettlementClaimUpdate {
+  sessionId: string;
+  sessionFileId: number;
+  claimRef: string;
+  filePath: string;
+  released: true;
+  claimForestRowsReleased: number;
+}
+
+export interface SugarParleySettlementPlanUpdate {
+  sessionId: string;
+  agentId: string;
+  noteId: number;
+  type: 'todo_list';
+  updated: true;
+}
+
+export type SugarParleySettlementResult =
+  | {
+    success: true;
+    claimUpdates: SugarParleySettlementClaimUpdate[];
+    planUpdates: SugarParleySettlementPlanUpdate[];
+  }
+  | {
+    success: false;
+    error: string;
+    code: string;
+    claimUpdates: [];
+    planUpdates: [];
+  };
+
+const MAX_SUGAR_PARLEY_PLAN_NOTE_CHARS = 16_384;
+
 // =============================================================================
 // Module factory
 // =============================================================================
@@ -493,6 +552,44 @@ export function createSessions(
     releaseAllFiles: db.prepare(`
       UPDATE session_files SET released_at = ? WHERE session_id = ? AND released_at IS NULL
     `),
+    // Sugar Parley settlement effects are deliberately keyed by the durable
+    // session_files id, not by a broad file path or region selector. The claim
+    // forest has a one-way legacy row reference so both representations can be
+    // prevalidated and released in the same SQLite transaction.
+    getActiveSessionFileForSugarSettlement: db.prepare(`
+      SELECT sf.*
+      FROM session_files sf
+      JOIN sessions s ON s.id = sf.session_id
+      WHERE sf.id = ?
+        AND sf.session_id = ?
+        AND sf.released_at IS NULL
+        AND s.status = 'active'
+        AND s.agent_id = ?
+    `),
+    getActiveForestClaimsForSugarSettlement: db.prepare(`
+      SELECT c.id, c.session_id, c.agent_id
+      FROM claim_forest_claims c
+      JOIN sessions s ON s.id = c.session_id
+      WHERE c.legacy_session_file_id = ?
+        AND c.released_at IS NULL
+        AND s.status = 'active'
+      ORDER BY c.id ASC
+    `),
+    releaseSessionFileForSugarSettlement: db.prepare(`
+      UPDATE session_files
+      SET released_at = ?
+      WHERE id = ?
+        AND session_id = ?
+        AND released_at IS NULL
+    `),
+    releaseForestClaimsForSugarSettlement: db.prepare(`
+      UPDATE claim_forest_claims
+      SET released_at = ?
+      WHERE legacy_session_file_id = ?
+        AND session_id = ?
+        AND agent_id = ?
+        AND released_at IS NULL
+    `),
     getActiveClaimsForPaths: db.prepare(`
       SELECT sf.*, s.purpose FROM session_files sf
       JOIN sessions s ON s.id = sf.session_id
@@ -712,6 +809,7 @@ export function createSessions(
 
   function formatFile(row: SessionFileRow) {
     return {
+      sessionFileId: row.id,
       sessionId: row.session_id,
       filePath: row.file_path,
       startLine: row.start_line ?? null,
@@ -725,6 +823,8 @@ export function createSessions(
 
   function formatClaimForestFile(row: ClaimForestClaim) {
     return {
+      sessionFileId: row.legacySessionFileId,
+      legacySessionFileId: row.legacySessionFileId,
       sessionId: row.sessionId,
       filePath: row.filePath,
       startLine: row.startLine,
@@ -1898,6 +1998,236 @@ export function createSessions(
   }
 
   /**
+   * Atomically apply the durable effects of a settled Sugar Parley.
+   *
+   * The caller supplies only evidence-bound `session_files` row ids, never
+   * broad paths or regions. Every row, its active session/agent binding, and
+   * its claim-forest mirror are read and validated before any mutation. The
+   * exact releases and checked todo-list receipts then share one SQLite
+   * transaction, so a capacity or write failure cannot leave a half-settled
+   * claim/plan state behind.
+   */
+  function applySugarParleySettlement(input: SugarParleySettlementInput): SugarParleySettlementResult {
+    type SettlementFailure = Extract<SugarParleySettlementResult, { success: false }>;
+    const failure = (code: string, error: string): SettlementFailure => ({
+      success: false,
+      code,
+      error,
+      claimUpdates: [],
+      planUpdates: [],
+    });
+
+    // The terminal Parley owner must call this while its outcome/outbox
+    // transaction is open. Our nested transaction becomes a SAVEPOINT, so a
+    // later terminal write failure rolls the whole settlement back instead of
+    // leaving session effects ahead of the Parley receipt.
+    if (!db.inTransaction) {
+      return failure(
+        'SETTLEMENT_TRANSACTION_REQUIRED',
+        'Sugar Parley settlement effects require the owning Parley transaction',
+      );
+    }
+
+    if (!input || !Array.isArray(input.claims) || !Array.isArray(input.plans)) {
+      return failure('VALIDATION_ERROR', 'claims and plans must be arrays');
+    }
+    if (input.claims.length === 0) {
+      return failure('SETTLEMENT_CLAIMS_REQUIRED', 'at least one evidence-bound session-file claim is required');
+    }
+    if (input.plans.length === 0) {
+      return failure('SETTLEMENT_PLANS_REQUIRED', 'at least one checked todo-list plan receipt is required');
+    }
+
+    const seenSessionFileIds = new Set<number>();
+    for (const claim of input.claims) {
+      if (!claim || typeof claim.sessionId !== 'string' || !claim.sessionId.trim()
+        || typeof claim.agentId !== 'string' || !claim.agentId.trim()
+        || !Number.isSafeInteger(claim.sessionFileId) || claim.sessionFileId <= 0) {
+        return failure('VALIDATION_ERROR', 'each settlement claim needs a sessionId, agentId, and positive durable sessionFileId');
+      }
+      if (claim.sessionId !== claim.sessionId.trim() || claim.agentId !== claim.agentId.trim()) {
+        return failure('VALIDATION_ERROR', 'settlement session and agent ids cannot contain leading or trailing whitespace');
+      }
+      if (typeof claim.claimRef !== 'string' || !claim.claimRef.trim() || claim.claimRef.length > 512) {
+        return failure('VALIDATION_ERROR', 'claimRef must be a non-empty string of at most 512 characters');
+      }
+      if (seenSessionFileIds.has(claim.sessionFileId)) {
+        return failure('DUPLICATE_SESSION_FILE_ID', `sessionFileId ${claim.sessionFileId} appears more than once`);
+      }
+      seenSessionFileIds.add(claim.sessionFileId);
+    }
+
+    const seenPlanSessions = new Set<string>();
+    for (const plan of input.plans) {
+      if (!plan || typeof plan.sessionId !== 'string' || !plan.sessionId.trim()
+        || typeof plan.agentId !== 'string' || !plan.agentId.trim()
+        || typeof plan.content !== 'string' || !plan.content.trim()) {
+        return failure('VALIDATION_ERROR', 'each settlement plan needs a sessionId, agentId, and non-empty content');
+      }
+      if (plan.sessionId !== plan.sessionId.trim() || plan.agentId !== plan.agentId.trim()) {
+        return failure('VALIDATION_ERROR', 'settlement session and agent ids cannot contain leading or trailing whitespace');
+      }
+      if (plan.type !== undefined && plan.type !== 'todo_list') {
+        return failure('VALIDATION_ERROR', 'settlement plan receipts must use the todo_list type');
+      }
+      if (plan.content.trim().length > MAX_SUGAR_PARLEY_PLAN_NOTE_CHARS) {
+        return failure(
+          'SETTLEMENT_PLAN_TOO_LONG',
+          `settlement plan content exceeds ${MAX_SUGAR_PARLEY_PLAN_NOTE_CHARS} characters`,
+        );
+      }
+      if (seenPlanSessions.has(plan.sessionId)) {
+        return failure('DUPLICATE_PLAN_SESSION', `session ${plan.sessionId} has more than one settlement plan receipt`);
+      }
+      seenPlanSessions.add(plan.sessionId);
+    }
+
+    type ValidatedClaim = {
+      claim: SugarParleySettlementClaim;
+      file: SessionFileRow;
+      forestClaimCount: number;
+    };
+    type ValidatedPlan = {
+      plan: SugarParleySettlementPlan;
+      storedContent: string;
+    };
+
+    const apply = db.transaction((): SugarParleySettlementResult => {
+      const sessionsById = new Map<string, SessionRow>();
+      const resolveBoundSession = (sessionId: string, agentId: string): SessionRow | SettlementFailure => {
+        const cached = sessionsById.get(sessionId);
+        const session = cached ?? stmts.getById.get(sessionId) as SessionRow | undefined;
+        if (!session) return failure('SESSION_NOT_FOUND', `session ${sessionId} was not found`);
+        if (session.status !== 'active') {
+          return failure('SESSION_NOT_ACTIVE', `session ${sessionId} is ${session.status}; Sugar settlement requires an active session`);
+        }
+        if (normalizeAgentId(session.agent_id) !== agentId) {
+          return failure('SESSION_AGENT_MISMATCH', `agent ${agentId} is not the active owner of session ${sessionId}`);
+        }
+        sessionsById.set(sessionId, session);
+        return session;
+      };
+
+      const validatedClaims: ValidatedClaim[] = [];
+      for (const claim of input.claims) {
+        const boundSession = resolveBoundSession(claim.sessionId, claim.agentId);
+        if ('success' in boundSession) return boundSession;
+
+        const file = stmts.getActiveSessionFileForSugarSettlement.get(
+          claim.sessionFileId,
+          claim.sessionId,
+          claim.agentId,
+        ) as SessionFileRow | undefined;
+        if (!file) {
+          return failure(
+            'SETTLEMENT_CLAIM_NOT_ACTIVE',
+            `sessionFileId ${claim.sessionFileId} is not an active claim owned by ${claim.agentId} in session ${claim.sessionId}`,
+          );
+        }
+        const forestRows = stmts.getActiveForestClaimsForSugarSettlement.all(claim.sessionFileId) as Array<{
+          id: number;
+          session_id: string;
+          agent_id: string | null;
+        }>;
+        if (forestRows.length === 0 || forestRows.some(row => row.session_id !== claim.sessionId
+          || normalizeAgentId(row.agent_id) !== claim.agentId)) {
+          return failure(
+            'SETTLEMENT_CLAIM_FOREST_MISMATCH',
+            `sessionFileId ${claim.sessionFileId} does not have a matching active claim-forest record`,
+          );
+        }
+        validatedClaims.push({
+          claim,
+          file,
+          forestClaimCount: forestRows.length,
+        });
+      }
+
+      const validatedPlans: ValidatedPlan[] = [];
+      for (const plan of input.plans) {
+        const boundSession = resolveBoundSession(plan.sessionId, plan.agentId);
+        if ('success' in boundSession) return boundSession;
+        const trimmedContent = plan.content.trim();
+        const noteCount = (stmts.countNotesBySession.get(plan.sessionId) as { count: number }).count;
+        if (noteCount >= MAX_NOTES_PER_SESSION) {
+          return failure(
+            'NOTES_LIMIT_EXCEEDED',
+            `session ${plan.sessionId} has reached the maximum of ${MAX_NOTES_PER_SESSION} notes`,
+          );
+        }
+        let storedContent: string;
+        try {
+          storedContent = maybeEncrypt(plan.sessionId, trimmedContent);
+        } catch (error) {
+          return failure(
+            'SETTLEMENT_NOTE_ENCRYPTION_FAILED',
+            error instanceof Error ? error.message : `could not prepare encrypted plan receipt for session ${plan.sessionId}`,
+          );
+        }
+        validatedPlans.push({ plan, storedContent });
+      }
+
+      const now = Date.now();
+      const claimUpdates: SugarParleySettlementClaimUpdate[] = [];
+      for (const { claim, file, forestClaimCount } of validatedClaims) {
+        const releasedFile = stmts.releaseSessionFileForSugarSettlement.run(
+          now,
+          claim.sessionFileId,
+          claim.sessionId,
+        );
+        if (releasedFile.changes !== 1) {
+          throw new Error(`failed to release exact session-file row ${claim.sessionFileId}`);
+        }
+        const releasedForest = stmts.releaseForestClaimsForSugarSettlement.run(
+          now,
+          claim.sessionFileId,
+          claim.sessionId,
+          claim.agentId,
+        );
+        if (releasedForest.changes !== forestClaimCount) {
+          throw new Error(`failed to release all claim-forest rows for session-file row ${claim.sessionFileId}`);
+        }
+        claimUpdates.push({
+          sessionId: claim.sessionId,
+          sessionFileId: claim.sessionFileId,
+          claimRef: claim.claimRef,
+          filePath: file.file_path,
+          released: true,
+          claimForestRowsReleased: forestClaimCount,
+        });
+      }
+
+      const planUpdates: SugarParleySettlementPlanUpdate[] = [];
+      for (const { plan, storedContent } of validatedPlans) {
+        const inserted = stmts.insertNote.run(plan.sessionId, storedContent, 'todo_list', now);
+        planUpdates.push({
+          sessionId: plan.sessionId,
+          agentId: plan.agentId,
+          noteId: Number(inserted.lastInsertRowid),
+          type: 'todo_list',
+          updated: true,
+        });
+      }
+
+      return { success: true, claimUpdates, planUpdates };
+    });
+
+    let result: SugarParleySettlementResult;
+    try {
+      result = apply();
+    } catch (error) {
+      return failure(
+        'SETTLEMENT_WRITE_FAILED',
+        error instanceof Error ? error.message : 'failed to apply the atomic Sugar Parley settlement',
+      );
+    }
+    // The result is intentionally only durable database detail. The outer
+    // Parley owner may project activity, telemetry, or episodic memory only
+    // after its encompassing outcome and terminal-outbox transaction commits.
+    return result;
+  }
+
+  /**
    * Get active file conflicts for given paths
    */
   function getFileConflicts(filePaths: string[]) {
@@ -2102,6 +2432,11 @@ export function createSessions(
     return {
       success: true,
       claims: rows.map(r => ({
+        // The forest mirror keeps the authoritative session_files id so an
+        // automatic settlement can release one exact row, not every claim on
+        // a path or all claims owned by a session.
+        sessionFileId: r.legacySessionFileId,
+        legacySessionFileId: r.legacySessionFileId,
         filePath: r.filePath,
         sessionId: r.sessionId,
         purpose: r.purpose,
@@ -2294,6 +2629,7 @@ export function createSessions(
     getNotes,
     claimFiles,
     releaseFiles,
+    applySugarParleySettlement,
     getFileConflicts,
     setPhase,
     listAllActiveClaims,

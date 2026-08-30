@@ -29,6 +29,12 @@ import type { SymbolConflict } from './symbol-claims.js';
 /** One active claim, as returned by `sessions.listAllActiveClaims().claims`. */
 export interface ActiveClaim {
   filePath: string;
+  /** Canonical repository identity from the claim forest, absent only in legacy fixtures/rows. */
+  repoId?: string | null;
+  /** Canonical claim world kind from the claim forest, absent only in legacy fixtures/rows. */
+  worldKind?: string | null;
+  /** Canonical claim world identity from the claim forest, absent only in legacy fixtures/rows. */
+  worldId?: string | null;
   sessionId: string;
   purpose: string;
   agentId: string | null;
@@ -40,18 +46,99 @@ export interface ActiveClaim {
   symbolPath: string | null;
 }
 
-/** A detected overlap between two distinct sessions on one file. The *pair* is
+/**
+ * Canonical human/evidence address for one declared claim. Consumers that
+ * need to name an overlap must use this rather than reimplementing whole-file,
+ * region, and symbol precedence on their own.
+ */
+export interface ActiveClaimAddress {
+  filePath: string;
+  symbolPath: string | null;
+  startLine: number | null;
+  endLine: number | null;
+}
+
+export function activeClaimAddress(claim: Pick<ActiveClaim, 'filePath' | 'symbolPath' | 'startLine' | 'endLine'>): ActiveClaimAddress {
+  return {
+    filePath: claim.filePath,
+    symbolPath: claim.symbolPath,
+    startLine: claim.startLine,
+    endLine: claim.endLine,
+  };
+}
+
+export function formatActiveClaimAddress(claim: Pick<ActiveClaim, 'filePath' | 'symbolPath' | 'startLine' | 'endLine'>): string {
+  const address = activeClaimAddress(claim);
+  if (address.symbolPath) return `${address.filePath}#${address.symbolPath}`;
+  if (address.startLine !== null || address.endLine !== null) {
+    return `${address.filePath}#L${address.startLine ?? '*'}-${address.endLine ?? '*'}`;
+  }
+  return address.filePath;
+}
+
+/** A stable evidence label tied to the existing session-claim authority. */
+export function activeClaimEvidenceRef(claim: Pick<ActiveClaim, 'sessionId' | 'filePath' | 'symbolPath' | 'startLine' | 'endLine' | 'claimedAt'>): string {
+  return `session-claim:${claim.sessionId}:${formatActiveClaimAddress(claim)}:${claim.claimedAt}`;
+}
+
+/** A detected overlap between two distinct sessions at one canonical repo/world/file address. The *pair* is
  *  unordered — (A,B) and (B,A) collapse to one ClaimOverlap with `a` the
  *  lexicographically smaller sessionId, so the dedup key is stable across scans.
  *  Note this still yields TWO suggestions per overlap — one delivered to each
  *  agent (each sees the other as the counterpart); only the dedup key is shared. */
 export interface ClaimOverlap {
   filePath: string;
+  repoId: string;
+  worldKind: string;
+  worldId: string;
   a: ActiveClaim;
   b: ActiveClaim;
 }
 
 const OVERLAP_KIND: SuggestionKind = 'claim-overlap-headsup';
+
+/**
+ * The claim forest's historical defaults keep legacy claim rows and focused
+ * fixtures in one explicit canonical scope rather than silently broadening a
+ * scoped claim across repositories or worktrees.
+ */
+const LEGACY_ACTIVE_CLAIM_SCOPE = Object.freeze({
+  repoId: 'local',
+  worldKind: 'worktree',
+  worldId: 'unscoped',
+});
+
+/**
+ * Normalize one canonical claim-scope field without treating blank legacy
+ * values as a wildcard. The purpose is to preserve the claim forest's own
+ * durable default address while making scope comparison total and stable.
+ *
+ * @param value - Raw field projected by the active-claims authority.
+ * @param fallback - Claim-forest default for a missing or blank legacy field.
+ * @returns A non-empty canonical scope component.
+ */
+function canonicalClaimScopeField(value: string | null | undefined, fallback: string): string {
+  const normalized = value?.trim();
+  return normalized || fallback;
+}
+
+/**
+ * Return the complete canonical scope used by the claim forest to distinguish
+ * otherwise identical relative paths. This keeps the broker a consumer of the
+ * authoritative address rather than a second repository/world resolver.
+ *
+ * @param claim - Active claim projected by the sessions authority.
+ * @returns A non-empty repo/world tuple suitable for exact overlap grouping.
+ */
+export function activeClaimScope(
+  claim: Pick<ActiveClaim, 'repoId' | 'worldKind' | 'worldId'>,
+): { repoId: string; worldKind: string; worldId: string } {
+  return {
+    repoId: canonicalClaimScopeField(claim.repoId, LEGACY_ACTIVE_CLAIM_SCOPE.repoId),
+    worldKind: canonicalClaimScopeField(claim.worldKind, LEGACY_ACTIVE_CLAIM_SCOPE.worldKind),
+    worldId: canonicalClaimScopeField(claim.worldId, LEGACY_ACTIVE_CLAIM_SCOPE.worldId),
+  };
+}
 
 /**
  * Wire-format version of the nudge payload. This object crosses boundaries
@@ -124,34 +211,53 @@ function overlapSeverityConfidence(a: ActiveClaim, b: ActiveClaim): number {
 }
 
 /**
- * Build the stable dedup key for an unordered session pair. The intent is that a
- * scan sees one standing overlap regardless of input order.
+ * Build the stable dedup key for an unordered session pair at one canonical
+ * scope. The intent is that a scan sees one standing overlap regardless of
+ * input order without suppressing a separate repo or world.
  *
  * @param o - Canonically ordered overlap pair.
  * @returns Stable payload hash consumed by the existing cooldown machinery.
  */
 export function overlapPayloadHash(o: ClaimOverlap): string {
-  return `claim-overlap:${o.filePath}:${o.a.sessionId}|${o.b.sessionId}`;
+  return `claim-overlap:${JSON.stringify([
+    o.repoId,
+    o.worldKind,
+    o.worldId,
+    o.filePath,
+    o.a.sessionId,
+    o.b.sessionId,
+  ])}`;
 }
 
 /**
- * Detect every distinct-session overlap on a shared file. The design is pure,
- * deterministic, and order-independent so matching behavior can be verified without
- * database or daemon state.
+ * Detect every distinct-session overlap at a shared canonical repo/world/file
+ * address. The design is pure, deterministic, and order-independent so matching
+ * behavior can be verified without database or daemon state.
  *
  * @param claims - Full set of active declared file or region claims.
  * @returns Canonically ordered overlap pairs.
  */
 export function detectClaimOverlaps(claims: ActiveClaim[]): ClaimOverlap[] {
-  const byFile = new Map<string, ActiveClaim[]>();
+  const byScopedFile = new Map<string, {
+    filePath: string;
+    repoId: string;
+    worldKind: string;
+    worldId: string;
+    claims: ActiveClaim[];
+  }>();
   for (const c of claims) {
-    const arr = byFile.get(c.filePath);
-    if (arr) arr.push(c);
-    else byFile.set(c.filePath, [c]);
+    const scope = activeClaimScope(c);
+    const key = JSON.stringify([scope.repoId, scope.worldKind, scope.worldId, c.filePath]);
+    const group = byScopedFile.get(key);
+    if (group) {
+      group.claims.push(c);
+    } else {
+      byScopedFile.set(key, { filePath: c.filePath, ...scope, claims: [c] });
+    }
   }
 
   const out: ClaimOverlap[] = [];
-  for (const [filePath, fileClaims] of byFile) {
+  for (const { filePath, repoId, worldKind, worldId, claims: fileClaims } of byScopedFile.values()) {
     for (let i = 0; i < fileClaims.length; i++) {
       for (let j = i + 1; j < fileClaims.length; j++) {
         const x = fileClaims[i];
@@ -159,7 +265,7 @@ export function detectClaimOverlaps(claims: ActiveClaim[]): ClaimOverlap[] {
         if (x.sessionId === y.sessionId) continue; // a session never overlaps itself
         if (!claimsCollide(x, y)) continue;
         const [a, b] = x.sessionId < y.sessionId ? [x, y] : [y, x];
-        out.push({ filePath, a, b });
+        out.push({ filePath, repoId, worldKind, worldId, a, b });
       }
     }
   }
@@ -438,6 +544,11 @@ export function runOverlapScan(deps: RunOverlapScanDeps): OverlapScanResult {
         v: SUGGESTION_PAYLOAD_VERSION,
         kind: OVERLAP_KIND,
         filePath: o.filePath,
+        scope: {
+          repoId: o.repoId,
+          worldKind: o.worldKind,
+          worldId: o.worldId,
+        },
         you: {
           sessionId: self.sessionId,
           agentId: self.agentId,

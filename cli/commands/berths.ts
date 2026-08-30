@@ -41,6 +41,7 @@ import {
   resolveDaemonProfile,
   writeDaemonProfileState,
 } from '../../lib/daemon-profiles.js';
+import { mergeJscSafeModeEnv, resolveDaemonLaunchCommand } from '../../shared/daemon-binary.js';
 import { seedBerthDbFromProd, describeSeedResult } from '../../lib/seed-berth-db.js';
 import * as ui from '../utils/ui.js';
 import { posixShellQuote } from '../../lib/shell-quote.js';
@@ -323,6 +324,36 @@ function buildDaemonBinary(sourceDir: string): string {
   return outfile;
 }
 
+/**
+ * Resolve the exact compiled daemon launch contract for a codebase berth.
+ *
+ * Design intent: a codebase berth deliberately runs the binary just built from `sourceDir`,
+ * not the caller's self-hosted CLI.  Going through the shared launch resolver
+ * keeps its resource-root and native-runtime environment identical to every
+ * other compiled daemon path.
+ *
+ * @param sourceDir Source tree whose freshly built daemon is authoritative.
+ * @param binary Absolute path to that freshly built daemon binary.
+ * @param profileEnv Isolated profile and berth environment for the child.
+ * @returns The canonical program, arguments, and merged child environment.
+ */
+export function resolveCodebaseBerthLaunch(
+  sourceDir: string,
+  binary: string,
+  profileEnv: NodeJS.ProcessEnv,
+): { program: string; args: string[]; env: NodeJS.ProcessEnv } {
+  const command = resolveDaemonLaunchCommand(sourceDir, {
+    // The explicit binary must win over PORT_DADDY_CAN_SELF_DAEMON inherited
+    // from an interactive compiled CLI. A berth is proof for its source tree.
+    env: { ...profileEnv, PORT_DADDY_DAEMON_BINARY: binary },
+  });
+  return {
+    program: command.program,
+    args: command.args,
+    env: mergeJscSafeModeEnv(profileEnv, command.env),
+  };
+}
+
 /** Claim a codebase berth port via the running stable daemon's port manager. */
 async function claimCodebasePort(label: string): Promise<number> {
   const identity = `pd-dev-${label}`;
@@ -434,11 +465,12 @@ async function devUp(options: CLIOptions): Promise<void> {
   env[BERTH_ENV.label] = label;
   env[BERTH_ENV.color] = color;
   env[BERTH_ENV.sourceDir] = sourceDir;
+  const launch = resolveCodebaseBerthLaunch(sourceDir, binary, env);
 
   ui.info(`Launching ${tier} berth "${label}" on :${port} (${color})`);
-  const child = spawn(binary, [], {
+  const child = spawn(launch.program, launch.args, {
     cwd: sourceDir,
-    env,
+    env: launch.env,
     stdio: 'ignore',
     detached: true,
   });

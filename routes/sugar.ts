@@ -9,6 +9,20 @@
 
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import type { ActorSouls } from '../lib/actor-souls.js';
+import { createParleyAutoTrigger } from '../lib/parley-auto-trigger.js';
+import {
+  createSugarParley,
+  resolveSugarParleySessionActor,
+  SUGAR_PARLEY_NOTE_MAX_CHARS,
+  SUGAR_PARLEY_SETTLEMENT_MAX_CHARS,
+  type SugarParley,
+} from '../lib/sugar-parley.js';
+import type { Parley } from '../lib/parley.js';
+import type {
+  SugarParleySettlementInput,
+  SugarParleySettlementResult,
+} from '../lib/sessions.js';
+import type { WhoisHit } from '../lib/whois.js';
 import {
   extractActorCredential,
   resolveWriteIdentity,
@@ -24,7 +38,48 @@ import { isReservedIdentityName } from '../lib/reserved-identity-names.js';
  * credential once, so `register` is required here in addition to the verify /
  * resolve pair the shared boundary uses.
  */
-type SugarActorSouls = Pick<ActorSouls, 'verifyCredential' | 'resolveActor' | 'register'>;
+type SugarActorSouls = Pick<ActorSouls, 'verifyCredential' | 'resolveActor' | 'register' | 'constants'>;
+
+interface SugarParleySessions {
+  get(sessionId: string): Record<string, unknown>;
+  list(options?: Record<string, unknown>): Record<string, unknown>;
+  listAllActiveClaims(options?: Record<string, unknown>): Record<string, unknown>;
+  addNote(sessionId: string, content: string, options?: { type?: string }): Record<string, unknown>;
+  getNotes(sessionId?: string | null, options?: { type?: string; limit?: number }): Record<string, unknown>;
+  applySugarParleySettlement(input: SugarParleySettlementInput): SugarParleySettlementResult;
+}
+
+interface SugarParleyInbox {
+  send(agentId: string, content: unknown, options?: {
+    from?: string;
+    fromActorId?: string | null;
+    fromSoulClass?: string | null;
+    type?: string;
+    contentType?: 'text' | 'json' | 'binary';
+  }): { success: boolean; messageId?: number; error?: string };
+}
+
+interface SugarParleyWhois {
+  search(
+    query: string,
+    options?: { kind?: 'agent'; limit?: number; semanticReview?: boolean },
+  ): Promise<WhoisHit[]>;
+}
+
+/**
+ * Canonical Harbor membership operations used to project a successful Sugar
+ * admission into Whois. The route never writes the Whois sidecar directly:
+ * Harbors owns the membership fact and its server-wired listener owns the
+ * derived capability projection.
+ */
+interface SugarCapabilityHarbors {
+  create(name: string): { success: boolean; error?: string };
+  enter(
+    harborName: string,
+    agentId: string,
+    options?: { identity?: string; capabilities?: string[] },
+  ): Promise<{ success: boolean; error?: string }>;
+}
 
 interface SugarRouteDeps {
   sugar: {
@@ -46,6 +101,16 @@ interface SugarRouteDeps {
    * requires; `/sugar/done` and `/sugar/relink` reject without one.
    */
   actorSouls?: SugarActorSouls | null;
+  /**
+   * Normal-agent Parley dependencies. They remain optional at this plugin
+   * boundary so focused Sugar identity tests can mount only the mint door;
+   * production wiring supplies all of them through registerAllRoutes.
+   */
+  sessions?: SugarParleySessions;
+  parley?: Pick<Parley, 'admitAutomatic' | 'get' | 'respondSugarParleyMessage' | 'settleAutomaticConsensus'>;
+  whois?: SugarParleyWhois;
+  harbors?: SugarCapabilityHarbors;
+  agentInbox?: SugarParleyInbox;
 }
 
 type BeginLifecycle = 'durable' | 'ephemeral';
@@ -62,7 +127,110 @@ function parseBeginLifecycle(value: unknown): BeginLifecycle | null {
 // =============================================================================
 export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (fastify, opts) => {
   const { deps } = opts;
-  const { sugar, metrics, logger, actorSouls } = deps;
+  const {
+    sugar,
+    metrics,
+    logger,
+    actorSouls,
+    sessions,
+    parley,
+    whois,
+    harbors,
+    agentInbox,
+  } = deps;
+
+  /**
+   * The Sugar coordinator deliberately derives live party delivery from the
+   * session authority. A display name, stale session, or inbox address never
+   * substitutes for the daemon-minted actor identity in an automatic Parley.
+   */
+  const sugarParley: SugarParley | null = (() => {
+    if (!sessions || !parley || !whois || !actorSouls) return null;
+    const autoTrigger = createParleyAutoTrigger({
+      parley,
+      // Sugar always passes its fresh, evidence-bound card resolver to
+      // evaluate(). This required adapter is deliberately fail-closed so no
+      // route-level scan can select an arbitrary first active session.
+      resolveLiveParty: () => null,
+    });
+    return createSugarParley({ sessions, actorSouls, whois, parleyAutoTrigger: autoTrigger, parley });
+  })();
+
+  function canonicalHarbor(): string | null {
+    const harbor = actorSouls?.constants?.defaultHarbor;
+    return typeof harbor === 'string' && harbor.trim() ? harbor.trim() : null;
+  }
+
+  /**
+   * Project a successfully admitted Sugar agent through the canonical Harbor
+   * membership path before the begin response is returned.
+   *
+   * The Harbor's capability listener awaits the existing Whois semantic
+   * projection. This makes a brand-new second begin eligible for immediate
+   * peer discovery without manufacturing a purpose index in Sugar. Both
+   * membership and embedding remain best-effort enrichment: a failure is
+   * recorded but cannot invalidate an already-admitted agent/session pair.
+   *
+   * @param result - Successful result from the canonical Sugar begin service.
+   * @param purpose - Validated session purpose to declare as one capability.
+   * @param identity - Optional display identity retained on the Harbor member.
+   * @returns A promise that settles after the non-fatal membership projection attempt.
+   */
+  async function projectSuccessfulBeginCapability(
+    result: Record<string, unknown>,
+    purpose: string,
+    identity: unknown,
+  ): Promise<void> {
+    if (!harbors) return;
+    const agentId = typeof result.agentId === 'string' ? result.agentId.trim() : '';
+    const harbor = canonicalHarbor();
+    if (!agentId || !harbor) return;
+
+    try {
+      const created = harbors.create(harbor);
+      if (!created.success) {
+        logger.warn('sugar_begin_capability_projection_unavailable', {
+          agentId,
+          harbor,
+          reason: created.error ?? 'harbor create failed',
+        });
+        return;
+      }
+
+      const entered = await harbors.enter(harbor, agentId, {
+        ...(typeof identity === 'string' && identity.trim() ? { identity: identity.trim() } : {}),
+        capabilities: [purpose],
+      });
+      if (!entered.success) {
+        logger.warn('sugar_begin_capability_projection_unavailable', {
+          agentId,
+          harbor,
+          reason: entered.error ?? 'harbor enter failed',
+        });
+      }
+    } catch (error) {
+      logger.warn('sugar_begin_capability_projection_failed', {
+        agentId,
+        harbor,
+        error: (error as Error).message,
+      });
+    }
+  }
+
+  function stringInput(value: unknown, maxChars: number): string | null {
+    return typeof value === 'string' && value.trim() && value.trim().length <= maxChars
+      ? value.trim()
+      : null;
+  }
+
+  function coordinatorUnavailable(reply: FastifyReply) {
+    reply.code(503);
+    return {
+      success: false,
+      error: 'Sugar Parley coordination is unavailable until the live session, semantic, Parley, and identity authorities are present.',
+      code: 'SUGAR_PARLEY_UNAVAILABLE',
+    };
+  }
 
   /**
    * Resolve the identity for `/sugar/begin` — the fleet's mint door.
@@ -288,7 +456,7 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
     bodyAgentId: unknown,
     route: string,
   ):
-    | { success: true; verdict: Extract<IdentityWriteVerdict, { ok: true }> }
+    | { success: true; verdict: Extract<IdentityWriteVerdict, { ok: true; kind: 'verified' }> }
     | { success: false; httpStatus: number; result: Record<string, unknown> } => {
     const verdict = resolveWriteIdentity({
       souls: actorSouls,
@@ -305,8 +473,29 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
         result: { success: false, error: verdict.error, code: verdict.code },
       };
     }
+    if (verdict.kind !== 'verified') {
+      return {
+        success: false,
+        httpStatus: 401,
+        result: {
+          success: false,
+          error: 'a daemon-minted actor credential is required for this Sugar coordination action',
+          code: 'IDENTITY_CREDENTIAL_REQUIRED',
+        },
+      };
+    }
     return { success: true, verdict };
   };
+
+  /**
+   * Bounded Sugar Parley actions authenticate the minted credential first and
+   * bind it to the supplied session through the verified session stamp in the
+   * coordinator. A generated Sugar display handle is an observation for the
+   * client, not an authority assertion: it can legitimately be absent from,
+   * or independently present in, the soul alias table.
+   */
+  const requireSugarParleyIdentity = (request: FastifyRequest, route: string) =>
+    requireSugarIdentity(request, null, route);
 
   // POST /sugar/begin
   fastify.post('/sugar/begin', async (request: FastifyRequest, reply: FastifyReply) => {
@@ -436,6 +625,12 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
         reply.code(status);
         return result;
       }
+
+      // A normal begin declares its durable purpose through the canonical
+      // Harbor membership authority. `enter()` awaits the server-wired Whois
+      // projection, while any capability-indexing fault remains non-fatal to
+      // the agent/session admission above.
+      await projectSuccessfulBeginCapability(result, purpose.trim(), identity);
 
       // Surface the identity verdict (as `actorIdentity` — `identity` on this
       // response is already the project:stack:context display string); when
@@ -625,6 +820,335 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
       logger.error('sugar_welcome_error', { error: (error as Error).message });
       reply.code(500);
       return { error: 'internal server error' };
+    }
+  });
+
+  // GET /sugar/parley-card — a read-only, server-derived coordination prompt.
+  // It is intentionally a normal Sugar affordance, never a UI wrapper around
+  // the raw /parley debug protocol. The daemon recomputes semantic and
+  // structural evidence for each read, so card IDs are observations, not
+  // client-created authority.
+  fastify.get('/sugar/parley-card', async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      if (!sugarParley) return coordinatorUnavailable(reply);
+      const query = request.query as Record<string, unknown>;
+      const sessionId = stringInput(query.sessionId, 256);
+      const identity = requireSugarParleyIdentity(request, 'GET /sugar/parley-card');
+      if (!identity.success) {
+        reply.code(identity.httpStatus);
+        return identity.result;
+      }
+      if (!sessionId) {
+        reply.code(400);
+        return {
+          success: false,
+          error: 'sessionId is required to derive a coordination card from the recorded session purpose.',
+          code: 'VALIDATION_ERROR',
+        };
+      }
+      const preview = await sugarParley.preview({
+        sessionId,
+        actorId: identity.verdict.actorId,
+      });
+      return { success: true, ...preview };
+    } catch (error) {
+      metrics.errors++;
+      logger.error('sugar_parley_card_error', { error: (error as Error).message });
+      reply.code(500);
+      return { success: false, error: 'internal server error' };
+    }
+  });
+
+  // POST /sugar/parley/work-separately — preserve the agent's normal work
+  // path while leaving a durable, evidence-bound note for later briefings.
+  fastify.post('/sugar/parley/work-separately', async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      if (!sugarParley || !sessions) return coordinatorUnavailable(reply);
+      const body = request.body as Record<string, unknown>;
+      const identity = requireSugarParleyIdentity(request, 'POST /sugar/parley/work-separately');
+      if (!identity.success) {
+        reply.code(identity.httpStatus);
+        return identity.result;
+      }
+      const sessionId = stringInput(body.sessionId, 256);
+      const signalId = stringInput(body.signalId, 512);
+      if (!sessionId || !signalId) {
+        reply.code(400);
+        return { success: false, error: 'sessionId and card signalId are required.', code: 'VALIDATION_ERROR' };
+      }
+      const preview = await sugarParley.preview({ sessionId, actorId: identity.verdict.actorId });
+      if (preview.state !== 'ready' || preview.card.signalId !== signalId) {
+        reply.code(409);
+        return {
+          success: false,
+          error: 'The coordination card changed; re-read its evidence before choosing work separately.',
+          code: 'SUGAR_PARLEY_CARD_STALE',
+        };
+      }
+      const note = sessions.addNote(
+        sessionId,
+        `[Sugar Parley v1] Work separately selected for ${preview.card.surface}. Evidence: ${preview.card.structuralEvidence.sourceClaimRef}; ${preview.card.semanticEvidence.evidenceRef}.`,
+        { type: 'parley_work_separately' },
+      );
+      if (note.success !== true) {
+        reply.code(409);
+        return { success: false, error: String(note.error || 'Could not record the work-separately decision.'), code: 'SUGAR_PARLEY_NOTE_FAILED' };
+      }
+      return {
+        success: true,
+        kind: 'sugar_parley_work_separately_receipt',
+        schemaVersion: 1,
+        cardId: preview.card.cardId,
+        signalId: preview.card.signalId,
+        surface: preview.card.surface,
+        noteId: note.noteId ?? null,
+      };
+    } catch (error) {
+      metrics.errors++;
+      logger.error('sugar_parley_work_separately_error', { error: (error as Error).message });
+      reply.code(500);
+      return { success: false, error: 'internal server error' };
+    }
+  });
+
+  // POST /sugar/parley/note — a human action that sends an attributed,
+  // evidence-scoped note to the matched live peer. This is not a substitute
+  // for a Parley; it gives a quiet coordination option before convening one.
+  fastify.post('/sugar/parley/note', async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      if (!sugarParley || !sessions || !agentInbox) return coordinatorUnavailable(reply);
+      const body = request.body as Record<string, unknown>;
+      const identity = requireSugarParleyIdentity(request, 'POST /sugar/parley/note');
+      if (!identity.success) {
+        reply.code(identity.httpStatus);
+        return identity.result;
+      }
+      const sessionId = stringInput(body.sessionId, 256);
+      const signalId = stringInput(body.signalId, 512);
+      const message = stringInput(body.message, SUGAR_PARLEY_NOTE_MAX_CHARS);
+      if (!sessionId || !signalId || !message) {
+        reply.code(400);
+        return { success: false, error: 'sessionId, card signalId, and a bounded note are required.', code: 'VALIDATION_ERROR' };
+      }
+      const preview = await sugarParley.preview({ sessionId, actorId: identity.verdict.actorId });
+      if (preview.state !== 'ready' || preview.card.signalId !== signalId) {
+        reply.code(409);
+        return {
+          success: false,
+          error: 'The coordination card changed; re-read its evidence before sending a note.',
+          code: 'SUGAR_PARLEY_CARD_STALE',
+        };
+      }
+      const peer = preview.card.participants.find((participant) => participant.actorId !== identity.verdict.actorId);
+      if (!peer) {
+        reply.code(409);
+        return { success: false, error: 'No distinct live peer remains for this coordination card.', code: 'SUGAR_PARLEY_PEER_GONE' };
+      }
+      const delivered = agentInbox.send(peer.agentId, {
+        kind: 'sugar_parley_note',
+        schemaVersion: 1,
+        cardId: preview.card.cardId,
+        surface: preview.card.surface,
+        evidenceRefs: [
+          preview.card.structuralEvidence.sourceClaimRef,
+          preview.card.structuralEvidence.peerClaimRef,
+          preview.card.semanticEvidence.evidenceRef,
+        ].sort(),
+        message,
+      }, {
+        from: identity.verdict.agentId,
+        fromActorId: identity.verdict.actorId,
+        fromSoulClass: identity.verdict.soulClass,
+        type: 'sugar_parley_note',
+        contentType: 'json',
+      });
+      if (!delivered.success) {
+        reply.code(409);
+        return { success: false, error: delivered.error || 'The matched peer inbox rejected the note.', code: 'SUGAR_PARLEY_NOTE_DELIVERY_FAILED' };
+      }
+      const note = sessions.addNote(
+        sessionId,
+        `[Sugar Parley v1] Sent an attributed note for ${preview.card.surface}: ${message}`,
+        { type: 'parley_note' },
+      );
+      if (note.success !== true) {
+        reply.code(409);
+        return { success: false, error: String(note.error || 'The note was delivered but could not be recorded.'), code: 'SUGAR_PARLEY_NOTE_AUDIT_FAILED' };
+      }
+      return {
+        success: true,
+        kind: 'sugar_parley_note_receipt',
+        schemaVersion: 1,
+        cardId: preview.card.cardId,
+        peerAgentId: peer.agentId,
+        messageId: delivered.messageId ?? null,
+        noteId: note.noteId ?? null,
+      };
+    } catch (error) {
+      metrics.errors++;
+      logger.error('sugar_parley_note_error', { error: (error as Error).message });
+      reply.code(500);
+      return { success: false, error: 'internal server error' };
+    }
+  });
+
+  // POST /sugar/parley/resolve-together — re-derives the exact evidence,
+  // admits a bounded automatic Parley, and returns the visually distinct hook
+  // context the spawned Parley outbox delivers to both verified participants.
+  fastify.post('/sugar/parley/resolve-together', async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      if (!sugarParley) return coordinatorUnavailable(reply);
+      const body = request.body as Record<string, unknown>;
+      const identity = requireSugarParleyIdentity(request, 'POST /sugar/parley/resolve-together');
+      if (!identity.success) {
+        reply.code(identity.httpStatus);
+        return identity.result;
+      }
+      const sessionId = stringInput(body.sessionId, 256);
+      const signalId = stringInput(body.signalId, 512);
+      const harbor = canonicalHarbor();
+      if (!sessionId || !signalId || !harbor) {
+        reply.code(400);
+        return { success: false, error: 'sessionId, card signalId, and a canonical harbor are required.', code: 'VALIDATION_ERROR' };
+      }
+      const receipt = await sugarParley.resolveTogether({
+        sessionId,
+        actorId: identity.verdict.actorId,
+        signalId,
+        harbor,
+      });
+      if (receipt.state === 'rejected') {
+        reply.code(409);
+        return { success: false, ...receipt, code: 'SUGAR_PARLEY_CARD_STALE' };
+      }
+      if (receipt.state === 'failed') {
+        reply.code(502);
+        return { success: false, ...receipt, code: 'SUGAR_PARLEY_CONVENE_FAILED' };
+      }
+      logger.info('sugar_parley_resolve_together', {
+        actorId: identity.verdict.actorId,
+        sessionId,
+        signalId: receipt.signalId,
+        parleyId: receipt.parleyId,
+        state: receipt.state,
+      });
+      return { success: true, ...receipt };
+    } catch (error) {
+      metrics.errors++;
+      logger.error('sugar_parley_resolve_together_error', { error: (error as Error).message });
+      reply.code(500);
+      return { success: false, error: 'internal server error' };
+    }
+  });
+
+  // POST /sugar/parley/settle — acknowledges a typed, evidence-bound
+  // settlement. The service permits mutation only after every verified live
+  // party acknowledges the exact same object; then it releases those exact
+  // claims, appends checked plan receipts, and lets the automatic lineage enter
+  // its durable cooldown rather than nagging a settled surface again.
+  fastify.post('/sugar/parley/settle', async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      if (!sugarParley) return coordinatorUnavailable(reply);
+      const body = request.body as Record<string, unknown>;
+      const identity = requireSugarParleyIdentity(request, 'POST /sugar/parley/settle');
+      if (!identity.success) {
+        reply.code(identity.httpStatus);
+        return identity.result;
+      }
+      const sessionId = stringInput(body.sessionId, 256);
+      const parleyId = stringInput(body.parleyId, 256);
+      const summary = stringInput(body.summary, SUGAR_PARLEY_SETTLEMENT_MAX_CHARS);
+      const nextStep = stringInput(body.nextStep, SUGAR_PARLEY_SETTLEMENT_MAX_CHARS);
+      const harbor = canonicalHarbor();
+      if (!sessionId || !parleyId || !summary || !nextStep || !harbor) {
+        reply.code(400);
+        return { success: false, error: 'sessionId, parleyId, summary, nextStep, and a canonical harbor are required.', code: 'VALIDATION_ERROR' };
+      }
+      const receipt = sugarParley.settle({
+        sessionId,
+        actorId: identity.verdict.actorId,
+        parleyId,
+        harbor,
+        summary,
+        nextStep,
+      });
+      if (receipt.state === 'rejected') {
+        reply.code(403);
+        return { success: false, ...receipt, code: 'SUGAR_PARLEY_SETTLEMENT_REJECTED' };
+      }
+      if (receipt.state === 'failed') {
+        reply.code(502);
+        return { success: false, ...receipt, code: 'SUGAR_PARLEY_SETTLEMENT_EFFECTS_FAILED' };
+      }
+      reply.code(receipt.state === 'awaiting-peer' ? 202 : 200);
+      return { success: true, ...receipt };
+    } catch (error) {
+      metrics.errors++;
+      logger.error('sugar_parley_settle_error', { error: (error as Error).message });
+      reply.code(500);
+      return { success: false, error: 'internal server error' };
+    }
+  });
+
+  // POST /sugar/parley/message — normal-language exchange within a previously
+  // convened Sugar Parley. The client never selects a protocol performative;
+  // the server writes its fixed human-message representation after proving
+  // canonical membership and active session lineage.
+  fastify.post('/sugar/parley/message', async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      if (!parley || !sessions) return coordinatorUnavailable(reply);
+      const body = request.body as Record<string, unknown>;
+      const identity = requireSugarParleyIdentity(request, 'POST /sugar/parley/message');
+      if (!identity.success) {
+        reply.code(identity.httpStatus);
+        return identity.result;
+      }
+      const parleyId = stringInput(body.parleyId, 256);
+      const sessionId = stringInput(body.sessionId, 256);
+      const message = stringInput(body.message, SUGAR_PARLEY_NOTE_MAX_CHARS);
+      const harbor = canonicalHarbor();
+      if (!parleyId || !sessionId || !message || !harbor) {
+        reply.code(400);
+        return { success: false, error: 'parleyId, sessionId, message, and a canonical harbor are required.', code: 'VALIDATION_ERROR' };
+      }
+      const summary = parley.get(parleyId, harbor);
+      const participant = summary?.parley.automatic?.participants.find((item) => item.actorId === identity.verdict.actorId);
+      const liveSession = sessions.get(sessionId) as {
+        success?: unknown;
+        session?: { id?: unknown; status?: unknown; agentId?: unknown; metadata?: unknown };
+      };
+      if (!summary || summary.parley.automatic?.checkpoint !== 'session_begin'
+        || summary.parley.automatic.kind !== 'task_convergence'
+        || summary.parley.automatic.origin !== 'sugar-parley'
+        || !participant || participant.sessionId !== sessionId
+        || liveSession.success !== true || liveSession.session?.status !== 'active'
+        || liveSession.session.id !== sessionId
+        || liveSession.session.agentId !== participant.inboxTarget
+        || resolveSugarParleySessionActor(liveSession.session, actorSouls!) !== identity.verdict.actorId) {
+        reply.code(403);
+        return { success: false, error: 'This credential and active session are not a party to a bounded Sugar Parley.', code: 'SUGAR_PARLEY_MEMBERSHIP_REQUIRED' };
+      }
+      const turn = parley.respondSugarParleyMessage({
+        parleyId,
+        harbor,
+        party: identity.verdict.actorId,
+        message,
+      });
+      return {
+        success: true,
+        kind: 'sugar_parley_message_receipt',
+        schemaVersion: 1,
+        parleyId,
+        turnSequence: turn.turnSequence,
+        replayed: turn.replayed,
+        notified: turn.notified,
+        notifyFailures: turn.notifyFailures,
+      };
+    } catch (error) {
+      metrics.errors++;
+      logger.error('sugar_parley_message_error', { error: (error as Error).message });
+      reply.code(409);
+      return { success: false, error: (error as Error).message, code: 'SUGAR_PARLEY_MESSAGE_REJECTED' };
     }
   });
 };
