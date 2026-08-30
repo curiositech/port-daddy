@@ -433,8 +433,8 @@ export function createOperatorAdmissionGrants(db: Database, deps: OperatorAdmiss
   function consumeAndMint<T extends {
     actorId: string;
     credential: string;
-    /** A false result rolls back the mint and leaves the grant active. */
-    accepted?: boolean;
+    /** Only an explicit true result consumes the grant; all other values roll back. */
+    accepted: boolean;
     /** Non-secret downstream result returned when enactment is rejected. */
     enactment?: unknown;
     error?: string;
@@ -519,7 +519,7 @@ export function createOperatorAdmissionGrants(db: Database, deps: OperatorAdmiss
           return rejection(grantId, 'GRANT_BINDING_MISMATCH', `final worktree probe drifted: ${finalMismatches.join(', ')}`);
         }
         const minted = mint();
-        if (minted.accepted === false) {
+        if (minted.accepted !== true) {
           throw new OperatorAdmissionEnactmentRollback(
             minted.enactment,
             minted.error || 'operator admission enactment was rejected',

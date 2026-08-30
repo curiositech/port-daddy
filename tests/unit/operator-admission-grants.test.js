@@ -79,7 +79,7 @@ describe('exact operator admission grants', () => {
         roadmapSlug: issued.grant.roadmapSlug,
       }, () => {
         mintCalls += 1;
-        return { actorId: 'actor-granted', credential: 'actor-granted.once-only-secret' };
+        return { actorId: 'actor-granted', credential: 'actor-granted.once-only-secret', accepted: true };
       });
       expect(first.success).toBe(true);
       expect(first.actorId).toBe('actor-granted');
@@ -93,7 +93,7 @@ describe('exact operator admission grants', () => {
         roadmapSlug: issued.grant.roadmapSlug,
       }, () => {
         mintCalls += 1;
-        return { actorId: 'actor-replay', credential: 'actor-replay.secret' };
+        return { actorId: 'actor-replay', credential: 'actor-replay.secret', accepted: true };
       });
       expect(replay).toMatchObject({ success: false, code: 'GRANT_ALREADY_CONSUMED' });
       expect(mintCalls).toBe(1);
@@ -105,6 +105,29 @@ describe('exact operator admission grants', () => {
         'consumed',
         'rejected',
       ]);
+    } finally {
+      db.close();
+    }
+  });
+
+  test('rolls back mint and leaves the grant active unless enactment explicitly accepts', () => {
+    const { db, grants } = fixture();
+    try {
+      const issued = issue(grants);
+      const result = grants.consumeAndMint({
+        grantId: issued.grant.grantId,
+        identity: issued.grant.identity,
+        worktreeRoot: ROOT,
+        roadmapSlug: issued.grant.roadmapSlug,
+      }, () => ({
+        actorId: 'actor-without-enactment-proof',
+        credential: 'actor-without-enactment-proof.secret',
+      }));
+
+      expect(result).toMatchObject({ success: false, code: 'GRANT_ENACTMENT_REJECTED' });
+      const readback = grants.get(issued.grant.grantId);
+      expect(readback.grant.status).toBe('active');
+      expect(readback.receipts.map((entry) => entry.kind)).toEqual(['issued', 'rejected']);
     } finally {
       db.close();
     }

@@ -109,6 +109,15 @@ async function issueOperatorAdmissionGrant(options: CLIOptions): Promise<void> {
     ui.error(data.error || `operator admission grant failed with status ${res.status}`);
     process.exit(1);
   }
+  if (
+    !data.receipt
+    || data.receipt.kind !== 'issued'
+    || typeof data.receipt.receiptId !== 'string'
+    || !data.receipt.receiptId.trim()
+  ) {
+    ui.error('operator admission grant response omitted its durable issued receipt');
+    process.exit(1);
+  }
   if (isJson(options)) {
     console.log(JSON.stringify(data, null, 2));
     return;
