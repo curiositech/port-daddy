@@ -233,7 +233,7 @@ describe('createSpawnAdapter — worktree path', () => {
   });
 
   test('branch is dispatch/<slug>-<idShort>', async () => {
-    const dispatch = queue.propose({ goal: 'implement feature xyz', projectDir: SOURCE_PROJECT });
+    queue.propose({ goal: 'implement feature xyz', projectDir: SOURCE_PROJECT });
     const { adapter, calls } = makeAdapter();
 
     await runNext(queue, { dryRun: false, spawnAdapter: adapter });
@@ -244,7 +244,7 @@ describe('createSpawnAdapter — worktree path', () => {
   });
 
   test('baseRef uses origin/<baseBranch>', async () => {
-    const dispatch = queue.propose({
+    queue.propose({
       goal: 'do something',
       baseBranch: 'release/2026.06',
       projectDir: SOURCE_PROJECT,
@@ -386,7 +386,7 @@ describe('createSpawnAdapter — state machine', () => {
   });
 
   test('adapter returns state=settled when PR opened (adapter lifecycle signal)', async () => {
-    const dispatch = queue.propose({ goal: 'add telemetry to the spawner', projectDir: SOURCE_PROJECT });
+    queue.propose({ goal: 'add telemetry to the spawner', projectDir: SOURCE_PROJECT });
     const { adapter } = makeAdapter();
 
     const result = await runNext(queue, { dryRun: false, spawnAdapter: adapter });
