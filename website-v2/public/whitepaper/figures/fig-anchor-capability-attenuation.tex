@@ -1,49 +1,46 @@
-% Semantic contract: delegation monotonically reduces both rights and lifetime.
+% Semantic contract: a child must stay inside its parent's rights-by-lifetime
+% envelope. Nested geometry carries both inequalities without a prose table.
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}[
-  x=1cm,y=1cm,font=\small,
-  cell/.style={draw=hhink,line width=.55pt,fill=hhpaper,minimum width=31mm,
-    minimum height=9mm,align=center,inner sep=4pt},
-  head/.style={draw=hhink,line width=.7pt,fill=hhsand!32,minimum width=31mm,
-    minimum height=10mm,align=center,inner sep=4pt}
-]
-  \node[font=\scriptsize\bfseries,text=hhgray,anchor=east] at (-5.15,1.45) {delegation hop};
-  \node[font=\scriptsize\bfseries,text=hhgray,anchor=east] at (-5.15,.45) {rights};
-  \node[font=\scriptsize\bfseries,text=hhgray,anchor=east] at (-5.15,-.55) {lifetime};
+\begin{tikzpicture}[pd figure,x=.16cm,y=1.08cm]
+  \draw[pd rule,-{Stealth[length=1.7mm,width=1.05mm]}] (0,0) -- (67,0);
+  \draw[pd rule,-{Stealth[length=1.7mm,width=1.05mm]}] (0,0) -- (0,4.15);
+  \node[pd axis label,anchor=west] at (67,0) {remaining lifetime (min)};
+  \node[pd axis label,anchor=south,rotate=90] at (-4.7,4.15) {capability reach};
 
-  \node[head] at (-3.55,1.45) {\textbf{Root}};
-  \node[cell] at (-3.55,.45) {\scriptsize \texttt{net:*}, \texttt{db:*}, \texttt{fs:*}};
-  \node[cell] at (-3.55,-.55) {\scriptsize TTL $\leq 60$ min};
-  \node[head] at (0,1.45) {\textbf{Hop 1}};
-  \node[cell] at (0,.45) {\scriptsize \texttt{db:write}, \texttt{fs:read}};
-  \node[cell] at (0,-.55) {\scriptsize TTL $\leq 15$ min};
-  \node[head] at (3.55,1.45) {\textbf{Hop 2}};
-  \node[cell] at (3.55,.45) {\scriptsize \texttt{db:write}};
-  \node[cell] at (3.55,-.55) {\scriptsize TTL $\leq 5$ min};
+  \foreach \y/\rightname in {1/{\texttt{db:write}},2/{+ \texttt{fs:read}},3/{+ \texttt{net:*}}} {
+    \draw[pd guide] (0,\y) -- (63,\y);
+    \node[pd axis label,anchor=east] at (-1.0,\y) {\rightname};
+  }
+  \foreach \x/\tickname in {5/5,15/15,60/60} {
+    \draw[pd tick] (\x,0) -- (\x,-.12);
+    \node[pd axis label,anchor=north] at (\x,-.18) {\tickname};
+  }
 
-  \node[font=\small\bfseries,text=hhteal,fill=hhpaper,inner sep=1pt] at (-1.78,.45) {$\supset$};
-  \node[font=\small\bfseries,text=hhteal,fill=hhpaper,inner sep=1pt] at (1.78,.45) {$\supset$};
-  \node[font=\small\bfseries,text=hhteal,fill=hhpaper,inner sep=1pt] at (-1.78,-.55) {$>$};
-  \node[font=\small\bfseries,text=hhteal,fill=hhpaper,inner sep=1pt] at (1.78,-.55) {$>$};
+  \path[fill=hhsand!24,draw=hhgray!70,line width=.62pt]
+    (0,0) rectangle (60,3.35);
+  \path[fill=hhteal!7,draw=hhteal!72,line width=.82pt]
+    (0,0) rectangle (15,2.35);
+  \path[fill=hhteal!17,draw=hhteal,line width=1.02pt]
+    (0,0) rectangle (5,1.35);
 
-  \node[draw=hhamber,line width=.75pt,fill=hhsand!16,rounded corners=2pt,
-    minimum width=54mm,minimum height=10mm,align=center] (attempt) at (0,-1.85)
-    {\footnotesize Hop 2 attempts to add \texttt{net:*}};
-  \node[draw=hhamber,line width=.9pt,fill=hhsand!22,rounded corners=2pt,
-    minimum width=25mm,minimum height=10mm,font=\footnotesize\bfseries] (reject) at (4.1,-1.85)
-    {REJECT};
-  \draw[-{Stealth[length=2mm]},draw=hhamber,line width=.9pt] (attempt.east) -- (reject.west)
-    node[midway,above=10pt,font=\scriptsize,fill=hhpaper,inner xsep=3pt]
-      {absent from $C_1$};
+  \node[pd direct label,anchor=north east] at (59.4,3.28)
+    {$C_0$ root \quad 60 min};
+  \node[pd direct label,text=hhteal,anchor=north east] at (14.5,2.28)
+    {$C_1$ \quad 15 min};
+  \node[pd direct label,text=hhteal,anchor=west] at (5.7,.72)
+    {$C_2$ \quad 5 min};
 
-  \draw[hhink,line width=.55pt] (-5.0,-2.75) -- (5.3,-2.75);
-  \node[font=\footnotesize,fill=hhpaper,inner xsep=6pt] at (0,-2.65)
-    {$C_2\subseteq C_1\subseteq C_0\quad\land\quad T_2<T_1<T_0$};
+  \node[pd caution datum] (bad) at (5,3) {};
+  \draw[pd caution arrow] (bad) -- ++(8,0)
+    node[pd direct label,text=hhamber,anchor=west] {attempted re-grant of \texttt{net:*}};
+  \node[pd note,anchor=west] at (25,.5)
+    {$C_2\subseteq C_1\subseteq C_0$ and $T_2<T_1<T_0$};
 \end{tikzpicture}
-\caption{Delegation attenuates along two independent dimensions. Each child has
-no more authority and a shorter lifetime than its parent. The explicit rejected
-trace shows the verifier rule: a later hop cannot reintroduce a right removed by
-an earlier hop, even if the immediate child signs the attempt.}
+\caption{Delegation must remain inside a two-dimensional parent envelope. The
+child's capability set and remaining lifetime both contract at every hop. The
+amber re-grant lies outside $C_1$ even though its requested lifetime is short;
+the verifier rejects it because attenuation is conjunctive, not a trade between
+rights and time.}
 \label{fig:anchor-capability-attenuation}
 \end{figure}

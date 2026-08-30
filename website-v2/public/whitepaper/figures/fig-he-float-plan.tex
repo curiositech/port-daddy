@@ -1,47 +1,41 @@
-% Semantic contract: a three-party transaction sequence with one atomic gate.
+% Figure IV.3 --- atomicity shown as synchronized state traces.
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}[x=1cm,y=1cm,font=\small]
-  \node[draw=hhink,line width=.65pt,fill=hhsand!22,rounded corners=2pt,
-    minimum width=39mm,minimum height=10mm,align=center] at (-4.6,1.85)
-    {\textbf{Requester}\\[-1pt]{\scriptsize\color{hhgray}signed intent}};
-  \node[draw=hhink,line width=.65pt,fill=hhsand!22,rounded corners=2pt,
-    minimum width=39mm,minimum height=10mm,align=center] at (0,1.85)
-    {\textbf{Daemon}\\[-1pt]{\scriptsize\color{hhgray}ledger authority}};
-  \node[draw=hhink,line width=.65pt,fill=hhsand!22,rounded corners=2pt,
-    minimum width=39mm,minimum height=10mm,align=center] at (4.6,1.85)
-    {\textbf{Worker}\\[-1pt]{\scriptsize\color{hhgray}execution}};
-  \foreach \x in {-4.6,0,4.6} {
-    \draw[hhgray,line width=.55pt] (\x,1.32) -- (\x,-2.45);
-  }
+\resizebox{0.94\textwidth}{!}{%
+\begin{tikzpicture}[pd figure]
+  \node[pd panel title,anchor=west] at (-6.7,3.0)
+    {execution becomes admissible at one committed transition};
+  \foreach \x/\lab in {-5.4/signed plan,-1.8/transaction begins,1.3/commit,5.2/clearance}
+    {\draw[pd guide] (\x,-2.2)--(\x,2.25);
+     \node[pd axis label,anchor=north] at (\x,-2.35) {\lab};}
+  \node[pd axis label,anchor=east] at (-6.05,1.65) {wallet};
+  \node[pd axis label,anchor=east] at (-6.05,.15) {escrow row};
+  \node[pd axis label,anchor=east] at (-6.05,-1.35) {worker state};
 
-  \draw[-{Stealth[length=2.2mm]},draw=hhink,line width=.75pt]
-    (-4.6,.82) -- (0,.82)
-    node[midway,above=2pt,font=\footnotesize,fill=hhpaper,inner xsep=4pt]
-      {1. signed manifest $\langle task,oracle,bounty\rangle$};
+  \draw[pd rule,line width=1.2pt] (-5.75,2.00)--(1.30,2.00)--(1.30,1.35)--(5.75,1.35);
+  \draw[pd focus rule,line width=1.4pt] (-5.75,-.15)--(1.30,-.15)--(1.30,.55)--(5.75,.55);
+  \node[pd direct label,anchor=west] at (3.05,1.62) {debited};
+  \node[pd direct label,text=hhteal,anchor=west] at (3.05,.82) {row exists};
 
-  \fill[hhteal!8] (-1.35,.20) rectangle (1.35,-.58);
-  \draw[hhteal,line width=.8pt] (-1.35,.20) rectangle (1.35,-.58);
-  \node[font=\footnotesize\bfseries,align=center] at (0,-.02)
-    {2. wallet debit + escrow row};
-  \node[font=\scriptsize,text=hhgray] at (0,-.37) {one database commit};
+  \draw[pd rule,line width=1.2pt] (-5.75,-1.05)--(2.25,-1.05)--(2.25,-1.72)--(5.75,-1.72);
+  \node[pd direct label,anchor=north west] at (-4.95,-1.18) {no process};
+  \node[pd direct label,text=hhteal,anchor=west] at (3.05,-1.45) {running};
+  \draw[pd focus arrow] (1.42,.50) to[out=-30,in=150] (2.15,-1.62);
+  \node[pd note,text=hhteal,anchor=west] at (1.75,-.35) {signed row check};
 
-  \draw[hhamber,line width=1pt] (-6.2,-.86) -- (6.2,-.86);
-  \node[fill=hhpaper,inner xsep=6pt,font=\footnotesize\bfseries,text=hhamber]
-    at (0,-.86) {execution boundary};
-  \node[font=\scriptsize\itshape,text=hhgray] at (-3.1,-1.13)
-    {no worker state exists above this line};
-
-  \draw[-{Stealth[length=2.2mm]},draw=hhteal,line width=.9pt]
-    (0,-1.62) -- (4.6,-1.62)
-    node[midway,above=2pt,font=\footnotesize,fill=hhpaper,inner xsep=4pt]
-      {3. clearance $\langle plan\ hash,escrow\ id\rangle$};
-  \node[font=\scriptsize,align=center,text=hhgray] at (4.6,-2.10)
-    {worker admits the plan\\only after signature + row check};
-\end{tikzpicture}
-\caption{The float-plan ceremony is a three-party transaction sequence. The
-requester signs intent; the daemon atomically debits the wallet and creates the
-escrow row; only then does the worker receive an execution clearance bound to that
-committed row. The horizontal boundary makes no-spawn-without-bond visible.}
+  \draw[pd caution rule,dashed] (-1.80,-.58)--(.55,-.58);
+  \node[pd caution datum] at (.55,-.58) {};
+  \node[pd note,text=hhamber,anchor=north] at (-.60,-.69)
+    {abort: all three traces unchanged};
+  \draw[pd caution rule,line width=1pt] (1.30,-2.05)--(1.30,2.35);
+  \node[pd direct label,text=hhamber,anchor=south] at (1.30,2.48)
+    {atomic commit boundary};
+\end{tikzpicture}}
+\caption{\textbf{No-spawn-without-bond is a synchronized state transition.}
+The wallet debit and escrow-row creation occur at the same commit. Only after the
+committed row is observable does the worker move from nonexistent to running. A
+signed plan or an attempted debit is insufficient: the dashed abort branch leaves
+all three traces in their prior state. The figure therefore locates the invariant
+at a transition, not at a component or message label.}
 \label{fig:he-float-plan}
 \end{figure}
