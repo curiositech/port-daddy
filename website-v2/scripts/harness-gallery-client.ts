@@ -22,6 +22,12 @@ interface GalleryData {
     state: string;
     boundary: string;
   }>;
+  paneArchive: {
+    schema: string;
+    sourceCast: string;
+    sourceCastSha256: string;
+    paneCount: number;
+  };
 }
 
 function joinStateLabel(state: string, shape: string): string {
@@ -37,6 +43,7 @@ const tabs = document.querySelector<HTMLElement>('#scene-tabs')!;
 const playerRoot = document.querySelector<HTMLElement>('#player-root')!;
 const themeButton = document.querySelector<HTMLButtonElement>('#theme-toggle')!;
 const integrationSlots = document.querySelector<HTMLElement>('#integration-slots')!;
+const paneInspector = document.querySelector<HTMLElement>('#parley-pane-inspector')!;
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 let active = 0;
@@ -72,6 +79,12 @@ async function activate(index: number): Promise<void> {
   text('scene-authority', scene.authority);
   text('scene-format', scene.format);
   text('scene-hash', scene.hash.slice(0, 12));
+  paneInspector.hidden = scene.id !== 'parley-source';
+  if (!paneInspector.hidden) {
+    for (const history of paneInspector.querySelectorAll<HTMLElement>('.pane-history pre')) {
+      history.scrollTop = history.scrollHeight;
+    }
+  }
 
   player?.destroy();
   if (castUrl) URL.revokeObjectURL(castUrl);
@@ -110,6 +123,13 @@ for (const [index, scene] of gallery.scenes.entries()) {
 themeButton.addEventListener('click', () => {
   setTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
 });
+for (const button of paneInspector.querySelectorAll<HTMLButtonElement>('[data-pane-latest]')) {
+  button.addEventListener('click', () => {
+    const paneId = button.dataset.paneLatest;
+    const history = paneId ? document.getElementById(`pane-history-${paneId}`) : null;
+    if (history) history.scrollTop = history.scrollHeight;
+  });
+}
 setTheme(window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
 for (const entry of gallery.integrationJoin) {
   const slot = document.createElement('article');

@@ -53,7 +53,7 @@ describe('HarnessPage', () => {
     expect(screen.getByText('The seat belt, dashboard, and flight recorder around the worker.')).toBeTruthy()
     expect(screen.getByText('The team’s durable control plane.')).toBeTruthy()
     expect(screen.getByText('The evidence window you can pause and inspect.')).toBeTruthy()
-    expect(screen.getByRole('heading', { name: 'The Parley, as it actually happened.' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'See the shared moment. Then inspect every pane.' })).toBeTruthy()
     expect(screen.getByRole('heading', { name: 'Suggestible does not mean obedient.' })).toBeTruthy()
     expect(document.querySelector('#capabilities')).toBeTruthy()
 

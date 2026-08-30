@@ -14,6 +14,7 @@ const websiteRoot = join(here, '..');
 const repoRoot = join(websiteRoot, '..');
 const castsRoot = join(websiteRoot, 'public', 'casts', 'porthole');
 const parleyEvidencePath = join(websiteRoot, 'src', 'data', 'evidence', 'parley-979f6940.json');
+const parleyPaneArchivePath = join(websiteRoot, 'src', 'data', 'evidence', 'parley-source-panes.json');
 const outputPath = process.argv[2] ?? join(homedir(), 'coding', 'tmp', 'port-daddy-current-harness-transcripts.html');
 
 const scenes = [
@@ -79,6 +80,7 @@ const scenes = [
 
 const integrationJoin = INTEGRATION_CONTRACTS.map(({ castClaimPatterns, ...contract }) => contract);
 const parleyProof = JSON.parse(await readFile(parleyEvidencePath, 'utf8'));
+const parleyPaneArchive = JSON.parse(await readFile(parleyPaneArchivePath, 'utf8'));
 
 if (parleyProof.participants?.length < 3 || parleyProof.status !== 'CONVENED' || parleyProof.outcome !== null) {
   throw new Error('Three-party Parley evidence must remain CONVENED, unresolved, and visibly multi-party');
@@ -114,6 +116,20 @@ const parleyReceiptsHtml = parleyProof.receipts.map((receipt) => {
   return `<span class="receipt-state ${receipt.unseenTurns === 0 ? 'complete' : 'unseen'}"><span class="party-glyph ${escapeHtml(participant.shape)}" style="--party:${safePartyColor(participant.color)}" aria-hidden="true"></span>${escapeHtml(participant.shortLabel)} · ${escapeHtml(state)}</span>`;
 }).join('');
 
+const paneLineClass = (line) => {
+  if (/\b(?:REFUSED|ERROR|failed|denied|unhealthy)\b/i.test(line)) return 'error';
+  if (/PORT DADDY WITNESS|\bWITNESS\b|CAUGHT UP/.test(line)) return 'witness';
+  if (/^(?:NORA◆|MILO◇|AYA●)\s+❯/.test(line)) return 'command';
+  if (/\b(?:session|agent)-[a-z0-9-]+\b/i.test(line)) return 'anchor';
+  return '';
+};
+
+const paneScrollbackHtml = parleyPaneArchive.panes.map((pane) => {
+  const lines = pane.lines.map((line) => `<span class="pane-line ${paneLineClass(line)}">${escapeHtml(line) || '&nbsp;'}</span>`).join('');
+  const historyState = pane.historyLimitReached ? 'tmux history limit reached' : 'available history below limit';
+  return `<article class="pane-history" style="--pane:${safePartyColor(pane.color)}"><header><div><strong><span aria-hidden="true">${escapeHtml(pane.mark)}</span> ${escapeHtml(pane.name)}</strong><small>${escapeHtml(pane.role)}</small></div><button type="button" data-pane-latest="${escapeHtml(pane.id)}" aria-controls="pane-history-${escapeHtml(pane.id)}" aria-label="Jump ${escapeHtml(pane.name)} tmux pane scrollback to latest">↓ latest</button></header><pre id="pane-history-${escapeHtml(pane.id)}" role="region" tabindex="0" aria-label="${escapeHtml(pane.name)} tmux pane scrollback, ${pane.lines.length} lines">${lines}</pre><footer><span>${pane.lines.length} captured lines · ${pane.geometry.cols}×${pane.geometry.rows}</span><span>${historyState}</span></footer></article>`;
+}).join('');
+
 const casts = {};
 for (const scene of scenes) {
   const bytes = await readFile(join(castsRoot, `${scene.cast ?? scene.id}.cast`));
@@ -134,7 +150,17 @@ const bundle = await build({
 });
 const clientJs = bundle.outputFiles[0].text;
 const commit = execFileSync('/usr/bin/git', ['rev-parse', '--short=10', 'HEAD'], { cwd: repoRoot, encoding: 'utf8' }).trim();
-const payload = JSON.stringify({ scenes, casts, integrationJoin }).replace(/</g, '\\u003c');
+const payload = JSON.stringify({
+  scenes,
+  casts,
+  integrationJoin,
+  paneArchive: {
+    schema: parleyPaneArchive.schema,
+    sourceCast: parleyPaneArchive.sourceCast,
+    sourceCastSha256: parleyPaneArchive.sourceCastSha256,
+    paneCount: parleyPaneArchive.panes.length,
+  },
+}).replace(/</g, '\\u003c');
 
 const html = `<!doctype html>
 <html lang="en">
@@ -213,6 +239,14 @@ h1{max-width:18ch;margin:9px 0 12px;font:700 clamp(34px,5vw,68px)/.98 var(--font
 .receipt-mark{display:inline-block;margin-top:12px;padding:5px 7px;border:1px solid var(--brand-accent);color:var(--brand-accent)}
 .proof-key{color:var(--brand-accent)}
 .player-shell{border:1px solid var(--border-strong);background:var(--surface-sunken);padding:12px}
+.pane-inspector{margin-top:16px;border:1px solid var(--border-default);background:var(--surface-raised)}
+.pane-inspector[hidden]{display:none}.pane-inspector-head{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:18px;align-items:end;padding:18px;border-left:7px solid var(--brand-primary);border-bottom:1px solid var(--border-default)}
+.pane-inspector h2{max-width:24ch;margin:5px 0 8px;font:700 clamp(23px,3vw,36px)/1.05 var(--font-display)}.pane-inspector-head p{max-width:75ch;margin:0;color:var(--text-secondary)}.pane-inspector-source{text-align:right;color:var(--text-muted);font:11px/1.5 var(--font-mono)}
+.pane-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;background:var(--border-default)}
+.pane-history{display:grid;min-width:0;min-height:0;grid-template-rows:auto minmax(0,1fr) auto;border-top:7px solid var(--pane);background:var(--surface-sunken)}
+.pane-history header{display:flex;align-items:start;justify-content:space-between;gap:10px;padding:12px;border-bottom:1px solid var(--border-default);background:var(--surface-raised)}.pane-history header strong,.pane-history header small{display:block}.pane-history header strong{font:800 15px/1.2 var(--font-mono)}.pane-history header strong span{color:var(--pane)}.pane-history header small{margin-top:4px;color:var(--text-muted);font:800 10px/1.2 var(--font-mono);letter-spacing:.07em;text-transform:uppercase}.pane-history button{min-height:44px;padding:5px 9px;border:1px solid var(--border-strong);background:transparent;color:var(--brand-primary);font:800 10px/1 var(--font-mono);text-transform:uppercase;cursor:pointer}.pane-history button:focus-visible,.pane-history pre:focus-visible{outline:3px solid var(--interactive-focus);outline-offset:-3px}
+.pane-history pre{height:310px;max-width:none;margin:0;padding:12px;overflow:auto;scrollbar-color:var(--brand-primary) var(--surface-sunken);white-space:pre-wrap;overflow-wrap:anywhere;color:var(--ph-text);font:14px/1.45 var(--font-mono)}.pane-line{display:block;min-height:1.45em}.pane-line.command{color:var(--ph-command);font-weight:700}.pane-line.anchor{color:var(--session)}.pane-line.witness{color:var(--brand-primary);font-weight:700}.pane-line.error{color:var(--status-error);font-weight:800}
+.pane-history footer{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;padding:8px 12px;border-top:1px solid var(--border-default);color:var(--text-muted);font:10px/1.2 var(--font-mono)}
 .legend{display:flex;flex-wrap:wrap;gap:8px 20px;margin:11px 0 0;color:var(--text-muted);font:700 11px/1.4 var(--font-mono)}
 .legend i{display:inline-block;width:9px;height:9px;margin-right:6px;background:currentColor}
 .legend .agent{color:var(--agent)} .legend .session{color:var(--session)} .legend .purpose{color:var(--purpose)} .legend .harness{color:var(--harness)} .legend .error{color:var(--status-error)}
@@ -220,6 +254,9 @@ h1{max-width:18ch;margin:9px 0 12px;font:700 clamp(34px,5vw,68px)/.98 var(--font
 .evidence-grid article{padding:18px;background:var(--surface-raised)}
 .evidence-grid h3{margin:7px 0;font:700 18px/1.2 var(--font-display)}
 .evidence-grid p{margin:0;color:var(--text-secondary)}
+.parley-doctrine{margin-top:28px;border:1px solid var(--border-default);background:var(--surface-raised)}
+.parley-doctrine-head{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(260px,.75fr);gap:22px;padding:20px;border-bottom:1px solid var(--border-default)}.parley-doctrine h2{max-width:21ch;margin:5px 0 8px;font:700 clamp(24px,3vw,38px)/1.04 var(--font-display)}.parley-doctrine-head p{max-width:74ch;margin:0;color:var(--text-secondary)}.doctrine-truth{padding:13px;border-left:7px solid var(--status-warning);background:var(--surface-sunken);color:var(--text-secondary);font-size:13px}.doctrine-truth strong{display:block;margin-bottom:5px;color:var(--status-warning);font:850 10px/1.2 var(--font-mono);letter-spacing:.08em;text-transform:uppercase}
+.doctrine-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--border-default)}.doctrine-grid article{padding:15px;background:var(--surface-sunken)}.doctrine-grid span{color:var(--brand-primary);font:850 10px/1.2 var(--font-mono);letter-spacing:.08em;text-transform:uppercase}.doctrine-grid strong{display:block;margin:9px 0 6px;font:700 17px/1.15 var(--font-display)}.doctrine-grid p{margin:0;color:var(--text-secondary);font-size:13px}
 .parley-board{margin-top:28px;border:1px solid var(--border-default);background:var(--surface-raised)}
 .parley-board-head{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(260px,.75fr);gap:22px;padding:20px;border-bottom:1px solid var(--border-default)}
 .parley-board-head>div>p{max-width:72ch;margin:0;color:var(--text-secondary)}
@@ -256,8 +293,8 @@ ${portholeCss}
 .ph-root{--type-code-size:14px}
 .ph-win{border-color:var(--border-strong)}
 .ph-cut-notice{background:var(--ph-header-bg)}
-@media(max-width:980px){.mast,.decoder-head,.parley-board-head,.parley-honesty{grid-template-columns:1fr}.layer-grid,.watch-guide,.suggest-index{grid-template-columns:1fr 1fr}.scene-tabs{grid-template-columns:repeat(3,1fr)}.brief{grid-template-columns:1fr 1fr}.brief-main{grid-row:auto;grid-column:1/-1}.evidence-grid,.integration-slots{grid-template-columns:1fr}.parley-turn{grid-template-columns:38px 1fr}.turn-card.lane-1,.turn-card.lane-2,.turn-card.lane-3{grid-column:2}}
-@media(max-width:640px){.page{width:min(100% - 20px,1320px);padding-top:18px}.layer-grid,.watch-guide,.suggest-index,.party-grid{grid-template-columns:1fr}.scene-tabs{grid-template-columns:1fr 1fr}.brief{grid-template-columns:1fr}.brief-main{grid-column:auto}.brief-main .scene-no{float:none;display:block;margin:0 0 9px}.mast-aside{grid-template-columns:1fr 1fr}.party-grid,.parley-turns,.parley-honesty{margin-left:10px;margin-right:10px}.ph-term{font-size:12px;padding-left:28px}.ph-provenance{overflow-wrap:anywhere}}
+@media(max-width:980px){.mast,.decoder-head,.parley-board-head,.parley-honesty,.pane-inspector-head,.parley-doctrine-head{grid-template-columns:1fr}.layer-grid,.watch-guide,.suggest-index,.doctrine-grid{grid-template-columns:1fr 1fr}.scene-tabs{grid-template-columns:repeat(3,1fr)}.brief{grid-template-columns:1fr 1fr}.brief-main{grid-row:auto;grid-column:1/-1}.evidence-grid,.integration-slots{grid-template-columns:1fr}.parley-turn{grid-template-columns:38px 1fr}.turn-card.lane-1,.turn-card.lane-2,.turn-card.lane-3{grid-column:2}.pane-inspector-source{text-align:left}}
+@media(max-width:640px){.page{width:min(100% - 20px,1320px);padding-top:18px}.layer-grid,.watch-guide,.suggest-index,.party-grid,.pane-grid,.doctrine-grid{grid-template-columns:1fr}.scene-tabs{grid-template-columns:1fr 1fr}.brief{grid-template-columns:1fr}.brief-main{grid-column:auto}.brief-main .scene-no{float:none;display:block;margin:0 0 9px}.mast-aside{grid-template-columns:1fr 1fr}.party-grid,.parley-turns,.parley-honesty{margin-left:10px;margin-right:10px}.ph-term{font-size:12px;padding-left:28px}.ph-provenance{overflow-wrap:anywhere}.pane-history pre{height:260px}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
 </style>
 </head>
@@ -314,6 +351,27 @@ ${portholeCss}
     <div id="player-root"></div>
     <div class="legend" aria-label="Terminal semantic color legend">
       <span class="agent"><i></i>agent / ready</span><span class="session"><i></i>session / identity</span><span class="purpose"><i></i>purpose / sidequest</span><span class="harness"><i></i>model context</span><span class="error"><i></i>refusal / error</span>
+    </div>
+  </section>
+
+  <section class="pane-inspector" id="parley-pane-inspector" aria-labelledby="parley-pane-inspector-title" hidden>
+    <div class="pane-inspector-head">
+      <div><span class="proof-key">Independent scrollback · recorder authority</span><h2 id="parley-pane-inspector-title">Four panes. Four real histories. Scroll each one.</h2><p>The moving replay above is one outer terminal surface. It cannot honestly recreate tmux history that was already scrolled away. Before teardown, the same recorder captures every pane from the beginning of its available tmux history and records the limit and whether that limit was reached. Wheel, trackpad, Page Up, and Page Down stay inside the focused pane.</p></div>
+      <div class="pane-inspector-source"><div>${escapeHtml(parleyPaneArchive.capture)}</div><div>sha256 ${escapeHtml(parleyPaneArchive.sourceCastSha256.slice(0, 12))}</div></div>
+    </div>
+    <div class="pane-grid">${paneScrollbackHtml}</div>
+  </section>
+
+  <section class="parley-doctrine" aria-labelledby="parley-doctrine-title">
+    <div class="parley-doctrine-head">
+      <div><span class="proof-key">Target doctrine · compelled consultation, never compelled consent</span><h2 id="parley-doctrine-title">Parley should find the agents.</h2><p>The daemon is the only participant with enough durable context to notice that Nora’s morning work and Otis’s afternoon plan are nearing the same authority surface. It should convene the consultation in natural language before either agent needs to know a protocol verb.</p></div>
+      <div class="doctrine-truth"><strong>Current source truth</strong>This recording is manually called and all three sessions are live. Automatic Parley exists only behind injected tests and currently rejects sleeping parties. Salvage returns bounded context to a successor; it does not restore a process or a mind. The proposed route is consent-leased reentry with fresh authority, not resurrection.</div>
+    </div>
+    <div class="doctrine-grid">
+      <article><span>01 · detect</span><strong>Notice nearness</strong><p>Claims, symbols, plans, and cited evidence establish why two efforts need a shared decision.</p></article>
+      <article><span>02 · summon</span><strong>Reach across time</strong><p>A durable invitation waits for the recorded identity when the original agent is offline.</p></article>
+      <article><span>03 · protect</span><strong>Never puppet the sleeper</strong><p>Only a verified continuation may speak as Nora. Her evidence may inform a delegate, but cannot grant consent.</p></article>
+      <article><span>04 · receipt</span><strong>Keep dissent visible</strong><p>Individual assent, refusal, unavailable parties, and operator gates remain explicit in the settlement receipt.</p></article>
     </div>
   </section>
 

@@ -1,5 +1,7 @@
-import { Eye, MessagesSquare, ShieldCheck, TerminalSquare } from 'lucide-react'
+import { useRef } from 'react'
+import { ArrowDownToLine, Eye, MessagesSquare, ShieldCheck, TerminalSquare } from 'lucide-react'
 import { PortholeEmbed } from '@/components/porthole/PortholeEmbed'
+import paneArchiveData from '@/data/evidence/parley-source-panes.json'
 import {
   BracketLabel,
   PanelBody,
@@ -32,6 +34,94 @@ const PARTICIPANTS = [
   },
 ] as const
 
+type PaneArchive = {
+  schema: 'porthole.tmux-pane-archive.v1'
+  sourceCast: string
+  sourceCastSha256: string
+  recordingStartedAt: string
+  capturedAt: string
+  outerTerminal: { cols: number; rows: number }
+  capture: string
+  capturedFromAvailableHistoryStart: boolean
+  panes: Array<{
+    id: string
+    name: string
+    mark: string
+    role: string
+    color: string
+    title: string
+    prompt: string
+    geometry: { cols: number; rows: number }
+    historySize: number
+    historyLimit: number
+    historyLimitReached: boolean
+    digestSha256: string
+    lines: string[]
+  }>
+}
+
+const PANE_ARCHIVE = paneArchiveData as PaneArchive
+
+function paneLineTone(line: string): string {
+  if (/\b(?:REFUSED|ERROR|failed|denied|unhealthy)\b/i.test(line)) return 'text-[var(--status-error)] font-bold'
+  if (/PORT DADDY WITNESS|\bWITNESS\b|CAUGHT UP/.test(line)) return 'text-[var(--brand-primary)] font-semibold'
+  if (/^(?:NORA◆|MILO◇|AYA●)\s+❯/.test(line)) return 'text-[var(--ph-command)] font-semibold'
+  if (/\b(?:session|agent)-[a-z0-9-]+\b/i.test(line)) return 'text-[var(--session)]'
+  return 'text-[var(--ph-text)]'
+}
+
+function PaneScrollback({ pane }: { pane: PaneArchive['panes'][number] }) {
+  const scrollRef = useRef<HTMLPreElement>(null)
+
+  return (
+    <article
+      className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)_auto] border-2 border-[var(--border-strong)] bg-[var(--surface-sunken)]"
+      style={{ borderTopColor: pane.color, borderTopWidth: '0.45rem' }}
+    >
+      <div className="flex flex-wrap items-start justify-between gap-[var(--space-2)] border-b-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-3)]">
+        <div>
+          <strong className="font-sans text-[length:var(--type-panel-title-nav-size)]">
+            <span aria-hidden="true" style={{ color: pane.color }}>{pane.mark}</span>{' '}
+            {pane.name}
+          </strong>
+          <span className="mt-1 block font-mono text-[length:var(--type-meta-size)] font-black uppercase text-[var(--text-muted)]">
+            {pane.role}
+          </span>
+        </div>
+        <button
+          type="button"
+          aria-controls={`pane-history-${pane.id}`}
+          aria-label={`Jump ${pane.name} tmux pane scrollback to latest`}
+          className="inline-flex min-h-11 items-center gap-1 border border-[var(--border-strong)] px-[var(--space-2)] font-mono text-[length:var(--type-meta-size)] font-black uppercase text-[var(--brand-primary)] hover:bg-[var(--interactive-hover)] focus-visible:outline-4 focus-visible:outline-[var(--focus-ring)]"
+          onClick={() => {
+            if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+          }}
+        >
+          <ArrowDownToLine size={14} /> latest
+        </button>
+      </div>
+      <pre
+        id={`pane-history-${pane.id}`}
+        ref={scrollRef}
+        role="region"
+        tabIndex={0}
+        aria-label={`${pane.name} tmux pane scrollback, ${pane.lines.length} lines`}
+        className="h-[19rem] min-h-0 max-w-none overflow-auto whitespace-pre-wrap break-words p-[var(--space-3)] font-mono text-[length:var(--type-code-size)] leading-[1.45] [scrollbar-color:var(--brand-primary)_var(--surface-sunken)] focus-visible:outline-4 focus-visible:outline-[var(--focus-ring)]"
+      >
+        {pane.lines.map((line, index) => (
+          <span className={`block min-h-[1.45em] ${paneLineTone(line)}`} key={`${pane.id}-${index}`}>
+            {line || '\u00a0'}
+          </span>
+        ))}
+      </pre>
+      <div className="flex flex-wrap justify-between gap-[var(--space-2)] border-t border-[var(--border-default)] px-[var(--space-3)] py-[var(--space-2)] font-mono text-[length:var(--type-meta-size)] text-[var(--text-muted)]">
+        <span>{pane.lines.length} captured lines</span>
+        <span>{pane.historyLimitReached ? 'tmux history limit reached' : 'available history below limit'}</span>
+      </div>
+    </article>
+  )
+}
+
 /**
  * Show the protocol-source Parley as a real tmux recording, with a visual key
  * for each participant and the read-only witness pane. The witness explains
@@ -43,14 +133,15 @@ export function ParleyTmuxReplay() {
       <SurfacePanel elevation="raised" padding="default" className="grid min-w-0 gap-[var(--space-6)] overflow-hidden">
         <div className="grid min-w-0 items-end gap-[var(--space-5)] lg:grid-cols-[minmax(0,1.2fr)_minmax(18rem,0.8fr)]">
           <div className="space-y-[var(--space-3)]">
-            <BracketLabel>Live protocol source · four-pane tmux</BracketLabel>
+            <BracketLabel>Protocol drill-down · real four-pane tmux</BracketLabel>
             <PanelTitle as="h2" size="display" className="max-w-[18ch]" id="parley-tmux-title">
-              The Parley, as it actually happened.
+              See the shared moment. Then inspect every pane.
             </PanelTitle>
             <PanelBody className="max-w-[54rem]">
               Nora, Milo, and Aya occupy different linked worktrees, shells, and Port Daddy sessions.
               The fourth pane is a read-only witness: it follows the durable record and explains what
-              each public move changed at the moment it commits.
+              each public move changed at the moment it commits. This is the audit view under the
+              floorboards, not the Parley experience agents should have to operate by hand.
             </PanelBody>
           </div>
           <div className="border-2 border-[var(--border-strong)] bg-[var(--surface-sunken)] p-[var(--space-3)]">
@@ -66,6 +157,69 @@ export function ParleyTmuxReplay() {
               </div>
             </div>
           </div>
+        </div>
+
+        <div className="grid min-w-0 gap-px border-2 border-[var(--border-strong)] bg-[var(--border-strong)] lg:grid-cols-[minmax(0,1.25fr)_repeat(4,minmax(0,0.75fr))]">
+          <div className="bg-[var(--surface-raised)] p-[var(--space-4)]">
+            <PanelEyebrow className="text-[var(--brand-accent)]">Target doctrine · not shipped by this cast</PanelEyebrow>
+            <PanelTitle as="h3" size="card" className="mt-[var(--space-2)] max-w-[22ch]">
+              Parley should find the agents. Agents should not have to discover Parley.
+            </PanelTitle>
+            <PanelBody size="compact" className="mt-[var(--space-2)] max-w-none">
+              Today’s recording is manual and all three sessions are live. The intended product is
+              a daemon-convened, natural-language consultation with explicit rights for anyone who
+              is offline. Detection may be automatic; consent and authority may not be fabricated.
+            </PanelBody>
+          </div>
+          {[
+            ['01 · notice', 'Detect nearness', 'Claims, symbols, plans, and cited evidence reveal that two efforts are about to collide.'],
+            ['02 · summon', 'Reach across time', 'A durable invitation waits for Nora even if Otis arrives hours after her session ended.'],
+            ['03 · protect', 'Never puppet the sleeper', 'Only a verified continuation may resume Nora. Otherwise her record can inform, but cannot consent for her.'],
+            ['04 · receipt', 'Keep dissent visible', 'Agreement is individual. A contested surface stays held until authority, evidence, and objections are settled.'],
+          ].map(([eyebrow, title, body]) => (
+            <article className="bg-[var(--surface-sunken)] p-[var(--space-3)]" key={eyebrow}>
+              <PanelEyebrow className="text-[var(--brand-primary)]">{eyebrow}</PanelEyebrow>
+              <strong className="mt-[var(--space-2)] block font-sans text-[length:var(--type-panel-title-nav-size)]">{title}</strong>
+              <PanelBody size="compact" className="mt-[var(--space-2)] max-w-none">{body}</PanelBody>
+            </article>
+          ))}
+        </div>
+
+        <div className="grid min-w-0 gap-px border-2 border-[var(--border-strong)] bg-[var(--border-strong)] lg:grid-cols-[minmax(0,1.15fr)_repeat(3,minmax(0,0.95fr))]">
+          <div className="bg-[var(--surface-raised)] p-[var(--space-4)]">
+            <PanelEyebrow className="text-[var(--status-warning)]">Across shifts · proposed authority contract</PanelEyebrow>
+            <PanelTitle as="h3" size="card" className="mt-[var(--space-2)] max-w-[24ch]">
+              If Nora is offline, her absence is a fact. It is not a vote.
+            </PanelTitle>
+            <PanelBody size="compact" className="mt-[var(--space-2)] max-w-none">
+              The safe design is consent-leased reentry: Port Daddy can preserve the summons and
+              protect the contested surface, but no initiator gets to animate Nora’s identity.
+            </PanelBody>
+          </div>
+          <article className="bg-[var(--surface-sunken)] p-[var(--space-3)]">
+            <PanelEyebrow>What salvage loads now</PanelEyebrow>
+            <strong className="mt-[var(--space-2)] block font-sans text-[length:var(--type-panel-title-nav-size)]">A bounded continuity brief</strong>
+            <PanelBody size="compact" className="mt-[var(--space-2)] max-w-none">
+              Identity, purpose, session, staleness, notes, and sometimes a verified context packet
+              plus last plan. Not a process, hidden model state, worktree, claims, or full transcript.
+            </PanelBody>
+          </article>
+          <article className="bg-[var(--surface-sunken)] p-[var(--space-3)]">
+            <PanelEyebrow>Who may speak</PanelEyebrow>
+            <strong className="mt-[var(--space-2)] block font-sans text-[length:var(--type-panel-title-nav-size)]">Resume or name the successor</strong>
+            <PanelBody size="compact" className="mt-[var(--space-2)] max-w-none">
+              A revalidated same-family session may continue. Otherwise a fresh, clearly labeled
+              successor receives new credentials. Nora’s record may inform it; it cannot assent as Nora.
+            </PanelBody>
+          </article>
+          <article className="bg-[var(--surface-sunken)] p-[var(--space-3)]">
+            <PanelEyebrow>What Parley may decide</PanelEyebrow>
+            <strong className="mt-[var(--space-2)] block font-sans text-[length:var(--type-panel-title-nav-size)]">A recommendation, not a capability</strong>
+            <PanelBody size="compact" className="mt-[var(--space-2)] max-w-none">
+              Agreement, dissent, decline, delegation, silence, and expiry stay visible. Any edit,
+              claim, push, or deploy still needs separate current authority.
+            </PanelBody>
+          </article>
         </div>
 
         <div className="grid min-w-0 gap-[var(--space-4)] xl:grid-cols-[minmax(0,1.75fr)_minmax(18rem,0.65fr)]">
@@ -114,6 +268,31 @@ export function ParleyTmuxReplay() {
               </PanelBody>
             </article>
           </aside>
+        </div>
+
+        <div className="grid min-w-0 gap-[var(--space-4)]" data-testid="parley-pane-archive">
+          <div className="grid gap-[var(--space-3)] border-l-[0.45rem] border-l-[var(--brand-primary)] bg-[var(--surface-raised)] p-[var(--space-4)] lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+            <div>
+              <PanelEyebrow>Independent scrollback · recorder authority</PanelEyebrow>
+              <PanelTitle as="h3" size="card" className="mt-[var(--space-2)] max-w-[28ch]">
+                Four panes. Four real histories. Scroll each one.
+              </PanelTitle>
+              <PanelBody size="compact" className="mt-[var(--space-2)] max-w-[58rem]">
+                A tmux video is one outer terminal surface, so its erased inner history cannot be
+                reconstructed honestly in the browser. Before teardown, the same recorder now runs
+                <code> tmux capture-pane </code> against each real pane and binds the archive to the
+                source cast hash. Wheel, trackpad, Page Up, and Page Down stay inside the focused pane.
+                Every pane reports its own history limit and whether that limit was reached.
+              </PanelBody>
+            </div>
+            <div className="font-mono text-[length:var(--type-meta-size)] text-[var(--text-muted)] lg:text-right">
+              <div>{PANE_ARCHIVE.capture}</div>
+              <div>sha256 {PANE_ARCHIVE.sourceCastSha256.slice(0, 12)}</div>
+            </div>
+          </div>
+          <div className="grid min-w-0 gap-[var(--space-3)] lg:grid-cols-2">
+            {PANE_ARCHIVE.panes.map((pane) => <PaneScrollback key={pane.id} pane={pane} />)}
+          </div>
         </div>
 
         <div className="grid gap-px border-2 border-[var(--border-strong)] bg-[var(--border-strong)] sm:grid-cols-3">

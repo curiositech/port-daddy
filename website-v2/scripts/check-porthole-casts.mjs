@@ -17,6 +17,7 @@
  * would see it: as one continuous line.
  */
 import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { JSDOM } from "jsdom";
@@ -33,6 +34,7 @@ import {
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const CASTS_DIR = join(__dirname, "..", "public", "casts", "porthole");
 const GALLERY_PATH = join(__dirname, "..", "..", "docs", "artifacts", "porthole-harness-proof-v2", "harness-proof-current.html");
+const PARLEY_PANES_PATH = join(__dirname, "..", "src", "data", "evidence", "parley-source-panes.json");
 
 /** A flat theme is enough here — the gate cares about TEXT content, never
  *  about which color a cell landed in, so real token names are unneeded. */
@@ -56,6 +58,76 @@ const failures = [];
 const fail = (msg) => failures.push(msg);
 const decodedByFile = new Map();
 const observedByFile = new Map();
+
+function checkParleyPaneArchive() {
+  if (!existsSync(PARLEY_PANES_PATH)) {
+    fail('parley-source-panes.json: missing recorder-authored tmux pane archive');
+    return;
+  }
+  let archive;
+  try {
+    archive = JSON.parse(readFileSync(PARLEY_PANES_PATH, 'utf8'));
+  } catch (error) {
+    fail(`parley-source-panes.json: invalid JSON (${error.message})`);
+    return;
+  }
+  if (archive.schema !== 'porthole.tmux-pane-archive.v1') {
+    fail(`parley-source-panes.json: unexpected schema ${archive.schema ?? 'missing'}`);
+  }
+  if (archive.sourceCast !== 'parley-source.cast' || archive.capturedFromAvailableHistoryStart !== true
+    || archive.capture !== 'tmux capture-pane -p -J -S -') {
+    fail('parley-source-panes.json: archive must declare a beginning-of-available-history tmux capture bound to parley-source.cast');
+  }
+  if (archive.outerTerminal?.cols !== 160 || archive.outerTerminal?.rows !== 44
+    || !Number.isFinite(Date.parse(archive.recordingStartedAt)) || !Number.isFinite(Date.parse(archive.capturedAt))) {
+    fail('parley-source-panes.json: archive is missing real outer geometry or recording/capture timestamps');
+  }
+  const castPath = join(CASTS_DIR, 'parley-source.cast');
+  if (existsSync(castPath)) {
+    const actualHash = createHash('sha256').update(readFileSync(castPath)).digest('hex');
+    if (archive.sourceCastSha256 !== actualHash) {
+      fail(`parley-source-panes.json: source cast hash drifted (archive=${archive.sourceCastSha256 ?? 'missing'}, actual=${actualHash})`);
+    }
+  }
+  const expected = new Map([
+    ['nora', /NORA◆/],
+    ['milo', /MILO◇/],
+    ['aya', /AYA●/],
+    ['witness', /PORT DADDY WITNESS[\s\S]*CAUGHT UP · 6 durable turns/],
+  ]);
+  const panes = Array.isArray(archive.panes) ? archive.panes : [];
+  if (panes.length !== expected.size || new Set(panes.map((pane) => pane.id)).size !== expected.size) {
+    fail(`parley-source-panes.json: expected four distinct pane histories, observed ${panes.length}`);
+  }
+  for (const pane of panes) {
+    if (!Array.isArray(pane.lines)) {
+      fail(`parley-source-panes.json/${pane.id ?? 'unknown'}: pane lines must be an array`);
+      continue;
+    }
+    const transcript = pane.lines.join('\n');
+    if (!expected.get(pane.id)?.test(transcript)) {
+      fail(`parley-source-panes.json: ${pane.id ?? 'unknown'} pane is missing its real terminal evidence`);
+    }
+    if (pane.lines?.length < 3) {
+      fail(`parley-source-panes.json: ${pane.id ?? 'unknown'} pane has no meaningful scrollback`);
+    }
+    const digest = createHash('sha256').update(`${transcript}\n`).digest('hex');
+    if (pane.digestSha256 !== digest || !Number.isSafeInteger(pane.historySize)
+      || pane.historySize < 0 || !Number.isSafeInteger(pane.historyLimit) || pane.historyLimit <= 0
+      || pane.historySize > pane.historyLimit
+      || typeof pane.historyLimitReached !== 'boolean'
+      || pane.historyLimitReached !== (pane.historySize >= pane.historyLimit)
+      || !Number.isSafeInteger(pane.geometry?.cols) || !Number.isSafeInteger(pane.geometry?.rows)) {
+      fail(`parley-source-panes.json/${pane.id}: pane digest, geometry, history size, or limit receipt is invalid`);
+    }
+    for (const [pattern, description] of LEAK_PATTERNS) {
+      if (pattern.test(transcript)) fail(`parley-source-panes.json/${pane.id}: ${description} (matched ${pattern})`);
+    }
+    if (/parley turn notification keys collided|REFUSED · command exited|Pane is dead/i.test(transcript)) {
+      fail(`parley-source-panes.json/${pane.id}: failed capture was persisted as pane evidence`);
+    }
+  }
+}
 
 /**
  * Loads the committed, self-contained gallery in a browser-like DOM and
@@ -126,6 +198,9 @@ async function checkGalleryResizeObserverLifecycle() {
     if (sourceScene?.cast !== 'parley-source' || !/drill-down/i.test(`${sourceScene?.station ?? ''} ${sourceScene?.label ?? ''}`)) {
       fail('harness-proof-current.html: parley-source.cast must remain an explicitly labeled drill-down scene');
     }
+    if (gallery?.paneArchive?.paneCount !== 4 || gallery?.paneArchive?.sourceCast !== 'parley-source.cast') {
+      fail('harness-proof-current.html: pane inspector is not bound to four parley-source histories');
+    }
 
     // `activate(0)` is intentionally fire-and-forget in the real gallery.
     // Let that initial async cast load finish before we begin exercising the
@@ -155,6 +230,32 @@ async function checkGalleryResizeObserverLifecycle() {
       fail(`harness-proof-current.html: six scene switches must create 7 observers and disconnect the 6 retired players (created=${observers.length}, disconnected=${disconnects})`);
     } else {
       console.log("[check-porthole-casts] gallery lifecycle clean — 7 ResizeObserver instances created; 6 retired players disconnected.");
+    }
+    const paneInspector = dom.window.document.querySelector('#parley-pane-inspector');
+    const paneRegions = paneInspector?.querySelectorAll('[role="region"][aria-label*="tmux pane scrollback"]') ?? [];
+    if (!(paneInspector instanceof dom.window.HTMLElement) || paneInspector.hidden || paneRegions.length !== 4) {
+      fail(`harness-proof-current.html: parley-source must reveal four independently focusable pane histories (observed ${paneRegions.length})`);
+    } else {
+      if ([...paneRegions].some((region) => region.getAttribute('tabindex') !== '0')) {
+        fail('harness-proof-current.html: every pane history must be keyboard focusable');
+      }
+      const [noraRegion, miloRegion, ayaRegion, witnessRegion] = [...paneRegions];
+      const startingOffsets = [100, 101, 102, 103];
+      [noraRegion, miloRegion, ayaRegion, witnessRegion].forEach((region, index) => {
+        Object.defineProperty(region, 'scrollHeight', { configurable: true, value: 900 + index });
+        region.scrollTop = startingOffsets[index];
+      });
+      const noraLatest = paneInspector.querySelector('[data-pane-latest="nora"]');
+      if (!(noraLatest instanceof dom.window.HTMLButtonElement)
+        || noraLatest.getAttribute('aria-controls') !== noraRegion.id) {
+        fail('harness-proof-current.html: Nora latest control is not bound to her pane history');
+      } else {
+        noraLatest.click();
+        if (noraRegion.scrollTop !== 900
+          || miloRegion.scrollTop !== 101 || ayaRegion.scrollTop !== 102 || witnessRegion.scrollTop !== 103) {
+          fail('harness-proof-current.html: scrolling Nora must leave Milo, Aya, and witness offsets unchanged');
+        }
+      }
     }
   } finally {
     dom.window.close();
@@ -278,6 +379,7 @@ if (observedByFile.has('parley-source.cast') && observedByFile.has('parley.cast'
 
 for (const failure of findJoinOnlyCastClaims(observedByFile)) fail(failure);
 
+checkParleyPaneArchive();
 await checkGalleryResizeObserverLifecycle();
 
 if (failures.length) {

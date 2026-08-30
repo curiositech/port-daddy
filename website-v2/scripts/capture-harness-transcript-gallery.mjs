@@ -80,6 +80,18 @@ async function captureStillEvidence() {
     });
     await liveParley.close();
 
+    const paneScrollback = await browser.newPage({ viewport });
+    await openGallery(paneScrollback, { reducedMotion: true });
+    await waitForScene(paneScrollback, 'parley-source');
+    await paneScrollback.locator('#parley-pane-inspector').waitFor();
+    await paneScrollback.locator('#pane-history-nora').evaluate((element) => {
+      element.scrollTop = Math.floor(element.scrollHeight / 2);
+    });
+    await paneScrollback.locator('#parley-pane-inspector').screenshot({
+      path: join(artifactsDir, 'parley-pane-scrollback.png'),
+    });
+    await paneScrollback.close();
+
     const mobileLiveParley = await browser.newPage({ viewport: { width: 390, height: 844 } });
     await openGallery(mobileLiveParley, { reducedMotion: false });
     await waitForScene(mobileLiveParley, 'parley-source');
@@ -89,6 +101,18 @@ async function captureStillEvidence() {
       path: join(artifactsDir, 'parley-live-tmux-mobile.png'),
     });
     await mobileLiveParley.close();
+
+    const mobilePaneScrollback = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    await openGallery(mobilePaneScrollback, { reducedMotion: true });
+    await waitForScene(mobilePaneScrollback, 'parley-source');
+    await mobilePaneScrollback.locator('#parley-pane-inspector').waitFor();
+    await mobilePaneScrollback.locator('#pane-history-nora').evaluate((element) => {
+      element.scrollTop = Math.floor(element.scrollHeight / 2);
+    });
+    await mobilePaneScrollback.locator('#parley-pane-inspector').screenshot({
+      path: join(artifactsDir, 'parley-pane-scrollback-mobile.png'),
+    });
+    await mobilePaneScrollback.close();
 
     const collision = await browser.newPage({ viewport });
     await openGallery(collision, { reducedMotion: false });
@@ -240,6 +264,23 @@ await record('parley-live-tmux.webm', async (page) => {
   await waitForScene(page, 'parley-source');
   await page.locator('.ph-speed-chip', { hasText: '2×' }).click();
   await page.waitForTimeout(18000);
+});
+
+await record('parley-pane-scrollback.webm', async (page) => {
+  await openGallery(page, { reducedMotion: false });
+  await waitForScene(page, 'parley-source');
+  const inspector = page.locator('#parley-pane-inspector');
+  await inspector.scrollIntoViewIfNeeded();
+  const nora = page.locator('#pane-history-nora');
+  const milo = page.locator('#pane-history-milo');
+  await nora.hover();
+  await page.mouse.wheel(0, -900);
+  await page.waitForTimeout(900);
+  await page.getByRole('button', { name: 'Jump Nora tmux pane scrollback to latest' }).click();
+  await page.waitForTimeout(900);
+  await milo.hover();
+  await page.mouse.wheel(0, -900);
+  await page.waitForTimeout(1200);
 });
 
 if (mainHarnessUrl) {

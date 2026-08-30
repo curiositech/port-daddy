@@ -9,6 +9,7 @@
  * on the asciicast clock for Porthole's declared broken-axis treatment.
  */
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { chmod, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { basename, dirname, join, relative } from 'node:path';
@@ -17,6 +18,7 @@ import { fileURLToPath } from 'node:url';
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, '..', '..');
 const castsDir = join(root, 'website-v2', 'public', 'casts', 'porthole');
+const parleyPaneEvidencePath = join(root, 'website-v2', 'src', 'data', 'evidence', 'parley-source-panes.json');
 const scratchParent = join(homedir(), 'coding', 'tmp');
 function resolveTool(envName, fallback) {
   const explicit = process.env[envName];
@@ -210,13 +212,15 @@ async function recordSingle({ slug, cwd, prompt, commands, env = {}, sourceCli =
   ], { cwd: dir, stdio: 'inherit', env: recordEnv });
 }
 
-async function recordTmux({ slug, left, right, third = null, witness = null, durationSeconds, env = {} }) {
+async function recordTmux({ slug, left, right, third = null, witness = null, durationSeconds, env = {}, paneArchive = null }) {
   const dir = join(runRoot, slug);
   await mkdir(dir, { recursive: true });
   const socket = `pd-proof-${process.pid}-${slug}`;
   const session = `proof-${slug}`;
   const tmuxConfig = join(dir, 'tmux.conf');
   const failureFile = join(dir, 'required-command-failure');
+  const paneCapturedAtFile = join(dir, 'pane-captured-at');
+  const historyLimit = 10_000;
   const recordEnv = { ...env, PD_PORTHOLE_FAILURE_FILE: failureFile };
   await writeFile(tmuxConfig, `
 set -g status on
@@ -230,6 +234,7 @@ set -g pane-border-style 'fg=#59606e'
 set -g pane-active-border-style 'fg=#5b8bff'
 set -g mouse off
 set -g remain-on-exit on
+set -g history-limit ${historyLimit}
 setw -g automatic-rename off
 `, 'utf8');
 
@@ -279,6 +284,34 @@ printf '\\n'
 ${q(tmux)} -L ${q(socket)} capture-pane -e -p -J -S -200 -t "$WITNESS_PANE"` : third ? `
 printf '\\n'
 ${q(tmux)} -L ${q(socket)} capture-pane -e -p -J -S -200 -t "$THIRD_PANE"` : '';
+  const paneBindings = new Map([
+    ['left', { variable: '$LEFT_PANE', spec: left }],
+    ['right', { variable: '$RIGHT_PANE', spec: right }],
+    ['third', { variable: '$THIRD_PANE', spec: third }],
+    ['witness', { variable: '$WITNESS_PANE', spec: witness }],
+  ]);
+  const archiveEntries = (paneArchive?.panes ?? []).map((pane) => {
+    const binding = paneBindings.get(pane.side);
+    if (!binding?.spec) throw new Error(`${slug}: pane archive refers to unavailable ${pane.side} pane`);
+    return {
+      ...pane,
+      capturePath: join(dir, `pane-${pane.id}.txt`),
+      metadataPath: join(dir, `pane-${pane.id}.meta`),
+      variable: binding.variable,
+      title: binding.spec.title,
+      prompt: binding.spec.prompt,
+    };
+  });
+  const archiveCapture = archiveEntries.length > 0
+    ? `/bin/date -u '+%Y-%m-%dT%H:%M:%SZ' > ${q(paneCapturedAtFile)}\n${archiveEntries.map((pane) => `${q(tmux)} -L ${q(socket)} display-message -p -t "${pane.variable}" '#{pane_width}\t#{pane_height}\t#{history_size}' > ${q(pane.metadataPath)}\n${q(tmux)} -L ${q(socket)} capture-pane -p -J -S - -t "${pane.variable}" > ${q(pane.capturePath)}`).join('\n')}\n`
+    : '';
+  const terminalCapture = paneArchive
+    ? `printf '\nPORTHOLE PANE ARCHIVE · ${archiveEntries.length} real tmux histories captured before teardown\n'`
+    : `printf '\n'
+${q(tmux)} -L ${q(socket)} capture-pane -e -p -J -S -200 -t "$LEFT_PANE"
+printf '\n'
+${q(tmux)} -L ${q(socket)} capture-pane -e -p -J -S -200 -t "$RIGHT_PANE"
+${extraPaneCapture}`;
   const driver = join(dir, 'drive-tmux.sh');
   await writeExecutable(driver, `#!/usr/bin/env bash
 set -uo pipefail
@@ -293,11 +326,7 @@ ${q(tmux)} -L ${q(socket)} select-pane -t "$RIGHT_PANE" -T ${q(right.title)}
   ${q(tmux)} -L ${q(socket)} detach-client -s ${q(session)} >/dev/null 2>&1 || true
 ) &
 ${q(tmux)} -L ${q(socket)} attach-session -t ${q(session)}
-printf '\n'
-${q(tmux)} -L ${q(socket)} capture-pane -e -p -J -S -200 -t "$LEFT_PANE"
-printf '\n'
-${q(tmux)} -L ${q(socket)} capture-pane -e -p -J -S -200 -t "$RIGHT_PANE"
-${extraPaneCapture}
+${archiveCapture}${terminalCapture}
 ${q(tmux)} -L ${q(socket)} kill-session -t ${q(session)} >/dev/null 2>&1 || true
 if [ -s ${q(failureFile)} ]; then
   printf 'Porthole required command failed: ' >&2
@@ -306,10 +335,48 @@ if [ -s ${q(failureFile)} ]; then
 fi
 `);
   try {
+    const castPath = join(castsDir, `${slug}.cast`);
     run(asciinema, [
       'record', '--window-size', `${dimensions.cols}x${dimensions.rows}`, '--headless', '--return', '--overwrite', '--quiet',
-      '--command', `./${basename(driver)}`, join(castsDir, `${slug}.cast`),
+      '--command', `./${basename(driver)}`, castPath,
     ], { cwd: dir, stdio: 'inherit', env: recordEnv });
+    if (paneArchive && archiveEntries.length > 0) {
+      const castBytes = await readFile(castPath);
+      const header = JSON.parse(castBytes.toString('utf8').split('\n', 1)[0]);
+      const capturedAt = (await readFile(paneCapturedAtFile, 'utf8')).trim();
+      const panes = await Promise.all(archiveEntries.map(async ({ capturePath, metadataPath, variable: _variable, side: _side, ...pane }) => {
+        const captureBytes = await readFile(capturePath);
+        const lines = captureBytes.toString('utf8').replaceAll('\r', '').split('\n');
+        while (lines[0] === '') lines.shift();
+        while (lines.at(-1) === '') lines.pop();
+        if (lines.length === 0) throw new Error(`${slug}: ${pane.id} pane archive is empty`);
+        const [width, height, historySize] = (await readFile(metadataPath, 'utf8')).trim().split('\t').map(Number);
+        if (![width, height, historySize].every((value) => Number.isSafeInteger(value) && value >= 0)) {
+          throw new Error(`${slug}: ${pane.id} pane returned invalid geometry/history metadata`);
+        }
+        return {
+          ...pane,
+          geometry: { cols: width, rows: height },
+          historySize,
+          historyLimit,
+          historyLimitReached: historySize >= historyLimit,
+          digestSha256: createHash('sha256').update(`${lines.join('\n')}\n`).digest('hex'),
+          lines,
+        };
+      }));
+      await mkdir(dirname(paneArchive.output), { recursive: true });
+      await writeFile(paneArchive.output, `${JSON.stringify({
+        schema: 'porthole.tmux-pane-archive.v1',
+        sourceCast: `${slug}.cast`,
+        sourceCastSha256: createHash('sha256').update(castBytes).digest('hex'),
+        recordingStartedAt: new Date(Number(header.timestamp) * 1000).toISOString(),
+        capturedAt,
+        outerTerminal: { cols: dimensions.cols, rows: dimensions.rows },
+        capture: 'tmux capture-pane -p -J -S -',
+        capturedFromAvailableHistoryStart: true,
+        panes,
+      }, null, 2)}\n`, 'utf8');
+    }
   } finally {
     try { run(tmux, ['-L', socket, 'kill-server']); } catch { /* session already ended */ }
   }
@@ -605,25 +672,37 @@ await recordTmux({
       },
     ],
   },
+  paneArchive: {
+    output: parleyPaneEvidencePath,
+    panes: [
+      { side: 'left', id: 'nora', name: 'Nora', mark: '◆', role: 'Proposal author', color: '#87d75f' },
+      { side: 'right', id: 'milo', name: 'Milo', mark: '◇', role: 'Adversarial reviewer', color: '#5fd7ff' },
+      { side: 'third', id: 'aya', name: 'Aya', mark: '●', role: 'Delivery safety owner', color: '#ff8700' },
+      { side: 'witness', id: 'witness', name: 'Port Daddy', mark: '▣', role: 'Read-only witness', color: '#5b8bff' },
+    ],
+  },
 });
 
 await recordTmux({
   slug: 'parley',
   durationSeconds: 24,
-  env: { PD_PARLEY_RECEIPT: join(root, 'website-v2', 'scripts', 'render-parley-proof-receipt.mjs') },
+  env: {
+    PORT_DADDY_URL: recorderDaemonUrl,
+    PD_PARLEY_RECEIPT: join(root, 'website-v2', 'scripts', 'render-parley-proof-receipt.mjs'),
+  },
   left: {
     cwd: parley.left, prompt: 'NORA◆', title: 'NORA · settlement author', steps: [
-      { command: `PARLEY=$(cat ${parleySharedRelative}/id); pd parley show "$PARLEY" --as "$(cat ${parleySharedRelative}/nora)" --json | node "$PD_PARLEY_RECEIPT" --role author` },
+      { wait: 1, command: `PARLEY=$(cat ${parleySharedRelative}/id); FORCE_COLOR=0 pd parley show "$PARLEY" --as "$(cat ${parleySharedRelative}/nora)" --json > ${parleySharedRelative}/nora-receipt.json && FORCE_COLOR=3 node "$PD_PARLEY_RECEIPT" --role author < ${parleySharedRelative}/nora-receipt.json` },
     ],
   },
   right: {
     cwd: parley.right, prompt: 'MILO◇', title: 'MILO · adversarial reviewer', steps: [
-      { command: `PARLEY=$(cat ${parleySharedRelative}/id); pd parley show "$PARLEY" --as "$(cat ${parleySharedRelative}/milo)" --json | node "$PD_PARLEY_RECEIPT" --role reviewer` },
+      { wait: 3, command: `PARLEY=$(cat ${parleySharedRelative}/id); FORCE_COLOR=0 pd parley show "$PARLEY" --as "$(cat ${parleySharedRelative}/milo)" --json > ${parleySharedRelative}/milo-receipt.json && FORCE_COLOR=3 node "$PD_PARLEY_RECEIPT" --role reviewer < ${parleySharedRelative}/milo-receipt.json` },
     ],
   },
   third: {
     cwd: parley.third, prompt: 'AYA●', title: 'AYA · delivery safety owner', steps: [
-      { command: `PARLEY=$(cat ${parleySharedRelative}/id); pd parley show "$PARLEY" --as "$(cat ${parleySharedRelative}/aya)" --json | node "$PD_PARLEY_RECEIPT" --role safety-owner` },
+      { wait: 5, command: `PARLEY=$(cat ${parleySharedRelative}/id); FORCE_COLOR=0 pd parley show "$PARLEY" --as "$(cat ${parleySharedRelative}/aya)" --json > ${parleySharedRelative}/aya-receipt.json && FORCE_COLOR=3 node "$PD_PARLEY_RECEIPT" --role safety-owner < ${parleySharedRelative}/aya-receipt.json` },
     ],
   },
 });
