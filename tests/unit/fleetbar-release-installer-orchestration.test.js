@@ -34,9 +34,11 @@ jest.unstable_mockModule('node:child_process', () => ({ spawnSync: mockSpawnSync
 
 const originalFetch = globalThis.fetch;
 const originalPlatform = process.platform;
+const originalArch = process.arch;
 const originalGetuid = process.getuid;
 
 Object.defineProperty(process, 'platform', { configurable: true, value: 'darwin' });
+Object.defineProperty(process, 'arch', { configurable: true, value: 'arm64' });
 Object.defineProperty(process, 'getuid', { configurable: true, value: () => 501 });
 
 const { installFleetBarRelease } = await import('../../lib/fleetbar-release-installer.js');
@@ -130,5 +132,6 @@ describe('FleetBar release install orchestration', () => {
 afterAll(() => {
   globalThis.fetch = originalFetch;
   Object.defineProperty(process, 'platform', { configurable: true, value: originalPlatform });
+  Object.defineProperty(process, 'arch', { configurable: true, value: originalArch });
   Object.defineProperty(process, 'getuid', { configurable: true, value: originalGetuid });
 });
