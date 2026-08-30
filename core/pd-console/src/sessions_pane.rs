@@ -270,6 +270,7 @@ pub struct SessionsPane {
     sessions: Vec<SessionEntry>,
     locations: Vec<SessionLocation>,
     selected_id: Option<String>,
+    selected_location_id: Option<String>,
     sort: SessionSort,
     descending: bool,
     transcript: Vec<TranscriptEntry>,
@@ -280,10 +281,12 @@ pub struct SessionsPane {
 
 impl Default for SessionsPane {
     fn default() -> Self {
+        let (selected_id, selected_location_id) = Self::load_selection();
         Self {
             sessions: Vec::new(),
             locations: Vec::new(),
-            selected_id: Self::load_selection(),
+            selected_id,
+            selected_location_id,
             sort: SessionSort::Updated,
             descending: true,
             transcript: Vec::new(),
@@ -303,20 +306,37 @@ impl SessionsPane {
             .map(PathBuf::from)
             .map(|home| home.join(".port-daddy/pd-console-selected-session"))
     }
-    fn load_selection() -> Option<String> {
-        Self::selection_path()
+    fn load_selection() -> (Option<String>, Option<String>) {
+        let Some(value) = Self::selection_path()
             .and_then(|path| std::fs::read_to_string(path).ok())
             .map(|value| value.trim().to_string())
             .filter(|value| !value.is_empty())
+        else {
+            return (None, None);
+        };
+        if let Ok(saved) = serde_json::from_str::<Value>(&value) {
+            let session_id = s(&saved, "sessionId");
+            let location_id = s(&saved, "locationId");
+            return (
+                (!session_id.is_empty()).then_some(session_id),
+                (!location_id.is_empty()).then_some(location_id),
+            );
+        }
+        // Backward compatibility for the original one-line session-id file.
+        (Some(value), None)
     }
-    fn persist_selection(value: &str) {
+    fn persist_selection(session_id: &str, location_id: &str) {
         let Some(path) = Self::selection_path() else {
             return;
         };
         if let Some(parent) = path.parent() {
             let _ = std::fs::create_dir_all(parent);
         }
-        let _ = std::fs::write(path, format!("{value}\n"));
+        let saved = serde_json::json!({
+            "sessionId": session_id,
+            "locationId": location_id,
+        });
+        let _ = std::fs::write(path, format!("{saved}\n"));
     }
     fn sorted_indices(&self) -> Vec<usize> {
         let mut indices: Vec<_> = (0..self.sessions.len()).collect();
@@ -349,6 +369,13 @@ impl SessionsPane {
     /// sends; an actor id is not globally addressable by an arbitrary daemon.
     pub fn selected_active_agent_target(&self) -> Option<(String, String)> {
         let session = self.selected().filter(|session| session.status == "active")?;
+        if self
+            .selected_location_id
+            .as_deref()
+            .is_some_and(|location_id| location_id != session.primary_location_id)
+        {
+            return None;
+        }
         let agent_id = session.agent_id.trim();
         if agent_id.is_empty() {
             return None;
@@ -356,8 +383,7 @@ impl SessionsPane {
         let location = session
             .locations
             .iter()
-            .find(|location| location.id == session.primary_location_id)
-            .or_else(|| session.locations.iter().find(|location| location.state != "offline"))?;
+            .find(|location| location.id == session.primary_location_id)?;
         if location.state == "offline" || location.url.trim().is_empty() {
             return None;
         }
@@ -383,6 +409,10 @@ impl SessionsPane {
             .map(|session| session.id.clone());
     }
     fn inspector(&self, session: &SessionEntry) -> Vec<Block> {
+        let ownership_changed = self
+            .selected_location_id
+            .as_deref()
+            .is_some_and(|location_id| location_id != session.primary_location_id);
         let workspace = [
             session.worktree_root.as_str(),
             session.branch.as_str(),
@@ -447,7 +477,13 @@ impl SessionsPane {
             ),
             Block::KeyVal(
                 "control".into(),
-                if session.status == "active" && !session.agent_id.is_empty() {
+                if ownership_changed {
+                    format!(
+                        "saved berth {} is unavailable or no longer authoritative; select this row again to confirm switching to {}",
+                        self.selected_location_id.as_deref().unwrap_or("unknown"),
+                        session.primary_location_id
+                    )
+                } else if session.status == "active" && !session.agent_id.is_empty() {
                     "selected agent is bound to the shared chat and Lane controls".into()
                 } else {
                     "historical session; transcript is inspectable but no live agent is addressed"
@@ -681,6 +717,22 @@ impl Pane for SessionsPane {
             let Some(session) = self.selected().cloned() else {
                 return Ok(());
             };
+            if self.selected_location_id.is_none() && !session.primary_location_id.is_empty() {
+                self.selected_location_id = Some(session.primary_location_id.clone());
+                Self::persist_selection(&session.id, &session.primary_location_id);
+            }
+            if self
+                .selected_location_id
+                .as_deref()
+                .is_some_and(|location_id| location_id != session.primary_location_id)
+            {
+                self.transcript_error = Some(format!(
+                    "Saved berth {} is unavailable or no longer authoritative. Select this row again to confirm opening {}.",
+                    self.selected_location_id.as_deref().unwrap_or("unknown"),
+                    session.primary_location_id
+                ));
+                return Ok(());
+            }
             let location = session
                 .locations
                 .iter()
@@ -735,10 +787,12 @@ impl Pane for SessionsPane {
                 SurfaceAction::SelectRow { index } => {
                     if let Some(session_index) = self.sorted_indices().get(index).copied() {
                         let id = self.sessions[session_index].id.clone();
+                        let location_id = self.sessions[session_index].primary_location_id.clone();
                         self.selected_id = Some(id.clone());
+                        self.selected_location_id = Some(location_id.clone());
                         self.transcript.clear();
                         self.transcript_error = None;
-                        Self::persist_selection(&id);
+                        Self::persist_selection(&id, &location_id);
                     }
                 }
                 SurfaceAction::Sort { key } => {
@@ -783,6 +837,7 @@ mod tests {
     fn view_is_a_selectable_ledger_with_untruncated_inspector() {
         let mut pane = SessionsPane {
             selected_id: Some("session-1".into()),
+            selected_location_id: Some("stable".into()),
             ..SessionsPane::default()
         };
         pane.sessions = vec![SessionEntry::from_value(&session_value())];
@@ -806,5 +861,21 @@ mod tests {
         assert_eq!(row.sequence, 42);
         assert_eq!(row.text, "artifact hashes verified");
         assert_eq!(row.tone, Tone::Landed);
+    }
+
+    #[test]
+    fn requires_confirmation_before_rebinding_a_saved_session_to_another_berth() {
+        let mut pane = SessionsPane {
+            selected_id: Some("session-1".into()),
+            selected_location_id: Some("profile:old-owner".into()),
+            ..SessionsPane::default()
+        };
+        pane.sessions = vec![SessionEntry::from_value(&session_value())];
+        assert_eq!(pane.selected_active_agent_target(), None);
+        assert!(pane.view().iter().any(|block| matches!(
+            block,
+            Block::KeyVal(key, value)
+                if key == "control" && value.contains("select this row again")
+        )));
     }
 }

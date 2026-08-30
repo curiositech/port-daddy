@@ -160,8 +160,10 @@ a process name. Stopped profiles remain visible as `ledger preserved · offline`
 become inspectable again when their own daemon starts. Closing pd-console does not stop
 launchd, a daemon, or its provider processes. The selected active actor is saved by
 stable Port Daddy identity; pd-console reconnects to that actor's witnessed owning
-berth before rebinding the shared composer after a console restart. An offline berth
-leaves the selection inspectable but cannot receive operator turns.
+berth before rebinding the shared composer after a console restart. The saved record
+includes that berth identity. If only another copy of the session is online, pd-console
+keeps chat unbound and asks the operator to select the row again before switching.
+An offline berth leaves the selection inspectable but cannot receive operator turns.
 
 Named profiles launched by `pd daemon start <name>` set their berth identity explicitly
 (`tier=codebase`, `label=<name>`, `canonical=false`) alongside their isolated database,
