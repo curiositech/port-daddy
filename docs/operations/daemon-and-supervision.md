@@ -153,6 +153,21 @@ The daemon self-reports its berth on `GET /health` (`.daemon`) and `GET /whoami`
 no `PD_DAEMON_*` env it reports `tier=stable, canonical=true` — so the brew daemon is
 the stable berth with no launch change.
 
+pd-console's **Agents** directory is a read-only federation across these local berths.
+Each running daemon supplies its own authoritative session and roster projections;
+the current daemon never opens another berth's SQLite file or guesses a provider from
+a process name. Stopped profiles remain visible as `ledger preserved · offline` and
+become inspectable again when their own daemon starts. Closing pd-console does not stop
+launchd, a daemon, or its provider processes. The selected active actor is saved by
+stable Port Daddy identity; pd-console reconnects to that actor's witnessed owning
+berth before rebinding the shared composer after a console restart. An offline berth
+leaves the selection inspectable but cannot receive operator turns.
+
+Named profiles launched by `pd daemon start <name>` set their berth identity explicitly
+(`tier=codebase`, `label=<name>`, `canonical=false`) alongside their isolated database,
+socket, and port. This keeps `/health`, `/whoami`, and the Agents directory from
+misrepresenting a named development daemon as stable.
+
 ## How to (re)deploy current code to the live STABLE daemon
 
 This is the **release** path (advancing the stable berth), distinct from dev berths

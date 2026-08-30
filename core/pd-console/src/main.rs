@@ -125,10 +125,12 @@ async fn mutate_ledger_surface(
     client: &DaemonClient,
     claims: &mut ClaimsPane,
     roadmap: &mut PlannerPane,
+    sessions: &mut SessionsPane,
 ) -> anyhow::Result<()> {
     match surface {
         "claims" => claims.mutate(client, action).await,
         "planner" => roadmap.mutate(client, action).await,
+        "sessions" => sessions.mutate(client, action).await,
         _ => Err(anyhow::anyhow!("unknown ledger surface '{surface}'")),
     }
 }
@@ -703,6 +705,14 @@ fn main() {
                 // Route chat from durable execution truth, not a stale agent
                 // heartbeat or the mere existence of an old subscription.
                 let mut tracked_work_state: Option<String> = None;
+                // A row selected in Agents binds the shared composer to that
+                // stable Port Daddy actor without pretending it is a WorkIntent
+                // created by this console process.
+                let mut operator_selected_agent = false;
+                // Selection is durable across console restarts. Rebind it once
+                // the authoritative directory has refreshed; never infer a
+                // provider process or resurrect an offline actor.
+                let mut restore_saved_agent = true;
 
                 loop {
                     tokio::time::sleep(Duration::from_secs(2)).await;
@@ -738,10 +748,12 @@ fn main() {
                                 }
                             }
                             app::ControlMsg::ChatSend { text } => {
-                                if chat::routes_to_existing_mission_body(
-                                    tracked_work_state.as_deref(),
-                                    lane.has_agent(),
-                                ) {
+                                if (operator_selected_agent && lane.has_agent())
+                                    || chat::routes_to_existing_mission_body(
+                                        tracked_work_state.as_deref(),
+                                        lane.has_agent(),
+                                    )
+                                {
                                     if let Err(error) = lane
                                         .mutate(
                                             &client,
@@ -778,6 +790,7 @@ fn main() {
                                                 tracked_work_state = Some(runtime_state.clone());
                                                 let execution_id = execution.dispatch_id.clone();
                                                 lane.follow_agent(execution.agent_id.as_deref());
+                                                operator_selected_agent = false;
                                                 let _ = work_tx.send(app::WorkUpdate::Execution(execution));
                                                 let _ = chat_tx.send(chat::ChatUpdate::Receipt(
                                                     chat::mission_admission_receipt(
@@ -878,6 +891,12 @@ fn main() {
                                 latest_work_query_error = None;
                                 tracked_work_intent_id = None;
                                 tracked_work_state = None;
+                                operator_selected_agent = false;
+                                // An explicit daemon switch is authoritative for
+                                // this process. Do not immediately bounce back to
+                                // a saved actor; clicking that actor re-enters its
+                                // owning berth deliberately.
+                                restore_saved_agent = false;
                                 let _ = work_tx.send(app::WorkUpdate::Reset);
                                 let _ = chat_tx.send(chat::ChatUpdate::Reset);
                             }
@@ -1081,6 +1100,7 @@ fn main() {
                                     &client,
                                     &mut claims,
                                     &mut roadmap,
+                                    &mut sessions,
                                 )
                                 .await;
                                 if let Err(error) = result {
@@ -1088,6 +1108,24 @@ fn main() {
                                         format!("{surface} selection failed"),
                                         error.to_string(),
                                     ));
+                                } else if surface == "sessions" {
+                                    if let Some((agent_id, daemon_url)) =
+                                        sessions.selected_active_agent_target()
+                                    {
+                                        if client.base() != daemon_url {
+                                            client = DaemonClient::new(daemon_url);
+                                            lane_stream = None;
+                                            editor_stream = None;
+                                            latest_work_projection = None;
+                                            latest_work_query_error = None;
+                                        }
+                                        lane.follow_agent(Some(&agent_id));
+                                        operator_selected_agent = true;
+                                        restore_saved_agent = false;
+                                    } else {
+                                        lane.follow_agent(None);
+                                        operator_selected_agent = false;
+                                    }
                                 }
                             }
                             // Sort is local projection state; it never writes
@@ -1099,6 +1137,7 @@ fn main() {
                                     &client,
                                     &mut claims,
                                     &mut roadmap,
+                                    &mut sessions,
                                 )
                                 .await;
                                 if let Err(error) = result {
@@ -1233,7 +1272,9 @@ fn main() {
                                     snapshot.plan_state().to_string(),
                                     snapshot.execution_fingerprint(),
                                 );
-                                lane.follow_agent(snapshot.execution_agent_id());
+                                if !operator_selected_agent {
+                                    lane.follow_agent(snapshot.execution_agent_id());
+                                }
                                 if latest_work_projection.as_ref() != Some(&fingerprint) {
                                     latest_work_projection = Some(fingerprint);
                                     let chat_snapshot = snapshot.clone();
@@ -1261,7 +1302,7 @@ fn main() {
                                 let had_projection = latest_work_projection.take().is_some();
                                 let had_tracked_intent = tracked_work_intent_id.take().is_some();
                                 tracked_work_state = None;
-                                if had_projection || had_tracked_intent {
+                                if !operator_selected_agent && (had_projection || had_tracked_intent) {
                                     lane.follow_agent(None);
                                     let _ = work_tx.send(app::WorkUpdate::Reset);
                                     let _ = chat_tx.send(chat::ChatUpdate::Reset);
@@ -1296,7 +1337,22 @@ fn main() {
                     let _ = roadmap.refresh(&client).await;
                     let _ = adrs.refresh(&client).await;
                     let _ = activity.refresh(&client).await;
-                    let _ = sessions.refresh(&client).await;
+                    if sessions.refresh(&client).await.is_ok() && restore_saved_agent {
+                        if let Some((agent_id, daemon_url)) =
+                            sessions.selected_active_agent_target()
+                        {
+                            if client.base() != daemon_url {
+                                client = DaemonClient::new(daemon_url);
+                                lane_stream = None;
+                                editor_stream = None;
+                                latest_work_projection = None;
+                                latest_work_query_error = None;
+                            }
+                            lane.follow_agent(Some(&agent_id));
+                            operator_selected_agent = true;
+                        }
+                        restore_saved_agent = false;
+                    }
                     let _ = inbox.refresh(&client).await;
                     let _ = suggest.refresh(&client).await;
                     let _ = memory.refresh(&client).await;

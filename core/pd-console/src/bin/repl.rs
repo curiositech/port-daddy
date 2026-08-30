@@ -173,6 +173,7 @@ use lineage_pane::LineagePane;
 use pane::{Block, OperatorTurn, Pane, PaneRegistry, Subscription, SurfaceAction};
 use parley_pane::ParleyPane;
 use planner_pane::PlannerPane;
+use sessions_pane::SessionsPane;
 use std::io::{self, Write};
 use std::time::Duration;
 use substrate_pane::SubstratePane;
@@ -305,7 +306,7 @@ async fn main() -> Result<()> {
         }
     };
 
-    // `--capture-claims|planner <path.png>`: refresh the selected pane against
+    // `--capture-claims|planner|agents <path.png>`: refresh the selected pane against
     // the live daemon and rasterize its Block view to a PNG, then exit. These
     // are durable, TCC-independent visual-proof recipes for the two ledger
     // surfaces; the source daemon is real and the Block rasterizer is one of
@@ -390,6 +391,27 @@ async fn main() -> Result<()> {
         let png = headless_capture::render_blocks(&blocks, &theme::DARK, capture_width).to_png();
         std::fs::write(path, &png)?;
         println!("planner capture written: {path}");
+        return Ok(());
+    }
+    if let Some(pos) = argv.iter().position(|a| a == "--capture-agents") {
+        let path = argv
+            .get(pos + 1)
+            .ok_or_else(|| anyhow::anyhow!("--capture-agents requires a <path.png>"))?;
+        let mut pane = SessionsPane::new();
+        pane.refresh(&daemon).await?;
+        if let Some(key) = capture_sort {
+            pane.mutate(&daemon, SurfaceAction::Sort { key }).await?;
+        }
+        if let Some(index) = capture_selection {
+            pane.mutate(&daemon, SurfaceAction::SelectRow { index })
+                .await?;
+            // Selection changes which owning berth supplies the transcript.
+            pane.refresh(&daemon).await?;
+        }
+        let blocks = proof_viewport(pane.view(), capture_rows);
+        let png = headless_capture::render_blocks(&blocks, &theme::DARK, capture_width).to_png();
+        std::fs::write(path, &png)?;
+        println!("agents capture written: {path}");
         return Ok(());
     }
 
