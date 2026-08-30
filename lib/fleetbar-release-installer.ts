@@ -20,7 +20,7 @@ const LAUNCH_AGENT_LABEL = 'com.portdaddy.fleetbar';
 
 export interface FleetBarReleaseArtifact {
   version: string;
-  architecture: 'arm64' | 'x86_64';
+  architecture: 'arm64';
   archiveName: string;
   archiveURL: string;
   checksumURL: string;
@@ -36,11 +36,10 @@ export function fleetBarReleaseArtifact(version: string, architecture: string = 
   if (!/^\d+\.\d+\.\d+$/.test(version)) {
     throw new Error(`FleetBar release version must be an exact X.Y.Z tag (got ${version})`);
   }
-  const normalizedArch = architecture === 'arm64'
-    ? 'arm64'
-    : architecture === 'x64' || architecture === 'x86_64'
-      ? 'x86_64'
-      : null;
+  // The stable release workflow currently publishes FleetBar only from the
+  // arm64 macOS runner. Fail before download on Intel instead of fabricating a
+  // version-pinned URL for an asset that the release does not contain.
+  const normalizedArch = architecture === 'arm64' ? 'arm64' : null;
   if (!normalizedArch) {
     throw new Error(`FleetBar does not publish a macOS archive for ${architecture}`);
   }
@@ -201,6 +200,10 @@ export async function installFleetBarRelease(version: string): Promise<FleetBarI
       run('/bin/launchctl', ['bootstrap', `gui/${uid}`, launchAgentPath]);
       run('/bin/launchctl', ['kickstart', '-k', `gui/${uid}/${LAUNCH_AGENT_LABEL}`]);
     } catch (error) {
+      // A successful bootstrap followed by a failed kickstart can leave
+      // launchd holding the replacement executable open. Stop that job before
+      // moving the verified candidate aside and restoring the previous bundle.
+      run('/bin/launchctl', ['bootout', `gui/${uid}`, launchAgentPath], [0, 3, 5, 113]);
       rmSync(appPath, { recursive: true, force: true });
       if (oldMoved && backupPath && existsSync(backupPath)) renameSync(backupPath, appPath);
       try {

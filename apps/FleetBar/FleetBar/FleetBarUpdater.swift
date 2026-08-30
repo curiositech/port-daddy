@@ -17,7 +17,10 @@ struct FleetBarReleaseArtifact: Equatable, Sendable {
         guard let semantic = SemanticVersion(version) else { return nil }
         let normalized = semantic.description
         guard version == normalized || version == "v\(normalized)" else { return nil }
-        guard architecture == "arm64" || architecture == "x86_64" else { return nil }
+        // The release workflow currently publishes FleetBar only from the
+        // arm64 macOS runner. Reject Intel explicitly instead of constructing
+        // an authoritative-looking URL for an asset that does not exist.
+        guard architecture == "arm64" else { return nil }
         self.version = normalized
         self.architecture = architecture
     }

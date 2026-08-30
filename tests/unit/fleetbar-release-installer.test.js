@@ -19,6 +19,8 @@ describe('FleetBar signed release installer contract', () => {
   test('refuses mutable, malformed, or unsupported release selectors', () => {
     expect(() => fleetBarReleaseArtifact('latest', 'arm64')).toThrow(/exact X\.Y\.Z/);
     expect(() => fleetBarReleaseArtifact('3.30.5/../../latest', 'arm64')).toThrow(/exact X\.Y\.Z/);
+    expect(() => fleetBarReleaseArtifact('3.30.5', 'x86_64')).toThrow(/does not publish/);
+    expect(() => fleetBarReleaseArtifact('3.30.5', 'x64')).toThrow(/does not publish/);
     expect(() => fleetBarReleaseArtifact('3.30.5', 'riscv64')).toThrow(/does not publish/);
   });
 

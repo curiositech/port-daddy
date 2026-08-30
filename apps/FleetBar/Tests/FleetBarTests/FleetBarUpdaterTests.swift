@@ -20,6 +20,7 @@ final class FleetBarUpdaterTests: XCTestCase {
     func testReleaseArtifactRejectsMutableOrMalformedVersions() {
         XCTAssertNil(FleetBarReleaseArtifact(version: "latest", architecture: "arm64"))
         XCTAssertNil(FleetBarReleaseArtifact(version: "3.30.5/../../latest", architecture: "arm64"))
+        XCTAssertNil(FleetBarReleaseArtifact(version: "3.30.5", architecture: "x86_64"))
         XCTAssertNil(FleetBarReleaseArtifact(version: "3.30.5", architecture: "unknown"))
     }
 
