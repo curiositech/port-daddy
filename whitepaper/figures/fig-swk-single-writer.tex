@@ -1,53 +1,36 @@
-% Figure 3 --- concurrent arrivals become one ordered commit history.
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-\providecolor{hhgray}{HTML}{5C5650}
-
+% Figure 3 — concurrent arrival intervals collapse into one commit order.
 \begin{figure}[H]
 \centering
 \resizebox{0.91\textwidth}{!}{%
-\begin{tikzpicture}[font=\footnotesize,
-  head/.style={draw=hhink,very thick,fill=hhink,text=white,align=center,minimum height=8mm,font=\footnotesize\bfseries},
-  cell/.style={draw=hhgray,thick,fill=hhpaper,align=center,minimum height=8mm,font=\footnotesize,text=hhink},
-  active/.style={draw=hhteal,very thick,fill=hhteal!8,align=center,minimum height=8mm,font=\footnotesize\bfseries,text=hhink},
-  durable/.style={draw=hhamber,very thick,fill=hhamber!8,align=center,minimum height=8mm,font=\footnotesize,text=hhink},
-]
-% An aligned transaction ledger makes serialization visible without a hub diagram.
-\node[head,text width=35mm] at (-5.7,0.1) {concurrent arrivals};
-\node[head,text width=26mm] at (-2.25,0.1) {queue order};
-\node[head,text width=35mm] at (1.2,0.1) {sole writer turn};
-\node[head,text width=38mm] at (5.1,0.1) {durable history};
-\foreach \y/\caller/\slot/\turn/\commit in {
-  -1.08/{CLI request}/01/{wait}/{commit 01},
-  -2.18/{agent tool bridge}/02/{\textbf{active write}}/{commit 02},
-  -3.28/{binary IPC}/03/{wait}/{commit 03},
-  -4.38/{background worker}/04/{wait}/{commit 04},
-  -5.48/{next arrival}/05/{wait}/{commit 05}}
-{
-  \node[cell,text width=35mm] at (-5.7,\y) {\caller};
-  \node[cell,text width=26mm] at (-2.25,\y) {\slot};
-  \ifnum\slot=2
-    \node[active,text width=35mm] at (1.2,\y) {\turn};
-  \else
-    \node[cell,text width=35mm] at (1.2,\y) {\turn};
-  \fi
-  \node[durable,text width=38mm] at (5.1,\y) {\commit};
-}
-\node[draw=hhteal,very thick,fill=hhteal!7,text width=84mm,minimum height=8mm,align=center,font=\footnotesize] at (1.2,-6.32)
-  {one read--write connection; one total order};
-\node[text width=145mm,align=center,font=\footnotesize\itshape,text=hhgray] at (-0.15,-7.28)
-  {The next writer may begin only after the current commit returns; a second daemon is outside this model.};
+\begin{tikzpicture}[pd figure,x=1cm,y=.72cm]
+  \pdfigaxis{1.65}{.3}{14.0}{time}
+  \foreach \y/\actor in {5.8/{CLI},4.75/{tool bridge},3.7/{binary IPC},2.65/{worker}} {
+    \node[anchor=east,font=\scriptsize\bfseries] at (1.35,\y) {\actor};
+    \draw[pd hairline] (1.55,\y)--(13.65,\y);
+  }
+  \fill[hhsand!28] (2.0,5.52) rectangle (6.25,6.08);
+  \fill[hhteal!11] (3.15,4.47) rectangle (8.3,5.03);
+  \fill[hhsand!28] (4.2,3.42) rectangle (9.85,3.98);
+  \fill[hhsand!28] (5.55,2.37) rectangle (11.0,2.93);
+  \foreach \x/\n in {6.25/1,8.3/2,9.85/3,11.0/4} {
+    \draw[pd guide] (\x,1.0)--(\x,6.25);
+    \node[pd focus datum] at (\x,1.35) {};
+    \node[pd axis label,anchor=north] at (\x,1.08) {\n};
+  }
+  \draw[pd focus arrow,line width=1.45pt] (2.0,1.35)--(12.05,1.35);
+  \node[pd panel title,anchor=east,align=right] at (1.35,1.35) {one writer\\commit order};
+  \node[pd note,anchor=west] at (12.1,1.35) {reply follows commit};
+  \draw[pd caution rule] (12.45,2.15)--(12.45,6.1);
+  \node[pd caution datum] at (12.45,4.12) {};
+  \node[pd direct label,anchor=west,text=hhamber] at (12.72,4.12)
+    {second writer\\outside the model};
 \end{tikzpicture}%
 }
-\caption{The single-writer serialization. Concurrent command-line and agent requests are
-assigned one queue order; the daemon is the sole active read--write connection, so
-each successful mutation enters one durable commit history. There is no agreement
-protocol inside this machine: the system has one decider. The model ends if a second
-daemon shares the file, which is a cross-machine problem rather than a kernel
-property.}
+\caption{Concurrent request intervals become one commit order. Each pale band is
+live work in a different caller; its right edge meets exactly one position on the
+teal writer rail. The daemon replies only after that commit, so successful
+mutations share one observable history without an agreement protocol inside the
+machine. The separate amber mark is the model boundary: a second daemon sharing
+the file is a cross-machine problem, not another lane in this schedule.}
 \label{fig:swk-single-writer}
 \end{figure}

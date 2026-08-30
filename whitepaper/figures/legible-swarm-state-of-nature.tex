@@ -1,85 +1,51 @@
-% Figure 2 --- the consent transition, expressed as two comparable work schedules.
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-\providecolor{hhgray}{HTML}{5C5650}
-
+% Figure 2 — same arrivals, two execution topologies. The common time scale is
+% the comparison; overlap and queue position, not color, carry the claim.
 \begin{figure}[H]
 \centering
-\resizebox{0.96\textwidth}{!}{%
-\begin{tikzpicture}[
-  font=\footnotesize,
-  head/.style={draw=hhebony,very thick,fill=hhebony,text=white,align=center,
-               minimum height=8mm,font=\footnotesize\bfseries},
-  lane/.style={hhgray!55,thin},
-  work/.style={draw=hhgray,thick,fill=hhpaper,rounded corners=1pt,
-               minimum height=6mm,align=center,font=\scriptsize,text=hhink},
-  commit/.style={draw=hhteal,very thick,fill=hhteal!7,rounded corners=1pt,
-                 minimum height=7mm,align=center,font=\scriptsize,text=hhink},
-]
-% Same time scale; the left panel makes the collision window visible.
-\node[head,text width=62mm] at (-4.25,3.45) {state of nature: concurrent writes};
-\node[head,text width=62mm] at (4.25,3.45) {consented order: one commit spine};
-\draw[-{Latex[length=2mm]},very thick,hhamber] (-0.9,3.45) -- (0.9,3.45)
-  node[midway,above,font=\scriptsize\bfseries,text=hhink]{covenant};
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \node[pd panel title,anchor=west] at (0,4.15) {unsequenced execution};
+  \node[pd panel title,anchor=west] at (8.25,4.15) {consented serialization};
 
-\foreach \x/\t in {-6.2/$t_0$,-4.8/$t_1$,-3.4/$t_2$,-2.0/$t_3$}{
-  \draw[hhgray,thin] (\x,2.7) -- (\x,2.88);
-  \node[font=\scriptsize,text=hhgray,anchor=south] at (\x,2.9) {\t};
-}
-\foreach \x/\t in {2.0/$t_0$,3.4/$t_1$,4.8/$t_2$,6.2/$t_3$}{
-  \draw[hhgray,thin] (\x,2.7) -- (\x,2.88);
-  \node[font=\scriptsize,text=hhgray,anchor=south] at (\x,2.9) {\t};
-}
+  \draw[pd arrow] (0,0.35)--(7.1,0.35);
+  \draw[pd arrow] (8.25,0.35)--(15.35,0.35);
+  \node[pd axis label,anchor=west] at (6.6,.08) {time};
+  \node[pd axis label,anchor=west] at (14.85,.08) {time};
 
-% Ungoverned schedule: A and B overlap on a shared artifact.
-\fill[hhamber!12] (-4.9,-0.25) rectangle (-3.05,2.7);
-\node[font=\scriptsize\bfseries,text=hhamber,align=center] at (-3.98,-0.62)
-  {collision window\\shared artifact};
-\foreach \y/\actor in {2.05/A,1.10/B,0.15/C}{
-  \node[font=\footnotesize\bfseries,anchor=east] at (-6.55,\y) {\actor};
-  \draw[lane] (-6.35,\y) -- (-1.35,\y);
-}
-\node[work,text width=22mm] at (-4.72,2.05) {claim handler};
-\node[work,text width=22mm] at (-4.10,1.10) {claim handler};
-\node[work,text width=19mm] at (-5.28,0.15) {test};
-\draw[hhamber,very thick] (-4.9,2.5) -- (-4.9,-0.18);
-\draw[hhamber,very thick] (-3.05,2.5) -- (-3.05,-0.18);
-\node[draw=hhamber,thick,fill=hhamber!8,rounded corners=1pt,text width=46mm,
-      minimum height=8mm,align=center,font=\scriptsize,text=hhink] at (-4.0,-1.34)
-  {two writers can each commit; no common order or audit return};
+  \foreach \y/\a in {3.35/A,2.65/B,1.95/C,1.25/D}{
+    \node[pd axis label,anchor=east,font=\scriptsize\bfseries] at (.45,\y) {\a};
+    \draw[pd guide] (.62,\y)--(7.0,\y);
+    \node[pd axis label,anchor=east,font=\scriptsize\bfseries] at (8.70,\y) {\a};
+    \draw[pd guide] (8.87,\y)--(15.25,\y);
+  }
 
-% Consented schedule: requests are ordered into a single visible spine.
-\foreach \y/\actor in {2.05/A,1.10/B,0.15/C}{
-  \node[font=\footnotesize\bfseries,anchor=east] at (1.65,\y) {\actor};
-  \draw[lane] (1.85,\y) -- (6.85,\y);
-}
-\node[work,text width=18mm] (qa) at (2.65,2.05) {claim};
-\node[work,text width=18mm] (qb) at (4.05,1.10) {claim};
-\node[work,text width=18mm] (qc) at (5.45,0.15) {test};
-\draw[hhteal,very thick] (2.1,-0.45) -- (6.15,-0.45);
-\node[font=\scriptsize\bfseries,text=hhteal,anchor=east] at (1.95,-0.45) {commit spine};
-\node[commit,text width=15mm] (ca) at (2.65,-0.45) {\#241};
-\node[commit,text width=15mm] (cb) at (4.05,-0.45) {\#242};
-\node[commit,text width=15mm] (cc) at (5.45,-0.45) {\#243};
-\draw[hhteal,thin,-{Latex[length=1.4mm]}] (qa.south) -- (ca.north);
-\draw[hhteal,thin,-{Latex[length=1.4mm]}] (qb.south) -- (cb.north);
-\draw[hhteal,thin,-{Latex[length=1.4mm]}] (qc.south) -- (cc.north);
-\node[draw=hhteal,thick,fill=hhteal!7,rounded corners=1pt,text width=58mm,
-      minimum height=8mm,align=center,font=\scriptsize,text=hhink] at (4.15,-1.48)
-  {every commit records \textbf{actor $\mid$ claim $\mid$ artifact $\mid$ reason}};
-\end{tikzpicture}%
-}
-\caption{The transition from concurrent work to consented order. \emph{Left}: an ungoverned swarm is
-Hobbes' state of nature --- overlapping writers may each act on the same work, so a
-collision has no common order or inspectable return. \emph{Right}: the operator
-institutes a rule of the road and consents (a covenant \emph{among the subject
-agents}, enforced by the daemon, not a bargain with it) to a \emph{local} Leviathan.
-The same work is admitted through one ordered commit spine, and each act returns an
-actor, claim, artifact, and named reason. That is the legibility the earlier swarm
-lacked: the covenant turns concurrent work into an auditable order.}
+  \fill[hhamber!10] (2.8,.62) rectangle (5.22,3.73);
+  \draw[pd caution rule] (2.8,.62)--(2.8,3.73);
+  \draw[pd caution rule] (5.22,.62)--(5.22,3.73);
+  \foreach \ya/\xa/\xb in {3.35/.95/4.20,2.65/1.75/5.40,1.95/2.55/4.75,1.25/3.15/6.10}{
+    \draw[pd rule,line width=3.6pt,line cap=round] (\xa,\ya)--(\xb,\ya);
+    \node[pd datum] at (\xa,\ya) {};
+  }
+  \node[pd direct label,text=hhamber,anchor=south] at (4.01,.68)
+    {four valid writers overlap};
+
+  \foreach \ya/\xa/\xg/\n in {3.35/9.20/10.05/241,2.65/9.95/11.35/242,1.95/10.75/12.65/243,1.25/11.35/13.95/244}{
+    \node[pd datum] at (\xa,\ya) {};
+    \draw[pd hairline] (\xa,\ya)--(\xg,.82);
+    \node[pd focus datum] at (\xg,.82) {};
+    \node[pd axis label,anchor=north] at (\xg,.58) {\#\n};
+  }
+  \draw[pd focus rule,line width=1.25pt] (9.55,.82)--(14.45,.82);
+  \node[pd direct label,text=hhteal,anchor=south] at (12.0,.97)
+    {one commit spine};
+
+  \draw[pd hairline] (9.70,-.02)--(14.30,-.02);
+  \node[pd axis label,anchor=north] at (12.0,-.10)
+    {each entry: actor $\cdot$ claim $\cdot$ artifact $\cdot$ reason};
+\end{tikzpicture}
+\caption{The same four arrivals under two execution topologies. Left, write
+intervals overlap on one artifact; no total order exists, so collision is an
+ordinary state. Right, arrival remains concurrent but admission lands on one
+commit spine. Each grant receives an order number and returns actor, claim,
+artifact, and reason. Consent changes the schedule, not who may participate.}
 \label{fig:state-of-nature}
 \end{figure}

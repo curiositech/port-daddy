@@ -1,57 +1,46 @@
-% Semantic contract: heterogeneous exposures become typed rows in one journal;
-% the journal, not a central actor, preserves conservation and bounds outcomes.
+% Figure IV.2 --- three economically distinct flows close on one journal.
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}[
-  x=1cm,y=1cm,font=\small,
-  flow/.style={-{Stealth[length=2mm]},draw=hhink,line width=.7pt},
-  typed/.style={draw=hhink,line width=.6pt,fill=hhsand!22,rounded corners=2pt,
-    text width=35mm,minimum height=11mm,inner sep=5pt,align=left},
-  outcome/.style={draw=hhink,line width=.6pt,fill=hhpaper,rounded corners=2pt,
-    text width=38mm,minimum height=12mm,inner sep=5pt,align=left}
-]
-  \node[typed] (labor) at (-4.65,1.35)
-    {\textbf{Labor}\\[-1pt]{\scriptsize exposure: principal bond $B_L$}};
-  \node[typed] (capital) at (-4.65,0)
-    {\textbf{Rented capital}\\[-1pt]{\scriptsize exposure: asset at risk $E_K$}};
-  \node[typed] (ip) at (-4.65,-1.35)
-    {\textbf{Licensed IP}\\[-1pt]{\scriptsize exposure: content hash $h_I$}};
+\resizebox{0.95\textwidth}{!}{%
+\begin{tikzpicture}[pd figure]
+  \node[pd panel title,anchor=west] at (-6.9,3.0)
+    {one agent can carry three different risk signatures};
+  \node[pd axis label,anchor=east] at (-5.65,1.75) {LABOR};
+  \node[pd axis label,anchor=east] at (-5.65,.15) {CAPITAL};
+  \node[pd axis label,anchor=east] at (-5.65,-1.45) {LICENSED IP};
+  \foreach \y in {1.75,.15,-1.45} \draw[pd hairline] (-5.35,\y)--(5.85,\y);
 
-  \node[draw=hhink,line width=.8pt,fill=hhsand!12,rounded corners=2pt,
-    minimum width=42mm,minimum height=47mm] (journal) at (0,0) {};
-  \node[font=\bfseries] at (0,1.72) {bounded escrow journal};
-  \draw[hhgray,line width=.45pt] (-1.93,1.35) -- (1.93,1.35);
-  \draw[hhgray,line width=.45pt] (-1.93,.45) -- (1.93,.45);
-  \draw[hhgray,line width=.45pt] (-1.93,-.45) -- (1.93,-.45);
-  \draw[hhgray,line width=.45pt] (-1.93,-1.35) -- (1.93,-1.35);
-  \node[anchor=west,font=\scriptsize] at (-1.72,.90)
-    {\textsc{debit}\quad wallet / rights};
-  \node[anchor=west,font=\scriptsize] at (-1.72,0)
-    {\textsc{hold}\quad typed exposure};
-  \node[anchor=west,font=\scriptsize] at (-1.72,-.90)
-    {\textsc{decide}\quad criterion + witness};
-  \node[font=\scriptsize\itshape,text=hhgray] at (0,-1.75)
-    {one atomic ledger turn};
+  \node[pd direct label,anchor=west] at (-5.20,2.13) {fleet capability unknown};
+  \node[pd direct label,anchor=west] at (-5.20,.53) {specialist quality hidden};
+  \node[pd direct label,anchor=west] at (-5.20,-1.07) {version quality hidden};
+  \draw[pd caution rule,line width=3.0pt] (-2.45,1.75)--(.15,1.75);
+  \draw[pd caution rule,line width=1.8pt] (-1.70,.15)--(.15,.15);
+  \draw[pd caution rule,line width=1.1pt] (-.95,-1.45)--(.15,-1.45);
+  \node[pd direct label,text=hhamber,anchor=north] at (-1.15,1.53) {principal bond};
+  \node[pd direct label,text=hhamber,anchor=north] at (-.75,-.07) {reputation exposure};
+  \node[pd direct label,text=hhamber,anchor=north] at (-.35,-1.67) {content hash + use};
 
-  \draw[flow] (labor.east) -- (journal.west |- labor.east);
-  \draw[flow] (capital.east) -- (journal.west |- capital.east);
-  \draw[flow] (ip.east) -- (journal.west |- ip.east);
+  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (.15,1.75)--(3.65,1.75);
+  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (.15,.15)--(3.65,.15);
+  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (.15,-1.45)--(3.65,-1.45);
+  \node[pd direct label,anchor=south] at (2.20,1.88) {bounty $\to$ fleet principal};
+  \node[pd direct label,anchor=south] at (2.20,.28) {rent $\to$ asset owner};
+  \node[pd direct label,anchor=south] at (2.20,-1.32) {metered fee $\to$ licensor};
 
-  \node[outcome,draw=hhteal] (release) at (4.65,.82)
-    {\textbf{criterion passes}\\[-1pt]{\scriptsize commit: release}};
-  \node[outcome,draw=hhamber] (return) at (4.65,-.82)
-    {\textbf{criterion fails}\\[-1pt]{\scriptsize commit: refund / bounded slash}};
-  \draw[-{Stealth[length=2mm]},draw=hhteal,line width=.85pt]
-    (journal.east |- release.west) -- (release.west);
-  \draw[-{Stealth[length=2mm]},draw=hhamber,line width=.85pt]
-    (journal.east |- return.west) -- (return.west);
-  \draw[hhink,line width=.55pt] (-6.15,-2.65) -- (6.15,-2.65);
-  \node[font=\footnotesize,fill=hhpaper,inner xsep=7pt] at (0,-2.65)
-    {$\Delta\text{wallet}+\Delta\text{escrow}+\Delta\text{commons}=0$};
-\end{tikzpicture}
-\caption{Labor, rented capital, and licensed IP enter one conserving journal as
-different typed exposure records. The escrow commits exactly one witnessed outcome:
-a criterion-conditioned release, or a refund with a bounded slash. No path bypasses
-the atomic ledger turn or redirects value to a third destination.}
+  \draw[pd focus rule,line width=1.4pt] (4.05,-1.85)--(4.05,2.15);
+  \foreach \y in {1.75,.15,-1.45} \node[pd focus datum] at (4.05,\y) {};
+  \node[pd direct label,text=hhteal,anchor=west,align=left] at (4.35,.15)
+    {one witnessed\\settlement journal};
+  \draw[pd focus rule] (-5.20,-2.35)--(5.75,-2.35);
+  \node[pd note,text=hhteal] at (.25,-2.62)
+    {$\Delta W+\Delta E+\Delta C=0$ despite different counterparties and exposure keys};
+\end{tikzpicture}}
+\caption{\textbf{The three sides are three risk signatures, not three tabs.}
+Labor exposes a principal bond and pays a fleet principal; rented capital exposes
+the owner's reputation and pays rent; licensed IP exposes a version-bound content
+claim and pays a metered fee. Line thickness redundantly distinguishes the forms
+of exposure. All three close through one witnessed journal, so the conservation
+invariant is shared even though the counterparties, private information, and
+reputation keys are not.}
 \label{fig:he-three-sided}
 \end{figure}

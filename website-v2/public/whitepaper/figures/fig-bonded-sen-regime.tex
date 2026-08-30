@@ -1,79 +1,43 @@
-% Governance regimes induced by private allocation information and decisive rights.
-% Semantic form: 2x2 phase matrix.  The geometry, not prose, carries the claim.
-
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D8C7A6}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-\providecolor{hhgray}{HTML}{5C5650}
-
+% Sen-inspired governance choice as a schematic loss frontier, not quadrants.
 \begin{figure}[H]
 \centering
-\resizebox{0.88\textwidth}{!}{%
-\begin{tikzpicture}[
-  font=\small,
-  celltitle/.style={font=\bfseries\small,align=center,text=hhink},
-  cellsub/.style={font=\footnotesize,align=center,text=hhgray,text width=47mm},
-  axislabel/.style={font=\footnotesize\bfseries,text=hhink,align=center},
-  edgehint/.style={font=\footnotesize\itshape,text=hhgray},
-]
+\resizebox{0.90\textwidth}{!}{%
+\begin{tikzpicture}[pd figure]
+  % Regions between the two schematic loss curves.
+  \fill[hhsand!24]
+    (-5.0,-.70)--(-3.2,-.52)--(-1.3,-.08)--(.30,.56)--(1.35,1.12)
+    --(.30,1.18)--(-1.3,1.06)--(-3.2,.96)--(-5.0,.90)--cycle;
+  \fill[hhamber!8]
+    (1.35,1.12)--(2.2,1.75)--(3.7,3.05)--(5.0,4.00)
+    --(5.0,1.88)--(3.7,1.66)--(2.2,1.43)--cycle;
 
-% Fixed, equal cells.  No label crosses a boundary.
-\fill[hhsand!34]  (0,0) rectangle (5.2,3.0);
-\fill[hhteal!9]   (5.2,0) rectangle (10.4,3.0);
-\fill[hhsand!68]  (0,3.0) rectangle (5.2,6.0);
-\fill[hhamber!14] (5.2,3.0) rectangle (10.4,6.0);
-\draw[draw=hhebony,thick] (0,0) rectangle (10.4,6.0);
-\draw[draw=hhebony,dashed] (5.2,0) -- (5.2,6.0);
-\draw[draw=hhebony,dashed] (0,3.0) -- (10.4,3.0);
+  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (-5.15,-.90)--(5.55,-.90);
+  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (-5.15,-.90)--(-5.15,4.05);
+  \node[pd axis label,anchor=west] at (5.65,-.90) {private information about future needs};
+  \node[pd axis label,rotate=90,anchor=south] at (-5.48,1.55) {coordination loss};
+  \node[pd note,anchor=north west] at (-5.0,-1.05) {shared / forecastable};
+  \node[pd note,anchor=north east] at (5.0,-1.05) {local / exploratory};
 
-% Four regimes, each kept inside its own cell.
-\node[celltitle] at (2.6,2.30) {Advisory, little gain};
-\node[cellsub] at (2.6,1.55)
-  {Needs are already visible; claims add coordination without changing the allocation.};
+  \draw[pd caution rule,line width=1.45pt,smooth]
+    plot coordinates {(-5.0,-.70)(-3.2,-.52)(-1.3,-.08)(.30,.56)(1.35,1.12)(2.2,1.75)(3.7,3.05)(5.0,4.00)};
+  \node[pd direct label,text=hhamber,anchor=west] at (2.72,2.66)
+    {exclusive allocation};
 
-\node[celltitle,text=hhteal] at (7.8,2.30) {Shared signals, local choice};
-\node[cellsub,text=hhink] at (7.8,1.55)
-  {Agents reveal conflicts while retaining the private information needed to resolve them.};
+  \draw[pd focus rule,line width=1.45pt,smooth]
+    plot coordinates {(-5.0,.90)(-3.2,.96)(-1.3,1.06)(.30,1.18)(1.35,1.12)(2.2,1.43)(3.7,1.66)(5.0,1.88)};
+  \node[pd direct label,text=hhteal,anchor=east] at (1.15,.68)
+    {advisory claims};
 
-\node[celltitle] at (2.6,5.05) {Exclusive locking defensible};
-\node[cellsub] at (2.6,4.20)
-  {When needs are knowable, decisive allocation adds determinism at negligible information loss.};
+  \draw[pd guide] (1.35,-.90)--(1.35,3.40);
+  \node[pd caution datum] at (1.35,1.12) {};
+  \node[pd direct label,anchor=south] at (1.35,3.42) {design boundary $x^*$};
 
-\node[celltitle,text=hhamber] at (7.8,5.05) {Sen warning zone};
-\node[cellsub,text=hhink] at (7.8,4.20)
-  {A universal allocator combines decisive rights with information it cannot possess.};
-
-% Explicit design boundary and the paper's operating point.
-\node[fill=hhpaper,inner xsep=5pt,inner ysep=2pt,font=\footnotesize\bfseries]
-  at (5.2,6.0) {information boundary};
-\fill[hhteal] (9.55,0.48) circle (3.2pt);
-\draw[hhteal,thick] (9.55,0.48) circle (6pt);
-\node[font=\footnotesize\bfseries,text=hhteal,anchor=east] at (9.25,0.48)
-  {LLM-agent regime};
-
-% Axes and endpoint labels live outside the matrix.
-\draw[->,>=Latex,thick,draw=hhink] (0,-0.42) -- (10.8,-0.42);
-\node[axislabel,anchor=north] at (5.2,-0.78)
-  {private allocation information};
-\node[edgehint,anchor=north west] at (0,-0.47) {shared / knowable};
-\node[edgehint,anchor=north east] at (10.4,-0.47) {local / private};
-
-\draw[->,>=Latex,thick,draw=hhink] (-0.42,0) -- (-0.42,6.4);
-\node[axislabel,rotate=90,anchor=south] at (-0.88,3.0) {decisive rights};
-\node[edgehint,rotate=90,anchor=north west] at (-0.47,0) {advisory};
-\node[edgehint,rotate=90,anchor=north east] at (-0.47,6.0) {exclusive};
-
-% The denied inference is stated once, in a dedicated annotation rail.
-\draw[hhamber,very thick] (5.55,6.45) -- (10.4,6.45);
-\node[font=\footnotesize\bfseries,text=hhamber,anchor=south east]
-  at (10.4,6.55) {no universal allocator};
-
+  \node[pd focus datum] at (4.35,1.78) {};
+  \draw[pd focus rule] (4.35,1.98)--(4.35,2.32);
+  \node[pd direct label,text=hhteal,anchor=south,align=center] at (4.35,2.32)
+    {LLM coding agents\\retain task-local knowledge};
 \end{tikzpicture}%
 }
-\caption{Governance depends jointly on decisive rights and private allocation information. Exclusive locking is defensible when work needs are knowable; advisory coordination becomes preferable when the relevant information remains local to agents. The upper-right combination is Sen's warning zone: authority is asked to make a decisive allocation from information it cannot universally possess. The marked operating point is the regime claimed for LLM coding agents.}
+\caption{The governance choice is a loss frontier, not a four-quadrant taxonomy. Exclusive allocation is cheap when work needs are shared and forecastable, then becomes brittle as relevant knowledge remains local to the agent. Advisory claims carry a persistent negotiation cost but preserve local choice. Past the schematic crossing $x^*$, advisory coordination has the lower modeled loss. The curves are conceptual: the figure identifies the decision boundary the deployment must estimate; it does not claim a measured universal threshold.}
 \label{fig:bonded-sen-regime}
 \end{figure}

@@ -1,93 +1,62 @@
-% Magic-link single-use atomicity as a two-consumer race on one time axis.
-
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D8C7A6}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-\providecolor{maydayred}{HTML}{8B0000}
-
+% Exactly-once redemption shown as a race waveform around one atomic state edge.
 \begin{figure}[H]
 \centering
-\resizebox{0.98\textwidth}{!}{%
-\begin{tikzpicture}[
-  x=1cm,y=1cm,
-  font=\small,
-  >=Latex,
-  lane/.style={draw=hhsanddeep,line width=.65pt},
-  request/.style={->,draw=hhink,thick},
-  success/.style={->,draw=hhteal,very thick},
-  reject/.style={->,draw=maydayred,thick,dashed},
-  tag/.style={draw=hhebony,fill=hhpaper,rounded corners=2pt,
-              inner xsep=7pt,inner ysep=4pt,align=center},
-  outcome/.style={rounded corners=2pt,inner xsep=7pt,inner ysep=4pt,
-                  align=center,font=\footnotesize\bfseries},
-]
+\resizebox{0.94\textwidth}{!}{%
+\begin{tikzpicture}[pd figure]
+  \node[pd panel title,anchor=west] at (-.20,3.62)
+    {two overlapping requests; one durable state edge};
 
-% Context strip and shared time axis.
-\node[draw=hhebony,fill=hhsand,rounded corners=3pt,thick,
-      minimum width=132mm,minimum height=9mm,align=center]
-  at (7.5,4.45)
-  {one issued token $tk$, bound to account $a$ \quad\textbullet\quad initial state: \texttt{consumed\_at IS NULL}};
+  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (.20,-2.05)--(12.05,-2.05);
+  \node[pd axis label,anchor=west] at (12.15,-2.05) {time};
+  \foreach \x/\lab in {1.0/$t_0$,5.65/$t_1$,6.35/$t_2$,10.8/$t_3$} {
+    \draw[pd tick] (\x,-2.12)--(\x,-1.98);
+    \node[pd axis label,anchor=north] at (\x,-2.18) {\lab};
+  }
 
-\draw[->,thick,draw=hhink] (1.7,3.65) -- (14.25,3.65)
-  node[right,font=\footnotesize] {time};
-\foreach \x/\lab in {2.7/$t_0$,5.2/$t_1$,7.7/$t_2$,11.3/$t_3$} {
-  \draw[draw=hhink] (\x,3.57) -- (\x,3.73);
-  \node[above,font=\footnotesize] at (\x,3.73) {\lab};
-}
+  \node[pd panel title,anchor=east] at (-.05,2.18) {consumer A};
+  \node[pd panel title,anchor=east] at (-.05,1.02) {consumer B};
+  \node[pd panel title,anchor=east] at (-.05,-.12) {token row};
+  \node[pd panel title,anchor=east] at (-.05,-1.26) {audit row};
+  \foreach \y in {2.18,1.02,-.12,-1.26}
+    \draw[pd hairline] (.20,\y)--(11.65,\y);
 
-% Four aligned lanes.
-\node[anchor=east,font=\bfseries] at (1.55,2.75) {Consumer A};
-\node[anchor=east,font=\bfseries] at (1.55,1.75) {Consumer B};
-\node[anchor=east,font=\bfseries] at (1.55,0.55) {Token row};
-\node[anchor=east,font=\bfseries] at (1.55,-0.65) {Audit row};
-\foreach \y in {2.75,1.75,0.55,-0.65}
-  \draw[lane] (1.75,\y) -- (14.05,\y);
+  % Concurrent requests reach one explicitly marked serialization interval.
+  \draw[pd rule,line width=1.05pt] (1.0,2.18)--(5.68,2.18);
+  \draw[pd rule,line width=1.05pt] (1.45,1.02)--(5.68,1.02);
+  \node[pd direct label,anchor=south] at (2.55,2.18) {present $tk$};
+  \node[pd direct label,anchor=south] at (3.10,1.02) {present the same $tk$};
+  \node[pd note,anchor=south] at (4.55,2.47) {request intervals overlap};
 
-% Concurrent requests converge only at the explicitly marked atomic drain.
-\node[tag,anchor=west] (callA) at (2.05,2.75) {present $tk$};
-\node[tag,anchor=west] (callB) at (2.35,1.75) {present the same $tk$};
-\draw[request] (callA.east) -- (7.15,2.75);
-\draw[request] (callB.east) -- (7.15,1.75);
-\node[font=\footnotesize\itshape,text=hhink,anchor=south]
-  at (4.75,3.03) {requests overlap};
+  \fill[hhamber!9] (5.68,2.70) rectangle (6.38,-1.62);
+  \draw[pd caution rule] (5.68,2.70)--(5.68,-1.62);
+  \draw[pd caution rule] (6.38,2.70)--(6.38,-1.62);
+  \node[pd panel title,text=hhamber,rotate=90] at (6.03,.55) {ATOMIC DRAIN};
+  \node[pd direct label,text=hhamber,anchor=south,align=center] at (6.03,2.82)
+    {\texttt{UPDATE ... WHERE consumed\_at IS NULL RETURNING}};
 
-\fill[hhamber!9] (7.15,3.25) rectangle (8.25,-1.02);
-\draw[draw=hhamber,thick] (7.15,3.25) -- (7.15,-1.02);
-\draw[draw=hhamber,thick] (8.25,3.25) -- (8.25,-1.02);
-\node[rotate=90,font=\footnotesize\bfseries,text=hhamber]
-  at (7.70,0.98) {ATOMIC DRAIN};
-\node[anchor=north east,font=\scriptsize,align=right,text=hhamber]
-  at (7.55,-1.16) {one serialized SQL writer\\returns at most one row};
+  % Exactly one request continues as a success; the other terminates visibly.
+  \draw[pd focus arrow] (6.38,2.18)--(10.45,2.18);
+  \node[pd focus datum] at (10.55,2.18) {};
+  \node[pd direct label,text=hhteal,anchor=west,font=\scriptsize\bfseries]
+    at (10.80,2.18) {SUCCESS};
+  \draw[pd caution arrow] (6.38,1.02)--(10.45,1.02);
+  \draw[pd caution rule,line width=1.2pt] (10.47,.88)--(10.67,1.16);
+  \draw[pd caution rule,line width=1.2pt] (10.47,1.16)--(10.67,.88);
+  \node[pd direct label,text=hhamber,anchor=west,font=\scriptsize\bfseries]
+    at (10.80,1.02) {REJECT};
 
-% The token row makes the only state transition explicit.
-\draw[draw=hhink,very thick] (2.0,0.55) -- (7.15,0.55);
-\node[fill=white,inner xsep=4pt,font=\footnotesize] at (4.55,0.55)
-  {available};
-\draw[success] (8.25,0.55) -- (13.55,0.55);
-\node[fill=white,inner xsep=4pt,font=\footnotesize,text=hhteal]
-  at (10.85,0.55) {consumed by A};
+  % The database state has one falling edge and never rises again.
+  \draw[pd rule,line width=1.15pt] (.65,.20)--(5.68,.20)--(5.68,-.45);
+  \draw[pd focus rule,line width=1.55pt] (6.38,-.45)--(11.25,-.45);
+  \node[pd direct label,anchor=south] at (2.75,.20) {available: \texttt{NULL}};
+  \node[pd direct label,text=hhteal,anchor=north] at (8.55,-.45) {consumed by A};
 
-% Outcomes share the same drain point; no free-form routing.
-\draw[success] (8.25,2.75) -- (10.15,2.75);
-\node[outcome,draw=hhteal,fill=hhteal!6,text=hhteal,anchor=west]
-  (ok) at (10.15,2.75) {SUCCESS\\one returned row};
-\draw[reject] (8.25,1.75) -- (10.15,1.75);
-\node[outcome,draw=maydayred,fill=maydayred!5,text=maydayred,anchor=west]
-  (no) at (10.15,1.75) {REJECT\\zero returned rows};
-
-% Durable evidence records both decisions without granting a second success.
-\draw[success] (8.25,-0.65) -- (9.35,-0.65);
-\node[tag,draw=hhteal,anchor=west,font=\footnotesize]
-  at (9.35,-0.65) {receipt: $tk\mapsto A$};
-\node[anchor=north west,font=\scriptsize\itshape,text=hhink]
-  at (8.42,-1.16) {durable result: exactly one consumer};
-
+  \draw[pd focus rule,line width=1.15pt] (6.38,-1.26)--(10.25,-1.26);
+  \node[pd focus datum] at (10.25,-1.26) {};
+  \node[pd direct label,text=hhteal,anchor=west] at (10.48,-1.26) {receipt $tk\mapsto A$};
+  \node[pd note,anchor=west] at (.65,-1.62) {the rejected consumer creates no second state transition};
 \end{tikzpicture}%
 }
-\caption{Single-use magic-link race. Consumers A and B present the same account-bound token during one overlap window. Their transactions meet at one visible atomic drain: the first serialized update changes the token row from available to consumed and returns one row; the second observes the durable state and returns zero rows. The shared time axis exposes the concurrency and the serialization point that a two-arrow icon would hide.}
+\caption{Single-use redemption is a concurrency property, not a two-arrow icon. Two consumers present the same account-bound token during one overlap window. Both requests reach the same serialized SQL update, but the token row has only one falling edge: the first transaction changes \texttt{consumed\_at} from \texttt{NULL} and returns a row; the second observes the durable state and returns none. The audit rail records the winning consumer without creating another success path.}
 \label{fig:magic-link-inline}
 \end{figure}

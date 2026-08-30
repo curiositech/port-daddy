@@ -1,29 +1,50 @@
-% Figure III.7 --- distinguish local identity evidence from federation evidence.
+% Figure III.7 --- some evidence crosses a trust boundary; principal binding does not.
 \begin{figure}[H]
 \centering
 \resizebox{0.96\textwidth}{!}{%
-\begin{tikzpicture}[font=\footnotesize,
-  cell/.style={draw=hhink!62,line width=.38pt,fill=hhsand!17,minimum height=10mm,text width=43mm,align=left,inner sep=4pt},
-  head/.style={cell,fill=hhink,text=hhpaper,font=\footnotesize\bfseries,align=center},
-  ok/.style={cell,draw=hhteal!82,fill=hhteal!9},
-  gap/.style={cell,draw=hhamber!90,fill=hhamber!12},
-]
-  \node[font=\footnotesize\bfseries,text=hhgray,anchor=west] at (-5.25,2.65) {identity evidence has two non-interchangeable scopes};
-  \node[head,text width=28mm] at (-5.2,1.9) {evidence question};
-  \node[head] at (-1.45,1.9) {within one operator};
-  \node[head] at (3.35,1.9) {across independent operators};
-  \node[cell,text width=28mm] at (-5.2,.55) {Who minted the actor?};
-  \node[ok] at (-1.45,.55) {daemon-issued identity root\newline\textsc{partial: enforcement owed}};
-  \node[gap] at (3.35,.55) {no shared principal binding\newline\textsc{unbuilt}};
-  \node[cell,text width=28mm] at (-5.2,-1.05) {Can the history be checked?};
-  \node[ok] at (-1.45,-1.05) {registry and append-only log integrity};
-  \node[gap] at (3.35,-1.05) {attestation proof for another operator\newline\textsc{unbuilt}};
-  \node[cell,text width=28mm] at (-5.2,-2.65) {What does this paper rely on?};
-  \node[ok] at (-1.45,-2.65) {bounded local root for Chapters I--III};
-  \node[gap] at (3.35,-2.65) {explicit handoff to the market chapters};
-  \draw[hhamber,line width=1.1pt] (.9,-3.65) -- (5.8,-3.65);
-  \node[font=\footnotesize\bfseries,text=hhamber,anchor=north] at (3.35,-3.65) {a local proof does not become cross-operator identity};
+\begin{tikzpicture}[pd figure]
+  \node[pd panel title,anchor=west] at (-6.8,3.10)
+    {which evidence survives the trust boundary?};
+  \fill[hhsand!13] (-6.8,-2.75) rectangle (-.25,2.35);
+  \fill[hhsand!5] (.25,-2.75) rectangle (6.8,2.35);
+  \draw[pd caution rule,dashed] (0,-3.0) -- (0,2.55);
+  \node[pd direct label,text=hhamber,anchor=south] at (0,2.42)
+    {operator boundary};
+  \node[pd axis label,anchor=south] at (-3.4,2.42) {Alice's trusted daemon};
+  \node[pd axis label,anchor=south] at (3.4,2.42) {Bob's foreign view};
+
+  \foreach \y/\left/\right in {
+    1.45/daemon-minted actor/key/key remains visible,
+    .15/append-only history/log integrity remains verifiable,
+    -1.15/local registry/foreign registry is inspectable,
+    -2.45/accountable principal binding/no cross-operator binding proof} {
+      \node[pd direct label,anchor=east] at (-4.05,\y) {\left};
+      \node[pd direct label,anchor=west] at (4.05,\y) {\right};
+  }
+
+  \draw[pd focus rule,line width=1.15pt] (-3.75,1.45) -- (3.75,1.45);
+  \draw[pd focus rule,line width=1.15pt] (-3.75,.15) -- (3.75,.15);
+  \draw[pd hairline,line width=1.15pt] (-3.75,-1.15) -- (3.75,-1.15);
+  \draw[pd focus rule,line width=1.15pt] (-3.75,-2.45) -- (-.55,-2.45);
+  \draw[pd caution rule,dashed,line width=1.15pt] (.55,-2.45) -- (3.75,-2.45);
+  \draw[pd caution rule] (-.38,-2.75) -- (.38,-2.15);
+  \draw[pd caution rule] (-.38,-2.15) -- (.38,-2.75);
+
+  \foreach \y in {1.45,.15,-2.45} \node[pd focus datum] at (-3.75,\y) {};
+  \foreach \y in {1.45,.15} \node[pd focus datum] at (3.75,\y) {};
+  \node[pd datum] at (-3.75,-1.15) {};
+  \node[pd datum] at (3.75,-1.15) {};
+  \node[pd caution datum] at (3.75,-2.45) {};
+
+  \node[pd note,anchor=west,text=hhamber] at (.55,-3.18)
+    {a signed, intact history still does not prove who controls the foreign key};
 \end{tikzpicture}}
-\caption{\textbf{The keystone has two distinct evidence scopes.} A \emph{local non-forgeable identity} binds an actor to one trusted daemon, the bounded assumption used in Chapters~I--III. A registry and witness log establish the integrity of that local history; they do not bind principals across independent operators. The missing cross-operator attestation is therefore named as an unbuilt market-layer obligation, rather than silently borrowing the single-operator threat model across the boundary.}
+\caption{\textbf{Log integrity crosses the boundary; accountable-principal
+binding does not.} Inside Alice's daemon, actor minting, registry state, history,
+and principal binding form one bounded local proof. Bob can see the key, verify
+the append-only history, and inspect a foreign registry. The broken lowest rail is
+the missing claim: none of those facts binds the foreign key to a distinct
+accountable principal. Chapters I--III rely only on the left-hand local root;
+cross-operator attestation remains an explicit market-layer obligation.}
 \label{fig:keystone}
 \end{figure}
