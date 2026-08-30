@@ -7,15 +7,15 @@ Captured 2026-08-29 and re-proved 2026-08-30 from branch
 ## Runtime witness
 
 - Exact-source development daemon: `claims-roadmap-20260829`
-- Exact source revision: `d6e8737d6`
+- Exact source revision: `cc63758c9`
 - Daemon URL: `http://127.0.0.1:19958`
-- Proof-time PID: `96263`
+- Proof-time PID: `36593`
 - Source directory reported by `/health`:
   `/Users/erichowens/coding/tmp/pd-console-claims-roadmap-20260829`
 - `/health` reported tier `codebase`, branch
   `codex/pd-console-claims-roadmap-20260829`, `canonical: false`, and no binary
   drift between the running and on-disk compiled daemon
-- Live `/files` cohort rendered by Claims: 372 active claims
+- Live `/files` cohort rendered by Claims: 391 active claims
 - Live `/roadmap/jira`: configured `false`, with the four managed FleetBar
   credential keys named and no secret values exposed
 - Release renderer:
