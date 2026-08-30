@@ -1681,7 +1681,11 @@ describe('attempt checkpoints — retries resume, never re-spend', () => {
     expect(ai.calls).toHaveLength(0);
     expect(state.completed).toHaveLength(1);
     expect(state.completed[0]).toMatchObject({ conclusion: 'neutral' });
-    expect(String(state.completed[0].summary)).toContain('scheduler livelock, not progress');
+    expect(String(state.completed[0].summary)).toBe(
+      'Fleet stopped because 2 consecutive checkpoint continuations completed pd-lookout while leaving ' +
+      'the same 2 ship(s) pending (pd-code-reviewer, pd-qa). This is a scheduler livelock, not progress; ' +
+      'no additional model call was made. Re-push after repairing checkpoint resume or continuation selection.',
+    );
     const receipt = d1.steps.find(step => step.kind === 'continuation-livelock');
     expect(receipt).toMatchObject({
       kind: 'continuation-livelock',
