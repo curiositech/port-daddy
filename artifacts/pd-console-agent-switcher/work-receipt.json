@@ -95,7 +95,7 @@
       "added": [
         "lib/operator-session-directory.ts",
         "tests/unit/operator-session-directory.test.ts",
-        "changelog.d/draft-pd-console-agent-switcher.md",
+        "changelog.d/9968-pd-console-agent-switcher.md",
         "artifacts/pd-console-agent-switcher/agents-520px.png",
         "artifacts/pd-console-agent-switcher/agents-sort-switch-520px.gif",
         "artifacts/pd-console-agent-switcher/work-receipt.json"
@@ -184,7 +184,7 @@
     "verified": false
   },
   "provenance": {
-    "contentHash": "sha256:a73f900ec67cb00ede83c0d3b9d602e9beb8e53cf2e9469d5c754f8ff77b17f0",
+    "contentHash": "sha256:d2fb944055303c361ba974c3ffeda3927e624348e7dcc0973d99d9338a469971",
     "signedBy": "codex:session-build-the-authoritative-cross-backend-pd-console-1fc9a67c401a",
     "signatureAlg": "none",
     "timestamp": "2026-08-30T13:42:02Z",
