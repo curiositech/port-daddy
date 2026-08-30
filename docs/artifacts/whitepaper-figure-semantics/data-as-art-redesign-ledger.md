@@ -517,7 +517,7 @@ false reading that the selected geometry must prevent.
 ### IV.4 — identity keystone (`fig:he-keystone-split`)
 
 - Reader question: which identity evidence crosses the market boundary, and which
-  load-bearing proof stops there?
+  critical proof stops there?
 - Selected grammar: proof-span rails across a marked operator boundary, with the
   principal-binding rail ending in an explicit gap.
 - Rejected alternative: evidence-by-domain matrix; it made a missing theorem look
@@ -759,7 +759,7 @@ false reading that the selected geometry must prevent.
 ### V.8 — assurance transfer (fig:anchor-verification-stack)
 
 - Reader question: what obligation and evidence cross each assurance layer, and
-  where does human judgment remain load-bearing?
+  where does human judgment remain indispensable?
 - Selected grammar: opposed obligation/evidence rails spanning three strata and
   two visibly bridged gaps.
 - Rejected alternative: three assurance boxes with arrows; it implied ordinary
@@ -886,7 +886,7 @@ false reading that the selected geometry must prevent.
 - Selected grammar: a four-panel atlas of sufficient cut-set glyphs, separating
   three single points from one conjunctive failure.
 - Rejected alternative: a guarantee-by-secret matrix; it made every actor look
-  jointly load-bearing and hid the exceptional AND condition.
+  jointly required and hid the exceptional AND condition.
 - False reading to prevent: every guarantee requires every custodian, or the
   theorem covers same-user code execution on the daemon host.
 - Color job: amber diamonds are sufficient cut sets; teal baselines name the

@@ -184,13 +184,13 @@ A demonstration is scheduled for 4pm. Alice runs the back end on her laptop; Bob
 \section*{Reader's Map}\label{sec:fh-readers-map}
 % ═══════════════════════════════════════════════════════════════════════════════
 
-The paper has a topology: it opens with the gestalt (\S\ref{sec:fh-intro}--\S\ref{sec:fh-authority}), then moves through three load-bearing primitives in order of cryptographic depth (capability transfer, revocation, settlement), then steps back to admission, failure modes, and limitations. The figures are designed to be readable in sequence without the surrounding prose; if you want the five-figure summary, that path is given below.
+The paper has a topology: it opens with the gestalt (\S\ref{sec:fh-intro}--\S\ref{sec:fh-authority}), then moves through three governing primitives in order of cryptographic depth (capability transfer, revocation, settlement), then steps back to admission, failure modes, and limitations. The figures are designed to be readable in sequence without the surrounding prose; if you want the five-figure summary, that path is given below.
 
 \vspace{0.4cm}
 \noindent
 \begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.21\textwidth} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{0.22\textwidth}@{}}
 \toprule
-\textbf{Layer} & \textbf{Load-bearing artifact} & \textbf{Lives at} \\
+\textbf{Layer} & \textbf{Critical artifact} & \textbf{Lives at} \\
 \midrule
 \textbf{(1) Topology}        & Two harbors, witness log, settlement escrow as a four-element gestalt & \S\ref{sec:fh-authority}; Figure~\ref{fig:fh-topology} \\
 \textbf{(2) Cap.\ transfer}  & Four-message ceremony; ProVerif model of cross-realm authenticity \& attenuation, \emph{conditional on a witness-log freshness assumption} (\S\ref{sec:fh-xfer-mech}) & \S\ref{sec:fh-xfer}; Figure~\ref{fig:fh-xfer} \\
@@ -263,7 +263,7 @@ The contributions are concrete. We separate them by mechanization status to be h
 \item \textbf{Honest open problems (\S\ref{sec:fh-limitations}).} Five named open questions: (a) whether the correlated-equilibrium reframing of Bonded survives the multi-principal setting cleanly; (b) whether bonds can settle without a trusted, conditionally restricted custody party; (c) whether the folk-theorem cartel-resistance argument from Bonded weakens at the federation layer, and by how much; (d) whether bonded sponsorship can avoid invitation-only capture in a thin cold-start market; and (e) what deployment-specific dissemination tail bound is justified. We state these as open, not as solved.
 \end{enumerate}
 
-The proposal that scoped this paper~\cite{owens2026proposal} listed two further contributions (a formal definition of harbor sovereignty, and equilibrium results across federations co-authored with Youle) which are present here in skeletal form and will be load-bearing in a subsequent revision once the open problems above resolve. We will not claim a result we do not have.
+The proposal that scoped this paper~\cite{owens2026proposal} listed two further contributions (a formal definition of harbor sovereignty, and equilibrium results across federations co-authored with Youle) which are present here in skeletal form and will become central in a subsequent revision once the open problems above resolve. We will not claim a result we do not have.
 
 % ═════════════════════════════════════════════════════════════════════════════
 \section{The Federated Authority}\label{sec:fh-authority}
@@ -296,13 +296,13 @@ We will use Definition~\ref{def:fh-sovereignty} as the discipline against which 
 
 \subsection{Inter-harbor scope}\label{sec:fh-scope-property}
 
-The dual notion is also load-bearing. \emph{Inter-harbor scope} is the scope of operations whose effects cross the trust boundary between sovereign harbors.
+The dual notion is equally important. \emph{Inter-harbor scope} is the scope of operations whose effects cross the trust boundary between sovereign harbors.
 
 \begin{definition}[Inter-Harbor Scope]\label{def:fh-interscope}
 An operation $o$ has \emph{inter-harbor scope $(A, B)$} if its execution causes a state change observable to $B$ under authority that originated at $A$. Examples: an $A$-issued card used to write to a $B$-hosted database; a settlement clearing a bond posted at $A$ against damage measured at $B$; a revocation issued by $A$ becoming visible to a $B$-side verifier.
 \end{definition}
 
-Most operations are \emph{intra-harbor}: minting, verifying, attenuating, and revoking cards under one harbor's authority, observed by agents under that same harbor. The Anchor Protocol's proofs cover the intra-harbor case end-to-end. The Federated Harbor's contribution is exactly the inter-harbor surface: every load-bearing protocol in this paper is one that lives at the boundary.
+Most operations are \emph{intra-harbor}: minting, verifying, attenuating, and revoking cards under one harbor's authority, observed by agents under that same harbor. The Anchor Protocol's proofs cover the intra-harbor case end-to-end. The Federated Harbor's contribution is exactly the inter-harbor surface: every protocol that determines its guarantees lives at the boundary.
 
 \subsection{The witness log}\label{sec:fh-witness}
 
@@ -361,7 +361,7 @@ We are explicit about what is not closed.
 
 \paragraph{Compromise of a harbor's signing key.} If $\mathit{sk}_A$ leaks, the attacker can issue arbitrary $A$-side cards until $A$ rotates the key and publishes the rotation to the witness log. We inherit Anchor's key-rotation procedure unchanged. The federation does not close the underlying primitive; it does bound the blast radius to $A$'s sovereign surface, which is exactly the right scope.
 
-\paragraph{Sybil at the federation layer.} An attacker who can pay the admission cost $m$ times can run $m$ federated harbors. The cost ratio between honest and adversarial admission is the load-bearing parameter; we discuss it in \S\ref{sec:fh-admission} but do not give a tight bound. This is named open work.
+\paragraph{Sybil at the federation layer.} An attacker who can pay the admission cost $m$ times can run $m$ federated harbors. The cost ratio between honest and adversarial admission is the decisive parameter; we discuss it in \S\ref{sec:fh-admission} but do not give a tight bound. This is named open work.
 
 \paragraph{Cartel formation across harbors.} Bonded's folk-theorem cartel-resistance argument relied on the daemon as a correlation device inside one machine. Across harbors, cartels can form offline and present a unified front to the witness log; the witness log records that all harbors agreed, which is consistent with both honest agreement and cartel collusion. We acknowledge this and state the open work in \S\ref{sec:fh-limitations}.
 
@@ -379,7 +379,7 @@ Figure~\ref{fig:fh-threat-bands} lays out the threat surface as three bands, dis
 \section{Cross-Harbor Capability Transfer}\label{sec:fh-xfer}
 % ═════════════════════════════════════════════════════════════════════════════
 
-The first load-bearing protocol is the cross-harbor capability transfer ceremony. An $A$-side agent holds a Harbor Card $C_A$ minted by $D_A$ under Anchor Phase 2 or Phase 3. It needs to present an equivalent capability at $B$. The Anchor Protocol's intra-harbor delegation already supports attenuation; we extend that to the case where the attenuation crosses the trust boundary.
+The first governing protocol is the cross-harbor capability transfer ceremony. An $A$-side agent holds a Harbor Card $C_A$ minted by $D_A$ under Anchor Phase 2 or Phase 3. It needs to present an equivalent capability at $B$. The Anchor Protocol's intra-harbor delegation already supports attenuation; we extend that to the case where the attenuation crosses the trust boundary.
 
 \input{figures/fig-fh-xfer-ceremony}
 
@@ -441,7 +441,7 @@ We have a draft ProVerif model of the four-message ceremony (Appendix~\ref{app:f
 \section{Federated Revocation}\label{sec:fh-revocation}
 % ═════════════════════════════════════════════════════════════════════════════
 
-The second load-bearing protocol is the federated revocation mesh. The Anchor Protocol handles revocation inside a single mesh by gossiping an \textbf{Append-Only Event Log of Revocation IDs} using Vector Clocks for anti-entropy reconciliation~\cite{demers1987epidemic}: pairs of daemons periodically reconcile their event logs, designating the cuckoo filter $F$ purely as a local, ephemeral read-path index. The Federated Harbor extends this to the multi-administrative-domain case.
+The second governing protocol is the federated revocation mesh. The Anchor Protocol handles revocation inside a single mesh by gossiping an \textbf{Append-Only Event Log of Revocation IDs} using Vector Clocks for anti-entropy reconciliation~\cite{demers1987epidemic}: pairs of daemons periodically reconcile their event logs, designating the cuckoo filter $F$ purely as a local, ephemeral read-path index. The Federated Harbor extends this to the multi-administrative-domain case.
 
 Two pieces are added on top of the Anchor mechanism: (a) per-epoch roots $R_X^{(e)}$ published to a shared witness log so a third party can audit any harbor's local view, and (b) cross-witness signatures so the auditor pattern generalizes Certificate Transparency~\cite{laurie2013ct}.
 
@@ -466,7 +466,7 @@ The first item is the standard asymptotic epidemic-dissemination result~\cite{de
 If an operator additionally imposes a partition bound $T_p$ and a delivery service level $T_g$, then stale-card exposure is bounded by $T_p+T_g$. Without those operational assumptions the protocol supplies an expected latency under its model, not a structural maximum.
 \end{corollary}
 
-The distinction is load-bearing. A bond can be priced against an operator-declared service-level window, but an unbounded partition creates an unbounded exposure tail. Deployments must therefore combine bond sizing with expiry, fail-closed acceptance, or an explicit partition limit.
+The distinction determines the exposure bound. A bond can be priced against an operator-declared service-level window, but an unbounded partition creates an unbounded exposure tail. Deployments must therefore combine bond sizing with expiry, fail-closed acceptance, or an explicit partition limit.
 
 \subsection{Conflict resolution across harbors}\label{sec:fh-revocation-conflict}
 
@@ -488,7 +488,7 @@ By resolving the bitwise merging impossibility of probabilistic structures, the 
 
 The global consistency of federated witness logs can be modeled sheaf-theoretically, and it is worth being precise about which object carries the weight. The intuitive picture is a poset $(X, \le)$ of administrative domains ordered by scoped visibility, assigning to each domain $U$ the semilattice of prefix-compatible append-only logs, with restriction given by prefix projection. That picture is right about the ordering and useless for computation: a semilattice has no subtraction, no adjoint, and no spectrum, so none of the machinery below would be defined over it. The working object is therefore the \emph{cellular sheaf} $\mathcal{F}$ of the companion paper on the cohomology of equivocation~\cite{owens2026sheaf}, carried on the gossip graph $G=(V,E)$ of witnesses: witness $v$ holds a real stalk $\mathbb{R}^{d_v}$ encoding its log state; edge $e=\{u,v\}$ holds $\mathbb{R}^{|S_e|}$, the shared prefix coordinates $S_e$ its two endpoints both report; and the restriction maps $\rho_{v,e}$ are the coordinate selections that cut a witness's state down to what that edge can see. Over real stalks the coboundary $\delta$, its adjoint $\delta^*$, and the observed disagreement cochain $(\delta s)_e = \rho_{u,e}s_u - \rho_{v,e}s_v$ all exist. The semilattice stays as intuition; the vector-space sheaf is what the theorem below quantifies over.
 
-Detection is stated per visibility tier, because not every edge is equally visible to an auditor. An edge is \textbf{compared} when the auditor holds its direct cross-check (pairwise detection, no cohomology needed); \textbf{relayed} when both endpoints' reports about it reach the auditor by gossip but the endpoints never reconciled it; and \textbf{severed} when no report about it crosses to the auditor at all. Write $K$ for the compared-plus-relayed (i.e.\ \emph{visible}) edge set, and for each shared coordinate $c$ write $K_c := (V, \{e \in K : c \in S_e\})$ for the visible coordinate subgraph. The distinction between $K_c$ and the full coordinate subgraph $G_c$ is load-bearing, not pedantic: a cycle that runs through a severed edge imposes no constraint, because the severed block is a free variable of the completion.
+Detection is stated per visibility tier, because not every edge is equally visible to an auditor. An edge is \textbf{compared} when the auditor holds its direct cross-check (pairwise detection, no cohomology needed); \textbf{relayed} when both endpoints' reports about it reach the auditor by gossip but the endpoints never reconciled it; and \textbf{severed} when no report about it crosses to the auditor at all. Write $K$ for the compared-plus-relayed (i.e.\ \emph{visible}) edge set, and for each shared coordinate $c$ write $K_c := (V, \{e \in K : c \in S_e\})$ for the visible coordinate subgraph. The distinction between $K_c$ and the full coordinate subgraph $G_c$ changes the theorem, not merely the notation: a cycle that runs through a severed edge imposes no constraint, because the severed block is a free variable of the completion.
 
 \begin{theorem}[Detection iff the missing edge closes a \emph{visible} cycle]\label{thm:sheaf-equivocation}
 Assume prefix restrictions, the three-tier visibility model above, and a \textbf{single equivocator} $q$ (the single-equivocator hypothesis is not decoration: two liars on a common cycle can cancel each other's contribution to the residual). The detection statistic is the least-squares \emph{completion residual}
@@ -501,7 +501,7 @@ the minimum over global sections $x$ and over the free severed blocks $g_{\mathr
 
 \noindent The structural identity behind the mechanism --- local consistency with no global section --- is the Abramsky--Brandenburger contextuality equivalence~\cite{abramsky2011operational}: an equivocation (a harbor signing two mutually incompatible prefixes) manufactures for its neighbors exactly a locally-consistent, globally-unglueable family of views, the relational-semantics analogue of Bell contextuality. Note what the theorem does \emph{not} say. The textbook fact that $H^1(\mathcal{U};\mathcal{F}) = 0$ is equivalent to every local family gluing is a statement about the cover and the restriction maps alone; it is blind to any particular lie, and it is not the detector. The detector is the residual $r$ of the observed data.
 
-\noindent\emph{Scope (what the theorem does and does not license).} Three bindings keep this claim inside its proven regime. \textbf{(i) The obstruction lives in the data, not the sheaf:} the detector is the observed disagreement cochain's failure to be a coboundary (its harmonic residual), not $\dim H^1$ of the abstract sheaf, which is a property of the restriction maps alone and is blind to any particular lie. \textbf{(ii) Visible cycles are load-bearing:} cohomology adds power over $O(|E|)$ pairwise digest comparison exactly when an uncompared (partitioned) edge lies on a cycle \emph{of the visible subgraph} $K_c$, so the sum-around-the-loop constraint substitutes for the missing comparison; across a \emph{cut} edge there is no loop to close, and a loop through a \emph{severed} edge is no loop at all for this purpose, so the method provably sees nothing --- redundant gossip paths are a detection requirement, not a luxury. \textbf{(iii) Non-vanishing is an alarm; vanishing is not an all-clear:} over real coefficients the obstruction is sufficient but not necessary (the abelianization gap of Car\`u), so a zero residual licenses no safety conclusion. Detection and localization here \emph{complement} forensic attribution --- signatures attribute, cohomology triages under partial visibility --- and neither replaces the other.
+\noindent\emph{Scope (what the theorem does and does not license).} Three bindings keep this claim inside its proven regime. \textbf{(i) The obstruction lives in the data, not the sheaf:} the detector is the observed disagreement cochain's failure to be a coboundary (its harmonic residual), not $\dim H^1$ of the abstract sheaf, which is a property of the restriction maps alone and is blind to any particular lie. \textbf{(ii) Visible cycles are required:} cohomology adds power over $O(|E|)$ pairwise digest comparison exactly when an uncompared (partitioned) edge lies on a cycle \emph{of the visible subgraph} $K_c$, so the sum-around-the-loop constraint substitutes for the missing comparison; across a \emph{cut} edge there is no loop to close, and a loop through a \emph{severed} edge is no loop at all for this purpose, so the method provably sees nothing --- redundant gossip paths are a detection requirement, not a luxury. \textbf{(iii) Non-vanishing is an alarm; vanishing is not an all-clear:} over real coefficients the obstruction is sufficient but not necessary (the abelianization gap of Car\`u), so a zero residual licenses no safety conclusion. Detection and localization here \emph{complement} forensic attribution --- signatures attribute, cohomology triages under partial visibility --- and neither replaces the other.
 
 \noindent\emph{Status (statistical harness).} The harness behind this scope rider is rebuilt and its pre-registered gates passed (verdict: commit; \texttt{sheaf\_harness\_v2.py}, 200 trials per arm, seed 20260816). The working detector is the least-squares \emph{completion residual} $r$ --- the minimum, over global sections and severed blocks, of the disagreement left unexplained on the visible edges --- under a three-tier visibility model (\textbf{compared} / \textbf{relayed} / \textbf{severed}): detection requires a cycle \emph{of the visible subgraph} $K_c$ \emph{and} relayed reports from the un-checked edge's endpoints. On a relayed cycle edge under partition, 200/200 detections are cohomology-only (pairwise comparison blind); on a cut edge the residual is zero to float epsilon (max $1.5\times10^{-13}$ over 400 trials), as the algebra demands; across a truly severed edge (no reports reach the analyst) equivocation is provably dark --- binding (ii)'s topology requirement, now measured. Mutants reintroducing the harness's two prior defects (D1, non-subset restriction maps that collapse the obstruction space; D2, detection scored on hidden-edge data) are each caught by structural self-checks. Binding (iii) stands unchanged: a vanishing residual over real coefficients remains no all-clear (Car\`u).
 
@@ -517,7 +517,7 @@ r \;=\; |s|\,\sqrt{1 - R^{K_c}_{\mathrm{eff}}(e)} \;=\; 3\sqrt{1 - \tfrac56} \;=
 \section{Cross-Harbor Settlement}\label{sec:fh-settlement}
 % ═════════════════════════════════════════════════════════════════════════════
 
-The third load-bearing protocol is cross-harbor settlement. A bond is posted at
+The third governing protocol is cross-harbor settlement. A bond is posted at
 $A$ to cover damage caused by an $A$-side agent operating at $B$. When damage
 occurs, the bond must clear to the damaged party at $B$. The protocol does this
 without making either harbor sovereign over the other, but it still uses a
@@ -822,7 +822,7 @@ The Bonded Commons paper argued that single-machine coordination is a correlated
 \item The cross-harbor case is a partition of the correlated-equilibrium concept into intra-harbor (correlated) and inter-harbor (Nash with shared signal). This would weaken Bonded's result at the federation layer.
 \end{itemize}
 
-We do not know which is right. The proposal that scoped this paper~\cite{owens2026proposal} named Thomas Youle as the load-bearing collaborator for this question (his contribution to Bonded is the closest existing work). The question stays open here.
+We do not know which is right. The proposal that scoped this paper~\cite{owens2026proposal} named Thomas Youle as the essential collaborator for this question (his contribution to Bonded is the closest existing work). The question stays open here.
 
 \subsection{Trustless settlement for non-fungible bonds}\label{sec:fh-lim-trustless}
 
@@ -1061,7 +1061,7 @@ Cross-federation cartel-resistance bound & --- & \Open & --- \\
 \end{tabularx}
 \end{table}
 
-\paragraph{What this table means.} Every row in the \Partial\ band is committed to and on the active workplan. Every row in the \Open\ band is a research question we cannot resolve from the desk; the proposal~\cite{owens2026proposal} names collaborators whose contributions would be load-bearing. We err toward listing fewer items as closed rather than more, in the same posture as Anchor and Bonded.
+\paragraph{What this table means.} Every row in the \Partial\ band is committed to and on the active workplan. Every row in the \Open\ band is a research question we cannot resolve from the desk; the proposal~\cite{owens2026proposal} names collaborators whose contributions are necessary to close them. We err toward listing fewer items as closed rather than more, in the same posture as Anchor and Bonded.
 
 \section{ProVerif Models (draft)}\label{app:fh-proverif}
 

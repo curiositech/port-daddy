@@ -91,7 +91,7 @@
 
 % ─── Teaching callouts (shared idiom, per Harbor Volume pedagogic spec) ───
 % Quiet: thin left rule + subtle sand fill, small-caps muted-ink label.
-% \keyidea{}: the load-bearing takeaway of a section.
+% \keyidea{}: the decisive takeaway of a section.
 \newcommand{\keyidea}[1]{%
   \par\vspace{6pt}%
   \noindent\begin{tikzpicture}
@@ -218,7 +218,7 @@ paper is Chapter~III of the Port Daddy Coordination Papers: it carries the throu
 \emph{memory $\to$ checkpoint $\to$ continuity $\to$ a person, not a spawn $\to$
 witnessed outcomes $\to$ reputation $\to$ a tradeable asset} from the legible
 single-operator tool (Chapters~I--II) to the cross-operator market (Chapter~IV). We
-make a single distinction load-bearing: a \textbf{role} is a bundle of
+make a single distinction carry the argument: a \textbf{role} is a bundle of
 $\{\text{obligation}, \text{capability}, \text{authority}\}$ --- an org-chart
 entry any spawn can fill --- while a \textbf{person} is a role instance
 \emph{plus continuity}: durable memory, a restorable checkpoint, and a witnessed
@@ -285,7 +285,7 @@ this one is the hinge.}
 % ═════════════════════════════════════════════════════════════════════════════
 
 \noindent The paper is one argument, but four kinds of reader want four different
-routes through it. Each route names the load-bearing section and the artifact it
+routes through it. Each route names the critical section and the artifact it
 turns on.
 
 \begin{table}[H]
@@ -538,7 +538,7 @@ skin in the game is capturable regardless of how well it is prompted.
 \textbf{Question} & \textbf{Closest prior art} & \textbf{This paper's contribution} \\
 \midrule
 What is a tradeable agent? & org-role theory; personal identity & role + continuity = \emph{person} (Defs.~\ref{def:role}--\ref{def:person}) \\
-Why is identity load-bearing? & cheap pseudonyms; Sybil & \emph{necessity proof} (Thm.~\ref{thm:necessity}) + cost bound (Thm.~\ref{thm:whitewash-cost}) \\
+Why is identity necessary? & cheap pseudonyms; Sybil & \emph{necessity proof} (Thm.~\ref{thm:necessity}) + cost bound (Thm.~\ref{thm:whitewash-cost}) \\
 How to score quality? & Elo/BT/TrueSkill (scalar) & multi-dimensional vector, judge-per-axis (\S\ref{sec:adr0049}) \\
 Who grades the graders? & LLM-as-judge (debias only) & bonded judge ceremony + rate-the-raters recursion (\S\ref{sec:oracle}) \\
 \bottomrule
@@ -720,7 +720,7 @@ incarnation directly remembers the first.
 % --- FIGURE 3: Parfitian continuity vs connectedness ---
 \input{figures/fig-stp-parfit-chain}
 
-\keyidea{The philosophy is load-bearing because it predicts the \emph{wrong
+\keyidea{The philosophy matters because it predicts the \emph{wrong
 default}. The intuitive organ of identity is \emph{memory} (``the agent remembers
 its past''). Parfit shows the identity-bearing organ is the \emph{transitive
 chain of witnessed outcomes}, not the memory stream. Build the ledger, not just
@@ -893,7 +893,7 @@ the agent cannot freely re-pick. This is the most under-appreciated claim in the
 paper.
 
 We first state the central claim of the section as a theorem and prove it, because
-it is the load-bearing impossibility result the rest of the paper leans on: no
+it is the governing impossibility result the rest of the paper leans on: no
 amount of estimator cleverness can rescue a reputation built on a re-pickable
 identity.
 
@@ -1377,7 +1377,7 @@ over} --- witnessed outcomes on a non-forgeable identity --- is the gate.}
 \noindent A team tempted to start an agent economy by ``building an Elo
 leaderboard for backends'' would be building the cheap, last part first. Elo,
 Bradley--Terry, and TrueSkill are well-understood; you can implement any of them in
-an afternoon over a table of game results. The hard, prior, load-bearing work is
+an afternoon over a table of game results. The hard, prior work is
 the three links \emph{beneath} the estimator: a non-forgeable identity
 (\S\ref{sec:identity}), continuity (\S\ref{sec:organs}), and an
 \emph{oracle-witnessed} outcome ledger (Def.~\ref{def:oracle}). Without those, the
@@ -1452,7 +1452,7 @@ It is tempting --- and the routing literature invites the temptation --- to mode
 \textbf{bandit}~\cite{lattimore2020bandit}: arms are agents, pulling an arm yields a
 reward, and Thompson sampling~\cite{thompson1933} or UCB balances exploration
 against exploitation. That framing is correct for one narrow internal task and
-catastrophically wrong for reputation as a whole. The distinction is load-bearing
+catastrophically wrong for reputation as a whole. The distinction is important
 enough to state as a claim.
 
 \noindent\emph{Honesty rider before the claim.} The four-assumption argument below
@@ -1861,7 +1861,7 @@ levels, then $21$ geometric ones --- $36$ levels, $\$1{,}800$.)
 reading of those two numbers is a factor of two in certified depth and capital, not
 the difference between a tower that converges and one that does not: raising $C$
 \emph{removes the linear bribery phase}, and at these parameters even $C=1$
-terminates. Three hypotheses are load-bearing and must not be dropped in
+terminates. Three hypotheses are required and must not be dropped in
 restatement. (i) \emph{Sealed sampling is a hypothesis, not hygiene}: a leaked draw
 collapses $C$ to $1$ and puts the VRF sampler inside the trusted computing base.
 (ii) \emph{The tower needs an exogenously honest root} --- the operator at $n=1$, a
@@ -1871,7 +1871,7 @@ auditors}; it does not price collusion correlated \emph{across} cliques, which i
 measurement obligation on deployed judge telemetry ($d$, and the cross-clique
 correlation), not an assumption.
 
-\keyidea{The grading oracle is the load-bearing assumption hidden under every IC
+\keyidea{The grading oracle is the decisive assumption hidden under every IC
 claim in the economy, and it is no longer an assumption: the companion paper closes
 the rate-the-raters recursion as a parameterized theorem, deriving the contraction
 factor $\lambda = 1-\rho d$ from the audit parameters rather than hypothesizing it,

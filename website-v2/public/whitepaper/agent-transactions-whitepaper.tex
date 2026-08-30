@@ -180,7 +180,7 @@
 \vspace{1cm}
 
 \begin{abstract}\noindent
-Two autonomous agents working on the same project corrupt each other's state, double-claim the same files, race for the same ports, and leave the operator to do recovery archaeology. The problem is not the agents---it is that they have no coordination substrate. This paper specifies one. We model the daemon the way game theory models a referee who never forces anyone's hand: it whispers a private recommendation to each agent---\emph{you go, you wait}---and Aumann's theory of \emph{correlated equilibrium}~\cite{aumann1974subjectivity} tells us exactly when agents have no reason to ignore it. That ``exactly when'' is the load-bearing part: the recommendations constitute a correlated equilibrium only when the explicit obedience inequalities of \S\ref{sec:correlating-device} hold. The substrate has three independently load-bearing layers---capability-attenuated tokens that bound scope, Merkle-chained evidence trails that preserve attribution, and collateralized work contracts that pre-fund damage regardless of intent. We formalize the construction in the context of Port Daddy, a coordination daemon for local agent swarms, and separate structural guarantees from incentive assumptions. Sen's Impossibility of a Paretian Liberal supplies a design warning, not a proof that every enforced lock is inefficient: decisive local control and team-wide Pareto choice can conflict under unrestricted preferences. That warning motivates an advisory claim graph whose completeness is proved separately. We further specify a \emph{mutable-signal ledger} (\S\ref{sec:pheromones}) supporting revocation, renaming, and provenance-aware propagation without sacrificing attribution integrity. Finally, we evaluate a competitive-insurance pricing mechanism (\S\ref{sec:youle}, contributed by Youle) against a named static baseline. Its Pareto comparisons are simulation results under stated assumptions, not a universal welfare theorem. Hobbes had the right idea about sovereigns; he just lacked a way to deploy one on \texttt{localhost:9876}.
+Two autonomous agents working on the same project corrupt each other's state, double-claim the same files, race for the same ports, and leave the operator to do recovery archaeology. The problem is not the agents---it is that they have no coordination substrate. This paper specifies one. We model the daemon the way game theory models a referee who never forces anyone's hand: it whispers a private recommendation to each agent---\emph{you go, you wait}---and Aumann's theory of \emph{correlated equilibrium}~\cite{aumann1974subjectivity} tells us exactly when agents have no reason to ignore it. That ``exactly when'' is the decisive part: the recommendations constitute a correlated equilibrium only when the explicit obedience inequalities of \S\ref{sec:correlating-device} hold. The substrate has three independently necessary layers---capability-attenuated tokens that bound scope, Merkle-chained evidence trails that preserve attribution, and collateralized work contracts that pre-fund damage regardless of intent. We formalize the construction in the context of Port Daddy, a coordination daemon for local agent swarms, and separate structural guarantees from incentive assumptions. Sen's Impossibility of a Paretian Liberal supplies a design warning, not a proof that every enforced lock is inefficient: decisive local control and team-wide Pareto choice can conflict under unrestricted preferences. That warning motivates an advisory claim graph whose completeness is proved separately. We further specify a \emph{mutable-signal ledger} (\S\ref{sec:pheromones}) supporting revocation, renaming, and provenance-aware propagation without sacrificing attribution integrity. Finally, we evaluate a competitive-insurance pricing mechanism (\S\ref{sec:youle}, contributed by Youle) against a named static baseline. Its Pareto comparisons are simulation results under stated assumptions, not a universal welfare theorem. Hobbes had the right idea about sovereigns; he just lacked a way to deploy one on \texttt{localhost:9876}.
 \end{abstract}
 
 \vspace{0.5cm}
@@ -213,13 +213,13 @@ Two autonomous agents working on the same project corrupt each other's state, do
 \section*{Reader's Map}\label{sec:readers-map}
 % ═══════════════════════════════════════════════════════════════════════════════
 
-The paper builds in four layers; each layer carries a load-bearing formal claim or empirical result. If you have less than 50 minutes, the table below tells you where to start.
+The paper builds in four layers; each layer carries a critical formal claim or empirical result. If you have less than 50 minutes, the table below tells you where to start.
 
 \vspace{0.4cm}
 \noindent
 \begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.21\textwidth} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{0.22\textwidth}@{}}
 \toprule
-\textbf{Layer} & \textbf{Load-bearing artifact} & \textbf{Lives at} \\
+\textbf{Layer} & \textbf{Critical artifact} & \textbf{Lives at} \\
 \midrule
 \textbf{(1) Structural prevention} & Capability-attenuated tokens; ProVerif proofs of algorithm-confusion immunity and delegation replay resistance & \S\ref{sec:structural}--\S\ref{sec:isolation}; Chapter~V (\emph{The Anchor Protocol}) \\
 \textbf{(2) Immutable attribution} & Merkle Forest with cross-daemon inclusion proofs; EasyCrypt binding mechanization (\texttt{binding.ec}) & \S\ref{sec:merkle-forest}; Appendix~\ref{app:mech} \\
@@ -353,7 +353,7 @@ The daemon's role therefore admits a precise game-theoretic test. Aumann~\cite{a
 \sum_{r_{-i}} \mu(r_i,r_{-i})
 \bigl[u_i(r_i,r_{-i})-u_i(a_i',r_{-i})\bigr] \ge 0.
 \]
-Every mixed Nash equilibrium induces such a distribution, but a mediator does not create an equilibrium merely by issuing recommendations. The inequality is the load-bearing condition.
+Every mixed Nash equilibrium induces such a distribution, but a mediator does not create an equilibrium merely by issuing recommendations. The inequality is the governing condition.
 
 The commons authority can play this mediator role. It observes the global claim graph and emits a recommendation pair on a contested file: \emph{Agent~$\alpha$, proceed; Agent~$\beta$, defer or coordinate.} A deterministic policy can still induce a non-degenerate $\mu$ through uncertainty over observed system states, but determinism is not itself evidence of obedience. Utilities, bond coverage, and continuation values must make the inequality above hold.
 
@@ -833,7 +833,7 @@ Under the observable-history regime of \S\ref{sec:attribution} and the Sybil-res
 \paragraph{What each condition buys, and what breaks when it is removed.}
 The proposition is conditional, and the conditions matter. Naming what each one is doing makes the dependency on the rest of the architecture explicit rather than implicit.
 \begin{itemize}[nosep]
-  \item \emph{Remove observable history (\S\ref{sec:attribution}).} The repeated game collapses to repeated one-shot play: with no public record of prior actions, no trigger can fire, and both players play $F$ in every round. This is why the Merkle forest of \S\ref{sec:merkle-forest} is load-bearing for the claim signal, not just for post-hoc audit.
+  \item \emph{Remove observable history (\S\ref{sec:attribution}).} The repeated game collapses to repeated one-shot play: with no public record of prior actions, no trigger can fire, and both players play $F$ in every round. This is why the Merkle forest of \S\ref{sec:merkle-forest} is necessary for the claim signal, not just for post-hoc audit.
   \item \emph{Remove persistent identity (Anchor~\cite{owens2026anchor}).} An agent who can re-register after each defection effectively faces $\delta = 0$: future punishment falls on a discarded identity. Cooperation is impossible.
   \item \emph{Drop $\delta$ below $\delta^\star_{k=3} \approx 0.342$.} The three-round graduated trigger is insufficient. Either lengthen the punishment window or accept that the equilibrium does not bind for very short-lived principals.
   \item \emph{Drop $\delta$ below $1/3$.} No trigger of any duration sustains $(T, T)$. The repeated game has the same equilibrium structure as the stage game, and only the bond mechanism of this section, not the signal itself, deters defection.
@@ -1076,7 +1076,7 @@ This result does not automatically extend to the agent layer. The two layers sha
 \section{Coordination as Substrate: An Expressive-Act Taxonomy}\label{sec:taxonomy}
 % ═══════════════════════════════════════════════════════════════════════════════
 
-\noindent\emph{Reader's note: this section is a half-page taxonomy. The auction-focused reader can skim the five-item list and skip to \S\ref{sec:youle}; the mechanism-design reader will want the per-class bond profiles in full. The taxonomy is load-bearing for both --- it is the reason a single bond price cannot be set.}
+\noindent\emph{Reader's note: this section is a half-page taxonomy. The auction-focused reader can skim the five-item list and skip to \S\ref{sec:youle}; the mechanism-design reader will want the per-class bond profiles in full. The taxonomy matters to both because it explains why a single bond price cannot be set.}
 
 \vspace{4pt}
 
@@ -1132,7 +1132,7 @@ Psychotic & 40 tok/s & none & $\approx 0$; Asylum triggered \\
 \end{tabular}
 \end{table}
 
-\paragraph{A note on the names.} The terms in the rest of this section are playful; the failure modes are not. Read ``Agentic Psychosis,'' ``the Asylum Protocol,'' and ``Inception Canaries'' as load-bearing engineering terms with the operational definitions given below---each one names a detector and a response with a threshold attached---rather than as jokes.
+\paragraph{A note on the names.} The terms in the rest of this section are playful; the failure modes are not. Read ``Agentic Psychosis,'' ``the Asylum Protocol,'' and ``Inception Canaries'' as defined engineering terms with the operational definitions given below---each one names a detector and a response with a threshold attached---rather than as jokes.
 
 \paragraph{Agentic Psychosis \& The Asylum Protocol.} Unbounded LLMs inevitably enter \emph{Agentic Psychosis}: hallucination loops characterized by extremely high token-generation rates but zero functional AST change. When the daemon detects a causal-density ratio approaching zero alongside high token-burn, it initiates \textbf{The Asylum Protocol}. The daemon sends \texttt{SIGSTOP} to the agent process, routes its context window through a secondary SLM (Small Language Model) sidecar for semantic compaction and Situation-in-the-Loop (SITF) prompt injection (``\emph{You are looping. Re-evaluate your last 3 steps against the active plan.}''), and then issues \texttt{SIGCONT}. This cures the hallucination loop without sacrificing session context.
 
@@ -1649,7 +1649,7 @@ DataDome.
 \renewcommand{\arraystretch}{1.15}
 \begin{table}[H]
 \centering
-\caption{Verification status of load-bearing claims. ``Method'' is the formal technique; ``Result'' is its outcome; ``Artifact'' names the public bundle file. A claim with both a formal artifact \emph{and} a runtime conformance test is fully closed (\Closed); a claim with formal model but no deployed runtime is spec-only (\SpecOnly); a claim with empirical evidence but no formal mechanization is partial (\Partial).}
+\caption{Verification status of critical claims. ``Method'' is the formal technique; ``Result'' is its outcome; ``Artifact'' names the public bundle file. A claim with both a formal artifact \emph{and} a runtime conformance test is fully closed (\Closed); a claim with formal model but no deployed runtime is spec-only (\SpecOnly); a claim with empirical evidence but no formal mechanization is partial (\Partial).}
 \label{tab:verification-status}
 \small
 \begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.265\textwidth} >{\raggedright\arraybackslash}p{0.17\textwidth} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{0.245\textwidth}@{}}
@@ -1705,7 +1705,7 @@ Before $\alpha$ writes a single byte, two artifacts must exist: a capability tha
 
 \paragraph{Step 1: Capability issuance (Layer 1).} $P$ requests a Harbor Card for $\alpha$ via the daemon, specifying the capability set $\{\texttt{fs:read:repo}, \texttt{fs:write:auth.ts}, \texttt{fs:write:tests/**}, \texttt{cmd:test}\}$ and a TTL of $30$~minutes. The Anchor Protocol (\S\ref{sec:structural}, accompanying chapters) signs the card. The effect is structural rather than advisory: $\alpha$ can prove its identity and capabilities to any verifier, but it \emph{physically} cannot write to, e.g., \texttt{database.ts}---attempts return a capability error before the file system is even touched. This is the ``physically'' that makes the Layer~1 promise non-negotiable.
 
-\paragraph{Step 2: Bond posting (Layer 3).} With the capability in place, the Bonded Advisor (\S\ref{sec:pricing}) quotes a bond proportional to the cleanup cost: $B_\alpha = \$5 \cdot (1 + s) = \$6$ at slope $s = 0.2$. $P$ posts \$6 into escrow. The settlement preconditions are now fixed up front: (1) acceptance criteria met $\Rightarrow$ \$6 returned, (2) partial completion $\Rightarrow$ pro-rata, (3) sabotage $\Rightarrow$ \$6 liquidated to the commons treasury. The bond is the conversion of $\alpha$'s ``character'' into a settled amount; once it is posted, the question of whether $\alpha$ is trustworthy is no longer load-bearing.
+\paragraph{Step 2: Bond posting (Layer 3).} With the capability in place, the Bonded Advisor (\S\ref{sec:pricing}) quotes a bond proportional to the cleanup cost: $B_\alpha = \$5 \cdot (1 + s) = \$6$ at slope $s = 0.2$. $P$ posts \$6 into escrow. The settlement preconditions are now fixed up front: (1) acceptance criteria met $\Rightarrow$ \$6 returned, (2) partial completion $\Rightarrow$ pro-rata, (3) sabotage $\Rightarrow$ \$6 liquidated to the commons treasury. The bond is the conversion of $\alpha$'s ``character'' into a settled amount; once it is posted, the question of whether $\alpha$ is trustworthy no longer determines settlement.
 
 \subsubsection*{Phase B: Work begins (minutes $1$--$12$)}
 
