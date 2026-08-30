@@ -667,6 +667,108 @@ false reading that the selected geometry must prevent.
 - Color job: teal is the valid independent-review frontier; amber is the shared-
   blind-spot collapse.
 
+## Volume V — The Anchor Protocol
+
+### V.1 — cumulative threat closure (fig:anchor-four-phases)
+
+- Reader question: which new attack surface closes at each phase, and can a later
+  phase reopen an earlier one?
+- Selected grammar: four threat rails crossed by one monotone closure staircase.
+- Rejected alternative: an open/closed matrix; it repeated sixteen words while
+  hiding the one architectural invariant.
+- False reading to prevent: the phases are interchangeable upgrades. Every phase
+  closes one new surface and inherits all earlier closures.
+- Color job: amber is pre-closure exposure; teal is retained closure, redundantly
+  separated by the staircase position.
+
+### V.2 — capability attenuation (fig:anchor-capability-attenuation)
+
+- Reader question: how must authority and lifetime change together at each hop?
+- Selected grammar: nested rights-by-lifetime envelopes with one rejected point
+  outside the parent region.
+- Rejected alternative: a three-column token table; set inclusion and TTL
+  contraction became disconnected facts.
+- False reading to prevent: shorter TTL can compensate for a reintroduced right.
+  The verifier requires both dimensions to attenuate.
+- Color job: teal is the valid nested envelope; amber is the out-of-envelope
+  re-grant, redundantly marked by a diamond.
+
+### V.3 — algorithm confusion (fig:anchor-alg-confusion)
+
+- Reader question: why do identical tampered bytes pass one verifier and fail the
+  other?
+- Selected grammar: a causal fork at the rule-selection authority boundary.
+- Rejected alternative: two four-cell process rows; it narrated outcomes without
+  isolating the single changed cause.
+- False reading to prevent: Ed25519 merely scores better than alg:none. The safety
+  change is who controls the rule, not algorithm decoration.
+- Color job: amber is token-controlled bypass; teal is issuer-controlled checking,
+  also distinguished by triangle versus crossed-circle outcomes.
+
+### V.4 — delegation provenance (fig:anchor-delegation-inline)
+
+- Reader question: where does a replay, substitution, or splice break a depth-N
+  delegation chain?
+- Selected grammar: signed provenance braid with identity, nonce, and task-hash
+  continuity on separate aligned rails.
+- Rejected alternative: repeated token-record boxes; they made the chain look like
+  an inventory rather than linked evidence.
+- False reading to prevent: valid signatures can be reordered freely. Each one
+  binds adjacent identities, a fresh nonce, and the same task hash.
+- Color job: teal is the continuous verified braid; amber is the skipped binding.
+
+### V.5 — revocation representation (fig:anchor-cuckoo-inline)
+
+- Reader question: why can revocation IDs be merged while peer cuckoo-filter bits
+  cannot?
+- Selected grammar: an insertion-history counterexample paired with a lawful ID
+  union and local rebuild.
+- Rejected alternative: an implementation-detail bucket dashboard; it taught
+  cuckoo insertion but not the reason direct filter gossip was abandoned.
+- False reading to prevent: bitwise OR is conservative because it only adds bits.
+  Deletion semantics require coherent placement history, which OR destroys.
+- Color job: amber marks the impossible merged encoding; teal marks authoritative
+  ID union and one consistent local projection.
+
+### V.6 — revocation dissemination (fig:anchor-revocation-gossip)
+
+- Reader question: how long can each verifier remain stale, and what does the
+  logarithmic propagation claim actually guarantee?
+- Selected grammar: per-daemon exposure intervals with a branching observation
+  frontier and an explicit partition break.
+- Rejected alternative: three timestamp columns of state boxes; it hid the
+  security-relevant duration and looked like a delivery schedule.
+- False reading to prevent: expected Theta(log m) rounds is a deadline. An
+  unbounded partition removes every finite bound.
+- Color job: amber is stale admissibility time; teal begins at observation and
+  rejection, redundantly encoded by the change point.
+
+### V.7 — card lifecycle (fig:anchor-card-lifecycle)
+
+- Reader question: can a revoked card become valid again, and how is an erroneous
+  revocation corrected?
+- Selected grammar: aligned acceptance intervals for revoked, expired, and newly
+  issued card IDs.
+- Rejected alternative: a three-state machine with a crossed arrow; the absent
+  edge became the largest ornament instead of a temporal invariant.
+- False reading to prevent: dropping an expired revocation record revives the old
+  card, or correction mutates its history. Correction uses a new ID.
+- Color job: teal is the admissible interval; neutral double rail is absorbing
+  rejection; amber marks revocation and the forbidden return.
+
+### V.8 — assurance transfer (fig:anchor-verification-stack)
+
+- Reader question: what obligation and evidence cross each assurance layer, and
+  where does human judgment remain load-bearing?
+- Selected grammar: opposed obligation/evidence rails spanning three strata and
+  two visibly bridged gaps.
+- Rejected alternative: three assurance boxes with arrows; it implied ordinary
+  pipeline composition where the argument admits human assertions.
+- False reading to prevent: runtime tests mechanically prove model-source or
+  source-binary identity. They narrow but do not erase either gap.
+- Color job: teal is returning evidence; amber is the human-asserted bridge,
+  redundantly shown as a dashed fracture and diamond.
+
 ## Corpus-wide controls
 
 - Neutral ink carries structure. Teal means verified, selected, conserved, or
