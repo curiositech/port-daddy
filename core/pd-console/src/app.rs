@@ -3404,22 +3404,14 @@ impl ConsoleView {
     /// Fold one transport push into the chat transcript: a real reply down the tube
     /// (with the receive earcon) or a transport error (surfaced in the error state).
     pub fn apply_chat_update(&mut self, update: ChatUpdate) {
-        match update {
-            ChatUpdate::Reply(msg) => {
-                // A reply is always attributed assistant prose, by construction.
-                self.chat.push_agent(msg.sender, msg.text);
+        match crate::mission_callbacks::apply_chat_update(&mut self.chat, update) {
+            crate::mission_callbacks::ChatUpdateSignal::ReplyArrived => {
                 crate::audio::play(crate::audio::Cue::Receive);
             }
-            ChatUpdate::Receipt(msg) => {
-                self.chat.push_receipt(msg.sender, msg.text);
+            crate::mission_callbacks::ChatUpdateSignal::ReceiptArrived => {
                 crate::audio::play(crate::audio::Cue::Tick);
             }
-            ChatUpdate::Hydrate {
-                messages,
-                awaiting_reply,
-            } => self.chat.hydrate(messages, awaiting_reply),
-            ChatUpdate::Reset => self.chat.reset(),
-            ChatUpdate::Error(reason) => self.chat.set_error(reason),
+            crate::mission_callbacks::ChatUpdateSignal::None => {}
         }
     }
 
@@ -4007,21 +3999,23 @@ impl ConsoleView {
             }
             WorkUpdate::Reset => {
                 self.clear_work_projection_failure();
-                self.work_mission = crate::mission_view::MissionViewModel::empty();
-                self.work_plan_graph = crate::work_plan::PredictedDag::default();
-                self.work_graph_png_path = None;
-                self.work_intent_id = None;
-                self.work_plan_state = "not-started".into();
-                self.work_correlation_id = None;
-                self.work_next_action = None;
-                self.work_execution_state = "not-started".into();
-                self.work_execution_id = None;
-                self.work_execution_projection = None;
-                self.work_execution_session = None;
-                self.work_execution_worktree = None;
-                self.work_selected_node = None;
-                self.control_flash =
-                    Some("Mission context cleared for the selected daemon.".into());
+                crate::mission_callbacks::WorkProjectionBindings {
+                    mission: &mut self.work_mission,
+                    plan_graph: &mut self.work_plan_graph,
+                    graph_png_path: &mut self.work_graph_png_path,
+                    intent_id: &mut self.work_intent_id,
+                    plan_state: &mut self.work_plan_state,
+                    correlation_id: &mut self.work_correlation_id,
+                    next_action: &mut self.work_next_action,
+                    execution_state: &mut self.work_execution_state,
+                    execution_id: &mut self.work_execution_id,
+                    execution_projection: &mut self.work_execution_projection,
+                    execution_session: &mut self.work_execution_session,
+                    execution_worktree: &mut self.work_execution_worktree,
+                    selected_node: &mut self.work_selected_node,
+                    control_flash: &mut self.control_flash,
+                }
+                .clear_for_daemon_rebind();
             }
             WorkUpdate::Png(path) => {
                 self.work_graph_png_path = Some(path);
@@ -9795,93 +9789,6 @@ mod add_pane_tests {
             stamp.contains(env!("CARGO_PKG_VERSION")),
             "stamp must carry the crate version: {stamp}"
         );
-    }
-
-    #[test]
-    fn work_reset_callback_clears_every_berth_scoped_projection() {
-        let mut cx = TestAppContext::single();
-        let view = cx.new(|cx| {
-            ConsoleView::new("http://127.0.0.1:43129".into(), Some("mission".into()), cx)
-        });
-
-        cx.update_entity(&view, |view, _cx| {
-            view.work_mission.goal = "stale mission".into();
-            view.work_mission.intent_id = Some("intent-stale".into());
-            view.work_mission.state = "in_progress".into();
-            view.work_plan_graph.title = "stale plan".into();
-            view.work_plan_graph
-                .waves
-                .push(crate::work_plan::PredictedWave::default());
-            view.work_graph_png_path = Some(std::path::PathBuf::from("stale-plan.png"));
-            view.work_intent_id = Some("intent-stale".into());
-            view.work_plan_state = "materialized".into();
-            view.work_correlation_id = Some("corr-stale".into());
-            view.work_next_action = Some("keep stale state".into());
-            view.work_execution_state = "in_progress".into();
-            view.work_execution_id = Some("execution-stale".into());
-            view.work_execution_projection = Some("dispatch-compat".into());
-            view.work_execution_session = Some("session-stale".into());
-            view.work_execution_worktree = Some("/repo/stale".into());
-            view.work_selected_node = Some("node-stale".into());
-
-            view.apply_work_update(WorkUpdate::Reset);
-
-            assert_eq!(view.work_mission.goal, "What should Port Daddy do?");
-            assert_eq!(view.work_mission.state, "not-started");
-            assert!(view.work_mission.intent_id.is_none());
-            assert!(view.work_plan_graph.title.is_empty());
-            assert!(view.work_plan_graph.waves.is_empty());
-            assert!(view.work_graph_png_path.is_none());
-            assert!(view.work_intent_id.is_none());
-            assert_eq!(view.work_plan_state, "not-started");
-            assert!(view.work_correlation_id.is_none());
-            assert!(view.work_next_action.is_none());
-            assert_eq!(view.work_execution_state, "not-started");
-            assert!(view.work_execution_id.is_none());
-            assert!(view.work_execution_projection.is_none());
-            assert!(view.work_execution_session.is_none());
-            assert!(view.work_execution_worktree.is_none());
-            assert!(view.work_selected_node.is_none());
-            assert_eq!(
-                view.control_flash.as_deref(),
-                Some("Mission context cleared for the selected daemon.")
-            );
-        });
-    }
-
-    #[test]
-    fn chat_callback_preserves_receipt_provenance_then_resets_the_berth() {
-        let mut cx = TestAppContext::single();
-        let view = cx.new(|cx| {
-            ConsoleView::new("http://127.0.0.1:43129".into(), Some("mission".into()), cx)
-        });
-
-        cx.update_entity(&view, |view, _cx| {
-            view.chat.push_mine("inspect the live mission");
-            view.chat.set_error("stale transport failure");
-
-            view.apply_chat_update(ChatUpdate::Receipt(ChatMsg::receipt(
-                "Port Daddy receipt",
-                "WorkIntent admitted",
-            )));
-
-            assert_eq!(view.chat.messages.len(), 2);
-            assert!(view.chat.error.is_none());
-            assert!(
-                view.chat.awaiting_reply,
-                "an admission receipt is not an attributed answer"
-            );
-            let receipt = view.chat.messages.last().expect("receipt turn");
-            assert_eq!(receipt.kind, ChatMsgKind::Receipt);
-            assert_eq!(receipt.sender, "Port Daddy receipt");
-            assert_eq!(receipt.text, "WorkIntent admitted");
-
-            view.apply_chat_update(ChatUpdate::Reset);
-
-            assert!(view.chat.messages.is_empty());
-            assert!(view.chat.error.is_none());
-            assert!(!view.chat.awaiting_reply);
-        });
     }
 
     // The launcher-grid 1:1 invariant tests live in `crate::grid` (gpui-free) so

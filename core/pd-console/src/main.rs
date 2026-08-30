@@ -46,6 +46,7 @@ mod lane_pane;
 mod ledger_pane;
 mod lineage_pane;
 mod maritime;
+mod mission_callbacks;
 mod mission_view;
 mod mux;
 mod notes_pane;
