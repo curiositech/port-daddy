@@ -19,7 +19,9 @@ use gpui::prelude::*;
 use gpui::*;
 
 pub use crate::chat::ChatUpdate;
-use crate::chat::{chat_display_text, chat_error_display_text, ChatLog, ChatMsg, ChatState};
+use crate::chat::{
+    chat_display_text, chat_error_display_text, ChatLog, ChatMsg, ChatMsgKind, ChatState,
+};
 use crate::dispatch_pane::DispatchHead;
 use crate::editor_input::{EditorInput, TextEdit};
 use crate::editor_sync::PresenceState;
@@ -50,16 +52,6 @@ use unicode_segmentation::UnicodeSegmentation;
 pub enum ControlMsg {
     /// Grab the wheel: interrupt the agent the Lane is watching.
     InterruptLane,
-    /// The console's sole work-creation command. The daemon captures a
-    /// WorkIntent and initial WorkPlan through the Surface Gateway; the GUI
-    /// never chooses a provider, body, model, topology, node, or run.
-    SubmitWorkIntent {
-        goal: String,
-    },
-    /// Send a turn to the cartographer over its tube channel: `POST /msg/cartographer`.
-    Cartographer {
-        text: String,
-    },
     /// Send an operator turn to the agent currently watched by the Lane. This is
     /// a real `agent:<id>` tube message; the Lane stream echoes it as `agent.tube`.
     MessageLane {
@@ -211,15 +203,18 @@ pub struct EditorUpdate {
     pub remote_frames: Vec<String>,
 }
 
-/// A push from the daemon worker back to the Work surface. Runtime truth is a
+/// A push from the daemon worker back to the Mission surface. Runtime truth is a
 /// daemon snapshot/receipt; PNG is a render artifact of that truth only.
 #[derive(Debug, Clone)]
 pub enum WorkUpdate {
     Receipt(crate::agent::WorkIntentReceipt),
     Execution(crate::agent::WorkExecutionReceipt),
     Snapshot(crate::agent::WorkSnapshot),
+    /// Clear berth-scoped Mission truth after a daemon rebind or an empty
+    /// authoritative query. Old receipts must never survive into a new plane.
+    Reset,
     /// The path to the rendered Vello PNG for the current DAG — shown INLINE at the
-    /// top of the Work surface (gpui `img(path)`).
+    /// top of the Mission surface (gpui `img(path)`).
     Png(std::path::PathBuf),
 }
 
@@ -237,16 +232,14 @@ pub enum GalaxyUpdate {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CmdKind {
     /// Capture operator intent through the daemon-owned Surface Gateway.
-    Work,
-    /// Talk to the cartographer. Buffer is the message.
-    Cartographer,
+    Mission,
     /// Talk to the agent currently watched by the Lane. Buffer is the message.
     LaneMessage,
     /// Reject the head dispatch with a reason (the human-gate "modify/why" path).
     /// The target dispatch id is held in `ConsoleView::reject_target`.
     DispatchReject,
     /// Add a new split pane of a chosen surface kind. Buffer is a surface name
-    /// (nav label/id/key prefix, e.g. "cost", "fleet", "chat"). Handled locally.
+    /// (nav label/id/key prefix, e.g. "cost", "fleet", "mission"). Handled locally.
     AddPane,
     /// Switch the console to another daemon berth (ADR-0084). Buffer is a berth
     /// name, `:port`, or a tier alias ("stable"/"dev-latest"); resolved against
@@ -285,8 +278,7 @@ pub enum CmdKind {
 impl CmdKind {
     fn prompt(&self) -> &'static str {
         match self {
-            CmdKind::Work => "work",
-            CmdKind::Cartographer => "cartographer",
+            CmdKind::Mission => "mission",
             CmdKind::LaneMessage => "message agent",
             CmdKind::DispatchReject => "reject reason",
             CmdKind::AddPane => "add pane",
@@ -312,12 +304,8 @@ impl CmdKind {
     /// values such as the canonical daemon port.
     fn placeholder(&self) -> String {
         match self {
-            CmdKind::Work => {
+            CmdKind::Mission => {
                 "describe the outcome; Port Daddy captures intent before choosing a plan or body…"
-                    .to_string()
-            }
-            CmdKind::Cartographer => {
-                "Ask the cartographer about the roadmap, then watch the lane stream the reply…"
                     .to_string()
             }
             CmdKind::LaneMessage => {
@@ -327,7 +315,7 @@ impl CmdKind {
                 "Why reject this? The reason is sent back to the agent.".to_string()
             }
             CmdKind::AddPane => {
-                "fleet · cost · roadmap · lane · work · chat · files · alerts…".to_string()
+                "mission · fleet · cost · roadmap · lane · files · alerts…".to_string()
             }
             CmdKind::UseDaemon => format!(
                 "prod · latest · dev-latest · :{} · berth name…",
@@ -346,7 +334,7 @@ impl CmdKind {
             CmdKind::HarborSteer => {
                 "guidance for the selected node — injected before its next turn…".to_string()
             }
-            CmdKind::Verb => "work/note/begin/done/claim/release/kill/interrupt …".to_string(),
+            CmdKind::Verb => "mission/note/begin/done/claim/release/kill/interrupt …".to_string(),
         }
     }
 }
@@ -379,10 +367,10 @@ struct LauncherItem {
 
 const EXTRA_LAUNCHER_ITEMS: &[LauncherItem] = &[
     LauncherItem {
-        id: "chat",
-        label: "Chat",
-        icon: "icons/nav/cockpit.svg",
-        key: "c",
+        id: "mission",
+        label: "Mission",
+        icon: "icons/nav/roadmap.svg",
+        key: "v",
     },
     LauncherItem {
         id: "files",
@@ -395,12 +383,6 @@ const EXTRA_LAUNCHER_ITEMS: &[LauncherItem] = &[
         label: "Alerts",
         icon: "icons/nav/health.svg",
         key: "a",
-    },
-    LauncherItem {
-        id: "work",
-        label: "Work",
-        icon: "icons/nav/roadmap.svg",
-        key: "v",
     },
 ];
 
@@ -418,27 +400,24 @@ fn launcher_items() -> Vec<LauncherItem> {
 
 fn surface_for_launcher_id(id: &str) -> SurfaceKind {
     match id {
-        "chat" => SurfaceKind::CartographerChat,
+        "mission" => SurfaceKind::Mission,
         "files" => SurfaceKind::FileTree { root: None },
         "alerts" => SurfaceKind::Hitl,
-        "work" => SurfaceKind::Work,
         nav => surface_for_nav_id(nav),
     }
 }
 
 fn launcher_id_for_surface(surface: &SurfaceKind) -> Option<String> {
     match surface {
-        SurfaceKind::CartographerChat => Some("chat".to_string()),
+        SurfaceKind::Mission => Some("mission".to_string()),
         SurfaceKind::FileTree { .. } => Some("files".to_string()),
         SurfaceKind::Hitl => Some("alerts".to_string()),
-        SurfaceKind::Work => Some("work".to_string()),
         _ => nav_id_for_surface(surface).map(str::to_string),
     }
 }
 
 /// Resolve a typed surface name to a `SurfaceKind` for the add-pane picker.
-/// Matches every launcher tile by label/id/key, plus older aliases operators
-/// have already learned.
+/// Matches every launcher tile by label/id/key.
 fn surface_for_query(query: &str) -> Option<SurfaceKind> {
     let trimmed = query.trim();
     // `:edit <path>` (or `edit <path>`) opens the Harbor Editor surface on a file.
@@ -460,10 +439,8 @@ fn surface_for_query(query: &str) -> Option<SurfaceKind> {
         return None;
     }
     match q.as_str() {
-        "cartographer" => return Some(SurfaceKind::CartographerChat),
         "tree" | "filetree" => return Some(SurfaceKind::FileTree { root: None }),
         "hitl" => return Some(SurfaceKind::Hitl),
-        "work" | "plan" => return Some(SurfaceKind::Work),
         "roadmap" => return Some(SurfaceKind::Roadmap),
         "coast" => {
             return Some(SurfaceKind::Panel {
@@ -2135,11 +2112,11 @@ pub struct ConsoleView {
     /// Read-only visual projection of the daemon-owned WorkPlan. Empty daemon
     /// nodeSpecs stay empty; this state never manufactures a runnable plan.
     work_plan_graph: crate::work_plan::PredictedDag,
-    /// One human-facing mission receipt. This is the primary Work-screen model;
+    /// One human-facing mission receipt. This is the primary Mission model;
     /// the plan graph remains a secondary technical artifact.
     work_mission: crate::mission_view::MissionViewModel,
     /// Path to the rendered Vello PNG of `work_plan_graph`, shown INLINE at the top of
-    /// the Work surface. `None` until a render lands (the surface shows a
+    /// the Mission surface. `None` until a render lands (the surface shows a
     /// "rendering graph…" placeholder). Auto-refreshed whenever the DAG changes.
     work_graph_png_path: Option<std::path::PathBuf>,
     /// Durable WorkIntent identity from the latest daemon snapshot.
@@ -2775,15 +2752,10 @@ impl ConsoleView {
         if matches!(surface, SurfaceKind::Hitl) {
             return self.blocks_for_hitl();
         }
-        // Operator chat is foreground-only too — it reads the in-process transcript
-        // (the GPUI shell renders bespoke bubbles, but the terminal face + tests
-        // read these render-agnostic blocks from the same model).
-        if matches!(surface, SurfaceKind::CartographerChat) {
-            return self.chat.blocks();
-        }
-        // Work is foreground-owned but projects only daemon snapshots received
-        // over the dedicated Work bus.
-        if matches!(surface, SurfaceKind::Work) {
+        // Mission is the sole ordinary operator flow. Its headless projection
+        // joins conversation state to daemon-backed Work truth; the GPUI face
+        // renders the same ingredients as a bespoke conversation + context rail.
+        if matches!(surface, SurfaceKind::Mission) {
             let live_work = NAV
                 .iter()
                 .position(|item| item.id == "lane")
@@ -2802,11 +2774,12 @@ impl ConsoleView {
                 &pane("activity"),
                 &pane("ledger"),
             );
-            return crate::mission_view::blocks(
-                &self.work_mission,
-                &live_work,
-                &launch_observability,
-            );
+            let mut blocks =
+                crate::mission_view::blocks(&self.work_mission, &live_work, &launch_observability);
+            blocks.push(Block::Gap);
+            blocks.push(Block::Header("Conversation".into()));
+            blocks.extend(self.chat.blocks().into_iter().skip(1));
+            return blocks;
         }
         // The Harbor Editor surface reads its PERSISTENT pane (buffer + claims
         // + wedge), created once by `ensure_editor_states`. view() on an
@@ -2997,20 +2970,19 @@ impl ConsoleView {
             "]" => self.switch_tab(1),
             "[" => self.switch_tab(-1),
             // Open command lines.
-            "n" => self.command = Some(CommandLine::new(CmdKind::Work)),
-            "t" => self.command = Some(CommandLine::new(CmdKind::Cartographer)),
+            "n" => self.command = Some(CommandLine::new(CmdKind::Mission)),
             // Insert a new pane of a chosen kind (the add-pane picker).
             "i" => self.command = Some(CommandLine::new(CmdKind::AddPane)),
             // Switch which daemon berth the console talks to (the Daemons pane lists names).
             "u" => self.command = Some(CommandLine::new(CmdKind::UseDaemon)),
             // Operator verb palette (vim-`:`): one entry point for every write
-            // (work/note/begin/done/claim/release/kill/interrupt).
+            // (mission/note/begin/done/claim/release/kill/interrupt).
             ":" => self.command = Some(CommandLine::new(CmdKind::Verb)),
             // Direct single-key shortcuts for the most-used operator writes
             // (free letters, no NAV/leader collision):
-            //   f note · e work · r begin · q done · j claim · Q release · X kill
+            //   f note · e mission · r begin · q done · j claim · Q release · X kill
             "f" => self.command = Some(CommandLine::new(CmdKind::Note)),
-            "e" => self.command = Some(CommandLine::new(CmdKind::Work)),
+            "e" => self.command = Some(CommandLine::new(CmdKind::Mission)),
             "r" => self.command = Some(CommandLine::new(CmdKind::Begin)),
             "q" => self.command = Some(CommandLine::new(CmdKind::Done)),
             "j" => self.command = Some(CommandLine::new(CmdKind::Claim)),
@@ -3109,11 +3081,11 @@ impl ConsoleView {
         cx.notify();
     }
 
-    /// Is the focused pane the operator chat? Drives the keydown router (chat
-    /// captures printable keys into its composer when focused, like a text field —
+    /// Is the focused pane the Mission? Drives the keydown router (the composer
+    /// captures printable keys when focused, like a text field —
     /// gpui 0.2.2 has no native input, so the root focus handle does the capturing).
-    fn focused_is_chat(&self) -> bool {
-        matches!(self.ws().focused_surface(), SurfaceKind::CartographerChat)
+    fn focused_is_mission(&self) -> bool {
+        matches!(self.ws().focused_surface(), SurfaceKind::Mission)
     }
 
     fn focused_editor_key(&self) -> Option<String> {
@@ -3434,10 +3406,19 @@ impl ConsoleView {
     pub fn apply_chat_update(&mut self, update: ChatUpdate) {
         match update {
             ChatUpdate::Reply(msg) => {
-                // A reply is always agent-side (mine = false), by construction.
+                // A reply is always attributed assistant prose, by construction.
                 self.chat.push_agent(msg.sender, msg.text);
                 crate::audio::play(crate::audio::Cue::Receive);
             }
+            ChatUpdate::Receipt(msg) => {
+                self.chat.push_receipt(msg.sender, msg.text);
+                crate::audio::play(crate::audio::Cue::Tick);
+            }
+            ChatUpdate::Hydrate {
+                messages,
+                awaiting_reply,
+            } => self.chat.hydrate(messages, awaiting_reply),
+            ChatUpdate::Reset => self.chat.reset(),
             ChatUpdate::Error(reason) => self.chat.set_error(reason),
         }
     }
@@ -3523,28 +3504,20 @@ impl ConsoleView {
             return;
         };
         match cmd.kind {
-            CmdKind::Work => {
+            CmdKind::Mission => {
                 self.work_mission = crate::mission_view::MissionViewModel {
                     goal: text.clone(),
                     intent_id: Some("submitting".into()),
                     state: "starting".into(),
                     ..crate::mission_view::MissionViewModel::default()
                 };
-                let _ = tx.send(ControlMsg::SubmitWorkIntent { goal: text });
+                self.chat.push_mine(text.clone());
+                let _ = tx.send(ControlMsg::ChatSend { text });
                 self.control_flash =
                     Some("Mission accepted. Port Daddy is selecting a governed agent.".into());
                 self.work_plan_graph = crate::work_plan::pending_work_projection();
                 self.work_graph_png_path = None;
-                self.ws_mut().swap_surface(SurfaceKind::Work);
-            }
-            CmdKind::Cartographer => {
-                let _ = tx.send(ControlMsg::Cartographer { text });
-                self.control_flash =
-                    Some("sent to cartographer — streaming the reply below".into());
-                // Same loop for the cartographer: jump to the lane to watch the
-                // reply stream rather than leaving the operator guessing where it went.
-                self.ws_mut()
-                    .swap_surface(SurfaceKind::AgentTranscript { agent_id: None });
+                self.ws_mut().swap_surface(SurfaceKind::Mission);
             }
             CmdKind::LaneMessage => {
                 let turn = OperatorTurn::parse(&text);
@@ -3691,6 +3664,38 @@ impl ConsoleView {
                 self.control_flash = Some(format!("could not serialize the DAG: {e}"));
             }
         }
+    }
+
+    /// Reveal one Mission context source without replacing the conversation.
+    /// Reuse an already-open inspector when present; otherwise split it beside
+    /// Mission. The context rail therefore navigates real apps, not dead cards.
+    fn open_mission_context(&mut self, target: crate::mission_view::MissionContextTarget) {
+        use crate::mission_view::MissionContextTarget;
+        if target == MissionContextTarget::Plan {
+            self.render_work_graph();
+            return;
+        }
+        let nav = match target {
+            MissionContextTarget::Claims => "claims",
+            MissionContextTarget::Suggestions => "suggest",
+            MissionContextTarget::Activity => "activity",
+            MissionContextTarget::Cost => "ledger",
+            MissionContextTarget::Plan => unreachable!(),
+        };
+        let surface = SurfaceKind::Panel {
+            nav: nav.to_string(),
+        };
+        let existing = self
+            .ws()
+            .leaves()
+            .into_iter()
+            .find(|pane_id| self.ws().surface_at(*pane_id) == Some(&surface));
+        if let Some(pane_id) = existing {
+            self.ws_mut().focus(pane_id);
+        } else {
+            self.ws_mut().split(Dir::Row, surface);
+        }
+        self.control_flash = Some(format!("Opened {nav} beside Mission."));
     }
 
     /// The pane launcher overlay (Ctrl-A Space / the ⊞ button): an animated grid
@@ -3935,7 +3940,7 @@ impl ConsoleView {
     }
 
     /// Apply daemon-backed Work truth or a visual artifact derived from it.
-    /// Command receipts focus the Work surface; background rehydration never
+    /// Command receipts focus the Mission surface; background rehydration never
     /// steals focus from the operator.
     pub fn apply_work_update(&mut self, update: WorkUpdate) {
         match update {
@@ -3959,7 +3964,7 @@ impl ConsoleView {
                 self.work_execution_projection = None;
                 self.work_execution_session = None;
                 self.work_execution_worktree = None;
-                self.ws_mut().swap_surface(SurfaceKind::Work);
+                self.ws_mut().swap_surface(SurfaceKind::Mission);
                 self.control_flash = Some(if duplicate {
                     "Mission restored from its durable receipt.".into()
                 } else {
@@ -3979,7 +3984,7 @@ impl ConsoleView {
                 self.work_execution_projection = Some(receipt.projection.clone());
                 self.work_execution_session = receipt.session_id.clone();
                 self.work_execution_worktree = receipt.worktree_path.clone();
-                self.ws_mut().swap_surface(SurfaceKind::Work);
+                self.ws_mut().swap_surface(SurfaceKind::Mission);
                 self.control_flash = Some(match self.work_mission.agent_id.as_deref() {
                     Some(agent) => format!("{agent} is now working on this mission."),
                     None => "Port Daddy admitted the mission and is assigning its agent.".into(),
@@ -3993,6 +3998,30 @@ impl ConsoleView {
                 self.work_plan_graph = crate::work_plan::from_work_snapshot(&snapshot);
                 self.work_selected_node = None;
                 self.work_graph_png_path = None;
+                if matches!(
+                    self.work_mission.state.as_str(),
+                    "settled" | "failed" | "rejected"
+                ) {
+                    self.chat.finish_waiting();
+                }
+            }
+            WorkUpdate::Reset => {
+                self.clear_work_projection_failure();
+                self.work_mission = crate::mission_view::MissionViewModel::empty();
+                self.work_plan_graph = crate::work_plan::PredictedDag::default();
+                self.work_graph_png_path = None;
+                self.work_intent_id = None;
+                self.work_plan_state = "not-started".into();
+                self.work_correlation_id = None;
+                self.work_next_action = None;
+                self.work_execution_state = "not-started".into();
+                self.work_execution_id = None;
+                self.work_execution_projection = None;
+                self.work_execution_session = None;
+                self.work_execution_worktree = None;
+                self.work_selected_node = None;
+                self.control_flash =
+                    Some("Mission context cleared for the selected daemon.".into());
             }
             WorkUpdate::Png(path) => {
                 self.work_graph_png_path = Some(path);
@@ -4235,7 +4264,7 @@ impl ConsoleView {
             }
             ScriptRequest::Work { goal } => {
                 let control_plane = self.control_tx.is_some();
-                self.submit_command(CommandLine::with_buffer(CmdKind::Work, goal.clone()));
+                self.submit_command(CommandLine::with_buffer(CmdKind::Mission, goal.clone()));
                 json!({
                     "ok": control_plane,
                     "work": {
@@ -4624,51 +4653,89 @@ impl ConsoleView {
         };
         let is_dispatch = nav_id_for_surface(surface) == Some("dispatch");
         let is_conductor = nav_id_for_surface(surface) == Some("conductor");
-        // The Work surface (focused) gets the "Render graph" action bar — the
-        // discoverable control that ships the live DAG to the Vello PNG renderer.
-        let is_work = matches!(surface, SurfaceKind::Work);
+        // Mission is the conversation-first center: chat plus the daemon-backed
+        // plan/context/evidence projections. There is no separate Work pane.
+        let is_mission = matches!(surface, SurfaceKind::Mission);
         // The Sextant surface renders the bespoke interactive scatter canvas
         // (galaxy_canvas.rs) instead of the generic Block list — the daemon
         // precomputed the layout; the canvas only places, hits, and selects.
         let is_sextant = nav_id_for_surface(surface) == Some("sextant");
-        // The chat surface renders bespoke bubbles (from view state) + a focused
-        // composer, NOT the generic Block list. Snapshot the transcript for this frame.
-        let is_chat = matches!(surface, SurfaceKind::CartographerChat);
-        let chat_msgs: Vec<ChatMsg> = if is_chat {
+        // Snapshot the Mission conversation for this frame.
+        let chat_msgs: Vec<ChatMsg> = if is_mission {
             self.chat.messages.clone()
         } else {
             Vec::new()
         };
-        let chat_error: Option<String> = if is_chat {
+        let chat_error: Option<String> = if is_mission {
             self.chat.error.clone()
         } else {
             None
         };
-        let chat_state: Option<ChatState> = if is_chat {
+        let chat_state: Option<ChatState> = if is_mission {
             Some(self.chat.state())
         } else {
             None
         };
-        let chat_input = if is_chat {
+        let chat_input = if is_mission {
             self.chat_input.clone()
         } else {
             String::new()
         };
+        let chat_awaiting = is_mission && self.chat.awaiting_reply;
         let chat_reduced = reduced_motion();
         let work_flash = self.control_flash.clone();
         // The rendered Vello PNG (if any) for the inline node-graph at the top of
-        // the Work surface. `None` ⇒ a tasteful "rendering graph…" placeholder.
-        let work_graph_png = if is_work {
+        // the Mission surface. `None` means the technical plan stays collapsed.
+        let work_graph_png = if is_mission {
             self.work_graph_png_path.clone()
         } else {
             None
         };
         let work_title = self.work_plan_graph.title.clone();
         let work_wave_count = self.work_plan_graph.waves.len();
-        let work_agent = if is_work && self.work_mission.state == "in_progress" {
+        let work_agent = if is_mission && self.work_mission.state == "in_progress" {
             self.work_mission.agent_id.clone()
         } else {
             None
+        };
+        let mission_stage = self.work_mission.stage();
+        let mission_goal = self.work_mission.goal.clone();
+        let mission_actor = self.work_mission.agent_id.clone();
+        let mission_runtime = match (&self.work_mission.backend, &self.work_mission.model) {
+            (Some(backend), Some(model)) => Some(format!("{backend} · {model}")),
+            (Some(backend), None) => Some(backend.clone()),
+            (None, Some(model)) => Some(model.clone()),
+            (None, None) => None,
+        };
+        let mission_intent = self.work_mission.intent_id.clone();
+        let mission_worktree = self.work_mission.worktree.clone();
+        let mission_branch = self.work_mission.branch.clone();
+        let pane = |nav_id: &str| {
+            NAV.iter()
+                .position(|item| item.id == nav_id)
+                .and_then(|index| self.pane_blocks.get(index))
+                .cloned()
+                .unwrap_or_default()
+        };
+        let mission_live_work = if is_mission { pane("lane") } else { Vec::new() };
+        let mission_trace = if is_mission && self.work_mission.agent_id.is_some() {
+            crate::mission_view::live_trace_blocks(&mission_live_work)
+        } else {
+            Vec::new()
+        };
+        let mission_context = if is_mission {
+            crate::mission_view::context_cards(
+                &self.work_mission,
+                &self.work_plan_graph,
+                &pane("claims"),
+                &pane("suggest"),
+                &pane("activity"),
+                &pane("ledger"),
+                self.work_correlation_id.as_deref(),
+                self.work_execution_id.as_deref(),
+            )
+        } else {
+            Vec::new()
         };
         // The FileTree surface (P0 Harbor wiring): clickable rows — a file row
         // opens the Editor surface; a directory row descends (rebinds the root).
@@ -4693,7 +4760,7 @@ impl ConsoleView {
         let fleet_flash = self.control_flash.clone();
         let panel_title = label.to_ascii_uppercase();
         let panel_signal = match nav_id_for_surface(surface) {
-            _ if is_work => 0x006b5f,
+            _ if is_mission => 0x006b5f,
             Some("cockpit" | "roadmap") => 0x006b5f,
             Some("ledger" | "cost") => current_theme().engaged,
             Some("claims" | "parley" | "sessions") => current_theme().landed,
@@ -4787,8 +4854,6 @@ impl ConsoleView {
             )
             // Surface body — scrollable so long rosters/ledgers/transcripts are
             // reachable instead of clipped (needs a stable id for scroll state).
-            // The Work surface leads with the INLINE Vello node-graph (the
-            // beautiful default view), then the per-node text/partition/contracts.
             .child({
                 let body = div()
                     .id(SharedString::from(format!("pane-body-{id}")))
@@ -4808,14 +4873,7 @@ impl ConsoleView {
                     .flex_col()
                     .gap(px(if is_daemons { tokens::SPACE_2 } else { 0.0 }))
                     .px(px(if is_daemons { tokens::SPACE_3 } else { 0.0 }))
-                    .pt(px(if is_daemons { tokens::SPACE_2 } else { 0.0 }))
-                    .when(is_work && work_graph_png.is_some(), |body| {
-                        // The mission story is the default. A technical plan only
-                        // appears after the operator explicitly asks to view it.
-                        body.when_some(work_graph_png, |b, path| {
-                            b.child(work_graphic(id, Some(path), &work_title))
-                        })
-                    });
+                    .pt(px(if is_daemons { tokens::SPACE_2 } else { 0.0 }));
                 match filetree {
                     // FileTree: interactive clickable rows (open file / descend dir).
                     Some((root, entries)) => {
@@ -4923,21 +4981,89 @@ impl ConsoleView {
                     None if is_sextant => {
                         body.child(crate::galaxy_canvas::render_galaxy(self, id, cx))
                     }
-                    // Chat: bespoke bubbles from view state (three states: empty
-                    // invitation / populated transcript / error banner) — never the
-                    // generic Block list.
-                    None if is_chat => {
-                        let mut b = body;
+                    // Mission: one conversation with its live plan/claims/skills/
+                    // evidence rail. Inspectors open beside it only on demand.
+                    None if is_mission => {
+                        let mut conversation = div()
+                            .flex_1()
+                            .min_w(px(420.0))
+                            .flex()
+                            .flex_col()
+                            .pb(px(tokens::SPACE_3))
+                            .child(mission_header(
+                                &mission_goal,
+                                mission_stage.0,
+                                mission_stage.1,
+                                mission_actor.as_deref(),
+                                mission_runtime.as_deref(),
+                                mission_intent.as_deref(),
+                                mission_worktree.as_deref(),
+                                mission_branch.as_deref(),
+                            ))
+                            .when_some(work_graph_png, |column, path| {
+                                column.child(work_graphic(id, Some(path), &work_title))
+                            });
                         if matches!(chat_state, Some(ChatState::Empty)) {
-                            b = b.child(chat_empty_state());
+                            conversation = conversation.child(mission_empty_state(cx));
                         }
                         if let Some(reason) = &chat_error {
-                            b = b.child(chat_error_banner(reason));
+                            conversation = conversation.child(chat_error_banner(reason));
                         }
                         for (i, m) in chat_msgs.iter().enumerate() {
-                            b = b.child(chat_bubble(i, m, chat_reduced));
+                            conversation = conversation.child(chat_bubble(i, m, chat_reduced));
                         }
-                        b
+                        if chat_awaiting {
+                            conversation = conversation.child(mission_waiting_state(chat_reduced));
+                        }
+                        if !mission_trace.is_empty() {
+                            let mut trace = div()
+                                .mx(px(tokens::SPACE_3))
+                                .mt(px(tokens::SPACE_3))
+                                .border_t_1()
+                                .border_color(rgb(current_theme().line))
+                                .pt(px(tokens::SPACE_2))
+                                .flex()
+                                .flex_col()
+                                .child(
+                                    div()
+                                        .text_color(rgb(current_theme().muted))
+                                        .text_size(px(tokens::TEXT_CAPTION))
+                                        .font_weight(FontWeight::BOLD)
+                                        .child("LIVE TOOL + ARTIFACT TRACE"),
+                                );
+                            for block in mission_trace {
+                                trace = trace.child(render_block(block, motion));
+                            }
+                            conversation = conversation.child(trace);
+                        }
+
+                        let mut context = div()
+                            .w(px(316.0))
+                            .flex_shrink_0()
+                            .flex()
+                            .flex_col()
+                            .gap(px(tokens::SPACE_2))
+                            .pl(px(tokens::SPACE_3))
+                            .border_l_1()
+                            .border_color(rgb(current_theme().line))
+                            .child(
+                                div()
+                                    .text_color(rgb(current_theme().muted))
+                                    .text_size(px(tokens::TEXT_CAPTION))
+                                    .font_weight(FontWeight::BOLD)
+                                    .child("LIVE MISSION CONTEXT"),
+                            );
+                        for card in mission_context {
+                            context = context.child(mission_context_card(card, cx));
+                        }
+
+                        body.flex_row()
+                            .flex_wrap()
+                            .items_start()
+                            .gap(px(tokens::SPACE_3))
+                            .p(px(tokens::SPACE_3))
+                            .child(conversation)
+                            .child(context)
                     }
                     None if sparse_status.is_some() => {
                         body.child(story_sparse_poster(
@@ -5129,10 +5255,10 @@ impl ConsoleView {
                         }),
                 )
             })
-            // Chat composer — only the focused chat pane mounts the input bar. This
+            // Mission composer — only the focused Mission mounts the input bar. This
             // is the rolled-own text field: the root focus handle captures keys and
             // routes them to handle_chat_key when chat is focused (gpui has no native input).
-            .when(is_chat && is_focused, |content| {
+            .when(is_mission && is_focused, |content| {
                 content.child(chat_composer(&chat_input, chat_reduced, cx))
             })
             // ── Dispatch review GATE (focused dispatch surface) — the operator's
@@ -5291,7 +5417,7 @@ impl ConsoleView {
             })
             // Mission actions stay human-facing. Runtime identifiers remain in
             // the durable receipt and inspector surfaces, not in this primary row.
-            .when(is_work && is_focused, |content| {
+            .when(is_mission && is_focused, |content| {
                 content.child(
                     div()
                         .px(px(16.0))
@@ -5791,7 +5917,7 @@ fn work_node_card(
 }
 
 /// The LIVE, interactive WorkPlan graph rendered natively in gpui — the
-/// default view of the Work surface. Replaces the static Vello PNG as the
+/// default plan view inside Mission. Replaces the static Vello PNG as the
 /// primary graphic: wave columns of [`work_node_card`]s (commitment-themed,
 /// breathing, hover-lit, clickable), an editorial header, and — when a node is
 /// selected — a full inspector drawer. The Vello PNG remains reachable as an
@@ -6039,7 +6165,7 @@ fn work_node_inspector(
         .into_any_element()
 }
 
-/// The INLINE Vello node-graph at the top of the Work surface — the beautiful
+/// The inline Vello node-graph available from Mission's plan context — the
 /// default view the operator most wants. When a PNG has been rendered, it shows
 /// the graph image sized to fit the pane (capped width, rounded, maritime frame);
 /// until then it shows a tasteful "rendering graph…" placeholder so the region is
@@ -6117,30 +6243,19 @@ fn work_graphic(id: PaneId, png: Option<std::path::PathBuf>, title: &str) -> imp
     }
 }
 
-/// One always-visible operator-toolbar button. Clicking it opens the matching
-/// GUI input (placeholder-guided, no leader key, no memorized syntax) — the
-/// discoverable face of the spawn / cartographer / add-pane commands. This is
-/// the difference between an operator console and a CLI with hidden options.
-fn command_bar_btn(
-    kind: CmdKind,
-    label: &'static str,
-    cx: &mut Context<ConsoleView>,
-) -> impl IntoElement {
+/// Return to the single Mission flow without opening a second input surface.
+fn mission_home_btn(cx: &mut Context<ConsoleView>) -> impl IntoElement {
     let accent = current_theme().accent;
     div()
-        .id(SharedString::from(format!("cmdbar-{}", kind.prompt())))
+        .id("cmdbar-mission")
         .h_full()
         .px(px(12.0))
         .flex()
         .items_center()
         .border_l_1()
         .border_color(rgb(current_theme().line))
-        .text_color(rgb(if kind == CmdKind::Work {
-            knockout_ink(accent)
-        } else {
-            current_theme().ink2
-        }))
-        .when(kind == CmdKind::Work, |button| button.bg(rgb(accent)))
+        .text_color(rgb(knockout_ink(accent)))
+        .bg(rgb(accent))
         .font_family("IBM Plex Mono")
         .text_size(px(14.0))
         .font_weight(FontWeight::SEMIBOLD)
@@ -6150,9 +6265,9 @@ fn command_bar_btn(
                 .border_color(rgb(accent))
                 .text_color(rgb(current_theme().accent_ink))
         })
-        .child(label)
+        .child("MISSION")
         .on_click(cx.listener(move |this, _ev, _window, cx| {
-            this.command = Some(CommandLine::new(kind));
+            this.ws_mut().swap_surface(SurfaceKind::Mission);
             cx.notify();
         }))
 }
@@ -6261,17 +6376,198 @@ fn motion_toggle_btn(cx: &mut Context<ConsoleView>) -> impl IntoElement {
         }))
 }
 
-// ── Operator chat — bespoke bubbles + the rolled-own composer ─────────────────
+// ── Mission conversation — transcript, context, and composer ──────────────────
+
+fn mission_header(
+    goal: &str,
+    stage: &str,
+    stage_tone: Tone,
+    actor: Option<&str>,
+    runtime: Option<&str>,
+    intent_id: Option<&str>,
+    worktree: Option<&str>,
+    branch: Option<&str>,
+) -> AnyElement {
+    let t = current_theme();
+    let signal = tone_rgb(&stage_tone);
+    let actor_line = match (actor, runtime) {
+        (Some(actor), Some(runtime)) => format!("{actor} · {runtime}"),
+        (Some(actor), None) => actor.to_string(),
+        (None, _) => "No governed body attached yet".into(),
+    };
+    let provenance = intent_id
+        .map(|id| format!("WORK INTENT · {id}"))
+        .unwrap_or_else(|| "NO RECEIPT YET · first accepted turn creates one".into());
+    let execution_scope = match (worktree, branch) {
+        (Some(worktree), Some(branch)) => Some(format!("{worktree} · {branch}")),
+        (Some(worktree), None) => Some(worktree.to_string()),
+        (None, Some(branch)) => Some(branch.to_string()),
+        (None, None) => None,
+    };
+
+    div()
+        .mx(px(tokens::SPACE_3))
+        .mb(px(tokens::SPACE_3))
+        .pb(px(tokens::SPACE_3))
+        .border_b_1()
+        .border_color(rgb(t.line))
+        .flex()
+        .flex_col()
+        .gap(px(tokens::SPACE_2))
+        .child(
+            div()
+                .flex()
+                .flex_wrap()
+                .items_center()
+                .gap(px(tokens::SPACE_2))
+                .child(
+                    div()
+                        .px(px(tokens::SPACE_2))
+                        .py(px(tokens::SPACE_1))
+                        .bg(rgb(signal))
+                        .text_color(rgb(knockout_ink(signal)))
+                        .text_size(px(tokens::TEXT_CAPTION))
+                        .font_weight(FontWeight::BOLD)
+                        .child(stage.to_ascii_uppercase()),
+                )
+                .child(
+                    div()
+                        .text_color(rgb(t.muted))
+                        .text_size(px(tokens::TEXT_CAPTION))
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .child(provenance),
+                ),
+        )
+        .child(
+            div()
+                .text_color(rgb(t.ink))
+                .text_size(px(20.0))
+                .font_weight(FontWeight::BOLD)
+                .child(chat_display_text(goal)),
+        )
+        .child(
+            div()
+                .text_color(rgb(if actor.is_some() {
+                    t.accent_ink
+                } else {
+                    t.muted
+                }))
+                .text_size(px(tokens::TEXT_BODY))
+                .child(actor_line),
+        )
+        .when_some(execution_scope, |header, scope| {
+            header.child(
+                div()
+                    .text_color(rgb(t.muted))
+                    .text_size(px(tokens::TEXT_CAPTION))
+                    .font_family("IBM Plex Mono")
+                    .child(format!("WORKTREE · {}", chat_display_text(&scope))),
+            )
+        })
+        .into_any_element()
+}
+
+fn mission_context_card(
+    card: crate::mission_view::MissionContextCard,
+    cx: &mut Context<ConsoleView>,
+) -> AnyElement {
+    let t = current_theme();
+    let signal = tone_rgb(&card.tone);
+    let target = card.target;
+    let id = format!(
+        "mission-context-{}",
+        card.eyebrow.to_ascii_lowercase().replace(' ', "-")
+    );
+    div()
+        .id(SharedString::from(id))
+        .group("mission-context-card")
+        .border_1()
+        .border_l_2()
+        .border_color(rgb(signal))
+        .bg(rgb(t.sunken))
+        .px(px(tokens::SPACE_3))
+        .py(px(tokens::SPACE_2))
+        .flex()
+        .flex_col()
+        .gap(px(tokens::SPACE_1))
+        .cursor_pointer()
+        .hover(|style| style.bg(rgb(t.raised)))
+        .child(
+            div()
+                .flex()
+                .items_center()
+                .gap(px(tokens::SPACE_2))
+                .child(div().w(px(6.0)).h(px(6.0)).bg(rgb(signal)))
+                .child(
+                    div()
+                        .text_color(rgb(t.muted))
+                        .text_size(px(tokens::TEXT_CAPTION))
+                        .font_weight(FontWeight::BOLD)
+                        .child(card.eyebrow),
+                )
+                .child(div().flex_1())
+                .child(
+                    div()
+                        .text_color(rgb(t.muted))
+                        .text_size(px(tokens::TEXT_CAPTION))
+                        .child("OPEN ↗"),
+                ),
+        )
+        .child(
+            div()
+                .text_color(rgb(t.ink))
+                .text_size(px(tokens::TEXT_BODY))
+                .font_weight(FontWeight::SEMIBOLD)
+                .child(chat_display_text(&card.headline)),
+        )
+        .child(
+            div()
+                .text_color(rgb(t.muted))
+                .text_size(px(tokens::TEXT_CAPTION))
+                .child(chat_display_text(&card.detail)),
+        )
+        .on_click(cx.listener(move |this, _event, _window, cx| {
+            this.open_mission_context(target);
+            cx.notify();
+        }))
+        .into_any_element()
+}
+
+fn mission_prompt(
+    id: &'static str,
+    label: &'static str,
+    prompt: &'static str,
+    cx: &mut Context<ConsoleView>,
+) -> AnyElement {
+    let t = current_theme();
+    div()
+        .id(id)
+        .px(px(tokens::SPACE_3))
+        .py(px(tokens::SPACE_2))
+        .border_1()
+        .border_color(rgb(t.line))
+        .bg(rgb(t.sunken))
+        .text_color(rgb(t.accent_ink))
+        .text_size(px(tokens::TEXT_BODY))
+        .cursor_pointer()
+        .hover(|style| style.border_color(rgb(t.accent)).bg(rgb(t.raised)))
+        .child(label)
+        .on_click(cx.listener(move |this, _event, _window, cx| {
+            this.send_chat_turn(prompt);
+            cx.notify();
+        }))
+        .into_any_element()
+}
 
 /// One chat turn in the shared linework grammar. Operator and agent alignment is
 /// retained; square boundaries and a cobalt rail carry identity without cards.
 fn chat_bubble(idx: usize, msg: &ChatMsg, reduced: bool) -> AnyElement {
     let t = current_theme();
-    let mine = msg.mine;
-    let sender_label = if mine {
-        "you".to_string()
-    } else {
-        chat_display_text(&msg.sender)
+    let mine = msg.kind == ChatMsgKind::Operator;
+    let receipt = msg.kind == ChatMsgKind::Receipt;
+    let sender_label = match msg.kind {
+        ChatMsgKind::Operator => "you".to_string(),
+        ChatMsgKind::Assistant | ChatMsgKind::Receipt => chat_display_text(&msg.sender),
     };
 
     // Eyebrow: who spoke (caption weight) — color = meaning, plus the label so a
@@ -6299,6 +6595,25 @@ fn chat_bubble(idx: usize, msg: &ChatMsg, reduced: bool) -> AnyElement {
             .bg(rgb(t.raised))
             .child(eyebrow)
             .child(body)
+    } else if receipt {
+        div()
+            .max_w(px(620.0))
+            .flex()
+            .overflow_hidden()
+            .border_1()
+            .border_color(rgb(t.engaged))
+            .bg(tone_wash(t.engaged, 0x16))
+            .child(div().w(px(4.0)).bg(rgb(t.engaged)))
+            .child(
+                div()
+                    .flex()
+                    .flex_col()
+                    .gap(px(tokens::SPACE_1))
+                    .px(px(tokens::SPACE_3))
+                    .py(px(tokens::SPACE_2))
+                    .child(eyebrow)
+                    .child(body),
+            )
     } else {
         // The cobalt rail is a child div (a fixed-width colored strip), exactly the
         // render_block Header rail idiom — guaranteed across gpui border helpers.
@@ -6353,8 +6668,8 @@ fn chat_bubble(idx: usize, msg: &ChatMsg, reduced: bool) -> AnyElement {
     }
 }
 
-/// The empty chat state — an honest invitation, never a blank pane.
-fn chat_empty_state() -> AnyElement {
+/// The empty Mission state — one invitation plus three working suggestions.
+fn mission_empty_state(cx: &mut Context<ConsoleView>) -> AnyElement {
     let t = current_theme();
     div()
         .flex()
@@ -6367,18 +6682,66 @@ fn chat_empty_state() -> AnyElement {
                 .text_color(rgb(t.ink))
                 .text_size(px(tokens::TEXT_BODY_LG))
                 .font_weight(FontWeight::SEMIBOLD)
-                .child("Talk to the cartographer"),
+                .child("What should we work through?"),
         )
         .child(
             div()
                 .text_color(rgb(t.muted))
                 .text_size(px(tokens::TEXT_BODY))
-                .child(
-                    "Type below and press Enter. Your turn rides up the console-chat tube; \
-                     replies stream back here as they land.",
-                ),
+                .child("Ask a question or describe an outcome. Port Daddy records the turn, binds an attributed agent, and brings its plan, claims, tools, evidence, and receipts back into this conversation."),
+        )
+        .child(
+            div()
+                .mt(px(tokens::SPACE_2))
+                .flex()
+                .flex_wrap()
+                .gap(px(tokens::SPACE_2))
+                .child(mission_prompt(
+                    "mission-prompt-status",
+                    "What is actually working now?",
+                    "Inspect the current Port Daddy system and tell me what is actually working, what is only planned, and the strongest evidence for each.",
+                    cx,
+                ))
+                .child(mission_prompt(
+                    "mission-prompt-next",
+                    "Plan the next safe slice",
+                    "Use the current mission, claims, open work, and evidence to propose the next smallest safe slice. Name the skills and proof required.",
+                    cx,
+                ))
+                .child(mission_prompt(
+                    "mission-prompt-conflict",
+                    "Explain the hottest conflict",
+                    "Inspect the live claim and activity signals, explain the hottest coordination conflict in plain language, and suggest a bounded resolution.",
+                    cx,
+                )),
         )
         .into_any_element()
+}
+
+fn mission_waiting_state(reduced: bool) -> AnyElement {
+    let t = current_theme();
+    let row = div()
+        .mx(px(tokens::SPACE_3))
+        .my(px(tokens::SPACE_2))
+        .flex()
+        .items_center()
+        .gap(px(tokens::SPACE_2))
+        .text_color(rgb(t.muted))
+        .text_size(px(tokens::TEXT_BODY))
+        .child(div().w(px(7.0)).h(px(7.0)).bg(rgb(t.engaged)))
+        .child("Waiting for an attributed agent reply · admission and runtime state are shown at right");
+    if reduced {
+        row.into_any_element()
+    } else {
+        row.with_animation(
+            SharedString::from("mission-awaiting-reply"),
+            Animation::new(Duration::from_millis(1100))
+                .repeat()
+                .with_easing(pulsating_between(0.45, 1.0)),
+            |element, delta| element.opacity(delta),
+        )
+        .into_any_element()
+    }
 }
 
 /// The chat error banner: a refused transport or WorkIntent capture, never swallowed.
@@ -6425,8 +6788,40 @@ fn chat_caret(reduced: bool) -> AnyElement {
         .into_any_element()
 }
 
-/// The chat composer row — a sunken field that shows the rolled-own `chat_input`
-/// buffer (or a ghost placeholder) + the blinking caret, with a Send button. The
+fn composer_context_button(
+    id: &'static str,
+    label: &'static str,
+    prefix: &'static str,
+    cx: &mut Context<ConsoleView>,
+) -> AnyElement {
+    let t = current_theme();
+    div()
+        .id(id)
+        .px(px(tokens::SPACE_2))
+        .py(px(tokens::SPACE_1))
+        .border_1()
+        .border_color(rgb(t.line))
+        .text_color(rgb(t.muted))
+        .text_size(px(tokens::TEXT_CAPTION))
+        .cursor_pointer()
+        .hover(|style| {
+            style
+                .border_color(rgb(t.accent))
+                .text_color(rgb(t.accent_ink))
+        })
+        .child(label)
+        .on_click(cx.listener(move |this, _event, _window, cx| {
+            if !this.chat_input.is_empty() && !this.chat_input.ends_with(char::is_whitespace) {
+                this.chat_input.push(' ');
+            }
+            this.chat_input.push_str(prefix);
+            cx.notify();
+        }))
+        .into_any_element()
+}
+
+/// The Mission composer — a sunken multiline field that shows the rolled-own
+/// `chat_input` buffer (or a ghost placeholder) + context affordances and Send. The
 /// load-bearing text input: gpui 0.2.2 has no native field, so keydown fills the
 /// buffer and this renders it.
 fn chat_composer(input: &str, reduced: bool, cx: &mut Context<ConsoleView>) -> AnyElement {
@@ -6437,14 +6832,15 @@ fn chat_composer(input: &str, reduced: bool, cx: &mut Context<ConsoleView>) -> A
         .border_t_1()
         .border_color(rgb(t.line))
         .flex()
-        .items_center()
+        .flex_col()
         .gap(px(tokens::SPACE_2))
         .child(
             div()
-                .flex_1()
+                .w_full()
+                .min_h(px(58.0))
                 .min_w(px(0.0))
                 .flex()
-                .items_center()
+                .items_start()
                 .gap(px(4.0))
                 .px(px(tokens::SPACE_3))
                 .py(px(tokens::SPACE_2))
@@ -6465,9 +6861,9 @@ fn chat_composer(input: &str, reduced: bool, cx: &mut Context<ConsoleView>) -> A
                         .text_size(px(tokens::TEXT_BODY))
                         .font_family("IBM Plex Mono");
                     if input.is_empty() {
-                        field.text_color(rgb(t.muted)).child(
-                            "Message the cartographer…  (Enter to send · Shift+Enter newline)",
-                        )
+                        field
+                            .text_color(rgb(t.muted))
+                            .child("Ask, steer, or describe the outcome…")
                     } else {
                         field.text_color(rgb(t.ink)).child(chat_display_text(input))
                     }
@@ -6476,22 +6872,55 @@ fn chat_composer(input: &str, reduced: bool, cx: &mut Context<ConsoleView>) -> A
         )
         .child(
             div()
-                .id("chat-send")
-                .flex_shrink_0()
-                .min_w(px(54.0))
-                .px(px(12.0))
-                .py(px(5.0))
-                .bg(rgb(t.accent))
-                .text_color(rgb(t.bg))
-                .text_size(px(tokens::TEXT_CAPTION))
-                .font_weight(FontWeight::SEMIBOLD)
-                .cursor_pointer()
-                .hover(|s| s.bg(rgb(t.accent_ink)))
-                .child("Send")
-                .on_click(cx.listener(|this, _ev, _window, cx| {
-                    this.submit_chat();
-                    cx.notify();
-                })),
+                .w_full()
+                .flex()
+                .flex_wrap()
+                .items_center()
+                .gap(px(tokens::SPACE_2))
+                .child(composer_context_button(
+                    "mission-add-file",
+                    "+ File",
+                    "@file ",
+                    cx,
+                ))
+                .child(composer_context_button(
+                    "mission-add-skill",
+                    "# Skill",
+                    "@skill ",
+                    cx,
+                ))
+                .child(composer_context_button(
+                    "mission-add-tool",
+                    "/ Tool",
+                    "@tool ",
+                    cx,
+                ))
+                .child(div().flex_1())
+                .child(
+                    div()
+                        .text_color(rgb(t.muted))
+                        .text_size(px(tokens::TEXT_CAPTION))
+                        .child("Enter to send · Shift+Enter newline"),
+                )
+                .child(
+                    div()
+                        .id("chat-send")
+                        .flex_shrink_0()
+                        .min_w(px(64.0))
+                        .px(px(14.0))
+                        .py(px(7.0))
+                        .bg(rgb(t.accent))
+                        .text_color(rgb(t.bg))
+                        .text_size(px(tokens::TEXT_BODY))
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .cursor_pointer()
+                        .hover(|s| s.bg(rgb(t.accent_ink)))
+                        .child("Send")
+                        .on_click(cx.listener(|this, _ev, _window, cx| {
+                            this.submit_chat();
+                            cx.notify();
+                        })),
+                ),
         )
         .into_any_element()
 }
@@ -6659,7 +7088,7 @@ fn parse_verb(text: &str) -> Option<(CmdKind, String)> {
         _ => {}
     }
     let kind = match verb.as_str() {
-        "work" => CmdKind::Work,
+        "mission" => CmdKind::Mission,
         "note" => CmdKind::Note,
         "begin" => CmdKind::Begin,
         "done" | "end" => CmdKind::Done,
@@ -6667,7 +7096,6 @@ fn parse_verb(text: &str) -> Option<(CmdKind, String)> {
         "release" => CmdKind::Release,
         "kill" => CmdKind::Kill,
         "interrupt" | "stop" => CmdKind::InterruptAgent,
-        "cartographer" | "chat" => CmdKind::Cartographer,
         "lane" | "message" | "steer" => CmdKind::LaneMessage,
         "pane" | "addpane" => CmdKind::AddPane,
         _ => return None,
@@ -7211,12 +7639,11 @@ fn nav_id_for_surface(surface: &SurfaceKind) -> Option<&str> {
         SurfaceKind::Sessions => Some("sessions"),
         SurfaceKind::Dispatch => Some("dispatch"),
         SurfaceKind::Panel { nav } => Some(nav.as_str()),
-        // HITL and Work are foreground projections, not generic NAV pane fetchers.
-        SurfaceKind::CartographerChat
+        // Mission and HITL are foreground projections, not generic NAV pane fetchers.
+        SurfaceKind::Mission
         | SurfaceKind::FileTree { .. }
         | SurfaceKind::Editor { .. }
-        | SurfaceKind::Hitl
-        | SurfaceKind::Work => None,
+        | SurfaceKind::Hitl => None,
     }
 }
 
@@ -8664,8 +9091,8 @@ impl Render for ConsoleView {
                     ) {
                         cx.stop_propagation();
                     }
-                } else if this.focused_is_chat() {
-                    // The focused chat pane captures printable keys into its composer
+                } else if this.focused_is_mission() {
+                    // The focused Mission captures printable keys into its composer
                     // (no native input widget) — the load-bearing "make it actually
                     // type" path. Ctrl-A still arms the leader (checked above first).
                     let shift = ev.keystroke.modifiers.shift;
@@ -8950,7 +9377,7 @@ impl Render for ConsoleView {
                     .bg(rgb(current_theme().panel))
                     .border_t_1()
                     .border_color(rgb(current_theme().line))
-                    .child(command_bar_btn(CmdKind::Work, "Start a mission", cx))
+                    .child(mission_home_btn(cx))
                     .child(views_bar_btn(cx))
                     // Alerts (HITL): always visible, glows red on errors, click to
                     // open the full untruncated log — the discoverable way to read
@@ -9219,8 +9646,8 @@ mod add_pane_tests {
     #[test]
     fn picker_matches_non_nav_surfaces() {
         assert!(matches!(
-            surface_for_query("chat"),
-            Some(SurfaceKind::CartographerChat)
+            surface_for_query("mission"),
+            Some(SurfaceKind::Mission)
         ));
         assert!(matches!(
             surface_for_query("files"),
@@ -9237,16 +9664,20 @@ mod add_pane_tests {
     }
 
     #[test]
-    fn picker_matches_work_surface() {
-        // Work and its read-only projection alias resolve to the internal surface.
-        assert!(matches!(surface_for_query("work"), Some(SurfaceKind::Work)));
-        assert!(matches!(surface_for_query("plan"), Some(SurfaceKind::Work)));
+    fn picker_has_one_mission_surface() {
+        assert!(matches!(
+            surface_for_query("mission"),
+            Some(SurfaceKind::Mission)
+        ));
+        assert!(surface_for_query("work").is_none());
+        assert!(surface_for_query("chat").is_none());
+        assert!(surface_for_query("plan").is_none());
         assert!(surface_for_query("conjure").is_none());
-        // Work is not backed by a generic NAV pane.
-        assert!(nav_id_for_surface(&SurfaceKind::Work).is_none());
+        // Mission is not backed by a generic NAV pane.
+        assert!(nav_id_for_surface(&SurfaceKind::Mission).is_none());
         assert_eq!(
-            launcher_id_for_surface(&SurfaceKind::Work).as_deref(),
-            Some("work")
+            launcher_id_for_surface(&SurfaceKind::Mission).as_deref(),
+            Some("mission")
         );
     }
 
@@ -9256,12 +9687,12 @@ mod add_pane_tests {
             .into_iter()
             .map(|item| item.id)
             .collect::<Vec<_>>();
-        for id in ["chat", "files", "alerts", "work"] {
+        for id in ["mission", "files", "alerts"] {
             assert!(ids.contains(&id), "launcher must expose {id}");
         }
         assert!(matches!(
-            surface_for_launcher_id("chat"),
-            SurfaceKind::CartographerChat
+            surface_for_launcher_id("mission"),
+            SurfaceKind::Mission
         ));
         assert!(matches!(
             surface_for_launcher_id("files"),
@@ -9271,7 +9702,6 @@ mod add_pane_tests {
             surface_for_launcher_id("alerts"),
             SurfaceKind::Hitl
         ));
-        assert!(matches!(surface_for_launcher_id("work"), SurfaceKind::Work));
     }
 
     #[test]
@@ -9381,8 +9811,8 @@ mod add_pane_tests {
                 "port-daddy:console:main",
             ),
             (
-                "work land the console PR",
-                CmdKind::Work,
+                "mission land the console PR",
+                CmdKind::Mission,
                 "land the console PR",
             ),
             (
@@ -9439,10 +9869,7 @@ mod add_pane_tests {
         assert!(parse_verb("spawn land it").is_none());
         assert!(parse_verb("sortie land it").is_none());
         assert!(parse_verb("conjure land it").is_none());
-        assert!(matches!(
-            parse_verb("chat hey carto"),
-            Some((CmdKind::Cartographer, _))
-        ));
+        assert!(parse_verb("chat hey carto").is_none());
         assert!(matches!(
             parse_verb("steer write the test first"),
             Some((CmdKind::LaneMessage, _))

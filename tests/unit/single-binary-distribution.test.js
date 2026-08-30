@@ -10,6 +10,7 @@ describe('single binary distribution path', () => {
     const script = readFileSync(join(process.cwd(), 'scripts', 'build-single-binary.mjs'), 'utf8');
     expect(script).toContain("bin/port-daddy-bundle.ts");
     expect(script).toContain('writeEmbeddedAssetsModule');
+    expect(script).toContain('writeEmbeddedAgentHarborSchemasModule');
     expect(script).toContain('writeEmbeddedNativeCoreModule');
     expect(script).toContain('stageSquidReleaseAssets');
     expect(script).toContain("scripts/smoke-squid-release.mjs");
@@ -31,6 +32,7 @@ describe('single binary distribution path', () => {
 
     expect(bundle).toContain("process.env.PORT_DADDY_CAN_SELF_DAEMON = '1'");
     expect(bundle).toContain('embedded-native-core.generated.js');
+    expect(bundle).toContain('embedded-agent-harbor-schemas.generated.js');
     expect(bundle).toContain("await import('koffi')");
     expect(bundle).toContain('__PORT_DADDY_KOFFI_LOAD_ERROR__');
     expect(bundle).toContain("process.argv[2] === '__daemon'");
@@ -109,7 +111,12 @@ describe('single binary distribution path', () => {
     expect(buildScript).toContain('self-hosted via hidden __daemon entrypoint');
     expect(buildScript).toContain('embedded in the executable through a generated asset table');
     expect(buildScript).toContain('embeddedNativeCore');
+    expect(buildScript).toContain('embeddedAgentHarborSchemas');
     expect(buildScript).toContain('smokeSelfHostedDaemon');
+    expect(buildScript).toContain('smokeSurfaceGatewaySchemas');
+    expect(buildScript).toContain('work-intent.capture');
+    expect(buildScript).toContain('work-intent.list');
+    expect(buildScript).toContain('cwd: resourceDir');
     expect(buildScript).toContain('writePdLauncher');
     expect(buildScript).toContain('launcherSource');
     expect(buildScript).toContain('prepareOnnxRuntimeNativeBinding');

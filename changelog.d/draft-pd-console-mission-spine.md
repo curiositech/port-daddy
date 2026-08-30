@@ -1,0 +1,3 @@
+type: changed
+
+- **pd-console now opens on one governed Mission conversation instead of separate Work and chat panes.** Operator turns preserve their exact text, terminal missions release the composer for a new WorkIntent, and cold launches restore the persisted conversation without duplicating replayed answers. Admission receipts remain distinct from attributed model replies, the native console WorkIntent wins over its compatibility alias, and Plan, suggested skills, claims, evidence, cost, live output, worktree, branch, and delivery stay attached to the central flow. The compiled self-hosted `port-daddy` bundle now embeds the Agent Harbor schema set so the same fail-closed Surface Gateway path works outside a source checkout.
