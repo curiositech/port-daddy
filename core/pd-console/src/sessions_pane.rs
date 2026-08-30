@@ -765,8 +765,8 @@ mod tests {
     fn session_value() -> Value {
         json!({ "id":"session-1","purpose":"Build cross-backend switcher","status":"active","phase":"in_progress","agentId":"actor-1","identityProject":"port-daddy","durable":true,"fileCount":2,"noteCount":1,"updatedAt":200,
         "worktree":{"id":"wt-1","root":"/repo","name":"repo","branch":"codex/switcher"},
-        "provider":{"adapterFamily":"codex-cli","label":"Codex CLI","backend":"cli:codex","model":"gpt-5.6-sol","confidence":"witnessed"},"liveness":"alive","primaryLocationId":"stable",
-        "locations":[{"id":"stable","label":"stable","tier":"stable","state":"online","current":true,"canonical":true,"ledgerPreserved":true,"url":"http://127.0.0.1:9876"}],
+        "provider":{"adapterFamily":"codex-cli","label":"Codex CLI","backend":"cli:codex","model":"provider-model-v1","confidence":"witnessed"},"liveness":"alive","primaryLocationId":"stable",
+        "locations":[{"id":"stable","label":"stable","tier":"stable","state":"online","current":true,"canonical":true,"ledgerPreserved":true,"url":"http://127.0.0.1:43210"}],
         "notes":[{"type":"scope","content":"owns sessions pane","createdAt":150}] })
     }
     #[test]
@@ -774,7 +774,7 @@ mod tests {
         let entry = SessionEntry::from_value(&session_value());
         assert_eq!(entry.agent_id, "actor-1");
         assert_eq!(entry.provider.family, "codex-cli");
-        assert_eq!(entry.provider.model, "gpt-5.6-sol");
+        assert_eq!(entry.provider.model, "provider-model-v1");
         assert_eq!(entry.worktree_root, "/repo");
         assert_eq!(entry.locations[0].label, "stable");
         assert!(entry.durable);
@@ -795,7 +795,7 @@ mod tests {
         ));
         assert_eq!(
             pane.selected_active_agent_target(),
-            Some(("actor-1".into(), "http://127.0.0.1:9876".into()))
+            Some(("actor-1".into(), "http://127.0.0.1:43210".into()))
         );
     }
     #[test]

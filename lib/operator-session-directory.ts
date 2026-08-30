@@ -9,6 +9,7 @@ import {
   type DaemonProfilePaths,
 } from './daemon-profiles.js';
 import type { DaemonBerthIdentity } from '../shared/daemon-berths.js';
+import { DEFAULT_DAEMON_PORT } from '../shared/daemon-discovery.js';
 
 export type SessionDirectoryLocationState = 'online' | 'degraded' | 'offline';
 
@@ -159,7 +160,7 @@ async function defaultFetchJson(url: string, timeoutMs: number): Promise<unknown
 }
 
 function canonicalTarget(homeDir: string, berth: DaemonBerthIdentity | null | undefined): DirectoryTarget {
-  const port = berth?.canonical && berth.port ? berth.port : 9876;
+  const port = berth?.canonical && berth.port ? berth.port : DEFAULT_DAEMON_PORT;
   return {
     id: 'stable',
     label: 'stable',

@@ -21,6 +21,7 @@
       "tests/unit/operator-session-directory.test.ts",
       "tests/unit/operator-routes.test.js",
       "tests/unit/daemon-profiles.test.js",
+      "features.manifest.json",
       "README.md",
       "docs/operations/daemon-and-supervision.md"
     ],
@@ -84,6 +85,16 @@
         "cmd": "PORT_DADDY_URL=http://127.0.0.1:19993 core/target/debug/pd-console-repl --capture-agents artifacts/pd-console-agent-switcher/agents-520px.png --capture-width 520",
         "exitCode": 0,
         "cwd": "/Users/erichowens/coding/tmp/pd-console-agent-switcher-20260830"
+      },
+      {
+        "cmd": "PATH=/opt/homebrew/opt/node@22/bin:$PATH npm test -- --runInBand",
+        "exitCode": 1,
+        "cwd": "/Users/erichowens/coding/tmp/pd-console-agent-switcher-20260830"
+      },
+      {
+        "cmd": "PATH=/opt/homebrew/opt/node@22/bin:$PATH npm test -- --runInBand tests/unit/manifest-enforcement.test.js tests/unit/no-hardcoded-model-ids.test.js tests/unit/no-hardcoded-daemon-url.test.js tests/unit/no-hardcoded-daemon-port.test.js tests/unit/operator-session-directory.test.ts tests/unit/operator-routes.test.js tests/unit/daemon-profiles.test.js",
+        "exitCode": 0,
+        "cwd": "/Users/erichowens/coding/tmp/pd-console-agent-switcher-20260830"
       }
     ],
     "toolCalls": [
@@ -108,13 +119,14 @@
         "core/pd-console/src/main.rs",
         "core/pd-console/src/sessions_pane.rs",
         "docs/operations/daemon-and-supervision.md",
+        "features.manifest.json",
         "lib/daemon-profiles.ts",
         "routes/operator.ts",
         "tests/unit/daemon-profiles.test.js",
         "tests/unit/operator-routes.test.js"
       ],
       "deleted": [],
-      "diffSummary": "+1450 -135 across 17 source, test, documentation, receipt, and visual-proof files"
+      "diffSummary": "+1453 -139 across source, test, manifest, documentation, receipt, and visual-proof files"
     }
   },
   "validation": {
@@ -145,6 +157,19 @@
         "passed": true
       },
       {
+        "name": "route manifest, portable model and daemon discovery contracts",
+        "command": "PATH=/opt/homebrew/opt/node@22/bin:$PATH npm test -- --runInBand tests/unit/manifest-enforcement.test.js tests/unit/no-hardcoded-model-ids.test.js tests/unit/no-hardcoded-daemon-url.test.js tests/unit/no-hardcoded-daemon-port.test.js tests/unit/operator-session-directory.test.ts tests/unit/operator-routes.test.js tests/unit/daemon-profiles.test.js",
+        "exitCode": 0,
+        "passed": true
+      },
+      {
+        "name": "full Node test inventory",
+        "command": "PATH=/opt/homebrew/opt/node@22/bin:$PATH npm test -- --runInBand",
+        "exitCode": 1,
+        "passed": false,
+        "notes": "13468 tests passed. The two remaining failures are pre-existing home-directory assertions in sitrep-template.test.js and purser/template-command.test.ts: each first requires homedir() output and then forbids the literal path of this operator's actual home directory. Four feature-specific contract failures found by this run were corrected and their seven exact gates pass."
+      },
+      {
         "name": "520px live-data layout proof",
         "artifactPath": "artifacts/pd-console-agent-switcher/agents-520px.png",
         "passed": true
@@ -155,7 +180,7 @@
         "passed": true
       }
     ],
-    "manualVerification": "macOS Screen Recording and Accessibility permission blocked an automated click-through capture of the live GPUI framebuffer. The checked-in proof therefore uses pd-console's real Block projection against the live development daemon at 520px; the HTML-only layout-overflow checker cannot geometrically inspect a native GPUI or PNG surface. A reviewer should click an active row in a permitted build and confirm that Mission chat reaches the selected actor."
+    "manualVerification": "macOS Screen Recording and Accessibility permission blocked an automated click-through capture of the live GPUI framebuffer. The checked-in proof therefore uses pd-console's real Block projection against the live development daemon at 520px; the HTML-only layout-overflow checker cannot geometrically inspect a native GPUI or PNG surface. A reviewer should click an active row in a permitted build and confirm that Mission chat reaches the selected actor. The full Node inventory ran under the repository's Node 22 ABI; its feature-specific contract findings were fixed and rechecked."
   },
   "spend": {
     "wallClockMs": 2560752
@@ -184,7 +209,7 @@
     "verified": false
   },
   "provenance": {
-    "contentHash": "sha256:d2fb944055303c361ba974c3ffeda3927e624348e7dcc0973d99d9338a469971",
+    "contentHash": "sha256:3c341e9bd09a0b00026ed8271b78aefb4580d9a9dbaa5026e9ddec13711a9296",
     "signedBy": "codex:session-build-the-authoritative-cross-backend-pd-console-1fc9a67c401a",
     "signatureAlg": "none",
     "timestamp": "2026-08-30T13:42:02Z",
