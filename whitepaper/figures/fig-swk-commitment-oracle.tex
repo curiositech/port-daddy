@@ -1,65 +1,34 @@
-% Figure — the commitment lifecycle and the oracle-bound closure gate (Law 2).
-% A promise cannot transition open->done without an oracle reference from a
-% FINITE vocabulary. A refused closure stays open. Law 1 and the honesty-
-% boundary discussion live in the caption.
-
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D8C7A6}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{6B4500}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-
+% Figure 9 — typed evidence passes a narrow closure aperture.
 \begin{figure}[H]
 \centering
-\resizebox{0.85\textwidth}{!}{%
-\begin{tikzpicture}[
-  font=\small,
-  st/.style={draw=hhebony,thick,rounded corners=10pt,fill=hhsand!30,
-             minimum width=24mm,minimum height=11mm,align=center,font=\bfseries\footnotesize},
-  term/.style={draw=hhink,line width=1.2pt,fill=hhsand!30,rounded corners=10pt,
-               minimum width=26mm,minimum height=11mm,align=center,font=\bfseries\footnotesize},
-  gate/.style={draw=hhamber,line width=1.4pt,fill=hhpaper,diamond,aspect=1.7,
-               inner sep=2pt,align=center,font=\footnotesize},
-  oracle/.style={draw=hhink,thick,fill=hhpaper,rounded corners=2pt,
-                 minimum width=40mm,align=center,font=\scriptsize,inner sep=3pt},
-  edge/.style={->,>=Latex,thick,hhebony,font=\scriptsize},
-]
-
-\node[st] (open) at (0,0) {open};
-\node[gate,right=26mm of open] (g) {oracle?\\ (Law 2)};
-\node[term,right=26mm of g] (done) {done};
-\node[term,below=14mm of open,xshift=-6mm] (aband) {abandoned};
-\node[term,below=14mm of open,xshift=24mm] (super) {superseded};
-
-\draw[edge] (open) -- node[above]{close as `done'} (g);
-\draw[edge,hhteal] (g) -- node[above,align=center]{reference present\\ \& holds now} (done);
-\draw[edge,hhamber] (g.north) to[bend right=28]
-  node[above,text=hhink,align=center]{free text only $\Rightarrow$ refused; stays open} (open.north);
-\draw[edge] (open.south) -- (aband.north);
-\draw[edge] (open.south) -- (super.north);
-
-% The finite oracle vocabulary
-\node[oracle,below=16mm of g,xshift=18mm] (orcl)
-  {{\bfseries The oracle vocabulary (finite):}\\
-   $\bullet$ a released claim\quad $\bullet$ a merged commit\\
-   $\bullet$ a passing test id\quad $\bullet$ a satisfied policy sub-check};
-\draw[->,>=Latex,thick,hhamber,dashed] (orcl.north) -- (g.south);
-
+\resizebox{0.86\textwidth}{!}{%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \node[pd state,draw=hhteal] (open) at (1.2,3.0) {OPEN};
+  \draw[pd focus arrow] (2.15,3.0)--(5.2,3.0);
+  \node[pd direct label,anchor=south] at (3.6,3.15) {attempt closure};
+  \foreach \y/\lab in {5.1/{released claim},4.15/{merged commit},1.85/{passing test id},.9/{policy sub-check}} {
+    \node[pd direct label,anchor=east] at (7.2,\y) {\lab};
+    \draw[pd focus arrow] (7.45,\y)--(9.15,3.2);
+  }
+  \draw[pd focus rule,line width=1.6pt] (9.35,2.35)--(9.35,3.65);
+  \node[pd direct label,anchor=south west,text=hhteal] at (9.55,3.72) {typed oracle};
+  \draw[pd focus arrow] (9.45,3.0)--(12.2,3.0);
+  \node[pd terminal,draw=hhteal] at (13.0,3.0) {DONE};
+  \node[pd direct label,anchor=east,text=hhamber] at (7.2,6.25) {free-text assertion};
+  \draw[pd caution arrow] (7.45,6.25)--(9.02,3.8);
+  \draw[pd caution rule,line width=1.4pt] (8.72,3.72)--(9.17,4.18);
+  \draw[pd caution rule,line width=1.4pt] (8.72,4.18)--(9.17,3.72);
+  \draw[pd caution arrow] (8.7,4.35) to[out=150,in=35] (2.0,3.45);
+  \node[pd direct label,anchor=south,text=hhamber] at (4.85,5.62) {refused; remains open};
+  \draw[pd caution rule] (3.0,2.2)--(3.0,.55);
+  \node[pd direct label,anchor=north,text=hhamber] at (3.0,.42) {daemon-derived deadline};
 \end{tikzpicture}%
 }
-\caption{The commitment lifecycle with its oracle-bound closure gate. A commitment
-is a durable, \emph{violable} promise (Cohen \& Levesque's persistent goal): it may
-end \emph{done}, \emph{abandoned}, or \emph{superseded}. The load-bearing gate is
-Law~2 (I6): a transition to \emph{done} is \emph{refused} --- the promise stays open
---- unless the agent supplies a reference drawn from the finite oracle vocabulary,
-re-verified by the daemon at closure time; free-text notes cannot close a promise.
-Law~1 (I5) closes the complementary Goodhart hole: the deadline is derived by the
-daemon from a scope policy --- the agent picks the \emph{work}, never the
-\emph{deadline}. That finite vocabulary is precisely the kernel's honesty boundary
-(OP-5): it can mechanically verify ``the test you named passed,'' never ``the
-refactor is good.''}
+\caption{Typed evidence passes through a narrow closure aperture. A commitment may
+close as done only when the daemon can re-check a reference from the finite oracle
+vocabulary: a released claim, merged commit, passing test identifier, or satisfied
+policy sub-check. A free-text assertion is deflected back to the open state rather
+than translated into evidence. The complementary deadline is also daemon-derived;
+the agent selects the work, not the terms under which its promise becomes easy.}
 \label{fig:swk-commitment-oracle}
 \end{figure}

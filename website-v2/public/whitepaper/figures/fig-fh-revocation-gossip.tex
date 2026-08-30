@@ -1,52 +1,51 @@
-% Semantic contract: a single revocation advances through a time-by-harbor state matrix.
-% Repeated harbor cartoons are deliberately avoided: rows are authorities, columns are epochs.
+% Figure IV.9 --- staleness is an area in time-by-authority space.
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}[
-  x=1cm,y=1cm,font=\small,
-  state/.style={draw=hhink,line width=.55pt,fill=hhpaper,rounded corners=1.5pt,
-    minimum width=34mm,minimum height=8mm,align=center,inner sep=3pt,font=\scriptsize},
-  known/.style={state,draw=hhteal,line width=.8pt,fill=hhteal!9},
-  stale/.style={state,fill=hhsand!22,text=hhgray},
-  epoch/.style={font=\footnotesize\bfseries,align=center},
-  row/.style={font=\footnotesize\bfseries,anchor=east}
-]
-  \node[draw=hhink,line width=.7pt,fill=hhsand!14,rounded corners=2pt,
-    minimum width=126mm,minimum height=13mm,align=center] (log) at (.55,3.0)
-    {\textbf{Federated witness log}\quad {\footnotesize signed epoch roots $\cdot$ cross-witness signatures $\cdot$ equivocation evidence}};
+\resizebox{0.93\textwidth}{!}{%
+\begin{tikzpicture}[pd figure]
+  \node[pd panel title,anchor=west] at (-6.4,3.0)
+    {the spendable revocation window is the amber area};
+  \node[pd axis label,anchor=east] at (-5.15,1.45) {Harbor A};
+  \node[pd axis label,anchor=east] at (-5.15,.20) {Harbor B};
+  \node[pd axis label,anchor=east] at (-5.15,-1.05) {Harbor C};
 
-  \node[epoch] at (-3.35,1.95) {$t=0$};
-  \node[epoch] at (.55,1.95) {$t=\Delta$};
-  \node[epoch] at (4.45,1.95) {$t=2\Delta$};
-  \node[row] at (-5.45,1.10) {Harbor $A$};
-  \node[row] at (-5.45,.15) {Harbor $B$};
-  \node[row] at (-5.45,-.80) {Harbor $C$};
+  % Stale-to-synchronized state bands.
+  \fill[hhteal!13] (-4.80,1.00) rectangle (6.00,1.90);
+  \fill[hhamber!16] (-4.80,-.25) rectangle (-1.20,.65);
+  \fill[hhteal!13] (-1.20,-.25) rectangle (6.00,.65);
+  \fill[hhamber!16] (-4.80,-1.50) rectangle (1.95,-.60);
+  \fill[hhteal!13] (1.95,-1.50) rectangle (6.00,-.60);
+  \foreach \y in {1.00,1.90,-.25,.65,-1.50,-.60}
+    \draw[pd hairline] (-4.80,\y)--(6.00,\y);
 
-  \node[known] (a0) at (-3.35,1.10) {revoked locally};
-  \node[known] (a1) at (.55,1.10) {revoked};
-  \node[known] (a2) at (4.45,1.10) {revoked};
-  \node[stale] (b0) at (-3.35,.15) {stale};
-  \node[known] (b1) at (.55,.15) {synchronized};
-  \node[known] (b2) at (4.45,.15) {synchronized};
-  \node[stale] (c0) at (-3.35,-.80) {stale};
-  \node[stale] (c1) at (.55,-.80) {stale};
-  \node[known] (c2) at (4.45,-.80) {synchronized};
+  \draw[pd focus rule,line width=1.4pt]
+    (-4.80,1.00)--(-4.80,.65)--(-1.20,.65)--(-1.20,-.60)--(1.95,-.60)--(1.95,-1.50);
+  \node[pd direct label,text=hhteal,anchor=west] at (2.20,-1.05) {refuse locally};
+  \node[pd direct label,text=hhamber,anchor=west] at (-4.45,-1.05) {stale verifier};
 
-  \draw[-{Stealth[length=2mm]},draw=hhteal,line width=.8pt]
-    (a0.south east) -- (b1.north west)
-    node[midway,fill=hhpaper,inner xsep=3pt,font=\scriptsize] {$A\!\to\!B$ delta};
-  \draw[-{Stealth[length=2mm]},draw=hhteal,line width=.8pt]
-    (b1.south east) -- (c2.north west)
-    node[midway,fill=hhpaper,inner xsep=3pt,font=\scriptsize] {$B\!\to\!C$ delta};
+  \foreach \x/\lab in {-4.80/$0$,-1.20/$\Delta$,1.95/$2\Delta$,5.20/$3\Delta$}
+    {\draw[pd guide] (\x,-1.72)--(\x,2.15);
+     \node[pd axis label,anchor=north] at (\x,-1.88) {\lab};}
+  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (-4.90,-1.72)--(6.20,-1.72);
+  \node[pd axis label,anchor=west] at (6.30,-1.72) {time};
 
-  \node[font=\scriptsize,text=hhgray] at (-3.35,2.42) {$R_A^{(e+1)}\uparrow$};
-  \node[font=\scriptsize,text=hhgray] at (.55,2.42) {$R_B^{(e+1)}\uparrow$};
-  \node[font=\scriptsize,text=hhgray] at (4.45,2.42) {$R_C^{(e+1)}\uparrow$};
-
-  \draw[hhink,line width=.55pt] (-5.45,-1.55) -- (6.15,-1.55);
-  \node[font=\footnotesize,fill=hhpaper,inner xsep=6pt] at (.35,-1.55)
-    {connected reliable rounds: expected $\Theta(\log m)$ dissemination; a partition removes any deadline};
-\end{tikzpicture}
-\caption{Revocation spreads epidemically in expected $\Theta(\log m)$ rounds under the stated connected, reliable-round model. This is an expectation, not a worst-case deadline: an unbounded partition still yields unbounded exposure. Rows identify the authority whose local filter decides admission; columns expose the stale-verifier window. Signed per-epoch roots make contradictory histories auditable after delivery without pretending the federation has a global clock.}
+  \node[pd focus datum] at (-4.80,2.35) {};
+  \node[pd focus datum] at (-1.20,2.35) {};
+  \node[pd focus datum] at (1.95,2.35) {};
+  \draw[pd focus rule] (-4.80,2.35)--(1.95,2.35);
+  \node[pd note,text=hhteal,anchor=west] at (2.20,2.35)
+    {signed epoch roots make the illustrated history auditable};
+  \draw[pd caution rule,<->] (-4.65,-2.45)--(1.80,-2.45);
+  \node[pd note,text=hhamber] at (-1.42,-2.72)
+    {exposure lasts until the local authority receives the revocation};
+\end{tikzpicture}}
+\caption{\textbf{Revocation propagation is a moving staleness frontier.}
+Alice refuses immediately; B remains stale until $\Delta$ and C until
+$2\Delta$ in this illustrated execution. The amber area is precisely where a
+revoked capability can still be admitted by the named local authority. The teal
+staircase marks synchronization, not a global clock. Expected
+$\Theta(\log m)$ dissemination requires connected reliable rounds; a partition
+can extend the amber area without bound and therefore destroys any finite
+deadline.}
 \label{fig:fh-revocation}
 \end{figure}

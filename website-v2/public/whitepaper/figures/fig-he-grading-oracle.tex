@@ -1,38 +1,53 @@
-% Semantic contract: evaluation designs occupy distinct observability/capture regimes.
+% Figure IV.11 --- mechanisms lie on an observability/capture frontier rather
+% than inside arbitrary quadrants.
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}[x=1cm,y=1cm,font=\small]
-  \path[fill=hhsand!52] (-5,-2.25) rectangle (0,2.25);
-  \path[fill=hhsand!20] (0,-2.25) rectangle (5,2.25);
-  \path[fill=hhteal!7] (0,-2.25) rectangle (5,0);
-  \draw[hhink,line width=.7pt] (-5,-2.25) rectangle (5,2.25);
-  \draw[hhgray,line width=.45pt,dashed] (0,-2.25) -- (0,2.25);
-  \draw[hhgray,line width=.45pt,dashed] (-5,0) -- (5,0);
-  \draw[-{Stealth[length=2mm]},hhink,line width=.7pt] (-5.25,-2.25) -- (5.35,-2.25);
-  \draw[-{Stealth[length=2mm]},hhink,line width=.7pt] (-5,-2.5) -- (-5,2.55);
-  \node[font=\scriptsize,anchor=north] at (-5,-2.52) {low};
-  \node[font=\scriptsize,anchor=north] at (5,-2.52) {high};
-  \node[font=\footnotesize\bfseries,anchor=north] at (0,-2.95) {criterion observability};
-  \node[font=\scriptsize,anchor=east] at (-5.18,-2.2) {low};
-  \node[font=\scriptsize,anchor=east] at (-5.18,2.2) {high};
-  \node[font=\footnotesize\bfseries,rotate=90] at (-5.75,0) {capture risk};
-  \draw[hhink,line width=1.1pt] (-3.5,1.25) ++(-.10,-.10) -- ++(.20,.20)
-    ++(-.20,0) -- ++(.20,-.20);
-  \node[anchor=west,align=left,font=\scriptsize] at (-3.2,1.25)
-    {unbonded evaluator\\signal can be captured};
-  \fill[hhteal] (.45,-.65) -- ++(.13,.13) -- ++(-.13,.13) -- ++(-.13,-.13) -- cycle;
-  \node[anchor=west,align=left,font=\scriptsize] at (.75,-.65)
-    {bonded evaluator\\blind review + re-audit};
-  \fill[hhteal] (3.55,-1.45) rectangle ++(.22,.22);
-  \node[anchor=east,align=right,font=\scriptsize] at (3.35,-1.32)
-    {deterministic oracle\\immutable test receipt};
-  \node[font=\scriptsize\itshape,text=hhgray] at (2.55,1.82)
-    {observable but discretionary};
-  \node[font=\scriptsize\itshape,text=hhteal] at (2.55,-1.92)
-    {machine-checkable regime};
-\end{tikzpicture}
-\caption{Evaluation mechanisms occupy different observability and capture-risk
-regimes. Deterministic oracles minimize discretion where criteria are machine-checkable;
-bonded, blinded review prices dishonesty where judgment remains unavoidable.}
+\resizebox{0.92\textwidth}{!}{%
+\begin{tikzpicture}[pd figure]
+  \node[pd panel title,anchor=west] at (-6.3,3.15)
+    {more observable evidence permits less discretionary evaluation};
+  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (-5.55,-2.05)--(6.15,-2.05);
+  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (-5.55,-2.05)--(-5.55,2.65);
+  \node[pd axis label,anchor=west] at (6.28,-2.05) {criterion observability};
+  \node[pd axis label,rotate=90,anchor=south] at (-5.88,.30) {capture risk};
+  \node[pd axis label,anchor=north] at (-5.25,-2.20) {low};
+  \node[pd axis label,anchor=north] at (5.75,-2.20) {high};
+
+  % Lower envelope of defensible mechanisms.
+  \draw[pd focus rule,dashed,line width=1.2pt,smooth]
+    plot coordinates {(-4.6,2.15)(-2.5,1.75)(-.2,1.05)(2.5,.25)(5.35,-1.15)};
+  \node[pd note,text=hhteal,anchor=west] at (1.95,.65) {defensible lower envelope};
+
+  % Capture exposure halos are redundant with point position and size.
+  \fill[hhamber!10] (-3.65,1.75) circle (.72);
+  \node[pd caution datum,inner sep=2.6pt] at (-3.65,1.75) {};
+  \node[pd direct label,text=hhamber,anchor=west,align=left] at (-3.25,2.18)
+    {unbonded evaluator\\capturable signal};
+
+  \fill[hhamber!7] (-.80,1.05) circle (.50);
+  \node[pd caution datum,inner sep=2.2pt] at (-.80,1.05) {};
+  \node[pd direct label,anchor=west,align=left] at (-.42,1.43)
+    {public but discretionary\\grade};
+
+  \fill[hhteal!8] (2.25,-.05) circle (.38);
+  \node[pd focus datum,inner sep=2.2pt] at (2.25,-.05) {};
+  \node[pd direct label,text=hhteal,anchor=west,align=left] at (2.62,.20)
+    {bonded + blinded\\review with re-audit};
+
+  \fill[hhteal!8] (5.10,-1.20) circle (.25);
+  \node[pd focus datum,inner sep=2.2pt] at (5.10,-1.20) {};
+  \node[pd direct label,text=hhteal,anchor=east,align=right] at (4.75,-1.52)
+    {deterministic oracle\\immutable receipt};
+
+  \node[pd note,text=hhamber,anchor=west] at (-4.95,-2.78)
+    {public visibility does not remove evaluator discretion};
+\end{tikzpicture}}
+\caption{\textbf{Evaluation mechanisms occupy a frontier, not four boxes.}
+Horizontal position is criterion observability; vertical position is capture risk.
+Halo size redundantly marks discretionary exposure. Deterministic receipts sit at
+the low-risk observable end. Where judgment is unavoidable, blinded bonded review
+with sampled re-audit moves toward the lower envelope without pretending to become
+deterministic. Publishing an unconstrained evaluator's grade does not make the
+signal exogenous or strategy-proof.}
 \label{fig:he-grading-oracle}
 \end{figure}

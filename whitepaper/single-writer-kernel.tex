@@ -37,6 +37,7 @@
 \definecolor{hhteal}{HTML}{00564C}
 \definecolor{hhpaper}{HTML}{FBF7EF}
 \definecolor{hhgray}{HTML}{5C5650}
+\input{figures/pd-figure-language}
 
 % Research-maturity scale: a neutral four-point grade for how far each claim sits
 % from a verified, running artifact. Used inline in prose and tables.
@@ -270,7 +271,7 @@ Harbor Economy}).
 \end{description}
 
 \noindent You climb the stack in order, and you never buy a layer before you need
-it. This paper is the load-bearing floor. The legibility layer reads the kernel's
+it. This paper is the structural floor. The legibility layer reads the kernel's
 claims, bus, and policy monitor to render the swarm; the personhood argument leans
 the entire notion of a \emph{durable agent identity} on the kernel's continuity
 machinery; the economy's settlement ledger is, mechanically, another set of tables
@@ -342,11 +343,11 @@ connection and responses follow commit, transactions are \emph{serializable} and
 claim/lock operations are \emph{linearizable} --- the property that lets the coordination layer treat ``who
 holds this'' as ground truth without any agreement protocol at all.
 
-\subsection{A research-maturity scale, and why the grades are load-bearing}
+\subsection{A research-maturity scale, and why the grades matter}
 \label{sec:honestkey}
 
 A systems paper that mixes ``we proved this'' with ``we hope to build this'' is
-unfalsifiable. So every load-bearing claim in this paper carries an explicit
+unfalsifiable. So every consequential claim in this paper carries an explicit
 \emph{maturity grade} on a four-point scale, plus two refinements introduced here
 because a single grade cannot formally carry a claim that spans fault classes or
 interception points. The grade is a property of the \emph{claim}, not a marketing
@@ -398,7 +399,7 @@ paper and a brochure.}
 \renewcommand{\arraystretch}{1.3}
 \begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.22\textwidth} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{0.31\textwidth}@{}}
 \toprule
-\textbf{If you are\ldots} & \textbf{\ldots read first} & \textbf{\ldots load-bearing artifact} \\
+\textbf{If you are\ldots} & \textbf{\ldots read first} & \textbf{\ldots critical artifact} \\
 \midrule
 short on time (15 min) & \S1 (thesis + stack map), \S\ref{sec:durability} (durability split), \S\ref{sec:enforcement} (the monitor correction) & Figs.~\ref{fig:swk-stack-map}, \ref{fig:swk-durability-faultclass}, \ref{fig:swk-reference-monitor} \\
 a systems engineer & \S\ref{sec:substrate}--\S\ref{sec:invariants} (substrate, single-writer, the theorems) & Thm.~\ref{thm:consistency}; Figs.~\ref{fig:swk-single-writer}, \ref{fig:swk-consistency-model} \\
@@ -487,7 +488,7 @@ second instance (\S\ref{sec:attest}).}
 
 \subsection{The configuration \emph{is} the durability claim}
 
-The substrate's storage configuration is short and load-bearing. In WAL mode with
+The substrate's storage configuration is short and decisive. In WAL mode with
 the \emph{normal} synchronization level (the WAL is fsync'd at checkpoints rather
 than on every commit), a bounded auto-checkpoint interval, a bounded busy-wait,
 foreign-key enforcement on, and a clean-shutdown checkpoint-and-truncate, the
@@ -1039,7 +1040,7 @@ organ, carrying a time-of-check-to-time-of-use surface.
 Commitments are durable, \emph{violable} promises --- in the sense of Cohen and
 Levesque's ``intention as a persistent goal''~\cite{cohenlevesque1990}, with both
 single-minded and open-minded strategies for when a promise may be dropped. Two
-hardening laws are implemented, and they are the load-bearing ones
+hardening laws are implemented, and they are the ones that determine safety
 (Figure~\ref{fig:swk-commitment-oracle}).
 
 \begin{property}[Metric-control separation, Law 1]\label{prop:law1}
@@ -1427,7 +1428,7 @@ and the honest move is to draw the boundary, not gesture at it.
 \begin{table}[H]
 \centering
 \caption{The substrate-layer threat model. The same-user adversary is \emph{out of
-scope} by design; several ``security'' organs only become load-bearing against the
+scope} by design; several ``security'' organs become necessary only against the
 cross-machine adversary, which belongs to the economy layer.}
 \label{tab:threat-model}
 \small
@@ -1460,7 +1461,7 @@ primitive). We say so plainly rather than let advisory claims be read as isolati
 \label{sec:enforcement-gap}
 
 The same boundary problem reappears one level up, at the kernel's
-\emph{enforcement} ambition, and it is the paper's most load-bearing
+\emph{enforcement} ambition, and it is the paper's most consequential
 ``\emph{specified}, not \emph{implemented}'' caveat. The kernel ships a real
 cryptographic gate --- a \textbf{macaroon}~\cite{birgisson2014macaroons} discharge
 primitive (a bearer credential whose authority can only ever \emph{narrow}, since
@@ -1547,7 +1548,7 @@ and \texttt{SO\_PEERCRED} returns via \texttt{getsockopt(2)}; on macOS the
 equivalent \texttt{LOCAL\_PEERCRED} --- and binds each request to the ephemeral UID
 of the spawn instance it must have come from.
 
-Three things about that paragraph are load-bearing, and none of them is a claim that
+Three things about that paragraph determine the result, and none of them is a claim that
 OP-9 is closed.
 
 \begin{itemize}[leftmargin=1.4em,itemsep=2pt]
@@ -1989,11 +1990,11 @@ Identity (actor souls + credentials) & actor-souls, budget-guard modules & bound
 \end{tabular}
 \end{table}
 
-\subsection{Status, and the load-bearing corrections}
+\subsection{Status, and the corrections that matter}
 
 The maturity grades from Table~\ref{tab:invariants} reflect the state of the
 reference implementation at the time of writing. Four corrections this paper makes
-to earlier, more optimistic internal descriptions are load-bearing and worth
+to earlier, more optimistic internal descriptions are substantive and worth
 restating with their evidence:
 
 \begin{enumerate}[leftmargin=1.6em]
