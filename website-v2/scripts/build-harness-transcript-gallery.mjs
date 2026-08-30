@@ -149,7 +149,8 @@ const bundle = await build({
   sourcemap: false,
 });
 const clientJs = bundle.outputFiles[0].text;
-const commit = execFileSync('/usr/bin/git', ['rev-parse', '--short=10', 'HEAD'], { cwd: repoRoot, encoding: 'utf8' }).trim();
+const gitBin = process.env.PD_PORTHOLE_GIT_BIN?.trim() || 'git';
+const commit = execFileSync(gitBin, ['rev-parse', '--short=10', 'HEAD'], { cwd: repoRoot, encoding: 'utf8' }).trim();
 const payload = JSON.stringify({
   scenes,
   casts,
@@ -239,6 +240,7 @@ h1{max-width:18ch;margin:9px 0 12px;font:700 clamp(34px,5vw,68px)/.98 var(--font
 .receipt-mark{display:inline-block;margin-top:12px;padding:5px 7px;border:1px solid var(--brand-accent);color:var(--brand-accent)}
 .proof-key{color:var(--brand-accent)}
 .player-shell{border:1px solid var(--border-strong);background:var(--surface-sunken);padding:12px}
+.player-error{display:grid;min-height:18rem;margin:0;place-items:center;border:2px solid var(--status-error);background:color-mix(in srgb,var(--status-error) 10%,var(--surface-raised));padding:24px;color:var(--status-error);font:800 15px/1.5 var(--font-mono);text-align:center}
 .pane-inspector{margin-top:16px;border:1px solid var(--border-default);background:var(--surface-raised)}
 .pane-inspector[hidden]{display:none}.pane-inspector-head{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:18px;align-items:end;padding:18px;border-left:7px solid var(--brand-primary);border-bottom:1px solid var(--border-default)}
 .pane-inspector h2{max-width:24ch;margin:5px 0 8px;font:700 clamp(23px,3vw,36px)/1.05 var(--font-display)}.pane-inspector-head p{max-width:75ch;margin:0;color:var(--text-secondary)}.pane-inspector-source{text-align:right;color:var(--text-muted);font:11px/1.5 var(--font-mono)}

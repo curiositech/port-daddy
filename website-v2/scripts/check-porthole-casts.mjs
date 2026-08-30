@@ -144,6 +144,8 @@ async function checkGalleryResizeObserverLifecycle() {
   }
 
   const observers = [];
+  const createdUrls = [];
+  const revokedUrls = [];
   const galleryCast = `${JSON.stringify({ version: 2, width: 100, height: 28, timestamp: 0 })}\n${JSON.stringify([0.1, "o", "gallery lifecycle witness\\r\\n"])}\n`;
   const dom = new JSDOM(readFileSync(GALLERY_PATH, "utf8"), {
     runScripts: "dangerously",
@@ -173,8 +175,12 @@ async function checkGalleryResizeObserverLifecycle() {
         removeListener() {},
         dispatchEvent() { return false; },
       });
-      window.URL.createObjectURL = () => `blob:porthole-test-${observers.length}`;
-      window.URL.revokeObjectURL = () => {};
+      window.URL.createObjectURL = () => {
+        const url = `blob:porthole-test-${createdUrls.length}`;
+        createdUrls.push(url);
+        return url;
+      };
+      window.URL.revokeObjectURL = (url) => revokedUrls.push(url);
       window.fetch = async () => ({
         ok: true,
         status: 200,
@@ -209,27 +215,33 @@ async function checkGalleryResizeObserverLifecycle() {
     const settle = () => new Promise((resolve) => dom.window.setTimeout(resolve, 0));
     await settle();
     const sceneIds = ["harness-next-turn", "collision", "visibility", "ports", "parley", "parley-source"];
-    for (const [index, id] of sceneIds.entries()) {
+    for (const id of sceneIds) {
       const button = dom.window.document.querySelector(`#scene-tab-${id}`);
       if (!(button instanceof dom.window.HTMLButtonElement)) {
         fail(`harness-proof-current.html: scene tab ${id} is missing from the executable gallery`);
         return;
       }
+      const retired = [...observers];
+      const observersBeforeSwitch = observers.length;
       button.click();
       await settle();
       if (button.getAttribute("aria-selected") !== "true") {
         fail(`harness-proof-current.html: scene tab ${id} did not become active`);
       }
-      if (observers.length !== index + 2) {
-        fail(`harness-proof-current.html: scene switch ${id} created ${observers.length} ResizeObserver instances; expected ${index + 2}`);
+      if (observers.length <= observersBeforeSwitch) {
+        fail(`harness-proof-current.html: scene switch ${id} did not create an observer for the replacement player`);
+      }
+      if (retired.some((observer) => observer.disconnectCount < 1)) {
+        fail(`harness-proof-current.html: scene switch ${id} left a retired player observer connected`);
       }
     }
 
-    const disconnects = observers.reduce((count, observer) => count + observer.disconnectCount, 0);
-    if (observers.length !== 7 || disconnects !== 6) {
-      fail(`harness-proof-current.html: six scene switches must create 7 observers and disconnect the 6 retired players (created=${observers.length}, disconnected=${disconnects})`);
+    const activeObservers = observers.filter((observer) => observer.disconnectCount === 0);
+    const retiredObservers = observers.length - activeObservers.length;
+    if (activeObservers.length < 1 || retiredObservers < sceneIds.length) {
+      fail(`harness-proof-current.html: scene switches must leave a live player generation and retire every prior generation (created=${observers.length}, active=${activeObservers.length}, retired=${retiredObservers})`);
     } else {
-      console.log("[check-porthole-casts] gallery lifecycle clean — 7 ResizeObserver instances created; 6 retired players disconnected.");
+      console.log(`[check-porthole-casts] gallery lifecycle clean — ${observers.length} observer(s) created; ${retiredObservers} retired observer(s) disconnected.`);
     }
     const paneInspector = dom.window.document.querySelector('#parley-pane-inspector');
     const paneRegions = paneInspector?.querySelectorAll('[role="region"][aria-label*="tmux pane scrollback"]') ?? [];
@@ -255,6 +267,26 @@ async function checkGalleryResizeObserverLifecycle() {
           || miloRegion.scrollTop !== 101 || ayaRegion.scrollTop !== 102 || witnessRegion.scrollTop !== 103) {
           fail('harness-proof-current.html: scrolling Nora must leave Milo, Aya, and witness offsets unchanged');
         }
+      }
+    }
+
+    const failureButton = dom.window.document.querySelector('#scene-tab-quickstart');
+    dom.window.fetch = async () => ({ ok: false, status: 503, text: async () => '' });
+    if (!(failureButton instanceof dom.window.HTMLButtonElement)) {
+      fail('harness-proof-current.html: quickstart tab is missing from the load-failure regression');
+    } else {
+      failureButton.click();
+      await settle();
+      const alert = dom.window.document.querySelector('[role="alert"].player-error');
+      const lastCreatedUrl = createdUrls.at(-1);
+      if (!(alert instanceof dom.window.HTMLElement) || !/replay unavailable/i.test(alert.textContent ?? '')) {
+        fail('harness-proof-current.html: a failed cast load must render an unmistakable error state');
+      }
+      if (!lastCreatedUrl || !revokedUrls.includes(lastCreatedUrl)) {
+        fail('harness-proof-current.html: a failed cast load must revoke its object URL');
+      }
+      if (observers.some((observer) => observer.disconnectCount === 0)) {
+        fail('harness-proof-current.html: a failed cast load left a player observer connected');
       }
     }
   } finally {

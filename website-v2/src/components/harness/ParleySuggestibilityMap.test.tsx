@@ -54,4 +54,20 @@ describe('ParleySuggestibilityMap', () => {
     expect(parleyEvidence.sourceTurnCount - parleyEvidence.displayedTurnCount).toBe(parleyEvidence.withheldTurnCount)
     expect(parleyEvidence.turns).toHaveLength(parleyEvidence.displayedTurnCount)
   })
+
+  it('refuses malformed evidence instead of inventing an unknown participant', () => {
+    const firstTurn = parleyEvidence.turns[0]
+    const originalParty = firstTurn.party
+    firstTurn.party = 'agent-not-in-the-evidence-record'
+
+    try {
+      render(<ParleySuggestibilityMap />)
+
+      expect(screen.getByRole('alert').textContent).toContain('unknown participant')
+      expect(screen.getByRole('alert').textContent).toContain('agent-not-in-the-evidence-record')
+      expect(screen.queryByRole('list', { name: 'Chronological shared-read Parley turns' })).toBeNull()
+    } finally {
+      firstTurn.party = originalParty
+    }
+  })
 })

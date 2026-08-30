@@ -93,10 +93,8 @@ function ParticipantGlyph({ participant }: { participant: Participant }) {
   )
 }
 
-function participantFor(id: string): Participant {
-  const participant = proof.participants.find((candidate) => candidate.id === id)
-  if (!participant) throw new Error(`Unknown Parley participant: ${id}`)
-  return participant
+function participantFor(id: string): Participant | undefined {
+  return proof.participants.find((candidate) => candidate.id === id)
 }
 
 /**
@@ -109,6 +107,30 @@ function participantFor(id: string): Participant {
  */
 export function ParleySuggestibilityMap() {
   const turns = [...proof.turns].sort((a, b) => a.sequence - b.sequence)
+  const unknownParty = [...turns.map((turn) => turn.party), ...proof.receipts.map((receipt) => receipt.party)]
+    .find((party) => !participantFor(party))
+
+  if (unknownParty) {
+    return (
+      <section aria-labelledby="parley-suggestibility-title" id="parley-suggestibility">
+        <SurfacePanel elevation="raised" padding="default">
+          <div
+            role="alert"
+            className="border-2 border-[var(--status-error)] bg-[color-mix(in_srgb,var(--status-error)_10%,var(--surface-raised))] p-[var(--space-4)] text-[var(--status-error)]"
+          >
+            <PanelEyebrow>Evidence refused</PanelEyebrow>
+            <PanelTitle as="h2" size="card" className="mt-[var(--space-2)]" id="parley-suggestibility-title">
+              This Parley record names an unknown participant.
+            </PanelTitle>
+            <PanelBody size="compact" className="mt-[var(--space-2)] max-w-[52rem] text-inherit">
+              The projection stopped before rendering turns or receipts. Repair and re-verify the
+              participant record for <code>{unknownParty}</code>; Porthole will not invent an identity.
+            </PanelBody>
+          </div>
+        </SurfacePanel>
+      </section>
+    )
+  }
 
   return (
     <section aria-labelledby="parley-suggestibility-title" id="parley-suggestibility">
@@ -208,7 +230,7 @@ export function ParleySuggestibilityMap() {
 
           <ol className="grid gap-[var(--space-2)]" aria-label="Chronological shared-read Parley turns">
             {turns.map((turn) => {
-              const participant = participantFor(turn.party)
+              const participant = participantFor(turn.party)!
               const participantIndex = proof.participants.findIndex((candidate) => candidate.id === participant.id)
               return (
                 <li
@@ -275,7 +297,7 @@ export function ParleySuggestibilityMap() {
 
           <div className="grid gap-px border-2 border-[var(--border-strong)] bg-[var(--border-strong)]">
             {proof.receipts.map((receipt) => {
-              const participant = participantFor(receipt.party)
+              const participant = participantFor(receipt.party)!
               const caughtUp = receipt.unseenTurns === 0
               return (
                 <div key={receipt.party} className="flex flex-col items-start gap-[var(--space-2)] bg-[var(--surface-sunken)] p-[var(--space-3)] min-[360px]:flex-row min-[360px]:items-center min-[360px]:justify-between">

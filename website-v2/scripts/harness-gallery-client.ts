@@ -49,6 +49,7 @@ const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matc
 let active = 0;
 let player: PortholePlayer | null = null;
 let castUrl: string | null = null;
+let activationGeneration = 0;
 
 function text(id: string, value: string): void {
   const element = document.getElementById(id);
@@ -61,6 +62,7 @@ function setTheme(theme: 'light' | 'dark'): void {
 }
 
 async function activate(index: number): Promise<void> {
+  const generation = ++activationGeneration;
   active = (index + gallery.scenes.length) % gallery.scenes.length;
   const scene = gallery.scenes[active];
   for (const [buttonIndex, button] of [...tabs.querySelectorAll<HTMLButtonElement>('[role="tab"]')].entries()) {
@@ -89,12 +91,32 @@ async function activate(index: number): Promise<void> {
   player?.destroy();
   if (castUrl) URL.revokeObjectURL(castUrl);
   playerRoot.replaceChildren();
-  castUrl = URL.createObjectURL(new Blob([gallery.casts[scene.id]], { type: 'application/x-asciicast' }));
-  player = new PortholePlayer(playerRoot, { reducedMotion, autoplay: false });
-  await player.load(castUrl);
-  if (!reducedMotion) player.restart();
-  const title = playerRoot.querySelector<HTMLElement>('.ph-title b');
-  if (title) title.textContent = `pd · ${scene.station}`;
+  const nextCastUrl = URL.createObjectURL(new Blob([gallery.casts[scene.id]], { type: 'application/x-asciicast' }));
+  const nextPlayer = new PortholePlayer(playerRoot, { reducedMotion, autoplay: false });
+  castUrl = nextCastUrl;
+  player = nextPlayer;
+  try {
+    await nextPlayer.load(nextCastUrl);
+    if (generation !== activationGeneration || player !== nextPlayer) {
+      nextPlayer.destroy();
+      URL.revokeObjectURL(nextCastUrl);
+      return;
+    }
+    if (!reducedMotion) nextPlayer.restart();
+    const title = playerRoot.querySelector<HTMLElement>('.ph-title b');
+    if (title) title.textContent = `pd · ${scene.station}`;
+  } catch (error) {
+    nextPlayer.destroy();
+    URL.revokeObjectURL(nextCastUrl);
+    if (generation !== activationGeneration || player !== nextPlayer) return;
+    player = null;
+    castUrl = null;
+    const failure = document.createElement('p');
+    failure.className = 'player-error';
+    failure.role = 'alert';
+    failure.textContent = `Replay unavailable: ${error instanceof Error ? error.message : 'cast load failed'}`;
+    playerRoot.replaceChildren(failure);
+  }
 }
 
 for (const [index, scene] of gallery.scenes.entries()) {
