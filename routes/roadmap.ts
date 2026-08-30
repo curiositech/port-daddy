@@ -33,12 +33,23 @@
  *                                          is given
  *   POST   /roadmap/reindex-search       — backfill/refresh the search index
  *                                          from the live roadmap_items table
+ *   GET    /roadmap/jira                 — source-labelled, read-only Jira
+ *                                          Cloud project projection; independent
+ *                                          of local roadmap availability
  */
 
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import { createRoadmapSearch, type RoadmapSearch } from '../lib/roadmap-search.js';
 import type { SemanticResolver } from '../lib/semantic-resolver.js';
 import { exportRoadmapItem, RoadmapExportError, type ExportConfig, type ExportTarget, type ExportFetch } from '../lib/roadmap-export.js';
+import { getSecret } from '../lib/secret-env.js';
+import {
+  jiraConfigFromSecrets,
+  jiraRoadmapReader,
+  JiraRoadmapError,
+  type JiraRoadmapReader,
+  type JiraSecretReader,
+} from '../lib/roadmap-jira.js';
 import type {
   RoadmapItems,
   RoadmapKind,
@@ -76,6 +87,10 @@ import { join } from 'node:path';
 interface RoadmapDeps {
   roadmapItems: RoadmapItems;
   roadmapPromote: RoadmapPromote;
+  /** Test/custom runtime injection; production reads the managed Keychain. */
+  jiraSecretReader?: JiraSecretReader;
+  /** Test/custom runtime injection; production uses the bounded cached reader. */
+  jiraReader?: JiraRoadmapReader;
 }
 
 interface UpsertBody {
@@ -310,6 +325,9 @@ export const roadmapPlugin: FastifyPluginAsync<{ deps: RoadmapDeps }> = async (f
   // the shared semantic resolver (to compute embeddings) — the same resolver
   // lib/whois.ts's phonebook cascade uses, not a second embedding pipeline.
   const semanticResolverDep = (opts.deps as { semanticResolver?: SemanticResolver }).semanticResolver;
+  const jiraSecretReader: JiraSecretReader = opts.deps.jiraSecretReader
+    ?? ((key) => getSecret(key));
+  const jiraReader = opts.deps.jiraReader ?? jiraRoadmapReader;
   const roadmapSearch: RoadmapSearch | undefined =
     db && semanticResolverDep
       ? createRoadmapSearch(db, { resolver: semanticResolverDep, logger: fastify.log })
@@ -557,13 +575,56 @@ export const roadmapPlugin: FastifyPluginAsync<{ deps: RoadmapDeps }> = async (f
     return { success: true, ...result, total: items.length };
   });
 
+  // GET /roadmap/jira — live, read-only Jira Cloud projection. This is kept
+  // separate from /roadmap/items so callers can display source authority and
+  // preserve local roadmap availability when Jira is unconfigured or down.
+  fastify.get('/roadmap/jira', async (_request: FastifyRequest, reply: FastifyReply) => {
+    let state;
+    try {
+      state = jiraConfigFromSecrets(jiraSecretReader);
+    } catch (error) {
+      reply.code(503);
+      return {
+        success: false,
+        source: 'jira',
+        configured: true,
+        error: error instanceof Error ? error.message : 'invalid Jira configuration',
+      };
+    }
+    if (!state.configured) {
+      return {
+        success: true,
+        source: 'jira',
+        configured: false,
+        missing: state.missing,
+        issues: [],
+      };
+    }
+    try {
+      const result = await jiraReader.read(state.config);
+      return { success: true, configured: true, ...result };
+    } catch (error) {
+      reply.code(502);
+      return {
+        success: false,
+        source: 'jira',
+        configured: true,
+        projectKey: state.config.projectKey,
+        error: error instanceof JiraRoadmapError || error instanceof Error
+          ? error.message
+          : 'Jira roadmap read failed',
+      };
+    }
+  });
+
   // POST /roadmap/items/:slug/export — push one roadmap item to an external
   // tracker (lib/roadmap-export.ts). One-way, repeatable-but-not-idempotent
   // (see that module's docblock for why); on success, records a typed `issue`
   // link on the card (lib/planner-edges.ts) so the two records stay
   // associated for later reads. Credentials NEVER come from the request body
-  // — only from server-side env vars — so a client can pick the target and
-  // repo/project, never smuggle in someone else's token.
+  // — Jira's complete connection tuple comes from the managed Keychain, so a
+  // client can pick a target but never smuggle in someone else's credential or
+  // silently export to a different Jira site/project.
   fastify.post('/roadmap/items/:slug/export', async (request: FastifyRequest, reply: FastifyReply) => {
     const params = request.params as { slug?: string };
     const slug = params.slug;
@@ -600,13 +661,27 @@ export const roadmapPlugin: FastifyPluginAsync<{ deps: RoadmapDeps }> = async (f
       if (!teamId) { reply.code(400); return { success: false, error: "target 'linear' requires body.teamId" }; }
       config = { target: 'linear', teamId, token, fetchImpl };
     } else {
-      const email = process.env.PD_JIRA_EMAIL;
-      const apiToken = process.env.PD_JIRA_API_TOKEN;
-      const baseUrl = asString(body.baseUrl) ?? process.env.PD_ROADMAP_EXPORT_JIRA_BASE_URL;
-      const projectKey = asString(body.projectKey) ?? process.env.PD_ROADMAP_EXPORT_JIRA_PROJECT_KEY;
-      if (!email || !apiToken) { reply.code(503); return { success: false, error: 'PD_JIRA_EMAIL / PD_JIRA_API_TOKEN not configured' }; }
-      if (!baseUrl || !projectKey) { reply.code(400); return { success: false, error: "target 'jira' requires body.baseUrl and body.projectKey" }; }
-      config = { target: 'jira', baseUrl, projectKey, email, apiToken, issueType: asString(body.issueType), fetchImpl };
+      let jiraState;
+      try {
+        jiraState = jiraConfigFromSecrets(jiraSecretReader);
+      } catch (error) {
+        reply.code(503);
+        return { success: false, error: error instanceof Error ? error.message : 'invalid Jira configuration' };
+      }
+      if (!jiraState.configured) {
+        reply.code(503);
+        return {
+          success: false,
+          error: `Jira is not configured; set ${jiraState.missing.join(', ')} in FleetBar Credentials`,
+          missing: jiraState.missing,
+        };
+      }
+      config = {
+        target: 'jira',
+        ...jiraState.config,
+        issueType: asString(body.issueType),
+        fetchImpl,
+      };
     }
 
     try {

@@ -1055,6 +1055,44 @@ fn main() {
                                     }
                                 }
                             }
+                            // Responsive ledger row click: Claims and Planner
+                            // own their selection state in the producer thread.
+                            app::ControlMsg::LedgerSelect { surface, index } => {
+                                let result = match surface.as_str() {
+                                    "claims" => claims
+                                        .mutate(&client, SurfaceAction::SelectRow { index })
+                                        .await,
+                                    "planner" => roadmap
+                                        .mutate(&client, SurfaceAction::SelectRow { index })
+                                        .await,
+                                    _ => Err(anyhow::anyhow!("unknown ledger surface '{surface}'")),
+                                };
+                                if let Err(error) = result {
+                                    let _ = alert_tx.send(pane::Alert::error(
+                                        format!("{surface} selection failed"),
+                                        error.to_string(),
+                                    ));
+                                }
+                            }
+                            // Sort is local projection state; it never writes
+                            // daemon authority or changes the selected claim/item.
+                            app::ControlMsg::LedgerSort { surface, key } => {
+                                let result = match surface.as_str() {
+                                    "claims" => claims
+                                        .mutate(&client, SurfaceAction::Sort { key })
+                                        .await,
+                                    "planner" => roadmap
+                                        .mutate(&client, SurfaceAction::Sort { key })
+                                        .await,
+                                    _ => Err(anyhow::anyhow!("unknown ledger surface '{surface}'")),
+                                };
+                                if let Err(error) = result {
+                                    let _ = alert_tx.send(pane::Alert::error(
+                                        format!("{surface} sort failed"),
+                                        error.to_string(),
+                                    ));
+                                }
+                            }
                             // Harbor roster click: select a node (ch18 C3).
                             // Selection is a UI act; it never fails loudly.
                             app::ControlMsg::HarborSelect { index } => {

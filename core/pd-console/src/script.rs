@@ -196,6 +196,31 @@ pub fn block_to_json(block: &Block) -> Value {
         Block::Spark(values) => json!({"type": "spark", "values": values}),
         Block::Gap => json!({"type": "gap"}),
         Block::WrappedText { text, .. } => json!({"type": "text", "text": text}),
+        Block::LedgerHeader {
+            surface,
+            columns,
+            active_sort,
+            descending,
+        } => json!({
+            "type": "ledgerHeader",
+            "surface": surface,
+            "columns": columns.iter().map(|(key, label)| json!({"key": key, "label": label})).collect::<Vec<_>>(),
+            "activeSort": active_sort,
+            "descending": descending,
+        }),
+        Block::LedgerRow {
+            surface,
+            index,
+            selected,
+            cells,
+            ..
+        } => json!({
+            "type": "ledgerRow",
+            "surface": surface,
+            "index": index,
+            "selected": selected,
+            "cells": cells.iter().map(|(label, value)| json!({"label": label, "value": value})).collect::<Vec<_>>(),
+        }),
         Block::NodeRow {
             index,
             selected,

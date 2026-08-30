@@ -164,6 +164,17 @@ pub enum ControlMsg {
     HarborSelect {
         index: usize,
     },
+    /// Select a row in a responsive metadata ledger (Claims or Planner).
+    LedgerSelect {
+        surface: String,
+        index: usize,
+    },
+    /// Sort a responsive metadata ledger by one of the keys declared in its
+    /// LedgerHeader. This is local projection state, not daemon authority.
+    LedgerSort {
+        surface: String,
+        key: String,
+    },
     /// Issue a compliance-gated control verb against the Harbor's selected
     /// node. The pane re-checks its gate, then POSTs the F0 ControlCommand;
     /// the daemon is the sole authorizer. `argument` carries a steer message
@@ -1493,7 +1504,8 @@ pub(crate) fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement
         Block::Header(text) => div()
             .mx(px(16.0))
             .mt(px(12.0))
-            .h(px(38.0))
+            .min_h(px(38.0))
+            .py(px(8.0))
             .flex()
             .items_center()
             .border_b_1()
@@ -1504,6 +1516,8 @@ pub(crate) fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement
                     .text_color(rgb(t.muted))
                     .text_size(px(14.0))
                     .font_weight(FontWeight::BOLD)
+                    .max_w_full()
+                    .whitespace_normal()
                     .child(text.to_ascii_uppercase()),
             )
             .into_any_element(),
@@ -1544,8 +1558,10 @@ pub(crate) fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement
             } else {
                 div()
                     .flex()
+                    .flex_wrap()
                     .items_center()
-                    .h(px(38.0))
+                    .min_h(px(38.0))
+                    .py(px(6.0))
                     .mx(px(16.0))
                     .border_b_1()
                     .border_color(rgb(t.line))
@@ -1567,6 +1583,9 @@ pub(crate) fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement
                     )
                     .child(
                         div()
+                            .flex_1()
+                            .max_w_full()
+                            .whitespace_normal()
                             .text_color(rgb(t.ink))
                             .text_size(px(tokens::TEXT_BODY))
                             .font_family("IBM Plex Mono")
@@ -1577,9 +1596,11 @@ pub(crate) fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement
         }
         Block::Row(cells) => div()
             .flex()
+            .flex_wrap()
             .items_center()
             .gap(px(12.0))
             .mx(px(16.0))
+            .py(px(7.0))
             .min_h(px(48.0))
             .border_b_1()
             .border_color(rgb(t.line))
@@ -1604,11 +1625,106 @@ pub(crate) fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement
                     }))
                     .text_size(px(tokens::TEXT_BODY))
                     .font_family("IBM Plex Mono")
-                    .flex_shrink_0()
+                    .max_w_full()
+                    .whitespace_normal()
                     .when(i == 0, |s| s.min_w(px(22.0)).font_weight(FontWeight::BOLD))
                     .child(cell)
             }))
             .into_any_element(),
+        // Interactive panes route these through render_ledger_header/row below.
+        // This fallback keeps exported/static renderers truthful and responsive.
+        Block::LedgerHeader {
+            columns,
+            active_sort,
+            descending,
+            ..
+        } => div()
+            .flex()
+            .flex_wrap()
+            .gap(px(tokens::SPACE_1))
+            .mx(px(tokens::SPACE_3))
+            .my(px(tokens::SPACE_2))
+            .children(columns.into_iter().map(|(key, label)| {
+                let active = key == active_sort;
+                div()
+                    .px(px(tokens::SPACE_2))
+                    .py(px(tokens::SPACE_1))
+                    .border_1()
+                    .border_color(rgb(if active {
+                        current_theme().accent
+                    } else {
+                        current_theme().line
+                    }))
+                    .text_color(rgb(if active {
+                        current_theme().accent_ink
+                    } else {
+                        current_theme().muted
+                    }))
+                    .text_size(px(tokens::TEXT_CAPTION))
+                    .font_weight(FontWeight::SEMIBOLD)
+                    .child(if active {
+                        format!("{label} {}", if descending { "↓" } else { "↑" })
+                    } else {
+                        label
+                    })
+            }))
+            .into_any_element(),
+        Block::LedgerRow {
+            selected,
+            cells,
+            tone,
+            ..
+        } => {
+            let color = tone_rgb(&tone);
+            div()
+                .flex()
+                .flex_wrap()
+                .items_start()
+                .gap(px(tokens::SPACE_2))
+                .mx(px(tokens::SPACE_3))
+                .my(px(2.0))
+                .px(px(tokens::SPACE_2))
+                .py(px(tokens::SPACE_2))
+                .border_1()
+                .border_color(rgb(if selected { t.accent } else { t.line }))
+                .when(selected, |row| row.border_l_2().bg(rgb(t.raised)))
+                .child(
+                    div()
+                        .w(px(3.0))
+                        .min_h(px(34.0))
+                        .flex_shrink_0()
+                        .bg(rgb(color)),
+                )
+                .children(cells.into_iter().map(|(label, value)| {
+                    div()
+                        .w(px(if label == "path" || label == "purpose" {
+                            300.0
+                        } else {
+                            180.0
+                        }))
+                        .max_w_full()
+                        .flex_shrink_0()
+                        .flex()
+                        .flex_col()
+                        .gap(px(2.0))
+                        .child(
+                            div()
+                                .text_color(rgb(current_theme().muted))
+                                .text_size(px(11.0))
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .child(label.to_ascii_uppercase()),
+                        )
+                        .child(
+                            div()
+                                .text_color(rgb(current_theme().ink))
+                                .text_size(px(tokens::TEXT_BODY))
+                                .font_family("IBM Plex Mono")
+                                .whitespace_normal()
+                                .child(value),
+                        )
+                }))
+                .into_any_element()
+        }
         Block::ChatTurn {
             speaker,
             text,
@@ -1890,6 +2006,8 @@ pub(crate) fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement
                 .font_family("IBM Plex Mono")
                 .text_size(px(tokens::TEXT_CAPTION))
                 .font_weight(FontWeight::BOLD)
+                .max_w_full()
+                .whitespace_normal()
                 .child(label);
             el.style().align_self = Some(gpui::AlignItems::Start);
             el.into_any_element()
@@ -1958,6 +2076,7 @@ pub(crate) fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement
             // Full, wrapping, never-truncated — the operator reads it all.
             let color = tone_rgb(&tone);
             div()
+                .max_w_full()
                 .mx(px(tokens::SPACE_3))
                 .my(px(tokens::SPACE_1))
                 .px(px(tokens::SPACE_3))
@@ -1968,6 +2087,7 @@ pub(crate) fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement
                 .text_color(rgb(color))
                 .text_size(px(tokens::TEXT_BODY))
                 .font_family("IBM Plex Mono")
+                .whitespace_normal()
                 .child(text)
                 .into_any_element()
         }
@@ -5079,6 +5199,12 @@ impl ConsoleView {
                                 continue;
                             }
                             b = match blk {
+                                blk @ Block::LedgerHeader { .. } => {
+                                    b.child(render_ledger_header(id, blk, cx))
+                                }
+                                blk @ Block::LedgerRow { .. } => {
+                                    b.child(render_ledger_row(id, blk, cx))
+                                }
                                 blk @ Block::NodeRow { .. } => {
                                     b.child(render_harbor_node_row(id, blk, cx))
                                 }
@@ -7155,6 +7281,162 @@ fn pane_ctrl(
             }
             cx.notify();
         }))
+}
+
+/// Sort controls for a responsive metadata ledger. Controls wrap as a group;
+/// they never force the pane to scroll sideways or hide a sort key.
+fn render_ledger_header(
+    id: PaneId,
+    block: Block,
+    cx: &mut Context<ConsoleView>,
+) -> impl IntoElement {
+    let Block::LedgerHeader {
+        surface,
+        columns,
+        active_sort,
+        descending,
+    } = block
+    else {
+        unreachable!("render_ledger_header called with a non-LedgerHeader block");
+    };
+    let t = current_theme();
+    div()
+        .flex()
+        .flex_wrap()
+        .items_center()
+        .gap(px(tokens::SPACE_1))
+        .mx(px(tokens::SPACE_3))
+        .my(px(tokens::SPACE_2))
+        .children(columns.into_iter().map(|(key, label)| {
+            let active = key == active_sort;
+            let surface = surface.clone();
+            let key_for_click = key.clone();
+            div()
+                .id(SharedString::from(format!(
+                    "ledger-sort-{id}-{surface}-{key}"
+                )))
+                .px(px(tokens::SPACE_2))
+                .py(px(tokens::SPACE_1))
+                .border_1()
+                .border_color(rgb(if active { t.accent } else { t.line }))
+                .bg(rgb(if active { t.raised } else { t.panel }))
+                .text_color(rgb(if active { t.accent_ink } else { t.muted }))
+                .text_size(px(tokens::TEXT_CAPTION))
+                .font_weight(FontWeight::SEMIBOLD)
+                .cursor_pointer()
+                .hover(|button| {
+                    button
+                        .border_color(rgb(current_theme().accent))
+                        .bg(rgb(current_theme().raised))
+                })
+                .on_click(cx.listener(move |this, _event, _window, cx| {
+                    this.ws_mut().focus(id);
+                    if let Some(tx) = &this.control_tx {
+                        let _ = tx.send(ControlMsg::LedgerSort {
+                            surface: surface.clone(),
+                            key: key_for_click.clone(),
+                        });
+                    }
+                    cx.notify();
+                }))
+                .child(if active {
+                    format!("{label} {}", if descending { "↓" } else { "↑" })
+                } else {
+                    label
+                })
+        }))
+}
+
+/// One responsive ledger row. Every cell keeps its full value and carries its
+/// own label, so wrapping preserves meaning when columns collapse vertically.
+fn render_ledger_row(id: PaneId, block: Block, cx: &mut Context<ConsoleView>) -> impl IntoElement {
+    let Block::LedgerRow {
+        surface,
+        index,
+        selected,
+        cells,
+        tone,
+    } = block
+    else {
+        unreachable!("render_ledger_row called with a non-LedgerRow block");
+    };
+    let t = current_theme();
+    let color = tone_rgb(&tone);
+    let surface_for_click = surface.clone();
+    let row = div()
+        .id(SharedString::from(format!(
+            "ledger-row-{id}-{surface}-{index}"
+        )))
+        .flex()
+        .flex_wrap()
+        .items_start()
+        .gap(px(tokens::SPACE_2))
+        .mx(px(tokens::SPACE_3))
+        .my(px(2.0))
+        .px(px(tokens::SPACE_2))
+        .py(px(tokens::SPACE_2))
+        .border_1()
+        .border_color(rgb(if selected { t.accent } else { t.line }))
+        .bg(rgb(if selected { t.raised } else { t.panel }))
+        .when(selected, |row| row.border_l_2())
+        .when(!surface.is_empty(), |row| {
+            row.cursor_pointer().hover(|hovered| {
+                hovered
+                    .border_color(rgb(current_theme().accent))
+                    .bg(rgb(current_theme().raised))
+            })
+        })
+        .child(
+            div()
+                .w(px(3.0))
+                .min_h(px(34.0))
+                .flex_shrink_0()
+                .bg(rgb(color)),
+        )
+        .children(cells.into_iter().map(|(label, value)| {
+            div()
+                .w(px(
+                    if label == "path" || label == "purpose" || label == "summary" {
+                        300.0
+                    } else {
+                        180.0
+                    },
+                ))
+                .max_w_full()
+                .flex_shrink_0()
+                .flex()
+                .flex_col()
+                .gap(px(2.0))
+                .child(
+                    div()
+                        .text_color(rgb(current_theme().muted))
+                        .text_size(px(11.0))
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .child(label.to_ascii_uppercase()),
+                )
+                .child(
+                    div()
+                        .text_color(rgb(current_theme().ink))
+                        .text_size(px(tokens::TEXT_BODY))
+                        .font_family("IBM Plex Mono")
+                        .whitespace_normal()
+                        .child(value),
+                )
+        }));
+    if surface.is_empty() {
+        row
+    } else {
+        row.on_click(cx.listener(move |this, _event, _window, cx| {
+            this.ws_mut().focus(id);
+            if let Some(tx) = &this.control_tx {
+                let _ = tx.send(ControlMsg::LedgerSelect {
+                    surface: surface_for_click.clone(),
+                    index,
+                });
+            }
+            cx.notify();
+        }))
+    }
 }
 
 /// One clickable FileTree row. Activating a **file** focuses this pane and swaps

@@ -247,6 +247,71 @@ fn label_w(label: &str, scale: usize) -> usize {
     (label.chars().count().max(1) * GLYPH_ADV * scale) + 16
 }
 
+fn raster_chunks_at_scale(text: &str, width_px: usize, scale: usize) -> Vec<String> {
+    let max_chars = (width_px / (GLYPH_ADV * scale.max(1))).max(1);
+    let mut lines = Vec::new();
+    let mut line = String::new();
+    for ch in text.chars() {
+        if ch == '\u{200b}' {
+            continue;
+        }
+        if ch == '\n' || line.chars().count() >= max_chars {
+            lines.push(std::mem::take(&mut line));
+            if ch == '\n' {
+                continue;
+            }
+        }
+        line.push(ch);
+    }
+    if !line.is_empty() || lines.is_empty() {
+        lines.push(line);
+    }
+    lines
+}
+
+fn raster_chunks(text: &str, width_px: usize) -> Vec<String> {
+    raster_chunks_at_scale(text, width_px, 1)
+}
+
+fn header_height(text: &str, inner: usize) -> usize {
+    16 + raster_chunks_at_scale(text, inner.saturating_sub(28), 2).len() * 16
+}
+
+fn row_height(cells: &[String], inner: usize) -> usize {
+    let cell_width = inner / cells.len().max(1);
+    let line_count = cells
+        .iter()
+        .map(|cell| raster_chunks_at_scale(cell, cell_width.saturating_sub(16), 2).len())
+        .max()
+        .unwrap_or(1);
+    16 + line_count * 16
+}
+
+fn chip_height(label: &str, inner: usize) -> usize {
+    (10 + raster_chunks_at_scale(label, inner.saturating_sub(16), 2).len() * 16).max(ROW_H)
+}
+
+fn keyval_height(key: &str, value: &str, inner: usize) -> usize {
+    let column_width = inner / 2;
+    let lines = raster_chunks_at_scale(key, column_width.saturating_sub(20), 2)
+        .len()
+        .max(raster_chunks_at_scale(value, column_width.saturating_sub(20), 2).len());
+    (16 + lines * 16).max(ROW_H)
+}
+
+fn ledger_row_height(cells: &[(String, String)], inner: usize) -> usize {
+    let value_width = inner.saturating_sub(24).max(GLYPH_ADV);
+    8 + cells
+        .iter()
+        .map(|(_, value)| 14 + raster_chunks(value, value_width).len() * 12)
+        .sum::<usize>()
+}
+
+fn wrapped_text_height(text: &str, inner: usize) -> usize {
+    let value_width = inner.saturating_sub(24).max(GLYPH_ADV);
+    16 + raster_chunks(text, value_width).len() * 12
+}
+
 /// Render a `Block` list to an offscreen [`Canvas`] using the real locked theme.
 /// Pure geometry + color here; text is overlaid by [`draw_text`]. This is the same
 /// primitive language the GPUI and ratatui faces consume — a faithful third face.
@@ -265,9 +330,15 @@ pub fn render_blocks(blocks: &[Block], t: &Theme, width: usize) -> Canvas {
     for b in blocks {
         h += match b {
             Block::Gap => ROW_H / 2,
-            Block::Header(_) => ROW_H + 8,
+            Block::Header(text) => header_height(text, inner) + 8,
+            Block::Row(cells) => row_height(cells, inner),
+            Block::Chip { label, .. } => chip_height(label, inner),
+            Block::KeyVal(key, value) => keyval_height(key, value, inner),
             Block::Spark(_) => ROW_H + 20,
-            Block::WrappedText { .. } | Block::ChatTurn { .. } => ROW_H + 18,
+            Block::WrappedText { text, .. } => wrapped_text_height(text, inner),
+            Block::ChatTurn { .. } => ROW_H + 18,
+            Block::LedgerHeader { columns, .. } => columns.len().max(1) * 22,
+            Block::LedgerRow { cells, .. } => ledger_row_height(cells, inner),
             Block::NodeRow { .. } => ROW_H + 8,
             Block::CodeBuffer { lines, .. } => {
                 let visible = lines.len().min(500);
@@ -293,32 +364,124 @@ pub fn render_blocks(blocks: &[Block], t: &Theme, width: usize) -> Canvas {
                 y += ROW_H / 2;
             }
             Block::Header(s) => {
-                c.fill_rect(x0, y, inner, ROW_H, panel);
-                c.fill_rect(x0, y, 5, ROW_H, accent); // accent tick
-                draw_text(&mut c, x0 + 14, y + 8, 2, s, ink);
-                y += ROW_H + 8;
+                let height = header_height(s, inner);
+                c.fill_rect(x0, y, inner, height, panel);
+                c.fill_rect(x0, y, 5, height, accent); // accent tick
+                for (line_index, line) in raster_chunks_at_scale(s, inner.saturating_sub(28), 2)
+                    .iter()
+                    .enumerate()
+                {
+                    draw_text(&mut c, x0 + 14, y + 8 + line_index * 16, 2, line, ink);
+                }
+                y += height + 8;
             }
             Block::KeyVal(k, v) => {
-                c.fill_rect(x0, y, inner, ROW_H, panel);
-                draw_text(&mut c, x0 + 10, y + 9, 2, k, muted);
-                draw_text(&mut c, x0 + inner / 2, y + 9, 2, v, ink);
-                y += ROW_H;
+                let height = keyval_height(k, v, inner);
+                c.fill_rect(x0, y, inner, height, panel);
+                for (line_index, line) in
+                    raster_chunks_at_scale(k, (inner / 2).saturating_sub(20), 2)
+                        .iter()
+                        .enumerate()
+                {
+                    draw_text(&mut c, x0 + 10, y + 9 + line_index * 16, 2, line, muted);
+                }
+                for (line_index, line) in
+                    raster_chunks_at_scale(v, (inner / 2).saturating_sub(20), 2)
+                        .iter()
+                        .enumerate()
+                {
+                    draw_text(
+                        &mut c,
+                        x0 + inner / 2,
+                        y + 9 + line_index * 16,
+                        2,
+                        line,
+                        ink,
+                    );
+                }
+                y += height;
             }
             Block::Row(cells) => {
-                c.fill_rect(x0, y, inner, ROW_H, panel);
+                let height = row_height(cells, inner);
+                c.fill_rect(x0, y, inner, height, panel);
                 let n = cells.len().max(1);
                 let cw = inner / n;
                 for (i, cell) in cells.iter().enumerate() {
                     let cx = x0 + i * cw;
                     if i > 0 {
-                        c.fill_rect(cx, y + 4, 1, ROW_H - 8, muted); // separator
+                        c.fill_rect(cx, y + 4, 1, height - 8, muted); // separator
                     }
                     // First column is the accent/label column in the GPUI + TUI
                     // renderers; keep it brighter here so emphasis reads the same.
                     let col = if i == 0 { ink } else { ink2 };
-                    draw_text(&mut c, cx + 8, y + 9, 2, cell, col);
+                    for (line_index, line) in raster_chunks_at_scale(cell, cw.saturating_sub(16), 2)
+                        .iter()
+                        .enumerate()
+                    {
+                        draw_text(&mut c, cx + 8, y + 9 + line_index * 16, 2, line, col);
+                    }
                 }
-                y += ROW_H;
+                y += height;
+            }
+            Block::LedgerHeader {
+                columns,
+                active_sort,
+                descending,
+                ..
+            } => {
+                for (key, label) in columns {
+                    let active = key == active_sort;
+                    c.fill_rect(x0, y, inner, 20, if active { raised } else { panel });
+                    if active {
+                        c.fill_rect(x0, y, 4, 20, accent);
+                    }
+                    let text = if active {
+                        format!("{label} {}", if *descending { "v" } else { "^" })
+                    } else {
+                        label.clone()
+                    };
+                    draw_text(
+                        &mut c,
+                        x0 + 10,
+                        y + 6,
+                        1,
+                        &text,
+                        if active { accent } else { muted },
+                    );
+                    y += 22;
+                }
+            }
+            Block::LedgerRow {
+                selected,
+                cells,
+                tone,
+                ..
+            } => {
+                let height = ledger_row_height(cells, inner);
+                c.fill_rect(x0, y, inner, height, if *selected { raised } else { panel });
+                c.fill_rect(x0, y, 4, height, tone_rgb(*tone, t));
+                if *selected {
+                    c.stroke_rect(x0, y, inner, height, accent);
+                }
+                let mut cell_y = y + 6;
+                let value_width = inner.saturating_sub(24).max(GLYPH_ADV);
+                for (label, value) in cells {
+                    draw_text(
+                        &mut c,
+                        x0 + 12,
+                        cell_y,
+                        1,
+                        &label.to_ascii_uppercase(),
+                        muted,
+                    );
+                    cell_y += 12;
+                    for line in raster_chunks(value, value_width) {
+                        draw_text(&mut c, x0 + 12, cell_y, 1, &line, ink);
+                        cell_y += 12;
+                    }
+                    cell_y += 2;
+                }
+                y += height;
             }
             Block::CodeBuffer {
                 lines,
@@ -388,10 +551,16 @@ pub fn render_blocks(blocks: &[Block], t: &Theme, width: usize) -> Canvas {
             }
             Block::Chip { label, tone } => {
                 let col = tone_rgb(*tone, t);
+                let height = chip_height(label, inner);
                 let w = label_w(label, 2).min(inner);
-                c.fill_rect(x0, y + 4, w, ROW_H - 10, col);
-                draw_text(&mut c, x0 + 8, y + 9, 2, label, bg);
-                y += ROW_H;
+                c.fill_rect(x0, y + 4, w, height - 10, col);
+                for (line_index, line) in raster_chunks_at_scale(label, inner.saturating_sub(16), 2)
+                    .iter()
+                    .enumerate()
+                {
+                    draw_text(&mut c, x0 + 8, y + 9 + line_index * 16, 2, line, bg);
+                }
+                y += height;
             }
             Block::Flag {
                 letter,
@@ -518,10 +687,16 @@ pub fn render_blocks(blocks: &[Block], t: &Theme, width: usize) -> Canvas {
                 y += ROW_H + 18;
             }
             Block::WrappedText { text, tone } => {
-                c.fill_rect(x0, y, inner, ROW_H + 14, panel);
-                c.fill_rect(x0, y, 4, ROW_H + 14, tone_rgb(*tone, t));
-                draw_text(&mut c, x0 + 12, y + 10, 1, text, ink2);
-                y += ROW_H + 18;
+                let height = wrapped_text_height(text, inner);
+                c.fill_rect(x0, y, inner, height - 4, panel);
+                c.fill_rect(x0, y, 4, height - 4, tone_rgb(*tone, t));
+                let value_width = inner.saturating_sub(24).max(GLYPH_ADV);
+                let mut line_y = y + 8;
+                for line in raster_chunks(text, value_width) {
+                    draw_text(&mut c, x0 + 12, line_y, 1, &line, ink2);
+                    line_y += 12;
+                }
+                y += height;
             }
             Block::TranscriptLine { text, tone } => {
                 c.fill_rect(x0, y, inner, ROW_H, panel);
@@ -1115,6 +1290,132 @@ mod geom_tests {
             .filter(|&(x, y)| c.pixel(x, y) != bg)
             .count();
         assert!(painted > 500, "too few painted pixels: {painted}");
+    }
+
+    #[test]
+    fn narrow_ledger_canvas_expands_vertically_and_preserves_visible_text() {
+        let value = "/Users/erichowens/coding/tmp/port-daddy-dispatch-2593fc6c/core/pd-console/src/claims_pane.rs::ClaimsPane::refresh";
+        let cells = vec![("path".into(), value.into())];
+        let width = 180;
+        let inner = width - PAD * 2;
+        let chunks = raster_chunks(value, inner.saturating_sub(24));
+        assert_eq!(chunks.concat(), value, "raster wrapping must be lossless");
+        assert!(chunks.len() > 1, "test must exercise narrow wrapping");
+
+        let expected_row_height = ledger_row_height(&cells, inner);
+        assert!(
+            expected_row_height > ROW_H,
+            "long identity must expand the row rather than clip"
+        );
+        let canvas = render_blocks(
+            &[Block::LedgerRow {
+                surface: "claims".into(),
+                index: 0,
+                selected: true,
+                cells,
+                tone: Tone::Engaged,
+            }],
+            &DARK,
+            width,
+        );
+        assert_eq!(canvas.w, width);
+        assert_eq!(
+            canvas.h,
+            HEADER_H + PAD + expected_row_height + FOOTER_H + PAD,
+            "canvas height must reserve every wrapped line"
+        );
+    }
+
+    #[test]
+    fn narrow_inspector_canvas_expands_vertically_for_every_visible_line() {
+        let value = "FILE\n/Users/erichowens/coding/tmp/port-daddy-dispatch-2593fc6c/core/pd-console/src/claims_pane.rs::ClaimsPane::refresh";
+        let width = 180;
+        let inner = width - PAD * 2;
+        let chunks = raster_chunks(value, inner.saturating_sub(24));
+        assert_eq!(chunks.concat(), value.replace('\n', ""));
+        let expected_height = wrapped_text_height(value, inner);
+        assert!(expected_height > ROW_H + 18);
+
+        let canvas = render_blocks(
+            &[Block::WrappedText {
+                text: value.into(),
+                tone: Tone::Engaged,
+            }],
+            &DARK,
+            width,
+        );
+        assert_eq!(
+            canvas.h,
+            HEADER_H + PAD + expected_height + FOOTER_H + PAD,
+            "canvas height must reserve every inspector line"
+        );
+    }
+
+    #[test]
+    fn narrow_generic_header_and_row_wrap_losslessly_without_cell_collision() {
+        let header = "Gantt critical path with a complete source-labelled planning summary";
+        let cells = vec![
+            "fail-closed-signed-external-accountability".to_string(),
+            "........########################".to_string(),
+            "estimate 13 critical date anchored".to_string(),
+        ];
+        let width = 180;
+        let inner = width - PAD * 2;
+        let header_chunks = raster_chunks_at_scale(header, inner.saturating_sub(28), 2);
+        assert_eq!(header_chunks.concat(), header);
+        assert!(header_chunks.len() > 1);
+        for cell in &cells {
+            let chunks = raster_chunks_at_scale(cell, (inner / cells.len()).saturating_sub(16), 2);
+            assert_eq!(chunks.concat(), *cell);
+        }
+
+        let expected_header = header_height(header, inner);
+        let expected_row = row_height(&cells, inner);
+        assert!(expected_header > ROW_H);
+        assert!(expected_row > ROW_H);
+        let canvas = render_blocks(
+            &[Block::Header(header.into()), Block::Row(cells)],
+            &DARK,
+            width,
+        );
+        assert_eq!(
+            canvas.h,
+            HEADER_H + PAD + expected_header + 8 + expected_row + FOOTER_H + PAD
+        );
+    }
+
+    #[test]
+    fn narrow_chip_expands_instead_of_clipping_status_metadata() {
+        let label = "PORT DADDY LOCAL AUTHORITY WITH FIVE HUNDRED NINETY ROADMAP ITEMS";
+        let width = 180;
+        let inner = width - PAD * 2;
+        let chunks = raster_chunks_at_scale(label, inner.saturating_sub(16), 2);
+        assert_eq!(chunks.concat(), label);
+        let expected_height = chip_height(label, inner);
+        assert!(expected_height > ROW_H);
+        let canvas = render_blocks(
+            &[Block::Chip {
+                label: label.into(),
+                tone: Tone::Accent,
+            }],
+            &DARK,
+            width,
+        );
+        assert_eq!(canvas.h, HEADER_H + PAD + expected_height + FOOTER_H + PAD);
+    }
+
+    #[test]
+    fn narrow_key_value_expands_for_a_complete_schedule_count() {
+        let key = "remaining";
+        let value = "+436 more scheduled task(s)";
+        let width = 180;
+        let inner = width - PAD * 2;
+        let value_chunks = raster_chunks_at_scale(value, (inner / 2).saturating_sub(20), 2);
+        assert_eq!(value_chunks.concat(), value);
+        let expected_height = keyval_height(key, value, inner);
+        assert!(expected_height > ROW_H);
+        let canvas = render_blocks(&[Block::KeyVal(key.into(), value.into())], &DARK, width);
+        assert_eq!(canvas.h, HEADER_H + PAD + expected_height + FOOTER_H + PAD);
     }
 
     #[test]

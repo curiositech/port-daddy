@@ -157,6 +157,25 @@ pub enum Block {
         text: String,
         tone: Tone,
     },
+    /// Sort controls for a responsive metadata ledger. `columns` is
+    /// `(sort_key, operator_label)`; renderers must wrap the controls at narrow
+    /// widths instead of clipping them or introducing horizontal scrolling.
+    LedgerHeader {
+        surface: String,
+        columns: Vec<(String, String)>,
+        active_sort: String,
+        descending: bool,
+    },
+    /// One selectable, responsive metadata row. Cells are `(label, full value)`
+    /// pairs so a wide surface reads like columns while a narrow surface wraps
+    /// into labelled fields without losing or truncating identity.
+    LedgerRow {
+        surface: String,
+        index: usize,
+        selected: bool,
+        cells: Vec<(String, String)>,
+        tone: Tone,
+    },
     /// A clickable roster row for a conjoined roster/detail surface (binder ch18
     /// work order C3). Selecting a row is a [`SurfaceAction::SelectRow`] — the
     /// operator never types an id. `live` marks daemon-proved liveness (heartbeat
@@ -505,6 +524,9 @@ pub enum SurfaceAction {
     /// roster/detail surface. Selection retargets the detail pane; it is a UI
     /// act, not a daemon control, so it needs no compliance gate.
     SelectRow { index: usize },
+    /// Sort a responsive ledger by one of its declared stable keys. Sorting is
+    /// local projection state; it never mutates daemon authority.
+    Sort { key: String },
     /// Issue a control verb against the surface's selected node — POSTs a
     /// ControlCommand (F0 `control-command.schema.json`) to the daemon, which is
     /// the sole authorizer (stale projections never authorize; ADR-0095 §3).
