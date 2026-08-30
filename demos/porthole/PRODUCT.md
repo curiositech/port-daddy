@@ -1,206 +1,372 @@
-# Porthole as a product — capture · test · share · embed
+# Porthole — privacy-safe evidence, continuity, and debugging for autonomous work
 
-*Brainstorm, 2026-08-19. Companion to PLAN.md (pipeline) and AUDIT-2026-08-18.md (why).
-Thesis: the thing we built to fix our own demos is a standalone developer product AND a
-portdaddy.dev growth loop. Same engine, four faces.*
+**Status:** product and architecture contract; delivery is phased below
 
-## 0. What it is in one sentence each
+**Updated:** 2026-08-29
 
-- **Capture**: one command records any terminal session (colors, timing, TUIs) to an open
-  format (asciicast) — `pd rec`.
-- **Test**: recorded sessions become golden-transcript CI tests — demos that *cannot rot*
-  because they ARE the tests — `pd rec test`.
-- **Share**: one command turns a recording into a hosted, scrubbable, copyable link —
-  `pd rec share` → `portdaddy.dev/p/<id>`.
-- **Embed**: a zero-dependency web component / React component renders any cast as real,
-  selectable DOM text — `<porthole-player src="…">`.
+**Current proof:** PR #9902 proves an honest terminal replay/gallery layer, not the complete product
 
-## 1. What capture actually covers (the operator's TUI question, answered)
+Porthole began as a better terminal recorder. That remains a useful wedge, but it is not the
+defensible center. PTY driving, terminal emulation, screenshots, and casts are engine capabilities.
+Porthole's product boundary is the evidence graph that explains an autonomous decision without
+turning the worker's terminal into an unbounded surveillance feed.
 
-A PTY recorder captures **every byte the program emits** — plain output, colors, spinners,
-progress bars, vim, htop, tmux, fzf, lazygit, all of it. Capture is never the problem.
-**Replay** is where programs differ, so Porthole has two replay modes, auto-detected:
+> **Click a decision. Reconstruct what the worker could see and do. Follow every cited omission and
+> receipt. Prove the privacy boundary. Branch from a verified checkpoint and compare the repair.**
 
-| Mode | Trigger | Behavior | Wrap? |
-|---|---|---|---|
-| **Transcript** | linear output (no alt-screen) | append-only scrollback, full history, per-line copy | wrappable (mobile auto-wrap) |
-| **Screen** | `ESC[?1049h` (alt-screen: vim/htop/fzf/tmux full-UI) | faithful fixed `cols×rows` grid, cursor-true, frame-stepped | **never** — wrapping a TUI is nonsense; scale font or pan instead |
+## 1. The product in one sentence
 
-A session that does both (shell → opens vim → quits → shell) renders as transcript blocks
-with an embedded screen block — Warp-style segmentation via OSC 133 marks where available,
-alt-screen enter/exit otherwise. tmux is just a program painting a grid: it replays fine in
-screen mode; we don't try to understand its panes, we just show what it drew.
+Porthole is the **privacy-safe evidence, continuity, and debugging layer for autonomous work**:
+it turns terminal, process, tool, context, and Port Daddy events into a correlated, searchable,
+selectively disclosed trace with receipts and controlled replay.
 
-## 2. The CLI surface (sugar first)
+The terminal player is the lens. Port Daddy's canonical event chain is the authority. Porthole's
+capture boundary, decision projection, privacy receipts, and branch comparison are the product.
 
+## 2. The killer demo
+
+The demo starts at a failed agent decision, not at a blank terminal.
+
+1. **Open the decision.** A review card says what the agent decided, when, and under which Port
+   Daddy identity, session, run, worktree, model, and authorization scope.
+2. **See the exact privacy-preserving screen.** The player reconstructs the terminal geometry,
+   cursor, styles, alt-screen state, and causal frame immediately before the decision. Cells covered
+   by privacy policy are visibly redacted; claiming persisted secret bytes and no secret storage at
+   the same time would be contradictory.
+3. **Follow the cause.** The selected frame joins to the command boundary, exit status, process
+   lineage, tool invocation, file/diff head, and external event that produced it.
+4. **Inspect continuity.** The decision cites the exact `ContextEnvelope`. If compaction occurred,
+   the viewer opens its `CompactionPacket`, sees which obligations and risks survived, and follows
+   any authorized `BufferedOutputRef` without pretending omitted bytes were loaded into context.
+5. **Verify the outcome.** A `WorkReceipt` binds intent, scope, risks, commands, tests, rollback,
+   spend, provenance, and relevant Porthole artifacts. A cast alone is never a receipt.
+6. **Prove privacy before persistence.** A one-use canary secret appears transiently in the test
+   terminal. The capture gateway records a pre-write redaction/drop decision, and an exhaustive
+   scan of the declared durable perimeter returns zero canary bytes. This claim is invalid if an
+   adapter wrote a raw cast or private log first.
+7. **Test the repair.** The reviewer starts a controlled successor from the last verified T5
+   pre-failure checkpoint. An isolated child receives one declared repair delta and a distinct
+   identity/run/receipt. Porthole compares original and child evidence without mutating history.
+
+The wow is not video playback. It is one click from a disputed decision to the smallest truthful
+evidence set that explains it, plus a safe way to test a counterfactual repair.
+
+## 3. Capability truth
+
+| State | Contract |
+|---|---|
+| **Proved by #9902** | faithful casts; selectable reconstructed text; semantic terminal styling; real tmux perspectives; literal timestamps and marked jump cuts; service identity/discovery proof; natural decision-receipt presentation; scene restart and observer teardown |
+| **Existing Port Daddy authority, consumed after exact join verification** | canonical `TranscriptEvent`, T0–T5 fidelity, `ContextEnvelope`, `CompactionPacket`, and `WorkReceipt` |
+| **Join-only from owning work** | Sugar Parley settlement and `BufferedOutputRef`; Porthole must cite exact merged commits, tests, receipts, and fresh recordings before depicting them |
+| **Proposed Porthole engineering** | structured terminal/process observations, pre-persistence screen-aware DLP, decision projection, evidence search, selective disclosure, deterministic TUI assertions, controlled execution branching, microVM/Wasm snapshot acceleration |
+
+No gallery scene may stage an unread turn, overflow, interactive compaction, privacy claim, or branch
+takeover before the corresponding contract is executable and independently verified.
+
+## 4. Architecture: engines below, Porthole above
+
+Porthole extends the existing Agent Harbor evidence chain. It does not create a second transcript,
+identity, context, receipt, or approval system.
+
+```text
+shell / TUI / agent runtime
+        │
+        ▼
+TerminalEvidenceAdapter       deterministic control + transient observation
+        │  normalized in-memory observations
+        ▼
+CaptureGateway                classify → minimize → redact/drop → authorize
+        │  sanitized observations only
+        ▼
+canonical TranscriptEvent     append-only sequence + hash chain + retention
+        │
+        ├──────────────┬────────────────┬──────────────────┐
+        ▼              ▼                ▼                  ▼
+screen artifacts   Port Daddy joins   search projection   T5 checkpoints
+        │              │                │                  │
+        └──────────────┴──────► AgentRun / WorkReceipt ◄───┘
+                               │
+                               ▼
+                         Porthole decision view
 ```
-pd rec                        # record this shell until ctrl-d; prints local file + preview URL
-pd rec -c "pd status"         # record one command, auto-stop
-pd rec --last                 # re-run & record the previous shell command (shell hook)
-pd rec play demo.cast         # replay in-terminal
-pd rec open demo.cast         # local player in browser (daemon serves it — no internet)
-pd rec share demo.cast        # upload → portdaddy.dev/p/<id> (see §4) — copies URL to clipboard
-pd rec gif demo.cast          # escape hatch: agg-rendered GIF for places that need pixels
-pd rec test [--update]        # run porthole.yml scenarios, diff transcripts (see §3)
+
+The canonical authority is the
+[`TranscriptEvent` persistence contract](../../docs/architecture/agent-harbor-technical-binder/work-packets/transcript-receipt-persistence-contract.md).
+Porthole proposes additive, schema-validated terminal observation payloads and an `AgentRun`
+projection over those events. It does not replace the event ledger.
+
+Minimum engine boundary:
+
+```ts
+interface TerminalEvidenceAdapter {
+  start(spec: SanitizedLaunchSpec): Promise<EngineSession>;
+  control(session: EngineSession, action: TerminalAction): Promise<ObservedEvent>;
+  observe(session: EngineSession): Promise<TransientTerminalSnapshot>;
+  exportTransient(session: EngineSession): Promise<TransientArtifactHandle[]>;
+  destroy(session: EngineSession): Promise<void>;
+}
+
+interface CaptureGateway {
+  redactAndCommit(
+    observations: AsyncIterable<TransientEvidenceObservation>,
+    correlation: PortDaddyCorrelation,
+  ): Promise<PortholeCommitReceipt>;
+}
 ```
 
-Defaults that make it bulletproof:
-- pinned `--window-size` (default 100×28) so no resize events ever corrupt replay;
-- **secret scrub before share**: regex + entropy scan of the reconstructed transcript
-  (`$HOME`, tokens, emails, IPs) → interactive redact list, `--yes-i-checked` to force;
-  input events are NEVER captured (no `-I`);
-- idle clamp 1.5s (honest `dtRaw` kept in the file);
-- non-TTY safe: `pd rec -c` works headless in CI;
-- degrades gracefully: if `asciinema` binary exists use it, else built-in PTY recorder —
-  zero required dependencies.
+`exportTransient` is not permission to persist raw evidence. The gateway owns the first durable
+write. Any adapter that automatically writes raw PTY traffic must use a verified ephemeral store
+that is destroyed before Porthole can make a no-secret-on-disk claim.
 
-## 3. Testing: demos that cannot rot
+## 5. Engine benchmark
 
-`porthole.yml` at repo root:
+The benchmark uses the current official upstream contracts.
 
-```yaml
-scenarios:
-  quickstart:
-    fixture: pd demo seed quickstart      # deterministic seeded harbor
-    run: [pd status, pd claim demo:api:main, pd release demo:api:main]
-    mask:
-      - /pid \d+/                          # normalize volatile output
-      - /up \d+[smh]/
-      - /:\d{4,5}/
-    require: ["DAEMON CONFIRMED", "released demo:api:main"]
-    forbid:  ["Unknown command", "✗", "ERROR", "/Users/"]
+| Engine | Useful adapter/reference surface | Not its authority |
+|---|---|---|
+| Microsoft [`tui-test`](https://github.com/microsoft/tui-test) | deterministic keyboard/mouse/resize/signal control; semantic waits and assertions; command boundaries, exit codes, cwd, cells, colors, cursor, and recordings; in-process Rust/Python/JavaScript APIs | Porthole privacy policy, evidence persistence, Port Daddy correlation, cited search, receipts, or branch authority |
+| Coder [`agent-tty`](https://github.com/coder/agent-tty) | append-only event-log and artifact/replay architecture; transient screenshot/video/cast production; CLI/JSON interoperability | structured command truth beyond its contract, pre-write DLP, Port Daddy continuity, signed receipts, semantic search, or controlled branching |
+
+`tui-test` currently labels its documentation beta during a major rewrite. `agent-tty` documents an
+event log as canonical truth and a bounded v1 scope. Pin experiments to exact versions/commits and
+keep an engine-neutral adapter conformance suite. See the upstream
+[`tui-test` recording contract](https://github.com/microsoft/tui-test#recording),
+[`agent-tty` architecture](https://github.com/coder/agent-tty/blob/main/design/ARCHITECTURE.md), and
+[`agent-tty` usage contract](https://github.com/coder/agent-tty/blob/main/docs/USAGE.md).
+
+Neither engine documents the complete pre-persistence privacy, Port Daddy join, receipt, search,
+or controlled-branch contract. Porthole must retain an in-house capture path whenever an adapter's
+own writes make strict privacy unprovable.
+
+## 6. Porthole's additive trace projection
+
+`TranscriptEvent` remains the append-only fact. Porthole adds sanitized screen/process payloads and
+one disposable decision-centered projection. The smallest proposed manifest is:
+
+```ts
+interface PortholeEvidenceManifestV0 {
+  schema: 'pd.porthole.evidence-manifest.v0';
+  traceId: string;
+  agentNodeId: string;
+  sessionId: string;
+  runId?: string;
+  transcriptId: string;
+  eventHead: { eventId: string; contentHash: string; sequence: number };
+  fidelity: 'T3' | 'T4' | 'T5';
+  decisions: Array<{
+    decisionId: string;
+    decisionEventId: string;
+    screenEventId?: string;
+    commandEventIds: string[];
+    processEventIds: string[];
+    contextEnvelopeRef?: string;
+    compactionPacketRef?: string;
+    bufferedOutputRefs: string[];
+    workReceiptRef?: string;
+  }>;
+  privacyReceiptRef: string;
+  parent?: {
+    traceId: string;
+    checkpointEventId: string;
+    parentHeadHash: string;
+    branchAuthorityReceiptRef: string;
+  };
+}
 ```
 
-`pd rec test` records each scenario in a PTY, reconstructs the **plain-text transcript**
-through the VT (so `\r`-spinners settle to their final frame — you diff what a human saw,
-not escape bytes), applies masks, and diffs against the committed golden. Failure emits a
-side-by-side HTML diff artifact. `--update` re-records goldens deliberately.
+The manifest stores references, not copied authority. Proposed observation payloads are carried by
+canonical events and must include:
 
-Consequences:
-- The committed goldens are **reviewable in PR diffs** — a demo change is a text diff.
-- The site's embeds are built from the same casts the tests just validated → **marketing
-  that auto-updates from test runs and fails CI instead of lying**. This retires every
-  failure mode in AUDIT-2026-08-18.md structurally, not procedurally.
-- It's also just… a great snapshot-testing tool for ANY CLI. That's the wedge (§5).
+- terminal byte range or sanitized artifact ref, terminal dimensions, emulator/renderer/version,
+  frame hash, cursor, alt-screen state, changed cell regions, and prior frame event;
+- command/tool start and finish IDs, argv after the same privacy gateway, exit/signal/outcome, cwd
+  identity, and artifact refs;
+- process start/finish, parent relation, executable identity, and allow-listed environment change
+  classes—never raw inherited environment values;
+- causal `parentEventIds`. Timestamps alone never establish causality;
+- omission count, reason, policy, authorization, expiry, and resolvable scoped reference when one is
+  permitted. “Not captured,” “redacted,” “omitted from context,” and “withheld from this viewer” are
+  distinct states;
+- media type, byte length, content hash, redaction state, retention policy, and disclosure policy
+  for every persisted artifact. Hashes of low-entropy secrets are not persisted.
 
-## 4. Share: the growth loop
+The projection can be deleted and rebuilt from canonical events. It never authorizes a command.
 
-`pd rec share` uploads the cast; portdaddy.dev renders it in the Porthole player on a
-capability URL (reuse ADR-0101 run-page infra — same pattern, new payload type).
+## 7. Port Daddy correlation and continuity
 
-- **Anonymous / no account**: first **30 seconds** play free, scrubbable; player then shows
-  "⚓ full 3m12s recording — free account" gate. 7-day retention, 512KB cast cap.
-- **Free account**: 5-minute casts, 50 stored, permanent links, unlisted/public, theme picker,
-  **README embed kit** (GitHub strips JS, so: auto-generated SVG poster of the payoff frame +
-  link — the poster is still real text in the SVG, and it links to the live player).
-- **Team (paid)**: private casts, org namespace, custom domain, retention controls, the CI
-  test runner reporting into PRs, and "living docs" — a named cast slot (`/p/acme/quickstart`)
-  that CI overwrites on every release so embedded docs are always current.
+Porthole consumes, rather than redefines, these authorities:
 
-Every shared porthole is a Port Daddy ad with a "recorded with pd rec" chrome line — the
-same loop VHS runs for Charm, but the artifact is *interactive and copyable*, which GIFs
-and even asciinema.org embeds aren't (no scrollback there).
+- Agent Node, body, session, run, harbor, worktree, claim, lock, and transcript-event IDs anchor
+  each observation;
+- [`ContextEnvelope`](../../docs/adr/0097-m6-context-memory-and-search-contracts.md) records what
+  was actually attached and the observed pressure boundary;
+- `CompactionPacket` carries cited obligations, facts, risks, decisions, commands, transcript head,
+  and next action into a successor;
+- `BufferedOutputRef` remains the W8/W12 capability-scoped output contract. Porthole stores only the
+  authorized reference/coverage relation, never a copied blob ID, preview, or output body;
+- `WorkReceipt` remains the reviewer-facing trust object. Porthole contributes event/artifact IDs,
+  privacy dispositions, and branch receipts but does not self-certify work;
+- Sugar/Parley appears naturally in the primary view, with raw protocol transcript and receipts as
+  drill-down evidence.
 
-## 5. Packaging / go-to-market
+ADR-0118's [harness adapter contract](../../docs/adr/0118-harness-adapter-contract.md) distinguishes
+native resume from sanitized successor handoff. Porthole must preserve that distinction: playback
+seeking is never execution time travel, and a hook-created packet does not itself launch a process.
 
-- `@portdaddy/porthole` (npm): the player as a **web component** (`<porthole-player>`) +
-  React wrapper; zero runtime deps; ~15KB gz target. MIT. The format stays asciicast —
-  we win on player + pipeline, not lock-in.
-- `porthole` brew formula = the recorder/test-runner (thin shim over `pd rec` so the tool
-  is usable without adopting the daemon — the daemon upsell comes from share/fixtures).
-- Launch narrative: **"Your CLI demos are lying to you"** — the audit is the blog post
-  (anonymized): fabricated terminals, 18-line amputations, errors on camera. Then: record →
-  test → share in 90 seconds, itself shown as a porthole. HN-shaped.
+## 8. Privacy is a storage architecture
 
-## 6. Edge cases we anticipate (bullet-proofing checklist)
+“Scrub before share” is too late. By then the secret may already exist in casts, debug logs, search
+indexes, thumbnails, backups, or engine-private event stores.
 
-wide chars/emoji (Unicode 11 widths, skip width-0 trailing cells) · OSC 8 links (render as
-real `<a>` — a thing GIFs literally cannot do) · huge outputs (cap lines with an honest
-"── 4,000 lines elided ──" marker; never silent) · `NO_COLOR`/plain runs (player themes
-still legible) · v2/v3 casts (both parsed) · reduced-motion (jump to final transcript) ·
-copy fidelity (trimRight, join soft-wrapped lines on copy) · CRLF/`\r` spinners (settle via
-VT) · seeking (idempotent line-snapshot replay) · self-host (single static HTML export —
-`pd rec export --html` produces exactly the file this prototype is).
+> **Classify and minimize before the first durable write.**
 
-## 7. Open questions for the operator
+The capture gateway emits only an allowed derivative. Its receipt records policy/version,
+adapter/version, input class, decision counts, changed/redacted cell counts, sanitized artifact
+hashes, dropped-field counts, destination classes, and the storage perimeter audited. It never
+records the rejected secret, a preview, or a guessable fingerprint of it.
 
-1. Name check: `pd rec` vs `pd porthole` as the command (sugar says `rec`; brand says porthole).
-2. Free-tier knobs (30s/5min/50 casts) — gut-check the numbers.
-3. Does share ship inside pd 3.29 as an experiment, or wait for the standalone `porthole` brew tap?
-4. Screen-mode (alt-screen TUI) player: v1 requirement or fast-follow? (Transcript mode
-   covers all current site demos; screen mode unlocks "record vim/tmux" virality.)
+The privacy acceptance test must prove:
 
-## 8. Theming & distribution norms (reskinning as a first-class feature)
+1. a generated canary was rendered transiently by the test workload;
+2. the gateway emitted a pre-persist redaction/drop disposition;
+3. no adapter-private persistent recorder or debug artifact was enabled;
+4. exhaustive scans of the event ledger, blob/archive roots, search index, frames, casts, receipts,
+   caches, crash artifacts, and exported bundle contain zero canary bytes;
+5. the stored screen contains explicit redaction cells/regions, not silently rewritten history;
+6. expiry/deletion removes authorized payloads and search projections while preserving only a
+   minimal non-sensitive tombstone needed by cited receipts.
 
-People WILL reskin this for their own sites; design for it with the headless + tokens + slots
-architecture the ecosystem converged on:
+Privacy and civil-liberties defaults:
 
-1. **Headless engine** (Radix/TanStack norm): `@portdaddy/porthole-core` = VT + transcript +
-   playback clock, framework-free; `usePorthole(cast)` hook exposes state (lines, time,
-   playing, wrapped) + actions (play, seek, setSpeed). Full-custom players build on the hook.
-2. **CSS custom properties are the public theming API**: every themable value is a documented
-   `--ph-*` token (`--ph-0..15`, `--ph-fg/bg`, `--ph-chrome`, `--ph-font`, `--ph-radius`)
-   scoped to the root; our dark/light palettes are just the default token sets. `theme` prop
-   takes a preset name, a token object, or `"faithful"` (the palette recorded in the cast
-   header — an honesty feature competitors can't copy). Prototype already proves this: the
-   ◐ toggle is a token swap, and a host page stamping `data-theme` drives every embed.
-3. **State as data attributes, structure as parts**: `data-playing/wrapped/theme/following`
-   on the root; `::part(titlebar|line|controls)` on the web component; `classNames` slot
-   object on the React wrapper. Internal class names stay private; tokens + data-attrs +
-   parts are the semver-stable styling contract.
-4. **Zero styling runtime**: one plain CSS file, skippable (`unstyled`); no CSS-in-JS, no
-   Tailwind requirement; ESM; SSR renders the final transcript as static markup (SEO +
-   no-JS fallback) and hydrates into the player; `<video>`-shaped imperative ref.
-5. **shadcn-model option**: publish the default skin as copy-paste registry source so teams
-   own their chrome while the engine stays an npm dependency that keeps updating.
+- local-first capture, encrypted opt-in sync, explicit sharing, scoped capabilities, and
+  organization-controlled keys;
+- separate participant, observer, reviewer, exporter, and branch-authority permissions;
+- no hidden keylogging, employee monitoring mode, model-private chain-of-thought collection, or
+  secondary training use;
+- visible recording state, notice/consent policy, bounded retention, selective disclosure, export,
+  deletion, and a participant-readable access log;
+- evidence queries and branch attempts are themselves auditable;
+- private agent/team perspectives stay private until a policy-authorized join. Shared run membership
+  does not silently grant omniscient access.
 
-Opinionated default skin is fine — the sin is opinion without exits.
+## 9. Efficient storage, indexing, and retrieval
 
-## 9. Flight recorder — retrospective bug replay (operator question, answered: yes)
+The canonical event ledger stores small immutable facts. Large sanitized artifacts live in a
+content-addressed encrypted blob tier. Search and decision views are disposable projections.
 
-CLI apps can absolutely use this for retrospective bug reporting, and it may be the
-single most viral capability:
+- **Screens:** periodic sanitized keyframes plus changed-cell runs; deduplicate identical grids and
+  style tables inside one authorized privacy domain; retain byte-to-cell lineage separately from
+  DOM choices.
+- **Output:** chunk after privacy policy by command/process boundary, compress, and store byte counts
+  plus explicit omission state. Raw transient adapter artifacts never become a cold tier.
+- **Process/tool/context:** relational fields support exact filters; parent event IDs support “what
+  caused this?” traversal.
+- **Search:** use the existing budgeted, cited `TranscriptSearchQuery/Result` contract. Default
+  retrieval is hybrid lexical+dense with RRF; every hit cites an event/artifact and carries index
+  freshness. Search displays and never decides or authorizes.
+- **Screen-region retrieval:** index sanitized visible text with frame/time/cell coordinates so a hit
+  opens the exact region rather than a nearby raw byte offset.
+- **Receipts:** index stable IDs, outcomes, tests, files, risks, privacy class, and citations. Receipt
+  bodies remain canonical.
 
-- **Shell-level**: `porthole enable-flight` installs a shell-init hook that keeps a
-  rolling ring buffer (default: last 15 min or 2MB of PTY bytes + timestamps, in a
-  0600 local file, never uploaded). After something breaks: `porthole save-last 10m`
-  materializes the buffer as a cast; secret-scrub runs before any `share`.
-- **App-level SDK**: a CLI author embeds the recorder in-process (it is just bytes +
-  monotonic timestamps — trivial overhead). On crash/panic the app prints:
-  "replay of the last 5 minutes saved to ./crash-1234.cast — attach it with
-  `porthole share --issue`". Sentry Session Replay, but for terminals, and the
-  artifact is an open text format the maintainer can grep.
-- **Why replay beats logs for bugs**: the maintainer sees *order and timing* — the
-  flag the reporter actually typed, the spinner that hung for 40s, the error that
-  flashed and scrolled away. Scrub at 2×, pause on the failure frame, copy the exact
-  command. "Steps to reproduce" becomes a link.
-- **Trust boundaries**: local-first by default; ring buffer never leaves the machine
-  without an explicit share; input keystrokes are never captured; scrub is mandatory
-  interactive on first share to a public target.
+Example questions:
 
-## 10. Positioning (competitive cartography, 2026-08-19)
+- “Show the screen and context behind the first decision that cited this failed test.”
+- “Which agents saw the lock refusal before they edited `src/checkout.ts`?”
+- “Find runs where a command exited non-zero but a validation projection said pass.”
+- “Which context packets omitted the warning later named in the incident receipt?”
+- “Compare the original and repaired successor at command, screen, context, and receipt layers.”
 
-Full research in PR discussion. Load-bearing corrections and rulings:
-- **Do not lead with "selectable text"** — asciinema's player is DOM text and advertises
-  copy-paste. The empty positions on the map are: (1) **scrollback in a shared replay**
-  (zero products), (2) **retroactive flight-recorder capture** (zero terminal-native
-  products; Sentry proved the demand shape), (3) **promoting a real session into a CI
-  assertion** (VHS golden-tests scripts, never captures), (4) hosted+embeddable+tested
-  in one artifact, (5) line-level deep links, (6) hosted redaction.
-- **Frame: "the terminal's flight recorder."** Taglines: "Rewind your terminal." /
-  "Demos that can't rot." / "The whole session. Every line. One link."
-- **Sequencing:** scrollback+search+share first (demoable wedge) → flight recorder
-  (moat) → golden-transcript CI (monetization). Do NOT enter via agent-JSONL replay —
-  three entrants in six months (claude-replay 815★, AgentReplay, AGR); our PTY-level
-  capture out-scopes them but arguing there wastes the launch.
-- **Tiers (evidence-fitted):** Free = unlimited local + 7-day anonymous shares
-  (asciinema's own archival precedent) + 3 permalinks signed-in; Pro ~$9/mo = permanent/
-  private links, search, deep-links, custom domains; Team ~$10/seat = org library, SSO,
-  CI runner. CI is the paid wedge; storage is the COGS trap (LogRocket lesson). Don't
-  gate privacy hostilely (CodeSandbox/Excalidraw norm).
-- **VHS relationship:** complement, not enemy — VHS scripts demos; Porthole records
-  sessions; "record once, assert forever" flanks it where tapes drift from reality.
-- **⚠ Naming risk:** github.com/subh05sus/porthole is an existing terminal *port-management*
-  tool (kill switch/service viewer TUI) — "porthole under Port Daddy" may read as another
-  port utility, fighting the flight-recorder frame. Operator decision needed before brand
-  equity accrues to portholed.com.
+## 10. Controlled branching and virtualization
+
+Branching is not “resume a recording.” The UI must remain disabled until canonical evidence reaches
+T5 and a verified snapshot/checkpoint provider plus sandbox authority exists.
+
+A branch manifest binds:
+
+- git tree/commit, dirty-file hashes, and current worktree authority;
+- allow-listed environment names/change classes, never credential values;
+- filesystem/process/runtime snapshot identity;
+- terminal dimensions, emulator, locale, clock/randomness policy, and engine version;
+- Port Daddy predecessor/successor lineage without copied credentials;
+- `ContextEnvelope`, cited `CompactionPacket`, model/adapter/tool policy, network fixtures, and budget;
+- parent transcript head, privacy policy, declared repair delta, and branch authority receipt.
+
+The first pilot may reconstruct a container or microVM from content-addressed inputs rather than
+snapshot a live kernel. Later Wasm Linux or microVM snapshots can reduce startup time. Either way,
+the child receives a new identity, isolation boundary, budget, transcript, and receipt. It cannot
+mutate the historical run or borrow its credentials.
+
+Comparison includes commands, processes, visible cells, context inputs, files, tests, cost, and
+receipts. A changed outcome is not automatically causal; every changed input and uncontrolled
+dependency remains visible.
+
+## 11. Deterministic TUI testing is one consumer
+
+Porthole still supports the Playwright-for-terminals use case: inject input, wait for a region or
+command boundary, require a stable screen interval, assert cells/text/exit state, and export an
+interactive evidence bundle on failure.
+
+The assertion runner consumes the same sanitized canonical events and receipts as debugging,
+handoff, and review. It is not the center of the data model, and static strings are not the only
+truth available.
+
+## 12. Divergent perspectives and cooperative pd-console work
+
+A team run is one correlated event graph with perspective-specific projections. NORA's screen,
+MILO's screen, the daemon ledger, and the operator console may disagree without one being discarded.
+Shared causal edges show what each party had actually seen at each decision. Porthole captures the
+“Run, Lola, Run” of a team instead of flattening it into one fake omniscient timeline.
+
+WebSockets or Durable Objects may transport live cursor, annotation, presence, and perspective
+updates for cooperative pd-console sessions. They do not become the durable evidence authority.
+Porthole persists only privacy-authorized facts into the canonical ledger; the transport remains
+replaceable and floating cursors remain annotations unless cited by a decision or receipt.
+
+## 13. Why people install it
+
+- **Agent developer:** deterministic failure traces, searchable visible state, and isolated repair
+  experiments instead of unqueryable video or ANSI sludge.
+- **Fleet operator:** decision-to-receipt accountability and continuity across compaction,
+  successors, agents, machines, and shifts.
+- **Security/privacy team:** pre-persistence DLP, selective disclosure, retention, and auditable
+  evidence access rather than regex scrubbing after capture.
+- **CLI/TUI maintainer:** engine-neutral interaction tests and exact CI failure replays.
+- **Incident responder:** causal command/process/context reconstruction and safe handoff.
+- **Cooperative team:** multiple private perspectives, shared annotations, receipts, and controlled
+  successor experiments without pretending everyone saw the same state.
+
+The installation promise is: **when autonomous work fails or is disputed, you can explain it,
+continue it, and test a repair without surrendering every terminal byte to a surveillance archive.**
+
+## 14. Delivery order
+
+1. **Truthful replay foundation (#9902):** land the conflict-free gallery/player proof only after
+   its Sugar/context-pressure joins and adversarial review settle. Preserve real casts and receipts.
+2. **Canonical terminal observations + capture gateway:** additive event schemas, adapter
+   conformance, in-memory reconstruction, pre-persistence DLP, canary/no-write test, and local
+   projection.
+3. **Port Daddy correlation join:** consume exact merged `BufferedOutputRef`, `ContextEnvelope`,
+   `CompactionPacket`, Sugar settlement, and `WorkReceipt`; ship the first decision-centered viewer.
+4. **Cited search and selective disclosure:** screen-region retrieval, capability-scoped evidence
+   bundles, deletion/tombstones, and access audit.
+5. **Deterministic assertion runner:** action/wait/stability/region contracts with failure bundles;
+   compare candidate engines behind the same conformance suite.
+6. **Controlled successor pilot:** reconstruction-based T5 checkpoints first, then microVM/Wasm
+   acceleration after identity, credential, network, privacy, and receipt boundaries are proven.
+7. **Cooperative console projection:** live cursor/annotation transport over the same privacy and
+   evidence rules.
+
+## 15. Non-goals
+
+- a universal employee-screen recorder;
+- hidden input capture or model-private reasoning capture;
+- a second Port Daddy identity, transcript, context, receipt, search, or approval system;
+- claiming historical causality from a reconstructed successor;
+- storing raw terminal artifacts first and promising to scrub them later;
+- coupling the evidence contract to one terminal emulator, browser, cloud, or language;
+- depicting output overflow, interactive compaction, or branch takeover before exact owning
+  contracts and evidence exist.
+
+Porthole wins when an engine can be swapped without changing what a decision, privacy boundary,
+receipt, search result, or controlled successor means.

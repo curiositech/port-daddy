@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import {
   INTEGRATION_CONTRACTS,
@@ -11,6 +12,19 @@ import {
 } from '../../../scripts/porthole-proof-contracts.mjs'
 
 describe('Porthole proof integration boundary', () => {
+  it('keeps the evidence-layer product contract future-honest and pre-persistence private', () => {
+    const product = readFileSync(
+      new URL('../../../../demos/porthole/PRODUCT.md', import.meta.url),
+      'utf8',
+    )
+
+    expect(product).toContain('privacy-safe evidence, continuity, and debugging for autonomous work')
+    expect(product).toContain('Proposed Porthole engineering')
+    expect(product).toContain('Classify and minimize before the first durable write')
+    expect(product).toContain('verified T5')
+    expect(product).not.toMatch(/\bpd rec\b|scrub before share|rolling ring buffer|porthole enable-flight/)
+  })
+
   it('rejects every join-only contract if it becomes visible in a recorded frame', () => {
     const visibleFrame = [
       'SugarParleySettlementReceipt',
