@@ -682,7 +682,7 @@ mod tests {
         let cards = context_cards(
             &model,
             &plan,
-            &[Block::KeyVal("total".into(), "2".into())],
+            &[Block::KeyVal("active claims".into(), "2".into())],
             &[Block::Chip {
                 label: "Inspect the claim tree".into(),
                 tone: Tone::Accent,

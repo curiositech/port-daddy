@@ -63,6 +63,28 @@ is a GPUI/Metal screenshot.
 Generate a particular proof state with `--headless-capture <path>
 --mission-state starting|in_progress|settled|failed`.
 
+### Claims and roadmap proof
+
+![Claims metadata ledger](docs/artifacts/claims-roadmap-20260829/claims-ledger-wide.png)
+
+The [Claims and Jira roadmap proof](docs/artifacts/claims-roadmap-20260829/proof.gif)
+shows the same live claim cohort under two sort keys, then the source-labelled
+Planner view. Its [manifest](docs/artifacts/claims-roadmap-20260829/MANIFEST.md)
+records the exact daemon, source, capture provenance, and narrow-width evidence.
+These images are the TCC-independent `Block` renderer, visibly watermarked as
+such; they are not presented as GPUI/Metal framebuffer captures.
+
+The proof recipe is part of the binary rather than a one-off screenshot script:
+
+```bash
+PORT_DADDY_URL=http://127.0.0.1:9876 core/target/release/pd-console-repl \
+  --capture-claims claims.png --capture-sort owner --capture-select 0 \
+  --capture-ledger-rows 6 --capture-width 1180
+
+PORT_DADDY_URL=http://127.0.0.1:9876 core/target/release/pd-console-repl \
+  --capture-planner roadmap.png --capture-ledger-rows 8 --capture-width 520
+```
+
 ### Conversation authority
 
 - The first turn is persisted verbatim as a provider-neutral WorkIntent. The

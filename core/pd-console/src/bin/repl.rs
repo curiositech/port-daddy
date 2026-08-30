@@ -163,13 +163,14 @@ mod headless_capture;
 use active_agents_pane::ActiveAgentsPane;
 use agent::DaemonClient;
 use anyhow::Result;
+use claims_pane::ClaimsPane;
 use dispatch_pane::DispatchQueuePane;
 use fleet_pane::FleetPane;
 use galaxy_pane::GalaxyPane;
 use harbor_pane::HarborPane;
 use lane_pane::LanePane;
 use lineage_pane::LineagePane;
-use pane::{OperatorTurn, Pane, PaneRegistry, Subscription, SurfaceAction};
+use pane::{Block, OperatorTurn, Pane, PaneRegistry, Subscription, SurfaceAction};
 use parley_pane::ParleyPane;
 use planner_pane::PlannerPane;
 use std::io::{self, Write};
@@ -202,6 +203,21 @@ fn banner(style: &TermStyle, daemon_url: &str) {
         )
     );
     println!();
+}
+
+fn proof_viewport(blocks: Vec<Block>, ledger_row_limit: usize) -> Vec<Block> {
+    let mut seen_rows = 0usize;
+    blocks
+        .into_iter()
+        .filter(|block| {
+            if matches!(block, Block::LedgerRow { .. }) {
+                seen_rows += 1;
+                seen_rows <= ledger_row_limit
+            } else {
+                true
+            }
+        })
+        .collect()
 }
 
 async fn drain_active_subscription(
@@ -289,19 +305,89 @@ async fn main() -> Result<()> {
         }
     };
 
-    // `--capture-planner <path.png>`: refresh the Planner pane against the live
-    // daemon and rasterize its Block view to a PNG, then exit. The purpose is
-    // CI-grade visual evidence on Linux — the Block rasterizer is one of the
-    // console's real renderers, so this PNG is the pane as the console draws
-    // it, not a mock. Same design as the gpui bin's `--headless-capture`.
+    // `--capture-claims|planner <path.png>`: refresh the selected pane against
+    // the live daemon and rasterize its Block view to a PNG, then exit. These
+    // are durable, TCC-independent visual-proof recipes for the two ledger
+    // surfaces; the source daemon is real and the Block rasterizer is one of
+    // the console's renderers, so the result is source-labelled rather than a
+    // mock or a claimed GPUI/Metal screenshot.
     let argv: Vec<String> = std::env::args().collect();
+    let capture_width = if let Some(pos) = argv.iter().position(|a| a == "--capture-width") {
+        let raw = argv
+            .get(pos + 1)
+            .ok_or_else(|| anyhow::anyhow!("--capture-width requires 320..=2400"))?;
+        let width = raw
+            .parse::<usize>()
+            .map_err(|_| anyhow::anyhow!("--capture-width requires 320..=2400"))?;
+        if !(320..=2400).contains(&width) {
+            anyhow::bail!("--capture-width requires 320..=2400");
+        }
+        width
+    } else {
+        1180
+    };
+    let capture_rows = if let Some(pos) = argv.iter().position(|a| a == "--capture-ledger-rows") {
+        argv.get(pos + 1)
+            .ok_or_else(|| anyhow::anyhow!("--capture-ledger-rows requires a positive integer"))?
+            .parse::<usize>()
+            .map_err(|_| anyhow::anyhow!("--capture-ledger-rows requires a positive integer"))?
+            .max(1)
+    } else {
+        usize::MAX
+    };
+    let capture_selection = argv
+        .iter()
+        .position(|a| a == "--capture-select")
+        .map(|pos| {
+            argv.get(pos + 1)
+                .ok_or_else(|| anyhow::anyhow!("--capture-select requires a row index"))?
+                .parse::<usize>()
+                .map_err(|_| anyhow::anyhow!("--capture-select requires a row index"))
+        })
+        .transpose()?;
+    let capture_sort = argv
+        .iter()
+        .position(|a| a == "--capture-sort")
+        .map(|pos| {
+            argv.get(pos + 1)
+                .cloned()
+                .ok_or_else(|| anyhow::anyhow!("--capture-sort requires a stable sort key"))
+        })
+        .transpose()?;
+    if let Some(pos) = argv.iter().position(|a| a == "--capture-claims") {
+        let path = argv
+            .get(pos + 1)
+            .ok_or_else(|| anyhow::anyhow!("--capture-claims requires a <path.png>"))?;
+        let mut pane = ClaimsPane::new();
+        pane.refresh(&daemon).await?;
+        if let Some(key) = capture_sort.clone() {
+            pane.mutate(&daemon, SurfaceAction::Sort { key }).await?;
+        }
+        if let Some(index) = capture_selection {
+            pane.mutate(&daemon, SurfaceAction::SelectRow { index })
+                .await?;
+        }
+        let blocks = proof_viewport(pane.view(), capture_rows);
+        let png = headless_capture::render_blocks(&blocks, &theme::DARK, capture_width).to_png();
+        std::fs::write(path, &png)?;
+        println!("claims capture written: {path}");
+        return Ok(());
+    }
     if let Some(pos) = argv.iter().position(|a| a == "--capture-planner") {
         let path = argv
             .get(pos + 1)
             .ok_or_else(|| anyhow::anyhow!("--capture-planner requires a <path.png>"))?;
         let mut pane = PlannerPane::new();
         pane.refresh(&daemon).await?;
-        let png = headless_capture::render_blocks(&pane.view(), &theme::DARK, 1180).to_png();
+        if let Some(key) = capture_sort {
+            pane.mutate(&daemon, SurfaceAction::Sort { key }).await?;
+        }
+        if let Some(index) = capture_selection {
+            pane.mutate(&daemon, SurfaceAction::SelectRow { index })
+                .await?;
+        }
+        let blocks = proof_viewport(pane.view(), capture_rows);
+        let png = headless_capture::render_blocks(&blocks, &theme::DARK, capture_width).to_png();
         std::fs::write(path, &png)?;
         println!("planner capture written: {path}");
         return Ok(());
@@ -685,5 +771,43 @@ mod repl_migration_tests {
         );
         assert_eq!(retired_repl_command_guidance(":sextant"), None);
         assert_eq!(retired_repl_command_guidance("galaxy"), None);
+    }
+
+    #[test]
+    fn proof_viewport_limits_only_ledger_rows_and_keeps_inspector_blocks() {
+        let blocks = vec![
+            Block::Header("Claims".into()),
+            Block::LedgerRow {
+                surface: "claims".into(),
+                index: 0,
+                selected: true,
+                cells: vec![pane::LedgerCell::wide("Path", "one.rs")],
+                tone: pane::Tone::Accent,
+            },
+            Block::LedgerRow {
+                surface: "claims".into(),
+                index: 1,
+                selected: false,
+                cells: vec![pane::LedgerCell::wide("Path", "two.rs")],
+                tone: pane::Tone::Resting,
+            },
+            Block::WrappedText {
+                text: "full selected claim inspector".into(),
+                tone: pane::Tone::Resting,
+            },
+        ];
+
+        let visible = proof_viewport(blocks, 1);
+        assert_eq!(
+            visible
+                .iter()
+                .filter(|block| matches!(block, Block::LedgerRow { .. }))
+                .count(),
+            1
+        );
+        assert!(visible.iter().any(|block| matches!(
+            block,
+            Block::WrappedText { text, .. } if text == "full selected claim inspector"
+        )));
     }
 }
