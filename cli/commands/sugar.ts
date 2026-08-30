@@ -62,6 +62,7 @@ function printBeginUsage(): void {
   console.error('');
   console.error('Roadmap rent (one required):');
   console.error('  --roadmap <slug>              link to an existing roadmap item');
+  console.error('  --admission-grant <id>        consume one exact operator admission grant');
   console.error('  --roadmap-new "<title>"       create a draft roadmap item and link it');
   console.error('  --sidequest "<reason>"        opt out with a one-line reason (min 12 chars)');
 }
@@ -453,6 +454,28 @@ export function shouldRunBeginWizard(
   return purpose === undefined && interactive && !hasScopingArgs;
 }
 
+/**
+ * Remove the one-time bearer from the daemon response before any rendering.
+ * The returned value is for CLI-context persistence only; callers must never
+ * print it, export it, or put it back on the response object.
+ */
+export function detachBeginCredential(data: Record<string, unknown>): string | null {
+  const credential = typeof data.credential === 'string' && data.credential
+    ? data.credential
+    : null;
+  delete data.credential;
+  return credential;
+}
+
+/** Shell exports deliberately carry only public session selectors. */
+export function renderBeginSessionExports(agentId: string, sessionId: string, shell: string): string[] {
+  assertSafeId(agentId, 'agentId');
+  assertSafeId(sessionId, 'sessionId');
+  return shell.endsWith('/fish')
+    ? [`set -x PD_AGENT_ID ${fishShellQuote(agentId)}`, `set -x PD_SESSION_ID ${fishShellQuote(sessionId)}`]
+    : [`export PD_AGENT_ID=${posixShellQuote(agentId)}`, `export PD_SESSION_ID=${posixShellQuote(sessionId)}`];
+}
+
 export async function handleBegin(
   purpose: string | undefined,
  rest: string[],
@@ -545,6 +568,10 @@ export async function handleBegin(
   if (rent.roadmapLink) body.roadmapLink = rent.roadmapLink;
   if (rent.sidequestReason) body.sidequestReason = rent.sidequestReason;
   if (rent.roadmapNewTitle) body.roadmapNewTitle = rent.roadmapNewTitle;
+  const admissionGrantId = options['admission-grant'];
+  if (typeof admissionGrantId === 'string' && admissionGrantId.trim()) {
+    body.admissionGrantId = admissionGrantId.trim();
+  }
 
   // Collect files from --files option or remaining positional args
   const files: string[] = [];
@@ -576,6 +603,11 @@ export async function handleBegin(
     throw new Error((data.error as string) || 'Failed to begin');
   }
 
+  // Detach the bearer before ANY output branch. It is persisted through the
+  // CLI context path below, never returned by --json, shell exports, quiet
+  // output, logs, or human rendering.
+  const mintedCredential = detachBeginCredential(data);
+
   // Write local context file. The daemon-minted actor credential (#8877 /
   // ADR-0122) is returned ONCE when this begin minted a fresh soul; persist
   // it so every subsequent attributed pd write (done, note, claims, locks)
@@ -588,9 +620,8 @@ export async function handleBegin(
     purpose,
     identity: (data.identity as string) || null,
     startedAt: Date.now(),
-    credential: typeof data.credential === 'string' && data.credential
-      ? data.credential
-      : (process.env.PD_ACTOR_CREDENTIAL?.trim() || process.env.PORT_DADDY_ACTOR_CREDENTIAL?.trim() || null),
+    credential: mintedCredential
+      ?? (process.env.PD_ACTOR_CREDENTIAL?.trim() || process.env.PORT_DADDY_ACTOR_CREDENTIAL?.trim() || null),
   });
 
   if (isJson(options)) {
@@ -606,22 +637,8 @@ export async function handleBegin(
     try {
       const agentId = data.agentId as string;
       const sessionId = data.sessionId as string;
-      assertSafeId(agentId, 'agentId');
-      assertSafeId(sessionId, 'sessionId');
       const shell = process.env.SHELL || '';
-      const mintedCredential = typeof data.credential === 'string' && data.credential ? data.credential : null;
-      if (shell.endsWith('/fish')) {
-        console.log(`set -x PD_AGENT_ID ${fishShellQuote(agentId)}`);
-        console.log(`set -x PD_SESSION_ID ${fishShellQuote(sessionId)}`);
-        // The minted ADR-0040 credential (#8877): exported so mutating pd
-        // commands in this shell present it even when the context file is
-        // bypassed via PD_AGENT_ID env resolution.
-        if (mintedCredential) console.log(`set -x PD_ACTOR_CREDENTIAL ${fishShellQuote(mintedCredential)}`);
-      } else {
-        console.log(`export PD_AGENT_ID=${posixShellQuote(agentId)}`);
-        console.log(`export PD_SESSION_ID=${posixShellQuote(sessionId)}`);
-        if (mintedCredential) console.log(`export PD_ACTOR_CREDENTIAL=${posixShellQuote(mintedCredential)}`);
-      }
+      for (const line of renderBeginSessionExports(agentId, sessionId, shell)) console.log(line);
     } catch (err) {
       // Refuse to emit — write the reason to stderr so the caller sees it but
       // eval does NOT execute it. Exit non-zero so the caller's eval fails.

@@ -137,9 +137,10 @@ on every instruction. It is not authentication of the local host.
   (constructor `credential` option / `PORT_DADDY_ACTOR_CREDENTIAL`), and
   `begin()` captures the credential a mint-door begin returns.
 - **CLI (`cli/…`)** — `pd begin` persists the minted credential in the
-  per-worktree context store (and exports `PD_ACTOR_CREDENTIAL` under
-  `PD_EMIT_EXPORTS=1`); `pdFetch` centrally injects `x-actor-credential` on
-  every mutating command from env or context.
+  per-worktree context store, detaches it before every JSON/human/shell-export
+  output path, and exports only the public agent/session selectors under
+  `PD_EMIT_EXPORTS=1`; `pdFetch` centrally injects `x-actor-credential` on every
+  mutating command from an explicitly supplied legacy env value or context.
 - **MCP server (`mcp/server.ts` + `lib/mcp-session-cache.ts`)** —
   `begin_session` caches the minted credential; the HTTP helper presents it
   on every call.

@@ -1652,6 +1652,105 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
+  /operator/admission-grants:
+    get:
+      tags: [actors]
+      summary: List exact operator admission grants
+      operationId: listOperatorAdmissionGrants
+      description: >
+        Read-only receipt projection. Grant ids are public references, never
+        bearers; no response contains an actor credential.
+      responses:
+        '200':
+          description: Admission grants ordered newest first
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, count, grants]
+                properties:
+                  success: { type: boolean }
+                  count: { type: integer }
+                  grants:
+                    type: array
+                    items: { $ref: '#/components/schemas/OperatorAdmissionGrant' }
+        '503':
+          description: Grant store unavailable
+    post:
+      tags: [actors]
+      summary: Issue one exact operator admission grant
+      operationId: issueOperatorAdmissionGrant
+      description: >
+        Owner-only Unix-socket command. The daemon derives the live branch,
+        normalized origin, exact HEAD/base, and local operator identity; TCP
+        callers are refused. The command never changes newcomer quota.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [identity, worktreeRoot, roadmapSlug, confirmed]
+              properties:
+                identity: { type: string, minLength: 1 }
+                worktreeRoot: { type: string, minLength: 1 }
+                roadmapSlug: { type: string, minLength: 1 }
+                ttlMs: { type: integer, minimum: 10000, maximum: 900000, default: 300000 }
+                confirmed: { type: boolean, enum: [true] }
+      responses:
+        '201':
+          description: Exact grant issued with durable receipt
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, grant, receipt, idempotent]
+                properties:
+                  success: { type: boolean }
+                  grant: { $ref: '#/components/schemas/OperatorAdmissionGrant' }
+                  receipt: { $ref: '#/components/schemas/OperatorAdmissionReceipt' }
+                  idempotent: { type: boolean }
+        '400':
+          description: Confirmation, TTL, or worktree validation failed
+        '403':
+          description: Request did not arrive over the owner-only Unix socket
+        '404':
+          description: Roadmap item does not exist
+        '409':
+          description: A different active exact grant already owns the target
+        '503':
+          description: Grant store unavailable
+
+  /operator/admission-grants/{id}:
+    get:
+      tags: [actors]
+      summary: Read one admission grant and its durable receipts
+      operationId: getOperatorAdmissionGrant
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, pattern: '^oadm_' }
+      responses:
+        '200':
+          description: Exact grant plus issue/reject/expiry/consume receipts
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, grant, receipts]
+                properties:
+                  success: { type: boolean }
+                  grant: { $ref: '#/components/schemas/OperatorAdmissionGrant' }
+                  receipts:
+                    type: array
+                    items: { $ref: '#/components/schemas/OperatorAdmissionReceipt' }
+        '404':
+          description: Grant not found
+        '503':
+          description: Grant store unavailable
+
   /advisor:
     get:
       tags: [advisor]
@@ -2136,6 +2235,10 @@ paths:
                   description: Time-to-live in milliseconds
                 metadata:
                   type: object
+                admissionGrantId:
+                  type: string
+                  pattern: '^oadm_'
+                  description: Public exact-grant reference; still requires the live identity, worktree, Git, and roadmap tuple to match
       responses:
         '200':
           description: Lock acquired
@@ -5619,6 +5722,38 @@ components:
       description: Process ID of the calling process
 
   schemas:
+    OperatorAdmissionGrant:
+      type: object
+      required: [grantId, bindingHash, identity, worktreeRoot, branch, remote, head, base, roadmapSlug, operatorIdentity, issuedAt, expiresAt, status]
+      properties:
+        grantId: { type: string, pattern: '^oadm_' }
+        bindingHash: { type: string, pattern: '^[0-9a-f]{64}$' }
+        identity: { type: string }
+        worktreeRoot: { type: string }
+        branch: { type: string }
+        remote: { type: string }
+        head: { type: string }
+        base: { type: string }
+        roadmapSlug: { type: string }
+        operatorIdentity: { type: string }
+        issuedAt: { type: integer }
+        expiresAt: { type: integer }
+        consumedAt: { type: integer, nullable: true }
+        consumedActorId: { type: string, nullable: true }
+        status: { type: string, enum: [active, consumed, expired] }
+
+    OperatorAdmissionReceipt:
+      type: object
+      required: [receiptId, grantId, kind, at, details]
+      properties:
+        receiptId: { type: string, pattern: '^oar_' }
+        grantId: { type: string, pattern: '^oadm_' }
+        kind: { type: string, enum: [issued, consumed, expired, rejected] }
+        at: { type: integer }
+        details:
+          type: object
+          additionalProperties: true
+
     Tool2VecReconcileStatus:
       type: object
       required: [state, configured, backend, generatorModel, embedderModel, catalogHash, total, current, missing, stale, coveragePct, leaseOwner, leaseExpiresAt, lastTrigger, lastStartedAt, lastCompletedAt, lastErrorKind, lastError]

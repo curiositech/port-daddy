@@ -205,6 +205,31 @@ pd begin "…" --lifecycle durable --sidequest "one-off CI flake hunt"        # 
 
 Without one of the three, non-TTY runs fail with the three options above; a TTY prompts interactively. The link or reason lands on the session record and shows up in `pd whoami` and `pd sessions`. `pd roadmap pop --begin` passes the popped slug through automatically. The MCP `begin_session` tool enforces the same gate: exactly one of `roadmap`, `roadmap_new`, or `sidequest` is required (`ROADMAP_RENT_REQUIRED` otherwise); only the daemon's raw HTTP surface stays lenient in v1.
 
+### Exact admission after the newcomer bound
+
+When the daily newcomer bound is full, do not clear quota rows, copy another
+actor's context or credential, or take over an unrelated session. The local
+operator can issue one exact, short-lived admission grant through the daemon's
+owner-only Unix socket. The daemon derives branch, normalized remote, HEAD and
+merge-base from the clean linked worktree itself and records issue/use/expiry
+receipts. The grant id is public evidence, not a bearer; a begin succeeds only
+while identity, canonical worktree, live Git tuple, and roadmap still match.
+Grant use, principal minting, and session admission commit together, so a
+downstream begin refusal cannot strand an unreachable principal. The CLI stores
+the minted authority for follow-up writes but removes it before JSON, human,
+quiet, and shell-export output.
+
+The CLI is the emergency/automation projection of that operator command:
+
+```bash
+pd actor admission grant --identity myapp:recovery-worker --roadmap recovery-slice --worktree "$PWD" --ttl 5m --confirm
+pd begin "Recover the bounded slice" --identity myapp:recovery-worker --lifecycle durable --roadmap recovery-slice --admission-grant oadm_…
+```
+
+This path mints one ordinary newcomer soul and never reads or mutates
+`newcomer_pool`. Native FleetBar/pd-console consent-card rendering remains a
+separate operator-surface slice; neither UI may invent a second grant store.
+
 ### The loop
 
 ```bash
@@ -1087,7 +1112,7 @@ The **agent field manual** ships as a portable skill at [`skills/port-daddy-agen
 
 ## 🌐 HTTP API
 
-The full API contract lives at [`docs/openapi.yaml`](docs/openapi.yaml) — OpenAPI 3.1, **133 paths, 166 operations**, covering everything the CLI and MCP server can do plus SSE streams (`/fleet/events`, inbox watch, channel subscribe). The daemon binds loopback with a DNS-rebinding guard; secret routes are additionally loopback-gated per-route.
+The full API contract lives at [`docs/openapi.yaml`](docs/openapi.yaml) — OpenAPI 3.1, **135 paths, 169 operations**, covering everything the CLI and MCP server can do plus SSE streams (`/fleet/events`, inbox watch, channel subscribe). The daemon binds loopback with a DNS-rebinding guard; secret routes are additionally loopback-gated per-route.
 
 The `editor_recovery` Harbor Editor salvage routes are authenticated, fail-closed scaffolding at `POST /editor/recovery/request`, `/prepare`, `/replay`, and `/finalize`; registration does **not** make a usable recovery pipeline. Four external build gates remain unimplemented: the P1 Rust operation-receipt producer, P1B, the canonical Rust Loro recovery adapter, and the P3 same-database released-claim transfer adapter. Daemon scope minting also cannot yet supply the required verified worktree root device/inode witness, and production has no content-hash/parser-generation symbol lease or daemon file-mutation generation authority. The routes therefore remain 503-gated with no CLI/MCP bypass.
 

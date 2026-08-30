@@ -29,6 +29,7 @@ export interface CLIOptions {
   roadmap?: string | boolean;
   sidequest?: string | boolean;
   'roadmap-new'?: string | boolean;
+  'admission-grant'?: string | boolean;
 
   // Lock flags
   owner?: string;
@@ -64,6 +65,8 @@ export interface CLIOptions {
   message?: string;
   description?: string;
   identity?: string;
+  worktree?: string;
+  confirm?: boolean;
   session?: string;
 
   // Messaging flags

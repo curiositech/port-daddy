@@ -2,6 +2,7 @@ import { pdFetch, PORT_DADDY_URL } from '../utils/fetch.js';
 import { CLIOptions, isJson, isQuiet } from '../types.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
 import * as ui from '../utils/ui.js';
+import { posixShellQuote } from '../../lib/shell-quote.js';
 
 interface ActorRecord {
   id: string;
@@ -47,6 +48,96 @@ interface ActorsResponse {
   delivered?: boolean;
   woke?: boolean;
   error?: string;
+}
+
+interface OperatorAdmissionIssueResponse {
+  success: boolean;
+  grant?: {
+    grantId: string;
+    identity: string;
+    worktreeRoot: string;
+    branch: string;
+    remote: string;
+    head: string;
+    base: string;
+    roadmapSlug: string;
+    operatorIdentity: string;
+    expiresAt: number;
+    status: string;
+  };
+  receipt?: { receiptId: string; kind: string };
+  idempotent?: boolean;
+  code?: string;
+  error?: string;
+}
+
+function parseAdmissionTtl(value: unknown): number | undefined {
+  if (value === undefined || value === null || value === '') return undefined;
+  const match = String(value).trim().match(/^(\d+)(ms|s|m)?$/);
+  if (!match) return undefined;
+  const amount = Number(match[1]);
+  const unit = match[2] ?? 's';
+  return unit === 'm' ? amount * 60_000 : unit === 's' ? amount * 1_000 : amount;
+}
+
+async function issueOperatorAdmissionGrant(options: CLIOptions): Promise<void> {
+  const identity = typeof options.identity === 'string' ? options.identity.trim() : '';
+  const roadmapSlug = typeof options.roadmap === 'string' ? options.roadmap.trim() : '';
+  const worktreeRoot = typeof options.worktree === 'string' && options.worktree.trim()
+    ? options.worktree.trim()
+    : process.cwd();
+  if (!identity || !roadmapSlug) {
+    ui.error('usage: pd actor admission grant --identity <project:role> --roadmap <slug> [--worktree <absolute-path>] [--ttl 5m] --confirm');
+    process.exit(1);
+  }
+  if (options.confirm !== true) {
+    ui.error('refusing to issue authority without --confirm for this exact identity/worktree/roadmap tuple');
+    process.exit(1);
+  }
+  const ttlMs = parseAdmissionTtl(options.ttl);
+  if (options.ttl !== undefined && ttlMs === undefined) {
+    ui.error('--ttl must be an integer duration such as 30s or 5m');
+    process.exit(1);
+  }
+  const res: PdFetchResponse = await pdFetch('/operator/admission-grants', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ identity, worktreeRoot, roadmapSlug, ttlMs, confirmed: true }),
+  });
+  const data = await res.json() as unknown as OperatorAdmissionIssueResponse;
+  if (!res.ok || !data.success || !data.grant) {
+    ui.error(data.error || `operator admission grant failed with status ${res.status}`);
+    process.exit(1);
+  }
+  if (
+    !data.receipt
+    || data.receipt.kind !== 'issued'
+    || typeof data.receipt.receiptId !== 'string'
+    || !data.receipt.receiptId.trim()
+  ) {
+    ui.error('operator admission grant response omitted its durable issued receipt');
+    process.exit(1);
+  }
+  if (isJson(options)) {
+    console.log(JSON.stringify(data, null, 2));
+    return;
+  }
+  if (isQuiet(options)) {
+    console.log(data.grant.grantId);
+    return;
+  }
+  const grant = data.grant;
+  console.log(`${data.idempotent ? 'Existing' : 'Issued'} exact operator admission grant ${grant.grantId}`);
+  console.log(`  identity:  ${grant.identity}`);
+  console.log(`  worktree:  ${grant.worktreeRoot}`);
+  console.log(`  branch:    ${grant.branch}`);
+  console.log(`  remote:    ${grant.remote}`);
+  console.log(`  head/base: ${grant.head.slice(0, 12)} / ${grant.base.slice(0, 12)}`);
+  console.log(`  roadmap:   ${grant.roadmapSlug}`);
+  console.log(`  expires:   ${new Date(grant.expiresAt).toISOString()}`);
+  console.log('');
+  console.log('Bound begin command:');
+  console.log(`  pd begin <purpose> --identity ${posixShellQuote(grant.identity)} --lifecycle durable --roadmap ${posixShellQuote(grant.roadmapSlug)} --admission-grant ${posixShellQuote(grant.grantId)}`);
 }
 
 function queryString(options: CLIOptions): string {
@@ -221,6 +312,10 @@ function printInboxStats(data: ActorsResponse): void {
 }
 
 export async function handleActors(positional: string[], options: CLIOptions): Promise<void> {
+  if (positional[0] === 'admission' && positional[1] === 'grant') {
+    await issueOperatorAdmissionGrant(options);
+    return;
+  }
   const actorId = positional[0];
   if (actorId && (options.inbox === true || options.messages === true)) {
     const data = await fetchActorInbox(actorId, options);

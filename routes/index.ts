@@ -62,6 +62,7 @@ import { metricsPromPlugin } from './metrics-prom.js';
 import { mergeQueuePlugin } from './merge-queue.js';
 import { symbolsPlugin } from './symbols.js';
 import { operatorPlugin } from './operator.js';
+import { operatorAdmissionPlugin } from './operator-admission.js';
 import { actorsPlugin } from './actors.js';
 import { cartographerPlugin } from './cartographer.js';
 import { graphPlugin } from './graph.js';
@@ -205,6 +206,7 @@ export async function registerAllRoutes(
   await fastify.register(briefingPlugin, { deps } as any);
   await fastify.register(sitrepPlugin, { deps } as any);
   await fastify.register(actorsPlugin, { deps } as any);
+  await fastify.register(operatorAdmissionPlugin, { deps } as any);
   await fastify.register(cartographerPlugin, {
     deps: {
       daemonDir: (deps as any).repoRoot ?? (deps as any).__dirname ?? process.cwd(),
