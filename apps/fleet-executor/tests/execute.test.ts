@@ -1683,8 +1683,13 @@ describe('attempt checkpoints — retries resume, never re-spend', () => {
     expect(state.completed[0]).toMatchObject({ conclusion: 'neutral' });
     expect(String(state.completed[0].summary)).toContain('scheduler livelock, not progress');
     const receipt = d1.steps.find(step => step.kind === 'continuation-livelock');
-    expect(receipt?.ship).toBe('lookout');
-    expect(JSON.parse(String(receipt?.detail))).toMatchObject({
+    expect(receipt).toMatchObject({
+      kind: 'continuation-livelock',
+      ship: 'lookout',
+      title: 'Check concluded: neutral (checkpoint continuation repeated without progress)',
+    });
+    expect(JSON.parse(String(receipt?.detail))).toEqual({
+      checkRunId: state.completed[0].id,
       conclusion: 'neutral',
       completedShip: 'lookout',
       remainingShips: unchangedRemaining,
