@@ -103,8 +103,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Install locked Porthole gate dependencies
+        run: npm ci --prefix website-v2 --ignore-scripts
       - name: Replay every porthole cast and scan the decoded transcript
-        run: npx tsx website-v2/scripts/check-porthole-casts.mjs
+        run: npm --prefix website-v2 run test:porthole
 
   changelog-guard:
     # CHANGELOG.md's [Unreleased] section is ASSEMBLED from one file per PR under
