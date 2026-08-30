@@ -1068,8 +1068,8 @@ function handleSquidTap(options: CLIOptions): void {
     tone: 'info',
     zone: 'model sees this before its next decision',
     rows: [
-      { state: 'confirmed', label: 'delivery', text: envelope.structured ? 'structured hook envelope decoded' : 'direct text fallback', colorText: true },
-      { state: 'active', label: 'audience', text: 'agent model context — not shell stdout', colorText: true },
+      { state: 'confirmed', label: 'delivery', text: envelope.structured ? 'structured hook envelope decoded' : 'direct text fallback' },
+      { state: 'active', label: 'audience', text: 'agent model context — not shell stdout' },
       { state: 'info', label: 'source', text: displayPathRelativeToHome(tentacle, home) },
       { state: 'info', label: 'cwd', text: displayPathRelativeToHome(cwd, home) },
     ],
