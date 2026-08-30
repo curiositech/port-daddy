@@ -23,6 +23,30 @@ the `latest` lane app without touching the production app. From the **FleetBar**
 menubar app, the popover's **Open Operator Console** button launches the operator
 lane.
 
+The title deck has explicit **− / percentage / +** controls for application
+zoom. The percentage is also the one-click reset. On macOS, `⌘-` zooms out,
+`⌘+` zooms in, and `⌘0` resets; the equivalent platform modifier is used on
+other systems. Zoom is bounded from 80% to 200%, survives relaunches, and scales
+the persistent terminal's row and column geometry with the rest of the console.
+At large scales, secondary title-deck labels collapse before the zoom controls
+can overflow the window.
+
+The persistent, TCC-independent visual recipe is:
+
+```bash
+core/target/debug/pd-console --headless-zoom-capture zoom.png --zoom-percent 130
+```
+
+That image is visibly labelled as a render-agnostic title-deck proof, not a
+GPUI/Metal framebuffer capture. Exact-window native capture remains the stronger
+witness when macOS grants Screen Recording permission.
+
+The checked-in [100% screenshot](docs/artifacts/gpui/pd-console-zoom-controls/zoom-100.png),
+[200% responsive screenshot](docs/artifacts/gpui/pd-console-zoom-controls/zoom-200.png),
+and [zoom sequence](docs/artifacts/gpui/pd-console-zoom-controls/zoom-controls.gif)
+exercise the same recipe. Their [receipt](docs/artifacts/gpui/pd-console-zoom-controls/RECEIPT.md)
+records the native-build witness and capture provenance.
+
 The normal journey needs no terminal vocabulary:
 
 1. Open pd-console.

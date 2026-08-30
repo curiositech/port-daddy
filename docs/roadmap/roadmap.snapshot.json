@@ -2,7 +2,7 @@
   "generatedAt": 1787763785609,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 314,
+  "count": 315,
   "items": [
     {
       "slug": "a-add-to-the-papers",
@@ -1268,6 +1268,11 @@
       "slug": "pd-console-story-linework-shell",
       "status": "now",
       "summaryMd": "Rebuild pd-console around the story-linework operator shell: flat L0-L3 navigation, honest state framing, Conjure wave blocks, persistent native PTY, and motion/reduced-motion proof."
+    },
+    {
+      "slug": "pd-console-zoom-controls",
+      "status": "now",
+      "summaryMd": "Add explicit, persistent zoom controls and shortcuts to pd-console with honest PTY geometry and responsive title-deck behavior."
     },
     {
       "slug": "pd-roadmap-dependency-write-path",

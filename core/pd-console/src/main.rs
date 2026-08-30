@@ -55,6 +55,7 @@ mod pane;
 mod parley_pane;
 mod peek_pane;
 mod planner_pane;
+mod presentation;
 mod prs_pane;
 mod roadmap_pane;
 // Data layer only (WS-F cluster P): typed RoadmapProjection mirroring
@@ -382,6 +383,31 @@ fn main() {
     // offscreen Metal readback (see docs/artifacts/gpui/HEADLESS-CAPTURE.md).
     {
         let args: Vec<String> = std::env::args().collect();
+        if let Some(i) = args.iter().position(|a| a == "--headless-zoom-capture") {
+            let out = args
+                .get(i + 1)
+                .map(String::as_str)
+                .filter(|a| !a.starts_with('-'))
+                .unwrap_or("headless-zoom-capture.png");
+            let percent = args
+                .iter()
+                .position(|a| a == "--zoom-percent")
+                .and_then(|index| args.get(index + 1))
+                .and_then(|value| value.parse::<u16>().ok())
+                .unwrap_or(presentation::DEFAULT_ZOOM_PERCENT);
+            match headless_capture::capture_zoom_controls_to_path(out, percent) {
+                Ok(bytes) => {
+                    println!(
+                        "pd-console headless-zoom-capture -> {out} ({bytes} bytes, {percent}%, no window/display/TCC)"
+                    );
+                    return;
+                }
+                Err(error) => {
+                    eprintln!("pd-console headless-zoom-capture failed: {error}");
+                    std::process::exit(1);
+                }
+            }
+        }
         if let Some(i) = args.iter().position(|a| a == "--headless-capture") {
             // Fall back to the default when the next token is another flag (or
             // absent) rather than silently writing to a path like `--list-displays`.
@@ -412,6 +438,9 @@ fn main() {
     // Seed operator presentation preferences before the window opens.
     app::init_theme_from_env();
     app::init_motion_from_env();
+    if let Some(warning) = presentation::init() {
+        eprintln!("{warning}");
+    }
 
     // Canonical daemon discovery: PORT_DADDY_URL env var → daemon.port file →
     // the stable berth default. All fallback logic lives in
@@ -517,6 +546,7 @@ fn main() {
                     ..Default::default()
                 },
                 |window, cx| {
+                    window.set_rem_size(gpui::px(16.0 * presentation::zoom_factor()));
                     let control_tx = control_tx.clone();
                     let view = cx.new(|cx| {
                         ConsoleView::with_control(

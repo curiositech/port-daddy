@@ -32,6 +32,7 @@ use crate::editor_view::{
 use crate::mux::{default_operator_workspace, Dir, Node, PaneId, SurfaceKind, Workspace};
 use crate::palette::{Theme, ThemeMode};
 use crate::pane::{Alert, AlertLevel, Block, LedgerCellWidth, OperatorTurn, Pane, Tone};
+use crate::presentation::{self, ZoomAction};
 use crate::shell_drawer::{
     terminal_key_bytes, ShellDrawerGeometry, ShellEvent, ShellStatus, ShellTerminal, TerminalColor,
 };
@@ -44,6 +45,14 @@ use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::mpsc;
 use std::time::Duration;
 use unicode_segmentation::UnicodeSegmentation;
+
+/// Scale every authored pixel in this module through the operator's explicit
+/// presentation preference. A local definition intentionally shadows GPUI's
+/// glob-imported `px`; nested modules that need unscaled animation geometry
+/// import `gpui::px` directly.
+fn px(value: f32) -> Pixels {
+    gpui::px(value * presentation::zoom_factor())
+}
 
 /// Operator control messages sent from the GPUI view (button clicks) back to the
 /// background refresh thread, which owns the surfaces and performs the daemon
@@ -2834,6 +2843,39 @@ impl ConsoleView {
     fn toggle_zoom(&mut self, id: PaneId) {
         let t = &mut self.tabs[self.active_tab];
         t.zoomed = if t.zoomed == Some(id) { None } else { Some(id) };
+    }
+
+    /// Apply one operator presentation-scale action to the entire console.
+    /// The rem size covers any rem-authored descendants; this module's local
+    /// `px()` wrapper covers the console's existing explicit-pixel geometry.
+    fn apply_presentation_zoom(
+        &mut self,
+        action: ZoomAction,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if !presentation::can_apply(action) {
+            self.control_flash = Some(format!(
+                "zoom stays at {}% · allowed range {}–{}%",
+                presentation::zoom_percent(),
+                presentation::MIN_ZOOM_PERCENT,
+                presentation::MAX_ZOOM_PERCENT
+            ));
+            cx.notify();
+            return;
+        }
+
+        let persistence_error = presentation::apply(action).err();
+        let percent = presentation::zoom_percent();
+        window.set_rem_size(gpui::px(16.0 * presentation::zoom_factor()));
+        crate::audio::play(crate::audio::Cue::Toggle);
+        self.control_flash = Some(match persistence_error {
+            Some(error) => format!(
+                "zoom → {percent}% · active now, but the preference could not be saved: {error}"
+            ),
+            None => format!("zoom → {percent}% · saved"),
+        });
+        cx.notify();
     }
     /// Open a fresh tab and focus it.
     fn new_tab(&mut self) {
@@ -6414,6 +6456,77 @@ fn views_bar_btn(cx: &mut Context<ConsoleView>) -> impl IntoElement {
         }))
 }
 
+/// One member of the visible application-zoom group. The percentage member is
+/// an exact reset target; the outer buttons take one bounded ten-point step.
+fn presentation_zoom_btn(
+    id: &'static str,
+    label: String,
+    action: ZoomAction,
+    cx: &mut Context<ConsoleView>,
+) -> impl IntoElement {
+    let theme = current_theme();
+    let enabled = presentation::can_apply(action);
+    div()
+        .id(id)
+        .h(px(26.0))
+        .min_w(px(if action == ZoomAction::Reset {
+            46.0
+        } else {
+            28.0
+        }))
+        .px(px(tokens::SPACE_1))
+        .flex()
+        .items_center()
+        .justify_center()
+        .border_1()
+        .border_color(rgb(theme.line))
+        .bg(rgb(theme.panel))
+        .text_color(rgb(if enabled { theme.ink2 } else { theme.muted }))
+        .font_family("IBM Plex Mono")
+        .text_size(px(tokens::TEXT_CAPTION))
+        .font_weight(FontWeight::SEMIBOLD)
+        .when(enabled, |button| {
+            button.cursor_pointer().hover(|style| {
+                let t = current_theme();
+                style
+                    .bg(rgb(t.raised))
+                    .border_color(rgb(t.accent))
+                    .text_color(rgb(t.accent_ink))
+            })
+        })
+        .child(label)
+        .on_click(cx.listener(move |this, _event, window, cx| {
+            this.apply_presentation_zoom(action, window, cx);
+        }))
+}
+
+fn presentation_zoom_controls(cx: &mut Context<ConsoleView>) -> impl IntoElement {
+    let percent = presentation::zoom_percent();
+    div()
+        .id("presentation-zoom-controls")
+        .flex()
+        .items_center()
+        .mr(px(tokens::SPACE_2))
+        .child(presentation_zoom_btn(
+            "presentation-zoom-out",
+            "−".into(),
+            ZoomAction::Out,
+            cx,
+        ))
+        .child(presentation_zoom_btn(
+            "presentation-zoom-reset",
+            format!("{percent}%"),
+            ZoomAction::Reset,
+            cx,
+        ))
+        .child(presentation_zoom_btn(
+            "presentation-zoom-in",
+            "+".into(),
+            ZoomAction::In,
+            cx,
+        ))
+}
+
 /// Visible light/dark control. The old `Ctrl-A g` path still works; this makes
 /// the theme a discoverable operator action in the chrome.
 fn theme_toggle_btn(cx: &mut Context<ConsoleView>) -> impl IntoElement {
@@ -8916,12 +9029,17 @@ fn render_shell_drawer(
                     move |this, event: &ScrollWheelEvent, _window, cx| {
                         let pixels = match event.delta {
                             ScrollDelta::Pixels(delta) => f32::from(delta.y),
-                            ScrollDelta::Lines(delta) => delta.y * SHELL_ROW_HEIGHT_PX,
+                            ScrollDelta::Lines(delta) => {
+                                delta.y * SHELL_ROW_HEIGHT_PX * presentation::zoom_factor()
+                            }
                         };
                         let alternate_screen = this.shell.is_alternate_screen();
                         let rows = this
                             .shell
-                            .scroll_wheel_pixels(pixels, SHELL_ROW_HEIGHT_PX);
+                            .scroll_wheel_pixels(
+                                pixels,
+                                SHELL_ROW_HEIGHT_PX * presentation::zoom_factor(),
+                            );
                         if alternate_screen && rows != 0 {
                             let key = if rows > 0 { "up" } else { "down" };
                             if let Some(sequence) =
@@ -9099,13 +9217,16 @@ impl Render for ConsoleView {
         // Keep the native PTY, vt100 model, and authored drawer geometry in one
         // render transaction. Resize is idempotent, so ordinary renders emit no
         // PTY control message when rows and columns are unchanged.
-        let shell_drawer_height_px = self.shell_geometry.height_px(viewport_height_px);
+        let presentation_scale = presentation::zoom_factor();
+        let authored_viewport_width_px = viewport_width_px / presentation_scale;
+        let authored_viewport_height_px = viewport_height_px / presentation_scale;
+        let shell_drawer_height_px = self.shell_geometry.height_px(authored_viewport_height_px);
         let shell_terminal_rows = self.shell_geometry.terminal_rows(
-            viewport_height_px,
+            authored_viewport_height_px,
             shell_drawer_chrome_height(self),
             SHELL_ROW_HEIGHT_PX,
         );
-        let shell_cols = ((viewport_width_px - 52.0) / 7.8)
+        let shell_cols = ((authored_viewport_width_px - 52.0) / 7.8)
             .floor()
             .clamp(40.0, 220.0) as u16;
         let _ = self.shell.resize(shell_terminal_rows, shell_cols);
@@ -9130,6 +9251,11 @@ impl Render for ConsoleView {
             .enumerate()
             .map(|(i, t)| (i, t.name.clone(), i == self.active_tab))
             .collect();
+        // Preserve the zoom controls at large presentation scales. Tabs and
+        // secondary preferences yield before primary operator controls can
+        // overflow beyond the right edge of a narrow logical viewport.
+        let compact_title_deck = authored_viewport_width_px < 960.0;
+        let minimal_title_deck = authored_viewport_width_px < 720.0;
         // Body: a single maximized pane, or the full tree.
         let body: AnyElement =
             match zoomed.and_then(|zid| self.ws().surface_at(zid).cloned().map(|s| (zid, s))) {
@@ -9190,10 +9316,11 @@ impl Render for ConsoleView {
                     }
                     let current_y = f32::from(ev.event.position.y);
                     let total_delta_y = current_y - drag.pointer_start_y;
-                    let viewport_height_px = f32::from(window.viewport_size().height);
+                    let viewport_height_px =
+                        f32::from(window.viewport_size().height) / presentation::zoom_factor();
                     this.shell_geometry.resize_from_anchor(
                         drag.drawer_start_height_px,
-                        total_delta_y,
+                        total_delta_y / presentation::zoom_factor(),
                         viewport_height_px,
                     );
                     cx.notify();
@@ -9318,10 +9445,17 @@ impl Render for ConsoleView {
             .font_family("IBM Plex Mono")
             // Leader-key dispatcher: Ctrl-A arms; the next keystroke is a
             // multiplexer command (split / close / focus / swap-surface).
-            .on_key_down(cx.listener(|this, ev: &KeyDownEvent, _window, cx| {
+            .on_key_down(cx.listener(|this, ev: &KeyDownEvent, window, cx| {
                 let key = ev.keystroke.key.clone();
                 let key_char = ev.keystroke.key_char.clone();
                 let ctrl = ev.keystroke.modifiers.control;
+                let platform = ev.keystroke.modifiers.platform;
+                let zoom_action = presentation::action_for_shortcut(&key, platform);
+                if let Some(action) = zoom_action {
+                    this.apply_presentation_zoom(action, window, cx);
+                    cx.stop_propagation();
+                    return;
+                }
                 if this.launcher_open {
                     // The launcher owns the keyboard while open: Esc closes; a
                     // tile's key jumps straight to that surface (and sidesteps the
@@ -9428,7 +9562,7 @@ impl Render for ConsoleView {
                                     .font_weight(FontWeight::BOLD)
                                     .child("DADDY"),
                             )
-                            .child(
+                            .when(!compact_title_deck, |brand| brand.child(
                                 div()
                                     .h_full()
                                     .px(px(12.0))
@@ -9441,35 +9575,41 @@ impl Render for ConsoleView {
                                     .font_weight(FontWeight::SEMIBOLD)
                                     .text_color(rgb(current_theme().muted))
                                     .child(format!("pd-console · {}", env!("CARGO_PKG_VERSION"))),
-                            ),
+                            )),
                     )
-                    .children(tabs.into_iter().map(|(i, name, active)| {
-                        div()
-                            .id(SharedString::from(format!("tab-{i}")))
-                            .px(px(10.0))
-                            .py(px(3.0))
-                            .font_family("IBM Plex Mono")
-                            .text_size(px(12.0))
-                            .font_weight(FontWeight::MEDIUM)
-                            .text_color(rgb(if active { current_theme().accent_ink } else { current_theme().muted }))
-                            // Active tab: raised + a mustard glow. Inactive: lift on hover
-                            // (a hard offset shadow stands in for the mock's translateY(-1px)).
-                            .when(active, |s| {
-                                s.border_b_2().border_color(rgb(current_theme().accent))
-                            })
-                            .cursor_pointer()
-                            .when(!active, |s| {
-                                s.hover(|h| {
-                                    let t = current_theme();
-                                    h.bg(rgb(t.raised)).text_color(rgb(t.ink2))
+                    .when(!compact_title_deck, |title| {
+                        title.children(tabs.into_iter().map(|(i, name, active)| {
+                            div()
+                                .id(SharedString::from(format!("tab-{i}")))
+                                .px(px(10.0))
+                                .py(px(3.0))
+                                .font_family("IBM Plex Mono")
+                                .text_size(px(12.0))
+                                .font_weight(FontWeight::MEDIUM)
+                                .text_color(rgb(if active {
+                                    current_theme().accent_ink
+                                } else {
+                                    current_theme().muted
+                                }))
+                                // Active tab: raised + a mustard glow. Inactive: lift on hover
+                                // (a hard offset shadow stands in for the mock's translateY(-1px)).
+                                .when(active, |s| {
+                                    s.border_b_2().border_color(rgb(current_theme().accent))
                                 })
-                            })
-                            .child(name)
-                            .on_click(cx.listener(move |this, _ev, _window, cx| {
-                                this.active_tab = i;
-                                cx.notify();
-                            }))
-                    }))
+                                .cursor_pointer()
+                                .when(!active, |s| {
+                                    s.hover(|h| {
+                                        let t = current_theme();
+                                        h.bg(rgb(t.raised)).text_color(rgb(t.ink2))
+                                    })
+                                })
+                                .child(name)
+                                .on_click(cx.listener(move |this, _ev, _window, cx| {
+                                    this.active_tab = i;
+                                    cx.notify();
+                                }))
+                        }))
+                    })
                     .child(
                         div()
                             .id("tab-new")
@@ -9508,8 +9648,12 @@ impl Render for ConsoleView {
                             })),
                     )
                     .child(div().flex_1())
-                    .child(motion_toggle_btn(cx))
-                    .child(theme_toggle_btn(cx))
+                    .child(presentation_zoom_controls(cx))
+                    .when(!minimal_title_deck, |title| {
+                        title
+                            .child(motion_toggle_btn(cx))
+                            .child(theme_toggle_btn(cx))
+                    })
                     // The terminal is global operator chrome, not a pane. Its
                     // two-block micro-flag and live dot stay visible everywhere.
                     .child({
@@ -9565,7 +9709,7 @@ impl Render for ConsoleView {
                                 cx.notify();
                             }))
                     })
-                    .child(
+                    .when(!compact_title_deck, |title| title.child(
                         div()
                             .ml(px(10.0))
                             .mr(px(8.0))
@@ -9576,7 +9720,7 @@ impl Render for ConsoleView {
                                 11.0,
                                 15.0,
                             )),
-                    ),
+                    )),
             )
             .child(render_story_nav_bar(active_nav.as_deref(), cx))
             // ── HITL interruptions banner (docs/hitl-interruptions.md §4): any

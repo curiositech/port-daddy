@@ -159,6 +159,11 @@ mod timeline;
 // headless capture + its PNG-encoder tests run on the cheap non-gpui gate too.
 #[path = "../headless_capture.rs"]
 mod headless_capture;
+// Shared presentation-scale contract used by the zoom-proof capture. Keeping it
+// in the cheap REPL gate catches preference and bound drift without GPUI.
+#[allow(dead_code)]
+#[path = "../presentation.rs"]
+mod presentation;
 
 use active_agents_pane::ActiveAgentsPane;
 use agent::DaemonClient;
