@@ -827,7 +827,7 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     overviewHref: '/whitepaper?paper=bonded-commons',
     date: 'August 2026',
     pages: 52,
-    sizeKb: 883,
+    sizeKb: 908,
     status: 'Version 2.7 (revised pre-print)',
     order: '06',
     chapter: 'VI',

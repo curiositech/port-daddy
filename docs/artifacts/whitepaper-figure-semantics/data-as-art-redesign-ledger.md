@@ -769,6 +769,153 @@ false reading that the selected geometry must prevent.
 - Color job: teal is returning evidence; amber is the human-asserted bridge,
   redundantly shown as a dashed fracture and diamond.
 
+## Volume VI — The Bonded Commons
+
+### VI.1 — three-layer enforcement (`fig:bonded-three-layer`)
+
+- Reader question: which layer stops, records, or prices each class of hazard?
+- Selected grammar: three hazard trajectories crossing nested scope, evidence,
+  and collateral membranes.
+- Rejected alternative: a prose table of layer names and guarantees; it listed
+  responsibilities without showing how one action is transformed by all three.
+- False reading to prevent: one layer can substitute for the others. Scope can
+  refuse authority, evidence can expose behavior, and collateral can price the
+  residue, but none performs the other two jobs.
+- Color job: teal is admitted or recorded continuity; amber is refusal or priced
+  residual exposure.
+
+### VI.2 — bounded authority under private information (`fig:bonded-sen-regime`)
+
+- Reader question: when does advisory coordination dominate exclusive allocation?
+- Selected grammar: a schematic coordination-loss frontier over decisiveness and
+  private allocation information, with the LLM regime marked as one operating
+  point rather than a universal quadrant.
+- Rejected alternative: four prose-filled quadrants; arbitrary categorical boxes
+  replaced the actual trade-off.
+- False reading to prevent: the crossing is an empirical universal constant. It
+  is a design boundary whose position depends on information and coordination cost.
+- Color job: teal is the lower advisory-loss frontier; amber is exclusive-control
+  loss under hidden local information.
+
+### VI.3 — governance escalation (`fig:governance-flow`)
+
+- Reader question: which failures escalate, how costly is each intervention, and
+  what evidence survives every exit?
+- Selected grammar: a monotone intervention-cost staircase with four exits
+  descending to one durable evidence rail.
+- Rejected alternative: a box-and-arrow approval flow; it implied every dispute
+  traverses the same sequence and buried the cost ordering.
+- False reading to prevent: human review is the default first stop, or escalation
+  destroys the preceding machine evidence.
+- Color job: amber carries increasing intervention cost; teal carries persistent
+  evidence and closure receipts.
+
+### VI.4 — competitive underwriting (`fig:auction-inline`)
+
+- Reader question: how do static escrow and competitive underwriting trade tied-up
+  capital against tail coverage?
+- Selected grammar: a capital-efficiency frontier with a static-reserve point and
+  an underwriting curve constrained by reserve adequacy.
+- Rejected alternative: two amount bars; they showed quantities without the
+  economic frontier or the tail constraint.
+- False reading to prevent: a low premium erases the tail. It reallocates who
+  carries the tail while the coverage requirement remains.
+- Color job: teal is adequately reserved coverage; amber is the under-reserved tail.
+
+### VI.5 — underwriting Monte Carlo (`fig:pareto-dominance`)
+
+- Reader question: across simulated policies, which reserve-premium combinations
+  dominate static escrow without sacrificing coverage?
+- Selected grammar: paired probability-response plots with direct operating-point
+  labels and redundant marker/line encodings.
+- Rejected alternative: a policy table of sampled outputs; it hid dispersion and
+  the shape of the dominance region.
+- False reading to prevent: one simulation point proves a universal price or
+  reserve ratio.
+- Color job: teal marks adequately covered outcomes; amber marks uncovered tails.
+
+### VI.6 — Sybil deposit saturation (`fig:sybil-inline`)
+
+- Reader question: why does multiplying identities eventually defeat additional
+  deposit rather than being deterred by it?
+- Selected grammar: an identity fan-out paired with the saturating slash response
+  $s=\min(B_{\mathrm{dep}},B_T)$.
+- Rejected alternative: a prose-heavy actor sequence; it narrated repeated entry
+  without exposing the capped response.
+- False reading to prevent: raising collateral always raises deterrence. Once the
+  task bounty caps the slash, the response plateaus while entry can keep scaling.
+- Color job: teal is the reimbursed rising segment; amber is the saturation plateau.
+
+### VI.7 — Sybil Monte Carlo (`fig:sybil-deposit-floor`)
+
+- Reader question: where do attacker profit and commons deficit change sign as
+  deposit and identity count vary?
+- Selected grammar: aligned response surfaces sharing the same deposit scale.
+- Rejected alternative: a single expected-value number; it erased the policy
+  region and the difference between private profit and social deficit.
+- False reading to prevent: attacker break-even and commons break-even are the
+  same boundary.
+- Color job: teal marks non-profitable or solvent regions; amber marks profitable
+  attack or deficit regions.
+
+### VI.8 — cartel stability (`fig:cartel-game-inline`)
+
+- Reader question: which combinations of sampled detection and loss make repeated
+  collusion unsustainable?
+- Selected grammar: a two-parameter phase diagram with the deterrence boundary
+  $V_C=\pi_D$.
+- Rejected alternative: one payoff bar or balance; it hid the independent policy
+  levers and their substitution along the boundary.
+- False reading to prevent: monitoring frequency alone defeats cartels.
+- Color job: teal is deviation-dominant; amber is cartel-sustainable.
+
+### VI.9 — cartel Monte Carlo (`fig:cartel-folk-theorem`)
+
+- Reader question: how do detection, loss, and discounting jointly change cartel
+  survival time?
+- Selected grammar: a stability heatmap paired with a lifespan response profile.
+- Rejected alternative: prose scenarios; they made the phase transition impossible
+  to compare across parameter combinations.
+- False reading to prevent: the model predicts a calendar duration for any real
+  cartel rather than a conditional response under stated assumptions.
+- Color job: teal marks collapse; amber marks persistent collusion.
+
+### VI.10 — key-custody cut sets (`fig:bonded-key-custody`)
+
+- Reader question: which minimal secret compromise breaks each guarantee?
+- Selected grammar: a four-panel atlas of sufficient cut-set glyphs, separating
+  three single points from one conjunctive failure.
+- Rejected alternative: a guarantee-by-secret matrix; it made every actor look
+  jointly load-bearing and hid the exceptional AND condition.
+- False reading to prevent: every guarantee requires every custodian, or the
+  theorem covers same-user code execution on the daemon host.
+- Color job: amber diamonds are sufficient cut sets; teal baselines name the
+  consequence-limiting control for each compromise.
+
+### VI.11 — magic-link exactly-once consumption (`fig:magic-link-inline`)
+
+- Reader question: where does exactly-once behavior come from when requests race?
+- Selected grammar: overlapping request intervals crossing one atomic drain and
+  one irreversible state edge from available to consumed.
+- Rejected alternative: a message-sequence swimlane; it suggested correctness was
+  an ordering convention instead of one transactional transition.
+- False reading to prevent: duplicate acceptance is merely unlikely, or audit logs
+  themselves serialize redemption.
+- Color job: teal is the committed consumption and receipt; amber is the losing
+  request after the drain.
+
+### VI.12 — crash continuity (`fig:worked-example`)
+
+- Reader question: what breaks when an agent dies, and what remains continuous?
+- Selected grammar: a three-rail continuity braid for authority, evidence, and
+  escrow across a visible process discontinuity.
+- Rejected alternative: a sequence of event boxes; it gave every event equal
+  visual weight and obscured the two durable rails.
+- False reading to prevent: a successor inherits the dead process identity, or
+  evidence and pre-funded cleanup exposure reset at the crash.
+- Color job: neutral ink is disposable process authority; teal is evidence
+  continuity and settlement; amber is funded residual exposure.
+
 ## Corpus-wide controls
 
 - Neutral ink carries structure. Teal means verified, selected, conserved, or
