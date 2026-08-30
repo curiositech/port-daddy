@@ -19,7 +19,8 @@
  * recorder's seq-0 restart on redelivery can never overwrite it. The runId is
  * already deterministic per delivery (`run:<deliveryId>`), so retries — and
  * DLQ replays of the same delivery — can revalidate predecessors against the
- * current trusted Fleet policy, contract, graft, prompt, and mediator orders,
+ * current trusted Fleet policy, contract, graft, prompt, mediator orders, and
+ * Lookout's frozen cross-PR/recent-branch projection,
  * then reconstruct
  * only matching ships without re-running them. A NEW push is a new delivery
  * and a new runId: checkpoints never leak across heads.
@@ -62,6 +63,24 @@ export interface ShipCheckpointBinding {
   reviewInputSha256: string;
   /** Exact mediator reinjection that shaped user-visible ship context, or an explicit absence sentinel. */
   mediatorOrdersSha256: string;
+  /**
+   * Exact rendered open-PR/recent-branch projection supplied to Lookout.
+   *
+   * `not-applicable` is canonical for every other ship. Current writers must
+   * always supply this field. The untrusted parser alone accepts an omitted
+   * value from binding-v3 rows written before this witness existed and
+   * normalizes it to `not-applicable`; that preserves unaffected ship
+   * checkpoints while necessarily invalidating an old Lookout row against the
+   * current projection hash.
+   */
+  lookoutProjectionSha256: string;
+  /**
+   * Durable execution evidence a completed ship must carry before its result
+   * can authorize continuation. Purser is special because its verdict depends
+   * on a separately recorded sandbox run; model-only ships use the explicit
+   * not-applicable sentinel.
+   */
+  executionReceiptKind: 'purser-sandbox-v1' | 'not-applicable';
 }
 
 /** Why a retained row was deliberately not allowed to resume. */
@@ -114,6 +133,12 @@ const SHA256_RE = /^sha256:[a-f0-9]{64}$/;
 const ABSENT_CONTRACT_DIGEST = 'absent';
 /** No Modify order was present for this delivery when the checkpoint was written. */
 const ABSENT_MEDIATOR_ORDERS_DIGEST = 'absent';
+/** This ship does not consume Lookout's cross-PR/recent-branch projection. */
+const NOT_APPLICABLE_LOOKOUT_PROJECTION_DIGEST = 'not-applicable';
+/** Purser checkpoint eligibility is proven by its structured sandbox transcript step. */
+const PURSER_SANDBOX_RECEIPT_KIND = 'purser-sandbox';
+const PURSER_SANDBOX_EXECUTION_RECEIPT = 'purser-sandbox-v1';
+const NOT_APPLICABLE_EXECUTION_RECEIPT = 'not-applicable';
 
 /**
  * Digest text as lower-case SHA-256 with an algorithm prefix.
@@ -232,6 +257,8 @@ export async function createCheckpointReviewInputSha256(
  * @param systemPrompt Exact system prompt handed to the model.
  * @param reviewInputSha256 Digest of the exact live PR input projection.
  * @param mediatorOrders Exact consumed Modify-order context, or '' when none was present.
+ * @param lookoutProjection Exact rendered cross-PR/recent-branch projection
+ * supplied to Lookout, including the empty projection; null for other ships.
  * @returns Deterministic checkpoint binding for persistence and comparison.
  */
 export async function createShipCheckpointBinding(
@@ -241,16 +268,27 @@ export async function createShipCheckpointBinding(
   systemPrompt: string,
   reviewInputSha256: string,
   mediatorOrders = '',
+  lookoutProjection: string | null = null,
 ): Promise<ShipCheckpointBinding> {
   if (!SHA256_RE.test(reviewInputSha256)) {
     throw new Error('checkpoint review input digest must be a SHA-256 value');
   }
-  const [shipConfigSha256, contractSha256, graftSha256, systemPromptSha256, mediatorOrdersSha256] = await Promise.all([
+  const [
+    shipConfigSha256,
+    contractSha256,
+    graftSha256,
+    systemPromptSha256,
+    mediatorOrdersSha256,
+    lookoutProjectionSha256,
+  ] = await Promise.all([
     sha256(JSON.stringify(semanticShipConfigTuple(ship))),
     contract === null ? Promise.resolve(ABSENT_CONTRACT_DIGEST) : sha256(contract),
     sha256(graftText),
     sha256(systemPrompt),
     mediatorOrders === '' ? Promise.resolve(ABSENT_MEDIATOR_ORDERS_DIGEST) : sha256(mediatorOrders),
+    lookoutProjection === null
+      ? Promise.resolve(NOT_APPLICABLE_LOOKOUT_PROJECTION_DIGEST)
+      : sha256(lookoutProjection),
   ]);
   return {
     bindingVersion: SHIP_CHECKPOINT_BINDING_VERSION,
@@ -260,6 +298,10 @@ export async function createShipCheckpointBinding(
     systemPromptSha256,
     reviewInputSha256,
     mediatorOrdersSha256,
+    lookoutProjectionSha256,
+    executionReceiptKind: ship.purser
+      ? PURSER_SANDBOX_EXECUTION_RECEIPT
+      : NOT_APPLICABLE_EXECUTION_RECEIPT,
   };
 }
 
@@ -296,6 +338,29 @@ function parseShipCheckpointBinding(value: unknown): ShipCheckpointBinding | nul
   ) {
     return null;
   }
+  const lookoutProjectionSha256 = binding.lookoutProjectionSha256 === undefined
+    ? NOT_APPLICABLE_LOOKOUT_PROJECTION_DIGEST
+    : binding.lookoutProjectionSha256;
+  if (
+    typeof lookoutProjectionSha256 !== 'string' ||
+    (lookoutProjectionSha256 !== NOT_APPLICABLE_LOOKOUT_PROJECTION_DIGEST &&
+      !SHA256_RE.test(lookoutProjectionSha256))
+  ) {
+    return null;
+  }
+  // Rows written before Purser execution receipts existed remain parseable as
+  // historical evidence. Current Purser bindings carry the v1 requirement, so
+  // the normal binding comparison invalidates those old rows instead of
+  // grandfathering a potentially unexecuted PASS.
+  const executionReceiptKind = binding.executionReceiptKind === undefined
+    ? NOT_APPLICABLE_EXECUTION_RECEIPT
+    : binding.executionReceiptKind;
+  if (
+    executionReceiptKind !== PURSER_SANDBOX_EXECUTION_RECEIPT &&
+    executionReceiptKind !== NOT_APPLICABLE_EXECUTION_RECEIPT
+  ) {
+    return null;
+  }
   return {
     bindingVersion: SHIP_CHECKPOINT_BINDING_VERSION,
     shipConfigSha256: binding.shipConfigSha256,
@@ -304,6 +369,8 @@ function parseShipCheckpointBinding(value: unknown): ShipCheckpointBinding | nul
     systemPromptSha256: binding.systemPromptSha256,
     reviewInputSha256: binding.reviewInputSha256,
     mediatorOrdersSha256: binding.mediatorOrdersSha256,
+    lookoutProjectionSha256,
+    executionReceiptKind,
   };
 }
 
@@ -322,7 +389,9 @@ function sameShipCheckpointBinding(left: ShipCheckpointBinding, right: ShipCheck
     left.graftSha256 === right.graftSha256 &&
     left.systemPromptSha256 === right.systemPromptSha256 &&
     left.reviewInputSha256 === right.reviewInputSha256 &&
-    left.mediatorOrdersSha256 === right.mediatorOrdersSha256;
+    left.mediatorOrdersSha256 === right.mediatorOrdersSha256 &&
+    left.lookoutProjectionSha256 === right.lookoutProjectionSha256 &&
+    left.executionReceiptKind === right.executionReceiptKind;
 }
 
 /**
@@ -332,6 +401,79 @@ function sameShipCheckpointBinding(left: ShipCheckpointBinding, right: ShipCheck
  */
 function isResumeEligibleCheckpoint(result: ShipResult): boolean {
   return !result.errored && result.noUsableOutput !== true;
+}
+
+interface PurserSandboxExecutionReceipt {
+  kind: typeof PURSER_SANDBOX_EXECUTION_RECEIPT;
+  executed: true;
+  passed: boolean;
+  outcomeKind: 'passed' | 'assertion-failure';
+}
+
+/**
+ * Decode only an actually executed, structurally classified Purser sandbox
+ * step. `executed:false`, missing fields, setup failures, and runner failures
+ * are evidence of machinery state, never authority for a PASS/BLOCK checkpoint.
+ */
+function parsePurserSandboxExecutionReceipt(raw: unknown): PurserSandboxExecutionReceipt | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const receipt = raw as Record<string, unknown>;
+  if (receipt.executed !== true || typeof receipt.passed !== 'boolean') return null;
+  const expectedKind = receipt.passed ? 'passed' : 'assertion-failure';
+  if (receipt.outcomeKind !== expectedKind) return null;
+  return {
+    kind: PURSER_SANDBOX_EXECUTION_RECEIPT,
+    executed: true,
+    passed: receipt.passed,
+    outcomeKind: expectedKind,
+  };
+}
+
+function parseCheckpointExecutionReceipt(raw: unknown): PurserSandboxExecutionReceipt | null {
+  if (!raw || typeof raw !== 'object') return null;
+  if ((raw as Record<string, unknown>).kind !== PURSER_SANDBOX_EXECUTION_RECEIPT) return null;
+  return parsePurserSandboxExecutionReceipt(raw);
+}
+
+/**
+ * Match a Purser checkpoint result to the exact durable sandbox receipt from
+ * the same logical run. Missing/unreadable evidence fails closed so a queue
+ * retry reruns Purser; other ships have no separate execution receipt.
+ */
+async function readMatchingExecutionReceipt(
+  env: ExecutorEnv,
+  runId: string,
+  result: ShipResult,
+  binding: ShipCheckpointBinding,
+): Promise<PurserSandboxExecutionReceipt | null> {
+  if (!env.DB || binding.executionReceiptKind !== PURSER_SANDBOX_EXECUTION_RECEIPT) return null;
+  try {
+    const row = await env.DB.prepare(
+      `SELECT detail FROM fleet_run_steps
+       WHERE run_id = ? AND kind = ? AND ship = ?
+       ORDER BY seq DESC LIMIT 1`,
+    )
+      .bind(runId, PURSER_SANDBOX_RECEIPT_KIND, result.ship)
+      .first<{ detail: unknown }>();
+    if (typeof row?.detail !== 'string' || !row.detail) return null;
+    let raw: unknown;
+    try {
+      raw = JSON.parse(row.detail);
+    } catch {
+      return null;
+    }
+    const receipt = parsePurserSandboxExecutionReceipt(raw);
+    if (!receipt) return null;
+    const matchesVerdict = receipt.passed
+      ? result.verdict === 'PASS'
+      : result.verdict === 'BLOCK';
+    return matchesVerdict ? receipt : null;
+  } catch (err) {
+    console.error(
+      `[fleet-executor] Purser execution receipt read failed run=${runId} ship=${result.ship}: ${String(err)}`,
+    );
+    return null;
+  }
 }
 
 /**
@@ -395,6 +537,14 @@ export function parseShipCheckpoint(
   if (typeof r.blocking !== 'boolean') return null;
   if (typeof r.errored !== 'boolean') return null;
   if (typeof r.verdict !== 'string' || !VALID_VERDICTS.has(r.verdict)) return null;
+  if (binding.executionReceiptKind === PURSER_SANDBOX_EXECUTION_RECEIPT) {
+    const receipt = parseCheckpointExecutionReceipt(r.checkpointExecutionReceipt);
+    if (!receipt) return null;
+    const matchesVerdict = receipt.passed ? r.verdict === 'PASS' : r.verdict === 'BLOCK';
+    if (!matchesVerdict) return null;
+  } else if (r.checkpointExecutionReceipt !== undefined) {
+    return null;
+  }
   if (r.noUsableOutput !== undefined && typeof r.noUsableOutput !== 'boolean') return null;
   const reviewCoverage =
     r.reviewCoverage === undefined
@@ -520,12 +670,29 @@ export async function saveShipCheckpoint(
   binding: ShipCheckpointBinding,
 ): Promise<boolean> {
   if (!env.DB) return false;
-  if (!parseShipCheckpointBinding(binding)) return false;
+  const normalizedBinding = parseShipCheckpointBinding(binding);
+  if (!normalizedBinding) return false;
+  // The sentinel is valid only for ships that do not consume this projection.
+  // Legacy Lookout rows without the field still parse so load can classify
+  // them as a trusted-binding mismatch, but no current writer may persist a
+  // Lookout checkpoint that is unbound from the exact rendered projection.
+  const hasLookoutProjection =
+    normalizedBinding.lookoutProjectionSha256 !== NOT_APPLICABLE_LOOKOUT_PROJECTION_DIGEST;
+  if ((result.ship === 'lookout') !== hasLookoutProjection) return false;
   // An ERROR or all-empty/no-usable-output result is a diagnostic observation,
   // not completed review evidence. Its regular transcript/spend records stay
   // durable, but a retry must make fresh model progress instead of inheriting
   // the broken result into a new attempt.
   if (!isResumeEligibleCheckpoint(result)) return false;
+  const checkpointExecutionReceipt = normalizedBinding.executionReceiptKind === PURSER_SANDBOX_EXECUTION_RECEIPT
+    ? await readMatchingExecutionReceipt(env, runId, result, normalizedBinding)
+    : null;
+  if (
+    normalizedBinding.executionReceiptKind === PURSER_SANDBOX_EXECUTION_RECEIPT &&
+    !checkpointExecutionReceipt
+  ) {
+    return false;
+  }
   const safeIndex = Number.isInteger(shipIndex) && shipIndex >= 0 ? shipIndex : 0;
   try {
     await env.DB.prepare(
@@ -543,7 +710,8 @@ export async function saveShipCheckpoint(
         JSON.stringify({
           ...result,
           checkpointSchemaVersion: SHIP_CHECKPOINT_SCHEMA_VERSION,
-          checkpointBinding: binding,
+          checkpointBinding: normalizedBinding,
+          ...(checkpointExecutionReceipt ? { checkpointExecutionReceipt } : {}),
         }),
         Math.floor(Date.now() / 1000),
       )

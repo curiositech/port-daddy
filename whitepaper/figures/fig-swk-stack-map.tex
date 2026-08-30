@@ -8,7 +8,7 @@
 \providecolor{hhsanddeep}{HTML}{D8C7A6}
 \providecolor{hhebony}{HTML}{121212}
 \providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
+\providecolor{hhcobalt}{HTML}{6B4500}
 \providecolor{hhamber}{HTML}{6B4500}
 \providecolor{hhteal}{HTML}{00564C}
 \providecolor{hhpaper}{HTML}{FBF7EF}
@@ -21,7 +21,7 @@
   rung/.style={draw=hhebony,thick,rounded corners=4pt,
                minimum width=130mm,minimum height=15mm,
                align=left,inner sep=7pt,text width=122mm},
-  here/.style={draw=hhcobalt,line width=1.6pt,fill=hhsand!30,
+  here/.style={draw=hhamber,line width=1.6pt,fill=hhsand!30,
                rounded corners=4pt,minimum width=130mm,minimum height=15mm,
                align=left,inner sep=7pt,text width=122mm},
 ]
@@ -44,13 +44,13 @@
    \textit{POSIX file lock $\cdot$ wall clock $\cdot$ Unix sockets $\cdot$ keychain $\cdot$ supervisor}};
 
 % "this paper" flags
-\node[anchor=west,font=\bfseries\footnotesize,text=hhcobalt]
+\node[anchor=west,font=\bfseries\footnotesize,text=hhamber]
   at ([xshift=3mm]l1.east) {$\blacktriangleleft$ this paper (carrier half)};
-\node[anchor=west,font=\bfseries\footnotesize,text=hhcobalt]
+\node[anchor=west,font=\bfseries\footnotesize,text=hhamber]
   at ([xshift=3mm]l0.east) {$\blacktriangleleft$ this paper (core)};
 
 % ─── assumes (down) / provides (up) across the floor ──────────────────────
-\draw[->,>=Latex,very thick,hhcobalt]
+\draw[->,>=Latex,very thick,hhamber]
   ([xshift=18mm]l0.south) -- ([xshift=18mm]os.north)
   node[midway,right=1mm,font=\scriptsize\itshape,text=hhink]{assumes};
 \draw[->,>=Latex,very thick,hhteal]

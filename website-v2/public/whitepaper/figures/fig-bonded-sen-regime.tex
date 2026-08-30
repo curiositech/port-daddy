@@ -1,80 +1,79 @@
-% Sen regime diagram — inline in §sec:sen, between the Pareto-inferior locking
-% instance (prop:sen) and the advisory-completeness theorem (thm:advisory).
-% Rail-B boundary figure per docs/harbor-research/figures/CONVENTION.md: axes are
-% the two parameters that control the result's validity, shading marks where
-% advisory claims actually beat enforced locks, and the paper's own operating
-% point is marked on it. Native TikZ (the paper's preamble does not load pgfplots).
-% Serif body font (no \sffamily), hh palette.
+% Governance regimes induced by private allocation information and decisive rights.
+% Semantic form: 2x2 phase matrix.  The geometry, not prose, carries the claim.
 
 \providecolor{hhsand}{HTML}{E9DCC4}
 \providecolor{hhsanddeep}{HTML}{D8C7A6}
 \providecolor{hhebony}{HTML}{121212}
 \providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
 \providecolor{hhamber}{HTML}{6B4500}
 \providecolor{hhteal}{HTML}{00564C}
 \providecolor{hhpaper}{HTML}{FBF7EF}
+\providecolor{hhgray}{HTML}{5C5650}
 
 \begin{figure}[H]
 \centering
-\resizebox{0.96\textwidth}{!}{%
+\resizebox{0.88\textwidth}{!}{%
 \begin{tikzpicture}[
   font=\small,
-  regime/.style={align=center,font=\footnotesize,text width=42mm},
-  axlbl/.style={font=\footnotesize,text=hhink},
+  celltitle/.style={font=\bfseries\small,align=center,text=hhink},
+  cellsub/.style={font=\footnotesize,align=center,text=hhgray,text width=47mm},
+  axislabel/.style={font=\footnotesize\bfseries,text=hhink,align=center},
+  edgehint/.style={font=\footnotesize\itshape,text=hhgray},
 ]
 
-% ── Regimes ────────────────────────────────────────────────────────────────
-\fill[hhsand!55]     (0,0)   rectangle (4.0,7.0);   % locking loses nothing
-\fill[hhteal!18]     (4.0,0) rectangle (12.0,4.0);  % advisory strictly better
-\fill[hhamber!22]    (4.0,4.0) rectangle (12.0,7.0);% thrash: neither dominates
+% Fixed, equal cells.  No label crosses a boundary.
+\fill[hhsand!34]  (0,0) rectangle (5.2,3.0);
+\fill[hhteal!9]   (5.2,0) rectangle (10.4,3.0);
+\fill[hhsand!68]  (0,3.0) rectangle (5.2,6.0);
+\fill[hhamber!14] (5.2,3.0) rectangle (10.4,6.0);
+\draw[draw=hhebony,thick] (0,0) rectangle (10.4,6.0);
+\draw[draw=hhebony,dashed] (5.2,0) -- (5.2,6.0);
+\draw[draw=hhebony,dashed] (0,3.0) -- (10.4,3.0);
 
-% Regime boundaries (dashed: soft, calibrated boundaries, not proved thresholds).
-\draw[dashed,thick,draw=hhebony] (4.0,0) -- (4.0,7.0);
-\draw[dashed,thick,draw=hhebony] (4.0,4.0) -- (12.0,4.0);
+% Four regimes, each kept inside its own cell.
+\node[celltitle] at (2.6,2.30) {Advisory, little gain};
+\node[cellsub] at (2.6,1.55)
+  {Needs are already visible; claims add coordination without changing the allocation.};
 
-% ── Axes ───────────────────────────────────────────────────────────────────
-\draw[->,>=Latex,thick,draw=hhink] (0,0) -- (12.7,0);
-\draw[->,>=Latex,thick,draw=hhink] (0,0) -- (0,7.6);
-\node[axlbl,anchor=north] at (6.0,-0.62)
-  {agent's private information about \emph{its own} future file needs $\longrightarrow$};
-\node[axlbl,rotate=90,anchor=south] at (-0.55,3.8)
-  {cost of negotiating a release $\longrightarrow$};
+\node[celltitle,text=hhteal] at (7.8,2.30) {Shared signals, local choice};
+\node[cellsub,text=hhink] at (7.8,1.55)
+  {Agents reveal conflicts while retaining the private information needed to resolve them.};
 
-\node[axlbl,anchor=north east] at (0,-0.12) {low};
-\node[axlbl,anchor=north west] at (12.1,-0.12) {high};
-\node[axlbl,anchor=east] at (-0.15,7.0) {high};
+\node[celltitle] at (2.6,5.05) {Exclusive locking defensible};
+\node[cellsub] at (2.6,4.20)
+  {When needs are knowable, decisive allocation adds determinism at negligible information loss.};
 
-% ── Regime labels ──────────────────────────────────────────────────────────
-\node[regime,text width=34mm] at (2.0,5.2)
-  {\textbf{Locking loses nothing}\\[3pt]
-   Needs are known up front, so an exclusive lock and an advisory claim allocate
-   \emph{identically} --- and the lock adds determinism for free.};
+\node[celltitle,text=hhamber] at (7.8,5.05) {Sen warning zone};
+\node[cellsub,text=hhink] at (7.8,4.20)
+  {A universal allocator combines decisive rights with information it cannot possess.};
 
-\node[regime,text width=58mm,text=hhteal] at (7.6,2.5)
-  {\textbf{Advisory strictly better}\\[3pt]
-   The allocator lacks the Pareto-relevant information the agents hold, so a
-   precautionary claim can veto a reachable better outcome
-   (Property~\ref{prop:sen}). Conflicts are cheap to renegotiate once reported.};
+% Explicit design boundary and the paper's operating point.
+\node[fill=hhpaper,inner xsep=5pt,inner ysep=2pt,font=\footnotesize\bfseries]
+  at (5.2,6.0) {information boundary};
+\fill[hhteal] (9.55,0.48) circle (3.2pt);
+\draw[hhteal,thick] (9.55,0.48) circle (6pt);
+\node[font=\footnotesize\bfseries,text=hhteal,anchor=east] at (9.25,0.48)
+  {LLM-agent regime};
 
-\node[regime,text width=62mm,text=hhamber] at (8.0,5.5)
-  {\textbf{Neither dominates: thrash region}\\[3pt]
-   Advisory warnings are mutually ignored and renegotiation never converges.
-   This is where the deterministic hard-lock fallback fires (default $k=5$ turns,
-   \S\ref{sec:governance}) --- an admission that the advisory regime has run out.};
+% Axes and endpoint labels live outside the matrix.
+\draw[->,>=Latex,thick,draw=hhink] (0,-0.42) -- (10.8,-0.42);
+\node[axislabel,anchor=north] at (5.2,-0.78)
+  {private allocation information};
+\node[edgehint,anchor=north west] at (0,-0.47) {shared / knowable};
+\node[edgehint,anchor=north east] at (10.4,-0.47) {local / private};
 
-% ── The paper's own operating point ────────────────────────────────────────
-\fill[hhcobalt] (10.6,0.95) circle (3.4pt);
-\node[draw=hhcobalt,thick,fill=hhpaper,rounded corners=2pt,inner sep=5pt,
-      align=center,font=\footnotesize,text=hhcobalt,text width=78mm,
-      anchor=north] (here) at (7.0,-1.45)
-  {\textbf{LLM coding agents sit here.} An agent told to ``fix the login bug''
-   cannot say up front whether it needs the middleware, the route handler, or the
-   tests --- and the daemon certainly cannot.};
-\draw[->,>=Latex,thick,draw=hhcobalt] (here.north east) -- (10.55,0.80);
+\draw[->,>=Latex,thick,draw=hhink] (-0.42,0) -- (-0.42,6.4);
+\node[axislabel,rotate=90,anchor=south] at (-0.88,3.0) {decisive rights};
+\node[edgehint,rotate=90,anchor=north west] at (-0.47,0) {advisory};
+\node[edgehint,rotate=90,anchor=north east] at (-0.47,6.0) {exclusive};
+
+% The denied inference is stated once, in a dedicated annotation rail.
+\draw[hhamber,very thick] (5.55,6.45) -- (10.4,6.45);
+\node[font=\footnotesize\bfseries,text=hhamber,anchor=south east]
+  at (10.4,6.55) {no universal allocator};
 
 \end{tikzpicture}%
 }
-\caption{Advisory claims do not beat enforced locks everywhere --- they beat them only to the right of the dashed vertical, where agents hold private information the allocator cannot have. To its left, locking costs nothing and buys determinism, so Sen's warning does not apply and this paper's design choice would be wrong. Above the dashed horizontal, neither regime works and the hard-lock fallback of \S\ref{sec:governance} takes over. The marked point is where LLM coding agents actually sit, which is the entire argument for the advisory default of \S\ref{sec:advisory}.}
+\caption{Governance depends jointly on decisive rights and private allocation information. Exclusive locking is defensible when work needs are knowable; advisory coordination becomes preferable when the relevant information remains local to agents. The upper-right combination is Sen's warning zone: authority is asked to make a decisive allocation from information it cannot universally possess. The marked operating point is the regime claimed for LLM coding agents.}
 \label{fig:bonded-sen-regime}
 \end{figure}

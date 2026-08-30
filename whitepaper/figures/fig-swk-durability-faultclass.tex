@@ -1,65 +1,45 @@
-% Figure — durability by fault class (the I1a/I1b split). A returned-success
-% write under WAL + normal synchronization survives a PROCESS crash (OS buffer
-% persists) but is NOT guaranteed against OS crash / power loss until the next
-% checkpoint. The Gray-Reuter framing and the remedy live in the caption.
-
+% Figure 4 --- fault class, not a decorative storage journey, determines the guarantee.
 \providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D8C7A6}
 \providecolor{hhebony}{HTML}{121212}
 \providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
 \providecolor{hhamber}{HTML}{6B4500}
 \providecolor{hhteal}{HTML}{00564C}
 \providecolor{hhpaper}{HTML}{FBF7EF}
+\providecolor{hhgray}{HTML}{5C5650}
 
 \begin{figure}[H]
 \centering
-\resizebox{0.95\textwidth}{!}{%
-\begin{tikzpicture}[
-  font=\small,
-  tier/.style={draw=hhebony,thick,rounded corners=2pt,minimum width=30mm,
-               minimum height=12mm,align=center,font=\bfseries\footnotesize},
-  fault/.style={draw=hhebony,thick,rounded corners=2pt,fill=hhpaper,
-                minimum width=34mm,minimum height=13mm,align=center,
-                font=\footnotesize},
+\resizebox{0.91\textwidth}{!}{%
+\begin{tikzpicture}[font=\footnotesize,
+  head/.style={draw=hhink,very thick,fill=hhink,text=white,align=center,minimum height=9mm,font=\footnotesize\bfseries},
+  cell/.style={draw=hhgray,thick,fill=hhpaper,align=left,minimum height=16mm,font=\footnotesize,text=hhink},
+  yes/.style={draw=hhteal,very thick,fill=hhteal!8,align=center,minimum height=16mm,font=\footnotesize\bfseries,text=hhink},
+  no/.style={draw=hhamber,very thick,fill=hhamber!8,align=center,minimum height=16mm,font=\footnotesize\bfseries,text=hhink},
 ]
+\node[head,text width=33mm] at (-5.9,0.1) {fault class};
+\node[head,text width=35mm] at (-2.2,0.1) {returned-success claim};
+\node[head,text width=32mm] at (1.45,0.1) {default guarantee};
+\node[head,text width=47mm] at (5.65,0.1) {boundary / remedy};
 
-% ─── The write's journey ──────────────────────────────────────────────────
-\node[tier,fill=hhsand!30] (app) at (0,0) {commit\\ returns SUCCESS};
-\node[tier,fill=hhsand!30,right=26mm of app] (oscache) {OS page\\ cache};
-\node[tier,fill=hhsand!30,right=30mm of oscache] (waldisk) {WAL file\\ (synced at\\ checkpoint)};
-\node[tier,fill=hhsand!30,right=26mm of waldisk] (maindb) {main DB\\ (checkpointed)};
+\node[cell,text width=33mm] at (-5.9,-1.55) {\textbf{process crash}\\the daemon dies; OS remains live};
+\node[cell,text width=35mm] at (-2.2,-1.55) {I1a: returned write survives};
+\node[yes,text width=32mm] at (1.45,-1.55) {SURVIVES};
+\node[cell,text width=47mm] at (5.65,-1.55) {OS page cache remains available after the process exits};
 
-\draw[->,>=Latex,thick,hhebony] (app) -- (oscache);
-\draw[->,>=Latex,thick,hhebony] (oscache) -- (waldisk);
-\node[font=\scriptsize,above=2.5mm] at ($(oscache.east)!0.5!(waldisk.west)$){not synced per commit};
-\draw[->,>=Latex,thick,hhebony] (waldisk) -- (maindb);
-\node[font=\scriptsize,above=2.5mm] at ($(waldisk.east)!0.5!(maindb.west)$){at the checkpoint interval};
+\node[cell,text width=33mm] at (-5.9,-3.6) {\textbf{OS crash / power loss}\\the page cache is lost};
+\node[cell,text width=35mm] at (-2.2,-3.6) {I1b: returned write survives};
+\node[no,text width=32mm] at (1.45,-3.6) {NOT\\GUARANTEED};
+\node[cell,text width=47mm] at (5.65,-3.6) {normal WAL synchronization waits for checkpoint; use full sync or checkpoint-on-commit};
 
-% ─── I1a survives process crash ───────────────────────────────────────────
-\node[fault,fill=hhsand!30,below=14mm of oscache] (i1a)
-  {\textbf{I1a --- process crash}\\ {\color{hhteal}\textbf{SURVIVES}}\\ {\scriptsize the OS buffer persists}};
-\draw[->,>=Latex,thick,hhteal] (oscache.south) -- (i1a.north);
-
-% ─── I1b NOT guaranteed against OS crash / power loss ──────────────────────
-\node[fault,fill=hhsand!30,below=14mm of waldisk] (i1b)
-  {\textbf{I1b --- OS crash / power loss}\\ {\color{hhcobalt}\textbf{NOT GUARANTEED}}\\ {\scriptsize last commits may roll back}};
-\draw[->,>=Latex,thick,hhcobalt] (waldisk.south) -- (i1b.north);
-
+\node[draw=hhgray,thick,fill=hhsand!30,text width=150mm,minimum height=10mm,align=center,font=\footnotesize] at (-0.15,-5.55)
+ {\textbf{one returned write, two fault boundaries:} crash consistency is not power-loss durability};
 \end{tikzpicture}%
 }
-\caption{Durability by fault class --- the single most important correction to the
-kernel's foundational promise, and exactly Gray \& Reuter's
-atomicity-versus-durability distinction (the ``D'' in ACID is a separate promise).
-The unqualified claim ``a write that returned success survives a crash'' is true for
-a \emph{process} crash (I1a: the OS page cache persists past the dying daemon) but
-\emph{not guaranteed} for an OS crash or power loss (I1b), because under normal
-synchronization the WAL is synced only at checkpoints --- the seductive belief that
-``normal sync is safe in WAL mode'' conflates crash-\emph{consistency} (true) with
-power-loss \emph{durability} (false). The remedy for I1b is full synchronization or
-a checkpoint on the commit path; the kernel does not pay that cost by default, and
-the prose must not imply it does. We split the invariant accordingly: I1a is
-\textsf{implemented}; I1b is \textsf{not guaranteed} under the default WAL
-configuration.}
+\caption{Durability by fault class. Under the default WAL configuration, a returned
+write survives a process crash (I1a), because the operating system remains live,
+but it is not guaranteed to survive an OS crash or power loss (I1b), because normal
+synchronization may defer persistence to checkpoint. Full synchronization or a
+checkpoint on the commit path changes the latter boundary; the kernel does not pay
+that cost by default.}
 \label{fig:swk-durability-faultclass}
 \end{figure}

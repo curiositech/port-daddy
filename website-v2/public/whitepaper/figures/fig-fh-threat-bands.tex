@@ -1,85 +1,76 @@
-% Threat-band layout — what each layer of the Federated Harbor stops, what it
-% defers, and what remains open. Defense-in-depth in the Anchor tradition.
-
+% Federated-Harbor assurance ledger. Aligned lookup replaces three prose cards.
 \providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D8C7A6}
 \providecolor{hhebony}{HTML}{121212}
-\providecolor{hhcobalt}{HTML}{003FB8}
+\providecolor{hhink}{HTML}{1B1712}
 \providecolor{hhamber}{HTML}{6B4500}
 \providecolor{hhteal}{HTML}{00564C}
 \providecolor{hhpaper}{HTML}{FBF7EF}
 
 \begin{figure}[H]
 \centering
-\resizebox{0.95\textwidth}{!}{%
-\begin{tikzpicture}[
-  font=\small,
-  bandhead/.style={draw=hhebony,thick,fill=hhpaper,rounded corners=2pt,
-                   inner sep=4pt,minimum width=56mm,align=center,
-                   font=\bfseries\small},
-  bandbody/.style={draw=hhebony,thick,rounded corners=3pt,
-                   inner sep=6pt,minimum width=56mm,minimum height=42mm,
-                   align=left,text width=52mm,
-                   font=\footnotesize,anchor=north},
-  % Status is carried by fill weight, border weight and label case --- never by
-  % hue --- matching the paper's own maturity key. Cobalt is spent once, on the
-  % band that most needs the reader's eye (the open frontier).
-  bandstopped/.style={fill=hhsand!45},
-  bandbounded/.style={fill=hhsand!22},
-  bandopen/.style={fill=hhpaper,draw=hhcobalt,line width=1.4pt},
-  arrow/.style={->,>=Latex,thick,draw=hhebony},
-]
+\resizebox{0.96\textwidth}{!}{%
+\begin{tikzpicture}[font=\small]
+  \fill[hhteal!7] (-4.35,2.10) rectangle (-.45,-4.18);
+  \fill[hhsand!38] (-.45,2.10) rectangle (3.55,-4.18);
+  \fill[hhamber!5] (3.55,2.10) rectangle (7.45,-4.18);
+  \draw[hhebony,line width=.7pt] (-7.05,2.90) rectangle (7.45,-4.18);
+  \draw[hhebony,line width=.55pt] (-7.05,2.10) -- (7.45,2.10);
+  \foreach \x in {-4.35,-.45,3.55} {\draw[hhebony!65,line width=.45pt] (\x,2.90) -- (\x,-4.18);}
+  \foreach \y in {1.20,.30,-.60,-1.50,-2.40,-3.30} {\draw[hhebony!30,line width=.4pt] (-7.05,\y) -- (7.45,\y);}
 
-% ─── Band 1: stopped (mechanized) ──────────────────────────────────
-\node[bandhead,fill=hhsand!55] (h1) at (0,0) {\textbf{\scshape Stopped} — mechanized};
-\node[bandbody,bandstopped,below=0pt of h1.south] (b1) {%
-  \textbf{ProVerif:}\\
-  $\bullet$ cross-harbor card authenticity\\
-  $\bullet$ attenuation across boundary\\
-  $\bullet$ replay against epoch-bound root\\[3pt]
-  \textbf{Runtime / property tests:}\\
-  $\bullet$ cuckoo-filter no-FN under gossip\\
-  $\bullet$ epoch root monotonicity\\
-  $\bullet$ terminal-state transition checks};
+  \node[font=\footnotesize\bfseries] at (-5.70,2.50) {THREAT};
+  \node[font=\footnotesize\bfseries,text=hhteal,align=center] at (-2.40,2.50)
+    {MECHANIZED\\[-1pt]\scriptsize proof artifact};
+  \node[font=\footnotesize\bfseries,align=center] at (1.55,2.50)
+    {BOUNDED\\[-1pt]\scriptsize named window / condition};
+  \node[font=\footnotesize\bfseries,text=hhamber,align=center] at (5.50,2.50)
+    {OPEN\\[-1pt]\scriptsize no theorem yet};
 
-% ─── Band 2: bounded (named threat, named bound) ───────────────────
-\node[bandhead,fill=hhsand!28,right=10mm of h1] (h2) {\textbf{Bounded} — threat $\subseteq$ window};
-\node[bandbody,bandbounded,below=0pt of h2.south] (b2) {%
-  \textbf{Gossip latency:}\\
-  $\bullet$ expected $\Theta(\log m)$ spread in the stated reliable-round model\\
-  $\bullet$ no finite deadline under unbounded partition\\[3pt]
-  \textbf{Cross-witness equivocation:}\\
-  $\bullet$ contradictory roots detectable once co-located\\
-  $\bullet$ slashable via witness bond\\[3pt]
-  \textbf{Settlement contention:}\\
-  $\bullet$ conditional atomic clear or refusal};
+  \node[anchor=west,font=\footnotesize\bfseries] at (-6.85,1.65) {identity + replay};
+  \node[anchor=west,font=\footnotesize\bfseries] at (-6.85,.75) {revocation};
+  \node[anchor=west,font=\footnotesize\bfseries] at (-6.85,-.15) {equivocation};
+  \node[anchor=west,font=\footnotesize\bfseries] at (-6.85,-1.05) {settlement};
+  \node[anchor=west,font=\footnotesize\bfseries] at (-6.85,-1.95) {cold-start admission};
+  \node[anchor=west,font=\footnotesize\bfseries] at (-6.85,-2.85) {cartel monitoring};
+  \node[anchor=west,font=\footnotesize\bfseries] at (-6.85,-3.75) {centralization};
 
-% ─── Band 3: open (acknowledged) ──────────────────────────────────
-\node[bandhead,draw=hhcobalt,line width=1.4pt,fill=hhpaper,right=10mm of h2] (h3)
-  {\textbf{\itshape Open} — acknowledged};
-\node[bandbody,bandopen,below=0pt of h3.south] (b3) {%
-  \textbf{Cold-start admission:}\\
-  $\bullet$ new harbor with no reputation cannot price its own bond fairly\\[3pt]
-  \textbf{Cross-federation cartel:}\\
-  $\bullet$ repeated-game bounds require a specified monitoring model\\[3pt]
-  \textbf{Centralization gravity:}\\
-  $\bullet$ historical pull toward hub-and-spoke; structural pushback rather than proof};
+  \node[align=center,font=\scriptsize,text=hhteal] at (-2.40,1.65)
+    {$\checkmark$ signed card\\attenuation + epoch root};
+  \foreach \y in {.75,-.15,-1.05,-1.95,-2.85,-3.75}
+    {\node[font=\scriptsize,text=hhebony!35] at (-2.40,\y) {--};}
 
-% ─── Spine: load-bearing reading direction. Connectors run between the
-%      fixed-height HEADERS (not the variable-height bodies), and the prose
-%      labels move to the caption so nothing collides with the band text. ──
-\draw[arrow] (h1.east) -- (h2.west);
-\draw[arrow] (h2.east) -- (h3.west);
+  \node[font=\scriptsize,text=hhebony!35] at (1.55,1.65) {--};
+  \node[align=center,font=\scriptsize] at (1.55,.75)
+    {$\Theta(\log m)$ reliable rounds\\no deadline under partition};
+  \node[align=center,font=\scriptsize] at (1.55,-.15)
+    {proof after roots co-locate\\witness bond prices fault};
+  \node[align=center,font=\scriptsize] at (1.55,-1.05)
+    {Clear / Refuse\\if custody gate holds};
+  \foreach \y in {-1.95,-2.85,-3.75}
+    {\node[font=\scriptsize,text=hhebony!35] at (1.55,\y) {--};}
 
+  \foreach \y in {1.65,.75,-.15}
+    {\node[font=\scriptsize,text=hhebony!35] at (5.50,\y) {--};}
+  \node[align=center,font=\scriptsize,text=hhamber] at (5.50,-1.05)
+    {deployed custody\\not established};
+  \node[align=center,font=\scriptsize,text=hhamber] at (5.50,-1.95)
+    {reputation too thin\\to price the bond};
+  \node[align=center,font=\scriptsize,text=hhamber] at (5.50,-2.85)
+    {monitoring model\\must be specified};
+  \node[align=center,font=\scriptsize,text=hhamber] at (5.50,-3.75)
+    {structural pull;\\pushback, not proof};
+
+  \draw[-{Stealth[length=2mm,width=1.25mm]},hhebony,line width=.65pt]
+    (-4.15,-4.68) -- (7.10,-4.68);
+  \node[fill=hhpaper,inner xsep=4pt,font=\footnotesize] at (1.45,-4.68)
+    {artifact $\longrightarrow$ named bound $\longrightarrow$ acknowledged gap};
 \end{tikzpicture}%
 }
-\caption{Threat-band layout for the Federated Harbor. The Anchor paper's
-defense-in-depth structure carries over: every claim either has a mechanization
-artifact, a named bound the bond can price against, or an explicit acknowledgement
-that it sits on the open frontier. Status is read from weight, not colour --- the
-bands lighten left to right as the evidence thins, and the one band with no formal
-artifact behind it is the one drawn in outline. Reading left to right runs deeper
-into threat space and out of formal reach; bands shift left over time as future work
-mechanizes what is presently only bounded.}
+\caption{Assurance ledger for the Federated Harbor. Each threat occupies one
+row, so the reader can compare what is mechanized, what is only bounded by a
+named window or condition, and what remains open. The left column names proof
+artifacts; the middle column states the bound and its failure condition; the
+right column preserves unresolved risk instead of decorating it away. Future
+work moves a row left only by supplying the missing artifact or theorem.}
 \label{fig:fh-threat-bands}
 \end{figure}

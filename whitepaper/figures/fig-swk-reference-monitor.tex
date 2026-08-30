@@ -7,7 +7,7 @@
 \providecolor{hhsanddeep}{HTML}{D8C7A6}
 \providecolor{hhebony}{HTML}{121212}
 \providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
+\providecolor{hhcobalt}{HTML}{6B4500}
 \providecolor{hhamber}{HTML}{6B4500}
 \providecolor{hhteal}{HTML}{00564C}
 \providecolor{hhpaper}{HTML}{FBF7EF}
@@ -19,7 +19,7 @@
   font=\small,
   actor/.style={draw=hhebony,thick,rounded corners=2pt,fill=hhsand!30,
                 minimum width=22mm,minimum height=10mm,align=center},
-  gate/.style={draw=hhcobalt,line width=1.4pt,fill=hhpaper,
+  gate/.style={draw=hhamber,line width=1.4pt,fill=hhpaper,
                minimum width=22mm,minimum height=14mm,align=center,
                font=\bfseries\footnotesize},
   store/.style={draw=hhebony,thick,fill=hhsand!30,cylinder,shape border rotate=90,
@@ -41,7 +41,7 @@
 \draw[->,>=Latex,thick,hhebony] (wal) -- node[above,font=\footnotesize]{emit event} (log);
 
 % reject edge
-\draw[->,>=Latex,thick,hhcobalt] (pk.south) to[bend right=30]
+\draw[->,>=Latex,thick,hhamber] (pk.south) to[bend right=30]
   node[below,font=\footnotesize,text=hhink]{reject} ([yshift=-7mm]pk.south);
 
 % ─── Policy monitor: subscriber DOWNSTREAM of commit ───────────────────────
@@ -52,7 +52,7 @@
   node[below,font=\footnotesize,text=hhink,align=center]{compensate\\(undo / salvage)} (wal.south);
 
 % ─── The interception line ─────────────────────────────────────────────────
-\draw[hhcobalt,line width=1pt,dash pattern=on 3pt off 2pt]
+\draw[hhamber,line width=1pt,dash pattern=on 3pt off 2pt]
   ($(wal.east)!0.5!(log.west)$) ++(0,16mm) -- ++(0,-42mm);
 \node[note,text=hhink,anchor=south] at ($(wal.east)!0.5!(log.west)+(0,17mm)$)
   {\textbf{the commit line}};

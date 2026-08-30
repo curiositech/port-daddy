@@ -7,7 +7,7 @@
 \providecolor{hhsanddeep}{HTML}{D8C7A6}
 \providecolor{hhebony}{HTML}{121212}
 \providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
+\providecolor{hhcobalt}{HTML}{6B4500}
 \providecolor{hhamber}{HTML}{6B4500}
 \providecolor{hhteal}{HTML}{00564C}
 \providecolor{hhpaper}{HTML}{FBF7EF}
@@ -21,7 +21,7 @@
              minimum width=24mm,minimum height=11mm,align=center,font=\bfseries\footnotesize},
   term/.style={draw=hhink,line width=1.2pt,fill=hhsand!30,rounded corners=10pt,
                minimum width=26mm,minimum height=11mm,align=center,font=\bfseries\footnotesize},
-  gate/.style={draw=hhcobalt,line width=1.4pt,fill=hhpaper,diamond,aspect=1.7,
+  gate/.style={draw=hhamber,line width=1.4pt,fill=hhpaper,diamond,aspect=1.7,
                inner sep=2pt,align=center,font=\footnotesize},
   oracle/.style={draw=hhink,thick,fill=hhpaper,rounded corners=2pt,
                  minimum width=40mm,align=center,font=\scriptsize,inner sep=3pt},
@@ -36,7 +36,7 @@
 
 \draw[edge] (open) -- node[above]{close as `done'} (g);
 \draw[edge,hhteal] (g) -- node[above,align=center]{reference present\\ \& holds now} (done);
-\draw[edge,hhcobalt] (g.north) to[bend right=28]
+\draw[edge,hhamber] (g.north) to[bend right=28]
   node[above,text=hhink,align=center]{free text only $\Rightarrow$ refused; stays open} (open.north);
 \draw[edge] (open.south) -- (aband.north);
 \draw[edge] (open.south) -- (super.north);

@@ -161,6 +161,7 @@ export interface CollectedVolume {
   title: string
   subtitle: string
   pdfPath: string
+  downloadUrl: string
   date: string
   pages: number
   sizeKb: number
@@ -171,11 +172,13 @@ export const COLLECTED_VOLUME: CollectedVolume = {
   id: 'coordination-papers-mega-volume',
   title: 'The Port Daddy Coordination Papers',
   subtitle:
-    'Seven chapters in one coherent volume, with a global introduction, collated contents and references, implementation ledger, notation concordance, and research roadmap.',
+    'Seven chapters in one coherent illuminated edition, with the collected jacket, a new Chapter VII plate, selected coda art, collated references, an implementation ledger, and a research roadmap.',
   pdfPath: '/whitepaper/coordination-papers-mega-volume.pdf',
+  downloadUrl:
+    'https://raw.githubusercontent.com/curiositech/port-daddy/main/website-v2/public/whitepaper/coordination-papers-mega-volume.pdf',
   date: 'August 2026',
   pages: 278,
-  sizeKb: 2386,
+  sizeKb: 31665,
   references: 202,
 }
 
@@ -257,8 +260,8 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     readerHref: '/whitepaper/legible-swarm',
     overviewHref: '/whitepaper?paper=legible-swarm',
     date: 'August 2026',
-    pages: 50,
-    sizeKb: 872,
+    pages: 48,
+    sizeKb: 905,
     status: 'Version 1.2 (collected-volume edition)',
     order: '01',
     chapter: 'I',
@@ -371,7 +374,7 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     overviewHref: '/whitepaper?paper=single-writer-kernel',
     date: 'August 2026',
     pages: 40,
-    sizeKb: 787,
+    sizeKb: 783,
     status: 'Version 1.2 (collected-volume edition)',
     order: '02',
     chapter: 'II',
@@ -485,7 +488,7 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     overviewHref: '/whitepaper?paper=spawn-to-person',
     date: 'August 2026',
     pages: 41,
-    sizeKb: 711,
+    sizeKb: 702,
     status: 'Version 1.4 (collected-volume edition)',
     order: '03',
     chapter: 'III',
@@ -597,8 +600,8 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     readerHref: '/whitepaper/harbor-economy',
     overviewHref: '/whitepaper?paper=harbor-economy',
     date: 'August 2026',
-    pages: 39,
-    sizeKb: 818,
+    pages: 37,
+    sizeKb: 775,
     status: 'Version 1.3 (collected-volume edition)',
     order: '04',
     chapter: 'IV',
@@ -711,8 +714,8 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     readerHref: '/whitepaper/anchor-protocol',
     overviewHref: '/whitepaper?paper=anchor-protocol',
     date: 'August 2026',
-    pages: 29,
-    sizeKb: 821,
+    pages: 28,
+    sizeKb: 746,
     status: 'Version 1.4 (revised pre-print)',
     order: '05',
     chapter: 'V',
@@ -823,8 +826,8 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     readerHref: '/whitepaper/bonded-commons',
     overviewHref: '/whitepaper?paper=bonded-commons',
     date: 'August 2026',
-    pages: 53,
-    sizeKb: 971,
+    pages: 52,
+    sizeKb: 883,
     status: 'Version 2.7 (revised pre-print)',
     order: '06',
     chapter: 'VI',
@@ -943,7 +946,7 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     overviewHref: '/whitepaper?paper=federated-harbor',
     date: 'August 2026',
     pages: 32,
-    sizeKb: 751,
+    sizeKb: 757,
     status: 'Version 1.0 (revised pre-print)',
     order: '07',
     chapter: 'VII',
@@ -1137,7 +1140,7 @@ export const LIBRARY_CHANGELOG: LibraryChangelogEntry[] = [
     date: 'August 5, 2026',
     title: 'Spawn-to-Person diagrams and implementation status align',
     summary:
-      'Chapter III advances to Version 1.4: three repaired figures distinguish the shipped local actor-soul and commitment substrates from the still-open write-boundary, neutral-grading, reputation, and cross-operator-attestation obligations. The 35-page standalone, contact sheet, animated page tour, and SHA-256 proof manifest are published together.',
+      'Chapter III advances to Version 1.4: three repaired figures distinguish the shipped local actor-soul and commitment substrates from the still-open write-boundary, neutral-grading, reputation, and cross-operator-attestation obligations. The 41-page standalone, contact sheet, animated page tour, and SHA-256 proof manifest are published together.',
     chapters: ['III'],
   },
   {

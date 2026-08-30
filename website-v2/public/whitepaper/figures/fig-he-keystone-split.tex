@@ -1,69 +1,37 @@
-% The keystone split: local non-forgeable identity vs cross-operator attestation.
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D8C7A6}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhcobalt}{HTML}{003FB8}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-
+% Semantic contract: local key evidence is complete; cross-operator principal
+% binding is the single missing capability.
 \begin{figure}[H]
 \centering
-\resizebox{0.95\textwidth}{!}{%
 \begin{tikzpicture}[
   font=\small,
-  harbor/.style={draw=hhebony,thick,fill=hhsand!30,rounded corners=4pt,
-                 inner sep=6pt,minimum width=52mm,minimum height=34mm,align=center},
-  root/.style={draw=hhink,line width=1.4pt,fill=hhsand!30,rounded corners=2pt,
-               inner sep=3pt,font=\scriptsize\bfseries,align=center},
-  agent/.style={draw=hhebony,thick,fill=hhpaper,circle,inner sep=1pt,
-                minimum size=7mm,font=\scriptsize},
+  row/.style={draw=hhink,line width=.5pt,minimum width=45mm,minimum height=9.5mm,
+    text width=42mm,inner sep=4pt,align=left,font=\scriptsize},
+  cell/.style={draw=hhink,line width=.5pt,minimum width=26mm,minimum height=9.5mm,
+    inner sep=4pt,align=center,font=\scriptsize},
+  head/.style={font=\scriptsize\bfseries,align=center,text width=24mm}
 ]
-
-% Harbor A
-\node[harbor,label={[font=\bfseries\footnotesize]north:Harbor $A$ (Alice owns)}]
-  (HA) at (0,0) {};
-\node[root] (rA) at ($(HA.center)+(0,9mm)$) {trusted root\\(Alice's daemon)};
-\node[agent] (a1) at ($(HA.center)+(-12mm,-7mm)$) {$a_1$};
-\node[agent] (a2) at ($(HA.center)+(0,-7mm)$) {$a_2$};
-\node[agent] (a3) at ($(HA.center)+(12mm,-7mm)$) {$a_3$};
-\foreach \a in {a1,a2,a3} { \draw[->,>=Latex,hhteal,thick] (rA) -- (\a); }
-
-% Harbor B
-\node[harbor,label={[font=\bfseries\footnotesize]north:Harbor $B$ (Bob owns)},
-  right=46mm of HA] (HB) {};
-\node[root] (rB) at ($(HB.center)+(0,9mm)$) {trusted root\\(Bob's daemon)};
-\node[agent] (b1) at ($(HB.center)+(-12mm,-7mm)$) {$b_1$};
-\node[agent] (b2) at ($(HB.center)+(0,-7mm)$) {$b_2$};
-\node[agent] (b3) at ($(HB.center)+(12mm,-7mm)$) {$b_3$};
-\foreach \b in {b1,b2,b3} { \draw[->,>=Latex,hhteal,thick] (rB) -- (\b); }
-
-% the boundary nobody controls
-\node[draw=hhcobalt,line width=1.6pt,fill=hhsand!30,rounded corners=3pt,
-      inner sep=4pt,font=\bfseries\scriptsize,text=hhink,
-      text width=36mm,align=center] (gap) at ($(HA.east)!0.5!(HB.west)+(0,4mm)$)
-  {\textbf{cross-operator}\\\textbf{attestation}\\ \normalfont\scriptsize
-   (specified $\to$ proposed)\\ \emph{who vouches $b_i$'s keys map to a real distinct
-   principal?}};
-\draw[<->,>=Latex,line width=1.4pt,hhcobalt] (HA.east) -- (HB.west);
-
-
-\end{tikzpicture}%
-}
-\caption{The market rests on a keystone it does not yet have: local
-non-forgeable identity covers only a single trusted daemon, while the market is
-defined by operators who share no such root. Chapters I--III rest on
-\textbf{local non-forgeable identity}: a per-agent identity no agent can edit
-\emph{within one trusted daemon}
---- a single trusted root that vouches for every agent it mints. That is exactly
-what a single-operator harbor needs. But the market is \emph{defined} by
-mutually-distrusting operators trading across a boundary neither controls, and that
-primitive explicitly disclaims the relevant threat model (intra-fleet, not a
-cross-party PKI, no hostile-operator defense). Binding signing keys across harbors
-you do not own is a different, unsolved problem: \textbf{cross-operator
-attestation}. Across the boundary, the counterparty's daemon \emph{is} the
-adversary the local threat model declares out of scope, and the witness log gives
-\emph{log integrity}, not \emph{identity binding}. It is the highest-leverage
-unbuilt keystone, and it gates the entire market thesis.}
+  \node[head,text width=42mm] at (-4.0,2.35) {identity evidence};
+  \node[head] at (-.35,2.35) {Alice\\local};
+  \node[head] at (2.35,2.35) {Bob\\local};
+  \node[head] at (5.05,2.35) {cross-\\operator};
+  \foreach \y/\itemtext in {1.35/daemon-minted key,.35/actor-to-key registry,-.65/witness-log integrity,-1.65/accountable principal binding}
+    \node[row] at (-4.0,\y) {\itemtext};
+  \foreach \x in {-.35,2.35} {
+    \node[cell,fill=hhsand!22] at (\x,1.35) {established};
+    \node[cell,fill=hhsand!22] at (\x,.35) {established};
+    \node[cell,fill=hhsand!22] at (\x,-.65) {established};
+    \node[cell,fill=hhsand!22] at (\x,-1.65) {established};
+  }
+  \node[cell,fill=hhsand!22] at (5.05,1.35) {key visible};
+  \node[cell,fill=hhsand!38] at (5.05,.35) {foreign registry};
+  \node[cell,fill=hhsand!22] at (5.05,-.65) {log verifiable};
+  \node[cell,fill=hhamber!22,draw=hhamber,line width=1pt,font=\bfseries\scriptsize]
+    at (5.05,-1.65) {MISSING};
+  \node[font=\scriptsize\itshape,text=hhgray,align=center] at (.55,-2.65)
+    {integrity proves what was recorded; it does not establish who controls a foreign key};
+\end{tikzpicture}
+\caption{Both operators have complete local identity evidence. Across operators,
+keys and logs remain inspectable, but the binding from a foreign key to a distinct
+accountable principal is missing. Log integrity cannot supply that capability.}
 \label{fig:he-keystone-split}
 \end{figure}
