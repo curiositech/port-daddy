@@ -65,6 +65,16 @@ describe('whitepaper metadata sync', () => {
     expect(detectDrift([COLLECTED_VOLUME], pdfFactsFromDisk)).toEqual([])
   })
 
+  test('collected pagination is composed independently from standalone PDFs', () => {
+    const standalonePages = WHITE_PAPERS.reduce((sum, paper) => sum + paper.pages, 0)
+
+    // The collected edition strips standalone front matter and inserts its own
+    // jacket, contents, chapter plates, and coda. Its PDF facts are therefore
+    // authoritative; summing the seven separately typeset editions is not.
+    expect(standalonePages).toBe(275)
+    expect(COLLECTED_VOLUME.pages).toBe(276)
+  })
+
   test('every paper declares an on-disk PDF', () => {
     for (const paper of WHITE_PAPERS) {
       const abs = resolvePdfPath(paper.pdfPath)
