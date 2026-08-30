@@ -1,80 +1,49 @@
-% Figure 10 — push vs. pull signals in the discovery ranker (Eq. eq:fit).
-% Design: a relation-map, not a data plot. Two columns of signals, one shared
-% ranker below, and the relation each column bears to the truth it is supposed to
-% report. Six terms placed exactly as Table tab:fit-signals sorts them.
-% One accent (hhcobalt) marks the side the design trusts; everything else is ink.
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-\providecolor{hhgray}{HTML}{5C5650}
-
+% Figure 10 — evidence provenance as a weighted signal field. Hollow marks are
+% declarations; filled marks are work residue gathered for another purpose.
 \begin{figure}[H]
 \centering
-\resizebox{0.86\textwidth}{!}{%
-\begin{tikzpicture}[
-  font=\small,
-  col/.style={draw=hhebony,thick,rounded corners=3pt,fill=hhsand!22,
-              align=center,inner sep=7pt,font=\footnotesize\bfseries,text width=44mm},
-  sig/.style={draw=hhink!55,thin,rounded corners=2pt,fill=hhpaper,
-              align=left,inner sep=4pt,font=\footnotesize,text width=42mm},
-  rank/.style={draw=hhcobalt,very thick,rounded corners=3pt,fill=hhpaper,
-               align=center,inner sep=7pt,font=\footnotesize,text width=62mm},
-  w/.style={-{Latex[length=2mm]},thick,hhink},
-  wstrong/.style={-{Latex[length=2.4mm]},very thick,hhcobalt},
-]
+\begin{tikzpicture}[pd figure,x=.89cm,y=1cm]
+  \foreach \x/\lab in {3.0/identity,4.65/skill,6.30/file,7.95/note,9.60/episode,11.25/load}{
+    \draw[pd guide] (\x,.55)--(\x,4.15);
+    \node[pd axis label,anchor=south,rotate=35] at (\x,4.24) {\lab};
+  }
+  \node[pd panel title,anchor=east] at (1.70,3.15) {candidate A};
+  \node[pd panel title,anchor=east] at (1.70,1.75) {candidate B};
+  \draw[pd hairline] (2.05,3.15)--(12.05,3.15);
+  \draw[pd hairline] (2.05,1.75)--(12.05,1.75);
 
-% ─── column heads ────────────────────────────────────────────────────────────
-\node[col] (push) at (0,0)   {PUSH\\{\normalfont\itshape what the agent says it is}};
-\node[col] (pull) at (7.4,0) {PULL\\{\normalfont\itshape what the agent was seen to do}};
+  % Push evidence: equal, cheap, and visibly hollow.
+  \foreach \y in {3.15,1.75}{
+    \node[circle,draw=hhamber,line width=.8pt,fill=hhpaper,inner sep=2.25pt] at (3.0,\y) {};
+    \node[circle,draw=hhamber,line width=.8pt,fill=hhpaper,inner sep=2.25pt] at (4.65,\y) {};
+  }
+  % Pull evidence: A has a file trace but no completed migration episode; B has
+  % a full residue chain plus load, which also prevents blind over-routing.
+  \node[pd datum] at (6.30,3.15) {};
+  \node[pd caution datum] at (9.60,3.15) {};
+  \foreach \x in {6.30,7.95,9.60,11.25}{\node[pd focus datum] at (\x,1.75) {};}
+  \draw[pd caution rule] (9.28,2.83)--(9.92,3.47);
+  \draw[pd caution rule] (9.92,2.83)--(9.28,3.47);
 
-% ─── signals ─────────────────────────────────────────────────────────────────
-\node[sig] (ident) at (0,-1.35) {$\mathrm{ident}$ --- declared role};
-\node[sig] (skill) at (0,-2.35) {$\mathrm{skill}$ --- declared capability};
+  \draw[pd hairline] (2.55,.72)--(5.10,.72);
+  \node[pd axis label,text=hhamber,anchor=north] at (3.82,.60) {push: declared};
+  \draw[pd focus rule] (5.85,.72)--(11.70,.72);
+  \node[pd axis label,text=hhteal,anchor=north] at (8.78,.60) {pull: independent residue};
 
-\node[sig] (file) at (7.4,-1.35) {$\mathrm{file}$ --- claims on these files};
-\node[sig] (note) at (7.4,-2.35) {$\mathrm{note}$ --- notes it wrote};
-\node[sig] (epis) at (7.4,-3.35) {$\mathrm{epis}$ --- episodes it closed};
-\node[sig] (load) at (7.4,-4.35) {$\mathrm{load}$ --- how busy it is now};
-
-% ─── the property that separates the columns ─────────────────────────────────
-\node[font=\scriptsize\itshape,text=hhink,align=center,text width=46mm]
-  (pushnote) at (0,-3.6)
-  {free to assert; stale by default;\\the only place a lie can live};
-\node[font=\scriptsize\itshape,text=hhcobalt,align=center,text width=46mm]
-  (pullnote) at (7.4,-5.35)
-  {a by-product of work already done,\\recorded for another purpose ---\\costly to forge, cheap to trust};
-
-% ─── the ranker ──────────────────────────────────────────────────────────────
-\node[rank] (fit) at (3.7,-7.0)
-  {$\mathrm{fit}(c,q)=\mathrm{clamp}\bigl(z(c,q),0,1\bigr)$\\[2pt]
-   {\itshape one score, six signals, weighted by trustworthiness}};
-
-\draw[w] (pushnote.south) .. controls +(0,-1.4) and +(-2.6,0.9) .. (fit.west);
-\draw[wstrong] (pullnote.south) .. controls +(0,-0.8) and +(2.6,0.9) .. (fit.east);
-
-\node[font=\scriptsize,text=hhink,anchor=east] at (2.35,-5.75) {small weight};
-\node[font=\scriptsize\bfseries,text=hhcobalt,anchor=west] at (5.15,-6.45) {large weight};
-
-% ─── the boundary, stated on the page ────────────────────────────────────────
-\node[draw=hhink!45,thin,rounded corners=2pt,fill=hhsand!14,inner sep=6pt,
-      align=center,font=\scriptsize\itshape,text width=88mm] at (3.7,-8.9)
-  {A pull signal is not honest by nature --- it is honest because forging it
-   requires doing the work. Weight follows cost-to-forge, not confidence.};
-
-\end{tikzpicture}%
-}
-\caption{The discovery ranker weights \emph{pull} signals --- residue of work a
-candidate actually did, recorded for some other purpose --- over \emph{push}
-signals, what a candidate merely declares about itself (Eq.~\ref{eq:fit},
-Table~\ref{tab:fit-signals}). The design weights pull over push not because declarations are
-usually false but because they are \emph{free} --- an agent that wants to be routed
-work can inflate a skill tag at no cost and cannot inflate a merged episode without
-merging something. This is the discovery-side instance of the same discipline
-digest-with-zoom (Def.~\ref{def:zoom}) applies to summaries: trust the claim that
-reaches an artifact.}
+  % Evidence-weight summary: the bars are conclusions of the same signal field,
+  % not a second table.
+  \draw[pd guide] (12.72,.90)--(12.72,3.65);
+  \draw[pd rule,line width=3.5pt,line cap=round] (12.72,3.15)--(13.62,3.15);
+  \draw[pd focus rule,line width=3.5pt,line cap=round] (12.72,1.75)--(15.05,1.75);
+  \node[pd axis label,anchor=west] at (13.82,3.15) {small verified weight};
+  \node[pd direct label,text=hhteal,anchor=west,font=\footnotesize\bfseries]
+    at (13.18,1.33) {B ranks first};
+\end{tikzpicture}
+\caption{Push and pull evidence for the same capability claim. Hollow marks are
+cheap self-declarations; filled marks are residue produced while doing work for
+another purpose. A and B make the same identity and skill claims, but only B
+leaves the complete file, note, episode, and current-load trail. The ranker
+therefore follows independently addressable evidence rather than confidence in
+self-report.}
 \label{fig:pushpull}
 \end{figure}

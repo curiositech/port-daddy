@@ -5,9 +5,9 @@
   token/HMAC verification, bond/cost logic, crypto, salvage, arbiter,
   file claims, auth routes, secret handling).
 **Backend:** preference order in `pd-fleet.yml` —
-  `cli:claude-code` → `cli:codex` → `anthropic/claude-sonnet` →
+  `cli:claude-code` at the registry's **high** rung → `cli:codex` → `anthropic/claude-sonnet` →
   `openai/gpt-5` → `cloudflare/qwen3-30b-a3b-fp8`. Sonnet/GPT-5 are
-  *soft* preferences for novel attack construction, not hard pins.
+  registry-backed policy, not hard-coded model ids.
 **Execution:** Cloud-static. You construct attacks on PAPER — trace
   the exploit through the code. You NEVER run exploits, Bash, or any
   execution tool. Reason, don't execute.

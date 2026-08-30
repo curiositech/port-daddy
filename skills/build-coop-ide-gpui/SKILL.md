@@ -85,11 +85,15 @@ flowchart TD
 - **Governable CRDT.** Loro v1.13.x is the buffer; a **claim is a presence range the guard can refuse to merge across**. Bytes merge automatically; *intent* is governed above the CRDT.
 - **Agents are peers, not tools.** Every actor (human or agent) is a Loro replica with a PeerID minted from its PD identity, rendered identically (cursor, claimed range, name), with provenance.
 - **Claims govern intent, not bytes.** "Merges cleanly" ≠ "merges correctly" — surface logical conflict (`POST /conflicts/predict`) as a `Conflicted`/`Gated` band *before* a byte is written; never a silent auto-merge.
-- **Salvage is the wedge.** A dead replica's op-log + claim persist and replay; a successor inherits and finishes. Build it, don't skip it — a buffer without salvage is a Potemkin editor.
-- **The daemon IS the collab server** — no new sync backend. Loro Protocol over the existing tube; snapshots→`/blob`; op-log→immutable notes.
+- **Authoritative recovery is the target wedge, not current functionality.** P3.5 requires daemon-owned typed receipts from sequence zero, sealed abandonment, canonical Rust Loro validation, and one atomic P3 claim transfer/token/provenance transaction. Current P2 snapshots, `/blob`, notes, generic salvage, and `apply_remote_ops` cannot authorize it. Build the missing authorities; never simulate them.
+- **The daemon IS the collab server** — no new sync backend. Loro Protocol rides the existing tube; the canonical editor-sync contract owns checkpoint/reconnect behavior, while P3.5 salvage uses separate daemon-owned typed operation receipts. Notes are provenance, never replay evidence.
 - **Topology behind a trait.** `SyncTransport` abstracts Shared (daemon HTTP+SSE) / LAN (iroh) / Remote (relay+E2E); the editor never knows which.
-- **Reuse, don't reinvent.** Layers 1, 3, 4 assemble shipped PD assets; the only genuinely from-scratch cost is Layer 2's buffer.
+- **Reuse without overstating.** Layers 1, 3, and 4 assemble many shipped PD assets, but authoritative P3.5 editor recovery is still unimplemented. Layer 2's editor core and the missing recovery authorities remain real product work.
 - **One motion owner per surface** (see rust-gpui-motion). **No UI merges without visual artifacts** in the test plan (screenshot + motion clip) — full stop.
+
+## Current Implementation Truth
+
+The authenticated `POST /editor/recovery/{request,prepare,replay,finalize}` routes are registered security scaffolding, not a usable Harbor recovery pipeline. The P1 Rust operation-receipt producer, P1B, canonical Rust Loro recovery adapter, and P3 same-database released-claim transfer adapter remain unimplemented external gates. Daemon scope minting also lacks the required verified worktree root device/inode witness, and production does not yet provide the content-hash/parser-generation symbol lease or daemon file-mutation generation authority. Keep the public routes 503-gated until all authorities exist. Finalization must retain the descriptors and both leases through P3 transfer, persist the exact root/file device+inode, content hash, and generations, seal that hash in provenance as `scope.canonical_content_hash`, and consume the mutation lease in the same transaction. That lease excludes daemon-authorized writers, not arbitrary OS processes; later governed edits must reject any stale persisted witness. Canonical editor-owned provenance and its append-only outbox do not authorize replay. Any post-commit projection read, attempt-log write, or local publication-receipt failure must preserve canonical 200 success and return the stable outbox ID with a truthful pending reason; restart retries the same sink-deduplicated key until one local receipt exists. Without an atomically idempotent derived-note sink, no drain is scheduled and the outbox remains durably pending without churn; with one, bounded startup/periodic passes retry the exact key. Never fall back to `sessions.addNote`, and do not add migration compatibility for unshipped intermediate schemas.
 
 ## Failure Modes
 
@@ -118,7 +122,7 @@ flowchart TD
 Adding the **Editor** surface (battle plan P0→P1), composing the siblings:
 1. **Shell (Layer 1)** — add `SurfaceKind::Editor { path, region }` to `mux.rs`; implement the object-safe `Pane` (one pane, two faces). *Pull `beautiful-gui-design`* for hierarchy/tokens, *`rust-gpui-motion`* for the open transition (no transform — layout-fraction zoom).
 2. **Text (Layer 2)** — back it with one `LoroDoc`/`LoroText`; mint a PeerID from `pd whoami`; authorship gutter colored by replica (ref 03).
-3. **Governance (Layer 3)** — claim the edited region; `/conflicts/predict`; paint overlap `Tone::Conflicted`; guard the commit; persist op-log for salvage.
+3. **Governance (Layer 3)** — claim the edited region; `/conflicts/predict`; paint overlap `Tone::Conflicted`; guard the commit; record each validated operation in the typed salvage ledger.
 4. **Polish** — *pull `gpui-shaders`* for the living-harbor water behind it; *`sound-design-and-audio`* for the `board`/`approve` cues.
 5. **Land** — visual artifacts (screenshot + a board→steer→diff clip) in the PR test plan, per the standing rule.
 

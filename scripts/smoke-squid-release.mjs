@@ -54,6 +54,7 @@ try {
   // dropped with pd-bosun in the 3.28 cutover.
   for (const asset of [
     'bin/pd-hook-prompt',
+    'bin/pd-hook-precompact',
     'bin/pd-hook-pre-tool',
     'bin/pd-hook-post-tool',
     'bin/pd-hook-stop',
@@ -98,6 +99,7 @@ try {
   const agyConfig = join(home, '.gemini', 'hooks.json');
 
   expectFile(claudeConfig, 'pd-hook-pre-tool');
+  expectFile(claudeConfig, 'pd-hook-precompact');
   expectFile(join(project, '.claude', 'settings.json'), 'sessionstart-pilot.mjs');
   expectFile(join(project, '.claude', 'settings.json'), 'pd-statusline');
   expectFile(join(project, '.claude', 'commands', 'squid.md'), 'pd squid');
@@ -115,6 +117,12 @@ try {
     expectAbsent(config, '/Cellar/');
     expectAbsent(config, staged);
   }
+  // The checkpoint is a verified Claude capability, not an inferred provider
+  // parity promise. Its release shim is therefore required in only that config.
+  expectFile(claudeConfig, join(pdHome, 'bin', 'pd-hook-precompact'));
+  for (const config of [geminiConfig, codexConfig, agyConfig]) {
+    expectAbsent(config, 'pd-hook-precompact');
+  }
 
   // Release invariant: each provider gets one turn briefing, one direct-edit
   // gate, and one end-of-turn closeout gate. The post-tool binary remains
@@ -126,6 +134,7 @@ try {
     expectCount(config, 'pd-hook-stop', 1);
     expectAbsent(config, 'pd-hook-post-tool');
   }
+  expectCount(claudeConfig, 'pd-hook-precompact', 1);
   expectCount(codexConfig, '[[hooks.UserPromptSubmit]]', 1);
   expectCount(codexConfig, '[[hooks.PreToolUse]]', 1);
   expectCount(codexConfig, '[[hooks.PreToolUse.hooks]]', 1);
@@ -138,7 +147,7 @@ try {
     expectAbsent(codexConfig, `matcher = "${broadTool}`);
     expectAbsent(codexConfig, `|${broadTool}`);
   }
-  for (const name of ['pd-hook-prompt', 'pd-hook-pre-tool', 'pd-hook-post-tool', 'pd-hook-stop']) {
+  for (const name of ['pd-hook-prompt', 'pd-hook-precompact', 'pd-hook-pre-tool', 'pd-hook-post-tool', 'pd-hook-stop']) {
     expectFile(join(pdHome, 'bin', name), '.portdaddy');
     expectFile(join(pdHome, 'bin', 'squid', name));
   }

@@ -1,77 +1,48 @@
-% Cold-start subsidy schedule as a regime diagram: the phase boundary is a
-% liquidity threshold on settled outcomes, not a calendar date. One axis, three
-% bands distinguished by fill weight and label case; cobalt reserved for the flip.
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D8C7A6}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-\providecolor{hhgray}{HTML}{5C5650}
-
+% Figure IV.12 --- measured liquidity and the policy applied to it are separate
+% aligned signals.
 \begin{figure}[H]
 \centering
-\resizebox{0.96\textwidth}{!}{%
-\begin{tikzpicture}[
-  font=\small,
-  band/.style={draw=hhebony,thick,rounded corners=2pt,minimum height=26mm,
-               minimum width=48mm,text width=42mm,inner sep=2pt,
-               anchor=south west,align=center},
-  note/.style={font=\scriptsize,align=center,text width=42mm,text=hhink},
-  axis/.style={-{Latex[length=3mm]},line width=0.9pt,draw=hhebony},
-]
+\resizebox{0.93\textwidth}{!}{%
+\begin{tikzpicture}[pd figure]
+  \node[pd panel title,anchor=west] at (-6.4,3.35)
+    {the regime changes when observed depth crosses $\lambda^\star$, not when time passes};
 
-% ─── three regime bands, separated by fill weight and label case ────────
-\node[band,fill=hhsand!45] (p1) at (0,0)
-  {\textbf{Phase 1}\\[2pt]{\scshape seed the supply side}\\[3pt]
-   \scriptsize platform posts its own tasks\\
-   \scriptsize at above-market bounties\\
-   \scriptsize \emph{price to suppliers: negative}};
-\node[band,fill=hhsand!25] (p2)
-  at (50mm,0)
-  {\textbf{Phase 2}\\[2pt]{\scshape import a prior}\\[3pt]
-   \scriptsize external work history admitted\\
-   \scriptsize for partial credit\\
-   \scriptsize \emph{price to suppliers: zero}};
-\node[band,fill=hhsand!8] (p3)
-  at (100mm,0)
-  {\textbf{Phase 3}\\[2pt]{\scshape charge the demand side}\\[3pt]
-   \scriptsize transaction fee, listing fee,\\
-   \scriptsize small forfeited-bond spread\\
-   \scriptsize \emph{price to suppliers: positive}};
+  % Upper plot: measured market state.
+  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (-5.45,.35)--(6.05,.35);
+  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (-5.45,.35)--(-5.45,2.90);
+  \node[pd axis label,rotate=90,anchor=south] at (-5.78,1.62) {realized liquidity};
+  \draw[pd focus rule,line width=1.35pt,smooth]
+    plot coordinates {(-5.25,.48)(-4.25,.54)(-3.25,.68)(-2.25,.95)(-1.25,1.38)(-.25,1.95)(.75,2.42)(1.75,2.68)(3.0,2.78)(5.65,2.82)};
+  \draw[pd caution rule,dashed] (-5.25,1.90)--(5.65,1.90);
+  \node[pd direct label,text=hhamber,anchor=west] at (3.85,2.03) {$\lambda^\star$};
 
-% ─── the axis: liquidity, not time ──────────────────────────────────────
-\draw[axis] (-2mm,-8mm) -- (152mm,-8mm);
-\node[font=\footnotesize\itshape,anchor=north] at (74mm,-11mm)
-  {settled outcomes on the ledger to date \ (the liquidity proxy --- \emph{not} elapsed calendar time)};
+  % Shared trigger crosses both plots.
+  \draw[pd caution rule,dashed,line width=1.1pt] (-.35,-2.25)--(-.35,3.00);
+  \node[pd caution datum] at (-.35,1.90) {};
+  \node[pd direct label,text=hhamber,anchor=west] at (-.12,2.55) {depth trigger};
 
-% ─── the flip: the one thing that gets the accent ──────────────────────
-\draw[hhcobalt,line width=1.4pt,dashed] (99mm,-9mm) -- (99mm,30mm);
-\node[draw=hhcobalt,line width=1.2pt,fill=hhpaper,rounded corners=2pt,
-      inner sep=4pt,font=\scriptsize,align=center,text width=44mm]
-      (flip) at (99mm,42mm)
-  {\textbf{the subsidy flips sides here}\\[2pt]
-   a liquidity threshold $\lambda^\star$ on settled\\
-   outcomes --- crossed, or not crossed};
-\draw[->,>=Latex,line width=1.1pt,draw=hhcobalt] (flip.south) -- (99mm,30.5mm);
+  % Lower plot: policy schedule, not another state curve.
+  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (-5.45,-2.05)--(6.05,-2.05);
+  \draw[pd rule] (-5.45,-2.05)--(-5.45,-.45);
+  \node[pd axis label,rotate=90,anchor=south] at (-5.78,-1.25) {supplier price};
+  \draw[pd caution rule,line width=1.45pt]
+    (-5.25,-1.65)--(-2.45,-1.65)--(-2.45,-1.25)--(-.35,-1.25)--(-.35,-.72)--(5.65,-.72);
+  \node[pd direct label,text=hhamber,anchor=south] at (-3.85,-1.52) {SEED $<0$};
+  \node[pd direct label,text=hhamber,anchor=south] at (-1.38,-1.12) {IMPORT $=0$};
+  \node[pd direct label,text=hhamber,anchor=south] at (2.65,-.59) {CHARGE $>0$};
 
-% ─── what a calendar date would have done ──────────────────────────────
-\node[note,anchor=north west] at (0,-20mm)
-  {A calendar date fires whether or not\\ the reputation data exists yet.};
-\node[note,anchor=north] at (100mm,-20mm)
-  {A liquidity threshold cannot fire early;\\
-   it can only fail to fire, which is\\ the safe direction to be wrong in.};
-
-\end{tikzpicture}%
-}
-\caption{The cold-start subsidy schedule, drawn against the quantity that actually
-gates it. The three phases are not a timetable: what moves the platform from
-paying suppliers to charging buyers is the stock of settled outcomes on the ledger,
-because that stock \emph{is} the bootstrap reputation data the second and third
-market sides need in order to exist at all. Reading the boundary as a date rather
-than a threshold is the specific failure this diagram is drawn to prevent --- a date
-can arrive while the shelf is still empty, whereas a threshold that has not been
-crossed simply keeps the subsidy on. The asymmetry is the point: mis-timing here is
-recoverable in one direction and not the other.}
+  \foreach \x in {-5.25,-3.25,-1.25,.75,2.75,4.75}
+    \draw[pd guide] (\x,-2.12)--(\x,-1.98);
+  \node[pd axis label,anchor=west] at (6.17,-2.05) {settled outcomes};
+  \node[pd note,anchor=west] at (-5.25,-2.65)
+    {if liquidity never crosses the threshold, the subsidized state remains active and recoverable};
+\end{tikzpicture}}
+\caption{\textbf{Cold start separates the measured market state from the policy
+schedule.} The upper trace is realized liquidity over settled outcomes. The lower
+trace is the supplier-price regime applied to that state: seed supply below zero,
+credit imported work at zero, then charge only after liquidity crosses
+$\lambda^\star$. The shared vertical trigger makes the dependency explicit.
+Calendar time is absent, and a market that never crosses the threshold does not
+silently advance to the charging regime.}
 \label{fig:he-cold-start}
 \end{figure}

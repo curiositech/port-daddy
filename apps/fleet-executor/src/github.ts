@@ -360,8 +360,32 @@ export interface PRContext {
   diffBytes: number;
   /** True when the diff exceeded the cap and was cut short. */
   diffTruncated: boolean;
-  /** True when the `/files` body exceeded its cap or failed to parse. */
+  /**
+   * True when the changed-file inventory is incomplete or untrustworthy.
+   *
+   * GitHub's non-paginated first page is capped at {@link PR_FILES_PAGE_SIZE},
+   * so an exactly-full page is deliberately treated as incomplete too: a 101st
+   * sensitive path must never disappear behind a surface gate.
+   */
   filesTruncated: boolean;
+}
+
+/**
+ * GitHub failed to provide the authoritative raw patch for a pull request.
+ *
+ * A raw diff is review evidence, not an optional display convenience: treating
+ * an HTTP failure as an empty string lets a ship manufacture a clean verdict
+ * without having seen the change. The queue boundary deliberately receives a
+ * typed error so it can retry this transient dependency and, after exhaustion,
+ * let the DLQ complete the required Fleet check as infrastructure failure.
+ *
+ * @param status The GitHub HTTP status returned by the raw-diff endpoint.
+ */
+export class PullRequestDiffFetchError extends Error {
+  constructor(readonly status: number) {
+    super(`fetch pull request raw diff failed ${status}`);
+    this.name = 'PullRequestDiffFetchError';
+  }
 }
 
 /**
@@ -492,13 +516,22 @@ export async function fetchPRContext(
   if (!prRes.ok) {
     throw new Error(`fetch pull request failed ${prRes.status}: ${await prRes.text()}`);
   }
+  // The raw diff is the only source the MAP/REDUCE ships inspect. A non-OK
+  // response must escape as infrastructure failure, never become an empty
+  // diff that a model can incorrectly bless as a complete clean review.
+  if (!diffRes.ok) {
+    throw new PullRequestDiffFetchError(diffRes.status);
+  }
   const livePr = (await prRes.json()) as typeof eventPr;
 
   // Both bodies are bounded (#7743). They arrive concurrently, so the peak is
   // their sum; an unbounded read of either one can kill the isolate before any
   // catch block exists to report it.
   let files: PRFile[] = [];
-  let filesTruncated = false;
+  // A failed, malformed, capped, or exactly-full first page cannot prove the
+  // whole changed-file set. Carry that uncertainty to the executor instead of
+  // silently letting surface gates treat an empty/partial inventory as exact.
+  let filesTruncated = !filesRes.ok;
   if (filesRes.ok) {
     const read = await readTextCapped(filesRes, MAX_FILES_BYTES);
     if (read.truncated) {
@@ -509,16 +542,23 @@ export async function fetchPRContext(
       filesTruncated = true;
     } else {
       try {
-        files = JSON.parse(read.text) as PRFile[];
+        const parsed: unknown = JSON.parse(read.text);
+        if (!Array.isArray(parsed)) {
+          filesTruncated = true;
+        } else {
+          files = parsed as PRFile[];
+          // This endpoint requests one page only. An exact page could be the
+          // complete set or merely the first 100 entries; fail closed to a
+          // complete-inventory claim until pagination is implemented.
+          filesTruncated = files.length >= PR_FILES_PAGE_SIZE;
+        }
       } catch {
         filesTruncated = true;
       }
     }
   }
 
-  const diffRead = diffRes.ok
-    ? await readTextCapped(diffRes, MAX_DIFF_BYTES)
-    : { text: '', bytes: 0, truncated: false };
+  const diffRead = await readTextCapped(diffRes, MAX_DIFF_BYTES);
   const diff = diffRead.text;
 
   return {
@@ -578,6 +618,51 @@ export async function fetchRepoFile(
   const body = (await res.json()) as { content?: string; encoding?: string };
   if (body.encoding !== 'base64' || !body.content) return null;
   return atob(body.content.replace(/\n/g, ''));
+}
+
+/**
+ * Load one trusted ship contract with absence distinguished from outage.
+ *
+ * Checkpoint reuse can only trust the exact contract that shaped a prior ship
+ * result. A confirmed 404 means the contract is intentionally absent and is a
+ * stable binding input; every other response is unavailable infrastructure and
+ * must retry rather than silently bind or run as if no contract existed.
+ *
+ * @param owner Repository owner.
+ * @param repo Repository name.
+ * @param ship Ship whose canonical contract path is requested.
+ * @param ref Trusted default-branch ref, never a PR head.
+ * @param token GitHub App installation token.
+ * @returns Exact contract text, or null only for a confirmed 404.
+ */
+export async function fetchTrustedShipContract(
+  owner: string,
+  repo: string,
+  ship: string,
+  ref: string,
+  token: string,
+): Promise<string | null> {
+  const path = `fleet/ships/${ship}.md`;
+  const res = await fetch(
+    `https://api.github.com/repos/${owner}/${repo}/contents/${path}?ref=${encodeURIComponent(ref)}`,
+    { headers: ghHeaders(token) },
+  );
+  if (res.status === 404) return null;
+  if (!res.ok) {
+    throw new Error(`fetch trusted ship contract ${path} failed ${res.status}`);
+  }
+  const body = (await res.json()) as { content?: string; encoding?: string };
+  if (body.encoding !== 'base64' || typeof body.content !== 'string') {
+    throw new Error(`fetch trusted ship contract ${path} returned an invalid contents payload`);
+  }
+  const contract = atob(body.content.replace(/\n/g, ''));
+  // A successful Contents response still has to contain a usable trusted
+  // contract. Treating whitespace as absence would silently weaken the prompt
+  // and checkpoint binding even though GitHub confirmed the file exists.
+  if (contract.trim().length === 0) {
+    throw new Error(`fetch trusted ship contract ${path} returned an empty contract`);
+  }
+  return contract;
 }
 
 // ---------------------------------------------------------------------------

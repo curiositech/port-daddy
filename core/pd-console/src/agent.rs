@@ -902,12 +902,11 @@ impl DaemonClient {
         self.tube_send(channel, frame_text, "snapshot").await
     }
 
-    /// Append one op-log delta to the durable, immutable op-log via `POST /notes`
-    /// (REUSING [`add_note`](Self::add_note) — notes are write-once, exactly what a
-    /// replayable audit log needs). `note_content` is
-    /// [`crate::editor_sync::encode_oplog_note`]. Isolation note: this is a `/notes`
-    /// write, wholly off BOTH tube lanes — the durable log never competes with live
-    /// doc-ops or coordination for tube bandwidth.
+    /// Append one historical P2 reconstruction envelope via `POST /notes`.
+    /// `note_content` is [`crate::editor_sync::encode_oplog_note`]. This generic note
+    /// is diagnostic coordination history, not a daemon-owned typed editor receipt;
+    /// it cannot authorize P3.5 recovery or canonical replay. Isolation note: this
+    /// `/notes` write stays off both tube lanes.
     pub async fn log_oplog_delta(&self, note_content: &str) -> Result<()> {
         self.add_note(note_content).await
     }
@@ -1917,7 +1916,7 @@ mod tests {
     /// Retry-After) and any 5xx (daemon restarting) are transient and MUST be
     /// retried so a blip can't kill the live lane forever; any other 4xx is
     /// permanent and MUST stop (retrying would spin). Guards the editor + agent
-    /// receive lanes' recovery.
+    /// receive lanes' reconnection.
     #[test]
     fn sse_retry_policy_retries_429_and_5xx_but_stops_on_other_4xx() {
         use reqwest::StatusCode;

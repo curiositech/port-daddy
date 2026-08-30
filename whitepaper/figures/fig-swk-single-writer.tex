@@ -1,62 +1,36 @@
-% Figure — the single-writer serialization. Many client processes + the daemon
-% funnel through one writer; SQLite's file lock + a busy-wait serialize all
-% mutations. One decider => no agreement to reach (FLP sidestepped, not solved);
-% that whole argument, and the cross-machine boundary, live in the caption.
-
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D8C7A6}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-
+% Figure 3 — concurrent arrival intervals collapse into one commit order.
 \begin{figure}[H]
 \centering
-\resizebox{0.88\textwidth}{!}{%
-\begin{tikzpicture}[
-  font=\small,
-  cli/.style={draw=hhebony,thick,rounded corners=2pt,fill=hhsand!30,
-              minimum width=28mm,minimum height=9mm,align=center,font=\footnotesize},
-  daemon/.style={draw=hhcobalt,line width=1.4pt,fill=hhpaper,rounded corners=3pt,
-                 minimum width=40mm,minimum height=20mm,align=center,font=\bfseries},
-  db/.style={draw=hhebony,thick,fill=hhsand!30,cylinder,shape border rotate=90,
-             aspect=0.3,minimum width=30mm,minimum height=18mm,align=center},
-]
-
-% ─── Many clients on the left ─────────────────────────────────────────────
-\node[cli] (c1) at (0,2.4) {command line};
-\node[cli] (c2) at (0,1.2) {command line};
-\node[cli] (c3) at (0,0)   {agent (tool bridge)};
-\node[cli] (c4) at (0,-1.2){agent (binary IPC)};
-\node[cli] (c5) at (0,-2.4){background worker};
-
-% ─── The single daemon (sole write connection) ────────────────────────────
-\node[daemon] (d) at (58mm,0) {Daemon\\ (the SOLE\\ write connection)\\[2pt]
-  {\footnotesize\normalfont two transports over Unix sockets}};
-
-\foreach \c in {c1,c2,c3,c4,c5} {
-  \draw[->,>=Latex,hhebony] (\c.east) -- (d.west);
-}
-
-% ─── The single file ──────────────────────────────────────────────────────
-\node[db] (file) at (120mm,0) {one SQLite\\ file (WAL)};
-\draw[<->,>=Latex,line width=1.2pt,hhcobalt] (d.east) -- (file.west);
-\node[below=2.5mm,font=\footnotesize,text=hhink,align=center]
-  at ($(d.east)!0.5!(file.west)$){serialized by the\\ file lock + a busy-wait};
-
+\resizebox{0.91\textwidth}{!}{%
+\begin{tikzpicture}[pd figure,x=1cm,y=.72cm]
+  \pdfigaxis{1.65}{.3}{14.0}{time}
+  \foreach \y/\actor in {5.8/{CLI},4.75/{tool bridge},3.7/{binary IPC},2.65/{worker}} {
+    \node[anchor=east,font=\scriptsize\bfseries] at (1.35,\y) {\actor};
+    \draw[pd hairline] (1.55,\y)--(13.65,\y);
+  }
+  \fill[hhsand!28] (2.0,5.52) rectangle (6.25,6.08);
+  \fill[hhteal!11] (3.15,4.47) rectangle (8.3,5.03);
+  \fill[hhsand!28] (4.2,3.42) rectangle (9.85,3.98);
+  \fill[hhsand!28] (5.55,2.37) rectangle (11.0,2.93);
+  \foreach \x/\n in {6.25/1,8.3/2,9.85/3,11.0/4} {
+    \draw[pd guide] (\x,1.0)--(\x,6.25);
+    \node[pd focus datum] at (\x,1.35) {};
+    \node[pd axis label,anchor=north] at (\x,1.08) {\n};
+  }
+  \draw[pd focus arrow,line width=1.45pt] (2.0,1.35)--(12.05,1.35);
+  \node[pd panel title,anchor=east,align=right] at (1.35,1.35) {one writer\\commit order};
+  \node[pd note,anchor=west] at (12.1,1.35) {reply follows commit};
+  \draw[pd caution rule] (12.45,2.15)--(12.45,6.1);
+  \node[pd caution datum] at (12.45,4.12) {};
+  \node[pd direct label,anchor=west,text=hhamber] at (12.72,4.12)
+    {second writer\\outside the model};
 \end{tikzpicture}%
 }
-\caption{The single-writer serialization, the cleanest thing about the layer.
-Dozens of command-line invocations and agents funnel through \emph{one} writer ---
-the daemon, the sole holder of a read--write connection --- and SQLite's OS-level
-file lock plus a bounded busy-wait serialize all mutations. Because there is exactly
-one decider, there is no agreement to reach: the consensus impossibility of
-Fischer--Lynch--Paterson does not bite --- it is \emph{sidestepped}, not solved, and
-on one machine the system is CP with a central coordinator. This is not a gap; it is
-the layer's defining discipline. The boundary is exact: the instant a \emph{second}
-daemon shares this file, the assumption breaks and you have a distributed problem
---- which belongs to the cross-machine economy layer, not here.}
+\caption{Concurrent request intervals become one commit order. Each pale band is
+live work in a different caller; its right edge meets exactly one position on the
+teal writer rail. The daemon replies only after that commit, so successful
+mutations share one observable history without an agreement protocol inside the
+machine. The separate amber mark is the model boundary: a second daemon sharing
+the file is a cross-machine problem, not another lane in this schedule.}
 \label{fig:swk-single-writer}
 \end{figure}

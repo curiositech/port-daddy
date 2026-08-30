@@ -48,6 +48,18 @@ function fakeBatch(messages: ReturnType<typeof fakeMessage>[]) {
   return { queue: 'fleet-runs', messages } as unknown as MessageBatch<FleetRunJob>;
 }
 
+const CHECKPOINT_BINDING = {
+  bindingVersion: 3 as const,
+  shipConfigSha256: `sha256:${'1'.repeat(64)}`,
+  contractSha256: 'absent',
+  graftSha256: `sha256:${'2'.repeat(64)}`,
+  systemPromptSha256: `sha256:${'3'.repeat(64)}`,
+  reviewInputSha256: `sha256:${'4'.repeat(64)}`,
+  mediatorOrdersSha256: 'absent',
+  lookoutProjectionSha256: 'not-applicable',
+  executionReceiptKind: 'not-applicable' as const,
+};
+
 let state: GitHubState;
 
 beforeEach(() => {
@@ -295,10 +307,11 @@ describe('deadLetterSummary', () => {
     expect(summary).not.toContain('attempt 0');
   });
 
-  it('reports durable checkpoint progress and promises resume only for that work', () => {
+  it('reports retained checkpoint progress without promising an unverified resume', () => {
     const summary = deadLetterSummary('o', 'r', 7, null, 4, 2);
     expect(summary).toContain('2 ship(s) completed and checkpointed before the loss');
-    expect(summary).toContain('replay of this delivery resumes past them');
+    expect(summary).toContain('revalidates their current trusted policy and prompt');
+    expect(summary).not.toContain('replay of this delivery resumes past them');
     expect(summary).toContain(DEAD_LETTER_MARKER);
   });
 });
@@ -317,7 +330,7 @@ describe('a dead-lettered check does not strand the head SHA', () => {
     expect(isDeadLetteredSummary(state.completed[0].summary)).toBe(true);
   });
 
-  it('reads checkpoint progress into the DLQ check summary', async () => {
+  it('reads retained checkpoint progress into the DLQ check summary without promising reuse', async () => {
     state.existingCheckRuns.push({ id: 4242, name: 'Port Daddy Fleet' });
     const kv = memoryKV();
     seedToken(kv, 42);
@@ -329,11 +342,12 @@ describe('a dead-lettered check does not strand the head SHA', () => {
       verdict: 'PASS',
       errored: false,
       findings: [],
-    });
+    }, CHECKPOINT_BINDING);
 
     await handleDlqJob(makeJob(), env);
 
     expect(state.completed[0].summary).toContain('1 ship(s) completed and checkpointed');
+    expect(state.completed[0].summary).toContain('revalidates their current trusted policy and prompt');
   });
 
   it('does not mark a summary ships actually decided', () => {

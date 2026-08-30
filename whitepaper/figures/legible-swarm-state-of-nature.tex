@@ -1,74 +1,51 @@
-% Figure 2 — the state-of-nature -> consented-Leviathan transition.
-% Left: ungoverned swarm (war of all against all). Right: the consented local
-% Leviathan rendering the swarm legible. The arrow is the covenant.
-% Design: one title line per panel; the failure/cure vocabularies live in the
-% caption, not under the panels. Agent E orbits the daemon like the others —
-% nothing crowds the titles.
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-
+% Figure 2 — same arrivals, two execution topologies. The common time scale is
+% the comparison; overlap and queue position, not color, carry the claim.
 \begin{figure}[H]
 \centering
-\resizebox{0.9\textwidth}{!}{%
-\begin{tikzpicture}[
-  font=\small,
-  agent/.style={draw=hhebony,thick,circle,fill=hhpaper,minimum size=9mm,
-                font=\footnotesize},
-  daemon/.style={draw=hhebony,very thick,rectangle,rounded corners=3pt,
-                 fill=hhsand!30,minimum width=22mm,minimum height=14mm,
-                 align=center,font=\bfseries\footnotesize},
-  collide/.style={hhcobalt,thick,decorate,
-                  decoration={zigzag,segment length=2mm,amplitude=0.6mm}},
-  legible/.style={hhteal,thick,-{Latex[length=2mm]}},
-]
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \node[pd panel title,anchor=west] at (0,4.15) {unsequenced execution};
+  \node[pd panel title,anchor=west] at (8.25,4.15) {consented serialization};
 
-% ─── LEFT: state of nature ───────────────────────────────────────────────
-\begin{scope}[shift={(0,0)}]
-  \node[font=\bfseries] at (2.2,3.2) {State of nature};
-  \node[agent] (a1) at (0.4,1.8) {A};
-  \node[agent] (a2) at (3.9,2.0) {B};
-  \node[agent] (a3) at (0.9,-0.3) {C};
-  \node[agent] (a4) at (3.6,-0.2) {D};
-  \node[agent] (a5) at (2.2,0.9) {E};
-  % colliding edges (no referee)
-  \draw[collide] (a1)--(a5); \draw[collide] (a2)--(a5);
-  \draw[collide] (a3)--(a5); \draw[collide] (a4)--(a5);
-  \draw[collide] (a1)--(a3); \draw[collide] (a2)--(a4);
-\end{scope}
+  \draw[pd arrow] (0,0.35)--(7.1,0.35);
+  \draw[pd arrow] (8.25,0.35)--(15.35,0.35);
+  \node[pd axis label,anchor=west] at (6.6,.08) {time};
+  \node[pd axis label,anchor=west] at (14.85,.08) {time};
 
-% ─── COVENANT arrow ──────────────────────────────────────────────────────
-\draw[-{Latex[length=3mm]},very thick,hhink] (4.9,0.8) -- (6.7,0.8)
-  node[midway,above,font=\bfseries\footnotesize,text=hhink]{covenant};
+  \foreach \y/\a in {3.35/A,2.65/B,1.95/C,1.25/D}{
+    \node[pd axis label,anchor=east,font=\scriptsize\bfseries] at (.45,\y) {\a};
+    \draw[pd guide] (.62,\y)--(7.0,\y);
+    \node[pd axis label,anchor=east,font=\scriptsize\bfseries] at (8.70,\y) {\a};
+    \draw[pd guide] (8.87,\y)--(15.25,\y);
+  }
 
-% ─── RIGHT: consented local Leviathan ────────────────────────────────────
-\begin{scope}[shift={(8.0,0)}]
-  \node[font=\bfseries] at (2.2,3.2) {Consented \emph{local} Leviathan};
-  \node[daemon] (d) at (2.2,0.8) {daemon\\(L0)};
-  \node[agent] (b1) at (0.3,2.1) {A};
-  \node[agent] (b2) at (4.1,2.1) {B};
-  \node[agent] (b3) at (0.3,-0.5) {C};
-  \node[agent] (b4) at (4.1,-0.5) {D};
-  \node[agent] (b5) at (2.2,-1.1) {E};
-  \draw[legible] (b1)--(d); \draw[legible] (b2)--(d);
-  \draw[legible] (b3)--(d); \draw[legible] (b4)--(d); \draw[legible] (b5)--(d);
-\end{scope}
+  \fill[hhamber!10] (2.8,.62) rectangle (5.22,3.73);
+  \draw[pd caution rule] (2.8,.62)--(2.8,3.73);
+  \draw[pd caution rule] (5.22,.62)--(5.22,3.73);
+  \foreach \ya/\xa/\xb in {3.35/.95/4.20,2.65/1.75/5.40,1.95/2.55/4.75,1.25/3.15/6.10}{
+    \draw[pd rule,line width=3.6pt,line cap=round] (\xa,\ya)--(\xb,\ya);
+    \node[pd datum] at (\xa,\ya) {};
+  }
+  \node[pd direct label,text=hhamber,anchor=south] at (4.01,.68)
+    {four valid writers overlap};
 
-\end{tikzpicture}%
-}
-\caption{The transition this paper argues for. \emph{Left}: an ungoverned swarm is
-Hobbes' state of nature --- rational agents colliding because none can trust the
-others (\S\ref{sec:taxonomy}): double-claims, illegible PRs, confident lies,
-footguns. \emph{Right}: the operator institutes a rule of the road and consents (a
-covenant \emph{among the subject agents}, enforced by the daemon, not a bargain with
-it) to a \emph{local} Leviathan that renders the swarm legible --- claims, the
-Arbiter, digest-with-zoom, consent grants, the override. The arrow is the covenant;
-the right-hand spokes are legibility, not chains. Empirically, LLM societies
-traverse this arrow on their own~\cite{dai2024}; Port Daddy's wager is to build the
-destination \emph{deliberately and legibly}.}
+  \foreach \ya/\xa/\xg/\n in {3.35/9.20/10.05/241,2.65/9.95/11.35/242,1.95/10.75/12.65/243,1.25/11.35/13.95/244}{
+    \node[pd datum] at (\xa,\ya) {};
+    \draw[pd hairline] (\xa,\ya)--(\xg,.82);
+    \node[pd focus datum] at (\xg,.82) {};
+    \node[pd axis label,anchor=north] at (\xg,.58) {\#\n};
+  }
+  \draw[pd focus rule,line width=1.25pt] (9.55,.82)--(14.45,.82);
+  \node[pd direct label,text=hhteal,anchor=south] at (12.0,.97)
+    {one commit spine};
+
+  \draw[pd hairline] (9.70,-.02)--(14.30,-.02);
+  \node[pd axis label,anchor=north] at (12.0,-.10)
+    {each entry: actor $\cdot$ claim $\cdot$ artifact $\cdot$ reason};
+\end{tikzpicture}
+\caption{The same four arrivals under two execution topologies. Left, write
+intervals overlap on one artifact; no total order exists, so collision is an
+ordinary state. Right, arrival remains concurrent but admission lands on one
+commit spine. Each grant receives an order number and returns actor, claim,
+artifact, and reason. Consent changes the schedule, not who may participate.}
 \label{fig:state-of-nature}
 \end{figure}

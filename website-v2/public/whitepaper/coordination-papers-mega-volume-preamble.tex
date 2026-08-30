@@ -64,6 +64,7 @@
 \definecolor{hhteal}{HTML}{00564C}
 \definecolor{hhpaper}{HTML}{FBF7EF}
 \definecolor{hhgray}{HTML}{5C5650}
+\input{figures/pd-figure-language}
 
 % One maturity vocabulary for the collected volume. Uppercase aliases preserve
 % the independently buildable Chapter III source.
@@ -216,6 +217,32 @@
 \renewcommand{\footrulewidth}{0pt}
 
 \newcommand{\pdcurrentchapter}{I}
+% Editorial plates are kept outside the analytical figure counter. They are
+% reproduced whole: no trim, clip, recolor, or overlay is permitted here.
+\newcommand{\pdplateimage}[2]{%
+  \includegraphics[width=#1,height=0.88\textheight,keepaspectratio]{#2}%
+}
+\newcommand{\pdchapterplate}[1]{%
+  \clearpage
+  \thispagestyle{empty}%
+  \null\vfill
+  \begin{center}\pdplateimage{\textwidth}{#1}\end{center}%
+  \vfill\null
+  \clearpage
+}
+\newcommand{\pdcodaplate}[3]{%
+  \clearpage
+  \thispagestyle{plain}%
+  \begin{center}
+    {\scshape\footnotesize\color{hhgray} #1}\par
+    \vspace{0.18cm}
+    {\color{hhcobalt}\rule{0.18\textwidth}{0.7pt}}\par
+    \vspace{0.35cm}
+    \pdplateimage{\textwidth}{#2}\par
+    \vspace{0.3cm}
+    {\small\itshape\color{hhgray} #3}\par
+  \end{center}%
+}
 \newcommand{\pdchapter}[2]{%
   \clearpage
   \renewcommand{\pdcurrentchapter}{#1}%

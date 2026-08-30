@@ -1,3 +1,0 @@
-type: fixed
-
-- **`pd-red-team` now actually gets dispatched on key-wrap/vault crypto surfaces.** Its pre-spend surface gate (`SECURITY_SURFACE_RE` in `apps/fleet-executor/src/gates.ts`) tested each changed file path against `crypto|sign|verify|hash|token|secret|auth|capabilit`, which none of `hpke.rs`, `keys.rs`, `device-keys.ts`, or a `*-device-keys.sql` migration contain — so red-team silently never ran on either of the two most security-relevant PRs shipped this session (#9873's HPKE key-wrap primitive, #9882's device-key registry routes), while every other review ship fired normally. The gate now also matches `key|vault|wrap|hpke`.

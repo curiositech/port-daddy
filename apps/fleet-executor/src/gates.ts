@@ -85,6 +85,11 @@ const UNREVIEWABLE_PATH_RE = new RegExp(
     '(^|/)(package-lock\\.json|pnpm-lock\\.yaml|yarn\\.lock|Cargo\\.lock|poetry\\.lock|go\\.sum|Gemfile\\.lock)$',
     // generated / derived artifacts
     '(^|/)(dist|build|out|coverage|vendor|node_modules|target)/',
+    '(^|/)docs/artifacts/',
+    // Terminal recordings are evidence, not authored program source. Their
+    // semantic checks live beside the recorder; feeding raw ANSI streams to a
+    // reviewer both wastes the context window and makes its view less useful.
+    '\\.cast$',
     '\\.(min\\.(js|css)|map|snap)$',
     '(^|/)__snapshots__/',
     '\\.snapshot\\.json$',

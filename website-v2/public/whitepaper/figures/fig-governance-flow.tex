@@ -1,87 +1,45 @@
-% Governance / appeals four-step escalation — inline in §sec:governance.
-
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D8C7A6}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-
+% Ordered dispute escalation shown as a cost staircase with a common evidence rail.
 \begin{figure}[H]
 \centering
-\resizebox{\textwidth}{!}{%
-\begin{tikzpicture}[
-  font=\small,
-  stagebox/.style={draw=hhebony,thick,rounded corners=3pt,
-                inner sep=6pt,minimum width=34mm,minimum height=22mm,
-                align=center},
-  esc/.style={->,>=Latex,thick,draw=hhcobalt,dashed},
-  trig/.style={font=\footnotesize\itshape,text=hhcobalt,
-               align=center,text width=19mm},
-  term/.style={draw=hhebony,thick,fill=hhteal!25,rounded corners=3pt,
-               inner sep=8pt,align=left,minimum width=130mm,
-               font=\footnotesize},
-  flow/.style={->,>=Latex,line width=1.2pt,draw=hhebony},
-  costlbl/.style={font=\footnotesize,align=center},
-]
-% Four stage boxes; wide gaps so trigger labels fit cleanly above the arrow.
-\node[stagebox,fill=hhsand!70] (s1) at (0,0) {%
-  \bfseries\footnotesize Stage 1\\[2pt]
-  \bfseries\small Direct release\\[3pt]
-  \itshape\footnotesize claimant releases\\
-  \itshape\footnotesize the claim%
-};
-\node[stagebox,fill=hhsanddeep!70,right=28mm of s1] (s2) {%
-  \bfseries\footnotesize Stage 2\\[2pt]
-  \bfseries\small Time-out\\[3pt]
-  \itshape\footnotesize TTL expires,\\
-  \itshape\footnotesize auto-release%
-};
-\node[stagebox,fill=hhamber!40,right=28mm of s2] (s3) {%
-  \bfseries\footnotesize Stage 3\\[2pt]
-  \bfseries\small Bonded preemption\\[3pt]
-  \itshape\footnotesize blocked agent posts\\
-  \itshape\footnotesize $B_{\mathrm{preempt}}$%
-};
-\node[stagebox,fill=hhteal!35,right=28mm of s3] (s4) {%
-  \bfseries\footnotesize Stage 4\\[2pt]
-  \bfseries\small Human escalation\\[3pt]
-  \itshape\footnotesize via \texttt{request}\\
-  \itshape\footnotesize channel%
-};
-% Cost annotation below each stage box.
-\node[costlbl,below=2mm of s1.south] (c1) {\textbf{cost} 0};
-\node[costlbl,below=2mm of s2.south] (c2) {\textbf{cost} TTL latency};
-\node[costlbl,below=2mm of s3.south] (c3) {\textbf{cost} $B_{\mathrm{preempt}}$ (slashable)};
-\node[costlbl,below=2mm of s4.south] (c4) {\textbf{cost} human time};
-% Dashed escalation arrows; single-line trigger labels above each.
-\draw[esc] (s1.east) -- (s2.west);
-\node[trig,above=1mm of $(s1.east)!0.5!(s2.west)$]
-  {claimant unresponsive};
-\draw[esc] (s2.east) -- (s3.west);
-\node[trig,above=1mm of $(s2.east)!0.5!(s3.west)$]
-  {wait $>$ preempt bond};
-\draw[esc] (s3.east) -- (s4.west);
-\node[trig,above=1mm of $(s3.east)!0.5!(s4.west)$]
-  {stakes $>$ ceiling};
-% Collector bus below the cost labels; single drop into the terminal box.
-\coordinate (busY) at ($(c1.south)+(0,-8mm)$);
-\foreach \cn in {c1,c2,c3,c4} {
-  \draw[draw=hhebony,thick] (\cn.south) -- (\cn |- busY);
-}
-\draw[draw=hhebony,line width=1.4pt] (c1 |- busY) -- (c4 |- busY);
-\coordinate (busMid) at ($(c2 |- busY)!0.5!(c3 |- busY)$);
-\node[term,below=8mm of busMid] (output) {%
-  \textbf{Resolution recorded on the evidence chain.}\\[3pt]
-  $\bullet$\ Merkle-Forest binding (\S\ref{sec:merkle-forest})\\
-  $\bullet$\ 24-hour appeal window opens\\
-  $\bullet$\ Property~\ref{prop:appeal-sound}: chain grows monotonically%
-};
-\draw[flow] (busMid) -- (output.north);
+\resizebox{0.92\textwidth}{!}{%
+\begin{tikzpicture}[pd figure]
+  \node[pd panel title,anchor=west] at (-.25,4.12)
+    {intervention rises only when the cheaper exit fails};
+
+  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (-.35,-.02)--(12.20,-.02);
+  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (-.35,-.02)--(-.35,3.85);
+  \node[pd axis label,anchor=west] at (12.30,-.02) {elapsed dispute path};
+  \node[pd axis label,rotate=90,anchor=south] at (-.67,1.92) {intervention cost};
+
+  \draw[pd caution rule,line width=1.5pt]
+    (.10,.36)--(2.70,.36)--(2.70,1.10)--(5.55,1.10)--(5.55,2.02)--(8.55,2.02)--(8.55,3.28)--(11.85,3.28);
+  \foreach \x/\y in {1.35/.36,4.15/1.10,7.05/2.02,10.15/3.28}
+    \node[pd caution datum] at (\x,\y) {};
+
+  \node[pd direct label,anchor=south,align=center] at (1.35,.62)
+    {1  DIRECT RELEASE\\[-1pt]\normalfont\scriptsize claimant yields};
+  \node[pd direct label,anchor=south,align=center] at (4.15,1.36)
+    {2  TTL EXPIRY\\[-1pt]\normalfont\scriptsize heartbeat absent};
+  \node[pd direct label,anchor=south,align=center] at (7.05,2.28)
+    {3  BONDED PREEMPTION\\[-1pt]\normalfont\scriptsize waiting cost exceeds bond};
+  \node[pd direct label,anchor=south,align=center] at (10.15,3.54)
+    {4  HUMAN RULING\\[-1pt]\normalfont\scriptsize ambiguous or high stakes};
+
+  \node[pd note,text=hhamber,anchor=west] at (2.82,.68) {no heartbeat};
+  \node[pd note,text=hhamber,anchor=west] at (5.68,1.58) {preemption justified};
+  \node[pd note,text=hhamber,anchor=west] at (8.68,2.84) {machine limit reached};
+
+  \draw[pd focus rule,line width=1.35pt] (.55,-1.25)--(11.55,-1.25);
+  \foreach \x/\y/\outcome in {1.35/.36/released,4.15/1.10/expired,7.05/2.02/preempted,10.15/3.28/ruled} {
+    \draw[pd focus arrow] (\x,\y-.13)--(\x,-1.12);
+    \node[pd direct label,text=hhteal,anchor=north] at (\x,-1.36) {\outcome};
+  }
+  \node[pd panel title,text=hhteal,anchor=east] at (11.55,-.98)
+    {one evidence-bound resolution rail};
+  \node[pd note,anchor=west] at (.55,-1.88)
+    {actor $\cdot$ reason $\cdot$ artifact $\cdot$ outcome $\rightarrow$ Merkle forest $\rightarrow$ appeal window};
 \end{tikzpicture}%
 }
-\caption{Governance and appeals: four-stage escalation path. The daemon resolves most disputes at stage~1 or~2 (zero or near-zero cost). Bonded preemption (stage~3) prices the blocked agent's claim that the holder is wrong; if the preemption is wrong, the bond is slashed under settlement. Human escalation (stage~4) is reserved for the cases the daemon cannot mechanically decide. \emph{Every} resolution is appended to the evidence chain with the same Merkle-Forest binding as any agent action, so all four stages remain auditable.}
+\caption{Dispute resolution is an escalation staircase. The system first offers a zero-coercion exit, then waits for the claimant's TTL, then permits priced preemption, and reaches human judgment only after the machine-readable options are exhausted. Every station can terminate the dispute, and every termination descends to the same evidence rail. Escalation therefore changes the decision cost and decision-maker without discarding the record needed for appeal.}
 \label{fig:governance-flow}
 \end{figure}
