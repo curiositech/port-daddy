@@ -31,7 +31,7 @@
 
 #![allow(dead_code)]
 
-use crate::pane::{Block, CodeBand, CodeLine, SyntaxKind, Tone};
+use crate::pane::{Block, CodeBand, CodeLine, LedgerCell, SyntaxKind, Tone};
 use crate::theme::{Oklch, Theme, DARK};
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -299,11 +299,21 @@ fn keyval_height(key: &str, value: &str, inner: usize) -> usize {
     (16 + lines * 16).max(ROW_H)
 }
 
-fn ledger_row_height(cells: &[(String, String)], inner: usize) -> usize {
+const LEDGER_RASTER_SCALE: usize = 1;
+const LEDGER_RASTER_LINE_H: usize = 12;
+
+/// Metadata ledgers deliberately use a denser proof type scale than general
+/// narrative rows: every labelled field remains visible in wide and 520px
+/// evidence without inflating a six-row ledger into an unreadable poster.
+/// This affects only the deterministic proof face; GPUI keeps TEXT_BODY.
+fn ledger_row_height(cells: &[LedgerCell], inner: usize) -> usize {
     let value_width = inner.saturating_sub(24).max(GLYPH_ADV);
     8 + cells
         .iter()
-        .map(|(_, value)| 14 + raster_chunks(value, value_width).len() * 12)
+        .map(|cell| {
+            14 + raster_chunks_at_scale(&cell.value, value_width, LEDGER_RASTER_SCALE).len()
+                * LEDGER_RASTER_LINE_H
+        })
         .sum::<usize>()
 }
 
@@ -465,19 +475,21 @@ pub fn render_blocks(blocks: &[Block], t: &Theme, width: usize) -> Canvas {
                 }
                 let mut cell_y = y + 6;
                 let value_width = inner.saturating_sub(24).max(GLYPH_ADV);
-                for (label, value) in cells {
+                for cell in cells {
                     draw_text(
                         &mut c,
                         x0 + 12,
                         cell_y,
-                        1,
-                        &label.to_ascii_uppercase(),
+                        LEDGER_RASTER_SCALE,
+                        &cell.label.to_ascii_uppercase(),
                         muted,
                     );
-                    cell_y += 12;
-                    for line in raster_chunks(value, value_width) {
-                        draw_text(&mut c, x0 + 12, cell_y, 1, &line, ink);
-                        cell_y += 12;
+                    cell_y += LEDGER_RASTER_LINE_H;
+                    for line in
+                        raster_chunks_at_scale(&cell.value, value_width, LEDGER_RASTER_SCALE)
+                    {
+                        draw_text(&mut c, x0 + 12, cell_y, LEDGER_RASTER_SCALE, &line, ink);
+                        cell_y += LEDGER_RASTER_LINE_H;
                     }
                     cell_y += 2;
                 }
@@ -1310,7 +1322,7 @@ mod geom_tests {
     #[test]
     fn narrow_ledger_canvas_expands_vertically_and_preserves_visible_text() {
         let value = "/Users/erichowens/coding/tmp/port-daddy-dispatch-2593fc6c/core/pd-console/src/claims_pane.rs::ClaimsPane::refresh";
-        let cells = vec![("path".into(), value.into())];
+        let cells = vec![LedgerCell::wide("path", value)];
         let width = 180;
         let inner = width - PAD * 2;
         let chunks = raster_chunks(value, inner.saturating_sub(24));

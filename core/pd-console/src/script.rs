@@ -219,7 +219,11 @@ pub fn block_to_json(block: &Block) -> Value {
             "surface": surface,
             "index": index,
             "selected": selected,
-            "cells": cells.iter().map(|(label, value)| json!({"label": label, "value": value})).collect::<Vec<_>>(),
+            "cells": cells.iter().map(|cell| json!({
+                "label": cell.label,
+                "value": cell.value,
+                "width": cell.width.as_str(),
+            })).collect::<Vec<_>>(),
         }),
         Block::NodeRow {
             index,

@@ -31,7 +31,7 @@ use crate::editor_view::{
 };
 use crate::mux::{default_operator_workspace, Dir, Node, PaneId, SurfaceKind, Workspace};
 use crate::palette::{Theme, ThemeMode};
-use crate::pane::{Alert, AlertLevel, Block, OperatorTurn, Pane, Tone};
+use crate::pane::{Alert, AlertLevel, Block, LedgerCellWidth, OperatorTurn, Pane, Tone};
 use crate::shell_drawer::{
     terminal_key_bytes, ShellDrawerGeometry, ShellEvent, ShellStatus, ShellTerminal, TerminalColor,
 };
@@ -1695,13 +1695,10 @@ pub(crate) fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement
                         .flex_shrink_0()
                         .bg(rgb(color)),
                 )
-                .children(cells.into_iter().map(|(label, value)| {
+                .children(cells.into_iter().map(|cell| {
+                    let width = ledger_cell_width_px(cell.width);
                     div()
-                        .w(px(if label == "path" || label == "purpose" {
-                            300.0
-                        } else {
-                            180.0
-                        }))
+                        .w(px(width))
                         .max_w_full()
                         .flex_shrink_0()
                         .flex()
@@ -1712,7 +1709,7 @@ pub(crate) fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement
                                 .text_color(rgb(current_theme().muted))
                                 .text_size(px(11.0))
                                 .font_weight(FontWeight::SEMIBOLD)
-                                .child(label.to_ascii_uppercase()),
+                                .child(cell.label.to_ascii_uppercase()),
                         )
                         .child(
                             div()
@@ -1720,7 +1717,7 @@ pub(crate) fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement
                                 .text_size(px(tokens::TEXT_BODY))
                                 .font_family("IBM Plex Mono")
                                 .whitespace_normal()
-                                .child(value),
+                                .child(cell.value),
                         )
                 }))
                 .into_any_element()
@@ -7347,6 +7344,16 @@ fn render_ledger_header(
         }))
 }
 
+/// Translate pane-authored semantic width intent into GPUI layout units. The
+/// renderer never infers width from a label string, so new columns cannot
+/// silently inherit an arbitrary fallback merely because their name changed.
+fn ledger_cell_width_px(width: LedgerCellWidth) -> f32 {
+    match width {
+        LedgerCellWidth::Standard => 180.0,
+        LedgerCellWidth::Wide => 300.0,
+    }
+}
+
 /// One responsive ledger row. Every cell keeps its full value and carries its
 /// own label, so wrapping preserves meaning when columns collapse vertically.
 fn render_ledger_row(id: PaneId, block: Block, cx: &mut Context<ConsoleView>) -> impl IntoElement {
@@ -7393,15 +7400,9 @@ fn render_ledger_row(id: PaneId, block: Block, cx: &mut Context<ConsoleView>) ->
                 .flex_shrink_0()
                 .bg(rgb(color)),
         )
-        .children(cells.into_iter().map(|(label, value)| {
+        .children(cells.into_iter().map(|cell| {
             div()
-                .w(px(
-                    if label == "path" || label == "purpose" || label == "summary" {
-                        300.0
-                    } else {
-                        180.0
-                    },
-                ))
+                .w(px(ledger_cell_width_px(cell.width)))
                 .max_w_full()
                 .flex_shrink_0()
                 .flex()
@@ -7412,7 +7413,7 @@ fn render_ledger_row(id: PaneId, block: Block, cx: &mut Context<ConsoleView>) ->
                         .text_color(rgb(current_theme().muted))
                         .text_size(px(11.0))
                         .font_weight(FontWeight::SEMIBOLD)
-                        .child(label.to_ascii_uppercase()),
+                        .child(cell.label.to_ascii_uppercase()),
                 )
                 .child(
                     div()
@@ -7420,7 +7421,7 @@ fn render_ledger_row(id: PaneId, block: Block, cx: &mut Context<ConsoleView>) ->
                         .text_size(px(tokens::TEXT_BODY))
                         .font_family("IBM Plex Mono")
                         .whitespace_normal()
-                        .child(value),
+                        .child(cell.value),
                 )
         }));
     if surface.is_empty() {
@@ -9778,6 +9779,16 @@ impl Render for ConsoleView {
 #[cfg(test)]
 mod add_pane_tests {
     use super::*;
+
+    #[test]
+    fn ledger_cell_width_is_semantic_not_inferred_from_its_label() {
+        assert_eq!(ledger_cell_width_px(LedgerCellWidth::Standard), 180.0);
+        assert_eq!(ledger_cell_width_px(LedgerCellWidth::Wide), 300.0);
+
+        let deliberately_wide_status = crate::pane::LedgerCell::wide("status", "ready");
+        assert_eq!(deliberately_wide_status.width, LedgerCellWidth::Wide);
+        assert_eq!(ledger_cell_width_px(deliberately_wide_status.width), 300.0);
+    }
 
     #[test]
     fn failed_editor_open_preserves_the_file_tree_and_cache() {

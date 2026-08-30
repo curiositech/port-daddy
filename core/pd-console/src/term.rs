@@ -619,10 +619,10 @@ pub fn render_blocks_width(blocks: &[Block], style: &TermStyle, cols: Option<usi
                 ..
             } => {
                 let available = cols.map(|width| width.saturating_sub(28).max(8));
-                for (cell_index, (label, value)) in cells.iter().enumerate() {
+                for (cell_index, cell) in cells.iter().enumerate() {
                     let parts = available
-                        .map(|width| wrap_plain(value, width))
-                        .unwrap_or_else(|| vec![value.clone()]);
+                        .map(|width| wrap_plain(&cell.value, width))
+                        .unwrap_or_else(|| vec![cell.value.clone()]);
                     for (part_index, part) in parts.iter().enumerate() {
                         let marker = if cell_index == 0 && part_index == 0 {
                             if *selected {
@@ -633,7 +633,11 @@ pub fn render_blocks_width(blocks: &[Block], style: &TermStyle, cols: Option<usi
                         } else {
                             " "
                         };
-                        let field = if part_index == 0 { label.as_str() } else { "" };
+                        let field = if part_index == 0 {
+                            cell.label.as_str()
+                        } else {
+                            ""
+                        };
                         out.push_str(&format!(
                             "  {} {} {}\n",
                             style.paint(marker, tone.sem()),
@@ -888,7 +892,7 @@ mod tests {
             surface: "claims".into(),
             index: 0,
             selected: true,
-            cells: vec![("path".into(), value.into())],
+            cells: vec![crate::pane::LedgerCell::wide("path", value)],
             tone: Tone::Engaged,
         }];
         let out = render_blocks_width(&blocks, &plain(), Some(48));

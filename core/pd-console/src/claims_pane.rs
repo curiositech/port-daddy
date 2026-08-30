@@ -6,7 +6,7 @@
 //! missing context is reported explicitly.
 
 use crate::agent::DaemonClient;
-use crate::pane::{Block, Pane, SurfaceAction, Tone};
+use crate::pane::{Block, LedgerCell, Pane, SurfaceAction, Tone};
 use crate::util::{age_short, arr, n, s};
 use anyhow::Result;
 use futures_util::{stream, StreamExt};
@@ -457,13 +457,13 @@ impl Pane for ClaimsPane {
                 index: row_index,
                 selected: self.selected_id.as_deref() == Some(stable_id.as_str()),
                 cells: vec![
-                    ("path".into(), breakable(&claim.file_path)),
-                    ("scope".into(), breakable(&claim.scope())),
-                    ("owner".into(), breakable(&claim.owner())),
-                    ("purpose".into(), breakable(&claim.purpose)),
-                    ("worktree".into(), breakable(&claim.worktree())),
-                    ("phase".into(), claim.phase_label()),
-                    ("acquired".into(), timestamp_label(claim.claimed_at_ms)),
+                    LedgerCell::wide("path", breakable(&claim.file_path)),
+                    LedgerCell::standard("scope", breakable(&claim.scope())),
+                    LedgerCell::standard("owner", breakable(&claim.owner())),
+                    LedgerCell::wide("purpose", breakable(&claim.purpose)),
+                    LedgerCell::wide("worktree", breakable(&claim.worktree())),
+                    LedgerCell::standard("phase", claim.phase_label()),
+                    LedgerCell::standard("acquired", timestamp_label(claim.claimed_at_ms)),
                 ],
                 tone: claim.tone(),
             });
@@ -916,7 +916,7 @@ mod tests {
             .expect("ledger row");
         let visible = cells
             .into_iter()
-            .map(|(_, value)| value.replace('\u{200b}', ""))
+            .map(|cell| cell.value.replace('\u{200b}', ""))
             .collect::<Vec<_>>()
             .join(" ");
         assert!(visible.contains(path));

@@ -781,14 +781,14 @@ mod repl_migration_tests {
                 surface: "claims".into(),
                 index: 0,
                 selected: true,
-                cells: vec![("Path".into(), "one.rs".into())],
+                cells: vec![pane::LedgerCell::wide("Path", "one.rs")],
                 tone: pane::Tone::Accent,
             },
             Block::LedgerRow {
                 surface: "claims".into(),
                 index: 1,
                 selected: false,
-                cells: vec![("Path".into(), "two.rs".into())],
+                cells: vec![pane::LedgerCell::wide("Path", "two.rs")],
                 tone: pane::Tone::Resting,
             },
             Block::WrappedText {

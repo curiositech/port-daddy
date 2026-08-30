@@ -116,6 +116,23 @@ use std::borrow::Cow;
 use std::sync::mpsc;
 use std::time::Duration;
 
+/// Route every ledger interaction through one surface registry. Sort and
+/// selection therefore cannot drift into separate lists when another ledger
+/// joins the console.
+async fn mutate_ledger_surface(
+    surface: &str,
+    action: SurfaceAction,
+    client: &DaemonClient,
+    claims: &mut ClaimsPane,
+    roadmap: &mut PlannerPane,
+) -> anyhow::Result<()> {
+    match surface {
+        "claims" => claims.mutate(client, action).await,
+        "planner" => roadmap.mutate(client, action).await,
+        _ => Err(anyhow::anyhow!("unknown ledger surface '{surface}'")),
+    }
+}
+
 /// Present one changed operator frame. GPUI 0.2.2 marks an inactive macOS
 /// window dirty but can leave its display link parked after the first frame.
 /// A sub-point native size toggle wakes that callback; alternating the offset
@@ -1058,15 +1075,14 @@ fn main() {
                             // Responsive ledger row click: Claims and Planner
                             // own their selection state in the producer thread.
                             app::ControlMsg::LedgerSelect { surface, index } => {
-                                let result = match surface.as_str() {
-                                    "claims" => claims
-                                        .mutate(&client, SurfaceAction::SelectRow { index })
-                                        .await,
-                                    "planner" => roadmap
-                                        .mutate(&client, SurfaceAction::SelectRow { index })
-                                        .await,
-                                    _ => Err(anyhow::anyhow!("unknown ledger surface '{surface}'")),
-                                };
+                                let result = mutate_ledger_surface(
+                                    &surface,
+                                    SurfaceAction::SelectRow { index },
+                                    &client,
+                                    &mut claims,
+                                    &mut roadmap,
+                                )
+                                .await;
                                 if let Err(error) = result {
                                     let _ = alert_tx.send(pane::Alert::error(
                                         format!("{surface} selection failed"),
@@ -1077,15 +1093,14 @@ fn main() {
                             // Sort is local projection state; it never writes
                             // daemon authority or changes the selected claim/item.
                             app::ControlMsg::LedgerSort { surface, key } => {
-                                let result = match surface.as_str() {
-                                    "claims" => claims
-                                        .mutate(&client, SurfaceAction::Sort { key })
-                                        .await,
-                                    "planner" => roadmap
-                                        .mutate(&client, SurfaceAction::Sort { key })
-                                        .await,
-                                    _ => Err(anyhow::anyhow!("unknown ledger surface '{surface}'")),
-                                };
+                                let result = mutate_ledger_surface(
+                                    &surface,
+                                    SurfaceAction::Sort { key },
+                                    &client,
+                                    &mut claims,
+                                    &mut roadmap,
+                                )
+                                .await;
                                 if let Err(error) = result {
                                     let _ = alert_tx.send(pane::Alert::error(
                                         format!("{surface} sort failed"),

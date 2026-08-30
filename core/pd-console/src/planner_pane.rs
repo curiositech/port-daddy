@@ -21,7 +21,7 @@
 //! relative schedule exactly as before this field pair was read.
 
 use crate::agent::DaemonClient;
-use crate::pane::{Block, Pane, SurfaceAction, Tone};
+use crate::pane::{Block, LedgerCell, Pane, SurfaceAction, Tone};
 use crate::util::{arr, n, s, trunc};
 use anyhow::Result;
 use pd_anchor::schedule::{schedule, SchedEdge, SchedNode};
@@ -443,15 +443,15 @@ impl PlannerPane {
                 index: row_index,
                 selected: self.selected_jira_key.as_deref() == Some(item.key.as_str()),
                 cells: vec![
-                    ("source".into(), "JIRA".into()),
-                    ("key".into(), planner_breakable(&item.key)),
-                    ("summary".into(), planner_breakable(&item.summary)),
-                    ("status".into(), item.status.clone()),
-                    ("priority".into(), item.priority.clone()),
-                    ("assignee".into(), planner_breakable(&item.assignee)),
-                    ("type".into(), item.issue_type.clone()),
-                    ("updated".into(), planner_breakable(&item.updated)),
-                    ("due".into(), planner_breakable(&item.due_date)),
+                    LedgerCell::standard("source", "JIRA"),
+                    LedgerCell::standard("key", planner_breakable(&item.key)),
+                    LedgerCell::wide("summary", planner_breakable(&item.summary)),
+                    LedgerCell::standard("status", item.status.clone()),
+                    LedgerCell::standard("priority", item.priority.clone()),
+                    LedgerCell::standard("assignee", planner_breakable(&item.assignee)),
+                    LedgerCell::standard("type", item.issue_type.clone()),
+                    LedgerCell::standard("updated", planner_breakable(&item.updated)),
+                    LedgerCell::standard("due", planner_breakable(&item.due_date)),
                 ],
                 tone: item.tone(),
             });
@@ -1052,9 +1052,9 @@ impl Pane for PlannerPane {
                     index,
                     selected: false,
                     cells: vec![
-                        ("identity".into(), planner_breakable(identity)),
-                        ("purpose".into(), planner_breakable(purpose)),
-                        ("status".into(), status.clone()),
+                        LedgerCell::standard("identity", planner_breakable(identity)),
+                        LedgerCell::wide("purpose", planner_breakable(purpose)),
+                        LedgerCell::standard("status", status.clone()),
                     ],
                     tone: status_tone(status),
                 });
@@ -1090,13 +1090,13 @@ impl Pane for PlannerPane {
                     index: idx,
                     selected: false,
                     cells: vec![
-                        ("source".into(), "PORT DADDY".into()),
-                        ("item".into(), planner_breakable(&it.slug)),
-                        ("summary".into(), planner_breakable(&it.summary)),
-                        ("status".into(), it.status.clone()),
-                        ("priority".into(), format!("P{p}")),
-                        ("dependencies".into(), dep_note),
-                        ("working".into(), planner_breakable(&claim_col)),
+                        LedgerCell::standard("source", "PORT DADDY"),
+                        LedgerCell::wide("item", planner_breakable(&it.slug)),
+                        LedgerCell::wide("summary", planner_breakable(&it.summary)),
+                        LedgerCell::standard("status", it.status.clone()),
+                        LedgerCell::standard("priority", format!("P{p}")),
+                        LedgerCell::standard("dependencies", dep_note),
+                        LedgerCell::standard("working", planner_breakable(&claim_col)),
                     ],
                     tone: status_tone(&it.status),
                 });
@@ -1877,9 +1877,9 @@ mod tests {
         assert!(b.iter().any(|blk| matches!(
             blk,
             Block::LedgerRow { cells, .. }
-                if cells.iter().any(|(label, value)| {
-                    label == "purpose"
-                        && value.replace('\u{200b}', "").contains("roadmap delete verb")
+                if cells.iter().any(|cell| {
+                    cell.label == "purpose"
+                        && cell.value.replace('\u{200b}', "").contains("roadmap delete verb")
                 })
         )));
     }
@@ -1963,9 +1963,9 @@ mod tests {
                 selected: true,
                 cells,
                 ..
-            } if cells.iter().any(|(label, value)| {
-                label == "summary"
-                    && value.replace('\u{200b}', "")
+            } if cells.iter().any(|cell| {
+                cell.label == "summary"
+                    && cell.value.replace('\u{200b}', "")
                         == "Alpha: expose the complete shared Harbor roadmap"
             })
         )));
