@@ -1,101 +1,65 @@
-% Custody-by-guarantee threat matrix for the Federated Security theorem.
-% Semantic form: lookup matrix; rows are guarantees and columns are compromises.
-
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D8C7A6}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-\providecolor{hhgray}{HTML}{5C5650}
-\providecolor{maydayred}{HTML}{8B0000}
-
+% Minimal compromise sets for the four federated-security guarantees.
 \begin{figure}[H]
 \centering
-\resizebox{0.99\textwidth}{!}{%
+\resizebox{0.96\textwidth}{!}{%
 \begin{tikzpicture}[
-  font=\small,
-  hdr/.style={font=\footnotesize\bfseries,align=center,text=hhpaper},
-  rowhdr/.style={font=\footnotesize\bfseries,align=left,text=hhink},
-  cell/.style={font=\footnotesize\bfseries,align=center},
-  mitigation/.style={font=\footnotesize,align=left,text=hhink},
+  pd figure,
+  secret/.style={circle,draw=hhink,line width=.65pt,fill=hhpaper,minimum size=7mm,inner sep=1pt},
+  breach/.style={diamond,aspect=1.25,draw=hhamber,line width=1pt,fill=hhamber!10,minimum size=8mm,inner sep=1pt},
+  condition/.style={font=\scriptsize,align=center,text=hhink},
 ]
+  \node[pd panel title,anchor=west] at (-.15,4.20)
+    {minimum compromise sets: one conjunction, three single points};
 
-% Column geometry (mm-like TikZ units under resizebox):
-% guarantee | daemon signing | session | email | passphrase | KMS witness | mitigation.
-\def\H{0.90}
-\def\R{1.05}
-\coordinate (p0) at (0,0);
-\foreach \x in {0,3.9,6.0,8.1,10.2,12.3,14.4,18.0} {
-  \draw[hhebony] (\x,0) -- (\x,5.10);
-}
-\foreach \y in {0,1.05,2.10,3.15,4.20,5.10} {
-  \draw[hhebony] (0,\y) -- (18.0,\y);
-}
-\draw[hhebony,thick] (0,0) rectangle (18.0,5.10);
-\fill[hhebony] (0,4.20) rectangle (18.0,5.10);
+  \foreach \x in {3.75,7.55,11.35}
+    \draw[pd guide] (\x,.05)--(\x,3.72);
 
-\node[hdr,text width=31mm] at (1.95,4.65) {GUARANTEE};
-\node[hdr,text width=17mm] at (4.95,4.65) {daemon\newline signing key};
-\node[hdr,text width=17mm] at (7.05,4.65) {harbor\newline session key};
-\node[hdr,text width=17mm] at (9.15,4.65) {user\newline email};
-\node[hdr,text width=17mm] at (11.25,4.65) {user\newline \scalebox{0.94}{passphrase}};
-\node[hdr,text width=17mm] at (13.35,4.65) {KMS witness\newline signature};
-\node[hdr,text width=30mm] at (16.20,4.65) {BOUNDING MITIGATION};
+  % Guarantee headings.
+  \node[pd panel title,align=center] at (1.85,3.54) {FORGE\\A CARD};
+  \node[pd panel title,align=center] at (5.65,3.54) {READ\\EVIDENCE};
+  \node[pd panel title,align=center] at (9.45,3.54) {IMPERSONATE\\USER};
+  \node[pd panel title,align=center] at (13.25,3.54) {ROLL BACK\\FOREST};
 
-% Alternating row fields and row labels.
-\fill[hhsand!28] (0,3.15) rectangle (18.0,4.20);
-\fill[hhteal!6] (0,1.05) rectangle (18.0,2.10);
-\node[rowhdr,text width=34mm,anchor=west] at (0.18,3.68)
-  {(i) Forge a Harbor Card};
-\node[rowhdr,text width=34mm,anchor=west] at (0.18,2.63)
-  {(ii) Read plaintext evidence};
-\node[rowhdr,text width=34mm,anchor=west] at (0.18,1.58)
-  {(iii) Impersonate the user};
-\node[rowhdr,text width=34mm,anchor=west] at (0.18,0.53)
-  {(iv) Roll back Merkle forest};
+  % Single-key cut: daemon signing key.
+  \node[breach] (b1) at (1.85,2.95) {};
+  \node[secret] (s1) at (1.85,1.70) {\scriptsize $sk_D$};
+  \draw[pd caution arrow] (s1.north)--(b1.south);
+  \node[condition] at (1.85,1.03) {daemon signing key};
+  \draw[pd focus rule] (.55,.52)--(3.15,.52);
+  \node[pd note,text=hhteal,align=center] at (1.85,.22) {rotation + revocation};
 
-% A single compromise is sufficient only in the red BREAK cells.
-\fill[maydayred!13] (3.9,3.15) rectangle (6.0,4.20);
-\node[cell,text=maydayred] at (4.95,3.68) {BREAK};
-\fill[maydayred!13] (6.0,2.10) rectangle (8.1,3.15);
-\node[cell,text=maydayred] at (7.05,2.63) {BREAK};
-\fill[maydayred!13] (12.3,0) rectangle (14.4,1.05);
-\node[cell,text=maydayred] at (13.35,0.53) {BREAK};
+  % Single-key cut: harbor session key.
+  \node[breach] (b2) at (5.65,2.95) {};
+  \node[secret] (s2) at (5.65,1.70) {\scriptsize $k_H$};
+  \draw[pd caution arrow] (s2.north)--(b2.south);
+  \node[condition] at (5.65,1.03) {harbor session key};
+  \draw[pd focus rule] (4.35,.52)--(6.95,.52);
+  \node[pd note,text=hhteal,align=center] at (5.65,.22) {keyring + host sandbox};
 
-% User impersonation is the one conjunctive failure.
-\fill[hhamber!18] (8.1,1.05) rectangle (12.3,2.10);
-\node[cell,text=hhamber] at (9.15,1.58) {AND};
-\node[cell,text=hhamber] at (11.25,1.58) {AND};
-\draw[hhamber,thick] (9.45,1.58) -- (10.95,1.58);
+  % The only conjunctive cut: email AND passphrase.
+  \node[breach] (b3) at (9.45,2.95) {\scriptsize AND};
+  \node[secret] (email) at (8.78,1.70) {\scriptsize @};
+  \node[secret] (pass) at (10.12,1.70) {\scriptsize $\phi$};
+  \draw[pd caution arrow] (email.north)--(b3.south west);
+  \draw[pd caution arrow] (pass.north)--(b3.south east);
+  \node[condition] at (8.78,1.03) {email};
+  \node[condition] at (10.12,1.03) {passphrase};
+  \draw[pd focus rule] (8.15,.52)--(10.75,.52);
+  \node[pd note,text=hhteal,align=center] at (9.45,.22) {two-factor recovery};
 
-% Explicit non-breaking cells.
-\foreach \x in {7.05,9.15,11.25,13.35} {\node[cell,text=hhgray] at (\x,3.68) {--};}
-\foreach \x in {4.95,9.15,11.25,13.35} {\node[cell,text=hhgray] at (\x,2.63) {--};}
-\foreach \x in {4.95,7.05,13.35} {\node[cell,text=hhgray] at (\x,1.58) {--};}
-\foreach \x in {4.95,7.05,9.15,11.25} {\node[cell,text=hhgray] at (\x,0.53) {--};}
+  % Single-witness cut: equivocation or deletion by the KMS witness.
+  \node[breach] (b4) at (13.25,2.95) {};
+  \node[secret] (s4) at (13.25,1.70) {\scriptsize $\sigma_K$};
+  \draw[pd caution arrow] (s4.north)--(b4.south);
+  \node[condition] at (13.25,1.03) {KMS witness signature};
+  \draw[pd focus rule] (11.95,.52)--(14.55,.52);
+  \node[pd note,text=hhteal,align=center] at (13.25,.22) {cross-witness roots};
 
-% Mitigations are attached to rows, not floating as prose cards.
-\node[mitigation,text width=31mm,anchor=west] at (14.58,3.68)
-  {rotation + revocation};
-\node[mitigation,text width=31mm,anchor=west] at (14.58,2.63)
-  {native keyring + host sandbox};
-\node[mitigation,text width=31mm,anchor=west] at (14.58,1.58)
-  {require both recovery factors};
-\node[mitigation,text width=31mm,anchor=west] at (14.58,0.53)
-  {cross-witness signed roots};
-
-% Scope and legend rail.
-\node[font=\footnotesize,align=left,text=hhink,text width=170mm,anchor=north west]
-  at (0,-0.34)
-  {\textcolor{maydayred}{\textbf{BREAK}} = that single secret suffices.\quad
-   \textcolor{hhamber}{\textbf{AND}} = email and passphrase must both fail.\quad
-   ``--'' = compromise alone does not violate the row.\newline
-   \textbf{Scope:} the theorem excludes same-user code execution on the daemon host; that adversary can read every secret available to the user process.};
-
+  \node[pd note,align=center,text width=11.8cm] at (7.55,-.45)
+    {diamonds are sufficient cut sets; teal baselines name consequence-limiting controls\\
+     scope excludes same-user code execution on the daemon host};
 \end{tikzpicture}%
 }
-\caption{Custody is easiest to audit as a guarantee-by-compromise matrix. Three guarantees each have one sufficient custody failure; user impersonation is the sole conjunctive case, requiring both email and passphrase. The mitigation column bounds the consequence rather than pretending the relevant holder is harmless, and the scope rail makes the same-user exclusion explicit.}
+\caption{The custody theorem has four small attack cut sets rather than one undifferentiated trust boundary. Card forgery, evidence decryption, and forest rollback each have one sufficient secret; user impersonation is the sole conjunctive failure and requires both email and passphrase. The teal baselines name the consequence-limiting control for each cut. Same-user code execution remains outside the theorem because that adversary can read every secret available to the user process.}
 \label{fig:bonded-key-custody}
 \end{figure}

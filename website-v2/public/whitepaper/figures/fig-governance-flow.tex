@@ -1,74 +1,45 @@
-% Governance escalation as an ordered state rail with explicit exits.
-
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D8C7A6}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-\providecolor{hhgray}{HTML}{5C5650}
-
+% Ordered dispute escalation shown as a cost staircase with a common evidence rail.
 \begin{figure}[H]
 \centering
-\resizebox{0.96\textwidth}{!}{%
-\begin{tikzpicture}[
-  font=\small,
-  station/.style={circle,draw=hhebony,very thick,fill=hhpaper,minimum size=9mm,inner sep=0pt,font=\bfseries},
-  stagelabel/.style={font=\small\bfseries,align=center,text=hhink,text width=38mm},
-  trigger/.style={font=\footnotesize\itshape,align=center,text=hhamber,text width=36mm},
-  outcome/.style={draw=hhteal,thick,fill=hhteal!7,rounded corners=2pt,minimum width=35mm,minimum height=9mm,font=\footnotesize\bfseries,align=center},
-  evid/.style={font=\footnotesize,align=center,text=hhink},
-]
+\resizebox{0.92\textwidth}{!}{%
+\begin{tikzpicture}[pd figure]
+  \node[pd panel title,anchor=west] at (-.25,4.12)
+    {intervention rises only when the cheaper exit fails};
 
-% Entry condition and primary escalation rail.
-\node[draw=hhebony,thick,fill=hhsand!55,rounded corners=2pt,
-      inner xsep=8pt,inner ysep=5pt,font=\footnotesize\bfseries] (entry) at (-1.8,1.7)
-  {conflict reported};
-\draw[->,>=Latex,very thick,draw=hhebony] (entry.east) -- (0.0,1.7);
+  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (-.35,-.02)--(12.20,-.02);
+  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (-.35,-.02)--(-.35,3.85);
+  \node[pd axis label,anchor=west] at (12.30,-.02) {elapsed dispute path};
+  \node[pd axis label,rotate=90,anchor=south] at (-.67,1.92) {intervention cost};
 
-\foreach \x/\n in {0/1,4.0/2,8.0/3,12.0/4} {
-  \node[station] (s\n) at (\x,1.7) {\n};
-}
-\draw[->,>=Latex,very thick,draw=hhebony] (s1) -- (s2);
-\draw[->,>=Latex,very thick,draw=hhebony] (s2) -- (s3);
-\draw[->,>=Latex,very thick,draw=hhebony] (s3) -- (s4);
+  \draw[pd caution rule,line width=1.5pt]
+    (.10,.36)--(2.70,.36)--(2.70,1.10)--(5.55,1.10)--(5.55,2.02)--(8.55,2.02)--(8.55,3.28)--(11.85,3.28);
+  \foreach \x/\y in {1.35/.36,4.15/1.10,7.05/2.02,10.15/3.28}
+    \node[pd caution datum] at (\x,\y) {};
 
-% Escalation triggers occupy a dedicated band above the rail.
-\node[trigger,text width=31mm] at (2.0,2.54) {holder retains\\claim};
-\node[trigger,text width=37mm] at (6.0,2.54) {waiting cost $>$ bond};
-\node[trigger,text width=40mm] at (10.0,2.54) {evidence ambiguous\\or stakes $>$ ceiling};
-\draw[hhamber,thick,dashed] (0.55,2.12) -- (3.45,2.12);
-\draw[hhamber,thick,dashed] (4.55,2.12) -- (7.45,2.12);
-\draw[hhamber,thick,dashed] (8.55,2.12) -- (11.45,2.12);
+  \node[pd direct label,anchor=south,align=center] at (1.35,.62)
+    {1  DIRECT RELEASE\\[-1pt]\normalfont\scriptsize claimant yields};
+  \node[pd direct label,anchor=south,align=center] at (4.15,1.36)
+    {2  TTL EXPIRY\\[-1pt]\normalfont\scriptsize heartbeat absent};
+  \node[pd direct label,anchor=south,align=center] at (7.05,2.28)
+    {3  BONDED PREEMPTION\\[-1pt]\normalfont\scriptsize waiting cost exceeds bond};
+  \node[pd direct label,anchor=south,align=center] at (10.15,3.54)
+    {4  HUMAN RULING\\[-1pt]\normalfont\scriptsize ambiguous or high stakes};
 
-% Stage names below the rail.
-\node[stagelabel] at (0,0.82) {Direct release};
-\node[stagelabel] at (4.0,0.82) {TTL expiry};
-\node[stagelabel] at (8.0,0.82) {Bonded\\preemption};
-\node[stagelabel] at (12.0,0.82) {Human ruling};
+  \node[pd note,text=hhamber,anchor=west] at (2.82,.68) {no heartbeat};
+  \node[pd note,text=hhamber,anchor=west] at (5.68,1.58) {preemption justified};
+  \node[pd note,text=hhamber,anchor=west] at (8.68,2.84) {machine limit reached};
 
-% Every stage has a terminal resolution on a common baseline.
-\node[outcome] (o1) at (0,-0.35) {released by holder};
-\node[outcome] (o2) at (4.0,-0.35) {automatic release};
-\node[outcome] (o3) at (8.0,-0.35) {preempt + settle};
-\node[outcome] (o4) at (12.0,-0.35) {signed ruling};
-\foreach \n in {1,2,3,4} {
-  \draw[->,>=Latex,thick,draw=hhteal] (s\n.south) -- (o\n.north);
-}
-
-% Evidence is retained regardless of the exit used.
-\draw[hhebony,thick] (-0.7,-1.35) -- (12.7,-1.35);
-\foreach \n in {1,2,3,4} {
-  \draw[hhebony] (o\n.south) -- (o\n.south |- 0,-1.35);
-}
-\node[evid] at (6.0,-1.67)
-  {evidence rail: resolution $\cdot$ actor $\cdot$ reason $\cdot$ artifact $\cdot$ outcome};
-\node[evid,text=hhgray] at (6.0,-2.08)
-  {append to Merkle forest $\rightarrow$ open 24-hour appeal window};
-
+  \draw[pd focus rule,line width=1.35pt] (.55,-1.25)--(11.55,-1.25);
+  \foreach \x/\y/\outcome in {1.35/.36/released,4.15/1.10/expired,7.05/2.02/preempted,10.15/3.28/ruled} {
+    \draw[pd focus arrow] (\x,\y-.13)--(\x,-1.12);
+    \node[pd direct label,text=hhteal,anchor=north] at (\x,-1.36) {\outcome};
+  }
+  \node[pd panel title,text=hhteal,anchor=east] at (11.55,-.98)
+    {one evidence-bound resolution rail};
+  \node[pd note,anchor=west] at (.55,-1.88)
+    {actor $\cdot$ reason $\cdot$ artifact $\cdot$ outcome $\rightarrow$ Merkle forest $\rightarrow$ appeal window};
 \end{tikzpicture}%
 }
-\caption{Disputes follow one ordered escalation path. Each station is both a possible resolution and a gate to stronger intervention: direct release, TTL expiry, bonded preemption, then human ruling. The lower rail is common to every exit, so escalation changes who decides and what it costs without dropping the evidence needed for appeal.}
+\caption{Dispute resolution is an escalation staircase. The system first offers a zero-coercion exit, then waits for the claimant's TTL, then permits priced preemption, and reaches human judgment only after the machine-readable options are exhausted. Every station can terminate the dispute, and every termination descends to the same evidence rail. Escalation therefore changes the decision cost and decision-maker without discarding the record needed for appeal.}
 \label{fig:governance-flow}
 \end{figure}

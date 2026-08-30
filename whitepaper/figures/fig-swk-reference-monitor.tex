@@ -1,84 +1,39 @@
-% Figure — the reference-monitor framing (Anderson 1972 / Lampson). The kernel
-% satisfies complete mediation BY CONSTRUCTION for the regimented gate; the
-% policy monitor is NOT on the request path (post-commit subscriber), so it is
-% a detector, not a regimenter. The three monitor properties live in the caption.
-
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D8C7A6}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{6B4500}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-
+% Figure 8 — counterfactual pre-effect mediation versus actual post-commit observation.
 \begin{figure}[H]
 \centering
-\resizebox{0.95\textwidth}{!}{%
-\begin{tikzpicture}[
-  font=\small,
-  actor/.style={draw=hhebony,thick,rounded corners=2pt,fill=hhsand!30,
-                minimum width=22mm,minimum height=10mm,align=center},
-  gate/.style={draw=hhamber,line width=1.4pt,fill=hhpaper,
-               minimum width=22mm,minimum height=14mm,align=center,
-               font=\bfseries\footnotesize},
-  store/.style={draw=hhebony,thick,fill=hhsand!30,cylinder,shape border rotate=90,
-                aspect=0.28,minimum width=26mm,minimum height=16mm,align=center},
-  mon/.style={draw=hhink,line width=1.2pt,fill=hhsand!30,rounded corners=2pt,
-              minimum width=34mm,minimum height=12mm,align=center,
-              font=\footnotesize},
-  note/.style={font=\footnotesize\itshape,align=center,text width=44mm},
-]
-
-% ─── Request path: agent -> uniqueness/boot gate -> WAL -> activity log ─────
-\node[actor] (agent) at (0,0) {agent\\ request};
-\node[gate,right=20mm of agent] (pk) {uniqueness\\ constraint\\ / boot gate};
-\node[store,right=18mm of pk] (wal) {SQLite\\ WAL\\ (committed)};
-\node[store,right=20mm of wal] (log) {operation\\ log\\ (append-only)};
-
-\draw[->,>=Latex,thick,hhebony] (agent) -- (pk);
-\draw[->,>=Latex,thick,hhebony] (pk) -- node[above,font=\footnotesize]{admit} (wal);
-\draw[->,>=Latex,thick,hhebony] (wal) -- node[above,font=\footnotesize]{emit event} (log);
-
-% reject edge
-\draw[->,>=Latex,thick,hhamber] (pk.south) to[bend right=30]
-  node[below,font=\footnotesize,text=hhink]{reject} ([yshift=-7mm]pk.south);
-
-% ─── Policy monitor: subscriber DOWNSTREAM of commit ───────────────────────
-\node[mon,below=15mm of log] (arb) {policy monitor\\ (post-commit subscriber)};
-\draw[->,>=Latex,thick,hhteal] (log.south) -- (arb.north)
-  node[midway,right,font=\footnotesize,text=hhink]{observes};
-\draw[->,>=Latex,thick,dashed,hhteal] (arb.west) to[bend right=18]
-  node[below,font=\footnotesize,text=hhink,align=center]{compensate\\(undo / salvage)} (wal.south);
-
-% ─── The interception line ─────────────────────────────────────────────────
-\draw[hhamber,line width=1pt,dash pattern=on 3pt off 2pt]
-  ($(wal.east)!0.5!(log.west)$) ++(0,16mm) -- ++(0,-42mm);
-\node[note,text=hhink,anchor=south] at ($(wal.east)!0.5!(log.west)+(0,17mm)$)
-  {\textbf{the commit line}};
-
-% ─── Region labels, clear of the boxes ─────────────────────────────────────
-\node[note,text=hhink,anchor=south] at ([yshift=14mm]pk.north)
-  {\textbf{regimented:}\\ pre-commit, truly unreachable};
-\node[note,text=hhink,anchor=south,text width=50mm] at ([yshift=14mm]log.north)
-  {\textbf{enforced:}\\ post-commit, detected \& compensated};
-
+\resizebox{0.91\textwidth}{!}{%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \node[pd panel title,anchor=east] at (2.25,5.05) {pre-effect gate};
+  \draw[pd arrow] (2.55,5.05)--(5.05,5.05);
+  \draw[pd caution rule,line width=1.45pt] (5.05,4.45)--(5.05,5.65);
+  \draw[pd focus arrow] (5.18,5.05)--(8.75,5.05);
+  \node[pd focus datum] at (8.75,5.05) {};
+  \node[pd direct label,anchor=south] at (3.75,5.2) {request};
+  \node[pd direct label,anchor=south,text=hhamber] at (5.05,5.76) {decision};
+  \node[pd direct label,anchor=south,text=hhteal] at (8.75,5.2) {commit if admitted};
+  \node[pd note,anchor=west] at (9.2,5.05) {forbidden state never exists};
+  \node[pd panel title,anchor=east] at (2.25,2.45) {actual monitor};
+  \draw[pd arrow] (2.55,2.45)--(5.0,2.45);
+  \node[pd datum] at (5.0,2.45) {};
+  \draw[pd caution rule,line width=3.0pt] (5.0,2.45)--(9.2,2.45);
+  \node[pd caution datum] at (7.2,2.45) {};
+  \node[pd focus datum] at (9.2,2.45) {};
+  \draw[pd focus arrow] (9.2,2.45)--(11.9,2.45);
+  \node[pd direct label,anchor=south] at (5.0,2.67) {commit};
+  \node[pd direct label,anchor=south,text=hhamber] at (7.2,2.67) {observed};
+  \node[pd direct label,anchor=south,text=hhteal] at (9.2,2.67) {compensate};
+  \node[pd note,anchor=west] at (12.05,2.45) {past effect remains in history};
+  \draw[pd caution arrow] (5.0,1.45)--(9.2,1.45);
+  \node[pd direct label,text=hhamber] at (7.1,.9) {exposure window};
+  \node[pd axis label,anchor=west] at (13.05,.35) {time};
 \end{tikzpicture}%
 }
-\caption{The kernel as a reference monitor --- and the honest correction it forces.
-Anderson's reference monitor must be \emph{always invoked} on the request path
-(complete mediation), \emph{tamper-evident}, and \emph{small enough to verify}. The
-\textbf{uniqueness constraint / boot gate} (cobalt) meets the first property by
-construction --- the single SQLite file lock means every double-claim,
-duplicate-identity squat, or serve-from-test-database attempt is rejected
-\emph{before} the WAL write. The \textbf{policy monitor} (teal) does not: it is a
-subscriber to the operation log that fires \emph{after} the event is already
-durable, and by Schneider's theorem~\cite{schneider2000} (\S\ref{sec:enforcement}) a
-monitor downstream of the commit line enforces no safety property --- it can only
-\emph{detect and compensate} within a bounded window. Tamper-evidence (a
-hash-chained audit log) is re-scoped to the economy layer (\S\ref{sec:merkle});
-smallness is the point of one writer over one file. We therefore reserve
-``physically unreachable'' for the regimented set and say ``detected, then halted or
-compensated'' everywhere else.}
+\caption{The reference-monitor test as a causal counterfactual. A true mediator
+decides before the commit point, so a forbidden state never exists. The present
+policy monitor instead subscribes after commit: it can observe, halt subsequent
+work, and compensate, but the amber exposure interval is already part of history.
+Only uniqueness constraints and fail-closed boot gates belong to the upper trace;
+subscriber rules belong to the lower one. Calling both ``prevention'' would erase
+the kernel's actual controllability boundary.}
 \label{fig:swk-reference-monitor}
 \end{figure}
