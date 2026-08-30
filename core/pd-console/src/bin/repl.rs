@@ -68,6 +68,9 @@ mod editor_sync;
 #[path = "../editor_wedge.rs"]
 mod editor_wedge;
 #[allow(dead_code)]
+#[path = "../mission_callbacks.rs"]
+mod mission_callbacks;
+#[allow(dead_code)]
 #[path = "../mission_view.rs"]
 mod mission_view;
 #[allow(dead_code)]

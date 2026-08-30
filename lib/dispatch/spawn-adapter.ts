@@ -46,7 +46,7 @@
 
 import { execFileSync, execFile } from 'node:child_process';
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { isAbsolute, join, resolve } from 'node:path';
 import { homedir } from 'node:os';
 import { promisify } from 'node:util';
 
@@ -113,20 +113,35 @@ export async function gitWorktreeAdd(
   branch: string,
   baseRef: string,
   options: {
-    execFileFn?: (file: string, args: string[]) => Promise<unknown>;
+    repoWorkdir: string;
+    execFileFn?: (
+      file: string,
+      args: string[],
+      options?: { cwd: string },
+    ) => Promise<unknown>;
     existsFn?: (path: string) => boolean;
     sleepFn?: (delayMs: number) => Promise<void>;
     randomFn?: () => number;
     maxAttempts?: number;
-  } = {},
+  },
 ): Promise<void> {
-  const run = options.execFileFn ?? ((file: string, args: string[]) => execFileAsync(file, args));
+  const run = options.execFileFn
+    ?? ((file: string, args: string[], execOptions?: { cwd: string }) => execFileAsync(file, args, execOptions));
   const pathExists = options.existsFn ?? existsSync;
   const sleep = options.sleepFn ?? ((delayMs: number) => new Promise<void>((resolveSleep) => {
     setTimeout(resolveSleep, delayMs);
   }));
   const random = options.randomFn ?? Math.random;
   const maxAttempts = Math.max(1, options.maxAttempts ?? 4);
+  const rawRepoWorkdir = options.repoWorkdir?.trim();
+  if (!rawRepoWorkdir || !isAbsolute(rawRepoWorkdir)) {
+    throw new Error('gitWorktreeAdd requires an absolute source project binding');
+  }
+  const repoWorkdir = resolve(rawRepoWorkdir);
+
+  // Fail closed before creating anything: the daemon may be running from an
+  // app bundle or unrelated checkout, so its cwd is never source authority.
+  await run('git', ['rev-parse', '--show-toplevel'], { cwd: repoWorkdir });
 
   if (pathExists(worktreePath)) {
     // Already exists — may be from a previous interrupted run. Re-use it.
@@ -143,13 +158,14 @@ export async function gitWorktreeAdd(
     const remote = baseRef.slice(0, slash);
     const branchName = baseRef.slice(slash + 1);
     try {
-      await run('git', ['fetch', remote, branchName]);
+      await run('git', ['fetch', remote, branchName], { cwd: repoWorkdir });
     } catch {
       /* offline or no remote — branch from the local tracking ref */
     }
   }
-  // git worktree add <path> -b <branch> <baseRef>
-  // Run from the repo root (process.cwd() when running as the pd CLI).
+  // git worktree add <path> -b <branch> <baseRef>. Every Git operation is
+  // anchored to the dispatch's durable source-project binding; daemon cwd is
+  // intentionally irrelevant because packaged apps launch from elsewhere.
   let reuseCreatedBranch = false;
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
@@ -161,7 +177,7 @@ export async function gitWorktreeAdd(
             worktreePath,
             '-b', branch,
             baseRef,
-          ]);
+          ], { cwd: repoWorkdir });
       return;
     } catch (error) {
       // Concurrent worktree creation briefly contends on the repository-wide
@@ -452,7 +468,12 @@ export interface SpawnAdapterOptions {
    * Injectable git-worktree creation function for unit tests.
    * When provided, no real git subprocess is spawned.
    */
-  worktreeAddFn?: (worktreePath: string, branch: string, baseRef: string) => Promise<void>;
+  worktreeAddFn?: (
+    worktreePath: string,
+    branch: string,
+    baseRef: string,
+    options: { repoWorkdir: string },
+  ) => Promise<void>;
 
   /**
    * Injectable gh-pr-create function for unit tests.
@@ -494,6 +515,12 @@ export function createSpawnAdapter(opts: SpawnAdapterOptions = {}): SpawnAdapter
     const { plan, queue } = input;
     const dispatch = plan.dispatch;
 
+    if (!dispatch.projectDir) {
+      const msg = 'Dispatch has no durable source project binding; refusing daemon-cwd fallback';
+      queue.settle({ id: dispatch.id, state: 'failed', errorMessage: msg });
+      return { state: 'failed', errorMessage: msg };
+    }
+
     // ── 0. Verify CLI binaries are on PATH (loud-fail, not silent no-op) ──────
     if (!opts.spawnFn) {
       const cliBin = plan.backend === 'cli:claude-code' ? 'claude' : 'codex';
@@ -504,7 +531,9 @@ export function createSpawnAdapter(opts: SpawnAdapterOptions = {}): SpawnAdapter
 
     // ── 1. Create the isolated git worktree ─────────────────────────────────
     try {
-      await _worktreeAdd(plan.worktreePath, plan.branch, plan.baseRef);
+      await _worktreeAdd(plan.worktreePath, plan.branch, plan.baseRef, {
+        repoWorkdir: dispatch.projectDir,
+      });
     } catch (err) {
       const msg = `Failed to create worktree at ${plan.worktreePath} (branch ${plan.branch} from ${plan.baseRef}): ${(err as Error).message}`;
       queue.settle({ id: dispatch.id, state: 'failed', errorMessage: msg });
