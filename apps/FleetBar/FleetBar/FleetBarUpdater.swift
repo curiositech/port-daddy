@@ -316,8 +316,12 @@ final class FleetBarUpdater: ObservableObject {
     @Published private(set) var state: FleetBarUpdateState = .idle
     private let installer: FleetBarReleaseInstaller
 
-    init(installer: FleetBarReleaseInstaller = FleetBarReleaseInstaller()) {
+    init(
+        installer: FleetBarReleaseInstaller = FleetBarReleaseInstaller(),
+        initialState: FleetBarUpdateState = .idle
+    ) {
         self.installer = installer
+        self.state = initialState
     }
 
     func install(version: String) {
