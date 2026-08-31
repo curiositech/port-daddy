@@ -33,17 +33,17 @@ describe('reproducible whitepaper source scoping', () => {
   test('Spawn to Person depends only on its root and imported stp figures', () => {
     const sources = bashFunction(
       'paper_sources',
-      'website-v2/public/whitepaper',
+      'whitepaper/source',
       'spawn-to-person.tex',
     ).split('\n');
 
-    expect(sources[0]).toBe('website-v2/public/whitepaper/spawn-to-person.tex');
+    expect(sources[0]).toBe('whitepaper/source/spawn-to-person.tex');
     expect(sources).toHaveLength(15);
     expect(sources).toContain(
-      'website-v2/public/whitepaper/figures/pd-figure-language.tex',
+      'whitepaper/source/figures/pd-figure-language.tex',
     );
     expect(sources).toContain(
-      'website-v2/public/whitepaper/figures/fig-stp-rate-the-raters.tex',
+      'whitepaper/source/figures/fig-stp-rate-the-raters.tex',
     );
     expect(sources.slice(1).every((source) =>
       source.includes('/figures/fig-stp-') || source.endsWith('/figures/pd-figure-language.tex')))
@@ -53,13 +53,13 @@ describe('reproducible whitepaper source scoping', () => {
 
   test('every analytical paper declares the shared figure language as a source', () => {
     const papers = [
-      ['website-v2/public/whitepaper', 'agent-transactions-whitepaper.tex'],
-      ['website-v2/public/whitepaper', 'anchor-protocol-whitepaper.tex'],
-      ['website-v2/public/whitepaper', 'federated-harbor-whitepaper.tex'],
-      ['website-v2/public/whitepaper', 'harbor-economy.tex'],
-      ['website-v2/public/whitepaper', 'spawn-to-person.tex'],
-      ['whitepaper', 'legible-swarm.tex'],
-      ['whitepaper', 'single-writer-kernel.tex'],
+      ['whitepaper/source', 'agent-transactions-whitepaper.tex'],
+      ['whitepaper/source', 'anchor-protocol-whitepaper.tex'],
+      ['whitepaper/source', 'federated-harbor-whitepaper.tex'],
+      ['whitepaper/source', 'harbor-economy.tex'],
+      ['whitepaper/source', 'spawn-to-person.tex'],
+      ['whitepaper/source', 'legible-swarm.tex'],
+      ['whitepaper/source', 'single-writer-kernel.tex'],
     ];
 
     for (const [srcdir, root] of papers) {
@@ -73,12 +73,12 @@ describe('reproducible whitepaper source scoping', () => {
   test('another paper excludes Spawn to Person figures from its epoch', () => {
     const sources = bashFunction(
       'paper_sources',
-      'website-v2/public/whitepaper',
+      'whitepaper/source',
       'anchor-protocol-whitepaper.tex',
     ).split('\n');
 
     expect(sources).toContain(
-      'website-v2/public/whitepaper/figures/fig-anchor-four-phases.tex',
+      'whitepaper/source/figures/fig-anchor-four-phases.tex',
     );
     expect(sources.some((source) => source.includes('/figures/fig-stp-'))).toBe(false);
   });
@@ -86,7 +86,7 @@ describe('reproducible whitepaper source scoping', () => {
   test('paper_epoch equals the maximum source commit author time', () => {
     const sources = bashFunction(
       'paper_sources',
-      'website-v2/public/whitepaper',
+      'whitepaper/source',
       'spawn-to-person.tex',
     ).split('\n');
     const authorTimes = execFileSync(
@@ -94,10 +94,16 @@ describe('reproducible whitepaper source scoping', () => {
       ['log', '--format=%at', 'HEAD', '--', ...sources],
       { cwd: repoRoot, encoding: 'utf8' },
     ).trim().split('\n').filter(Boolean).map(Number);
-    const expected = String(Math.max(...authorTimes));
+    // During a corpus move the new canonical paths can exist in the index
+    // before any commit owns those names. The builder deliberately falls back
+    // to HEAD in that state; after the move lands, the ordinary max-source-time
+    // branch becomes active again.
+    const expected = authorTimes.length > 0
+      ? String(Math.max(...authorTimes))
+      : git('log', '-1', '--format=%at', 'HEAD');
     const actual = bashFunction(
       'paper_epoch',
-      'website-v2/public/whitepaper',
+      'whitepaper/source',
       'spawn-to-person.tex',
     );
 
@@ -131,14 +137,14 @@ describe('reproducible whitepaper source scoping', () => {
     // Order follows the PAPERS table, so this also pins that the CLI walks the
     // whole table rather than stopping at the first match.
     expect(listUnchangedSince(git('rev-parse', 'HEAD'))).toEqual([
-      'website-v2/public/whitepaper/agent-transactions-whitepaper.pdf',
-      'website-v2/public/whitepaper/anchor-protocol-whitepaper.pdf',
-      'website-v2/public/whitepaper/federated-harbor-whitepaper.pdf',
-      'website-v2/public/whitepaper/harbor-economy-whitepaper.pdf',
-      'website-v2/public/whitepaper/spawn-to-person-whitepaper.pdf',
-      'website-v2/public/whitepaper/legible-swarm-whitepaper.pdf',
-      'website-v2/public/whitepaper/single-writer-kernel-whitepaper.pdf',
-      'website-v2/public/whitepaper/coordination-papers-mega-volume.pdf',
+      'whitepaper/published/agent-transactions-whitepaper.pdf',
+      'whitepaper/published/anchor-protocol-whitepaper.pdf',
+      'whitepaper/published/federated-harbor-whitepaper.pdf',
+      'whitepaper/published/harbor-economy-whitepaper.pdf',
+      'whitepaper/published/spawn-to-person-whitepaper.pdf',
+      'whitepaper/published/legible-swarm-whitepaper.pdf',
+      'whitepaper/published/single-writer-kernel-whitepaper.pdf',
+      'whitepaper/published/coordination-papers-mega-volume.pdf',
     ]);
   });
 
@@ -212,7 +218,7 @@ describe('reproducible whitepaper source scoping', () => {
       const result = spawnSync(
         '/bin/bash',
         ['-c',
-          'source "$1"; build_one website-v2/public/whitepaper coordination-papers-mega-volume.tex "$2"',
+          'source "$1"; build_one whitepaper/source coordination-papers-mega-volume.tex "$2"',
           'whitepaper-test', buildScript, join(shimBin, 'unused.pdf')],
         { cwd: repoRoot, encoding: 'utf8', env: { ...process.env, PATH: shimBin } },
       );

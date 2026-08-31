@@ -1,5 +1,6 @@
-# LaTeX build byproducts only — the .pdf and .tex sources in this directory
-# ARE the served artifacts and stay tracked deliberately.
+# Generated deployment mirror. Canonical PDFs live in whitepaper/published/;
+# scripts/sync-whitepaper-publications.mjs copies them here before dev/build.
+*.pdf
 *.aux
 *.log
 *.out

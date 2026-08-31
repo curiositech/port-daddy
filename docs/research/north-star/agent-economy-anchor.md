@@ -2,7 +2,7 @@
 
 > **North Star layer:** L3 — Economy & Federation (ADR-0048, `docs/adr/0048-what-port-daddy-is.md`).
 > **Extends:** the Anchor Protocol (ADR-0014, `docs/adr/0014-the-anchor-protocol.md`) and the
-> `agent-transactions` and `federated-harbor` whitepapers (`website-v2/public/whitepaper/`).
+> `agent-transactions` and `federated-harbor` whitepapers (`whitepaper/source/`).
 > **Diátaxis mode:** explanation (a reasoned argument), not a how-to or reference.
 > **Honesty contract:** every "built" claim points at code that exists today; everything
 > else is labeled **vision** or **designed**. The bond ledger is built; the market on top of
@@ -134,7 +134,7 @@ until value has been pinned against it.
 
 ### 3.2 The bond ledger is built, and it conserves value
 
-The single most load-bearing primitive — and the one that is *actually built* — is
+The single most critical primitive — and the one that is *actually built* — is
 **`lib/bonds.ts`** (*bond escrow for agent spawning: debit a project wallet into an escrow
 row before spawn; refund on clean exit; slash on breach, splitting the slash between the
 wallet and a commons pool*). It guards two invariants, restated here verbatim from the
@@ -471,9 +471,9 @@ Cambridge University Press, 1990.
 - **`lib/bonds.ts`** — BUILT: bond escrow, slashing, commons pool, conservation invariant
 - `tests/unit/bonds-conservation-property.test.js` — BUILT: 10k-trace conservation property test
 - `lib/cost-ledger.ts`, `lib/commitments.ts`, `lib/agent-telos.ts` — BUILT primitives
-- Existing whitepapers: `website-v2/public/whitepaper/anchor-protocol-whitepaper.tex`,
-  `website-v2/public/whitepaper/agent-transactions-whitepaper.tex`,
-  `website-v2/public/whitepaper/federated-harbor-whitepaper.tex`
+- Existing whitepapers: `whitepaper/source/anchor-protocol-whitepaper.tex`,
+  `whitepaper/source/agent-transactions-whitepaper.tex`,
+  `whitepaper/source/federated-harbor-whitepaper.tex`
 
 ### Skill built en route
 

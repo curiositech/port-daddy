@@ -5,7 +5,7 @@ const { repoRoot } = require('../test-utils');
 
 describe('concurrency and idempotency', () => {
   it('produces identical PDFs on repeated builds', () => {
-    const pdfPath = join(repoRoot, 'website-v2/public/whitepaper/spawn-to-person-whitepaper.pdf');
+    const pdfPath = join(repoRoot, 'whitepaper/published/spawn-to-person-whitepaper.pdf');
     const initialContent = readFileSync(pdfPath);
     
     execFileSync('bash', ['-c', 'cd scripts && ./build-whitepapers.sh'], { cwd: repoRoot });

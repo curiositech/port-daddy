@@ -304,7 +304,7 @@ Three worktrees, three agents. Merge order: routes → SDK → tests.
 >
 > **Read:**
 > - `docs/shipwright/BONDED-COMMONS-PATCHES.md` (the patches)
-> - `website-v2/public/whitepaper/agent-transactions-whitepaper.tex` (the target)
+> - `whitepaper/source/agent-transactions-whitepaper.tex` (the target)
 > - `docs/adr/0014-the-anchor-protocol.md` and `docs/reports/PORT_DADDY_ANCHOR_WHITEPAPER.md` (P2 targets)
 >
 > **Per-patch actions:**

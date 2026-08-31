@@ -32,7 +32,7 @@ Agents read this file. Operators do not. If an agent's instructions push a CLI c
 
 ## Skill maintenance is part of every slice
 
-The two Port Daddy skills are the operating instructions for *all* future agents working in port-daddy-protected projects. Treat them as load-bearing code:
+The two Port Daddy skills are the operating instructions for *all* future agents working in port-daddy-protected projects. Treat them as essential operating code:
 
 - **`skills/port-daddy-agent-skill/SKILL.md`** — the public skill. Edit when the lesson would help any agent on any project (new verb, deprecated flag, anti-pattern, decision-table gap, inefficient worked example, stale or wrong content).
 - **`skills/port-daddy-internal-dev/SKILL.md`** — the contributor-only skill. Edit when the lesson is specific to editing *this* repo (release ceremony, internal actor embodiments, drift protocol, worked contributor examples).
@@ -222,10 +222,20 @@ Documents`.
   against the seven Port Daddy whitepapers — the canon registered in
   `website-v2/src/data/whitePapers.ts` (Legible Swarm, Single-Writer Kernel, Spawn
   to Person, Harbor Economy, Anchor Protocol, Bonded Commons, Federated Harbor;
-  sources + PDFs under `website-v2/public/whitepaper/`): have you drifted from the
+  sources under `whitepaper/source/` and canonical PDFs under
+  `whitepaper/published/`): have you drifted from the
   model, or built something a paper should now describe? They need not be 1:1 — the
   papers are the lofty theory, the code is what we actually shipped — but each
   should correct the other. Note drift in the PR.
+- **Keep one whitepaper corpus authority.** `whitepaper/` is the sole authored
+  corpus root: manuscripts and figure sources live in `whitepaper/source/`,
+  canonical PDFs in `whitepaper/published/`, research in `whitepaper/research/`,
+  current critiques in `whitepaper/reviews/current/`, and current visual evidence
+  in `whitepaper/proof/current/`. Do not create competing roots, authored website
+  copies, or symlink mazes. Website publication directories are generated mirrors.
+  Executable skills, workflows, registries, and build scripts remain in their
+  operational homes and must be named as satellites in `whitepaper/corpus.json`;
+  path-coupled build logic or an unnamed mirror is a corpus defect.
 - **Work at maximal tool + skill access, and pause to find the right skill.** Start
   with the broadest toolset you can reach. If you catch yourself working without a
   matching skill, stop and do skill research before improvising what a skill
@@ -421,7 +431,7 @@ means one of:
 
 What does **not** count: resolving a thread with no reply, a one-word "done" with
 no evidence, closing the PR to dodge the comment, or letting a bot finding scroll
-off the page. "Seriously" is load-bearing — engage the substance.
+off the page. "Seriously" is deliberate — engage the substance.
 
 **Auto-pilot (operator directive, 2026-07-07).** When you are subscribed to a
 PR, work the review comments *autonomously* — do not ask permission each round.

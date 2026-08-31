@@ -17,11 +17,11 @@ const generatorSource = readFileSync(
   'utf8',
 );
 const collectedVolumeSource = readFileSync(
-  resolve('website-v2/public/whitepaper/coordination-papers-mega-volume.tex'),
+  resolve('whitepaper/source/coordination-papers-mega-volume.tex'),
   'utf8',
 );
 const seamsSource = readFileSync(
-  resolve('website-v2/public/whitepaper/coordination-papers-mega-volume-seams.tex'),
+  resolve('whitepaper/source/coordination-papers-mega-volume-seams.tex'),
   'utf8',
 );
 

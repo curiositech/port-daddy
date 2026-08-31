@@ -102,7 +102,7 @@ swarm's COGS *and* its legibility mechanism — the digest *is* compaction.
 *today*. It needs no economy, no crypto, no second operator.
 
 ### Paper 2 — **The Anchor Protocol** *(L0/L1 — the formal core)*
-**Absorbs:** the existing `website-v2/public/whitepaper/anchor-protocol-whitepaper.tex` (keep; it is the
+**Absorbs:** the existing `whitepaper/source/anchor-protocol-whitepaper.tex` (keep; it is the
 strongest formal artifact — ProVerif + Kani verified), reframed with a stack map.
 **Thesis:** how a single agent proves identity and capability to the daemon
 without a trusted third party. The cryptographic spine everything else stands on.
@@ -123,7 +123,7 @@ problem.
 the market (a *reputation* worth trading on).
 
 ### Paper 4 — **The Harbor Economy** *(L3 — the market)*
-**Absorbs:** `website-v2/public/whitepaper/agent-transactions-whitepaper.tex` (Bonded Commons) + the Federated
+**Absorbs:** `whitepaper/source/agent-transactions-whitepaper.tex` (Bonded Commons) + the Federated
 Harbor material + `agent-economy-anchor`.
 **Thesis:** the harbor economy is a **three-sided market** (operators sell
 labor + fleet-for-hire; fleets/agents are rentable assets; skills/tools are
@@ -284,9 +284,9 @@ pd begin --identity myapp:api --purpose "refactor auth"
 
 ## 6. Production plan (Tier 2 — the four LaTeX papers)
 
-1. **House style:** match `website-v2/public/whitepaper/anchor-protocol-whitepaper.tex` exactly —
+1. **House style:** match `whitepaper/source/anchor-protocol-whitepaper.tex` exactly —
    `article` 11pt, `lmodern`, the hh-* color palette, `fancyhdr`, TikZ figures in
-   `website-v2/public/whitepaper/figures/`, theorem/definition/lemma envs, the Reader's-Map table,
+   `whitepaper/source/figures/`, theorem/definition/lemma envs, the Reader's-Map table,
    the honesty-label key (§3 above), bold-cite-gloss for external terms,
    bold-path-gloss for PD abstractions.
 2. **Each paper opens** with the same stack-map figure (which rung, what it
@@ -358,14 +358,14 @@ raw seeds — are the source the papers are written from.
 > *"Big beautiful diagrams, reading guides, exercises, and a pedagogic focus. Use
 > the voice of the existing."*
 
-Match `website-v2/public/whitepaper/anchor-protocol-whitepaper.tex` exactly, and
+Match `whitepaper/source/anchor-protocol-whitepaper.tex` exactly, and
 add the teaching layer:
 
 - **Voice** — measured-academic but vivid: named metaphors in quotes (the "Ghost
   in the Harbor"), threat-vector / problem-first framing, a *Reading time: ~N min*
   note, companion-paper cross-refs, real citations with `\cite{}`. Never dry.
 - **Big diagrams** — **≥ 10 substantial TikZ figures per paper** (not decorative):
-  reuse/extend the `whitepaper/figures/` library (hh-* palette, `arrows.meta`,
+  reuse/extend the `whitepaper/source/figures/` library (hh-* palette, `arrows.meta`,
   `positioning`, `fit`, `backgrounds`). Every paper opens with the **stack-map
   figure** (which rung, what it assumes, which papers it cites).
 - **Figure typography (the clean bar — a defect if violated).** A figure is noisy

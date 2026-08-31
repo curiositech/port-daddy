@@ -4,8 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "predev": "npm run sync:whitepapers",
     "dev": "vite",
-    "prebuild": "npm run generate:seo && npm run generate:skill-audit",
+    "prebuild": "npm run sync:whitepapers && npm run generate:seo && npm run generate:skill-audit",
     "build": "tsc -b && vite build",
     "postbuild": "tsx scripts/inject-route-html.mjs && node scripts/prune-pages-assets.mjs",
     "snap:routes": "tsx scripts/snap-routes.mjs",
@@ -21,6 +22,7 @@
     "generate:seo": "tsx scripts/generate-seo-artifacts.mjs",
     "generate:skill-audit": "node scripts/generate-skill-audit.mjs",
     "generate:og": "tsx scripts/generate-og-cards.mjs",
+    "sync:whitepapers": "node ../scripts/sync-whitepaper-publications.mjs",
     "test:a11y:mcp": "node scripts/check-mcp-a11y.mjs",
     "test:a11y:shell": "node scripts/check-public-shell-a11y.mjs",
     "crawl:docs": "node scripts/crawl-docs-surface.mjs",

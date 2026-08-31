@@ -156,7 +156,7 @@ attacks the single-operator user cannot suffer.
   the compulsion).
 - Code: `lib/coast-guard.ts` (confine/meter/receipt), `lib/coast-guard/compulsion.ts`
   + `compulsion-facts.ts` (coordination-rent), `lib/bonds.ts` (the bond ledger).
-- Whitepaper: `website-v2/public/whitepaper/agent-transactions-whitepaper.tex` §4
+- Whitepaper: `whitepaper/source/agent-transactions-whitepaper.tex` §4
   (deterministic assignment), §5.5 (bonded preemption), §6.6 (`\SpecOnly` exfil),
   §6.7 (oracle collusion).
 - Strategy dossier: `../strategy/dossier-security-crypto.md` (the

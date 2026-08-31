@@ -4,7 +4,7 @@ import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-const figurePath = 'whitepaper/figures/fig-swk-continuity-organs.tex';
+const figurePath = 'whitepaper/source/figures/fig-swk-continuity-organs.tex';
 const expectedFigureContent = [
   'partial',
   'witnessed-outcome ledger',

@@ -56,7 +56,7 @@ describe('whitepaper metadata sync', () => {
 
   test('the full-fidelity collected volume downloads from its canonical repository artifact', () => {
     expect(COLLECTED_VOLUME.downloadUrl).toBe(
-      'https://raw.githubusercontent.com/curiositech/port-daddy/main/website-v2/public/whitepaper/coordination-papers-mega-volume.pdf',
+      'https://raw.githubusercontent.com/curiositech/port-daddy/main/whitepaper/published/coordination-papers-mega-volume.pdf',
     )
   })
 

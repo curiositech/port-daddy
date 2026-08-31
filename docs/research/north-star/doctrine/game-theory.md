@@ -17,7 +17,7 @@ game-theory term is defined on first use.
 
 | # | Quality gate | Verdict | Grounded at |
 |---|---|---|---|
-| G1 | Is truthful claim-signaling formalized as a game? | **[BUILT]** — prisoner's-dilemma stage game, repeated lift | `website-v2/public/whitepaper/agent-transactions-whitepaper.tex` §7.4 (`sec:claim-signaling-ic`) |
+| G1 | Is truthful claim-signaling formalized as a game? | **[BUILT]** — prisoner's-dilemma stage game, repeated lift | `whitepaper/source/agent-transactions-whitepaper.tex` §7.4 (`sec:claim-signaling-ic`) |
 | G2 | Is the equilibrium machine-checked, not just argued? | **[BUILT]** — Z3 + TLA⁺ in CI | `proofs/economics/delta-threshold.z3`, `proofs/economics/claim_signaling.tla` |
 | G3 | Does the proof name its preconditions explicitly? | **[BUILT]** — observable history, persistent identity, δ-threshold | whitepaper §7.4 "Where each condition bites" |
 | G4 | Is observable history actually built? | **[BUILT]** — immutable note chain | `lib/sessions.ts` (notes are INSERT-only) |
@@ -60,7 +60,7 @@ you intend to edit) or **F** (False: claim files you will not touch to block a
 rival, or hide files you will touch to dodge scrutiny). The **stage game**
 (*the one-shot game played in a single round*) has payoffs, in units calibrated to
 the project's **cleanup cost** *c* (the human-plus-compute cost to recover from one
-breach — `website-v2/public/whitepaper/agent-transactions-whitepaper.tex` §6.5,
+breach — `whitepaper/source/agent-transactions-whitepaper.tex` §6.5,
 `sec:cleanup-bound`):
 
 |        | B: T   | B: F   |
@@ -265,5 +265,5 @@ holds; build L3 because federation breaks it.
 - Aumann, R. (1974). *Subjectivity and Correlation in Randomized Strategies.* JME 1(1). (Correlated equilibrium.)
 - Koutsoupias, E. & Papadimitriou, C. (1999). *Worst-case Equilibria.* STACS. (Price of anarchy.)
 - Douceur, J. (2002). *The Sybil Attack.* IPTPS.
-- Port Daddy whitepaper: `website-v2/public/whitepaper/agent-transactions-whitepaper.tex` §6.4, §6.5, §7.4.
+- Port Daddy whitepaper: `whitepaper/source/agent-transactions-whitepaper.tex` §6.4, §6.5, §7.4.
 - Machine proofs: `proofs/economics/delta-threshold.z3`, `proofs/economics/claim_signaling.tla`.

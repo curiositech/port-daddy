@@ -7,14 +7,14 @@ import { describe, expect, test } from '@jest/globals';
 // Executable, adversarial acceptance contract for the stacked publication artifact.
 const paths = {
   catalog: 'website-v2/src/data/whitePapers.ts',
-  source: 'website-v2/public/whitepaper/spawn-to-person.tex',
-  honest: 'website-v2/public/whitepaper/figures/fig-stp-honest-state.tex',
-  keystone: 'website-v2/public/whitepaper/figures/fig-stp-keystone-split.tex',
-  organs: 'website-v2/public/whitepaper/figures/fig-stp-three-organs.tex',
-  pdf: 'website-v2/public/whitepaper/spawn-to-person-whitepaper.pdf',
-  contact: 'docs/artifacts/whitepaper-figure-semantics/all-volumes/all-seven-volumes-color-contact-sheet.png',
-  tour: 'docs/artifacts/whitepaper-figure-semantics/all-volumes/all-seven-volumes-color-tour.gif',
-  proof: 'docs/artifacts/whitepaper-figure-semantics/all-volumes/proof-manifest.md',
+  source: 'whitepaper/source/spawn-to-person.tex',
+  honest: 'whitepaper/source/figures/fig-stp-honest-state.tex',
+  keystone: 'whitepaper/source/figures/fig-stp-keystone-split.tex',
+  organs: 'whitepaper/source/figures/fig-stp-three-organs.tex',
+  pdf: 'whitepaper/published/spawn-to-person-whitepaper.pdf',
+  contact: 'whitepaper/proof/current/all-volumes/all-seven-volumes-color-contact-sheet.png',
+  tour: 'whitepaper/proof/current/all-volumes/all-seven-volumes-color-tour.gif',
+  proof: 'whitepaper/proof/current/all-volumes/proof-manifest.md',
 };
 
 const expectedSha256 = {
@@ -24,13 +24,13 @@ const expectedSha256 = {
 };
 
 const publicationSha256 = {
-  'website-v2/public/whitepaper/legible-swarm-whitepaper.pdf': 'bb5704b0b2acf5f9e6015a130b1578e9c14b2cc6dd6ebe27fffe45fabcd9e639',
-  'website-v2/public/whitepaper/single-writer-kernel-whitepaper.pdf': '2ec6d1ae929e01880320d9d255f887d8635c4b27eb14a965d0d57057f732323c',
-  'website-v2/public/whitepaper/harbor-economy-whitepaper.pdf': '5c70098c49051b2a89fa632f4ddada76288603b7c705a7bfd0406a980af98816',
-  'website-v2/public/whitepaper/anchor-protocol-whitepaper.pdf': 'cfd4f6dd55f1868e9f8a13c4d9039994bc5f6e554af52fc4ee163e91d57712c1',
-  'website-v2/public/whitepaper/agent-transactions-whitepaper.pdf': '0d52188306583518abf8b7755142b2df53f3f664152ec9305947c5fee3b12960',
-  'website-v2/public/whitepaper/federated-harbor-whitepaper.pdf': 'cae3b19ca9bb961bf54bf1aa228d58a1d7a434729d97e7d437e7a86bef01c247',
-  'website-v2/public/whitepaper/coordination-papers-mega-volume.pdf': '7886660dc50cd23a206cda020ad219d51008cbe999d1e23f178eb979c2cd1b92',
+  'whitepaper/published/legible-swarm-whitepaper.pdf': 'bb5704b0b2acf5f9e6015a130b1578e9c14b2cc6dd6ebe27fffe45fabcd9e639',
+  'whitepaper/published/single-writer-kernel-whitepaper.pdf': '2ec6d1ae929e01880320d9d255f887d8635c4b27eb14a965d0d57057f732323c',
+  'whitepaper/published/harbor-economy-whitepaper.pdf': '5c70098c49051b2a89fa632f4ddada76288603b7c705a7bfd0406a980af98816',
+  'whitepaper/published/anchor-protocol-whitepaper.pdf': 'cfd4f6dd55f1868e9f8a13c4d9039994bc5f6e554af52fc4ee163e91d57712c1',
+  'whitepaper/published/agent-transactions-whitepaper.pdf': '0d52188306583518abf8b7755142b2df53f3f664152ec9305947c5fee3b12960',
+  'whitepaper/published/federated-harbor-whitepaper.pdf': 'cae3b19ca9bb961bf54bf1aa228d58a1d7a434729d97e7d437e7a86bef01c247',
+  'whitepaper/published/coordination-papers-mega-volume.pdf': '7886660dc50cd23a206cda020ad219d51008cbe999d1e23f178eb979c2cd1b92',
 };
 
 function text(path) {

@@ -19,14 +19,14 @@ on:
     paths:
       - 'proofs/**'
       - '.github/workflows/proofs.yml'
-      - 'website-v2/public/whitepaper/agent-transactions-whitepaper.tex'
+      - 'whitepaper/source/agent-transactions-whitepaper.tex'
       - 'skills/harbor-results/scripts/**'
   pull_request:
     branches: [main]
     paths:
       - 'proofs/**'
       - '.github/workflows/proofs.yml'
-      - 'website-v2/public/whitepaper/agent-transactions-whitepaper.tex'
+      - 'whitepaper/source/agent-transactions-whitepaper.tex'
       - 'skills/harbor-results/scripts/**'
   # Merge queue: trigger on the queued group so every proof job reports a check
   # context (no path filter is possible on merge_group). The heavy jobs SKIP on

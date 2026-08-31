@@ -138,7 +138,7 @@ complementary: read a whitepaper for the *why*, read its doctrine sibling for th
 | `context-economics.md` | `../tokens-compaction.md` (tokens as COGS) |
 | `mechanism-design.md` | `../agent-economy-anchor.md` (the three-sided market) |
 | `cryptoeconomic-security.md` | `../strategy/dossier-security-crypto.md` (the attack surface) |
-| `game-theory.md` | `website-v2/public/whitepaper/agent-transactions-whitepaper.tex` §7 (the formal proof) |
+| `game-theory.md` | `whitepaper/source/agent-transactions-whitepaper.tex` §7 (the formal proof) |
 
 ---
 

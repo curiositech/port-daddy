@@ -8,7 +8,7 @@ describe('paper_epoch edge cases', () => {
   });
 
   it('handles multiple commits with same author time', () => {
-    const epoch = execFileSync('git', ['log', '-1', '--format=%at', 'HEAD', '--', 'website-v2/public/whitepaper/spawn-to-person-whitepaper.tex'], { cwd: repoRoot, encoding: 'utf8' });
+    const epoch = execFileSync('git', ['log', '-1', '--format=%at', 'HEAD', '--', 'whitepaper/source/spawn-to-person.tex'], { cwd: repoRoot, encoding: 'utf8' });
     expect(epoch.trim()).toBeDefined();
   });
 

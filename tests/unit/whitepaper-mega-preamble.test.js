@@ -12,7 +12,7 @@ import { describe, expect, test } from '@jest/globals';
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const preamblePath = resolve(
   repoRoot,
-  'website-v2/public/whitepaper/coordination-papers-mega-volume-preamble.tex',
+  'whitepaper/source/coordination-papers-mega-volume-preamble.tex',
 );
 
 describe('collected-volume LaTeX preamble', () => {

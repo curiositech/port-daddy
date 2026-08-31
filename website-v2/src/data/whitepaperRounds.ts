@@ -1,13 +1,12 @@
 // Auto-loaded dialogue artifacts for the adversarial-review changelog.
-// Each round emits a JSON file at docs/shipwright/dialogue-v(N)-to-v(N+1).json;
-// the file is symlinked or copied here as a ?raw import so the website builds
-// it into the bundle.
+// Historical round records live with the rest of the corpus review archive;
+// direct imports let the website bundle them without creating another copy.
 
-import dialogueV20to21 from '../../../docs/shipwright/dialogue-v2.0-to-v2.1.json'
-import dialogueV21to22 from '../../../docs/shipwright/dialogue-v2.1-to-v2.2.json'
-import dialogueV22to23 from '../../../docs/shipwright/dialogue-v2.2-to-v2.3.json'
-import dialogueV23to24 from '../../../docs/shipwright/dialogue-v2.3-to-v2.4.json'
-import dialogueV24to25 from '../../../docs/shipwright/dialogue-v2.4-to-v2.5.json'
+import dialogueV20to21 from '../../../whitepaper/reviews/archive/shipwright/dialogue-v2.0-to-v2.1.json'
+import dialogueV21to22 from '../../../whitepaper/reviews/archive/shipwright/dialogue-v2.1-to-v2.2.json'
+import dialogueV22to23 from '../../../whitepaper/reviews/archive/shipwright/dialogue-v2.2-to-v2.3.json'
+import dialogueV23to24 from '../../../whitepaper/reviews/archive/shipwright/dialogue-v2.3-to-v2.4.json'
+import dialogueV24to25 from '../../../whitepaper/reviews/archive/shipwright/dialogue-v2.4-to-v2.5.json'
 
 export interface RoundExchange {
   id: string

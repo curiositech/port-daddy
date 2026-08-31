@@ -21,7 +21,7 @@ test('BasicTeX fallback uses bounded pdflatex passes without mutating the host i
     assert.match(result.stdout, /pdflatex fallback pass 2\/4/u);
     assert.doesNotMatch(result.stdout, /pdflatex fallback pass 3\/4/u);
     assert.equal(result.calls.length, 2);
-    assert.ok(existsSync(resolve(root, 'website-v2/public/whitepaper/spawn-to-person-whitepaper.pdf')));
+    assert.ok(existsSync(resolve(root, 'whitepaper/published/spawn-to-person-whitepaper.pdf')));
   } finally {
     cleanupFixture(root);
   }

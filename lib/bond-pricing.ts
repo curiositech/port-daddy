@@ -17,7 +17,7 @@
  * This module computes the `bondUsd` that callers pass in, moving Port
  * Daddy from Fixed Bonds to a **complexity-proportional** pricer. Its core is
  * the closed-form floor from the Bonded Commons paper, Chapter VI
- * (`website-v2/public/whitepaper/agent-transactions-whitepaper.tex`,
+ * (`whitepaper/source/agent-transactions-whitepaper.tex`,
  * §6.5 "Pricing the Bond", line 763/771):
  *
  *     π(F, p) = c · (1 + α · s(F)) · (1 − ρ(p))           [§6.5 closed form]

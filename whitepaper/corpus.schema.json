@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://portdaddy.dev/schemas/whitepaper-corpus.schema.json",
+  "title": "Port Daddy whitepaper corpus",
+  "type": "object",
+  "required": [
+    "version",
+    "canonicalRoot",
+    "directories",
+    "chapters",
+    "collectedVolume",
+    "researchPublications",
+    "currentReview",
+    "currentProof",
+    "atlases",
+    "platformSatellites",
+    "generatedMirrors",
+    "externalInputs",
+    "forbiddenLegacyRoots"
+  ],
+  "properties": {
+    "version": { "const": 1 },
+    "canonicalRoot": { "const": "whitepaper" },
+    "chapters": {
+      "type": "array",
+      "minItems": 7,
+      "maxItems": 7,
+      "items": {
+        "type": "object",
+        "required": ["id", "chapter", "title", "source", "published", "publicPath"]
+      }
+    }
+  }
+}

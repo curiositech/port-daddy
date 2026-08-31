@@ -1,0 +1,158 @@
+{
+  "$schema": "./corpus.schema.json",
+  "version": 1,
+  "canonicalRoot": "whitepaper",
+  "directories": {
+    "source": "whitepaper/source",
+    "published": "whitepaper/published",
+    "research": "whitepaper/research",
+    "reviews": "whitepaper/reviews",
+    "proof": "whitepaper/proof",
+    "atlases": "whitepaper/atlases"
+  },
+  "chapters": [
+    {
+      "id": "legible-swarm",
+      "chapter": "I",
+      "title": "The Legible Swarm",
+      "source": "whitepaper/source/legible-swarm.tex",
+      "published": "whitepaper/published/legible-swarm-whitepaper.pdf",
+      "publicPath": "/whitepaper/legible-swarm-whitepaper.pdf"
+    },
+    {
+      "id": "single-writer-kernel",
+      "chapter": "II",
+      "title": "The Single-Writer Kernel",
+      "source": "whitepaper/source/single-writer-kernel.tex",
+      "published": "whitepaper/published/single-writer-kernel-whitepaper.pdf",
+      "publicPath": "/whitepaper/single-writer-kernel-whitepaper.pdf"
+    },
+    {
+      "id": "spawn-to-person",
+      "chapter": "III",
+      "title": "From Spawn to Person",
+      "source": "whitepaper/source/spawn-to-person.tex",
+      "published": "whitepaper/published/spawn-to-person-whitepaper.pdf",
+      "publicPath": "/whitepaper/spawn-to-person-whitepaper.pdf"
+    },
+    {
+      "id": "harbor-economy",
+      "chapter": "IV",
+      "title": "The Harbor Economy",
+      "source": "whitepaper/source/harbor-economy.tex",
+      "published": "whitepaper/published/harbor-economy-whitepaper.pdf",
+      "publicPath": "/whitepaper/harbor-economy-whitepaper.pdf"
+    },
+    {
+      "id": "anchor-protocol",
+      "chapter": "V",
+      "title": "The Anchor Protocol",
+      "source": "whitepaper/source/anchor-protocol-whitepaper.tex",
+      "published": "whitepaper/published/anchor-protocol-whitepaper.pdf",
+      "publicPath": "/whitepaper/anchor-protocol-whitepaper.pdf"
+    },
+    {
+      "id": "bonded-commons",
+      "chapter": "VI",
+      "title": "The Bonded Commons",
+      "source": "whitepaper/source/agent-transactions-whitepaper.tex",
+      "published": "whitepaper/published/agent-transactions-whitepaper.pdf",
+      "publicPath": "/whitepaper/agent-transactions-whitepaper.pdf"
+    },
+    {
+      "id": "federated-harbor",
+      "chapter": "VII",
+      "title": "The Federated Harbor",
+      "source": "whitepaper/source/federated-harbor-whitepaper.tex",
+      "published": "whitepaper/published/federated-harbor-whitepaper.pdf",
+      "publicPath": "/whitepaper/federated-harbor-whitepaper.pdf"
+    }
+  ],
+  "collectedVolume": {
+    "id": "coordination-papers-mega-volume",
+    "source": "whitepaper/source/coordination-papers-mega-volume.tex",
+    "supportingSources": [
+      "whitepaper/source/coordination-papers-mega-volume-preamble.tex",
+      "whitepaper/source/coordination-papers-mega-volume-seams.tex",
+      "whitepaper/source/coordination-papers-mega-volume-appendices.tex"
+    ],
+    "published": "whitepaper/published/coordination-papers-mega-volume.pdf",
+    "publicPath": "/whitepaper/coordination-papers-mega-volume.pdf"
+  },
+  "researchPublications": [
+    { "id": "paper1", "source": "whitepaper/research/pdf/paper1.pdf", "publicPath": "/research/paper1.pdf" },
+    { "id": "paper2", "source": "whitepaper/research/pdf/paper2.pdf", "publicPath": "/research/paper2.pdf" },
+    { "id": "paper3", "source": "whitepaper/research/pdf/paper3.pdf", "publicPath": "/research/paper3.pdf" },
+    { "id": "paper4", "source": "whitepaper/research/pdf/paper4.pdf", "publicPath": "/research/paper4.pdf" },
+    { "id": "paper5", "source": "whitepaper/research/pdf/paper5.pdf", "publicPath": "/research/paper5.pdf" },
+    { "id": "paper6", "source": "whitepaper/research/pdf/paper6.pdf", "publicPath": "/research/paper6.pdf" },
+    { "id": "paper7", "source": "whitepaper/research/pdf/paper7.pdf", "publicPath": "/research/paper7.pdf" },
+    { "id": "exec4", "source": "whitepaper/research/pdf/exec4.pdf", "publicPath": "/research/exec4.pdf" },
+    { "id": "exec5", "source": "whitepaper/research/pdf/exec5.pdf", "publicPath": "/research/exec5.pdf" }
+  ],
+  "currentReview": {
+    "critical": "whitepaper/reviews/current/whitepaper-critical-review.md",
+    "exposition": "whitepaper/reviews/current/exposition"
+  },
+  "currentProof": {
+    "manifest": "whitepaper/proof/current/all-volumes/proof-manifest.md",
+    "contactSheet": "whitepaper/proof/current/all-volumes/all-seven-volumes-color-contact-sheet.png",
+    "tour": "whitepaper/proof/current/all-volumes/all-seven-volumes-color-tour.gif"
+  },
+  "atlases": [
+    {
+      "id": "semantic-figure-atlas",
+      "path": "skills/whitepaper-figure-system/references/semantic-figure-atlas.md",
+      "checker": "skills/whitepaper-figure-system/scripts/check_atlas_coverage.py",
+      "kind": "installed-skill-satellite"
+    },
+    {
+      "id": "visual-grammar-atlas",
+      "path": "skills/high-quality-latex-whitepaper/SKILL.md",
+      "kind": "installed-skill-satellite"
+    }
+  ],
+  "platformSatellites": [
+    "package.json",
+    "website-v2/package.json",
+    "website-v2/src/data/whitePapers.ts",
+    "website-v2/src/data/researchPapers.ts",
+    "website-v2/src/data/whitepaperRounds.ts",
+    "website-v2/scripts/check-whitepaper-metadata.ts",
+    "scripts/build-whitepapers.sh",
+    "scripts/generate-mega-whitepaper.mjs",
+    "scripts/check-whitepaper-corpus.mjs",
+    "scripts/sync-whitepaper-publications.mjs",
+    "scripts/harbor-research/check_citations.py",
+    "scripts/harbor-research/check_propagated_corrections.py",
+    ".github/workflows/whitepaper-build.yml",
+    ".github/workflows/harbor-research-build.yml",
+    ".github/workflows/proofs.yml",
+    "tests/unit/whitepaper-corpus.test.js"
+  ],
+  "generatedMirrors": [
+    {
+      "source": "whitepaper/published",
+      "destination": "website-v2/public/whitepaper",
+      "owner": "scripts/sync-whitepaper-publications.mjs"
+    },
+    {
+      "source": "whitepaper/research/pdf",
+      "destination": "website-v2/public/research",
+      "owner": "scripts/sync-whitepaper-publications.mjs"
+    }
+  ],
+  "externalInputs": [
+    { "name": "GeminiFeedback.pdf", "status": "not-present", "requiredForBuild": false },
+    { "name": "harbor-feedback-and-exercise-solutions.pdf", "status": "not-present", "requiredForBuild": false },
+    { "name": "port_daddy_feedback_analysis_v2.pdf", "status": "not-present", "requiredForBuild": false }
+  ],
+  "forbiddenLegacyRoots": [
+    "docs/harbor-research",
+    "docs/whitepaper-critical-review.md",
+    "docs/artifacts/whitepaper-figure-semantics",
+    "whitepaper/figures",
+    "whitepaper/legible-swarm.tex",
+    "whitepaper/single-writer-kernel.tex"
+  ]
+}

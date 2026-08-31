@@ -12,7 +12,7 @@ superlative / 500 words); lead with the felt problem, not the formalism.
 **Palette / brand:** read `website-v2/src/styles/tokens.semantic.css` for current web
 tokens (source of truth — never hardcode hex from memory). For the editorial art's warm
 "harbor house" register, read the whitepaper's own palette definitions in
-`website-v2/public/whitepaper/*.tex` (the `hh*` color block — sand, ebony, cinnabar,
+`whitepaper/source/*.tex` (the `hh*` color block — sand, ebony, cinnabar,
 brass, patina, paper) rather than copying the literals here; that file is the single
 source so this doc can't drift. Cohesion across all three artifacts matters —
 National Geographic prestige = ONE coherent visual world.

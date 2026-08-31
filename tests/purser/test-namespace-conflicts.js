@@ -15,8 +15,8 @@ test('generator namespaces identical chapter-local labels and preserves the 7/22
   const root = makeFixture();
   try {
     const duplicate = '\\label{purser-shared-label}\\ref{purser-shared-label}';
-    injectAfterDocumentStart(root, 'whitepaper/legible-swarm.tex', duplicate);
-    injectAfterDocumentStart(root, 'website-v2/public/whitepaper/spawn-to-person.tex', duplicate);
+    injectAfterDocumentStart(root, 'whitepaper/source/legible-swarm.tex', duplicate);
+    injectAfterDocumentStart(root, 'whitepaper/source/spawn-to-person.tex', duplicate);
     const result = runGenerator(root);
 
     assert.equal(result.status, 0, result.stderr);

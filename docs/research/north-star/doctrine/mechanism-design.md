@@ -16,7 +16,7 @@ mechanism-design term is defined on first use.
 
 ## Scorecard — graded against the four pricing tiers
 
-The whitepaper (`website-v2/public/whitepaper/agent-transactions-whitepaper.tex`
+The whitepaper (`whitepaper/source/agent-transactions-whitepaper.tex`
 §6.5, §6.6) names four threat-class bond tiers. This is the natural scorecard for a
 pricing mechanism: does the code price *each* tier correctly?
 
@@ -203,7 +203,7 @@ is the caller-fiat slash.
 
 ## References
 
-- Whitepaper: `website-v2/public/whitepaper/agent-transactions-whitepaper.tex` §6.5
+- Whitepaper: `whitepaper/source/agent-transactions-whitepaper.tex` §6.5
   (`sec:cleanup-bound`, the closed form + Cleanup Lower Bound), §6.6
   (`tab:threat-bonds`, the four tiers), §6.7 (three-oracle settlement), §6.8
   (graduated-access bootstrap).

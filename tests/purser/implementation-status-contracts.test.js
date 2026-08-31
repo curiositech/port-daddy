@@ -1,8 +1,8 @@
 import fs from 'node:fs';
 
 const paperPaths = {
-  'single-writer-kernel': 'whitepaper/single-writer-kernel.tex',
-  'harbor-economy': 'website-v2/public/whitepaper/harbor-economy-whitepaper.pdf'
+  'single-writer-kernel': 'whitepaper/source/single-writer-kernel.tex',
+  'harbor-economy': 'whitepaper/source/harbor-economy.tex'
 };
 
 const expectedContracts = {

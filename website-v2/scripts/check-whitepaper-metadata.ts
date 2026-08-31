@@ -3,8 +3,8 @@
  * check-whitepaper-metadata.ts
  *
  * Verifies that `website-v2/src/data/whitePapers.ts` `pages` / `sizeKb`
- * metadata stays in sync with the actual PDFs shipped under
- * `website-v2/public/whitepaper/`.
+ * metadata stays in sync with the canonical PDFs under
+ * `whitepaper/published/`.
  *
  * Tolerances:
  *   - `pages`  : exact match required.
@@ -43,7 +43,7 @@ const PUBLISHED_WHITEPAPER_PDFS = [COLLECTED_VOLUME, ...WHITE_PAPERS]
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const websiteRoot = resolve(__dirname, '..')
-const publicDir = resolve(websiteRoot, 'public')
+const publishedDir = resolve(websiteRoot, '../whitepaper/published')
 const whitePapersSrc = resolve(websiteRoot, 'src/data/whitePapers.ts')
 
 /**
@@ -99,10 +99,10 @@ export function pdfinfoAvailable(): boolean {
 
 /**
  * Resolves a paper's `pdfPath` (web-absolute, e.g. `/whitepaper/foo.pdf`)
- * to an on-disk absolute path under `website-v2/public/`.
+ * to the matching canonical artifact under `whitepaper/published/`.
  */
 export function resolvePdfPath(pdfPath: string): string {
-  return resolve(publicDir, pdfPath.replace(/^\//, ''))
+  return resolve(publishedDir, pdfPath.slice(pdfPath.lastIndexOf('/') + 1))
 }
 
 /**

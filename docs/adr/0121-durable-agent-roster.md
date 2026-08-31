@@ -174,5 +174,5 @@ The semantics remain ADR-0118's semantics:
 - `docs/adr/0095-agent-run-saga-and-backend-authority.md`
 - `docs/adr/0097-m6-context-memory-and-search-contracts.md`
 - `docs/adr/0118-harness-adapter-contract.md`
-- `website-v2/public/whitepaper/spawn-to-person-whitepaper.pdf`
-- `website-v2/public/whitepaper/anchor-protocol-whitepaper.pdf`
+- `whitepaper/published/spawn-to-person-whitepaper.pdf`
+- `whitepaper/published/anchor-protocol-whitepaper.pdf`

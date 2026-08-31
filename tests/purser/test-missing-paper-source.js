@@ -14,7 +14,7 @@ test('generator fails closed when a canonical paper source is missing', {
 }, () => {
   const root = makeFixture();
   try {
-    const missing = 'website-v2/public/whitepaper/anchor-protocol-whitepaper.tex';
+    const missing = 'whitepaper/source/anchor-protocol-whitepaper.tex';
     rmSync(resolve(root, missing));
     const result = runGenerator(root);
 

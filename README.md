@@ -957,7 +957,7 @@ Session notes are encrypted at rest with AES-256-GCM. Master key at `~/.port-dad
 
 ### Formal verification
 
-ProVerif models cover the Anchor Protocol (agent identity), anchor attenuation, event-relay secrecy, and note escrow; Kani proofs cover Rust kernel invariants. Two white papers ship at `/whitepaper` on the website: **The Anchor Protocol** (formally verified cryptographic identity for agent swarms) and **The Bonded Commons** (pre-transactional trust infrastructure).
+ProVerif models cover the Anchor Protocol (agent identity), anchor attenuation, event-relay secrecy, and note escrow; Kani proofs cover Rust kernel invariants. The seven-paper canon is authored under [`whitepaper/source/`](whitepaper/source/), built to [`whitepaper/published/`](whitepaper/published/), and served from the website library. Research, critique, and visual evidence live beside it under the single [`whitepaper/`](whitepaper/) corpus root.
 
 ---
 
@@ -1176,7 +1176,8 @@ Start with [CONTRIBUTING.md](CONTRIBUTING.md). Every PR is filled out against [`
 - [`docs/operations/daemon-and-supervision.md`](docs/operations/daemon-and-supervision.md) — launchd, Bosun, supervision integrity
 - [`docs/RELEASING.md`](docs/RELEASING.md) / [`docs/VERSIONING.md`](docs/VERSIONING.md) — the release contract
 - [`docs/SECURITY_SOUNDNESS.md`](docs/SECURITY_SOUNDNESS.md) — what is and is not defended
-- White papers at `/whitepaper` on [portdaddy.dev](https://portdaddy.dev): **The Anchor Protocol**, **The Bonded Commons**
+- [`whitepaper/README.md`](whitepaper/README.md) — the seven-volume source, published PDFs, research, current reviews, and current color proof
+- White papers in the library on [portdaddy.dev](https://portdaddy.dev): **The Legible Swarm**, **The Single-Writer Kernel**, **From Spawn to Person**, **The Harbor Economy**, **The Anchor Protocol**, **The Bonded Commons**, and **The Federated Harbor**
 
 ---
 

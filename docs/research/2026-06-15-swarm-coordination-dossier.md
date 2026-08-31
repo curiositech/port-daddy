@@ -79,8 +79,8 @@ ADR-0047 says Port Daddy is substrate-rich and protocol-poor. It already has tub
 
 The whitepapers sharpen the same shape:
 
-- `whitepaper/single-writer-kernel.tex` says one local SQLite/WAL writer is the decider. That is why serious Port Daddy swarms should not use local consensus for local mutations.
-- `whitepaper/legible-swarm.tex` says the binding constraint is read-poverty and operator legibility. That is why every swarm summary must zoom to source artifacts.
+- `whitepaper/source/single-writer-kernel.tex` says one local SQLite/WAL writer is the decider. That is why serious Port Daddy swarms should not use local consensus for local mutations.
+- `whitepaper/source/legible-swarm.tex` says the binding constraint is read-poverty and operator legibility. That is why every swarm summary must zoom to source artifacts.
 - `docs/research/2026-06-03-hive-mind-realism-check.md` already warns that "swarms beat frontier" is task-conditional, not universal.
 
 The codebase has shipped pieces:
