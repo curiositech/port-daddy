@@ -42,7 +42,8 @@ opens with an updated version of this list, signed by `secops:lead`.
    `whitepaper/formal/proverif/anchor/*.pv`; re-run; commit run log.
 2. **Anchor §2.4 cuckoo freshness bound** — currently appeals to Demers
    1987. Mechanize the bound: write a small SMT (Z3) proof of the
-   propagation inequality, commit to `whitepaper/formal/proverif/anchor/cuckoo/freshness.smt2`.
+   propagation inequality; the target is
+   `whitepaper/formal/z3/anchor/cuckoo/freshness.smt2` (designed-not-built).
 3. **Anchor §3 Kani harness** — verify current; bump Kani version in
    the run log.
 4. **Bonded §7.x Conservation Theorem** — **CLOSED v2.2.** TLA+ spec

@@ -176,9 +176,10 @@ Does the prose state a theorem?
 
 Figures follow the property's blueprint style: cream surface
 `#f2eee6`, cobalt `#003fb8`, sage/teal `#006b5f`, ink `#1f1f1f`,
-crisp linework, hand-lettered italic labels. Reference image at
-`public/img/generated/_brand-reference/style-ref-blueprint.png`.
-Match it. Do not regress to painterly or cinematic.
+crisp linework, hand-lettered italic labels. Use the figure roles and
+composition precedents in
+`skills/whitepaper-figure-system/references/semantic-figure-atlas.md`.
+Do not regress to painterly or cinematic.
 
 ### When to inline a definition vs push to appendix
 

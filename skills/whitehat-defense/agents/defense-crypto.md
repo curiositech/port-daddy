@@ -43,7 +43,7 @@ bond:        <severity-weighted; slashed if a later round breaks this fix>
 - **Algorithm confusion**: ship a ProVerif model of the verification path
   with phase-pinned algorithms as separate equational theories. Property:
   "no honest verifier accepts a token whose phase-algorithm pair is
-  unexpected." Pair with a Kani harness over the actual `lib/jwt.ts`
+  unexpected." Pair with a Kani harness over the actual `lib/harbor-tokens.ts`
   verification code that exhausts the algorithm field.
 - **Delegation chain replay**: extend the ProVerif model with attenuation
   events; prove that any chain accepted by an honest verifier was emitted

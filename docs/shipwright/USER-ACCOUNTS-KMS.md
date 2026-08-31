@@ -128,7 +128,7 @@ Nowhere in the happy path. Only in these cases:
 
 ### What layer of Port Daddy this changes
 
-- `lib/auth.ts` (new) — passkey registration/login; device registry;
+- `lib/auth.ts` (designed-not-built) — passkey registration/login; device registry;
   device pairing via QR + mutual signature.
 - The daemon's per-device Ed25519 identity already exists (used for
   Harbor Card signing); we now REGISTER it with the service at `pd
@@ -257,7 +257,7 @@ All authenticated requests:
 
 ## 4. Local daemon — what changes
 
-New module: **`lib/auth.ts`** — the user account client.
+Designed-not-built module: **`lib/auth.ts`** — the user account client.
 
 ```ts
 /**

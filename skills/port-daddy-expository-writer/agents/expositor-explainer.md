@@ -46,4 +46,4 @@ When you finish a draft, leave a Port Daddy note with: title, file path, word co
 
 Example handoff note:
 
-> *Draft complete: "How ProVerif Proves a Capability Token Cannot Be Replayed" at `docs/concepts/proverif-replay.md`. 2,840 words. Tells fired: 1, 2, 3, 4, 6, 7 (no #5 — single-author piece, lists didn't earn it). Verifiers named: ProVerif (primary), Tamarin (one comparison aside). Punchline: the replay-resistance proof closes because the protocol ties the nonce to a session-bound channel — model that channel as fresh and the adversary loses the replay surface. Ready for voice-editor.*
+> *Illustrative proposed output — draft complete: "How ProVerif Proves a Capability Token Cannot Be Replayed" at `docs/concepts/proverif-replay.md`. 2,840 words. Tells fired: 1, 2, 3, 4, 6, 7 (no #5 — single-author piece, lists didn't earn it). Verifiers named: ProVerif (primary), Tamarin (one comparison aside). Punchline: the replay-resistance proof closes because the protocol ties the nonce to a session-bound channel — model that channel as fresh and the adversary loses the replay surface. Ready for voice-editor.*

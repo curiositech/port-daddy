@@ -484,7 +484,7 @@
       "provenance": { "sourceProgram": "Federated Harbor defense program", "reviewedAt": "2026-08-30" },
       "scope": { "chapterIds": ["federated-harbor"], "resultIds": ["R6"] },
       "contracts": { "entrypoint": "SKILL.md", "canonicalAuthority": "whitepaper/research/program/rounds/federated-harbor; planned mechanizations are not evidence until registered in formalArtifacts" },
-      "currentness": { "checkedAgainst": "whitepaper/corpus.json@1", "stalePaths": [], "placeholderPaths": ["whitepaper/formal/proverif/federated-harbor", "whitepaper/formal/tla/federated-harbor", "whitepaper/formal/z3/federated-harbor", "whitepaper/research/program/simulations/federated-harbor", "whitepaper/research/program/rounds/federated-harbor/planned"], "contradictions": [] },
+      "currentness": { "checkedAgainst": "whitepaper/corpus.json@1", "stalePaths": [], "placeholderPaths": ["whitepaper/formal/proverif/federated-harbor", "whitepaper/formal/tla/federated-harbor", "whitepaper/formal/z3/federated-harbor", "whitepaper/research/program/simulations/federated-harbor", "whitepaper/research/program/rounds/federated-harbor/planned", "whitepaper/research/program/rounds/federated-harbor/THREAT-MODEL.md", "whitepaper/research/program/rounds/federated-harbor/CHANGELOG-FH.md", "whitepaper/research/program/rounds/federated-harbor/round-fh.vN-targets.md", "whitepaper/research/program/rounds/federated-harbor/dialogue-fh-vN-to-vN+1.json"], "contradictions": [] },
       "examples": [{ "path": "examples/dialogue-fh-v0.1-to-v0.2.example.json", "status": "synthetic-historical-fixture" }, { "path": "examples/defense-tokens-example.json", "status": "synthetic" }]
     },
     {

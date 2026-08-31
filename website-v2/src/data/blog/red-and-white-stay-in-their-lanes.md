@@ -65,7 +65,7 @@ RESULT not attacker(def_msg[]) is true.
 RESULT inj-event(DefenseLearnsRed(x)) ==> inj-event(LeadEmitsToDefense(x)) is true.
 ```
 
-The first says no message a red-team persona sends in Phase 1 is derivable by the daemon. The second says no message a white-hat persona sends in Phase 2 is derivable by the daemon. The third is the load-bearing claim: any red plaintext that the white-hat fleet eventually learns must have been emitted by `sec-eng-lead` at Gate B. There is no direct red-to-white forgery path the daemon can construct.
+The first says no message a red-team persona sends in Phase 1 is derivable by the daemon. The second says no message a white-hat persona sends in Phase 2 is derivable by the daemon. The third is the central claim: any red plaintext that the white-hat fleet eventually learns must have been emitted by `sec-eng-lead` at Gate B. There is no direct red-to-white forgery path the daemon can construct.
 
 ProVerif checked all three under the symbolic model. The artifact lives at `whitepaper/formal/proverif/coordination/isolation.pv`, the run log next to it. Anyone can re-run them with `eval $(opam env) && proverif whitepaper/formal/proverif/coordination/isolation.pv`.
 
@@ -73,7 +73,7 @@ ProVerif checked all three under the symbolic model. The artifact lives at `whit
 
 ## What this lets us do
 
-For the first round under this apparatus, we converted the seventeen open issues that the human authors had already enumerated --- seven proof gaps and ten attacks --- into structured smells, routed them to white-hat personas, and produced staged or landed counters for each one. The dialogue artifact is `docs/shipwright/dialogue-v2.0-to-v2.1.md`. Notable moves:
+For the first round under this apparatus, we converted the seventeen open issues that the human authors had already enumerated --- seven proof gaps and ten attacks --- into structured smells, routed them to white-hat personas, and produced staged or landed counters for each one. The dialogue artifact is `whitepaper/reviews/archive/shipwright/dialogue-v2.0-to-v2.1.md`. Notable moves:
 
 - Bonded §4.2 (Merkle Forest binding) had an informal claim that assumed the daemon's signing key was uncompromised. The counter narrowed the claim to "binding under non-equivocating daemon OR honest KMS witness," and the paper now says so explicitly. This is not a fix --- it is honesty about what the proof actually established.
 - Bonded §4.3 (pheromone retraction race) had no specified conflict-resolution rule. The counter specified "highest-bond-wins, tie-break by signature hash" and a TLA+ artifact target.

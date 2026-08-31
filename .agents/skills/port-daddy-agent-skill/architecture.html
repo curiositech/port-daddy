@@ -99,7 +99,7 @@ flowchart LR
 
 <p class="legend">Solid lines: in-band protocol. Dashed: fallback path. The daemon is the only writer to <code>port-registry.db</code>; everything else is a client.</p>
 
-<h2>2. The bones — what's load-bearing</h2>
+<h2>2. The bones — what's critical</h2>
 
 <div class="grid2">
   <div class="card">
@@ -207,7 +207,7 @@ flowchart TD
 
 <h2>6. Death &amp; salvage</h2>
 
-<p>The least flashy feature, the most load-bearing one. An agent's heartbeat is its sign of life. Stop heartbeating for 20 minutes and you're enqueued for salvage. Your session, notes, file claims, and identity all survive. Another agent reads your <code>handoff</code> note and continues.</p>
+<p>The least flashy feature, the most critical one. An agent's heartbeat is its sign of life. Stop heartbeating for 20 minutes and you're enqueued for salvage. Your session, notes, file claims, and identity all survive. Another agent reads your <code>handoff</code> note and continues.</p>
 
 <div class="mermaid">
 stateDiagram-v2
@@ -232,7 +232,7 @@ stateDiagram-v2
 <ol>
   <li><strong>Advisory by default.</strong> Claims, notes, pheromones — none of them block another agent. They make the world legible. If you want exclusion, use a lock and own the consequences.</li>
   <li><strong>Daemon is the only writer.</strong> Race conditions live inside SQLite transactions, not in agent code. Agents see consistent reads.</li>
-  <li><strong>Notes are forever.</strong> You cannot rewrite history. This is what lets the audit trail be load-bearing — agents can trust what they read.</li>
+  <li><strong>Notes are forever.</strong> You cannot rewrite history. This is what lets the audit trail be critical — agents can trust what they read.</li>
 </ol>
 
 <h2>8. Where the layers live</h2>

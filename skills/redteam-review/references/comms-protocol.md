@@ -118,7 +118,7 @@ read plaintext payloads without also compromising the keystore.
 - A compromised persona process can leak its fleet's plaintext. Defense
   is per-process hardening, not the comms layer.
 - A compromised lead Keychain entry breaks the round; rotation procedure
-  documented in `docs/SECURITY.md`.
+  documented in `docs/SECURITY_SOUNDNESS.md`.
 - Side channels (timing of writes, cardinality of tags, identity of
   subscriber) leak metadata. Tag taxonomy is intentionally public.
 

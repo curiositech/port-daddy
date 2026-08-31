@@ -78,7 +78,7 @@ You said three things, and they're actually one thing:
 The insight is: **harbors are not a feature. Harbors are the security model.** Everything
 flows through a harbor. Local harbors are just remote harbors where the remote is localhost.
 
-The ProVerif proofs (the registered models in `whitepaper/formal/proverif/harbor-card/`) already verify this. The formal property
+The ProVerif proofs (all 4 models in `analyses/`) already verify this. The formal property
 `Accepted(B, harbor, cap) ==> IssuedRoot(A, harbor, cap) && Delegated(A, B, cap)` holds
 for delegation chains. The crypto (`lib/harbor-tokens.ts`, `core/harbor-card-rs/`) is
 real. What's missing is the **wiring** — the middleware that actually enforces harbor

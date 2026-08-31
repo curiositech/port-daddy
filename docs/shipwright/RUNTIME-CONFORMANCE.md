@@ -10,7 +10,7 @@
 
 This is the right question. A `.pv` file proves an *abstract protocol*.
 The TypeScript code in `lib/` is a *separate artifact*. Without an
-explicit bridge, nothing prevents `lib/foo.ts` from drifting away from
+explicit bridge, nothing prevents `lib/harbor-tokens.ts` from drifting away from
 the protocol the .pv file proves sound.
 
 This document fixes the strategy and is the index for the conformance
@@ -133,7 +133,7 @@ For each SPEC-ONLY entry, the implementation effort is:
     `pairing_secret` derivation.
 ### Adding the CI gate
 
-`scripts/runtime-conformance-check.mjs` (deferred to v2.6) walks
+`scripts/runtime-conformance-check.mjs` (designed-not-built; deferred to v2.6) walks
 `whitepaper/formal/**/*.pv`, looks for either a matching test file at
 `tests/unit/runtime-conformance/<name>.test.{js,ts}` or a
 `# SPEC-ONLY: <reason>` marker in the .pv header. Fails CI if
@@ -207,10 +207,8 @@ itself. For these, the conformance is:
     All four are the exact attack patterns ProVerif's naive-verifier
     counter-trace exhibited.
 
-  - `tests/unit/runtime-conformance/merkle-tree-binding.test.js` —
-    binds `whitepaper/formal/easycrypt/bonded-merkle/binding.md` to `lib/merkle-tree.ts`.
-    Already provided by `tests/unit/merkle-binding-property.test.js`;
-    the new file is a thin alias / pointer for the registry.
+  - `tests/unit/merkle-binding-property.test.js` — binds
+    `whitepaper/formal/easycrypt/bonded-merkle/binding.md` to `lib/merkle-tree.ts`.
 
 ---
 

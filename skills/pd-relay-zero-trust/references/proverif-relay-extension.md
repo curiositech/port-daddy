@@ -97,13 +97,13 @@ query attacker(payload_after_rotation).
 
 Add under `apps/relay/formal/proverif/`:
 
-- `apps/relay/formal/proverif/relay-handshake.pv` — handshake auth and session binding
-- `apps/relay/formal/proverif/relay-publish.pv` — capability enforcement at publish
-- `apps/relay/formal/proverif/relay-attenuation.pv` — Phase 3 caveat containment
-- `apps/relay/formal/proverif/relay-e2e.pv` — secrecy of payload from relay
-- `apps/relay/formal/proverif/relay-merkle.pv` — chain integrity and non-equivocation
-- `apps/relay/formal/proverif/relay-revocation.pv` — revocation effectiveness with propagation delay
-- `apps/relay/formal/proverif/README-relay.md` — narrative, query results, known limitations
+- `apps/relay/formal/proverif/relay-handshake.pv` — proposed output for handshake auth and session binding
+- `apps/relay/formal/proverif/relay-publish.pv` — proposed output for capability enforcement at publish
+- `apps/relay/formal/proverif/relay-attenuation.pv` — proposed output for Phase 3 caveat containment
+- `apps/relay/formal/proverif/relay-e2e.pv` — proposed output for secrecy of payload from relay
+- `apps/relay/formal/proverif/relay-merkle.pv` — proposed output for chain integrity and non-equivocation
+- `apps/relay/formal/proverif/relay-revocation.pv` — proposed output for revocation effectiveness with propagation delay
+- `apps/relay/formal/proverif/README-relay.md` — proposed output for narrative, query results, and known limitations
 
 ## What ProVerif handles well vs not
 
@@ -161,7 +161,7 @@ Before:
 ## Reading list
 
 - ProVerif manual (Blanchet et al.) — esp. on equational theories and correspondence assertions
-- Existing `apps/relay/formal/proverif/escrow_secrecy.pv` — our prior pattern
+- Existing `apps/relay/formal/proverif/relay-e2e-secrecy/relay_e2e_secrecy.pv` — our prior pattern
 - ADR-0014 — protocol claims to verify
 - Tamarin tutorials — for parts where ProVerif falls short
 - "Symbolic Models for Cryptographic Protocols" (Cremers & Mauw, 2012) — methodology
