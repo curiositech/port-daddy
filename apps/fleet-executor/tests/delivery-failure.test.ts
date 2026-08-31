@@ -51,7 +51,7 @@ function fakeBatch(messages: ReturnType<typeof fakeMessage>[]) {
 }
 
 const CHECKPOINT_BINDING = {
-  bindingVersion: 3 as const,
+  bindingVersion: 4 as const,
   shipConfigSha256: `sha256:${'1'.repeat(64)}`,
   contractSha256: 'absent',
   graftSha256: `sha256:${'2'.repeat(64)}`,
@@ -467,7 +467,7 @@ describe('a dead-lettered check does not strand the head SHA', () => {
     expect(state.completed.some(c => c.id === minted[0].id)).toBe(true);
   });
 
-  it('still stops dead on a check that ships DID decide', async () => {
+  it('does not trust a legacy completed check without a bound generation receipt', async () => {
     state.files.set('main:pd-fleet.yml', 'fleet:\n');
     const kv = memoryKV();
     seedToken(kv, 42);
@@ -489,9 +489,8 @@ describe('a dead-lettered check does not strand the head SHA', () => {
 
     await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai, DB: memoryD1().db }));
 
-    // No new check, no completion, no model spend — the money guard holds.
-    expect(state.existingCheckRuns).toHaveLength(1);
-    expect(state.completed).toHaveLength(0);
+    expect(state.existingCheckRuns).toHaveLength(2);
+    expect(state.completed).toHaveLength(1);
   });
 
   it('mints a fresh check when an explicit reopen retries a completed neutral gate', async () => {
@@ -554,7 +553,7 @@ describe('a dead-lettered check does not strand the head SHA', () => {
     expect(state.completed.some(c => c.id === minted[0].id)).toBe(true);
   });
 
-  it('does not rerun or spend when an explicit reopen finds a completed success', async () => {
+  it('treats an explicit reopen as a new delivery generation even after success', async () => {
     state.files.set('main:pd-fleet.yml', 'fleet:\n');
     const kv = memoryKV();
     seedToken(kv, 42);
@@ -579,9 +578,9 @@ describe('a dead-lettered check does not strand the head SHA', () => {
       makeEnv({ FLEET_TOKENS: kv, AI: ai, DB: memoryD1().db }),
     );
 
-    expect(result).toEqual({ kind: 'already-decided', conclusion: 'success' });
-    expect(state.existingCheckRuns).toHaveLength(1);
-    expect(state.completed).toHaveLength(0);
+    expect(result).toBeUndefined();
+    expect(state.existingCheckRuns).toHaveLength(2);
+    expect(state.completed).toHaveLength(1);
   });
 
   it('closes the loop: DLQ failure then redelivery yields a real verdict', async () => {
@@ -651,7 +650,7 @@ describe('the read-back path degrades honestly (pd-qa findings on #7377)', () =>
     ).resolves.toBeNull();
   });
 
-  it('a failed read still yields a complete dead-letter summary, not a broken one', async () => {
+  it('fails closed without mutating GitHub when the generation ledger cannot be claimed', async () => {
     state.existingCheckRuns.push({ id: 4242, name: 'Port Daddy Fleet' });
     const kv = memoryKV();
     seedToken(kv, 42);
@@ -662,11 +661,7 @@ describe('the read-back path degrades honestly (pd-qa findings on #7377)', () =>
 
     await handleDlqJob(makeJob(), env);
 
-    const summary = String(state.completed[0].summary);
-    expect(summary).toContain('dead-lettered');
-    expect(summary).toContain('No per-attempt failure was recorded');
-    // The marker must survive the degraded path, or the SHA stays stranded.
-    expect(summary).toContain(DEAD_LETTER_MARKER);
+    expect(state.completed).toHaveLength(0);
   });
 
   it('names an empty cause instead of trailing a dangling colon', () => {
@@ -677,12 +672,8 @@ describe('the read-back path degrades honestly (pd-qa findings on #7377)', () =>
   });
 });
 
-describe('the DLQ handler fails the gate even on a malformed job', () => {
-  it('completes the check as failure when deliveryId is missing, rather than bailing', async () => {
-    // pd-qa proposed returning early on an absent deliveryId. That would be
-    // WORSE than the degraded path: bailing leaves the check stuck
-    // `in_progress` forever, which is the exact stuck-gate this handler exists
-    // to prevent. A missing id costs a useless run link, not the gate.
+describe('the DLQ handler fails closed on malformed authority', () => {
+  it('does not mutate an un attributable check when deliveryId is missing', async () => {
     state.existingCheckRuns.push({ id: 4242, name: 'Port Daddy Fleet' });
     const kv = memoryKV();
     seedToken(kv, 42);
@@ -693,10 +684,7 @@ describe('the DLQ handler fails the gate even on a malformed job', () => {
       handleDlqJob(job, makeEnv({ FLEET_TOKENS: kv, DB: memoryD1().db })),
     ).resolves.toBeUndefined();
 
-    expect(state.completed).toHaveLength(1);
-    expect(state.completed[0]).toMatchObject({ id: 4242, conclusion: 'failure' });
-    // …and the marker still lands, so the SHA is not stranded either.
-    expect(String(state.completed[0].summary)).toContain(DEAD_LETTER_MARKER);
+    expect(state.completed).toHaveLength(0);
   });
 
   it('never rejects, so the caller always reaches message.ack()', async () => {

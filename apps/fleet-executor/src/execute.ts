@@ -26,6 +26,7 @@ import {
   getInstallationTokenCached,
   invalidateInstallationToken,
   fetchPRContext,
+  fetchPullRequestMetadataWitness,
   fetchRepoFile,
   fetchTrustedShipContract,
   fetchOpenPullRequests,
@@ -41,9 +42,10 @@ import {
   findFleetCheckRunState,
   createIssue,
   resolveFleetAppLogin,
-  requireCurrentPullRequestHead,
   PullRequestHeadValidationError,
   PullRequestDiffFetchError,
+  ShipCommentPublicationError,
+  bindFleetReviewInputToCheckSummary,
   type PRContext,
   type PullRequestHeadGuard,
   type ReviewComment,
@@ -51,7 +53,10 @@ import {
 } from './github.js';
 import { parseFleetShips, parseFleetSquidEvents, parseFleetXo, parseFleetMediator, defaultPRShips, type ShipConfig } from './fleet.js';
 import {
-  consumeMediatorReinjection,
+  readMediatorReinjectionState,
+  acknowledgeMediatorReinjection,
+  MediatorReinjectionReadError,
+  mediatorReinjectionDigest,
   renderMediatorOrders,
   runMediatorScan,
   buildMediatorScanIo,
@@ -60,6 +65,7 @@ import { fetchOpenPullRequestsDetailed, fetchPRFilePatches } from './github.js';
 import { classifyPrAuthorship } from './fleet-identity.js';
 import { classifyPrLifecycle } from './pr-lifecycle.js';
 import { fleetPrBodyTrailers } from './fleet-pr-body.js';
+import { assertFleetIntentCurrent } from './run-intent.js';
 import {
   resolveVerdict,
   aggregateConclusion,
@@ -739,14 +745,15 @@ async function isFleetPaused(env: ExecutorEnv): Promise<boolean> {
 }
 
 /**
- * Append-only transcript recorder. Each {@link step} writes one fleet_run_steps
- * row with a monotonically increasing seq. Every write is BEST-EFFORT: a missing
+ * Retry-replaceable transcript telemetry. Each {@link step} writes one
+ * fleet_run_steps row with an invocation-local increasing seq. Every write is
+ * BEST-EFFORT: a missing
  * DB binding (unit tests) or a D1 failure is swallowed and can NEVER fail the
  * run, change the conclusion, or alter the merge gate.
  *
- * Uses INSERT OR REPLACE keyed on (run_id, seq) so a retried delivery (same
- * deterministic runId) overwrites its transcript cleanly instead of erroring on
- * the PK — preserving the pipeline's idempotency invariant.
+ * Uses INSERT OR REPLACE keyed on (run_id, seq), so retrying the same
+ * deterministic run id may replace earlier rows. It is operator telemetry, not
+ * append-only provenance or publication authority.
  */
 class Transcript {
   private seq = 0;
@@ -1061,6 +1068,64 @@ async function recordRunEnd(
 }
 
 /**
+ * Best-effort repair of the terminal D1 run projection from an owned,
+ * digest-bound GitHub check. The GitHub App-owned check receipt remains the
+ * gate authority. D1 is a mutable operator projection here: when bound, a
+ * failed write/readback retries; an absent binding remains the explicitly
+ * degraded deployment behavior until the authority migration is complete.
+ */
+async function reconcileTerminalRunProjection(
+  env: ExecutorEnv,
+  creatorRunId: string,
+  job: FleetRunJob,
+  prCtx: PRContext,
+  prNumber: number,
+  ships: ShipConfig[],
+  conclusion: 'success' | 'failure',
+  startMs: number,
+): Promise<void> {
+  if (!env.DB) return;
+  const deliveryId = creatorRunId.startsWith('run:') ? creatorRunId.slice(4) : creatorRunId;
+  const endMs = Date.now();
+  const prUrl = `https://github.com/${job.repoFullName}/pull/${prNumber}`;
+  await env.DB.prepare(
+    `INSERT INTO fleet_runs
+       (id, delivery_id, repo_full_name, pr_number, pr_url, head_sha, conclusion, ships_csv, ms, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?)
+     ON CONFLICT(id) DO UPDATE SET
+       conclusion = excluded.conclusion,
+       ms = MAX(0, ? - CASE
+         WHEN fleet_runs.created_at IS NOT NULL
+          AND fleet_runs.created_at > 0
+          AND fleet_runs.created_at * 1000 <= ?
+         THEN fleet_runs.created_at * 1000
+         ELSE ?
+       END)`,
+  ).bind(
+    creatorRunId,
+    deliveryId,
+    job.repoFullName,
+    prNumber,
+    prUrl,
+    prCtx.headSha,
+    conclusion,
+    ships.map(ship => ship.name).join(','),
+    nowSec(),
+    endMs,
+    endMs,
+    startMs,
+  ).run();
+  const readback = await env.DB.prepare(
+    `SELECT conclusion FROM fleet_runs WHERE id = ?`,
+  ).bind(creatorRunId).first<{ conclusion: string }>();
+  if (readback?.conclusion !== conclusion) {
+    throw new Error(
+      `terminal D1 projection reconciliation failed for ${creatorRunId}: expected ${conclusion}`,
+    );
+  }
+}
+
+/**
  * Per-installation SPEND CIRCUIT-BREAKER (ADR-0116/0117). Returns true ONLY when
  * the `credit_ledger` table exists, this installation HAS ledger rows, and its
  * balance (SUM(delta_usd)) is <= 0 — i.e. billing is configured for them and
@@ -1266,7 +1331,7 @@ export async function recordShipAiCallStats(
   }
 }
 
-const REVIEWABLE_PR_ACTIONS = new Set(['opened', 'synchronize', 'reopened', 'ready_for_review']);
+const REVIEWABLE_PR_ACTIONS = new Set(['opened', 'synchronize', 'reopened', 'ready_for_review', 'edited']);
 
 /** The fleet trigger used by reviewable pull_request deliveries. */
 function triggerFor(job: FleetRunJob): string | null {
@@ -1350,6 +1415,28 @@ export type FleetExecutionDisposition =
   | { kind: 'no-cloud-ships' }
   | { kind: 'continuation'; completedShip: string; remainingShips: string[] };
 
+/**
+ * The authoritative pull-request evidence changed after Fleet froze the input
+ * that shaped model work and checkpoint bindings. Throwing from a publication
+ * boundary leaves the required check pending and asks the queue to refetch and
+ * retry instead of turning infrastructure drift into a broken-ship verdict.
+ */
+export class PullRequestReviewInputDriftError extends Error {
+  readonly retryable = true;
+
+  constructor(
+    readonly boundary: string,
+    readonly expectedReviewInputSha256: string,
+    readonly changedFields: Readonly<Record<string, boolean>>,
+  ) {
+    super(
+      `pull request review input changed at ${boundary}; frozen witness ` +
+        `${expectedReviewInputSha256} no longer matches live metadata`,
+    );
+    this.name = 'PullRequestReviewInputDriftError';
+  }
+}
+
 export interface FleetExecutionOptions {
   /** Cloudflare Queue's 1-based delivery attempt. Direct callers default final. */
   queueAttempt?: number;
@@ -1358,6 +1445,8 @@ export interface FleetExecutionOptions {
    * gated ships do not count. Omit for direct/full-run callers.
    */
   maxNewShipsPerInvocation?: number;
+  /** Re-check the Relay generation ledger at every hot publication boundary. */
+  enforceIntentOwnership?: boolean;
 }
 
 /**
@@ -1383,6 +1472,9 @@ async function ensureRawDiffFailureGate(
   prPayload: Record<string, unknown>,
   token: string,
   detailsUrl: string | null,
+  githubAppId: string,
+  runId: string,
+  beforeCreate?: () => Promise<void>,
 ): Promise<void> {
   const head = prPayload.head;
   const headSha = head && typeof head === 'object'
@@ -1391,12 +1483,19 @@ async function ensureRawDiffFailureGate(
   if (typeof headSha !== 'string' || !headSha) {
     throw new Error('raw diff unavailable and webhook payload omitted the pull request head SHA');
   }
-  const existing = await findFleetCheckRunState(owner, repo, headSha, CHECK_NAME, token);
-  const alreadyDecided = existing?.status === 'completed' &&
-    (existing.conclusion === 'success' || existing.conclusion === 'failure') &&
-    !isDeadLetteredSummary(existing.summary);
-  if (alreadyDecided || (existing && existing.status !== 'completed')) return;
-  const checkRunId = await createCheckRun(owner, repo, CHECK_NAME, headSha, token, detailsUrl);
+  const existing = await findFleetCheckRun(owner, repo, headSha, CHECK_NAME, token, githubAppId, runId);
+  if (existing) return;
+  await beforeCreate?.();
+  const checkRunId = await createCheckRun(
+    owner,
+    repo,
+    CHECK_NAME,
+    headSha,
+    token,
+    detailsUrl,
+    undefined,
+    runId,
+  );
   if (!checkRunId) {
     throw new Error(
       `raw diff unavailable and could not establish the Port Daddy Fleet gate for ${owner}/${repo}@${headSha}`,
@@ -1503,17 +1602,57 @@ export async function executeFleet(
         job.installationId,
         env.FLEET_TOKENS,
       );
-      let checkRunId = await findFleetCheckRun(owner, repo, headSha, CHECK_NAME, token).catch(
-        () => null,
-      );
+      const assertPausedGateCurrent = async (boundary: string): Promise<void> => {
+        if (options.enforceIntentOwnership) await assertFleetIntentCurrent(env, job);
+        const live = await fetchPullRequestMetadataWitness(owner, repo, prNumber, token);
+        if (live.headSha !== headSha) {
+          throw new PullRequestHeadValidationError(
+            'changed',
+            headSha,
+            live.headSha || null,
+            boundary,
+            `pull request head changed at ${boundary}: expected ${headSha}, current ${live.headSha || 'unknown'}`,
+          );
+        }
+      };
+      await assertPausedGateCurrent('before paused check admission');
+      let checkRunId = await findFleetCheckRun(
+        owner,
+        repo,
+        headSha,
+        CHECK_NAME,
+        token,
+        env.GITHUB_APP_ID,
+        runId,
+      ).catch(() => null);
       if (!checkRunId) {
-        checkRunId = await createCheckRun(owner, repo, CHECK_NAME, headSha, token, detailsUrl);
+        await assertPausedGateCurrent('immediately before paused check creation');
+        checkRunId = await createCheckRun(
+          owner,
+          repo,
+          CHECK_NAME,
+          headSha,
+          token,
+          detailsUrl,
+          undefined,
+          runId,
+        );
       }
       const summary =
         'Fleet paused by operator; no automated review was performed for this delivery. ' +
         'Resume the fleet (POST /v1/fleet/pause {"paused":false}) or review this PR manually.';
       if (checkRunId) {
-        await completeCheckRun(owner, repo, checkRunId, 'neutral', summary, token, detailsUrl);
+        await completeCheckRun(
+          owner,
+          repo,
+          checkRunId,
+          'neutral',
+          summary,
+          token,
+          detailsUrl,
+          'Port Daddy Fleet',
+          () => assertPausedGateCurrent('immediately before paused neutral PATCH'),
+        );
       }
       await transcript.step(
         'check-completed',
@@ -1610,7 +1749,18 @@ export async function executeFleet(
     // Create the payload-head gate before handing the error to the queue so an
     // exhausted retry has an actual check run for the DLQ to fail.
     if (err instanceof PullRequestDiffFetchError) {
-      await ensureRawDiffFailureGate(owner, repo, prPayload, token, detailsUrl);
+      await ensureRawDiffFailureGate(
+        owner,
+        repo,
+        prPayload,
+        token,
+        detailsUrl,
+        env.GITHUB_APP_ID,
+        runId,
+        options.enforceIntentOwnership
+          ? () => assertFleetIntentCurrent(env, job)
+          : undefined,
+      );
     }
     throw err;
   }
@@ -1655,26 +1805,98 @@ export async function executeFleet(
   // NOTHING about proposals, comments, or the check conclusion.
   const xoEnabled = fleetYaml ? parseFleetXo(fleetYaml) : false;
 
-  // MEDIATOR CONSENT + re-injection consume (grand-plan node mediator-body).
+  // MEDIATOR CONSENT + crash-safe re-injection (grand-plan node mediator-body).
   // If a human's Modify verdict is pending for THIS PR (control-plane KV,
-  // written by the relay's gate), consume it once and prepend it to every
-  // ship's context — this run IS the losing agent's re-execution.
+  // written by the relay's gate), freeze it without deleting and prepend it to
+  // every ship's context. It is acknowledged only after terminal success.
   const mediatorConfig = parseFleetMediator(fleetYaml ?? '');
   let mediatorOrders = '';
+  let mediatorReinjectionState: Awaited<ReturnType<typeof readMediatorReinjectionState>> = null;
+  let mediatorReinjection = null as Awaited<ReturnType<typeof readMediatorReinjectionState>> extends infer T
+    ? T extends { reinjection: infer R } ? R | null : null
+    : null;
   if (mediatorConfig.enabled) {
-    const reinjection = await consumeMediatorReinjection(env, job.repoFullName, prNumber);
-    if (reinjection) {
-      mediatorOrders = renderMediatorOrders(reinjection);
-      await transcript.step('mediator-reinjection', null,
-        `Mediator gate MODIFY re-injected (parley ${reinjection.parleyId}, decided by ${reinjection.decidedBy})`,
-        { parleyId: reinjection.parleyId, action: reinjection.action, decidedBy: reinjection.decidedBy },
-      );
+    mediatorReinjectionState = await readMediatorReinjectionState(env, job.repoFullName, prNumber);
+    mediatorReinjection = mediatorReinjectionState && !mediatorReinjectionState.acknowledged
+      ? mediatorReinjectionState.reinjection
+      : null;
+    if (mediatorReinjection) {
+      mediatorOrders = renderMediatorOrders(mediatorReinjection);
     }
   }
+  const mediatorOrderSha256 = await mediatorReinjectionDigest(mediatorReinjection);
+  const acknowledgedMediatorOrderSha256 = mediatorReinjectionState?.acknowledged
+    ? await mediatorReinjectionDigest(mediatorReinjectionState.reinjection)
+    : null;
 
   // Cloud-executable ships only (execution ships dispatch to GHA elsewhere).
   const cloudShips = ships.filter(s => !s.needsExecution);
   if (cloudShips.length === 0) return { kind: 'no-cloud-ships' };
+
+  // Freeze the complete model/checkpoint input before deciding whether an
+  // existing check may be reused. The digest includes exact files and diff;
+  // hot boundary guards below can stay lightweight because unchanged head and
+  // base identities make those large bodies immutable.
+  const reviewInputSha256 = await createCheckpointReviewInputSha256(prCtx);
+  const frozenReviewMetadata = {
+    title: prCtx.title,
+    body: prCtx.body,
+    headSha: prCtx.headSha,
+    headRef: prCtx.headRef,
+    headRepoFullName: prCtx.headRepoFullName ?? '',
+    baseSha: prCtx.baseSha,
+    baseRef: prCtx.baseRef,
+    baseRepoFullName: prCtx.baseRepoFullName ?? '',
+    state: prCtx.state,
+    merged: prCtx.merged,
+  };
+  const assertCurrentReviewInput: PullRequestHeadGuard = async boundary => {
+    if (options.enforceIntentOwnership) await assertFleetIntentCurrent(env, job);
+    let live: Awaited<ReturnType<typeof fetchPullRequestMetadataWitness>>;
+    try {
+      live = await fetchPullRequestMetadataWitness(owner, repo, prNumber, token);
+    } catch (error) {
+      throw new PullRequestHeadValidationError(
+        'unavailable',
+        prCtx.headSha,
+        null,
+        boundary,
+        `could not verify pull request metadata at ${boundary}: ${String(error).slice(0, 500)}`,
+      );
+    }
+    if (!live.headSha) {
+      throw new PullRequestHeadValidationError(
+        'unavailable',
+        prCtx.headSha,
+        null,
+        boundary,
+        `could not verify pull request head at ${boundary}: response omitted head.sha`,
+      );
+    }
+    if (live.headSha !== prCtx.headSha) {
+      throw new PullRequestHeadValidationError(
+        'changed',
+        prCtx.headSha,
+        live.headSha,
+        boundary,
+        `pull request head changed at ${boundary}: expected ${prCtx.headSha}, current ${live.headSha}`,
+      );
+    }
+    if (JSON.stringify(live) === JSON.stringify(frozenReviewMetadata)) return;
+    const changedFields = Object.fromEntries(
+      Object.keys(frozenReviewMetadata).map(key => [
+        key,
+        live[key as keyof typeof live] !== frozenReviewMetadata[key as keyof typeof frozenReviewMetadata],
+      ]),
+    );
+    await transcript.step(
+      'review-input-drift',
+      null,
+      `Fleet stopped at ${boundary}: authoritative pull-request metadata changed`,
+      { boundary, expectedReviewInputSha256: reviewInputSha256, changedFields },
+    );
+    throw new PullRequestReviewInputDriftError(boundary, reviewInputSha256, changedFields);
+  };
 
   // --- Check run (idempotent: reuse one for this head SHA) -----------------
   //
@@ -1700,6 +1922,9 @@ export async function executeFleet(
     prCtx.headSha,
     CHECK_NAME,
     token,
+    env.GITHUB_APP_ID,
+    reviewInputSha256,
+    mediatorOrderSha256,
   ).catch(() => null);
   //
   // `neutral` is deliberately NOT terminal. The fleet completes neutral when it
@@ -1718,7 +1943,6 @@ export async function executeFleet(
   // 2026-08-19: #7278, #7339 and #7344 each lost one run to a dead-letter and
   // were then unreviewable at that SHA; reopening them re-ran all of GitHub
   // Actions CI while the fleet check never reappeared at all.
-  const explicitRerun = job.action === 'reopened' || job.action === 'ready_for_review';
   const DECIDED: ReadonlySet<string> = new Set(['success', 'failure']);
   const deadLettered = isDeadLetteredSummary(existing?.summary);
   if (
@@ -1726,8 +1950,44 @@ export async function executeFleet(
     existing.status === 'completed' &&
     DECIDED.has(existing.conclusion ?? '') &&
     !deadLettered &&
-    !(existing.conclusion === 'failure' && explicitRerun)
+    existing.reviewInputSha256 === reviewInputSha256 &&
+    existing.mediatorOrderSha256 === (acknowledgedMediatorOrderSha256 ?? mediatorOrderSha256) &&
+    existing.creatorRunId === runId
   ) {
+    await assertCurrentReviewInput('before completed check reuse');
+    const repairMediatorState = mediatorConfig.enabled
+      ? await readMediatorReinjectionState(env, job.repoFullName, prNumber)
+      : null;
+    const repairMediatorDigest = repairMediatorState
+      ? await mediatorReinjectionDigest(repairMediatorState.reinjection)
+      : null;
+    if (repairMediatorDigest !== existing.mediatorOrderSha256) {
+      throw new MediatorReinjectionReadError(
+        `Mediator order changed before completed-check repair for ${owner}/${repo}#${prNumber}; ` +
+          `retrying so the new order is frozen into a fresh check generation and every ship prompt.`,
+      );
+    } else {
+    // GitHub is already terminal, but the Worker may have died before the D1
+    // run projection was finalized. Repair that projection idempotently before
+    // acknowledging this delivery; the check id + bound review digest identify
+    // the exact terminal generation being reconciled.
+    await reconcileTerminalRunProjection(
+      env,
+      existing.creatorRunId,
+      job,
+      prCtx,
+      prNumber,
+      cloudShips,
+      existing.conclusion as 'success' | 'failure',
+      startMs,
+    );
+    if (repairMediatorState) {
+      if (!repairMediatorState.acknowledged) {
+        if (!await acknowledgeMediatorReinjection(env, repairMediatorState.reinjection)) {
+          throw new Error(`Mediator order acknowledgement failed for ${repairMediatorState.reinjection.parleyId}`);
+        }
+      }
+    }
     console.log(
       `[fleet-executor] ${owner}/${repo}@${prCtx.headSha}: check already decided ` +
         `(${existing.conclusion}) — skipping ${cloudShips.length} ship(s). ` +
@@ -1737,6 +1997,7 @@ export async function executeFleet(
       kind: 'already-decided',
       conclusion: existing.conclusion as 'success' | 'failure',
     };
+    }
   }
   if (deadLettered) {
     console.log(
@@ -1749,8 +2010,15 @@ export async function executeFleet(
     existing &&
       existing.status === 'completed' &&
       (deadLettered ||
-        existing.conclusion === 'neutral' ||
-        (existing.conclusion === 'failure' && explicitRerun)),
+        existing.reviewInputSha256 !== reviewInputSha256 ||
+        existing.mediatorOrderSha256 !== mediatorOrderSha256 ||
+        existing.conclusion === 'neutral'),
+  );
+  const generationMismatch = Boolean(
+    existing &&
+      (existing.creatorRunId !== runId ||
+        (existing.reviewInputSha256 !== null && existing.reviewInputSha256 !== reviewInputSha256) ||
+        (existing.reviewInputSha256 !== null && existing.mediatorOrderSha256 !== mediatorOrderSha256)),
   );
   if (completedNeedsReplacement && !deadLettered) {
     console.log(
@@ -1763,10 +2031,34 @@ export async function executeFleet(
   // REUSED either: completing it again would be a no-op against a gate GitHub
   // considers closed. Mint a fresh check run instead — GitHub surfaces the
   // newest run of a given name, so the new one is what the branch rule reads.
-  let checkRunId = completedNeedsReplacement ? null : existing?.id ?? null;
+  let checkRunId = completedNeedsReplacement || generationMismatch ? null : existing?.id ?? null;
   if (!checkRunId) {
+    if (options.enforceIntentOwnership) await assertFleetIntentCurrent(env, job);
     // No swallow: a createCheckRun failure must propagate so the job RETRIES.
-    checkRunId = await createCheckRun(owner, repo, CHECK_NAME, prCtx.headSha, token, detailsUrl);
+    checkRunId = await createCheckRun(
+      owner,
+      repo,
+      CHECK_NAME,
+      prCtx.headSha,
+      token,
+      detailsUrl,
+      reviewInputSha256,
+      runId,
+      mediatorOrderSha256,
+    );
+  }
+
+  if (mediatorReinjection) {
+    await transcript.step(
+      'mediator-reinjection',
+      null,
+      `Mediator gate MODIFY re-injected (parley ${mediatorReinjection.parleyId}, decided by ${mediatorReinjection.decidedBy})`,
+      {
+        parleyId: mediatorReinjection.parleyId,
+        action: mediatorReinjection.action,
+        decidedBy: mediatorReinjection.decidedBy,
+      },
+    );
   }
   if (!checkRunId) {
     // Fail closed: never proceed (and never ack) when we could not establish the
@@ -1822,7 +2114,18 @@ export async function executeFleet(
       // guarantee.
       console.error('[fleet] failed to record continuation livelock receipt', error);
     }
-    await completeCheckRun(owner, repo, checkRunId, 'neutral', summary, token, detailsUrl);
+    await assertCurrentReviewInput('before continuation-livelock neutral completion');
+    await completeCheckRun(
+      owner,
+      repo,
+      checkRunId,
+      'neutral',
+      summary,
+      token,
+      detailsUrl,
+      'Port Daddy Fleet',
+      () => assertCurrentReviewInput('immediately before continuation-livelock neutral PATCH'),
+    );
     await recordRunEnd(env, runId, 'neutral', startMs);
     return;
   }
@@ -1830,15 +2133,25 @@ export async function executeFleet(
   // before any of them run — see recordShipsConfigInTranscript's docstring.
   await recordShipsConfigInTranscript(transcript, cloudShips);
 
-  const assertCurrentHead: PullRequestHeadGuard = boundary =>
-    requireCurrentPullRequestHead(
+  const assertCurrentHead = assertCurrentReviewInput;
+  const completeOwnedCheck = async (
+    completionConclusion: 'success' | 'failure' | 'neutral',
+    completionSummary: string,
+    boundary: string,
+  ): Promise<boolean> => {
+    await assertCurrentHead(boundary);
+    return completeCheckRun(
       owner,
       repo,
-      prNumber,
-      prCtx.headSha,
+      checkRunId,
+      completionConclusion,
+      completionSummary,
       token,
-      boundary,
+      detailsUrl,
+      'Port Daddy Fleet',
+      () => assertCurrentHead(`immediately before ${boundary} PATCH`),
     );
+  };
 
   const stopSupersededRun = async (
     error: unknown,
@@ -1853,6 +2166,10 @@ export async function executeFleet(
       `${error.expectedHead.slice(0, 12)} to ${currentHead.slice(0, 12)} at ` +
       `${error.boundary}. Output computed for the superseded head was discarded; ` +
       `no later review, issue, branch, retarget, checkpoint, or aggregate verdict was published.`;
+    const assertCurrentIntent = async (): Promise<void> => {
+      if (options.enforceIntentOwnership) await assertFleetIntentCurrent(env, job);
+    };
+    await assertCurrentIntent();
     const checkNeutralized = await completeCheckRun(
       owner,
       repo,
@@ -1861,6 +2178,8 @@ export async function executeFleet(
       summary,
       token,
       detailsUrl,
+      'Port Daddy Fleet',
+      assertCurrentIntent,
     );
     await transcript.step(
       'head-superseded',
@@ -1963,7 +2282,7 @@ export async function executeFleet(
         shipsRun: 0,
       },
     );
-    await completeCheckRun(owner, repo, checkRunId, 'neutral', summary, token, detailsUrl);
+    await completeOwnedCheck('neutral', summary, 'before lifecycle neutral completion');
     await recordRunEnd(env, runId, 'neutral', startMs);
     return;
   }
@@ -2000,7 +2319,7 @@ export async function executeFleet(
         shipsRun: 0,
       },
     );
-    await completeCheckRun(owner, repo, checkRunId, 'neutral', summary, token, detailsUrl);
+    await completeOwnedCheck('neutral', summary, 'before self-authored neutral completion');
     await recordRunEnd(env, runId, 'neutral', startMs);
     return;
   }
@@ -2027,7 +2346,7 @@ export async function executeFleet(
       reason: 'credits-exhausted',
       installationId: job.installationId,
     });
-    await completeCheckRun(owner, repo, checkRunId, 'neutral', summary, token, detailsUrl);
+    await completeOwnedCheck('neutral', summary, 'before credits neutral completion');
     await recordRunEnd(env, runId, 'neutral', startMs);
     return;
   }
@@ -2105,10 +2424,6 @@ export async function executeFleet(
     ]);
     frozenLookoutProjection = renderFleetContext(openPullRequests, recentBranches);
   }
-  // A PR title/body can change without moving its head SHA or delivery id.
-  // Bind the exact live input projection once, then reuse that digest for each
-  // ship's current trusted checkpoint proof without re-hashing a large diff.
-  const reviewInputSha256 = await createCheckpointReviewInputSha256(prCtx);
   for (const ship of orderedShips) {
     const [contract, graft] = await Promise.all([
       // Unlike the legacy best-effort helper, only a confirmed 404 means an
@@ -2186,7 +2501,7 @@ export async function executeFleet(
         conclusion: 'neutral',
         pausedBeforeShip: ship.name,
       });
-      await completeCheckRun(owner, repo, checkRunId, 'neutral', summary, token, detailsUrl);
+      await completeOwnedCheck('neutral', summary, `before pd-${ship.name} paused neutral completion`);
       await recordRunEnd(env, runId, 'neutral', startMs);
       return;
     }
@@ -2260,7 +2575,7 @@ export async function executeFleet(
             runAbsoluteDeadlineMs: RUN_ABSOLUTE_DEADLINE_MS,
           },
         );
-        await completeCheckRun(owner, repo, checkRunId, 'neutral', summary, token, detailsUrl);
+        await completeOwnedCheck('neutral', summary, `before pd-${ship.name} deadline neutral completion`);
         await recordRunEnd(env, runId, 'neutral', startMs);
         return;
       }
@@ -2358,6 +2673,7 @@ export async function executeFleet(
     // rows are durable, so a resumed attempt never skips a ship whose
     // accounting was lost with the kill. Gated-out ships are not checkpointed:
     // re-deciding a skip costs nothing.
+    await assertCurrentHead(`before pd-${ship.name} checkpoint`);
     const checkpointSaved = await saveShipCheckpoint(
       env,
       runId,
@@ -2531,9 +2847,11 @@ export async function executeFleet(
     repo,
     checkRunId,
     conclusion,
-    summary,
+    bindFleetReviewInputToCheckSummary(summary, reviewInputSha256, runId, mediatorOrderSha256),
     token,
     detailsUrl,
+    'Port Daddy Fleet',
+    () => assertCurrentHead('immediately before aggregate check completion PATCH'),
   );
   if (!checkCompletion.ok) {
     throw new CheckRunCompletionError(
@@ -2541,6 +2859,11 @@ export async function executeFleet(
         `(check ${checkRunId}): ${checkCompletion.diagnostic ?? 'unknown GitHub response'}`,
       checkCompletion.retryAfterSeconds,
     );
+  }
+  if (conclusion === 'success' && mediatorReinjection) {
+    if (!await acknowledgeMediatorReinjection(env, mediatorReinjection)) {
+      throw new Error(`Mediator order acknowledgement failed for ${mediatorReinjection.parleyId}`);
+    }
   }
 
   if (reviewComments.length > 0 || summary.trim()) {
@@ -3108,6 +3431,7 @@ async function runShip(
         ship.role,
         body,
         token,
+        env.GITHUB_APP_ID,
         assertCurrentHead,
       );
 
@@ -3233,6 +3557,7 @@ async function runShip(
       ship.role,
       reviewerBody,
       token,
+      env.GITHUB_APP_ID,
       assertCurrentHead,
     );
 
@@ -3261,7 +3586,10 @@ async function runShip(
     const verdict: Verdict = verdictForTranscript ?? resolveVerdict(output, ship.blocking);
     return { ship: ship.name, blocking: ship.blocking, verdict, errored: false, findings, ...reviewCoverage };
   } catch (error) {
-    if (error instanceof PullRequestHeadValidationError) throw error;
+    if (
+      error instanceof PullRequestHeadValidationError ||
+      error instanceof ShipCommentPublicationError
+    ) throw error;
     const failure = error instanceof FleetAiDependencyError
       ? error.failure
       : describeAiFailure(error);

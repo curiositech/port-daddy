@@ -6,11 +6,9 @@
  *
  *   a. STEEL-MAN — one AI call over the PR title/body/diff produces the
  *      best-interpretation contract: purpose + testable obligations[] +
- *      testTargets[]. The parsed contract is then UPSERTED INTO THE REVIEWED
- *      PR'S BODY (operator mandate, 2026-08-19: the steel-man argument and its
- *      obligations are the best chronology of what a PR should be, and the PR
- *      summary is where that chronology lives — maintained by this agent,
- *      edit-in-place between HTML markers). Malformed output ⇒ transcript
+ *      testTargets[]. The parsed contract is published in an attributable,
+ *      checked Fleet-owned issue comment; the human-owned PR description is
+ *      never rewritten. Malformed output ⇒ transcript
  *      error and a BROKEN-SHIP result (`errored: true`, which fails the run —
  *      see the doctrine note below); the purser never bluffs a contract.
  *   b. AUTHOR TESTS — a second AI call authors adversarial unit + integration
@@ -76,8 +74,8 @@ import type { ShipConfig } from './fleet.js';
 import type { ShipResult, Verdict } from './verdict.js';
 import {
   postShipComment,
-  upsertPrBodySection,
   PullRequestHeadValidationError,
+  ShipCommentPublicationError,
   type PRContext,
   type PullRequestHeadGuard,
 } from './github.js';
@@ -183,6 +181,32 @@ const FAILURE_TAIL_BYTES = 1024;
 const MAX_AUTHORED_REPAIR_ATTEMPTS_PER_FILE = 2;
 const MAX_AUTHORED_REPAIR_CALLS = MAX_PLANNED_FILES + 1;
 const REJECTED_DRAFT_CHAR_LIMIT = 16_000;
+
+async function currentPurserSandboxReceipt(
+  runId: string,
+  providerAttempt: number,
+  files: StackedFile[],
+  sandbox: SandboxRunOutcome,
+): Promise<ShipResult['checkpointExecutionReceipt']> {
+  if (!sandbox.executed || typeof sandbox.passed !== 'boolean') return undefined;
+  const outcomeKind = sandbox.passed ? 'passed' : 'assertion-failure';
+  if (sandbox.outcomeKind !== outcomeKind) return undefined;
+  const serializedTests = files
+    .map(file => ({ path: file.path, contents: file.contents }))
+    .sort((left, right) => left.path.localeCompare(right.path));
+  const digest = await crypto.subtle.digest(
+    'SHA-256',
+    new TextEncoder().encode(JSON.stringify(serializedTests)),
+  );
+  return {
+    kind: 'purser-sandbox-v1',
+    executed: true,
+    passed: sandbox.passed,
+    outcomeKind,
+    attemptId: `${runId}:attempt:${providerAttempt}`,
+    testDigest: `sha256:${Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('')}`,
+  };
+}
 
 const JEST_GLOBAL_BINDINGS = new Set([
   'afterAll',
@@ -1161,39 +1185,6 @@ function renderObligations(steel: SteelManContract): string {
   return steel.obligations.map((o, i) => `${i + 1}. ${o}`).join('\n');
 }
 
-/**
- * HTML markers bounding the purser's contract section in the reviewed PR's
- * body. Exported so tests (and any future renderer) locate the section by the
- * same strings the writer uses — the two can never drift apart.
- */
-export const PURSER_CONTRACT_START = '<!-- pd-purser:contract:start -->';
-export const PURSER_CONTRACT_END = '<!-- pd-purser:contract:end -->';
-
-/**
- * Render the steel-manned contract as the PR-summary section the purser
- * maintains between {@link PURSER_CONTRACT_START} and
- * {@link PURSER_CONTRACT_END}.
- *
- * WHY THE PR BODY AND NOT ONLY A COMMENT (operator mandate, 2026-08-19): the
- * PR summary is the durable chronology of what a PR should be — it is what a
- * future reader, a bisect, or a release note reads first. The steel-man
- * argument and its obligations ARE that chronology, so an agent maintains
- * them there, edit-in-place, on every fresh steel-man.
- *
- * @param steel The parsed steel-man contract (purpose + obligations).
- * @returns Markdown for the section body (markers are added by the caller).
- */
-export function buildContractBodySection(steel: SteelManContract): string {
-  return [
-    '---',
-    '## Contract (steel-manned by pd-purser)',
-    `**Purpose:** ${steel.purpose}`,
-    `**Obligations — the interpretation this PR is held to:**\n${renderObligations(steel)}`,
-    '_Maintained by pd-purser, edit-in-place on each fresh steel-man. Dispute an ' +
-      'obligation on the purser’s review thread, with reasons — do not delete this section._',
-  ].join('\n\n');
-}
-
 function renderSandboxSection(sandbox: SandboxRunOutcome): string {
   if (!sandbox.executed) {
     return (
@@ -1397,6 +1388,7 @@ async function rerunExistingTests(
   testPr: { number: number; url: string },
   reason: string,
   runId: string,
+  providerAttempt: number,
   verifiedExecutability?: ExecutabilityResult,
   assertCurrentHead: PullRequestHeadGuard = async () => {},
   reviewCoverage: Pick<ShipResult, 'reviewCoverage' | 'reviewCoverageReason'> = {},
@@ -1426,8 +1418,9 @@ async function rerunExistingTests(
       `**Re-run stopped — the existing Purser tests are not executable by this repository's trusted runner.**\n\n` +
         `The tests in #${testPr.number} (${testPr.url}) were not run and are not evidence that this PR violates its contract. ` +
         `Purser machinery failed closed before the sandbox: ${executability.reason}\n\n` +
-        `Repair or close the test PR, then re-run Fleet. The implementation PR must not be blamed for a contract file the runner cannot load.`,
+      `Repair or close the test PR, then re-run Fleet. The implementation PR must not be blamed for a contract file the runner cannot load.`,
       token,
+      env.GITHUB_APP_ID,
       assertCurrentHead,
     );
     return {
@@ -1493,6 +1486,7 @@ async function rerunExistingTests(
     ship.role,
     body,
     token,
+    env.GITHUB_APP_ID,
     assertCurrentHead,
   );
 
@@ -1511,7 +1505,20 @@ async function rerunExistingTests(
   const blocking = sandbox.executed || ship.blockWithoutSandbox
     ? ship.blocking
     : false;
-  return { ship: ship.name, blocking, verdict, errored: false, findings: [], ...reviewCoverage };
+  return {
+    ship: ship.name,
+    blocking,
+    verdict,
+    errored: false,
+    findings: [],
+    ...reviewCoverage,
+    checkpointExecutionReceipt: await currentPurserSandboxReceipt(
+      runId,
+      providerAttempt,
+      files,
+      sandbox,
+    ),
+  };
 }
 
 /**
@@ -1730,6 +1737,7 @@ export async function runPurser(
         reused.testPr,
         rerunNote ?? '',
         runId,
+        providerAttempt,
         verifiedReuse,
         assertCurrentHead,
         purserReviewCoverage(
@@ -1837,39 +1845,11 @@ export async function runPurser(
         purpose: steel.purpose,
         obligationCount: steel.obligations.length,
         // The full obligations text, not just its count — this is the actual
-        // contract the PR is held to (posted verbatim into the PR body by
-        // upsertPrBodySection below); the run page renders it so the operator
-        // never has to open the PR to read what "steel-manned" concluded.
+        // contract the PR is held to. The run page and Purser's bot-owned
+        // review comment render it without mutating the human-owned PR body.
         obligations: steel.obligations,
         testTargets: steel.testTargets,
       },
-    );
-
-    // --- a.5 THE CONTRACT GOES INTO THE PR SUMMARY --------------------------
-    // Operator mandate (2026-08-19): the steel-man argument and its obligations
-    // are the best chronology of what a PR should be, and that chronology
-    // belongs in the PR's own body — the summary every reader and every gate
-    // reads first — not only in a comment that scrolls away. Edit-in-place
-    // between HTML markers; the author's own prose is never touched. The
-    // outcome is recorded either way so a missed write is loud, not silent.
-    await assertCurrentHead(`before pd-${ship.name} PR contract summary mutation`);
-    const summaryPosted = await upsertPrBodySection(
-      prCtx.owner,
-      prCtx.repo,
-      prCtx.prNumber,
-      PURSER_CONTRACT_START,
-      PURSER_CONTRACT_END,
-      buildContractBodySection(steel),
-      token,
-      assertCurrentHead,
-    );
-    await transcript.step(
-      'purser-contract-posted',
-      ship.name,
-      summaryPosted
-        ? `pd-${ship.name}: steel-man contract (${steel.obligations.length} obligation(s)) written into the PR summary`
-        : `pd-${ship.name}: FAILED to write the steel-man contract into the PR summary`,
-      { posted: summaryPosted, obligationCount: steel.obligations.length },
     );
 
     // --- b. PLAN TESTS ------------------------------------------------------
@@ -2627,6 +2607,7 @@ export async function runPurser(
           retargetSkipReason: null,
         }),
         token,
+        env.GITHUB_APP_ID,
         assertCurrentHead,
       );
       // Never fabricate a sandbox result for tests that structurally could not
@@ -2815,6 +2796,7 @@ export async function runPurser(
         retargetSkipReason,
       }),
       token,
+      env.GITHUB_APP_ID,
       assertCurrentHead,
     );
 
@@ -2887,9 +2869,18 @@ export async function runPurser(
       errored: false,
       findings: [],
       ...currentReviewCoverage(),
+      checkpointExecutionReceipt: await currentPurserSandboxReceipt(
+        runId,
+        providerAttempt,
+        files,
+        sandbox,
+      ),
     };
   } catch (err) {
-    if (err instanceof PullRequestHeadValidationError) throw err;
+    if (
+      err instanceof PullRequestHeadValidationError ||
+      err instanceof ShipCommentPublicationError
+    ) throw err;
     if (err instanceof ContextAdmissionError) {
       const admission = err.admission;
       const failureReason = `context admission rejected before model dispatch: ${
