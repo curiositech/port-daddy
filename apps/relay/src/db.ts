@@ -490,7 +490,7 @@ export async function finalizeFleetRun(
   ).bind(conclusion, ms, neurons ?? null, id).run();
 }
 
-/** Append one immutable transcript step. PK (run_id, seq) dedupes retries. */
+/** Write one retry-replaceable transcript telemetry step. PK (run_id, seq) dedupes retries. */
 export async function insertFleetRunStep(
   db: D1Database,
   step: {
@@ -2138,8 +2138,10 @@ export async function setMediatorKilled(
 
 /**
  * KV key carrying a gate's Modify free text to the losing agent's next
- * re-execution. Written by the relay when a human renders 'Modify'; read AND
- * DELETED by the executor at the start of that PR's next run (consume-once).
+ * re-execution. Written by the relay when a human renders 'Modify'; peeked by
+ * the executor and acknowledged after terminal success with a durable,
+ * per-parley acknowledgement key. The pointer is not deleted, so acknowledging
+ * an older order cannot erase a newer one that raced onto the same PR.
  * The control-plane KV is already the one namespace both workers share
  * (fleet:paused rides it), so no new auth surface is invented for this.
  */
