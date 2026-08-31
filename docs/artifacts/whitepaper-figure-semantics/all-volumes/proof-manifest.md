@@ -8,16 +8,16 @@ these artifacts were committed.
 
 | Artifact | Pages | Bytes | SHA-256 |
 |---|---:|---:|---|
-| `website-v2/public/whitepaper/legible-swarm-whitepaper.pdf` | 48 | 926710 | `0f200e575f5624b8826a11c4170bf18bf1e591e1d54710b264b62dfdffb42636` |
-| `website-v2/public/whitepaper/single-writer-kernel-whitepaper.pdf` | 40 | 802166 | `d9b133dbfec97e19c00978c6bc6c5f923c62321f828d3c80e923133e0a6dbfee` |
-| `website-v2/public/whitepaper/spawn-to-person-whitepaper.pdf` | 41 | 719853 | `2961ca6ec3533f9e8ad80e251d414e3fafa76186ab65f7b600582e76b92e35ad` |
-| `website-v2/public/whitepaper/harbor-economy-whitepaper.pdf` | 37 | 793151 | `9b7b81a945954d6b55ac869c59c0bc579480ab59c7377222d999b9be113171b8` |
-| `website-v2/public/whitepaper/anchor-protocol-whitepaper.pdf` | 28 | 763770 | `44e0d08b1b80557d89c53e5f0a34c79d3a73930b0c41c806440403785172d9f9` |
-| `website-v2/public/whitepaper/agent-transactions-whitepaper.pdf` | 52 | 904779 | `dbd1ddaaa4665aa2c28701aab07082271a188eb0e0631a7dd658950c1db5cb6d` |
-| `website-v2/public/whitepaper/federated-harbor-whitepaper.pdf` | 32 | 775302 | `ba7f29dfd1946a4f1bdc4a38720985e01562c495a0b6fc5579dd6a2fad7c2ba9` |
-| `website-v2/public/whitepaper/coordination-papers-mega-volume.pdf` | 278 | 32425465 | `f16ac8d6f0c2e2eb3b9a5c3dda8ceb75f93a2acee7201f7ab2f624a39b4f0efc` |
+| `website-v2/public/whitepaper/legible-swarm-whitepaper.pdf` | 46 | 911630 | `bb5704b0b2acf5f9e6015a130b1578e9c14b2cc6dd6ebe27fffe45fabcd9e639` |
+| `website-v2/public/whitepaper/single-writer-kernel-whitepaper.pdf` | 40 | 735369 | `2ec6d1ae929e01880320d9d255f887d8635c4b27eb14a965d0d57057f732323c` |
+| `website-v2/public/whitepaper/spawn-to-person-whitepaper.pdf` | 41 | 767610 | `ae9d319d140e22e0e309eb04ea6ed399c066f0ba128b7aee2031ffb2c735ee7e` |
+| `website-v2/public/whitepaper/harbor-economy-whitepaper.pdf` | 37 | 740846 | `5c70098c49051b2a89fa632f4ddada76288603b7c705a7bfd0406a980af98816` |
+| `website-v2/public/whitepaper/anchor-protocol-whitepaper.pdf` | 28 | 713588 | `cfd4f6dd55f1868e9f8a13c4d9039994bc5f6e554af52fc4ee163e91d57712c1` |
+| `website-v2/public/whitepaper/agent-transactions-whitepaper.pdf` | 52 | 930338 | `0d52188306583518abf8b7755142b2df53f3f664152ec9305947c5fee3b12960` |
+| `website-v2/public/whitepaper/federated-harbor-whitepaper.pdf` | 31 | 689269 | `cae3b19ca9bb961bf54bf1aa228d58a1d7a434729d97e7d437e7a86bef01c247` |
+| `website-v2/public/whitepaper/coordination-papers-mega-volume.pdf` | 270 | 2244412 | `7886660dc50cd23a206cda020ad219d51008cbe999d1e23f178eb979c2cd1b92` |
 | `docs/artifacts/whitepaper-figure-semantics/all-volumes/all-seven-volumes-color-contact-sheet.png` | — | — | `e74fad8acce50400e536f8a81120643b48ff1589d8d1e3ff3da479a3b45768f6` |
 | `docs/artifacts/whitepaper-figure-semantics/all-volumes/all-seven-volumes-color-tour.gif` | 7 frames | — | `fd6021b6dffaf8670550b075bbd81bd1af555070aa353b4c90316393ac61f12f` |
 
-The review used color output only. Supplied cover and chapter art were neither
-cropped nor altered.
+The review used color output only. The collected edition no longer renders the
+jacket, chapter plates, or coda art; the source assets remain unmodified.
