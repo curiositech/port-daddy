@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { createHash } from 'node:crypto';
+import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -96,6 +97,14 @@ const mirrorPairs = [
   [corpus.collectedVolume.published, corpus.collectedVolume.publicPath],
   ...corpus.researchPublications.map((publication) => [publication.source, publication.publicPath]),
 ];
+const mirrorRepoPaths = mirrorPairs.map(([, publicPath]) => `website-v2/public/${publicPath.replace(/^\//u, '')}`);
+const trackedMirrors = execFileSync('git', ['ls-files', '--', ...mirrorRepoPaths], {
+  cwd: repoRoot,
+  encoding: 'utf8',
+}).trim().split('\n').filter(Boolean);
+if (trackedMirrors.length > 0) {
+  failures.push(`generated deployment mirrors are tracked: ${trackedMirrors.join(', ')}`);
+}
 for (const [source, publicPath] of mirrorPairs) {
   const sourcePath = resolve(repoRoot, source);
   const mirrorPath = resolve(repoRoot, 'website-v2/public', publicPath.replace(/^\//u, ''));

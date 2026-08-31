@@ -36,6 +36,20 @@ describe('canonical whitepaper corpus', () => {
     }
   });
 
+  test('generated website PDF mirrors are absent from the Git index', () => {
+    const tracked = execFileSync('git', [
+      'ls-files',
+      '--',
+      'website-v2/public/whitepaper/*.pdf',
+      'website-v2/public/research/*.pdf',
+    ], {
+      cwd: repoRoot,
+      encoding: 'utf8',
+    }).trim();
+
+    expect(tracked).toBe('');
+  });
+
   test('external review dependencies are explicit rather than silently missing', () => {
     expect(corpus.externalInputs).toEqual(expect.arrayContaining([
       expect.objectContaining({ name: 'GeminiFeedback.pdf', status: 'not-present' }),
