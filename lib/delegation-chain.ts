@@ -1,7 +1,7 @@
 /**
  * Multi-hop Delegation Chain Walker
  *
- * Spec: proofs/anchor/delegation/chain-replay.pv (§3)
+ * Spec: whitepaper/formal/proverif/anchor/delegation/chain-replay.pv (§3)
  *
  * Each hop signs hopBind(nonce, prev_id, next_id, message_hash).
  * The walker verifies depth-N chains with nonce-freshness tracking,

@@ -32,7 +32,7 @@
  * (index, leaf) openings that verify against `root` are the original
  * (index, leaves[index]) pairs. See:
  *   - tests/unit/merkle-binding-property.test.js (fast-check empirical)
- *   - proofs/bonded/merkle/binding.md (game-based spec for EasyCrypt)
+ *   - whitepaper/formal/easycrypt/bonded-merkle/binding.md (game-based spec for EasyCrypt)
  */
 
 import { createHash } from 'node:crypto';

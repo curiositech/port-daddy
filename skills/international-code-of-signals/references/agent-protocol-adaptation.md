@@ -121,6 +121,6 @@ flowchart TD
 ## Anti-Pattern: Chat as Protocol
 
 **Novice**: lets agents coordinate in free prose because "LLMs understand language" — the vocabulary method, reinvented.
-**Expert**: free text between agents has unbounded parse space; under truncation, summarization, or model swap, meaning silently shifts. ICOS's complete-meaning registry is the correct default for anything load-bearing (claims, halts, escalations); prose belongs only inside a `YZ`-style clearly-bracketed plain-language field.
+**Expert**: free text between agents has unbounded parse space; under truncation, summarization, or model swap, meaning silently shifts. ICOS's complete-meaning registry is the correct default for anything critical (claims, halts, escalations); prose belongs only inside a `YZ`-style clearly-bracketed plain-language field.
 **LLM mistake**: models over-trust their own NL robustness and under-price cross-model drift; two different models reading the same prose coordinate worse than two reading the same enum.
-**Detection**: grep the coordination path for load-bearing decisions parsed out of unstructured message bodies.
+**Detection**: grep the coordination path for critical decisions parsed out of unstructured message bodies.

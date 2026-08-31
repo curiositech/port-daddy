@@ -1,7 +1,7 @@
 # Beautiful GUI Design
 
 Treat the screen as a designed surface, not a dump of controls: hierarchy, color, type,
-motion, and accessibility are load-bearing, and every choice must survive light/dark mode,
+motion, and accessibility are critical, and every choice must survive light/dark mode,
 small and large viewports, keyboard and screen-reader use, and the platform it ships on.
 
 Use this skill when designing or reviewing a web app, desktop GUI (Electron/Tauri), or

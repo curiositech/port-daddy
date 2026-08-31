@@ -72,7 +72,7 @@ pub fn read_key(key: &str) -> Result<String, StoreError> {
 // ===== APPLICATION side: erase to one error type + add context ====================
 //
 // With anyhow this is `anyhow::Result<T>` and `.context(...)`. We model the two
-// load-bearing properties — (1) any std::error::Error converts in, (2) context
+// critical properties — (1) any std::error::Error converts in, (2) context
 // wraps with a source chain — using a tiny stand-in so the file is dependency-free.
 
 #[derive(Debug)]

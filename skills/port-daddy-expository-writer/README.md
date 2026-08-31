@@ -22,7 +22,7 @@ The first artifact this skill is built to support: a `docs/concepts/` page that 
 ## Quick orientation
 
 1. Read `SKILL.md` end to end. The seven tells, the pedagogical moves, and the quality gates live there.
-2. Re-read `/Users/erichowens/.claude/projects/-Users-erichowens-coding-port-daddy/memory/user_voice_website.md`. It is the canonical voice source; this skill *points at it*, doesn't replace it.
+2. Re-read `references/voice-references.md`. It is the portable, reviewed voice source bundled with this skill.
 3. Skim `examples/worked-rewrite.md` for the calibration register.
 4. Skim `references/verifier-cheat-sheet.md` for the one-liner you'll need on each tool.
 5. Pull from `examples/analogy-bank.md` when a section needs a handhold; reach into `references/analogy-toolkit.md` for variants and provenance.
@@ -57,7 +57,8 @@ pd done "expository piece on <topic>"
 
 ## Hard rules (carried over from operator instructions)
 
-- The voice rules link to `user_voice_website.md`, they do not duplicate it.
+- The voice rules are bundled in `references/voice-references.md`; no private
+  machine path is required.
 - The worked-rewrite example uses a real paragraph from `agent-transactions-whitepaper.tex`, not an invented one.
 - The skill does not specialize toward blog posts (that's marketing-copy's job).
 - The skill does not pick a medium (HTML vs MDX vs LaTeX) — the calling agent does.

@@ -57,4 +57,32 @@ describe('canonical whitepaper corpus', () => {
       expect.objectContaining({ name: 'port_daddy_feedback_analysis_v2.pdf', status: 'not-present' }),
     ]));
   });
+
+  test('formal evidence and research-program provenance are first-class', () => {
+    expect(corpus.formalArtifacts).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: 'harbor-card-proverif', authority: 'corpus' }),
+      expect.objectContaining({ id: 'relay-proverif', authority: 'product-runtime' }),
+      expect.objectContaining({ id: 'bonded-merkle-easycrypt', status: 'partial' }),
+      expect.objectContaining({ id: 'harbor-card-kani', method: 'Kani' }),
+    ]));
+    expect(corpus.researchProgramArtifacts).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: 'pareto-simulations', status: 'current' }),
+      expect.objectContaining({ id: 'north-star-program-archive', status: 'historical' }),
+    ]));
+    expect(corpus.skillSatellites).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: 'falsification-first', classification: 'A-general-method', authority: 'methodology' }),
+      expect.objectContaining({ id: 'harbor-exposition', classification: 'A-general-method', authority: 'methodology' }),
+      expect.objectContaining({ id: 'harbor-results', classification: 'B-corpus-adapter', authority: 'result-adapter' }),
+      expect.objectContaining({ id: 'whitepaper-figure-system', classification: 'A-general-method' }),
+      expect.objectContaining({ id: 'tikz-figure-engineering', classification: 'A-general-method' }),
+      expect.objectContaining({ id: 'federated-harbor-author', classification: 'B-corpus-adapter' }),
+      expect.objectContaining({ id: 'federated-harbor-redteam', classification: 'B-corpus-adapter' }),
+      expect.objectContaining({ id: 'federated-harbor-whitehat', classification: 'B-corpus-adapter' }),
+      expect.objectContaining({ id: 'port-daddy-expository-writer', classification: 'C-product' }),
+    ]));
+    for (const satellite of corpus.skillSatellites) {
+      expect(satellite.currentness.stalePaths).toEqual([]);
+      expect(satellite.contracts.entrypoint).toBe('SKILL.md');
+    }
+  });
 });

@@ -84,7 +84,7 @@ that keeps a memory stream but loses its outcome ledger is connected, not contin
    bind it to a credential the agent cannot cheaply re-pick (signing key /
    body-lease). Self-asserted strings become *display aliases only*.
 
-2. **Does continuity actually persist the load-bearing state?** Distinguish three
+2. **Does continuity actually persist the critical state?** Distinguish three
    things people conflate: (a) **memory** (episodic record of what happened),
    (b) **checkpoint** (restorable execution/belief state), (c) **outcome ledger**
    (append-only, externally-witnessed record of what was *delivered*). Reputation

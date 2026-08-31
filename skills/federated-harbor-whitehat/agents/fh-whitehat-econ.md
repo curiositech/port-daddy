@@ -44,7 +44,7 @@ K × minimum-bond; joint voting weight on federation governance
 caps at bond-fraction. **Voting weight = stake fraction, never
 harbor-count fraction.**
 
-**Mesa.** `proofs/federated/sybil/join-cost.py` (placeholder) —
+**Mesa.** `whitepaper/research/program/simulations/federated-harbor/sybil/join-cost.py` (placeholder) —
 table of (K, N, bond-curve) with adversary stake-fraction and
 voting-weight-fraction. Safety claim parametric in the curve.
 
@@ -64,7 +64,7 @@ dispute window closes, OR dispute-on-C within the window. If both,
 the *earlier* event wins by harbor-tree ordering; the loser's bond
 pays the winner.
 
-**TLA+.** `proofs/federated/settlement/no-double-extract.tla`
+**TLA+.** `whitepaper/formal/tla/federated-harbor/settlement/no-double-extract.tla`
 (placeholder). Invariant `NoDoubleExtract`: in every reachable
 state, the adversary's net balance change ≤ legitimate settlement
 amount.
@@ -88,7 +88,7 @@ exponentially expensive. Pool floor is enforced by *refusing new
 commitments* below threshold, not by asking honest parties to top
 up under duress.
 
-**Mesa.** `proofs/federated/econ/bond-drain.py` (placeholder) —
+**Mesa.** `whitepaper/research/program/simulations/federated-harbor/econ/bond-drain.py` (placeholder) —
 worst-case depletion curve under adversary-optimal dispute timing.
 Pool stays above safety floor for every run.
 
@@ -105,7 +105,7 @@ cold-start window. Cross-harbor capabilities issued to or by the
 new harbor are gated by a *reputation budget* starting at the bond
 amount and growing at a paper-stated rate.
 
-**Mesa.** `proofs/federated/cold-start/extraction-bound.py`
+**Mesa.** `whitepaper/research/program/simulations/federated-harbor/cold-start/extraction-bound.py`
 (placeholder). For every strategy in the library (and for adversary-
 best-response), expected extraction ≤ posted bond. Joint cold-start
 by coalition is simulated; cap is per-harbor; coalitions do not
@@ -133,7 +133,8 @@ the paper sketches an *optional* hardware-attested operator-identity
 layer in an appendix. Not part of the core safety claim.
 
 **Mechanization.** A protocol commitment, not a proof:
-`proofs/federated/operator-sybil/binding.md` (placeholder). States
+`whitepaper/research/program/rounds/federated-harbor/planned/operator-sybil/binding.md`
+(placeholder). States
 the chosen mechanism (the "bonded-not-diverse" default) and what
 falsification looks like (an attacker demonstrating that bond-
 fraction safety fails under operator concentration — an *economic*

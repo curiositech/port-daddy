@@ -3,9 +3,9 @@
 Render Monte Carlo result figures for the Bonded Commons / Anchor whitepapers.
 
 Reads:
-  proofs/bonded/pareto/simulation.run.log          (A0 baseline)
-  proofs/bonded/pareto/simulation-sybil.run.log    (A5)
-  proofs/bonded/pareto/simulation-cartel.run.log   (A6)
+  whitepaper/research/program/simulations/pareto/simulation.run.log          (A0 baseline)
+  whitepaper/research/program/simulations/pareto/simulation-sybil.run.log    (A5)
+  whitepaper/research/program/simulations/pareto/simulation-cartel.run.log   (A6)
 
 Writes:
   whitepaper/source/figures/fig-pareto-dominance.pdf
@@ -36,7 +36,7 @@ import numpy as np
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[3]
-LOGS = REPO / "proofs" / "bonded" / "pareto"
+LOGS = REPO / "whitepaper" / "research" / "program" / "simulations" / "pareto"
 
 # ── palette ─────────────────────────────────────────────────────────────
 SAND = "#E9DCC4"

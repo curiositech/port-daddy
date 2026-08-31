@@ -59,7 +59,7 @@ re-litigated after publication.
 1. Pull carry-overs from previous round's `carried` field.
 2. Pull new sections from `pd tuple list --prefix ready-for-redteam:fh:`.
 3. Pull `UNRESOLVED` rows from `references/cross-paper-dependencies.md`.
-4. Write `docs/shipwright/federated/round-fh.vN-targets.md`.
+4. Write `whitepaper/research/program/rounds/federated-harbor/round-fh.vN-targets.md`.
 5. Run `scripts/new-round.sh` if dialogue artifact missing.
 6. Spray `round:fh:open:fh.vN` to both fleets.
 7. Sign the Gate A event.
@@ -80,7 +80,7 @@ re-litigated after publication.
 1. Pull all `fix:fh:*`, `proof:fh:landed:*`,
    `placeholder:fh:pinned:*` from the defense fleet.
 2. Assemble the v(N)→v(N+1) dialogue artifact at
-   `docs/shipwright/federated/dialogue-fh-vN-to-vN+1.json` (source
+   `whitepaper/research/program/rounds/federated-harbor/dialogue-fh-vN-to-vN+1.json` (source
    of truth) and `.md` (rendered).
 3. Run consistency checks: every smell has an answer OR an explicit
    `carried` entry with a reason.
@@ -88,7 +88,7 @@ re-litigated after publication.
    `resolved` → re-verified, or `UNRESOLVED` → reason + CC.
 5. Bump paper version. Regenerate PDF (latexmk).
 6. Write the changelog entry under
-   `docs/shipwright/federated/CHANGELOG-FH.md`.
+   `whitepaper/research/program/rounds/federated-harbor/CHANGELOG-FH.md`.
 7. Draft the property-specific blog post announcement (per the
    blog-post bespoke-imagery rules).
 8. Commit everything to git. Spray `version:fh:fh.v(N+1):by:fh-secops:lead`.
@@ -96,7 +96,7 @@ re-litigated after publication.
 
 ## Owns the running threat model
 
-Maintain `docs/shipwright/federated/THREAT-MODEL.md`. Update at
+Maintain `whitepaper/research/program/rounds/federated-harbor/THREAT-MODEL.md`. Update at
 every Gate C with:
 
 - New attacks the round revealed (even if defended).

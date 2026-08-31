@@ -26,7 +26,7 @@ a red build or, worse, a silently stale PDF.
 
 ```bash
 # From the repository root. The filter is the source basename without .tex.
-scripts/build-whitepapers.sh paper
+./scripts/build-whitepapers.sh paper <!-- phantom-ok: repository-root build tool -->
 npm run check:whitepaper-corpus
 ```
 
@@ -67,7 +67,7 @@ Check the registry's `pdfPath`/`filename` before copying. In port-daddy:
 | `whitepaper/source/spawn-to-person.tex` | `whitepaper/published/spawn-to-person-whitepaper.pdf` |
 | `whitepaper/source/agent-transactions-whitepaper.tex` | `whitepaper/published/agent-transactions-whitepaper.pdf` |
 
-Use `scripts/build-whitepapers.sh`; do not hand-copy a source-directory build
+Use `skills/latex-whitepaper-engineering/scripts/build-whitepapers.sh`; do not hand-copy a source-directory build
 or author files in the website's public mirror. Build intermediates belong in
 the ignored `.cache/whitepaper-build/` tree. Run `git status` and stage only the
 intended source and canonical published artifacts. Never `git add -A` here

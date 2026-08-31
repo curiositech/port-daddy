@@ -97,7 +97,7 @@ Full profiles for the 24 personas indexed in `SKILL.md`. Each profile has the sa
 - **Goals**: Confidence the tool won't be a liability: no unreviewed shell execution, no silent network calls, clear data handling.
 - **Friction tolerance**: Low for vague answers, high for genuine depth — will happily spend hours reading source if the source rewards the effort.
 - **Wow moment**: Finding a genuinely well-thought-out security boundary (e.g., a documented sandbox/seatbelt profile) that answers her concerns before she has to ask.
-- **Dealbreakers**: Any claim in the docs that the code doesn't actually back up. A "coming soon" security feature that's load-bearing today.
+- **Dealbreakers**: Any claim in the docs that the code doesn't actually back up. A "coming soon" security feature that's critical today.
 - **Voice**: "I don't care how good the demo looks. Show me the sandbox boundary."
 
 ### 8. Tomás Herrera
@@ -306,7 +306,7 @@ Full profiles for the 24 personas indexed in `SKILL.md`. Each profile has the sa
 - **Trigger moment**: Deliberately sought out to stress-test a claim, a page, or a piece of messaging — not a naturally occurring visitor, but a persona to invoke specifically when something needs adversarial pressure.
 - **Technical depth**: Very deep, and specifically deep in "how tools like this usually fail" — over-promised roadmaps, solo-maintainer bus factor, dependency rot, abandoned CLIs.
 - **Goals**: Actively looking for the reason to dismiss this as "another one of those." Not hostile for its own sake — genuinely trying to find the crack, because he's been burned before.
-- **Friction tolerance**: Zero tolerance for anything that resembles a pattern he's seen fail before (vague roadmap promises, "coming soon" load-bearing features, hype language disconnected from working code).
+- **Friction tolerance**: Zero tolerance for anything that resembles a pattern he's seen fail before (vague roadmap promises, "coming soon" critical features, hype language disconnected from working code).
 - **Wow moment**: Finding evidence that specifically defuses his usual objections — real tests, an honest changelog, an admission of what's not built yet instead of glossing over it.
 - **Dealbreakers**: Any claim that reads as aspirational-presented-as-current. Grandiosity without proof. A single dead link or broken install step confirms his prior.
 - **Voice**: "I've seen this exact pitch before. What's different this time, specifically?"

@@ -20,7 +20,7 @@ FROM="$1"
 TO="$2"
 TODAY="$(date -u +%Y-%m-%d)"
 REPO_ROOT="$(git rev-parse --show-toplevel)"
-OUTDIR="$REPO_ROOT/docs/shipwright/federated"
+OUTDIR="$REPO_ROOT/whitepaper/research/program/rounds/federated-harbor"
 mkdir -p "$OUTDIR"
 
 JSON="$OUTDIR/dialogue-fh-$FROM-to-$TO.json"
@@ -65,15 +65,15 @@ cat > "$TARGETS" <<EOF
 
 | Class | Section(s)        | Persona                  | Artifact(s) targeted (see references/mechanization-targets.md)     |
 |-------|-------------------|--------------------------|--------------------------------------------------------------------|
-| 1     | §fh-3, §fh-5      | fh-whitehat-trust        | proofs/federated/trust/non-transitive-pact.pv                       |
-| 2     | §fh-3             | fh-whitehat-tokens       | proofs/federated/tokens/cross-harbor-issuance.pv                    |
-| 3     | §fh-7             | fh-whitehat-revocation   | proofs/federated/revocation/propagation.tla                         |
-| 4     | §fh-4 (Sybil sub) | fh-whitehat-econ         | proofs/federated/sybil/join-cost.py                                 |
-| 5     | §fh-6             | fh-whitehat-econ         | proofs/federated/settlement/no-double-extract.tla                   |
-| 6     | §fh-4             | fh-whitehat-tokens       | proofs/federated/equivocation/witness-cross-check.pv                 |
-| 7     | §fh-7             | fh-whitehat-econ         | proofs/federated/econ/bond-drain.py                                  |
-| 8     | §fh-8             | fh-whitehat-econ         | proofs/federated/cold-start/extraction-bound.py                     |
-| 9     | §fh-8             | fh-whitehat-econ         | proofs/federated/operator-sybil/binding.md                          |
+| 1     | §fh-3, §fh-5      | fh-whitehat-trust        | whitepaper/formal/proverif/federated-harbor/trust/non-transitive-pact.pv                       |
+| 2     | §fh-3             | fh-whitehat-tokens       | whitepaper/formal/proverif/federated-harbor/tokens/cross-harbor-issuance.pv                    |
+| 3     | §fh-7             | fh-whitehat-revocation   | whitepaper/formal/tla/federated-harbor/revocation/propagation.tla                         |
+| 4     | §fh-4 (Sybil sub) | fh-whitehat-econ         | whitepaper/research/program/simulations/federated-harbor/sybil/join-cost.py                                 |
+| 5     | §fh-6             | fh-whitehat-econ         | whitepaper/formal/tla/federated-harbor/settlement/no-double-extract.tla                   |
+| 6     | §fh-4             | fh-whitehat-tokens       | whitepaper/formal/proverif/federated-harbor/equivocation/witness-cross-check.pv                 |
+| 7     | §fh-7             | fh-whitehat-econ         | whitepaper/research/program/simulations/federated-harbor/econ/bond-drain.py                                  |
+| 8     | §fh-8             | fh-whitehat-econ         | whitepaper/research/program/simulations/federated-harbor/cold-start/extraction-bound.py                     |
+| 9     | §fh-8             | fh-whitehat-econ         | whitepaper/research/program/rounds/federated-harbor/planned/operator-sybil/binding.md |
 
 ## Smells delivered at Gate B
 
@@ -86,7 +86,7 @@ and a per-class delivery to each defender's inbox.)
 
 ## Placeholders to pin this round
 
-(Populated from \`docs/shipwright/federated/dialogue-fh-$FROM-*.json\`
+(Populated from \`whitepaper/research/program/rounds/federated-harbor/dialogue-fh-$FROM-*.json\`
 where placeholders survived one round of grace.)
 
 ## Cross-paper dependencies (UNRESOLVED)

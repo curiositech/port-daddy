@@ -268,7 +268,7 @@ possible --- exactly and only --- is to gate every controllable egress channel o
 moment of exposure. Gate the channel, never the token. Paper 4's companion noninterference result proves from the other
 direction that the gate suffices: observations outside the room are identical across secrets except at declared gate
 releases. Controllability says the gate is the only place a guarantee \emph{can} live; noninterference says a guarantee
-\emph{does} live there. This controllability boundary is thus the load-bearing assumption behind the clean-room ledger's
+\emph{does} live there. This controllability boundary is thus the critical assumption behind the clean-room ledger's
 claims elsewhere in the program: ``all spend is recorded'' is precisely complete mediation of $\Sigma_c$.
 
 \emph{Third, the special case that explains a folk theorem.} Product reviews of agent governance converged on the slogan ``a
@@ -428,7 +428,7 @@ shrinks the regimentable set behind the operator's back --- complete mediation o
 obligation (Anderson; Rushby) that a red-team, not this proof, discharges. (iii) The classification is relative to the
 alphabet split: a runtime that gates model steps (e.g.\ token-level filtering with the model inside the boundary) changes
 $\Sigma_u$ and re-grades the table --- the theorem is a functor from architectures to boundaries, not one fixed verdict. (iv)
-The full-observation assumption is load-bearing: policies whose triggers are unwitnessed internal state fall to the
+The full-observation assumption is critical: policies whose triggers are unwitnessed internal state fall to the
 Lin--Wonham refinement (\S\ref{sec:partial}) even when their prohibitions are controllable. Items~(iii) and~(iv) are the two
 axes of Figure~\ref{fig:quadrant}: (iii) is the horizontal move, (iv) the vertical one, and a policy must make both trips to
 become preventable. (v) The checker verifies the

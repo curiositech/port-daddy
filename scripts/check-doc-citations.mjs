@@ -41,7 +41,7 @@ const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 // they are not file citations, and judging them is a human task.
 const TOP_DIRS = [
   'lib', 'routes', 'cli', 'core', 'apps', 'scripts', 'tests', 'shared', 'bin',
-  'docs', 'skills', 'website-v2', 'mcp', 'fleet', 'public', 'dashboard',
+  'docs', 'skills', 'whitepaper', 'website-v2', 'mcp', 'fleet', 'public', 'dashboard',
   'analyses', 'proofs', 'fleet-config-ui',
 ]
 // Excludes tokens containing `*` (globs) or `<`/`>` (template placeholders like

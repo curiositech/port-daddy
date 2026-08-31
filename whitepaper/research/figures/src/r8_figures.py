@@ -138,7 +138,7 @@ def figure_r8_regime():
 
     # Annotation box in seagreen
     annotation_text = ("all 536 reachable states satisfy all six invariants;\n"
-                      "every guard proven load-bearing by mutation\n"
+                      "every guard proven necessary by mutation\n"
                       "[internal, c0_workunit.py]")
 
     props = dict(boxstyle='round', facecolor=SEAGREEN, alpha=0.2, edgecolor=SEAGREEN, linewidth=1.5)

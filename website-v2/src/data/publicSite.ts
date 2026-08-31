@@ -57,7 +57,7 @@ export const proofPanels: ProofPanel[] = [
     id: '01',
     tool: 'ProVerif',
     subtitle: 'Protocol analysis',
-    command: 'proverif analyses/harbor_card_v3_delegation.pv',
+    command: 'proverif whitepaper/formal/proverif/harbor-card/harbor_card_v3_delegation.pv',
     output: [
       'Unbounded-session symbolic analysis',
       'Injective agreement checked',

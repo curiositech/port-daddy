@@ -14,7 +14,7 @@
 
 1. **The Science/Art Divide**: Every complex skilled task has two layers — the *science* (explicit procedures, physics, rules) and the *art* (perceptual judgment, timing, situational feel). Training systems that only teach the science produce novices who "parrot" orders but cannot handle novel situations. GOMS captures the science layer. Critical Cue Inventories are required to capture the art layer. Agent systems that decompose tasks into only explicit sub-goals are making the same mistake as SWOS without its YP boats.
 
-2. **Perceptual Cues Are Load-Bearing Structure**: Expert performance is not primarily mediated by conscious reasoning. When an expert ship-handler is asked *how* he knows the stern is safe to swing, he says "I just know when it is." The real decision-triggering mechanism is a curated inventory of perceptual signals — wake patterns around pier pilings, tension in mooring lines, the sound of EOT bells, smoke from the stack, relative motion of a fixed point on the pier. These cues are not decorative; they are the actual inputs to the decision function. Any simulation (or agent) that lacks fidelity on these signals is training the wrong skill.
+2. **Perceptual Cues Are Critical Structure**: Expert performance is not primarily mediated by conscious reasoning. When an expert ship-handler is asked *how* he knows the stern is safe to swing, he says "I just know when it is." The real decision-triggering mechanism is a curated inventory of perceptual signals — wake patterns around pier pilings, tension in mooring lines, the sound of EOT bells, smoke from the stack, relative motion of a fixed point on the pier. These cues are not decorative; they are the actual inputs to the decision function. Any simulation (or agent) that lacks fidelity on these signals is training the wrong skill.
 
 3. **Hierarchical Goal Decomposition with Selection Rules**: The GOMS framework reveals that expert task execution is not a flat checklist — it is a hierarchy of goals, where each level has its own selection rules based on situational context. The conning officer doesn't just "stop the ship" — he selects between backing bell on outboard screw vs. both screws based on the amount of headway, which itself is assessed via multiple redundant perceptual channels. This nested conditional structure is directly isomorphic to agent orchestration trees.
 
@@ -419,7 +419,7 @@ The expert used the buoy wake cue *every time*. But when asked "how do you get u
 
 This is a general property of expertise: the most reliable cues are the most invisible. Initial knowledge elicitation will systematically miss them. Probe questioning ("how did you know X?", "what did you notice just before you did Y?") and validation against multiple experts are required to surface them.
 
-For agent system development: capability documentation built from a single expert's first-pass account will be systematically deficient in exactly the ways that matter most. The missing cues are the ones the expert uses *most reliably* — which means they are the load-bearing elements of the skill.
+For agent system development: capability documentation built from a single expert's first-pass account will be systematically deficient in exactly the ways that matter most. The missing cues are the ones the expert uses *most reliably* — which means they are the critical elements of the skill.
 
 ## CCI Structure for Agent Systems
 
@@ -623,7 +623,7 @@ The expert who built the initial model knew about tugboats. The model was not bu
 
 This reveals a systematic cognitive bias in single-expert knowledge elicitation: **experts naturally model the core of their domain and underspecify the supporting infrastructure**. The conning officer's expertise is ship-handling; tugs are external coordination. The expert thinks "I can explain how I drive the ship" and builds a model of ship-driving. The tug is something that *happens* in the environment; it's not something the expert cognitively owns.
 
-But in practice, the tug is not optional infrastructure. It is a load-bearing element of virtually every pier-side evolution.
+But in practice, the tug is not optional infrastructure. It is a critical element of virtually every pier-side evolution.
 
 ## The General Pattern
 

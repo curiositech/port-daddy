@@ -14,7 +14,7 @@
  *   - `seq`           — per-publisher MONOTONIC sequence
  *
  * The `seq` + `createReplayGuard()` is the OPERATIONAL closure of the replay
- * gap proven open in `analyses/relay_e2e_secrecy.pv` (PR #250): a stateless
+ * gap proven open in `apps/relay/formal/proverif/relay-e2e-secrecy/relay_e2e_secrecy.pv` (PR #250): a stateless
  * signed envelope let a malicious relay replay a valid message (injective
  * agreement failed). A per-publisher monotonic sequence lets the subscriber
  * reject stale/duplicate deliveries, which is the wire-format half of the

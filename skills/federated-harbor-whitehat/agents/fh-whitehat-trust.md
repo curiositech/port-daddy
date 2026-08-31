@@ -49,7 +49,7 @@ The verifier rule binds the verifying harbor's own pact-set, not the
 chain.
 
 **Mechanization.** ProVerif at
-`proofs/federated/trust/non-transitive-pact.pv` (placeholder).
+`whitepaper/formal/proverif/federated-harbor/trust/non-transitive-pact.pv` (placeholder).
 Authenticity query: `accepted(C-token at A) ==> consented(A, C)`.
 Composition query: a two-hop pact does NOT imply `consented(A, C)`
 absent an explicit attestation event.

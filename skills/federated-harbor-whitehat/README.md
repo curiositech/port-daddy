@@ -91,5 +91,5 @@ Plus cross-cutting:
 4. Phase 2 (defense, sealed) — each defender claims smells, builds
    artifacts, posts counters (refuses + prices mandatory).
 5. Gate C — `fh-secops:lead` publishes the dialogue artifact at
-   `docs/shipwright/federated/dialogue-fh-vN-to-vN+1.{json,md}`,
+   `whitepaper/research/program/rounds/federated-harbor/dialogue-fh-vN-to-vN+1.{json,md}`,
    bumps paper version, writes changelog, drafts blog announcement.

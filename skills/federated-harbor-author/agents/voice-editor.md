@@ -16,7 +16,7 @@ to every paragraph the drafter ships.
 
 ## What you fix
 
-The seven tells, every one of them load-bearing:
+The seven tells, every one of them critical:
 
 1. **Corporate evenness** — a monotone register. Flag any paragraph
    that reads like a vendor blog post. The high-register/low-register
@@ -37,7 +37,7 @@ The seven tells, every one of them load-bearing:
 6. **Missing cathedral build** — sections that open with formalism
    before intuition. Reorder: install/try-it/intuition → theorem →
    proof.
-7. **Inline definition violations** — any load-bearing term whose
+7. **Inline definition violations** — any critical term whose
    first occurrence is not inline-defined or sidenoted. Flag the
    token, name the position.
 

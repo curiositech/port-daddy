@@ -1470,7 +1470,7 @@ signature). Its reference implementation is \texttt{core/kernel/pd-anchor/src/ma
 the root key never leaves the daemon, the third-party ``rent-paid'' caveat is an
 HMAC commitment to a discharge the daemon alone can issue, and the discharge
 construction is machine-checked in a protocol-verification tool
-(\texttt{analyses/macaroon\_discharge\_v1.pv} proves no push is authorized without
+(\texttt{core/kernel/pd-anchor/formal/proverif/macaroon-discharge/macaroon\_discharge\_v1.pv} proves no push is authorized without
 a daemon-issued discharge bound to \emph{that} grant). The cryptography is
 \Built{} and sound \emph{as cryptography}.
 

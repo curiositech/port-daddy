@@ -45,8 +45,8 @@ The formal foundation for this thesis is the **Bonded Commons** paper (Owens, 20
 |------|--------|----------|
 | Anchor Protocol white paper | Done | `whitepaper/anchor-protocol-whitepaper.tex` (16 pages) |
 | Bonded Commons white paper | Done | `whitepaper/agent-transactions-whitepaper.tex` (16 pages) |
-| ProVerif models (all 3 phases) | Verified | `analyses/harbor_card_v{1,2,3}_*.pv` — all TRUE |
-| ProVerif escrow secrecy model | Verified | `analyses/harbor_card_v4_escrow_secrecy.pv` — TRUE |
+| ProVerif models (all 3 phases) | Verified | `whitepaper/formal/proverif/harbor-card/harbor_card_v{1,2,3}_*.pv` — all TRUE |
+| ProVerif escrow secrecy model | Verified | `whitepaper/formal/proverif/harbor-card/harbor_card_v4_escrow_secrecy.pv` — TRUE |
 | Rust core (Kani-verified, FFI) | Deployed | `core/harbor-card-rs/` → `dist/core/libharbor_card_rs.dylib` |
 | Arbiter (6 invariant rules) | Deployed | `lib/arbiter.ts`, `routes/arbiter.ts`, wired in `server.ts` |
 | Note encryption (envelope) | Deployed | `lib/note-encryption.ts`, integrated in `lib/sessions.ts` |

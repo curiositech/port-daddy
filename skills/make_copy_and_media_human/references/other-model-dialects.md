@@ -30,7 +30,7 @@ Gemini compulsively front-loads or interleaves hedging meta-clauses: 'It's impor
 
 **Detect:** structural: compute the density of the discourse-hedge meta-clause frame ('it's [adj] to [verb] that' plus 'keep/bear in mind') per 150 words as a stylometric feature; flag >~1 per 150 words or 2+ in an answer under 400 words.
 
-**Fix:** Delete the meta-clause and state the fact directly. If a caveat is load-bearing, fold it into the sentence as a clause.
+**Fix:** Delete the meta-clause and state the fact directly. If a caveat is critical, fold it into the sentence as a clause.
 
 **Before**
 

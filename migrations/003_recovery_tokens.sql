@@ -1,5 +1,5 @@
 -- Recovery magic-link tokens
--- Spec: proofs/bonded/recovery/magic-link.pv
+-- Spec: whitepaper/formal/proverif/bonded/recovery/magic-link.pv
 --
 -- The single-use guarantee (property S) is enforced at the application
 -- layer via the atomic pattern:

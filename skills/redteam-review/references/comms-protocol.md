@@ -129,7 +129,7 @@ it as a standing target: prove that under a Dolev-Yao adversary controlling
 the daemon (read+write to ciphertext, no key access), the redteam payload
 secrecy and defense payload secrecy hold across Phase 1 and Phase 2, and
 that Gate B is the only path from red plaintext to defense plaintext.
-Artifact lives at `proofs/coordination/isolation.pv`.
+Artifact lives at `whitepaper/formal/proverif/coordination/isolation.pv`.
 
 ---
 

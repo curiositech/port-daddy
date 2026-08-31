@@ -137,7 +137,7 @@ differentiation, now carried in envelopes an AP2-era verifier can parse.
 
 - A `hv: 2 → hv: 3` migration in `lib/harbor-tokens.ts` and every verify path;
   dual-verification window required.
-- The ProVerif models (`analyses/harbor_card_v7*.pv`, `macaroon_discharge_*.pv`)
+- The ProVerif models (`whitepaper/formal/proverif/harbor-card/harbor_card_v7*.pv`, `macaroon_discharge_*.pv`)
   must be re-run against the new envelope binding (`kb` + nested payload); the
   attenuation proof is format-independent but the binding proof is not.
 - SD-JWT+kb and JCS are more implementation surface than "sign the JSON"; the

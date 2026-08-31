@@ -2,10 +2,11 @@
   "round_from": "v0.1",
   "round_to": "v0.2",
   "kind": "normal",
+  "fixture_status": "synthetic-historical-fixture",
   "paper": "federated-harbor",
   "sealed_at": "2026-05-20",
   "lead": "fh-secops:lead",
-  "note": "EXAMPLE — illustrates the dialogue-artifact shape. Not a real round. Fields show what a complete round produces.",
+  "note": "SYNTHETIC HISTORICAL FIXTURE — illustrates the dialogue-artifact shape. It is not an executed round, and named mechanizations are planned examples rather than evidence.",
   "exchanges": [
     {
       "id": "smell:fh:tokens:§fh-3:0001",
@@ -16,7 +17,7 @@
       "smell_from": "fh-redteam-tokens",
       "smell_construction": {
         "tool": "proverif",
-        "model": "proofs/federated/tokens/cross-harbor-issuance.pv",
+        "model": "whitepaper/formal/proverif/federated-harbor/tokens/cross-harbor-issuance.pv",
         "queries": [
           {"name": "forgery", "expected": "true", "result": "true"},
           {"name": "re-issuance-with-epoch-rewind", "expected": "false-attacker-cannot-derive", "result": "FALSE — attacker CAN derive when verifier checks current root"},
@@ -29,8 +30,8 @@
       "fix_status": "landed-in-paper",
       "fix_construction": {
         "tool": "proverif",
-        "artifact": "proofs/federated/tokens/cross-harbor-issuance.pv",
-        "defense": "Epoch-binding in the token preimage; verifier checks the historical federation root, not the current one. The paper now states this explicitly in §fh-3 with `MECHANIZATION:proofs/federated/tokens/cross-harbor-issuance.pv`.",
+        "artifact": "whitepaper/formal/proverif/federated-harbor/tokens/cross-harbor-issuance.pv",
+        "defense": "Epoch-binding in the token preimage; verifier checks the historical federation root, not the current one. The paper now states this explicitly in §fh-3 with `MECHANIZATION:whitepaper/formal/proverif/federated-harbor/tokens/cross-harbor-issuance.pv`.",
         "hedge": {
           "class": "scope",
           "narrows": "Verifiers retain a sparse log of historical roots; storage O(log epoch + recent-window). See [PLACEHOLDER-FEDLOG-§] for the storage bound (pinned to §fh-A.3 this round)."
@@ -50,7 +51,7 @@
       "smell_from": "fh-redteam-trust",
       "smell_construction": {
         "tool": "proverif",
-        "model": "proofs/federated/trust/transitive-consent.pv",
+        "model": "whitepaper/formal/proverif/federated-harbor/trust/transitive-consent.pv",
         "queries": [
           {"name": "two-hop-composition", "expected": "consented(A,C) must precede accepted(C-token at A)", "result": "FALSE — silent transitivity: paper's verify rule accepted without consent event"}
         ]
@@ -61,7 +62,7 @@
       "fix_status": "landed-in-paper",
       "fix_construction": {
         "tool": "proverif",
-        "artifact": "proofs/federated/trust/non-transitive-pact.pv",
+        "artifact": "whitepaper/formal/proverif/federated-harbor/trust/non-transitive-pact.pv",
         "defense": "Federation pacts are non-transitive by default. Verifier rule binds the verifying harbor's own pact-set, not the chain. Two-hop pact composition does NOT imply consented(A,C) absent an explicit attestation event.",
         "refuses_prices": {
           "refuses": "transitive token acceptance",
@@ -78,7 +79,7 @@
       "smell_from": "fh-redteam-revocation",
       "smell_construction": {
         "tool": "apalache",
-        "model": "proofs/federated/revocation/propagation.tla",
+        "model": "whitepaper/formal/tla/federated-harbor/revocation/propagation.tla",
         "invariant": "RevokedNotAccepted",
         "counterexample": "Partition harbor H from federation for D+1 epochs. Adversary presents token T (revoked at federation level at epoch e) at H during the partition window. H accepts because pessimistic-verifier rule was not yet stated in §fh-7."
       },
@@ -88,7 +89,7 @@
       "fix_status": "landed-in-paper",
       "fix_construction": {
         "tool": "apalache",
-        "artifact": "proofs/federated/revocation/propagation.tla",
+        "artifact": "whitepaper/formal/tla/federated-harbor/revocation/propagation.tla",
         "defense": "Two-pronged: (a) bounded propagation invariant — harbors commit in pact to max propagation delay D, bond slashes on failure; (b) pessimistic verifier — partitioned harbor refuses cross-harbor tokens until re-sync.",
         "refuses_prices": {
           "refuses": "cross-harbor tokens during partition",
@@ -112,20 +113,20 @@
     }
   ],
   "paper_changes": [
-    "§fh-3 token verify rule: bind epoch into preimage; verifier reads historical root. MECHANIZATION:proofs/federated/tokens/cross-harbor-issuance.pv added.",
+    "§fh-3 token verify rule: bind epoch into preimage; verifier reads historical root. MECHANIZATION:whitepaper/formal/proverif/federated-harbor/tokens/cross-harbor-issuance.pv added.",
     "§fh-3 pact composition: explicit non-transitive-by-default text; consent event required.",
-    "§fh-7 revocation: state propagation bound D as paper-stated parameter; pessimistic-verifier rule during partition; MECHANIZATION:proofs/federated/revocation/propagation.tla added.",
+    "§fh-7 revocation: state propagation bound D as paper-stated parameter; pessimistic-verifier rule during partition; MECHANIZATION:whitepaper/formal/tla/federated-harbor/revocation/propagation.tla added.",
     "§fh-A.3 (new appendix): storage bound for historical federation root log; pins [PLACEHOLDER-FEDLOG-§]."
   ],
   "infrastructure_added": [
-    "proofs/federated/tokens/cross-harbor-issuance.pv (ProVerif, 3 RESULT lines: 1 true [forgery], 1 false-by-design [re-issuance under naive verifier], 1 true [splice])",
-    "proofs/federated/trust/non-transitive-pact.pv (ProVerif, 1 RESULT true)",
-    "proofs/federated/revocation/propagation.tla + .cfg (Apalache, no counterexample within bounded state space)"
+    "whitepaper/formal/proverif/federated-harbor/tokens/cross-harbor-issuance.pv (ProVerif, 3 RESULT lines: 1 true [forgery], 1 false-by-design [re-issuance under naive verifier], 1 true [splice])",
+    "whitepaper/formal/proverif/federated-harbor/trust/non-transitive-pact.pv (ProVerif, 1 RESULT true)",
+    "whitepaper/formal/tla/federated-harbor/revocation/propagation.tla + .cfg (Apalache, no counterexample within bounded state space)"
   ],
   "cross_paper_resolved": [
     {
       "row": "§fh-3 / Anchor §[ANCHOR-§-SIGS]",
-      "evidence": "proofs/anchor/token-verify/algconfusion.pv re-run; RESULT true preserved under FH substitution form."
+      "evidence": "whitepaper/formal/proverif/anchor/token-verify/algconfusion.pv re-run; RESULT true preserved under FH substitution form."
     }
   ],
   "cross_paper_unresolved": [

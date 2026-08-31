@@ -6,7 +6,7 @@
  * (proverif-tamarin-protocol-modeling) for the injection and replay
  * properties before M5 code claims C3." This module is that gate. It reads
  * the checked-in ProVerif verification results for
- * docs/adr/models/guidance_envelope_v0.pv and refuses to rule the
+ * lib/agent-harbor/formal/guidance_envelope_v0.pv and refuses to rule the
  * suggestibility axis above C0 unless EVERY query in the model's
  * verification summary is proved (`is true`). "cannot be proved", `is
  * false`, a missing results file, or a missing model all fail closed with
@@ -38,8 +38,8 @@ import { complianceOrder } from './types.js';
 /** The named proof obligation (ADR-0096 "Consequences"). */
 export const GUIDANCE_PROTOCOL_MODEL = {
   adr: 'ADR-0096',
-  modelPath: 'docs/adr/models/guidance_envelope_v0.pv',
-  resultsPath: 'docs/adr/models/guidance_envelope_v0_results.txt',
+  modelPath: 'lib/agent-harbor/formal/guidance_envelope_v0.pv',
+  resultsPath: 'lib/agent-harbor/formal/guidance_envelope_v0_results.txt',
   /** Q1 injection resistance, Q2 no-replay (injective), Q3 key secrecy. */
   requiredQueries: 3,
 } as const;

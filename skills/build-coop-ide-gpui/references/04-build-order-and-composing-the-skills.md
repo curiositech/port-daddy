@@ -170,7 +170,7 @@ PD identity** (`pd whoami` for humans, `project:stack:context` for agents).
 motion/render-budget problem) + `beautiful-gui-design` (the authorship gutter is a
 color-token problem).
 
-- From **`rust-gpui-motion`** — this is the load-bearing one. Wiring Loro's delta stream
+- From **`rust-gpui-motion`** — this is the critical one. Wiring Loro's delta stream
   into GPUI's entity/render model **must do viewport-diff rendering, not full re-layout per
   op**. The skill's whole thesis applies: *"every re-render walks the entire element tree
   top-to-bottom — so the frame budget here is an architecture concern."* Read

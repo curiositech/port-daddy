@@ -127,7 +127,7 @@ export function lintReceipt(receipt) {
     score += Math.max(0, actionScore);
   }
 
-  // --- validation (the load-bearing section) ---
+  // --- validation (the critical section) ---
   const validation = receipt.validation;
   if (!isPlainObject(validation)) {
     missingFields.push('validation');

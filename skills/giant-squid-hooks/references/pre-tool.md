@@ -1,6 +1,6 @@
 # pd-hook-pre-tool — edit-moment gate (PD EDIT)
 
-Source: `bin/pd-hook-pre-tool`. The load-bearing L2 tentacle (ADR-0092): fires
+Source: `bin/pd-hook-pre-tool`. The critical L2 tentacle (ADR-0092): fires
 BEFORE a file-mutating tool runs and blocks when the target is locked in the
 Ink Cloud (`PD_LOCK_*`) by a different actor, per the `suggestibility` dial
 (`advisory|warn|enforce`, env `PD_SUGGESTIBILITY` override, same parent-walk

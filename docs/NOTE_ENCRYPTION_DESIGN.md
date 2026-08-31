@@ -63,7 +63,7 @@ SELECT content FROM session_notes LIMIT 1;
 
 ## The ProVerif Proof
 
-**Model:** `analyses/harbor_card_v4_escrow_secrecy.pv`
+**Model:** `whitepaper/formal/proverif/harbor-card/harbor_card_v4_escrow_secrecy.pv`
 
 The model represents:
 - The master key as a private value the attacker cannot access
@@ -102,8 +102,8 @@ RESULT event(NoteRead(agent,session,content))
 | File | Purpose |
 |------|---------|
 | `lib/note-encryption.ts` | Encryption library: key generation, wrapping, encrypt/decrypt, detection |
-| `analyses/harbor_card_v4_escrow_secrecy.pv` | ProVerif model proving confidentiality + authentication |
-| `analyses/harbor_card_v4_results.txt` | ProVerif verification output |
+| `whitepaper/formal/proverif/harbor-card/harbor_card_v4_escrow_secrecy.pv` | ProVerif model proving confidentiality + authentication |
+| `whitepaper/formal/proverif/harbor-card/harbor_card_v4_results.txt` | ProVerif verification output |
 | `tests/unit/note-encryption.test.js` | 14 unit tests: round-trip, tamper detection, edge cases |
 | `docs/NOTE_ENCRYPTION_DESIGN.md` | This document |
 
@@ -181,7 +181,7 @@ No master key rotation mechanism exists. If the master key is rotated, existing 
 NODE_OPTIONS="--experimental-vm-modules" npx jest tests/unit/note-encryption.test.js --no-coverage
 
 # Verify ProVerif model
-eval $(opam env) && proverif analyses/harbor_card_v4_escrow_secrecy.pv
+eval $(opam env) && proverif whitepaper/formal/proverif/harbor-card/harbor_card_v4_escrow_secrecy.pv
 
 # Integration test: write and read an encrypted note
 curl -X POST http://localhost:9876/sessions \

@@ -69,7 +69,7 @@ after the operator pointed at two adjacent proposal documents:
 
 The operator asked: *"Can we author a harness like Cloudflare's? What's our
 local runtime, our cloud runtime? What harbor abstractions should we add on
-past it?"* — after reviewing `docs/research/durable-agents-landscape-2026-07.md`.
+past it?"* — after reviewing `docs/product-research/durable-agents-landscape-2026-07.md`.
 
 The honest answer has a fork in it, and the fork matters more than any single
 feature:
@@ -100,7 +100,7 @@ feature:
 So: **don't build a Think competitor for local interactive coding. Build one
 narrow, real, Think-shaped harness for the cloud sandbox runtime, and spend
 the local effort on durability around the hijacked loop instead** — which is
-exactly where `docs/research/durable-agents-landscape-2026-07.md`'s
+exactly where `docs/product-research/durable-agents-landscape-2026-07.md`'s
 Opportunities #2 and #3 already point.
 
 ## Grounded Current State

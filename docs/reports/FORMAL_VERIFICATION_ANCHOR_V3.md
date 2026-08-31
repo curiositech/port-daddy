@@ -20,17 +20,17 @@ We employed **Symbolic Analysis** using the ProVerif prover. This approach treat
 ## 3. Phase Analysis
 
 ### Phase 1: Symmetric HS256 & Alg-Switching Protection
-**Model:** `analyses/harbor_card_v1_refined.pv`  
+**Model:** `whitepaper/formal/proverif/harbor-card/harbor_card_v1_refined.pv`
 **Scenario:** A Daemon issues HMAC-signed JWTs. An attacker attempts a "None" algorithm attack by stripping the signature.  
 **Result:** **SECURE**. The model proves that because the Harbor verifier pins the algorithm to HS256, the attacker's "none" token is rejected.
 
 ### Phase 2: Asymmetric Ed25519 (The "Anchor" Transition)
-**Model:** `analyses/harbor_card_v2_asymmetric.pv`  
+**Model:** `whitepaper/formal/proverif/harbor-card/harbor_card_v2_asymmetric.pv`
 **Scenario:** Moving to public-key cryptography. Each Harbor has a unique keypair.  
 **Result:** **SECURE**. Proved that an attacker cannot forge an EdDSA signature even with access to the public channel and public keys.
 
 ### Phase 3: Multi-hop Delegation
-**Model:** `analyses/harbor_card_v3_delegation.pv`  
+**Model:** `whitepaper/formal/proverif/harbor-card/harbor_card_v3_delegation.pv`
 **Scenario:** Agent A delegates a sub-capability to Agent B. The Harbor must verify the entire chain.  
 **Result:** **SECURE**. The query `Accepted(B) ==> IssuedRoot(A) && Delegated(A, B)` was proven true. Transitive trust is preserved.
 
@@ -43,10 +43,10 @@ We employed **Symbolic Analysis** using the ProVerif prover. This approach treat
 | `Accepted(b, h) ==> Issued(a, h) && Delegated(a, b)` | v3 | **TRUE** |
 
 ## 5. Artifacts
-The full ProVerif models are available in the Port Daddy repository under the `analyses/` directory:
-- `analyses/harbor_card_v1_refined.pv`
-- `analyses/harbor_card_v2_asymmetric.pv`
-- `analyses/harbor_card_v3_delegation.pv`
+The full ProVerif models are available in the Port Daddy repository under the `whitepaper/formal/proverif/harbor-card/` directory:
+- `whitepaper/formal/proverif/harbor-card/harbor_card_v1_refined.pv`
+- `whitepaper/formal/proverif/harbor-card/harbor_card_v2_asymmetric.pv`
+- `whitepaper/formal/proverif/harbor-card/harbor_card_v3_delegation.pv`
 
 ## 6. Recommendations
 While the protocol logic is sound, the implementation must ensure:

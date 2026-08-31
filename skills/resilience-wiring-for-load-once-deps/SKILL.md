@@ -100,7 +100,7 @@ permanent failure becomes a rejection cached forever. That is the bug.
 - **OPTIONAL enrichment** (semantic hints, embeddings): the caller can produce a
   correct result without it → `tryGet(): T | null`, caller ships the un-enriched
   result when it returns null.
-- **REQUIRED** (DB pool, auth key): load-bearing → `get(): Promise<T>` that throws
+- **REQUIRED** (DB pool, auth key): critical → `get(): Promise<T>` that throws
   `CircuitOpenError` when down, so the caller fails loudly rather than silently
   returning wrong/empty data.
 

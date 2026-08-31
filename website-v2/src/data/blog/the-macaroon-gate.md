@@ -126,6 +126,6 @@ pd note "race condition in token refresh; fixing the retry path"
 pd salvage
 ```
 
-If you want the formal side first, the two models — the one that proves the gate sound and the one that proves the lazy verifier broken — are re-runnable with [ProVerif](https://bblanche.gitlabpages.inria.fr/proverif/) against the `.pv` files in `analyses/`. Start the checker, watch it say `true`, then delete the binding line and watch it find the attack. That second run is the one that'll convince you.
+If you want the formal side first, the two models — the one that proves the gate sound and the one that proves the lazy verifier broken — are re-runnable with [ProVerif](https://bblanche.gitlabpages.inria.fr/proverif/) against the `.pv` files in `core/kernel/pd-anchor/formal/proverif/macaroon-discharge/`. Start the checker, watch it say `true`, then delete the binding line and watch it find the attack. That second run is the one that'll convince you.
 
 The token was always the problem. The fix is to hand the agent something it can only ever make smaller.

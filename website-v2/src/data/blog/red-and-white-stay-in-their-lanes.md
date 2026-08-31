@@ -67,7 +67,7 @@ RESULT inj-event(DefenseLearnsRed(x)) ==> inj-event(LeadEmitsToDefense(x)) is tr
 
 The first says no message a red-team persona sends in Phase 1 is derivable by the daemon. The second says no message a white-hat persona sends in Phase 2 is derivable by the daemon. The third is the load-bearing claim: any red plaintext that the white-hat fleet eventually learns must have been emitted by `sec-eng-lead` at Gate B. There is no direct red-to-white forgery path the daemon can construct.
 
-ProVerif checked all three under the symbolic model. The artifact lives at `proofs/coordination/isolation.pv`, the run log next to it. Anyone can re-run them with `eval $(opam env) && proverif proofs/coordination/isolation.pv`.
+ProVerif checked all three under the symbolic model. The artifact lives at `whitepaper/formal/proverif/coordination/isolation.pv`, the run log next to it. Anyone can re-run them with `eval $(opam env) && proverif whitepaper/formal/proverif/coordination/isolation.pv`.
 
 ![ProVerif treats the daemon as a Dolev-Yao adversary holding every ciphertext but no fleet key, so the only path from red plaintext to the white-hat fleet runs through sec-eng-lead at Gate B](/img/generated/blog-coordination-guard-policy.jpg)
 

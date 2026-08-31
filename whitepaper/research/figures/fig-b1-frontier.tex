@@ -77,6 +77,7 @@
 \centering
 \begin{tikzpicture}
 \begin{axis}[
+  ymode=log,log origin=infty,
   harbor bar,
   width=3.6cm,
   symbolic x coords={F2500,F1500,F1000,F250},
@@ -97,6 +98,6 @@
 \end{axis}
 \end{tikzpicture}
 \end{minipage}
-\caption{\textbf{A:} zero-miss digest rate falls as the open budget $f$ grows. \textbf{B:} rate falls as miss tolerance $\delta$ grows, exactly to $0$ once $f<1-\delta/p$ no longer binds (an earlier render evaluated the pinned closed form past that line and showed a spurious uptick --- a domain-of-validity error, not a feature of the true frontier). \textbf{C:} the zoom advantage on a log scale --- adaptive inspection opens far fewer items than flat when load-bearing items are sparse in the flagged set, which is exactly the regime a miss-averse (safe) digest operates in. Labels give $|\text{flagged}|=F$; $k=10$ for $F\in\{2500,1500,250\}$, $k=20$ for $F=1000$ (matching the table above).}
+\caption{\textbf{A:} zero-miss digest rate falls as the open budget $f$ grows. \textbf{B:} rate falls as miss tolerance $\delta$ grows, exactly to $0$ once $f<1-\delta/p$ no longer binds (an earlier render evaluated the pinned closed form past that line and showed a spurious uptick --- a domain-of-validity error, not a feature of the true frontier). \textbf{C:} the zoom advantage on a log scale --- adaptive inspection opens far fewer items than flat when structurally critical items are sparse in the flagged set, which is exactly the regime a miss-averse (safe) digest operates in. Labels give $|\text{flagged}|=F$; $k=10$ for $F\in\{2500,1500,250\}$, $k=20$ for $F=1000$ (matching the table above).}
 \label{fig:b1-frontier}
 \end{figure}

@@ -9,6 +9,8 @@ serves a copy of an artifact.
 | `source/` | The seven chapter roots, collected-volume sources, figures, and book art. |
 | `published/` | Canonical chapter and collected-volume PDFs. |
 | `research/` | Formal papers, experiments, result ledger, wrong turns, and research PDFs. |
+| `research/program/` | Simulations and the historical research program that produced the durable result ledger. |
+| `formal/` | Corpus-authoritative ProVerif, TLA+, Z3, and EasyCrypt sources with their checked evidence. |
 | `reviews/current/` | The critique and exposition audits that govern the next editorial pass. |
 | `reviews/archive/` | Superseded reviews retained as provenance. |
 | `proof/current/` | Current color contact sheet, animated tour, and proof manifest. |
@@ -22,10 +24,21 @@ The website directories under `website-v2/public/whitepaper/` and
 build, or use `npm run build` in `website-v2`, whose prebuild performs the sync.
 Never author TeX, research, critique, or proof material in a public mirror.
 
-Some operational files must remain outside this directory: installed skills,
-CI workflows, the website registry, and build scripts. `corpus.json` names every
-such satellite. A satellite is an adapter to this corpus, never a second source
-of truth.
+Some operational files must remain beside the product they verify: installed
+skills, Relay models, Rust/Kani harnesses, runtime conformance tests, CI
+workflows, the website registry, and build scripts. `corpus.json` names every
+such satellite and its authority. Product-runtime verification is not silently
+promoted into a book theorem; corpus models and product models remain distinct.
+
+The skill registry makes a second distinction. General methods teach reusable
+research, exposition, adversarial review, figure selection, figure construction,
+and publication mechanics. Corpus adapters bind those methods to named chapters
+and result ids. Product companions explain or verify shipping software but do
+not acquire authority over the papers. Historical fixtures must be labeled as
+such; an example may never masquerade as current evidence. Skill bundles remain
+installed under `skills/`, while this manifest records provenance, scope,
+currentness, planned outputs, and the canonical authority each bundle must defer
+to.
 
 ## Build and verification
 
@@ -37,6 +50,7 @@ python3 skills/whitepaper-figure-system/scripts/check_atlas_coverage.py
 ```
 
 The build writes PDFs to `published/`. The sync copies only manifest-listed PDFs
-to their stable public URLs. The corpus check rejects missing artifacts, stale
-legacy roots, authored TeX in deployment mirrors, and drift between the manifest
-and the seven-volume build table.
+to their stable public URLs. The corpus check rejects missing artifacts,
+unregistered formal models, stale legacy roots, stale skill contracts, authored
+TeX in deployment mirrors, and drift between the manifest and the seven-volume
+build table.

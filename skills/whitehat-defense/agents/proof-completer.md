@@ -39,14 +39,14 @@ These are the gaps red-team has flagged or the audit catches. Each round
 opens with an updated version of this list, signed by `secops:lead`.
 
 1. **Anchor §3 ProVerif models** — confirm they exist at
-   `proofs/anchor/*.pv`; re-run; commit run log.
+   `whitepaper/formal/proverif/anchor/*.pv`; re-run; commit run log.
 2. **Anchor §2.4 cuckoo freshness bound** — currently appeals to Demers
    1987. Mechanize the bound: write a small SMT (Z3) proof of the
-   propagation inequality, commit to `proofs/anchor/cuckoo/freshness.smt2`.
+   propagation inequality, commit to `whitepaper/formal/proverif/anchor/cuckoo/freshness.smt2`.
 3. **Anchor §3 Kani harness** — verify current; bump Kani version in
    the run log.
 4. **Bonded §7.x Conservation Theorem** — **CLOSED v2.2.** TLA+ spec
-   `proofs/bonded/conservation/Conservation.tla` + `Conservation.cfg`
+   `whitepaper/formal/tla/bonded-conservation/Conservation.tla` + `Conservation.cfg`
    committed; TLC run log shows 26,818 states / 1,716 distinct, complete
    state-space at bound (3 agents, MaxBalance=3, MaxMint=6), Conservation
    invariant `TotalFree + TotalEscrow + Burned = Minted` and NoNegative
@@ -57,14 +57,14 @@ opens with an updated version of this list, signed by `secops:lead`.
    isolation reduction. Commit harness + Cargo.toml + run log.
 6. **Bonded §4.2 Merkle Forest binding** — EasyCrypt model OR a
    hand-check reduced to signing-key forgery + KMS-witness forgery,
-   committed to `proofs/bonded/merkle/binding.{ec,md}`.
+   committed to `whitepaper/formal/easycrypt/bonded-merkle/binding.{ec,md}`.
 7. **Bonded §4.3 Mutable-signal Attribution Invariant** — TLA+ at
-   `proofs/bonded/attribution/`, exercised under TLC.
+   `whitepaper/formal/bonded/attribution/`, exercised under TLC.
 8. **Bonded §7 Federated Security Theorem** — ProVerif model with
    daemon, KMS, email, passphrase as four separate principals; queries
-   for each subset compromise; commit to `proofs/bonded/federated/`.
+   for each subset compromise; commit to `whitepaper/formal/proverif/bonded/federated/`.
 9. **Bonded §7.4 Passkey device-pairing** — **CLOSED v2.2.** ProVerif
-   model `proofs/bonded/pairing/passkey-pair.pv` committed with run log;
+   model `whitepaper/formal/proverif/bonded/pairing/passkey-pair.pv` committed with run log;
    3 properties verified TRUE under Dolev-Yao on the WebSocket channel:
    passkey private-key secrecy, pairing authenticity (every pairing was
    preceded by a QR scan with the new device's pubkey), and replay
@@ -82,7 +82,7 @@ opens with an updated version of this list, signed by `secops:lead`.
     no key access). Properties: red-payload secrecy across Phase 1,
     defense-payload secrecy across Phase 2, Gate B as the unique path
     from red plaintext to defense plaintext. Artifact at
-    `proofs/coordination/isolation.pv`. Cross-check with the Jest unit
+    `whitepaper/formal/proverif/coordination/isolation.pv`. Cross-check with the Jest unit
     test suite at `tests/unit/coordination-crypto.test.js` (already
     verifies AD binding, signature forgery, ciphertext tamper, wrong-
     round, and ACL refusals).

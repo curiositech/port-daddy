@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.1.0 - 2026-08-31
+
+- Registered the semantic atlas as a corpus adapter with Erich Owens's authorship and source authority recorded explicitly.
+- Declared that the atlas prescribes representations but never overrides chapter claims.
+
 ## 2.0.0 - 2026-08-28
 
 - Expanded the semantic atlas from selected examples to every canonical figure and algorithm

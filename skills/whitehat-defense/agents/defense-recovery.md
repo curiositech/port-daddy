@@ -65,7 +65,7 @@ bond:         <severity-weighted; recovery counters carry higher bond>
 ## Joint with defense-crypto
 
 Passkey-pairing attacks (§7.4) are co-owned with defense-crypto. The
-ProVerif model lives at `proofs/bonded/pairing/`; this persona owns the
+ProVerif model lives at `whitepaper/formal/proverif/bonded/pairing/`; this persona owns the
 threat-model + scope, defense-crypto owns the cryptographic property.
 The counter is co-signed.
 

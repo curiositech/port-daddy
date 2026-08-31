@@ -5,7 +5,7 @@
  * Conservation invariant — exercised against the REAL lib/bonds.ts code.
  *
  * Why fast-check, not Kani
- *   The Conservation Theorem TLA+ spec at proofs/bonded/conservation/
+ *   The Conservation Theorem TLA+ spec at whitepaper/formal/tla/bonded-conservation/
  *   models the abstract operations. The No-Overdraft Lemma additionally
  *   appeals to better-sqlite3's transaction isolation. Kani is the right
  *   tool for Rust; lib/bonds.ts is TypeScript hitting SQLite. The right

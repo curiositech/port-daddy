@@ -27,6 +27,12 @@
 ## 1. CROSSWALK — Portfolio IDs ↔ exposition R# ↔ papers ↔ scripts ↔ status
 (The A/B/C labels come from Provable-Results-Portfolio.pdf; R1–R9 from the exposition work; both appear in documents and neither alone is complete. This table exists nowhere else.)
 
+> **Historical wave-plan snapshot.** The rows below record the program state when
+> this crosswalk was first written. Later execution is authoritative in the
+> dated DELTA sections, especially DELTA v7 and v8: B4, B5, B7, B8, and B9 were
+> completed as R13–R17, and Papers 5–7 were drafted. Do not read a `pending`
+> cell here as current status.
+
 | Portfolio | R# | Result | Status | Paper | Script |
 |---|---|---|---|---|---|
 | A7 (+Thm I.6.1) | R1 | Information floor + falsification | done | 1 | a7_experiment.py |
@@ -170,7 +176,7 @@ B7 escalation signaling (single-crossing threshold; tuning band from measured va
 ## 5. DELTA v4 (2026-08-23) — #9450 omnibus, artifact rescue, next-session plan
 - **Merged head under review:** the reconciliation (24052b84d) is pushed to `purser/pr-7278-tests` = PR **#9450**, now the omnibus publish vehicle. CI is red on that head with three diagnosed causes; the fix list and full resume plan live in `whitepaper/research/plan-2026-08-23-merge-and-resume.md` (Part 0 = land #9450; Parts 1–7 = resume the program in ledger wave order W5 → W6 → W13 → W1–W3 → W8 → lifts).
 - **F4 partially discharged:** `pdf/Sheaf-Cohomology-Lit-Review-Assessment-Prototyping-Plan.pdf` (the W8-gating artifact — experiment matrix, Stage-1 COMMIT/CUT gates, three theorem candidates) and `pdf/The-Harbor-After-the-Harbor.pdf` (the rigor review behind doc1's adjudications; correctness audit + full exercise solution key + build sequence) are now committed, user-supplied renders. Only the theorem-proving-stack SotA report remains extract-only (§3.2).
-- **New stale-mechanization finding (fix before arXiv/publicity):** CI's `proofs.yml` still green-gates the VOID δ*≈0.2531 game — `proofs/economics/delta-threshold.z3` (cubic 3δ³+3δ²+3δ−1), `claim_signaling.tla/.cfg` (old bimatrix, DeltaNum=26), `sweep-delta.sh`, and `website-v2/src/pages/whitepaper/HowWeProveGameTheory.tsx` — while the corrected treatise (2δ³+2δ²+2δ−1=0, δ*≈0.3423, grim δ≥1/3) cites those files as its mechanization (agent-transactions:801) and its own §1402 table still says "IC holds at δ=0.26". Sync all surfaces together (plan Part 2). Also: B6's "0/4000 dominating schedules" number has NO generating script anywhere — write it.
+- **New stale-mechanization finding (fix before arXiv/publicity):** CI's `proofs.yml` still green-gates the VOID δ*≈0.2531 game — `whitepaper/formal/z3/economics-delta-threshold/delta-threshold.z3` (cubic 3δ³+3δ²+3δ−1), `claim_signaling.tla/.cfg` (old bimatrix, DeltaNum=26), `sweep-delta.sh`, and `website-v2/src/pages/whitepaper/HowWeProveGameTheory.tsx` — while the corrected treatise (2δ³+2δ²+2δ−1=0, δ*≈0.3423, grim δ≥1/3) cites those files as its mechanization (agent-transactions:801) and its own §1402 table still says "IC holds at δ=0.26". Sync all surfaces together (plan Part 2). Also: B6's "0/4000 dominating schedules" number has NO generating script anywhere — write it.
 - **Resolved documentation defect:** commit bfc49dda1 established committed research PDFs, and the current §0/README now distinguish rebuildable renders from preserved external-source evidence.
 
 ---

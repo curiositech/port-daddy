@@ -124,5 +124,5 @@ applies if the storage cost is monetized.
 
 Token smells against the paper's explicitly disclaimed surfaces (e.g.
 "under broken signature scheme") slash. Token smells against
-load-bearing claims (epoch-binding, position-binding, cross-witness)
+critical claims (epoch-binding, position-binding, cross-witness)
 accrue reputation.

@@ -1,7 +1,7 @@
 /**
  * RUNTIME CONFORMANCE: ProVerif magic-link.pv ←→ lib/recovery-magic-link.ts
  *
- * Spec:    proofs/bonded/recovery/magic-link.pv
+ * Spec:    whitepaper/formal/proverif/bonded/recovery/magic-link.pv
  * Runtime: lib/recovery-magic-link.ts
  *
  * The .pv proves two properties under a Dolev-Yao adversary controlling

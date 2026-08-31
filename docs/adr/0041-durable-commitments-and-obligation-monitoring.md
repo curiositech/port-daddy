@@ -9,7 +9,7 @@ Proposed
 We want an agent to *own* a standing job — keep tests green, keep the roadmap free of
 contradictions, keep docs in sync — rather than do it once and forget. Today that
 "responsibility" lives in a prompt and dies with the context window. The research in
-`docs/research/agent-accountability-proposal.md` traces the fix to the classical agent
+`whitepaper/research/program/archive/accountability/agent-accountability-proposal.md` traces the fix to the classical agent
 canon and lands on one structural distinction (the only mechanism of 29 to survive
 adversarial review unhardened):
 
@@ -118,6 +118,6 @@ on ADR-0040 and are deliberately scoped out of this ADR; they are roadmap items
 
 ## References
 
-- `docs/research/agent-accountability-proposal.md` (the five laws; 46→29→1)
+- `whitepaper/research/program/archive/accountability/agent-accountability-proposal.md` (the five laws; 46→29→1)
 - ADR-0040 (non-forgeable actor identity — prerequisite)
 - ADR-0022 (actor-souls), ADR-0033 (roadmap-pop / the named TTL gap), ADR-0038 (claim-tree)

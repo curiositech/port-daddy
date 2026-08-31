@@ -16,7 +16,7 @@ This is the **critical-path layer** assignment, sometimes called "level" in the 
 
 For a DAG with n nodes and longest path p, topological sort has O(n) serial steps; wave scheduling has O(p) sequential steps and O(n/p) average width. In typical WinDAGs decompositions (p ≈ 3-5, n ≈ 10-20), that difference is a 3-6x wall-clock speedup on real workloads.
 
-## Transitive Closure Is the Load-Bearing Operation
+## Transitive Closure Is the Critical Operation
 
 The wave assignment above collapses to: **wave(n) = length of the longest path from any source to n**. Computing this requires knowing the transitive closure — every ancestor of n, not just direct parents. The recursive max over `deps(n)` implicitly does this.
 

@@ -23,7 +23,7 @@ the `pd` CLI — see ADR-0045/PR #256 — because the keys were stored as a
 shell-idiom that segfaulted bun's dotenv autoload. Both halves trace to one root:
 **the operator has no boundary between his agents and his secrets.**
 
-Two findings from the North-Star strategy research (`docs/research/north-star/strategy/`)
+Two findings from the North-Star strategy research (`whitepaper/research/program/archive/north-star/strategy/`)
 make this a first-class layer, not a feature:
 
 1. **The same-machine adversary is the unowned seat.** ADR-0040's identity threat

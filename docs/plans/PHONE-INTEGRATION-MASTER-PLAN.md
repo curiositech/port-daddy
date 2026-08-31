@@ -140,7 +140,7 @@ on relay if A1 chose OIDC/Hybrid; GH Actions integration walkthrough lifts
 `examples/attenuation-walkthrough.md`.
 
 **E2. ProVerif extension**
-Copy `templates/proverif-relay.pv` into `analyses/relay-handshake.pv`. Fill in
+Copy `templates/proverif-relay.pv` into `apps/relay/formal/proverif/relay-handshake.pv`. Fill in
 queries from `references/proverif-relay-extension.md`. Run; iterate until I1 +
 authentication pass.
 

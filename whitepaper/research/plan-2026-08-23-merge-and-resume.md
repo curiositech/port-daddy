@@ -48,9 +48,9 @@ Copy into the repo and commit (on the same branch pre-merge if timing allows, el
 ## Part 2 — Correctness repairs: sync the stale δ\* mechanization
 
 The consensus Change 1 (all three reviews) landed in prose but not in the proofs. Move all surfaces to the corrected game together:
-- `proofs/economics/delta-threshold.z3` (+ `.expected.txt`): cubic → `2δ³+2δ²+2δ−1=0`, root interval [0.34, 0.35], uniqueness.
-- `proofs/economics/claim_signaling.tla` + `.cfg`: corrected bimatrix `(3,3)/(0,4)/(4,0)/(1,1)`, `DeltaNum` crossing at 1/3–0.35; keep TLC+Apalache jobs.
-- `proofs/economics/sweep-delta.sh` + `.github/workflows/proofs.yml`: interval assertions → the new crossover.
+- `whitepaper/formal/z3/economics-delta-threshold/delta-threshold.z3` (+ `.expected.txt`): cubic → `2δ³+2δ²+2δ−1=0`, root interval [0.34, 0.35], uniqueness.
+- `whitepaper/formal/tla/economics-claim-signaling/claim_signaling.tla` + `.cfg`: corrected bimatrix `(3,3)/(0,4)/(4,0)/(1,1)`, `DeltaNum` crossing at 1/3–0.35; keep TLC+Apalache jobs.
+- `whitepaper/formal/tla/economics-claim-signaling/sweep-delta.sh` + `.github/workflows/proofs.yml`: interval assertions → the new crossover.
 - `website-v2/src/pages/whitepaper/HowWeProveGameTheory.tsx:83-91,787`: corrected cubic/root.
 - `agent-transactions-whitepaper.tex:1402`: internal verification table still says "IC holds at δ=0.26" — align with lines 784–801.
 - Add a unit test pinning the corrected root numerically (the repo currently pins **zero** game-theoretic numbers).

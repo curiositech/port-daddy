@@ -600,7 +600,7 @@ the protocol structure.
 - `lib/bonds.ts`, `lib/coordination-crypto.ts`, `lib/blob.ts`
 - `lib/attest.ts`, `lib/attest-invariants.ts`
 - `lib/tube.ts`, `lib/tube-spawner-router.ts`
-- `analyses/harbor_card_v7_multihop_fixed.pv` — ProVerif multi-hop attenuation proof
+- `whitepaper/formal/proverif/harbor-card/harbor_card_v7_multihop_fixed.pv` — ProVerif multi-hop attenuation proof
 - `docs/shipwright/FLEETCONTROL-HARDENING.md` — TLA⁺ conservation law sketch
 - `docs/adr/0094-harbor-cards-as-verifiable-credentials.md` — SD-JWT-VC /
   JWS-detached / JCS profile for the signed artifacts in Phases 1–4

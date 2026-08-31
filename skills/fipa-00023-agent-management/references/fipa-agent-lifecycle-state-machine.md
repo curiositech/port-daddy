@@ -67,7 +67,7 @@ The lifecycle is connected to message delivery behavior in a specified way (Sect
 - **Transit**: Buffer until Active (either at destination or back at origin if migration failed) or forward. Mobile-only.
 - **Unknown**: Buffer or reject depending on MTS policy and message transport requirements.
 
-The key insight: **the lifecycle state is the input to message delivery policy**. The MTS consults the lifecycle state before deciding what to do with a message. This means that every message routing decision implicitly queries the lifecycle state of the destination agent. The AMS's lifecycle tracking is therefore not administrative bookkeeping — it is load-bearing infrastructure for correct message delivery.
+The key insight: **the lifecycle state is the input to message delivery policy**. The MTS consults the lifecycle state before deciding what to do with a message. This means that every message routing decision implicitly queries the lifecycle state of the destination agent. The AMS's lifecycle tracking is therefore not administrative bookkeeping — it is critical infrastructure for correct message delivery.
 
 ## Application to WinDAGs
 

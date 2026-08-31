@@ -78,7 +78,7 @@ capturing 1 of 4 spawned items is still leaking 3.
 
 ## Evidence over optimism
 
-`status-without-evidence` is the single most load-bearing check in the
+`status-without-evidence` is the single most critical check in the
 audit, mirroring the `agent-work-receipt-designer` skill's stance that a
 `passed: true` claim with no exit code is not proof. A work unit reporting
 `in-progress`, `done`, `shipped`, or `merged` with an empty

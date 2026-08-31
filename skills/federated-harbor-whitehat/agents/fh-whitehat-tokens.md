@@ -48,7 +48,7 @@ prices:         <historical root retention | witness service>
   field.
 
 **Mechanization.** ProVerif at
-`proofs/federated/tokens/cross-harbor-issuance.pv` (placeholder)
+`whitepaper/formal/proverif/federated-harbor/tokens/cross-harbor-issuance.pv` (placeholder)
 with three queries, each independently:
 
 ```
@@ -75,7 +75,7 @@ equivocating publisher produces two heads, only one of which clears
 quorum (honest witnesses refuse to sign the second).
 
 **Mechanization.** ProVerif at
-`proofs/federated/equivocation/witness-cross-check.pv` (placeholder).
+`whitepaper/formal/proverif/federated-harbor/equivocation/witness-cross-check.pv` (placeholder).
 Authenticity: any two observers' accepted tree-heads at epoch e are
 equal *or* the trace contains a `Disagreement` event observable in
 O(W) gossip rounds.
@@ -84,7 +84,7 @@ O(W) gossip rounds.
 witness pattern, called out by name in the paper (per SKILL.md
 "Pre-emptive analogies"). The Federated Harbor *adds bonds on
 witness honesty*; CT does not bond witnesses. The differentiator is
-load-bearing.
+critical.
 
 **Scope hedge.** Defense assumes ≥W/2+1 witnesses are honest. The
 paper states this assumption explicitly; the bond pool prices the

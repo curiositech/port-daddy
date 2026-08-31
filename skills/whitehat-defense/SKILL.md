@@ -99,8 +99,6 @@ See `references/comms-protocol.md` for the full spec.
 - `scripts/run-whitehats.sh` — orchestrator; pd-spawns each persona with
   the right region claimed.
 - `scripts/run-secops-lead.sh` — drives sec-eng-lead through Gates A (open), B (seal), C (publish).
-- `scripts/defenses/` — concrete mitigation templates (proof skeletons,
-  rate limit harnesses, market-simulator runners).
 
 ## Bundled Assets
 

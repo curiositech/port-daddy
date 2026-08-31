@@ -5,7 +5,7 @@
 PROPOSED — 2026-05-31. Companion to [ADR-0029](0029-user-accounts-and-merkle-audit.md)
 (accounts + Merkle audit), [ADR-0027](0027-relay-harbor-mesh.md) (harbors +
 relay), and [ADR-0025](0025-pki-decision.md) (OIDC-first PKI). Full design
-reasoning lives in `docs/research/team-secret-sharing-design.md`; this ADR is the
+reasoning lives in `docs/product-research/team-secret-sharing-design.md`; this ADR is the
 decision record.
 
 ## TL;DR
@@ -240,7 +240,7 @@ record and envelope, following ADR-0029's leaf-versioning rule.
 
 ## Related ADRs / References
 
-- `docs/research/team-secret-sharing-design.md` — full design reasoning.
+- `docs/product-research/team-secret-sharing-design.md` — full design reasoning.
 - `docs/adr/0029-user-accounts-and-merkle-audit.md`
 - `docs/adr/0027-relay-harbor-mesh.md`
 - `docs/adr/0025-pki-decision.md`

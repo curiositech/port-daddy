@@ -2,7 +2,7 @@
 
 > Source: `core/pd-console/src/maritime.rs` and `core/pd-console/src/theme.rs`. The
 > Python ports `./scripts/flag_resolve.py` and `./scripts/oklch_to_srgb.py` are byte-faithful
-> to these and their selftests pin the load-bearing mappings.
+> to these and their selftests pin the critical mappings.
 
 ## Why maritime flags at all
 

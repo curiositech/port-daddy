@@ -48,7 +48,7 @@ Erin's agent \texttt{[TAINT:HIGH]} the moment it reads Derek's data, drop any ta
 job is to prove the sentence that replaces it. \emph{[Empirical hypothesis; no formal statement is offered here.]} Token-level
 taint through an LLM is not soundly definable: the model taints everything it writes with everything it read, so a taint tracker
 faces a binary choice between marking every output token (useless) and missing semantic flows (unsound). This is a design
-rationale, not a theorem, and it is the one load-bearing claim in this paper that carries no proof and no script. It rests on an
+rationale, not a theorem, and it is the one critical claim in this paper that carries no proof and no script. It rests on an
 empirical hypothesis about generative models --- we know of no sound token-granularity flow analysis for one, and the burden of
 exhibiting one falls on any design that assumes it --- standing on the well-known static-analysis result underneath: certifying
 implicit flows soundly forces exactly this dichotomy, the label creep of the Denning certification lattice \cite{denning77} and
@@ -250,7 +250,7 @@ supervisor achieving exactly that policy exists.
 \textbf{Theorem 2 (enforceability $=$ controllability).} Let $L$ be a prefix-closed plant language and let $K\subseteq L$ be a
 \emph{nonempty, prefix-closed} safety policy over the agent alphabet $\Sigma=\Sigma_c\cup\Sigma_u$. Then $K$ is regimentable
 (enforceable by the mediation layer) iff $K$ is controllable: $\overline{K}\Sigma_u\cap \overline{L}\subseteq\overline{K}$
-[verified framework, \cite{ramadge-wonham}]. Both hypotheses on $K$ are load-bearing and easy to drop by accident: $K=\emptyset$
+[verified framework, \cite{ramadge-wonham}]. Both hypotheses on $K$ are critical and easy to drop by accident: $K=\emptyset$
 is vacuously controllable but no supervisor realises it, since every supervised language contains the empty trace. The same
 nonemptiness condition appears in Basin et al.'s characterisation \cite{bjkz13}, whose controllable/observable split is the one
 we use here. Consequences, from the
@@ -414,7 +414,7 @@ latency per leak intensity --- so the exfiltration bond is re-scoped to its hone
 pretending to cover unbounded breach damage.
 
 \begin{boundary}
-\textbf{Honest boundary.} Independence and \emph{secrecy} of planting are load-bearing: an adversary who obtains the canary list
+\textbf{Honest boundary.} Independence and \emph{secrecy} of planting are critical: an adversary who obtains the canary list
 with probability $0.3$ and strips all of them drops measured power from $0.9997$ to $0.698$ at $k{=}5$ [internal,
 \texttt{a4\_canary\_sprt.py}] --- canary secrecy is part of the security boundary, priced explicitly. $\beta$ is a measured
 property of the suppressor, not an assumption. The Wald stopping-time formulas are approximations (overshoot inflates
@@ -545,7 +545,7 @@ budget and detector exist only because a looping agent cannot pay the statelessn
 What is ours is the adaptation of that design to \emph{tool-using LLM agents}, and the assurance schedule the adaptation
 forces. Ryoan buys its confinement with a request-oriented model in which a module sees its input once and keeps no state; an
 agent that loops, calls tools, and orchestrates sub-steps cannot pay that price. We replace the structural prohibition with a
-metered one --- which is why a budget contract and a detection theory are load-bearing here and absent there --- and we justify
+metered one --- which is why a budget contract and a detection theory are critical here and absent there --- and we justify
 whole-worker taint not by engineering tractability but by the unsoundness claim stated in \S\ref{sec:problem} (an empirical
 hypothesis, not a theorem): token-level taint through a generative
 model forces a choice between marking every output token and missing semantic flows, so the sound over-approximation is the

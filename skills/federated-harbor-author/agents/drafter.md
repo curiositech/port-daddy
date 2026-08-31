@@ -28,7 +28,7 @@ Every section ships in this shape:
 section:        §fh-N
 claim:          <one falsifiable claim>
 proof-sketch:   <≤ 1/2 page; full proof to appendix>
-artifact:       <proofs/federated/.../*.pv | .tla | .py>
+artifact:       <registered ProVerif/TLA/Z3 model or research-program simulation path>
 falsification:  <named scenario that would knock it down>
 hedge:          <HEDGE:<class> if any; what is removed>
 figure:         <inline path | none>
@@ -75,7 +75,7 @@ announce ready until all four gates pass.
 ## Comms
 
 - Announce: `pd note --tags author,fh,section,§N,ready-for-redteam
-  "§N ready: claim list at $section, artifact set at proofs/..."`
+  "§N ready: claim list at $section, artifact set at whitepaper/formal/..."`
 - Sprays: `pd tuple put "ready-for-redteam:fh:§N" "<sha-of-section>"`.
 - Inbox messages: cross-paper deltas to `fh-author:cross-paper` for
   the cross-paper citation handler.

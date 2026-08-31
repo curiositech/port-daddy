@@ -1,6 +1,6 @@
 # Architecture & The Stack — The Whole-System View
 
-This is the load-bearing wall of the capstone. Before you write motion, shaders, audio, or a single visual token, you must hold the *whole machine* in your head: **M autonomous agents and N humans editing the same files at the same time, as co-equal replicas, on a native Rust gpui shell, governed by a daemon that already exists.** Everything else in this skill — and the four sibling skills it composes — hangs off the four layers described here.
+This is the critical wall of the capstone. Before you write motion, shaders, audio, or a single visual token, you must hold the *whole machine* in your head: **M autonomous agents and N humans editing the same files at the same time, as co-equal replicas, on a native Rust gpui shell, governed by a daemon that already exists.** Everything else in this skill — and the four sibling skills it composes — hangs off the four layers described here.
 
 The spine is not negotiable, and it is not ours to invent. It is the **Harbor Editor battle plan** (`docs/strategy/harbor-editor-battle-plan.md`), whose thesis we quote because it is the entire reason this product is buildable at all: <!-- cite-exempt: forward design+build target of this capstone skill (harbor-editor track); not a file in this bundle -->
 
@@ -51,7 +51,7 @@ The shell is **pd-console**, the same gpui framework Zed ships on (native Rust o
 SurfaceKind::Editor { path: String, region: Option<(u32, u32)> }
 ```
 
-It implements the existing object-safe `Pane`/`Surface` trait (`pane.rs:79`), which is already a *Surface*, not a read-only pane: it has `view()` (emits render-agnostic `Block`s), `mutate()` for daemon actions (`pane.rs:95`), `subscription()` to watch a live stream (`pane.rs:107`), and `on_stream()` to fold streamed frames (`pane.rs:114`). **One pane, two faces** (pane.rs:8): the gpui shell paints rich text; the ratatui TUI paints a read-only line-claim view of the *same doc*. This is load-bearing — it forces the editor's state to live in the buffer, not the renderer.
+It implements the existing object-safe `Pane`/`Surface` trait (`pane.rs:79`), which is already a *Surface*, not a read-only pane: it has `view()` (emits render-agnostic `Block`s), `mutate()` for daemon actions (`pane.rs:95`), `subscription()` to watch a live stream (`pane.rs:107`), and `on_stream()` to fold streamed frames (`pane.rs:114`). **One pane, two faces** (pane.rs:8): the gpui shell paints rich text; the ratatui TUI paints a read-only line-claim view of the *same doc*. This is critical — it forces the editor's state to live in the buffer, not the renderer.
 
 **The semantic `Tone` vocabulary is already the conflict-UX palette.** `pane.rs:16` defines `Tone::{Default, Accent, Engaged, Gated, Resting, Landed, Conflicted}` — color = MEANING, resolved to theme OKLCH by the renderer (pane.rs:27). When two actors reach for the same region, you do not invent a warning color: you paint the overlap band `Tone::Conflicted` and a claim chip `Tone::Gated`. The maritime design system did this work for you.
 
@@ -142,11 +142,11 @@ This capstone **composes** four sibling Rust/design skills. It does not re-deriv
                       motion        Track B
 ```
 
-**`beautiful-gui-design` — the VISUAL SYSTEM (Layer 1).** Owns hierarchy, color, type, spacing, the three-tier token model, light/dark, WCAG contrast, accessibility, component states. **Load-bearing, not polish:** the maritime OKLCH semantic tokens in `palette.rs`/`theme.rs` and the `Tone` enum (pane.rs:16) *are* this skill's three-tier model already realized. The conflict-band UX, the claim chips, the authorship-gutter colors all obey its rules: color is semantic tokens never raw hex, body ≥14px (the hard font-floor canon), every interactive control has default/hover/active/focus/disabled. The skill's "Invisible in Light Mode" and "Rainbow Vomit" anti-patterns gate every status color you add for M agents.
+**`beautiful-gui-design` — the VISUAL SYSTEM (Layer 1).** Owns hierarchy, color, type, spacing, the three-tier token model, light/dark, WCAG contrast, accessibility, component states. **Critical, not polish:** the maritime OKLCH semantic tokens in `palette.rs`/`theme.rs` and the `Tone` enum (pane.rs:16) *are* this skill's three-tier model already realized. The conflict-band UX, the claim chips, the authorship-gutter colors all obey its rules: color is semantic tokens never raw hex, body ≥14px (the hard font-floor canon), every interactive control has default/hover/active/focus/disabled. The skill's "Invisible in Light Mode" and "Rainbow Vomit" anti-patterns gate every status color you add for M agents.
 
 **`rust-gpui-motion` — the TRANSITIONS (Layer 1 + the Layer 2 binding).** Owns `with_animation`, easing, `BoxShadow`/glow, breathing dots, pane expand/zoom/slide, the no-transform constraint, and — critically for this capstone — **the frame-budget law.** Its rule "Frame budget is architecture, not polish" is exactly the Loro↔gpui binding constraint from Layer 2: a `.repeat()` re-renders the window forever and every re-render walks the whole tree, so the live-cursor pulse for N remote actors, the claim-band breathing, and the spawn→board transition must each be **one owner, scoped to the smallest leaf, viewport-diffed.** The skill's "layout animation in a hot render" anti-pattern is the literal failure mode of naively re-laying-out the editor per CRDT op. **You cannot ship the editor without obeying this skill.** Reduced-motion-first is also non-negotiable PD canon.
 
-**`gpui-shaders` — the LIVING-HARBOR VIZ (Layer 1, Track B, isolated).** Owns the bespoke GPU surface for the presence/causal-thread overlay — the `pd-timeline-proto` Vello 0.3 + Parley + wgpu path (`core/pd-timeline-proto/src/{data,scene,main}.rs`) fed by `GET /activity/timeline`. This is where the M-agent swarm becomes *visible* as flowing causal threads, pixelated-wave harbor water, signal-flag wakes. **Polish, not load-bearing:** it stays **workspace-excluded with its own Cargo.lock** so heavy GPU deps never hit the Linux CI gate (battle plan §3; the FleetPopoverTests rot is the cautionary tale). The editor ships without it; the *demo* sings with it. `rust-gpui-motion` §5 ("Bespoke Graphics — Vello/wgpu") names this as the last-resort escape hatch — earn it, don't default to it. <!-- cite-exempt: forward design+build target of this capstone skill (harbor-editor track); not a file in this bundle -->
+**`gpui-shaders` — the LIVING-HARBOR VIZ (Layer 1, Track B, isolated).** Owns the bespoke GPU surface for the presence/causal-thread overlay — the `pd-timeline-proto` Vello 0.3 + Parley + wgpu path (`core/pd-timeline-proto/src/{data,scene,main}.rs`) fed by `GET /activity/timeline`. This is where the M-agent swarm becomes *visible* as flowing causal threads, pixelated-wave harbor water, signal-flag wakes. **Polish, not critical:** it stays **workspace-excluded with its own Cargo.lock** so heavy GPU deps never hit the Linux CI gate (battle plan §3; the FleetPopoverTests rot is the cautionary tale). The editor ships without it; the *demo* sings with it. `rust-gpui-motion` §5 ("Bespoke Graphics — Vello/wgpu") names this as the last-resort escape hatch — earn it, don't default to it. <!-- cite-exempt: forward design+build target of this capstone skill (harbor-editor track); not a file in this bundle -->
 
 **`sound-design-and-audio` — the AUDIO (Layer 1).** Owns the sonic layer: a claim granted, a conflict band appearing, an agent landing a commit, a salvage recovering a dead replica's work — each is an event that wants a restrained, accessible, mutable sound. **Polish, gated behind a preference, never the critical path.** Like motion, it must honor a reduced/off setting and never be the only channel carrying state (accessibility: sound complements the `Tone::Conflicted` band, never replaces it).
 
@@ -154,11 +154,11 @@ This capstone **composes** four sibling Rust/design skills. It does not re-deriv
 
 ---
 
-## 7. Load-bearing vs polish (the honest cut)
+## 7. Critical vs polish (the honest cut)
 
 When the multi-quarter scope (battle plan §6: "This is a multi-quarter build") forces a cut, cut in this order — polish first, spine last.
 
-**LOAD-BEARING — the product is a lie without these:**
+**CRITICAL — the product is a lie without these:**
 - Layer 2: the Loro buffer + per-PeerID authorship gutter (the one from-scratch cost; battle plan P1).
 - Layer 3: region claims rendered as Loro awareness ranges + `POST /conflicts/predict` overlap detection + the commit guard (the wedge; battle plan P3).
 - Layer 3: salvage — typed operation receipts plus authenticated `/editor/recovery/{request,prepare,replay,finalize}` (the headline; battle plan P3.5).

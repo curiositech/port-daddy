@@ -1,5 +1,6 @@
 ---
 name: whitepaper-figure-system
+license: Apache-2.0
 description: >-
   Diagnoses, selects, and audits the semantic form of technical-paper figures before TikZ
   implementation. Use for any figure in the seven Port Daddy whitepapers, especially when the
@@ -11,6 +12,9 @@ description: >-
 metadata:
   category: Writing & Communication
   tags: [whitepaper, figures, semantic-visualization, tikz, information-design]
+  provenance:
+    kind: first-party
+    owners: [port-daddy]
   pairs-with: [tikz-figure-engineering, latex-authoring, color-contrast-auditor]
 allowed-tools: Read,Bash,Grep,Glob
 ---

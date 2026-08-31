@@ -53,7 +53,7 @@
     },
     "surfaceComposesSiblings": {
       "type": "boolean",
-      "description": "True if this surface composes the load-bearing sibling skills (rust-gpui-motion, gpui-shaders, vello-parley-rendering, metal-text-pipeline, gpui-rust-console) for its layer instead of reinventing their concerns inline."
+      "description": "True if this surface composes the critical sibling skills (rust-gpui-motion, gpui-shaders, vello-parley-rendering, metal-text-pipeline, gpui-rust-console) for its layer instead of reinventing their concerns inline."
     },
     "visualArtifactsInTestPlan": {
       "type": "boolean",

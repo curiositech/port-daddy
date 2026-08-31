@@ -373,7 +373,7 @@
       "detection_type": "structural",
       "severity": "high",
       "why_it_reads_ai": "Humans rarely announce that they are about to say something important; they just say it. The stacked frame is a trained safety reflex that reads as institutional throat-clearing.",
-      "fix": "Delete the meta-clause and state the fact directly. If a caveat is load-bearing, fold it into the sentence as a clause.",
+      "fix": "Delete the meta-clause and state the fact directly. If a caveat is critical, fold it into the sentence as a clause.",
       "before": "It's important to note that compound interest grows faster than simple interest. It's also worth remembering that the rate matters. Keep in mind that time horizon is a major factor.",
       "after": "Compound interest outpaces simple interest, and the gap widens with both the rate and the time horizon."
     },
@@ -711,7 +711,7 @@
       "detection_type": "llm-judge",
       "severity": "medium",
       "why_it_reads_ai": "Models reach for a motivational quote to manufacture an emotional beat and generic-ify the attribution. The quote rarely advances the argument, which is the tell.",
-      "fix": "Cut the quote unless it's real, correctly attributed, and load-bearing. Better: replace it with a concrete artifact \u2014 a customer's actual words, a real data point.",
+      "fix": "Cut the quote unless it's real, correctly attributed, and critical. Better: replace it with a concrete artifact \u2014 a customer's actual words, a real data point.",
       "before": "Slide (full bleed): \"The only way to do great work is to love what you do.\" \u2014 Anonymous",
       "after": "Slide (full bleed): \"I almost cancelled in week two. The thing that kept me was your support team answering at 11pm.\" \u2014 actual churn-survey response, account #4471"
     },
@@ -915,7 +915,7 @@
     {
       "title": "Wikipedia: Signs of AI writing",
       "url": "https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing",
-      "note": "The most load-bearing source: a field guide from WikiProject AI Cleanup cataloging content tells (significance/legacy puffery, weasel attribution), language tells (excess vocabulary, negative parallelisms 'not only...but also', rule of three, elegant variation), stylistic tells (Title Case headings, excessive boldface, inline-header bullet lists, em-dash overuse), and markup tells (markdown leaking into wikitext, oaicite artifacts). Notes era markers shifting from delve/intricate/testament to enhance/showcase."
+      "note": "The most critical source: a field guide from WikiProject AI Cleanup cataloging content tells (significance/legacy puffery, weasel attribution), language tells (excess vocabulary, negative parallelisms 'not only...but also', rule of three, elegant variation), stylistic tells (Title Case headings, excessive boldface, inline-header bullet lists, em-dash overuse), and markup tells (markdown leaking into wikitext, oaicite artifacts). Notes era markers shifting from delve/intricate/testament to enhance/showcase."
     },
     {
       "title": "Wikipedia:WikiProject AI Cleanup",

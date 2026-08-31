@@ -42,7 +42,7 @@ governed({ key, level, message, meta, sampleEveryN?, windowMs?, burst? }) -> emi
 - **Flush on shutdown.** Call `flushAll()` in the shutdown path so suppressed tails from
   the final, still-open window are not lost.
 - **A dropped log must never throw.** Wrap the sink call; swallow sink exceptions.
-  Observability is not load-bearing for liveness (see the safety reference).
+  Observability is not critical for liveness (see the safety reference).
 - **Pure + injectable clock.** Pass `now()` in so the whole thing is deterministically
   testable with zero real time and zero filesystem.
 

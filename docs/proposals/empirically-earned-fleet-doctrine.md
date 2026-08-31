@@ -665,7 +665,7 @@ Kill the pilot if doctrine exposure increases defect rate, operator correction b
 - Port Daddy, [`docs/adr/0052-trajectory-export-and-rl-loop.md`](../adr/0052-trajectory-export-and-rl-loop.md).
 - Port Daddy, [`docs/adr/0118-harness-adapter-contract.md`](../adr/0118-harness-adapter-contract.md).
 - Port Daddy, [`docs/architecture/agent-harbor-technical-binder/15-recursive-critical-synthesis.md`](../architecture/agent-harbor-technical-binder/15-recursive-critical-synthesis.md).
-- Port Daddy, [`docs/research/offline-counterfactual-cdm-for-agent-transcripts.html`](../research/offline-counterfactual-cdm-for-agent-transcripts.html).
+- Port Daddy, [`docs/product-research/offline-counterfactual-cdm-for-agent-transcripts.html`](../research/offline-counterfactual-cdm-for-agent-transcripts.html).
 
 ## 14. Binder Architect-of-Record ledger
 

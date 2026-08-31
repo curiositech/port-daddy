@@ -461,7 +461,7 @@ fn fs_main(in : VOut) -> @location(0) vec4f {
 }
 ```
 
-**Decision Point — barrel BEFORE you sample, CA AT sample, scanlines AFTER.** The order is load-bearing: distort UVs, fetch the three channels, *then* multiply the line/grille mask onto the fetched color. Scanline-then-distort smears the lines into the curve.
+**Decision Point — barrel BEFORE you sample, CA AT sample, scanlines AFTER.** The order is critical: distort UVs, fetch the three channels, *then* multiply the line/grille mask onto the fetched color. Scanline-then-distort smears the lines into the curve.
 **Anti-Pattern — full-strength CRT on text panes.** Symptom: chromatic aberration on code makes glyphs unreadable (violates the no-tiny-fonts spirit). Detection: `ca > 0.002` over a text surface. Fix: gate CA to ≤`0.001` over text, or exempt text panes from this pass entirely. The CRT skin is for *chrome and viz*, not the editor.
 
 ---

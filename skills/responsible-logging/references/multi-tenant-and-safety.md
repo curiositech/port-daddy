@@ -1,4 +1,4 @@
-# Two Horizons: Correlation Ids + Observability-as-Non-Load-Bearing
+# Two Horizons: Correlation Ids + Observability-as-Non-Critical
 
 Two concerns that outlive the immediate storm fix.
 
@@ -58,7 +58,7 @@ overnight, unwatched. Two implications:
   exists before real tenants arrive — retrofitting correlation across a live codebase is
   the expensive path.
 
-## Observability must never be load-bearing for liveness
+## Observability must never be critical for liveness
 
 The hardest rule, and the easiest to violate under deadline. **A broken observability
 sink must not be able to crash or stall the process it observes.**
@@ -75,4 +75,4 @@ sink must not be able to crash or stall the process it observes.**
   capped. An observability component that leaks memory is an outage it caused, not caught.
 
 The test for all of this: *inject a sink that throws on every call and assert the service
-still processes requests.* If it can't, observability is load-bearing and must be fixed.
+still processes requests.* If it can't, observability is critical and must be fixed.

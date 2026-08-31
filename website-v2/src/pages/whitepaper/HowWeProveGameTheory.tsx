@@ -68,14 +68,14 @@ const GAME_PAYOFF_CHART = `flowchart TB
 
 // ────────────────────────────────────────────────────────────────────────────
 // Authored, runnable code samples. Z3 SMT script is verbatim from the shipped
-// artifact `proofs/economics/delta-threshold.z3`. TLA+ snippet is the
-// load-bearing fragment of `proofs/economics/claim_signaling.tla` (full file
+// artifact `whitepaper/formal/z3/economics-delta-threshold/delta-threshold.z3`. TLA+ snippet is the
+// load-bearing fragment of `whitepaper/formal/tla/economics-claim-signaling/claim_signaling.tla` (full file
 // is ~250 lines including type annotations and comments).
 // ────────────────────────────────────────────────────────────────────────────
 
 const Z3_SMT_SAMPLE = `; delta-threshold.z3 — verify the discount-factor threshold for
 ; the graduated-trigger strategy of agent-transactions §sec:economic.
-; Full artifact: proofs/economics/delta-threshold.z3
+; Full artifact: whitepaper/formal/z3/economics-delta-threshold/delta-threshold.z3
 (set-logic QF_NRA)
 (declare-const delta Real)
 (assert (>= delta 0))
@@ -91,7 +91,7 @@ const Z3_SMT_SAMPLE = `; delta-threshold.z3 — verify the discount-factor thres
 ; Numerically delta* ≈ 0.3425. Z3 returns in well under 100ms.`
 
 const TLA_CLAIM_SIGNALING_SAMPLE = `\\* claim_signaling.tla — repeated claim-signaling under graduated trigger.
-\\* Full artifact: proofs/economics/claim_signaling.tla
+\\* Full artifact: whitepaper/formal/tla/economics-claim-signaling/claim_signaling.tla
 \\* Runs on every PR via .github/workflows/proofs.yml (TLC, JDK 17,
 \\* tla2tools v1.8.0). Apalache-compatible via @type annotations.
 
@@ -301,8 +301,8 @@ export default function HowWeProveGameTheoryPage() {
                 . If a check fails, the PR is red. Source paths cited
                 throughout this page resolve to real files in the
                 repo&apos;s{' '}
-                <code>proofs/economics/</code> and{' '}
-                <code>proofs/bonded/pareto/</code> directories. The
+                <code>whitepaper/formal/</code> and{' '}
+                <code>whitepaper/research/program/simulations/pareto/</code> directories. The
                 credibility loan this page used to take on
                 &ldquo;Apalache + Z3, planned&rdquo; is closed.
               </p>
@@ -678,7 +678,7 @@ export default function HowWeProveGameTheoryPage() {
 
                   <p>
                     Below is the load-bearing fragment of{' '}
-                    <code>proofs/economics/claim_signaling.tla</code>, the
+                    <code>whitepaper/formal/tla/economics-claim-signaling/claim_signaling.tla</code>, the
                     artifact that closes the game-theoretic side of the paper.
                     Full file is ~250 lines including the recommendation
                     machinery, graduated-trigger logic, and{' '}
@@ -687,14 +687,14 @@ export default function HowWeProveGameTheoryPage() {
                     are the ones the artifact actually checks. The cubic
                     that produces &delta;<sup>*</sup> is independently
                     discharged by{' '}
-                    <code>proofs/economics/delta-threshold.z3</code> (next
+                    <code>whitepaper/formal/z3/economics-delta-threshold/delta-threshold.z3</code> (next
                     section).
                   </p>
 
                   <DocsCodeBlock
                     code={TLA_CLAIM_SIGNALING_SAMPLE}
                     language="text"
-                    label="proofs/economics/claim_signaling.tla — fragment"
+                    label="whitepaper/formal/tla/economics-claim-signaling/claim_signaling.tla — fragment"
                   />
 
                   <p>
@@ -797,7 +797,7 @@ export default function HowWeProveGameTheoryPage() {
                   <DocsCodeBlock
                     code={Z3_SMT_SAMPLE}
                     language="text"
-                    label="proofs/economics/delta-threshold.z3 — try this yourself"
+                    label="whitepaper/formal/z3/economics-delta-threshold/delta-threshold.z3 — try this yourself"
                   />
 
                   <p>
@@ -929,7 +929,7 @@ z3 cubic-root.smt2
                     <li>
                       <strong className="text-[var(--text-primary)]">Z3 cubic discharge.</strong>
                       {' '}
-                      <code>proofs/economics/delta-threshold.z3</code>.
+                      <code>whitepaper/formal/z3/economics-delta-threshold/delta-threshold.z3</code>.
                       Proves existence, location in{' '}
                       <code>[0.34, 0.35]</code>, and uniqueness of the
                       threshold root in <code>(0, 1)</code>.
@@ -937,7 +937,7 @@ z3 cubic-root.smt2
                     <li>
                       <strong className="text-[var(--text-primary)]">TLA+ claim-signaling.</strong>
                       {' '}
-                      <code>proofs/economics/claim_signaling.tla</code>{' '}
+                      <code>whitepaper/formal/tla/economics-claim-signaling/claim_signaling.tla</code>{' '}
                       + <code>.cfg</code> + <code>sweep-delta.sh</code>.
                       TLC verifies the IC invariant at &delta;&nbsp;=&nbsp;0.35;
                       the sweep wrapper exercises &delta;&nbsp;&isin;&nbsp;{`{0.30, …, 0.40}`}
@@ -956,7 +956,7 @@ z3 cubic-root.smt2
                     <li>
                       <strong className="text-[var(--text-primary)]">Threat-band defensibility.</strong>
                       {' '}
-                      <code>proofs/bonded/pareto/threat-bands.mjs</code>.
+                      <code>whitepaper/research/program/simulations/pareto/threat-bands.mjs</code>.
                       Monte Carlo over (threat_mix &times; bond_band);
                       matched-band assertion enforces
                       <code>extraction ≤ band_upper &times; 1.10</code>.

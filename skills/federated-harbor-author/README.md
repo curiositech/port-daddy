@@ -67,7 +67,7 @@ Each round runs:
    citation handler audits the substitution-form dependencies.
 2. Drafter sprays `ready-for-redteam:fh:§N`.
 3. Redteam probes → whitehat closes → sec-eng-lead writes the
-   dialogue artifact at `docs/shipwright/federated/dialogue-fh-vN-to-vN+1.{json,md}`.
+   dialogue artifact at `whitepaper/research/program/rounds/federated-harbor/dialogue-fh-vN-to-vN+1.{json,md}`.
 4. Drafter applies the change list to §N. Section version bumps.
    Round closes.
 

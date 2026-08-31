@@ -2,7 +2,7 @@
 
 One paragraph per tool. *You reach for this when…* framing. This is the prose the expository writer mines for accurate one-liners about each verifier; longer treatments live in the worked draft itself.
 
-For deeper reference (input/output shapes, known-good idioms, integration patterns), see `port-daddy/skills/redteam-review/references/computational-tooling.md`. That file is the operator's load-bearing reference for which verifier fits which problem.
+For deeper reference (input/output shapes, known-good idioms, integration patterns), see `port-daddy/skills/redteam-review/references/computational-tooling.md`. That file is the operator's critical reference for which verifier fits which problem.
 
 ---
 

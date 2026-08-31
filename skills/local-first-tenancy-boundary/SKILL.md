@@ -118,7 +118,7 @@ recommendations }`.
 ### The Account Wall With No Escape Hatch
 
 **Novice**: Ships a feature that requires identity and assumes "we'll add the local-only mode later" — later
-never comes, and sign-in quietly becomes load-bearing for core functionality.
+never comes, and sign-in quietly becomes critical for core functionality.
 **Expert**: Every identity-gated feature ships alongside a working local-only equivalent on day one, or
 doesn't ship gated at all until one exists.
 **Detection**: `tenancy_boundary_audit.mjs` fires `identity-gated-no-local-path` (critical) when a feature has

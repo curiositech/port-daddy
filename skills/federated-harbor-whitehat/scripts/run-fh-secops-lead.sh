@@ -37,7 +37,7 @@ case "$GATE" in
     }
     pd tuple put "round:fh:open:$ROUND" "$TODAY"
     # Sign the Gate A event.
-    PAYLOAD_HASH=$(sha256sum "$REPO_ROOT/docs/shipwright/federated/round-$ROUND-whitehat-targets.md" 2>/dev/null | awk '{print $1}')
+    PAYLOAD_HASH=$(sha256sum "$REPO_ROOT/whitepaper/research/program/rounds/federated-harbor/round-$ROUND-whitehat-targets.md" 2>/dev/null | awk '{print $1}')
     echo "{\"gate\":\"A\",\"round\":\"fh.$ROUND\",\"ts\":\"$TODAY\",\"payload_hash\":\"sha256:$PAYLOAD_HASH\",\"signed_by\":\"fh-secops:lead\"}" \
       | pd msg send coordination:audit -
     echo "[gate-a] Round $ROUND opened; both fleets notified."

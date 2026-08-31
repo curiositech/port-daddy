@@ -65,8 +65,8 @@ When auditing a section:
 1. Read Federated Harbor text first. Note every cross-paper hit.
 2. Read the cited source section. Confirm the claim is what the
    federation paper says it is.
-3. Read the source's mechanization artifact (proofs/anchor/...,
-   proofs/bonded/...). Confirm it actually proves what is cited.
+3. Read the source's mechanization artifact (whitepaper/formal/proverif/anchor/...,
+   whitepaper/formal/bonded/...). Confirm it actually proves what is cited.
 4. If steps 1-3 all check, the dependency is *resolved*; spray
    `cross-paper:fh:resolved:§N:to:<paper>:§<M>`.
 5. If any of steps 1-3 fails, the dependency is *unresolved*; spray

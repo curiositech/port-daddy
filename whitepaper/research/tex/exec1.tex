@@ -66,7 +66,7 @@ A single head $h$ serves both readers iff their induced preference orders $\prec
 
 \subsection{The quantitative half (verified numerically in \S3)}
 \begin{claim}[Split penalty is super-additive]
-Let $\mathrm{Floor}(N,k,m)=\log_2\binom{N}{k}-\log_2\binom{m}{k}$ be the zero-miss bit floor for catching a $k$-set among $N$ while opening $m$ (Theorem I.6.1). A joint zero-miss digest serving two readers whose load-bearing sets are disjoint (sizes $k$ each) must catch their union, size $2k$, and so requires $\mathrm{Floor}(N,2k,m)$ bits. Across regimes this is not merely $2\,\mathrm{Floor}(N,k,m)$ but slightly \emph{more}:
+Let $\mathrm{Floor}(N,k,m)=\log_2\binom{N}{k}-\log_2\binom{m}{k}$ be the zero-miss bit floor for catching a $k$-set among $N$ while opening $m$ (Theorem I.6.1). A joint zero-miss digest serving two readers whose critical sets are disjoint (sizes $k$ each) must catch their union, size $2k$, and so requires $\mathrm{Floor}(N,2k,m)$ bits. Across regimes this is not merely $2\,\mathrm{Floor}(N,k,m)$ but slightly \emph{more}:
 \[
 \frac{\mathrm{Floor}(N,2k,m)}{2\,\mathrm{Floor}(N,k,m)} \approx 1.05\text{--}1.08,
 \]
@@ -81,7 +81,7 @@ Theorem I.6.1 predicts that \emph{any} digest of $B<\mathrm{Floor}(N,k,m)$ bits,
 \qquad
 \Pr(\text{miss}\ge1)=\max\!\Bigl(0,\,1-2^{B}\tbinom{m}{k}/\tbinom{N}{k}\Bigr).
 \]
-The prediction is sharp and refutable: if any real digest scheme dips below this curve, the load-bearing formalization is wrong.
+The prediction is sharp and refutable: if any real digest scheme dips below this curve, the critical formalization is wrong.
 
 \subsection{Method}
 A digest is an encoder $e:(\text{features})\to\{0,1\}^B$ and a fixed, data-independent decoder $d:\{0,1\}^B\to$ (an $m$-subset to open); the scheme catches $T$ iff $T\subseteq d(e(\cdot))$. We implement three encoders --- \emph{oracle} (sees the true set, addresses the best codeword its $B$ bits can reach), \emph{noisy} (SNR $\approx 1$ features), \emph{random} --- against a shared randomized-cover codebook, and measure empirical miss over $4000$ placements per point. Regime $N=60,k=2,m=8$ so the floor $B^\star=5.98$ bits is fully sweepable.
@@ -91,7 +91,7 @@ A digest is an encoder $e:(\text{features})\to\{0,1\}^B$ and a fixed, data-indep
 
 \noindent\textbf{Falsification test: passed.} Across the swept budgets, the oracle encoder produced \textbf{0/16} violations of the floor (a violation being an empirical miss more than a Monte-Carlo margin below the predicted minimum). The theory survives.
 
-\noindent\textbf{The bug, reported.} A first implementation gave the oracle a \emph{perfect score vector} and charged bits only for tie-resolution, producing $8/14$ spurious ``violations.'' This was a model/theory mismatch, not a refutation: the floor charges bits for \emph{identifying} the load-bearing set, while that implementation let the oracle encode identity for free. The corrected model makes $B$ a literal message length gating an encoder/decoder pair, restoring agreement. This is logged because the refute-first discipline is only honest if the near-misses are reported --- and because it is a concrete instance of the deeper point: an information bound constrains \emph{what a channel can carry}, and a simulation that smuggles information through an unpriced side channel will appear to beat it.
+\noindent\textbf{The bug, reported.} A first implementation gave the oracle a \emph{perfect score vector} and charged bits only for tie-resolution, producing $8/14$ spurious ``violations.'' This was a model/theory mismatch, not a refutation: the floor charges bits for \emph{identifying} the critical set, while that implementation let the oracle encode identity for free. The corrected model makes $B$ a literal message length gating an encoder/decoder pair, restoring agreement. This is logged because the refute-first discipline is only honest if the near-misses are reported --- and because it is a concrete instance of the deeper point: an information bound constrains \emph{what a channel can carry}, and a simulation that smuggles information through an unpriced side channel will appear to beat it.
 
 \subsection{Key numbers}
 \begin{center}

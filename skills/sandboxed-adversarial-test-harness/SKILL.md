@@ -138,7 +138,8 @@ Use `scripts/containment_audit.mjs` to compute coverage and flag missing threat-
 
 ## Skill Bundle Index
 
-*Every file in this skill, and when to open it. Auto-generated; run `scripts/index_references.py --fix`.*
+*Every file in this skill, and when to open it. Regenerate with the first-party
+skill architect: `python3 ../skill-architect/scripts/index_references.py . --fix`. <!-- phantom-ok: declared cross-skill tool -->*
 
 **root**
 - [`CHANGELOG.md`](CHANGELOG.md) — Sandboxed Adversarial Test Harness — Changelog — - Initial skill creation - Core process defined - Reference files and deterministic containment audit script added

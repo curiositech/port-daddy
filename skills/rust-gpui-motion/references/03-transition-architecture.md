@@ -53,7 +53,7 @@ mod motion {
 
 ## Principle 1 — One Motion Owner Per Surface
 
-The `animation-system-architect` skill's rule #4 — *"Choose one orchestration owner… should own a flow, not compete inside it"* — is the load-bearing principle here, and gpui makes violating it especially nasty because **`with_animation` is keyed by `ElementId`** and gpui caches each animation's start-time against that id. Two animations targeting the same visual property with overlapping ids fight over the same cached clock; you get stutter, restart-on-every-notify, or a frozen half-state.
+The `animation-system-architect` skill's rule #4 — *"Choose one orchestration owner… should own a flow, not compete inside it"* — is the critical principle here, and gpui makes violating it especially nasty because **`with_animation` is keyed by `ElementId`** and gpui caches each animation's start-time against that id. Two animations targeting the same visual property with overlapping ids fight over the same cached clock; you get stutter, restart-on-every-notify, or a frozen half-state.
 
 **Owner = the `Entity<V>` (the view) whose `Context<V>` drives the flow.** In pd-console that is `ConsoleView` (app.rs:319). The owner holds:
 1. exactly one `Transition` enum field (the current in-flight transition, or `Idle`),

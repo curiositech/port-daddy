@@ -68,7 +68,7 @@ token, AES-GCM sealed. Verified posture:
 - **RT2 (crypto → ProVerif backlog).** Phase 1 introduces new key material
   (AES-GCM token sealing). Per this skill's crypto gate, add a symbolic-model
   query covering *seal → store → open* under an A2 relay-compromise assumption
-  to the relay's `analyses/` backlog. Tracked, not v1-blocking (the primitive is
+  to the relay.s `apps/relay/formal/` backlog. Tracked, not v1-blocking (the primitive is
   standard AES-256-GCM with a Worker-held key; the model documents the trust
   boundary, it does not gate the ship).
 

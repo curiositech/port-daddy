@@ -70,7 +70,7 @@ The expert used the buoy wake cue *every time*. But when asked "how do you get u
 
 This is a general property of expertise: the most reliable cues are the most invisible. Initial knowledge elicitation will systematically miss them. Probe questioning ("how did you know X?", "what did you notice just before you did Y?") and validation against multiple experts are required to surface them.
 
-For agent system development: capability documentation built from a single expert's first-pass account will be systematically deficient in exactly the ways that matter most. The missing cues are the ones the expert uses *most reliably* — which means they are the load-bearing elements of the skill.
+For agent system development: capability documentation built from a single expert's first-pass account will be systematically deficient in exactly the ways that matter most. The missing cues are the ones the expert uses *most reliably* — which means they are the critical elements of the skill.
 
 ## CCI Structure for Agent Systems
 

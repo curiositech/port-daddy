@@ -1,7 +1,7 @@
 /**
  * RUNTIME CONFORMANCE: ProVerif algconfusion.pv ←→ lib/harbor-tokens.ts
  *
- * Spec:    proofs/anchor/token-verify/algconfusion.pv
+ * Spec:    whitepaper/formal/proverif/anchor/token-verify/algconfusion.pv
  * Runtime: lib/harbor-tokens.ts:201–267
  *
  * The .pv proves: a verifier pinned to algorithm A never accepts a

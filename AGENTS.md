@@ -765,7 +765,7 @@ This applies to every technical document, design doc, tutorial, blog post, ADR, 
 
 - **Cite-and-define on first use.** The *first* time a document uses an external technical term (e.g. *Goodhart's law*, *fail-closed*, *Sybil attack*, *liveness*, *closure*, *idempotent*), **bold the term, give a citation, and add a one-line gloss** (parenthetical is fine). The reader is a sharp engineer who may not share our exact background; a document should be legible without a glossary lookup.
 - **Cite the code for our own abstractions.** The *first* mention of a Port Daddy abstraction (e.g. *daemon*, *Arbiter*, *Coordination Guard*, *claim-tree*, *actor-soul*, *bonds*, *resurrection*) gets **bold + the source-file path relative to repo root + one sentence** on what it is. This forces every claim to be checked against real code and keeps docs honest as code moves.
-- **Why this rule exists.** It makes documents portable to readers outside the immediate context, and the act of citing the file is a built-in correctness check — a path that no longer exists is a caught lie. The exemplar is `docs/research/agent-accountability-proposal.md`.
+- **Why this rule exists.** It makes documents portable to readers outside the immediate context, and the act of citing the file is a built-in correctness check — a path that no longer exists is a caught lie. The exemplar is `whitepaper/research/program/archive/accountability/agent-accountability-proposal.md`.
 - Pick a Diátaxis mode and stay in it: tutorial (learning), how-to (task), explanation (understanding), or reference (lookup). Do not blend an explanation into a tutorial.
 
 ## Website And Public Content

@@ -46,7 +46,7 @@ is designed to catch.
   "pass": false,
   "score": 26,
   "findings": [
-    { "severity": "critical", "id": "identity-gated-no-local-path", "message": "Feature \"cloud-only-team-dashboard\" requires identity and has no local-only path — account/passkey sign-in is load-bearing, not optional." },
+    { "severity": "critical", "id": "identity-gated-no-local-path", "message": "Feature \"cloud-only-team-dashboard\" requires identity and has no local-only path — account/passkey sign-in is critical, not optional." },
     { "severity": "critical", "id": "tier-crossing-no-consent", "message": "Feature \"cloud-only-team-dashboard\" moves data to scope tier \"team\" with no explicit data-boundary consent screen." },
     { "severity": "critical", "id": "tier-crossing-no-consent", "message": "Feature \"auto-sync-to-public-gallery\" moves data to scope tier \"public\" with no explicit data-boundary consent screen." },
     { "severity": "low", "id": "private-tier-flagged-as-crossing", "message": "Feature \"offline-notes\" is scoped \"private\" but is also marked as crossing a tier with a consent screen — contradictory configuration." },

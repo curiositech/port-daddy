@@ -50,7 +50,7 @@ bond:        <severity-weighted; slashed if a later round breaks this fix>
   by the original principal. If the proof fails, ship a code change that
   binds the attenuation context to the chain hash.
 - **Cuckoo filter pollution**: bound the false-positive rate analytically
-  (Fan/Demers), then verify with a saturation harness in `proofs/anchor/cuckoo/`.
+  (Fan/Demers), then verify with a saturation harness in `whitepaper/formal/proverif/anchor/cuckoo/`.
   Property: under N revocations + M reissues, fp rate stays within budget.
   If it does not, ship rate-limiting on the issuance side and document the
   bound in §2.4.

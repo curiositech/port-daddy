@@ -258,7 +258,7 @@ Deviation is strictly unprofitable. Truthful signaling is sustained as a Nash eq
 
 Remove the immutable note trail. Now deviation is undetectable. Agent A can play F, and B cannot observe it to trigger punishment. The game collapses to repeated one-shot: both play F every round.
 
-**This is why Port Daddy's immutable notes are load-bearing for incentive compatibility.** They are not a convenience feature. They are the observability infrastructure that makes the folk theorem applicable.
+**This is why Port Daddy's immutable notes are critical for incentive compatibility.** They are not a convenience feature. They are the observability infrastructure that makes the folk theorem applicable.
 
 ### Step 6: Why Persistent Identity Is Critical
 

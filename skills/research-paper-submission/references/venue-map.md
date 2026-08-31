@@ -133,7 +133,7 @@ Transplantation work is most often blindsided not by the source field but by a
 
 ```mermaid
 flowchart TD
-  A[What is the load-bearing contribution?] --> B{A new theorem?}
+  A[What is the critical contribution?] --> B{A new theorem?}
   B -->|no, an application| C[Application venue in the target domain.<br/>Lead with the system or the measurement.]
   B -->|yes| D{Whose theorem vocabulary?}
   D -->|incentives, equilibria| E[EC / WINE / SAGT<br/>expect referees who know the source game]

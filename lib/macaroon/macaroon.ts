@@ -21,12 +21,12 @@
  *
  * Proof status (honest, per the 2026-06-15 red-team round): the per-hop *discipline*
  * mirrors the card result on `defense/anchor-attenuation-soundness`
- * (`analyses/harbor_card_v6→v7.pv` — the naive verifier shown unsound for Ed25519
+ * (`whitepaper/formal/proverif/harbor-card/harbor_card_v6→v7.pv` — the naive verifier shown unsound for Ed25519
  * capability cards, a different construction). The discharge construction THIS module
  * ships (HMAC-commitment vid + discharge macaroon + request-binding) is machine-checked
- * in `analyses/macaroon_discharge_v1.pv`: Q1 (no authorization without a daemon-issued
+ * in `core/kernel/pd-anchor/formal/proverif/macaroon-discharge/macaroon_discharge_v1.pv`: Q1 (no authorization without a daemon-issued
  * discharge bound to that grant) is `true` under an active attacker. The per-hop-vs-
- * naive regression (Q2) is in `analyses/macaroon_discharge_v2_naive_unsound.pv`: the
+ * naive regression (Q2) is in `core/kernel/pd-anchor/formal/proverif/macaroon-discharge/macaroon_discharge_v2_naive_unsound.pv`: the
  * naive verifier (skips the binding check) is `false` (attack found) under cross-grant
  * replay — justifying this per-hop binding. Residual gap: first-party caveat soundness
  * + MAX_DISCHARGE_DEPTH.

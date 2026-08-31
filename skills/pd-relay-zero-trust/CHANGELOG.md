@@ -23,5 +23,5 @@ Initial skill scaffold.
 
 ### Open work tracked outside this changelog
 - Land actual relay code under `lib/`, `routes/`, `mcp/` (out of scope for this skill, but informed by it)
-- Extend ProVerif models in `analyses/` per `references/proverif-relay-extension.md`
+- Extend ProVerif models in `apps/relay/formal/proverif/` per `references/proverif-relay-extension.md`
 - Update `V4-DAG.md`, `v4.dag.yaml`, `V4-MASTER-PLAN.md` per ADR-0027

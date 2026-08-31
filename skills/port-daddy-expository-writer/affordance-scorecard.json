@@ -46,7 +46,7 @@
   "validation": {
     "repo_validator_passed": null,
     "notes": [
-      "Initial draft 2026-05-20. Voice rules link to user_voice_website.md rather than duplicating. Worked rewrite uses real paragraphs from agent-transactions-whitepaper.tex §sec:youle."
+      "Initial draft 2026-05-20. Voice rules are portable in references/voice-references.md. Worked rewrite uses real paragraphs from agent-transactions-whitepaper.tex §sec:youle."
     ]
   }
 }

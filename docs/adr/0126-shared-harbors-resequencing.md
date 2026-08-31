@@ -7,7 +7,7 @@
   must be surfaced and recorded, never made by an agent
   (`docs/architecture/agent-harbor-technical-binder/16-binder-architect-of-record.md`)
 - **Overrides:** the north-star strategy memo's year-2+ Tier-3 sequencing
-  (`docs/research/north-star/strategy/SYNTHESIS-strategy-memo.md` §5) and
+  (`whitepaper/research/program/archive/north-star/strategy/SYNTHESIS-strategy-memo.md` §5) and
   binder ch00's M10-last parking of Cloud/Mobile/Teams
   (`docs/architecture/agent-harbor-technical-binder/00-prd-roadmap-and-test-plan.md`)
 - **Builds on:** ADR-0027 (relay harbor mesh), ADR-0049 (relay v0),
@@ -55,7 +55,7 @@ one sentence. They have been standing product intent since June.
 Two documents parked that intent, deliberately:
 
 - The north-star strategy memo
-  (`docs/research/north-star/strategy/SYNTHESIS-strategy-memo.md` §5), in
+  (`whitepaper/research/program/archive/north-star/strategy/SYNTHESIS-strategy-memo.md` §5), in
   its business-model ladder: "**Tier 3 — Harbor (year 2+):** federation,
   settlement relay, marketplace take-rate. Do not start here; the
   cold-start kills a broke founder."
@@ -282,7 +282,7 @@ scope.
   Decision.
 - `docs/design/2026-06-05-the-unified-model.md` — the operator mandate,
   quoted verbatim in Context.
-- `docs/research/north-star/strategy/SYNTHESIS-strategy-memo.md` — the
+- `whitepaper/research/program/archive/north-star/strategy/SYNTHESIS-strategy-memo.md` — the
   overridden Tier-3 sequencing, and the cold-start argument that still
   governs §5.
 - `docs/proposals/relay-grand-plan.md` — §5.1 two-plane doctrine (the

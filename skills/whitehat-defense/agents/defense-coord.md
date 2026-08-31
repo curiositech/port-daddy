@@ -74,4 +74,4 @@ under TLC (or Apalache) before commit slash the counter's bond.
 
 - Read `redteam:coord:*` channels.
 - Ship a TLA+ artifact without committing both the .tla and the .cfg
-  and at least one TLC run log to `proofs/bonded/coord/`.
+  and at least one TLC run log to `whitepaper/formal/bonded/coord/`.

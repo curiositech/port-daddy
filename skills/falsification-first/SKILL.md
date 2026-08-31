@@ -12,6 +12,9 @@ allowed-tools: Read,Write,Edit,Bash
 metadata:
   category: Research & Methodology
   tags: [falsification, verification, counterexample, mutation-testing, methodology, refute-first]
+  provenance:
+    kind: first-party
+    owners: [port-daddy]
   version: 1.0.0
   pairs-with:
     - skill: harbor-results
@@ -59,7 +62,7 @@ flowchart TD
 
 ### The Unvalidated Green Checker
 **Novice**: "All invariants pass — we're safe."
-**Expert**: Passing proves nothing until seeded violations fail. Every guard must be shown load-bearing (harbor-results L3 lesson 5: five guards, five shortest crimes).
+**Expert**: Passing proves nothing until seeded violations fail. Every guard must be shown critical (harbor-results L3 lesson 5: five guards, five shortest crimes).
 **Detection**: A checker repo with no mutation/negative-case suite.
 
 ### The Confirming Gate

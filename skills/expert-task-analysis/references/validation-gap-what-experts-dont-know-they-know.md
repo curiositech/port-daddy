@@ -14,7 +14,7 @@ The expert who built the initial model knew about tugboats. The model was not bu
 
 This reveals a systematic cognitive bias in single-expert knowledge elicitation: **experts naturally model the core of their domain and underspecify the supporting infrastructure**. The conning officer's expertise is ship-handling; tugs are external coordination. The expert thinks "I can explain how I drive the ship" and builds a model of ship-driving. The tug is something that *happens* in the environment; it's not something the expert cognitively owns.
 
-But in practice, the tug is not optional infrastructure. It is a load-bearing element of virtually every pier-side evolution.
+But in practice, the tug is not optional infrastructure. It is a critical element of virtually every pier-side evolution.
 
 ## The General Pattern
 

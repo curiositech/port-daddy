@@ -27,7 +27,7 @@ dist/
 coverage/
 
 # TLC model checker intermediate state (only check in .tla, .cfg, .run.log)
-proofs/**/states/
+whitepaper/formal/**/states/
 
 # OG image scratch
 website-v2/.tmp-og/

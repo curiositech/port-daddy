@@ -5,7 +5,7 @@
  * Bonded Commons attack catalog) — exercised against the REAL
  * lib/cuckoo-filter.ts code.
  *
- * Spec:    proofs/bonded/recovery/cuckoo-pollution.md
+ * Spec:    whitepaper/formal/proverif/bonded/recovery/cuckoo-pollution.md
  * Runtime: lib/cuckoo-filter.ts
  *
  * What "pollution" means here

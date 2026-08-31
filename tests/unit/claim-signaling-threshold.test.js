@@ -2,7 +2,7 @@
  * Unit tests for the claim-signaling discount-factor threshold.
  *
  * Mirrors the closed-form analysis mechanized in
- * proofs/economics/delta-threshold.z3 and proofs/economics/claim_signaling.tla
+ * whitepaper/formal/z3/economics-delta-threshold/delta-threshold.z3 and whitepaper/formal/tla/economics-claim-signaling/claim_signaling.tla
  * for the corrected prisoner's-dilemma stage game
  * (T,T)=(3,3), (T,F)=(0,4), (F,T)=(4,0), (F,F)=(1,1):
  *
@@ -11,7 +11,7 @@
  *   i.e. the IC cubic f(d) = 2d^3 + 2d^2 + 2d - 1 crosses zero at delta*.
  *
  * Dependency-free on purpose: pure arithmetic, no imports from lib/.
- * If these numbers drift from the proofs/ artifacts, one side is stale.
+ * If these numbers drift from the registered whitepaper/formal artifacts, one side is stale.
  */
 import { describe, test, expect } from '@jest/globals';
 

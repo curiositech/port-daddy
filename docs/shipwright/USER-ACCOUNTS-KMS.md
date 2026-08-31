@@ -479,7 +479,7 @@ key-wrap protocol are each a few dozen lines of ProVerif. We prove:
 - `key_agreement(harbor_session)` — wrapped session key only decryptable
   by intended recipient.
 
-Spec files land in `proofs/*.pv` alongside the worker.
+Spec files land in `whitepaper/formal/proverif/**/*.pv` alongside the worker.
 
 ---
 
@@ -518,7 +518,7 @@ routes/
   auth.ts                    # /auth/* — daemon-local shim that proxies
                              # to the CF worker, saves us from shipping
                              # CF creds to every Port Daddy CLI invocation
-proofs/
+whitepaper/formal/
   register.pv                # ProVerif
   login.pv
   harbor-key-wrap.pv

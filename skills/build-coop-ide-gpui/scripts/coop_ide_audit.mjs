@@ -140,7 +140,7 @@ export function auditCoopIdeArchitecture(plan) {
       'surface-does-not-compose-siblings',
       'medium',
       'surfaceComposesSiblings is false: this surface does not pull the sibling skills (motion/shaders/text/console) it needs instead of reinventing them.',
-      'Compose the load-bearing siblings for this layer (rust-gpui-motion, gpui-shaders, vello-parley-rendering, metal-text-pipeline, gpui-rust-console) rather than rebuilding their concerns inline.'
+      'Compose the critical siblings for this layer (rust-gpui-motion, gpui-shaders, vello-parley-rendering, metal-text-pipeline, gpui-rust-console) rather than rebuilding their concerns inline.'
     );
   }
 

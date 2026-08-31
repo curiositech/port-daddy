@@ -36,7 +36,7 @@
       "properties": {
         "artifact": {
           "type": "string",
-          "pattern": "^proofs/federated/.+\\.(pv|spthy|tla|cfg|py|rs|md|smt2)$"
+          "pattern": "^whitepaper/(formal/(proverif|tla|z3|easycrypt)/federated-harbor|research/program/(simulations|rounds)/federated-harbor)/.+\\.(pv|spthy|tla|cfg|py|rs|md|smt2|ec)$"
         },
         "tool": {
           "type": "string",

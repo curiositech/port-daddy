@@ -13,6 +13,7 @@ description: >
   always-on-agent-architecture), single-prompt wording (use prompt-engineer), pure
   mechanism-design proofs (use nisan-et-al-2007-algorithmic-game-theory).
 license: Apache-2.0
+allowed-tools: Read,Write,Edit,Bash,Grep,Glob
 metadata:
   category: AI & Agents
   tags:
@@ -23,6 +24,9 @@ metadata:
     - digest
     - agent-swarms
     - cogs
+  provenance:
+    kind: first-party
+    owners: [port-daddy]
   pairs-with:
     - skill: always-on-agent-inputs
       reason: Per-tier context budgeting + retrieval strategy this skill prices
@@ -32,11 +36,11 @@ metadata:
       reason: Mechanism design for metering and charging token spend
     - skill: episodic-memory-algorithms
       reason: Promotion of transient turns into durable compressed episodes
-io-contract:
-  kind: deliverable
-  produces:
-    - kind: design-doc
-      description: Context budget allocation, caching, and compaction strategy across a swarm with cost accounting
+  io-contract:
+    kind: deliverable
+    produces:
+      - kind: design-doc
+        description: Context budget allocation, caching, and compaction strategy across a swarm with cost accounting
 ---
 
 # Context Economics for Agent Swarms
@@ -137,7 +141,7 @@ Is the dropped content reconstructable from a durable artifact (git, DB, files)?
 *Durable-agents cross-reference:* micro/macro compaction, overlays, and boundary-aware
 ranges are the *in-session* half of the durable-agent picture. For the full industry
 comparison (Cloudflare, Temporal, LangGraph, Letta) and how Port Daddy's primitives map
-onto it, see `docs/research/durable-agents-landscape-2026-07.md`.
+onto it, see `docs/product-research/durable-agents-landscape-2026-07.md`.
 
 ### 3. Shared digest (the swarm's compaction) — granularity
 
@@ -174,7 +178,7 @@ Are agents under one operator (cooperative) or across operators (strategic)?
 **Lost-in-the-middle starvation.** *Symptom:* agent retrieves the right document/tool but
 reasons as if it didn't; accuracy depends on *where* in the window the fact sat.
 *Root cause:* models use the beginning and end of context far better than the middle.
-*Detection:* same fact, two positions, two answers. *Fix:* put the load-bearing fact at
+*Detection:* same fact, two positions, two answers. *Fix:* put the critical fact at
 an edge; shorten the window; don't bury the obligation in scrollback.
 
 **Context rot.** *Symptom:* quality silently decays as the session grows even though nothing
@@ -239,7 +243,7 @@ compacts from artifacts, and ships a zoomable digest plus a per-task bill.
 - [ ] Token spend is metered per agent-task in a ledger keyed to outcomes; cap breaches loud-fail.
 - [ ] Pricing/auctions appear ONLY in the multi-operator case; the single-operator case accounts, it does not charge.
 - [ ] Tool exposure ≤3–5 always-loaded; the rest discovered (context precision).
-- [ ] A position/length sanity check exists (load-bearing facts at edges; accuracy-vs-length curve known).
+- [ ] A position/length sanity check exists (critical facts at edges; accuracy-vs-length curve known).
 
 ## NOT-FOR BOUNDARIES
 

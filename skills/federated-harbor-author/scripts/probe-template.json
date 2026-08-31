@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "fh-author/probe-template.json",
   "title": "Federated Harbor — author-side claim template",
-  "description": "Every load-bearing claim a drafter ships uses this shape. The redteam matches on these fields; missing fields are sloppy drafting.",
+  "description": "Every consequential claim a drafter ships uses this shape. The redteam matches on these fields; missing fields are sloppy drafting.",
   "type": "object",
   "required": ["section", "claim", "proof_sketch", "artifact", "falsification", "figure", "cross_paper"],
   "additionalProperties": false,
@@ -27,8 +27,8 @@
       "properties": {
         "path": {
           "type": "string",
-          "pattern": "^proofs/federated/.+\\.(pv|spthy|tla|cfg|py|rs)$",
-          "description": "Path under proofs/federated/. PLACEHOLDER paths must be replaced before round close."
+          "pattern": "^whitepaper/(formal/(proverif|tla|z3|easycrypt)/federated-harbor|research/program/simulations/federated-harbor)/.+\\.(pv|spthy|tla|cfg|py|rs|smt2|ec)$",
+          "description": "Method-specific formal or empirical path. A PENDING path remains a plan until the source, receipt, and manifest record land."
         },
         "kind": {
           "type": "string",

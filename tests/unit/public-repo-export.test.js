@@ -35,7 +35,7 @@ describe('public repo export', () => {
 
     for (const path of [
       '.cartographer/status.md',
-      'analyses/product-appeal.md',
+      'docs/product-research/analyses/product-appeal.md',
       'docs/recovery/CURRENT-WORK.md',
       'public/app-surgery.html',
       'website-v2/public/llms.txt',

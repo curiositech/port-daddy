@@ -130,7 +130,7 @@ IF coordination succeeds but action fails
 - But agents don't know others received it (no common knowledge)
 - Without common knowledge, coordination fails in adversarial environment
 
-> The distinction between distributed knowledge (D{a1,a2}φ) and common knowledge is load-bearing here — see `references/distributed-vs-common-knowledge.md` for the formal treatment.
+> The distinction between distributed knowledge (D{a1,a2}φ) and common knowledge is critical here — see `references/distributed-vs-common-knowledge.md` for the formal treatment.
 
 **Solution:**
 1. Replace broadcast with public announcement requiring confirmation

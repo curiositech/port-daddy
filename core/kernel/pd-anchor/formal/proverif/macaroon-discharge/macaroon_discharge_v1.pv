@@ -1,0 +1,103 @@
+(*
+ * Port Daddy: Macaroon Discharge v1 — the rent-paid third-party caveat
+ * ====================================================================
+ *
+ * Closes a proof-gap surfaced by the red-team round (proof-audit, this round):
+ * the per-hop attenuation ProVerif models (whitepaper/formal/proverif/harbor-card/harbor_card_v5..v7) prove
+ * the HARBOR-CARD capability-subset attenuation (Ed25519 cards). They do NOT
+ * model the MACAROON discharge construction that ADR-0053 / pd-anchor::macaroon
+ * actually ships: an HMAC chain whose third-party caveat carries an HMAC-
+ * COMMITMENT verification id (vid = HMAC(chain_sig, caveat_key)), discharged by
+ * a separate macaroon, request-bound via HMAC(BIND0, root_sig || discharge_sig).
+ *
+ * This model encodes that construction and asks the load-bearing question:
+ *   can an attacker who holds the (public) grant macaroon get a push AUTHORIZED
+ *   without the daemon having issued a discharge for THAT grant?
+ *
+ * HMAC is modelled as a public one-way keyed PRF: hmac(message, key) with no
+ * destructor, so in the symbolic model it cannot be inverted and two outputs are
+ * equal only when message and key are equal (collision resistance). The attacker
+ * may apply hmac to anything it knows, but cannot produce hmac(_, k) for a
+ * private k it does not hold.
+ *
+ * EXPECTED: Q1 (no authorization without a daemon discharge) is TRUE — the
+ * HMAC-commitment vid + request-binding makes the discharge unforgeable and
+ * non-transferable. This model encodes ONLY the correct per-hop verifier and Q1.
+ *
+ * COMPANION (Q2, the per-hop-vs-naive regression): macaroon_discharge_v2_naive_unsound.pv
+ * models a verifier that skips the request-binding check and shows it UNSOUND under
+ * cross-grant replay (the macaroon analogue of the card result on harbor_card_v6→v7.pv).
+ * Q2 is `false` (attack reconstructed) — that is what justifies the binding check this
+ * (v1) correct verifier performs. Residual gap now narrows to first-party caveat
+ * soundness + the MAX_DISCHARGE_DEPTH bound (see the audit doc).
+ *)
+
+free c: channel.
+
+(* HMAC-SHA256 as a one-way keyed PRF (no destructor → unforgeable without key). *)
+fun hmac(bitstring, bitstring): bitstring.
+
+(* Public constants of the construction. *)
+const grant_id_A: bitstring.
+const grant_id_B: bitstring.
+const rent_cid_A: bitstring.
+const rent_cid_B: bitstring.
+const deny_main: bitstring.       (* first-party caveat: branch != main *)
+const expires_cav: bitstring.     (* the discharge's own expiry caveat *)
+const BIND0: bitstring.           (* 32 zero bytes — the prepare-for-request key *)
+const PUSH_OK: bitstring.
+
+(* Daemon-only secrets. *)
+free root_key_A: bitstring [private].
+free root_key_B: bitstring [private].
+free caveat_key_A: bitstring [private].
+free caveat_key_B: bitstring [private].
+
+event DaemonIssuesDischarge(bitstring).   (* daemon mints a discharge bound to this grant_sig *)
+event RelayAuthorizes(bitstring).         (* relay authorizes a push for this grant_sig *)
+
+(* The grant chain (daemon mints, then publishes the whole macaroon):
+     s0  = hmac(root_key, grant_id)
+     s1  = hmac(s0, deny_main)                 first-party caveat
+     vid = hmac(s1, caveat_key)                third-party HMAC commitment
+     s2  = hmac(s1, (vid, rent_cid))           fold vid||cid
+   The discharge (root = caveat_key), then request-bound to s2. *)
+let Daemon(root_key: bitstring, caveat_key: bitstring, grant_id: bitstring, rent_cid: bitstring) =
+    let s0 = hmac(root_key, grant_id) in
+    let s1 = hmac(s0, deny_main) in
+    let vid = hmac(s1, caveat_key) in
+    let s2 = hmac(s1, (vid, rent_cid)) in
+    out(c, (deny_main, vid, rent_cid, s2));          (* public grant macaroon *)
+    let d0 = hmac(caveat_key, rent_cid) in
+    let d1 = hmac(d0, expires_cav) in
+    let bound = hmac(BIND0, (s2, d1)) in              (* prepare-for-request binding *)
+    event DaemonIssuesDischarge(s2);
+    out(c, (rent_cid, expires_cav, bound)).           (* public bound discharge *)
+
+(* CORRECT per-hop relay: recompute the chain from root_key, confirm the vid is
+   the commitment to caveat_key at that hop, and require the discharge to be
+   request-bound to THIS grant signature. *)
+let RelayPerHop(root_key: bitstring, caveat_key: bitstring, grant_id: bitstring) =
+    in(c, (g_deny: bitstring, g_vid: bitstring, g_cid: bitstring, g_sig: bitstring,
+           d_cid: bitstring, d_cav: bitstring, d_bound: bitstring));
+    let s0 = hmac(root_key, grant_id) in
+    let s1 = hmac(s0, g_deny) in
+    if g_vid = hmac(s1, caveat_key) then              (* commitment check *)
+    let s2 = hmac(s1, (g_vid, g_cid)) in
+    if s2 = g_sig then                                (* chain integrity *)
+    let d0 = hmac(caveat_key, d_cid) in
+    let d1 = hmac(d0, d_cav) in
+    if d_bound = hmac(BIND0, (g_sig, d1)) then         (* request-binding *)
+        event RelayAuthorizes(g_sig);
+        out(c, PUSH_OK).
+
+(* Q1 — Unforgeability + binding: the relay authorizes a grant ONLY if the daemon
+   issued a discharge bound to that exact grant signature. A holder of the public
+   grant (and any discharge for another grant) cannot forge or transfer one. *)
+query s: bitstring; event(RelayAuthorizes(s)) ==> event(DaemonIssuesDischarge(s)).
+
+process
+    ( !Daemon(root_key_A, caveat_key_A, grant_id_A, rent_cid_A)
+    | !Daemon(root_key_B, caveat_key_B, grant_id_B, rent_cid_B)
+    | !RelayPerHop(root_key_A, caveat_key_A, grant_id_A)
+    | !RelayPerHop(root_key_B, caveat_key_B, grant_id_B) )

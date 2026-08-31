@@ -1,19 +1,28 @@
 ---
 name: high-quality-latex-whitepaper
+license: Apache-2.0
+allowed-tools: Read,Write,Edit,Bash,Grep,Glob
 description: >
   Produce academic LaTeX whitepapers that look expensive, not cheap. Use when
   writing or revising a technical whitepaper (.tex), designing its TikZ figures,
   or reviewing one that "looks cheap." Encodes a restraint-first house style (one
   serif typeface, one accent color, consistent figure craft), the anti-cheap
   checklist, the pedagogic apparatus (callouts, exercises, reader's-map,
-  pull-quotes), and a mandatory render-read-audit loop.
-io-contract:
-  kind: deliverable
-  produces:
-    - kind: code
-      description: LaTeX whitepaper source with bibliography, figures, and build configuration
-    - kind: critique
-      description: Revision review of an existing whitepaper draft
+  pull-quotes), and a mandatory render-read-audit loop. NOT for slide decks,
+  marketing pages, or proving the paper's claims.
+metadata:
+  category: Writing & Publication
+  tags: [latex, whitepaper, typography, figures, visual-audit]
+  provenance:
+    kind: first-party
+    owners: [port-daddy]
+  io-contract:
+    kind: deliverable
+    produces:
+      - kind: code
+        description: LaTeX whitepaper source with bibliography, figures, and build configuration
+      - kind: critique
+        description: Revision review of an existing whitepaper draft
 ---
 
 # High-Quality LaTeX Whitepaper

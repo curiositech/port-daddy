@@ -1,5 +1,10 @@
 # Research Paper Submission — Changelog
 
+## 1.1.0 — 2026-08-31
+
+- Declared the cross-skill reference indexer as an explicit dependency instead of a nonexistent local script.
+- Registered the bundle as a general publication method, not an authority for corpus findings.
+
 ## 1.0.0 — 2026-08-26
 
 Initial release. Built from five parallel primary-source research passes:

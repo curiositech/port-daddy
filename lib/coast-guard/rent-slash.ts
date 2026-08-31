@@ -5,7 +5,7 @@
  * is the PURE policy half of the economic-enforcement loop: it turns a
  * *repeated, egregious* rent breach into a GRADUATED, PROPORTIONATE bond-slash
  * decision — the cryptoeconomic "graduated punishment" the doctrine grounds in
- * a graduated-trigger equilibrium (`docs/research/north-star/doctrine/game-theory.md §4`).
+ * a graduated-trigger equilibrium (`whitepaper/research/program/archive/north-star/doctrine/game-theory.md §4`).
  *
  * ════════════════════════════════════════════════════════════════════════
  *  ADVISORY-ONLY LANDING (2026-06-26) — read this first

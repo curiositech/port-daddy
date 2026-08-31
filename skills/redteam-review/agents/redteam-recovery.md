@@ -37,7 +37,7 @@ impact:    <harbor master compromised | settlement receipts forged |
   the timing window.
 - **SIM-swap precondition**. If the email recovery requires SMS as a
   second factor (not currently in scope but tempting), the SIM-swap
-  attack chain becomes load-bearing. Document the addition explicitly.
+  attack chain becomes critical. Document the addition explicitly.
 - **KMS read-without-write adversary**. The Federated Security Theorem
   excludes write access but allows read. Catalog what an adversary learns
   with read-only KMS observation: harbor membership? account email

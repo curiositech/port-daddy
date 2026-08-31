@@ -11,9 +11,9 @@
 #   new-round.sh v0.1 v0.2
 #
 # Produces (if missing):
-#   docs/shipwright/federated/dialogue-fh-<from>-to-<to>.json
-#   docs/shipwright/federated/dialogue-fh-<from>-to-<to>.md
-#   docs/shipwright/federated/round-<to>-redteam-targets.md
+#   whitepaper/research/program/rounds/federated-harbor/dialogue-fh-<from>-to-<to>.json
+#   whitepaper/research/program/rounds/federated-harbor/dialogue-fh-<from>-to-<to>.md
+#   whitepaper/research/program/rounds/federated-harbor/round-<to>-redteam-targets.md
 #
 # If the dialogue artifact already exists (author skill scaffolded
 # it first), this script only adds the redteam-targets file.
@@ -29,7 +29,7 @@ FROM="$1"
 TO="$2"
 TODAY="$(date -u +%Y-%m-%d)"
 REPO_ROOT="$(git rev-parse --show-toplevel)"
-OUTDIR="$REPO_ROOT/docs/shipwright/federated"
+OUTDIR="$REPO_ROOT/whitepaper/research/program/rounds/federated-harbor"
 mkdir -p "$OUTDIR"
 
 JSON="$OUTDIR/dialogue-fh-$FROM-to-$TO.json"

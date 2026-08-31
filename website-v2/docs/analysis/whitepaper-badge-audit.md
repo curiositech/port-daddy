@@ -3,7 +3,7 @@
 **Date:** 2026-06-23. **Scope:** the three "prove" papers whose badges assert
 machine-checking — `anchor-protocol`, `bonded-commons`, `federated-harbor` in
 `whitePapers.ts`, plus the crypto-paper checker labels in `manifestoContent.ts`.
-**Method:** enumerate every artifact under `proofs/` and `analyses/`, read each
+**Method:** enumerate every artifact under `whitepaper/formal/` and its registered product-runtime satellites, read each
 artifact + its `.run.log`, and map the *mechanically established* property to the
 badge claim. No claim of machine-checking is allowed to stand without an executed
 artifact behind it.
@@ -12,16 +12,16 @@ artifact behind it.
 
 | Artifact | Tool | Executed? | What it actually establishes | Paper |
 |---|---|---|---|---|
-| `proofs/anchor/token-verify/algconfusion.pv` | ProVerif | ✅ run.log | alg-pinned verifier authenticates; naive (header-trusting) verifier is forgeable | anchor |
-| `proofs/anchor/delegation/chain-replay.pv` | ProVerif | ✅ | a signed 4-party delegation chain accepted ⇒ authorized (replay-free) | anchor |
-| `analyses/harbor_card_v5_attenuation.pv` | ProVerif | ✅ (non-vacuous) | single-hop attenuation: no capability escalation | anchor |
-| `analyses/harbor_card_v6_multihop_attack.pv` | ProVerif | ✅ (attack, flaw expected) | naive final⊆root verifier *accepts* a multi-hop escalation | anchor |
-| `analyses/harbor_card_v7_multihop_fixed.pv` | ProVerif | ✅ (fixed) | per-hop each⊆parent verifier rejects the same escalation | anchor |
+| `whitepaper/formal/proverif/anchor/token-verify/algconfusion.pv` | ProVerif | ✅ run.log | alg-pinned verifier authenticates; naive (header-trusting) verifier is forgeable | anchor |
+| `whitepaper/formal/proverif/anchor/delegation/chain-replay.pv` | ProVerif | ✅ | a signed 4-party delegation chain accepted ⇒ authorized (replay-free) | anchor |
+| `whitepaper/formal/proverif/harbor-card/harbor_card_v5_attenuation.pv` | ProVerif | ✅ (non-vacuous) | single-hop attenuation: no capability escalation | anchor |
+| `whitepaper/formal/proverif/harbor-card/harbor_card_v6_multihop_attack.pv` | ProVerif | ✅ (attack, flaw expected) | naive final⊆root verifier *accepts* a multi-hop escalation | anchor |
+| `whitepaper/formal/proverif/harbor-card/harbor_card_v7_multihop_fixed.pv` | ProVerif | ✅ (fixed) | per-hop each⊆parent verifier rejects the same escalation | anchor |
 | `core/harbor-card-rs/src/lib.rs` (3× `#[kani::proof]`) | Kani | source only | decode-robustness, constant-time compare, and a 2-case subset assertion | anchor |
-| `proofs/bonded/conservation/Conservation.tla` | TLA+ (TLC) | ✅ run.log "no error", 1716 states | `TotalFree + TotalEscrow + burned = minted` — value conserved | bonded |
-| `proofs/bonded/{pairing,recovery,merkle}` | ProVerif/EasyCrypt | ✅ | passkey pairing, magic-link recovery, Merkle binding | bonded |
-| `proofs/economics/delta-threshold.z3` | Z3 | ✅ expected.txt | unique discount-factor root δ*∈[0.25,0.26] | bonded econ |
-| `proofs/bonded/federated/federated.pv` | ProVerif | ✅ | **Shamir 4-share escrow recovery secrecy** (`not attacker(account_root)`) — the *optional* §7.5 recovery mechanism | bonded (NOT federation) |
+| `whitepaper/formal/tla/bonded-conservation/Conservation.tla` | TLA+ (TLC) | ✅ run.log "no error", 1716 states | `TotalFree + TotalEscrow + burned = minted` — value conserved | bonded |
+| `whitepaper/formal/{proverif/bonded,easycrypt/bonded-merkle}` | ProVerif/EasyCrypt | ✅ | passkey pairing, magic-link recovery, Merkle binding | bonded |
+| `whitepaper/formal/z3/economics-delta-threshold/delta-threshold.z3` | Z3 | ✅ expected.txt | unique discount-factor root δ*∈[0.25,0.26] | bonded econ |
+| `whitepaper/formal/proverif/bonded/federated/federated.pv` | ProVerif | ✅ | **Shamir 4-share escrow recovery secrecy** (`not attacker(account_root)`) — the *optional* §7.5 recovery mechanism | bonded (NOT federation) |
 
 ## Verdicts
 
@@ -29,7 +29,7 @@ artifact behind it.
 Attenuation is proven non-vacuously in ProVerif (`v5`/`v7`), alg-confusion and
 chain-replay are proven, and Kani contributes (decode-robustness, constant-time,
 subset logic). Caveat worth knowing: the strongest attenuation evidence lives in
-`analyses/` (`v5`/`v7`), and the Kani attenuation harness checks two hard-coded
+`whitepaper/formal/proverif/harbor-card/` (`v5`/`v7`), and the Kani attenuation harness checks two hard-coded
 cases rather than arbitrary inputs. Badge stands.
 
 ### `bonded-commons` — `verified · TLA⁺ + ProVerif` → **SUPPORTED (kept)**
