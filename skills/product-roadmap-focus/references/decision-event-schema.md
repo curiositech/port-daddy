@@ -32,7 +32,15 @@ that explains what new evidence changed the decision.
   "sourceVisibility": "local-private",
   "sourceHash": "sha256:...",
   "retentionClass": "hot",
-  "costCenter": "port-daddy/control-plane",
+  "costAttribution": {
+    "project": "port-daddy",
+    "account": "operator-local",
+    "ingestUnits": 1,
+    "embeddingUnits": 0,
+    "storageByteHours": 0,
+    "retrievalUnits": 0,
+    "egressBytes": 0
+  },
   "limitations": [],
   "schemaVersion": 2,
   "data": {}
@@ -46,6 +54,16 @@ bytes. A raw `file:///` path is local/private provenance and must never be
 published remotely. Parent edges, retention,
 cost attribution, and known limitations travel with the event instead of living
 only in a dashboard tooltip.
+
+Use exactly the `costAttribution` object above in events and receipts; do not
+fork it into `costCenter` or prose-only aliases. Unknown measured values are
+`null`, not silently omitted or renamed. An `embeddingSpaceId` is a foreign key
+to the explicit model-space record that owns provider, model id, immutable
+revision, dimensions, normalization, distance metric, dtype, `qualityTier`
+(`approved` or `degraded-fallback`), and a nullable
+`degradedFallbackLabel` such as `degraded-local`. A roadmap event never infers
+that classification from “MiniLM” or any other model name and never acts as the
+model registry.
 
 ## Event Types
 
@@ -73,10 +91,15 @@ only in a dashboard tooltip.
   "supersedes": [],
   "dependencyIds": [],
   "retentionClass": "hot",
+  "embeddingSpaceId": "embed-v1:<sha256-of-canonical-space-metadata>",
   "costAttribution": {
     "project": "port-daddy",
+    "account": "operator-local",
     "ingestUnits": 1,
-    "embeddingSpaceId": "embed-v1:<sha256-of-canonical-space-metadata>"
+    "embeddingUnits": 1,
+    "storageByteHours": 0,
+    "retrievalUnits": 0,
+    "egressBytes": 0
   },
   "importReceiptId": "receipt_01..."
 }

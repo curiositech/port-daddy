@@ -109,6 +109,15 @@ Decision:
 Now:
 Why now:
 Evidence:
+Evidence limitations / unverified boundaries:
+Canonical/redacted source refs + hashes (raw local paths stay local/private):
+Current runtime authority (selected daemon/local ledger):
+Local read-back receipt + runtime scope:
+Target shared authority (remote Oracle after proven cutover):
+Attributable remote read-back receipt:
+Projection watermark / staleness:
+Accessible graph alternative (table/text):
+Downstream impact before supersede/retire:
 Not now:
 Cut/suspend:
 First visible proof:
@@ -116,6 +125,10 @@ Acceptance gate:
 Kill/revisit trigger:
 Owner:
 Review date:
+Retention class (hot/warm/cold) + restore target:
+Privacy/legal holds:
+Cost attribution { project, account, ingestUnits, embeddingUnits,
+  storageByteHours, retrievalUnits, egressBytes }:
 ```
 
 The not-now section is load-bearing. ADHD systems fail when every good idea stays
@@ -194,6 +207,12 @@ retry/reordering, content hashes, and signed inclusion/Merkle receipts where
 the store cannot enforce retention locks. Keep embedding spaces physically or
 logically separated; bounded metadata filters are not a space-compatibility
 check.
+
+An `embeddingSpaceId` in a roadmap event is only a reference to an explicit
+model-space record. That record, not the roadmap event, owns provider, model id,
+immutable revision, dimensions, normalization, distance metric, dtype,
+`qualityTier`, and any `degradedFallbackLabel`. Never infer quality from a model
+name or turn roadmap events into a second model registry.
 
 Until a deployed remote writer and an attributable remote read-back prove the
 cutover, the selected daemon's local ledger remains the current runtime
