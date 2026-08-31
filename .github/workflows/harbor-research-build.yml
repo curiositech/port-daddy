@@ -72,7 +72,13 @@ jobs:
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - name: Render the harbor-research corpus
-        run: make -C whitepaper/research docs
+        run: |
+          set -euo pipefail
+          make -C whitepaper/research clean docs
+          hash_file="$RUNNER_TEMP/harbor-research-pdfs.sha256"
+          sha256sum whitepaper/research/pdf/*.pdf > "$hash_file"
+          make -C whitepaper/research clean docs
+          sha256sum --check "$hash_file"
 
       - name: Generate the manifest-declared website mirrors
         run: node scripts/sync-whitepaper-publications.mjs

@@ -1,6 +1,6 @@
 # Illuminated collected-volume proof
 
-Reviewed artifact: `website-v2/public/whitepaper/coordination-papers-mega-volume.pdf`
+Reviewed artifact: `whitepaper/published/coordination-papers-mega-volume.pdf`
 
 - Build: 278 A4 pages, 32,425,465 bytes
 - SHA-256: `f16ac8d6f0c2e2eb3b9a5c3dda8ceb75f93a2acee7201f7ab2f624a39b4f0efc`
