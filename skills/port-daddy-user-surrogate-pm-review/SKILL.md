@@ -186,8 +186,8 @@ This repo coordinates through PD, continuously — not just at session start.
    - `git -c core.pager=cat log --oneline origin/main..HEAD` — rebased? clean?
    - For "tests pass": is there a run, or just an assertion? For "deployed": is
      there a URL, or a swallowed 401?
-   - `rg` for `text-xs`, `0\.[0-7].*rem`, `/private/tmp`, `Co-Authored-By`,
-     `--no-verify` in the diff.
+   - `rg -n 'text-xs|0\.[0-7].*rem|(^|[^[:alnum:]_])/(private/)?tmp(/|$)|Co-Authored-By|--no-verify' <changed-paths>`
+     so both `/tmp` and `/private/tmp` are caught as exact path segments.
    - `pd notes --limit 10` / `pd guard status` — was coordination real?
 3. **Walk the bar.** Tick each of the 10 rules. Anything UI/content/deploy-
    specific only applies if the work is that kind.

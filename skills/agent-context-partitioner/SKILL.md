@@ -532,29 +532,88 @@ def compute_handoff(from_agent, to_agent, dep_graph):
     needed_ids = {cid for cid in needed_ids
                   if chunk_owner(cid) == from_agent}
 
-    # Separate boundary chunks (near the partition cut) from interior
-    boundary = {cid for cid in needed_ids
-                if max(embedding_sim(cid, c) for c in to_agent.context_chunk_ids) > 0.5}
+    # Compare only vectors admitted to the same explicit embedding space.
+    # Empty receiver context, missing space identity, or no compatible receiver
+    # vector is a full-copy decision; never fabricate a vector or compare spaces.
+    receiver_context_ids = set(to_agent.context_chunk_ids)
+    boundary = set()
+    routing_receipts = []
+    routing_limitations = []
+    for cid in sorted(needed_ids):
+        source_space_id = chunks[cid].space_id
+        if not receiver_context_ids:
+            compatible_context_ids = []
+            limitation = "receiver-context-empty"
+        elif not source_space_id:
+            compatible_context_ids = []
+            limitation = "source-embedding-space-unknown"
+        else:
+            compatible_context_ids = [
+                receiver_id for receiver_id in receiver_context_ids
+                if chunks[receiver_id].space_id == source_space_id
+            ]
+            limitation = None if compatible_context_ids else "no-compatible-receiver-space"
+
+        if limitation:
+            routing_receipts.append({
+                "chunk_id": cid,
+                "source_space_id": source_space_id,
+                "compatible_receiver_chunk_ids": compatible_context_ids,
+                "decision": "full-copy",
+                "reason": limitation,
+            })
+            routing_limitations.append({
+                "chunk_id": cid,
+                "reason": limitation,
+                "decision": "full-copy",
+            })
+            continue
+
+        max_similarity = max(
+            embedding_sim(cid, receiver_id)
+            for receiver_id in compatible_context_ids
+        )
+        decision = "summary" if max_similarity > 0.5 else "full-copy"
+        if decision == "summary":
+            boundary.add(cid)
+        routing_receipts.append({
+            "chunk_id": cid,
+            "source_space_id": source_space_id,
+            "compatible_receiver_chunk_ids": compatible_context_ids,
+            "max_similarity": max_similarity,
+            "decision": decision,
+            "reason": "compatible-space-similarity",
+        })
     interior = needed_ids - boundary
 
     return Handoff(
         handoff_id=new_ulid(),
         from_agent=from_agent.id,
         to_agent=to_agent.id,
-        # Interior chunks: full copy (to_agent needs them verbatim)
+        # Interior includes low-overlap, incompatible-space, and empty-context
+        # chunks. All are full copies because compression is not evidence-safe.
         full_chunks=[chunks[cid] for cid in interior],
         # Boundary chunks: compressed summary (to_agent can infer the rest)
         summaries=[compress(chunks[cid]) for cid in boundary],
         # Dependency map so to_agent can request more if needed
         dep_map={cid: dep_graph.predecessors(cid) for cid in needed_ids},
         source_hashes={cid: chunks[cid].content_hash for cid in needed_ids},
-        embedding_space_ids=sorted({chunks[cid].space_id for cid in needed_ids}),
-        limitations=list_known_gaps(needed_ids),
+        embedding_space_ids=sorted({
+            chunks[cid].space_id for cid in needed_ids
+            if chunks[cid].space_id
+        }),
+        semantic_routing_receipts=routing_receipts,
+        limitations=list_known_gaps(needed_ids) + routing_limitations,
         budget_remaining=to_agent.budget_remaining,
     )
 ```
 
-**Key principle**: compress chunks that are *near* the partition boundary (high semantic overlap with to_agent's existing context) — the receiving agent can fill in gaps via its own inference. Send full copies only for chunks with *no* semantic overlap with the receiver.
+**Key principle**: compress chunks that are *near* the partition boundary only
+when the source chunk and at least one receiver-context chunk have the same
+explicit embedding-space identity. Empty receiver context, missing identity,
+or incompatible spaces route to full copy and stay visible in both limitations
+and the semantic-routing receipt. Never invent a vector or compare spaces
+silently. Low compatible-space overlap also routes to full copy.
 
 ### Conversation Completion, Gather, and Handoff Receipts
 
@@ -571,6 +630,7 @@ replayable. Before fan-out, declare:
 
 Each child produces an attributable handoff/termination receipt: task and
 agent ids, source hashes and dependency ids, compatible embedding-space ids,
+per-chunk semantic-routing decisions (including empty/incompatible full-copy reasons),
 claims supported by evidence, known limitations, budget consumed/remaining,
 stop reason, validation, and unresolved work. The parent produces one gather
 receipt binding the expected children, receipts received, gather policy,
@@ -636,7 +696,10 @@ against these falsifiable gaps instead:
 
 6. **Spawn at 20% budget remaining**, not 0% — you need budget for the handoff protocol itself (system prompt for new agent + context copy).
 
-7. **Handoff = summary + dep list**, not full context copy — compress boundary chunks (those semantically overlapping the receiving agent's existing context), send full copy only for chunks with zero overlap.
+7. **Handoff = admitted summary + dep list** — compress a boundary chunk only
+   after a same-space comparison against non-empty receiver context. Send a full
+   copy for low overlap, empty receiver context, missing space identity, or
+   incompatible spaces, and record the reason in limitations and the receipt.
 
 8. **For static DAGs: METIS then bounded FM refinement** — compare it against
    round-robin and role-based baselines on the actual task corpus. Do not quote

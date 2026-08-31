@@ -1,4 +1,5 @@
 import { describe, expect, test } from '@jest/globals';
+import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -77,6 +78,76 @@ describe('skill-batch auditors pass their sample and reject malformed input', ()
 
     expect(() => fn(null)).toThrow();
     expect(() => fn('not-an-object')).toThrow();
+  });
+});
+
+describe('transformers-js embedding quality metadata is explicit but not compatibility identity', () => {
+  test('quality labels stay outside spaceId and invalid declarations fail closed', async () => {
+    const { auditTransformersJsOnnxPipelines } = await import(join(
+      repo,
+      'skills',
+      'transformers-js-onnx-pipelines',
+      'scripts',
+      'transformers_js_onnx_pipelines_audit.mjs',
+    ));
+    const approved = sample('transformers-js-onnx-pipelines');
+    const degraded = structuredClone(approved);
+    degraded.embeddingSpace.qualityTier = 'degraded-fallback';
+    degraded.embeddingSpace.degradedFallbackLabel = 'degraded-local';
+
+    expect(auditTransformersJsOnnxPipelines(approved).pass).toBe(true);
+    expect(auditTransformersJsOnnxPipelines(degraded).pass).toBe(true);
+    expect(degraded.embeddingSpace.spaceId).toBe(approved.embeddingSpace.spaceId);
+
+    const approvedModelNamedMiniLM = structuredClone(approved);
+    approvedModelNamedMiniLM.embeddingSpace.modelId = 'Xenova/all-MiniLM-L6-v2';
+    const identity = {
+      provider: approvedModelNamedMiniLM.embeddingSpace.provider,
+      modelId: approvedModelNamedMiniLM.embeddingSpace.modelId,
+      revision: approvedModelNamedMiniLM.embeddingSpace.revision,
+      dimensions: approvedModelNamedMiniLM.embeddingSpace.dimensions,
+      normalization: approvedModelNamedMiniLM.embeddingSpace.normalization,
+      distanceMetric: approvedModelNamedMiniLM.embeddingSpace.distanceMetric,
+      dtype: approvedModelNamedMiniLM.embeddingSpace.dtype,
+    };
+    approvedModelNamedMiniLM.embeddingSpace.spaceId = `embed-v1:${createHash('sha256').update(JSON.stringify(identity)).digest('hex')}`;
+    expect(auditTransformersJsOnnxPipelines(approvedModelNamedMiniLM).pass).toBe(true);
+
+    const invalidApproved = structuredClone(approved);
+    invalidApproved.embeddingSpace.degradedFallbackLabel = 'degraded-local';
+    expect(auditTransformersJsOnnxPipelines(invalidApproved).findings)
+      .toEqual(expect.arrayContaining([expect.objectContaining({ rule: 'approved-space-has-degraded-label' })]));
+
+    const invalidDegraded = structuredClone(degraded);
+    invalidDegraded.embeddingSpace.degradedFallbackLabel = null;
+    expect(auditTransformersJsOnnxPipelines(invalidDegraded).findings)
+      .toEqual(expect.arrayContaining([expect.objectContaining({ rule: 'degraded-space-missing-fallback-label' })]));
+
+    const legacy = structuredClone(approved);
+    legacy.degradedFallbackLabeled = true;
+    expect(auditTransformersJsOnnxPipelines(legacy).findings)
+      .toEqual(expect.arrayContaining([expect.objectContaining({ rule: 'legacy-fallback-quality-flag' })]));
+  });
+});
+
+describe('accepted skill-review blockers remain repaired', () => {
+  test('handoff similarity follows empty-context and same-space admission', () => {
+    const skill = readFileSync(join(repo, 'skills', 'agent-context-partitioner', 'SKILL.md'), 'utf8');
+    const emptyContextGate = skill.indexOf('if not receiver_context_ids:');
+    const sameSpaceGate = skill.indexOf('if chunks[receiver_id].space_id == source_space_id');
+    const similarity = skill.indexOf('max_similarity = max(');
+
+    expect(emptyContextGate).toBeGreaterThan(-1);
+    expect(sameSpaceGate).toBeGreaterThan(emptyContextGate);
+    expect(similarity).toBeGreaterThan(sameSpaceGate);
+    expect(skill).toContain('semantic_routing_receipts=routing_receipts');
+    expect(skill).toContain('limitations=list_known_gaps(needed_ids) + routing_limitations');
+  });
+
+  test('PM review scan matches both durable-work temp roots exactly', () => {
+    const skill = readFileSync(join(repo, 'skills', 'port-daddy-user-surrogate-pm-review', 'SKILL.md'), 'utf8');
+    expect(skill).toContain('(^|[^[:alnum:]_])/(private/)?tmp(/|$)');
+    expect(skill).toContain('both `/tmp` and `/private/tmp` are caught as exact path segments');
   });
 });
 

@@ -14,11 +14,12 @@
     "normalization": "l2",
     "distanceMetric": "cosine",
     "dtype": "q8",
-    "spaceId": "embed-v1:302e2e7b1ffef9eec639eb4d30429afbc049eef9992f88ec5c408459bae62149"
+    "spaceId": "embed-v1:302e2e7b1ffef9eec639eb4d30429afbc049eef9992f88ec5c408459bae62149",
+    "qualityTier": "approved",
+    "degradedFallbackLabel": null
   },
   "modelSelectedByDomainEval": true,
   "rejectsIncompatibleSpaces": true,
-  "degradedFallbackLabeled": false,
   "lazyLoadPromiseCached": true,
   "allowLocalModels": false,
   "cacheDirConfigured": true,

@@ -8,7 +8,8 @@ const VALID_PIPELINE_TYPES = ['bi-encoder', 'cross-encoder', 'classification'];
 const VALID_ENVIRONMENTS = ['node', 'browser'];
 const VALID_POOLING = ['mean', 'cls', 'none'];
 const VALID_DTYPES = ['auto', 'fp32', 'fp16', 'q8', 'int8', 'uint8', 'q4', 'bnb4', 'q4f16', 'q2', 'q2f16', 'q1', 'q1f16'];
-const REQUIRED_SPACE_FIELDS = ['provider', 'modelId', 'revision', 'dimensions', 'normalization', 'distanceMetric', 'dtype', 'spaceId'];
+const REQUIRED_SPACE_IDENTITY_FIELDS = ['provider', 'modelId', 'revision', 'dimensions', 'normalization', 'distanceMetric', 'dtype', 'spaceId'];
+const VALID_QUALITY_TIERS = ['approved', 'degraded-fallback'];
 const SEVERITY_WEIGHTS = { critical: 30, high: 15, medium: 8, low: 3 };
 
 function isPlainObject(value) {
@@ -115,11 +116,11 @@ export function auditTransformersJsOnnxPipelines(plan) {
     }
     const space = plan.embeddingSpace;
     const missingSpaceFields = isPlainObject(space)
-      ? REQUIRED_SPACE_FIELDS.filter((field) => {
+      ? REQUIRED_SPACE_IDENTITY_FIELDS.filter((field) => {
           const value = space[field];
           return value === undefined || value === null || value === '';
         })
-      : REQUIRED_SPACE_FIELDS;
+      : REQUIRED_SPACE_IDENTITY_FIELDS;
     if (missingSpaceFields.length > 0 || !Number.isInteger(space?.dimensions) || space.dimensions < 1) {
       fail(
         'embedding-space-identity-incomplete',
@@ -163,6 +164,46 @@ export function auditTransformersJsOnnxPipelines(plan) {
         );
       }
     }
+    if (!isPlainObject(space) || !VALID_QUALITY_TIERS.includes(space.qualityTier)) {
+      fail(
+        'embedding-space-quality-tier-invalid',
+        'critical',
+        `embeddingSpace.qualityTier must be one of: ${VALID_QUALITY_TIERS.join(', ')}.`,
+        'Declare model quality explicitly on the model-space record; never infer it from modelId.'
+      );
+    } else if (!Object.hasOwn(space, 'degradedFallbackLabel')) {
+      fail(
+        'embedding-space-fallback-label-undeclared',
+        'critical',
+        'embeddingSpace.degradedFallbackLabel must be declared explicitly, using null when the space is not a degraded fallback.',
+        'Store degradedFallbackLabel beside qualityTier on every model-space record.'
+      );
+    } else if (space.qualityTier === 'approved' && space.degradedFallbackLabel !== null) {
+      fail(
+        'approved-space-has-degraded-label',
+        'critical',
+        'An approved embedding space must declare degradedFallbackLabel: null.',
+        'Use null for an approved space, or classify the space as degraded-fallback with a non-empty label.'
+      );
+    } else if (
+      space.qualityTier === 'degraded-fallback'
+      && (typeof space.degradedFallbackLabel !== 'string' || space.degradedFallbackLabel.trim() === '')
+    ) {
+      fail(
+        'degraded-space-missing-fallback-label',
+        'critical',
+        'A degraded-fallback embedding space requires a non-empty degradedFallbackLabel.',
+        'Name the constrained mode explicitly, for example degraded-local.'
+      );
+    }
+    if (Object.hasOwn(plan, 'degradedFallbackLabeled')) {
+      fail(
+        'legacy-fallback-quality-flag',
+        'critical',
+        'degradedFallbackLabeled is a legacy boolean and cannot identify the quality of an embedding space.',
+        'Remove the boolean and declare embeddingSpace.qualityTier plus embeddingSpace.degradedFallbackLabel.'
+      );
+    }
     if (plan.rejectsIncompatibleSpaces !== true) {
       fail(
         'incompatible-spaces-not-rejected',
@@ -177,14 +218,6 @@ export function auditTransformersJsOnnxPipelines(plan) {
         'critical',
         'modelSelectedByDomainEval is not true: the embedder was not selected against representative corpus queries.',
         'Evaluate approved candidate models on the target corpus and record the selection evidence.'
-      );
-    }
-    if (/minilm/i.test(String(space?.modelId ?? '')) && plan.degradedFallbackLabeled !== true) {
-      fail(
-        'minilm-fallback-not-labeled',
-        'critical',
-        'A MiniLM model is configured without degradedFallbackLabeled: true.',
-        'Expose constrained MiniLM use as degraded-local and prefer the stronger approved model when resources allow.'
       );
     }
   }
