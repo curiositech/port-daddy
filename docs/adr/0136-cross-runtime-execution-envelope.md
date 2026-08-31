@@ -223,6 +223,64 @@ different trust domains.
 The envelope contains no bearer secret. A capability reference may identify an
 attenuated credential held outside the transcript and agent-visible prompt.
 
+#### Validation and rejection contract
+
+Validation is strict and atomic. A body is either a valid envelope at its
+declared assurance or it contributes no authority. Implementations must apply
+these checks before resolution:
+
+1. Parse against the exact versioned schema with unknown properties rejected.
+   Required identifiers are non-empty, bounded strings; timestamps are RFC 3339;
+   enum values and lifecycle phase keys must be known to this schema version.
+2. Require `expiresAt > issuedAt` when expiry is present, reject an expired
+   envelope, and apply an explicit issuer clock-skew bound. The skew bound is
+   deployment policy and must be recorded with the validation result.
+3. Recompute `envelopeDigest` over a documented canonical serialization that
+   excludes `attestation.signature` and `attestation.envelopeDigest` themselves.
+   Reject digest disagreement before checking the signature.
+4. For `assurance: 'attested'`, verify the issuer, signature or referenced
+   capability, subject, project, execution id, audience, expiry, and replay id.
+   An unknown issuer, unavailable key, missing binding, revoked capability, or
+   failed verification is rejection, not `observed`.
+5. Enforce cross-field invariants. Non-`none` coordination authority requires a
+   verified capability binding; `governor.mode: 'enforced'` requires a governor
+   other than `none` plus an attested producer for every enforced phase;
+   `observed` and `unattested` envelopes cannot grant capabilities; and a
+   transcript digest cannot establish authority without its declared owner.
+6. When a parent is declared, validate the entire bounded parent chain, bind the
+   parent digest to the child, reject cycles, and prove that every child
+   capability is equal to or narrower than its parent.
+
+Validation returns a typed result rather than a partially trusted object:
+
+```ts
+type EnvelopeValidationResult =
+  | { ok: true; envelope: ExecutionEnvelopeV1; policyId: string }
+  | {
+      ok: false;
+      code:
+        | 'SCHEMA_INVALID'
+        | 'VERSION_UNSUPPORTED'
+        | 'TIME_INVALID'
+        | 'DIGEST_MISMATCH'
+        | 'ISSUER_UNKNOWN'
+        | 'ATTESTATION_INVALID'
+        | 'CAPABILITY_INVALID'
+        | 'PARENT_INVALID'
+        | 'AUTHORITY_ESCALATION'
+        | 'REPLAY_DETECTED';
+      safeMessage: string;
+      rejectedDigest?: string;
+    };
+```
+
+On rejection, the resolver may emit a new minimal diagnostic envelope with a
+fresh `executionId`, `assurance: 'unattested'`, `none` authority, and the safe
+rejection code. It must not copy authority, lifecycle, transcript, native
+session, project, or capability claims from the rejected input. The original
+body may be retained only in the access-controlled evidence plane under the
+redaction rules of ADR-0124; it never becomes the resolved identity.
+
 ### 3. Resolution is fail-closed
 
 An agent resolves its execution identity in this order:
