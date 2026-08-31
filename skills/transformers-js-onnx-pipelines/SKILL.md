@@ -83,6 +83,8 @@ const embeddingSpace = Object.freeze({
   normalization: 'l2',
   distanceMetric: 'cosine',
   dtype: 'q8',
+  qualityTier: 'approved',
+  degradedFallbackLabel: null,
 });
 // Canonical key order is part of the contract; hash it rather than relying on
 // delimiters that model ids or future metadata could make ambiguous.
@@ -95,6 +97,8 @@ const canonicalSpaceMetadata = {
   distanceMetric: embeddingSpace.distanceMetric,
   dtype: embeddingSpace.dtype,
 };
+// qualityTier and degradedFallbackLabel are registry/policy annotations, not
+// vector-space compatibility fields. Keep them out of this identity hash.
 // Prefer computing this once in the approved model registry/build step. When
 // runtime derivation is needed, Web Crypto keeps the same code runnable in a
 // modern browser and in supported Node runtimes.
@@ -124,8 +128,13 @@ universal default. Prefer a materially stronger approved model when the
 privacy boundary, device capacity, latency, and cost allow it.
 
 The space contract is as important as the vector. Store provider, model id,
-immutable revision, dimensions, normalization, distance metric, dtype, and the
-canonical-metadata hash `space_id` with both corpus and query vectors. A
+immutable revision, dimensions, normalization, distance metric, dtype,
+`qualityTier` (`approved` or `degraded-fallback`), nullable
+`degradedFallbackLabel`, and the canonical-metadata hash `space_id` with both
+corpus and query vectors. Quality is declared by the model-space record, never
+inferred from a model name. Quality labels stay outside the compatibility hash;
+only provider/model/revision/dimensions/normalization/metric/dtype identify the
+vector space. A
 different model, revision, dimension, normalization, or metric is a different
 space. Reject or re-embed on mismatch; never compare incompatible vectors
 silently.
@@ -324,10 +333,13 @@ Be honest about the download cost — show a progress bar.
 - [ ] Cosine similarity uses normalized vectors.
 - [ ] Cross-encoder scores read from `outputs.logits.data` directly, not via pipeline.
 - [ ] Embeddings persisted as `Float32Array` for compactness.
-- [ ] Model selected by a representative domain eval, with constrained MiniLM
-      use explicitly labeled `degraded-local`.
+- [ ] Model selected by a representative domain eval. Its model-space record
+      declares `qualityTier` and nullable `degradedFallbackLabel`; no model-name
+      inference decides quality.
 - [ ] Provider, model id, immutable revision, dimensions, normalization,
-      distance metric, dtype, and derived `space_id` persist with every index.
+      distance metric, dtype, derived `space_id`, and the separate quality
+      labels persist with every index. Quality labels are not hashed into
+      `space_id`.
 - [ ] Query/index space mismatch is rejected or re-embedded, never compared.
 - [ ] Model revisions are pinned in code; never "latest" or mutable `main`.
 - [ ] Transformers.js v4 uses an explicit `dtype` (`q8`, `q4`, etc.); full
@@ -357,9 +369,10 @@ structured fields: a cross-encoder routed through the `text-classification` pipe
 instead of raw logits (the softmax-over-1 trap), un-normalized bi-encoder vectors fed to
 cosine, `allowLocalModels: true` in CI, a missing CI model cache, an uncached first-load
 Promise, persisted vectors that were never copied out of the reused tensor buffer,
-unpinned model versions, and reranker inputs past the 512-token joint limit. It returns
+unpinned model versions, incomplete or inconsistent explicit quality metadata, legacy
+fallback booleans, and reranker inputs past the 512-token joint limit. It returns
 `{ pass, score, findings, recommendations }`. `examples/sample-input.json` is a correctly
-bypassed cross-encoder rerank plan (`pass: true`). Changes are tracked in `CHANGELOG.md`.
+configured bi-encoder plan (`pass: true`). Changes are tracked in `CHANGELOG.md`.
 
 ## NOT for
 
