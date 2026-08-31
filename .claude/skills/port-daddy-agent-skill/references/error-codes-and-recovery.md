@@ -79,17 +79,27 @@ done
 
 If a file is claimed by a DIFFERENT active session: that's a real conflict. STOP and message that session's actor before proceeding.
 
-If a file is claimed by a DEAD session (look up the agent in `pd whoami` — `isActive: false`): claim the file via salvage:
+`active: false` in `pd whoami` does not prove the claimant is dead or authorize
+release: it can also mean identity mismatch, completed context, or unresolved
+continuity. Inspect the exact session, claim, notes, and claimable salvage entry.
+Only when `pd salvage` returns an eligible receipt for that exact owner should
+you claim it through the public recovery path:
 
 ```bash
-pd salvage claim <session-id-of-dead-claimant>
+pd salvage claim <dead-agent-id-from-the-receipt>
 ```
+
+Read back the successor session and claim before editing. Never force-release or
+re-claim solely because `whoami` said `active: false`.
 
 ### "Session belongs to agent X, not cli-Y"
 
 **Cause:** you're trying to act on a session that belongs to a different process. Each `pd begin` binds the session to the process that called it.
 
-**Recovery:** start a fresh session in this shell, OR pass `--agent` and `--session` explicitly to override (use sparingly).
+**Recovery:** do not override the owner fields. Re-anchor the current context,
+start a fresh correctly identified session when the work is independent, or use
+an eligible public takeover/salvage receipt for continuity. If none exists,
+message the owner and stop.
 
 ## Test errors
 

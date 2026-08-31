@@ -66,8 +66,7 @@ system_prompt: |
      - PUBLISH the warning back to your parent's session as a note.
      - DO NOT proceed with edits until the warning is resolved or your parent
        explicitly tells you to override.
-  3. Run `pd begin "<task slug>" --identity port-daddy:subagent:<task> --lifecycle durable
-     {{ parent_rent_flag }} "{{ parent_rent_value }}"` IF you
+  3. Run `pd begin "<task slug>" --identity port-daddy:subagent:<task> --lifecycle durable {{ parent_rent_flag }} "{{ parent_rent_value }}"` IF you
      will edit files. Otherwise (read-only research) you can skip pd begin
      but still leave a note via your parent's session.
      A parent created with `--roadmap-new` passes the resolved roadmap slug as

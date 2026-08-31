@@ -30,6 +30,33 @@ describe('cli/utils/freshness', () => {
     expect(shouldCheckDaemonFreshness('find', ['find', 'api', '--direct'])).toBe(false);
   });
 
+  test('classifies parser-equivalent and positional Parley help before side effects', async () => {
+    const { hasHelpFlag, isHelpInvocation, shouldCheckDaemonFreshness } = await import('../../cli/utils/freshness.js');
+
+    for (const args of [
+      ['parley', '--help'],
+      ['parley', '--help=true'],
+      ['parley', '-h'],
+      ['parley', '-h=true'],
+      ['parley', '-qh'],
+      ['parley', '-jh'],
+      ['parley', 'help'],
+      ['parley'],
+    ]) {
+      expect(isHelpInvocation('parley', args)).toBe(true);
+      expect(shouldCheckDaemonFreshness('parley', args)).toBe(false);
+    }
+
+    expect(hasHelpFlag(['claim', '--', '--help'])).toBe(false);
+    expect(isHelpInvocation('claim', ['claim', '--', '--help'])).toBe(false);
+    expect(isHelpInvocation('parley', ['parley', 'propose', '--', '--help'])).toBe(false);
+    expect(isHelpInvocation('parley', ['parley', '--', '--help'])).toBe(true);
+    expect(hasHelpFlag(['parley', '--helpful'])).toBe(false);
+    expect(isHelpInvocation('parley', ['parley', '--helpful'])).toBe(true);
+    expect(isHelpInvocation('parley', ['parley', '--files', 'a', 'b'])).toBe(true);
+    expect(isHelpInvocation('parley', ['parley', '--files', 'a', 'b', 'call'])).toBe(true);
+  });
+
   test('treats named profiles and explicit URLs as owned daemon targets', async () => {
     const { hasExplicitDaemonTarget } = await import('../../cli/utils/freshness.js');
 

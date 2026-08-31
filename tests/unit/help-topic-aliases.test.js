@@ -1,6 +1,6 @@
 import { spawn, spawnSync } from 'node:child_process';
 import { once } from 'node:events';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 
@@ -75,6 +75,28 @@ function isolatedHelpEnv(daemonUrl) {
   return env;
 }
 
+function implicitHelpEnv(portFile, pdHome) {
+  const env = {
+    ...process.env,
+    PD_HOME: pdHome,
+    PORT_DADDY_PORT_FILE: portFile,
+    PORT_DADDY_SOCK: join(pdHome, 'absent.sock'),
+    PORT_DADDY_TCP_HOST: '127.0.0.1',
+    PORT_DADDY_NO_RETRY: '1',
+    NO_COLOR: '1',
+  };
+  for (const key of [
+    'PD_URL',
+    'PORT_DADDY_URL',
+    'PORT_DADDY_PORT',
+    'PORT_DADDY_PROFILE',
+    'PORT_DADDY_SKIP_FRESHNESS_CHECK',
+    'PORT_DADDY_NO_UPDATE_CHECK',
+    'PORT_DADDY_SUPPRESS_CLI_MAIN',
+  ]) delete env[key];
+  return env;
+}
+
 async function captureDaemonRequests(run) {
   mkdirSync(SAFE_SCRATCH_ROOT, { recursive: true });
   const scratch = mkdtempSync(join(SAFE_SCRATCH_ROOT, 'pd-parley-help-capture-'));
@@ -109,10 +131,18 @@ async function captureDaemonRequests(run) {
       if (/^\d+$/.test(line)) resolve(Number(line));
     });
   });
+  const portFile = join(scratch, 'daemon.port');
+  const pdHome = join(scratch, 'pd-home');
+  mkdirSync(pdHome, { recursive: true });
+  writeFileSync(portFile, `${port}\n`);
 
   try {
-    const result = run(`http://127.0.0.1:${port}`);
-    return { result, requests: readFileSync(requestLog, 'utf8') };
+    const result = run({ daemonUrl: `http://127.0.0.1:${port}`, pdHome, portFile });
+    return {
+      result,
+      requests: readFileSync(requestLog, 'utf8'),
+      wroteUpdateCheck: existsSync(join(pdHome, 'update-check.json')),
+    };
   } finally {
     if (server.exitCode === null) {
       server.kill('SIGTERM');
@@ -159,10 +189,10 @@ describe('`pd <verb> --help` coverage', () => {
   });
 
   test('`pd parley --help` reaches Parley-owned help without daemon writes', async () => {
-    const { result, requests } = await captureDaemonRequests((daemonUrl) => spawnSync(
+    const { result, requests, wroteUpdateCheck } = await captureDaemonRequests(({ pdHome, portFile }) => spawnSync(
       process.execPath,
       [join(ROOT, 'bin/port-daddy-cli.js'), 'parley', '--help'],
-      { cwd: ROOT, env: isolatedHelpEnv(daemonUrl), encoding: 'utf8', timeout: 30_000 },
+      { cwd: ROOT, env: implicitHelpEnv(portFile, pdHome), encoding: 'utf8', timeout: 30_000 },
     ));
 
     expect(result.status).toBe(0);
@@ -172,10 +202,11 @@ describe('`pd <verb> --help` coverage', () => {
     expect(result.stdout).not.toMatch(/Get started:/);
     expect(result.stderr).not.toMatch(/required|fetch|ECONNREFUSED/i);
     expect(requests).toBe('');
+    expect(wroteUpdateCheck).toBe(false);
   }, 90_000);
 
   test('`pd parley call --help` short-circuits before mutation or telemetry', async () => {
-    const { result, requests } = await captureDaemonRequests((daemonUrl) => spawnSync(
+    const { result, requests } = await captureDaemonRequests(({ daemonUrl }) => spawnSync(
       process.execPath,
       [
         join(ROOT, 'node_modules/.bin/tsx'),
@@ -191,6 +222,19 @@ describe('`pd <verb> --help` coverage', () => {
     expect(result.status).toBe(0);
     expect(result.stdout).toMatch(/pd parley call --surface/);
     expect(result.stdout).toMatch(/raw resolve is CAP0-gated and currently fail-closed/);
+    expect(result.stderr).not.toMatch(/required|fetch|ECONNREFUSED/i);
+    expect(requests).toBe('');
+  }, 90_000);
+
+  test('`pd parley help` is the same non-mutating help contract', async () => {
+    const { result, requests } = await captureDaemonRequests(({ daemonUrl }) => spawnSync(
+      process.execPath,
+      [join(ROOT, 'node_modules/.bin/tsx'), join(ROOT, 'bin/port-daddy-cli.ts'), 'parley', 'help'],
+      { cwd: ROOT, env: isolatedHelpEnv(daemonUrl), encoding: 'utf8', timeout: 30_000 },
+    ));
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toMatch(/pd parley call --surface/);
     expect(result.stderr).not.toMatch(/required|fetch|ECONNREFUSED/i);
     expect(requests).toBe('');
   }, 90_000);

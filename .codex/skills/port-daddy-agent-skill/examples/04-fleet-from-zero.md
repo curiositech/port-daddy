@@ -72,7 +72,7 @@ curl -N http://localhost:9876/fleet/events    # SSE
 ```bash
 pd sitrep                                   # high-level
 pd notes --type finding                     # what QA found
-pd notes --session $(pd whoami --json | jq -r .session_id)   # your session's notes
+pd notes "$(pd whoami --json | jq -r .sessionId)"            # your session's notes
 pd spawned                                  # are agents still running?
 ```
 

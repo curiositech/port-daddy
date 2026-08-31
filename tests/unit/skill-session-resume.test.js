@@ -35,7 +35,12 @@ case "$1" in
     if [ -n "\${PD_WHOAMI_JSON:-}" ]; then printf '%s\\n' "$PD_WHOAMI_JSON"; else echo '{}'; fi
     ;;
   sitrep) echo '{"project":"myapp"}' ;;
-  begin) echo '{"sessionId":"session-test"}' ;;
+  begin)
+    if [ -n "\${PD_BEGIN_JSON:-}" ]; then printf '%s\\n' "$PD_BEGIN_JSON"; else echo '{"sessionId":"session-test"}'; fi
+    ;;
+  session)
+    if [ "\${PD_FAIL_CLAIMS:-0}" = '1' ]; then exit 9; else echo '[{"path":"src/a.ts"}]'; fi
+    ;;
   *) echo '{}' ;;
 esac
 `;
@@ -49,12 +54,12 @@ esac
     rmSync(scratch, { recursive: true, force: true });
   });
 
-  function run(extraArgs, envOverrides = {}) {
+  function run(extraArgs, envOverrides = {}, claimFiles = false) {
     return spawnSync('bash', [
       SCRIPT,
       '--identity', 'myapp:api',
       '--purpose', 'Repair parley',
-      '--no-claim-files',
+      ...(claimFiles ? ['--file', 'src/a.ts'] : ['--no-claim-files']),
       ...extraArgs,
     ], {
       cwd: scratch,
@@ -100,7 +105,7 @@ esac
 
   test('resumes a canonical camelCase session without requiring rent or calling begin', () => {
     const result = run([], {
-      PD_WHOAMI_JSON: '{"active":true,"sessionId":"session-existing"}',
+      PD_WHOAMI_JSON: '{"active":true,"identity":"myapp:api","sessionId":"session-existing"}',
     });
 
     expect(result.status).toBe(0);
@@ -109,5 +114,37 @@ esac
       sitrep: { project: 'myapp' },
     });
     expect(readFileSync(argsLog, 'utf8')).not.toMatch(/^CALL\tbegin/m);
+  });
+
+  test.each([
+    ['inactive', '{"active":false,"identity":"myapp:api","sessionId":"session-stale"}'],
+    ['wrong identity', '{"active":true,"identity":"other:task","sessionId":"session-other"}'],
+  ])('starts a fresh session instead of trusting an %s whoami result', (_label, whoamiJson) => {
+    const result = run(['--roadmap', 'parley-runtime-repair'], {
+      PD_WHOAMI_JSON: whoamiJson,
+    });
+
+    expect(result.status).toBe(0);
+    expect(JSON.parse(result.stdout)).toMatchObject({ sessionId: 'session-test' });
+    expect(readFileSync(argsLog, 'utf8')).toMatch(/^CALL\tbegin/m);
+  });
+
+  test('fails closed when begin returns no canonical sessionId', () => {
+    const result = run(['--sidequest', 'verify missing begin receipt'], {
+      PD_BEGIN_JSON: '{}',
+    });
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toMatch(/without returning a sessionId/);
+  });
+
+  test('propagates claim failure instead of emitting apparent success', () => {
+    const result = run(['--roadmap', 'parley-runtime-repair'], {
+      PD_FAIL_CLAIMS: '1',
+    }, true);
+
+    expect(result.status).toBe(9);
+    expect(result.stdout).toBe('');
+    expect(readFileSync(argsLog, 'utf8')).toMatch(/^CALL\tsession\tfiles\tadd\tsrc\/a\.ts\t--json/m);
   });
 });

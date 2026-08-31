@@ -41,7 +41,8 @@ done
 
 # 2. Existing session?
 existing=$(pd whoami --json 2>/dev/null || echo '{}')
-session_id=$(echo "$existing" | jq -r '.sessionId // empty')
+session_id=$(echo "$existing" | jq -r --arg identity "$identity" \
+  'select(.active == true and .identity == $identity) | .sessionId // empty')
 
 # 3. Sitrep
 project="${identity%%:*}"
@@ -55,12 +56,16 @@ if [[ -z "$session_id" ]]; then
   }
   start=$(pd begin --identity "$identity" --purpose "$purpose" --lifecycle durable "$rent_kind" "$rent_value" --json 2>/dev/null)
   session_id=$(echo "$start" | jq -r '.sessionId // empty')
+  [[ -z "$session_id" ]] && {
+    echo "pd begin succeeded without returning a sessionId" >&2
+    exit 1
+  }
 fi
 
 # 5. Optionally claim files
 claims="[]"
 if (( claim_files )) && (( ${#files[@]} )); then
-  claims=$(pd session files claim "${files[@]}" --json 2>/dev/null || echo '[]')
+  claims=$(pd session files add "${files[@]}" --json 2>/dev/null)
 fi
 
 # 6. Emit summary

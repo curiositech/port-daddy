@@ -47,9 +47,11 @@ START: I see a failure or "doesn't work"
 │   │         Sessions are per-cwd via .portdaddy/contexts/.
 │   ├─ "File not claimed"
 │   │       → `pd session files claim <files>` for every staged path.
-│   └─ Phantom claim from dead agent
-│       → check the claimant in `pd whoami` for that agent. If isActive=false,
-│         the claim is orphaned; force-release or re-claim.
+│   └─ Claim appears stale or its owner reports active=false
+│       → active=false is not proof of death or release authority. Inspect the
+│         exact session, claim, notes, and `pd salvage` eligibility. Use
+│         `pd salvage claim <dead-agent-id>` only for the exact claimable receipt;
+│         otherwise message the owner and stop. Never force-release from whoami alone.
 │
 ├─ Walked into another agent's interactive rebase?
 │   → DO NOT commit. `git format-patch` your work, `git rebase --abort`,
