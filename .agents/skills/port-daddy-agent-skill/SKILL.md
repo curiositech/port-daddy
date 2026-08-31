@@ -284,8 +284,22 @@ edits append revisions. `pd roster continue <agent-node-id> --backend <id>`
 chooses a new body without changing the person and reuses the same witnessed
 native-or-successor continuation receipt path described above. Stored trigger
 and permission fields are declarations, not proof they are active or enforced.
-Roster expertise search fuses BM25 with the shared MiniLM embedder; treat a
-`degraded` lexical fallback as repair work and run `pd doctor`.
+Roster expertise search is hybrid: fuse BM25 with results from a compatible
+semantic space. Prefer the strongest approved, configured embedder that fits
+the corpus privacy boundary, retrieval quality target, latency, and cost. Every
+stored vector and query carries its provider, model id, immutable model
+revision, dimensions, normalization, distance metric, and a `space_id` hashed
+from canonical ordered metadata.
+Reject or re-embed incompatible spaces; never compare them silently.
+
+MiniLM is an explicit local/degraded fallback, not the universal design
+authority. Verify the live `pd embed --help` surface and current source before
+depending on model selection. At the 2026-08-31 audit point, the installed
+stable runtime and `main` exposed only the MiniLM `pd embed` path; treat that as
+a transitional capability and run `pd doctor` when it is unavailable.
+Higher-quality model selection depends on the in-flight control-plane
+embedding-model-registry work; do not claim that registry shipped until source,
+deployed runtime, and a read-back receipt agree.
 
 
 ## Telos vs Purpose
@@ -441,14 +455,18 @@ pd actors --project <project>
 pd actor cartographer --project <project>
 pd actor navigator --inbox-stats
 pd actor navigator --inbox --unread
-pd actor navigator --message "roadmap state changed; see docs/recovery/CURRENT-WORK.md"
+pd actor navigator --message "roadmap state changed; reconcile the live event evidence and projections"
 pd actor lookout --message "release-surface drift fixed in docs, website, README, and skill"
 ```
 
 Mailbox delivery is durable but not an immediate answer. After messaging an
-actor, keep working from the actual source of truth: `docs/recovery/CURRENT-WORK.md`,
-`.cartographer/README.md`, `.cartographer/status.md`, live notes, sessions,
-and the checked-in release surfaces.
+actor, work from live daemon events, notes, sessions, and checked-in release
+evidence. Recovery ledgers, Cartographer files, plans, DAGs, binders, and
+snapshots are sources or projections, not independent authorities. The target
+roadmap authority is the configured remote append-only work-event Oracle after
+a write has a remote read-back receipt. Until that cutover is proven live,
+preserve and label local projections honestly; do not mint another
+"authoritative" file.
 
 ## MCP Equivalents
 

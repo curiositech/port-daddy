@@ -23,13 +23,25 @@ that explains what new evidence changed the decision.
   "time": "2026-07-02T12:00:00.000Z",
   "actor": "agent-gpui-harness-mux",
   "traceId": "session-...",
-  "schemaVersion": 1,
+  "parentEventIds": [],
+  "sourceRef": "source://redacted/source-id",
+  "sourceVisibility": "local-private",
+  "sourceHash": "sha256:...",
+  "retentionClass": "hot",
+  "costCenter": "port-daddy/control-plane",
+  "limitations": [],
+  "schemaVersion": 2,
   "data": {}
 }
 ```
 
 Use CloudEvents-compatible names where practical: `id`, `type`, `source`,
-`subject`, `time`, and versioned `data`.
+`subject`, `time`, and versioned `data`. `sourceRef` is a canonical/redacted
+identifier for the ingested artifact or observation; `sourceHash` binds the
+bytes. A raw `file:///` path is local/private provenance and must never be
+published remotely. Parent edges, retention,
+cost attribution, and known limitations travel with the event instead of living
+only in a dashboard tooltip.
 
 ## Event Types
 
@@ -41,6 +53,28 @@ Use CloudEvents-compatible names where practical: `id`, `type`, `source`,
   "title": "Show live transcripts in pd-console",
   "sourceRefs": ["user-message", "docs/architecture/..."],
   "initialWhy": "Operator cannot trust agents without transcript proof."
+}
+```
+
+`RoadmapSourceIngested`
+
+```json
+{
+  "sourceId": "grand-harbor-plan-2026-08-04",
+  "sourceRef": "source://operator-plan/grand-harbor/2026-08-04",
+  "sourceVisibility": "local-private",
+  "sourceHash": "sha256:...",
+  "authorship": ["operator"],
+  "observedAt": "2026-08-31T12:00:00.000Z",
+  "supersedes": [],
+  "dependencyIds": [],
+  "retentionClass": "hot",
+  "costAttribution": {
+    "project": "port-daddy",
+    "ingestUnits": 1,
+    "embeddingSpaceId": "embed-v1:<sha256-of-canonical-space-metadata>"
+  },
+  "importReceiptId": "receipt_01..."
 }
 ```
 
@@ -105,6 +139,21 @@ Use CloudEvents-compatible names where practical: `id`, `type`, `source`,
 }
 ```
 
+`RoadmapProjectionPublished`
+
+```json
+{
+  "projectionId": "roadmap-graph-01...",
+  "eventWatermark": "rde_01...",
+  "sourceEventIds": ["rde_01..."],
+  "generatedAt": "2026-08-31T12:05:00.000Z",
+  "staleAfter": "2026-08-31T12:10:00.000Z",
+  "views": ["graph", "table", "text-outline"],
+  "limitations": ["cold-tier artifacts require restore before full-text search"],
+  "readBackReceiptId": "receipt_02..."
+}
+```
+
 ## Projection Rules
 
 Current focus:
@@ -121,6 +170,23 @@ Agent routing:
   Work chains are generated only from the current focus plus explicitly approved
   prerequisites. Deferred candidates must not spawn background agents.
 
+Graph and accessibility:
+  Every rendered node and edge links to the event ids that produced it. Layout
+  does not imply causality. Publish staleness and limitation metadata, keyboard
+  navigation, readable contrast, and an equivalent table or text outline.
+
+Retention and cost:
+  Hot events remain in the interactive search/index path; warm events stay
+  durably queryable with a documented latency target; cold events remain
+  encrypted and restorable. Tier transitions append receipts. Attribute ingest,
+  embedding, storage, retrieval, and egress to source/project/account. A cost
+  decision never deletes held evidence or breaks lineage.
+
+Retirement impact:
+  Before a source is superseded, archived, or deleted, traverse downstream
+  decisions, dependencies, proof, projections, and published references. Append
+  the affected ids, preservation decision, and operator/legal/privacy holds.
+
 ## Failure Rules
 
 - Duplicate event ids are idempotent and ignored.
@@ -128,3 +194,7 @@ Agent routing:
 - Projection handlers must be replay-safe.
 - Large artifacts use references, not embedded blobs.
 - Never derive current priority from a prose-only note when a decision event exists.
+- An import success is not a retirement receipt; downstream impact must be explicit.
+- A graph without an accessible non-visual projection fails the publication contract.
+- A remote write without remote read-back proves intent, not authority.
+- A remote event containing an operator filesystem path fails the privacy boundary.
