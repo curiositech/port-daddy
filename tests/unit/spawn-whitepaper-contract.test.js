@@ -18,19 +18,19 @@ const paths = {
 };
 
 const expectedSha256 = {
-  pdf: '2961ca6ec3533f9e8ad80e251d414e3fafa76186ab65f7b600582e76b92e35ad',
+  pdf: 'ae9d319d140e22e0e309eb04ea6ed399c066f0ba128b7aee2031ffb2c735ee7e',
   contact: 'e74fad8acce50400e536f8a81120643b48ff1589d8d1e3ff3da479a3b45768f6',
   tour: 'fd6021b6dffaf8670550b075bbd81bd1af555070aa353b4c90316393ac61f12f',
 };
 
 const publicationSha256 = {
-  'website-v2/public/whitepaper/legible-swarm-whitepaper.pdf': '0f200e575f5624b8826a11c4170bf18bf1e591e1d54710b264b62dfdffb42636',
-  'website-v2/public/whitepaper/single-writer-kernel-whitepaper.pdf': 'd9b133dbfec97e19c00978c6bc6c5f923c62321f828d3c80e923133e0a6dbfee',
-  'website-v2/public/whitepaper/harbor-economy-whitepaper.pdf': '9b7b81a945954d6b55ac869c59c0bc579480ab59c7377222d999b9be113171b8',
-  'website-v2/public/whitepaper/anchor-protocol-whitepaper.pdf': '44e0d08b1b80557d89c53e5f0a34c79d3a73930b0c41c806440403785172d9f9',
-  'website-v2/public/whitepaper/agent-transactions-whitepaper.pdf': 'dbd1ddaaa4665aa2c28701aab07082271a188eb0e0631a7dd658950c1db5cb6d',
-  'website-v2/public/whitepaper/federated-harbor-whitepaper.pdf': 'ba7f29dfd1946a4f1bdc4a38720985e01562c495a0b6fc5579dd6a2fad7c2ba9',
-  'website-v2/public/whitepaper/coordination-papers-mega-volume.pdf': 'f16ac8d6f0c2e2eb3b9a5c3dda8ceb75f93a2acee7201f7ab2f624a39b4f0efc',
+  'website-v2/public/whitepaper/legible-swarm-whitepaper.pdf': 'bb5704b0b2acf5f9e6015a130b1578e9c14b2cc6dd6ebe27fffe45fabcd9e639',
+  'website-v2/public/whitepaper/single-writer-kernel-whitepaper.pdf': '2ec6d1ae929e01880320d9d255f887d8635c4b27eb14a965d0d57057f732323c',
+  'website-v2/public/whitepaper/harbor-economy-whitepaper.pdf': '5c70098c49051b2a89fa632f4ddada76288603b7c705a7bfd0406a980af98816',
+  'website-v2/public/whitepaper/anchor-protocol-whitepaper.pdf': 'cfd4f6dd55f1868e9f8a13c4d9039994bc5f6e554af52fc4ee163e91d57712c1',
+  'website-v2/public/whitepaper/agent-transactions-whitepaper.pdf': '0d52188306583518abf8b7755142b2df53f3f664152ec9305947c5fee3b12960',
+  'website-v2/public/whitepaper/federated-harbor-whitepaper.pdf': 'cae3b19ca9bb961bf54bf1aa228d58a1d7a434729d97e7d437e7a86bef01c247',
+  'website-v2/public/whitepaper/coordination-papers-mega-volume.pdf': '7886660dc50cd23a206cda020ad219d51008cbe999d1e23f178eb979c2cd1b92',
 };
 
 function text(path) {
@@ -140,22 +140,24 @@ function parseGif(gif) {
 }
 
 describe('Spawn-to-Person publication contract', () => {
-  test('maturity labels say partial only where the runtime has a grounded substrate', () => {
+  test('the maturity plot marks partial only where the runtime has a grounded substrate', () => {
     const source = text(paths.source);
     const honest = text(paths.honest);
     const keystone = text(paths.keystone);
     const organs = text(paths.organs);
 
     expect(source).toMatch(/\\newcommand\{\\BUILTWEAK\}.*\\textsc\{partial\}/);
-    expect(honest).toMatch(/Outcome ledger[^&]*& \\BUILTWEAK/);
-    expect(honest).toMatch(/Local non-forgeable identity & \\BUILTWEAK/);
-    expect(honest).toContain('\\S\\ref{sec:organs}, Def.~\\ref{def:oracle}');
-    expect(honest).toContain('\\S\\ref{sec:identity}, Thm.~\\ref{thm:necessity}');
-    expect(keystone).toContain('daemon-issued identity root');
-    expect(keystone).toContain('\\textsc{partial: enforcement owed}');
-    expect(organs).toContain('checkpoint (\\BUILTWEAK)');
-    expect(organs).toContain('outcome ledger (\\BUILTWEAK)');
-    expect(organs).toContain('\\S\\ref{sec:organs}');
+    expect(honest).toContain('.58/outcome ledger,');
+    expect(honest).toContain('-.92/local non-forgeable identity,');
+    expect(honest).toContain('\\foreach \\y in {1.08,.58,-.92} \\node[pd caution datum]');
+    expect(honest).toContain('commitment closure, not neutral grades');
+    expect(honest).toContain('local root; full write gating owed');
+    expect(keystone).toContain('daemon-minted actor/key');
+    expect(keystone).toContain('accountable principal binding/no cross-operator binding proof');
+    expect(keystone).toContain('a signed, intact history still does not prove who controls the foreign key');
+    expect(organs).toContain('{checkpoint\\\\[-1pt]{\\tiny partial}}');
+    expect(organs).toContain('{outcome ledger\\\\[-1pt]{\\tiny partial}}');
+    expect(organs).toContain('execution state is not restored');
 
     expect(text('lib/actor-souls.ts')).toContain('daemon-minted, non-forgeable actor identity');
     expect(text('tests/unit/actor-souls.test.js')).toContain('forged / self-asserted rejection');
@@ -174,15 +176,15 @@ describe('Spawn-to-Person publication contract', () => {
 
     expect(chapter).toContain("status: 'Version 1.4 (collected-volume edition)'");
     expect(chapter).toContain('pages: 41');
-    expect(chapter).toContain('sizeKb: 702');
+    expect(chapter).toContain('sizeKb: 749');
     expect(catalog).toContain('Spawn-to-Person diagrams and implementation status align');
     expect(catalog).toContain("chapters: ['III']");
   });
 
-  test('the committed PDF is the declared 41-page, 702 KiB artifact', () => {
+  test('the committed PDF is the declared 41-page, 749 KiB artifact', () => {
     const pdf = readFileSync(paths.pdf);
     expect(pdfPageCount(pdf)).toBe(41);
-    expect(Math.floor(pdf.length / 1024)).toBe(702);
+    expect(Math.floor(pdf.length / 1024)).toBe(749);
     expect(sha256(paths.pdf)).toBe(expectedSha256.pdf);
   });
 

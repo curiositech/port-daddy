@@ -7,6 +7,7 @@ import {
   DELIVERY_ATTEMPT_KIND,
   DELIVERY_ATTEMPT_SEQ_BASE,
   DELIVERY_CONTINUATION_KIND,
+  DELIVERY_CONTINUATION_LIVELOCK_THRESHOLD,
   DELIVERY_CONTINUATION_SEQ_BASE,
   DELIVERY_FAILURE_KIND,
   DELIVERY_FAILURE_SEQ_BASE,
@@ -15,6 +16,7 @@ import {
   deadLetterSummary,
   describeDeliveryError,
   readLastDeliveryFailure,
+  readDeliveryContinuationLivelock,
   recordDeliveryAttemptStart,
   recordDeliveryContinuation,
   recordDeliveryFailure,
@@ -156,6 +158,79 @@ describe('attempt-start markers make uncatchable kills visible (#7743)', () => {
     expect(Number(continuation?.seq)).toBe(DELIVERY_CONTINUATION_SEQ_BASE + 2);
     expect(String(continuation?.title)).toContain('progress, not a failure');
     expect(await countDeliveryContinuations(env, runIdForDelivery('delivery-abc'))).toBe(1);
+  });
+
+  it('detects two identical continuation states but permits monotonic progress', async () => {
+    const db = memoryD1();
+    const env = makeEnv({ DB: db.db });
+    const runId = runIdForDelivery('delivery-abc');
+
+    await recordDeliveryContinuation(env, makeJob(), 1, 'lookout', ['snipe', 'purser']);
+    await expect(readDeliveryContinuationLivelock(env, runId)).resolves.toBeNull();
+    await recordDeliveryContinuation(env, makeJob(), 101, 'snipe', ['purser']);
+    await expect(readDeliveryContinuationLivelock(env, runId)).resolves.toBeNull();
+    await recordDeliveryContinuation(env, makeJob(), 201, 'snipe', ['purser']);
+
+    await expect(readDeliveryContinuationLivelock(env, runId)).resolves.toEqual({
+      completedShip: 'snipe',
+      remainingShips: ['purser'],
+      repeats: DELIVERY_CONTINUATION_LIVELOCK_THRESHOLD,
+    });
+  });
+
+  it('permits a shrinking roster when the same ship completes consecutive slices', async () => {
+    const db = memoryD1();
+    const env = makeEnv({ DB: db.db });
+    const runId = runIdForDelivery('delivery-abc');
+
+    await recordDeliveryContinuation(env, makeJob(), 1, 'lookout', ['snipe', 'purser']);
+    await recordDeliveryContinuation(env, makeJob(), 101, 'lookout', ['purser']);
+
+    await expect(readDeliveryContinuationLivelock(env, runId)).resolves.toBeNull();
+  });
+
+  it('detects repeated empty rosters as zero progress', async () => {
+    const db = memoryD1();
+    const env = makeEnv({ DB: db.db });
+    const runId = runIdForDelivery('delivery-abc');
+
+    await recordDeliveryContinuation(env, makeJob(), 1, 'lookout', []);
+    await recordDeliveryContinuation(env, makeJob(), 101, 'lookout', []);
+
+    await expect(readDeliveryContinuationLivelock(env, runId)).resolves.toEqual({
+      completedShip: 'lookout',
+      remainingShips: [],
+      repeats: DELIVERY_CONTINUATION_LIVELOCK_THRESHOLD,
+    });
+  });
+
+  it('treats roster order as scheduler state', async () => {
+    const db = memoryD1();
+    const env = makeEnv({ DB: db.db });
+    const runId = runIdForDelivery('delivery-abc');
+
+    await recordDeliveryContinuation(env, makeJob(), 1, 'lookout', ['snipe', 'purser']);
+    await recordDeliveryContinuation(env, makeJob(), 101, 'lookout', ['purser', 'snipe']);
+
+    await expect(readDeliveryContinuationLivelock(env, runId)).resolves.toBeNull();
+  });
+
+  it('fails open when continuation evidence is unavailable or malformed', async () => {
+    const db = memoryD1();
+    const env = makeEnv({ DB: db.db });
+    await recordDeliveryContinuation(env, makeJob(), 1, 'lookout', ['purser']);
+    db.steps.find(step => step.kind === DELIVERY_CONTINUATION_KIND)!.detail = '{bad json';
+    await recordDeliveryContinuation(env, makeJob(), 101, 'lookout', ['purser']);
+
+    await expect(readDeliveryContinuationLivelock(
+      env,
+      runIdForDelivery('delivery-abc'),
+    )).resolves.toBeNull();
+    db.failAll = true;
+    await expect(readDeliveryContinuationLivelock(
+      env,
+      runIdForDelivery('delivery-abc'),
+    )).resolves.toBeNull();
   });
 
   it('the consumer records a start marker BEFORE executing, so a platform kill still leaves evidence', async () => {

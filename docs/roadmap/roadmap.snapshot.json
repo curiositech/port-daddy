@@ -2,7 +2,7 @@
   "generatedAt": 1787763785609,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 311,
+  "count": 315,
   "items": [
     {
       "slug": "a-add-to-the-papers",
@@ -990,6 +990,11 @@
       "summaryMd": "fix(release): Developer ID sign + notarize FleetBar.app (stop shipping a Gatekeeper-quarantined app)"
     },
     {
+      "slug": "fleetbar-operator-attention-and-update",
+      "status": "now",
+      "summaryMd": "FleetBar must update itself from the daemon's exact signed release, show progress/failure, preserve rollback, and expose notifications, sound, semantic icon presence, and honest operator availability."
+    },
+    {
       "slug": "fleetbar-visual-task-intake",
       "status": "backlog",
       "summaryMd": "feat(fleetbar): add visual task intake"
@@ -1235,6 +1240,16 @@
       "summaryMd": "Wire pd-anchor's Rust CPM scheduler (schedule.rs / pd_schedule_dag_json FFI export) to the TS daemon via a kernel-preferred koffi loader (lib/planner-schedule-ffi.ts), replacing the pure-TS fallback routes/roadmap.ts always ran. Closes a zero-test-coverage gap on the FFI boundary and adds the first rustdoc+doctest example under the new Rust-documentation law. Shipped as PR #3828."
     },
     {
+      "slug": "pd-console-agentic-workbench",
+      "status": "now",
+      "summaryMd": "Make pd-console a conversation-first agentic coding workbench"
+    },
+    {
+      "slug": "pd-console-cross-backend-agent-switcher",
+      "status": "now",
+      "summaryMd": "Durable cross-backend Agents switcher in pd-console"
+    },
+    {
       "slug": "pd-console-cull-and-defects",
       "status": "backlog",
       "summaryMd": "pd-console: cull 14 dead/thin/redundant panes (26→13) + fix 5 operator-named defects"
@@ -1253,6 +1268,11 @@
       "slug": "pd-console-story-linework-shell",
       "status": "now",
       "summaryMd": "Rebuild pd-console around the story-linework operator shell: flat L0-L3 navigation, honest state framing, Conjure wave blocks, persistent native PTY, and motion/reduced-motion proof."
+    },
+    {
+      "slug": "pd-console-zoom-controls",
+      "status": "now",
+      "summaryMd": "Add explicit, persistent zoom controls and shortcuts to pd-console with honest PTY geometry and responsive title-deck behavior."
     },
     {
       "slug": "pd-roadmap-dependency-write-path",

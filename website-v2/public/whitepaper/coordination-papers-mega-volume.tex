@@ -1,9 +1,10 @@
 \documentclass[11pt,a4paper]{article}
 \input{coordination-papers-mega-volume-preamble.tex}
+\input{coordination-papers-mega-volume-seams.tex}
 \hypersetup{
   pdftitle={The Harbor, the Person, and the Economy: The Collected Coordination Papers},
   pdfauthor={Erich Owens},
-  pdfsubject={Port Daddy coordination architecture, protocols, implementation status, and research roadmap},
+  pdfsubject={A seven-part argument for accountable autonomous work},
   pdfkeywords={Port Daddy, multi-agent systems, capability security, coordination, accountability, federation}
 }
 \newcommand{\pdgeneratedinput}[2]{%
@@ -17,20 +18,6 @@
 \begin{document}
 \hypersetup{pageanchor=false}
 \begin{titlepage}
-\pagecolor{hhink}\color{hhpaper}\thispagestyle{empty}
-\null\vfill
-\begin{center}
-  \includegraphics[
-    width=\textwidth,
-    height=0.94\textheight,
-    keepaspectratio
-  ]{art/collected-volume/collected-treatise-jacket.jpg}
-\end{center}
-\vfill\null
-\end{titlepage}
-\nopagecolor\color{hhink}
-
-\begin{titlepage}
 \pagecolor{hhpaper}\color{hhink}
 \vspace*{-0.8cm}
 \noindent{\scshape\bfseries\large Port Daddy Coordination Papers \hfill Collected Treatise \textperiodcentered\ August 2026}\par
@@ -39,213 +26,138 @@
 \vspace{0.6cm}
 
 \begin{center}
-{\fontsize{26}{32}\selectfont\bfseries The Harbor, the Person,\\[0.15cm]and the Economy}\par
+{\fontsize{31}{37}\selectfont\bfseries The Harbor, the Person,\\[0.15cm]and the Economy}\par
+\vspace{0.45cm}
+{\Large Seven papers on accountable autonomous work}\par
+\vspace{0.8cm}
+\begin{minipage}{0.76\textwidth}
+\centering
+{\large\bfseries Autonomy scales only when authority, evidence, and consequence
+remain coupled at every effect boundary.\par}
 \vspace{0.35cm}
-{\large\itshape A Unified Architecture for Accountable Autonomous Multi-Agent Work}\par
-\vspace{0.25cm}
-{\footnotesize\color{hhgray} Seven cross-referenced treatises on local effect hypervisors, evidence-bearing work units,\\capability attenuation, multi-hop delegation, bounded underwriting, and federated institutions}\par
-\vspace{0.5cm}
-
-% ─── Pure Abstract Geometric & Harmonic Lattice Artwork ───────────────────────
-\begin{tikzpicture}[scale=0.96]
-  % Subtle background canvas frame with soft vignette
-  \fill[fill=hhpaper!30, rounded corners=6pt] (-7.4, -4.6) rectangle (7.4, 4.6);
-  \draw[hhgray!30, line width=0.45pt, rounded corners=6pt] (-7.4, -4.6) rectangle (7.4, 4.6);
-
-  \begin{scope}
-    \clip[rounded corners=5pt] (-7.3, -4.5) rectangle (7.3, 4.5);
-    
-    % Subtle coordinate field grid
-    \draw[hhgray!12, line width=0.25pt, step=0.8cm] (-7.3, -4.5) grid (7.3, 4.5);
-
-    % Radiating azimuth rays from focal origin (0.3, 0.0)
-    \foreach \ang in {0, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180, 195, 210, 225, 240, 255, 270, 285, 300, 315, 330, 345} {
-      \draw[hhgray!18, line width=0.25pt] (0.3, 0.0) -- ++(\ang:11cm);
-    }
-    
-    % Concentric navigation & harmonic rings
-    \foreach \r in {0.7, 1.5, 2.4, 3.4, 4.5, 5.7, 7.0} {
-      \draw[hhgray!22, line width=0.35pt] (0.3, 0.0) circle (\r cm);
-    }
-    \foreach \r in {1.1, 1.9, 2.9, 3.9, 5.1, 6.4} {
-      \draw[hhcobalt!20, line width=0.3pt, dashed] (0.3, 0.0) circle (\r cm);
-    }
-
-    % Abstract translucent constructivist planes with golden-ratio proportions
-    \fill[hhcobalt!6, draw=hhcobalt!30, line width=0.5pt, rounded corners=3pt] (-3.9, -2.4) rectangle (3.3, 2.7);
-    \fill[hhsanddeep!18, draw=hhink!20, line width=0.45pt] (-2.3, -3.3) rectangle (4.7, 1.9);
-    \fill[hhcobalt!9, draw=hhcobalt!45, line width=0.6pt] (-0.9, -1.9) rectangle (5.5, 3.3);
-
-    % Parabolic wavefront interference curves
-    \draw[domain=-6.8:6.8, variable=\x, smooth, samples=120, line width=0.55pt, color=hhink!30]
-      plot ({\x}, {0.065*\x*\x - 2.5});
-    \draw[domain=-6.8:6.8, variable=\x, smooth, samples=120, line width=0.45pt, dashed, color=hhcobalt!40]
-      plot ({\x}, {0.048*\x*\x - 1.8});
-
-    % Golden-ratio harmonic logarithmic spiral (sweeping outward gracefully)
-    \draw[domain=0:15.8, variable=\t, smooth, samples=160, line width=1.1pt, color=hhcobalt!90]
-      plot ({0.3 + 0.09*exp(0.25*\t)*cos(\t r)}, {0.0 + 0.09*exp(0.25*\t)*sin(\t r)});
-
-    % Linear coordinate axes with calibration ticks
-    \draw[hhink!50, line width=0.55pt] (-7.0, 0.0) -- (7.0, 0.0);
-    \draw[hhink!50, line width=0.55pt] (0.3, -4.3) -- (0.3, 4.3);
-    \foreach \x in {-5, -4, -3, -2, -1, 1, 2, 3, 4, 5} {
-      \draw[hhink!40, line width=0.4pt] (\x+0.3, -0.1) -- (\x+0.3, 0.1);
-    }
-    \foreach \y in {-3, -2, -1, 1, 2, 3} {
-      \draw[hhink!40, line width=0.4pt] (0.2, \y) -- (0.4, \y);
-    }
-
-    % Swarm-to-Lattice constellation: stochastic swarm on left converging to structured lattice on right
-    % Stochastic left nodes (Delaunay triangulation network)
-    \coordinate (n1) at (-5.6, 2.7);
-    \coordinate (n2) at (-4.7, 1.4);
-    \coordinate (n3) at (-5.9, -1.3);
-    \coordinate (n4) at (-4.9, -2.7);
-    \coordinate (n5) at (-3.7, 3.2);
-    \coordinate (n6) at (-5.7, 0.3);
-    \coordinate (n7) at (-4.0, -1.9);
-    \coordinate (n8) at (-2.9, -0.9);
-    \coordinate (n9) at (-3.3, 1.7);
-
-    \draw[hhgray!35, line width=0.35pt] (n1) -- (n2) -- (n6) -- (n3) -- (n7) -- (n4);
-    \draw[hhgray!35, line width=0.35pt] (n1) -- (n5) -- (n9) -- (n2) -- (n6);
-    \draw[hhgray!35, line width=0.35pt] (n6) -- (n7) -- (n8) -- (n9);
-    \draw[hhgray!35, line width=0.35pt] (n3) -- (n4);
-
-    \foreach \pt in {(n1), (n2), (n3), (n4), (n5), (n6), (n7), (n8), (n9)} {
-      \fill[hhink!65] \pt circle (1.9pt);
-      \draw[hhpaper, line width=0.3pt] \pt circle (1.9pt);
-    }
-
-    % Crystalline structured lattice nodes on right
-    \foreach \x in {1.7, 2.9, 4.1, 5.3} {
-      \foreach \y in {-1.2, 0.0, 1.2, 2.4} {
-        \fill[hhcobalt] (\x, \y) circle (2.3pt);
-        \draw[hhcobalt!40, line width=0.45pt] (\x, \y) circle (4.8pt);
-      }
-    }
-    % Lattice horizontal & vertical grid lines
-    \foreach \x in {1.7, 2.9, 4.1, 5.3} {
-      \draw[hhcobalt!45, line width=0.4pt] (\x, -1.2) -- (\x, 2.4);
-    }
-    \foreach \y in {-1.2, 0.0, 1.2, 2.4} {
-      \draw[hhcobalt!45, line width=0.4pt] (1.7, \y) -- (5.3, \y);
-    }
-    % Lattice diagonal tension paths
-    \draw[hhcobalt!25, line width=0.35pt, dashed] (1.7, -1.2) -- (5.3, 2.4);
-    \draw[hhcobalt!25, line width=0.35pt, dashed] (1.7, 2.4) -- (5.3, -1.2);
-
-    % Convergence flow vectors (connecting swarm to structured lattice)
-    \draw[-{Stealth[length=2.0mm,width=1.2mm]}, hhcobalt!70, line width=0.55pt] (n8) -- (1.7, -1.2);
-    \draw[-{Stealth[length=2.0mm,width=1.2mm]}, hhcobalt!70, line width=0.55pt] (n9) -- (1.7, 1.2);
-    \draw[-{Stealth[length=2.0mm,width=1.2mm]}, hhcobalt!70, line width=0.55pt] (n6) -- (0.3, 0.0);
-    \draw[-{Stealth[length=2.0mm,width=1.2mm]}, hhcobalt!70, line width=0.55pt] (n5) -- (1.7, 2.4);
-
-    % Central Keystone Nexus at focal origin (0.3, 0.0)
-    \fill[hhpaper, draw=hhcobalt, line width=1.4pt] (0.3, 0.0) circle (6.5pt);
-    \fill[hhcobalt] (0.3, 0.0) circle (3.0pt);
-    \draw[hhcobalt!60, line width=0.6pt] (0.3, 0.0) circle (11pt);
-    \draw[hhcobalt!30, line width=0.35pt, dashed] (0.3, 0.0) circle (16pt);
-  \end{scope}
-\end{tikzpicture}
+{\small\color{hhgray} This book follows that claim from one operator and one
+machine to work shared across principals, economic interests, and mutually
+distrustful systems.\par}
+\end{minipage}
+\vspace{0.8cm}
 \end{center}
 
 \vspace{0.4cm}
 \noindent{\color{hhcobalt}\rule{\textwidth}{0.8pt}}\par
 \vspace{0.25cm}
 \noindent\begin{tabularx}{\textwidth}{@{}Xr@{}}
-\textbf{Erich Owens} \textperiodcentered\ Curiositech LLC & \textbf{August 2026} \textperiodcentered\ Version 3.0 (Illuminated Edition)\\
+\textbf{Erich Owens} \textperiodcentered\ Curiositech LLC & \textbf{August 2026} \textperiodcentered\ Version 3.1 (Research Edition)\\
 \texttt{engineering@portdaddy.dev} & \url{https://portdaddy.dev/whitepaper}\\
 \end{tabularx}
 \end{titlepage}
 \nopagecolor\color{hhink}
 
-\begin{titlepage}
-\thispagestyle{empty}
-\null\vfill
-\begin{center}
-  \includegraphics[
-    width=\textwidth,
-    height=0.78\textheight,
-    keepaspectratio
-  ]{art/collected-volume/collected-treatise-inside-jacket.jpg}
-\end{center}
-\vfill\null
-\end{titlepage}
-
 \pagenumbering{roman}
 \begin{abstract}\noindent
-Autonomous coding agents are useful alone and institutionally fragile together.
-This collected volume develops one continuous answer across seven independently readable
-papers: a single local writer decides what is true; a legibility layer lets the
-operator see and revoke what the swarm is doing; continuity turns an ephemeral
-spawn into an accountable participant; capability attenuation bounds what that
-participant may do; commitments, evidence, and bonds price failures; and a
-federation boundary states what two mutually sovereign harbors may safely owe one
-another. The collection separates running mechanisms from partial integrations,
-precise specifications, and research proposals. Its final appendices consolidate
-that implementation ledger and turn every important open claim into a proof,
-experiment, or engineering obligation.
+Agentic development fails in a predictable way when concurrency grows faster
+than accountability. More processes produce more work, but they also create more
+unread evidence, more overlapping effects, more disposable identities, and more
+ways for a confident report to outrun what actually happened. Better models do
+not remove this institutional problem.
+
+This book makes one claim: \emph{autonomy scales only when authority, evidence,
+and consequence remain coupled at every effect boundary}. Seven independently
+readable papers establish that claim in stages. They derive the information cost
+of legible supervision; place one serial authority at the local write boundary;
+bind work to a durable principal and outcome history; separate payment,
+collateral, evidence, and settlement; prove that delegated capability only
+narrows; connect witnessed acts to audit and bounded remedy; and state what may
+cross between mutually distrustful machines without moving either machine's
+sovereignty. The result is not a plea to trust agents. It is a design for making
+trust unnecessary where structure can suffice, measurable where uncertainty
+remains, and contestable everywhere else.
 \end{abstract}
 
 \section*{How to use this volume}
 \addcontentsline{toc}{section}{How to use this volume}
-Read Chapters I--IV for the product argument, Chapters V--VII for the protocol
-and assurance case, or use the chapter abstracts and reader maps as independent
-entry points. The status vocabulary is deliberately strict: \Built{} means
-running code exercised by tests; \BuiltWeak{} means a running slice that does not
-yet satisfy the full contract; \Designed{} means a concrete design without a
-shipping realization; \Vision{} is a research direction. A closed model result
-is never silently promoted to a whole-runtime guarantee.
+Read the book in order for the argument, or enter at the question you need:
+visibility (I), local effect control (II), continuity (III), exchange (IV),
+delegation (V), local institutions (VI), or federation (VII). Every chapter
+retains its standalone abstract and reader map. The short book-owned opening and
+handoff around it explain what the chapter proves for the whole and what the next
+chapter may assume.
+
+The status vocabulary is strict. \Built{} means running code exercised by tests;
+\BuiltWeak{} means a running slice that does not yet satisfy its full contract;
+\Designed{} means a concrete design without a shipping realization; \Vision{}
+is a research direction. Mathematical proofs, imported frameworks, finite model
+checks, repository experiments, and running code remain separate kinds of
+evidence throughout. None is silently promoted into another.
 
 \begingroup\small\sloppy\tableofcontents\endgroup\clearpage
 
-\section{Introduction: one institution, seven views}
-The papers form a dependency ladder rather than a pile. The single-writer kernel
-provides local truth. The legibility layer turns that truth into an operator's
-usable picture. Continuity binds actions and outcomes to something that survives
-a process. The harbor economy prices cooperation over that identity. Anchor and
-Bonded Commons discharge the cryptographic and incentive obligations; the
-Federated Harbor identifies the boundary that remains when authority crosses a
-machine and an operator.
+\section{Introduction: the unit of account is the work}
 
-\begin{figure}[H]
-\centering
-\begin{tikzpicture}[
-  node distance=7mm and 8mm,
-  rung/.style={draw=hhink,line width=0.55pt,fill=hhsand!22,rounded corners=2pt,
-    minimum width=0.43\textwidth,minimum height=12mm,align=left,inner sep=7pt},
-  proof/.style={rung,draw=hhcobalt,line width=0.9pt,fill=hhpaper},
-  arr/.style={-{Stealth[length=2.4mm]},line width=0.7pt,draw=hhink},
-  parr/.style={arr,draw=hhcobalt,dashed},
-]
-\node[rung] (kernel) {\textbf{II. Single-Writer Kernel}\\local transactional truth};
-\node[rung,above=of kernel] (legible) {\textbf{I. Legible Swarm}\\operator sight, consent, attention};
-\node[rung,above=of legible] (person) {\textbf{III. Spawn to Person}\\continuity and witnessed outcomes};
-\node[rung,above=of person] (economy) {\textbf{IV. Harbor Economy}\\bonded exchange between principals};
-\node[proof,right=of kernel] (anchor) {\textbf{V. Anchor Protocol}\\authentication and attenuation};
-\node[proof,above=of anchor] (bonded) {\textbf{VI. Bonded Commons}\\evidence, incentives, conservation};
-\node[proof,above=of bonded] (federated) {\textbf{VII. Federated Harbor}\\cross-realm transfer and settlement};
-\draw[arr] (kernel) -- (legible); \draw[arr] (legible) -- (person); \draw[arr] (person) -- (economy);
-\draw[parr] (anchor) -- (kernel); \draw[parr] (bonded) -- (economy); \draw[parr] (federated) -- (economy);
-\end{tikzpicture}
-\caption{The volume's argument and assurance spine. Solid arrows build upward;
-dashed cobalt arrows discharge or delimit a binding obligation.}
-\label{fig:volume-spine}
-\end{figure}
+Agentic software is usually measured by the agent: capability, runtime, tool
+access, and parallel copies. That is the wrong unit of account. A process may
+disappear, rename itself, summarize its mistakes, or hand work off. The durable
+object must be the work: its authorization, permitted effects, evidence, open
+obligations, and liability for the outcome.
 
-\subsection{The claim discipline}
-The central editorial rule is the same as the system's operational rule: every
-summary must remain a lens onto inspectable evidence. The chapters therefore
-scope theorems to their assumptions, distinguish finite model checks from
-unbounded proofs, and state when a runtime path is merely available in a library
-rather than enforced at the write boundary. Appendix~\ref{app:volume-status}
-consolidates those grades; Appendix~\ref{app:volume-roadmap} names the work needed
-to move them. Appendix~\ref{app:one-spine} states the converse discipline: why
-this particular set of mechanisms and not some other clever grab bag, by
-naming the one ontology and four theorem families every mechanism in the
-volume answers to.
+This book develops that claim in seven propositions.
+
+\begin{enumerate}[leftmargin=2.1em,itemsep=2pt,topsep=4pt]
+  \item \textbf{Supervision has an information cost.} A digest cannot guarantee
+  that a human will notice any one of many relevant events unless it spends
+  enough bits, attention, or artifact openings to distinguish them. A summary
+  is therefore an index into evidence, not a substitute for it.
+
+  \item \textbf{Prevention begins at the effect boundary.} Rules can be enforced
+  before an act only when the system controls the channel through which the act
+  occurs. Local effects therefore pass through one serial authority; semantic
+  failures that no gate can decide remain matters of detection and remedy.
+
+  \item \textbf{Accountability must outlive the process.} A task acquires a
+  durable principal, capability history, evidence record, obligations, and
+  outcome. Restarting an agent or choosing a new name must not erase that case
+  file or refill the resources it already consumed.
+
+  \item \textbf{Exchange requires separated instruments.} Payment rewards the
+  requested work. Collateral prices a bounded failure. Evidence supports a
+  claim. Settlement closes it exactly once. Combining those functions in one
+  score or token makes each of them less trustworthy.
+
+  \item \textbf{Delegation only narrows.} Every child capability is a strict
+  subset of its parent's authority and lifetime. Authentication says who signed;
+  attenuation says what the signature may authorize. Both are needed at every
+  hop.
+
+  \item \textbf{Uncertainty needs an institution.} Some harms cannot be
+  prevented and some outcomes cannot be judged mechanically. Witnesses,
+  randomized audits, bounded bonds, appeals, and conservation rules turn that
+  residual uncertainty into a process that can be inspected and contested.
+
+  \item \textbf{Federation relays evidence, not sovereignty.} Mutually
+  distrustful machines may exchange signed capabilities, revocations, witness
+  roots, and settlement claims without sharing a database or accepting a global
+  ruler. Transport can carry evidence; it cannot decide what either machine is
+  permitted to do with it.
+\end{enumerate}
+
+Together they form one causal chain. Legibility states what a human must recover;
+the kernel marks where effects become real; continuity gives the record a durable
+subject; the economy and protocol bound consequence and authority; the commons
+connects evidence to remedy; federation carries those objects without pretending
+that transport creates consensus.
+
+\subsection{What counts as knowing}
+Every consequential statement has a status and a boundary. Derivations establish
+relations under named assumptions. Finite checks exhaust a stated state space,
+not every deployment. Simulations estimate behavior under a stated generator;
+repository tests exercise named paths; running code proves availability, not
+universal mediation. Counterexamples remain in the record because they mark
+claims the research killed rather than conclusions it merely failed to prove.
+
+Appendix~\ref{app:volume-status} gives the implementation boundary; Appendix
+~\ref{app:result-atlas} records the results and their limits. The companion
+\path{docs/harbor-research/mega-volume-epistemic-manifest.yaml} preserves each
+result's source, status, conditions, boundary, chapter home, and verification
+artifact. The chapters stand alone; the book's claim is the chain they make.
 
 \clearpage
 \pagenumbering{arabic}

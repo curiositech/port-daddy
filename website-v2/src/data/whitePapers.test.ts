@@ -66,13 +66,16 @@ describe('whitepaper metadata sync', () => {
   })
 
   test('collected pagination is composed independently from standalone PDFs', () => {
+    if (!pdfinfoAvailable()) return
     const standalonePages = WHITE_PAPERS.reduce((sum, paper) => sum + paper.pages, 0)
+    const actualPages = pdfFactsFromDisk(resolvePdfPath(COLLECTED_VOLUME.pdfPath)).pages
 
     // The collected edition strips standalone front matter and inserts its own
-    // jacket, contents, chapter plates, and coda. Its PDF facts are therefore
-    // authoritative; summing the seven separately typeset editions is not.
-    expect(standalonePages).toBe(275)
-    expect(COLLECTED_VOLUME.pages).toBe(276)
+    // front matter, chapter openings and handoffs, result atlas, and collated
+    // references. The built PDF is authoritative; summing the seven separately
+    // typeset editions or copying a page-count literal into this test is not.
+    expect(COLLECTED_VOLUME.pages).toBe(actualPages)
+    expect(standalonePages).not.toBe(actualPages)
   })
 
   test('every paper declares an on-disk PDF', () => {
