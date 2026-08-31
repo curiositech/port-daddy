@@ -241,14 +241,18 @@ attenuated credential held outside the transcript and agent-visible prompt.
 
 Validation is strict and atomic. A body is either a valid envelope at its
 declared assurance or it contributes no authority. Implementations must apply
-these checks before resolution:
+these checks before resolution. `MAX_CLOCK_SKEW_MS` is 300,000 milliseconds
+(five minutes), and `MAX_EXECUTION_DEPTH` is 16 parent edges. A root envelope
+has depth zero. An installation may use a lower bound for either value, but it
+must not raise these ceilings without a new envelope schema version and ADR:
 
 1. Parse against the exact versioned schema with unknown properties rejected.
    Required identifiers are non-empty, bounded strings; timestamps are RFC 3339;
    enum values and lifecycle phase keys must be known to this schema version.
 2. Require `expiresAt > issuedAt` when expiry is present, reject an expired
-   envelope, and apply an explicit issuer clock-skew bound. The skew bound is
-   deployment policy and must be recorded with the validation result.
+   envelope, and apply an explicit issuer clock-skew bound. Record the actual
+   `maxClockSkewMs` used with the validation result; it must be between zero and
+   `MAX_CLOCK_SKEW_MS`, inclusive.
 3. Recompute `envelopeDigest` over a documented canonical serialization that
    excludes `attestation.signature` and `attestation.envelopeDigest` themselves.
    Reject digest disagreement before checking the signature.
@@ -264,14 +268,26 @@ these checks before resolution:
    cannot establish authority without its declared owner.
 6. When a parent is declared, validate the entire bounded parent chain, bind the
    parent digest to the child, reject cycles, and prove that every child
-   capability is equal to or narrower than its parent.
+   capability is equal to or narrower than its parent. Record the actual
+   `maxExecutionDepth` used with the validation result; it must be between zero
+   and `MAX_EXECUTION_DEPTH`, inclusive. Reject a chain as `PARENT_INVALID` as
+   soon as the next parent edge would exceed that recorded bound.
 
 Validation returns a typed result rather than a partially trusted object:
 
 ```ts
+interface EnvelopeValidationPolicyReceipt {
+  policyId: string;
+  maxClockSkewMs: number;     // 0..300_000
+  maxExecutionDepth: number; // 0..16 parent edges; root depth is 0
+}
+
 type EnvelopeValidationResult =
-  | { ok: true; envelope: ExecutionEnvelopeV1; policyId: string }
-  | {
+  | (EnvelopeValidationPolicyReceipt & {
+      ok: true;
+      envelope: ExecutionEnvelopeV1;
+    })
+  | (EnvelopeValidationPolicyReceipt & {
       ok: false;
       code:
         | 'SCHEMA_INVALID'
@@ -286,7 +302,7 @@ type EnvelopeValidationResult =
         | 'REPLAY_DETECTED';
       safeMessage: string;
       rejectedDigest?: string;
-    };
+    });
 ```
 
 On rejection, the resolver may emit a new minimal diagnostic envelope with a
@@ -577,4 +593,8 @@ The architecture is complete only when the implementation can demonstrate:
 7. compaction and handoff preserve tool-call/result pairs;
 8. raw transcript ownership remains external when declared external;
 9. imported direct output remains historically unattested;
-10. FleetBar presents unknown and partial truth without a terminal requirement.
+10. FleetBar presents unknown and partial truth without a terminal requirement;
+11. a validation receipt reproduces the exact clock-skew and parent-depth bounds
+    used for its decision; and
+12. clock skew above five minutes and a seventeenth parent edge are rejected even
+    when local configuration requests a larger bound.
