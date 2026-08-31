@@ -360,7 +360,7 @@ function printLaunchHints(hints: {
       '',
       '  pd init          Full project onboarding (scan, fleet, MCP, git hook)',
       '  pd scan          Detect all services in this project',
-      '  pd learn         Read-only agent orientation',
+      '  pd learn         Operationally read-only agent orientation',
       '  pd mcp install   Add to your AI agent\'s MCP config',
     ].join('\n');
     ui.note(body, 'New project detected');
@@ -767,7 +767,7 @@ function buildHelp(): string {
     TIER_LEGEND,
     '',
     `${D}pd help <topic> for details — topics: setup, sessions, locks, agents, actors, ports, messaging, dns, orchestration, sugar, semantic, advisor, guard, ideas, roadmap, skill-graft, secret, daemon, learn${Z}`,
-    `${D}Dashboard: ${PORT_DADDY_URL}  •  Agent orientation: pd learn (read-only)${Z}`,
+    `${D}Dashboard: ${PORT_DADDY_URL}  •  Agent orientation: pd learn (operationally read-only)${Z}`,
   );
 
   return lines.join('\n');
@@ -1454,7 +1454,7 @@ Examples:
   eval "$(pd daemon env dev)"
   pd daemon stop dev`,
 
-  learn: `Agent Orientation \u2014 Read-only coordination, retrieval, and evidence guide
+  learn: `Agent Orientation \u2014 Operationally read-only coordination, retrieval, and evidence guide
 
 Commands:
   learn                    Render the agent orientation
@@ -1468,9 +1468,10 @@ The orientation explains:
   5. Search and retrieval as distinct from ingestion, indexing, or model training
 
 Safety contract:
-  Headless runs issue no daemon request. Interactive terminals may read only GET /health.
+  The handler makes no headless daemon request. Interactive terminals may make one
+  bounded GET /health request (750 ms, no reconnect retry).
   The handler creates no work resources or files and does not rebuild an index.
-  Standard append-only CLI usage telemetry may still be recorded.
+  The CLI envelope makes exactly one append-only usage-telemetry attempt.
 
 Run: pd learn`,
 };
@@ -2489,7 +2490,7 @@ export async function main(): Promise<void> {
       // First-run hint
       const portdaddyDir = join(process.cwd(), '.portdaddy');
       if (!existsSync(portdaddyDir)) {
-        ui.info('First time here? Run pd learn for the read-only agent orientation.');
+        ui.info('First time here? Run pd learn for the operationally read-only agent orientation.');
       }
     }
 
@@ -3470,7 +3471,7 @@ export async function main(): Promise<void> {
           await handleClaim(command, options);
         } else {
           ui.error(`Unknown command: ${command}`);
-          ui.info('Run pd help for usage — or pd learn for the read-only agent orientation');
+          ui.info('Run pd help for usage — or pd learn for the operationally read-only agent orientation');
           process.exit(1);
         }
         break;

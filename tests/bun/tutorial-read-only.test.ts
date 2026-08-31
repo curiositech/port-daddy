@@ -2,7 +2,8 @@ import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { runLearnOrientation } from '../../cli/commands/tutorial.ts';
+import { canRunInteractiveOrientation, runLearnOrientation } from '../../cli/commands/tutorial.ts';
+import { hasControllingTerminal } from '../../cli/utils/tty.ts';
 import type { FetchOptions, PdFetchResponse } from '../../cli/utils/fetch.ts';
 
 type FetchCall = { path: string; options?: FetchOptions };
@@ -41,13 +42,14 @@ describe('pd learn read-only orientation', () => {
     expect(first).toBe(second);
     expect(calls).toEqual([]);
     expect(first).toContain('This is the agent and automation CLI');
-    expect(first).toContain('Operationally read-only:');
+    expect(first).toContain('Orientation handler:');
     expect(first).toContain('Headless orientation: live probing is intentionally skipped.');
-    expect(first).toContain('No work resources, files, or indexes were changed.');
-    expect(first).toContain('Standard command telemetry may have been appended.');
+    expect(first).toContain('The orientation handler changed no work resources, files, or indexes.');
+    expect(first).toContain('The CLI envelope now makes one append-only usage-telemetry attempt.');
+    expect(first).toContain('pd attention --peek');
   });
 
-  test('interactive mode issues exactly one optionless health GET', async () => {
+  test('interactive mode issues exactly one bounded, no-retry health GET', async () => {
     const calls: FetchCall[] = [];
     let output = '';
 
@@ -67,10 +69,30 @@ describe('pd learn read-only orientation', () => {
       daemonUrl: () => 'http://127.0.0.1:9876',
     });
 
-    expect(calls).toEqual([{ path: '/health', options: undefined }]);
+    expect(calls).toEqual([{ path: '/health', options: { timeout: 750, retry: false } }]);
     expect(output).toContain('Runtime witness:');
     expect(output).toContain('v3.30.5');
     expect(output).toContain('PID 1234');
+  });
+
+  test('interactive pacing follows a controlling terminal, never color flags', () => {
+    expect(canRunInteractiveOrientation({ FORCE_COLOR: '1' }, () => false)).toBe(false);
+    expect(canRunInteractiveOrientation({ NO_COLOR: '1' }, () => true)).toBe(true);
+    expect(canRunInteractiveOrientation({ CI: '1' }, () => true)).toBe(false);
+    expect(canRunInteractiveOrientation({ PORT_DADDY_NON_INTERACTIVE: '1' }, () => true)).toBe(false);
+  });
+
+  test('controlling-terminal probe closes the descriptor and fails closed', () => {
+    const closed: number[] = [];
+    expect(hasControllingTerminal({
+      openSync: () => 23,
+      closeSync: (fd) => { closed.push(fd); },
+    })).toBe(true);
+    expect(closed).toEqual([23]);
+    expect(hasControllingTerminal({
+      openSync: () => { throw new Error('no tty'); },
+      closeSync: () => {},
+    })).toBe(false);
   });
 
   test('health failure does not prevent the offline-safe guide', async () => {

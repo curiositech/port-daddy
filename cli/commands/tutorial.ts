@@ -13,12 +13,26 @@
 import { ANSI } from '../../lib/maritime.js';
 import * as ui from '../utils/ui.js';
 import { pdFetch, getDaemonUrl } from '../utils/fetch.js';
-import { canPrompt } from '../utils/prompt.js';
-import { readLineFromControllingTerminal } from '../utils/tty.js';
+import { hasControllingTerminal, readLineFromControllingTerminal } from '../utils/tty.js';
 import type { FetchOptions, PdFetchResponse } from '../utils/fetch.js';
 
 type LearnFetch = (path: string, options?: FetchOptions) => Promise<PdFetchResponse>;
 type LearnWriter = (text: string) => void;
+
+const LIVE_HEALTH_TIMEOUT_MS = 750;
+
+/**
+ * Decide whether the orientation can safely wait for a person.
+ *
+ * Color flags are intentionally irrelevant: a controlling terminal, not
+ * decorated output, is the capability required by the paced guide.
+ */
+export function canRunInteractiveOrientation(
+  env: NodeJS.ProcessEnv = process.env,
+  terminalAvailable: () => boolean = hasControllingTerminal,
+): boolean {
+  return !env.CI && !env.PORT_DADDY_NON_INTERACTIVE && terminalAvailable();
+}
 
 export interface LearnOrientationOptions {
   /** Whether to pace output and read live health. Defaults to terminal capability. */
@@ -60,7 +74,7 @@ function box(lines: string[], write: LearnWriter, width = 72): void {
  * @returns A promise resolved after Enter, or immediately without a terminal.
  */
 async function pauseAtCheckpoint(): Promise<void> {
-  if (!canPrompt()) return;
+  if (!canRunInteractiveOrientation()) return;
   process.stderr.write(`\n  ${ANSI.dim}Press Enter to continue...${ANSI.reset}`);
 
   if (readLineFromControllingTerminal() === null) {
@@ -93,8 +107,8 @@ function lessonHeader(number: number, title: string, write: LearnWriter): void {
 /**
  * Read one safe runtime witness for an interactive orientation. The purpose is
  * to distinguish installed daemon truth from source-tree claims without
- * turning a tutorial into a stateful demo. No options are passed, so the
- * request remains an HTTP GET by construction.
+ * turning a tutorial into a stateful demo. A short deadline and disabled
+ * reconnect retry keep this optional witness from delaying the guide.
  *
  * @param fetchImpl - Selected-daemon request implementation.
  * @param daemonUrl - Selected-daemon display label provider.
@@ -107,7 +121,10 @@ async function renderLiveHealth(
   write: LearnWriter,
 ): Promise<void> {
   try {
-    const response = await fetchImpl('/health');
+    const response = await fetchImpl('/health', {
+      timeout: LIVE_HEALTH_TIMEOUT_MS,
+      retry: false,
+    });
     const health = await response.json() as {
       status?: string;
       version?: string;
@@ -139,7 +156,7 @@ async function renderLiveHealth(
  * @returns A promise resolved after every orientation section is rendered.
  */
 export async function runLearnOrientation(options: LearnOrientationOptions = {}): Promise<void> {
-  const interactive = options.interactive ?? canPrompt();
+  const interactive = options.interactive ?? canRunInteractiveOrientation();
   const fetchImpl = options.fetchImpl ?? pdFetch;
   const write = options.write ?? ((text: string) => process.stderr.write(text));
   const pause = options.pause ?? pauseAtCheckpoint;
@@ -162,9 +179,9 @@ export async function runLearnOrientation(options: LearnOrientationOptions = {})
     'This is the agent and automation CLI. People use FleetBar and',
     'the selected daemon dashboard to watch, steer, and recover work.',
     '',
-    `${ANSI.fgGreen}Operationally read-only:${ANSI.reset} no work resources or files are changed.`,
-    'Like every pd command, the invocation may append standard',
-    'usage telemetry.',
+    `${ANSI.fgGreen}Orientation handler:${ANSI.reset} no work resources or files are changed.`,
+    'After the guide, the CLI envelope makes exactly one append-only',
+    'usage-telemetry attempt.',
     'It does not train a model, ingest history, or rebuild an index.',
     '',
   ], write);
@@ -197,7 +214,9 @@ export async function runLearnOrientation(options: LearnOrientationOptions = {})
   line(`    ${ANSI.fgCyan}pd briefing${ANSI.reset}`);
   line(`    ${ANSI.fgCyan}pd salvage --project <project> --limit 20${ANSI.reset}`);
   line();
-  line('  These reads reveal messages, runtime truth, active work, and recoverable intent.');
+  line(`  ${ANSI.fgCyan}pd attention${ANSI.reset} advances inbox and channel read cursors by default.`);
+  line(`  Use ${ANSI.fgCyan}pd attention --peek${ANSI.reset} for a non-advancing preview.`);
+  line('  These arrival checks reveal messages, runtime truth, active work, and recoverable intent.');
   line('  An empty agent roster plus active sessions is a coordination inconsistency.');
   await pause();
 
@@ -268,8 +287,8 @@ export async function runLearnOrientation(options: LearnOrientationOptions = {})
     'History: ideas, memory, roster, and skill-graft search surfaces.',
     'Finish: reconcile → Guard → note → done → feedback.',
     '',
-    'No work resources, files, or indexes were changed.',
-    'Standard command telemetry may have been appended.',
+    'The orientation handler changed no work resources, files, or indexes.',
+    'The CLI envelope now makes one append-only usage-telemetry attempt.',
   ], write);
   line();
 }

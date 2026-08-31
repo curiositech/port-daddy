@@ -38,9 +38,10 @@ describe('pd learn adversarial safety contract', () => {
 
     expect(calls).toEqual([]);
     expect(output).toContain('People use FleetBar');
-    expect(output).toContain('the invocation may append standard');
-    expect(output).toContain('usage telemetry.');
+    expect(output).toContain('the CLI envelope makes exactly one append-only');
+    expect(output).toContain('usage-telemetry attempt.');
     expect(output).toContain('pd attention');
+    expect(output).toContain('pd attention --peek');
     expect(output).toContain('pd sitrep --template');
     expect(output).toContain('--roadmap <slug>');
     expect(output).toContain('pd plan set');
@@ -50,7 +51,7 @@ describe('pd learn adversarial safety contract', () => {
     expect(output).toContain('pd feedback');
   });
 
-  test('the only reachable daemon contract is optionless GET health', async () => {
+  test('the only reachable handler daemon contract is bounded GET health without retry', async () => {
     const calls: FetchCall[] = [];
     await runLearnOrientation({
       interactive: true,
@@ -62,7 +63,7 @@ describe('pd learn adversarial safety contract', () => {
       pause: async () => {},
     });
 
-    expect(calls).toEqual([{ path: '/health', options: undefined }]);
+    expect(calls).toEqual([{ path: '/health', options: { timeout: 750, retry: false } }]);
   });
 
   test('the implementation cannot reintroduce default-consent or cleanup machinery', () => {

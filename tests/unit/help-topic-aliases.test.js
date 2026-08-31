@@ -84,17 +84,18 @@ describe('pd learn help contract', () => {
     expect(resolveTopicHelp('tutorial')).toBe(learnHelp);
     expect(resolveVerbHelp('learn')).toBe(learnHelp);
     expect(resolveVerbHelp('tutorial')).toBe(learnHelp);
-    expect(learnHelp).toMatch(/Read-only coordination, retrieval, and evidence guide/);
-    expect(learnHelp).toMatch(/Headless runs issue no daemon request/);
-    expect(learnHelp).toMatch(/Standard append-only CLI usage telemetry may still be recorded/);
+    expect(learnHelp).toMatch(/Operationally read-only coordination, retrieval, and evidence guide/);
+    expect(learnHelp).toMatch(/handler makes no headless daemon request/);
+    expect(learnHelp).toMatch(/bounded GET \/health request \(750 ms, no reconnect retry\)/);
+    expect(learnHelp).toMatch(/CLI envelope makes exactly one append-only usage-telemetry attempt/);
   });
 
   test('launch, first-run, and unknown-command help no longer promise a stateful tutorial', () => {
     expect(cliSource).not.toMatch(/interactive tutorial/i);
     expect(cliSource).not.toContain('Tutorial: pd learn');
-    expect(cliSource).toContain('pd learn         Read-only agent orientation');
-    expect(cliSource).toContain('Agent orientation: pd learn (read-only)');
-    expect(cliSource).toContain('pd learn for the read-only agent orientation');
+    expect(cliSource).toContain('pd learn         Operationally read-only agent orientation');
+    expect(cliSource).toContain('Agent orientation: pd learn (operationally read-only)');
+    expect(cliSource).toContain('pd learn for the operationally read-only agent orientation');
   });
 });
 

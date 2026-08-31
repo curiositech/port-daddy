@@ -1,4 +1,4 @@
-# ⚓ Port Daddy (v3.30.5)
+# ⚓ Port Daddy (v3.30.6)
 
 <p align="center">
   <img src="website-v2/public/img/hero-portdaddy.png" alt="Port Daddy — the harbormaster for your AI agents" width="600">
@@ -1203,5 +1203,5 @@ Created by **[Erich Owens](https://github.com/erichowens)** at **[curiositech](h
 ## ⚓ Support & Contact
 
 - **Issues:** [GitHub Issue Tracker](https://github.com/curiositech/port-daddy/issues)
-- **Help:** Run `pd help`, `pd learn`, or `pd tutorial` for the interactive tutorial.
+- **Help:** Run `pd help` for reference, or `pd learn` (`pd tutorial` is its alias) for the operationally read-only agent orientation. Its handler changes no work resources: headless mode makes no daemon request, interactive mode may make one bounded `GET /health`, and the CLI envelope makes one append-only usage-telemetry attempt.
 - **Vibe:** Ambitious, CUTE and CHARMING. 🚩
