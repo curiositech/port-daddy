@@ -1,8 +1,8 @@
 {
-  "generatedAt": 1787763785609,
+  "generatedAt": 1788149878497,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 315,
+  "count": 317,
   "items": [
     {
       "slug": "a-add-to-the-papers",
@@ -758,6 +758,16 @@
       "slug": "coordination-papers-runtime-closure",
       "status": "backlog",
       "summaryMd": "Close publication runtime gaps exposed by the rigor pass: resumable Fleet ships and review chunks, bounded GitHub I/O, the fleet_run_spend migration, exact-head memory and empty-provider receipts, stale-head coalescing, promotion criteria for paper claims, and witnessed implementation-status evidence."
+    },
+    {
+      "slug": "cross-runtime-execution-envelope",
+      "status": "backlog",
+      "summaryMd": "Attested execution identity across local and cloud harnesses"
+    },
+    {
+      "slug": "cross-runtime-execution-envelope-adr",
+      "status": "now",
+      "summaryMd": "Publish ADR-0136 cross-runtime execution envelope"
     },
     {
       "slug": "current-implementation-evidence",
