@@ -510,6 +510,34 @@ as one Harness scene. A later bridge PR maps terminal casts and pane sources
 into `Perspective`, `StageEvent`, completeness, and disclosure vocabulary with
 the historical limits visibly preserved.
 
+### Sugar/Parley interaction adapter
+
+Sugar owns the natural agent-facing coordination façade, not the Porthole
+evidence ontology. Its adapter contract consists of sealed v1 records for:
+
+- `sugar_parley_card`, with daemon-derived participants, semantic and
+  structural evidence, bounds, and available actions;
+- `sugar_parley_hook_context`, nested in a summons;
+- `sugar_parley_message`, for ordinary natural-language delivery;
+- `sugar_parley_settlement_acknowledgement`, which is explicitly
+  pre-unanimity and non-terminal; and
+- `sugar_parley_settlement_receipt`, which is terminal and binds exact evidence
+  references, outcome, claim and plan updates, reminder suppression, and replay
+  state.
+
+Raw performatives remain an inspectable drill-down. They are not the main
+operator experience and do not become Porthole stage-event kinds merely because
+the Parley happened inside a Porthole. The Porthole bridge may consume these
+sealed contracts only after their runtime has been deployed and witnessed.
+
+The current Sugar branch is not canonical merely because its declarative
+contracts or screenshots exist. It must first receive the cross-runtime Parley
+notification repair, preserve the accepted credential-detachment ordering,
+resolve conflicts and failing tests, satisfy exact-head CI and Fleet review,
+and prove the ordinary fresh path in the stable runtime. Until then, no
+recording or product copy may claim that a genuine Sugar-first Parley was
+captured.
+
 ## Privacy and security threat model
 
 ### Assets
@@ -1271,15 +1299,22 @@ measurable first slice without rewriting the terminal evidence artifact.
 The agreed integration sequence is:
 
 1. preserve and land or separately extract the Parley notification fix at
-   `9a26ed8bd` so Node and Bun can both record formal turns;
-2. finish #9902's exact-head gates as the truthful terminal adapter;
-3. land this path-disjoint universal foundation from current `main`; and
-4. let #9902's author deliver the small bridge PR, with an extraction receipt
+   `9a26ed8bd`, deploy it, and prove that Node and Bun can both record formal
+   turns;
+2. finish #9902's exact-head gates as the truthful terminal adapter while this
+   path-disjoint universal foundation proceeds from current `main`;
+3. compose the accepted credential-detachment ordering, reconcile #9914,
+   resolve reviews and tests, deploy it, and prove the ordinary fresh Sugar
+   path;
+4. make a fresh genuine three-party Sugar recording rather than relabeling the
+   failed zero-turn room or historical casts; and
+5. let #9902's author deliver the small bridge PR, with an extraction receipt
    and without upgrading historical disclosure derivatives into raw or
    complete evidence.
 
-Steps 1 through 3 may progress concurrently where their file and runtime
-boundaries are disjoint; step 4 waits for both source contracts to be stable.
+The path-disjoint source branches may progress concurrently, but the fresh
+recording waits for the canonical runtime fixes and the bridge waits for both
+source contracts to be stable.
 
 ## Delivery program and measurable gates
 
