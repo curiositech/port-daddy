@@ -18,7 +18,7 @@ figures:
 docs:
 	mkdir -p build && cp tex/*.tex build/ && cp figures/*.png build/ && cp figures/*.tex build/
 	test -n "$(RESEARCH_EPOCH)" || (echo "cannot derive deterministic research epoch" && exit 1)
-	set -e; cd build; for d in $(TEXS); do \
+	cd build && for d in $(TEXS); do \
 		SOURCE_DATE_EPOCH=$(RESEARCH_EPOCH) FORCE_SOURCE_DATE=1 \
 			pdflatex -interaction=nonstopmode $$d.tex >/dev/null; \
 		SOURCE_DATE_EPOCH=$(RESEARCH_EPOCH) FORCE_SOURCE_DATE=1 \
