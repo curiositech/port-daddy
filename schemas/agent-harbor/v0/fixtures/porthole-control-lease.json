@@ -1,0 +1,67 @@
+{
+  "schema": "pd.porthole.control-lease.v1",
+  "leaseId": "lease_01JZPORT0001",
+  "stageId": "stage_01JZPORT0001",
+  "harborId": "harbor_local",
+  "bodyId": "body_chrome_tab_42",
+  "holderParticipantId": "agent_builder",
+  "requestedByParticipantId": "agent_builder",
+  "decisionParticipantId": "person_erich",
+  "grantorParticipantId": "person_erich",
+  "targetBinding": {
+    "targetId": "target_01JZPORT0001",
+    "targetGeneration": 7,
+    "focusGeneration": 12,
+    "focusSnapshotCommitment": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+  },
+  "capabilities": ["click", "scroll", "keyboard"],
+  "status": "active",
+  "reason": "Reproduce the checkout validation failure under operator supervision.",
+  "authoritySnapshot": {
+    "snapshotId": "authority_snapshot_01JZPORT0001",
+    "commitment": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+    "capturedAt": "2026-08-30T18:00:15.050Z",
+    "stepUpLevel": "webauthn"
+  },
+  "stepUp": {
+    "required": true,
+    "status": "verified",
+    "receiptRef": "stepup_receipt_01JZPORT0001",
+    "verifiedAt": "2026-08-30T18:00:15.075Z"
+  },
+  "actionBudget": { "maxActions": 1, "usedActions": 0 },
+  "clipboardReadPolicy": { "default": "deny", "authorizationReceiptRef": null },
+  "physicalUserPreemption": { "enabled": true, "revokeBoundMs": 50 },
+  "atomicFocusRevalidation": {
+    "required": true,
+    "checkedAt": "2026-08-30T18:00:15.090Z",
+    "receiptRef": "focus_receipt_01JZPORT0001"
+  },
+  "limits": { "maxTtlMs": 30000, "revokeEffectBoundMs": 250 },
+  "timing": {
+    "requestedAt": "2026-08-30T18:00:14.000Z",
+    "grantedAt": "2026-08-30T18:00:15.000Z",
+    "authorizedAt": "2026-08-30T18:00:15.100Z",
+    "expiresAt": "2026-08-30T18:00:45.000Z",
+    "terminationRequestedAt": null,
+    "terminalAt": null
+  },
+  "receipts": {
+    "request": { "receiptId": "lease_request_receipt_01JZPORT0001", "verification": "verified", "signingKeyId": "signing_key_agent_builder_1" },
+    "grant": { "receiptId": "lease_grant_receipt_01JZPORT0001", "verification": "verified", "signingKeyId": "signing_key_operator_1" },
+    "authorization": { "receiptId": "authz_receipt_01JZPORT0001", "verification": "verified", "signingKeyId": "signing_key_operator_1" },
+    "terminal": null
+  },
+  "operatorInterruptible": true,
+  "issuer": {
+    "participantId": "person_erich",
+    "deviceId": "device_operator_mac",
+    "signingKeyId": "signing_key_operator_1"
+  },
+  "contentHash": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+  "signature": {
+    "algorithm": "ed25519",
+    "keyId": "signing_key_operator_1",
+    "value": "bW9jay1wb3J0aG9sZS1jb250cm9sLWxlYXNlLXNpZ25hdHVyZS0wMQ"
+  }
+}
