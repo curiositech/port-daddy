@@ -139,9 +139,20 @@ and semantics:
 interface ExecutionEnvelopeV1 {
   schema: 'pd.execution-envelope.v1';
   executionId: string;
-  parentExecutionId?: string;
   issuedAt: string;
   expiresAt?: string;
+
+  subject: {
+    bodyId: string;
+    actorId?: string;
+    projectId?: string;
+  };
+
+  parent?: {
+    executionId: string;
+    envelopeDigest: string;
+    relation: 'spawned-by' | 'delegated-by' | 'wrapped-by';
+  };
 
   model: {
     provider: string;
@@ -191,6 +202,8 @@ interface ExecutionEnvelopeV1 {
 
   attestation: {
     issuer: string;
+    audience: string[];
+    replayId: string;
     assurance: 'attested' | 'observed' | 'unattested';
     capabilityRef?: string;
     envelopeDigest: string;
@@ -216,9 +229,10 @@ interface LifecycleCapability {
 }
 ```
 
-Identifiers are links, not authority. `nativeSessionId`, `pdSessionId`, and
-`runId` remain distinct because they are minted by different owners and have
-different trust domains.
+Identifiers are links, not authority. `bodyId`, `actorId`, `nativeSessionId`,
+`pdSessionId`, and `runId` remain distinct because they are minted by different
+owners and have different trust domains. If both subject and coordination carry
+`projectId`, they must be byte-identical after canonical project-id resolution.
 
 The envelope contains no bearer secret. A capability reference may identify an
 attenuated credential held outside the transcript and agent-visible prompt.
@@ -242,11 +256,12 @@ these checks before resolution:
    capability, subject, project, execution id, audience, expiry, and replay id.
    An unknown issuer, unavailable key, missing binding, revoked capability, or
    failed verification is rejection, not `observed`.
-5. Enforce cross-field invariants. Non-`none` coordination authority requires a
-   verified capability binding; `governor.mode: 'enforced'` requires a governor
-   other than `none` plus an attested producer for every enforced phase;
-   `observed` and `unattested` envelopes cannot grant capabilities; and a
-   transcript digest cannot establish authority without its declared owner.
+5. Enforce cross-field invariants. Subject and coordination project ids must
+   agree; non-`none` coordination authority requires a verified capability
+   binding; `governor.mode: 'enforced'` requires a governor other than `none`
+   plus an attested producer for every enforced phase; `observed` and
+   `unattested` envelopes cannot grant capabilities; and a transcript digest
+   cannot establish authority without its declared owner.
 6. When a parent is declared, validate the entire bounded parent chain, bind the
    parent digest to the child, reject cycles, and prove that every child
    capability is equal to or narrower than its parent.
@@ -275,11 +290,12 @@ type EnvelopeValidationResult =
 ```
 
 On rejection, the resolver may emit a new minimal diagnostic envelope with a
-fresh `executionId`, `assurance: 'unattested'`, `none` authority, and the safe
-rejection code. It must not copy authority, lifecycle, transcript, native
-session, project, or capability claims from the rejected input. The original
-body may be retained only in the access-controlled evidence plane under the
-redaction rules of ADR-0124; it never becomes the resolved identity.
+fresh `executionId`, locally minted diagnostic `bodyId`, fresh `replayId`,
+`assurance: 'unattested'`, `none` authority, and the safe rejection code. It
+must not copy authority, actor, lifecycle, transcript, native session, project,
+parent, audience, replay, or capability claims from the rejected input. The
+original body may be retained only in the access-controlled evidence plane
+under the redaction rules of ADR-0124; it never becomes the resolved identity.
 
 ### 3. Resolution is fail-closed
 
