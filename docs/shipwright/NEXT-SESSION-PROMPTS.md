@@ -164,7 +164,7 @@ Three worktrees, three agents. Merge order: routes → SDK → tests.
 
 ### Prompt (sub-track 2a — the runtime)
 
-> (Port Daddy Opening. Identity: `port-daddy:daemon:actor-runtime`. Purpose: "Ship lib/actors.ts — the Plane runtime described in AGENT-MODEL.md.")
+> (Port Daddy Opening. Identity: `port-daddy:daemon:actor-runtime`. Purpose: "Ship proposed `lib/actors.ts` — the Plane runtime described in AGENT-MODEL.md.")
 >
 > **Read first:**
 > - `docs/shipwright/AGENT-MODEL.md` (the full Plane spec; mapping table in §2 lists existing modules the runtime WRAPS, not replaces)
@@ -175,7 +175,7 @@ Three worktrees, three agents. Merge order: routes → SDK → tests.
 > - `lib/resurrection.ts` — supervision-adjacent
 >
 > **Do:**
-> 1. `lib/actors.ts` (~250 lines):
+> 1. Proposed `lib/actors.ts` (~250 lines):
 >    - Interfaces: `ActorIdentity`, `ActorMessage`, `ActorRef`, `ActorBehavior<S>`, `ActorContext`.
 >    - Registry: `registerArchetype(behavior)`, keyed by archetype name.
 >    - Activation: route inbox message → behavior's `receive(state, msg, ctx)` → persist next state.
@@ -183,7 +183,7 @@ Three worktrees, three agents. Merge order: routes → SDK → tests.
 >    - Supervision: throwing handler → salvage queue + optional bond slash.
 >    - Pub/sub on `actor:lifecycle` for observability.
 >
-> 2. Tests in `tests/unit/actors.test.js`:
+> 2. Proposed tests in `tests/unit/actors.test.js`:
 >    - Activation on first message, deactivation after idle.
 >    - Supervision: crashing behavior routes to salvage queue.
 >    - Rehydration: kill + recreate keeps state.
@@ -198,7 +198,7 @@ Three worktrees, three agents. Merge order: routes → SDK → tests.
 > (Opening. Identity: `port-daddy:daemon:skill-index`. Purpose: "Embeddings-backed skill retrieval for Shipwright and any agent that needs to route work to skills.")
 >
 > **Do:**
-> 1. `lib/skill-index.ts`: walk `~/coding/wrkgroup-ai/skills/*/SKILL.md`, embed frontmatter+intro via Voyage AI (`voyage-3-lite`, cheap), cache L2-normalized floats in `~/.port-daddy/skill-index.sqlite`. Top-K cosine search. NEVER keyword matching.
+> 1. Proposed `lib/skill-index.ts`: walk `~/coding/wrkgroup-ai/skills/*/SKILL.md`, embed frontmatter+intro via Voyage AI (`voyage-3-lite`, cheap), cache L2-normalized floats in `~/.port-daddy/skill-index.sqlite`. Top-K cosine search. NEVER keyword matching.
 > 2. Nightly re-embed on `~/coding/wrkgroup-ai/.git/HEAD` change (use `chokidar` or a cron actor).
 > 3. Fall-back: OpenAI `text-embedding-3-small` when Voyage unavailable.
 > 4. Tests: pure-function cosine on fixture embeddings; no live API calls.
@@ -210,7 +210,7 @@ Three worktrees, three agents. Merge order: routes → SDK → tests.
 >
 > Each archetype is ~50–120 lines. Ship in parallel: one per worktree, one per agent. Merge order doesn't matter.
 >
-> Required: `lib/archetypes/shipwright.ts` (needs 2a + 2b).
+> Required proposed artifact: `lib/archetypes/shipwright.ts` (needs 2a + 2b).
 > Parallel: `sentinel.ts`, `sweeper.ts`, `scribe.ts`, `hawk.ts`, `spark.ts`, `sentry.ts`, `gardener.ts`.
 >
 > Each archetype exports an `ActorBehavior<State>` with:
@@ -294,7 +294,7 @@ Three worktrees, three agents. Merge order: routes → SDK → tests.
 
 ---
 
-## §4 TRACK 4 — Apply `BONDED-COMMONS-PATCHES.md` to the LaTeX whitepaper [⚡ FULLY PARALLEL, doc-only]
+## §4 TRACK 4 — Apply `whitepaper/reviews/archive/shipwright/BONDED-COMMONS-PATCHES.md` to the LaTeX whitepaper [⚡ FULLY PARALLEL, doc-only]
 
 **Status:** patch set specced, not applied.
 
@@ -303,9 +303,9 @@ Three worktrees, three agents. Merge order: routes → SDK → tests.
 > (Opening. Identity: `port-daddy:paper:bonded-commons-patches`. Purpose: "Merge P1..P5 from BONDED-COMMONS-PATCHES.md into the canonical LaTeX source. Delete the patch set doc afterward.")
 >
 > **Read:**
-> - `docs/shipwright/BONDED-COMMONS-PATCHES.md` (the patches)
+> - `whitepaper/reviews/archive/shipwright/BONDED-COMMONS-PATCHES.md` (the patches)
 > - `whitepaper/source/agent-transactions-whitepaper.tex` (the target)
-> - `docs/adr/0014-the-anchor-protocol.md` and `docs/reports/PORT_DADDY_ANCHOR_WHITEPAPER.md` (P2 targets)
+> - `docs/adr/0014-the-anchor-protocol.md` and `whitepaper/reviews/archive/anchor-protocol-early-draft.md` (P2 targets)
 >
 > **Per-patch actions:**
 > - P1 Conservation Theorem → insert after §7 (TLA+ spec, before §8), or as a new §7.3. Theorem + case-analysis proof + reference to the code.
@@ -318,7 +318,7 @@ Three worktrees, three agents. Merge order: routes → SDK → tests.
 >
 > **When done:**
 > - Rebuild the PDF (`pdflatex agent-transactions-whitepaper.tex` twice for refs).
-> - Delete `docs/shipwright/BONDED-COMMONS-PATCHES.md` (its job is done).
+> - Delete `whitepaper/reviews/archive/shipwright/BONDED-COMMONS-PATCHES.md` (its job is done).
 > - Update `docs/shipwright/README.md` to reflect.
 > - Commit with a clear message: `paper(bonded-commons): apply P1..P5 patches from 2026-04 session`.
 
@@ -361,7 +361,7 @@ Three worktrees, three agents. Merge order: routes → SDK → tests.
 > - Witness log endpoint: POST `/v1/witness/harbor-root`.
 > - Rate limiting + audit log.
 >
-> **Integration:** daemon's `lib/auth.ts` (new) wraps the worker API. `pd login` opens a local browser flow, does WebAuthn ceremony, registers daemon device.
+> **Integration:** the proposed daemon `lib/auth.ts` wraps the worker API. `pd login` opens a local browser flow, does WebAuthn ceremony, registers daemon device.
 
 ### Sub-track 5c — Tighten other quick hits from `SECURITY-ASSESSMENT.md`
 
@@ -384,8 +384,8 @@ Three worktrees, three agents. Merge order: routes → SDK → tests.
 > (Opening. Identity: `port-daddy:mesh:t0-lan`. Purpose: "Same-network daemon↔daemon discovery + authenticated messaging via mDNS.")
 >
 > **Do:**
-> 1. `lib/mesh/lan-discover.ts` — advertise + discover `_portdaddy._tcp.local` via mDNS. Node's `multicast-dns` package. TXT records: `pubkey`, `account`, `harbors`, `port`.
-> 2. `lib/mesh/lan-transport.ts` — WebSocket server at `/mesh` on the existing Fastify, handshake via mutual Harbor Card exchange.
+> 1. Proposed `lib/mesh/lan-discover.ts` — advertise + discover `_portdaddy._tcp.local` via mDNS. Node's `multicast-dns` package. TXT records: `pubkey`, `account`, `harbors`, `port`.
+> 2. Proposed `lib/mesh/lan-transport.ts` — WebSocket server at `/mesh` on the existing Fastify, handshake via mutual Harbor Card exchange.
 > 3. CLI: `pd mesh discover` (list nearby daemons), `pd mesh connect <identity>` (manual pair), `pd mesh peers` (show paired).
 > 4. Capabilities over the channel (v0): remote session creation, live activity-log streaming. Defer Float-Plan execution until Track 7.
 >
@@ -397,7 +397,7 @@ Three worktrees, three agents. Merge order: routes → SDK → tests.
 >
 > **Do:**
 > 1. Decide: ship Iroh as a prebuilt binary alongside the daemon (like we ship `better-sqlite3` prebuilts) vs. require user install.
-> 2. `lib/mesh/iroh-client.ts` — talk to the Iroh sidecar over localhost HTTP/gRPC. NodeId addressing, relay fallback, NAT hole-punching.
+> 2. Proposed `lib/mesh/iroh-client.ts` — talk to the Iroh sidecar over localhost HTTP/gRPC. NodeId addressing, relay fallback, NAT hole-punching.
 > 3. Ticket-based pairing: KMS issues short base32 tickets; user pastes into other machine.
 > 4. CLI: `pd mesh pair <ticket>` to consume a ticket.
 > 5. Same message semantics as T0; transport is the only thing that changes.
@@ -410,7 +410,7 @@ Three worktrees, three agents. Merge order: routes → SDK → tests.
 
 ### Sub-track 6d — Tailscale detection (Tx)
 
-> One-afternoon task. `lib/mesh/tailnet-detect.ts` — check if Tailscale is running (`tailscale status --json`); if yes, register peer IPs and prefer them. No dep, just OS detection.
+> One-afternoon task. Proposed `lib/mesh/tailnet-detect.ts` — check if Tailscale is running (`tailscale status --json`); if yes, register peer IPs and prefer them. No dep, just OS detection.
 
 ---
 
@@ -487,7 +487,7 @@ laptop daemon:
 > - `lib/worktree.ts` (existing worktree primitives)
 > - `lib/bonds.ts` (escrow semantics)
 >
-> **Design first, code second.** Write `docs/shipwright/REMOTE-EXECUTION.md` covering:
+> **Design first, code second.** Write proposed `docs/shipwright/REMOTE-EXECUTION.md` covering:
 >
 > 1. Float Plan cross-machine schema additions (`requester_daemon_pubkey`, `remote_daemon_pubkey`, `git_remote`, `branch`, `commit_sha`, `worktree_path_on_remote`).
 > 2. Acceptance criteria grammar — files exist, tests pass, coverage ≥ X, arbitrary shell exit 0, LLM judge.
@@ -497,8 +497,8 @@ laptop daemon:
 > 6. Failure modes: remote machine goes offline mid-plan → salvage queue across mesh; evidence preserved.
 >
 > **Then code** (in a follow-up session after the design PR merges):
-> - `lib/mesh/remote-execution.ts` — the cross-machine Float Plan client + server.
-> - `cli/commands/mesh.ts` — `pd mesh spawn --to <identity> --plan "..."`.
+> - Proposed `lib/mesh/remote-execution.ts` — the cross-machine Float Plan client + server.
+> - Proposed `cli/commands/mesh.ts` — `pd mesh spawn --to <identity> --plan "..."`.
 > - Integration test with two ephemeral daemons on localhost (different ports + different worktrees).
 
 ### Parallelizable sub-work
@@ -529,7 +529,7 @@ laptop daemon:
 >
 > 3. **MCP tool signatures.** The existing `mcp/server.ts` has tools — audit them for "this tool should nudge the user toward `pd begin` if there's no active session." Return a `session_nudge` field in the response (this pattern exists — extend it).
 >
-> 4. **Pre-commit hook template.** A `.git/hooks/pre-commit` shipped as `scripts/install-hooks.sh` that blocks commits when `pd whoami` reports no active session. Override with `--no-verify` (standard) for emergency cases.
+> 4. **Pre-commit hook template.** A `.git/hooks/pre-commit` shipped as proposed `scripts/install-hooks.sh` that blocks commits when `pd whoami` reports no active session. Override with `--no-verify` (standard) for emergency cases.
 >
 > 5. **Dashboard "you are invisible" banner.** When dashboard sees uncommitted changes + no active session + recent file edits, shows a "you're working unlogged — `pd begin` to join the fleet" banner. Gentle, honest, persistent.
 >
@@ -754,7 +754,7 @@ If the PNG is a big binary (unsuitable for git), extend with `git-lfs` or use me
 
 ### Safety net: file claims span the mesh
 
-If laptop's Shipwright and gaming-pc's sentinel both want to edit `lib/foo.ts`, the file-claim system (already in Port Daddy, extended across mesh in Track 6a) detects the conflict BEFORE either machine commits. Neither steps on the other.
+If laptop's Shipwright and gaming-pc's sentinel both want to edit the illustrative proposed path `lib/foo.ts`, the file-claim system (already in Port Daddy, extended across mesh in Track 6a) detects the conflict BEFORE either machine commits. Neither steps on the other.
 
 ### What the user does NOT need to worry about
 
@@ -827,7 +827,7 @@ per-layer normalization borrowed from gene-expression visualization.
 - Chunk 2: `pd pheromone revoke`, `pd pheromone rename`. Medium (needs consumer migration for rename).
 - Chunk 3: expiry contract evaluators (lazy on read).
 - Chunk 4: `GET /pheromone/heat-tree` server-side dendrograms (centroid linkage).
-- Chunk 5: `fleet-config-ui/src/components/HeatTree.tsx` visualization.
+- Chunk 5: proposed `fleet-config-ui/src/components/HeatTree.tsx` visualization.
 
 ---
 
@@ -1027,12 +1027,12 @@ Order of operations: hosted Shipwright → LAN mesh → full marketplace.
 - `docs/shipwright/USER-ACCOUNTS-KMS.md` — Track 5b spec (passkey-first).
 - `docs/shipwright/MESH-COORDINATION.md` — Track 6 tiers.
 - `docs/shipwright/SECURITY-ASSESSMENT.md` — Track 5 threat model + follow-ups.
-- `docs/shipwright/BONDED-COMMONS-PATCHES.md` — Track 4 patch set (delete after Track 4 merges).
+- `whitepaper/reviews/archive/shipwright/BONDED-COMMONS-PATCHES.md` — Track 4 patch set (delete after Track 4 merges).
 - `docs/shipwright/CONSOLIDATED-VERBS-AND-UI.md` — Track 14 spec (Attention Queue, new verbs).
 - `docs/shipwright/PHEROMONE-LIFECYCLE-AND-HEAT-TREES.md` — Track 15 spec (mutable pheromones + phylogenetic heat-trees).
 - `docs/shipwright/VIBE-TIME.md` — Track 16 spec (warped temporal axis, token telemetry, replay).
 - `docs/shipwright/UTOPIAN-VISION.md` — the happy product vision that ties it all together.
-- `docs/shipwright/WHITEPAPER-PATCHES-V2.md` — Track 21 whitepaper patches (Youle as co-author).
+- `whitepaper/reviews/archive/shipwright/WHITEPAPER-PATCHES-V2.md` — Track 21 whitepaper patches (Youle as co-author).
 - `docs/shipwright/preview/` — Track 3 working mocks (keep; they're the design truth).
 
 ---

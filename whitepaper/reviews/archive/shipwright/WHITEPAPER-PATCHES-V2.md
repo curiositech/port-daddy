@@ -1,7 +1,7 @@
 # Whitepaper v2 — Patch Specification
 
-**Target file:** `website-v2/public/whitepaper/agent-transactions-whitepaper.tex`
-(also duplicated in `dist/`, `storybook-static/`; apply + rebuild so all three match)
+**Target file:** `whitepaper/source/agent-transactions-whitepaper.tex`
+(the canonical source; generated publication copies are synchronized after rebuild)
 
 **Status:** Patch spec — apply in order. Each patch is scoped. Do not
 attempt all in one PR.

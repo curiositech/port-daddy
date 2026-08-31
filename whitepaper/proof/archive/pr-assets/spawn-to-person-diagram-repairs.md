@@ -5,7 +5,7 @@ the original 36-page diagram review. They are retained as historical evidence,
 not as the acceptance proof for the current all-volume semantic redesign. The
 current color contact sheet, seven-volume tour, publication hashes, and page
 counts are bound by
-`docs/artifacts/whitepaper-figure-semantics/all-volumes/proof-manifest.md`.
+`whitepaper/proof/current/all-volumes/proof-manifest.md`.
 
 The paper later grew to 41 pages, moving the reviewed figures to:
 

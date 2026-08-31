@@ -309,8 +309,8 @@ existing chapters' density).
    not yet built) — auto-enrolled so claiming *creates* the obligation. Then `lib/obligation-monitor.ts`
    — the dual of resurrection, watching promises not heartbeats, on a **monotonic clock** (POSIX
    `CLOCK_MONOTONIC` — *a clock that never runs backward and ignores wall-clock adjustments*) to close
-   the sleep-skew hole. Then `lib/sanction-ladder.ts` (graduated, keyed on the bound principal, decay
-   not window). Then `lib/accountability-ledger.ts` (append-only, daemon-witnessed, scalar score exposed
+   the sleep-skew hole. Then proposed `lib/sanction-ladder.ts` (graduated, keyed on the bound principal, decay
+   not window). Then proposed `lib/accountability-ledger.ts` (append-only, daemon-witnessed, scalar score exposed
    as telemetry only). The whole thing is one **MAPE-K loop** (Kephart & Chess 2003 — *Monitor → Analyze
    → Plan → Execute over shared Knowledge; an autonomic loop whose sole job is keeping a goal true*) with
    the **Coordination Guard** (`lib/coordination-route-guard.ts` + `cli/commands/guard.ts` — *a

@@ -25,7 +25,7 @@ header claims a phase the daemon does not expect for that key class.
 **Counter (defense-crypto):** ProVerif model of the verification path with
 phase-pinned algorithms as separate equational theories. Property: "no
 honest verifier accepts a token whose phase-algorithm pair is unexpected."
-Pair with a Kani harness over `lib/jwt.ts` verify() exhausting the
+Pair with a Kani harness over proposed `lib/jwt.ts` verify() exhausting the
 algorithm field. Artifact: `proofs/anchor/phase-pinned/`.
 
 **Status:** counter staged; artifact lands in v2.2.
@@ -174,7 +174,7 @@ signature hash); prove `MutableSignalAttribution` invariant under TLC.
 Land resolution rule in §4.3.
 
 **Status:** counter staged; TLA+ artifact at
-`proofs/bonded/attribution/MutableSignal.tla` next.
+proposed `proofs/bonded/attribution/MutableSignal.tla` next.
 
 ---
 
@@ -259,7 +259,7 @@ through sec-eng-lead.
 ## What v2.1 added that wasn't a smell-counter
 
 - Coordination channel isolation for the adversarial-review fleet itself
-  is now mechanized (`lib/coordination-{crypto,acl,gates,route-guard}.ts`)
+  is now described through the proposed module family `lib/coordination-{crypto,acl,gates,route-guard}.ts`
   with a ProVerif proof at `proofs/coordination/isolation.pv` showing
   three properties under Dolev-Yao. This isn't a paper change; it's
   infrastructure that lets future rounds run with strict information

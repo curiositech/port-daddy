@@ -1,8 +1,8 @@
 # Bonded Commons — Patch Set (not a third paper)
 
 **This is not a new paper.** It is a structured set of **patches against the existing papers**:
-- *The Bonded Commons* ([`agent-transactions-whitepaper.tex`](../../website-v2/public/whitepaper/agent-transactions-whitepaper.tex))
-- *The Anchor Protocol* ([`PORT_DADDY_ANCHOR_WHITEPAPER.md`](../reports/PORT_DADDY_ANCHOR_WHITEPAPER.md))
+- *The Bonded Commons* ([`agent-transactions-whitepaper.tex`](../../../source/agent-transactions-whitepaper.tex))
+- *The Anchor Protocol* ([`anchor-protocol-early-draft.md`](../anchor-protocol-early-draft.md))
 
 **Why a patch set instead of a companion paper.** A standalone "expansion" would fragment the reading experience and falsely imply the original papers are complete historical artifacts. They aren't; they have gaps the April 2026 implementation work closes. The right artifact is in-place edits with clear rationale, not a second paper cross-referencing the first.
 
