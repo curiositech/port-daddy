@@ -1,0 +1,89 @@
+{
+  "schema": "pd.porthole.stage.v1",
+  "stageId": "stage_01JZPORT0001",
+  "harborId": "harbor_local",
+  "sessionId": "session_checkout_repair",
+  "target": {
+    "targetId": "target_01JZPORT0001",
+    "kind": "window",
+    "platform": "macos",
+    "descriptor": {
+      "state": "sealed",
+      "envelopeRef": "sealed-descriptor:stage_01JZPORT0001",
+      "commitment": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+    }
+  },
+  "participants": [
+    {
+      "participantId": "person_erich",
+      "kind": "operator",
+      "agentNodeId": null,
+      "displayName": "Erich",
+      "color": "#00A6A6",
+      "presence": "active",
+      "canPoint": true,
+      "canComment": true,
+      "canRequestControl": true
+    },
+    {
+      "participantId": "agent_builder",
+      "kind": "agent",
+      "agentNodeId": "agent_node_builder",
+      "displayName": "Builder",
+      "color": "#E85D3F",
+      "presence": "active",
+      "canPoint": true,
+      "canComment": true,
+      "canRequestControl": true
+    }
+  ],
+  "perspectiveIds": ["pov_01JZPORT0001"],
+  "semanticAdapters": [
+    { "adapter": "macos-ax", "kind": "accessibility", "status": "available" }
+  ],
+  "transport": {
+    "scope": "local",
+    "media": "local",
+    "events": "local",
+    "endToEndEncrypted": true,
+    "enrolledDevicePolicyRef": null,
+    "rekeyPolicyRef": null
+  },
+  "lifecycle": {
+    "state": "live",
+    "createdAt": "2026-08-30T17:59:55.000Z",
+    "openedAt": "2026-08-30T18:00:00.000Z",
+    "closedAt": null,
+    "terminalEventId": null
+  },
+  "consent": {
+    "state": "granted",
+    "policyId": "porthole-stage-consent-v1",
+    "receiptRefs": ["consent_receipt_person_erich_1", "consent_receipt_agent_builder_1"],
+    "scopeCommitment": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+    "updatedAt": "2026-08-30T17:59:58.000Z"
+  },
+  "readiness": {
+    "state": "ready",
+    "checkedAt": "2026-08-30T17:59:59.000Z",
+    "receiptRefs": ["capture_permission_receipt_1", "privacy_preflight_receipt_1"],
+    "capturePermission": "granted",
+    "privacyPreflight": "passed"
+  },
+  "privacyPolicy": {
+    "policyId": "porthole-exact-target-v1",
+    "version": "1",
+    "exactTargetOnly": true,
+    "backgroundMediaBlocked": true,
+    "secretStrippingRequired": true,
+    "rawEvidenceScope": "device-only",
+    "audioCapture": "disabled"
+  },
+  "controlPolicy": {
+    "pointing": "concurrent",
+    "commenting": "concurrent",
+    "input": "explicit-lease",
+    "operatorCanInterrupt": true,
+    "effectReceiptsRequired": true
+  }
+}

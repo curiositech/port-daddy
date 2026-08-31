@@ -1,0 +1,43 @@
+{
+  "schema": "pd.porthole.completeness-receipt.v1",
+  "receiptId": "povr_01JZPORT0001",
+  "perspectiveId": "pov_01JZPORT0001",
+  "stageId": "stage_01JZPORT0001",
+  "schedule": {
+    "scheduleId": "schedule_01JZPORT0001",
+    "commitmentHash": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+  },
+  "streamBoundary": {
+    "streamId": "stream_01JZPORT0001",
+    "channelId": "porthole:pov_01JZPORT0001",
+    "firstCaptureIndex": 0,
+    "lastCaptureIndex": 11,
+    "openedAt": "2026-08-30T18:00:00.000Z",
+    "closedAt": "2026-08-30T18:01:02.000Z",
+    "terminalEventId": "stage_evt_01JZPORT0012",
+    "terminalEventCommitment": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+  },
+  "status": "partial",
+  "expectedCaptureCount": 12,
+  "recordedSegmentCount": 11,
+  "verifiedSegmentCount": 10,
+  "unreadableSegmentCount": 1,
+  "declaredGapCount": 1,
+  "missingCaptureCount": 0,
+  "chainHeadHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "encryptionSuite": "pd-vault-xchacha20-poly1305-v1",
+  "stopReason": "operator",
+  "issuer": {
+    "harborId": "harbor_local",
+    "bodyId": "body_chrome_tab_42",
+    "participantId": "recorder_porthole",
+    "signingKeyId": "signing-key_porthole_local_1"
+  },
+  "contentHash": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+  "signature": {
+    "algorithm": "ed25519",
+    "keyId": "signing-key_porthole_local_1",
+    "value": "bW9jay1lZDI1NTE5LXNpZ25hdHVyZS12YWx1ZS0wMQ"
+  },
+  "issuedAt": "2026-08-30T18:01:02.100Z"
+}

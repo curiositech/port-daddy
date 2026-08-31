@@ -85,6 +85,12 @@ function isHexDump(s: string): boolean {
   return /^[0-9a-fA-F]+$/.test(s);
 }
 
+export type KeychainReadResult =
+  | { status: 'found'; value: string }
+  | { status: 'missing' }
+  | { status: 'unavailable' }
+  | { status: 'error' };
+
 /**
  * Read a secret value from the OS keychain. Returns null when the
  * platform doesn't support it, the entry doesn't exist, or the value
@@ -107,8 +113,8 @@ function isHexDump(s: string): boolean {
  *   const hex = keychain.loadSecret('port-daddy', 'master-key');
  *   // → '4f3a...' or null
  */
-function loadSecret(service: string, account: string): string | null {
-  if (!available()) return null;
+function loadSecretResult(service: string, account: string): KeychainReadResult {
+  if (!available()) return { status: 'unavailable' };
   try {
     const out = childProcess.execFileSync(
       '/usr/bin/security',
@@ -116,7 +122,7 @@ function loadSecret(service: string, account: string): string | null {
       { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 5000 },
     );
     const raw = out.trim();
-    if (raw.length === 0) return null;
+    if (raw.length === 0) return { status: 'error' };
 
     // Path A: `security` hex-dumped the value. This happens for stored
     // bytes with newlines/non-printables. We've seen this when the
@@ -135,7 +141,7 @@ function loadSecret(service: string, account: string): string | null {
     // If the value looks like pure hex and decodes to non-printable
     // bytes, assume legacy and return as-is.
     if (isHexDump(normalized)) {
-      return normalized;
+      return { status: 'found', value: normalized };
     }
 
     // Path C: standard base64-wrapped value.
@@ -143,14 +149,25 @@ function loadSecret(service: string, account: string): string | null {
       const decoded = Buffer.from(normalized, 'base64').toString('utf8');
       // Guard against spurious decodes — require at least one non-zero
       // char and that re-encoding produces the same string (modulo ==).
-      if (decoded.length > 0) return decoded;
-      return normalized;
+      if (decoded.length > 0) return { status: 'found', value: decoded };
+      return { status: 'found', value: normalized };
     } catch {
-      return normalized;
+      return { status: 'found', value: normalized };
     }
-  } catch {
-    return null;
+  } catch (error) {
+    // `security` maps errSecItemNotFound (-25300) to shell status 44. Only
+    // that exact outcome proves absence. Permission denial, timeout, locked
+    // keychain, and all other failures stay distinct so root-key callers never
+    // mistake an unreadable existing item for a safe creation opportunity.
+    return (error as { status?: number }).status === 44
+      ? { status: 'missing' }
+      : { status: 'error' };
   }
+}
+
+function loadSecret(service: string, account: string): string | null {
+  const result = loadSecretResult(service, account);
+  return result.status === 'found' ? result.value : null;
 }
 
 /**
@@ -195,6 +212,33 @@ function saveSecret(service: string, account: string, value: string): boolean {
 }
 
 /**
+ * Atomically create a keychain entry without replacing an existing value.
+ * Long-lived root-key callers must use this plus a read-back instead of
+ * `saveSecret()`, whose `-U` behavior intentionally updates ordinary secrets.
+ */
+function saveSecretIfAbsent(service: string, account: string, value: string): boolean {
+  if (!available()) return false;
+  try {
+    const encoded = Buffer.from(value, 'utf8').toString('base64');
+    childProcess.execFileSync(
+      '/usr/bin/security',
+      [
+        'add-generic-password',
+        '-s', service,
+        '-a', account,
+        '-w', encoded,
+      ],
+      { stdio: 'ignore', timeout: 5000 },
+    );
+    return true;
+  } catch {
+    // An existing item and an operational failure both return false. The
+    // caller must perform a tri-state read-back and accept only a found value.
+    return false;
+  }
+}
+
+/**
  * Delete a secret from the OS keychain. Returns true if the entry was
  * present and deleted, false if not present or unavailable.
  *
@@ -219,7 +263,9 @@ function deleteSecret(service: string, account: string): boolean {
 export const keychain = Object.freeze({
   available,
   loadSecret,
+  loadSecretResult,
   saveSecret,
+  saveSecretIfAbsent,
   deleteSecret,
 });
 

@@ -1,0 +1,48 @@
+{
+  "schema": "pd.porthole.stage-event.v1",
+  "eventId": "stage_evt_01JZPORT0007",
+  "stageId": "stage_01JZPORT0001",
+  "harborId": "harbor_local",
+  "bodyId": "body_chrome_tab_42",
+  "streamId": "stage-events_01JZPORT0001",
+  "sequence": 7,
+  "participantId": "agent_builder",
+  "kind": "observed-effect",
+  "durability": "append-only",
+  "phase": "effect",
+  "timing": {
+    "sourceMonotonic": { "clockId": "mach-continuous-1", "hostBootId": "boot_01JZPORT", "ticksNs": "912345678901" },
+    "sourceWall": { "timestamp": "2026-08-30T18:00:16.125Z", "uncertaintyMs": 2 },
+    "stage": { "epoch": 1, "offsetMs": 16125 },
+    "display": { "timelineId": "display_main", "offsetMs": 15400 },
+    "committedAt": "2026-08-30T18:00:16.140Z"
+  },
+  "ephemeralState": null,
+  "sealedContent": {
+    "envelopeRef": "sealed-event:stage_evt_01JZPORT0007",
+    "commitment": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+    "privacyReceipt": {
+      "receiptId": "privacy_receipt_01JZPORT0007",
+      "policyId": "porthole-exact-target-v1",
+      "verification": "verified",
+      "verifiedAt": "2026-08-30T18:00:16.130Z"
+    }
+  },
+  "causedByEventIds": ["stage_evt_01JZPORT0005", "stage_evt_01JZPORT0006"],
+  "controlLeaseId": "lease_01JZPORT0001",
+  "leaseGrantEventId": "stage_evt_01JZPORT0005",
+  "authorizationReceiptId": "authz_receipt_01JZPORT0001",
+  "actionIntentEventId": "stage_evt_01JZPORT0006",
+  "issuer": {
+    "participantId": "agent_builder",
+    "deviceId": "device_agent_builder_mac",
+    "signingKeyId": "signing_key_agent_builder_1"
+  },
+  "contentHash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "prevHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "signature": {
+    "algorithm": "ed25519",
+    "keyId": "signing_key_agent_builder_1",
+    "value": "bW9jay1wb3J0aG9sZS1zdGFnZS1ldmVudC1zaWduYXR1cmUtMDE"
+  }
+}
