@@ -64,7 +64,8 @@ The full posture lives in `AGENTS.md` § Agent Operating Expectations. The
 repo-specific mechanics:
 
 - **Coordinate + pay rent.** Clean linked worktree off `origin/main`,
-  `pd begin … --lifecycle durable`, `pd session files add` before editing, a
+  `pd begin … --lifecycle durable --roadmap <slug>` (or exactly one explicit
+  `--roadmap-new` / `--sidequest` alternative), `pd session files add` before editing, a
   `pd note` per commit (the Coordination Guard enforces it), `pd done` at the end.
   When inheriting stale work, prefer `pd takeover <old-session-id> [reason]`
   (or `pd session takeover <old-session-id> [reason]`) over deleting or silently reusing the old session; notes and claim
@@ -385,7 +386,7 @@ carries the canonical copy — this is the contributor-repo mirror.
 
 **Create.** Linked worktree off `origin/main` under `~/coding/tmp/wt-<slug>`
 (never the main checkout — it carries the operator's WIP) → `pd begin
-"<purpose>" --identity port-daddy:contrib:<slug>` → scope `pd note` → `pd
+"<purpose>" --identity port-daddy:contrib:<slug> --lifecycle durable --roadmap <slug>` → scope `pd note` → `pd
 session files add <files>` *before* editing → edit → `pd guard check
 --staged` → commit (no Claude co-author trailer) → `git push -u origin
 <branch>` → `gh pr create` → `pd done`.
@@ -442,12 +443,15 @@ The friction below costs every fresh session real time. Internalize it.
   <path/to/test>`. A bare `node_modules` symlink to the parent does **not**
   work — Node resolves the symlink target and looks for `node_modules` beside
   *it*, not inside it.
-- **Headless `pd begin` needs an explicit lifecycle and closed stdin.** With no
-  TTY, `pd begin` blocks waiting for interactive input, and even with a purpose
-  it errors without `--lifecycle`. Use `pd begin "<purpose>" --lifecycle
-  durable < /dev/null` (or `--lifecycle ephemeral` for heartbeat-bound process
-  sessions). Sessions launched via the Bash background-job wrapper never
-  register — run `pd begin` in the foreground.
+- **Headless `pd begin` needs lifecycle, rent resolution, and closed stdin.** A
+  true non-TTY fails rather than prompting, while a pseudo-TTY or wrapper with
+  open stdin can wait for the wizard. Supply `--lifecycle` plus one rent
+  resolution: exactly one of `--roadmap`, `--roadmap-new`, or `--sidequest`, or
+  the bounded recorded `PD_RENT_EXEMPT=hotfix|chore` environment exemption. Use
+  `pd begin "<purpose>" --lifecycle durable --roadmap <slug> < /dev/null` (or
+  `--lifecycle ephemeral` for a heartbeat-bound process session). Sessions
+  launched via the Bash background-job wrapper never register — run `pd begin`
+  in the foreground.
 - **Coordination-Guard claims are per-file, not per-directory.** `pd session
   files add skills/foo/` does not cover `skills/foo/SKILL.md`; the guard rejects
   the commit file-by-file. Claim exactly what you staged:
@@ -466,7 +470,10 @@ The friction below costs every fresh session real time. Internalize it.
 - **Hook fan-out is host-visible work, not free middleware**: Codex schedules a command hook once per matching nested tool call and renders concurrent batches as concurrent hook jobs. Never register an observational synchronous `PostToolUse` command, and never match an edit gate against broad `Bash` / `exec_command` / shell surfaces when the gate cannot derive a canonical target. The shipped topology is one turn briefing plus a synchronous gate only for direct edit tools; claims and notes are the cumulative outcome record. A six-tool read-only batch must schedule zero Port Daddy tool hooks. The raw debug/headless `pd-hook-post-tool` asset remains staged, but the stable interactive wrapper is an immediate zero-work tombstone so a running provider with cached config cannot resurrect it; never “repair” that wrapper by copying the raw tentacle over it. Its absence from provider config is intentional and must still diagnose as LIVE.
 - **Hook config paths are a durable interface, not a package location**: resolve versioned release assets only while staging; every Claude/Codex/Gemini/agy lifecycle config must call `~/.port-daddy/bin/pd-hook-*`. Release smoke must reject `/Cellar/` paths, and uninstall/repair must sweep legacy project-local Codex TOML without touching user hooks. The generated wrapper owns a CLOSED/OPEN/HALF_OPEN circuit breaker (3 consecutive failures or >250 ms, 5-minute cooldown, one probe, zero hook retries). Measure latency through external `/usr/bin/time -p -o`; shell-reserved `time` leaks outside redirections under dash. A missing timer must fail open, trip the same breaker, and request FleetBar Repair. Test unexpected exit, missing executable, missing timer, slow execution, exit-2 enforcement, concurrent accounting, one-shot FleetBar remediation, repair reset, minimal tooling, macOS/Linux shell behavior, and compiled artifact wiring as separate V&V seams.
 - **Harness introspection is a bounded interface**: `pd squid status` and `pd squid debug status` must read one sanitized timeline source and emit valid JSON regardless of retained history size. Cap recent steps and matrix values, expose total/returned/truncated metadata, and keep descriptions beside actual/expected timestamps. When capture is off, routine status must omit retained session identifiers and absolute workspace/event paths; only explicit debug status may reveal that diagnostic window. The portable shell compactor must strip BSD/macOS `wc -c` whitespace before its numeric guard and remove the first partial line after `tail -c`, or the nominal byte ceiling silently stops working and the retained TSV begins with a corrupt record. Test a multi-thousand-record fixture, macOS-padded byte counts, complete record boundaries, and a response-size ceiling; a JSON EOF is an interface failure even when the underlying daemon route returned 200.
-- **Arrival and sitrep are on the critical path**: optional `pd begin` peer guidance is semantic-only, capped to three, fail-open, and budgeted at 75 ms total — disable reconnect retries, abort the active request, and test a transport that never settles. Sitrep must project and cap every top-level collection, nested salvage notes, and text field; preserve exact note totals separately from the DB-bounded preview. `--quiet` must request a summary-only route rather than fetching a full payload and discarding it locally. A fast database query that serializes 200 KB of histories is still a failed launcher interface.
+- **Arrival and sitrep are on the critical path**: optional `pd begin` peer guidance is semantic-only, capped to three, fail-open, and budgeted at 75 ms total — disable reconnect retries, abort the active request, and test a transport that never settles. The Sugar Parley card is a separate authenticated request with a separate 150 ms deadline and stricter eligibility; never share or conflate the budgets. Sitrep must project and cap every top-level collection, nested salvage notes, and text field; preserve exact note totals separately from the DB-bounded preview. `--quiet` must request a summary-only route rather than fetching a full payload and discarding it locally. A fast database query that serializes 200 KB of histories is still a failed launcher interface.
+- **Parley help is handler-owned**: `pd parley help` working does not prove `pd parley --help`. The global option gate runs before command dispatch, so a handler-owned page must be registered in `HANDLER_OWNED_HELP_COMMANDS`, and the handler must short-circuit `options.help` before every mutation branch. Prove both root and subcommand help through real subprocesses with an isolated daemon URL; a source regex or mocked handler is not enough.
+- **SQLite mutation counts are runtime-specific receipts, not logical row counts**: Bun's `bun:sqlite` includes trigger writes in `Statement.run().changes`, while `better-sqlite3` reports the direct statement. For a known single-row insert, require a nonnegative safe integer and normalize `> 0` to one successful direct write; preserve zero for exact replay checks and never sum trigger-inclusive counts as application keys. Prove a real Bun three-party fan-out and a Node trigger-count proxy both produce the exact two outbox keys and replay once.
+- **Sugar proof has distinct witnesses**: an implementation PR's source/docs, source tests, a compiled binary, an isolated dev berth, and the stable launchd daemon are not interchangeable. A stable `GET /sugar/parley-card` 404 means the natural Sugar experience is not live, regardless of branch truth. Test both the 75 ms and 150 ms deadlines, cancellation, TTY capability gates, JSON/quiet/export/non-interactive determinism, and ANSI-free interactive `NO_COLOR` output.
 - **A preferred port is not endpoint evidence**: startup may seed `9876`, but SDK/CLI connection resolvers must use an explicit URL, a real socket, or a strictly parsed published port. Keep forgiving seed helpers separate from strict connection helpers, including public display fields and socket-to-TCP fallback. Reject a protocol the returned connection target cannot carry: the current Node target is HTTP-only, so accepting `https:` and then calling `node:http` is a plaintext-to-TLS-port defect, not compatibility. Fixture-test absent, malformed, unreadable, environment-published, file-published, unsupported-protocol, and constructor-URL-over-socket cases without consulting the developer's live daemon. The compiled smoke must use AF_UNIX-safe paths under `~/coding/tmp` and prove Unix plus TCP health on both boots.
 - **Provider CLI policy flags are versioned interfaces**: dogfood the exact packaged spawn argv against the installed provider CLI, not only a mocked child process. Current Codex defines `--approve-for-me` as automatic review inside `workspace-write`; combining it with `--sandbox workspace-write` is a hard parse error before an agent starts. Direct spawn and Tube builders must share this compatibility invariant, and a reviewer that cannot launch is a product red, not a reason to waive review.
 - **A Cloudflare Queue delivery is not a logical Fleet run**: persist an ingress intent before `queue.send()`, idempotently key it by webhook delivery id, and assign a monotonic generation per repo + PR. Only supersede older active generations after the newer queue send succeeds; otherwise a transient admission failure can erase the last valid review. The executor must compare-and-swap that intent before spend so duplicate deliveries, retries, and stale heads acknowledge without re-running ships. Project activity from the intent ledger plus `fleet_runs`; label D1-known queue depth and expected timestamps as estimates, never Cloudflare-internal position. Keep active rows out of retention deletion, delete intent-only receipts through the same operator contract, and test the webhook, executor race, rollback-without-table path, signed-in receipt, and terminal retention seams independently.
@@ -616,9 +623,12 @@ Concrete triggers:
 Update mechanics:
 
 ```bash
-git worktree add ../port-daddy-internal-skill-$(date +%s) origin/main
-cd ../port-daddy-internal-skill-*
-pd begin "Update port-daddy-internal-dev: <what>" --identity port-daddy:contrib:internal-skill-update
+PD_SKILL_STAMP="$(date +%s)"
+PD_SKILL_BRANCH="codex/internal-skill-$PD_SKILL_STAMP"
+PD_SKILL_WORKTREE="$HOME/coding/tmp/port-daddy-internal-skill-$PD_SKILL_STAMP"
+git worktree add -b "$PD_SKILL_BRANCH" "$PD_SKILL_WORKTREE" origin/main
+cd "$PD_SKILL_WORKTREE"
+pd begin "Update port-daddy-internal-dev: <what>" --identity port-daddy:contrib:internal-skill-update --lifecycle durable --roadmap <slug>
 $EDITOR skills/port-daddy-internal-dev/SKILL.md   # or references/<file>.md
 git add skills/port-daddy-internal-dev/<paths>
 git status --porcelain                             # must be clean of foreign files
@@ -698,11 +708,14 @@ pd salvage --project port-daddy --limit 20
 pd sessions --all-worktrees
 
 # 2. Worktree (always)
-git worktree add ../port-daddy-$(date +%s)-$WORK_SLUG origin/main
-cd ../port-daddy-$(date +%s)-$WORK_SLUG
+PD_STAMP="$(date +%s)"
+PD_WORKTREE="$HOME/coding/tmp/port-daddy-$PD_STAMP-$WORK_SLUG"
+PD_BRANCH="codex/$WORK_SLUG-$PD_STAMP"
+git worktree add -b "$PD_BRANCH" "$PD_WORKTREE" origin/main
+cd "$PD_WORKTREE"
 
 # 3. Identity and scope
-pd begin "<bounded slice>" --identity port-daddy:contrib:$WORK_SLUG
+pd begin "<bounded slice>" --identity port-daddy:contrib:$WORK_SLUG --lifecycle durable --roadmap <slug>
 pd note "Scope: <surfaces>. Assumptions: <truth>. Validation: <commands + tests>."
 pd session files add <path>...
 
@@ -837,8 +850,8 @@ daemon-witnessed runtime receipt.
 
 **Slice:** Add `pd_swarm_status` MCP tool that returns aggregate fleet health.
 
-1. Worktree: `git worktree add ../port-daddy-$(date +%s)-mcp-swarm-status origin/main && cd $_`.
-2. `pd begin "Add pd_swarm_status MCP tool" --identity port-daddy:contrib:mcp-swarm-status`.
+1. Worktree: set `stamp="$(date +%s)"`, then run `git worktree add -b "codex/mcp-swarm-status-$stamp" "$HOME/coding/tmp/port-daddy-$stamp-mcp-swarm-status" origin/main` and enter that exact directory.
+2. `pd begin "Add pd_swarm_status MCP tool" --identity port-daddy:contrib:mcp-swarm-status --lifecycle durable --roadmap <slug>`.
 3. Implement in `mcp/server.ts` (new tool registration).
 4. Implement the underlying lib in `lib/swarm-status.ts` if not present. <!-- cite-exempt: illustrative role/template path -->
 5. Update `scripts/mcp-handshake-test.mjs` — bump REQUIRED_TOOLS count and assert. <!-- cite-exempt: illustrative role/template path -->
@@ -852,14 +865,14 @@ daemon-witnessed runtime receipt.
 **Slice:** Rename `Lookout` to `Watchstander`.
 
 This is enormous: it touches the public skill, this skill, every reference,
-every actor message ever sent, the website, the CLI, the MCP. **Do not do
-it in one commit.** Land the rename in phases through Cartographer:
+the website, the CLI, and the MCP. Treat it as one coherent supplant slice that
+may contain several reviewable commits, but never leaves both public names live:
 
 1. `pd actor cartographer --message "PROPOSAL: rename Lookout → Watchstander. Scope spans 12+ surfaces. Suggest milestone breakdown."`
 2. Wait for Cartographer to publish the milestone breakdown.
-3. Land aliases first (both names work; Lookout is deprecated).
-4. Migrate one surface per slice with Lookout's drift discipline.
-5. Cut the Lookout name only after the public skill, website, and brew formula have shipped two consecutive versions with the alias.
+3. Update every caller, help page, generated catalog, skill mirror, and operator surface.
+4. Delete the old alias/name in the same slice; tests must prove it is absent or fails closed.
+5. Add compatibility only if the operator explicitly authorizes it for this exact rename.
 
 ### Example 3: Bumping the brew formula
 
@@ -879,7 +892,7 @@ it in one commit.** Land the rename in phases through Cartographer:
 - [ ] You staged by explicit path; `git add -A` does not appear in your shell history for this slice.
 - [ ] Every public surface affected has been updated in this slice OR a Lookout message names the gap.
 - [ ] If you touched an internal actor's body, you updated the actor-roster reference and the matching `decisions/` entry.
-- [ ] If you renamed or removed a CLI / API / MCP surface, you provided a migration path and a deprecation window.
+- [ ] If you renamed or removed a CLI / API / MCP surface, the old path and every caller were removed in the same slice; any compatibility was explicitly authorized by the operator for that surface.
 - [ ] You did not edit `docs/recovery/CURRENT-WORK.md` directly.
 - [ ] You ended with `pd done` AND `pd feedback "..."` (CLI bare form) or MCP `drop_feedback`.
 - [ ] If you skipped any of the above, you owned up to it explicitly in the feedback.

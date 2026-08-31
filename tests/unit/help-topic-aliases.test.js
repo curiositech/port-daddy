@@ -1,7 +1,11 @@
-import { readFileSync } from 'node:fs';
+import { spawn, spawnSync } from 'node:child_process';
+import { once } from 'node:events';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { join } from 'node:path';
 
 const ROOT = join(import.meta.dirname, '../..');
+const SAFE_SCRATCH_ROOT = join(homedir(), 'coding', 'tmp');
 const cliSource = readFileSync(join(ROOT, 'bin/port-daddy-cli.ts'), 'utf8');
 let resolveVerbHelp;
 let shouldDispatchHelpToHandler;
@@ -46,7 +50,7 @@ const KNOWN_UNCOVERED = [
   'snapshots', 'snapshot', 'backup', 'restore', 'attest', 'shipwright',
   'spawn', 'spawned', 'watch', 'work', 'transcripts', 'transcript', 'relay',
   'harbor', 'harbors', 'harbor-ledger', 'whois', 'demo', 'fleet', 'backend',
-  'tuple', 'sortie', 'embed', 'quorum', 'parley', 'commit', 'obligations',
+  'tuple', 'sortie', 'embed', 'quorum', 'commit', 'obligations',
   'cockpit', 'popper', 'harbormaster', 'hm',
   'dispatch', 'nightshift', 'review', 'morning',
   'periscope', 'sight', 'scope', 'coast-guard', 'cg', 'safe', 'plan', 'suggest',
@@ -55,6 +59,67 @@ const KNOWN_UNCOVERED = [
 
 function hasDedicatedHelp(command) {
   return resolveVerbHelp(command) !== null || shouldDispatchHelpToHandler(command);
+}
+
+function isolatedHelpEnv(daemonUrl) {
+  const env = {
+    ...process.env,
+    PD_URL: daemonUrl,
+    PORT_DADDY_URL: daemonUrl,
+    PORT_DADDY_NO_RETRY: '1',
+    PORT_DADDY_NO_UPDATE_CHECK: '1',
+    NO_COLOR: '1',
+  };
+  delete env.PORT_DADDY_SUPPRESS_CLI_MAIN;
+  delete env.PORT_DADDY_PROFILE;
+  return env;
+}
+
+async function captureDaemonRequests(run) {
+  mkdirSync(SAFE_SCRATCH_ROOT, { recursive: true });
+  const scratch = mkdtempSync(join(SAFE_SCRATCH_ROOT, 'pd-parley-help-capture-'));
+  const requestLog = join(scratch, 'requests.log');
+  writeFileSync(requestLog, '');
+  const serverSource = `
+    const fs = require('node:fs');
+    const http = require('node:http');
+    const requestLog = process.argv[1];
+    const server = http.createServer((request, response) => {
+      fs.appendFileSync(requestLog, request.method + ' ' + request.url + '\\n');
+      request.resume();
+      request.on('end', () => {
+        response.writeHead(200, { 'content-type': 'application/json' });
+        response.end('{}');
+      });
+    });
+    server.listen(0, '127.0.0.1', () => process.stdout.write(String(server.address().port) + '\\n'));
+    process.on('SIGTERM', () => server.close(() => process.exit(0)));
+  `;
+  const server = spawn(process.execPath, ['-e', serverSource, requestLog], {
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  server.stdout.setEncoding('utf8');
+  let output = '';
+  const port = await new Promise((resolve, reject) => {
+    server.once('error', reject);
+    server.once('exit', (code) => reject(new Error(`capture server exited before listening: ${code}`)));
+    server.stdout.on('data', (chunk) => {
+      output += chunk;
+      const line = output.split('\n')[0];
+      if (/^\d+$/.test(line)) resolve(Number(line));
+    });
+  });
+
+  try {
+    const result = run(`http://127.0.0.1:${port}`);
+    return { result, requests: readFileSync(requestLog, 'utf8') };
+  } finally {
+    if (server.exitCode === null) {
+      server.kill('SIGTERM');
+      await once(server, 'exit');
+    }
+    rmSync(scratch, { recursive: true, force: true });
+  }
 }
 
 describe('messaging discoverability', () => {
@@ -89,8 +154,46 @@ describe('`pd <verb> --help` coverage', () => {
     expect(resolveVerbHelp('sitrep')).toMatch(/pd sitrep/);
     expect(resolveVerbHelp('cut')).toBeNull();
     expect(resolveVerbHelp('help')).toBeNull();
+    expect(shouldDispatchHelpToHandler('parley')).toBe(true);
     expect(shouldDispatchHelpToHandler('squid')).toBe(true);
   });
+
+  test('`pd parley --help` reaches Parley-owned help without daemon writes', async () => {
+    const { result, requests } = await captureDaemonRequests((daemonUrl) => spawnSync(
+      process.execPath,
+      [join(ROOT, 'bin/port-daddy-cli.js'), 'parley', '--help'],
+      { cwd: ROOT, env: isolatedHelpEnv(daemonUrl), encoding: 'utf8', timeout: 30_000 },
+    ));
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toMatch(/pd parley call --surface/);
+    expect(result.stdout).toMatch(/pd parley propose\|critique\|revise\|agree\|refuse\|say/);
+    expect(result.stdout).toMatch(/raw resolve is CAP0-gated and currently fail-closed/);
+    expect(result.stdout).not.toMatch(/Get started:/);
+    expect(result.stderr).not.toMatch(/required|fetch|ECONNREFUSED/i);
+    expect(requests).toBe('');
+  }, 90_000);
+
+  test('`pd parley call --help` short-circuits before mutation or telemetry', async () => {
+    const { result, requests } = await captureDaemonRequests((daemonUrl) => spawnSync(
+      process.execPath,
+      [
+        join(ROOT, 'node_modules/.bin/tsx'),
+        join(ROOT, 'bin/port-daddy-cli.ts'),
+        'parley', 'call', '--help',
+        '--surface', 'never-written.ts',
+        '--reason', 'prove help cannot mutate',
+        '--with', 'actor-a,actor-b',
+      ],
+      { cwd: ROOT, env: isolatedHelpEnv(daemonUrl), encoding: 'utf8', timeout: 30_000 },
+    ));
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toMatch(/pd parley call --surface/);
+    expect(result.stdout).toMatch(/raw resolve is CAP0-gated and currently fail-closed/);
+    expect(result.stderr).not.toMatch(/required|fetch|ECONNREFUSED/i);
+    expect(requests).toBe('');
+  }, 90_000);
 
   test('every alias points at a topic that exists', () => {
     const dangling = Object.entries(HELP_TOPIC_ALIASES).filter(([, topic]) => !(topic in TOPIC_HELP));
@@ -126,7 +229,7 @@ describe('`pd <verb> --help` coverage', () => {
       'init', 'hooks', 'setup',
       'memory', 'graph', 'advise', 'preflight', 'compass',
       'secret', 'secrets', 'learn', 'tutorial',
-      'inbox', 'send', 'sent', 'attention', 'sitrep', 'squid',
+      'inbox', 'send', 'sent', 'attention', 'sitrep', 'parley', 'squid',
     ]) {
       expect(`${cmd} -> ${hasDedicatedHelp(cmd)}`).toBe(`${cmd} -> true`);
     }

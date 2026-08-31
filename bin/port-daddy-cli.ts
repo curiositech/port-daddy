@@ -688,8 +688,8 @@ export const VERB_HELP: Record<string, string> = {
   sent: SENT_HELP,
 };
 
-/** Heavy lazy-loaded commands whose own handler remains the help authority. */
-export const HANDLER_OWNED_HELP_COMMANDS = new Set(['squid']);
+/** Commands whose own handlers remain the help authority. */
+export const HANDLER_OWNED_HELP_COMMANDS = new Set(['parley', 'squid']);
 
 export function shouldDispatchHelpToHandler(command: string): boolean {
   return HANDLER_OWNED_HELP_COMMANDS.has(command);
@@ -2657,7 +2657,7 @@ export async function main(): Promise<void> {
   }
 
   // --direct flag: skip daemon, go straight to direct-DB mode
-  if (options.direct) {
+  if (options.direct && !options.help) {
     if (TIER_2_COMMANDS.has(command)) {
       console.error(`"${command}" requires the running daemon. It cannot work in --direct mode.`);
       console.error('Start with: port-daddy start');
@@ -3459,9 +3459,13 @@ export async function main(): Promise<void> {
         break;
       }
     }
-    await recordCliUsage(command, positional, options, 'ok', commandStartedAt);
+    if (!options.help) {
+      await recordCliUsage(command, positional, options, 'ok', commandStartedAt);
+    }
   } catch (err: unknown) {
-    await recordCliUsage(command, positional, options, 'error', commandStartedAt, err);
+    if (!options.help) {
+      await recordCliUsage(command, positional, options, 'error', commandStartedAt, err);
+    }
     const error = err as Error;
     if (isDaemonUnavailableError(error)) {
       // An explicitly selected URL/profile is a peer, not a hint to fall back

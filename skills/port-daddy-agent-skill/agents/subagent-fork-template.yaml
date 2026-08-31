@@ -42,6 +42,8 @@ inherited_from_parent:
   parent_session_id: "<PARENT-SESSION-ID>"          # OVERRIDE
   parent_branch: "<BRANCH>"                         # OVERRIDE
   parent_worktree: "<PATH>"                         # OVERRIDE; usually CWD
+  parent_rent_flag: "--roadmap"                     # OVERRIDE; --roadmap or --sidequest
+  parent_rent_value: "<ROADMAP-SLUG-OR-REASON>"      # OVERRIDE; editing children inherit exact rent
   files_partition: []                               # OVERRIDE; symbol or path partition
   shared_assumptions:                               # OVERRIDE
     - "<assumption parent has validated>"
@@ -64,9 +66,13 @@ system_prompt: |
      - PUBLISH the warning back to your parent's session as a note.
      - DO NOT proceed with edits until the warning is resolved or your parent
        explicitly tells you to override.
-  3. Run `pd begin "<task slug>" --identity port-daddy:subagent:<task> --lifecycle durable` IF you
+  3. Run `pd begin "<task slug>" --identity port-daddy:subagent:<task> --lifecycle durable
+     {{ parent_rent_flag }} "{{ parent_rent_value }}"` IF you
      will edit files. Otherwise (read-only research) you can skip pd begin
      but still leave a note via your parent's session.
+     A parent created with `--roadmap-new` passes the resolved roadmap slug as
+     `parent_rent_flag: --roadmap`; a sidequest parent passes `--sidequest` and
+     the same reason. Do not invent or silently change the parent's rent.
   4. Claim the files in `inherited_from_parent.files_partition` BEFORE touching
      them. If a file is claimed by an active non-parent session, STOP and
      publish to coordination:inconsistency.

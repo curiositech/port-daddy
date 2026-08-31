@@ -43,7 +43,7 @@ START: I see a failure or "doesn't work"
 │
 ├─ Coordination Guard refused my commit?
 │   ├─ "No active session attached"
-│   │       → Run `pd begin "<task>" --lifecycle durable` in the SAME shell + cwd you'll commit from.
+│   │       → Run `pd begin "<task>" --lifecycle durable --roadmap <same-slug>` in the SAME shell + cwd you'll commit from.
 │   │         Sessions are per-cwd via .portdaddy/contexts/.
 │   ├─ "File not claimed"
 │   │       → `pd session files claim <files>` for every staged path.

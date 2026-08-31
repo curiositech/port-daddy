@@ -61,7 +61,7 @@ pwd
 ls .portdaddy/contexts/
 
 # Begin a session HERE (in this cwd, in this shell):
-pd begin "<task>" --identity <project>:<task> --lifecycle durable
+pd begin "<task>" --identity <project>:<task> --lifecycle durable --roadmap <same-slug>
 ```
 
 The session is per-cwd. If you ran `pd begin` from `/Users/x/repo` then `cd` into `/Users/x/repo/sub`, the context is still resolvable — but if you `cd` to a different worktree, you need a fresh `pd begin` there.
@@ -178,7 +178,7 @@ pd spawn --backend claude-cli \
 ```bash
 cd <correct-worktree>
 pd whoami           # confirm session is here
-pd begin ... --lifecycle durable  # if not, start one HERE
+pd begin ... --lifecycle durable --roadmap <same-slug>  # if not, start one HERE
 ```
 
 ## Skill / mirror errors
