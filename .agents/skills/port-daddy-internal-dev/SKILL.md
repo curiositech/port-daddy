@@ -524,17 +524,22 @@ non-port-daddy machine would be confusing noise.
 **Do not edit it directly.** Send messages to those actors:
 
 ```bash
-pd actor navigator --message "ROADMAP: <slice> completed at <commit>. Suggest promoting next: <item>."
-pd actor cartographer --message "DOGFOOD: <synthesis>. Suggest roadmap entry: <name>."
+pd actor navigator --message "ROADMAP: <slice> completed at <commit>. Reconcile live work events and projections; suggest promoting next: <item>."
+pd actor cartographer --message "DOGFOOD: <synthesis>. Publish attributable evidence; suggest roadmap entry: <name>."
 ```
 
 Mailbox delivery is durable but not synchronous. After messaging an actor,
-keep working from the actual source of truth: `docs/recovery/CURRENT-WORK.md`,
-`.cartographer/README.md`, `.cartographer/status.md`, live notes, sessions,
-and the checked-in release surfaces.
+work from live daemon events, notes, sessions, and checked-in release evidence.
+`docs/recovery/CURRENT-WORK.md`, Cartographer files, plans, binders, DAGs,
+hypertrees, and snapshots are evidence or projections; none is a database or a
+rival authority. The target authority is the configured remote append-only
+work-event Oracle after a write has a remote read-back receipt. Until the
+cutover is proven live, preserve unique local source material, label projections
+honestly, and never create another "authoritative" file.
 
 If `docs/recovery/CURRENT-WORK.md` contradicts the live fleet, that is a
-**Navigator** issue. File it; do not silently overwrite.
+**Navigator** projection-drift issue. File it; do not silently overwrite it or
+let it outrank live evidence.
 
 ## Git Discipline (inherited; see ADR 0001)
 
@@ -748,10 +753,21 @@ and Beacon.
 Session promotion must verify both the Port Daddy session and the sanitized
 handoff episode, then bind memory/continuation to the AgentNode id. Never bypass
 `/memory/handoffs/:episodeId/continue` with a second spawn path. Expertise
-retrieval must use BM25 + the shared MiniLM embedder with fused ranks, and must
-label lexical fallback degraded. Do not add reputation scores from declared
-skills, or mark stored permission/trigger declarations enforced without a
-daemon-witnessed runtime receipt.
+retrieval must fuse BM25 with a compatible semantic space. Use the strongest
+approved model configured for the corpus privacy boundary, quality target,
+latency, and cost. Persist provider, model id, immutable revision, dimensions,
+normalization, distance metric, and a `space_id` hashed from canonical ordered
+metadata with vectors and queries;
+reject or re-embed incompatible spaces rather than comparing them silently.
+MiniLM is only an explicit local/degraded fallback. Verify current source and
+the installed `pd embed --help` surface before depending on model selection. At
+the 2026-08-31 audit point, `main` and the installed stable runtime exposed only
+the MiniLM path; treat that as transitional. Higher-quality selection depends
+on the in-flight control-plane embedding-model-registry work; do not describe
+that registry as shipped until source, deployed runtime, and read-back evidence
+agree. Do not add reputation scores from declared skills, or mark stored
+permission/trigger declarations enforced without a daemon-witnessed runtime
+receipt.
 
 ## Anti-Patterns (port-daddy contributor edition)
 

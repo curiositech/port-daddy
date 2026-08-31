@@ -1,15 +1,31 @@
 #!/usr/bin/env node
 import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const VALID_PIPELINE_TYPES = ['bi-encoder', 'cross-encoder', 'classification'];
 const VALID_ENVIRONMENTS = ['node', 'browser'];
 const VALID_POOLING = ['mean', 'cls', 'none'];
+const VALID_DTYPES = ['auto', 'fp32', 'fp16', 'q8', 'int8', 'uint8', 'q4', 'bnb4', 'q4f16', 'q2', 'q2f16', 'q1', 'q1f16'];
+const REQUIRED_SPACE_FIELDS = ['provider', 'modelId', 'revision', 'dimensions', 'normalization', 'distanceMetric', 'dtype', 'spaceId'];
 const SEVERITY_WEIGHTS = { critical: 30, high: 15, medium: 8, low: 3 };
 
 function isPlainObject(value) {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function deriveEmbeddingSpaceId(space) {
+  const canonical = JSON.stringify({
+    provider: space.provider,
+    modelId: space.modelId,
+    revision: space.revision,
+    dimensions: space.dimensions,
+    normalization: space.normalization,
+    distanceMetric: space.distanceMetric,
+    dtype: space.dtype,
+  });
+  return `embed-v1:${createHash('sha256').update(canonical).digest('hex')}`;
 }
 
 /**
@@ -97,6 +113,80 @@ export function auditTransformersJsOnnxPipelines(plan) {
         'Set pooling: "mean" (or "cls") to reduce token embeddings to one sentence vector.'
       );
     }
+    const space = plan.embeddingSpace;
+    const missingSpaceFields = isPlainObject(space)
+      ? REQUIRED_SPACE_FIELDS.filter((field) => {
+          const value = space[field];
+          return value === undefined || value === null || value === '';
+        })
+      : REQUIRED_SPACE_FIELDS;
+    if (missingSpaceFields.length > 0 || !Number.isInteger(space?.dimensions) || space.dimensions < 1) {
+      fail(
+        'embedding-space-identity-incomplete',
+        'critical',
+        `embeddingSpace is incomplete or invalid; missing/invalid fields: ${missingSpaceFields.join(', ') || 'dimensions'}.`,
+        'Persist provider, modelId, immutable revision, dimensions, normalization, distanceMetric, dtype, and a derived spaceId with corpus and query vectors.'
+      );
+    } else {
+      const expectedSpaceId = deriveEmbeddingSpaceId(space);
+      if (space.spaceId !== expectedSpaceId) {
+        fail(
+          'embedding-space-id-not-derived',
+          'critical',
+          `embeddingSpace.spaceId does not match the canonical identity derived from its fields; expected "${expectedSpaceId}".`,
+          'Hash the versioned canonical JSON metadata into embed-v1:<sha256>; never hand-label spaceId independently.'
+        );
+      }
+      if (['main', 'master', 'latest'].includes(String(space.revision).toLowerCase())) {
+        fail(
+          'embedding-model-revision-mutable',
+          'critical',
+          `embeddingSpace.revision "${space.revision}" is mutable rather than an immutable model revision.`,
+          'Pin an immutable model commit or content digest and re-embed when it changes.'
+        );
+      }
+      if (space.dtype !== plan.dtype) {
+        fail(
+          'embedding-loader-space-dtype-mismatch',
+          'critical',
+          `embeddingSpace.dtype "${space.dtype}" does not match loader dtype "${plan.dtype}".`,
+          'Use the same explicit dtype in the loader and embedding-space identity.'
+        );
+      }
+      const observedNormalization = plan.normalizeEmbeddings === true ? 'l2' : 'none';
+      if (space.normalization !== observedNormalization) {
+        fail(
+          'embedding-loader-space-normalization-mismatch',
+          'critical',
+          `embeddingSpace.normalization "${space.normalization}" does not match the configured output normalization "${observedNormalization}".`,
+          'Make the loader behavior and persisted embedding-space identity agree before indexing.'
+        );
+      }
+    }
+    if (plan.rejectsIncompatibleSpaces !== true) {
+      fail(
+        'incompatible-spaces-not-rejected',
+        'critical',
+        'rejectsIncompatibleSpaces is not true: query and index vectors can be compared across different model spaces.',
+        'Fail closed on spaceId mismatch or explicitly re-embed one side before similarity search.'
+      );
+    }
+    if (plan.modelSelectedByDomainEval !== true) {
+      fail(
+        'embedding-model-not-domain-evaluated',
+        'critical',
+        'modelSelectedByDomainEval is not true: the embedder was not selected against representative corpus queries.',
+        'Evaluate approved candidate models on the target corpus and record the selection evidence.'
+      );
+    }
+    if (/minilm/i.test(String(space?.modelId ?? '')) && plan.degradedFallbackLabeled !== true) {
+      fail(
+        'minilm-fallback-not-labeled',
+        'critical',
+        'A MiniLM model is configured without degradedFallbackLabeled: true.',
+        'Expose constrained MiniLM use as degraded-local and prefer the stronger approved model when resources allow.'
+      );
+    }
   }
 
   // --- Gate: first-load Promise cached (no double-download, no import-time block) ---
@@ -149,13 +239,20 @@ export function auditTransformersJsOnnxPipelines(plan) {
     );
   }
 
-  // --- Gate: quantized unless full precision is justified ---
-  if (plan.quantized !== true && plan.fullPrecisionJustified !== true) {
+  // --- Gate: v4 dtype is explicit; full precision needs evidence ---
+  if (!VALID_DTYPES.includes(plan.dtype)) {
+    fail(
+      'transformers-v4-dtype-missing',
+      'medium',
+      `dtype "${plan.dtype}" is not a supported explicit Transformers.js v4 dtype.`,
+      'Set dtype to a supported concrete value such as q8 or q4; do not use the removed quantized boolean option.'
+    );
+  } else if (['fp32', 'fp16'].includes(plan.dtype) && plan.fullPrecisionJustified !== true) {
     fail(
       'unquantized-without-justification',
       'medium',
-      'quantized is not true and fullPrecisionJustified is not true: full-precision weights multiply download size and memory for little accuracy gain in most retrieval tasks.',
-      'Use { quantized: true } unless a measured accuracy regression justifies full precision (then set fullPrecisionJustified: true).'
+      `dtype is ${plan.dtype} and fullPrecisionJustified is not true: full-precision weights require measured evidence.`,
+      'Use an appropriate q8/q4 dtype unless a measured quality regression justifies full precision.'
     );
   }
 

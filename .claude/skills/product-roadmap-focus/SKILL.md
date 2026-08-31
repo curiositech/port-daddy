@@ -109,6 +109,15 @@ Decision:
 Now:
 Why now:
 Evidence:
+Evidence limitations / unverified boundaries:
+Canonical/redacted source refs + hashes (raw local paths stay local/private):
+Current runtime authority (selected daemon/local ledger):
+Local read-back receipt + runtime scope:
+Target shared authority (remote Oracle after proven cutover):
+Attributable remote read-back receipt:
+Projection watermark / staleness:
+Accessible graph alternative (table/text):
+Downstream impact before supersede/retire:
 Not now:
 Cut/suspend:
 First visible proof:
@@ -116,6 +125,10 @@ Acceptance gate:
 Kill/revisit trigger:
 Owner:
 Review date:
+Retention class (hot/warm/cold) + restore target:
+Privacy/legal holds:
+Cost attribution { project, account, ingestUnits, embeddingUnits,
+  storageByteHours, retrievalUnits, egressBytes }:
 ```
 
 The not-now section is load-bearing. ADHD systems fail when every good idea stays
@@ -150,14 +163,84 @@ when implementing daemon routes, pd-console panes, or roadmap projections.
 Minimum events:
 
 - `RoadmapCandidateObserved`
+- `RoadmapSourceIngested`
 - `RoadmapConstraintRecorded`
 - `RoadmapFocusChosen`
 - `RoadmapItemDeferred`
 - `RoadmapFocusRevised`
 - `RoadmapProofAttached`
+- `RoadmapProjectionPublished`
 
-The current roadmap view is a projection. The decision event log is the source of
-truth.
+Today, the selected daemon's local roadmap/item ledger is the runtime authority
+and projection source for local coordination. The intended shared roadmap will
+be rebuilt from remote decision events only after the remote writer is deployed
+and an attributable remote read-back proves the cutover. A dashboard, graph,
+snapshot, binder view, DAG, or hypertree remains a projection in either phase.
+
+## Authority And Source Ingestion
+
+A planning document is evidence, not a database. Markdown plans, binders,
+roadmap snapshots, DAGs, and hypertrees can all contain excellent and unique
+work, but none becomes current authority merely because it is detailed,
+checked in, or named “canonical.” Classify every input explicitly:
+
+- **source** — operator-authored or agent-authored material to ingest;
+- **current runtime authority** — the selected daemon's local roadmap/item
+  ledger, explicitly scoped to that runtime while the cutover is incomplete;
+- **target shared authority** — the configured remote append-only work-event
+  ledger, but only after deployed writes have attributable remote read-backs;
+- **projection** — a dashboard, graph, snapshot, generated plan, or local cache;
+- **receipt** — proof that a source was imported, linked, superseded, or rejected.
+
+For Port Daddy, the target is one remote Oracle over append-only work events.
+Each imported source keeps a canonical/redacted source URI, content hash,
+authorship, observed time, parent/supersedes/dependency edges, and import
+receipt. Raw local filesystem paths are private provenance: keep them local and
+encrypted, or mark the event explicitly local/private; never publish an
+operator path into the remote Oracle. The Oracle may project a roadmap, binder
+view, DAG, or hypertree, but those views do not become rival authorities.
+
+“Append-only” is a logical event contract, not a claim that the backing
+database or object store is physically immutable. Recovery windows do not prove
+tamper evidence. Require unique event ids, idempotent consumers that tolerate
+retry/reordering, content hashes, and signed inclusion/Merkle receipts where
+the store cannot enforce retention locks. Keep embedding spaces physically or
+logically separated; bounded metadata filters are not a space-compatibility
+check.
+
+An `embeddingSpaceId` in a roadmap event is only a reference to an explicit
+model-space record. That record, not the roadmap event, owns provider, model id,
+immutable revision, dimensions, normalization, distance metric, dtype,
+`qualityTier`, and any `degradedFallbackLabel`. Never infer quality from a model
+name or turn roadmap events into a second model registry.
+
+Until a deployed remote writer and an attributable remote read-back prove the
+cutover, the selected daemon's local ledger remains the current runtime
+authority and source for projections. Fail honestly: preserve source material,
+scope local read-backs to that runtime, label generated output as a draft or
+projection, and do not create another “authoritative” file. When the operator
+prefers a newer plan, record that preference as attributable local evidence for
+eventual import; do not silently erase unique older material or let an older
+generated snapshot outrank it.
+
+Before superseding, archiving, or retiring a source, traverse its downstream
+decision, dependency, proof, projection, and user-facing-document edges. Append
+the impact result and the chosen disposition; never infer “safe to delete” from
+a successful import alone. Claims about current local authority cite the
+selected daemon plus a local read-back and state their scope. Claims about
+shared remote authority require the deployed writer's attributable remote
+read-back and any missing-coverage or unverified-runtime boundaries.
+
+Retention and searchability are separate policies. Define hot (interactive
+index), warm (durable retrievable), and cold (encrypted archive) tiers with
+explicit restore targets and legal/privacy holds. Attribute ingestion,
+embedding, storage, retrieval, and egress cost to the source/project/account in
+the receipt. Cost can change a tier; it cannot silently destroy provenance.
+
+Graph projections must expose event-derived edges, staleness, filters, and
+uncertainty without implying that layout equals causality. Ship an accessible
+table or text outline beside the graph, keyboard navigation, readable contrast,
+and a path from every rendered node to its source event and receipt.
 
 ## Anti-Patterns
 
@@ -233,6 +316,13 @@ Acceptance gate:
 - [ ] A revisit trigger exists.
 - [ ] If work is split, every agent has a distinct artifact and file/worktree boundary.
 - [ ] A focus receipt or decision event is left in durable project memory.
+- [ ] Every planning input is labeled source / current runtime authority /
+      target shared authority / projection, and a claimed remote write has an
+      attributable remote read-back receipt.
+- [ ] Retirement has a downstream-impact receipt; unique evidence and holds are preserved.
+- [ ] Hot/warm/cold retention, restore target, and per-source cost attribution are explicit.
+- [ ] Every graph projection has an accessible non-visual view and links nodes
+      and edges back to event evidence, staleness, and limitations.
 
 ## Activation Tests
 
