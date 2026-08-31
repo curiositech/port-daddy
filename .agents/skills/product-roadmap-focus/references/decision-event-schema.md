@@ -5,9 +5,13 @@ pd-console panes, or durable notes for product-roadmap decisions.
 
 ## Principle
 
-Roadmap focus is event-sourced. The operator and agents append decisions,
-constraints, revisions, and proof. The current roadmap view is a projection that
-can be rebuilt from events.
+This is the target event-sourced contract. Today, the selected daemon's local
+roadmap/item ledger is the runtime authority and projection source for local
+coordination. The remote event ledger becomes shared authority only after its
+writer is deployed and an attributable remote read-back proves the cutover.
+Operator and agent decisions, constraints, revisions, and proof should already
+use this envelope where possible so the current local evidence can be imported
+without pretending the remote path is live.
 
 Do not delete old decisions because they became wrong. Append a revision event
 that explains what new evidence changed the decision.

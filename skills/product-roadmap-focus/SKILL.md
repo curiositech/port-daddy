@@ -158,8 +158,11 @@ Minimum events:
 - `RoadmapProofAttached`
 - `RoadmapProjectionPublished`
 
-The authoritative roadmap state is rebuilt from decision events in the
-configured authority. Every local roadmap view remains a projection.
+Today, the selected daemon's local roadmap/item ledger is the runtime authority
+and projection source for local coordination. The intended shared roadmap will
+be rebuilt from remote decision events only after the remote writer is deployed
+and an attributable remote read-back proves the cutover. A dashboard, graph,
+snapshot, binder view, DAG, or hypertree remains a projection in either phase.
 
 ## Authority And Source Ingestion
 
@@ -169,7 +172,10 @@ work, but none becomes current authority merely because it is detailed,
 checked in, or named “canonical.” Classify every input explicitly:
 
 - **source** — operator-authored or agent-authored material to ingest;
-- **authority** — the configured remote append-only work-event ledger;
+- **current runtime authority** — the selected daemon's local roadmap/item
+  ledger, explicitly scoped to that runtime while the cutover is incomplete;
+- **target shared authority** — the configured remote append-only work-event
+  ledger, but only after deployed writes have attributable remote read-backs;
 - **projection** — a dashboard, graph, snapshot, generated plan, or local cache;
 - **receipt** — proof that a source was imported, linked, superseded, or rejected.
 
@@ -189,18 +195,22 @@ the store cannot enforce retention locks. Keep embedding spaces physically or
 logically separated; bounded metadata filters are not a space-compatibility
 check.
 
-Until the current runtime and a read-back receipt prove that remote authority is
-live, fail honestly: preserve the source, label local output as a draft or
+Until a deployed remote writer and an attributable remote read-back prove the
+cutover, the selected daemon's local ledger remains the current runtime
+authority and source for projections. Fail honestly: preserve source material,
+scope local read-backs to that runtime, label generated output as a draft or
 projection, and do not create another “authoritative” file. When the operator
-prefers a newer plan, ingest that preference as an attributable event; do not
-silently erase unique older material or let an older generated snapshot outrank
-it.
+prefers a newer plan, record that preference as attributable local evidence for
+eventual import; do not silently erase unique older material or let an older
+generated snapshot outrank it.
 
 Before superseding, archiving, or retiring a source, traverse its downstream
 decision, dependency, proof, projection, and user-facing-document edges. Append
 the impact result and the chosen disposition; never infer “safe to delete” from
-a successful import alone. Claims about current authority must cite the remote
-read-back receipt and state any missing coverage or unverified runtime boundary.
+a successful import alone. Claims about current local authority cite the
+selected daemon plus a local read-back and state their scope. Claims about
+shared remote authority require the deployed writer's attributable remote
+read-back and any missing-coverage or unverified-runtime boundaries.
 
 Retention and searchability are separate policies. Define hot (interactive
 index), warm (durable retrievable), and cold (encrypted archive) tiers with
@@ -287,8 +297,9 @@ Acceptance gate:
 - [ ] A revisit trigger exists.
 - [ ] If work is split, every agent has a distinct artifact and file/worktree boundary.
 - [ ] A focus receipt or decision event is left in durable project memory.
-- [ ] Every planning input is labeled source / authority / projection, and a
-      claimed remote write has a read-back receipt.
+- [ ] Every planning input is labeled source / current runtime authority /
+      target shared authority / projection, and a claimed remote write has an
+      attributable remote read-back receipt.
 - [ ] Retirement has a downstream-impact receipt; unique evidence and holds are preserved.
 - [ ] Hot/warm/cold retention, restore target, and per-source cost attribution are explicit.
 - [ ] Every graph projection has an accessible non-visual view and links nodes
