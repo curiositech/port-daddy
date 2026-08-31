@@ -395,7 +395,7 @@ The UI must never reduce this to a green “Squid on” badge.
 
 Each phase is independently testable and must retain current-vs-target labels:
 
-1. Add `lib/execution-envelope.ts`, generated schema, validation, digesting,
+1. Add proposed `lib/execution-envelope.ts`, generated schema, validation, digesting,
    authority attenuation, and spoof/cycle/replay tests.
 2. Separate runtime adapter identity from model/backend catalog identity without
    preserving a legacy inference path.
