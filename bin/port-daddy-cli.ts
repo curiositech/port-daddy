@@ -177,6 +177,7 @@ import { calculateRuntimeCodeHash } from '../shared/code-hash.js';
 import { DEFAULT_SOCK as _DEFAULT_SOCK, DEFAULT_PORT_FILE as _DEFAULT_PORT_FILE } from '../shared/paths.js';
 import {
   hasExplicitDaemonTarget,
+  isHelpInvocation,
   shouldAutoRestartDaemonForFreshness,
   shouldCheckDaemonFreshness,
 } from '../cli/utils/freshness.js';
@@ -688,8 +689,8 @@ export const VERB_HELP: Record<string, string> = {
   sent: SENT_HELP,
 };
 
-/** Heavy lazy-loaded commands whose own handler remains the help authority. */
-export const HANDLER_OWNED_HELP_COMMANDS = new Set(['squid']);
+/** Commands whose own handlers remain the help authority. */
+export const HANDLER_OWNED_HELP_COMMANDS = new Set(['parley', 'squid']);
 
 export function shouldDispatchHelpToHandler(command: string): boolean {
   return HANDLER_OWNED_HELP_COMMANDS.has(command);
@@ -2514,12 +2515,13 @@ export async function main(): Promise<void> {
   }
 
   const isQuiet: boolean = args.includes('--quiet') || args.includes('-q') || args.includes('--json') || args.includes('-j');
+  const helpInvocation = isHelpInvocation(command, args);
 
   // Target ownership must be installed before freshness probes. Otherwise a
   // named feature-daemon command can inspect and restart the default daemon.
   if (preDaemonTarget) applyDaemonTarget(preDaemonTarget, command);
   
-  if (shouldCheckDaemonFreshness(command as string, args)) {
+  if (!helpInvocation && shouldCheckDaemonFreshness(command as string, args)) {
     await checkDaemonFreshness(true, isQuiet);
   }
 
@@ -2527,7 +2529,9 @@ export async function main(): Promise<void> {
   // one-line "you're behind the latest release" hint to stderr. Complements the
   // macOS-only auto-upgrade `pd self-update` (ADR-0062) for npm/Linux installs.
   // Throttled, TTY-gated, opt-out via PORT_DADDY_NO_UPDATE_CHECK, fail-soft.
-  await maybeNudgeStaleness({ command: command as string, currentVersion: PKG.version, isQuiet });
+  if (!helpInvocation) {
+    await maybeNudgeStaleness({ command: command as string, currentVersion: PKG.version, isQuiet });
+  }
 
   // Parse options
   const options: CLIOptions = {};
@@ -2657,7 +2661,7 @@ export async function main(): Promise<void> {
   }
 
   // --direct flag: skip daemon, go straight to direct-DB mode
-  if (options.direct) {
+  if (options.direct && !helpInvocation) {
     if (TIER_2_COMMANDS.has(command)) {
       console.error(`"${command}" requires the running daemon. It cannot work in --direct mode.`);
       console.error('Start with: port-daddy start');
@@ -3459,9 +3463,13 @@ export async function main(): Promise<void> {
         break;
       }
     }
-    await recordCliUsage(command, positional, options, 'ok', commandStartedAt);
+    if (!helpInvocation) {
+      await recordCliUsage(command, positional, options, 'ok', commandStartedAt);
+    }
   } catch (err: unknown) {
-    await recordCliUsage(command, positional, options, 'error', commandStartedAt, err);
+    if (!helpInvocation) {
+      await recordCliUsage(command, positional, options, 'error', commandStartedAt, err);
+    }
     const error = err as Error;
     if (isDaemonUnavailableError(error)) {
       // An explicitly selected URL/profile is a peer, not a hint to fall back

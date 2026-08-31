@@ -159,7 +159,7 @@ pd status
 pd sitrep --template
 pd briefing
 pd salvage --project <project> --limit 20
-pd begin "<bounded task>" --identity <project>:<agent> --lifecycle durable
+pd begin "<bounded task>" --identity <project>:<agent> --lifecycle durable --roadmap <slug>
 pd whoami
 pd plan set "- [ ] Setup X\n- [ ] Fix Y\n- [ ] Verify Z"
 pd advise <likely-path> --task "<plain-language task>"
@@ -171,12 +171,49 @@ pd note "Result: <change>. Validation: <evidence>. Remaining: <risk>."
 pd done "<short outcome>"
 ```
 
+Every `pd begin` pays roadmap rent with exactly one of `--roadmap <slug>` for
+an existing item, `--roadmap-new "<title>"` to create one, or `--sidequest
+"<reason>"` for deliberate off-roadmap work. The examples prefer an existing
+slug, but do not invent one when the work needs a new item or an explicit
+sidequest.
+
 After admission, `pd begin` may show at most three semantically matched live
 peers. That optional hint has a 75 ms total budget, disables reconnect retries,
 aborts its request, excludes the new agent, never falls back to lexical matching,
 and fails open without output. A long list of
 salvage, roadmap, docs, files, or sessions during begin is a regression, not an
 arrival brief.
+
+### Sugar-first Parley is capability-gated
+
+Do not mistake the 75 ms peer hint for a Parley invitation. Sugar uses a
+separate authenticated card request with its own 150 ms deadline. A peer hint
+can exist without a card; card eligibility additionally requires a verified
+active-session actor, a reviewed semantic peer, and canonical structural claim
+overlap. Source code, a PR, and passing tests are not runtime proof: verify the
+installed daemon actually exposes the v1 Sugar surface. A missing route means
+the raw protocol is all that runtime has.
+
+When the capability is live, ordinary interactive `pd begin` and
+`pd attention` are the primary entry points. The card offers three human
+actions:
+
+- **Work separately** records an explicit non-coordination choice.
+- **Send note** sends attributable session-bound context.
+- **Resolve together** convenes a bounded Parley and accepts natural-language
+  exchange.
+
+The card never prompts in JSON, quiet, export, piped, CI, or explicitly
+non-interactive modes. `NO_COLOR` does not disable interaction; it produces the
+same deterministic linework without ANSI. Raw `call`, `propose`, `critique`,
+`revise`, `agree`, `refuse`, and `say` verbs remain protocol/debug drill-down,
+not the normal UX.
+
+A `sugar_parley_settlement_acknowledgement` is non-terminal. Only a terminal
+`sugar_parley_settlement_receipt` may update claims and plans and suppress
+settled reminders. If `pd parley show <id>` reports no turns, preserve that
+literal zero-turn failure. Never reconstruct or invent a turn; label any inbox
+or note exchange as a direct fallback rather than calling it a Parley.
 
 `pd sitrep` is similarly a bounded projection: collections expose limits,
 returned counts, and truncation; nested salvage histories and strings are
@@ -313,7 +350,8 @@ and should not drift together.
 | `purpose` | The current task this session is doing. | Per-session. Resets when you `pd done` and `pd begin` again. |
 | `telos`   | Why this agent exists in the fleet — the durable role headline. | Long-lived. Survives across sessions, salvages, and respawns. |
 
-`pd begin "<purpose>"` sets the purpose. By default the telos defaults to
+`pd begin "<purpose>" --lifecycle durable --roadmap <slug>` sets the purpose
+while paying the required lifecycle and roadmap rent. By default the telos defaults to
 the same string for compatibility, but creator-provided telos is preferred:
 fleet YAML, spawn calls, and registration paths can declare a richer telos
 object explicitly, and `pd whoami` will show that string instead.
@@ -414,7 +452,7 @@ High-frequency commands:
 ```bash
 pd status
 pd briefing
-pd begin "<purpose>" --identity <project>:<agent> --lifecycle durable
+pd begin "<purpose>" --identity <project>:<agent> --lifecycle durable --roadmap <slug>
 pd note "Scope: <files>"
 pd session files add <path>
 pd add --dry-run -A
@@ -487,7 +525,7 @@ Run the loop in order. Skip only when the task is truly trivial.
 pd status
 pd briefing
 pd salvage --project <project> --limit 20
-pd begin "<bounded task>" --lifecycle durable
+pd begin "<bounded task>" --lifecycle durable --roadmap <slug>
 pd advise <likely-path> --task "<plain-language task>"
 pd note "Scope: <files>. Assumptions: <truth>. Validation: <commands>."
 pd session files add <path>
@@ -562,10 +600,12 @@ they are not interchangeable evidence.
 
 The Agent Harbor runtime refactor target (ADR-0100) is intentionally
 destructive: one Surface Gateway owns official command, query, and event
-envelopes; WorkIntent is the launch-shaped runtime primitive; old routes,
-verbs, and MCP tools survive only as temporary migration adapters or fail-closed
-messages once the gateway path owns the behavior. Do not document this target
-as shipped unless the current branch and live daemon prove it.
+envelopes; WorkIntent is the launch-shaped runtime primitive; old routes, verbs,
+MCP tools, and their callers are removed in the same slice once the gateway path
+owns the behavior. A fail-closed tombstone or compatibility adapter exists only
+when the operator explicitly authorizes it for that exact surface. Do not
+document this target as shipped unless the current branch and live daemon prove
+it.
 
 ```mermaid
 flowchart TB
@@ -629,9 +669,10 @@ Authority rules:
   replayable intent through a harbor/relay ledger. Do not pretend SQLite files
   merge peer-to-peer or share a writable registry across machines.
 - When WorkIntent and Surface Gateway own a behavior, delete the older route,
-  CLI verb, or MCP tool; or keep it only as a short-lived internal adapter that
-  writes legacy provenance into the new envelope and has an explicit deletion
-  plan. No long-lived bridge architecture.
+  CLI verb, or MCP tool and update every caller in the same slice. Compatibility
+  exists only when the operator explicitly requests it for that exact surface;
+  do not invent a migration adapter, legacy mode, downgrade fallback, or
+  deprecation window.
 - Release proof must include source tests, the compiled daemon binary, launchd
   supervision, smoke routes, soak/shadow workload, `pd doctor`, and visible
   pd-console plus FleetBar truth.
@@ -710,7 +751,7 @@ pd briefing                              # what's happening across the fleet
 pd salvage --project <project>           # recover dead-agent intent
 
 # Sessions & coordination
-pd begin "<task>" --identity <project>:<stack>:<context> --lifecycle durable
+pd begin "<task>" --identity <project>:<stack>:<context> --lifecycle durable --roadmap <slug>
 pd note "Scope: ..."                     # durable progress evidence
 pd takeover <old-session-id>             # linked successor; notes stay append-only
 pd session files add <path>              # claim a file region
@@ -897,7 +938,7 @@ Multi-agent repos collide on the staging area. Follow these rules without
 exception. They come from a real incident — see `references/git-discipline.md`
 for the post-mortem and the full ADR.
 
-1. **Worktree for long-running background work.** If your work takes more than ~10s between "start" and "commit", do it in a git worktree (`git worktree add ../$repo-$agent-$task`). Disjoint trees make collisions structurally impossible.
+1. **Worktree for long-running background work.** If your work takes more than ~10s between "start" and "commit", do it on a real branch in a git worktree under `$HOME/coding/tmp` (`git worktree add -b "codex/$agent-$task" "$HOME/coding/tmp/$repo-$agent-$task" origin/main`). Disjoint trees make collisions structurally impossible, and durable work never belongs under `/tmp` or `/private/tmp`.
 2. **Never `git add -A` / `git add .` / `git add -u` in agent code paths.** Stage by explicit path. You can only commit what you authored.
 3. **Pre-commit dirty-tree check.** Before any `git commit`, run `git status --porcelain` and abort with a named-paths error if anything dirty in the tree was authored elsewhere.
 4. **Push only what you tagged.** Tags are content-addressed; branches are shared mutable state across agents.
@@ -1091,7 +1132,7 @@ How to edit (the small ceremony, not a gate):
 1. Edit `skills/port-daddy-agent-skill/SKILL.md` directly in a worktree (Git Discipline, Rule 1).
 2. Keep the change *small and named*: one rule, one section, one Anti-Pattern.
 3. Commit with a body that explains *what changed and why this slice surfaced it* — past-you is the audience.
-4. Run `pnpm test -- tests/unit/distribution-freshness.test.js tests/unit/port-daddy-skill-authority.test.js` before pushing; both are structural contracts the public skill must satisfy.
+4. Run `npm test -- tests/unit/distribution-freshness.test.js tests/unit/port-daddy-skill-authority.test.js` before pushing; both are structural contracts the public skill must satisfy.
 5. After landing, message Cartographer once so the wisdom propagates to the next session: `pd actor cartographer --message "Skill update: <one-line>."`
 
 **Internal-only vs. public.** If the lesson is about *editing the port-daddy

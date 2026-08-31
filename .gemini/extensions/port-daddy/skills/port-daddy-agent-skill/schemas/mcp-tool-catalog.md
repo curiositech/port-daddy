@@ -9,7 +9,7 @@ These are the tools the Port Daddy MCP server exposes. They are the **preferred 
 | MCP tool | CLI equivalent | When to use the tool |
 |---|---|---|
 | `whoami` | `pd whoami` | First call of every session. |
-| `begin_session` | `pd begin --purpose "..." --identity ... --lifecycle durable` | Start of agent work. |
+| `begin_session` | `pd begin --purpose "..." --identity ... --lifecycle durable --roadmap <slug>` | Start of agent work; supply exactly one of `roadmap`, `roadmap_new`, or `sidequest` in MCP input. |
 | `end_session_full` | `pd done` | End of agent work. |
 | `add_note` | `pd note "…" --type …` | Audit trail; checkpoint progress. |
 | `sitrep` (alias: `catch_me_up`) | `pd sitrep` / `pd look` | Resuming, salvaging, or context-switching in. |

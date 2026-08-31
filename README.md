@@ -464,22 +464,34 @@ echo "looks good — merging" | pd tube agent:notes --reply-to=42   # threading
 
 History guard lives at `~/.port-daddy/tube-history-<safe-channel>.json`; `--no-history` ignores it, `--since=<id>` overrides it. `--json` for JSON lines, `--raw` for tab-separated, `--tail` for the human-watching loop. Tubes support multi-subscriber fan-out. Tutorial: [`docs/tutorials/pd-tube.md`](docs/tutorials/pd-tube.md).
 
-### `pd parley` — Bounded Multi-Agent Debate
+### `pd parley` — Bounded Coordination Protocol
 
-When agents disagree, a parley convenes them: a typed, bounded exchange of positions, critiques, votes, and revisions with a durable outcome — instead of two agents silently overwriting each other.
+The shipped `pd parley` commands are the inspectable protocol and debugging
+surface for a typed, bounded exchange. They are not the intended everyday agent
+experience. When the Sugar-first capability is present in both source and the
+running daemon, ordinary interactive `pd begin` and `pd attention` surface a
+bounded coordination card with **Work separately**, **Send note**, and
+**Resolve together**. Do not infer that capability from a branch, test, or PR;
+a stable daemon without the Sugar route still has only the raw protocol.
+
+The raw syntax is:
 
 ```bash
-pd parley call "Should lib/sessions.ts adopt symbol claims?" --channel parley:arch
-pd parley list
-pd parley respond <id> --position "yes, with region fallback"
-pd parley resolve <id>
+pd parley call --surface lib/sessions.ts --reason "coordinate symbol claims" --with actor-a,actor-b
+pd parley propose <id> "Use symbol claims with region fallback"
+pd parley critique <id> "The fallback needs an explicit evidence receipt"
+pd parley agree <id> "Accepted with that receipt"
+pd parley show <id>
 ```
 
-Mission is pd-console's ordinary operator entry point; Parley is an explicit
-coordination action, not an alternate default chat. Invoke it with `pd parley`
-from the emergency CLI or from a verified Sextant selection, then inspect the
-durable decision in pd-console's Parley inspector, including CONVENE/hold
-economics (ADR-0086).
+`pd parley show` with an attributable active identity (or `--as`) records a
+read receipt and preserves the literal turn history. If it reports
+`turns: none yet`, that is a zero-turn room, not evidence of a missing
+exchange. The raw `resolve` command remains fail-closed until CAP0
+authorizes and redeems terminal mutation authority; do not teach bare
+`pd parley resolve <id>` as a working settlement path. Terminal Sugar settlement
+receipts, once that capability is live, are the authority that updates claims
+and plans and suppresses settled reminders.
 
 ### Inboxes, Integration & Waiting
 

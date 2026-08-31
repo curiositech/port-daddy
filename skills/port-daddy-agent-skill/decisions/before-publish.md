@@ -40,7 +40,7 @@ START: I think my work is ready
 │   ├─ off    → it's still good practice to check. `pd guard check --staged`.
 │   ├─ warn   → fix anything reported, even if non-blocking.
 │   └─ enforce → MUST pass `pd guard check --staged` cleanly. If it doesn't:
-│       ├─ "no active session" → `pd begin "<task>" --lifecycle durable` in this exact shell+cwd.
+│       ├─ "no active session" → `pd begin "<task>" --lifecycle durable --roadmap <same-slug>` in this exact shell+cwd.
 │       ├─ "file not claimed"  → `pd session files claim <each staged file>`.
 │       └─ phantom claim       → see decisions/something-broke.md
 │

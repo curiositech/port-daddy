@@ -17,6 +17,8 @@ inherited_from_parent:
   parent_agent_id: agent-...                   # for actor messaging back
   parent_branch: feature/...                   # which branch the parent is on
   parent_worktree: /Users/.../port-daddy-...   # which worktree (for cwd-bound state)
+  parent_rent_flag: --roadmap                  # --roadmap or --sidequest
+  parent_rent_value: roadmap-slug-or-reason    # inherit the exact parent rent
   files_partition: [...]                       # what files/symbols this fork owns
   shared_assumptions:                          # facts parent has already verified
     - "origin/main is at <hash>"
@@ -36,6 +38,11 @@ inherited_from_parent:
 **parent_branch**: Sub-agents working in the SAME worktree as the parent must know what branch they're on. Without this, they may switch branches or commit on the wrong base.
 
 **parent_worktree**: Determines where `.portdaddy/contexts/` lives, where `pd begin` writes context files, and which `git status` they see. Sub-agents in a different worktree need their own `pd begin`.
+
+**parent_rent_flag / parent_rent_value**: Editing sub-agents inherit the
+parent's exact rent. A parent started with `--roadmap-new` passes its resolved
+slug as `--roadmap`; a sidequest parent passes `--sidequest` with the same
+reason. Never silently promote a sidequest into a roadmap item or invent a slug.
 
 **files_partition**: The sub-agent's authority to claim. Without an explicit partition, sub-agents either claim too broadly (collision) or too narrowly (incomplete work).
 
@@ -61,8 +68,10 @@ git fetch origin main
 git log --oneline HEAD..origin/main | head
 
 # 4. Run the prologue scripts to capture state.
-skills/port-daddy-agent-skill/scripts/prologue/pd-context.sh > /tmp/parent-ctx.json
-skills/port-daddy-agent-skill/scripts/prologue/git-state.sh > /tmp/parent-git.json
+HANDOFF_DIR="$HOME/coding/tmp/pd-handoff-$(date +%s)"
+mkdir -p "$HANDOFF_DIR"
+skills/port-daddy-agent-skill/scripts/prologue/pd-context.sh > "$HANDOFF_DIR/parent-ctx.json"
+skills/port-daddy-agent-skill/scripts/prologue/git-state.sh > "$HANDOFF_DIR/parent-git.json"
 
 # 5. Drop a pd note describing the fork:
 pd note "Forking subagent <name> for <task>. Partition: <files>. Will rejoin at: <expected-time>."
@@ -88,7 +97,7 @@ skills/port-daddy-agent-skill/scripts/prologue/pd-context.sh
 #    - Otherwise: continue.
 
 # 3. Begin its own session.
-pd begin "<task slug>" --identity port-daddy:subagent:<task> --lifecycle durable
+pd begin "<task slug>" --identity port-daddy:subagent:<task> --lifecycle durable <parent-rent-flag> "<parent-rent-value>"
 
 # 4. Claim the partition.
 pd session files claim <each-partition-file>
