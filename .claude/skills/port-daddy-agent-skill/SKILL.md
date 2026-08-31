@@ -136,7 +136,9 @@ incomplete turn; scaffold it with `pd sitrep --template`. Repos that want
 quiet turns dial it off explicitly.
 `pd attention` is also safe before `pd begin`: without a bound identity its
 default read succeeds as an explicit empty/unbound result; subscription changes
-still require an identity.
+still require an identity. A normal `pd attention` read advances the caller's
+read cursors; use `pd attention --peek` when inspection must not mark anything
+seen.
 
 The operator drives this through FleetBar's selected-project `◆ GIANT SQUID`
 strip. It exposes state, provider count, Arm/Repair/Disarm, and the hook timeline
@@ -152,6 +154,17 @@ SDK's public URL field stays empty rather than publishing a made-up endpoint.
 
 Use this path before you reach for advanced coordination. It is the normal
 agent loop for repo work on this machine.
+
+`pd learn` is the canonical offline-safe orientation command; `pd tutorial` is
+an exact alias. The orientation handler is operationally read-only: it does not
+create or change sessions, claims, plans, notes, files, indexes, or other work
+resources. Headless execution makes no handler daemon request. On an actual
+interactive controlling terminal, it may make one bounded `GET /health`
+(750 ms, no retry) to label the guide with live daemon status. The surrounding
+CLI envelope still makes exactly one best-effort append-only usage-telemetry
+attempt, so "operationally read-only" does not mean zero I/O. `pd learn` never
+searches, trains, ingests, embeds, or reindexes content; use the explicit
+retrieval and indexing commands for those jobs.
 
 ```bash
 pd attention

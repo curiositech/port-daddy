@@ -1032,7 +1032,7 @@
       }
     },
     "tutorial": {
-      "description": "Interactive tutorial \u2014 learn Port Daddy step by step",
+      "description": "Operationally read-only agent orientation; the handler is headless-safe, an interactive terminal may make one bounded GET /health request, and the CLI envelope makes one append-only usage-telemetry attempt",
       "cli": [
         "learn",
         "tutorial"
