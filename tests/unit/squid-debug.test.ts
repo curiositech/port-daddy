@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   clearSquidHookDebugEvents,
@@ -9,6 +9,7 @@ import {
   readSquidHookDebugSnapshot,
   readSquidHookStatusSnapshot,
   resetSquidHookHealth,
+  SQUID_HOOK_BREAKER_PROBE_STALE_MS,
   SQUID_HOOK_DEBUG_CLI_MAX_BYTES,
   SQUID_HOOK_STATUS_MAX_STEPS,
   squidHookHealthDir,
@@ -274,7 +275,9 @@ test('validates sanitized breaker state, derives half-open probes, and repairs a
     'v1\topen\t3\t1000\t301000\texit_127\t20\t127\t1000\n',
   );
   writeFileSync(join(healthDir, 'pd-hook-prompt.state'), 'v1\topen\tsecret prompt payload\n');
-  mkdirSync(join(healthDir, 'pd-hook-pre-tool.probe'));
+  const probePath = join(healthDir, 'pd-hook-pre-tool.probe');
+  mkdirSync(probePath);
+  utimesSync(probePath, new Date(2_000), new Date(2_000));
 
   const health = readSquidHookHealth(PD_HOME, 2_000);
   expect(health.degraded).toBe(true);
@@ -285,11 +288,46 @@ test('validates sanitized breaker state, derives half-open probes, and repairs a
       consecutiveFailures: 3,
       lastReason: 'exit_127',
       lastExitCode: 127,
+      probeState: 'active',
+      probeStartedAt: '1970-01-01T00:00:02.000Z',
+      probeExpectedBy: '1970-01-01T00:00:07.000Z',
+      recoveryReady: false,
     }),
   ]);
+  expect(health.remediation).toMatch(/single bounded recovery probe is running/i);
   expect(JSON.stringify(health)).not.toContain('secret prompt payload');
 
   resetSquidHookHealth(PD_HOME);
   expect(existsSync(healthDir)).toBe(true);
   expect(readSquidHookHealth(PD_HOME).degraded).toBe(false);
+});
+
+test('expired or implausibly future probe markers never masquerade as active recovery', () => {
+  const healthDir = squidHookHealthDir(PD_HOME);
+  const statePath = join(healthDir, 'pd-hook-prompt.state');
+  const probePath = join(healthDir, 'pd-hook-prompt.probe');
+  mkdirSync(probePath, { recursive: true });
+  writeFileSync(statePath, 'v1\topen\t9\t1000\t2000\tslow\t770\t0\t1000\n');
+
+  utimesSync(probePath, new Date(1_000), new Date(1_000));
+  const stale = readSquidHookHealth(PD_HOME, 1_000 + SQUID_HOOK_BREAKER_PROBE_STALE_MS + 1);
+  expect(stale.circuits[0]).toMatchObject({
+    state: 'open',
+    probeState: 'stale',
+    recoveryReady: true,
+  });
+  expect(stale.remediation).toMatch(/expired.*no probe is running/i);
+
+  const nowMs = 20_000;
+  utimesSync(
+    probePath,
+    new Date(nowMs + SQUID_HOOK_BREAKER_PROBE_STALE_MS + 1),
+    new Date(nowMs + SQUID_HOOK_BREAKER_PROBE_STALE_MS + 1),
+  );
+  const future = readSquidHookHealth(PD_HOME, nowMs);
+  expect(future.circuits[0]).toMatchObject({
+    state: 'open',
+    probeState: 'stale',
+    recoveryReady: true,
+  });
 });

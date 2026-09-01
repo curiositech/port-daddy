@@ -897,6 +897,38 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     expect(existsSync(join(pdHome, 'squid', 'health', 'pd-hook-prompt.failures'))).toBe(false);
   });
 
+  test.each([
+    ['expired', -10_000],
+    ['implausibly future', 10_000],
+  ])('reclaims an %s half-open marker before running one recovery probe', (_label, offsetMs) => {
+    const pdHome = join(SANDBOX, `breaker-stale-probe-${offsetMs}`);
+    const binDir = join(pdHome, 'bin');
+    const healthDir = join(pdHome, 'squid', 'health');
+    const statePath = join(healthDir, 'pd-hook-prompt.state');
+    const probePath = join(healthDir, 'pd-hook-prompt.probe');
+    mkdirSync(join(REPO, '.portdaddy'), { recursive: true });
+    stageTentacles(SRC, binDir);
+    writeFileSync(join(pdHome, 'heartbeat'), '{}');
+    markDaemonReady(pdHome);
+    registerSquidProject(REPO, join(pdHome, 'squid', 'projects'));
+    mkdirSync(probePath, { recursive: true });
+    writeFileSync(statePath, 'v1\topen\t3\t1000\t0\tslow\t770\t0\t1000\n');
+    const markerTime = new Date(Date.now() + offsetMs);
+    utimesSync(probePath, markerTime, markerTime);
+
+    const output = execFileSync(join(binDir, 'pd-hook-prompt'), [], {
+      cwd: REPO,
+      env: { ...process.env, PD_HOME: pdHome, PD_HOOK_SLOW_MS: '10000' },
+      input: '{}',
+      encoding: 'utf8',
+    });
+
+    expect(output).toContain('pd-hook-prompt');
+    expect(existsSync(probePath)).toBe(false);
+    expect(existsSync(statePath)).toBe(false);
+    expect(readSquidHookHealth(pdHome).circuits).toEqual([]);
+  });
+
   test('falls back to GNU stat when the BSD probe exits zero with nonnumeric output', () => {
     const pdHome = join(SANDBOX, 'gnu-stat-home');
     const binDir = join(pdHome, 'bin');

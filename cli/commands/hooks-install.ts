@@ -63,6 +63,7 @@ import {
 import {
   SQUID_HOOK_BREAKER_COOLDOWN_MS,
   SQUID_HOOK_BREAKER_FAILURE_THRESHOLD,
+  SQUID_HOOK_BREAKER_PROBE_STALE_MS,
   SQUID_HOOK_BREAKER_SLOW_MS,
   SQUID_HOOK_DEBUG_MAX_BYTES,
   SQUID_HOOK_DEBUG_TRIM_BYTES,
@@ -72,6 +73,7 @@ import { resolveSquidAsset } from '../../lib/squid/assets.js';
 
 const DEFAULT_HOME = process.env.HOME || process.env.USERPROFILE || '';
 const SQUID_DAEMON_HEARTBEAT_STALE_SECONDS = 30;
+const SQUID_HOOK_BREAKER_PROBE_STALE_SECONDS = Math.ceil(SQUID_HOOK_BREAKER_PROBE_STALE_MS / 1_000);
 
 /** ~/.port-daddy/bin — staged gate wrappers (what hook configs point at). */
 export function tentacleBinDir(): string {
@@ -354,7 +356,8 @@ function gateWrapperScript(): string {
     '  pd_probe_modified=$(stat -f %m "$pd_probe_dir" 2>/dev/null || true)',
     '  case "$pd_probe_modified" in ""|*[!0-9]*) pd_probe_modified=$(stat -c %Y "$pd_probe_dir" 2>/dev/null || true) ;; esac',
     '  case "$pd_probe_now:$pd_probe_modified" in *[!0-9:]*) return 1 ;; esac',
-    '  [ $((pd_probe_now - pd_probe_modified)) -gt 5 ] 2>/dev/null || return 1',
+    '  pd_probe_age=$((pd_probe_now - pd_probe_modified))',
+    `  if [ "$pd_probe_age" -ge -${SQUID_HOOK_BREAKER_PROBE_STALE_SECONDS} ] 2>/dev/null && [ "$pd_probe_age" -le ${SQUID_HOOK_BREAKER_PROBE_STALE_SECONDS} ] 2>/dev/null; then return 1; fi`,
     '  rmdir "$pd_probe_dir" 2>/dev/null || return 1',
     '  mkdir "$pd_probe_dir" 2>/dev/null',
     '}',

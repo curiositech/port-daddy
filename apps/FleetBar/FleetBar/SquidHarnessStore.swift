@@ -52,6 +52,13 @@ enum SquidHookCircuitState: String, Codable, Sendable {
     case halfOpen = "half_open"
 }
 
+enum SquidHookProbeState: String, Codable, Sendable {
+    case none
+    case active
+    case stale
+    case unknown
+}
+
 struct SquidHookCircuit: Codable, Equatable, Sendable, Identifiable {
     let hook: String
     let label: String
@@ -63,8 +70,36 @@ struct SquidHookCircuit: Codable, Equatable, Sendable, Identifiable {
     let lastDurationMs: Int
     let lastExitCode: Int?
     let updatedAt: String
+    let probeState: SquidHookProbeState?
+    let probeStartedAt: String?
+    let probeExpectedBy: String?
+    let recoveryReady: Bool?
 
     var id: String { hook }
+
+    var operatorHeadline: String {
+        let reason = lastReason.replacingOccurrences(of: "_", with: " ")
+        if state == .halfOpen {
+            return "\(label) is running one bounded recovery probe after \(consecutiveFailures) unhealthy calls."
+        }
+        if recoveryReady == true {
+            return "\(label) recovery is ready after \(consecutiveFailures) unhealthy calls; no probe is running."
+        }
+        return "\(label) disabled itself after \(consecutiveFailures) unhealthy calls; the last reason was \(reason)."
+    }
+
+    var timingLine: String? {
+        if state == .halfOpen, let probeStartedAt, let probeExpectedBy {
+            return "Probe started \(probeStartedAt) · expected by \(probeExpectedBy)"
+        }
+        if recoveryReady == true, let retryAt {
+            return "Recovery available since \(retryAt)"
+        }
+        if let retryAt {
+            return "Automatic recovery available at \(retryAt)"
+        }
+        return nil
+    }
 }
 
 struct SquidHookHealthThresholds: Codable, Equatable, Sendable {
@@ -348,7 +383,13 @@ final class SquidHarnessStore: ObservableObject {
         }
         snapshot = decoded
         if decoded.state == .degraded, let circuit = decoded.health?.circuits.first(where: { $0.state != .closed }) {
-            message = "\(circuit.label) disabled itself after repeated \(circuit.lastReason.replacingOccurrences(of: "_", with: " ")) events. Choose Repair."
+            if circuit.state == .halfOpen {
+                message = "\(circuit.label) is running one bounded recovery probe; expected by \(circuit.probeExpectedBy ?? "its five-second deadline")."
+            } else if circuit.recoveryReady == true {
+                message = "\(circuit.label) recovery is ready; the next armed hook may run one bounded probe."
+            } else {
+                message = "\(circuit.label) disabled itself after repeated \(circuit.lastReason.replacingOccurrences(of: "_", with: " ")) events. Choose Repair."
+            }
         } else {
             message = decoded.state == .degraded ? "The harness needs repair before it can protect this project." : nil
         }
@@ -645,9 +686,10 @@ struct SquidHookDebugSheet: View {
                         .foregroundStyle(Fleet.Color.warning)
                 }
                 if snapshot?.health?.degraded == true {
-                    Label("HOOK DISABLED", systemImage: "bolt.slash.fill")
+                    let recovering = snapshot?.health?.circuits.contains(where: { $0.state == .halfOpen }) == true
+                    Label(recovering ? "HOOK RECOVERING" : "HOOK DISABLED", systemImage: recovering ? "arrow.triangle.2.circlepath" : "bolt.slash.fill")
                         .font(.caption.weight(.semibold))
-                        .foregroundStyle(Fleet.Color.failure)
+                        .foregroundStyle(recovering ? Fleet.Color.warning : Fleet.Color.failure)
                 }
                 Spacer()
                 Button(snapshot?.enabled == true ? "Stop capture" : "Start capture") {
@@ -672,9 +714,14 @@ struct SquidHookDebugSheet: View {
             if let health = snapshot?.health,
                let circuit = health.circuits.first(where: { $0.state != .closed }) {
                 VStack(alignment: .leading, spacing: Fleet.Space.xs) {
-                    Text("\(circuit.label) is \(circuit.state.rawValue.uppercased()) after \(circuit.consecutiveFailures) consecutive unhealthy calls; the last reason was \(circuit.lastReason.replacingOccurrences(of: "_", with: " ")).")
+                    Text(circuit.operatorHeadline)
                         .font(.callout.weight(.semibold))
-                        .foregroundStyle(Fleet.Color.failure)
+                        .foregroundStyle(circuit.state == .halfOpen ? Fleet.Color.warning : Fleet.Color.failure)
+                    if let timingLine = circuit.timingLine {
+                        Text(timingLine)
+                            .font(.caption.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                    }
                     Text(health.remediation)
                         .font(.callout)
                         .foregroundStyle(.secondary)

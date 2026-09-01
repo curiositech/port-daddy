@@ -32,6 +32,8 @@ export const SQUID_HOOK_DEBUG_TRIM_BYTES = Math.floor(SQUID_HOOK_DEBUG_MAX_BYTES
 export const SQUID_HOOK_BREAKER_FAILURE_THRESHOLD = 3;
 export const SQUID_HOOK_BREAKER_SLOW_MS = 250;
 export const SQUID_HOOK_BREAKER_COOLDOWN_MS = 5 * 60 * 1_000;
+/** A half-open probe must either finish or become reclaimable within this lease. */
+export const SQUID_HOOK_BREAKER_PROBE_STALE_MS = 5_000;
 const SQUID_HOOK_DEBUG_MAX_READ_BYTES = SQUID_HOOK_DEBUG_MAX_BYTES * 2;
 const SQUID_HOOK_DEBUG_MAX_STEPS = 2_000;
 export const SQUID_HOOK_STATUS_MAX_STEPS = 25;
@@ -42,6 +44,7 @@ export type SquidHookProvider = 'claude' | 'codex' | 'gemini' | 'agy' | 'unknown
 export type SquidHookPhase = 'turn' | 'edit' | 'trace' | 'close';
 export type SquidHookStepState = 'running' | 'overdue' | 'completed' | 'skipped' | 'blocked' | 'failed';
 export type SquidHookCircuitState = 'closed' | 'open' | 'half_open';
+export type SquidHookProbeState = 'none' | 'active' | 'stale' | 'unknown';
 
 export interface SquidHookCircuit {
   hook: string;
@@ -54,6 +57,10 @@ export interface SquidHookCircuit {
   lastDurationMs: number;
   lastExitCode: number | null;
   updatedAt: string;
+  probeState: SquidHookProbeState;
+  probeStartedAt: string | null;
+  probeExpectedBy: string | null;
+  recoveryReady: boolean;
 }
 
 export interface SquidHookHealthSnapshot {
@@ -210,7 +217,28 @@ export function readSquidHookHealth(pdHome = PD_HOME, nowMs = Date.now()): Squid
         // No receipt directory is the normal healthy/legacy case.
       }
       const failures = storedFailures + Math.max(0, receiptCount - receiptSeen);
-      const halfOpen = rawState === 'open' && existsSync(join(healthDir, `${hook}.probe`));
+      const probePath = join(healthDir, `${hook}.probe`);
+      let probeState: SquidHookProbeState = 'none';
+      let probeStartedAtMs: number | null = null;
+      if (rawState === 'open' && existsSync(probePath)) {
+        try {
+          const mtimeMs = Math.floor(statSync(probePath).mtimeMs);
+          if (Number.isSafeInteger(mtimeMs) && mtimeMs >= 0) {
+            probeStartedAtMs = mtimeMs;
+            const ageMs = nowMs - mtimeMs;
+            probeState = ageMs >= -SQUID_HOOK_BREAKER_PROBE_STALE_MS
+              && ageMs <= SQUID_HOOK_BREAKER_PROBE_STALE_MS
+              ? 'active'
+              : 'stale';
+          } else {
+            probeState = 'unknown';
+          }
+        } catch {
+          // Never claim recovery is running when the marker cannot be inspected.
+          probeState = 'unknown';
+        }
+      }
+      const halfOpen = rawState === 'open' && probeState === 'active';
       return [{
         hook,
         label: label as SquidHookCircuit['label'],
@@ -222,6 +250,12 @@ export function readSquidHookHealth(pdHome = PD_HOME, nowMs = Date.now()): Squid
         lastDurationMs: durationMs,
         lastExitCode: exitRaw === '-' ? null : Number(exitRaw),
         updatedAt: iso(updatedAtMs),
+        probeState,
+        probeStartedAt: probeStartedAtMs == null ? null : iso(probeStartedAtMs),
+        probeExpectedBy: probeStartedAtMs == null
+          ? null
+          : iso(probeStartedAtMs + SQUID_HOOK_BREAKER_PROBE_STALE_MS),
+        recoveryReady: rawState === 'open' && !halfOpen && probeState !== 'unknown' && nowMs >= retryAtMs,
       } satisfies SquidHookCircuit];
     } catch {
       return [];
@@ -236,8 +270,28 @@ export function readSquidHookHealth(pdHome = PD_HOME, nowMs = Date.now()): Squid
       cooldownMs: SQUID_HOOK_BREAKER_COOLDOWN_MS,
     },
     circuits,
-    remediation: 'Open FleetBar, select Giant Squid, and choose Repair. Successful repair restages stable wrappers and clears the latch.',
+    remediation: hookHealthRemediation(circuits),
   };
+}
+
+function hookHealthRemediation(circuits: SquidHookCircuit[]): string {
+  const circuit = circuits.find((candidate) => candidate.state !== 'closed');
+  if (!circuit) {
+    return 'No hook circuit needs remediation.';
+  }
+  if (circuit.state === 'half_open') {
+    return `A single bounded recovery probe is running and should finish by ${circuit.probeExpectedBy ?? 'its five-second deadline'}. If it remains active after that time, choose Repair in FleetBar.`;
+  }
+  if (circuit.probeState === 'unknown') {
+    return 'The recovery marker could not be inspected, so no active probe is claimed. Choose Repair in FleetBar to restage stable wrappers and clear the marker.';
+  }
+  if (circuit.recoveryReady && circuit.probeState === 'stale') {
+    return `The previous recovery marker expired at ${circuit.probeExpectedBy ?? 'its five-second deadline'}; no probe is running. The next armed hook may reclaim it, or choose Repair in FleetBar now.`;
+  }
+  if (circuit.recoveryReady) {
+    return `Cooldown ended at ${circuit.retryAt ?? 'the recorded retry time'}; no probe is running. The next armed hook will run one bounded probe, or choose Repair in FleetBar now.`;
+  }
+  return `Automatic recovery is paused until ${circuit.retryAt ?? 'the recorded retry time'}. Choose Repair in FleetBar to restage stable wrappers and clear the latch immediately.`;
 }
 
 export function isSquidHookDebugEnabled(pdHome = PD_HOME): boolean {
