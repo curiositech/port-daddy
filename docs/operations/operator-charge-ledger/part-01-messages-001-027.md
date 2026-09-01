@@ -4,10 +4,7 @@ Rolling reconstruction from the raw Codex transcript `rollout-2026-08-30T03-15-5
 
 | # | Timestamp / message id | Verbatim excerpt | Normalized deliverable | Product area | Dependencies / conflicts | Visual expectation | Kind |
 |---:|---|---|---|---|---|---|---|
-| 1 | 2026-08-30T10:16:00.636Z / `msg_01a0522b-3d7c-7ee3-9691-2428727125b4` | `<recommended_plugins> …` | None; injected plugin catalog. | Context | Not an operator charge. | None | attached context |
-| 2 | 2026-08-30T10:16:00.636Z / same id | `# AGENTS.md — User-Level Agent Guide` | None; injected operating instructions. | Context | Must not be mistaken for user direction. | None | attached context |
-| 3 | 2026-08-30T10:16:00.636Z / same id | `--- project-doc --- # AGENTS.md` | None; injected repository guidance. | Context | Repository policy, not a product request. | None | attached context |
-| 4 | 2026-08-30T10:16:00.636Z / same id | `<skill> … data-viz-2025 …` | None; injected skill attachment. | Context | Skill content is not execution authority. | None | attached context |
+| 1 | 2026-08-30T10:16:00.636Z / `msg_01a0522b-3d7c-7ee3-9691-2428727125b4` | `append-only operator/all-agent history … always-filming Portholes … strong encryption … lexical+semantic indexing … aggregation/data warehouse` | Build easy-to-find/search append-only history for operators and agents; make Porthole capture continuous; provide strong encryption, hybrid lexical+semantic indexing, aggregation/data-warehouse pathways, and research data/search options. | History / Porthole / retrieval / privacy | Requires consent, redaction, retention, key management, canonical embedding/search policy, and durable analytics authority. The same message also contains injected plugin, AGENTS, and skill attachments; those are context only, not charges. | Explicit always-filming Porthole and searchable evidence imply inspectable capture/replay proof. | directive |
 | 5 | 2026-08-31T00:12:09.715Z / `msg_01a05528-c273-70b1-b0de-aed198572c97` | `what about 9902 and the other expand porthole work?` | Account for PR 9902 and related Porthole expansion work in current direction. | Porthole | Requires live PR/source ownership verification. | Evidence should be inspectable. | request |
 | 6 | 2026-08-31T01:40:33.644Z / `msg_01a05579-b0ec-7a53-a8ff-81863e08a576` | `The encoded focus on Parley is embarrassing … grand plan for everything` | Reorient from Parley-only framing; take ownership of Porthole, embodied cooperative editor, POV recording, software/data, indexing/retrieval; reconcile/comment on conflicting PRs; provide complete plan. | Porthole / Parley / pd-console | Must preserve useful existing PR work and resolve active ownership before mutation. | Product proof and recordings implied. | directive |
 | 7 | 2026-08-31T01:55:12.844Z / `msg_01a05587-1b4c-7f53-962f-749cc634229d` | `browser … needs to work for any GUI … Rust or Swift app` | Generalize beyond browser to arbitrary GUI development environments, including Rust and Swift apps. | Porthole / pd-console | Browser-specific DOM features remain conditional. | Arbitrary-window capture must be demonstrated. | correction / acceptance criterion |
@@ -35,9 +32,9 @@ Rolling reconstruction from the raw Codex transcript `rollout-2026-08-30T03-15-5
 ## Reconstruction boundaries
 
 - Source count: 27 user-role messages, numbered chronologically from the JSONL stream.
-- Extracted ledger rows: 27 (including four attached/injected-context rows and two supplied delegation/context rows).
+- Extracted ledger rows: 27 (one row per actual user-role message; injected attachments are annotated inside their source message rather than split into fake rows).
 - No message 28 or later was synthesized.
-- Ambiguities: messages 1–4 and 24 are context attachments rather than direct operator charges; messages 17–18 are delegation payloads whose embedded claims remain unverified here; message 26 authorizes a named bootstrap sequence but does not define a blanket scope.
+- Ambiguities: message 1 contains injected attachments plus an operator charge; message 24 is injected environment/delegation context; messages 17–18 are delegation payloads whose embedded claims remain unverified here; message 26 authorizes a named bootstrap sequence but does not define a blanket scope.
 - Visual evidence is an expectation only where explicitly stated or reasonably coupled to a product-proof request; this ledger does not claim any screenshots, GIFs, recordings, PR comments, remote roadmap writes, or agent pauses were completed.
 
 Roadmap-Item: none — recovery ledger for operator-directed session charges; canonical Chartroom links will be backfilled after signed remote authority exists
