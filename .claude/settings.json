@@ -54,6 +54,14 @@
             "command": "pd attention --json 2>/dev/null || true"
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node /Users/erichowens/.port-daddy/hooks/sessionstart-pilot.mjs"
+          }
+        ]
       }
     ],
     "UserPromptSubmit": [
@@ -64,7 +72,55 @@
             "command": "npx tsx scripts/sync-skills.ts --scope user --quiet >/dev/null 2>&1 || true"
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "PD_HOOK_PROVIDER=claude PD_HOOK_DEADLINE_MS=1000 '/Users/erichowens/.port-daddy/bin/pd-hook-prompt' --interactive-context-pressure",
+            "timeout": 1
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "PD_HOOK_PROVIDER=claude PD_HOOK_DEADLINE_MS=1000 '/Users/erichowens/.port-daddy/bin/pd-hook-pre-tool'",
+            "timeout": 1
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "PD_HOOK_PROVIDER=claude PD_HOOK_DEADLINE_MS=1000 '/Users/erichowens/.port-daddy/bin/pd-hook-stop'",
+            "timeout": 1
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "PD_HOOK_PROVIDER=claude PD_HOOK_DEADLINE_MS=1000 '/Users/erichowens/.port-daddy/bin/pd-hook-precompact'",
+            "timeout": 1
+          }
+        ]
       }
     ]
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "/Users/erichowens/.port-daddy/bin/pd-statusline",
+    "padding": 0
   }
 }

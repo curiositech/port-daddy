@@ -7,5 +7,41 @@
       "command": "uvx --from git+https://github.com/oraios/serena serena start-mcp-server --context agent --project .",
       "args": []
     }
+  },
+  "hooks": {
+    "BeforeAgent": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "PD_HOOK_PROVIDER=gemini PD_HOOK_DEADLINE_MS=1000 '/Users/erichowens/.port-daddy/bin/pd-hook-prompt'",
+            "timeout": 1000
+          }
+        ]
+      }
+    ],
+    "BeforeTool": [
+      {
+        "matcher": "replace|write_file|edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "PD_HOOK_PROVIDER=gemini PD_HOOK_DEADLINE_MS=1000 '/Users/erichowens/.port-daddy/bin/pd-hook-pre-tool'",
+            "timeout": 1000
+          }
+        ]
+      }
+    ],
+    "AfterAgent": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "PD_HOOK_PROVIDER=gemini PD_HOOK_DEADLINE_MS=1000 '/Users/erichowens/.port-daddy/bin/pd-hook-stop'",
+            "timeout": 1000
+          }
+        ]
+      }
+    ]
   }
 }
