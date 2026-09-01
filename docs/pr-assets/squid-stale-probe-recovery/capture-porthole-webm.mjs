@@ -35,14 +35,25 @@ Object.assign(scene, {
   intervention: 'Run the exact one-worker Swift snapshot test and hash both rendered states.',
   proof: 'The real test passes, writes both PNGs, and the terminal prints their SHA-256 hashes.',
   authority: 'Real test bytes over a sanitized deterministic fixture; not a live production-hook claim.',
-  format: 'Porthole asciicast v3 · 100×28',
+  format: 'Porthole cast v3 · browser replay · 100×28',
   hash: createHash('sha256').update(cast).digest('hex'),
 });
 gallery.casts[scene.id] = cast;
-const pageHtml = gallerySource.replace(
-  match[0],
-  `${match[1]}${JSON.stringify(gallery).replaceAll('<', '\\u003c')}${match[3]}`,
-);
+const pageHtml = gallerySource
+  .replace(
+    match[0],
+    `${match[1]}${JSON.stringify(gallery).replaceAll('<', '\\u003c')}${match[3]}`,
+  )
+  .replace('released pd CLI, live daemon', 'deterministic FleetBar Swift test fixture')
+  .replace('asciicast v${versionLabel}', 'Porthole cast v${versionLabel}');
+if (
+  pageHtml.includes('released pd CLI, live daemon')
+  || !pageHtml.includes('deterministic FleetBar Swift test fixture')
+  || pageHtml.includes('asciicast v${versionLabel}')
+  || !pageHtml.includes('Porthole cast v${versionLabel}')
+) {
+  throw new Error('Porthole fixture provenance labels were not replaced exactly');
+}
 
 const server = createServer((request, response) => {
   if (request.url !== '/' && request.url !== '/squid-hook-recovery-porthole.html') {
