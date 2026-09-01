@@ -1,7 +1,15 @@
 # Harbor Agent Runtime
 
-> **Status:** architecture proposal; no behavior in this document is shipped by
-> virtue of being described here.  
+> **Architecture decision:** approved by the operator on 2026-09-01.
+>
+> **Implementation state:** unshipped; no behavior in this document is shipped
+> by virtue of its approval or description here.
+>
+> **Approval condition:** satisfied. Codex, Claude Code, agy, Gemini,
+> local/container bodies, and future adapters remain first-class. Cloudflare is
+> one execution backend, not identity, plan, memory, receipt, or history
+> authority.
+>
 > **Roadmap authority:** `research-durable-agents-landscape`.  
 > **Research basis:** [Cloudflare Agents runtime study](../research/cloudflare-agents-runtime-study-2026.md).  
 > **Scope:** the provider-neutral execution, recovery, memory, event, identity,
@@ -883,10 +891,18 @@ superseding sections; contradictory accepted instructions cannot be left active.
   consented arbitrary-GUI stage.
 - Keeping `matrix.env` as a hidden fallback after cutover.
 
-## Acceptance of this proposal
+## Approval and implementation boundary
 
-Acceptance authorizes the implementation DAG, not a claim that the runtime
-exists. Before Wave 2 begins, the roadmap authority must record dependencies,
-owners, current conflicting plans, affected ADRs, and the expected operator
-artifacts. Each wave attaches PRs and deployed receipts to those graph nodes and
-checks them off only after manager review and the stated acceptance proofs.
+The operator approved this architecture on 2026-09-01 after confirming that the
+provider-neutral contract keeps Codex, Claude Code, agy, Gemini,
+local/container bodies, and future adapters first-class. That condition is
+satisfied by the Decision and Cloudflare adapter sections above. Cloudflare
+remains one backend behind the Harbor Agent Runtime contract; it does not become
+the authority for identity, plans, memory, receipts, or history.
+
+Approval authorizes the implementation DAG, not a claim that the runtime exists
+or has been deployed. Before Wave 2 begins, the roadmap authority must record
+dependencies, owners, current conflicting plans, affected ADRs, and the expected
+operator artifacts. Each wave attaches PRs and deployed receipts to those graph
+nodes and checks them off only after manager review and the stated acceptance
+proofs.
