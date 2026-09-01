@@ -80,7 +80,7 @@ When an agent sees a DAG task decomposition, it should ask: "What transitive rel
 
 ## Practical Application: Analyzing Orchestration DAGs
 
-Consider a WinDAGs orchestration where tasks form a DAG. An agent analyzing this should:
+Consider a Jury-rig orchestration where tasks form a DAG. An agent analyzing this should:
 
 1. **Extract the undirected graph**: Ignore task ordering temporarily, focus on which tasks are connected
 2. **Compute minimal cycle basis**: Find the fundamental cycles in connectivity
@@ -415,7 +415,7 @@ From Figure 6 in the paper:
 
 ## Practical Application: Task DAG Simplification
 
-For a WinDAGs orchestration:
+For a Jury-rig orchestration:
 
 ### Before TR Analysis
 ```
@@ -918,7 +918,7 @@ For complex hierarchical systems, this dual perspective is essential:
 
 The paper's use of antichains to classify cycles is profound: It shows that the **functional role of a cycle** (resilience, integration, etc.) is determined by how it organizes independent processing streams (antichains), not just by its topology.
 
-For WinDAGs: An agent orchestrator that identifies antichains can automatically generate optimal parallel execution strategies, predict synchronization bottlenecks, and suggest refactorings to reduce coordination complexity - all from the DAG structure alone.
+For Jury-rig: An agent orchestrator that identifies antichains can automatically generate optimal parallel execution strategies, predict synchronization bottlenecks, and suggest refactorings to reduce coordination complexity - all from the DAG structure alone.
 
 ```
 

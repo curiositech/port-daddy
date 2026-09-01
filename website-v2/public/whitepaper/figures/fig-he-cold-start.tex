@@ -1,0 +1,48 @@
+% Figure IV.12 --- measured liquidity and the policy applied to it are separate
+% aligned signals.
+\begin{figure}[H]
+\centering
+\resizebox{0.93\textwidth}{!}{%
+\begin{tikzpicture}[pd figure]
+  \node[pd panel title,anchor=west] at (-6.4,3.35)
+    {the regime changes when observed depth crosses $\lambda^\star$, not when time passes};
+
+  % Upper plot: measured market state.
+  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (-5.45,.35)--(6.05,.35);
+  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (-5.45,.35)--(-5.45,2.90);
+  \node[pd axis label,rotate=90,anchor=south] at (-5.78,1.62) {realized liquidity};
+  \draw[pd focus rule,line width=1.35pt,smooth]
+    plot coordinates {(-5.25,.48)(-4.25,.54)(-3.25,.68)(-2.25,.95)(-1.25,1.38)(-.25,1.95)(.75,2.42)(1.75,2.68)(3.0,2.78)(5.65,2.82)};
+  \draw[pd caution rule,dashed] (-5.25,1.90)--(5.65,1.90);
+  \node[pd direct label,text=hhamber,anchor=west] at (3.85,2.03) {$\lambda^\star$};
+
+  % Shared trigger crosses both plots.
+  \draw[pd caution rule,dashed,line width=1.1pt] (-.35,-2.25)--(-.35,3.00);
+  \node[pd caution datum] at (-.35,1.90) {};
+  \node[pd direct label,text=hhamber,anchor=west] at (-.12,2.55) {depth trigger};
+
+  % Lower plot: policy schedule, not another state curve.
+  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (-5.45,-2.05)--(6.05,-2.05);
+  \draw[pd rule] (-5.45,-2.05)--(-5.45,-.45);
+  \node[pd axis label,rotate=90,anchor=south] at (-5.78,-1.25) {supplier price};
+  \draw[pd caution rule,line width=1.45pt]
+    (-5.25,-1.65)--(-2.45,-1.65)--(-2.45,-1.25)--(-.35,-1.25)--(-.35,-.72)--(5.65,-.72);
+  \node[pd direct label,text=hhamber,anchor=south] at (-3.85,-1.52) {SEED $<0$};
+  \node[pd direct label,text=hhamber,anchor=south] at (-1.38,-1.12) {IMPORT $=0$};
+  \node[pd direct label,text=hhamber,anchor=south] at (2.65,-.59) {CHARGE $>0$};
+
+  \foreach \x in {-5.25,-3.25,-1.25,.75,2.75,4.75}
+    \draw[pd guide] (\x,-2.12)--(\x,-1.98);
+  \node[pd axis label,anchor=west] at (6.17,-2.05) {settled outcomes};
+  \node[pd note,anchor=west] at (-5.25,-2.65)
+    {if liquidity never crosses the threshold, the subsidized state remains active and recoverable};
+\end{tikzpicture}}
+\caption{\textbf{Cold start separates the measured market state from the policy
+schedule.} The upper trace is realized liquidity over settled outcomes. The lower
+trace is the supplier-price regime applied to that state: seed supply below zero,
+credit imported work at zero, then charge only after liquidity crosses
+$\lambda^\star$. The shared vertical trigger makes the dependency explicit.
+Calendar time is absent, and a market that never crosses the threshold does not
+silently advance to the charging regime.}
+\label{fig:he-cold-start}
+\end{figure}

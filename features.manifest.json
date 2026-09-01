@@ -728,6 +728,7 @@
         "GET /sitrep",
         "GET /operator/actors",
         "GET /operator/state",
+        "GET /operator/session-directory",
         "GET /operator/coordination-guard",
         "POST /operator/coordination-guard",
         "POST /operator/open-file",
@@ -1031,7 +1032,7 @@
       }
     },
     "tutorial": {
-      "description": "Interactive tutorial \u2014 learn Port Daddy step by step",
+      "description": "Operationally read-only agent orientation; the handler is headless-safe, an interactive terminal may make one bounded GET /health request, and the CLI envelope makes one append-only usage-telemetry attempt",
       "cli": [
         "learn",
         "tutorial"
@@ -1209,6 +1210,22 @@
       "completions": [],
       "docs": {
         "readme": false,
+        "sdk": false
+      }
+    },
+    "editor_recovery": {
+      "description": "Registered, authenticated Harbor Editor recovery scaffolding; not a usable pipeline. P1 Rust operation-receipt production, P1B, canonical Rust Loro recovery, daemon-verified root identity minting, content-bound symbol and file-mutation generation authorities, and the P3 same-database released-claim adapter remain unimplemented, so public routes stay fail-closed with 503. The required future transaction would commit canonical provenance and its append-only outbox atomically; no CLI, MCP, or SDK alias is exposed.",
+      "cli": [],
+      "sdk": [],
+      "routes": [
+        "POST /editor/recovery/request",
+        "POST /editor/recovery/prepare",
+        "POST /editor/recovery/replay",
+        "POST /editor/recovery/finalize"
+      ],
+      "completions": [],
+      "docs": {
+        "readme": true,
         "sdk": false
       }
     },
@@ -1436,6 +1453,7 @@
       "sdk": [],
       "routes": [
         "GET /agent-harbor/context-continuity",
+        "POST /agent-harbor/interactive-context-pressure",
         "GET /agent-harbor/surface-gateway/capabilities",
         "POST /agent-harbor/surface-gateway",
         "GET /agent-nodes",
@@ -1757,20 +1775,18 @@
       }
     },
     "skill_graft": {
-      "description": "Native local skill-graft index, checkpointed Tool2Vec catalog reconciler, and operator inspection surface. Fleet ships call lib/skill-graft.ts through lib/fleet-engine.ts; `pd skill-graft` lets agents query, warm, and read guarded references from the same index. Setup and daemon callers are restricted to loopback Ollama; remote generation is manual and actor-pinned.",
+      "description": "Jury-rig native skill discovery, checkpointed Tool2Vec catalog reconciliation, and guarded skill-owned reference loading. Fleet ships call lib/skill-graft.ts through lib/fleet-engine.ts; `pd jury-rig` queries, warms, and reads contained references from the same index without requiring an external skill runtime. Setup and daemon callers are restricted to loopback Ollama; remote generation is manual and actor-pinned.",
       "module": "lib/skill-graft.ts",
       "cli": [
-        "skill-graft",
-        "skillgraft"
+        "jury-rig"
       ],
       "sdk": [],
       "routes": [
-        "GET /skill-graft/status",
-        "POST /skill-graft/reconcile"
+        "GET /jury-rig/status",
+        "POST /jury-rig/reconcile"
       ],
       "completions": [
-        "skill-graft",
-        "skillgraft"
+        "jury-rig"
       ],
       "docs": {
         "readme": true,
@@ -2087,6 +2103,7 @@
         "GET /roadmap/items",
         "GET /roadmap/board",
       "GET /roadmap/projection",
+        "GET /roadmap/jira",
         "GET /roadmap/items/:slug",
         "DELETE /roadmap/items/:slug",
         "GET /roadmap/items/:slug/links",
@@ -2097,7 +2114,10 @@
         "POST /roadmap/promote",
         "POST /roadmap/render",
         "POST /roadmap/chomp",
-        "POST /roadmap/import-markdown"
+        "POST /roadmap/import-markdown",
+        "GET /roadmap/search",
+        "POST /roadmap/reindex-search",
+        "POST /roadmap/items/:slug/export"
       ],
       "completions": [
         "roadmap"
@@ -2110,7 +2130,9 @@
       "mcp": [
         "roadmap_list",
         "roadmap_get",
-        "roadmap_promote"
+        "roadmap_promote",
+        "roadmap_search",
+        "roadmap_export"
       ]
     },
     "roadmap_activity": {

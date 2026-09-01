@@ -85,6 +85,16 @@ describe('PortholeEmbed', () => {
     expect(loadMock).toHaveBeenCalledWith('/casts/porthole/collision.cast')
   })
 
+  it('destroys the prior playback and starts a fresh one when a gallery changes scenes', () => {
+    const { rerender } = render(<PortholeEmbed src="/casts/porthole/collision.cast" label="collision" eager />)
+    expect(loadMock).toHaveBeenCalledWith('/casts/porthole/collision.cast')
+
+    rerender(<PortholeEmbed src="/casts/porthole/visibility.cast" label="visibility" eager />)
+
+    expect(destroyMock).toHaveBeenCalledTimes(1)
+    expect(loadMock).toHaveBeenLastCalledWith('/casts/porthole/visibility.cast')
+  })
+
   it('does not construct a player with reducedMotion/autoplay true simultaneously', () => {
     mockMatchMedia(false)
     render(<PortholeEmbed src="/casts/porthole/collision.cast" label="collision" eager />)

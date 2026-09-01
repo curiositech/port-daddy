@@ -1,34 +1,50 @@
-% Fig 12 — the rate-the-raters conjecture, stated as a proof obligation.
+% Figure III.12 --- recursive audit closes by measurable contraction, not by height.
 \begin{figure}[H]
 \centering
 \resizebox{0.96\textwidth}{!}{%
-\begin{tikzpicture}[font=\small]
-  \node[stp box,minimum width=62mm] (l0) at (-3.8,-1.8)
-    {\textbf{agent performs work}\\{\scriptsize first-order incentive to cheat}};
-  \node[stp box,minimum width=54mm] (l1) at (-3.8,0)
-    {\textbf{bonded judge grades it}};
-  \node[stp box,minimum width=46mm] (l2) at (-3.8,1.8)
-    {\textbf{bonded re-auditor}};
-  \node[stp box,minimum width=38mm] (l3) at (-3.8,3.6)
-    {\textbf{next audit level}};
-  \draw[stp arrow] (l0) -- (l1);
-  \draw[stp arrow] (l1) -- (l2);
-  \draw[stp arrow] (l2) -- (l3);
-  \node[stp status,anchor=south] at ([yshift=3mm]l3.north)
-    {conjectured contraction toward an honest fixed point};
+\begin{tikzpicture}[pd figure]
+  \node[pd panel title,anchor=west] at (-6.8,3.15)
+    {remaining corrupt opportunity across audit levels};
+  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (-6.0,-2.10) -- (6.4,-2.10);
+  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (-6.0,-2.10) -- (-6.0,2.55);
+  \node[pd axis label,anchor=west] at (6.5,-2.10) {audit level $k$};
+  \node[pd axis label,anchor=center,rotate=90] at (-6.43,.20) {$G_k$ (log scale)};
 
-  \node[stp accent box,text width=67mm,align=left,anchor=west] (conditions) at (0.3,0.9)
-    {\textbf{Candidate contraction conditions} (Conj.~\ref{conj:contract})\\[3pt]
-     \textbf{1.} $q_k=\rho_k d_k$: sample and detect a corrupt grade.\\
-     \textbf{2.} $q_k B_k>G_k$: expected forfeiture beats total corrupt gain.\\
-     \textbf{3.} Derive $G_{k+1}\leq\lambda G_k$, $0\leq\lambda<1$, from the pool model.\\[3pt]
-     \emph{Unproved obligation: establish both deterrence and contraction.}};
+  \foreach \x/\lab in {-5.8/0,-3.75/10,-1.7/20,.35/30,2.4/40,4.45/50,5.7/56} {
+    \draw[pd tick] (\x,-2.22) -- (\x,-1.98);
+    \node[pd axis label,anchor=north] at (\x,-2.32) {\lab};
+  }
+  \foreach \y in {-1.05,.0,1.05,2.10} \draw[pd guide] (-5.95,\y) -- (6.0,\y);
+
+  % Parameterized example: heterogeneous pools contract faster.
+  \draw[pd focus rule,line width=1.55pt]
+    plot[smooth] coordinates {(-5.8,2.15) (-4.75,1.72) (-3.70,1.25) (-2.65,.72) (-1.60,.15) (-.55,-.48) (.05,-1.55)};
+  \draw[pd caution rule,dashed,line width=1.55pt]
+    plot[smooth] coordinates {(-5.8,2.15) (-3.75,1.78) (-1.70,1.28) (.35,.72) (2.40,.10) (4.45,-.62) (5.45,-1.55)};
+  \node[pd direct label,text=hhteal,anchor=west] at (-2.65,1.02)
+    {$C=8$: heterogeneous cliques\\[-1pt]{\tiny reaches root near level 27}};
+  \node[pd direct label,text=hhamber,anchor=west] at (2.20,.55)
+    {$C=1$: monoculture\\[-1pt]{\tiny reaches root near level 53}};
+
+  % The theorem ends at a separately owed root.
+  \fill[hhamber!9] (-5.95,-1.95) rectangle (6.0,-1.45);
+  \draw[pd caution rule] (-5.95,-1.45) -- (6.0,-1.45);
+  \node[pd direct label,text=hhamber,anchor=west] at (-5.65,-1.70)
+    {exogenously honest root required; the contraction theorem does not manufacture it};
+
+  \node[pd direct label,anchor=west] at (-5.75,-3.05)
+    {$\rho d B\ge G_k$ at each level};
+  \node[pd direct label,anchor=west] at (-.65,-3.05)
+    {$G_{k+1}=(1-\rho d)G_k$ only under sealed sampling across $C$ disjoint cliques};
 \end{tikzpicture}}
-\caption{\textbf{The rate-the-raters recursion.} Conjecture~\ref{conj:contract}
-separates two obligations that a recursive audit design must prove: expected
-forfeiture $\rho_k d_k B_k$ must exceed the judge's total corrupt gain $G_k$ at
-each level, and the pool model must make the remaining corruption opportunity
-shrink by a uniform factor $\lambda<1$. A bond larger than one bribe is not enough
-when re-audit is probabilistic. Neither obligation is depicted as established.}
+\caption{\textbf{Recursive auditing becomes finite only when corrupt opportunity
+contracts.} The parameterized example plots the chapter's reported depths:
+heterogeneous sealed sampling across $C=8$ cliques reaches the honest-root boundary
+near level 27, while a monoculture ($C=1$) requires roughly 53 levels. More boxes
+or more height would not prove this result; the governing conditions are local
+deterrence $\rho dB\ge G_k$ and contraction
+$G_{k+1}=(1-\rho d)G_k$. The amber floor is deliberately separate: the imported
+theorem bounds the tower but does not supply its exogenously honest root or the
+telemetry that estimates $d$.}
 \label{fig:rate-raters}
 \end{figure}

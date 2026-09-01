@@ -85,7 +85,7 @@ Modern ML systems are trained on data distributions. The realizability problem s
 **Design principle**: Don't rely on "the model will learn it" if "it" requires the model to capture the full complexity of the environment. Be explicit about what you're approximating and why the approximation is good enough.
 
 ### For Hierarchical Decomposition
-When WinDAGs decomposes a complex task, each sub-agent works with a partial world-model. The realizability problem says: **These partial models can't capture everything, so they'll be wrong in systematic ways.**
+When Jury-rig decomposes a complex task, each sub-agent works with a partial world-model. The realizability problem says: **These partial models can't capture everything, so they'll be wrong in systematic ways.**
 
 **Orchestration principle**: 
 - Sub-agents should know the boundaries of their models (where approximations break)
@@ -142,7 +142,7 @@ The paper identifies the problem but doesn't solve it. Open questions:
 3. What does "learning" mean when convergence to truth is impossible?
 4. How do you design systems that gracefully handle their own incompleteness?
 
-## Practical Takeaway for WinDAGs
+## Practical Takeaway for Jury-rig
 
 **Core principle**: Don't design orchestration strategies that assume sub-agents have complete world-models, even implicitly.
 

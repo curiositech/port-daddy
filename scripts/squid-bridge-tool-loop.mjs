@@ -7,6 +7,7 @@
  */
 
 import { readFileSync, realpathSync } from 'node:fs';
+import { modelFor } from './lib/model-source.mjs';
 import { isAbsolute, relative, resolve } from 'node:path';
 
 const args = parseArgs(process.argv.slice(2));
@@ -25,10 +26,18 @@ const readTool = {
   },
 };
 
+/**
+ * The model this bridge probe drives.
+ *
+ * Resolved rather than written down: this is a live-API probe, so a stale id
+ * here fails the probe and reads as "the squid bridge is broken".
+ */
+const BRIDGE_MODEL = modelFor('claude', 'balanced');
+
 const initialUserMessage = 'Use the Read tool to read README.md, then tell me the first line. If no tool is needed, say SQUID_NO_TOOL_USE.';
 
 const first = await streamMessages({
-  model: 'claude-sonnet-4-5',
+  model: BRIDGE_MODEL,
   max_tokens: 1024,
   stream: true,
   tools: [readTool],
@@ -47,7 +56,7 @@ const toolResult = runLocalTool(toolUse);
 console.log(`Supplying tool_result (${toolResult.length} chars)`);
 
 const second = await streamMessages({
-  model: 'claude-sonnet-4-5',
+  model: BRIDGE_MODEL,
   max_tokens: 1024,
   stream: true,
   tools: [readTool],

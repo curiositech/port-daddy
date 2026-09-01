@@ -62,6 +62,13 @@
     scrollbar-width: thin; scrollbar-color: #3a4150 transparent; }
   .pl-line { position: relative; white-space: pre; min-height: 1.42em; }
   .term-scroll.wrap .pl-line { white-space: pre-wrap; word-break: break-word; }
+  /* Alt-screen (TUI) casts draw a real character grid — vim/tmux/htop-style
+   * box-drawing borders are glyphs meant to sit edge-to-edge in their cell.
+   * The 1.42 line-height tuned for readable scrollback prose inserts a gap
+   * between every row, so those glyphs never touch their neighbor above/
+   * below and every panel border looks broken into disconnected dashes. */
+  .term-scroll.tui { line-height: 1; }
+  .term-scroll.tui .pl-line { min-height: 1em; }
   .pl-line::before { content: "⧉"; position: absolute; left: -24px; top: 0; color: var(--cobalt);
     opacity: 0; cursor: pointer; font-size: 12px; }
   .pl-line:hover::before { opacity: 0.9; }
@@ -405,7 +412,7 @@
 [8.215795, "o", "\u001b[0m\u001b[31mport-daddy:website:rehab           3105    assigned    http://localhost:3105\u001b[0m\r\n\u001b[0m\u001b[31mport-daddy:website-mcp-proof       3104    assigned    http://localhost:3104\u001b[0m\r\n\u001b[0m\u001b[31mport-daddy:website-swiss-modern-layer3108    assigned    http://localhost:3108\u001b[0m\r\n"]
 [8.215797, "o", "\u001b[0m\u001b[31mtest-remote:app:frontend           3109    assigned    http://localhost:3109\u001b[0m\r\n"]
 [8.215822, "o", "\u001b[0m\u001b[31mport-daddy:website-storybook-a11y-matrix3110    assigned    http://localhost:3110\u001b[0m\r\n"]
-[8.215841, "o", "\u001b[0m\u001b[31mport-daddy:website-v2:dev          3111    assigned    http://localhost:3111\u001b[0m\r\n\u001b[0m\u001b[31mport-daddy:website-v2:detached-dev 3112    assigned    http://localhost:3112\u001b[0m\r\n\u001b[0m\u001b[31mwindags-arch                       3114    assigned    http://localhost:3114\u001b[0m\r\n\u001b[0m\u001b[31mwebsite-agents-preview             3115    assigned    http://localhost:3115\u001b[0m\r\n\u001b[0m\u001b[31mport-daddy:website-tutorial-contrast-audit3116    assigned    http://localhost:3116\u001b[0m\r\n\u001b[0m\u001b[31mport-daddy:website-blog-swiss-refresh:vite3117    assigned    http://localhost:3117\u001b[0m\r\n"]
+[8.215841, "o", "\u001b[0m\u001b[31mport-daddy:website-v2:dev          3111    assigned    http://localhost:3111\u001b[0m\r\n\u001b[0m\u001b[31mport-daddy:website-v2:detached-dev 3112    assigned    http://localhost:3112\u001b[0m\r\n\u001b[0m\u001b[31mjury_rig-arch                       3114    assigned    http://localhost:3114\u001b[0m\r\n\u001b[0m\u001b[31mwebsite-agents-preview             3115    assigned    http://localhost:3115\u001b[0m\r\n\u001b[0m\u001b[31mport-daddy:website-tutorial-contrast-audit3116    assigned    http://localhost:3116\u001b[0m\r\n\u001b[0m\u001b[31mport-daddy:website-blog-swiss-refresh:vite3117    assigned    http://localhost:3117\u001b[0m\r\n"]
 [8.215842, "o", "\u001b[0m\u001b[31m3125                               3120    assigned    http://localhost:3120\u001b[0m\r\n"]
 [8.215843, "o", "\u001b[0m\u001b[31mdocs-gif:semantic:main             3124    assigned    http://localhost:3124\u001b[0m\r\n"]
 [8.215845, "o", "\u001b[0m\u001b[31mport-daddy:website-install-cta-sweep:vite3121    assigned    http://localhost:3121\u001b[0m\r\n"]
@@ -420,7 +427,7 @@
 [8.215913, "o", "\u001b[0m\u001b[31mmanifesto-restraint                3144    assigned    http://localhost:3144\u001b[0m\r\n"]
 [8.215915, "o", "\u001b[0m\u001b[31mport-daddy:website:manifesto-preview3145    assigned    http://localhost:3145\u001b[0m\r\n"]
 [8.215917, "o", "\u001b[0m\u001b[31mport-daddy:test:fix123             3146    assigned    http://localhost:3146\u001b[0m\r\n"]
-[8.215943, "o", "\u001b[0m\u001b[31mport-daddy-features-hero-preview   3147    assigned    http://localhost:3147\u001b[0m\r\n\u001b[0m\u001b[31mccrender                           3148    assigned    http://localhost:3148\u001b[0m\r\n\u001b[0m\u001b[31mport-daddy:web:pdtube-gif-preview  3149    assigned    http://localhost:3149\u001b[0m\r\n\u001b[0m\u001b[31mwindags:web:demo                   3150    assigned    http://localhost:3150\u001b[0m\r\n\u001b[0m\u001b[31mbosun:server:main                  3151    assigned    http://localhost:3151\u001b[0m\r\n\u001b[0m\u001b[31mport-daddy:website:land-verify     3152    assigned    http://localhost:3152\u001b[0m\r\n\u001b[0m\u001b[31mtest-app                           3154    assigned    http://localhost:3154\u001b[0m\r\n\u001b[0m\u001b[31mport-daddy:app:website-v2          5173    assigned    http://localhost:5173\u001b[0m\r\n"]
+[8.215943, "o", "\u001b[0m\u001b[31mport-daddy-features-hero-preview   3147    assigned    http://localhost:3147\u001b[0m\r\n\u001b[0m\u001b[31mccrender                           3148    assigned    http://localhost:3148\u001b[0m\r\n\u001b[0m\u001b[31mport-daddy:web:pdtube-gif-preview  3149    assigned    http://localhost:3149\u001b[0m\r\n\u001b[0m\u001b[31mjury_rig:web:demo                   3150    assigned    http://localhost:3150\u001b[0m\r\n\u001b[0m\u001b[31mbosun:server:main                  3151    assigned    http://localhost:3151\u001b[0m\r\n\u001b[0m\u001b[31mport-daddy:website:land-verify     3152    assigned    http://localhost:3152\u001b[0m\r\n\u001b[0m\u001b[31mtest-app                           3154    assigned    http://localhost:3154\u001b[0m\r\n\u001b[0m\u001b[31mport-daddy:app:website-v2          5173    assigned    http://localhost:5173\u001b[0m\r\n"]
 [8.215945, "o", "\u001b[0m\u001b[31mtestapp                            3153    assigned    http://localhost:3153\u001b[0m\r\n\u001b[0m\u001b[31mmyapp                              3156    assigned    http://localhost:3156\u001b[0m\r\n\u001b[0m\u001b[31msite:crypto-verify                 3157    assigned    http://localhost:3157\u001b[0m\r\n\u001b[0m\u001b[31mconjure-monitor                    3155    assigned    http://localhost:3155\u001b[0m\r\n"]
 [8.215946, "o", "\u001b[0m\u001b[31mportdaddy-marketing                3158    assigned    http://localhost:3158\u001b[0m\r\n"]
 [8.215951, "o", "\u001b[0m\u001b[31mpr627:website:syntax-proof         3159    assigned    http://localhost:3159\u001b[0m\r\n"]
@@ -1180,6 +1187,7 @@
     vt = new VT(cast.cols, cast.rows);
     const isTui = cast.events.some(([, d]) => d.includes("\u001b[?1049h") || d.includes("\u001b[?47h") || d.includes("\u001b[?1047h") || d.includes("\u001b[6n"));
     cast.isTui = isTui;
+    term.classList.toggle("tui", isTui);
     if (isTui) { wrapUser = false; } else if (wrapUser === false) { wrapUser = null; }
     idx = 0; playedT = 0; playing = false; lastTick = null;
     term.innerHTML = ""; lineEls.length = 0;

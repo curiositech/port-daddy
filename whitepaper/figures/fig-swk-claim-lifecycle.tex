@@ -1,71 +1,34 @@
-% Figure — the claim/lock lifecycle as a finite-state machine, exhibiting the
-% four properties on which typed ownership is built: atomic-exclusive acquire,
-% idempotent re-claim, idempotent release, lazy TTL sweep. The missing QUEUED
-% state (open problem OP-1, fairness) is discussed in the caption.
-
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D8C7A6}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-
+% Figure 5 — guarded claim lifecycle; absent fairness is made visible.
 \begin{figure}[H]
 \centering
-\resizebox{0.92\textwidth}{!}{%
-\begin{tikzpicture}[
-  font=\small,
-  st/.style={draw=hhebony,thick,rounded corners=10pt,fill=hhsand!30,
-             minimum width=28mm,minimum height=12mm,align=center,font=\bfseries\footnotesize},
-  held/.style={draw=hhcobalt,line width=1.4pt,fill=hhpaper,rounded corners=10pt,
-               minimum width=32mm,minimum height=14mm,align=center,font=\bfseries\footnotesize},
-  edge/.style={->,>=Latex,thick,hhebony,font=\scriptsize},
-  selfedge/.style={->,>=Latex,thick,hhteal,font=\scriptsize},
-]
-
-\node[st] (free) at (0,0) {FREE};
-\node[held] (held) at (74mm,0) {HELD by $a$};
-\node[st,fill=hhsand!30] (expired) at (148mm,0) {EXPIRED\\ (TTL passed)};
-
-% acquire (atomic, exclusive)
-\draw[edge] (free) to[bend left=22]
-  node[pos=0.5,above=1pt,align=center]{\textbf{acquire}\\ atomic insert (I2)} (held);
-
-% re-claim self-loop above held
-\draw[selfedge] (held.north) to[out=115,in=65,looseness=7] (held.north);
-\node[align=center,font=\scriptsize,above=11mm of held]
-  {\textbf{re-claim} by $a$ (I3): idempotent};
-
-% concurrent-loser self-loop below free
-\draw[selfedge,hhcobalt] (free.south) to[out=-115,in=-65,looseness=7] (free.south);
-\node[align=center,font=\scriptsize,text=hhink,below=10mm of free,text width=42mm]
-  {concurrent acquire loses cleanly;\\ handed the holder (I2)};
-
-% release (idempotent)
-\draw[edge] (held) to[bend left=22]
-  node[pos=0.5,below=1pt,align=center]{\textbf{release} by $a$ (I3): idempotent} (free);
-
-% TTL expiry
-\draw[edge] (held) -- node[above,align=center]{TTL\\ elapses} (expired);
-
-% lazy sweep back to FREE
-\draw[edge,hhteal] (expired) to[out=-90,in=-90,looseness=0.55]
-  node[pos=0.5,below=1pt,align=center,text=hhink]{\textbf{lazy sweep} on next read (I4)} (free);
-
+\resizebox{0.88\textwidth}{!}{%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \node[pd state] (free) at (1.4,3.4) {FREE};
+  \node[pd state,draw=hhteal,line width=1pt] (held) at (6.55,3.4) {HELD by $a$};
+  \node[pd state] (expired) at (11.75,3.4) {EXPIRED};
+  \draw[pd focus arrow] (free)--node[pd direct label,above]{atomic acquire} (held);
+  \draw[pd arrow] (held)--node[pd direct label,above]{TTL elapses} (expired);
+  \draw[pd arrow] (expired.south) to[out=-90,in=-90,looseness=.55] (free.south);
+  \draw[pd focus arrow] (held.north) to[out=120,in=60,looseness=5.5] (held.north);
+  \node[pd direct label,anchor=south] at (6.55,4.66) {idempotent re-claim};
+  \draw[pd arrow] (held.south) to[out=-120,in=-60,looseness=1.7] (free.south);
+  \node[pd direct label] at (3.65,1.95) {idempotent release};
+  \draw[pd caution rule,densely dashed] (3.85,-.18)--(5.08,-.18);
+  \draw[pd caution rule,densely dashed] (7.98,-.18)--(9.2,-.18);
+  \node[pd caution datum] at (6.53,-.18) {};
+  \node[pd direct label,anchor=south,text=hhamber] at (6.53,.04)
+    {no queue \; / \; no bounded wait};
+  \node[pd direct label] at (9.25,.70) {lazy sweep on next read};
+  \node[pd caution datum] at (3.22,3.4) {};
+  \node[pd note,anchor=south west] at (2.55,4.12)
+    {loser receives current holder};
 \end{tikzpicture}%
 }
-\caption{The claim/lock lifecycle as a finite-state machine, exhibiting the four
-properties on which the coordination layer builds typed ownership. \emph{Acquire} is
-a single atomic insert against a uniqueness constraint (I2: a concurrent acquirer
-loses cleanly to a constraint violation and is handed the current holder).
-\emph{Re-claim} and \emph{release} are idempotent (I3): safe to retry, safe to
-double. Expiry is \emph{lazy-swept} on the next read (I4) --- expired rows are
-deleted when encountered, not on a timer. The conspicuous missing state is
-\textsc{queued}: there is no wait-list and no fairness primitive, so a fast agent
-churning a hot resource can starve a slow one indefinitely --- open problem OP-1,
-which asks whether bounded-wait can be added without dragging a scheduler down into
-the kernel.}
+\caption{The guarded claim lifecycle. Acquire is one atomic uniqueness decision;
+re-claim and release are idempotent; expiry is removed lazily on the next read.
+The interrupted amber rail is intentional negative space: the kernel has no
+queued state and therefore no fairness or bounded-wait guarantee. A reactive
+ticket mechanism may later occupy that gap for cooperatively released claims, but
+lazy expiry would still bypass it, so starvation remains an open problem.}
 \label{fig:swk-claim-lifecycle}
 \end{figure}

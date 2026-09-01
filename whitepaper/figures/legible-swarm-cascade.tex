@@ -1,53 +1,44 @@
-% Figure 10 — the context-degradation cascade as a ladder; break any rung and the
-% cascade stops. Each rung paired with its cure.
-% Design: the two morals ("failures compound", "break any rung") live in the
-% caption, not under the columns.
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-\providecolor{maydayred}{HTML}{8B0000}
-
+% Figure 13 — truth recoverability across a four-stage degradation cascade.
+% The curve is schematic; interventions are transverse cuts that stop propagation.
 \begin{figure}[H]
 \centering
-\resizebox{0.95\textwidth}{!}{%
-\begin{tikzpicture}[
-  font=\small,
-  rung/.style={draw=hhebony,thick,rounded corners=3pt,fill=hhsand!30,
-               minimum width=58mm,minimum height=12mm,align=left,inner sep=6pt,
-               font=\footnotesize,text width=54mm},
-  cure/.style={draw=hhink,thick,rounded corners=2pt,fill=hhsand!30,
-               minimum width=52mm,minimum height=12mm,align=left,inner sep=5pt,
-               font=\footnotesize,text width=48mm,text=hhink},
-  e/.style={-{Latex[length=2.8mm]},very thick,maydayred},
-  ce/.style={-{Latex[length=2mm]},thick,hhteal},
-]
-\node[rung] (r1) at (0,6.6) {\textbf{1. Context rot}\\quality decays as window grows, nothing dropped};
-\node[rung] (r2) at (0,4.4) {\textbf{2. Lost-in-the-middle}\\mid-window facts paid-for but ignored};
-\node[rung] (r3) at (0,2.2) {\textbf{3. Recursive-summary collapse}\\summarizing summaries fabricates};
-\node[rung] (r4) at (0,0.0) {\textbf{4. Over-flattening (Scott)}\\digest becomes a replacement, not a lens};
+\begin{tikzpicture}[pd figure,x=.94cm,y=.92cm]
+  \draw[pd arrow] (.45,.35)--(15.15,.35);
+  \draw[pd arrow] (.45,.35)--(.45,5.15);
+  \node[pd axis label,anchor=west] at (13.15,.04) {cascade progression};
+  \node[pd axis label,rotate=90,anchor=south] at (-.12,2.75)
+    {recoverable truth};
 
-\draw[e] (r1) -- (r2); \draw[e] (r2) -- (r3); \draw[e] (r3) -- (r4);
+  \draw[pd caution rule,line width=1.2pt]
+    plot[smooth] coordinates {(.85,4.62)(4.15,4.00)(7.45,2.95)(10.75,1.55)(14.25,.72)};
+  \foreach \x/\y/\n/\lab in {
+    .85/4.62/1/context rot,
+    4.15/4.00/2/lost in the middle,
+    7.45/2.95/3/recursive collapse,
+    10.75/1.55/4/over-flattening}{
+    \node[pd caution datum] at (\x,\y) {};
+    \node[pd panel title,anchor=north,align=center] at (\x,-.12) {\n\\\lab};
+  }
 
-\node[cure] (c1) at (7.8,6.6) {compact \emph{earlier}; budget to effective context};
-\node[cure] (c2) at (7.8,4.4) {edge-place load-bearing facts; shorten window};
-\node[cure] (c3) at (7.8,2.2) {\textbf{compact-from-artifacts}, never from the prior summary};
-\node[cure] (c4) at (7.8,0.0) {legibility-with-zoom by construction (a terminal cannot over-render)};
-
-\draw[ce] (r1) -- (c1); \draw[ce] (r2) -- (c2);
-\draw[ce] (r3) -- (c3); \draw[ce] (r4) -- (c4);
-\end{tikzpicture}%
-}
-\caption{The context-degradation cascade (\S\ref{sec:cascade}): rot makes you
-compact, naive compaction loses the middle, recursion fabricates, and the
-operator-facing digest over-flattens what's left --- the failures compound, hence
-``cascade.'' Each rung (red) has a cure (teal), and breaking \emph{any} rung
-stops the cascade; the load-bearing cure is \emph{compact-from-artifacts} (rung~3),
-which a system with durable, addressable state (claims, notes, episodes) makes
-cheap. Cost and legibility share this surface: when compaction fails, the bill
-\emph{and} the truth degrade together.}
+  % Countermeasures cut the causal path at the stage they address.
+  \foreach \x/\y/\short in {
+    2.45/4.38/compact earlier,
+    5.80/3.52/edge-place facts,
+    9.05/2.28/from artifacts,
+    12.55/1.08/zoom path}{
+    \draw[pd focus rule,line width=1.5pt] (\x,\y-.42)--(\x,\y+.42);
+    \node[pd direct label,text=hhteal,anchor=south,align=center] at (\x,\y+.52) {\short};
+  }
+  \draw[pd focus arrow] (9.05,2.80)--(9.05,4.65);
+  \node[pd direct label,text=hhteal,anchor=south,align=center] at (9.50,4.72)
+    {critical break\\reconstruct from evidence};
+  \node[pd note,anchor=west] at (.85,.72) {schematic causal order; not a measured decay curve};
+\end{tikzpicture}
+\caption{The context-degradation cascade as loss of recoverable truth. Context
+rot creates pressure to compact; middle loss removes paid-for facts; recursive
+summarization fabricates; and the final digest replaces the artifact. A
+countermeasure can interrupt each transition. The decisive cut is
+compact-from-artifacts: rebuilding from durable, addressable evidence prevents
+an earlier summary from becoming the next summary’s ground truth.}
 \label{fig:cascade}
 \end{figure}

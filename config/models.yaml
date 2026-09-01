@@ -1,0 +1,983 @@
+# Port Daddy canonical model reference — the ONE source of truth for model IDs.
+#
+# WHY THIS FILE EXISTS (supplant, 2026-08-23): before it, a concrete model ID had
+# to be independently correct in four places — the registry (lib/model-registry-data.ts),
+# the price table (lib/cost-tracker.ts, or launch fails closed), the context-window
+# table, and backend-catalog's advertised `models[]` (or the UI offers models the
+# resolver never picks). Every drift incident found in the 2026-08-22 audit was a
+# consequence of that split, including a PHANTOM Cloudflare id sitting in the
+# registry's `high` slot (see the kimi note below). Folding price + context +
+# status + verification into ONE row per id makes "registry ⊆ priced ⊆ verified"
+# a structural tautology instead of a rule someone has to remember.
+#
+# THIS FILE IS THE SOURCE; two artifacts are GENERATED from it and committed:
+#   lib/model-registry-data.ts            — daemon plane (keeps the import-graph
+#                                            property: resolves identically under
+#                                            bun / @swc/jest / tsc / dist)
+#   apps/shared/model-registry.generated.ts — cloud plane (Workers CANNOT import
+#                                            lib/, which is exactly why apps/ forked
+#                                            its own hardcoded copies and drifted)
+# Regenerate with:  npx tsx scripts/generate-model-registry.ts --write
+# A drift test asserts both artifacts byte-match a fresh generation.
+#
+# NEVER hardcode a model ID at a call site. Declare (backend, capability) and call
+# resolveModel() — lib/model-registry.ts. The no-hardcoded-model-ids guard enforces
+# this across lib/ routes/ cli/ mcp/ core/ config/ apps/ scripts/ schemas/ roles/
+# fleet/ website-v2/src/ plus pd-fleet.yml and README.md.
+
+provenance:
+  generatedAt: '2026-08-23'
+  generatedBy: 'config/models.yaml — hand-edited source of truth; scripts/generate-model-registry.ts emits the artifacts'
+  source: >-
+    Anthropic ids + pricing from the claude-api skill reference (2026-06-24 cache;
+    undated ID form is mandatory — never append date suffixes). OpenAI ids
+    live-probed against GET /v1/models on 2026-08-23. Gemini ids live-probed against
+    GET /v1beta/models on 2026-08-23 — this probe caught `gemini-3.1-pro` as a
+    PHANTOM (only `gemini-3.1-pro-preview` is served), which would have 404'd in
+    production. Cloudflare ids + unit pricing + context windows from the Cloudflare
+    model pages (developers.cloudflare.com/workers-ai/models/*) cross-checked against
+    the operator-supplied 2026-08-12 catalog export.
+
+# ---------------------------------------------------------------------------
+# Vocabularies. Six competing tier vocabularies existed across the repo before
+# this file; they are reconciled here as declared mappings rather than duplicated
+# lookup tables in each consumer.
+# ---------------------------------------------------------------------------
+vocabularies:
+  capabilities: [cheap, balanced, high, max-thinking, code]
+
+  # Legacy fleet/console tier names.
+  tierAliases:
+    low: cheap
+    mid: balanced
+    high: high
+
+  # agent-harbor schema vocabulary (schemas/agent-harbor/v0/*.json). Declared here
+  # so the persisted contract and the registry agree without a data migration.
+  harborTiers:
+    fast: cheap
+    mid: balanced
+    strong: high
+    local: cheap
+    custom: balanced
+
+  # Claude Code CLI accepts family nicknames rather than API ids on its --model
+  # flag. This is a TRANSPORT vocabulary, not a model list.
+  cliAliases:
+    claude-cli:
+      cheap: haiku
+      balanced: sonnet
+      high: opus
+      max-thinking: opus
+      code: sonnet
+
+  # Family nicknames a HUMAN types, resolved on the `explicit` input.
+  #
+  # WHY THIS EXISTS, AND WHY IT IS SYMMETRIC. `cliAliases` above let an operator
+  # write `sonnet` and have it work, because the claude-code CLI itself accepts
+  # that word. Nothing equivalent existed for any other vendor, so `sol` — the
+  # name OpenAI's own documentation uses for the frontier 5.6 model — resolved
+  # to the literal string `sol`, went to the provider verbatim, and 404'd. The
+  # asymmetry was not a decision anybody made; it was a transport quirk of one
+  # vendor's CLI leaking out and looking like a feature only that family had.
+  #
+  # So this is an INPUT vocabulary, not a transport one, and every family that
+  # ships human-facing nicknames gets a row. The rule for adding one: the vendor
+  # itself must use the nickname in its own materials. That keeps this a
+  # translation table for names people are already reading rather than a second
+  # place where model names get invented — which is the whole failure this file
+  # exists to end. A nickname must resolve to a catalogued id, and the generator
+  # refuses to emit if it does not, so this table cannot outlive a ladder move.
+  #
+  # Deliberately absent: a nickname for whichever id currently fills a RUNG.
+  # `opus` names a model; `high` names a job. Collapsing them would resurrect
+  # the confusion the capability ladder exists to remove.
+  modelAliases:
+    # Anthropic
+    haiku: claude-haiku-4-5
+    sonnet: claude-sonnet-5
+    opus: claude-opus-5
+    fable: claude-fable-5
+    # OpenAI — the 5.6 family the vendor names Sol / Terra / Luna
+    sol: gpt-5.6-sol
+    terra: gpt-5.6-terra
+    luna: gpt-5.6-luna
+
+# Backend-name aliases → canonical family key. Resolved in exactly one place:
+# canonicalBackend() in lib/model-registry.ts.
+backendAliases:
+  anthropic: claude
+  claude-cli: claude
+  # aider drives OpenAI models; its former standalone gpt-4.1 table was drift
+  # (two generations stale), not an intentional product difference. Codex, by
+  # contrast, keeps its own table — the codex CLI genuinely ships a different
+  # lineup (gpt-5.3-codex), so it is NOT aliased.
+  aider: openai
+
+# ---------------------------------------------------------------------------
+# Model catalog — ONE row per concrete id the registry references.
+#
+# status:     ga | deprecated | retired
+# plane:      direct-api | workers-ai | ai-gateway | cli | local
+# verifiedBy: live-probe   — an API listing/call confirmed this id on verifiedAt
+#             vendor-docs  — vendor's own model page states id + pricing
+#             cf-catalog   — operator-supplied Cloudflare catalog export
+#             carried      — pre-existing row, NOT verifiable from this environment
+# priceBasis: vendor-docs | estimate   (estimate = priced for fail-closed telemetry
+#             admission; the number is a planning figure, not a vendor quote)
+# Prices are USD per 1M tokens.
+# ---------------------------------------------------------------------------
+models:
+  # ---- Anthropic (direct API + the claude-code CLI transport) ----
+  claude-haiku-4-5:
+    provider: anthropic
+    plane: direct-api
+    priceIn: 1.00
+    priceOut: 5.00
+    contextWindow: 200000
+    capabilities: [function-calling, vision]
+    status: ga
+    verifiedAt: '2026-08-23'
+    verifiedBy: vendor-docs
+    priceBasis: vendor-docs
+    notes: >-
+      Undated id form is mandatory. The previous registry value
+      `claude-haiku-4-5-20251001` carried a date suffix the current API reference
+      explicitly forbids appending.
+  claude-sonnet-5:
+    provider: anthropic
+    plane: direct-api
+    priceIn: 3.00
+    priceOut: 15.00
+    contextWindow: 1000000
+    capabilities: [function-calling, vision, adaptive-thinking]
+    status: ga
+    verifiedAt: '2026-08-23'
+    verifiedBy: live-probe
+    priceBasis: vendor-docs
+    notes: >-
+      Live-observed serving this repo's own claude-code spawns (modelUsage
+      reported claude-sonnet-5). Intro pricing $2.00/$10.00 runs through
+      2026-08-31; the standing rate is recorded here so cost math does not
+      silently under-report after the intro window closes.
+  claude-opus-5:
+    provider: anthropic
+    plane: direct-api
+    priceIn: 5.00
+    priceOut: 25.00
+    contextWindow: 1000000
+    capabilities: [function-calling, vision, adaptive-thinking]
+    status: ga
+    verifiedAt: '2026-08-23'
+    verifiedBy: vendor-docs
+    priceBasis: vendor-docs
+  claude-fable-5:
+    provider: anthropic
+    plane: direct-api
+    priceIn: 10.00
+    priceOut: 50.00
+    contextWindow: 1000000
+    capabilities: [function-calling, vision, adaptive-thinking-always-on]
+    status: ga
+    verifiedAt: '2026-08-23'
+    verifiedBy: vendor-docs
+    priceBasis: vendor-docs
+    notes: >-
+      Thinking is always on and cannot be disabled; requires 30-day data
+      retention (unavailable under zero-data-retention orgs). Reserved for
+      max-thinking so routine work never silently lands on the priciest model.
+
+  # ---- OpenAI (direct API; also the aider transport) ----
+  # Every id below was live-probed against GET /v1/models on 2026-08-23, and every
+  # `reasoningEfforts` list was live-probed by sending each effort value to
+  # POST /v1/responses and recording which ones the model actually accepts.
+  #
+  # WHY THAT SECOND PROBE EXISTS. The adapter used to hardcode
+  # `reasoning: { effort: 'minimal' }`, which was correct for the original gpt-5
+  # generation and is rejected by every model after it. The result was an HTTP 400
+  # on FOUR of the five rungs this backend resolves — balanced, high, max-thinking
+  # and code were all dead, and only `cheap` (gpt-5-mini, the one model that still
+  # takes `minimal`) worked. A registry that pins the id but not the parameter
+  # values that id accepts leaves exactly this gap, so the accepted set is a row
+  # field like price and context window: declared once, resolved, never guessed.
+  # `defaultEffort` is the cheapest supported rung, because Responses API caps
+  # count reasoning tokens against max_output_tokens.
+  gpt-5.4:
+    provider: openai
+    plane: direct-api
+    priceIn: 1.25
+    priceOut: 10.00
+    contextWindow: 400000
+    capabilities: [function-calling, reasoning]
+    status: ga
+    verifiedAt: '2026-08-23'
+    verifiedBy: live-probe
+    priceBasis: estimate
+    reasoningEfforts: [none, low, medium, high, xhigh]
+    defaultEffort: low
+  gpt-5.5-pro:
+    provider: openai
+    plane: direct-api
+    priceIn: 15.00
+    priceOut: 120.00
+    contextWindow: 400000
+    capabilities: [function-calling, reasoning]
+    status: ga
+    verifiedAt: '2026-08-23'
+    verifiedBy: live-probe
+    priceBasis: estimate
+    reasoningEfforts: [medium, high, xhigh]
+    defaultEffort: medium
+    notes: >-
+      Thinking is always on and cannot be disabled — the live probe confirms the
+      doc: it is the one model here that rejects `none`, `minimal` AND `low`, so
+      `medium` is its floor rather than a choice.
+  gpt-5.3-codex:
+    provider: openai
+    plane: direct-api
+    priceIn: 1.25
+    priceOut: 10.00
+    contextWindow: 400000
+    capabilities: [function-calling, reasoning, code-specialized]
+    status: ga
+    verifiedAt: '2026-08-23'
+    verifiedBy: live-probe
+    priceBasis: estimate
+    reasoningEfforts: [none, low, medium, high, xhigh]
+    defaultEffort: low
+
+  # ---- OpenAI gpt-5.6 (direct API) ----
+  # Operator request, 2026-08-23. CORRECTION to this file's first attempt at
+  # this family, recorded because the mistake is instructive: the rows were
+  # added as unranked PEERS carrying gpt-5.5's price and a 400k context window,
+  # on the reasoning that a black-box probe could not separate them and that
+  # inventing a ranking was worse than admitting ignorance. The probe genuinely
+  # could not — all three answered three checkable reasoning problems correctly,
+  # with comparable reasoning budgets, and GET /v1/models exposes neither price
+  # nor context. But the vendor documents all of it, and not reading the docs is
+  # not the same as the docs not existing. Every figure below is from
+  # developers.openai.com; the effort sets are the live probe, which agrees with
+  # the docs exactly.
+  #
+  # OpenAI states the ordering itself — "Start with GPT-5.6 Sol for complex
+  # reasoning and coding, choose GPT-5.6 Terra to balance intelligence and cost,
+  # or use GPT-5.6 Luna for cost-sensitive, high-volume workloads" — so the rungs
+  # below are quoted positioning, not a benchmark this repo ran.
+  #
+  # What does NOT differentiate them: context window (1,050,000 on all three),
+  # max output (128,000), and reasoning depth (identical effort ladders). Price
+  # and stated positioning are the whole difference.
+  #
+  # A fourth sibling, gpt-5.6-cyber, is documented and deliberately absent: it
+  # live-probed as `model_not_found` for this account. A documented model this
+  # deployment cannot call is a phantom from here, and cataloguing it would
+  # reintroduce exactly the class of row this file exists to prevent.
+  #
+  # PRICE CAVEAT: the vendor's table qualifies every figure as "short context",
+  # implying a long-context band this repo has not resolved. Cost estimates on
+  # very large prompts may therefore run low.
+  #
+  # Both API shapes serve this family (Responses AND Chat Completions, both
+  # live-probed at 200). The adapter takes Responses — it is where reasoning
+  # effort and typed reasoning items live.
+  gpt-5.6-sol:
+    provider: openai
+    plane: direct-api
+    priceIn: 4.00
+    priceOut: 20.00
+    priceCachedIn: 0.40
+    contextWindow: 1050000
+    capabilities: [function-calling, reasoning]
+    status: ga
+    verifiedAt: '2026-08-23'
+    verifiedBy: live-probe
+    priceBasis: vendor-docs
+    reasoningEfforts: [none, low, medium, high, xhigh, max]
+    defaultEffort: low
+    notes: >-
+      "Frontier model for complex professional work." The vendor default effort
+      is `medium`; this registry defaults to `low` deliberately, because
+      Responses API caps count reasoning tokens against max_output_tokens and a
+      cost-capped run should not spend its answer budget on thinking it was not
+      asked for. Callers wanting more ask for it by name.
+  gpt-5.6-terra:
+    provider: openai
+    plane: direct-api
+    priceIn: 2.00
+    priceOut: 12.00
+    priceCachedIn: 0.20
+    contextWindow: 1050000
+    capabilities: [function-calling, reasoning]
+    status: ga
+    verifiedAt: '2026-08-23'
+    verifiedBy: live-probe
+    priceBasis: vendor-docs
+    reasoningEfforts: [none, low, medium, high, xhigh, max]
+    defaultEffort: low
+    notes: '"GPT-5.6 model that balances intelligence and cost."'
+  gpt-5.6-luna:
+    provider: openai
+    plane: direct-api
+    priceIn: 0.20
+    priceOut: 1.20
+    priceCachedIn: 0.02
+    contextWindow: 1050000
+    capabilities: [function-calling, reasoning]
+    status: ga
+    verifiedAt: '2026-08-23'
+    verifiedBy: live-probe
+    priceBasis: vendor-docs
+    reasoningEfforts: [none, low, medium, high, xhigh, max]
+    defaultEffort: low
+    notes: >-
+      "GPT-5.6 model optimized for cost-sensitive workloads." Cheaper per token
+      than the gpt-5-mini it replaces on the cheap rung ($0.20/$1.20 against
+      $0.25/$2.00) with 2.6x the context, which is why that rung moved.
+
+  # ---- codex CLI's own lineup (transport owns these; not aliased to openai) ----
+  gpt-5.4-mini:
+    provider: openai
+    plane: cli
+    priceIn: 0.25
+    priceOut: 2.00
+    contextWindow: 400000
+    capabilities: [function-calling]
+    status: ga
+    verifiedAt: '2026-08-23'
+    verifiedBy: live-probe
+    priceBasis: estimate
+    reasoningEfforts: [none, low, medium, high, xhigh]
+    defaultEffort: low
+
+  # ---- Cloudflare Workers AI: the admitted universe ----
+  #
+  # These 23 rows ARE the admission set. The executor's contract for honoring a
+  # ship's pin (recalibrated on main, 2026-08-22, by operator directive) is that
+  # the id (1) is a real Cloudflare-hosted model, (2) has a verified rate, and
+  # (3) has a known context window so chunk budgets stay derived. On main those
+  # were three separate tables kept in step by three separate tests. Here they
+  # are ONE ROW, so the contract holds by construction rather than by assertion.
+  #
+  # WHY THERE IS NO PRICE CEILING ON A PIN. An earlier revision of this file
+  # carried a `pinnableRoles` allowlist so that no ship could pin its way onto
+  # the most expensive model. That rule is deleted, and the deletion is the
+  # important part: main retired the same ratchet with production data. Over a
+  # live 14-day window the busiest ship's entire Workers AI spend was under
+  # $0.90, while the guard was silently remapping red-team's declared
+  # gpt-oss-120b pin and code-reviewer's declared kimi-k2.7-code pin down to the
+  # cheap tier — protecting pennies by quietly degrading two ships the operator
+  # had deliberately tiered up. I had observed the same inert pins from the other
+  # side and drawn the opposite conclusion, making the inertness official; the
+  # spend record says main read it correctly. A declared pin is honored iff the
+  # id is admitted here. The guard exists to stop a SILENT BLANK, not to enforce
+  # a budget: an unknown Workers AI id does not 404, it returns a blank the
+  # parser reads as "clean", which is how two phantom kimi ids silenced this
+  # fleet in #654 and how the reviewer went dark on 2026-07-03.
+  # ---- Workers AI (the admitted universe) ----
+  #
+  # NINE OF THESE ROWS CARRY `reasoning`, AND THE BUDGET IS THE REASON.
+  # Live-probed 2026-08-23 against every admitted id. A reasoning model streams
+  # its scratchpad first and its answer last, and the two share one output
+  # budget. Measured on shipDefault (qwen3-30b-a3b-fp8), "Say OK." at
+  # max_tokens 2000:
+  #
+  #     113 frames   105 reasoning   3 content   finish_reason: stop
+  #
+  # The same call at max_tokens 400 produced 0 content frames and returned
+  # HTTP 200 with an empty completion. Not an error — a BLANK, the shape the
+  # parser reads as "clean", which is how two phantom ids silenced this fleet in
+  # #654 and how the reviewer went dark on 2026-07-03. Same failure, different
+  # cause: there the id did not exist, here the model never got to the answer.
+  #
+  # So the capability is not decoration. A caller sizing `maxTokens` for a
+  # non-reasoning model and pointing it at one of these rows gets silence back.
+  # `lib/shipwright/survey.ts` asks for 600 today. The end-to-end adapter run
+  # that produced the committed live capture failed at 400 and succeeded at
+  # 4000, on the same model, same prompt, same code.
+  #
+  '@cf/qwen/qwen3-30b-a3b-fp8':
+    provider: qwen
+    plane: workers-ai
+    priceIn: 0.051
+    priceOut: 0.335
+    contextWindow: 32768
+    capabilities: [text-generation, reasoning]
+    status: ga
+    verifiedAt: '2026-08-23'
+    verifiedBy: live-probe
+    priceBasis: vendor-docs
+  '@cf/openai/gpt-oss-20b':
+    provider: openai
+    plane: workers-ai
+    priceIn: 0.2
+    priceOut: 0.3
+    contextWindow: 128000
+    capabilities: [text-generation, reasoning]
+    status: ga
+    verifiedAt: '2026-08-23'
+    verifiedBy: live-probe
+    priceBasis: vendor-docs
+  '@cf/openai/gpt-oss-120b':
+    provider: openai
+    plane: workers-ai
+    priceIn: 0.35
+    priceOut: 0.75
+    contextWindow: 128000
+    capabilities: [text-generation, reasoning]
+    status: ga
+    verifiedAt: '2026-08-23'
+    verifiedBy: live-probe
+    priceBasis: vendor-docs
+  '@cf/moonshotai/kimi-k2.7-code':
+    provider: moonshotai
+    plane: workers-ai
+    priceIn: 0.95
+    priceOut: 4
+    contextWindow: 262144
+    capabilities: [text-generation, reasoning]
+    status: ga
+    verifiedAt: '2026-08-23'
+    verifiedBy: live-probe
+    priceBasis: vendor-docs
+  '@cf/zai-org/glm-4.7-flash':
+    provider: zai-org
+    plane: workers-ai
+    priceIn: 0.06
+    priceOut: 0.4
+    contextWindow: 131072
+    capabilities: [text-generation, reasoning]
+    status: ga
+    verifiedAt: '2026-08-23'
+    verifiedBy: live-probe
+    priceBasis: vendor-docs
+  '@cf/zai-org/glm-5.2':
+    provider: zai-org
+    plane: workers-ai
+    priceIn: 1.4
+    priceOut: 4.4
+    contextWindow: 262144
+    capabilities: [text-generation, reasoning]
+    status: ga
+    verifiedAt: '2026-08-23'
+    verifiedBy: live-probe
+    priceBasis: vendor-docs
+  '@cf/deepseek-ai/deepseek-v4-flash-0731':
+    provider: deepseek-ai
+    plane: workers-ai
+    priceIn: 0.44
+    priceOut: 1.32
+    contextWindow: 1048576
+    capabilities: [text-generation, reasoning]
+    status: ga
+    verifiedAt: '2026-08-23'
+    verifiedBy: live-probe
+    priceBasis: vendor-docs
+  '@cf/deepseek-ai/deepseek-v4-pro-0813':
+    provider: deepseek-ai
+    plane: workers-ai
+    priceIn: 1.32
+    priceOut: 3.96
+    contextWindow: 1048576
+    capabilities: [text-generation, reasoning]
+    status: ga
+    verifiedAt: '2026-08-23'
+    verifiedBy: live-probe
+    priceBasis: vendor-docs
+  '@cf/google/gemma-4-26b-a4b-it':
+    provider: google
+    plane: workers-ai
+    priceIn: 0.1
+    priceOut: 0.3
+    contextWindow: 256000
+    capabilities: [text-generation, reasoning]
+    status: ga
+    verifiedAt: '2026-08-23'
+    verifiedBy: live-probe
+    priceBasis: vendor-docs
+  '@cf/nvidia/nemotron-3-120b-a12b':
+    provider: nvidia
+    plane: workers-ai
+    priceIn: 0.5
+    priceOut: 1.5
+    contextWindow: 256000
+    capabilities: [text-generation]
+    status: ga
+    verifiedAt: '2026-08-23'
+    verifiedBy: live-probe
+    priceBasis: vendor-docs
+  '@cf/meta/llama-3.3-70b-instruct-fp8-fast':
+    provider: meta
+    plane: workers-ai
+    priceIn: 0.293
+    priceOut: 2.253
+    contextWindow: 24000
+    capabilities: [text-generation]
+    status: ga
+    verifiedAt: '2026-08-23'
+    verifiedBy: live-probe
+    priceBasis: vendor-docs
+  '@cf/meta/llama-3.1-8b-instruct-fp8':
+    provider: meta
+    plane: workers-ai
+    priceIn: 0.152
+    priceOut: 0.287
+    contextWindow: 32000
+    capabilities: [text-generation]
+    status: ga
+    verifiedAt: '2026-08-23'
+    verifiedBy: live-probe
+    priceBasis: vendor-docs
+  '@cf/meta/llama-3.2-1b-instruct':
+    provider: meta
+    plane: workers-ai
+    priceIn: 0.027
+    priceOut: 0.201
+    contextWindow: 60000
+    capabilities: [text-generation]
+    status: ga
+    verifiedAt: '2026-08-23'
+    verifiedBy: live-probe
+    priceBasis: vendor-docs
+  '@cf/meta/llama-3.2-3b-instruct':
+    provider: meta
+    plane: workers-ai
+    priceIn: 0.051
+    priceOut: 0.335
+    contextWindow: 80000
+    capabilities: [text-generation]
+    status: ga
+    verifiedAt: '2026-08-23'
+    verifiedBy: live-probe
+    priceBasis: vendor-docs
+  '@cf/meta/llama-3.2-11b-vision-instruct':
+    provider: meta
+    plane: workers-ai
+    priceIn: 0.049
+    priceOut: 0.676
+    contextWindow: 128000
+    # NOT ADMITTED, and the live probe is why. This row was catalogued from the
+    # vendor list as `[text-generation]`, which admitted it — and admission is a
+    # promise that a ship pinned here will actually run. It will not. Calling it
+    # with this account's credential returns HTTP 403:
+    #
+    #     AiError: Model Agreement: Prior to using this model, you must submit
+    #     the prompt 'agree' ... Community License ... and you represent that
+    #     you are not an individual domiciled in the European Union.
+    #
+    # That is a per-account licensing gate, not a transient error and not
+    # something a retry or a failover hop can clear. A model this deployment
+    # cannot call is a phantom from here, which is the same ruling the gpt-5.6
+    # sibling got for `model_not_found`. It stays in the catalogue rather than
+    # being deleted so the next person who reads the vendor list finds the
+    # answer instead of re-admitting it; `[vision]` keeps it out of admission,
+    # since admission requires `text-generation`.
+    capabilities: [vision]
+    status: ga
+    verifiedAt: '2026-08-23'
+    verifiedBy: live-probe
+    priceBasis: vendor-docs
+  '@cf/meta/llama-4-scout-17b-16e-instruct':
+    provider: meta
+    plane: workers-ai
+    priceIn: 0.27
+    priceOut: 0.85
+    contextWindow: 131000
+    capabilities: [text-generation]
+    status: ga
+    verifiedAt: '2026-08-23'
+    verifiedBy: live-probe
+    priceBasis: vendor-docs
+  '@cf/mistralai/mistral-small-3.1-24b-instruct':
+    provider: mistralai
+    plane: workers-ai
+    priceIn: 0.351
+    priceOut: 0.555
+    contextWindow: 128000
+    capabilities: [text-generation]
+    status: ga
+    verifiedAt: '2026-08-23'
+    verifiedBy: live-probe
+    priceBasis: vendor-docs
+  '@cf/qwen/qwen2.5-coder-32b-instruct':
+    provider: qwen
+    plane: workers-ai
+    priceIn: 0.66
+    priceOut: 1
+    contextWindow: 32768
+    capabilities: [text-generation]
+    status: ga
+    verifiedAt: '2026-08-23'
+    verifiedBy: live-probe
+    priceBasis: vendor-docs
+  '@cf/qwen/qwq-32b':
+    provider: qwen
+    plane: workers-ai
+    priceIn: 0.66
+    priceOut: 1
+    contextWindow: 24000
+    capabilities: [text-generation]
+    status: ga
+    verifiedAt: '2026-08-23'
+    verifiedBy: live-probe
+    priceBasis: vendor-docs
+  '@cf/qwen/qwen3.8-27b':
+    provider: qwen
+    plane: workers-ai
+    priceIn: 0.45
+    priceOut: 3.2
+    contextWindow: 262144
+    capabilities: [text-generation]
+    status: ga
+    verifiedAt: '2026-08-23'
+    verifiedBy: live-probe
+    priceBasis: vendor-docs
+  '@cf/deepseek-ai/deepseek-r1-distill-qwen-32b':
+    provider: deepseek-ai
+    plane: workers-ai
+    priceIn: 0.497
+    priceOut: 4.881
+    contextWindow: 80000
+    capabilities: [text-generation]
+    status: ga
+    verifiedAt: '2026-08-23'
+    verifiedBy: live-probe
+    priceBasis: vendor-docs
+  '@cf/ibm-granite/granite-4.0-h-micro':
+    provider: ibm-granite
+    plane: workers-ai
+    priceIn: 0.017
+    priceOut: 0.112
+    contextWindow: 131000
+    capabilities: [text-generation]
+    status: ga
+    verifiedAt: '2026-08-23'
+    verifiedBy: live-probe
+    priceBasis: vendor-docs
+  '@cf/aisingapore/gemma-sea-lion-v4-27b-it':
+    provider: aisingapore
+    plane: workers-ai
+    priceIn: 0.351
+    priceOut: 0.555
+    contextWindow: 128000
+    capabilities: [text-generation]
+    status: ga
+    verifiedAt: '2026-08-23'
+    verifiedBy: live-probe
+    priceBasis: vendor-docs
+
+  # ---- Cloudflare Workers AI: embeddings ----
+  # Deliberately OUTSIDE the admitted text-generation universe above. It is not
+  # a model any ship can be pinned to — it is the ideas-store dedup index, and
+  # changing this id invalidates every stored vector. Its output price is 0
+  # because Workers AI bills embeddings on input alone.
+  '@cf/baai/bge-base-en-v1.5':
+    provider: baai
+    plane: workers-ai
+    priceIn: 0.020
+    priceOut: 0.000
+    contextWindow: 512
+    capabilities: [embedding]
+    status: ga
+    verifiedAt: '2026-08-23'
+    verifiedBy: live-probe
+    priceBasis: vendor-docs
+
+  # ---- Google Gemini ----
+  gemini-3.7-flash:
+    provider: google
+    plane: direct-api
+    priceIn: 0.30
+    priceOut: 2.50
+    contextWindow: 1000000
+    capabilities: [function-calling, vision, reasoning]
+    status: ga
+    verifiedAt: '2026-08-23'
+    verifiedBy: live-probe
+    priceBasis: estimate
+  gemini-3.1-pro-preview:
+    provider: google
+    plane: direct-api
+    priceIn: 1.25
+    priceOut: 10.00
+    contextWindow: 1000000
+    capabilities: [function-calling, vision, reasoning]
+    status: ga
+    verifiedAt: '2026-08-23'
+    verifiedBy: live-probe
+    priceBasis: estimate
+    notes: >-
+      The `-preview` suffix is REQUIRED — a live probe of GET /v1beta/models on
+      2026-08-23 showed `gemini-3.1-pro-preview` served and bare `gemini-3.1-pro`
+      absent. Pinning the bare id would 404 in production.
+
+  # ---- Groq (no credential in this environment; carried unverified) ----
+  llama-3.3-70b-versatile:
+    provider: meta
+    plane: direct-api
+    priceIn: 0.59
+    priceOut: 0.79
+    contextWindow: 131072
+    capabilities: [function-calling]
+    status: ga
+    verifiedAt: '2026-07-14'
+    verifiedBy: carried
+    priceBasis: estimate
+  openai/gpt-oss-120b:
+    # Groq SERVES this OpenAI-authored model under a namespaced id. `provider`
+    # records the author; the `backends` map below records who serves it. The
+    # phantom probe keys off the serving backend — conflating the two reported
+    # this id as missing from OpenAI's API, which it correctly is.
+    provider: openai
+    plane: direct-api
+    priceIn: 0.15
+    priceOut: 0.75
+    contextWindow: 131072
+    capabilities: [function-calling, reasoning]
+    status: ga
+    verifiedAt: '2026-07-14'
+    verifiedBy: carried
+    priceBasis: estimate
+
+  # ---- DeepSeek direct (key present in this environment but 401s; carried) ----
+  deepseek-chat:
+    provider: deepseek
+    plane: direct-api
+    priceIn: 0.27
+    priceOut: 1.10
+    contextWindow: 128000
+    capabilities: [function-calling]
+    status: ga
+    verifiedAt: '2026-07-14'
+    verifiedBy: carried
+    priceBasis: estimate
+  deepseek-reasoner:
+    provider: deepseek
+    plane: direct-api
+    priceIn: 0.55
+    priceOut: 2.19
+    contextWindow: 128000
+    capabilities: [reasoning]
+    status: ga
+    verifiedAt: '2026-07-14'
+    verifiedBy: carried
+    priceBasis: estimate
+
+  # ---- xAI (no credential; carried) ----
+  grok-code-fast-1:
+    provider: xai
+    plane: direct-api
+    priceIn: 0.20
+    priceOut: 1.50
+    contextWindow: 256000
+    capabilities: [function-calling, code-specialized]
+    status: ga
+    verifiedAt: '2026-07-14'
+    verifiedBy: carried
+    priceBasis: estimate
+  grok-4.6:
+    provider: xai
+    plane: direct-api
+    priceIn: 3.00
+    priceOut: 15.00
+    contextWindow: 2000000
+    capabilities: [function-calling, reasoning, vision]
+    status: ga
+    verifiedAt: '2026-08-12'
+    verifiedBy: cf-catalog
+    priceBasis: estimate
+    notes: >-
+      Replaces the registry's previous `grok-2-latest` (balanced+high) and
+      `grok-3` (max-thinking) — both several generations stale. Sourced from the
+      AI Gateway catalog; NOT live-probed (no xAI credential in this environment).
+
+  # ---- Local runtimes. These are Ollama/LM Studio TAG names, not vendor API ids. ----
+  qwen2.5-coder:7b:
+    provider: alibaba
+    plane: local
+    priceIn: 0
+    priceOut: 0
+    contextWindow: 32768
+    capabilities: [code-specialized]
+    status: ga
+    verifiedAt: '2026-07-14'
+    verifiedBy: carried
+    priceBasis: vendor-docs
+  qwen2.5-coder:14b:
+    provider: alibaba
+    plane: local
+    priceIn: 0
+    priceOut: 0
+    contextWindow: 32768
+    capabilities: [code-specialized]
+    status: ga
+    verifiedAt: '2026-07-14'
+    verifiedBy: carried
+    priceBasis: vendor-docs
+  llama3.1:8b:
+    provider: meta
+    plane: local
+    priceIn: 0
+    priceOut: 0
+    contextWindow: 131072
+    capabilities: []
+    status: ga
+    verifiedAt: '2026-07-14'
+    verifiedBy: carried
+    priceBasis: vendor-docs
+  local-model:
+    provider: lmstudio
+    plane: local
+    priceIn: 0
+    priceOut: 0
+    contextWindow: 32768
+    # EMPTY BECAUSE UNKNOWABLE, not because nobody filled it in. This row names
+    # no model — LM Studio serves whatever the operator loaded, so the concrete
+    # id and its capabilities are both discovered at runtime. Contrast the
+    # Workers AI embedding row, which declares `[embedding]` rather than `[]`
+    # for the opposite reason: there, admission REQUIRES `text-generation`, so
+    # an empty list would be a row that is priced and catalogued yet admitted by
+    # nothing, indistinguishable from an omission. That is why the generator's
+    # must-declare-capabilities check is scoped to the `workers-ai` plane. On
+    # this plane nothing reads the field, and an empty list is the honest
+    # statement that the file does not know.
+    capabilities: []
+    status: ga
+    verifiedAt: '2026-07-14'
+    verifiedBy: carried
+    priceBasis: vendor-docs
+    notes: >-
+      Conventional placeholder — LM Studio serves whatever the operator has
+      loaded; the concrete id is resolved at runtime via GET /v1/models.
+
+# ---------------------------------------------------------------------------
+# (backend, capability) → concrete id. Every value MUST have a `models:` row
+# above; tests/unit/model-registry-canon.test.js enforces that plus price
+# coverage, so a phantom cannot re-enter the way kimi-k2-instruct did.
+#
+# NOTE: `agy` has deliberately NO table. Antigravity owns its own model names and
+# account default (lib/spawn-forecast.ts) and PD never sends it a --model. Adding
+# invented ids here would be exactly the fabrication this registry exists to stop.
+# ---------------------------------------------------------------------------
+backends:
+  claude:
+    cheap: claude-haiku-4-5
+    balanced: claude-sonnet-5
+    high: claude-opus-5
+    max-thinking: claude-fable-5
+    code: claude-sonnet-5
+  openai:
+    # The gpt-5.6 family fills three rungs by its documented positioning: Luna
+    # for cost-sensitive volume, Terra to balance intelligence and cost, Sol for
+    # complex work. max-thinking stays with the always-thinking premium model so
+    # routine work never silently lands on the priciest id.
+    cheap: gpt-5.6-luna
+    balanced: gpt-5.6-terra
+    high: gpt-5.6-sol
+    max-thinking: gpt-5.5-pro
+    code: gpt-5.3-codex
+  codex:
+    cheap: gpt-5.4-mini
+    balanced: gpt-5.3-codex
+    high: gpt-5.4
+    max-thinking: gpt-5.4
+    code: gpt-5.3-codex
+  cloudflare:
+    # Rungs drawn from the admitted universe above. `cheap` is the ship default
+    # so the ladder and the role table cannot disagree about the same fleet.
+    cheap: '@cf/qwen/qwen3-30b-a3b-fp8'
+    balanced: '@cf/openai/gpt-oss-20b'
+    high: '@cf/openai/gpt-oss-120b'
+    max-thinking: '@cf/deepseek-ai/deepseek-v4-pro-0813'
+    code: '@cf/qwen/qwen2.5-coder-32b-instruct'
+  gemini:
+    cheap: gemini-3.7-flash
+    balanced: gemini-3.7-flash
+    high: gemini-3.1-pro-preview
+    max-thinking: gemini-3.1-pro-preview
+    code: gemini-3.7-flash
+  groq:
+    cheap: llama-3.3-70b-versatile
+    balanced: llama-3.3-70b-versatile
+    high: openai/gpt-oss-120b
+    max-thinking: openai/gpt-oss-120b
+    code: llama-3.3-70b-versatile
+  deepseek:
+    cheap: deepseek-chat
+    balanced: deepseek-chat
+    high: deepseek-reasoner
+    max-thinking: deepseek-reasoner
+    code: deepseek-chat
+  xai:
+    cheap: grok-code-fast-1
+    balanced: grok-4.6
+    high: grok-4.6
+    max-thinking: grok-4.6
+    code: grok-code-fast-1
+  ollama:
+    cheap: qwen2.5-coder:7b
+    balanced: llama3.1:8b
+    high: qwen2.5-coder:14b
+    max-thinking: qwen2.5-coder:14b
+    code: qwen2.5-coder:7b
+  lmstudio:
+    cheap: local-model
+    balanced: local-model
+    high: local-model
+    max-thinking: local-model
+    code: local-model
+
+# ---------------------------------------------------------------------------
+# Cloud-plane roles.
+#
+# The Workers plane (apps/fleet-executor, apps/relay) does not select a model by
+# capability rung — it selects by ROLE, and the roles carry policy the ladder
+# cannot express. Two rules in particular were load-bearing and are preserved
+# here rather than re-derived in each Worker:
+#
+#   1. The review model is reached by ROLE ONLY, never by a ship's own pin, so
+#      no ship can pin its way onto the most expensive model. `pinnable` is the
+#      allowlist that enforces it.
+#   2. An unknown Workers AI id does not error — it HANGS. Every role therefore
+#      resolves to a catalogued, verified id, and a pin outside `pinnable` is
+#      remapped to `shipDefault` rather than dispatched.
+#
+# Roles are validated exactly like the `backends` map: an id with no catalog row
+# aborts generation.
+# ---------------------------------------------------------------------------
+cloudPlaneRoles:
+  # Adopted from main (2026-08-22), whose assignments moved on live evidence
+  # rather than on unit price. Where an earlier revision of this file disagreed,
+  # main's value wins and the reason is recorded beside it.
+
+  # Every fleet ship that does not name a role.
+  shipDefault: '@cf/qwen/qwen3-30b-a3b-fp8'
+
+  # For steps whose output on `shipDefault` was too weak to use. Several times
+  # the ship default on INPUT but cheaper on OUTPUT — so it is the wrong choice
+  # for a step that reads a large diff and emits a little (planning), and a
+  # defensible one for a step that reads the same diff and emits a whole file.
+  shipMid: '@cf/openai/gpt-oss-20b'
+
+  # The code review bot, and the repair escalation that follows a failed ship.
+  reviewBot: '@cf/openai/gpt-oss-120b'
+  repairEscalation: '@cf/openai/gpt-oss-120b'
+
+  # Authoring: writes whole files rather than commentary. NOT the mid rung —
+  # that was the default from #6813 until 2026-08-22 on the theory that a dense
+  # 20B beats a 30B MoE at writing runnable code, and the live D1 record refuted
+  # it at fleet scale (75% author-repair failure). The theory was reasonable; the
+  # data was not, and the data is what this row follows.
+  author: '@cf/deepseek-ai/deepseek-v4-flash-0731'
+
+  # Synthesis: the executor's XO writes the fleet's run summary; the relay's
+  # shipwright designs ship blocks from an operator goal.
+  synthesisOfficer: '@cf/deepseek-ai/deepseek-r1-distill-qwen-32b'
+  shipwright: '@cf/deepseek-ai/deepseek-r1-distill-qwen-32b'
+
+  # Parley conflict prediction and fleet-config optimization: short prompts,
+  # short answers, high call volume.
+  mediator: '@cf/qwen/qwen3-30b-a3b-fp8'
+  optimize: '@cf/qwen/qwen3-30b-a3b-fp8'
+
+  # Ideas-store dedup index. Changing this id invalidates every stored vector.
+  embed: '@cf/baai/bge-base-en-v1.5'

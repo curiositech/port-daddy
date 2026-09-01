@@ -22,6 +22,7 @@ import { mkdirSync, rmSync, readFileSync, writeFileSync, existsSync, symlinkSync
 import { join, resolve, dirname } from 'node:path';
 import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
+import { createServer } from 'node:http';
 
 import {
   setLock,
@@ -47,13 +48,25 @@ import { stageTentacles } from '../../cli/commands/hooks-install.js';
 
 const __dir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(__dir, '..', '..');
-const bin = (n: 'pd-hook-prompt' | 'pd-hook-pre-tool' | 'pd-hook-post-tool' | 'pd-hook-stop') =>
+const bin = (n: 'pd-hook-prompt' | 'pd-hook-pre-tool' | 'pd-hook-post-tool' | 'pd-hook-stop' | 'pd-hook-precompact') =>
   join(repoRoot, 'bin', n);
 
 // Isolated scratch under ~/coding/tmp (NEVER /tmp — macOS purges /tmp).
 const SCRATCH = join(homedir(), 'coding', 'tmp', 'squid-selftest', `jest-${process.pid}`);
 const WORKSPACE = join(SCRATCH, 'workspace');
 const MATRIX = join(SCRATCH, 'matrix.env');
+
+function runPromptAsync(env: NodeJS.ProcessEnv): Promise<{ status: number | null; stdout: string; stderr: string }> {
+  return new Promise((resolveRun) => {
+    const child = spawn(bin('pd-hook-prompt'), [], { env });
+    let stdout = '';
+    let stderr = '';
+    child.stdout?.on('data', (chunk) => { stdout += String(chunk); });
+    child.stderr?.on('data', (chunk) => { stderr += String(chunk); });
+    child.on('close', (status) => resolveRun({ status, stdout, stderr }));
+    child.stdin?.end(JSON.stringify({ cwd: WORKSPACE }));
+  });
+}
 
 // Both layers honor PD_MATRIX_FILE: lib/squid/matrix.ts reads it via matrixPath()
 // and the pd-hook-* tentacles read it directly. Pointing both at ONE scratch file
@@ -127,7 +140,7 @@ describe('Giant Squid Harness — tentacles fire (the proof)', () => {
   function pathWithoutJq(): string {
     const dir = join(SCRATCH, 'no-jq-bin');
     mkdirSync(dir, { recursive: true });
-    for (const name of ['cat', 'tr', 'sed', 'head', 'dirname', 'grep', 'cut', 'python3']) {
+    for (const name of ['cat', 'tr', 'sed', 'head', 'dirname', 'grep', 'cut', 'python3', 'curl']) {
       const target = join(dir, name);
       if (!existsSync(target)) symlinkSync(commandPath(name), target);
     }
@@ -628,6 +641,147 @@ describe('Giant Squid Harness — tentacles fire (the proof)', () => {
     expect(r.error).toBeUndefined();
     expect(Buffer.byteLength(r.stdout)).toBe(0);
     expect(Buffer.byteLength(r.stderr)).toBe(0);
+  });
+
+  test('prompt hook surfaces a bounded unread inbox/parley count without message content', async () => {
+    mkdirSync(join(WORKSPACE, '.portdaddy'), { recursive: true });
+    writeFileSync(MATRIX, '# no matrix coordination\n');
+    const server = createServer((req, res) => {
+      expect(req.url).toBe('/agents/agent_test/inbox/stats');
+      res.setHeader('content-type', 'application/json');
+      res.end(JSON.stringify({ success: true, total: 9, unread: 3, secret: 'must-not-leak' }));
+    });
+    await new Promise<void>((resolveListen) => server.listen(0, '127.0.0.1', resolveListen));
+    const address = server.address();
+    expect(address && typeof address === 'object').toBe(true);
+    try {
+      const r = await runPromptAsync({
+        ...process.env,
+        PD_MATRIX_FILE: MATRIX,
+        PD_HOME: dirname(MATRIX),
+        PD_SITREP: 'off',
+        PD_ACTOR: 'agent_test',
+        PORT_DADDY_URL: `http://127.0.0.1:${(address as { port: number }).port}`,
+      });
+      expect(r.status).toBe(0);
+      const ctx = JSON.parse(r.stdout).hookSpecificOutput.additionalContext as string;
+      expect(ctx).toContain('3 unread inbox/parley item(s)');
+      expect(ctx).toContain('pd attention');
+      expect(ctx).not.toContain('must-not-leak');
+      expect(ctx.split('\n').filter((line) => line.startsWith('- '))).toHaveLength(1);
+    } finally {
+      server.close();
+    }
+  });
+
+  test('prompt inbox probe is silent and fail-open without an actor or live daemon', async () => {
+    mkdirSync(join(WORKSPACE, '.portdaddy'), { recursive: true });
+    writeFileSync(MATRIX, '# no matrix coordination\n');
+    const noActor = await runPromptAsync({
+      ...process.env,
+      PD_MATRIX_FILE: MATRIX,
+      PD_HOME: dirname(MATRIX),
+      PD_SITREP: 'off',
+      PORT_DADDY_URL: 'http://127.0.0.1:1',
+    });
+    expect(noActor).toMatchObject({ status: 0, stdout: '', stderr: '' });
+
+    const down = await runPromptAsync({
+      ...process.env,
+      PD_MATRIX_FILE: MATRIX,
+      PD_HOME: dirname(MATRIX),
+      PD_SITREP: 'off',
+      PD_ACTOR: 'agent_test',
+      PORT_DADDY_URL: 'http://127.0.0.1:1',
+    });
+    expect(down).toMatchObject({ status: 0, stdout: '', stderr: '' });
+
+    const remote = await runPromptAsync({
+      ...process.env,
+      PD_MATRIX_FILE: MATRIX,
+      PD_HOME: dirname(MATRIX),
+      PD_SITREP: 'off',
+      PD_ACTOR: 'agent_test',
+      PORT_DADDY_URL: 'https://coordination.example.invalid',
+    });
+    expect(remote).toMatchObject({ status: 0, stdout: '', stderr: '' });
+  });
+
+  test('prompt inbox probe rejects malformed actors and ignores malformed or timed-out responses', async () => {
+    mkdirSync(join(WORKSPACE, '.portdaddy'), { recursive: true });
+    writeFileSync(MATRIX, '# no matrix coordination\n');
+    let requests = 0;
+    const server = createServer((_req, res) => {
+      requests += 1;
+      if (requests === 1) {
+        res.setHeader('content-type', 'application/json');
+        res.end('{"unread":"not-a-number"}');
+        return;
+      }
+      setTimeout(() => res.end('{"unread":4}'), 500);
+    });
+    await new Promise<void>((resolveListen) => server.listen(0, '127.0.0.1', resolveListen));
+    const address = server.address();
+    expect(address && typeof address === 'object').toBe(true);
+    const daemonUrl = `http://127.0.0.1:${(address as { port: number }).port}`;
+    try {
+      const malformedActor = await runPromptAsync({
+        ...process.env,
+        PD_MATRIX_FILE: MATRIX,
+        PD_HOME: dirname(MATRIX),
+        PD_SITREP: 'off',
+        PD_ACTOR: 'agent/../../secret',
+        PORT_DADDY_URL: daemonUrl,
+      });
+      expect(malformedActor).toMatchObject({ status: 0, stdout: '', stderr: '' });
+      expect(requests).toBe(0);
+
+      const malformedJson = await runPromptAsync({
+        ...process.env,
+        PD_MATRIX_FILE: MATRIX,
+        PD_HOME: dirname(MATRIX),
+        PD_SITREP: 'off',
+        PD_ACTOR: 'agent_test',
+        PORT_DADDY_URL: daemonUrl,
+      });
+      expect(malformedJson).toMatchObject({ status: 0, stdout: '', stderr: '' });
+
+      const timedOut = await runPromptAsync({
+        ...process.env,
+        PD_MATRIX_FILE: MATRIX,
+        PD_HOME: dirname(MATRIX),
+        PD_SITREP: 'off',
+        PD_ACTOR: 'agent_test',
+        PORT_DADDY_URL: daemonUrl,
+      });
+      expect(timedOut).toMatchObject({ status: 0, stdout: '', stderr: '' });
+    } finally {
+      server.close();
+    }
+  });
+
+  test('prompt inbox probe parses numeric unread count without jq', async () => {
+    mkdirSync(join(WORKSPACE, '.portdaddy'), { recursive: true });
+    writeFileSync(MATRIX, '# no matrix coordination\n');
+    const server = createServer((_req, res) => res.end('{"unread":2}'));
+    await new Promise<void>((resolveListen) => server.listen(0, '127.0.0.1', resolveListen));
+    const address = server.address();
+    expect(address && typeof address === 'object').toBe(true);
+    try {
+      const r = await runPromptAsync({
+        ...process.env,
+        PATH: pathWithoutJq(),
+        PD_MATRIX_FILE: MATRIX,
+        PD_HOME: dirname(MATRIX),
+        PD_SITREP: 'off',
+        PD_ACTOR: 'agent_test',
+        PORT_DADDY_URL: `http://127.0.0.1:${(address as { port: number }).port}`,
+      });
+      expect(r.status).toBe(0);
+      expect(r.stdout).toContain('2 unread inbox/parley item(s)');
+    } finally {
+      server.close();
+    }
   });
 
   // ── SITREP dial (per-repo end-of-turn compulsion; operator doctrine 2026-08-22) ──
@@ -1310,7 +1464,7 @@ describe('Giant Squid Harness — pd-hook-stop event byte budget (review finding
     const binDir = join(pdHome, 'bin');
     const srcBin = join(SCRATCH, 'debug-oversize-src');
     mkdirSync(srcBin, { recursive: true });
-    for (const name of ['pd-hook-prompt', 'pd-hook-pre-tool', 'pd-hook-post-tool', 'pd-hook-stop'] as const) {
+    for (const name of ['pd-hook-prompt', 'pd-hook-pre-tool', 'pd-hook-post-tool', 'pd-hook-stop', 'pd-hook-precompact'] as const) {
       copyFileSync(bin(name), join(srcBin, name));
       chmodSync(join(srcBin, name), 0o755);
     }
@@ -1450,7 +1604,7 @@ describe('Giant Squid Harness — pd-hook-stop marker garbage collection (review
 });
 
 describe('Giant Squid Harness — ClaudeCliSquidAdapter.injectHooks', () => {
-  test('wires only the decision-bearing turn/edit tentacles with absolute paths', async () => {
+  test('wires the verified Claude PreCompact checkpoint and decision-bearing turn/edit tentacles with absolute paths', async () => {
     const adapter = new ClaudeCliSquidAdapter();
     expect(adapter.verified).toBe(true);
     await adapter.injectHooks(WORKSPACE);
@@ -1460,9 +1614,13 @@ describe('Giant Squid Harness — ClaudeCliSquidAdapter.injectHooks', () => {
     const settings = JSON.parse(readFileSync(settingsPath, 'utf8'));
 
     const cmd = (event: string) => settings.hooks[event][settings.hooks[event].length - 1].hooks[0].command;
-    expect(cmd('UserPromptSubmit')).toBe(hookCommandPath('pd-hook-prompt'));
+    expect(cmd('UserPromptSubmit')).toBe(`${hookCommandPath('pd-hook-prompt')} --interactive-context-pressure`);
     expect(cmd('PreToolUse')).toBe(hookCommandPath('pd-hook-pre-tool'));
     expect(cmd('Stop')).toBe(hookCommandPath('pd-hook-stop'));
+    // This fixture proves only the provider-native lifecycle registration. It
+    // does not simulate a context packet: the daemon must first bind the
+    // provider session and independently witness usage/tool-pair coverage.
+    expect(cmd('PreCompact')).toBe(hookCommandPath('pd-hook-precompact'));
     expect(settings.hooks.Stop[settings.hooks.Stop.length - 1].matcher).toBeUndefined();
     expect(cmd('UserPromptSubmit')).not.toContain('/Cellar/');
     expect(settings.hooks.PostToolUse).toBeUndefined();
@@ -1473,6 +1631,10 @@ describe('Giant Squid Harness — ClaudeCliSquidAdapter.injectHooks', () => {
     expect(gate.name).toBe(SQUID_HOOK_METADATA.preTool.displayName);
     expect(gate.description).toBe(SQUID_HOOK_METADATA.preTool.description);
     expect(gate.privacy).toBe(SQUID_HOOK_METADATA.preTool.privacy);
+    const preCompact = settings.hooks.PreCompact[settings.hooks.PreCompact.length - 1];
+    expect(preCompact.name).toBe(SQUID_HOOK_METADATA.preCompact.displayName);
+    expect(preCompact.description).toBe(SQUID_HOOK_METADATA.preCompact.description);
+    expect(preCompact.privacy).toBe(SQUID_HOOK_METADATA.preCompact.privacy);
   });
 
   test('injectHooks is idempotent (re-run does not duplicate PD entries)', async () => {

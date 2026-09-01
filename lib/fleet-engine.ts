@@ -100,14 +100,14 @@ export interface FleetAgent {
   identity?: string;
   timeout?: number;
   allowedTools?: string;
-  /** Opt-in: splice a windags-pattern skill shortlist (lib/skill-graft.ts)
+  /** Opt-in: splice native Jury-rig skill guidance (lib/skill-graft.ts)
    *  into this ship's task text before it spawns. `astToConfig()` (the YAML
    *  path, i.e. every real pd-fleet.yml ship) always normalizes this to a
    *  concrete boolean, defaulting to `false`; the `?:` here only matters for
    *  hand-constructed `FleetConfig`s (e.g. tests) that omit the field
    *  entirely. Either way, falsy means existing ships are byte-for-byte
    *  unaffected. */
-  skillGraft?: boolean;
+  juryRig?: boolean;
   fallbacks?: FleetRuntimeTarget[];
   cooldownMs?: number;
   dedupeWindowMs?: number;
@@ -690,7 +690,7 @@ export interface FleetRunnerOptions {
   enqueueForApproval?: (proposal: FleetApprovalProposal) => void | Promise<void>;
   /**
    * Native, local skill-injection index (lib/skill-graft.ts) for ships that
-   * set `skill_graft: true`. When omitted, the runner lazily constructs a
+   * set `jury_rig: true`. When omitted, the runner lazily constructs a
    * real one (real local MiniLM embedder + this repo's skills/ directory,
    * BM25 + Tool2Vec hybrid ranking — see that module for why it's not just
    * cosine-vs-description) the first time an opted-in agent actually
@@ -739,7 +739,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
   const FLEET_TUPLE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
   // ─── Skill Graft (opt-in per-ship context injection) ─────────────────────
-  // Only ever constructed if some agent actually sets `skill_graft: true` in
+  // Only ever constructed if some agent actually sets `jury_rig: true` in
   // pd-fleet.yml AND that agent runs — a bare `createFleetRunner()` with no
   // opted-in ships never touches the embedder or the skill catalog. Tests
   // inject `options.skillGraft` directly to avoid the real embedder/fs scan.
@@ -764,7 +764,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
       //    Tool2Vec centroid generation is a heavier, less-obviously-
       //    anticipated cost than the judge's per-request completions (a
       //    burst of LLM calls across the whole skill catalog the first time
-      //    `refresh()` runs); an operator enabling `skill_graft: true` on a
+      //    `refresh()` runs); an operator enabling `jury_rig: true` on a
       //    ship should opt into that cost explicitly, not inherit it from an
       //    unrelated judge/fleet-default configuration.
       //
@@ -1865,7 +1865,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
   }
 
   /**
-   * Returns a plain `string` synchronously whenever `agent.skillGraft` is not
+   * Returns a plain `string` synchronously whenever `agent.juryRig` is not
    * set — i.e. for every ship today, byte-for-byte identical to this
    * function's pre-skill-graft behavior, with ZERO extra microtask ticks.
    * That matters: several existing tests assert exact scheduling/backoff/
@@ -1909,12 +1909,12 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
       task = lines.join('\n');
     }
 
-    if (!agent.skillGraft) return task;
+    if (!agent.juryRig) return task;
     return appendSkillGraftContext(agent, task, identity);
   }
 
   /**
-   * Append a windags-pattern "relevant skills" section to `task` using
+   * Append a Jury-rig "relevant skills" section to `task` using
    * lib/skill-graft.ts, keyed on the ship's own task text as the query.
    *
    * This runs on the live spawn path (`buildAgentTask` awaits it before the
@@ -2154,7 +2154,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
 
     try {
       const attemptErrors: SpawnAttemptFailure[] = [];
-      // Only await when skill-graft actually returned a Promise (agent.skillGraft
+      // Only await when Jury-rig actually returned a Promise (agent.juryRig
       // is set) — see buildAgentTask's doc comment for why the fast path must
       // stay perfectly synchronous.
       const taskResult = buildAgentTask(agent, identity, context);

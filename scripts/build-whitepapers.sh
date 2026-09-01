@@ -94,6 +94,7 @@ paper_sources() {
   local srcdir="$1" roottex="$2"
   if [ "$roottex" = "coordination-papers-mega-volume.tex" ]; then
     printf '%s\n' "$srcdir/$roottex" "$srcdir/coordination-papers-mega-volume-preamble.tex" \
+      "$srcdir/coordination-papers-mega-volume-seams.tex" \
       "$srcdir/coordination-papers-mega-volume-appendices.tex" \
       "scripts/generate-mega-whitepaper.mjs"
     paper_sources "whitepaper" "legible-swarm.tex"

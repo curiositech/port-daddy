@@ -107,11 +107,11 @@ D1 has no `migration repair` analog because D1 doesn't pretend the SQL ran when 
 
 ```bash
 # Apply pending migrations against the remote database.
-wrangler d1 migrations apply windags-telemetry --remote
+wrangler d1 migrations apply jury_rig-telemetry --remote
 
 # One-off SQL.
-wrangler d1 execute windags-telemetry --remote --file=migrations/002_cascade_scores.sql
-wrangler d1 execute windags-telemetry --remote --command="SELECT count(*) FROM tool_call_events;"
+wrangler d1 execute jury_rig-telemetry --remote --file=migrations/002_cascade_scores.sql
+wrangler d1 execute jury_rig-telemetry --remote --command="SELECT count(*) FROM tool_call_events;"
 ```
 
 Local vs remote: `--local` uses `.wrangler/state/v3/d1/`; `--remote` hits the real DB. Forgetting `--remote` is a frequent footgun.
@@ -123,12 +123,12 @@ Two competing models in `wrangler.toml`:
 ```toml
 # Model A — Cloudflare manages the DNS record on the zone.
 routes = [
-  { pattern = "api.windags.ai", custom_domain = true }
+  { pattern = "api.example.com", custom_domain = true }
 ]
 
 # Model B — You own the DNS; route only triggers if traffic arrives.
 routes = [
-  { pattern = "api.windags.ai/*", zone_name = "windags.ai" }
+  { pattern = "api.example.com/*", zone_name = "example.com" }
 ]
 ```
 

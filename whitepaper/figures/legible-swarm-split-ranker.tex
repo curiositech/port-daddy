@@ -1,50 +1,50 @@
-% Figure 8 — the split ranker (Thm. split-ranker): shared candidate-generation +
-% decay substrate, two distinct scoring heads (fit vs regret).
-% Design: each box is a name, an objective, and a motto — the signals inventory
-% and the "not one ranker" verdict live in the caption.
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-
+% Figure 11 — a true slopegraph: one candidate pool, two incompatible orders.
 \begin{figure}[H]
 \centering
-\resizebox{0.8\textwidth}{!}{%
-\begin{tikzpicture}[
-  font=\small,
-  box/.style={draw=hhebony,thick,rounded corners=3pt,align=center,inner sep=5pt,
-              font=\footnotesize,text width=42mm},
-  head/.style={draw=hhebony,very thick,rounded corners=3pt,align=center,inner sep=6pt,
-               font=\footnotesize,text width=50mm},
-  e/.style={-{Latex[length=2mm]},thick,hhink},
-]
-% shared substrate
-\node[box,fill=hhsand!30] (sub) at (0,0)
-  {\textbf{Shared substrate}\\candidate generation\\$+$ recency decay (Prop.~\ref{prop:decay})};
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \draw[pd focus rule,line width=1.1pt] (2.6,.55)--(2.6,4.65);
+  \draw[pd caution rule,line width=1.1pt] (13.0,.55)--(13.0,4.65);
+  \node[pd panel title,text=hhteal,anchor=south] at (2.6,4.90)
+    {discovery: fit};
+  \node[pd axis label,anchor=south] at (2.6,4.55) {best collaborator};
+  \node[pd panel title,text=hhamber,anchor=south] at (13.0,4.90)
+    {attention: regret if ignored};
+  \node[pd axis label,anchor=south] at (13.0,4.55) {most dangerous omission};
 
-% split
-\node[head,fill=hhsand!30] (fit) at (6.4,1.8)
-  {\textbf{Discovery head} --- agent$\to$agent\\maximize \emph{fit} (Eq.~\ref{eq:fit})\\
-   \emph{``who is most capable?''}};
-\node[head,fill=hhsand!30] (reg) at (6.4,-1.8)
-  {\textbf{Attention-queue head} --- substrate$\to$operator\\maximize \emph{regret-if-ignored} (Eq.~\ref{eq:regret})\\
-   \emph{``what is most dangerous?''}};
+  \foreach \y/\rank in {4.0/1,3.0/2,2.0/3,1.0/4}{
+    \draw[pd tick] (2.48,\y)--(2.72,\y);
+    \draw[pd tick] (12.88,\y)--(13.12,\y);
+    \node[pd axis label,anchor=east] at (2.35,\y) {\rank};
+    \node[pd axis label,anchor=west] at (13.25,\y) {\rank};
+  }
 
-\draw[e] (sub.east) -- (fit.west);
-\draw[e] (sub.east) -- (reg.west);
-\end{tikzpicture}%
-}
-\caption{The split ranker (Thm.~\ref{thm:split-ranker}). The discovery ranker and the
-operator's attention queue \emph{share} candidate generation and recency-decay
-(Prop.~\ref{prop:decay}) over the same signals --- claims, skills, notes, episodes,
-presence --- but apply distinct scoring heads: discovery maximizes \emph{fit}
-(capability match, Eq.~\ref{eq:fit}); the attention queue maximizes
-\emph{regret-if-ignored} (Eq.~\ref{eq:regret}). The operator wants the most dangerous
-item surfaced, the agent wants the most capable collaborator --- incompatible loss
-functions, not one objective with swapped weights, so the elegant ``one ranker''
-claim is false-as-stated and demoted to ``shared substrate, distinct heads.''}
+  \draw[pd focus rule,line width=1.05pt] (2.6,4.0)--(13.0,1.0);
+  \draw[pd caution rule,line width=1.05pt] (2.6,1.0)--(13.0,4.0);
+  \draw[pd hairline] (2.6,3.0)--(13.0,2.65);
+  \draw[pd hairline] (2.6,2.0)--(13.0,2.35);
+
+  \node[pd focus datum] at (2.6,4.0) {};
+  \node[pd focus datum] at (13.0,1.0) {};
+  \node[pd caution datum] at (2.6,1.0) {};
+  \node[pd caution datum] at (13.0,4.0) {};
+  \node[pd datum] at (2.6,3.0) {};
+  \node[pd datum] at (13.0,2.65) {};
+  \node[pd datum] at (2.6,2.0) {};
+  \node[pd datum] at (13.0,2.35) {};
+
+  \node[pd direct label,text=hhteal,anchor=west,align=left] at (3.05,3.83)
+    {A \quad capable, safe, reversible};
+  \node[pd direct label,text=hhamber,anchor=west,align=left] at (3.05,1.17)
+    {B \quad off-topic, irreversible, anomalous};
+  \node[pd direct label,anchor=center] at (7.8,2.82) {C};
+  \node[pd direct label,anchor=center] at (7.8,2.18) {D};
+  \node[pd note,anchor=south] at (7.8,.18)
+    {A and B reverse: no monotone rescaling can make the heads interchangeable};
+\end{tikzpicture}
+\caption{One candidate pool under two loss functions. Discovery ranks the most
+capable collaborator; attention ranks the omission with the greatest expected
+regret. Candidate A is excellent but safe to ignore, while B is a poor match but
+dangerous to miss, so their order reverses. Shared candidate generation and
+recency decay do not make the scoring heads interchangeable.}
 \label{fig:split-ranker}
 \end{figure}

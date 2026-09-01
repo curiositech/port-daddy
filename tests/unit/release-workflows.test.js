@@ -6,10 +6,12 @@ import { jest } from '@jest/globals';
 import {
   compareStableVersions,
   extractFormulaVersion,
+  findLatestStableTag,
   findVersionTransition,
   formulaMatchesRelease,
   GITHUB_PERMISSION_PROBE_TIMEOUT_MS,
   HOMEBREW_TAP_TOKEN_SOURCE,
+  latestStableTag,
   parseStableVersion,
   probeRepositoryPush,
   RELEASE_TRAIN_TOKEN_SOURCE,
@@ -36,6 +38,8 @@ describe('release workflow topology contracts', () => {
     expect(workflow).toContain('ref: ${{ steps.release.outputs.release_sha }}');
     expect(workflow).toContain('steps.release.outputs.should_publish');
     expect(workflow).not.toContain("startsWith(github.event.pull_request.head.ref, 'release-train/')");
+    expect(workflow).toContain('latest=$(node scripts/release-workflow-state.mjs latest-stable-tag)');
+    expect(workflow).not.toContain("git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -n1");
   });
 
   test('release mutation selects a live push-capable token while tap promotion needs no cross-repo credential', () => {
@@ -220,12 +224,28 @@ describe('release workflow state', () => {
   });
 
   test('accepts only plain stable versions and v-prefixed stable tags', () => {
-    expect(parseStableVersion('3.29.0')).toEqual([3, 29, 0]);
+    expect(parseStableVersion('3.29.0')).toEqual([3n, 29n, 0n]);
     expect(stableVersionFromTag('v3.29.0')).toBe('3.29.0');
-    for (const invalid of ['3.29', '3.29.0-rc.1', 'v3.29.0', '']) {
+    for (const invalid of [
+      '3.29',
+      '3.29.0-rc.1',
+      'v3.29.0',
+      '03.29.0',
+      '3.029.0',
+      '3.29.00',
+      '',
+    ]) {
       expect(() => parseStableVersion(invalid)).toThrow('not a stable x.y.z version');
     }
-    for (const invalid of ['3.29.0', 'v3.29', 'v3.29.0-rc.1', '']) {
+    for (const invalid of [
+      '3.29.0',
+      'v3.29',
+      'v3.29.0-rc.1',
+      'v03.29.0',
+      'v3.029.0',
+      'v3.29.00',
+      '',
+    ]) {
       expect(() => stableVersionFromTag(invalid)).toThrow('not a stable vx.y.z tag');
     }
   });
@@ -235,6 +255,43 @@ describe('release workflow state', () => {
     expect(compareStableVersions('3.29.1', '3.29.0')).toBeGreaterThan(0);
     expect(compareStableVersions('3.29.0', '3.29.0')).toBe(0);
     expect(compareStableVersions('3.28.99', '3.29.0')).toBeLessThan(0);
+    expect(
+      compareStableVersions('9007199254740992.0.0', '9007199254740993.0.0'),
+    ).toBeLessThan(0);
+  });
+
+  test('selects the newest stable tag after excluding prereleases first', () => {
+    expect(latestStableTag([
+      'v3.30.1',
+      'v3.30.2',
+      'v3.30.2-rc.1',
+      'v3.29.9',
+    ])).toBe('v3.30.2');
+    expect(latestStableTag(['v3.30.2-rc.1', 'v3.30.2-beta.1'])).toBe(null);
+    expect(latestStableTag([
+      'v9007199254740992.0.0',
+      'v9007199254740993.0.0',
+      'v09007199254740994.0.0',
+    ])).toBe('v9007199254740993.0.0');
+  });
+
+  test('queries git with the exact tag-list contract and returns no prerelease-only fallback', () => {
+    const calls = [];
+    const outputs = [
+      'v3.30.1\nv3.30.2-rc.1\nv3.29.9',
+      'v3.30.2-rc.1\nv3.30.2-beta.1',
+    ];
+    const git = (args) => {
+      calls.push(args);
+      return outputs.shift();
+    };
+
+    expect(findLatestStableTag(git)).toBe('v3.30.1');
+    expect(findLatestStableTag(git, 'v3.30.*')).toBe(null);
+    expect(calls).toEqual([
+      ['tag', '--list', 'v*'],
+      ['tag', '--list', 'v3.30.*'],
+    ]);
   });
 
   test('selects the exact first version transition instead of a later carrier commit', () => {

@@ -34,6 +34,11 @@ function fakeBatch(messages: ReturnType<typeof fakeMessage>[]) {
   return { queue: 'fleet-runs', messages } as unknown as MessageBatch<FleetRunJob>;
 }
 
+/** Build a dead-letter delivery using the same message shape as the main queue. */
+function fakeDlqBatch(messages: ReturnType<typeof fakeMessage>[]) {
+  return { queue: 'fleet-runs-dlq', messages } as unknown as MessageBatch<FleetRunJob>;
+}
+
 interface CapturingCtx extends ExecutionContext {
   waited: Promise<unknown>[];
 }
@@ -62,6 +67,85 @@ afterEach(() => {
 });
 
 describe('queue consumer', () => {
+  it('retries an unavailable raw diff, then the DLQ fails its visible gate without model work', async () => {
+    // A GitHub 5xx from the raw-diff endpoint used to become an empty diff and
+    // let a clean, zero-source review complete. It is infrastructure failure:
+    // retry the delivery, preserve an in-progress required check, and let the
+    // DLQ turn that check red after retry exhaustion.
+    state.prDiffStatus = 503;
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const db = memoryD1();
+    const ai = aiStub({ perShip: { 'code-reviewer': 'FLEET-VERDICT: PASS' } });
+    const env = makeEnv({ FLEET_TOKENS: kv, AI: ai.ai, DB: db.db });
+    const first = fakeMessage(makeJob(), 1);
+
+    await handler.queue!(fakeBatch([first]), env, capturingCtx());
+
+    expect(first.retry).toHaveBeenCalledTimes(1);
+    expect(first.ack).not.toHaveBeenCalled();
+    expect(ai.calls).toHaveLength(0);
+    expect(state.completed).toHaveLength(0);
+    expect(state.existingCheckRuns).toMatchObject([
+      { name: 'Port Daddy Fleet', status: 'in_progress', headSha: 'HEADSHA' },
+    ]);
+
+    const deadLetter = fakeMessage(makeJob(), 3);
+    await handler.queue!(fakeDlqBatch([deadLetter]), env, capturingCtx());
+
+    expect(deadLetter.ack).toHaveBeenCalledTimes(1);
+    expect(deadLetter.retry).not.toHaveBeenCalled();
+    expect(ai.calls).toHaveLength(0);
+    expect(state.completed).toHaveLength(1);
+    expect(state.completed[0]).toMatchObject({ conclusion: 'failure' });
+    expect(state.completed[0].summary).toContain('infrastructure failed before review completed');
+    expect(state.completed).not.toContainEqual(expect.objectContaining({ conclusion: 'success' }));
+    expect(state.completed).not.toContainEqual(expect.objectContaining({ conclusion: 'neutral' }));
+  });
+
+  it('retries a trusted ship-contract outage instead of treating it as an absent contract', async () => {
+    state.files.set(
+      'main:pd-fleet.yml',
+      [
+        'fleet:',
+        '  name: test',
+        '  agents:',
+        '    code-reviewer:',
+        '      trigger: pull_request:opened',
+        '      blocking: true',
+        '      fallbacks:',
+        '        - backend: cloudflare',
+        "          model: '@cf/qwen/qwen3-30b-a3b-fp8'",
+        '      prompt: code-reviewer ship: review the diff.',
+        '',
+      ].join('\n'),
+    );
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const ai = aiStub({ perShip: { 'code-reviewer': 'FLEET-VERDICT: PASS' } });
+    const realFetch = globalThis.fetch;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        if (String(input).includes('/contents/fleet/ships/code-reviewer.md?ref=main')) {
+          return new Response('contract authority unavailable', { status: 503 });
+        }
+        return realFetch(input as RequestInfo, init);
+      }) as unknown as typeof fetch,
+    );
+    const message = fakeMessage(makeJob(), 1);
+
+    await handler.queue!(fakeBatch([message]), makeEnv({ FLEET_TOKENS: kv, AI: ai.ai }), capturingCtx());
+
+    expect(message.retry).toHaveBeenCalledTimes(1);
+    expect(message.ack).not.toHaveBeenCalled();
+    expect(ai.calls).toHaveLength(0);
+    expect(state.completed).toHaveLength(0);
+    expect(state.existingCheckRuns).toMatchObject([
+      { name: 'Port Daddy Fleet', status: 'in_progress', headSha: 'HEADSHA' },
+    ]);
+  });
+
   it('slices a multi-ship run into visible cumulative continuations, then acks the verdict', async () => {
     state.files.set(
       'main:pd-fleet.yml',
@@ -554,11 +638,18 @@ describe('queue consumer', () => {
     }).ai;
 
     const realFetch = globalThis.fetch;
+    let resolveFirstCompletionPatch: (() => void) | undefined;
+    const firstCompletionPatch = new Promise<void>(resolve => {
+      resolveFirstCompletionPatch = resolve;
+    });
+    let completionPatchAttempts = 0;
     vi.stubGlobal(
       'fetch',
       vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
         const url = String(input);
         if (/\/check-runs\/\d+$/.test(url) && (init?.method ?? 'GET') === 'PATCH') {
+          completionPatchAttempts += 1;
+          if (completionPatchAttempts === 1) resolveFirstCompletionPatch?.();
           return new Response('completion unavailable', { status: 503 });
         }
         return realFetch(input as RequestInfo, init);
@@ -568,9 +659,18 @@ describe('queue consumer', () => {
     const msg = fakeMessage(makeJob());
     const ctx = capturingCtx();
     const handling = handler.queue!(fakeBatch([msg]), makeEnv({ FLEET_TOKENS: kv, AI: ai }), ctx);
+    // Wait for the first real completion response, then flush exactly the
+    // response/read-back boundary that schedules completeCheckRun's retry
+    // timer. The trusted snapshot adds ordinary awaits before this point;
+    // advancing all timers before the first PATCH is observed races that
+    // legitimate setup work and masks the retry behavior this test verifies.
+    await firstCompletionPatch;
+    await vi.advanceTimersByTimeAsync(0);
+    expect(vi.getTimerCount()).toBeGreaterThan(0);
     await vi.runAllTimersAsync();
     await handling;
 
+    expect(completionPatchAttempts).toBe(3);
     expect(msg.retry).toHaveBeenCalledTimes(1);
     expect(msg.retry).toHaveBeenCalledWith();
     expect(msg.ack).not.toHaveBeenCalled();

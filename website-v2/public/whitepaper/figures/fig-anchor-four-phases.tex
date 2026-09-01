@@ -1,93 +1,46 @@
-% Four-phase Harbor Card progression — inline at top of §2 Architecture.
-% Each phase carries: (1) cryptographic primitive (in header), (2) one-line
-% property (in body), (3) the threat it forecloses (cobalt threat box),
-% and (4) the rationale for the next phase (teal label on the arrow).
-
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D8C7A6}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-
-% ─── Four-Phase Anchor Protocol Progression ──────────────────────────────────
+% Semantic contract: every phase closes one additional threat while retaining
+% every earlier closure. The staircase is the mechanism; color is redundant.
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}[
-  phasecard/.style={draw=hhink, line width=0.65pt, fill=hhsand!25, rounded corners=2pt, inner sep=6pt, text width=38mm, minimum height=28mm, align=left},
-  phaseaccent/.style={phasecard, draw=hhcobalt, fill=hhcobalt!7},
-  threatcard/.style={draw=hhink, line width=0.5pt, fill=hhpaper, rounded corners=2pt, inner sep=4pt, text width=38mm, font=\scriptsize, align=left},
-  steparr/.style={-{Stealth[length=2.0mm,width=1.3mm]}, draw=hhcobalt, line width=0.75pt},
-  ratpill/.style={draw=hhink, line width=0.4pt, fill=hhpaper, rounded corners=1.5pt, inner sep=2pt, font=\tiny\itshape, text width=20mm, align=center}
-]
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \def\xmin{-4.55}
+  \def\xmax{5.25}
+  \foreach \y/\threat/\close in {
+    2.1/{header-selected\\algorithm}/-3.25,
+    .7/{shared-secret theft}/-1.05,
+    -.7/{downstream\\privilege growth}/1.15,
+    -2.1/{post-issue authority}/3.35} {
+    \node[pd axis label,anchor=east,align=right,text width=31mm] at (\xmin-0.18,\y) {\threat};
+    \draw[pd hairline] (\xmin,\y) -- (\xmax,\y);
+    \draw[draw=hhamber,line width=2.4pt,line cap=round] (\xmin,\y) -- (\close,\y);
+    \draw[draw=hhpaper,line width=1.0pt,line cap=round] (\xmin,\y) -- (\close,\y);
+    \draw[draw=hhteal,line width=2.4pt,line cap=round] (\close,\y) -- (\xmax,\y);
+    \node[pd caution datum,minimum size=4.8pt,inner sep=0pt] at (\close,\y) {};
+  }
 
-  % ─── Phase 1: Symmetric Pinning ─────────────────────────────────────────────
-  \node[phasecard] (p1) at (-6.3, 0) {
-    \textbf{\scshape Phase 1: HS256}\\[1pt]
-    {\scriptsize\textsc{Symmetric Pinning}}\\[3pt]
-    {\scriptsize Alg header ignored; key pinned at issuance. Header trust = 0.}
-  };
-  \node[threatcard, below=4mm of p1] (t1) {
-    \textbf{Forecloses:}\\
-    Alg confusion attacks (CVE-2015-9235, CVE-2023-48238).
-  };
+  \draw[pd caution rule]
+    (-3.25,2.1) -- (-3.25,.7) -- (-1.05,.7) -- (-1.05,-.7) --
+    (1.15,-.7) -- (1.15,-2.1) -- (3.35,-2.1);
+  \node[pd direct label,text=hhamber,anchor=south west] at (-3.15,2.28)
+    {closure frontier};
 
-  % ─── Phase 2: Asymmetric Identity ───────────────────────────────────────────
-  \node[phasecard] (p2) at (-2.1, 0) {
-    \textbf{\scshape Phase 2: Ed25519}\\[1pt]
-    {\scriptsize\textsc{Asymmetric Identity}}\\[3pt]
-    {\scriptsize Daemon holds Root CA; private key never leaves issuer.}
-  };
-  \node[threatcard, below=4mm of p2] (t2) {
-    \textbf{Forecloses:}\\
-    Shared-secret theft and cross-harbor key compromise.
-  };
-
-  % ─── Phase 3: Stigmergic Delegation ─────────────────────────────────────────
-  \node[phasecard] (p3) at (2.1, 0) {
-    \textbf{\scshape Phase 3: Macaroon}\\[1pt]
-    {\scriptsize\textsc{Stigmergic Delegation}}\\[3pt]
-    {\scriptsize Multi-hop attenuation ($\text{cap}_k \subseteq \text{cap}_{k-1}$) with nonce-chain binding.}
-  };
-  \node[threatcard, below=4mm of p3] (t3) {
-    \textbf{Forecloses:}\\
-    Capability escalation, hop splicing, and chain substitution.
-  };
-
-  % ─── Phase 4: Dynamic Revocation ────────────────────────────────────────────
-  \node[phaseaccent] (p4) at (6.3, 0) {
-    \textbf{\scshape Phase 4: Cuckoo}\\[1pt]
-    {\scriptsize\textsc{Dynamic Revocation}}\\[3pt]
-    {\scriptsize Append-only revocation log + Cuckoo read-cache. Epoch-gossiped.}
-  };
-  \node[threatcard, below=4mm of p4] (t4) {
-    \textbf{Forecloses:}\\
-    Post-issuance compromise and stale authorization windows.
-  };
-
-  % ─── Flow Arrows with Rationale Pills ───────────────────────────────────────
-  \draw[steparr] (p1.east) -- (p2.west);
-  \node[ratpill] at ($(p1.east)!0.5!(p2.west)$) {Needs:\\No Shared Key};
-
-  \draw[steparr] (p2.east) -- (p3.west);
-  \node[ratpill] at ($(p2.east)!0.5!(p3.west)$) {Needs:\\Attenuation};
-
-  \draw[steparr] (p3.east) -- (p4.west);
-  \node[ratpill] at ($(p3.east)!0.5!(p4.west)$) {Needs:\\Early Revoke};
-
-  % ─── ProVerif Mechanization Status Band (Bottom) ────────────────────────────
-  \node[draw=hhink, line width=0.5pt, fill=hhpaper, rounded corners=2pt, inner sep=5pt, text width=152mm, align=center, font=\scriptsize]
-    at (0.0, -3.8) {
-    \textbf{\scshape Mechanized Verification Status} (ProVerif 2.05, Unbounded Sessions, Dolev--Yao Adversary):\\[1pt]
-    Phase 1: \textbf{Auth + Injective Safe \checkmark} \quad\textperiodcentered\quad
-    Phase 2: \textbf{Alg-Pinning Invariant \checkmark} \quad\textperiodcentered\quad
-    Phase 3: \textbf{17/17 Replay Immunity \checkmark} \quad\textperiodcentered\quad
-    Phase 4: \textbf{Monotonic Revocation Log \checkmark}
-  };
-
+  \foreach \x/\n/\name in {
+    -3.25/1/{HS256 pinning},
+    -1.05/2/{Ed25519 identity},
+    1.15/3/{delegation},
+    3.35/4/{revocation}} {
+    \draw[pd tick] (\x,-2.48) -- (\x,-2.65);
+    \node[pd axis label,anchor=north,align=center,text width=28mm] at (\x,-2.72)
+      {\textbf{Phase \n}\\\name};
+  }
+  \draw[pd rule,-{Stealth[length=1.7mm,width=1.05mm]}]
+    (\xmin,-2.55) -- (\xmax,-2.55);
+  \node[pd note,anchor=west] at (-4.5,-3.55)
+    {amber before closure; teal thereafter; no protection reopens};
 \end{tikzpicture}
-\caption{The four phases of the Anchor Protocol. Each phase refines the previous: the cryptographic primitive strengthens, and a specific adversary threat is formally foreclosed. Phases 1--3 are mechanized in ProVerif (\S\ref{app:mech}); Phase 4 is enforced via append-only gossip logs and monotonic filter proofs (\S\ref{sec:revocation}).}
+\caption{Threat closure is cumulative, not substitutive. Each protocol phase
+moves one attack surface across the closure frontier while every earlier rail
+stays closed. The staircase therefore encodes the architectural invariant: a
+later mechanism adds protection without reopening a hole already closed.}
 \label{fig:anchor-four-phases}
 \end{figure}

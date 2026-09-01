@@ -123,7 +123,7 @@ Source: [LangGraph Multi-Agent Supervisor](https://reference.langchain.com/pytho
 
 `GroupChatManager` picks the next speaker via `speaker_selection_method ∈ {auto, manual, random, round_robin, custom}`. The `auto` method is itself an LLM call ("which agent should speak next?") — explicit acknowledgment that **selection is a model decision when there is no obvious rule.** `SelectorGroupChat` extends this with conversation-context-aware selection over agent descriptions.
 
-For PD: the `pd whois`-style ranker should expose a `method` knob with at least `{semantic, recency, success_rate, llm}` — and the LLM method should be a cheap Haiku call when the cheap rankers tie. This mirrors the windags skill-search cascade pattern the operator already uses.
+For PD: the `pd whois`-style ranker should expose a `method` knob with at least `{semantic, recency, success_rate, llm}` — and the LLM method should be a cheap Haiku call when the cheap rankers tie. This mirrors the jury_rig skill-search cascade pattern the operator already uses.
 
 Source: [AutoGen GroupChat — AG2 docs](https://docs.ag2.ai/latest/docs/api-reference/autogen/GroupChat/), [Selector Group Chat — AutoGen](https://microsoft.github.io/autogen/dev//user-guide/agentchat-user-guide/selector-group-chat.html).
 
@@ -255,7 +255,7 @@ The phonebook entry for an agent that died 3 days ago is gracefully degraded, no
 
 ### 2.4 Ranking — cascade
 
-Default `pd whois <query>` cascade (mirrors windags skill-search):
+Default `pd whois <query>` cascade (mirrors jury_rig skill-search):
 
 1. **Exact match** on `agent_capabilities.term` → return immediately, ranked by `effective_strength DESC`.
 2. **Lexical (BM25/TF-IDF)** over `agents.purpose`, `agents.agent_card`, `agents.skills` joined. Cheap, fast.

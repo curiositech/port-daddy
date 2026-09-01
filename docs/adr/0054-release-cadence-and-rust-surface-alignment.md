@@ -192,14 +192,17 @@ Port Daddy follows SemVer (`CHANGELOG.md` already declares this). The bump rule:
 >    `build-fleetbar-preview` → `publish-npm` → `update-homebrew` (the tap dispatch).
 >
 > **Verify the cut actually landed (do not trust green):**
-> 8. `build-binaries` is the gate. `update-homebrew` runs `if: always() &&
->    needs.build-binaries.result == 'success'` — it is **not** gated on the flaky
->    FleetBar Swift preview or on `publish-npm` (a v3.17.0 FleetBar compile failure
->    once stranded the tap at 3.16.2; that gating bug is already fixed in the
->    workflow). So a FleetBar or npm hiccup will not silently block the tap.
-> 9. If `publish-npm` failed partway (the historical `bun`-missing regression that
->    wedged v3.14.1 + v3.15.0), re-run via `workflow_dispatch` with `tag=vX.Y.Z` —
->    that path is a deliberate recovery trigger, not a second publisher.
+> 8. `build-binaries`, `build-fleetbar-preview`, and `build-latest-json` are the
+>    gate. Tagged `v3.30.3` made FleetBar and `latest.json` essential release cargo:
+>    `update-homebrew` now waits on all three because the tap consumes
+>    `latest.json`, and the operator ships the daemon and FleetBar together. Do
+>    not bypass a red FleetBar preview and expect Homebrew promotion to remain
+>    correct.
+> 9. If a required release lane failed partway (historically this included the
+>    `bun install` regression, and now includes FleetBar/`latest.json` because
+>    they gate Homebrew promotion), repair the underlying lane and re-run via
+>    `workflow_dispatch` with `tag=vX.Y.Z` — that path is a deliberate recovery
+>    trigger, not a second publisher.
 > 10. `brew update && brew upgrade port-daddy`, then `pd --version` — confirm the
 >     installed binary matches the tag. **This is the step the lag hides; do not skip it.**
 >

@@ -87,7 +87,7 @@ Of 154 studies examined, 132 (85%) met at least one criterion. This is encouragi
 
 ## Transfer to Agent System Design
 
-For WinDAGs and similar agent orchestration systems, the automation gap has direct implications:
+For Jury-rig and similar agent orchestration systems, the automation gap has direct implications:
 
 **Skill specification is incomplete by default.** When skills are defined based on interviews with domain experts or review of documentation, the resulting specifications miss automated expert knowledge. Skills that "perform well in demos" may fail on edge cases that require compiled expertise.
 

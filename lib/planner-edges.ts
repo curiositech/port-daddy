@@ -35,7 +35,7 @@ export const DEPS_SCOPE = 'planner:deps';
 export const LINKS_SCOPE = 'planner:links';
 
 export const ITEM_TYPE = 'roadmap:item';
-export type ArtifactType = 'commit' | 'pr' | 'adr' | 'doc' | 'file' | 'media';
+export type ArtifactType = 'commit' | 'pr' | 'adr' | 'doc' | 'file' | 'media' | 'issue';
 
 /** A parent_of edge input: `parent` contains `child`. */
 export function parentEdge(parent: string, child: string): GraphEdgeInput {
@@ -109,7 +109,7 @@ export function writePlanEdges(graphEdges: GraphEdges, plan: PlannerPlan): Write
 // ─── Jira-grade item links (2026-08-22 roadmap command-center mandate) ───────
 
 /** The link kinds the item-link routes/CLI can AUTHOR onto a card. */
-export type ItemLinkKind = 'pr' | 'doc' | 'file' | 'media';
+export type ItemLinkKind = 'pr' | 'doc' | 'file' | 'media' | 'issue';
 
 /**
  * Per-kind metadata whitelist: what an authored link may carry beyond its
@@ -123,6 +123,8 @@ const ITEM_LINK_METADATA_KEYS: Record<ArtifactType, string[]> = {
   media: ['mime', 'caption'],
   commit: ['label', 'title'],
   adr: ['label', 'title'],
+  /** `tracker` names which external system (github/linear/jira); `url` is the issue permalink. */
+  issue: ['url', 'title', 'tracker'],
 };
 
 /** One typed link on a roadmap item's card, as read back from graph_edges. */
@@ -151,8 +153,8 @@ export interface ItemLink {
  * not rejected: an over-eager writer degrades to a plain link, never a 500.
  *
  * @param itemSlug - The roadmap item's slug (the graph node id).
- * @param kind - Which typed link: pr | doc | file | media.
- * @param targetId - PR number (string), repo path, or media path/URL.
+ * @param kind - Which typed link: pr | doc | file | media | issue.
+ * @param targetId - PR number (string), repo path, media path/URL, or external issue URL/id (issue).
  * @param metadata - Optional per-kind extras (whitelisted per kind).
  * @returns A GraphEdgeInput ready for `graphEdges.remember` / `forget`.
  */
@@ -181,7 +183,7 @@ export function itemLinkEdge(
   };
 }
 
-const ARTIFACT_TYPES = new Set<ArtifactType>(['commit', 'pr', 'adr', 'doc', 'file', 'media']);
+const ARTIFACT_TYPES = new Set<ArtifactType>(['commit', 'pr', 'adr', 'doc', 'file', 'media', 'issue']);
 
 /**
  * Read every `links` edge on one roadmap item, newest-updated first.
@@ -232,7 +234,7 @@ export function listItemLinks(graphEdges: GraphEdges, itemSlug: string): ItemLin
  *
  * @param graphEdges - The graph_edges module handle.
  * @param itemSlug - The roadmap item's slug.
- * @param kind - Which typed link: pr | doc | file | media.
+ * @param kind - Which typed link: pr | doc | file | media | issue.
  * @param targetId - The exact target the link was created with.
  * @returns true when a link existed and was removed.
  */

@@ -55,7 +55,7 @@ const LINES: YamlLine[] = [
   { text: '      fallbacks:', ref: 5 },
   { text: '        - backend: cli:codex' },
   { text: '        - backend: cloudflare' },
-  { text: "          model: '@cf/qwen/qwen3-30b-a3b-fp8'" },
+  { text: '          capability: cheap' },
   { text: '      singleton: true', ref: 6 },
   { text: '      prompt: |', ref: 7, kind: 'key' },
   { text: '        You are Gardener. After every commit, audit the', kind: 'prompt' },

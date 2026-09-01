@@ -43,9 +43,9 @@
        \vspace{0.3em}
     \endgroup
   \fi}
-\renewcommand*\l@section{\@dottedtocline{1}{1.2em}{2.8em}}
-\renewcommand*\l@subsection{\@dottedtocline{2}{3.4em}{3.6em}}
-\renewcommand*\l@subsubsection{\@dottedtocline{3}{6.2em}{4.2em}}
+\renewcommand*\l@section{\@dottedtocline{1}{1.2em}{3.5em}}
+\renewcommand*\l@subsection{\@dottedtocline{2}{4.1em}{4.2em}}
+\renewcommand*\l@subsubsection{\@dottedtocline{3}{7.0em}{4.8em}}
 \renewcommand*\l@figure{\@dottedtocline{1}{1.2em}{2.8em}}
 \renewcommand*\l@table{\@dottedtocline{1}{1.2em}{2.8em}}
 \makeatother
@@ -64,6 +64,7 @@
 \definecolor{hhteal}{HTML}{00564C}
 \definecolor{hhpaper}{HTML}{FBF7EF}
 \definecolor{hhgray}{HTML}{5C5650}
+\input{figures/pd-figure-language}
 
 % One maturity vocabulary for the collected volume. Uppercase aliases preserve
 % the independently buildable Chapter III source.
@@ -71,6 +72,15 @@
 \newcommand{\BuiltWeak}{{\textcolor{hhink}{\textsc{partial}}}}
 \newcommand{\Designed}{{\textcolor{hhgray}{\textsc{specified}}}}
 \newcommand{\Vision}{{\textcolor{hhgray}{\textit{proposed}}}}
+% Chapter I (The Legible Swarm) uses a second, narrower evidentiary vocabulary
+% for its own claims (independently re-derived vs. argued vs. a stated design
+% target) alongside the shared Built/Designed/Vision maturity labels above.
+% Carried over verbatim from whitepaper/legible-swarm.tex so the chapter body
+% (which drops its standalone preamble when inlined into the collected volume)
+% still resolves these commands.
+\newcommand{\Verified}{{\textcolor{hhink}{\textsc{\textbf{verified}}}}}
+\newcommand{\Proved}{{\textcolor{hhink}{\textsc{proved here}}}}
+\newcommand{\Proposed}{{\textcolor{hhgray}{\textit{proposed}}}}
 \newcommand{\BUILT}{\Built}
 \newcommand{\BUILTWEAK}{\BuiltWeak}
 \newcommand{\DESIGNED}{\Designed}

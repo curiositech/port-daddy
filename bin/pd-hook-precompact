@@ -1,0 +1,80 @@
+#!/bin/sh
+# pd-hook-precompact — Claude Code PreCompact bridge (ADR-0091 / ADR-0097)
+# ============================================================================
+#
+# Claude Code is the only installed adapter with a verified PreCompact event.
+# This tentacle copies no transcript: it sends a bounded lifecycle envelope to
+# the local daemon, which may combine a separately witnessed provider usage
+# report with its own estimate and build a cited ContextEnvelope/packet. Claude
+# does not put token usage in its PreCompact payload, so this script NEVER
+# manufactures a number. Codex, Gemini, and agy intentionally do not install
+# this tentacle.
+#
+# Failure posture: fail open. An unavailable local daemon means missing advice,
+# never a wedged provider compaction. A manual compaction may be blocked only
+# when the daemon returns an explicit plan-checkpoint directive; automatic
+# compaction is never blocked here because a context-limit recovery must be
+# allowed to progress. The hook never reads a bearer credential itself: the
+# private `pd squid hook-precompact` transport reuses pdFetch's existing
+# per-worktree resolver and sends it only as an HTTP header.
+set -u
+
+EVENT_BUDGET_BYTES="${PD_SQUID_PRECOMPACT_EVENT_BUDGET_BYTES:-65536}"
+case "$EVENT_BUDGET_BYTES" in ''|*[!0-9]*) EVENT_BUDGET_BYTES=65536 ;; esac
+[ "$EVENT_BUDGET_BYTES" -le 65536 ] 2>/dev/null || EVENT_BUDGET_BYTES=65536
+
+EVENT="$(head -c "$EVENT_BUDGET_BYTES" 2>/dev/null || true)"
+[ -n "$EVENT" ] || exit 0
+command -v jq >/dev/null 2>&1 || exit 0
+
+# Reject userinfo, paths, queries, fragments, non-numeric ports, and every
+# non-loopback origin before curl sees a URL. A shell prefix check alone would
+# accept e.g. http://127.0.0.1:9876@evil.example and leak lifecycle metadata.
+DAEMON_SOURCE="${PD_URL:-${PORT_DADDY_URL:-http://127.0.0.1:9876}}"
+case "$DAEMON_SOURCE" in
+  http://localhost:*) DAEMON_PORT="${DAEMON_SOURCE#http://localhost:}" ;;
+  http://127.0.0.1:*) DAEMON_PORT="${DAEMON_SOURCE#http://127.0.0.1:}" ;;
+  *) exit 0 ;;
+esac
+case "$DAEMON_PORT" in ''|*[!0-9]*) exit 0 ;; esac
+[ "$DAEMON_PORT" -ge 1 ] 2>/dev/null || exit 0
+[ "$DAEMON_PORT" -le 65535 ] 2>/dev/null || exit 0
+DAEMON_URL="http://127.0.0.1:${DAEMON_PORT}"
+
+SESSION_ID="$(printf '%s' "$EVENT" | jq -r '.session_id // empty' 2>/dev/null || true)"
+TRIGGER="$(printf '%s' "$EVENT" | jq -r '.trigger // empty' 2>/dev/null || true)"
+case "$SESSION_ID" in ''|*[!A-Za-z0-9._:-]*) exit 0 ;; esac
+case "$TRIGGER" in manual|auto) : ;; *) exit 0 ;; esac
+
+# Claude Code's published PreCompact event has no delivery id. The hook does
+# not invent one or use ambient PD_SESSION_ID to choose a plan: that ambient
+# shell value can be stale. It forwards the provider session identifier only;
+# the daemon must resolve it through a daemon-owned provider-session binding
+# before it can select a pd-plan session or derive an idempotency key.
+#
+# The CLI shim carries the existing daemon-minted credential internally. It
+# emits only a sanitized directive, and this pipe bounds a hostile local reply
+# before it can become hook process memory or provider stdout.
+RESPONSE_BUDGET_BYTES="${PD_SQUID_PRECOMPACT_RESPONSE_BUDGET_BYTES:-4096}"
+case "$RESPONSE_BUDGET_BYTES" in ''|*[!0-9]*) RESPONSE_BUDGET_BYTES=4096 ;; esac
+[ "$RESPONSE_BUDGET_BYTES" -ge 1 ] 2>/dev/null || RESPONSE_BUDGET_BYTES=4096
+[ "$RESPONSE_BUDGET_BYTES" -le 4096 ] 2>/dev/null || RESPONSE_BUDGET_BYTES=4096
+PD_CLI="${PD_SQUID_CLI:-}"
+if [ -z "$PD_CLI" ]; then
+  PD_CLI="$(command -v pd 2>/dev/null || command -v port-daddy 2>/dev/null || true)"
+fi
+[ -n "$PD_CLI" ] || exit 0
+RESPONSE="$(PORT_DADDY_URL="$DAEMON_URL" "$PD_CLI" squid hook-precompact \
+  --provider claude --trigger "$TRIGGER" --provider-session "$SESSION_ID" 2>/dev/null \
+  | head -c "$RESPONSE_BUDGET_BYTES" 2>/dev/null || true)"
+[ -n "$RESPONSE" ] || exit 0
+
+DECISION="$(printf '%s' "$RESPONSE" | jq -r '.directive.decision // empty' 2>/dev/null || true)"
+REASON="$(printf '%s' "$RESPONSE" | jq -r '.directive.reason // empty' 2>/dev/null || true)"
+if [ "$TRIGGER" = "manual" ] && [ "$DECISION" = "block" ] && [ -n "$REASON" ]; then
+  # Claude Code documents top-level `decision: block` for PreCompact. Restrict
+  # the message to one bounded line so daemon text can never become a prompt.
+  REASON="$(printf '%s' "$REASON" | tr '\r\n' ' ' | cut -c 1-512)"
+  jq -cn --arg reason "$REASON" '{decision:"block",reason:$reason}'
+fi
+exit 0

@@ -57,7 +57,7 @@ But does NOT need capability in:
 - Restaurant selection
 - Attraction planning
 
-In a WinDAGs-style system with 180+ skills, this enables **automatic skill routing**. The node type [Accommodation for City] maps to a skill cluster:
+In a Jury-rig-style system with 180+ skills, this enables **automatic skill routing**. The node type [Accommodation for City] maps to a skill cluster:
 - database_query (to fetch available accommodations)
 - constraint_filter (to apply house rules, room types)
 - optimization (to minimize cost)
@@ -184,7 +184,7 @@ HTP handles this through the **hyperchain concept**. The system doesn't assign f
 
 This is analogous to **dynamic thread creation** in concurrent programming. You don't pre-allocate a fixed thread pool; you spawn threads as needed based on problem structure, then join them at synchronization points.
 
-For WinDAGs implementation: **don't pre-define agent instances**. Define agent *types* (or skill clusters) and instantiate them on-demand based on the decomposition structure that emerges from the query.
+For Jury-rig implementation: **don't pre-define agent instances**. Define agent *types* (or skill clusters) and instantiate them on-demand based on the decomposition structure that emerges from the query.
 
 ## Pruning Strategies as Load Management
 

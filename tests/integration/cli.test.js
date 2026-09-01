@@ -1519,6 +1519,77 @@ describe('CLI Integration Tests', () => {
       expect(notFoundRes.success).toBe(false);
       expect(notFoundRes.stderr).toContain('not found');
     });
+
+    test('pre-credential session context refuses both send aliases before attempting an attributed write', () => {
+      const legacyAgentId = `legacy-inbox-sender-${Date.now()}`;
+      const legacySlot = `legacy-inbox-sender-${Date.now()}`;
+      const message = `must-not-deliver-${Date.now()}`;
+      let mintedContext;
+
+      try {
+        // Establish a real active session, then model an upgraded worktree
+        // whose persisted context predates credential persistence. This is not
+        // a forged principal: the test deliberately removes only the local
+        // bearer from a real daemon-minted context.
+        const beginRes = runCli(
+          ['begin', '--agent', legacyAgentId, '--purpose', 'Pre-credential inbox diagnostic', '--lifecycle', 'durable', '--json'],
+          {
+            env: {
+              PORT_DADDY_CONTEXT_SLOT: legacySlot,
+              PD_ACTOR_CREDENTIAL: '',
+              PORT_DADDY_ACTOR_CREDENTIAL: '',
+            },
+          },
+        );
+        expect(beginRes.success).toBe(true);
+
+        const { contextDir } = getDaemonState();
+        mintedContext = JSON.parse(readFileSync(join(contextDir, 'contexts', `${legacySlot}.json`), 'utf8'));
+        expect(mintedContext.credential).toEqual(expect.any(String));
+
+        writeTestCurrentContext({
+          agentId: legacyAgentId,
+          sessionId: mintedContext.sessionId,
+          contextSlot: legacySlot,
+        });
+
+        for (const command of [
+          ['send', receiverId, message, '--agent', legacyAgentId],
+          ['inbox', 'send', receiverId, message, '--agent', legacyAgentId],
+        ]) {
+          const result = runCli(command, {
+            env: {
+              PORT_DADDY_CONTEXT_SLOT: legacySlot,
+              PD_ACTOR_CREDENTIAL: '',
+              PORT_DADDY_ACTOR_CREDENTIAL: '',
+            },
+          });
+          const output = result.stderr + result.stdout;
+
+          expect(result.success).toBe(false);
+          expect(output).toContain(`Persisted session ${mintedContext.sessionId} predates daemon-minted actor credentials`);
+          expect(output).toContain(`pd session takeover ${mintedContext.sessionId}`);
+          expect(output).toContain('No message was sent.');
+          expect(output).not.toContain('was asserted without a daemon-minted credential');
+        }
+
+        const inbox = runCli(['inbox', 'list', '--agent', receiverId, '--json']);
+        expect(inbox.success).toBe(true);
+        expect(JSON.parse(inbox.stdout).messages.some((entry) => entry.content === message)).toBe(false);
+      } finally {
+        if (mintedContext) {
+          writeTestCurrentContext(mintedContext);
+          runCli(['done', '--agent', legacyAgentId, '--status', 'abandoned'], {
+            env: {
+              PORT_DADDY_CONTEXT_SLOT: legacySlot,
+              PD_ACTOR_CREDENTIAL: '',
+              PORT_DADDY_ACTOR_CREDENTIAL: '',
+            },
+          });
+        }
+        clearTestCurrentContext(legacySlot);
+      }
+    });
   });
 
   describe('Unknown Command Handling', () => {

@@ -74,7 +74,7 @@ apps/pd-ios/.build/
 apps/pd-ios/DerivedData/
 **/build/
 .firecrawl/
-.windags/
+.skill-runtime-archive/
 v0-agentsd-main/
 agentsd_mocks/
 .aider.chat.history.md
@@ -131,3 +131,11 @@ apps/*/wrangler.toml
 
 # Generated from com.portdaddy.fleetbar.plist.template by apps/FleetBar/install.sh
 apps/FleetBar/com.portdaddy.fleetbar.plist
+
+# harbor-results scripts savefig() to bare filenames, so running one from the
+# repo root drops a stray PNG here. The canonical copies are committed under
+# docs/harbor-research/figures/ — these root-level ones are re-renders and are
+# never the artifact of record.
+/a7_figure.png
+/b2_figure.png
+/b8_figure.png

@@ -23,7 +23,12 @@ export interface GitHubState {
   tokenMints: number;
   commentPosts: number;
   commentPatches: number;
-  existingComments: Array<{ id: number; body: string }>;
+  existingComments: Array<{
+    id: number;
+    body: string;
+    user?: { type?: string };
+    performed_via_github_app?: { id?: number };
+  }>;
   checkRunsCreated: number;
   /**
    * Existing check runs returned by the commit check-runs lookup.
@@ -44,6 +49,8 @@ export interface GitHubState {
      * verdict, must stay re-runnable) apart from one ships decided.
      */
     summary?: string;
+    external_id?: string | null;
+    app?: { id: number } | null;
     /** The commit this check belongs to. GitHub's lookup is PER-SHA. */
     headSha?: string;
   }>;
@@ -58,6 +65,16 @@ export interface GitHubState {
   }>;
   /** Override the PR diff body. Defaults to a single-file one-hunk diff. */
   prDiff?: string;
+  /** Mutable authoritative PR title; it can change without moving the head SHA. */
+  prTitle?: string;
+  /** Mutable authoritative PR body; it can change without moving the head SHA. */
+  prBody?: string;
+  /** Override the raw-diff endpoint status to exercise unavailable-source handling. */
+  prDiffStatus?: number;
+  /** Override the first (and currently only) GitHub changed-files page. */
+  prFiles?: Array<{ filename: string; status: string; additions: number; deletions: number }>;
+  /** Raw changed-files response, used to exercise malformed/incomplete inventory handling. */
+  prFilesBody?: string;
   /** Authoritative current PR head returned by GET /pulls/{n}. */
   prHeadSha: string;
   /**
@@ -70,6 +87,8 @@ export interface GitHubState {
    * need a fork or a ref-less PR override these fields rather than the payload.
    */
   prHeadRef: string | undefined;
+  /** Authoritative current PR base commit returned by GET /pulls/{n}. */
+  prBaseSha: string;
   prBaseRef: string;
   /** head.repo.full_name — differs from prBaseRepo to simulate a fork PR. */
   prHeadRepo: string;
@@ -168,8 +187,14 @@ export function freshState(): GitHubState {
     completed: [],
     reviews: [],
     prDiff: undefined,
+    prTitle: undefined,
+    prBody: undefined,
+    prDiffStatus: undefined,
+    prFiles: undefined,
+    prFilesBody: undefined,
     prHeadSha: 'HEADSHA',
     prHeadRef: 'feat/widget',
+    prBaseSha: 'BASESHA',
     prBaseRef: 'main',
     prHeadRepo: 'erichowens/port-daddy',
     prBaseRepo: 'erichowens/port-daddy',
@@ -355,7 +380,8 @@ export function installGitHubFetch(state: GitHubState): void {
     }
     // --- PR files ---
     if (/\/pulls\/\d+\/files/.test(url)) {
-      return json([{ filename: 'src/x.ts', status: 'modified', additions: 3, deletions: 1 }]);
+      if (state.prFilesBody !== undefined) return text(state.prFilesBody);
+      return json(state.prFiles ?? [{ filename: 'src/x.ts', status: 'modified', additions: 3, deletions: 1 }]);
     }
     // --- create review (inline comments) ---
     if (/\/pulls\/\d+\/reviews$/.test(url) && method === 'POST') {
@@ -375,12 +401,15 @@ export function installGitHubFetch(state: GitHubState): void {
     if (/\/pulls\/\d+$/.test(url)) {
       const headers = new Headers(init?.headers);
       if (headers.get('Accept')?.includes('diff')) {
-        return text(state.prDiff ?? 'diff --git a/src/x.ts b/src/x.ts\n+changed');
+        return text(
+          state.prDiff ?? 'diff --git a/src/x.ts b/src/x.ts\n+changed',
+          state.prDiffStatus ?? 200,
+        );
       }
       return json({
         number: 7,
-        title: 'Test PR',
-        body: '',
+        title: state.prTitle ?? 'Test PR',
+        body: state.prBody ?? '',
         ...(state.prAuthor ? { user: state.prAuthor } : {}),
         ...(state.prState === undefined ? {} : { state: state.prState }),
         ...(state.prMerged === undefined ? {} : { merged: state.prMerged }),
@@ -391,7 +420,7 @@ export function installGitHubFetch(state: GitHubState): void {
           ...(state.prHeadRef === undefined ? {} : { ref: state.prHeadRef }),
           repo: { full_name: state.prHeadRepo },
         },
-        base: { sha: 'BASESHA', ref: state.prBaseRef, repo: { full_name: state.prBaseRepo } },
+        base: { sha: state.prBaseSha, ref: state.prBaseRef, repo: { full_name: state.prBaseRepo } },
       });
     }
 
@@ -405,7 +434,17 @@ export function installGitHubFetch(state: GitHubState): void {
         check_runs: state.existingCheckRuns
           .filter(c => !c.headSha || c.headSha === wanted)
           // Mirror GitHub's shape: the summary arrives nested under `output`.
-          .map(c => ({ ...c, output: { summary: c.summary ?? '' } })),
+          .map(c => ({
+            ...c,
+            // Bare legacy fixtures mean “owned check for the default job”.
+            // Spoof/missing-authority cases opt out explicitly with null or a
+            // different app id so authority tests remain intentional.
+            external_id: c.external_id === undefined
+              ? 'pd-fleet-run:v1:run:delivery-abc'
+              : c.external_id,
+            app: c.app === undefined ? { id: 3810450 } : c.app,
+            output: { summary: c.summary ?? '' },
+          })),
       });
     }
 
@@ -416,11 +455,21 @@ export function installGitHubFetch(state: GitHubState): void {
     // --- post comment ---
     if (/\/issues\/\d+\/comments$/.test(url) && method === 'POST') {
       state.commentPosts += 1;
-      return json({ id: 1000 + state.commentPosts });
+      const id = 1000 + state.commentPosts;
+      state.existingComments.push({
+        id,
+        body: (body as { body?: string })?.body ?? '',
+        user: { type: 'Bot' },
+        performed_via_github_app: { id: 3810450 },
+      });
+      return json({ id });
     }
     // --- patch comment ---
     if (/\/issues\/comments\/\d+/.test(url) && method === 'PATCH') {
       state.commentPatches += 1;
+      const id = Number(url.slice(url.lastIndexOf('/') + 1));
+      const existing = state.existingComments.find(comment => comment.id === id);
+      if (existing) existing.body = (body as { body?: string })?.body ?? '';
       return json({ id: 1 });
     }
 
@@ -448,7 +497,16 @@ export function installGitHubFetch(state: GitHubState): void {
       // Future lookups for this head SHA now find it.
       const headSha = (body as { head_sha?: string })?.head_sha ?? '';
       const name = (body as { name?: string })?.name ?? '';
-      state.existingCheckRuns.push({ id, name, status: 'in_progress', headSha });
+      const create = body as { external_id?: string; output?: { summary?: string } };
+      state.existingCheckRuns.push({
+        id,
+        name,
+        status: 'in_progress',
+        headSha,
+        external_id: create.external_id,
+        app: { id: 3810450 },
+        summary: create.output?.summary ?? '',
+      });
       return json({ id });
     }
     // --- complete check run ---
@@ -572,6 +630,8 @@ export interface D1Capture {
   creditTableMissing: boolean;
   /** Set true to make EVERY `.run()` throw (transcript-write failure path). */
   failAll: boolean;
+  /** Set true to make the next fleet_run_steps insert throw, then reset. */
+  failNextStepInsert: boolean;
   /**
    * When true, the NEXT logical-run upsert into `fleet_runs`
    * (recordRunStart's write, specifically — not ensureRunRow's `OR IGNORE`)
@@ -602,6 +662,7 @@ export function memoryD1(): D1Capture {
     ledger: [],
     creditTableMissing: false,
     failAll: false,
+    failNextStepInsert: false,
     failNextRecordRunStartInsert: false,
     runCalls: 0,
   };
@@ -611,6 +672,10 @@ export function memoryD1(): D1Capture {
       async run() {
         cap.runCalls += 1;
         if (cap.failAll) throw new Error('D1 unavailable');
+        if (cap.failNextStepInsert && /INTO fleet_run_steps/i.test(sql)) {
+          cap.failNextStepInsert = false;
+          throw new Error('D1 unavailable (simulated transcript step failure)');
+        }
         if (
           cap.failNextRecordRunStartInsert
           && /INSERT INTO fleet_runs/i.test(sql)
@@ -770,9 +835,15 @@ export function memoryD1(): D1Capture {
         if (/FROM fleet_run_steps/i.test(sql) && !/JOIN fleet_runs/i.test(sql)) {
           if (cap.failAll) throw new Error('D1 unavailable');
           const [runId, kind] = args;
-          const results = cap.steps
-            .filter(st => st.runId === runId && st.kind === String(kind))
-            .map(st => ({ ship: st.ship, detail: st.detail }));
+          let matching = cap.steps
+            .filter(st => st.runId === runId && st.kind === String(kind));
+          if (/ORDER BY seq DESC/i.test(sql)) {
+            matching = [...matching].sort((a, b) => Number(b.seq) - Number(a.seq));
+          }
+          const limit = /LIMIT \?/i.test(sql) ? Number(args[2]) : Number.POSITIVE_INFINITY;
+          const results = matching
+            .slice(0, Number.isFinite(limit) ? limit : undefined)
+            .map(st => ({ seq: st.seq, ship: st.ship, title: st.title, detail: st.detail }));
           return { results };
         }
         return { results: [] };
@@ -787,7 +858,14 @@ export function memoryD1(): D1Capture {
 export interface AiStub {
   ai: Ai;
   /** Every AI call: which model, the map/reduce phase, and the routed ship. */
-  calls: Array<{ model: string; phase: 'map' | 'reduce'; ship: string | null; temperature?: number }>;
+  calls: Array<{
+    model: string;
+    phase: 'map' | 'reduce';
+    ship: string | null;
+    temperature?: number;
+    /** Immutable request projection for context-budget assertions. */
+    messages: Array<{ role: string; content: string }>;
+  }>;
 }
 
 /**
@@ -846,10 +924,11 @@ export function aiStub(opts: {
   ) => {
     const sys = args.messages.find(m => m.role === 'system')?.content ?? '';
     const ship = matchShip(sys);
+    const messages = args.messages.map(message => ({ ...message }));
 
     // --- REDUCE manager call ---
     if (/REDUCE manager/.test(sys)) {
-      const call = { model, phase: 'reduce' as const, ship, temperature: args.temperature };
+      const call = { model, phase: 'reduce' as const, ship, temperature: args.temperature, messages };
       calls.push(call);
       await opts.onCall?.(call);
       if (ship && opts.throwForShip === ship) throw new Error('AI exploded (reduce)');
@@ -860,7 +939,7 @@ export function aiStub(opts: {
     }
 
     // --- MAP call ---
-    const call = { model, phase: 'map' as const, ship, temperature: args.temperature };
+    const call = { model, phase: 'map' as const, ship, temperature: args.temperature, messages };
     calls.push(call);
     await opts.onCall?.(call);
     if (ship) {

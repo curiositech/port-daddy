@@ -68,11 +68,11 @@ Dynamic registration is explicitly conditional: "assuming that the AP both suppo
 
 The AP description (Section 6.1.6) includes a `:dynamic` flag indicating whether the platform supports dynamic registration at all. This is a platform-level policy decision, not an agent-level decision. Some platforms may be closed (`:dynamic false`) and only allow pre-configured agents.
 
-## Application to WinDAGs Trust Architecture
+## Application to Jury-rig Trust Architecture
 
 ### Skill Registration Authorization
 
-In WinDAGs, the Orchestration Registry (AMS analog) should enforce:
+In Jury-rig, the Orchestration Registry (AMS analog) should enforce:
 
 1. **Unique skill identifiers**: No two skills can claim the same identifier. The registry validates this on registration.
 
@@ -80,11 +80,11 @@ In WinDAGs, the Orchestration Registry (AMS analog) should enforce:
 
 3. **Forced deregistration authority**: The orchestration system must retain the ability to force-deregister any skill, regardless of the skill's cooperation. This is the Destroy equivalent — essential for removing compromised, malfunctioning, or deprecated skills.
 
-4. **Dynamic registration policy**: The registry should have a configurable policy on whether external skills (from other WinDAGs deployments or third-party providers) can dynamically register. Production deployments may want `:dynamic false` (only pre-approved skills) while development environments want `:dynamic true` (rapid iteration).
+4. **Dynamic registration policy**: The registry should have a configurable policy on whether external skills (from other Jury-rig deployments or third-party providers) can dynamically register. Production deployments may want `:dynamic false` (only pre-approved skills) while development environments want `:dynamic true` (rapid iteration).
 
 ### Preventing Capability Spoofing
 
-One of the authorization concerns FIPA's model addresses is *capability spoofing*: an agent claiming to offer a capability it doesn't have (or more dangerously, claiming to be a well-known agent it isn't). In WinDAGs, this could manifest as a malicious skill registering as `code-review` and receiving sensitive code that it then exfiltrates.
+One of the authorization concerns FIPA's model addresses is *capability spoofing*: an agent claiming to offer a capability it doesn't have (or more dangerously, claiming to be a well-known agent it isn't). In Jury-rig, this could manifest as a malicious skill registering as `code-review` and receiving sensitive code that it then exfiltrates.
 
 Mitigations from the FIPA model:
 - The Orchestration Registry validates skill identifiers for uniqueness at registration time
@@ -98,11 +98,11 @@ Additional mitigations beyond FIPA:
 
 ### The Non-Discriminatory Search Principle and Its Implications
 
-FIPA's principle that DF search results are non-discriminatory (all authorized agents get the same results) has an important implication for WinDAGs: skill discovery is effectively public within the system. Any orchestrator can discover any skill.
+FIPA's principle that DF search results are non-discriminatory (all authorized agents get the same results) has an important implication for Jury-rig: skill discovery is effectively public within the system. Any orchestrator can discover any skill.
 
 This is usually desirable — it's what enables dynamic capability composition. But for sensitive skills (e.g., skills with access to production databases, skills performing financial operations), you may want restricted visibility: only certain orchestrators should even know these skills exist.
 
-The FIPA model addresses this by allowing multiple DFs with different access policies. WinDAGs could implement this as tiered skill directories:
+The FIPA model addresses this by allowing multiple DFs with different access policies. Jury-rig could implement this as tiered skill directories:
 - **Public directory**: All skills visible to all orchestrators
 - **Restricted directory**: Sensitive skills visible only to orchestrators with appropriate clearance
 - **Private directory**: Skills visible only to the owning team
@@ -118,7 +118,7 @@ From Section 6.3.4, when an unauthorized operation is attempted, the response is
 
 This is clean and non-leaking: the `unauthorised` predicate doesn't tell the requester *why* they're unauthorized or what they would need to be authorized. It simply refuses. This prevents information leakage through authorization errors.
 
-WinDAGs should follow the same principle: when an orchestrator attempts an operation on a skill it doesn't have permission to operate on, the response should be a clean `Refused: Unauthorized` — not "you need to be in group X" or "this skill is owned by team Y" (which would leak organizational structure).
+Jury-rig should follow the same principle: when an orchestrator attempts an operation on a skill it doesn't have permission to operate on, the response should be a clean `Refused: Unauthorized` — not "you need to be in group X" or "this skill is owned by team Y" (which would leak organizational structure).
 
 ## The Idempotency Problem: `already-registered`
 
@@ -126,7 +126,7 @@ Section 6.3.5 includes `already-registered` as a `failure` predicate (not a `ref
 
 Because the registration process involves the AMS saying `agree` (I'll try to register you) and then potentially discovering that the name is already taken. The AMS agreed to try, tried, and found a conflict. This is a runtime failure, not a message-level rejection. The distinction matters: the AMS already sent `agree`, meaning it thought the registration was valid at the point of agreement. The conflict was discovered during execution.
 
-For WinDAGs, the `already-registered` pattern is extremely useful for idempotent skill registration: if a skill attempts to re-register on restart, the registry returns `failure: already-registered`. The skill can then either:
+For Jury-rig, the `already-registered` pattern is extremely useful for idempotent skill registration: if a skill attempts to re-register on restart, the registry returns `failure: already-registered`. The skill can then either:
 1. Treat this as success and proceed (the registration from last time is still valid)
 2. Query its current registration state and update if needed (compare with the `modify` function)
 3. Deregister and re-register fresh
@@ -143,4 +143,4 @@ The important thing is that the skill can distinguish "I'm already registered" f
 
 ## Summary
 
-FIPA's authorization model weaves ownership into the registry objects themselves, gives the AMS absolute authority over lifecycle and platform access, and makes modification/deletion ownership-protected while keeping discovery broadly accessible. For WinDAGs: track ownership of every skill, require AMS-equivalent (Orchestration Registry) validation on all registrations, implement tiered directories for sensitive skills, use the exception taxonomy to provide clean authorization feedback without information leakage, and retain forceful-termination authority at the orchestration layer regardless of skill cooperation.
+FIPA's authorization model weaves ownership into the registry objects themselves, gives the AMS absolute authority over lifecycle and platform access, and makes modification/deletion ownership-protected while keeping discovery broadly accessible. For Jury-rig: track ownership of every skill, require AMS-equivalent (Orchestration Registry) validation on all registrations, implement tiered directories for sensitive skills, use the exception taxonomy to provide clean authorization feedback without information leakage, and retain forceful-termination authority at the orchestration layer regardless of skill cooperation.

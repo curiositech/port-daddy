@@ -1,11 +1,37 @@
 % R4 regime diagram: two panels, transcribed from figures/src/r4_figures.py
 % (the second figure block: axA/axB). Panel A: R(delta,f) curves at
 % delta in {0, 0.01, 0.04}, from the same rate_general closed form used
-% throughout paper1 (recomputed here, 30 points/curve). Panel B: the
-% idealized zoom advantage F/(k log2(F/k)) as a function of flagged-set
-% density k/F -- an exact closed form of density alone since
-% F/(k log2(F/k)) = 1/(density*log2(1/density)) for any F, recomputed
-% directly (no dependence on F=2500 beyond the measured point).
+% throughout paper1 (recomputed here, 30 points/curve). Panel B: the zoom
+% advantage as a function of flagged-set density d = k/F.
+%
+% PANEL B REPLOTTED (not reproduced): the script plots ONLY the idealized
+% advantage F/(k log2(F/k)) = 1/(d*log2(1/d)). That quantity has a global
+% minimum of 1.884x at d = 1/e and max_d d*log2(1/d) = 0.531 < 1, so it
+% CANNOT cross parity anywhere on (0,1) -- extending the axis would not help.
+% The panel therefore shaded a "zoom wins" band across 100% of the chart and
+% drew a "zoom stops paying" line the plotted curve was mathematically
+% incapable of touching, while paper1.tex Sec. sec:zoom spends a paragraph on
+% the deployed algorithm LOSING at high density. The figure's graphical
+% grammar asserted the opposite of the section's own boundary, in a paper
+% whose limitations box commits to bounding "the deployed algorithm, not the
+% best one".
+%
+% The primary series is now the DEPLOYED guaranteed advantage
+%   adv(d) = 1/(d*(2*ceil(log2(1/d)) + 4)),
+% Theorem 4's own bound rewritten in density (it is a function of d alone,
+% and returns exactly 12.500x at d = 0.004, reproducing the Corollary as a
+% built-in cross-check). It crosses parity at d = 1/12 = 0.08333, well inside
+% the plotted x-range, so the shaded region is now clipped there instead of
+% filling the chart, and the parity line finally has something that reaches
+% it. The idealized curve is kept as a faint dashed reference -- the gap
+% between the two IS the factor-~2 that sec:zoom's "Positioning against group
+% testing" paragraph is about -- and extended to d = 0.95 so the paper's own
+% (F,k) = (100,90) illustration (d = 0.9, 199 opens against 100 flat) is on
+% the axes rather than off the right edge. Also marked: the two operating
+% points Sec. sec:rdf actually recommends, which sit on the LOSING side.
+% The spurious "F=2500" in the panel title is dropped -- the curve has no
+% dependence on F beyond the measured point.
+% All Panel B coordinates recomputed from the two closed forms. [verified]
 %
 % BUG FOUND AND CORRECTED (not silently): the script's Panel A calls the raw
 % pinned formula `rate_general` across the WHOLE plotted f range for every
@@ -74,27 +100,58 @@
   harbor curve,
   xmode=log,ymode=log,
   height=7.2cm,
-  xlabel={flagged-set density ($k/F$)},
-  ylabel={advantage (log)},
-  title={Panel B --- the sparse-flagged boundary\\($F{=}2500$)},
-  xmin=0.0008,xmax=0.8,ymin=0.8,ymax=100,
+  xlabel={flagged-set density $d=k/F$},
+  ylabel={open-count advantage (log)},
+  title={Panel B --- the boundary, deployed:\\zoom pays only for $d\le 1/12$},
+  xmin=0.0008,xmax=1.0,ymin=0.10,ymax=130,
   legend pos=north east,
+  legend style={font=\tiny,draw=black!25,fill=white,fill opacity=0.92,text opacity=1,rounded corners=1pt,inner sep=2pt},
 ]
-\addplot[draw=none,fill=harborblue,fill opacity=0.10] coordinates {
-(0.001000,100.3433) (0.001314,79.5156) (0.001726,63.1178) (0.002268,50.1940) (0.002980,39.9968) (0.003915,31.9415) (0.005144,25.5706) (0.006758,20.5255) (0.008879,16.5251) (0.011666,13.3489) (0.015327,10.8239) (0.020137,8.8142) (0.026458,7.2128) (0.034761,5.9359) (0.045671,4.9175) (0.060005,4.1060) (0.078837,3.4610) (0.103580,2.9513) (0.136089,2.5538) (0.178801,2.2519) (0.234917,2.0370) (0.308646,1.9104) (0.405515,1.8938) (0.532785,2.0663) (0.700000,2.7762)
-(0.700000,1) (0.001000,1)
+% Shaded region: where the DEPLOYED bound actually exceeds parity, i.e.
+% d <= 1/12. Follows the deployed curve down to (1/12, 1) and back along y=1.
+\addplot[draw=none,fill=harborblue,fill opacity=0.12] coordinates {
+(0.0010000,41.6667) (0.0019531,21.3333) (0.0019531,23.2727) (0.0039063,11.6364)
+(0.0039063,12.8000) (0.0078125,6.4000) (0.0078125,7.1111) (0.0156250,3.5556)
+(0.0156250,4.0000) (0.0312500,2.0000) (0.0312500,2.2857) (0.0625000,1.1429)
+(0.0625000,1.3333) (0.0833333,1.0000)
+(0.0833333,1) (0.0010000,1)
 } \closedcycle;
-\addlegendentry{zoom wins}
+\addlegendentry{zoom wins (deployed bound $>1$)}
+% The deployed guaranteed advantage 1/(d(2*ceil(log2(1/d))+4)). Exact: within
+% each octave [2^-j, 2^-(j-1)) the ceiling is constant, so the curve is a
+% straight line of slope -1 on log-log and two endpoints per octave are
+% exact; it steps UP at each octave boundary as the ceiling drops.
 \addplot[harborblue,thick,no marks] coordinates {
-(0.001000,100.3433) (0.001314,79.5156) (0.001726,63.1178) (0.002268,50.1940) (0.002980,39.9968) (0.003915,31.9415) (0.005144,25.5706) (0.006758,20.5255) (0.008879,16.5251) (0.011666,13.3489) (0.015327,10.8239) (0.020137,8.8142) (0.026458,7.2128) (0.034761,5.9359) (0.045671,4.9175) (0.060005,4.1060) (0.078837,3.4610) (0.103580,2.9513) (0.136089,2.5538) (0.178801,2.2519) (0.234917,2.0370) (0.308646,1.9104) (0.405515,1.8938) (0.532785,2.0663) (0.700000,2.7762)
+(0.0010000,41.6667) (0.0019531,21.3333)
+(0.0019531,23.2727) (0.0039063,11.6364)
+(0.0039063,12.8000) (0.0078125,6.4000)
+(0.0078125,7.1111) (0.0156250,3.5556)
+(0.0156250,4.0000) (0.0312500,2.0000)
+(0.0312500,2.2857) (0.0625000,1.1429)
+(0.0625000,1.3333) (0.1250000,0.6667)
+(0.1250000,0.8000) (0.2500000,0.4000)
+(0.2500000,0.5000) (0.5000000,0.2500)
+(0.5000000,0.3333) (0.9500000,0.1754)
 };
-\addlegendentry{zoom advantage}
-\addplot[seagreen,dashed,thick,no marks] coordinates {(0.0008,1) (0.8,1)};
-\addlegendentry{zoom stops paying}
-\addplot[only marks,mark=*,mark size=2.6pt,shipred,mark options={draw=red!30!black,line width=0.6pt},forget plot] coordinates {(0.004,15.3)};
-\node[regimebox,fill=shipred!8,draw=shipred,font=\scriptsize,text width=2.6cm,inner sep=3pt,anchor=west] at (axis cs:0.012,25)
-  {measured $15.3\times$\\(ideal $\approx31\times$)};
-\draw[->,shipred,thick] (axis cs:0.011,18) -- (axis cs:0.0048,16.5);
+\addlegendentry{deployed: $\le 2k\lceil\log_2(F/k)\rceil{+}4k$ (Thm.~4)}
+\addplot[harborblue!40,densely dashed,thick,no marks] coordinates {
+(0.001000,100.3433) (0.001314,79.5156) (0.001726,63.1178) (0.002268,50.1940) (0.002980,39.9968) (0.003915,31.9415) (0.005144,25.5706) (0.006758,20.5255) (0.008879,16.5251) (0.011666,13.3489) (0.015327,10.8239) (0.020137,8.8142) (0.026458,7.2128) (0.034761,5.9359) (0.045671,4.9175) (0.060005,4.1060) (0.078837,3.4610) (0.103580,2.9513) (0.136089,2.5538) (0.178801,2.2519) (0.234917,2.0370) (0.308646,1.9104) (0.405515,1.8938) (0.532785,2.0663) (0.700000,2.7762) (0.750000,3.2125) (0.850000,5.0180) (0.900000,7.3098) (0.950000,14.2246)
+};
+\addlegendentry{idealized $k\log_2(F/k)$ --- never crosses parity}
+\addplot[seagreen,dashed,thick,no marks] coordinates {(0.0008,1) (1.0,1)};
+\addlegendentry{parity: zoom stops paying}
+\addplot[only marks,mark=triangle*,mark size=3.0pt,shipred,mark options={draw=red!30!black,line width=0.5pt}] coordinates {(0.004,15.3) (0.9,0.5025)};
+\addlegendentry{measured: $(F,k){=}(2500,10)$ and $(100,90)$}
+\addplot[only marks,mark=square*,mark size=2.2pt,seagreen,mark options={draw=black,line width=0.4pt}] coordinates {(0.5,0.3333) (0.4,0.3125)};
+\addlegendentry{\S\ref{sec:rdf} at $f{=}2p$ and $(\delta,f){=}(0.01,0.10)$}
+\addplot[only marks,mark=*,mark size=2.4pt,shipred,mark options={draw=black,line width=0.4pt},forget plot] coordinates {(0.004,12.5) (0.0833333,1.0) (0.9,0.1852)};
+\node[font=\tiny,text=shipred,anchor=north east] at (axis cs:0.076,0.93) {$d{=}1/12$};
+\node[regimebox,fill=shipred!8,draw=shipred,font=\tiny,text width=2.3cm,inner sep=2pt,anchor=west] at (axis cs:0.00090,0.45)
+  {$(2500,10)$: bound\\$12.5\times$, measured\\$15.4\times$, ideal $31\times$};
+\draw[->,shipred,thick] (axis cs:0.0042,0.72) -- (axis cs:0.0042,10.8);
+\node[font=\tiny,text=shipred,anchor=east,align=right] at (axis cs:0.85,0.145)
+  {$(100,90)$: $199$ opens\\against $100$ flat};
+\draw[->,shipred] (axis cs:0.86,0.16) -- (axis cs:0.895,0.46);
 \end{axis}
 \end{tikzpicture}
 \end{minipage}

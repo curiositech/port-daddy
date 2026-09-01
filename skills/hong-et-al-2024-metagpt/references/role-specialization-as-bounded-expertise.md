@@ -129,7 +129,7 @@ This suggests **not all role divisions are equally valuable**. The Project Manag
 
 This reveals a principle: **specialize roles that involve distinct skill domains and produce verifiable artifacts**. Architect qualifies (design is distinct from coding, produces verifiable architecture). Project Manager is borderline (task decomposition overlaps with architecture, output is less verifiable—"good task breakdown" is subjective).
 
-For WinDAGs with 180+ skills, this suggests: don't create 180 agent roles. Create roles that group related skills into coherent expertise domains:
+For Jury-rig with 180+ skills, this suggests: don't create 180 agent roles. Create roles that group related skills into coherent expertise domains:
 - **Data Processing Specialist**: Groups data loading, cleaning, transformation, validation skills
 - **Analysis Expert**: Groups statistical analysis, visualization, interpretation skills
 - **Security Auditor**: Groups vulnerability scanning, code review, penetration testing skills
@@ -181,7 +181,7 @@ architecture, test_plan = await [architect_task, qa_task]
 
 This is only possible because roles are **loosely coupled**—Architect and QA Engineer don't need to coordinate; they work independently on their specialized tasks.
 
-For WinDAGs orchestrating 180+ skills, this is critical. Specialized skills with clear interfaces can execute in parallel, dramatically reducing latency. A monolithic "do everything" agent must be sequential.
+For Jury-rig orchestrating 180+ skills, this is critical. Specialized skills with clear interfaces can execute in parallel, dramatically reducing latency. A monolithic "do everything" agent must be sequential.
 
 ## Failure Modes of Poor Specialization
 
@@ -218,9 +218,9 @@ MetaGPT's five roles work for 90% of software projects. They don't handle exotic
 **Principle 5: Roles Should Enable Incremental Verification**
 After each role completes, system state should be checkable. This enables early error detection. If Product Manager's PRD is garbage, catch it before Architect spends tokens on design.
 
-## Application to WinDAGs: Skill Grouping via Roles
+## Application to Jury-rig: Skill Grouping via Roles
 
-WinDAGs has 180+ skills across domains (debugging, code review, architecture design, task decomposition, security auditing, frontend development, etc.). How to organize?
+Jury-rig has 180+ skills across domains (debugging, code review, architecture design, task decomposition, security auditing, frontend development, etc.). How to organize?
 
 **Option 1: Skill = Role (180 roles)**
 Too granular—coordination overhead would dominate.
@@ -239,7 +239,7 @@ Roles defined by position in workflow:
 
 The paper's approach is Option 2 (domain-based). This seems optimal: domains are stable (code quality skills cluster naturally), while workflows vary by task.
 
-For WinDAGs, consider:
+For Jury-rig, consider:
 ```python
 class CodeQualityExpert(Role):
     skills = [
@@ -272,6 +272,6 @@ MetaGPT's role specialization isn't just about dividing work—it's about **mana
 
 The experimental evidence is compelling: moving from 1 generalist agent (executability 1.0) to 4 specialized agents (executability 4.0) is a 4x improvement. That's not incremental—it's transformative.
 
-For WinDAGs and similar orchestration systems, the lesson is: **don't fight specialization—embrace it as a design principle**. Resist the urge to create omni-capable agents. Instead, create agents with bounded, deep expertise in narrow domains, and coordinate them through clear protocols.
+For Jury-rig and similar orchestration systems, the lesson is: **don't fight specialization—embrace it as a design principle**. Resist the urge to create omni-capable agents. Instead, create agents with bounded, deep expertise in narrow domains, and coordinate them through clear protocols.
 
 Specialization isn't a limitation—it's the foundation that makes complex multi-agent coordination tractable. As the paper demonstrates, the path to general capability runs through specialized agents, not through generalist agents.

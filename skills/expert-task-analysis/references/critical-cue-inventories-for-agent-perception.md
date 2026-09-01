@@ -74,7 +74,7 @@ For agent system development: capability documentation built from a single exper
 
 ## CCI Structure for Agent Systems
 
-In a WinDAGs context, a CCI-equivalent for any complex skill would document, for each decision node in the task graph:
+In a Jury-rig context, a CCI-equivalent for any complex skill would document, for each decision node in the task graph:
 
 ```markdown
 ## Decision Point: [Name of condition that needs to be assessed]

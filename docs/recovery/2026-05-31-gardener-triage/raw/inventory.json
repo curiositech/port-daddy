@@ -603,7 +603,7 @@
     },
     {
       "kind": "branch",
-      "branch": "codex/agent-conformance-windags-docs",
+      "branch": "codex/agent-conformance-jury_rig-docs",
       "local": true,
       "remote": false,
       "last_commit": "2026-05-31 02:54:37 -0700",

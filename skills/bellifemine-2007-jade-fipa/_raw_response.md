@@ -100,7 +100,7 @@ The `conversation-id` and `in-reply-to` fields aren't just for developer conveni
 
 If the assumption of long conversations is violated (many one-off requests to different agents), the cache thrashes. Every message becomes a cache miss. Performance degrades invisibly—the system still works, but latency spikes.
 
-**For WinDAGs**: If orchestrating 180+ skills with frequent one-off requests (e.g., invoking many skills once each, rather than repeatedly invoking a few), the caching strategy fails. Solutions:
+**For Jury-rig**: If orchestrating 180+ skills with frequent one-off requests (e.g., invoking many skills once each, rather than repeatedly invoking a few), the caching strategy fails. Solutions:
 1. **Pre-warm caches**: At startup, populate the GADT cache with frequently-used skill addresses
 2. **Conversation affinity**: Batch related skill invocations to exploit locality
 3. **Explicit caching hints**: Allow skills to declare "I'll be talking to Skill X repeatedly" so the runtime can optimize
@@ -119,7 +119,7 @@ The split-container architecture (for mobile/constrained devices) introduces a *
 
 **Failure mode**: The mediator is a single point of failure for new connections. Existing connections survive mediator failure, but new devices can't join until it restarts. The book acknowledges this but offers no replication strategy for the mediator itself (unlike the Main Replication Service for the main container).
 
-**For WinDAGs**: If you have unreliable execution environments (e.g., AWS Lambda functions that can be killed mid-execution), use a split architecture:
+**For Jury-rig**: If you have unreliable execution environments (e.g., AWS Lambda functions that can be killed mid-execution), use a split architecture:
 - **Front-end**: Stateless skill executor (runs in Lambda)
 - **Back-end**: Stateful coordinator (runs in ECS/EKS)
 - **Mediator**: Service discovery + connection manager (runs in a replicated control plane)
@@ -159,7 +159,7 @@ The book reveals that DF state can be persisted to SQL databases (DFHSQLKB) or c
 - Service registrations are durable
 - Federation is possible (multiple platforms can share a DF)
 
-**For WinDAGs**: Implement a skill registry (similar to DF) where:
+**For Jury-rig**: Implement a skill registry (similar to DF) where:
 - Each skill publishes: `(name, type, version, SLA, preconditions, postconditions)`
 - Orchestrators query by **capability** (intent-based addressing): "I need a skill that transforms PDFs to text"
 - Registry returns all matching skills, sorted by SLA or cost
@@ -200,7 +200,7 @@ MessageTemplate highPriority = MessageTemplate.or(
 
 This matches messages that are either REQUEST or CFP (useful for prioritizing time-sensitive messages).
 
-**For WinDAGs**: Implement correlation IDs (similar to conversation-id) and request-reply matching (similar to in-reply-to). When Orchestrator A invokes Skill B:
+**For Jury-rig**: Implement correlation IDs (similar to conversation-id) and request-reply matching (similar to in-reply-to). When Orchestrator A invokes Skill B:
 1. Orchestrator generates unique request ID: `req-12345`
 2. Orchestrator sends request with header `request-id: req-12345`
 3. Skill B processes, responds with header `in-reply-to: req-12345`
@@ -318,7 +318,7 @@ public BookTradingOntology() {
 
 The `BasicOntology` defines primitives (numbers, strings, dates), aggregates (sets, sequences), and meta-constructs (variables, identifying referential expressions). Application ontologies build on top.
 
-**For WinDAGs**: Define a **base skill ontology** with primitives (task ID, timestamp, status code). Each skill's specific ontology extends this base:
+**For Jury-rig**: Define a **base skill ontology** with primitives (task ID, timestamp, status code). Each skill's specific ontology extends this base:
 
 ```
 BaseSkillOntology
@@ -608,7 +608,7 @@ kb.addKBQueryFilter(
 
 The predicate `(zsubstr ...)` isn't stored in the belief base—it's computed on-demand. This allows reasoning about facts that are expensive or impossible to enumerate.
 
-**For WinDAGs**: Use filters to:
+**For Jury-rig**: Use filters to:
 1. **Enforce invariants**: E.g., "Only one skill can claim ownership of resource X"
 2. **Cascade updates**: E.g., "If skill A fails, invalidate all results computed by skills that depend on A"
 3. **Derived facts**: E.g., "Query for 'is resource Y available' by checking current allocation state, not stored facts"
@@ -652,7 +652,7 @@ The `OntoActionBehaviour` FSM checks:
 3. **On SUCCESS**: Assert the postcondition into the belief base
 4. **On EXECUTION_FAILURE**: Don't assert postcondition (belief base remains consistent)
 
-**For WinDAGs**: Each skill should be an OntologicalAction:
+**For Jury-rig**: Each skill should be an OntologicalAction:
 
 ```python
 class ExtractTextSkill(OntologicalAction):
@@ -775,7 +775,7 @@ private class CallForOfferServer extends CyclicBehaviour {
 
 If the book isn't in the catalog, the seller **immediately refuses** (doesn't accept and then fail later). This prevents wasted work and allows the buyer to query other sellers quickly.
 
-**For WinDAGs**: Skills should check preconditions *before* accepting work:
+**For Jury-rig**: Skills should check preconditions *before* accepting work:
 
 ```python
 def handle_task_request(task):
@@ -840,7 +840,7 @@ Messages are written to disk before sending. If delivery fails:
 3. If receiver comes online later, message is delivered
 4. After successful delivery, message is deleted
 
-**For WinDAGs**: Implement persistent queues (e.g., Kafka, RabbitMQ with durable queues) for inter-skill messages. If Skill B crashes while Skill A is sending results, the message waits in the queue until B restarts.
+**For Jury-rig**: Implement persistent queues (e.g., Kafka, RabbitMQ with durable queues) for inter-skill messages. If Skill B crashes while Skill A is sending results, the message waits in the queue until B restarts.
 
 ### Message Templates for Resilient Routing
 
@@ -866,7 +866,7 @@ MessageTemplate mt = MessageTemplate.and(
 ACLMessage reply = myAgent.receive(mt);
 ```
 
-**For WinDAGs**: Every skill invocation should include:
+**For Jury-rig**: Every skill invocation should include:
 - **Request-ID**: Globally unique (UUID)
 - **Conversation-ID**: Identifies the workflow instance
 - **In-reply-to**: Points to the request this is responding to
@@ -895,7 +895,7 @@ JADE uses **non-preemptive scheduling** for behaviors:
 
 > "A behaviour such as that shown below will prevent any other behaviour from being executed because its action() method will never return."
 
-**For WinDAGs**: If using cooperative scheduling for skill executors:
+**For Jury-rig**: If using cooperative scheduling for skill executors:
 - Enforce **per-behavior timeouts** at the scheduler level
 - If a behavior doesn't return within N seconds, forcibly terminate it
 - Log timeout events for debugging (which behaviors are misbehaving?)
@@ -962,7 +962,7 @@ private class BookNegotiator extends Behaviour {
 - If confirmation doesn't arrive (step 3), timeout logic (implicit in receive + block)
 - Each state has a clear next state or terminal condition
 
-**For WinDAGs**: Represent workflows as explicit FSMs:
+**For Jury-rig**: Represent workflows as explicit FSMs:
 
 ```python
 class WorkflowFSM:
@@ -1010,7 +1010,7 @@ MCRS works by:
 3. Agents re-register with the new main container
 4. Service continuity maintained (agents don't need to restart)
 
-**For WinDAGs**: If the central orchestrator is a single point of failure:
+**For Jury-rig**: If the central orchestrator is a single point of failure:
 - Deploy multiple orchestrator replicas (active-passive or active-active)
 - Use leader election (e.g., Raft, Zookeeper) to choose the active orchestrator
 - Replicate orchestrator state (workflow states, skill registry) across replicas
@@ -1031,7 +1031,7 @@ If an agent doesn't respond to pings:
 2. Remove from routing tables (messages to it will fail-fast)
 3. Notify dependent agents (if configured)
 
-**For WinDAGs**: Implement heartbeat monitoring:
+**For Jury-rig**: Implement heartbeat monitoring:
 - Each skill sends heartbeat every N seconds
 - Orchestrator expects heartbeats within 3N seconds
 - If 3 consecutive heartbeats missed → mark skill as down
@@ -1078,7 +1078,7 @@ MicroRuntime.setConnectionListener(new ConnectionListener() {
 - Escalate to user if recovery impossible
 - Invalidate cached state if back-end lost
 
-**For WinDAGs**: Expose similar events:
+**For Jury-rig**: Expose similar events:
 - `SKILL_UNAVAILABLE`: Registry lookup failed
 - `EXECUTION_STALLED`: Skill started but no heartbeat
 - `RESULT_UNDELIVERABLE`: Skill completed but orchestrator unreachable
@@ -1118,7 +1118,7 @@ myAgent.send(subscribe);
 // Orchestrator processes INFORMs asynchronously
 ```
 
-**For WinDAGs**: Use pub/sub (e.g., Redis Pub/Sub, Kafka) for status updates:
+**For Jury-rig**: Use pub/sub (e.g., Redis Pub/Sub, Kafka) for status updates:
 - Skills publish `(skill_id, status, timestamp)` to a topic
 - Orchestrators subscribe to the topic
 - On status change (ready → running → failed), orchestrator updates workflow state
@@ -1204,7 +1204,7 @@ Use NOT_UNDERSTOOD performative when messages don't match expected ontology:
 - Sender can retry with corrected data or negotiate a compatible ontology
 - Receiver doesn't crash on unexpected input
 
-**For WinDAGs**: Validate skill inputs against declared schemas before execution. If validation fails, return schema mismatch error (not runtime exception).
+**For Jury-rig**: Validate skill inputs against declared schemas before execution. If validation fails, return schema mismatch error (not runtime exception).
 
 ## The Hard Truth About Distributed Failures
 
@@ -1377,7 +1377,7 @@ myAgent.addBehaviour(seq);
 
 **Critical feature**: If a sub-behavior calls `block()`, the entire SequentialBehaviour blocks. Control returns to the agent scheduler, which can run other behaviors.
 
-**For WinDAGs**: This is the **DAG linearization pattern**. If you have a dependency chain (Skill A → Skill B → Skill C), represent it as:
+**For Jury-rig**: This is the **DAG linearization pattern**. If you have a dependency chain (Skill A → Skill B → Skill C), represent it as:
 
 ```python
 seq = SequentialBehaviour()
@@ -1407,7 +1407,7 @@ myAgent.addBehaviour(par);
 - `WHEN_ALL`: Wait for all sub-behaviors to finish
 - `WHEN_ANY`: Finish as soon as one sub-behavior finishes (race)
 
-**For WinDAGs**: This is the **parallel skill execution pattern**. If Skill A, B, and C can run concurrently (no dependencies between them):
+**For Jury-rig**: This is the **parallel skill execution pattern**. If Skill A, B, and C can run concurrently (no dependencies between them):
 
 ```python
 par = ParallelBehaviour(WHEN_ALL)
@@ -1443,7 +1443,7 @@ fsm.registerTransition("Accept", "Confirm", 0);
 4. Transition to next state
 5. Repeat until reaching a last state
 
-**For WinDAGs**: This is the **decision-point pattern**. If Skill A succeeds, invoke Skill B; if Skill A fails, invoke Skill C (fallback):
+**For Jury-rig**: This is the **decision-point pattern**. If Skill A succeeds, invoke Skill B; if Skill A fails, invoke Skill C (fallback):
 
 ```python
 fsm = FSMBehaviour()
@@ -1487,7 +1487,7 @@ seq.addSubBehaviour(new Negotiate());
 
 **Key insight**: The DataStore is **scoped to the composite behavior**. Sub-behaviors of the same parent share the store; unrelated behaviors don't see it. This is **lexical scoping for agent state**.
 
-**For WinDAGs**: Implement a **workflow context** (similar to DataStore):
+**For Jury-rig**: Implement a **workflow context** (similar to DataStore):
 
 ```python
 class WorkflowContext:
@@ -1673,7 +1673,7 @@ SequentialBehaviour (main)
 
 **Key insight**: Each `BookNegotiator` is independent. They run concurrently (ParallelBehaviour), but each is internally an FSM with blocking waits. The agent scheduler interleaves their execution.
 
-**For WinDAGs**: Nested workflows enable **reusable sub-workflows**:
+**For Jury-rig**: Nested workflows enable **reusable sub-workflows**:
 
 ```python
 class InvokeSkillWithRetry(SequentialBehaviour):
@@ -1823,7 +1823,7 @@ This approach scales to arbitrarily complex workflows because:
 - **Compositional semantics**: Behavior of composite = semantics of composition operator + semantics of sub-behaviors
 - **Graceful failure**: Each behavior can fail independently without crashing the entire workflow
 
-For WinDAGs managing 180+ skills, this means: Don't write a 10,000-line orchestrator function. Compose small, reusable behaviors (InvokeSkill, Retry, Timeout, Fallback) into hierarchies that match your task structure. The resulting system is understandable, maintainable, and extensible.
+For Jury-rig managing 180+ skills, this means: Don't write a 10,000-line orchestrator function. Compose small, reusable behaviors (InvokeSkill, Retry, Timeout, Fallback) into hierarchies that match your task structure. The resulting system is understandable, maintainable, and extensible.
 ```
 
 ---
@@ -1929,7 +1929,7 @@ Mobile devices frequently lose connectivity (out of coverage, airplane mode, bat
 - Messages destined for the agent are queued at back-end
 - When front-end reconnects, queued messages are delivered
 
-**For WinDAGs**: If a skill executor is running on an unreliable device (Lambda function, edge device), use split execution:
+**For Jury-rig**: If a skill executor is running on an unreliable device (Lambda function, edge device), use split execution:
 - **Front-end**: Stateless executor (receives tasks, returns results)
 - **Back-end**: Stateful coordinator (tracks task history, handles retries)
 - **Mediator**: Task registry (front-ends discover which back-end to connect to)
@@ -1959,7 +1959,7 @@ Mobile Device ────────────► Mediator ◄────�
                             (Port 1099)             (No inbound port)
 ```
 
-**For WinDAGs**: If deploying across environments (cloud + on-prem, public + private):
+**For Jury-rig**: If deploying across environments (cloud + on-prem, public + private):
 - Deploy mediator in DMZ (one public IP, one port)
 - Deploy skill executors behind firewall
 - Executors connect outbound to mediator
@@ -1981,7 +1981,7 @@ The book reveals a non-obvious implementation detail:
 
 **Lesson**: Don't assume uniform platform capabilities. Provide **pluggable transport adapters** that abstract device constraints.
 
-**For WinDAGs**: If skills run on heterogeneous hardware (ARM, x86, GPU, TPU):
+**For Jury-rig**: If skills run on heterogeneous hardware (ARM, x86, GPU, TPU):
 - Define abstract transport interface (send/receive)
 - Implement device-specific transports (gRPC, HTTP/2, custom binary protocol)
 - Let skills declare required transport ("I need full-duplex bidirectional streaming")
@@ -2044,7 +2044,7 @@ MicroRuntime.setConnectionListener(new ConnectionListener() {
 - Applications **decide** recovery strategy (retry, degrade, abort)
 - Users are **informed** (not left in the dark when operations fail)
 
-**For WinDAGs**: Expose similar events for skill execution:
+**For Jury-rig**: Expose similar events for skill execution:
 
 ```python
 orchestrator.on_event(SKILL_UNAVAILABLE, lambda event:
@@ -2087,7 +2087,7 @@ public void onReconnected() {
   - Persist to disk if RAM exhausted
   - Alert user if critical messages can't be sent
 
-**For WinDAGs**: Implement **persistent task queues** for orchestrator-to-skill communication:
+**For Jury-rig**: Implement **persistent task queues** for orchestrator-to-skill communication:
 - Use Kafka, RabbitMQ, or SQS with durable queues
 - If skill is unavailable, messages wait in queue
 - When skill comes online, process backlog
@@ -2117,7 +2117,7 @@ The minimizer:
 
 **Result**: 600KB JADE JAR → 150KB minimized JAR for MIDP.
 
-**For WinDAGs**: If deploying to constrained environments (edge devices, serverless with size limits):
+**For Jury-rig**: If deploying to constrained environments (edge devices, serverless with size limits):
 - Use **dead code elimination** (tree-shaking in JavaScript, ProGuard for Java, PyInstaller for Python)
 - **Lazy loading**: Don't bundle all 180 skills in every deployment; load dynamically
 - **Modular packaging**: Each skill is a separate artifact (Docker layer, Lambda function)

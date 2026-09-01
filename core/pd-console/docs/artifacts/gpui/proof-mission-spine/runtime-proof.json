@@ -1,0 +1,83 @@
+{
+  "schemaVersion": 1,
+  "capturedAtUtc": "2026-08-30T02:55:23Z",
+  "source": {
+    "branch": "codex/pd-console-conversation-spine-20260829",
+    "baseCommit": "2cbc308b9",
+    "worktree": "/Users/erichowens/coding/tmp/pd-console-conversation-spine-20260829",
+    "workingTreeBuild": true
+  },
+  "nativeApp": {
+    "bundle": "/Users/erichowens/Applications/pd-console-dev-apps/pd-console-dev-20260829-1954-mission-spine.app",
+    "binarySha256": "a1c57d056591b3266c4528667000b76d07b1faca7a71f6ab05dd65785f78621b",
+    "daemonUrl": "http://127.0.0.1:3186",
+    "controlSocket": "/Users/erichowens/coding/tmp/pd-console-mission-spine-20260829-1954.sock",
+    "initialPane": "mission",
+    "coldRelaunchedAgainstExistingLedger": true
+  },
+  "lifecycleDaemon": {
+    "kind": "source Bun development daemon",
+    "command": "bun bin/port-daddy-daemon.ts",
+    "prefix": "/Users/erichowens/coding/tmp/pd-mission-daemon-runtime-20260829-proof2",
+    "pid": 74813,
+    "healthStatus": "ok",
+    "healthSeverity": "warn",
+    "runtimeRevision": "2cbc308b9"
+  },
+  "compiledBundleProof": {
+    "binary": "/Users/erichowens/coding/tmp/pd-mission-binary-20260829-final/port-daddy",
+    "binarySha256": "47a572d184e5080496aadb4cc7cfcd90b4d0301ebeb05b436d102fc6d091ecde",
+    "manifest": "/Users/erichowens/coding/tmp/pd-mission-binary-20260829-final/port-daddy-manifest.json",
+    "manifestSha256": "71a4a3c9814fb3552e0fbb9f4c4594126735319abd6bd25cd426e6f30a474335",
+    "embeddedAgentHarborSchemas": 28,
+    "surfaceGatewaySmoke": {
+      "captureStatus": 202,
+      "queryStatus": 200,
+      "readBack": true
+    }
+  },
+  "missions": [
+    {
+      "intentId": "work_intent_console_18d0730646ef8438-20925-8",
+      "executionId": "c28bcff3-2651-bb05-fd4c-81a1659e1533",
+      "agentId": "spawned-b1fad7e17b2a",
+      "operatorText": "Reply with exactly: Mission prompt preserved. Do not use tools or change anything.",
+      "assistantText": "Mission prompt preserved.",
+      "terminalBeforeNextTurn": true,
+      "terminalState": "salvage",
+      "terminalReason": "run completed without a reviewable artifact; worktree preserved for recovery"
+    },
+    {
+      "intentId": "work_intent_console_18d073a6b671da18-56918-9",
+      "executionId": "e5a5d962-9733-d419-8faa-438f3c53282c",
+      "agentId": "spawned-f8205e0f398b",
+      "operatorText": "Reply with exactly: Second mission receipt confirmed. Do not use tools or change anything.",
+      "assistantText": "Second mission receipt confirmed.",
+      "worktree": "/Users/erichowens/coding/tmp/port-daddy-dispatch-e5a5d962",
+      "branch": "dispatch/reply-with-exactly-second-mission-receipt-confirmed-do-not-u-e5a5d962",
+      "terminalState": "salvage",
+      "terminalReason": "run completed without a reviewable artifact; worktree preserved for recovery"
+    }
+  ],
+  "assertions": {
+    "operatorPromptPreservedExactly": true,
+    "daemonReceiptSeparatedFromAssistantProse": true,
+    "terminalMissionReleasedComposer": true,
+    "nextTurnCreatedDistinctWorkIntent": true,
+    "newMissionBoundExactAgent": true,
+    "worktreeAndBranchProjected": true,
+    "attributedReplyStreamed": true,
+    "coldRestartRestoredConversation": true,
+    "nativeWorkIntentPreferredOverCompatAlias": true,
+    "streamReplayDidNotDuplicateAssistant": true,
+    "alertsEmptyAfterHydration": true,
+    "daemonRebindClearedBerthScopedState": true,
+    "emptyDaemonStayedEmpty": true
+  },
+  "nativeWindowCapture": {
+    "attemptedWindowId": 31602,
+    "result": "blocked by macOS Screen Recording permission for this Codex process",
+    "fullScreenFallbackAttempted": false,
+    "fabricatedScreenshotUsed": false
+  }
+}

@@ -198,6 +198,6 @@ The deeper insight is that consistency maintenance is not just a correctness cri
 3. **Problem detection**: Inconsistency signals need for communication or replanning
 4. **Resource management**: Consistent plans don't waste resources on conflicting actions
 
-For WinDAGs and similar systems: **make consistency checking explicit and first-class**. Don't assume plans are consistent; check actively. Don't make consistency checks expensive; use hierarchical approximations. Don't ignore inconsistencies; treat them as coordination requirements.
+For Jury-rig and similar systems: **make consistency checking explicit and first-class**. Don't assume plans are consistent; check actively. Don't make consistency checks expensive; use hierarchical approximations. Don't ignore inconsistencies; treat them as coordination requirements.
 
 The consistency requirement transforms distributed decision-making from intractable (every agent must consider every other agent's detailed plans) to tractable (agents maintain compatible high-level plans and coordinate only when refinements create conflicts).

@@ -142,7 +142,7 @@ INTEND(inevitable(φ))
 
 Unlike omniscience, these are achievable properties.
 
-## Application to WinDAGs Orchestration
+## Application to Jury-rig Orchestration
 
 Consider an orchestration task: "Route this request to the optimal agent and get a response."
 
@@ -297,6 +297,6 @@ This opens the door to:
 - Debugging via "which axiom is violated?"
 - Design via "which axioms should this agent satisfy?"
 
-For WinDAGs, this suggests: Don't just specify what an orchestration agent believes, wants, and intends **right now**. Specify how these attitudes evolve under different classes of information updates.
+For Jury-rig, this suggests: Don't just specify what an orchestration agent believes, wants, and intends **right now**. Specify how these attitudes evolve under different classes of information updates.
 
 That's the difference between a reactive system and a rationally persistent agent.

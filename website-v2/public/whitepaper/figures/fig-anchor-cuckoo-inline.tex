@@ -1,71 +1,64 @@
-% Cuckoo filter revocation gate — inline in Anchor §sec:revocation (Phase 4).
-
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D8C7A6}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-
+% Semantic contract: lossy filter encodings do not have a safe union operation;
+% authoritative IDs do. Tiny slot rails are data marks, not a storage UI.
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}[
-  font=\sffamily\small,
-  slot/.style={draw=hhebony,thick,minimum width=8mm,minimum height=7mm,
-               fill=hhpaper,inner sep=0pt,font=\sffamily\footnotesize},
-  empty/.style={draw=hhebony,thick,minimum width=8mm,minimum height=7mm,
-                fill=hhsand,inner sep=0pt},
-  bucketlbl/.style={font=\sffamily\footnotesize\bfseries,anchor=east},
-  flow/.style={->,>=Latex,thick,draw=hhcobalt},
-  hashflow/.style={->,>=Latex,thick,draw=hhteal},
-]
-\foreach \i/\y in {0/3.6, 1/2.7, 2/1.8, 3/0.9, 4/0.0, 5/-0.9} {
-  \node[bucketlbl] at (-0.2,\y+0.2) {bucket~$i_\i$};
-  \foreach \s/\xoff in {0/0, 1/0.85, 2/1.7, 3/2.55} {
-    \node[empty] (b\i s\s) at (\xoff+0.7, \y) {};
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \newcommand{\slotrail}[3]{%
+    \foreach \i in {0,...,7} {
+      \draw[hhgray!70,line width=.45pt,fill=hhsand!12]
+        (#1+\i*.48,#2) rectangle ++(.42,.42);
+    }
+    \node[pd axis label,anchor=east] at (#1-.18,#2+.21) {#3};
   }
-}
-\node[slot,fill=hhamber!50] at (b0s0) {a3};
-\node[slot,fill=hhamber!50] at (b0s1) {7e};
-\node[slot,fill=hhamber!50] at (b0s2) {2f};
-\node[slot,fill=hhamber!50] at (b0s3) {91};
-\node[slot,fill=hhamber!50] at (b3s0) {ca};
-\node[slot,fill=hhamber!50] at (b3s1) {1b};
-\node[slot,fill=hhamber!50] at (b3s2) {ff};
-\node[slot,fill=hhamber!50] at (b3s3) {44};
-\node[slot,fill=hhamber!30] at (b1s0) {6c};
-\node[slot,fill=hhamber!30] at (b2s2) {8a};
-\node[slot,fill=hhamber!30] at (b4s1) {19};
-\node[slot,fill=hhamber!30] at (b5s3) {b2};
-\node[draw=hhebony,thick,fill=hhsanddeep,rounded corners=2pt,
-      minimum width=22mm,inner sep=3pt,anchor=west,align=left] (key) at (5.5,3.6)
-  {insert $k$:\\\quad $\mathrm{fp}(k)=\mathtt{c1}$};
-\node[draw=hhteal,thick,fill=hhpaper,rounded corners=2pt,inner sep=3pt,
-      anchor=west,below=2mm of key] (h1)
-  {$i_1 = h(k) \bmod M = \mathbf{i_0}$};
-\node[draw=hhteal,thick,fill=hhpaper,rounded corners=2pt,inner sep=3pt,
-      anchor=west,below=2mm of h1] (h2)
-  {$i_2 = i_1 \oplus h(\mathrm{fp}) = \mathbf{i_3}$};
-\draw[hashflow] (h1.west) -- ($(b0s3.east)+(0.3,0)$);
-\draw[hashflow] (h2.west) -- ($(b3s3.east)+(0.3,0)$);
-\node[slot,fill=hhcobalt!75,text=white] at (b0s2) {c1};
-\draw[flow,line width=1.4pt]
-  (b0s2.west) -- ++(-0.6,0)
-  node[midway,above=5mm,font=\sffamily\footnotesize,text=hhcobalt,align=center]
-  {evict\\\texttt{2f}}
-  -- ($(b2s2.west)+(-0.6,0)$) -- (b2s2.west);
-\node[draw=hhebony,thick,fill=hhsanddeep,rounded corners=3pt,inner sep=5pt,
-      align=left,anchor=north west,minimum width=58mm] at (5.5,0.4)
-  {{\bfseries Lookup} $k$: check $i_1, i_2$\\[2pt]
-   {\bfseries No false negatives.}\\
-   FP rate $\leq 2B / 2^f = 0.03125$};
-\node[draw=hhcobalt,thick,fill=hhpaper,rounded corners=3pt,inner sep=4pt,
-      align=left,anchor=north west] at (5.5,-2.6)
-  {{\bfseries Insert rejection at load $0.95$}\\
-   (cap holds FP bound under adversarial fill).};
+
+  \node[pd panel title,anchor=west] at (-5.7,3.45) {lossy encodings remember insertion history};
+  \slotrail{-4.9}{2.25}{peer $A$}
+  \slotrail{1.15}{2.25}{peer $B$}
+  \fill[hhteal] (-4.9+.96,2.25) rectangle ++(.42,.42);
+  \node[font=\tiny\bfseries,text=white] at (-4.9+.96+.21,2.46) {c1};
+  \fill[hhteal] (1.15+2.88,2.25) rectangle ++(.42,.42);
+  \node[font=\tiny\bfseries,text=white] at (1.15+2.88+.21,2.46) {c1};
+  \fill[hhgray!65] (-4.9+2.4,2.25) rectangle ++(.42,.42);
+  \fill[hhgray!65] (1.15+.48,2.25) rectangle ++(.42,.42);
+  \node[pd direct label,anchor=south] at (-2.98,2.8) {same revoked ID};
+  \node[pd direct label,anchor=south] at (3.07,2.8) {different resting bucket};
+
+  \draw[pd caution arrow] (-2.98,2.05) to[out=-70,in=160] (-.9,.95);
+  \draw[pd caution arrow] (3.07,2.05) to[out=-110,in=20] (.9,.95);
+  \slotrail{-1.92}{.36}{bitwise OR}
+  \fill[hhamber] (-1.92+.96,.36) rectangle ++(.42,.42);
+  \fill[hhamber] (-1.92+2.88,.36) rectangle ++(.42,.42);
+  \node[font=\tiny\bfseries,text=white] at (-1.92+.96+.21,.57) {c1};
+  \node[font=\tiny\bfseries,text=white] at (-1.92+2.88+.21,.57) {c1};
+  \draw[draw=hhamber,line width=.85pt,decorate,decoration={brace,amplitude=4pt,mirror}]
+    (-.75,.24) -- (1.47,.24);
+  \node[pd direct label,text=hhamber,anchor=north] at (.36,-.12)
+    {no valid single-filter history};
+
+  \draw[pd hairline] (-5.7,-.75) -- (5.7,-.75);
+  \node[pd panel title,anchor=west] at (-5.7,-1.12) {authoritative IDs have a lawful union};
+  \foreach \x/\id in {-4.85/a7,-3.85/c1,-2.85/f4} {
+    \node[circle,draw=hhink,fill=hhpaper,minimum size=7mm,inner sep=0pt,font=\tiny] at (\x,-2.0) {\texttt{\id}};
+  }
+  \foreach \x/\id in {-4.35/b2,-3.35/c1,-2.35/e9} {
+    \node[circle,draw=hhgray,fill=hhpaper,minimum size=7mm,inner sep=0pt,font=\tiny] at (\x,-2.72) {\texttt{\id}};
+  }
+  \node[pd axis label,anchor=east] at (-5.28,-2.0) {$R_A$};
+  \node[pd axis label,anchor=east] at (-5.28,-2.72) {$R_B$};
+  \draw[pd focus arrow] (-1.92,-2.36) -- (.0,-2.36);
+  \node[pd direct label,text=hhteal,anchor=south] at (-.95,-2.28) {set union};
+  \draw[pd focus arrow] (.2,-2.36) -- (1.75,-2.36);
+  \slotrail{2.05}{-2.57}{rebuild}
+  \fill[hhteal] (2.05+.48,-2.57) rectangle ++(.42,.42);
+  \fill[hhteal] (2.05+1.92,-2.57) rectangle ++(.42,.42);
+  \fill[hhteal] (2.05+2.88,-2.57) rectangle ++(.42,.42);
+  \node[pd note,anchor=west] at (2.05,-3.05) {one consistent local projection};
 \end{tikzpicture}
-\caption{Cuckoo-filter revocation gate (Fan et al.~\cite{fan2014cuckoo}) with the load-factor ceiling that defeats the pollution attack. Insert lands at either of two candidate buckets $i_1, i_2 = i_1 \oplus h(\mathrm{fp})$; on full, evict and re-insert at the kicked fingerprint's alternate. Insert rejection at $0.95$ caps occupancy inside the regime where the false-positive bound holds.}
+\caption{Filter state is not a mergeable set representation. The same revoked
+ID can occupy different buckets after different insertion and eviction histories;
+bitwise OR preserves both lossy placements and yields no coherent deletion
+history. Revocation IDs, by contrast, admit ordinary set union. Each daemon can
+therefore merge the append-only log and rebuild one valid local filter without
+risking a false negative through cross-peer filter mutation.}
 \label{fig:anchor-cuckoo-inline}
 \end{figure}

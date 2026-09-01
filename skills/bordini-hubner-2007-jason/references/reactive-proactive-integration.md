@@ -129,7 +129,7 @@ In traditional orchestration systems, there's typically a central scheduler deci
 - Message passing (belief updates from communication)
 - Complementary plan libraries (Agent A has plans for X, Agent B has plans for Y)
 
-For a WinDAGs-like system: each skill could be an agent, each with plans for "when to activate" (contexts), "what to do" (plan bodies), and "how to coordinate" (communication actions). No central DAG executor—the DAG emerges from agents adopting goals that trigger sub-goals handled by other agents.
+For a Jury-rig-like system: each skill could be an agent, each with plans for "when to activate" (contexts), "what to do" (plan bodies), and "how to coordinate" (communication actions). No central DAG executor—the DAG emerges from agents adopting goals that trigger sub-goals handled by other agents.
 
 ### Implication 2: Load Balancing Through Event Prioritization
 

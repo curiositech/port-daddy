@@ -12,15 +12,25 @@ const paths = {
   keystone: 'website-v2/public/whitepaper/figures/fig-stp-keystone-split.tex',
   organs: 'website-v2/public/whitepaper/figures/fig-stp-three-organs.tex',
   pdf: 'website-v2/public/whitepaper/spawn-to-person-whitepaper.pdf',
-  contact: 'docs/pr-assets/spawn-to-person-diagram-repairs.jpg',
-  tour: 'docs/pr-assets/spawn-to-person-diagram-tour.gif',
-  proof: 'docs/pr-assets/spawn-to-person-diagram-repairs.md',
+  contact: 'docs/artifacts/whitepaper-figure-semantics/all-volumes/all-seven-volumes-color-contact-sheet.png',
+  tour: 'docs/artifacts/whitepaper-figure-semantics/all-volumes/all-seven-volumes-color-tour.gif',
+  proof: 'docs/artifacts/whitepaper-figure-semantics/all-volumes/proof-manifest.md',
 };
 
 const expectedSha256 = {
-  pdf: 'a3f85a121b436c17a6f46e4c3d440b296c43ebf192320b665bb4a5f564701db5',
-  contact: '6c5507dd28e2050ffaa5171625d0839c70b9b2b0b742261362540fe7528291ef',
-  tour: '833a1ef14c71d1ed6a1f1460959e2b6998119734fb19520e639abe51877ad265',
+  pdf: 'ae9d319d140e22e0e309eb04ea6ed399c066f0ba128b7aee2031ffb2c735ee7e',
+  contact: 'e74fad8acce50400e536f8a81120643b48ff1589d8d1e3ff3da479a3b45768f6',
+  tour: 'fd6021b6dffaf8670550b075bbd81bd1af555070aa353b4c90316393ac61f12f',
+};
+
+const publicationSha256 = {
+  'website-v2/public/whitepaper/legible-swarm-whitepaper.pdf': 'bb5704b0b2acf5f9e6015a130b1578e9c14b2cc6dd6ebe27fffe45fabcd9e639',
+  'website-v2/public/whitepaper/single-writer-kernel-whitepaper.pdf': '2ec6d1ae929e01880320d9d255f887d8635c4b27eb14a965d0d57057f732323c',
+  'website-v2/public/whitepaper/harbor-economy-whitepaper.pdf': '5c70098c49051b2a89fa632f4ddada76288603b7c705a7bfd0406a980af98816',
+  'website-v2/public/whitepaper/anchor-protocol-whitepaper.pdf': 'cfd4f6dd55f1868e9f8a13c4d9039994bc5f6e554af52fc4ee163e91d57712c1',
+  'website-v2/public/whitepaper/agent-transactions-whitepaper.pdf': '0d52188306583518abf8b7755142b2df53f3f664152ec9305947c5fee3b12960',
+  'website-v2/public/whitepaper/federated-harbor-whitepaper.pdf': 'cae3b19ca9bb961bf54bf1aa228d58a1d7a434729d97e7d437e7a86bef01c247',
+  'website-v2/public/whitepaper/coordination-papers-mega-volume.pdf': '7886660dc50cd23a206cda020ad219d51008cbe999d1e23f178eb979c2cd1b92',
 };
 
 function text(path) {
@@ -77,34 +87,13 @@ function pdfPageCount(pdf) {
   return text.match(/\/Type\s*\/Page\b/g)?.length ?? 0;
 }
 
-function jpegDimensions(jpeg) {
-  expect(jpeg.subarray(0, 2)).toEqual(Buffer.from([0xff, 0xd8]));
-  let cursor = 2;
-  const startOfFrame = new Set([
-    0xc0, 0xc1, 0xc2, 0xc3, 0xc5, 0xc6, 0xc7,
-    0xc9, 0xca, 0xcb, 0xcd, 0xce, 0xcf,
-  ]);
-
-  while (cursor + 9 < jpeg.length) {
-    if (jpeg[cursor] !== 0xff) {
-      cursor += 1;
-      continue;
-    }
-    const marker = jpeg[cursor + 1];
-    if (startOfFrame.has(marker)) {
-      return {
-        height: jpeg.readUInt16BE(cursor + 5),
-        width: jpeg.readUInt16BE(cursor + 7),
-      };
-    }
-    if (marker === 0xd8 || marker === 0xd9) {
-      cursor += 2;
-      continue;
-    }
-    const segmentLength = jpeg.readUInt16BE(cursor + 2);
-    cursor += 2 + segmentLength;
-  }
-  throw new Error('JPEG has no start-of-frame marker');
+function pngDimensions(png) {
+  expect(png.subarray(0, 8)).toEqual(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
+  expect(png.subarray(12, 16).toString('ascii')).toBe('IHDR');
+  return {
+    width: png.readUInt32BE(16),
+    height: png.readUInt32BE(20),
+  };
 }
 
 function skipGifSubBlocks(gif, start) {
@@ -151,22 +140,24 @@ function parseGif(gif) {
 }
 
 describe('Spawn-to-Person publication contract', () => {
-  test('maturity labels say partial only where the runtime has a grounded substrate', () => {
+  test('the maturity plot marks partial only where the runtime has a grounded substrate', () => {
     const source = text(paths.source);
     const honest = text(paths.honest);
     const keystone = text(paths.keystone);
     const organs = text(paths.organs);
 
     expect(source).toMatch(/\\newcommand\{\\BUILTWEAK\}.*\\textsc\{partial\}/);
-    expect(honest).toMatch(/Outcome ledger[^&]*& \\BUILTWEAK/);
-    expect(honest).toMatch(/Local non-forgeable identity & \\BUILTWEAK/);
-    expect(honest).toContain('\\S\\ref{sec:organs}, Def.~\\ref{def:oracle}');
-    expect(honest).toContain('\\S\\ref{sec:identity}, Thm.~\\ref{thm:necessity}');
-    expect(keystone).toContain('daemon-minted \\texttt{actor-souls}');
-    expect(keystone).toContain('full write-boundary\nenforcement remains');
-    expect(organs).toContain('checkpoint (\\BUILTWEAK)');
-    expect(organs).toContain('witnessed-outcome ledger (\\BUILTWEAK)');
-    expect(organs).toContain('\\S\\ref{sec:organs}');
+    expect(honest).toContain('.58/outcome ledger,');
+    expect(honest).toContain('-.92/local non-forgeable identity,');
+    expect(honest).toContain('\\foreach \\y in {1.08,.58,-.92} \\node[pd caution datum]');
+    expect(honest).toContain('commitment closure, not neutral grades');
+    expect(honest).toContain('local root; full write gating owed');
+    expect(keystone).toContain('daemon-minted actor/key');
+    expect(keystone).toContain('accountable principal binding/no cross-operator binding proof');
+    expect(keystone).toContain('a signed, intact history still does not prove who controls the foreign key');
+    expect(organs).toContain('{checkpoint\\\\[-1pt]{\\tiny partial}}');
+    expect(organs).toContain('{outcome ledger\\\\[-1pt]{\\tiny partial}}');
+    expect(organs).toContain('execution state is not restored');
 
     expect(text('lib/actor-souls.ts')).toContain('daemon-minted, non-forgeable actor identity');
     expect(text('tests/unit/actor-souls.test.js')).toContain('forged / self-asserted rejection');
@@ -184,16 +175,16 @@ describe('Spawn-to-Person publication contract', () => {
     const chapter = catalog.slice(chapterStart, chapterEnd);
 
     expect(chapter).toContain("status: 'Version 1.4 (collected-volume edition)'");
-    expect(chapter).toContain('pages: 36');
-    expect(chapter).toContain('sizeKb: 647');
+    expect(chapter).toContain('pages: 41');
+    expect(chapter).toContain('sizeKb: 749');
     expect(catalog).toContain('Spawn-to-Person diagrams and implementation status align');
     expect(catalog).toContain("chapters: ['III']");
   });
 
-  test('the committed PDF is the declared 36-page, 630 KiB artifact', () => {
+  test('the committed PDF is the declared 41-page, 749 KiB artifact', () => {
     const pdf = readFileSync(paths.pdf);
-    expect(pdfPageCount(pdf)).toBe(36);
-    expect(Math.floor(pdf.length / 1024)).toBe(646); // catalog rounds this to 647
+    expect(pdfPageCount(pdf)).toBe(41);
+    expect(Math.floor(pdf.length / 1024)).toBe(749);
     expect(sha256(paths.pdf)).toBe(expectedSha256.pdf);
   });
 
@@ -203,13 +194,17 @@ describe('Spawn-to-Person publication contract', () => {
       expect(sha256(paths[artifact])).toBe(expected);
       expect(proof).toContain(expected);
     }
+    for (const [artifact, expected] of Object.entries(publicationSha256)) {
+      expect(sha256(artifact)).toBe(expected);
+      expect(proof).toContain(expected);
+    }
   });
 
-  test('the still and four-frame tour preserve the inspected diagram geometry', () => {
-    expect(jpegDimensions(readFileSync(paths.contact))).toEqual({ width: 2072, height: 2968 });
+  test('the color contact sheet and seven-frame tour preserve the inspected volume geometry', () => {
+    expect(pngDimensions(readFileSync(paths.contact))).toEqual({ width: 3792, height: 3576 });
     const gif = parseGif(readFileSync(paths.tour));
-    expect(gif.canvas).toEqual({ width: 900, height: 1303 });
-    expect(gif.frames).toHaveLength(4);
+    expect(gif.canvas).toEqual({ width: 900, height: 1740 });
+    expect(gif.frames).toHaveLength(7);
     // Optimized GIFs encode later frames as delta rectangles inside the canvas.
     expect(gif.frames.every((frame) => (
       frame.width > 0
