@@ -46,11 +46,24 @@ export interface WorkIntentPayload extends HarborPayload {
       budgetUsd?: number;
       timeoutMs?: number;
       baseBranch?: string;
+      projectDir?: string;
       autoClaim?: boolean;
       targetActorId?: string;
       reviewerActorId?: string;
       mergePolicy?: MergePolicy;
       requestedBy?: string;
+      /**
+       * Cross-backend succession (ADR-0131). Carried through the intent rather
+       * than written onto the dispatch row afterwards, because a successor is a
+       * governed launch like any other — the worker's intent gate refuses an
+       * orphan row, so a successor written directly to the queue would be
+       * claimed and then rejected at the exact moment recovery mattered.
+       */
+      predecessorDispatchId?: string;
+      failoverAttempt?: number;
+      failoverFromBackend?: string;
+      handoffEpisodeId?: string;
+      failoverChain?: string[];
     };
   };
 }
@@ -103,12 +116,19 @@ export interface CaptureDispatchInput {
   budgetUsd?: number;
   timeoutMs?: number;
   baseBranch?: string;
+  projectDir?: string;
   targetActorId?: string;
   reviewerActorId?: string;
   mergePolicy?: MergePolicy;
   requestedBy?: string;
   idempotencyKey?: string;
   autoClaim?: boolean;
+  /** Cross-backend succession fields, set only by the failover path. */
+  predecessorDispatchId?: string;
+  failoverAttempt?: number;
+  failoverFromBackend?: string;
+  handoffEpisodeId?: string | null;
+  failoverChain?: string[];
 }
 
 export interface CaptureResult {
@@ -219,6 +239,7 @@ function dispatchConstraints(input: {
   timeoutMs?: number | null;
   mergePolicy?: MergePolicy;
   backend?: DispatchBackend | null;
+  projectDir?: string | null;
 }): Record<string, unknown> {
   const constraints: Record<string, unknown> = {
     placement: 'local-only',
@@ -229,6 +250,7 @@ function dispatchConstraints(input: {
   if (input.timeoutMs != null) constraints.deadlineMs = input.timeoutMs;
   if (input.mergePolicy) constraints.reviewRequired = input.mergePolicy === 'review';
   if (input.backend) constraints.bodyPreference = input.backend;
+  if (input.projectDir) constraints.workdir = input.projectDir;
   return constraints;
 }
 
@@ -340,6 +362,9 @@ function materializeDispatchProjectionFromIntent(
     ? constraints.deadlineMs
     : undefined;
   const reviewRequired = constraints.reviewRequired !== false;
+  const constraintWorkdir = typeof constraints.workdir === 'string'
+    ? constraints.workdir.trim()
+    : '';
   return queue.materializeProjection({
     id: intent.compat?.dispatchId ?? dispatchIdForWorkIntent(intent.intentId),
     goal: intent.goal.text,
@@ -348,12 +373,22 @@ function materializeDispatchProjectionFromIntent(
     budgetUsd: projection?.budgetUsd ?? maxCostUsd,
     timeoutMs: projection?.timeoutMs ?? deadlineMs,
     baseBranch: projection?.baseBranch ?? intent.source.branch ?? 'main',
+    projectDir: projection?.projectDir ?? (constraintWorkdir || intent.source.worktree),
     autoClaim: projection?.autoClaim,
     targetActorId: projection?.targetActorId,
     reviewerActorId: projection?.reviewerActorId,
     mergePolicy: projection?.mergePolicy ?? (reviewRequired ? 'review' : 'never'),
     requestedBy: projection?.requestedBy ?? intent.operator,
     createdAt: millisFromIso(intent.createdAt),
+    ...(projection?.predecessorDispatchId
+      ? { predecessorDispatchId: projection.predecessorDispatchId }
+      : {}),
+    ...(projection?.failoverAttempt ? { failoverAttempt: projection.failoverAttempt } : {}),
+    ...(projection?.failoverFromBackend
+      ? { failoverFromBackend: projection.failoverFromBackend }
+      : {}),
+    ...(projection?.handoffEpisodeId ? { handoffEpisodeId: projection.handoffEpisodeId } : {}),
+    ...(projection?.failoverChain?.length ? { failoverChain: projection.failoverChain } : {}),
   });
 }
 
@@ -446,6 +481,7 @@ export function createWorkIntentService(deps: WorkIntentServiceDeps): WorkIntent
         legacyVerb: 'dispatch',
         surface: 'pd dispatch',
         actorId: input.requestedBy ?? 'operator',
+        worktree: input.projectDir,
       },
       goalText: input.goal,
       constraints: dispatchConstraints(input),
@@ -462,11 +498,21 @@ export function createWorkIntentService(deps: WorkIntentServiceDeps): WorkIntent
           budgetUsd: input.budgetUsd,
           timeoutMs: input.timeoutMs,
           baseBranch: input.baseBranch,
+          projectDir: input.projectDir,
           autoClaim: input.autoClaim,
           targetActorId: input.targetActorId,
           reviewerActorId: input.reviewerActorId,
           mergePolicy: input.mergePolicy,
           requestedBy: input.requestedBy,
+          ...(input.predecessorDispatchId
+            ? { predecessorDispatchId: input.predecessorDispatchId }
+            : {}),
+          ...(input.failoverAttempt ? { failoverAttempt: input.failoverAttempt } : {}),
+          ...(input.failoverFromBackend
+            ? { failoverFromBackend: input.failoverFromBackend }
+            : {}),
+          ...(input.handoffEpisodeId ? { handoffEpisodeId: input.handoffEpisodeId } : {}),
+          ...(input.failoverChain?.length ? { failoverChain: input.failoverChain } : {}),
         },
       },
     });
@@ -494,7 +540,7 @@ export function createWorkIntentService(deps: WorkIntentServiceDeps): WorkIntent
         legacyVerb: 'dispatch',
         surface: 'pd dispatch',
         actorId: dispatch.requestedBy,
-        worktree: dispatch.worktreePath ?? undefined,
+        worktree: dispatch.projectDir ?? dispatch.worktreePath ?? undefined,
         branch: dispatch.branch ?? undefined,
       },
       goalText: dispatch.goal,
@@ -503,6 +549,7 @@ export function createWorkIntentService(deps: WorkIntentServiceDeps): WorkIntent
         timeoutMs: dispatch.timeoutMs,
         mergePolicy: dispatch.mergePolicy,
         backend: dispatch.backend,
+        projectDir: dispatch.projectDir,
       }),
       startPolicy: 'queued',
       attachExisting: true,

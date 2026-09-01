@@ -498,6 +498,29 @@ describe('fleet enqueue — merge_group (the merge-queue deadlock)', () => {
     expect(gateSent).toHaveLength(0);
     expect((reviewSent[0] as { eventType: string }).eventType).toBe('pull_request');
   });
+
+  it('enqueues pull_request edited deliveries so same-head metadata changes are re-reviewed', async () => {
+    const reviewSent: unknown[] = [];
+    const editedBody = JSON.stringify({
+      action: 'edited',
+      repository: { full_name: 'curiositech/port-daddy', id: 42 },
+      sender: { login: 'octocat', id: 1 },
+      installation: { id: 777 },
+      pull_request: { number: 7, head: { sha: 'same-head' } },
+    });
+    const res = await handleGithubWebhook(
+      webhookReq({
+        body: editedBody,
+        signature: sign(SECRET, editedBody),
+        event: 'pull_request',
+        delivery: 'pr-edited-1',
+      }),
+      envWithQueues(reviewSent).env,
+    );
+    expect(res.status).toBe(204);
+    expect(reviewSent).toHaveLength(1);
+    expect(reviewSent[0]).toMatchObject({ action: 'edited', deliveryId: 'pr-edited-1' });
+  });
 });
 
 describe('fleet enqueue — durable PR generation admission', () => {

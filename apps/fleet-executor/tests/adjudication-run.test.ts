@@ -41,6 +41,33 @@ const ADVISORY_QA = [
 const GARBAGE = 'I took a look and it seems fine to me overall.';
 const CLEAN = '```json\n[]\n```\nFLEET-VERDICT: PASS';
 
+/** A small, valid Purser contract; the authoring failure is tested separately. */
+const PURSER_STEELMAN = [
+  '```json',
+  JSON.stringify({
+    purpose: 'Keep the runtime admission contract enforceable.',
+    contract: { obligations: ['reject unavailable review evidence'] },
+    testTargets: ['apps/fleet-executor/src/execute.ts'],
+  }),
+  '```',
+].join('\n');
+
+const PURSER_BLOCKING = [
+  'fleet:',
+  '  name: test',
+  '  agents:',
+  '    purser:',
+  '      class: purser',
+  '      trigger: pull_request:opened',
+  '      blocking: true',
+  '      fallbacks:',
+  '        - backend: cloudflare',
+  "          model: '@cf/qwen/qwen3-30b-a3b-fp8'",
+  '      testPaths:',
+  '        - tests/unit/purser',
+  '',
+].join('\n');
+
 function seedToken(kv: KVNamespace): void {
   void kv.put(
     'github_inst_42',
@@ -160,6 +187,65 @@ describe('stage 3 — persistent EPIDEMIC breakage gates the fleet, not the PR',
     expect(state.completed[0].conclusion).toBe('neutral');
     expect(state.issuesCreated).toHaveLength(0);
     expect(state.completed[0].summary).toContain('#5150');
+  });
+
+  it('keeps a Purser malformed author-repair epidemic neutral, never a clean success', async () => {
+    // #9920's failure shape: a valid steel-man is followed by a test with an
+    // unresolved import, then two malformed repair responses. Admission can
+    // bound every request, but semantic authoring breakage must still surface
+    // as `errored:true`; with independent historical evidence it is a visible
+    // fleet fault (neutral), never a laundered PASS for this PR.
+    state.files.set('main:pd-fleet.yml', PURSER_BLOCKING);
+    const kv = memoryKV();
+    seedToken(kv);
+    const d1 = memoryD1();
+    seedBrokenHistory(d1, 'purser-hist-1', 101, 'purser');
+    seedBrokenHistory(d1, 'purser-hist-2', 102, 'purser');
+    const unresolvedAuthoring = [
+      '```json',
+      JSON.stringify({
+        files: [{
+          path: 'tests/unit/purser/environment-injection.test.js',
+          contents: [
+            "import { currentContext } from '../../../cli/utils/context.ts';",
+            "test('holds the admission contract', () => expect(currentContext).toBeDefined());",
+          ].join('\n'),
+        }],
+      }),
+      '```',
+    ].join('\n');
+    const malformedRepair = ['```ts', 'if (', '```'].join('\n');
+    const ai = aiStub({
+      perShip: { purser: malformedRepair },
+      perShipQueue: {
+        purser: [PURSER_STEELMAN, unresolvedAuthoring, malformedRepair, malformedRepair],
+      },
+    });
+
+    await executeFleet(
+      makeJob(),
+      makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: kv, AI: ai.ai, DB: d1.db }),
+    );
+
+    // The two bounded author repairs exhaust and the Purser never claims a
+    // passing, executed test suite or mutates the reviewed PR's base.
+    expect(ai.calls).toHaveLength(4);
+    expect(d1.steps.filter(step => step.kind === 'purser-author-repair')).toHaveLength(2);
+    expect(d1.steps.find(step => step.kind === 'purser-tests' && /NON-EXECUTABLE/.test(String(step.title))))
+      .toBeDefined();
+    expect(state.stackedPrs).toHaveLength(0);
+    expect(state.prPatches.filter(patch => patch.base)).toHaveLength(0);
+
+    // The result remains a broken ship; only actual multi-PR evidence turns
+    // it into a neutral fleet fault. Neutral is deliberately not success.
+    const broken = d1.steps.find(step => step.kind === 'ship-broken' && step.ship === 'purser');
+    expect(broken).toBeDefined();
+    const adjudicated = d1.steps.find(step => step.kind === 'ship-adjudicated' && step.ship === 'purser');
+    expect(String(adjudicated?.title)).toContain('FLEET-WIDE');
+    expect(state.completed[0].conclusion).toBe('neutral');
+    expect(state.completed[0].conclusion).not.toBe('success');
+    expect(state.completed[0].summary).toContain('adjudicated FLEET-WIDE fault');
+    expect(state.completed[0].summary).toContain('not gating this PR');
   });
 });
 

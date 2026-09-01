@@ -1,73 +1,50 @@
-% Harbor Card lifecycle state machine — inline in §2.4, next to Property
-% "No Partial Reanimation". The claim of this figure is a MISSING edge, so the
-% absence is drawn explicitly (crossed-out arrow) rather than merely omitted:
-% a reader must not be able to mistake it for an oversight.
-%
-% No trust boundary here by design — this is the verifier's own state, not a
-% message crossing a channel. See fig-anchor-alg-confusion.tex for the
-% convention and the figures that need it.
-
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D8C7A6}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-
+% Semantic contract: acceptance occupies one interval per card ID. Revocation
+% and expiry are absorbing for that ID; correction starts a new lane.
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}[
-  font=\small,
-  state/.style={draw=hhebony,thick,fill=hhsand,rounded corners=3pt,
-                minimum width=26mm,minimum height=11mm,align=center,inner sep=4pt},
-  terminal/.style={state,fill=hhsanddeep},
-  edge/.style={->,>=Latex,thick,draw=hhink},
-  never/.style={->,>=Latex,thick,draw=hhcobalt,dashed},
-  edgelbl/.style={font=\footnotesize,align=center},
-  note/.style={draw=hhebony,thick,fill=hhpaper,rounded corners=3pt,
-               inner sep=5pt,align=left,font=\footnotesize,text width=140mm},
-]
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \def\xmin{-4.7}
+  \def\xmax{5.2}
+  \foreach \y/\lanename in {2.0/{card $k_{17}$: revoked},.55/{card $k_{17}$: natural expiry},-1.35/{correction card $k_{18}$}} {
+    \node[pd axis label,anchor=east,align=right,text width=31mm] at (\xmin-.25,\y) {\lanename};
+    \draw[pd hairline] (\xmin,\y) -- (\xmax,\y);
+  }
 
-\node[state] (valid) at (0,0) {\textbf{valid}\\[1pt]{\footnotesize admitted}};
-\node[terminal] (revoked) at (5.6,1.5) {\textbf{revoked}\\[1pt]{\footnotesize rejected}};
-\node[terminal] (expired) at (5.6,-1.5) {\textbf{expired}\\[1pt]{\footnotesize rejected}};
+  \draw[draw=hhteal,line width=3pt,line cap=round] (\xmin,2.0) -- (-.9,2.0);
+  \node[pd caution datum] at (-.9,2.0) {};
+  \draw[draw=hhink,line width=3pt,line cap=round,double=hhpaper,double distance=.75pt]
+    (-.9,2.0) -- (3.8,2.0);
+  \node[pd direct label,text=hhamber,anchor=south] at (-.9,2.22) {revoked at $t_r$};
+  \node[pd direct label,anchor=south] at (3.8,2.22) {expires};
+  \draw[pd tick] (3.8,1.78) -- (3.8,2.22);
 
-\draw[edge] (valid.north east) -- node[edgelbl,above left=-1mm and -4mm]
-  {operator or daemon\\revokes \texttt{kid}} (revoked.west);
-\draw[edge] (valid.south east) -- node[edgelbl,below left=-1mm and -4mm]
-  {clock passes\\$t_0 + \tau$} (expired.west);
-\draw[edge] (revoked.south) -- node[edgelbl,right=1mm]
-  {$t_0+\tau$; entry\\may leave $R$} (expired.north);
+  \draw[draw=hhteal,line width=3pt,line cap=round] (\xmin,.55) -- (3.8,.55);
+  \node[circle,draw=hhink,line width=.8pt,fill=hhpaper,minimum size=5.8mm,inner sep=0pt] at (3.8,.55) {};
+  \draw[draw=hhink,line width=.8pt] (3.6,.35) -- (4.0,.75);
+  \draw[draw=hhink,line width=.8pt] (3.6,.75) -- (4.0,.35);
+  \node[pd direct label,anchor=west] at (4.18,.55) {$t_0+\tau$};
 
-% The claim: there is NO way back. Drawn, not omitted.
-\draw[never] (revoked.north west) to[bend right=38]
-  node[pos=0.5,fill=hhpaper,draw=hhcobalt,thick,circle,inner sep=1pt,
-       font=\bfseries,text=hhcobalt] (crossmark) {$\times$}
-  (valid.north);
-\node[edgelbl,text=hhcobalt,anchor=south,text width=52mm]
-  at ([yshift=3mm]crossmark.north)
-  {\textbf{never} --- no un-revocation. Property~\ref{prop:no-reanim}: an
-   erroneous revocation is repaired by \emph{issuing a new card}, not by
-   restoring this one.};
+  \draw[pd caution arrow] (-.9,1.72) to[out=-80,in=160] (.7,-1.35);
+  \node[pd direct label,text=hhamber,anchor=east] at (.35,-.82) {mistake corrected};
+  \node[pd focus datum] at (.7,-1.35) {};
+  \draw[draw=hhteal,line width=3pt,line cap=round] (.7,-1.35) -- (\xmax,-1.35);
+  \node[pd direct label,text=hhteal,anchor=north west] at (.72,-1.58)
+    {new issuance; distinct ID};
 
-\node[note,below=12mm of valid.south,anchor=north west,xshift=-13mm]
-  {{\bfseries Why the missing edge matters.}\quad
-   Acceptance is monotonically narrowing over a card's TTL
-   (Property~\ref{prop:filter-mono}), so a verifier that has once rejected a
-   \texttt{kid} inside $[t_0, t_0{+}\tau]$ will never later admit it. This is
-   what lets the revocation check be a pure \emph{gate} in front of admission,
-   and why the soundness argument for
-   Theorem~\ref{thm:injective} survives revocation unchanged.};
+  \draw[pd caution arrow] (2.65,2.0) to[out=-70,in=70] (2.65,1.15);
+  \node[circle,draw=hhamber,line width=.9pt,fill=hhpaper,minimum size=6.2mm,inner sep=0pt] at (2.65,1.55) {};
+  \draw[draw=hhamber,line width=.9pt] (2.43,1.33) -- (2.87,1.77);
+  \draw[draw=hhamber,line width=.9pt] (2.43,1.77) -- (2.87,1.33);
+  \node[pd direct label,text=hhamber,anchor=north] at (2.65,1.18)
+    {$k_{17}$ never returns};
 
+  \draw[pd rule,-{Stealth[length=1.7mm,width=1.05mm]}] (\xmin,-2.08) -- (\xmax,-2.08);
+  \node[pd axis label,anchor=west] at (\xmax,-2.08) {time};
 \end{tikzpicture}
-\caption{The Harbor Card lifecycle. A card leaves the \textit{valid} state in
-exactly two ways --- an explicit revocation, or the clock reaching $t_0+\tau$ ---
-and returns from neither. The crossed dashed arrow is the figure's actual claim:
-the $\textit{revoked} \to \textit{valid}$ transition is \emph{absent by design}
-(Property~\ref{prop:no-reanim}), not merely undrawn. After expiry the entry may
-be dropped from the revocation log $R$ without weakening anything, because the
-card is already unacceptable on its \texttt{exp} claim alone.}
+\caption{Acceptance is a one-way interval attached to one card ID. Card
+$k_{17}$ stops being admissible either at explicit revocation or at natural
+expiry and never re-enters the valid set. If revocation was a mistake, the
+operator issues $k_{18}$ on a new lane; correction creates new authority rather
+than mutating rejected history.}
 \label{fig:anchor-card-lifecycle}
 \end{figure}

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Port Daddy API
-  version: 3.30.3
+  version: 3.30.6
   description: >
     Authoritative port management and service orchestration for multi-agent
     development. Provides atomic port assignment, pub/sub messaging, distributed
@@ -67,6 +67,8 @@ tags:
     description: Episodic memory, session harvest, and backend-neutral continuation handoffs
   - name: harness-adapters
     description: Harness mechanics, runtime evidence, and N:N continuation compatibility
+  - name: editor-recovery
+    description: Registered fail-closed Harbor Editor recovery scaffolding; not a usable pipeline while P1 receipt production, P1B, canonical Rust Loro recovery, verified root identity minting, content-bound symbol/file-mutation authorities, and the P3 adapter remain unimplemented
   - name: skill-graft
     description: Read and reconcile checkpointed Tool2Vec catalog coverage
 
@@ -5410,8 +5412,198 @@ paths:
         '503':
           description: Continuation store unavailable
 
+  /editor/recovery/request:
+    post:
+      tags: [editor-recovery]
+      summary: Unavailable scaffold for a future scoped editor replay capability
+      description: >
+        Requires daemon-minted actor identity, a terminal daemon-owned abandonment
+        receipt, editor salvage capability, and exact project, harbor, worktree,
+        worktree-root, and canonical-path containment. Before any token write,
+        the route requires canonical scope, Rust Loro, a content-hash/parser-
+        generation symbol lease, a daemon file-mutation generation lease, and
+        P3 released-claim transfer authorities; any missing authority returns 503.
+        Registration is scaffolding only: P1 receipt production, P1B, canonical
+        Rust recovery, verified root identity minting, and the P3 adapter remain
+        unimplemented external gates.
+      operationId: requestEditorRecovery
+      parameters:
+        - $ref: '#/components/parameters/XActorCredential'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [dead_session_id, requester_session_id, file_path]
+              properties:
+                dead_session_id:
+                  type: string
+                requester_session_id:
+                  type: string
+                file_path:
+                  type: string
+      responses:
+        '401':
+          description: Daemon-minted actor identity is required
+        '403':
+          description: Scope containment or salvage capability rejected
+        '404':
+          description: Authoritative abandonment or acting session not found
+        '409':
+          description: Terminal receipt or sealed operation evidence is absent, stale, or already owned
+        '422':
+          description: Path traversal, alias, symlink, or file validation failed
+        '503':
+          description: Recovery pipeline gates remain unimplemented or unavailable; registered routes return 503 and no token is written
+
+  /editor/recovery/prepare:
+    post:
+      tags: [editor-recovery]
+      summary: Unavailable scaffold for future editor operation replay preparation
+      description: >
+        Requires the full public authority preflight, then returns the complete
+        append-only typed operation ledger from sequence zero after rechecking
+        scope, path identity, digest, terminal state, and one released
+        symbolPath claim. It does not consume the token or transfer a claim.
+      operationId: prepareEditorRecovery
+      parameters:
+        - $ref: '#/components/parameters/XActorCredential'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, successor_session_id]
+              properties:
+                token:
+                  type: string
+                  pattern: '^edrec_[0-9a-f]{64}$'
+                successor_session_id:
+                  type: string
+      responses:
+        '401':
+          description: Daemon-minted actor identity is required
+        '403':
+          description: Actor, capability, or exact scope mismatch
+        '404':
+          description: Editor token or authoritative session not found
+        '409':
+          description: Claim, symbol, abandonment, operation ledger, or file evidence drifted
+        '410':
+          description: Editor recovery token expired
+        '422':
+          description: Canonical path, symlink, alias, or file validation failed
+        '503':
+          description: Recovery pipeline gates remain unimplemented or unavailable; registered routes return 503 and no preparation is written
+
+  /editor/recovery/replay:
+    post:
+      tags: [editor-recovery]
+      summary: Unavailable scaffold for future canonical Rust Loro replay validation
+      description: >
+        Requires the full public authority preflight, recomputes the sealed
+        sequence, hashes, digest, count, high-water mark, and terminal state,
+        then invokes trusted canonical replay outside the write transaction.
+        An immediate transaction then re-reads every live authority and row and
+        persists one race-safe receipt only when the computed result still
+        matches the live abandonment and operation evidence.
+      operationId: validateEditorRecoveryReplay
+      parameters:
+        - $ref: '#/components/parameters/XActorCredential'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [preparation_id, successor_session_id]
+              properties:
+                preparation_id:
+                  type: string
+                successor_session_id:
+                  type: string
+      responses:
+        '401':
+          description: Daemon-minted actor identity is required
+        '403':
+          description: Verified actor does not own this preparation
+        '404':
+          description: Replay preparation or editor token not found
+        '409':
+          description: Scope, token, abandonment, sealed ledger, prior replay receipt, or file evidence drifted
+        '410':
+          description: Editor recovery token expired or was superseded
+        '422':
+          description: Canonical Rust replay rejected the exact operation stream or terminal state
+        '503':
+          description: Recovery pipeline gates remain unimplemented or unavailable; registered routes return 503 and no replay receipt is written
+
+  /editor/recovery/finalize:
+    post:
+      tags: [editor-recovery]
+      summary: Unavailable scaffold for future exactly-once editor recovery finalization
+      description: >
+        Requires the full public authority preflight and a replay receipt that
+        still matches the append-only sealed ledger and terminal state.
+        Converts an opaque content-hash/parser-generation symbol witness into a
+        transaction-held authority lease, retains O_NOFOLLOW root and file
+        descriptors, and holds a daemon file-mutation generation through P3's
+        same-database released-claim transfer and every finalization write.
+        Descriptor/path/hash identity and both leases are rechecked at the final
+        boundary; the mutation lease is consumed in that transaction and released
+        only after commit or rollback. An arbitrary OS process is outside that
+        cooperative lease, so P3 must reject later edits whose transferred
+        root/file device+inode, content hash, or generation witness is stale.
+        Outbox projection occurs only after commit through an atomically
+        idempotent sink. Without one the row remains pending without retry churn;
+        with publisher and scheduler dependencies, bounded startup/periodic drains
+        retry the same key and persist one publication receipt.
+      operationId: finalizeEditorRecovery
+      parameters:
+        - $ref: '#/components/parameters/XActorCredential'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, preparation_id, successor_session_id]
+              properties:
+                token:
+                  type: string
+                  pattern: '^edrec_[0-9a-f]{64}$'
+                preparation_id:
+                  type: string
+                successor_session_id:
+                  type: string
+      responses:
+        '401':
+          description: Daemon-minted actor identity is required
+        '403':
+          description: Verified actor, capability, or exact scope mismatch
+        '404':
+          description: Editor token, preparation, or authoritative session not found
+        '409':
+          description: Replay or sealed evidence stale, claim conflict, symbol drift, file drift, or already finalized
+        '410':
+          description: Editor recovery token expired or was superseded
+        '422':
+          description: Canonical path, symlink, alias, or file validation failed
+        '503':
+          description: Recovery pipeline gates remain unimplemented or unavailable; registered routes return 503 and no finalization effect occurs
+
 components:
   parameters:
+    XActorCredential:
+      name: x-actor-credential
+      in: header
+      required: true
+      schema:
+        type: string
+      description: Daemon-minted actor credential required at attributed write boundaries
+
     XAgentId:
       name: x-agent-id
       in: header

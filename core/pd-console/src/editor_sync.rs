@@ -15,16 +15,18 @@
 //! dropped op frame is not). Remote cursors are pooled by their `Copy` [`PeerId`]
 //! and debounced.
 //!
-//! **Slice 3 (this file's `durability` + `isolation` sections below) adds the
-//! salvage substrate and the channel split** (build-coop-ide-gpui ref 03 §3-§4):
+//! **Slice 3 (this file's `durability` + `isolation` sections below) adds P2
+//! checkpoint/reconnect transport and the channel split** (build-coop-ide-gpui
+//! ref 03 §3):
 //!   - **Durability.** A compacted doc **snapshot** ([`HarborBuffer::export_snapshot`])
 //!     rides to the content-addressed `/blob` store; the reader broadcasts a tiny
 //!     [`encode_snapshot_frame`] *reference* (the blob's sha256 id) on the edit lane
-//!     so a reconnecting/salvaging peer catches up from snapshot+recent-deltas, not
-//!     the whole log. Each op **delta** is also appended, immutably, to the durable
-//!     op-log as a `/notes` entry ([`encode_oplog_note`]); [`OpLog`] replays those
-//!     deltas — idempotently, authored to their original PeerID — to reconstruct a
-//!     buffer (the "a buffer that survives reconnect" case slice 1 deferred).
+//!     so a reconnecting peer catches up from snapshot+recent-deltas, not the whole
+//!     log. A historical diagnostic codec can also write op **deltas** as `/notes`
+//!     entries ([`encode_oplog_note`]); [`OpLog`] can import those entries for P2
+//!     reconstruction tests. Neither notes nor `/blob` are P3.5 operation evidence.
+//!     They do not prove complete sequence-zero history, abandonment, verified
+//!     actor/scope, canonical terminal state, or claim-transfer authority.
 //!   - **Channel isolation.** The high-frequency doc-op / presence lane
 //!     ([`channel_for_path`]) is split OFF the low-frequency, latency-sensitive
 //!     coordination control plane ([`coordination_channel_for_path`] — claims,
@@ -84,7 +86,7 @@ const CHANNEL_PREFIX: &str = "harbor-editor:";
 /// The path is hashed with FNV-1a(64) and rendered as 16 lowercase hex digits, so
 /// the channel is `harbor-editor:<16-hex>` — charset-safe for `validateChannel`
 /// (raw paths contain `/` and would be rejected) and stable across processes so a
-/// reconnecting or salvaged peer rejoins the *same* channel.
+/// reconnecting peer rejoins the *same* channel.
 ///
 /// **Honest limitation:** this hashes the path string as given. Two peers must
 /// pass the same spelling (e.g. both an absolute path) to converge; canonicalizing
@@ -515,14 +517,14 @@ pub fn decode_snapshot_frame(text: &str) -> Option<SnapshotRef> {
     Some(SnapshotRef { peer, blob_id: frame.blob })
 }
 
-// ── Slice 3b: the durable op-log — immutable /notes ───────────────────────────
+// ── Slice 3b: historical P2 reconstruction codec — immutable /notes ──────────
 //
-// Every op delta that rides the edit lane is ALSO appended to the durable op-log
-// as an immutable note (`POST /notes`; notes cannot be edited or deleted — the
-// exact write-once property an audit trail + replayable log want, ref 03 §3). The
-// note body is a typed envelope carrying (channel, peer, seq, base64 ops). On
-// reconnect/salvage a successor reads the notes back, decodes them, and replays the
-// deltas — idempotently, authored to their ORIGINAL PeerID — via [`OpLog`].
+// This codec serializes a delta as an immutable note for P2 diagnostics and
+// reconstruction experiments. The body carries (channel, peer, seq, base64 ops),
+// and [`OpLog`] imports such entries idempotently. A note is generic coordination
+// history: it is not a daemon-owned editor operation receipt, cannot establish a
+// complete sequence-zero ledger or abandonment high-water mark, and must never be
+// accepted as P3.5 recovery authority.
 
 /// The `kind` tag inside an op-log note body. Not a tube-frame kind (a note is not
 /// a tube message), but the same tolerant, versioned envelope shape.
@@ -586,15 +588,16 @@ pub fn decode_oplog_note(content: &str) -> Option<OpLogEntry> {
     Some(OpLogEntry { channel: note.channel, peer, seq: note.seq, ops })
 }
 
-/// The client-side view of a file's durable op-log: an ordered, **deduplicated**
-/// set of deltas keyed by `(peer, seq)`.
+/// A client-side P2 reconstruction view: an ordered, **deduplicated** set of
+/// note-encoded deltas keyed by `(peer, seq)`. This is not the authoritative P3.5
+/// typed operation ledger.
 ///
 /// ## Data-structure choice (operator's discipline)
 /// A `BTreeMap<(PeerId, u64), Vec<u8>>` — the key is a pair of `Copy` scalars, so
 /// there is no `Rc<RefCell<_>>` node web and no `String` identity to clone; the
 /// B-tree gives a deterministic replay order (by peer, then sequence) and O(log n)
 /// idempotent insert. `(peer, seq)` is the natural dedup identity: replaying a
-/// partially-flushed log (double-consume during salvage) re-inserts the same keys
+/// duplicate-delivered reconstruction log re-inserts the same keys
 /// and changes nothing, so replay is idempotent at THIS layer as well as inside
 /// Loro's import.
 #[derive(Debug, Default)]
@@ -610,7 +613,7 @@ impl OpLog {
 
     /// Append one decoded entry. Returns `true` if it was new, `false` if a delta
     /// with the same `(peer, seq)` was already present (a duplicate note read back
-    /// twice) — the idempotency the salvage story leans on.
+    /// twice) — useful for duplicate-delivery and reconnect safety.
     pub fn append(&mut self, entry: OpLogEntry) -> bool {
         self.entries.insert((entry.peer, entry.seq), entry.ops).is_none()
     }
@@ -627,10 +630,10 @@ impl OpLog {
 
     /// Replay every delta into `buffer`, in `(peer, seq)` order, reconstructing the
     /// doc. Loro import is itself idempotent, so replaying a log that overlaps the
-    /// buffer's existing state is safe; combined with a snapshot import this is the
-    /// full salvage path (snapshot for the bulk, notes for the tail). Returns `Err`
-    /// on the first undecodable delta (a corrupt note), naming nothing it already
-    /// applied — the caller re-derives from the durable store, never a partial lie.
+    /// buffer's existing state is safe; combined with a snapshot import this proves
+    /// P2 reconstruction mechanics (snapshot for the bulk, notes for the tail).
+    /// It does not authorize editor recovery. Returns `Err` on the first
+    /// undecodable delta, naming nothing it already applied.
     pub fn replay_into(&self, buffer: &HarborBuffer) -> Result<(), String> {
         for ops in self.entries.values() {
             buffer.apply_remote_ops(ops)?;
@@ -1161,7 +1164,8 @@ mod tests {
 
     /// THE SLICE-3 DURABILITY PROOF (op-log half): op deltas persisted as immutable
     /// notes, read back, DEDUPED by (peer, seq), and replayed to reconstruct the
-    /// buffer — content AND per-line authorship — idempotently under double-consume.
+    /// buffer — content AND per-line authorship — idempotently under duplicate
+    /// delivery. This is explicitly not a P3.5 authority proof.
     #[test]
     fn oplog_dedups_and_replays_to_reconstruct_the_buffer() {
         let path = "/repo/src/parse_header.rs";
@@ -1185,8 +1189,8 @@ mod tests {
         agent.append_line("agent refactored parse_header");
         let note_a = encode_oplog_note(&channel, agent.local_peer(), 0, &agent.export_ops());
 
-        // A successor reads the notes back off /notes and folds them into an OpLog.
-        // Reading a note TWICE (a resend, or a double salvage-consume) must not grow
+        // A cold P2 peer reads the notes back off /notes and folds them into an OpLog.
+        // Reading a note TWICE (a resend or duplicate delivery) must not grow
         // the log — dedup is on (peer, seq).
         let mut log = OpLog::new();
         for note in [&note0, &note1, &note_a, &note1 /* duplicate */] {
@@ -1203,15 +1207,15 @@ mod tests {
         assert_eq!(lines[0].author_peer, Some(human_peer), "authorship survives the note round-trip");
         assert_eq!(lines[2].author_peer, Some(agent_peer), "the agent's line stays the agent's after replay");
 
-        // Replaying the same log again is idempotent (double-consume safety).
+        // Replaying the same log again is idempotent (duplicate-delivery safety).
         log.replay_into(&restored).unwrap();
         assert_eq!(restored.lines().len(), 3, "re-replaying the op-log must not duplicate lines");
     }
 
-    /// THE SLICE-3 SALVAGE SUBSTRATE PROOF: snapshot (the bulk, from `/blob`) + the
-    /// op-log tail (recent deltas, from immutable notes) reconstruct a cold replica
-    /// that converges byte-for-byte to the live doc, authorship intact. This is the
-    /// "a buffer that survives reconnect" case slice 1 explicitly deferred.
+    /// THE SLICE-3 P2 RECONSTRUCTION PROOF: snapshot (the bulk, from `/blob`) + a
+    /// note-encoded tail reconstruct a cold replica that converges byte-for-byte to
+    /// the live doc, authorship intact. This proves reconnect mechanics only; notes
+    /// and blobs are never authoritative P3.5 recovery evidence.
     #[test]
     fn snapshot_plus_oplog_tail_reconstructs_the_live_doc() {
         let path = "/repo/src/lib.rs";
@@ -1237,7 +1241,7 @@ mod tests {
         tail.replay_into(&restored).expect("tail deltas replay onto the snapshot");
 
         assert_eq!(restored.to_string(), live.to_string(), "snapshot+tail converges to the live doc byte-for-byte");
-        assert_eq!(restored.lines().len(), 4, "all four lines present after salvage");
+        assert_eq!(restored.lines().len(), 4, "all four lines present after reconnect");
         assert_eq!(
             restored.lines()[3].author_peer,
             Some(peer_id_for_identity(human_id)),

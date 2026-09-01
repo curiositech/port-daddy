@@ -1,33 +1,51 @@
-% Fig 10 — preserve the quality vector; let each buyer choose its weights.
+% Figure III.10 --- the same outcome vectors reverse under legitimate buyer weights.
 \begin{figure}[H]
 \centering
-\resizebox{0.94\textwidth}{!}{%
-\begin{tikzpicture}[font=\small]
-  \node[stp box,minimum width=38mm] (out) at (-5,1.8)
-    {\textbf{witnessed outcome}};
-  \node[stp accent box,minimum width=40mm] (vector) at (0,1.8)
-    {\textbf{quality vector}\\{\small $\mathbf q=(q_{\rm acc},q_{\rm aes},q_{\rm eff})$}};
-  \node[stp box,minimum width=42mm,text width=36mm] (buyer) at (5.2,1.8)
-    {\textbf{buyer applies $\mathbf w$}\\
-     {\scriptsize ``cheap'' versus ``careful''}};
-  \draw[stp accent arrow] (out) -- (vector);
-  \draw[stp accent arrow] (vector) -- (buyer);
+\resizebox{0.96\textwidth}{!}{%
+\begin{tikzpicture}[pd figure]
+  \node[pd panel title,anchor=west] at (-6.8,3.05)
+    {witnessed outcome profiles remain vectors};
 
-  \node[stp box,minimum width=43mm,text width=36mm] (acc) at (-5,-1.25)
-    {\textbf{accuracy} $q_{\rm acc}$\\{\scriptsize judged by a test oracle}};
-  \node[stp box,minimum width=43mm,text width=36mm] (aes) at (0,-1.25)
-    {\textbf{aesthetics} $q_{\rm aes}$\\{\scriptsize expert-reviewer judgment}};
-  \node[stp box,minimum width=43mm,text width=36mm] (eff) at (5,-1.25)
-    {\textbf{efficiency} $q_{\rm eff}$\\{\scriptsize judged by the cost ledger}};
-  \draw[stp arrow] (vector.south) -- ++(0,-5mm) -| (acc.north);
-  \draw[stp arrow] (vector.south) -- (aes.north);
-  \draw[stp arrow] (vector.south) -- ++(0,-5mm) -| (eff.north);
+  % Three independently judged axes.
+  \foreach \x/\axis/\judge in {-4.4/accuracy/test oracle,0/aesthetics/expert reviewer,4.4/efficiency/cost ledger} {
+    \draw[pd hairline] (\x,-.35) -- (\x,2.45);
+    \foreach \y/\lab in {-.35/0,.35/.25,1.05/.5,1.75/.75,2.45/1}
+      \draw[pd tick] (\x-.11,\y) -- (\x+.11,\y);
+    \node[pd direct label,anchor=north,align=center] at (\x,-.58)
+      {\textbf{\axis}\\[-1pt]{\tiny \judge}};
+  }
+  % A=(1,.85,.45), B=(.75,.55,1)
+  \draw[pd focus rule,line width=1.5pt] (-4.4,2.45) -- (0,2.03) -- (4.4,.91);
+  \draw[pd caution rule,dashed,line width=1.5pt] (-4.4,1.75) -- (0,1.19) -- (4.4,2.45);
+  \foreach \x/\y in {-4.4/2.45,0/2.03,4.4/.91} \node[pd focus datum] at (\x,\y) {};
+  \foreach \x/\y in {-4.4/1.75,0/1.19,4.4/2.45} \node[pd caution datum] at (\x,\y) {};
+  \node[pd direct label,text=hhteal,anchor=west] at (4.65,.91) {outcome A};
+  \node[pd direct label,text=hhamber,anchor=west] at (4.65,2.45) {outcome B};
+
+  % Buyer-specific projections; same vectors, opposite decisions.
+  \node[pd panel title,anchor=west] at (-6.8,-1.55)
+    {buyers apply preferences after disclosure};
+  \draw[pd hairline] (-5.25,-2.35) -- (5.8,-2.35);
+  \draw[pd hairline] (-5.25,-3.20) -- (5.8,-3.20);
+  \node[pd direct label,anchor=east] at (-5.45,-2.35)
+    {security buyer\\[-1pt]{\tiny weights $.60,.30,.10$}};
+  \node[pd direct label,anchor=east] at (-5.45,-3.20)
+    {cost buyer\\[-1pt]{\tiny weights $.15,.15,.70$}};
+  \node[pd focus datum] at (4.10,-2.35) {};
+  \node[pd caution datum] at (1.85,-2.35) {};
+  \node[pd focus datum] at (-.70,-3.20) {};
+  \node[pd caution datum] at (4.00,-3.20) {};
+  \node[pd direct label,text=hhteal,anchor=west] at (4.30,-2.35) {A selected};
+  \node[pd direct label,text=hhamber,anchor=west] at (4.20,-3.20) {B selected};
+  \node[pd axis label,anchor=north] at (-5.25,-3.45) {lower weighted fit};
+  \node[pd axis label,anchor=north] at (5.8,-3.45) {higher weighted fit};
 \end{tikzpicture}}
-\caption{\textbf{Multi-dimensional reputation.} A witnessed outcome
-carries a quality \emph{vector} $\mathbf{q}=(q_{\text{acc}},q_{\text{aes}},
-q_{\text{eff}})$. Each axis is scored by a \emph{different} competent judge: a test
-oracle for accuracy, a senior reviewer for aesthetics, the cost meter for
-efficiency. The buyer reads the vector and applies their own weights --- which is
-exactly what avoids collapsing quality into one Goodhart-able scalar.}
+\caption{\textbf{One quality vector supports legitimate preference reversal.}
+Outcome A is strongest on accuracy and aesthetics; outcome B is strongest on
+efficiency. Each axis is independently judged, then disclosed without a universal
+scalar. A security-weighted buyer selects A while a cost-weighted buyer selects B.
+Premature averaging would erase one of these valid decisions and create a single
+Goodhart target. Color is redundant with solid-versus-dashed profiles and direct
+labels.}
 \label{fig:multidim}
 \end{figure}

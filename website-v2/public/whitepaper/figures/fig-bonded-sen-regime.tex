@@ -1,80 +1,43 @@
-% Sen regime diagram — inline in §sec:sen, between the Pareto-inferior locking
-% instance (prop:sen) and the advisory-completeness theorem (thm:advisory).
-% Rail-B boundary figure per docs/harbor-research/figures/CONVENTION.md: axes are
-% the two parameters that control the result's validity, shading marks where
-% advisory claims actually beat enforced locks, and the paper's own operating
-% point is marked on it. Native TikZ (the paper's preamble does not load pgfplots).
-% Serif body font (no \sffamily), hh palette.
-
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D8C7A6}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-
+% Sen-inspired governance choice as a schematic loss frontier, not quadrants.
 \begin{figure}[H]
 \centering
-\resizebox{0.96\textwidth}{!}{%
-\begin{tikzpicture}[
-  font=\small,
-  regime/.style={align=center,font=\footnotesize,text width=42mm},
-  axlbl/.style={font=\footnotesize,text=hhink},
-]
+\resizebox{0.90\textwidth}{!}{%
+\begin{tikzpicture}[pd figure]
+  % Regions between the two schematic loss curves.
+  \fill[hhsand!24]
+    (-5.0,-.70)--(-3.2,-.52)--(-1.3,-.08)--(.30,.56)--(1.35,1.12)
+    --(.30,1.18)--(-1.3,1.06)--(-3.2,.96)--(-5.0,.90)--cycle;
+  \fill[hhamber!8]
+    (1.35,1.12)--(2.2,1.75)--(3.7,3.05)--(5.0,4.00)
+    --(5.0,1.88)--(3.7,1.66)--(2.2,1.43)--cycle;
 
-% ── Regimes ────────────────────────────────────────────────────────────────
-\fill[hhsand!55]     (0,0)   rectangle (4.0,7.0);   % locking loses nothing
-\fill[hhteal!18]     (4.0,0) rectangle (12.0,4.0);  % advisory strictly better
-\fill[hhamber!22]    (4.0,4.0) rectangle (12.0,7.0);% thrash: neither dominates
+  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (-5.15,-.90)--(5.55,-.90);
+  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (-5.15,-.90)--(-5.15,4.05);
+  \node[pd axis label,anchor=west] at (5.65,-.90) {private information about future needs};
+  \node[pd axis label,rotate=90,anchor=south] at (-5.48,1.55) {coordination loss};
+  \node[pd note,anchor=north west] at (-5.0,-1.05) {shared / forecastable};
+  \node[pd note,anchor=north east] at (5.0,-1.05) {local / exploratory};
 
-% Regime boundaries (dashed: soft, calibrated boundaries, not proved thresholds).
-\draw[dashed,thick,draw=hhebony] (4.0,0) -- (4.0,7.0);
-\draw[dashed,thick,draw=hhebony] (4.0,4.0) -- (12.0,4.0);
+  \draw[pd caution rule,line width=1.45pt,smooth]
+    plot coordinates {(-5.0,-.70)(-3.2,-.52)(-1.3,-.08)(.30,.56)(1.35,1.12)(2.2,1.75)(3.7,3.05)(5.0,4.00)};
+  \node[pd direct label,text=hhamber,anchor=west] at (2.72,2.66)
+    {exclusive allocation};
 
-% ── Axes ───────────────────────────────────────────────────────────────────
-\draw[->,>=Latex,thick,draw=hhink] (0,0) -- (12.7,0);
-\draw[->,>=Latex,thick,draw=hhink] (0,0) -- (0,7.6);
-\node[axlbl,anchor=north] at (6.0,-0.62)
-  {agent's private information about \emph{its own} future file needs $\longrightarrow$};
-\node[axlbl,rotate=90,anchor=south] at (-0.55,3.8)
-  {cost of negotiating a release $\longrightarrow$};
+  \draw[pd focus rule,line width=1.45pt,smooth]
+    plot coordinates {(-5.0,.90)(-3.2,.96)(-1.3,1.06)(.30,1.18)(1.35,1.12)(2.2,1.43)(3.7,1.66)(5.0,1.88)};
+  \node[pd direct label,text=hhteal,anchor=east] at (1.15,.68)
+    {advisory claims};
 
-\node[axlbl,anchor=north east] at (0,-0.12) {low};
-\node[axlbl,anchor=north west] at (12.1,-0.12) {high};
-\node[axlbl,anchor=east] at (-0.15,7.0) {high};
+  \draw[pd guide] (1.35,-.90)--(1.35,3.40);
+  \node[pd caution datum] at (1.35,1.12) {};
+  \node[pd direct label,anchor=south] at (1.35,3.42) {design boundary $x^*$};
 
-% ── Regime labels ──────────────────────────────────────────────────────────
-\node[regime,text width=34mm] at (2.0,5.2)
-  {\textbf{Locking loses nothing}\\[3pt]
-   Needs are known up front, so an exclusive lock and an advisory claim allocate
-   \emph{identically} --- and the lock adds determinism for free.};
-
-\node[regime,text width=58mm,text=hhteal] at (7.6,2.5)
-  {\textbf{Advisory strictly better}\\[3pt]
-   The allocator lacks the Pareto-relevant information the agents hold, so a
-   precautionary claim can veto a reachable better outcome
-   (Property~\ref{prop:sen}). Conflicts are cheap to renegotiate once reported.};
-
-\node[regime,text width=62mm,text=hhamber] at (8.0,5.5)
-  {\textbf{Neither dominates: thrash region}\\[3pt]
-   Advisory warnings are mutually ignored and renegotiation never converges.
-   This is where the deterministic hard-lock fallback fires (default $k=5$ turns,
-   \S\ref{sec:governance}) --- an admission that the advisory regime has run out.};
-
-% ── The paper's own operating point ────────────────────────────────────────
-\fill[hhcobalt] (10.6,0.95) circle (3.4pt);
-\node[draw=hhcobalt,thick,fill=hhpaper,rounded corners=2pt,inner sep=5pt,
-      align=center,font=\footnotesize,text=hhcobalt,text width=78mm,
-      anchor=north] (here) at (7.0,-1.45)
-  {\textbf{LLM coding agents sit here.} An agent told to ``fix the login bug''
-   cannot say up front whether it needs the middleware, the route handler, or the
-   tests --- and the daemon certainly cannot.};
-\draw[->,>=Latex,thick,draw=hhcobalt] (here.north east) -- (10.55,0.80);
-
+  \node[pd focus datum] at (4.35,1.78) {};
+  \draw[pd focus rule] (4.35,1.98)--(4.35,2.32);
+  \node[pd direct label,text=hhteal,anchor=south,align=center] at (4.35,2.32)
+    {LLM coding agents\\retain task-local knowledge};
 \end{tikzpicture}%
 }
-\caption{Advisory claims do not beat enforced locks everywhere --- they beat them only to the right of the dashed vertical, where agents hold private information the allocator cannot have. To its left, locking costs nothing and buys determinism, so Sen's warning does not apply and this paper's design choice would be wrong. Above the dashed horizontal, neither regime works and the hard-lock fallback of \S\ref{sec:governance} takes over. The marked point is where LLM coding agents actually sit, which is the entire argument for the advisory default of \S\ref{sec:advisory}.}
+\caption{The governance choice is a loss frontier, not a four-quadrant taxonomy. Exclusive allocation is cheap when work needs are shared and forecastable, then becomes brittle as relevant knowledge remains local to the agent. Advisory claims carry a persistent negotiation cost but preserve local choice. Past the schematic crossing $x^*$, advisory coordination has the lower modeled loss. The curves are conceptual: the figure identifies the decision boundary the deployment must estimate; it does not claim a measured universal threshold.}
 \label{fig:bonded-sen-regime}
 \end{figure}

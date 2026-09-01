@@ -36,6 +36,7 @@
 \definecolor{hhteal}{HTML}{00564C}
 \definecolor{hhpaper}{HTML}{FBF7EF}
 \definecolor{hhgray}{HTML}{5C5650}
+\input{figures/pd-figure-language}
 
 % Honest-label markers (ADR-0045 discipline; one key for the whole volume).
 % Muted ink throughout; the four states differ by WEIGHT and SMALL-CAPS, never
@@ -278,7 +279,7 @@ worth a glance before \S\ref{sec:authority}.
 \renewcommand{\arraystretch}{1.25}
 \begin{tabular}{@{}p{0.27\textwidth}p{0.30\textwidth}p{0.34\textwidth}@{}}
 \toprule
-\textbf{If you are\ldots} & \textbf{Start at} & \textbf{Load-bearing artifact} \\
+\textbf{If you are\ldots} & \textbf{Start at} & \textbf{Critical artifact} \\
 \midrule
 A solo developer drowning in agent chaos (the buyer) &
 \S\ref{sec:intro} (the pain) $\to$ \S\ref{sec:zoom} (digest-with-zoom) $\to$
@@ -562,7 +563,7 @@ that does not exist, but the artifact the mechanism would have to produce.
 \centering
 \small
 \renewcommand{\arraystretch}{1.25}
-\begin{tabular}{@{}p{0.29\textwidth}p{0.09\textwidth}p{0.30\textwidth}p{0.26\textwidth}@{}}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}X >{\centering\arraybackslash}p{0.08\textwidth} >{\raggedright\arraybackslash}p{0.28\textwidth} >{\raggedright\arraybackslash}p{0.23\textwidth}@{}}
 \toprule
 \textbf{Suppressed item} & \textbf{Regret} & \textbf{Why it was not shown} & \textbf{Re-surface trigger} \\
 \midrule
@@ -570,7 +571,7 @@ that does not exist, but the artifact the mechanism would have to produce.
 \texttt{agent-3} note on \path{auth/session.ts} & $0.12$ & aged out; recency weight decayed past the floor & any new claim on the same file \\
 Third retry of the same failing test & $0.58$ & de-duplicated into the first occurrence & a fourth retry, or a different failure mode \\
 \bottomrule
-\end{tabular}
+\end{tabularx}
 \caption{A mockup of the ``what did the queue not show me, and why'' counter-surface.
 Each row names the item, its score, the \emph{rule} that suppressed it, and the
 condition that would bring it back. The regress does not vanish --- this surface is
@@ -583,8 +584,8 @@ which is answerable, rather than whether every omission is visible, which is not
 \subsection{Consent as a first-class, revocable primitive}\label{sec:consent}
 
 It is easy to say the operator ``consents to cede decision authority.'' A political
-theorist's first question --- and the one that decides whether the Leviathan frame is
-load-bearing or decorative --- is: \emph{consented how, to what, and revocable when?}
+theorist's first question --- and the one that decides whether the Leviathan frame has
+substance or is merely decorative --- is: \emph{consented how, to what, and revocable when?}
 ``The operator just starts using the tool'' is
 not Hobbesian consent; it is what the canon calls \textbf{tacit consent}, and
 \textbf{Hume} (\emph{Of the Original Contract}, 1748~\cite{hume1748} --- \emph{the
@@ -876,7 +877,7 @@ each is in Appendix~\ref{app:honest}.
 A coordinator that prevents collisions answers ``what is the swarm doing?'' It does
 not answer ``is the swarm doing the \emph{right} thing?'' That question needs a
 single legible artifact the authority is measured against: a \textbf{roadmap} --- a
-phase-keyed plan, maintained as load-bearing truth, against which the swarm's actual
+phase-keyed plan, maintained as governing truth, against which the swarm's actual
 output can be compared. The authority's legitimacy is then measured by \emph{whether
 the roadmap stays true}: every unit of work keys to a plan item, and drift between
 plan and reality is itself a legible, surfaced anomaly.
@@ -1050,7 +1051,7 @@ that is wishful.
 % as independent convergent naming rather than an error; a human should decide
 % whether to cite the NorMAS regimentation literature (e.g. Aldewereld, Grossi,
 % Boella \& van der Torre) to adopt the term formally, gloss the borrowed sense
-% inline, or keep the current informal usage since the paper's load-bearing name
+% inline, or keep the current informal usage since the paper's governing name
 % for this idea is already "physically unreachable" / "detect-and-compensate",
 % not "regimentation" itself.
 \begin{property}[Prevention vs.\ detection --- the reserved-phrase rule]\label{prop:regiment}
@@ -1072,7 +1073,7 @@ would forbid can detect a violation but cannot prevent it}) is decisive: a monit
 downstream of commit enforces no safety property, only detection plus compensation
 within a bounded window. A post-commit anomaly detector --- however useful --- is
 therefore detect-and-compensate, not prevention. Honesty about this distinction is
-load-bearing: a system that advertises detection as prevention has lied about its own
+essential: a system that advertises detection as prevention has lied about its own
 safety envelope, which is the very failure (the confident-wrong report) this paper is
 built to eliminate.
 
@@ -1080,7 +1081,7 @@ built to eliminate.
 
 The one thing that needs a human is an \emph{escalation} (a distress signal) routed
 to the operator on a reserved, highest-priority lane. The mechanism wants the
-load-bearing signal to win the operator's attention --- but \emph{when} the daemon
+critical signal to win the operator's attention --- but \emph{when} the daemon
 stops and asks versus proceeds is a control problem (\S\ref{sec:operator}), and the
 \emph{escalation predicate} is not an afterthought: it is a rationalized alarm
 philosophy (\textbf{ANSI/ISA-18.2}, \emph{Management of Alarm
@@ -1103,7 +1104,7 @@ rates (\texttt{instrumentation.md}), not vibes: the feasible debit set is an int
 $[\delta_{\min},\delta_{\max}]$ trading alarm load against miss loss, and it can be
 \emph{empty} --- a tight attention budget with high miss costs admits no good debit,
 in which case the honest fix is capacity or evidence quality, not tuning. Monotone $V$
-is load-bearing throughout; a non-monotone validator breaks the separating threshold
+is required throughout; a non-monotone validator breaks the separating threshold
 (item R14 of the research ledger, \texttt{b7\_escalation\_band.py}).
 
 \begin{exercises}
@@ -1200,7 +1201,7 @@ is a policy constraint to test during calibration; it does not follow from the
 display without a model linking $(r,s,v)$ to the score distributions. Before a
 reputation layer exists, $r$ is a flat prior.
 
-\paragraph{Numbers by hand.} Equation~\ref{eq:sdt} is the chapter's load-bearing
+\paragraph{Numbers by hand.} Equation~\ref{eq:sdt} is the chapter's governing
 artifact for the human-factors reader, so it should be checkable on a napkin. Collapse
 it to its crudest useful form --- zoom \emph{every} item in an action class, or zoom
 \emph{none} --- and the two costs are $\pi C_{\text{miss}}$ against
@@ -1211,7 +1212,7 @@ through it at $C_{\text{fa}}=1$ and $a=0.2$ attention-seconds.
 \centering
 \small
 \renewcommand{\arraystretch}{1.25}
-\begin{tabular}{@{}p{0.30\textwidth}p{0.08\textwidth}p{0.12\textwidth}p{0.13\textwidth}p{0.13\textwidth}p{0.14\textwidth}@{}}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}X >{\centering\arraybackslash}p{0.05\textwidth} >{\centering\arraybackslash}p{0.09\textwidth} >{\centering\arraybackslash}p{0.11\textwidth} >{\centering\arraybackslash}p{0.11\textwidth} >{\raggedright\arraybackslash}p{0.12\textwidth}@{}}
 \toprule
 \textbf{Action class} & $\pi$ & $C_{\text{miss}}$ & \textbf{Never zoom} & \textbf{Always zoom} & \textbf{Verdict} \\
 \midrule
@@ -1219,7 +1220,7 @@ through it at $C_{\text{fa}}=1$ and $a=0.2$ attention-seconds.
 Refactor touching a public interface & $0.03$ & $40$ & $1.20$ & $1.17$ & zoom, barely \\
 Migration dropping a foreign key & $0.2$ & $500$ & $100.0$ & $1.00$ & forced zoom \\
 \bottomrule
-\end{tabular}
+\end{tabularx}
 \caption{Equation~\ref{eq:sdt} on three action classes at $C_{\text{fa}}=1$,
 $a=0.2$. The first row is Mara's auto-land grant (\S\ref{sec:consent}) falling out of
 the arithmetic rather than being granted by taste. The third is decided by the
@@ -1403,7 +1404,7 @@ prohibition as a theorem: there is an information floor below which a digest
 \emph{cannot} be a faithful zoomable index, no matter how it is written.
 
 \begin{theorem}[Legibility lower bound with a review budget]\label{thm:lowerbound}
-Let $N$ artifacts contain an unknown load-bearing subset $S$ of size $k$. A digest
+Let $N$ artifacts contain an unknown critical subset $S$ of size $k$. A digest
 maps each possible $S$ to a review set $\hat S$ with $S\subseteq\hat S$ and
 $|\hat S|\le m$, where $k\le m\le N$. Any such zero-miss digest needs at least
 \[
@@ -1415,13 +1416,13 @@ reduces the bound to zero.
 \end{theorem}
 
 \begin{proof}[Proof sketch]
-There are $\binom Nk$ possible load-bearing subsets. One digest message whose review
+There are $\binom Nk$ possible critical subsets. One digest message whose review
 set has size at most $m$ can safely cover at most $\binom mk$ of them, namely the
 $k$-subsets contained in that review set. Therefore at least
 $\binom Nk/\binom mk$ distinct messages are required. Taking base-two logarithms
-gives the bound. If fewer messages are available, some load-bearing subset is not
+gives the bound. If fewer messages are available, some critical subset is not
 contained in its message's review set, producing a
-false negative --- an unopened load-bearing artifact. That is exactly the Potemkin
+false negative --- an unopened critical artifact. That is exactly the Potemkin
 failure of Def.~\ref{def:zoom}. Hence the stated log-ratio is a lower bound for a
 zero-miss digest with review budget $m$. \qed
 \end{proof}
@@ -1434,7 +1435,7 @@ break it --- across sixteen configurations including an adversarial oracle encod
 allowed to see the answer. Zero violations. A reader checking this paper's honesty
 should start there rather than with the proof sketch above.
 
-\paragraph{Numbers by hand.} Take $N=1000$ artifacts with $k=3$ load-bearing among
+\paragraph{Numbers by hand.} Take $N=1000$ artifacts with $k=3$ critical among
 them and a review budget of $m=10$ opens. The floor is
 $\log_2\binom{1000}{3}-\log_2\binom{10}{3} = 27.31 - 6.91 = 20.4$ bits --- about two
 and a half bytes the digest cannot avoid spending, no matter how well written, just
@@ -1447,9 +1448,9 @@ bits; the sweep found no encoder beating it in 16 tries.)
 
 The bound is the formal reason \emph{forgetting must be selective, not lossy-by-volume}:
 a digest may drop inert detail freely, but it must retain enough to \emph{point at}
-every load-bearing artifact, which is precisely the ``summarize the state, link to
+every critical artifact, which is precisely the ``summarize the state, link to
 the work'' rule. It also bounds recursive summarization (\S\ref{sec:cascade}): each
-re-summarization that drops below the floor on the load-bearing set is irreversible
+re-summarization that drops below the floor on the critical set is irreversible
 information loss, which is why one must compact from the durable artifacts, never from
 the previous summary.
 
@@ -1459,7 +1460,7 @@ $F$. It says nothing about the second stage, which is where Def.~\ref{def:zoom} 
 the operator, and a reader could reasonably worry that a floor on the digest plus an
 unpriced zoom is only half an argument. It is not, and the companion formal
 paper~\cite{paper1} supplies the missing half. Its \emph{zoom theorem} shows that
-finding the $k$ genuinely load-bearing items inside $F$ flagged ones does not cost $F$
+finding the $k$ genuinely critical items inside $F$ flagged ones does not cost $F$
 opens: \emph{adaptive halving} --- open a group, and if it comes back clean discard
 the whole group, otherwise split it and recurse, twenty questions over artifacts ---
 needs at most
@@ -1487,14 +1488,14 @@ write-time cost a directory pays, and what read-time speed does it buy?
 (6.3) At $n{=}1$, name three legibility surfaces that already pay off
 (\S\ref{sec:value-curve}), and explain why none of them are discovery-ranking. (6.4)
 In Thm.~\ref{thm:lowerbound}, what happens to the bit floor as $k\to 0$ (almost
-nothing is load-bearing) and as $k\to N/2$? Relate the answer to why a swarm doing
+nothing is critical) and as $k\to N/2$? Relate the answer to why a swarm doing
 mostly-safe work is cheap to digest and a swarm doing mostly-dangerous work is not.
 
 \exhead{Open problem.}
-(6.5)$\star\star\star$ Thm.~\ref{thm:lowerbound} assumes the load-bearing subset is
+(6.5)$\star\star\star$ Thm.~\ref{thm:lowerbound} assumes the critical subset is
 fixed and known to an oracle. In practice it is itself estimated, and the estimator
 can be gamed. Does the bound survive an adversary who controls which artifacts
-\emph{appear} load-bearing? Connect to adversarial legibility (Ex.~3.4).
+\emph{appear} critical? Connect to adversarial legibility (Ex.~3.4).
 \end{exercises}
 
 % ═════════════════════════════════════════════════════════════════════════════
@@ -1850,7 +1851,7 @@ document specifies one; the row is carried in Appendix~\ref{app:honest} with the
 Context compaction can be formalized as \textbf{virtual memory for language models}: the local file buffer is backing store, the finite context window is the resident set, and paging tools act as the memory management unit (MMU).
 
 \begin{theorem}[Context Paging Competitiveness]\label{thm:paging}
-Let the context window hold $k$ active pages, with offline optimal page-replacement incurring cost $\mathrm{OPT}$. Under an online \textbf{recency-plus-pin policy} (where pins correspond to load-bearing spans verified by deterministic structural features), the online paging cost satisfies the resource-augmented competitive bound of Sleator--Tarjan~\cite{sleatortarjan1985}; for the weighted case (pages of nonuniform size and refetch cost, which context spans are), the same guarantee is carried by Young's \textsc{Landlord} algorithm~\cite{young2002landlord}:
+Let the context window hold $k$ active pages, with offline optimal page-replacement incurring cost $\mathrm{OPT}$. Under an online \textbf{recency-plus-pin policy} (where pins correspond to critical spans verified by deterministic structural features), the online paging cost satisfies the resource-augmented competitive bound of Sleator--Tarjan~\cite{sleatortarjan1985}; for the weighted case (pages of nonuniform size and refetch cost, which context spans are), the same guarantee is carried by Young's \textsc{Landlord} algorithm~\cite{young2002landlord}:
 \begin{equation}
 \mathrm{Cost}_{\mathrm{online}} \;\le\; \frac{k}{k - h + 1} \cdot \mathrm{OPT} \;+\; \psi N c_{\mathrm{refetch}},
 \end{equation}
@@ -1866,7 +1867,7 @@ every $p\le h\le k$ --- the Landlord bound on the honestly-unpinned region plus 
 \emph{additive, linear} $\psi$ term, checked against exact OPT on 122 instances (0
 violations) and against 50 corruption instances up to $\psi=0.4$ (0 violations, slope
 $22.8$ against a ceiling of $N\cdot c_{\mathrm{refetch}}=1200$, $R^2=0.994$). The guard
-is load-bearing, not decorative: dropping repair-on-touch turns one corruption into
+is necessary, not decorative: dropping repair-on-touch turns one corruption into
 $\Theta(N)$ stale-serves, confirmed by mutation (item R16 of the research ledger,
 \texttt{b9\_context\_paging.py}) --- \emph{the $\psi$ budget is shared with the digest
 floor's forgeable-feature budget --- one number, two mechanisms}. Honest boundary: this
@@ -1888,12 +1889,12 @@ Prop.~\ref{prop:decay} generalizes to every read-surface.
 
 Cost and legibility share one failure surface: when compaction goes wrong, the bill
 \emph{and} the truth degrade together (Figure~\ref{fig:cascade}). \textbf{(1)
-Lost-in-the-middle:} a load-bearing fact buried mid-window is paid-for-and-ignored ---
+Lost-in-the-middle:} a critical fact buried mid-window is paid-for-and-ignored ---
 edge-place facts, shorten the window. \textbf{(2) Context rot:} quality decays as the
 window grows even with nothing dropped --- compact earlier (the cost cure and the
 quality cure are the same act). \textbf{(3) Recursive-summarization collapse:} each
 summary injects model noise; summarize the summary enough and the noise compounds
-into confident fabrication. The load-bearing cure: \emph{compact from the durable
+into confident fabrication. The effective cure: \emph{compact from the durable
 artifacts each round --- the version-control history, the written notes, the
 coordination database --- never from the previous summary.} A system whose artifacts
 are durable and addressable is unusually well-placed here, because each compaction
@@ -1915,7 +1916,7 @@ medium itself forbids the flattening.
 \textbf{Strategy} & \textbf{What it drops} & \textbf{Failure if abused} & \textbf{When it is the right tool} \\
 \midrule
 Recursive summary & Older prose, re-summarized & Confident fabrication (rung 3) & Never as the \emph{only} record; only over durable artifacts re-read each round \\
-Edge-placement & Nothing; reorders & --- & Whenever a fact is load-bearing: put it first or last (counters lost-in-the-middle) \\
+Edge-placement & Nothing; reorders & --- & Whenever a fact is critical: put it first or last (counters lost-in-the-middle) \\
 External note-taking & In-context detail, kept on disk & Notes nobody reads & Decisions and rationale that a successor must recover \\
 Sub-agent isolation & Child context the parent never sees & Parent loses zoomability into the child & Bounded sub-tasks whose only output the parent needs is a result \\
 Decay / forgetting & Stale coordination traces, continuously & Live signal aged out too fast & Ephemeral coordination state (claims, presence), where staleness is the enemy \\
@@ -1924,7 +1925,7 @@ Eviction + pointer & The artifact body; keep an address & Dangling pointer if th
 \end{tabular}
 \caption{The compaction strategies and their trade-offs. The unifying rule is
 Thm.~\ref{thm:lowerbound}: a strategy may drop inert detail freely but must retain
-enough to point at every load-bearing artifact. Recursive summary is the only
+enough to point at every critical artifact. Recursive summary is the only
 strategy that can cross that floor irreversibly, which is why it must always compact
 from durable source, never from the previous summary.}
 \label{tab:compaction}
@@ -1968,7 +1969,7 @@ reviewer agents under a total budget.
 \section{Reconciling the canon: roles, consent, and local knowledge}\label{sec:consent-canon}
 % ═════════════════════════════════════════════════════════════════════════════
 
-The Leviathan metaphor is load-bearing only if it survives contact with the political-
+The Leviathan metaphor earns its place only if it survives contact with the political-
 theory canon. Three reconciliations are required, and a reviewer would refuse the
 paper without them.
 
@@ -2189,7 +2190,7 @@ inspectable present (digest-with-zoom), and the projected future (freeze-probe S
 \subsection{What this layer hands upward (the through-line)}\label{sec:handoff}
 
 The wedge is the single-player product. But the same legibility discipline applied to
-\emph{continuity} is the load-bearing wall of everything above it. The through-line
+\emph{continuity} is the foundation of everything above it. The through-line
 the accompanying chapters depend on is one sentence:
 
 \pullquote{The economy rests on three continuity organs --- memory, checkpoint
@@ -2269,7 +2270,7 @@ no economy, no cryptography, no second operator. It justifies the authority (the
 is a state of nature; consent to a \emph{legible local} Leviathan is rational), sets
 the product's quality bar (legibility-with-zoom, verifiable targets, SDT-spined
 friction, honest completion), and connects forward (legible continuity is the
-load-bearing wall of any future market). Build the harbor first; the trade comes when
+foundation of any future market). Build the harbor first; the trade comes when
 the ships do.}
 
 % ═════════════════════════════════════════════════════════════════════════════
@@ -2548,10 +2549,10 @@ target whose proof is not carried in this paper. The two keys are orthogonal on
 purpose --- a \Verified\ result about a \Vision\ mechanism is a perfectly ordinary
 state of affairs, and conflating them is the failure this appendix exists to prevent.
 
-\begin{table}[H]
+\begin{table}[p]
 \centering
-\small
-\renewcommand{\arraystretch}{1.18}
+\footnotesize
+\renewcommand{\arraystretch}{1.05}
 \begin{tabularx}{\textwidth}{@{}p{0.04\textwidth} >{\raggedright\arraybackslash}X p{0.15\textwidth} >{\raggedright\arraybackslash}p{0.25\textwidth}@{}}
 \toprule
 & \textbf{Mechanism} & \textbf{Status} & \textbf{Evidence / location} \\
@@ -2592,7 +2593,7 @@ the work that remains.}
 \label{tab:honest-state}
 \end{table}
 
-Three points about the reference implementation are load-bearing enough to restate:
+Three points about the reference implementation are important enough to restate:
 \begin{enumerate}[leftmargin=1.5em]
 \item \textbf{The anomaly monitor is detect-and-compensate, not prevention}
 (Prop.~\ref{prop:regiment}). The monitor at \texttt{lib/arbiter.ts:328} is a
@@ -2609,7 +2610,7 @@ dead-claim case (\S\ref{sec:staleness}) is the worked failure this closes.
 
 \section{Notation and the nomenclature key}\label{app:notation}
 
-Two distinctions in this paper are easy to collapse and load-bearing to keep separate.
+Two distinctions in this paper are easy to collapse and essential to keep separate.
 
 \begin{itemize}[leftmargin=1.4em]
 \item \textbf{Capability vs.\ permission.} \emph{Capability} is \emph{ability} --- what

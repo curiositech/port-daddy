@@ -2329,9 +2329,9 @@ _port_daddy() {
     'n:add a quick note (alias for note)'
     'u:start all services (alias for up)'
     'd:stop all services (alias for down)'
-    # Tutorial
-    'learn:interactive tutorial — learn Port Daddy step by step'
-    'tutorial:interactive tutorial (alias for learn)'
+    # Agent orientation
+    'learn:operationally read-only agent orientation'
+    'tutorial:alias for the agent orientation'
     # Briefing & History
     'briefing:generate .portdaddy/ project briefing'
     'history:view recent project activity'

@@ -1,99 +1,49 @@
-% Algorithm-confusion attack defense — inline in §3.1 (Phase 1).
-%
-% TRUST-BOUNDARY CONVENTION (house style). The dashed cobalt band with a
-% low-opacity fill marks the region the Dolev-Yao adversary of the threat model
-% controls. The convention is inherited from figures/diag-magic-link.tex (which
-% marks its public channel "(Dolev-Yao adversary)") and is introduced here once,
-% then reused verbatim in fig-anchor-delegation-inline.tex and
-% fig-anchor-revocation-gossip.tex. Any figure in this chapter that shows a
-% message crossing out of daemon/verifier authority must carry it.
-
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D8C7A6}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-
+% Semantic contract: identical token bytes diverge only where control over the
+% verification rule changes hands.
 \begin{figure}[H]
 \centering
-\resizebox{\textwidth}{!}{%
-\begin{tikzpicture}[
-  font=\small,
-  actor/.style={draw=hhebony,thick,fill=hhsand,rounded corners=2pt,
-                inner sep=4pt,minimum width=22mm,align=center,font=\bfseries\footnotesize},
-  bad/.style={draw=hhcobalt,thick,fill=hhpaper,rounded corners=2pt,
-              inner sep=4pt,minimum width=22mm,align=center,
-              font=\bfseries\footnotesize,text=hhcobalt},
-  token/.style={draw=hhebony,thick,fill=hhpaper,rounded corners=2pt,inner sep=3pt,
-                font=\footnotesize\ttfamily,align=left},
-  arr/.style={->,>=Latex,thick,draw=hhink},
-  badarr/.style={->,>=Latex,thick,draw=hhcobalt,dashed},
-  ok/.style={draw=hhteal,fill=hhpaper,thick,rounded corners=2pt,
-             font=\footnotesize,text=hhteal,inner sep=3pt},
-  rejected/.style={draw=hhcobalt,fill=hhpaper,thick,rounded corners=2pt,
-                   font=\bfseries\footnotesize,text=hhcobalt,inner sep=3pt},
-  % ── house trust-boundary convention ──
-  untrusted/.style={draw=hhcobalt,dashed,line width=0.8pt,
-                    fill=hhcobalt!6,rounded corners=3pt},
-  untrustedlbl/.style={font=\footnotesize\itshape,text=hhcobalt,align=center},
-]
-% Top row: naive verifier path (attack succeeds)
-\node[actor] (daemon1) at (0,3.4) {Daemon};
-\node[token,right=8mm of daemon1] (tok1)
-  {\{alg: HS256, ...\}\\.signature($k$)};
-\node[bad,right=8mm of tok1] (attacker1) {ATTACKER};
-\node[token,right=8mm of attacker1] (tok1b)
-  {\{alg: \textbf{none}, ...\}\\.``''};
-\node[actor,right=8mm of tok1b] (naive) {Naive verifier};
-\node[rejected,right=4mm of naive,fill=hhcobalt!20] (accept-bad) {ACCEPT (bad!)};
-\draw[arr] (daemon1.east) -- node[above,font=\footnotesize]
-  {issue} (tok1.west);
-\draw[badarr] (tok1.east) -- node[above,pos=0.5,font=\tiny\itshape,
-                                  text=hhcobalt,align=center] {rewrite\\[-1pt]alg} (attacker1.west);
-\draw[badarr] (attacker1.east) -- (tok1b.west);
-\draw[badarr] (tok1b.east) -- (naive.west);
-\draw[badarr] (naive.east) -- (accept-bad.west);
-\node[font=\footnotesize\itshape,text=hhcobalt,
-      above=2mm of naive.north,align=center]
-  {trusts alg header\\ from token};
-% Bottom row: pinned verifier path (attack rejected)
-\node[actor,below=22mm of daemon1] (daemon2) {Daemon};
-\node[token,right=8mm of daemon2] (tok2)
-  {\{alg: HS256, ...\}\\.signature($k$)};
-\node[bad,right=8mm of tok2] (attacker2) {ATTACKER};
-\node[token,right=8mm of attacker2] (tok2b)
-  {\{alg: \textbf{none}, ...\}\\.``''};
-\node[actor,right=8mm of tok2b,fill=hhteal!20] (pinned)
-  {Pinned verifier};
-\node[ok,right=4mm of pinned] (reject) {REJECT (good)};
-\draw[arr] (daemon2.east) -- (tok2.west);
-\draw[badarr] (tok2.east) -- node[above,pos=0.5,font=\tiny\itshape,
-                                  text=hhcobalt,align=center] {rewrite\\[-1pt]alg} (attacker2.west);
-\draw[badarr] (attacker2.east) -- (tok2b.west);
-\draw[badarr] (tok2b.east) -- (pinned.west);
-\draw[arr,draw=hhteal,line width=1.4pt] (pinned.east) -- (reject.west);
-\node[font=\footnotesize\itshape,text=hhteal,
-      above=2mm of pinned.north,align=center]
-  {pins alg at issuance,\\ ignores token's alg field};
-% ─── Trust boundary ──────────────────────────────────────────────────────────
-% Everything between the daemon and the verifier is the adversary's territory,
-% in both rows. Drawn on the background layer so the message nodes sit on top.
-\begin{scope}[on background layer]
-  \node[untrusted,inner sep=7pt,
-        fit=(tok1)(attacker1)(tok1b)(tok2)(attacker2)(tok2b)] (band) {};
-\end{scope}
-\node[untrustedlbl,anchor=north] at ([yshift=-2mm]band.south)
-  {untrusted network --- the Dolev--Yao adversary controls everything inside this band};
-% Header labels
-\node[font=\bfseries,left=2mm of daemon1.west,text=hhcobalt]
-  {(a)};
-\node[font=\bfseries,left=2mm of daemon2.west,text=hhteal]
-  {(b)};
-\end{tikzpicture}%
-}
-\caption{Pinning the verification algorithm at issuance --- rather than trusting the token's self-declared \texttt{alg} field --- closes the algorithm-confusion attack that a naive verifier admits. The dashed band is the chapter's trust boundary: the daemon and the verifier sit outside it, and everything inside it is under the control of the Dolev--Yao adversary of \S\ref{sec:threat-model}, who may read, rewrite, or inject any token in flight. (a) A naive verifier trusts the \texttt{alg} field of the incoming token; an attacker inside the band rewrites \texttt{alg=HS256} to \texttt{alg=none}, strips the signature, and the verifier accepts an unauthenticated message. (b) The pinned verifier records the issuance algorithm out-of-band --- across the boundary, where the adversary cannot reach --- then re-checks each token against the pinned algorithm rather than the token's self-described one. The ProVerif model encodes both verifiers and shows the naive path produces a counter-trace witness for the rewrite, while the pinned path admits no such trace. Runtime conformance: 5 attack patterns + 2 controls, all pass.}
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \draw[pd rule,line width=1.2pt] (-5.8,1.85) -- (-3.7,1.85);
+  \foreach \x in {-5.55,-5.12,-4.69,-4.26,-3.83}
+    \draw[hhink,line width=2.7pt] (\x,1.72) -- (\x,1.98);
+  \node[pd direct label,anchor=north west] at (-5.8,1.48)
+    {header \texttt{alg:none} \quad tampered payload};
+
+  \coordinate (fork) at (-2.8,1.85);
+  \draw[pd rule] (-3.7,1.85) -- (fork);
+  \node[diamond,draw=hhink,fill=hhpaper,minimum size=8mm,inner sep=0pt] at (fork) {};
+  \node[pd direct label,anchor=south] at (-2.8,2.18) {rule source};
+
+  \draw[pd caution arrow] (fork) to[out=20,in=180] (0.0,3.0);
+  \node[pd direct label,text=hhamber,anchor=south] at (.15,3.2)
+    {untrusted header};
+  \draw[pd caution arrow] (0.0,3.0) -- (2.6,3.0);
+  \draw[draw=hhamber,line width=.9pt] (1.0,2.72) -- (1.55,3.28);
+  \draw[draw=hhamber,line width=.9pt] (1.0,3.28) -- (1.55,2.72);
+  \node[pd direct label,text=hhamber,anchor=south] at (1.65,3.5)
+    {bypassed};
+  \node[regular polygon,regular polygon sides=3,fill=hhamber,draw=none,
+    minimum size=7mm,inner sep=0pt,rotate=90] at (3.15,3.0) {};
+  \node[pd direct label,text=hhamber,anchor=west] at (3.55,3.0) {ACCEPT};
+
+  \draw[pd focus arrow] (fork) to[out=-20,in=180] (0.0,.7);
+  \node[pd direct label,text=hhteal,anchor=east] at (.55,.33)
+    {issuer policy};
+  \draw[pd focus arrow] (0.0,.7) -- (2.6,.7);
+  \draw[draw=hhteal,line width=1pt] (1.28,.7) circle (4.2mm);
+  \node[font=\scriptsize\bfseries,text=hhteal] at (1.28,.7) {Ed};
+  \node[circle,draw=hhteal,line width=1pt,minimum size=7mm,inner sep=0pt] at (3.15,.7) {};
+  \draw[draw=hhteal,line width=1pt] (2.93,.48) -- (3.37,.92);
+  \draw[draw=hhteal,line width=1pt] (2.93,.92) -- (3.37,.48);
+  \node[pd direct label,text=hhteal,anchor=west] at (3.55,.7) {REJECT};
+
+  \draw[pd caution rule,dashed] (-2.15,-.1) -- (-2.15,3.75);
+  \node[pd note,text=hhamber,anchor=north,align=center] at (-2.15,-.18)
+    {authority boundary};
+\end{tikzpicture}
+\caption{Algorithm confusion occurs at the rule-selection boundary, not in the
+token's shape. Identical tampered bytes are accepted when the token selects its
+own verifier and rejected when authenticated issuer policy pins Ed25519. The
+fork isolates the only causal difference: control of the verification rule.}
 \label{fig:anchor-alg-confusion}
 \end{figure}

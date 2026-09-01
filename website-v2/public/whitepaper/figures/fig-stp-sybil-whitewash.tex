@@ -1,47 +1,54 @@
-% Fig 6 — Sybil / whitewashing defeated by a daemon-minted non-forgeable id.
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D8C7A6}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-
+% Figure III.6 --- principal binding changes attacker payoffs in two dimensions.
 \begin{figure}[H]
 \centering
-\resizebox{0.95\textwidth}{!}{%
-\begin{tikzpicture}[font=\small,node distance=20mm]
-\node[stp heading,anchor=west] (freeh)
-  {SELF-ASSERTED LABEL --- RESET AND REPLICATION ARE FREE};
-\node[stp box,text width=34mm,below=4mm of freeh,anchor=north west] (bad1)
-  {agent ``X''\\{\scriptsize bad record}};
-\node[stp box,text width=34mm,right=of bad1] (bad2)
-  {agent ``X'\,'\\{\scriptsize fresh label, clean record}};
-\node[stp box,text width=34mm,right=of bad2] (syb)
-  {1000 $\times$ ``X$_i$''\\{\scriptsize forged quorum}};
-\draw[stp dashed arrow] (bad1) -- (bad2);
-\draw[stp dashed arrow] (bad2) -- (syb);
+\resizebox{0.96\textwidth}{!}{%
+\begin{tikzpicture}[pd figure]
+  \node[pd panel title,anchor=west] at (-6.8,2.75) {A. sanction persistence};
+  \node[pd note,anchor=west] at (-6.8,2.42) {whitewashing across body leases};
+  \node[pd panel title,anchor=west] at (1.0,2.75) {B. quorum inflation};
+  \node[pd note,anchor=west] at (1.0,2.42) {Sybil aliases under one principal};
 
-\node[stp heading,anchor=west,below=18mm of bad1.south west] (boundh)
-  {BOUND IDENTITY --- SANCTIONS FOLLOW THE PRINCIPAL};
-\node[stp box,text width=34mm,below=4mm of boundh,anchor=north west] (daemon)
-  {daemon mints\\{\scriptsize a local identity}};
-\node[stp accent box,text width=34mm,right=of daemon] (cred)
-  {non-re-pickable\\credential\\{\scriptsize identity cannot be shed}};
-\node[stp box,text width=34mm,right=of cred] (princ)
-  {principal\\{\scriptsize owns the fleet, posts bonds}};
-\draw[stp arrow] (daemon) -- (cred);
-\draw[stp arrow] (cred) -- (princ);
+  % Panel A axes.
+  \draw[pd rule,-{Stealth[length=1.7mm,width=1.0mm]}] (-5.85,-1.75) -- (.1,-1.75);
+  \draw[pd rule,-{Stealth[length=1.7mm,width=1.0mm]}] (-5.85,-1.75) -- (-5.85,2.15);
+  \node[pd axis label,anchor=north east] at (-.05,-1.88) {respawns};
+  \node[pd axis label,rotate=90,anchor=south] at (-6.18,.15) {penalty retained};
+  \foreach \x/\lab in {-4.35/1,-2.75/2,-1.15/3} {
+    \draw[pd guide] (\x,-1.75) -- (\x,1.75);
+    \node[pd axis label,anchor=north] at (\x,-1.88) {\lab};
+  }
+  \draw[pd caution rule,dashed,line width=1.25pt]
+    (-5.85,1.55) -- (-4.35,1.55) -- (-4.35,-1.25) -- (-2.75,-1.25) -- (-2.75,-1.45) -- (-1.15,-1.45) -- (-1.15,-1.55) -- (-.15,-1.55);
+  \draw[pd focus rule,line width=1.45pt] (-5.85,1.55) -- (-.15,1.55);
+  \node[pd direct label,text=hhteal,anchor=west] at (-3.95,1.82) {principal-bound identity};
+  \node[pd direct label,text=hhamber,anchor=west] at (-3.95,-.95) {fresh self-asserted label};
+  \node[pd caution datum] at (-5.85,1.55) {};
+  \node[pd axis label,anchor=east] at (-6.02,1.55) {$\Delta$};
+
+  % Panel B axes and response curves.
+  \draw[pd rule,-{Stealth[length=1.7mm,width=1.0mm]}] (1.35,-1.75) -- (6.85,-1.75);
+  \draw[pd rule,-{Stealth[length=1.7mm,width=1.0mm]}] (1.35,-1.75) -- (1.35,2.15);
+  \node[pd axis label,anchor=west] at (6.95,-1.75) {aliases minted};
+  \node[pd axis label,rotate=90,anchor=south] at (1.02,.15) {quorum weight};
+  \draw[pd caution rule,dashed,line width=1.25pt] (1.55,-1.45) -- (6.45,1.80);
+  \draw[pd focus rule,line width=1.45pt] (1.55,-.60) -- (6.45,-.60);
+  \node[pd direct label,text=hhamber,anchor=west] at (4.35,1.25) {one label = one vote};
+  \node[pd direct label,text=hhteal,anchor=west] at (4.15,-.40) {one principal = one accountable weight};
+  \foreach \x in {2.2,3.3,4.4,5.5,6.45}
+    \node[pd caution datum,inner sep=1.5pt] at (\x,{-.98 + .66*(\x-1.55)}) {};
+  \foreach \x in {2.2,3.3,4.4,5.5,6.45}
+    \node[pd focus datum,inner sep=1.5pt] at (\x,-.60) {};
+
+  \node[pd note,anchor=west] at (-5.85,-2.55)
+    {scope: one trusted daemon and one bound principal; federation still owes cross-operator attestation};
 \end{tikzpicture}}
-\caption{\textbf{The non-forgeable root forecloses the two classic attacks.} With
-self-asserted strings (top), whitewashing and Sybil are free. A daemon-minted,
-non-forgeable identity bound to a non-re-pickable credential and a principal
-(bottom) makes both costly: churn costs more than a clean record
-(Thm.~\ref{thm:whitewash-cost}), and sanctions survive respawns
-(Thm.~\ref{thm:necessity}). The newcomer policy is a shape, not a scalar: a fresh
-id may have full \emph{work} ability but a reduced \emph{economic ceiling} until
-it earns a witnessed history (Friedman--Resnick). This is the one genuinely
-architectural piece of the program.}
+\caption{\textbf{Non-forgeable identity changes the economics of both classic
+attacks.} In panel A, a self-asserted label drops a sanction by respawning; a
+principal-bound identity carries the penalty $\Delta$ across every body lease. In
+panel B, free labels turn aliases into quorum weight, while principal binding keeps
+one accountable weight constant. The claim is deliberately local: daemon minting
+and principal binding close these attacks inside one trusted domain; they do not
+solve cross-operator attestation. Newcomer friction applies to economic ceiling,
+not to the ability to perform work.}
 \label{fig:sybil}
 \end{figure}

@@ -211,7 +211,7 @@ export default function LibraryPage() {
                 </div>
 
                 <a
-                  href={COLLECTED_VOLUME.pdfPath}
+                  href={COLLECTED_VOLUME.downloadUrl}
                   download
                   className="group grid gap-[var(--space-3)] border-2 border-[var(--border-strong)] bg-[var(--brand-primary)] p-[var(--space-5)] text-[var(--brand-primary-foreground)] shadow-[var(--shadow-brutal)] transition-transform hover:-translate-y-1 focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)] sm:grid-cols-[auto_1fr_auto] sm:items-center"
                 >

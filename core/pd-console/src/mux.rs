@@ -35,8 +35,9 @@ pub enum SurfaceKind {
     AgentTranscript { agent_id: Option<String> },
     /// The roadmap, always one keystroke away.
     Roadmap,
-    /// Conversation with the cartographer agent.
-    CartographerChat,
+    /// The conversation-first Mission: operator turns, attributed assistant
+    /// replies, WorkPlan context, claims, skills, evidence, and receipts.
+    Mission,
     /// Filetree rooted at a repo/worktree path (`None` = the operator's repo).
     FileTree { root: Option<String> },
     /// Read-only editor surface hosting one file from local disk. The Harbor
@@ -59,9 +60,6 @@ pub enum SurfaceKind {
     /// The HITL alerts log — the dead-letter queue of captured action failures,
     /// rendered untruncated (foreground-only: reads `ConsoleView.alerts`).
     Hitl,
-    /// Daemon-authored WorkIntent and WorkPlan truth. The surface may render a
-    /// graph only from durable AgentNode specifications returned by the daemon.
-    Work,
     /// Any existing console panel addressed by its nav id (fleet, cockpit,
     /// claims, peek, adrs, activity, inbox, suggest, memory, prs, coast, …).
     /// This is the bridge to the live data the shell already fetches: every
@@ -76,7 +74,7 @@ impl SurfaceKind {
             SurfaceKind::AgentTranscript { agent_id: Some(id) } => format!("agent {id}"),
             SurfaceKind::AgentTranscript { agent_id: None } => "agent (newest)".into(),
             SurfaceKind::Roadmap => "planner".into(),
-            SurfaceKind::CartographerChat => "cartographer".into(),
+            SurfaceKind::Mission => "mission".into(),
             SurfaceKind::FileTree { root: Some(r) } => format!("files {r}"),
             SurfaceKind::FileTree { root: None } => "files".into(),
             SurfaceKind::Editor { path, .. } => {
@@ -92,7 +90,6 @@ impl SurfaceKind {
             SurfaceKind::Sessions => "sessions".into(),
             SurfaceKind::Dispatch => "gates".into(),
             SurfaceKind::Hitl => "alerts".into(),
-            SurfaceKind::Work => "work".into(),
             SurfaceKind::Panel { nav } => nav.clone(),
         }
     }
@@ -340,7 +337,7 @@ pub fn default_operator_workspace(initial: Option<SurfaceKind>) -> Workspace {
     if let Some(surface) = initial {
         return Workspace::new(surface);
     }
-    Workspace::new(SurfaceKind::Work)
+    Workspace::new(SurfaceKind::Mission)
 }
 
 // ── Recursive tree surgery (free fns keep the borrow checker happy) ──────────
@@ -623,7 +620,7 @@ mod tests {
     fn default_operator_workspace_without_initial_opens_one_mission_surface() {
         let ws = default_operator_workspace(None);
         assert_eq!(ws.pane_count(), 1);
-        assert!(matches!(ws.focused_surface(), SurfaceKind::Work));
+        assert!(matches!(ws.focused_surface(), SurfaceKind::Mission));
     }
 
     #[test]
@@ -641,9 +638,9 @@ mod tests {
         let mut ws = Workspace::new(SurfaceKind::Roadmap);
         ws.split(Dir::Row, agent("a1"));
         let before = ws.pane_count();
-        ws.swap_surface(SurfaceKind::CartographerChat);
+        ws.swap_surface(SurfaceKind::Mission);
         assert_eq!(ws.pane_count(), before); // layout unchanged
-        assert_eq!(ws.focused_surface(), &SurfaceKind::CartographerChat);
+        assert_eq!(ws.focused_surface(), &SurfaceKind::Mission);
     }
 
     #[test]
@@ -714,10 +711,10 @@ mod tests {
         let mut ws = Workspace::new(SurfaceKind::Fleet);
         ws.split(Dir::Row, agent("a1"));
         ws.split(Dir::Col, SurfaceKind::Roadmap);
-        ws.split(Dir::Col, SurfaceKind::CartographerChat);
+        ws.split(Dir::Col, SurfaceKind::Mission);
         // Exercise the Display impl (used in debugging / snapshot tests).
         let rendered = format!("{ws}");
-        assert!(rendered.contains("cartographer"));
+        assert!(rendered.contains("mission"));
         assert!(rendered.contains("ROW"));
         assert!(rendered.contains("COL"));
         // Every leaf id is unique.

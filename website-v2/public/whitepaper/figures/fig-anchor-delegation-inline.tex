@@ -1,84 +1,43 @@
-% Multi-hop delegation walker — inline in Anchor §sec:delegation (Phase 3).
-% Trust-boundary band reused verbatim from fig-anchor-alg-confusion.tex
-% (house convention; original in figures/diag-magic-link.tex).
-
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D8C7A6}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-
+% Semantic contract: each signed hop binds adjacent identities to one task hash;
+% a skipped or transplanted hop breaks the visible braid.
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}[
-  font=\small,
-  hop/.style={draw=hhebony,thick,fill=hhsand,rounded corners=2pt,
-              minimum width=28mm,minimum height=10mm,inner sep=3pt,align=center},
-  sig/.style={draw=hhamber,thick,fill=hhpaper,rounded corners=1pt,
-              inner sep=2pt,font=\footnotesize,align=center,
-              text width=32mm},
-  fresh/.style={draw=hhteal,thick,fill=hhpaper,rounded corners=1pt,
-                inner sep=2pt,font=\footnotesize,align=center,text width=32mm},
-  arr/.style={->,>=Latex,thick,draw=hhink},
-  % ── house trust-boundary convention ──
-  untrusted/.style={draw=hhcobalt,dashed,line width=0.8pt,
-                    fill=hhcobalt!6,rounded corners=3pt},
-  untrustedlbl/.style={font=\footnotesize\itshape,text=hhcobalt,align=center},
-]
-\node[hop] (h1) at (0,2.6) {Hop 1\\$\mathrm{id}_1 \to \mathrm{id}_2$};
-\node[hop,right=10mm of h1] (h2) {Hop 2\\$\mathrm{id}_2 \to \mathrm{id}_3$};
-\node[hop,right=10mm of h2] (h3) {Hop 3\\$\mathrm{id}_3 \to \mathrm{id}_4$};
-% Plain-language annotations: what each hop's signature actually asserts.
-% The symbolic tuple lives in the caption, for the reader who wants it.
-\node[sig,above=3mm of h1] (s1)
-  {\textit{signs:} I vouch for $\mathrm{id}_2$; nobody precedes me};
-\node[sig,above=3mm of h2] (s2)
-  {\textit{signs:} I vouch for $\mathrm{id}_3$; $\mathrm{id}_1$ preceded me};
-\node[sig,above=3mm of h3] (s3)
-  {\textit{signs:} I vouch for $\mathrm{id}_4$; $\mathrm{id}_2$ preceded me};
-\node[fresh,below=3mm of h1] (f1) {$n_1$: fresh, never seen before};
-\node[fresh,below=3mm of h2] (f2) {$n_2$: fresh, never seen before};
-\node[fresh,below=3mm of h3] (f3) {$n_3$: fresh, never seen before};
-\draw[arr] (h1.east) -- (h2.west);
-\draw[arr] (h2.east) -- (h3.west);
-\node[draw=hhteal,thick,fill=hhpaper,rounded corners=2pt,inner sep=3pt,
-      left=12mm of h1] (origin) {origin};
-\node[draw=hhteal,thick,fill=hhpaper,rounded corners=2pt,inner sep=3pt,
-      right=12mm of h3] (target) {$\mathrm{id}_4$};
-\draw[arr] (origin.east) -- (h1.west);
-\draw[arr] (h3.east) -- (target.west);
-% ─── Trust boundary ──────────────────────────────────────────────────────────
-% The chain travels on the wire. Every hop the walker inspects has been through
-% the adversary's hands; the walker itself runs inside the harbor.
-\begin{scope}[on background layer]
-  \node[untrusted,inner sep=7pt,
-        fit=(s1)(s2)(s3)(h1)(h2)(h3)(f1)(f2)(f3)] (band) {};
-\end{scope}
-\node[untrustedlbl,anchor=south,text width=110mm] at ([yshift=2mm]band.north)
-  {untrusted network --- the adversary sees, and may reorder, replay, or splice,
-   every hop inside this band};
-\node[draw=hhebony,thick,fill=hhsanddeep,rounded corners=3pt,
-      align=left,minimum width=120mm,inner sep=5pt,below=24mm of h2.south]
-  (walker)
-  {{\bfseries Walker (inside the harbor --- outside the band) rejects} if any of:
-   \\[2pt]\quad$\bullet$ signature invalid against the advertised $\mathrm{id}_k$ public key
-   \\\quad$\bullet$ $\mathrm{prev\_id}_k \neq \mathrm{id}_{k-1}$ \quad(splice attack)
-   \\\quad$\bullet$ $n_k$ already present in the freshness table \quad(replay)
-   \\\quad$\bullet$ message hash $h$ disagrees across hops \quad(substitute)};
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \foreach \x/\id in {-5.1/1,-1.7/2,1.7/3,5.1/4} {
+    \node[circle,draw=hhink,line width=.7pt,fill=hhpaper,minimum size=10mm,
+      inner sep=0pt,font=\bfseries] (id\id) at (\x,2.1) {$\mathrm{id}_{\id}$};
+    \draw[pd hairline] (\x,1.58) -- (\x,-.7);
+  }
+
+  \foreach \a/\b/\mid/\n in {1/2/-3.4/1,2/3/0/2,3/4/3.4/3} {
+    \draw[pd focus arrow] (id\a.east) to[out=5,in=175] (id\b.west);
+    \node[pd direct label,text=hhteal,anchor=south] at (\mid,2.42)
+      {$\operatorname{sig}_{\a}$};
+    \node[pd focus datum,minimum size=5pt,inner sep=0pt] (nonce\n) at (\mid,.75) {};
+    \node[pd axis label,anchor=west] at (\mid+.14,.75) {$n_{\n}$ fresh};
+    \draw[pd focus rule] (\mid,1.82) -- (nonce\n);
+    \draw[pd focus rule] (nonce\n) -- (\mid,-.32);
+  }
+
+  \draw[pd rule] (-5.55,-.32) -- (5.55,-.32);
+  \foreach \x in {-5.1,-1.7,1.7,5.1} \fill[hhteal] (\x,-.32) circle (1.45pt);
+  \node[pd direct label,anchor=north west] at (-5.55,-.52)
+    {chain-wide task hash $h$};
+
+  \draw[pd caution arrow] (id2.north) to[out=55,in=125] (id4.north);
+  \node[pd direct label,text=hhamber,anchor=south] at (1.7,3.22)
+    {splice skips $\mathrm{id}_3$};
+  \node[circle,draw=hhamber,line width=.9pt,fill=hhpaper,minimum size=6.5mm,
+    inner sep=0pt] at (1.7,2.72) {};
+  \draw[draw=hhamber,line width=.9pt] (1.48,2.5) -- (1.92,2.94);
+  \draw[draw=hhamber,line width=.9pt] (1.48,2.94) -- (1.92,2.5);
+
+  \node[pd note,anchor=west] at (-5.55,-1.15)
+    {each crossing binds parent, child, fresh nonce, and the same $h$};
 \end{tikzpicture}
-\caption{Multi-hop delegation walker. Each hop $k$ signs the binding tuple
-$(n_k, \mathrm{id}_{k-1}, \mathrm{id}_{k+1}, h)$ under Ed25519 --- written
-$\mathrm{sign}_{\mathrm{id}_k}(\texttt{hopBind}(n_k, \mathrm{id}_{k-1},
-\mathrm{id}_{k+1}, h))$ in Algorithm~3 --- where $h$ is the message hash that
-must remain constant across the chain; the boxes above each hop say in words what
-that tuple asserts. The dashed band is the trust boundary of
-\S\ref{sec:threat-model}: the whole chain is adversary-visible in transit, which is
-precisely why each hop must bind its neighbours rather than merely follow them.
-The walker runs inside the harbor, verifies depth-$N$ chains against a
-nonce-freshness table, and rejects splices, replays, hop-swaps, and substitution.
-Runtime: \texttt{lib/delegation-chain.ts}; ProVerif conformance test passes 17 / 17.}
+\caption{The delegation chain is a signed provenance braid. Identity continuity
+runs across the top, fresh nonces pin each crossing, and one task hash anchors
+the chain below. Replaying a link fails freshness; substituting or splicing a
+link creates a visible discontinuity at an adjacent-identity boundary.}
 \label{fig:anchor-delegation-inline}
 \end{figure}
