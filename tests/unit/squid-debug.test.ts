@@ -309,6 +309,20 @@ test('expired or implausibly future probe markers never masquerade as active rec
   mkdirSync(probePath, { recursive: true });
   writeFileSync(statePath, 'v1\topen\t9\t1000\t2000\tslow\t770\t0\t1000\n');
 
+  const boundaryNowMs = 10_000;
+  for (const probeStartedAtMs of [
+    boundaryNowMs - SQUID_HOOK_BREAKER_PROBE_STALE_MS,
+    boundaryNowMs + SQUID_HOOK_BREAKER_PROBE_STALE_MS,
+  ]) {
+    utimesSync(probePath, new Date(probeStartedAtMs), new Date(probeStartedAtMs));
+    const boundary = readSquidHookHealth(PD_HOME, boundaryNowMs);
+    expect(boundary.circuits[0]).toMatchObject({
+      state: 'half_open',
+      probeState: 'active',
+      recoveryReady: false,
+    });
+  }
+
   utimesSync(probePath, new Date(1_000), new Date(1_000));
   const stale = readSquidHookHealth(PD_HOME, 1_000 + SQUID_HOOK_BREAKER_PROBE_STALE_MS + 1);
   expect(stale.circuits[0]).toMatchObject({
