@@ -384,7 +384,7 @@ final class SquidHarnessStore: ObservableObject {
         snapshot = decoded
         if decoded.state == .degraded, let circuit = decoded.health?.circuits.first(where: { $0.state != .closed }) {
             if circuit.state == .halfOpen {
-                message = "\(circuit.label) is running one bounded recovery probe; expected by \(circuit.probeExpectedBy ?? "its five-second deadline")."
+                message = "\(circuit.label) is running one bounded recovery probe; expected by \(circuit.probeExpectedBy ?? "its configured deadline")."
             } else if circuit.recoveryReady == true {
                 message = "\(circuit.label) recovery is ready; the next armed hook may run one bounded probe."
             } else {
@@ -687,9 +687,12 @@ struct SquidHookDebugSheet: View {
                 }
                 if snapshot?.health?.degraded == true {
                     let recovering = snapshot?.health?.circuits.contains(where: { $0.state == .halfOpen }) == true
-                    Label(recovering ? "HOOK RECOVERING" : "HOOK DISABLED", systemImage: recovering ? "arrow.triangle.2.circlepath" : "bolt.slash.fill")
+                    let recoveryReady = snapshot?.health?.circuits.contains(where: { $0.recoveryReady == true }) == true
+                    let healthTitle = recovering ? "HOOK RECOVERING" : recoveryReady ? "RECOVERY READY" : "HOOK DISABLED"
+                    let healthIcon = recovering ? "arrow.triangle.2.circlepath" : recoveryReady ? "arrow.clockwise.circle.fill" : "bolt.slash.fill"
+                    Label(healthTitle, systemImage: healthIcon)
                         .font(.caption.weight(.semibold))
-                        .foregroundStyle(recovering ? Fleet.Color.warning : Fleet.Color.failure)
+                        .foregroundStyle(recovering || recoveryReady ? Fleet.Color.warning : Fleet.Color.failure)
                 }
                 Spacer()
                 Button(snapshot?.enabled == true ? "Stop capture" : "Start capture") {
@@ -716,7 +719,7 @@ struct SquidHookDebugSheet: View {
                 VStack(alignment: .leading, spacing: Fleet.Space.xs) {
                     Text(circuit.operatorHeadline)
                         .font(.callout.weight(.semibold))
-                        .foregroundStyle(circuit.state == .halfOpen ? Fleet.Color.warning : Fleet.Color.failure)
+                        .foregroundStyle(circuit.state == .halfOpen || circuit.recoveryReady == true ? Fleet.Color.warning : Fleet.Color.failure)
                     if let timingLine = circuit.timingLine {
                         Text(timingLine)
                             .font(.caption.monospacedDigit())

@@ -63,7 +63,8 @@ import {
 import {
   SQUID_HOOK_BREAKER_COOLDOWN_MS,
   SQUID_HOOK_BREAKER_FAILURE_THRESHOLD,
-  SQUID_HOOK_BREAKER_PROBE_STALE_MS,
+  SQUID_HOOK_BREAKER_PROBE_CLOCK_SKEW_SECONDS,
+  SQUID_HOOK_BREAKER_PROBE_STALE_SECONDS,
   SQUID_HOOK_BREAKER_SLOW_MS,
   SQUID_HOOK_DEBUG_MAX_BYTES,
   SQUID_HOOK_DEBUG_TRIM_BYTES,
@@ -73,7 +74,6 @@ import { resolveSquidAsset } from '../../lib/squid/assets.js';
 
 const DEFAULT_HOME = process.env.HOME || process.env.USERPROFILE || '';
 const SQUID_DAEMON_HEARTBEAT_STALE_SECONDS = 30;
-const SQUID_HOOK_BREAKER_PROBE_STALE_SECONDS = Math.ceil(SQUID_HOOK_BREAKER_PROBE_STALE_MS / 1_000);
 
 /** ~/.port-daddy/bin — staged gate wrappers (what hook configs point at). */
 export function tentacleBinDir(): string {
@@ -130,6 +130,7 @@ function gateWrapperScript(): string {
     'case "$pd_provider" in claude|codex|gemini|agy) ;; *) pd_provider=unknown ;; esac',
     `pd_deadline_ms="${'${PD_HOOK_DEADLINE_MS:-'}${SQUID_HOOK_DEADLINE_MS}}"`,
     `case "$pd_deadline_ms" in ""|*[!0-9]*) pd_deadline_ms=${SQUID_HOOK_DEADLINE_MS} ;; esac`,
+    `if [ "$pd_deadline_ms" -le 0 ] 2>/dev/null || [ "$pd_deadline_ms" -gt ${SQUID_HOOK_DEADLINE_MS} ] 2>/dev/null; then pd_deadline_ms=${SQUID_HOOK_DEADLINE_MS}; fi`,
     `pd_failure_threshold="${'${PD_HOOK_FAILURE_THRESHOLD:-'}${SQUID_HOOK_BREAKER_FAILURE_THRESHOLD}}"`,
     `case "$pd_failure_threshold" in ""|*[!0-9]*) pd_failure_threshold=${SQUID_HOOK_BREAKER_FAILURE_THRESHOLD} ;; esac`,
     `pd_slow_ms="${'${PD_HOOK_SLOW_MS:-'}${SQUID_HOOK_BREAKER_SLOW_MS}}"`,
@@ -351,15 +352,33 @@ function gateWrapperScript(): string {
     '  fi',
     '}',
     'pd_health_probe_acquire() {',
-    '  mkdir "$pd_probe_dir" 2>/dev/null && return 0',
+    '  # Half-open recovery is rare, so serialize the complete stale-marker',
+    '  # decision. Without this lock, two callers can both inspect the old',
+    '  # marker and the loser can remove the winner\'s newly-created marker',
+    '  # (an ABA race), allowing two recovery probes to run concurrently.',
+    '  pd_health_state_lock_acquire || return 1',
+    '  pd_health_load',
+    '  pd_probe_now_ms=$(pd_epoch_ms 2>/dev/null) || pd_probe_now_ms=0',
+    '  if [ "$pd_breaker_state" != open ] || [ "$pd_probe_now_ms" -lt "$pd_retry_ms" ] 2>/dev/null; then',
+    '    pd_health_state_lock_release',
+    '    return 1',
+    '  fi',
+    '  if mkdir "$pd_probe_dir" 2>/dev/null; then',
+    '    pd_health_state_lock_release',
+    '    return 0',
+    '  fi',
     '  pd_probe_now=$(date +%s 2>/dev/null || printf 0)',
     '  pd_probe_modified=$(stat -f %m "$pd_probe_dir" 2>/dev/null || true)',
     '  case "$pd_probe_modified" in ""|*[!0-9]*) pd_probe_modified=$(stat -c %Y "$pd_probe_dir" 2>/dev/null || true) ;; esac',
-    '  case "$pd_probe_now:$pd_probe_modified" in *[!0-9:]*) return 1 ;; esac',
+    '  case "$pd_probe_now:$pd_probe_modified" in *[!0-9:]*) pd_health_state_lock_release; return 1 ;; esac',
     '  pd_probe_age=$((pd_probe_now - pd_probe_modified))',
-    `  if [ "$pd_probe_age" -ge -${SQUID_HOOK_BREAKER_PROBE_STALE_SECONDS} ] 2>/dev/null && [ "$pd_probe_age" -le ${SQUID_HOOK_BREAKER_PROBE_STALE_SECONDS} ] 2>/dev/null; then return 1; fi`,
-    '  rmdir "$pd_probe_dir" 2>/dev/null || return 1',
+    `  if [ "$pd_probe_age" -lt -${SQUID_HOOK_BREAKER_PROBE_CLOCK_SKEW_SECONDS} ] 2>/dev/null; then pd_health_state_lock_release; return 1; fi`,
+    `  if [ "$pd_probe_age" -le ${SQUID_HOOK_BREAKER_PROBE_STALE_SECONDS} ] 2>/dev/null; then pd_health_state_lock_release; return 1; fi`,
+    '  rmdir "$pd_probe_dir" 2>/dev/null || { pd_health_state_lock_release; return 1; }',
     '  mkdir "$pd_probe_dir" 2>/dev/null',
+    '  pd_probe_acquired=$?',
+    '  pd_health_state_lock_release',
+    '  return "$pd_probe_acquired"',
     '}',
     'pd_health_duration_read() {',
     '  pd_duration_ms=0',

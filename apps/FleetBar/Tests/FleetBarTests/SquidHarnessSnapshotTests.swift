@@ -163,7 +163,7 @@ private actor SquidHarnessVisualFixture {
         let capturedAt = active ? "2026-09-01T03:13:50.000Z" : "2026-09-01T03:14:02.000Z"
         let recoveryReady = active ? "false" : "true"
         let remediation = active
-            ? "A single bounded recovery probe is running. It should finish by 2026-09-01T03:13:53.035Z; no other hook call may probe concurrently."
+            ? "A single bounded recovery probe is running. It should finish by 2026-09-01T03:13:51.000Z; no other hook call may probe concurrently."
             : "The previous recovery marker expired, so no probe is running. The next armed hook call may reclaim the marker and run one bounded probe, or choose Repair in FleetBar."
         return """
         ,"health":{
@@ -174,8 +174,8 @@ private actor SquidHarnessVisualFixture {
             "hook":"pd-hook-prompt","label":"PD TURN","state":"\(state)","consecutiveFailures":9,
             "openedAt":"2026-09-01T01:17:37.000Z","retryAt":"2026-09-01T01:22:37.000Z",
             "lastReason":"slow","lastDurationMs":770,"lastExitCode":0,"updatedAt":"2026-09-01T01:17:37.000Z",
-            "probeState":"\(probeState)","probeStartedAt":"2026-09-01T03:13:48.035Z",
-            "probeExpectedBy":"2026-09-01T03:13:53.035Z","recoveryReady":\(recoveryReady)
+            "probeState":"\(probeState)","probeStartedAt":"2026-09-01T03:13:48.000Z",
+            "probeExpectedBy":"2026-09-01T03:13:51.000Z","recoveryReady":\(recoveryReady)
           }],
           "remediation":"\(remediation)"
         }
@@ -307,7 +307,7 @@ final class SquidHarnessSnapshotTests: XCTestCase {
         await fixture.setDebugProbeState("active")
         await store.refreshDebug(projectDir: projectDir)
         XCTAssertEqual(store.debugSnapshot?.health?.circuits.first?.state, .halfOpen)
-        let active = try renderDebug(store: store, projectDir: projectDir, path: "\(outputDirectory)/05-hook-recovery-active.png")
+        _ = try renderDebug(store: store, projectDir: projectDir, path: "\(outputDirectory)/05-hook-recovery-active.png")
 
         await fixture.setDebugProbeState("stale")
         await store.refreshDebug(projectDir: projectDir)
@@ -315,9 +315,7 @@ final class SquidHarnessSnapshotTests: XCTestCase {
         XCTAssertEqual(circuit?.state, .open)
         XCTAssertEqual(circuit?.probeState, .stale)
         XCTAssertEqual(circuit?.recoveryReady, true)
-        let ready = try renderDebug(store: store, projectDir: projectDir, path: "\(outputDirectory)/06-hook-recovery-ready.png")
-
-        try writeGIF(frames: [active, ready], path: "\(outputDirectory)/hook-recovery.gif")
+        _ = try renderDebug(store: store, projectDir: projectDir, path: "\(outputDirectory)/06-hook-recovery-ready.png")
     }
 
     private func render(store: SquidHarnessStore, projectDir: String, path: String) throws {

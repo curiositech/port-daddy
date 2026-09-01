@@ -32,8 +32,16 @@ export const SQUID_HOOK_DEBUG_TRIM_BYTES = Math.floor(SQUID_HOOK_DEBUG_MAX_BYTES
 export const SQUID_HOOK_BREAKER_FAILURE_THRESHOLD = 3;
 export const SQUID_HOOK_BREAKER_SLOW_MS = 250;
 export const SQUID_HOOK_BREAKER_COOLDOWN_MS = 5 * 60 * 1_000;
-/** A half-open probe must either finish or become reclaimable within this lease. */
-export const SQUID_HOOK_BREAKER_PROBE_STALE_MS = 5_000;
+/** Extra time for the wrapper's bounded TERM/KILL cleanup after its hard deadline. */
+export const SQUID_HOOK_BREAKER_PROBE_TERMINATION_GRACE_MS = 1_000;
+/** A half-open probe cannot be reclaimed before its deadline plus termination grace. */
+export const SQUID_HOOK_BREAKER_PROBE_STALE_MS =
+  SQUID_HOOK_DEADLINE_MS + SQUID_HOOK_BREAKER_PROBE_TERMINATION_GRACE_MS;
+/** POSIX stat/date expose whole seconds; the wrapper and reader share this boundary. */
+export const SQUID_HOOK_BREAKER_PROBE_STALE_SECONDS =
+  Math.ceil(SQUID_HOOK_BREAKER_PROBE_STALE_MS / 1_000);
+/** Tolerate one coarse-clock tick; larger future markers require explicit repair. */
+export const SQUID_HOOK_BREAKER_PROBE_CLOCK_SKEW_SECONDS = 1;
 const SQUID_HOOK_DEBUG_MAX_READ_BYTES = SQUID_HOOK_DEBUG_MAX_BYTES * 2;
 const SQUID_HOOK_DEBUG_MAX_STEPS = 2_000;
 export const SQUID_HOOK_STATUS_MAX_STEPS = 25;
@@ -224,12 +232,17 @@ export function readSquidHookHealth(pdHome = PD_HOME, nowMs = Date.now()): Squid
         try {
           const mtimeMs = Math.floor(statSync(probePath).mtimeMs);
           if (Number.isSafeInteger(mtimeMs) && mtimeMs >= 0) {
-            probeStartedAtMs = mtimeMs;
-            const ageMs = nowMs - mtimeMs;
-            probeState = ageMs >= -SQUID_HOOK_BREAKER_PROBE_STALE_MS
-              && ageMs <= SQUID_HOOK_BREAKER_PROBE_STALE_MS
-              ? 'active'
-              : 'stale';
+            const probeStartedAtSeconds = Math.floor(mtimeMs / 1_000);
+            const nowSeconds = Math.floor(nowMs / 1_000);
+            probeStartedAtMs = probeStartedAtSeconds * 1_000;
+            const ageSeconds = nowSeconds - probeStartedAtSeconds;
+            if (ageSeconds < -SQUID_HOOK_BREAKER_PROBE_CLOCK_SKEW_SECONDS) {
+              probeState = 'unknown';
+            } else {
+              probeState = ageSeconds <= SQUID_HOOK_BREAKER_PROBE_STALE_SECONDS
+                ? 'active'
+                : 'stale';
+            }
           } else {
             probeState = 'unknown';
           }
@@ -252,9 +265,9 @@ export function readSquidHookHealth(pdHome = PD_HOME, nowMs = Date.now()): Squid
         updatedAt: iso(updatedAtMs),
         probeState,
         probeStartedAt: probeStartedAtMs == null ? null : iso(probeStartedAtMs),
-        probeExpectedBy: probeStartedAtMs == null
+        probeExpectedBy: probeStartedAtMs == null || probeState === 'unknown'
           ? null
-          : iso(probeStartedAtMs + SQUID_HOOK_BREAKER_PROBE_STALE_MS),
+          : iso(probeStartedAtMs + (SQUID_HOOK_BREAKER_PROBE_STALE_SECONDS + 1) * 1_000),
         recoveryReady: rawState === 'open' && !halfOpen && probeState !== 'unknown' && nowMs >= retryAtMs,
       } satisfies SquidHookCircuit];
     } catch {
@@ -280,13 +293,13 @@ function hookHealthRemediation(circuits: SquidHookCircuit[]): string {
     return 'No hook circuit needs remediation.';
   }
   if (circuit.state === 'half_open') {
-    return `A single bounded recovery probe is running and should finish by ${circuit.probeExpectedBy ?? 'its five-second deadline'}. If it remains active after that time, choose Repair in FleetBar.`;
+    return `A single bounded recovery probe is running and should finish by ${circuit.probeExpectedBy ?? 'its configured deadline'}. If it remains active after that time, choose Repair in FleetBar.`;
   }
   if (circuit.probeState === 'unknown') {
     return 'The recovery marker could not be inspected, so no active probe is claimed. Choose Repair in FleetBar to restage stable wrappers and clear the marker.';
   }
   if (circuit.recoveryReady && circuit.probeState === 'stale') {
-    return `The previous recovery marker expired at ${circuit.probeExpectedBy ?? 'its five-second deadline'}; no probe is running. The next armed hook may reclaim it, or choose Repair in FleetBar now.`;
+    return `The previous recovery marker expired at ${circuit.probeExpectedBy ?? 'its configured deadline'}; no probe is running. The next armed hook may reclaim it, or choose Repair in FleetBar now.`;
   }
   if (circuit.recoveryReady) {
     return `Cooldown ended at ${circuit.retryAt ?? 'the recorded retry time'}; no probe is running. The next armed hook will run one bounded probe, or choose Repair in FleetBar now.`;

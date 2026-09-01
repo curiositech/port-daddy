@@ -9,7 +9,11 @@ import {
   readSquidHookDebugSnapshot,
   readSquidHookStatusSnapshot,
   resetSquidHookHealth,
+  SQUID_HOOK_BREAKER_PROBE_CLOCK_SKEW_SECONDS,
   SQUID_HOOK_BREAKER_PROBE_STALE_MS,
+  SQUID_HOOK_BREAKER_PROBE_STALE_SECONDS,
+  SQUID_HOOK_BREAKER_PROBE_TERMINATION_GRACE_MS,
+  SQUID_HOOK_DEADLINE_MS,
   SQUID_HOOK_DEBUG_CLI_MAX_BYTES,
   SQUID_HOOK_STATUS_MAX_STEPS,
   squidHookHealthDir,
@@ -290,7 +294,7 @@ test('validates sanitized breaker state, derives half-open probes, and repairs a
       lastExitCode: 127,
       probeState: 'active',
       probeStartedAt: '1970-01-01T00:00:02.000Z',
-      probeExpectedBy: '1970-01-01T00:00:07.000Z',
+      probeExpectedBy: '1970-01-01T00:00:05.000Z',
       recoveryReady: false,
     }),
   ]);
@@ -302,7 +306,16 @@ test('validates sanitized breaker state, derives half-open probes, and repairs a
   expect(readSquidHookHealth(PD_HOME).degraded).toBe(false);
 });
 
-test('expired or implausibly future probe markers never masquerade as active recovery', () => {
+test('probe lease is derived from the hard deadline and bounded termination grace', () => {
+  expect(SQUID_HOOK_BREAKER_PROBE_STALE_MS).toBe(
+    SQUID_HOOK_DEADLINE_MS + SQUID_HOOK_BREAKER_PROBE_TERMINATION_GRACE_MS,
+  );
+  expect(SQUID_HOOK_BREAKER_PROBE_STALE_SECONDS).toBe(
+    Math.ceil(SQUID_HOOK_BREAKER_PROBE_STALE_MS / 1_000),
+  );
+});
+
+test('reader matches POSIX whole-second probe boundaries and rejects future clock rollback', () => {
   const healthDir = squidHookHealthDir(PD_HOME);
   const statePath = join(healthDir, 'pd-hook-prompt.state');
   const probePath = join(healthDir, 'pd-hook-prompt.probe');
@@ -311,8 +324,8 @@ test('expired or implausibly future probe markers never masquerade as active rec
 
   const boundaryNowMs = 10_000;
   for (const probeStartedAtMs of [
-    boundaryNowMs - SQUID_HOOK_BREAKER_PROBE_STALE_MS,
-    boundaryNowMs + SQUID_HOOK_BREAKER_PROBE_STALE_MS,
+    boundaryNowMs - SQUID_HOOK_BREAKER_PROBE_STALE_SECONDS * 1_000,
+    boundaryNowMs + SQUID_HOOK_BREAKER_PROBE_CLOCK_SKEW_SECONDS * 1_000,
   ]) {
     utimesSync(probePath, new Date(probeStartedAtMs), new Date(probeStartedAtMs));
     const boundary = readSquidHookHealth(PD_HOME, boundaryNowMs);
@@ -324,7 +337,10 @@ test('expired or implausibly future probe markers never masquerade as active rec
   }
 
   utimesSync(probePath, new Date(1_000), new Date(1_000));
-  const stale = readSquidHookHealth(PD_HOME, 1_000 + SQUID_HOOK_BREAKER_PROBE_STALE_MS + 1);
+  const stale = readSquidHookHealth(
+    PD_HOME,
+    1_000 + (SQUID_HOOK_BREAKER_PROBE_STALE_SECONDS + 1) * 1_000,
+  );
   expect(stale.circuits[0]).toMatchObject({
     state: 'open',
     probeState: 'stale',
@@ -335,13 +351,15 @@ test('expired or implausibly future probe markers never masquerade as active rec
   const nowMs = 20_000;
   utimesSync(
     probePath,
-    new Date(nowMs + SQUID_HOOK_BREAKER_PROBE_STALE_MS + 1),
-    new Date(nowMs + SQUID_HOOK_BREAKER_PROBE_STALE_MS + 1),
+    new Date(nowMs + (SQUID_HOOK_BREAKER_PROBE_CLOCK_SKEW_SECONDS + 1) * 1_000),
+    new Date(nowMs + (SQUID_HOOK_BREAKER_PROBE_CLOCK_SKEW_SECONDS + 1) * 1_000),
   );
   const future = readSquidHookHealth(PD_HOME, nowMs);
   expect(future.circuits[0]).toMatchObject({
     state: 'open',
-    probeState: 'stale',
-    recoveryReady: true,
+    probeState: 'unknown',
+    probeExpectedBy: null,
+    recoveryReady: false,
   });
+  expect(future.remediation).toMatch(/could not be inspected.*choose repair/i);
 });

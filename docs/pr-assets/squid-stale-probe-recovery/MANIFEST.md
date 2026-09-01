@@ -4,27 +4,27 @@ These deterministic FleetBar artifacts show the operator-visible transition repa
 
 - `05-hook-recovery-active.png` — one bounded recovery probe is genuinely active, with its start and expected-finish timestamps visible.
 - `06-hook-recovery-ready.png` — the marker has expired, no probe is running, and FleetBar truthfully reports that recovery is ready.
-- `hook-recovery.gif` — the same two states as a 0.9-second-per-frame loop.
+- `squid-hook-recovery.cast` — a native Porthole asciicast of the real focused Swift test and the resulting artifact hashes. It is 100×28, contains 395 replay events, and runs for 17.428 seconds.
 
-The fixture contains sanitized synthetic timing only. It does not contain an operator transcript, tool input, tool output, prompt, environment snapshot, stdout, or stderr.
+The FleetBar fixture contains sanitized synthetic timing only. The cast contains the literal test command, its unfiltered test output, and the two PNG hashes; it contains no operator transcript, prompt, environment snapshot, hook stdout, or hook stderr. This proves the deterministic FleetBar decoder, assertions, and renderer. It does not claim a live production hook invocation or an operator click.
 
 ## Reproduce
 
-From `apps/FleetBar` at commit `f1e2e87e9`:
+From the repository root:
 
 ```sh
-FLEETBAR_SQUID_SNAPSHOT_DIR="$PWD/../../docs/pr-assets/squid-stale-probe-recovery" \
-  swift test \
+FLEETBAR_SQUID_SNAPSHOT_DIR="$PWD/docs/pr-assets/squid-stale-probe-recovery" \
+  swift test --package-path apps/FleetBar \
   --filter SquidHarnessSnapshotTests/testRenderBoundedProbeExpiryAndRecoveryProofWhenRequested \
   --jobs 1
 ```
 
-The focused test rendered one SwiftUI sheet per state, asserted the decoded circuit/probe state, wrote both PNGs, and assembled the GIF. Result: 1 test passed, 0 failures.
+The focused test rendered one SwiftUI sheet per state, asserted the decoded circuit/probe state, and wrote both PNGs. The recorded run passed 1 test with 0 failures in 0.220 seconds. The cast was recorded with `website-v2/scripts/record-porthole-cast.sh`, then replay-parsed with the repository's `Porthole` parser; its final frame contains both PNG hashes.
 
 ## Integrity
 
 ```text
-706f70cf10741afeaed57cb24ed0c014a44d70623c1a7ee4c8e7e97608c90825  05-hook-recovery-active.png
-a851f1679954f4e296898b56c6c44bf58cd0a38c77763328d9f6e0ab0b5a24ce  06-hook-recovery-ready.png
-1c69e8d5c4b38c433084d7d04779524e57749d99a8542a0a9e5d543e79b532f9  hook-recovery.gif
+44033cbd525bff2c6c0036b0d0e7ce35c91eae09c70dcdf1c4dc46ea3b9a9252  05-hook-recovery-active.png
+5170792a438092e99382346d24151f55e171bbcf02d7850e7945fc5956bcf480  06-hook-recovery-ready.png
+36719cdd3adbe83ab5bf83c7850ab688f5c887aa6e490c8e505e4c9f8bd18196  squid-hook-recovery.cast
 ```
