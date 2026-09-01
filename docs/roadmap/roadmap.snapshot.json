@@ -2,7 +2,7 @@
   "generatedAt": 1788149878497,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 318,
+  "count": 317,
   "items": [
     {
       "slug": "a-add-to-the-papers",
@@ -718,11 +718,6 @@
       "slug": "codex-homepage-hero-followup",
       "status": "backlog",
       "summaryMd": "Harden marketing visuals and asset integrity"
-    },
-    {
-      "slug": "codex-jury-rig-skill-runtime",
-      "status": "backlog",
-      "summaryMd": "Replace WinDAGs-coupled skill discovery and execution with native Jury-rig surfaces"
     },
     {
       "slug": "codex-pd-console-visual-proof-lane",
