@@ -36,7 +36,7 @@
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join, posix, resolve } from 'node:path';
 import { parse as parseYaml } from 'yaml';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -46,65 +46,143 @@ const WORKERS_ARTIFACT = join(ROOT, 'apps', 'shared', 'model-registry.generated.
 
 export const EMBEDDING_SPACE_VERSION = 2 as const;
 export const EMBEDDING_SPACE_DOMAIN = 'port-daddy.embedding-space' as const;
+export const EMBEDDING_PREPROCESSING_DOMAIN = 'port-daddy.embedding-preprocessing' as const;
 
 export type EmbeddingNormalization = 'none' | 'l2';
 export type EmbeddingMetric = 'cosine' | 'dot-product' | 'euclidean';
-export type EmbeddingPooling = 'mean' | 'cls';
-export type EmbeddingCoordinateEncoding = 'json-number' | 'float32' | 'float16' | 'int8';
-export type EmbeddingProfileQuality = 'approved' | 'degraded-fallback';
-export type EmbeddingRevisionBinding =
-  | 'provider-immutable'
-  | 'runtime-pinned'
-  | 'declared-upstream';
-export type EmbeddingRuntimeBinding = 'declarative-only' | 'runtime-enforced';
+export type EmbeddingPooling = 'mean-attention-mask-v1' | 'cls-last-hidden-state-v1';
+export type EmbeddingTask = 'feature-extraction' | 'sentence-similarity';
+export type EmbeddingUnicodeNormalization = 'none' | 'nfc' | 'nfkc' | 'tokenizer-defined';
+export type EmbeddingTruncation = 'longest-first' | 'only-first';
+export type EmbeddingCoordinatePrecision = 'float16' | 'float32' | 'float64';
+export type EmbeddingTransportEncoding = 'json-number-array' | 'float32-array';
+export type EmbeddingQuantization = 'none';
+export type EmbeddingStorageEncoding = 'json-number-array' | 'float32-le';
+export type EmbeddingProfileQuality = 'degraded-fallback';
+export type EmbeddingRevisionBinding = 'declared-upstream';
+export type EmbeddingRuntimeBinding = 'declarative-only';
 
-/** The editable policy and identity coordinates for one embedding model. */
+/** The editable declared-space coordinates for one embedding model. */
 export interface EmbeddingProfileSource {
-  provider: string;
-  revision: string;
+  servingProvider: string;
+  runtimeFamily: string;
+  runtimeVersion: string;
+  upstreamModelId: string;
+  modelRevision: string;
+  modelArtifact: string;
+  modelDigest: string;
+  modelConfigArtifact: string;
+  modelConfigDigest: string;
+  tokenizerId: string;
+  tokenizerRevision: string;
+  tokenizerArtifact: string;
+  tokenizerDigest: string;
+  tokenizerConfigArtifact: string;
+  tokenizerConfigDigest: string;
+  task: EmbeddingTask;
+  queryPrefix: string;
+  documentPrefix: string;
+  unicodeNormalization: EmbeddingUnicodeNormalization;
+  truncation: EmbeddingTruncation;
+  maxTokens: number;
   dimensions: number;
   normalization: EmbeddingNormalization;
   metric: EmbeddingMetric;
   pooling: EmbeddingPooling;
-  coordinateEncoding: EmbeddingCoordinateEncoding;
-  quality: EmbeddingProfileQuality;
+  coordinatePrecision: EmbeddingCoordinatePrecision;
+  coordinateQuantization: EmbeddingQuantization;
+  transportEncoding: EmbeddingTransportEncoding;
+  storageEncoding: EmbeddingStorageEncoding;
+  storageQuantization: EmbeddingQuantization;
   revisionBinding: EmbeddingRevisionBinding;
-  runtimeBinding: EmbeddingRuntimeBinding;
 }
 
 /** The generated, model-keyed embedding profile shared by daemon and Workers. */
 export interface EmbeddingProfile extends EmbeddingProfileSource {
   version: typeof EMBEDDING_SPACE_VERSION;
   modelId: string;
+  preprocessingDigest: string;
+  quality: EmbeddingProfileQuality;
+  runtimeBinding: EmbeddingRuntimeBinding;
   spaceId: string;
 }
 
-/** Only the coordinates that determine vector-space compatibility. */
-export type EmbeddingSpaceIdentity = Omit<
-  EmbeddingProfile,
-  'quality' | 'revisionBinding' | 'runtimeBinding' | 'spaceId'
->;
+/** Only content and numeric coordinates that determine logical vector compatibility. */
+export interface EmbeddingSpaceIdentity {
+  version: typeof EMBEDDING_SPACE_VERSION;
+  modelDigest: string;
+  modelConfigDigest: string;
+  preprocessingDigest: string;
+  dimensions: number;
+  normalization: EmbeddingNormalization;
+  metric: EmbeddingMetric;
+  pooling: EmbeddingPooling;
+  coordinatePrecision: EmbeddingCoordinatePrecision;
+  coordinateQuantization: EmbeddingQuantization;
+  storageQuantization: EmbeddingQuantization;
+}
+
+export interface EmbeddingPreprocessingIdentity {
+  tokenizerDigest: string;
+  tokenizerConfigDigest: string;
+  task: EmbeddingTask;
+  queryPrefix: string;
+  documentPrefix: string;
+  unicodeNormalization: EmbeddingUnicodeNormalization;
+  truncation: EmbeddingTruncation;
+  maxTokens: number;
+}
 
 /** Shared public type block emitted byte-for-byte into both generated planes. */
 const EMBEDDING_PROFILE_TYPE_DECLARATION = `export type EmbeddingNormalization = 'none' | 'l2';
 export type EmbeddingMetric = 'cosine' | 'dot-product' | 'euclidean';
-export type EmbeddingPooling = 'mean' | 'cls';
-export type EmbeddingCoordinateEncoding = 'json-number' | 'float32' | 'float16' | 'int8';
-export type EmbeddingProfileQuality = 'approved' | 'degraded-fallback';
-export type EmbeddingRevisionBinding = 'provider-immutable' | 'runtime-pinned' | 'declared-upstream';
-export type EmbeddingRuntimeBinding = 'declarative-only' | 'runtime-enforced';
+export type EmbeddingPooling = 'mean-attention-mask-v1' | 'cls-last-hidden-state-v1';
+export type EmbeddingTask = 'feature-extraction' | 'sentence-similarity';
+export type EmbeddingUnicodeNormalization = 'none' | 'nfc' | 'nfkc' | 'tokenizer-defined';
+export type EmbeddingTruncation = 'longest-first' | 'only-first';
+export type EmbeddingCoordinatePrecision = 'float16' | 'float32' | 'float64';
+export type EmbeddingTransportEncoding = 'json-number-array' | 'float32-array';
+export type EmbeddingQuantization = 'none';
+export type EmbeddingStorageEncoding = 'json-number-array' | 'float32-le';
+export type EmbeddingProfileQuality = 'degraded-fallback';
+export type EmbeddingRevisionBinding = 'declared-upstream';
+export type EmbeddingRuntimeBinding = 'declarative-only';
 
 /** A declared vector-space target plus binding policy; inspect runtimeBinding before use as proof. */
 export interface EmbeddingProfile {
   readonly version: ${EMBEDDING_SPACE_VERSION};
-  readonly provider: string;
+  readonly servingProvider: string;
   readonly modelId: string;
-  readonly revision: string;
+  readonly runtimeFamily: string;
+  readonly runtimeVersion: string;
+  readonly upstreamModelId: string;
+  readonly modelRevision: string;
+  readonly modelArtifact: string;
+  readonly modelDigest: string;
+  readonly modelConfigArtifact: string;
+  readonly modelConfigDigest: string;
+  readonly tokenizerId: string;
+  readonly tokenizerRevision: string;
+  readonly tokenizerArtifact: string;
+  readonly tokenizerDigest: string;
+  readonly tokenizerConfigArtifact: string;
+  readonly tokenizerConfigDigest: string;
+  readonly task: EmbeddingTask;
+  readonly queryPrefix: string;
+  readonly documentPrefix: string;
+  readonly unicodeNormalization: EmbeddingUnicodeNormalization;
+  readonly truncation: EmbeddingTruncation;
+  readonly maxTokens: number;
   readonly dimensions: number;
   readonly normalization: EmbeddingNormalization;
   readonly metric: EmbeddingMetric;
   readonly pooling: EmbeddingPooling;
-  readonly coordinateEncoding: EmbeddingCoordinateEncoding;
+  readonly coordinatePrecision: EmbeddingCoordinatePrecision;
+  readonly coordinateQuantization: EmbeddingQuantization;
+  readonly transportEncoding: EmbeddingTransportEncoding;
+  readonly storageEncoding: EmbeddingStorageEncoding;
+  readonly storageQuantization: EmbeddingQuantization;
+  readonly preprocessingDigest: string;
   readonly quality: EmbeddingProfileQuality;
   readonly revisionBinding: EmbeddingRevisionBinding;
   readonly runtimeBinding: EmbeddingRuntimeBinding;
@@ -158,37 +236,112 @@ export interface ModelSource {
 
 const NORMALIZATIONS = new Set<EmbeddingNormalization>(['none', 'l2']);
 const METRICS = new Set<EmbeddingMetric>(['cosine', 'dot-product', 'euclidean']);
-const POOLING_MODES = new Set<EmbeddingPooling>(['mean', 'cls']);
-const COORDINATE_ENCODINGS = new Set<EmbeddingCoordinateEncoding>([
-  'json-number',
-  'float32',
+const POOLING_MODES = new Set<EmbeddingPooling>([
+  'mean-attention-mask-v1',
+  'cls-last-hidden-state-v1',
+]);
+const TASKS = new Set<EmbeddingTask>(['feature-extraction', 'sentence-similarity']);
+const UNICODE_NORMALIZATIONS = new Set<EmbeddingUnicodeNormalization>([
+  'none',
+  'nfc',
+  'nfkc',
+  'tokenizer-defined',
+]);
+const TRUNCATION_MODES = new Set<EmbeddingTruncation>(['longest-first', 'only-first']);
+const COORDINATE_PRECISIONS = new Set<EmbeddingCoordinatePrecision>([
   'float16',
-  'int8',
+  'float32',
+  'float64',
 ]);
-const PROFILE_QUALITIES = new Set<EmbeddingProfileQuality>(['approved', 'degraded-fallback']);
-const REVISION_BINDINGS = new Set<EmbeddingRevisionBinding>([
-  'provider-immutable',
-  'runtime-pinned',
-  'declared-upstream',
+const TRANSPORT_ENCODINGS = new Set<EmbeddingTransportEncoding>([
+  'json-number-array',
+  'float32-array',
 ]);
-const RUNTIME_BINDINGS = new Set<EmbeddingRuntimeBinding>([
-  'declarative-only',
-  'runtime-enforced',
-]);
-const PROFILE_FIELDS = new Set<keyof EmbeddingProfileSource>([
-  'provider',
-  'revision',
+const QUANTIZATIONS = new Set<EmbeddingQuantization>(['none']);
+const STORAGE_ENCODINGS = new Set<EmbeddingStorageEncoding>(['json-number-array', 'float32-le']);
+const REVISION_BINDINGS = new Set<EmbeddingRevisionBinding>(['declared-upstream']);
+const PROFILE_FIELD_ORDER = [
+  'servingProvider',
+  'runtimeFamily',
+  'runtimeVersion',
+  'upstreamModelId',
+  'modelRevision',
+  'modelArtifact',
+  'modelDigest',
+  'modelConfigArtifact',
+  'modelConfigDigest',
+  'tokenizerId',
+  'tokenizerRevision',
+  'tokenizerArtifact',
+  'tokenizerDigest',
+  'tokenizerConfigArtifact',
+  'tokenizerConfigDigest',
+  'task',
+  'queryPrefix',
+  'documentPrefix',
+  'unicodeNormalization',
+  'truncation',
+  'maxTokens',
   'dimensions',
   'normalization',
   'metric',
   'pooling',
-  'coordinateEncoding',
-  'quality',
+  'coordinatePrecision',
+  'coordinateQuantization',
+  'transportEncoding',
+  'storageEncoding',
+  'storageQuantization',
   'revisionBinding',
-  'runtimeBinding',
-]);
+] as const satisfies readonly (keyof EmbeddingProfileSource)[];
+const PROFILE_FIELDS = new Set<keyof EmbeddingProfileSource>(PROFILE_FIELD_ORDER);
+const PREPROCESSING_IDENTITY_FIELDS = [
+  'tokenizerDigest',
+  'tokenizerConfigDigest',
+  'task',
+  'queryPrefix',
+  'documentPrefix',
+  'unicodeNormalization',
+  'truncation',
+  'maxTokens',
+] as const satisfies readonly (keyof EmbeddingPreprocessingIdentity)[];
+const SPACE_IDENTITY_FIELDS = [
+  'version',
+  'modelDigest',
+  'modelConfigDigest',
+  'preprocessingDigest',
+  'dimensions',
+  'normalization',
+  'metric',
+  'pooling',
+  'coordinatePrecision',
+  'coordinateQuantization',
+  'storageQuantization',
+] as const satisfies readonly (keyof EmbeddingSpaceIdentity)[];
+type AssertNever<T extends never> = T;
+type _EveryPreprocessingFieldIsOrdered = AssertNever<
+  Exclude<keyof EmbeddingPreprocessingIdentity, (typeof PREPROCESSING_IDENTITY_FIELDS)[number]>
+>;
+type _EverySpaceFieldIsOrdered = AssertNever<
+  Exclude<keyof EmbeddingSpaceIdentity, (typeof SPACE_IDENTITY_FIELDS)[number]>
+>;
+type _EveryProfileFieldIsDeclared = AssertNever<
+  Exclude<keyof EmbeddingProfileSource, (typeof PROFILE_FIELD_ORDER)[number]>
+>;
 const MOVING_REVISION_NAMES = new Set(['head', 'latest', 'main', 'master']);
 const UPSTREAM_COMMIT_SHA = /^[0-9a-f]{40}$/;
+const SHA256_DIGEST = /^sha256:[0-9a-f]{64}$/;
+const RELATIVE_ARTIFACT_PATH = /^(?!\/)(?!.*(?:^|\/)\.\.(?:\/|$))[A-Za-z0-9._/+@=-]+$/;
+const HONEST_UNVERSIONED_RUNTIME = /^[A-Za-z0-9][A-Za-z0-9._-]*-unversioned$/;
+const EXACT_RUNTIME_COMPONENT = /^(?:@[A-Za-z0-9._-]+\/)?[A-Za-z0-9._-]+@\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/;
+
+function isNormalizedArtifactPath(value: string): boolean {
+  return (
+    RELATIVE_ARTIFACT_PATH.test(value) &&
+    value !== '.' &&
+    !value.endsWith('/') &&
+    posix.normalize(value) === value
+  );
+}
 
 function isMovingRevision(value: string): boolean {
   const candidate = value.trim().toLowerCase();
@@ -200,13 +353,42 @@ function isMovingRevision(value: string): boolean {
   );
 }
 
+function isExactOrHonestlyUnversionedRuntime(value: string): boolean {
+  return (
+    HONEST_UNVERSIONED_RUNTIME.test(value) ||
+    value.split('+').every((component) => EXACT_RUNTIME_COMPONENT.test(component))
+  );
+}
+
+function encodingPreservesCoordinatePrecision(
+  encoding: EmbeddingTransportEncoding | EmbeddingStorageEncoding,
+  precision: EmbeddingCoordinatePrecision,
+): boolean {
+  return encoding === 'json-number-array' || precision !== 'float64';
+}
+
+function assertExactKeys(
+  label: string,
+  value: object,
+  expected: readonly string[],
+): void {
+  const expectedSet = new Set(expected);
+  const missing = expected.filter((field) => !Object.hasOwn(value, field));
+  const unknown = Object.keys(value).filter((field) => !expectedSet.has(field));
+  if (missing.length || unknown.length) {
+    throw new Error(
+      `${label} must have exact keys; missing: ${missing.join(', ') || 'none'}; unknown: ${unknown.join(', ') || 'none'}`,
+    );
+  }
+}
+
 /**
  * Frame one opaque coordinate without normalizing its bytes.
  *
  * The design uses UTF-8 byte lengths rather than separators alone so even an
- * identifier containing whitespace, punctuation, or newlines has one
- * unambiguous representation. Opaque model ids and revisions are deliberately
- * not trimmed or lowercased: changing their bytes changes the declared space.
+ * coordinate containing whitespace, punctuation, or newlines has one
+ * unambiguous representation. Exact prefix bytes are deliberately not trimmed
+ * or normalized: changing their bytes changes preprocessing and the space.
  *
  * @param name Fixed field name in the v2 coordinate order.
  * @param value Exact opaque value to frame.
@@ -230,20 +412,21 @@ function frameEmbeddingCoordinate(name: string, value: string): string {
 export function validateEmbeddingSpaceIdentity(
   identity: EmbeddingSpaceIdentity,
 ): EmbeddingSpaceIdentity {
+  if (!identity || typeof identity !== 'object' || Array.isArray(identity)) {
+    throw new Error('embedding space identity must be an object');
+  }
+  assertExactKeys('embedding space identity', identity, SPACE_IDENTITY_FIELDS);
   if (identity.version !== EMBEDDING_SPACE_VERSION) {
     throw new Error(`embedding profile version must be ${EMBEDDING_SPACE_VERSION}`);
   }
   for (const [name, value] of [
-    ['provider', identity.provider],
-    ['modelId', identity.modelId],
-    ['revision', identity.revision],
+    ['modelDigest', identity.modelDigest],
+    ['modelConfigDigest', identity.modelConfigDigest],
+    ['preprocessingDigest', identity.preprocessingDigest],
   ] as const) {
-    if (typeof value !== 'string' || value.trim().length === 0) {
-      throw new Error(`embedding profile ${name} must be a non-empty string`);
+    if (!SHA256_DIGEST.test(value)) {
+      throw new Error(`embedding profile ${name} must be sha256:<64 lowercase hex>`);
     }
-  }
-  if (isMovingRevision(identity.revision)) {
-    throw new Error(`embedding profile revision must be immutable, not ${identity.revision}`);
   }
   if (!Number.isSafeInteger(identity.dimensions) || identity.dimensions <= 0) {
     throw new Error('embedding profile dimensions must be a positive safe integer');
@@ -259,12 +442,90 @@ export function validateEmbeddingSpaceIdentity(
   if (!POOLING_MODES.has(identity.pooling)) {
     throw new Error(`embedding profile pooling is invalid: ${String(identity.pooling)}`);
   }
-  if (!COORDINATE_ENCODINGS.has(identity.coordinateEncoding)) {
+  if (!COORDINATE_PRECISIONS.has(identity.coordinatePrecision)) {
     throw new Error(
-      `embedding profile coordinateEncoding is invalid: ${String(identity.coordinateEncoding)}`,
+      `embedding profile coordinatePrecision is invalid: ${String(identity.coordinatePrecision)}`,
+    );
+  }
+  if (!QUANTIZATIONS.has(identity.coordinateQuantization)) {
+    throw new Error(
+      `embedding profile coordinateQuantization is invalid: ${String(identity.coordinateQuantization)}; v2 permits only none until a complete quantization recipe is versioned`,
+    );
+  }
+  if (!QUANTIZATIONS.has(identity.storageQuantization)) {
+    throw new Error(
+      `embedding profile storageQuantization is invalid: ${String(identity.storageQuantization)}; v2 permits only none until lossy persistence semantics are versioned`,
     );
   }
   return identity;
+}
+
+/** Canonical content-addressed tokenizer and input recipe for producer attestation. */
+export function canonicalEmbeddingPreprocessingInput(input: EmbeddingPreprocessingIdentity): string {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) {
+    throw new Error('embedding preprocessing identity must be an object');
+  }
+  assertExactKeys(
+    'embedding preprocessing identity',
+    input,
+    PREPROCESSING_IDENTITY_FIELDS,
+  );
+  for (const [name, value] of [
+    ['tokenizerDigest', input.tokenizerDigest],
+    ['tokenizerConfigDigest', input.tokenizerConfigDigest],
+  ] as const) {
+    if (!SHA256_DIGEST.test(value)) {
+      throw new Error(`embedding profile ${name} must be sha256:<64 lowercase hex>`);
+    }
+  }
+  if (typeof input.queryPrefix !== 'string' || typeof input.documentPrefix !== 'string') {
+    throw new Error('embedding profile queryPrefix and documentPrefix must be exact strings');
+  }
+  if (!TASKS.has(input.task)) {
+    throw new Error(`embedding profile task is invalid: ${String(input.task)}`);
+  }
+  if (!UNICODE_NORMALIZATIONS.has(input.unicodeNormalization)) {
+    throw new Error(
+      `embedding profile unicodeNormalization is invalid: ${String(input.unicodeNormalization)}`,
+    );
+  }
+  if (!TRUNCATION_MODES.has(input.truncation)) {
+    throw new Error(`embedding profile truncation is invalid: ${String(input.truncation)}`);
+  }
+  if (!Number.isSafeInteger(input.maxTokens) || input.maxTokens <= 0) {
+    throw new Error('embedding profile maxTokens must be a positive safe integer');
+  }
+  const coordinates = [
+    frameEmbeddingCoordinate('domain', EMBEDDING_PREPROCESSING_DOMAIN),
+    frameEmbeddingCoordinate('version', '1'),
+  ];
+  for (const field of PREPROCESSING_IDENTITY_FIELDS) {
+    coordinates.push(frameEmbeddingCoordinate(field, String(input[field])));
+  }
+  return coordinates.join('\n');
+}
+
+/** Digest of the exact tokenizer content and input recipe. */
+export function computeEmbeddingPreprocessingDigest(input: EmbeddingPreprocessingIdentity): string {
+  return `sha256:${createHash('sha256')
+    .update(canonicalEmbeddingPreprocessingInput(input), 'utf8')
+    .digest('hex')}`;
+}
+
+/** Project profile provenance into the exact content-addressed preprocessing recipe. */
+export function embeddingPreprocessingIdentityFromProfile(
+  profile: EmbeddingProfileSource,
+): EmbeddingPreprocessingIdentity {
+  return {
+    tokenizerDigest: profile.tokenizerDigest,
+    tokenizerConfigDigest: profile.tokenizerConfigDigest,
+    task: profile.task,
+    queryPrefix: profile.queryPrefix,
+    documentPrefix: profile.documentPrefix,
+    unicodeNormalization: profile.unicodeNormalization,
+    truncation: profile.truncation,
+    maxTokens: profile.maxTokens,
+  };
 }
 
 /**
@@ -279,18 +540,13 @@ export function validateEmbeddingSpaceIdentity(
  */
 export function canonicalEmbeddingSpaceInput(input: EmbeddingSpaceIdentity): string {
   const identity = validateEmbeddingSpaceIdentity(input);
-  return [
+  const coordinates = [
     frameEmbeddingCoordinate('domain', EMBEDDING_SPACE_DOMAIN),
-    frameEmbeddingCoordinate('version', String(identity.version)),
-    frameEmbeddingCoordinate('provider', identity.provider),
-    frameEmbeddingCoordinate('modelId', identity.modelId),
-    frameEmbeddingCoordinate('revision', identity.revision),
-    frameEmbeddingCoordinate('dimensions', String(identity.dimensions)),
-    frameEmbeddingCoordinate('normalization', identity.normalization),
-    frameEmbeddingCoordinate('metric', identity.metric),
-    frameEmbeddingCoordinate('pooling', identity.pooling),
-    frameEmbeddingCoordinate('coordinateEncoding', identity.coordinateEncoding),
-  ].join('\n');
+  ];
+  for (const field of SPACE_IDENTITY_FIELDS) {
+    coordinates.push(frameEmbeddingCoordinate(field, String(identity[field])));
+  }
+  return coordinates.join('\n');
 }
 
 /**
@@ -310,6 +566,124 @@ export function computeEmbeddingSpaceId(input: EmbeddingSpaceIdentity): string {
   return `embed-v${EMBEDDING_SPACE_VERSION}:${digest}`;
 }
 
+/** Project a generated profile into the exact logical-identity input. */
+export function embeddingSpaceIdentityFromProfile(
+  profile: EmbeddingProfile,
+): EmbeddingSpaceIdentity {
+  return {
+    version: profile.version,
+    modelDigest: profile.modelDigest,
+    modelConfigDigest: profile.modelConfigDigest,
+    preprocessingDigest: profile.preprocessingDigest,
+    dimensions: profile.dimensions,
+    normalization: profile.normalization,
+    metric: profile.metric,
+    pooling: profile.pooling,
+    coordinatePrecision: profile.coordinatePrecision,
+    coordinateQuantization: profile.coordinateQuantization,
+    storageQuantization: profile.storageQuantization,
+  };
+}
+
+function validateEmbeddingProfileSource(profile: EmbeddingProfileSource): void {
+  assertExactKeys('embedding profile source', profile, PROFILE_FIELD_ORDER);
+  for (const [name, value] of [
+    ['servingProvider', profile.servingProvider],
+    ['runtimeFamily', profile.runtimeFamily],
+    ['runtimeVersion', profile.runtimeVersion],
+    ['upstreamModelId', profile.upstreamModelId],
+    ['modelRevision', profile.modelRevision],
+    ['modelArtifact', profile.modelArtifact],
+    ['modelDigest', profile.modelDigest],
+    ['modelConfigArtifact', profile.modelConfigArtifact],
+    ['modelConfigDigest', profile.modelConfigDigest],
+    ['tokenizerId', profile.tokenizerId],
+    ['tokenizerRevision', profile.tokenizerRevision],
+    ['tokenizerArtifact', profile.tokenizerArtifact],
+    ['tokenizerDigest', profile.tokenizerDigest],
+    ['tokenizerConfigArtifact', profile.tokenizerConfigArtifact],
+    ['tokenizerConfigDigest', profile.tokenizerConfigDigest],
+  ] as const) {
+    if (typeof value !== 'string' || value.trim().length === 0) {
+      throw new Error(`embedding profile ${name} must be a non-empty string`);
+    }
+  }
+  if (!isExactOrHonestlyUnversionedRuntime(profile.runtimeVersion)) {
+    throw new Error(
+      'embedding profile runtimeVersion must be exact package@x.y.z components or an explicit *-unversioned sentinel',
+    );
+  }
+  for (const [name, value] of [
+    ['modelRevision', profile.modelRevision],
+    ['tokenizerRevision', profile.tokenizerRevision],
+  ] as const) {
+    if (isMovingRevision(value) || !UPSTREAM_COMMIT_SHA.test(value)) {
+      throw new Error(
+        `embedding profile ${name} must be an immutable lowercase 40-character commit SHA`,
+      );
+    }
+  }
+  for (const [name, value] of [
+    ['modelArtifact', profile.modelArtifact],
+    ['modelConfigArtifact', profile.modelConfigArtifact],
+    ['tokenizerArtifact', profile.tokenizerArtifact],
+    ['tokenizerConfigArtifact', profile.tokenizerConfigArtifact],
+  ] as const) {
+    if (!isNormalizedArtifactPath(value)) {
+      throw new Error(`embedding profile ${name} must be a normalized relative artifact path`);
+    }
+  }
+  for (const [name, value] of [
+    ['modelDigest', profile.modelDigest],
+    ['modelConfigDigest', profile.modelConfigDigest],
+    ['tokenizerDigest', profile.tokenizerDigest],
+    ['tokenizerConfigDigest', profile.tokenizerConfigDigest],
+  ] as const) {
+    if (!SHA256_DIGEST.test(value)) {
+      throw new Error(`embedding profile ${name} must be sha256:<64 lowercase hex>`);
+    }
+  }
+  if (!TRANSPORT_ENCODINGS.has(profile.transportEncoding)) {
+    throw new Error(
+      `embedding profile transportEncoding is invalid: ${String(profile.transportEncoding)}`,
+    );
+  }
+  if (!STORAGE_ENCODINGS.has(profile.storageEncoding)) {
+    throw new Error(
+      `embedding profile storageEncoding is invalid: ${String(profile.storageEncoding)}`,
+    );
+  }
+  if (!encodingPreservesCoordinatePrecision(profile.transportEncoding, profile.coordinatePrecision)) {
+    throw new Error(
+      `embedding profile transportEncoding ${profile.transportEncoding} would narrow ${profile.coordinatePrecision} coordinates; v2 transport must be lossless`,
+    );
+  }
+  if (!encodingPreservesCoordinatePrecision(profile.storageEncoding, profile.coordinatePrecision)) {
+    throw new Error(
+      `embedding profile storageEncoding ${profile.storageEncoding} would narrow ${profile.coordinatePrecision} coordinates; v2 persistence must be lossless`,
+    );
+  }
+  if (!REVISION_BINDINGS.has(profile.revisionBinding)) {
+    throw new Error(`embedding profile revisionBinding is invalid: ${String(profile.revisionBinding)}`);
+  }
+  const preprocessingDigest = computeEmbeddingPreprocessingDigest(
+    embeddingPreprocessingIdentityFromProfile(profile),
+  );
+  validateEmbeddingSpaceIdentity({
+    version: EMBEDDING_SPACE_VERSION,
+    modelDigest: profile.modelDigest,
+    modelConfigDigest: profile.modelConfigDigest,
+    preprocessingDigest,
+    dimensions: profile.dimensions,
+    normalization: profile.normalization,
+    metric: profile.metric,
+    pooling: profile.pooling,
+    coordinatePrecision: profile.coordinatePrecision,
+    coordinateQuantization: profile.coordinateQuantization,
+    storageQuantization: profile.storageQuantization,
+  });
+}
+
 /**
  * Materialize source profiles into generated, model-keyed public profiles.
  *
@@ -319,24 +693,33 @@ export function computeEmbeddingSpaceId(input: EmbeddingSpaceIdentity): string {
 export function materializeEmbeddingProfiles(doc: ModelSource): Record<string, EmbeddingProfile> {
   return Object.fromEntries(
     Object.entries(doc.embeddingProfiles).map(([modelId, profile]) => {
+      validateEmbeddingProfileSource(profile);
+      const preprocessingDigest = computeEmbeddingPreprocessingDigest(
+        embeddingPreprocessingIdentityFromProfile(profile),
+      );
       const identity: EmbeddingSpaceIdentity = {
         version: EMBEDDING_SPACE_VERSION,
-        provider: profile.provider,
-        modelId,
-        revision: profile.revision,
+        modelDigest: profile.modelDigest,
+        modelConfigDigest: profile.modelConfigDigest,
+        preprocessingDigest,
         dimensions: profile.dimensions,
         normalization: profile.normalization,
         metric: profile.metric,
         pooling: profile.pooling,
-        coordinateEncoding: profile.coordinateEncoding,
+        coordinatePrecision: profile.coordinatePrecision,
+        coordinateQuantization: profile.coordinateQuantization,
+        storageQuantization: profile.storageQuantization,
       };
+      validateEmbeddingSpaceIdentity(identity);
       return [
         modelId,
         {
-          ...identity,
-          quality: profile.quality,
-          revisionBinding: profile.revisionBinding,
-          runtimeBinding: profile.runtimeBinding,
+          ...profile,
+          version: EMBEDDING_SPACE_VERSION,
+          modelId,
+          preprocessingDigest,
+          quality: 'degraded-fallback' as const,
+          runtimeBinding: 'declarative-only' as const,
           spaceId: computeEmbeddingSpaceId(identity),
         },
       ];
@@ -364,7 +747,16 @@ export function validateSource(doc: ModelSource): ModelSource {
   }
 
   const profileErrors: string[] = [];
-  const materializedIds = new Set<string>();
+  const malformedCapabilityRows = Object.entries(doc.models ?? {})
+    .filter(([, row]) =>
+      !Array.isArray(row.capabilities) || row.capabilities.some((value) => typeof value !== 'string'),
+    )
+    .map(([modelId]) => modelId);
+  if (malformedCapabilityRows.length) {
+    throw new Error(
+      `config/models.yaml: model capabilities must be string arrays: ${malformedCapabilityRows.join(', ')}`,
+    );
+  }
   for (const [modelId, profile] of Object.entries(doc.embeddingProfiles)) {
     if (!profile || typeof profile !== 'object' || Array.isArray(profile)) {
       profileErrors.push(`${modelId}: profile must be an object`);
@@ -384,59 +776,20 @@ export function validateSource(doc: ModelSource): ModelSource {
     if (!(row.capabilities ?? []).includes('embedding')) {
       profileErrors.push(`${modelId}: models row does not declare embedding capability`);
     }
-    if (profile.provider !== row.provider) {
+    if ((row.capabilities ?? []).includes('text-generation')) {
       profileErrors.push(
-        `${modelId}: profile provider ${String(profile.provider)} does not match models row ${row.provider}`,
+        `${modelId}: embedding profile row must not declare text-generation capability`,
       );
     }
-    if (!PROFILE_QUALITIES.has(profile.quality)) {
-      profileErrors.push(`${modelId}: invalid quality ${String(profile.quality)}`);
-    }
-    if (!REVISION_BINDINGS.has(profile.revisionBinding)) {
+    if (!Number.isSafeInteger(row.contextWindow) || row.contextWindow <= 0) {
+      profileErrors.push(`${modelId}: models row contextWindow must be a positive safe integer`);
+    } else if (Number.isSafeInteger(profile.maxTokens) && profile.maxTokens > row.contextWindow) {
       profileErrors.push(
-        `${modelId}: invalid revisionBinding ${String(profile.revisionBinding)}`,
+        `${modelId}: profile maxTokens ${profile.maxTokens} exceeds catalog contextWindow ${row.contextWindow}`,
       );
-    }
-    if (
-      profile.revisionBinding === 'declared-upstream' &&
-      !UPSTREAM_COMMIT_SHA.test(profile.revision)
-    ) {
-      profileErrors.push(
-        `${modelId}: declared-upstream revision must be a lowercase 40-character commit SHA`,
-      );
-    }
-    if (!RUNTIME_BINDINGS.has(profile.runtimeBinding)) {
-      profileErrors.push(`${modelId}: invalid runtimeBinding ${String(profile.runtimeBinding)}`);
-    }
-    if (
-      profile.quality === 'approved' &&
-      profile.revisionBinding !== 'provider-immutable' &&
-      profile.revisionBinding !== 'runtime-pinned'
-    ) {
-      profileErrors.push(
-        `${modelId}: approved quality requires provider-immutable or runtime-pinned revision binding`,
-      );
-    }
-    if (profile.quality === 'approved' && profile.runtimeBinding !== 'runtime-enforced') {
-      profileErrors.push(`${modelId}: approved quality requires runtime-enforced behavior`);
     }
     try {
-      const identity: EmbeddingSpaceIdentity = {
-        version: EMBEDDING_SPACE_VERSION,
-        provider: profile.provider,
-        modelId,
-        revision: profile.revision,
-        dimensions: profile.dimensions,
-        normalization: profile.normalization,
-        metric: profile.metric,
-        pooling: profile.pooling,
-        coordinateEncoding: profile.coordinateEncoding,
-      };
-      const spaceId = computeEmbeddingSpaceId(identity);
-      if (materializedIds.has(spaceId)) {
-        profileErrors.push(`${modelId}: duplicate spaceId ${spaceId}`);
-      }
-      materializedIds.add(spaceId);
+      validateEmbeddingProfileSource(profile);
     } catch (error) {
       profileErrors.push(`${modelId}: ${(error as Error).message}`);
     }
