@@ -111,9 +111,15 @@ function expandHome(path: string, home = homedir()): string {
 }
 
 function existingRoot(label: string, path: string, home = homedir()): SkillCatalogRoot | null {
-  const expanded = expandHome(path, home);
-  if (!existsSync(expanded)) return null;
-  return { label, path: expanded };
+  const candidate = path.trim();
+  if (!candidate) return null;
+  const expanded = expandHome(candidate, home);
+  try {
+    if (!existsSync(expanded) || !statSync(expanded).isDirectory()) return null;
+    return { label, path: expanded };
+  } catch {
+    return null;
+  }
 }
 
 export function defaultSkillCatalogRoots(projectRoot: string, home = homedir()): SkillCatalogRoot[] {

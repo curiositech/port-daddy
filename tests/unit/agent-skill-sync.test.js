@@ -62,6 +62,28 @@ describe('cross-tool agent skill sync', () => {
     }
   });
 
+  test('default catalog skips empty, missing, and non-directory explicit roots', () => {
+    const projectRoot = join(tmpRoot, 'project');
+    const home = join(tmpRoot, 'home');
+    const valid = join(tmpRoot, 'valid-skills');
+    const missing = join(tmpRoot, 'missing-skills');
+    const file = join(tmpRoot, 'not-a-directory');
+    mkdirSync(valid, { recursive: true });
+    writeFileSync(file, 'not a skill root');
+
+    const previous = process.env.PORT_DADDY_SKILL_SOURCE_ROOTS;
+    process.env.PORT_DADDY_SKILL_SOURCE_ROOTS = `:${missing}:${file}:${valid}:`;
+    try {
+      const roots = defaultSkillCatalogRoots(projectRoot, home);
+      expect(roots.filter((root) => root.label.startsWith('env:'))).toEqual([
+        { label: 'env:4', path: valid },
+      ]);
+    } finally {
+      if (previous === undefined) delete process.env.PORT_DADDY_SKILL_SOURCE_ROOTS;
+      else process.env.PORT_DADDY_SKILL_SOURCE_ROOTS = previous;
+    }
+  });
+
   test('collectSkillUnion resolves duplicate ids by source order and candidate quality', () => {
     const windags = join(tmpRoot, 'windags');
     const workgroup = join(tmpRoot, 'workgroup');

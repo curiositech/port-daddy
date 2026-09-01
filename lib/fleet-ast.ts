@@ -323,6 +323,11 @@ function parseAgentMap(
   m: YAMLMap,
   gr: GetRange,
 ): AgentNode {
+  for (const removedKey of ['skill_graft', 'skillGraft']) {
+    if (m.has(removedKey)) {
+      throw new Error(`Fleet agent "${name}" uses removed field "${removedKey}"; use "jury_rig" instead.`);
+    }
+  }
   const r = gr(nodeRange(m));
   const nameRange = nameScalar ? gr(nodeRange(nameScalar)) : r;
   const nodeR = nameScalar ? { start: nameRange.start, end: r.end } : r;

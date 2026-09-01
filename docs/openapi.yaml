@@ -4882,11 +4882,11 @@ paths:
         '500':
           description: Harness evidence could not be read
 
-  /skill-graft/status:
+  /jury-rig/status:
     get:
-      tags: [skill-graft]
+      tags: [jury-rig]
       summary: Read Tool2Vec catalog reconciliation coverage
-      operationId: getSkillGraftStatus
+      operationId: getJuryRigStatus
       description: >
         Scans the full user-level skill catalog and compares current content
         hashes with the checkpointed Tool2Vec centroid cache. This read never
@@ -4899,11 +4899,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/Tool2VecReconcileStatus'
 
-  /skill-graft/reconcile:
+  /jury-rig/reconcile:
     post:
-      tags: [skill-graft]
+      tags: [jury-rig]
       summary: Reconcile a bounded batch of Tool2Vec centroids
-      operationId: reconcileSkillGraft
+      operationId: reconcileJuryRig
       description: >
         Acquires the shared checkpoint lease and fills current-hash misses up
         to the requested bound. The daemon reconciler is local-generator-only,

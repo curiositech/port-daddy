@@ -75,6 +75,7 @@ const SLUG_VERB_OVERRIDES = {
   semantic: ['graph', 'memory', 'semantic'],
   ideas: ['ideas'],
   roadmap: ['roadmap'],
+  'skill-graft': ['jury-rig'], // internal implementation filename; public verb was supplanted
   quorum: ['quorum'],
   feedback: ['feedback'],
   sitrep: ['sitrep'],
