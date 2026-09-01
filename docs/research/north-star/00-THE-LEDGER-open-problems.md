@@ -75,7 +75,7 @@ seeded phase or need a new one.
 The cross-cutting items from `docs/research/2026-06-15-recursive-control-plane.md`,
 promoted here as the authoritative list. **Source maturity** is the *honest* state
 of each item in its source repo, per the read-only audit
-`docs/research/grafts/2026-06-19-soma-jury_rig-source-audit.md` — not the framing
+`docs/research/grafts/2026-06-19-soma-jury_rig-source-audit.md` — not the framing <!-- cite-exempt -->
 the original memos carried. Legend: **PORTABLE** = shipped + tested in a source
 repo, lift it; **DESIGN-ONLY** = named/specced, no runtime code; **ABSENT** =
 framed but no code (aspirational); **OPEN** = net-new research, no source

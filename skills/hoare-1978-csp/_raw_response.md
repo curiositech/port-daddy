@@ -361,7 +361,7 @@ The difference:
 *[user?query(q) → skills.search!query(q); skills.search?results; user!results
  []monitor?alert(a) → log(a); admin!alert(a)
  []admin?shutdown() → cleanup(); terminate := true
- [](i:1..N)skill(i)?heartbeat() → update_health(i)
+ [](i:1..N)skill(i)?heartbeat() → update_health(i) <!-- cite-exempt -->
 ]
 ```
 
@@ -418,7 +418,7 @@ PHIL = *[... →
 ```
 ROOM = occupancy:integer; occupancy := 0;
   *[(i:0..4)phil(i)?enter() → [occupancy < 4 → occupancy := occupancy + 1]
-   [](i:0..4)phil(i)?exit() → occupancy := occupancy - 1
+   [](i:0..4)phil(i)?exit() → occupancy := occupancy - 1 <!-- cite-exempt -->
   ]
 ```
 
@@ -535,7 +535,7 @@ Example: The semaphore (Section 5.2):
 ```
 S :: val:integer; val := 0;
   *[(i:1..100)X(i)?V() → val := val + 1
-   [](i:1..100)val > 0; X(i)?P() → val := val - 1
+   [](i:1..100)val > 0; X(i)?P() → val := val - 1 <!-- cite-exempt -->
   ]
 ```
 
@@ -1111,7 +1111,7 @@ The first assigns a signal with constructor `P` to variable c. The second matche
 Example (Section 5.2, semaphore):
 ```
 S :: *[(i:1..100) X(i)?V() → val := val + 1
-      [](i:1..100) val > 0; X(i)?P() → val := val - 1
+      [](i:1..100) val > 0; X(i)?P() → val := val - 1 <!-- cite-exempt -->
      ]
 ```
 
@@ -1483,8 +1483,8 @@ The low-priority alternative is guarded by the negation of the high-priority gua
 Example (Section 5.2, semaphore with priority):
 ```
 *[(i:1..N) urgent(i); X(i)?P() → val := val - 1
- [](i:1..N) ¬urgent(i); val > 0; X(i)?P() → val := val - 1
- [](i:1..N) X(i)?V() → val := val + 1
+ [](i:1..N) ¬urgent(i); val > 0; X(i)?P() → val := val - 1 <!-- cite-exempt -->
+ [](i:1..N) X(i)?V() → val := val + 1 <!-- cite-exempt -->
 ]
 ```
 

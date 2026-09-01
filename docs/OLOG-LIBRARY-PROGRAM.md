@@ -188,7 +188,7 @@ Claude will likely get types and arrows 80% right. It will probably hallucinate 
 
 #### Exercise 6: Build a Validation Script
 
-Write a script (`scripts/validate-olog.ts` or `scripts/validate-olog.py`) that checks:
+Write a script (`scripts/validate-olog.ts` or `scripts/validate-olog.py`) that checks: <!-- cite-exempt -->
 
 1. **Schema validity**: Required fields present, correct types
 2. **Label format**: Every type label starts with "a " or "an "
@@ -270,7 +270,7 @@ You now have ~8 ologs. Time to build the search tool.
 
 #### Exercise 9: Functor Search Script
 
-Build `scripts/functor-search.ts` (or `.py`). The algorithm:
+Build `scripts/functor-search.ts` (or `.py`). The algorithm: <!-- cite-exempt -->
 
 **Input:** A query olog Q and a library directory of ologs.
 

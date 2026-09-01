@@ -153,7 +153,7 @@ already exists: the `research/evolutionary-agent-coordination-sandbox` branch
 
 > **Source-audit correction (2026-06-19).** The RCP items below were grafted from
 > summary memos. A read-only audit of the two source repos as they actually stand
-> — `docs/research/grafts/2026-06-19-soma-jury_rig-source-audit.md` — corrected
+> — `docs/research/grafts/2026-06-19-soma-jury_rig-source-audit.md` — corrected <!-- cite-exempt -->
 > several maturity claims before they harden into roadmap commitments. In short:
 > soma's "sheaf" is a **graph Laplacian** (cohomology/restriction-maps **absent**,
 > not "the math is there" → RCP-8, RCP-5b are aspirational); jury_rig' **Thompson**

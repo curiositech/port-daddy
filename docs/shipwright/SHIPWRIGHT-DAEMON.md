@@ -82,7 +82,7 @@ and ignore it where it would obscure. The honest pedigree is Hewitt
 
 ---
 
-## 2. The runtime (`lib/actors.ts`, new)
+## 2. The runtime (`lib/actors.ts`, new) <!-- cite-exempt -->
 
 One small module holds the abstraction. It wraps existing Port Daddy
 state; it does not duplicate it.
@@ -293,7 +293,7 @@ same behavior, running in isolation, each with their own bond.
 
 ---
 
-## 5. Skill retrieval (`lib/skill-index.ts`, new)
+## 5. Skill retrieval (`lib/skill-index.ts`, new) <!-- cite-exempt -->
 
 Global rule: no keyword-based NLP. Skill retrieval must be embeddings.
 

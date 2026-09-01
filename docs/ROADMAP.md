@@ -304,7 +304,7 @@ appropriate phase section below and delete it here.
 The **PORTABLE** rows of `docs/research/north-star/00-THE-LEDGER-open-problems.md`
 § D — the recursive-control-plane kernels that a source repo already ships
 (`erichowens/soma`, `curiositech/example-service`), verified in
-`docs/research/grafts/2026-06-19-soma-jury_rig-source-audit.md` and mapped to the
+`docs/research/grafts/2026-06-19-soma-jury_rig-source-audit.md` and mapped to the <!-- cite-exempt -->
 port-daddy surface they lift onto. These are lift-and-adapt builds, not research.
 The OPEN / ABSENT / DESIGN-ONLY rows stay in the Ledger until a source repo builds
 them.

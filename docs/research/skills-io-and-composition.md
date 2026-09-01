@@ -3,7 +3,7 @@
 > Status: **research.** Written 2026-08-19, alongside the first-hop candidate
 > expansion in `lib/skill-graft.ts` (same PR). Audience: the operator and
 > anyone authoring or wiring skills. Companion pieces:
-> `docs/research/grafts/2026-06-19-soma-jury_rig-source-audit.md` (where the
+> `docs/research/grafts/2026-06-19-soma-jury_rig-source-audit.md` (where the <!-- cite-exempt -->
 > io-contract idea's real maturity was pinned) and the north-star volume's
 > honesty contract (`docs/research/north-star/README.md`), which we inherit:
 > **[BUILT]** means code on disk in this repo today, **[DESIGNED]** means an
@@ -51,7 +51,7 @@ source audit already forced us to write down once: those contracts are
 **free-text metadata, not validated types**. The jury_rig source audit's
 RCP-13 row is blunt — "`input_contract`/`output_contract` are free-text
 metadata on DAG nodes; no `ContractValidator`, nothing validates outputs
-against downstream inputs" (`docs/research/grafts/2026-06-19-soma-jury_rig-source-audit.md`,
+against downstream inputs" (`docs/research/grafts/2026-06-19-soma-jury_rig-source-audit.md`, <!-- cite-exempt -->
 TL;DR table and jury_rig status row 9). Nothing in this repo has changed that
 status. When we say "typed" below, we mean "named and checkable in
 principle," not "checked."

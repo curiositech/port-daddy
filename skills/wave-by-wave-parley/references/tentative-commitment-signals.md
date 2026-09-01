@@ -35,6 +35,6 @@ Condition 1 is the commitment-level trigger; Condition 2 is the premortem-risk t
 
 ## See Also
 
-- `skills/jury_rig-decomposer/SKILL.md` — Three-pass protocol, vague-node confidence thresholds, and commitment-level assignment decision tree (the upstream source of every TENTATIVE/EXPLORATORY node this skill acts on).
+- `skills/jury_rig-decomposer/SKILL.md` — Three-pass protocol, vague-node confidence thresholds, and commitment-level assignment decision tree (the upstream source of every TENTATIVE/EXPLORATORY node this skill acts on). <!-- cite-exempt -->
 - `packages/core/src/context/meta-dag-predict.ts` lines 23–64 — Canonical TypeScript definitions for `Subtask.commitment_level` and `PreMortemOutput.recommendation`; synthesizer default at line 579.
 - `skills/wave-by-wave-parley/diagrams/01_flowchart_decision-points.md` — Visual execution flow showing where `shouldParley` fires and how mutations flow back into the wave plan.

@@ -12,10 +12,10 @@ Best when the user is local and wants the full execution canvas.
 
 Relevant code:
 
-- `apps/tauri-desktop/src/components/flow/FlowWindow.tsx`
-- `apps/tauri-desktop/src/components/flow/ExecutionView.tsx`
-- `apps/tauri-desktop/src/hooks/useDAGExecution.ts`
-- `apps/tauri-desktop/src/hooks/useDAGStateEvents.ts`
+- `apps/tauri-desktop/src/components/flow/FlowWindow.tsx` <!-- cite-exempt -->
+- `apps/tauri-desktop/src/components/flow/ExecutionView.tsx` <!-- cite-exempt -->
+- `apps/tauri-desktop/src/hooks/useDAGExecution.ts` <!-- cite-exempt -->
+- `apps/tauri-desktop/src/hooks/useDAGStateEvents.ts` <!-- cite-exempt -->
 
 This path is the closest thing to "1:1 execution and visualization" in the repo today.
 
@@ -108,7 +108,7 @@ ws://localhost:3334/ws/execution/:id
 ### Demo component mistaken for runtime
 
 Bad sign:
-- using `apps/marketing/src/components/blog/NextMoveDAGViz.tsx` as if it were the execution surface
+- using `apps/marketing/src/components/blog/NextMoveDAGViz.tsx` as if it were the execution surface <!-- cite-exempt -->
 
 Fix:
 - use the Tauri/sidecar execution stack for real execution
