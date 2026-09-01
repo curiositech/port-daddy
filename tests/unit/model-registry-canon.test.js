@@ -368,6 +368,10 @@ describe('embedding profile registry', () => {
     expect(Object.isFrozen(MODEL_REGISTRY_DATA.embeddingProfiles)).toBe(true);
     expect(Object.isFrozen(CF_EMBEDDING_PROFILES)).toBe(true);
     expect(Object.isFrozen(CF_EMBEDDING_PROFILES[BGE_MODEL_ID])).toBe(true);
+    expect(Object.getOwnPropertyDescriptor(MODEL_REGISTRY_DATA, 'embeddingProfiles')).toMatchObject({
+      writable: false,
+      configurable: false,
+    });
     expect(() => {
       MODEL_REGISTRY_DATA.embeddingProfiles = {};
     }).toThrow(TypeError);
@@ -404,6 +408,10 @@ describe('embedding profile registry', () => {
       'daemon',
     ]);
     expect(findStaleRegistryArtifacts(expected, { ...expected, workers: 'stale' })).toEqual([
+      'workers',
+    ]);
+    expect(findStaleRegistryArtifacts(expected, { daemon: 'stale', workers: 'stale' })).toEqual([
+      'daemon',
       'workers',
     ]);
   });
