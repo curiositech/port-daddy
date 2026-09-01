@@ -114,4 +114,4 @@ MetaGPT's deepest insight is that **structure doesn't constrain intelligence—i
 
 This inverts a common assumption in agent system design: that flexibility and structure are in tension. MetaGPT shows they're complementary. The more complex your task, the more you need structure to manage complexity. The paper's 100% success rate on complex software tasks versus near-total failure of unstructured approaches isn't a small effect—it's the difference between "toy demos" and "production systems."
 
-For builders of WinDAGs-like orchestration systems, the lesson is clear: design your inter-agent protocols with the same rigor you'd design APIs for microservices. Structured communication isn't overhead—it's the foundation that makes complex coordination possible.
+For builders of Jury-rig-like orchestration systems, the lesson is clear: design your inter-agent protocols with the same rigor you'd design APIs for microservices. Structured communication isn't overhead—it's the foundation that makes complex coordination possible.

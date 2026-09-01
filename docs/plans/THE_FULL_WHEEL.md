@@ -255,7 +255,7 @@ in its briefing if Cartographer judges it kin.
 
 ## 7. DAG orchestration and the transcript DAG
 
-Real DAG orchestration, not vibes-parallelism — the windags discipline, productized per
+Real DAG orchestration, not vibes-parallelism — the jury_rig discipline, productized per
 binder chapter 22 ("multi-agent orchestration must be visible and opinionated, not a black
 box"):
 

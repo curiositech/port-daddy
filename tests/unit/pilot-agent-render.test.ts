@@ -25,7 +25,6 @@ const SAMPLE_CONFIG: PilotConfig = {
   skills: ['port-daddy-agent-skill'],
   tools: {
     portDaddyMcp: ['begin_session', 'coordination_preflight'],
-    windagsMcp: ['windags_skill_search'],
     editorLocal: ['Read', 'Edit', 'Bash'],
   },
 };
@@ -78,7 +77,6 @@ describe('claudeToolList', () => {
     expect(claudeToolList(SAMPLE_CONFIG)).toEqual([
       'mcp__port-daddy__begin_session',
       'mcp__port-daddy__coordination_preflight',
-      'mcp__windags__windags_skill_search',
       'Read',
       'Edit',
       'Bash',
@@ -93,7 +91,7 @@ describe('renderClaude', () => {
       '---',
       'name: port-daddy-pilot',
       'description: "The ideal Port Daddy agent: coordinates before it cuts."',
-      'tools: mcp__port-daddy__begin_session, mcp__port-daddy__coordination_preflight, mcp__windags__windags_skill_search, Read, Edit, Bash',
+      'tools: mcp__port-daddy__begin_session, mcp__port-daddy__coordination_preflight, Read, Edit, Bash',
       'model: opus',
       'color: green',
       '---',

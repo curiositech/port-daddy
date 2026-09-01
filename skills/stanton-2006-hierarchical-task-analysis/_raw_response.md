@@ -35,7 +35,7 @@ Duncan (1972) emphasized that "a task description should not be biased in terms 
 
 ## Why Goal-Based Description Matters for Intelligent Systems
 
-For multi-agent orchestration systems, this principle has immediate implications. When a WinDAGs agent receives a complex objective, the question is not "what sequence of skills should I invoke?" but rather "what sub-goals must be satisfied to achieve this objective?" The goal hierarchy provides the logical structure; the plans provide the control logic for when and how sub-goals are triggered.
+For multi-agent orchestration systems, this principle has immediate implications. When a Jury-rig agent receives a complex objective, the question is not "what sequence of skills should I invoke?" but rather "what sub-goals must be satisfied to achieve this objective?" The goal hierarchy provides the logical structure; the plans provide the control logic for when and how sub-goals are triggered.
 
 Consider Stanton's example of emergency services responding to a hazardous chemical incident. The overall goal "Deal with chemical incident" decomposes into:
 - 1. Receive notification
@@ -161,7 +161,7 @@ For agent systems, this means HTA provides the "what must be achieved and when" 
 
 ## Implications for Agent Orchestration
 
-When a complex task enters WinDAGs:
+When a complex task enters Jury-rig:
 
 1. **First pass: Goal decomposition**: What is the overall objective? What sub-objectives must be satisfied? This creates the hierarchical structure.
 

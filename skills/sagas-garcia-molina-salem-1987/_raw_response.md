@@ -16,7 +16,7 @@
 
 4. **Database and workflow design must anticipate saga decomposition.** A saga doesn't emerge naturally from any LLT — it requires intentional design of where the break points are, what data passes between steps, and whether temporary intermediate state can be made visible. The authors recommend storing "in-transit" data in the database itself, designing loosely-coupled components, and thinking about the full transaction set when designing individual operations. Agent system architects must similarly design workflows so that steps are semantically independent enough to be compensable.
 
-5. **Saga execution can be layered on top of systems that don't natively support it.** Using a "saga daemon," subroutine wrappers, and persistent state tables, the saga pattern can be implemented without modifying the underlying transaction system. This is a profound engineering lesson: you don't need perfect infrastructure to build reliable long-running processes — you need a persistent coordinator, a durable log, and compensating logic. This is precisely how orchestration layers like WinDAGs work on top of stateless LLMs.
+5. **Saga execution can be layered on top of systems that don't natively support it.** Using a "saga daemon," subroutine wrappers, and persistent state tables, the saga pattern can be implemented without modifying the underlying transaction system. This is a profound engineering lesson: you don't need perfect infrastructure to build reliable long-running processes — you need a persistent coordinator, a durable log, and compensating logic. This is precisely how orchestration layers like Jury-rig work on top of stateless LLMs.
 
 ---
 
@@ -701,7 +701,7 @@ The saga daemon pattern translates directly to agent orchestration:
 
 ### The Orchestration Layer as Saga Daemon
 
-The orchestration layer (WinDAGs or equivalent) is the saga daemon. It is always running, it survives individual skill failures, and it drives recovery. Its responsibilities are:
+The orchestration layer (Jury-rig or equivalent) is the saga daemon. It is always running, it survives individual skill failures, and it drives recovery. Its responsibilities are:
 
 1. **Before executing a skill**: Write the step's intent to the saga state table
 2. **After skill execution succeeds**: Write the compensation record and mark the step complete
@@ -1199,7 +1199,7 @@ Every monolithic agent task that can be safely decomposed into a saga *should* b
 
 ## CROSS-DOMAIN CONNECTIONS
 
-- **Agent Orchestration**: WinDAGs is a saga executor. Every workflow it runs is either a saga (with defined compensations and recovery policies) or a degenerate monolithic operation. The paper provides the full theoretical framework for what WinDAGs is doing and what it should guarantee.
+- **Agent Orchestration**: Jury-rig is a saga executor. Every workflow it runs is either a saga (with defined compensations and recovery policies) or a degenerate monolithic operation. The paper provides the full theoretical framework for what Jury-rig is doing and what it should guarantee.
 
 - **Task Decomposition**: The three decomposition strategies from the paper (follow real-world action sequence, follow data partition, minimize local variable transfer) are directly applicable design heuristics for breaking complex agent requests into orchestratable sub-tasks.
 

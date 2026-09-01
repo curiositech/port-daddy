@@ -112,7 +112,7 @@ import {
   handleGraph, handleIdeas,
   // Shared local embedder (ADR-0061)
   handleEmbed,
-  handleSkillGraft,
+  handleJuryRig,
   handleRoadmap,
   // Durable commitments (ADR-0041)
   handleCommit, handleObligations,
@@ -229,7 +229,7 @@ const TIER_2_COMMANDS: Set<string> = new Set([
   'advise', 'preflight', 'compass', 'guard',
   'metrics', 'health', 'dashboard',
   'bench', 'benchmark', 'demo', 'tuple', 'sortie', 'roadmap',
-  'secret', 'secrets', 'skill-graft', 'plan'
+  'secret', 'secrets', 'jury-rig', 'plan'
 ]);
 
 /**
@@ -677,7 +677,7 @@ export const HELP_TOPIC_ALIASES: Record<string, string> = {
   advise: 'advisor', preflight: 'advisor', compass: 'advisor',
   secrets: 'secret',
   tutorial: 'learn',
-  skillgraft: 'skill-graft',
+  'jury-rig': 'jury-rig',
 };
 
 /** Precise per-verb help whose source lives beside the flags it documents. */
@@ -759,14 +759,14 @@ function buildHelp(): string {
     `  ${G}pd memory tiers${Z}          ${tag('silent')} Core/Recall/Archival mapping with live counts`,
     `  ${G}pd ideas search${Z} "text"   ${tag('silent')} Search ideas, notes, tuples, and repo markdown`,
     `  ${G}pd roadmap${Z}               ${tag('silent')} Show Cartographer's current roadmap projection`,
-    `  ${G}pd skill-graft${Z} "task"     ${tag('silent')} Preview native skill guidance for fleet ships`,
+    `  ${G}pd jury-rig${Z} "task"        ${tag('silent')} Discover and safely load native skill guidance`,
     `  ${G}pd secret list${Z}           ${tag('silent')} Manage keychain-backed provider credentials`,
     `  ${G}pd daemon list${Z}           ${tag('silent')} Inspect named sidecar daemon profiles`,
     '',
     `${A}Permission tiers:${Z}`,
     TIER_LEGEND,
     '',
-    `${D}pd help <topic> for details — topics: setup, sessions, locks, agents, actors, ports, messaging, dns, orchestration, sugar, semantic, advisor, guard, ideas, roadmap, skill-graft, secret, daemon, learn${Z}`,
+    `${D}pd help <topic> for details — topics: setup, sessions, locks, agents, actors, ports, messaging, dns, orchestration, sugar, semantic, advisor, guard, ideas, roadmap, jury-rig, secret, daemon, learn${Z}`,
     `${D}Dashboard: ${PORT_DADDY_URL}  •  Agent orientation: pd learn (operationally read-only)${Z}`,
   );
 
@@ -1380,34 +1380,38 @@ Examples:
   pd roadmap chomp PLAN.md --emit-pr-plan /tmp/chomp-pr
   pd roadmap ack 5a8e37de --as cartographer --into coordination-guard`,
 
-  'skill-graft': `Skill Graft — Native local skill guidance for fleet ships
+  'jury-rig': `Jury-rig — Native skill discovery and guarded skill loading
 
 Commands:
-  skill-graft "<task>"           Shorthand for query
-  skill-graft query "<task>"     Rank local skills and render bounded guidance
+  jury-rig "<task>"              Shorthand for query
+  jury-rig query "<task>"        Rank local skills and render bounded guidance
     --root <path>                Project root to scan (default: cwd)
     --shortlist-limit <n>        Number of cheap matches to show
     --top-limit <n>              Number of full SKILL.md bodies to include
     --body-chars <n>             Hard cap per inlined SKILL.md body
     --json                       Emit the structured SkillGraftResult
 
-  skill-graft warm               Reconcile a checkpointed Tool2Vec batch
+  jury-rig warm                  Reconcile a checkpointed Tool2Vec batch
     --max-skills <n>             Bound this run (default: 32)
     --all                        Reconcile every current-hash miss
     --local-only                 Permit only loopback Ollama; reject cloud/remote hosts
-  skill-graft reference <id> <path>
+  jury-rig reference <id> <path>
                                  Read one file from inside a skill directory
 
 This is the same lib/skill-graft.ts index used by lib/fleet-engine.ts when a
-pd-fleet.yml ship opts into skill_graft: true. Query is safe on a cold cache:
+pd-fleet.yml ship opts into jury_rig: true. Query is safe on a cold cache:
 it scans the full user catalog and ranks via BM25 until Tool2Vec centroids are
 warmed. Setup and daemon callers are local-only. A manual warm may use an
 explicit PD_SKILL_GRAFT_BACKEND; the fleet default is never inherited.
 
+The catalog is assembled from Port Daddy, user agent/Claude skill directories,
+and explicit PORT_DADDY_SKILL_SOURCE_ROOTS. It does not require Jury-rig or any
+other external skill runtime. Reference reads reject traversal and symlink escape.
+
 Examples:
-  pd skill-graft "write tests for a flaky fleet trigger"
-  pd skill-graft warm --local-only --json
-  pd skill-graft reference rag-retrieval-pattern-design scripts/audit.mjs`,
+  pd jury-rig "write tests for a flaky fleet trigger"
+  pd jury-rig warm --local-only --json
+  pd jury-rig reference rag-retrieval-pattern-design scripts/audit.mjs`,
 
   secret: `Managed Secrets \u2014 keychain-backed provider credentials
 
@@ -1516,7 +1520,7 @@ export const ALL_COMMANDS: string[] = [
   'services', 'dns', 'briefing', 'integration', 'pheromone', 'ph',
   'b', 'w', 'who-owns', 'history', 'tutorial', 'files', 'add', 'snapshots', 'snapshot', 'backup', 'restore', 'attest', 'shipwright',
   'spawn', 'spawned', 'watch', 'work', 'transcripts', 'transcript', 'relay',
-  'harbor', 'harbors', 'harbor-ledger', 'whois', 'demo', 'fleet', 'backend', 'squid', 'tuple', 'sortie', 'graph', 'embed', 'skill-graft', 'skillgraft', 'memory', 'ideas',
+  'harbor', 'harbors', 'harbor-ledger', 'whois', 'demo', 'fleet', 'backend', 'squid', 'tuple', 'sortie', 'graph', 'embed', 'jury-rig', 'memory', 'ideas',
   'quorum', 'parley',
   'feedback',
   'commit', 'obligations',
@@ -3418,11 +3422,10 @@ export async function main(): Promise<void> {
         await handleEmbed(positional, options);
         break;
 
-      // Native local skill grafting for fleet ships: inspect/warm the same
-      // lib/skill-graft.ts index used by skill_graft: true in pd-fleet.yml.
-      case 'skill-graft':
-      case 'skillgraft':
-        await handleSkillGraft(positional, options);
+      // Native local skill discovery for fleet ships: inspect/warm the same
+      // lib/skill-graft.ts index used by jury_rig: true in pd-fleet.yml.
+      case 'jury-rig':
+        await handleJuryRig(positional, options);
         break;
 
       case 'memory':

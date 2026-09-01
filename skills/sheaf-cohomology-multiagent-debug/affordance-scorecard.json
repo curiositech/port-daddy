@@ -5,10 +5,10 @@
     "kind": "rcp-graft-mint",
     "sourceRepo": "soma + workgroup-ai",
     "createdAt": "2026-06-26T00:00:00",
-    "owners": ["soma-windags-graft"]
+    "owners": ["soma-jury_rig-graft"]
   },
   "authorship": {
-    "maintainers": ["soma-windags-graft"]
+    "maintainers": ["soma-jury_rig-graft"]
   },
   "lineCount": 145,
   "structuralComplete": true,

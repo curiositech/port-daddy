@@ -487,7 +487,7 @@ When a client is using MCP instead of the CLI, use the matching Port Daddy MCP
 tools for claims, sessions, notes, locks, messaging, salvage, harbors, spawning,
 and service orchestration. Prefer MCP for model clients that already have it
 installed; prefer the CLI when you need shell-local git, build, or deployment
-evidence. `skill_graft_status()` maps to `GET /skill-graft/status` and is
+evidence. `jury_rig_status()` maps to `GET /jury-rig/status` and is
 strictly read-only: it reports current-hash Tool2Vec coverage without generating
 centroids or calling an LLM. Reconciliation stays on the explicit CLI/API path;
 do not add an agent-triggered MCP mutation for it.
@@ -1045,7 +1045,7 @@ the YAML in `pd-fleet.yml` so they can review before launch.
 | **Fleet observer** | Background agents drift, stop firing |
 | **Post-mortem proposer** | Multi-agent friction or "wow we fought dumb git shit" moments |
 | **Adversarial QA** | Code lands without thinking about how it breaks |
-| **Skill auditor** | Project ships skills (windags-skills, .claude/skills, etc.) |
+| **Skill auditor** | Project ships skills (`skills/`, `.claude/skills`, etc.) |
 
 These are not a fixed menu. **Always think creatively** about what this
 specific project needs, and propose new agent shapes as the project shape
@@ -1054,25 +1054,25 @@ block in `pd-fleet.yml`, leave a `pd note` summarizing what it would do,
 and message Cartographer with a one-line recommendation. The user approves
 before anything starts firing.
 
-## Catalog-First Reflex (use the WinDAGs MCP)
+## Catalog-First Reflex (use Jury-rig)
 
-There are 600+ specialist skills in the WinDAGs catalog. Most coding tasks
-have a skill written for them already. **Search the catalog before you
-start, not after you're stuck.**
+Port Daddy assembles a local catalog from project and user skill directories,
+plus explicit `PORT_DADDY_SKILL_SOURCE_ROOTS`. Most coding tasks have useful
+guidance already. **Search the catalog before you start, not after you're stuck.**
 
 ```bash
-windags_skill_search "<one-line description of what you're about to do>"
-windags_skill_graft <skill-id-1> <skill-id-2>   # pull the full SKILL.md bodies into your prompt
+pd jury-rig query "<one-line description of what you're about to do>"
+pd jury-rig reference <skill-id> <path>   # guarded read inside that skill
 ```
 
 Default reflexes:
 
-- **Before every meaningful task** — one `windags_skill_search` call. If a top result is >0.4 score, graft it.
+- **Before every meaningful task** — one `pd jury-rig query` call. Read the returned bodies and load only the references the task needs.
 - **When you find yourself reasoning about a domain you don't own** — the catalog has a skill for that. Search.
 - **When a skill would help on this project long-term** — install it into the project's `.claude/skills/` and leave a `pd note` recording the install.
 - **When you used a skill and it was wrong / stale** — that's a Maintain-These-Skills moment (next section).
 
-If you go a whole session without a single `windags_skill_search`, that's
+If you go a whole session without a single `pd jury-rig query`, that's
 probably a missed leverage opportunity.
 
 ## Maintain These Skills (standing invitation)
@@ -1173,7 +1173,7 @@ pd feedback "SKIPPED: pd salvage. Reason: I judged the task too small. In hindsi
 ### Sweeping Up Peers' Work With `git add -A`
 **Detection:** Background agent's commit contains files it did not author.
 **Fix:** Per Git Discipline above — worktree, explicit-path staging, dirty-tree pre-check.
-**Triggering incident:** windags-skills `bb34efa`. Force-push was disallowed; the audit trail had to be corrected via tagging instead.
+**Triggering incident:** external-skill-catalog `bb34efa`. Force-push was disallowed; the audit trail had to be corrected via tagging instead.
 
 ### Spawning A New Agent Where A Note Would Do
 **Detection:** The fleet shows N+1 agents but the actual work is one bounded change.
@@ -1193,5 +1193,5 @@ pd feedback "SKIPPED: pd salvage. Reason: I judged the task too small. In hindsi
 - [ ] You ran `pd guard check --staged` before commit / push / deploy.
 - [ ] You ended with `pd done` AND `pd feedback "..."` (or MCP `drop_feedback`).
 - [ ] If you skipped any of the above, you owned up to it explicitly in the feedback.
-- [ ] You ran at least one `windags_skill_search` for the task domain before starting.
+- [ ] You ran at least one `pd jury-rig query` for the task domain before starting.
 - [ ] **You asked yourself: "did this skill mislead, mis-instruct, or under-equip me?"** If yes, you committed the fix to `skills/port-daddy-agent-skill/SKILL.md` (or `port-daddy-internal-dev` for contributor-only wisdom) in the same slice — no separate ticket, no permission needed. The bar is "would past-me have wanted to know this?", not "is this big enough to be its own PR." See "Maintain These Skills".

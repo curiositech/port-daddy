@@ -23,7 +23,7 @@ The design of what each agent can perceive determines what each agent can know, 
 
 ## Designing Agent Perceptual Boundaries in Software Systems
 
-In software-based agent systems (as distinct from physical camera robots), "perception" is defined by what information each agent receives as input. The perceptual boundary of a WinDAGs agent is determined by:
+In software-based agent systems (as distinct from physical camera robots), "perception" is defined by what information each agent receives as input. The perceptual boundary of a Jury-rig agent is determined by:
 
 - What task parameters are passed to it
 - What prior task outputs it has access to
@@ -52,7 +52,7 @@ This principle generalizes: an agent can learn about another agent's state by:
 - Observing what the other agent does and doesn't respond to
 - Observing signals that the other agent emits about its internal state
 
-For WinDAGs: Agent A can infer aspects of Agent B's state from:
+For Jury-rig: Agent A can infer aspects of Agent B's state from:
 - The format and content of B's outputs
 - The latency of B's responses (indicating computational load or uncertainty)
 - The confidence scores or uncertainty flags B attaches to its outputs
@@ -83,7 +83,7 @@ For agent systems: heterogeneous perceptual access is the basis for the division
 
 The Big Brother Logic framework provides a formal tool for analyzing whether coverage is complete: check whether the union of all agents' vision sets covers all relevant parts of the world. If some fact can be in no agent's vision set, no agent can directly observe it, and the system has a structural epistemic blind spot.
 
-For WinDAGs: build a formal or semi-formal analysis of information coverage. For each piece of information required to solve the overall task, ensure that at least one agent has access to that information — and that there is a protocol for that agent to share it with agents that need it.
+For Jury-rig: build a formal or semi-formal analysis of information coverage. For each piece of information required to solve the overall task, ensure that at least one agent has access to that information — and that there is a protocol for that agent to share it with agents that need it.
 
 ## The Moving Agent Challenge
 
@@ -93,7 +93,7 @@ The paper notes that mobile agents are a future research direction:
 
 Mobile agents are interesting because their perceptual access changes over time. As the camera rotates, its vision set changes — facts that were invisible become visible, and vice versa. This temporal dynamics of perceptual access creates temporal dynamics of knowledge.
 
-In WinDAGs, agents are effectively mobile in an abstract sense: as tasks proceed, agents receive new information (their "view" expands), and as context shifts, some previously relevant information may no longer be accessible (their "view" contracts). Building systems that track how agents' perceptual access (and therefore knowledge) evolves over the course of a task is an important open problem — and one that the Big Brother Logic framework's temporal extensions (combining epistemic and temporal logic) could address.
+In Jury-rig, agents are effectively mobile in an abstract sense: as tasks proceed, agents receive new information (their "view" expands), and as context shifts, some previously relevant information may no longer be accessible (their "view" contracts). Building systems that track how agents' perceptual access (and therefore knowledge) evolves over the course of a task is an important open problem — and one that the Big Brother Logic framework's temporal extensions (combining epistemic and temporal logic) could address.
 
 ## Summary: Perceptual Architecture Is Knowledge Architecture
 

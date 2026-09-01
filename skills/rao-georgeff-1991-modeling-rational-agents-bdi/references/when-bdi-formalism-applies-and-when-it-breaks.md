@@ -20,7 +20,7 @@ Every formal system rests on assumptions. The BDI architecture is elegant and po
 - Analog measurements (temperature gradually rising)
 - Concurrent processes that don't have clear event boundaries
 
-**Implication for WinDAGs**: The formalism naturally fits task orchestration (discrete skill invocations) but would struggle with continuous monitoring or real-time control systems.
+**Implication for Jury-rig**: The formalism naturally fits task orchestration (discrete skill invocations) but would struggle with continuous monitoring or real-time control systems.
 
 If you need to model "gradually improving performance" or "continuously adjusting strategy," you'd need extensions like dense time or hybrid systems.
 
@@ -40,7 +40,7 @@ If you need to model "gradually improving performance" or "continuously adjustin
 
 **The paper acknowledges this**: "If parallel actions among multiple agents are to be allowed, the functions S_w and F_w must be extended to map to a set of event-agent pairs."
 
-**Implication for WinDAGs**: Works well for orchestrator-centric architectures where the orchestrator controls routing and task assignment. Needs extension for peer-to-peer agent coordination where multiple agents simultaneously make decisions.
+**Implication for Jury-rig**: Works well for orchestrator-centric architectures where the orchestrator controls routing and task assignment. Needs extension for peer-to-peer agent coordination where multiple agents simultaneously make decisions.
 
 ### Assumption 3: Observable Action Attempts
 
@@ -57,7 +57,7 @@ If you need to model "gradually improving performance" or "continuously adjustin
 - Delayed feedback (don't know if action succeeded until much later)
 - Unobservable failures (action failed silently, agent thinks it succeeded)
 
-**Implication for WinDAGs**: Requires robust logging and monitoring. Each skill invocation should explicitly report:
+**Implication for Jury-rig**: Requires robust logging and monitoring. Each skill invocation should explicitly report:
 - That it was attempted (done)
 - Whether it succeeded or failed
 - What effects it had (for belief updates)
@@ -78,7 +78,7 @@ Without this observability, the agent can't maintain accurate belief-worlds.
 - Pure computation (failed attempt has no side effects, no time advancement)
 - Idempotent retries (failing and immediately retrying is equivalent to never attempting)
 
-**Implication for WinDAGs**: The formalism assumes attempts have costs/effects even when they fail. This fits real distributed systems (failed API calls consume rate limits, network bandwidth). 
+**Implication for Jury-rig**: The formalism assumes attempts have costs/effects even when they fail. This fits real distributed systems (failed API calls consume rate limits, network bandwidth).
 
 For pure computation with no side effects, you might model failure as "staying at the same time point" (no arc), which isn't directly supported.
 
@@ -101,7 +101,7 @@ For pure computation with no side effects, you might model failure as "staying a
 - Subconscious processes (reflexes, learned behaviors not accessible to reasoning)
 - Distributed cognition (agent's "beliefs" are spread across multiple systems)
 
-**Implication for WinDAGs**: Requires explicit representation of agent mental states. The orchestrator should maintain data structures for:
+**Implication for Jury-rig**: Requires explicit representation of agent mental states. The orchestrator should maintain data structures for:
 - `belief_worlds`: What do I believe is possible?
 - `goal_worlds`: What do I want to achieve?
 - `intention_worlds`: What am I committed to attempting?
@@ -125,10 +125,10 @@ def deliberate(self, goal_worlds):
     """Form intentions from goals - NOT specified by BDI formalism"""
     # Option 1: Expected utility
     return max(goal_worlds, key=lambda g: self.expected_utility(g))
-    
+
     # Option 2: Bounded rationality (limited time)
     return self.satisficing_search(goal_worlds, time_limit=100ms)
-    
+
     # Option 3: Habit-based (prefer similar to past intentions)
     return most_similar(goal_worlds, self.past_intentions)
 ```
@@ -148,16 +148,16 @@ def update_beliefs(self, observation):
     """Update belief-worlds when observation contradicts them"""
     # Option 1: Remove contradicted worlds
     self.belief_worlds = {
-        w for w in self.belief_worlds 
+        w for w in self.belief_worlds
         if w.consistent_with(observation)
     }
-    
+
     # Option 2: Minimum change (keep most of old beliefs)
     self.belief_worlds = minimal_revision(
-        self.belief_worlds, 
+        self.belief_worlds,
         observation
     )
-    
+
     # Option 3: Bayesian update (probability-weighted)
     for w in self.belief_worlds:
         w.probability *= likelihood(observation | w)
@@ -178,11 +178,11 @@ def reconsider_goals(self):
     # Option 1: Time-based (reconsider every N steps)
     if self.time % reconsideration_interval == 0:
         self.recompute_goals()
-    
+
     # Option 2: Event-based (reconsider on significant observations)
     if self.observed_unexpected_event():
         self.recompute_goals()
-    
+
     # Option 3: Meta-reasoning (reconsider if expected benefit > cost)
     if self.expected_value_of_reconsideration() > cost:
         self.recompute_goals()
@@ -202,7 +202,7 @@ Example: `GOAL(fast_response) ∧ GOAL(accurate_response)` might be in conflict 
 class PrioritizedGoal:
     proposition: Formula
     priority: float
-    
+
     def conflicts_with(self, other):
         """Check if goals are incompatible"""
         return mutual_exclusion(self.proposition, other.proposition)
@@ -221,7 +221,7 @@ def resolve_goal_conflicts(goals):
 ## When You Should Use This Formalism
 
 **Strong fit**:
-1. **Task orchestration systems** (WinDAGs, workflow engines)
+1. **Task orchestration systems** (Jury-rig, workflow engines)
 2. **Multi-agent planning** with discrete tasks
 3. **Autonomous systems** making sequential decisions under uncertainty
 4. **Deliberative architectures** where reasoning about commitments is important
@@ -258,7 +258,7 @@ def resolve_goal_conflicts(goals):
 class ProbabilisticBeliefWorld:
     world: TimeTree
     probability: float
-    
+
     def update(self, observation):
         """Bayesian update"""
         self.probability *= likelihood(observation | self.world)
@@ -279,7 +279,7 @@ class TeamIntention:
     agents: Set[Agent]
     joint_action: Action
     individual_commitments: Dict[Agent, Action]
-    
+
     def is_maintained(self):
         """Joint intention maintained if all agents maintain individual parts"""
         return all(
@@ -324,7 +324,7 @@ Even if you modify the internal workings of each module (probabilistic beliefs, 
 
 This architectural separation is the transferable insight, even if you don't use the exact formalism.
 
-## Practical Guidance for WinDAGs
+## Practical Guidance for Jury-rig
 
 **Use BDI-style architecture when**:
 - Tasks are discrete (skill invocations, API calls)

@@ -4,7 +4,7 @@
 
 The foundational teaching of workflow patterns research is that **systems must be evaluated by their ability to express recurring coordination structures, not by their feature checklists**. As van der Aalst et al. observe, "Differences in features supported by the various contemporary commercial workflow management systems point to different insights of suitability and different levels of expressive power." The challenge they undertake is to "systematically address workflow requirements, from basic to complex" through patterns that "address business requirements in an imperative workflow style expression, but are removed from specific workflow languages."
 
-This creates a profound shift in how we evaluate intelligent agent orchestration systems. A DAG-based system like WinDAGs that claims 180+ skills must answer: **can it express the control flow patterns that real coordination problems demand?** Having many skills is irrelevant if the system cannot coordinate them in the patterns actual problems require.
+This creates a profound shift in how we evaluate intelligent agent orchestration systems. A DAG-based system like Jury-rig that claims 180+ skills must answer: **can it express the control flow patterns that real coordination problems demand?** Having many skills is irrelevant if the system cannot coordinate them in the patterns actual problems require.
 
 ## Why Features Are Not Enough
 
@@ -18,7 +18,7 @@ A consulting evaluation might assess:
 
 But these questions miss the fundamental issue: **can the system represent the coordination logic your problem requires?** If a workflow system cannot express "deferred choice" (where the environment, not the system, determines which branch executes), then no amount of integration capability compensates for this limitation.
 
-For WinDAGs and similar agent orchestration systems, this means:
+For Jury-rig and similar agent orchestration systems, this means:
 - A system with 180 skills but poor support for "discriminator" patterns (where N parallel branches execute but only the first completion triggers the next step) will struggle with any optimization problem requiring parallel exploration with early termination.
 - A system that cannot express "arbitrary cycles" (loops with complex exit conditions) cannot implement iterative refinement workflows where agents repeatedly improve a solution until quality thresholds are met.
 - A system lacking "cancellation regions" (aborting multiple parallel activities when one completes or fails) cannot efficiently implement competitive evaluation strategies.
@@ -46,7 +46,7 @@ The workflow patterns research methodology evaluates systems on a spectrum:
 
 This three-level evaluation reveals architectural philosophy. When a system requires workarounds for common patterns, it indicates a mismatch between the system's execution model and real-world coordination requirements.
 
-For agent orchestration in WinDAGs:
+For agent orchestration in Jury-rig:
 - **Direct support** for patterns means agents can be coordinated in that pattern without meta-coordination logic
 - **Workarounds** mean you must write explicit coordination code (defeating the purpose of an orchestration layer)
 - **Not supported** means certain coordination strategies are simply impossible, forcing problem reformulation
@@ -57,7 +57,7 @@ A crucial distinction emerges: "different insights of suitability and different 
 
 This is the gap between "can this system eventually express X?" and "can this system naturally express X?" A system where every advanced pattern requires writing procedural code in an escape hatch is theoretically expressive but practically limited.
 
-For WinDAGs specifically:
+For Jury-rig specifically:
 - **Expressiveness question**: Can arbitrary coordination patterns be implemented using the skill system plus custom code?
 - **Suitability question**: Can common coordination patterns be implemented as natural DAG structures without escape hatches?
 
@@ -87,7 +87,7 @@ The patterns framework has important limitations:
 
 **4. Deterministic Semantics**: The patterns assume deterministic execution semantics. Probabilistic routing, uncertainty-aware coordination, or learning-based routing are not addressed.
 
-For WinDAGs, these boundaries matter:
+For Jury-rig, these boundaries matter:
 - If your system is purely declarative (specify constraints, get a plan), workflow patterns may not directly apply
 - If agents coordinate through message-passing without central orchestration, different patterns are needed
 - If routing decisions involve learned models with uncertainty, pattern semantics need extension
@@ -96,7 +96,7 @@ For WinDAGs, these boundaries matter:
 
 ### Orchestration Layer Design
 
-The patterns directly inform orchestration layer capabilities. A WinDAGs orchestration layer should ask:
+The patterns directly inform orchestration layer capabilities. A Jury-rig orchestration layer should ask:
 - Which patterns does our DAG formalism support directly?
 - Which patterns require awkward encoding?
 - Which patterns are impossible without breaking the DAG abstraction?
@@ -125,7 +125,7 @@ For any agent orchestration system, the pattern-based question is: **Given these
 
 This is not about perfection—no system supports all patterns elegantly. It is about **honest assessment** of where your abstractions fit the problem and where they fight it.
 
-## Implications for WinDAGs
+## Implications for Jury-rig
 
 For a DAG-based system orchestrating 180+ skills:
 
