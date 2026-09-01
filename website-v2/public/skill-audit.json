@@ -1,11 +1,9 @@
 {
   "auditor_version": "0.2.0",
   "summary": {
-    "total": 319,
-    "passing": 319,
-    "failing": 0,
-    "warning_only": 115,
-    "failing_skills": []
+    "total": 322,
+    "passing": 322,
+    "failing": 0
   },
   "skills": [
     {
@@ -1493,6 +1491,16 @@
       "missing_indexes_warning": []
     },
     {
+      "name": "giant-squid-hooks",
+      "root": "skills/giant-squid-hooks",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
       "name": "git-best-practices",
       "root": "skills/git-best-practices",
       "ok": true,
@@ -2641,6 +2649,19 @@
       "missing_indexes_warning": []
     },
     {
+      "name": "research-paper-submission",
+      "root": "skills/research-paper-submission",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "references",
+        "scripts"
+      ]
+    },
+    {
       "name": "resilience-wiring-for-load-once-deps",
       "root": "skills/resilience-wiring-for-load-once-deps",
       "ok": true,
@@ -3137,6 +3158,19 @@
       "broken_links": [],
       "missing_indexes_failure": [],
       "missing_indexes_warning": []
+    },
+    {
+      "name": "tikz-figure-engineering",
+      "root": "skills/tikz-figure-engineering",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "references",
+        "templates"
+      ]
     },
     {
       "name": "tlaplus-practitioner",

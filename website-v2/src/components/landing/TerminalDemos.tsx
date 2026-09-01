@@ -27,6 +27,12 @@ const DEMOS = [
     cast: '/casts/porthole/collision.cast',
   },
   {
+    id: 'claim-tree',
+    title: 'See the Trouble',
+    description: 'A file claim becomes a bounded graph, then a useful next-turn instruction',
+    cast: '/casts/porthole/claim-tree-file-claim.cast',
+  },
+  {
     id: 'visibility',
     title: 'Catch Up Instantly',
     description: 'Two agents leave real notes while you’re away — one command hands you the whole picture',
