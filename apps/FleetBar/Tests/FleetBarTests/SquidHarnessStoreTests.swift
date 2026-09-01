@@ -208,7 +208,13 @@ final class SquidHarnessStoreTests: XCTestCase {
         await store.refresh(projectDir: "/work/repo")
 
         XCTAssertEqual(store.snapshot?.state, .degraded)
-        XCTAssertEqual(store.snapshot?.health?.circuits.first?.state, .open)
+        let legacyCircuit = store.snapshot?.health?.circuits.first
+        XCTAssertEqual(legacyCircuit?.state, .open)
+        XCTAssertNil(legacyCircuit?.probeState)
+        XCTAssertNil(legacyCircuit?.probeStartedAt)
+        XCTAssertNil(legacyCircuit?.probeExpectedBy)
+        XCTAssertNil(legacyCircuit?.recoveryReady)
+        XCTAssertEqual(legacyCircuit?.timingLine, "Automatic recovery available at 2026-08-21T20:05:00.000Z")
         XCTAssertEqual(store.message, "PD EDIT disabled itself after repeated exit 127 events. Choose Repair.")
     }
 

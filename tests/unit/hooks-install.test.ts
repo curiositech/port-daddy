@@ -929,6 +929,39 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     expect(readSquidHookHealth(pdHome).circuits).toEqual([]);
   });
 
+  test('keeps a near-future probe marker active inside the bounded clock-skew window', () => {
+    const pdHome = join(SANDBOX, 'breaker-near-future-probe');
+    const binDir = join(pdHome, 'bin');
+    const healthDir = join(pdHome, 'squid', 'health');
+    const statePath = join(healthDir, 'pd-hook-prompt.state');
+    const probePath = join(healthDir, 'pd-hook-prompt.probe');
+    const hookCount = join(pdHome, 'hook-count');
+    mkdirSync(join(REPO, '.portdaddy'), { recursive: true });
+    stageTentacles(SRC, binDir);
+    writeFileSync(join(binDir, 'squid', 'pd-hook-prompt'), `#!/bin/sh\nprintf x >> '${hookCount}'\n`, { mode: 0o755 });
+    writeFileSync(join(pdHome, 'heartbeat'), '{}');
+    markDaemonReady(pdHome);
+    registerSquidProject(REPO, join(pdHome, 'squid', 'projects'));
+    mkdirSync(probePath, { recursive: true });
+    writeFileSync(statePath, 'v1\topen\t3\t1000\t0\tslow\t770\t0\t1000\n');
+    const markerTime = new Date(Date.now() + 2_000);
+    utimesSync(probePath, markerTime, markerTime);
+
+    const output = execFileSync(join(binDir, 'pd-hook-prompt'), [], {
+      cwd: REPO,
+      env: { ...process.env, PD_HOME: pdHome, PD_HOOK_SLOW_MS: '10000' },
+      input: '{}',
+      encoding: 'utf8',
+    });
+
+    expect(output).toBe('');
+    expect(existsSync(probePath)).toBe(true);
+    expect(existsSync(hookCount)).toBe(false);
+    const circuit = readSquidHookHealth(pdHome).circuits[0];
+    expect(circuit.state).toBe('half_open');
+    expect(circuit.probeState).toBe('active');
+  });
+
   test('falls back to GNU stat when the BSD probe exits zero with nonnumeric output', () => {
     const pdHome = join(SANDBOX, 'gnu-stat-home');
     const binDir = join(pdHome, 'bin');
