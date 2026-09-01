@@ -121,12 +121,12 @@ Anode:
 Navigation:
   The act of turning a Work Intent into a plan: sensemaking, decomposition
   into a DAG or hypertree of nodes, per-node skill selection, premortem, and
-  synthesis. The WorkPlanner is the navigator; the WinDAGs next-move meta-DAG
+  synthesis. The WorkPlanner is the navigator; the Jury-rig next-move meta-DAG
   is its current engine, and engine names are not operator vocabulary.
 
 Seamanship:
   The skill system: indexed catalog, search cascade, and the visible graft
-  that attaches chosen skills to an Agent Node before launch. The WinDAGs
+  that attaches chosen skills to an Agent Node before launch. The Jury-rig
   skill tools are the current engine behind it. Every navigated node names
   its grafted seamanship on the team proposal and the Work Receipt.
 

@@ -1,34 +1,50 @@
-% Fig 13 — append a compensating tombstone; never rewrite settled history.
+% Figure III.13 --- immutable history and mutable score contribution are separate tracks.
 \begin{figure}[H]
 \centering
-\resizebox{0.94\textwidth}{!}{%
-\begin{tikzpicture}[font=\small]
-  \node[stp box,minimum width=29mm] (e1) at (-6,0)
-    {outcome $o_1$\\{\scriptsize honest}};
-  \node[stp box,minimum width=29mm] (e2) at (-3,0)
-    {outcome $o_2$\\{\scriptsize honest}};
-  \node[stp box,minimum width=29mm] (e3) at (0,0)
-    {outcome $o_3$\\{\scriptsize fraudulent}};
-  \node[stp box,minimum width=29mm] (e4) at (3,0)
-    {outcome $o_4$\\{\scriptsize honest}};
-  \node[stp accent box,minimum width=34mm] (t) at (6.4,0)
-    {\textbf{tombstone}\\{\scriptsize nullifies $o_3$}};
-  \draw[stp arrow] (e1) -- (e2);
-  \draw[stp arrow] (e2) -- (e3);
-  \draw[stp arrow] (e3) -- (e4);
-  \draw[stp accent arrow] (e4) -- (t);
-  \draw[stp dashed arrow] (t.north) .. controls +(0,12mm) and +(0,12mm) .. (e3.north);
-  \node[stp label] at (3.2,1.25) {compensating saga entry};
+\resizebox{0.96\textwidth}{!}{%
+\begin{tikzpicture}[pd figure]
+  \node[pd panel title,anchor=west] at (-6.8,3.05)
+    {append-only history};
+  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (-6.0,1.60) -- (6.35,1.60);
+  \foreach \x/\lab in {-5.15/$o_1$,-3.35/$o_2$,-1.35/$o_3$ fraudulent,.85/re-audit,2.65/$t(o_3)$ appended,5.25/imported tombstone} {
+    \draw[pd tick] (\x,1.35) -- (\x,1.85);
+    \node[pd direct label,anchor=south,align=center] at (\x,2.02) {\lab};
+  }
+  \node[pd caution datum] at (-1.35,1.60) {};
+  \node[pd caution datum] at (2.65,1.60) {};
+  \node[pd focus datum] at (5.25,1.60) {};
+  \draw[pd caution rule] (-1.65,1.30) -- (-1.05,1.90);
+  \draw[pd caution rule] (-1.65,1.90) -- (-1.05,1.30);
+  \node[pd note,anchor=west] at (-5.95,.98)
+    {$o_3$ remains inspectable; $t(o_3)$ is a later compensating fact};
+
+  \node[pd panel title,anchor=west] at (-6.8,.25)
+    {contribution of $o_3$ to spendable reputation};
+  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (-6.0,-2.45) -- (6.35,-2.45);
+  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (-6.0,-2.45) -- (-6.0,-.25);
+  \node[pd axis label,anchor=south,rotate=90] at (-6.35,-.25) {score contribution};
+  \draw[pd caution rule,line width=1.5pt]
+    (-5.85,-2.20) -- (-1.35,-2.20) -- (-1.35,-.65) -- (5.25,-.65);
+  \draw[pd focus rule,line width=1.5pt] (5.25,-.65) -- (5.25,-2.20) -- (6.05,-2.20);
+  \node[pd direct label,text=hhamber,anchor=west] at (-.85,-.42)
+    {fraud remains spendable while correction propagates};
+  \node[pd direct label,text=hhteal,anchor=west] at (5.38,-2.02) {nullified};
+
+  \draw[pd caution rule,<->] (2.65,-2.85) -- (5.25,-2.85);
+  \node[pd direct label,text=hhamber,anchor=north] at (3.95,-3.05)
+    {bounded propagation window $\tau$};
+  \draw[pd guide] (2.65,-2.68) -- (2.65,1.28);
+  \draw[pd guide] (5.25,-2.68) -- (5.25,1.28);
+
+  \node[pd note,anchor=west] at (-5.95,-3.62)
+    {the honest claim is a bounded window, not an instantaneous or history-deleting correction};
 \end{tikzpicture}}
-\caption{\textbf{Tombstone revocation on an append-only ledger} (never mutate in
-place). A fraudulent outcome is not deleted (that would break append-only and
-auditability); it is nullified by an appended \emph{tombstone} --- a saga-style
-compensating entry --- which propagates across harbors bounded by the
-revocation-convergence window (Chapter~IV); the poisoned point was spendable only
-during that window. ``Reputation never ends'' is corrected to: monotone in
-\emph{honest} outcomes (they are never silently erased), individually revocable via
-tombstone, with bounded memory (Liu--Skrzypacz) as a tunable parameter rather than a
-virtue --- $\infty$-memory freezes types and removes the incentive to keep
-performing.}
+\caption{\textbf{A tombstone changes score consumption without rewriting history.}
+The upper rail remains append-only: fraudulent outcome $o_3$, the overturning
+re-audit, and tombstone $t(o_3)$ are all preserved as distinct facts. The lower
+trace shows what does change. The fraudulent contribution remains spendable until
+the tombstone reaches an importing harbor, then falls to zero. The measured
+interval $\tau$ is the federation's revocation-convergence obligation; the
+protocol bounds that interval rather than pretending it never existed.}
 \label{fig:tombstone}
 \end{figure}

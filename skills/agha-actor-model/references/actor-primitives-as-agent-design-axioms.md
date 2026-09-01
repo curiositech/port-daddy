@@ -54,9 +54,9 @@ Actors subsume both. Any functional program or sequential process can be express
 
 This is a *mathematical result*, not an opinion. It has direct consequences for agent system design.
 
-## Application to WinDAGs Agent System Design
+## Application to Jury-rig Agent System Design
 
-### Every WinDAGs skill invocation is an actor step
+### Every Jury-rig skill invocation is an actor step
 
 When an agent invokes a skill, it is executing the actor pattern:
 - **Messages sent**: Requests to other agents/skills, sub-task delegations
@@ -71,13 +71,13 @@ Agha introduces the *customer* pattern — creating a new agent whose sole purpo
 
 "The factorial actor relies on creating a customer which waits for the appropriate reply, in this case from the factorial itself, so that the factorial is concurrently free to process the next communication." (p. 53)
 
-This pattern is directly applicable to WinDAGs: when an agent delegates a subtask and needs to continue processing after the result arrives, it should create a continuation agent (customer) rather than blocking. This enables the delegating agent to immediately accept new work.
+This pattern is directly applicable to Jury-rig: when an agent delegates a subtask and needs to continue processing after the result arrives, it should create a continuation agent (customer) rather than blocking. This enables the delegating agent to immediately accept new work.
 
 ### Dynamic agent creation scales concurrency to problem size
 
 A critical advantage of the actor model: "Extensibility allows a system to dynamically allocate resources to a problem by generating computational agents in response to the magnitude of a computation required to solve a problem. The precise magnitude of the problem need not be known in advance: more agents can be created as the computation proceeds and the maximal amount of concurrency can be exploited." (p. 29)
 
-In WinDAGs, this means orchestration strategies should not pre-determine the number of parallel agents. The computation itself should drive spawning decisions.
+In Jury-rig, this means orchestration strategies should not pre-determine the number of parallel agents. The computation itself should drive spawning decisions.
 
 ## What This Teaches About Skill Design
 

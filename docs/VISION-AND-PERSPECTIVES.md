@@ -129,13 +129,13 @@ PD does not need to build the olog engine. PD needs to provide:
 
 ---
 
-## 4. Operads and WinDAGs
+## 4. Operads and Jury-rig
 
 ### What operads formalize
 
 An operad formalizes "things that decompose into parts." Each operation has typed inputs and typed outputs. Composition rules specify how operations wire together. The monoidal product specifies how independent operations run in parallel.
 
-WinDAGs IS an operad. DAG nodes are operations. Wiring between nodes is composition. Wave scheduling (parallel execution of independent nodes) is the monoidal product.
+Jury-rig IS an operad. DAG nodes are operations. Wiring between nodes is composition. Wave scheduling (parallel execution of independent nodes) is the monoidal product.
 
 ### What operads add beyond "it's a DAG"
 
@@ -269,11 +269,11 @@ Layer 6 (marketplace) is future work. It requires the daemon mesh (`DAEMON-MESH-
 
 ---
 
-## 8. WinDAGs Skill Accumulation Gap
+## 8. Jury-rig Skill Accumulation Gap
 
 ### Current state
 
-WinDAGs has the machinery for skill management but the wiring is incomplete:
+Jury-rig has the machinery for skill management but the wiring is incomplete:
 
 - **The Curator** has Thompson sampling for skill selection, Kuhnian crisis detection (detect when the current paradigm is failing), and skill crystallization (promote ad-hoc solutions to named skills). But it never executes. It is a design, not a running system.
 - **dag-pattern-learner** detects recurring DAG structures and proposes them as reusable patterns. It is disconnected from the Curator and from execution.

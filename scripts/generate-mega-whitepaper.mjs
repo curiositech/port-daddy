@@ -22,7 +22,6 @@ const outDir = resolve(
   repoRoot,
   process.argv[2] ?? '.cache/whitepaper-build/coordination-papers-mega-volume',
 );
-
 const papers = [
   { roman: 'I', prefix: 'ls', title: 'The Legible Swarm', source: 'whitepaper/legible-swarm.tex' },
   { roman: 'II', prefix: 'swk', title: 'The Single-Writer Kernel', source: 'whitepaper/single-writer-kernel.tex' },
@@ -265,8 +264,10 @@ function generate() {
     return [
       `% SOURCE: ${paper.source}`,
       `\\pdchapter{${paper.roman}}{${paper.title}}`,
+      `\\csname pdchapteropening${paper.roman}\\endcsname`,
       body.trim(),
-    ].join('\n\n');
+      `\\csname pdchapterhandoff${paper.roman}\\endcsname`,
+    ].filter(Boolean).join('\n\n');
   });
 
   canonicalReferences.sort(compareNormalizedReferences);

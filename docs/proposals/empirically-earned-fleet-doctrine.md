@@ -84,7 +84,7 @@ Port Daddy should preserve this structure but improve the evidence. A narrated a
 3. counterfactual replay to test whether a hypothesized cue changes the outcome distribution;
 4. later production outcomes to determine whether the guidance helped outside the replay laboratory.
 
-The local `cdm-interviewer` and `windags-skill-cdm-elicitation` protocols contribute the required shape: a specific case, timeline, decision cues, expectancies, counterfactuals, novice traps, workarounds, and falsifiable “when/because/do/unless” heuristics. They do not grant a candidate doctrine status merely because an interview was articulate.
+The local `cdm-interviewer` and `jury_rig-skill-cdm-elicitation` protocols contribute the required shape: a specific case, timeline, decision cues, expectancies, counterfactuals, novice traps, workarounds, and falsifiable “when/because/do/unless” heuristics. They do not grant a candidate doctrine status merely because an interview was articulate.
 
 ### 2.2 LLM self-explanation is insufficient
 

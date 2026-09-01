@@ -91,7 +91,7 @@ export const GITHUB_RELAY_READABLE_REASON =
 // flood of workflow_run / check_run / push events on every CI cycle; the
 // executor only reviews pull_request changes, so we never enqueue the rest.
 // (The full event stream is still PUBLISHED to channels for other subscribers.)
-const FLEET_PR_ACTIONS = new Set(['opened', 'synchronize', 'reopened', 'ready_for_review']);
+const FLEET_PR_ACTIONS = new Set(['opened', 'synchronize', 'reopened', 'ready_for_review', 'edited']);
 /**
  * Merge-queue actions that need a `Port Daddy Fleet` check on the queue branch.
  *
@@ -142,6 +142,7 @@ const PERSIST_EVENT_TYPES = new Set([
   'pull_request:closed',
   'pull_request:reopened',
   'pull_request:synchronize',
+  'pull_request:edited',
   'pull_request:ready_for_review',
   'pull_request:labeled',
   'pull_request:unlabeled',
@@ -458,8 +459,9 @@ async function maybeEnqueueFleetRun(
 
   if (reservation) {
     // queue.send and D1 cannot share a transaction.  Supersede older work only
-    // AFTER the new message exists; if this projection write fails, both jobs
-    // may run but the required check is never silently lost.
+    // AFTER the new message exists. If this projection write fails, both jobs
+    // may run and GitHub can temporarily retain an older same-SHA conclusion;
+    // the audit row makes that degraded boundary observable.
     await markFleetRunIntentEnqueued(env.DB, deliveryId, Math.floor(Date.now() / 1000)).catch(
       async (intentError) => {
         await appendAudit(env.DB, {

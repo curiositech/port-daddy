@@ -23,7 +23,47 @@ import { resolveWriteIdentity, stampIdentityMetadata } from '../../lib/identity-
 
 const { sessionsPlugin } = await import('../../routes/sessions.js');
 
-function buildApp({ withSouls = true } = {}) {
+function readyContextLookup(sourceSessionId) {
+  const packet = {
+    schema: 'pd.agent-harbor.compaction-packet.v0',
+    packetId: 'cpk_route_fixture',
+    agentNodeId: 'agent_route_fixture',
+    sessionId: sourceSessionId,
+    createdAt: '2026-08-27T00:00:00.000Z',
+    createdBy: { kind: 'daemon' },
+    trigger: { kind: 'context-threshold', contextEnvelopeRef: 'ctx_route_fixture' },
+    identity: { task: 'Follow the verified route plan' },
+    obligations: [],
+    factualClaims: [],
+    transcriptExcerpts: [{ citation: { kind: 'transcript-event', transcriptEventId: 'evt_raw' }, excerpt: 'ROUTE_RAW_TRANSCRIPT_MUST_NOT_ESCAPE' }],
+    nextAction: { recommendation: 'Continue from the cited plan.' },
+    sourceTranscript: { headEventId: 'evt_route_head', headHash: 'route_hash' },
+    validator: { passed: true, uncitedClaimCount: 0, missingObligationWarnings: [] },
+    transcriptEventId: 'evt_route_packet',
+  };
+  return {
+    status: 'ready',
+    sourceSessionId,
+    packet,
+    bootstrap: {
+      packet,
+      sessionId: sourceSessionId,
+      agentNodeId: 'agent_route_fixture',
+      planCheckpoint: {
+        transcriptEventId: 'evt_route_plan',
+        content: '- [ ] Carry forward the cited route plan',
+        capturedAt: '2026-08-27T00:00:00.000Z',
+      },
+      transcriptPrefix: [{ transcriptEventId: 'evt_raw', sequence: 9, kind: 'tool_result', ledgerSeq: 12 }],
+      transcriptPrefixTruncated: false,
+      contextRef: { kind: 'compaction-packet', ref: 'packet:cpk_route_fixture', droppable: false },
+      revalidation: { passed: true, uncitedClaimCount: 0, missingObligationWarnings: [] },
+    },
+    envelope: { schema: 'pd.agent-harbor.context-envelope.v0' },
+  };
+}
+
+function buildApp({ withSouls = true, contextBootstrapLookup } = {}) {
   const db = createTestDb();
   const sessions = createSessions(db);
   const souls = withSouls ? createTestActorSouls(db) : null;
@@ -41,6 +81,7 @@ function buildApp({ withSouls = true } = {}) {
       logger,
       activityLog: { log() {} },
       actorSouls: souls,
+      contextBootstrapLookup,
     },
   });
   return { app, db, sessions, souls, logs };
@@ -147,6 +188,7 @@ describe('identity write boundary — POST /sessions', () => {
     const body = res.json();
     expect(body.success).toBe(true);
     expect(body.identity).toBeUndefined();
+    expect(body.contextContinuation).toEqual({ status: 'none' });
     const stored = sessions.get(body.id);
     expect(stored.session.metadata?.identity).toBeUndefined();
     await app.close();
@@ -252,6 +294,42 @@ describe('identity write boundary — POST /sessions/:id/takeover', () => {
     expect(body.identity).toEqual(expect.objectContaining({ verified: true, actorId: successor.actorId }));
     const stored = sessions.get(body.successorId);
     expect(stored.session.metadata.identity.actorId).toBe(successor.actorId);
+    await app.close();
+  });
+
+  test('takeover reads only a bounded, verified predecessor continuation', async () => {
+    const seen = [];
+    const { app, souls } = buildApp({
+      contextBootstrapLookup: (sourceSessionId) => {
+        seen.push(sourceSessionId);
+        return readyContextLookup(sourceSessionId);
+      },
+    });
+    const owner = mintTestActor(souls, 'contextowner:stack:ctx');
+    const successor = mintTestActor(souls, 'contextsuccessor:stack:ctx');
+    const started = (await app.inject({
+      method: 'POST',
+      url: '/sessions',
+      payload: { purpose: 'predecessor with verified context', credential: owner.credential },
+    })).json();
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/sessions/${started.id}/takeover`,
+      payload: { agentId: 'contextsuccessor:stack:ctx', credential: successor.credential },
+    });
+
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(seen).toEqual([started.id]);
+    expect(body.contextContinuation).toEqual(expect.objectContaining({
+      status: 'ready',
+      sourceSessionId: started.id,
+      packet: expect.objectContaining({ packetId: 'cpk_route_fixture' }),
+      planCheckpoint: expect.objectContaining({ content: '- [ ] Carry forward the cited route plan' }),
+    }));
+    expect(body.contextContinuation).not.toHaveProperty('transcriptPrefix');
+    expect(JSON.stringify(body.contextContinuation)).not.toContain('ROUTE_RAW_TRANSCRIPT_MUST_NOT_ESCAPE');
     await app.close();
   });
 });

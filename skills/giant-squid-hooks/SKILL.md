@@ -170,10 +170,13 @@ adversarial-review pipeline is the follow-up).
 The related SessionStart Pilot hook now adds a bounded, project-scoped salvage
 count. Both nudges expose counts and corrective verbs only; message bodies and
 salvage payloads stay in daemon truth until the agent explicitly runs
-`pd attention` or `pd salvage`. Chapter 28 of the Agent Harbor binder owns the
-larger lifecycle contract for Notification, SessionEnd, SubagentStop,
-PreCompact, repository PR digests, and the future Postmaster role. Do not add
-those as synchronous network-heavy tentacles: hooks emit bounded facts or
+`pd attention` or `pd salvage`. Chapter 28 of the Agent Harbor binder is useful
+provenance for the larger lifecycle proposal around Notification, SessionEnd,
+SubagentStop, PreCompact, repository PR digests, and the future Postmaster role;
+it does not own current authority. Reconcile that source with ADRs, deployed
+runtime evidence, and eventually the configured remote append-only work-event
+Oracle once remote read-back receipts prove the cutover live. Do not add those
+events as synchronous network-heavy tentacles: hooks emit bounded facts or
 durable jobs, and expensive synthesis happens behind the daemon.
 
 ## ADR ownership

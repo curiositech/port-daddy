@@ -29,7 +29,7 @@ This reveals a critical principle for agent system design: **Task structure dete
 
 **Key insight**: Code grounding rewards *procedural precision*. The model must generate exact syntax and compose operations correctly. There's little room for ambiguity—code either executes or fails. Models trained on code gain this precision but may sacrifice flexibility.
 
-**Design implications for WinDAGs**:
+**Design implications for Jury-rig**:
 - Skills that interact with code-grounded environments (CLI tools, databases, APIs) should prefer code-trained models when syntax precision is critical
 - Implement error-recovery loops: When code fails, feed error messages back to the agent for debugging
 - For complex tasks (multi-step queries), separate planning (what queries to run) from execution (generate actual syntax)
@@ -59,7 +59,7 @@ This reveals a critical principle for agent system design: **Task structure dete
 **The Code Training Trade-Off**:
 AgentBench shows CodeLlama-34b outperforms Llama2-70b on Web Shopping (procedural, template-following task) but underperforms on Digital Card Game (strategic reasoning task). Code training optimizes for deterministic execution at the cost of strategic flexibility.
 
-**Design implications for WinDAGs**:
+**Design implications for Jury-rig**:
 - Skills requiring strategic reasoning (planning, competitive scenarios, puzzle-solving) should prefer generally-trained models over code-specialized ones
 - Game-grounded skills need explicit state tracking mechanisms—don't rely on implicit attention to maintain game state
 - For adversarial scenarios (card game), consider multi-agent simulations where models play against each other to generate training data
@@ -88,7 +88,7 @@ AgentBench shows CodeLlama-34b outperforms Llama2-70b on Web Shopping (procedura
 - **Template-following (Web Shopping)**: Task has clear procedure (search → filter → select → buy). Code-trained models excel because it's essentially procedural execution.
 - **Open-ended navigation (Web Browsing)**: Task requires flexible exploration of unfamiliar websites. Requires adaptability more than procedural execution.
 
-**Design implications for WinDAGs**:
+**Design implications for Jury-rig**:
 - Distinguish template-following web skills (booking flights, shopping) from open-ended web skills (research, exploration)
 - For template-following, use code-trained models and explicit step-by-step templates
 - For open-ended browsing, use generally-capable models with strong instruction following
@@ -212,4 +212,4 @@ The core teaching: **Agent performance is grounding-dependent. Code, game, and w
 
 The success of GPT-4 across grounding types indicates that general capability eventually overcomes specialization. But for resource-constrained systems, grounding-aware routing enables using smaller, specialized models effectively. A 13B code-trained model may match a 70B general model on code-grounded tasks while being 5× cheaper to run.
 
-The lesson for WinDAGs: Don't build a monolithic agent. Build a routing system that matches tasks to appropriate specialists based on grounding type.
+The lesson for Jury-rig: Don't build a monolithic agent. Build a routing system that matches tasks to appropriate specialists based on grounding type.

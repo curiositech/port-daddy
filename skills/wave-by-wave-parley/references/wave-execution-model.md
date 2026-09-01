@@ -14,7 +14,7 @@ This is the **critical-path layer** assignment, sometimes called "level" in the 
 - **Topological sort** gives you a permutation of nodes. Any permutation consistent with edges is valid. You could serialize all nodes in a single wave and satisfy the definition. The sort tells you *a* valid execution order, not the *parallel-optimal* one.
 - **Wave assignment** gives you the minimum number of sequential steps required if unlimited parallel executors are available. Wave width = exploitable parallelism. If wave k has 8 nodes, you can launch 8 agents simultaneously.
 
-For a DAG with n nodes and longest path p, topological sort has O(n) serial steps; wave scheduling has O(p) sequential steps and O(n/p) average width. In typical WinDAGs decompositions (p ≈ 3-5, n ≈ 10-20), that difference is a 3-6x wall-clock speedup on real workloads.
+For a DAG with n nodes and longest path p, topological sort has O(n) serial steps; wave scheduling has O(p) sequential steps and O(n/p) average width. In typical Jury-rig decompositions (p ≈ 3-5, n ≈ 10-20), that difference is a 3-6x wall-clock speedup on real workloads.
 
 ## Transitive Closure Is the Load-Bearing Operation
 
@@ -44,7 +44,7 @@ Topological sort also lacks a natural concept of "concurrency level." It cannot 
 ## Key Points
 
 - Wave k = maximal antichain of nodes with all dependencies in waves 0..k-1; computed via longest-path from sources (transitive closure, not just direct-parent max).
-- Topological sort is a serialization; wave scheduling is the parallel-optimal stratification. On typical WinDAGs DAGs (path length 3-5), this yields 3-6x wall-clock improvement.
+- Topological sort is a serialization; wave scheduling is the parallel-optimal stratification. On typical Jury-rig DAGs (path length 3-5), this yields 3-6x wall-clock improvement.
 - Dynamic replanning after mutation touches only `fwd-TC(mutated_nodes)`. For leaf-adjacent TENTATIVE nodes (parley's primary targets), this is O(1) to O(small constant) — not a global re-sort.
 - After pruning, compact the waves array to eliminate gaps before passing it back to the executor. Stale `dag.waves[i+1]` references cause silent off-by-one skips.
 - The parallel-safety guarantee (all nodes in the same wave are mutually independent) is an invariant of wave assignment by construction, not a property you verify separately.

@@ -176,7 +176,7 @@ The meta-level implements the commitment strategy. This separation is crucial fo
 
 An important observation: Meta-level reasoning must itself be fast. If deciding "should I reconsider?" takes as long as reconsidering, the architecture provides no advantage. This is why the framework assumes "potentially significant changes can be determined instantaneously."
 
-## For WinDAGs: Designing Reconsideration Policies
+## For Jury-rig: Designing Reconsideration Policies
 
 In a DAG-based orchestration system, commitment strategies translate to policies about when to recompute execution plans:
 

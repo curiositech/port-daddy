@@ -194,7 +194,7 @@ TDAG reduces CTF dramatically (4.35% vs 34.78%) but doesn't eliminate other erro
 - Dynamic decomposition solves *structural* failures (dependencies broken)
 - But doesn't inherently solve *semantic* failures (wrong tool use, hallucination, constraint reasoning)
 
-**For WinDAGs**: Different error types need different recovery strategies. Don't use one-size-fits-all retry logic.
+**For Jury-rig**: Different error types need different recovery strategies. Don't use one-size-fits-all retry logic.
 
 ## Implementing Failure Containment in DAG Systems
 
@@ -286,7 +286,7 @@ Example: Real-time strategy games where state changes every second.
 
 **Why containment is bad**: By the time replanning completes, the state has changed again. Better to use reactive policies (fast heuristics) than deliberative planning (slow optimization).
 
-**For WinDAGs**: Add task metadata indicating whether containment is appropriate:
+**For Jury-rig**: Add task metadata indicating whether containment is appropriate:
 
 ```python
 class Task:
@@ -359,7 +359,7 @@ Dynamic decomposition prevents error propagation by:
 - Validating actual state after each step
 - Treating failure as expected event that triggers replanning
 
-**For WinDAGs design**: The question isn't "should we support failure containment?" but "what's our default stance?"
+**For Jury-rig design**: The question isn't "should we support failure containment?" but "what's our default stance?"
 
 - **Default to static**: Good for well-understood, stable domains. Fast but brittle.
 - **Default to dynamic**: Good for novel, uncertain domains. Slow but robust.

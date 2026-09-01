@@ -3376,8 +3376,8 @@
       "missing_indexes_warning": []
     },
     {
-      "name": "windags-architect",
-      "root": "skills/windags-architect",
+      "name": "jury_rig-architect",
+      "root": "skills/jury_rig-architect",
       "ok": true,
       "orphans": [],
       "drift": [],
@@ -3386,8 +3386,8 @@
       "missing_indexes_warning": []
     },
     {
-      "name": "windags-curator",
-      "root": "skills/windags-curator",
+      "name": "jury_rig-curator",
+      "root": "skills/jury_rig-curator",
       "ok": true,
       "orphans": [],
       "drift": [],
@@ -3396,8 +3396,8 @@
       "missing_indexes_warning": []
     },
     {
-      "name": "windags-decomposer",
-      "root": "skills/windags-decomposer",
+      "name": "jury_rig-decomposer",
+      "root": "skills/jury_rig-decomposer",
       "ok": true,
       "orphans": [],
       "drift": [],
@@ -3406,8 +3406,8 @@
       "missing_indexes_warning": []
     },
     {
-      "name": "windags-evaluator",
-      "root": "skills/windags-evaluator",
+      "name": "jury_rig-evaluator",
+      "root": "skills/jury_rig-evaluator",
       "ok": true,
       "orphans": [],
       "drift": [],
@@ -3416,8 +3416,8 @@
       "missing_indexes_warning": []
     },
     {
-      "name": "windags-looking-back",
-      "root": "skills/windags-looking-back",
+      "name": "jury_rig-looking-back",
+      "root": "skills/jury_rig-looking-back",
       "ok": true,
       "orphans": [],
       "drift": [],
@@ -3426,8 +3426,8 @@
       "missing_indexes_warning": []
     },
     {
-      "name": "windags-mutator",
-      "root": "skills/windags-mutator",
+      "name": "jury_rig-mutator",
+      "root": "skills/jury_rig-mutator",
       "ok": true,
       "orphans": [],
       "drift": [],
@@ -3436,8 +3436,8 @@
       "missing_indexes_warning": []
     },
     {
-      "name": "windags-premortem",
-      "root": "skills/windags-premortem",
+      "name": "jury_rig-premortem",
+      "root": "skills/jury_rig-premortem",
       "ok": true,
       "orphans": [],
       "drift": [],
@@ -3446,8 +3446,8 @@
       "missing_indexes_warning": []
     },
     {
-      "name": "windags-resilience",
-      "root": "skills/windags-resilience",
+      "name": "jury_rig-resilience",
+      "root": "skills/jury_rig-resilience",
       "ok": true,
       "orphans": [],
       "drift": [],
@@ -3456,8 +3456,8 @@
       "missing_indexes_warning": []
     },
     {
-      "name": "windags-sensemaker",
-      "root": "skills/windags-sensemaker",
+      "name": "jury_rig-sensemaker",
+      "root": "skills/jury_rig-sensemaker",
       "ok": true,
       "orphans": [],
       "drift": [],
@@ -3466,8 +3466,8 @@
       "missing_indexes_warning": []
     },
     {
-      "name": "windags-skill-cdm-elicitation",
-      "root": "skills/windags-skill-cdm-elicitation",
+      "name": "jury_rig-skill-cdm-elicitation",
+      "root": "skills/jury_rig-skill-cdm-elicitation",
       "ok": true,
       "orphans": [],
       "drift": [],

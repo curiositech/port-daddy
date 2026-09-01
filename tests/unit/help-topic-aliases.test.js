@@ -4,6 +4,7 @@ import { join } from 'node:path';
 const ROOT = join(import.meta.dirname, '../..');
 const cliSource = readFileSync(join(ROOT, 'bin/port-daddy-cli.ts'), 'utf8');
 let resolveVerbHelp;
+let resolveTopicHelp;
 let shouldDispatchHelpToHandler;
 let ALL_COMMANDS;
 let TOPIC_HELP;
@@ -15,6 +16,7 @@ beforeAll(async () => {
   const cli = await import('../../bin/port-daddy-cli.ts');
   ({
     resolveVerbHelp,
+    resolveTopicHelp,
     shouldDispatchHelpToHandler,
     ALL_COMMANDS,
     TOPIC_HELP,
@@ -71,6 +73,29 @@ describe('messaging discoverability', () => {
   test('main help surfaces the durable directed primitives', () => {
     expect(cliSource).toContain('pd send');
     expect(cliSource).toContain('Read direct messages sent to you');
+  });
+});
+
+describe('pd learn help contract', () => {
+  test('learn is canonical and tutorial resolves to the same read-only orientation', () => {
+    const learnHelp = resolveTopicHelp('learn');
+
+    expect(HELP_TOPIC_ALIASES.tutorial).toBe('learn');
+    expect(resolveTopicHelp('tutorial')).toBe(learnHelp);
+    expect(resolveVerbHelp('learn')).toBe(learnHelp);
+    expect(resolveVerbHelp('tutorial')).toBe(learnHelp);
+    expect(learnHelp).toMatch(/Operationally read-only coordination, retrieval, and evidence guide/);
+    expect(learnHelp).toMatch(/handler makes no headless daemon request/);
+    expect(learnHelp).toMatch(/bounded GET \/health request \(750 ms, no reconnect retry\)/);
+    expect(learnHelp).toMatch(/CLI envelope makes exactly one append-only usage-telemetry attempt/);
+  });
+
+  test('launch, first-run, and unknown-command help no longer promise a stateful tutorial', () => {
+    expect(cliSource).not.toMatch(/interactive tutorial/i);
+    expect(cliSource).not.toContain('Tutorial: pd learn');
+    expect(cliSource).toContain('pd learn         Operationally read-only agent orientation');
+    expect(cliSource).toContain('Agent orientation: pd learn (operationally read-only)');
+    expect(cliSource).toContain('pd learn for the operationally read-only agent orientation');
   });
 });
 

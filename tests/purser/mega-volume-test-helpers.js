@@ -20,7 +20,6 @@ export const subjectRoot = resolve(process.env.MEGA_VOLUME_SUBJECT_ROOT ?? repoR
 
 const generatorRelative = 'scripts/generate-mega-whitepaper.mjs';
 const buildScriptRelative = 'scripts/build-whitepapers.sh';
-
 export function subjectAvailable() {
   return existsSync(resolve(subjectRoot, generatorRelative));
 }

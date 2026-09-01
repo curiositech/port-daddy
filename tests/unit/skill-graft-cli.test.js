@@ -1,9 +1,9 @@
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { jest } from '@jest/globals';
 
-const { handleSkillGraft } = await import('../../cli/commands/skill-graft.js');
+const { handleJuryRig } = await import('../../cli/commands/skill-graft.js');
 
 let root;
 let logs;
@@ -49,8 +49,8 @@ afterEach(() => {
   rmSync(root, { recursive: true, force: true });
 });
 
-test('pd skill-graft query emits structured JSON for a local skill catalog', async () => {
-  await handleSkillGraft(['query', 'write', 'fleet', 'trigger', 'tests'], { root, json: true, 'top-limit': 1 });
+test('pd jury-rig query emits structured JSON for a local skill catalog', async () => {
+  await handleJuryRig(['query', 'write', 'fleet', 'trigger', 'tests'], { root, json: true, 'top-limit': 1 });
 
   const body = JSON.parse(logs.join('\n'));
   expect(body.scannedCount).toBe(2);
@@ -60,8 +60,8 @@ test('pd skill-graft query emits structured JSON for a local skill catalog', asy
   expect(body.top[0].body).toContain('# fleet-test-author');
 });
 
-test('pd skill-graft shorthand query renders guidance and lexical fallback note', async () => {
-  await handleSkillGraft(['write fleet trigger tests'], { root });
+test('pd jury-rig shorthand query renders guidance and lexical fallback note', async () => {
+  await handleJuryRig(['write fleet trigger tests'], { root });
 
   const output = logs.join('\n');
   expect(output).toContain('Relevant skills');
@@ -69,8 +69,8 @@ test('pd skill-graft shorthand query renders guidance and lexical fallback note'
   expect(output).toContain('Semantic Tool2Vec tier is cold or unconfigured');
 });
 
-test('pd skill-graft warm scans without requiring an LLM backend', async () => {
-  await handleSkillGraft(['warm'], { root, json: true, 'local-only': true, 'db-dir': root });
+test('pd jury-rig warm scans without requiring an LLM backend', async () => {
+  await handleJuryRig(['warm'], { root, json: true, 'local-only': true, 'db-dir': root });
 
   const body = JSON.parse(logs.join('\n'));
   expect(body).toEqual(expect.objectContaining({
@@ -84,14 +84,46 @@ test('pd skill-graft warm scans without requiring an LLM backend', async () => {
   }));
 });
 
-test('pd skill-graft reference reads only files contained by the skill directory', async () => {
-  await handleSkillGraft(['reference', 'fleet-test-author', 'reference.txt'], { root });
+test('pd jury-rig reference reads only files contained by the skill directory', async () => {
+  await handleJuryRig(['reference', 'fleet-test-author', 'reference.txt'], { root });
   expect(logs.join('\n')).toContain('fleet-test-author reference');
 
   logs.length = 0;
-  await handleSkillGraft(['reference', 'fleet-test-author', '../docs-polisher/reference.txt'], { root, json: true });
+  await handleJuryRig(['reference', 'fleet-test-author', '../docs-polisher/reference.txt'], { root, json: true });
   const refused = JSON.parse(logs.join('\n'));
   expect(refused.found).toBe(false);
   expect(refused.error).toContain('refused:');
   expect(process.exitCode).toBe(1);
+});
+
+test('pd jury-rig bootstrap status is read-only and reports an empty transaction ledger', async () => {
+  logs.length = 0;
+  await handleJuryRig(['bootstrap', 'status'], {
+    home: root,
+    'pd-home': join(root, '.port-daddy'),
+    json: true,
+  });
+  const body = JSON.parse(logs.join('\n'));
+  expect(body.transactionRoot).toBe(join(root, '.port-daddy', 'jury-rig-cutover', 'transactions'));
+  expect(body.transactions).toEqual([]);
+});
+
+test('pd jury-rig bootstrap plan emits a redacted zero-write plan and fails closed before native proof', async () => {
+  logs.length = 0;
+  await handleJuryRig(['bootstrap', 'plan'], {
+    home: root,
+    'pd-home': join(root, '.port-daddy'),
+    'expected-head': 'a'.repeat(40),
+    json: true,
+  });
+  const body = JSON.parse(logs.join('\n'));
+  expect(body.actions.every((action) => !Object.hasOwn(action, 'content'))).toBe(true);
+  expect(body.verdict).toBe('blocked');
+  expect(process.exitCode).toBe(1);
+  expect(existsSync(join(root, '.port-daddy', 'jury-rig-cutover'))).toBe(false);
+});
+
+test('pd jury-rig bootstrap rollback requires an exact apply receipt', async () => {
+  await expect(handleJuryRig(['bootstrap', 'rollback'], { home: root }))
+    .rejects.toThrow('Usage: pd jury-rig bootstrap rollback');
 });

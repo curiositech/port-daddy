@@ -76,6 +76,31 @@ export interface ControllingTerminalFsOps {
 const NODE_CTTY_FS: ControllingTerminalFsOps = { openSync, readSync, closeSync };
 
 /**
+ * True only when this process can open its controlling terminal.
+ *
+ * Color flags are intentionally irrelevant. `FORCE_COLOR` can decorate a
+ * pipe, while `NO_COLOR` can disable decoration on a real terminal; neither
+ * says whether it is safe to pause for a person.
+ */
+export function hasControllingTerminal(
+  fs: Pick<ControllingTerminalFsOps, 'openSync' | 'closeSync'> = NODE_CTTY_FS,
+): boolean {
+  let fd: number;
+  try {
+    fd = fs.openSync('/dev/tty', 'r');
+  } catch {
+    return false;
+  }
+
+  try {
+    fs.closeSync(fd);
+  } catch {
+    return false;
+  }
+  return true;
+}
+
+/**
  * A slot for `Atomics.wait`, allocated once. `SharedArrayBuffer` is absent in
  * some sandboxes and cross-origin-isolation-less contexts, so this can be null.
  */

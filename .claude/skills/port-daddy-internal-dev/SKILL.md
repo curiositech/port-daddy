@@ -15,7 +15,7 @@ metadata:
     maintainers: [port-daddy]
   distribution:
     public: false
-    note: "Sync to internal coordination paths inside the port-daddy repo only. Do not publish to windags-skills, .claude marketplaces, or other public catalogs. The port-daddy-agent-skill is the public-facing companion."
+    note: "Sync to internal coordination paths inside the port-daddy repo only. Do not publish to external-skill-catalog, .claude marketplaces, or other public catalogs. The port-daddy-agent-skill is the public-facing companion."
   mirrors:
     repo: skills/port-daddy-internal-dev
     codex: .codex/skills/port-daddy-internal-dev
@@ -98,10 +98,9 @@ repo-specific mechanics:
   whitepapers registered in `website-v2/src/data/whitePapers.ts` (Legible Swarm,
   Single-Writer Kernel, Spawn to Person, Harbor Economy, Anchor Protocol, Bonded
   Commons, Federated Harbor); note drift in the PR.
-- **Skill matching.** If you're missing a matching skill, pause and do skill
-  research. The intended home is a **seamanship** match-cascade/graft selector
-  (proposed, not yet built — modelled on windags `windags_skill_induct` /
-  `windags_skill_graft`); until it lands, match by hand against `skills/`.
+- **Skill matching.** If you're missing a matching skill, pause and run
+  `pd jury-rig query`. It uses Port Daddy's native hybrid catalog and guarded
+  reference loader; no external skill runtime is required.
 - **Launch work through PD spawn** (`pd spawn`, SDK `spawn()`, or MCP `spawn`),
   never a raw side-channel — so the work is registered, sandboxed, budgeted, salvageable.
 - **Managers orchestrate; workers author PRs.** A manager lane delegates
@@ -169,7 +168,7 @@ flowchart TD
     what -->|CLI surface| cli[Update CLI help → references → website /docs/cli → MCP tools → skill bundle. Send Lookout drift report when scope > 2 surfaces.]
     what -->|Daemon API| api[Update lib + routes + OpenAPI + SDK ref. Run pd integration ready signals. Audit pd guard for new contracts.]
     what -->|MCP tool| mcp[Update mcp/server.ts + handshake test + skill catalog. Re-validate all 10 tool schemas.]
-    what -->|FleetBar / Console| ui[Update Mac app + screenshots in references/fleetbar-and-console.md. Test from a clean install root.]
+    what -->|FleetBar / Console| ui[Update Mac app + screenshots in references/fleetbar-and-console.md. Test from a clean install root. For updates, pin the exact release and prove checksum + Developer ID + notarization + rollback + relaunch.]
     what -->|Distribution mirrors| dist[Update brew formula sha256. Bump version in 4 places. Rerun install.sh end-to-end. Lookout review.]
     what -->|Internal actor| actor[Update routes/+ lib/ owning module + actor-roster.md + decisions/who-do-i-message.md. Backfill inbox tests.]
     what -->|Recovery ledger| ledger[Edit docs/recovery/CURRENT-WORK.md only via Cartographer/Navigator. Don't bypass the actors.]
@@ -448,6 +447,18 @@ The friction below costs every fresh session real time. Internalize it.
   durable < /dev/null` (or `--lifecycle ephemeral` for heartbeat-bound process
   sessions). Sessions launched via the Bash background-job wrapper never
   register — run `pd begin` in the foreground.
+- **`pd learn` purity is a whole-command contract, not only a handler test.**
+  `pd learn` is canonical and `pd tutorial` is an exact alias. The orientation
+  handler changes no work resources; headless mode makes no handler daemon
+  request, while an actual controlling terminal may make one 750 ms,
+  `retry:false` `GET /health` independent of color settings. Both aliases must
+  skip daemon freshness and version-staleness probing, including update-cache
+  reads and writes. The outer CLI envelope deliberately retains exactly one
+  best-effort append-only `POST /usage/trace` attempt. A handler-only unit test
+  cannot prove this boundary: keep a full-command subprocess test with a fake
+  daemon that asserts the one telemetry event, no other request, and no
+  `update-check.json` creation for both aliases. Run that ESM suite through
+  `npm test`, not a bare Jest invocation.
 - **Coordination-Guard claims are per-file, not per-directory.** `pd session
   files add skills/foo/` does not cover `skills/foo/SKILL.md`; the guard rejects
   the commit file-by-file. Claim exactly what you staged:
@@ -461,7 +472,7 @@ The friction below costs every fresh session real time. Internalize it.
   to the operator instead of routing around the guard.
 - **Environment variables override context slot**: When running Port Daddy commands (like `pd begin`, `pd done`, `pd session files add`) inside subagent execution lanes spawned by harnesses (such as Antigravity/Claude Code), the harness may inject `PD_SESSION_ID` and `PD_AGENT_ID` of the parent/old session into the environment. Because the CLI prioritizes these environment variables over context slot files, any command will resolve to that old session (which may be completed, leading to "No active session found"). Fix this by prefixing your commands with `PD_SESSION_ID="" PD_AGENT_ID=""` to force the CLI to read the active context from the filesystem context slots.
 - **Binary drift in integration tests on dev machine**: Ephemeral test daemons started by the integration test framework will verify binary hashes. If there's a global Homebrew or PATH-installed `pd` binary, it may cause false positive "binary drift" checks. Fix this by overriding the comparable on-disk path by setting `PORT_DADDY_BIN_OVERRIDE: process.execPath` inside the test environment for both the CLI runs and the ephemeral daemon spawns (now configured automatically in `tests/helpers/integration-setup.js` and `tests/helpers/ephemeral-daemon.js`).
-- **Roadmap receipts for core coordination changes**: Changes to core coordination paths (like `cli/commands/sessions.ts`) are monitored by the Coordination Guard. The guard will block commits affecting these files unless the committing agent has touched/upserted a corresponding roadmap item (e.g. via `pd roadmap touch <slug> --harbor port-daddy --note <why>`). Note that `--harbor port-daddy` must be specified if you are working in a temporary sandboxed worktree where the folder name diverges from the default repo name.
+- **Roadmap authority during Oracle cutover**: Core coordination paths may still trigger the legacy Coordination Guard check for a local roadmap receipt. Do not satisfy that check by minting or touching a local roadmap row: local roadmap stores and files are transitional projections, not new authority. Use an attributable, fresh, signed remote Oracle work receipt once that writer is deployed and a remote read-back succeeds. Until then, fail closed and record the exact violation plus the operator-authorized, narrowly scoped commit exception or handoff for the slice; do not weaken Guard globally or claim a canonical remote receipt.
 - **Rich Docstring Mandate (TypeScript and Rust)**: Every library function and method in the codebase must carry rich, informative documentation. This is enforced by the `npm run check:rich-docs` (under `scripts/check-rich-docs.mjs`) validation loop. TypeScript functions/methods must use `/** ... */` JSDoc blocks including `@param` and `@returns` tags (when parameters/return values are present) and discuss design, motivation, or philosophical rationale (e.g., matching keywords: `motivation`, `purpose`, `philosophy`, `why`, `design`, `intent`). Rust functions must use `///` doc comments discussing the same motivation/philosophy keywords and parameter/return usage. You can run `npm run check:rich-docs -- --staged` to fast-audit only your changed/staged files.
 - **Hook fan-out is host-visible work, not free middleware**: Codex schedules a command hook once per matching nested tool call and renders concurrent batches as concurrent hook jobs. Never register an observational synchronous `PostToolUse` command, and never match an edit gate against broad `Bash` / `exec_command` / shell surfaces when the gate cannot derive a canonical target. The shipped topology is one turn briefing plus a synchronous gate only for direct edit tools; claims and notes are the cumulative outcome record. A six-tool read-only batch must schedule zero Port Daddy tool hooks. The raw debug/headless `pd-hook-post-tool` asset remains staged, but the stable interactive wrapper is an immediate zero-work tombstone so a running provider with cached config cannot resurrect it; never “repair” that wrapper by copying the raw tentacle over it. Its absence from provider config is intentional and must still diagnose as LIVE.
 - **Hook config paths are a durable interface, not a package location**: resolve versioned release assets only while staging; every Claude/Codex/Gemini/agy lifecycle config must call `~/.port-daddy/bin/pd-hook-*`. Release smoke must reject `/Cellar/` paths, and uninstall/repair must sweep legacy project-local Codex TOML without touching user hooks. The generated wrapper owns a CLOSED/OPEN/HALF_OPEN circuit breaker (3 consecutive failures or >250 ms, 5-minute cooldown, one probe, zero hook retries). Measure latency through external `/usr/bin/time -p -o`; shell-reserved `time` leaks outside redirections under dash. A missing timer must fail open, trip the same breaker, and request FleetBar Repair. Test unexpected exit, missing executable, missing timer, slow execution, exit-2 enforcement, concurrent accounting, one-shot FleetBar remediation, repair reset, minimal tooling, macOS/Linux shell behavior, and compiled artifact wiring as separate V&V seams.
@@ -512,7 +523,7 @@ block in its frontmatter declares targets:
 | `.claude/skills/` | Claude Code agents on this repo | install.sh + brew post_install |
 | `.agents/skills/` | Generic AGENTS.md-aware tools | install.sh |
 | `.gemini/extensions/port-daddy/skills/` | Gemini CLI extension surface | install.sh |
-| windags-skills (out of repo) | Public catalog distribution | manual `cp -r` from this repo to `~/coding/windags-skills/skills/` |
+| external-skill-catalog (out of repo) | Public catalog distribution | manual `cp -r` from this repo to `~/coding/external-skill-catalog/skills/` |
 
 `port-daddy-internal-dev` (this skill) **is intentionally absent** from
 the mirrors-list above. Do not propose distributing it. Its presence on a
@@ -524,17 +535,22 @@ non-port-daddy machine would be confusing noise.
 **Do not edit it directly.** Send messages to those actors:
 
 ```bash
-pd actor navigator --message "ROADMAP: <slice> completed at <commit>. Suggest promoting next: <item>."
-pd actor cartographer --message "DOGFOOD: <synthesis>. Suggest roadmap entry: <name>."
+pd actor navigator --message "ROADMAP: <slice> completed at <commit>. Reconcile live work events and projections; suggest promoting next: <item>."
+pd actor cartographer --message "DOGFOOD: <synthesis>. Publish attributable evidence; suggest roadmap entry: <name>."
 ```
 
 Mailbox delivery is durable but not synchronous. After messaging an actor,
-keep working from the actual source of truth: `docs/recovery/CURRENT-WORK.md`,
-`.cartographer/README.md`, `.cartographer/status.md`, live notes, sessions,
-and the checked-in release surfaces.
+work from live daemon events, notes, sessions, and checked-in release evidence.
+`docs/recovery/CURRENT-WORK.md`, Cartographer files, plans, binders, DAGs,
+hypertrees, and snapshots are evidence or projections; none is a database or a
+rival authority. The target authority is the configured remote append-only
+work-event Oracle after a write has a remote read-back receipt. Until the
+cutover is proven live, preserve unique local source material, label projections
+honestly, and never create another "authoritative" file.
 
 If `docs/recovery/CURRENT-WORK.md` contradicts the live fleet, that is a
-**Navigator** issue. File it; do not silently overwrite.
+**Navigator** projection-drift issue. File it; do not silently overwrite it or
+let it outrank live evidence.
 
 ## Git Discipline (inherited; see ADR 0001)
 
@@ -565,25 +581,25 @@ before-window stats and gets judged on its after-window. The gpt-oss-20b
 author tier (#8870: 75% repair failure, half the fleet's verdicts washed out)
 is the tombstone for choosing a tier off a price note without a scoreboard.
 
-## Catalog-First Reflex (windags MCP, internal edition)
+## Catalog-First Reflex (Jury-rig, internal edition)
 
-Port Daddy contributors are not exempt from the catalog. The 600+ skills
-in `~/coding/windags-skills/` cover most patterns you'll hit while
-editing this codebase: rate limiting, caching, websocket protocols,
+Port Daddy contributors are not exempt from the local catalog. Project,
+user, and explicitly configured skill roots cover most patterns you'll hit
+while editing this codebase: rate limiting, caching, websocket protocols,
 distributed transactions, pre-mortems, evaluation harnesses, design
 systems for the website, and more.
 
 ```bash
-windags_skill_search "<the thing you're about to do>"
-windags_skill_graft <skill-id> [skill-id...]
+pd jury-rig query "<the thing you're about to do>"
+pd jury-rig reference <skill-id> <path-within-skill>
 ```
 
 **Before every contributor slice**, one search. Examples that have paid off:
 
-- Editing the daemon's lock-acquire path? `windags_skill_search "distributed lock semantics"` → grafts `distributed-algorithms` and `sagas-garcia-molina-salem-1987`.
-- Adding a new MCP tool description? `windags_skill_search "MCP tool description writing"` → grafts `mcp-creator` if relevant.
-- Touching the website? `windags_skill_search "responsive layout master"` and friends — the design-system skills ship with usable component patterns.
-- Writing pre-release tests? `windags_skill_search "adversarial QA"` → grafts `qa-automation-specialist` or `webapp-testing`.
+- Editing the daemon's lock-acquire path? `pd jury-rig query "distributed lock semantics"` surfaces the closest local guidance.
+- Adding a new MCP tool description? `pd jury-rig query "MCP tool description writing"` surfaces `mcp-creator` when installed.
+- Touching the website? `pd jury-rig query "responsive layout master"` finds the available design-system skills.
+- Writing pre-release tests? `pd jury-rig query "adversarial QA"` finds installed QA and web-app testing guidance.
 
 If the catalog is wrong or stale for our domain, that's a Cartographer
 issue: `pd actor cartographer --message "Catalog gap: <what skill should exist>. Use case: <internal slice>."`
@@ -748,10 +764,21 @@ and Beacon.
 Session promotion must verify both the Port Daddy session and the sanitized
 handoff episode, then bind memory/continuation to the AgentNode id. Never bypass
 `/memory/handoffs/:episodeId/continue` with a second spawn path. Expertise
-retrieval must use BM25 + the shared MiniLM embedder with fused ranks, and must
-label lexical fallback degraded. Do not add reputation scores from declared
-skills, or mark stored permission/trigger declarations enforced without a
-daemon-witnessed runtime receipt.
+retrieval must fuse BM25 with a compatible semantic space. Use the strongest
+approved model configured for the corpus privacy boundary, quality target,
+latency, and cost. Persist provider, model id, immutable revision, dimensions,
+normalization, distance metric, and a `space_id` hashed from canonical ordered
+metadata with vectors and queries;
+reject or re-embed incompatible spaces rather than comparing them silently.
+MiniLM is only an explicit local/degraded fallback. Verify current source and
+the installed `pd embed --help` surface before depending on model selection. At
+the 2026-08-31 audit point, `main` and the installed stable runtime exposed only
+the MiniLM path; treat that as transitional. Higher-quality selection depends
+on the in-flight control-plane embedding-model-registry work; do not describe
+that registry as shipped until source, deployed runtime, and read-back evidence
+agree. Do not add reputation scores from declared skills, or mark stored
+permission/trigger declarations enforced without a daemon-witnessed runtime
+receipt.
 
 ## Anti-Patterns (port-daddy contributor edition)
 
@@ -879,11 +906,11 @@ it in one commit.** Land the rename in phases through Cartographer:
 - [ ] You staged by explicit path; `git add -A` does not appear in your shell history for this slice.
 - [ ] Every public surface affected has been updated in this slice OR a Lookout message names the gap.
 - [ ] If you touched an internal actor's body, you updated the actor-roster reference and the matching `decisions/` entry.
-- [ ] If you renamed or removed a CLI / API / MCP surface, you provided a migration path and a deprecation window.
+- [ ] If you renamed or removed a CLI / API / MCP surface, you followed the repo's supplant rule unless the operator explicitly requested compatibility.
 - [ ] You did not edit `docs/recovery/CURRENT-WORK.md` directly.
 - [ ] You ended with `pd done` AND `pd feedback "..."` (CLI bare form) or MCP `drop_feedback`.
 - [ ] If you skipped any of the above, you owned up to it explicitly in the feedback.
-- [ ] You ran `windags_skill_search` for the slice's domain before starting.
+- [ ] You ran `pd jury-rig query` for the slice's domain before starting.
 - [ ] **Two-skill maintenance check.** You asked: "did the public `port-daddy-agent-skill` or this internal skill mislead me, mis-instruct me, or under-equip me?" If yes, you landed the fix on the correct surface (public vs. internal — see "Maintain These Skills") *in the same slice*. Drive-by edits are explicitly welcome; no separate ticket required.
 - [ ] You did NOT propagate internal-only wisdom into `port-daddy-agent-skill` (that's the public skill's split-decision rule).
 

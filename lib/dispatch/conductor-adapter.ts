@@ -49,6 +49,7 @@ export function planToLaunchIntent(plan: RunnerPlan): LaunchIntent {
     // satisfies I2 (NO_SPAWN_ON_MAIN): the Conductor mints the branch the plan
     // names, so the run never touches the operator's main checkout.
     worktree: 'create',
+    workdir: d.projectDir ?? undefined,
     worktreePath: plan.worktreePath,
     worktreeBranch: plan.branch,
     worktreeBaseRef: plan.baseRef,
@@ -110,44 +111,60 @@ export function createConductorSpawnAdapter(conductor: ConductorLike): SpawnAdap
       };
     }
 
+    // Bind the dispatch row's runtime identities live, as the Conductor admits
+    // the launch and starts the body — not after `launch()` resolves. An
+    // operator surface following this dispatch (a lane, the handoff-capsule
+    // builder on a mid-run failure) needs launchId/agentId/transcriptId while
+    // the run is still in flight, not only once it is terminal.
     const dispatchId = input.plan.dispatch.id;
     const intent = planToLaunchIntent(input.plan);
-    intent.onAdmitted = (launch) => {
-      input.queue.bindExecution({ id: dispatchId, launchId: launch.id });
+    intent.onAdmitted = (admittedLaunch) => {
+      try {
+        input.queue.bindExecution({ id: dispatchId, launchId: admittedLaunch.id });
+      } catch {
+        // Best-effort live binding; the terminal mapping below still carries
+        // the authoritative launchId if this write fails.
+      }
     };
     intent.onAgentStarted = (receipt) => {
-      input.queue.bindExecution({
-        id: dispatchId,
-        agentId: receipt.agentId,
-        transcriptId: receipt.transcriptId,
-        model: receipt.model,
-      });
+      try {
+        input.queue.bindExecution({
+          id: dispatchId,
+          agentId: receipt.agentId,
+          transcriptId: receipt.transcriptId,
+          model: receipt.model,
+        });
+      } catch {
+        // Best-effort live binding; see above.
+      }
     };
     const r = await conductor.launch(intent);
-
-    // Fakes and older Conductor-like implementations may not invoke the live
-    // witnesses. Retain the terminal receipt as a fallback without weakening
-    // the event-time path used by the real daemon.
-    input.queue.bindExecution({
-      id: dispatchId,
-      launchId: r.launch.id,
-      agentId: r.launch.agentId,
-    });
 
     // Refused at admission (bond/ceiling/depth/breaker/main-checkout/capability):
     // the launch never spawned. Surface the refusal reason as a failure.
     if (!r.admitted) {
-      return {
-        state: 'failed',
-        launchId: r.launch.id,
-        errorMessage: r.refusedReason ?? 'refused',
-      };
+      return { state: 'failed', errorMessage: r.refusedReason ?? 'refused' };
     }
 
     // Map the launch's terminal-ish state onto the dispatch lifecycle. The
     // mapping is exhaustive over the states the Conductor can return from
     // `launch()`; an unrecognized state is treated as a failure rather than
     // silently swallowed (defensive: a future LaunchState must be mapped here).
+    // Stamp the body's agent id onto the dispatch row as soon as the Conductor
+    // resolves it. This is the join key to `fleet_transcripts`, and it is
+    // recorded here — before the terminal mapping below — because the two things
+    // that need it (a live lane, and the handoff capsule built when a body dies)
+    // both need it while the run is unfinished or failing, not after.
+    const agentId = r.launch.agentId ?? null;
+    if (agentId && typeof input.queue.recordSpawnedAgent === 'function') {
+      try {
+        input.queue.recordSpawnedAgent(input.plan.dispatch.id, agentId);
+      } catch {
+        // Never let a bookkeeping write fail a run: an unrecorded agent id costs
+        // the lane a transcript link, an exception here costs the whole dispatch.
+      }
+    }
+
     const launchState = r.launch.state;
     switch (launchState) {
       case 'halted':
@@ -156,7 +173,7 @@ export function createConductorSpawnAdapter(conductor: ConductorLike): SpawnAdap
         return {
           state: 'salvage',
           launchId: r.launch.id,
-          agentId: r.launch.agentId,
+          agentId,
           errorMessage: r.launch.errorMessage ?? 'halted',
         };
 
@@ -164,7 +181,7 @@ export function createConductorSpawnAdapter(conductor: ConductorLike): SpawnAdap
         return {
           state: 'failed',
           launchId: r.launch.id,
-          agentId: r.launch.agentId,
+          agentId,
           costUsd: r.launch.costUsd ?? undefined,
           errorMessage: r.launch.errorMessage,
         };
@@ -180,7 +197,7 @@ export function createConductorSpawnAdapter(conductor: ConductorLike): SpawnAdap
           return {
             state: 'salvage',
             launchId: r.launch.id,
-            agentId: r.launch.agentId,
+            agentId,
             costUsd: r.launch.costUsd ?? undefined,
             errorMessage:
               r.launch.errorMessage
@@ -190,7 +207,7 @@ export function createConductorSpawnAdapter(conductor: ConductorLike): SpawnAdap
         return {
           state: 'settled',
           launchId: r.launch.id,
-          agentId: r.launch.agentId,
+          agentId,
           costUsd: r.launch.costUsd ?? undefined,
           resultArtifact: r.launch.resultArtifact,
         };
@@ -199,7 +216,7 @@ export function createConductorSpawnAdapter(conductor: ConductorLike): SpawnAdap
         return {
           state: 'failed',
           launchId: r.launch.id,
-          agentId: r.launch.agentId,
+          agentId,
           errorMessage: `unexpected launch state: ${launchState}`,
         };
     }

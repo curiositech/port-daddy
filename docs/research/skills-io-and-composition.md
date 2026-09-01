@@ -3,7 +3,7 @@
 > Status: **research.** Written 2026-08-19, alongside the first-hop candidate
 > expansion in `lib/skill-graft.ts` (same PR). Audience: the operator and
 > anyone authoring or wiring skills. Companion pieces:
-> `docs/research/grafts/2026-06-19-soma-windags-source-audit.md` (where the
+> `docs/research/grafts/2026-06-19-soma-jury_rig-source-audit.md` (where the <!-- cite-exempt -->
 > io-contract idea's real maturity was pinned) and the north-star volume's
 > honesty contract (`docs/research/north-star/README.md`), which we inherit:
 > **[BUILT]** means code on disk in this repo today, **[DESIGNED]** means an
@@ -32,7 +32,7 @@ bar `skills/skill-architect/SKILL.md` enforces with its
 
 The system around the catalog already treats work units this way. The
 planner triple that `skills/next-move/SKILL.md` stores under
-`.windags/triples/` (line 144; Step 9, "Store the Triple") records context,
+`.skill-runtime-archive/triples/` (line 144; Step 9, "Store the Triple") records context,
 predicted DAG, and accept/reject — and every node of that predicted DAG is
 required to carry an **input contract** and an **output contract** ("input
 contract per node; output contract per node when downstream consumes
@@ -48,11 +48,11 @@ mirrored three more times in this repo:
 
 So the *node* shape is contract-carrying today. The honest caveat, which the
 source audit already forced us to write down once: those contracts are
-**free-text metadata, not validated types**. The windags source audit's
+**free-text metadata, not validated types**. The jury_rig source audit's
 RCP-13 row is blunt — "`input_contract`/`output_contract` are free-text
 metadata on DAG nodes; no `ContractValidator`, nothing validates outputs
-against downstream inputs" (`docs/research/grafts/2026-06-19-soma-windags-source-audit.md`,
-TL;DR table and windags status row 9). Nothing in this repo has changed that
+against downstream inputs" (`docs/research/grafts/2026-06-19-soma-jury_rig-source-audit.md`, <!-- cite-exempt -->
+TL;DR table and jury_rig status row 9). Nothing in this repo has changed that
 status. When we say "typed" below, we mean "named and checkable in
 principle," not "checked."
 
@@ -158,7 +158,7 @@ we actually do:
 
 **Sequential composition — output contract feeds input contract.** Skill A's
 produce-kind is skill B's consume-kind, so `B ∘ A` is defined exactly when
-the kinds match. This is the composition the `.windags` triple's node fields
+the kinds match. This is the composition the `.skill-runtime-archive` triple's node fields
 were built for: node N's `output_contract` is the upstream half of node
 N+1's `input_contract`, and the wave-by-wave executor already mutates those
 fields when the DAG changes (a pruned node's downstream dependents "have
@@ -242,7 +242,7 @@ Concrete pairs and triples the graph data supports (or conspicuously fails
 to support — flagged, because that gap is itself the finding). One-line
 mechanism each; edge status from the 2026-08-19 scan.
 
-1. **`windags-premortem` × `wave-by-wave-parley`** *(curated edge)* — the
+1. **`jury_rig-premortem` × `wave-by-wave-parley`** *(curated edge)* — the
    premortem's risk log keyed by `affected_nodes` is exactly the per-node
    risk severity the parley's `cfp` announcement already wants to carry
    (`skills/wave-by-wave-parley/references/parley-protocol-rcp3.md`, step 2); wire the produce to the
@@ -327,7 +327,7 @@ are explicitly *not* proposing is runtime contract validation between
 executing nodes — the source audit's RCP-13 marks that open, and it stays
 open; frontmatter typing is design-time linting and ranking signal, nothing
 more. If a validator ever ships, it starts from the node fields the
-`.windags` triple already carries, not from a new schema.
+`.skill-runtime-archive` triple already carries, not from a new schema.
 
 **What we are not claiming.** The composition graph is mined from prose and
 frontmatter, so its counts wobble with the parser; no contract in this

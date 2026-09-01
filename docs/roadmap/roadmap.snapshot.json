@@ -1,9 +1,14 @@
 {
-  "generatedAt": 1787894977011,
+  "generatedAt": 1788149878497,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 336,
+  "count": 355,
   "items": [
+    {
+      "slug": "a-add-to-the-papers",
+      "status": "backlog",
+      "summaryMd": "A. Add to the papers"
+    },
     {
       "slug": "accountability-wedge-launch-assets",
       "status": "now",
@@ -640,6 +645,11 @@
       "summaryMd": "Signed principal lineage, verifier registry, and canonical action-receipt envelope"
     },
     {
+      "slug": "b-prove",
+      "status": "backlog",
+      "summaryMd": "B. Prove"
+    },
+    {
       "slug": "beacon-durable-agent-roster",
       "status": "backlog",
       "summaryMd": "Turn machine-local sessions into durable, meaningful named agents with system and repo remits, prompt and tool policy, episodic learning, searchable transcript lineage, and Port Daddy discovery."
@@ -698,6 +708,11 @@
       "slug": "build-integrity-spine-drift-checks",
       "status": "backlog",
       "summaryMd": "From fleetbot review on #2566 (pd-lookout HIGH): automate drift checks for the build-integrity spine (the single-source codegen registry the coarsened architecture doc names as the fix for the model-tiers.json duplication rot). Ties directly to the model-abstraction-audit work already on the roadmap."
+    },
+    {
+      "slug": "c-try-and-measure",
+      "status": "backlog",
+      "summaryMd": "C. Try and measure"
     },
     {
       "slug": "cartographer-offline-since-may",
@@ -785,6 +800,11 @@
       "summaryMd": "Harden marketing visuals and asset integrity"
     },
     {
+      "slug": "codex-jury-rig-skill-runtime",
+      "status": "backlog",
+      "summaryMd": "Replace the retired external skill runtime with native Jury-rig discovery, guarded references, and fail-closed bootstrap receipts."
+    },
+    {
       "slug": "codex-pd-console-visual-proof-lane",
       "status": "backlog",
       "summaryMd": "test(pd-console): harden exact-window visual proof"
@@ -815,9 +835,34 @@
       "summaryMd": "Close theorem, security, game-theoretic, conservation, dissemination, oracle-independence, Proof-of-Attention, and model-to-runtime conformance obligations under named adversaries and parameter regions."
     },
     {
+      "slug": "coordination-papers-research-and-implementation-program",
+      "status": "backlog",
+      "summaryMd": "Coordination Papers Research and Implementation Program"
+    },
+    {
       "slug": "coordination-papers-runtime-closure",
       "status": "backlog",
       "summaryMd": "Close publication runtime gaps exposed by the rigor pass: resumable Fleet ships and review chunks, bounded GitHub I/O, the fleet_run_spend migration, exact-head memory and empty-provider receipts, stale-head coalescing, promotion criteria for paper claims, and witnessed implementation-status evidence."
+    },
+    {
+      "slug": "cross-runtime-execution-envelope",
+      "status": "backlog",
+      "summaryMd": "Attested execution identity across local and cloud harnesses"
+    },
+    {
+      "slug": "cross-runtime-execution-envelope-adr",
+      "status": "now",
+      "summaryMd": "Publish ADR-0136 cross-runtime execution envelope"
+    },
+    {
+      "slug": "current-implementation-evidence",
+      "status": "backlog",
+      "summaryMd": "Current implementation evidence"
+    },
+    {
+      "slug": "d-add-to-the-code",
+      "status": "backlog",
+      "summaryMd": "D. Add to the code"
     },
     {
       "slug": "daemon-compiled-tree-sitter-wasm-crash-20260823",
@@ -928,6 +973,11 @@
       "slug": "durable-asynchronous-spawn-receipts",
       "status": "now",
       "summaryMd": "Durable idempotent admission, lifecycle, liveness, cancellation, and collection receipts for background agent runs."
+    },
+    {
+      "slug": "exit-criteria",
+      "status": "backlog",
+      "summaryMd": "Exit criteria"
     },
     {
       "slug": "fail-closed-signed-external-action-receipts-and-porthole-rep",
@@ -1063,6 +1113,11 @@
       "slug": "fleetbar-developer-id-signing",
       "status": "backlog",
       "summaryMd": "fix(release): Developer ID sign + notarize FleetBar.app (stop shipping a Gatekeeper-quarantined app)"
+    },
+    {
+      "slug": "fleetbar-operator-attention-and-update",
+      "status": "now",
+      "summaryMd": "FleetBar must update itself from the daemon's exact signed release, show progress/failure, preserve rollback, and expose notifications, sound, semantic icon presence, and honest operator availability."
     },
     {
       "slug": "fleetbar-visual-task-intake",
@@ -1235,6 +1290,11 @@
       "summaryMd": "Claude-only interactive context-pressure and plan-first compaction: max usage measurement, cited evidence packet, bounded verified continuation, and honest unsupported adapters."
     },
     {
+      "slug": "interactive-squid-review-hardening",
+      "status": "now",
+      "summaryMd": "Harden interactive context-pressure ingress and successor-boundary contract"
+    },
+    {
       "slug": "io-wiring",
       "status": "now",
       "summaryMd": "Wire the pluggable trigger/output registry into the fleet engine so fleet agents can fire on and emit to file, webhook, notify, email, SMS, iMessage and calendar — not just singular trigger:/schedule:. Phased: io-wiring-phase-1..5."
@@ -1340,6 +1400,16 @@
       "summaryMd": "Wire pd-anchor's Rust CPM scheduler (schedule.rs / pd_schedule_dag_json FFI export) to the TS daemon via a kernel-preferred koffi loader (lib/planner-schedule-ffi.ts), replacing the pure-TS fallback routes/roadmap.ts always ran. Closes a zero-test-coverage gap on the FFI boundary and adds the first rustdoc+doctest example under the new Rust-documentation law. Shipped as PR #3828."
     },
     {
+      "slug": "pd-console-agentic-workbench",
+      "status": "now",
+      "summaryMd": "Make pd-console a conversation-first agentic coding workbench"
+    },
+    {
+      "slug": "pd-console-cross-backend-agent-switcher",
+      "status": "now",
+      "summaryMd": "Durable cross-backend Agents switcher in pd-console"
+    },
+    {
       "slug": "pd-console-cull-and-defects",
       "status": "backlog",
       "summaryMd": "pd-console: cull 14 dead/thin/redundant panes (26→13) + fix 5 operator-named defects"
@@ -1358,6 +1428,11 @@
       "slug": "pd-console-story-linework-shell",
       "status": "now",
       "summaryMd": "Rebuild pd-console around the story-linework operator shell: flat L0-L3 navigation, honest state framing, Conjure wave blocks, persistent native PTY, and motion/reduced-motion proof."
+    },
+    {
+      "slug": "pd-console-zoom-controls",
+      "status": "now",
+      "summaryMd": "Add explicit, persistent zoom controls and shortcuts to pd-console with honest PTY geometry and responsive title-deck behavior."
     },
     {
       "slug": "pd-roadmap-dependency-write-path",
@@ -1395,6 +1470,11 @@
       "summaryMd": "Replace narrated Porthole demos with reproducible harness evidence: real install and readiness, decoded model context, tmux collision refusal, declared time jump, pd up service, and durable Parley."
     },
     {
+      "slug": "porthole-player-website-component",
+      "status": "backlog",
+      "summaryMd": "feat(porthole): production terminal-replay player replaces landing-page GIFs"
+    },
+    {
       "slug": "postmaster-context-and-review-coordination",
       "status": "now",
       "summaryMd": "High-priority Postmaster delivery contract: plan-first continuity, repository PR digests, roadmap/document/AST suggestions, Fleetbot settlement, and context-clustered successors; named ship activation waits for real local ship runtime."
@@ -1413,6 +1493,16 @@
       "slug": "provenance-gated-git-guard",
       "status": "backlog",
       "summaryMd": "ADR-0119: git-guard has no agent-mintable escape. PD_SHIM_OFF removed from shim + pre-push hook; refusal points only to corrective action. Renumbered from colliding 0102 (salvage-envelope owns 0102). Stale bypass-still-works tests inverted to assert removal; red-team fixture proves no in-band escape. (PR #3145)"
+    },
+    {
+      "slug": "publication-receipt-contract",
+      "status": "backlog",
+      "summaryMd": "Publication receipt contract"
+    },
+    {
+      "slug": "purpose",
+      "status": "backlog",
+      "summaryMd": "Purpose"
     },
     {
       "slug": "readme-front-door-and-accuracy-gate",
@@ -1498,6 +1588,11 @@
       "slug": "roadmap-reconciler-agent",
       "status": "backlog",
       "summaryMd": "Wave-2 registry steward owning CR-3 (roadmap single system of record). Architecture decided + audited (agentic-app-architecture, 100/100 all five axes, 2026-07-14): TRANSPARENCY — headless fleet agent whose plan IS the dry-run (registry-reunify --dry-run posted as note/PR body before any apply); every run leaves the plan, superseded-row attribution, and counts in the receipt. STATE — pd sessions/notes durable history; per-run reconciliation receipts promoted to episodic memory/booty; decisions append-only (revise by new event, never edit). CONTEXT — deterministic merge stays LLM-FREE (the shipped script is the merge engine); LLM only for curation proposals (re-harboring the accidental harbors, demoting the 70 status-now items) with a stable cached system prefix. CAPABILITIES — tools: registry-reunify, sqlite read, gh, pd notes/roadmap; MCP: pd core only; secrets: gh keychain credential store (secret-store custody), token never in argv/env/transcript. EXECUTION — coding-agent finish line: union snapshot export committed via worktree-isolated PR with Roadmap-Item trailer; DB apply gated on dry-run receipt; HUMAN GATE on anything destructive (deletes, re-harboring, status demotions); pure union-append may auto-apply. DEPENDENCIES: (1) roadmap-delete-tombstones before any RECURRING reconciliation (zombie-resurrection); (2) control-contract-wirer (CR-1/CR-2) before long-running unattended mode — until control commands have a real counterparty, runs must be short atomic bursts; (3) v3.25.0 cutover complete (docs/recovery/V3.25.0-DURABLE-HOME-CUTOVER.md). Acceptance: one full reconcile cycle leaves live daemon, committed snapshot, and gate universe reporting identical item counts, with a receipt PR."
+    },
+    {
+      "slug": "roadmap-registry",
+      "status": "backlog",
+      "summaryMd": "Roadmap registry"
     },
     {
       "slug": "roadmap-schema-wiring",
