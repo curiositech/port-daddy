@@ -75,6 +75,7 @@ export function verifyAgent(
   agentId: string | null,
   verifier: AgentVerifier | null,
   requireRegistered: boolean = false,
+  failClosedWithoutVerifier: boolean = false,
 ): AuthResult {
   if (!agentId) {
     return {
@@ -84,8 +85,13 @@ export function verifyAgent(
     };
   }
 
-  // If no verifier provided (e.g., during tests), allow all
+  // Compatibility actions may run in stripped test modes. Constitutional
+  // ownership actions pass failClosedWithoutVerifier=true and never turn a
+  // missing registry into assumed authority.
   if (!verifier) {
+    if (requireRegistered && failClosedWithoutVerifier) {
+      return { allowed: false, agentId, reason: 'agent_verifier_unavailable' };
+    }
     return { allowed: true, agentId };
   }
 
@@ -114,6 +120,7 @@ export function verifyAgent(
  */
 const REQUIRES_REGISTRATION = new Set([
   'session.begin',
+  'session.start',
   'session.done',
   'session.note',
   'session.files.claim',
@@ -121,6 +128,10 @@ const REQUIRES_REGISTRATION = new Set([
   'lock.acquire',
   'lock.release',
   'salvage.claim',
+  'session.takeover',
+  'ownership.bootstrap',
+  'ownership.takeover.prepare',
+  'ownership.grant.get',
 ]);
 
 /**

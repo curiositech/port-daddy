@@ -1,0 +1,18 @@
+{
+  "schema": "pd.agent-harbor.durable-takeover-receipt.v0",
+  "receiptId": "otrcpt_01",
+  "grantId": "otgrant_01",
+  "kind": "consumed",
+  "at": 1788000000000,
+  "details": {
+    "predecessorEpochId": "oepoch_00",
+    "successorEpochId": "oepoch_01",
+    "briefingHash": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+  },
+  "contentHash": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+  "signature": {
+    "algorithm": "ed25519",
+    "keyId": "daemon-key-1",
+    "value": "signed-receipt"
+  }
+}

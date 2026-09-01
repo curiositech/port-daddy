@@ -79,6 +79,10 @@ const SCHEMA_NAMES = [
   'handoff-capsule',
   'handoff-successor-brief',
   'harness-continuation-matrix',
+  'durable-ownership-epoch',
+  'ownership-successor-brief',
+  'durable-takeover-grant',
+  'durable-takeover-receipt',
   'compaction-packet',
   'memory-episode',
   'transcript-search-query',
@@ -90,6 +94,10 @@ const STRICT_SCHEMA_NAMES = new Set([
   'handoff-capsule',
   'handoff-successor-brief',
   'harness-continuation-matrix',
+  'durable-ownership-epoch',
+  'ownership-successor-brief',
+  'durable-takeover-grant',
+  'durable-takeover-receipt',
 ]);
 
 // ---------------------------------------------------------------------------
@@ -276,7 +284,7 @@ function loadFixture(name) {
 // ---------------------------------------------------------------------------
 
 describe('agent-harbor v0 schema package', () => {
-  it('ships exactly the twenty-five frozen contracts plus fixtures', () => {
+  it('ships exactly the twenty-nine frozen contracts plus fixtures', () => {
     const files = readdirSync(schemaDir).filter((f) => f.endsWith('.schema.json')).sort();
     expect(files).toEqual(SCHEMA_NAMES.map((n) => `${n}.schema.json`).sort());
   });

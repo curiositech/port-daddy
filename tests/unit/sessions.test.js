@@ -95,6 +95,14 @@ describe('Sessions Module', () => {
       expect(got.session.metadata).toEqual(metadata);
     });
 
+    it('does not borrow the daemon cwd when transport admission supplies an explicit null worktree', () => {
+      const result = sessions.start('Outside any caller Git world', { worktreeId: null });
+
+      expect(result.success).toBe(true);
+      const got = sessions.get(result.id);
+      expect(got.session.worktreeId).toBeNull();
+    });
+
     it('should claim files when provided', () => {
       const result = sessions.start('Work item', {
         files: ['src/app.ts', 'src/utils.ts']
@@ -328,7 +336,7 @@ describe('Sessions Module', () => {
   });
 
   describe('Takeover', () => {
-    it('should create a successor session and preserve predecessor notes', () => {
+    it('refuses the legacy ambient takeover primitive without mutating predecessor state or claims', () => {
       const started = sessions.start('Build takeover', {
         agentId: 'old-agent',
         files: ['src/a.ts'],
@@ -342,92 +350,26 @@ describe('Sessions Module', () => {
         note: 'continuing after stale owner',
       });
 
-      expect(result.success).toBe(true);
-      expect(result.predecessorId).toBe(started.id);
-      expect(result.successorId).toMatch(/^session-build-takeover-[a-f0-9]{12}$/);
-      expect(result.notesPreserved).toBe(true);
-      expect(result.claimedFiles).toEqual(['src/a.ts']);
+      expect(result).toMatchObject({
+        success: false,
+        code: 'RECOVERY_GRANT_REQUIRED',
+      });
 
       const predecessor = sessions.get(started.id);
       expect(predecessor.success).toBe(true);
-      expect(predecessor.session.status).toBe('abandoned');
-      expect(predecessor.session.metadata.takenOverBySessionId).toBe(result.successorId);
-      expect(predecessor.notes.map(note => note.content)).toEqual(expect.arrayContaining([
-        'old note',
-        expect.stringContaining(result.successorId),
-      ]));
-
-      const successor = sessions.get(result.successorId);
-      expect(successor.success).toBe(true);
-      expect(successor.session.status).toBe('active');
-      expect(successor.session.agentId).toBe('new-agent');
-      expect(successor.session.identityProject).toBe('port-daddy');
-      expect(successor.session.metadata.predecessorSessionId).toBe(started.id);
-      expect(successor.files.filter(file => file.releasedAt === null).map(file => file.filePath)).toEqual(['src/a.ts']);
-
-      const oldActiveFiles = db.prepare('SELECT COUNT(*) as count FROM session_files WHERE session_id = ? AND released_at IS NULL').get(started.id);
-      expect(oldActiveFiles.count).toBe(0);
+      expect(predecessor.session.status).toBe('active');
+      expect(predecessor.notes.map(note => note.content)).toEqual(['old note']);
+      expect(predecessor.files.filter(file => file.releasedAt === null).map(file => file.filePath)).toEqual(['src/a.ts']);
+      expect(db.prepare('SELECT COUNT(*) AS count FROM sessions').get()).toEqual({ count: 1 });
     });
 
-    it('should preserve region claims when transferring files', () => {
-      const started = sessions.start('Region takeover', { agentId: 'old-agent' });
-      const claim = sessions.claimFiles(started.id, [], {
-        agentId: 'old-agent',
-        regions: [{ path: 'src/a.ts', startLine: 10, endLine: 20, symbol: 'run', symbolPath: 'run' }],
-      });
-      expect(claim.success).toBe(true);
-
-      const result = sessions.takeover(started.id, { agentId: 'new-agent' });
-
-      expect(result.success).toBe(true);
-      const successor = sessions.get(result.successorId);
-      expect(successor.files).toEqual(expect.arrayContaining([
-        expect.objectContaining({
-          filePath: 'src/a.ts',
-          startLine: 10,
-          endLine: 20,
-          symbolPath: 'run',
-          releasedAt: null,
-        }),
-      ]));
-    });
-
-    it('should keep the predecessor agent when takeover does not specify a replacement', () => {
-      const started = sessions.start('Agent continuity takeover', {
-        agentId: 'continuity-agent',
-        durable: true,
-      });
-
-      const result = sessions.takeover(started.id, { note: 'same agent continuing' });
-
-      expect(result.success).toBe(true);
-      const successor = sessions.get(result.successorId);
-      expect(successor.success).toBe(true);
-      expect(successor.session.agentId).toBe('continuity-agent');
-      expect(successor.session.metadata.predecessorAgentId).toBe('continuity-agent');
-
-      const predecessor = sessions.get(started.id);
-      expect(predecessor.session.metadata.takenOverByAgentId).toBe('continuity-agent');
-    });
-
-    it('should create a successor from a completed session without changing predecessor status', () => {
-      const started = sessions.start('Completed source');
-      sessions.end(started.id, { note: 'done once' });
-
-      const result = sessions.takeover(started.id, { agentId: 'new-agent', claimFiles: false });
-
-      expect(result.success).toBe(true);
-      expect(result.claimsTransferred).toBe(false);
-      const predecessor = sessions.get(started.id);
-      expect(predecessor.session.status).toBe('completed');
-      expect(predecessor.notes.some(note => note.type === 'takeover')).toBe(true);
-    });
-
-    it('should fail for nonexistent session', () => {
+    it('never exposes session existence through the disabled legacy primitive', () => {
       const result = sessions.takeover('session-nope', { agentId: 'new-agent' });
 
-      expect(result.success).toBe(false);
-      expect(result.code).toBe('SESSION_NOT_FOUND');
+      expect(result).toMatchObject({
+        success: false,
+        code: 'RECOVERY_GRANT_REQUIRED',
+      });
     });
   });
 
@@ -941,6 +883,35 @@ describe('Sessions Module', () => {
 
       expect(result.success).toBe(true);
       expect(result.claimed).toEqual(['src/a.ts']);
+    });
+
+    it('stamps the admitted AgentNode onto new whole-file and region claims', () => {
+      const started = sessions.start('Durable owner claims', { agentId: 'agent-body' });
+      const agentNodeId = 'agent_node_claim_owner';
+      db.prepare('UPDATE sessions SET agent_node_id = ? WHERE id = ?').run(agentNodeId, started.id);
+
+      expect(sessions.claimFiles(started.id, ['src/owned.ts'], {
+        agentId: 'agent-body',
+        regions: [{ path: 'src/region.ts', startLine: 4, endLine: 9 }],
+      }).success).toBe(true);
+
+      expect(db.prepare(`
+        SELECT file_path AS filePath, agent_node_id AS agentNodeId
+        FROM session_files WHERE session_id = ? ORDER BY file_path
+      `).all(started.id)).toEqual([
+        { filePath: 'src/owned.ts', agentNodeId },
+        { filePath: 'src/region.ts', agentNodeId },
+      ]);
+      expect(db.prepare(`
+        SELECT n.path AS filePath, c.agent_node_id AS agentNodeId
+        FROM claim_forest_claims c
+        JOIN claim_forest_nodes n ON n.id = c.node_id
+        WHERE c.session_id = ? AND c.released_at IS NULL
+        ORDER BY n.path
+      `).all(started.id)).toEqual([
+        { filePath: 'src/owned.ts', agentNodeId },
+        { filePath: 'src/region.ts', agentNodeId },
+      ]);
     });
 
     it('should reject file claims from the wrong agent when mutation identity is enforced', () => {

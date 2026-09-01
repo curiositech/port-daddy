@@ -19,9 +19,9 @@ import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import { createHash } from 'node:crypto';
 import { checkAdversarialProjectWrite } from '../lib/coordination-route-guard.js';
 import {
-  evaluateSessionWorktreePolicy,
-  mergeSessionWorktreeMetadata,
+  resolveSessionWorktreeAdmission,
 } from '../lib/worktree-policy.js';
+import type { WorktreeInfo } from '../lib/worktree.js';
 import { coerceClaimType, type ClaimType } from '../lib/symbol-conflict-matrix.js';
 import type { SymbolConflict } from '../lib/symbol-claims.js';
 import type { Suggestions } from '../lib/suggestions.js';
@@ -49,6 +49,10 @@ import {
   projectContextContinuation,
   type ContextBootstrapLookup,
 } from '../lib/sugar.js';
+import {
+  DurableOwnershipError,
+  type DurableOwnershipService,
+} from '../lib/durable-ownership.js';
 
 interface SessionsRouteDeps {
   sessions: {
@@ -79,6 +83,7 @@ interface SessionsRouteDeps {
       sessionId?: string | null;
       agentId?: string | null;
       type?: string;
+      worktreeId?: string | null;
     }): Record<string, unknown>;
     getNotes(sessionId?: string | null, options?: {
       limit?: number;
@@ -157,6 +162,10 @@ interface SessionsRouteDeps {
    * a continuation from loose session similarity.
    */
   contextBootstrapLookup?: ContextBootstrapLookup;
+  /** Canonical signed ownership/claim-transfer authority. */
+  durableOwnership?: DurableOwnershipService;
+  /** Hermetic-test seam; production re-probes caller-named roots with Git. */
+  sessionWorktreeProbe?: (root: string) => WorktreeInfo | null;
 }
 
 type SessionLifecycle = 'durable' | 'ephemeral';
@@ -473,7 +482,7 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
     request: FastifyRequest,
     bodyAgentId: unknown,
     route: string,
-    options?: { requireIdentity?: boolean },
+    options?: { requireIdentity?: boolean; harbor?: string },
   ):
     | { success: true; agentId: string | null; verdict: Extract<IdentityWriteVerdict, { ok: true }> }
     | { success: false; httpStatus: number; result: Record<string, unknown> } => {
@@ -486,6 +495,7 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
       credential: extractActorCredential(request.headers as Record<string, unknown>, request.body),
       assertedAgentId: base.agentId,
       route,
+      harbor: options?.harbor,
       logger,
       requireIdentity: options?.requireIdentity,
     });
@@ -673,7 +683,14 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
       }
     }
 
-    const result = sessions.quickNote(writtenContent, { sessionId, agentId: noteIdentity.agentId, type });
+    const result = sessions.quickNote(writtenContent, {
+      sessionId,
+      agentId: noteIdentity.agentId,
+      type,
+      // A note request with no explicit session carries no Git-world witness.
+      // Never scope it to the daemon process cwd.
+      worktreeId: null,
+    });
 
     if (!result.success) {
       reply.code(noteWriteStatus(result));
@@ -757,10 +774,13 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         }
       }
 
-      const worktreePolicy = evaluateSessionWorktreePolicy({ worktree, requireLinkedWorktree, allowMainWorktree });
-      if (!worktreePolicy.success) {
+      const worktreeAdmission = resolveSessionWorktreeAdmission(
+        { worktree, requireLinkedWorktree, allowMainWorktree, metadata },
+        { probeWorktree: deps.sessionWorktreeProbe },
+      );
+      if (!worktreeAdmission.success) {
         reply.code(400);
-        return worktreePolicy;
+        return worktreeAdmission;
       }
 
       const lifecycle = rawLifecycle === undefined ? null : parseSessionLifecycle(rawLifecycle);
@@ -773,22 +793,19 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         };
       }
 
-      const mergedMetadata = mergeSessionWorktreeMetadata(metadata, worktreePolicy.worktree, {
-        requireLinkedWorktree,
-        allowMainWorktree,
-      });
-
       // #8877: the session row is the durable attributed record — stamp the
       // verified identity verdict into its metadata so the record itself
       // testifies which minted actor started it (and a caller-supplied
       // `identity` key can never pre-fill the daemon's verdict slot).
-      const stampedMetadata = stampIdentityMetadata(mergedMetadata, sessionAgent.verdict);
+      const stampedMetadata = stampIdentityMetadata(worktreeAdmission.metadata, sessionAgent.verdict);
 
       const result = sessions.start(purpose, {
         agentId: sessionAgent.agentId,
         files,
         metadata: stampedMetadata,
-        worktreeId: worktreePolicy.worktree?.id,
+        // Explicit null means the caller had no Git world. It must not borrow
+        // the daemon process cwd, which may be an unrelated repository.
+        worktreeId: worktreeAdmission.worktreeId,
         durable: lifecycle === 'durable',
       });
 
@@ -935,81 +952,106 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
     }
   });
 
-  // POST /sessions/:id/takeover - Non-destructively continue an existing session
+  // POST /sessions/:id/takeover - Consume an explicit signed ownership grant.
   fastify.post('/sessions/:id/takeover', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const sessionIdParam = (request.params as any).id;
       const sessionId = typeof sessionIdParam === 'string' ? sessionIdParam : sessionIdParam[0];
       const body = (request.body || {}) as any;
-      // Takeover is ALWAYS attributed: when no agentId is asserted the
-      // successor inherits the predecessor's agent id, so an anonymous
-      // takeover would write an attributed record under someone else's name.
-      // requireIdentity turns even a bare no-claim takeover into a 401.
-      const sessionAgent = mutationIdentity(request, body.agentId, 'POST /sessions/:id/takeover', { requireIdentity: true });
+      const unknown = Object.keys(body).find(field => ![
+        'grantId', 'nonce', 'agentId', 'credential',
+      ].includes(field));
+      if (unknown) {
+        reply.code(400);
+        return {
+          success: false,
+          code: 'UNKNOWN_FIELD',
+          error: `${unknown} is not accepted by takeover acceptance`,
+        };
+      }
+      if (typeof body.grantId !== 'string' || !body.grantId.trim() || typeof body.nonce !== 'string' || !body.nonce.trim()) {
+        reply.code(409);
+        return {
+          success: false,
+          code: 'RECOVERY_GRANT_REQUIRED',
+          error: 'session takeover requires a signed durable-ownership grantId and one-shot nonce',
+        };
+      }
+      if (!deps.durableOwnership) {
+        reply.code(503);
+        return {
+          success: false,
+          code: 'DURABLE_OWNERSHIP_UNAVAILABLE',
+          error: 'canonical durable ownership service is unavailable',
+        };
+      }
+      const grantView = deps.durableOwnership.getGrant(body.grantId.trim());
+      if (!grantView) {
+        reply.code(404);
+        return { success: false, code: 'GRANT_NOT_FOUND', error: 'takeover grant not found' };
+      }
+      if (grantView.grant.sourceSessionId !== sessionId) {
+        reply.code(409);
+        return { success: false, code: 'GRANT_BINDING_MISMATCH', error: 'route session does not match the signed grant' };
+      }
+      const sessionAgent = mutationIdentity(request, body.agentId, 'POST /sessions/:id/takeover', {
+        requireIdentity: true,
+        harbor: grantView.grant.harbor,
+      });
       if (!sessionAgent.success) {
         reply.code(sessionAgent.httpStatus);
         return sessionAgent.result;
       }
-      const lifecycle = parseSessionLifecycle(body.lifecycle);
-      const worktreePolicy = evaluateSessionWorktreePolicy({
-        worktree: body.worktree,
-        requireLinkedWorktree: body.requireLinkedWorktree,
-        allowMainWorktree: body.allowMainWorktree,
-      });
-      if (!worktreePolicy.success) {
-        reply.code(400);
-        return worktreePolicy;
+      if (sessionAgent.verdict.kind !== 'verified') {
+        reply.code(401);
+        return {
+          success: false,
+          code: 'IDENTITY_CREDENTIAL_REQUIRED',
+          error: 'takeover acceptance requires a verified actor credential',
+        };
       }
-      const metadata = mergeSessionWorktreeMetadata(
-        body.metadata && typeof body.metadata === 'object' && !Array.isArray(body.metadata) ? body.metadata : null,
-        worktreePolicy.worktree,
-        {
-          requireLinkedWorktree: body.requireLinkedWorktree,
-          allowMainWorktree: body.allowMainWorktree,
+      const accepted = await deps.durableOwnership.acceptTakeover({
+        sourceSessionId: sessionId,
+        grantId: body.grantId.trim(),
+        nonce: body.nonce.trim(),
+      }, {
+        actorId: sessionAgent.verdict.actorId,
+        soulClass: sessionAgent.verdict.soulClass,
+      });
+      const result: Record<string, unknown> = {
+        success: true,
+        predecessorId: accepted.grant.sourceSessionId,
+        successorId: accepted.grant.successorSessionId,
+        ownership: {
+          grantId: accepted.grant.grantId,
+          predecessorAgentNodeId: accepted.grant.predecessorAgentNodeId,
+          successorAgentNodeId: accepted.grant.successorAgentNodeId,
+          successorEpochId: accepted.epoch.epochId,
+          cause: accepted.epoch.cause,
+          contentHash: accepted.epoch.contentHash,
+          signature: accepted.epoch.signature,
         },
-      );
-
-      const result = sessions.takeover(sessionId, {
-        agentId: sessionAgent.agentId,
-        purpose: typeof body.purpose === 'string' ? body.purpose : null,
-        note: typeof body.note === 'string' ? body.note : null,
-        project: typeof body.project === 'string' ? body.project : null,
-        worktreeId: typeof body.worktreeId === 'string' ? body.worktreeId : worktreePolicy.worktree?.id ?? null,
-        metadata: stampIdentityMetadata(metadata, sessionAgent.verdict),
-        durable: lifecycle ? lifecycle === 'durable' : typeof body.durable === 'boolean' ? body.durable : undefined,
-        claimFiles: typeof body.claimFiles === 'boolean' ? body.claimFiles : undefined,
-      });
-
-      if (!result.success) {
-        const statusCode = result.code === 'VALIDATION_ERROR' ? 400 : 404;
-        reply.code(statusCode);
-        return result;
-      }
-
-      if (sessionAgent.verdict.kind !== 'anonymous') {
-        result.identity = sessionAgent.verdict.identity;
-      }
-
-      // `sessions.takeover` is the durable lineage writer. Do not trust a
-      // predecessor field in the request body: only the returned predecessor
-      // that matches this route target may query the context ledger.
-      result.contextContinuation = projectContextContinuation(
-        typeof result.predecessorId === 'string' && result.predecessorId === sessionId
-          ? result.predecessorId
-          : null,
-        contextBootstrapLookup,
-      );
+        receipt: accepted.receipt,
+        disposition: accepted.disposition,
+        identity: sessionAgent.verdict.identity,
+        contextContinuation: projectContextContinuation(sessionId, contextBootstrapLookup),
+      };
 
       logger.info('session_taken_over', {
         predecessorId: result.predecessorId,
         successorId: result.successorId,
-        claimsTransferred: result.claimsTransferred,
-        identityVerified: sessionAgent.verdict.kind === 'verified',
+        grantId: accepted.grant.grantId,
+        claimsTransferred: accepted.disposition.transferredClaimNodeIds.length,
+        identityVerified: true,
       });
 
       return result;
 
     } catch (error) {
+      if (error instanceof DurableOwnershipError) {
+        reply.code(error.statusCode);
+        return { success: false, code: error.code, error: error.message };
+      }
       metrics.errors++;
       logger.error('session_takeover_error', { error: (error as Error).message });
       reply.code(500);

@@ -195,6 +195,13 @@ interface DurableAgentRosterDeps {
 
 interface DurableAgentCreateOptions {
   verifiedPromotion?: boolean;
+  /**
+   * Constitutional composition hook. Runs after the AgentNode fact is visible
+   * but before the outer IMMEDIATE transaction commits, so a failed AgentRun
+   * admission rolls the node fact back as well. Never expose this as request
+   * data; only the daemon composition root may supply it.
+   */
+  onNodeAppended?: (agent: DurableAgentRecord) => void;
 }
 
 function sha256(value: string): string {
@@ -699,17 +706,22 @@ export function createDurableAgentRoster(db: DatabaseInstance, deps: DurableAgen
     options: DurableAgentCreateOptions = {},
   ): Promise<{ agent: DurableAgentRecord; warnings: string[] }> {
     const profile = buildProfile(input, options.verifiedPromotion === true);
-    assertUniqueAlias(profile.scope.key, profile.slug);
-    const agentNodeId = `agent_node_${randomUUID()}`;
-    appendEvent(db, { streamType: 'agent-node', payload: nodePayload(agentNodeId, profile) });
-    const agent = toRecord(findFact(agentNodeId), true);
+    const persist = db.transaction(() => {
+      assertUniqueAlias(profile.scope.key, profile.slug);
+      const agentNodeId = `agent_node_${randomUUID()}`;
+      appendEvent(db, { streamType: 'agent-node', payload: nodePayload(agentNodeId, profile) });
+      const agent = toRecord(findFact(agentNodeId), true);
+      options.onNodeAppended?.(agent);
+      return agent;
+    });
+    const agent = persist.immediate();
     const warnings: string[] = [];
     try {
       await refreshEmbedding(agent);
     } catch (error) {
       warnings.push('semantic profile indexing is pending; run pd doctor if the shared embedder is unavailable');
       deps.logger?.error?.('durable_agent_embedding_failed', {
-        agentNodeId,
+        agentNodeId: agent.agentNodeId,
         errorType: error instanceof Error ? error.name : 'unknown',
       });
     }

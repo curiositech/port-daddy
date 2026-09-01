@@ -552,6 +552,197 @@ describe('GET /roadmap/projection', () => {
     expect(res.body).toBe(serializeRoadmapProjection(body));
   });
 
+  test('redacts exact ownership claims, briefings, grant ids, and actions until a verified party reads', async () => {
+    db.exec(`
+      ALTER TABLE roadmap_items ADD COLUMN assignee_id TEXT;
+      UPDATE roadmap_items SET assignee_id = 'agent_node_current' WHERE id = 'i-home';
+      UPDATE roadmap_items SET assignee_id = 'legacy-display-alias' WHERE id = 'i-live';
+    `);
+    const currentEpoch = {
+      epochId: 'epoch-current-sensitive',
+      roadmapItemId: 'i-home',
+      roadmapSlug: 'ship-roadmap-home',
+      harbor: 'port-daddy',
+      epochNumber: 2,
+      ownerAgentNodeId: 'agent_node_current',
+      priorEpochId: 'epoch-prior-sensitive',
+      priorOwnerAgentNodeId: 'agent_node_prior',
+      cause: 'operator-takeover',
+      sourceSessionId: 'session-sensitive-source',
+      successorSessionId: 'session-sensitive-successor',
+      takeoverGrantId: 'grant-sensitive',
+      workBinding: {},
+      claimBindings: [{
+        claimNodeId: 'claim-sensitive',
+        filePath: '/Users/operator/private/repo/lib/secret-claim.ts',
+        selectorKind: 'file',
+        startLine: null,
+        endLine: null,
+        symbol: null,
+        symbolPath: null,
+        worldKind: 'worktree',
+        worldId: 'secret-worktree',
+        claimedAt: NOW - 500,
+        mode: 'X',
+        contentHash: 'sha256:secret-content-hash',
+        disposition: 'transfer',
+      }, {
+        claimNodeId: 'claim-explicitly-released',
+        filePath: '/Users/operator/private/repo/lib/released-claim.ts',
+        selectorKind: 'file',
+        startLine: null,
+        endLine: null,
+        symbol: null,
+        symbolPath: null,
+        worldKind: 'worktree',
+        worldId: 'secret-worktree',
+        claimedAt: NOW - 500,
+        mode: 'X',
+        contentHash: null,
+        disposition: 'release',
+      }],
+      claimSetHash: 'sha256:claim-set',
+      briefingHash: 'sha256:briefing',
+      reason: 'Sensitive operator recovery reason.',
+      authoredByAgentNodeId: 'agent_node_current',
+      authorizedActorId: 'actor-owner',
+      createdAt: NOW - 1_000,
+      contentHash: 'sha256:epoch',
+      signature: { algorithm: 'ed25519', keyId: 'daemon-key', value: 'sig' },
+    };
+    const priorEpoch = {
+      ...currentEpoch,
+      epochId: 'epoch-prior-sensitive',
+      epochNumber: 1,
+      ownerAgentNodeId: 'agent_node_prior',
+      priorEpochId: null,
+      priorOwnerAgentNodeId: null,
+      cause: 'assignment',
+      sourceSessionId: 'session-prior-sensitive',
+      successorSessionId: null,
+      takeoverGrantId: null,
+      claimBindings: [],
+      reason: 'Sensitive historical reason.',
+      authorizedActorId: 'actor-prior',
+      createdAt: NOW - 10_000,
+    };
+    const ownershipProjection = {
+      roadmapItemId: 'i-home',
+      roadmapSlug: 'ship-roadmap-home',
+      currentOwner: 'agent_node_current',
+      currentEpoch,
+      currentState: 'stale',
+      priorOwners: [{ agentNodeId: 'agent_node_prior', epochId: priorEpoch.epochId, epochNumber: 1 }],
+      epochs: [currentEpoch, priorEpoch],
+      activeGrantId: null,
+    };
+    const grantView = {
+      state: 'active',
+      consumedAt: null,
+      consumedEpochId: null,
+      receipts: [],
+      grant: {
+        grantId: 'grant-sensitive',
+        briefing: {
+          briefingId: 'briefing-sensitive',
+          contentHash: 'sha256:briefing-sensitive',
+          generatedAt: NOW - 900,
+          handoff: { lineage: { capsuleId: 'capsule-sensitive' } },
+          knownGaps: ['Secret known gap text.'],
+          omittedSources: ['Provider-private chain of thought'],
+          unresolvedQuestions: [{
+            id: 'question-sensitive',
+            text: 'Secret unresolved question text?',
+            sourceRef: 'logbook://private/question',
+          }],
+          evidence: [{
+            source: 'porthole',
+            ref: 'porthole://private/capture',
+            label: 'Private capture',
+            contentHash: 'sha256:evidence',
+          }],
+        },
+      },
+    };
+    const durableOwnership = {
+      capabilities: { operatorPresenceVerifier: false },
+      getProjection: (slug) => slug === 'ship-roadmap-home'
+        ? ownershipProjection
+        : {
+            roadmapItemId: slug,
+            roadmapSlug: slug,
+            currentOwner: null,
+            currentEpoch: null,
+            currentState: null,
+            priorOwners: [],
+            epochs: [],
+            activeGrantId: null,
+          },
+      getGrant: (grantId) => grantId === 'grant-sensitive' ? grantView : null,
+      actorCanReadDetails: (_slug, _harbor, actorId) => actorId === 'actor-owner',
+    };
+    const actorSouls = {
+      constants: { defaultHarbor: 'port-daddy' },
+      verifyCredential: (credential) => credential === 'owner-credential' ? 'actor-owner' : null,
+      resolveActor: (handle) => handle === 'actor-owner'
+        ? { actorId: 'actor-owner', soulClass: 'graduated' }
+        : { actorId: handle, soulClass: 'unknown' },
+    };
+    app = Fastify();
+    await app.register(roadmapPlugin, {
+      deps: {
+        ...stubDeps(), db, repoRoot: '/nonexistent/port-daddy',
+        durableOwnership, actorSouls,
+      },
+    });
+    await app.ready();
+
+    const publicRead = await app.inject({ method: 'GET', url: '/roadmap/projection?harbor=port-daddy' });
+    expect(publicRead.statusCode).toBe(200);
+    const publicItem = JSON.parse(publicRead.body).items.find((item) => item.slug === 'ship-roadmap-home');
+    expect(publicItem.ownership).toMatchObject({
+      detailVisibility: 'summary',
+      claimCount: 1,
+      claims: [],
+      briefing: null,
+      briefingSummary: {
+        knownGapCount: 1,
+        unresolvedQuestionCount: 1,
+        evidenceCount: 1,
+      },
+      takeover: { available: true, actionUrl: null, activeGrantId: null },
+    });
+    expect(publicRead.body).not.toContain('secret-claim.ts');
+    expect(publicRead.body).not.toContain('Secret unresolved question text');
+    expect(publicRead.body).not.toContain('logbook://private/question');
+    expect(publicRead.body).not.toContain('grant-sensitive');
+    const legacyAssigneeItem = JSON.parse(publicRead.body).items.find((item) => item.slug === 'popper-live');
+    expect(legacyAssigneeItem.ownership).toMatchObject({
+      currentOwner: null,
+      currentEpochId: null,
+      currentState: 'inconsistent',
+    });
+
+    const partyRead = await app.inject({
+      method: 'GET',
+      url: '/roadmap/projection?harbor=port-daddy',
+      headers: { 'x-actor-credential': 'owner-credential' },
+    });
+    expect(partyRead.statusCode).toBe(200);
+    const partyItem = JSON.parse(partyRead.body).items.find((item) => item.slug === 'ship-roadmap-home');
+    expect(partyItem.ownership.detailVisibility).toBe('full');
+    expect(partyItem.ownership.claimCount).toBe(1);
+    expect(partyItem.ownership.claims).toHaveLength(1);
+    expect(partyItem.ownership.claims[0].filePath).toContain('secret-claim.ts');
+    expect(partyRead.body).not.toContain('released-claim.ts');
+    expect(partyItem.ownership.briefing.unresolvedQuestions[0].text).toContain('Secret unresolved');
+    expect(partyItem.ownership.takeover).toMatchObject({
+      available: true,
+      actionUrl: '/roadmap/items/ship-roadmap-home/takeovers',
+      activeGrantId: null,
+    });
+  });
+
   test('a THROW inside the projection build is a controlled 500, not an unhandled route error', async () => {
     // 503 (below) is "there is no db at all". This is the other error path:
     // a db that IS present but whose read throws — a malformed row, or a table

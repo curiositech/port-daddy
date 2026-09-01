@@ -478,20 +478,16 @@ describe('Sessions', () => {
     queueResponse({ success: true, predecessorId: 'session-123', successorId: 'session-456', notesPreserved: true });
 
     const result = await pd.takeoverSession('session-123', {
-      note: 'continuing here',
-      purpose: 'Continue ship',
-      lifecycle: 'durable',
-      claimFiles: false,
+      grantId: 'grant-123',
+      nonce: 'nonce-123',
     });
 
     expect(receivedRequests[0].method).toBe('POST');
     expect(receivedRequests[0].url).toBe('/sessions/session-123/takeover');
     expect(receivedRequests[0].body).toEqual({
-      note: 'continuing here',
-      purpose: 'Continue ship',
-      claimFiles: false,
+      grantId: 'grant-123',
+      nonce: 'nonce-123',
       agentId: 'session-agent',
-      durable: true,
     });
     expect(result.successorId).toBe('session-456');
   });
@@ -1053,7 +1049,9 @@ describe('IPC fast paths', () => {
         purpose: 'Ship it',
         files: ['src/auth.ts'],
         force: true,
+        credential: undefined,
       },
+      { agentId: 'registered-agent' },
     );
     expect(receivedRequests).toHaveLength(0);
     expect(result.id).toBe('session-123');
@@ -1076,7 +1074,9 @@ describe('IPC fast paths', () => {
       {
         purpose: 'Ship it',
         durable: true,
+        credential: undefined,
       },
+      { agentId: 'registered-agent' },
     );
     expect(receivedRequests).toHaveLength(0);
   });
@@ -1177,16 +1177,18 @@ describe('IPC fast paths', () => {
       notesPreserved: true,
     });
 
-    const result = await pd.takeoverSession('session-123', { note: 'take over', lifecycle: 'ephemeral' });
+    const result = await pd.takeoverSession('session-123', { grantId: 'grant-123', nonce: 'nonce-123' });
 
     expect(pd._requestViaIpc).toHaveBeenCalledWith(
       'session.takeover',
       {
         sessionId: 'session-123',
-        note: 'take over',
+        grantId: 'grant-123',
+        nonce: 'nonce-123',
         agentId: 'registered-agent',
-        durable: false,
+        credential: undefined,
       },
+      { agentId: 'registered-agent', noFallbackAfterConnect: true },
     );
     expect(receivedRequests).toHaveLength(0);
     expect(result.successorId).toBe('session-456');

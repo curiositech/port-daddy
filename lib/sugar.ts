@@ -604,6 +604,11 @@ export function createSugar(deps: SugarDeps) {
       });
     };
 
+    let pendingRecovery: {
+      predecessorSessionId: string;
+      predecessorStatus: string;
+    } | null = null;
+
     // Idempotent resume. A re-begin for the SAME identity in the SAME worktree
     // must RESUME the existing active session, not fork a parallel one. Forking
     // was the dual-session bug: the first session held the file claims, the
@@ -714,72 +719,17 @@ export function createSugar(deps: SugarDeps) {
       }
 
       if (match && typeof match.id === 'string' && typeof match.agentId === 'string') {
-        if (match.status !== 'active' && sessions.takeover) {
-          // Resumption / takeover of recently closed session
-          const finalAgentId = options.agentId || match.agentId;
-          const takeoverRes = sessions.takeover(match.id, {
-            agentId: finalAgentId,
-            purpose: purpose.trim(),
-            project: resumeProject,
-            worktreeId: worktreePolicy.worktree?.id || undefined,
-            durable: durable,
-            claimFiles: true,
-            metadata: {
-              ...rentMetadata,
-              takeoverReason: 'Idempotent resumption of recently closed session',
-            }
-          }) as any;
-
-          if (takeoverRes && takeoverRes.success) {
-            materializePendingRoadmapNew();
-            const displayName = takeoverRes.sessionName || purpose.trim();
-            const resumed: Record<string, unknown> = {
-              success: true,
-              resumed: true,
-              takeover: true,
-              agentId: finalAgentId,
-              sessionId: takeoverRes.successorId,
-              agentName: displayName,
-              sessionName: displayName,
-              name: displayName,
-              identity: identity || null,
-              purpose: purpose.trim(),
-              lifecycle: durable ? 'durable' : 'ephemeral',
-              agentRegistered: false,
-              sessionStarted: false,
+        if (match.status !== 'active') {
+          // A terminal session is historical evidence, never ambient authority
+          // for copying claims or context into a new body. Completed work starts
+          // fresh. Abandoned work names the predecessor only as a recovery
+          // candidate; the daemon's signed ownership flow must produce the
+          // actual briefing, claim disposition, and successor epoch.
+          if (match.status === 'abandoned') {
+            pendingRecovery = {
+              predecessorSessionId: match.id,
+              predecessorStatus: match.status,
             };
-            if (worktreePolicy.worktree) resumed.worktree = worktreePolicy.worktree;
-            if (takeoverRes.claimedFiles) resumed.fileClaims = takeoverRes.claimedFiles;
-            if (takeoverRes.conflicts) resumed.fileConflicts = takeoverRes.conflicts;
-            if (rent.roadmapLink) resumed.roadmapLink = rent.roadmapLink;
-            if (rent.sidequestReason) resumed.sidequestReason = rent.sidequestReason;
-            if (rent.roadmapCreated) resumed.roadmapCreated = true;
-            if (rent.roadmapExisting) resumed.roadmapExisting = true;
-            // The takeover result, not a caller-provided field, proves which
-            // predecessor may contribute bounded context. A missing/invalid
-            // lookup remains `none`/`withheld`; it never falls back to notes.
-            resumed.contextContinuation = projectContextContinuation(
-              typeof takeoverRes.predecessorId === 'string' ? takeoverRes.predecessorId : null,
-              deps.contextBootstrapLookup,
-            );
-
-            // Auto-enroll commitment for takeover
-            if (deps.commitments) {
-              deps.commitments.create({
-                ownerActorId: finalAgentId,
-                objectText: `De-register agent and close session for project: ${identity || 'default'}`,
-                scope: 'default',
-                commitmentStrategy: 'single',
-                successCheck: `session:${takeoverRes.successorId}:completed`,
-              });
-            }
-
-            activityLog.log('sugar_begin', {
-              agentId: finalAgentId,
-              details: 'sugar_begin_takeover_closed',
-              metadata: { sessionId: takeoverRes.successorId, predecessorSessionId: match.id, identity: identity || null },
-            });
-            return resumed;
           }
         } else if (match.status === 'active') {
         // A session is a DURABLE WORK CONTEXT: resume it whether a process is
@@ -1030,6 +980,14 @@ export function createSugar(deps: SugarDeps) {
     // Fresh begin has no proven lineage. In particular, it must not search
     // for a similar-looking historical session and attach its packet.
     response.contextContinuation = { status: 'none' };
+    if (pendingRecovery) {
+      response.recoveryRequired = {
+        code: 'RECOVERY_GRANT_REQUIRED',
+        predecessorSessionId: pendingRecovery.predecessorSessionId,
+        predecessorStatus: pendingRecovery.predecessorStatus,
+        message: 'This fresh session has no inherited ownership or context. Promote/admit its AgentNode, then use the signed durable ownership takeover flow.',
+      };
+    }
 
     // Include file claims if present
     if (sessionResult.files) {

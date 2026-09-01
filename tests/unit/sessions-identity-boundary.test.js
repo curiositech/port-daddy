@@ -63,7 +63,7 @@ function readyContextLookup(sourceSessionId) {
   };
 }
 
-function buildApp({ withSouls = true, contextBootstrapLookup } = {}) {
+function buildApp({ withSouls = true, contextBootstrapLookup, durableOwnership, sessionWorktreeProbe } = {}) {
   const db = createTestDb();
   const sessions = createSessions(db);
   const souls = withSouls ? createTestActorSouls(db) : null;
@@ -82,9 +82,44 @@ function buildApp({ withSouls = true, contextBootstrapLookup } = {}) {
       activityLog: { log() {} },
       actorSouls: souls,
       contextBootstrapLookup,
+      durableOwnership,
+      sessionWorktreeProbe,
     },
   });
   return { app, db, sessions, souls, logs };
+}
+
+function takeoverAuthority() {
+  let grant = null;
+  const service = {
+    getGrant: jest.fn((grantId) => grant?.grant.grantId === grantId ? grant : null),
+    acceptTakeover: jest.fn(async (_input, actor) => ({
+      grant: grant.grant,
+      epoch: {
+        epochId: 'epoch-successor',
+        cause: 'voluntary-handoff',
+        contentHash: 'sha256:successor-epoch',
+        signature: { algorithm: 'ed25519', keyId: 'test-key', value: 'test-signature' },
+      },
+      receipt: { receiptId: 'receipt-consumed', actorId: actor.actorId },
+      disposition: { transferredClaimNodeIds: [], releasedClaimNodeIds: [] },
+    })),
+    setGrant(sourceSessionId, successorSessionId, harbor = 'port-daddy') {
+      grant = {
+        state: 'active',
+        grant: {
+          grantId: 'grant-route-fixture',
+          harbor,
+          sourceSessionId,
+          successorSessionId,
+          predecessorAgentNodeId: 'agent_node_predecessor',
+          successorAgentNodeId: 'agent_node_successor',
+        },
+      };
+      return { grantId: grant.grant.grantId, nonce: 'nonce-route-fixture' };
+    },
+  };
+  return service;
 }
 
 describe('identity write boundary — POST /sessions', () => {
@@ -163,6 +198,47 @@ describe('identity write boundary — POST /sessions', () => {
     await app.close();
   });
 
+  test('HTTP and IPC share the same daemon-derived worktree column and metadata witness', async () => {
+    const worktree = {
+      id: '95fb91b9',
+      root: '/Users/example/coding/tmp/port-daddy-linked',
+      name: 'port-daddy-linked',
+      branch: 'codex/session-world-parity',
+      isMain: false,
+    };
+    const sessionWorktreeProbe = jest.fn(() => ({
+      ...worktree,
+      commonDir: '/Users/example/coding/port-daddy/.git',
+    }));
+    const { app, souls, sessions } = buildApp({ sessionWorktreeProbe });
+    const minted = mintTestActor(souls, 'proj:stack:worktree-parity');
+    const res = await app.inject({
+      method: 'POST',
+      url: '/sessions',
+      payload: {
+        purpose: 'HTTP worktree parity',
+        credential: minted.credential,
+        worktree,
+        requireLinkedWorktree: true,
+        metadata: {
+          worktree,
+          sessionWorktreePolicy: {
+            requireLinkedWorktree: true,
+            allowMainWorktree: false,
+          },
+        },
+      },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(sessionWorktreeProbe).toHaveBeenCalledWith(worktree.root);
+    const stored = sessions.get(res.json().id).session;
+    expect(stored.worktreeId).toBe(worktree.id);
+    expect(stored.metadata.worktree).toEqual(worktree);
+    expect(stored.metadata.identity.actorId).toBe(minted.actorId);
+    await app.close();
+  });
+
   test("a valid credential CANNOT write under another soul's alias (403)", async () => {
     const { app, souls } = buildApp();
     const attacker = mintTestActor(souls, 'attacker:stack:ctx');
@@ -232,7 +308,7 @@ describe('identity write boundary — POST /sessions', () => {
 });
 
 describe('identity write boundary — POST /sessions/:id/takeover', () => {
-  test('takeover with a bare self-asserted agentId is rejected 401', async () => {
+  test('ambient takeover is rejected before identity processing when no signed grant exists', async () => {
     const { app, souls } = buildApp();
     const owner = mintTestActor(souls, 'owner:stack:ctx');
     const started = (await app.inject({
@@ -246,13 +322,14 @@ describe('identity write boundary — POST /sessions/:id/takeover', () => {
       url: `/sessions/${started.id}/takeover`,
       payload: { agentId: 'successor:stack:ctx' },
     });
-    expect(res.statusCode).toBe(401);
-    expect(res.json().code).toBe('IDENTITY_CREDENTIAL_REQUIRED');
+    expect(res.statusCode).toBe(409);
+    expect(res.json().code).toBe('RECOVERY_GRANT_REQUIRED');
     await app.close();
   });
 
   test('takeover with NO identity claim at all is rejected 401 — the successor would inherit the predecessor\'s name', async () => {
-    const { app, souls } = buildApp();
+    const durableOwnership = takeoverAuthority();
+    const { app, souls } = buildApp({ durableOwnership });
     const owner = mintTestActor(souls, 'anonowner:stack:ctx');
     const started = (await app.inject({
       method: 'POST',
@@ -264,10 +341,11 @@ describe('identity write boundary — POST /sessions/:id/takeover', () => {
     // successor record would still be ATTRIBUTED (it inherits the
     // predecessor's agent id), so the no-identity path must fail closed —
     // never an accidental anonymous write under someone else's name.
+    const authority = durableOwnership.setGrant(started.id, 'session-successor', souls.constants.defaultHarbor);
     const res = await app.inject({
       method: 'POST',
       url: `/sessions/${started.id}/takeover`,
-      payload: { note: 'anonymous grab' },
+      payload: { grantId: authority.grantId, nonce: authority.nonce },
     });
     expect(res.statusCode).toBe(401);
     expect(res.json().code).toBe('IDENTITY_CREDENTIAL_REQUIRED');
@@ -275,7 +353,8 @@ describe('identity write boundary — POST /sessions/:id/takeover', () => {
   });
 
   test('takeover with a minted credential succeeds and stamps the successor actorId', async () => {
-    const { app, souls, sessions } = buildApp();
+    const durableOwnership = takeoverAuthority();
+    const { app, souls } = buildApp({ durableOwnership });
     const owner = mintTestActor(souls, 'owner2:stack:ctx');
     const successor = mintTestActor(souls, 'successor2:stack:ctx');
     const started = (await app.inject({
@@ -284,26 +363,37 @@ describe('identity write boundary — POST /sessions/:id/takeover', () => {
       payload: { purpose: 'to be taken over', credential: owner.credential },
     })).json();
 
+    const authority = durableOwnership.setGrant(started.id, 'session-successor', souls.constants.defaultHarbor);
     const res = await app.inject({
       method: 'POST',
       url: `/sessions/${started.id}/takeover`,
-      payload: { agentId: 'successor2:stack:ctx', credential: successor.credential },
+      payload: {
+        grantId: authority.grantId,
+        nonce: authority.nonce,
+        agentId: 'successor2:stack:ctx',
+        credential: successor.credential,
+      },
     });
     expect(res.statusCode).toBe(200);
     const body = res.json();
     expect(body.identity).toEqual(expect.objectContaining({ verified: true, actorId: successor.actorId }));
-    const stored = sessions.get(body.successorId);
-    expect(stored.session.metadata.identity.actorId).toBe(successor.actorId);
+    expect(body.successorId).toBe('session-successor');
+    expect(durableOwnership.acceptTakeover).toHaveBeenCalledWith(
+      expect.objectContaining({ sourceSessionId: started.id, grantId: authority.grantId }),
+      expect.objectContaining({ actorId: successor.actorId }),
+    );
     await app.close();
   });
 
   test('takeover reads only a bounded, verified predecessor continuation', async () => {
     const seen = [];
+    const durableOwnership = takeoverAuthority();
     const { app, souls } = buildApp({
       contextBootstrapLookup: (sourceSessionId) => {
         seen.push(sourceSessionId);
         return readyContextLookup(sourceSessionId);
       },
+      durableOwnership,
     });
     const owner = mintTestActor(souls, 'contextowner:stack:ctx');
     const successor = mintTestActor(souls, 'contextsuccessor:stack:ctx');
@@ -313,10 +403,16 @@ describe('identity write boundary — POST /sessions/:id/takeover', () => {
       payload: { purpose: 'predecessor with verified context', credential: owner.credential },
     })).json();
 
+    const authority = durableOwnership.setGrant(started.id, 'session-context-successor', souls.constants.defaultHarbor);
     const res = await app.inject({
       method: 'POST',
       url: `/sessions/${started.id}/takeover`,
-      payload: { agentId: 'contextsuccessor:stack:ctx', credential: successor.credential },
+      payload: {
+        grantId: authority.grantId,
+        nonce: authority.nonce,
+        agentId: 'contextsuccessor:stack:ctx',
+        credential: successor.credential,
+      },
     });
 
     expect(res.statusCode).toBe(200);

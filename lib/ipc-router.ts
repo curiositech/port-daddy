@@ -20,6 +20,18 @@ import type { IpcConnection } from './ipc-server.js';
 import { verifyAgent, actionRequiresRegistration } from './ipc-auth.js';
 import type { AgentVerifier } from './ipc-auth.js';
 import type { Tuple } from './tuples.js';
+import {
+  resolveWriteIdentity,
+  stampIdentityMetadata,
+  type IdentityVerifier,
+} from './identity-write-boundary.js';
+import {
+  DurableOwnershipError,
+  type DurableOwnershipService,
+  type VerifiedOwnershipActor,
+} from './durable-ownership.js';
+import { resolveSessionWorktreeAdmission } from './worktree-policy.js';
+import type { WorktreeInfo } from './worktree.js';
 
 // ─── Service Dependencies ───────────────────────────────────────────────────
 // These match the objects created in server.ts
@@ -82,6 +94,10 @@ export interface IpcRouterDeps {
   fleet?: {
     promptLine: (project: string, since?: number) => string;
   };
+  actorSouls?: (IdentityVerifier & { constants?: { defaultHarbor?: string } }) | null;
+  durableOwnership?: DurableOwnershipService;
+  /** Hermetic-test seam; production re-probes caller-named roots with Git. */
+  sessionWorktreeProbe?: (root: string) => WorktreeInfo | null;
 }
 
 // ─── Input Validation ───────────────────────────────────────────────────────
@@ -105,6 +121,20 @@ type RouteHandler = (
   conn: IpcConnection,
 ) => unknown;
 
+class IpcRefusal extends Error {
+  constructor(readonly code: string, message: string) {
+    super(message);
+    this.name = 'IpcRefusal';
+  }
+}
+
+const OWNERSHIP_ACTIONS = new Set<string>([
+  IpcAction.SESSION_TAKEOVER,
+  IpcAction.OWNERSHIP_BOOTSTRAP,
+  IpcAction.OWNERSHIP_TAKEOVER_PREPARE,
+  IpcAction.OWNERSHIP_GRANT_GET,
+]);
+
 // ─── Router Factory ─────────────────────────────────────────────────────────
 
 export function createIpcRouter(deps: IpcRouterDeps) {
@@ -112,6 +142,103 @@ export function createIpcRouter(deps: IpcRouterDeps) {
   const verifier: AgentVerifier | null = deps.agents.isRegistered
     ? { isRegistered: (id: string) => deps.agents.isRegistered!(id) }
     : null;
+
+  function requireOwnershipActor(
+    payload: Record<string, unknown>,
+    conn: IpcConnection,
+    action: string,
+    harbor: string,
+    allowedFields: readonly string[],
+  ): VerifiedOwnershipActor {
+    const allowed = new Set(['action', 'agentId', 'credential', ...allowedFields]);
+    const unknown = Object.keys(payload).find(field => !allowed.has(field));
+    if (unknown) {
+      throw new IpcRefusal(
+        'UNKNOWN_FIELD',
+        `${unknown} is not accepted by IPC action ${action}`,
+      );
+    }
+    const assertedAgentId = conn.agentId
+      ?? (typeof payload.agentId === 'string' && payload.agentId.trim() ? payload.agentId.trim() : null);
+    const verdict = resolveWriteIdentity({
+      souls: deps.actorSouls,
+      credential: typeof payload.credential === 'string' && payload.credential.trim()
+        ? payload.credential.trim()
+        : null,
+      assertedAgentId,
+      route: `IPC ${action}`,
+      harbor,
+      requireIdentity: true,
+    });
+    if (!verdict.ok) throw new IpcRefusal(verdict.code, verdict.error);
+    if (verdict.kind !== 'verified') {
+      throw new IpcRefusal('IDENTITY_CREDENTIAL_REQUIRED', 'ownership IPC action requires a verified actor credential');
+    }
+    return { actorId: verdict.actorId, soulClass: verdict.soulClass };
+  }
+
+  function stampVerifiedSessionStart(
+    payload: Record<string, unknown>,
+    conn: IpcConnection,
+    action: string,
+  ): Record<string, unknown> {
+    if (Object.prototype.hasOwnProperty.call(payload, 'worktreeId')) {
+      throw new IpcRefusal(
+        'UNKNOWN_FIELD',
+        'worktreeId is daemon-derived; send the complete worktree witness instead',
+      );
+    }
+    const metadata = payload.metadata === undefined || payload.metadata === null
+      ? null
+      : payload.metadata && typeof payload.metadata === 'object' && !Array.isArray(payload.metadata)
+        ? payload.metadata as Record<string, unknown>
+        : (() => { throw new IpcRefusal('VALIDATION_ERROR', 'metadata must be a JSON object'); })();
+    if (metadata && Object.prototype.hasOwnProperty.call(metadata, 'identity')) {
+      throw new IpcRefusal(
+        'CALLER_IDENTITY_FIELD_FORBIDDEN',
+        'metadata.identity is daemon-owned and cannot be supplied by an IPC caller',
+      );
+    }
+    const assertedAgentId = conn.agentId
+      ?? (typeof payload.agentId === 'string' && payload.agentId.trim() ? payload.agentId.trim() : null);
+    const harbor = typeof payload.harbor === 'string' && payload.harbor.trim()
+      ? payload.harbor.trim()
+      : deps.actorSouls?.constants?.defaultHarbor;
+    const verdict = resolveWriteIdentity({
+      souls: deps.actorSouls,
+      credential: typeof payload.credential === 'string' && payload.credential.trim()
+        ? payload.credential.trim()
+        : null,
+      assertedAgentId,
+      route: `IPC ${action}`,
+      harbor,
+      requireIdentity: true,
+    });
+    if (!verdict.ok) throw new IpcRefusal(verdict.code, verdict.error);
+    if (verdict.kind !== 'verified') {
+      throw new IpcRefusal('IDENTITY_CREDENTIAL_REQUIRED', 'session start requires a verified actor credential');
+    }
+    const worktreeAdmission = resolveSessionWorktreeAdmission({
+      worktree: payload.worktree,
+      requireLinkedWorktree: payload.requireLinkedWorktree === true,
+      allowMainWorktree: payload.allowMainWorktree === true,
+      metadata,
+    }, { probeWorktree: deps.sessionWorktreeProbe });
+    if (!worktreeAdmission.success) {
+      throw new IpcRefusal(
+        worktreeAdmission.code ?? 'WORKTREE_PROVENANCE_INVALID',
+        worktreeAdmission.error ?? 'session worktree admission failed',
+      );
+    }
+    return {
+      ...payload,
+      agentId: verdict.agentId,
+      // An explicit null is an authority fact: the caller had no Git world.
+      // sessions.start must not auto-detect the daemon's unrelated cwd.
+      worktreeId: worktreeAdmission.worktreeId,
+      metadata: stampIdentityMetadata(worktreeAdmission.metadata, verdict),
+    };
+  }
 
   function resolveRecoverableSessionAgentId(
     action: string,
@@ -156,9 +283,10 @@ export function createIpcRouter(deps: IpcRouterDeps) {
   });
 
   // Sessions
-  handlers.set(IpcAction.BEGIN, (p) => {
-    if (deps.sugar) return deps.sugar.begin(p);
-    return deps.sessions.start(String(p.purpose ?? ''), p);
+  handlers.set(IpcAction.BEGIN, (p, conn) => {
+    const stamped = stampVerifiedSessionStart(p, conn, IpcAction.BEGIN);
+    if (deps.sugar) return deps.sugar.begin(stamped);
+    return deps.sessions.start(String(stamped.purpose ?? ''), stamped);
   });
 
   handlers.set(IpcAction.DONE, (p) => {
@@ -166,8 +294,9 @@ export function createIpcRouter(deps: IpcRouterDeps) {
     return deps.sessions.end(String(p.sessionId), p);
   });
 
-  handlers.set(IpcAction.SESSION_START, (p) => {
-    return deps.sessions.start(String(p.purpose ?? ''), p);
+  handlers.set(IpcAction.SESSION_START, (p, conn) => {
+    const stamped = stampVerifiedSessionStart(p, conn, IpcAction.SESSION_START);
+    return deps.sessions.start(String(stamped.purpose ?? ''), stamped);
   });
 
   handlers.set(IpcAction.SESSION_END, (p) => {
@@ -183,14 +312,171 @@ export function createIpcRouter(deps: IpcRouterDeps) {
   });
 
   handlers.set(IpcAction.SESSION_TAKEOVER, (p, conn) => {
-    if (!deps.sessions.takeover) return { success: false, error: 'session takeover not available' };
-    const agentId = conn.agentId || (typeof p.agentId === 'string' && p.agentId.trim()
-      ? p.agentId.trim()
-      : null);
-    return deps.sessions.takeover(String(p.sessionId ?? ''), {
-      ...p,
-      agentId,
-    });
+    if (!deps.durableOwnership) {
+      throw new IpcRefusal('DURABLE_OWNERSHIP_UNAVAILABLE', 'canonical durable ownership service is unavailable');
+    }
+    if (typeof p.grantId !== 'string' || !p.grantId.trim() || typeof p.nonce !== 'string' || !p.nonce.trim()) {
+      throw new IpcRefusal(
+        'RECOVERY_GRANT_REQUIRED',
+        'session takeover requires a signed durable-ownership grantId and one-shot nonce',
+      );
+    }
+    const view = deps.durableOwnership.getGrant(p.grantId.trim());
+    if (!view) throw new IpcRefusal('GRANT_NOT_FOUND', 'takeover grant not found');
+    if (String(p.sessionId ?? '') !== view.grant.sourceSessionId) {
+      throw new IpcRefusal('GRANT_BINDING_MISMATCH', 'route session does not match the signed grant');
+    }
+    const actor = requireOwnershipActor(
+      p,
+      conn,
+      IpcAction.SESSION_TAKEOVER,
+      view.grant.harbor,
+      ['sessionId', 'grantId', 'nonce'],
+    );
+    return deps.durableOwnership.acceptTakeover({
+      sourceSessionId: String(p.sessionId ?? ''),
+      grantId: p.grantId.trim(),
+      nonce: p.nonce.trim(),
+    }, actor).then(result => ({
+      success: true,
+      predecessorId: result.grant.sourceSessionId,
+      successorId: result.grant.successorSessionId,
+      ownership: {
+        grantId: result.grant.grantId,
+        predecessorAgentNodeId: result.grant.predecessorAgentNodeId,
+        successorAgentNodeId: result.grant.successorAgentNodeId,
+        successorEpochId: result.epoch.epochId,
+        cause: result.epoch.cause,
+        contentHash: result.epoch.contentHash,
+        signature: result.epoch.signature,
+      },
+      receipt: result.receipt,
+      disposition: result.disposition,
+    }));
+  });
+
+  handlers.set(IpcAction.OWNERSHIP_BOOTSTRAP, (p, conn) => {
+    if (!deps.durableOwnership) {
+      throw new IpcRefusal('DURABLE_OWNERSHIP_UNAVAILABLE', 'canonical durable ownership service is unavailable');
+    }
+    const harbor = typeof p.harbor === 'string' ? p.harbor.trim() : '';
+    const actor = requireOwnershipActor(
+      p,
+      conn,
+      IpcAction.OWNERSHIP_BOOTSTRAP,
+      harbor,
+      ['roadmapSlug', 'harbor', 'sourceSessionId', 'reason'],
+    );
+    return deps.durableOwnership.bootstrapCanonical({
+      roadmapSlug: String(p.roadmapSlug ?? ''),
+      harbor,
+      sourceSessionId: String(p.sourceSessionId ?? ''),
+      reason: String(p.reason ?? ''),
+    }, actor).then(result => ({
+      success: true,
+      idempotent: result.idempotent,
+      ownership: {
+        epochId: result.epoch.epochId,
+        epochNumber: result.epoch.epochNumber,
+        ownerAgentNodeId: result.epoch.ownerAgentNodeId,
+        claimSetHash: result.epoch.claimSetHash,
+        contentHash: result.epoch.contentHash,
+        signature: result.epoch.signature,
+      },
+    }));
+  });
+
+  handlers.set(IpcAction.OWNERSHIP_TAKEOVER_PREPARE, (p, conn) => {
+    if (!deps.durableOwnership) {
+      throw new IpcRefusal('DURABLE_OWNERSHIP_UNAVAILABLE', 'canonical durable ownership service is unavailable');
+    }
+    const harbor = typeof p.harbor === 'string' ? p.harbor.trim() : '';
+    const actor = requireOwnershipActor(
+      p,
+      conn,
+      IpcAction.OWNERSHIP_TAKEOVER_PREPARE,
+      harbor,
+      [
+        'roadmapSlug', 'harbor', 'successorSessionId', 'reason',
+        'claimDispositions', 'ttlMs', 'operatorPresenceProof',
+      ],
+    );
+    return deps.durableOwnership.prepareTakeover({
+      roadmapSlug: String(p.roadmapSlug ?? ''),
+      harbor,
+      successorSessionId: String(p.successorSessionId ?? ''),
+      reason: String(p.reason ?? ''),
+      claimDispositions: p.claimDispositions as Array<{ claimNodeId: string; disposition: 'transfer' | 'release' }>,
+      ttlMs: typeof p.ttlMs === 'number' ? p.ttlMs : undefined,
+      operatorPresenceProof: typeof p.operatorPresenceProof === 'string'
+        ? p.operatorPresenceProof
+        : undefined,
+    }, actor).then(result => ({
+      success: true,
+      grant: {
+        grantId: result.grant.grantId,
+        roadmapSlug: result.grant.roadmapSlug,
+        harbor: result.grant.harbor,
+        predecessorEpochId: result.grant.predecessorEpochId,
+        predecessorAgentNodeId: result.grant.predecessorAgentNodeId,
+        successorAgentNodeId: result.grant.successorAgentNodeId,
+        authorityKind: result.grant.authorityKind,
+        operatorPresenceReceipt: result.grant.operatorPresenceReceipt,
+        sourceSessionId: result.grant.sourceSessionId,
+        successorSessionId: result.grant.successorSessionId,
+        claimBindings: result.grant.claimBindings,
+        briefing: result.grant.briefing,
+        issuedAt: result.grant.issuedAt,
+        expiresAt: result.grant.expiresAt,
+        contentHash: result.grant.contentHash,
+        signature: result.grant.signature,
+      },
+      nonce: result.nonce,
+      receipt: result.receipt,
+    }));
+  });
+
+  handlers.set(IpcAction.OWNERSHIP_GRANT_GET, (p, conn) => {
+    if (!deps.durableOwnership) {
+      throw new IpcRefusal('DURABLE_OWNERSHIP_UNAVAILABLE', 'canonical durable ownership service is unavailable');
+    }
+    const view = deps.durableOwnership.getGrant(String(p.grantId ?? ''));
+    if (!view) throw new IpcRefusal('GRANT_NOT_FOUND', 'takeover grant not found');
+    if (p.harbor !== undefined && String(p.harbor).trim() !== view.grant.harbor) {
+      throw new IpcRefusal('GRANT_BINDING_MISMATCH', 'requested harbor does not match the signed grant');
+    }
+    const actor = requireOwnershipActor(
+      p,
+      conn,
+      IpcAction.OWNERSHIP_GRANT_GET,
+      view.grant.harbor,
+      ['grantId', 'harbor'],
+    );
+    if (actor.actorId !== view.grant.authorizedActorId && actor.actorId !== view.grant.successorActorId) {
+      throw new IpcRefusal('AUTHORITY_REQUIRED', 'actor is not a party to this takeover grant');
+    }
+    return {
+      success: true,
+      grant: {
+        grantId: view.grant.grantId,
+        roadmapSlug: view.grant.roadmapSlug,
+        harbor: view.grant.harbor,
+        sourceSessionId: view.grant.sourceSessionId,
+        successorSessionId: view.grant.successorSessionId,
+        state: view.state,
+        issuedAt: view.grant.issuedAt,
+        expiresAt: view.grant.expiresAt,
+        consumedAt: view.consumedAt,
+        consumedEpochId: view.consumedEpochId,
+        receipts: view.receipts.map(receipt => ({
+          receiptId: receipt.receiptId,
+          kind: receipt.kind,
+          at: receipt.at,
+          contentHash: receipt.contentHash,
+          signature: receipt.signature,
+        })),
+      },
+    };
   });
 
   handlers.set(IpcAction.WHOAMI, (p) => {
@@ -209,6 +495,10 @@ export function createIpcRouter(deps: IpcRouterDeps) {
       ...p,
       sessionId,
       agentId,
+      // IPC does not authenticate a caller-supplied Git path on this action.
+      // An exact session id remains authoritative; otherwise scope to the
+      // explicit no-world lane instead of borrowing the daemon cwd.
+      worktreeId: null,
     });
   });
 
@@ -492,7 +782,7 @@ export function createIpcRouter(deps: IpcRouterDeps) {
 
     // ── Auth check ──
     if (actionRequiresRegistration(action)) {
-      const auth = verifyAgent(agentId, verifier, true);
+      const auth = verifyAgent(agentId, verifier, true, OWNERSHIP_ACTIONS.has(action));
       if (!auth.allowed) {
         const recoveredAgentId = resolveRecoverableSessionAgentId(action, frame.payload, requestedAgentId);
         if (recoveredAgentId) {
@@ -535,34 +825,41 @@ export function createIpcRouter(deps: IpcRouterDeps) {
     }
 
     // ── Execute ──
-    try {
-      const result = handler(frame.payload, conn);
-
-      // Fire-and-forget: no response needed
+    const replyDone = (result: unknown) => {
       if (frame.convId === 0) return;
-
-      // Request-response: send result
       reply({
         type: Performative.INFORM_DONE,
         convId: frame.convId,
+        payload: { action, result: result ?? { success: true } },
+      });
+    };
+    const replyError = (error: unknown) => {
+      if (frame.convId === 0) return;
+      const refusal = error instanceof IpcRefusal
+        || (error instanceof DurableOwnershipError && error.statusCode < 500);
+      const code = error instanceof IpcRefusal || error instanceof DurableOwnershipError
+        ? error.code
+        : 'action_failed';
+      reply({
+        type: refusal ? Performative.REFUSE : Performative.FAILURE,
+        convId: frame.convId,
         payload: {
+          error: code,
+          code,
           action,
-          result: result ?? { success: true },
+          message: error instanceof Error ? error.message : String(error),
         },
       });
-    } catch (err) {
-      // Handler threw — FAILURE (tried and failed, retry with backoff)
-      if (frame.convId !== 0) {
-        reply({
-          type: Performative.FAILURE,
-          convId: frame.convId,
-          payload: {
-            error: 'action_failed',
-            action,
-            message: String(err),
-          },
-        });
+    };
+    try {
+      const result = handler(frame.payload, conn);
+      if (result && typeof (result as PromiseLike<unknown>).then === 'function') {
+        void Promise.resolve(result).then(replyDone, replyError);
+      } else {
+        replyDone(result);
       }
+    } catch (error) {
+      replyError(error);
     }
   }
 

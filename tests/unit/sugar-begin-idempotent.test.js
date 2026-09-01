@@ -152,7 +152,7 @@ describe('begin idempotency — resume, do not fork', () => {
     expect(b.sessionId).not.toBe(a.sessionId);
   });
 
-  test('closed-session re-begin exposes only the verified packet metadata and plan checkpoint', () => {
+  test('completed-session re-begin starts fresh and does not inherit a historical packet', () => {
     const lookups = [];
     const { sugar, sessions } = setup({
       contextBootstrapLookup: (sourceSessionId) => {
@@ -166,16 +166,36 @@ describe('begin idempotency — resume, do not fork', () => {
 
     const second = sugar.begin({ lifecycle: 'durable', identity: 'demo:test:verified', purpose: 'take over verified work' });
 
-    expect(second.takeover).toBe(true);
-    expect(lookups).toEqual([first.sessionId]);
-    expect(second.contextContinuation).toEqual(expect.objectContaining({
-      status: 'ready',
-      sourceSessionId: first.sessionId,
-      packet: expect.objectContaining({ packetId: 'cpk_verified_fixture', sourceHeadEventId: 'evt_context_head' }),
-      planCheckpoint: expect.objectContaining({ content: '- [ ] Resume the bounded plan' }),
+    expect(second.takeover).toBeUndefined();
+    expect(second.resumed).toBeUndefined();
+    expect(second.sessionId).not.toBe(first.sessionId);
+    expect(lookups).toEqual([]);
+    expect(second.contextContinuation).toEqual({ status: 'none' });
+  });
+
+  test('abandoned-session re-begin creates an unprivileged successor and exposes the signed-recovery gate', () => {
+    const lookups = [];
+    const { sugar, sessions } = setup({
+      contextBootstrapLookup: (sourceSessionId) => {
+        lookups.push(sourceSessionId);
+        return readyContextLookup(sourceSessionId);
+      },
+    });
+    const first = sugar.begin({ lifecycle: 'durable', identity: 'demo:test:abandoned', purpose: 'unfinished work' });
+    sessions.end(first.sessionId, { status: 'abandoned', note: 'unfinished' });
+
+    const second = sugar.begin({ lifecycle: 'durable', identity: 'demo:test:abandoned', purpose: 'continue unfinished work' });
+
+    expect(second.success).toBe(true);
+    expect(second.sessionId).not.toBe(first.sessionId);
+    expect(second.resumed).toBeUndefined();
+    expect(second.contextContinuation).toEqual({ status: 'none' });
+    expect(second.recoveryRequired).toEqual(expect.objectContaining({
+      code: 'RECOVERY_GRANT_REQUIRED',
+      predecessorSessionId: first.sessionId,
+      predecessorStatus: 'abandoned',
     }));
-    expect(second.contextContinuation).not.toHaveProperty('transcriptPrefix');
-    expect(JSON.stringify(second.contextContinuation)).not.toContain('RAW_TRANSCRIPT_MUST_NOT_ESCAPE');
+    expect(lookups).toEqual([]);
   });
 
   test('malformed lookup output is withheld rather than copied into a continuation', () => {

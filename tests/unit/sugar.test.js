@@ -1265,7 +1265,7 @@ describe('sugar lifecycle', () => {
     expect(activeAfter.length).toBe(0);
   });
 
-  it('should allow takeover/resumption of recently closed sessions', () => {
+  it('starts fresh after completed work instead of synthesizing an ambient takeover', () => {
     const { sugar } = setup();
 
     const beginRes1 = sugar.begin({
@@ -1283,7 +1283,8 @@ describe('sugar lifecycle', () => {
     });
     expect(doneRes.success).toBe(true);
 
-    // Re-begin for the same identity without force should perform takeover
+    // A completed predecessor is history, not authority for copying claims or
+    // context into a new session.
     const beginRes2 = sugar.begin({
       purpose: 'New successor session purpose',
       identity: 'port-daddy:test:takeover',
@@ -1291,9 +1292,10 @@ describe('sugar lifecycle', () => {
     });
 
     expect(beginRes2.success).toBe(true);
-    expect(beginRes2.resumed).toBe(true);
-    expect(beginRes2.takeover).toBe(true);
+    expect(beginRes2.resumed).toBeUndefined();
+    expect(beginRes2.takeover).toBeUndefined();
     expect(beginRes2.sessionId).not.toBe(beginRes1.sessionId);
+    expect(beginRes2.contextContinuation).toEqual({ status: 'none' });
   });
 
   it('should generate a welcome briefing with roadmap, ongoing, high-pri bugs, and dormant sessions', () => {

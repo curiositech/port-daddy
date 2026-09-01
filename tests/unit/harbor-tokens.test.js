@@ -123,6 +123,24 @@ describe('Harbor Tokens Module', () => {
       expect(legacyRows[0].key_hex).toBe(legacyRow.key_hex);
       expect(phase2Rows[0].public_key_pem).toBe(phase2Row.public_key_pem);
     });
+
+    it('verifies daemon digest signatures only with the pinned phase 2 key', async () => {
+      const digest = randomBytes(32).toString('hex');
+      const signature = await ht.signHex(digest);
+      const changedDigest = `${(parseInt(digest.slice(0, 2), 16) ^ 1).toString(16).padStart(2, '0')}${digest.slice(2)}`;
+      const changedSignature = `${(parseInt(signature.slice(0, 2), 16) ^ 1).toString(16).padStart(2, '0')}${signature.slice(2)}`;
+
+      expect(ht.verifyHex(digest, signature)).toBe(true);
+      expect(ht.verifyHex(changedDigest, signature)).toBe(false);
+      expect(ht.verifyHex(digest, changedSignature)).toBe(false);
+      expect(ht.verifyHex('not-hex', signature)).toBe(false);
+
+      const otherDb = createTestDb();
+      const other = createHarborTokens(otherDb);
+      await other.initDaemonIdentity();
+      expect(other.verifyHex(digest, signature)).toBe(false);
+      otherDb.close();
+    });
   });
 
   describe('Phase 2 issuance', () => {

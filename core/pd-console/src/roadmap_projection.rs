@@ -98,6 +98,166 @@ pub struct RoadmapProjectionClaim {
     pub agent_id: Option<String>,
 }
 
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct RoadmapOwnershipAgent {
+    pub agent_node_id: String,
+    #[serde(default)]
+    pub display_name: Option<String>,
+    #[serde(default)]
+    pub identity: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct RoadmapOwnershipHistoryEntry {
+    pub epoch_id: String,
+    pub epoch_number: i64,
+    pub owner: RoadmapOwnershipAgent,
+    #[serde(default)]
+    pub state: String,
+    #[serde(default)]
+    pub cause: String,
+    #[serde(default)]
+    pub reason: String,
+    pub created_at: i64,
+    #[serde(default)]
+    pub source_session_id: Option<String>,
+    #[serde(default)]
+    pub successor_session_id: Option<String>,
+    #[serde(default)]
+    pub takeover_grant_id: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct RoadmapOwnershipClaim {
+    pub claim_node_id: String,
+    #[serde(default)]
+    pub file_path: String,
+    #[serde(default)]
+    pub selector_kind: String,
+    #[serde(default)]
+    pub start_line: Option<i64>,
+    #[serde(default)]
+    pub end_line: Option<i64>,
+    #[serde(default)]
+    pub symbol: Option<String>,
+    #[serde(default)]
+    pub symbol_path: Option<String>,
+    #[serde(default)]
+    pub world_kind: String,
+    #[serde(default)]
+    pub world_id: String,
+    pub claimed_at: i64,
+    #[serde(default)]
+    pub mode: String,
+    #[serde(default)]
+    pub content_hash: Option<String>,
+    #[serde(default)]
+    pub disposition: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct RoadmapOwnershipQuestion {
+    pub id: String,
+    pub text: String,
+    #[serde(default)]
+    pub source_ref: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct RoadmapOwnershipEvidence {
+    pub source: String,
+    #[serde(rename = "ref")]
+    pub reference: String,
+    pub label: String,
+    #[serde(default)]
+    pub content_hash: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct RoadmapOwnershipBriefingSummary {
+    pub briefing_id: String,
+    pub content_hash: String,
+    pub generated_at: i64,
+    #[serde(default)]
+    pub handoff_capsule_id: Option<String>,
+    #[serde(default)]
+    pub known_gaps: Vec<String>,
+    #[serde(default)]
+    pub omitted_sources: Vec<String>,
+    #[serde(default)]
+    pub unresolved_questions: Vec<RoadmapOwnershipQuestion>,
+    #[serde(default)]
+    pub evidence: Vec<RoadmapOwnershipEvidence>,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct RoadmapOwnershipBriefingCounts {
+    pub generated_at: i64,
+    #[serde(default)]
+    pub known_gap_count: usize,
+    #[serde(default)]
+    pub omitted_source_count: usize,
+    #[serde(default)]
+    pub unresolved_question_count: usize,
+    #[serde(default)]
+    pub evidence_count: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct RoadmapOwnershipTakeover {
+    pub available: bool,
+    #[serde(default)]
+    pub operator_presence_available: bool,
+    #[serde(default)]
+    pub action_url: Option<String>,
+    #[serde(default)]
+    pub active_grant_id: Option<String>,
+    #[serde(default)]
+    pub requires: String,
+    #[serde(default)]
+    pub note: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct RoadmapOwnershipProjection {
+    /// `summary` is the fail-closed public projection. `full` means the daemon
+    /// verified this reader as an ownership party or operator before returning
+    /// exact claims, briefing citations, and action-bound takeover facts.
+    #[serde(default)]
+    pub detail_visibility: String,
+    #[serde(default)]
+    pub current_owner: Option<RoadmapOwnershipAgent>,
+    #[serde(default)]
+    pub current_epoch_id: Option<String>,
+    #[serde(default)]
+    pub current_epoch_number: Option<i64>,
+    #[serde(default)]
+    pub current_state: String,
+    #[serde(default)]
+    pub state_evidence: String,
+    #[serde(default)]
+    pub prior_owners: Vec<RoadmapOwnershipHistoryEntry>,
+    #[serde(default)]
+    pub claim_count: usize,
+    #[serde(default)]
+    pub claims: Vec<RoadmapOwnershipClaim>,
+    #[serde(default)]
+    pub briefing_summary: Option<RoadmapOwnershipBriefingCounts>,
+    #[serde(default)]
+    pub briefing: Option<RoadmapOwnershipBriefingSummary>,
+    #[serde(default)]
+    pub takeover: RoadmapOwnershipTakeover,
+}
+
 /// `RoadmapLiveEvidence` — the law-13 gate the projection has already run.
 /// This type carries the server's verdict AND the sentence explaining it. It
 /// adds exactly one rule of its own, in [`display_state`]: it will not render
@@ -211,6 +371,8 @@ pub struct RoadmapProjectionItem {
     #[serde(default)]
     pub receipts: Vec<RoadmapProjectionReceipt>,
     pub live_evidence: RoadmapLiveEvidence,
+    #[serde(default)]
+    pub ownership: RoadmapOwnershipProjection,
     pub last_touched_at: i64,
     #[serde(default)]
     pub dependencies: Vec<String>,
@@ -433,9 +595,65 @@ mod tests {
                 max_age_ms: 65_000,
                 label: "static — no dispatch receipt trail".into(),
             },
+            ownership: RoadmapOwnershipProjection::default(),
             last_touched_at,
             dependencies: Vec::new(),
         }
+    }
+
+    #[test]
+    fn decodes_public_summary_ownership_without_inventing_private_detail() {
+        let summary: RoadmapOwnershipProjection = serde_json::from_value(serde_json::json!({
+            "detailVisibility": "summary",
+            "currentOwner": {
+                "agentNodeId": "agent_node_current",
+                "displayName": "Durable Current Owner",
+                "identity": "port-daddy:roster:durable-current-owner"
+            },
+            "currentEpochId": "ownership_epoch_2",
+            "currentEpochNumber": 2,
+            "currentState": "stale",
+            "stateEvidence": "session-stale",
+            "priorOwners": [{
+                "epochId": "ownership_epoch_1",
+                "epochNumber": 1,
+                "owner": { "agentNodeId": "agent_node_prior" },
+                "state": "transferred",
+                "cause": "assignment",
+                "reason": "Historical reason requires an ownership-party or operator credential.",
+                "createdAt": 1
+            }],
+            "claimCount": 3,
+            "claims": [],
+            "briefingSummary": {
+                "generatedAt": 2,
+                "knownGapCount": 1,
+                "omittedSourceCount": 2,
+                "unresolvedQuestionCount": 3,
+                "evidenceCount": 4
+            },
+            "briefing": null,
+            "takeover": {
+                "available": true,
+                "operatorPresenceAvailable": false,
+                "actionUrl": null,
+                "activeGrantId": null,
+                "requires": "verified-current-owner-or-recent-operator-presence",
+                "note": "Operator recovery is fail-closed."
+            }
+        }))
+        .expect("summary ownership projection decodes");
+
+        assert_eq!(summary.detail_visibility, "summary");
+        assert_eq!(summary.claim_count, 3);
+        assert!(summary.claims.is_empty());
+        assert!(summary.briefing.is_none());
+        assert_eq!(
+            summary.prior_owners[0].owner.agent_node_id,
+            "agent_node_prior"
+        );
+        assert!(!summary.takeover.operator_presence_available);
+        assert_eq!(summary.briefing_summary.unwrap().evidence_count, 4);
     }
 
     #[test]

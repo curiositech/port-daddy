@@ -79,6 +79,7 @@ import { resourcesPlugin } from './resources.js';
 import { feedbackPlugin } from './feedback.js';
 import { roadmapPlugin } from './roadmap.js';
 import { roadmapActivityPlugin } from './roadmap-activity.js';
+import { durableOwnershipPlugin } from './durable-ownership.js';
 import { commitmentsPlugin } from './commitments.js';
 import { shipwrightPlugin } from './shipwright.js';
 import { usagePlugin } from './usage.js';
@@ -326,6 +327,7 @@ export async function registerAllRoutes(
   // atomic feedback→item links.
   if ((deps as any).roadmapItems && (deps as any).roadmapPromote) {
     await fastify.register(roadmapPlugin, { deps } as any);
+    await fastify.register(durableOwnershipPlugin, { deps } as any);
   }
 
   // Roadmap Activity — the live-work join for the roadmap command center

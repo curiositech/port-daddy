@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://portdaddy.dev/schemas/agent-harbor/v0/durable-takeover-receipt.schema.json",
+  "title": "DurableTakeoverReceiptV0",
+  "description": "Append-only daemon-signed receipt for exact takeover grant issuance, refusal, expiry, or consumption. It is replayable evidence for Porthole and Logbook, not an authorization source.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema": { "const": "pd.agent-harbor.durable-takeover-receipt.v0" },
+    "receiptId": { "type": "string", "minLength": 1 },
+    "grantId": { "type": "string", "minLength": 1 },
+    "kind": { "enum": ["issued", "rejected", "expired", "consumed"] },
+    "at": { "type": "integer", "minimum": 0 },
+    "details": { "type": "object", "additionalProperties": true },
+    "contentHash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "signature": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "algorithm": { "const": "ed25519" },
+        "keyId": { "type": "string", "minLength": 1 },
+        "value": { "type": "string", "minLength": 1 }
+      },
+      "required": ["algorithm", "keyId", "value"]
+    }
+  },
+  "required": ["schema", "receiptId", "grantId", "kind", "at", "details", "contentHash", "signature"]
+}

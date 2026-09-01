@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://portdaddy.dev/schemas/agent-harbor/v0/ownership-successor-brief.schema.json",
+  "title": "OwnershipSuccessorBriefV0",
+  "description": "Compact takeover briefing that embeds the existing sanitized Agent Harbor handoff brief, then adds exact roadmap, plan, claim, evidence, and known-gap projections. Hidden reasoning is neither requested nor represented.",
+  "type": "object",
+  "additionalProperties": false,
+  "$defs": {
+    "digest": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "at": { "type": ["integer", "null"], "minimum": 0 },
+        "text": { "type": "string", "minLength": 1 },
+        "sourceRef": { "type": ["string", "null"] }
+      },
+      "required": ["id", "at", "text", "sourceRef"]
+    },
+    "citation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "source": { "enum": ["porthole", "logbook", "roadmap", "receipt", "artifact"] },
+        "ref": { "type": "string", "minLength": 1 },
+        "label": { "type": "string", "minLength": 1 },
+        "contentHash": {
+          "oneOf": [
+            { "$ref": "durable-ownership-epoch.schema.json#/$defs/sha256" },
+            { "type": "null" }
+          ]
+        }
+      },
+      "required": ["source", "ref", "label", "contentHash"]
+    }
+  },
+  "properties": {
+    "schema": { "const": "pd.agent-harbor.ownership-successor-brief.v0" },
+    "briefingId": { "type": "string", "minLength": 1 },
+    "generatedAt": { "type": "integer", "minimum": 0 },
+    "predecessorAgentNodeId": { "type": "string", "minLength": 1 },
+    "successorAgentNodeId": { "type": "string", "minLength": 1 },
+    "sourceSessionId": { "type": "string", "minLength": 1 },
+    "successorSessionId": { "type": "string", "minLength": 1 },
+    "roadmap": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "itemId": { "type": "string", "minLength": 1 },
+        "slug": { "type": "string", "minLength": 1 },
+        "status": { "type": "string", "minLength": 1 },
+        "summary": { "type": "string", "minLength": 1 },
+        "remit": { "type": "string", "minLength": 1 }
+      },
+      "required": ["itemId", "slug", "status", "summary", "remit"]
+    },
+    "exactWork": { "$ref": "durable-ownership-epoch.schema.json#/$defs/exactWork" },
+    "handoff": { "$ref": "handoff-successor-brief.schema.json" },
+    "plans": { "type": "array", "maxItems": 200, "items": { "$ref": "ownership-successor-brief.schema.json#/$defs/digest" } },
+    "roadmapNotes": { "type": "array", "maxItems": 200, "items": { "$ref": "ownership-successor-brief.schema.json#/$defs/digest" } },
+    "unresolvedQuestions": { "type": "array", "maxItems": 200, "items": { "$ref": "ownership-successor-brief.schema.json#/$defs/digest" } },
+    "evidence": { "type": "array", "maxItems": 200, "items": { "$ref": "ownership-successor-brief.schema.json#/$defs/citation" } },
+    "claims": {
+      "type": "array",
+      "maxItems": 5000,
+      "items": { "$ref": "durable-ownership-epoch.schema.json#/$defs/exactClaim" }
+    },
+    "knownGaps": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "omittedSources": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "hiddenReasoningAvailable": { "const": false },
+    "contentHash": { "$ref": "durable-ownership-epoch.schema.json#/$defs/sha256" }
+  },
+  "required": ["schema", "briefingId", "generatedAt", "predecessorAgentNodeId", "successorAgentNodeId", "sourceSessionId", "successorSessionId", "roadmap", "exactWork", "handoff", "plans", "roadmapNotes", "unresolvedQuestions", "evidence", "claims", "knownGaps", "omittedSources", "hiddenReasoningAvailable", "contentHash"]
+}
