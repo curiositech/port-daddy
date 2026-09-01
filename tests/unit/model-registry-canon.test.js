@@ -30,7 +30,6 @@ const {
 const { CF_ADMITTED_MODELS, CF_EMBEDDING_PROFILES, CF_ROLE_MODELS } =
   await import('../../apps/shared/model-registry.generated.js');
 const {
-  EMBEDDING_SPACE_VERSION,
   canonicalEmbeddingPreprocessingInput,
   canonicalEmbeddingSpaceInput,
   computeEmbeddingPreprocessingDigest,
