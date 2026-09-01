@@ -10,7 +10,7 @@
  * shovel to a bonsai tree. Both sides need to live in the SAME semantic
  * space (task-intent space) for cosine to mean anything.
  *
- * THE FIX (Tool2Vec, see https://windags.ai/blog/the-skill-matching-cascade):
+ * THE FIX (Tool2Vec, see https://example.com/blog/the-skill-matching-cascade):
  * for each skill, generate ~15 diverse synthetic task descriptions — the
  * kind of thing a user would actually type that this skill should answer —
  * via one cheap LLM call, embed each with the shared local embedder, and
@@ -36,7 +36,7 @@ import type { SkillEntry, SkillEmbedder } from './shipwright/skill-index.js';
 import type { LLMClient } from './llm-call.js';
 
 /** Number of synthetic task descriptions generated per skill. Matches the
- *  windags Tool2Vec reference (15) — enough diversity to average out any
+ *  jury_rig Tool2Vec reference (15) — enough diversity to average out any
  *  one query's idiosyncratic phrasing without being expensive to generate
  *  or embed. */
 export const SYNTHETIC_QUERIES_PER_SKILL = 15;

@@ -136,7 +136,9 @@ incomplete turn; scaffold it with `pd sitrep --template`. Repos that want
 quiet turns dial it off explicitly.
 `pd attention` is also safe before `pd begin`: without a bound identity its
 default read succeeds as an explicit empty/unbound result; subscription changes
-still require an identity.
+still require an identity. A normal `pd attention` read advances the caller's
+read cursors; use `pd attention --peek` when inspection must not mark anything
+seen.
 
 The operator drives this through FleetBar's selected-project `◆ GIANT SQUID`
 strip. It exposes state, provider count, Arm/Repair/Disarm, and the hook timeline
@@ -152,6 +154,17 @@ SDK's public URL field stays empty rather than publishing a made-up endpoint.
 
 Use this path before you reach for advanced coordination. It is the normal
 agent loop for repo work on this machine.
+
+`pd learn` is the canonical offline-safe orientation command; `pd tutorial` is
+an exact alias. The orientation handler is operationally read-only: it does not
+create or change sessions, claims, plans, notes, files, indexes, or other work
+resources. Headless execution makes no handler daemon request. On an actual
+interactive controlling terminal, it may make one bounded `GET /health`
+(750 ms, no retry) to label the guide with live daemon status. The surrounding
+CLI envelope still makes exactly one best-effort append-only usage-telemetry
+attempt, so "operationally read-only" does not mean zero I/O. `pd learn` never
+searches, trains, ingests, embeds, or reindexes content; use the explicit
+retrieval and indexing commands for those jobs.
 
 ```bash
 pd attention
@@ -284,8 +297,22 @@ edits append revisions. `pd roster continue <agent-node-id> --backend <id>`
 chooses a new body without changing the person and reuses the same witnessed
 native-or-successor continuation receipt path described above. Stored trigger
 and permission fields are declarations, not proof they are active or enforced.
-Roster expertise search fuses BM25 with the shared MiniLM embedder; treat a
-`degraded` lexical fallback as repair work and run `pd doctor`.
+Roster expertise search is hybrid: fuse BM25 with results from a compatible
+semantic space. Prefer the strongest approved, configured embedder that fits
+the corpus privacy boundary, retrieval quality target, latency, and cost. Every
+stored vector and query carries its provider, model id, immutable model
+revision, dimensions, normalization, distance metric, and a `space_id` hashed
+from canonical ordered metadata.
+Reject or re-embed incompatible spaces; never compare them silently.
+
+MiniLM is an explicit local/degraded fallback, not the universal design
+authority. Verify the live `pd embed --help` surface and current source before
+depending on model selection. At the 2026-08-31 audit point, the installed
+stable runtime and `main` exposed only the MiniLM `pd embed` path; treat that as
+a transitional capability and run `pd doctor` when it is unavailable.
+Higher-quality model selection depends on the in-flight control-plane
+embedding-model-registry work; do not claim that registry shipped until source,
+deployed runtime, and a read-back receipt agree.
 
 
 ## Telos vs Purpose
@@ -441,14 +468,18 @@ pd actors --project <project>
 pd actor cartographer --project <project>
 pd actor navigator --inbox-stats
 pd actor navigator --inbox --unread
-pd actor navigator --message "roadmap state changed; see docs/recovery/CURRENT-WORK.md"
+pd actor navigator --message "roadmap state changed; reconcile the live event evidence and projections"
 pd actor lookout --message "release-surface drift fixed in docs, website, README, and skill"
 ```
 
 Mailbox delivery is durable but not an immediate answer. After messaging an
-actor, keep working from the actual source of truth: `docs/recovery/CURRENT-WORK.md`,
-`.cartographer/README.md`, `.cartographer/status.md`, live notes, sessions,
-and the checked-in release surfaces.
+actor, work from live daemon events, notes, sessions, and checked-in release
+evidence. Recovery ledgers, Cartographer files, plans, DAGs, binders, and
+snapshots are sources or projections, not independent authorities. The target
+roadmap authority is the configured remote append-only work-event Oracle after
+a write has a remote read-back receipt. Until that cutover is proven live,
+preserve and label local projections honestly; do not mint another
+"authoritative" file.
 
 ## MCP Equivalents
 
@@ -456,7 +487,7 @@ When a client is using MCP instead of the CLI, use the matching Port Daddy MCP
 tools for claims, sessions, notes, locks, messaging, salvage, harbors, spawning,
 and service orchestration. Prefer MCP for model clients that already have it
 installed; prefer the CLI when you need shell-local git, build, or deployment
-evidence. `skill_graft_status()` maps to `GET /skill-graft/status` and is
+evidence. `jury_rig_status()` maps to `GET /jury-rig/status` and is
 strictly read-only: it reports current-hash Tool2Vec coverage without generating
 centroids or calling an LLM. Reconciliation stays on the explicit CLI/API path;
 do not add an agent-triggered MCP mutation for it.
@@ -1014,7 +1045,7 @@ the YAML in `pd-fleet.yml` so they can review before launch.
 | **Fleet observer** | Background agents drift, stop firing |
 | **Post-mortem proposer** | Multi-agent friction or "wow we fought dumb git shit" moments |
 | **Adversarial QA** | Code lands without thinking about how it breaks |
-| **Skill auditor** | Project ships skills (windags-skills, .claude/skills, etc.) |
+| **Skill auditor** | Project ships skills (`skills/`, `.claude/skills`, etc.) |
 
 These are not a fixed menu. **Always think creatively** about what this
 specific project needs, and propose new agent shapes as the project shape
@@ -1023,25 +1054,25 @@ block in `pd-fleet.yml`, leave a `pd note` summarizing what it would do,
 and message Cartographer with a one-line recommendation. The user approves
 before anything starts firing.
 
-## Catalog-First Reflex (use the WinDAGs MCP)
+## Catalog-First Reflex (use Jury-rig)
 
-There are 600+ specialist skills in the WinDAGs catalog. Most coding tasks
-have a skill written for them already. **Search the catalog before you
-start, not after you're stuck.**
+Port Daddy assembles a local catalog from project and user skill directories,
+plus explicit `PORT_DADDY_SKILL_SOURCE_ROOTS`. Most coding tasks have useful
+guidance already. **Search the catalog before you start, not after you're stuck.**
 
 ```bash
-windags_skill_search "<one-line description of what you're about to do>"
-windags_skill_graft <skill-id-1> <skill-id-2>   # pull the full SKILL.md bodies into your prompt
+pd jury-rig query "<one-line description of what you're about to do>"
+pd jury-rig reference <skill-id> <path>   # guarded read inside that skill
 ```
 
 Default reflexes:
 
-- **Before every meaningful task** — one `windags_skill_search` call. If a top result is >0.4 score, graft it.
+- **Before every meaningful task** — one `pd jury-rig query` call. Read the returned bodies and load only the references the task needs.
 - **When you find yourself reasoning about a domain you don't own** — the catalog has a skill for that. Search.
 - **When a skill would help on this project long-term** — install it into the project's `.claude/skills/` and leave a `pd note` recording the install.
 - **When you used a skill and it was wrong / stale** — that's a Maintain-These-Skills moment (next section).
 
-If you go a whole session without a single `windags_skill_search`, that's
+If you go a whole session without a single `pd jury-rig query`, that's
 probably a missed leverage opportunity.
 
 ## Maintain These Skills (standing invitation)
@@ -1142,7 +1173,7 @@ pd feedback "SKIPPED: pd salvage. Reason: I judged the task too small. In hindsi
 ### Sweeping Up Peers' Work With `git add -A`
 **Detection:** Background agent's commit contains files it did not author.
 **Fix:** Per Git Discipline above — worktree, explicit-path staging, dirty-tree pre-check.
-**Triggering incident:** windags-skills `bb34efa`. Force-push was disallowed; the audit trail had to be corrected via tagging instead.
+**Triggering incident:** external-skill-catalog `bb34efa`. Force-push was disallowed; the audit trail had to be corrected via tagging instead.
 
 ### Spawning A New Agent Where A Note Would Do
 **Detection:** The fleet shows N+1 agents but the actual work is one bounded change.
@@ -1162,5 +1193,5 @@ pd feedback "SKIPPED: pd salvage. Reason: I judged the task too small. In hindsi
 - [ ] You ran `pd guard check --staged` before commit / push / deploy.
 - [ ] You ended with `pd done` AND `pd feedback "..."` (or MCP `drop_feedback`).
 - [ ] If you skipped any of the above, you owned up to it explicitly in the feedback.
-- [ ] You ran at least one `windags_skill_search` for the task domain before starting.
+- [ ] You ran at least one `pd jury-rig query` for the task domain before starting.
 - [ ] **You asked yourself: "did this skill mislead, mis-instruct, or under-equip me?"** If yes, you committed the fix to `skills/port-daddy-agent-skill/SKILL.md` (or `port-daddy-internal-dev` for contributor-only wisdom) in the same slice — no separate ticket, no permission needed. The bar is "would past-me have wanted to know this?", not "is this big enough to be its own PR." See "Maintain These Skills".

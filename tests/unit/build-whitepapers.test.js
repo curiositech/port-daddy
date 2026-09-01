@@ -38,13 +38,36 @@ describe('reproducible whitepaper source scoping', () => {
     ).split('\n');
 
     expect(sources[0]).toBe('website-v2/public/whitepaper/spawn-to-person.tex');
-    expect(sources).toHaveLength(14);
+    expect(sources).toHaveLength(15);
+    expect(sources).toContain(
+      'website-v2/public/whitepaper/figures/pd-figure-language.tex',
+    );
     expect(sources).toContain(
       'website-v2/public/whitepaper/figures/fig-stp-rate-the-raters.tex',
     );
-    expect(sources.slice(1).every((source) => source.includes('/figures/fig-stp-')))
+    expect(sources.slice(1).every((source) =>
+      source.includes('/figures/fig-stp-') || source.endsWith('/figures/pd-figure-language.tex')))
       .toBe(true);
     expect(sources.some((source) => source.includes('fig-anchor-'))).toBe(false);
+  });
+
+  test('every analytical paper declares the shared figure language as a source', () => {
+    const papers = [
+      ['website-v2/public/whitepaper', 'agent-transactions-whitepaper.tex'],
+      ['website-v2/public/whitepaper', 'anchor-protocol-whitepaper.tex'],
+      ['website-v2/public/whitepaper', 'federated-harbor-whitepaper.tex'],
+      ['website-v2/public/whitepaper', 'harbor-economy.tex'],
+      ['website-v2/public/whitepaper', 'spawn-to-person.tex'],
+      ['whitepaper', 'legible-swarm.tex'],
+      ['whitepaper', 'single-writer-kernel.tex'],
+    ];
+
+    for (const [srcdir, root] of papers) {
+      const sources = bashFunction('paper_sources', srcdir, root).split('\n');
+      expect(sources).toContain(
+        `${srcdir}/figures/pd-figure-language.tex`,
+      );
+    }
   });
 
   test('another paper excludes Spawn to Person figures from its epoch', () => {

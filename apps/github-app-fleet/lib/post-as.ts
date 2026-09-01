@@ -16,7 +16,7 @@
  *
  *   port-daddy        pd-reviewer, pd-redteam, pd-qa, pd-test-author, ...
  *   expungement-guide pd-upl-checker, pd-citation-checker, pd-plain-language
- *   windags           pd-skill-media, pd-mermaid-author, pd-skill-grammar
+ *   jury_rig           pd-skill-media, pd-mermaid-author, pd-skill-grammar
  *
  * The grammar contract is the only constant: `pd-<lower-kebab-case>` for the
  * handle, mark unicode-only (no emoji), role under ~80 chars.

@@ -48,7 +48,7 @@ import { stageTentacles } from '../../cli/commands/hooks-install.js';
 
 const __dir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(__dir, '..', '..');
-const bin = (n: 'pd-hook-prompt' | 'pd-hook-pre-tool' | 'pd-hook-post-tool' | 'pd-hook-stop') =>
+const bin = (n: 'pd-hook-prompt' | 'pd-hook-pre-tool' | 'pd-hook-post-tool' | 'pd-hook-stop' | 'pd-hook-precompact') =>
   join(repoRoot, 'bin', n);
 
 // Isolated scratch under ~/coding/tmp (NEVER /tmp — macOS purges /tmp).
@@ -1516,7 +1516,7 @@ describe('Giant Squid Harness — pd-hook-stop event byte budget (review finding
     const binDir = join(pdHome, 'bin');
     const srcBin = join(SCRATCH, 'debug-oversize-src');
     mkdirSync(srcBin, { recursive: true });
-    for (const name of ['pd-hook-prompt', 'pd-hook-pre-tool', 'pd-hook-post-tool', 'pd-hook-stop'] as const) {
+    for (const name of ['pd-hook-prompt', 'pd-hook-pre-tool', 'pd-hook-post-tool', 'pd-hook-stop', 'pd-hook-precompact'] as const) {
       copyFileSync(bin(name), join(srcBin, name));
       chmodSync(join(srcBin, name), 0o755);
     }
@@ -1656,7 +1656,7 @@ describe('Giant Squid Harness — pd-hook-stop marker garbage collection (review
 });
 
 describe('Giant Squid Harness — ClaudeCliSquidAdapter.injectHooks', () => {
-  test('wires only the decision-bearing turn/edit tentacles with absolute paths', async () => {
+  test('wires the verified Claude PreCompact checkpoint and decision-bearing turn/edit tentacles with absolute paths', async () => {
     const adapter = new ClaudeCliSquidAdapter();
     expect(adapter.verified).toBe(true);
     await adapter.injectHooks(WORKSPACE);
@@ -1666,9 +1666,13 @@ describe('Giant Squid Harness — ClaudeCliSquidAdapter.injectHooks', () => {
     const settings = JSON.parse(readFileSync(settingsPath, 'utf8'));
 
     const cmd = (event: string) => settings.hooks[event][settings.hooks[event].length - 1].hooks[0].command;
-    expect(cmd('UserPromptSubmit')).toBe(hookCommandPath('pd-hook-prompt'));
+    expect(cmd('UserPromptSubmit')).toBe(`${hookCommandPath('pd-hook-prompt')} --interactive-context-pressure`);
     expect(cmd('PreToolUse')).toBe(hookCommandPath('pd-hook-pre-tool'));
     expect(cmd('Stop')).toBe(hookCommandPath('pd-hook-stop'));
+    // This fixture proves only the provider-native lifecycle registration. It
+    // does not simulate a context packet: the daemon must first bind the
+    // provider session and independently witness usage/tool-pair coverage.
+    expect(cmd('PreCompact')).toBe(hookCommandPath('pd-hook-precompact'));
     expect(settings.hooks.Stop[settings.hooks.Stop.length - 1].matcher).toBeUndefined();
     expect(cmd('UserPromptSubmit')).not.toContain('/Cellar/');
     expect(settings.hooks.PostToolUse).toBeUndefined();
@@ -1679,6 +1683,10 @@ describe('Giant Squid Harness — ClaudeCliSquidAdapter.injectHooks', () => {
     expect(gate.name).toBe(SQUID_HOOK_METADATA.preTool.displayName);
     expect(gate.description).toBe(SQUID_HOOK_METADATA.preTool.description);
     expect(gate.privacy).toBe(SQUID_HOOK_METADATA.preTool.privacy);
+    const preCompact = settings.hooks.PreCompact[settings.hooks.PreCompact.length - 1];
+    expect(preCompact.name).toBe(SQUID_HOOK_METADATA.preCompact.displayName);
+    expect(preCompact.description).toBe(SQUID_HOOK_METADATA.preCompact.description);
+    expect(preCompact.privacy).toBe(SQUID_HOOK_METADATA.preCompact.privacy);
   });
 
   test('injectHooks is idempotent (re-run does not duplicate PD entries)', async () => {

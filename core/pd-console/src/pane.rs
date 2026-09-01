@@ -28,6 +28,50 @@ pub enum Tone {
     Alarm,
 }
 
+/// Semantic width chosen by the pane that owns a ledger column. Renderers map
+/// this intent to their own layout units; no renderer guesses from display
+/// labels, so adding or renaming a column requires an explicit width choice.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LedgerCellWidth {
+    Standard,
+    Wide,
+}
+
+impl LedgerCellWidth {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Standard => "standard",
+            Self::Wide => "wide",
+        }
+    }
+}
+
+/// One labelled ledger value with an explicit responsive width contract.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LedgerCell {
+    pub label: String,
+    pub value: String,
+    pub width: LedgerCellWidth,
+}
+
+impl LedgerCell {
+    pub fn standard(label: impl Into<String>, value: impl Into<String>) -> Self {
+        Self {
+            label: label.into(),
+            value: value.into(),
+            width: LedgerCellWidth::Standard,
+        }
+    }
+
+    pub fn wide(label: impl Into<String>, value: impl Into<String>) -> Self {
+        Self {
+            label: label.into(),
+            value: value.into(),
+            width: LedgerCellWidth::Wide,
+        }
+    }
+}
+
 impl Tone {
     pub fn color(self, t: &crate::theme::Theme) -> Oklch {
         match self {
@@ -155,6 +199,25 @@ pub enum Block {
     /// renderer wraps it; it never ellipsizes. (HCD: bridge the Gulf of Evaluation.)
     WrappedText {
         text: String,
+        tone: Tone,
+    },
+    /// Sort controls for a responsive metadata ledger. `columns` is
+    /// `(sort_key, operator_label)`; renderers must wrap the controls at narrow
+    /// widths instead of clipping them or introducing horizontal scrolling.
+    LedgerHeader {
+        surface: String,
+        columns: Vec<(String, String)>,
+        active_sort: String,
+        descending: bool,
+    },
+    /// One selectable, responsive metadata row. Every cell carries its label,
+    /// full value, and pane-authored semantic width so a wide surface reads like
+    /// columns while a narrow surface wraps without losing identity.
+    LedgerRow {
+        surface: String,
+        index: usize,
+        selected: bool,
+        cells: Vec<LedgerCell>,
         tone: Tone,
     },
     /// A clickable roster row for a conjoined roster/detail surface (binder ch18
@@ -518,6 +581,9 @@ pub enum SurfaceAction {
     /// roster/detail surface. Selection retargets the detail pane; it is a UI
     /// act, not a daemon control, so it needs no compliance gate.
     SelectRow { index: usize },
+    /// Sort a responsive ledger by one of its declared stable keys. Sorting is
+    /// local projection state; it never mutates daemon authority.
+    Sort { key: String },
     /// Issue a control verb against the surface's selected node — POSTs a
     /// ControlCommand (F0 `control-command.schema.json`) to the daemon, which is
     /// the sole authorizer (stale projections never authorize; ADR-0095 §3).

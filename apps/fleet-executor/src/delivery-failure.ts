@@ -77,6 +77,16 @@ export const DELIVERY_CONTINUATION_KIND = 'delivery-continuation';
  */
 export const DELIVERY_CONTINUATION_SEQ_BASE = 2_500_000;
 
+/** Two identical completed slices prove the continuation is not advancing. */
+export const DELIVERY_CONTINUATION_LIVELOCK_THRESHOLD = 2;
+
+/** Durable evidence that successive queue slices repeated the same state. */
+export interface DeliveryContinuationLivelock {
+  completedShip: string;
+  remainingShips: string[];
+  repeats: number;
+}
+
 /** The deterministic run id both the main consumer and the DLQ handler use. */
 export function runIdForDelivery(deliveryId: string): string {
   return `run:${deliveryId}`;
@@ -290,6 +300,64 @@ export async function countDeliveryContinuations(
 }
 
 /**
+ * Detect a continuation scheduler that is repeating the same completed ship
+ * and unchanged remaining roster before another model call can spend again.
+ */
+export async function readDeliveryContinuationLivelock(
+  env: ExecutorEnv,
+  runId: string,
+): Promise<DeliveryContinuationLivelock | null> {
+  try {
+    if (!env.DB) return null;
+    const query = await env.DB.prepare(
+      `SELECT seq, ship, detail FROM fleet_run_steps
+        WHERE run_id = ? AND kind = ?
+        ORDER BY seq DESC LIMIT ?`,
+    )
+      .bind(runId, DELIVERY_CONTINUATION_KIND, DELIVERY_CONTINUATION_LIVELOCK_THRESHOLD)
+      .all();
+    const rows = (query.results ?? []) as Array<Record<string, unknown>>;
+    if (rows.length < DELIVERY_CONTINUATION_LIVELOCK_THRESHOLD) return null;
+
+    const states = rows.map(row => {
+      if (typeof row.detail !== 'string' || !row.detail) return null;
+      try {
+        const detail = JSON.parse(row.detail) as Record<string, unknown>;
+        const completedShip = typeof detail.completedShip === 'string'
+          ? detail.completedShip
+          : typeof row.ship === 'string'
+            ? row.ship
+            : '';
+        const remainingShips = Array.isArray(detail.remainingShips) &&
+          detail.remainingShips.every(ship => typeof ship === 'string')
+          ? detail.remainingShips as string[]
+          : null;
+        return completedShip && remainingShips ? { completedShip, remainingShips } : null;
+      } catch {
+        return null;
+      }
+    });
+    if (states.some(state => state == null)) return null;
+    const [latest, prior] = states as Array<{ completedShip: string; remainingShips: string[] }>;
+    if (
+      latest.completedShip !== prior.completedShip ||
+      latest.remainingShips.length !== prior.remainingShips.length ||
+      latest.remainingShips.some((ship, index) => ship !== prior.remainingShips[index])
+    ) {
+      return null;
+    }
+    return {
+      completedShip: latest.completedShip,
+      remainingShips: latest.remainingShips,
+      repeats: DELIVERY_CONTINUATION_LIVELOCK_THRESHOLD,
+    };
+  } catch (err) {
+    console.error(`[fleet-executor] reading continuation livelock failed run=${runId}: ${String(err)}`);
+    return null;
+  }
+}
+
+/**
  * Count the attempt-start markers recorded for a run.
  *
  * PURPOSE: the DLQ handler pairs this with {@link readLastDeliveryFailure} to
@@ -386,14 +454,15 @@ export function deadLetterSummary(
   const base =
     `pd-fleet: run for ${owner}/${repo} PR #${prNumber ?? '?'} was lost (job exhausted retries / ` +
     `dead-lettered). This gate is failed rather than left stuck in-progress.`;
-  // Resume progress (src/ship-checkpoint.ts): a dead-letter that completed N
-  // ships before the loss should say so — it tells the operator a DLQ replay
-  // will resume from ship N+1, not restart, and it distinguishes "died at the
-  // first ship" from "died one ship short of done".
+  // Retained checkpoint progress (src/ship-checkpoint.ts): a dead-letter that
+  // completed N ships before the loss should say so. The DLQ cannot know the
+  // later delivery's trusted config/contract/graft snapshot, so it must never
+  // promise reuse; the next execution revalidates every retained row before
+  // deciding whether it can resume.
   const progress =
     checkpointedShips > 0
-      ? `\n\n${checkpointedShips} ship(s) completed and checkpointed before the loss — a DLQ ` +
-        `replay of this delivery resumes past them instead of re-running the whole fleet.`
+      ? `\n\n${checkpointedShips} ship(s) completed and checkpointed before the loss. A later ` +
+        `replay revalidates their current trusted policy and prompt before it can resume past them.`
       : '';
   const continuationProgress =
     intentionalContinuations > 0

@@ -1,85 +1,56 @@
-% Threat-band layout — what each layer of the Federated Harbor stops, what it
-% defers, and what remains open. Defense-in-depth in the Anchor tradition.
-
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D8C7A6}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhcobalt}{HTML}{003FB8}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-
+% Figure IV.10 --- assurance maturity as position, not a prose matrix.
 \begin{figure}[H]
 \centering
 \resizebox{0.95\textwidth}{!}{%
-\begin{tikzpicture}[
-  font=\small,
-  bandhead/.style={draw=hhebony,thick,fill=hhpaper,rounded corners=2pt,
-                   inner sep=4pt,minimum width=56mm,align=center,
-                   font=\bfseries\small},
-  bandbody/.style={draw=hhebony,thick,rounded corners=3pt,
-                   inner sep=6pt,minimum width=56mm,minimum height=42mm,
-                   align=left,text width=52mm,
-                   font=\footnotesize,anchor=north},
-  % Status is carried by fill weight, border weight and label case --- never by
-  % hue --- matching the paper's own maturity key. Cobalt is spent once, on the
-  % band that most needs the reader's eye (the open frontier).
-  bandstopped/.style={fill=hhsand!45},
-  bandbounded/.style={fill=hhsand!22},
-  bandopen/.style={fill=hhpaper,draw=hhcobalt,line width=1.4pt},
-  arrow/.style={->,>=Latex,thick,draw=hhebony},
-]
+\begin{tikzpicture}[pd figure]
+  \node[pd panel title,anchor=west] at (-6.9,3.45)
+    {assurance advances only when a threat acquires an artifact or theorem};
+  \foreach \y/\lab in {2.55/identity + replay,1.75/revocation,.95/equivocation,.15/settlement,-.65/cold-start admission,-1.45/cartel monitoring,-2.25/centralization}
+    {\node[pd direct label,anchor=east] at (-4.35,\y) {\lab};
+     \draw[pd guide] (-4.05,\y)--(6.35,\y);}
 
-% ─── Band 1: stopped (mechanized) ──────────────────────────────────
-\node[bandhead,fill=hhsand!55] (h1) at (0,0) {\textbf{\scshape Stopped} — mechanized};
-\node[bandbody,bandstopped,below=0pt of h1.south] (b1) {%
-  \textbf{ProVerif:}\\
-  $\bullet$ cross-harbor card authenticity\\
-  $\bullet$ attenuation across boundary\\
-  $\bullet$ replay against epoch-bound root\\[3pt]
-  \textbf{Runtime / property tests:}\\
-  $\bullet$ cuckoo-filter no-FN under gossip\\
-  $\bullet$ epoch root monotonicity\\
-  $\bullet$ terminal-state transition checks};
+  % Evidence positions and uncertainty intervals.
+  \draw[pd focus rule,line width=1.2pt] (-4.05,2.55)--(5.15,2.55);
+  \node[pd focus datum] at (5.15,2.55) {};
+  \node[pd note,anchor=west] at (5.42,2.55) {signed card + epoch root};
 
-% ─── Band 2: bounded (named threat, named bound) ───────────────────
-\node[bandhead,fill=hhsand!28,right=10mm of h1] (h2) {\textbf{Bounded} — threat $\subseteq$ window};
-\node[bandbody,bandbounded,below=0pt of h2.south] (b2) {%
-  \textbf{Gossip latency:}\\
-  $\bullet$ expected $\Theta(\log m)$ spread in the stated reliable-round model\\
-  $\bullet$ no finite deadline under unbounded partition\\[3pt]
-  \textbf{Cross-witness equivocation:}\\
-  $\bullet$ contradictory roots detectable once co-located\\
-  $\bullet$ slashable via witness bond\\[3pt]
-  \textbf{Settlement contention:}\\
-  $\bullet$ conditional atomic clear or refusal};
+  \draw[pd caution rule,line width=1.2pt] (-4.05,1.75)--(1.95,1.75);
+  \node[pd caution datum] at (1.95,1.75) {};
+  \node[pd note,anchor=west] at (2.22,1.75) {$\Theta(\log m)$ only under reliable rounds};
 
-% ─── Band 3: open (acknowledged) ──────────────────────────────────
-\node[bandhead,draw=hhcobalt,line width=1.4pt,fill=hhpaper,right=10mm of h2] (h3)
-  {\textbf{\itshape Open} — acknowledged};
-\node[bandbody,bandopen,below=0pt of h3.south] (b3) {%
-  \textbf{Cold-start admission:}\\
-  $\bullet$ new harbor with no reputation cannot price its own bond fairly\\[3pt]
-  \textbf{Cross-federation cartel:}\\
-  $\bullet$ repeated-game bounds require a specified monitoring model\\[3pt]
-  \textbf{Centralization gravity:}\\
-  $\bullet$ historical pull toward hub-and-spoke; structural pushback rather than proof};
+  \draw[pd caution rule,line width=1.2pt] (-4.05,.95)--(1.55,.95);
+  \node[pd caution datum] at (1.55,.95) {};
+  \node[pd note,anchor=west] at (1.82,.95) {proof after roots co-locate};
 
-% ─── Spine: load-bearing reading direction. Connectors run between the
-%      fixed-height HEADERS (not the variable-height bodies), and the prose
-%      labels move to the caption so nothing collides with the band text. ──
-\draw[arrow] (h1.east) -- (h2.west);
-\draw[arrow] (h2.east) -- (h3.west);
+  \draw[pd caution rule,line width=2.0pt] (-.55,.15)--(2.05,.15);
+  \draw[pd caution rule,line width=1.2pt] (-4.05,.15)--(1.35,.15);
+  \node[pd caution datum] at (1.35,.15) {};
+  \node[pd note,anchor=west] at (2.28,.15) {bound ranges from bypassable to gated};
 
-\end{tikzpicture}%
-}
-\caption{Threat-band layout for the Federated Harbor. The Anchor paper's
-defense-in-depth structure carries over: every claim either has a mechanization
-artifact, a named bound the bond can price against, or an explicit acknowledgement
-that it sits on the open frontier. Status is read from weight, not colour --- the
-bands lighten left to right as the evidence thins, and the one band with no formal
-artifact behind it is the one drawn in outline. Reading left to right runs deeper
-into threat space and out of formal reach; bands shift left over time as future work
-mechanizes what is presently only bounded.}
+  \draw[pd caution rule,line width=1.2pt] (-4.05,-.65)--(-.70,-.65);
+  \node[pd caution datum] at (-.70,-.65) {};
+  \node[pd note,anchor=west] at (-.43,-.65) {thin reputation cannot yet price bond};
+
+  \draw[pd caution rule,line width=1.2pt] (-4.05,-1.45)--(-1.05,-1.45);
+  \node[pd caution datum] at (-1.05,-1.45) {};
+  \node[pd note,anchor=west] at (-.78,-1.45) {monitoring game incomplete};
+
+  \draw[pd caution rule,line width=1.2pt] (-4.05,-2.25)--(-1.55,-2.25);
+  \node[pd caution datum] at (-1.55,-2.25) {};
+  \node[pd note,anchor=west] at (-1.28,-2.25) {pushback is not a bound};
+
+  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (-4.05,-2.85)--(6.15,-2.85);
+  \foreach \x/\lab in {-4.05/OPEN,.75/CONDITIONAL,5.55/MECHANIZED}
+    {\draw[pd rule] (\x,-2.96)--(\x,-2.74);
+     \node[pd axis label,anchor=north] at (\x,-3.02) {\lab};}
+  \node[pd axis label,anchor=south] at (.75,-2.74) {assurance position};
+\end{tikzpicture}}
+\caption{\textbf{The assurance landscape is uneven and falsifiable.} Position
+encodes how far each threat has moved from an acknowledged gap toward a mechanized
+artifact. Identity and replay have the strongest concrete evidence. Revocation,
+equivocation, and settlement are conditional on named connectivity or custody
+hypotheses; the thick settlement interval shows how widely its assurance moves if
+the gate is bypassable. Cold start, cartel monitoring, and centralization remain
+open. A row advances only when the missing artifact or theorem exists.}
 \label{fig:fh-threat-bands}
 \end{figure}

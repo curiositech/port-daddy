@@ -7,6 +7,7 @@ import {
   DELIVERY_ATTEMPT_KIND,
   DELIVERY_ATTEMPT_SEQ_BASE,
   DELIVERY_CONTINUATION_KIND,
+  DELIVERY_CONTINUATION_LIVELOCK_THRESHOLD,
   DELIVERY_CONTINUATION_SEQ_BASE,
   DELIVERY_FAILURE_KIND,
   DELIVERY_FAILURE_SEQ_BASE,
@@ -15,6 +16,7 @@ import {
   deadLetterSummary,
   describeDeliveryError,
   readLastDeliveryFailure,
+  readDeliveryContinuationLivelock,
   recordDeliveryAttemptStart,
   recordDeliveryContinuation,
   recordDeliveryFailure,
@@ -47,6 +49,18 @@ function fakeMessage(body: FleetRunJob, attempts?: number) {
 function fakeBatch(messages: ReturnType<typeof fakeMessage>[]) {
   return { queue: 'fleet-runs', messages } as unknown as MessageBatch<FleetRunJob>;
 }
+
+const CHECKPOINT_BINDING = {
+  bindingVersion: 4 as const,
+  shipConfigSha256: `sha256:${'1'.repeat(64)}`,
+  contractSha256: 'absent',
+  graftSha256: `sha256:${'2'.repeat(64)}`,
+  systemPromptSha256: `sha256:${'3'.repeat(64)}`,
+  reviewInputSha256: `sha256:${'4'.repeat(64)}`,
+  mediatorOrdersSha256: 'absent',
+  lookoutProjectionSha256: 'not-applicable',
+  executionReceiptKind: 'not-applicable' as const,
+};
 
 let state: GitHubState;
 
@@ -144,6 +158,79 @@ describe('attempt-start markers make uncatchable kills visible (#7743)', () => {
     expect(Number(continuation?.seq)).toBe(DELIVERY_CONTINUATION_SEQ_BASE + 2);
     expect(String(continuation?.title)).toContain('progress, not a failure');
     expect(await countDeliveryContinuations(env, runIdForDelivery('delivery-abc'))).toBe(1);
+  });
+
+  it('detects two identical continuation states but permits monotonic progress', async () => {
+    const db = memoryD1();
+    const env = makeEnv({ DB: db.db });
+    const runId = runIdForDelivery('delivery-abc');
+
+    await recordDeliveryContinuation(env, makeJob(), 1, 'lookout', ['snipe', 'purser']);
+    await expect(readDeliveryContinuationLivelock(env, runId)).resolves.toBeNull();
+    await recordDeliveryContinuation(env, makeJob(), 101, 'snipe', ['purser']);
+    await expect(readDeliveryContinuationLivelock(env, runId)).resolves.toBeNull();
+    await recordDeliveryContinuation(env, makeJob(), 201, 'snipe', ['purser']);
+
+    await expect(readDeliveryContinuationLivelock(env, runId)).resolves.toEqual({
+      completedShip: 'snipe',
+      remainingShips: ['purser'],
+      repeats: DELIVERY_CONTINUATION_LIVELOCK_THRESHOLD,
+    });
+  });
+
+  it('permits a shrinking roster when the same ship completes consecutive slices', async () => {
+    const db = memoryD1();
+    const env = makeEnv({ DB: db.db });
+    const runId = runIdForDelivery('delivery-abc');
+
+    await recordDeliveryContinuation(env, makeJob(), 1, 'lookout', ['snipe', 'purser']);
+    await recordDeliveryContinuation(env, makeJob(), 101, 'lookout', ['purser']);
+
+    await expect(readDeliveryContinuationLivelock(env, runId)).resolves.toBeNull();
+  });
+
+  it('detects repeated empty rosters as zero progress', async () => {
+    const db = memoryD1();
+    const env = makeEnv({ DB: db.db });
+    const runId = runIdForDelivery('delivery-abc');
+
+    await recordDeliveryContinuation(env, makeJob(), 1, 'lookout', []);
+    await recordDeliveryContinuation(env, makeJob(), 101, 'lookout', []);
+
+    await expect(readDeliveryContinuationLivelock(env, runId)).resolves.toEqual({
+      completedShip: 'lookout',
+      remainingShips: [],
+      repeats: DELIVERY_CONTINUATION_LIVELOCK_THRESHOLD,
+    });
+  });
+
+  it('treats roster order as scheduler state', async () => {
+    const db = memoryD1();
+    const env = makeEnv({ DB: db.db });
+    const runId = runIdForDelivery('delivery-abc');
+
+    await recordDeliveryContinuation(env, makeJob(), 1, 'lookout', ['snipe', 'purser']);
+    await recordDeliveryContinuation(env, makeJob(), 101, 'lookout', ['purser', 'snipe']);
+
+    await expect(readDeliveryContinuationLivelock(env, runId)).resolves.toBeNull();
+  });
+
+  it('fails open when continuation evidence is unavailable or malformed', async () => {
+    const db = memoryD1();
+    const env = makeEnv({ DB: db.db });
+    await recordDeliveryContinuation(env, makeJob(), 1, 'lookout', ['purser']);
+    db.steps.find(step => step.kind === DELIVERY_CONTINUATION_KIND)!.detail = '{bad json';
+    await recordDeliveryContinuation(env, makeJob(), 101, 'lookout', ['purser']);
+
+    await expect(readDeliveryContinuationLivelock(
+      env,
+      runIdForDelivery('delivery-abc'),
+    )).resolves.toBeNull();
+    db.failAll = true;
+    await expect(readDeliveryContinuationLivelock(
+      env,
+      runIdForDelivery('delivery-abc'),
+    )).resolves.toBeNull();
   });
 
   it('the consumer records a start marker BEFORE executing, so a platform kill still leaves evidence', async () => {
@@ -295,10 +382,11 @@ describe('deadLetterSummary', () => {
     expect(summary).not.toContain('attempt 0');
   });
 
-  it('reports durable checkpoint progress and promises resume only for that work', () => {
+  it('reports retained checkpoint progress without promising an unverified resume', () => {
     const summary = deadLetterSummary('o', 'r', 7, null, 4, 2);
     expect(summary).toContain('2 ship(s) completed and checkpointed before the loss');
-    expect(summary).toContain('replay of this delivery resumes past them');
+    expect(summary).toContain('revalidates their current trusted policy and prompt');
+    expect(summary).not.toContain('replay of this delivery resumes past them');
     expect(summary).toContain(DEAD_LETTER_MARKER);
   });
 });
@@ -317,7 +405,7 @@ describe('a dead-lettered check does not strand the head SHA', () => {
     expect(isDeadLetteredSummary(state.completed[0].summary)).toBe(true);
   });
 
-  it('reads checkpoint progress into the DLQ check summary', async () => {
+  it('reads retained checkpoint progress into the DLQ check summary without promising reuse', async () => {
     state.existingCheckRuns.push({ id: 4242, name: 'Port Daddy Fleet' });
     const kv = memoryKV();
     seedToken(kv, 42);
@@ -329,11 +417,12 @@ describe('a dead-lettered check does not strand the head SHA', () => {
       verdict: 'PASS',
       errored: false,
       findings: [],
-    });
+    }, CHECKPOINT_BINDING);
 
     await handleDlqJob(makeJob(), env);
 
     expect(state.completed[0].summary).toContain('1 ship(s) completed and checkpointed');
+    expect(state.completed[0].summary).toContain('revalidates their current trusted policy and prompt');
   });
 
   it('does not mark a summary ships actually decided', () => {
@@ -378,7 +467,7 @@ describe('a dead-lettered check does not strand the head SHA', () => {
     expect(state.completed.some(c => c.id === minted[0].id)).toBe(true);
   });
 
-  it('still stops dead on a check that ships DID decide', async () => {
+  it('does not trust a legacy completed check without a bound generation receipt', async () => {
     state.files.set('main:pd-fleet.yml', 'fleet:\n');
     const kv = memoryKV();
     seedToken(kv, 42);
@@ -400,9 +489,8 @@ describe('a dead-lettered check does not strand the head SHA', () => {
 
     await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, AI: ai, DB: memoryD1().db }));
 
-    // No new check, no completion, no model spend — the money guard holds.
-    expect(state.existingCheckRuns).toHaveLength(1);
-    expect(state.completed).toHaveLength(0);
+    expect(state.existingCheckRuns).toHaveLength(2);
+    expect(state.completed).toHaveLength(1);
   });
 
   it('mints a fresh check when an explicit reopen retries a completed neutral gate', async () => {
@@ -465,7 +553,7 @@ describe('a dead-lettered check does not strand the head SHA', () => {
     expect(state.completed.some(c => c.id === minted[0].id)).toBe(true);
   });
 
-  it('does not rerun or spend when an explicit reopen finds a completed success', async () => {
+  it('treats an explicit reopen as a new delivery generation even after success', async () => {
     state.files.set('main:pd-fleet.yml', 'fleet:\n');
     const kv = memoryKV();
     seedToken(kv, 42);
@@ -490,9 +578,9 @@ describe('a dead-lettered check does not strand the head SHA', () => {
       makeEnv({ FLEET_TOKENS: kv, AI: ai, DB: memoryD1().db }),
     );
 
-    expect(result).toEqual({ kind: 'already-decided', conclusion: 'success' });
-    expect(state.existingCheckRuns).toHaveLength(1);
-    expect(state.completed).toHaveLength(0);
+    expect(result).toBeUndefined();
+    expect(state.existingCheckRuns).toHaveLength(2);
+    expect(state.completed).toHaveLength(1);
   });
 
   it('closes the loop: DLQ failure then redelivery yields a real verdict', async () => {
@@ -562,7 +650,7 @@ describe('the read-back path degrades honestly (pd-qa findings on #7377)', () =>
     ).resolves.toBeNull();
   });
 
-  it('a failed read still yields a complete dead-letter summary, not a broken one', async () => {
+  it('fails closed without mutating GitHub when the generation ledger cannot be claimed', async () => {
     state.existingCheckRuns.push({ id: 4242, name: 'Port Daddy Fleet' });
     const kv = memoryKV();
     seedToken(kv, 42);
@@ -573,11 +661,7 @@ describe('the read-back path degrades honestly (pd-qa findings on #7377)', () =>
 
     await handleDlqJob(makeJob(), env);
 
-    const summary = String(state.completed[0].summary);
-    expect(summary).toContain('dead-lettered');
-    expect(summary).toContain('No per-attempt failure was recorded');
-    // The marker must survive the degraded path, or the SHA stays stranded.
-    expect(summary).toContain(DEAD_LETTER_MARKER);
+    expect(state.completed).toHaveLength(0);
   });
 
   it('names an empty cause instead of trailing a dangling colon', () => {
@@ -588,12 +672,8 @@ describe('the read-back path degrades honestly (pd-qa findings on #7377)', () =>
   });
 });
 
-describe('the DLQ handler fails the gate even on a malformed job', () => {
-  it('completes the check as failure when deliveryId is missing, rather than bailing', async () => {
-    // pd-qa proposed returning early on an absent deliveryId. That would be
-    // WORSE than the degraded path: bailing leaves the check stuck
-    // `in_progress` forever, which is the exact stuck-gate this handler exists
-    // to prevent. A missing id costs a useless run link, not the gate.
+describe('the DLQ handler fails closed on malformed authority', () => {
+  it('does not mutate an un attributable check when deliveryId is missing', async () => {
     state.existingCheckRuns.push({ id: 4242, name: 'Port Daddy Fleet' });
     const kv = memoryKV();
     seedToken(kv, 42);
@@ -604,10 +684,7 @@ describe('the DLQ handler fails the gate even on a malformed job', () => {
       handleDlqJob(job, makeEnv({ FLEET_TOKENS: kv, DB: memoryD1().db })),
     ).resolves.toBeUndefined();
 
-    expect(state.completed).toHaveLength(1);
-    expect(state.completed[0]).toMatchObject({ id: 4242, conclusion: 'failure' });
-    // …and the marker still lands, so the SHA is not stranded either.
-    expect(String(state.completed[0].summary)).toContain(DEAD_LETTER_MARKER);
+    expect(state.completed).toHaveLength(0);
   });
 
   it('never rejects, so the caller always reaches message.ack()', async () => {

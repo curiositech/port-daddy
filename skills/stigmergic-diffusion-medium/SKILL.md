@@ -9,7 +9,7 @@ description: >
   signal field that replaces message buses, central planners, and explicit agent-to-agent
   communication. The coordination substrate for the SOMA multi-agent architecture (Week 1
   kernel, extended by Active Inference agents in Week 2+).
-author: soma-windags-graft
+author: soma-jury_rig-graft
 tags: [stigmergy, multi-agent, coordination, diffusion, graph, blackboard, active-inference, pheromone]
 pairs-with: [active-inference-agent, belief-market-tateonnement, immune-selection-pressure]
 license: Apache-2.0
@@ -17,7 +17,7 @@ allowed-tools: Read,Write,Edit,Glob,Grep
 metadata:
   provenance:
     kind: imported
-    source: workgroup-ai / windags skill library (rehomed 2026-07-04)
+    source: workgroup-ai / jury_rig skill library (rehomed 2026-07-04)
 ---
 
 # Stigmergic Diffusion Medium

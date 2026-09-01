@@ -1,69 +1,48 @@
-% The keystone split: local non-forgeable identity vs cross-operator attestation.
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D8C7A6}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhcobalt}{HTML}{003FB8}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-
+% Figure IV.4 --- proof spans reveal the exact cross-operator gap.
 \begin{figure}[H]
 \centering
-\resizebox{0.95\textwidth}{!}{%
-\begin{tikzpicture}[
-  font=\small,
-  harbor/.style={draw=hhebony,thick,fill=hhsand!30,rounded corners=4pt,
-                 inner sep=6pt,minimum width=52mm,minimum height=34mm,align=center},
-  root/.style={draw=hhink,line width=1.4pt,fill=hhsand!30,rounded corners=2pt,
-               inner sep=3pt,font=\scriptsize\bfseries,align=center},
-  agent/.style={draw=hhebony,thick,fill=hhpaper,circle,inner sep=1pt,
-                minimum size=7mm,font=\scriptsize},
-]
+\resizebox{0.93\textwidth}{!}{%
+\begin{tikzpicture}[pd figure]
+  \node[pd panel title,anchor=west] at (-6.5,2.8)
+    {what survives when the counterparty controls the foreign daemon?};
+  \fill[hhsand!12] (-6.5,-2.3) rectangle (0,2.25);
+  \fill[hhsand!5] (0,-2.3) rectangle (6.5,2.25);
+  \draw[pd caution rule,dashed] (0,-2.55)--(0,2.55);
+  \node[pd direct label,text=hhamber,fill=white,inner sep=1.5pt,rotate=90]
+    at (0,.98) {operator boundary};
+  \node[pd axis label] at (-3.25,2.40) {Alice's trusted daemon};
+  \node[pd axis label] at (3.25,2.40) {Bob's foreign view};
+  \foreach \y/\lab in {1.50/daemon-minted key,.45/append-only history,-.60/foreign registry,-1.65/accountable principal binding}
+    \node[pd direct label,anchor=east] at (-4.25,\y) {\lab};
 
-% Harbor A
-\node[harbor,label={[font=\bfseries\footnotesize]north:Harbor $A$ (Alice owns)}]
-  (HA) at (0,0) {};
-\node[root] (rA) at ($(HA.center)+(0,9mm)$) {trusted root\\(Alice's daemon)};
-\node[agent] (a1) at ($(HA.center)+(-12mm,-7mm)$) {$a_1$};
-\node[agent] (a2) at ($(HA.center)+(0,-7mm)$) {$a_2$};
-\node[agent] (a3) at ($(HA.center)+(12mm,-7mm)$) {$a_3$};
-\foreach \a in {a1,a2,a3} { \draw[->,>=Latex,hhteal,thick] (rA) -- (\a); }
+  \draw[pd focus rule,line width=1.25pt] (-4.00,1.50)--(4.45,1.50);
+  \node[pd focus datum] at (-4.00,1.50) {};
+  \node[pd focus datum] at (4.45,1.50) {};
+  \node[pd note,anchor=west] at (4.72,1.50) {signature checks};
+  \draw[pd focus rule,line width=1.25pt] (-4.00,.45)--(4.45,.45);
+  \node[pd focus datum] at (-4.00,.45) {};
+  \node[pd focus datum] at (4.45,.45) {};
+  \node[pd note,anchor=west] at (4.72,.45) {inclusion verifies};
+  \draw[pd rule] (-4.00,-.60)--(4.45,-.60);
+  \node[pd datum] at (-4.00,-.60) {};
+  \node[pd datum] at (4.45,-.60) {};
+  \node[pd note,anchor=west] at (4.72,-.60) {registry inspectable};
 
-% Harbor B
-\node[harbor,label={[font=\bfseries\footnotesize]north:Harbor $B$ (Bob owns)},
-  right=46mm of HA] (HB) {};
-\node[root] (rB) at ($(HB.center)+(0,9mm)$) {trusted root\\(Bob's daemon)};
-\node[agent] (b1) at ($(HB.center)+(-12mm,-7mm)$) {$b_1$};
-\node[agent] (b2) at ($(HB.center)+(0,-7mm)$) {$b_2$};
-\node[agent] (b3) at ($(HB.center)+(12mm,-7mm)$) {$b_3$};
-\foreach \b in {b1,b2,b3} { \draw[->,>=Latex,hhteal,thick] (rB) -- (\b); }
-
-% the boundary nobody controls
-\node[draw=hhcobalt,line width=1.6pt,fill=hhsand!30,rounded corners=3pt,
-      inner sep=4pt,font=\bfseries\scriptsize,text=hhink,
-      text width=36mm,align=center] (gap) at ($(HA.east)!0.5!(HB.west)+(0,4mm)$)
-  {\textbf{cross-operator}\\\textbf{attestation}\\ \normalfont\scriptsize
-   (specified $\to$ proposed)\\ \emph{who vouches $b_i$'s keys map to a real distinct
-   principal?}};
-\draw[<->,>=Latex,line width=1.4pt,hhcobalt] (HA.east) -- (HB.west);
-
-
-\end{tikzpicture}%
-}
-\caption{The market rests on a keystone it does not yet have: local
-non-forgeable identity covers only a single trusted daemon, while the market is
-defined by operators who share no such root. Chapters I--III rest on
-\textbf{local non-forgeable identity}: a per-agent identity no agent can edit
-\emph{within one trusted daemon}
---- a single trusted root that vouches for every agent it mints. That is exactly
-what a single-operator harbor needs. But the market is \emph{defined} by
-mutually-distrusting operators trading across a boundary neither controls, and that
-primitive explicitly disclaims the relevant threat model (intra-fleet, not a
-cross-party PKI, no hostile-operator defense). Binding signing keys across harbors
-you do not own is a different, unsolved problem: \textbf{cross-operator
-attestation}. Across the boundary, the counterparty's daemon \emph{is} the
-adversary the local threat model declares out of scope, and the witness log gives
-\emph{log integrity}, not \emph{identity binding}. It is the highest-leverage
-unbuilt keystone, and it gates the entire market thesis.}
+  \draw[pd focus rule,line width=1.25pt] (-4.00,-1.65)--(-.45,-1.65);
+  \draw[pd caution rule,dashed,line width=1.25pt] (.45,-1.65)--(4.45,-1.65);
+  \draw[pd caution rule,line width=1.1pt] (-.25,-1.92)--(.25,-1.38);
+  \draw[pd caution rule,line width=1.1pt] (-.25,-1.38)--(.25,-1.92);
+  \node[pd caution datum] at (4.45,-1.65) {};
+  \node[pd direct label,text=hhamber,anchor=west] at (4.72,-1.65)
+    {no foreign binding proof};
+  \node[pd note,text=hhamber] at (1.0,-2.72)
+    {log integrity proves what was recorded; it does not prove who controls the key};
+\end{tikzpicture}}
+\caption{\textbf{Visibility crosses the boundary; accountable-principal binding
+does not.} Bob can verify Alice's key signature, append-only history, and registry
+entry. Those proof spans continue across the boundary. The decisive bottom
+span ends: none establishes that the foreign key belongs to one distinct principal
+rather than a sock-puppet set. The missing capability is therefore a boundary
+proof, not another local database field.}
 \label{fig:he-keystone-split}
 \end{figure}

@@ -1,7 +1,7 @@
 # Grand-Plan Execution DAG — the remaining work as skillful agent nodes
 
 **Status:** Proposal — 2026-08-04.
-**Method:** `windags-architect` + `dag-planner` + `skillful-node-prompt` (all three
+**Method:** `jury_rig-architect` + `dag-planner` + `skillful-node-prompt` (all three
 loaded and followed).
 **Inputs:** `docs/proposals/relay-grand-plan.md`, `docs/adr/0120-rust-kernel-boundary.md`,
 `docs/hitl-interruptions.md`, and the in-code deferred-scope headers of

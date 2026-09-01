@@ -1,181 +1,43 @@
-% Revocation gossip propagation — inline in §2.4, downstream of the cuckoo
-% mechanics figure. Five panels (t=0, 30s, 60s, 90s, 120s) show the spread
-% of a single revocation across a 5-daemon mesh via anti-entropy gossip.
-%
-% Trust-boundary band reused from fig-anchor-alg-confusion.tex (house
-% convention; original in figures/diag-magic-link.tex). Here it is drawn as a
-% labelled strip rather than an enclosure, because the daemon nodes inside the
-% panels are trusted endpoints and only the links between them are not — an
-% enclosing band would invite exactly the wrong reading.
-
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D8C7A6}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-
+% Semantic contract: each verifier has its own exposure interval; logarithmic
+% dissemination is an expectation, not a wall-clock deadline.
 \begin{figure}[H]
 \centering
-\resizebox{\textwidth}{!}{%
-\begin{tikzpicture}[
-  font=\footnotesize,
-  panelframe/.style={draw=hhebony,thick,rounded corners=2pt,
-                     minimum width=42mm,minimum height=44mm,
-                     fill=hhpaper,inner sep=2pt},
-  paneltitle/.style={font=\bfseries,text=hhebony,anchor=north},
-  daemonClean/.style={draw=hhebony,thick,fill=hhsand,
-                      circle,minimum size=7mm,inner sep=0pt,
-                      font=\footnotesize\bfseries},
-  daemonRevoked/.style={draw=hhcobalt,line width=1.2pt,fill=hhcobalt!30,
-                        circle,minimum size=7mm,inner sep=0pt,
-                        font=\footnotesize\bfseries,text=hhebony},
-  meshedge/.style={draw=hhink,thin,dotted},
-  gossipedge/.style={->,>=Latex,thick,draw=hhcobalt},
-  timelabel/.style={font=\bfseries\small,text=hhink,anchor=south},
-  vvlbl/.style={font=\scriptsize\ttfamily,text=hhteal},
-  filterbadge/.style={draw=hhteal,thick,fill=hhpaper,rounded corners=1pt,
-                      inner sep=2pt,font=\scriptsize,text=hhteal,
-                      align=center},
-  % ── house trust-boundary convention ──
-  untrusted/.style={draw=hhcobalt,dashed,line width=0.8pt,
-                    fill=hhcobalt!6,rounded corners=3pt},
-]
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \def\xzero{-4.5}
+  \def\xend{5.4}
+  \foreach \y/\peer/\wake in {2.4/A/-4.5,1.35/B/-1.4,.3/C/2.0,-.75/D/-.6,-1.8/E/2.0} {
+    \node[pd axis label,anchor=east] at (\xzero-.32,\y) {daemon \peer};
+    \draw[draw=hhamber,line width=2.6pt,line cap=round] (\xzero,\y) -- (\wake,\y);
+    \draw[draw=hhpaper,line width=1pt,line cap=round] (\xzero,\y) -- (\wake,\y);
+    \draw[draw=hhteal,line width=2.6pt,line cap=round] (\wake,\y) -- (\xend,\y);
+    \node[pd focus datum,minimum size=4.8pt,inner sep=0pt] at (\wake,\y) {};
+  }
+  \draw[pd focus rule]
+    (-4.5,2.4) -- (-4.5,1.95) -- (-1.4,1.95) -- (-1.4,1.35)
+    (-4.5,1.95) -- (-.6,1.95) -- (-.6,-.75)
+    (-1.4,1.35) -- (-1.4,.82) -- (2,.82) -- (2,.3)
+    (-.6,-.75) -- (-.6,-1.28) -- (2,-1.28) -- (2,-1.8);
+  \node[pd direct label,text=hhteal,anchor=south west] at (-4.35,2.62)
+    {authoritative append};
 
-% ─── Helper: a 5-node mesh in a circle, radius 12mm, centered at (cx,cy) ──
-% Daemons labeled A..E. Macro \mesh{cx}{cy}{stateA}{stateB}{stateC}{stateD}{stateE}
-% where stateX is 0 (clean) or 1 (revoked).
-\newcommand{\meshfive}[8]{%
-  % #1=cx #2=cy
-  % #3..#7 = state of A,B,C,D,E (0/1)
-  % #8 = sender label (or empty); the gossip arrows are drawn separately
-  \begin{scope}[shift={(#1,#2)}]
-    % mesh edges (pentagon + a couple of chords)
-    \draw[meshedge] (90:12mm)  -- (162:12mm);
-    \draw[meshedge] (162:12mm) -- (234:12mm);
-    \draw[meshedge] (234:12mm) -- (306:12mm);
-    \draw[meshedge] (306:12mm) -- (18:12mm);
-    \draw[meshedge] (18:12mm)  -- (90:12mm);
-    \draw[meshedge] (90:12mm)  -- (234:12mm);
-    \draw[meshedge] (18:12mm)  -- (162:12mm);
-    \ifnum#3=1
-      \node[daemonRevoked] (A) at (90:12mm)  {A};
-    \else
-      \node[daemonClean]   (A) at (90:12mm)  {A};
-    \fi
-    \ifnum#4=1
-      \node[daemonRevoked] (B) at (18:12mm)  {B};
-    \else
-      \node[daemonClean]   (B) at (18:12mm)  {B};
-    \fi
-    \ifnum#5=1
-      \node[daemonRevoked] (C) at (306:12mm) {C};
-    \else
-      \node[daemonClean]   (C) at (306:12mm) {C};
-    \fi
-    \ifnum#6=1
-      \node[daemonRevoked] (D) at (234:12mm) {D};
-    \else
-      \node[daemonClean]   (D) at (234:12mm) {D};
-    \fi
-    \ifnum#7=1
-      \node[daemonRevoked] (E) at (162:12mm) {E};
-    \else
-      \node[daemonClean]   (E) at (162:12mm) {E};
-    \fi
-  \end{scope}
-}
+  \draw[pd rule,-{Stealth[length=1.7mm,width=1.05mm]}] (\xzero,-2.32) -- (\xend,-2.32);
+  \foreach \x/\lab in {-4.5/$t$,-1.4/$t+\Delta$,2/$t+2\Delta$} {
+    \draw[pd tick] (\x,-2.23) -- (\x,-2.42);
+    \node[pd axis label,anchor=north] at (\x,-2.48) {\lab};
+  }
+  \node[pd axis label,anchor=west] at (\xend,-2.32) {time};
+  \node[pd direct label,text=hhamber,anchor=north west] at (-4.5,-2.98)
+    {amber interval: verifier may still admit the card};
 
-% ─── Panel 1: t = 0  (A revokes locally) ─────────────────────────────────
-\node[panelframe] (p1) at (0,0) {};
-\node[paneltitle] at (p1.north) {$t = 0$};
-\meshfive{0}{-0.6}{1}{0}{0}{0}{0}{}
-\node[vvlbl,below=-1mm of p1.south,anchor=north]
-  {vv: A=1, others=0};
-
-% ─── Panel 2: t = 30s  (A gossips to B and D) ────────────────────────────
-\node[panelframe,right=5mm of p1] (p2) {};
-\node[paneltitle] at (p2.north) {$t = 30\text{s}$};
-\meshfive{4.7}{-0.6}{1}{1}{0}{1}{0}{A}
-% gossip arrows: A → B and A → D
-\draw[gossipedge] ($(p2.center)+(0,-0.6)+(90:9mm)$)
-  to[bend left=15] ($(p2.center)+(0,-0.6)+(18:9mm)$);
-\draw[gossipedge] ($(p2.center)+(0,-0.6)+(90:9mm)$)
-  to[bend right=15] ($(p2.center)+(0,-0.6)+(234:9mm)$);
-\node[vvlbl,below=-1mm of p2.south,anchor=north]
-  {vv: A=1,B=1,D=1};
-
-% ─── Panel 3: t = 60s  (B → C, D → E) ────────────────────────────────────
-\node[panelframe,right=5mm of p2] (p3) {};
-\node[paneltitle] at (p3.north) {$t = 60\text{s}$};
-\meshfive{9.4}{-0.6}{1}{1}{1}{1}{1}{B,D}
-% B → C
-\draw[gossipedge] ($(p3.center)+(0,-0.6)+(18:9mm)$)
-  to[bend left=10] ($(p3.center)+(0,-0.6)+(306:9mm)$);
-% D → E
-\draw[gossipedge] ($(p3.center)+(0,-0.6)+(234:9mm)$)
-  to[bend right=10] ($(p3.center)+(0,-0.6)+(162:9mm)$);
-\node[vvlbl,below=-1mm of p3.south,anchor=north]
-  {vv: all = 1};
-
-% ─── Panel 4: t = 90s  (reconciliation) ──────────────────────────────────
-\node[panelframe,right=5mm of p3] (p4) {};
-\node[paneltitle] at (p4.north) {$t = 90\text{s}$};
-\meshfive{14.1}{-0.6}{1}{1}{1}{1}{1}{}
-\node[vvlbl,below=-1mm of p4.south,anchor=north,align=center]
-  {anti-entropy: \\ vectors equal};
-
-% ─── Panel 5: t = 120s  (steady state, attacker's card rejected) ────────
-\node[panelframe,right=5mm of p4] (p5) {};
-\node[paneltitle] at (p5.north) {$t = 120\text{s}$};
-\meshfive{18.8}{-0.6}{1}{1}{1}{1}{1}{}
-\node[font=\scriptsize,text=hhcobalt,
-      below=-1mm of p5.south,anchor=north,align=center]
-  {revoked card \\ rejected everywhere};
-
-% ─── Trust boundary strip ────────────────────────────────────────────────
-\node[untrusted,inner sep=6pt,align=left,font=\footnotesize,text=hhcobalt,
-      text width=190mm,below=9mm of p3.south] (tb)
-  {{\bfseries Trust boundary.}\quad Daemons A--E are trusted endpoints. Every link
-   between them --- the dotted mesh edges and the cobalt gossip arrows alike ---
-   runs over the untrusted network of \S\ref{sec:threat-model}. On that network the
-   Dolev--Yao adversary may \emph{observe} every delta, learning which cards have
-   been revoked (see ``Privacy,'' \S\ref{sec:revocation}), and may \emph{delay,
-   drop, duplicate, or reorder} deltas --- which is why no finite worst-case
-   freshness bound is claimed here. It cannot \emph{forge} a revocation, which is
-   signed, nor \emph{un-revoke} one, which the append-only log forbids.};
-
-% ─── Legend / mechanics panel beneath all five frames ────────────────────
-\node[draw=hhebony,thick,fill=hhsand!30,rounded corners=3pt,
-      inner sep=6pt,align=left,font=\footnotesize,
-      below=4mm of tb.south,
-      text width=190mm]
-  {{\bfseries Mechanism.}\quad
-   Each daemon maintains a cuckoo filter (8-bit fingerprints, 4 entries/bucket,
-   FP rate $\leq 2^{-5}$, load ceiling $0.95$) and a \emph{version vector} over its
-   peers. Every 30\,s each daemon picks a random peer, exchanges vectors, and
-   ships deltas (cards revoked since the peer's last-seen version).\\[2pt]
-   {\bfseries Expected propagation.}\quad
-   In a connected reliable-round random-peer model, a new revocation reaches all
-   $m$ peers in expected $\Theta(\log m)$ rounds. The pictured 30\,s steps are an
-   illustrative trace, not a deadline; partitions admit no finite global bound.\\[2pt]
-   {\bfseries Legend.}\quad
-   sand-filled node $=$ filter clean \quad$\cdot$\quad
-   cobalt-ringed node $=$ filter contains revoked card \quad$\cdot$\quad
-   {\color{hhcobalt}$\longrightarrow$} $=$ gossip delta this round};
-
-\end{tikzpicture}%
-}
-\caption{A single revocation reaches every daemon in the mesh through anti-entropy
-gossip alone, in expected $\Theta(\log m)$ rounds under the stated connected
-reliable-round model, with no worst-case time guarantee under partition. At $t=0$
-daemon~A locally revokes a Harbor Card (its filter and revocation table); gossip
-then ships deltas to random peers every 30\,s. The panels show one possible
-execution, not a deadline. Version vectors make duplicate and
-reordered deltas idempotent once delivered, but do not heal an unbounded partition.
-The dashed strip beneath the panels states the trust boundary the panels themselves
-cannot draw: the daemons are trusted, every wire between them is not.}
+  \draw[pd caution rule,dashed] (4.05,-2.9) -- (4.05,2.85);
+  \draw[pd caution arrow] (4.05,-2.78) -- (5.2,-2.78);
+  \node[pd direct label,text=hhamber,anchor=west] at (5.25,-2.78) {partition $\Rightarrow$ no finite deadline};
+\end{tikzpicture}
+\caption{A revocation advances as an observation frontier, leaving a distinct
+stale-exposure interval on every verifier lane. This execution converges after
+two rounds; the protocol claim is only expected $\Theta(\log m)$ dissemination
+under connected reliable rounds. The dashed partition marker separates that
+expectation from a guarantee: an unbounded partition removes every finite
+delivery deadline.}
 \label{fig:anchor-revocation-gossip}
 \end{figure}

@@ -136,7 +136,7 @@ Compressed from `harbor-editor-battle-plan.md:67-73`:
 
 ### Reuse, don't rebuild
 
-The single most important architecture decision (`harbor-editor-battle-plan.md:46`): "**the daemon IS the collab server (no new sync backend).**" The Fastify daemon on `:9876` already has every primitive a collab server needs. The Loro Protocol — Loro's multiplexed wire format carrying doc-ops + ephemeral cursors + awareness — rides the **existing tube pub/sub** that the gpui app already speaks.
+The single most important architecture decision (`harbor-editor-battle-plan.md:46`): "**the daemon IS the collab server (no new sync backend).**" The Fastify daemon on `:9876` already has the tube pub/sub transport needed for P2 checkpoint/reconnect work. The Loro Protocol — Loro's multiplexed wire format carrying doc-ops + ephemeral cursors + awareness — rides that existing transport; the separate P3.5 receipt and recovery authorities remain unimplemented.
 
 The console's `agent.rs` already implements the tube: `tube_send` → `POST /msg/<channel>` (`agent.rs:306`), `tube_poll` → `GET /msg/<channel>?after=<cursor>` (`agent.rs:322`), and a live SSE subscription `subscribe_agent` that "spawns a tokio task that owns the [stream] and pumps `StreamEnvelope`s on an mpsc channel" (`agent.rs:381`). Stream frames are typed: `StreamKind::Status | Tube | Transcript | Other(..)` (`agent.rs:84`), parsed defensively so a malformed or unknown kind degrades to `Other` rather than crashing (`agent.rs:79`). **This is the exact plumbing the Loro Protocol folds into** — the plan (`:49`): "the exact plumbing the `AgentTranscript` surface already folds via `on_stream()`."
 
@@ -148,11 +148,11 @@ The console's `agent.rs` already implements the tube: `tube_send` → `POST /msg
 | Ephemeral cursors / awareness | same tube, lossy lane | `EphemeralStore` frames |
 | File claims | `POST /sessions/:id/files`, `GET /files/who-owns` | `routes/sessions.ts` |
 | Symbol/region claims + conflict prediction | `POST /symbols/parse`, `POST /conflicts/predict` | `routes/symbols.ts:216` |
-| Doc snapshots (durability) | content-addressed `/blob` | `routes/blob.ts` |
-| Op-log + claim acquire/release (audit) | **immutable notes** | PD notes (append-only) |
+| Editor checkpoint/reconnect | canonical editor-sync contract | P1/P2-owned integration seam |
+| Salvage operation evidence | **Required but unimplemented:** append-only typed receipt producer + sealed abandonment | future P1/P1B authority consumed by `lib/editor-recovery.ts` |
 | Authz per path/region | harbor envelopes + Ed25519 cards | `routes/harbors.ts`, `core/harbor-card-rs/src/lib.rs` |
 
-The durability line (`:50`): "doc snapshots → content-addressed `/blob`; op-log deltas + claim acquire/release → immutable notes. **This is the salvage substrate.**" Notes are immutable by daemon contract — once written they cannot be edited or deleted — which is precisely what an audit trail and a replayable op-log require.
+The recovery trust boundary is deliberately narrower than ordinary coordination history. The target contract requires every real Loro operation to receive a daemon-owned typed receipt carrying verified author/session/scope, canonical path/device/inode, PeerID, sequence, operation hash, state hash, and canonical validator receipt. A sealed abandonment must bind the complete sequence-zero stream and terminal state. That producer and canonical Rust validator are unimplemented. Notes may record final provenance, but are never replay evidence.
 
 ### Authz — capability-scoped, not trust-the-room
 
@@ -170,34 +170,37 @@ A named risk (`:99`): "Zed's loudest complaint is AI/collab surfaces bloating th
 
 ### Agents reach all of this through agent-neutral MCP tools
 
-The plan (`:75`): agents act "through agent-neutral MCP tools (`claim_region`, `release_region`, `coordination_preflight`, `salvage`) — first-class, **never Claude-specific**." This matches the standing PD rule that coordination primitives must serve *every* backend, not just Claude Code. The `port-daddy` MCP server already exposes `begin_session`, `claim_port`, `coordination_preflight`, `add_note`, and `spawn` — the editor tools extend that same surface.
+The plan requires agent-neutral claim coordination through `claim_region`, `release_region`, and `coordination_preflight`. This matches the standing PD rule that coordination primitives must serve *every* backend, not just Claude Code. Editor recovery itself deliberately has no CLI/MCP bypass: authenticated callers use only `POST /editor/recovery/{request,prepare,replay,finalize}`.
 
 #### Anti-Pattern — building a parallel WebSocket sync server
 - **Symptom:** A new `collab-server.ts` with its own room management, its own auth, its own persistence.
 - **Detection:** Doc-ops flow over a socket the daemon does not own; claims live in a different store than `routes/sessions.ts`.
-- **Fix:** The daemon is the server. The tube is the transport. `/blob` is the snapshot store. Notes are the op-log. A parallel server duplicates auth, splits the audit trail, and forfeits salvage (which depends on the daemon's session table + notes). The plan's P2 reuses "tube pub/sub, `/blob`, immutable notes, `AgentTranscript` SSE plumbing" (`:85`) — all already shipped.
+- **Fix:** The daemon is the server and the tube is the transport. Keep checkpoint/reconnect behind the canonical editor-sync contract and salvage evidence in the daemon-owned typed receipt ledger. A parallel server duplicates auth and splits the authoritative scope, claim, and recovery state.
 
 ---
 
 ## 4. Salvage — a dead replica's op-log replays, its claim inherits
 
-This is the headline. The plan (`:29`): "**Salvage** — a dead actor's op-log + claim persist to content-addressed `/blob` + immutable notes; `pd salvage` replays and inherits. Zed loses the work when the ACP process drops." And the wedge framing (`:11`): "**First place we beat Zed: the salvageable agent in a shared buffer** — kill an agent mid-edit and a successor replays its op-log, inherits its claim, and finishes with full provenance. That is structurally impossible in Zed's trust-the-room, cloud-only, ephemeral-session model."
+This is the headline. A dead replica's complete operation stream survives in daemon-owned typed receipts sealed to one terminal abandonment. An authenticated successor prepares and canonically validates replay, then finalizes one P3-owned released-claim transfer with provenance. No generic `pd salvage`, note codec, or anonymous **editor-recovery** route authorizes this flow; bonded account recovery is a separate domain and never confers editor authority.
 
-### Why it's structurally impossible in Zed and trivial in the harbor
+> **Current implementation gate.** Route registration is not a usable recovery pipeline. The P1 Rust operation-receipt producer, P1B, canonical Rust Loro recovery adapter, and P3 same-database released-claim transfer adapter remain unimplemented. Daemon scope minting cannot yet provide the verified root device/inode witness, content-bound symbol lease, or file-mutation generation authority either, so every public phase stays 503-gated. Finalization must retain root/file descriptors plus both leases through the same-DB transfer and persist exact root/file device+inode, content hash, parser/authority generations, and mutation lease/generation. The cooperative mutation lease cannot stop an arbitrary OS process; later governed edits must reject any stale persisted identity/hash/generation witness. The editor recovery ledger owns canonical provenance plus an append-only transactional outbox. With no atomically idempotent derived-note sink, no drain timer is installed and delivery remains durably pending without churn; when wired, bounded startup/periodic repair retries the same key. Never fall back to `sessions.addNote` or migrate an unshipped intermediate schema.
+
+### Why the target Harbor architecture uses a different recovery boundary
 
 Zed's collaboration is session-scoped and ephemeral (`:22`): "Coordination is **ephemeral** — session-scoped, evaporates when the room closes." When an ACP agent process drops, its in-flight edits, its identity, and its intent all evaporate with the socket. There is no durable record of what it was doing or how far it got.
 
-The harbor never had that fragility, because **the op-log and the claim were already persisted to the daemon as the edit happened** (§3). The agent dying changes nothing about the durability — its work is already in `/blob` (snapshot) + immutable notes (op-log delta) + the session table (claim). Salvage is just *reading what was already written* and handing it to a successor.
+The target Harbor design removes that fragility only after it can persist **daemon-owned typed operation receipts as the edit happens** and seal a terminal abandonment receipt with the exact high-water sequence, digest, count, hashes, PeerID, and canonical file identity. That producer and sealer are not implemented today. The released claim remains P3 authority; P3.5 neither copies its storage nor invents an overlap policy.
 
 ### The salvage walk (`harbor-editor-battle-plan.md:73`)
 
 1. **Death.** Agent A's process dies mid-edit of `parse_header`.
-2. **Persistence (already done).** A's claim + flushed op-log + scope note persist: `/blob` snapshot + session record + immutable note. No special death-handler — this was happening continuously.
-3. **Surface.** `POST /recovery/request` surfaces "agent A left dirty work on parse_header (claim held, snapshot `blob:…`)". This rides the existing recovery route family — `routes/recovery.ts` already implements single-use, atomic, DB-enforced token consumption (`recovery.ts:5`, `:59`: "atomically consumes the token … enforces single-use at the DB layer" via `UPDATE WHERE consumed_at IS NULL RETURNING`).
-4. **Consume.** A successor calls `POST /recovery/consume`, **replays A's ops onto the live doc**, **inherits A's claim**, and finishes — with full attribution. The MCP `salvage` tool is the agent-facing door.
-5. **Provenance.** An immutable note records who-wrote-which-span, which card `jti` authorized it, which note justified the handoff.
+2. **Persistence (required, not yet produced by P1).** Append-only typed operation receipts are sealed by one terminal abandonment receipt. The complete log must begin at sequence zero and match its terminal digest, count, high-water mark, state hash, scope, PeerID, and canonical root/file device/inode. The present route scaffold does not mint these receipts.
+3. **Request.** An authenticated successor calls `POST /editor/recovery/request`. Before writing a token, the daemon requires canonical scope/capability, Rust Loro, content-bound symbol lease, file-mutation generation, and P3 released-claim authorities.
+4. **Prepare and replay.** `POST /editor/recovery/prepare` returns the verified complete log without claim, token-consume, or provenance effects. `POST /editor/recovery/replay` validates real Loro bytes through canonical Rust and persists a receipt only when its terminal state equals the sealed abandonment state.
+5. **Finalize.** `POST /editor/recovery/finalize` converts an opaque content-hash/parser-generation symbol witness into a transaction-held lease, opens and retains O_NOFOLLOW root/file descriptors, acquires a daemon mutation generation, then atomically invokes P3's one released-claim transfer. It revalidates descriptors and leases at the final boundary, consumes the mutation lease, records immutable provenance/outbox, consumes the editor token, and finalizes the preparation exactly once before releasing resources after commit or rollback.
+6. **Fail closed.** The registered sidecar returns 503 with zero public phase effects until every canonical dependency exists. Anonymous bonded account-recovery inputs never cross into the editor domain, and there is no CLI/MCP editor-recovery bypass.
 
-The phasing folds salvage into the wedge demo (`:87`, P3.5): "Kill an agent mid-edit, recover the edit … `/recovery/consume` replays + inherits; immutable-note audit of who-wrote-which-span. **The headline demo.**"
+The phasing folds salvage into the wedge demo (`:87`, P3.5): kill an agent mid-edit, canonically validate its typed op ledger, then atomically transfer one released claim with full provenance. **The headline demo.**
 
 ### Decision Point — replay correctness is a property test, not a happy path
 
@@ -214,10 +217,10 @@ The plan scaffolds this early — P1 builds a "Property-test harness scaffold fo
 
 #### Quality Gate — salvage
 - [ ] A's replayed ops are authored to A's PeerID, not the successor's — the gutter still shows A wrote that span.
-- [ ] Replay is idempotent under double-consume attempts (the `consumed_at IS NULL RETURNING` guard at `recovery.ts` is the DB-level enforcement; the replay must match it).
+- [ ] Finalize is exactly once under simultaneous retries: one immediate transaction performs P3 claim transfer, provenance, token consumption, and preparation finalization; every concurrent retry fails without another effect.
 - [ ] The inherited claim survives the line-number drift caused by edits that landed *after* A's death (re-derive from symbol, not absolute lines).
 - [ ] Property test: for N random interleavings of {A's ops, post-death ops}, replay converges to the same doc the daemon snapshot would produce, with stable per-span authorship.
-- [ ] The handoff is recorded in an immutable note: dead identity, successor identity, card `jti`, claimed range, snapshot `blob:` hash.
+- [ ] The handoff provenance names the dead/successor identities, abandonment and replay receipt IDs, exact worktree/file identity and content hash, symbol parser/authority generations, mutation lease/generation, resolved symbol, and stable P3 claim ID.
 
 #### Anti-Pattern — salvage as "re-run the prompt"
 - **Symptom:** "Recovery" means dispatching a fresh agent with the same task prompt and discarding A's partial work.
@@ -258,7 +261,7 @@ The buffer never knows which water it's in — the plan abstracts transport behi
 
 | Topology | Transport | Authority | When |
 |---|---|---|---|
-| **Shared** (default, P3) | host daemon HTTP + SSE | host's daemon is authoritative for the claim/governance ledger + `/blob` | Lowest friction, pure reuse. Join-by-link, one daemon. |
+| **Shared** (default, P3) | host daemon HTTP + SSE | host daemon is authoritative for the existing claim/governance ledger; authenticated editor recovery remains unavailable until P3.5 authorities land | Lowest friction, partial reuse. Join-by-link, one daemon. |
 | **LAN** (P4) | iroh 1.0 QUIC/mDNS direct P2P for doc+ephemeral; host daemon tube SSE for coordination | host daemon for governance, P2P for bytes | Office / same-network co-edit, self-hosted, no vendor cloud. |
 | **Remote** (P5) | daemon on remote host over the relay (`lib/relay-client.ts`, `routes/relay.ts`); Loro E2E-encrypted doc channel | remote daemon; **only ciphertext + signed claim metadata transit the relay** | Distributed teams, air-gap-adjacent. Buffer contents never plaintext on the relay. |
 
@@ -293,15 +296,15 @@ The motion skill's frame-budget law is *coordination-critical here*, not cosmeti
 - [ ] **Predict-before-write:** `POST /conflicts/predict` runs on claim-acquire / region-enter (debounced), never per-keystroke; `blocking > 0` renders `Tone::Conflicted`.
 - [ ] **Guard never advertises bypass:** every refusal string names only the correct action (handoff/parley/nudge); no `--force`/`--no-verify`/`--allow-*` in any agent-facing message.
 - [ ] **Region, not file, granularity:** claiming one symbol does not lock the file; two actors edit adjacent regions concurrently.
-- [ ] **Daemon is the server:** doc-ops ride the existing tube (`agent.rs` SSE plumbing); snapshots → `/blob`; op-log + claims → immutable notes. No parallel sync server.
+- [ ] **Daemon is the server:** doc-ops ride the existing tube (`agent.rs` SSE plumbing); typed op receipts and sealed abandonment live in the daemon; released claims remain P3 authority. No parallel sync server.
 - [ ] **Capability enforcement:** in ENFORCE mode, an op lacking a write-cap for its path is rejected at daemon ingress, structurally (Ed25519 card `cap[]` check), not advisory.
 - [ ] **Edit-sync isolated from control plane:** a keystroke burst from M agents does not starve `conflicts/predict` latency.
 - [ ] **Salvage replays, never restarts:** a dead replica's actual ops replay (authored to *its* PeerID), claim inherits, with a property test proving convergence under concurrent post-death advance.
-- [ ] **Provenance:** every salvage and every cross-claim edit lands an immutable note (dead/successor identity, card `jti`, range, snapshot hash).
-- [ ] **MCP parity:** `claim_region`, `release_region`, `coordination_preflight`, `salvage` are agent-neutral MCP tools — first-class for every backend, never Claude-specific.
+- [ ] **Provenance:** every salvage commits canonical editor-owned provenance plus its append-only outbox in the claim/token/preparation transaction; derived notes publish only through an atomically idempotent sink, use bounded startup/periodic exact-key retry after restart, and otherwise remain pending without churn.
+- [ ] **Authenticated recovery boundary:** the four editor-recovery phases use daemon-minted actor identity; no CLI/MCP path can self-approve salvage.
 - [ ] **Topology honesty:** Shared is the default (pure reuse); LAN/Remote are gated behind `SyncTransport` and never block the wedge; the "pure P2P" story discloses the relay fallback.
 
 ---
 
 **Files that ground this chapter (all absolute):**
-`/Users/erichowens/coding/port-daddy/docs/strategy/harbor-editor-battle-plan.md` (the thesis, §1–7), `/Users/erichowens/coding/port-daddy/docs/design/harbor-interaction-model.md` (the Quay / M×N-as-roster), `/Users/erichowens/coding/tmp/pd-console-mux/core/pd-console/src/agent.rs` (tube + SSE collab transport: `tube_send`:306, `subscribe_agent`:381, `StreamKind`:84, `StreamEnvelope`:119), `/Users/erichowens/coding/tmp/pd-console-mux/core/pd-console/src/pane.rs` (`Tone::Conflicted`/`Gated`:21-23, the `Surface` contract + `SurfaceAction::Interrupt`:56, `on_stream`:114), `/Users/erichowens/coding/tmp/pd-console-mux/core/pd-console/src/mux.rs` (`SurfaceKind`:33, `AgentTranscript{agent_id}`:35), `/Users/erichowens/coding/port-daddy/routes/symbols.ts` (`POST /conflicts/predict`:216, response shape:251), `/Users/erichowens/coding/port-daddy/routes/recovery.ts` (single-use atomic salvage consume:66), `/Users/erichowens/coding/port-daddy/core/harbor-card-rs/src/lib.rs` (Ed25519 `HarborCardClaims{sub,harbor,cap[],iat,exp,jti}`). Sibling skills (dependencies): `rust-gpui-motion`, `gpui-shaders`, `sound-design-and-audio`, `beautiful-gui-design`. <!-- cite-exempt: forward design+build target of this capstone skill (harbor-editor track); not a file in this bundle -->
+`/Users/erichowens/coding/port-daddy/docs/strategy/harbor-editor-battle-plan.md` (the thesis, §1–7), `/Users/erichowens/coding/port-daddy/docs/design/harbor-interaction-model.md` (the Quay / M×N-as-roster), `/Users/erichowens/coding/tmp/pd-console-mux/core/pd-console/src/agent.rs` (tube + SSE collab transport: `tube_send`:306, `subscribe_agent`:381, `StreamKind`:84, `StreamEnvelope`:119), `/Users/erichowens/coding/tmp/pd-console-mux/core/pd-console/src/pane.rs` (`Tone::Conflicted`/`Gated`:21-23, the `Surface` contract + `SurfaceAction::Interrupt`:56, `on_stream`:114), `/Users/erichowens/coding/tmp/pd-console-mux/core/pd-console/src/mux.rs` (`SurfaceKind`:33, `AgentTranscript{agent_id}`:35), `/Users/erichowens/coding/port-daddy/routes/symbols.ts` (`POST /conflicts/predict`:216, response shape:251), `/Users/erichowens/coding/port-daddy/routes/editor-recovery.ts` (authenticated, dependency-gated salvage sidecar), `/Users/erichowens/coding/port-daddy/core/harbor-card-rs/src/lib.rs` (Ed25519 `HarborCardClaims{sub,harbor,cap[],iat,exp,jti}`). Sibling skills (dependencies): `rust-gpui-motion`, `gpui-shaders`, `sound-design-and-audio`, `beautiful-gui-design`. <!-- cite-exempt: forward design+build target of this capstone skill (harbor-editor track); not a file in this bundle -->

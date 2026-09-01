@@ -40,6 +40,7 @@
 \definecolor{hhteal}{HTML}{00564C}
 \definecolor{hhpaper}{HTML}{FBF7EF}
 \definecolor{hhgray}{HTML}{5C5650}
+\input{figures/pd-figure-language}
 
 % Verification-status markers for the Appendix A status table.
 \newcommand{\Closed}{{\textcolor{hhink}{\textsc{\textbf{closed}}}}}
@@ -314,7 +315,7 @@ Following the industry standard set by AWS (s2n-tls~\cite{aws2022s2n}) and Micro
 
 \input{figures/fig-anchor-verification-stack}
 
-\paragraph{Figure~\ref{fig:anchor-verification-stack} is this section's map.} Read it top-to-bottom for what is proved about the design; read the cobalt down-arrows for what each layer hands the next as an obligation it cannot discharge itself; read the teal up-arrows for what has actually been checked about the running code. The two centre labels are the only places in the whole assurance case where a human, not a tool, asserts that one layer's claim carries over to the next --- which is exactly why they are drawn as labelled bridges rather than as inference lines.
+\paragraph{Figure~\ref{fig:anchor-verification-stack} is this section's map.} Read the forward rail for what each layer hands the next as an obligation it cannot discharge itself; read the teal return rail for what has actually been checked about the running code. The two dashed boundaries are the only places in the whole assurance case where a human, not a tool, asserts that one layer's claim carries over to the next --- which is exactly why they are drawn as assumption gaps rather than as inference lines.
 
 \subsection{Symbolic Analysis with ProVerif}
 
@@ -1136,7 +1137,7 @@ In \texttt{harbor\_card\_v5\_attenuation.pv}, ProVerif~2.05 reports
 the attack is expressible, so Q1 is a real defense, not the v3 vacuum. A
 negative control that deletes the verifier's \texttt{is\_subset} guard flips
 Q1 to false-with-trace---ProVerif exhibits the read$\to$write escalation---
-confirming the guard is load-bearing.
+confirming the guard is necessary.
 \end{theorem}
 
 \paragraph{Multi-hop scope (honest boundary).} Theorem~\ref{thm:attn-sound} is

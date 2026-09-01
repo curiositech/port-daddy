@@ -4,16 +4,19 @@
  * Each `env.AI.run(...)` returns a `usage` block; the executor sums those tokens
  * per ship ({@link ShipMetrics}) and this module turns the token counts + the
  * model id into a USD figure so one `fleet_run_spend` row per ship carries real
- * spend. Rates mirror the two Workers AI models the fleet actually routes to
- * (the ROLE-based `deriveCfModel` in fleet.ts): the code-review bot on
- * gpt-oss-120b ($0.35/$0.75 per M tok) and every other ship on qwen3-30b
- * ($0.051/$0.335 per M tok). A model with no known rate contributes 0 — the
- * token counts are still recorded, so cost can be back-derived once a rate is
- * known (`cost_usd` is NOT NULL DEFAULT 0 in the D1 contract, never guessed up).
+ * spend. A model with no known rate contributes 0 — the token counts are still
+ * recorded, so cost can be back-derived once a rate is known (`cost_usd` is NOT
+ * NULL DEFAULT 0 in the D1 contract, never guessed up).
  *
- * Keep this table in sync with fleet.ts's REVIEW_BOT_CF_MODEL / CHEAP_CF_MODEL
- * rate comments if a Workers AI model id or its price changes.
+ * The rate and context tables below are DERIVED from config/models.yaml rather
+ * than hand-maintained here. This file used to end with "keep this table in
+ * sync with fleet.ts" — an instruction, which is what a repo writes down
+ * instead of an invariant, and which had already failed by the time it was
+ * read: price, context window, and selectability were three independent facts
+ * about one model, so any of them could be right while the others were not.
  */
+
+import { CF_PRICES, CF_CONTEXT_WINDOWS } from '../../shared/model-registry.generated.js';
 
 export interface WorkersAiRate {
   /** USD per 1M input (prompt) tokens. */
@@ -25,43 +28,21 @@ export interface WorkersAiRate {
 /**
  * Cloudflare Workers AI rates, keyed by exact `@cf/...` model id.
  *
- * Every id in fleet.ts's KNOWN_GOOD_CF_MODELS must have a row here (admission
- * contract; map-reduce-invariants.test.ts enforces it) — an honored model
- * without a rate meters $0, which is how the purser's gpt-oss-20b author
- * calls rode invisibly for a week. Rates verified against
- * developers.cloudflare.com/workers-ai/platform/pricing on 2026-08-22.
+ * DERIVED from config/models.yaml, where each Workers AI model's rate sits on
+ * the same row as its admission and its context window.
+ *
+ * The contract main wrote here still holds, and now holds structurally: every id
+ * in fleet.ts's KNOWN_GOOD_CF_MODELS must have a rate, because an honored model
+ * without one meters $0 — which is how the purser's gpt-oss-20b author calls
+ * rode invisibly for a week. That used to be an admission contract enforced by
+ * map-reduce-invariants.test.ts across three hand-kept tables. Admission is now
+ * READ FROM the same rows these rates come from, so an admitted-but-unpriced id
+ * is not a test failure to fix but a state that cannot be expressed.
+ *
+ * Rates verified against developers.cloudflare.com/workers-ai/platform/pricing
+ * on 2026-08-22; the verification date travels on each row.
  */
-export const WORKERS_AI_RATES: Record<string, WorkersAiRate> = {
-  '@cf/openai/gpt-oss-120b': { input: 0.35, output: 0.75 },
-  '@cf/openai/gpt-oss-20b': { input: 0.2, output: 0.3 },
-  '@cf/qwen/qwen3-30b-a3b-fp8': { input: 0.051, output: 0.335 },
-  '@cf/moonshotai/kimi-k2.7-code': { input: 0.95, output: 4.0 },
-  '@cf/zai-org/glm-4.7-flash': { input: 0.06, output: 0.4 },
-  '@cf/zai-org/glm-5.2': { input: 1.4, output: 4.4 },
-  '@cf/deepseek-ai/deepseek-v4-flash-0731': { input: 0.44, output: 1.32 },
-  '@cf/deepseek-ai/deepseek-v4-pro-0813': { input: 1.32, output: 3.96 },
-  '@cf/google/gemma-4-26b-a4b-it': { input: 0.1, output: 0.3 },
-  '@cf/nvidia/nemotron-3-120b-a12b': { input: 0.5, output: 1.5 },
-  // Full-universe admission (operator directive 2026-08-22, PR #9249): every
-  // CURRENT, non-deprecated, Cloudflare-hosted text-generation model with a
-  // published price is honored — selection happens at assignment time on the
-  // scoreboard, not by shrinking the pin-able universe. Exclusions (deprecated
-  // tier, unpriced ids, the kimi-k2.6 phantom tombstone, non-text models) are
-  // documented rulings in the roster reference, not silent omissions.
-  '@cf/meta/llama-3.3-70b-instruct-fp8-fast': { input: 0.293, output: 2.253 },
-  '@cf/meta/llama-3.1-8b-instruct-fp8': { input: 0.152, output: 0.287 },
-  '@cf/meta/llama-3.2-1b-instruct': { input: 0.027, output: 0.201 },
-  '@cf/meta/llama-3.2-3b-instruct': { input: 0.051, output: 0.335 },
-  '@cf/meta/llama-3.2-11b-vision-instruct': { input: 0.049, output: 0.676 },
-  '@cf/meta/llama-4-scout-17b-16e-instruct': { input: 0.27, output: 0.85 },
-  '@cf/mistralai/mistral-small-3.1-24b-instruct': { input: 0.351, output: 0.555 },
-  '@cf/qwen/qwen2.5-coder-32b-instruct': { input: 0.66, output: 1.0 },
-  '@cf/qwen/qwq-32b': { input: 0.66, output: 1.0 },
-  '@cf/qwen/qwen3.8-27b': { input: 0.45, output: 3.2 },
-  '@cf/deepseek-ai/deepseek-r1-distill-qwen-32b': { input: 0.497, output: 4.881 },
-  '@cf/ibm-granite/granite-4.0-h-micro': { input: 0.017, output: 0.112 },
-  '@cf/aisingapore/gemma-sea-lion-v4-27b-it': { input: 0.351, output: 0.555 },
-};
+export const WORKERS_AI_RATES: Record<string, WorkersAiRate> = CF_PRICES;
 
 /**
  * Context window per model, in TOKENS, as published by Cloudflare.
@@ -79,36 +60,14 @@ export const WORKERS_AI_RATES: Record<string, WorkersAiRate> = {
  * budget from these means changing the MAP model changes the budget, and the
  * invariants suite fails if a model is used without an entry here.
  *
- * Source: developers.cloudflare.com/workers-ai/models/<id> (verified 2026-08-06).
+ * DERIVED (supplant, 2026-08-23) from config/models.yaml, for the same reason
+ * as the rate table above: a model the executor can select but has no window
+ * for degrades to a floor budget silently, which is how a stronger model with
+ * four times the context ended up chunked as if it were the old one.
+ *
+ * Source: developers.cloudflare.com/workers-ai/models/<id>, recorded per row.
  */
-export const MODEL_CONTEXT_TOKENS: Record<string, number> = {
-  '@cf/openai/gpt-oss-120b': 128_000,
-  '@cf/openai/gpt-oss-20b': 128_000,
-  '@cf/qwen/qwen3-30b-a3b-fp8': 32_768,
-  // The entries below were read from each model's own Cloudflare page
-  // (developers.cloudflare.com/ai/models/<id>) on 2026-08-22 — the served
-  // window, not the vendor's marketing number.
-  '@cf/moonshotai/kimi-k2.7-code': 262_144,
-  '@cf/zai-org/glm-4.7-flash': 131_072,
-  '@cf/zai-org/glm-5.2': 262_144,
-  '@cf/deepseek-ai/deepseek-v4-flash-0731': 1_048_576,
-  '@cf/deepseek-ai/deepseek-v4-pro-0813': 1_048_576,
-  '@cf/google/gemma-4-26b-a4b-it': 256_000,
-  '@cf/nvidia/nemotron-3-120b-a12b': 256_000,
-  '@cf/meta/llama-3.3-70b-instruct-fp8-fast': 24_000,
-  '@cf/meta/llama-3.1-8b-instruct-fp8': 32_000,
-  '@cf/meta/llama-3.2-1b-instruct': 60_000,
-  '@cf/meta/llama-3.2-3b-instruct': 80_000,
-  '@cf/meta/llama-3.2-11b-vision-instruct': 128_000,
-  '@cf/meta/llama-4-scout-17b-16e-instruct': 131_000,
-  '@cf/mistralai/mistral-small-3.1-24b-instruct': 128_000,
-  '@cf/qwen/qwen2.5-coder-32b-instruct': 32_768,
-  '@cf/qwen/qwq-32b': 24_000,
-  '@cf/qwen/qwen3.8-27b': 262_144,
-  '@cf/deepseek-ai/deepseek-r1-distill-qwen-32b': 80_000,
-  '@cf/ibm-granite/granite-4.0-h-micro': 131_000,
-  '@cf/aisingapore/gemma-sea-lion-v4-27b-it': 128_000,
-};
+export const MODEL_CONTEXT_TOKENS: Record<string, number> = CF_CONTEXT_WINDOWS;
 
 /**
  * True when this model's context window is known, so a budget derived from it

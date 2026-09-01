@@ -64,27 +64,27 @@ Because the AMS and DF track different things:
 3. **Multiple DFs can specialize** — one DF for public services, one for internal platform services, one for experimental capabilities — all coexisting on the same platform
 4. **DF federations can span platforms** — enabling cross-platform discovery without AMS federation (which would imply cross-platform authority, a much stronger and more problematic claim)
 
-## Application to WinDAGs Architecture
+## Application to Jury-rig Architecture
 
-### Two Distinct Registries for WinDAGs
+### Two Distinct Registries for Jury-rig
 
-WinDAGs should maintain the equivalent of both registries:
+Jury-rig should maintain the equivalent of both registries:
 
 **The Orchestration Registry (AMS analog)**:
 - Tracks every skill and agent in the system: its unique ID, current lifecycle state, owning orchestrator, and authorization level
 - Is the gatekeeper for message routing — only registered entities can receive routed tasks
 - Has the authority to force-terminate runaway agents or skills
-- Maintains the "platform description" — what capabilities does this WinDAGs deployment support?
+- Maintains the "platform description" — what capabilities does this Jury-rig deployment support?
 
 **The Skill Capability Directory (DF analog)**:
 - Stores capability advertisements: what each skill can do, what ontologies/schemas it understands, what input/output types it accepts, what protocols it supports
 - Is searched by orchestrators looking for skills to assign to task steps
 - Is explicitly *non-authoritative* — finding a skill in the directory only means it *claims* to support a capability; the skill itself may refuse a specific invocation
-- Can be federated: a WinDAGs deployment might have a local skill directory and federate with remote directories to discover cross-platform capabilities
+- Can be federated: a Jury-rig deployment might have a local skill directory and federate with remote directories to discover cross-platform capabilities
 
 ### Practical Consequences
 
-**Skill onboarding**: When a new skill is added to WinDAGs, it must first register with the Orchestration Registry (get an ID, declare ownership, enter the lifecycle) before it can register with the Skill Directory (advertise capabilities). The two steps are sequential and have different authorization requirements.
+**Skill onboarding**: When a new skill is added to Jury-rig, it must first register with the Orchestration Registry (get an ID, declare ownership, enter the lifecycle) before it can register with the Skill Directory (advertise capabilities). The two steps are sequential and have different authorization requirements.
 
 **Skill maintenance**: A skill can be taken offline for maintenance by deregistering from the Skill Directory (so no new tasks are routed to it) while remaining registered with the Orchestration Registry (so its lifecycle state is tracked and any in-flight tasks it has accepted can complete).
 
@@ -109,7 +109,7 @@ The FIPA model embraces eventual consistency: the directory reflects what agents
 
 **When you need strong consistency**: For safety-critical workflows where routing to a dead skill must never happen, the non-authoritative DF model is insufficient. You may need health-check wrappers around the DF that validate liveness before returning search results. FIPA doesn't preclude this — it just doesn't mandate it, because it would be too expensive in the general case.
 
-**When one registry is enough**: In a small, static WinDAGs deployment with fewer than ~20 skills all running on a single platform, the operational overhead of two separate registries may not be worth it. A unified registry with clearly separated schema fields (lifecycle state vs. capability advertisement) may be a pragmatic simplification.
+**When one registry is enough**: In a small, static Jury-rig deployment with fewer than ~20 skills all running on a single platform, the operational overhead of two separate registries may not be worth it. A unified registry with clearly separated schema fields (lifecycle state vs. capability advertisement) may be a pragmatic simplification.
 
 **The staleness window**: Because agents self-report their capabilities to the DF, there is always a window between when an agent gains or loses a capability and when the DF reflects that change. Orchestrators must design for this by treating DF results as hints and handling invocation failures gracefully, including re-querying the DF if a recommended skill fails.
 
@@ -117,4 +117,4 @@ The FIPA model embraces eventual consistency: the directory reflects what agents
 
 The two-registry architecture is one of FIPA's deepest contributions to multi-agent systems design. Its core insight: existence/authorization and capability/advertisement are different concerns that evolve on different timescales, with different authorities, and with different consistency requirements. Conflating them produces systems that are simultaneously over-coupled and under-informative. Separating them produces systems where agents can be managed, discovered, and invoked through clean, independent interfaces.
 
-For WinDAGs: maintain an Orchestration Registry with lifecycle authority and an Skill Capability Directory with capability advertisement. Keep them separate. Route through the directory. Authorize through the registry. Handle DF non-authoritativeness gracefully at invocation time.
+For Jury-rig: maintain an Orchestration Registry with lifecycle authority and an Skill Capability Directory with capability advertisement. Keep them separate. Route through the directory. Authorize through the registry. Handle DF non-authoritativeness gracefully at invocation time.

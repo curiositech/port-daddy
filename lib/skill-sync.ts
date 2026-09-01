@@ -111,25 +111,25 @@ function expandHome(path: string, home = homedir()): string {
 }
 
 function existingRoot(label: string, path: string, home = homedir()): SkillCatalogRoot | null {
-  const expanded = expandHome(path, home);
-  if (!existsSync(expanded)) return null;
-  return { label, path: expanded };
+  const candidate = path.trim();
+  if (!candidate) return null;
+  const expanded = expandHome(candidate, home);
+  try {
+    if (!existsSync(expanded) || !statSync(expanded).isDirectory()) return null;
+    return { label, path: expanded };
+  } catch {
+    return null;
+  }
 }
 
 export function defaultSkillCatalogRoots(projectRoot: string, home = homedir()): SkillCatalogRoot[] {
   const roots: Array<SkillCatalogRoot | null> = [];
-  const windagsHome = process.env.WINDAGS_HOME;
-  const windagsSkills = windagsHome
-    ? (basename(windagsHome) === 'skills' ? windagsHome : join(windagsHome, 'skills'))
-    : '/opt/homebrew/opt/windags/libexec/skills';
   const envRoots = process.env.PORT_DADDY_SKILL_SOURCE_ROOTS
     ?.split(':')
     .map((entry, index) => existingRoot(`env:${index + 1}`, entry, home)) ?? [];
 
   roots.push(...envRoots);
   roots.push(
-    existingRoot('windags-homebrew', windagsSkills, home),
-    existingRoot('workgroup-ai', '~/coding/workgroup-ai/skills', home),
     existingRoot('port-daddy', join(projectRoot, 'skills'), home),
     existingRoot('port-daddy-claude-mirror', join(projectRoot, '.claude', 'skills'), home),
     existingRoot('some-claude-skills', '~/coding/some_claude_skills/.claude/skills', home),

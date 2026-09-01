@@ -102,7 +102,7 @@ Similarly, mechanisms that invoke the scheduler have overhead that depends on sc
 
 ## Application to Modern Agent Systems
 
-For orchestration systems like WinDAGs, this analysis suggests several design imperatives:
+For orchestration systems like Jury-rig, this analysis suggests several design imperatives:
 
 **Profile Before Deploying**: Before activating coordination mechanisms in production, profile their overhead in representative problems. Measure actual communication, computation, and latency costs.
 

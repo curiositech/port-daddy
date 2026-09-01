@@ -22,10 +22,10 @@
  *   --quiet          Only print on changes or drift (good for hooks).
  *   --json           Emit the raw SyncAgentSkillsResult as JSON.
  *
- * Sources are auto-discovered by defaultSkillCatalogRoots(): the repo's first-party
- * skills/, the WinDAGs catalog (~/coding/workgroup-ai/skills or $WINDAGS_HOME), the
- * Homebrew install, and the user's ~/.claude + ~/.agents libraries. Override with
- * PORT_DADDY_SKILL_SOURCE_ROOTS=/path/a:/path/b.
+ * Sources are auto-discovered by defaultSkillCatalogRoots(): explicit
+ * PORT_DADDY_SKILL_SOURCE_ROOTS entries, the repo's first-party skills/ and Claude
+ * mirror, and the user's declared Claude/AGENTS libraries. External catalogs are
+ * inputs only when explicitly configured; discovery never installs their runtime.
  */
 import { execFileSync } from 'node:child_process';
 import { resolve } from 'node:path';
@@ -44,6 +44,10 @@ interface Cli {
   json: boolean;
 }
 
+/**
+ * Design: anchor projection paths to Git truth while retaining a safe cwd fallback.
+ * @returns Resolved repository root or current directory.
+ */
 function repoRoot(): string {
   try {
     return execFileSync('git', ['rev-parse', '--show-toplevel'], {
@@ -54,6 +58,11 @@ function repoRoot(): string {
   }
 }
 
+/**
+ * Design: keep the synchronization wrapper deterministic and reject unknown mutation flags.
+ * @param argv Command-line arguments after the executable and script name.
+ * @returns Validated synchronization options.
+ */
 function parseArgs(argv: string[]): Cli {
   const cli: Cli = {
     scope: 'project',
@@ -104,6 +113,7 @@ function parseArgs(argv: string[]): Cli {
   return cli;
 }
 
+/** Design: document the complete bounded projection surface from the executable itself. */
 function printHelp(): void {
   process.stdout.write(
     [
@@ -117,6 +127,7 @@ function printHelp(): void {
   );
 }
 
+/** Design: compose parsing, catalog synchronization, evidence output, and drift exit status. */
 function main(): void {
   const cli = parseArgs(process.argv.slice(2));
   const root = repoRoot();

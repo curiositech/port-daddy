@@ -50,7 +50,7 @@ describe('skill-graft reconciler routes', () => {
   test('GET exposes the exact current/cold/dependency-down status projection', async () => {
     const { app, register } = buildApp();
     await register();
-    const response = await app.inject({ method: 'GET', url: '/skill-graft/status' });
+    const response = await app.inject({ method: 'GET', url: '/jury-rig/status' });
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual(status);
     await app.close();
@@ -62,7 +62,7 @@ describe('skill-graft reconciler routes', () => {
 
     const blocked = await app.inject({
       method: 'POST',
-      url: '/skill-graft/reconcile',
+      url: '/jury-rig/reconcile',
       payload: { maxSkills: 10 },
       remoteAddress: '203.0.113.8',
     });
@@ -71,7 +71,7 @@ describe('skill-graft reconciler routes', () => {
 
     const accepted = await app.inject({
       method: 'POST',
-      url: '/skill-graft/reconcile',
+      url: '/jury-rig/reconcile',
       payload: { maxSkills: 5_000 },
     });
     expect(accepted.statusCode).toBe(200);

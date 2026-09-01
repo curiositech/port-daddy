@@ -21,7 +21,7 @@
  *        github:
  *          repo: curiositech/port-daddy
  *          # or several:
- *          # repos: [curiositech/port-daddy, curiositech/windags]
+ *          # repos: [curiositech/port-daddy, curiositech/example-service]
  *
  *      The block may sit at the root or nested under `fleet:`.
  *

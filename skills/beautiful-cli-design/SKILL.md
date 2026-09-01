@@ -155,7 +155,7 @@ Done.
 **After**: Branded setup flow with consistent framing
 
 ```bash
-┌  create-windags-app
+┌  create-jury_rig-app
 │
 ◇  Project name?
 │  my-app
@@ -218,7 +218,7 @@ Decision rationale:
 **Before**: Cryptic technical error
 
 ```bash
-Error: ENOENT: no such file or directory, open 'windags.config.ts'
+Error: ENOENT: no such file or directory, open 'jury_rig.config.ts'
     at Object.openSync (fs.js:498:3)
 ```
 
@@ -230,9 +230,9 @@ Error: ENOENT: no such file or directory, open 'windags.config.ts'
 │  ✗ Could not find configuration file                 │
 │                                                      │
 │    Looked in:                                        │
-│    • ./windags.config.ts                             │
-│    • ./.windags/config.ts                            │
-│    • ~/.windags/config.ts                            │
+│    • ./jury_rig.config.ts                             │
+│    • ./.skill-runtime-archive/config.ts                            │
+│    • ~/.skill-runtime-archive/config.ts                            │
 │                                                      │
 │    To fix: Run wg init to create a configuration     │
 │                                                      │

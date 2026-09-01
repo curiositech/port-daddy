@@ -5,6 +5,20 @@ import { chmodSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync 
 import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { startEphemeralDaemon } from '../tests/helpers/ephemeral-daemon.js';
+import { modelFor, cliAliasFor } from './lib/model-source.mjs';
+
+/**
+ * The cheap rung for a backend, read from the canonical model source.
+ *
+ * The live rows used to carry hardcoded per-backend defaults, and they had
+ * rotted exactly as you would expect a list nobody re-reads to rot — the gemini
+ * default still named a model two generations old. A smoke harness that pins a
+ * stale id proves the backend is broken when only the harness is.
+ *
+ * @param {string} backend The backend key.
+ * @returns {string} The concrete model id for that backend's cheap rung.
+ */
+const cheapFor = (backend) => modelFor(backend, 'cheap');
 
 export const LAUNCHD_RESTRICTED_PATH = '/usr/bin:/bin:/usr/sbin:/sbin';
 const DEFAULT_PERSISTED_CLI_BACKEND_PATH = join(homedir(), '.port-daddy-cli-backend');
@@ -349,7 +363,7 @@ async function runCiSafeSmoke() {
         daemon,
         requestedBackend: 'cli:claude-code',
         budgetUsd: 0.01,
-        body: { model: 'sonnet' },
+        body: { model: cliAliasFor('claude-cli', 'balanced') },
         env,
         workdir: spawnWorktree.workdir,
       }),
@@ -365,7 +379,7 @@ async function runCiSafeSmoke() {
         daemon,
         requestedBackend: 'openai',
         budgetUsd: 0.01,
-        body: { model: 'gpt-5-nano', maxTokens: 20 },
+        body: { model: cheapFor('openai'), maxTokens: 20 },
         env,
         workdir: spawnWorktree.workdir,
       }),
@@ -380,18 +394,18 @@ async function runCiSafeSmoke() {
 
 function liveRowsFromEnv() {
   const rows = [];
-  if (process.env.PD_LIVE_CLI_CLAUDE_CODE === '1') rows.push({ requestedBackend: 'cli:claude-code', body: { model: process.env.PD_LIVE_CLAUDE_MODEL || 'sonnet' } });
+  if (process.env.PD_LIVE_CLI_CLAUDE_CODE === '1') rows.push({ requestedBackend: 'cli:claude-code', body: { model: process.env.PD_LIVE_CLAUDE_MODEL || cliAliasFor('claude-cli', 'balanced') } });
   if (process.env.PD_LIVE_CLI_CODEX === '1') rows.push({ requestedBackend: 'cli:codex', body: { model: 'codex-cli' } });
   if (process.env.PD_LIVE_CLI_GEMINI === '1') rows.push({ requestedBackend: 'cli:gemini', body: {} });
   if (process.env.PD_LIVE_AGY === '1') rows.push({
     requestedBackend: 'cli:agy',
     body: process.env.PD_LIVE_AGY_MODEL ? { model: process.env.PD_LIVE_AGY_MODEL } : {},
   });
-  if (process.env.PD_LIVE_OLLAMA === '1') rows.push({ requestedBackend: 'ollama', body: { model: process.env.OLLAMA_MODEL || 'llama3.1:8b' } });
-  if (process.env.PD_LIVE_OPENAI === '1') rows.push({ requestedBackend: 'openai', body: { model: process.env.OPENAI_MODEL || 'gpt-5-nano', maxTokens: 20 } });
-  if (process.env.PD_LIVE_GROQ === '1') rows.push({ requestedBackend: 'groq', body: { model: process.env.GROQ_MODEL || 'llama-3.3-70b-versatile', maxTokens: 20 } });
-  if (process.env.PD_LIVE_CLOUDFLARE === '1') rows.push({ requestedBackend: 'cloudflare', body: { model: process.env.CLOUDFLARE_MODEL || '@cf/zai-org/glm-4.7-flash', maxTokens: 20 } });
-  if (process.env.PD_LIVE_GEMINI === '1') rows.push({ requestedBackend: 'gemini', body: { model: process.env.GEMINI_MODEL || 'gemini-2.5-flash', maxTokens: 20 } });
+  if (process.env.PD_LIVE_OLLAMA === '1') rows.push({ requestedBackend: 'ollama', body: { model: process.env.OLLAMA_MODEL || cheapFor('ollama') } });
+  if (process.env.PD_LIVE_OPENAI === '1') rows.push({ requestedBackend: 'openai', body: { model: process.env.OPENAI_MODEL || cheapFor('openai'), maxTokens: 20 } });
+  if (process.env.PD_LIVE_GROQ === '1') rows.push({ requestedBackend: 'groq', body: { model: process.env.GROQ_MODEL || cheapFor('groq'), maxTokens: 20 } });
+  if (process.env.PD_LIVE_CLOUDFLARE === '1') rows.push({ requestedBackend: 'cloudflare', body: { model: process.env.CLOUDFLARE_MODEL || cheapFor('cloudflare'), maxTokens: 20 } });
+  if (process.env.PD_LIVE_GEMINI === '1') rows.push({ requestedBackend: 'gemini', body: { model: process.env.GEMINI_MODEL || cheapFor('gemini'), maxTokens: 20 } });
   return rows;
 }
 

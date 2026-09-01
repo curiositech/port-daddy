@@ -242,7 +242,7 @@ Sensors → [Map builder] → [Path planner] → [Move toward unexplored] → Ac
 
 **Critical point**: For ~5-10 behaviors, subsumption is elegant. Beyond that, **interaction complexity explodes**. You can't predict what the robot will do in novel situations without exhaustive testing.
 
-**Implication for WinDAGs**: Pure reactive orchestration (each skill triggers based on local observations) won't scale to 180+ skills. You need **deliberative planning** at higher levels, with reactive execution at lower levels.
+**Implication for Jury-rig**: Pure reactive orchestration (each skill triggers based on local observations) won't scale to 180+ skills. You need **deliberative planning** at higher levels, with reactive execution at lower levels.
 
 ## The TouringMachines Architecture: Explicit Mediation
 

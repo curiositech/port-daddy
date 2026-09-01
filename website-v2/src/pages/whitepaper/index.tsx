@@ -138,7 +138,7 @@ export default function WhitepaperPage() {
                         Where Port Daddy fits — multi-agent landscape →
                       </span>
                       <span className="block text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
-                        Cursor 2.0, Claude Code Task, ccswarm, WinDAGs — and where the
+                        Cursor 2.0, Claude Code Task, ccswarm, Jury-rig — and where the
                         coordination layer underneath all of them goes. With a
                         sixty-second walkthrough of two agents on one repo.
                       </span>

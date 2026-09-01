@@ -1,4 +1,4 @@
-import { existsSync, statSync } from 'node:fs'
+import { existsSync, mkdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { readFileSync } from 'node:fs'
@@ -12,6 +12,7 @@ import {
   type PdfFacts,
 } from '../../scripts/check-whitepaper-metadata'
 import { COLLECTED_VOLUME, WHITE_PAPERS } from './whitePapers'
+import { prunePagesOnlyAssets } from '../../scripts/prune-pages-assets.mjs'
 
 const websiteRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 const whitePapersSrc = resolve(websiteRoot, 'src/data/whitePapers.ts')
@@ -53,9 +54,28 @@ describe('whitepaper metadata sync', () => {
     expect(statSync(abs).size).toBeGreaterThan(10_000)
   })
 
+  test('the full-fidelity collected volume downloads from its canonical repository artifact', () => {
+    expect(COLLECTED_VOLUME.downloadUrl).toBe(
+      'https://raw.githubusercontent.com/curiositech/port-daddy/main/website-v2/public/whitepaper/coordination-papers-mega-volume.pdf',
+    )
+  })
+
   test('collected-volume pages and sizeKb match the actual PDF', () => {
     if (!pdfinfoAvailable()) return
     expect(detectDrift([COLLECTED_VOLUME], pdfFactsFromDisk)).toEqual([])
+  })
+
+  test('collected pagination is composed independently from standalone PDFs', () => {
+    if (!pdfinfoAvailable()) return
+    const standalonePages = WHITE_PAPERS.reduce((sum, paper) => sum + paper.pages, 0)
+    const actualPages = pdfFactsFromDisk(resolvePdfPath(COLLECTED_VOLUME.pdfPath)).pages
+
+    // The collected edition strips standalone front matter and inserts its own
+    // front matter, chapter openings and handoffs, result atlas, and collated
+    // references. The built PDF is authoritative; summing the seven separately
+    // typeset editions or copying a page-count literal into this test is not.
+    expect(COLLECTED_VOLUME.pages).toBe(actualPages)
+    expect(standalonePages).not.toBe(actualPages)
   })
 
   test('every paper declares an on-disk PDF', () => {
@@ -172,7 +192,7 @@ describe('whitepaper metadata sync', () => {
   test('audited Harbor metadata names the collected-volume edition', () => {
     const byId = new Map(WHITE_PAPERS.map((paper) => [paper.id, paper]))
     expect(byId.get('harbor-economy')).toMatchObject({
-      pages: 39,
+      pages: 37,
       status: 'Version 1.3 (collected-volume edition)',
     })
   })
@@ -180,7 +200,7 @@ describe('whitepaper metadata sync', () => {
   test('audited Legible metadata names the collected-volume edition', () => {
     const byId = new Map(WHITE_PAPERS.map((paper) => [paper.id, paper]))
     expect(byId.get('legible-swarm')).toMatchObject({
-      pages: 50,
+      pages: 46,
       status: 'Version 1.2 (collected-volume edition)',
     })
   })
@@ -191,6 +211,26 @@ describe('whitepaper metadata sync', () => {
       pages: 40,
       status: 'Version 1.2 (collected-volume edition)',
     })
+  })
+})
+
+describe('Pages deployment boundary', () => {
+  test('only the oversized collected-volume duplicate is pruned from dist', () => {
+    const fixtureRoot = resolve(websiteRoot, '.cache/pages-prune-test')
+    const whitepaperDir = resolve(fixtureRoot, 'whitepaper')
+    const collected = resolve(whitepaperDir, 'coordination-papers-mega-volume.pdf')
+    const chapter = resolve(whitepaperDir, 'legible-swarm-whitepaper.pdf')
+    try {
+      mkdirSync(whitepaperDir, { recursive: true })
+      writeFileSync(collected, 'full fidelity collected volume')
+      writeFileSync(chapter, 'chapter remains on Pages')
+
+      expect(prunePagesOnlyAssets(fixtureRoot)).toEqual([collected])
+      expect(existsSync(collected)).toBe(false)
+      expect(existsSync(chapter)).toBe(true)
+    } finally {
+      rmSync(fixtureRoot, { recursive: true, force: true })
+    }
   })
 })
 

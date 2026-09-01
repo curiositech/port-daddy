@@ -1,68 +1,46 @@
-% Capability attenuation — Russian doll. Inline in §2 Architecture or §3.3 Delegation.
-
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D8C7A6}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-
+% Semantic contract: a child must stay inside its parent's rights-by-lifetime
+% envelope. Nested geometry carries both inequalities without a prose table.
 \begin{figure}[H]
 \centering
-\resizebox{\textwidth}{!}{%
-\begin{tikzpicture}[
-  font=\small,
-  capring/.style={draw=hhebony,thick,rounded corners=4pt,align=center,inner sep=6pt},
-  caplbl/.style={font=\footnotesize,align=center},
-  prin/.style={draw=hhebony,thick,fill=hhcobalt!30,rounded corners=2pt,
-               inner sep=4pt,font=\bfseries\footnotesize,align=center},
-  arr/.style={->,>=Latex,thick,draw=hhink},
-  na/.style={->,>=Latex,thick,draw=hhcobalt,dashed},
-]
-% Outermost capability: root cap from daemon (80mm wide, 56mm tall, centered).
-\node[capring,fill=hhsand,minimum width=80mm,minimum height=56mm] (root) at (0,0)
-  {};
-\node[caplbl,above=1mm of root.north]
-  {\textbf{Root cap (daemon)}: \texttt{db:*}, \texttt{fs:*}, \texttt{net:*}, TTL = 1h};
-% Middle capability: AgentA cap — STRICT SUBSET of root (smaller and well inside).
-% root spans x in (-4, 4) and y in (-2.8, 2.8). Place mid offset slightly down-left.
-\node[capring,fill=hhsanddeep,minimum width=58mm,minimum height=36mm]
-  (mid) at (-0.6,-0.6) {};
-\node[caplbl,above=0.5mm of mid.north]
-  {\textbf{AgentA cap}: \texttt{db:write}, \texttt{fs:read}, TTL = 15m};
-% Innermost capability: AgentB cap — STRICT SUBSET of mid.
-% mid spans x in (-3.5, 2.3) and y in (-2.4, 1.2). Place inner offset further down-left.
-\node[capring,fill=hhamber!40,minimum width=32mm,minimum height=18mm]
-  (inner) at (-1.4,-1.2)
-  {{\bfseries AgentB cap}\\\texttt{db:write}, TTL = 5m};
-% AgentA principal: outside the rings on the right; delegates the AgentA cap.
-\node[prin,right=12mm of mid.east,fill=hhsand!50] (agentA) {AgentA};
-\draw[arr] (agentA.west) -- node[above,font=\footnotesize] {delegate}
-  (mid.east);
-% AgentB principal: outside the rings below; receives the AgentB cap.
-\node[prin,below=12mm of inner.south,fill=hhamber!20] (agentB) {AgentB};
-\draw[arr] (inner.south) -- (agentB.north);
-% Invariants side panel.
-\node[draw=hhebony,thick,fill=hhpaper,rounded corners=3pt,align=left,
-      inner sep=5pt,minimum width=58mm,right=12mm of agentA]
-  (invbox)
-  {{\bfseries Attenuation invariants:}\\[2pt]
-   $\bullet$ child cap $\subsetneq$ parent cap\\
-   $\bullet$ child TTL $<$ parent TTL\\
-   $\bullet$ child cannot re-grant beyond child cap};
-% Daemon principal: above the invariants panel so it does not overlap it.
-\node[prin,above=8mm of invbox.north,fill=hhcobalt!30] (daemon) {Daemon};
-\draw[arr] (daemon.south west) -- node[left,font=\footnotesize] {issue}
-  (root.north east);
-% Forbidden grant attempt
-\node[font=\footnotesize\itshape,text=hhcobalt,
-      below=6mm of agentB,align=center]
-  (forbid) {AgentB cannot grant \texttt{net:*} downstream};
-\draw[na] (agentB.south) -- (forbid.north);
-\end{tikzpicture}%
-}
-\caption{Every delegated capability is a strict subset of its parent's, in both rights and TTL, so a chain of delegations can only narrow authority, never widen it. AgentB inherits only what AgentA explicitly delegates and cannot re-grant capabilities it does not hold. This is enforced both at issuance (the parent signs over the child's attenuated claim set) and at verification (the verifier checks the chain of \texttt{is\_subset} relations).}
+\begin{tikzpicture}[pd figure,x=.16cm,y=1.08cm]
+  \draw[pd rule,-{Stealth[length=1.7mm,width=1.05mm]}] (0,0) -- (67,0);
+  \draw[pd rule,-{Stealth[length=1.7mm,width=1.05mm]}] (0,0) -- (0,4.15);
+  \node[pd axis label,anchor=west] at (67,0) {remaining lifetime (min)};
+  \node[pd axis label,anchor=south,rotate=90] at (-4.7,4.15) {capability reach};
+
+  \foreach \y/\rightname in {1/{\texttt{db:write}},2/{+ \texttt{fs:read}},3/{+ \texttt{net:*}}} {
+    \draw[pd guide] (0,\y) -- (63,\y);
+    \node[pd axis label,anchor=east] at (-1.0,\y) {\rightname};
+  }
+  \foreach \x/\tickname in {5/5,15/15,60/60} {
+    \draw[pd tick] (\x,0) -- (\x,-.12);
+    \node[pd axis label,anchor=north] at (\x,-.18) {\tickname};
+  }
+
+  \path[fill=hhsand!24,draw=hhgray!70,line width=.62pt]
+    (0,0) rectangle (60,3.35);
+  \path[fill=hhteal!7,draw=hhteal!72,line width=.82pt]
+    (0,0) rectangle (15,2.35);
+  \path[fill=hhteal!17,draw=hhteal,line width=1.02pt]
+    (0,0) rectangle (5,1.35);
+
+  \node[pd direct label,anchor=north east] at (59.4,3.28)
+    {$C_0$ root \quad 60 min};
+  \node[pd direct label,text=hhteal,anchor=north east] at (14.5,2.28)
+    {$C_1$ \quad 15 min};
+  \node[pd direct label,text=hhteal,anchor=west] at (5.7,.72)
+    {$C_2$ \quad 5 min};
+
+  \node[pd caution datum] (bad) at (5,3) {};
+  \draw[pd caution arrow] (bad) -- ++(8,0)
+    node[pd direct label,text=hhamber,anchor=west] {attempted re-grant of \texttt{net:*}};
+  \node[pd note,anchor=west] at (25,.5)
+    {$C_2\subseteq C_1\subseteq C_0$ and $T_2<T_1<T_0$};
+\end{tikzpicture}
+\caption{Delegation must remain inside a two-dimensional parent envelope. The
+child's capability set and remaining lifetime both contract at every hop. The
+amber re-grant lies outside $C_1$ even though its requested lifetime is short;
+the verifier rejects it because attenuation is conjunctive, not a trade between
+rights and time.}
 \label{fig:anchor-capability-attenuation}
 \end{figure}

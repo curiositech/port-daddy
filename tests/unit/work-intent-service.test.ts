@@ -32,6 +32,7 @@ describe('WorkIntentService', () => {
       goal: 'ship the WorkIntent dispatch intake',
       requestedBy: 'operator',
       baseBranch: 'main',
+      projectDir: '/Users/operator/coding/port-daddy',
       mergePolicy: 'review',
       idempotencyKey: 'request-123',
     }, queue);
@@ -39,6 +40,7 @@ describe('WorkIntentService', () => {
       goal: 'ship the WorkIntent dispatch intake',
       requestedBy: 'operator',
       baseBranch: 'main',
+      projectDir: '/Users/operator/coding/port-daddy',
       mergePolicy: 'review',
       idempotencyKey: 'request-123',
     }, queue);
@@ -53,6 +55,10 @@ describe('WorkIntentService', () => {
     expect(events).toHaveLength(1);
     const payload = JSON.parse(events[0].payload_json);
     expect(payload.source).toEqual(expect.objectContaining({ kind: 'compat', legacyVerb: 'dispatch' }));
+    expect(payload.source.worktree).toBe('/Users/operator/coding/port-daddy');
+    expect(payload.constraints.workdir).toBe('/Users/operator/coding/port-daddy');
+    expect(payload.compat.dispatchProjection.projectDir).toBe('/Users/operator/coding/port-daddy');
+    expect(first.dispatch.projectDir).toBe('/Users/operator/coding/port-daddy');
     expect(payload.startPolicy).toBe('queued');
     expect(payload.compat.dispatchId).toBe(first.dispatch.id);
   });
@@ -67,7 +73,12 @@ describe('WorkIntentService', () => {
     const captured = service.captureWithInitialPlan({
       intentId: 'work_intent_console_start',
       idempotencyKey: 'pd-console:work:console-start',
-      source: { kind: 'console', surface: 'pd-console', actorId: 'operator:local' },
+      source: {
+        kind: 'console',
+        surface: 'pd-console',
+        actorId: 'operator:local',
+        worktree: '/Users/operator/coding/port-daddy',
+      },
       goalText: 'Take the next roadmap slice',
       constraints: { maxCostUsd: 10, reviewRequired: true },
       startPolicy: 'queued',
@@ -87,6 +98,7 @@ describe('WorkIntentService', () => {
       mergePolicy: 'review',
       requestedBy: 'operator:local',
       backend: null,
+      projectDir: '/Users/operator/coding/port-daddy',
     });
     expect(retry.dispatch.tags).toEqual(expect.arrayContaining([
       'work-intent:work_intent_console_start',

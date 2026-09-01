@@ -7,14 +7,14 @@
   ],
   "providers": {
     "claude": {
-      "high": "claude-opus-4-1-20250805",
-      "mid": "claude-sonnet-4-5-20250929",
-      "low": "claude-haiku-4-5-20251001"
+      "high": "claude-opus-5",
+      "mid": "claude-sonnet-5",
+      "low": "claude-haiku-4-5"
     },
     "gemini": {
-      "high": "gemini-2.5-pro",
-      "mid": "gemini-2.5-flash",
-      "low": "gemini-2.5-flash"
+      "high": "gemini-3.1-pro-preview",
+      "mid": "gemini-3.7-flash",
+      "low": "gemini-3.7-flash"
     },
     "groq": {
       "high": "openai/gpt-oss-120b",
@@ -28,20 +28,20 @@
       "low": "deepseek-chat"
     },
     "xai": {
-      "_comment": "xAI (Grok) OpenAI-compatible API. grok-2-latest = general high/mid, grok-code-fast-1 = fast coder/low. 'low' mirrors DEFAULT_XAI_MODEL and is priced in cost-tracker MODEL_RATES.",
-      "high": "grok-2-latest",
-      "mid": "grok-2-latest",
+      "_comment": "xAI (Grok) OpenAI-compatible API. The general and code-specialised lines are separate; the 'low' rung mirrors DEFAULT_XAI_MODEL and is priced in cost-tracker MODEL_RATES.",
+      "high": "grok-4.6",
+      "mid": "grok-4.6",
       "low": "grok-code-fast-1"
     },
     "openai": {
-      "high": "gpt-5",
-      "mid": "gpt-5-mini",
-      "low": "gpt-5-mini"
+      "high": "gpt-5.6-sol",
+      "mid": "gpt-5.6-terra",
+      "low": "gpt-5.6-luna"
     },
     "cloudflare": {
-      "high": "@cf/moonshotai/kimi-k2-instruct",
-      "mid": "@cf/openai/gpt-oss-120b",
-      "low": "@cf/zai-org/glm-4.7-flash"
+      "high": "@cf/openai/gpt-oss-120b",
+      "mid": "@cf/openai/gpt-oss-20b",
+      "low": "@cf/qwen/qwen3-30b-a3b-fp8"
     },
     "ollama": {
       "high": "qwen2.5-coder:14b",
