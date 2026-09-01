@@ -1484,20 +1484,26 @@ async function readAcceptanceReceipt(
  * triggers are the final race guard after friendly preflight checks.
  *
  * @param env - Worker bindings.
- * @param command - Canonical command.
+ * @param inputCommand - Untrusted command input to snapshot and canonicalize.
  * @param capabilityTokenHash - Hash of the already scope-authorized capability.
- * @param acceptedAt - Relay unix-second clock.
  * @returns Deterministic acceptance receipt and duplicate marker.
  */
 export async function applyChartroomCommand(
   env: Env,
-  command: ChartroomCommand,
+  inputCommand: ChartroomCommand,
   capabilityTokenHash: string,
-  acceptedAt: number,
 ): Promise<{ receipt: ChartroomAcceptanceReceipt; duplicate: boolean }> {
+  const acceptedAt = Math.floor(Date.now() / 1_000);
   if (!HASH_RE.test(capabilityTokenHash) || !Number.isSafeInteger(acceptedAt) || acceptedAt <= 0) {
     throw new ChartroomError(500, 'BAD_RELAY_INPUT', 'Relay capability reference or clock is invalid');
   }
+  // This exported kernel is also available to internal jobs. Re-run the full
+  // validator and deep-snapshot its canonical JSON before the first await, so
+  // neither HTTP-only validation nor caller mutation can change the signed
+  // clocks, scope, or payload that verification and persistence observe.
+  const command = JSON.parse(canonicalJson(
+    validateChartroomCommand(inputCommand),
+  )) as ChartroomCommand;
   const requestHash = chartroomCommandHash(command);
   const replay = await readEventByIdempotency(env, command.scope, command.idempotencyKey);
   if (replay) {
@@ -1515,7 +1521,10 @@ export async function applyChartroomCommand(
   const harbor = await verifyIssuer(env, command, requestHash);
   const nonceReplay = await readEventByNonce(env, command.scope, command.intentNonce);
   if (nonceReplay) throw new ChartroomError(409, 'INTENT_REPLAYED', 'intent nonce was already consumed by another event');
-  if (command.issuedAt > acceptedAt + CLOCK_SKEW_SECONDS || command.expiresAt < acceptedAt) {
+  if (
+    command.issuedAt > acceptedAt + CLOCK_SKEW_SECONDS
+    || command.expiresAt < acceptedAt
+  ) {
     throw new ChartroomError(403, 'INTENT_EXPIRED', 'signed intent is expired or issued too far in the future');
   }
   const stream = await readStream(env, command.scope);
@@ -1665,7 +1674,7 @@ export async function handleChartroomEventPost(request: Request, env: Env): Prom
     const command = validateChartroomCommand(await readBoundedJson(request));
     const now = Math.floor(Date.now() / 1_000);
     const capability = await requireCapability(request, env, command.scope, 'write', now);
-    const applied = await applyChartroomCommand(env, command, capability.token_hash, now);
+    const applied = await applyChartroomCommand(env, command, capability.token_hash);
     return json(applied.duplicate ? 200 : 201, {
       code: 'OK', error: null, duplicate: applied.duplicate, receipt: applied.receipt,
       cost: { d1Statements: applied.duplicate ? 4 : 8, returnedRows: 1, maxRequestBytes: MAX_REQUEST_BYTES },

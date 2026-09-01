@@ -29,7 +29,10 @@ projection, and export requests use:
 Authorization: Chartroom chr_<64 lowercase hex characters>
 ```
 
-The raw capability is returned once. D1 stores only its hash.
+The raw capability is returned once. D1 stores only the lower-case SHA-256 hex
+of the UTF-8 bytes of the complete bearer string, including its `chr_` prefix.
+It does not hex-decode the random suffix before hashing. Capability lookup, the
+immutable event reference, and the D1 insertion guard all use that same digest.
 
 ## Complete scope
 
@@ -151,11 +154,20 @@ Content-Type: application/json
 ```
 
 Intent lifetime is at most five minutes, with 30 seconds of future-clock skew.
+The exported apply kernel revalidates that complete window rather than trusting
+HTTP-only validation, and refuses an `issuedAt` older than the maximum signed
+window at acceptance time. The 30-second allowance is only for a clock slightly
+ahead of Relay; it is not the accepted lifetime of an otherwise valid intent.
 The idempotency key and nonce are scoped but serve different purposes:
 
 - same key + same signed command: exact original receipt, `duplicate: true`;
 - same key + different command: `IDEMPOTENCY_KEY_REUSED`;
 - same nonce + different key: `INTENT_REPLAYED`.
+
+After an event is accepted, a same-key/same-command retry may recover that
+original receipt after the command's intent window closes, provided the scoped
+capability is still live. This recovery path performs no new append and does
+not reinterpret expired intent as fresh authority.
 
 The response receipt includes full scope, event/type/version/epoch, previous and
 event hashes, request hash, acceptance time, exact D1 event-row readback digest,

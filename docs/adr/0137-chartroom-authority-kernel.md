@@ -84,9 +84,11 @@ admin authority and the account's harbor-owner role. Generic `pdu_` tokens prove
 an account only; they cannot mint a capability or call event/projection/export
 routes without a `Chartroom chr_...` capability.
 
-Capabilities are opaque, returned once, stored only as SHA-256 hashes, expire in
-at most ten minutes, carry read or write permission, and have an event budget.
-The event table refers to the scoped capability hash so its trigger can re-check
+Capabilities are opaque, returned once, and stored only as the SHA-256 digest of
+the UTF-8 bytes of the complete `chr_...` bearer string. The raw suffix is not
+hex-decoded before hashing. Capabilities expire in at most ten minutes, carry
+read or write permission, and have an event budget. The event table refers to
+that exact scoped capability digest so its trigger can re-check
 expiry/revocation/budget inside the same transactional batch.
 
 ### 3. Append-only event contract
@@ -101,11 +103,18 @@ preflight:
 - the full-scoped write capability is live and under budget;
 - the full-scoped idempotency key, intent nonce, and plan version are unique.
 
+The exported apply kernel repeats command-window validation, including the
+five-minute maximum lifetime and acceptance-time stale/future bounds, so a
+non-HTTP internal caller cannot bypass the signed intent freshness contract.
+
 The event hash covers the complete immutable event row except its own hash,
 including the previous hash, full scope, capability reference, provenance,
 issuer proof, clocks, and canonical payload. The same idempotency key plus the
 same command returns the exact original acceptance receipt. The same key with
 different content is a conflict. A nonce used under another key is a replay.
+Receipt recovery for an already-accepted same-key/same-command retry remains
+available after that command's intent window closes while its scoped capability
+is live; it does not append or grant authority to different content.
 
 No Chartroom event is updated or deleted. D1 `BEFORE UPDATE` and `BEFORE DELETE`
 triggers make that invariant a storage refusal rather than route convention.

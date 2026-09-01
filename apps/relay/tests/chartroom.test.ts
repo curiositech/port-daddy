@@ -13,7 +13,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { fileURLToPath } from 'node:url';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import worker from '../src/index.js';
 import {
   applyChartroomCommand,
@@ -50,6 +50,14 @@ const SCOPE: ChartroomScope = {
   harborId: HARBOR_ID,
   resourceId: 'grand-harbor-program',
 };
+
+beforeEach(() => {
+  vi.spyOn(Date, 'now').mockReturnValue(NOW * 1_000);
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 type TestStatement = {
   readonly sqlText: string;
@@ -376,10 +384,10 @@ describe('Chartroom signed event kernel', () => {
       ownerActorId: 'agent-chartroom-authority-kernel',
       payload: { source: 'GRAND-HARBOR-PLAN.md' },
     }, 0);
-    const first = await applyChartroomCommand(env, command, hashHex(CAPABILITY), NOW);
+    const first = await applyChartroomCommand(env, command, hashHex(CAPABILITY));
     env.RELAY_ED25519_PRIVATE_KEY_HEX = '5'.repeat(64);
     sql.exec(`UPDATE harbors SET authority_epoch = 2 WHERE id = '${HARBOR_ID}'`);
-    const retry = await applyChartroomCommand(env, command, hashHex(CAPABILITY), NOW + 1);
+    const retry = await applyChartroomCommand(env, command, hashHex(CAPABILITY));
     expect(first.duplicate).toBe(false);
     expect(retry.duplicate).toBe(true);
     expect(retry.receipt).toEqual(first.receipt);
@@ -396,12 +404,12 @@ describe('Chartroom signed event kernel', () => {
       issuer: { ...command.issuer, signature: 'f'.repeat(128) },
     };
     await expect(
-      applyChartroomCommand(env, alteredSignature, hashHex(CAPABILITY), NOW + 2),
+      applyChartroomCommand(env, alteredSignature, hashHex(CAPABILITY)),
     ).rejects.toMatchObject({ code: 'FORGED_INTENT' });
     sql.exec('DROP TRIGGER chartroom_acceptance_receipts_delete_guard');
     sql.exec('DELETE FROM chartroom_acceptance_receipts');
     await expect(
-      applyChartroomCommand(env, command, hashHex(CAPABILITY), NOW + 3),
+      applyChartroomCommand(env, command, hashHex(CAPABILITY)),
     ).rejects.toMatchObject({ code: 'RECEIPT_READBACK_FAILED' });
   });
 
@@ -411,14 +419,14 @@ describe('Chartroom signed event kernel', () => {
       type: 'node.upsert', nodeId: 'n1', nodeKind: 'roadmap-item', title: 'One',
       summary: '', status: 'proposed', payload: {},
     }, 0);
-    await applyChartroomCommand(env, valid, hashHex(CAPABILITY), NOW);
+    await applyChartroomCommand(env, valid, hashHex(CAPABILITY));
 
     const forged = await signedCommand({
       type: 'node.upsert', nodeId: 'n2', nodeKind: 'roadmap-item', title: 'Two',
       summary: '', status: 'proposed', payload: {},
     }, 1, { idempotencyKey: 'forged-12345678', intentNonce: 'forged-nonce-1234567890' });
     forged.issuer.signature = 'f'.repeat(128);
-    await expect(applyChartroomCommand(env, forged, hashHex(CAPABILITY), NOW)).rejects.toMatchObject({ code: 'FORGED_INTENT' });
+    await expect(applyChartroomCommand(env, forged, hashHex(CAPABILITY))).rejects.toMatchObject({ code: 'FORGED_INTENT' });
 
     const expired = await signedCommand({
       type: 'node.upsert', nodeId: 'n2', nodeKind: 'roadmap-item', title: 'Two',
@@ -427,27 +435,95 @@ describe('Chartroom signed event kernel', () => {
       idempotencyKey: 'expired-12345678', intentNonce: 'expired-nonce-1234567890',
       issuedAt: NOW - 250, expiresAt: NOW - 10,
     });
-    await expect(applyChartroomCommand(env, expired, hashHex(CAPABILITY), NOW)).rejects.toMatchObject({ code: 'INTENT_EXPIRED' });
+    await expect(applyChartroomCommand(env, expired, hashHex(CAPABILITY))).rejects.toMatchObject({ code: 'INTENT_EXPIRED' });
 
     const replay = await signedCommand({
       type: 'node.upsert', nodeId: 'n2', nodeKind: 'roadmap-item', title: 'Two',
       summary: '', status: 'proposed', payload: {},
     }, 1, { idempotencyKey: 'replay-new-key-1234', intentNonce: valid.intentNonce });
-    await expect(applyChartroomCommand(env, replay, hashHex(CAPABILITY), NOW)).rejects.toMatchObject({ code: 'INTENT_REPLAYED' });
+    await expect(applyChartroomCommand(env, replay, hashHex(CAPABILITY))).rejects.toMatchObject({ code: 'INTENT_REPLAYED' });
 
     const stale = await signedCommand({
       type: 'node.upsert', nodeId: 'n3', nodeKind: 'roadmap-item', title: 'Three',
       summary: '', status: 'proposed', payload: {},
     }, 0, { idempotencyKey: 'stale-version-1234', intentNonce: 'stale-version-nonce-12345' });
-    await expect(applyChartroomCommand(env, stale, hashHex(CAPABILITY), NOW)).rejects.toMatchObject({ code: 'STALE_PLAN_VERSION' });
+    await expect(applyChartroomCommand(env, stale, hashHex(CAPABILITY))).rejects.toMatchObject({ code: 'STALE_PLAN_VERSION' });
 
     sql.exec(`UPDATE harbors SET authority_epoch = 2 WHERE id = '${HARBOR_ID}'`);
     const staleEpoch = await signedCommand({
       type: 'node.upsert', nodeId: 'n4', nodeKind: 'roadmap-item', title: 'Four',
       summary: '', status: 'proposed', payload: {},
     }, 1, { idempotencyKey: 'stale-epoch-12345', intentNonce: 'stale-epoch-nonce-123456' });
-    await expect(applyChartroomCommand(env, staleEpoch, hashHex(CAPABILITY), NOW)).rejects.toMatchObject({ code: 'STALE_AUTHORITY_EPOCH' });
+    await expect(applyChartroomCommand(env, staleEpoch, hashHex(CAPABILITY))).rejects.toMatchObject({ code: 'STALE_AUTHORITY_EPOCH' });
     expect(sql.prepare('SELECT COUNT(*) AS n FROM chartroom_events').get().n).toBe(1);
+  });
+
+  it('revalidates the signed lifetime at the exported apply boundary', async () => {
+    const { env, sql } = makeFixture();
+    const stale = await signedCommand({
+      type: 'node.upsert', nodeId: 'stale-window', nodeKind: 'roadmap-item',
+      title: 'Stale window', summary: '', status: 'proposed', payload: {},
+    }, 0);
+    stale.issuedAt = NOW - 3_600;
+    stale.expiresAt = NOW + 60;
+    stale.issuer.signature = await signEd25519(
+      HARBOR_PRIVATE,
+      chartroomCommandHash(stale),
+    );
+    await expect(
+      applyChartroomCommand(env, stale, hashHex(CAPABILITY)),
+    ).rejects.toMatchObject({ code: 'BAD_INTENT_WINDOW' });
+    expect(sql.prepare('SELECT COUNT(*) AS n FROM chartroom_events').get().n).toBe(0);
+
+    const boundary = await signedCommand({
+      type: 'node.upsert', nodeId: 'max-window', nodeKind: 'roadmap-item',
+      title: 'Maximum valid window', summary: '', status: 'proposed', payload: {},
+    }, 0, {
+      idempotencyKey: 'max-window-12345678',
+      intentNonce: 'max-window-nonce-123456789',
+      issuedAt: NOW - 300,
+      expiresAt: NOW,
+    });
+    await expect(
+      applyChartroomCommand(env, boundary, hashHex(CAPABILITY)),
+    ).resolves.toMatchObject({ duplicate: false });
+  });
+
+  it('persists one canonical snapshot when the caller mutates its command across awaits', async () => {
+    const { env, sql } = makeFixture();
+    const command = await signedCommand({
+      type: 'node.upsert', nodeId: 'snapshot', nodeKind: 'roadmap-item',
+      title: 'Signed snapshot', summary: '', status: 'proposed',
+      payload: { revision: 'signed' },
+    }, 0, {
+      idempotencyKey: 'snapshot-12345678',
+      intentNonce: 'snapshot-nonce-1234567890',
+    });
+    const signedRequestHash = chartroomCommandHash(command);
+    const signedEvent = canonicalJson(command.event);
+    const pending = applyChartroomCommand(env, command, hashHex(CAPABILITY));
+    command.issuedAt = NOW - 4;
+    command.expiresAt = NOW + 121;
+    command.event.title = 'Caller mutation';
+    command.event.payload = { revision: 'mutated' };
+
+    const result = await pending;
+    const event = sql.prepare(
+      `SELECT request_hash, issued_at, expires_at, accepted_at, payload_json
+         FROM chartroom_events WHERE plan_version = 1`,
+    ).get() as Record<string, unknown>;
+    expect(event).toMatchObject({
+      request_hash: signedRequestHash,
+      issued_at: NOW - 5,
+      expires_at: NOW + 115,
+      accepted_at: NOW,
+      payload_json: signedEvent,
+    });
+    expect(result.receipt.requestHash).toBe(signedRequestHash);
+    expect(result.receipt.acceptedAt).toBe(NOW);
+    expect(sql.prepare(
+      "SELECT title, payload_json FROM chartroom_nodes WHERE node_id = 'snapshot'",
+    ).get()).toEqual({ title: 'Signed snapshot', payload_json: '{"revision":"signed"}' });
   });
 
   it('domain-separates Chartroom signatures from legacy unsigned JSON shapes', async () => {
@@ -465,7 +541,7 @@ describe('Chartroom signed event kernel', () => {
       hashHex(canonicalJson(legacyUnsigned)),
     );
     await expect(
-      applyChartroomCommand(env, command, hashHex(CAPABILITY), NOW),
+      applyChartroomCommand(env, command, hashHex(CAPABILITY)),
     ).rejects.toMatchObject({ code: 'FORGED_INTENT' });
   });
 
@@ -544,7 +620,7 @@ describe('Chartroom signed event kernel', () => {
       type: 'node.upsert', nodeId: 'immutable', nodeKind: 'roadmap-item',
       title: 'Immutable event', summary: '', status: 'proposed', payload: {},
     }, 0);
-    await applyChartroomCommand(env, command, hashHex(CAPABILITY), NOW);
+    await applyChartroomCommand(env, command, hashHex(CAPABILITY));
     expect(() => sql.exec("UPDATE chartroom_events SET actor_id = 'tampered'"))
       .toThrow(/CHARTROOM_EVENTS_APPEND_ONLY/);
     expect(() => sql.exec('DELETE FROM chartroom_events'))
@@ -573,7 +649,7 @@ describe('Chartroom signed event kernel', () => {
         idempotencyKey: `projection-${index}-12345678`,
         intentNonce: `projection-nonce-${index}-123456789`,
       });
-      await applyChartroomCommand(env, command, hashHex(CAPABILITY), NOW);
+      await applyChartroomCommand(env, command, hashHex(CAPABILITY));
     }
     const node = sql.prepare('SELECT tombstoned_at FROM chartroom_nodes WHERE node_id = ?').get('old-plan');
     expect(Number(node.tombstoned_at)).toBe(NOW);
@@ -607,7 +683,7 @@ describe('Chartroom signed event kernel', () => {
         idempotencyKey: `vocabulary-${index}-12345678`,
         intentNonce: `vocabulary-nonce-${index}-123456789`,
       });
-      await applyChartroomCommand(env, command, hashHex(CAPABILITY), NOW);
+      await applyChartroomCommand(env, command, hashHex(CAPABILITY));
     }
     expect(sql.prepare("SELECT status, owner_actor_id FROM chartroom_nodes WHERE node_id = 'a'").get()).toEqual({
       status: 'active', owner_actor_id: null,
@@ -635,7 +711,7 @@ describe('Chartroom HTTP readback and export', () => {
         idempotencyKey: `export-${index}-12345678`,
         intentNonce: `export-nonce-${index}-123456789012`,
       });
-      await applyChartroomCommand(env, command, hashHex(CAPABILITY), NOW);
+      await applyChartroomCommand(env, command, hashHex(CAPABILITY));
     }
     const response = await handleChartroomExportGet(
       new Request(`${BASE}/v1/chartroom/export?${scopeQuery()}&limit=9999`, { headers: capabilityHeaders() }),
@@ -686,8 +762,47 @@ describe('Chartroom HTTP readback and export', () => {
     expect(body.code).toBe('NOT_FOUND');
   });
 
-  it('uses the HTTP event handler and rejects an exact token at a wrong resource scope', async () => {
-    const { env } = makeFixture();
+  it('finalizes a successful Chartroom route with request correlation and public CORS', async () => {
+    const { env, sql } = makeFixture();
+    const pending: Promise<unknown>[] = [];
+    const context = {
+      waitUntil(promise: Promise<unknown>) { pending.push(promise); },
+      passThroughOnException() {},
+    } as unknown as ExecutionContext;
+    const now = Math.floor(Date.now() / 1_000);
+    sql.prepare(
+      'UPDATE chartroom_capabilities SET created_at = ?, expires_at = ? WHERE token_hash = ?',
+    ).run(now - 10, now + 600, hashHex(CAPABILITY));
+    const command = await signedCommand({
+      type: 'node.upsert', nodeId: 'worker-route', nodeKind: 'roadmap-item',
+      title: 'Worker route', summary: '', status: 'proposed', payload: {},
+    }, 0, {
+      idempotencyKey: 'worker-route-12345678',
+      intentNonce: 'worker-route-nonce-123456789',
+      issuedAt: now - 5,
+      expiresAt: now + 120,
+    });
+    const response = await worker.fetch(new Request(`${BASE}/v1/chartroom/events`, {
+      method: 'POST',
+      headers: {
+        ...capabilityHeaders(),
+        Origin: 'https://client.example',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(command),
+    }), env, context);
+    await Promise.all(pending);
+    expect(response.status).toBe(201);
+    expect(response.headers.get('X-Request-Id')).toMatch(/^req_[0-9a-f]{16}$/);
+    expect(response.headers.get('Access-Control-Allow-Origin')).toBe('*');
+    expect(response.headers.get('Access-Control-Allow-Headers')).toBe('Content-Type,Authorization');
+    const body = await responseJson(response);
+    expect(body.requestId).toBeUndefined();
+    expect(body.receipt.scope).toEqual(SCOPE);
+  });
+
+  it('uses one full-bearer UTF-8 capability hash through handler, event, and D1 guard', async () => {
+    const { env, sql } = makeFixture();
     const command = await signedCommand({
       type: 'node.upsert', nodeId: 'http-node', nodeKind: 'roadmap-item',
       title: 'HTTP node', summary: '', status: 'proposed', payload: {},
@@ -698,6 +813,15 @@ describe('Chartroom HTTP readback and export', () => {
       body: JSON.stringify(command),
     }), env);
     expect(ok.status).toBe(201);
+    const capabilityRow = sql.prepare(
+      'SELECT token_hash FROM chartroom_capabilities WHERE token_hash = ?',
+    ).get(hashHex(CAPABILITY)) as { token_hash: string };
+    const eventRow = sql.prepare(
+      'SELECT capability_token_hash FROM chartroom_events WHERE plan_version = 1',
+    ).get() as { capability_token_hash: string };
+    expect(capabilityRow.token_hash).toBe(hashHex(CAPABILITY));
+    expect(eventRow.capability_token_hash).toBe(capabilityRow.token_hash);
+    expect(JSON.stringify(eventRow)).not.toContain(CAPABILITY);
 
     const wrong = { ...command, scope: { ...command.scope, resourceId: 'other-program' } };
     const refused = await handleChartroomEventPost(new Request(`${BASE}/v1/chartroom/events`, {
