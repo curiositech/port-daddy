@@ -8,8 +8,10 @@ import XCTest
 private actor SquidHarnessVisualFixture {
     private var armed = false
     private var debugOverdue = false
+    private var debugProbeState: String?
 
     func setDebugOverdue(_ value: Bool) { debugOverdue = value }
+    func setDebugProbeState(_ value: String?) { debugProbeState = value }
 
     func run(_ arguments: [String]) -> SquidCommandResult {
         if arguments.starts(with: ["squid", "on"]) {
@@ -17,7 +19,11 @@ private actor SquidHarnessVisualFixture {
             return SquidCommandResult(status: 0, stdout: "armed", stderr: "")
         }
         if arguments.starts(with: ["squid", "debug"]) {
-            return SquidCommandResult(status: 0, stdout: Self.debugJSON(overdue: debugOverdue), stderr: "")
+            return SquidCommandResult(
+                status: 0,
+                stdout: Self.debugJSON(overdue: debugOverdue, probeState: debugProbeState),
+                stderr: ""
+            )
         }
         return SquidCommandResult(
             status: 0,
@@ -86,12 +92,13 @@ private actor SquidHarnessVisualFixture {
     }
     """
 
-    private static func debugJSON(overdue: Bool) -> String {
+    private static func debugJSON(overdue: Bool, probeState: String?) -> String {
         let editState = overdue ? "overdue" : "running"
         let capturedAt = overdue ? "2026-08-21T20:00:02.400Z" : "2026-08-21T20:00:00.600Z"
         let editDescription = overdue
             ? "PD EDIT is checking project ownership and destructive-command safety before mutation. No completion arrived by the deadline, so the hook is stalled or the host terminated it."
             : "PD EDIT is checking project ownership and destructive-command safety before mutation. It is still inside its configured deadline."
+        let health = probeHealthJSON(probeState)
         return """
         {
           "schemaVersion":1,
@@ -100,7 +107,7 @@ private actor SquidHarnessVisualFixture {
           "capturedAt":"\(capturedAt)",
           "workspace":"/Users/operator/coding/port-daddy",
           "privacy":"Sanitized timing only: no argv, environment snapshot, prompts, tool inputs, tool results, stdout, or stderr are captured.",
-          "retention":{"maxBytes":2097152,"eventPath":"/Users/operator/.port-daddy/squid/hook-events.log"},
+          "retention":{"maxBytes":2097152,"eventPath":"/Users/operator/.port-daddy/squid/hook-events.log"}\(health),
           "sessions":[
             {
               "id":"codex-codex:7312-port-daddy",
@@ -145,6 +152,32 @@ private actor SquidHarnessVisualFixture {
               }]
             }
           ]
+        }
+        """
+    }
+
+    private static func probeHealthJSON(_ probeState: String?) -> String {
+        guard let probeState else { return "" }
+        let active = probeState == "active"
+        let state = active ? "half_open" : "open"
+        let capturedAt = active ? "2026-09-01T03:13:50.000Z" : "2026-09-01T03:14:02.000Z"
+        let recoveryReady = active ? "false" : "true"
+        let remediation = active
+            ? "A single bounded recovery probe is running. It should finish by 2026-09-01T03:13:53.035Z; no other hook call may probe concurrently."
+            : "The previous recovery marker expired, so no probe is running. The next armed hook call may reclaim the marker and run one bounded probe, or choose Repair in FleetBar."
+        return """
+        ,"health":{
+          "degraded":true,
+          "capturedAt":"\(capturedAt)",
+          "thresholds":{"consecutiveFailures":3,"slowMs":250,"cooldownMs":300000},
+          "circuits":[{
+            "hook":"pd-hook-prompt","label":"PD TURN","state":"\(state)","consecutiveFailures":9,
+            "openedAt":"2026-09-01T01:17:37.000Z","retryAt":"2026-09-01T01:22:37.000Z",
+            "lastReason":"slow","lastDurationMs":770,"lastExitCode":0,"updatedAt":"2026-09-01T01:17:37.000Z",
+            "probeState":"\(probeState)","probeStartedAt":"2026-09-01T03:13:48.035Z",
+            "probeExpectedBy":"2026-09-01T03:13:53.035Z","recoveryReady":\(recoveryReady)
+          }],
+          "remediation":"\(remediation)"
         }
         """
     }
@@ -259,6 +292,32 @@ final class SquidHarnessSnapshotTests: XCTestCase {
         let overdue = try renderDebug(store: store, projectDir: projectDir, path: "\(outputDirectory)/04-hook-debug-overdue.png")
 
         try writeGIF(frames: [running, overdue], path: "\(outputDirectory)/hook-debug-deadline.gif")
+    }
+
+    func testRenderBoundedProbeExpiryAndRecoveryProofWhenRequested() async throws {
+        let env = ProcessInfo.processInfo.environment
+        guard let outputDirectory = env["FLEETBAR_SQUID_SNAPSHOT_DIR"], !outputDirectory.isEmpty else {
+            throw XCTSkip("Set FLEETBAR_SQUID_SNAPSHOT_DIR to render bounded-probe recovery evidence.")
+        }
+
+        let fixture = SquidHarnessVisualFixture()
+        let store = SquidHarnessStore { arguments in await fixture.run(arguments) }
+        let projectDir = "/Users/operator/coding/port-daddy"
+
+        await fixture.setDebugProbeState("active")
+        await store.refreshDebug(projectDir: projectDir)
+        XCTAssertEqual(store.debugSnapshot?.health?.circuits.first?.state, .halfOpen)
+        let active = try renderDebug(store: store, projectDir: projectDir, path: "\(outputDirectory)/05-hook-recovery-active.png")
+
+        await fixture.setDebugProbeState("stale")
+        await store.refreshDebug(projectDir: projectDir)
+        let circuit = store.debugSnapshot?.health?.circuits.first
+        XCTAssertEqual(circuit?.state, .open)
+        XCTAssertEqual(circuit?.probeState, .stale)
+        XCTAssertEqual(circuit?.recoveryReady, true)
+        let ready = try renderDebug(store: store, projectDir: projectDir, path: "\(outputDirectory)/06-hook-recovery-ready.png")
+
+        try writeGIF(frames: [active, ready], path: "\(outputDirectory)/hook-recovery.gif")
     }
 
     private func render(store: SquidHarnessStore, projectDir: String, path: String) throws {
