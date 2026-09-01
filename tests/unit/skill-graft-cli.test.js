@@ -1,4 +1,4 @@
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { jest } from '@jest/globals';
@@ -94,4 +94,36 @@ test('pd jury-rig reference reads only files contained by the skill directory', 
   expect(refused.found).toBe(false);
   expect(refused.error).toContain('refused:');
   expect(process.exitCode).toBe(1);
+});
+
+test('pd jury-rig bootstrap status is read-only and reports an empty transaction ledger', async () => {
+  logs.length = 0;
+  await handleJuryRig(['bootstrap', 'status'], {
+    home: root,
+    'pd-home': join(root, '.port-daddy'),
+    json: true,
+  });
+  const body = JSON.parse(logs.join('\n'));
+  expect(body.transactionRoot).toBe(join(root, '.port-daddy', 'jury-rig-cutover', 'transactions'));
+  expect(body.transactions).toEqual([]);
+});
+
+test('pd jury-rig bootstrap plan emits a redacted zero-write plan and fails closed before native proof', async () => {
+  logs.length = 0;
+  await handleJuryRig(['bootstrap', 'plan'], {
+    home: root,
+    'pd-home': join(root, '.port-daddy'),
+    'expected-head': 'a'.repeat(40),
+    json: true,
+  });
+  const body = JSON.parse(logs.join('\n'));
+  expect(body.actions.every((action) => !Object.hasOwn(action, 'content'))).toBe(true);
+  expect(body.verdict).toBe('blocked');
+  expect(process.exitCode).toBe(1);
+  expect(existsSync(join(root, '.port-daddy', 'jury-rig-cutover'))).toBe(false);
+});
+
+test('pd jury-rig bootstrap rollback requires an exact apply receipt', async () => {
+  await expect(handleJuryRig(['bootstrap', 'rollback'], { home: root }))
+    .rejects.toThrow('Usage: pd jury-rig bootstrap rollback');
 });

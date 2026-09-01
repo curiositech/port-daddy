@@ -244,6 +244,12 @@ export const SUBCOMMAND_TIERS: Record<string, Tier> = {
   'jury-rig query': 'silent',
   'jury-rig reference': 'silent',
   'jury-rig warm': 'notify',
+  'jury-rig bootstrap': 'silent',
+  'jury-rig bootstrap plan': 'silent',
+  'jury-rig bootstrap dry-run': 'silent',
+  'jury-rig bootstrap status': 'silent',
+  'jury-rig bootstrap apply': 'destructive',
+  'jury-rig bootstrap rollback': 'destructive',
 
   // booty: default/list/help are read-only; add writes artifact bytes into the
   // blob store plus a provenance row (slice S4a).
@@ -593,6 +599,11 @@ export const SUBCOMMAND_TIERS: Record<string, Tier> = {
  *   4. Bare command:     TIER_REGISTRY[command]
  *   5. Fallback:         "silent" (so unmapped lookups don't accidentally
  *                        gate a read with a confirmation prompt)
+ *
+ * The design keeps specific mutating forms stricter than their read-only
+ * command families while preserving a fail-safe experience for unknown reads.
+ *
+ * @returns The permission tier governing this exact invocation.
  */
 export function resolveTier(
   command: string,
@@ -637,6 +648,9 @@ export function resolveTier(
  * All commands grouped by tier. Useful for `pd help` rendering, README
  * generation, and tests that need to assert "every destructive command is
  * wired through requireConfirmation".
+ * The design provides one auditable projection of both registries.
+ *
+ * @returns Sorted command and subcommand keys grouped by permission tier.
  */
 export function commandsByTier(): Record<Tier, string[]> {
   const out: Record<Tier, string[]> = {
@@ -662,6 +676,10 @@ export function commandsByTier(): Record<Tier, string[]> {
 /**
  * Short single-word label rendered in --help next to a command's description.
  * Format: `[silent]`, `[notify]`, `[approval]`, `[destructive]`.
+ * The intent is a compact, consistent signal at every help surface.
+ *
+ * @param tier Permission tier to render.
+ * @returns A bracketed tier label.
  */
 export function tierBadge(tier: Tier): string {
   return `[${tier}]`;

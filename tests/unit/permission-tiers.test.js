@@ -164,6 +164,13 @@ describe('TIER_REGISTRY: coverage', () => {
 });
 
 describe('resolveTier', () => {
+  test('Jury-rig bootstrap reads are silent while apply and rollback are destructive', () => {
+    expect(resolveTier('jury-rig', ['bootstrap', 'plan'])).toBe('silent');
+    expect(resolveTier('jury-rig', ['bootstrap', 'status'])).toBe('silent');
+    expect(resolveTier('jury-rig', ['bootstrap', 'apply'])).toBe('destructive');
+    expect(resolveTier('jury-rig', ['bootstrap', 'rollback'])).toBe('destructive');
+  });
+
   test('headline bug: pd salvage claim is destructive', () => {
     expect(resolveTier('salvage', ['claim', 'agent-99'])).toBe('destructive');
   });
