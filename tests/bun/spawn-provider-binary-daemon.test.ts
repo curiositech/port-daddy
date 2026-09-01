@@ -6,6 +6,8 @@
  * resolved binary, and persist a transcript for both successful and failed
  * launches. Fake binaries keep the test hermetic while still exercising the
  * real Fastify route, createSpawner(), cli-tube launcher, and transcript store.
+ * Codex remains in the matrix as a fail-closed admission case because its CLI
+ * cannot enforce Port Daddy's required provider-native dollar ceiling.
  */
 import { afterEach, describe, expect, test } from 'bun:test';
 import { execFileSync } from 'node:child_process';
@@ -69,6 +71,10 @@ const PROVIDERS: ProviderCase[] = [
     expectedRoles: ['user', 'assistant'],
   },
 ];
+
+const LAUNCHABLE_PROVIDERS = PROVIDERS.filter(
+  (provider) => provider.backend === 'cli:claude-code',
+);
 
 const envKeysToRestore = [
   'PATH',
@@ -252,7 +258,7 @@ afterEach(() => {
 });
 
 describe('daemon /spawn provider binary launch path', () => {
-  test('invokes daemon-resolved Claude and Codex provider binaries and persists transcript output', async () => {
+  test('invokes the daemon-resolved Claude provider binary and persists transcript output', async () => {
     const tmp = mkdtempSync(join(tmpdir(), 'pd-provider-binary-ok-'));
     const harness = await startHarness();
     try {
@@ -261,7 +267,7 @@ describe('daemon /spawn provider binary launch path', () => {
       const markers: Record<string, string> = {};
       const env: Record<string, string> = { PD_CLI_BIN_DIRS: binDir };
 
-      for (const provider of PROVIDERS) {
+      for (const provider of LAUNCHABLE_PROVIDERS) {
         const fakeBinary = join(binDir, provider.binName);
         const staleOverride = join(tmp, 'stale', provider.binName);
         const marker = join(tmp, `${provider.binName}-invoked.txt`);
@@ -272,10 +278,10 @@ describe('daemon /spawn provider binary launch path', () => {
       }
       setDaemonCliEnv(env);
 
-      for (const provider of PROVIDERS) {
+      for (const provider of LAUNCHABLE_PROVIDERS) {
         const response = await injectProviderSpawn(harness, provider, workdir);
 
-        expect(response.statusCode).toBe(200);
+        expect(response.statusCode, response.body).toBe(200);
         const body = response.json();
         expect(body).toMatchObject({
           success: true,
@@ -304,7 +310,40 @@ describe('daemon /spawn provider binary launch path', () => {
     }
   });
 
-  test('failed Claude and Codex provider binary launches are not wrapped as successful daemon responses', async () => {
+  test('rejects Codex before invoking its binary when the required dollar ceiling cannot be enforced', async () => {
+    const tmp = mkdtempSync(join(tmpdir(), 'pd-provider-binary-codex-cap-'));
+    const harness = await startHarness();
+    try {
+      const workdir = makeWorkdir(tmp);
+      const provider = PROVIDERS.find((candidate) => candidate.backend === 'cli:codex')!;
+      const binDir = join(tmp, 'provider-bin');
+      const marker = join(tmp, `${provider.binName}-invoked.txt`);
+      const fakeBinary = join(binDir, provider.binName);
+      writeFakeProviderBinary(provider, fakeBinary);
+      setDaemonCliEnv({
+        PD_CLI_BIN_DIRS: binDir,
+        [provider.envOverride]: fakeBinary,
+        [provider.markerEnv]: marker,
+      });
+
+      const response = await injectProviderSpawn(harness, provider, workdir);
+
+      expect(response.statusCode, response.body).toBe(200);
+      const body = response.json();
+      expect(body).toMatchObject({
+        success: false,
+        backend: provider.backend,
+        status: 'failed',
+      });
+      expect(body.error).toMatch(/cannot enforce budgetUsd as a provider-native hard ceiling/i);
+      expect(existsSync(marker)).toBe(false);
+    } finally {
+      await closeHarness(harness);
+      rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
+  test('a failed Claude provider binary launch is not wrapped as a successful daemon response', async () => {
     const tmp = mkdtempSync(join(tmpdir(), 'pd-provider-binary-fail-'));
     const harness = await startHarness();
     try {
@@ -313,7 +352,7 @@ describe('daemon /spawn provider binary launch path', () => {
       const env: Record<string, string> = { PD_CLI_BIN_DIRS: binDir };
       const markers: Record<string, string> = {};
 
-      for (const provider of PROVIDERS) {
+      for (const provider of LAUNCHABLE_PROVIDERS) {
         const fakeBinary = join(binDir, provider.binName);
         const marker = join(tmp, `${provider.binName}-failed-invoked.txt`);
         writeFailingProviderBinary(provider, fakeBinary);
@@ -323,10 +362,10 @@ describe('daemon /spawn provider binary launch path', () => {
       }
       setDaemonCliEnv(env);
 
-      for (const provider of PROVIDERS) {
+      for (const provider of LAUNCHABLE_PROVIDERS) {
         const response = await injectProviderSpawn(harness, provider, workdir);
 
-        expect(response.statusCode).toBe(200);
+        expect(response.statusCode, response.body).toBe(200);
         const body = response.json();
         expect(body).toMatchObject({
           success: false,

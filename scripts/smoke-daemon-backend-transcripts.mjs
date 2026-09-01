@@ -338,6 +338,38 @@ async function runSpawnRow({ daemon, requestedBackend, body, budgetUsd, env, wor
   };
 }
 
+async function runRejectedHardBudgetRow({ daemon, requestedBackend, body, budgetUsd, env, workdir }) {
+  const classified = assertNoSilentBackendOverride({ requestedBackend, budgetUsd }, env);
+  await seedProjectBudget(daemon, 'port-daddy');
+  const res = await daemon.request('/spawn', {
+    method: 'POST',
+    body: {
+      backend: requestedBackend,
+      identity: `port-daddy:smoke:${requestedBackend.replace(/[^a-z0-9]+/gi, '-')}-hard-budget-rejection`,
+      task: 'This task must not launch because the provider cannot enforce the requested hard ceiling.',
+      budgetUsd,
+      timeout: 60000,
+      workdir,
+      ...body,
+    },
+    timeout: 15000,
+  });
+  if (
+    res.data?.success !== false ||
+    res.data?.status !== 'failed' ||
+    !String(res.data?.error || '').includes('cannot enforce budgetUsd as a provider-native hard ceiling')
+  ) {
+    throw new Error(
+      `${requestedBackend} did not fail closed for an unsupported hard budget: status=${res.status} body=${res.text}`,
+    );
+  }
+  return {
+    ...classified,
+    status: 'rejected',
+    note: 'provider has no native hard-budget ceiling',
+  };
+}
+
 async function runCiSafeSmoke() {
   const tmp = mkdtempSync(join(tmpdir(), 'pd-backend-transcript-smoke-'));
   const spawnWorktree = createScratchSpawnWorktree(tmp);
@@ -367,7 +399,7 @@ async function runCiSafeSmoke() {
         env,
         workdir: spawnWorktree.workdir,
       }),
-      await runSpawnRow({
+      await runRejectedHardBudgetRow({
         daemon,
         requestedBackend: 'cli:agy',
         budgetUsd: 0.01,
@@ -375,7 +407,7 @@ async function runCiSafeSmoke() {
         env,
         workdir: spawnWorktree.workdir,
       }),
-      await runSpawnRow({
+      await runRejectedHardBudgetRow({
         daemon,
         requestedBackend: 'openai',
         budgetUsd: 0.01,

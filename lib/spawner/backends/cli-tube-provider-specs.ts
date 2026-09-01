@@ -10,6 +10,8 @@ export interface CliTubeBuildArgsInput {
   codexConfig?: string[];
   timeoutMs?: number;
   resumeSessionId?: string;
+  /** Provider-native dollar ceiling. Unsupported providers reject it. */
+  hardBudgetUsd?: number;
 }
 
 export interface CliTubeBuildArgsResult {
@@ -46,6 +48,8 @@ interface CliTubeProviderSpecBase<TTool extends string = string> {
   stripEnvKeys?: readonly string[];
   stalePathOverrideFallback?: 'default-command';
   outputCapture?: 'last-message-file';
+  /** CLI flag that enforces a dollar ceiling inside the provider process. */
+  hardBudgetFlag?: string;
 }
 
 type EmptySuccessPolicy =
@@ -117,6 +121,7 @@ export const CLI_TUBE_PROVIDER_SPECS = defineCliTubeProviderRegistry({
     },
     stripEnvKeys: ['ANTHROPIC_API_KEY'],
     stalePathOverrideFallback: 'default-command',
+    hardBudgetFlag: '--max-budget-usd',
     emptySuccess: 'allow',
   },
   codex: {
@@ -199,6 +204,14 @@ function buildCliTubeArgsFromSpec(
   input: CliTubeBuildArgsInput,
 ): CliTubeBuildArgsResult {
   const resumeSessionId = normalizeResumeSessionId(spec.id, input.resumeSessionId);
+  const hardBudgetUsd = typeof input.hardBudgetUsd === 'number'
+    && Number.isFinite(input.hardBudgetUsd)
+    && input.hardBudgetUsd > 0
+    ? input.hardBudgetUsd
+    : null;
+  if (hardBudgetUsd !== null && !spec.hardBudgetFlag) {
+    throw new Error(`${spec.id} does not expose a provider-native dollar budget ceiling`);
+  }
   switch (spec.argStyle.kind) {
     case 'claude-stream-json': {
       const args = resumeSessionId
@@ -206,6 +219,9 @@ function buildCliTubeArgsFromSpec(
         : ['-p', '--output-format', 'stream-json', '--verbose'];
       pushModelArg(args, spec, input.model);
       if (input.permissionMode) args.push('--permission-mode', input.permissionMode);
+      if (hardBudgetUsd !== null && spec.hardBudgetFlag) {
+        args.push(spec.hardBudgetFlag, String(hardBudgetUsd));
+      }
       args.push(input.prompt);
       return { args, stdin: null };
     }

@@ -137,6 +137,8 @@ export interface CliTubeOptions {
    * (`--model` for claude-code, codex, agy, and other compatible CLIs).
    */
   model?: string;
+  /** Provider-native dollar ceiling; rejected when this CLI cannot enforce one. */
+  hardBudgetUsd?: number;
   /**
    * Raw Codex CLI config overrides, forwarded as repeated `-c key=value`
    * arguments. Kept Codex-specific so other CLI backends cannot accidentally
@@ -245,6 +247,7 @@ export function buildArgs(
   codexConfig?: string[],
   timeoutMs?: number,
   resumeSessionId?: string,
+  hardBudgetUsd?: number,
 ): { args: string[]; stdin: string | null } {
   return buildCliTubeArgs(cli, {
     prompt,
@@ -254,6 +257,7 @@ export function buildArgs(
     codexConfig,
     timeoutMs,
     resumeSessionId,
+    hardBudgetUsd,
   });
 }
 
@@ -374,6 +378,7 @@ export async function spawnViaCliTube(
     codexConfig: opts.codexConfig,
     timeoutMs: deadlineMs,
     resumeSessionId: opts.resumeSessionId,
+    hardBudgetUsd: opts.hardBudgetUsd,
   });
 
   const startedAt = Date.now();

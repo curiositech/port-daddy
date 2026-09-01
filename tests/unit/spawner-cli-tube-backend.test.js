@@ -174,6 +174,38 @@ describe('buildArgs', () => {
     expect(args[idx + 1]).toBe('sonnet');
   });
 
+  test('claude-code forwards a positive budget as the provider-native hard ceiling', () => {
+    const { args } = buildArgs(
+      'claude-code',
+      'stay inside the cap',
+      undefined,
+      'sonnet',
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      0.75,
+    );
+    const idx = args.indexOf('--max-budget-usd');
+    expect(idx).toBeGreaterThan(-1);
+    expect(args[idx + 1]).toBe('0.75');
+    expect(args.at(-1)).toBe('stay inside the cap');
+  });
+
+  test('a dollar ceiling is rejected for a CLI that cannot enforce it natively', () => {
+    expect(() => buildArgs(
+      'codex',
+      'do not pretend observation is enforcement',
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      1,
+    )).toThrow(/does not expose a provider-native dollar budget ceiling/);
+  });
+
   // Regression: DEFAULT_MODELS (lib/spawner.ts) hands out the sentinel
   // "claude-cli" / "codex-cli" ("the CLI manages its own model"). Passing that
   // straight to `--model` made the CLI reject the spawn ("model may not

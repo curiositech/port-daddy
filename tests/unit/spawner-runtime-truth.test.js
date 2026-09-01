@@ -313,7 +313,6 @@ describe('spawner effective runtime truth', () => {
           model: 'gpt-5-mini',
           task: 'route says hello',
           identity: 'port-daddy:test:route-runtime-truth',
-          budgetUsd: 0.75,
         },
       });
       expect(spawnRes.statusCode).toBe(200);
@@ -346,6 +345,72 @@ describe('spawner effective runtime truth', () => {
         effective_model: 'codex-cli',
         backend_override_source: 'env',
       }));
+    } finally {
+      await app.close();
+    }
+  });
+
+  test('POST /spawn fails closed before an override selects a backend without native budget enforcement', async () => {
+    process.env.PD_USE_CLI_BACKEND = 'codex';
+    mockAssessSpawnPreflight.mockResolvedValue({
+      launchReady: true,
+      blockedReasons: [],
+      warnings: ['PD_USE_CLI_BACKEND forces cli:codex'],
+      attempts: [{
+        attempt: 1,
+        backend: 'cli:codex',
+        model: 'codex-cli',
+        modelTier: null,
+        backendSource: 'env',
+        modelSource: 'unset',
+        warnings: ['PD_USE_CLI_BACKEND forces cli:codex'],
+        readinessStatus: 'manual_check',
+        readinessLaunchableUnverified: true,
+        readinessSummary: 'Codex CLI binary found',
+        readinessNextStep: 'Run codex once interactively.',
+      }],
+      projectName: 'port-daddy',
+      budget: null,
+      localExecutionLikely: true,
+      localExecutionNote: 'Local CLI backends may need unsandboxed approval.',
+    });
+
+    const costTracker = makeCostTracker();
+    const spawner = createSpawner({
+      transcripts,
+      costTracker,
+      enforceTelemetryPolicy: true,
+      enforceTranscriptPolicy: true,
+    });
+    const app = await buildRouteApp({ transcripts, spawner, costTracker });
+
+    try {
+      const spawnRes = await app.inject({
+        method: 'POST',
+        url: '/spawn',
+        payload: {
+          backend: 'openai',
+          model: 'gpt-5-mini',
+          task: 'do not launch without a hard ceiling',
+          identity: 'port-daddy:test:route-budget-runtime-truth',
+          budgetUsd: 0.75,
+        },
+      });
+
+      expect(spawnRes.statusCode).toBe(200);
+      expect(spawnRes.json()).toEqual(expect.objectContaining({
+        success: false,
+        backend: 'cli:codex',
+        requestedBackend: 'openai',
+        effectiveBackend: 'cli:codex',
+        requestedModel: 'gpt-5-mini',
+        effectiveModel: 'codex-cli',
+        backendOverrideSource: 'env',
+        budgetEnforcement: 'unsupported',
+        error: expect.stringMatching(/post-run telemetry is observation, not enforcement/),
+      }));
+      expect(mockSpawnViaCliTube).not.toHaveBeenCalled();
+      expect(transcripts.listTranscripts()).toHaveLength(0);
     } finally {
       await app.close();
     }
