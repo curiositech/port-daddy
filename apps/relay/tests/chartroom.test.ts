@@ -28,6 +28,7 @@ import {
   type ChartroomRepositoryIdentity,
   type ChartroomScope,
 } from '../src/chartroom.js';
+import { canonicalJson } from '../src/envelope.js';
 import { hashHex, pubKeyFromPrivKey, signEd25519 } from '../src/crypto.js';
 import type { Env } from '../src/types.js';
 
@@ -253,6 +254,7 @@ describe('Chartroom repository capabilities', () => {
       }),
       env,
       async () => verified,
+      async () => ({ accountId: ACCOUNT_ID }),
     );
     expect(response.status).toBe(201);
     const body = await responseJson(response);
@@ -269,7 +271,7 @@ describe('Chartroom repository capabilities', () => {
     expect(row.max_events).toBe(12);
   });
 
-  it('fails closed without same-origin recent repository step-up', async () => {
+  it('fails closed before authorization on a cross-origin capability request', async () => {
     const { db, sql } = makeRealD1();
     seedAccountAndHarbor(sql, Math.floor(Date.now() / 1_000));
     sql.exec('DELETE FROM repo_settings');
@@ -285,6 +287,54 @@ describe('Chartroom repository capabilities', () => {
     );
     expect(response.status).toBe(403);
     expect((await responseJson(response)).code).toBe('CROSS_ORIGIN');
+  });
+
+  it('fails closed before authorization when PUBLIC_BASE_URL is malformed', async () => {
+    const { db, sql } = makeRealD1();
+    seedAccountAndHarbor(sql, Math.floor(Date.now() / 1_000));
+    const env = makeEnv(db);
+    env.PUBLIC_BASE_URL = 'not-a-url';
+    const response = await handleChartroomCapabilityPost(
+      new Request(`${BASE}/v1/chartroom/capabilities`, {
+        method: 'POST',
+        headers: { Origin: BASE, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          repository: SCOPE.repository,
+          harborId: HARBOR_ID,
+          resourceId: SCOPE.resourceId,
+          permission: 'read',
+        }),
+      }),
+      env,
+      async () => { throw new Error('must not reach verifier'); },
+      async () => { throw new Error('must not reach account authorization'); },
+    );
+    expect(response.status).toBe(403);
+    expect((await responseJson(response)).code).toBe('CROSS_ORIGIN');
+  });
+
+  it('refuses a device bearer token as capability-minting browser authority', async () => {
+    const { db, sql } = makeRealD1();
+    seedAccountAndHarbor(sql, Math.floor(Date.now() / 1_000));
+    const env = makeEnv(db);
+    const response = await handleChartroomCapabilityPost(
+      new Request(`${BASE}/v1/chartroom/capabilities`, {
+        method: 'POST',
+        headers: { Origin: BASE, Authorization: `Bearer ${ACCOUNT_TOKEN}` },
+        body: JSON.stringify({
+          repository: SCOPE.repository,
+          harborId: HARBOR_ID,
+          resourceId: SCOPE.resourceId,
+          permission: 'write',
+        }),
+      }),
+      env,
+      async () => {
+        throw new Error('repository verification must not run before browser authorization');
+      },
+    );
+    expect(response.status).toBe(401);
+    expect((await responseJson(response)).code).toBe('BROWSER_SESSION_REQUIRED');
   });
 
   it('allows harbor members to read but only harbor owners to mint write authority', async () => {
@@ -304,16 +354,17 @@ describe('Chartroom repository capabilities', () => {
         resourceId: SCOPE.resourceId, permission,
       }),
     });
-    const write = await handleChartroomCapabilityPost(request('write'), env, verifier);
+    const account = async () => ({ accountId: ACCOUNT_ID });
+    const write = await handleChartroomCapabilityPost(request('write'), env, verifier, account);
     expect(write.status).toBe(403);
     expect((await responseJson(write)).code).toBe('HARBOR_OWNER_REQUIRED');
-    const read = await handleChartroomCapabilityPost(request('read'), env, verifier);
+    const read = await handleChartroomCapabilityPost(request('read'), env, verifier, account);
     expect(read.status).toBe(201);
   });
 });
 
 describe('Chartroom signed event kernel', () => {
-  it('atomically appends, projects, and returns an exact receipt on ambiguous retry', async () => {
+  it('atomically appends, projects, and recovers the exact receipt across key and epoch rotation', async () => {
     const { env, sql } = makeFixture();
     const command = await signedCommand({
       type: 'node.upsert',
@@ -326,16 +377,32 @@ describe('Chartroom signed event kernel', () => {
       payload: { source: 'GRAND-HARBOR-PLAN.md' },
     }, 0);
     const first = await applyChartroomCommand(env, command, hashHex(CAPABILITY), NOW);
+    env.RELAY_ED25519_PRIVATE_KEY_HEX = '5'.repeat(64);
+    sql.exec(`UPDATE harbors SET authority_epoch = 2 WHERE id = '${HARBOR_ID}'`);
     const retry = await applyChartroomCommand(env, command, hashHex(CAPABILITY), NOW + 1);
     expect(first.duplicate).toBe(false);
     expect(retry.duplicate).toBe(true);
     expect(retry.receipt).toEqual(first.receipt);
+    expect(canonicalJson(retry.receipt)).toBe(canonicalJson(first.receipt));
     expect(first.receipt.planVersion).toBe(1);
     expect(first.receipt.scope).toEqual(SCOPE);
-    expect(first.receipt.projectionAcceptanceDigest).toMatch(/^[0-9a-f]{64}$/);
+    expect(first.receipt.projectionInputDigest).toMatch(/^[0-9a-f]{64}$/);
     expect(sql.prepare('SELECT COUNT(*) AS n FROM chartroom_events').get().n).toBe(1);
+    expect(sql.prepare('SELECT COUNT(*) AS n FROM chartroom_acceptance_receipts').get().n).toBe(1);
     expect(sql.prepare('SELECT title FROM chartroom_nodes WHERE node_id = ?').get('grand-harbor-plan').title).toBe('Grand Harbor Plan');
     expect(sql.prepare('SELECT plan_version, event_count FROM chartroom_streams').get()).toMatchObject({ plan_version: 1, event_count: 1 });
+    const alteredSignature: ChartroomCommand = {
+      ...command,
+      issuer: { ...command.issuer, signature: 'f'.repeat(128) },
+    };
+    await expect(
+      applyChartroomCommand(env, alteredSignature, hashHex(CAPABILITY), NOW + 2),
+    ).rejects.toMatchObject({ code: 'FORGED_INTENT' });
+    sql.exec('DROP TRIGGER chartroom_acceptance_receipts_delete_guard');
+    sql.exec('DELETE FROM chartroom_acceptance_receipts');
+    await expect(
+      applyChartroomCommand(env, command, hashHex(CAPABILITY), NOW + 3),
+    ).rejects.toMatchObject({ code: 'RECEIPT_READBACK_FAILED' });
   });
 
   it('refuses forged, expired, replayed, stale-version, and stale-epoch intents', async () => {
@@ -381,6 +448,25 @@ describe('Chartroom signed event kernel', () => {
     }, 1, { idempotencyKey: 'stale-epoch-12345', intentNonce: 'stale-epoch-nonce-123456' });
     await expect(applyChartroomCommand(env, staleEpoch, hashHex(CAPABILITY), NOW)).rejects.toMatchObject({ code: 'STALE_AUTHORITY_EPOCH' });
     expect(sql.prepare('SELECT COUNT(*) AS n FROM chartroom_events').get().n).toBe(1);
+  });
+
+  it('domain-separates Chartroom signatures from legacy unsigned JSON shapes', async () => {
+    const { env } = makeFixture();
+    const command = await signedCommand({
+      type: 'node.upsert', nodeId: 'domain', nodeKind: 'roadmap-item',
+      title: 'Domain separated', summary: '', status: 'proposed', payload: {},
+    }, 0);
+    const legacyUnsigned = {
+      ...command,
+      issuer: { harborId: command.issuer.harborId, authorityEpoch: command.issuer.authorityEpoch },
+    };
+    command.issuer.signature = await signEd25519(
+      HARBOR_PRIVATE,
+      hashHex(canonicalJson(legacyUnsigned)),
+    );
+    await expect(
+      applyChartroomCommand(env, command, hashHex(CAPABILITY), NOW),
+    ).rejects.toMatchObject({ code: 'FORGED_INTENT' });
   });
 
   it('keeps account/repository/harbor/resource isolation in capability reads', async () => {
@@ -433,6 +519,41 @@ describe('Chartroom signed event kernel', () => {
         summary: `Bearer ${'x'.repeat(32)}`, status: 'proposed', payload: {},
       },
     })).toThrowError(expect.objectContaining({ code: 'SECRET_BEARING_TEXT' }));
+    expect(() => validateChartroomCommand({
+      ...base,
+      event: {
+        type: 'node.upsert', nodeId: 'n1', nodeKind: 'plan', title: 'Private path',
+        summary: 'Captured from /Users/operator/secret-project/plan.md',
+        status: 'proposed', payload: {},
+      },
+    })).toThrowError(expect.objectContaining({ code: 'LOCAL_PRIVATE_PATH' }));
+    let tooDeep: Record<string, unknown> = {};
+    for (let depth = 0; depth < 22; depth += 1) tooDeep = { nested: tooDeep };
+    expect(() => validateChartroomCommand({
+      ...base,
+      event: {
+        type: 'node.upsert', nodeId: 'n1', nodeKind: 'plan', title: 'Too deep',
+        summary: '', status: 'proposed', payload: tooDeep,
+      },
+    })).toThrowError(expect.objectContaining({ code: 'BAD_EVENT' }));
+  });
+
+  it('enforces append-only event rows at the storage boundary', async () => {
+    const { env, sql } = makeFixture();
+    const command = await signedCommand({
+      type: 'node.upsert', nodeId: 'immutable', nodeKind: 'roadmap-item',
+      title: 'Immutable event', summary: '', status: 'proposed', payload: {},
+    }, 0);
+    await applyChartroomCommand(env, command, hashHex(CAPABILITY), NOW);
+    expect(() => sql.exec("UPDATE chartroom_events SET actor_id = 'tampered'"))
+      .toThrow(/CHARTROOM_EVENTS_APPEND_ONLY/);
+    expect(() => sql.exec('DELETE FROM chartroom_events'))
+      .toThrow(/CHARTROOM_EVENTS_APPEND_ONLY/);
+    expect(() => sql.exec("UPDATE chartroom_acceptance_receipts SET receipt_hash = 'tampered'"))
+      .toThrow(/CHARTROOM_RECEIPTS_APPEND_ONLY/);
+    expect(() => sql.exec('DELETE FROM chartroom_acceptance_receipts'))
+      .toThrow(/CHARTROOM_RECEIPTS_APPEND_ONLY/);
+    expect(sql.prepare('SELECT COUNT(*) AS n FROM chartroom_events').get().n).toBe(1);
   });
 
   it('records tombstones and supersession instead of deleting projection history', async () => {
@@ -527,6 +648,24 @@ describe('Chartroom HTTP readback and export', () => {
     expect(body.chain.valid).toBe(true);
     expect(body.receipt.signature).toMatch(/^[0-9a-f]{128}$/);
 
+    const projection = await handleChartroomProjectionGet(
+      new Request(`${BASE}/v1/chartroom/projection?${scopeQuery()}&limit=1`, {
+        headers: capabilityHeaders(),
+      }),
+      env,
+    );
+    expect(projection.status).toBe(200);
+    const projectionBody = await responseJson(projection);
+    expect(projectionBody.projection.nodes).toHaveLength(1);
+    expect(projectionBody.projectionMeta.nodes).toEqual({ returned: 1, truncated: true });
+    expect(projectionBody.projectionComplete).toBe(false);
+    expect(projectionBody.cost).toMatchObject({ returnedRows: 1, fetchedRows: 2 });
+    expect(projectionBody.projectionDigest).toBe(hashHex(canonicalJson({
+      projection: projectionBody.projection,
+      projectionMeta: projectionBody.projectionMeta,
+    })));
+
+    sql.exec('DROP TRIGGER chartroom_events_update_guard');
     sql.exec("UPDATE chartroom_events SET payload_json = '{\"tampered\":true}' WHERE plan_version = 2");
     const broken = await handleChartroomExportGet(
       new Request(`${BASE}/v1/chartroom/export?${scopeQuery()}`, { headers: capabilityHeaders() }),

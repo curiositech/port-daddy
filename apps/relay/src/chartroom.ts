@@ -18,7 +18,11 @@ import {
   verifyEd25519,
 } from './crypto.js';
 import { canonicalJson } from './envelope.js';
-import { resolveUserFromRequest } from './device-flow.js';
+import {
+  resolveSession,
+  userCanReadRepo,
+  userIsRepoAdmin,
+} from './auth-github.js';
 import { getInstallationTokenCached, getRepoInstallationId } from './github-app.js';
 
 export const CHARTROOM_EVENT_TYPES = [
@@ -154,9 +158,14 @@ export interface ChartroomAcceptanceReceipt {
   requestHash: string;
   acceptedAt: number;
   readbackDigest: string;
-  projectionAcceptanceDigest: string;
+  projectionInputDigest: string;
   relayPubKey: string;
   signature: string;
+}
+
+interface ChartroomAcceptanceReceiptRow {
+  receipt_json: string;
+  receipt_hash: string;
 }
 
 export interface ChartroomRepositoryIdentity {
@@ -166,10 +175,21 @@ export interface ChartroomRepositoryIdentity {
   installationId: string;
 }
 
+export interface ChartroomAccountIdentity {
+  accountId: string;
+}
+
 export type ChartroomRepositoryVerifier = (
   env: Env,
   repository: string,
 ) => Promise<ChartroomRepositoryIdentity>;
+
+export type ChartroomAccountAuthorizer = (
+  request: Request,
+  env: Env,
+  repository: string,
+  permission: ChartroomPermission,
+) => Promise<ChartroomAccountIdentity>;
 
 const MAX_REQUEST_BYTES = 128 * 1024;
 const MAX_PAYLOAD_BYTES = 64 * 1024;
@@ -179,14 +199,15 @@ const MAX_IDENTIFIER = 200;
 const MAX_EXPORT_ROWS = 250;
 const MAX_PROJECTION_ROWS = 100;
 const CAPABILITY_MAX_TTL_SECONDS = 10 * 60;
-const REPOSITORY_STEP_UP_MAX_AGE_SECONDS = 5 * 60;
 const INTENT_MAX_TTL_SECONDS = 5 * 60;
 const CLOCK_SKEW_SECONDS = 30;
+const CHARTROOM_COMMAND_SCHEMA = 'port-daddy.chartroom-command.v1';
 const HASH_RE = /^[0-9a-f]{64}$/;
 const SIG_RE = /^[0-9a-f]{128}$/;
 const IDENTIFIER_RE = /^[A-Za-z0-9][A-Za-z0-9._:@/+\-]*$/;
 const REPOSITORY_RE = /^[a-z0-9](?:[a-z0-9._-]{0,98}[a-z0-9])?\/[a-z0-9](?:[a-z0-9._-]{0,98}[a-z0-9])?$/;
 const LIKELY_CREDENTIAL_RE = /(?:gh[pousr]_[A-Za-z0-9_]{20,}|sk-[A-Za-z0-9_-]{20,}|AKIA[0-9A-Z]{16}|-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----|Bearer\s+[A-Za-z0-9._~+/=-]{16,})/;
+const LOCAL_PRIVATE_PATH_RE = /(?:\bfile:\/\/|(?:^|[\s"'(])\/(?:Users|home|private|tmp|var\/folders)\/|(?:^|[\s"'(])[A-Za-z]:\\(?:Users|Documents and Settings)\\)/i;
 const SECRET_KEYS = new Set([
   'authorization', 'cookie', 'password', 'passwd', 'secret', 'token',
   'apikey', 'privatekey', 'clientsecret', 'accesstoken', 'refreshtoken',
@@ -309,13 +330,16 @@ function safeInteger(value: unknown, allowZero = false): number | null {
  * @param depth - Current recursion depth, bounded against pathological input.
  * @returns True when a known credential field is present.
  */
-function containsStructuredSecret(value: unknown, depth = 0): boolean {
-  if (typeof value === 'string') return LIKELY_CREDENTIAL_RE.test(value);
-  if (depth > 20 || value === null || typeof value !== 'object') return false;
-  if (Array.isArray(value)) return value.some((item) => containsStructuredSecret(item, depth + 1));
+function containsPrivateMaterial(value: unknown, depth = 0): boolean {
+  if (typeof value === 'string') {
+    return LIKELY_CREDENTIAL_RE.test(value) || LOCAL_PRIVATE_PATH_RE.test(value);
+  }
+  if (depth > 20) return true;
+  if (value === null || typeof value !== 'object') return false;
+  if (Array.isArray(value)) return value.some((item) => containsPrivateMaterial(item, depth + 1));
   for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
     const normalized = key.toLowerCase().replace(/[^a-z]/g, '');
-    if (SECRET_KEYS.has(normalized) || containsStructuredSecret(child, depth + 1)) return true;
+    if (SECRET_KEYS.has(normalized) || containsPrivateMaterial(child, depth + 1)) return true;
   }
   return false;
 }
@@ -331,7 +355,7 @@ function containsStructuredSecret(value: unknown, depth = 0): boolean {
 function boundedObject(value: unknown, maxBytes = MAX_PAYLOAD_BYTES): Record<string, unknown> | null {
   const object = value === undefined ? {} : record(value);
   if (!object) return null;
-  if (containsStructuredSecret(object)) return null;
+  if (containsPrivateMaterial(object)) return null;
   try {
     return new TextEncoder().encode(canonicalJson(object)).byteLength <= maxBytes ? object : null;
   } catch {
@@ -487,6 +511,9 @@ function eventText(
   if (LIKELY_CREDENTIAL_RE.test(value)) {
     throw new ChartroomError(400, 'SECRET_BEARING_TEXT', `${event.type}.${key} resembles credential material`);
   }
+  if (LOCAL_PRIVATE_PATH_RE.test(value)) {
+    throw new ChartroomError(400, 'LOCAL_PRIVATE_PATH', `${event.type}.${key} contains a local-private path`);
+  }
   return value;
 }
 
@@ -638,12 +665,57 @@ export function validateChartroomCommand(value: unknown): ChartroomCommand {
  */
 function unsignedCommand(command: ChartroomCommand): Record<string, unknown> {
   return {
+    schema: CHARTROOM_COMMAND_SCHEMA,
+    purpose: 'chartroom.event.append',
     ...command,
     issuer: {
       harborId: command.issuer.harborId,
       authorityEpoch: command.issuer.authorityEpoch,
     },
   };
+}
+
+/**
+ * Resolve the account and live GitHub permission used to mint a capability.
+ * The security design requires a same-origin browser session carrying the
+ * user's GitHub OAuth grant; a long-lived `pdu_` device token is intentionally
+ * insufficient. Read grants require repository readability and write grants
+ * require GitHub admin authority before the App identity is checked separately.
+ *
+ * @param request - Same-origin browser request carrying the session cookie.
+ * @param env - Relay auth and GitHub bindings.
+ * @param repository - Canonical owner/name repository.
+ * @param permission - Requested Chartroom permission.
+ * @returns The authenticated Relay account id.
+ */
+export async function authorizeChartroomAccount(
+  request: Request,
+  env: Env,
+  repository: string,
+  permission: ChartroomPermission,
+): Promise<ChartroomAccountIdentity> {
+  const session = await resolveSession(request, env);
+  if (!session?.ghToken) {
+    throw new ChartroomError(
+      401,
+      'BROWSER_SESSION_REQUIRED',
+      'capability minting requires a browser session with a live GitHub authorization',
+    );
+  }
+  const [owner, name] = repository.split('/') as [string, string];
+  const allowed = permission === 'write'
+    ? await userIsRepoAdmin(env, session, owner, name)
+    : await userCanReadRepo(env, session, owner, name);
+  if (!allowed) {
+    throw new ChartroomError(
+      403,
+      permission === 'write' ? 'REPOSITORY_ADMIN_REQUIRED' : 'REPOSITORY_ACCESS_REQUIRED',
+      permission === 'write'
+        ? 'GitHub repository admin permission is required to mint write authority'
+        : 'GitHub repository read permission is required to mint read authority',
+    );
+  }
+  return { accountId: session.user.id };
 }
 
 /**
@@ -687,13 +759,18 @@ function scopeBindings(scope: ChartroomScope): string[] {
  */
 function isChartroomSameOrigin(request: Request, env: Env): boolean {
   const origin = request.headers.get('origin');
-  if (!origin) return false;
-  const allowed = new Set<string>();
-  allowed.add(new URL(request.url).origin);
-  if (env.PUBLIC_BASE_URL) {
-    try { allowed.add(new URL(env.PUBLIC_BASE_URL).origin); } catch { /* fail closed below */ }
+  if (!origin || !env.PUBLIC_BASE_URL) return false;
+  try {
+    const publicUrl = new URL(env.PUBLIC_BASE_URL);
+    const requestUrl = new URL(request.url);
+    const securePublicOrigin = publicUrl.protocol === 'https:'
+      || (publicUrl.protocol === 'http:' && ['localhost', '127.0.0.1'].includes(publicUrl.hostname));
+    return securePublicOrigin
+      && origin === publicUrl.origin
+      && requestUrl.origin === publicUrl.origin;
+  } catch {
+    return false;
   }
-  return allowed.has(origin);
 }
 
 /**
@@ -817,19 +894,19 @@ async function requireCapability(
  * @param request - Same-origin authenticated mint request.
  * @param env - Worker bindings.
  * @param verifyRepository - Injectable live repository verifier for exact tests.
+ * @param authorizeAccount - Injectable browser/GitHub account authorization.
  * @returns 201 with a raw one-time-visible capability and verified scope.
  */
 export async function handleChartroomCapabilityPost(
   request: Request,
   env: Env,
   verifyRepository: ChartroomRepositoryVerifier = verifyChartroomRepository,
+  authorizeAccount: ChartroomAccountAuthorizer = authorizeChartroomAccount,
 ): Promise<Response> {
   try {
     if (!isChartroomSameOrigin(request, env)) {
       throw new ChartroomError(403, 'CROSS_ORIGIN', 'capability minting requires the Relay origin');
     }
-    const user = await resolveUserFromRequest(request, env);
-    if (!user) throw new ChartroomError(401, 'UNAUTHENTICATED', 'an account session or device token is required');
     const body = record(await readBoundedJson(request));
     const repository = repositoryName(body?.repository);
     const harborId = identifier(body?.harborId);
@@ -843,30 +920,25 @@ export async function handleChartroomCapabilityPost(
     if (!ttlSeconds || ttlSeconds > CAPABILITY_MAX_TTL_SECONDS || !maxEvents || maxEvents > 10_000) {
       throw new ChartroomError(400, 'BAD_CAPABILITY_BOUNDS', 'capability ttl is at most ten minutes and maxEvents at most 10000');
     }
+    const account = await authorizeAccount(
+      request,
+      env,
+      repository,
+      permission as ChartroomPermission,
+    );
     const now = Math.floor(Date.now() / 1_000);
-    const repoStepUp = await env.DB.prepare(
-      `SELECT updated_at FROM repo_settings
-        WHERE user_id = ? AND repo_full_name = ? AND updated_at >= ?`,
-    ).bind(user.id, repository, now - REPOSITORY_STEP_UP_MAX_AGE_SECONDS).first<{ updated_at: number }>();
-    if (!repoStepUp) {
-      throw new ChartroomError(
-        403,
-        'REPOSITORY_STEP_UP_REQUIRED',
-        'refresh this repository in the account UI before minting a Chartroom capability',
-      );
-    }
     const harbor = await env.DB.prepare(
       `SELECT h.id, h.pubkey, h.authority_epoch, m.role
          FROM harbors h JOIN harbor_memberships m ON m.harbor_id = h.id
         WHERE h.id = ? AND m.member_kind = 'user' AND m.member_id = ?`,
-    ).bind(harborId, user.id).first<HarborAuthorityRow>();
+    ).bind(harborId, account.accountId).first<HarborAuthorityRow>();
     if (!harbor) throw new ChartroomError(404, 'HARBOR_NOT_FOUND', 'harbor is absent or the account is not a member');
     if (permission === 'write' && harbor.role !== 'owner') {
       throw new ChartroomError(403, 'HARBOR_OWNER_REQUIRED', 'only a harbor owner may mint a Chartroom write capability');
     }
     const verified = await verifyRepository(env, repository);
     const scope: ChartroomScope = {
-      accountId: user.id,
+      accountId: account.accountId,
       teamId: verified.teamId,
       repositoryId: verified.repositoryId,
       repository: verified.repository,
@@ -886,7 +958,7 @@ export async function handleChartroomCapabilityPost(
       hashHex(rawToken),
       permission,
       verified.installationId,
-      user.id,
+      account.accountId,
       now,
       expiresAt,
       maxEvents,
@@ -1292,7 +1364,7 @@ async function verifyIssuer(
  * @param event - Immutable event read back from D1.
  * @returns Signed acceptance receipt.
  */
-async function acceptanceReceipt(
+async function createAcceptanceReceipt(
   env: Env,
   event: ChartroomEventRow,
 ): Promise<ChartroomAcceptanceReceipt> {
@@ -1306,7 +1378,7 @@ async function acceptanceReceipt(
   };
   const relayPubKey = pubKeyFromPrivKey(env.RELAY_ED25519_PRIVATE_KEY_HEX);
   const readbackDigest = hashHex(canonicalJson(event));
-  const projectionAcceptanceDigest = hashHex(canonicalJson({
+  const projectionInputDigest = hashHex(canonicalJson({
     eventType: event.event_type,
     planVersion: event.plan_version,
     eventHash: event.event_hash,
@@ -1324,7 +1396,7 @@ async function acceptanceReceipt(
     requestHash: event.request_hash,
     acceptedAt: event.accepted_at,
     readbackDigest,
-    projectionAcceptanceDigest,
+    projectionInputDigest,
     relayPubKey,
   };
   return {
@@ -1334,6 +1406,76 @@ async function acceptanceReceipt(
       hashHex(canonicalJson(unsigned)),
     ),
   };
+}
+
+/**
+ * Read and verify the exact acceptance receipt stored atomically beside an
+ * event. The design verifies with the historical Relay public key carried by
+ * the receipt, so key rotation cannot change or strand an accepted retry.
+ *
+ * @param env - Worker bindings.
+ * @param event - Immutable event whose receipt is required.
+ * @returns The original Relay-signed receipt bytes parsed as JSON.
+ */
+async function readAcceptanceReceipt(
+  env: Env,
+  event: ChartroomEventRow,
+): Promise<ChartroomAcceptanceReceipt> {
+  const row = await env.DB.prepare(
+    `SELECT receipt_json, receipt_hash FROM chartroom_acceptance_receipts
+      WHERE account_id = ? AND team_id = ? AND repository_id = ? AND repo_full_name = ?
+        AND harbor_id = ? AND resource_id = ? AND event_id = ?`,
+  ).bind(
+    event.account_id, event.team_id, event.repository_id, event.repo_full_name,
+    event.harbor_id, event.resource_id, event.event_id,
+  ).first<ChartroomAcceptanceReceiptRow>();
+  if (!row || hashHex(row.receipt_json) !== row.receipt_hash) {
+    throw new ChartroomError(500, 'RECEIPT_READBACK_FAILED', 'stored acceptance receipt is absent or has a mismatched digest');
+  }
+  let receipt: ChartroomAcceptanceReceipt;
+  try {
+    const parsed = JSON.parse(row.receipt_json) as ChartroomAcceptanceReceipt;
+    if (canonicalJson(parsed) !== row.receipt_json) throw new Error('receipt is not canonical JSON');
+    receipt = parsed;
+  } catch {
+    throw new ChartroomError(500, 'RECEIPT_READBACK_FAILED', 'stored acceptance receipt is not canonical JSON');
+  }
+  const expectedScope: ChartroomScope = {
+    accountId: event.account_id,
+    teamId: event.team_id,
+    repositoryId: event.repository_id,
+    repository: event.repo_full_name,
+    harborId: event.harbor_id,
+    resourceId: event.resource_id,
+  };
+  if (
+    receipt.schema !== 'port-daddy.chartroom-acceptance.v1'
+    || canonicalJson(receipt.scope) !== canonicalJson(expectedScope)
+    || receipt.eventId !== event.event_id
+    || receipt.eventType !== event.event_type
+    || receipt.planVersion !== event.plan_version
+    || receipt.authorityEpoch !== event.authority_epoch
+    || receipt.previousHash !== event.previous_hash
+    || receipt.eventHash !== event.event_hash
+    || receipt.requestHash !== event.request_hash
+    || receipt.acceptedAt !== event.accepted_at
+    || receipt.readbackDigest !== hashHex(canonicalJson(event))
+    || receipt.projectionInputDigest !== hashHex(canonicalJson({
+      eventType: event.event_type,
+      planVersion: event.plan_version,
+      eventHash: event.event_hash,
+      payload: JSON.parse(event.payload_json) as unknown,
+    }))
+    || !HASH_RE.test(receipt.relayPubKey)
+    || !SIG_RE.test(receipt.signature)
+  ) {
+    throw new ChartroomError(500, 'RECEIPT_READBACK_FAILED', 'stored acceptance receipt does not match its immutable event');
+  }
+  const { signature, ...unsigned } = receipt;
+  if (!await verifyEd25519(receipt.relayPubKey, hashHex(canonicalJson(unsigned)), signature)) {
+    throw new ChartroomError(500, 'RECEIPT_SIGNATURE_INVALID', 'stored acceptance receipt signature does not verify');
+  }
+  return receipt;
 }
 
 /**
@@ -1357,14 +1499,20 @@ export async function applyChartroomCommand(
     throw new ChartroomError(500, 'BAD_RELAY_INPUT', 'Relay capability reference or clock is invalid');
   }
   const requestHash = chartroomCommandHash(command);
-  const harbor = await verifyIssuer(env, command, requestHash);
   const replay = await readEventByIdempotency(env, command.scope, command.idempotencyKey);
   if (replay) {
     if (replay.request_hash !== requestHash) {
       throw new ChartroomError(409, 'IDEMPOTENCY_KEY_REUSED', 'idempotency key already commits different content');
     }
-    return { receipt: await acceptanceReceipt(env, replay), duplicate: true };
+    if (
+      replay.issuer_signature !== command.issuer.signature
+      || !await verifyEd25519(replay.issuer_pubkey, requestHash, command.issuer.signature)
+    ) {
+      throw new ChartroomError(403, 'FORGED_INTENT', 'retry does not carry the original verified harbor signature');
+    }
+    return { receipt: await readAcceptanceReceipt(env, replay), duplicate: true };
   }
+  const harbor = await verifyIssuer(env, command, requestHash);
   const nonceReplay = await readEventByNonce(env, command.scope, command.intentNonce);
   if (nonceReplay) throw new ChartroomError(409, 'INTENT_REPLAYED', 'intent nonce was already consumed by another event');
   if (command.issuedAt > acceptedAt + CLOCK_SKEW_SECONDS || command.expiresAt < acceptedAt) {
@@ -1411,6 +1559,8 @@ export async function applyChartroomCommand(
     accepted_at: acceptedAt,
   };
   const event: ChartroomEventRow = { ...unsigned, event_hash: computeChartroomEventHash(unsigned) };
+  const receipt = await createAcceptanceReceipt(env, event);
+  const receiptJson = canonicalJson(receipt);
   const projections = await projectionStatements(env, command, planVersion, acceptedAt);
   const s = scopeBindings(command.scope);
   const statements: D1PreparedStatement[] = [
@@ -1435,6 +1585,14 @@ export async function applyChartroomCommand(
       event.actor_kind, event.actor_id, event.session_id, event.agent_node_id,
       event.issuer_pubkey, event.issuer_signature, event.payload_json, event.accepted_at,
     ),
+    env.DB.prepare(
+      `INSERT INTO chartroom_acceptance_receipts
+        (account_id, team_id, repository_id, repo_full_name, harbor_id, resource_id,
+         event_id, request_hash, receipt_json, receipt_hash, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).bind(
+      ...s, event.event_id, event.request_hash, receiptJson, hashHex(receiptJson), acceptedAt,
+    ),
     ...projections,
     env.DB.prepare(
       `UPDATE chartroom_streams
@@ -1455,8 +1613,12 @@ export async function applyChartroomCommand(
     await env.DB.batch(statements);
   } catch (error) {
     const racedReplay = await readEventByIdempotency(env, command.scope, command.idempotencyKey);
-    if (racedReplay?.request_hash === requestHash) {
-      return { receipt: await acceptanceReceipt(env, racedReplay), duplicate: true };
+    if (
+      racedReplay?.request_hash === requestHash
+      && racedReplay.issuer_signature === command.issuer.signature
+      && await verifyEd25519(racedReplay.issuer_pubkey, requestHash, command.issuer.signature)
+    ) {
+      return { receipt: await readAcceptanceReceipt(env, racedReplay), duplicate: true };
     }
     const nonceRace = await readEventByNonce(env, command.scope, command.intentNonce);
     if (nonceRace) throw new ChartroomError(409, 'INTENT_REPLAYED', 'intent nonce was consumed concurrently');
@@ -1483,7 +1645,11 @@ export async function applyChartroomCommand(
   if (!readback || readback.event_hash !== event.event_hash) {
     throw new ChartroomError(500, 'READBACK_FAILED', 'event commit did not produce exact D1 readback');
   }
-  return { receipt: await acceptanceReceipt(env, readback), duplicate: false };
+  const readbackReceipt = await readAcceptanceReceipt(env, readback);
+  if (canonicalJson(readbackReceipt) !== receiptJson) {
+    throw new ChartroomError(500, 'RECEIPT_READBACK_FAILED', 'D1 did not preserve the exact atomic acceptance receipt');
+  }
+  return { receipt: readbackReceipt, duplicate: false };
 }
 
 /**
@@ -1573,7 +1739,7 @@ export async function handleChartroomProjectionGet(request: Request, env: Env): 
           WHERE account_id = ? AND team_id = ? AND repository_id = ? AND repo_full_name = ?
             AND harbor_id = ? AND resource_id = ?
           ORDER BY plan_version DESC, node_id ASC LIMIT ?`,
-      ).bind(...s, limit),
+      ).bind(...s, limit + 1),
       env.DB.prepare(
         `SELECT edge_id, edge_type, source_id, target_id, payload_json,
                 plan_version, tombstoned_at, updated_at
@@ -1581,7 +1747,7 @@ export async function handleChartroomProjectionGet(request: Request, env: Env): 
           WHERE account_id = ? AND team_id = ? AND repository_id = ? AND repo_full_name = ?
             AND harbor_id = ? AND resource_id = ?
           ORDER BY plan_version DESC, edge_id ASC LIMIT ?`,
-      ).bind(...s, limit),
+      ).bind(...s, limit + 1),
       env.DB.prepare(
         `SELECT link_id, node_id, artifact_kind, uri, digest, title, payload_json,
                 plan_version, tombstoned_at, updated_at
@@ -1589,7 +1755,7 @@ export async function handleChartroomProjectionGet(request: Request, env: Env): 
           WHERE account_id = ? AND team_id = ? AND repository_id = ? AND repo_full_name = ?
             AND harbor_id = ? AND resource_id = ?
           ORDER BY plan_version DESC, link_id ASC LIMIT ?`,
-      ).bind(...s, limit),
+      ).bind(...s, limit + 1),
       env.DB.prepare(
         `SELECT decision_id, title, rationale, status, affected_ids_json,
                 supersedes_id, superseded_by_id, payload_json, plan_version, updated_at
@@ -1597,7 +1763,7 @@ export async function handleChartroomProjectionGet(request: Request, env: Env): 
           WHERE account_id = ? AND team_id = ? AND repository_id = ? AND repo_full_name = ?
             AND harbor_id = ? AND resource_id = ?
           ORDER BY plan_version DESC, decision_id ASC LIMIT ?`,
-      ).bind(...s, limit),
+      ).bind(...s, limit + 1),
       env.DB.prepare(
         `SELECT source_id, revision_id, source_kind, uri, digest, title, summary,
                 status, supersedes_revision_id, superseded_by_revision_id,
@@ -1606,23 +1772,45 @@ export async function handleChartroomProjectionGet(request: Request, env: Env): 
           WHERE account_id = ? AND team_id = ? AND repository_id = ? AND repo_full_name = ?
             AND harbor_id = ? AND resource_id = ?
           ORDER BY plan_version DESC, source_id ASC, revision_id ASC LIMIT ?`,
-      ).bind(...s, limit),
+      ).bind(...s, limit + 1),
     ]) as Array<{ results?: Record<string, unknown>[] }>;
     const stream = batch[0]?.results?.[0] as unknown as ChartroomStreamRow | undefined;
     if (!stream) throw new ChartroomError(404, 'CHARTROOM_NOT_FOUND', 'no Chartroom stream exists for this scope');
-    const nodes = batch[1]?.results ?? [];
-    const edges = batch[2]?.results ?? [];
-    const artifacts = batch[3]?.results ?? [];
-    const decisions = batch[4]?.results ?? [];
-    const sources = batch[5]?.results ?? [];
+    /**
+     * Split a limit-plus-one query into returned rows and honest truncation
+     * metadata. The design fetches one sentinel row so callers never mistake a
+     * bounded preview for the complete projection.
+     *
+     * @param rows - Canonically ordered D1 rows including an optional sentinel.
+     * @returns Bounded rows plus returned and truncated truth.
+     */
+    const page = (rows: Record<string, unknown>[]) => ({
+      rows: rows.slice(0, limit),
+      returned: Math.min(rows.length, limit),
+      truncated: rows.length > limit,
+    });
+    const nodePage = page(batch[1]?.results ?? []);
+    const edgePage = page(batch[2]?.results ?? []);
+    const artifactPage = page(batch[3]?.results ?? []);
+    const decisionPage = page(batch[4]?.results ?? []);
+    const sourcePage = page(batch[5]?.results ?? []);
     const projection = {
-      nodes,
-      edges,
-      artifacts,
-      decisions,
-      sources,
+      nodes: nodePage.rows,
+      edges: edgePage.rows,
+      artifacts: artifactPage.rows,
+      decisions: decisionPage.rows,
+      sources: sourcePage.rows,
+    };
+    const projectionMeta = {
+      nodes: { returned: nodePage.returned, truncated: nodePage.truncated },
+      edges: { returned: edgePage.returned, truncated: edgePage.truncated },
+      artifacts: { returned: artifactPage.returned, truncated: artifactPage.truncated },
+      decisions: { returned: decisionPage.returned, truncated: decisionPage.truncated },
+      sources: { returned: sourcePage.returned, truncated: sourcePage.truncated },
     };
     const returnedRows = Object.values(projection).reduce((sum, rows) => sum + rows.length, 0);
+    const fetchedRows = [nodePage, edgePage, artifactPage, decisionPage, sourcePage]
+      .reduce((sum, result) => sum + result.returned + (result.truncated ? 1 : 0), 0);
     return json(200, {
       code: 'OK',
       error: null,
@@ -1635,8 +1823,10 @@ export async function handleChartroomProjectionGet(request: Request, env: Env): 
         updatedAt: stream.updated_at,
       },
       projection,
-      projectionDigest: hashHex(canonicalJson(projection)),
-      cost: { d1Statements: 7, returnedRows, perProjectionLimit: limit },
+      projectionMeta,
+      projectionComplete: Object.values(projectionMeta).every((meta) => !meta.truncated),
+      projectionDigest: hashHex(canonicalJson({ projection, projectionMeta })),
+      cost: { d1Statements: 7, returnedRows, fetchedRows, perProjectionLimit: limit },
     });
   } catch (error) {
     return chartroomErrorResponse(error);

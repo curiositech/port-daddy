@@ -10,10 +10,11 @@ Chomp import, contradiction analysis, or semantic index as shipped.
 
 Three independent proofs are involved:
 
-1. An authenticated Port Daddy account requests a short-lived repository
-   capability after explicit repository step-up.
-2. GitHub supplies the numeric owner/repository ids and verifies the Port Daddy
-   GitHub App installation. Caller-supplied ids are ignored.
+1. A same-origin Port Daddy browser session carrying the user's GitHub OAuth
+   authorization requests a short-lived repository capability.
+2. GitHub verifies the user's read/admin permission, supplies the numeric
+   owner/repository ids, and verifies the Port Daddy GitHub App installation.
+   Caller-supplied ids are ignored.
 3. The owning harbor signs each write intent with its current Ed25519 key and
    authority epoch.
 
@@ -54,8 +55,8 @@ the same `CAPABILITY_REJECTED` refusal.
 ```http
 POST /v1/chartroom/capabilities
 Origin: https://relay.portdaddy.dev
-Authorization: Bearer pdu_...
 Content-Type: application/json
+Cookie: __Host-pd_session=<HttpOnly browser session>
 
 {
   "repository": "owner/name",
@@ -70,8 +71,9 @@ Content-Type: application/json
 Minting requires:
 
 - exact same-origin request;
-- authenticated account;
-- repository registration refreshed in the previous five minutes;
+- authenticated browser session with a live GitHub OAuth grant;
+- live GitHub read permission for read capabilities, or admin permission for
+  write capabilities;
 - account membership in the named harbor;
 - live GitHub App installation and repository lookup.
 
@@ -131,12 +133,14 @@ Signing procedure:
 
 1. validate and canonicalize every field according to
    `validateChartroomCommand`;
-2. remove only `issuer.signature` while retaining `issuer.harborId` and
+2. wrap the command with `schema: "port-daddy.chartroom-command.v1"` and
+   `purpose: "chartroom.event.append"`;
+3. remove only `issuer.signature` while retaining `issuer.harborId` and
    `issuer.authorityEpoch`;
-3. recursively sort object keys with `canonicalJson`;
-4. SHA-256 the canonical UTF-8 JSON;
-5. Ed25519-sign that 32-byte digest with the harbor private key;
-6. put the lower-case hex signature back into the command.
+4. recursively sort object keys with `canonicalJson`;
+5. SHA-256 the canonical UTF-8 JSON;
+6. Ed25519-sign that 32-byte digest with the harbor private key;
+7. put the lower-case hex signature back into the command.
 
 Then send:
 
@@ -154,9 +158,12 @@ The idempotency key and nonce are scoped but serve different purposes:
 - same nonce + different key: `INTENT_REPLAYED`.
 
 The response receipt includes full scope, event/type/version/epoch, previous and
-event hashes, request hash, acceptance time, exact D1 readback digest, Relay
-public key, deterministic atomic-projection acceptance digest, and Relay
-signature. Persist the signed intent and receipt together.
+event hashes, request hash, acceptance time, exact D1 event-row readback digest,
+the deterministic input digest used by the atomic projection write, Relay public
+key, and Relay signature. Relay persists the canonical receipt in the same D1
+batch as the event and projection. An exact retry returns those original bytes,
+even after Relay signing-key or harbor authority-epoch rotation. Persist the
+signed intent and receipt together.
 
 ## Event vocabulary
 
@@ -185,9 +192,12 @@ at 128 KiB. Titles are capped at 2,000 characters and summaries/rationales at
 keys are rejected before persistence. Artifact/source pointers accept only
 `https:`, `github:`, `portdaddy:`, `r2:`, and `repo:` URIs, with no embedded
 credentials, query, or fragment; raw local `file:` paths do not enter remote D1.
-Common credential forms in typed text or nested payload values are also refused;
-this pre-seal defense complements, rather than replaces, the later redaction
-pipeline for imported bodies.
+The event insert trigger independently enforces the URI scheme/query/fragment
+subset so direct SQL and future handler drift fail closed at the storage boundary.
+Common credential forms, local-private filesystem paths, and payloads nested
+beyond the inspection bound are also refused. This fail-closed pre-seal defense
+complements, rather than replaces, the later redaction pipeline for imported
+bodies.
 
 ## 3. Read projections
 
@@ -198,8 +208,12 @@ Authorization: Chartroom chr_...
 
 The response includes the authority head and bounded arrays for nodes, edges,
 artifacts, decisions, and source revisions. `limit` applies per family and is
-hard-capped at 100. `projectionDigest` hashes the exact returned projection;
-the cost envelope reports D1 statements and returned rows.
+hard-capped at 100. `projectionMeta` reports returned/truncated truth for every
+family, and `projectionComplete` is false if any family has more rows than the
+bounded preview. `projectionDigest` hashes the exact returned projection plus
+that completeness metadata; the cost envelope distinguishes fetched and
+returned rows. Use the event export to rebuild complete state when a preview is
+truncated.
 
 Tombstoned and superseded rows are included. Consumers choose whether to hide
 them in a default view, but the API never makes history vanish.
@@ -228,7 +242,9 @@ A stored tamper yields HTTP 409 `HASH_CHAIN_BREAK`, never a best-effort page.
 
 | Code | Meaning | Safe response |
 |---|---|---|
-| `REPOSITORY_STEP_UP_REQUIRED` | repository registration is absent/stale | refresh through account UI, then mint again |
+| `BROWSER_SESSION_REQUIRED` | request lacks a browser session with GitHub authorization | sign in through the Relay account UI |
+| `REPOSITORY_ACCESS_REQUIRED` | GitHub does not confirm read permission | reauthorize or request repository access |
+| `REPOSITORY_ADMIN_REQUIRED` | a write grant lacks GitHub admin permission | use an authorized repository admin |
 | `CAPABILITY_REJECTED` | wrong scope, expired/revoked token, or exhausted budget | mint a new exact-scope capability |
 | `FORGED_INTENT` | harbor signature failed | do not retry unchanged; inspect key/signing bytes |
 | `INTENT_EXPIRED` | signed clock window elapsed | issue a new nonce/key/window and sign again |

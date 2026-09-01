@@ -44,9 +44,10 @@ A single leaked query predicate cannot be allowed to cross any of those walls.
 The product is **Chartroom**. The only HTTP namespace is
 `/v1/chartroom/...`; no Oracle aliases or compatibility routes exist.
 
-The owning harbor is the writer. Its current Ed25519 key signs every normalized
-intent, including scope, expected plan version, authority epoch, idempotency key,
-nonce, actor/session/AgentNode provenance, time window, event type, and payload.
+The owning harbor is the writer. Its current Ed25519 key signs every normalized,
+domain-separated `port-daddy.chartroom-command.v1` intent, including purpose,
+scope, expected plan version, authority epoch, idempotency key, nonce,
+actor/session/AgentNode provenance, time window, event type, and payload.
 Relay verifies and applies that intent. Relay's signature proves D1 acceptance
 and exact readback; it does not turn Relay into the author of the plan.
 
@@ -75,11 +76,13 @@ accountId × teamId × repositoryId × repository × harborId × resourceId
 - `resourceId` partitions separate plans/programs inside the same repository.
 
 Numeric repository/team ids are derived from a live GitHub App lookup, not from
-the capability request. Capability minting also requires a recent explicit
-repository step-up recorded by the account surface and current harbor membership.
-Only a harbor owner may mint a write capability; a member can mint read access.
-Generic `pdu_` tokens prove an account only; they cannot call event/projection/
-export routes without a `Chartroom chr_...` capability.
+the capability request. Capability minting requires a same-origin browser
+session carrying the user's GitHub OAuth authorization, a live GitHub permission
+check, the App installation, and current harbor membership. Read capabilities
+require repository readability; write capabilities additionally require GitHub
+admin authority and the account's harbor-owner role. Generic `pdu_` tokens prove
+an account only; they cannot mint a capability or call event/projection/export
+routes without a `Chartroom chr_...` capability.
 
 Capabilities are opaque, returned once, stored only as SHA-256 hashes, expire in
 at most ten minutes, carry read or write permission, and have an event budget.
@@ -104,8 +107,11 @@ issuer proof, clocks, and canonical payload. The same idempotency key plus the
 same command returns the exact original acceptance receipt. The same key with
 different content is a conflict. A nonce used under another key is a replay.
 
-No Chartroom event is updated or deleted. Tombstone and supersession events are
-history, not destructive operations.
+No Chartroom event is updated or deleted. D1 `BEFORE UPDATE` and `BEFORE DELETE`
+triggers make that invariant a storage refusal rather than route convention.
+Tombstone and supersession events are history, not destructive operations.
+Artifact/source URI schemes and query/fragment absence are re-checked by an
+event insert trigger after the richer Worker URL parse.
 
 ### 4. Event and projection vocabulary
 
@@ -125,9 +131,9 @@ rebuilt from the immutable event log. No event causes a projection `DELETE`.
 
 Source ingestion records metadata, digest, summary, URI, and bounded structured
 payload. Wave 0 does not accept arbitrary document bodies or secrets into D1.
-Known structured credential fields are rejected before persistence, and remote
-artifact/source URIs cannot contain credentials, query strings, fragments, or
-local `file:` paths.
+Known structured credential fields, excessive nesting, and local-private path
+strings are rejected before persistence. Remote artifact/source URIs cannot
+contain credentials, query strings, fragments, or local `file:` paths.
 Encrypted object storage, redaction receipts, contradiction analysis, and hybrid
 semantic indexing are subordinate systems that will cite the authoritative
 source revision/event hashes.
@@ -135,16 +141,19 @@ source revision/event hashes.
 ### 5. Bounded reads and receipts
 
 `GET /v1/chartroom/projection` returns at most 100 rows per projection family,
-the exact stream head, a projection digest, and a cost envelope.
+the exact stream head, explicit per-family truncation metadata, a digest over
+the returned preview and its completeness metadata, and a cost envelope.
 
 `GET /v1/chartroom/export` is cursor-based and defaults to 100 events with a
 hard maximum of 250. Each page verifies from its explicit predecessor hash and
 returns a Relay-signed receipt containing scope, range, count, chain verdict,
 and content digest. No whole-history export happens accidentally.
 
-Write receipts are deterministic over the immutable D1 readback and the atomic
-projection effect, so a retry after an ambiguous timeout returns the same
-receipt and signature.
+Write receipts cover the immutable D1 event readback and the deterministic input
+to the atomic projection write. Their canonical JSON is inserted append-only in
+the same transaction as the event and projection, then read back and verified
+before response. A retry after an ambiguous timeout returns the original stored
+receipt and signature across Relay signing-key or harbor authority-epoch rotation.
 
 ### 6. Search is deliberately outside Wave 0
 
@@ -193,8 +202,9 @@ does not edit `apps/relay/migrations/applied-staging.json`.
 
 ### Negative
 
-- A recent repository step-up is required before capability minting. That is
-  intentional friction until the account GUI exposes a polished one-click flow.
+- A same-origin browser session plus live GitHub user/App authorization is
+  required before capability minting. That is intentional friction until the
+  account GUI exposes a polished one-click flow.
 - Wave 0 has no bulk import, semantic search, contradiction agent, or Chartroom
   GUI. It is the authority kernel those features require, not a claim that they
   are already shipped.

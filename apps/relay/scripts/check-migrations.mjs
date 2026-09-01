@@ -206,6 +206,7 @@ for (const table of [
   'chartroom_capabilities',
   'chartroom_streams',
   'chartroom_events',
+  'chartroom_acceptance_receipts',
   'chartroom_nodes',
   'chartroom_edges',
   'chartroom_artifact_links',
@@ -216,6 +217,7 @@ for (const table of [
   'chartroom_capabilities',
   'chartroom_streams',
   'chartroom_events',
+  'chartroom_acceptance_receipts',
   'chartroom_nodes',
   'chartroom_edges',
   'chartroom_artifact_links',
@@ -230,6 +232,8 @@ requireColumn('chartroom_events', 'agent_node_id');
 requireColumn('chartroom_events', 'capability_token_hash');
 requireColumn('chartroom_events', 'idempotency_key');
 requireColumn('chartroom_events', 'intent_nonce');
+requireColumn('chartroom_acceptance_receipts', 'receipt_json');
+requireColumn('chartroom_acceptance_receipts', 'receipt_hash');
 requireColumn('chartroom_streams', 'authority_epoch');
 requireColumn('chartroom_streams', 'plan_version');
 requireColumn('chartroom_decisions', 'superseded_by_id');
@@ -239,6 +243,37 @@ const chainGuard = db.prepare(
 ).get();
 if (!chainGuard || !String(chainGuard.sql).includes('CHARTROOM_HASH_CHAIN_BREAK')) {
   throw new Error('chartroom event chain CAS trigger is absent or incomplete');
+}
+for (const triggerName of ['chartroom_events_update_guard', 'chartroom_events_delete_guard']) {
+  const trigger = db.prepare(
+    "SELECT sql FROM sqlite_schema WHERE type = 'trigger' AND name = ?",
+  ).get(triggerName);
+  if (!trigger || !String(trigger.sql).includes('CHARTROOM_EVENTS_APPEND_ONLY')) {
+    throw new Error(`chartroom append-only trigger ${triggerName} is absent or incomplete`);
+  }
+}
+const uriGuard = db.prepare(
+  "SELECT sql FROM sqlite_schema WHERE type = 'trigger' AND name = 'chartroom_events_uri_guard'",
+).get();
+if (!uriGuard || !String(uriGuard.sql).includes('CHARTROOM_URI_REJECTED')) {
+  throw new Error('chartroom event URI storage guard is absent or incomplete');
+}
+for (const triggerName of [
+  'chartroom_acceptance_receipts_update_guard',
+  'chartroom_acceptance_receipts_delete_guard',
+]) {
+  const trigger = db.prepare(
+    "SELECT sql FROM sqlite_schema WHERE type = 'trigger' AND name = ?",
+  ).get(triggerName);
+  if (!trigger || !String(trigger.sql).includes('CHARTROOM_RECEIPTS_APPEND_ONLY')) {
+    throw new Error(`chartroom receipt append-only trigger ${triggerName} is absent or incomplete`);
+  }
+}
+const receiptInsertGuard = db.prepare(
+  "SELECT sql FROM sqlite_schema WHERE type = 'trigger' AND name = 'chartroom_acceptance_receipts_insert_guard'",
+).get();
+if (!receiptInsertGuard || !String(receiptInsertGuard.sql).includes('CHARTROOM_RECEIPT_EVENT_MISMATCH')) {
+  throw new Error('chartroom receipt insert binding guard is absent or incomplete');
 }
 db.exec("INSERT INTO users (id, github_user_id, login, created_at) VALUES ('u_cr_chk', 4, 'crchk', 0)");
 db.exec(`INSERT INTO harbors (id, namespace, name, pubkey, created_by, created_at)
@@ -269,6 +304,29 @@ try {
             'agent', 'a1', 's1', 'n1', '${'a'.repeat(64)}', '${'e'.repeat(128)}', '{}', 2)`);
 } catch { chartroomCasRejected = true; }
 if (!chartroomCasRejected) throw new Error('chartroom stream CAS accepted a skipped plan version');
+for (const [label, eventType, payload, suffix] of [
+  ['local file URI', 'artifact.link', '{"type":"artifact.link","uri":"file:///Users/operator/private.md"}', 'file'],
+  ['opaque HTTPS URI', 'artifact.link', '{"type":"artifact.link","uri":"https:opaque"}', 'opaque'],
+  ['mismatched payload type', 'node.upsert', '{"type":"artifact.link","uri":"https://example.com/proof"}', 'type'],
+]) {
+  let rejected = false;
+  try {
+    db.exec(`INSERT INTO chartroom_events
+      (account_id, team_id, repository_id, repo_full_name, harbor_id, resource_id,
+       event_id, event_type, plan_version, authority_epoch, previous_hash, event_hash,
+       request_hash, capability_token_hash, idempotency_key, intent_nonce, issued_at,
+       expires_at, actor_kind, actor_id, session_id, agent_node_id, issuer_pubkey,
+       issuer_signature, payload_json, accepted_at)
+      VALUES ('u_cr_chk', 't1', 'r1', 'a/b', 'h_cr_chk', 'program', 'e_${suffix}', '${eventType}',
+              1, 1, '${'0'.repeat(64)}', '${'c'.repeat(64)}', '${'d'.repeat(64)}',
+              '${'b'.repeat(64)}', 'idem-uri-${suffix}', 'nonce-uri-${suffix}-123456789', 1, 10,
+              'agent', 'a1', 's1', 'n1', '${'a'.repeat(64)}', '${'e'.repeat(128)}',
+              '${payload}', 2)`);
+  } catch (error) {
+    rejected = String(error).includes('CHARTROOM_URI_REJECTED');
+  }
+  if (!rejected) throw new Error(`chartroom URI storage guard accepted ${label}`);
+}
 db.exec("DELETE FROM chartroom_streams WHERE account_id = 'u_cr_chk'");
 db.exec("DELETE FROM chartroom_capabilities WHERE account_id = 'u_cr_chk'");
 db.exec("DELETE FROM harbor_memberships WHERE harbor_id = 'h_cr_chk'");
