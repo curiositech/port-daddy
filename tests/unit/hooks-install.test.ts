@@ -950,6 +950,7 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     expect(readFileSync(count, 'utf8')).toBe('xx');
     expect(readSquidHookHealth(pdHome).circuits).toEqual([]);
     expect(existsSync(join(pdHome, 'squid', 'health', 'pd-hook-prompt.failures'))).toBe(false);
+    expect(existsSync(join(pdHome, 'squid', 'health', 'pd-hook-prompt.state.lock'))).toBe(false);
   });
 
   test('reclaims a half-open marker at the first stale whole-second boundary', () => {
@@ -1056,6 +1057,7 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
       expect(circuit.state).toBe(scenario.state);
       expect(circuit.probeState).toBe(scenario.probeState);
       expect(circuit.recoveryReady).toBe(false);
+      expect(existsSync(join(healthDir, 'pd-hook-prompt.state.lock'))).toBe(false);
     }
   });
 
@@ -1096,6 +1098,7 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     expect(readFileSync(hookCount, 'utf8')).toBe('x');
     expect(existsSync(probePath)).toBe(false);
     expect(readSquidHookHealth(pdHome).circuits).toEqual([]);
+    expect(existsSync(join(healthDir, 'pd-hook-prompt.state.lock'))).toBe(false);
   });
 
   test('falls back to GNU stat when the BSD probe exits zero with nonnumeric output', () => {
