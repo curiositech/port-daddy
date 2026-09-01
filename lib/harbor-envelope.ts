@@ -10,7 +10,7 @@
  * servers / LLM backends / channels it may use, and how much it may spend. It
  * is the local, single-harbor face of the same capability set that the
  * Federated Harbor cross-realm transfer ceremony attenuates and re-mints
- * (`website-v2/public/whitepaper/federated-harbor-whitepaper.tex`).
+ * (`whitepaper/source/federated-harbor-whitepaper.tex`).
  *
  * ── The one invariant: FAIL CLOSED ──────────────────────────────────────────
  * An action is denied unless the envelope explicitly admits it. An empty

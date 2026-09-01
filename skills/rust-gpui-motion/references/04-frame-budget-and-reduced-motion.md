@@ -8,7 +8,7 @@ The web `prefers-reduced-motion` reflex — `@media` query, `transition: none`, 
 
 ## 1. The gpui render model: dirty-or-dark, and what `.repeat()` does to it
 
-gpui is a hybrid immediate/retained framework. The load-bearing fact for motion:
+gpui is a hybrid immediate/retained framework. The critical fact for motion:
 
 > GPUI uses a dirty flag system. *"if dirty.get() { ... cx.draw(); cx.present() }"* — when nothing is dirty, the full render is skipped. Frame cadence comes from the `PlatformWindow::on_request_frame` callback, which abstracts **CADisplayLink** (the macOS vsync clock). — [Zed, *Optimizing the Metal pipeline to maintain 120 FPS*](https://zed.dev/blog/120fps)
 

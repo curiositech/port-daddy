@@ -4,7 +4,7 @@
  *   "Cuckoo Filter: Practically Better Than Bloom"
  *   https://www.cs.cmu.edu/~dga/papers/cuckoo-conext2014.pdf
  *
- * Spec:    proofs/bonded/recovery/cuckoo-pollution.md (theoretical bound A3)
+ * Spec:    whitepaper/formal/proverif/bonded/recovery/cuckoo-pollution.md (theoretical bound A3)
  * Runtime: lib/cuckoo-filter.ts  (you are here)
  *
  * Parameters per the paper for the "standard" configuration:

@@ -1,0 +1,3 @@
+# Generated deployment mirror. The manifest-listed research PDFs are copied
+# from whitepaper/research/pdf/ before website dev/build.
+*.pdf

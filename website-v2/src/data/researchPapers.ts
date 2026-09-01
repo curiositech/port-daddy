@@ -29,14 +29,14 @@ import {
  */
 export type ResearchTone = 'primary' | 'health' | 'rust' | 'accent' | 'violet' | 'warm' | 'indigo'
 
-/** The four outcomes a prior-art/falsification dive can end in — see `docs/harbor-research/deep-dives/README.md`. */
+/** The four outcomes a prior-art/falsification dive can end in — see `whitepaper/research/deep-dives/README.md`. */
 export type DiveVerdict = 'CLEAR' | 'NARROW' | 'SUBSUMED' | 'CONTRADICTED'
 
 export interface PriorArtDive {
   verdict: DiveVerdict
   /** One sentence, safe to show next to the paper's own claim — what the dive found and what changed. */
   summary: string
-  /** Path under docs/harbor-research/deep-dives/, e.g. 'flag-1-bonded-tower-vs-hierarchical-collusion/findings.md'. */
+  /** Path under whitepaper/research/deep-dives/, e.g. 'flag-1-bonded-tower-vs-hierarchical-collusion/findings.md'. */
   findingsPath: string
 }
 
@@ -65,7 +65,7 @@ export interface ResearchPaper {
   chapterWhy: string
   /**
    * A completed prior-art / falsification dive against this paper, if one
-   * exists (`docs/harbor-research/deep-dives/`). Omitted, not a placeholder
+   * exists (`whitepaper/research/deep-dives/`). Omitted, not a placeholder
    * verdict, for a paper no dive has run against yet — currently just paper 1.
    */
   priorArtDive?: PriorArtDive

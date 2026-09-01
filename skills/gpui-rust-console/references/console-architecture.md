@@ -38,7 +38,7 @@ every signature:
 - `refresh<'a>(&'a mut self, daemon: &'a DaemonClient) -> Pin<Box<dyn Future<...> + Send + 'a>>`
   — a hand-rolled boxed future, **not** `#[async_trait]`. async-trait would still work,
   but the boxed-future form keeps the trait object-safe with zero proc-macro and zero
-  extra crate. This is the load-bearing idiom; see `rust-with-claude-code/references/ffi-and-async.md`.
+  extra crate. This is the critical idiom; see `rust-with-claude-code/references/ffi-and-async.md`.
 - `mutate(...)` and `subscription()` and `on_stream(...)` all have **no-op / `None`
   defaults**, so the 14 read-only panes needed zero changes when the contract grew the
   "grab the wheel" axis (operator mutations) and the live-subscription axis. Evolving a

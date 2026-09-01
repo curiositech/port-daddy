@@ -9,7 +9,7 @@
  *   - strict validator rejects malformed input without throwing
  *
  * The `seq` + replay guard is the OPERATIONAL closure of the replay gap named in
- * analyses/relay_e2e_secrecy.pv (PR #250): a stateless signed envelope let a
+ * apps/relay/formal/proverif/relay-e2e-secrecy/relay_e2e_secrecy.pv (PR #250): a stateless signed envelope let a
  * malicious relay replay; a per-publisher monotonic sequence makes the
  * subscriber reject stale/duplicate deliveries (injective agreement).
  */

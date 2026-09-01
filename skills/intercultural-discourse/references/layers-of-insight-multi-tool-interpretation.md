@@ -72,7 +72,7 @@ These questions serve two functions: they prevent the analyst from drowning in t
 
 Adamson is candid about redundancy: the move rank in his coding system was often redundant with information already present at the exchange and act ranks. He concludes the move rank may be droppable in future work.
 
-This is an important insight: **redundancy in an analytical system is not failure**. It reveals which layers are genuinely independent and which are derivative. Over time, through repeated application, a practitioner learns which layers are load-bearing and which can be streamlined. The first pass should be inclusive; subsequent passes can be optimized.
+This is an important insight: **redundancy in an analytical system is not failure**. It reveals which layers are genuinely independent and which are derivative. Over time, through repeated application, a practitioner learns which layers are critical and which can be streamlined. The first pass should be inclusive; subsequent passes can be optimized.
 
 ## Application to Agent Systems
 

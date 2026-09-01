@@ -204,7 +204,7 @@ export function auditIdempotencyKeyPatterns(plan) {
   const pass = !criticalHit && clampedScore >= 60;
 
   if (findings.length === 0) {
-    recommendations.push('Plan has all three load-bearing ingredients (fingerprint check, TTL lock, recovery points) plus sane scope/retention. Still run the concurrent-retry and crash-mid-phase integration tests from the Quality Gates before shipping.');
+    recommendations.push('Plan has all three critical ingredients (fingerprint check, TTL lock, recovery points) plus sane scope/retention. Still run the concurrent-retry and crash-mid-phase integration tests from the Quality Gates before shipping.');
   }
 
   return { pass, score: clampedScore, findings, recommendations };

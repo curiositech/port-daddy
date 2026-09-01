@@ -10,7 +10,7 @@ Related roads:
 - ADR-0037, git access control: destructive-git refusals and corrective alternatives.
 - ADR-0047, conversation protocol: FIPA-ish parley envelope and termination.
 - `website-v2/src/pages/HarnessPage.tsx`: current marketing surface for the harness.
-- `docs/research/north-star/strategy/dossier-landscape.md`: competitive landscape and the "neutral local coordination layer" thesis.
+- `whitepaper/research/program/archive/north-star/strategy/dossier-landscape.md`: competitive landscape and the "neutral local coordination layer" thesis.
 
 This document should not replace those roads. It is the route plan that ties
 them together into one agent operating harness.

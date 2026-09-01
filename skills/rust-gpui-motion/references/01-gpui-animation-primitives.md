@@ -85,7 +85,7 @@ fn with_animation(
 
 Four things to internalize:
 
-- **`id` is load-bearing identity, not a label.** gpui keys the animation's
+- **`id` is critical identity, not a label.** gpui keys the animation's
   clock on this `ElementId`. If two animated elements share an id, they share a
   clock (and fight). If an id is *unstable* across frames, the animation
   restarts every frame and visibly stutters or freezes at `delta=0`. pd-console

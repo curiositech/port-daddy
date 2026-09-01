@@ -38,7 +38,7 @@ metadata:
 
 # Build an M-Agent + N-Human Cooperative IDE in Rust gpui
 
-This is the **capstone**: the whole-system skill for building the Harbor — an editor where **M autonomous agents and N humans edit the same files at once, as co-equal replicas**, on a native Rust gpui shell, governed by a daemon that already exists. It is an **index/orchestration** skill: it holds the architecture and dispatches each slice into the sibling rust skills. The thesis (from the battle plan) is the load-bearing wall: *make the CRDT governable — Loro merges bytes, claims govern intent, the harbor card decides who may write the region at all.*
+This is the **capstone**: the whole-system skill for building the Harbor — an editor where **M autonomous agents and N humans edit the same files at once, as co-equal replicas**, on a native Rust gpui shell, governed by a daemon that already exists. It is an **index/orchestration** skill: it holds the architecture and dispatches each slice into the sibling rust skills. The thesis (from the battle plan) is the critical wall: *make the CRDT governable — Loro merges bytes, claims govern intent, the harbor card decides who may write the region at all.*
 
 ## DEPENDS ON (pull these as you work)
 
@@ -142,7 +142,7 @@ Fork by layer: **shell** (ref 02 + the three visual siblings) · **editor core**
 
 ## Reference Map
 
-- `references/01-architecture-and-the-stack.md` — the whole-system view: the four layers (gpui shell → Loro editor core → coordination kernel → transport), the dependency map onto the sibling skills, what's load-bearing vs polish.
+- `references/01-architecture-and-the-stack.md` — the whole-system view: the four layers (gpui shell → Loro editor core → coordination kernel → transport), the dependency map onto the sibling skills, what's critical vs polish.
 - `references/02-the-gpui-app-skeleton.md` — structuring a large gpui app: the mux/Workspace pane tree, the `Pane`/`Surface` contract, `SurfaceKind` variants, the refresh→channel→view pipeline; how to add a surface end-to-end.
 - `references/03-collaboration-coordination-salvage.md` — the heart: agents+humans as co-equal Loro replicas, presence-as-claims, the daemon as collab server, conflict UX, agents-as-peers via MCP, salvage; the M×N model + three harbor topologies.
 - `references/04-build-order-and-composing-the-skills.md` — the phased roadmap (P0 skeleton → P1 buffer → P2 LAN → P3 agents+claims → P3.5 salvage → P4 shared → P5 remote+viz), each phase naming which sibling skill it pulls; the "you are here / read next" map.
@@ -162,9 +162,9 @@ Fork by layer: **shell** (ref 02 + the three visual siblings) · **editor core**
 - [`examples/sample-input.json`](examples/sample-input.json) — sample input (data/schema)
 
 **`references/`**
-- [`references/01-architecture-and-the-stack.md`](references/01-architecture-and-the-stack.md) — Architecture & The Stack — The Whole-System View — This is the load-bearing wall of the capstone.
+- [`references/01-architecture-and-the-stack.md`](references/01-architecture-and-the-stack.md) — Architecture & The Stack — The Whole-System View — This is the critical wall of the capstone.
 - [`references/02-the-gpui-app-skeleton.md`](references/02-the-gpui-app-skeleton.md) — The gpui App Skeleton — > *Capstone reference 02 of the "Build an M-Agent + N-Human Cooperative IDE in Rust gpui" skill.* > This is the **structural** chapter: how 
-- [`references/03-collaboration-coordination-salvage.md`](references/03-collaboration-coordination-salvage.md) — Collaboration, Coordination & Salvage — the heart of the M×N IDE — This is the capstone's load-bearing chapter.
+- [`references/03-collaboration-coordination-salvage.md`](references/03-collaboration-coordination-salvage.md) — Collaboration, Coordination & Salvage — the heart of the M×N IDE — This is the capstone's critical chapter.
 - [`references/04-build-order-and-composing-the-skills.md`](references/04-build-order-and-composing-the-skills.md) — Build Order & Composing the Skills — This is the **index card for the whole capstone**.
 
 **`schemas/`**

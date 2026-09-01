@@ -61,7 +61,9 @@
     "shared/",
     "skills/port-daddy-agent-skill/",
     "templates/",
-    "tests/"
+    "tests/",
+    "whitepaper/formal/",
+    "whitepaper/research/program/simulations/"
   ],
   "excludeExactPaths": [
     "public/Untitled 2.png",
@@ -82,7 +84,6 @@
     "(^|/)\\.build/",
     "\\.pyc$",
     "\\.bak$",
-    "^analyses/",
     "^dashboard/",
     "^docs/IDEAS_INDEX\\.md$",
     "^docs/V4-RECOVERY-MAP\\.md$",
@@ -103,7 +104,7 @@
   ],
   "smokeExcludedPaths": [
     ".cartographer/status.md",
-    "analyses/product-appeal.md",
+    "docs/product-research/analyses/product-appeal.md",
     "docs/recovery/CURRENT-WORK.md",
     "public/app-surgery.html",
     "website-v2/public/llms.txt"

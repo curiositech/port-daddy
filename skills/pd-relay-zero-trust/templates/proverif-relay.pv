@@ -1,4 +1,4 @@
-(* analyses/relay-handshake.pv
+(* apps/relay/formal/proverif/relay-handshake.pv
    PD Relay Handshake — symbolic model skeleton.
 
    Pair with skill `proverif-tamarin-protocol-modeling` for query-construction

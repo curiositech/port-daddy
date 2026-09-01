@@ -5,11 +5,11 @@ name: Proofs (TLA+ / Z3 / Monte Carlo)
 # (website-v2/src/pages/whitepaper/HowWeProveGameTheory.tsx).
 #
 # Five artifacts, one workflow:
-#   - proofs/economics/delta-threshold.z3          (Z3 SMT)
-#   - proofs/economics/claim_signaling.tla         (TLA+ via TLC)
-#   - proofs/economics/claim_signaling.tla         (TLA+ via Apalache)
-#   - proofs/bonded/conservation/Conservation.tla  (TLA+ via TLC)
-#   - proofs/bonded/pareto/threat-bands.mjs        (Monte Carlo)
+#   - whitepaper/formal/z3/economics-delta-threshold/delta-threshold.z3          (Z3 SMT)
+#   - whitepaper/formal/tla/economics-claim-signaling/claim_signaling.tla         (TLA+ via TLC)
+#   - whitepaper/formal/tla/economics-claim-signaling/claim_signaling.tla         (TLA+ via Apalache)
+#   - whitepaper/formal/tla/bonded-conservation/Conservation.tla  (TLA+ via TLC)
+#   - whitepaper/research/program/simulations/pareto/threat-bands.mjs        (Monte Carlo)
 #
 # Failure of any job fails the PR. No untrusted inputs are used.
 
@@ -17,16 +17,18 @@ on:
   push:
     branches: [main]
     paths:
-      - 'proofs/**'
+      - 'whitepaper/formal/**'
+      - 'whitepaper/research/program/simulations/pareto/**'
       - '.github/workflows/proofs.yml'
-      - 'website-v2/public/whitepaper/agent-transactions-whitepaper.tex'
+      - 'whitepaper/source/agent-transactions-whitepaper.tex'
       - 'skills/harbor-results/scripts/**'
   pull_request:
     branches: [main]
     paths:
-      - 'proofs/**'
+      - 'whitepaper/formal/**'
+      - 'whitepaper/research/program/simulations/pareto/**'
       - '.github/workflows/proofs.yml'
-      - 'website-v2/public/whitepaper/agent-transactions-whitepaper.tex'
+      - 'whitepaper/source/agent-transactions-whitepaper.tex'
       - 'skills/harbor-results/scripts/**'
   # Merge queue: trigger on the queued group so every proof job reports a check
   # context (no path filter is possible on merge_group). The heavy jobs SKIP on
@@ -58,13 +60,13 @@ jobs:
           z3 --version
 
       - name: Run delta-threshold.z3
-        working-directory: proofs/economics
+        working-directory: whitepaper/formal/z3/economics-delta-threshold
         run: |
           set -euo pipefail
           z3 delta-threshold.z3 | tee delta-threshold.actual.txt
 
       - name: Assert sat / sat / unsat triple
-        working-directory: proofs/economics
+        working-directory: whitepaper/formal/z3/economics-delta-threshold
         run: |
           set -euo pipefail
           # Expected sequence: sat, sat, unsat (three check-sat results).
@@ -85,7 +87,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: delta-threshold-z3-output
-          path: proofs/economics/delta-threshold.actual.txt
+          path: whitepaper/formal/z3/economics-delta-threshold/delta-threshold.actual.txt
 
   tla-claim-signaling:
     if: github.event_name != 'merge_group'
@@ -111,7 +113,7 @@ jobs:
           echo "TLA_TOOLS_JAR=${HOME}/tla/tla2tools.jar" >> "$GITHUB_ENV"
 
       - name: Run claim_signaling under TLC
-        working-directory: proofs/economics
+        working-directory: whitepaper/formal/tla/economics-claim-signaling
         run: |
           set -euo pipefail
           java -XX:+UseParallelGC -cp "${TLA_TOOLS_JAR}" tlc2.TLC \
@@ -119,7 +121,7 @@ jobs:
             | tee claim_signaling.tlc.log
 
       - name: Assert no invariant violation
-        working-directory: proofs/economics
+        working-directory: whitepaper/formal/tla/economics-claim-signaling
         run: |
           set -euo pipefail
           if grep -q "No error has been found" claim_signaling.tlc.log; then
@@ -131,7 +133,7 @@ jobs:
           fi
 
       - name: Run sweep across delta (TLC)
-        working-directory: proofs/economics
+        working-directory: whitepaper/formal/tla/economics-claim-signaling
         env:
           TLA_TOOLS_JAR: ${{ env.TLA_TOOLS_JAR }}
         run: |
@@ -145,8 +147,8 @@ jobs:
         with:
           name: claim-signaling-tlc-log
           path: |
-            proofs/economics/claim_signaling.tlc.log
-            proofs/economics/sweep-delta.tlc.log
+            whitepaper/formal/tla/economics-claim-signaling/claim_signaling.tlc.log
+            whitepaper/formal/tla/economics-claim-signaling/sweep-delta.tlc.log
 
   tla-claim-signaling-apalache:
     if: github.event_name != 'merge_group'
@@ -177,7 +179,7 @@ jobs:
         run: apalache-mc version
 
       - name: Run claim_signaling under Apalache
-        working-directory: proofs/economics
+        working-directory: whitepaper/formal/tla/economics-claim-signaling
         run: |
           set -euo pipefail
           apalache-mc check \
@@ -188,7 +190,7 @@ jobs:
             | tee claim_signaling.apalache.log
 
       - name: Assert no Apalache error
-        working-directory: proofs/economics
+        working-directory: whitepaper/formal/tla/economics-claim-signaling
         run: |
           set -euo pipefail
           if grep -q "The outcome is: NoError" claim_signaling.apalache.log; then
@@ -200,7 +202,7 @@ jobs:
           fi
 
       - name: Run sweep across delta (Apalache)
-        working-directory: proofs/economics
+        working-directory: whitepaper/formal/tla/economics-claim-signaling
         run: |
           set -euo pipefail
           chmod +x sweep-delta.sh
@@ -212,8 +214,8 @@ jobs:
         with:
           name: claim-signaling-apalache-log
           path: |
-            proofs/economics/claim_signaling.apalache.log
-            proofs/economics/sweep-delta.apalache.log
+            whitepaper/formal/tla/economics-claim-signaling/claim_signaling.apalache.log
+            whitepaper/formal/tla/economics-claim-signaling/sweep-delta.apalache.log
 
   tla-conservation:
     if: github.event_name != 'merge_group'
@@ -237,7 +239,7 @@ jobs:
           echo "TLA_TOOLS_JAR=${HOME}/tla/tla2tools.jar" >> "$GITHUB_ENV"
 
       - name: Run Conservation under TLC
-        working-directory: proofs/bonded/conservation
+        working-directory: whitepaper/formal/tla/bonded-conservation
         run: |
           set -euo pipefail
           java -XX:+UseParallelGC -cp "${TLA_TOOLS_JAR}" tlc2.TLC \
@@ -245,7 +247,7 @@ jobs:
             | tee Conservation.tlc.log
 
       - name: Assert no invariant violation
-        working-directory: proofs/bonded/conservation
+        working-directory: whitepaper/formal/tla/bonded-conservation
         run: |
           set -euo pipefail
           if grep -q "No error has been found" Conservation.tlc.log; then
@@ -261,7 +263,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: conservation-tlc-log
-          path: proofs/bonded/conservation/Conservation.tlc.log
+          path: whitepaper/formal/tla/bonded-conservation/Conservation.tlc.log
 
   monte-carlo-threat-bands:
     if: github.event_name != 'merge_group'
@@ -278,22 +280,22 @@ jobs:
       - name: Run threat-bands.mjs (text + JSON)
         run: |
           set -euo pipefail
-          node proofs/bonded/pareto/threat-bands.mjs --samples=1000 \
-            | tee proofs/bonded/pareto/threat-bands.ci.log
-          node proofs/bonded/pareto/threat-bands.mjs --samples=1000 --json \
-            > proofs/bonded/pareto/threat-bands.ci.json
+          node whitepaper/research/program/simulations/pareto/threat-bands.mjs --samples=1000 \
+            | tee whitepaper/research/program/simulations/pareto/threat-bands.ci.log
+          node whitepaper/research/program/simulations/pareto/threat-bands.mjs --samples=1000 --json \
+            > whitepaper/research/program/simulations/pareto/threat-bands.ci.json
 
       - name: Assert zero matched-band failures
         run: |
           set -euo pipefail
-          matched_failures=$(jq '.matched_failures | length' proofs/bonded/pareto/threat-bands.ci.json)
+          matched_failures=$(jq '.matched_failures | length' whitepaper/research/program/simulations/pareto/threat-bands.ci.json)
           echo "matched_failures = $matched_failures"
           if [ "$matched_failures" != "0" ]; then
             echo "FAIL: matched-band assertion violated."
-            jq '.matched_failures' proofs/bonded/pareto/threat-bands.ci.json
+            jq '.matched_failures' whitepaper/research/program/simulations/pareto/threat-bands.ci.json
             exit 1
           fi
-          widening=$(jq '.widening_recommendations | length' proofs/bonded/pareto/threat-bands.ci.json)
+          widening=$(jq '.widening_recommendations | length' whitepaper/research/program/simulations/pareto/threat-bands.ci.json)
           echo "widening_recommendations = $widening (informational)"
           echo "PASS: all matched-band rows within the assertion ceiling."
 
@@ -303,8 +305,8 @@ jobs:
         with:
           name: threat-bands-output
           path: |
-            proofs/bonded/pareto/threat-bands.ci.log
-            proofs/bonded/pareto/threat-bands.ci.json
+            whitepaper/research/program/simulations/pareto/threat-bands.ci.log
+            whitepaper/research/program/simulations/pareto/threat-bands.ci.json
 
   # ── Harbor research estate (R1–R12): every executed result re-verified ──────
   # The strongest verification work in the repo previously had zero CI coverage

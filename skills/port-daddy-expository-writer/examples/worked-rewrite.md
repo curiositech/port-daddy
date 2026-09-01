@@ -213,7 +213,7 @@ the paper wants to hear about.)
 
 This is the move the marketing-copy register would not allow: *say the
 proof is partial*. In expository writing, saying the proof is partial is
-the load-bearing trust move. It is what earns the reader's belief in the
+the critical trust move. It is what earns the reader's belief in the
 parts that *are* proved.
 
 ---

@@ -161,7 +161,7 @@ independent editorial traditions:
   whole, then a short statement of what is depicted.
 - **Mensh & Kording, PLOS Comp Biol 13(9), Rule 7**: *"the title of the figure
   should communicate the conclusion of the analysis, and the legend should
-  explain how it was done."* Their justification is the load-bearing part —
+  explain how it was done."* Their justification is the critical part —
   readers skip from abstract to figures to save time, so the figure title is
   often the only sentence of the results such a reader sees.
 

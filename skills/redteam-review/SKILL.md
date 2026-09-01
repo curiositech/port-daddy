@@ -99,13 +99,10 @@ See `references/comms-protocol.md` for the full spec.
 - `references/reading-list.md` — citations.
 - `references/comms-protocol.md` — addressing, pheromone schema, dialogue
   artifact format.
-- `references/paper-targets.md` — what each paper section claims and what
-  proof obligations attach to it.
 - `scripts/env.sh` — source before running any formal-methods tool; wires
   `JAVA_HOME`, OPAM, and tool paths.
 - `scripts/run-redteam.sh` — orchestrator; `pd spawn`s each persona with
   the right paper region claimed and inbox subscribed.
-- `scripts/attack-templates/` — concrete probe templates per class.
 
 ## Bundled Assets
 

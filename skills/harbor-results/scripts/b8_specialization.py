@@ -336,11 +336,11 @@ print(f"  canary (xi={xi}, eta={eta}, xi/eta=2.0 > D*={Dstar:.3f}): mutant says 
       f"truth W_solo={Wtrue:.3f}, dC_true={dC_true:+.3f}, sim dC={dC_sim:+.3f} +/- {se:.3f}")
 caught = mut and (dC_sim < -5 * se) and dC_true < 0
 check("mutant CAUGHT by high-xi instance (sim decisively contradicts it)", caught)
-# low-xi control: mutation invisible — proves the high-xi canary is load-bearing
+# low-xi control: mutation invisible — proves the high-xi canary is critical
 xi_lo = 0.01; eta_lo = 1.0
 agree = mutant_decision(A, w, lam, mu_s, mu_g, c, xi_lo, eta_lo) == \
         (delta_cost(A, w, lam, W_p, W_breakdown(lam, mu_s, xi_lo, eta_lo)) > 0)
-check("low-xi control: mutant indistinguishable there (canary is load-bearing)", agree)
+check("low-xi control: mutant indistinguishable there (canary is critical)", agree)
 
 # ---------- figure ----------
 fig, ax = plt.subplots(1, 3, figsize=(16.5, 4.6))

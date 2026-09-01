@@ -207,7 +207,7 @@ Wired into `file.ts`. Tests: `tests/unit/fleet-path-guard.test.js`.
 The trust gate decides *what tools are safe*; macaroons *enforce it
 cryptographically per spawn*. `lib/macaroon/caveats.ts` today has 7 caveat
 fields (`op`, `repo`, `branch`, `host`, `spend_usd`, `expires`, `session`) but
-**no tool-set caveat**. The ProVerif analysis (`analyses/macaroon_discharge_v1.pv`)
+**no tool-set caveat**. The ProVerif analysis (`core/kernel/pd-anchor/formal/proverif/macaroon-discharge/macaroon_discharge_v1.pv`)
 proved the discharge binding is sound and that a *naive* per-hop binding
 (`v2_naive_unsound`) is replayable — so we extend, not reinvent.
 

@@ -50,11 +50,8 @@ export function makeFixture() {
   if (existsSync(resolve(subjectRoot, buildScriptRelative))) {
     cpSync(resolve(subjectRoot, buildScriptRelative), resolve(root, buildScriptRelative));
   }
-  copyTexTree(resolve(subjectRoot, 'whitepaper'), resolve(root, 'whitepaper'));
-  copyTexTree(
-    resolve(subjectRoot, 'website-v2/public/whitepaper'),
-    resolve(root, 'website-v2/public/whitepaper'),
-  );
+  copyTexTree(resolve(subjectRoot, 'whitepaper/source'), resolve(root, 'whitepaper/source'));
+  mkdirSync(resolve(root, 'whitepaper/published'), { recursive: true });
   return root;
 }
 
@@ -131,11 +128,20 @@ printf '%s\n' "$*" >> "$PDLATEX_CALL_LOG"
   );
   chmodSync(fakePdflatex, 0o755);
 
-  const result = spawnSync('/bin/bash', [resolve(root, buildScriptRelative), 'spawn-to-person'], {
+  const result = spawnSync(
+    '/bin/bash',
+    [
+      '-c',
+      'source "$1"; build_one whitepaper/source spawn-to-person.tex whitepaper/published/spawn-to-person-whitepaper.pdf',
+      'whitepaper-test',
+      resolve(root, buildScriptRelative),
+    ],
+    {
     cwd: root,
     encoding: 'utf8',
     env: { ...process.env, PATH: bin, PDLATEX_CALL_LOG: callLog },
-  });
+    },
+  );
   return {
     ...result,
     calls: existsSync(callLog) ? readFileSync(callLog, 'utf8').trim().split('\n').filter(Boolean) : [],

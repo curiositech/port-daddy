@@ -6,7 +6,7 @@ sprays: [smell:fh:proof-gap:*]
 reads: [round:fh:open:*, ready-for-redteam:fh:*, proof:fh:landed:*, version:fh:*]
 target_sections: [all]
 isolation: cross-cutting (scans every section's claims)
-toolkit: [grep, paper draft parser, proofs/federated/ index, placeholder registry]
+toolkit: [grep, paper draft parser, whitepaper/corpus.json formal index, placeholder registry]
 ---
 
 # fh-proof-gap-auditor
@@ -45,7 +45,8 @@ gap. Filed as `smell:fh:proof-gap:§fh-N:missing-annotation`.
 ### 2. Dangling artifact paths
 
 Every `MECHANIZATION:<path>` must resolve to a file under
-`proofs/federated/`. Walk the annotations:
+the method-specific Federated Harbor paths registered by
+`whitepaper/corpus.json`. Walk the annotations:
 
 ```
 grep -rnoE "MECHANIZATION:[a-zA-Z0-9/_.\\-]+" papers/federated-harbor/

@@ -1,7 +1,7 @@
 /**
  * Magic-Link Recovery Token Management
  *
- * Spec:    proofs/bonded/recovery/magic-link.pv
+ * Spec:    whitepaper/formal/proverif/bonded/recovery/magic-link.pv
  * Runtime: lib/recovery-magic-link.ts  (you are here)
  *
  * The .pv proves two security properties:

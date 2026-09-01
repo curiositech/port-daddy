@@ -154,7 +154,7 @@ export class LogGovernor {
 
   /** Emitting a log must never throw — a broken sink cannot crash the daemon. */
   private safeEmit(level: LogLevel, message: string, meta?: Record<string, unknown>): void {
-    try { this.sink[level](message, meta); } catch { /* observability is not load-bearing for liveness */ }
+    try { this.sink[level](message, meta); } catch { /* observability is not critical for liveness */ }
   }
 }
 ```

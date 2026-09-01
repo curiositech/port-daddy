@@ -2,10 +2,11 @@
   "round_from": "v0.1",
   "round_to": "v0.2",
   "kind": "normal",
+  "fixture_status": "synthetic-historical-fixture",
   "paper": "federated-harbor",
   "sealed_at": "2026-05-20",
   "lead": "fh-secops:lead",
-  "note": "EXAMPLE — same artifact as skills/federated-harbor-redteam/examples/dialogue-fh-v0.1-to-v0.2.example.json. Mirrored here so the whitehat skill is self-contained for orientation. Real rounds produce ONE artifact in docs/shipwright/federated/.",
+  "note": "SYNTHETIC HISTORICAL FIXTURE — mirrors the redteam example for orientation. It is not an executed round, and named mechanizations are planned examples rather than evidence. Real rounds produce one artifact in whitepaper/research/program/rounds/federated-harbor/.",
   "exchanges": [
     {
       "id": "smell:fh:tokens:§fh-3:0001",
@@ -16,7 +17,7 @@
       "smell_from": "fh-redteam-tokens",
       "fix_from": "fh-whitehat-tokens",
       "fix_status": "landed-in-paper",
-      "fix_artifact": "proofs/federated/tokens/cross-harbor-issuance.pv",
+      "fix_artifact": "whitepaper/formal/proverif/federated-harbor/tokens/cross-harbor-issuance.pv",
       "fix_defense_class": 2,
       "refuses": "unbound tokens (no epoch field)",
       "prices": "retention of historical root log",
@@ -35,7 +36,7 @@
       "smell_from": "fh-redteam-trust",
       "fix_from": "fh-whitehat-trust",
       "fix_status": "landed-in-paper",
-      "fix_artifact": "proofs/federated/trust/non-transitive-pact.pv",
+      "fix_artifact": "whitepaper/formal/proverif/federated-harbor/trust/non-transitive-pact.pv",
       "fix_defense_class": 1,
       "refuses": "transitive token acceptance",
       "prices": "attestation propagation gossip"
@@ -49,7 +50,7 @@
       "smell_from": "fh-redteam-revocation",
       "fix_from": "fh-whitehat-revocation",
       "fix_status": "landed-in-paper",
-      "fix_artifact": "proofs/federated/revocation/propagation.tla",
+      "fix_artifact": "whitepaper/formal/tla/federated-harbor/revocation/propagation.tla",
       "fix_defense_class": 3,
       "refuses": "cross-harbor tokens during partition",
       "prices": "revocation propagation latency",
@@ -71,15 +72,15 @@
     }
   ],
   "paper_changes": [
-    "§fh-3 token verify rule: bind epoch into preimage; verifier reads historical root. MECHANIZATION:proofs/federated/tokens/cross-harbor-issuance.pv added.",
+    "§fh-3 token verify rule: bind epoch into preimage; verifier reads historical root. MECHANIZATION:whitepaper/formal/proverif/federated-harbor/tokens/cross-harbor-issuance.pv added.",
     "§fh-3 pact composition: explicit non-transitive-by-default text; consent event required.",
-    "§fh-7 revocation: state propagation bound D as paper-stated parameter; pessimistic-verifier rule during partition; MECHANIZATION:proofs/federated/revocation/propagation.tla added.",
+    "§fh-7 revocation: state propagation bound D as paper-stated parameter; pessimistic-verifier rule during partition; MECHANIZATION:whitepaper/formal/tla/federated-harbor/revocation/propagation.tla added.",
     "§fh-A.3 (new appendix): storage bound for historical federation root log; pins [PLACEHOLDER-FEDLOG-§]."
   ],
   "infrastructure_added": [
-    "proofs/federated/tokens/cross-harbor-issuance.pv",
-    "proofs/federated/trust/non-transitive-pact.pv",
-    "proofs/federated/revocation/propagation.tla + .cfg"
+    "whitepaper/formal/proverif/federated-harbor/tokens/cross-harbor-issuance.pv",
+    "whitepaper/formal/proverif/federated-harbor/trust/non-transitive-pact.pv",
+    "whitepaper/formal/tla/federated-harbor/revocation/propagation.tla + .cfg"
   ],
   "cross_paper_resolved": [
     "§fh-3 / Anchor §[ANCHOR-§-SIGS]: re-run, RESULT preserved under FH substitution."

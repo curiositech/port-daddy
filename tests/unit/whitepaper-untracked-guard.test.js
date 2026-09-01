@@ -1,7 +1,7 @@
 /**
  * The whitepaper-build workflow decides whether to commit rebuilt PDFs, and
  * whether main is serving stale ones, by asking git what changed. It used
- * `git diff --quiet -- 'website-v2/public/whitepaper/*.pdf'`, which cannot see a
+ * `git diff --quiet -- 'whitepaper/published/*.pdf'`, which cannot see a
  * file git is not yet tracking.
  *
  * That was invisible until the collected volume: every other paper's PDF was
@@ -23,7 +23,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const PDF_GLOB = 'website-v2/public/whitepaper/*.pdf';
+const PDF_GLOB = 'whitepaper/published/*.pdf';
 
 function fixtureRepo() {
   const dir = mkdtempSync(join(tmpdir(), 'whitepaper-untracked-'));
@@ -31,16 +31,16 @@ function fixtureRepo() {
   git('init', '-q', '-b', 'main');
   git('config', 'user.email', 'test@example.invalid');
   git('config', 'user.name', 'whitepaper test');
-  mkdirSync(join(dir, 'website-v2/public/whitepaper'), { recursive: true });
+  mkdirSync(join(dir, 'whitepaper/published'), { recursive: true });
   // A committed paper, so the repo has a HEAD and the glob has a tracked member.
-  writeFileSync(join(dir, 'website-v2/public/whitepaper/existing.pdf'), 'committed');
+  writeFileSync(join(dir, 'whitepaper/published/existing.pdf'), 'committed');
   git('add', '-A');
   git('commit', '-qm', 'an already-published paper');
   return { dir, git };
 }
 
 function addUntrackedVolume(dir) {
-  writeFileSync(join(dir, 'website-v2/public/whitepaper/collected-volume.pdf'), 'brand new');
+  writeFileSync(join(dir, 'whitepaper/published/collected-volume.pdf'), 'brand new');
 }
 
 describe('whitepaper PDF staleness detection sees untracked artifacts', () => {
@@ -86,7 +86,7 @@ describe('whitepaper PDF staleness detection sees untracked artifacts', () => {
 
       // Rewriting a tracked paper is the case that already worked; it must not
       // regress in exchange for seeing untracked ones.
-      writeFileSync(join(dir, 'website-v2/public/whitepaper/existing.pdf'), 'rebuilt');
+      writeFileSync(join(dir, 'whitepaper/published/existing.pdf'), 'rebuilt');
       const status = execFileSync('git',
         ['status', '--porcelain', '--untracked-files=all', '--', PDF_GLOB],
         { cwd: dir, encoding: 'utf8' });
@@ -107,13 +107,31 @@ describe('whitepaper PDF staleness detection sees untracked artifacts', () => {
     // The glob is deliberately unquoted, so the shell expands it against the
     // working tree and the untracked PDF arrives as an explicit path.
     const untrackedAware = workflow.match(
-      /git status --porcelain --untracked-files=all -- website-v2\/public\/whitepaper\/\*\.pdf/g);
+      /git status --porcelain --untracked-files=all -- whitepaper\/published\/\*\.pdf/g);
     expect(untrackedAware).toHaveLength(2); // the commit gate and the verify gate
 
     // The blind form must not come back for the published-PDF set. (The restore
     // step's `git diff --quiet -- "$pdf"` is a different check, on one tracked
     // path at a time, and is intentionally left alone.)
     expect(workflow).not.toMatch(
-      /git diff --quiet -- ['"]?website-v2\/public\/whitepaper\/\*\.pdf/);
+      /git diff --quiet -- ['"]?whitepaper\/published\/\*\.pdf/);
+  });
+
+  test('the workflow commits canonical PDFs and regenerates ignored website mirrors', () => {
+    const workflow = readFileSync(
+      join(repoRoot, '.github/workflows/whitepaper-build.yml'), 'utf8');
+
+    expect(workflow).toContain('node scripts/sync-whitepaper-publications.mjs');
+    expect(workflow).toMatch(/git add whitepaper\/published\/\*\.pdf/u);
+    expect(workflow).not.toMatch(/git add website-v2\/public\/whitepaper/u);
+  });
+
+  test('the research workflow keeps the same canonical-versus-mirror boundary', () => {
+    const workflow = readFileSync(
+      join(repoRoot, '.github/workflows/harbor-research-build.yml'), 'utf8');
+
+    expect(workflow).toContain('node scripts/sync-whitepaper-publications.mjs');
+    expect(workflow).toMatch(/git add whitepaper\/research\/pdf\/\*\.pdf/u);
+    expect(workflow).not.toMatch(/git add website-v2\/public\/research/u);
   });
 });

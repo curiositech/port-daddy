@@ -9,7 +9,7 @@
  * The signature happy-path is exercised by chain/crypto suites; here we lock the
  * authorization gates, especially: a publisher bound to tenant A can never
  * publish into tenant B's namespace (HARBOR_MISMATCH), the runtime complement to
- * analyses/github_ingress_tenant_isolation.pv.
+ * apps/relay/formal/proverif/github-ingress/github_ingress_tenant_isolation.pv.
  */
 
 import { describe, it, expect } from 'vitest';

@@ -4,7 +4,7 @@
 
 ## Why we must extend
 
-Current ProVerif models in `analyses/` cover **agent ↔ daemon**. Concretely: harbor card issuance, capability scoping, escrow secrecy, revocation. Adding a relay introduces:
+Current ProVerif models in `apps/relay/formal/proverif/` cover **agent ↔ daemon**. Concretely: harbor card issuance, capability scoping, escrow secrecy, revocation. Adding a relay introduces:
 
 - A new actor (relay) with its own keypair
 - A new public channel (relay-internet) with attacker-controlled paths
@@ -95,15 +95,15 @@ query attacker(payload_after_rotation).
 
 ## File layout
 
-Add under `analyses/`:
+Add under `apps/relay/formal/proverif/`:
 
-- `analyses/relay-handshake.pv` — handshake auth and session binding
-- `analyses/relay-publish.pv` — capability enforcement at publish
-- `analyses/relay-attenuation.pv` — Phase 3 caveat containment
-- `analyses/relay-e2e.pv` — secrecy of payload from relay
-- `analyses/relay-merkle.pv` — chain integrity and non-equivocation
-- `analyses/relay-revocation.pv` — revocation effectiveness with propagation delay
-- `analyses/README-relay.md` — narrative, query results, known limitations
+- `apps/relay/formal/proverif/relay-handshake.pv` — proposed output for handshake auth and session binding
+- `apps/relay/formal/proverif/relay-publish.pv` — proposed output for capability enforcement at publish
+- `apps/relay/formal/proverif/relay-attenuation.pv` — proposed output for Phase 3 caveat containment
+- `apps/relay/formal/proverif/relay-e2e.pv` — proposed output for secrecy of payload from relay
+- `apps/relay/formal/proverif/relay-merkle.pv` — proposed output for chain integrity and non-equivocation
+- `apps/relay/formal/proverif/relay-revocation.pv` — proposed output for revocation effectiveness with propagation delay
+- `apps/relay/formal/proverif/README-relay.md` — proposed output for narrative, query results, and known limitations
 
 ## What ProVerif handles well vs not
 
@@ -161,7 +161,7 @@ Before:
 ## Reading list
 
 - ProVerif manual (Blanchet et al.) — esp. on equational theories and correspondence assertions
-- Existing `analyses/escrow_secrecy.pv` — our prior pattern
+- Existing `apps/relay/formal/proverif/relay-e2e-secrecy/relay_e2e_secrecy.pv` — our prior pattern
 - ADR-0014 — protocol claims to verify
 - Tamarin tutorials — for parts where ProVerif falls short
 - "Symbolic Models for Cryptographic Protocols" (Cremers & Mauw, 2012) — methodology

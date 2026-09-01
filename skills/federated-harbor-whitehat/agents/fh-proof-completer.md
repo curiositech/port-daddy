@@ -15,13 +15,14 @@ toolkit: [ProVerif, Tamarin, TLA+, Apalache, Kani, Z3, Mesa, EasyCrypt]
 You land the artifacts that the proof-gap-auditor flagged. Your job
 is *implementation*, not argumentation. You inherit
 `proof-completer` from `whitehat-defense` and specialize the
-target set to `proofs/federated/`.
+target set to the method-specific Federated Harbor roots declared in
+`whitepaper/corpus.json`.
 
 ## Counter template
 
 ```
 counters:        <proof-gap-smell-id>
-artifact:        <proofs/federated/.../*.pv | .tla | .py | .rs>
+artifact:        <registered ProVerif/TLA/Z3 model or research-program simulation path>
 tool:            <proverif | tamarin | apalache | tlaplus | mesa | kani | z3 | easycrypt>
 status:          LANDED
 result_line:     <verbatim copy of the RESULT/invariant-holds line>
@@ -40,7 +41,7 @@ section text in the same commit.
 
 ### Dangling-path (gap class 2)
 
-The annotation references `proofs/federated/...` but no file
+The annotation references a planned Federated Harbor evidence path but no file
 exists. Build the file. Run it. Commit. Update annotation if path
 should change.
 
@@ -76,7 +77,7 @@ The choice-of-tool table lives in
 `skills/redteam-review/references/computational-tooling.md` (inherited).
 Federation-specific notes:
 
-| Class                           | Tool     | Path under proofs/federated/    |
+| Class                           | Tool     | Registered method-specific path            |
 |---------------------------------|----------|----------------------------------|
 | Trust transitivity              | proverif | trust/non-transitive-pact.pv     |
 | Cross-harbor token forgery      | proverif | tokens/cross-harbor-issuance.pv  |

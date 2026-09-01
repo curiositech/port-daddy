@@ -11,6 +11,9 @@ allowed-tools: Read,Write,Edit
 metadata:
   category: Writing & Communication
   tags: [exposition, house-style, technical-writing, seven-moves, harbor]
+  provenance:
+    kind: first-party
+    owners: [port-daddy]
   version: 1.0.0
   pairs-with:
     - skill: harbor-results

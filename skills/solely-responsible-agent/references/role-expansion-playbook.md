@@ -60,7 +60,7 @@ An agent is a sole owner when you can answer all five without hedging:
   (`cartographer/INDEX.md` on its own branch) and exclusive scope
   (the roadmap map). Missing only the explicit per-cycle ledger
   discipline and an enforcement hook. When ADR-0041's monitor lands,
-  register its obligation first — it's the most load-bearing ship.
+  register its obligation first — it's the most critical ship.
 
 ### officer-of-the-watch → the reference implementation
 - Born as a sole owner. See `fleet/ships/officer-of-the-watch.md`.

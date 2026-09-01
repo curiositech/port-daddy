@@ -46,7 +46,7 @@ metadata:
 
 # Beautiful GUI Design
 
-Treat the screen as a designed surface, not a dump of controls: hierarchy, color, type, motion, and accessibility are load-bearing, and every choice must survive light/dark mode, small and large viewports, keyboard and screen-reader use, and the conventions of the platform it ships on.
+Treat the screen as a designed surface, not a dump of controls: hierarchy, color, type, motion, and accessibility are critical, and every choice must survive light/dark mode, small and large viewports, keyboard and screen-reader use, and the conventions of the platform it ships on.
 
 ## When to Use
 
@@ -259,7 +259,7 @@ every width and both themes before you ship. Full detail: the
 
 **root**
 - [`CHANGELOG.md`](CHANGELOG.md) — Beautiful GUI Design — Changelog — - Upgraded to the agentic-family standard: `license`, block-style `provenance` (first-party/port-daddy), `pairs-with` (gpui-rust-console, ru
-- [`README.md`](README.md) — Beautiful GUI Design — Treat the screen as a designed surface, not a dump of controls: hierarchy, color, type, motion, and accessibility are load-bearing, and ever
+- [`README.md`](README.md) — Beautiful GUI Design — Treat the screen as a designed surface, not a dump of controls: hierarchy, color, type, motion, and accessibility are critical, and ever
 
 **`agents/`**
 - [`agents/openai.yaml`](agents/openai.yaml) — openai (data/schema)

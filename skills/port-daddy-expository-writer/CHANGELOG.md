@@ -2,6 +2,16 @@
 
 All notable changes to `port-daddy-expository-writer`.
 
+## [0.2.0] — 2026-08-31
+
+- Replaced the machine-private voice-memory dependency with the reviewed,
+  portable `references/voice-references.md` bundle.
+- Updated the skill, README, agent prompts, examples, and scorecard so the skill
+  can be installed and validated without Erich's home-directory state.
+- Registered the skill as a product-specific exposition adapter in the
+  whitepaper corpus manifest; it may explain the research, but it is not a
+  canonical source for research claims.
+
 ## [0.1.0] — 2026-05-20
 
 Initial structure.
@@ -34,7 +44,7 @@ Initial structure.
 
 - `port-daddy-marketing-copy` (one register up: marketing is quieter, expository is the cathedral)
 - `port-daddy-agent-skill` (canonical PD coordination conventions)
-- `redteam-review` (its `references/computational-tooling.md` is the deeper reference for verifier choice)
+- `redteam-review` (its computational-tooling reference is the deeper guide to verifier choice)
 - `proverif-tamarin-protocol-modeling` (the *how to write the .pv file* skill;
   this skill explains the result to a reader)
 - `tlaplus-practitioner` (analogous for TLA+)

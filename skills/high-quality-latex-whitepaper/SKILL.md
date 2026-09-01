@@ -1,19 +1,28 @@
 ---
 name: high-quality-latex-whitepaper
+license: Apache-2.0
+allowed-tools: Read,Write,Edit,Bash,Grep,Glob
 description: >
   Produce academic LaTeX whitepapers that look expensive, not cheap. Use when
   writing or revising a technical whitepaper (.tex), designing its TikZ figures,
   or reviewing one that "looks cheap." Encodes a restraint-first house style (one
   serif typeface, one accent color, consistent figure craft), the anti-cheap
   checklist, the pedagogic apparatus (callouts, exercises, reader's-map,
-  pull-quotes), and a mandatory render-read-audit loop.
-io-contract:
-  kind: deliverable
-  produces:
-    - kind: code
-      description: LaTeX whitepaper source with bibliography, figures, and build configuration
-    - kind: critique
-      description: Revision review of an existing whitepaper draft
+  pull-quotes), and a mandatory render-read-audit loop. NOT for slide decks,
+  marketing pages, or proving the paper's claims.
+metadata:
+  category: Writing & Publication
+  tags: [latex, whitepaper, typography, figures, visual-audit]
+  provenance:
+    kind: first-party
+    owners: [port-daddy]
+  io-contract:
+    kind: deliverable
+    produces:
+      - kind: code
+        description: LaTeX whitepaper source with bibliography, figures, and build configuration
+      - kind: critique
+        description: Revision review of an existing whitepaper draft
 ---
 
 # High-Quality LaTeX Whitepaper
@@ -60,7 +69,7 @@ If a figure has any of these, it is a defect, not a style choice.
 
 ---
 
-## The house style (the load-bearing rules)
+## The house style (the governing rules)
 
 The full canonical preamble — packages, palette, theorem envs, `fancyhdr`, the
 `\keyidea`/`\pitfall`/`exercises`/`\pullquote` commands, and the shared TikZ
@@ -103,6 +112,9 @@ A figure you have not *looked at* is not done. For every figure:
 3. **Read the PNG with your own eyes** (the Read tool shows images).
 4. Audit against the seven cheap tells + this paper's other figures (same scale? same fill? labels clear? accent used once?).
 5. Fix and re-render until clean.
+6. For Port Daddy corpus work, preserve the accepted color contact sheet, page evidence, and
+   tour in `whitepaper/proof/current/`; build-directory PNGs are disposable diagnostics, not
+   the review record.
 
 "It compiles" is not the bar. "It looks like a press made it, and it matches its siblings" is the bar.
 

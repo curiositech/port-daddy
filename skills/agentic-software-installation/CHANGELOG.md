@@ -2,7 +2,7 @@
 
 All notable changes to this skill are documented here. This skill encodes
 date- and vendor-versioned knowledge (CLI hook surfaces evolve), so the
-changelog is load-bearing — temporal claims rot silently without it.
+changelog is critical — temporal claims rot silently without it.
 
 ## [Unreleased]
 

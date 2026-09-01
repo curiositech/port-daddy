@@ -167,7 +167,7 @@ const expanded = containPath(payload.recipient);  // replaces unguarded resolve(
 - [ ] Every outbound-URL sink calls `assertSafeOutboundUrl`.
 - [ ] Every file sink/trigger path goes through `containPath`.
 - [ ] Each new attack vector gets a named regression test.
-- [ ] Macaroon tool/tier caveats covered by ProVerif before they are load-bearing.
+- [ ] Macaroon tool/tier caveats covered by ProVerif before they are critical.
 - [ ] Durable evidence sinks publish immutable artifacts from unique private
       temps; shared append rollback is not process-safe. Fsync only after the
       complete write, atomically publish, clamp directories/files to least

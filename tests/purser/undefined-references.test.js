@@ -4,7 +4,7 @@ import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-const logPath = 'website-v2/public/whitepaper/legible-swarm-whitepaper.pdf.log';
+const logPath = '.cache/whitepaper-build/legible-swarm/legible-swarm.log';
 
 describe('Undefined references check', () => {
   test('No undefined references in final PDF logs', () => {

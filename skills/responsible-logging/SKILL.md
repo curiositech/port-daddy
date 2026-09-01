@@ -211,7 +211,7 @@ governed logger and audited raw sinks in CI.
 | `references/case-study-port-daddy.md` | The 313 GB incident, the recurrence, the five-primitive fix | Understanding *why* each rule exists; convincing a skeptic |
 | `references/governor-primitive.md` | Stack-agnostic LogGovernor contract + pseudocode + porting notes | Building/reviewing a dedup/rate-limit/sampling primitive |
 | `references/rotation-and-capture-traps.md` | Rotation settings, launchd/systemd capture trap, one-logger + level discipline | Any disk-growth, rotation, or stdout-capture question |
-| `references/multi-tenant-and-safety.md` | Correlation-id threading, dev-on-dev horizon, fail-safe observability | Multi-tenant correlation, self-monitoring, non-load-bearing rules |
+| `references/multi-tenant-and-safety.md` | Correlation-id threading, dev-on-dev horizon, fail-safe observability | Multi-tenant correlation, self-monitoring, non-critical rules |
 
 ---
 

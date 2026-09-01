@@ -3,6 +3,13 @@
 All notable changes to this skill. Versioning matches the paper's
 round versions (`v0.1`, `v0.2`, ...). One entry per skill version.
 
+## v0.3 — 2026-08-31
+
+- Corrected the scope to Volume VII and replaced obsolete output roots with the canonical research-round and method-specific formal roots.
+- Replaced a machine-private voice dependency with the repository's portable expository reference.
+- Moved worked examples into `references/worked-examples.md` so the entrypoint remains concise.
+- Registered the skill as a chapter adapter whose claims remain subordinate to the source chapter and research manifest.
+
 ## v0.2 — 2026-05-20
 
 ### Added
@@ -18,10 +25,10 @@ round versions (`v0.1`, `v0.2`, ...). One entry per skill version.
   `docs/shipwright/SECURITY-BIBLIOGRAPHY.md` keyed to FH sections and
   probe/defense classes.
 - `scripts/new-round.sh` — scaffolds
-  `docs/shipwright/federated/dialogue-fh-vN-to-vN+1.{json,md}`.
+  `whitepaper/research/program/rounds/federated-harbor/dialogue-fh-vN-to-vN+1.{json,md}`.
 - `scripts/voice-check.sh` — banned-phrase grep + em-dash density +
   ballast heuristic. Mechanical pass only.
-- `scripts/probe-template.json` — JSON schema for a load-bearing
+- `scripts/probe-template.json` — JSON schema for a critical
   claim. Every drafter output uses this shape.
 - `examples/section-claim-example.json` — worked example for §fh-3
   cross-harbor token acceptance.

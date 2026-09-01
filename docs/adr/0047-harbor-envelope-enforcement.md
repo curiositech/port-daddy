@@ -119,5 +119,5 @@ Phases link to `roadmap_items` at horizon `now`. Cartographer owns reconciliatio
 
 - ADR-0013 (unified harbor model), `lib/harbors.ts` (advisory-v1 header)
 - `lib/harbor-envelope.ts`, `lib/bonds.ts` (capability model)
-- `website-v2/public/whitepaper/federated-harbor-whitepaper.tex` (§xfer attenuation)
+- `whitepaper/source/federated-harbor-whitepaper.tex` (§xfer attenuation)
 - [[feedback_guardrails_never_advertise_bypass]] — deny messages name the boundary, not an override

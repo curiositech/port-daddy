@@ -419,7 +419,7 @@ A full-bleed slide carries a generic inspirational quote in large type, unattrib
 
 **Detect:** llm-judge: 'Is the quote decorative gravitas — generic, hallucinated/missing attribution, and not advancing the specific next point?'
 
-**Fix:** Cut the quote unless it's real, correctly attributed, and load-bearing. Better: replace it with a concrete artifact — a customer's actual words, a real data point.
+**Fix:** Cut the quote unless it's real, correctly attributed, and critical. Better: replace it with a concrete artifact — a customer's actual words, a real data point.
 
 **Before**
 

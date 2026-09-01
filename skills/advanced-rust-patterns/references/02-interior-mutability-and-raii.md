@@ -149,7 +149,7 @@ Source: <https://doc.rust-lang.org/reference/destructors.html>
 
 So sibling `let a; let b;` drop `b` then `a`, but `struct S { a, b }` drops `a` then `b`. If a
 field must outlive another at drop time (e.g. a logger field that a connection field uses in
-*its* `Drop`), **field order in the struct is load-bearing** — reorder and you get
+*its* `Drop`), **field order in the struct is critical** — reorder and you get
 use-during-drop bugs.
 
 ### You cannot call `.drop()` manually

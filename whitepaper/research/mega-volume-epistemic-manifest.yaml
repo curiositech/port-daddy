@@ -1,0 +1,319 @@
+schema_version: 1
+book:
+  title: "The Harbor, the Person, and the Economy"
+  thesis: >-
+    Autonomy scales only when authority, evidence, and consequence remain
+    coupled at every effect boundary.
+  canonical_sources:
+    - whitepaper/research/HANDOFF.md
+    - skills/harbor-results/references/results-compendium.md
+    - skills/harbor-results/references/l3-tacit-lessons.md
+  numeric_policy:
+    verified: "Externally recomputable closed form or established result."
+    internal: "Repository script result; name the script and seed 20260816."
+  interpretation_rules:
+    - "A finite model check proves only the named model at the stated bound."
+    - "A signature authenticates a commitment, not the truth of its content."
+    - "A zero residual or a missing alarm is never promoted to proof of honesty."
+    - "A running library path is not an enforced effect boundary without a conformance argument."
+
+results:
+  - id: R1
+    name: "Read-poverty information floor"
+    epistemic_status: proved-plus-internal-falsification
+    claim: >-
+      A zero-miss digest that must expose all k critical artifacts among N while
+      allowing only m opens needs at least
+      log2(C(N,k))-log2(C(m,k)) bits.
+    conditions:
+      - "zero-miss worst-case guarantee"
+      - "literal message budget and a shared decoder codebook"
+    boundary: "Cheaper digests are possible when misses are allowed; this is not an average-case bound."
+    book_home: ["I"]
+    evidence:
+      - {kind: verified, locator: "closed-form combinatorics; N=60,k=2,m=8 gives 5.98 bits"}
+      - {kind: internal, locator: "skills/harbor-results/scripts/a7_experiment.py", seed: 20260816}
+
+  - id: R2
+    name: "Split-digest theorem"
+    epistemic_status: proved
+    claim: >-
+      One scalar ranking can serve two readers at every budget exactly when
+      their preference orders are comonotone; successor value and operator
+      regret admit crossing pairs, so they require separate heads.
+    conditions: ["the crossing pair occurs in the domain"]
+    boundary: "Readers whose orders are comonotone may share a head."
+    book_home: ["I"]
+    evidence:
+      - {kind: verified, locator: "whitepaper/research/tex/paper1.tex"}
+
+  - id: R3
+    name: "Derived regret head"
+    epistemic_status: proved
+    claim: >-
+      Inspect exactly when expected miss loss exceeds attention plus false-alarm
+      cost; anomaly must be a calibrated posterior rather than an ornamental score.
+    conditions: ["calibrated Pr(bad|evidence)", "declared miss, attention, and false-alarm costs"]
+    boundary: "Miscalibration invalidates the product-form interpretation by the calibration error."
+    book_home: ["I"]
+    evidence:
+      - {kind: verified, locator: "likelihood-ratio derivation in whitepaper/research/tex/paper1.tex"}
+
+  - id: R4
+    name: "Digest and zoom frontier"
+    epistemic_status: proved-custom-formulation-plus-internal-experiment
+    claim: >-
+      False-negative rate, flag rate, digest bits, and artifact opens form a
+      measurable frontier; sparse flagged sets admit logarithmic group-split zoom.
+    conditions: ["Bernoulli source for the rate calculation", "sparse flagged regime for zoom"]
+    boundary: "The two-constraint objective is custom, not a textbook rate-distortion theorem."
+    book_home: ["I"]
+    evidence:
+      - {kind: verified, locator: "whitepaper/research/tex/paper1.tex; zoom query bound"}
+      - {kind: internal, locator: "skills/harbor-results/scripts/b1_frontier.py", seed: 20260816}
+      - {kind: internal, locator: "skills/harbor-results/scripts/zoom_bound_check.py", seed: 20260816}
+
+  - id: R5
+    name: "Controllability boundary"
+    epistemic_status: verified-framework-plus-internal-checker
+    claim: >-
+      A safety policy can be prevented before effect exactly when it is
+      controllable with respect to the system's unmediated event alphabet.
+    conditions: ["explicit split between mediated and unmediated events", "complete model of the referenced state"]
+    boundary: "Semantic outputs and internal plans are detect-only; partial observation shrinks the preventable set."
+    book_home: ["II", "V", "VI"]
+    evidence:
+      - {kind: verified, locator: "Ramadge-Wonham controllability framework"}
+      - {kind: internal, locator: "skills/harbor-results/scripts/b3_controllability.py", seed: 20260816}
+
+  - id: R6
+    name: "Completion residual for equivocation"
+    epistemic_status: proved-plus-internal-harness
+    claim: >-
+      A positive least-squares completion residual proves that the relayed and
+      compared reports admit no global explanation; cycle structure can expose
+      an unchecked inconsistency that pairwise checks miss.
+    conditions:
+      - "coordinate-subset restriction maps"
+      - "the relevant endpoint reports are relayed to the analyst"
+      - "the unchecked edge lies on a cycle"
+    boundary: >-
+      Severed evidence is dark, cut edges are silent, coalitions can cancel, and
+      the residual does not attribute the liar. Zero is not an all-clear.
+    book_home: ["VII"]
+    evidence:
+      - {kind: internal, locator: "skills/harbor-results/scripts/sheaf_mechanism_proof.py", seed: 20260816}
+      - {kind: internal, locator: "skills/harbor-results/scripts/sheaf_harness_v2.py", seed: 20260816}
+
+  - id: R6-CR
+    name: "Consistency-radius theorem"
+    epistemic_status: proved-plus-internal-validation
+    claim: >-
+      The completion residual is the exact minimum norm of an offset pattern
+      needed to explain the observed data; for one equivocator it localizes to
+      cycles through that actor and decomposes into graph-Laplacian solves.
+    conditions: ["single equivocator for the localization and lower-bound statements", "noise threshold above honest projection floor"]
+    boundary: "Coalition coboundaries, uniform lies, severed reports, and abelianization gaps can remain invisible."
+    book_home: ["VII"]
+    evidence:
+      - {kind: internal, locator: "skills/harbor-results/scripts/sheaf_consistency_radius.py", seed: 20260816}
+
+  - id: R7
+    name: "Inspection tower and amortized verification"
+    epistemic_status: proved-plus-internal-validation
+    claim: >-
+      Audit probability, detection power, bond, and one-shot gain determine the
+      deterrence threshold; sealed sampling across independent cliques raises
+      the bribery cost, while earned history can reduce verification spend.
+    conditions: ["sealed sampling", "honest root evidence", "declared payoff convention"]
+    boundary: "If the audit draw leaks, the clique argument fails; constant versus finite total spend depends on independent revelation."
+    book_home: ["IV", "VI"]
+    evidence:
+      - {kind: verified, locator: "closed-form thresholds in whitepaper/research/tex/paper3.tex"}
+      - {kind: internal, locator: "skills/harbor-results/scripts/b2_tower.py", seed: 20260816}
+
+  - id: R8
+    name: "Evidence-carrying work-unit machine"
+    epistemic_status: finite-model-checked
+    claim: >-
+      The specified work-unit machine preserves stale-epoch exclusion,
+      at-most-once settlement, verified-implies-policy-and-receipt, monotone
+      delegation, reassignment fencing, and owner-funded receipted settlement.
+    conditions: ["the exact bounded transition system", "536 reachable states"]
+    boundary: "This checks the specification, not runtime refinement; safety only, not liveness."
+    book_home: ["II", "III", "VI"]
+    evidence:
+      - {kind: internal, locator: "skills/harbor-results/scripts/c0_workunit.py", seed: 20260816}
+
+  - id: R9
+    name: "Sealed-room noninterference modulo release"
+    epistemic_status: verified-framework-plus-finite-model-check
+    claim: >-
+      Under the declared release function, observer traces are identical for
+      equal-release secrets across every checked interleaving and may diverge
+      only at a declared gate release.
+    conditions: ["complete mediation in the model", "correct gate specification", "depth 7 and checked secret domain"]
+    boundary: "Timing, termination, covert channels, and an overly permissive release function remain outside the result."
+    book_home: ["VI"]
+    evidence:
+      - {kind: verified, locator: "noninterference modulo declassification and unwinding framework"}
+      - {kind: internal, locator: "skills/harbor-results/scripts/c1_noninterference.py", seed: 20260816}
+
+  - id: R10
+    name: "Privacy-budget conservation"
+    epistemic_status: proved-plus-finite-model-check
+    claim: >-
+      An atomic append-and-add release transition preserves equality between
+      recorded and accumulated privacy spend and refuses any release above the
+      configured budget.
+    conditions: ["every release crosses the ledger", "each epsilon value honestly describes its mechanism"]
+    boundary: "The ledger conserves recorded spend, not the meaning of a dishonest epsilon value."
+    book_home: ["VI"]
+    evidence:
+      - {kind: internal, locator: "skills/harbor-results/scripts/a3_epsilon_ledger.py", seed: 20260816}
+      - {kind: verified, locator: "sequential and advanced differential-privacy composition"}
+
+  - id: R11
+    name: "Canary power and detection latency"
+    epistemic_status: proved-operating-curve-plus-internal-simulation
+    claim: >-
+      Independent canaries give detection probability 1-beta^k; random planting
+      yields a hypergeometric power curve, and a sequential probability-ratio
+      test prices sustained-leak detection latency.
+    conditions: ["measured false-negative rate", "secret planting", "independence for the simple power formula"]
+    boundary: "Single-shot and sustained leakage require different calculations; dependence or a leaked canary list reduces power."
+    book_home: ["VI"]
+    evidence:
+      - {kind: internal, locator: "skills/harbor-results/scripts/a4_canary_sprt.py", seed: 20260816}
+
+  - id: R12
+    name: "No-mint inheritance"
+    epistemic_status: proved-plus-internal-validation
+    claim: >-
+      Reputation inheritance is safe when it transfers and discounts existing
+      credit: total live inherited credit never exceeds witnessed value and
+      increases only when new witnessed value enters.
+    conditions: ["source debit on derivation", "discount at most one", "bounded grant fractions"]
+    boundary: "The theorem conserves inherited prior credit, not new value earned by descendants."
+    book_home: ["III", "IV"]
+    evidence:
+      - {kind: internal, locator: "skills/harbor-results/scripts/a6_no_mint.py", seed: 20260816}
+    wrong_turn: "Budget-only copying was refuted by a gamma=0.9 chain whose closure sum reached 2.44."
+
+  - id: R13
+    name: "Engine substitution and resurrection soundness"
+    epistemic_status: proved-plus-finite-model-check
+    claim: >-
+      Unattested reputation attached to one identity cannot prevent a cheaper
+      engine substitution; engine-attested pricing plus identity-scoped
+      sanctions restores the incentive sign and preserves sanctions through a
+      properly witnessed migration.
+    conditions:
+      - "credential and continuity-witness verification"
+      - "successor outcomes attest the engine"
+      - "open obligations close or are renegotiated with their escrow delta"
+    boundary: "The economic result is two-period; attestation integrity and runtime refinement are separate obligations."
+    book_home: ["III", "IV"]
+    evidence:
+      - {kind: internal, locator: "skills/harbor-results/scripts/b5_engine_substitution.py", seed: 20260816}
+
+  - id: R14
+    name: "Costly-escalation threshold and tuning band"
+    epistemic_status: proved-plus-internal-validation
+    claim: >-
+      Under monotone benefit and validation, a standing debit creates a unique
+      escalation threshold; attention and miss constraints define an interval
+      of admissible debit values, which may be empty.
+    conditions: ["strictly increasing benefit", "nondecreasing validation", "measured validation map"]
+    boundary: "Nonmonotone validation destroys the threshold; an empty band requires more capacity or better evidence, not cosmetic tuning."
+    book_home: ["I", "VI"]
+    evidence:
+      - {kind: internal, locator: "skills/harbor-results/scripts/b7_escalation_band.py", seed: 20260816}
+
+  - id: R15
+    name: "Specialization boundary and succession price"
+    epistemic_status: proved-plus-internal-validation
+    claim: >-
+      Queueing delay, skill premium, failure rate, and restart time determine
+      when a sole specialist beats a pooled service and when no attainable skill
+      premium compensates for missing succession.
+    conditions: ["stated M/M/1 and M/M/c models", "FCFS", "exponential service and failure processes"]
+    boundary: "The comparison is about mean cost, not tail latency or an arbitrary production workload."
+    book_home: ["IV", "VI"]
+    evidence:
+      - {kind: internal, locator: "skills/harbor-results/scripts/b8_specialization.py", seed: 20260816}
+    wrong_turn: "The earlier specialization threshold was falsified in both directions and replaced by the Erlang-C boundary."
+
+  - id: R16
+    name: "Context paging with an untrusted pin oracle"
+    epistemic_status: imported-theorem-plus-internal-validation
+    claim: >-
+      Pin-augmented Landlord retains the weighted caching guarantee on honest
+      pages and pays an additive linear penalty for corrupted pin consultations
+      when repair occurs on touch.
+    conditions: ["unit cost density for the simple corruption charge", "repair on touch", "stated cache comparator"]
+    boundary: "Without repair on touch, one bad pin can cause unbounded stale service; stronger adaptive adversaries remain untested."
+    book_home: ["I"]
+    evidence:
+      - {kind: verified, locator: "Young 2002 Landlord theorem"}
+      - {kind: internal, locator: "skills/harbor-results/scripts/b9_context_paging.py", seed: 20260816}
+
+  - id: R17
+    name: "Tractable deontic-conflict fragment"
+    epistemic_status: proved-plus-internal-oracle-check
+    claim: >-
+      Ground Horn rules, interval-scoped obligations and prohibitions,
+      exclusive interval claims, and difference constraints admit polynomial,
+      witness-producing conflict detection; disjunctive obligations cross to an
+      NP-complete frontier.
+    conditions: ["least-model semantics", "ground atoms", "concrete interval endpoints"]
+    boundary: "Negation-as-failure, unification, and symbolic endpoints coupled to temporal variables are outside the proved fragment."
+    book_home: ["VI"]
+    evidence:
+      - {kind: internal, locator: "skills/harbor-results/scripts/b4_deontic_fragment.py", seed: 20260816}
+
+  - id: B6
+    name: "Front-loaded probation cliff"
+    epistemic_status: proved-plus-internal-validation
+    claim: >-
+      When a reset fraudster discounts future repayment more heavily than an
+      honest newcomer, a deterrence schedule with minimum honest burden is
+      maximally front-loaded rather than gradually increasing.
+    conditions: ["fraudster discount below honest discount", "declared maximum reset gain"]
+    boundary: "The result prices one reset model; it does not select the social value of admission."
+    book_home: ["III", "IV"]
+    evidence:
+      - {kind: internal, locator: "skills/harbor-results/scripts/b6_probation.py", seed: 20260816}
+
+  - id: ANCHOR-ATTENUATION
+    name: "Every-hop capability attenuation"
+    epistemic_status: symbolically-verified-plus-bounded-code-verification
+    claim: >-
+      The checked Anchor models and Rust verification harnesses preserve
+      monotone narrowing of scope, audience, conditions, quota, and expiry along
+      each delegation edge, with key-bound proof of possession.
+    conditions: ["the checked card model", "the verified Rust paths", "model-to-runtime conformance at admission"]
+    boundary: "The result authenticates and bounds a grant; it does not prove the truth of a task result or relay-wide liveness."
+    book_home: ["V"]
+    evidence:
+      - {kind: verified, locator: "whitepaper/source/anchor-protocol-whitepaper.tex; ProVerif and Kani appendices"}
+
+  - id: RELAY-V0
+    name: "Outbound event federation boundary"
+    epistemic_status: running-with-explicit-residual-risks
+    claim: >-
+      The current relay connects local daemons to harbor-scoped event streams by
+      outbound HTTPS/SSE, authenticates capability-scoped publishers, and routes
+      event envelopes without requiring inbound network access to the daemon.
+    conditions: ["configured relay", "valid harbor card", "local admission remains authoritative"]
+    boundary: >-
+      Relay is event federation, not daemon state replication or shared
+      consensus. Routing and authentication do not by themselves prove end-to-end
+      payload secrecy, external anchoring, delivery liveness, or local effect
+      authorization; each requires its own implemented path and evidence.
+    book_home: ["VII"]
+    evidence:
+      - {kind: running, locator: "docs/adr/0049-relay-architecture.md"}
+      - {kind: running, locator: "lib/relay-client.ts"}
+      - {kind: running, locator: "routes/relay.ts"}
+      - {kind: running, locator: "apps/relay/"}

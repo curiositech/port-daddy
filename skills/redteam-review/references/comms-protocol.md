@@ -118,7 +118,7 @@ read plaintext payloads without also compromising the keystore.
 - A compromised persona process can leak its fleet's plaintext. Defense
   is per-process hardening, not the comms layer.
 - A compromised lead Keychain entry breaks the round; rotation procedure
-  documented in `docs/SECURITY.md`.
+  documented in `docs/SECURITY_SOUNDNESS.md`.
 - Side channels (timing of writes, cardinality of tags, identity of
   subscriber) leak metadata. Tag taxonomy is intentionally public.
 
@@ -129,7 +129,7 @@ it as a standing target: prove that under a Dolev-Yao adversary controlling
 the daemon (read+write to ciphertext, no key access), the redteam payload
 secrecy and defense payload secrecy hold across Phase 1 and Phase 2, and
 that Gate B is the only path from red plaintext to defense plaintext.
-Artifact lives at `proofs/coordination/isolation.pv`.
+Artifact lives at `whitepaper/formal/proverif/coordination/isolation.pv`.
 
 ---
 

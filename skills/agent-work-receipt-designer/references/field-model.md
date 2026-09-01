@@ -33,7 +33,7 @@ applies to code review the same as it does to any list).
 7. **rollback** — a checkpoint (git sha, stash ref, snapshot id) plus the
    method to get back there, and whether that path was actually exercised.
 8. **spend** — tokens, cost, wall clock, budget ceiling, turn count. Low
-   ceremony but load-bearing for operators tracking a fleet's burn rate.
+   ceremony but critical for operators tracking a fleet's burn rate.
 9. **provenance** — content hash at minimum; signature and signer identity
    when attributability must survive the chat session closing (see
    `references/backend-normalization.md`, "Signing and attributability").

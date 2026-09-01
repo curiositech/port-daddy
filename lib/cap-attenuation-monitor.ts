@@ -2,7 +2,7 @@
  * Capability Attenuation Monitor — runtime verification of invariant I4.
  *
  * I4 ("delegated capabilities can only be restricted, never expanded") is proven
- * symbolically in `analyses/harbor_card_v5_attenuation.pv` (single-hop) and
+ * symbolically in `whitepaper/formal/proverif/harbor-card/harbor_card_v5_attenuation.pv` (single-hop) and
  * `harbor_card_v7_multihop_fixed.pv` (per-hop multi-hop). This module is the
  * operational twin: a pure-TS runtime monitor compiling that invariant so the
  * daemon can ENFORCE at runtime what ProVerif proved.

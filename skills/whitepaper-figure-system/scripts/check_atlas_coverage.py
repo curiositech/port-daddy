@@ -333,8 +333,8 @@ def canonical_roots_from_build_script(repo_root: Path) -> set[str]:
         if root == "coordination-papers-mega-volume.tex":
             continue
         source_dir = match.group("src")
-        if source_dir == "$PUB":
-            source_dir = "website-v2/public/whitepaper"
+        if source_dir == "$SOURCE":
+            source_dir = "whitepaper/source"
         roots.add(f"{source_dir}/{root}")
     return roots
 

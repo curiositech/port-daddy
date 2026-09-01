@@ -1,0 +1,47 @@
+% Shared visual language for the seven analytical papers.
+% This file defines marks, not layouts: every figure must still choose a grammar
+% from its reader question.  The duplicate under whitepaper/source/figures is kept in
+% lockstep for standalone Chapter I/II builds.
+\usetikzlibrary{matrix,patterns.meta}
+
+\tikzset{
+  pd figure/.style={font=\small,text=hhink},
+  pd hairline/.style={draw=hhgray!55,line width=.42pt},
+  pd rule/.style={draw=hhink,line width=.62pt},
+  pd focus rule/.style={draw=hhteal,line width=1.05pt},
+  pd caution rule/.style={draw=hhamber,line width=1.05pt},
+  pd guide/.style={draw=hhgray!42,line width=.38pt,densely dotted},
+  pd arrow/.style={-{Stealth[length=2.0mm,width=1.25mm]},draw=hhink,line width=.68pt},
+  pd focus arrow/.style={-{Stealth[length=2.0mm,width=1.25mm]},draw=hhteal,line width=.88pt},
+  pd caution arrow/.style={-{Stealth[length=2.0mm,width=1.25mm]},draw=hhamber,line width=.88pt,dashed},
+  pd panel title/.style={font=\footnotesize\bfseries,text=hhink,align=left},
+  pd axis label/.style={font=\scriptsize,text=hhgray},
+  pd direct label/.style={font=\scriptsize,text=hhink,align=left,inner sep=1.5pt,fill=hhpaper},
+  pd note/.style={font=\scriptsize\itshape,text=hhgray,align=left},
+  pd tick/.style={draw=hhgray,line width=.45pt},
+  pd datum/.style={circle,fill=hhink,draw=none,inner sep=1.55pt},
+  pd focus datum/.style={circle,fill=hhteal,draw=hhpaper,line width=.55pt,inner sep=2.15pt},
+  pd caution datum/.style={diamond,fill=hhamber,draw=hhpaper,line width=.55pt,inner sep=2.2pt},
+  pd state/.style={draw=hhink,line width=.62pt,fill=hhsand!13,rounded corners=1.5pt,
+    inner xsep=8pt,inner ysep=6pt,align=center,minimum height=9mm},
+  pd terminal/.style={pd state,double,double distance=1.2pt},
+  pd actor/.style={draw=hhink,line width=.62pt,fill=hhpaper,rounded corners=1.5pt,
+    inner xsep=8pt,inner ysep=5pt,align=center},
+  pd artifact/.style={draw=hhgray!80,line width=.55pt,fill=hhsand!13,
+    inner xsep=8pt,inner ysep=5pt,align=center},
+  pd boundary/.style={draw=hhgray!70,line width=.55pt,dashed,rounded corners=2pt},
+  pd focus fill/.style={fill=hhteal!7,draw=none},
+  pd caution fill/.style={fill=hhamber!9,draw=none},
+  pd neutral fill/.style={fill=hhsand!16,draw=none},
+  pd hatch/.style={pattern={Lines[angle=45,distance=4pt,line width=.28pt]},pattern color=hhgray!55},
+}
+
+% Small reusable marks.  They deliberately avoid prose-bearing boxes.
+\newcommand{\pdfigaxis}[4]{%
+  \draw[pd rule,-{Stealth[length=1.65mm,width=1.05mm]}] (#1,#2) -- (#3,#2);
+  \node[pd axis label,anchor=west] at (#3,#2) {#4};
+}
+\newcommand{\pdfigvaxis}[4]{%
+  \draw[pd rule,-{Stealth[length=1.65mm,width=1.05mm]}] (#1,#2) -- (#1,#3);
+  \node[pd axis label,anchor=south,align=center] at (#1,#3) {#4};
+}

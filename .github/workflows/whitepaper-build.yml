@@ -27,17 +27,19 @@ on:
   push:
     branches: [main, claude/papers-feature-branches-hb055f]
     paths:
-      - 'website-v2/public/whitepaper/**/*.tex'
-      - 'whitepaper/**/*.tex'
+      - 'whitepaper/source/**'
+      - 'whitepaper/corpus.json'
       - 'scripts/build-whitepapers.sh'
       - 'scripts/generate-mega-whitepaper.mjs'
+      - 'scripts/sync-whitepaper-publications.mjs'
       - '.github/workflows/whitepaper-build.yml'
   pull_request:
     paths:
-      - 'website-v2/public/whitepaper/**/*.tex'
-      - 'whitepaper/**/*.tex'
+      - 'whitepaper/source/**'
+      - 'whitepaper/corpus.json'
       - 'scripts/build-whitepapers.sh'
       - 'scripts/generate-mega-whitepaper.mjs'
+      - 'scripts/sync-whitepaper-publications.mjs'
       - '.github/workflows/whitepaper-build.yml'
   # Merge queue: trigger so this workflow reports a check context on the queued
   # group. The `build` job is SKIPPED on merge_group (see its `if:`), and a
@@ -145,7 +147,7 @@ jobs:
 
           build_papers
           hash_file="$RUNNER_TEMP/whitepaper-pdfs.sha256"
-          sha256sum website-v2/public/whitepaper/*.pdf > "$hash_file"
+          sha256sum whitepaper/published/*.pdf website-v2/public/whitepaper/*.pdf > "$hash_file"
           build_papers
           sha256sum --check "$hash_file"
 
@@ -176,6 +178,13 @@ jobs:
             fi
           fi
 
+          # Restoring a canonical PDF after a full rebuild necessarily makes
+          # its generated website copy stale. Regenerate every declared mirror
+          # from corpus.json after the restore decision, then validate both
+          # sides of the publication boundary.
+          node scripts/sync-whitepaper-publications.mjs
+          node scripts/check-whitepaper-corpus.mjs
+
       - name: Commit rebuilt PDFs (same-repo branch)
         # Heal configured feature-branch pushes and same-repository PR heads.
         # Fork PRs retain a read-only token and stay advisory; main is protected
@@ -196,12 +205,12 @@ jobs:
             "build(whitepaper): regenerate PDFs from source"*)
               echo "HEAD is already a build commit — nothing to do."; exit 0;;
           esac
-          if [ -z "$(git status --porcelain --untracked-files=all -- website-v2/public/whitepaper/*.pdf)" ]; then
+          if [ -z "$(git status --porcelain --untracked-files=all -- whitepaper/published/*.pdf)" ]; then
             echo "PDFs already match source — nothing to commit."; exit 0
           fi
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add website-v2/public/whitepaper/*.pdf
+          git add whitepaper/published/*.pdf
           echo "Changed PDFs:"; git diff --cached --stat
           git commit -m "build(whitepaper): regenerate PDFs from source"
           git push origin "HEAD:$TARGET_BRANCH"
@@ -212,11 +221,12 @@ jobs:
         if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref_name == 'main')
         run: |
           set -uo pipefail
-          if [ -z "$(git status --porcelain --untracked-files=all -- website-v2/public/whitepaper/*.pdf)" ]; then
+          node scripts/check-whitepaper-corpus.mjs
+          if [ -z "$(git status --porcelain --untracked-files=all -- whitepaper/published/*.pdf)" ]; then
             echo "All in-scope published PDFs match a fresh render. ✔"; exit 0
           fi
           echo "Published PDFs differ from a fresh render of current source:"
-          git diff --stat -- 'website-v2/public/whitepaper/*.pdf' || true
+          git diff --stat -- 'whitepaper/published/*.pdf' || true
           if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref_name }}" = "main" ]; then
             echo "::error::main is serving stale whitepaper PDFs — a PR must carry"
             echo "rebuilt PDFs (the feature-branch build commits them automatically)."

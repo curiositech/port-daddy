@@ -3,8 +3,8 @@
 # build-whitepapers.sh — rebuild every published whitepaper PDF from its
 # LaTeX source, reproducibly.
 #
-# Why this exists: the published PDFs under website-v2/public/whitepaper/ are
-# the artifacts the website serves and people download. They are NOT rebuilt
+# Why this exists: the canonical PDFs under whitepaper/published/ are the
+# artifacts the website mirrors and people download. They are NOT rebuilt
 # automatically when the .tex or figures change, so they drift (e.g. the
 # trilogy PDFs shipped a June-3 render with retired cinnabar after the source
 # moved to cobalt on June 11). This script is the single source of truth for
@@ -29,7 +29,8 @@ set -uo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
 
-PUB="website-v2/public/whitepaper"
+SOURCE="whitepaper/source"
+PUBLISHED="whitepaper/published"
 # pdfTeX incorporates the output path into the trailer /ID. A random mktemp
 # directory therefore makes otherwise identical PDFs differ on every build.
 # Keep the ignored build path stable across PR and main runners.
@@ -57,14 +58,14 @@ trap clean_build_dir EXIT
 #
 # paper table: "<srcdir>|<root.tex>|<dest published pdf path>"
 PAPERS=(
-  "$PUB|agent-transactions-whitepaper.tex|$PUB/agent-transactions-whitepaper.pdf"
-  "$PUB|anchor-protocol-whitepaper.tex|$PUB/anchor-protocol-whitepaper.pdf"
-  "$PUB|federated-harbor-whitepaper.tex|$PUB/federated-harbor-whitepaper.pdf"
-  "$PUB|harbor-economy.tex|$PUB/harbor-economy-whitepaper.pdf"
-  "$PUB|spawn-to-person.tex|$PUB/spawn-to-person-whitepaper.pdf"
-  "whitepaper|legible-swarm.tex|$PUB/legible-swarm-whitepaper.pdf"
-  "whitepaper|single-writer-kernel.tex|$PUB/single-writer-kernel-whitepaper.pdf"
-  "$PUB|coordination-papers-mega-volume.tex|$PUB/coordination-papers-mega-volume.pdf"
+  "$SOURCE|agent-transactions-whitepaper.tex|$PUBLISHED/agent-transactions-whitepaper.pdf"
+  "$SOURCE|anchor-protocol-whitepaper.tex|$PUBLISHED/anchor-protocol-whitepaper.pdf"
+  "$SOURCE|federated-harbor-whitepaper.tex|$PUBLISHED/federated-harbor-whitepaper.pdf"
+  "$SOURCE|harbor-economy.tex|$PUBLISHED/harbor-economy-whitepaper.pdf"
+  "$SOURCE|spawn-to-person.tex|$PUBLISHED/spawn-to-person-whitepaper.pdf"
+  "$SOURCE|legible-swarm.tex|$PUBLISHED/legible-swarm-whitepaper.pdf"
+  "$SOURCE|single-writer-kernel.tex|$PUBLISHED/single-writer-kernel-whitepaper.pdf"
+  "$SOURCE|coordination-papers-mega-volume.tex|$PUBLISHED/coordination-papers-mega-volume.pdf"
 )
 
 CHANGED_SINCE=""
@@ -97,13 +98,13 @@ paper_sources() {
       "$srcdir/coordination-papers-mega-volume-seams.tex" \
       "$srcdir/coordination-papers-mega-volume-appendices.tex" \
       "scripts/generate-mega-whitepaper.mjs"
-    paper_sources "whitepaper" "legible-swarm.tex"
-    paper_sources "whitepaper" "single-writer-kernel.tex"
-    paper_sources "$PUB" "spawn-to-person.tex"
-    paper_sources "$PUB" "harbor-economy.tex"
-    paper_sources "$PUB" "anchor-protocol-whitepaper.tex"
-    paper_sources "$PUB" "agent-transactions-whitepaper.tex"
-    paper_sources "$PUB" "federated-harbor-whitepaper.tex"
+    paper_sources "$SOURCE" "legible-swarm.tex"
+    paper_sources "$SOURCE" "single-writer-kernel.tex"
+    paper_sources "$SOURCE" "spawn-to-person.tex"
+    paper_sources "$SOURCE" "harbor-economy.tex"
+    paper_sources "$SOURCE" "anchor-protocol-whitepaper.tex"
+    paper_sources "$SOURCE" "agent-transactions-whitepaper.tex"
+    paper_sources "$SOURCE" "federated-harbor-whitepaper.tex"
     return
   fi
   local pending=("$roottex")
@@ -251,6 +252,7 @@ main() {
     printf '  FAILED: %s\n' "${FAILED[@]}"
     exit 1
   fi
+  node scripts/sync-whitepaper-publications.mjs
 }
 
 if [ "${BASH_SOURCE[0]}" = "$0" ]; then

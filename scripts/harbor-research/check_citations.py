@@ -8,12 +8,11 @@ paper citations to flag discrepancies") and from the real bug fixed in commit
 1cf3a3226 (a citation named in prose with no matching \\bibitem). Stdlib-only,
 offline, reproducible — no arXiv/DOI network lookups.
 
-Corpora (three LaTeX bibliographies, all `thebibliography`/`\\bibitem`/`\\cite`,
+Corpora (two source trees with LaTeX bibliographies, all `thebibliography`/`\\bibitem`/`\\cite`,
 not BibTeX):
-  1. docs/harbor-research/tex/*.tex       — the Harbor Research Program papers
-  2. whitepaper/*.tex                     — Coordination Papers chapters (subset)
-  3. website-v2/public/whitepaper/*.tex   — Coordination Papers chapters (rest)
-                                             + the mega-volume assembly files
+  1. whitepaper/research/tex/*.tex       — the Harbor Research Program papers
+  2. whitepaper/source/*.tex              — the seven Coordination Papers chapters
+                                             + the collected-volume assembly files
 
 Each corpus directory is globbed non-recursively (`*.tex` only) so the file
 list can't go stale — adding paper8.tex or a new chapter needs no edit here.
@@ -33,10 +32,10 @@ Checks:
      \\bibitem{key} in that document's own bibliography. (The class of bug
      fixed for real in 1cf3a3226.)
   4. Confidence-register cross-check — for every live \\bibitem (one that IS
-     \\cite'd, i.e. actually in use, not just orphaned text) across all three
+     \\cite'd, i.e. actually in use, not just orphaned text) across both
      corpora, look for a plausible fuzzy match (shared 4-digit year + at least
      two shared distinctive words) against a candidate row in
-     docs/harbor-research/deep-dives/BIBLIOGRAPHY.md's Part 1 tables, then
+     whitepaper/research/deep-dives/BIBLIOGRAPHY.md's Part 1 tables, then
      check the four deep-dive findings.md files for a verdict that overrides
      BIBLIOGRAPHY.md (findings.md wins on conflict — it may be more current).
      Flag any match whose resolved confidence is not `verified`. This is
@@ -61,13 +60,12 @@ from dataclasses import dataclass, field
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 CORPUS_PATTERNS = [
-    "docs/harbor-research/tex/*.tex",
-    "whitepaper/*.tex",
-    "website-v2/public/whitepaper/*.tex",
+    "whitepaper/research/tex/*.tex",
+    "whitepaper/source/*.tex",
 ]
 
-BIBLIOGRAPHY_MD = "docs/harbor-research/deep-dives/BIBLIOGRAPHY.md"
-FINDINGS_GLOB = "docs/harbor-research/deep-dives/flag-*/findings.md"
+BIBLIOGRAPHY_MD = "whitepaper/research/deep-dives/BIBLIOGRAPHY.md"
+FINDINGS_GLOB = "whitepaper/research/deep-dives/flag-*/findings.md"
 
 WORKTREE_MARKER = os.path.join(".claude", "worktrees")
 
@@ -473,7 +471,7 @@ def main() -> int:
     candidates_resolved = apply_findings_overrides(candidates)
     mismatches = find_confidence_mismatches(documents, candidates_resolved)
 
-    print(f"Scanned {len(corpus_files)} top-level .tex file(s) across 3 corpora:")
+    print(f"Scanned {len(corpus_files)} top-level .tex file(s) across {len(CORPUS_PATTERNS)} source trees:")
     for pattern in CORPUS_PATTERNS:
         matched = [rel(f) for f in corpus_files if _matches_pattern(f, pattern)]
         print(f"  {pattern}  ({len(matched)} file(s))")

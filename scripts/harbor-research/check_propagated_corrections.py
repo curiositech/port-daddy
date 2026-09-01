@@ -4,7 +4,7 @@ corrections") across the harbor-research corpus.
 
 Background
 ----------
-docs/harbor-research/exposition-review/CROSS-DOCUMENT-SYNTHESIS.md, section
+whitepaper/reviews/current/exposition/CROSS-DOCUMENT-SYNTHESIS.md, section
 "B. Systemic patterns across the corpus", item B1 ("Un-propagated corrections
 -- the single largest pattern in the corpus"), describes a recurring defect:
 a reviewer's correction lands in exactly one place in a document (usually a
@@ -21,7 +21,7 @@ should be built once for the whole corpus, not once per chapter."
 This script is that table. It does NOT re-derive the correction list from
 scratch -- it encodes, per correction-item, the exact site(s) a human
 reviewer (see the per-document *-notes.md files under
-docs/harbor-research/exposition-review/) flagged as needing to agree, plus
+whitepaper/reviews/current/exposition/) flagged as needing to agree, plus
 concrete regex patterns verified against the CURRENT tree at the time this
 script was written. Because a large amount of fix work has already landed
 on top of the synthesis doc (see `git log --oneline` for commits like
@@ -163,13 +163,13 @@ ITEMS: list[Item] = [
         ),
         checks=[
             Check(
-                "docs/harbor-research/tex/paper1.tex",
+                "whitepaper/research/tex/paper1.tex",
                 "body/abstract must not restate the retracted 1.05--1.08 band",
                 absent=r"1\.05\s*(--|-|\\text\{--\})\s*1\.08",
                 present=r"grows without bound in \$?k\$?",
             ),
             Check(
-                "docs/harbor-research/figures/fig-r2-regime.tex",
+                "whitepaper/research/figures/fig-r2-regime.tex",
                 "figure caption must not restate the retracted band either",
                 absent=r"1\.05\s*(--|-|\\text\{--\})\s*1\.08",
             ),
@@ -185,13 +185,13 @@ ITEMS: list[Item] = [
         ),
         checks=[
             Check(
-                "docs/harbor-research/tex/paper1.tex",
+                "whitepaper/research/tex/paper1.tex",
                 "all three body sites tag 0/16 as internal",
                 absent=r"0/16[^.]{0,40}\[verified\]",
                 present=r"0/16[^.]{0,60}\[internal",
             ),
             Check(
-                "docs/harbor-research/figures/fig-r1-relation.tex",
+                "whitepaper/research/figures/fig-r1-relation.tex",
                 "figure node must tag 0/16 as internal, not verified",
                 absent=r"0/16\$?\s*floor violations[\s\\{]*\[verified",
                 present=r"0/16\$?\s*floor violations[\s\\{]*\[internal",
@@ -211,19 +211,19 @@ ITEMS: list[Item] = [
         ),
         checks=[
             Check(
-                "docs/harbor-research/tex/paper3.tex",
+                "whitepaper/research/tex/paper3.tex",
                 "body prose must not claim unbounded tower depth",
                 absent=r"[Uu]nbounded depth|certifies unbounded levels",
                 present=r"depth logarithmic in",
             ),
             Check(
-                "docs/harbor-research/figures/fig-r7-relation.tex",
+                "whitepaper/research/figures/fig-r7-relation.tex",
                 "relation-map figure must not (outside comments) claim unbounded depth",
                 absent=r"[Uu]nbounded depth|certifies unbounded levels",
                 present=r"depth logarithmic in the corrupt value",
             ),
             Check(
-                "docs/harbor-research/figures/fig-r7-regime.tex",
+                "whitepaper/research/figures/fig-r7-regime.tex",
                 "regime figure inset must not (outside comments) claim unbounded depth",
                 absent=r"[Uu]nbounded depth|certifies unbounded levels",
             ),
@@ -241,12 +241,12 @@ ITEMS: list[Item] = [
         ),
         checks=[
             Check(
-                "docs/harbor-research/tex/paper4.tex",
+                "whitepaper/research/tex/paper4.tex",
                 "Verification must be its own thebox, not appended to Theorem 3's box",
                 present=r"\\begin\{thebox\}\s*\\textbf\{Verification \(Theorem 3\)\.?\}",
             ),
             Check(
-                "docs/harbor-research/tex/paper4.tex",
+                "whitepaper/research/tex/paper4.tex",
                 "the 'why not just quote the advanced bound' discussion must sit "
                 "outside the Theorem 3 box, as ordinary body prose",
                 present=r"\\end\{thebox\}\s*\n*\\textbf\{Why not just quote the advanced bound\.\}",
@@ -263,7 +263,7 @@ ITEMS: list[Item] = [
         ),
         checks=[
             Check(
-                "docs/harbor-research/tex/paper4.tex",
+                "whitepaper/research/tex/paper4.tex",
                 "SPRT error target must no longer be spelled (alpha, b)",
                 absent=r"\(\\alpha,\s*b\)",
                 present=r"\(\\alpha,\\gamma\)",
@@ -281,7 +281,7 @@ ITEMS: list[Item] = [
         ),
         checks=[
             Check(
-                "docs/harbor-research/tex/paper4.tex",
+                "whitepaper/research/tex/paper4.tex",
                 "S7 must name the three debts it is paying, not discharge them silently",
                 present=r"pays the three debts it took on earlier",
             ),
@@ -299,22 +299,22 @@ ITEMS: list[Item] = [
         ),
         checks=[
             Check(
-                "docs/harbor-research/tex/paper5.tex",
+                "whitepaper/research/tex/paper5.tex",
                 "box (Theorem 2b) states the pricing condition is a hypothesis",
                 present=r"pricing condition is a hypothesis",
             ),
             Check(
-                "docs/harbor-research/tex/paper5.tex",
+                "whitepaper/research/tex/paper5.tex",
                 "abstract's engine-substitution claim must carry the pricing hypothesis",
                 present=r"zero audit stake \\emph\{whenever the attested\s*\n?price schedule passes through the full quality difference\}",
             ),
             Check(
-                "docs/harbor-research/tex/paper5.tex",
+                "whitepaper/research/tex/paper5.tex",
                 "S3 express lane (one-breath) must carry the pricing hypothesis",
                 present=r"provided the attested price\s*\n?schedule passes through the full quality difference, the substitution incentive",
             ),
             Check(
-                "docs/harbor-research/tex/paper5.tex",
+                "whitepaper/research/tex/paper5.tex",
                 "S7 'New, honestly' summary must carry the pricing hypothesis",
                 present=r"under a stated pricing hypothesis,\s*\n?\\emph\{flips\}",
             ),
@@ -330,22 +330,22 @@ ITEMS: list[Item] = [
         ),
         checks=[
             Check(
-                "docs/harbor-research/tex/paper5.tex",
+                "whitepaper/research/tex/paper5.tex",
                 "abstract's probation-cliff claim is qualified by feasibility",
                 present=r"maximally front-loaded \\emph\{feasible\} one uniquely",
             ),
             Check(
-                "docs/harbor-research/tex/paper5.tex",
+                "whitepaper/research/tex/paper5.tex",
                 "S5 express lane ties uniqueness to what the newcomer's ceiling can carry",
                 present=r"restriction as early as the newcomer's own ceiling can carry it",
             ),
             Check(
-                "docs/harbor-research/tex/paper5.tex",
+                "whitepaper/research/tex/paper5.tex",
                 "box states uniqueness holds only when the programme is feasible",
                 present=r"unique\} whenever the\s*\n?programme is feasible at all",
             ),
             Check(
-                "docs/harbor-research/tex/paper5.tex",
+                "whitepaper/research/tex/paper5.tex",
                 "S7 summary names both the front-loading result and the feasibility bound",
                 present=r"unique optimal shape, front-loaded to the newcomer's ceiling\s*\n?rather than ramped --- and a feasibility bound",
             ),
@@ -364,22 +364,22 @@ ITEMS: list[Item] = [
         ),
         checks=[
             Check(
-                "docs/harbor-research/tex/paper6.tex",
+                "whitepaper/research/tex/paper6.tex",
                 "abstract uses 'stays below D*' (viability convention)",
                 present=r"stays below \$D\^\\star=\\eta K/\(1-\\eta K\)\$",
             ),
             Check(
-                "docs/harbor-research/tex/paper6.tex",
+                "whitepaper/research/tex/paper6.tex",
                 "express lane uses 'xi/eta < D*' (viability convention)",
                 present=r"sole-owner viability capped at \$\\xi/\\eta < D\^\\star\$",
             ),
             Check(
-                "docs/harbor-research/tex/paper6.tex",
+                "whitepaper/research/tex/paper6.tex",
                 "theorem box uses '>= D*' (pooling-dominates convention, the complement)",
                 present=r"\\frac\{\\xi\}\{\\eta\}\s*\\;\\ge\\;\s*D\^\\star",
             ),
             Check(
-                "docs/harbor-research/tex/paper6.tex",
+                "whitepaper/research/tex/paper6.tex",
                 "inventory table uses 'xi/eta < D*' (viability convention)",
                 present=r"viable only while \$\\xi/\\eta < D\^\\star",
             ),
@@ -401,38 +401,38 @@ ITEMS: list[Item] = [
         ),
         checks=[
             Check(
-                "whitepaper/single-writer-kernel.tex",
+                "whitepaper/source/single-writer-kernel.tex",
                 "reconciliation table exists with a status column",
                 present=r"\\label\{tab:op-status\}",
             ),
             Check(
-                "whitepaper/single-writer-kernel.tex",
+                "whitepaper/source/single-writer-kernel.tex",
                 "table's OP-1 row must say Open (matches the design-not-yet-shipped state)",
                 present=r"OP-1 & Fair exclusion without a scheduler & \\Open &",
             ),
             Check(
-                "whitepaper/single-writer-kernel.tex",
+                "whitepaper/source/single-writer-kernel.tex",
                 "the adjacency contract's explicit non-provisions still list OP-1 as not provided",
                 present=r"does \\emph\{not\} provide fair/queued exclusion \(OP-1\)",
             ),
             Check(
-                "whitepaper/single-writer-kernel.tex",
+                "whitepaper/source/single-writer-kernel.tex",
                 "the master Open Problems list must not claim OP-1 is closed/solved",
                 absent=r"\$\\bigstar\$\s*OP-1[^.\n]*\]\s*Status:\s*\\Closed",
                 present=r"\$\\bigstar\$ OP-1 --- Fair exclusion without a scheduler\.\] Status: \\Open",
             ),
             Check(
-                "whitepaper/single-writer-kernel.tex",
+                "whitepaper/source/single-writer-kernel.tex",
                 "table's OP-3 (runtime parity) row must say Open, not solved",
                 present=r"OP-3 & Cross-runtime soundness \(I11\) & \\Open &",
             ),
             Check(
-                "whitepaper/single-writer-kernel.tex",
+                "whitepaper/source/single-writer-kernel.tex",
                 "table's OP-9 (SO_PEERCRED / same-machine adversary) row must say Open",
                 present=r"OP-9 & Same-machine adversary & \\Open &",
             ),
             Check(
-                "whitepaper/single-writer-kernel.tex",
+                "whitepaper/source/single-writer-kernel.tex",
                 "table's OP-10 (selective checkpointing) row must say Open",
                 present=r"OP-10 & Per-write-path durability & \\Open &",
             ),
@@ -451,12 +451,12 @@ ITEMS: list[Item] = [
         ),
         checks=[
             Check(
-                "whitepaper/single-writer-kernel.tex",
+                "whitepaper/source/single-writer-kernel.tex",
                 "alg:close comment marks DELTA_ORACLE/AST_ASSERTION as not-yet-shipped",
                 present=r"\(OP-5, specified only\) would add DELTA_ORACLE and AST_ASSERTION here",
             ),
             Check(
-                "whitepaper/single-writer-kernel.tex",
+                "whitepaper/source/single-writer-kernel.tex",
                 "the shipped oracle-kind set (the actual enum literal) must not include the two new kinds",
                 absent=r"\{RELEASED_CLAIM,\s*MERGED_COMMIT,\s*PASSING_TEST,\s*POLICY_SUBCHECK,\s*(DELTA_ORACLE|AST_ASSERTION)",
             ),
@@ -474,18 +474,18 @@ ITEMS: list[Item] = [
         ),
         checks=[
             Check(
-                "whitepaper/legible-swarm.tex",
+                "whitepaper/source/legible-swarm.tex",
                 "prose must not claim the sidecar architecture is already established",
                 absent=r"the architecture establishes two separate pipelines",
                 present=r"the design calls for two separate pipelines",
             ),
             Check(
-                "whitepaper/legible-swarm.tex",
+                "whitepaper/source/legible-swarm.tex",
                 "Oversight Head must carry an explicit \\Vision (not-yet-built) tag",
                 present=r"Oversight Head \(\$R_2\$, \\Vision\)",
             ),
             Check(
-                "whitepaper/legible-swarm.tex",
+                "whitepaper/source/legible-swarm.tex",
                 "Appendix A must carry a row for the sidecar",
                 present=r"Oversight head / SLM sidecar \(air-gapped digest authoring\) & \\Vision",
             ),
@@ -504,13 +504,13 @@ ITEMS: list[Item] = [
         ),
         checks=[
             Check(
-                "website-v2/public/whitepaper/spawn-to-person.tex",
+                "whitepaper/source/spawn-to-person.tex",
                 "pitfall box must not claim OP-4 is solved/instant",
                 absent=r"is now solved via[\s\S]{0,20}Event-Sourced Neural Rehydration|turning[^.]*instantly",
                 present=r"\\DESIGNED, not \\BUILT",
             ),
             Check(
-                "website-v2/public/whitepaper/spawn-to-person.tex",
+                "whitepaper/source/spawn-to-person.tex",
                 "S10 open-problems entry must not claim OP-4 is Solved",
                 absent=r"Solved via \\textbf\{Event-Sourced Neural Rehydration\}",
                 present=r"\\DESIGNED\\ candidate answer",
@@ -526,33 +526,34 @@ ITEMS: list[Item] = [
             "settlement escrow 'Authority Invariant' / 'Non-Custodial: Can "
             "Refuse, Cannot Redirect' as settled fact, while S6's own Property "
             "states it is conditional on four unverified custody assumptions. "
-            "Fix: all three figures + the body now use conditional language "
-            "('Custody bounded only if...', 'Custody Assumption', not "
-            "'Authority Invariant')."
+            "Fix: the topology and settlement figures now make the conditions "
+            "explicit, while the transfer figure omits escrow custody rather "
+            "than presenting an unproved custody claim."
         ),
         checks=[
             Check(
-                "website-v2/public/whitepaper/federated-harbor-whitepaper.tex",
+                "whitepaper/source/federated-harbor-whitepaper.tex",
                 "S6.2's clearinghouse language must not assert the escrow as closed/settled",
                 absent=r"2-of-3 Multisig Clearinghouse",
                 present=r"candidate design, not a closed result",
             ),
             Check(
-                "website-v2/public/whitepaper/figures/fig-fh-federation-topology.tex",
-                "topology figure's escrow node must be conditional, not an unconditional invariant",
+                "whitepaper/source/figures/fig-fh-federation-topology.tex",
+                "topology figure's settlement rail must be conditional, not an unconditional invariant",
                 absent=r"Non-Custodial: Can Refuse, Cannot Redirect",
-                present=r"Custody bounded \\emph\{only if\}",
+                present=r"bounded custody only if gate holds",
             ),
             Check(
-                "website-v2/public/whitepaper/figures/fig-fh-settlement.tex",
-                "settlement figure's guardbox must be 'Custody Assumption', not 'Authority Invariant'",
+                "whitepaper/source/figures/fig-fh-settlement.tex",
+                "settlement figure must identify the custody restrictions as theorem hypotheses",
                 absent=r"Authority Invariant",
-                present=r"Custody Assumption",
+                present=r"the theorem's hypothesis, not decoration",
             ),
             Check(
-                "website-v2/public/whitepaper/figures/fig-fh-xfer-ceremony.tex",
-                "xfer-ceremony figure's deferred-properties box must call the escrow conditionally bounded",
-                present=r"Conditionally bounded escrow custody",
+                "whitepaper/source/figures/fig-fh-xfer-ceremony.tex",
+                "xfer-ceremony figure must not restore the old unconditional escrow assertion",
+                absent=r"Non-Custodial: Can Refuse, Cannot Redirect|Authority Invariant",
+                present=r"revocation remains an asynchronous epoch-root dependency",
             ),
         ],
     ),

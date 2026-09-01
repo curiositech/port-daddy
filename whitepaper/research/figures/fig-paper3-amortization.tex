@@ -1,0 +1,148 @@
+% Paper 3 amortization ladder, two panels: cumulative audit spend vs.
+% verified-history length t under the three schedules of
+% Theorem~\ref{thm:amort} (flat, Model A, Model B), at G=10, d=0.8, B=50,
+% a=1, v=0.6, r=0.05.
+%
+% PANEL A -- the paper's measured horizon T=200. Curve values recomputed
+% directly from spend_flat/spend_A/spend_B = a*cumsum(rho_flat/rho_A/rho_B)
+% in whitepaper/research/figures/src/paper3_amortization_figures.py,
+% lines 43-53 (sampled every 10 periods plus the t=199 endpoint; a
+% temporary print was added, the script re-run, the exact printed values
+% transcribed below, and the print statement then removed -- the script's
+% committed logic is unmodified). Endpoint values at t=199: flat=50.00,
+% Model A=25.583785 (rounds to the paper's 25.58), Model B=35.075000
+% (rounds to the paper's 35.08); closed-form Model B limit
+% aG^2/(2dBrv)=41.666667 (41.67); t*=G/(rv)=333.33 (333) -- all match the
+% numbers cited in paper3.tex's Sec.~\ref{sec:amort} and its caption; no
+% discrepancy found on cross-check.
+%
+% PANEL B -- the saturation view, added per exposition review B3/C3. On
+% [0,200] all three curves are visually near-linear and the O(1) curve is
+% the SECOND-STEEPEST, which is exactly backwards about its long-run
+% behaviour; the panel therefore runs the identical schedules out to
+% T=1500, past t*=333. Recomputed with the script's own three definitions
+% verbatim -- rho_flat = G/(dB); rho_A = G/(d(B+v t)); rho_B = max(0,
+% (G - r v t)/(dB)); spend = a*cumsum(rho) -- with T_max raised from 200
+% to 1500 and t = arange(T_max); nothing else changed and no randomness is
+% consumed (the script's seed 20260816 is decorative: all three curves are
+% closed-form cumulative sums). Sampled every 20 periods to t=100, every
+% 50 to t=333, then every 100 to the t=1499 endpoint, plus the t=333/334
+% pair that brackets the saturation. Endpoint values at t=1499:
+% flat=375.000000, Model A=61.461149, Model B=41.791750. Model B's
+% schedule reaches zero at index t=334 and its cumulative spend is
+% constant at 41.791750 from there on -- 0.125083 above the continuous
+% closed form 41.666667, which is the expected discrete-sum overshoot of a
+% linear ramp (half the first term, rho*/2 = 0.125), not a discrepancy.
+% Model A overtakes (falls below) Model B at t=532.
+% [verified: script paper3_amortization_figures.py, seed 20260816; panel B
+%  extends T_max to 1500 in the same closed forms; cross-checks against
+%  b2_tower.py]
+%
+% Greyscale fix (review B3): the three schedules were three solid lines of
+% identical weight separated only by hue, so Model A and Model B collapsed
+% to the same mid-grey in print. They now differ in dash pattern as well:
+% flat solid, Model A dashed, Model B dash-dot, closed-form limit densely
+% dotted. The in-plot title provenance tag was dropped as chart junk (the
+% caption carries it, and it named a different script than this fragment's
+% own header did -- one provenance line, stated once).
+\begin{figure}[htbp]\centering
+\begin{tikzpicture}
+\begin{axis}[
+  harbor curve,
+  width=0.92\textwidth,height=6.0cm,
+  xlabel={verified-history length $t$},
+  ylabel={cumulative audit spend},
+  title={\textbf{A} --- the measured horizon $T{=}200$: three schedules, barely distinguishable},
+  xmin=0,xmax=200,ymin=0,ymax=55,
+  xtick={0,25,...,200},
+  ytick={0,10,...,50},
+  legend pos=north west,
+]
+\addplot[shipred,thick] coordinates {
+  (0,0.250000) (10,2.750000) (20,5.250000) (30,7.750000) (40,10.250000)
+  (50,12.750000) (60,15.250000) (70,17.750000) (80,20.250000) (90,22.750000)
+  (100,25.250000) (110,27.750000) (120,30.250000) (130,32.750000) (140,35.250000)
+  (150,37.750000) (160,40.250000) (170,42.750000) (180,45.250000) (190,47.750000)
+  (199,50.000000)
+};
+\addlegendentry{flat $\rho_t\equiv\rho^\star$: $\Theta(T)$}
+\addplot[harborblue,thick,dashed] coordinates {
+  (0,0.250000) (10,2.597672) (20,4.707381) (30,6.622958) (40,8.377139)
+  (50,9.995020) (60,11.496263) (70,12.896560) (80,14.208637) (90,15.442953)
+  (100,16.608212) (110,17.711733) (120,18.759730) (130,19.757525) (140,20.709707)
+  (150,21.620265) (160,22.492688) (170,23.330040) (180,24.135032) (190,24.910074)
+  (199,25.583785)
+};
+\addlegendentry{Model A (loss only if audited): $\Theta(\log T)$}
+\addplot[seagreen,thick,dash dot] coordinates {
+  (0,0.250000) (10,2.708750) (20,5.092500) (30,7.401250) (40,9.635000)
+  (50,11.793750) (60,13.877500) (70,15.886250) (80,17.820000) (90,19.678750)
+  (100,21.462500) (110,23.171250) (120,24.805000) (130,26.363750) (140,27.847500)
+  (150,29.256250) (160,30.590000) (170,31.848750) (180,33.032500) (190,34.141250)
+  (199,35.075000)
+};
+\addlegendentry{Model B (independent revelation $r$): $O(1)$}
+\addplot[seagreen,densely dotted,thin] coordinates {(0,41.666667) (200,41.666667)};
+\addlegendentry{Model B closed form $aG^2/(2dBrv)=41.67$}
+\addplot[only marks,mark=*,mark size=1.6pt,shipred,forget plot] coordinates {(199,50.000000)};
+\addplot[only marks,mark=*,mark size=1.6pt,harborblue,forget plot] coordinates {(199,25.583785)};
+\addplot[only marks,mark=*,mark size=1.6pt,seagreen,forget plot] coordinates {(199,35.075000)};
+\node[regimebox,anchor=south west,align=left,font=\scriptsize,draw=seagreen,fill=white]
+  (satnote) at (axis cs:90,3)
+  {measured at $T{=}200$: spend $35.08$\\ $T{=}200 < t^\star{=}333$, so this is the\\ partial triangle, not yet the $41.67$ limit\\ --- pre-saturation, not error};
+\draw[-{Stealth[length=2mm]},seagreen,thin] (axis cs:199,35.075) -- (satnote.east);
+\end{axis}
+\end{tikzpicture}
+
+\vspace{6pt}
+
+\begin{tikzpicture}
+\begin{axis}[
+  harbor curve,
+  width=0.92\textwidth,height=5.6cm,
+  xlabel={verified-history length $t$},
+  ylabel={cumulative audit spend},
+  title={\textbf{B} --- run past $t^\star$: $\Theta(T)$, $\Theta(\log T)$ and $O(1)$ separate},
+  xmin=0,xmax=1500,ymin=0,ymax=390,
+  xtick={0,250,...,1500},
+  ytick={0,50,...,350},
+]
+\addplot[shipred,thick,forget plot] coordinates {
+  (0,0.250000) (20,5.250000) (40,10.250000) (60,15.250000) (80,20.250000)
+  (100,25.250000) (150,37.750000) (200,50.250000) (250,62.750000) (300,75.250000)
+  (333,83.500000) (334,83.750000) (400,100.250000) (500,125.250000) (600,150.250000)
+  (700,175.250000) (800,200.250000) (900,225.250000) (1000,250.250000) (1100,275.250000)
+  (1200,300.250000) (1300,325.250000) (1400,350.250000) (1499,375.000000)
+};
+\addplot[harborblue,thick,dashed,forget plot] coordinates {
+  (0,0.250000) (20,4.707381) (40,8.377139) (60,11.496263) (80,14.208637)
+  (100,16.608212) (150,21.620265) (200,25.657315) (250,29.037617) (300,31.945252)
+  (333,33.663543) (334,33.713463) (400,36.768834) (500,40.682897) (600,43.976618)
+  (700,46.819997) (800,49.321499) (900,51.554582) (1000,53.571309) (1100,55.409926)
+  (1200,57.099356) (1300,58.662002) (1400,60.115573) (1499,61.461149)
+};
+\addplot[seagreen,thick,dash dot,forget plot] coordinates {
+  (0,0.250000) (20,5.092500) (40,9.635000) (60,13.877500) (80,17.820000)
+  (100,21.462500) (150,29.256250) (200,35.175000) (250,39.218750) (300,41.387500)
+  (333,41.791750) (334,41.791750) (400,41.791750) (500,41.791750) (600,41.791750)
+  (700,41.791750) (800,41.791750) (900,41.791750) (1000,41.791750) (1100,41.791750)
+  (1200,41.791750) (1300,41.791750) (1400,41.791750) (1499,41.791750)
+};
+\addplot[only marks,mark=*,mark size=1.6pt,shipred,forget plot] coordinates {(1499,375.000000)};
+\addplot[only marks,mark=*,mark size=1.6pt,harborblue,forget plot] coordinates {(1499,61.461149)};
+\addplot[only marks,mark=*,mark size=1.6pt,seagreen,forget plot] coordinates {(1499,41.791750)};
+\draw[black!45,densely dotted,thin] (axis cs:333,0) -- (axis cs:333,390);
+\node[anchor=south west,align=left,font=\scriptsize,color=black!55]
+  at (axis cs:345,352) {$t^\star{=}333$: Model B's schedule reaches zero};
+\node[anchor=south east,align=right,font=\scriptsize,color=shipred]
+  at (axis cs:1000,254) {flat: $\Theta(T)$, and still linear};
+\node[regimebox,anchor=west,align=left,font=\scriptsize,draw=harborblue,fill=white]
+  (endnote) at (axis cs:790,145)
+  {at $T{=}1500$: flat $375.00$; Model A $61.46$,\\ still climbing; Model B $41.79$, unchanged\\ since $t^\star$ --- the $O(1)$ curve is the one\\ that stops, not the one that is flattest early};
+\draw[-{Stealth[length=2mm]},harborblue,thin] (endnote.south) -- (axis cs:1360,62.5);
+\draw[-{Stealth[length=2mm]},seagreen,thin] (endnote.south west) -- (axis cs:1180,43);
+\end{axis}
+\end{tikzpicture}
+\caption{Cumulative audit spend against verified-history length $t$ under the three incentive-compatible schedules of Theorem~\ref{thm:amort}, at the running parameters. \textbf{A:} the horizon the paper measures, $T{=}200$. All three curves are near-linear here and Model B --- the $O(1)$ schedule --- is the \emph{second-steepest}: on this range the asymptotics are not visible, and the measured $35.08$ sits below the closed-form $41.67$ because saturation requires $t^\star = G/(rv) = 333$. That gap is pre-asymptotic, not error. \textbf{B:} the same three schedules run to $T{=}1500$, past $t^\star$. Now the growth classes separate on the page: flat reaches $375.00$ and keeps climbing linearly, Model A reaches $61.46$ and is still climbing (logarithmically), and Model B stops dead at $41.79$ from $t^\star$ onward and never spends again. Model A's cumulative spend crosses \emph{above} Model B's at $t{=}532$: past that point the $O(1)$ schedule is permanently the cheaper of the two, which is the reversal panel A cannot show. The plateau $41.79$ exceeds the continuous closed form $41.67$ by $0.125 = \rho^\star/2$, the expected discrete-sum overshoot on a linear ramp. Line styles differ (solid / dashed / dash-dot) so the three series survive greyscale printing [verified: \texttt{paper3\_amortization\_figures.py}, seed 20260816; cross-checks against \texttt{b2\_tower.py}].}
+\label{fig:amort}
+\end{figure}

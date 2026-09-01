@@ -2,8 +2,8 @@ import fs from 'node:fs';
 import crypto from 'node:crypto';
 
 const pdfPaths = {
-  'legible-swarm': 'website-v2/public/whitepaper/legible-swarm-whitepaper.pdf',
-  'single-writer-kernel': 'website-v2/public/whitepaper/single-writer-kernel-whitepaper.pdf'
+  'legible-swarm': 'whitepaper/published/legible-swarm-whitepaper.pdf',
+  'single-writer-kernel': 'whitepaper/published/single-writer-kernel-whitepaper.pdf'
 };
 
 const expectedHashes = {

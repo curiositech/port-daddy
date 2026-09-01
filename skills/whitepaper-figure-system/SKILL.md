@@ -1,5 +1,6 @@
 ---
 name: whitepaper-figure-system
+license: Apache-2.0
 description: >-
   Diagnoses, selects, and audits the semantic form of technical-paper figures before TikZ
   implementation. Use for any figure in the seven Port Daddy whitepapers, especially when the
@@ -11,6 +12,9 @@ description: >-
 metadata:
   category: Writing & Communication
   tags: [whitepaper, figures, semantic-visualization, tikz, information-design]
+  provenance:
+    kind: first-party
+    owners: [port-daddy]
   pairs-with: [tikz-figure-engineering, latex-authoring, color-contrast-auditor]
 allowed-tools: Read,Bash,Grep,Glob
 ---
@@ -169,7 +173,8 @@ The semantic choice and the layout choice are coupled:
 3. Sketch the smallest truthful mark system with dummy labels.
 4. Implement through `tikz-figure-engineering` and render in colour at final size.
 5. Inspect the full page and the batch contact sheet: hierarchy, diversity, density, and rhythm
-   are corpus-level properties.
+   are corpus-level properties. Record the accepted color contact sheet, tour, and proof
+   manifest under `whitepaper/proof/current/`; transient renders stay in the build cache.
 6. Check the figure at 100% and thumbnail scale. No overlaps, clipped text, stranded labels,
    accidental paths, or colour-only distinctions are acceptable.
 7. Remove one element. If the claim survives, leave it removed.
@@ -183,7 +188,8 @@ When this skill is used by an agent or subagent, return:
 2. the selected representation family and why it fits the reader task;
 3. one rejected alternative and the false inference it would invite;
 4. the exact atlas row or cross-volume contract applied;
-5. final-size PDF and contact-sheet inspection findings after implementation.
+5. final-size PDF and contact-sheet inspection findings after implementation, including the
+   exact accepted evidence paths under `whitepaper/proof/current/`.
 
 ## Corpus coverage gate
 

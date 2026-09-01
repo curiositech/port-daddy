@@ -320,7 +320,7 @@ ADR-0086 considered three bridges and **sequences two**:
 
 **Decision Point — embed vs companion.**
 - **Companion window (path 3):** the console `Ctrl-A` → Timeline `exec`s the installed `pd-timeline` binary. Choose this **now** and for any viz that's a *focused, modal* experience (the scrubber, a one-off harbor view). Lowest risk; the Vello code keeps running in production while path 2 is built.
-- **Embedded surface (path 2):** the viz lives **in the pane tree** next to text panes. Choose this when the viz must be *ambient and persistent* — the ghost filetree, merge-as-light, the biofield. Cost: sharing the `wgpu` device with gpui's renderer (or compositing an offscreen Vello texture into a gpui quad). This is the load-bearing v12 bet; do not pretend it's free.
+- **Embedded surface (path 2):** the viz lives **in the pane tree** next to text panes. Choose this when the viz must be *ambient and persistent* — the ghost filetree, merge-as-light, the biofield. Cost: sharing the `wgpu` device with gpui's renderer (or compositing an offscreen Vello texture into a gpui quad). This is the critical v12 bet; do not pretend it's free.
 
 **Anti-Pattern — Reaching for Vello to draw a sparkline.**
 - **Symptom:** a new `wgpu` device spun up for a 40-point activity sparkline.

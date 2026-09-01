@@ -1,7 +1,7 @@
 /**
  * Discourse lineage — the argument graph over a typed tube conversation.
  *
- * RCP-14 (argumentative lineage; see docs/research/north-star/00-THE-LEDGER-open-problems.md
+ * RCP-14 (argumentative lineage; see whitepaper/research/program/archive/north-star/00-THE-LEDGER-open-problems.md
  * § D). Once tube messages carry a typed conversation move (ADR-0047 Phase 0
  * `performative` + the RCP-3b `relationship`, both in `lib/tube.ts`), a thread
  * of `inReplyTo` edges typed by `relationship` IS an argument graph: who

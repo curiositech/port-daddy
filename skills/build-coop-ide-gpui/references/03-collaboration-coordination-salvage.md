@@ -1,6 +1,6 @@
 # Collaboration, Coordination & Salvage — the heart of the M×N IDE
 
-This is the capstone's load-bearing chapter. The motion (`rust-gpui-motion`), the shaders (`gpui-shaders`), the audio (`sound-design-and-audio`), and the visual system (`beautiful-gui-design`) are how the harbor *feels*. **This is how the harbor is *true*:** how two humans and five agents edit one file without lying to each other, and how a dead agent's half-finished refactor survives its own process.
+This is the capstone's critical chapter. The motion (`rust-gpui-motion`), the shaders (`gpui-shaders`), the audio (`sound-design-and-audio`), and the visual system (`beautiful-gui-design`) are how the harbor *feels*. **This is how the harbor is *true*:** how two humans and five agents edit one file without lying to each other, and how a dead agent's half-finished refactor survives its own process.
 
 Everything below composes the sibling Rust skills as dependencies — when you animate a claim band, you are calling `rust-gpui-motion`; when you render an agent's presence cursor, you are calling `beautiful-gui-design`'s semantic-token discipline. This chapter owns the *data model and protocol* underneath them.
 
@@ -33,7 +33,7 @@ A **Loro PeerID** is a 64-bit replica identifier that Loro stamps on every op so
 
 From the plan (`:42`): "Every actor gets a stable Loro **PeerID minted from its PD identity** (OS user for humans, `project:stack:context` for agents); Lamport clocks order concurrent inserts so attribution and merge are correct under conflict."
 
-This binding is **load-bearing and fragile** — the plan flags it as a named risk (`:97`): "Loro-replica↔PD-identity binding must survive reconnect/salvage; a mismatch corrupts authorship/audit. Needs a clean identity↔replica contract." See §4 — salvage replays a *dead* replica's ops, so the PeerID must outlive the process that created it. **The PeerID is derived, never generated**, so the same identity reconnecting (or a successor inheriting a corpse's work) lands on the same replica lineage.
+This binding is **critical and fragile** — the plan flags it as a named risk (`:97`): "Loro-replica↔PD-identity binding must survive reconnect/salvage; a mismatch corrupts authorship/audit. Needs a clean identity↔replica contract." See §4 — salvage replays a *dead* replica's ops, so the PeerID must outlive the process that created it. **The PeerID is derived, never generated**, so the same identity reconnecting (or a successor inheriting a corpse's work) lands on the same replica lineage.
 
 ### Decision Point — one `LoroDoc` per file, one `LoroText` inside it
 
@@ -285,7 +285,7 @@ This chapter is the *substance*; the siblings make it *land*. The dependencies, 
 | **sound-design-and-audio** | Optional auditory presence: a soft cue when an agent claims near your cursor, a distinct tone when a salvage surfaces. Honor reduced-motion's audio analog — never noisy. | §2 (claim-acquire cue), §4 (salvage-available cue) |
 | **beautiful-gui-design** | The semantic-token discipline so "agent vs human" is one widget with a different tone; the OKLCH `Tone` → theme mapping (`pane.rs:27`); 14px-min text in the Quay composer (`harbor-interaction-model.md:134`); contrast across light/dark. | §1 (co-equal rendering), §2 (tone vocabulary), throughout |
 
-The motion skill's frame-budget law is *coordination-critical here*, not cosmetic: a `.repeat()` claim-band animation left running for an off-screen file (`rust-gpui-motion` failure mode "`repeat()` that never stops re-rendering") will burn the frame budget that doc-op application needs. **Scope every presence animation to the smallest leaf view and pause it when the pane is idle or off-screen** — the same rule the motion skill enforces, now load-bearing for editor latency.
+The motion skill's frame-budget law is *coordination-critical here*, not cosmetic: a `.repeat()` claim-band animation left running for an off-screen file (`rust-gpui-motion` failure mode "`repeat()` that never stops re-rendering") will burn the frame budget that doc-op application needs. **Scope every presence animation to the smallest leaf view and pause it when the pane is idle or off-screen** — the same rule the motion skill enforces, now critical for editor latency.
 
 ---
 

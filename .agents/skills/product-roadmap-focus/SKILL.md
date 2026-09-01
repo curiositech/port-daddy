@@ -131,7 +131,7 @@ Cost attribution { project, account, ingestUnits, embeddingUnits,
   storageByteHours, retrievalUnits, egressBytes }:
 ```
 
-The not-now section is load-bearing. ADHD systems fail when every good idea stays
+The not-now section is critical. ADHD systems fail when every good idea stays
 half-alive. Cutting, parking, or deferring is an act of care.
 
 ## Agent Split Rule

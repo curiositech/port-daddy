@@ -25,17 +25,17 @@ status:    <fully mechanized | partially mechanized | hand proof only |
 artifact:  <path to the .pv / .tla / .v / .smt / Kani harness if exists,
            else "missing">
 gap:      <what would close it>
-priority: <high if cited as load-bearing, low if a remark>
+priority: <high if cited as critical, low if a remark>
 ```
 
 ## Things to chase
 
-- Anchor §3 ProVerif models — confirm they exist at `proofs/anchor/*.pv`,
+- Anchor §3 ProVerif models — confirm they exist at `whitepaper/formal/proverif/anchor/*.pv`,
   re-run, and verify queries return TRUE.
 - Anchor §2.4 cuckoo revocation freshness bound — claimed by appeal to
   Demers 1987. No model. **Gap.**
 - Anchor §3 Kani memory-safety proof — verify the harness at
-  `proofs/anchor/kani/` is current.
+  `whitepaper/formal/proverif/anchor/kani/` is current.
 - Bonded §7.x Conservation Theorem — proof in prose. **Gap: TLA+ model.**
 - Bonded §7.x No-Overdraft Lemma — proof by reduction to SQLite isolation;
   no Kani harness on `lib/bonds.ts:escrow()`. **Gap.**

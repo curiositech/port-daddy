@@ -175,7 +175,7 @@ export const COLLECTED_VOLUME: CollectedVolume = {
     'Seven papers on accountable autonomous work, unified by one claim: authority, evidence, and consequence must remain coupled at every effect boundary.',
   pdfPath: '/whitepaper/coordination-papers-mega-volume.pdf',
   downloadUrl:
-    'https://raw.githubusercontent.com/curiositech/port-daddy/main/website-v2/public/whitepaper/coordination-papers-mega-volume.pdf',
+    'https://raw.githubusercontent.com/curiositech/port-daddy/main/whitepaper/published/coordination-papers-mega-volume.pdf',
   date: 'August 2026',
   pages: 270,
   sizeKb: 2190,

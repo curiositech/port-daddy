@@ -1200,7 +1200,7 @@
       }
     },
     "recovery": {
-      "description": "Magic-link account recovery \u2014 single-use token issue + atomic consume (single-use enforced at the DB layer per proofs/bonded/recovery/magic-link.pv). API-only surface consumed by out-of-band recovery flows.",
+      "description": "Magic-link account recovery \u2014 single-use token issue + atomic consume (single-use enforced at the DB layer per whitepaper/formal/proverif/bonded/recovery/magic-link.pv). API-only surface consumed by out-of-band recovery flows.",
       "cli": [],
       "sdk": [],
       "routes": [

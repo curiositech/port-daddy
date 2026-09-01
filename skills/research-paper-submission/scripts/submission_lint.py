@@ -28,7 +28,7 @@ import sys
 from dataclasses import dataclass, field, asdict
 from pathlib import Path
 
-# Words that in a formal paper are load-bearing promises rather than emphasis.
+# Words that in a formal paper are critical promises rather than emphasis.
 # Each is flagged for a human to confirm the proof actually delivers it. This is
 # not a style check - "unbounded depth" in a paper whose proof gives logarithmic
 # depth is a false statement, and it shipped past several careful readings.

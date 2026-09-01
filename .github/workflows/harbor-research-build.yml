@@ -1,6 +1,6 @@
 name: Harbor Research PDF Build
 
-# Renders the harbor-research corpus (docs/harbor-research/tex/*.tex — the
+# Renders the harbor-research corpus (whitepaper/research/tex/*.tex — the
 # seven arXiv-style papers, the execution reports, and the treatise/portfolio
 # drafts) from LaTeX source under the same pinned texlive digest the
 # whitepaper build uses, so the two corpora never drift onto different TeX
@@ -17,17 +17,21 @@ on:
   push:
     branches: [main]
     paths:
-      - 'docs/harbor-research/tex/**/*.tex'
-      - 'docs/harbor-research/figures/**/*.png'
-      - 'docs/harbor-research/figures/**/*.tex'
-      - 'docs/harbor-research/Makefile'
+      - 'whitepaper/research/tex/**/*.tex'
+      - 'whitepaper/research/figures/**/*.png'
+      - 'whitepaper/research/figures/**/*.tex'
+      - 'whitepaper/research/Makefile'
+      - 'whitepaper/corpus.json'
+      - 'scripts/sync-whitepaper-publications.mjs'
       - '.github/workflows/harbor-research-build.yml'
   pull_request:
     paths:
-      - 'docs/harbor-research/tex/**/*.tex'
-      - 'docs/harbor-research/figures/**/*.png'
-      - 'docs/harbor-research/figures/**/*.tex'
-      - 'docs/harbor-research/Makefile'
+      - 'whitepaper/research/tex/**/*.tex'
+      - 'whitepaper/research/figures/**/*.png'
+      - 'whitepaper/research/figures/**/*.tex'
+      - 'whitepaper/research/Makefile'
+      - 'whitepaper/corpus.json'
+      - 'scripts/sync-whitepaper-publications.mjs'
       - '.github/workflows/harbor-research-build.yml'
   merge_group:
   workflow_dispatch:
@@ -60,19 +64,27 @@ jobs:
           ref: ${{ github.head_ref || github.ref_name }}
           fetch-depth: 0
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
       - name: Trust the checkout dir (container runs as root)
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - name: Render the harbor-research corpus
-        run: make -C docs/harbor-research docs
-
-      - name: Publish the seven papers + execution reports for the site
         run: |
           set -euo pipefail
-          mkdir -p website-v2/public/research
-          for f in paper1 paper2 paper3 paper4 paper5 paper6 paper7 exec4 exec5; do
-            cp "docs/harbor-research/pdf/$f.pdf" "website-v2/public/research/$f.pdf"
-          done
+          make -C whitepaper/research clean docs
+          hash_file="$RUNNER_TEMP/harbor-research-pdfs.sha256"
+          sha256sum whitepaper/research/pdf/*.pdf > "$hash_file"
+          make -C whitepaper/research clean docs
+          sha256sum --check "$hash_file"
+
+      - name: Generate the manifest-declared website mirrors
+        run: node scripts/sync-whitepaper-publications.mjs
+
+      - name: Validate the canonical corpus and generated mirrors
+        run: node scripts/check-whitepaper-corpus.mjs
 
       - name: Commit rebuilt PDFs (same-repo branch)
         if: >-
@@ -87,12 +99,12 @@ jobs:
             "build(harbor-research): regenerate PDFs from source"*)
               echo "HEAD is already a build commit — nothing to do."; exit 0;;
           esac
-          if [ -z "$(git status --porcelain --untracked-files=all -- docs/harbor-research/pdf/*.pdf website-v2/public/research/*.pdf)" ]; then
+          if [ -z "$(git status --porcelain --untracked-files=all -- whitepaper/research/pdf/*.pdf)" ]; then
             echo "PDFs already match source — nothing to commit."; exit 0
           fi
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs/harbor-research/pdf/*.pdf website-v2/public/research/*.pdf
+          git add whitepaper/research/pdf/*.pdf
           echo "Changed PDFs:"; git diff --cached --stat
           git commit -m "build(harbor-research): regenerate PDFs from source"
           git push origin "HEAD:$TARGET_BRANCH"
@@ -101,11 +113,12 @@ jobs:
         if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref_name == 'main')
         run: |
           set -uo pipefail
-          if [ -z "$(git status --porcelain --untracked-files=all -- docs/harbor-research/pdf/*.pdf website-v2/public/research/*.pdf)" ]; then
+          node scripts/check-whitepaper-corpus.mjs
+          if [ -z "$(git status --porcelain --untracked-files=all -- whitepaper/research/pdf/*.pdf)" ]; then
             echo "All in-scope harbor-research PDFs match a fresh render. ✔"; exit 0
           fi
           echo "Rendered PDFs differ from what's committed:"
-          git diff --stat -- 'docs/harbor-research/pdf/*.pdf' 'website-v2/public/research/*.pdf' || true
+          git diff --stat -- 'whitepaper/research/pdf/*.pdf' || true
           if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref_name }}" = "main" ]; then
             echo "::error::main is serving stale harbor-research PDFs — a PR must carry"
             echo "rebuilt PDFs (the feature-branch build commits them automatically)."

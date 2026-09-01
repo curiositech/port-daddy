@@ -83,7 +83,7 @@ Shopify's exact framing: *"if there were fifty authors, then it would make fifty
 
 Why GraphQL makes it worse than REST: *"In REST, costs are predictable because there's one trip per endpoint requested. In GraphQL, there's only one endpoint, and it's not indicative of the potential size of incoming requests."*
 
-## DataLoader API — the load-bearing rules
+## DataLoader API — the critical rules
 
 ### Constructor
 

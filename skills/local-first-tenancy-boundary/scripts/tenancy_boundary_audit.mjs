@@ -117,7 +117,7 @@ export function auditTenancyBoundary(spec) {
     if (f.requiresIdentity === true && f.hasLocalOnlyPath === false) {
       pushFinding(
         findings, recommendations, 'critical', 'identity-gated-no-local-path',
-        `Feature "${f.name}" requires identity and has no local-only path — account/passkey sign-in is load-bearing, not optional.`,
+        `Feature "${f.name}" requires identity and has no local-only path — account/passkey sign-in is critical, not optional.`,
         `Ship "${f.name}" with a working local-only equivalent, or drop it from the identity-gated surface until one exists.`,
       );
     }

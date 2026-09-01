@@ -96,6 +96,6 @@ Version-bump artifacts:
 - Read `defense:*` content into the red-team namespace before Gate C.
 - Bypass the audit log, even for "small" routing decisions.
 - Forge a gate signature — you have one keypair, kept offline, and the
-  rotation procedure is documented in `docs/SECURITY.md`.
+  rotation procedure is documented in `docs/SECURITY_SOUNDNESS.md`.
 - Mark a round closed if the proof-audit doc has uncovered gaps that
   weren't carried into the next target list.

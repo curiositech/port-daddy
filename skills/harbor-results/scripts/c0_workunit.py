@@ -159,7 +159,7 @@ n, bad, _ = check()
 print(f'\nGuards restored: {n} states, violations: {"none ✓" if not bad else bad[1]}')
 print('''
 READING. The six safety properties hold in every reachable state of the guarded
-system, and every guard is LOAD-BEARING: removing any one produces a concrete
+system, and every guard is CRITICAL: removing any one produces a concrete
 violating run, found automatically as a shortest counterexample. This is the
 executable spec of the evidence-bearing work unit; the TLA+/Apalache version is
 the same machine with unbounded parameters, and this mutation suite is what

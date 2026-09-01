@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 SHEAF STATISTICAL HARNESS v2 — rebuild of the broken predecessor
-(docs/harbor-research/wrong-turns/sheaf_verdict.py), per HANDOFF §3.3 (wave W8).
+(whitepaper/research/wrong-turns/sheaf_verdict.py), per HANDOFF §3.3 (wave W8).
 
 AUTOPSY OF THE PREDECESSOR (why v1 produced signal ≡ 0 / nonsense):
 

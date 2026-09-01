@@ -45,9 +45,9 @@ print(f"  covering-floor intuition log2 C(N,pN) = { (lambda n,k:(np.sum(np.log2(
 
 # ---- (ii) Zoom advantage in the CORRECT regime: flagged set large but SPARSE ----
 # The digest is conservative (low false-negative): it flags a large set to be safe,
-# but few flagged items are truly load-bearing. Group testing then shines.
+# but few flagged items are truly critical. Group testing then shines.
 # Compare: flat = open every flagged item (=|flagged|) vs adaptive group-splitting
-# to IDENTIFY the load-bearing ones = ~ k*log2(|flagged|/k).
+# to IDENTIFY the critical ones = ~ k*log2(|flagged|/k).
 def adaptive_group_queries(load_set, flagged):
     flagged=sorted(flagged); opens=0; stack=[flagged]
     while stack:
@@ -72,7 +72,7 @@ for frac_flag,k in [(0.5,10),(0.3,10),(0.2,20),(0.1,20),(0.05,10)]:
     print(f"{F:>10}{k:>12}{np.mean(fl):>12.0f}{np.mean(ad):>10.1f}{np.mean(fl)/max(np.mean(ad),1):>8.1f}{pred:>13.1f}")
 
 print("""
-READING: when the flagged set is large but load-bearing items are sparse within
+READING: when the flagged set is large but critical items are sparse within
 it (a conservative, low-false-negative digest), adaptive zoom opens ~k*log2(F/k)
 vs flat's F — a large ratio. When the flagged set is already dense in positives
 (f~1.5p), group testing does NOT help (overhead dominates) — the honest boundary.

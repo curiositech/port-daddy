@@ -60,7 +60,7 @@ instead of reaching for `console.*`, a bespoke `appendFileSync`, or a hand-rolle
 
 Each primitive is **pure, dependency-free, and injectable** (`now()`/`random()` passed
 in) so it is exhaustively testable, and each **fails safe**: a dropped log or a broken
-sink must never throw. Observability is never load-bearing for liveness.
+sink must never throw. Observability is never critical for liveness.
 
 ### How a call site changed
 

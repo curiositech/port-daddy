@@ -23,13 +23,13 @@ const outDir = resolve(
   process.argv[2] ?? '.cache/whitepaper-build/coordination-papers-mega-volume',
 );
 const papers = [
-  { roman: 'I', prefix: 'ls', title: 'The Legible Swarm', source: 'whitepaper/legible-swarm.tex' },
-  { roman: 'II', prefix: 'swk', title: 'The Single-Writer Kernel', source: 'whitepaper/single-writer-kernel.tex' },
-  { roman: 'III', prefix: 'stp', title: 'From Spawn to Person', source: 'website-v2/public/whitepaper/spawn-to-person.tex' },
-  { roman: 'IV', prefix: 'he', title: 'The Harbor Economy', source: 'website-v2/public/whitepaper/harbor-economy.tex' },
-  { roman: 'V', prefix: 'anchor', title: 'The Anchor Protocol', source: 'website-v2/public/whitepaper/anchor-protocol-whitepaper.tex' },
-  { roman: 'VI', prefix: 'bonded', title: 'The Bonded Commons', source: 'website-v2/public/whitepaper/agent-transactions-whitepaper.tex' },
-  { roman: 'VII', prefix: 'fh', title: 'The Federated Harbor', source: 'website-v2/public/whitepaper/federated-harbor-whitepaper.tex' },
+  { roman: 'I', prefix: 'ls', title: 'The Legible Swarm', source: 'whitepaper/source/legible-swarm.tex' },
+  { roman: 'II', prefix: 'swk', title: 'The Single-Writer Kernel', source: 'whitepaper/source/single-writer-kernel.tex' },
+  { roman: 'III', prefix: 'stp', title: 'From Spawn to Person', source: 'whitepaper/source/spawn-to-person.tex' },
+  { roman: 'IV', prefix: 'he', title: 'The Harbor Economy', source: 'whitepaper/source/harbor-economy.tex' },
+  { roman: 'V', prefix: 'anchor', title: 'The Anchor Protocol', source: 'whitepaper/source/anchor-protocol-whitepaper.tex' },
+  { roman: 'VI', prefix: 'bonded', title: 'The Bonded Commons', source: 'whitepaper/source/agent-transactions-whitepaper.tex' },
+  { roman: 'VII', prefix: 'fh', title: 'The Federated Harbor', source: 'whitepaper/source/federated-harbor-whitepaper.tex' },
 ];
 
 function readUtf8(path) {

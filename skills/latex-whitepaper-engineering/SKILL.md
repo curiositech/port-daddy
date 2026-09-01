@@ -1,6 +1,6 @@
 ---
 name: latex-whitepaper-engineering
-description: "Author, revise, and ship LaTeX whitepapers in repos that publish committed PDFs behind a metadata registry. Covers the full loop: editing .tex with thebibliography discipline, two-pass pdflatex builds, catching undefined citations/references from the log, source→published PDF naming, version/date title blocks bumped in lockstep with the site registry, and Math.round(bytes/1024) size sync against metadata drift checks in CI. Use when editing website-v2/public/whitepaper/*.tex in port-daddy or any repo where PDFs are committed artifacts with a registry (pages/sizeKb) test. NOT for prose voice (use port-daddy-expository-writer), NOT for resume/CV typesetting (use cv-creator), NOT for HTML/MDX document generation (use document-generation-pdf)."
+description: "Author, revise, and ship LaTeX whitepapers in repos that publish committed PDFs behind a metadata registry. Covers the full loop: editing .tex with thebibliography discipline, repeatable pdflatex builds, catching undefined citations/references from the log, source-to-published PDF naming, version/date title blocks bumped in lockstep with the site registry, and Math.round(bytes/1024) size sync against metadata drift checks in CI. Use when editing whitepaper/source/*.tex in port-daddy or any repo where PDFs are committed artifacts with a registry (pages/sizeKb) test. NOT for prose voice (use port-daddy-expository-writer), NOT for resume/CV typesetting (use cv-creator), NOT for HTML/MDX document generation (use document-generation-pdf)."
 license: FSL-1.1-MIT
 allowed-tools: Read,Write,Edit,Bash,Grep,Glob
 metadata:
@@ -14,8 +14,9 @@ metadata:
 
 # LaTeX Whitepaper Engineering
 
-Repos like port-daddy commit both the `.tex` source AND the built PDF, with a
-registry (`website-v2/src/data/whitePapers.ts`) pinning `pages` and `sizeKb`,
+Repos like port-daddy commit both the `.tex` source under `whitepaper/source/`
+and the built PDF under `whitepaper/published/`, with a registry
+(`website-v2/src/data/whitePapers.ts`) pinning `pages` and `sizeKb`,
 enforced by a CI drift check. Editing the prose is a third of the job; the
 other two thirds are rebuilding correctly and keeping three surfaces — tex
 title block, PDF bytes, registry entry — in lockstep. Skipping any leg ships
@@ -24,16 +25,31 @@ a red build or, worse, a silently stale PDF.
 ## The ship loop (never skip a step)
 
 ```bash
-cd website-v2/public/whitepaper
-pdflatex -interaction=nonstopmode paper.tex >/dev/null 2>&1   # pass 1: refs
-pdflatex -interaction=nonstopmode paper.tex >/dev/null 2>&1   # pass 2: resolve
-grep "Output written" paper.log        # → "(NN pages, BBBBBB bytes)"
-grep -c "LaTeX Error" paper.log        # must be 0
-grep "Warning: Citation" paper.log     # every hit = a \cite with no \bibitem
-grep "Warning: Reference" paper.log    # dangling \ref — check if pre-existing
+# From the repository root. The filter is the source basename without .tex.
+./scripts/build-whitepapers.sh paper <!-- phantom-ok: repository-root build tool -->
+npm run check:whitepaper-corpus
 ```
 
-- **Always two passes.** Pass 1 writes the `.aux`; pass 2 resolves `\ref`/`\cite`.
+The repository builder compiles from `whitepaper/source/`, performs enough
+passes to resolve references, and writes only the canonical artifact in
+`whitepaper/published/`. If the build fails, inspect the surfaced log tail. The
+builder removes its cache on exit, so preserve a separate diagnostic log when
+you need a warning audit:
+
+```bash
+audit_dir="$(pwd)/.cache/whitepaper-audit/paper"
+mkdir -p "$audit_dir"
+(cd whitepaper/source && \
+  pdflatex -interaction=nonstopmode -halt-on-error \
+    -output-directory="$audit_dir" paper.tex >/dev/null && \
+  pdflatex -interaction=nonstopmode -halt-on-error \
+    -output-directory="$audit_dir" paper.tex >/dev/null)
+rg 'LaTeX Error|Warning: Citation|Warning: Reference|undefined' \
+  "$audit_dir/paper.log"
+```
+
+- **Always use the bounded multi-pass builder.** Pass 1 writes the `.aux`; later
+  passes resolve `\ref`/`\cite` and long-table-of-contents drift.
   One pass looks fine and ships `??` in the PDF.
 - **Read the log, not the exit code.** `pdflatex -interaction=nonstopmode`
   exits 0 through many warnings; undefined citations are warnings.
@@ -47,19 +63,20 @@ Check the registry's `pdfPath`/`filename` before copying. In port-daddy:
 
 | Source | Published PDF |
 |---|---|
-| `harbor-economy.tex` | `harbor-economy-whitepaper.pdf` |
-| `spawn-to-person.tex` | `spawn-to-person-whitepaper.pdf` |
-| `agent-transactions-whitepaper.tex` | same name `.pdf` |
+| `whitepaper/source/harbor-economy.tex` | `whitepaper/published/harbor-economy-whitepaper.pdf` |
+| `whitepaper/source/spawn-to-person.tex` | `whitepaper/published/spawn-to-person-whitepaper.pdf` |
+| `whitepaper/source/agent-transactions-whitepaper.tex` | `whitepaper/published/agent-transactions-whitepaper.pdf` |
 
-After building: `cp build.pdf published-name.pdf`, then delete the stray
-build PDF and `*.log`. **Some aux artifacts are tracked, some are not** — run
-`git status` and only stage what was already tracked (`git ls-files` tells
-you). Never `git add -A` here (coordination guard blocks it anyway).
+Use `skills/latex-whitepaper-engineering/scripts/build-whitepapers.sh`; do not hand-copy a source-directory build
+or author files in the website's public mirror. Build intermediates belong in
+the ignored `.cache/whitepaper-build/` tree. Run `git status` and stage only the
+intended source and canonical published artifacts. Never `git add -A` here
+(coordination guard blocks it anyway).
 
 ## Registry sync (the CI drift check)
 
 `website-v2/scripts/check-whitepaper-metadata.ts` compares each registry entry
-to the on-disk PDF:
+to the canonical PDF under `whitepaper/published/`:
 
 - `pages`: **exact match required.** Adding a section that spills a page
   means bumping the registry.
@@ -68,8 +85,8 @@ to the on-disk PDF:
   `$(( (bytes + 512) / 1024 ))` FLOORS after the add and disagrees with
   `Math.round` near .5 boundaries. Compute with node/python if unsure.
 - Run the real test when deps exist: `vitest run src/data/whitePapers.test.ts`.
-  In a fresh worktree, symlink the main checkout's `node_modules` first —
-  and `rm` the symlink before committing.
+  Install dependencies in the worktree or use the configured workspace runtime;
+  do not construct a second corpus tree to borrow a build.
 
 ## Version & date discipline
 
@@ -112,9 +129,12 @@ gets the caveat stated harder than the claim. Match `\paragraph{}` vs
 - The whitepaper pages on the site: `/whitepaper` REDIRECTS to `/library` —
   the routed papers page is `website-v2/src/pages/library/index.tsx`;
   `pages/whitepaper/index.tsx` is unrouted legacy. Edit the routed one.
-- PRs touching `public/whitepaper/**` trigger the metadata-drift workflow;
-  PRs with visual changes need committed screenshots + a recording under
-  `docs/pr-assets/pr-NNN/` embedded via SHA-pinned raw URLs.
+- `whitepaper/` is the sole corpus authority. `website-v2/public/whitepaper/`
+  is a generated deployment mirror, never an authoring location or fallback.
+- PRs touching `whitepaper/source/**` or `whitepaper/published/**` trigger the
+  corpus and metadata gates. Visual changes need committed color screenshots
+  plus a recording under `whitepaper/proof/current/pr-NNN/`, referenced by the
+  proof manifest and embedded via SHA-pinned raw URLs where the PR body needs them.
 - Doc-citation guard: repo paths cited in changed docs must exist — no
   brace-globs (`{a,b}.ts`); future files need a marker ("unbuilt",
   "doesn't exist yet") on the same line.

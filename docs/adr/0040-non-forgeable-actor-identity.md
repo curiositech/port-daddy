@@ -8,7 +8,7 @@ Proposed
 
 This ADR is the prerequisite for durable agent accountability (ADR-0041) and
 follows directly from the research synthesis in
-`docs/research/agent-accountability-proposal.md`. That work found that **29 of 29**
+`whitepaper/research/program/archive/accountability/agent-accountability-proposal.md`. That work found that **29 of 29**
 proposed accountability mechanisms flagged a **Goodhart risk** (Goodhart 1975;
 Strathern 1997 — *"when a measure becomes a target, it ceases to be a good measure"*),
 and that **11 of 29** failed specifically to **Sybil-reset** (Douceur 2002, *The Sybil
@@ -91,7 +91,7 @@ key in budget-guard is migrated to `(project, actor_id, utcDay)`.
 
 ## References
 
-- `docs/research/agent-accountability-proposal.md` (Law 3; the 46→29→1 result)
+- `whitepaper/research/program/archive/accountability/agent-accountability-proposal.md` (Law 3; the 46→29→1 result)
 - ADR-0022 (durable actor-souls / body-leases)
 - ADR-0041 (durable commitments — the primary consumer of this identity)
 - ADR-0094 (harbor cards as verifiable credentials — the cross-operator extension)

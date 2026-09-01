@@ -301,10 +301,10 @@ appropriate phase section below and delete it here.
 
 ### Recursive Control Plane kernels (from Ledger § D, 2026-06-19)
 
-The **PORTABLE** rows of `docs/research/north-star/00-THE-LEDGER-open-problems.md`
+The **PORTABLE** rows of `whitepaper/research/program/archive/north-star/00-THE-LEDGER-open-problems.md`
 § D — the recursive-control-plane kernels that a source repo already ships
 (`erichowens/soma`, `curiositech/windags`), verified in
-`docs/research/grafts/2026-06-19-soma-windags-source-audit.md` and mapped to the
+`docs/product-research/grafts/2026-06-19-soma-windags-source-audit.md` and mapped to the
 port-daddy surface they lift onto. These are lift-and-adapt builds, not research.
 The OPEN / ABSENT / DESIGN-ONLY rows stay in the Ledger until a source repo builds
 them.

@@ -15,7 +15,7 @@ Load only the file that matches the decision in front of you.
   binaries and mirrors into tool-specific installs.
 - `cli-reference.md`: CLI command families, alias coverage, generated detail
   page expectations, and claim-aware git staging doctrine.
-- `git-discipline.md`: the load-bearing git rule set (ADR 0001) — stage only
+- `git-discipline.md`: the critical git rule set (ADR 0001) — stage only
   what you claimed, keep the coordination guard green, and the post-mortem
   that triggered it.
 - `api-reference.md`: full HTTP API reference for the daemon (every endpoint
@@ -35,7 +35,7 @@ Load only the file that matches the decision in front of you.
 - `session-lifecycle-state-machine.md`: the formal state machine for sessions
   (active → paused → done → salvaged). Read when a session is in an
   unexpected state or when integrating session events into another tool.
-- `git-discipline.md`: the load-bearing git rule set behind the SKILL.md
+- `git-discipline.md`: the critical git rule set behind the SKILL.md
   "Git Discipline" section — never destructive-git a live shared checkout,
   worktree-per-agent, claim-aware staging. Read before any git mutation in a
   multi-agent repo.

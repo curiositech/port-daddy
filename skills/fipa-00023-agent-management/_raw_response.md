@@ -309,7 +309,7 @@ The lifecycle is connected to message delivery behavior in a specified way (Sect
 - **Transit**: Buffer until Active (either at destination or back at origin if migration failed) or forward. Mobile-only.
 - **Unknown**: Buffer or reject depending on MTS policy and message transport requirements.
 
-The key insight: **the lifecycle state is the input to message delivery policy**. The MTS consults the lifecycle state before deciding what to do with a message. This means that every message routing decision implicitly queries the lifecycle state of the destination agent. The AMS's lifecycle tracking is therefore not administrative bookkeeping — it is load-bearing infrastructure for correct message delivery.
+The key insight: **the lifecycle state is the input to message delivery policy**. The MTS consults the lifecycle state before deciding what to do with a message. This means that every message routing decision implicitly queries the lifecycle state of the destination agent. The AMS's lifecycle tracking is therefore not administrative bookkeeping — it is critical infrastructure for correct message delivery.
 
 ## Application to WinDAGs
 
@@ -1186,7 +1186,7 @@ Example 7 in Annex A shows a subtle but important failure mode: `dummy` sends a 
 
 The DF can handle `request` performatives. It cannot handle `propose` — which in the FIPA protocol library means "I propose we do this" (a negotiation-oriented act), not "I request you do this" (a directive act). The action (deregister) is completely valid. The problem is the outer communicative act type is wrong.
 
-This example teaches: the communicative act type is not a wrapper — it is load-bearing. Sending the right content with the wrong act type is a communication failure. The receiver's interpretation of the content depends on the act type: a `propose` to deregister is semantically different from a `request` to deregister.
+This example teaches: the communicative act type is not a wrapper — it is critical. Sending the right content with the wrong act type is a communication failure. The receiver's interpretation of the content depends on the act type: a `propose` to deregister is semantically different from a `request` to deregister.
 
 For WinDAGs, this means: skill invocations must use the correct communicative act type for the intended interaction semantics. Sending a "task completion notification" as a request (which demands a response) versus an inform (which is a one-way notification) has very different implications for downstream protocol behavior.
 

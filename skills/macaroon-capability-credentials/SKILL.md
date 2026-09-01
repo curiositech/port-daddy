@@ -33,7 +33,7 @@ present-and-verify but cannot forge or re-sign.
 Canonical in-repo impl: **`core/kernel/pd-anchor/src/macaroon.rs`** (Rust, the source of
 truth). Deprecated parity-target: `lib/macaroon/` (TS). Schema: ADR-0053 Appendix A.
 
-## The chain (load-bearing — get the bytes exactly right)
+## The chain (critical — get the bytes exactly right)
 
 ```
 sig_0   = HMAC_SHA256(root_key, identifier)

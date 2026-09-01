@@ -9,8 +9,8 @@
 #   new-round.sh v0.1 v0.2
 #
 # Produces:
-#   docs/shipwright/federated/dialogue-fh-<from>-to-<to>.json
-#   docs/shipwright/federated/dialogue-fh-<from>-to-<to>.md
+#   whitepaper/research/program/rounds/federated-harbor/dialogue-fh-<from>-to-<to>.json
+#   whitepaper/research/program/rounds/federated-harbor/dialogue-fh-<from>-to-<to>.md
 #
 # Both files start populated with the round skeleton. The JSON is
 # the source of truth; the MD is the rendered form. After each round
@@ -29,7 +29,7 @@ FROM="$1"
 TO="$2"
 TODAY="$(date -u +%Y-%m-%d)"
 REPO_ROOT="$(git rev-parse --show-toplevel)"
-OUTDIR="$REPO_ROOT/docs/shipwright/federated"
+OUTDIR="$REPO_ROOT/whitepaper/research/program/rounds/federated-harbor"
 mkdir -p "$OUTDIR"
 
 JSON="$OUTDIR/dialogue-fh-$FROM-to-$TO.json"
@@ -109,6 +109,6 @@ echo "  $JSON"
 echo "  $MD"
 echo
 echo "Next steps:"
-echo "  1. fh-secops:lead writes target list under docs/shipwright/federated/round-$TO-targets.md"
+echo "  1. fh-secops:lead writes target list under whitepaper/research/program/rounds/federated-harbor/round-$TO-targets.md"
 echo "  2. fh-secops:lead sprays round:fh:open:$TO"
 echo "  3. red personas claim sections; phase 1 attack begins"

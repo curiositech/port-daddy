@@ -4,7 +4,7 @@
  * POST /recovery/request  -- issue a single-use recovery token for an account
  * POST /recovery/consume  -- atomically consume a recovery token (single-use enforced)
  *
- * Spec:    proofs/bonded/recovery/magic-link.pv
+ * Spec:    whitepaper/formal/proverif/bonded/recovery/magic-link.pv
  * Runtime: lib/recovery-magic-link.ts
  *
  * The single-use guarantee (property S from the .pv) is enforced by the DB

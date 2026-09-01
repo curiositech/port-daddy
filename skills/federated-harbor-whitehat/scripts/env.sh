@@ -17,12 +17,12 @@ else
 fi
 
 # Federated-Harbor-specific paths.
-export FH_PROOFS_ROOT="${FH_PROOFS_ROOT:-$REPO_ROOT/proofs/federated}"
-export FH_DIALOGUE_ROOT="${FH_DIALOGUE_ROOT:-$REPO_ROOT/docs/shipwright/federated}"
+export FH_FORMAL_ROOT="${FH_FORMAL_ROOT:-$REPO_ROOT/whitepaper/formal}"
+export FH_DIALOGUE_ROOT="${FH_DIALOGUE_ROOT:-$REPO_ROOT/whitepaper/research/program/rounds/federated-harbor}"
 
 if [ "${1:-}" = "--verify" ]; then
-  echo "FH_PROOFS_ROOT   = $FH_PROOFS_ROOT"
+  echo "FH_FORMAL_ROOT   = $FH_FORMAL_ROOT"
   echo "FH_DIALOGUE_ROOT = $FH_DIALOGUE_ROOT"
-  [ -d "$FH_PROOFS_ROOT" ] && echo "  proofs/federated/: present" || echo "  proofs/federated/: MISSING (will be PENDING until artifacts land)"
-  [ -d "$FH_DIALOGUE_ROOT" ] && echo "  docs/shipwright/federated/: present" || echo "  docs/shipwright/federated/: MISSING"
+  [ -d "$FH_FORMAL_ROOT" ] && echo "  whitepaper/formal/: present" || echo "  whitepaper/formal/: MISSING"
+  [ -d "$FH_DIALOGUE_ROOT" ] && echo "  whitepaper/research/program/rounds/federated-harbor/: present" || echo "  whitepaper/research/program/rounds/federated-harbor/: MISSING"
 fi

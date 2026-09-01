@@ -27,7 +27,7 @@
  * into A's turn 9, and no payload field can be tampered post-signature.
  *
  * Proof: the injection-resistance and no-replay properties of this exact
- * protocol are machine-checked in docs/adr/models/guidance_envelope_v0.pv
+ * protocol are machine-checked in lib/agent-harbor/formal/guidance_envelope_v0.pv
  * (ProVerif; results checked in). The suggestibility honesty gate
  * (suggestibility-authority.ts) refuses C3 unless that model verifies.
  *

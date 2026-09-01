@@ -67,7 +67,7 @@ const RESEARCH_TONE_CLASSES: Record<ResearchTone, { badge: string; rule: string;
 
 /**
  * Plain-English gloss for each dive verdict — see
- * `docs/harbor-research/deep-dives/README.md`'s "Severity, and what each
+ * `whitepaper/research/deep-dives/README.md`'s "Severity, and what each
  * outcome means" for the authoritative definitions this restates.
  */
 const DIVE_VERDICT_GLOSS: Record<DiveVerdict, string> = {
@@ -151,7 +151,7 @@ function ResearchPaperCard({ paper }: { paper: ResearchPaper }) {
               {paper.priorArtDive.summary}
             </p>
             <a
-              href={`https://github.com/curiositech/port-daddy/blob/main/docs/harbor-research/deep-dives/${paper.priorArtDive.findingsPath}`}
+              href={`https://github.com/curiositech/port-daddy/blob/main/whitepaper/research/deep-dives/${paper.priorArtDive.findingsPath}`}
               target="_blank"
               rel="noreferrer"
               className="mt-[var(--space-2)] inline-flex items-center gap-[var(--space-1)] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-primary)] underline underline-offset-4 hover:text-[var(--brand-primary)] hover:no-underline"

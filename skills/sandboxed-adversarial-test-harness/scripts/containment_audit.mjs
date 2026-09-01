@@ -84,7 +84,7 @@ export function auditContainment(spec) {
   const findings = [];
   const recommendations = [];
 
-  // Coverage per threat class — the load-bearing computation. A harness that never
+  // Coverage per threat class — the critical computation. A harness that never
   // even attempts a given attack cannot claim to contain it, no matter how green
   // the rest of the suite is.
   const coverageByThreatClass = {};

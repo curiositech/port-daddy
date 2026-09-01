@@ -1,6 +1,6 @@
 # Git Discipline for Multi-Agent Repos
 
-This page is the load-bearing rule set behind the SKILL.md "Git Discipline"
+This page is the critical rule set behind the SKILL.md "Git Discipline"
 section. It is a faithful summary of ADR 0001 from windags-skills, with the
 post-mortem that triggered it.
 

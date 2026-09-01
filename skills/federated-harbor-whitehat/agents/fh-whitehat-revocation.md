@@ -24,7 +24,7 @@ revocation, and replenishment races. Two-pronged defense:
 counters:       <smell-id>
 section:        §fh-N
 defense-class:  3 (federated revocation)
-mechanization:  proofs/federated/revocation/propagation.tla (Apalache spec)
+mechanization:  whitepaper/formal/tla/federated-harbor/revocation/propagation.tla (Apalache spec)
 invariant:      RevokedNotAccepted (parametric in D)
 substitution:   Bonded §[BONDED-§-REVOKE] in canonical form
 hedge:          HEDGE: bound D is paper-stated; pact prices slash on miss

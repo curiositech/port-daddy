@@ -41,7 +41,7 @@ const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 // they are not file citations, and judging them is a human task.
 const TOP_DIRS = [
   'lib', 'routes', 'cli', 'core', 'apps', 'scripts', 'tests', 'shared', 'bin',
-  'docs', 'skills', 'website-v2', 'mcp', 'fleet', 'public', 'dashboard',
+  'docs', 'skills', 'whitepaper', 'website-v2', 'mcp', 'fleet', 'public', 'dashboard',
   'analyses', 'proofs', 'fleet-config-ui',
 ]
 // Excludes tokens containing `*` (globs) or `<`/`>` (template placeholders like
@@ -62,28 +62,43 @@ const PROPOSAL_MARKERS = [
 ]
 
 function changedMarkdown() {
-  // Merge-base diff against origin/main; fall back to HEAD~1 locally.
-  let base = 'origin/main'
+  // Compare the merge base to the current working snapshot, so local fixes in
+  // the index/worktree are validated before commit instead of the checker
+  // repeatedly reporting the previous HEAD. Fall back to HEAD~1 locally.
+  let base = 'HEAD~1'
   try {
     execFileSync('git', ['rev-parse', '--verify', '--quiet', 'origin/main'], { cwd: REPO, stdio: 'ignore' })
-  } catch {
-    base = 'HEAD~1'
-  }
-  const out = execFileSync('git', ['diff', '--name-only', '--diff-filter=ACMR', `${base}...HEAD`], {
+    base = execFileSync('git', ['merge-base', 'origin/main', 'HEAD'], { cwd: REPO, encoding: 'utf8' }).trim()
+  } catch {}
+  const out = execFileSync('git', ['diff', '--name-only', '--diff-filter=ACMR', base], {
     cwd: REPO, encoding: 'utf8',
   })
-  return out.split('\n').filter((f) => f.endsWith('.md') && !isFixture(f) && !isRetired(f))
+  return out.split('\n').filter((f) => f.endsWith('.md') && !isFixture(f) && !isRetired(f) && !isHistoricalArchive(f))
 }
 
 function allMarkdown() {
   const out = execFileSync('git', ['ls-files', '*.md'], { cwd: REPO, encoding: 'utf8' })
-  return out.split('\n').filter((f) => f && !isFixture(f) && !isRetired(f))
+  return out.split('\n').filter((f) => f && !isFixture(f) && !isRetired(f) && !isHistoricalArchive(f))
 }
 
 // Test fixtures intentionally contain broken citations; they are scanned only when
 // passed explicitly (by the unit test), never by the changed-files / --all sweeps.
 function isFixture(f) {
   return f.includes('tests/fixtures/')
+}
+
+// Historical and raw research trees preserve the citations that were true when
+// the work was written. A corpus move must not rewrite those records to make
+// them appear current. Like retired documents and fixtures, these roots are
+// omitted from sweeps but remain checkable when passed explicitly.
+const HISTORICAL_ARCHIVE_ROOTS = [
+  'whitepaper/research/program/archive/',
+  'whitepaper/reviews/archive/',
+  'docs/product-research/raw/',
+]
+
+function isHistoricalArchive(f) {
+  return HISTORICAL_ARCHIVE_ROOTS.some((root) => f.startsWith(root))
 }
 
 /**
@@ -126,6 +141,30 @@ function hasProposalMarker(line) {
 function repoPathExists(p) {
   const abs = join(REPO, p)
   return existsSync(abs)
+}
+
+// Research-derived skills may name output targets before the first round has
+// produced them. Those targets are authoritative only when corpus.json records
+// their exact path or an ancestor directory in currentness.placeholderPaths.
+// This keeps proposal truth centralized rather than scattered across ad-hoc
+// inline exemptions.
+let governedPlaceholderCache = null
+function governedPlaceholderPaths() {
+  if (governedPlaceholderCache !== null) return governedPlaceholderCache
+  try {
+    const raw = readFileSync(join(REPO, 'whitepaper', 'corpus.json'), 'utf8')
+    const corpus = JSON.parse(raw)
+    governedPlaceholderCache = (corpus.skillSatellites ?? [])
+      .flatMap((skill) => skill.currentness?.placeholderPaths ?? [])
+      .filter((path) => typeof path === 'string' && path.length > 0)
+  } catch {
+    governedPlaceholderCache = []
+  }
+  return governedPlaceholderCache
+}
+
+function isGovernedPlaceholder(p) {
+  return governedPlaceholderPaths().some((root) => p === root || p.startsWith(`${root}/`))
 }
 
 /**
@@ -189,7 +228,7 @@ function checkFile(relFile, violations) {
       const bundleRoot = skillBundleRoot(abs)
       const okHere = existsSync(resolve(dirname(abs), bare))
       const okBundle = bundleRoot && existsSync(resolve(bundleRoot, bare))
-      if (!repoPathExists(bare) && !okHere && !okBundle) {
+      if (!repoPathExists(bare) && !okHere && !okBundle && !isGovernedPlaceholder(bare)) {
         violations.push({ file: relFile, line: i + 1, kind: 'path', token })
       }
     }

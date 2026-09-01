@@ -1,0 +1,225 @@
+File "lib/agent-harbor/formal/guidance_envelope_v0_unsigned_vuln.pv", line 62, characters 7-9:
+Warning: identifier sid rebound.
+Process 0 (that is, the initial process):
+{1}!
+{2}new sid_1: bitstring;
+{3}new aid: bitstring;
+{4}out(net, (sid_1,aid));
+{5}new k: key;
+{6}!
+{7}let sid_2: bitstring = sid_1 in
+{8}let aid_1: bitstring = aid in
+{9}let k_1: key = k in
+{10}new t: bitstring;
+{11}out(net, t);
+(
+    {12}new content: bitstring;
+    {13}new n: bitstring;
+    {14}event DaemonIssued(sid_2,aid_1,t,hash(content));
+    {15}out(net, (sid_2,aid_1,t,content,n,hmac((sid_2,aid_1,t,hash(content),n),k_1)))
+) | (
+    {16}in(net, (=sid_2,=aid_1,=t,xc: bitstring,xn: bitstring,m: bitstring));
+    {17}event BodyAccepts(sid_2,aid_1,t,hash(xc))
+)
+
+--  Process 1 (that is, process 0, with let moved downwards):
+{1}!
+{2}new sid_1: bitstring;
+{3}new aid: bitstring;
+{4}out(net, (sid_1,aid));
+{5}new k: key;
+{6}!
+{10}new t: bitstring;
+{11}out(net, t);
+{8}let aid_1: bitstring = aid in
+{7}let sid_2: bitstring = sid_1 in
+(
+    {12}new content: bitstring;
+    {13}new n: bitstring;
+    {14}event DaemonIssued(sid_2,aid_1,t,hash(content));
+    {9}let k_1: key = k in
+    {15}out(net, (sid_2,aid_1,t,content,n,hmac((sid_2,aid_1,t,hash(content),n),k_1)))
+) | (
+    {16}in(net, (=sid_2,=aid_1,=t,xc: bitstring,xn: bitstring,m: bitstring));
+    {17}event BodyAccepts(sid_2,aid_1,t,hash(xc))
+)
+
+-- Query event(BodyAccepts(s,a,t_1,c)) ==> event(DaemonIssued(s,a,t_1,c)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query event(BodyAccepts(s,a,t_1,c)) ==> event(DaemonIssued(s,a,t_1,c))
+goal reachable: attacker(xc_1) -> event(BodyAccepts(sid_3,aid_2,t_1,hash(xc_1)))
+Abbreviations:
+sid_3 = sid_1[!1 = @sid]
+aid_2 = aid[!1 = @sid]
+t_1 = t[!2 = @sid_1,!1 = @sid]
+
+Derivation:
+Abbreviations:
+sid_3 = sid_1[!1 = @sid]
+aid_2 = aid[!1 = @sid]
+t_1 = t[!2 = @sid_1,!1 = @sid]
+
+1. The attacker has some term m_1.
+attacker(m_1).
+
+2. The attacker has some term xn_1.
+attacker(xn_1).
+
+3. We assume as hypothesis that
+attacker(xc_1).
+
+4. The message t_1 may be sent to the attacker at output {11}.
+attacker(t_1).
+
+5. The message (sid_3,aid_2) may be sent to the attacker at output {4}.
+attacker((sid_3,aid_2)).
+
+6. By 5, the attacker may know (sid_3,aid_2).
+Using the function 2-proj-2-tuple the attacker may obtain aid_2.
+attacker(aid_2).
+
+7. By 5, the attacker may know (sid_3,aid_2).
+Using the function 1-proj-2-tuple the attacker may obtain sid_3.
+attacker(sid_3).
+
+8. By 7, the attacker may know sid_3.
+By 6, the attacker may know aid_2.
+By 4, the attacker may know t_1.
+By 3, the attacker may know xc_1.
+By 2, the attacker may know xn_1.
+By 1, the attacker may know m_1.
+Using the function 6-tuple the attacker may obtain (sid_3,aid_2,t_1,xc_1,xn_1,m_1).
+attacker((sid_3,aid_2,t_1,xc_1,xn_1,m_1)).
+
+9. The message (sid_3,aid_2,t_1,xc_1,xn_1,m_1) that the attacker may have by 8 may be received at input {16}.
+So event BodyAccepts(sid_3,aid_2,t_1,hash(xc_1)) may be executed at {17}.
+event(BodyAccepts(sid_3,aid_2,t_1,hash(xc_1))).
+
+10. By 9, event(BodyAccepts(sid_3,aid_2,t_1,hash(xc_1))).
+The goal is reached, represented in the following fact:
+event(BodyAccepts(sid_3,aid_2,t_1,hash(xc_1))).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+new sid_1: bitstring creating sid_4 at {2} in copy a
+
+new aid: bitstring creating aid_3 at {3} in copy a
+
+out(net, (~M,~M_1)) with ~M = sid_4, ~M_1 = aid_3 at {4} in copy a
+
+new k: key creating k_2 at {5} in copy a
+
+new t: bitstring creating t_2 at {10} in copy a, a_1
+
+out(net, ~M_2) with ~M_2 = t_2 at {11} in copy a, a_1
+
+new content: bitstring creating content_1 at {12} in copy a, a_1
+
+new n: bitstring creating n_1 at {13} in copy a, a_1
+
+in(net, (~M,~M_1,~M_2,a_2,a_3,a_4)) with ~M = sid_4, ~M_1 = aid_3, ~M_2 = t_2 at {16} in copy a, a_1
+
+event BodyAccepts(sid_4,aid_3,t_2,hash(a_2)) at {17} in copy a, a_1 (goal)
+
+The event BodyAccepts(sid_4,aid_3,t_2,hash(a_2)) is executed at {17} in copy a, a_1.
+A trace has been found.
+RESULT event(BodyAccepts(s,a,t_1,c)) ==> event(DaemonIssued(s,a,t_1,c)) is false.
+-- Query inj-event(BodyAccepts(s,a,t_1,c)) ==> inj-event(DaemonIssued(s,a,t_1,c)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query inj-event(BodyAccepts(s,a,t_1,c)) ==> inj-event(DaemonIssued(s,a,t_1,c))
+goal reachable: attacker(xc_1) && attacker(xn_1) && attacker(m_1) -> inj-event(BodyAccepts(sid_3,aid_2,t_1,hash(xc_1)),@occ17_1)
+Abbreviations:
+sid_3 = sid_1[!1 = @sid]
+aid_2 = aid[!1 = @sid]
+t_1 = t[!2 = @sid_1,!1 = @sid]
+@occ17_1 = @occ17[m = m_1,xn = xn_1,xc = xc_1,!2 = @sid_1,!1 = @sid]
+
+Derivation:
+Abbreviations:
+sid_3 = sid_1[!1 = @sid]
+aid_2 = aid[!1 = @sid]
+t_1 = t[!2 = @sid_1,!1 = @sid]
+@occ17_1 = @occ17[m = m_1,xn = xn_1,xc = xc_1,!2 = @sid_1,!1 = @sid]
+
+1. We assume as hypothesis that
+attacker(m_1).
+
+2. We assume as hypothesis that
+attacker(xn_1).
+
+3. We assume as hypothesis that
+attacker(xc_1).
+
+4. The message t_1 may be sent to the attacker at output {11}.
+attacker(t_1).
+
+5. The message (sid_3,aid_2) may be sent to the attacker at output {4}.
+attacker((sid_3,aid_2)).
+
+6. By 5, the attacker may know (sid_3,aid_2).
+Using the function 2-proj-2-tuple the attacker may obtain aid_2.
+attacker(aid_2).
+
+7. By 5, the attacker may know (sid_3,aid_2).
+Using the function 1-proj-2-tuple the attacker may obtain sid_3.
+attacker(sid_3).
+
+8. By 7, the attacker may know sid_3.
+By 6, the attacker may know aid_2.
+By 4, the attacker may know t_1.
+By 3, the attacker may know xc_1.
+By 2, the attacker may know xn_1.
+By 1, the attacker may know m_1.
+Using the function 6-tuple the attacker may obtain (sid_3,aid_2,t_1,xc_1,xn_1,m_1).
+attacker((sid_3,aid_2,t_1,xc_1,xn_1,m_1)).
+
+9. The message (sid_3,aid_2,t_1,xc_1,xn_1,m_1) that the attacker may have by 8 may be received at input {16}.
+So event BodyAccepts(sid_3,aid_2,t_1,hash(xc_1)) may be executed at {17} in session @sid_1.
+inj-event(BodyAccepts(sid_3,aid_2,t_1,hash(xc_1)),@occ17_1).
+
+10. By 9, inj-event(BodyAccepts(sid_3,aid_2,t_1,hash(xc_1)),@occ17_1).
+The goal is reached, represented in the following fact:
+inj-event(BodyAccepts(sid_3,aid_2,t_1,hash(xc_1)),@occ17_1).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+new sid_1: bitstring creating sid_4 at {2} in copy a
+
+new aid: bitstring creating aid_3 at {3} in copy a
+
+out(net, (~M,~M_1)) with ~M = sid_4, ~M_1 = aid_3 at {4} in copy a
+
+new k: key creating k_2 at {5} in copy a
+
+new t: bitstring creating t_2 at {10} in copy a, a_1
+
+out(net, ~M_2) with ~M_2 = t_2 at {11} in copy a, a_1
+
+new content: bitstring creating content_1 at {12} in copy a, a_1
+
+new n: bitstring creating n_1 at {13} in copy a, a_1
+
+in(net, (~M,~M_1,~M_2,a_2,a_3,a_4)) with ~M = sid_4, ~M_1 = aid_3, ~M_2 = t_2 at {16} in copy a, a_1
+
+event BodyAccepts(sid_4,aid_3,t_2,hash(a_2)) at {17} in copy a, a_1 (goal)
+
+The event BodyAccepts(sid_4,aid_3,t_2,hash(a_2)) is executed at {17} in copy a, a_1.
+A trace has been found.
+RESULT inj-event(BodyAccepts(s,a,t_1,c)) ==> inj-event(DaemonIssued(s,a,t_1,c)) is false.
+RESULT (even event(BodyAccepts(s,a,t_1,c)) ==> event(DaemonIssued(s,a,t_1,c)) is false.)
+
+--------------------------------------------------------------
+Verification summary:
+
+Query event(BodyAccepts(s,a,t_1,c)) ==> event(DaemonIssued(s,a,t_1,c)) is false.
+
+Query inj-event(BodyAccepts(s,a,t_1,c)) ==> inj-event(DaemonIssued(s,a,t_1,c)) is false.
+
+--------------------------------------------------------------
+

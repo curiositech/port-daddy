@@ -6,8 +6,8 @@ Proposed
 
 ## Context
 
-The recursive-control-plane research line (`docs/research/2026-06-15-recursive-control-plane.md`,
-promoted into `docs/research/north-star/00-THE-LEDGER-open-problems.md` § D as **RCP-3**)
+The recursive-control-plane research line (`whitepaper/research/program/archive/control-plane/2026-06-15-recursive-control-plane.md`,
+promoted into `whitepaper/research/program/archive/north-star/00-THE-LEDGER-open-problems.md` § D as **RCP-3**)
 calls for a **parley**: when two agents are doing the *same thing*, or are in
 unresolved *disagreement*, the swarm should suspend informal parallel work,
 convene a structured round to reallocate or reconcile, then resume. The Ledger
@@ -112,7 +112,7 @@ hope, not a protocol. Every parley carries:
 
 ## Related
 
-- `docs/research/north-star/00-THE-LEDGER-open-problems.md` § D — RCP-2 (trigger),
+- `whitepaper/research/program/archive/north-star/00-THE-LEDGER-open-problems.md` § D — RCP-2 (trigger),
   RCP-3 (this protocol), RCP-3b (performatives), RCP-14 (lineage), RQ-7 (the SDT spine).
 - `lib/tube.ts` — the typed performative + `relationship` envelope the protocol speaks.
 - `lib/discourse-lineage.ts` — the argument graph + `unresolvedContradictions` the trigger reads.

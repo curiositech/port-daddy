@@ -95,7 +95,7 @@ the claim. Radial "organs" and sand-dollar rings are forbidden unless radial ord
 
 ## Volume I: The Legible Swarm
 
-Canonical root: `whitepaper/legible-swarm.tex` (14 figures).
+Canonical root: `whitepaper/source/legible-swarm.tex` (14 figures).
 
 | Atlas ID | Reader question / claim | First-choice grammar | Must encode | Reject |
 |---|---|---|---|---|
@@ -111,12 +111,12 @@ Canonical root: `whitepaper/legible-swarm.tex` (14 figures).
 | `I/fig:pushpull` | Why should evidence weight pull attention instead of agent claims pushing it? | paired provenance lanes or aligned evidence-weight comparison | same candidates; claim source; independent evidence source; selection rule; resulting ranking difference | arrows converging on one unlabeled node; magnets/ropes as metaphor |
 | `I/fig:split-ranker` | How can one substrate support two incompatible rankings? | shared substrate splitting into two aligned scoring lanes or paired ranked lists | same candidate pool; shared decay; discovery objective; regret objective; reversed example ordering | homogeneous node diagram; telescope/lantern/chart art; one weighted score |
 | `I/fig:read-surfaces` | How does one durable trajectory produce five reader-specific projections? | source ledger feeding five aligned projection records | one raw source; five transformations; named reader and output for each; retained zoom path | antique book; ship's log; five scenic objects; crossing spaghetti |
-| `I/fig:cascade` | How do context failures compound, and where can each remedy break the chain? | causal ladder with a parallel countermeasure rail | ordered failure stages; causal links; one remedy per stage; load-bearing intervention | two columns of prose boxes; ambiguous bottom arrow; decorative waterfall |
+| `I/fig:cascade` | How do context failures compound, and where can each remedy break the chain? | causal ladder with a parallel countermeasure rail | ordered failure stages; causal links; one remedy per stage; decisive intervention | two columns of prose boxes; ambiguous bottom arrow; decorative waterfall |
 | `I/fig:roles` | What grants authority, who exercises it, who is governed, and how is override returned? | differentiated institutional route | operator/principal; scoped grant; authority/actor; multitude; enforcement; legibility; revocation/override; mutual covenant | sand-dollar ring; stacked ovals; anonymous hierarchy; reciprocal arrows without labels |
 
 ## Volume II: The Single-Writer Kernel
 
-Canonical root: `whitepaper/single-writer-kernel.tex` (12 graphical figures and 2 algorithm
+Canonical root: `whitepaper/source/single-writer-kernel.tex` (12 graphical figures and 2 algorithm
 exhibits).
 
 | Atlas ID | Reader question / claim | First-choice grammar | Must encode | Reject |
@@ -138,7 +138,7 @@ exhibits).
 
 ## Volume III: From Spawn to Person
 
-Canonical root: `website-v2/public/whitepaper/spawn-to-person.tex` (13 figures).
+Canonical root: `whitepaper/source/spawn-to-person.tex` (13 figures).
 
 | Atlas ID | Reader question / claim | First-choice grammar | Must encode | Reject |
 |---|---|---|---|---|
@@ -158,7 +158,7 @@ Canonical root: `website-v2/public/whitepaper/spawn-to-person.tex` (13 figures).
 
 ## Volume IV: The Harbor Economy
 
-Canonical root: `website-v2/public/whitepaper/harbor-economy.tex` (15 figures).
+Canonical root: `whitepaper/source/harbor-economy.tex` (15 figures).
 
 | Atlas ID | Reader question / claim | First-choice grammar | Must encode | Reject |
 |---|---|---|---|---|
@@ -180,7 +180,7 @@ Canonical root: `website-v2/public/whitepaper/harbor-economy.tex` (15 figures).
 
 ## Volume V: The Anchor Protocol
 
-Canonical root: `website-v2/public/whitepaper/anchor-protocol-whitepaper.tex` (8 figures).
+Canonical root: `whitepaper/source/anchor-protocol-whitepaper.tex` (8 figures).
 
 | Atlas ID | Reader question / claim | First-choice grammar | Must encode | Reject |
 |---|---|---|---|---|
@@ -195,7 +195,7 @@ Canonical root: `website-v2/public/whitepaper/anchor-protocol-whitepaper.tex` (8
 
 ## Volume VI: The Bonded Commons
 
-Canonical root: `website-v2/public/whitepaper/agent-transactions-whitepaper.tex` (12 figures).
+Canonical root: `whitepaper/source/agent-transactions-whitepaper.tex` (12 figures).
 
 | Atlas ID | Reader question / claim | First-choice grammar | Must encode | Reject |
 |---|---|---|---|---|
@@ -214,7 +214,7 @@ Canonical root: `website-v2/public/whitepaper/agent-transactions-whitepaper.tex`
 
 ## Volume VII: The Federated Harbor
 
-Canonical root: `website-v2/public/whitepaper/federated-harbor-whitepaper.tex` (5 figures).
+Canonical root: `whitepaper/source/federated-harbor-whitepaper.tex` (5 figures).
 
 | Atlas ID | Reader question / claim | First-choice grammar | Must encode | Reject |
 |---|---|---|---|---|

@@ -1,0 +1,117 @@
+\documentclass[11pt,a4paper]{article}
+\input{preamble}
+\usepackage{graphicx}
+\title{\textbf{Execution Report \#1}\\[4pt]
+\large The legibility package: two derivations and the first datum\\[3pt]
+\normalsize A1 (split-digest characterization), A2 (the derived regret head),\\ A7 (the information-floor falsification experiment)}
+\author{Prepared for Erich Owens}
+\date{August 2026}
+\begin{document}
+\maketitle
+
+\noindent\textbf{Status.} This report executes the three Week-1 items from the research roadmap. A2 and A1 are carried to complete proofs; A7 is run in-container and produces the volume's first figure. All three are stated at the level of rigor a referee expects, with assumptions marked. The headline: the information floor \emph{survived} its falsification test (no digest scheme, not even an oracle, beats it), the split-digest penalty is not just additive but mildly \emph{super}-additive, and the regret-head formula is now a theorem rather than a design choice. One instructive modeling bug --- caught precisely because the discipline is refute-first --- is documented in \S3.3 because it is the kind of thing that should be reported, not hidden.
+
+\section{A2 --- The regret head is derived, not designed}
+The manuscript asserts $\mathrm{regret}(x) = \mathrm{stakes}(x)\cdot\mathrm{irreversibility}(x)\cdot\mathrm{anomaly}(x)$ as the attention-queue's ranking key. We show it is the exact expected cost of non-inspection under one modeling commitment, and that the optimal surfacing rule is the classical likelihood-ratio test --- which simultaneously repairs the reversed-criterion error flagged in Document 1.
+
+\subsection{Setup}
+For a candidate effect $x$ the operator chooses $\mathsf{inspect}$ or $\mathsf{pass}$. Nature draws a latent $\theta_x\in\{\mathsf{bad},\mathsf{good}\}$. Define
+\[
+\text{stakes}(x) = \text{loss if } x \text{ is bad and acts}, \qquad
+\text{irrev}(x) = \text{fraction of that loss that inspection cannot undo post-hoc},
+\]
+so $C_\text{miss}(x) := \text{stakes}(x)\cdot\text{irrev}(x)$ is the \emph{unrecoverable} loss of passing a bad $x$. Let the anomaly signal be a \emph{calibrated posterior}
+\[
+a(x) := \Pr(\theta_x = \mathsf{bad} \mid \text{evidence}(x)),
+\]
+let $c_\text{att}$ be the operator's marginal attention cost of one inspection, and let $C_\text{fa}$ be the cost of inspecting a good item \emph{excluding} attention (so attention is not double-counted --- the fix for the objective's double-count).
+
+\subsection{The derivation}
+\begin{theorem}[Regret head]
+The expected unrecoverable loss of passing $x$ is exactly $C_\text{miss}(x)\,a(x)$. Hence the Bayes-optimal policy inspects $x$ iff
+\[
+\boxed{\;C_\text{miss}(x)\,a(x) \;\ge\; c_\text{att} + C_\text{fa}\,\bigl(1-a(x)\bigr)\;}
+\]
+and when $c_\text{att}, C_\text{fa}$ are small relative to stakes, the ranking key is $C_\text{miss}(x)\,a(x) = \text{stakes}(x)\cdot\text{irrev}(x)\cdot a(x)$, i.e.\ the manuscript's product form, with $\mathrm{anomaly}=a$ read as calibrated probability.
+\end{theorem}
+\begin{proof}
+Passing a bad item incurs unrecoverable loss $C_\text{miss}(x)$; passing a good item incurs nothing. Expected loss of $\mathsf{pass}$ is $C_\text{miss}(x)\Pr(\mathsf{bad}) + 0\cdot\Pr(\mathsf{good}) = C_\text{miss}(x)a(x)$. Expected cost of $\mathsf{inspect}$ is $c_\text{att} + C_\text{fa}\Pr(\mathsf{good}) = c_\text{att}+C_\text{fa}(1-a(x))$ (inspection catches the bad item, paying only attention on it, and pays $C_\text{fa}$ plus attention on a good one). Inspect iff the former $\ge$ the latter. Rearranging in terms of the likelihood ratio $\ell(x)=a(x)/(1-a(x))$ gives the threshold form
+\[
+\ell(x) \;\ge\; \frac{c_\text{att}+C_\text{fa}}{C_\text{miss}(x)},
+\]
+the standard signal-detection criterion. Multiplying an arbitrary monotone score by stakes and irreversibility preserves the induced ordering only when anomaly is the calibrated posterior; any other ``anomaly scalar'' $s$ requires the correction $C_\text{miss}\cdot g(s)$ with $g$ the empirical calibration map, fittable from the audit log.
+\end{proof}
+
+\subsection{Two corollaries that do real work}
+\begin{claim}[Direction, corrected]
+As $C_\text{miss}/C_\text{fa}\to\infty$ the threshold $\ell^\star\to 0$: the operator is driven toward inspecting \emph{everything} on the ambiguous region --- forced zoom. This is the correct direction; the manuscript's Figure I.6 had it reversed because it conflated ``evidence increasing rightward'' with ``criterion lax.'' Stated as a likelihood-ratio threshold there is no ambiguity: raising the miss-to-false-alarm ratio \emph{lowers} the bar to inspect.
+\end{claim}
+\begin{claim}[Reputation enters cleanly, and cannot override hard gates]
+If reputation $r$ is admitted, it enters only through the observation model: $a(x)=\Pr(\mathsf{bad}\mid \text{evidence}, r)$, i.e.\ it shifts the class-conditional danger probability for this (agent, action-class, version). It does \emph{not} enter as a free multiplier on the score. Consequently high $r$ lowers surfacing frequency only where the calibrated posterior actually falls, and can never zero out a term: when $\text{irrev}(x)=1$ and stakes are catastrophic, $C_\text{miss}(x)a(x)$ stays above threshold for any $a(x)$ bounded away from $0$. This is the formal content of ``reputation must not defeat hard stakes/irreversibility gates.''
+\end{claim}
+
+\noindent\emph{What this buys the manuscript.} Equation I.3 stops being a heuristic. The attention queue is an optimal alerting policy with a named optimality criterion (Bayes risk), a calibration obligation ($a$ must be a real posterior, or $g$ must be fit), and a clean statement of where the empirical program plugs in: instrument false alarms and misses, fit $g$, and the ranking follows.
+
+\section{A1 --- The split-digest characterization}
+The manuscript's split-ranker theorem shows discovery and attention cannot share a scoring head. We generalize: \emph{no} read-surface projection can serve two readers with non-comonotone loss unless their induced orders agree, and we quantify the bit cost of ignoring this.
+
+\subsection{Statement}
+A \emph{read-surface} is $(X,\Sigma,\pi)$: items $X$, evidence $\Sigma$, a budgeted projection $\pi$. A \emph{reader} is a loss $L_r$; a scalar head $h:X\to\mathbb R$ \emph{serves} $r$ if ranking by $h$ realizes $r$'s optimal rendering at every budget. The two canonical readers of a compaction are the \emph{successor} (loss $=$ forgone continuation value; fit-shaped) and the \emph{operator} (loss $=$ regret-if-ignored; risk-shaped, $=C_\text{miss}\cdot a$ from A2).
+\begin{theorem}[Comonotone characterization]
+A single head $h$ serves both readers iff their induced preference orders $\preceq_\text{succ}$ and $\preceq_\text{op}$ are comonotone (agree on every pair). The successor and operator orders are not comonotone: a routine-but-essential working state (high continuation value, negligible regret) and an anomalously abandoned dead-end with irreversible side effects (zero continuation value, maximal regret) order oppositely. Hence no shared head exists, and the manuscript's split-ranker theorem is the special case $X=$ agents, $\preceq_\text{succ}=$ discovery-fit, $\preceq_\text{op}=$ attention-regret.
+\end{theorem}
+\begin{proof}
+($\Leftarrow$) Comonotone total preorders admit a common refinement; any strictly increasing reparameterization of a utility representing that refinement serves both. ($\Rightarrow$) A shared head $h$ induces one order by $h$-value; both readers' optima at every budget are top-$m$ sets of that order, so both orders equal the $h$-order, hence agree pairwise. The witnesses are the two constructible items above: on the pair (working-state $w$, dead-end $d$), $w\prec_\text{succ}d$ is false ($w$ has higher continuation value so $d\prec_\text{succ}w$) while $d\prec_\text{op}w$ is false ($d$ has higher regret so $w\prec_\text{op}d$); the orders disagree on $\{w,d\}$, so no shared head. \qed
+\end{proof}
+
+\subsection{The quantitative half (verified numerically in \S3)}
+\begin{claim}[Split penalty is super-additive]
+Let $\mathrm{Floor}(N,k,m)=\log_2\binom{N}{k}-\log_2\binom{m}{k}$ be the zero-miss bit floor for catching a $k$-set among $N$ while opening $m$ (Theorem I.6.1). A joint zero-miss digest serving two readers whose critical sets are disjoint (sizes $k$ each) must catch their union, size $2k$, and so requires $\mathrm{Floor}(N,2k,m)$ bits. Across regimes this is not merely $2\,\mathrm{Floor}(N,k,m)$ but slightly \emph{more}:
+\[
+\frac{\mathrm{Floor}(N,2k,m)}{2\,\mathrm{Floor}(N,k,m)} \approx 1.05\text{--}1.08,
+\]
+because $\log_2\binom{N}{2k}$ grows faster than $2\log_2\binom{N}{k}$ (the combinatorics of catching twice as many items among the same $N$ compound). Storing a single compaction therefore under-provisions the joint task by \emph{more} than a factor of two when readers diverge --- a sharper statement than ``sum of floors.'' Corollary: compact per reader class from durable artifacts; one stored compaction is irreversible loss for the other reader.
+\end{claim}
+
+\section{A7 --- The information-floor falsification experiment}
+\subsection{The falsifiable prediction}
+Theorem I.6.1 predicts that \emph{any} digest of $B<\mathrm{Floor}(N,k,m)$ bits, with the operator opening $m$ items, must miss on some placement. Restated as a frontier: the best achievable zero-miss probability for a $B$-bit digest is
+\[
+\Pr(\text{catch all }k) = \min\!\Bigl(1,\; 2^{B}\binom{m}{k}\big/\binom{N}{k}\Bigr),
+\qquad
+\Pr(\text{miss}\ge1)=\max\!\Bigl(0,\,1-2^{B}\tbinom{m}{k}/\tbinom{N}{k}\Bigr).
+\]
+The prediction is sharp and refutable: if any real digest scheme dips below this curve, the critical formalization is wrong.
+
+\subsection{Method}
+A digest is an encoder $e:(\text{features})\to\{0,1\}^B$ and a fixed, data-independent decoder $d:\{0,1\}^B\to$ (an $m$-subset to open); the scheme catches $T$ iff $T\subseteq d(e(\cdot))$. We implement three encoders --- \emph{oracle} (sees the true set, addresses the best codeword its $B$ bits can reach), \emph{noisy} (SNR $\approx 1$ features), \emph{random} --- against a shared randomized-cover codebook, and measure empirical miss over $4000$ placements per point. Regime $N=60,k=2,m=8$ so the floor $B^\star=5.98$ bits is fully sweepable.
+
+\subsection{Result, and an instructive bug}
+\input{fig-a7-floor.tex}
+
+\noindent\textbf{Falsification test: passed.} Across the swept budgets, the oracle encoder produced \textbf{0/16} violations of the floor (a violation being an empirical miss more than a Monte-Carlo margin below the predicted minimum). The theory survives.
+
+\noindent\textbf{The bug, reported.} A first implementation gave the oracle a \emph{perfect score vector} and charged bits only for tie-resolution, producing $8/14$ spurious ``violations.'' This was a model/theory mismatch, not a refutation: the floor charges bits for \emph{identifying} the critical set, while that implementation let the oracle encode identity for free. The corrected model makes $B$ a literal message length gating an encoder/decoder pair, restoring agreement. This is logged because the refute-first discipline is only honest if the near-misses are reported --- and because it is a concrete instance of the deeper point: an information bound constrains \emph{what a channel can carry}, and a simulation that smuggles information through an unpriced side channel will appear to beat it.
+
+\subsection{Key numbers}
+\begin{center}
+\begin{tabular}{@{}lr@{}}
+\toprule
+Quantity & Value \\
+\midrule
+Floor $B^\star$ (catch $k=2$ of $N=60$, open $m=8$) & $5.98$ bits \\
+Floor, disjoint readers (catch $2k=4$) & $12.77$ bits \\
+Split penalty (disjoint $-$ single) & $6.78$ bits \\
+Ratio $\mathrm{Floor}_{2k}/\mathrm{Floor}_{k}$ & $2.13\times$ \\
+Super-additivity $\mathrm{Floor}_{2k}/(2\,\mathrm{Floor}_{k})$ & $1.07$ \\
+Oracle violations of the floor & $0/16$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{What is now in hand for Paper 1}
+Three of Paper 1's four pillars are executed: A2 (the derived regret head, with the SDT direction corrected as a corollary), A1 (the comonotone characterization plus the super-additive split penalty), and A7 (the falsification figure with a passed test). The remaining pillar is B1 (the two-constraint rate--distortion frontier and the zoom-advantage theorem), which upgrades A7's single-budget floor into the full digest-bits vs.\ expected-opens trade. With B1, ``The Price of a Summary'' is a complete paper: a characterization, a frontier, a derived optimal policy, and data.
+
+\vspace{0.5em}
+\noindent\emph{Reproducibility.} The experiment is a single self-contained script ($\sim$180 lines, numpy/scipy/matplotlib); the figure and all key numbers regenerate deterministically from seed \texttt{20260816}. It is the seed of the coordination benchmark the reviews recommend owning.
+\end{document}

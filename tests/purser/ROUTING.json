@@ -79,11 +79,11 @@
     },
     "undefined-references.test.js": {
       "runner": "quarantined",
-      "reason": "reads website-v2/public/whitepaper/legible-swarm-whitepaper.pdf.log, a pdflatex build log that is not committed; it can only pass inside the whitepaper-build job, never in unit-tests"
+      "reason": "reads .cache/whitepaper-build/legible-swarm/legible-swarm.log, an ephemeral pdflatex build log that exists only after a full whitepaper build; the ordinary unit-test job does not create it"
     },
     "whitepaper-figure-validation.test.js": {
       "runner": "quarantined",
-      "reason": "greps a binary PDF as if it were text -- the received value starts '%PDF-1.7' -- so its prose assertions ('outcome ledger') can never match"
+      "reason": "reads canonical figure TeX and asserts editorial phrases rather than renderer or semantic invariants; keep it quarantined until those content checks move into the atlas contract"
     },
     "implementation-status-contracts.test.js": {
       "runner": "quarantined",

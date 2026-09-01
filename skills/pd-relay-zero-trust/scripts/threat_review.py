@@ -84,7 +84,7 @@ def handle(payload: dict) -> dict:
     crypto = a.get("key_material")
     if crypto and crypto != "none" and a.get("proverif_query_added") is False:
         add("warning", "missing_proverif",
-            "feature uses key material; add a ProVerif query under analyses/")
+            "feature uses key material; add a ProVerif query under apps/relay/formal/proverif/")
 
     score = 100
     score -= 25 * sum(1 for f in findings if f["severity"] == "error")

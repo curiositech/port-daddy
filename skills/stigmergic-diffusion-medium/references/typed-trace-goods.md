@@ -46,7 +46,7 @@ medium.check_antibody(signature, radius_nodes=None)  # -> bool
 - RESOLUTION is the only type that routes to `Medium.resolution` instead of `Medium.pheromone`; every other type increments the pheromone scalar, making `sense()` and `gradient()` aggregate across PHEROMONE, BELIEF, PREFERENCE, and ANTIBODY indiscriminately.
 - `gradient()` is resolution-blind; `sense()` is resolution-aware. An agent navigating by gradient will ignore anti-inflammatory suppression; an agent navigating by sense deltas will respect it.
 - ANTIBODY traces increment `pheromone[node_id]`, so a solved node can appear artificially attractive — always check `check_antibody()` before doing work, not just before moving.
-- BELIEF and PREFERENCE are semantically distinct but mechanically identical in Week 2; the distinction is load-bearing only in Week 3 belief markets, where `confidence_stake` and `proposition` enter settlement logic.
+- BELIEF and PREFERENCE are semantically distinct but mechanically identical in Week 2; the distinction is critical only in Week 3 belief markets, where `confidence_stake` and `proposition` enter settlement logic.
 - Resolution decays at `2 * decay_rate` (medium.py:335), pheromone at `decay_rate` (medium.py:330) — the anti-inflammatory signal is intentionally transient relative to the work signal it suppresses.
 
 ## See Also

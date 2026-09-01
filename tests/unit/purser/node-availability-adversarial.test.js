@@ -33,7 +33,7 @@ describe('node availability guard during mega-volume generation', () => {
         '/bin/bash',
         [
           '-c',
-          'source "$1"; build_one website-v2/public/whitepaper coordination-papers-mega-volume.tex "$2"',
+          'source "$1"; build_one whitepaper/source coordination-papers-mega-volume.tex "$2"',
           'whitepaper-test',
           buildScript,
           join(shimBin, 'unused.pdf'),

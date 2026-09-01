@@ -7,7 +7,7 @@ Load BEFORE extending, re-implementing, or designing anything adjacent to R1–R
 **Mistake.** Gave the oracle encoder a perfect per-item score vector and charged B bits only for quantizing rank resolution (tie-breaking). Result: 8/14 apparent floor "violations."
 **Fix.** Make B a literal message length: digest = encoder e:(features)→{0,1}^B, decoder d:{0,1}^B→(m-subset), shared data-independent codebook. Bits now gate *identification*. Violations → 0/16.
 **Rule.** An information bound constrains what a channel carries; any simulation that appears to beat one is leaking through an unpriced side channel. Audit the meter before doubting the theorem — and before trusting the "refutation."
-**Bit.** a7_experiment.py v1 vs v2; documented in Execution Report #1 §3.3. Repo: wrong turn at docs/harbor-research/wrong-turns/a7_experiment.py; fixed at skills/harbor-results/scripts/a7_experiment.py.
+**Bit.** a7_experiment.py v1 vs v2; documented in Execution Report #1 §3.3. Repo: wrong turn at whitepaper/research/wrong-turns/a7_experiment.py; fixed at skills/harbor-results/scripts/a7_experiment.py.
 
 ## 2. Cohomology of the data, not the sheaf
 **Context.** Testing whether sheaf cohomology detects equivocation (R6).
@@ -16,14 +16,14 @@ Load BEFORE extending, re-implementing, or designing anything adjacent to R1–R
 **Mistake #2.** Tested on two cliques joined by a single bridge. A bridge is a *cut edge*: it lies on no cycle, so it carries no cocycle constraint — the one topology where the method provably cannot help.
 **Fix #2.** The value-add requires the uncompared edge to lie on a cycle (redundant paths). Minimal decisive case: C₆ with one uncompared edge — signal 1.225 while pairwise is blind; same lie on P₆'s bridge — signal 0.000.
 **Rules.** (a) Sheaf invariants of the *space* vs obstructions of the *data* are different objects; equivocation/contextuality lives in the data. (b) Before crediting a topological method, check the topology admits the constraint (cycles for cocycles). (c) Topological β₁ contaminates any counting claim — net it out against the honest baseline.
-**Bit.** sheaf_experiment.py (wrong twice) → sheaf_diagnosis.py (right). Repo: wrong turns at docs/harbor-research/wrong-turns/{sheaf_experiment.py, sheaf_verdict.py}; working proof at skills/harbor-results/scripts/sheaf_mechanism_proof.py; rebuild spec HANDOFF §3.3.
+**Bit.** sheaf_experiment.py (wrong twice) → sheaf_diagnosis.py (right). Repo: wrong turns at whitepaper/research/wrong-turns/{sheaf_experiment.py, sheaf_verdict.py}; working proof at skills/harbor-results/scripts/sheaf_mechanism_proof.py; rebuild spec HANDOFF §3.3.
 
 ## 3. Zoom's regime, stated or wrong
 **Context.** Quantifying adaptive group-split inspection (R4).
 **Mistake.** First comparison put k≈F·(2/3) positives inside the flagged set (flag rate 1.5p) — group testing's *worst* case; adaptive "advantage" came out at 0.5× (worse than flat).
 **Fix.** Group splitting pays when positives are *sparse in the tested pool*: conservative over-flagging digests (F large, k small). There: 15.3× at F=2500,k=10, tracking k·log₂(F/k).
 **Rule.** Every "X beats Y" claim carries a regime; find the regime where it flips and state both. The flip is often the more publishable sentence.
-**Bit.** b1_experiment.py v1 vs b1_fix.py. Repo: docs/harbor-research/wrong-turns/b1_experiment.py vs skills/harbor-results/scripts/b1_frontier.py.
+**Bit.** b1_experiment.py v1 vs b1_fix.py. Repo: whitepaper/research/wrong-turns/b1_experiment.py vs skills/harbor-results/scripts/b1_frontier.py.
 
 ## 4. Conventions change the headline number
 **Context.** ρ* for the inspection game (R7).
@@ -33,7 +33,7 @@ Load BEFORE extending, re-implementing, or designing anything adjacent to R1–R
 
 ## 5. Mutation-test the checker or it proves nothing
 **Context.** Model-checking the work-unit machine (R8) and the sealed room (R9).
-**Practice.** A green checker is unvalidated until seeded bugs turn it red: disable each guard / plant each leak and demand a counterexample. R8: all five guards proven load-bearing with shortest crimes (4,2,4,1,7 steps). R9: leaky gate and bypass both caught with witness traces.
+**Practice.** A green checker is unvalidated until seeded bugs turn it red: disable each guard / plant each leak and demand a counterexample. R8: all five guards proven critical with shortest crimes (4,2,4,1,7 steps). R9: leaky gate and bypass both caught with witness traces.
 **Rules.** (a) Ship the mutation suite with the checker; the suite *is* the checker's certificate. (b) BFS gives shortest counterexamples — human-readable crimes, gold for exposition and debugging. (c) Note which crime needs the longest trace: R8's wrong-principal payout walks the entire legitimate path before the one illegal step — exactly how the fraud would look in production, so the test doubles as a detection playbook.
 **Bit.** c0_workunit.py, c1_noninterference.py.
 

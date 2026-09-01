@@ -57,7 +57,7 @@ and the rent-verdict enum are stable enough to specify against today.
 - `core/kernel/pd-anchor/src/macaroon.rs` — `RentVerdict` (`Paid` / `RentDue` /
   `Idle` / `Stale`), `mint_push_grant`, `discharge_rent_paid`, `verify`, and the
   `hmac` / `ct_eq` primitives. The discharge construction is machine-checked in
-  `analyses/macaroon_discharge_v1.pv`.
+  `core/kernel/pd-anchor/formal/proverif/macaroon-discharge/macaroon_discharge_v1.pv`.
 - `lib/coast-guard/compulsion.ts` — the **pure** rent evaluator
   (`evaluateLeaseRent` → `RentEvaluation { verdict, action, reason, rentDue }`).
   This is what phase 3 signs.
@@ -446,10 +446,10 @@ Extend the `#[cfg(test)]` modules already in `keystore.rs` / `ffi.rs`:
 ### ProVerif (carry-over, not blocking this slice)
 
 The discharge construction is already modelled in
-`analyses/macaroon_discharge_v1.pv`. Phase 3 adds a signature gate *in front of*
+`core/kernel/pd-anchor/formal/proverif/macaroon-discharge/macaroon_discharge_v1.pv`. Phase 3 adds a signature gate *in front of*
 the discharge; an extension modelling "no discharge without a daemon-signed
 `Paid` attestation bound to that grant" belongs in a follow-on
-`analyses/rent_attestation_v1.pv` (proposed — not yet shipped). It is **not** a
+`core/kernel/pd-anchor/formal/proverif/rent_attestation_v1.pv` (proposed — not yet shipped). It is **not** a
 gate on shipping phases 2/3 — the Rust `forged_verdict_is_refused` test is the
 shipping evidence; the proof is the durability follow-up.
 

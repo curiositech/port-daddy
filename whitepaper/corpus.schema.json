@@ -1,0 +1,135 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://portdaddy.dev/schemas/whitepaper-corpus.schema.json",
+  "title": "Port Daddy whitepaper corpus",
+  "type": "object",
+  "required": [
+    "version",
+    "canonicalRoot",
+    "directories",
+    "chapters",
+    "collectedVolume",
+    "researchPublications",
+    "currentReview",
+    "currentProof",
+    "formalArtifacts",
+    "researchProgramArtifacts",
+    "skillSatellites",
+    "atlases",
+    "platformSatellites",
+    "generatedMirrors",
+    "externalInputs",
+    "forbiddenLegacyRoots"
+  ],
+  "properties": {
+    "version": { "const": 1 },
+    "canonicalRoot": { "const": "whitepaper" },
+    "directories": {
+      "type": "object",
+      "required": ["source", "published", "research", "reviews", "proof", "formal", "researchProgram", "atlases"],
+      "additionalProperties": { "type": "string" }
+    },
+    "chapters": {
+      "type": "array",
+      "minItems": 7,
+      "maxItems": 7,
+      "items": {
+        "type": "object",
+        "required": ["id", "chapter", "title", "source", "published", "publicPath"]
+      }
+    },
+    "formalArtifacts": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/formalArtifact" }
+    },
+    "researchProgramArtifacts": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/researchArtifact" }
+    },
+    "skillSatellites": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/skillSatellite" }
+    }
+  },
+  "$defs": {
+    "formalArtifact": {
+      "type": "object",
+      "required": ["id", "kind", "authority", "status", "path", "chapterIds", "method", "owner", "runner", "evidencePolicy"],
+      "properties": {
+        "authority": { "enum": ["corpus", "product-runtime"] },
+        "status": { "enum": ["current", "partial", "superseded", "historical", "missing"] },
+        "chapterIds": { "type": "array", "minItems": 1, "items": { "type": "string" } }
+      }
+    },
+    "researchArtifact": {
+      "type": "object",
+      "required": ["id", "kind", "authority", "status", "path", "owner"],
+      "properties": {
+        "authority": { "const": "corpus" },
+        "status": { "enum": ["current", "historical"] }
+      }
+    },
+    "skillSatellite": {
+      "type": "object",
+      "required": ["id", "path", "kind", "classification", "authority", "status", "provenance", "scope", "contracts", "currentness"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "path": { "type": "string", "pattern": "^skills/[^/]+$" },
+        "kind": { "type": "string", "minLength": 1 },
+        "classification": { "enum": ["A-general-method", "B-corpus-adapter", "C-product", "D-historical"] },
+        "authority": { "enum": ["methodology", "result-adapter", "chapter-adapter", "product-satellite", "historical-fixture"] },
+        "status": { "enum": ["current", "planned", "historical", "superseded"] },
+        "provenance": {
+          "type": "object",
+          "required": ["sourceProgram", "reviewedAt"],
+          "properties": {
+            "sourceProgram": { "type": "string", "minLength": 1 },
+            "introducedCommit": { "type": "string", "minLength": 7 },
+            "reviewedAt": { "type": "string", "format": "date" }
+          }
+        },
+        "scope": {
+          "type": "object",
+          "required": ["chapterIds", "resultIds"],
+          "properties": {
+            "chapterIds": { "type": "array", "items": { "type": "string" } },
+            "resultIds": { "type": "array", "items": { "type": "string", "pattern": "^R[0-9]+$" } }
+          }
+        },
+        "contracts": {
+          "type": "object",
+          "required": ["entrypoint", "canonicalAuthority"],
+          "properties": {
+            "entrypoint": { "const": "SKILL.md" },
+            "cwd": { "type": "string" },
+            "canonicalAuthority": { "type": "string", "minLength": 1 }
+          }
+        },
+        "currentness": {
+          "type": "object",
+          "required": ["checkedAgainst", "stalePaths", "placeholderPaths", "contradictions"],
+          "properties": {
+            "checkedAgainst": { "type": "string", "minLength": 1 },
+            "stalePaths": { "type": "array", "items": { "type": "string" } },
+            "placeholderPaths": { "type": "array", "items": { "type": "string" } },
+            "contradictions": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "examples": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["path", "status"],
+            "properties": {
+              "path": { "type": "string", "minLength": 1 },
+              "status": { "enum": ["current-evidence", "synthetic", "synthetic-historical-fixture", "historical"] }
+            }
+          }
+        }
+      }
+    }
+  }
+}

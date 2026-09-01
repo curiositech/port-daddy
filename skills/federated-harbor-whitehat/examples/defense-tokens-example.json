@@ -5,7 +5,7 @@
   "section": "§fh-3",
   "persona": "fh-whitehat-tokens",
   "mechanization": {
-    "artifact": "proofs/federated/tokens/cross-harbor-issuance.pv",
+    "artifact": "whitepaper/formal/proverif/federated-harbor/tokens/cross-harbor-issuance.pv",
     "tool": "proverif",
     "status": "LANDED",
     "result_line": "Query event(accepted_at_B(t, e_v)) ==> event(issued_at_A(t, e_i)) /\\ e_v == e_i is true.",
@@ -29,7 +29,7 @@
   "placeholder_pin": {
     "name": "PLACEHOLDER-FEDLOG-§",
     "value": "§fh-A.3",
-    "witness": "proofs/federated/tokens/historical-root-storage.smt2"
+    "witness": "whitepaper/formal/z3/federated-harbor/tokens/historical-root-storage.smt2"
   },
   "preempt_analogy": {
     "analog": "Macaroons attenuation",

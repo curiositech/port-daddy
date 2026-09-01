@@ -1,7 +1,7 @@
 /**
  * RUNTIME CONFORMANCE: ProVerif chain-replay.pv ←→ lib/delegation-chain.ts
  *
- * Spec:    proofs/anchor/delegation/chain-replay.pv
+ * Spec:    whitepaper/formal/proverif/anchor/delegation/chain-replay.pv
  * Runtime: lib/delegation-chain.ts
  *
  * The .pv proves: a chain accepted at depth N was originally signed by

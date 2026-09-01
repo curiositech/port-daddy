@@ -10,7 +10,7 @@
 
 This is the right question. A `.pv` file proves an *abstract protocol*.
 The TypeScript code in `lib/` is a *separate artifact*. Without an
-explicit bridge, nothing prevents `lib/foo.ts` from drifting away from
+explicit bridge, nothing prevents `lib/harbor-tokens.ts` from drifting away from
 the protocol the .pv file proves sound.
 
 This document fixes the strategy and is the index for the conformance
@@ -103,15 +103,15 @@ As of v2.5 close (2026-05-04):
 
 | .pv file | Runtime location | Conformance status |
 |---|---|---|
-| `proofs/coordination/isolation.pv` | `lib/coordination-crypto.ts` + `routes/sessions.ts` + `routes/tuples.ts` + `routes/messaging.ts` | `tests/unit/coordination-routes.test.js` covers route ACL; envelope crypto has its own unit suite |
-| `proofs/bonded/pairing/passkey-pair.pv` | **SPEC-ONLY** — passkey device pairing not yet implemented | flag explicitly |
-| `proofs/bonded/federated/federated.pv` | **PARTIAL** — federated KMS shape exists in `USER-ACCOUNTS-KMS.md` design doc; no code yet | flag explicitly |
-| `proofs/anchor/token-verify/algconfusion.pv` | `lib/harbor-tokens.ts:201–267` | **NEW v2.5: `tests/unit/runtime-conformance/algorithm-pinning.test.js`** |
-| `proofs/anchor/delegation/chain-replay.pv` | `lib/delegation-chain.ts` | **NEW v2.6: `tests/unit/runtime-conformance/delegation-chain-replay.test.js`** |
-| `proofs/bonded/recovery/magic-link.pv` | **SPEC-ONLY** — magic-link recovery route not yet implemented | flag explicitly |
-| `proofs/bonded/conservation/Conservation.tla` | `lib/bonds.ts` | `tests/unit/bonds-conservation-property.test.js` |
-| `proofs/bonded/merkle/binding.md` (game spec) | `lib/merkle-tree.ts` | `tests/unit/merkle-binding-property.test.js` |
-| `proofs/bonded/pareto/dominance.md` (theorem) | N/A — economic mechanism, not a code artifact | simulation is the conformance |
+| `whitepaper/formal/proverif/coordination/isolation.pv` | `lib/coordination-crypto.ts` + `routes/sessions.ts` + `routes/tuples.ts` + `routes/messaging.ts` | `tests/unit/coordination-routes.test.js` covers route ACL; envelope crypto has its own unit suite |
+| `whitepaper/formal/proverif/bonded/pairing/passkey-pair.pv` | **SPEC-ONLY** — passkey device pairing not yet implemented | flag explicitly |
+| `whitepaper/formal/proverif/bonded/federated/federated.pv` | **PARTIAL** — federated KMS shape exists in `USER-ACCOUNTS-KMS.md` design doc; no code yet | flag explicitly |
+| `whitepaper/formal/proverif/anchor/token-verify/algconfusion.pv` | `lib/harbor-tokens.ts:201–267` | **NEW v2.5: `tests/unit/runtime-conformance/algorithm-pinning.test.js`** |
+| `whitepaper/formal/proverif/anchor/delegation/chain-replay.pv` | `lib/delegation-chain.ts` | **NEW v2.6: `tests/unit/runtime-conformance/delegation-chain-replay.test.js`** |
+| `whitepaper/formal/proverif/bonded/recovery/magic-link.pv` | **SPEC-ONLY** — magic-link recovery route not yet implemented | flag explicitly |
+| `whitepaper/formal/tla/bonded-conservation/Conservation.tla` | `lib/bonds.ts` | `tests/unit/bonds-conservation-property.test.js` |
+| `whitepaper/formal/easycrypt/bonded-merkle/binding.md` (game spec) | `lib/merkle-tree.ts` | `tests/unit/merkle-binding-property.test.js` |
+| `whitepaper/research/program/simulations/pareto/dominance.md` (theorem) | N/A — economic mechanism, not a code artifact | simulation is the conformance |
 
 ### Surfacing the SPEC-ONLY entries
 
@@ -133,8 +133,8 @@ For each SPEC-ONLY entry, the implementation effort is:
     `pairing_secret` derivation.
 ### Adding the CI gate
 
-`scripts/runtime-conformance-check.mjs` (deferred to v2.6) walks
-`proofs/**/*.pv`, looks for either a matching test file at
+`scripts/runtime-conformance-check.mjs` (designed-not-built; deferred to v2.6) walks
+`whitepaper/formal/**/*.pv`, looks for either a matching test file at
 `tests/unit/runtime-conformance/<name>.test.{js,ts}` or a
 `# SPEC-ONLY: <reason>` marker in the .pv header. Fails CI if
 neither.
@@ -207,10 +207,8 @@ itself. For these, the conformance is:
     All four are the exact attack patterns ProVerif's naive-verifier
     counter-trace exhibited.
 
-  - `tests/unit/runtime-conformance/merkle-tree-binding.test.js` —
-    binds `proofs/bonded/merkle/binding.md` to `lib/merkle-tree.ts`.
-    Already provided by `tests/unit/merkle-binding-property.test.js`;
-    the new file is a thin alias / pointer for the registry.
+  - `tests/unit/merkle-binding-property.test.js` — binds
+    `whitepaper/formal/easycrypt/bonded-merkle/binding.md` to `lib/merkle-tree.ts`.
 
 ---
 

@@ -7,7 +7,7 @@
   "tool": "proverif",
   "hypothesis": "The paper's prose implies non-transitive trust, but the verifier rule as written admits a two-hop chain (A→B, B→C) such that A's verifier accepts a C-issued token without A having emitted an explicit `consented(A, C)` event.",
   "construction": {
-    "model": "proofs/federated/trust/transitive-consent.pv",
+    "model": "whitepaper/formal/proverif/federated-harbor/trust/transitive-consent.pv",
     "adversary_capabilities": [
       "dolev-yao-network"
     ],

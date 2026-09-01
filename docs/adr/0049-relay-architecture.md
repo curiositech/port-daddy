@@ -18,7 +18,7 @@ without opening inbound firewall holes and without trusting the relay with paylo
 - `lib/merkle-chain.ts` — pure-function per-publisher Merkle event chains (tamper-evidence,
   non-equivocation, external anchorability)
 - `lib/event-envelope.ts` — typed wire envelope with per-publisher monotonic `seq` and replay guard
-  (closes the replay gap found in `analyses/relay_e2e_secrecy.pv`, PR #252)
+  (closes the replay gap found in `apps/relay/formal/proverif/relay-e2e-secrecy/relay_e2e_secrecy.pv`, PR #252)
 - `lib/harbor-tokens.ts` — Phase 2 Ed25519 harbor card issuance (1h TTL, JTI audit, revocation)
 - ADR-0025 (Accepted) — PKI decision: OIDC-first hybrid, GitHub Actions OIDC primary, WoT
   escape hatch for self-hosted, ACME v1 for daemon name-binding
@@ -234,7 +234,7 @@ checklist items:
 - Float Plan economic settlement (see `skills/pd-relay-zero-trust/references/float-plans-deferred.md`)
 - WebSockets / gRPC / custom binary transport
 - Phase 3 capability attenuation (defer to post-v0)
-- ProVerif extension for daemon↔relay↔daemon (defer — see `analyses/proverif-relay-extension/`)
+- ProVerif extension for daemon↔relay↔daemon (defer — see `apps/relay/formal/proverif/`)
 - ACME daemon enrollment (defer to v1)
 - Phone UI / mobile client
 

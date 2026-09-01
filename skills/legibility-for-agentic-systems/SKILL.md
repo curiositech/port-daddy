@@ -15,13 +15,20 @@ description: >
   the wire protocol of agent messages (use agent-conversation-protocols), or the
   economics of agent labor (use mechanism-design-for-agent-labor).
 license: Apache-2.0
-io-contract:
-  kind: deliverable
-  produces:
-    - kind: critique
-      description: Legibility audit identifying where agent state, intent, or provenance is unreadable to operators
-    - kind: design-doc
-      description: Legibility patterns (receipts, ledgers, status surfaces) for the audited system
+allowed-tools: Read,Write,Edit,Bash,Grep,Glob
+metadata:
+  category: Agent Systems
+  tags: [legibility, oversight, evidence, operator-interface, agent-systems]
+  provenance:
+    kind: first-party
+    owners: [port-daddy]
+  io-contract:
+    kind: deliverable
+    produces:
+      - kind: critique
+        description: Legibility audit identifying where agent state, intent, or provenance is unreadable to operators
+      - kind: design-doc
+        description: Legibility patterns (receipts, ledgers, status surfaces) for the audited system
 ---
 
 # Legibility for Agentic Systems
@@ -253,7 +260,7 @@ in the loop without lying to them with a pretty map.
 ## PROVENANCE
 
 Authored for Port Daddy's North Star (ADR-0048, L2 — *legibility & authority,
-the Leviathan, the operator GUI*) alongside `docs/research/north-star/legibility-leviathan.md`.
+the Leviathan, the operator GUI*) alongside `whitepaper/research/program/archive/north-star/legibility-leviathan.md`.
 Anchors: Scott 1998 (*Seeing Like a State*); Hobbes 1651 (*Leviathan*); Rao 2010
 (*A Big Little Idea Called Legibility*, ribbonfarm); Bainbridge 1983 (*Ironies of
 Automation*); Endsley & Kiris 1995 (*out-of-the-loop performance problem*);

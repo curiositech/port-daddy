@@ -15,6 +15,9 @@ allowed-tools: Read,Write,Edit
 metadata:
   category: Research & Knowledge
   tags: [harbor, coordination, theorems, results, multi-agent, oversight]
+  provenance:
+    kind: first-party
+    owners: [port-daddy]
   version: 1.0.0
   pairs-with:
     - skill: harbor-exposition
@@ -39,7 +42,7 @@ Seventeen results, executed and reproducible (program seed 20260816), each with 
 - **R5 — Hypervisor = supervisory control.** A policy is preventable (regimentable) iff controllable w.r.t. the uncontrollable event set (Ramadge–Wonham K̄Σᵤ∩L̄⊆K̄); "no egress after reading a secret" IS regimentable — gate the channel, never the token.
 - **R6 — Sheaf verdict.** Cohomology detects equivocation beyond pairwise comparison iff the missing edge lies on a cycle (cocycle sum ≠ 0); on a cut edge, never. Conditional commit with that exact scope.
 - **R7 — Inspection tower.** ρ* = G/(dB); sealed sampling from C cliques makes bribery uneconomical (profitable iff G_k > C·B), corruption decays (1−ρd)^k; reputation is amortized verification (Θ(log T) or O(1) audit spend).
-- **R8 — Work-unit machine.** Six safety invariants hold in all 536 reachable states; all five guards proven load-bearing by mutation (shortest crimes: 4, 2, 4, 1, 7 steps).
+- **R8 — Work-unit machine.** Six safety invariants hold in all 536 reachable states; all five guards proven critical by mutation (shortest crimes: 4, 2, 4, 1, 7 steps).
 - **R9 — Sealed-room noninterference.** Erin's view identical across equal-parity secrets under every interleaving to depth 7; schedule secret-independence checked separately; leaky-gate and bypass mutations caught with witnesses.
 - **R10 — ε-ledger conservation.** The release ledger's atomic append+add conserves σ = Σ_Λ εᵢ ≤ εmax under every concurrent interleaving (single-writer serialization); sequential/advanced DP composition gives the sum its meaning; recorded spend only — mediation is R5's job.
 - **R11 — Canary power + SPRT.** k smuggled canaries are caught w.p. 1−β^k; uniform planting gives the hypergeometric operating curve Pr(detect)=f(leak size); Wald's SPRT turns leak intensity into expected time-to-detection with errors at or below target.

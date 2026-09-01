@@ -12,7 +12,8 @@ When: prove secrecy and authentication of capability issuance + delegation. Defe
 use ProVerif to *certify* a property; red team uses it to find counterexamples. Same
 tool, opposite goal.
 Input: applied-pi-calculus model committed alongside the protocol code; CI runs ProVerif
-on every change. Lemmas live in `proofs/protocol.pv`.
+on every change. A current example is
+`whitepaper/formal/proverif/anchor/token-verify/algconfusion.pv`.
 Output: `RESULT ... is true` for every required lemma. Failure blocks merge.
 
 ### Tamarin
@@ -176,8 +177,8 @@ release-quality metrics.
 
 ### 8.3 Formal Proof Obligations as Test Artifacts
 Every safety property should exist in three forms:
-1. **English statement** in a security spec doc (`docs/security/properties.md`).
-2. **Formal lemma** in Tamarin/ProVerif/TLA+/Z3 (`proofs/`).
+1. **English statement** in the security soundness spec (`docs/SECURITY_SOUNDNESS.md`).
+2. **Formal lemma** in Tamarin/ProVerif/TLA+/Z3 (`whitepaper/formal/`).
 3. **Runtime check** in code or property test (`tests/properties/`, Arbiter rules).
 
 Build a manifest mapping each property across the three layers. Drift between layers is

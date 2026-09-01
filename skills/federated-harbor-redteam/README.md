@@ -93,4 +93,4 @@ Mirrors `redteam-review`:
 3. Gate B — `fh-secops:lead` seals the manifest, delivers to whitehat.
 4. Phase 2 (defense, sealed) — whitehat closes or carries.
 5. Gate C — `fh-secops:lead` publishes the dialogue artifact at
-   `docs/shipwright/federated/dialogue-fh-vN-to-vN+1.{json,md}`.
+   `whitepaper/research/program/rounds/federated-harbor/dialogue-fh-vN-to-vN+1.{json,md}`.

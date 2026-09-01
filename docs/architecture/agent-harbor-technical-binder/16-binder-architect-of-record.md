@@ -348,7 +348,7 @@ the public and historical ambition corpus: website-v2 product/tutorial/example/
 blog data, docs/plans/V4-*.md, docs/plans/PHONE-INTEGRATION-MASTER-PLAN.md,
 docs/V4-RECOVERY-MAP.md, docs/recovery/IDEAS-TROVE.md, docs/IDEAS_INDEX.md,
 docs/manifesto-why-agent-economies.md, docs/talk/index.html, docs/shipwright/*,
-docs/research/north-star/*, relevant ADRs, and examples/*.
+whitepaper/research/program/archive/north-star/*, relevant ADRs, and examples/*.
 
 Then reconcile from the last binder-aor-log note, or from the beginning if none
 exists.

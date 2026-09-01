@@ -3,6 +3,13 @@
 Versioning matches the paper's round versions. One entry per skill
 version.
 
+## v0.3 — 2026-08-31
+
+- Corrected the scope to Volume VII and routed planned artifacts to method-specific formal, simulation, and round directories.
+- Marked bundled dialogue as synthetic historical fixture material rather than executed evidence.
+- Moved the nine detailed probe categories into `references/probe-categories.md` for progressive disclosure.
+- Replaced stale and machine-private dependencies with declared peer-skill references.
+
 ## v0.2 — 2026-05-20
 
 ### Added

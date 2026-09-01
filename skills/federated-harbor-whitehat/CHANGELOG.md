@@ -2,6 +2,13 @@
 
 Versioning matches the paper's round versions.
 
+## v0.3 — 2026-08-31
+
+- Routed planned proof, model, simulation, and research-round artifacts to their canonical method-specific directories.
+- Marked bundled dialogue and defense examples as synthetic historical fixtures unless an execution receipt proves otherwise.
+- Collapsed duplicated defense detail into the canonical `references/mechanization-targets.md` bundle.
+- Replaced stale and machine-private dependencies with current repository references.
+
 ## v0.2 — 2026-05-20
 
 ### Added

@@ -1,0 +1,90 @@
+% R5 controllability x observability quadrant: a regime diagram in the
+% "decision/policy" branch of CONVENTION.md -- two categorical axes, a
+% shaded validity region, and the paper's own policies plotted as members
+% of the four cells. No numeric data, so plain tikzpicture rather than
+% pgfplots.
+%
+% Why it exists: section 9 (partial observation) and the boundary items
+% (iii)/(iv) had no visual at all, and both are *moves on this grid* --
+% widening Sigma_c is the horizontal move, witnessing a trigger is the
+% vertical one. Cell membership is not new content: the top-left and
+% top-right cells are the verdicts of the nine-policy table
+% (b3_controllability.py), and the bottom-right cell is the policy section
+% 9 already works out in prose ("no egress after the model *considered*
+% exfiltration") plus the status-report rule of boundary (vi). The
+% bottom-left entry is a constructed illustration -- no rule in the
+% governance corpus actually lands there.
+%
+% Encoding note: the only semantically essential channel is position on the grid
+% (Cleveland-McGill rank 1); the seagreen shading of the preventable
+% quadrant is redundant with the word REGIMENTABLE inside it, so the
+% figure survives greyscale and deuteranopia intact.
+% [internal, script b3_controllability.py for the cell memberships]
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm]
+
+% ===== the preventable quadrant, shaded =====
+\fill[seagreen,fill opacity=0.12] (5.5,3.6) rectangle (11,7.2);
+
+% ===== grid =====
+\draw[thick,black!55] (0,0) rectangle (11,7.2);
+\draw[thick,black!55] (5.5,0) -- (5.5,7.2);
+\draw[thick,black!55] (0,3.6) -- (11,3.6);
+
+% ===== axis ticks =====
+\node[font=\small\bfseries] at (2.75,7.5) {no};
+\node[font=\small\bfseries] at (8.25,7.5) {yes};
+\node[font=\small\bfseries,rotate=90] at (-0.4,5.4) {yes};
+\node[font=\small\bfseries,rotate=90] at (-0.4,1.8) {no};
+
+% ===== axis titles =====
+\node[align=center,font=\small] at (5.5,-0.7)
+  {Is the event the policy \emph{prohibits} controllable?};
+\node[align=center,font=\small,rotate=90,text width=7.0cm] at (-1.15,3.6)
+  {Is the policy's \emph{trigger} witnessed at the boundary?};
+
+% ===== the two moves =====
+\node[align=center,font=\footnotesize\itshape,text=shipred] at (5.5,-1.35)
+  {$\longrightarrow$~ boundary~(iii): widening $\Sigma_c$ moves a policy rightward};
+\node[align=center,font=\footnotesize\itshape,text=shipred,rotate=90,text width=7.6cm] at (11.75,3.6)
+  {$\longrightarrow$~ \S\ref{sec:partial} / boundary~(iv): witnessing the trigger moves a policy upward};
+
+% ===== top-left: unrefusable prohibition =====
+\node[align=center,font=\footnotesize,text width=4.9cm] at (2.75,5.4)
+  {\textbf{detect-only forever}\\[3pt]
+   forbid \texttt{internal\_plan}\\ forbid \texttt{model\_emit\_token}\\ forbid \texttt{in\_context\_read}\\[4pt]
+   \emph{the gate condition is trivial; there is simply nothing to refuse}};
+
+% ===== top-right: the preventable quadrant =====
+\node[align=center,font=\footnotesize,text width=4.9cm] at (8.25,5.4)
+  {{\color{seagreen}\textbf{REGIMENTABLE}}\\[3pt]
+   forbid \texttt{git\_push} $\cdot$ \texttt{net\_egress} $\cdot$ \texttt{fs\_write} $\cdot$ \texttt{exec\_tool} $\cdot$ \texttt{spawn\_child}\\[2pt]
+   $\bigstar$ no \texttt{net\_egress} after a secret \texttt{in\_context\_read}\\[4pt]
+   \emph{a refusable prohibition, keyed on an event the daemon actually sees}};
+
+% ===== bottom-left: both obstructions =====
+\node[align=center,font=\footnotesize,text width=4.9cm] at (2.75,1.8)
+  {\textbf{detect-only forever}\\[3pt]
+   no \texttt{internal\_plan} after the model \emph{formed} an intent\\[4pt]
+   \emph{both obstructions at once: nothing to refuse, and nothing to key the refusal on}};
+
+% ===== bottom-right: controllable but unobservable =====
+\node[align=center,font=\footnotesize,text width=4.9cm] at (8.25,1.8)
+  {\textbf{detect-only}\\[3pt]
+   no \texttt{net\_egress} after the model \emph{considered} exfiltration (\S\ref{sec:partial})\\[2pt]
+   no confident falsehood in a status report (boundary~(vi))\\[4pt]
+   \emph{refusable, but the condition is inferred and never witnessed}};
+
+\end{tikzpicture}
+\caption{Controllability is only half the boundary: a policy is preventable exactly when its prohibition is refusable
+\emph{and} its trigger is witnessed at the mediation boundary --- the shaded quadrant, and nothing else. The theorem of
+\S\ref{sec:theorem} separates the columns; Lin--Wonham observability (\S\ref{sec:partial}) separates the rows. The two
+architectural moves the boundary box names are the two moves on this grid: widening $\Sigma_c$ carries a policy rightward
+(boundary~(iii)), witnessing a trigger carries it upward (boundary~(iv)), and only a policy that makes both trips becomes
+preventable. The compound rule ($\bigstar$) is the paper's worked case of a rule whose naive reading puts it in the left
+column and whose correct grading puts it top-right; ``no confident falsehood in a status report'' is the case stuck one cell
+below, whatever the runtime owns. (The bottom-left entry is a constructed illustration; no rule in the corpus lands there.) Column membership reproduces from the product-automaton checker [internal, \texttt{b3\_controllability.py}]; row
+membership is by inspection of each trigger.}
+\label{fig:quadrant}
+\end{figure}

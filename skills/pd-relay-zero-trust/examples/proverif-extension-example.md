@@ -18,11 +18,11 @@ We model the first two here; (3) is sketched and left as exercise.
 # Install ProVerif (if not already)
 opam install proverif
 
-# Copy template into analyses/
-cp templates/proverif-relay.pv ../../analyses/relay-handshake.pv
+# Copy template into apps/relay/formal/proverif/
+cp templates/proverif-relay.pv ../../apps/relay/formal/proverif/relay-handshake.pv
 
 # Verify it parses
-proverif ../../analyses/relay-handshake.pv | head -20
+proverif ../../apps/relay/formal/proverif/relay-handshake.pv | head -20
 ```
 
 ## Step 1 — Declare types and primitives
@@ -175,7 +175,7 @@ The `!` is replication — ProVerif explores arbitrary numbers of sessions.
 ## Step 8 — Run and interpret
 
 ```bash
-proverif ../../analyses/relay-handshake.pv
+proverif ../../apps/relay/formal/proverif/relay-handshake.pv
 ```
 
 Expected output snippets:
@@ -213,7 +213,7 @@ Document these limitations alongside any "verified" claims.
 
 - Skill `proverif-tamarin-protocol-modeling` — for syntax and query patterns
 - `references/proverif-relay-extension.md` — for query roadmap
-- Existing models in `analyses/` — for our coding conventions
+- Existing models in `apps/relay/formal/proverif/` — for our coding conventions
 
 ## Next steps after this exercise
 

@@ -6,7 +6,7 @@ The official Google prompting pattern for reference-grounded generation:
 [Reference images] + [Relationship instruction] + [New scenario]
 ```
 
-The **relationship instruction** is the load-bearing part. It tells the model what role each reference plays. Without it, the model partly absorbs and partly ignores each reference, producing inconsistent output.
+The **relationship instruction** is the critical part. It tells the model what role each reference plays. Without it, the model partly absorbs and partly ignores each reference, producing inconsistent output.
 
 ## Worked example (verbatim from Google's guide)
 

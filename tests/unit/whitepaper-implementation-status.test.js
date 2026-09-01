@@ -10,8 +10,8 @@ import { readFileSync } from 'node:fs';
 
 const read = (path) => readFileSync(path, 'utf8');
 
-const kernelPaper = read('whitepaper/single-writer-kernel.tex');
-const economyPaper = read('website-v2/public/whitepaper/harbor-economy.tex');
+const kernelPaper = read('whitepaper/source/single-writer-kernel.tex');
+const economyPaper = read('whitepaper/source/harbor-economy.tex');
 const roadmap = read('docs/roadmap/whitepaper-research-program.md');
 
 describe('Coordination Papers implementation-status contract', () => {

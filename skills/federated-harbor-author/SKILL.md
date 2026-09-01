@@ -1,6 +1,6 @@
 ---
 name: federated-harbor-author
-description: "Drafting and iterating sections of The Federated Harbor whitepaper — the third paper in the Curiositech sequence after Anchor (local identity) and Bonded Commons (local coordination), extending coordination across machines and administrative domains. Use when authoring a section, rewriting a section after a redteam/whitehat round, or composing a new chapter. NOT for marketing copy, NOT for the other two papers, NOT for production threat response."
+description: "Drafting and iterating Volume VII, The Federated Harbor, after Anchor Protocol (Volume V) and Bonded Commons (Volume VI), extending coordination across machines and administrative domains. Use when authoring a section, rewriting after an adversarial/defense round, or composing the chapter. NOT for marketing copy, the other six volumes, or production threat response."
 license: FSL-1.1-MIT
 allowed-tools: Read,Bash,Grep,Glob,Edit,Write,WebFetch,WebSearch
 metadata:
@@ -14,8 +14,8 @@ metadata:
 
 # Federated Harbor Author Skill
 
-You are drafting **The Federated Harbor**, the third paper in the
-Curiositech sequence. Anchor gave a single user a portable identity.
+You are drafting **The Federated Harbor**, Volume VII of the Port Daddy
+Coordination Papers. Anchor gave a single user a portable identity.
 Bonded Commons gave a single machine a priced commons for local
 agents. The Federated Harbor extends both across machines, across
 administrative domains, and across mutually-distrustful operators.
@@ -47,16 +47,14 @@ expecting they will be hostile readers in the next round.
 
 ## Voice rules
 
-The paper has Erich's voice or it does not ship. The canonical
-source is:
+The paper has Erich's voice or it does not ship. The portable,
+reviewed source is
+`skills/port-daddy-expository-writer/references/voice-references.md`.
 
-`~/.claude/projects/-Users-erichowens-coding-port-daddy/memory/user_voice_website.md`
-
-Read it before drafting; re-read it before any rewrite. Do not
-duplicate its content here — the seven tells (high-low collisions,
+Read it before drafting; re-read it before any rewrite. The seven tells (high-low collisions,
 cathedral build, em-dash asides as the clarity, wild analogies,
 lists-with-personality, word-as-affection, self-deprecation as
-ballast) are defined there and that doc is the live spec.
+ballast) are defined there.
 
 ### Whitepaper register vs blog register
 
@@ -127,7 +125,7 @@ tells:
 A draft section fails review if it commits any of these:
 
 1. **Jargon front-loading.** The first occurrence of a term used as
-   load-bearing vocabulary must be inline-defined or footnoted, even
+   critical vocabulary must be inline-defined or footnoted, even
    if "every competent reader knows it." Federation introduces
    *new* primitives (cross-harbor capability tokens, federated
    audit logs, joint bond pools) — these must be defined the first
@@ -178,23 +176,24 @@ Does the prose state a theorem?
 
 Figures follow the property's blueprint style: cream surface
 `#f2eee6`, cobalt `#003fb8`, sage/teal `#006b5f`, ink `#1f1f1f`,
-crisp linework, hand-lettered italic labels. Reference image at
-`public/img/generated/_brand-reference/style-ref-blueprint.png`.
-Match it. Do not regress to painterly or cinematic.
+crisp linework, hand-lettered italic labels. Use the figure roles and
+composition precedents in
+`skills/whitepaper-figure-system/references/semantic-figure-atlas.md`.
+Do not regress to painterly or cinematic.
 
 ### When to inline a definition vs push to appendix
 
 ```
-Is the term load-bearing in the section that just introduced it?
+Is the term critical in the section that just introduced it?
   → YES: inline define on first use. A Tufte sidenote is fine.
   → NO: glossary entry at the back; do not interrupt the running
         text.
 
 Does the definition take more than ~3 lines to make precise?
-  → If load-bearing AND >3 lines: inline a one-line working
+  → If critical AND >3 lines: inline a one-line working
     definition, then a forward reference to the appendix where the
     full precise definition lives.
-  → If load-bearing AND ≤3 lines: inline the full definition.
+  → If critical AND ≤3 lines: inline the full definition.
 
 Does the term collide with a similar-but-different term in Anchor
   or Bonded?
@@ -241,7 +240,7 @@ Is the result folklore (CT log structure, Macaroon attenuation,
   → NO: continue.
 
 Is the result yours and not yet published?
-  → YES: state, prove, cite the proof artifact under proofs/.
+  → YES: state, prove, cite the registered artifact under `whitepaper/formal/`.
 
 Is the result yours, published in Anchor or Bonded?
   → YES: cite the paper section + the proof artifact; do not
@@ -250,43 +249,8 @@ Is the result yours, published in Anchor or Bonded?
 
 ## Worked examples
 
-### A paragraph that lands
-
-> Two harbors sign a federation pact. A capability token issued in
-> harbor A can be presented in harbor B if and only if B's federation
-> root attests to A's federation root at the token's epoch. The
-> epoch is critical — without it, a token issued before B revoked A
-> would still verify against the post-revocation root, and revocation
-> would lie. We bind the epoch into the token preimage so the
-> verifier checks against a *historical* root, not the current one.
-> The cost is that verifiers carry a sparse log of past roots;
-> §[PLACEHOLDER-FEDLOG-§] gives the storage bound.
-
-Diagnosis: (a) names the new primitive (federation pact) and inline-
-defines it operationally; (b) lands the cardinal hard case
-(revocation timing) in the same paragraph that introduces the happy
-path; (c) names the cost honestly; (d) forward-references the
-storage bound instead of inflating this paragraph with the
-arithmetic.
-
-### A paragraph that does not land
-
-> The Federated Harbor leverages cryptographic primitives to enable
-> trustless coordination across administrative boundaries. Through
-> the use of verifiable federation, we ensure that participants can
-> rely on the integrity of cross-harbor claims while preserving
-> autonomy. Our novel approach combines well-known techniques to
-> provide a robust foundation for distributed agent commerce.
-
-Diagnosis: (a) every load-bearing noun ("cryptographic primitives,"
-"trustless coordination," "verifiable federation," "cross-harbor
-claims," "robust foundation") is a black box; (b) "leverages,"
-"ensures," "robust," "novel" are corporate-evenness markers; (c)
-contains zero falsifiable claims; (d) the reader has learned
-nothing concrete and cannot tell what would knock the system over.
-This is the failure mode the four cardinal sins are designed to
-catch.
-
+The calibrated positive and negative paragraph examples live in
+`references/worked-examples.md`. Read them before drafting or revising prose.
 ## Quality gates
 
 Every section must clear all of these before it leaves draft:
@@ -299,7 +263,7 @@ Every section must clear all of these before it leaves draft:
   No claim ships without naming what would knock it down.
 - **Mechanization commitment on every formal claim.** ProVerif
   file, TLA+/Apalache spec, Tamarin proof, or simulation run, named
-  by path under `proofs/`. If the artifact does not yet exist, the
+  by path under `whitepaper/formal/`. If the artifact does not yet exist, the
   claim is annotated `MECHANIZATION-PENDING:<artifact-path>` so the
   whitehat round can pick it up. No `MECHANIZATION-PENDING` flag
   survives more than one redteam round.
@@ -365,12 +329,13 @@ paper is from this lineage:
 - **"The federation refuses delegation chains exceeding depth
   [PLACEHOLDER-DEPTH-D]."** The paper commits to a finite depth and
   proves a closed-form bound on cross-harbor revocation latency as
-  a function of D. This is a load-bearing engineering choice; name
+  a function of D. This is a critical engineering choice; name
   it as a placeholder until pinned.
 - **"Settlement is a separate sacrament."** Bonded settles locally.
   Federated Harbor settles cross-harbor with a distinct,
   multi-phase protocol whose ProVerif model lives under
-  `proofs/federated/settlement/`. A claim-from-A / settle-on-B /
+  the method-specific `whitepaper/formal/*/federated-harbor/settlement/`
+  directories. A claim-from-A / settle-on-B /
   dispute-on-C path is a single named protocol, not three
   unrelated steps.
 - **"Anchor proves who. Bonded prices what. Federated decides
@@ -399,17 +364,12 @@ paper has drifted off-brand.
 A section is `done` only after surviving at least one full
 redteam/whitehat round with no carried-over smells.
 
-## Reference manifest (forward-declared)
+## Current bundle
 
-The skill begins as a single SKILL.md. As the paper grows:
-
-- `references/voice-rules.md` — extracted seven-tells reference.
-- `references/cardinal-sins.md` — failure-mode catalog with
-  before/after examples.
-- `references/quality-gates.md` — checklist form of §Quality gates.
-- `references/cross-paper-dependencies.md` — the running list of
-  Federated Harbor claims that depend on Anchor or Bonded results.
-- `agents/` — drafting personas (per-chapter authors), once the
-  paper grows beyond what one drafter can hold.
-- `scripts/check-section.sh` — runs the cardinal-sins grep, the
-  voice tells, and the page-bound check.
+- `references/topic-map.md` — section and concept routing.
+- `references/cross-paper-dependencies.md` — Federated Harbor claims that
+  depend on earlier volumes.
+- `agents/` — current authoring personas; use `agents/INDEX.md` for routing.
+- `scripts/voice-check.sh` — portable voice audit.
+- `scripts/new-round.sh` — versioned research-round scaffold.
+- `scripts/probe-template.json` — machine-checkable claim shape.

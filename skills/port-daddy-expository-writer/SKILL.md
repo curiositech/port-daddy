@@ -23,7 +23,7 @@ Your job is to make that reader excited and competent. Patient, generous, techni
 ## NOT For
 
 - **Landing-page marketing copy.** That belongs to `port-daddy-marketing-copy`. The register over there is quieter, the design carries weight. Expository writing leans on the reader's attention for longer.
-- **The whitepaper itself.** The paper is the load-bearing artifact; the expository piece *explains* the paper. Don't try to write the paper inside `docs/concepts/`.
+- **The whitepaper itself.** The paper is the critical artifact; the expository piece *explains* the paper. Don't try to write the paper inside `docs/concepts/`.
 - **ADR bodies.** Those have their own register (terse, decision-first, internal). See `docs/adr/*`.
 - **Blog posts.** A blog post on portdaddy.dev gets the marketing-copy blog rules (problem-first hook, install CTA). An expository piece is allowed to be longer, slower, more discursive, and to assume the reader chose to be there.
 - **CHANGELOG entries.** Different convention entirely.
@@ -36,9 +36,10 @@ Write to that person, not to a referee. Not to a target persona. Not to the LLM 
 
 ## Voice rules — the cathedral
 
-The canonical statement of Erich's voice lives in
-`/Users/erichowens/.claude/projects/-Users-erichowens-coding-port-daddy/memory/user_voice_website.md`.
-Re-read it every time. The seven tells operationalize there. They reappear here, applied to expository writing about formal methods.
+The portable, reviewed statement of Erich's voice lives in
+`references/voice-references.md`. Re-read it every time. The seven tells
+operationalize there. They reappear here, applied to expository writing about
+formal methods.
 
 A draft that has zero of these tells is not done. A draft that has all seven is probably trying too hard; pick the ones the topic asks for.
 
@@ -47,7 +48,7 @@ A draft that has zero of these tells is not done. A draft that has all seven is 
 A SAT-prep word next to a basement-hole word. The fancy word and the homely word together signal a person wrote this — someone who reads, who notices, who isn't going to perform a register. **Apply to formal methods:** the language of verifiers is naturally Latinate (*injective agreement*, *bounded model checking*, *coverage-bounded*). Pair it. *Counterexample trace* lives in the same paragraph as *the gnarly Tuesday-afternoon bug*. *Dolev-Yao adversary* sits next to *the noisy roommate who knows everyone's mail*.
 
 - **Anti-pattern (corporate even):** *"ProVerif provides symbolic protocol analysis to verify cryptographic properties of distributed systems."*
-- **In voice:** *"ProVerif is a small, very serious program that pretends an arbitrarily clever attacker — the one who reads all your mail, replays your messages, and never sleeps — has been let loose on your protocol, and asks: can the attacker pry out the secret? If the proof says no, no means no for all attackers within the model. The model is the load-bearing word."*
+- **In voice:** *"ProVerif is a small, very serious program that pretends an arbitrarily clever attacker — the one who reads all your mail, replays your messages, and never sleeps — has been let loose on your protocol, and asks: can the attacker pry out the secret? If the proof says no, no means no for all attackers within the model. The model is the critical word."*
 
 ### Tell 2 — Cathedral build, then punchline
 
@@ -111,7 +112,7 @@ The seven tells are the *voice*; these are the *moves*. The voice rules tell you
 
 Introduce the term, define it in the *next* sentence, then immediately use it in a small example. Never let a definition wait for the next section.
 
-> The protocol is *injectively agreed* on a session if both parties end the run with the same view of the session and there is no way to make one of them end twice on the same session against the other's wishes. In ProVerif syntax, that's `inj-event(EndedSession(a, b, k)) ==> inj-event(BeganSession(a, b, k))`. The little `inj-` prefix is the load-bearing thing: it says *one-for-one*.
+> The protocol is *injectively agreed* on a session if both parties end the run with the same view of the session and there is no way to make one of them end twice on the same session against the other's wishes. In ProVerif syntax, that's `inj-event(EndedSession(a, b, k)) ==> inj-event(BeganSession(a, b, k))`. The little `inj-` prefix is the critical thing: it says *one-for-one*.
 
 ### Move 2 — Work through one concrete example before stating the theorem
 
@@ -182,7 +183,7 @@ A draft is not done until it passes all of these. Run them as a checklist before
 
 These show up reliably in drafts that lose the voice. Catch them.
 
-- **Corporate evenness.** The draft sounds like every other agent-tools site. Smooth, polite, even, dead. The tells are missing. Re-read `user_voice_website.md` and put one back per paragraph until the prose breathes.
+- **Corporate evenness.** The draft sounds like every other agent-tools site. Smooth, polite, even, dead. The tells are missing. Re-read `references/voice-references.md` and put one back per paragraph until the prose breathes.
 - **Jargon-without-introduction.** A term appears for the first time, undefined, in the middle of a sentence. Either define it the same sentence (with an em-dash or a parenthetical) or move its introduction earlier.
 - **"Everyone knows" appeals.** *"As is well known, the folk theorem implies..."* — the reader does not know. Even if they do, the sentence is condescending. Cut it.
 - **Naked math without prose framing.** A formula sitting alone in a paragraph, no setup, no read-out, no "what this is saying." Math is allowed; *only* math is not. Every formula gets at least a sentence before and a sentence after.
@@ -226,8 +227,8 @@ Do **not** apply to:
 
 - `agents/expositor-explainer.md` — main drafting persona; patient peer who knows the technical content.
 - `agents/expositor-voice-editor.md` — second-pass persona; audits drafts against the seven tells, greps for banned phrases.
-- `agents/expositor-fact-checker.md` — third-pass persona; reads the original paper alongside the expository version and confirms the load-bearing claims survived translation.
-- `references/voice-references.md` — verbatim user_voice_website quotes plus operator-approved example paragraphs.
+- `agents/expositor-fact-checker.md` — third-pass persona; reads the original paper alongside the expository version and confirms the critical claims survived translation.
+- `references/voice-references.md` — reviewed voice rules plus operator-approved example paragraphs.
 - `references/verifier-cheat-sheet.md` — ProVerif / TLA+ / Apalache / Kani / Z3 each in one paragraph with "you reach for this when…"
 - `references/analogy-toolkit.md` — 12 pre-vetted analogies for this domain, labeled with what they illuminate.
 - `scripts/audit-voice.sh` — greps for banned phrases; prints offenders with line numbers.

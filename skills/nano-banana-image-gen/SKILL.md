@@ -123,7 +123,7 @@ A complete runnable example: `scripts/generate.py`.
 [Reference images] + [Relationship instruction] + [New scenario]
 ```
 
-The **relationship instruction** is the load-bearing piece — explicitly label what role each reference plays. Without role labels, the model partly absorbs and partly ignores the reference.
+The **relationship instruction** is the critical piece — explicitly label what role each reference plays. Without role labels, the model partly absorbs and partly ignores the reference.
 
 Worked example for an editorial hero illustration:
 

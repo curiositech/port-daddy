@@ -102,4 +102,24 @@ describe('check-doc-citations guard', () => {
     expect(code).toBe(1);
     expect(stderr).toMatch(/lib\/hlc\.ts|lib\/sync-protocol\.ts/);
   });
+
+  test('historical and raw research archives are omitted from sweeps but remain explicitly checkable', () => {
+    const archived = 'whitepaper/research/program/archive/north-star/00-THE-FOUR-PAPERS.md';
+    expect(run(archived).code).toBe(1); // historical citations are intentionally unchanged
+
+    const { stderr } = run('--all');
+    for (const root of [
+      'whitepaper/research/program/archive/',
+      'whitepaper/reviews/archive/',
+      'docs/product-research/raw/',
+    ]) {
+      expect(stderr).not.toContain(root);
+    }
+  });
+
+  test('corpus-governed placeholder targets are accepted', () => {
+    const target = 'skills/federated-harbor-redteam/references/probe-categories.md';
+    const { code, stderr } = run(target);
+    expect({ code, stderr }).toEqual({ code: 0, stderr: '' });
+  });
 });

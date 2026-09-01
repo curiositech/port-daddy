@@ -128,7 +128,7 @@ Nowhere in the happy path. Only in these cases:
 
 ### What layer of Port Daddy this changes
 
-- `lib/auth.ts` (new) — passkey registration/login; device registry;
+- `lib/auth.ts` (designed-not-built) — passkey registration/login; device registry;
   device pairing via QR + mutual signature.
 - The daemon's per-device Ed25519 identity already exists (used for
   Harbor Card signing); we now REGISTER it with the service at `pd
@@ -257,7 +257,7 @@ All authenticated requests:
 
 ## 4. Local daemon — what changes
 
-New module: **`lib/auth.ts`** — the user account client.
+Designed-not-built module: **`lib/auth.ts`** — the user account client.
 
 ```ts
 /**
@@ -479,7 +479,7 @@ key-wrap protocol are each a few dozen lines of ProVerif. We prove:
 - `key_agreement(harbor_session)` — wrapped session key only decryptable
   by intended recipient.
 
-Spec files land in `proofs/*.pv` alongside the worker.
+Spec files land in `whitepaper/formal/proverif/**/*.pv` alongside the worker.
 
 ---
 
@@ -518,7 +518,7 @@ routes/
   auth.ts                    # /auth/* — daemon-local shim that proxies
                              # to the CF worker, saves us from shipping
                              # CF creds to every Port Daddy CLI invocation
-proofs/
+whitepaper/formal/
   register.pv                # ProVerif
   login.pv
   harbor-key-wrap.pv

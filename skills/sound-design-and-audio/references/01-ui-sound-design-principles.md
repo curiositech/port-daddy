@@ -27,7 +27,7 @@ Three "yes"es and a "no other channel" → candidate for sound. Anything less �
 
 ## 1. The functional vocabulary
 
-Six functions. Each maps to exactly one earcon. Names are load-bearing — use them in code (`Sound::Confirm`, `Sound::Arrival`) so the *intent* is legible at the call site, never the waveform.
+Six functions. Each maps to exactly one earcon. Names are critical — use them in code (`Sound::Confirm`, `Sound::Arrival`) so the *intent* is legible at the call site, never the waveform.
 
 | Function | Meaning in Harbor | Trigger example | Felt quality | When it fires |
 |---|---|---|---|---|

@@ -1,7 +1,7 @@
 # Relay ProVerif coverage — E2E secrecy + publisher authentication
 
 **Skill:** pd-relay-zero-trust (`extend-proverif` branch)
-**Model:** `analyses/relay_e2e_secrecy.pv` · **Results:** `analyses/relay_e2e_secrecy_results.txt`
+**Model:** `apps/relay/formal/proverif/relay-e2e-secrecy/relay_e2e_secrecy.pv` · **Results:** `apps/relay/formal/proverif/relay-e2e-secrecy/relay_e2e_secrecy_results.txt`
 **Tool:** ProVerif 2.05 · **Status:** sealed for I1 + non-injective auth; replay/equivocation named open
 
 ## Why this exists
@@ -13,7 +13,7 @@ The skill names a ship-blocker anti-pattern:
 > `extend-proverif` ships, do not put 'formally verified' within ten paragraphs
 > of 'relay'."
 
-Before this model there was **zero** relay ProVerif coverage (`analyses/*relay*`
+Before this model there was **zero** relay ProVerif coverage (`apps/relay/formal/proverif/`
 was empty). The relay (ADR-0027) is untrusted — it "routes ciphertext + metadata;
 does not decrypt payloads or expand capabilities." We model it as the Dolev–Yao
 attacker controlling the channel end to end (adversaries **A2 malicious relay** +
@@ -45,7 +45,7 @@ obligation:
 
 - **I2 (next):** extend the envelope with a per-publisher sequence bound into the
   Merkle chain head; prove injective agreement (replay-freedom) and equivocation
-  detection. Pairs with `lib/merkle-chain.ts` and `proofs/bonded/merkle/`.
+  detection. Pairs with `lib/merkle-chain.ts` and `whitepaper/formal/easycrypt/bonded-merkle/`.
 
 ## Scope statement (use this wording, not "formally verified relay")
 
@@ -56,7 +56,7 @@ obligation:
 
 ## Relation to the local attenuation proofs
 
-`analyses/harbor_card_v5_attenuation.pv` (single-hop) and `v7` (per-hop multi-hop)
+`whitepaper/formal/proverif/harbor-card/harbor_card_v5_attenuation.pv` (single-hop) and `v7` (per-hop multi-hop)
 prove **I4 — attenuation never expands rights** locally. Across the relay, I4 is
 strictly easier for the relay-as-adversary case (the relay holds no valid card and
 cannot forge one — same EUF-CMA assumption used here for publisher auth). The

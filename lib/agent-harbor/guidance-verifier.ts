@@ -27,7 +27,7 @@
  * runtime-verification-for-agents monitor re-checks on the live channel; the
  * verdict's `checks` array is emitted in monitor-consumable shape.
  *
- * Machine-checked twin: docs/adr/models/guidance_envelope_v0.pv proves
+ * Machine-checked twin: lib/agent-harbor/formal/guidance_envelope_v0.pv proves
  * injection resistance + no-replay for this exact check set;
  * guidance_envelope_v0_unsigned_vuln.pv shows the forgery ProVerif finds the
  * moment the signature check is skipped (the forged-guidance probe premise).

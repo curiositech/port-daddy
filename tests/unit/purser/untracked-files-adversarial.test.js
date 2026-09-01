@@ -21,7 +21,7 @@ function initRepoWithTrackedPdf() {
   git('config', 'user.email', 'test@example.invalid');
   git('config', 'user.name', 'purser test');
 
-  const pdfDir = join(dir, 'website-v2/public/whitepaper');
+  const pdfDir = join(dir, 'whitepaper/published');
   mkdirSync(pdfDir, { recursive: true });
   writeFileSync(join(pdfDir, 'existing.pdf'), 'committed');
 
@@ -33,7 +33,7 @@ function initRepoWithTrackedPdf() {
 
 // Add an untracked PDF to the working tree
 function addUntrackedPdf(dir) {
-  const pdfPath = join(dir, 'website-v2/public/whitepaper/untracked.pdf');
+  const pdfPath = join(dir, 'whitepaper/published/untracked.pdf');
   writeFileSync(pdfPath, 'untracked content');
 }
 

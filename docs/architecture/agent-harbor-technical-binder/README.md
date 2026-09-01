@@ -368,14 +368,14 @@ This binder collates these existing Port Daddy materials:
 - `docs/shipwright/UTOPIAN-VISION.md`
 - `docs/shipwright/SHIPWRIGHT-DAEMON.md`
 - `docs/shipwright/SHIP-GRAMMAR.md`
-- `docs/research/2026-06-15-swarm-coordination-dossier.md`
-- `docs/research/2026-06-15-recursive-control-plane.md`
-- `docs/research/agent-accountability-mechanisms.md`
-- `docs/research/raw/agent-coordination-sandbox-2026-06-03/*`
-- `docs/research/agent-accountability-proposal.md`
-- `docs/research/raw/agent-accountability-2026-05-31/*`
-- `docs/research/flashy-rust-guis/*`
-- `docs/research/rust-dev-mcps.md`
+- `docs/product-research/2026-06-15-swarm-coordination-dossier.md`
+- `whitepaper/research/program/archive/control-plane/2026-06-15-recursive-control-plane.md`
+- `whitepaper/research/program/archive/accountability/agent-accountability-mechanisms.md`
+- `docs/product-research/raw/agent-coordination-sandbox-2026-06-03/*`
+- `whitepaper/research/program/archive/accountability/agent-accountability-proposal.md`
+- `whitepaper/research/program/archive/accountability/raw-2026-05-31/*`
+- `docs/product-research/flashy-rust-guis/*`
+- `docs/product-research/rust-dev-mcps.md`
 
 It also applies the requested skill lenses: game-theoretic incentives,
 agentic skill discovery, semantic conflict prediction, cooperative vibe coding,

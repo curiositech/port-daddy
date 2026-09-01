@@ -13,6 +13,9 @@ description: >-
 allowed-tools: Read,Write,Edit,Grep,Glob,Bash(python3:*),WebSearch,WebFetch
 metadata:
   category: Writing & Communication
+  provenance:
+    kind: first-party
+    owners: [port-daddy]
   pairs-with: harbor-exposition, port-daddy-expository-writer, falsification-first
   tags: academic-writing, paper-submission, venue-selection, related-work, prior-art, exposition, figures, peer-review
   version: 1.0.0
@@ -231,7 +234,8 @@ not" in a corpus that had already been manually audited.
 
 ## Skill Bundle Index
 
-*Every file in this skill, and when to open it. Auto-generated; run `scripts/index_references.py --fix`.*
+*Every file in this skill, and when to open it. Regenerate with the first-party
+skill architect: `python3 ../skill-architect/scripts/index_references.py . --fix`. <!-- phantom-ok: declared cross-skill tool -->*
 
 **root**
 - [`CHANGELOG.md`](CHANGELOG.md) — Research Paper Submission — Changelog — Built from five parallel primary-source research passes: venue CFPs fetched and read, fifteen recent strong papers read in full, practitione

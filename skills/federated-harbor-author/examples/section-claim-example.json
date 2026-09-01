@@ -3,7 +3,7 @@
   "claim": "A capability token issued in harbor A is accepted by harbor B if and only if B's federation root attests to A's federation root at the token's epoch.",
   "proof_sketch": "Token preimage binds (issuer-harbor, recipient-harbor, epoch, payload, nonce). The verifier at B recovers the epoch field, looks up A's federation root in B's sparse log of historical roots for that epoch, and checks the signature against the historical root rather than the current one. Acceptance is equivalent to A having had B's attestation at the token's epoch. Full proof in appendix A.3.",
   "artifact": {
-    "path": "proofs/federated/tokens/cross-harbor-issuance.pv",
+    "path": "whitepaper/formal/proverif/federated-harbor/tokens/cross-harbor-issuance.pv",
     "kind": "proverif",
     "status": "PENDING"
   },
