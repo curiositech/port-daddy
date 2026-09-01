@@ -110,7 +110,7 @@
 
     <label>
       Daemon URL
-      <input id="daemon" value="http://127.0.0.1:9876">
+      <input id="daemon" placeholder="Selected daemon URL">
     </label>
 
     <div class="grid">
@@ -129,11 +129,15 @@ $ pd tube ui:clicks
     const TUBE_KIND = 'tube.msg';
     const log = document.getElementById('log');
     const daemonInput = document.getElementById('daemon');
+    const daemonOverride = new URLSearchParams(window.location.search).get('daemon');
+    daemonInput.value = daemonOverride || (window.location.protocol.startsWith('http') ? window.location.origin : '');
 
     const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
     function daemonUrl() {
-      return daemonInput.value.replace(/\/+$/, '');
+      const selected = daemonInput.value.replace(/\/+$/, '');
+      if (!selected) throw new Error('No daemon selected. Open this sample from Port Daddy or provide ?daemon=<url>.');
+      return selected;
     }
 
     function channelUrl() {
@@ -194,10 +198,16 @@ $ pd tube ui:clicks
 
     async function waitForReply(parentId) {
       let cursor = parentId;
-      const deadline = Date.now() + 120000;
+      let chunks = 0;
+      const MAX_CHUNKS = 2;
 
-      while (Date.now() < deadline) {
+      while (chunks < MAX_CHUNKS) {
         const messages = await readMessages(cursor);
+        if (messages.length === 0) {
+          chunks++;
+          await sleep(900);
+          continue;
+        }
         for (const message of messages) {
           cursor = Math.max(cursor, message.id);
           const payload = decodeTubePayload(message);
@@ -205,7 +215,8 @@ $ pd tube ui:clicks
             return { message, payload };
           }
         }
-        await sleep(900);
+        chunks++;
+        if (chunks < MAX_CHUNKS) await sleep(900);
       }
 
       throw new Error('Timed out waiting for agent reply');

@@ -146,10 +146,11 @@
 </div>
 
 <script>
-  const DAEMON = 'http://127.0.0.1:9876';
+  const daemonOverride = new URLSearchParams(window.location.search).get('daemon');
+  const DAEMON = (daemonOverride || (window.location.protocol.startsWith('http') ? window.location.origin : '')).replace(/\/+$/, '');
   const CHANNEL = 'ui:clicks';
   const KIND = 'tube.msg';
-  const url = `${DAEMON}/msg/${encodeURIComponent(CHANNEL)}`;
+  const url = DAEMON ? `${DAEMON}/msg/${encodeURIComponent(CHANNEL)}` : null;
   const $ = (id) => document.getElementById(id);
   const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
@@ -174,6 +175,7 @@
   }
 
   async function publish(body, sender) {
+    if (!url) throw new Error('No daemon selected. Open this sample from Port Daddy or provide ?daemon=<url>.');
     const res = await fetch(url, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sender, payload: { v: 1, kind: KIND, body } }),
@@ -189,15 +191,23 @@
   }
 
   async function waitForReply(parentId) {
-    const deadline = Date.now() + 90000;
     let cursor = parentId;
-    while (Date.now() < deadline) {
-      for (const m of await poll(cursor)) {
+    let chunks = 0;
+    const MAX_CHUNKS = 2;
+    while (chunks < MAX_CHUNKS) {
+      const msgs = await poll(cursor);
+      if (msgs.length === 0) {
+        chunks++;
+        await sleep(700);
+        continue;
+      }
+      for (const m of msgs) {
         cursor = Math.max(cursor, m.id);
         const p = m.payload;
         if (p && p.kind === KIND && p.inReplyTo === parentId) return m;
       }
-      await sleep(700);
+      chunks++;
+      if (chunks < MAX_CHUNKS) await sleep(700);
     }
     throw new Error('timed out');
   }
