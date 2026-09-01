@@ -1,6 +1,6 @@
-# Operator charge ledger: messages 056–082
+# Operator charge ledger: messages 056–084
 
-Strict reconstruction of chronological user-role messages 056–082 from the raw rollout JSONL. Attached skill documents, response annotations, environment blocks, and delegated payloads are labeled as provenance rather than treated as independent instructions.
+Strict reconstruction of chronological user-role messages 056–084 from the raw rollout JSONL. Source cut: 2026-09-01T09:35:54.884Z. Attached skill documents, response annotations, environment blocks, and delegated payloads are labeled as provenance rather than treated as independent instructions.
 
 | # | Timestamp / id | Excerpt | Normalized charge | Area | Dependencies / conflicts | Visual expectation | Type / status |
 |---:|---|---|---|---|---|---|---|
@@ -39,4 +39,4 @@ Strict reconstruction of chronological user-role messages 056–082 from the raw
 - Source cut: 2026-09-01T09:35:54.884Z (message 084); source count: 29 user-role messages (056–084 inclusive); extracted rows: 29.
 - Messages 57, 61–62, 78 are attached context/skill/environment material and are retained as provenance rows, not product charges.
 - Message 71 contains a response annotation plus a direct operator requirement; only the direct request is normalized here.
-- No messages outside 056–082 were synthesized.
+- No messages outside 056–084 were synthesized.

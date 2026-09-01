@@ -6,7 +6,7 @@ Rolling reconstruction of the uncompacted rollout, one row per actual user-role 
 |---|---:|---:|---|---|
 | [Part 01](part-01-messages-001-027.md) | 001–027 | 27 | PR #9990, head `97fef215e2b3f48211b1ec6986e5eb44abb3997f` | Published branch; markdownlint style findings remain. Message 001 corrected after review. |
 | [Part 02](part-02-messages-028-055.md) | 028–055 | 28 | PR #9990, same head before part 03 | Included in PR branch; verify CI/current head after update. |
-| [Part 03](part-03-messages-056-082.md) | 056–084 | 29 | PR #9990; related Harbor runtime proposal PR #9991 | Added through source cut 2026-09-01T09:35:54.884Z; review/CI state must be read back. |
+| [Part 03](part-03-messages-056-084.md) | 056–084 | 29 | PR #9990; related Harbor runtime proposal PR #9991 | Added through source cut 2026-09-01T09:35:54.884Z; review/CI state must be read back. |
 | **Total** | **001–084** | **84** | PR #9990 rolling publication; PR #9991 proposal evidence | No claim that listed product work is shipped. Later messages append as deltas. |
 
 ## Publication and authority matrix
