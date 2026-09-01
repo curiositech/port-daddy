@@ -190,6 +190,23 @@ function childGrant(
   };
 }
 
+/**
+ * Produce a complete hostile fixture without asserting an arbitrary object into
+ * the resolved-grant type. The base supplies every validated field while each
+ * test mutates exactly the authority dimension named by that case.
+ */
+function mutateGrant(
+  base: ResolvedScopeGrant,
+  grantId: string,
+  overrides: Partial<ResolvedScopeGrant>,
+): ResolvedScopeGrant {
+  return {
+    ...base,
+    grantId,
+    ...overrides,
+  };
+}
+
 function intent(overrides: Partial<ScopedResourceIntent> = {}): ScopedResourceIntent {
   return {
     scopeId: SCOPE_WORKTREE_A.scopeId,
@@ -266,11 +283,9 @@ describe('ResourceScope hostile multi-hop attenuation', () => {
   });
 
   test('a root-to-leaf check cannot hide a malicious intermediate hop', () => {
-    const maliciousWorker = {
-      ...WORKER,
-      grantId: 'grant-malicious-worker',
+    const maliciousWorker = childGrant(ROOT, 'grant-malicious-worker', {
       actions: [...ROOT.actions, 'catalog.read'],
-    } as ResolvedScopeGrant;
+    });
 
     expect(assessScopeGrantAttenuation(ROOT, LEAF))
       .toMatchObject({ allowed: true, code: 'ATTENUATION_ALLOWED' });
@@ -293,7 +308,7 @@ describe('ResourceScope hostile multi-hop attenuation', () => {
     ['body', { bodyDigest: `sha256:${'b'.repeat(64)}` }],
     ['audience', { audience: 'attacker-service' }],
   ] as const)('denies immutable %s rebinding at one hop', (_label, override) => {
-    const attempted = { ...WORKER, grantId: `attack-${_label}`, ...override } as ResolvedScopeGrant;
+    const attempted = mutateGrant(WORKER, `attack-${_label}`, override);
     expect(assessScopeGrantAttenuation(ROOT, attempted))
       .toMatchObject({ allowed: false, code: 'ATTENUATION_DENIED' });
   });
@@ -383,11 +398,9 @@ describe('ResourceScope envelope and caveat attenuation', () => {
     ]],
     ['looser spend ceiling', [...WORKER.verifiedMacaroonCaveats, spendCeilingCaveat(100)]],
   ] as const)('denies an otherwise-valid chain with %s', (_label, caveats) => {
-    const attempted = {
-      ...WORKER,
-      grantId: `attack-caveat-${_label}`,
-      verifiedMacaroonCaveats: caveats,
-    } as ResolvedScopeGrant;
+    const attempted = mutateGrant(WORKER, `attack-caveat-${_label}`, {
+      verifiedMacaroonCaveats: [...caveats],
+    });
     expect(assessScopeGrantAttenuation(ROOT, attempted))
       .toMatchObject({
         allowed: false,
@@ -400,11 +413,9 @@ describe('ResourceScope envelope and caveat attenuation', () => {
     ['unknown field', 'mystery = allow-all'],
     ['invalid field/operator pair', `repo <= ${repositoryAuthorityKey(REPOSITORY_A)}`],
   ] as const)('%s fails parsing at attenuation and authorization', (_label, candidate) => {
-    const malformed = {
-      ...LEAF,
-      grantId: `grant-${_label}`,
+    const malformed = mutateGrant(LEAF, `grant-${_label}`, {
       verifiedMacaroonCaveats: [...LEAF.verifiedMacaroonCaveats, candidate],
-    } as ResolvedScopeGrant;
+    });
     expect(assessScopeGrantAttenuation(WORKER, malformed))
       .toMatchObject({
         allowed: false,
@@ -419,14 +430,12 @@ describe('ResourceScope envelope and caveat attenuation', () => {
   });
 
   test('records the unresolved numeric-caveat gap before terminal denial', () => {
-    const semanticallyMalformed = {
-      ...LEAF,
-      grantId: 'grant-nonnumeric-spend',
+    const semanticallyMalformed = mutateGrant(LEAF, 'grant-nonnumeric-spend', {
       verifiedMacaroonCaveats: [
         ...LEAF.verifiedMacaroonCaveats,
         'spend_usd <= banana',
       ],
-    } as ResolvedScopeGrant;
+    });
     expect(assessScopeGrantAttenuation(WORKER, semanticallyMalformed))
       .toMatchObject({ allowed: true, code: 'ATTENUATION_ALLOWED' });
     expect(authorizeScopedResource(
