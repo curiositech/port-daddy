@@ -671,8 +671,11 @@ describe('XO integration — advisory triage', () => {
     expect(state.reviews).toHaveLength(1);
     const body = state.reviews[0].body;
     expect(body).not.toContain("XO's orders");
-    // The body is byte-identical to the check summary — today's behavior.
-    expect(body).toBe(state.completed[0].summary);
+    // The human review body remains unchanged; only the bot-owned check output
+    // gains the machine-readable generation receipt on its first line.
+    expect(state.completed[0].summary).toBe(
+      `${state.completed[0].summary.split('\n')[0]}\n${body}`,
+    );
     expect(state.completed[0].conclusion).toBe('success');
   });
 

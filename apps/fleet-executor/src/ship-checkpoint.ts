@@ -43,10 +43,10 @@ export const SHIP_CHECKPOINT_KIND = 'ship-checkpoint';
  * versions predate one or more trusted review inputs and must re-run rather
  * than masquerade as a current clean result under a changed review contract.
  */
-export const SHIP_CHECKPOINT_SCHEMA_VERSION = 3;
+export const SHIP_CHECKPOINT_SCHEMA_VERSION = 4;
 
 /** Current shape of the trusted inputs a checkpoint must prove it reviewed. */
-export const SHIP_CHECKPOINT_BINDING_VERSION = 3;
+export const SHIP_CHECKPOINT_BINDING_VERSION = 4;
 
 /**
  * Opaque, deterministic witness of the authoritative policy and live PR input
@@ -104,6 +104,10 @@ export interface CheckpointReviewInput {
   baseSha: string;
   baseRef: string;
   isFork: boolean;
+  headRepoFullName?: string;
+  baseRepoFullName?: string;
+  state: string;
+  merged: boolean;
   files: ReadonlyArray<{
     filename: string;
     status: string;
@@ -217,7 +221,7 @@ export async function createCheckpointReviewInputSha256(
   input: CheckpointReviewInput,
 ): Promise<string> {
   return sha256(JSON.stringify([
-    'fleet-review-input-v1',
+    'fleet-review-input-v2',
     input.owner,
     input.repo,
     input.prNumber,
@@ -228,6 +232,10 @@ export async function createCheckpointReviewInputSha256(
     input.baseSha,
     input.baseRef,
     input.isFork,
+    input.headRepoFullName ?? '',
+    input.baseRepoFullName ?? '',
+    input.state,
+    input.merged,
     input.files.map(file => [
       file.filename,
       file.status,
@@ -408,6 +416,8 @@ interface PurserSandboxExecutionReceipt {
   executed: true;
   passed: boolean;
   outcomeKind: 'passed' | 'assertion-failure';
+  attemptId: string;
+  testDigest: string;
 }
 
 /**
@@ -421,11 +431,15 @@ function parsePurserSandboxExecutionReceipt(raw: unknown): PurserSandboxExecutio
   if (receipt.executed !== true || typeof receipt.passed !== 'boolean') return null;
   const expectedKind = receipt.passed ? 'passed' : 'assertion-failure';
   if (receipt.outcomeKind !== expectedKind) return null;
+  if (typeof receipt.attemptId !== 'string' || receipt.attemptId.length < 1) return null;
+  if (!/^sha256:[a-f0-9]{64}$/.test(String(receipt.testDigest ?? ''))) return null;
   return {
     kind: PURSER_SANDBOX_EXECUTION_RECEIPT,
     executed: true,
     passed: receipt.passed,
     outcomeKind: expectedKind,
+    attemptId: receipt.attemptId,
+    testDigest: receipt.testDigest as string,
   };
 }
 
@@ -440,40 +454,17 @@ function parseCheckpointExecutionReceipt(raw: unknown): PurserSandboxExecutionRe
  * the same logical run. Missing/unreadable evidence fails closed so a queue
  * retry reruns Purser; other ships have no separate execution receipt.
  */
-async function readMatchingExecutionReceipt(
-  env: ExecutorEnv,
-  runId: string,
+function currentExecutionReceipt(
   result: ShipResult,
   binding: ShipCheckpointBinding,
 ): Promise<PurserSandboxExecutionReceipt | null> {
-  if (!env.DB || binding.executionReceiptKind !== PURSER_SANDBOX_EXECUTION_RECEIPT) return null;
-  try {
-    const row = await env.DB.prepare(
-      `SELECT detail FROM fleet_run_steps
-       WHERE run_id = ? AND kind = ? AND ship = ?
-       ORDER BY seq DESC LIMIT 1`,
-    )
-      .bind(runId, PURSER_SANDBOX_RECEIPT_KIND, result.ship)
-      .first<{ detail: unknown }>();
-    if (typeof row?.detail !== 'string' || !row.detail) return null;
-    let raw: unknown;
-    try {
-      raw = JSON.parse(row.detail);
-    } catch {
-      return null;
-    }
-    const receipt = parsePurserSandboxExecutionReceipt(raw);
-    if (!receipt) return null;
-    const matchesVerdict = receipt.passed
-      ? result.verdict === 'PASS'
-      : result.verdict === 'BLOCK';
-    return matchesVerdict ? receipt : null;
-  } catch (err) {
-    console.error(
-      `[fleet-executor] Purser execution receipt read failed run=${runId} ship=${result.ship}: ${String(err)}`,
-    );
-    return null;
-  }
+  if (binding.executionReceiptKind !== PURSER_SANDBOX_EXECUTION_RECEIPT) return Promise.resolve(null);
+  const receipt = parsePurserSandboxExecutionReceipt(result.checkpointExecutionReceipt);
+  if (!receipt) return Promise.resolve(null);
+  const matchesVerdict = receipt.passed
+    ? result.verdict === 'PASS'
+    : result.verdict === 'BLOCK';
+  return Promise.resolve(matchesVerdict ? receipt : null);
 }
 
 /**
@@ -685,7 +676,7 @@ export async function saveShipCheckpoint(
   // the broken result into a new attempt.
   if (!isResumeEligibleCheckpoint(result)) return false;
   const checkpointExecutionReceipt = normalizedBinding.executionReceiptKind === PURSER_SANDBOX_EXECUTION_RECEIPT
-    ? await readMatchingExecutionReceipt(env, runId, result, normalizedBinding)
+    ? await currentExecutionReceipt(result, normalizedBinding)
     : null;
   if (
     normalizedBinding.executionReceiptKind === PURSER_SANDBOX_EXECUTION_RECEIPT &&

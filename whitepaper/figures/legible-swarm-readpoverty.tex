@@ -1,56 +1,41 @@
-% Figure 9 — read-poverty: O(n) eyeball search vs O(log n) indexed directory,
-% and the value curve of L2 across swarm size n.
-% Design: short data labels only; the read-poverty moral and the n=1 inventory
-% live in the caption. Curve labels sit in the clear band above their own curve at
-% mid-domain, not at the terminal point, so they cannot ride the curve at render.
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-
+% Figure 9 — paired scaling views. The left encodes lookup cost; the right
+% distinguishes value that exists at n=1 from discovery value that arrives later.
 \begin{figure}[H]
 \centering
-\resizebox{0.92\textwidth}{!}{%
-\begin{tikzpicture}[font=\small]
+\begin{tikzpicture}[pd figure,x=.90cm,y=.92cm]
+  \node[pd panel title,anchor=west] at (.15,4.85) {read cost};
+  \node[pd panel title,anchor=west] at (8.25,4.85) {value of the legibility layer};
 
-% ─── LEFT: cost of search vs population ──────────────────────────────────
-\begin{scope}
-\draw[->,thick] (0,0) -- (5.6,0) node[right,font=\footnotesize]{population $n$};
-\draw[->,thick] (0,0) -- (0,4.6) node[above,font=\footnotesize]{cost to find};
-% O(n) eyeball
-\draw[hhcobalt,very thick,domain=0:5,samples=60,smooth] plot (\x,{0.8*\x});
-\node[text=hhink,font=\bfseries\footnotesize,anchor=south east] at (3.0,2.6) {$O(n)$ eyeball};
-% O(log n) directory
-\draw[hhteal,very thick,domain=0:5,samples=60,smooth] plot (\x,{0.6 + 0.5*ln(1+\x)});
-\node[text=hhink,font=\bfseries\footnotesize,anchor=north west] at (2.6,1.15) {$O(\log n)$ index};
-\end{scope}
+  \draw[pd arrow] (.15,.35)--(7.15,.35);
+  \draw[pd arrow] (.15,.35)--(.15,4.48);
+  \draw[pd rule,line width=1.05pt] plot[smooth] coordinates {(.35,.55)(1.8,1.25)(3.3,2.05)(4.8,2.92)(6.65,4.15)};
+  \draw[pd focus rule,line width=1.05pt] plot[smooth] coordinates {(.35,.72)(1.8,1.18)(3.3,1.42)(4.8,1.58)(6.65,1.72)};
+  \node[pd direct label,anchor=west] at (4.55,3.38) {$O(n)$ eyeball search};
+  \node[pd direct label,text=hhteal,anchor=west] at (4.35,1.86) {$O(\log n)$ index};
+  \node[pd axis label,anchor=west] at (6.35,.08) {population $n$};
+  \node[pd axis label,rotate=90,anchor=south] at (-.35,2.4) {cost to find};
 
-% ─── RIGHT: value of L2 across n (works at n=1, grows) ───────────────────
-\begin{scope}[shift={(9.4,0)}]
-\draw[->,thick] (0,0) -- (5.6,0) node[right,font=\footnotesize]{swarm size $n$};
-\draw[->,thick] (0,0) -- (0,4.6) node[above,font=\footnotesize]{value of L2};
-% value: nonzero at n=1, grows
-\draw[hhamber,very thick,domain=0.2:5,samples=80,smooth]
-   plot (\x,{1.2 + 2.6*(1-exp(-0.7*\x))});
-\fill[hhteal] (0.2,{1.2+2.6*(1-exp(-0.14))}) circle (2pt);
-\node[text=hhink,font=\footnotesize,anchor=west] at (0.45,1.0) {$n{=}1$: already pays};
-\draw[hhink,dashed] (3.4,0)--(3.4,3.4);
-\node[font=\footnotesize,text=hhink,align=center] at (3.4,3.9) {bottleneck\\($n\!\approx\!50$)};
-\node[font=\bfseries\footnotesize,text=hhink,anchor=west] at (4.0,2.6) {discovery pays};
-\end{scope}
-
-\end{tikzpicture}%
-}
-\caption{Read-poverty (\S\ref{sec:readpoverty}): state piles up faster than it can
-be read. \emph{Left}: the cost of finding the right agent/work grows linearly under
-eyeball search but stays near-flat under an indexed directory --- the same trade
-every database made at the table-scan wall. \emph{Right}: the value curve of the
-legibility wedge across swarm size. It is valuable already at $n{=}1$ (briefing,
-attestation, footgun guard, honest completion) and grows into the read-poverty
-regime; discovery ranking earns its keep around the $n{\approx}50$ bottleneck. The
-wedge must work at $n{=}1$ and grow gracefully.}
+  \draw[pd arrow] (8.25,.35)--(15.25,.35);
+  \draw[pd arrow] (8.25,.35)--(8.25,4.48);
+  \fill[hhsand!20] (12.75,.35) rectangle (15.1,4.32);
+  \draw[pd focus rule,line width=1.05pt]
+    plot[smooth] coordinates {(8.48,1.30)(9.8,1.82)(11.2,2.36)(12.6,2.78)(14.9,3.23)};
+  \node[pd focus datum] at (8.48,1.30) {};
+  \node[pd direct label,text=hhteal,anchor=west,align=left] at (8.72,1.08)
+    {$n=1$\\already pays};
+  \draw[pd caution rule,dashed] (12.75,.35)--(12.75,4.32);
+  \node[pd direct label,text=hhamber,anchor=west,align=left] at (12.92,3.92)
+    {read-poverty regime\\discovery begins to pay};
+  \node[pd axis label,anchor=west] at (14.65,.08) {swarm size $n$};
+  \node[pd axis label,rotate=90,anchor=south] at (7.75,2.4) {value};
+  \node[pd note,anchor=north] at (11.72,-.04)
+    {onset is a design target, not a measurement};
+\end{tikzpicture}
+\caption{Read-poverty has two scales. Left, unindexed eyeball search grows with
+population while a directory keeps lookup near logarithmic. Right, the
+legibility layer has value at $n=1$ through briefing, attestation, footgun
+guards, and honest completion; discovery adds value only after the corpus
+becomes too large to scan. The shaded onset is a design regime, not an empirical
+estimate of a universal swarm-size threshold.}
 \label{fig:readpoverty}
 \end{figure}

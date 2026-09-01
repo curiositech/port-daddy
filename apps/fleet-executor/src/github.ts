@@ -315,6 +315,9 @@ export interface PRContext {
    * (conservative: treated as a fork). The purser only RETARGETS same-repo PRs.
    */
   isFork: boolean;
+  /** Exact live repository identities underlying {@link isFork}. */
+  headRepoFullName?: string;
+  baseRepoFullName?: string;
   /**
    * `pull_request.user.login` (e.g. `port-daddy[bot]`). Carried so the
    * self-review guard can ask WHO wrote this PR without a second API call.
@@ -368,6 +371,20 @@ export interface PRContext {
    * sensitive path must never disappear behind a surface gate.
    */
   filesTruncated: boolean;
+}
+
+/** Small live witness used at mutation/checkpoint boundaries without reloading diff/files. */
+export interface PullRequestMetadataWitness {
+  title: string;
+  body: string;
+  headSha: string;
+  headRef: string;
+  headRepoFullName: string;
+  baseSha: string;
+  baseRef: string;
+  baseRepoFullName: string;
+  state: string;
+  merged: boolean;
 }
 
 /**
@@ -572,6 +589,8 @@ export async function fetchPRContext(
     baseSha: livePr.base?.sha ?? '',
     baseRef: livePr.base?.ref ?? '',
     isFork: computeIsFork(livePr.head?.repo?.full_name, livePr.base?.repo?.full_name),
+    headRepoFullName: livePr.head?.repo?.full_name ?? '',
+    baseRepoFullName: livePr.base?.repo?.full_name ?? '',
     // Authorship comes from the LIVE PR (same zero-trust posture as head.ref /
     // repo full_names above): the webhook payload is attacker-influenced in
     // ways the authoritative fetch is not, and this field gates the
@@ -591,6 +610,46 @@ export async function fetchPRContext(
     diffBytes: diffRead.bytes,
     diffTruncated: diffRead.truncated,
     filesTruncated,
+  };
+}
+
+/**
+ * Fetch only mutable PR metadata for hot publication boundaries. Changed-file
+ * inventory and raw diff are immutable under the exact head/base identities
+ * carried here, so rehydrating their multi-megabyte bodies would add OOM risk
+ * without strengthening the witness.
+ */
+export async function fetchPullRequestMetadataWitness(
+  owner: string,
+  repo: string,
+  prNumber: number,
+  token: string,
+): Promise<PullRequestMetadataWitness> {
+  const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}`, {
+    headers: ghHeaders(token),
+  });
+  if (!res.ok) {
+    throw new Error(`fetch pull request metadata failed ${res.status}: ${await res.text()}`);
+  }
+  const live = (await res.json()) as {
+    title?: string | null;
+    body?: string | null;
+    state?: string | null;
+    merged?: boolean;
+    head?: { sha?: string; ref?: string; repo?: { full_name?: string } | null } | null;
+    base?: { sha?: string; ref?: string; repo?: { full_name?: string } | null } | null;
+  };
+  return {
+    title: live.title ?? '',
+    body: live.body ?? '',
+    headSha: live.head?.sha ?? '',
+    headRef: live.head?.ref ?? '',
+    headRepoFullName: live.head?.repo?.full_name ?? '',
+    baseSha: live.base?.sha ?? '',
+    baseRef: live.base?.ref ?? '',
+    baseRepoFullName: live.base?.repo?.full_name ?? '',
+    state: live.state ?? '',
+    merged: live.merged === true,
   };
 }
 
@@ -865,6 +924,16 @@ export function renderFleetContext(openPRs: OpenPR[], branches: string[]): strin
 /** GitHub rejects issue-comment bodies longer than this (422). */
 const GITHUB_COMMENT_MAX = 65536;
 
+/** Checked failure at the required bot-owned ship-comment publication boundary. */
+export class ShipCommentPublicationError extends Error {
+  readonly retryable = true;
+
+  constructor(message: string, readonly status?: number) {
+    super(message);
+    this.name = 'ShipCommentPublicationError';
+  }
+}
+
 /**
  * Cap a comment body to GitHub's hard limit. A body that would 422 is truncated
  * with a marker, and the ship's machine tag is re-appended so edit-in-place
@@ -892,6 +961,7 @@ export async function postShipComment(
   shipRole: string,
   body: string,
   token: string,
+  githubAppId: string,
   mutationGuard: PullRequestHeadGuard = async () => {},
 ): Promise<void> {
   if (!body.trim()) return;
@@ -904,28 +974,63 @@ export async function postShipComment(
 
   // Look for an existing comment with our tag to edit in place (idempotent on
   // retry: the same deliveryId re-running edits, never duplicates).
-  const existing = await findExistingComment(owner, repo, prNumber, shipHandle, token);
+  const existing = await findExistingComment(
+    owner,
+    repo,
+    prNumber,
+    shipHandle,
+    token,
+    githubAppId,
+  );
 
   if (existing) {
     await mutationGuard(`before patch pd-${shipHandle} comment`);
-    await fetch(
-      `https://api.github.com/repos/${owner}/${repo}/issues/comments/${existing}`,
-      {
-        method: 'PATCH',
-        headers: ghHeaders(token),
-        body: JSON.stringify({ body: commentBody }),
-      },
-    );
+    let res: Response | null = null;
+    try {
+      res = await fetch(
+        `https://api.github.com/repos/${owner}/${repo}/issues/comments/${existing}`,
+        {
+          method: 'PATCH',
+          headers: ghHeaders(token),
+          body: JSON.stringify({ body: commentBody }),
+        },
+      );
+    } catch {
+      // A disconnected PATCH is ambiguous; exact owned-body readback below is authoritative.
+    }
+    if (!res?.ok) {
+      if (await findExistingComment(
+        owner, repo, prNumber, shipHandle, token, githubAppId, commentBody,
+      )) return;
+      throw new ShipCommentPublicationError(
+        `patch pd-${shipHandle} comment failed ${res?.status ?? 'network'}: ${res ? boundedDiagnostic(await res.text()) : 'no response'}`,
+        res?.status,
+      );
+    }
   } else {
     await mutationGuard(`before post pd-${shipHandle} comment`);
-    await fetch(
-      `https://api.github.com/repos/${owner}/${repo}/issues/${prNumber}/comments`,
-      {
-        method: 'POST',
-        headers: ghHeaders(token),
-        body: JSON.stringify({ body: commentBody }),
-      },
-    );
+    let res: Response | null = null;
+    try {
+      res = await fetch(
+        `https://api.github.com/repos/${owner}/${repo}/issues/${prNumber}/comments`,
+        {
+          method: 'POST',
+          headers: ghHeaders(token),
+          body: JSON.stringify({ body: commentBody }),
+        },
+      );
+    } catch {
+      // A disconnected POST is ambiguous; exact owned-body readback below is authoritative.
+    }
+    if (!res?.ok) {
+      if (await findExistingComment(
+        owner, repo, prNumber, shipHandle, token, githubAppId, commentBody,
+      )) return;
+      throw new ShipCommentPublicationError(
+        `post pd-${shipHandle} comment failed ${res?.status ?? 'network'}: ${res ? boundedDiagnostic(await res.text()) : 'no response'}`,
+        res?.status,
+      );
+    }
   }
 }
 
@@ -935,97 +1040,68 @@ async function findExistingComment(
   prNumber: number,
   shipHandle: string,
   token: string,
+  githubAppId: string,
+  exactBody?: string,
 ): Promise<number | null> {
-  const res = await fetch(
-    `https://api.github.com/repos/${owner}/${repo}/issues/${prNumber}/comments?per_page=100`,
-    { headers: ghHeaders(token) },
-  );
-  if (!res.ok) return null;
-  const comments = (await res.json()) as Array<{ id: number; body: string }>;
-  const tag = `<!-- pd-ship:${shipHandle} -->`;
-  const match = comments.find(c => c.body.includes(tag));
-  return match?.id ?? null;
-}
-
-// ---------------------------------------------------------------------------
-// PR body sections (the PR summary as a fleet-maintained record)
-
-/** GitHub rejects PR bodies longer than this (422), same cap as comments. */
-const GITHUB_PR_BODY_MAX = 65536;
-
-/**
- * Upsert a marked section into a pull request's BODY — the PR summary.
- *
- * MOTIVATION / DESIGN: the PR summary is the durable chronology of what a PR
- * is supposed to be; comments scroll away, check runs expire, but the body is
- * what every future reader (and every PR-requirements gate) reads first. When
- * the fleet derives something that IS that chronology — the purser's
- * steel-manned contract and its obligations (operator mandate, 2026-08-19) —
- * it belongs in the body, maintained by an agent, not buried in a comment.
- *
- * Idempotent edit-in-place: the section lives between `startMarker` and
- * `endMarker` (HTML comments, invisible in rendered markdown). Present ⇒
- * replaced; absent ⇒ appended. The rest of the body — the author's own words —
- * is never touched, and a body that would exceed GitHub's hard cap is left
- * alone entirely rather than truncating a human's prose.
- *
- * @param owner Repo owner.
- * @param repo Repo name.
- * @param prNumber The PR whose body carries the section.
- * @param startMarker Opening HTML-comment marker (must be unique per section).
- * @param endMarker Closing HTML-comment marker.
- * @param section The markdown to place between the markers.
- * @param token Installation token (needs `pull_requests: write`).
- * @returns true when the body already carried the section or the PATCH landed;
- *   false on any fetch/PATCH failure or cap overflow — the caller records the
- *   outcome in the transcript so a silent miss is impossible.
- */
-export async function upsertPrBodySection(
-  owner: string,
-  repo: string,
-  prNumber: number,
-  startMarker: string,
-  endMarker: string,
-  section: string,
-  token: string,
-  mutationGuard: PullRequestHeadGuard = async () => {},
-): Promise<boolean> {
-  try {
-    const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}`, {
-      headers: ghHeaders(token),
-    });
-    if (!res.ok) return false;
-    const pr = (await res.json()) as { body?: string | null };
-    const current = pr.body ?? '';
-    const block = `${startMarker}\n${section}\n${endMarker}`;
-    const startIdx = current.indexOf(startMarker);
-    const endIdx = current.indexOf(endMarker);
-    const bothAbsent = startIdx === -1 && endIdx === -1;
-    const wellFormedPair = startIdx !== -1 && endIdx !== -1 && endIdx >= startIdx;
-    // A body carrying only ONE of the markers, or the pair inverted, is a
-    // corrupted section (someone hand-edited it). Appending here would plant a
-    // duplicate marker, and the NEXT replace would then span from the orphan
-    // to the far marker — swallowing whatever author prose sat between them.
-    // Refuse instead; the caller transcripts the miss loudly.
-    if (!bothAbsent && !wellFormedPair) return false;
-    const next = wellFormedPair
-      ? current.slice(0, startIdx) + block + current.slice(endIdx + endMarker.length)
-      : current.trimEnd()
-        ? `${current.trimEnd()}\n\n${block}`
-        : block;
-    if (next === current) return true; // already up to date — no write needed
-    if (next.length > GITHUB_PR_BODY_MAX) return false; // never truncate a human's body
-    await mutationGuard(`before patch PR #${prNumber} body section`);
-    const patch = await fetch(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}`, {
-      method: 'PATCH',
-      headers: ghHeaders(token),
-      body: JSON.stringify({ body: next }),
-    });
-    return patch.ok;
-  } catch (error) {
-    if (error instanceof PullRequestHeadValidationError) throw error;
-    return false;
+  const comments: Array<{
+    id: number;
+    body: string;
+    user?: { type?: string } | null;
+    performed_via_github_app?: { id?: number } | null;
+  }> = [];
+  let nextUrl: string | null =
+    `https://api.github.com/repos/${owner}/${repo}/issues/${prNumber}/comments?per_page=100`;
+  for (let page = 0; nextUrl && page < 10; page++) {
+    let res: Response;
+    try {
+      res = await fetch(nextUrl, { headers: ghHeaders(token) });
+    } catch (error) {
+      throw new ShipCommentPublicationError(
+        `list pd-${shipHandle} comments network failure: ${boundedDiagnostic(String(error))}`,
+      );
+    }
+    if (!res.ok) {
+      let diagnostic = '<unreadable response body>';
+      try {
+        diagnostic = boundedDiagnostic(await res.text());
+      } catch {
+        // Keep the bounded placeholder.
+      }
+      throw new ShipCommentPublicationError(
+        `list pd-${shipHandle} comments failed ${res.status}: ${diagnostic}`,
+        res.status,
+      );
+    }
+    try {
+      const pageComments = await res.json() as typeof comments;
+      if (!Array.isArray(pageComments)) throw new Error('response is not an array');
+      comments.push(...pageComments);
+    } catch (error) {
+      throw new ShipCommentPublicationError(
+        `list pd-${shipHandle} comments returned malformed JSON: ${boundedDiagnostic(String(error))}`,
+        res.status,
+      );
+    }
+    const next = /<([^>]+)>;\s*rel="next"/.exec(res.headers.get('link') ?? '');
+    nextUrl = next?.[1] ?? null;
   }
+  if (nextUrl) {
+    throw new ShipCommentPublicationError(
+      `cannot prove pd-${shipHandle} comment absence: GitHub pagination exceeded 1000 comments`,
+    );
+  }
+  const tag = `<!-- pd-ship:${shipHandle} -->`;
+  const expectedAppId = Number(githubAppId);
+  if (!Number.isSafeInteger(expectedAppId) || expectedAppId <= 0) {
+    throw new ShipCommentPublicationError('cannot prove Fleet comment ownership: invalid GitHub App id');
+  }
+  const match = comments.find(c =>
+    c.body.endsWith(`\n\n${tag}`) &&
+    (exactBody === undefined || c.body === exactBody) &&
+    c.user?.type === 'Bot' &&
+    c.performed_via_github_app?.id === expectedAppId,
+  );
+  return match?.id ?? null;
 }
 
 /**
@@ -1167,6 +1243,57 @@ export async function createReview(
 // ---------------------------------------------------------------------------
 // Check runs
 
+const FLEET_GENERATION_MARKER_RE =
+  /^<!-- pd-fleet:generation=v2;review=(sha256:[a-f0-9]{64});mediator=(sha256:[a-f0-9]{64}|none);run=(run:[A-Za-z0-9._:-]+) -->\n/;
+
+export interface FleetCheckGenerationReceipt {
+  reviewInputSha256: string;
+  mediatorOrderSha256: string | null;
+  creatorRunId: string;
+}
+
+async function fleetCheckGenerationHash(
+  reviewInputSha256: string,
+  mediatorOrderSha256: string | null,
+): Promise<string> {
+  const digest = await crypto.subtle.digest(
+    'SHA-256',
+    new TextEncoder().encode(`${reviewInputSha256}\u0000${mediatorOrderSha256 ?? 'none'}`),
+  );
+  return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
+}
+
+/** Bind a terminal check output to the exact review input that authorized it. */
+export function bindFleetReviewInputToCheckSummary(
+  summary: string,
+  reviewInputSha256: string,
+  creatorRunId: string,
+  mediatorOrderSha256: string | null,
+): string {
+  if (!/^sha256:[a-f0-9]{64}$/.test(reviewInputSha256)) {
+    throw new Error('invalid Fleet review input digest');
+  }
+  if (!/^run:[A-Za-z0-9._:-]+$/.test(creatorRunId)) {
+    throw new Error('invalid Fleet creator run id');
+  }
+  if (mediatorOrderSha256 !== null && !/^sha256:[a-f0-9]{64}$/.test(mediatorOrderSha256)) {
+    throw new Error('invalid Fleet mediator order digest');
+  }
+  return `<!-- pd-fleet:generation=v2;review=${reviewInputSha256};mediator=${mediatorOrderSha256 ?? 'none'};run=${creatorRunId} -->\n${summary}`;
+}
+
+/** Parse the stable first-line generation receipt from a Fleet check output. */
+export function fleetReviewInputFromCheckSummary(summary: string): FleetCheckGenerationReceipt | null {
+  const match = FLEET_GENERATION_MARKER_RE.exec(summary);
+  return match
+    ? {
+        reviewInputSha256: match[1],
+        mediatorOrderSha256: match[2] === 'none' ? null : match[2],
+        creatorRunId: match[3],
+      }
+    : null;
+}
+
 export async function createCheckRun(
   owner: string,
   repo: string,
@@ -1174,7 +1301,13 @@ export async function createCheckRun(
   headSha: string,
   token: string,
   detailsUrl?: string | null,
+  reviewInputSha256?: string,
+  creatorRunId?: string,
+  mediatorOrderSha256: string | null = null,
 ): Promise<number> {
+  const generationHash = reviewInputSha256
+    ? await fleetCheckGenerationHash(reviewInputSha256, mediatorOrderSha256)
+    : null;
   const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/check-runs`, {
     method: 'POST',
     headers: ghHeaders(token),
@@ -1183,12 +1316,31 @@ export async function createCheckRun(
       head_sha: headSha,
       status: 'in_progress',
       started_at: new Date().toISOString(),
+      ...(creatorRunId
+        ? {
+            external_id: generationHash
+              ? `pdfr2:${generationHash}:${creatorRunId}`
+              : `pd-fleet-run:v1:${creatorRunId}`,
+            ...(reviewInputSha256
+              ? { output: {
+                  title: 'Port Daddy Fleet',
+                  summary: bindFleetReviewInputToCheckSummary(
+                    'Fleet review in progress.',
+                    reviewInputSha256,
+                    creatorRunId,
+                    mediatorOrderSha256,
+                  ),
+                } }
+              : {}),
+          }
+        : {}),
       ...(detailsUrl ? { details_url: detailsUrl } : {}),
     }),
   });
-  if (!res.ok) return 0;
+  if (!res.ok) throw new Error(`create Fleet check run failed ${res.status}`);
   const body = (await res.json()) as { id: number };
-  return body.id ?? 0;
+  if (!body.id) throw new Error('create Fleet check run returned no id');
+  return body.id;
 }
 
 /** Structured evidence from the required-check completion transport. */
@@ -1243,6 +1395,7 @@ export async function completeCheckRunDetailed(
   token: string,
   detailsUrl?: string | null,
   title = 'Port Daddy Fleet',
+  beforeMutation?: () => Promise<void>,
 ): Promise<CheckRunCompletionResult> {
   if (!checkRunId) return { ok: false, diagnostic: 'missing check run id' };
   // details_url is (re)stamped on completion too, so a run that REUSED an
@@ -1265,6 +1418,7 @@ export async function completeCheckRunDetailed(
       };
     }
     if (nextDelayMs > 0) await sleep(nextDelayMs);
+    await beforeMutation?.();
     let res: Response;
     try {
       res = await fetch(`https://api.github.com/repos/${owner}/${repo}/check-runs/${checkRunId}`, {
@@ -1278,7 +1432,7 @@ export async function completeCheckRunDetailed(
         `[fleet-executor] completeCheckRun network error attempt=${attempt}/${CHECK_COMPLETION_MAX_ATTEMPTS} ` +
           `check=${checkRunId}: ${lastDiagnostic}`,
       );
-      if (await checkRunReachedConclusion(owner, repo, checkRunId, conclusion, token)) {
+      if (await checkRunReachedConclusion(owner, repo, checkRunId, conclusion, summary, token)) {
         return { ok: true };
       }
       nextDelayMs = 1000 * (2 ** (attempt - 1));
@@ -1290,7 +1444,7 @@ export async function completeCheckRunDetailed(
       `[fleet-executor] completeCheckRun PATCH failed attempt=${attempt}/${CHECK_COMPLETION_MAX_ATTEMPTS} ` +
         `check=${checkRunId} ${lastDiagnostic}`,
     );
-    if (await checkRunReachedConclusion(owner, repo, checkRunId, conclusion, token)) {
+    if (await checkRunReachedConclusion(owner, repo, checkRunId, conclusion, summary, token)) {
       return { ok: true };
     }
     if (!isRetryableGitHubMutation(res.status)) break;
@@ -1324,6 +1478,7 @@ export async function completeCheckRun(
   token: string,
   detailsUrl?: string | null,
   title = 'Port Daddy Fleet',
+  beforeMutation?: () => Promise<void>,
 ): Promise<boolean> {
   return (
     await completeCheckRunDetailed(
@@ -1335,6 +1490,7 @@ export async function completeCheckRun(
       token,
       detailsUrl,
       title,
+      beforeMutation,
     )
   ).ok;
 }
@@ -1371,6 +1527,7 @@ async function checkRunReachedConclusion(
   repo: string,
   checkRunId: number,
   conclusion: 'success' | 'failure' | 'neutral',
+  summary: string,
   token: string,
 ): Promise<boolean> {
   try {
@@ -1379,8 +1536,14 @@ async function checkRunReachedConclusion(
       { headers: ghHeaders(token) },
     );
     if (!res.ok) return false;
-    const readback = (await res.json()) as { status?: string; conclusion?: string | null };
-    return readback.status === 'completed' && readback.conclusion === conclusion;
+    const readback = (await res.json()) as {
+      status?: string;
+      conclusion?: string | null;
+      output?: { summary?: string | null } | null;
+    };
+    return readback.status === 'completed' &&
+      readback.conclusion === conclusion &&
+      readback.output?.summary === summary;
   } catch {
     return false;
   }
@@ -1426,16 +1589,36 @@ export async function findFleetCheckRun(
   headSha: string,
   name: string,
   token: string,
+  githubAppId: string,
+  creatorRunId?: string,
 ): Promise<number | null> {
+  const filter = creatorRunId ? 'all' : 'latest';
   const res = await fetch(
-    `https://api.github.com/repos/${owner}/${repo}/commits/${headSha}/check-runs?per_page=100`,
+    `https://api.github.com/repos/${owner}/${repo}/commits/${headSha}/check-runs?per_page=100&filter=${filter}&check_name=${encodeURIComponent(name)}&app_id=${encodeURIComponent(githubAppId)}`,
     { headers: ghHeaders(token) },
   );
   if (!res.ok) return null;
   const body = (await res.json()) as {
-    check_runs?: Array<{ id: number; name: string; status?: string; conclusion?: string | null }>;
+    check_runs?: Array<{
+      id: number;
+      name: string;
+      status?: string;
+      conclusion?: string | null;
+      external_id?: string | null;
+      app?: { id?: number } | null;
+    }>;
   };
-  const match = (body.check_runs ?? []).find(c => c.name === name);
+  const expectedAppId = Number(githubAppId);
+  if (!Number.isSafeInteger(expectedAppId) || expectedAppId <= 0) return null;
+  const owned = (body.check_runs ?? [])
+    .filter(c => c.name === name && c.app?.id === expectedAppId)
+    .sort((left, right) => right.id - left.id);
+  const match = creatorRunId
+    ? owned.find(c =>
+        c.external_id === `pd-fleet-run:v1:${creatorRunId}` ||
+        c.external_id?.endsWith(`:${creatorRunId}`),
+      )
+    : owned[0];
   return match?.id ?? null;
 }
 
@@ -1468,9 +1651,20 @@ export async function findFleetCheckRunState(
   headSha: string,
   name: string,
   token: string,
-): Promise<{ id: number; status: string; conclusion: string | null; summary: string } | null> {
+  githubAppId: string,
+  expectedReviewInputSha256: string,
+  expectedMediatorOrderSha256: string | null,
+): Promise<{
+  id: number;
+  status: string;
+  conclusion: string | null;
+  summary: string;
+  reviewInputSha256: string | null;
+  mediatorOrderSha256: string | null;
+  creatorRunId: string | null;
+} | null> {
   const res = await fetch(
-    `https://api.github.com/repos/${owner}/${repo}/commits/${headSha}/check-runs?per_page=100`,
+    `https://api.github.com/repos/${owner}/${repo}/commits/${headSha}/check-runs?per_page=100&app_id=${encodeURIComponent(githubAppId)}`,
     { headers: ghHeaders(token) },
   );
   if (!res.ok) return null;
@@ -1480,19 +1674,79 @@ export async function findFleetCheckRunState(
       name: string;
       status?: string;
       conclusion?: string | null;
+      external_id?: string | null;
+      app?: { id?: number } | null;
       output?: { summary?: string | null } | null;
     }>;
   };
-  const match = (body.check_runs ?? []).find(c => c.name === name);
+  const expectedAppId = Number(githubAppId);
+  if (!Number.isSafeInteger(expectedAppId) || expectedAppId <= 0) return null;
+  const owned = (body.check_runs ?? [])
+    .filter(c => c.name === name && c.app?.id === expectedAppId)
+    .sort((left, right) => right.id - left.id);
+  const externalReceipt = (check: { external_id?: string | null }): {
+    generationHash: string;
+    creatorRunId: string;
+  } | null => {
+    const receipt = /^pdfr2:([a-f0-9]{64}):(run:[A-Za-z0-9._:-]+)$/.exec(
+      check.external_id ?? '',
+    );
+    return receipt
+      ? {
+          generationHash: receipt[1],
+          creatorRunId: receipt[2],
+        }
+      : null;
+  };
+  const creatorOnlyReceipt = (check: { external_id?: string | null }): string | null => {
+    const receipt = /^pd-fleet-run:v1:(run:[A-Za-z0-9._:-]+)$/.exec(check.external_id ?? '');
+    return receipt?.[1] ?? null;
+  };
+  // Only the newest owned generation can control the required check. Looking
+  // past it for an older matching success can strand the newer check pending.
+  const match = owned[0];
   if (!match) return null;
   // `summary` comes back on the list endpoint and carries the DLQ handler's
   // dead-letter marker, which is how the caller tells a gate that ships decided
   // apart from one a lost job failed — see dead-letter-marker.ts.
+  const summary = match.output?.summary ?? '';
+  const external = externalReceipt(match);
+  const admissionCreatorRunId = creatorOnlyReceipt(match);
+  const terminal = match.status === 'completed' ? fleetReviewInputFromCheckSummary(summary) : null;
+  const expectedGenerationHash = await fleetCheckGenerationHash(
+    expectedReviewInputSha256,
+    expectedMediatorOrderSha256,
+  );
+  const terminalGenerationHash = terminal
+    ? await fleetCheckGenerationHash(terminal.reviewInputSha256, terminal.mediatorOrderSha256)
+    : null;
+  const receiptMatches = match.status !== 'completed'
+    ? external?.generationHash === expectedGenerationHash || admissionCreatorRunId !== null
+    : terminal !== null && (
+      (external !== null &&
+        external.generationHash === terminalGenerationHash &&
+        external.creatorRunId === terminal.creatorRunId) ||
+      (admissionCreatorRunId !== null && admissionCreatorRunId === terminal.creatorRunId)
+    );
+  const resolved = match.status === 'completed'
+    ? terminal
+    : external?.generationHash === expectedGenerationHash
+      ? {
+          reviewInputSha256: expectedReviewInputSha256,
+          mediatorOrderSha256: expectedMediatorOrderSha256,
+          creatorRunId: external.creatorRunId,
+        }
+      : null;
   return {
     id: match.id,
     status: match.status ?? '',
     conclusion: match.conclusion ?? null,
-    summary: match.output?.summary ?? '',
+    summary,
+    reviewInputSha256: receiptMatches ? resolved?.reviewInputSha256 ?? null : null,
+    mediatorOrderSha256: receiptMatches ? resolved?.mediatorOrderSha256 ?? null : null,
+    creatorRunId: receiptMatches
+      ? resolved?.creatorRunId ?? admissionCreatorRunId
+      : null,
   };
 }
 

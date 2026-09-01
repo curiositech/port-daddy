@@ -530,9 +530,9 @@ for prog in port-daddy pd
     complete -c $prog -n __pd_needs_command -a u -d 'Start all services (alias for up)'
     complete -c $prog -n __pd_needs_command -a d -d 'Stop all services (alias for down)'
 
-    # Tutorial
-    complete -c $prog -n __pd_needs_command -a learn -d 'Interactive tutorial — learn Port Daddy step by step'
-    complete -c $prog -n __pd_needs_command -a tutorial -d 'Interactive tutorial (alias for learn)'
+    # Agent orientation
+    complete -c $prog -n __pd_needs_command -a learn -d 'Operationally read-only agent orientation'
+    complete -c $prog -n __pd_needs_command -a tutorial -d 'Alias for the agent orientation'
 
     # Info
     complete -c $prog -n __pd_needs_command -a version -d 'Print version information'

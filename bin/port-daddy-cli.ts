@@ -86,7 +86,7 @@ import {
   handleAttention, ATTENTION_HELP,
   // Nudge (suggestibility layer — claim-overlap heads-up, ADR-0039)
   handleNudge,
-  // Tutorial
+  // Agent orientation
   handleLearn,
   // File claims
   handleWhoOwns,
@@ -360,7 +360,7 @@ function printLaunchHints(hints: {
       '',
       '  pd init          Full project onboarding (scan, fleet, MCP, git hook)',
       '  pd scan          Detect all services in this project',
-      '  pd learn         Interactive tutorial (5 min)',
+      '  pd learn         Operationally read-only agent orientation',
       '  pd mcp install   Add to your AI agent\'s MCP config',
     ].join('\n');
     ui.note(body, 'New project detected');
@@ -676,7 +676,7 @@ export const HELP_TOPIC_ALIASES: Record<string, string> = {
   memory: 'semantic', graph: 'semantic',
   advise: 'advisor', preflight: 'advisor', compass: 'advisor',
   secrets: 'secret',
-  learn: 'tutorial',
+  tutorial: 'learn',
   skillgraft: 'skill-graft',
 };
 
@@ -766,8 +766,8 @@ function buildHelp(): string {
     `${A}Permission tiers:${Z}`,
     TIER_LEGEND,
     '',
-    `${D}pd help <topic> for details — topics: setup, sessions, locks, agents, actors, ports, messaging, dns, orchestration, sugar, semantic, advisor, guard, ideas, roadmap, skill-graft, secret, daemon, tutorial${Z}`,
-    `${D}Dashboard: ${PORT_DADDY_URL}  •  Tutorial: pd learn${Z}`,
+    `${D}pd help <topic> for details — topics: setup, sessions, locks, agents, actors, ports, messaging, dns, orchestration, sugar, semantic, advisor, guard, ideas, roadmap, skill-graft, secret, daemon, learn${Z}`,
+    `${D}Dashboard: ${PORT_DADDY_URL}  •  Agent orientation: pd learn (operationally read-only)${Z}`,
   );
 
   return lines.join('\n');
@@ -1454,21 +1454,39 @@ Examples:
   eval "$(pd daemon env dev)"
   pd daemon stop dev`,
 
-  tutorial: `Interactive Tutorial \u2014 Learn Port Daddy step by step
+  learn: `Agent Orientation \u2014 Operationally read-only coordination, retrieval, and evidence guide
 
 Commands:
-  learn                    Start the interactive tutorial
+  learn                    Render the agent orientation
+  tutorial                 Alias of learn
 
-The tutorial walks you through:
-  1. Claiming and releasing ports
-  2. Using semantic identities
-  3. Starting sessions and leaving notes
-  4. Multi-agent coordination with locks
-  5. Service orchestration with up/down
-  6. Agent resurrection and salvage
+The orientation explains:
+  1. FleetBar and the selected daemon dashboard for people; CLI, SDK, and MCP for agents
+  2. Attention, status, sitrep, briefing, and salvage before work begins
+  3. Attributable sessions with a roadmap or an explicit sidequest
+  4. Plans, notes, exact claims, Guard, validation, and finish receipts
+  5. Search and retrieval as distinct from ingestion, indexing, or model training
+
+Safety contract:
+  The handler makes no headless daemon request. Interactive terminals may make one
+  bounded GET /health request (750 ms, no reconnect retry).
+  The handler creates no work resources or files and does not rebuild an index.
+  The CLI envelope makes exactly one append-only usage-telemetry attempt.
 
 Run: pd learn`,
 };
+
+/**
+ * Resolve a canonical help topic or one of its command aliases. The design
+ * keeps `pd help <topic>` consistent with `pd <verb> --help` without treating
+ * arbitrary verbs as topics.
+ *
+ * @param topic - User-supplied topic or command alias.
+ * @returns The topic help text, or null when no documented topic exists.
+ */
+export function resolveTopicHelp(topic: string): string | null {
+  return TOPIC_HELP[topic] ?? TOPIC_HELP[HELP_TOPIC_ALIASES[topic]] ?? null;
+}
 
 /** The exact resolver used by `pd <verb> --help`; null means honest global help. */
 export function resolveVerbHelp(command: string): string | null {
@@ -2472,7 +2490,7 @@ export async function main(): Promise<void> {
       // First-run hint
       const portdaddyDir = join(process.cwd(), '.portdaddy');
       if (!existsSync(portdaddyDir)) {
-        ui.info('First time here? Run pd learn for an interactive tutorial.');
+        ui.info('First time here? Run pd learn for the operationally read-only agent orientation.');
       }
     }
 
@@ -2488,7 +2506,7 @@ export async function main(): Promise<void> {
       process.exit(0);
     }
 
-    const topicHelp = TOPIC_HELP[topic];
+    const topicHelp = resolveTopicHelp(topic);
     if (topicHelp) {
       console.log(topicHelp);
       process.exit(0);
@@ -3342,7 +3360,7 @@ export async function main(): Promise<void> {
         await handleWhois(positional, options);
         break;
 
-      // Tutorial
+      // Agent orientation
       case 'learn':
       case 'tutorial':
         await handleLearn();
@@ -3453,7 +3471,7 @@ export async function main(): Promise<void> {
           await handleClaim(command, options);
         } else {
           ui.error(`Unknown command: ${command}`);
-          ui.info('Run pd help for usage — or pd learn for a tutorial');
+          ui.info('Run pd help for usage — or pd learn for the operationally read-only agent orientation');
           process.exit(1);
         }
         break;

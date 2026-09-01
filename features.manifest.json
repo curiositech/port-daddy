@@ -728,6 +728,7 @@
         "GET /sitrep",
         "GET /operator/actors",
         "GET /operator/state",
+        "GET /operator/session-directory",
         "GET /operator/coordination-guard",
         "POST /operator/coordination-guard",
         "POST /operator/open-file",
@@ -1031,7 +1032,7 @@
       }
     },
     "tutorial": {
-      "description": "Interactive tutorial \u2014 learn Port Daddy step by step",
+      "description": "Operationally read-only agent orientation; the handler is headless-safe, an interactive terminal may make one bounded GET /health request, and the CLI envelope makes one append-only usage-telemetry attempt",
       "cli": [
         "learn",
         "tutorial"
@@ -2104,6 +2105,7 @@
         "GET /roadmap/items",
         "GET /roadmap/board",
       "GET /roadmap/projection",
+        "GET /roadmap/jira",
         "GET /roadmap/items/:slug",
         "DELETE /roadmap/items/:slug",
         "GET /roadmap/items/:slug/links",

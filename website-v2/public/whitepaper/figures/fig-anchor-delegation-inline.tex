@@ -1,42 +1,43 @@
-% Semantic contract: neighbor-bound signed links form one verifiable provenance chain.
+% Semantic contract: each signed hop binds adjacent identities to one task hash;
+% a skipped or transplanted hop breaks the visible braid.
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}[x=1cm,y=1cm,font=\small]
-  \foreach \x/\id in {-5.25/$\mathrm{id}_1$,-1.75/$\mathrm{id}_2$,1.75/$\mathrm{id}_3$,5.25/$\mathrm{id}_4$} {
-    \node[draw=hhink,line width=.6pt,fill=hhsand!22,rounded corners=2pt,
-      minimum width=20mm,minimum height=9mm] at (\x,1.45) {\id};
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \foreach \x/\id in {-5.1/1,-1.7/2,1.7/3,5.1/4} {
+    \node[circle,draw=hhink,line width=.7pt,fill=hhpaper,minimum size=10mm,
+      inner sep=0pt,font=\bfseries] (id\id) at (\x,2.1) {$\mathrm{id}_{\id}$};
+    \draw[pd hairline] (\x,1.58) -- (\x,-.7);
   }
 
-  \draw[-{Stealth[length=2mm]},draw=hhteal,line width=.9pt] (-4.25,1.45) -- (-2.75,1.45);
-  \draw[-{Stealth[length=2mm]},draw=hhteal,line width=.9pt] (-.75,1.45) -- (.75,1.45);
-  \draw[-{Stealth[length=2mm]},draw=hhteal,line width=.9pt] (2.75,1.45) -- (4.25,1.45);
-  \node[font=\scriptsize\bfseries,text=hhteal] at (-3.5,1.72) {link 1};
-  \node[font=\scriptsize\bfseries,text=hhteal] at (0,1.72) {link 2};
-  \node[font=\scriptsize\bfseries,text=hhteal] at (3.5,1.72) {link 3};
+  \foreach \a/\b/\mid/\n in {1/2/-3.4/1,2/3/0/2,3/4/3.4/3} {
+    \draw[pd focus arrow] (id\a.east) to[out=5,in=175] (id\b.west);
+    \node[pd direct label,text=hhteal,anchor=south] at (\mid,2.42)
+      {$\operatorname{sig}_{\a}$};
+    \node[pd focus datum,minimum size=5pt,inner sep=0pt] (nonce\n) at (\mid,.75) {};
+    \node[pd axis label,anchor=west] at (\mid+.14,.75) {$n_{\n}$ fresh};
+    \draw[pd focus rule] (\mid,1.82) -- (nonce\n);
+    \draw[pd focus rule] (nonce\n) -- (\mid,-.32);
+  }
 
-  \node[draw=hhink,line width=.5pt,fill=hhpaper,rounded corners=2pt,
-    text width=27mm,minimum height=16mm,align=left,font=\scriptsize] at (-3.5,.35)
-    {$\operatorname{sig}_{1}$\\$\bot\rightarrow\mathrm{id}_2$\quad nonce $n_1$\\task hash $h$};
-  \node[draw=hhink,line width=.5pt,fill=hhpaper,rounded corners=2pt,
-    text width=27mm,minimum height=16mm,align=left,font=\scriptsize] at (0,.35)
-    {$\operatorname{sig}_{2}$\\$\mathrm{id}_1\rightarrow\mathrm{id}_3$\quad nonce $n_2$\\task hash $h$};
-  \node[draw=hhink,line width=.5pt,fill=hhpaper,rounded corners=2pt,
-    text width=27mm,minimum height=16mm,align=left,font=\scriptsize] at (3.5,.35)
-    {$\operatorname{sig}_{3}$\\$\mathrm{id}_2\rightarrow\mathrm{id}_4$\quad nonce $n_3$\\task hash $h$};
+  \draw[pd rule] (-5.55,-.32) -- (5.55,-.32);
+  \foreach \x in {-5.1,-1.7,1.7,5.1} \fill[hhteal] (\x,-.32) circle (1.45pt);
+  \node[pd direct label,anchor=north west] at (-5.55,-.52)
+    {chain-wide task hash $h$};
 
-  \draw[hhink,line width=.55pt] (-5.7,-.75) -- (5.7,-.75);
-  \foreach \x in {-3.5,0,3.5} { \fill[hhteal] (\x,-.75) circle (1.7pt); }
-  \node[font=\footnotesize,fill=hhpaper,inner xsep=6pt] at (0,-.75)
-    {verify each boundary: signature $\land$ fresh nonce $\land$ adjacent IDs $\land$ same $h$};
+  \draw[pd caution arrow] (id2.north) to[out=55,in=125] (id4.north);
+  \node[pd direct label,text=hhamber,anchor=south] at (1.7,3.22)
+    {splice skips $\mathrm{id}_3$};
+  \node[circle,draw=hhamber,line width=.9pt,fill=hhpaper,minimum size=6.5mm,
+    inner sep=0pt] at (1.7,2.72) {};
+  \draw[draw=hhamber,line width=.9pt] (1.48,2.5) -- (1.92,2.94);
+  \draw[draw=hhamber,line width=.9pt] (1.48,2.94) -- (1.92,2.5);
 
-  \node[draw=hhamber,line width=.7pt,fill=hhsand!14,rounded corners=2pt,
-    minimum width=82mm,minimum height=10mm,align=center,font=\footnotesize]
-    at (0,-1.65)
-    {substitute or splice one link $\Rightarrow$ one adjacent identity check fails};
+  \node[pd note,anchor=west] at (-5.55,-1.15)
+    {each crossing binds parent, child, fresh nonce, and the same $h$};
 \end{tikzpicture}
-\caption{Delegation is a provenance chain, not a row of interchangeable tokens.
-Every signed link names its parent, child, nonce, and the chain-wide task hash.
-A single verifier walks the rail once; replay fails freshness, while substitution
-or splicing fails at least one adjacent identity binding.}
+\caption{The delegation chain is a signed provenance braid. Identity continuity
+runs across the top, fresh nonces pin each crossing, and one task hash anchors
+the chain below. Replaying a link fails freshness; substituting or splicing a
+link creates a visible discontinuity at an adjacent-identity boundary.}
 \label{fig:anchor-delegation-inline}
 \end{figure}

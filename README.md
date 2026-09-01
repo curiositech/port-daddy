@@ -1,4 +1,4 @@
-# ⚓ Port Daddy (v3.30.5)
+# ⚓ Port Daddy (v3.30.6)
 
 <p align="center">
   <img src="website-v2/public/img/hero-portdaddy.png" alt="Port Daddy — the harbormaster for your AI agents" width="600">
@@ -97,16 +97,7 @@ npm install -g port-daddy
 pd setup
 ```
 
-`pd setup` detects your installed editors (Claude Code, Claude Desktop, Cursor, Windsurf, Gemini, Cline and friends), writes MCP configuration for each, installs the agent skill and Port Daddy Pilot definitions, starts the daemon under launchd supervision, and offers FleetBar.
-
-Optional signed Mac menu-bar app from the public site:
-
-```bash
-curl -LO https://portdaddy.dev/downloads/PortDaddy-FleetBar-macOS-arm64.zip
-curl -LO https://portdaddy.dev/downloads/PortDaddy-FleetBar-macOS-arm64.zip.sha256
-shasum -a 256 -c PortDaddy-FleetBar-macOS-arm64.zip.sha256
-unzip PortDaddy-FleetBar-macOS-arm64.zip
-```
+`pd setup` detects your installed editors (Claude Code, Claude Desktop, Cursor, Windsurf, Gemini, Cline and friends), writes MCP configuration for each, installs the agent skill and Port Daddy Pilot definitions, starts the daemon under launchd supervision, and installs the exact matching signed FleetBar release on macOS. FleetBar updates itself from its out-of-date card: it verifies the version-pinned archive checksum, Curiositech Developer ID, and Apple notarization before replacing the app, preserves the previous bundle for rollback, and relaunches through launchd. The operator never has to hunt for a download or run an update command.
 
 ### 3. Verify
 
@@ -484,7 +475,11 @@ pd parley respond <id> --position "yes, with region fallback"
 pd parley resolve <id>
 ```
 
-Parley decisions render in pd-console's Parley pane, including CONVENE/hold economics (ADR-0086).
+Mission is pd-console's ordinary operator entry point; Parley is an explicit
+coordination action, not an alternate default chat. Invoke it with `pd parley`
+from the emergency CLI or from a verified Sextant selection, then inspect the
+durable decision in pd-console's Parley inspector, including CONVENE/hold
+economics (ADR-0086).
 
 ### Inboxes, Integration & Waiting
 
@@ -1058,7 +1053,9 @@ Port Daddy ships exactly **three** sanctioned operator surfaces (the legacy web 
 
 1. **FleetBar** (`apps/FleetBar/`) — the SwiftUI macOS menu-bar app. Daemon health at a glance, berth chip, cost dashboard, secrets pane, visual task intake, one-click "Open Operator Console". Auto-launched by the daemon.
 2. **Control Center** — FleetBar's window. Fleet graph, agents view (configured fleet agents, live registry, spawned runs, salvage ghosts, inbox traffic, sessions/notes, channels, claims), fleet config editing with topology validation.
-3. **pd-console** (`core/pd-console/`) — the GPU-native (gpui) mission console. It opens on one full-window Work screen: the operator describes an outcome in plain English; the daemon persists one provider-neutral WorkIntent, admits the governed runtime, and binds the exact launch, agent, model, transcript, worktree, and PR back to that mission. Live work and current PR checks remain attached across restarts. Fleet, Sessions, Health, and other deep-truth views are secondary inspector surfaces, not competing defaults. The persistent PTY drawer remains an emergency shell for the real `pd` CLI, not an internal app adapter. Build via `make` / `make install`; the Homebrew cask ships `pd-console-prod.app`.
+3. **pd-console** (`core/pd-console/`) — the GPU-native (gpui) mission console. It opens on one full-window Mission conversation: the operator describes an outcome in plain English; the daemon persists one provider-neutral WorkIntent, admits the governed runtime, and binds the exact launch, agent, model, transcript, worktree, and PR back to that mission. Plan, suggested skills, claims, evidence, and cost remain attached as contextual cards across restarts. Claims is a sortable metadata ledger with full file/symbol, owner, purpose, worktree, branch, phase, and timestamp inspection—never a truncated identity list. Planner keeps Port Daddy's local roadmap visibly separate from an optional, read-only Jira Cloud project projection (`GET /roadmap/jira`); its Jira connection tuple is saved from FleetBar's Credentials surface and queried through Atlassian's [enhanced JQL search endpoint](https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-issue-search/). When Jira is unconfigured or unreachable, Planner reports that source state in place without disabling the local roadmap. Fleet, Sessions, Health, and other deep-truth views are secondary inspectors opened from the conversation, not competing defaults. The persistent PTY drawer remains an emergency shell for the real `pd` CLI, not an internal app adapter. Build via `make` / `make install`; the Homebrew cask ships `pd-console-prod.app`.
+
+   The **Agents** view is the durable conversation switcher, not a second live-process roster. `GET /operator/session-directory` asks every running local daemon berth for its active and recent sessions, deduplicates them by stable Port Daddy session identity, and retains every witnessed berth location. Provider, backend, and model labels appear only when the owning daemon's roster witnessed them; otherwise the view says unknown. Selecting an active row rebinds pd-console to its witnessed owning berth before Mission's shared composer and Lane controls address that stable actor, and the selection survives a console restart. The saved selection includes the owning berth: if only another copy is available after restart, pd-console keeps chat unbound until the operator selects the row again to confirm the switch. Historical or offline rows remain inspectable but cannot be addressed. Closing pd-console closes only the client: launchd, daemon-owned session state, and provider work continue independently, while stopped named berths remain listed as preserved offline ledgers until that berth is started again.
 
 The Agent Harbor runtime-refactor target triad centers pd-console as the deep
 truth surface, FleetBar as ambient consent/status/re-entry, and Scout as
@@ -1206,5 +1203,5 @@ Created by **[Erich Owens](https://github.com/erichowens)** at **[curiositech](h
 ## ⚓ Support & Contact
 
 - **Issues:** [GitHub Issue Tracker](https://github.com/curiositech/port-daddy/issues)
-- **Help:** Run `pd help`, `pd learn`, or `pd tutorial` for the interactive tutorial.
+- **Help:** Run `pd help` for reference, or `pd learn` (`pd tutorial` is its alias) for the operationally read-only agent orientation. Its handler changes no work resources: headless mode makes no daemon request, interactive mode may make one bounded `GET /health`, and the CLI envelope makes one append-only usage-telemetry attempt.
 - **Vibe:** Ambitious, CUTE and CHARMING. 🚩

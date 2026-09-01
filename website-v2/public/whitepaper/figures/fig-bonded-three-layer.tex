@@ -1,85 +1,61 @@
-% Typed hazard/control/evidence ledger for the three-layer Bonded Commons.
-% Semantic form: stratified architecture with explicit failure mapping.
-
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D8C7A6}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-\providecolor{hhgray}{HTML}{5C5650}
-
+% Three independent hazard treatments shown as trajectories through the stack.
 \begin{figure}[H]
 \centering
-\resizebox{0.98\textwidth}{!}{%
-\begin{tikzpicture}[
-  font=\small,
-  head/.style={font=\footnotesize\bfseries,text=hhpaper,align=center},
-  rowlabel/.style={font=\small\bfseries,align=left,text=hhink},
-  cell/.style={font=\footnotesize,align=left,text=hhink},
-  status/.style={font=\footnotesize\bfseries,align=center},
-]
+\resizebox{0.96\textwidth}{!}{%
+\begin{tikzpicture}[pd figure]
+  \node[pd panel title,anchor=west] at (-5.0,3.55)
+    {one attempted act; three different questions};
 
-% Table scaffold: failure class | layer | required record | disposition.
-\fill[hhebony] (0,5.25) rectangle (15.6,6.05);
-\fill[hhsand!35] (0,3.55) rectangle (15.6,5.25);
-\fill[hhteal!8] (0,1.85) rectangle (15.6,3.55);
-\fill[hhamber!11] (0,0.15) rectangle (15.6,1.85);
+  % The membranes are thin because they are predicates, not organizations.
+  \fill[hhsand!22] (-.36,-1.80) rectangle (.36,2.55);
+  \fill[hhteal!6] (3.84,-1.80) rectangle (4.56,2.55);
+  \fill[hhamber!8] (8.04,-1.80) rectangle (8.76,2.55);
+  \draw[pd rule] (0,-1.80)--(0,2.55);
+  \draw[pd focus rule] (4.20,-1.80)--(4.20,2.55);
+  \draw[pd caution rule] (8.40,-1.80)--(8.40,2.55);
 
-\draw[hhebony,thick] (0,0.15) rectangle (15.6,6.05);
-\foreach \x in {3.7,7.7,11.9} {\draw[hhebony] (\x,0.15)--(\x,6.05);}
-\foreach \y in {1.85,3.55,5.25} {\draw[hhebony] (0,\y)--(15.6,\y);}
+  \node[pd panel title,align=center] at (0,2.84)
+    {L1  SCOPE\\[-1pt]\normalfont\scriptsize can this act exist?};
+  \node[pd panel title,align=center] at (4.20,2.84)
+    {L2  EVIDENCE\\[-1pt]\normalfont\scriptsize who did what?};
+  \node[pd panel title,align=center] at (8.40,2.84)
+    {L3  COLLATERAL\\[-1pt]\normalfont\scriptsize who carries the loss?};
 
-\node[head] at (1.85,5.65) {FAILURE CLASS};
-\node[head] at (5.70,5.65) {CONTROL LAYER};
-\node[head] at (9.80,5.65) {REQUIRED RECORD};
-\node[head] at (13.75,5.65) {DISPOSITION};
+  % Three semantic trajectories. Position and termination encode the result;
+  % color only reinforces it.
+  \node[pd direct label,anchor=east] at (-3.72,1.65) {outside grant};
+  \draw[pd caution rule,dashed] (-3.55,1.65)--(-.18,1.65);
+  \node[pd caution datum] at (0,1.65) {};
+  \draw[pd caution arrow] (.15,1.72) .. controls (.55,2.18) and (1.15,2.28) .. (1.75,2.28);
+  \node[pd direct label,text=hhamber,anchor=west,font=\scriptsize\bfseries]
+    at (1.85,2.28) {REFUSED};
 
-% Layer 1.
-\node[rowlabel,text width=31mm,anchor=west] at (0.18,4.40)
-  {Act exceeds grant};
-\node[cell,text width=33mm,anchor=west] at (3.90,4.40)
-  {\textbf{L1 Capability scope}\newline verifier + attenuation};
-\node[cell,text width=36mm,anchor=west] at (7.90,4.40)
-  {scope check\newline refusal receipt};
-\node[status,text=hhteal] at (13.75,4.40)
-  {\rule{13mm}{1.2pt}\quad PREVENTED};
+  \node[pd direct label,anchor=east] at (-3.72,.48) {admitted, harmless};
+  \draw[pd focus arrow] (-3.55,.48)--(11.10,.48);
+  \node[pd focus datum] at (4.20,.48) {};
+  \node[circle,draw=hhteal,fill=hhpaper,line width=.8pt,inner sep=2.0pt]
+    at (8.40,.48) {};
+  \node[pd direct label,text=hhteal,anchor=west,font=\scriptsize\bfseries]
+    at (11.20,.48) {COMPLETE + RECORDED};
 
-% Layer 2.
-\node[rowlabel,text width=31mm,anchor=west] at (0.18,2.70)
-  {Authorized act disputed};
-\node[cell,text width=33mm,anchor=west] at (3.90,2.70)
-  {\textbf{L2 Evidence chain}\newline append-only lineage};
-\node[cell,text width=36mm,anchor=west] at (7.90,2.70)
-  {actor $\cdot$ reason $\cdot$ artifact\newline outcome + Merkle binding};
-\node[status,text=hhink] at (13.75,2.70)
-  {\rule{13mm}{1.2pt}\quad ATTRIBUTED};
+  \node[pd direct label,anchor=east] at (-3.72,-.82) {admitted, harmful};
+  \draw[pd caution rule,-{Stealth[length=2.0mm,width=1.25mm]}]
+    (-3.55,-.82)--(8.30,-.82);
+  \node[circle,fill=hhamber,draw=hhpaper,line width=.55pt,inner sep=2.15pt]
+    at (4.20,-.82) {};
+  \node[pd caution datum] at (8.40,-.82) {};
+  \draw[pd caution arrow] (8.55,-.90) .. controls (9.00,-1.42) and (9.65,-1.48) .. (10.42,-1.48);
+  \node[pd direct label,text=hhamber,anchor=west,font=\scriptsize\bfseries]
+    at (10.52,-1.48) {PRICED SETTLEMENT};
 
-% Layer 3.
-\node[rowlabel,text width=31mm,anchor=west] at (0.18,1.00)
-  {Evidence-linked damage};
-\node[cell,text width=33mm,anchor=west] at (3.90,1.00)
-  {\textbf{L3 Collateral pool}\newline bond + settlement};
-\node[cell,text width=36mm,anchor=west] at (7.90,1.00)
-  {damage proof\newline contract bound + amount};
-\node[status,text=hhamber] at (13.75,1.00)
-  {\rule[2pt]{13mm}{1.2pt}\quad PRICED};
-
-% Cross-layer dependency rail: rows are not independent substitutes.
-\draw[->,>=Latex,thick,draw=hhgray,dashed] (5.70,3.55) -- (5.70,3.08)
-  node[midway,right=4pt,font=\footnotesize\itshape,text=hhgray] {if admitted};
-\draw[->,>=Latex,thick,draw=hhgray,dashed] (5.70,1.85) -- (5.70,1.38)
-  node[midway,right=4pt,font=\footnotesize\itshape,text=hhgray] {if harmful};
-
-% Explicit composition statement in a separate evidence band.
-\draw[hhebony,thick] (0,-0.25) -- (15.6,-0.25);
-\node[font=\footnotesize,align=center,text=hhink,text width=146mm,anchor=north]
-  at (7.8,-0.48)
-  {\textbf{Composition invariant:} L1 decides admissibility; L2 preserves attribution for every admitted act; L3 can price only damage that L2 binds to a contract. No layer substitutes for another.};
-
+  \node[pd note,anchor=north,align=center,text width=34mm] at (2.10,-1.10)
+    {admission creates\\an attribution duty};
+  \node[pd note,anchor=north,align=center,text width=34mm] at (6.30,-1.10)
+    {only bound evidence\\can reach settlement};
+  \draw[pd guide] (.42,-1.03)--(3.78,-1.03);
+  \draw[pd guide] (4.62,-1.03)--(8.00,-1.03);
 \end{tikzpicture}%
 }
-\caption{The three layers separate three distinct hazard treatments. Capability scope prevents acts outside a grant; the evidence chain attributes admitted acts; collateral prices only evidence-linked damage. The dashed dependencies are load-bearing: settlement cannot price an act that the evidence layer did not bind, and evidence cannot legitimize an act that the capability layer should have refused.}
+\caption{Three layers answer three different questions about the same attempted act. Layer~1 terminates an out-of-grant trajectory before shared state changes. Every admitted act crosses Layer~2 and acquires durable attribution. Layer~3 activates only for evidence-linked damage and prices the resulting loss. The distinct endpoints are the composition claim: refusal, attribution, and settlement are not interchangeable services.}
 \label{fig:bonded-three-layer}
 \end{figure}

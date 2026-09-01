@@ -5,9 +5,6 @@ import {
   parseSteelMan,
   parseAuthoredFiles,
   testPlanSystemPrompt,
-  buildContractBodySection,
-  PURSER_CONTRACT_START,
-  PURSER_CONTRACT_END,
   type TranscriptLike,
   type PurserMetrics,
 } from '../src/purser.js';
@@ -977,45 +974,22 @@ describe('runPurser — steel-man failure modes', () => {
     expect(repairStep.title).toMatch(/repair HEALED/);
     const steelStep = rec.steps.find(s => s.kind === 'purser-steelman')!;
     expect(steelStep.title).toContain('2 obligation(s)');
-    // The healed contract still reaches the PR summary.
-    expect(state.prPatches.some(p => typeof p.body === 'string')).toBe(true);
+    // The healed contract reaches the bot-owned comment without rewriting the PR summary.
+    expect(state.prPatches.some(p => typeof p.body === 'string')).toBe(false);
+    expect(purserCommentBodies(state).join('\n')).toContain('Guarantee the widget frobs deterministically.');
   });
 
-  it('a well-formed steel-man is written into the PR SUMMARY (the PR body), between markers', async () => {
-    // Operator mandate (2026-08-19): the steel-man argument and its
-    // obligations are the best chronology of what a PR should be — an agent
-    // maintains them in the PR body, not only in a comment that scrolls away.
+  it('publishes a well-formed steel-man on the checked bot-owned comment without rewriting the PR body', async () => {
     const { ai } = seqAi([STEELMAN_JSON, TESTS_JSON]);
     const rec = recorder();
 
     await runPurser(mkShip(), mkCtx(), makeEnv({ AI: ai }), 'tok', rec.transcript, freshMetrics());
 
-    const bodyPatch = state.prPatches.find(p => p.number === 7 && typeof p.body === 'string');
-    expect(bodyPatch).toBeDefined();
-    const body = bodyPatch!.body!;
-    expect(body).toContain(PURSER_CONTRACT_START);
-    expect(body).toContain(PURSER_CONTRACT_END);
-    expect(body).toContain('Contract (steel-manned by pd-purser)');
-    expect(body).toContain('Guarantee the widget frobs deterministically.');
-    expect(body).toContain('1. frobs on empty input without throwing');
-    expect(body).toContain('2. rejects negative ids with a typed error');
-
-    const step = rec.steps.find(s => s.kind === 'purser-contract-posted')!;
-    expect(step).toBeDefined();
-    expect(step.title).toContain('written into the PR summary');
-    expect(step.detail).toMatchObject({ posted: true, obligationCount: 2 });
-  });
-
-  it('buildContractBodySection renders the purpose and every numbered obligation', () => {
-    const section = buildContractBodySection({
-      purpose: 'p',
-      obligations: ['first', 'second', 'third'],
-      testTargets: [],
-    });
-    expect(section).toContain('**Purpose:** p');
-    expect(section).toContain('1. first');
-    expect(section).toContain('3. third');
-    expect(section).toContain('Maintained by pd-purser');
+    const comment = purserCommentBodies(state).join('\n');
+    expect(comment).toContain('Guarantee the widget frobs deterministically.');
+    expect(comment).toContain('frobs on empty input without throwing');
+    expect(comment).toContain('rejects negative ids with a typed error');
+    expect(state.prPatches.some(p => typeof p.body === 'string')).toBe(false);
   });
 
   it('a well-formed steel-man records purpose + the full obligations text (not just the count) in the transcript', async () => {

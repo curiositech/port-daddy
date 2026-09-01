@@ -43,9 +43,9 @@
        \vspace{0.3em}
     \endgroup
   \fi}
-\renewcommand*\l@section{\@dottedtocline{1}{1.2em}{2.8em}}
-\renewcommand*\l@subsection{\@dottedtocline{2}{3.4em}{3.6em}}
-\renewcommand*\l@subsubsection{\@dottedtocline{3}{6.2em}{4.2em}}
+\renewcommand*\l@section{\@dottedtocline{1}{1.2em}{3.5em}}
+\renewcommand*\l@subsection{\@dottedtocline{2}{4.1em}{4.2em}}
+\renewcommand*\l@subsubsection{\@dottedtocline{3}{7.0em}{4.8em}}
 \renewcommand*\l@figure{\@dottedtocline{1}{1.2em}{2.8em}}
 \renewcommand*\l@table{\@dottedtocline{1}{1.2em}{2.8em}}
 \makeatother
@@ -64,6 +64,7 @@
 \definecolor{hhteal}{HTML}{00564C}
 \definecolor{hhpaper}{HTML}{FBF7EF}
 \definecolor{hhgray}{HTML}{5C5650}
+\input{figures/pd-figure-language}
 
 % One maturity vocabulary for the collected volume. Uppercase aliases preserve
 % the independently buildable Chapter III source.
@@ -216,32 +217,6 @@
 \renewcommand{\footrulewidth}{0pt}
 
 \newcommand{\pdcurrentchapter}{I}
-% Editorial plates are kept outside the analytical figure counter. They are
-% reproduced whole: no trim, clip, recolor, or overlay is permitted here.
-\newcommand{\pdplateimage}[2]{%
-  \includegraphics[width=#1,height=0.88\textheight,keepaspectratio]{#2}%
-}
-\newcommand{\pdchapterplate}[1]{%
-  \clearpage
-  \thispagestyle{empty}%
-  \null\vfill
-  \begin{center}\pdplateimage{\textwidth}{#1}\end{center}%
-  \vfill\null
-  \clearpage
-}
-\newcommand{\pdcodaplate}[3]{%
-  \clearpage
-  \thispagestyle{plain}%
-  \begin{center}
-    {\scshape\footnotesize\color{hhgray} #1}\par
-    \vspace{0.18cm}
-    {\color{hhcobalt}\rule{0.18\textwidth}{0.7pt}}\par
-    \vspace{0.35cm}
-    \pdplateimage{\textwidth}{#2}\par
-    \vspace{0.3cm}
-    {\small\itshape\color{hhgray} #3}\par
-  \end{center}%
-}
 \newcommand{\pdchapter}[2]{%
   \clearpage
   \renewcommand{\pdcurrentchapter}{#1}%

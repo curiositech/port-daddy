@@ -65,6 +65,19 @@ describe('whitepaper metadata sync', () => {
     expect(detectDrift([COLLECTED_VOLUME], pdfFactsFromDisk)).toEqual([])
   })
 
+  test('collected pagination is composed independently from standalone PDFs', () => {
+    if (!pdfinfoAvailable()) return
+    const standalonePages = WHITE_PAPERS.reduce((sum, paper) => sum + paper.pages, 0)
+    const actualPages = pdfFactsFromDisk(resolvePdfPath(COLLECTED_VOLUME.pdfPath)).pages
+
+    // The collected edition strips standalone front matter and inserts its own
+    // front matter, chapter openings and handoffs, result atlas, and collated
+    // references. The built PDF is authoritative; summing the seven separately
+    // typeset editions or copying a page-count literal into this test is not.
+    expect(COLLECTED_VOLUME.pages).toBe(actualPages)
+    expect(standalonePages).not.toBe(actualPages)
+  })
+
   test('every paper declares an on-disk PDF', () => {
     for (const paper of WHITE_PAPERS) {
       const abs = resolvePdfPath(paper.pdfPath)
@@ -187,7 +200,7 @@ describe('whitepaper metadata sync', () => {
   test('audited Legible metadata names the collected-volume edition', () => {
     const byId = new Map(WHITE_PAPERS.map((paper) => [paper.id, paper]))
     expect(byId.get('legible-swarm')).toMatchObject({
-      pages: 48,
+      pages: 46,
       status: 'Version 1.2 (collected-volume edition)',
     })
   })

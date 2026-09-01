@@ -1,31 +1,64 @@
-% Figure III.4 --- continuity is an evidence pipeline, not three product boxes.
+% Figure III.4 --- three evidence traces crossing the same process death.
 \begin{figure}[H]
 \centering
 \resizebox{0.96\textwidth}{!}{%
-\begin{tikzpicture}[font=\footnotesize,
-  cell/.style={draw=hhink!62,line width=.38pt,fill=hhsand!17,minimum height=11mm,text width=31mm,align=left,inner sep=4pt},
-  head/.style={cell,fill=hhink,text=hhpaper,font=\footnotesize\bfseries,align=center},
-  organ/.style={cell,fill=hhteal!12,draw=hhteal!82,font=\footnotesize\bfseries},
-]
-  \node[head,text width=29mm] at (-5.2,2.3) {continuity organ};
-  \node[head] at (-1.75,2.3) {input artifact};
-  \node[head] at (1.75,2.3) {persistence rule};
-  \node[head] at (5.2,2.3) {output evidence};
-  \node[organ,text width=29mm] at (-5.2,.95) {Episodic memory\newline\textsc{implemented}};
-  \node[cell] at (-1.75,.95) {typed episode + source reference};
-  \node[cell] at (1.75,.95) {retain scored records; never promote a summary as evidence};
-  \node[cell] at (5.2,.95) {recalled episode is traceable to its source};
-  \node[organ,text width=29mm] at (-5.2,-.65) {Checkpoint\newline\textsc{partial}};
-  \node[cell] at (-1.75,-.65) {task state + worktree lineage};
-  \node[cell] at (1.75,-.65) {retain restart context; no execution-state claim};
-  \node[cell] at (5.2,-.65) {successor receives bounded, attributable context};
-  \node[organ,text width=29mm] at (-5.2,-2.25) {Outcome ledger\newline\textsc{partial}};
-  \node[cell] at (-1.75,-2.25) {commitment + oracle result};
-  \node[cell] at (1.75,-2.25) {append witnessed closure; preserve the audit reference};
-  \node[cell] at (5.2,-2.25) {reputation may consume this row only};
-  \draw[hhteal,line width=1.1pt] (-6.55,-3.25) -- (6.55,-3.25);
-  \node[font=\footnotesize\bfseries,text=hhteal,anchor=north] at (0,-3.25) {reputation reads witnessed outcomes, not transient state};
+\begin{tikzpicture}[pd figure]
+  \node[pd panel title,anchor=west] at (-6.8,2.75)
+    {what survives when the process body disappears?};
+  \draw[pd caution rule,dashed] (-1.15,-2.25) -- (-1.15,2.10);
+  \node[pd direct label,text=hhamber,anchor=west] at (-.92,2.18)
+    {process death};
+  \draw[pd caution arrow] (-.78,2.02) -- (-1.12,1.72);
+
+  % Shared time axis.
+  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (-5.75,-3.30) -- (6.25,-3.30);
+  \node[pd axis label,anchor=east] at (-5.95,-3.30) {live body};
+  \node[pd axis label,anchor=west] at (6.35,-3.30) {successor};
+
+  % Memory trace.
+  \node[pd direct label,anchor=east] at (-5.95,1.55)
+    {episodic memory\\[-1pt]{\tiny implemented}};
+  \draw[pd hairline] (-5.65,1.55) -- (6.05,1.55);
+  \foreach \x in {-4.9,-3.6,-2.35,.05,1.6,3.15,4.7}
+    \node[pd focus datum] at (\x,1.55) {};
+  \node[pd note,anchor=west,text=hhteal] at (.1,1.90)
+    {typed episodes remain source-addressable};
+
+  % Checkpoint trace: summary survives but execution state does not.
+  \node[pd direct label,anchor=east] at (-5.95,0)
+    {checkpoint\\[-1pt]{\tiny partial}};
+  \draw[pd rule,line width=1.0pt] (-5.65,0) -- (-1.15,0);
+  \draw[pd caution rule,dashed] (-1.15,0) -- (1.05,0);
+  \draw[pd caution rule,line width=1.0pt] (1.05,0) -- (4.0,0);
+  \node[pd caution datum] at (1.05,0) {};
+  \node[pd direct label,text=hhamber,anchor=west] at (1.28,.18)
+    {summary + worktree lineage};
+  \draw[pd caution rule] (-.82,.30) -- (.70,-.30);
+  \draw[pd caution rule] (-.82,-.30) -- (.70,.30);
+  \node[pd note,anchor=west] at (1.28,-.38)
+    {execution state is not restored};
+
+  % Outcome-ledger trace.
+  \node[pd direct label,anchor=east] at (-5.95,-1.65)
+    {outcome ledger\\[-1pt]{\tiny partial}};
+  \draw[pd focus rule,line width=1.35pt] (-5.65,-1.65) -- (6.05,-1.65);
+  \foreach \x/\lab in {-4.75/$c_1$,-3.05/$o_1$,-.35/$c_2$,2.05/$o_2$,4.65/$o_3$} {
+    \draw[pd focus rule] (\x,-1.65) -- (\x,-2.10);
+    \node[pd axis label,anchor=north] at (\x,-2.15) {\lab};
+  }
+  \node[pd direct label,text=hhteal,anchor=west] at (.05,-1.25)
+    {commitment and oracle-bound closure remain attributable};
+
+  \draw[pd focus rule] (-5.65,-2.72) -- (6.05,-2.72);
+  \node[font=\scriptsize\bfseries,text=hhteal,anchor=north] at (.2,-2.72)
+    {reputation may consume the witnessed outcome rail only};
 \end{tikzpicture}}
-\caption{\textbf{The three continuity organs as an evidence contract.} Episodic memory (\BUILT) retains typed, source-addressable episodes. The checkpoint (\BUILTWEAK) carries task lineage and worktree context across compaction, but does not claim to restore execution state. The outcome ledger (\BUILTWEAK) appends commitments closed against oracles. Only that final, witnessed row is admissible as reputation evidence (\S\ref{sec:organs}). The maturity labels use the same \BUILT/\BUILTWEAK\ macros as the text.}
+\caption{\textbf{The three continuity organs have different survival depths.}
+Episodic memory (\BUILT) retains source-addressable episodes across the death
+boundary. The checkpoint organ (\BUILTWEAK) preserves a summary and worktree
+lineage, but the crossed gap marks the execution state it cannot restore. The
+outcome ledger (\BUILTWEAK) preserves commitments and oracle-bound closures on an
+unbroken attributable rail. Reputation keys on that lowest rail, not on a recalled
+episode or a restart summary.}
 \label{fig:organs}
 \end{figure}

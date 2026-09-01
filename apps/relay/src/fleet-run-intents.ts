@@ -2,10 +2,11 @@
  * Durable Cloud Fleet admission + logical-run projections.
  *
  * Cloudflare Queues is at-least-once and cannot replace an older queued
- * message.  The relay therefore records one immutable generation per PR head
- * before enqueueing it.  A newer generation supersedes older queued/running
- * work after its own queue send succeeds; the executor checks this ledger
- * before spending.  Reads merge the admission row with the eventual
+ * message. The relay records a monotonic admission generation before enqueueing
+ * it. A newer generation projects older queued/running work as superseded after
+ * its own queue send succeeds; the executor rechecks that ledger at guarded
+ * publication boundaries. Degraded executor rollout mode and the non-atomic
+ * webhook-to-queue/check interval remain explicit residuals. Reads merge the admission row with the eventual
  * `fleet_runs` transcript header so queued work is visible before a consumer
  * starts and historical rows remain readable after a rollback.
  */
