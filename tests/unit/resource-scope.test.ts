@@ -706,6 +706,25 @@ describe('public catalog, actor activity, and legacy quarantine separation', () 
       federated: true,
     }), snap)).toMatchObject({ allowed: false, code: 'FEDERATION_DENIED' });
   });
+
+  test.each([undefined, '', '   '])(
+    'quarantine requires an explicit well-formed source store id (%p)',
+    (sourceStoreId) => {
+      const quarantineGrant = grant('grant-required-quarantine-source', LEGACY_QUARANTINE, {
+        actions: ['salvage.read'],
+      });
+      expect(authorizeScopedResource(request({
+        scopeId: LEGACY_QUARANTINE.scopeId,
+        grantId: quarantineGrant.grantId,
+        action: 'salvage.read',
+        resourceKind: 'legacy-row',
+        sourceStoreId,
+      }), snapshot(undefined, [quarantineGrant]))).toMatchObject({
+        allowed: false,
+        code: 'QUARANTINE_SOURCE_REQUIRED',
+      });
+    },
+  );
 });
 
 describe('federation and grant attenuation cannot create action authority', () => {

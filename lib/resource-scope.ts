@@ -249,6 +249,7 @@ export type ScopeDecisionCode =
   | 'ENVELOPE_DENIED'
   | 'FEDERATION_DENIED'
   | 'QUARANTINE_OPERATOR_REQUIRED'
+  | 'QUARANTINE_SOURCE_REQUIRED'
   | 'QUARANTINE_SOURCE_MISMATCH'
   | 'VECTOR_SPACE_REQUIRED'
   | 'ATTENUATION_ALLOWED'
@@ -868,6 +869,16 @@ export function authorizeScopedResource(
   const targetScope = scopeResolution.value;
 
   if (targetScope.classification === 'public-catalog') return publicCatalogDecision(request);
+  if (
+    targetScope.classification === 'operator-salvage-quarantine'
+    && !identifier(request.sourceStoreId)
+  ) {
+    return deny(
+      'QUARANTINE_SOURCE_REQUIRED',
+      'legacy quarantine requires an explicit source store id',
+      'classification',
+    );
+  }
   if (request.action === 'vector.read' && !parseEmbeddingSpace(request.embeddingSpace)) {
     return deny('VECTOR_SPACE_REQUIRED', 'vector access requires exact embedding-space metadata', 'vector-space');
   }
