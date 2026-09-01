@@ -91,7 +91,7 @@ The `inform done` then uses the `done` predicate wrapping the same action:
 
 This is a completed-action declaration: "the action (described here) is done." The receiver doesn't need to look up what action was being referred to — it's right there in the message.
 
-For WinDAGs, this self-describing pattern is valuable for long-running orchestrations where the orchestrator needs to match completion notifications to pending task steps. Rather than relying on correlation IDs stored externally, the completion message carries enough context to be matched by content alone.
+For Jury-rig, this self-describing pattern is valuable for long-running orchestrations where the orchestrator needs to match completion notifications to pending task steps. Rather than relying on correlation IDs stored externally, the completion message carries enough context to be matched by content alone.
 
 ## The `propose` Failure: Wrong Performative
 
@@ -108,7 +108,7 @@ The DF can handle `request` performatives. It cannot handle `propose` — which 
 
 This example teaches: the communicative act type is not a wrapper — it is load-bearing. Sending the right content with the wrong act type is a communication failure. The receiver's interpretation of the content depends on the act type: a `propose` to deregister is semantically different from a `request` to deregister.
 
-For WinDAGs, this means: skill invocations must use the correct communicative act type for the intended interaction semantics. Sending a "task completion notification" as a request (which demands a response) versus an inform (which is a one-way notification) has very different implications for downstream protocol behavior.
+For Jury-rig, this means: skill invocations must use the correct communicative act type for the intended interaction semantics. Sending a "task completion notification" as a request (which demands a response) versus an inform (which is a one-way notification) has very different implications for downstream protocol behavior.
 
 ## Interaction Protocol Multiplicity
 
@@ -122,11 +122,11 @@ While FIPA-Request is the primary protocol used in the Agent Management Specific
 
 The fact that supported protocols are part of the DF registration means agents can discover not just *what* another agent can do, but *how* it prefers to be coordinated with.
 
-## Application to WinDAGs Communication Design
+## Application to Jury-rig Communication Design
 
 ### Performative Types for Skill Invocation
 
-WinDAGs skill invocations should use distinct performative types:
+Jury-rig skill invocations should use distinct performative types:
 
 - **`task-request`**: "Execute this task and report completion" (maps to FIPA-Request)
 - **`capability-query`**: "Can you handle this type of task?" (maps to FIPA-Query)
@@ -143,7 +143,7 @@ Follow the FIPA pattern: task completion messages should include enough context 
 
 ### Protocol Labeling
 
-Every message in WinDAGs should carry a `:protocol` label identifying which interaction protocol it belongs to. This enables the receiver to track the correct state machine for the conversation. Without protocol labels, a `failure` message is ambiguous: which of several in-flight interactions did this failure belong to?
+Every message in Jury-rig should carry a `:protocol` label identifying which interaction protocol it belongs to. This enables the receiver to track the correct state machine for the conversation. Without protocol labels, a `failure` message is ambiguous: which of several in-flight interactions did this failure belong to?
 
 ### Language and Ontology Negotiation
 
@@ -167,16 +167,16 @@ This echo serves multiple purposes:
 2. The sender knows the specific reason for the not-understood (unsupported-act vs. unrecognised-value)
 3. The sender can correct and retry with the appropriate act type or content format
 
-For WinDAGs, implementing this echo pattern in error responses helps with debugging: when an orchestrator receives a `not-understood` from a skill, it should be able to see exactly what it sent and exactly what part was problematic. This transforms debugging from "why did that fail?" to "oh, I sent the wrong message type" — a much more tractable question.
+For Jury-rig, implementing this echo pattern in error responses helps with debugging: when an orchestrator receives a `not-understood` from a skill, it should be able to see exactly what it sent and exactly what part was problematic. This transforms debugging from "why did that fail?" to "oh, I sent the wrong message type" — a much more tractable question.
 
 ## Caveats
 
-**Verbosity vs. efficiency**: The FIPA message format is verbose — full message echo in every response, full AID descriptions in every sender/receiver field. For high-throughput systems, this verbosity becomes a bottleneck. Performance-critical WinDAGs deployments may need a binary encoding of the same logical structure. The important thing is to preserve the semantic structure, not the FIPA-SL0 syntax specifically.
+**Verbosity vs. efficiency**: The FIPA message format is verbose — full message echo in every response, full AID descriptions in every sender/receiver field. For high-throughput systems, this verbosity becomes a bottleneck. Performance-critical Jury-rig deployments may need a binary encoding of the same logical structure. The important thing is to preserve the semantic structure, not the FIPA-SL0 syntax specifically.
 
 **Stateless message interpretation**: The self-describing message pattern works because each message is (mostly) interpretable standalone. But some interaction patterns inherently require state: you can't properly interpret an `agree` without knowing what was `request`ed. Implementations must maintain conversation state keyed by interaction ID.
 
-**Protocol explosion**: FIPA's protocol library defines many interaction patterns. Using all of them creates a large vocabulary that all parties must implement. In practice, most WinDAGs interactions need only two or three protocols: synchronous request/response, asynchronous task submission, and status query. Start with the minimum set.
+**Protocol explosion**: FIPA's protocol library defines many interaction patterns. Using all of them creates a large vocabulary that all parties must implement. In practice, most Jury-rig interactions need only two or three protocols: synchronous request/response, asynchronous task submission, and status query. Start with the minimum set.
 
 ## Summary
 
-FIPA's communication model is built on speech act theory: messages are performative acts, not just data transfers. The FIPA-Request interaction protocol provides a two-phase commitment pattern (agree then complete/fail) that separates rejection from failure. Messages are self-describing, carrying their own context for interpretation and matching. Ontology and language declarations in every message ensure shared interpretive context. The `not-understood` exception with echoed content enables self-healing communication. For WinDAGs: define distinct performative types for different interaction purposes, use the agree/complete split for long-running tasks, make completion messages self-describing, and implement `not-understood` with content echo as the error response for uninterpretable messages.
+FIPA's communication model is built on speech act theory: messages are performative acts, not just data transfers. The FIPA-Request interaction protocol provides a two-phase commitment pattern (agree then complete/fail) that separates rejection from failure. Messages are self-describing, carrying their own context for interpretation and matching. Ontology and language declarations in every message ensure shared interpretive context. The `not-understood` exception with echoed content enables self-healing communication. For Jury-rig: define distinct performative types for different interaction purposes, use the agree/complete split for long-running tasks, make completion messages self-describing, and implement `not-understood` with content echo as the error response for uninterpretable messages.

@@ -1,84 +1,51 @@
-% Sybil attack flow — placed inline near the A5 subsection in body.
-
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D8C7A6}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-\providecolor{maydayred}{HTML}{8B0000}
-
+% Coverage-bounded Sybil deterrence as replicated entry plus a saturation response.
 \begin{figure}[H]
 \centering
-\resizebox{0.98\textwidth}{!}{%
-\begin{tikzpicture}[
-  font=\small,
-  adv/.style={draw=maydayred,thick,fill=maydayred!8,rounded corners=3pt,
-              inner sep=4pt,minimum width=22mm,align=center,
-              font=\bfseries,text=maydayred},
-  sybil/.style={draw=maydayred,thick,fill=hhpaper,rounded corners=2pt,
-                inner sep=3pt,minimum width=16mm,align=center,
-                font=\footnotesize,text=maydayred},
-  honest/.style={draw=hhebony,thick,fill=hhsand,rounded corners=2pt,
-                 inner sep=3pt,minimum width=16mm,align=center},
-  auction/.style={draw=hhebony,thick,fill=hhsanddeep,rounded corners=3pt,
-                  inner sep=5pt,align=center,minimum width=28mm},
-  payout/.style={draw=hhteal,thick,fill=hhpaper,rounded corners=2pt,
-                 inner sep=3pt,align=center,font=\footnotesize\bfseries},
-  arr/.style={->,>=Latex,thick,draw=hhink},
-  badarr/.style={->,>=Latex,thick,draw=maydayred,dashed},
-]
-% Layout: ATTACKER(0,0) → Sybils(3,y) → Auction(7,0) ← Honest(10.5,y)
-%         Winner(7,-2.4) ← Lossbox(3.5,-2.4)
-%         A5 box centred below, full width
-\node[adv] (attacker) at (0,0) {ATTACKER};
-\node[sybil] (s1) at (3, 0.9) {Sybil $S_1$\\dep $B_{\mathrm{dep}}$};
-\node[sybil] (s2) at (3, 0)   {Sybil $S_2$\\dep $B_{\mathrm{dep}}$};
-\node[sybil] (s3) at (3,-0.9) {Sybil $S_3$\\dep $B_{\mathrm{dep}}$};
-\draw[arr] (attacker.east) -- (s1.west);
-\draw[arr] (attacker.east) -- node[above,font=\footnotesize]{spawn} (s2.west);
-\draw[arr] (attacker.east) -- (s3.west);
-% Auction in the centre
-\node[auction] (auction) at (7,0) {Vickrey auction\\$q^* = q_{(2)}$};
-% Honest bidders to the RIGHT of the auction
-\node[honest] (h1) at (10.5, 0.5) {Honest $H_1$};
-\node[honest] (h2) at (10.5,-0.5) {Honest $H_2$};
-% Sybil → Auction (bad, dashed)
-\draw[badarr] (s1.east) to[bend left=12]  (auction.north west);
-\draw[badarr] (s2.east) to                (auction.west);
-\draw[badarr] (s3.east) to[bend right=12] (auction.south west);
-% Annotation above auction
-\node[font=\footnotesize\itshape,text=hhcobalt,
-      align=center,above=2mm of auction.north]
-  {sybils bid $(1{-}\varepsilon)\,q_{\min}^{\mathrm{honest}}$};
-% Honest → Auction (good, solid)
-\draw[arr] (h1.west) to[bend right=12] (auction.north east);
-\draw[arr] (h2.west) to[bend left=12]  (auction.south east);
-% Winner box below auction
-\node[draw=hhcobalt,thick,fill=hhpaper,rounded corners=2pt,inner sep=3pt,
-      align=center,font=\bfseries,text=hhcobalt]
-  (winner) at (7,-2.2) {WINNER: $S_i$};
-\draw[arr,line width=1.4pt,draw=hhcobalt] (auction.south) -- (winner.north);
-% Loss box — placed below the sybil column, clear of sybil nodes
-\node[payout,fill=hhamber!20,minimum width=44mm,align=left,
-      text width=42mm]
-  (lossbox) at (2.8,-3.5)
-  {{\bfseries on loss $d > 0$:}\\Sybil pays $0$;\\
-   protocol slashes $\min(B_{\mathrm{dep}}, B_T)$};
-\draw[arr,draw=hhcobalt,dashed] (winner.south west) to[bend right=20] (lossbox.east);
-% A5 finding box — centred below the entire diagram, wrapped width
-\node[draw=hhcobalt,thick,fill=hhpaper,rounded corners=3pt,inner sep=5pt,
-      align=left,text width=120mm,anchor=north]
-  at ($(lossbox.south)+(2.2,-6mm)$)
-  {{\bfseries A5 finding:} the deposit slash is capped at the coverage
-   $B_T = \mu(1+s)$. Past $B_{\mathrm{dep}} \geq B_T$, additional deposit
-   provides no extra deterrence. Closing A5 requires a composite
-   mechanism: $\mathbf{C_{\mathrm{kyc}} + \text{reputation gating} +
-   \text{per-class}\;B_{\mathrm{dep}}}$.};
-\end{tikzpicture}
+\resizebox{0.94\textwidth}{!}{%
+\begin{tikzpicture}[pd figure]
+  \node[pd panel title,anchor=west] at (-5.25,3.45)
+    {replicating identities multiplies entry, not the loss attached to one default};
+
+  % One principal fans out into fungible identities.
+  \node[circle,draw=hhamber,line width=1.1pt,fill=hhamber!9,minimum size=10mm,
+        font=\footnotesize\bfseries] (p) at (-4.45,1.15) {$P$};
+  \foreach \y/\lab in {2.55/1,1.85/2,1.15/3,.45/$\cdots$,-.25/$K$} {
+    \node[circle,draw=hhink,line width=.65pt,fill=hhpaper,minimum size=7mm,
+          font=\scriptsize] at (-2.30,\y) {\lab};
+    \draw[pd caution rule,dashed] (p.east)--(-2.65,\y);
+    \draw[pd rule,line width=1.5pt] (-1.75,\y-.16)--(-1.75,\y+.16);
+  }
+  \node[pd direct label,anchor=south] at (-2.30,2.92) {$K$ insurer identities};
+  \node[pd note,anchor=north,align=center] at (-2.30,-.72)
+    {$K\!\times\!B_{\mathrm{dep}}$ posted\\each identity can re-enter};
+  \draw[pd arrow] (-1.30,1.15)--(.15,1.15);
+
+  % The protocol response saturates at the transaction coverage ceiling.
+  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (.55,-.70)--(6.45,-.70);
+  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (.55,-.70)--(.55,3.05);
+  \node[pd axis label,anchor=west] at (6.55,-.70) {posted deposit $B_{\mathrm{dep}}$};
+  \node[pd axis label,rotate=90,anchor=south] at (.22,1.20) {slash $s$};
+
+  \draw[pd focus rule,line width=1.55pt] (.75,-.48)--(3.25,2.12);
+  \draw[pd caution rule,line width=1.55pt] (3.25,2.12)--(6.15,2.12);
+  \draw[pd guide] (3.25,-.70)--(3.25,2.12);
+  \draw[pd guide] (.55,2.12)--(6.15,2.12);
+  \node[pd caution datum] at (3.25,2.12) {};
+  \node[pd axis label,anchor=north] at (3.25,-.82) {$B_T$};
+  \node[pd axis label,anchor=east] at (.43,2.12) {$B_T$};
+
+  \node[pd direct label,text=hhteal,anchor=south,rotate=43] at (1.90,.75)
+    {$s=B_{\mathrm{dep}}$};
+  \node[pd direct label,text=hhamber,anchor=south] at (4.75,2.26)
+    {$s=B_T$};
+  \fill[pattern={Lines[angle=45,distance=4pt,line width=.28pt]},pattern color=hhamber!45]
+    (3.25,-.55) rectangle (6.15,1.98);
+  \node[pd direct label,text=hhamber,align=center] at (4.75,.76)
+    {added deposit returns intact\\maximum loss no longer rises};
+  \node[pd note,anchor=west] at (.75,-1.32)
+    {structural response: $s=\min(B_{\mathrm{dep}},B_T)$};
+\end{tikzpicture}%
 }
-\caption{Sybil attack flow. The attacker spawns $K$ Sybil identities, each posting deposit $B_{\mathrm{dep}}$, then undercuts honest bids by $\varepsilon$ and defaults on loss. The protocol confiscates the Sybil's deposit on default, but the slash amount is capped at the coverage $B_T$ --- so beyond $B_{\mathrm{dep}} \geq B_T$ additional deposit provides no extra deterrence. Empirically demonstrated in Figure~\ref{fig:sybil-mc-inline}.}
+\caption{Deposit-only Sybil deterrence saturates. One principal can fund $K$ interchangeable identities, but the loss attached to a defaulting identity rises only until its deposit reaches the transaction coverage $B_T$. Past that knee, $s=\min(B_{\mathrm{dep}},B_T)=B_T$: additional posted capital returns intact on no-loss transactions and cannot increase the attacker's maximum loss. Figure~\ref{fig:sybil-mc-inline} shows the corresponding simulated profit and commons-deficit sweeps.}
 \label{fig:sybil-inline}
 \end{figure}

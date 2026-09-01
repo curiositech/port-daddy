@@ -196,6 +196,35 @@ pub fn block_to_json(block: &Block) -> Value {
         Block::Spark(values) => json!({"type": "spark", "values": values}),
         Block::Gap => json!({"type": "gap"}),
         Block::WrappedText { text, .. } => json!({"type": "text", "text": text}),
+        Block::LedgerHeader {
+            surface,
+            columns,
+            active_sort,
+            descending,
+        } => json!({
+            "type": "ledgerHeader",
+            "surface": surface,
+            "columns": columns.iter().map(|(key, label)| json!({"key": key, "label": label})).collect::<Vec<_>>(),
+            "activeSort": active_sort,
+            "descending": descending,
+        }),
+        Block::LedgerRow {
+            surface,
+            index,
+            selected,
+            cells,
+            ..
+        } => json!({
+            "type": "ledgerRow",
+            "surface": surface,
+            "index": index,
+            "selected": selected,
+            "cells": cells.iter().map(|cell| json!({
+                "label": cell.label,
+                "value": cell.value,
+                "width": cell.width.as_str(),
+            })).collect::<Vec<_>>(),
+        }),
         Block::NodeRow {
             index,
             selected,
@@ -216,6 +245,25 @@ pub fn block_to_json(block: &Block) -> Value {
             "badge": badge,
             "meta": meta,
             "age": age,
+        }),
+        Block::ClaimTroubleCard {
+            index,
+            selected,
+            flag,
+            state,
+            surface,
+            other,
+            action,
+            ..
+        } => json!({
+            "type": "claimTroubleCard",
+            "index": index,
+            "selected": selected,
+            "flag": flag.to_string(),
+            "state": state,
+            "surface": surface,
+            "other": other,
+            "action": action,
         }),
         Block::ControlButton {
             verb,
@@ -508,6 +556,29 @@ mod tests {
         assert_eq!(out[5]["type"], "control");
         assert_eq!(out[5]["enabled"], false);
         assert_eq!(out[5]["whyDisabled"], "missing provider token");
+    }
+
+    #[test]
+    fn claim_trouble_card_serializes_summary_fields() {
+        let block = Block::ClaimTroubleCard {
+            index: 3,
+            selected: true,
+            flag: 'C',
+            state: "COORDINATE".into(),
+            surface: "core/pd-console/src/app.rs".into(),
+            other: "agent-2 (claims)".into(),
+            action: "coordinate now".into(),
+            tone: Tone::Conflicted,
+        };
+        let json = block_to_json(&block);
+        assert_eq!(json["type"], "claimTroubleCard");
+        assert_eq!(json["index"], 3);
+        assert_eq!(json["selected"], true);
+        assert_eq!(json["flag"], "C");
+        assert_eq!(json["state"], "COORDINATE");
+        assert_eq!(json["surface"], "core/pd-console/src/app.rs");
+        assert_eq!(json["other"], "agent-2 (claims)");
+        assert_eq!(json["action"], "coordinate now");
     }
 
     #[test]

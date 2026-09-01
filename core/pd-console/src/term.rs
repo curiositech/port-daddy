@@ -217,6 +217,34 @@ fn pad(text: &str, width: usize) -> String {
     }
 }
 
+/// Losslessly wrap plain ledger values before ANSI paint. This keeps each
+/// emitted line inside the terminal width instead of relying on the generic
+/// ellipsis fallback (an inspector must not destroy the very identity it shows).
+fn wrap_plain(text: &str, max: usize) -> Vec<String> {
+    let max = max.max(1);
+    let mut lines = Vec::new();
+    let mut line = String::new();
+    let mut width = 0usize;
+    for ch in text.chars() {
+        if ch == '\n' {
+            lines.push(std::mem::take(&mut line));
+            width = 0;
+            continue;
+        }
+        let ch_width = char_width(ch);
+        if width > 0 && width + ch_width > max {
+            lines.push(std::mem::take(&mut line));
+            width = 0;
+        }
+        line.push(ch);
+        width += ch_width;
+    }
+    if !line.is_empty() || lines.is_empty() {
+        lines.push(line);
+    }
+    lines
+}
+
 /// Truncate a (possibly ANSI-colored) line to `max` display columns, ANSI-aware:
 /// escape sequences don't count toward width and are preserved, an `…` marks a
 /// cut, and a reset is appended so color never bleeds past the cut. Lines that
@@ -556,7 +584,68 @@ pub fn render_blocks_width(blocks: &[Block], style: &TermStyle, cols: Option<usi
                 i += 1;
             }
             Block::WrappedText { text, tone } => {
-                out.push_str(&format!("  {}\n", style.paint(text, tone.sem())));
+                let parts = cols
+                    .map(|width| wrap_plain(text, width.saturating_sub(4).max(8)))
+                    .unwrap_or_else(|| vec![text.clone()]);
+                for part in parts {
+                    out.push_str(&format!("  {}\n", style.paint(&part, tone.sem())));
+                }
+                i += 1;
+            }
+            Block::LedgerHeader {
+                columns,
+                active_sort,
+                descending,
+                ..
+            } => {
+                let controls = columns
+                    .iter()
+                    .map(|(key, label)| {
+                        if key == active_sort {
+                            format!("[{label} {}]", if *descending { "↓" } else { "↑" })
+                        } else {
+                            format!("[{label}]")
+                        }
+                    })
+                    .collect::<Vec<_>>()
+                    .join(" ");
+                out.push_str(&format!("  {}\n", style.paint(&controls, Sem::Accent)));
+                i += 1;
+            }
+            Block::LedgerRow {
+                selected,
+                cells,
+                tone,
+                ..
+            } => {
+                let available = cols.map(|width| width.saturating_sub(28).max(8));
+                for (cell_index, cell) in cells.iter().enumerate() {
+                    let parts = available
+                        .map(|width| wrap_plain(&cell.value, width))
+                        .unwrap_or_else(|| vec![cell.value.clone()]);
+                    for (part_index, part) in parts.iter().enumerate() {
+                        let marker = if cell_index == 0 && part_index == 0 {
+                            if *selected {
+                                "▸"
+                            } else {
+                                tone.symbol()
+                            }
+                        } else {
+                            " "
+                        };
+                        let field = if part_index == 0 {
+                            cell.label.as_str()
+                        } else {
+                            ""
+                        };
+                        out.push_str(&format!(
+                            "  {} {} {}\n",
+                            style.paint(marker, tone.sem()),
+                            style.paint(&pad(&field.to_ascii_uppercase(), 18), Sem::Muted),
+                            style.paint(part, Sem::Ink),
+                        ));
+                    }
+                }
                 i += 1;
             }
             Block::NodeRow {
@@ -585,6 +674,29 @@ pub fn render_blocks_width(blocks: &[Block], style: &TermStyle, cols: Option<usi
                     style.paint(&format!("[{badge}]"), badge_tone.sem()),
                     style.paint(meta, Sem::Muted),
                     style.paint(age, Sem::Muted),
+                ));
+                i += 1;
+            }
+            Block::ClaimTroubleCard {
+                selected,
+                flag,
+                state,
+                surface,
+                other,
+                action,
+                tone,
+                ..
+            } => {
+                let sem = tone.sem();
+                let marker = if *selected { "▶" } else { "·" };
+                out.push_str(&format!(
+                    "  {} {} {} {} → {}\n     {}\n",
+                    style.paint(marker, sem),
+                    style.bold_paint(&format!("{flag} {state}"), sem),
+                    style.paint(surface, Sem::Ink),
+                    style.paint("", Sem::Muted),
+                    style.paint(other, Sem::Muted),
+                    style.paint(action, Sem::Ink2),
                 ));
                 i += 1;
             }
@@ -787,5 +899,63 @@ mod tests {
         for line in reflowed.lines() {
             assert!(display_width(line) <= 40, "line over 40 cols: {line:?}");
         }
+    }
+
+    #[test]
+    fn narrow_ledger_wrap_preserves_every_identity_character_without_ellipsis() {
+        let value = "/Users/erichowens/coding/tmp/port-daddy-dispatch-2593fc6c/core/pd-console/src/claims_pane.rs::ClaimsPane::refresh";
+        let parts = wrap_plain(value, 20);
+        assert_eq!(parts.concat(), value, "wrapping must be lossless");
+        assert!(
+            parts.iter().all(|part| display_width(part) <= 20),
+            "a wrapped identity segment exceeded its budget: {parts:?}"
+        );
+
+        let blocks = vec![Block::LedgerRow {
+            surface: "claims".into(),
+            index: 0,
+            selected: true,
+            cells: vec![crate::pane::LedgerCell::wide("path", value)],
+            tone: Tone::Engaged,
+        }];
+        let out = render_blocks_width(&blocks, &plain(), Some(48));
+        assert!(!out.contains('…'), "ledger identity was truncated:\n{out}");
+        for part in parts {
+            assert!(
+                out.contains(&part),
+                "missing wrapped segment {part:?}:\n{out}"
+            );
+        }
+        assert!(
+            out.lines().all(|line| display_width(line) <= 48),
+            "narrow ledger emitted horizontal overflow:\n{out}"
+        );
+    }
+
+    #[test]
+    fn narrow_inspector_wrap_preserves_every_identity_character_without_ellipsis() {
+        let value = "FILE\n/Users/erichowens/coding/tmp/port-daddy-dispatch-2593fc6c/core/pd-console/src/claims_pane.rs::ClaimsPane::refresh";
+        let out = render_blocks_width(
+            &[Block::WrappedText {
+                text: value.into(),
+                tone: Tone::Engaged,
+            }],
+            &plain(),
+            Some(42),
+        );
+        let visible = out
+            .lines()
+            .map(str::trim_start)
+            .collect::<Vec<_>>()
+            .join("");
+        assert_eq!(visible, value.replace('\n', ""));
+        assert!(
+            !out.contains('…'),
+            "inspector identity was truncated:\n{out}"
+        );
+        assert!(
+            out.lines().all(|line| display_width(line) <= 42),
+            "narrow inspector emitted horizontal overflow:\n{out}"
+        );
     }
 }

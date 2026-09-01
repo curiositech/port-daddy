@@ -47,6 +47,10 @@ import {
   type ConflictSignal,
 } from '../lib/parley-trigger.js';
 import type { ParleyAutoTriggerResult } from '../lib/parley-auto-trigger.js';
+import {
+  projectContextContinuation,
+  type ContextBootstrapLookup,
+} from '../lib/sugar.js';
 
 interface SessionsRouteDeps {
   sessions: {
@@ -149,6 +153,13 @@ interface SessionsRouteDeps {
   parleyAutoTrigger?: {
     evaluate(signal: ConflictSignal, context: { harbor: string }): ParleyAutoTriggerResult;
   } | null;
+  /**
+   * Exact predecessor-only lookup supplied by the daemon composition root.
+   * Omission is deliberate compatibility: session mutations still succeed,
+   * but expose `contextContinuation: { status: 'none' }` rather than derive
+   * a continuation from loose session similarity.
+   */
+  contextBootstrapLookup?: ContextBootstrapLookup;
 }
 
 type SessionLifecycle = 'durable' | 'ephemeral';
@@ -192,6 +203,8 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
     suggestions,
     agentInbox,
     parleyAutoTrigger,
+    symbolIndex,
+    contextBootstrapLookup,
     symbolIndex,
   } = deps;
 
@@ -821,6 +834,9 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
       if (sessionAgent.verdict.kind !== 'anonymous') {
         result.identity = sessionAgent.verdict.identity;
       }
+      // A direct start is fresh work. Only successful takeover/salvage paths
+      // may attach inherited context, and they use a daemon-proven source id.
+      result.contextContinuation = { status: 'none' };
 
       logger.info('session_started', {
         sessionId: result.id,
@@ -1007,6 +1023,16 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
       if (sessionAgent.verdict.kind !== 'anonymous') {
         result.identity = sessionAgent.verdict.identity;
       }
+
+      // `sessions.takeover` is the durable lineage writer. Do not trust a
+      // predecessor field in the request body: only the returned predecessor
+      // that matches this route target may query the context ledger.
+      result.contextContinuation = projectContextContinuation(
+        typeof result.predecessorId === 'string' && result.predecessorId === sessionId
+          ? result.predecessorId
+          : null,
+        contextBootstrapLookup,
+      );
 
       logger.info('session_taken_over', {
         predecessorId: result.predecessorId,

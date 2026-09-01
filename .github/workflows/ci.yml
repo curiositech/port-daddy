@@ -103,8 +103,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Install locked Porthole gate dependencies
+        run: npm ci --prefix website-v2 --ignore-scripts
       - name: Replay every porthole cast and scan the decoded transcript
-        run: npx tsx website-v2/scripts/check-porthole-casts.mjs
+        run: npm --prefix website-v2 run test:porthole
 
   changelog-guard:
     # CHANGELOG.md's [Unreleased] section is ASSEMBLED from one file per PR under
@@ -243,7 +245,7 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci || (echo "npm ci failed (often onnxruntime-node fetching its native binary); retrying once in 30s" && sleep 30 && npm ci)
 
       - name: Type check
         run: npx tsc --noEmit
@@ -300,7 +302,7 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci || (echo "npm ci failed (often onnxruntime-node fetching its native binary); retrying once in 30s" && sleep 30 && npm ci)
 
       - name: Type check
         run: npx tsc --noEmit
@@ -347,7 +349,7 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci || (echo "npm ci failed (often onnxruntime-node fetching its native binary); retrying once in 30s" && sleep 30 && npm ci)
 
       - name: Type check
         run: npx tsc --noEmit
@@ -382,7 +384,7 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci || (echo "npm ci failed (often onnxruntime-node fetching its native binary); retrying once in 30s" && sleep 30 && npm ci)
 
       - name: Run integration tests
         run: node --experimental-vm-modules node_modules/jest/bin/jest.js --selectProjects integration
@@ -408,7 +410,7 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci || (echo "npm ci failed (often onnxruntime-node fetching its native binary); retrying once in 30s" && sleep 30 && npm ci)
 
       - name: Use Bun
         uses: oven-sh/setup-bun@v2
@@ -547,7 +549,7 @@ jobs:
           cache-dependency-path: fleet-config-ui/package-lock.json
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci || (echo "npm ci failed (often onnxruntime-node fetching its native binary); retrying once in 30s" && sleep 30 && npm ci)
 
       - name: Type check (tsc -b — app + node + test projects)
         run: npm run typecheck
@@ -614,7 +616,7 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci || (echo "npm ci failed (often onnxruntime-node fetching its native binary); retrying once in 30s" && sleep 30 && npm ci)
 
       - name: Use Bun
         uses: oven-sh/setup-bun@v2
@@ -874,7 +876,7 @@ jobs:
           cache-dependency-path: apps/relay/package-lock.json
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci || (echo "npm ci failed (often onnxruntime-node fetching its native binary); retrying once in 30s" && sleep 30 && npm ci)
 
       - name: Type check (tsc --noEmit)
         run: npx tsc --noEmit
@@ -905,7 +907,7 @@ jobs:
           cache-dependency-path: apps/steward/package-lock.json
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci || (echo "npm ci failed (often onnxruntime-node fetching its native binary); retrying once in 30s" && sleep 30 && npm ci)
 
       - name: Type check (tsc --noEmit)
         run: npx tsc --noEmit

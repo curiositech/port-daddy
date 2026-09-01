@@ -1,38 +1,56 @@
-% Fig 8 — estimator families grouped by the signal they consume.
+% Figure III.8 --- estimator choice follows the topology of the observed signal.
 \begin{figure}[H]
 \centering
-\resizebox{0.92\textwidth}{!}{%
-\begin{tikzpicture}[font=\small]
-  \node[stp heading] at (-3.5,3.1) {observed signal};
-  \node[stp heading] at (3.5,3.1) {matching estimator family};
+\resizebox{0.96\textwidth}{!}{%
+\begin{tikzpicture}[pd figure]
+  \node[pd panel title] at (-4.75,2.85) {pairwise outcomes};
+  \node[pd panel title] at (0,2.85) {directed trust};
+  \node[pd panel title] at (4.75,2.85) {buyer feedback};
 
-  \node[stp box,minimum width=54mm,text width=47mm] (s1) at (-3.5,2)
-    {\textbf{pairwise / tournament}\\{\scriptsize ``agent A beat agent B''}};
-  \node[stp accent box,minimum width=61mm,text width=54mm] (e1) at (3.5,2)
-    {\textbf{Bradley--Terry} (full-history MLE)\\
-     {\scriptsize Elo \(\cdot\) TrueSkill for streaming updates}};
-  \draw[stp accent arrow] (s1) -- (e1);
+  % Pairwise-comparison graph.
+  \foreach \x/\y/\n in {-5.8/1.35/A,-3.75/1.65/B,-4.75/-.15/C,-5.95/-.65/D} {
+    \node[pd actor,circle,minimum size=7mm,inner sep=0pt] (p\n) at (\x,\y) {\n};
+  }
+  \draw[pd focus arrow] (pA) -- (pB);
+  \draw[pd focus arrow] (pC) -- (pB);
+  \draw[pd focus arrow] (pD) -- (pC);
+  \draw[pd focus arrow] (pA) -- (pC);
+  \node[pd direct label,anchor=north,text=hhamber] at (-4.75,-1.05)
+    {Bradley--Terry\\[-1pt]{\tiny full-history MLE selected here}};
 
-  \node[stp box,minimum width=54mm,text width=47mm] (s2) at (-3.5,0)
-    {\textbf{trust propagation}\\{\scriptsize ``whom does the network trust?''}};
-  \node[stp box,minimum width=61mm,text width=54mm] (e2) at (3.5,0)
-    {\textbf{EigenTrust}\\{\scriptsize principal eigenvector of local trust}};
-  \draw[stp arrow] (s2) -- (e2);
+  % Trust network: node size/position exposes propagation topology.
+  \node[pd actor,circle,minimum size=7mm,inner sep=0pt] (tA) at (-1.45,1.1) {A};
+  \node[pd actor,circle,minimum size=10mm,inner sep=0pt,draw=hhteal,line width=1pt] (tB) at (0,1.55) {B};
+  \node[pd actor,circle,minimum size=7mm,inner sep=0pt] (tC) at (1.45,.9) {C};
+  \node[pd actor,circle,minimum size=6mm,inner sep=0pt] (tD) at (-.75,-.45) {D};
+  \node[pd actor,circle,minimum size=6mm,inner sep=0pt] (tE) at (.95,-.55) {E};
+  \draw[pd focus arrow] (tA) -- (tB);
+  \draw[pd focus arrow] (tC) -- (tB);
+  \draw[pd focus arrow] (tD) -- (tB);
+  \draw[pd focus arrow] (tE) -- (tB);
+  \draw[pd arrow] (tA) -- (tD);
+  \node[pd direct label,anchor=north] at (0,-1.05)
+    {EigenTrust\\[-1pt]{\tiny centrality over local trust}};
 
-  \node[stp box,minimum width=54mm,text width=47mm] (s3) at (-3.5,-2)
-    {\textbf{marketplace feedback}\\{\scriptsize ``buyers rate sellers''}};
-  \node[stp box,minimum width=61mm,text width=54mm] (e3) at (3.5,-2)
-    {\textbf{feedback systems}\\{\scriptsize Resnick--Zeckhauser \(\cdot\) Tadelis}};
-  \draw[stp arrow] (s3) -- (e3);
+  % Marketplace feedback distribution.
+  \draw[pd rule] (3.1,-.55) -- (6.45,-.55);
+  \foreach \x/\h in {3.25/.25,3.75/.5,4.25/.85,4.75/1.25,5.25/1.75,5.75/1.35,6.25/.65}
+    \fill[hhteal!72] (\x-.14,-.55) rectangle (\x+.14,{-.55+\h});
+  \node[pd axis label,anchor=north] at (3.25,-.72) {low};
+  \node[pd axis label,anchor=north] at (6.25,-.72) {high};
+  \node[pd direct label,anchor=north] at (4.75,-1.05)
+    {feedback model\\[-1pt]{\tiny ratings, prices, adverse selection}};
+
+  \draw[pd hairline] (-7,-2.15) -- (7,-2.15);
+  \node[pd note,anchor=west] at (-6.85,-2.48)
+    {the scoring formula is cheap and last; identity, continuity, and oracle-grounded outcomes are the gate};
 \end{tikzpicture}}
-\caption{\textbf{The estimator family, by signal type} --- the wrong choice is a
-real error. Pairwise outcomes call for Bradley--Terry / Elo / TrueSkill; network
-trust calls for EigenTrust (PageRank for reputation --- \emph{not} a bandit);
-marketplace feedback calls for feedback systems with measured price premia
-(Resnick--Zeckhauser's ${\sim}8\%$; Tadelis on adverse selection). A SQLite harbor holds the \emph{whole} settled-outcome
-history, so it is in the Bradley--Terry regime, not the streaming-Elo regime. None
-of these is the hard part: the estimator is \emph{cheap and last}, while the
-substrate beneath --- non-forgeable identity, continuity, an oracle-witnessed
-ledger --- is the gate.}
+\caption{\textbf{Estimator families are keyed to signal topology.} Pairwise wins
+form a comparison graph and call for Bradley--Terry; a complete harbor history
+supports the full-history fit rather than streaming Elo. Directed local trust forms
+a network and calls for EigenTrust. Buyer ratings and price effects form a feedback
+distribution and call for marketplace models. These are not interchangeable score
+recipes. None repairs a forgeable identity or an agent-authored oracle: the
+trustworthy substrate still comes first.}
 \label{fig:estimators}
 \end{figure}

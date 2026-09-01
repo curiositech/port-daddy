@@ -117,7 +117,7 @@ flowchart TD
 - "done" is a judgment call by the manager, not just a gate verdict
 
 Important:
-- In the current WinDAGs schema, this concept is still awkwardly labeled `team-loop` in some places.
+- In the current Jury-rig schema, this concept is still awkwardly labeled `team-loop` in some places.
 - Treat that label as legacy interchange, not as the actual mental model.
 - If the process is just fixed produce -> review -> revise with static roles, that is `workflow`, not a team.
 

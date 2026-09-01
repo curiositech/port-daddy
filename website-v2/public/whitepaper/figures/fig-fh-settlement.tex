@@ -1,85 +1,62 @@
-% Cross-harbor settlement — bonded escrow, conditional atomic clear.
-
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D8C7A6}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhcobalt}{HTML}{003FB8}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-\providecolor{maydayred}{HTML}{8B0000}
-
-% ─── Cross-Harbor Settlement Ceremony ─────────────────────────────────────────
+% Figure IV.8 --- the custody theorem is tested against its bypass counterfactual.
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}[
-  party/.style={draw=hhink, line width=0.65pt, fill=hhsand!25, rounded corners=2pt, inner sep=6pt, minimum width=36mm, minimum height=18mm, align=center},
-  escrow/.style={draw=hhcobalt, line width=0.85pt, fill=hhcobalt!7, rounded corners=2pt, inner sep=6pt, minimum width=48mm, minimum height=18mm, align=center},
-  stepbox/.style={draw=hhink, line width=0.5pt, fill=hhpaper, rounded corners=2pt, inner sep=5pt, font=\scriptsize, text width=42mm, align=left},
-  outcomebox/.style={draw=hhink, line width=0.6pt, fill=hhsand!35, rounded corners=2pt, inner sep=5pt, font=\scriptsize, text width=36mm, align=center},
-  guardbox/.style={draw=hhcobalt!70, line width=0.65pt, fill=hhcobalt!5, rounded corners=2pt, inner sep=5pt, font=\scriptsize, text width=42mm, align=left},
-  flowarr/.style={-{Stealth[length=2.0mm,width=1.3mm]}, draw=hhink, line width=0.55pt},
-  accentarr/.style={-{Stealth[length=2.0mm,width=1.3mm]}, draw=hhcobalt, line width=0.75pt}
-]
+\resizebox{0.95\textwidth}{!}{%
+\begin{tikzpicture}[pd figure]
+  \node[pd panel title,anchor=west] at (-6.9,3.0) {A. non-bypassable custody};
+  \node[pd panel title,anchor=west] at (.55,3.0) {B. operator bypass exists};
+  \node[pd note,anchor=west] at (-6.9,2.64) {one terminal transition};
+  \node[pd note,text=hhamber,anchor=west] at (.55,2.64) {same ceremony, weaker authority boundary};
 
-  % ─── Parties at Top ─────────────────────────────────────────────────────────
-  \node[party] (PA) at (-4.8, 0) {
-    \textbf{\scshape Alice (Principal)}\\[1pt]
-    {\scriptsize Performance Bond Poster}
-  };
-  \node[escrow] (E) at (0.0, 0) {
-    \textbf{\scshape Settlement Escrow}\\[1pt]
-    {\scriptsize Custody bounded \emph{only if}}\\
-    {\scriptsize Prop.~\ref{thm:fh-escrow-bound}'s assumptions hold}
-  };
-  \node[party] (PB) at (4.8, 0) {
-    \textbf{\scshape Bob (Principal)}\\[1pt]
-    {\scriptsize Bounty \& Damage Claimant}
-  };
+  % Safe outcome graph.
+  \node[pd datum] (fundeda) at (-6.0,.65) {};
+  \node[diamond,aspect=1.55,draw=hhink,fill=hhsand!16,inner sep=3pt,
+    font=\scriptsize\bfseries,align=center] (gatea) at (-4.25,.65) {criteria};
+  \node[pd focus datum] (cleara) at (-2.15,1.45) {};
+  \node[pd datum] (refusea) at (-2.15,-.15) {};
+  \draw[pd arrow] (fundeda)--(gatea);
+  \draw[pd focus arrow] (gatea)--(cleara);
+  \draw[pd arrow] (gatea)--(refusea);
+  \node[pd direct label,anchor=south] at (-6.0,.87) {funded};
+  \node[pd direct label,text=hhteal,anchor=west] at (-1.90,1.45) {CLEAR};
+  \node[pd direct label,anchor=west] at (-1.90,-.15) {REFUSE};
+  \node[pd note,anchor=west] at (-1.90,1.08) {compensate claimant};
+  \node[pd note,anchor=west] at (-1.90,-.52) {return bond};
+  \draw[pd focus rule] (-6.15,-1.15)--(-1.05,-1.15);
+  \node[pd direct label,text=hhteal] at (-3.60,-1.45)
+    {worst-case custody loss $\leq\varphi$};
 
-  % ─── Steps 1, 2, 3 Below ────────────────────────────────────────────────────
-  \node[stepbox] (s1) at (-4.8, -2.4) {
-    \textbf{1. Bond Posting}\\[1pt]
-    $A$ mints work card for agent $\alpha$; posts performance bond $B_\alpha$ into the escrow.
-  };
+  % Counterfactual graph with an extra unauthorized transition.
+  \node[pd datum] (fundedb) at (1.35,.65) {};
+  \node[diamond,aspect=1.55,draw=hhink,fill=hhsand!16,inner sep=3pt,
+    font=\scriptsize\bfseries,align=center] (gateb) at (3.10,.65) {criteria};
+  \node[pd focus datum] (clearb) at (5.20,1.45) {};
+  \node[pd datum] (refuseb) at (5.20,-.15) {};
+  \node[pd caution datum] (lossb) at (6.55,-1.50) {};
+  \draw[pd arrow] (fundedb)--(gateb);
+  \draw[pd focus arrow] (gateb)--(clearb);
+  \draw[pd arrow] (gateb)--(refuseb);
+  \draw[pd caution arrow,dashed,line width=1.25pt]
+    (fundedb) to[out=-50,in=170] (lossb);
+  \node[pd direct label,anchor=south] at (1.35,.87) {funded};
+  \node[pd direct label,text=hhteal,anchor=west] at (5.45,1.45) {CLEAR};
+  \node[pd direct label,anchor=west] at (5.45,-.15) {REFUSE};
+  \node[pd direct label,text=hhamber,anchor=east,align=right] at (6.30,-1.50)
+    {redirect / second close\\full balance exposed};
+  \node[pd note,text=hhamber,anchor=west] at (2.10,-.70) {unauthorized transition};
+  \draw[pd caution rule] (.95,-2.10)--(6.75,-2.10);
+  \node[pd direct label,text=hhamber] at (3.85,-2.40)
+    {worst case $=$ full custody balance};
 
-  \node[stepbox] (s2) at (0.0, -2.4) {
-    \textbf{2. Damage Claim}\\[1pt]
-    Breach detected at $B$; Bob signs claim $\mathsf{cl}_B = (R_B^{(e)}, \text{evidence})$ to witness log.
-  };
-
-  \node[stepbox] (s3) at (4.8, -2.4) {
-    \textbf{3. Oracle Verification}\\[1pt]
-    Escrow checks inclusion of $\alpha$'s actions in $R_B^{(e)}$ against step 1 criteria.
-  };
-
-  \draw[flowarr] (PA.south) -- (s1.north);
-  \draw[flowarr] (E.south) -- (s2.north);
-  \draw[flowarr] (PB.south) -- (s3.north);
-
-  \draw[accentarr] (s1.east) -- (s2.west);
-  \draw[accentarr] (s2.east) -- (s3.west);
-
-  % ─── Outcomes and Structural Guard ──────────────────────────────────────────
-  \node[guardbox] (guard) at (-4.8, -4.8) {
-    \textbf{\scshape Custody Assumption:}\\
-    \emph{If} whitelist, fee cap, and single-terminal-transition are non-bypassable (Prop.~\ref{thm:fh-escrow-bound}), funds cannot be redirected. Not established here for a deployed system.
-  };
-
-  \node[outcomebox] (Op) at (0.5, -4.8) {
-    \textbf{\scshape Settlement: Clear}\\[1pt]
-    $B$ compensated from bond; remainder refunded to $A$.
-  };
-
-  \node[outcomebox] (Or) at (4.8, -4.8) {
-    \textbf{\scshape Settlement: Refuse}\\[1pt]
-    Bond returned to $A$; escrow logs evidence proof.
-  };
-
-  \draw[flowarr] (s3.south) -- ++(0, -0.6) -| (Op.north);
-  \draw[flowarr] (s3.south) -- ++(0, -0.6) -| (Or.north);
-
-\end{tikzpicture}
-\caption{Cross-harbor settlement protocol. The custody bounds are \emph{conditional}, not established: Property~\ref{thm:fh-escrow-bound} holds only where the recipient whitelist, fee cap, and single-terminal-transition rule cannot be bypassed by the escrow operator (\S\ref{sec:fh-escrow}); 2-of-3 threshold signing is one candidate way to arrange that. Under those assumptions the outcome space partitions into \textbf{Clear} or \textbf{Refuse}, bounding cross-harbor liability; without them the worst case is the full custodial balance.}
+  \node[pd axis label] at (0,-3.05)
+    {whitelist $+$ fee cap $+$ one terminal transition are the theorem's hypothesis, not decoration};
+\end{tikzpicture}}
+\caption{\textbf{The custody bound is the absence of an extra transition.}
+Panel A permits exactly one terminal move from funded custody to \textbf{Clear}
+or \textbf{Refuse}; with a recipient whitelist and fee cap, worst-case loss is
+bounded by the agreed fee $\varphi$. Panel B adds one operator-controlled bypass.
+The visible extra edge reaches redirect or a second close, exposing the full
+balance. Threshold signing is only one candidate implementation; the loss theorem
+holds only when the three authority restrictions are actually non-bypassable.}
 \label{fig:fh-settlement}
 \end{figure}

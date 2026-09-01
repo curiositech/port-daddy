@@ -1,73 +1,53 @@
-% The grading-oracle IC problem: the folk theorem rests on a capturable signal.
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D8C7A6}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhcobalt}{HTML}{003FB8}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-
+% Figure IV.11 --- mechanisms lie on an observability/capture frontier rather
+% than inside arbitrary quadrants.
 \begin{figure}[H]
 \centering
-\resizebox{0.95\textwidth}{!}{%
-\begin{tikzpicture}[
-  font=\small,
-  box/.style={draw=hhebony,thick,fill=hhsand!30,rounded corners=3pt,
-              inner sep=5pt,text width=36mm,align=center,minimum height=15mm},
-  oracle/.style={draw=hhcobalt,line width=1.4pt,fill=hhsand!30,
-                 rounded corners=3pt,inner sep=5pt,text width=40mm,
-                 align=center,minimum height=18mm},
-  fix/.style={draw=hhink,thick,fill=hhsand!30,rounded corners=3pt,
-              inner sep=4pt,text width=40mm,align=center,font=\scriptsize},
-  flow/.style={->,>=Latex,thick,draw=hhebony},
-]
+\resizebox{0.92\textwidth}{!}{%
+\begin{tikzpicture}[pd figure]
+  \node[pd panel title,anchor=west] at (-6.3,3.15)
+    {more observable evidence permits less discretionary evaluation};
+  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (-5.55,-2.05)--(6.15,-2.05);
+  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (-5.55,-2.05)--(-5.55,2.65);
+  \node[pd axis label,anchor=west] at (6.28,-2.05) {criterion observability};
+  \node[pd axis label,rotate=90,anchor=south] at (-5.88,.30) {capture risk};
+  \node[pd axis label,anchor=north] at (-5.25,-2.20) {low};
+  \node[pd axis label,anchor=north] at (5.75,-2.20) {high};
 
-% the folk-theorem chain
-\node[box] (agent) at (0,0) {\textbf{agent} picks the work};
-\node[oracle,right=14mm of agent] (grade) {\textbf{grading oracle}\\
-  \footnotesize the daemon ``derives the grade''};
-\node[box,right=14mm of grade] (folk) {\textbf{folk-theorem IC}\\
-  \footnotesize claim-signaling, slash-on-breach};
+  % Lower envelope of defensible mechanisms.
+  \draw[pd focus rule,dashed,line width=1.2pt,smooth]
+    plot coordinates {(-4.6,2.15)(-2.5,1.75)(-.2,1.05)(2.5,.25)(5.35,-1.15)};
+  \node[pd note,text=hhteal,anchor=west] at (1.95,.65) {defensible lower envelope};
 
-\draw[flow] (agent) -- (grade);
-\draw[flow] (grade) -- node[above,font=\scriptsize]{public signal} (folk);
+  % Capture exposure halos are redundant with point position and size.
+  \fill[hhamber!10] (-3.65,1.75) circle (.72);
+  \node[pd caution datum,inner sep=2.6pt] at (-3.65,1.75) {};
+  \node[pd direct label,text=hhamber,anchor=west,align=left] at (-3.25,2.18)
+    {unbonded evaluator\\capturable signal};
 
-% the capture attack
-\node[draw=hhcobalt,thick,fill=hhpaper,rounded corners=2pt,inner sep=3pt,
-      font=\scriptsize\itshape,text=hhink,text width=44mm,
-      align=center,above=8mm of grade] (capture)
-  {\textbf{but the grade is produced by a capturable evaluator}\\
-   (an adversarial reviewer or a ``neutral judge'')};
-\draw[->,>=Latex,thick,hhcobalt] (capture) -- (grade);
+  \fill[hhamber!7] (-.80,1.05) circle (.50);
+  \node[pd caution datum,inner sep=2.2pt] at (-.80,1.05) {};
+  \node[pd direct label,anchor=west,align=left] at (-.42,1.43)
+    {public but discretionary\\grade};
 
+  \fill[hhteal!8] (2.25,-.05) circle (.38);
+  \node[pd focus datum,inner sep=2.2pt] at (2.25,-.05) {};
+  \node[pd direct label,text=hhteal,anchor=west,align=left] at (2.62,.20)
+    {bonded + blinded\\review with re-audit};
 
-% the two fixes
-\node[fix,below=12mm of agent] (sp)
-  {\textbf{Fix A:} a machine-checkable oracle the agent cannot author ---
-   strategy-proof by construction};
-\node[fix,below=12mm of grade] (bond)
-  {\textbf{Fix B:} bond-and-slash the judges; a grade overturned on re-audit
-   $\Rightarrow$ slash};
-\node[fix,below=12mm of folk] (rec)
-  {\textbf{Then prove:} the rate-the-raters recursion \emph{terminates} at a
-   machine-checkable base};
+  \fill[hhteal!8] (5.10,-1.20) circle (.25);
+  \node[pd focus datum,inner sep=2.2pt] at (5.10,-1.20) {};
+  \node[pd direct label,text=hhteal,anchor=east,align=right] at (4.75,-1.52)
+    {deterministic oracle\\immutable receipt};
 
-\draw[flow] (grade.south) -- (bond.north);
-\draw[flow] (bond.east) -- (rec.west);
-\draw[flow] (grade.south) to[out=-150,in=60] (sp.north east);
-
-\end{tikzpicture}%
-}
-\caption{The grading-oracle incentive-compatibility problem --- the hole under the
-core theorem. Every folk-theorem claim in the layer bottoms out in ``the agent
-picks the work, the daemon derives the grade.'' But a folk theorem is only as good
-as the \emph{public signal} it conditions on (Green--Porter 1984;
-Abreu--Pearce--Stacchetti 1990 require the signal distribution to be common
-knowledge and \emph{exogenous}). The grade is produced by a capturable evaluator,
-so the signal is endogenous and the folk theorem does not apply as stated. We
-resolve it two ways: ground settlement in \emph{machine-checkable} oracles the
-agent cannot author (Fix A, strategy-proof by construction), and \emph{bond-and-
-slash} the human/LLM judges where machine-checking is impossible (Fix B), then
-require the rate-the-raters recursion to terminate at a machine-checkable base.}
+  \node[pd note,text=hhamber,anchor=west] at (-4.95,-2.78)
+    {public visibility does not remove evaluator discretion};
+\end{tikzpicture}}
+\caption{\textbf{Evaluation mechanisms occupy a frontier, not four boxes.}
+Horizontal position is criterion observability; vertical position is capture risk.
+Halo size redundantly marks discretionary exposure. Deterministic receipts sit at
+the low-risk observable end. Where judgment is unavoidable, blinded bonded review
+with sampled re-audit moves toward the lower envelope without pretending to become
+deterministic. Publishing an unconstrained evaluator's grade does not make the
+signal exogenous or strategy-proof.}
 \label{fig:he-grading-oracle}
 \end{figure}

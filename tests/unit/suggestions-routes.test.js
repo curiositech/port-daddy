@@ -1,6 +1,9 @@
 import Fastify from 'fastify';
+import { mkdtempSync, rmSync, writeFileSync } from 'fs';
+import { join } from 'path';
 import { createTestDb } from '../setup-unit.js';
 import { createSuggestions } from '../../lib/suggestions.js';
+import { createSymbolIndex } from '../../lib/symbol-index.js';
 
 const { suggestionsPlugin } = await import('../../routes/suggestions.js');
 
@@ -104,6 +107,66 @@ describe('suggestions routes', () => {
     expect(body.semantic).toMatchObject({ sessions: 0, conflicts: 0 });
 
     await app.close();
+  });
+
+  test('POST /suggestions/scan emits WATCH only for a real parsed symbol edge', async () => {
+    // Keep the fixtures under this linked worktree rather than the OS temp directory:
+    // the test proves the real tree-sitter/index path and cleans the files afterward.
+    const fixtureDir = mkdtempSync(join(process.cwd(), '.pd-suggestions-watch-'));
+    const graphPath = join(fixtureDir, 'claim-graph.ts');
+    const graphDb = createTestDb();
+    const symbolIndex = createSymbolIndex(graphDb);
+    try {
+      writeFileSync(graphPath, `
+export function upstream() { return 1; }
+export function downstream() { return upstream(); }
+export function disconnected() { return 2; }
+`);
+      await symbolIndex.parseFile(graphPath);
+      expect(symbolIndex.getDependents(graphPath, 'upstream')).toEqual(expect.arrayContaining([
+        expect.objectContaining({ sourceFile: graphPath, sourceSymbol: 'downstream', dependencyType: 'calls' }),
+      ]));
+
+      const watch = buildApp({
+        claims: [
+          claim('s1', graphPath, { agentId: 'agent-1', symbolPath: 'upstream' }),
+          claim('s2', graphPath, { agentId: 'agent-2', symbolPath: 'downstream' }),
+        ],
+        symbolIndex,
+      });
+      const watchScan = await watch.app.inject({ method: 'POST', url: '/suggestions/scan' });
+      expect(watchScan.statusCode).toBe(200);
+      expect(watchScan.json()).toMatchObject({
+        success: true,
+        pairs: 1,
+        claimTree: { pairs: 1, surfaced: 2, delivered: 2 },
+      });
+      const watchSuggestions = await watch.app.inject({ method: 'GET', url: '/suggestions?agentId=agent-1' });
+      expect(watchSuggestions.json().suggestions).toEqual([
+        expect.objectContaining({ payload: expect.objectContaining({ state: 'WATCH' }) }),
+      ]);
+      await watch.app.close();
+
+      const noWatch = buildApp({
+        claims: [
+          claim('s1', graphPath, { agentId: 'agent-1', symbolPath: 'upstream' }),
+          claim('s2', graphPath, { agentId: 'agent-2', symbolPath: 'disconnected' }),
+        ],
+        symbolIndex,
+      });
+      const noWatchScan = await noWatch.app.inject({ method: 'POST', url: '/suggestions/scan' });
+      expect(noWatchScan.statusCode).toBe(200);
+      expect(noWatchScan.json()).toMatchObject({
+        success: true,
+        pairs: 1,
+        claimTree: { pairs: 1, surfaced: 0, delivered: 0 },
+      });
+      expect((await noWatch.app.inject({ method: 'GET', url: '/suggestions?agentId=agent-1' })).json().count).toBe(0);
+      await noWatch.app.close();
+    } finally {
+      graphDb.close();
+      rmSync(fixtureDir, { recursive: true, force: true });
+    }
   });
 
   test('accept transitions a suggestion; double-accept → 409; missing → 404', async () => {

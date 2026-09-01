@@ -294,13 +294,14 @@ run_read "metrics"           metrics     -- metrics
 run_read "config"            config      -- config
 run_read "graph"             graph       -- graph
 run_read "embed status"      embed       -- embed status
-run_read "skill-graft help"  skill-graft -- skill-graft --help
-run_read "skillgraft help"   skillgraft  -- skillgraft --help
+run_read "jury-rig help"     jury-rig -- jury-rig --help
+run_read "jury-rig bootstrap status" jury-rig -- jury-rig bootstrap status \
+  --home "$WORK/bootstrap-home" --pd-home "$WORK/bootstrap-pd-home" --json
 # Skill registry (cli/commands/seamanship.ts). `seamanship list` (the bare
 # default subcommand) is a pure READ: it walks defaultSkillCatalogRoots() and
 # prints the union, writing nothing. The mutating subforms are NOT run here —
-# `sync` copies $WINDAGS_HOME into ~/.port-daddy/skills/ and `index` rebuilds the
-# catalog on disk, both of which would touch the operator's real skill store.
+# `sync` copies configured sources into ~/.port-daddy/skills/ and `index`
+# rebuilds the catalog on disk; both would touch the operator's real skill store.
 # `skills` is the alias of the same handler; it gets its own probe (rather than
 # an ALIASES fold) so a broken alias arm in the COMPILED dispatch is caught —
 # same pattern as harbormaster/hm and transcripts/transcript above.

@@ -24,13 +24,36 @@ exit codes (e.g., `exit 2` to block a tool execution). We do not need to extract
 completion from the CLI — we let the vendor run their own optimized loop and reach *inside*
 it through the hook surface.
 
-> **Verification scope (honest).** Claude Code's hook surface is confirmed and complete —
-> `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `PreCompact`, `Stop`, `SessionStart`,
-> with `exit 2` on `PreToolUse` genuinely blocking the tool — and is exercised in
-> production today (these hooks fire on this very repo). Codex (`config.toml`) and Gemini
+> **Verification scope (honest).** Claude Code's `PreCompact` lifecycle event and
+> `UserPromptSubmit` context admission are verified. The current context-pressure bridge
+> configures its turn-time refresh only for Claude Code: the existing prompt tentacle is
+> invoked as `pd-hook-prompt --interactive-context-pressure`, while `pd-hook-precompact`
+> remains the truthful compaction checkpoint. The turn-time path can return bounded
+> `additionalContext`; `PreCompact` may block a manual compaction for a missing plan, but
+> Claude discards its `systemMessage` and `continue` fields, so it is not claimed as a
+> warning-delivery channel. Registration is not operational packet issuance: a daemon-owned
+> provider-session → active `pd plan` binding
+> must exist before the hook can enter the pressure machinery. The ingress never selects a
+> plan from ambient `PD_SESSION_ID`; an unbound provider session is
+> `provider-session-unbound` with no packet. Only after binding can the daemon look for a
+> trusted measurement, then complete daemon-owned tool-pair coverage. The hook payload is
+> lifecycle metadata, not a token report or transcript. A configured adapter integration may
+> use the greater of a separately witnessed provider estimate and its own estimate, or its
+> persisted estimate with a known window, but only with a current durable `pd plan`
+> checkpoint. Missing measurement is `measurement-unavailable`; missing or invalid coverage
+> is `packet-withheld`; neither invents a packet. The default daemon wires no operational
+> provider-session binding or usage/tool-pair witnesses, so it issues no packet. Codex
+> (`config.toml`) and Gemini
 > (`.gemini/settings.json`) having *equivalent* synchronous, exit-code-respecting hooks
-> must be **verified before** we claim cross-vendor universality. The **Claude Max seat is
-> the guarantee-bearing Prime Agent that works now**; the others are validate-then-add.
+> must be **verified before** we claim cross-vendor universality. They, and agy, do not get
+> a simulated PreCompact registration. The **Claude Max seat is the guarantee-bearing Prime
+> Agent that works now**; the others are validate-then-add.
+
+The daemon derives retry identity from the authenticated plan revision plus a
+daemon-owned measurement watermark, never a hook timestamp or provider payload.
+That watermark stays stable for a delivery retry and advances when the adapter
+or bounded durable-ledger fallback observes later evidence, so unchanged rounded
+usage cannot replay an obsolete compaction boundary.
 
 The resolution is the **Giant Squid Harness**. We do not need to build, maintain, or
 account for the agent execution loop. Anthropic, Google, and OpenAI have already built
@@ -86,11 +109,11 @@ Gemini, pointing their internal lifecycle triggers at our Universal `pd-hook-*` 
 
 | Maritime Concept | CLI Hook Surface | Action Taken by port-daddy Giant Squid |
 |---|---|---|
-| **Suggestibility Envelope** | `UserPromptSubmit` | CLI passes the prompt to `pd-hook-prompt`. We grep the matrix for Parley Alerts and Pheromones, prepend them to the prompt, and return to stdout. |
+| **Suggestibility Envelope** | `UserPromptSubmit` | CLI passes the prompt to `pd-hook-prompt`. Claude Code alone adds `--interactive-context-pressure`, which records a bounded daemon-witnessed pressure observation and can prepend a bounded plan/packet directive; all providers retain the ordinary matrix read. |
 | **Quartermaster (File Locks)** | `PreToolUse` | CLI passes the requested tool + file target to `pd-hook-pre-tool`. We verify `PD_LOCK` flags via vsock. If locked, `exit 2` safely aborts the CLI's tool attempt. |
 | **Coast Guard (Egress/Safety)** | `PreToolUse` | We intercept and validate egress boundaries on the host. On a violation we exit and inject a firm denial into the CLI's context stream via stderr. |
 | **Heaving the Log (Pheromones)** | `PostToolUse` | When the CLI successfully mutates a file, `pd-hook-post-tool` executes `flock` and appends a `PD_PHEROMONE` trace to the matrix. |
-| **Drydock & Salvage** | `PreCompact` / `Stop` | When the CLI pauses to compact its context, `pd-hook-compact` extracts the raw transcript, generates a `SelfSalvageCapsule` summary (`lib/telos-salvage.ts`), and forces a refloat. |
+| **Drydock & Salvage** | Claude Code `UserPromptSubmit` / `PreCompact` / `Stop` | The Claude-only turn-time prompt refresh provides the .60/.75/.85/.92 pressure ladder where bounded `additionalContext` is admitted; `pd-hook-precompact` sends bounded local lifecycle metadata at the actual compaction checkpoint and can block only a manual missing-plan case. Both first require a daemon-owned provider-session → active `pd plan` binding; `provider-session-unbound` yields no packet and ambient `PD_SESSION_ID` is never used to select one. A configured adapter integration may then use a known daemon window/estimate, a current durable plan checkpoint, and complete daemon-owned tool-pair coverage to write a cited CompactionPacket from `max(provider, daemon)`. Missing measurement yields `measurement-unavailable`; missing or invalid coverage yields `packet-withheld`. The default daemon has none of those operational witnesses and writes no packet. Neither path extracts or sends a raw transcript or splits a tool call from its result. |
 
 ### 3. The Cephalopod Adapter (Config Generator)
 
@@ -160,7 +183,8 @@ Each step promotes to a `roadmap_items` row (`adr-0089-<slug>`).
 2. **Build the Ink Cloud** (`adr-0089-ink-cloud-matrix`) — the atomic `~/.port-daddy/matrix.env`
    reader/writer using native `flock`; reconciled with `lib/attention.ts` / `lib/pheromone.ts`.
 3. **Ship the Tentacles** (`adr-0089-hook-tentacles`) — `pd-hook-prompt`, `pd-hook-pre-tool`,
-   `pd-hook-post-tool` (and `pd-hook-compact`) scripts. **Claude Code first** (verified hooks).
+   `pd-hook-post-tool`, and the Claude-only `pd-hook-precompact` script. **Claude Code first**
+   (verified hooks).
 4. **Write the Config Generators** (`adr-0089-cephalopod-config-gen`) — the adapter layer that
    translates our tool schema into `.claude/settings.json`, Codex `config.toml`, and
    `.gemini/settings.json`. Verify codex/gemini hook parity here before claiming them.
@@ -185,7 +209,7 @@ assertion; the artifact is the gate.
 | G3 | Steering DM hard-stop | an operator steering DM appears in-context within the agent's **next** hook fire (≤1 turn), and a hard-stop blocks all tool calls via `exit 2` until ack, in a live run | a screen recording: operator sends DM → agent halts → acks → resumes | Tentacles + UI |
 | G4 | **Zero-marginal-cost** on the Max seat | a completed `cli:claude-code` voyage shows **$0.00** PD-wallet API spend in the live `pd transcripts` ledger, vs a metered backend showing `>$0` on the same task | the two ledger rows side by side | Config Gen |
 | G5 | Matrix concurrency (*Jamie Madrox*) | **K≥8** concurrent agents append pheromones via `flock` with **0** corrupted/torn lines, grep read latency **<5ms** over a 1k-entry matrix | the stress-test output + the intact `~/.port-daddy/matrix.env` | Ink Cloud |
-| G6 | Drydock → Salvage → Refloat | a voyage crossing the context threshold emits a `SelfSalvageCapsule` and continues correctly past `PreCompact`; the refloated context contains the directive + summary | the capsule + the pre/post-compact transcript | Tentacles |
+| G6 | Evidence-gated Drydock → continuation | an adapter-equipped Claude `PreCompact` observation with a daemon-owned provider-session → `pd plan` binding, measurement, current plan checkpoint, and complete tool-pair coverage emits a cited packet; an explicit governed continuation reads that packet, the last plan, and bounded evidence handles. An unbound session, missing measurement, plan, or coverage yields no packet, and no raw transcript is copied. | the durable receipt/packet plus the adversarial binding, coverage, and restart proof | Tentacles |
 | G7 | Cross-vendor parity (**honest**) | Claude Code hooks verified in the Tentacles slice; codex + gemini parity either verified **or documented as a concrete gap** in the Config-Gen slice — no silent universality claim | the config-generator test matrix (pass/gap per vendor) | Config Gen |
 | G8 | UI renders from the matrix | the Binnacle + Quartermaster panels render **live** matrix state in the chosen design-system theme | screenshot **+ GIF** (per the repo's visual-artifact rule) | UI |
 
@@ -202,5 +226,5 @@ the merge gate.
 - ADR-0087 — the TCB/VM the hooks run inside; `exit 2` is the in-loop gate, the vsock is the host boundary.
 - ADR-0088 — `pd safe`, the host-side detection layer.
 - `lib/attention.ts`, `lib/pheromone.ts` — the durable coordination state the flat matrix caches.
-- `lib/telos-salvage.ts` — the `SelfSalvageCapsule` the Drydock/Salvage tentacle emits.
-- `pd-hook-prompt`, `pd-hook-pre-tool`, `pd-hook-post-tool` — the proposed tentacle scripts created by this ADR's roadmap. <!-- cite-exempt: proposed; created by ADR-0089 roadmap -->
+- `lib/agent-harbor/context-continuity.ts` — cited packet validation, tool-pair integrity, and the bounded packet-derived continuation capsule.
+- `pd-hook-prompt`, `pd-hook-pre-tool`, `pd-hook-post-tool`, `pd-hook-precompact` — the tentacle scripts created by this ADR's roadmap. <!-- cite-exempt: proposed; created by ADR-0089 roadmap -->

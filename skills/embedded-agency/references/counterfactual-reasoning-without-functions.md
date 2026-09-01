@@ -103,7 +103,7 @@ Open questions for agent system design:
 
 ## Practical Takeaway
 
-For WinDAGs orchestration: **Don't assume agents can cleanly evaluate "what if I did X instead of Y?" when X and Y involve the agent's own future reasoning.** This affects:
+For Jury-rig orchestration: **Don't assume agents can cleanly evaluate "what if I did X instead of Y?" when X and Y involve the agent's own future reasoning.** This affects:
 - Planning skills that involve searching over agent strategies
 - Self-modification or self-improvement capabilities
 - Any "reflection" tasks where agents reason about their own decision-making

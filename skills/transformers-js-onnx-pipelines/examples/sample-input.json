@@ -1,10 +1,25 @@
 {
-  "pipelineType": "cross-encoder",
+  "pipelineType": "bi-encoder",
   "environment": "node",
   "runsInCI": true,
-  "usesHighLevelPipeline": false,
-  "readsRawLogits": true,
-  "maxCandidateTokens": 400,
+  "usesHighLevelPipeline": true,
+  "readsRawLogits": false,
+  "pooling": "mean",
+  "normalizeEmbeddings": true,
+  "embeddingSpace": {
+    "provider": "huggingface",
+    "modelId": "approved/domain-evaluated-embedding-model",
+    "revision": "0123456789abcdef0123456789abcdef01234567",
+    "dimensions": 768,
+    "normalization": "l2",
+    "distanceMetric": "cosine",
+    "dtype": "q8",
+    "spaceId": "embed-v1:302e2e7b1ffef9eec639eb4d30429afbc049eef9992f88ec5c408459bae62149",
+    "qualityTier": "approved",
+    "degradedFallbackLabel": null
+  },
+  "modelSelectedByDomainEval": true,
+  "rejectsIncompatibleSpaces": true,
   "lazyLoadPromiseCached": true,
   "allowLocalModels": false,
   "cacheDirConfigured": true,
@@ -12,6 +27,6 @@
   "persistsVectors": false,
   "copiesOutputBuffer": true,
   "modelVersionPinned": true,
-  "quantized": true,
+  "dtype": "q8",
   "ciSmokeTest": true
 }

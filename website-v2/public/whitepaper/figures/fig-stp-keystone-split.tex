@@ -1,47 +1,50 @@
-% Fig 7 — local non-forgeable identity vs cross-operator attestation.
+% Figure III.7 --- some evidence crosses a trust boundary; principal binding does not.
 \begin{figure}[H]
 \centering
 \resizebox{0.96\textwidth}{!}{%
-\begin{tikzpicture}[font=\small]
-  \node[stp box,minimum width=58mm,minimum height=40mm] (alice) at (-4.2,0)
-    {};
-  \node[stp heading,anchor=north] at ([yshift=-4mm]alice.north)
-    {Alice's harbor};
-  \node[stp box,minimum width=43mm,text width=39mm,anchor=south]
-    (alice-id) at ([yshift=4mm]alice.south)
-    {\textbf{local non-forgeable identity}\\
-     {\scriptsize one trusted daemon\\[-1pt]\textsc{partial}}\\[-1pt]
-     {\scriptsize Chapters I--III depend here}};
+\begin{tikzpicture}[pd figure]
+  \node[pd panel title,anchor=west] at (-6.8,3.10)
+    {which evidence survives the trust boundary?};
+  \fill[hhsand!13] (-6.8,-2.75) rectangle (-.25,2.35);
+  \fill[hhsand!5] (.25,-2.75) rectangle (6.8,2.35);
+  \draw[pd caution rule,dashed] (0,-3.0) -- (0,2.55);
+  \node[pd direct label,text=hhamber,anchor=south] at (0,2.42)
+    {operator boundary};
+  \node[pd axis label,anchor=south] at (-3.4,2.42) {Alice's trusted daemon};
+  \node[pd axis label,anchor=south] at (3.4,2.42) {Bob's foreign view};
 
-  \node[stp box,minimum width=58mm,minimum height=40mm] (bob) at (4.2,0)
-    {};
-  \node[stp heading,anchor=north] at ([yshift=-4mm]bob.north)
-    {Bob's harbor};
-  \node[stp box,minimum width=43mm,text width=39mm,anchor=south]
-    (bob-id) at ([yshift=4mm]bob.south)
-    {\textbf{local non-forgeable identity}\\
-     {\scriptsize one trusted daemon\\[-1pt]\textsc{partial}}\\[-1pt]
-     {\scriptsize Chapters I--III depend here}};
+  \foreach \y/\left/\right in {
+    1.45/daemon-minted actor/key/key remains visible,
+    .15/append-only history/log integrity remains verifiable,
+    -1.15/local registry/foreign registry is inspectable,
+    -2.45/accountable principal binding/no cross-operator binding proof} {
+      \node[pd direct label,anchor=east] at (-4.05,\y) {\left};
+      \node[pd direct label,anchor=west] at (4.05,\y) {\right};
+  }
 
-  \draw[hhcobalt,line width=0.9pt,dashed] (0,-1.8) -- (0,1.8);
-  \node[stp label,anchor=south] at (0,1.8)
-    {trust boundary neither operator controls};
+  \draw[pd focus rule,line width=1.15pt] (-3.75,1.45) -- (3.75,1.45);
+  \draw[pd focus rule,line width=1.15pt] (-3.75,.15) -- (3.75,.15);
+  \draw[pd hairline,line width=1.15pt] (-3.75,-1.15) -- (3.75,-1.15);
+  \draw[pd focus rule,line width=1.15pt] (-3.75,-2.45) -- (-.55,-2.45);
+  \draw[pd caution rule,dashed,line width=1.15pt] (.55,-2.45) -- (3.75,-2.45);
+  \draw[pd caution rule] (-.38,-2.75) -- (.38,-2.15);
+  \draw[pd caution rule] (-.38,-2.15) -- (.38,-2.75);
 
-  \node[stp accent box,minimum width=83mm,text width=76mm] (bridge) at (0,-3.35)
-    {\textbf{cross-operator attestation}\\
-     {\scriptsize binds keys across independently owned harbors}\\[-1pt]
-     {\scriptsize \textsc{proposed} \(\cdot\) unbuilt \(\cdot\) owed to Chapters IV and VII}};
-  \draw[stp dashed arrow] (bridge.north west) to[bend left=10] (alice-id.south);
-  \draw[stp dashed arrow] (bridge.north east) to[bend right=10] (bob-id.south);
+  \foreach \y in {1.45,.15,-2.45} \node[pd focus datum] at (-3.75,\y) {};
+  \foreach \y in {1.45,.15} \node[pd focus datum] at (3.75,\y) {};
+  \node[pd datum] at (-3.75,-1.15) {};
+  \node[pd datum] at (3.75,-1.15) {};
+  \node[pd caution datum] at (3.75,-2.45) {};
+
+  \node[pd note,anchor=west,text=hhamber] at (.55,-3.18)
+    {a signed, intact history still does not prove who controls the foreign key};
 \end{tikzpicture}}
-\caption{\textbf{The keystone is two stones.} A \emph{local non-forgeable identity}
-secures identity \emph{within one trusted daemon} --- exactly what Chapters~I--III need
-and assume. The cross-operator boundary needs \emph{cross-operator attestation},
-which is unwritten --- a federated witness log gives log-\emph{integrity}, not
-identity-\emph{binding}. The reference system has laid part of the local stone
-(daemon-minted \texttt{actor-souls} and a bounded newcomer pool), but full write-boundary
-enforcement remains. This paper depends on that partial local stone and hands the market
-chapters the unbuilt one \emph{by name}, rather than borrowing the single-operator
-threat model across the boundary.}
+\caption{\textbf{Log integrity crosses the boundary; accountable-principal
+binding does not.} Inside Alice's daemon, actor minting, registry state, history,
+and principal binding form one bounded local proof. Bob can see the key, verify
+the append-only history, and inspect a foreign registry. The broken lowest rail is
+the missing claim: none of those facts binds the foreign key to a distinct
+accountable principal. Chapters I--III rely only on the left-hand local root;
+cross-operator attestation remains an explicit market-layer obligation.}
 \label{fig:keystone}
 \end{figure}

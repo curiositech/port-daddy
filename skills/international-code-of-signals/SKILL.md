@@ -9,7 +9,7 @@ description: >-
   communication protocol design and to Port Daddy's flag symbology (SIGNAL_FOR_STATE, hoists, alert tiers). Use
   for signal lookup/composition, flag meanings, signaling procedure, agent message-registry design, or auditing
   pd maritime UI semantics. NOT for COLREGS right-of-way rules, ship handling
-  (`a-task-analysis-of-pier-side-ship-handli`, a WinDAGs-library skill), radio hardware/frequency regulation, or palette work without signal
+  (`a-task-analysis-of-pier-side-ship-handli`, a Jury-rig-library skill), radio hardware/frequency regulation, or palette work without signal
   semantics (`color-theory-palette-harmony-expert`).
 license: Apache-2.0
 allowed-tools: Read,Grep,Glob,Bash(python3:*)
@@ -62,7 +62,7 @@ Fluent command of Pub. 102 — the 1969 International Code of Signals — as a w
 ## Do Not Use This For
 
 - COLREGS navigation rules (right of way, lights, fog conduct) — the Code only touches COLREGS where sound signals overlap.
-- Ship handling and maneuvering craft (`a-task-analysis-of-pier-side-ship-handli` — WinDAGs library, not bundled in this repo).
+- Ship handling and maneuvering craft (`a-task-analysis-of-pier-side-ship-handli` — Jury-rig library, not bundled in this repo).
 - Radio spectrum/licensing questions, GMDSS equipment carriage rules.
 - Palette or branding work with no signal semantics (`color-theory-palette-harmony-expert`).
 

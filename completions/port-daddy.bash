@@ -144,7 +144,7 @@ _port_daddy() {
     # Tuple space
     tuple
     # Semantic graph + episodic memory
-    graph memory ideas skill-graft skillgraft
+    graph memory ideas jury-rig
     # Artifact harvest provenance (slice S4a)
     booty
     # Shared local embedder (ADR-0061)
@@ -1504,7 +1504,7 @@ _port_daddy() {
 
     # -----------------------------------------------------------------------
     # -----------------------------------------------------------------------
-    # learn / tutorial (interactive tutorial)
+    # learn / tutorial (operationally read-only agent orientation)
     # -----------------------------------------------------------------------
     learn|tutorial)
       _pd_opts ""
@@ -1952,9 +1952,9 @@ _port_daddy() {
       ;;
 
     # -----------------------------------------------------------------------
-    # skill-graft  query|warm|reference  [options]
+    # jury-rig  query|warm|reference  [options]
     # -----------------------------------------------------------------------
-    skill-graft|skillgraft)
+    jury-rig)
       local subcmd="${words[2]:-}"
       case "$subcmd" in
         '')

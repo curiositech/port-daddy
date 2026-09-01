@@ -33,6 +33,21 @@ pub struct TubeMsg {
     pub text: String,
 }
 
+/// One durable human-language turn read from the daemon-owned transcript.
+/// Tool and thinking rows stay in the Mission trace; this projection is only
+/// the operator/assistant dialogue needed to restore the central conversation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TranscriptTurnRole {
+    Operator,
+    Assistant,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TranscriptTurn {
+    pub role: TranscriptTurnRole,
+    pub content: String,
+}
+
 impl TubeMsg {
     /// Parse one message from a `GET /msg/:channel/subscribe` SSE `data:` object.
     ///
@@ -307,6 +322,13 @@ impl WorkSnapshot {
         self.execution_str("errorMessage")
     }
 
+    pub fn is_compat_projection(&self) -> bool {
+        self.intent
+            .pointer("/source/kind")
+            .and_then(serde_json::Value::as_str)
+            == Some("compat")
+    }
+
     pub fn artifact_status(&self) -> Option<&serde_json::Value> {
         self.execution
             .as_ref()
@@ -332,6 +354,27 @@ impl WorkSnapshot {
         ]
         .join("|")
     }
+}
+
+/// The query can expose both a native WorkIntent and the dispatch compatibility
+/// projection for the same execution. Preserve list recency, but prefer the
+/// native record when the newest row is only that execution's compatibility
+/// alias. A genuinely legacy dispatch with no native peer remains visible.
+pub fn prefer_native_work_intent(snapshots: Vec<WorkSnapshot>) -> Option<WorkSnapshot> {
+    let mut snapshots = snapshots.into_iter();
+    let first = snapshots.next()?;
+    if !first.is_compat_projection() {
+        return Some(first);
+    }
+    let Some(dispatch_id) = first.dispatch_id().map(str::to_string) else {
+        return Some(first);
+    };
+    snapshots
+        .find(|candidate| {
+            !candidate.is_compat_projection()
+                && candidate.dispatch_id() == Some(dispatch_id.as_str())
+        })
+        .or(Some(first))
 }
 
 #[derive(Debug, Clone)]
@@ -379,6 +422,33 @@ fn work_snapshot(value: &serde_json::Value) -> Result<WorkSnapshot> {
         plan,
         execution,
     })
+}
+
+fn transcript_turns(value: &serde_json::Value) -> Result<Vec<TranscriptTurn>> {
+    let messages = value
+        .get("transcript")
+        .and_then(|transcript| transcript.get("messages"))
+        .and_then(serde_json::Value::as_array)
+        .ok_or_else(|| anyhow!("transcript response omitted transcript.messages"))?;
+
+    Ok(messages
+        .iter()
+        .filter_map(|message| {
+            let role = match message.get("role").and_then(serde_json::Value::as_str)? {
+                "user" => TranscriptTurnRole::Operator,
+                "assistant" => TranscriptTurnRole::Assistant,
+                _ => return None,
+            };
+            let content = message.get("content").and_then(serde_json::Value::as_str)?;
+            if content.trim().is_empty() {
+                return None;
+            }
+            Some(TranscriptTurn {
+                role,
+                content: content.to_string(),
+            })
+        })
+        .collect())
 }
 
 fn build_work_intent_envelope(
@@ -523,6 +593,15 @@ fn discovery_base(explicit_url: Option<&str>, published_port: Option<&str>) -> R
         ));
     }
     Ok(format!("http://127.0.0.1:{port}"))
+}
+
+fn transcript_url(base: &str, transcript_id: &str) -> Result<reqwest::Url> {
+    let mut url = reqwest::Url::parse(&format!("{}/transcripts", base.trim_end_matches('/')))
+        .context("build transcript URL")?;
+    url.path_segments_mut()
+        .map_err(|_| anyhow!("daemon URL cannot carry a transcript id"))?
+        .push(transcript_id);
+    Ok(url)
 }
 
 impl DaemonClient {
@@ -822,6 +901,25 @@ impl DaemonClient {
             .collect()
     }
 
+    /// Restore the operator/assistant dialogue for a durable mission. The
+    /// daemon's transcript route is the authority; the console does not infer a
+    /// prior model reply from a receipt, output artifact, or terminal state.
+    pub async fn transcript_turns(&self, transcript_id: &str) -> Result<Vec<TranscriptTurn>> {
+        let url = transcript_url(&self.base, transcript_id)?;
+        let response = self
+            .http
+            .get(url)
+            .send()
+            .await
+            .context("GET /transcripts/:id")?;
+        let response = ensure_success(response, "transcript_turns").await?;
+        let value: serde_json::Value = response
+            .json()
+            .await
+            .context("GET /transcripts/:id response")?;
+        transcript_turns(&value)
+    }
+
     /// Expose the underlying reqwest client so panes can issue arbitrary requests
     /// to the daemon without re-implementing discovery.
     pub fn http_client(&self) -> &reqwest::Client {
@@ -902,12 +1000,11 @@ impl DaemonClient {
         self.tube_send(channel, frame_text, "snapshot").await
     }
 
-    /// Append one op-log delta to the durable, immutable op-log via `POST /notes`
-    /// (REUSING [`add_note`](Self::add_note) — notes are write-once, exactly what a
-    /// replayable audit log needs). `note_content` is
-    /// [`crate::editor_sync::encode_oplog_note`]. Isolation note: this is a `/notes`
-    /// write, wholly off BOTH tube lanes — the durable log never competes with live
-    /// doc-ops or coordination for tube bandwidth.
+    /// Append one historical P2 reconstruction envelope via `POST /notes`.
+    /// `note_content` is [`crate::editor_sync::encode_oplog_note`]. This generic note
+    /// is diagnostic coordination history, not a daemon-owned typed editor receipt;
+    /// it cannot authorize P3.5 recovery or canonical replay. Isolation note: this
+    /// `/notes` write stays off both tube lanes.
     pub async fn log_oplog_delta(&self, note_content: &str) -> Result<()> {
         self.add_note(note_content).await
     }
@@ -1693,6 +1790,101 @@ mod tests {
         assert_eq!(extract_text(None), "");
     }
 
+    #[test]
+    fn transcript_projection_restores_only_exact_human_language_turns() {
+        let turns = transcript_turns(&serde_json::json!({
+            "success": true,
+            "transcript": {
+                "messages": [
+                    {"role": "user", "content": "Keep this exact prompt.\nSecond line."},
+                    {"role": "tool", "content": "[codex:error]"},
+                    {"role": "thinking", "content": "private scratch"},
+                    {"role": "assistant", "content": "Exact answer."},
+                    {"role": "assistant", "content": "   "}
+                ]
+            }
+        }))
+        .expect("transcript response parses");
+
+        assert_eq!(
+            turns,
+            vec![
+                TranscriptTurn {
+                    role: TranscriptTurnRole::Operator,
+                    content: "Keep this exact prompt.\nSecond line.".into(),
+                },
+                TranscriptTurn {
+                    role: TranscriptTurnRole::Assistant,
+                    content: "Exact answer.".into(),
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn transcript_projection_fails_loudly_when_messages_are_missing() {
+        let error = transcript_turns(&serde_json::json!({"success": true}))
+            .expect_err("missing durable transcript rows must not look empty");
+        assert!(error.to_string().contains("omitted transcript.messages"));
+    }
+
+    #[test]
+    fn transcript_url_has_one_route_separator_and_encodes_the_id() {
+        let url = transcript_url("http://127.0.0.1:43129/", "tx/one two")
+            .expect("daemon transcript URL");
+        assert_eq!(
+            url.as_str(),
+            "http://127.0.0.1:43129/transcripts/tx%2Fone%20two"
+        );
+    }
+
+    #[test]
+    fn latest_native_work_intent_wins_over_its_dispatch_compat_alias() {
+        let snapshot = |intent_id: &str, source_kind: &str, dispatch_id: &str| WorkSnapshot {
+            intent: serde_json::json!({
+                "intentId": intent_id,
+                "source": {"kind": source_kind},
+                "goal": {"text": "same mission"}
+            }),
+            plan: None,
+            execution: Some(serde_json::json!({
+                "dispatchId": dispatch_id,
+                "state": "settled"
+            })),
+        };
+        let selected = prefer_native_work_intent(vec![
+            snapshot("work_intent_compat_dispatch_d7", "compat", "d7"),
+            snapshot("work_intent_console_7", "console", "d7"),
+            snapshot("work_intent_console_older", "console", "d6"),
+        ])
+        .expect("one Mission remains selected");
+
+        assert_eq!(selected.intent_id(), "work_intent_console_7");
+    }
+
+    #[test]
+    fn genuinely_legacy_dispatch_stays_visible_without_a_native_peer() {
+        let legacy = WorkSnapshot {
+            intent: serde_json::json!({
+                "intentId": "work_intent_compat_dispatch_old",
+                "source": {"kind": "compat"},
+                "goal": {"text": "legacy mission"}
+            }),
+            plan: None,
+            execution: Some(serde_json::json!({
+                "dispatchId": "old",
+                "state": "settled"
+            })),
+        };
+
+        assert_eq!(
+            prefer_native_work_intent(vec![legacy])
+                .expect("legacy Mission remains inspectable")
+                .intent_id(),
+            "work_intent_compat_dispatch_old"
+        );
+    }
+
     // ── Stream envelope parsing ───────────────────────────────────────────────
 
     #[test]
@@ -1917,7 +2109,7 @@ mod tests {
     /// Retry-After) and any 5xx (daemon restarting) are transient and MUST be
     /// retried so a blip can't kill the live lane forever; any other 4xx is
     /// permanent and MUST stop (retrying would spin). Guards the editor + agent
-    /// receive lanes' recovery.
+    /// receive lanes' reconnection.
     #[test]
     fn sse_retry_policy_retries_429_and_5xx_but_stops_on_other_4xx() {
         use reqwest::StatusCode;

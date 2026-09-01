@@ -108,8 +108,8 @@ STATS:
  skills/whitehat-defense/agents/INDEX.md            |   10 +
  skills/whitehat-defense/references/INDEX.md        |    9 +
  skills/whitehat-defense/scripts/INDEX.md           |    6 +
- skills/windags-architect/SKILL.md                  |   16 +-
- skills/windags-architect/references/INDEX.md       |   15 +
+ skills/jury_rig-architect/SKILL.md                  |   16 +-
+ skills/jury_rig-architect/references/INDEX.md       |   15 +
  skills/wu-2023-autogen/SKILL.md                    |   21 +-
  skills/wu-2023-autogen/diagrams/INDEX.md           |   10 +-
  skills/wu-2023-autogen/references/INDEX.md         |   11 +

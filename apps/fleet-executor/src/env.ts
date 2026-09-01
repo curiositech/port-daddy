@@ -137,9 +137,9 @@ export interface ExecutorEnv extends PortDaddyTelemetryEnv {
   INTERRUPTIONS_TOKEN?: string;
   /**
    * Shared relay D1 database (`port-daddy-relay`). The executor writes the
-   * fleet_runs audit header + the append-only fleet_run_steps transcript here.
-   * Optional at the type level so unit tests can omit it; all writes are
-   * best-effort and a missing/failing DB NEVER changes the gate.
+   * fleet_runs audit header + retry-replaceable fleet_run_steps telemetry here.
+   * Optional at the type level so unit tests can omit it; ordinary telemetry
+   * writes are best-effort and are not publication authority.
    */
   DB?: D1Database;
 }

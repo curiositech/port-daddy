@@ -86,7 +86,7 @@ concurrent intentions. Each intention may develop a deep stack as it decomposes
 its task hierarchically. The SI selection function interleaves execution across
 these concurrent intentions.
 
-**For WinDAGs**: This maps directly to the distinction between parallel task
+**For Jury-rig**: This maps directly to the distinction between parallel task
 execution (multiple top-level requests become multiple concurrent workflows) and
 sequential sub-task decomposition (a single workflow decomposes into sequential
 sub-skills, each waiting for the previous to complete before proceeding). Confusing
@@ -154,7 +154,7 @@ drop intentions (related to commitment strategies: "blind commitment" = never dr
 commitment" = periodically reconsider). Implemented systems handle this with various
 ad-hoc mechanisms.
 
-**For WinDAGs**: Every orchestration system needs explicit cancellation and timeout
+**For Jury-rig**: Every orchestration system needs explicit cancellation and timeout
 mechanisms. A running skill invocation should be cancellable if the parent task
 is dropped. Long-running intentions should periodically check whether their goal
 is still valid. The architecture should support "intention interruption" (suspend

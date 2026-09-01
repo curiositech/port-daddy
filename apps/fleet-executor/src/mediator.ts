@@ -279,20 +279,49 @@ export interface MediatorReinjection {
   at: number;
 }
 
+export class MediatorReinjectionReadError extends Error {
+  readonly retryable = true;
+  constructor(message: string) {
+    super(message);
+    this.name = 'MediatorReinjectionReadError';
+  }
+}
+
+export interface MediatorReinjectionState {
+  reinjection: MediatorReinjection;
+  acknowledged: boolean;
+}
+
+/** Hash every field that gives a pending human MODIFY order its identity. */
+export async function mediatorReinjectionDigest(
+  reinjection: MediatorReinjection | null,
+): Promise<string | null> {
+  if (!reinjection) return null;
+  const bytes = new TextEncoder().encode(JSON.stringify({
+    parleyId: reinjection.parleyId,
+    repo: reinjection.repo,
+    pr: reinjection.pr,
+    action: reinjection.action,
+    modifyText: reinjection.modifyText,
+    decidedBy: reinjection.decidedBy,
+    at: reinjection.at,
+  }));
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  return `sha256:${Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('')}`;
+}
+
 /**
- * Consume (read-and-delete) a pending Modify re-injection for this PR.
+ * Peek at a pending Modify re-injection for this PR without deleting it.
  *
- * CONSUME-ONCE: the delete happens immediately after a successful read so a
- * retried delivery does not re-inject stale orders forever — the durable
- * record stays in the relay's parley_gates row (modify_text), which is the
- * artifact; this KV key is only the handoff. Best-effort: any KV failure
- * returns null and the run proceeds exactly as if no verdict existed.
+ * The handoff stays replayable across Worker death and is acknowledged only
+ * after the check reaches terminal success. An unavailable or malformed KV
+ * read throws: absence and lost authority are not equivalent.
  */
-export async function consumeMediatorReinjection(
+export async function readMediatorReinjectionState(
   env: Pick<ExecutorEnv, 'CONTROL_KV'>,
   repo: string,
   pr: number,
-): Promise<MediatorReinjection | null> {
+): Promise<MediatorReinjectionState | null> {
   const kv = env.CONTROL_KV;
   if (!kv) return null;
   const key = `mediator:reinjection:${repo}:${pr}`;
@@ -301,10 +330,44 @@ export async function consumeMediatorReinjection(
     if (!raw) return null;
     const parsed = JSON.parse(raw) as MediatorReinjection;
     if (typeof parsed.modifyText !== 'string' || parsed.modifyText.trim() === '') return null;
-    await kv.delete(key);
-    return parsed;
+    const ackKey = `${key}:ack:${parsed.parleyId}`;
+    return { reinjection: parsed, acknowledged: Boolean(await kv.get(ackKey)) };
+  } catch (error) {
+    throw new MediatorReinjectionReadError(
+      `cannot read pending Mediator order for ${repo}#${pr}: ${String(error)}`,
+    );
+  }
+}
+
+
+/** Return only an unacknowledged order for a fresh generation. */
+export async function peekMediatorReinjection(
+  env: Pick<ExecutorEnv, 'CONTROL_KV'>,
+  repo: string,
+  pr: number,
+): Promise<MediatorReinjection | null> {
+  const state = await readMediatorReinjectionState(env, repo, pr);
+  return state && !state.acknowledged ? state.reinjection : null;
+}
+
+/**
+ * Acknowledge one frozen Modify order after a successful terminal check.
+ * A per-parley acknowledgement key avoids compare-and-delete entirely: a new
+ * order may replace the PR pointer at any moment without an old acknowledgement
+ * deleting it. This is at-least-once delivery, not an exactly-once claim.
+ */
+export async function acknowledgeMediatorReinjection(
+  env: Pick<ExecutorEnv, 'CONTROL_KV'>,
+  frozen: MediatorReinjection,
+): Promise<boolean> {
+  const kv = env.CONTROL_KV;
+  if (!kv) return false;
+  const key = `mediator:reinjection:${frozen.repo}:${frozen.pr}`;
+  try {
+    await kv.put(`${key}:ack:${frozen.parleyId}`, '1');
+    return true;
   } catch {
-    return null;
+    return false;
   }
 }
 

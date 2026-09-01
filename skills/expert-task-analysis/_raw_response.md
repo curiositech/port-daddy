@@ -110,7 +110,7 @@ When agents fail at complex tasks, the failure usually occurs at the art layer, 
 
 ### Design Principle: Separate the Procedural from the Perceptual
 
-For any complex capability, a WinDAGs agent system should maintain:
+For any complex capability, a Jury-rig agent system should maintain:
 
 1. **A GOMS-equivalent task graph** — the explicit hierarchical decomposition of goals into subgoals into methods into selection rules. This is the science.
 
@@ -261,19 +261,19 @@ Notice the nested conditional structure: the selection rule at the Increase/Decr
 ## Mapping GOMS to Agent Orchestration Architecture
 
 ### Goals → Task Specifications
-In a WinDAGs system, a goal corresponds to a task specification passed to an agent or skill. The hierarchy of goals corresponds to a decomposition tree where:
+In a Jury-rig system, a goal corresponds to a task specification passed to an agent or skill. The hierarchy of goals corresponds to a decomposition tree where:
 - Top-level goals are task requests from users or parent agents
 - Mid-level goals are sub-task specifications dispatched to specialized agents
 - Leaf-level goals are direct skill invocations
 
 ### Operators → Skill Invocations
-Operators are the atomic actions available in the system. In WinDAGs terms, these are the 180+ skills. The GOMS model defines which operators are available for each subgoal, analogous to which skills are available to an agent for each sub-task.
+Operators are the atomic actions available in the system. In Jury-rig terms, these are the 180+ skills. The GOMS model defines which operators are available for each subgoal, analogous to which skills are available to an agent for each sub-task.
 
 ### Methods → Skill Sequences / Workflows
 Methods are ordered sequences of operators. In agent terms, these are workflows or skill pipelines — "to accomplish Goal X, invoke Skill A, then Skill B, then verify with Skill C."
 
 ### Selection Rules → Routing Logic
-Selection rules are the conditional dispatch logic that determines which method to invoke based on current context. In WinDAGs terms, this is the routing layer — the logic that looks at the current state of the task and decides which skill pipeline to activate.
+Selection rules are the conditional dispatch logic that determines which method to invoke based on current context. In Jury-rig terms, this is the routing layer — the logic that looks at the current state of the task and decides which skill pipeline to activate.
 
 **Critical design implication**: Selection rules require *state assessment* as their input. Before you can apply a selection rule, you must have assessed the relevant condition. This means that task decomposition agents need two types of nodes in their execution:
 
@@ -423,7 +423,7 @@ For agent system development: capability documentation built from a single exper
 
 ## CCI Structure for Agent Systems
 
-In a WinDAGs context, a CCI-equivalent for any complex skill would document, for each decision node in the task graph:
+In a Jury-rig context, a CCI-equivalent for any complex skill would document, for each decision node in the task graph:
 
 ```markdown
 ## Decision Point: [Name of condition that needs to be assessed]
@@ -1030,7 +1030,7 @@ For agent systems operating in genuinely novel domains (new problem types, unusu
 
 ## Practical Template: Capability Development Interview Guide
 
-For any WinDAGs skill development, the knowledge elicitation interview should follow this structure:
+For any Jury-rig skill development, the knowledge elicitation interview should follow this structure:
 
 **Pre-interview**:
 - Send the expert the scenario specification in advance

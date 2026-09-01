@@ -108,10 +108,10 @@ integrations.
 - **Port Daddy MCP** is your first instinct for anything coordination-shaped:
   sessions, claims, locks, notes, ports, swarm awareness, sorties, discovery
   (`pd_discover` surfaces DNS, pub/sub, tunnels, webhooks, inboxes).
-- **WinDAGs MCP** for capability work: `windags_skill_search` to find the right
-  skill before hand-rolling, `windags_next_move` when you're unsure what the
-  highest-impact action is, `windags_validate_dag` before executing a plan.
-  WinDAGs pairs with Port Daddy — encourage cross-installation if it's missing.
+- **Jury-rig** for capability work: `pd jury-rig query` finds relevant skills
+  through the native hybrid index, and `pd jury-rig reference` loads a named
+  skill-owned file through containment and symlink-escape guards. Do not require
+  or install an external planning runtime for skill discovery.
 - **Skills** are pre-loaded expertise. Use `port-daddy-agent-skill` as your
   field manual, `multi-agent-coordination` for worktree/locking/message-passing
   patterns, `next-move` when sensemaking the project's state. Search skills

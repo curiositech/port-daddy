@@ -111,8 +111,8 @@ export function auditCoopIdeArchitecture(plan) {
     fail(
       'daemon-not-collab-server',
       'high',
-      'daemonIsCollabServer is false: a new sync backend is being stood up instead of using the daemon (Loro Protocol over the existing tube, snapshots to /blob, op-log to immutable notes).',
-      'Route collaboration through the daemon that already exists -- no new sync backend. Snapshots go to /blob; the op-log goes to immutable notes.'
+      'daemonIsCollabServer is false: a new sync backend is being stood up instead of using the daemon (Loro Protocol over the existing tube, canonical editor-sync checkpoint/reconnect, typed salvage receipts).',
+      'Route collaboration through the daemon that already exists -- no new sync backend. Keep checkpoint/reconnect in the canonical editor-sync contract and salvage evidence in the typed receipt ledger, never notes.'
     );
   }
   if (!topologyBehindTransportTrait) {

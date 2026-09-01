@@ -1,0 +1,106 @@
+{
+  "branchCommit": "3f758729273d1451196920b57e2f49222d6084ac",
+  "isControlPanelPr": false,
+  "statesCovered": [
+    "active"
+  ],
+  "capturedAt": "2026-08-23T12:21:50.875Z",
+  "mode": "fixture",
+  "perRowBudgetUsd": 0.05,
+  "skipped": [],
+  "artifacts": [
+    {
+      "file": "docs/artifacts/multi-backend-resilience/2026-08-23/fixture/lanes-light.png",
+      "manifest": {
+        "daemonPort": 9596,
+        "runId": "spawned-08bc06eecb5d,spawned-cc836d9929c6,spawned-eacc055bad1f",
+        "transcriptHeadHash": null,
+        "agentNodeId": "spawned-08bc06eecb5d",
+        "commit": "3f758729273d1451196920b57e2f49222d6084ac",
+        "sourceLabel": "fixture",
+        "lanes": [
+          {
+            "label": "claude-code",
+            "agentId": "spawned-08bc06eecb5d",
+            "backend": "cli:claude-code",
+            "sourceLabel": "fixture"
+          },
+          {
+            "label": "openai",
+            "agentId": "spawned-cc836d9929c6",
+            "backend": "openai",
+            "sourceLabel": "fixture"
+          },
+          {
+            "label": "agy",
+            "agentId": "spawned-eacc055bad1f",
+            "backend": "cli:agy",
+            "sourceLabel": "fixture"
+          }
+        ]
+      }
+    },
+    {
+      "file": "docs/artifacts/multi-backend-resilience/2026-08-23/fixture/lanes-stream.webm",
+      "manifest": {
+        "daemonPort": 9596,
+        "runId": "spawned-08bc06eecb5d,spawned-cc836d9929c6,spawned-eacc055bad1f",
+        "transcriptHeadHash": null,
+        "agentNodeId": "spawned-08bc06eecb5d",
+        "commit": "3f758729273d1451196920b57e2f49222d6084ac",
+        "sourceLabel": "fixture",
+        "lanes": [
+          {
+            "label": "claude-code",
+            "agentId": "spawned-08bc06eecb5d",
+            "backend": "cli:claude-code",
+            "sourceLabel": "fixture"
+          },
+          {
+            "label": "openai",
+            "agentId": "spawned-cc836d9929c6",
+            "backend": "openai",
+            "sourceLabel": "fixture"
+          },
+          {
+            "label": "agy",
+            "agentId": "spawned-eacc055bad1f",
+            "backend": "cli:agy",
+            "sourceLabel": "fixture"
+          }
+        ]
+      }
+    },
+    {
+      "file": "docs/artifacts/multi-backend-resilience/2026-08-23/fixture/lanes-dark.png",
+      "manifest": {
+        "daemonPort": 9596,
+        "runId": "spawned-08bc06eecb5d,spawned-cc836d9929c6,spawned-eacc055bad1f",
+        "transcriptHeadHash": null,
+        "agentNodeId": "spawned-08bc06eecb5d",
+        "commit": "3f758729273d1451196920b57e2f49222d6084ac",
+        "sourceLabel": "fixture",
+        "lanes": [
+          {
+            "label": "claude-code",
+            "agentId": "spawned-08bc06eecb5d",
+            "backend": "cli:claude-code",
+            "sourceLabel": "fixture"
+          },
+          {
+            "label": "openai",
+            "agentId": "spawned-cc836d9929c6",
+            "backend": "openai",
+            "sourceLabel": "fixture"
+          },
+          {
+            "label": "agy",
+            "agentId": "spawned-eacc055bad1f",
+            "backend": "cli:agy",
+            "sourceLabel": "fixture"
+          }
+        ]
+      }
+    }
+  ]
+}

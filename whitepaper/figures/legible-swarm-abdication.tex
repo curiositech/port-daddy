@@ -1,84 +1,39 @@
-% Figure 8 — the abdication gradient (§sec:abdication).
-% Design: a single-axis regime diagram. Autonomy of the automation runs left to
-% right; the operator's role slides through four named stations; situation
-% awareness falls with it, and the Inception Canary is drawn as the one place the
-% design intervenes to arrest the slide.
-% NUMERIC PROVENANCE: the curves here are SCHEMATIC, not measured — no situation-
-% awareness data exists for this system yet, and the figure says so in its caption
-% rather than dressing a shape up as data. The freeze-probe study named in
-% §sec:sa is the experiment that would replace them with real coordinates.
-% [schematic; no script, no data — deliberately un-tagged as verified/internal]
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-\providecolor{hhgray}{HTML}{5C5650}
-
+% Figure 8 — schematic autonomy trajectory. The unmeasured status is declared
+% on-canvas; the canary is a retention floor, not a claimed recovery curve.
 \begin{figure}[H]
 \centering
-\resizebox{0.9\textwidth}{!}{%
-\begin{tikzpicture}[font=\small]
+\begin{tikzpicture}[pd figure,x=.89cm,y=.9cm]
+  \draw[pd arrow] (0,0)--(14.9,0);
+  \draw[pd arrow] (0,0)--(0,5.35);
+  \node[pd axis label,anchor=west] at (13.25,-.32) {automation autonomy};
+  \node[pd axis label,rotate=90,anchor=south] at (-.62,2.65)
+    {operator situation awareness};
 
-% ─── axes ────────────────────────────────────────────────────────────────────
-\draw[->,thick,hhink] (0,0) -- (12.2,0)
-  node[below left=2pt and 0pt,font=\footnotesize]{autonomy of the automation $\longrightarrow$};
-\draw[->,thick,hhink] (0,0) -- (0,4.4);
-\node[font=\footnotesize,text=hhink,rotate=90,anchor=south] at (-0.75,2.2)
-  {operator situation awareness};
+  \draw[pd rule,line width=1.15pt]
+    plot[smooth] coordinates {(.55,4.55)(3.6,4.05)(6.7,2.55)(10.0,1.05)(14.1,.52)};
+  \draw[pd focus rule,line width=1.15pt]
+    plot[smooth] coordinates {(6.7,2.55)(8.8,2.32)(11.3,2.17)(14.1,2.10)};
+  \fill[hhteal!7] (6.7,1.93) rectangle (14.1,2.29);
 
-% ─── the slide (schematic) ───────────────────────────────────────────────────
-\draw[hhink,very thick,domain=0:11.4,samples=90,smooth]
-  plot (\x,{3.9 - 3.35/(1+exp(-(\x-5.6)*0.62))});
-
-% ─── the four stations ───────────────────────────────────────────────────────
-\foreach \x/\lab in {0.9/doer, 4.3/approver, 7.7/rubber-stamp, 11.0/absent}{
-  \draw[hhink!55,dashed,thin] (\x,0) -- (\x,4.1);
-  \node[font=\footnotesize\bfseries,text=hhink,anchor=north] at (\x,-0.18) {\lab};
-}
-\foreach \x in {0.9,4.3,7.7,11.0}
-  \fill[hhink] (\x,{3.9 - 3.35/(1+exp(-(\x-5.6)*0.62))}) circle (2pt);
-
-% ─── the intervention ────────────────────────────────────────────────────────
-\draw[hhcobalt,very thick,domain=6.0:11.4,samples=70,smooth]
-  plot (\x,{3.9 - 3.35/(1+exp(-(6.0-5.6)*0.62)) - 0.30*(1-exp(-(\x-6.0)*0.55))});
-\fill[hhcobalt] (6.0,{3.9 - 3.35/(1+exp(-(6.0-5.6)*0.62))}) circle (2.6pt);
-\node[draw=hhcobalt,thick,rounded corners=2pt,fill=hhpaper,inner sep=5pt,
-      font=\footnotesize,text=hhink,align=center,text width=42mm,anchor=south]
-      at (7.4,3.15)
-  {\textbf{Inception Canary} (\S\ref{sec:abdication})\\
-   {\scriptsize a consented, blinded probe: a known-outcome defect,
-    replayed through the live review surface}};
-\draw[hhcobalt,thin,-{Latex[length=1.8mm]}] (6.6,3.1) -- (6.15,2.55);
-
-\node[text=hhcobalt,font=\bfseries\footnotesize,anchor=west] at (11.5,2.05)
-  {arrested};
-\node[text=hhink,font=\footnotesize,anchor=west] at (11.5,0.62)
-  {abdicated};
-
-% ─── the irony, named on the page ────────────────────────────────────────────
-\node[draw=hhink!40,thin,rounded corners=2pt,fill=hhsand!16,inner sep=6pt,
-      align=left,font=\scriptsize\itshape,text width=64mm,anchor=north west]
-      at (0.35,1.55)
-  {Bainbridge's irony: the better the automation gets, the less practiced the
-   supervisor becomes --- so the human is least equipped to intervene at exactly
-   the moment intervention is needed.};
-
-\end{tikzpicture}%
-}
-\caption{The abdication gradient (\S\ref{sec:abdication}). As the automation takes
-longer plans end-to-end, the operator's role slides through four stations --- doer,
-approver, rubber-stamp, absent --- and situation awareness slides with it. The
-Bainbridge--Scott convergence is that this is not operator weakness but a
-\emph{property of good automation}: the digest erases the swarm's m\^etis and the
-operator's alike. The design's one active defense is the Inception Canary
-(Prot.~\ref{prot:canary}), which arrests rather than reverses the slide: a
-consented, blinded replay of a known-outcome defect keeps the supervisor in practice
-without synthetic busywork. \textbf{Both curves are schematic.} No
-situation-awareness measurements exist for this system; the freeze-probe study of
-\S\ref{sec:sa} is the experiment that would replace the shape with data, and
-until it runs this figure is an argument drawn, not a result plotted.}
+  \foreach \x/\y/\lab in {.8/4.48/doer,4.15/3.80/approver,8.25/1.75/rubber-stamp,13.45/.58/absent}{
+    \draw[pd guide] (\x,0)--(\x,\y);
+    \node[pd datum] at (\x,\y) {};
+    \node[pd panel title,anchor=north] at (\x,-.20) {\lab};
+  }
+  \node[pd focus datum] at (6.7,2.55) {};
+  \node[pd direct label,text=hhteal,anchor=west,align=left] at (6.92,2.80)
+    {Inception Canary\\known-outcome replay};
+  \node[pd direct label,anchor=west] at (11.4,.76) {abdication trajectory};
+  \node[pd direct label,text=hhteal,anchor=west] at (11.4,2.38) {practice floor};
+  \node[pd note,anchor=west] at (.55,.42)
+    {schematic: the freeze-probe study is the missing measurement};
+\end{tikzpicture}
+\caption{The abdication gradient, drawn explicitly as a hypothesis rather than
+measured data. As automation owns longer plans, the operator can slide from doer
+to approver, rubber-stamp, and absence while situation awareness falls. The
+Inception Canary does not reverse that trend; it proposes a practice floor by
+replaying consented, blinded, known-outcome defects through the live review
+surface. A freeze-probe study must replace these schematic trajectories with
+observations.}
 \label{fig:abdication}
 \end{figure}

@@ -43,6 +43,42 @@
       "type": "boolean",
       "description": "True if embeddings are L2-normalized so cosine equals dot product."
     },
+    "embeddingSpace": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider", "modelId", "revision", "dimensions", "normalization", "distanceMetric", "dtype", "spaceId", "qualityTier", "degradedFallbackLabel"],
+      "properties": {
+        "provider": { "type": "string", "minLength": 1 },
+        "modelId": { "type": "string", "minLength": 1 },
+        "revision": { "type": "string", "minLength": 1 },
+        "dimensions": { "type": "integer", "minimum": 1 },
+        "normalization": { "type": "string", "enum": ["l2", "none"] },
+        "distanceMetric": { "type": "string", "enum": ["cosine", "dot", "euclidean"] },
+        "dtype": { "type": "string", "enum": ["auto", "fp32", "fp16", "q8", "int8", "uint8", "q4", "bnb4", "q4f16", "q2", "q2f16", "q1", "q1f16"] },
+        "spaceId": { "type": "string", "pattern": "^embed-v1:[a-f0-9]{64}$", "description": "SHA-256 identity over canonical JSON with ordered provider, modelId, revision, dimensions, normalization, distanceMetric, and dtype fields. Quality labels are deliberately excluded from compatibility identity." },
+        "qualityTier": { "type": "string", "enum": ["approved", "degraded-fallback"], "description": "Explicit policy quality classification. It is never inferred from modelId and is not part of spaceId." },
+        "degradedFallbackLabel": { "type": ["string", "null"], "minLength": 1, "description": "A non-empty constrained-mode label when qualityTier is degraded-fallback, otherwise null. It is not part of spaceId." }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "qualityTier": { "const": "approved" } }, "required": ["qualityTier"] },
+          "then": { "properties": { "degradedFallbackLabel": { "type": "null" } } }
+        },
+        {
+          "if": { "properties": { "qualityTier": { "const": "degraded-fallback" } }, "required": ["qualityTier"] },
+          "then": { "properties": { "degradedFallbackLabel": { "type": "string", "minLength": 1 } } }
+        }
+      ],
+      "description": "Deterministic identity of the embedding space. Every persisted and query vector must carry this contract."
+    },
+    "modelSelectedByDomainEval": {
+      "type": "boolean",
+      "description": "True when representative corpus/query evaluation, not familiarity or model size alone, selected the embedder."
+    },
+    "rejectsIncompatibleSpaces": {
+      "type": "boolean",
+      "description": "True when query/index space-id mismatch fails closed or triggers an explicit re-embed."
+    },
     "lazyLoadPromiseCached": {
       "type": "boolean",
       "description": "True if the model load Promise is created lazily inside a function and cached so concurrent first calls share one download."
@@ -71,9 +107,10 @@
       "type": "boolean",
       "description": "True if the exact model id/revision is pinned in code, never 'latest'."
     },
-    "quantized": {
-      "type": "boolean",
-      "description": "True if the quantized model variant is used ({ quantized: true })."
+    "dtype": {
+      "type": "string",
+      "enum": ["auto", "fp32", "fp16", "q8", "int8", "uint8", "q4", "bnb4", "q4f16", "q2", "q2f16", "q1", "q1f16"],
+      "description": "Transformers.js v4 dtype passed to the model loader; replaces the removed quantized boolean option."
     },
     "fullPrecisionJustified": {
       "type": "boolean",

@@ -7,8 +7,8 @@
 
 ## 2026-04-19
 - Recovered upgraded skill assets from `/Users/erichowens/coding/workgroup-ai/.claude/worktrees/agent-aa6fba4b/skills/bad-faith-rhetoric-detector`.
-- Applied CTA SKILL.md overlay from `/Users/erichowens/coding/workgroup-ai/.windags/cta-upgrades/bad-faith-rhetoric-detector/after.md`.
-- Recorded CTA audit snapshot from `/Users/erichowens/coding/workgroup-ai/.windags/cta-upgrades/bad-faith-rhetoric-detector/audit.json`.
+- Applied CTA SKILL.md overlay from `/Users/erichowens/coding/workgroup-ai/.skill-runtime-archive/cta-upgrades/bad-faith-rhetoric-detector/after.md`.
+- Recorded CTA audit snapshot from `/Users/erichowens/coding/workgroup-ai/.skill-runtime-archive/cta-upgrades/bad-faith-rhetoric-detector/audit.json`.
 
 ## 2026-04-19
 - Added explicit discourse-analysis anti-patterns so the skill teaches where bad-faith labeling commonly goes wrong.

@@ -15,7 +15,7 @@ metadata:
     maintainers: [port-daddy]
   distribution:
     public: false
-    note: "Internal to the port-daddy repo only. This skill speaks in Erich's voice and encodes his private acceptance bar; it must not be published to windags-skills, .claude marketplaces, or any public catalog. The port-daddy-agent-skill is the public-facing companion."
+    note: "Internal to the port-daddy repo only. This skill speaks in Erich's voice and encodes his private acceptance bar; it must not be published to external-skill-catalog, .claude marketplaces, or any public catalog. The port-daddy-agent-skill is the public-facing companion."
   mirrors:
     repo: skills/port-daddy-user-surrogate-pm-review
     codex: .codex/skills/port-daddy-user-surrogate-pm-review
@@ -131,18 +131,24 @@ This repo coordinates through PD, continuously — not just at session start.
 - **Check:** writes happened in an **isolated worktree**, never the live main
   checkout (codex edits `/Users/erichowens/coding/port-daddy` with uncommitted
   work — no `checkout -f`/`reset --hard`/`clean`/branch-switch there, ever).
-  Nothing written to `/tmp` (use `~/coding/tmp`). Nothing deleted — surfaces are
-  demoted/hidden, not removed (esp. the github-app).
-- **Fail signature:** dirty main checkout touched; `/tmp` paths; a deletion of
-  an app/surface without explicit operator approval.
+  Nothing durable written to `/tmp` or `/private/tmp` (use `~/coding/tmp`).
+  Preserve user data, append-only evidence, and unmerged work. When a new
+  mechanism replaces an old product surface, however, the old callable path is
+  deleted in the same coherent slice unless the operator explicitly authorizes
+  compatibility for that exact surface.
+- **Fail signature:** dirty main checkout touched; ephemeral temp paths for
+  durable work; user evidence or unmerged work destroyed; or a legacy authority
+  merely hidden/demoted while it remains callable beside its replacement.
 
 ### 7. PR hygiene
 - **Check:** branched off `origin/main`, rebased onto current `origin/main`
   before push, guard passed, no `Co-Authored-By: Claude` trailer, full
-  worktree→begin→claim→guard→commit→push→`gh pr create` flow. External checks
-  (Cloudflare Pages) are never treated as a blocker.
+  worktree→begin→claim→guard→commit→push→`gh pr create` flow. Read the live
+  ruleset and required-check set before classifying any external provider check;
+  a check is advisory only when repository evidence proves it is not required.
 - **Fail signature:** behind main; Claude co-author trailer; refusal messages
-  that *advertise* a bypass flag (`--no-verify`, `--allow-main-worktree`).
+  that *advertise* a bypass flag (`--no-verify`, `--allow-main-worktree`); or a
+  red check waived merely because its provider is usually external.
 
 ### 8. Accessibility / font floor
 - **Check (UI work only):** ≥14px on prose/body/caption; 12px only on
@@ -180,8 +186,8 @@ This repo coordinates through PD, continuously — not just at session start.
    - `git -c core.pager=cat log --oneline origin/main..HEAD` — rebased? clean?
    - For "tests pass": is there a run, or just an assertion? For "deployed": is
      there a URL, or a swallowed 401?
-   - `grep` for `text-xs`, `0\.[0-7].*rem`, `/tmp/`, `Co-Authored-By`,
-     `--no-verify` in the diff.
+   - `rg -n 'text-xs|0\.[0-7].*rem|(^|[^[:alnum:]_])/(private/)?tmp(/|$)|Co-Authored-By|--no-verify' <changed-paths>`
+     so both `/tmp` and `/private/tmp` are caught as exact path segments.
    - `pd notes --limit 10` / `pd guard status` — was coordination real?
 3. **Walk the bar.** Tick each of the 10 rules. Anything UI/content/deploy-
    specific only applies if the work is that kind.

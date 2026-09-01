@@ -73,7 +73,7 @@ const TOOL_FEATURE_MAP = {
   'resolve_parley': 'parley',
 
   // Knowledge: semantic search + symbol index — #199
-  'skill_graft_status': 'skill_graft',
+  'jury_rig_status': 'skill_graft',
   'semantic_search': 'semantic',
   'semantic_resolve': 'semantic',
   'find_symbols': 'symbols',
@@ -333,7 +333,8 @@ const MCP_EXEMPT_FEATURES = new Set([
   'booty',          // Slice S4a artifact harvest provenance over the blob store. Deposit+list only; agents drive it via `pd booty add/list` (CLI) or HTTP directly, same posture as blob. MCP wrapper deferred until the sweep/gallery follow-ups exist.
   'attention',      // Session-start convention surface; agents consume it via harness SessionStart hooks (Claude Code) or by running `pd attention` at the top of every session. An MCP tool would invert the dependency — the model would have to decide to call it mid-turn, which is exactly the polling problem this feature is supposed to remove. Deferred indefinitely.
   'popper',         // PR #181 autonomous roadmap-to-dispatch task puller. Operator-driven: `pd popper status/next/pop/enable/disable` + the FleetBar Nightshift surface (HTTP). The popper runs daemon-side on a timer; an MCP tool would invert that (the model deciding to pop work mid-turn). CLI/HTTP-only, MCP wrapper deferred.
-  'recovery',       // PR #65 magic-link account recovery. API-only single-use token issue/consume consumed by out-of-band recovery flows (proofs/bonded/recovery/magic-link.pv). Intentionally NO MCP surface — an agent must not be able to mint or consume account-recovery tokens.
+  'recovery',       // Magic-link account recovery. API-only single-use token issue/consume consumed by out-of-band recovery flows. Intentionally NO MCP surface — an agent must not mint or consume account-recovery tokens.
+  'editor_recovery', // Registered 503-only Harbor Editor recovery scaffold. Intentionally NO MCP surface: an agent must not mint a capability, self-approve replay, or bypass the missing canonical authorities.
   'dispatch',       // PR #163 operator queue for autonomous feature dev (ADR-0035). Operator-driven: `pd dispatch/nightshift/review/morning` + POST/GET /dispatches over the daemon queue. Workers are spawned by the daemon, not by an agent calling a tool mid-turn; accept/reject is a human/operator decision. CLI/HTTP-only, MCP wrapper deferred (same posture as popper).
   'fleet_hitl_proposals', // Operator HITL queue for fleet ship ideas. Ships submit inert proposals over HTTP; approve/reject happens in FleetBar/pd-console and approval hands off to dispatch. No MCP tool should let an agent approve its own proposal.
   'suggest',        // PR #322 Tender suggestion queue. Same self-approval hazard as fleet_hitl_proposals: the Tender ship writes suggestions and `POST /fleet/suggestions/:id/approve` fires a one-shot ship run, so an MCP tool would let a fleet agent approve — and fund — its own fleet's suggestion. Operator-driven via `pd suggest` / FleetBar. Intentionally NO MCP surface.

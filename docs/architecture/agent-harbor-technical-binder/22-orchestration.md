@@ -7,7 +7,7 @@ target-state; nothing here is shipped until the proof gates below pass.
 
 Skill lenses grafted for this chapter, per the chapter 19 rule that a chain
 starting without its grafts is under-prepared: `dag-runtime`,
-`windags-architect`, `dag-quality`, `skill-grader`, `reactflow-expert`,
+`jury_rig-architect`, `dag-quality`, `skill-grader`, `reactflow-expert`,
 `agentic-coding-ux-designer`, `architecture-binder-of-record`.
 
 ## The concept
@@ -53,7 +53,7 @@ this chapter's decision to force.
 
 The vocabulary-collapse rule from chapters 14 and 19 binds here with extra
 force, because this chapter's engines are the most name-laden in the corpus:
-`WinDAGs`, `next-move`, `dag-runtime`, `dag-quality`, `skill-grader`, wave
+`Jury-rig`, `next-move`, `dag-runtime`, `dag-quality`, `skill-grader`, wave
 planners, Thompson samplers, and meta-DAGs are engine and implementation
 names. The operator sees the Chart, the plan's reasons, the review verdicts,
 and the grades. No operator-facing surface, doc, or command mentions the
@@ -99,7 +99,7 @@ placeholder), `scope`, `contracts` (budgets, stop conditions), `acceptance`,
 and per-plan `shape`, `evidence`, and `splitEvidence`. Waves are not stored;
 they are **derived** by topological layering over `dependencies` at render
 time — storing them would invite drift between stored waves and edge truth
-(the `windags-architect` wave-planning failure mode: wave assignments that
+(the `jury_rig-architect` wave-planning failure mode: wave assignments that
 violate the topological order deadlock the scheduler; derive, then validate
 with Kahn's algorithm before any run starts).
 
@@ -132,7 +132,7 @@ plan, and the plan re-validates (acyclicity, dependency sanity, budget sums)
 before returning to `approval-required`. Mid-run, steering narrows to the
 mutations the runtime can honor safely — retry-with-different-skill, insert a
 gate, cancel a subtree — expressed through the same revision contract, with
-the `windags-architect` mutation-depth limit (max 3 revisions per run without
+the `jury_rig-architect` mutation-depth limit (max 3 revisions per run without
 an operator gate) preventing mutation storms. Placeholder-bearing plans
 (chapter 14 Planning Placeholders) render as a hypertree: resolved nodes
 concrete, placeholders visibly hollow with their `resolveBy` condition on the
@@ -160,7 +160,7 @@ operator could reasonably reverse:
 | `model-tier` | "strong tier on the decision node, fast tier on the mechanical rename: paying for reasoning where a wrong choice cascades" |
 | `budget` / `stop` | "node budget $0.40, stop on 3 consecutive schema-invalid outputs: this skill's historical retry curve flattens after 3" |
 
-The generators behind these are the `windags-architect` decision trees
+The generators behind these are the `jury_rig-architect` decision trees
 (execution mode, architecture pattern, commitment level, circuit-breaker
 configuration) running inside the WorkPlanner — engine detail the operator
 never sees. What the operator sees is the argument and the counterfactual.
@@ -216,7 +216,7 @@ Mechanics:
   a durable decision on the receipt, exactly like an overrule. Silence is
   not acceptance.
 - **Review economics are explicit.** Adversarial review costs real money, so
-  the trigger is the `windags-architect` ceiling rule, stated as product
+  the trigger is the `jury_rig-architect` ceiling rule, stated as product
   policy: run the expensive skeptic pass when
   `failureProbability × downstreamWaste > reviewCost`; below that line, the
   cheap evaluation of capability 4 suffices. The threshold is a plan

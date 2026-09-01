@@ -46,6 +46,7 @@ mod lane_pane;
 mod ledger_pane;
 mod lineage_pane;
 mod maritime;
+mod mission_callbacks;
 mod mission_view;
 mod mux;
 mod notes_pane;
@@ -54,6 +55,7 @@ mod pane;
 mod parley_pane;
 mod peek_pane;
 mod planner_pane;
+mod presentation;
 mod prs_pane;
 mod roadmap_pane;
 // Data layer only (WS-F cluster P): typed RoadmapProjection mirroring
@@ -114,6 +116,25 @@ use gpui::*;
 use std::borrow::Cow;
 use std::sync::mpsc;
 use std::time::Duration;
+
+/// Route every ledger interaction through one surface registry. Sort and
+/// selection therefore cannot drift into separate lists when another ledger
+/// joins the console.
+async fn mutate_ledger_surface(
+    surface: &str,
+    action: SurfaceAction,
+    client: &DaemonClient,
+    claims: &mut ClaimsPane,
+    roadmap: &mut PlannerPane,
+    sessions: &mut SessionsPane,
+) -> anyhow::Result<()> {
+    match surface {
+        "claims" => claims.mutate(client, action).await,
+        "planner" => roadmap.mutate(client, action).await,
+        "sessions" => sessions.mutate(client, action).await,
+        _ => Err(anyhow::anyhow!("unknown ledger surface '{surface}'")),
+    }
+}
 
 /// Present one changed operator frame. GPUI 0.2.2 marks an inactive macOS
 /// window dirty but can leave its display link parked after the first frame.
@@ -232,6 +253,71 @@ fn render_work_graph_png(dag_json: &str) -> anyhow::Result<std::path::PathBuf> {
     Ok(output)
 }
 
+/// Rebuild the human-language Mission conversation from daemon-owned records.
+/// The WorkIntent goal is a safe fallback for the operator turn; assistant prose
+/// appears only when it exists in the exact transcript named by the execution.
+async fn rehydrate_mission_chat(
+    client: &DaemonClient,
+    snapshot: &agent::WorkSnapshot,
+) -> (Vec<chat::ChatMsg>, Option<String>) {
+    let assistant_sender = snapshot
+        .execution_agent_id()
+        .unwrap_or("attributed agent")
+        .to_string();
+    let mut warning = None;
+    let mut messages = match snapshot.transcript_id() {
+        Some(transcript_id) => match client.transcript_turns(transcript_id).await {
+            Ok(turns) => turns
+                .into_iter()
+                .map(|turn| match turn.role {
+                    agent::TranscriptTurnRole::Operator => chat::ChatMsg::mine(turn.content),
+                    agent::TranscriptTurnRole::Assistant => {
+                        chat::ChatMsg::agent(assistant_sender.clone(), turn.content)
+                    }
+                })
+                .collect(),
+            Err(error) => {
+                warning = Some(format!(
+                    "transcript {transcript_id} could not be restored: {error}"
+                ));
+                Vec::new()
+            }
+        },
+        None => Vec::new(),
+    };
+
+    if !messages
+        .iter()
+        .any(|message| message.kind == chat::ChatMsgKind::Operator)
+    {
+        messages.insert(0, chat::ChatMsg::mine(snapshot.goal()));
+    }
+
+    let receipt = match snapshot.dispatch_id() {
+        Some(execution_id) => chat::mission_admission_receipt(
+            snapshot.intent_id(),
+            execution_id,
+            snapshot.execution_state(),
+        ),
+        None => chat::ChatMsg::receipt(
+            "Port Daddy receipt",
+            format!(
+                "WorkIntent {} is durable · runtime {}.",
+                snapshot.intent_id(),
+                snapshot.execution_state()
+            ),
+        ),
+    };
+    let receipt_index = messages
+        .iter()
+        .position(|message| message.kind == chat::ChatMsgKind::Operator)
+        .map(|index| index + 1)
+        .unwrap_or(0);
+    messages.insert(receipt_index, receipt);
+
+    (messages, warning)
+}
+
 /// Filesystem asset source — resolves paths relative to the `assets/` dir
 /// that lives next to the crate root (located via CARGO_MANIFEST_DIR at
 /// compile time; falls back to the executable's parent at runtime).
@@ -297,6 +383,31 @@ fn main() {
     // offscreen Metal readback (see docs/artifacts/gpui/HEADLESS-CAPTURE.md).
     {
         let args: Vec<String> = std::env::args().collect();
+        if let Some(i) = args.iter().position(|a| a == "--headless-zoom-capture") {
+            let out = args
+                .get(i + 1)
+                .map(String::as_str)
+                .filter(|a| !a.starts_with('-'))
+                .unwrap_or("headless-zoom-capture.png");
+            let percent = args
+                .iter()
+                .position(|a| a == "--zoom-percent")
+                .and_then(|index| args.get(index + 1))
+                .and_then(|value| value.parse::<u16>().ok())
+                .unwrap_or(presentation::DEFAULT_ZOOM_PERCENT);
+            match headless_capture::capture_zoom_controls_to_path(out, percent) {
+                Ok(bytes) => {
+                    println!(
+                        "pd-console headless-zoom-capture -> {out} ({bytes} bytes, {percent}%, no window/display/TCC)"
+                    );
+                    return;
+                }
+                Err(error) => {
+                    eprintln!("pd-console headless-zoom-capture failed: {error}");
+                    std::process::exit(1);
+                }
+            }
+        }
         if let Some(i) = args.iter().position(|a| a == "--headless-capture") {
             // Fall back to the default when the next token is another flag (or
             // absent) rather than silently writing to a path like `--list-displays`.
@@ -327,6 +438,9 @@ fn main() {
     // Seed operator presentation preferences before the window opens.
     app::init_theme_from_env();
     app::init_motion_from_env();
+    if let Some(warning) = presentation::init() {
+        eprintln!("{warning}");
+    }
 
     // Canonical daemon discovery: PORT_DADDY_URL env var → daemon.port file →
     // the stable berth default. All fallback logic lives in
@@ -432,6 +546,7 @@ fn main() {
                     ..Default::default()
                 },
                 |window, cx| {
+                    window.set_rem_size(gpui::px(16.0 * presentation::zoom_factor()));
                     let control_tx = control_tx.clone();
                     let view = cx.new(|cx| {
                         ConsoleView::with_control(
@@ -495,12 +610,13 @@ fn main() {
         // The fg drains it alongside pane updates — the keystone that turns
         // "nothing happens" into "spawn rejected: <why>".
         let (alert_tx, alert_rx) = mpsc::channel::<pane::Alert>();
-        // Work bus: command receipts and restart-safe daemon snapshots flow back
-        // to the foreground-owned Work surface. Rendered PNGs are artifacts of
+        // Mission bus: command receipts and restart-safe daemon snapshots flow back
+        // to the foreground-owned Mission surface. Rendered PNGs are artifacts of
         // that truth, never an independent planning source.
         let (work_tx, work_rx) = mpsc::channel::<app::WorkUpdate>();
-        // Chat bus currently carries the honest absence of a governed responder.
-        // A chat turn captures WorkIntent rather than silently spawning a vendor.
+        // Mission conversation bus: attributed replies, deterministic receipts,
+        // and honest refusals. A first turn captures WorkIntent rather than
+        // silently spawning a provider-specific responder.
         let (chat_tx, chat_rx) = mpsc::channel::<chat::ChatUpdate>();
         // The Harbor Editor's LIVE blocks (P3 wire stage 2): the producer folds the
         // edit-sync + coordination lanes into its persistent EditorPane, then pushes
@@ -616,6 +732,17 @@ fn main() {
                 // Once the operator starts a mission, keep following that exact
                 // WorkIntent even if another client creates newer work.
                 let mut tracked_work_intent_id: Option<String> = None;
+                // Route chat from durable execution truth, not a stale agent
+                // heartbeat or the mere existence of an old subscription.
+                let mut tracked_work_state: Option<String> = None;
+                // A row selected in Agents binds the shared composer to that
+                // stable Port Daddy actor without pretending it is a WorkIntent
+                // created by this console process.
+                let mut operator_selected_agent = false;
+                // Selection is durable across console restarts. Rebind it once
+                // the authoritative directory has refreshed; never infer a
+                // provider process or resurrect an offline actor.
+                let mut restore_saved_agent = true;
 
                 loop {
                     tokio::time::sleep(Duration::from_secs(2)).await;
@@ -632,62 +759,6 @@ fn main() {
                                     .await
                                 {
                                     let _ = alert_tx.send(pane::Alert::error("interrupt failed", e.to_string()));
-                                }
-                            }
-                            app::ControlMsg::SubmitWorkIntent { goal } => {
-                                match client.capture_work_intent(&goal).await {
-                                    Ok(receipt) => {
-                                        let intent_id = receipt.snapshot.intent_id().to_string();
-                                        let state = receipt.snapshot.plan_state().to_string();
-                                        let correlation = receipt.correlation_id.clone();
-                                        let duplicate = receipt.duplicate;
-                                        let snapshot = receipt.snapshot.clone();
-                                        tracked_work_intent_id = Some(intent_id.clone());
-                                        latest_work_projection = Some((
-                                            intent_id.clone(),
-                                            state.clone(),
-                                            snapshot.execution_fingerprint(),
-                                        ));
-                                        let _ = work_tx.send(app::WorkUpdate::Receipt(receipt));
-                                        match client.start_work_intent(&snapshot).await {
-                                            Ok(execution) => {
-                                                let runtime_state = execution.state.clone();
-                                                let execution_id = execution.dispatch_id.clone();
-                                                let launched = execution.launched_this_tick;
-                                                lane.follow_agent(execution.agent_id.as_deref());
-                                                let _ = work_tx.send(app::WorkUpdate::Execution(execution));
-                                                let _ = alert_tx.send(pane::Alert::info(
-                                                    format!("WorkIntent started: {intent_id}"),
-                                                    format!(
-                                                        "runtime {runtime_state} · receipt {execution_id} · trace {correlation} · {launched} worker claim processed{}",
-                                                        if duplicate { " · capture replay" } else { "" }
-                                                    ),
-                                                ));
-                                            }
-                                            Err(error) => {
-                                                let _ = alert_tx.send(pane::Alert::error(
-                                                    format!("WorkIntent captured; runtime start failed: {intent_id}"),
-                                                    format!(
-                                                        "{error} · retry uses the same idempotency key; inspect the Work receipt before assuming no body started"
-                                                    ),
-                                                ));
-                                            }
-                                        }
-                                    }
-                                    Err(error) => {
-                                        let _ = alert_tx.send(pane::Alert::error(
-                                            "WorkIntent capture failed",
-                                            format!(
-                                                "{error} · no provider, node, or run was started"
-                                            ),
-                                        ));
-                                    }
-                                }
-                            }
-                            // Send a turn to the cartographer over its tube channel.
-                            app::ControlMsg::Cartographer { text } => {
-                                if let Err(e) = client.tube_send("cartographer", &text, "operator").await {
-                                    let _ = alert_tx.send(pane::Alert::error("cartographer send failed", e.to_string()));
                                 }
                             }
                             app::ControlMsg::MessageLane { text } => {
@@ -707,7 +778,12 @@ fn main() {
                                 }
                             }
                             app::ControlMsg::ChatSend { text } => {
-                                if lane.has_agent() {
+                                if (operator_selected_agent && lane.has_agent())
+                                    || chat::routes_to_existing_mission_body(
+                                        tracked_work_state.as_deref(),
+                                        lane.has_agent(),
+                                    )
+                                {
                                     if let Err(error) = lane
                                         .mutate(
                                             &client,
@@ -724,14 +800,14 @@ fn main() {
                                     continue;
                                 }
 
-                                let goal = format!(
-                                    "Answer this operator message directly and briefly, then record any useful next action: {text}"
-                                );
+                                let goal = chat::mission_goal_for_operator_turn(&text);
                                 match client.capture_work_intent(&goal).await {
                                     Ok(receipt) => {
                                         let intent_id = receipt.snapshot.intent_id().to_string();
                                         let state = receipt.snapshot.plan_state().to_string();
                                         let snapshot = receipt.snapshot.clone();
+                                        tracked_work_intent_id = Some(intent_id.clone());
+                                        tracked_work_state = Some("starting".into());
                                         latest_work_projection = Some((
                                             intent_id.clone(),
                                             state,
@@ -741,14 +817,16 @@ fn main() {
                                         match client.start_work_intent(&snapshot).await {
                                             Ok(execution) => {
                                                 let runtime_state = execution.state.clone();
+                                                tracked_work_state = Some(runtime_state.clone());
                                                 let execution_id = execution.dispatch_id.clone();
+                                                lane.follow_agent(execution.agent_id.as_deref());
+                                                operator_selected_agent = false;
                                                 let _ = work_tx.send(app::WorkUpdate::Execution(execution));
-                                                let _ = chat_tx.send(chat::ChatUpdate::Reply(
-                                                    chat::ChatMsg::agent(
-                                                        "port-daddy",
-                                                        format!(
-                                                            "governed responder {runtime_state}; receipt {execution_id}. Live assistant turns will stream here."
-                                                        ),
+                                                let _ = chat_tx.send(chat::ChatUpdate::Receipt(
+                                                    chat::mission_admission_receipt(
+                                                        &intent_id,
+                                                        &execution_id,
+                                                        &runtime_state,
                                                     ),
                                                 ));
                                             }
@@ -838,9 +916,19 @@ fn main() {
                                 client = DaemonClient::new(url);
                                 lane_stream = None; // drop the old daemon's SSE stream
                                 editor_stream = None; // and the editor's edit/coord streams
+                                lane.follow_agent(None);
                                 latest_work_projection = None;
                                 latest_work_query_error = None;
                                 tracked_work_intent_id = None;
+                                tracked_work_state = None;
+                                operator_selected_agent = false;
+                                // An explicit daemon switch is authoritative for
+                                // this process. Do not immediately bounce back to
+                                // a saved actor; clicking that actor re-enters its
+                                // owning berth deliberately.
+                                restore_saved_agent = false;
+                                let _ = work_tx.send(app::WorkUpdate::Reset);
+                                let _ = chat_tx.send(chat::ChatUpdate::Reset);
                             }
                             // Steer the Sextant pane's query; the next 2s refresh
                             // fetches with the new window/floor.
@@ -1033,6 +1121,62 @@ fn main() {
                                     }
                                 }
                             }
+                            // Responsive ledger row click: Claims and Planner
+                            // own their selection state in the producer thread.
+                            app::ControlMsg::LedgerSelect { surface, index } => {
+                                let result = mutate_ledger_surface(
+                                    &surface,
+                                    SurfaceAction::SelectRow { index },
+                                    &client,
+                                    &mut claims,
+                                    &mut roadmap,
+                                    &mut sessions,
+                                )
+                                .await;
+                                if let Err(error) = result {
+                                    let _ = alert_tx.send(pane::Alert::error(
+                                        format!("{surface} selection failed"),
+                                        error.to_string(),
+                                    ));
+                                } else if surface == "sessions" {
+                                    if let Some((agent_id, daemon_url)) =
+                                        sessions.selected_active_agent_target()
+                                    {
+                                        if client.base() != daemon_url {
+                                            client = DaemonClient::new(daemon_url);
+                                            lane_stream = None;
+                                            editor_stream = None;
+                                            latest_work_projection = None;
+                                            latest_work_query_error = None;
+                                        }
+                                        lane.follow_agent(Some(&agent_id));
+                                        operator_selected_agent = true;
+                                        restore_saved_agent = false;
+                                    } else {
+                                        lane.follow_agent(None);
+                                        operator_selected_agent = false;
+                                    }
+                                }
+                            }
+                            // Sort is local projection state; it never writes
+                            // daemon authority or changes the selected claim/item.
+                            app::ControlMsg::LedgerSort { surface, key } => {
+                                let result = mutate_ledger_surface(
+                                    &surface,
+                                    SurfaceAction::Sort { key },
+                                    &client,
+                                    &mut claims,
+                                    &mut roadmap,
+                                    &mut sessions,
+                                )
+                                .await;
+                                if let Err(error) = result {
+                                    let _ = alert_tx.send(pane::Alert::error(
+                                        format!("{surface} sort failed"),
+                                        error.to_string(),
+                                    ));
+                                }
+                            }
                             // Harbor roster click: select a node (ch18 C3).
                             // Selection is a UI act; it never fails loudly.
                             app::ControlMsg::HarborSelect { index } => {
@@ -1045,6 +1189,14 @@ fn main() {
                                         e.to_string(),
                                     ));
                                 }
+                            }
+                            // Claim-tree radar selection is an inspect-only UI
+                            // action. It retargets the focused evidence card;
+                            // it cannot coordinate or mutate a claim on its own.
+                            // Not routed through SurfaceAction::SelectRow: that
+                            // index namespace belongs to the claims ledger.
+                            app::ControlMsg::ClaimsTroubleSelect { index } => {
+                                claims.select_trouble(index);
                             }
                             // Harbor control verb: the pane gate-checks, then
                             // POSTs the F0 ControlCommand; the daemon is the
@@ -1138,7 +1290,10 @@ fn main() {
                         }
                     }
 
-                    let query_limit = if tracked_work_intent_id.is_some() { 100 } else { 1 };
+                    // The daemon may expose a native console WorkIntent adjacent
+                    // to a compatibility dispatch projection for the same run.
+                    // Read a small recency window so the native identity can win.
+                    let query_limit = if tracked_work_intent_id.is_some() { 100 } else { 10 };
                     match client.list_work_intents(query_limit).await {
                         Ok(snapshots) => {
                             latest_work_query_error = None;
@@ -1146,18 +1301,49 @@ fn main() {
                                 Some(intent_id) => snapshots
                                     .into_iter()
                                     .find(|snapshot| snapshot.intent_id() == intent_id),
-                                None => snapshots.into_iter().next(),
+                                None => agent::prefer_native_work_intent(snapshots),
                             };
                             if let Some(snapshot) = snapshot {
+                                tracked_work_state = Some(snapshot.execution_state().to_string());
                                 let fingerprint = (
                                     snapshot.intent_id().to_string(),
                                     snapshot.plan_state().to_string(),
                                     snapshot.execution_fingerprint(),
                                 );
-                                lane.follow_agent(snapshot.execution_agent_id());
+                                if !operator_selected_agent {
+                                    lane.follow_agent(snapshot.execution_agent_id());
+                                }
                                 if latest_work_projection.as_ref() != Some(&fingerprint) {
                                     latest_work_projection = Some(fingerprint);
+                                    let chat_snapshot = snapshot.clone();
                                     let _ = work_tx.send(app::WorkUpdate::Snapshot(snapshot));
+                                    let (messages, transcript_warning) =
+                                        rehydrate_mission_chat(&client, &chat_snapshot).await;
+                                    let awaiting_reply = chat::routes_to_existing_mission_body(
+                                        Some(chat_snapshot.execution_state()),
+                                        chat_snapshot.execution_agent_id().is_some(),
+                                    );
+                                    let _ = chat_tx.send(chat::ChatUpdate::Hydrate {
+                                        messages,
+                                        awaiting_reply,
+                                    });
+                                    if let Some(detail) = transcript_warning {
+                                        let _ = alert_tx.send(pane::Alert::error(
+                                            "Mission transcript unavailable",
+                                            format!(
+                                                "{detail} · showing the durable WorkIntent and receipt without inventing assistant prose"
+                                            ),
+                                        ));
+                                    }
+                                }
+                            } else {
+                                let had_projection = latest_work_projection.take().is_some();
+                                let had_tracked_intent = tracked_work_intent_id.take().is_some();
+                                tracked_work_state = None;
+                                if !operator_selected_agent && (had_projection || had_tracked_intent) {
+                                    lane.follow_agent(None);
+                                    let _ = work_tx.send(app::WorkUpdate::Reset);
+                                    let _ = chat_tx.send(chat::ChatUpdate::Reset);
                                 }
                             }
                         }
@@ -1189,7 +1375,22 @@ fn main() {
                     let _ = roadmap.refresh(&client).await;
                     let _ = adrs.refresh(&client).await;
                     let _ = activity.refresh(&client).await;
-                    let _ = sessions.refresh(&client).await;
+                    if sessions.refresh(&client).await.is_ok() && restore_saved_agent {
+                        if let Some((agent_id, daemon_url)) =
+                            sessions.selected_active_agent_target()
+                        {
+                            if client.base() != daemon_url {
+                                client = DaemonClient::new(daemon_url);
+                                lane_stream = None;
+                                editor_stream = None;
+                                latest_work_projection = None;
+                                latest_work_query_error = None;
+                            }
+                            lane.follow_agent(Some(&agent_id));
+                            operator_selected_agent = true;
+                        }
+                        restore_saved_agent = false;
+                    }
                     let _ = inbox.refresh(&client).await;
                     let _ = suggest.refresh(&client).await;
                     let _ = memory.refresh(&client).await;

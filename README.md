@@ -1,4 +1,4 @@
-# ⚓ Port Daddy (v3.30.4)
+# ⚓ Port Daddy (v3.30.6)
 
 <p align="center">
   <img src="website-v2/public/img/hero-portdaddy.png" alt="Port Daddy — the harbormaster for your AI agents" width="600">
@@ -97,16 +97,7 @@ npm install -g port-daddy
 pd setup
 ```
 
-`pd setup` detects your installed editors (Claude Code, Claude Desktop, Cursor, Windsurf, Gemini, Cline and friends), writes MCP configuration for each, installs the agent skill and Port Daddy Pilot definitions, starts the daemon under launchd supervision, and offers FleetBar.
-
-Optional signed Mac menu-bar app from the public site:
-
-```bash
-curl -LO https://portdaddy.dev/downloads/PortDaddy-FleetBar-macOS-arm64.zip
-curl -LO https://portdaddy.dev/downloads/PortDaddy-FleetBar-macOS-arm64.zip.sha256
-shasum -a 256 -c PortDaddy-FleetBar-macOS-arm64.zip.sha256
-unzip PortDaddy-FleetBar-macOS-arm64.zip
-```
+`pd setup` detects your installed editors (Claude Code, Claude Desktop, Cursor, Windsurf, Gemini, Cline and friends), writes MCP configuration for each, installs the agent skill and Port Daddy Pilot definitions, starts the daemon under launchd supervision, and installs the exact matching signed FleetBar release on macOS. FleetBar updates itself from its out-of-date card: it verifies the version-pinned archive checksum, Curiositech Developer ID, and Apple notarization before replacing the app, preserves the previous bundle for rollback, and relaunches through launchd. The operator never has to hunt for a download or run an update command.
 
 ### 3. Verify
 
@@ -390,7 +381,7 @@ Session-scoped MCP tools (`add_note`, `list_notes`, `claim_files`, `claim_symbol
 
 **Messaging** — `pub`/`publish`, `sub`/`subscribe`/`listen`, `broadcast`, `channels`, `tube`, `inbox`, `message`, `quorum`, `parley`
 
-**Locks & shared memory** — `lock`, `unlock`, `locks`, `with-lock`, `tuple`, `pheromone`/`ph`, `graph`, `memory`, `semantic`, `embed`, `skill-graft`, `harbors`, `harbor`
+**Locks & shared memory** — `lock`, `unlock`, `locks`, `with-lock`, `tuple`, `pheromone`/`ph`, `graph`, `memory`, `semantic`, `embed`, `jury-rig`, `harbors`, `harbor`
 
 **Spawning & delegation** — `spawn`, `spawned`, `agent`, `sortie`, `dispatch` (né `nightshift`), `review`, `fleet`, `harbormaster`/`hm`, `cockpit`, `backend`, `squid`, `transcripts`/`transcript`, `benchmark`, `coast-guard`/`cg`, `wallet`, `bond`, `popper`, `shipwright`
 
@@ -484,7 +475,11 @@ pd parley respond <id> --position "yes, with region fallback"
 pd parley resolve <id>
 ```
 
-Parley decisions render in pd-console's Parley pane, including CONVENE/hold economics (ADR-0086).
+Mission is pd-console's ordinary operator entry point; Parley is an explicit
+coordination action, not an alternate default chat. Invoke it with `pd parley`
+from the emergency CLI or from a verified Sextant selection, then inspect the
+durable decision in pd-console's Parley inspector, including CONVENE/hold
+economics (ADR-0086).
 
 ### Inboxes, Integration & Waiting
 
@@ -547,16 +542,16 @@ pd memory tiers                                           # Core / Recall / Arch
 pd embed status                                           # shared local embedder (MiniLM) state
 pd embed text "salvage a dead agent's session"            # embed ad-hoc text
 pd embed prefetch                                         # one-time ~27 MB model download
-pd skill-graft "write tests for a flaky fleet trigger"    # preview the local skill guidance a fleet ship would receive
-pd skill-graft warm --local-only                          # checkpoint a bounded Tool2Vec batch with loopback Ollama only
-pd skill-graft warm --all                                 # explicit full warm; may use the actor-pinned generator backend
-# MCP: skill_graft_status() reads coverage without generating or calling an LLM
+pd jury-rig "write tests for a flaky fleet trigger"       # preview the local skill guidance a fleet ship would receive
+pd jury-rig warm --local-only                             # checkpoint a bounded Tool2Vec batch with loopback Ollama only
+pd jury-rig warm --all                                    # explicit full warm; may use the actor-pinned generator backend
+# MCP: jury_rig_status() reads coverage without generating or calling an LLM
 pd backend adapters --matrix                              # N:N native/handoff mechanics
 pd backend adapters --probe                               # local discovery, not runtime proof
 pd roster search "SQLite migration recovery" --repo .    # durable expert lookup (hybrid)
 ```
 
-Search across Port Daddy is **hybrid** — BM25 plus one shared local embedding model (`Xenova/all-MiniLM-L6-v2`, prefetched at install per ADR-0061). Skill Graft's Tool2Vec centroids are reconciled content-hash-by-content-hash across the full user catalog: setup and daemon ticks use only loopback Ollama, never an inherited fleet or cloud backend, while a manual `pd skill-graft warm` may use an explicitly pinned `PD_SKILL_GRAFT_BACKEND`. The SQLite lease and row checkpoints make daemon, setup, and manual callers safe to resume after interruption. `pd doctor` reports current, cold, reconciling, embedder-down, or generator-down coverage. `pd memory tiers` prints the three-tier vocabulary overlay (Core/Recall/Archival) over the same SQLite substrate.
+Search across Port Daddy is **hybrid** — BM25 plus one shared local embedding model (`Xenova/all-MiniLM-L6-v2`, prefetched at install per ADR-0061). Jury-rig's Tool2Vec centroids are reconciled content-hash-by-content-hash across the local and explicitly configured user catalog; no external skill runtime is required. Setup and daemon ticks use only loopback Ollama, never an inherited fleet or cloud backend, while a manual `pd jury-rig warm` may use an explicitly pinned `PD_SKILL_GRAFT_BACKEND`. The SQLite lease and row checkpoints make daemon, setup, and manual callers safe to resume after interruption. `pd doctor` reports current, cold, reconciling, embedder-down, or generator-down coverage. `pd memory tiers` prints the three-tier vocabulary overlay over the same SQLite substrate.
 
 Backend-neutral continuation uses `POST /memory/handoffs` with `{ capsule, tokenBudget?, coordinationSessionId? }`, where `capsule` follows `pd.agent-harbor.handoff-capsule.v0`. The daemon enforces a 2 MiB ingress boundary, allowlists and bounds the capsule fields, preserves every operator turn and durable decision, sheds transcript tail before artifact summaries when a token budget is tight, recursively redacts structured credentials, and then requires a clean external `gitleaks stdin` verdict. Homebrew installs Gitleaks with Port Daddy; other installation paths must place `gitleaks` on `PATH` or set `PD_GITLEAKS_BIN`. Missing scanners, residual findings, or a budget too small for operator context fail closed; only the sanitized capsule is stored as an idempotent handoff episode keyed by source agent and session. Optional coordination-note harvest runs after that durable write and reports a warning rather than discarding a clean capsule when harvest is unavailable. The canonical schema is [`schemas/agent-harbor/v0/handoff-capsule.schema.json`](schemas/agent-harbor/v0/handoff-capsule.schema.json), extending the salvage contract in ADR-0028 without replaying raw provider transcripts.
 
@@ -564,7 +559,7 @@ Same-harness continuation is daemon-witnessed rather than inferred. All four nat
 
 Cross-harness continuation uses the same endpoint and receipt ledger. Choose the concrete runtime with `targetBackend` and set `mode` to `auto`, `native`, or `handoff` (`auto` is the default). Auto mode restores only a compatible session-scoped native family; otherwise it starts a new target session from [`pd.agent-harbor.handoff-successor-brief.v0`](schemas/agent-harbor/v0/handoff-successor-brief.schema.json). The brief carries durable identity and predecessor lineage plus the sanitized objective, every preserved operator turn, decisions, coordination evidence, workspace state, artifacts, and compact recent context. It explicitly treats historical content as data rather than new system/tool authority, is scanned again before acceptance, and never copies the raw provider transcript. Capsule workspace paths are context, never cwd authority: a successor reuses a reverified source workspace witness, or a stateless/history-only source must supply an explicit current `targetWorkdir`; Port Daddy captures that user-owned absolute directory's device/inode identity, binds it into request idempotency, and checks it again before spawn. An explicit target cannot redirect a witnessed session into another checkout. Explicit native mode fails rather than silently switching semantics; explicit handoff mode always creates a successor, even on the same backend family.
 
-Spawner-launched bodies now feed their already-redacted transcript rows into Agent Harbor as real hash-chained conversation evidence. At run finalization the daemon emits a `ContextEnvelope` using the higher of adapter-reported usage and its persisted-transcript estimate. Crossing the compaction threshold builds and immediately revalidates a cited `CompactionPacket`; the packet is projected into the same sanitized handoff episode consumed by `POST /memory/handoffs/:episodeId/continue`, so the existing leased idempotency receipt remains the only successor path. `GET /agent-harbor/context-continuity` projects envelopes, packet head hashes, handoff episode ids, and continuation receipts for FleetBar. The Giant Squid panel shows this proof alongside hook health; it does not turn a self-reported percentage into a green status. Interactive Squid adapters still need to emit the same envelope contract before this coverage is universal.
+Spawner-launched bodies now feed their already-redacted transcript rows into Agent Harbor as real hash-chained conversation evidence. At run finalization the daemon emits a `ContextEnvelope` using the higher of adapter-reported usage and its persisted-transcript estimate. Crossing the compaction threshold builds and immediately revalidates a cited `CompactionPacket`; the packet is projected into the same sanitized handoff episode consumed by `POST /memory/handoffs/:episodeId/continue`, so the existing leased idempotency receipt remains the only successor path. `GET /agent-harbor/context-continuity` projects envelopes, packet head hashes, handoff episode ids, and continuation receipts for FleetBar. The Giant Squid panel shows this proof alongside hook health; it does not turn a self-reported percentage into a green status. The supported Claude `PreCompact` adapter emits that envelope through `POST /agent-harbor/interactive-context-pressure`: it uses the higher of provider-native usage and the daemon estimate, checkpoints `pd plan`, and admits a cited packet only after a session-bound tool-pair coverage receipt. Other interactive providers remain explicitly unsupported rather than simulated.
 
 Harness portability is reported as predicates, not a marketing score. `pd backend adapters --matrix` prints the generated 17×17 native-or-handoff mechanics grid; `--probe` adds side-effect-free binary/help discovery. `GET /harness-adapters/continuation-matrix` and the read-only MCP tool `harness_continuation_matrix` keep those catalog ceilings separate from completed spawn transcripts and continuation receipts, label evidence older than seven days as stale, and leave exact live interaction unverified until a dedicated control receipt exists. Neither discovery nor an agent's self-report earns runtime conformance. The canonical response schema is [`schemas/agent-harbor/v0/harness-continuation-matrix.schema.json`](schemas/agent-harbor/v0/harness-continuation-matrix.schema.json).
 
@@ -612,20 +607,20 @@ Use the right surface for the job (canonical doc: [docs/DELEGATION-MODES.md](doc
 ```bash
 # Preferred single-agent delegation
 pd agent "Review the last commit for regressions" \
-  --backend claude --model claude-haiku-4-5-20251001 --budget 0.35
+  --backend claude --tier low --budget 0.35
 
 # Harness lane: preflight + budget ceiling + tier sugar + stable tube in one shape
 pd agent harness codex "inspect the queue" --budget 0.50 --tier strong --channel harness:demo
 
 # Tracked mission record with status + logs
 pd sortie "Investigate flaky auth tests; summarize root cause" \
-  --backend claude --model claude-haiku-4-5-20251001 --budget 0.75
+  --backend claude --tier low --budget 0.75
 pd sortie list
 pd sortie status sortie-abc123
 pd sortie logs sortie-abc123
 
 # The primitive
-pd spawn --backend claude --model claude-haiku-4-5-20251001 \
+pd spawn --backend claude --tier low \
   --budget 0.50 --identity myapp:fixer -- "Summarize the latest auth diff"
 
 pd spawned              # list running/completed agents
@@ -821,9 +816,9 @@ three-hook installs; new installs never schedule them.
 Want Claude-shaped local orchestration while spending against the OpenAI Codex CLI auth already on the machine? `pd squid` serves a small Anthropic-Messages-compatible endpoint on localhost, generates a fresh local token, injects `ANTHROPIC_BASE_URL`/`ANTHROPIC_AUTH_TOKEN` into a launched client, and forwards each request to `codex exec`:
 
 ```bash
-pd squid codex -- claude --model claude-sonnet-4-5
-pd squid pro --codex-effort high -- claude --model claude-sonnet-4-5
-pd squid bridge --codex-model-alias claude-sonnet-4-5=gpt-5.1-codex -- claude --model claude-sonnet-4-5
+pd squid codex -- claude --model sonnet
+pd squid pro --codex-effort high -- claude --model sonnet
+pd squid bridge --codex-model-alias <client-model>=<codex-model> -- claude --model sonnet
 pd squid serve --port 8765     # bridge only; prints the token for curl/debugging
 ```
 
@@ -850,7 +845,7 @@ fleet:
     qa:
       trigger: git:committed          # React to pub/sub events
       backend: claude
-      model: claude-haiku-4-5-20251001
+      capability: cheap
       prompt: |
         Review the most recent commit. Find bugs. Write tests.
 
@@ -858,7 +853,7 @@ fleet:
       schedule: "*/10 * * * *"        # Or run on a cron schedule
       run_on_start: false             # true only when boot-time work is intentional
       backend: claude
-      model: claude-haiku-4-5-20251001
+      capability: cheap
       prompt: "Summarize repo status; suggest the next maintenance action."
       on_success: publish git:status  # Chain agents via channels
 
@@ -887,7 +882,7 @@ curl 'http://localhost:9876/fleet/prompt?project=myapp'   # One-liner for your P
 curl http://localhost:9876/fleet/models             # Available backends & models
 ```
 
-Every fleet agent gets full coordination for free: registration, sessions, heartbeats, salvage on crash. Repeated trigger bursts collapse into **queued** work (mailbox semantics — `status: queued`, non-zero `queueDepth`) instead of spawning a fresh agent per wake. Template variables (`{project}`) resolve from YAML context; lifecycle events publish on `fleet:events`. The same fail-closed telemetry policy as manual launches applies. A declaration with `enabled: false` remains inspectable in the source-aware Fleet AST but is omitted from executable runtime config; a present malformed `enabled` value also fails closed to disabled. Scheduled ships default `run_on_start: false` so a daemon restart cannot fan out a whole fleet before `/health` is stable. Fleet accepts `*/N * * * *`, `0 */N * * *`, `M * * * *`, and `M H * * *`; fixed-clock schedules re-arm against host-local wall-clock time. At DST boundaries, local `Date` semantics advance spring-forward gaps and select the earlier fall-back occurrence; this is not a timezone-aware calendar walker. Malformed, unsupported, or calendar-constrained expressions fail closed: Fleet arms neither a timer nor `run_on_start`, emits `agent_failed`, and forecasts zero launches. Ships can opt into native skill guidance with `skill_graft: true`; `pd skill-graft` previews, checkpoint-warms, and reads guarded references from the same local index. Fleet queries never generate missing Tool2Vec rows on their hot path.
+Every fleet agent gets full coordination for free: registration, sessions, heartbeats, salvage on crash. Repeated trigger bursts collapse into **queued** work (mailbox semantics — `status: queued`, non-zero `queueDepth`) instead of spawning a fresh agent per wake. Template variables (`{project}`) resolve from YAML context; lifecycle events publish on `fleet:events`. The same fail-closed telemetry policy as manual launches applies. A declaration with `enabled: false` remains inspectable in the source-aware Fleet AST but is omitted from executable runtime config; a present malformed `enabled` value also fails closed to disabled. Scheduled ships default `run_on_start: false` so a daemon restart cannot fan out a whole fleet before `/health` is stable. Fleet accepts `*/N * * * *`, `0 */N * * *`, `M * * * *`, and `M H * * *`; fixed-clock schedules re-arm against host-local wall-clock time. At DST boundaries, local `Date` semantics advance spring-forward gaps and select the earlier fall-back occurrence; this is not a timezone-aware calendar walker. Malformed, unsupported, or calendar-constrained expressions fail closed: Fleet arms neither a timer nor `run_on_start`, emits `agent_failed`, and forecasts zero launches. Ships can opt into native skill guidance with `jury_rig: true`; `pd jury-rig` previews, checkpoint-warms, and reads guarded references from the same local index. Fleet queries never generate missing Tool2Vec rows on their hot path. Red Team declares the registry's high model tier so adversarial security review never inherits a weaker CLI default.
 
 Fleet schema: ADR-0019 (`docs/adr/0019-declarative-fleet-yaml.md`); typed AST + diagnostics: ADR-0026. This repo dogfoods its own fleet — see `pd-fleet.yml` and `docs/fleet/` for the current ship roster and known issues.
 
@@ -1058,7 +1053,9 @@ Port Daddy ships exactly **three** sanctioned operator surfaces (the legacy web 
 
 1. **FleetBar** (`apps/FleetBar/`) — the SwiftUI macOS menu-bar app. Daemon health at a glance, berth chip, cost dashboard, secrets pane, visual task intake, one-click "Open Operator Console". Auto-launched by the daemon.
 2. **Control Center** — FleetBar's window. Fleet graph, agents view (configured fleet agents, live registry, spawned runs, salvage ghosts, inbox traffic, sessions/notes, channels, claims), fleet config editing with topology validation.
-3. **pd-console** (`core/pd-console/`) — the GPU-native (gpui) mission console. It opens on one full-window Work screen: the operator describes an outcome in plain English; the daemon persists one provider-neutral WorkIntent, admits the governed runtime, and binds the exact launch, agent, model, transcript, worktree, and PR back to that mission. Live work and current PR checks remain attached across restarts. Fleet, Sessions, Health, and other deep-truth views are secondary inspector surfaces, not competing defaults. The persistent PTY drawer remains an emergency shell for the real `pd` CLI, not an internal app adapter. Build via `make` / `make install`; the Homebrew cask ships `pd-console-prod.app`.
+3. **pd-console** (`core/pd-console/`) — the GPU-native (gpui) mission console. It opens on one full-window Mission conversation: the operator describes an outcome in plain English; the daemon persists one provider-neutral WorkIntent, admits the governed runtime, and binds the exact launch, agent, model, transcript, worktree, and PR back to that mission. Plan, suggested skills, claims, evidence, and cost remain attached as contextual cards across restarts. Claims is a sortable metadata ledger with full file/symbol, owner, purpose, worktree, branch, phase, and timestamp inspection—never a truncated identity list. Planner keeps Port Daddy's local roadmap visibly separate from an optional, read-only Jira Cloud project projection (`GET /roadmap/jira`); its Jira connection tuple is saved from FleetBar's Credentials surface and queried through Atlassian's [enhanced JQL search endpoint](https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-issue-search/). When Jira is unconfigured or unreachable, Planner reports that source state in place without disabling the local roadmap. Fleet, Sessions, Health, and other deep-truth views are secondary inspectors opened from the conversation, not competing defaults. The persistent PTY drawer remains an emergency shell for the real `pd` CLI, not an internal app adapter. Build via `make` / `make install`; the Homebrew cask ships `pd-console-prod.app`.
+
+   The **Agents** view is the durable conversation switcher, not a second live-process roster. `GET /operator/session-directory` asks every running local daemon berth for its active and recent sessions, deduplicates them by stable Port Daddy session identity, and retains every witnessed berth location. Provider, backend, and model labels appear only when the owning daemon's roster witnessed them; otherwise the view says unknown. Selecting an active row rebinds pd-console to its witnessed owning berth before Mission's shared composer and Lane controls address that stable actor, and the selection survives a console restart. The saved selection includes the owning berth: if only another copy is available after restart, pd-console keeps chat unbound until the operator selects the row again to confirm the switch. Historical or offline rows remain inspectable but cannot be addressed. Closing pd-console closes only the client: launchd, daemon-owned session state, and provider work continue independently, while stopped named berths remain listed as preserved offline ledgers until that berth is started again.
 
 The Agent Harbor runtime-refactor target triad centers pd-console as the deep
 truth surface, FleetBar as ambient consent/status/re-entry, and Scout as
@@ -1087,7 +1084,11 @@ The **agent field manual** ships as a portable skill at [`skills/port-daddy-agen
 
 ## 🌐 HTTP API
 
-The full API contract lives at [`docs/openapi.yaml`](docs/openapi.yaml) — OpenAPI 3.1, **115 paths, 146 operations**, covering everything the CLI and MCP server can do plus SSE streams (`/fleet/events`, inbox watch, channel subscribe). The daemon binds loopback with a DNS-rebinding guard; secret routes are additionally loopback-gated per-route.
+The full API contract lives at [`docs/openapi.yaml`](docs/openapi.yaml) — OpenAPI 3.1, **133 paths, 166 operations**, covering everything the CLI and MCP server can do plus SSE streams (`/fleet/events`, inbox watch, channel subscribe). The daemon binds loopback with a DNS-rebinding guard; secret routes are additionally loopback-gated per-route.
+
+The `editor_recovery` Harbor Editor salvage routes are authenticated, fail-closed scaffolding at `POST /editor/recovery/request`, `/prepare`, `/replay`, and `/finalize`; registration does **not** make a usable recovery pipeline. Four external build gates remain unimplemented: the P1 Rust operation-receipt producer, P1B, the canonical Rust Loro recovery adapter, and the P3 same-database released-claim transfer adapter. Daemon scope minting also cannot yet supply the required verified worktree root device/inode witness, and production has no content-hash/parser-generation symbol lease or daemon file-mutation generation authority. The routes therefore remain 503-gated with no CLI/MCP bypass.
+
+The required future finalization contract retains descriptor-bound root/file identity plus both authority leases through the P3 transfer transaction, and transfers the exact file hash, parser/authority generations, and mutation lease/generation into the successor claim tuple. The mutation lease would exclude daemon-authorized writes through commit; an unrelated OS process could still bypass the daemon, so P3 must reject every later edit if the persisted root/file device+inode, content hash, or mutation generation no longer matches. That is detection at the next governed edit, not filesystem-wide prevention. The target transaction also writes canonical editor-owned provenance and its append-only outbox atomically. With no atomically idempotent derived-note sink, the row must stay durably pending with no retry churn and never fall back to `sessions.addNote`; once such a publisher and lifecycle scheduler exist, bounded startup and periodic passes retry the same idempotency key and persist one local publication receipt. These are unimplemented requirements, not behavior the current registered routes provide. The current tables have never shipped on `main`, so reconstruction supports only the exact current schema, not intermediate PR schemas.
 
 ```bash
 cat docs/openapi.yaml
@@ -1202,5 +1203,5 @@ Created by **[Erich Owens](https://github.com/erichowens)** at **[curiositech](h
 ## ⚓ Support & Contact
 
 - **Issues:** [GitHub Issue Tracker](https://github.com/curiositech/port-daddy/issues)
-- **Help:** Run `pd help`, `pd learn`, or `pd tutorial` for the interactive tutorial.
+- **Help:** Run `pd help` for reference, or `pd learn` (`pd tutorial` is its alias) for the operationally read-only agent orientation. Its handler changes no work resources: headless mode makes no daemon request, interactive mode may make one bounded `GET /health`, and the CLI envelope makes one append-only usage-telemetry attempt.
 - **Vibe:** Ambitious, CUTE and CHARMING. 🚩
