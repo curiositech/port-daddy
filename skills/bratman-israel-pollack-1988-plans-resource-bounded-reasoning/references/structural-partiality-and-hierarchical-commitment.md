@@ -141,7 +141,7 @@ The structurally partial plan sidesteps this: it defers decisions until informat
 
 ## Implementation for Agent Orchestration
 
-For a system like WinDAGs, this suggests an architecture where:
+For a system like Jury-rig, this suggests an architecture where:
 
 ### 1. Plans Are Explicitly Hierarchical
 
@@ -202,7 +202,7 @@ Better to coordinate early (when plans are partial and flexible) than discover c
 
 ### 4. Skill Selection Is Hierarchical
 
-The 180+ skills in WinDAGs naturally form a hierarchy:
+The 180+ skills in Jury-rig naturally form a hierarchy:
 - High-level: "implement feature", "refactor module", "debug issue"
 - Mid-level: "add authentication", "optimize database queries", "trace error source"
 - Low-level: "generate OAuth code", "add database index", "inspect stack trace"

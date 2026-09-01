@@ -1405,7 +1405,7 @@ warmed. Setup and daemon callers are local-only. A manual warm may use an
 explicit PD_SKILL_GRAFT_BACKEND; the fleet default is never inherited.
 
 The catalog is assembled from Port Daddy, user agent/Claude skill directories,
-and explicit PORT_DADDY_SKILL_SOURCE_ROOTS. It does not require WinDAGs or any
+and explicit PORT_DADDY_SKILL_SOURCE_ROOTS. It does not require Jury-rig or any
 other external skill runtime. Reference reads reject traversal and symlink escape.
 
 Examples:

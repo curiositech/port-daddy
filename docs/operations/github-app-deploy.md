@@ -293,7 +293,7 @@ A project claims a repo two ways (see `lib/github-repo-registry.ts`):
    github:
      repo: curiositech/port-daddy
      # or several:
-     # repos: [curiositech/port-daddy, curiositech/windags]
+     # repos: [curiositech/port-daddy, curiositech/example-service]
    ```
 
 2. **Inferred** from the project's git `origin` remote when no explicit

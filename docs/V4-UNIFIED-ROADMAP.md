@@ -454,8 +454,8 @@ From swarm/econ-v2 branch: Agents colluding to monopolize work or suppress hones
 
 **STATUS (2026-05-14)**: Same commit as A5 (`427353f7`). Cartel folk-theorem equilibria now in executable proofs. Appendix item promoted to execution.
 
-### A4. WinDAGs Bridge
-From `STIGMERGIC_BACKLOG.md`: Map WinDAGs abstract nodes to Port Daddy physical Harbors. Automatically create a Harbor for every WinDAGs execution ID. Use the Arbiter to revoke Harbor Cards if WinDAGs evaluation fails.
+### A4. Jury-rig Bridge
+From `STIGMERGIC_BACKLOG.md`: Map Jury-rig abstract nodes to Port Daddy physical Harbors. Automatically create a Harbor for every Jury-rig execution ID. Use the Arbiter to revoke Harbor Cards if Jury-rig evaluation fails.
 
 ### A5. The Worktree Reaper
 From `STIGMERGIC_BACKLOG.md`: Automatically prune agent worktrees when sessions are marked completed or abandoned. `git worktree remove --force <path>`. Concurrency requires isolation, but isolation shouldn't be permanent.

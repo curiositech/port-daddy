@@ -1,6 +1,6 @@
 # Live Execution Visualization for `next-move`
 
-When `next-move` moves from planning into execution, default to the real WinDAGs execution surface.
+When `next-move` moves from planning into execution, default to the real Jury-rig execution surface.
 
 ASCII is the fallback preview, not the canonical runtime.
 
@@ -67,7 +67,7 @@ The server integration test proving the bridge exists is:
 
 If execution is likely and the environment supports it:
 
-- open or reuse the live WinDAGs surface
+- open or reuse the live Jury-rig surface
 - tell the user whether the view will be exact or an approximation
 
 ### On accept
@@ -80,7 +80,7 @@ If execution is likely and the environment supports it:
 
 Use ASCII fallback, but say so plainly:
 
-- "Live WinDAGs surface unavailable, showing ASCII fallback"
+- "Live Jury-rig surface unavailable, showing ASCII fallback"
 
 ### If topology is not natively dispatchable
 

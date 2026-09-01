@@ -6,9 +6,8 @@
  * warm/rescan the catalog out of band, or fetch one skill-owned reference file.
  */
 
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { isAbsolute, join, resolve } from 'node:path';
+import { isAbsolute, resolve } from 'node:path';
 import {
   createSkillGraftIndex,
   defaultSkillGraftRoots,
@@ -22,6 +21,7 @@ import {
   applyJuryRigBootstrap,
   juryRigBootstrapLayout,
   planJuryRigBootstrap,
+  readJuryRigBootstrapStatus,
   redactJuryRigBootstrapPlan,
   rollbackJuryRigBootstrapReceipt,
   verifyNativeJuryRigRuntime,
@@ -139,18 +139,7 @@ async function handleBootstrap(args: string[], options: JuryRigCliOptions): Prom
 
   if (operation === 'status') {
     const layout = juryRigBootstrapLayout(bootstrapLayoutOptions(options));
-    const transactions = existsSync(layout.transactionRoot)
-      ? readdirSync(layout.transactionRoot, { withFileTypes: true })
-        .filter((entry) => entry.isDirectory())
-        .flatMap((entry) => {
-          const dir = join(layout.transactionRoot, entry.name);
-          return ['rollback-receipt.json', 'apply-receipt.json', 'refusal-receipt.json']
-            .map((name) => join(dir, name))
-            .filter(existsSync)
-            .slice(0, 1)
-            .map((path) => JSON.parse(readFileSync(path, 'utf8')));
-        })
-      : [];
+    const transactions = readJuryRigBootstrapStatus(layout);
     printBootstrapResult({ transactionRoot: layout.transactionRoot, transactions }, options);
     return;
   }

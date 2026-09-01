@@ -191,11 +191,11 @@ these slugs:
 | 4 | `parley-collapse-commitments` | backlog | A collapsed parley writes durable per-party commitments and unblocks only after commitment creation. |
 | 5 | `parley-detector-triggers` | backlog | Contradiction and topical detectors emit parley triggers with their finding attached. |
 
-## WinDAGs Skill Graft
+## Jury-rig Skill Graft
 
-Each phase carries a WinDAGs skill graft. Before opening implementation work for
+Each phase carries a Jury-rig skill graft. Before opening implementation work for
 that phase, the agent must load the named skill files or call
-`windags_skill_graft` for the phase task, then apply the phase gates below.
+`pd jury-rig query` for the phase task, then apply the phase gates below.
 
 | Phase | Primary graft | Support graft | Required output |
 |---|---|---|---|
@@ -256,12 +256,12 @@ The June 15, 2026 ecosystem check changes the graft design:
 Therefore Port Daddy should assume skills are a software supply chain:
 discoverable, scoped, versioned, bundled, validated, compiled, and attacked.
 
-`windags_skill_graft` keeps its existing job: attach existing WinDAGs skills to
+`pd jury-rig query` keeps its existing job: attach existing Jury-rig skills to
 a task, node, or implementation phase.
 
-Port Daddy names a new proposed tool, **`windags_skill_induct`**, for the
+Port Daddy names a new proposed tool, **`pd seamanship sync`**, for the
 different job: discover global skills, user skills, organization/shared
-bundles, and repo-local skills, then produce provenance-preserving WinDAGs skill
+bundles, and repo-local skills, then produce provenance-preserving Jury-rig skill
 cards and a curated activation plan.
 
 The target pipeline is:
@@ -276,7 +276,7 @@ prompt
   -> execution with unloaded-resource ledger
 ```
 
-`windags_skill_induct` should enrich inducted skills with invocation criteria,
+`pd seamanship sync` should enrich inducted skills with invocation criteria,
 NOT-for boundaries, IO contracts, resource indexes, provenance, trust tier,
 compatibility metadata, eval prompts, security notes, compact presentation
 digests, and per-reference excerpt budgets.
@@ -317,7 +317,7 @@ The core data model is:
 - Meta-skills are allowed as category routers, not as junk drawers. A meta-skill
   must produce bounded candidate sets, confidence, redirects, missing-capability
   gaps, and the next resources to load.
-- A WinDAGs graft used in another repo may call `windags_skill_induct` before
+- A Jury-rig graft used in another repo may call `pd seamanship sync` before
   selection, but induction is not grafting. Induction imports and normalizes
   candidate skill artifacts; grafting selects and applies already-normalized
   skills.

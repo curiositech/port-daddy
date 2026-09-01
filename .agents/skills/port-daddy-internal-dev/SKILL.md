@@ -15,7 +15,7 @@ metadata:
     maintainers: [port-daddy]
   distribution:
     public: false
-    note: "Sync to internal coordination paths inside the port-daddy repo only. Do not publish to windags-skills, .claude marketplaces, or other public catalogs. The port-daddy-agent-skill is the public-facing companion."
+    note: "Sync to internal coordination paths inside the port-daddy repo only. Do not publish to external-skill-catalog, .claude marketplaces, or other public catalogs. The port-daddy-agent-skill is the public-facing companion."
   mirrors:
     repo: skills/port-daddy-internal-dev
     codex: .codex/skills/port-daddy-internal-dev
@@ -523,7 +523,7 @@ block in its frontmatter declares targets:
 | `.claude/skills/` | Claude Code agents on this repo | install.sh + brew post_install |
 | `.agents/skills/` | Generic AGENTS.md-aware tools | install.sh |
 | `.gemini/extensions/port-daddy/skills/` | Gemini CLI extension surface | install.sh |
-| windags-skills (out of repo) | Public catalog distribution | manual `cp -r` from this repo to `~/coding/windags-skills/skills/` |
+| external-skill-catalog (out of repo) | Public catalog distribution | manual `cp -r` from this repo to `~/coding/external-skill-catalog/skills/` |
 
 `port-daddy-internal-dev` (this skill) **is intentionally absent** from
 the mirrors-list above. Do not propose distributing it. Its presence on a

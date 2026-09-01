@@ -42,7 +42,7 @@ function writeSkill(root, rel, name, description = 'test skill') {
 }
 
 describe('cross-tool agent skill sync', () => {
-  test('default catalog uses local and explicit roots without WinDAGs runtime discovery', () => {
+  test('default catalog uses local and explicit roots without Jury-rig runtime discovery', () => {
     const projectRoot = join(tmpRoot, 'project');
     const home = join(tmpRoot, 'home');
     const explicit = join(tmpRoot, 'explicit-skills');
@@ -55,7 +55,7 @@ describe('cross-tool agent skill sync', () => {
     try {
       const roots = defaultSkillCatalogRoots(projectRoot, home);
       expect(roots.map((root) => root.label)).toEqual(expect.arrayContaining(['env:1', 'port-daddy', 'user-agents']));
-      expect(roots.some((root) => /windags|workgroup-ai/i.test(`${root.label}:${root.path}`))).toBe(false);
+      expect(roots.some((root) => /jury_rig|workgroup-ai/i.test(`${root.label}:${root.path}`))).toBe(false);
     } finally {
       if (previous === undefined) delete process.env.PORT_DADDY_SKILL_SOURCE_ROOTS;
       else process.env.PORT_DADDY_SKILL_SOURCE_ROOTS = previous;
@@ -85,22 +85,22 @@ describe('cross-tool agent skill sync', () => {
   });
 
   test('collectSkillUnion resolves duplicate ids by source order and candidate quality', () => {
-    const windags = join(tmpRoot, 'windags');
+    const jury_rig = join(tmpRoot, 'jury_rig');
     const workgroup = join(tmpRoot, 'workgroup');
-    writeSkill(windags, 'alpha', 'alpha', 'from windags');
+    writeSkill(jury_rig, 'alpha', 'alpha', 'from jury_rig');
     writeSkill(workgroup, 'alpha', 'alpha', 'from workgroup');
     writeSkill(workgroup, 'skill-architect/output', 'skill-architect', 'generated output');
     const canonicalSkillArchitect = writeSkill(workgroup, 'skill-architect/skill-architect', 'skill-architect', 'canonical nested copy');
 
     const union = collectSkillUnion([
-      { label: 'windags', path: windags },
+      { label: 'jury_rig', path: jury_rig },
       { label: 'workgroup', path: workgroup },
     ]);
 
     const alpha = union.skills.find((skill) => skill.id === 'alpha');
     const skillArchitect = union.skills.find((skill) => skill.id === 'skill-architect');
 
-    expect(alpha.sourceLabel).toBe('windags');
+    expect(alpha.sourceLabel).toBe('jury_rig');
     expect(skillArchitect.path).toBe(canonicalSkillArchitect);
     expect(union.collisions.some((collision) => collision.id === 'alpha')).toBe(true);
     expect(union.collisions.some((collision) => collision.id === 'skill-architect')).toBe(true);

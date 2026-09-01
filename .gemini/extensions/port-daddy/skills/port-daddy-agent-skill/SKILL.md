@@ -1173,7 +1173,7 @@ pd feedback "SKIPPED: pd salvage. Reason: I judged the task too small. In hindsi
 ### Sweeping Up Peers' Work With `git add -A`
 **Detection:** Background agent's commit contains files it did not author.
 **Fix:** Per Git Discipline above — worktree, explicit-path staging, dirty-tree pre-check.
-**Triggering incident:** windags-skills `bb34efa`. Force-push was disallowed; the audit trail had to be corrected via tagging instead.
+**Triggering incident:** external-skill-catalog `bb34efa`. Force-push was disallowed; the audit trail had to be corrected via tagging instead.
 
 ### Spawning A New Agent Where A Note Would Do
 **Detection:** The fleet shows N+1 agents but the actual work is one bounded change.

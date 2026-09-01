@@ -42,7 +42,7 @@ Hoare's synchronous model makes coordination explicit: "There is no automatic bu
 - Can these agents proceed independently? Then don't connect them.
 - Is this producing deadlock? Then the process topology is wrong.
 
-For WinDAGs orchestrating 180+ skills, this explicitness is crucial. When skill A invokes skill B, should A wait for B's response, or continue in parallel? The answer depends on data dependencies. Hoare's model forces this question to the surface rather than hiding it in "call-and-maybe-wait-but-who-knows" semantics.
+For Jury-rig orchestrating 180+ skills, this explicitness is crucial. When skill A invokes skill B, should A wait for B's response, or continue in parallel? The answer depends on data dependencies. Hoare's model forces this question to the surface rather than hiding it in "call-and-maybe-wait-but-who-knows" semantics.
 
 ### Example: Buffered vs. Unbuffered Communication
 
@@ -79,7 +79,7 @@ Hoare's examples demonstrate deadlock freedom through careful topology design:
 
 3. **Cycles require careful guard design**: the dining philosophers (Section 5.3) can deadlock if all philosophers pick up their left fork simultaneously. The fix is architectural: limit room occupancy to prevent the cyclic wait.
 
-**For WinDAGs**: Agent interaction patterns should be analyzable for deadlock by examining the communication graph. If skill dependencies form a DAG (directed acyclic graph), no deadlock is possible. If cycles exist, they must be broken by timeouts, alternatives, or external intervention—and this should be explicit in the design.
+**For Jury-rig**: Agent interaction patterns should be analyzable for deadlock by examining the communication graph. If skill dependencies form a DAG (directed acyclic graph), no deadlock is possible. If cycles exist, they must be broken by timeouts, alternatives, or external intervention—and this should be explicit in the design.
 
 ## Pattern Matching as Message Discrimination
 
@@ -109,7 +109,7 @@ Hoare acknowledges: "it is less realistic to implement in multiple disjoint proc
 - Resource allocation where availability must be checked atomically
 - Critical sections where ordering must be guaranteed
 
-For WinDAGs: distinguish between **queries** (synchronous—need answer now) and **commands** (potentially asynchronous—fire and continue). An agent requesting code analysis should block until results arrive. An agent logging an event should not.
+For Jury-rig: distinguish between **queries** (synchronous—need answer now) and **commands** (potentially asynchronous—fire and continue). An agent requesting code analysis should block until results arrive. An agent logging an event should not.
 
 ## Implications for Task Decomposition
 
@@ -128,7 +128,7 @@ Do:
 
 The bounded buffer (Section 5.1) exemplifies this: it exists **because** producer and consumer have different speeds. The process structure directly reflects the coordination requirement.
 
-**For WinDAGs**: When decomposing a complex task, draw the data flow graph first. Each transformation becomes a skill invocation. Each fork/join becomes an explicit parallel command. The orchestration logic is the communication topology made executable.
+**For Jury-rig**: When decomposing a complex task, draw the data flow graph first. Each transformation becomes a skill invocation. Each fork/join becomes an explicit parallel command. The orchestration logic is the communication topology made executable.
 
 ## Conclusion: Communication Defines Structure
 
@@ -248,7 +248,7 @@ X?msg;
 
 The structure of the input command IS the type check. Pattern match failure causes the guard to fail—meaning the message doesn't match and won't be accepted.
 
-**For WinDAGs**: Skills declare the message patterns they handle. The orchestrator need not parse and route based on message content; the guard structure does this automatically. A skill declares:
+**For Jury-rig**: Skills declare the message patterns they handle. The orchestrator need not parse and route based on message content; the guard structure does this automatically. A skill declares:
 
 ```
 skill_interface = [
@@ -272,7 +272,7 @@ The reasoning: fairness is an implementation quality, not a semantic requirement
 - Prefer the one with external effects (I/O) over internal computation
 - Use randomization to avoid systematic bias
 
-**For WinDAGs**: When multiple skills can handle a request, the orchestrator should:
+**For Jury-rig**: When multiple skills can handle a request, the orchestrator should:
 1. Not guarantee any particular ordering (semantic freedom)
 2. In practice, load-balance or prefer faster skills (implementation quality)
 3. Never rely on fairness for correctness (prove termination assuming adversarial scheduling)
@@ -324,7 +324,7 @@ This always fails. If it's inside a repetitive command, the repetitive command t
 
 **Example of intentional failure**: The dining philosophers (Section 5.3) deliberately allows a state where no philosopher can pick up forks (all have left fork, all waiting for right fork). This is deadlock, and the program is incorrect. The fix is architectural: prevent the state from arising (limit room occupancy to 4).
 
-**For WinDAGs**: If all alternative skills are unavailable (overloaded, crashed, terminated), the orchestrator should:
+**For Jury-rig**: If all alternative skills are unavailable (overloaded, crashed, terminated), the orchestrator should:
 - Fail explicitly with a clear error
 - NOT busy-wait hoping one becomes available
 - Propagate the failure to the caller (who may have fallback logic)
@@ -380,7 +380,7 @@ This separation of concerns (scheduling policy vs. message handling) is exactly 
 
 Together, they define a reactive system that responds to its environment without busy-waiting, without callbacks, and without losing sequential control flow.
 
-For WinDAGs with 180+ skills: define orchestration as guarded alternatives over skill responses. The orchestrator is then a *reactive process* whose behavior is entirely determined by its guard structure and the messages that arrive. This is comprehensible, analyzable, and free of the callback spaghetti that plagues event-driven systems.
+For Jury-rig with 180+ skills: define orchestration as guarded alternatives over skill responses. The orchestrator is then a *reactive process* whose behavior is entirely determined by its guard structure and the messages that arrive. This is comprehensible, analyzable, and free of the callback spaghetti that plagues event-driven systems.
 ```
 
 ### FILE: process-topology-as-system-architecture.md
@@ -444,7 +444,7 @@ Data flows left to right. Each process inputs from its left neighbor, transforms
 3. **Automatic termination**: When SOURCE terminates, TRANSFORM's input fails, causing TRANSFORM to terminate, causing SINK's input to fail, causing SINK to terminate
 4. **Composable**: Can insert new stages without changing existing stages
 
-**For WinDAGs**: Linear skill chains are the simplest orchestration pattern. Parse → Analyze → Transform → Generate. Each skill is independent; the orchestrator just wires them together. Termination propagates automatically from the source.
+**For Jury-rig**: Linear skill chains are the simplest orchestration pattern. Parse → Analyze → Transform → Generate. Each skill is independent; the orchestrator just wires them together. Termination propagates automatically from the source.
 
 **When pipelines fail**: When stages have different throughputs. If TRANSFORM is slower than SOURCE, SOURCE will block. If TRANSFORM is faster than SINK, TRANSFORM will block. Solution: Insert explicit buffer processes (Section 5.1) between stages with throughput mismatch.
 
@@ -585,7 +585,7 @@ Real systems combine topological patterns:
       grid nodes in array
 ```
 
-**For WinDAGs**: Complex orchestrations will use hybrid topologies. Example: A code analysis pipeline might be:
+**For Jury-rig**: Complex orchestrations will use hybrid topologies. Example: A code analysis pipeline might be:
 
 1. **Parse** (star: one coordinator, multiple parser workers for different languages)
 2. **Analyze** (pipeline: data flow → control flow → type checking)
@@ -640,7 +640,7 @@ Tasks emerge from transformation points:
 
 The topology is linear (pipeline). The processes are defined by their position in the pipeline.
 
-**For WinDAGs**: When decomposing a complex task:
+**For Jury-rig**: When decomposing a complex task:
 1. Draw the data flow graph (inputs, transformations, outputs)
 2. Each edge is a communication channel
 3. Each node is a skill invocation
@@ -674,9 +674,9 @@ The orchestration layer then becomes a *topology instantiator*: given a task, it
 
 The skills themselves are unaware of topology. They just have input and output ports. The orchestrator decides how those ports are connected. This is separation of concerns at the architectural level: process behavior vs. process connectivity.
 
-For WinDAGs: represent orchestration plans as communication topology graphs. Execution is graph instantiation. Debugging is graph visualization. Optimization is graph transformation (insert buffers, parallelize nodes, redirect edges).
+For Jury-rig: represent orchestration plans as communication topology graphs. Execution is graph instantiation. Debugging is graph visualization. Optimization is graph transformation (insert buffers, parallelize nodes, redirect edges).
 
-The DAG in WinDAGs is literally Hoare's communication topology, made explicit and manipulable.
+The DAG in Jury-rig is literally Hoare's communication topology, made explicit and manipulable.
 ```
 
 ### FILE: termination-propagation-through-process-networks.md
@@ -875,7 +875,7 @@ Consider nested parallel commands:
 
 **Key insight**: Termination composes hierarchically. An outer parallel command waits for all inner parallel commands to complete. This matches intuition: a complex task finishes when all its subtasks finish.
 
-**For WinDAGs**: A decomposed task tree (root task → subtasks → sub-subtasks) terminates when all leaves terminate. The orchestrator doesn't need explicit "join" operations. The parallel command structure IS the join:
+**For Jury-rig**: A decomposed task tree (root task → subtasks → sub-subtasks) terminates when all leaves terminate. The orchestrator doesn't need explicit "join" operations. The parallel command structure IS the join:
 
 ```
 [
@@ -996,7 +996,7 @@ Termination propagation suggests a decomposition principle: **Arrange processes 
 - Leaves must coordinate to signal Root
 - Requires aggregation of termination signals (complex)
 
-**For WinDAGs**: Design skill DAGs so data flows from sources to sinks, and termination propagates in the same direction. Avoid backward dependencies where a downstream skill must signal an upstream skill.
+**For Jury-rig**: Design skill DAGs so data flows from sources to sinks, and termination propagates in the same direction. Avoid backward dependencies where a downstream skill must signal an upstream skill.
 
 If backward signaling is necessary (cancellation, early termination), use explicit control messages, not implicit termination propagation.
 
@@ -1289,7 +1289,7 @@ If the sender sends `insert("abc")` (string instead of integer), the types don't
 
 If the sender sends `has(5)` (wrong constructor), the pattern match fails at runtime—but this is also detectable statically if the protocol is specified.
 
-**For WinDAGs**: Skill interfaces should be typed:
+**For Jury-rig**: Skill interfaces should be typed:
 
 ```
 skill_interface(analyzer) = {
@@ -1328,7 +1328,7 @@ Pattern matching transforms how we think about agent coordination:
 
 This makes coordination **declarative**. The receiver declares what it can handle. The sender declares what it sends. The system checks compatibility.
 
-For WinDAGs:
+For Jury-rig:
 1. **Each skill declares input patterns**: "I accept analyze_code(string, map) and configure(map)"
 2. **Orchestrator ensures sends match**: Before invoking a skill, check that the message matches one of its input patterns
 3. **Runtime detects violations**: If a mismatch occurs (sender changed, receiver changed, orchestrator bug), the system fails explicitly rather than silently
@@ -1608,7 +1608,7 @@ Techniques:
 2. **Formal proof**: Prove invariants that hold regardless of ordering
 3. **Stress testing**: Run the system many times with different timings (using delays, load, etc.) to exercise different orderings
 
-**For WinDAGs**: Test orchestration plans under varying conditions:
+**For Jury-rig**: Test orchestration plans under varying conditions:
 - Skills finishing in different orders
 - Skills delayed by varying amounts
 - Skills failing at different points
@@ -1868,7 +1868,7 @@ Hoare does not propose automatic deadlock detection or prevention—he considers
 1. **Timeout**: If a communication blocks for more than a threshold, abort (but this may break correctness).
 2. **Deadlock detection**: Periodically check if all processes are blocked. If so, abort and retry.
 
-**For WinDAGs**: Static analysis of the DAG is essential:
+**For Jury-rig**: Static analysis of the DAG is essential:
 - **DAG structure**: If the skill dependency graph is acyclic, no deadlock is possible.
 - **Cycle detection**: If cycles exist, they must be broken by timeouts, retries, or external intervention.
 
@@ -1931,7 +1931,7 @@ Hoare gives us the tools (guarded commands, synchronous communication, terminati
 
 - **Concurrency Coordination (Distributed Systems)**: The entire paper is about coordination. Specifically: use synchronous message-passing as the primitive (makes coordination explicit), guarded commands for selection among alternatives (declarative scheduling), and termination propagation for shutdown (no manual bookkeeping). For systems with multiple concurrent skills, this approach replaces ad-hoc locking with structured communication patterns.
 
-- **Architecture Design (System Design)**: Hoare's topology-first approach transforms architecture design. Instead of "design components then connect them," do "design communication patterns then derive components." The architecture IS the communication graph. For WinDAGs, this means: draw the data flow DAG first, then instantiate skills at transformation points. Topology determines deadlock potential, failure modes, and scalability.
+- **Architecture Design (System Design)**: Hoare's topology-first approach transforms architecture design. Instead of "design components then connect them," do "design communication patterns then derive components." The architecture IS the communication graph. For Jury-rig, this means: draw the data flow DAG first, then instantiate skills at transformation points. Topology determines deadlock potential, failure modes, and scalability.
 
 - **Debugging Concurrent Systems**: Hoare identifies the key failure modes (deadlock, race conditions, premature termination) and their root causes (cycles in wait graph, protocol mismatches, missing termination conditions). Debugging multi-agent systems should focus on: analyzing communication topology for cycles, validating message protocols for mismatches, verifying termination propagation. The bug is usually in the *coordination*, not the individual skills.
 
@@ -1939,17 +1939,17 @@ Hoare gives us the tools (guarded commands, synchronous communication, terminati
 
 - **Resource Management (Performance Optimization)**: Hoare's bounded buffers demonstrate explicit resource limits. When one skill produces faster than another consumes, backpressure (blocking the producer) prevents resource exhaustion. For resource-limited systems: bound all queues/buffers, block producers when full (don't drop or buffer unboundedly), monitor queue sizes to detect throughput mismatches.
 
-- **Testing Parallel Systems**: Nondeterminism complicates testing—execution order is unpredictable. Hoare's approach: prove correctness for *all* possible orderings (using formal methods), or test with varying timings to exercise different interleavings. For WinDAGs: stress-test orchestration plans under varying loads and delays, use model checking to enumerate state spaces, don't rely on a single execution order being correct.
+- **Testing Parallel Systems**: Nondeterminism complicates testing—execution order is unpredictable. Hoare's approach: prove correctness for *all* possible orderings (using formal methods), or test with varying timings to exercise different interleavings. For Jury-rig: stress-test orchestration plans under varying loads and delays, use model checking to enumerate state spaces, don't rely on a single execution order being correct.
 
 - **Error Handling in Distributed Systems**: Hoare shows that failed communication (terminated source, mismatched message) propagates as failure. For robust systems: distinguish normal termination from errors (using explicit status messages), handle communication failures gracefully (timeouts, retries), propagate errors explicitly rather than letting them manifest as mysterious deadlocks.
 
 ## CROSS-DOMAIN CONNECTIONS
 
-- **Agent Orchestration**: Hoare's process composition (parallel command, guarded alternatives) maps directly to agent orchestration. A complex task becomes a parallel command with constituent processes (skill invocations). The orchestrator's role is to instantiate the topology, route messages, and monitor termination. The DAG in WinDAGs is literally Hoare's communication topology.
+- **Agent Orchestration**: Hoare's process composition (parallel command, guarded alternatives) maps directly to agent orchestration. A complex task becomes a parallel command with constituent processes (skill invocations). The orchestrator's role is to instantiate the topology, route messages, and monitor termination. The DAG in Jury-rig is literally Hoare's communication topology.
 
 - **Task Decomposition**: CSP teaches data-flow-driven decomposition. Identify data transformations, not functional responsibilities. Each transformation is a process; data flows are channels. For multi-step tasks: draw the data flow (input → parse → analyze → transform → output), create a skill for each transformation, connect them in a pipeline. Parallelism and sequencing emerge naturally from the flow structure.
 
-- **Failure Prevention**: Hoare identifies architectural failure modes (deadlock from cycles, race conditions from nondeterminism, crashes from missing termination handling). Prevention is topological: design acyclic communication graphs, validate protocols statically, bound resources, test under varying timings. For WinDAGs: analyze the skill DAG for cycles, type-check message protocols, bound queues, provide timeouts and cancellation.
+- **Failure Prevention**: Hoare identifies architectural failure modes (deadlock from cycles, race conditions from nondeterminism, crashes from missing termination handling). Prevention is topological: design acyclic communication graphs, validate protocols statically, bound resources, test under varying timings. For Jury-rig: analyze the skill DAG for cycles, type-check message protocols, bound queues, provide timeouts and cancellation.
 
 - **Expert Decision-Making**: Hoare's guarded commands with input guards encode expert decision-making: "given current state and available information, which action is appropriate?" The guards represent preconditions (when is this action valid?), the alternatives represent choices (what actions are possible?), and the nondeterministic selection represents uncertainty (when multiple actions are valid, choose one). For agent systems: encode scheduling policies as guards, encode state constraints as boolean guards, encode message discrimination as input pattern matching.
 

@@ -333,7 +333,7 @@ Match 2: "email-queue" — coverage 60%, fidelity 100%
 
 Pick one integration point and build it:
 
-**Option A: WinDAGs integration.** When the Sensemaker produces a problem description, pass it through the LLM olog prompt from Exercise 5. Store the resulting olog alongside the task. When the Curator crystallizes a skill, include the task's olog in the skill metadata. Over time, skills accumulate ologs, and functor search can match new tasks to existing skills by structure, not just by keyword or embedding similarity.
+**Option A: Jury-rig integration.** When the Sensemaker produces a problem description, pass it through the LLM olog prompt from Exercise 5. Store the resulting olog alongside the task. When the Curator crystallizes a skill, include the task's olog in the skill metadata. Over time, skills accumulate ologs, and functor search can match new tasks to existing skills by structure, not just by keyword or embedding similarity.
 
 **Option B: Port Daddy session metadata.** When `pd begin` starts a session, optionally attach an olog (as JSON in session metadata). When `pd salvage` recovers a dead agent's work, the olog provides structural context about what the agent was trying to do — not just the purpose string, but the actual type structure of the task.
 

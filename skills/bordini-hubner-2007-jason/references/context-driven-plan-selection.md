@@ -134,7 +134,7 @@ Then load balancing emerges from local context-based decisions, not global load-
 
 ## Practical Implications for Orchestration Systems
 
-For WinDAGs-like systems:
+For Jury-rig-like systems:
 
 1. **Routing should be context-aware**: Instead of static routing tables, have agents with plans for "where to send this query" with contexts like "database_available", "cache_hit_rate > threshold", etc.
 

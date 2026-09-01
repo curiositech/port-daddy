@@ -11,7 +11,7 @@ short-lived tuple state for live coordination; linked repair work for findings.
 
 > Are Port Daddy's skill discovery, planning guidance, agent instructions,
 > session-start hooks, installed machine projections, and user-tool configuration
-> native, internally consistent, and free of WinDAGs executable/runtime authority?
+> native, internally consistent, and free of Jury-rig executable/runtime authority?
 
 This is the role's one exclusive concern. It is not a one-time rename. Exactly one
 actor may be Accountable for it at a time, and that actor must hold authority to
@@ -87,7 +87,7 @@ the exact error and leave the Accountable slot visibly unfilled.
    unmerged checkout or unproven binary.
 5. Start fresh Codex, Claude, and Gemini sessions after an applied cutover. Capture
    separate receipts proving that their initial instructions and registered tools
-   contain no WinDAGs runtime authority. A file scan alone is not session proof.
+   contain no Jury-rig runtime authority. A file scan alone is not session proof.
 6. Reconcile roadmap item, exactly one Accountable owner, dependency edges, PR
    artifact links/trailer, status, and GUI visibility. Record any missing API or
    operator projection as a Chartroom implementation gap instead of inventing

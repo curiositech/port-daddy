@@ -1,7 +1,9 @@
 import { readFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 
 const REPO = process.cwd();
+const RETIRED_TOKEN = ['win', 'dags'].join('');
 
 function read(relativePath) {
   return readFileSync(join(REPO, relativePath), 'utf8');
@@ -63,6 +65,20 @@ describe('tracked cross-harness authority', () => {
   test('the checked-in SessionStart hook injects Jury-rig, not legacy runtime authority', () => {
     const hook = read('hooks/sessionstart-pilot.mjs');
     expect(hook).toContain('Jury-rig skill discovery');
-    expect(hook).not.toMatch(/windags/i);
+    expect(hook.toLowerCase()).not.toContain(RETIRED_TOKEN);
+  });
+
+  test('the tracked repository contains no retired product token in paths or text', () => {
+    const files = execFileSync('git', ['ls-files', '-z'], { cwd: REPO })
+      .toString('utf8').split('\0').filter(Boolean);
+    expect(files.filter((path) => path.toLowerCase().includes(RETIRED_TOKEN))).toEqual([]);
+    const offenders = files.filter((path) => {
+      try {
+        return read(path).toLowerCase().includes(RETIRED_TOKEN);
+      } catch {
+        return false;
+      }
+    });
+    expect(offenders).toEqual([]);
   });
 });

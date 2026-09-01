@@ -15,7 +15,7 @@ metadata:
     maintainers: [port-daddy]
   distribution:
     public: false
-    note: "Internal to the port-daddy repo only. This skill speaks in Erich's voice and encodes his private acceptance bar; it must not be published to windags-skills, .claude marketplaces, or any public catalog. The port-daddy-agent-skill is the public-facing companion."
+    note: "Internal to the port-daddy repo only. This skill speaks in Erich's voice and encodes his private acceptance bar; it must not be published to external-skill-catalog, .claude marketplaces, or any public catalog. The port-daddy-agent-skill is the public-facing companion."
   mirrors:
     repo: skills/port-daddy-user-surrogate-pm-review
     codex: .codex/skills/port-daddy-user-surrogate-pm-review

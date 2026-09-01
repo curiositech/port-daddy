@@ -238,7 +238,7 @@ export const shipwrightBehavior: ActorBehavior<ShipwrightState> = {
 - Loads survey, episodic memory, skill corpus retriever.
 - Drafts a fleet within the budget envelope and the bond ceiling.
 - **Klein RPD.** Retrieves up to 3 exemplar fleets from episodic memory
-  ("this repo looks like `windags:2026-02`") and uses the first one that
+  ("this repo looks like `jury_rig:2026-02`") and uses the first one that
   passes acceptance gates. This is *recognition-primed* — simulate the
   first plausible answer rather than search the space. The exemplar is
   shown in the UI rationale.
@@ -472,7 +472,7 @@ piece; most of the weight is in the individual archetype behaviors
 
 ## 10. What I'm explicitly punting
 
-- **Cross-daemon actors.** A daemon mesh where `windags:fleet:hawk`
+- **Cross-daemon actors.** A daemon mesh where `jury_rig:fleet:hawk`
   lives on a different machine than `port-daddy:fleet:hawk`. V3. The
   existing Port Daddy IPC already foreshadows this.
 - **Scheduled state snapshots.** Snapshot an actor's state every N

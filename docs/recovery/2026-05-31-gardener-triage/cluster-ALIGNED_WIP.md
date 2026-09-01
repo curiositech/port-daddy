@@ -169,7 +169,7 @@ Cohesive, on-mission, not destructive. No PR yet OR PR open but failing CI / beh
 | `worktree-agent-a9180a3667620bb38` | [#135](https://github.com/curiositech/port-daddy/pull/135) | 9d | ✓ | PR open, BLOCKED — needs rebase or check fix |   |
 | `origin/adr/suggestibility-and-shell` | - | 8d | - | No PR, fresh (8d), no worktree — needs to be PRed or archived | ⚠️ |
 | `cockpit/phase-2-dismiss-snooze-tuples` | - | 0d | ✓ | Preservation commit from 2026-05-31 sweep — represents in-flight work | ⚠️ |
-| `codex/agent-conformance-windags-docs` | - | 0d | ✓ | Preservation commit from 2026-05-31 sweep — represents in-flight work | ⚠️ |
+| `codex/agent-conformance-jury_rig-docs` | - | 0d | ✓ | Preservation commit from 2026-05-31 sweep — represents in-flight work | ⚠️ |
 | `codex/binary-daemon-runtime-repair` | [#185](https://github.com/curiositech/port-daddy/pull/185) | 0d | ✓ | PR open, BLOCKED — needs rebase or check fix |   |
 | `feat/account-create-and-roadmap` | - | 0d | ✓ | Preservation commit from 2026-05-31 sweep — represents in-flight work | ⚠️ |
 | `fix/unblock-claude-cli-telemetry` | - | 0d | ✓ | Preservation commit from 2026-05-31 sweep — represents in-flight work | ⚠️ |

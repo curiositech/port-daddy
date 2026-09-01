@@ -59,7 +59,7 @@ const rows: RepoSettingRow[] = [
     updated_at: 1_755_600_000,
   },
   {
-    repo_full_name: 'curiositech/windags',
+    repo_full_name: 'curiositech/example-service',
     sitrep_end_of_turn: 'off',
     settings_json: '{}',
     updated_at: 1_755_500_000,
@@ -199,7 +199,7 @@ describe('renderRepoSettingsPage', () => {
 
   it('renders the real rows with the stored dial checked', () => {
     expect(html).toContain('curiositech/port-daddy');
-    expect(html).toContain('curiositech/windags');
+    expect(html).toContain('curiositech/example-service');
     // enforce is checked on the first repo
     expect(html).toMatch(/value="enforce"\s+checked/);
   });

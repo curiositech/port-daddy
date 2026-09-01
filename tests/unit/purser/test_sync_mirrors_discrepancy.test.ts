@@ -22,7 +22,7 @@ import { describe, test, expect } from '@jest/globals';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 
-describe('sync-skill-mirrors --check with the windags import present', () => {
+describe('sync-skill-mirrors --check with the jury_rig import present', () => {
   test('exits 0 with zero out-of-sync targets', () => {
     const result = spawnSync('node', [join(repoRoot, 'scripts', 'sync-skill-mirrors.mjs'), '--check'], {
       encoding: 'utf-8',

@@ -297,7 +297,7 @@ We're not rewriting anyone's shell scripts. The HTTP API stays identical.
   delegate to the actor.
 
 **Phase 4 (aspirational).**
-- Cross-daemon actor addressing: `windags@machine-2:fleet:hawk`.
+- Cross-daemon actor addressing: `jury_rig@machine-2:fleet:hawk`.
 - Requires signed messages over the IPC socket (we explicitly punt this
   in v1).
 

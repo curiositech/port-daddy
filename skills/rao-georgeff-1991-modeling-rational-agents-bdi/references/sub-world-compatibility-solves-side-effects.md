@@ -89,7 +89,7 @@ The BDI approach: goal-worlds are **geometrically smaller** (fewer branches) tha
 
 ## Application to Agent Systems: Task Execution with Known Side-Effects
 
-Consider a WinDAGs agent tasked with "optimize database query performance." The agent believes:
+Consider a Jury-rig agent tasked with "optimize database query performance." The agent believes:
 
 ```
 inevitable(optimize_query → temporarily_locks_table)
@@ -192,7 +192,7 @@ This maps to practical agent design:
 
 Each layer is a **principled restriction** of the layer above, maintaining compatibility (sub-world relationship) without inheriting all content (not closed under implication).
 
-For WinDAGs orchestration, this means:
+For Jury-rig orchestration, this means:
 - The orchestrator can intend to route a task to a specific agent
 - While believing this will consume retry budget (inevitable side-effect)
 - Without having "consume retry budget" as an explicit goal

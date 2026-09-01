@@ -51,7 +51,7 @@ Examples:
 port-daddy:fleet:spark
 expungement-guide:fleet:spark        # same silhouette, different livery
 port-daddy:fleet:hawk
-windags:fleet:cartographer
+jury_rig:fleet:cartographer
 ```
 
 ---

@@ -58,7 +58,7 @@ The arm must track the object's center (can't grasp if positioned wrong), but *s
 
 ## Translating to Agent Orchestration: Multi-Objective Skill Execution
 
-Consider a WinDAGs scenario: "Debug the authentication service while maintaining system uptime and preserving user data."
+Consider a Jury-rig scenario: "Debug the authentication service while maintaining system uptime and preserving user data."
 
 **Three objectives**:
 1. Fix the bug (primary task goal)
@@ -125,7 +125,7 @@ The nullspace projection framework makes this explicit. When you declare c‚ÇÇ ‚ä
 
 *Prevention*: Careful priority assignment based on task semantics. Safety and correctness should almost always be highest priority.
 
-**Computational cost**: Computing pseudoinverses and nullspace projections for high-dimensional systems is expensive. For WinDAGs with 180 skills and complex state spaces, real-time nullspace projection may be prohibitive.
+**Computational cost**: Computing pseudoinverses and nullspace projections for high-dimensional systems is expensive. For Jury-rig with 180 skills and complex state spaces, real-time nullspace projection may be prohibitive.
 
 *Mitigation*: Pre-compute nullspaces for common constraint combinations. Cache projection matrices. Use approximate projections for near-real-time response.
 
@@ -146,7 +146,7 @@ For multi-agent systems, the redundancy is in the skill space: 180+ skills provi
 
 ## Design Pattern: Hierarchical Constraint Propagation
 
-**For WinDAGs orchestrators**:
+**For Jury-rig orchestrators**:
 
 1. **Identify constraint hierarchy**: Before decomposing a task, list all constraints and priority-order them. Example:
    - P0: Don't corrupt production data (safety)

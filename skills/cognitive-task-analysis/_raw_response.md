@@ -113,7 +113,7 @@ Of 154 studies examined, 132 (85%) met at least one criterion. This is encouragi
 
 ## Transfer to Agent System Design
 
-For WinDAGs and similar agent orchestration systems, the automation gap has direct implications:
+For Jury-rig and similar agent orchestration systems, the automation gap has direct implications:
 
 **Skill specification is incomplete by default.** When skills are defined based on interviews with domain experts or review of documentation, the resulting specifications miss automated expert knowledge. Skills that "perform well in demos" may fail on edge cases that require compiled expertise.
 
@@ -844,7 +844,7 @@ An agent's reported confidence on a task is its best attempt at calibration, but
 
 ## Reframing the Routing Problem
 
-In WinDAGs and similar multi-agent orchestration systems, one of the most consequential decisions made at runtime is skill selection: given a task, which of 180+ available skills should be invoked? This is typically framed as a routing or classification problem — given a description of a task, select the most appropriate skill.
+In Jury-rig and similar multi-agent orchestration systems, one of the most consequential decisions made at runtime is skill selection: given a task, which of 180+ available skills should be invoked? This is typically framed as a routing or classification problem — given a description of a task, select the most appropriate skill.
 
 Cognitive Task Analysis research reveals that this framing is incomplete. Skill selection is not merely a classification problem; it is an instance of the broader problem of matching knowledge types to elicitation and application methods. The principles developed over decades of CTA research apply directly.
 

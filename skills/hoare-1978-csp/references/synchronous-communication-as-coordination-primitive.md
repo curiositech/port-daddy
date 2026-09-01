@@ -18,7 +18,7 @@ Hoare's synchronous model makes coordination explicit: "There is no automatic bu
 - Can these agents proceed independently? Then don't connect them.
 - Is this producing deadlock? Then the process topology is wrong.
 
-For WinDAGs orchestrating 180+ skills, this explicitness is crucial. When skill A invokes skill B, should A wait for B's response, or continue in parallel? The answer depends on data dependencies. Hoare's model forces this question to the surface rather than hiding it in "call-and-maybe-wait-but-who-knows" semantics.
+For Jury-rig orchestrating 180+ skills, this explicitness is crucial. When skill A invokes skill B, should A wait for B's response, or continue in parallel? The answer depends on data dependencies. Hoare's model forces this question to the surface rather than hiding it in "call-and-maybe-wait-but-who-knows" semantics.
 
 ### Example: Buffered vs. Unbuffered Communication
 
@@ -55,7 +55,7 @@ Hoare's examples demonstrate deadlock freedom through careful topology design:
 
 3. **Cycles require careful guard design**: the dining philosophers (Section 5.3) can deadlock if all philosophers pick up their left fork simultaneously. The fix is architectural: limit room occupancy to prevent the cyclic wait.
 
-**For WinDAGs**: Agent interaction patterns should be analyzable for deadlock by examining the communication graph. If skill dependencies form a DAG (directed acyclic graph), no deadlock is possible. If cycles exist, they must be broken by timeouts, alternatives, or external intervention—and this should be explicit in the design.
+**For Jury-rig**: Agent interaction patterns should be analyzable for deadlock by examining the communication graph. If skill dependencies form a DAG (directed acyclic graph), no deadlock is possible. If cycles exist, they must be broken by timeouts, alternatives, or external intervention—and this should be explicit in the design.
 
 ## Pattern Matching as Message Discrimination
 
@@ -85,7 +85,7 @@ Hoare acknowledges: "it is less realistic to implement in multiple disjoint proc
 - Resource allocation where availability must be checked atomically
 - Critical sections where ordering must be guaranteed
 
-For WinDAGs: distinguish between **queries** (synchronous—need answer now) and **commands** (potentially asynchronous—fire and continue). An agent requesting code analysis should block until results arrive. An agent logging an event should not.
+For Jury-rig: distinguish between **queries** (synchronous—need answer now) and **commands** (potentially asynchronous—fire and continue). An agent requesting code analysis should block until results arrive. An agent logging an event should not.
 
 ## Implications for Task Decomposition
 
@@ -104,7 +104,7 @@ Do:
 
 The bounded buffer (Section 5.1) exemplifies this: it exists **because** producer and consumer have different speeds. The process structure directly reflects the coordination requirement.
 
-**For WinDAGs**: When decomposing a complex task, draw the data flow graph first. Each transformation becomes a skill invocation. Each fork/join becomes an explicit parallel command. The orchestration logic is the communication topology made executable.
+**For Jury-rig**: When decomposing a complex task, draw the data flow graph first. Each transformation becomes a skill invocation. Each fork/join becomes an explicit parallel command. The orchestration logic is the communication topology made executable.
 
 ## Conclusion: Communication Defines Structure
 

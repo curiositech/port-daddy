@@ -127,7 +127,7 @@ Schema versioning: semver string; **additive changes bump minor**, breaking
 changes bump major and keep the old writer available behind
 `--schema-version`. The JSON Schema file lives at
 `docs/proposals/schemas/trajectory-v1.schema.json` and is the artifact tests
-validate against (same discipline as the windags schemas).
+validate against (same discipline as the jury_rig schemas).
 
 ## 4. Steps: the merged timeline
 

@@ -4,7 +4,7 @@
  * pd seamanship list                     — List installed skills from all roots
  * pd seamanship search <query>           — Substring search over skill IDs and descriptions
  * pd seamanship show <skill-id>          — Print SKILL.md for a skill
- * pd seamanship sync                     — Sync from $WINDAGS_HOME to ~/.port-daddy/skills/
+ * pd seamanship sync                     — Sync from $PORT_DADDY_SKILL_SOURCE_ROOTS to ~/.port-daddy/skills/
  * pd seamanship outcomes [--ship name]   — Show skill application outcomes table
  * pd seamanship index                    — Rebuild skill catalog (Phase 3: BM25+Tool2Vec)
  *

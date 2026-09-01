@@ -86,7 +86,7 @@ But the paper argues these are acceptable tradeoffs: "In the common case, a comm
 - No single agent can handle coordination load
 - Byzantine failures are possible (can't trust a leader)
 
-For WinDAGs orchestrating 180+ skills: **Strong leadership makes sense**. The orchestrator:
+For Jury-rig orchestrating 180+ skills: **Strong leadership makes sense**. The orchestrator:
 - Decides task execution order
 - Handles skill routing and selection
 - Manages failure recovery
@@ -113,7 +113,7 @@ Raft teaches that there's a spectrum:
 - Extensive negotiation to reach agreement
 - Slowest but most resilient to malicious leaders
 
-For agent systems: **Match leadership strength to trust model**. If agents are cooperating toward a common goal (WinDAGs), strong leadership works. If agents have conflicting objectives (blockchain), you need weaker leadership or none at all.
+For agent systems: **Match leadership strength to trust model**. If agents are cooperating toward a common goal (Jury-rig), strong leadership works. If agents have conflicting objectives (blockchain), you need weaker leadership or none at all.
 
 ### 3. The "Follower-Only" Agent Pattern
 
@@ -128,7 +128,7 @@ But they never:
 - Propose log entries
 - Negotiate with other followers
 
-**Application**: In WinDAGs, most skills should be "follower-like":
+**Application**: In Jury-rig, most skills should be "follower-like":
 - They execute when invoked by the orchestrator
 - They validate inputs and report errors
 - They don't coordinate with other skills directly
