@@ -127,7 +127,6 @@ export type ResourceKind =
   | 'session-activity'
   | 'attention-event'
   | 'evidence'
-  | 'private-record'
   | 'legacy-row';
 
 export type EmbeddingDistanceMetric = 'cosine' | 'dot-product' | 'euclidean';
@@ -191,26 +190,39 @@ export interface VerifiedActorContext {
   perspectiveId: string;
 }
 
-export interface ScopedResourceRequest {
+/**
+ * Untrusted resource intent selected from a parsed request. Admission facts
+ * are deliberately absent: callers must provide those through the separate
+ * daemon-verified evaluation context below.
+ */
+export interface ScopedResourceIntent {
   scopeId?: string;
   grantId?: string;
-  principal?: VerifiedActorContext;
   sessionId?: string;
   bodyDigest?: string;
   action: ResourceAction;
   audience: string;
   resourceKind: ResourceKind;
-  costUsd: number;
-  nowMs: number;
-  federated: boolean;
   /** Required only for source-local legacy quarantine access. */
   sourceStoreId?: string;
-  /** Optional Harbor-envelope dimension crossed by this request. */
-  envelopeAction?: EnvelopeAction;
-  /** Exact egress host; requires a matching verified macaroon host caveat. */
-  egressHost?: string;
   /** Required for vector requests and compared before similarity is considered. */
   embeddingSpace?: EmbeddingSpace;
+}
+
+/**
+ * Trusted admission facts supplied by the daemon only after transport parsing,
+ * actor-credential verification, clock selection, federation admission, and
+ * egress/envelope resolution. Never deserialize a request body into this type.
+ */
+export interface VerifiedScopeEvaluationContext {
+  readonly principal: VerifiedActorContext | null;
+  readonly nowMs: number;
+  readonly costUsd: number;
+  readonly federated: boolean;
+  /** Optional Harbor-envelope dimension resolved by the daemon. */
+  readonly envelopeAction?: EnvelopeAction;
+  /** Exact egress host resolved by the daemon. */
+  readonly egressHost?: string;
 }
 
 export interface ScopeKernelSnapshot {
@@ -228,6 +240,7 @@ export type ScopeDecisionCode =
   | 'SCOPE_UNKNOWN'
   | 'SCOPE_AMBIGUOUS'
   | 'SCOPE_INVALID'
+  | 'SNAPSHOT_INVALID'
   | 'PUBLIC_RESOURCE_DENIED'
   | 'GRANT_REQUIRED'
   | 'GRANT_UNKNOWN'
@@ -310,7 +323,6 @@ const RESOURCE_KINDS = new Set<ResourceKind>([
   'session-activity',
   'attention-event',
   'evidence',
-  'private-record',
   'legacy-row',
 ]);
 
@@ -708,6 +720,23 @@ type Resolution<T> =
   | { status: 'ambiguous' }
   | { status: 'invalid' };
 
+function parseScopeKernelSnapshot(value: unknown): ScopeKernelSnapshot | null {
+  const raw = record(value);
+  if (!raw || !Array.isArray(raw.scopes) || !Array.isArray(raw.grants)) return null;
+  if (raw.revokedGrantIds !== undefined) {
+    if (!Array.isArray(raw.revokedGrantIds)) return null;
+    const revoked: string[] = [];
+    for (const value of raw.revokedGrantIds) {
+      const grantId = identifier(value);
+      if (!grantId) return null;
+      revoked.push(grantId);
+    }
+    if (new Set(revoked).size !== revoked.length) return null;
+    return { scopes: raw.scopes, grants: raw.grants, revokedGrantIds: revoked };
+  }
+  return { scopes: raw.scopes, grants: raw.grants };
+}
+
 function rawId(value: unknown, field: string): string | null {
   const raw = record(value);
   return raw && typeof raw[field] === 'string' ? raw[field] as string : null;
@@ -734,14 +763,42 @@ function sameScopeLineage(anchor: ResourceScope, target: ResourceScope): boolean
     && anchor.classification === target.classification;
 }
 
+function sameResourceWorldAuthority(anchor: ResourceWorld, target: ResourceWorld): boolean {
+  if (anchor.kind !== target.kind || anchor.id !== target.id) return false;
+  if (anchor.kind === 'worktree') {
+    return target.kind === 'worktree'
+      && sameRecordedWorkspaceIdentity(anchor.workspace, target.workspace);
+  }
+  if (anchor.kind === 'quarantine') {
+    return target.kind === 'quarantine'
+      && anchor.sourceStoreId === target.sourceStoreId
+      && anchor.sourceDeviceId === target.sourceDeviceId;
+  }
+  return true;
+}
+
+function sameExactScopeAuthority(anchor: ResourceScope, target: ResourceScope): boolean {
+  const repositoriesMatch = anchor.repository && target.repository
+    ? sameRepositoryAuthority(anchor.repository, target.repository)
+    : anchor.repository === target.repository;
+  return anchor.scopeId === target.scopeId
+    && sameScopeLineage(anchor, target)
+    && repositoriesMatch
+    && sameResourceWorldAuthority(anchor.world, target.world)
+    && anchor.containsPrivateMaterial === target.containsPrivateMaterial;
+}
+
 /**
  * Decide whether an anchor scope covers a target. Exact opaque scope ids cover
  * themselves. A repository-world anchor may additionally cover worktree/ref/
  * commit worlds only when realm, harbor, project, classification, and immutable
  * repository authority are all identical. Narrow worlds never imply siblings.
  */
-export function resourceScopeCovers(anchor: ResourceScope, target: ResourceScope): boolean {
-  if (anchor.scopeId === target.scopeId) return true;
+export function resourceScopeCovers(anchorValue: unknown, targetValue: unknown): boolean {
+  const anchor = parseResourceScope(anchorValue);
+  const target = parseResourceScope(targetValue);
+  if (!anchor || !target) return false;
+  if (anchor.scopeId === target.scopeId) return sameExactScopeAuthority(anchor, target);
   if (!sameScopeLineage(anchor, target) || !anchor.repository || !target.repository) return false;
   if (!sameRepositoryAuthority(anchor.repository, target.repository)) return false;
   if (anchor.world.kind !== 'repository') return false;
@@ -780,40 +837,77 @@ function actionMatchesResource(action: ResourceAction, resourceKind: ResourceKin
       return action === 'evidence.read';
     case 'legacy-row':
       return action === 'salvage.read' || action === 'salvage.import';
-    case 'private-record':
-      return action !== 'catalog.read';
     default:
       return false;
   }
 }
 
-function validateRequestBasics(request: ScopedResourceRequest): ScopeDecision | null {
+function validateEvaluationContextBasics(
+  evaluation: VerifiedScopeEvaluationContext,
+): ScopeDecision | null {
+  if (!record(evaluation)) {
+    return deny('REQUEST_INVALID', 'verified evaluation context is required', 'principal');
+  }
+  if (
+    evaluation.principal !== null
+    && (
+      !record(evaluation.principal)
+      || !identifier(evaluation.principal.actorId)
+      || !identifier(evaluation.principal.deviceId)
+      || !identifier(evaluation.principal.perspectiveId)
+      || !SOUL_CLASSES.has(evaluation.principal.soulClass)
+    )
+  ) {
+    return deny('REQUEST_INVALID', 'verified principal context is malformed', 'principal');
+  }
+  if (typeof evaluation.federated !== 'boolean') {
+    return deny('REQUEST_INVALID', 'federated admission must be an explicit verified boolean', 'federation');
+  }
+  if (!Number.isSafeInteger(evaluation.nowMs) || evaluation.nowMs <= 0) {
+    return deny('REQUEST_INVALID', 'verified nowMs must be a positive integer', 'expiry');
+  }
+  if (
+    typeof evaluation.costUsd !== 'number'
+    || !Number.isFinite(evaluation.costUsd)
+    || evaluation.costUsd < 0
+  ) {
+    return deny('REQUEST_INVALID', 'verified costUsd must be finite and non-negative', 'envelope');
+  }
+  if (evaluation.egressHost !== undefined && !identifier(evaluation.egressHost)) {
+    return deny('REQUEST_INVALID', 'verified egress host is malformed', 'envelope');
+  }
+  if (evaluation.envelopeAction !== undefined && !record(evaluation.envelopeAction)) {
+    return deny('REQUEST_INVALID', 'verified envelope action is malformed', 'envelope');
+  }
+  return null;
+}
+
+function validateRequestBasics(
+  request: ScopedResourceIntent,
+  evaluation: VerifiedScopeEvaluationContext,
+): ScopeDecision | null {
   if (!ACTIONS.has(request.action) || !RESOURCE_KINDS.has(request.resourceKind)) {
     return deny('REQUEST_INVALID', 'unknown resource action or kind', 'action');
   }
   if (!identifier(request.audience)) return deny('REQUEST_INVALID', 'audience is required', 'audience');
-  if (typeof request.federated !== 'boolean') {
-    return deny('REQUEST_INVALID', 'federated must be an explicit boolean', 'federation');
-  }
-  if (!Number.isSafeInteger(request.nowMs) || request.nowMs <= 0) {
-    return deny('REQUEST_INVALID', 'nowMs must be a positive integer', 'expiry');
-  }
-  if (typeof request.costUsd !== 'number' || !Number.isFinite(request.costUsd) || request.costUsd < 0) {
-    return deny('REQUEST_INVALID', 'costUsd must be finite and non-negative', 'envelope');
-  }
+  const evaluationError = validateEvaluationContextBasics(evaluation);
+  if (evaluationError) return evaluationError;
   if (!actionMatchesResource(request.action, request.resourceKind)) {
     return deny('RESOURCE_ACTION_MISMATCH', `${request.action} cannot access ${request.resourceKind}`, 'action');
   }
   return null;
 }
 
-function requiredPrivatePrincipal(request: ScopedResourceRequest): ScopeDecision | null {
+function requiredPrivatePrincipal(
+  request: ScopedResourceIntent,
+  evaluation: VerifiedScopeEvaluationContext,
+): ScopeDecision | null {
   if (
-    !request.principal
-    || !identifier(request.principal.actorId)
-    || !identifier(request.principal.deviceId)
-    || !identifier(request.principal.perspectiveId)
-    || !SOUL_CLASSES.has(request.principal.soulClass)
+    !evaluation.principal
+    || !identifier(evaluation.principal.actorId)
+    || !identifier(evaluation.principal.deviceId)
+    || !identifier(evaluation.principal.perspectiveId)
+    || !SOUL_CLASSES.has(evaluation.principal.soulClass)
   ) {
     return deny('PRINCIPAL_MISMATCH', 'private access requires a verified actor context', 'principal');
   }
@@ -826,15 +920,18 @@ function requiredPrivatePrincipal(request: ScopedResourceRequest): ScopeDecision
   return null;
 }
 
-function publicCatalogDecision(request: ScopedResourceRequest): ScopeDecision {
+function publicCatalogDecision(
+  request: ScopedResourceIntent,
+  evaluation: VerifiedScopeEvaluationContext,
+): ScopeDecision {
   // Federation is deliberately allowed here: this path admits only zero-cost,
   // nonprivate catalog metadata and can never authorize an action or egress.
   if (
     request.action === 'catalog.read'
     && (request.resourceKind === 'catalog-entry' || request.resourceKind === 'catalog-index')
-    && request.costUsd === 0
-    && !request.envelopeAction
-    && !request.egressHost
+    && evaluation.costUsd === 0
+    && !evaluation.envelopeAction
+    && !evaluation.egressHost
   ) {
     return allow('PUBLIC_CATALOG', 'explicit public catalog metadata contains no private material', 'classification');
   }
@@ -850,15 +947,21 @@ function requireRepositoryCaveat(grant: ResolvedScopeGrant, scope: ResourceScope
 }
 
 /**
- * Authorize one resource access against a read-consistent authoritative
- * snapshot. Every private path requires an explicit scope and verified grant;
- * missing, malformed, duplicate, expired, revoked, or mismatched state denies.
+ * Authorize one parsed resource intent using separately daemon-verified
+ * admission facts and a read-consistent authoritative snapshot. Every private
+ * path requires an explicit scope and verified grant; missing, malformed,
+ * duplicate, expired, revoked, or mismatched state denies.
  */
 export function authorizeScopedResource(
-  request: ScopedResourceRequest,
-  snapshot: ScopeKernelSnapshot,
+  request: ScopedResourceIntent,
+  evaluation: VerifiedScopeEvaluationContext,
+  snapshotValue: unknown,
 ): ScopeDecision {
-  const basics = validateRequestBasics(request);
+  const snapshot = parseScopeKernelSnapshot(snapshotValue);
+  if (!snapshot) {
+    return deny('SNAPSHOT_INVALID', 'authoritative scope snapshot is malformed', 'scope');
+  }
+  const basics = validateRequestBasics(request, evaluation);
   if (basics) return basics;
   const scopeId = request.scopeId ? identifier(request.scopeId) : null;
   if (!scopeId) return deny('SCOPE_REQUIRED', 'private operations require an explicit scope id', 'scope');
@@ -868,7 +971,7 @@ export function authorizeScopedResource(
   if (scopeResolution.status === 'invalid') return deny('SCOPE_INVALID', 'scope record is malformed', 'scope');
   const targetScope = scopeResolution.value;
 
-  if (targetScope.classification === 'public-catalog') return publicCatalogDecision(request);
+  if (targetScope.classification === 'public-catalog') return publicCatalogDecision(request, evaluation);
   if (
     targetScope.classification === 'operator-salvage-quarantine'
     && !identifier(request.sourceStoreId)
@@ -882,7 +985,7 @@ export function authorizeScopedResource(
   if (request.action === 'vector.read' && !parseEmbeddingSpace(request.embeddingSpace)) {
     return deny('VECTOR_SPACE_REQUIRED', 'vector access requires exact embedding-space metadata', 'vector-space');
   }
-  const principalError = requiredPrivatePrincipal(request);
+  const principalError = requiredPrivatePrincipal(request, evaluation);
   if (principalError) return principalError;
   const grantId = request.grantId ? identifier(request.grantId) : null;
   if (!grantId) return deny('GRANT_REQUIRED', 'private access requires an explicit verified grant id', 'grant');
@@ -903,13 +1006,13 @@ export function authorizeScopedResource(
   if (!resourceScopeCovers(anchorScope, targetScope)) {
     return deny('GRANT_SCOPE_MISMATCH', 'grant scope does not cover the target lineage and repository', 'scope');
   }
-  if (grant.principalActorId !== request.principal!.actorId) {
+  if (grant.principalActorId !== evaluation.principal!.actorId) {
     return deny('PRINCIPAL_MISMATCH', 'grant principal does not match verified actor', 'principal');
   }
-  if (grant.deviceId !== request.principal!.deviceId) {
+  if (grant.deviceId !== evaluation.principal!.deviceId) {
     return deny('DEVICE_MISMATCH', 'grant device does not match verified actor device', 'principal');
   }
-  if (grant.perspectiveId !== request.principal!.perspectiveId) {
+  if (grant.perspectiveId !== evaluation.principal!.perspectiveId) {
     return deny('PERSPECTIVE_MISMATCH', 'grant perspective does not match the embodied request perspective', 'principal');
   }
   if (grant.sessionId !== request.sessionId) {
@@ -924,18 +1027,18 @@ export function authorizeScopedResource(
   if (grant.audience !== request.audience) {
     return deny('AUDIENCE_MISMATCH', 'grant audience does not match request audience', 'audience');
   }
-  if (request.nowMs > grant.expiresAtMs) {
+  if (evaluation.nowMs > grant.expiresAtMs) {
     return deny('GRANT_EXPIRED', 'grant has expired', 'expiry');
   }
-  if (request.federated && grant.federation !== 'read-only') {
+  if (evaluation.federated && grant.federation !== 'read-only') {
     return deny('FEDERATION_DENIED', 'local grant is not federated', 'federation');
   }
-  if (request.federated && !READ_ACTIONS.has(request.action)) {
+  if (evaluation.federated && !READ_ACTIONS.has(request.action)) {
     return deny('FEDERATION_DENIED', 'federated read authority never implies an action', 'federation');
   }
   if (
     targetScope.classification === 'operator-salvage-quarantine'
-    && request.principal!.soulClass !== 'operator'
+    && evaluation.principal!.soulClass !== 'operator'
   ) {
     return deny('QUARANTINE_OPERATOR_REQUIRED', 'ambiguous legacy rows require operator salvage authority', 'classification');
   }
@@ -952,7 +1055,7 @@ export function authorizeScopedResource(
     if (
       anchorScope.world.kind !== 'quarantine'
       || grant.deviceId !== targetScope.world.sourceDeviceId
-      || request.principal!.deviceId !== targetScope.world.sourceDeviceId
+      || evaluation.principal!.deviceId !== targetScope.world.sourceDeviceId
       || request.sourceStoreId !== targetScope.world.sourceStoreId
     ) {
       return deny(
@@ -965,25 +1068,28 @@ export function authorizeScopedResource(
   if (!requireRepositoryCaveat(grant, anchorScope)) {
     return deny('MACAROON_CONTEXT_DENIED', 'verified macaroon lacks exact immutable repository authority', 'macaroon');
   }
-  if (request.egressHost && !hasExactCaveat(grant.verifiedMacaroonCaveats, 'host', request.egressHost)) {
+  if (
+    evaluation.egressHost
+    && !hasExactCaveat(grant.verifiedMacaroonCaveats, 'host', evaluation.egressHost)
+  ) {
     return deny('MACAROON_CONTEXT_DENIED', 'egress host lacks an exact verified macaroon caveat', 'macaroon');
   }
   const macaroonContext: RequestContext = {
     op: 'api-call',
     repo: anchorScope.repository ? repositoryAuthorityKey(anchorScope.repository) : undefined,
-    host: request.egressHost,
-    spendUsd: request.costUsd,
+    host: evaluation.egressHost,
+    spendUsd: evaluation.costUsd,
     session: request.sessionId,
-    nowMs: request.nowMs,
+    nowMs: evaluation.nowMs,
   };
   if (!grant.verifiedMacaroonCaveats.every((caveat) => checkCaveat(caveat, macaroonContext))) {
     return deny('MACAROON_CONTEXT_DENIED', 'verified macaroon caveats do not hold for this request', 'macaroon');
   }
 
-  const spend = assessEnvelope(grant.envelope, { kind: 'spend', amountUsd: request.costUsd });
+  const spend = assessEnvelope(grant.envelope, { kind: 'spend', amountUsd: evaluation.costUsd });
   if (!spend.allowed) return deny('ENVELOPE_DENIED', spend.reason, 'envelope');
-  if (request.envelopeAction) {
-    const envelope = assessEnvelope(grant.envelope, request.envelopeAction);
+  if (evaluation.envelopeAction) {
+    const envelope = assessEnvelope(grant.envelope, evaluation.envelopeAction);
     if (!envelope.allowed) return deny('ENVELOPE_DENIED', envelope.reason, 'envelope');
   }
   return allow('ALLOWED', 'scope, grant, actor, request, macaroon, and envelope all match', 'grant');
@@ -1066,6 +1172,11 @@ export function assessScopeGrantAttenuation(
   return allow('ATTENUATION_ALLOWED', 'every child grant dimension is equal or narrower', 'attenuation');
 }
 
+/**
+ * Score-free vector metadata. This kernel filters authority and embedding
+ * compatibility before ranking; the later ranking adapter owns finite-score
+ * validation and ordering.
+ */
 export interface ScopedVectorCandidate {
   id: string;
   scopeId: string;
@@ -1086,11 +1197,12 @@ export interface VectorPrefilterRejection {
  * receives no candidates.
  */
 export function prefilterAuthorizedVectors<T extends ScopedVectorCandidate>(
-  request: ScopedResourceRequest,
+  request: ScopedResourceIntent,
+  evaluation: VerifiedScopeEvaluationContext,
   candidates: readonly T[],
-  snapshot: ScopeKernelSnapshot,
+  snapshot: unknown,
 ): { decision: ScopeDecision; candidates: T[]; rejections: VectorPrefilterRejection[] } {
-  const decision = authorizeScopedResource(request, snapshot);
+  const decision = authorizeScopedResource(request, evaluation, snapshot);
   if (!decision.allowed) return { decision, candidates: [], rejections: [] };
   const accepted: T[] = [];
   const rejections: VectorPrefilterRejection[] = [];

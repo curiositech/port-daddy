@@ -9,12 +9,13 @@
  */
 import {
   assessScopeGrantAttenuation,
-  authorizeScopedResource,
+  authorizeScopedResource as evaluateScopedResource,
   embeddingSpaceDescriptorDigest,
   parseRepositoryAuthority,
   parseResourceScope,
-  prefilterAuthorizedVectors,
+  prefilterAuthorizedVectors as prefilterWithVerifiedContext,
   repositoryAuthorityKey,
+  resourceScopeCovers,
   sameRepositoryAuthority,
   type RepositoryAuthorityRef,
   type ResolvedScopeGrant,
@@ -22,7 +23,8 @@ import {
   type EmbeddingSpaceDescriptor,
   type ResourceScope,
   type ScopeKernelSnapshot,
-  type ScopedResourceRequest,
+  type ScopedResourceIntent,
+  type VerifiedScopeEvaluationContext,
 } from '../../lib/resource-scope.js';
 import { emptyEnvelope } from '../../lib/harbor-envelope.js';
 import {
@@ -256,27 +258,59 @@ function snapshot(
   return { scopes, grants, revokedGrantIds };
 }
 
-function request(overrides: Partial<ScopedResourceRequest> = {}): ScopedResourceRequest {
+function request(overrides: Partial<ScopedResourceIntent> = {}): ScopedResourceIntent {
   return {
     scopeId: SCOPE_REPO_A.scopeId,
     grantId: GRANT_REPO_A.grantId,
+    sessionId: SESSION,
+    bodyDigest: BODY_A,
+    action: 'search.read',
+    audience: AUDIENCE,
+    resourceKind: 'search-index',
+    sourceStoreId: SOURCE_STORE,
+    ...overrides,
+  };
+}
+
+function evaluation(
+  overrides: Partial<VerifiedScopeEvaluationContext> = {},
+): VerifiedScopeEvaluationContext {
+  return {
     principal: {
       actorId: ACTOR,
       soulClass: 'operator',
       deviceId: DEVICE,
       perspectiveId: PERSPECTIVE,
     },
-    sessionId: SESSION,
-    bodyDigest: BODY_A,
-    action: 'search.read',
-    audience: AUDIENCE,
-    resourceKind: 'search-index',
     costUsd: 0,
     nowMs: NOW,
     federated: false,
-    sourceStoreId: SOURCE_STORE,
     ...overrides,
   };
+}
+
+function authorizeScopedResource(
+  intent: ScopedResourceIntent,
+  authoritativeSnapshot: unknown,
+  evaluationOverrides: Partial<VerifiedScopeEvaluationContext> = {},
+) {
+  return evaluateScopedResource(intent, evaluation(evaluationOverrides), authoritativeSnapshot);
+}
+
+function prefilterAuthorizedVectors<
+  T extends { id: string; scopeId: string; embeddingSpace: EmbeddingSpace },
+>(
+  intent: ScopedResourceIntent,
+  candidates: readonly T[],
+  authoritativeSnapshot: unknown,
+  evaluationOverrides: Partial<VerifiedScopeEvaluationContext> = {},
+) {
+  return prefilterWithVerifiedContext(
+    intent,
+    evaluation(evaluationOverrides),
+    candidates,
+    authoritativeSnapshot,
+  );
 }
 
 describe('resource scope parsing and immutable repository authority', () => {
@@ -346,6 +380,30 @@ describe('resource scope parsing and immutable repository authority', () => {
     expect(parseResourceScope({ ...PUBLIC_CATALOG, repository: REPO_A })).toBeNull();
     expect(parseResourceScope({ ...PUBLIC_CATALOG, containsPrivateMaterial: true })).toBeNull();
   });
+
+  test.each([
+    ['repository authority', { ...SCOPE_REPO_A, repository: REPO_B }],
+    ['project lineage', { ...SCOPE_REPO_A, projectId: 'project-conflicting' }],
+    ['world authority', { ...SCOPE_REPO_A, world: { kind: 'ref' as const, id: 'ref-conflicting' } }],
+  ])('matching opaque ids do not cover conflicting %s records', (_label, conflicting) => {
+    expect(resourceScopeCovers(SCOPE_REPO_A, conflicting)).toBe(false);
+    expect(resourceScopeCovers(conflicting, SCOPE_REPO_A)).toBe(false);
+  });
+
+  test('matching scope authority ignores a provenance-only worktree path move', () => {
+    const moved = {
+      ...SCOPE_WORKTREE_A1,
+      world: {
+        ...SCOPE_WORKTREE_A1.world,
+        workspace: {
+          ...SCOPE_WORKTREE_A1.world.workspace,
+          canonicalPath: '/srv/moved/worktree-a-one',
+        },
+      },
+    } satisfies ResourceScope;
+    expect(resourceScopeCovers(SCOPE_WORKTREE_A1, moved)).toBe(true);
+    expect(resourceScopeCovers(moved, SCOPE_WORKTREE_A1)).toBe(true);
+  });
 });
 
 describe('private operations fail closed at the explicit scope boundary', () => {
@@ -355,9 +413,25 @@ describe('private operations fail closed at the explicit scope boundary', () => 
   });
 
   test.each([0, 'false'])('malformed private federated=%p is rejected instead of interpreted as local', (federated) => {
-    expect(authorizeScopedResource(request({
+    expect(authorizeScopedResource(request(), snapshot(), {
       federated: federated as unknown as boolean,
-    }), snapshot())).toMatchObject({ allowed: false, code: 'REQUEST_INVALID' });
+    })).toMatchObject({ allowed: false, code: 'REQUEST_INVALID' });
+  });
+
+  test.each([
+    'message.read',
+    'lock.write',
+    'vector.read',
+    'activity.read',
+    'evidence.read',
+    'salvage.read',
+  ] as const)('removed private-record kind cannot wildcard-match %s', (action) => {
+    const raw = {
+      ...request({ action }),
+      resourceKind: 'private-record',
+    } as unknown as ScopedResourceIntent;
+    expect(authorizeScopedResource(raw, snapshot()))
+      .toMatchObject({ allowed: false, code: 'REQUEST_INVALID' });
   });
 
   test.each([
@@ -425,6 +499,24 @@ describe('opaque scope and exact request binding', () => {
       .toMatchObject({ allowed: false, code: 'SCOPE_UNKNOWN' });
   });
 
+  test('a valid scope does not make an unknown grant authoritative', () => {
+    expect(authorizeScopedResource(request({ grantId: 'grant-not-in-authoritative-snapshot' }), snapshot()))
+      .toMatchObject({ allowed: false, code: 'GRANT_UNKNOWN' });
+  });
+
+  test.each([
+    null,
+    { scopes: null, grants: [] },
+    { scopes: [], grants: null },
+    { scopes: [], grants: [], revokedGrantIds: {} },
+    { scopes: [], grants: [], revokedGrantIds: 'grant-repository-a' },
+  ])('malformed authoritative snapshot denies without throwing (%p)', (malformedSnapshot) => {
+    expect(authorizeScopedResource(
+      request(),
+      malformedSnapshot as unknown as ScopeKernelSnapshot,
+    )).toMatchObject({ allowed: false, code: 'SNAPSHOT_INVALID' });
+  });
+
   test('a conflicting duplicate definition makes an opaque scope id ambiguous and unusable', () => {
     const conflicting = { ...SCOPE_REPO_A, repository: REPO_B } satisfies ResourceScope;
     expect(authorizeScopedResource(request(), snapshot([
@@ -439,30 +531,40 @@ describe('opaque scope and exact request binding', () => {
   });
 
   test.each([
-    ['principal', { principal: {
+    ['actor', {
       actorId: '01M1OTHERACTOR000000000000',
       soulClass: 'operator' as const,
       deviceId: DEVICE,
       perspectiveId: PERSPECTIVE,
-    } }, 'PRINCIPAL_MISMATCH'],
-    ['device', { principal: {
+    }, 'PRINCIPAL_MISMATCH'],
+    ['device', {
       actorId: ACTOR,
       soulClass: 'operator' as const,
       deviceId: 'device-other',
       perspectiveId: PERSPECTIVE,
-    } }, 'DEVICE_MISMATCH'],
-    ['perspective', { principal: {
+    }, 'DEVICE_MISMATCH'],
+    ['perspective', {
       actorId: ACTOR,
       soulClass: 'operator' as const,
       deviceId: DEVICE,
       perspectiveId: 'perspective-other',
-    } }, 'PERSPECTIVE_MISMATCH'],
+    }, 'PERSPECTIVE_MISMATCH'],
+  ])('rejects a mismatched %s verified principal binding', (_label, principal, code) => {
+    const narrowGrant = { ...GRANT_REPO_A, actions: ['search.read'] as const };
+    expect(authorizeScopedResource(request(), snapshot(undefined, [narrowGrant]), { principal }))
+      .toMatchObject({ allowed: false, code });
+  });
+
+  test.each([
     ['session', { sessionId: 'session-other' }, 'SESSION_MISMATCH'],
     ['action', { action: 'salvage.import' as const, resourceKind: 'legacy-row' as const }, 'ACTION_DENIED'],
     ['audience', { audience: 'some-other-service' }, 'AUDIENCE_MISMATCH'],
-  ])('rejects a mismatched %s binding', (_label, override, code) => {
+  ])('rejects a mismatched %s intent binding', (_label, override, code) => {
     const narrowGrant = { ...GRANT_REPO_A, actions: ['search.read'] as const };
-    expect(authorizeScopedResource(request(override), snapshot(undefined, [narrowGrant])))
+    expect(authorizeScopedResource(
+      request(override as Partial<ScopedResourceIntent>),
+      snapshot(undefined, [narrowGrant]),
+    ))
       .toMatchObject({ allowed: false, code });
   });
 
@@ -472,17 +574,32 @@ describe('opaque scope and exact request binding', () => {
       .toMatchObject({ allowed: false, code: 'GRANT_EXPIRED' });
   });
 
+  test('a request-body clock override cannot revive an expired grant', () => {
+    const expired = grant('grant-body-clock-override', SCOPE_REPO_A, { expiresAtMs: NOW - 1 });
+    const wireAttempt = {
+      ...request({ grantId: expired.grantId }),
+      nowMs: expired.expiresAtMs - 60_000,
+    };
+    expect(evaluateScopedResource(
+      wireAttempt,
+      evaluation({ nowMs: NOW }),
+      snapshot(undefined, [expired]),
+    )).toMatchObject({ allowed: false, code: 'GRANT_EXPIRED' });
+  });
+
   test('expiry is inclusive at the exact millisecond and denied one millisecond later', () => {
     const exactExpiry = grant('grant-exact-expiry', SCOPE_REPO_A, { expiresAtMs: NOW });
     const snap = snapshot(undefined, [exactExpiry]);
-    expect(authorizeScopedResource(request({
-      grantId: exactExpiry.grantId,
-      nowMs: NOW,
-    }), snap)).toMatchObject({ allowed: true, code: 'ALLOWED' });
-    expect(authorizeScopedResource(request({
-      grantId: exactExpiry.grantId,
-      nowMs: NOW + 1,
-    }), snap)).toMatchObject({ allowed: false, code: 'GRANT_EXPIRED' });
+    expect(authorizeScopedResource(
+      request({ grantId: exactExpiry.grantId }),
+      snap,
+      { nowMs: NOW },
+    )).toMatchObject({ allowed: true, code: 'ALLOWED' });
+    expect(authorizeScopedResource(
+      request({ grantId: exactExpiry.grantId }),
+      snap,
+      { nowMs: NOW + 1 },
+    )).toMatchObject({ allowed: false, code: 'GRANT_EXPIRED' });
   });
 
   test('a revoked grant is denied before use', () => {
@@ -500,30 +617,26 @@ describe('opaque scope and exact request binding', () => {
       ],
     };
     const snap = snapshot(undefined, [egressGrant]);
-    expect(authorizeScopedResource(request({
-      grantId: egressGrant.grantId,
+    expect(authorizeScopedResource(request({ grantId: egressGrant.grantId }), snap, {
       costUsd: 1,
       egressHost: 'api.portdaddy.dev',
       envelopeAction: { kind: 'tool', name: 'semantic-index' },
-    }), snap)).toMatchObject({ allowed: true });
-    expect(authorizeScopedResource(request({
-      grantId: egressGrant.grantId,
+    })).toMatchObject({ allowed: true });
+    expect(authorizeScopedResource(request({ grantId: egressGrant.grantId }), snap, {
       costUsd: 1,
       egressHost: 'api.attacker.invalid',
       envelopeAction: { kind: 'tool', name: 'semantic-index' },
-    }), snap)).toMatchObject({ allowed: false, code: 'MACAROON_CONTEXT_DENIED' });
-    expect(authorizeScopedResource(request({
-      grantId: egressGrant.grantId,
+    })).toMatchObject({ allowed: false, code: 'MACAROON_CONTEXT_DENIED' });
+    expect(authorizeScopedResource(request({ grantId: egressGrant.grantId }), snap, {
       costUsd: 2.01,
       egressHost: 'api.portdaddy.dev',
       envelopeAction: { kind: 'tool', name: 'semantic-index' },
-    }), snap)).toMatchObject({ allowed: false, code: 'MACAROON_CONTEXT_DENIED' });
-    expect(authorizeScopedResource(request({
-      grantId: egressGrant.grantId,
+    })).toMatchObject({ allowed: false, code: 'MACAROON_CONTEXT_DENIED' });
+    expect(authorizeScopedResource(request({ grantId: egressGrant.grantId }), snap, {
       costUsd: 1,
       egressHost: 'api.portdaddy.dev',
       envelopeAction: { kind: 'tool', name: 'unlisted-tool' },
-    }), snap)).toMatchObject({ allowed: false, code: 'ENVELOPE_DENIED' });
+    })).toMatchObject({ allowed: false, code: 'ENVELOPE_DENIED' });
   });
 
   test('a grant projection without the immutable repository caveat is denied', () => {
@@ -615,26 +728,26 @@ describe('public catalog, actor activity, and legacy quarantine separation', () 
     expect(authorizeScopedResource(request({
       scopeId: PUBLIC_CATALOG.scopeId,
       grantId: undefined,
-      principal: undefined,
       sessionId: undefined,
       bodyDigest: undefined,
       action: 'catalog.read',
       resourceKind: 'catalog-entry',
-      federated: true,
-    }), snapshot())).toMatchObject({ allowed: true, code: 'PUBLIC_CATALOG' });
+    }), snapshot(), { principal: null, federated: true }))
+      .toMatchObject({ allowed: true, code: 'PUBLIC_CATALOG' });
   });
 
   test.each([0, 'false'])('malformed public-catalog federated=%p is rejected before classification', (federated) => {
     expect(authorizeScopedResource(request({
       scopeId: PUBLIC_CATALOG.scopeId,
       grantId: undefined,
-      principal: undefined,
       sessionId: undefined,
       bodyDigest: undefined,
       action: 'catalog.read',
       resourceKind: 'catalog-entry',
+    }), snapshot(), {
+      principal: null,
       federated: federated as unknown as boolean,
-    }), snapshot())).toMatchObject({ allowed: false, code: 'REQUEST_INVALID' });
+    })).toMatchObject({ allowed: false, code: 'REQUEST_INVALID' });
   });
 
   test.each(['actor-activity', 'session-activity', 'attention-event'] as const)(
@@ -657,15 +770,16 @@ describe('public catalog, actor activity, and legacy quarantine separation', () 
     expect(authorizeScopedResource(request({
       scopeId: LEGACY_QUARANTINE.scopeId,
       grantId: quarantineGrant.grantId,
+      action: 'salvage.read',
+      resourceKind: 'legacy-row',
+    }), snap, {
       principal: {
         actorId: ACTOR,
         soulClass: 'graduated',
         deviceId: DEVICE,
         perspectiveId: PERSPECTIVE,
       },
-      action: 'salvage.read',
-      resourceKind: 'legacy-row',
-    }), snap)).toMatchObject({ allowed: false, code: 'QUARANTINE_OPERATOR_REQUIRED' });
+    })).toMatchObject({ allowed: false, code: 'QUARANTINE_OPERATOR_REQUIRED' });
     expect(authorizeScopedResource(request({
       scopeId: LEGACY_QUARANTINE.scopeId,
       grantId: quarantineGrant.grantId,
@@ -684,13 +798,14 @@ describe('public catalog, actor activity, and legacy quarantine separation', () 
       grantId: quarantineGrant.grantId,
       action: 'salvage.read',
       resourceKind: 'legacy-row',
+    }), snap, {
       principal: {
         actorId: ACTOR,
         soulClass: 'operator',
         deviceId: 'device-other',
         perspectiveId: PERSPECTIVE,
       },
-    }), snap)).toMatchObject({ allowed: false, code: 'DEVICE_MISMATCH' });
+    })).toMatchObject({ allowed: false, code: 'DEVICE_MISMATCH' });
     expect(authorizeScopedResource(request({
       scopeId: LEGACY_QUARANTINE.scopeId,
       grantId: quarantineGrant.grantId,
@@ -703,8 +818,8 @@ describe('public catalog, actor activity, and legacy quarantine separation', () 
       grantId: quarantineGrant.grantId,
       action: 'salvage.read',
       resourceKind: 'legacy-row',
-      federated: true,
-    }), snap)).toMatchObject({ allowed: false, code: 'FEDERATION_DENIED' });
+    }), snap, { federated: true }))
+      .toMatchObject({ allowed: false, code: 'FEDERATION_DENIED' });
   });
 
   test.each([undefined, '', '   '])(
@@ -729,7 +844,7 @@ describe('public catalog, actor activity, and legacy quarantine separation', () 
 
 describe('federation and grant attenuation cannot create action authority', () => {
   test('local authority is not implicitly federated', () => {
-    expect(authorizeScopedResource(request({ federated: true }), snapshot()))
+    expect(authorizeScopedResource(request(), snapshot(), { federated: true }))
       .toMatchObject({ allowed: false, code: 'FEDERATION_DENIED' });
   });
 
@@ -741,15 +856,13 @@ describe('federation and grant attenuation cannot create action authority', () =
     const snap = snapshot(undefined, [federatedRead]);
     expect(authorizeScopedResource(request({
       grantId: federatedRead.grantId,
-      federated: true,
       action: 'search.read',
-    }), snap)).toMatchObject({ allowed: true });
+    }), snap, { federated: true })).toMatchObject({ allowed: true });
     expect(authorizeScopedResource(request({
       grantId: federatedRead.grantId,
-      federated: true,
       action: 'message.write',
       resourceKind: 'message',
-    }), snap)).toMatchObject({ allowed: false, code: 'ACTION_DENIED' });
+    }), snap, { federated: true })).toMatchObject({ allowed: false, code: 'ACTION_DENIED' });
   });
 
   test('attenuation cannot add read-only federation to a local-only parent', () => {
@@ -800,6 +913,19 @@ describe('federation and grant attenuation cannot create action authority', () =
     expect(assessScopeGrantAttenuation(GRANT_REPO_A, child))
       .toMatchObject({ allowed: true, code: 'ATTENUATION_ALLOWED' });
   });
+
+  test.each([-1, Number.MIN_SAFE_INTEGER])(
+    'a negative child delegation budget is malformed and denied (%p)',
+    (remainingDelegations) => {
+      const malformed = {
+        ...GRANT_REPO_A,
+        grantId: 'grant-negative-delegation-budget',
+        remainingDelegations,
+      };
+      expect(assessScopeGrantAttenuation(GRANT_REPO_A, malformed))
+        .toMatchObject({ allowed: false, code: 'ATTENUATION_DENIED' });
+    },
+  );
 
   test.each([
     ['actions', { actions: [...GRANT_REPO_A.actions, 'catalog.read'] }],
