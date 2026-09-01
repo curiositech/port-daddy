@@ -205,6 +205,7 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
     parleyAutoTrigger,
     symbolIndex,
     contextBootstrapLookup,
+    symbolIndex,
   } = deps;
 
   interface ClaimConflictRecord {
