@@ -10,7 +10,7 @@
  * Sandbox lives under the repo's .scratch/ — NEVER /tmp.
  */
 import { execFileSync, spawn, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, writeFileSync, readFileSync, renameSync, rmSync, statSync, symlinkSync, utimesSync } from 'node:fs';
+import { existsSync, mkdirSync, writeFileSync, readFileSync, readdirSync, renameSync, rmSync, statSync, symlinkSync, utimesSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   stageTentacles,
@@ -735,6 +735,48 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
       lastDurationMs: SQUID_HOOK_DEADLINE_MS,
       lastExitCode: 124,
     });
+  });
+
+  test('portable deadline stays bounded when scheduler polling oversleeps', () => {
+    const pdHome = join(SANDBOX, 'watchdog-wall-clock-home');
+    const binDir = join(pdHome, 'bin');
+    const fakeBin = join(pdHome, 'fake-bin');
+    const heartbeatFile = join(pdHome, 'child-heartbeat');
+    mkdirSync(join(REPO, '.portdaddy'), { recursive: true });
+    mkdirSync(fakeBin, { recursive: true });
+    stageTentacles(SRC, binDir);
+    writeHeartbeatingHook(join(binDir, 'squid', 'pd-hook-prompt'), heartbeatFile, false);
+    writeFileSync(join(fakeBin, 'sleep'), [
+      '#!/bin/sh',
+      'if [ "${1:-}" = "0.01" ]; then exec /bin/sleep 0.20; fi',
+      'exec /bin/sleep "$@"',
+      '',
+    ].join('\n'), { mode: 0o755 });
+    writeFileSync(join(pdHome, 'heartbeat'), '{}');
+    markDaemonReady(pdHome);
+    registerSquidProject(REPO, join(pdHome, 'squid', 'projects'));
+    const env = {
+      ...process.env,
+      PATH: `${fakeBin}:${process.env.PATH ?? ''}`,
+      PD_HOME: pdHome,
+      PD_HOOK_PERL_BIN: join(pdHome, 'missing-perl'),
+      PD_HOOK_DEADLINE_MS: '300',
+      PD_HOOK_FAILURE_THRESHOLD: '99',
+      PD_HOOK_BREAKER_COOLDOWN_MS: '60000',
+    };
+
+    const startedAt = Date.now();
+    const out = execFileSync(join(binDir, 'pd-hook-prompt'), [], { cwd: REPO, env, input: '{}', encoding: 'utf8' });
+    const elapsedMs = Date.now() - startedAt;
+
+    expect(out).toBe('');
+    expect(elapsedMs).toBeLessThan(3_000);
+    expect(readSquidHookHealth(pdHome).circuits[0]).toMatchObject({
+      lastReason: 'timeout',
+      lastDurationMs: 300,
+      lastExitCode: 124,
+    });
+    expect(readdirSync(join(pdHome, 'squid', 'health')).filter((name) => name.includes('.deadline.'))).toEqual([]);
   });
 
   test('a genuinely hung child (default TERM handling) is caught at the wrapper\'s own deadline, not measured after the fact', () => {
