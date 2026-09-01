@@ -49,10 +49,12 @@ There are **two layers** here, and they have *opposite* transparency requirement
 console + the SDK + the running durable-identity agents); the tenant owns **Layer B** (their product). Every
 requirement below is a **Layer-A** requirement. Layer B appears only as the thing the agents act upon.
 
-**Headline finding from the survey:** roughly **80% of the machinery already ships.** The declarative fleet engine,
-the budget plane, the coordination substrate, the macaroon kernel, egress metering, the transcript action-capture
-model — all real. A "convoy" is mostly **a binding of existing parts + a handful of specific wirings + one net-new
-owner surface.** That is the good news, and it's why this is worth doing now.
+**Headline finding from the survey:** **major kernels exist; no end-to-end convoy has yet been built, released, and
+operated.** The declarative fleet engine, the budget plane, the coordination substrate, the macaroon kernel, egress
+metering, the transcript action-capture model — all real. But the lifecycle that binds them — the convoy object, the
+release/compile path, target-profile lowering, trigger wiring, spend-authority wiring, the owner surface, upgrade and
+revocation — is unbuilt. The work is binding and wiring proven parts plus a small number of net-new surfaces, which is
+why it is tractable now; it is not a claim that the product mostly exists.
 
 ---
 
@@ -69,6 +71,37 @@ container (`harbors`/`harbor_members` tables, harbor-cards ADR-0094) — a *plac
 always-on team (`pd-fleet.yml`, the conductor) — a *set of agents*. A convoy is the missing **triple** that says "these
 specific agents, moving together under one budget and one commander, toward one business, on shared infra, escorted
 and legible."
+
+"One mission repo" means one **required primary** mission repository; the release manifest may additionally name an
+**exact, bounded** set of auxiliary repositories/artifacts with purpose-scoped roles. Exact provenance always; never an
+unbounded multi-repo wildcard.
+
+### 1.1b The convoy lifecycle (source → stage → capsule → target → operate)
+
+A convoy is not only a *running* unit — it is an **application lifecycle**. The full contract:
+
+```
+ConvoySource            — versioned declaration: agent roles + coordination topology; skills/tools/models/schemas
+                          by IMMUTABLE DIGEST; triggers and input contracts; capability/host/secret/spend/data
+                          policy; owner+developer UI contract; evidence/test/acceptance/upgrade/revocation policy;
+                          target profile (hosted-web | hosted-ios | embedded-bounded)
+Staged instance         — the source running under FULL Port Daddy (develop, simulate, inspect, approve) with
+                          isolated identities and inspectable evidence
+ConvoyReleaseCapsule    — frozen + signed: resolved source digest, target-specific capability closure, generated
+                          runtime assets, SBOM/license/provenance manifest, stage receipts + acceptance result,
+                          signer/signature/expiry, upgrade lineage, revocation handle
+Target runtime          — the capsule lowered into a profile; may NARROW the signed policy, never widen it
+Operation               — receipts bind action → agent identity → capability → capsule digest; upgrade = a second
+                          signed capsule; a superseded capsule cannot silently regain authority
+```
+
+"Compile the development plane away" means: strip the dev CLI, daemon supervision, editor surfaces, and unused
+capabilities from the shipped artifact — while **preserving** agent identities, receipt lineage, policy digests, and
+upgrade/revocation authority. The compiler is a **fail-closed lowering pipeline**, not a prompt-to-app trick: it
+refuses on unresolved references, mutable skill/model/tool identities, undeclared network hosts, excessive capability
+closure, missing budget/evidence policy, or a target profile that would ship developer authority. Signing is necessary
+but not sufficient — a signed artifact can faithfully preserve an unsafe policy, so the *stage* is where policy is
+judged.
 
 ### 1.2 On the name — not silly; use it
 
@@ -129,10 +162,12 @@ Each requirement states **what I need**, **what you have** (from the survey, wit
 **the gap**, a rough **effort**, and a **priority** (P0 = needed for Convoy #1 MVP; P1 = needed for a reusable
 platform; P2 = needed at scale / Convoy #2+).
 
-### R1 — The convoy object (the binding)
+### R1 — The convoy object (the binding + the lifecycle)
 
-- **Require:** a first-class, named `harbor ↔ fleet ↔ repo ↔ budget ↔ governance` object I can create, address,
-  start/stop, and observe as one unit — with a shared burn envelope across its agents and a single owner-report seam.
+- **Require:** a first-class `ConvoySource → staged instance → ConvoyReleaseCapsule` contract (§1.1b), with Harbor and
+  Fleet as constituent primitives — a named object I can author, stage, freeze/sign, address, start/stop, and observe
+  as one unit, with a shared burn envelope across its agents and a single owner-report seam. The economic-policy
+  digest (R3) and the target-profile constraints (R8) are part of the source and capsule from the start.
 - **Have:** `harbors`/`harbor_members` tables + harbor-cards (named membership); the fleet engine (declarative team);
   the Conductor's **lineage budget (I4)** already shares a spend ceiling across an agent subtree — a strong starting
   point for a shared convoy burn envelope.
@@ -157,16 +192,44 @@ platform; P2 = needed at scale / Convoy #2+).
   uptime/monitoring alerts). `apps/email-ingress/` exists but isn't wired as a fleet trigger. Per-agent budgets are
   metadata-only (only the fleet-wide cap is enforced). No durable shared team-backlog / GM→specialist delegation
   runtime. No in-flight resume across restart (continuation primitives exist but aren't auto-wired).
+- **Boundary:** the platform owns **typed event-source and budget-policy interfaces**; concrete business adapters
+  (Stripe webhooks, uptime probes, support email, expungement-specific rules) live in the consumer repo
+  (`expungement-steward`) unless repeated consumers prove a generic adapter belongs in the platform. Do not let the
+  first consumer's adapters become the kernel contract.
 - **Effort:** wiring the roster triggers → `conductor.launch` = **Medium** (all parts exist; flip declaration →
-  execution). Business-ops trigger adapters = **Medium**. In-flight resume = **Large**. **Priority:** roster-trigger
-  wiring **P0**; business triggers **P0** (email/Stripe/uptime are how a business agent even wakes); resume **P2**.
+  execution). Typed trigger-interface layer = **Medium**. In-flight resume = **Large**. **Priority:** roster-trigger
+  wiring + typed trigger interfaces **P0** (they are how a business agent even wakes); concrete adapters live with the
+  consumer; resume **P2**.
 
-### R3 — Budget authority with cryptographic teeth (the anti-broke requirement)
+### R3 — Economic authority with cryptographic teeth (the anti-broke requirement)
 
 - **Require:** the convoy's spend authority is **unforgeable, attenuable, and fail-closed** — a per-action spend
   ceiling (`spend_usd ≤ N`), a daily cap, a host allowlist, an expiry, drawn from **realized revenue + a small owner
   float, never projections**; sub-agents get *attenuated* authority; if spend telemetry can't be trusted, authority
   drops to **$0**.
+- **Require (the split):** R3 is **two distinct authorities**, never conflated: **execution-economic authority** (the
+  maximum provider/API COGS liability the runtime may create — e.g. a $10 customer purchase may authorize at most $8
+  of provider COGS under policy) and **commerce-action authority** (money an agent may spend on someone's behalf —
+  buying goods, running ads, transferring funds). No amount of service credit grants commerce authority.
+- **Require (the records):** five distinct records, kept separately inspectable — **funding evidence** (settled
+  customer receipts / explicit owner grants, with maturity status: pending → settled → disputed/reversed; a webhook is
+  not revenue), **customer entitlement** (the service units the customer bought — never described as provider cash),
+  **execution economic authority** (grants with committed + reserved + remaining, expiry, delegation caveats,
+  revocation handle), **actual COGS accrual** (measured provider cost, including partial cost on abort/timeout/
+  failure), and **commerce action authority** (independent principal/beneficiary/purpose/approval). Funding modes are
+  target-neutral: `OWNER_FUNDED | USER_PREPAID_SERVICE | USER_PROVIDER | HYBRID`.
+- **Require (the invariants, as contract tests):** **no-mint** (delegation only attenuates; Σ committed+reserved ≤
+  parent authority); **admission before liability** (atomic worst-case reservation precedes any metered call); **cost
+  measured outside the agent's self-report** (provider meters are authoritative; agent estimates may request a
+  reservation, never decide the commit); **partial work still costs** (completion/abort/timeout/retry/failure each
+  finalize exactly one accrual receipt and release unused authority); **idempotency across money and work** (no retry
+  double-mints or double-charges); **versioned pricing** (stale/missing price authority fails closed); **reversal
+  cannot rewrite history** (a refund revokes unspent authority; realized COGS stays in the ledger as an explicit
+  deficit); **the shipped profile may narrow a signed policy, never widen it.**
+- **Require (no rival ledger):** bind to the existing Agent Harbor `CostAccrualLedger`
+  (`lib/agent-harbor/cost-accrual.ts` — append-only start/stream/abort/failure/finalization phases, terminal
+  idempotency, partial-cost survival) by extending its events with funding-receipt id, authority-grant id, reservation
+  id, price revision, entitlement debit, and release-capsule digest. Do not build a second cost ledger.
 - **Have (strong + wired):** the **budget plane is the strongest built-and-wired area.** Real-time cost accrual
   (`cost-tracker.ts`, `cost-ledger.ts`, partial-cost-before-abort capture), pre-flight admission (`budget-guard.ts`
   `canSpawn`), **80% throttle / 100% kill+bond-slash**, a **grace-window** before the kill, and **fail-closed on
@@ -181,8 +244,12 @@ platform; P2 = needed at scale / Convoy #2+).
   check) and **per-convoy sub-budgets** (only global/actor/project scopes today).
 - **Effort:** wire the spend macaroon into the real action path (mint per-action grants, verify at every spend/egress
   point, bind the egress-meter cap to the `spend_usd` caveat) = **Medium** (integration, not new crypto — "a focused
-  week or two" per survey). Revenue-aware burn governor = **Medium** (add a revenue ledger + an envelope check
-  alongside `budgetStatus`). **Priority:** **P0.** This is the literal "don't make me broke" requirement.
+  week or two" per survey). Revenue-aware burn governor = **Medium** (add a funding-receipt ledger + an envelope check
+  alongside `budgetStatus`). **Priority:** **P0 for the contract** (the economic schema, records, and invariants go
+  into `ConvoySource`/`ConvoyReleaseCapsule` now, proven first with a deterministic economics simulator under
+  `OWNER_FUNDED`); **live customer money follows the hosted-web and trusted-admission proofs.** R3 is a **release
+  gate**: no capsule that takes paid external actions ships until its capability closure binds spend/host/expiry to
+  the real action path. This is the literal "don't make me broke" requirement.
 
 ### R4 — Isolation: decide the honest posture
 
@@ -270,8 +337,10 @@ platform; P2 = needed at scale / Convoy #2+).
   convoy-level `observe()`. No Python client.
 - **Effort:** **Medium** consolidation of existing parts — export the fleet types, add a `Convoy`/`pd.fleet.*`
   namespace (`up|down|status|validate|observe`), a typed `ConvoyAgent`/`Role` schema compiling to `FleetConfig`, and a
-  new inline `POST /fleet/apply` endpoint. Python client = Medium (OpenAPI-generated). **Priority:** **P1** (Convoy #1
-  can ship on hand-written YAML; the SDK is what makes it a *platform* for Convoy #2 and Erich-the-developer).
+  new inline `POST /fleet/apply` endpoint. Python client = Medium (OpenAPI-generated). **Priority:** **pulled forward
+  to P0** — the SDK is the `ConvoySource` authoring API and the compiler entrypoint (§1.1b), so it must exist for the
+  first compiler proof. It must avoid daemon-only types and transport assumptions, because the same source contract
+  compiles to target profiles that have no local daemon (R8).
 
 ### R8 — Embeddable product profile: port-daddy compiled INTO a store-distributed app
 
@@ -291,11 +360,16 @@ platform; P2 = needed at scale / Convoy #2+).
   + hosted-execution client as a signable library, no **per-end-customer** budget/identity model (metering is
   per-agent/project, not per-buyer), and no store build/sign/notarize pipeline for an agentic product. The relay
   carries only a coordination macaroon (no spend authority) today (see R3).
-- **Effort:** **Large** and partly **architectural** — it forces the clean split between the two profiles below.
-  Compose `agent-labor-pricing-function` (per-customer metering), `macaroon-capability-credentials` (per-buyer
+- **Sequencing (split the profiles):** **hosted thin-client web** first (Medium — the app holds attenuated macaroons
+  and talks to a hosted runtime seam; no store gatekeeping), then **hosted thin-client iOS** (Large — same capsule
+  lowered into a code-signed store target with a distribution-specific payment adapter), and **bounded embedded
+  runtime** last (Extra Large, deferred — governance library compiled in, direct provider calls). Do not invent the
+  application model, the economic model, and the iOS lifecycle simultaneously.
+- **Effort:** **Large** overall and partly **architectural** — it forces the clean split between the two profiles
+  below. Compose `agent-labor-pricing-function` (per-customer metering), `macaroon-capability-credentials` (per-buyer
   attenuated spend), `rust-tauri-development`/`rust-app-distribution`/`ios-app-beauty` (build/sign/ship). **Priority:**
-  **P2** (Convoy #2's product; not needed for Convoy #1) — but it must **shape the SDK's architecture now** so we don't
-  retrofit an embeddable profile later.
+  shipped slices are **P2**, but the profile constraints **shape R1/R7 now** — otherwise the SDK encodes daemon-only
+  assumptions the compiler must later break.
 
 > **Two profiles of port-daddy, made explicit.** The **operator/daemon profile** (Convoy #1 steward, and Erich running
 > Convoy #2's *business* — full daemon, spawns agents, host access, native Mac surfaces, on Erich's own machine) and
@@ -322,38 +396,57 @@ as a business.**
 
 ## 4. The sequenced ask (what I need first)
 
-I am not asking for all of this at once. Here is the order that makes **Convoy #1 (the expungement.guide steward)**
-real, then makes it a reusable platform, then proves it with **Convoy #2 (the portfolio app)**.
+I am not asking for all of this at once. Convoy slots **immediately after the current trust-kernel landing wave**
+(identity, exact admission, ResourceScope, trusted staged inputs, receipts) and **before** the owner PWA, native iOS
+packaging, marketplace, or general embedded runtime. The economic schema goes into the contract now; live customer
+money goes into a later, separately-gated slice. Local FloatPlan (worker settlement) is a **separate later program** —
+the first paid convoy does not depend on it, and customer-funded execution must never silently become worker
+settlement.
 
-**Slice 1 — Convoy #1 MVP (P0 only):**
-1. **R1** minimal convoy object: bind one harbor + one fleet + `~/coding/expungement-guide` + one shared budget
-   envelope into a named unit I can `up`/`status`.
-2. **R2** wire the durable-roster triggers (schedule at minimum) → `conductor.launch`, and add **Stripe-webhook +
-   uptime** business triggers so the steward wakes on the events that matter to a business.
-3. **R3** connect the **proven spend macaroon** to the **wired budget plane**: per-action `spend_usd` ceiling +
-   `host` allowlist + expiry, bound to the egress meter; add a minimal **realized-revenue ledger** (Stripe paid
-   orders) so the burn envelope is revenue-aware and fail-closed.
-4. **R5 + R6** a **read-only web owner dashboard** over the existing transcript SSE + cost metrics: the three-number
-   burn gauge, the six-pillar board, and a **narrated per-action feed** (what it did, why, what it cost), with one-tap
-   gates.
+**Slice 0 — contract only (now):** revise this RFC / a successor ADR to carry §1.1b (source/stage/capsule) and R3's
+economic records, invariants, and funding modes. No Stripe, StoreKit, subscriptions, or money movement in this slice.
 
-**Slice 2 — make it a platform (P1):**
-5. **R7** the `Convoy`/`pd.fleet` SDK namespace + typed `ConvoyAgent`/`Role` + `POST /fleet/apply`.
-6. **R4** wire the destructive-action tool-gate to a live call site; ship the phone owner UI.
+**Slice 1 — the first compiler proof (hosted-web, two agents, no customer money):**
+1. Declare a tiny two-agent application in code (`ConvoySource` via the R7 SDK): coordination edge, bounded
+   tools/hosts, budget, input/output schemas, evidence policy, one hosted-web target profile.
+2. Stage it under full Port Daddy with isolated identities and a deterministic fixture; resolve every
+   skill/model/tool reference to immutable digests, failing on mutable or missing inputs.
+3. Run the **deterministic economics simulator** under `OWNER_FUNDED` with a tiny explicit grant: concurrent actions
+   whose combined maximum exceeds the grant must yield exactly the admissible subset of atomic reservations;
+   completion/abort/timeout/retry/failure each produce one final receipt and release unused authority.
+4. Emit a signed `ConvoyReleaseCapsule` + an accessible manifest of what ships and what was stripped.
+5. Build the web artifact — **no Port Daddy CLI, local daemon, launchd, or developer-console dependency** — talking
+   only through its declared hosted runtime seam; complete one interaction and read back a receipt binding source
+   digest + capsule digest + agent identity + funding grant + cost evidence.
+6. Demonstrate upgrade and revocation with a second signed capsule; the first must not silently regain authority.
 
-**Slice 3 — scale & prove generality (P2):**
-7. True containment (separate-UID + pf) — the honest blocker before running *untrusted* convoy agents.
-8. Per-call external-API legibility (MITM-CA egress inspection).
-9. **Convoy #2:** stand up the portfolio-builder app (Edie/Hugo/Iris) on the same primitive — the real test that
-   convoy generalizes.
+**Acceptance gate for Slice 1:** another engineer can reproduce the signed capsule from the same source revision,
+inspect the exact capability delta, run the hosted-web fixture, and verify the runtime receipt against the signed
+capsule — without Port Daddy's developer CLI inside the product artifact — and an adversarial pass proves no-mint,
+no-oversubscription, exact partial-COGS commits, fail-closed stale pricing, and reversal-without-history-rewrite.
+**Kill/revisit trigger:** if the target requires shipping daemon/CLI authority, unresolved dynamic code, long-lived
+privileged credentials, or opaque hosted behavior — stop and revise the profile boundary before adding iOS or agents.
+
+**Slice 2 — money and consumers, in order:** technical alpha (tiny owner-funded ceiling or user-provider adapter; no
+auto-refill) → prepaid service beta (one payment adapter, test mode first; live only after refund/dispute/fraud/tax/
+settlement-maturity have owners and tests) → hosted iOS profile (lower the *already-proved* capsule; distribution-
+specific payment adapter) → Convoy #1 steward runs live on the platform → owner PWA console (R6).
+
+**Slice 3 — scale & prove generality:** true containment (separate-UID + pf) before *untrusted* convoy agents;
+per-call external-API legibility (MITM-CA); bounded embedded runtime; **Convoy #2** (the portfolio app, Layer B2) as
+the real test that convoy generalizes. Explicitly later: postpaid/auto-refill credit, "unlimited" subscriptions,
+multi-currency, agents purchasing goods or transferring money, marketplace billing, and federated settlement.
 
 ---
 
 ## 5. Open questions for the building agents (please answer these)
 
-1. **Do you accept `convoy` as a new first-class primitive** (a named harbor×fleet×repo×governance object), or do you
-   want to model it as sugar over `harbor` + `fleet` without a new noun? I've argued for the new noun; convince me if
-   you disagree.
+Decided by operator disposition (2026-09-01): `convoy` is accepted as the named primitive with the §1.1b lifecycle;
+the sequence in §4 is the accepted staging; the owner console ships as a PWA and follows the first compiler proof.
+Still open:
+
+1. **Where does the convoy contract live** — a revision of this RFC or a successor ADR? Either way it must carry
+   §1.1b and the R3 economic records/invariants as the single source of truth.
 2. **Isolation posture for a money-spending convoy of *my own* agents:** are we agreed that "cooperative isolation +
    macaroon-bound egress cap + platform-native ad budget cap" is an acceptable, *honestly-labeled* P0 defense, with
    true containment (separate-UID + pf) as the named P2 blocker before untrusted agents? Or do you want true
@@ -390,10 +483,11 @@ Honest, constructive, from the survey.
 | **Owner UI (web/phone)** | ❌ **Missing** | Web retired, phone fixtures-only; nothing business-framed on any platform. |
 | **Convoy-as-code SDK** | ❌ **Missing** | Great SDK, but zero fleet methods — the declarative team layer is invisible to consumers. |
 
-**Net:** the hard, proven kernels (budget, crypto, coordination, fleet) are built. The gaps are **binding, wiring, and
-one owner surface** — the connective tissue between proven parts, plus the layperson-facing layer. That is a
-*platform-assembly* problem, not a *platform-invention* problem, and it's exactly the kind of thing this convoy — Port
-Daddy's first real business tenant — should drive into existence.
+**Net:** the hard, proven kernels (budget, crypto, coordination, fleet) are built; the end-to-end convoy lifecycle —
+object, compiler/capsule, target lowering, trigger wiring, spend wiring, owner surface, upgrade/revocation — has never
+been built, released, and operated. The work is largely *platform assembly* (connective tissue between proven parts)
+plus a small number of genuinely new surfaces (the compiler, the economic contract, the owner console), and it's
+exactly what this convoy — Port Daddy's first real business tenant — should drive into existence.
 
 ---
 
