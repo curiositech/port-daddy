@@ -171,6 +171,81 @@ export const CF_ROLE_MODELS: Record<CloudPlaneRole, string> = {
   "embed": "@cf/baai/bge-base-en-v1.5"
 };
 
+export type EmbeddingNormalization = 'none' | 'l2';
+export type EmbeddingMetric = 'cosine' | 'dot-product' | 'euclidean';
+export type EmbeddingPooling = 'mean' | 'cls';
+export type EmbeddingCoordinateEncoding = 'json-number' | 'float32' | 'float16' | 'int8';
+export type EmbeddingProfileQuality = 'approved' | 'degraded-fallback';
+export type EmbeddingRevisionBinding = 'provider-immutable' | 'runtime-pinned' | 'declared-upstream';
+export type EmbeddingRuntimeBinding = 'declarative-only' | 'runtime-enforced';
+
+/** A declared vector-space target plus binding policy; inspect runtimeBinding before use as proof. */
+export interface EmbeddingProfile {
+  readonly version: 2;
+  readonly provider: string;
+  readonly modelId: string;
+  readonly revision: string;
+  readonly dimensions: number;
+  readonly normalization: EmbeddingNormalization;
+  readonly metric: EmbeddingMetric;
+  readonly pooling: EmbeddingPooling;
+  readonly coordinateEncoding: EmbeddingCoordinateEncoding;
+  readonly quality: EmbeddingProfileQuality;
+  readonly revisionBinding: EmbeddingRevisionBinding;
+  readonly runtimeBinding: EmbeddingRuntimeBinding;
+  readonly spaceId: string;
+}
+
+/** Declared model-keyed profiles; inspect runtimeBinding before use as execution proof. */
+const GENERATED_EMBEDDING_PROFILES: Record<string, EmbeddingProfile> = {
+  "@cf/baai/bge-base-en-v1.5": {
+    "version": 2,
+    "provider": "baai",
+    "modelId": "@cf/baai/bge-base-en-v1.5",
+    "revision": "a5beb1e3e68b9ab74eb54cfd186867f64f240e1a",
+    "dimensions": 768,
+    "normalization": "l2",
+    "metric": "cosine",
+    "pooling": "mean",
+    "coordinateEncoding": "json-number",
+    "quality": "degraded-fallback",
+    "revisionBinding": "declared-upstream",
+    "runtimeBinding": "declarative-only",
+    "spaceId": "embed-v2:d0cbf2162aea9fc4bab0d377fa42c44a5536feb1495f410c943048924937f57f"
+  },
+  "Xenova/all-MiniLM-L6-v2": {
+    "version": 2,
+    "provider": "xenova",
+    "modelId": "Xenova/all-MiniLM-L6-v2",
+    "revision": "751bff37182d3f1213fa05d7196b954e230abad9",
+    "dimensions": 384,
+    "normalization": "l2",
+    "metric": "cosine",
+    "pooling": "mean",
+    "coordinateEncoding": "json-number",
+    "quality": "degraded-fallback",
+    "revisionBinding": "declared-upstream",
+    "runtimeBinding": "declarative-only",
+    "spaceId": "embed-v2:148a13b9c16d679214776a4997786fd5c68211a7611207d9bbbc17dafebf469b"
+  }
+};
+for (const profile of Object.values(GENERATED_EMBEDDING_PROFILES)) {
+  Object.freeze(profile);
+}
+export const CF_EMBEDDING_PROFILES: Readonly<Record<string, Readonly<EmbeddingProfile>>> =
+  Object.freeze(GENERATED_EMBEDDING_PROFILES);
+
+/**
+ * Read one declared embedding profile without exposing mutable registry state.
+ *
+ * @param modelId Exact model row key.
+ * @returns A defensive copy, or undefined when the model has no vector profile.
+ */
+export function embeddingProfileForModel(modelId: string): EmbeddingProfile | undefined {
+  const profile = CF_EMBEDDING_PROFILES[modelId];
+  return profile ? { ...profile } : undefined;
+}
+
 /**
  * Every Workers AI id the executor admits as a ship's declared pin.
  *

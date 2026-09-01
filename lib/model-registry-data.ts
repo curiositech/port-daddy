@@ -42,6 +42,31 @@ export interface ModelCatalogEntry {
   notes?: string;
 }
 
+export type EmbeddingNormalization = 'none' | 'l2';
+export type EmbeddingMetric = 'cosine' | 'dot-product' | 'euclidean';
+export type EmbeddingPooling = 'mean' | 'cls';
+export type EmbeddingCoordinateEncoding = 'json-number' | 'float32' | 'float16' | 'int8';
+export type EmbeddingProfileQuality = 'approved' | 'degraded-fallback';
+export type EmbeddingRevisionBinding = 'provider-immutable' | 'runtime-pinned' | 'declared-upstream';
+export type EmbeddingRuntimeBinding = 'declarative-only' | 'runtime-enforced';
+
+/** A declared vector-space target plus binding policy; inspect runtimeBinding before use as proof. */
+export interface EmbeddingProfile {
+  readonly version: 2;
+  readonly provider: string;
+  readonly modelId: string;
+  readonly revision: string;
+  readonly dimensions: number;
+  readonly normalization: EmbeddingNormalization;
+  readonly metric: EmbeddingMetric;
+  readonly pooling: EmbeddingPooling;
+  readonly coordinateEncoding: EmbeddingCoordinateEncoding;
+  readonly quality: EmbeddingProfileQuality;
+  readonly revisionBinding: EmbeddingRevisionBinding;
+  readonly runtimeBinding: EmbeddingRuntimeBinding;
+  readonly spaceId: string;
+}
+
 export interface ModelRegistryData {
   generatedAt: string;
   generatedBy: string;
@@ -67,6 +92,8 @@ export interface ModelRegistryData {
   /** Every concrete id, with the facts that used to live in four separate tables. */
   models: Record<string, ModelCatalogEntry>;
   backends: Record<string, Record<string, string>>;
+  /** Declared embedding targets, separate from the text-generation capability ladder. */
+  readonly embeddingProfiles: Readonly<Record<string, Readonly<EmbeddingProfile>>>;
 }
 
 export const MODEL_REGISTRY_DATA: ModelRegistryData = {
@@ -811,6 +838,21 @@ export const MODEL_REGISTRY_DATA: ModelRegistryData = {
       "priceBasis": "estimate",
       "notes": "Replaces the registry's previous `grok-2-latest` (balanced+high) and `grok-3` (max-thinking) — both several generations stale. Sourced from the AI Gateway catalog; NOT live-probed (no xAI credential in this environment)."
     },
+    "Xenova/all-MiniLM-L6-v2": {
+      "provider": "xenova",
+      "plane": "local",
+      "priceIn": 0,
+      "priceOut": 0,
+      "contextWindow": 512,
+      "capabilities": [
+        "embedding"
+      ],
+      "status": "ga",
+      "verifiedAt": "2026-08-31",
+      "verifiedBy": "vendor-docs",
+      "priceBasis": "vendor-docs",
+      "notes": "Explicit offline-minimal embedding fallback. It is reachable through the embedding profile map only and deliberately absent from every backend text-generation ladder. Its loader weight dtype is not the profile's coordinate encoding; the current JS boundary exposes JSON numbers."
+    },
     "qwen2.5-coder:7b": {
       "provider": "alibaba",
       "plane": "local",
@@ -936,5 +978,46 @@ export const MODEL_REGISTRY_DATA: ModelRegistryData = {
       "max-thinking": "local-model",
       "code": "local-model"
     }
+  },
+  "embeddingProfiles": {
+    "@cf/baai/bge-base-en-v1.5": {
+      "version": 2,
+      "provider": "baai",
+      "modelId": "@cf/baai/bge-base-en-v1.5",
+      "revision": "a5beb1e3e68b9ab74eb54cfd186867f64f240e1a",
+      "dimensions": 768,
+      "normalization": "l2",
+      "metric": "cosine",
+      "pooling": "mean",
+      "coordinateEncoding": "json-number",
+      "quality": "degraded-fallback",
+      "revisionBinding": "declared-upstream",
+      "runtimeBinding": "declarative-only",
+      "spaceId": "embed-v2:d0cbf2162aea9fc4bab0d377fa42c44a5536feb1495f410c943048924937f57f"
+    },
+    "Xenova/all-MiniLM-L6-v2": {
+      "version": 2,
+      "provider": "xenova",
+      "modelId": "Xenova/all-MiniLM-L6-v2",
+      "revision": "751bff37182d3f1213fa05d7196b954e230abad9",
+      "dimensions": 384,
+      "normalization": "l2",
+      "metric": "cosine",
+      "pooling": "mean",
+      "coordinateEncoding": "json-number",
+      "quality": "degraded-fallback",
+      "revisionBinding": "declared-upstream",
+      "runtimeBinding": "declarative-only",
+      "spaceId": "embed-v2:148a13b9c16d679214776a4997786fd5c68211a7611207d9bbbc17dafebf469b"
+    }
   }
 };
+
+for (const profile of Object.values(MODEL_REGISTRY_DATA.embeddingProfiles)) {
+  Object.freeze(profile);
+}
+Object.freeze(MODEL_REGISTRY_DATA.embeddingProfiles);
+Object.defineProperty(MODEL_REGISTRY_DATA, 'embeddingProfiles', {
+  writable: false,
+  configurable: false,
+});

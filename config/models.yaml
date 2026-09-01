@@ -791,6 +791,22 @@ models:
       AI Gateway catalog; NOT live-probed (no xAI credential in this environment).
 
   # ---- Local runtimes. These are Ollama/LM Studio TAG names, not vendor API ids. ----
+  Xenova/all-MiniLM-L6-v2:
+    provider: xenova
+    plane: local
+    priceIn: 0
+    priceOut: 0
+    contextWindow: 512
+    capabilities: [embedding]
+    status: ga
+    verifiedAt: '2026-08-31'
+    verifiedBy: vendor-docs
+    priceBasis: vendor-docs
+    notes: >-
+      Explicit offline-minimal embedding fallback. It is reachable through the
+      embedding profile map only and deliberately absent from every backend
+      text-generation ladder. Its loader weight dtype is not the profile's
+      coordinate encoding; the current JS boundary exposes JSON numbers.
   qwen2.5-coder:7b:
     provider: alibaba
     plane: local
@@ -981,3 +997,41 @@ cloudPlaneRoles:
 
   # Ideas-store dedup index. Changing this id invalidates every stored vector.
   embed: '@cf/baai/bge-base-en-v1.5'
+
+# ---------------------------------------------------------------------------
+# Embedding vector-space identities.
+#
+# These profiles are separate from `backends` and CF_ADMITTED_MODELS: embedding
+# models produce coordinates, not agent text. `spaceId` is generated from the
+# fixed v2 identity coordinates below. Quality is an operational policy and is
+# deliberately excluded from that hash. `revisionBinding` is also policy:
+# stronger runtime/provider proof must not split otherwise identical vectors.
+# Both current profiles are declarative targets: neither loader/provider pins
+# the declared revision or all preprocessing coordinates yet. `coordinateEncoding`
+# names the values crossing the current JS/JSON boundary, not model weight dtype.
+# Changing the effective representation changes coordinate compatibility.
+# ---------------------------------------------------------------------------
+embeddingProfiles:
+  '@cf/baai/bge-base-en-v1.5':
+    provider: baai
+    revision: a5beb1e3e68b9ab74eb54cfd186867f64f240e1a
+    dimensions: 768
+    normalization: l2
+    metric: cosine
+    pooling: mean
+    coordinateEncoding: json-number
+    quality: degraded-fallback
+    revisionBinding: declared-upstream
+    runtimeBinding: declarative-only
+
+  Xenova/all-MiniLM-L6-v2:
+    provider: xenova
+    revision: 751bff37182d3f1213fa05d7196b954e230abad9
+    dimensions: 384
+    normalization: l2
+    metric: cosine
+    pooling: mean
+    coordinateEncoding: json-number
+    quality: degraded-fallback
+    revisionBinding: declared-upstream
+    runtimeBinding: declarative-only
