@@ -37,6 +37,7 @@ private final class StageApplicationDelegate: NSObject, NSApplicationDelegate {
     private let controller: StageCaptureController
     private let cursorReader = LocalCursorReader()
     private var window: NSWindow?
+    private var terminationPending = false
 
     override init() {
         let proofConfiguration = PortholeStageCaptureApp.proofConfiguration()
@@ -71,6 +72,17 @@ private final class StageApplicationDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         cursorReader.stop()
+    }
+
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        guard !terminationPending else { return .terminateLater }
+        terminationPending = true
+        cursorReader.stop()
+        Task {
+            await controller.stopCapture()
+            sender.reply(toApplicationShouldTerminate: true)
+        }
+        return .terminateLater
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {

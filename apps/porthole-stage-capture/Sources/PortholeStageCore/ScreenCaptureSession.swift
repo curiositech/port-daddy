@@ -93,7 +93,7 @@ public enum ProtectedFieldInspector {
     }
 }
 
-private final class ApprovedProofRecorder {
+final class ApprovedProofRecorder {
     let outputURL: URL
 
     private let writer: AVAssetWriter
@@ -101,6 +101,8 @@ private final class ApprovedProofRecorder {
     private let lock = NSLock()
     private var started = false
     private var acceptingFrames = true
+    private var finishing = false
+    private var cancelQueued = false
     private(set) var frameCount = 0
 
     var recordedFrameCount: Int {
@@ -156,14 +158,37 @@ private final class ApprovedProofRecorder {
         lock.unlock()
     }
 
-    func finish() async throws {
+    func cancel() {
+        let shouldCancel = lock.withLock {
+            acceptingFrames = false
+            guard !cancelQueued else { return false }
+            cancelQueued = true
+            return true
+        }
+        guard shouldCancel else { return }
+        // AVAssetWriter.cancelWriting is itself blocking. Retire the local
+        // writer synchronously, but never put that framework wait on the UI or
+        // the bounded shutdown task. The writer owns its incomplete file.
+        DispatchQueue.global(qos: .utility).async { [writer] in writer.cancelWriting() }
+    }
+
+    func finish(deadline: CaptureShutdownDeadline) async throws {
         let didStart = lock.withLock {
             acceptingFrames = false
+            guard !finishing else { return false }
+            finishing = true
             return started
         }
         guard didStart else { throw StageCaptureError.noProofFrames }
         input.markAsFinished()
-        await writer.finishWriting()
+        do {
+            try await deadline.wait(phase: "Proof finalization") { completion in
+                writer.finishWriting { completion(nil) }
+            }
+        } catch {
+            cancel()
+            throw error
+        }
         guard writer.status == .completed else {
             throw StageCaptureError.assetWriter(writer.error?.localizedDescription ?? "unknown writer status")
         }
@@ -180,6 +205,13 @@ private final class FrameOutput: NSObject, SCStreamOutput, SCStreamDelegate {
     private let proofRecorder: ApprovedProofRecorder?
     private var nextSequence: UInt64
     private var lastClock: UInt64
+    private let deliveryLock = NSLock()
+    private var acceptingFrames = true
+
+    func invalidate() {
+        deliveryLock.withLock { acceptingFrames = false }
+        proofRecorder?.suspend()
+    }
 
     init(
         source: ShareableWindowDescriptor,
@@ -206,7 +238,8 @@ private final class FrameOutput: NSObject, SCStreamOutput, SCStreamDelegate {
         didOutputSampleBuffer sampleBuffer: CMSampleBuffer,
         of outputType: SCStreamOutputType
     ) {
-        guard outputType == .screen,
+        guard deliveryLock.withLock({ acceptingFrames }),
+              outputType == .screen,
               sampleBuffer.isValid,
               CMSampleBufferDataIsReady(sampleBuffer),
               Self.isComplete(sampleBuffer),
@@ -239,8 +272,11 @@ private final class FrameOutput: NSObject, SCStreamOutput, SCStreamDelegate {
             contentScale: source.width > 0 ? Double(width) / source.width : 1,
             runtime: runtime
         )
-        proofRecorder?.append(sampleBuffer)
-        onFrame(CapturedFrame(image: image, metadata: metadata))
+        deliveryLock.withLock {
+            guard acceptingFrames else { return }
+            proofRecorder?.append(sampleBuffer)
+            onFrame(CapturedFrame(image: image, metadata: metadata))
+        }
     }
 
     func stream(_ stream: SCStream, didStopWithError error: Error) {
@@ -602,6 +638,7 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
     private var activeApproval: SourceApproval?
     private var proofInvalidated = false
     private var operationGate = CaptureOperationGate()
+    private var shutdownGeneration = UUID()
 
     public init(proofConfiguration: ProofConfiguration? = nil) {
         self.proofConfiguration = proofConfiguration
@@ -822,6 +859,7 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
         }
         clearLiveState()
         proofInvalidated = false
+        proofReceipt = nil
 
         let lease = CaptureLeaseIdentity(
             leaseID: UUID().uuidString.lowercased(),
@@ -902,7 +940,9 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
             self.stream = stream
             try await stream.startCapture()
             guard operationGate.permitsCompletion(startTicket), activeCaptureLease == lease else {
-                try? await stream.stopCapture()
+                output.invalidate()
+                recorder?.cancel()
+                try? await Self.stop(stream, deadline: CaptureShutdownDeadline())
                 return
             }
             lifecycle = .live
@@ -918,12 +958,7 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
             operationGate.beginStop(cancelPendingStart: false)
             defer { operationGate.finishStop() }
             stageLog.error("capture start failed closed: \(error.localizedDescription, privacy: .public)")
-            if let stream { try? await stream.stopCapture() }
-            proofRecorder?.suspend()
-            proofRecorder = nil
-            stream = nil
-            output = nil
-            clearLiveState()
+            await stopStream(finalState: .failed, finalizeProof: false, cancelPendingStart: false)
             lifecycle = .failed
             statusMessage = error.localizedDescription
         }
@@ -937,18 +972,10 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
         }
         operationGate.beginStop()
         defer { operationGate.finishStop() }
-        let pausedLease = activeCaptureLease
-        leaseTimer?.invalidate()
-        leaseTimer = nil
-        proofStopTask?.cancel()
-        proofStopTask = nil
-        if let stream { try? await stream.stopCapture() }
-        guard lifecycle == .live, activeCaptureLease == pausedLease else { return }
-        stream = nil
-        output = nil
-        proofRecorder?.suspend()
-        lifecycle = .paused
-        statusMessage = "Paused · cached frame remains memory-only; Stop clears it"
+        await stopStream(finalState: .paused, finalizeProof: false, preservePreview: true)
+        if lifecycle == .paused {
+            statusMessage = "Paused · cached frame remains memory-only; Stop clears it"
+        }
     }
 
     public func stopCapture() async {
@@ -1282,31 +1309,71 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
     private func stopStream(
         finalState: CaptureLifecycle?,
         finalizeProof: Bool,
-        cancelPendingStart: Bool = true
+        cancelPendingStart: Bool = true,
+        preservePreview: Bool = false
     ) async {
         operationGate.beginStop(cancelPendingStart: cancelPendingStart)
         defer { operationGate.finishStop() }
+        let generation = UUID()
+        shutdownGeneration = generation
+        let deadline = CaptureShutdownDeadline()
         leaseTimer?.invalidate()
         leaseTimer = nil
         proofStopTask?.cancel()
         proofStopTask = nil
-        if let stream { try? await stream.stopCapture() }
+        // Close the local boundary synchronously, before waiting for either
+        // framework. Detach resources so a reentrant Stop cannot finalize the
+        // same recorder twice or accidentally clear a newer capture.
+        output?.invalidate()
+        proofRecorder?.suspend()
+        let stoppingStream = stream
+        let recorder = proofRecorder
+        let manifest = finalizeProof && !proofInvalidated ? proofManifest(recorder: recorder) : nil
         stream = nil
         output = nil
-        if finalizeProof, !proofInvalidated {
-            await finishProofIfNeeded()
-        }
         proofRecorder = nil
         safeFixtureAttestation = nil
         activeSource = nil
         activeApproval = nil
         activeCaptureLease = nil
-        if let finalState, lifecycle != .failed { lifecycle = finalState }
+        proofReceipt = nil
+        if !preservePreview { clearLiveState() }
+        do {
+            if let stoppingStream { try await Self.stop(stoppingStream, deadline: deadline) }
+            guard shutdownGeneration == generation else { recorder?.cancel(); return }
+            if let recorder, let manifest, let proofConfiguration {
+                try await recorder.finish(deadline: deadline)
+                // Revocation or another Stop during finalization cannot be
+                // undone by a late writer callback or create a success receipt.
+                guard shutdownGeneration == generation, !proofInvalidated,
+                      approvedSources.contains(manifest.sourceApproval) else { recorder.cancel(); return }
+                proofReceipt = try ProofArtifactWriter.write(
+                    manifest: manifest,
+                    outputDirectory: proofConfiguration.outputDirectory
+                )
+            } else {
+                recorder?.cancel()
+            }
+            if let finalState, lifecycle != .failed { lifecycle = finalState }
+        } catch {
+            recorder?.cancel()
+            guard shutdownGeneration == generation else { return }
+            proofInvalidated = true
+            clearLiveState()
+            lifecycle = .failed
+            statusMessage = "Shutdown failed: \(error.localizedDescription) No proof receipt was published."
+        }
     }
 
-    private func finishProofIfNeeded() async {
-        guard let recorder = proofRecorder,
-              let proofConfiguration,
+    private static func stop(_ stream: SCStream, deadline: CaptureShutdownDeadline) async throws {
+        try await deadline.wait(phase: "Screen capture", alwaysRequestCleanup: true) { completion in
+            stream.stopCapture(completionHandler: completion)
+        }
+    }
+
+    private func proofManifest(recorder: ApprovedProofRecorder?) -> PortholeProofManifest? {
+        guard let recorder,
+              proofConfiguration != nil,
               let source = activeSource,
               let safeFixtureAttestation,
               let approval = activeApproval,
@@ -1320,10 +1387,8 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
               approvedSources.count == 1,
               captureLease.matches(firstFrame),
               captureLease.matches(lastFrame)
-        else { return }
-        do {
-            try await recorder.finish()
-            let manifest = PortholeProofManifest(
+        else { return nil }
+        return PortholeProofManifest(
                 createdAt: ISO8601DateFormatter().string(from: Date()),
                 source: source,
                 safeFixtureAttestation: safeFixtureAttestation,
@@ -1341,14 +1406,6 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
                 excludedBundlePrefixes: pickerSourcePolicy.excludedBundlePrefixes,
                 sourceMediaFilename: recorder.outputURL.lastPathComponent
             )
-            proofReceipt = try ProofArtifactWriter.write(
-                manifest: manifest,
-                outputDirectory: proofConfiguration.outputDirectory
-            )
-        } catch {
-            lifecycle = .failed
-            statusMessage = "Proof finalization failed: \(error.localizedDescription)"
-        }
     }
 
     private func currentActivitySnapshot() -> CaptureActivitySnapshot {
@@ -1375,6 +1432,9 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
         proofStopTask = Task { [weak self] in
             try? await Task.sleep(for: .seconds(durationSeconds))
             guard !Task.isCancelled else { return }
+            // Do not have stopStream cancel the timer task which is now
+            // performing finalization; cancellation must mean an outside stop.
+            self?.proofStopTask = nil
             await self?.stopCapture()
         }
     }

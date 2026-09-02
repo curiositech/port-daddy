@@ -47,6 +47,15 @@ metadata output, and strict finite proof durations (2 through 30 seconds).
 Capture authority and cursor leases remain independent: cursor participation
 cannot grant recording permission or prevent an otherwise approved preview.
 
+Stop closes frame delivery and the recording input before waiting for macOS.
+Stream shutdown and movie finalization share one five-second monotonic deadline;
+missing, duplicate, and late framework callbacks cannot keep the UI waiting or
+publish a successful proof receipt. Cancellation still requests system cleanup,
+and application quit uses the same bounded path. A timeout means local delivery
+is closed, **not** that macOS confirmed its stream stopped. Blocking writer
+cancellation runs off the UI thread. Synthetic media tests exercise the actual
+writer without requesting Screen Recording or inspecting any operator window.
+
 Packaging generates all ten ICNS representations and signs the fixture before
 sealing its executable digest into Porthole's resources. Fixture verification
 checks that resource seal and the running program's identity and digest; it no
