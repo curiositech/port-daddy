@@ -373,6 +373,19 @@ describe('Git-preserving runtime skill links', () => {
     expect(witness(f)).toEqual(before);
   });
 
+  test('the actual npm skills:sync alias selects the runtime-link wrapper, not the copy generator', () => {
+    const f = sparseFixture();
+    const pkg = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8'));
+    const [runner, script, ...args] = pkg.scripts['skills:sync'].split(/\s+/);
+    expect(runner).toBe('tsx');
+    expect(script).toBe('scripts/sync-skills.ts');
+    const result = runWrapper(f.worktree, [...args, '--quiet']);
+    expect(result.exit).toBeUndefined();
+    expect(result.calls).toHaveLength(1);
+    expect(result.calls[0].scope).toBe('project');
+    expect(result.calls[0].baseDir).toBe(f.worktree);
+  });
+
   test.each([
     ['failed root read', "if (args.includes('rev-parse')) process.exit(1);"],
     ['foreign root response', "if (args.includes('rev-parse')) { process.stdout.write('/foreign/root\\n'); process.exit(0); }"],

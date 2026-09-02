@@ -1087,7 +1087,7 @@ pd mcp install          # auto-detect Claude Code, Claude Desktop, Cursor, Winds
 pd mcp install --list   # show what would be configured
 ```
 
-The **agent field manual** ships as a portable skill at [`skills/port-daddy-agent-skill/`](skills/port-daddy-agent-skill/) — mirrored into `.claude/skills/`, `.codex/skills/`, `.agents/skills/`, and `.gemini/extensions/` so every harness sees the same doctrine. `npm run skills:sync` keeps mirrors aligned; CI checks them. Separately, runtime link projection (`scripts/sync-skills.ts --scope project`) preserves Git-tracked mirrors and excluded sparse paths, refuses unverifiable Git state, and leaves non-cone directory projections and conflicting existing links untouched; it does not run the checked-in mirror-copy generator.
+The **agent field manual** ships as a portable skill at [`skills/port-daddy-agent-skill/`](skills/port-daddy-agent-skill/) — mirrored into `.claude/skills/`, `.codex/skills/`, `.agents/skills/`, and `.gemini/extensions/` so every harness sees the same doctrine. `node scripts/sync-skill-mirrors.mjs` maintains the checked-in copies; CI runs its `--check` mode. Separately, `npm run skills:sync` runs runtime link projection (`scripts/sync-skills.ts --scope project`), preserving Git-tracked mirrors and excluded sparse paths while leaving unverifiable Git state, non-cone directory projections, and conflicting existing links untouched.
 
 ---
 
