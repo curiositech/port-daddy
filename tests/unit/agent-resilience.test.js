@@ -20,6 +20,8 @@ import {
   BackendCircuitBreaker,
   CircuitOpenError,
   runResilientSpawn,
+  witnessedBackendFailure,
+  isWitnessedBackendFailure,
 } from '../../lib/agent-resilience.js';
 import { isRetryable } from '../../lib/event-envelope.js';
 
@@ -56,6 +58,34 @@ describe('classifyAgentError', () => {
   test('unknown failure is fail-closed (non-retryable)', () => {
     expect(isRetryable(classifyAgentError('kaboom'))).toBe(false);
   });
+
+  test('structured permanent status outranks untrusted transient prose and nested wrappers', () => {
+    const denied = Object.assign(new Error('untrusted detail mentions 429 timeout'), { status: 401 });
+    expect(classifyAgentError(denied)).toMatchObject({ code: 'UNAUTHORIZED', retryable: false });
+    const wrapper = Object.assign(new Error('503 unavailable'), { status: 503, cause: denied });
+    expect(classifyAgentError(wrapper).code).toBe('UNAUTHORIZED');
+    denied.cause = wrapper;
+    expect(classifyAgentError(wrapper).code).toBe('UNAUTHORIZED');
+    expect(classifyAgentError('401 Unauthorized; untrusted detail mentions 429 timeout').retryable).toBe(false);
+  });
+
+  test('JSON cannot impersonate a host witness and diagnostics omit private error content', () => {
+    const actual = witnessedBackendFailure({ kind: 'os', code: 'ENOENT' });
+    expect(isWitnessedBackendFailure(actual)).toBe(true);
+    expect(classifyAgentError(actual).code).toBe('BACKEND_ABSENT');
+    const forged = JSON.parse(JSON.stringify(actual));
+    expect(isWitnessedBackendFailure(forged)).toBe(false);
+    expect(classifyAgentError(forged)).toMatchObject({ code: 'INTERNAL', retryable: false });
+    expect(classifyAgentError({ status: 503, message: 'retry me' }).retryable).toBe(false);
+    expect(JSON.stringify(classifyAgentError(new Error('401 SYNTHETIC_PRIVATE_MARKER')))).not.toContain('SYNTHETIC_PRIVATE_MARKER');
+  });
+
+  test('exception getters are not executed', () => {
+    const error = new Error('unknown');
+    Object.defineProperty(error, 'status', { get() { throw new Error('getter executed'); } });
+    expect(() => classifyAgentError(error)).not.toThrow();
+    expect(classifyAgentError(error).retryable).toBe(false);
+  });
 });
 
 describe('parseRetryAfterMs', () => {
@@ -72,6 +102,11 @@ describe('parseRetryAfterMs', () => {
   test('classifyAgentError carries retryAfterMs through', () => {
     const e = classifyAgentError('429 rate limit; retry after 10');
     expect(e.retryAfterMs).toBe(10000);
+  });
+
+  test.each(['retry-after -5', 'retry-after 1.5s', 'retry-after 1e9', `retry-after ${'9'.repeat(308)} min`])('rejects malformed or overflowing delay %s', message => {
+    expect(parseRetryAfterMs(message)).toBeUndefined();
+    expect(classifyAgentError(`429; ${message}`)).toMatchObject({ retryable: false, details: { reason: 'invalid_retry_after' } });
   });
 });
 

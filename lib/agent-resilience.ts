@@ -51,6 +51,81 @@ interface Signal {
   code: AgentErrorCode;
 }
 
+// Only an in-process host/transport witness may authorize dispatch retry or
+// backend replacement. JSON, stderr, and model output cannot mint this identity.
+const witnessedFailures = new WeakSet<object>();
+
+/**
+ * Preserve a locally observed terminal fact in the existing AgentError shape.
+ * The motivation for object identity is that display text and deserialized tool
+ * payloads must never impersonate a timer or OS error at the failover boundary.
+ * @param fact A timer expiry or a code from the actual child error event.
+ * @returns A frozen error carrying an in-process witness, without raw text.
+ */
+export function witnessedBackendFailure(fact: { kind: 'timeout' } | { kind: 'os'; code: string }): AgentError {
+  const code = fact.kind === 'timeout' ? 'TIMEOUT'
+    : fact.code === 'ENOENT' ? 'BACKEND_ABSENT'
+      : ['EAGAIN', 'ECONNRESET', 'ECONNREFUSED', 'ETIMEDOUT', 'EAI_AGAIN'].includes(fact.code) ? 'UNAVAILABLE'
+        : ['EACCES', 'EPERM'].includes(fact.code) ? 'UNAUTHORIZED' : 'INTERNAL';
+  const error = Object.freeze(makeError({ code, message: `Backend failure: ${code}` }));
+  witnessedFailures.add(error);
+  return error;
+}
+
+/**
+ * Check provenance before using a failure to launch a successor.
+ * @param value A potentially untrusted adapter result.
+ * @returns Whether this process created the host witness, not just its shape.
+ */
+export function isWitnessedBackendFailure(value: unknown): value is AgentError {
+  return typeof value === 'object' && value !== null && witnessedFailures.has(value);
+}
+
+/**
+ * Read data properties without executing an untrusted getter.
+ * @param value Exception being inspected at the classification boundary.
+ * @param key Name of the structural field, never a path expression.
+ * @returns The own data value, or undefined when access cannot be proved safe.
+ */
+function ownData(value: object, key: string): unknown {
+  try { return Object.getOwnPropertyDescriptor(value, key)?.value; } catch { return undefined; }
+}
+
+/**
+ * Keep exception-cause traversal bounded and cycle-safe by design.
+ * @param value Raw failure; arbitrary JSON is not an Error instance.
+ * @returns At most eight concrete exceptions, without running accessors.
+ */
+function errorChain(value: unknown): Error[] {
+  const chain: Error[] = [];
+  const seen = new Set<Error>();
+  while (value instanceof Error && !seen.has(value) && chain.length < 8) {
+    seen.add(value);
+    chain.push(value);
+    value = ownData(value, 'cause');
+  }
+  return chain;
+}
+
+/**
+ * Classify a structured HTTP status without consulting descriptive content.
+ * @param status Status data from a concrete transport exception.
+ * @returns The existing error code, or undefined for an unsupported status.
+ */
+function statusCode(status: unknown): AgentErrorCode | undefined {
+  if (typeof status !== 'number' || !Number.isInteger(status)) return undefined;
+  if (status === 401 || status === 403) return 'UNAUTHORIZED';
+  if (status === 404) return 'NOT_FOUND';
+  if (status === 429) return 'RATE_LIMITED';
+  if (status === 408) return 'TIMEOUT';
+  if (status === 409) return 'CONFLICT';
+  if (status >= 400 && status < 500) return 'VALIDATION_ERROR';
+  if (status >= 500 && status < 600) return 'UNAVAILABLE';
+  return undefined;
+}
+
+const TRANSIENT_CODES = new Set(['RATE_LIMITED', 'TIMEOUT', 'UNAVAILABLE', 'CONFLICT']);
+
 const SIGNALS: ReadonlyArray<Signal> = [
   // Transient → retryable codes
   { re: /\b429\b|rate.?limit|too many requests/i, code: 'RATE_LIMITED' },
@@ -69,14 +144,13 @@ const SIGNALS: ReadonlyArray<Signal> = [
  * Honours `Retry-After: 30`, `retry after 1500ms`, `retry-after 2 min`.
  */
 export function parseRetryAfterMs(message: string): number | undefined {
-  const m = /retry.?after[^0-9]*([0-9]+)\s*(ms|s|sec|seconds|m|min)?/i.exec(message);
+  const m = /\bretry[- ]after\s*:?\s*([0-9]+)\s*(ms|seconds|sec|s|min|m)?(?=$|[\s;,])/i.exec(message);
   if (!m) return undefined;
   const n = Number(m[1]);
-  if (!Number.isFinite(n)) return undefined;
+  if (!Number.isSafeInteger(n)) return undefined;
   const unit = (m[2] ?? 's').toLowerCase();
-  if (unit === 'ms') return n;
-  if (unit.startsWith('m') && unit !== 'ms') return n * 60_000;
-  return n * 1000;
+  const delay = n * (unit === 'ms' ? 1 : unit.startsWith('m') ? 60_000 : 1000);
+  return Number.isSafeInteger(delay) ? delay : undefined;
 }
 
 /**
@@ -88,16 +162,29 @@ export function classifyAgentError(
   err: unknown,
   opts: { backend?: string; maxRetries?: number } = {},
 ): AgentError {
-  const message = err instanceof Error ? err.message : String(err);
-  const hit = SIGNALS.find((s) => s.re.test(message));
-  const code: AgentErrorCode = hit?.code ?? 'INTERNAL';
+  if (isWitnessedBackendFailure(err)) return err;
+  const chain = errorChain(err);
+  const raw = chain.length ? ownData(chain[0], 'message') : err;
+  const message = typeof raw === 'string' ? raw : '';
+  const statuses = chain.map(error => statusCode(ownData(error, 'status') ?? ownData(error, 'statusCode'))).filter((code): code is AgentErrorCode => code !== undefined);
+  // An explicit permanent status in the exception chain wins over a transient
+  // wrapper. Plain object/tool JSON status fields have no transport provenance.
+  const structured = statuses.find(code => !TRANSIENT_CODES.has(code)) ?? statuses[0];
+  const hits = SIGNALS.filter(signal => signal.re.test(message));
+  const hit = hits.find(signal => !TRANSIENT_CODES.has(signal.code)) ?? hits[0];
+  const code: AgentErrorCode = structured ?? hit?.code ?? 'INTERNAL';
   const retryAfterMs = parseRetryAfterMs(message);
+  const invalidRetryHint = /\bretry[- ]after\b/i.test(message) && retryAfterMs === undefined;
   return makeError({
     code,
-    message,
+    message: `Backend failure: ${code}`,
+    ...(invalidRetryHint ? { retryable: false } : {}),
     ...(retryAfterMs !== undefined ? { retryAfterMs } : {}),
     ...(opts.maxRetries !== undefined ? { maxRetries: opts.maxRetries } : {}),
-    ...(opts.backend ? { details: { backend: opts.backend } } : {}),
+    ...((opts.backend || invalidRetryHint) ? { details: {
+      ...(opts.backend ? { backend: opts.backend } : {}),
+      ...(invalidRetryHint ? { reason: 'invalid_retry_after' } : {}),
+    } } : {}),
   });
 }
 
