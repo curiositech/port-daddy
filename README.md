@@ -310,6 +310,8 @@ Roster agents are daemon-minted `AgentNode` identities that outlive any body or 
 
 `pd guard install` writes merged pre-commit and post-commit hooks that enforce the protocol: an active session plus matching file claims for staged files, checked by `pd guard check --staged`. `pd add` is the claim-aware `git add`. Modes: `advisory`, `warn`, `enforce`.
 
+For coordination changes, Guard checks the linked session's exact local roadmap item in the intended harbor with fresh same-agent evidence; unrelated items cannot satisfy that link, and incomplete or unavailable reads are distinguished from missing receipts, not presented as canonical remote authority.
+
 ---
 
 ## 🔐 CLI Permission Tiers
