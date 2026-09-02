@@ -34,19 +34,48 @@ struct PortholeStageCaptureApp: App {
 @MainActor
 private final class StageApplicationDelegate: NSObject, NSApplicationDelegate {
     private let proofConfiguration: ProofConfiguration?
-    private let controller: StageCaptureController
-    private let cursorReader = LocalCursorReader()
+    private let controller: StageCaptureController?
+    private let syntheticProofOutput: URL?
+    private var cursorReader: LocalCursorReader?
     private var window: NSWindow?
     private var terminationPending = false
 
     override init() {
-        let proofConfiguration = PortholeStageCaptureApp.proofConfiguration()
-        self.proofConfiguration = proofConfiguration
-        controller = StageCaptureController(proofConfiguration: proofConfiguration)
+        do {
+            syntheticProofOutput = try SyntheticStageProof.output(arguments: CommandLine.arguments)
+        } catch {
+            fputs("Porthole: --render-synthetic-proof requires exactly one new output directory and no capture flags.\n", stderr)
+            exit(EX_USAGE)
+        }
+        if syntheticProofOutput != nil {
+            // Deliberately before construction: no system picker, capture
+            // controller, Keychain, cursor reader, or operator window access.
+            proofConfiguration = nil
+            controller = nil
+        } else {
+            let configuration = PortholeStageCaptureApp.proofConfiguration()
+            proofConfiguration = configuration
+            controller = StageCaptureController(proofConfiguration: configuration)
+        }
         super.init()
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        if let syntheticProofOutput {
+            NSApp.setActivationPolicy(.prohibited)
+            Task {
+                do {
+                    try await SyntheticStageProof.render(to: syntheticProofOutput)
+                    print("Synthetic UI proof only: \(syntheticProofOutput.path)")
+                    exit(EXIT_SUCCESS)
+                } catch {
+                    fputs("Synthetic UI rendering failed; no capture proof exists: \(error)\n", stderr)
+                    exit(EXIT_FAILURE)
+                }
+            }
+            return
+        }
+        guard let controller else { return }
         NSApplication.shared.setActivationPolicy(.regular)
         let root = StageView(controller: controller)
             .frame(minWidth: 920, minHeight: 620)
@@ -64,6 +93,8 @@ private final class StageApplicationDelegate: NSObject, NSApplicationDelegate {
         NSApplication.shared.activate(ignoringOtherApps: true)
         self.window = window
 
+        let cursorReader = LocalCursorReader()
+        self.cursorReader = cursorReader
         cursorReader.start { [weak controller] event in
             Task { @MainActor in controller?.ingestCursor(event) }
         }
@@ -71,15 +102,15 @@ private final class StageApplicationDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
-        cursorReader.stop()
+        cursorReader?.stop()
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         guard !terminationPending else { return .terminateLater }
         terminationPending = true
-        cursorReader.stop()
+        cursorReader?.stop()
         Task {
-            await controller.stopCapture()
+            await controller?.stopCapture()
             sender.reply(toApplicationShouldTerminate: true)
         }
         return .terminateLater

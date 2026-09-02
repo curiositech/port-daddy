@@ -10,6 +10,7 @@ import plistlib
 import shutil
 import subprocess
 import sys
+import struct
 import tarfile
 import tempfile
 import unittest
@@ -143,6 +144,56 @@ class ArtifactIntegrationTests(unittest.TestCase):
         path.write_text("{invalid")
         self.resign_capture(root)
         self.reject(root, "invalid fixture identity JSON")
+
+
+@unittest.skipUnless(sys.platform == "darwin", "native SwiftUI renderer required")
+class SyntheticProofTests(unittest.TestCase):
+    def test_render_command_rejects_capture_flags_and_preserves_existing_output(self):
+        executable = PACKAGE / ".build" / os.environ.get("PORTHOLE_TEST_CONFIGURATION", "debug") / "PortholeStageCapture"
+        with tempfile.TemporaryDirectory(prefix="synthetic-arguments-", dir=PACKAGE / ".build") as root:
+            for args in [
+                ["--render-synthetic-proof"],
+                ["--render-synthetic-proof", root, "--proof-window-title", "not permitted"],
+                ["--render-synthetic-proof", root, "--approve-safe-fixture-persistence"],
+            ]:
+                result = subprocess.run([str(executable), *args], stdin=subprocess.DEVNULL,
+                                        capture_output=True, text=True, timeout=15)
+                self.assertEqual(result.returncode, 64)
+            result = subprocess.run([str(executable), "--render-synthetic-proof", root], stdin=subprocess.DEVNULL,
+                                    capture_output=True, text=True, timeout=15)
+            self.assertEqual(result.returncode, 1)
+            self.assertEqual(list(Path(root).iterdir()), [], "existing output must never be overwritten")
+
+    def test_synthetic_views_and_movies_are_complete_labeled_and_integrity_bound(self):
+        executable = PACKAGE / ".build" / os.environ.get("PORTHOLE_TEST_CONFIGURATION", "debug") / "PortholeStageCapture"
+        with tempfile.TemporaryDirectory(prefix="synthetic-render-", dir=PACKAGE / ".build") as root:
+            output = Path(root) / "proof"
+            result = subprocess.run([str(executable), "--render-synthetic-proof", str(output)], stdin=subprocess.DEVNULL,
+                                    capture_output=True, text=True, timeout=120)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            manifest = json.loads((output / "synthetic-ui-manifest.json").read_text())
+            self.assertEqual(manifest["schema"], "pd.porthole.synthetic-ui-proof.v1")
+            for field in ["capturePerformed", "operatorDataRead", "permissionProof", "backgroundCaptureProof",
+                          "cursorTransportProof", "productionDistribution"]:
+                self.assertIs(manifest[field], False, field)
+            self.assertEqual(manifest["appearances"], ["dark", "light"])
+            self.assertEqual(manifest["logicalSizePoints"], {"width": 1320, "height": 830})
+            self.assertEqual(len(manifest["files"]), 6)
+            digests = set()
+            for entry in manifest["files"]:
+                data = (output / entry["filename"]).read_bytes()
+                self.assertEqual(hashlib.sha256(data).hexdigest(), entry["sha256"])
+                self.assertEqual(len(data), entry["bytes"])
+                self.assertEqual((entry["pixelWidth"], entry["pixelHeight"]), (1320, 830))
+                self.assertEqual(entry["pixelsPerPoint"], 1)
+                digests.add(entry["sha256"])
+                if entry["filename"].endswith(".png"):
+                    self.assertEqual(data[:8], b"\x89PNG\r\n\x1a\n")
+                    self.assertEqual(struct.unpack(">II", data[16:24]), (1320, 830))
+                else:
+                    self.assertEqual(entry["decodedVideoFrames"], 72)
+            self.assertEqual(len(digests), 6, "both appearances and motion phases must differ")
+            self.assertFalse((output / "receipt.json").exists(), "synthetic UI is not a capture receipt")
 
 
 if __name__ == "__main__":

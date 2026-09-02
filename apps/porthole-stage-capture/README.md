@@ -56,6 +56,33 @@ is closed, **not** that macOS confirmed its stream stopped. Blocking writer
 cancellation runs off the UI thread. Synthetic media tests exercise the actual
 writer without requesting Screen Recording or inspecting any operator window.
 
+### Synthetic visual proof, without capture permission
+
+```sh
+swift run --package-path apps/porthole-stage-capture PortholeStageCapture \
+  --render-synthetic-proof "$HOME/coding/tmp/porthole-synthetic-proof"
+```
+
+The output directory must be new. This separate command is handled before a
+capture controller, system picker, Keychain lookup, window, or cursor reader is
+created. It draws the actual `StageView` through an inert presentation model and
+offscreen AppKit view rasterization; it does not screenshot the desktop. Normal
+startup still constructs the real controller and requires its signed-source and
+picker protections. Mixing render-only and capture flags is rejected.
+
+It emits four labeled light/dark PNGs and two three-second, 24 fps movies with
+generated pointers, selection outlines, comments, a clock, and moving shapes.
+Both movies are decoded back to verify all 72 frames, their dimensions, and the
+absence of audio. `synthetic-ui-manifest.json` binds each artifact by SHA-256 and
+explicitly denies capture, permission, background, cursor-transport, and release
+proof. No `receipt.json` is emitted. The native package's Python suite exercises
+this actual command, its refusal cases, and the resulting artifacts. Stage now
+respects the system's light/dark appearance using semantic surface/text colors.
+
+These renders demonstrate presentation and animation only. They do not prove
+that a person or agent moved a real cursor, selected a real window, granted
+consent, or captured in the background. The manual acceptance gates below remain.
+
 Packaging generates all ten ICNS representations and signs the fixture before
 sealing its executable digest into Porthole's resources. Fixture verification
 checks that resource seal and the running program's identity and digest; it no

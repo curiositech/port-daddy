@@ -2,13 +2,49 @@ import AppKit
 import PortholeStageCore
 import SwiftUI
 
-struct StageView: View {
-    @ObservedObject var controller: StageCaptureController
+/// Presentation is separate from capture authority. The render-only model never
+/// constructs a capture controller, system picker, source filter, or Keychain.
+@MainActor
+protocol StagePresentationModel: ObservableObject {
+    var approvedSources: [SourceApproval] { get }
+    var selectedApprovalID: String? { get }
+    var pendingApprovalReview: ApprovalReview? { get }
+    var lifecycle: CaptureLifecycle { get }
+    var persistenceGate: PersistenceGate { get }
+    var activeCaptureLease: CaptureLeaseIdentity? { get }
+    var latestImage: NSImage? { get }
+    var latestMetadata: FrameMetadata? { get }
+    var frameRingCount: Int { get }
+    var cursors: [CursorEvent] { get }
+    var proofReceipt: PortholeProofReceipt? { get }
+    var proofConfiguration: ProofConfiguration? { get }
+    var statusMessage: String { get }
+    var selectedApprovalCanEnterStage: Bool { get }
+    var canPauseCapture: Bool { get }
+    func isApprovalReady(_ approvalID: String) -> Bool
+    func cancelPendingApproval()
+    func approvePending(scope: SourceApprovalScopeKind, capabilities: SourceCapabilities)
+    func selectApproval(_ approvalID: String) async
+    func revokeApproval(_ approvalID: String) async
+    func presentSystemPicker(for sourceKind: ApprovedSourceKind) async
+    func startCapture() async
+    func pauseCapture() async
+    func stopCapture() async
+}
 
-    private let ink = Color(red: 0.035, green: 0.043, blue: 0.055)
-    private let panel = Color(red: 0.065, green: 0.078, blue: 0.098)
-    private let line = Color.white.opacity(0.11)
-    private let mint = Color(red: 0.42, green: 0.94, blue: 0.72)
+extension StageCaptureController: StagePresentationModel {}
+
+struct StageView<Model: StagePresentationModel>: View {
+    @ObservedObject var controller: Model
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var ink: Color { colorScheme == .dark
+        ? Color(red: 0.035, green: 0.043, blue: 0.055) : Color(red: 0.97, green: 0.97, blue: 0.95) }
+    private var panel: Color { colorScheme == .dark
+        ? Color(red: 0.065, green: 0.078, blue: 0.098) : Color(red: 0.93, green: 0.94, blue: 0.91) }
+    private var line: Color { Color.primary.opacity(colorScheme == .dark ? 0.11 : 0.17) }
+    private var mint: Color { colorScheme == .dark
+        ? Color(red: 0.42, green: 0.94, blue: 0.72) : Color(red: 0.04, green: 0.39, blue: 0.29) }
 
     var body: some View {
         HStack(spacing: 0) {
@@ -23,8 +59,7 @@ struct StageView: View {
             }
         }
         .background(ink)
-        .foregroundStyle(.white)
-        .preferredColorScheme(.dark)
+        .foregroundStyle(.primary)
         .sheet(item: pendingReviewBinding) { review in
             ApprovalReviewSheet(
                 review: review,
@@ -80,7 +115,7 @@ struct StageView: View {
                 emptyApprovalCard.padding(.horizontal, 16)
             } else {
                 ScrollView {
-                    LazyVStack(spacing: 10) {
+                    VStack(spacing: 10) {
                         ForEach(controller.approvedSources) { approval in
                             ApprovalCard(
                                 approval: approval,
@@ -127,7 +162,7 @@ struct StageView: View {
                 .foregroundStyle(.secondary)
         }
         .padding(16)
-        .background(Color.black.opacity(0.18), in: RoundedRectangle(cornerRadius: 14))
+        .background(Color.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 14))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(line))
         .accessibilityElement(children: .combine)
     }
@@ -198,7 +233,7 @@ struct StageView: View {
                 .foregroundStyle(.secondary)
         }
         .padding(14)
-        .background(Color.black.opacity(0.18), in: RoundedRectangle(cornerRadius: 13))
+        .background(Color.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 13))
         .overlay(RoundedRectangle(cornerRadius: 13).stroke(line))
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Persistence and audio privacy status")
@@ -252,7 +287,7 @@ struct StageView: View {
     private var preview: some View {
         GeometryReader { geometry in
             ZStack {
-                Color.black
+                ink
                 CanvasGrid().opacity(controller.latestImage == nil ? 1 : 0.18)
                 if let image = controller.latestImage,
                    let lease = controller.activeCaptureLease,
@@ -288,7 +323,7 @@ struct StageView: View {
             }
             .clipped()
         }
-        .background(.black)
+        .background(ink)
     }
 
     private var previewEmptyTitle: String {
@@ -392,6 +427,7 @@ struct StageView: View {
 }
 
 private struct ApprovalCard: View {
+    @Environment(\.colorScheme) private var colorScheme
     let approval: SourceApproval
     let selected: Bool
     let ready: Bool
@@ -444,10 +480,10 @@ private struct ApprovalCard: View {
             }
         }
         .padding(13)
-        .background(selected ? Color.blue.opacity(0.10) : Color.black.opacity(0.16), in: RoundedRectangle(cornerRadius: 13))
+        .background(selected ? Color.blue.opacity(0.10) : Color.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 13))
         .overlay(
             RoundedRectangle(cornerRadius: 13)
-                .stroke(selected ? Color.blue.opacity(0.7) : Color.white.opacity(0.10), lineWidth: selected ? 1.5 : 1)
+                .stroke(selected ? Color.blue.opacity(0.7) : Color.primary.opacity(0.14), lineWidth: selected ? 1.5 : 1)
         )
         .accessibilityElement(children: .contain)
     }
@@ -465,7 +501,7 @@ private struct ApprovalCard: View {
     }
 
     private var statusColor: Color {
-        if live { return .green }
+        if live { return StagePalette.positive(colorScheme) }
         if ready { return .blue }
         return .secondary
     }
@@ -480,17 +516,20 @@ private struct ApprovalCard: View {
 }
 
 private struct CapabilityBadge: View {
+    @Environment(\.colorScheme) private var colorScheme
     let label: String
     let granted: Bool
+
+    private var color: Color { granted ? StagePalette.positive(colorScheme) : .secondary }
 
     var body: some View {
         Label(label, systemImage: granted ? "checkmark" : "minus")
             .font(.system(size: 9, weight: .bold, design: .rounded))
-            .foregroundStyle(granted ? Color.green : Color.secondary)
+            .foregroundStyle(color)
             .padding(.horizontal, 6)
             .padding(.vertical, 4)
-            .background((granted ? Color.green : Color.secondary).opacity(0.09), in: Capsule())
-            .overlay(Capsule().stroke((granted ? Color.green : Color.secondary).opacity(0.2)))
+            .background(color.opacity(0.09), in: Capsule())
+            .overlay(Capsule().stroke(color.opacity(0.2)))
             .accessibilityLabel("\(label) \(granted ? "approved" : "not approved")")
     }
 }
@@ -612,6 +651,7 @@ private struct ApprovalReviewSheet: View {
 }
 
 private struct StatePill: View {
+    @Environment(\.colorScheme) private var colorScheme
     let lifecycle: CaptureLifecycle
     let recording: Bool
 
@@ -642,11 +682,17 @@ private struct StatePill: View {
     private var color: Color {
         if recording { return .red }
         switch lifecycle {
-        case .live: return .green
+        case .live: return StagePalette.positive(colorScheme)
         case .paused: return .yellow
         case .failed, .permissionDenied: return .red
         default: return .secondary
         }
+    }
+}
+
+private enum StagePalette {
+    static func positive(_ scheme: ColorScheme) -> Color {
+        scheme == .dark ? .green : Color(red: 0.04, green: 0.39, blue: 0.29)
     }
 }
 
@@ -661,7 +707,7 @@ private struct MetadataPill: View {
         }
         .padding(.horizontal, 9)
         .padding(.vertical, 5)
-        .background(.white.opacity(0.055), in: RoundedRectangle(cornerRadius: 7))
+        .background(Color.primary.opacity(0.055), in: RoundedRectangle(cornerRadius: 7))
     }
 }
 
@@ -701,7 +747,7 @@ private struct CanvasGrid: View {
                 path.move(to: CGPoint(x: 0, y: y))
                 path.addLine(to: CGPoint(x: size.width, y: y))
             }
-            context.stroke(path, with: .color(.white.opacity(0.045)), lineWidth: 1)
+            context.stroke(path, with: .color(.primary.opacity(0.045)), lineWidth: 1)
         }
     }
 }
