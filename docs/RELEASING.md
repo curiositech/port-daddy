@@ -69,7 +69,10 @@ protected queue; unresolved review threads remain a wait, never an admin bypass.
 Branch rules, independent reviews and CI continue to govern eventual merge.
 
 Release publication binds the tag to the **merged version-transition SHA**,
-including when that transition arrived through another PR. The remote tag is
+including when that transition arrived through another PR. Its dated-changelog
+check consumes the complete Git blob: an early-exit match must not turn a valid
+large changelog into a `SIGPIPE` failure. A missing header or failed Git read
+still stops discovery before any App token is minted. The remote tag is
 peeled and checked; `Release.target_commitish` alone is not a tag witness. A tag
 without a Release is incomplete work, and a conflicting tag is never moved.
 Partial-tag recovery also checks bounded, paginated remote stable tags and
