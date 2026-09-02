@@ -114,7 +114,7 @@ describe('SessionStart Pilot salvage nudge', () => {
       ...process.env,
       PD_URL: 'http://127.0.0.1:9876',
       PORT_DADDY_URL: 'https://relay.invalid',
-      PORT_DADDY_SOCKET: join(root, 'must-not-connect.sock'),
+      PORT_DADDY_SOCK: join(root, 'must-not-connect.sock'),
       PD_SESSION_ID: 'host-session-must-not-leak',
       PD_AGENT_ID: 'host-agent-must-not-leak',
       PD_ACTOR_CREDENTIAL: 'synthetic-secret-must-not-leak',
