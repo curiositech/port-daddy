@@ -67,8 +67,10 @@ function sync(f, extra = {}) {
 }
 
 function witness(f) {
+  const status = git(f.worktree, 'status', '--porcelain', '-z');
   return { head: git(f.worktree, 'rev-parse', 'HEAD'), index: git(f.worktree, 'ls-files', '--stage', '-z'),
-    status: git(f.worktree, 'status', '--porcelain', '-z'), sparse: git(f.worktree, 'sparse-checkout', 'list'),
+    status, indexBytes: readFileSync(git(f.worktree, 'rev-parse', '--git-path', 'index').trim()).toString('base64'),
+    sparse: git(f.worktree, 'sparse-checkout', 'list'),
     refs: git(f.worktree, 'show-ref') };
 }
 
@@ -292,6 +294,28 @@ describe('Git-preserving runtime skill links', () => {
     expect(result.created).toBe(0);
     expect(result.errors).toHaveLength(2);
     expect(readdirSync(outside)).toEqual([]);
+    expect(witness(f)).toEqual(before);
+  });
+
+  test('does not project through an untracked nested repository', () => {
+    const f = sparseFixture();
+    git(f.worktree, 'sparse-checkout', 'add', '.codex/skills');
+    const root = betaOnly(f);
+    const nested = join(root, 'nested');
+    mkdirSync(nested);
+    git(nested, 'init', '--quiet');
+    put(join(nested, 'README.md'), 'Independent synthetic repository.\n');
+    git(nested, 'add', 'README.md');
+    git(nested, 'commit', '--quiet', '-m', 'Nested fixture');
+    const before = witness(f);
+    const nestedIndex = git(nested, 'ls-files', '--stage', '-z');
+    const nestedHead = git(nested, 'rev-parse', 'HEAD');
+    const result = sync(f, { targets: [{ label: 'nested repository', path: join(nested, 'skills') }] });
+    expect(result.created).toBe(0);
+    expect(result.errors[0].error).toMatch(/nested Git worktree/);
+    expect(existsSync(join(nested, 'skills'))).toBe(false);
+    expect(git(nested, 'ls-files', '--stage', '-z')).toBe(nestedIndex);
+    expect(git(nested, 'rev-parse', 'HEAD')).toBe(nestedHead);
     expect(witness(f)).toEqual(before);
   });
 

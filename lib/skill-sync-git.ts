@@ -66,6 +66,14 @@ export function skillSyncGitPolicy(baseDir: string, targets: string[]): SkillSyn
           const stat = lstatSync(parent);
           if (stat.isSymbolicLink()) return 'symlink ancestor is not a writable skill-sync boundary';
           if (!stat.isDirectory()) return 'non-directory ancestor is not a writable skill-sync boundary';
+          if (parent !== base) {
+            try {
+              lstatSync(join(parent, '.git'));
+              return 'nested Git worktree is outside the selected skill-sync boundary';
+            } catch (error) {
+              if ((error as NodeJS.ErrnoException).code !== 'ENOENT') return 'unable to inspect nested Git boundary';
+            }
+          }
         } catch (error) {
           if ((error as NodeJS.ErrnoException).code !== 'ENOENT') return 'unable to inspect skill-sync ancestor';
         }
