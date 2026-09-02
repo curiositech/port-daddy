@@ -1901,7 +1901,7 @@ heartbeat is insufficient; absent presence verification remains a denial.
 ### GET /takeover-grants/:grantId
 Only the verified issuer or named successor actor may read grant lifecycle,
 timestamps, consumed epoch id, and receipt references. Optional `harbor` must
-match the grant. SDK: `getDurableTakeoverGrant(grantId, harbor?)`. This view
+match the grant. SDK: `getDurableTakeoverGrant(grantId, { harbor })`. This view
 redacts the nonce and raw briefing.
 
 ### POST /sessions/:id/takeover
