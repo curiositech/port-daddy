@@ -56,7 +56,9 @@ attribution, not a cryptographic signature.
 [Pinned action source](https://github.com/actions/create-github-app-token/tree/bcd2ba49218906704ab6c1aa796996da409d3eb1).
 
 The cut job checks out the **measured SHA**, never a newer `main` with an older
-version decision. A pre-existing release branch is not overwritten. Push and PR
+version decision. The push uses an explicit empty expected-ref lease (create-only
+CAS), so even an ancestor branch appearing during the build is not fast-forwarded
+or overwritten. This is not permission to rewrite an existing ref. Push and PR
 responses are followed by exact branch/head/App-author readbacks, including
 after an ambiguous response. Auto-merge uses the exact head and the normal
 protected queue; unresolved review threads remain a wait, never an admin bypass.

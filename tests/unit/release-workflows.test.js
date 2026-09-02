@@ -1,5 +1,6 @@
 import { spawnSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { readFileSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { jest } from '@jest/globals';
@@ -606,6 +607,10 @@ async function executeTrain(job, selector, options = {}) {
     commands.push({ file, args, config });
     expect(config.stdio).toEqual(['ignore', 'pipe', 'ignore']);
     expect(config.timeout).toBe(120_000);
+    if (options.runCommand) {
+      const replacement = options.runCommand({ file, args, config, state });
+      if (replacement !== undefined) return replacement;
+    }
     if (file === 'git' && args[0] === 'rev-parse') {
       return (job === 'cut' ? state.committed ? HEAD : state.checkoutSource ?? SOURCE : state.checkoutSource ?? TARGET) + '\n';
     }
@@ -719,6 +724,10 @@ describe('executable App-only release train', () => {
     const result = await executeTrain('cut', 'publish', { ambiguousPush: true, ambiguousPr: true, ambiguousQueue: true });
     expect(result.code).toBe(0);
     expect(result.commands.filter((command) => command.args[0] === 'push')).toHaveLength(1);
+    expect(result.commands.find((command) => command.args[0] === 'push').args)
+      .toEqual(['push', '--force-with-lease=refs/heads/release-train/v3.31.0:', 'origin', 'HEAD:refs/heads/release-train/v3.31.0']);
+    expect(result.commands.find((command) => command.args[0] === 'push').config.env)
+      .toMatchObject({ GIT_CONFIG_COUNT: '2', GIT_CONFIG_KEY_1: 'credential.helper', GIT_CONFIG_VALUE_1: '', GIT_TERMINAL_PROMPT: '0' });
     expect(result.writes.filter((call) => call.path.endsWith('/pulls'))).toHaveLength(1);
     const merge = result.commands.filter((command) => command.file === 'gh');
     expect(merge).toHaveLength(1);
@@ -747,6 +756,64 @@ describe('executable App-only release train', () => {
     const result = await executeTrain('cut', 'publish', { pushHead: DEFAULT });
     expect(result.code).toBe(1);
     expect(result.writes).toHaveLength(0);
+  });
+
+  test('real Git: an ancestor branch appearing after discovery is not fast-forwarded or given a PR', async () => {
+    const scratchRoot = join(homedir(), 'coding', 'tmp');
+    mkdirSync(scratchRoot, { recursive: true });
+    const scratch = mkdtempSync(join(scratchRoot, 'release-train-create-only-test-'));
+    const remote = join(scratch, 'remote.git');
+    const worker = join(scratch, 'worker');
+    const gitEnv = { ...process.env, GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1',
+      GIT_AUTHOR_NAME: 'Synthetic test actor', GIT_AUTHOR_EMAIL: 'test@example.invalid',
+      GIT_COMMITTER_NAME: 'Synthetic test actor', GIT_COMMITTER_EMAIL: 'test@example.invalid' };
+    const git = (args, cwd = scratch, allowedFailure = false) => {
+      const result = spawnSync('git', args, { cwd, env: gitEnv, encoding: 'utf8' });
+      if (result.status !== 0 && !allowedFailure) throw new Error('Synthetic git command failed: ' + args[0]);
+      return result;
+    };
+    try {
+      git(['init', '--bare', remote]);
+      git(['clone', remote, worker]);
+      git(['checkout', '-b', 'main'], worker);
+      git(['commit', '--allow-empty', '-m', 'synthetic discovery source'], worker);
+      const ancestor = git(['rev-parse', 'HEAD'], worker).stdout.trim();
+      git(['push', 'origin', 'HEAD:refs/heads/main'], worker);
+      git(['commit', '--allow-empty', '-m', 'synthetic generated release'], worker);
+      const generated = git(['rev-parse', 'HEAD'], worker).stdout.trim();
+      const ref = 'refs/heads/release-train/v3.31.0';
+      expect(git(['ls-remote', 'origin', ref], worker).stdout.trim()).toBe('');
+      const control = 'refs/heads/synthetic-plain-push-control';
+      git(['update-ref', control, ancestor], remote);
+      expect(git(['push', 'origin', 'HEAD:' + control], worker).status).toBe(0);
+      expect(git(['rev-parse', control], remote).stdout.trim()).toBe(generated);
+      let reads = 0;
+      let pushed;
+      const result = await executeTrain('cut', 'publish', {
+        intercept: ({ path, response }) => {
+          if (!path.includes('/git/ref/heads/')) return undefined;
+          reads++;
+          if (reads === 1) return response(404);
+          return response(200, { object: { sha: git(['rev-parse', ref], remote).stdout.trim() } });
+        },
+        runCommand: ({ file, args }) => {
+          if (file !== 'git' || args[0] !== 'push') return undefined;
+          // Another actor creates the ancestor ref after the read-only 404.
+          git(['update-ref', ref, ancestor], remote);
+          pushed = git(args, worker, true); // actual workflow arguments, real Git CAS
+          if (pushed.status !== 0) throw new Error('synthetic push refused');
+          return pushed.stdout;
+        },
+      });
+      expect(pushed.status).not.toBe(0);
+      expect(git(['rev-parse', ref], remote).stdout.trim()).toBe(ancestor);
+      expect(generated).not.toBe(ancestor);
+      expect(result.code).toBe(1);
+      expect(result.writes).toHaveLength(0);
+      expect(result.state.prs).toHaveLength(0);
+    } finally {
+      rmSync(scratch, { recursive: true, force: true });
+    }
   });
 
   test('an existing exact stable Release is a read-only no-op without App configuration', async () => {

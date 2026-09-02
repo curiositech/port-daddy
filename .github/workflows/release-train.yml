@@ -324,10 +324,12 @@ jobs:
               if (!/^[a-f0-9]{40}$/.test(head)) fail('Invalid generated head');
               // Header is command-scoped environment, never a URL, log, Git config file or artifact.
               const pushEnv = {
-                GIT_CONFIG_COUNT: '1', GIT_CONFIG_KEY_0: 'http.https://github.com/.extraheader',
+                GIT_CONFIG_COUNT: '2', GIT_CONFIG_KEY_0: 'http.https://github.com/.extraheader',
                 GIT_CONFIG_VALUE_0: 'AUTHORIZATION: basic ' + Buffer.from('x-access-token:' + token).toString('base64'),
+                GIT_CONFIG_KEY_1: 'credential.helper', GIT_CONFIG_VALUE_1: '', GIT_TERMINAL_PROMPT: '0',
               };
-              try { run('git', ['push', 'origin', 'HEAD:refs/heads/' + branch], pushEnv); } catch { /* Read before deciding whether the write failed. */ }
+              // Empty expected value is create-only CAS: a branch appearing during build cannot be fast-forwarded.
+              try { run('git', ['push', '--force-with-lease=refs/heads/' + branch + ':', 'origin', 'HEAD:refs/heads/' + branch], pushEnv); } catch { /* Read before deciding whether the write failed. */ }
               const remote = await api(branchPath);
               if (remote.object?.sha !== head) fail('Pushed branch head unconfirmed or changed; never force-push');
               receipt({ phase: 'branch', source, branch, head });
