@@ -429,7 +429,8 @@ jobs:
           # Full merged ancestry also finds the transition when its tag already exists.
           range="$MERGE_SHA"
           release_sha=$(node scripts/release-workflow-state.mjs find-transition "$version" "$range")
-          if ! git show "$release_sha:CHANGELOG.md" | grep -Fq "## [$version] -"; then
+          # Consume the whole blob: grep -q can SIGPIPE git show under pipefail.
+          if ! git show "$release_sha:CHANGELOG.md" | grep -F "## [$version] -" >/dev/null; then
             echo "::error::Exact version transition lacks its dated changelog."
             exit 1
           fi

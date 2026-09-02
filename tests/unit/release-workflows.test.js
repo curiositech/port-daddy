@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { readFileSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, readFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -192,6 +192,80 @@ describe('release workflow topology contracts', () => {
     expect(workflow).toContain('wait-for-formula "$EXPECTED_TAG" "$FORMULA_URL" "$GITHUB_RUN_ID"');
     expect(workflow).toContain('brew info --json=v2 curiositech/tap/port-daddy');
     expect(workflow).toContain('if [ "$actual_version" != "$expected_version" ]');
+  });
+});
+
+describe('release changelog discovery with real Git and bash pipefail', () => {
+  const version = '3.31.0';
+  const heading = `## [${version}] - 2026-09-02`;
+
+  function withReleaseFixture(changelog, verify) {
+    const scratchRoot = join(homedir(), 'coding', 'tmp');
+    mkdirSync(scratchRoot, { recursive: true });
+    const scratch = mkdtempSync(join(scratchRoot, 'release-changelog-stream-test-'));
+    // This is an isolated synthetic repository, never the caller's Git identity,
+    // selectors, hooks, credentials, or Port Daddy session.
+    const env = { PATH: process.env.PATH, GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1',
+      GIT_AUTHOR_NAME: 'Synthetic release actor', GIT_AUTHOR_EMAIL: 'release@example.invalid',
+      GIT_COMMITTER_NAME: 'Synthetic release actor', GIT_COMMITTER_EMAIL: 'release@example.invalid' };
+    const git = (args) => {
+      const result = spawnSync('git', args, { cwd: scratch, env, encoding: 'utf8', timeout: 30_000 });
+      if (result.status !== 0) throw new Error('Synthetic Git setup failed: ' + args[0]);
+      return result.stdout.trim();
+    };
+    try {
+      const template = join(scratch, 'empty-template');
+      mkdirSync(template);
+      mkdirSync(join(scratch, 'scripts'));
+      writeFileSync(join(scratch, 'package.json'), JSON.stringify({ version }));
+      writeFileSync(join(scratch, 'scripts', 'release-workflow-state.mjs'), readFileSync(STATE_HELPER));
+      if (changelog !== null) writeFileSync(join(scratch, 'CHANGELOG.md'), changelog);
+      git(['init', '--quiet', '--template=' + template]);
+      git(['add', 'package.json', 'scripts/release-workflow-state.mjs', ...(changelog === null ? [] : ['CHANGELOG.md'])]);
+      git(['commit', '--quiet', '-m', 'synthetic version transition']);
+      const sha = git(['rev-parse', 'HEAD']);
+      const output = join(scratch, 'step-output');
+      const step = parseYaml(readWorkflow('release-train.yml')).jobs['tag-and-publish'].steps
+        .find((candidate) => candidate.id === 'release');
+      const run = (script = step.run) => spawnSync('bash', ['-c', script], {
+        cwd: scratch, env: { ...env, MERGE_SHA: sha, GITHUB_OUTPUT: output },
+        encoding: 'utf8', timeout: 30_000,
+      });
+      verify({ run, sha, readOutput: () => existsSync(output) ? readFileSync(output, 'utf8') : '' });
+    } finally {
+      rmSync(scratch, { recursive: true });
+    }
+  }
+
+  test('a large matching blob succeeds where early-exit grep SIGPIPEs the real producer', () => {
+    const changelog = heading + '\n' + 'Synthetic retained release history.\n'.repeat(131_072);
+    withReleaseFixture(changelog, ({ run, sha, readOutput }) => {
+      const legacy = run('set -o pipefail\ngit show "$MERGE_SHA:CHANGELOG.md" | grep -Fq "## [3.31.0] -"');
+      expect(legacy.status).toBe(141);
+      const actual = run(); // Execute the complete YAML discovery block, not a copied predicate.
+      expect(actual.status).toBe(0);
+      expect(actual.stderr).toBe('');
+      expect(readOutput()).toBe(`version=${version}\ntag=v${version}\nrelease_sha=${sha}\n`);
+    });
+  });
+
+  test('an absent dated header still fails without producing release outputs', () => {
+    withReleaseFixture('# Synthetic changelog without this version\n', ({ run, readOutput }) => {
+      const actual = run();
+      expect(actual.status).toBe(1);
+      expect(actual.stdout).toContain('Exact version transition lacks its dated changelog.');
+      expect(readOutput()).toBe('');
+    });
+  });
+
+  test('a genuine git-show read failure still fails without producing release outputs', () => {
+    withReleaseFixture(null, ({ run, readOutput }) => {
+      const actual = run();
+      expect(actual.status).toBe(1);
+      expect(actual.stderr).toContain('CHANGELOG.md');
+      expect(actual.stdout).toContain('Exact version transition lacks its dated changelog.');
+      expect(readOutput()).toBe('');
+    });
   });
 });
 
