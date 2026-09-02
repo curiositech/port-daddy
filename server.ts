@@ -882,6 +882,9 @@ const galaxy = createGalaxy({ db, transcripts, sessions, embedder: galaxyEmbedde
 const spawner = createSpawner({
   costTracker, counters, bonds, harbors, transcripts,
   harborBridge: spawnerHarborBridge,
+  onTerminal: ({ agentId, status }) => {
+    budgetPause.cancel(agentId, `spawn-${status}`);
+  },
   enforceTelemetryPolicy: true,
   enforceTranscriptPolicy: true,
   // Live observability seam (ADR-0060): give the spawner the daemon's messaging
