@@ -226,9 +226,11 @@ git fetch origin
 Resume the existing session when the user goal, worktree or successor
 worktree, branch lineage, and touched surface are still the same unresolved
 slice. If the previous session is stale, abandoned, or cannot be made active,
-use `pd session takeover <old-session-id> [reason]` (or `pd takeover <old-session-id> [reason]`) to create a linked
-successor. It preserves the predecessor's append-only notes, releases stale
-claims, and records the lineage on both sessions.
+inspect the exact session, recorded owner, worktree/root and claims first.
+Use a supported same-owner `pd session takeover <old-session-id> [reason]`
+(or `pd takeover <old-session-id> [reason]`) only when the selected credential
+is authorized for that predecessor. Read back the actual successor, retained
+notes and claim disposition; the command name alone does not prove a transfer.
 
 Start a new linked session when the product goal changed, the previous slice
 was completed or merged, the branch no longer descends cleanly from the old
@@ -381,6 +383,26 @@ pd guard check --staged
 ```
 
 ## PR Finish Line
+
+Before the first commit, inspect both effective Git author and committer. Use
+the verified responsible agent's attribution and traceable actor/session
+trailers; never silently inherit the operator's identity. Git metadata is
+neither cryptographic signing nor App/Fleetbot publication identity. If you
+discover mistaken attribution in your own unpublished commits, correct only
+that history and prove tree/message equivalence. Never rewrite published or
+another agent's history, or change global machine configuration. See
+`references/git-discipline.md` for the bounded procedure.
+
+Keep the Git outcome separate from the coordination audit. After a commit,
+verify the actual SHA before interpreting hook output. `pd guard check
+--post-commit --json` audits an existing commit; `postCommitAudit.commit`
+identifies it, `status` describes the audit, `preCommitWouldBlock` describes
+remaining debt, and `persistence: not-attempted` means no note was published.
+Even an audit issue does not undo Git. Write a SHA-bound `pd note`, read it
+back from the same selected daemon/session, and clear outstanding findings
+before the next commit. Do not rerun or amend a successful commit merely
+because an older installed hook printed “commit blocked.” Verify installed
+behavior separately from source; never treat an unverifiable audit as green.
 
 When you open or inherit a PR, you own the machine-visible finish line unless
 you explicitly hand it off in Port Daddy notes.
@@ -960,13 +982,15 @@ durable note, and make the standing instruction stronger before continuing.
 
 ### Coordination is continuous, not a session-start ritual
 
-Sessions TTL out. File claims expire. Other agents start and stop while
-your work is in flight. Anchoring once at the top of a session is **not
+Ephemeral sessions can expire; durable session records do not naturally TTL
+out. Claim coverage and live ownership can change while other agents start
+and stop. Anchoring once at the top of a session is **not
 enough**. Re-check at every checkpoint:
 
 - **Before any commit, push, or rebase** — `pd guard check --staged`. If
-  the session timed out, `pd begin` again; if files lost their claim,
-  `pd session files add` them back.
+  the session or claims look stale, inspect the selected daemon, exact session,
+  recorded owner, physical worktree/root and original claim history before
+  changing anything. Age or a missing projection is not transfer authority.
 - **Before pulling against `origin/main`** — `pd sessions --all-worktrees`
   and `pd notes --limit 20`. New work may have landed in your slice
   while you were typing.
@@ -974,12 +998,23 @@ enough**. Re-check at every checkpoint:
   It names exactly which files are claimed by which sessions. See
   `references/git-discipline.md` § *The pd-shim*.
 - **After a long-running build or test run** — re-anchor before pushing.
-  A 20-minute test suite is plenty of time for a session to expire and
-  for someone else to claim your files.
+  A 20-minute test suite is plenty of time for ephemeral liveness to expire
+  or another authorized ownership transition to occur.
 
-The cost of a redundant `pd begin` is zero. The cost of pushing past a
-stale claim is rebasing under conflict pressure or, worse, silently
-overwriting another agent's WIP.
+Continue the same unresolved slice under its verified session; do not create
+duplicate identities just to make a warning disappear. A genuinely new,
+authorized scope can use a fresh linked worktree/session and ordinary narrow
+claims in that verified scope. It does not require rewriting or releasing
+unrelated historical claims.
+
+Read advisor diagnostics precisely. Relative and absolute paths count as the
+same claim only inside a verified repository/worktree/root. A
+`context.claim-scope-inconsistent` result preserves conflicting evidence; it
+does **not** mean “unclaimed.” Use supported authorized recovery, never copied
+credentials or hand-edited world IDs. `claims.stale-legacy-projection` means a
+released history row supplies no live coverage; an active replacement still
+counts. That warning is not an all-agent stop. Check the actual mutation and
+Guard results: read-only advice neither grants a claim nor repairs its owner.
 
 ### Slicing work into reviewable PRs
 
