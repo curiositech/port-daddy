@@ -1,3 +1,4 @@
 type: fixed
 
-- Backend failure classification preserves permanent transport status over untrusted error prose, refuses forged host-failure objects, omits raw error text from structured diagnostics, and rejects malformed or overflowing retry delays without substituting an early retry.
+- Backend recovery now binds circuit probes to one operation and generation, bounds operations and backoff by one deadline, and retains a timed-out operation's reservation until physical completion. Dependency loaders preserve outage cooldown without retrying permanent authentication failures, and governed diagnostics omit raw failures and private dependency names.
+- Dispatch no longer launches successors from stderr, arbitrary failure text, or forged error objects. The foreground adapter preserves process-local OS/timeout witnesses; production Conductor positive recovery still requires structured spawner transport and is not claimed by this fix.

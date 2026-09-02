@@ -106,6 +106,12 @@ describe('classifyAgentError', () => {
 });
 
 describe('parseRetryAfterMs', () => {
+  test('all nested hints preserve the longest minimum and any invalid hint refuses retry', () => {
+    expect(parseRetryAfterMs('retry after 1s; Retry-After: 3s')).toBe(3000);
+    expect(parseRetryAfterMs('retry after 1s; Retry-After: -3s')).toBeUndefined();
+    const cause = Object.assign(new Error('retry after 3s'), { status: 429 });
+    expect(classifyAgentError(new Error('retry after 1s', { cause })).retryAfterMs).toBe(3000);
+  });
   test.each([
     ['retry after 30', 30000],
     ['Retry-After: 1500ms', 1500],
