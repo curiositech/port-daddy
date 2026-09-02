@@ -156,7 +156,7 @@ export function DocsSidebar() {
         </PanelBody>
         <div className="flex flex-col gap-[var(--space-3)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)]">
           {systemMap.map((surface, index) => (
-            <div key={surface.href} className="flex flex-col gap-[var(--space-1)]">
+            <div key={surface.title} className="flex flex-col gap-[var(--space-1)]">
               <BracketNavLink
                 to={surface.href}
                 tone={index % 2 === 0 ? 'blue' : 'accent'}
@@ -184,7 +184,7 @@ export function DocsSidebar() {
         </PanelBody>
         <div className="flex flex-col gap-[var(--space-3)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)]">
           {referenceSurfaces.map((surface, index) => (
-            <div key={surface.href} className="flex flex-col gap-[var(--space-1)]">
+            <div key={surface.title} className="flex flex-col gap-[var(--space-1)]">
               <BracketNavLink
                 to={surface.href}
                 tone={index % 2 === 0 ? 'blue' : 'accent'}
@@ -308,7 +308,7 @@ export function DocsSidebar() {
           <div className="flex flex-col gap-[var(--space-2)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)]">
             {siteSurfaces.map((surface, index) => (
               <BracketNavLink
-                key={surface.href}
+                key={surface.title}
                 to={surface.href}
                 tone={index % 2 === 0 ? 'accent' : 'blue'}
                 side={index % 2 === 0 ? 'left' : 'right'}

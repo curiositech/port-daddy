@@ -49,7 +49,7 @@ export function SiteFooter() {
             <div className="flex flex-col gap-[var(--space-2)]">
               {SITE_LINKS.map((link) => (
                 <Link
-                  key={link.href}
+                  key={link.label}
                   to={link.href}
                   className="text-[length:var(--type-meta-size)] text-[var(--text-primary)] hover:text-[var(--brand-primary)]"
                 >
@@ -66,7 +66,7 @@ export function SiteFooter() {
             <div className="flex flex-col gap-[var(--space-2)]">
               {LEARN_LINKS.map((link) => (
                 <Link
-                  key={link.href}
+                  key={link.label}
                   to={link.href}
                   className="text-[length:var(--type-meta-size)] text-[var(--text-primary)] hover:text-[var(--brand-primary)]"
                 >
@@ -83,7 +83,7 @@ export function SiteFooter() {
             <div className="flex flex-col gap-[var(--space-2)]">
               {REFERENCE_LINKS.map((link) => (
                 <Link
-                  key={link.href}
+                  key={link.label}
                   to={link.href}
                   className="text-[length:var(--type-meta-size)] text-[var(--text-primary)] hover:text-[var(--brand-primary)]"
                 >
