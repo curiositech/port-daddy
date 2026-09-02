@@ -36,49 +36,132 @@
     },
     "pooling": {
       "type": "string",
-      "enum": ["mean", "cls", "none"],
-      "description": "Pooling strategy for bi-encoder sentence embeddings."
+      "enum": ["mean-attention-mask-v1", "cls-last-hidden-state-v1"],
+      "description": "Exact versioned pooling recipe used for bi-encoder sentence embeddings; generic mean/cls labels are insufficient."
     },
     "normalizeEmbeddings": {
       "type": "boolean",
       "description": "True if embeddings are L2-normalized so cosine equals dot product."
     },
-    "embeddingSpace": {
+    "loaderModelId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Exact model id passed to the loader; for a bi-encoder it must equal embeddingProfile.modelId."
+    },
+    "loaderRevision": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$",
+      "description": "Exact immutable revision passed to the loader; for a bi-encoder it must equal embeddingProfile.modelRevision."
+    },
+    "maxInputTokens": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Token limit actually used by the embedding invocation; it must equal embeddingProfile.maxTokens."
+    },
+    "embeddingSpace": false,
+    "embeddingProfile": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["provider", "modelId", "revision", "dimensions", "normalization", "distanceMetric", "dtype", "spaceId", "qualityTier", "degradedFallbackLabel"],
-      "properties": {
-        "provider": { "type": "string", "minLength": 1 },
-        "modelId": { "type": "string", "minLength": 1 },
-        "revision": { "type": "string", "minLength": 1 },
-        "dimensions": { "type": "integer", "minimum": 1 },
-        "normalization": { "type": "string", "enum": ["l2", "none"] },
-        "distanceMetric": { "type": "string", "enum": ["cosine", "dot", "euclidean"] },
-        "dtype": { "type": "string", "enum": ["auto", "fp32", "fp16", "q8", "int8", "uint8", "q4", "bnb4", "q4f16", "q2", "q2f16", "q1", "q1f16"] },
-        "spaceId": { "type": "string", "pattern": "^embed-v1:[a-f0-9]{64}$", "description": "SHA-256 identity over canonical JSON with ordered provider, modelId, revision, dimensions, normalization, distanceMetric, and dtype fields. Quality labels are deliberately excluded from compatibility identity." },
-        "qualityTier": { "type": "string", "enum": ["approved", "degraded-fallback"], "description": "Explicit policy quality classification. It is never inferred from modelId and is not part of spaceId." },
-        "degradedFallbackLabel": { "type": ["string", "null"], "minLength": 1, "description": "A non-empty constrained-mode label when qualityTier is degraded-fallback, otherwise null. It is not part of spaceId." }
-      },
-      "allOf": [
-        {
-          "if": { "properties": { "qualityTier": { "const": "approved" } }, "required": ["qualityTier"] },
-          "then": { "properties": { "degradedFallbackLabel": { "type": "null" } } }
-        },
-        {
-          "if": { "properties": { "qualityTier": { "const": "degraded-fallback" } }, "required": ["qualityTier"] },
-          "then": { "properties": { "degradedFallbackLabel": { "type": "string", "minLength": 1 } } }
-        }
+      "required": [
+        "version",
+        "servingProvider",
+        "modelId",
+        "runtimeFamily",
+        "runtimeVersion",
+        "upstreamModelId",
+        "modelRevision",
+        "modelArtifact",
+        "modelDigest",
+        "modelConfigArtifact",
+        "modelConfigDigest",
+        "tokenizerId",
+        "tokenizerRevision",
+        "tokenizerArtifact",
+        "tokenizerDigest",
+        "tokenizerConfigArtifact",
+        "tokenizerConfigDigest",
+        "task",
+        "queryPrefix",
+        "documentPrefix",
+        "unicodeNormalization",
+        "truncation",
+        "maxTokens",
+        "pooling",
+        "normalization",
+        "metric",
+        "dimensions",
+        "coordinatePrecision",
+        "coordinateQuantization",
+        "transportEncoding",
+        "storageEncoding",
+        "storageQuantization",
+        "preprocessingDigest",
+        "spaceId",
+        "quality",
+        "revisionBinding",
+        "runtimeBinding"
       ],
-      "description": "Deterministic identity of the embedding space. Every persisted and query vector must carry this contract."
+      "properties": {
+        "version": { "const": 2 },
+        "servingProvider": { "type": "string", "minLength": 1 },
+        "modelId": { "type": "string", "minLength": 1 },
+        "runtimeFamily": { "type": "string", "minLength": 1 },
+        "runtimeVersion": { "type": "string", "minLength": 1 },
+        "upstreamModelId": { "type": "string", "minLength": 1 },
+        "modelRevision": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        "modelArtifact": { "type": "string", "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[A-Za-z0-9._/+@=-]+$" },
+        "modelDigest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "modelConfigArtifact": { "type": "string", "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[A-Za-z0-9._/+@=-]+$" },
+        "modelConfigDigest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "tokenizerId": { "type": "string", "minLength": 1 },
+        "tokenizerRevision": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        "tokenizerArtifact": { "type": "string", "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[A-Za-z0-9._/+@=-]+$" },
+        "tokenizerDigest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "tokenizerConfigArtifact": { "type": "string", "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[A-Za-z0-9._/+@=-]+$" },
+        "tokenizerConfigDigest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "task": { "type": "string", "enum": ["feature-extraction", "sentence-similarity"] },
+        "queryPrefix": { "type": "string" },
+        "documentPrefix": { "type": "string" },
+        "unicodeNormalization": { "type": "string", "enum": ["none", "nfc", "nfkc", "tokenizer-defined"] },
+        "truncation": { "type": "string", "enum": ["longest-first", "only-first"] },
+        "maxTokens": { "type": "integer", "minimum": 1 },
+        "pooling": { "type": "string", "enum": ["mean-attention-mask-v1", "cls-last-hidden-state-v1"] },
+        "normalization": { "type": "string", "enum": ["l2", "none"] },
+        "metric": { "type": "string", "enum": ["cosine", "dot-product", "euclidean"] },
+        "dimensions": { "type": "integer", "minimum": 1 },
+        "coordinatePrecision": { "type": "string", "enum": ["float16", "float32", "float64"] },
+        "coordinateQuantization": { "const": "none" },
+        "transportEncoding": { "type": "string", "enum": ["json-number-array", "float32-array"] },
+        "storageEncoding": { "type": "string", "enum": ["json-number-array", "float32-le"] },
+        "storageQuantization": { "const": "none" },
+        "preprocessingDigest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "spaceId": { "type": "string", "pattern": "^embed-v2:[0-9a-f]{64}$", "description": "Opaque declared-space id emitted by the canonical registry. Consumers do not rederive it, and it is not ResourceScope compatibility proof." },
+        "quality": { "const": "degraded-fallback", "description": "Current registry rows remain degraded until separate attestation evidence promotes them." },
+        "revisionBinding": { "const": "declared-upstream" },
+        "runtimeBinding": { "const": "declarative-only" }
+      },
+      "description": "Complete canonical v2 declared-space profile supplied by the registry. The audit checks shape and loader alignment but never reimplements its digests or treats it as producer attestation."
     },
     "modelSelectedByDomainEval": {
       "type": "boolean",
-      "description": "True when representative corpus/query evaluation, not familiarity or model size alone, selected the embedder."
+      "description": "Evidence annotation only. It does not promote a declarative registry profile or authorize an approved quality state."
     },
     "rejectsIncompatibleSpaces": {
       "type": "boolean",
-      "description": "True when query/index space-id mismatch fails closed or triggers an explicit re-embed."
+      "description": "Records the fail-closed requirement for a future separately attested comparison path; it does not authorize comparison now."
     },
+    "vectorDisposition": {
+      "type": "string",
+      "enum": ["ephemeral-uncompared", "quarantined-uncompared"],
+      "description": "Required disposition for vectors emitted from a declarative-only profile. Ordinary index persistence is forbidden."
+    },
+    "similarityComparisonEnabled": {
+      "type": "boolean",
+      "description": "Must be false for declarative-only profiles because this skill has no producer-attestation verifier."
+    },
+    "producerAttestation": false,
+    "producerAttestationVerified": false,
+    "attestationReceiptId": false,
     "lazyLoadPromiseCached": {
       "type": "boolean",
       "description": "True if the model load Promise is created lazily inside a function and cached so concurrent first calls share one download."
@@ -97,7 +180,7 @@
     },
     "persistsVectors": {
       "type": "boolean",
-      "description": "True if embedding vectors are stored (Float32Array buffers, DB, files) rather than used-and-dropped."
+      "description": "True only for an explicit quarantined-uncompared artifact; declarative-only vectors cannot enter an ordinary index."
     },
     "copiesOutputBuffer": {
       "type": "boolean",
@@ -110,7 +193,7 @@
     "dtype": {
       "type": "string",
       "enum": ["auto", "fp32", "fp16", "q8", "int8", "uint8", "q4", "bnb4", "q4f16", "q2", "q2f16", "q1", "q1f16"],
-      "description": "Transformers.js v4 dtype passed to the model loader; replaces the removed quantized boolean option."
+      "description": "Transformers.js v4 model-loader dtype. It is intentionally separate from embeddingProfile.coordinatePrecision, coordinateQuantization, and storageQuantization."
     },
     "fullPrecisionJustified": {
       "type": "boolean",
@@ -118,7 +201,58 @@
     },
     "ciSmokeTest": {
       "type": "boolean",
-      "description": "True if CI runs the model on a few known queries every build and asserts stable results."
+      "description": "True if CI runs known inputs and asserts load success, dimensions, and finite coordinates without similarity comparison."
     }
-  }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "pipelineType": { "const": "bi-encoder" } },
+        "required": ["pipelineType"]
+      },
+      "then": {
+        "required": [
+          "embeddingProfile",
+          "loaderModelId",
+          "loaderRevision",
+          "maxInputTokens",
+          "vectorDisposition",
+          "similarityComparisonEnabled",
+          "persistsVectors"
+        ],
+        "properties": {
+          "similarityComparisonEnabled": { "const": false }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": { "vectorDisposition": { "const": "ephemeral-uncompared" } },
+              "required": ["vectorDisposition"]
+            },
+            "then": {
+              "properties": { "persistsVectors": { "const": false } }
+            }
+          },
+          {
+            "if": {
+              "properties": { "persistsVectors": { "const": true } },
+              "required": ["persistsVectors"]
+            },
+            "then": {
+              "properties": { "vectorDisposition": { "const": "quarantined-uncompared" } }
+            }
+          },
+          {
+            "if": {
+              "properties": { "vectorDisposition": { "const": "quarantined-uncompared" } },
+              "required": ["vectorDisposition"]
+            },
+            "then": {
+              "properties": { "persistsVectors": { "const": true } }
+            }
+          }
+        ]
+      }
+    }
+  ]
 }
