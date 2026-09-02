@@ -6,6 +6,12 @@
 **Rule:** no candidate below is approved for production without Port Daddy golden-corpus,
 privacy, latency, cost, and conformance evidence.
 
+Managed endpoints with opaque weights or configuration have an unresolved adapter and
+identity-evidence requirement under the [design's execution-profile contract](../proposals/provider-neutral-retrieval-fabric.md#execution-profile).
+An alias, revision label, dimension count, or finite challenge-vector test cannot alone
+establish artifact/config identity. Do not fabricate digests or weaken the identity kernel;
+these entries remain candidates, not conformance-ready authoritative index producers.
+
 ## Research question
 
 Which current local/open-weight and remote embedding or reranking families are credible

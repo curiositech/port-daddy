@@ -128,6 +128,15 @@ provider-revision drift, an expired or revoked receipt, or an output-contract mi
 immediately demotes the binding to `declarative-only`; it must requalify before another
 authoritative write.
 
+**Unresolved managed-provider integration:** a provider whose weights or configuration
+are opaque has not satisfied this artifact/config identity contract merely by exposing an
+alias, a revision label, matching dimensions, or passing a finite challenge-vector set.
+How such an adapter can provide verifiable identity and conformance evidence remains an
+implementation requirement. Do not invent digests from aliases, substitute benchmark
+scores for artifact identity, or weaken the kernel to admit it. Managed families remain
+research candidates, not conformance-ready producers; until the contract is satisfied,
+their binding stays `declarative-only` and cannot author an authoritative index.
+
 ### Retrieval role
 
 This design requires the registry to recognize separate roles. These proposed role names
@@ -165,7 +174,8 @@ A versioned corpus policy binds a corpus to authorized retrieval behavior:
 ```yaml
 corpusId: port-daddy:roadmap
 harborId: port-daddy
-repoId: curiositech/port-daddy
+repoId: "<immutable repository ID from the repository authority>"
+repoDisplaySlug: curiositech/port-daddy
 classification: internal
 allowedRoles: [text_dense, rerank]
 allowedTiers: [local_fast, local_quality]
@@ -183,6 +193,12 @@ attributable, and referenced by every indexing and query receipt. The selected p
 policy output, not a global environment variable. Resolve an authorized role to a promoted
 immutable profile and a compatible index generation; do not hardcode a model family to a
 role or silently substitute MiniLM when that resolution fails.
+
+The `repoId` placeholder must resolve to a canonical immutable repository identity under
+the named repository authority. `repoDisplaySlug` is a renameable, reassignable display
+label only. Corpus partitions, grants, and receipts bind the immutable identity; cross-repo
+authority never resolves solely from an owner/repository name. Renaming or reassigning a
+display slug cannot transfer corpus access.
 
 ## Privacy and corpus firewalls
 
