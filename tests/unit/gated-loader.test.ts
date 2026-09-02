@@ -12,7 +12,10 @@
 
 import { describe, expect, test } from '@jest/globals';
 import { createGatedLoader } from '../../lib/observability/gated-loader.js';
+import { localModelDownloadDisabledError, isWitnessedBackendFailure } from '../../lib/agent-resilience.js';
 import { LogGovernor, type LeveledSink } from '../../lib/observability/log-governor.js';
+import { withCorrelationSink } from '../../lib/observability/index.js';
+import { runWithContext } from '../../lib/observability/correlation.js';
 
 function clock(start = 0) {
   let t = start;
@@ -33,6 +36,45 @@ describe('createGatedLoader', () => {
     expect(await g.get()).toBe(42);
     expect(await g.get()).toBe(42);
     expect(calls).toBe(1);
+  });
+
+  test('required loads reject an Error instance without leaking the original exception', async () => {
+    const raw = Object.assign(new Error('SYNTHETIC_PRIVATE_LOAD_FAILURE'), { status: 401 });
+    const g = createGatedLoader(async () => { throw raw; }, { name: 'embedder' });
+    const error = await g.get().catch(failure => failure);
+    expect(error).toBeInstanceOf(Error);
+    expect(error).not.toBe(raw);
+    expect(error).toMatchObject({ code: 'UNAUTHORIZED', retryable: false });
+    expect(error.cause).toBeUndefined();
+    expect(`${error.message} ${JSON.stringify(error)}`).not.toContain('SYNTHETIC_PRIVATE_LOAD_FAILURE');
+    await expect(g.get()).rejects.toThrow('Backend failure: UNAUTHORIZED');
+  });
+
+  test('authentic local policy refusal keeps actionable guidance and never retries', async () => {
+    let calls = 0;
+    const g = createGatedLoader(async () => { calls++; throw localModelDownloadDisabledError(); }, {
+      name: 'embedder', failureThreshold: 2, maxAttempts: 5, sleep: noSleep,
+    });
+    const error = await g.get().catch(failure => failure);
+    expect(error).toBeInstanceOf(Error);
+    expect(error).toMatchObject({ code: 'UNAVAILABLE', retryable: false, details: { reason: 'model_download_disabled' } });
+    expect(error.message).toContain('PORT_DADDY_ALLOW_MODEL_DOWNLOAD=1');
+    expect(error.message).toContain('no network attempt was made');
+    expect(isWitnessedBackendFailure(error)).toBe(false);
+    expect(calls).toBe(1);
+    expect(error.cause).toBeUndefined();
+  });
+
+  test('a raw callback rejection cannot impersonate classified diagnostic fields', async () => {
+    const lookalike = { code: 'UNAVAILABLE', retryable: true, message: 'SYNTHETIC_PRIVATE_CALLBACK',
+      details: { reason: 'model_download_disabled' } };
+    const g = createGatedLoader(async () => 42, { name: 'embedder', now: () => { throw lookalike; } });
+    const error = await g.get().catch(failure => failure);
+    expect(error).toBeInstanceOf(Error);
+    expect(error).toMatchObject({ code: 'INTERNAL', retryable: false });
+    expect(error.details?.reason).not.toBe('model_download_disabled');
+    expect(`${error.message} ${JSON.stringify(error)}`).not.toContain('SYNTHETIC_PRIVATE_CALLBACK');
+    expect(isWitnessedBackendFailure(error)).toBe(false);
   });
 
   test('after failureThreshold the breaker OPENs and stops re-loading', async () => {
@@ -110,5 +152,61 @@ describe('createGatedLoader', () => {
     for (let i = 0; i < 20; i++) await g.tryGet();
     const failLines = lines.filter((l) => l.message === 'dependency_load_failed' && !l.meta?.log_rollup);
     expect(failLines.length).toBe(1); // 20 load failures, 1 governed line
+  });
+
+  test('permanent auth failure never retries within a load and still gains dependency cooldown', async () => {
+    let calls = 0;
+    const c = clock();
+    const g = createGatedLoader(async () => {
+      calls++;
+      throw Object.assign(new Error('429 timeout'), { status: 401 });
+    }, { name: 'embedder', failureThreshold: 1, maxAttempts: 3, now: c.now, sleep: noSleep });
+    for (let n = 0; n < 50; n++) await g.tryGet();
+    expect(calls).toBe(1);
+    expect(g.state()).toBe('OPEN');
+  });
+
+  test('each retry rechecks circuit admission instead of running through an open gate', async () => {
+    let calls = 0;
+    const g = createGatedLoader(async () => { calls++; throw new Error('503 unavailable'); }, {
+      name: 'embedder', failureThreshold: 1, maxAttempts: 3, now: () => 0, sleep: noSleep,
+    });
+    expect(await g.tryGet()).toBeNull();
+    expect(calls).toBe(1);
+  });
+
+  test('actual governed and correlated sink never receives raw exception or private dependency labels', async () => {
+    const { sink, lines } = fakeSink();
+    const c = clock();
+    const gov = new LogGovernor(withCorrelationSink(sink), { windowMs: 10, burst: 1, now: c.now });
+    const marker = 'SYNTHETIC_PRIVATE_MARKER';
+    const g = createGatedLoader(async () => { throw Object.assign(new Error(marker), { status: 401 }); }, {
+      name: marker, failureThreshold: 2, maxAttempts: 3, now: c.now, sleep: noSleep,
+    }, gov);
+    await runWithContext({ requestId: 'request-fixture', actorId: 'actor-fixture', tenantId: 'tenant-fixture' }, async () => {
+      for (let n = 0; n < 20; n++) await g.tryGet();
+      c.advance(20);
+      await g.tryGet();
+    });
+    expect(lines.length).toBeGreaterThan(0);
+    expect(JSON.stringify(lines)).not.toContain(marker);
+    expect(lines[0].meta).toMatchObject({ code: 'UNAUTHORIZED', request_id: 'request-fixture', actor_id: 'actor-fixture', tenant_id: 'tenant-fixture' });
+    expect(lines[0].meta?.dependency).toMatch(/^dependency:[a-f0-9]{16}$/);
+  });
+
+  test('timed-out uncooperative dependency cannot restart until the old physical load ends', async () => {
+    let calls = 0;
+    let release: (value: number) => void = () => {};
+    const pending = new Promise<number>(resolve => { release = resolve; });
+    const g = createGatedLoader(async () => { calls++; return pending; }, {
+      name: 'embedder', totalTimeoutMs: 10, openTimeoutMs: 0,
+    });
+    expect(await g.tryGet()).toBeNull();
+    for (let n = 0; n < 20; n++) await g.tryGet();
+    expect(calls).toBe(1);
+    release(5);
+    await new Promise(resolve => setImmediate(resolve));
+    expect(await g.get()).toBe(5);
+    expect(calls).toBe(2); // late old success was never cached as fresh evidence
   });
 });

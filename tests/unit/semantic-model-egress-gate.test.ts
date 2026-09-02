@@ -173,7 +173,8 @@ describe('semantic resolver — default mode never phones huggingface.co', () =>
   test('embed() rejects with an actionable gate error and fetch is never called', async () => {
     const fetchSpy = jest.spyOn(globalThis, 'fetch');
     const db = createTestDb();
-    const resolver = createSemanticResolver(db, { cacheDir: emptyCacheDir() });
+    const cacheDir = emptyCacheDir();
+    const resolver = createSemanticResolver(db, { cacheDir });
 
     await expect(resolver.embed('typography hierarchy')).rejects.toThrow(
       /remote model\s+download is disabled by default/,
@@ -181,6 +182,11 @@ describe('semantic resolver — default mode never phones huggingface.co', () =>
     await expect(resolver.embed('typography hierarchy')).rejects.toThrow(
       new RegExp(ALLOW_MODEL_DOWNLOAD_ENV),
     );
+    const error = await resolver.embed('typography hierarchy').catch(failure => failure);
+    expect(error).toBeInstanceOf(Error);
+    expect(error).toMatchObject({ retryable: false, details: { reason: 'model_download_disabled' } });
+    expect(error.message).not.toContain(cacheDir);
+    expect(error.message).not.toContain(DEFAULT_SEMANTIC_MODEL_ID);
     expect(fetchSpy).not.toHaveBeenCalled();
     db.close();
   });
@@ -188,7 +194,8 @@ describe('semantic resolver — default mode never phones huggingface.co', () =>
   test('observeAliases degrades to a persisted error decision instead of fetching', async () => {
     const fetchSpy = jest.spyOn(globalThis, 'fetch');
     const db = createTestDb();
-    const resolver = createSemanticResolver(db, { cacheDir: emptyCacheDir() });
+    const cacheDir = emptyCacheDir();
+    const resolver = createSemanticResolver(db, { cacheDir });
 
     resolver.observeAliases({
       projectDir: '/x',
@@ -204,6 +211,8 @@ describe('semantic resolver — default mode never phones huggingface.co', () =>
     expect(events).toHaveLength(1);
     expect(events[0].decision).toBe('error');
     expect(String(events[0].metadata?.error)).toMatch(/disabled by default/);
+    expect(JSON.stringify(events[0].metadata)).not.toContain(cacheDir);
+    expect(JSON.stringify(events[0].metadata)).not.toContain(DEFAULT_SEMANTIC_MODEL_ID);
     expect(fetchSpy).not.toHaveBeenCalled();
     db.close();
   });
