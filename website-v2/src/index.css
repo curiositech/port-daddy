@@ -799,9 +799,15 @@ pre code {
   outline-offset: 2px;
 }
 
-/* Respect reduced motion preference */
+/* Respect reduced motion preference.
+   SVG subtrees are exempt from the universal collapse: applying it inside
+   <svg> corrupts Mermaid's text-measurement pass under reduced motion, and
+   every diagram lays out at a blown-up viewBox with unreadable labels
+   (reproduced on /docs/concepts/claim-tree and /docs/guides/protocol;
+   deleting only this rule restores correct geometry). SVG animations keep
+   their own scoped reduced-motion rules below (tube-*). */
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
+  :not(svg, svg *), ::before, ::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;

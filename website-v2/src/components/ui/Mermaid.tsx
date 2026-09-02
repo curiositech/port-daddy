@@ -2,12 +2,29 @@ import React, { useEffect, useRef, useCallback, useId, useState } from 'react'
 import type { Mermaid as MermaidApi } from 'mermaid'
 import { cn } from '@/lib/utils'
 
+// mermaid.initialize()/render() mutate module-global state, so two renders in
+// flight at once (two diagrams on a page, or a theme-flip re-render racing an
+// interactive chart swap) corrupt each other's layout constants — the diagram
+// comes back with a blown-up viewBox and misplaced nodes. Every render on the
+// page therefore queues through this one chain, and each component drops any
+// result that a newer render of the same instance has superseded.
+let mermaidRenderChain: Promise<void> = Promise.resolve()
+
 interface MermaidProps {
   chart: string
   className?: string
+  /**
+   * Flowchart label mode. HTML labels (the default) support `<br/>`/`<i>`
+   * markup but re-measure through a foreignObject sandbox that can collapse
+   * on rapid re-renders (chart-swapping interactive diagrams blow up to a
+   * giant viewBox with unreadable labels). Interactive charts that re-render
+   * with new chart strings should pass `false` to use SVG-text labels, which
+   * measure via getBBox and stay stable across re-renders.
+   */
+  flowchartHtmlLabels?: boolean
 }
 
-export const Mermaid: React.FC<MermaidProps> = ({ chart, className }) => {
+export const Mermaid: React.FC<MermaidProps> = ({ chart, className, flowchartHtmlLabels = true }) => {
   const ref = useRef<HTMLDivElement>(null)
   const idPrefix = useId().replace(/:/g, '')
   const renderCount = useRef(0)
@@ -23,8 +40,11 @@ export const Mermaid: React.FC<MermaidProps> = ({ chart, className }) => {
     return () => { active = false }
   }, [])
 
+  const generation = useRef(0)
+
   const renderChart = useCallback(() => {
     if (!mermaid) return
+    const gen = ++generation.current
     // Render diagrams as a theme-INDEPENDENT light "paper" card so they stay
     // legible in dark mode (the old version inherited dark tokens -> dark text
     // on a dark inset gradient, and the SVG rendered at tiny natural size).
@@ -40,7 +60,7 @@ export const Mermaid: React.FC<MermaidProps> = ({ chart, className }) => {
     const seqNum = tok('--diagram-seq-num')
     const note = tok('--diagram-note')
 
-    mermaid.initialize({
+    const initializeMermaid = () => mermaid.initialize({
       startOnLoad: false,
       theme: 'base',
       securityLevel: 'loose',
@@ -82,7 +102,7 @@ export const Mermaid: React.FC<MermaidProps> = ({ chart, className }) => {
       },
       flowchart: {
         curve: 'basis',
-        htmlLabels: true,
+        htmlLabels: flowchartHtmlLabels,
         nodeSpacing: 72,
         rankSpacing: 82,
         padding: 22,
@@ -102,12 +122,16 @@ export const Mermaid: React.FC<MermaidProps> = ({ chart, className }) => {
     })
 
     if (ref.current && chart) {
-      // mermaid.render produces trusted SVG from our own chart definitions
-      ref.current.textContent = ''
       const id = `mermaid-${idPrefix}-${renderCount.current}`
       renderCount.current += 1
-      mermaid.render(id, chart).then((result) => {
-        if (ref.current) {
+      mermaidRenderChain = mermaidRenderChain.then(async () => {
+        // A newer render of this instance has superseded us; let it win.
+        if (gen !== generation.current || !ref.current) return
+        try {
+          initializeMermaid()
+          // mermaid.render produces trusted SVG from our own chart definitions
+          const result = await mermaid.render(id, chart)
+          if (gen !== generation.current || !ref.current) return
           const parsed = new DOMParser().parseFromString(result.svg, 'image/svg+xml')
           const svg = parsed.documentElement
           if (svg.tagName.toLowerCase() === 'svg') {
@@ -120,10 +144,25 @@ export const Mermaid: React.FC<MermaidProps> = ({ chart, className }) => {
             ref.current.textContent = ''
             ref.current.appendChild(document.importNode(svg, true))
           }
+        } catch (error: unknown) {
+          // A diagram must never fail into a silent blank panel — that ships
+          // "evidence" that shows nothing. Surface the parse/render error in
+          // the card so previews and captures make the failure obvious.
+          if (gen !== generation.current || !ref.current) return
+          ref.current.textContent = ''
+          const fallback = document.createElement('pre')
+          fallback.setAttribute('data-mermaid-error', 'true')
+          fallback.style.whiteSpace = 'pre-wrap'
+          fallback.style.fontSize = '0.875rem'
+          fallback.style.lineHeight = '1.5'
+          fallback.style.color = '#bf2f2f'
+          fallback.style.margin = '0'
+          fallback.textContent = `Diagram failed to render:\n${String(error)}`
+          ref.current.appendChild(fallback)
         }
       })
     }
-  }, [chart, idPrefix, mermaid])
+  }, [chart, idPrefix, mermaid, flowchartHtmlLabels])
 
   useEffect(() => {
     if (!mermaid) return

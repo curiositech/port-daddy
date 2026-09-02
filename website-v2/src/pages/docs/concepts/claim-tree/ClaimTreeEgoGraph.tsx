@@ -101,6 +101,11 @@ function stateClassName(state: ClaimTreeTroubleState) {
 
 function buildTroubleMermaid(state: ClaimTreeTroubleState) {
   const meta = TROUBLE_STATE_MAP[state]
+  // Mermaid's flowchart grammar rejects CSS var() inside classDef/linkStyle
+  // values (parse error at "(-"), so only literal colors may appear below.
+  // The actor and surface nodes take the Mermaid card's theme-independent
+  // paper styling from themeVariables; the state node and its edge carry the
+  // one semantic state color.
   return [
     renderClaimTreeTroubleMermaid({
       filePath: 'lib/auth.ts',
@@ -108,15 +113,8 @@ function buildTroubleMermaid(state: ClaimTreeTroubleState) {
       otherSessionId: 'session-other',
       state,
     }),
-    'classDef claimtreeActor fill:var(--surface-base),stroke:var(--border-strong),stroke-width:2px,color:var(--text-primary);',
-    'classDef claimtreeSurface fill:var(--surface-raised),stroke:var(--border-strong),stroke-width:2px,color:var(--text-primary);',
     `classDef ${stateClassName(state)} fill:${meta.color},stroke:${meta.color},stroke-width:3px,color:#ffffff;`,
-    'class YOU claimtreeActor;',
-    'class OTHER claimtreeActor;',
-    'class FILE claimtreeSurface;',
     `class STATE ${stateClassName(state)};`,
-    'linkStyle 0 stroke:var(--border-soft),stroke-width:2px;',
-    'linkStyle 1 stroke:var(--border-soft),stroke-width:2px;',
     `linkStyle 2 stroke:${meta.color},stroke-width:2.5px;`,
   ].join('\n')
 }
@@ -146,6 +144,7 @@ export function ClaimTreeEgoGraph() {
         <div className="overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-3 sm:p-4">
           <Mermaid
             chart={chart}
+            flowchartHtmlLabels={false}
             className="my-0 border-0 bg-transparent p-0 shadow-none"
           />
         </div>

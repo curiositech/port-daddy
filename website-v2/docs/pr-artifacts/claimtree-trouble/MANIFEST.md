@@ -1,6 +1,6 @@
 # Claim-tree trouble visual proof
 
-Captured headlessly from this branch's production build at `/docs/concepts/claim-tree`.
+Captured headlessly (Playwright, `capture.mjs`) from this branch served by the vite dev server at `/docs/concepts/claim-tree`, after fixing the Mermaid render pipeline (invalid `var()` classDefs, silent render failure, and the reduced-motion CSS rule that corrupted Mermaid layout site-wide).
 The figure is the interactive claim-tree trouble visualizer: a Mermaid bounded
 graph with a color-safe state legend, an inspection panel, and reduced-motion
 behavior that keeps the swap instant.
