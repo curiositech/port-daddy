@@ -1,4 +1,6 @@
 import Foundation
+import CryptoKit
+import ImageIO
 import XCTest
 @testable import PortholeStageCore
 
@@ -500,6 +502,45 @@ final class PortholeStageCoreTests: XCTestCase {
         XCTAssertTrue(fixtureSignature.contains("Identifier=dev.portdaddy.porthole.safe-fixture"))
         XCTAssertTrue(captureSignature.contains("Signature=adhoc"))
         XCTAssertTrue(fixtureSignature.contains("Signature=adhoc"))
+
+        let manifestURL = captureApp.appendingPathComponent("Contents/Resources/safe-fixture-identity.json")
+        let fixtureManifest = try JSONDecoder().decode(SafeFixtureIdentityManifest.self, from: Data(contentsOf: manifestURL))
+        let fixtureBinary = fixtureApp.appendingPathComponent("Contents/MacOS/PortholeFixture")
+        let fixtureDigest = SHA256.hash(data: try Data(contentsOf: fixtureBinary))
+            .map { String(format: "%02x", $0) }.joined()
+        XCTAssertEqual(fixtureManifest.executableSHA256, fixtureDigest)
+        let relocated = output.appendingPathComponent("relocated/PortholeFixture.app")
+        try FileManager.default.createDirectory(at: relocated.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try FileManager.default.moveItem(at: fixtureApp, to: relocated)
+        try run(URL(fileURLWithPath: "/usr/bin/codesign"), ["--verify", "--deep", "--strict", relocated.path])
+        XCTAssertTrue(SafeFixtureIdentityPolicy.accepts(fixtureManifest,
+            observed: SignedProgramIdentity(bundleIdentifier: "dev.portdaddy.porthole.safe-fixture",
+                designatedRequirement: "identifier fixture", executableSHA256: fixtureDigest), executableFilename: "PortholeFixture"))
+
+        let iconset = output.appendingPathComponent("Porthole.iconset")
+        try run(URL(fileURLWithPath: "/usr/bin/iconutil"), ["-c", "iconset", "-o", iconset.path, iconURL.path])
+        let representations = ["icon_16x16.png": 16, "icon_16x16@2x.png": 32,
+            "icon_32x32.png": 32, "icon_32x32@2x.png": 64, "icon_128x128.png": 128,
+            "icon_128x128@2x.png": 256, "icon_256x256.png": 256, "icon_256x256@2x.png": 512,
+            "icon_512x512.png": 512, "icon_512x512@2x.png": 1024]
+        XCTAssertEqual(Set(try FileManager.default.contentsOfDirectory(atPath: iconset.path)), Set(representations.keys))
+        for (name, size) in representations {
+            let source = try XCTUnwrap(CGImageSourceCreateWithURL(iconset.appendingPathComponent(name) as CFURL, nil))
+            let image = try XCTUnwrap(CGImageSourceCreateImageAtIndex(source, 0, nil))
+            XCTAssertEqual(image.width, size, name)
+            XCTAssertEqual(image.height, size, name)
+        }
+
+        // Resource tampering must invalidate the signature, not merely fail a policy mock.
+        try Data("{}\n".utf8).write(to: manifestURL)
+        let verify = Process()
+        verify.executableURL = URL(fileURLWithPath: "/usr/bin/codesign")
+        verify.arguments = ["--verify", "--deep", "--strict", captureApp.path]
+        verify.standardOutput = FileHandle.nullDevice
+        verify.standardError = FileHandle.nullDevice
+        try verify.run()
+        verify.waitUntilExit()
+        XCTAssertNotEqual(verify.terminationStatus, 0, "changed fixture manifest must break capture resource seal")
     }
 
     private func descriptor(

@@ -15,6 +15,7 @@ establish a stable TCC identity, prove visual quality, or authorize release.
 
 ```sh
 swift test --package-path apps/porthole-stage-capture
+/usr/bin/python3 apps/porthole-stage-capture/Scripts/test-ci-artifact.py
 
 apps/porthole-stage-capture/Scripts/package-apps.sh \
   --configuration release \
@@ -37,6 +38,48 @@ expected ad-hoc CI signature. Negative cases exercise those fail-closed
 boundaries, and the job is part of the required aggregate `ci-gate`. This
 proves deterministic assembly from one compiled payload; it does not claim
 that different Xcode/Swift versions produce byte-identical binaries.
+
+The Swift suite covers all 49 lifecycle edges, all 24 scope/capability
+combinations, a 384-case source-authority/privacy persistence matrix, malformed
+decoded approvals, process/launch/window drift, stale operation completions,
+every byte split of a Unicode cursor event, actual pipe EOF/stop/restart, broken
+metadata output, and strict finite proof durations (2 through 30 seconds).
+Capture authority and cursor leases remain independent: cursor participation
+cannot grant recording permission or prevent an otherwise approved preview.
+
+Packaging generates all ten ICNS representations and signs the fixture before
+sealing its executable digest into Porthole's resources. Fixture verification
+checks that resource seal and the running program's identity and digest; it no
+longer depends on the two apps occupying sibling directories. Relocation and
+resource-tampering tests exercise the actual signed bundles. The separate Python
+integration suite runs against the debug build by default; CI sets
+`PORTHOLE_TEST_CONFIGURATION=release`. It also proves rejection leaves no archive.
+
+## Review follow-up and next slices
+
+This is a working task list, not a replacement for the shared roadmap. Source
+inputs are [native PR #9992](https://github.com/curiositech/port-daddy/pull/9992),
+[universal contract PR #9970](https://github.com/curiositech/port-daddy/pull/9970),
+and [Convoy requirements #9987](https://github.com/curiositech/port-daddy/pull/9987).
+
+| Order | Work | Acceptance gate |
+| --- | --- | --- |
+| Now | Finish #9992 review hardening, tests, and attributed replies | Published exact head, all actionable threads addressed, green required CI and terminal independent review |
+| Next | Focused #9970 security contract successor | Strict schemas, immutable-ledger trigger regressions, and ciphertext-envelope/AAD validation at ingestion; preserve the original broad branch as lineage |
+| Then | Shared macOS release machinery, with FleetBar and Porthole consumers | Extract the existing signing/notarization ceremony; accepted notarization, stapling, strict signature and Gatekeeper verification; missing credentials or rejected tickets prevent publication |
+| Release gate | Version/platform contract and stable Developer ID hardware proof | Resolve macOS minimum version, stamp versions, and preserve fresh attributed permission/background/privacy/interaction evidence |
+| Integration | Bind native evidence to Convoy source/stage/capsule receipts | One canonical evidence/authority model, immutable input digests, capability narrowing, and inspectable acceptance receipts; no parallel action ledger |
+
+The release helper belongs in a separately scoped child change. Reuse FleetBar's
+generic ceremony, not its app-specific packager under a new name. Code signing
+and notarization establish artifact identity; they do not prove that a policy
+is safe or replace Convoy's staged acceptance tests.
+
+Deferred: a separate cursor-monitoring dashboard, serializing proof configuration
+without a consumer, and new general-purpose geometry/packaging skills before a
+second real consumer. Synthetic fixture geometry, identity, clock, icon, and
+package contracts are automated here; hosted moving visual snapshots are not a
+substitute for operator-hardware acceptance.
 
 ## Manual acceptance evidence
 

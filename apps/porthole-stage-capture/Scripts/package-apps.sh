@@ -86,8 +86,12 @@ signing_options=(--force --sign "$signing_identity")
 if [[ "$signing_identity" != "-" ]]; then
     signing_options+=(--options runtime --timestamp=none)
 fi
-codesign "${signing_options[@]}" --identifier dev.portdaddy.porthole "$capture_app"
 codesign "${signing_options[@]}" --identifier dev.portdaddy.porthole.safe-fixture "$fixture_app"
+# Bind the actual signed fixture bytes into the capture app's sealed resources.
+# Runtime identity does not depend on the apps retaining a sibling folder layout.
+fixture_sha256=$(shasum -a 256 "$fixture_app/Contents/MacOS/PortholeFixture" | awk '{print $1}')
+printf '{"bundleIdentifier":"dev.portdaddy.porthole.safe-fixture","executableFilename":"PortholeFixture","executableSHA256":"%s","schema":"pd.porthole.safe-fixture-identity.v1"}\n' "$fixture_sha256" > "$capture_app/Contents/Resources/safe-fixture-identity.json"
+codesign "${signing_options[@]}" --identifier dev.portdaddy.porthole "$capture_app"
 codesign --verify --deep --strict "$capture_app"
 codesign --verify --deep --strict "$fixture_app"
 

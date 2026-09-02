@@ -27,9 +27,11 @@ public struct PickerSelectedSourcePolicy: Equatable, Sendable {
     /// Validates the one source returned by Apple's picker. This type has no
     /// list input or catalog projection by design.
     public func accepts(_ pickerSelectedSource: ShareableWindowDescriptor) -> Bool {
-        guard pickerSelectedSource.ownerPID != currentProcessID else { return false }
+        guard pickerSelectedSource.ownerPID > 0,
+              pickerSelectedSource.ownerPID != currentProcessID else { return false }
         guard pickerSelectedSource.isOnScreen, pickerSelectedSource.layer == 0 else { return false }
-        guard pickerSelectedSource.width >= minimumWidth,
+        guard pickerSelectedSource.width.isFinite, pickerSelectedSource.height.isFinite,
+              pickerSelectedSource.width >= minimumWidth,
               pickerSelectedSource.height >= minimumHeight
         else { return false }
         if let bundle = pickerSelectedSource.bundleIdentifier {
@@ -56,7 +58,8 @@ public struct ExactWindowStreamPolicy: Equatable, Sendable {
 
 public enum CursorLeasePolicy {
     public static func permits(_ event: CursorEvent, activeLeaseID: String?) -> Bool {
-        guard let activeLeaseID, !activeLeaseID.isEmpty else { return false }
+        guard let activeLeaseID,
+              !activeLeaseID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return false }
         return event.captureLeaseID == activeLeaseID
     }
 }
@@ -238,10 +241,10 @@ public enum SourceApprovalPolicy {
             throw SourceApprovalError.emptyDisplayTitle
         }
         let program = approval.program
-        guard !program.bundleIdentifier.isEmpty,
-              !program.designatedRequirement.isEmpty,
+        guard !program.bundleIdentifier.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              !program.designatedRequirement.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
               program.executableSHA256.count == 64,
-              program.executableSHA256.allSatisfy(\.isHexDigit)
+              program.executableSHA256.allSatisfy({ "0123456789abcdefABCDEF".contains($0) })
         else { throw SourceApprovalError.invalidProgramIdentity }
         guard approval.capabilities.preview
                 || approval.capabilities.liveShare
@@ -257,7 +260,8 @@ public enum SourceApprovalPolicy {
         case .runningInstance:
             guard let instance = approval.runningInstance,
                   instance.program == program,
-                  !instance.launchIdentity.isEmpty,
+                  instance.processID > 0,
+                  !instance.launchIdentity.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
                   approval.exactWindow == nil,
                   !approval.persistsUntilRevoked
             else { throw SourceApprovalError.invalidScopeBinding }
@@ -266,6 +270,8 @@ public enum SourceApprovalPolicy {
                   let instance = approval.runningInstance,
                   let window = approval.exactWindow,
                   instance.program == program,
+                  instance.processID > 0,
+                  !instance.launchIdentity.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
                   window.application == instance,
                   window.windowID > 0,
                   !approval.persistsUntilRevoked
@@ -274,6 +280,8 @@ public enum SourceApprovalPolicy {
     }
 
     public static func permits(_ action: SourceCapabilityAction, approval: SourceApproval) -> Bool {
+        // Decoded or caller-constructed approvals must not bypass ledger validation.
+        guard (try? validate(approval)) != nil else { return false }
         switch action {
         case .preview: return approval.capabilities.preview
         case .liveShare: return approval.capabilities.liveShare
@@ -356,7 +364,10 @@ public enum SourceApprovalValidity {
         _ approval: SourceApproval,
         observation: SourceRuntimeObservation?
     ) -> Bool {
-        guard let observation,
+        guard (try? SourceApprovalPolicy.validate(approval)) != nil,
+              let observation,
+              observation.processID > 0,
+              !observation.launchIdentity.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
               ProgramIdentityPolicy.sameApprovedAuthority(
                   approved: approval.program,
                   observed: observation.program
@@ -407,6 +418,47 @@ public struct SourceApprovalLedger: Sendable {
     }
 }
 
+public enum PersistenceDenialReason: String, Equatable, Sendable {
+    case invalidApproval, staleSource, capabilityDenied, protectedContent, uncertainPrivacy
+    case operatorApprovalRequired, syntheticFixtureRequired
+}
+
+public struct SourcePersistenceDecision: Equatable, Sendable {
+    public let gate: PersistenceGate
+    public let denialReason: PersistenceDenialReason?
+}
+
+public enum SourcePersistencePolicy {
+    /// Source authority and privacy are independent gates; cursor participation
+    /// is deliberately absent and can neither grant nor deny capture authority.
+    public static func evaluate(
+        approval: SourceApproval, sourceIsCurrent: Bool, assessment: PrivacyAssessment,
+        explicitOperatorApproval: Bool, isSyntheticSafeFixture: Bool
+    ) -> SourcePersistenceDecision {
+        let denial: PersistenceDenialReason?
+        if (try? SourceApprovalPolicy.validate(approval)) == nil { denial = .invalidApproval }
+        else if !sourceIsCurrent { denial = .staleSource }
+        else if !approval.capabilities.persistRecording { denial = .capabilityDenied }
+        else if assessment.status == .protected { denial = .protectedContent }
+        else if assessment.status == .unknown { denial = .uncertainPrivacy }
+        else if !explicitOperatorApproval { denial = .operatorApprovalRequired }
+        else if !isSyntheticSafeFixture { denial = .syntheticFixtureRequired }
+        else { denial = nil }
+        let privacyGate = PrivacyPersistencePolicy.evaluate(
+            assessment: assessment, explicitOperatorApproval: explicitOperatorApproval,
+            isSyntheticSafeFixture: isSyntheticSafeFixture
+        )
+        let gate: PersistenceGate
+        switch denial {
+        case .invalidApproval, .staleSource, .capabilityDenied:
+            gate = PersistenceGate(allowed: false, label: "Persistence paused",
+                                   reason: "The selected source has no current recording authority.")
+        default: gate = privacyGate
+        }
+        return SourcePersistenceDecision(gate: gate, denialReason: denial)
+    }
+}
+
 public enum PrivacyPersistencePolicy {
     /// Persistence is intentionally narrower than live preview in this slice.
     /// Only an explicitly approved synthetic fixture can write proof media.
@@ -448,6 +500,33 @@ public enum PrivacyPersistencePolicy {
 
 public enum CaptureTransitionError: Error, Equatable {
     case invalidTransition(from: CaptureLifecycle, to: CaptureLifecycle)
+}
+
+/// Main-actor operation tickets prevent late start completions from reviving a
+/// stopped/revoked lease or overwriting a later stream's state.
+public struct CaptureOperationGate: Sendable {
+    private var starting: UUID?
+    private var stopsInFlight = 0
+
+    public init() {}
+    public mutating func beginStart() -> UUID? {
+        guard starting == nil, stopsInFlight == 0 else { return nil }
+        let ticket = UUID()
+        starting = ticket
+        return ticket
+    }
+    public func permitsCompletion(_ ticket: UUID) -> Bool { starting == ticket && stopsInFlight == 0 }
+    public mutating func finishStart(_ ticket: UUID) {
+        if starting == ticket { starting = nil }
+    }
+    public mutating func beginStop(cancelPendingStart: Bool = true) {
+        if cancelPendingStart { starting = nil }
+        stopsInFlight += 1
+    }
+    public mutating func finishStop() {
+        precondition(stopsInFlight > 0)
+        stopsInFlight -= 1
+    }
 }
 
 public struct CaptureStateMachine: Sendable {

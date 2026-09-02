@@ -259,21 +259,20 @@ private final class FrameOutput: NSObject, SCStreamOutput, SCStreamDelegate {
     }
 }
 
-private struct NativeFrameEvent: Encodable {
-    let schema = "pd.porthole.native-frame-metadata.v1"
-    let frame: FrameMetadata
-}
-
 private final class MetadataEmitter {
     private let queue = DispatchQueue(label: "dev.portdaddy.porthole-stage.metadata", qos: .utility)
 
-    func emit(_ frame: FrameMetadata) {
+    init() {
+        // Report a broken metadata pipe through the lease error path instead
+        // of letting SIGPIPE terminate the process before cleanup.
+        _ = fcntl(FileHandle.standardOutput.fileDescriptor, F_SETNOSIGPIPE, 1)
+    }
+
+    func emit(_ frame: FrameMetadata, onError: @escaping (Error) -> Void) {
         queue.async {
-            let encoder = JSONEncoder()
-            encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
-            guard var data = try? encoder.encode(NativeFrameEvent(frame: frame)) else { return }
-            data.append(0x0A)
-            FileHandle.standardOutput.write(data)
+            do {
+                try FrameMetadataLineWriter { try FileHandle.standardOutput.write(contentsOf: $0) }.write(frame)
+            } catch { onError(error) }
         }
     }
 }
@@ -292,29 +291,24 @@ private enum SafeFixtureAttestor {
               source.ownerName == "PortholeFixture",
               source.bundleIdentifier == fixtureBundleIdentifier,
               Bundle.main.bundleIdentifier == captureBundleIdentifier,
-              let stageExecutable = Bundle.main.executableURL,
+              hasValidResourceSeal(Bundle.main.bundleURL),
+              let manifestURL = Bundle.main.url(forResource: "safe-fixture-identity", withExtension: "json"),
+              let manifestData = try? Data(contentsOf: manifestURL),
+              let manifest = try? JSONDecoder().decode(SafeFixtureIdentityManifest.self, from: manifestData),
               let running = NSRunningApplication(processIdentifier: pid_t(source.ownerPID)),
               let observedExecutable = running.executableURL,
               running.bundleIdentifier == fixtureBundleIdentifier,
               let runtimeIdentity = try? CodeIdentityInspector.inspect(running)
         else { return nil }
 
-        let expectedExecutable = stageExecutable
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .appendingPathComponent("PortholeFixture.app/Contents/MacOS/PortholeFixture")
-            .resolvingSymlinksInPath()
-            .standardizedFileURL
         let observed = observedExecutable.resolvingSymlinksInPath().standardizedFileURL
-        guard observed == expectedExecutable,
-              let expectedData = try? Data(contentsOf: expectedExecutable, options: .mappedIfSafe),
-              let observedData = try? Data(contentsOf: observed, options: .mappedIfSafe)
+        guard SafeFixtureIdentityPolicy.accepts(
+            manifest, observed: runtimeIdentity.program, executableFilename: observed.lastPathComponent
+        )
         else { return nil }
 
-        let expectedDigest = SHA256.hash(data: expectedData).hexString
-        let observedDigest = SHA256.hash(data: observedData).hexString
+        let expectedDigest = manifest.executableSHA256
+        let observedDigest = runtimeIdentity.program.executableSHA256
         let identity = [
             running.bundleIdentifier ?? "missing-bundle-id",
             running.localizedName ?? source.ownerName,
@@ -341,6 +335,13 @@ private enum SafeFixtureAttestor {
             observedExecutableSHA256: observedDigest,
             verified: true
         )
+    }
+
+    private static func hasValidResourceSeal(_ bundle: URL) -> Bool {
+        var code: SecStaticCode?
+        guard SecStaticCodeCreateWithPath(bundle as CFURL, [], &code) == errSecSuccess,
+              let code else { return false }
+        return SecStaticCodeCheckValidity(code, SecCSFlags(rawValue: kSecCSStrictValidate), nil) == errSecSuccess
     }
 }
 
@@ -600,6 +601,7 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
     private var activeSource: ShareableWindowDescriptor?
     private var activeApproval: SourceApproval?
     private var proofInvalidated = false
+    private var operationGate = CaptureOperationGate()
 
     public init(proofConfiguration: ProofConfiguration? = nil) {
         self.proofConfiguration = proofConfiguration
@@ -755,6 +757,9 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
 
     public func selectApproval(_ approvalID: String) async {
         guard approvedSources.contains(where: { $0.approvalID == approvalID }) else { return }
+        guard selectedApprovalID != approvalID else { return }
+        operationGate.beginStop()
+        defer { operationGate.finishStop() }
         if activeCaptureLease?.approvalID != approvalID, stream != nil || latestImage != nil {
             await stopStream(finalState: .ready, finalizeProof: true)
             clearLiveState()
@@ -768,6 +773,9 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
     }
 
     public func revokeApproval(_ approvalID: String) async {
+        operationGate.beginStop(cancelPendingStart:
+            selectedApprovalID == approvalID || activeCaptureLease?.approvalID == approvalID)
+        defer { operationGate.finishStop() }
         if activeCaptureLease?.approvalID == approvalID {
             proofInvalidated = true
             proofRecorder?.suspend()
@@ -784,6 +792,8 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
     }
 
     public func startCapture() async {
+        guard let startTicket = operationGate.beginStart() else { return }
+        defer { operationGate.finishStart(startTicket) }
         guard let selectedApprovalID,
               let approval = approvedSources.first(where: { $0.approvalID == selectedApprovalID }),
               let binding = approvedFilters[selectedApprovalID]
@@ -798,7 +808,17 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
             return
         }
         if stream != nil {
-            await stopStream(finalState: .ready, finalizeProof: true)
+            await stopStream(finalState: .ready, finalizeProof: true, cancelPendingStart: false)
+        }
+        guard operationGate.permitsCompletion(startTicket) else { return }
+        guard validateRuntimeBinding(binding, approval: approval),
+              self.selectedApprovalID == selectedApprovalID,
+              approvedSources.contains(approval)
+        else {
+            clearLiveState()
+            lifecycle = .failed
+            statusMessage = "The approved source changed before capture started. Approve it again."
+            return
         }
         clearLiveState()
         proofInvalidated = false
@@ -825,12 +845,12 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
                 assessedAtMonotonicNanos: DispatchTime.now().uptimeNanoseconds
             )
             : ProtectedFieldInspector.assess(processID: binding.source.ownerPID)
-        persistenceGate = PrivacyPersistencePolicy.evaluate(
+        persistenceGate = SourcePersistencePolicy.evaluate(
+            approval: approval, sourceIsCurrent: true,
             assessment: privacyAssessment,
-            explicitOperatorApproval: approval.capabilities.persistRecording
-                && proofConfiguration?.explicitSafeFixtureApproval == true,
+            explicitOperatorApproval: proofConfiguration?.explicitSafeFixtureApproval == true,
             isSyntheticSafeFixture: attestation?.verified == true
-        )
+        ).gate
 
         let filter = binding.filter
         let width = Self.evenDimension(filter.contentRect.width * CGFloat(filter.pointPixelScale))
@@ -866,9 +886,10 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
                     Task { @MainActor in self?.consume(frame) }
                 },
                 onError: { [weak self] error in
-                    Task { @MainActor in await self?.invalidateActiveLease(
-                        reason: "Capture stopped: \(error.localizedDescription)"
-                    ) }
+                    Task { @MainActor in
+                        guard let self, self.activeCaptureLease == lease else { return }
+                        await self.invalidateActiveLease(reason: "Capture stopped: \(error.localizedDescription)")
+                    }
                 }
             )
             let stream = SCStream(filter: filter, configuration: configuration, delegate: output)
@@ -880,6 +901,10 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
             self.output = output
             self.stream = stream
             try await stream.startCapture()
+            guard operationGate.permitsCompletion(startTicket), activeCaptureLease == lease else {
+                try? await stream.stopCapture()
+                return
+            }
             lifecycle = .live
             statusMessage = persistenceGate.allowed
                 ? "Recording · one approved fixture window · mic and audio off"
@@ -889,6 +914,9 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
                 scheduleProofStop(after: proofConfiguration.durationSeconds)
             }
         } catch {
+            guard activeCaptureLease == lease else { return }
+            operationGate.beginStop(cancelPendingStart: false)
+            defer { operationGate.finishStop() }
             stageLog.error("capture start failed closed: \(error.localizedDescription, privacy: .public)")
             if let stream { try? await stream.stopCapture() }
             proofRecorder?.suspend()
@@ -907,11 +935,15 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
             statusMessage = "Proof recording is one immutable segment. Stop & Clear finishes it; pause is unavailable."
             return
         }
+        operationGate.beginStop()
+        defer { operationGate.finishStop() }
+        let pausedLease = activeCaptureLease
         leaseTimer?.invalidate()
         leaseTimer = nil
         proofStopTask?.cancel()
         proofStopTask = nil
         if let stream { try? await stream.stopCapture() }
+        guard lifecycle == .live, activeCaptureLease == pausedLease else { return }
         stream = nil
         output = nil
         proofRecorder?.suspend()
@@ -920,6 +952,8 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
     }
 
     public func stopCapture() async {
+        operationGate.beginStop()
+        defer { operationGate.finishStop() }
         await stopStream(finalState: .stopped, finalizeProof: true)
         let didWriteReceipt = proofReceipt != nil
         clearLiveState()
@@ -1131,7 +1165,12 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
             )
             latestImage = NSImage(cgImage: frame.image, size: .zero)
             latestMetadata = frame.metadata
-            metadataEmitter.emit(frame.metadata)
+            metadataEmitter.emit(frame.metadata) { [weak self] error in
+                Task { @MainActor in
+                    guard let self, self.activeCaptureLease == lease else { return }
+                    await self.invalidateActiveLease(reason: "Metadata output failed: \(error.localizedDescription)")
+                }
+            }
             frameRingCount = ring.entries.count
             if frame.metadata.sequence == 1 || frame.metadata.sequence.isMultiple(of: 30) {
                 let snapshot = currentActivitySnapshot()
@@ -1170,7 +1209,8 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
                       self.lifecycle == .live,
                       self.activeCaptureLease == lease
                 else { return }
-                let valid = await self.validateRuntimeBinding(binding, approval: approval)
+                let valid = self.validateRuntimeBinding(binding, approval: approval)
+                guard self.lifecycle == .live, self.activeCaptureLease == lease else { return }
                 guard valid else {
                     await self.invalidateActiveLease(
                         reason: "Approval expired because its signed launch or exact window changed."
@@ -1185,12 +1225,12 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
                     )
                     : ProtectedFieldInspector.assess(processID: binding.source.ownerPID)
                 self.privacyAssessment = assessment
-                self.persistenceGate = PrivacyPersistencePolicy.evaluate(
+                self.persistenceGate = SourcePersistencePolicy.evaluate(
+                    approval: approval, sourceIsCurrent: valid,
                     assessment: assessment,
-                    explicitOperatorApproval: approval.capabilities.persistRecording
-                        && self.proofConfiguration?.explicitSafeFixtureApproval == true,
+                    explicitOperatorApproval: self.proofConfiguration?.explicitSafeFixtureApproval == true,
                     isSyntheticSafeFixture: self.safeFixtureAttestation?.verified == true
-                )
+                ).gate
                 if !self.persistenceGate.allowed, self.proofRecorder != nil {
                     self.proofRecorder?.suspend()
                     self.statusMessage = "Live preview continues · persistence synchronously paused for privacy uncertainty"
@@ -1202,7 +1242,7 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
     private func validateRuntimeBinding(
         _ binding: ApprovedFilterBinding,
         approval: SourceApproval
-    ) async -> Bool {
+    ) -> Bool {
         guard let running = NSRunningApplication(processIdentifier: binding.runtimeIdentity.processID),
               CodeIdentityInspector.satisfies(running, approvedProgram: approval.program),
               let observedIdentity = try? CodeIdentityInspector.inspect(running),
@@ -1223,6 +1263,8 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
 
     private func invalidateActiveLease(reason: String) async {
         guard let approvalID = activeCaptureLease?.approvalID else { return }
+        operationGate.beginStop()
+        defer { operationGate.finishStop() }
         proofInvalidated = true
         proofRecorder?.suspend()
         clearLiveState()
@@ -1239,8 +1281,11 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
 
     private func stopStream(
         finalState: CaptureLifecycle?,
-        finalizeProof: Bool
+        finalizeProof: Bool,
+        cancelPendingStart: Bool = true
     ) async {
+        operationGate.beginStop(cancelPendingStart: cancelPendingStart)
+        defer { operationGate.finishStop() }
         leaseTimer?.invalidate()
         leaseTimer = nil
         proofStopTask?.cancel()

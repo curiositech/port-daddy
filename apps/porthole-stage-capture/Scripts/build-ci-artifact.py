@@ -56,6 +56,7 @@ BUNDLE_SPECS = (
                 "Contents/Info.plist",
                 "Contents/MacOS/Porthole",
                 "Contents/Resources/PortholeIcon.icns",
+                "Contents/Resources/safe-fixture-identity.json",
                 "Contents/_CodeSignature/CodeResources",
             }
         ),
@@ -277,6 +278,26 @@ def add_bytes(
     archive.addfile(info, io.BytesIO(data))
 
 
+def verify_fixture_binding(root: Path) -> None:
+    """Verify the companion identity sealed inside the capture bundle."""
+
+    manifest_path = root / "Porthole.app/Contents/Resources/safe-fixture-identity.json"
+    expected = {
+        "schema": "pd.porthole.safe-fixture-identity.v1",
+        "bundleIdentifier": "dev.portdaddy.porthole.safe-fixture",
+        "executableFilename": "PortholeFixture",
+        "executableSHA256": sha256_bytes(
+            (root / "PortholeFixture.app/Contents/MacOS/PortholeFixture").read_bytes()
+        ),
+    }
+    try:
+        observed = json.loads(manifest_path.read_text())
+    except (UnicodeError, json.JSONDecodeError) as error:
+        raise VerificationError("invalid fixture identity JSON") from error
+    if observed != expected:
+        raise VerificationError("sealed fixture identity does not match the packaged fixture")
+
+
 def build_archive(
     input_root: Path,
     output: Path,
@@ -293,6 +314,7 @@ def build_archive(
         )
 
     bundles = [verify_bundle(input_root / spec.name, spec) for spec in BUNDLE_SPECS]
+    verify_fixture_binding(input_root)
     if len({(bundle["version"], bundle["build"]) for bundle in bundles}) != 1:
         raise VerificationError("Porthole and its fixture must share one version and build")
     manifest = {
@@ -381,6 +403,7 @@ def verify_archive(output: Path, manifest: dict[str, Any], source_date_epoch: in
             extracted_root = Path(temporary) / ARCHIVE_ROOT
             for spec in BUNDLE_SPECS:
                 verify_bundle(extracted_root / spec.name, spec)
+            verify_fixture_binding(extracted_root)
 
 
 def parse_args() -> argparse.Namespace:

@@ -1,4 +1,5 @@
 import AppKit
+import Darwin
 import Foundation
 import PortholeStageCore
 import SwiftUI
@@ -14,27 +15,15 @@ struct PortholeStageCaptureApp: App {
     }
 
     static func proofConfiguration() -> ProofConfiguration? {
-        let arguments = CommandLine.arguments
-        guard let title = value(after: "--proof-window-title", in: arguments),
-              let output = value(after: "--proof-output", in: arguments)
-        else { return nil }
-        let approved = arguments.contains("--approve-safe-fixture-persistence")
-        let duration = value(after: "--proof-duration", in: arguments).flatMap(Double.init) ?? 8
-        let outputURL = URL(
-            fileURLWithPath: output,
-            relativeTo: URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
-        ).standardizedFileURL
-        return ProofConfiguration(
-            targetWindowTitle: title,
-            outputDirectory: outputURL,
-            explicitSafeFixtureApproval: approved,
-            durationSeconds: max(2, min(duration, 30))
-        )
-    }
-
-    private static func value(after flag: String, in arguments: [String]) -> String? {
-        guard let index = arguments.firstIndex(of: flag), arguments.indices.contains(index + 1) else { return nil }
-        return arguments[index + 1]
+        do {
+            return try ProofConfigurationParser.parse(
+                arguments: CommandLine.arguments,
+                currentDirectory: URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+            )
+        } catch {
+            fputs("Porthole: \(error.localizedDescription)\n", stderr)
+            exit(EX_USAGE)
+        }
     }
 }
 
@@ -86,42 +75,5 @@ private final class StageApplicationDelegate: NSObject, NSApplicationDelegate {
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         true
-    }
-}
-
-/// Newline-delimited JSON from stdin is the deliberately local transport for
-/// cursor presence in this slice. It never opens a socket or claims remote
-/// collaboration. Malformed and stale events are rejected by CursorStore.
-private final class LocalCursorReader {
-    private var buffer = Data()
-    private var callback: ((CursorEvent) -> Void)?
-    private let decoder = JSONDecoder()
-
-    func start(callback: @escaping (CursorEvent) -> Void) {
-        self.callback = callback
-        FileHandle.standardInput.readabilityHandler = { [weak self] handle in
-            guard let self else { return }
-            let data = handle.availableData
-            if data.isEmpty {
-                self.stop()
-                return
-            }
-            self.buffer.append(data)
-            self.drainLines()
-        }
-    }
-
-    func stop() {
-        FileHandle.standardInput.readabilityHandler = nil
-        callback = nil
-    }
-
-    private func drainLines() {
-        while let newline = buffer.firstIndex(of: 0x0A) {
-            let line = buffer.prefix(upTo: newline)
-            buffer.removeSubrange(...newline)
-            guard !line.isEmpty, let event = try? decoder.decode(CursorEvent.self, from: line) else { continue }
-            callback?(event)
-        }
     }
 }
