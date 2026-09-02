@@ -1,6 +1,7 @@
 // ─── Port Daddy Fleet API client ──────────────────────────────────────────────
 
 import { forgetActorCredential, resolveActorCredential } from './actor-credential';
+import { verifySessionDetail, type SessionDetail } from './sessionPlan';
 
 import type {
   FleetDaemonStatus,
@@ -595,6 +596,17 @@ export async function fetchSessions(opts: {
   if (opts.limit) params.set('limit', String(opts.limit));
   const data = await get<{ sessions?: SessionSummary[] }>(`/sessions${params.toString() ? `?${params}` : ''}`);
   return data.sessions ?? [];
+}
+
+/**
+ * Read one explicit Port Daddy session, including its complete top-level notes.
+ * Design: no directory/cwd/agent fallback and no limited notes-list projection.
+ * @param sessionId Exact session ID from the link or operator selection.
+ * @returns Verified detail from the currently selected daemon.
+ */
+export async function fetchSessionDetail(sessionId: string): Promise<SessionDetail> {
+  if (!sessionId.trim()) throw new Error('The session link has an empty session ID.');
+  return verifySessionDetail(await get<unknown>(`/sessions/${encodeURIComponent(sessionId)}`), sessionId);
 }
 
 export async function fetchFileClaims(opts: {
