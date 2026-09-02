@@ -115,8 +115,22 @@ describe('CLI Integration Tests', () => {
     const lockSlotB = `lock-owner-b-${Date.now()}`;
     let lockSessionA;
     let lockSessionB;
+    let fixtureRoot;
+    let worktreeA;
+    let worktreeB;
 
     beforeAll(() => {
+      // CI checks out a main worktree. Two live principals must use actual
+      // linked worktrees instead of depending on a caller-asserted bypass.
+      fixtureRoot = mkdtempSync(join(tmpdir(), 'pd-lock-owners-'));
+      const fixtureGit = (args) => execFileSync('git', args, { cwd: fixtureRoot, stdio: 'ignore' });
+      fixtureGit(['init']);
+      fixtureGit(['-c', 'core.hooksPath=/dev/null', '-c', 'user.name=PD Test',
+        '-c', 'user.email=pd-test@example.invalid', 'commit', '--allow-empty', '-m', 'fixture']);
+      worktreeA = join(fixtureRoot, 'owner-a');
+      worktreeB = join(fixtureRoot, 'owner-b');
+      fixtureGit(['worktree', 'add', '--detach', worktreeA, 'HEAD']);
+      fixtureGit(['worktree', 'add', '--detach', worktreeB, 'HEAD']);
       const first = runCli([
         'begin',
         'Credentialed lock CLI integration owner A',
@@ -124,8 +138,8 @@ describe('CLI Integration Tests', () => {
         '--identity', `port-daddy:test:${lockOwnerA}`,
         '--lifecycle', 'durable',
         '--json',
-      ], { env: { PORT_DADDY_CONTEXT_SLOT: lockSlotA } });
-      expect(first.success).toBe(true);
+      ], { cwd: worktreeA, env: { PORT_DADDY_CONTEXT_SLOT: lockSlotA } });
+      expect({ success: first.success, stderr: first.stderr }).toMatchObject({ success: true });
       lockSessionA = JSON.parse(first.stdout).sessionId;
 
       const second = runCli([
@@ -135,15 +149,17 @@ describe('CLI Integration Tests', () => {
         '--identity', `port-daddy:test:${lockOwnerB}`,
         '--lifecycle', 'durable',
         '--json',
-      ], { env: { PORT_DADDY_CONTEXT_SLOT: lockSlotB } });
-      expect(second.success).toBe(true);
+      ], { cwd: worktreeB, env: { PORT_DADDY_CONTEXT_SLOT: lockSlotB } });
+      expect({ success: second.success, stderr: second.stderr }).toMatchObject({ success: true });
       lockSessionB = JSON.parse(second.stdout).sessionId;
     });
 
     const runLockAsA = (args) => runCli(args, {
+      cwd: worktreeA,
       env: { PORT_DADDY_CONTEXT_SLOT: lockSlotA },
     });
     const runLockAsB = (args) => runCli(args, {
+      cwd: worktreeB,
       env: { PORT_DADDY_CONTEXT_SLOT: lockSlotB },
     });
 
@@ -158,6 +174,15 @@ describe('CLI Integration Tests', () => {
       }
       clearTestCurrentContext(lockSlotA);
       clearTestCurrentContext(lockSlotB);
+      if (fixtureRoot) rmSync(fixtureRoot, { recursive: true, force: true });
+    });
+
+    test('lock owners are bound to distinct linked worktrees', async () => {
+      const first = await requestWithRetry(`/sessions/${lockSessionA}`);
+      const second = await requestWithRetry(`/sessions/${lockSessionB}`);
+      expect(first.data.session.metadata.worktree).toMatchObject({ root: worktreeA, isMain: false });
+      expect(second.data.session.metadata.worktree).toMatchObject({ root: worktreeB, isMain: false });
+      expect(first.data.session.worktreeId).not.toBe(second.data.session.worktreeId);
     });
 
     test('lock acquires successfully', () => {
