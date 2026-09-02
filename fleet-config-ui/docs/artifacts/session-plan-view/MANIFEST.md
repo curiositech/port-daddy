@@ -16,6 +16,9 @@ roadmap synchronization, or native Porthole screen-recording permissions.
 - The server binds port zero on loopback, prints its actual address, accepts
   reads only, and does not contact a daemon or other service. Stop that exact
   process after inspection. The recorded inspection used PID 28763, port 58086.
+  That exact server was stopped after capture; a listener check confirmed the
+  port was no longer listening. Generated build files were preserved outside
+  Git, separately from these committed proof artifacts.
 - Initial URL: `/fleet-ui/?surface=sessions&session=session-synthetic-a`.
   The old `sessions` route resolves into the existing Agents surface.
 
