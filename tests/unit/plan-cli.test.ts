@@ -97,6 +97,7 @@ describe('plan CLI caller binding through the real session authorization route',
     expect(posts().map(([, init]) => init.headers['x-actor-credential'])).toEqual([a.credential, b.credential, a.credential]);
     for (const [, init] of posts()) {
       expect(init.retry).toBe(false);
+      expect(init.socketFallback).toBe(false);
       expect(Object.keys(JSON.parse(init.body)).sort()).toEqual(['content', 'type']);
     }
   });
@@ -169,6 +170,32 @@ describe('complete canonical plan projection and exact task selectors', () => {
     seed(content);
     await handlePlan(['check', '1'], {});
     expect(plans().at(-1).content).toBe(content.replace('- [ ] Real', '- [x] Real'));
+  });
+  test.each([
+    '<!--\n- [ ] Hidden\n-->\n- [ ] Visible',
+    '<!--\r\n- [ ] Hidden\r\n-->\r\n- [ ] Visible',
+    '<!-- hidden --> - [ ] Visible',
+  ])('HTML-comment markers are not tasks and original positions survive %#', async (content) => {
+    seed(content);
+    await handlePlan(['check', '1'], {});
+    expect(plans().at(-1).content).toBe(content.replace('[ ] Visible', '[x] Visible'));
+  });
+  test('comment opened after a visible task hides later tasks until its close', async () => {
+    const content = '- [ ] First <!--\n- [ ] Hidden\n-->\n- [ ] Second';
+    seed(content);
+    await handlePlan(['check', '2'], {});
+    expect(plans().at(-1).content).toBe(content.replace('[ ] Second', '[x] Second'));
+  });
+  test('comments inside fenced examples never hide subsequent real tasks', async () => {
+    const content = '```html\n<!--\n- [ ] Hidden\n```\n- [ ] Visible';
+    seed(content);
+    await handlePlan(['check', '1'], {});
+    expect(plans().at(-1).content).toBe(content.replace('[ ] Visible', '[x] Visible'));
+  });
+  test('a hidden exact label cannot append', async () => {
+    seed('<!--\n- [ ] Hidden\n-->\n- [ ] Visible');
+    await refuses(['check', 'Hidden'], 'No exact task label');
+    expect(posts()).toHaveLength(0);
   });
   test.each(['0', '3', '999999999999999999999'])('out-of-range ordinal %s cannot append', async (selector) => {
     seed('- [ ] One\n- [ ] Two');

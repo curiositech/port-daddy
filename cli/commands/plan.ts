@@ -15,6 +15,11 @@ import { resolveCliActorCredential } from '../utils/actor-credential.js';
 export async function handlePlan(args: string[], options: CLIOptions): Promise<void> {
   const action = args[0] || 'show';
   const data = args.slice(1).join(' ');
+  /**
+   * The purpose is one bounded diagnostic and an unsuccessful CLI result.
+   * @param message - Local diagnostic, never an arbitrary remote body.
+   * @returns Never; exit keeps failed writes from looking successful.
+   */
   const fail: (message: string) => never = (message) => {
     ui.error(message);
     process.exit(1);
@@ -55,11 +60,18 @@ export async function handlePlan(args: string[], options: CLIOptions): Promise<v
     VALIDATION_ERROR: 'The daemon rejected the plan payload.',
     ADVERSARIAL_PROJECT_GUARD: 'This project requires its protected note envelope.',
   };
+  /**
+   * The design makes one attempt on the selected transport; appends are not
+   * idempotent, so ambiguous completion must be inspected rather than replayed.
+   * @param operation - Read or append, used for bounded outcome diagnostics.
+   * @param init - Method and canonical payload; caller credential stays fixed.
+   * @returns Valid JSON or an unsuccessful, privacy-preserving CLI outcome.
+   */
   const request = async (operation: 'read' | 'append', init: FetchOptions): Promise<Record<string, unknown>> => {
     let response;
     try {
       response = await pdFetch(notesUrl + (operation === 'read' ? '?type=todo_list&limit=1' : ''), {
-        ...init, headers: { ...headers, ...init.headers }, retry: false,
+        ...init, headers: { ...headers, ...init.headers }, retry: false, socketFallback: false,
       });
     } catch {
       return fail(`Plan ${operation} transport failed. ${operation === 'append' ? 'The append outcome is unknown; read the exact plan before retrying.' : 'Nothing was written.'}`);
@@ -76,6 +88,11 @@ export async function handlePlan(args: string[], options: CLIOptions): Promise<v
     if (!body) fail(`Plan ${operation} returned malformed JSON. ${operation === 'append' ? 'The append outcome is unknown; read the exact plan before retrying.' : 'Nothing was written.'}`);
     return body;
   };
+  /**
+   * Append rather than overwrite: the design retains original plan evidence.
+   * @param content - Complete canonical plan with the selected marker changed.
+   * @returns After receiving this exact session's note receipt.
+   */
   const append = async (content: string): Promise<void> => {
     const result = await request('append', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -115,15 +132,35 @@ export async function handlePlan(args: string[], options: CLIOptions): Promise<v
   const lines = latest.content.split('\n');
   const tasks: Array<{ line: number; marker: number; checked: boolean; label: string }> = [];
   let fence: { character: string; length: number } | undefined;
+  let comment = false;
   for (let line = 0; line < lines.length; line++) {
-    const boundary = /^\s*(`{3,}|~{3,})(.*)$/.exec(lines[line]);
-    if (boundary) {
-      if (!fence) fence = { character: boundary[1][0], length: boundary[1].length };
-      else if (boundary[1][0] === fence.character && boundary[1].length >= fence.length && !boundary[2].trim()) fence = undefined;
+    // Fence contents are literal examples, including apparent HTML comments.
+    if (fence) {
+      const closing = /^\s*(`{3,}|~{3,})\s*$/.exec(lines[line]);
+      if (closing && closing[1][0] === fence.character && closing[1].length >= fence.length) fence = undefined;
       continue;
     }
-    if (fence) continue;
-    const task = /^(\s*(?:[-+*]|\d+[.)])\s+\[)([ xX-])(\]\s+)(.*)\r?$/.exec(lines[line]);
+    // Mask comments positionally, including a comment opened after a visible
+    // task. Offsets still address the original canonical string positions.
+    const visible = lines[line].split('');
+    for (let at = 0; at < lines[line].length;) {
+      if (!comment && lines[line].startsWith('<!--', at)) comment = true;
+      if (comment && lines[line].startsWith('-->', at)) {
+        visible.fill(' ', at, at + 3);
+        comment = false;
+        at += 3;
+      } else {
+        if (comment) visible[at] = ' ';
+        at++;
+      }
+    }
+    const visibleLine = visible.join('');
+    const boundary = /^\s*(`{3,}|~{3,})(.*)$/.exec(visibleLine);
+    if (boundary) {
+      fence = { character: boundary[1][0], length: boundary[1].length };
+      continue;
+    }
+    const task = /^(\s*(?:[-+*]|\d+[.)])\s+\[)([ xX-])(\]\s+)(.*)\r?$/.exec(visibleLine);
     if (task) tasks.push({ line, marker: task[1].length, checked: /[xX]/.test(task[2]), label: task[4].trim() });
   }
   const selector = data.trim();

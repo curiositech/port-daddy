@@ -225,11 +225,13 @@ In the dashboard, open **Agents → Open exact session** to read a session's lat
 Every active session requires planning. You can set, show, and check off todo list items:
 
 ```bash
-pd plan set "- [ ] Implement tests\n- [ ] Update docs"
+pd plan set $'- [ ] Implement tests\n- [ ] Update docs'
 pd plan show
-pd plan check 1        # Check off item 1
-pd plan check "docs"   # Check off item by substring matching
+pd plan check 1                # First checklist task, not first Markdown line
+pd plan check "Update docs"    # Exact complete task label
 ```
+
+Plan writes keep the selected caller's credential; `--session` selects only the target and never borrows its owner's identity. Context conflicts, wrong owners, and inactive sessions produce explicit errors rather than a fallback or automatic resume. Checking a task appends the complete updated plan while retaining earlier versions. Headings, blank lines, fenced examples, and HTML comments do not count as tasks; duplicate labels require a task number. An uncertain write is not replayed through another transport: read the exact plan before retrying.
 
 When completing a session with `pd done`, the daemon checks if there are any unchecked checklist items (`[ ]` or `[-]`) in your plan. If unchecked items exist, `pd done` fails closed with code `PLAN_UNCHECKED_ITEMS`.
 
