@@ -643,6 +643,43 @@ change ownership, prove remote persistence, or complete the broader epic.
   [`docs/research/embedding-retrieval-model-landscape-2026.md`](../research/embedding-retrieval-model-landscape-2026.md).
 - Landing requires an independent manager verdict against the final exact head.
 
+### Roadmap authority integration audit (2026-09-02)
+
+Read-only diagnosis against main `9ad3b64af14dabaae25f0db440757b1cd957d1f7` and
+published retrieval head `a6268555f22867a5aff1f3b41304a9ef41960866` found no shipped
+canonical current-relation verifier. The [actual roadmap gate failure](https://github.com/curiositech/port-daddy/actions/runs/33662756701)
+reported `unknown-slug` for this existing epic. That result is an integration dependency,
+not permission to invent an item, self-declare a spawn, or bypass the required check.
+
+- `.github/workflows/roadmap-link.yml` runs `scripts/check-roadmap-link.ts`, whose
+  `loadSnapshot()` reads the committed roadmap snapshot and passes it to the I/O-free
+  classifier in `lib/roadmap-link-core.ts`. No current canonical query or signed decision
+  verification is wired into that path; its merge-group path currently passes through.
+- The account/repository mirror in `apps/relay/src/roadmap-mirror.ts` is an authenticated,
+  replaceable snapshot keyed by repository display name and item slug. It is not the
+  immutable-item, harbor-authorized current typed PR relation the intended gate requires.
+  Redirecting CI to that mirror would substitute an authority, not satisfy the contract.
+- The held Chartroom source associated with [PR #9989](https://github.com/curiositech/port-daddy/pull/9989)
+  supplies bounded projection and historical append/export evidence, not an accepted,
+  deployed exact current-relation verifier or minimal CI grant. A signed past append
+  cannot prove that a node, PR link, or grant is still live. This inspection did not
+  repeat or reroute its held independent review and is not a deployment witness.
+
+The bounded successor belongs with the existing Chartroom owner: define and fixture-test
+one consistent, primary-backed current-node plus typed-PR-relation decision. Bind the full
+account/team/immutable-repository/display-name/harbor/resource scope, preserved item
+identity and alias, live association, server-read PR head/body digest/changed-file evidence,
+authority and key epochs, and short validity window. Sign a validated decision using an
+independently trusted verifier key, not an unsigned last-N preview or a torn sequence of reads.
+Negative fixtures must cover wrong scope, rename/reassignment, tombstones, revoked grants,
+changed PR head/body, truncated projection substitution, and concurrent revocation.
+
+Actual cutover also requires legitimate resolution of the held review, separately authorized
+minimal CI grant and trusted workflow, identity-preserving import of the existing item and
+typed PR link, and governed deployment with readback. Only then replace the snapshot,
+self-spawn, and pass-through paths exhaustively. These are proposed dependencies, not
+executed work, canonical persistence proof, new roadmap items, or an epic-completion claim.
+
 ### Fleet proposal and review dispositions
 
 The dispositions below answer the existing PR #9995 review against the publication source
