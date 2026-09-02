@@ -17,12 +17,15 @@
  */
 
 import { jest } from '@jest/globals';
+import { EventEmitter } from 'node:events';
+import { isWitnessedBackendFailure, witnessedBackendFailure } from '../../lib/agent-resilience.js';
 import { createTestDb } from '../setup-unit.js';
 import { createDispatchQueue } from '../../lib/dispatch/queue.js';
 import {
   createSpawnAdapter,
   gitWorktreeAdd,
   requireCli,
+  runAgentInWorktree,
 } from '../../lib/dispatch/spawn-adapter.js';
 import {
   planRunFor,
@@ -37,6 +40,45 @@ function makeQueue(db) {
 }
 
 const SOURCE_PROJECT = '/repo';
+
+describe('host child lifecycle failure witnesses', () => {
+  function childFixture() {
+    const child = new EventEmitter();
+    child.stdin = { end: jest.fn() };
+    child.stdout = new EventEmitter();
+    child.stderr = new EventEmitter();
+    child.kill = jest.fn(() => { queueMicrotask(() => child.emit('close', 1)); return true; });
+    return child;
+  }
+  function run(child, timeoutMs = 1000) {
+    return runAgentInWorktree({ command: 'codex', args: [], env: {}, worktreePath: SOURCE_PROJECT, timeoutMs, execFileFn: () => child });
+  }
+  test('actual child error code, not its message, creates the host witness', async () => {
+    const child = childFixture();
+    const pending = run(child);
+    child.emit('error', Object.assign(new Error('401 misleading detail'), { code: 'ENOENT' }));
+    const result = await pending;
+    expect(result.failure.code).toBe('BACKEND_ABSENT');
+    expect(isWitnessedBackendFailure(result.failure)).toBe(true);
+    expect(isWitnessedBackendFailure(JSON.parse(JSON.stringify(result.failure)))).toBe(false);
+  });
+  test('stderr or nonzero exit cannot self-assert a recoverable transport failure', async () => {
+    const child = childFixture();
+    const pending = run(child);
+    child.stderr.emit('data', Buffer.from('{"code":"UNAVAILABLE","status":503} ENOENT 429'));
+    child.emit('close', 1);
+    const result = await pending;
+    expect(result.failure).toBeUndefined();
+    expect(result.error).toContain('ENOENT');
+  });
+  test('the actual local timeout creates its witness only after child close', async () => {
+    const child = childFixture();
+    const result = await run(child, 10);
+    expect(child.kill).toHaveBeenCalledWith('SIGTERM');
+    expect(result.failure.code).toBe('TIMEOUT');
+    expect(isWitnessedBackendFailure(result.failure)).toBe(true);
+  });
+});
 
 /** Build a no-op adapter that records its calls. */
 function makeAdapter(overrides = {}) {
@@ -266,6 +308,18 @@ describe('createSpawnAdapter — spawn argv', () => {
     queue = makeQueue(db);
   });
   afterEach(() => { db.close(); });
+
+  test.each([false, true])('adapter preserves only exact process-local witness (clone=%s)', async clone => {
+    queue.propose({ goal: 'preserve failure facts', projectDir: SOURCE_PROJECT });
+    const witness = witnessedBackendFailure({ kind: 'os', code: 'ENOENT' });
+    const supplied = clone ? JSON.parse(JSON.stringify(witness)) : witness;
+    const { adapter } = makeAdapter({
+      spawnFn: async () => ({ output: '', error: 'ENOENT display', failure: supplied }),
+      openPrFn: async () => { throw new Error('no artifact'); },
+    });
+    const response = await runNext(queue, { dryRun: false, spawnAdapter: adapter });
+    expect(response.result.error).toBe(clone ? undefined : witness);
+  });
 
   test('spawnFn receives the correct command + args for cli:codex (default)', async () => {
     const dispatch = queue.propose({ goal: 'write unit tests for the spawner', projectDir: SOURCE_PROJECT });
