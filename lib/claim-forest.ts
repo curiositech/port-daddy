@@ -9,7 +9,12 @@
 
 import { createHash } from 'node:crypto';
 import type Database from 'better-sqlite3';
-import type { ExactClaimBinding, TakeoverDisposition } from './durable-ownership.js';
+import type {
+  AnchorRepairClaimMapping,
+  ExactClaimBinding,
+  SameOwnerAnchorRepair,
+  TakeoverDisposition,
+} from './durable-ownership.js';
 
 export type ClaimForestWorldKind = 'worktree' | 'ref' | 'commit' | 'harbor';
 export type ClaimForestSelectorKind = 'repo' | 'directory' | 'file' | 'symbol' | 'range';
@@ -92,6 +97,8 @@ export interface ExactClaimTransferInput {
   allowUnboundPredecessor: boolean;
   bindings: ExactClaimBinding[];
   transferredAt?: number;
+  /** Daemon-verified signed repair only; ordinary transfers keep their world. */
+  anchorRepair?: SameOwnerAnchorRepair;
 }
 
 interface SessionContext {
@@ -734,12 +741,81 @@ export function createClaimForest(db: Database.Database) {
   }
 
   /**
+   * Derive an address using the forest's existing canonical node-id function.
+   * Purpose: a repair creates a new world/node and never relabels the old node.
+   * @param row Exact stored source claim, including its repository and selector.
+   * @param worldId Explicit destination world; no repository/path rewriting.
+   * @returns Address whose node id can be signed before any database write.
+   */
+  function repairAddress(row: ClaimForestRow, worldId: string): ClaimForestAddress {
+    return {
+      repoId: row.repo_id,
+      world: { kind: 'worktree', id: worldId, gitOid: row.git_oid },
+      selector: {
+        kind: row.selector_kind,
+        path: row.path,
+        symbol: row.symbol,
+        symbolPath: row.symbol_path,
+        startLine: row.start_line,
+        endLine: row.end_line,
+        contentHash: row.claim_content_hash,
+      },
+    };
+  }
+
+  /**
+   * Plan exact source-to-destination ids without creating nodes or claims.
+   * The motivation is to put the complete mapping under the existing daemon
+   * signature, then recompute it inside the ownership transaction before use.
+   * @param sessionId Predecessor session whose live claims are being inspected.
+   * @param bindings Complete explicit transfer/release snapshot.
+   * @param targetWorktreeId Independently probed destination, not an alias.
+   * @returns Deterministically sorted mapping; released claims have no new node.
+   */
+  function planAnchorRepairClaimMappings(
+    sessionId: string,
+    bindings: ExactClaimBinding[],
+    targetWorktreeId: string,
+  ): AnchorRepairClaimMapping[] {
+    if (!targetWorktreeId.trim() || bindings.length > 5000) {
+      throw new Error('anchor repair destination or claim bound is invalid');
+    }
+    return [...bindings].sort((a, b) => a.claimNodeId.localeCompare(b.claimNodeId)).map(binding => {
+      const row = stmts.selectExactActiveClaim.get(binding.claimNodeId, sessionId) as ClaimForestRow | undefined;
+      if (!row || row.world_kind !== 'worktree' || row.world_id === targetWorktreeId) {
+        throw new Error(`anchor repair requires a live claim in a different recorded worktree: ${binding.claimNodeId}`);
+      }
+      if (binding.disposition !== 'transfer' && binding.disposition !== 'release') {
+        throw new Error('anchor repair requires every disposition explicitly');
+      }
+      const address = repairAddress(row, row.world_id);
+      if (nodeIdFor(address, row.selector_kind, normalizePath(row.path)) !== binding.claimNodeId) {
+        throw new Error(`source node address no longer matches its canonical id: ${binding.claimNodeId}`);
+      }
+      const destination = repairAddress(row, targetWorktreeId);
+      return {
+        sourceClaimNodeId: binding.claimNodeId,
+        successorClaimNodeId: binding.disposition === 'transfer'
+          ? nodeIdFor(destination, row.selector_kind, normalizePath(row.path))
+          : null,
+      };
+    });
+  }
+
+  /**
    * Transfer or release exactly the claim snapshot carried by a signed
    * takeover grant. The caller must invoke this inside the ownership service's
    * SQLite IMMEDIATE transaction. Any mismatch throws before a successor claim
    * is minted, so the outer transaction rolls back the complete disposition.
+   * The purpose of repair mappings is to create new-world addresses while
+   * preserving every historical source node and preventing peer-claim theft.
+   * @param input Verified grant snapshot, complete dispositions, and exact owners.
+   * @returns Source claim dispositions and the explicit new-world mapping, if any.
    */
   function transferExactClaims(input: ExactClaimTransferInput): TakeoverDisposition {
+    if (!(db as Database.Database).inTransaction) {
+      throw new Error('exact claim transfer requires the ownership IMMEDIATE transaction');
+    }
     const transferredAt = input.transferredAt ?? Date.now();
     if (!input.grantId.trim() || !input.sourceSessionId.trim() || !input.successorSessionId.trim()) {
       throw new Error('exact claim transfer requires grant, source session, and successor session ids');
@@ -758,6 +834,42 @@ export function createClaimForest(db: Database.Database) {
       .map(row => row.node_id);
     const transferredClaimNodeIds: string[] = [];
     const releasedClaimNodeIds: string[] = [];
+    const repair = input.anchorRepair;
+    let repairMappings: AnchorRepairClaimMapping[] | undefined;
+    if (repair) {
+      if (input.predecessorAgentNodeId !== input.successorAgentNodeId || input.allowUnboundPredecessor) {
+        throw new Error('anchor repair requires the same canonically bound AgentNode');
+      }
+      if (
+        bindings.some(binding => binding.worldKind !== 'worktree' || binding.worldId !== repair.sourceWorktreeId)
+        || JSON.stringify([...activeBefore].sort()) !== JSON.stringify(bindings.map(binding => binding.claimNodeId).sort())
+      ) {
+        throw new Error('anchor repair must dispose the complete exact recorded-world claim set');
+      }
+      if ((stmts.listActiveNodeIdsBySession.all(input.successorSessionId) as unknown[]).length !== 0) {
+        throw new Error('anchor repair successor must have no pre-existing claims');
+      }
+      repairMappings = planAnchorRepairClaimMappings(input.sourceSessionId, bindings, repair.targetWorktreeId);
+      if (JSON.stringify(repairMappings) !== JSON.stringify(repair.claimNodeMappings)) {
+        throw new Error('signed anchor repair claim-node mapping drifted');
+      }
+      // Be conservative about selector granularity: even a different symbol
+      // in the same file blocks a cross-world repair. Ordinary claim admission
+      // may negotiate shared modes; repair never silently negotiates for peers.
+      const targetClaims = listActiveClaims({ worldKind: 'worktree', worldId: repair.targetWorktreeId });
+      for (const binding of bindings.filter(candidate => candidate.disposition === 'transfer')) {
+        const source = stmts.selectExactActiveClaim.get(binding.claimNodeId, input.sourceSessionId) as ClaimForestRow;
+        const path = normalizePath(binding.filePath) ?? '';
+        if (targetClaims.some(target => target.repoId === source.repo_id && (
+          target.selectorKind === 'repo' || binding.selectorKind === 'repo'
+          || target.filePath === path
+          || (target.selectorKind === 'directory' && path.startsWith(`${target.filePath}/`))
+          || (binding.selectorKind === 'directory' && target.filePath.startsWith(`${path}/`))
+        ))) {
+          throw new Error(`destination claim scope is already occupied: ${binding.claimNodeId}`);
+        }
+      }
+    }
 
     for (const binding of bindings) {
       if (binding.disposition !== 'transfer' && binding.disposition !== 'release') {
@@ -866,6 +978,9 @@ export function createClaimForest(db: Database.Database) {
             transferredAt,
             input.successorAgentNodeId,
           );
+          if (inserted.changes !== 1) {
+            throw new Error(`legacy successor claim was not inserted: ${binding.claimNodeId}`);
+          }
           successorLegacySessionFileId = Number(inserted.lastInsertRowid);
         }
       }
@@ -882,8 +997,14 @@ export function createClaimForest(db: Database.Database) {
           // Malformed historical metadata is retained as a known raw value.
           priorMetadata = { predecessorMetadataMalformed: true };
         }
-        stmts.insertTransferredClaim.run(
-          row.node_id,
+        const successorNodeId = repair
+          ? ensureNode(repairAddress(row, repair.targetWorktreeId)).id
+          : row.node_id;
+        if (repair && successorNodeId !== repairMappings?.find(mapping => mapping.sourceClaimNodeId === row.node_id)?.successorClaimNodeId) {
+          throw new Error('created successor node differs from the signed repair mapping');
+        }
+        const inserted = stmts.insertTransferredClaim.run(
+          successorNodeId,
           input.successorSessionId,
           input.successorAgentId,
           input.successorAgentNodeId,
@@ -903,9 +1024,19 @@ export function createClaimForest(db: Database.Database) {
               predecessorAgentNodeId: input.predecessorAgentNodeId,
               successorAgentNodeId: input.successorAgentNodeId,
               transferredAt,
+              ...(repair ? {
+                kind: 'same-owner-anchor-repair',
+                sourceWorldId: row.world_id,
+                successorWorldId: repair.targetWorktreeId,
+                sourceClaimNodeId: row.node_id,
+                successorClaimNodeId: successorNodeId,
+              } : {}),
             },
           }),
         );
+        if (inserted.changes !== 1) {
+          throw new Error(`successor claim was not inserted: ${binding.claimNodeId}`);
+        }
         transferredClaimNodeIds.push(binding.claimNodeId);
       } else {
         releasedClaimNodeIds.push(binding.claimNodeId);
@@ -918,6 +1049,7 @@ export function createClaimForest(db: Database.Database) {
       transferredClaimNodeIds,
       releasedClaimNodeIds,
       preservedClaimNodeIds: activeBefore.filter(nodeId => !grantedIds.has(nodeId)).sort(),
+      ...(repairMappings ? { claimNodeMappings: repairMappings } : {}),
     };
   }
 
@@ -996,6 +1128,7 @@ export function createClaimForest(db: Database.Database) {
     claim,
     listActiveClaims,
     listClaimsForSession,
+    planAnchorRepairClaimMappings,
     transferExactClaims,
     getActiveClaimsForFile,
     getActiveClaimsForFileExcludingSession,

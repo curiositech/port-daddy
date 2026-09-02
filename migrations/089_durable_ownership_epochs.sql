@@ -106,6 +106,7 @@ CREATE TABLE IF NOT EXISTS durable_takeover_grants (
   source_witness_json TEXT NOT NULL,
   successor_witness_json TEXT NOT NULL,
   predecessor_evidence_gap_json TEXT,
+  anchor_repair_json TEXT,
   work_binding_json TEXT NOT NULL,
   claim_bindings_json TEXT NOT NULL,
   claim_set_hash TEXT NOT NULL,
@@ -121,6 +122,9 @@ CREATE TABLE IF NOT EXISTS durable_takeover_grants (
 );
 CREATE INDEX IF NOT EXISTS idx_durable_takeover_grants_epoch
   ON durable_takeover_grants(predecessor_epoch_id, expires_at DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_durable_anchor_repair_idempotency
+  ON durable_takeover_grants(authorized_actor_id, json_extract(anchor_repair_json, '$.idempotencyKey'))
+  WHERE anchor_repair_json IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS durable_takeover_receipts (
   receipt_id TEXT PRIMARY KEY,
