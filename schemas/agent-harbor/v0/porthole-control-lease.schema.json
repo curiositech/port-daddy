@@ -53,7 +53,19 @@
         "verifiedAt": { "type": ["string", "null"], "format": "date-time" }
       },
       "required": ["required", "status", "receiptRef", "verifiedAt"],
-      "additionalProperties": false
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": { "properties": { "required": { "const": true } }, "required": ["required"] },
+          "then": { "properties": { "status": { "enum": ["pending", "verified", "failed"] } } },
+          "else": { "properties": { "status": { "const": "not-required" } } }
+        },
+        {
+          "if": { "properties": { "status": { "const": "verified" } }, "required": ["status"] },
+          "then": { "properties": { "receiptRef": { "type": "string", "minLength": 1 }, "verifiedAt": { "type": "string", "format": "date-time" } } },
+          "else": { "properties": { "receiptRef": { "const": null }, "verifiedAt": { "const": null } } }
+        }
+      ]
     },
     "actionBudget": {
       "type": "object",
@@ -167,6 +179,15 @@
   ],
   "additionalProperties": false,
   "allOf": [
+    {
+      "if": { "properties": { "timing": { "properties": { "authorizedAt": { "type": "string" } }, "required": ["authorizedAt"] }, "stepUp": { "properties": { "required": { "const": true } }, "required": ["required"] } }, "required": ["timing", "stepUp"] },
+      "then": {
+        "properties": {
+          "stepUp": { "properties": { "status": { "const": "verified" } } },
+          "authoritySnapshot": { "properties": { "stepUpLevel": { "enum": ["recent-user", "webauthn", "platform-biometric"] } } }
+        }
+      }
+    },
     {
       "if": { "properties": { "status": { "const": "requested" } }, "required": ["status"] },
       "then": {

@@ -402,6 +402,16 @@ function validatePortholeSemantics(name, value) {
     const terminal = value.timing.terminalAt === null ? null : time('timing.terminalAt', value.timing.terminalAt);
     if (granted !== null && granted < requested) errors.push('grantedAt precedes requestedAt');
     if (authorized !== null && (granted === null || authorized < granted)) errors.push('authorizedAt precedes grantedAt');
+    if (value.stepUp.required && authorized !== null &&
+      (value.stepUp.status !== 'verified' || value.stepUp.receiptRef === null || value.stepUp.verifiedAt === null)) {
+      errors.push('authorization requires verified step-up proof');
+    }
+    if (value.stepUp.status === 'verified') {
+      const verified = time('stepUp.verifiedAt', value.stepUp.verifiedAt);
+      if (verified < requested || (authorized !== null && verified > authorized)) {
+        errors.push('step-up verification must follow request and precede authorization');
+      }
+    }
     if (expires !== null && (authorized === null || expires <= authorized)) errors.push('expiresAt must follow authorizedAt');
     if (terminal !== null && terminal < requested) errors.push('terminalAt precedes requestedAt');
     if (value.status === 'expired' && terminal !== expires) errors.push('expired lease terminalAt must equal expiresAt');
@@ -1000,6 +1010,64 @@ describe('Porthole v1 security and causality invariants', () => {
     expect(validatePortholeSemantics('porthole-control-lease', forgedSigner)).toContain(
       'lease signature key must match issuer signing key',
     );
+  });
+
+  it('requires completed step-up proof before active or previously authorized control', () => {
+    const schema = loadSchema('porthole-control-lease');
+    for (const lifecycle of ['active', 'revoked', 'preempted', 'expired', 'completed']) {
+      for (const status of ['pending', 'failed', 'not-required']) {
+        const lease = loadFixture('porthole-control-lease');
+        lease.status = lifecycle;
+        if (lifecycle !== 'active') {
+          lease.timing.terminationRequestedAt = lease.timing.expiresAt;
+          lease.timing.terminalAt = lease.timing.expiresAt;
+          lease.receipts.terminal = copy(lease.receipts.authorization);
+        }
+        expect(validate(schema, lease)).toEqual([]);
+        expect(validatePortholeSemantics('porthole-control-lease', lease)).toEqual([]);
+        Object.assign(lease.stepUp, { status, receiptRef: null, verifiedAt: null });
+        expect(validate(schema, lease).length).toBeGreaterThan(0);
+        expect(validatePortholeSemantics('porthole-control-lease', lease))
+          .toContain('authorization requires verified step-up proof');
+      }
+    }
+    for (const field of ['receiptRef', 'verifiedAt']) {
+      const lease = loadFixture('porthole-control-lease');
+      lease.stepUp[field] = null;
+      expect(validate(schema, lease).length).toBeGreaterThan(0);
+    }
+    const notRequired = loadFixture('porthole-control-lease');
+    notRequired.stepUp = { required: false, status: 'not-required', receiptRef: null, verifiedAt: null };
+    notRequired.authoritySnapshot.stepUpLevel = 'none';
+    expect(validate(schema, notRequired)).toEqual([]);
+    expect(validatePortholeSemantics('porthole-control-lease', notRequired)).toEqual([]);
+    const contradictory = copy(notRequired);
+    contradictory.stepUp.receiptRef = 'unverified-proof';
+    expect(validate(schema, contradictory).length).toBeGreaterThan(0);
+  });
+
+  it('permits pending requests but rejects step-up proof outside the authorization interval', () => {
+    const schema = loadSchema('porthole-control-lease');
+    const requested = loadFixture('porthole-control-lease');
+    Object.assign(requested, { status: 'requested', decisionParticipantId: null, grantorParticipantId: null });
+    Object.assign(requested.timing, { grantedAt: null, authorizedAt: null, expiresAt: null });
+    Object.assign(requested.receipts, { grant: null, authorization: null });
+    Object.assign(requested.atomicFocusRevalidation, { checkedAt: null, receiptRef: null });
+    Object.assign(requested.stepUp, { status: 'pending', receiptRef: null, verifiedAt: null });
+    requested.issuer.participantId = requested.requestedByParticipantId;
+    expect(validate(schema, requested)).toEqual([]);
+    expect(validatePortholeSemantics('porthole-control-lease', requested)).toEqual([]);
+    for (const verifiedAt of ['2026-08-30T18:00:13.999Z', '2026-08-30T18:00:15.101Z']) {
+      const lease = loadFixture('porthole-control-lease');
+      lease.stepUp.verifiedAt = verifiedAt;
+      expect(validatePortholeSemantics('porthole-control-lease', lease))
+        .toContain('step-up verification must follow request and precede authorization');
+    }
+    for (const key of ['requestedAt', 'authorizedAt']) {
+      const lease = loadFixture('porthole-control-lease');
+      lease.stepUp.verifiedAt = lease.timing[key];
+      expect(validatePortholeSemantics('porthole-control-lease', lease)).toEqual([]);
+    }
   });
 
   it('binds completeness to the committed schedule, exact stream boundary, verified counts, and issuer', () => {

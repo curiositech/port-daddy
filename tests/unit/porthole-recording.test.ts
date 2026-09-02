@@ -30,6 +30,7 @@ import {
   type AppendGapInput,
   type AppendSegmentInput,
   type PortholePerspective,
+  type PortholeCompletenessReceipt,
   type PortholePrivacyReceipt,
   type PortholeReceiptSigner,
   type PortholeVerifiedSignatureAuthority,
@@ -274,6 +275,145 @@ afterEach(() => {
 });
 
 describe('Porthole encrypted first-person evidence', () => {
+  test('rejects distinct signed burst samples before changing the ledger or blob store', () => {
+    const { store, dir } = state();
+    const manifest = startNativeStage(store, 3);
+    const sample = (captureIndex: number, capturedAt: string) => attestedSegment(manifest, {
+      captureIndex, capturedAt, mediaType: 'image/png', bytes: Buffer.from(`frame-${captureIndex}`),
+    }, `privacy_burst_${captureIndex}`);
+    store.appendSegment(manifest.perspectiveId, sample(0, manifest.startedAt));
+    const before = store.events(manifest.perspectiveId);
+    const files = readdirSync(dir);
+    expect(() => store.appendSegment(manifest.perspectiveId, sample(1, manifest.startedAt)))
+      .toThrow(/capture slot/);
+    expect(store.events(manifest.perspectiveId)).toEqual(before);
+    expect(readdirSync(dir)).toEqual(files);
+    store.appendSegment(manifest.perspectiveId, sample(1, '2026-08-30T18:00:01.000Z'));
+    store.appendSegment(manifest.perspectiveId, sample(2, '2026-08-30T18:00:02.000Z'));
+    expect(store.complete(manifest.perspectiveId, {
+      stopReason: 'operator', closedAt: '2026-08-30T18:00:03.000Z',
+    })).toMatchObject({ status: 'complete', expectedCaptureCount: 3, verifiedSegmentCount: 3 });
+    expect(store.verifyReceipt(manifest.perspectiveId).valid).toBe(true);
+    expect(store.verifyEvidence(manifest.perspectiveId).valid).toBe(true);
+  });
+
+  test.each([
+    ['next slot opening', 1000, null],
+    ['later slot', 2000, null],
+    ['end crosses slot', 500, 1001],
+  ])('rejects %s for slot zero before persistence', (_label, at, end) => {
+    const { store, dir } = state();
+    const manifest = startNativeStage(store, 3);
+    const timestamp = (ms: number) => new Date(Date.parse(manifest.startedAt) + ms).toISOString();
+    const subject = { captureIndex: 0, capturedAt: timestamp(at),
+      endedAt: end === null ? null : timestamp(end), mediaType: 'image/png', bytes: Buffer.from('slot') };
+    const files = readdirSync(dir);
+    expect(() => store.appendSegment(manifest.perspectiveId, attestedSegment(manifest, subject)))
+      .toThrow(/capture slot/);
+    expect(store.events(manifest.perspectiveId)).toHaveLength(1);
+    expect(readdirSync(dir)).toEqual(files);
+  });
+
+  test.each([500, 2500, 3000])('counts the final partial interval for duration %i', (durationMs) => {
+    const { store } = state();
+    const input = nativeStageInput();
+    input.captureSchedule.boundary.durationMs = durationMs;
+    const { commitmentHash: _hash, ...material } = input.captureSchedule;
+    input.captureSchedule.commitmentHash = computePortholeScheduleCommitment(material);
+    const manifest = store.start(input);
+    const count = Math.ceil(durationMs / 1000);
+    for (let captureIndex = 0; captureIndex < count; captureIndex += 1) {
+      const end = Math.min((captureIndex + 1) * 1000, durationMs);
+      store.appendSegment(manifest.perspectiveId, attestedSegment(manifest, {
+        captureIndex,
+        capturedAt: new Date(Date.parse(manifest.startedAt) + end - 1).toISOString(),
+        endedAt: new Date(Date.parse(manifest.startedAt) + end).toISOString(),
+        mediaType: 'image/png', bytes: Buffer.from(`partial-${captureIndex}`),
+      }, `privacy_partial_${captureIndex}`));
+    }
+    expect(store.complete(manifest.perspectiveId, { stopReason: 'operator',
+      closedAt: new Date(Date.parse(manifest.startedAt) + durationMs).toISOString(),
+    })).toMatchObject({ status: 'complete', expectedCaptureCount: count, missingCaptureCount: 0 });
+    expect(store.verifyReceipt(manifest.perspectiveId).valid).toBe(true);
+  });
+
+  test('gaps consume exactly one slot and cannot cover another interval', () => {
+    const { store } = state();
+    const manifest = startNativeStage(store, 3);
+    for (const [at, durationMs] of [[0, 1001], [1000, 0], [999, 2]]) {
+      expect(() => store.appendGap(manifest.perspectiveId, { captureIndex: 0,
+        occurredAt: new Date(Date.parse(manifest.startedAt) + at).toISOString(), durationMs, reason: 'unknown',
+      })).toThrow(/capture slot/);
+      expect(store.events(manifest.perspectiveId)).toHaveLength(1);
+    }
+    store.appendGap(manifest.perspectiveId, { captureIndex: 0, occurredAt: manifest.startedAt,
+      durationMs: 1000, reason: 'unknown' });
+    expect(() => store.appendGap(manifest.perspectiveId, { captureIndex: 1,
+      occurredAt: manifest.startedAt, reason: 'unknown' })).toThrow(/capture slot/);
+    store.appendGap(manifest.perspectiveId, { captureIndex: 1,
+      occurredAt: '2026-08-30T18:00:01.000Z', durationMs: 1000, reason: 'unknown' });
+    expect(store.complete(manifest.perspectiveId, { stopReason: 'operator',
+      closedAt: '2026-08-30T18:00:03.000Z',
+    })).toMatchObject({ status: 'failed', declaredGapCount: 2, missingCaptureCount: 1 });
+  });
+
+  test.each(['burst', 'swapped', 'end spill', 'exclusive endpoint'])(
+    'revalidates %s stored gaps despite a valid chain and freshly signed receipt', (variant) => {
+      const { db, store } = state();
+      const manifest = startNativeStage(store, 2);
+      for (let captureIndex = 0; captureIndex < 2; captureIndex += 1) {
+        store.appendGap(manifest.perspectiveId, { captureIndex,
+          occurredAt: new Date(Date.parse(manifest.startedAt) + captureIndex * 1000).toISOString(),
+          durationMs: 0, reason: 'unknown' });
+      }
+      store.complete(manifest.perspectiveId, { stopReason: 'operator', closedAt: '2026-08-30T18:00:02.000Z' });
+      expect(store.verifyReceipt(manifest.perspectiveId).valid).toBe(true);
+      const stream = store.events(manifest.perspectiveId);
+      const gaps = stream.filter((event) => event.kind === 'capture-gap');
+      if (variant === 'burst') gaps[1].occurredAt = manifest.startedAt;
+      if (variant === 'swapped') [gaps[0].occurredAt, gaps[1].occurredAt] = [gaps[1].occurredAt, gaps[0].occurredAt];
+      if (variant === 'end spill') gaps[0].payload.durationMs = 1001;
+      if (variant === 'exclusive endpoint') gaps[1].occurredAt = '2026-08-30T18:00:02.000Z';
+      for (const gap of gaps) gap.payload.occurredAt = gap.occurredAt;
+
+      // Synthetic database-owner corruption only: production UPDATE/DELETE
+      // remains trigger-blocked. Rehash and re-sign to isolate timing checks
+      // from hash/signature validation, simulating an invalid legacy writer.
+      const triggers = db.prepare("SELECT name FROM sqlite_master WHERE type = 'trigger' AND tbl_name = 'porthole_events'")
+        .all() as Array<{ name: string }>;
+      for (const { name } of triggers) db.exec(`DROP TRIGGER "${name.replaceAll('"', '""')}"`);
+      const hash = (value: unknown) => `sha256:${createHash('sha256').update(canonicalTestJson(value)).digest('hex')}`;
+      let prior: string | null = null;
+      let signedReceipt: PortholeCompletenessReceipt | undefined;
+      for (const event of stream) {
+        event.prevHash = prior;
+        if (event.kind === 'completeness-receipt-issued') {
+          const receipt = event.payload as unknown as PortholeCompletenessReceipt;
+          receipt.chainHeadHash = prior as string;
+          receipt.streamBoundary.terminalEventCommitment = prior as string;
+          const { signature: _signature, contentHash: _contentHash, ...unsigned } = receipt;
+          receipt.contentHash = hash({ domain: 'pd.porthole.completeness-receipt-content.v1', receipt: unsigned });
+          const message = portholeCompletenessReceiptSigningMessage({ ...unsigned, contentHash: receipt.contentHash });
+          receipt.signature.value = cryptoSign(null, message, devicePair.privateKey).toString('base64url');
+          expect(cryptoVerify(null, message, devicePair.publicKey, Buffer.from(receipt.signature.value, 'base64url'))).toBe(true);
+          message.fill(0);
+          signedReceipt = receipt;
+        }
+        const { eventId, perspectiveId, ordinal, kind, occurredAt, payload, prevHash } = event;
+        prior = hash({ eventId, perspectiveId, ordinal, kind, occurredAt, payload, prevHash });
+        db.prepare('UPDATE porthole_events SET occurred_at = ?, payload_json = ?, prev_hash = ?, content_hash = ? WHERE event_id = ?')
+          .run(occurredAt, canonicalTestJson(payload), prevHash, prior, eventId);
+      }
+      expect(signedReceipt).toBeDefined();
+      expect(store.verifyChain(manifest.perspectiveId)).toEqual({ valid: true, checked: 5 });
+      expect(store.verifyReceipt(manifest.perspectiveId)).toEqual({ valid: false, error: 'receipt-invalid' });
+      expect(store.verifyEvidence(manifest.perspectiveId)).toMatchObject({ valid: false, chronologyValid: false,
+        chain: { valid: true }, invalidCiphertextCount: 0 });
+      expect(() => store.list()).toThrow(/invalid signed receipt/);
+      expect(() => store.complete(manifest.perspectiveId, { stopReason: 'operator' })).toThrow(/different receipt/);
+    },
+  );
+
   test('seals arbitrary GUI pixels and semantic anchors before blob persistence', () => {
     const { store, dir } = state();
     const manifest = startNativeStage(store);
@@ -316,7 +456,7 @@ describe('Porthole encrypted first-person evidence', () => {
     const visibleBytes = Buffer.from('PNG_BYTES_WITH_CHECKOUT_BUTTON');
     const firstSubject = {
       captureIndex: 0,
-      capturedAt: '2026-08-30T18:00:01.000Z',
+      capturedAt: '2026-08-30T18:00:00.000Z',
       mediaType: 'image/png',
       bytes: visibleBytes,
       semanticOverlay: {
@@ -375,7 +515,7 @@ describe('Porthole encrypted first-person evidence', () => {
     const manifest = startNativeStage(store, 2);
     const input = attestedSegment(manifest, {
       captureIndex: 0,
-      capturedAt: '2026-08-30T18:00:01.000Z',
+      capturedAt: '2026-08-30T18:00:00.000Z',
       mediaType: 'image/png',
       bytes: Buffer.from('same-frame'),
     });
@@ -393,15 +533,15 @@ describe('Porthole encrypted first-person evidence', () => {
     expect(() => store.appendSegment(manifest.perspectiveId, {
       ...input,
       captureIndex: 1,
-      capturedAt: '2026-08-30T18:00:02.000Z',
+      capturedAt: '2026-08-30T18:00:01.000Z',
     })).toThrow(/authority or stream binding/);
     expect(() => store.appendSegment(manifest.perspectiveId, {
       ...input,
-      capturedAt: '2026-08-30T18:00:01.500Z',
+      capturedAt: '2026-08-30T18:00:00.500Z',
     })).toThrow(/authority or stream binding/);
     expect(() => store.appendSegment(manifest.perspectiveId, {
       ...input,
-      endedAt: '2026-08-30T18:00:01.250Z',
+      endedAt: '2026-08-30T18:00:00.250Z',
     })).toThrow(/authority or stream binding/);
     expect(() => store.appendSegment(manifest.perspectiveId, {
       ...input,
@@ -425,7 +565,7 @@ describe('Porthole encrypted first-person evidence', () => {
     const secondManifest = startNativeStage(second.store);
     const subject = {
       captureIndex: 0,
-      capturedAt: '2026-08-30T18:00:01.000Z',
+      capturedAt: '2026-08-30T18:00:00.000Z',
       mediaType: 'image/png',
       bytes: Buffer.from('same-private-frame'),
       semanticOverlay: {
@@ -518,7 +658,18 @@ describe('Porthole encrypted first-person evidence', () => {
         value: 'plain-object',
         toJSON: () => ({ value: 'rewritten-plain-object' }),
       },
+      Number.NaN, Number.POSITIVE_INFINITY, undefined, 1n, () => 'not-json',
+      Object.assign([], { extra: 'discarded' }),
+      [1, , 3],
+      Object.assign({}, { [Symbol('hidden')]: 'discarded' }),
+      Object.defineProperty({}, 'hidden', { value: 'discarded', enumerable: false }),
     ];
+    let accessorCalls = 0;
+    invalidValues.push(Object.defineProperty({}, 'value', { enumerable: true,
+      get() { accessorCalls += 1; return 'must-not-execute'; } }));
+    const cyclic: Record<string, unknown> = {};
+    cyclic.self = cyclic;
+    invalidValues.push(cyclic);
     for (const [index, invalidValue] of invalidValues.entries()) {
       const invalid = state();
       expect(() => invalid.store.start({
@@ -532,6 +683,7 @@ describe('Porthole encrypted first-person evidence', () => {
         count: 0,
       });
     }
+    expect(accessorCalls).toBe(0);
   });
 
   test('fails closed without an exact-target privacy receipt or with background capture', () => {
@@ -539,7 +691,7 @@ describe('Porthole encrypted first-person evidence', () => {
     const missingManifest = startNativeStage(missing.store);
     const inputWithoutReceipt = {
       captureIndex: 0,
-      capturedAt: '2026-08-30T18:00:01.000Z',
+      capturedAt: '2026-08-30T18:00:00.000Z',
       mediaType: 'image/png',
       bytes: Buffer.from('unattested-frame'),
     } as Parameters<typeof missing.store.appendSegment>[1];
@@ -557,7 +709,7 @@ describe('Porthole encrypted first-person evidence', () => {
     const backgroundManifest = startNativeStage(background.store);
     const backgroundSubject = {
       captureIndex: 0,
-      capturedAt: '2026-08-30T18:00:01.000Z',
+      capturedAt: '2026-08-30T18:00:00.000Z',
       mediaType: 'image/png',
       bytes: Buffer.from('frame-with-background-media'),
     };
@@ -586,7 +738,7 @@ describe('Porthole encrypted first-person evidence', () => {
     const manifest = startNativeStage(store);
     store.appendSegment(manifest.perspectiveId, attestedSegment(manifest, {
       captureIndex: 0,
-      capturedAt: '2026-08-30T18:00:01.000Z',
+      capturedAt: '2026-08-30T18:00:00.000Z',
       mediaType: 'image/png',
       bytes: Buffer.from('quarantined-before-persistence'),
     }, 'privacy_quarantined_001', 'quarantined'));
@@ -596,6 +748,7 @@ describe('Porthole encrypted first-person evidence', () => {
     }).status).toBe('failed');
     expect(store.verifyEvidence(manifest.perspectiveId)).toEqual({
       valid: false,
+      chronologyValid: true,
       chain: { valid: true, checked: 4 },
       checkedSegmentCount: 1,
       missingCiphertextCount: 0,
@@ -612,7 +765,7 @@ describe('Porthole encrypted first-person evidence', () => {
       missingManifest,
       {
       captureIndex: 0,
-      capturedAt: '2026-08-30T18:00:01.000Z',
+      capturedAt: '2026-08-30T18:00:00.000Z',
       mediaType: 'image/png',
       bytes: Buffer.from('ciphertext-that-will-go-missing'),
       },
@@ -630,7 +783,7 @@ describe('Porthole encrypted first-person evidence', () => {
       tamperedManifest,
       {
       captureIndex: 0,
-      capturedAt: '2026-08-30T18:00:01.000Z',
+      capturedAt: '2026-08-30T18:00:00.000Z',
       mediaType: 'image/png',
       bytes: Buffer.from('ciphertext-that-will-be-tampered'),
       },
@@ -651,7 +804,7 @@ describe('Porthole encrypted first-person evidence', () => {
     const manifest = startNativeStage(store);
     const segment = store.appendSegment(manifest.perspectiveId, attestedSegment(manifest, {
       captureIndex: 0,
-      capturedAt: '2026-08-30T18:00:01.000Z',
+      capturedAt: '2026-08-30T18:00:00.000Z',
       mediaType: 'image/png',
       bytes: Buffer.from('initially-valid-ciphertext'),
     }, 'privacy_post_completion_loss')).event;
@@ -663,6 +816,7 @@ describe('Porthole encrypted first-person evidence', () => {
 
     expect(store.verifyEvidence(manifest.perspectiveId)).toEqual({
       valid: false,
+      chronologyValid: true,
       chain: { valid: true, checked: 4 },
       checkedSegmentCount: 1,
       missingCiphertextCount: 1,
@@ -677,7 +831,7 @@ describe('Porthole encrypted first-person evidence', () => {
     const manifest = startNativeStage(store);
     store.appendSegment(manifest.perspectiveId, attestedSegment(manifest, {
       captureIndex: 0,
-      capturedAt: '2026-08-30T18:00:01.000Z',
+      capturedAt: '2026-08-30T18:00:00.000Z',
       mediaType: 'image/png',
       bytes: Buffer.from('signed-completeness-frame'),
     }, 'privacy_signed_receipt'));
@@ -751,7 +905,7 @@ describe('Porthole encrypted first-person evidence', () => {
     const manifest = startNativeStage(store);
     store.appendSegment(manifest.perspectiveId, attestedSegment(manifest, {
       captureIndex: 0,
-      capturedAt: '2026-08-30T18:00:01.000Z',
+      capturedAt: '2026-08-30T18:00:00.000Z',
       mediaType: 'image/png',
       bytes: Buffer.from('final-boundary-frame'),
     }, 'privacy_final_boundary'));
@@ -830,7 +984,7 @@ describe('Porthole encrypted first-person evidence', () => {
     });
     store.appendSegment(manifest.perspectiveId, attestedSegment(manifest, {
       captureIndex: 0,
-      capturedAt: '2026-08-30T18:00:01.000Z',
+      capturedAt: '2026-08-30T18:00:00.000Z',
       mediaType: 'image/png',
       bytes: Buffer.from('valid-signature-wrong-authority-context'),
     }, 'privacy_untrusted_participant'));
@@ -873,7 +1027,7 @@ describe('Porthole encrypted first-person evidence', () => {
       decreasingManifest,
       {
         captureIndex: 0,
-        capturedAt: '2026-08-30T18:00:02.000Z',
+        capturedAt: '2026-08-30T18:00:00.500Z',
         mediaType: 'image/png',
         bytes: Buffer.from('later-first-frame'),
       },
@@ -883,7 +1037,7 @@ describe('Porthole encrypted first-person evidence', () => {
       decreasingManifest.perspectiveId,
       attestedSegment(decreasingManifest, {
         captureIndex: 1,
-        capturedAt: '2026-08-30T18:00:01.000Z',
+        capturedAt: '2026-08-30T18:00:00.000Z',
         mediaType: 'image/png',
         bytes: Buffer.from('earlier-second-frame'),
       }, 'privacy_earlier_second'),
@@ -920,7 +1074,7 @@ describe('Porthole encrypted first-person evidence', () => {
     const manifest = startNativeStage(store);
     store.appendSegment(manifest.perspectiveId, attestedSegment(manifest, {
       captureIndex: 0,
-      capturedAt: '2026-08-30T18:00:01.000Z',
+      capturedAt: '2026-08-30T18:00:00.000Z',
       mediaType: 'image/png',
       bytes: Buffer.from('valid-frame-before-invalid-close'),
     }, 'privacy_invalid_close'));
@@ -998,7 +1152,7 @@ describe('Porthole encrypted first-person evidence', () => {
     const roguePair = generateKeyPairSync('ed25519');
     const rogueSubject = {
       captureIndex: 0,
-      capturedAt: '2026-08-30T18:00:01.000Z',
+      capturedAt: '2026-08-30T18:00:00.000Z',
       mediaType: 'image/png',
       bytes: Buffer.from('rogue-privacy-authority'),
     };
@@ -1029,7 +1183,7 @@ describe('Porthole encrypted first-person evidence', () => {
     const manifest = startNativeStage(store, 3);
     const outOfOrderSubject = {
       captureIndex: 1,
-      capturedAt: '2026-08-30T18:00:02.000Z',
+      capturedAt: '2026-08-30T18:00:01.000Z',
       mediaType: 'image/png',
       bytes: Buffer.from('out-of-order-frame'),
     };
@@ -1046,7 +1200,7 @@ describe('Porthole encrypted first-person evidence', () => {
 
     const gapInput = {
       captureIndex: 0,
-      occurredAt: '2026-08-30T18:00:01.000Z',
+      occurredAt: '2026-08-30T18:00:00.000Z',
       durationMs: 1000,
       reason: 'permission-denied' as const,
       detail: 'Screen Recording permission was revoked.',
@@ -1061,7 +1215,7 @@ describe('Porthole encrypted first-person evidence', () => {
     })).toThrow(PortholeError);
     store.appendSegment(manifest.perspectiveId, attestedSegment(manifest, {
       captureIndex: 1,
-      capturedAt: '2026-08-30T18:00:02.000Z',
+      capturedAt: '2026-08-30T18:00:01.000Z',
       mediaType: 'image/png',
       bytes: Buffer.from('recovered-frame'),
     }, 'privacy_recovered'));
@@ -1253,7 +1407,7 @@ describe('Porthole encrypted first-person evidence', () => {
     const manifest = startNativeStage(store);
     store.appendSegment(manifest.perspectiveId, attestedSegment(manifest, {
       captureIndex: 0,
-      capturedAt: '2026-08-30T18:00:01.000Z',
+      capturedAt: '2026-08-30T18:00:00.000Z',
       mediaType: 'image/png',
       bytes: Buffer.from('confidential-frame'),
     }, 'privacy_wrong_key'));
@@ -1341,5 +1495,47 @@ describe('Porthole encrypted first-person evidence', () => {
     expect(candidate).not.toBe(winningRoot);
     expect(result.secret.toString('hex')).toBe(winningRoot);
     result.secret.fill(0);
+  });
+
+  test.each(['missing', 'error', 'unavailable', 'malformed', 'changed'])(
+    'refuses %s root-key creation read-back without retrying a write', (outcome) => {
+      let reads = 0;
+      let writes = 0;
+      const provider = createKeychainPortholeSecretProvider({
+        available: () => true,
+        loadSecretResult: () => {
+          reads += 1;
+          if (reads === 1) return { status: 'missing' };
+          if (outcome === 'malformed' || outcome === 'changed') {
+            return { status: 'found', value: outcome === 'malformed' ? 'not-a-root' : 'ab'.repeat(32) };
+          }
+          return { status: outcome as 'missing' | 'error' | 'unavailable' };
+        },
+        saveSecretIfAbsent: () => { writes += 1; return outcome !== 'malformed'; },
+      });
+      expect(() => provider.getHarborSecret('harbor_synthetic')).toThrow(
+        expect.objectContaining({ code: 'PORTHOLE_KEYSTORE_UNAVAILABLE' }),
+      );
+      expect(reads).toBe(2);
+      expect(writes).toBe(1);
+    },
+  );
+
+  test('confirms successful create-only root and never aliases returned test key buffers', () => {
+    let saved: string | undefined;
+    const provider = createKeychainPortholeSecretProvider({
+      available: () => true,
+      loadSecretResult: () => saved === undefined ? { status: 'missing' } : { status: 'found', value: saved },
+      saveSecretIfAbsent: (_service, _account, value) => { saved = value; return true; },
+    });
+    const first = provider.getHarborSecret('harbor_synthetic');
+    expect(first.keyCustody).toBe('os-keychain');
+    expect(first.secret.toString('hex')).toBe(saved);
+    first.secret.fill(0);
+    expect(provider.getHarborSecret('harbor_synthetic').secret.toString('hex')).toBe(saved);
+    const memory = createInMemoryPortholeSecretProvider(Buffer.alloc(32, 42));
+    memory.getHarborSecret('synthetic').secret.fill(0);
+    expect(memory.getHarborSecret('synthetic').secret.equals(Buffer.alloc(32, 42))).toBe(true);
+    expect(() => createInMemoryPortholeSecretProvider(Buffer.alloc(31))).toThrow(/at least 32/);
   });
 });

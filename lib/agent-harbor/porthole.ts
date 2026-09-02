@@ -416,6 +416,7 @@ export interface PortholeEvidenceIssue {
 
 export interface PortholeEvidenceVerification {
   valid: boolean;
+  chronologyValid: boolean;
   chain: { valid: boolean; checked: number; error?: string };
   checkedSegmentCount: number;
   missingCiphertextCount: number;
@@ -873,6 +874,10 @@ function normalizeCaptureSchedule(
     );
   }
   const committedAt = requiredDate(input.committedAt, 'captureSchedule.committedAt');
+  const boundaryEnd = Date.parse(startedAt) + Number(durationMs);
+  if (!Number.isSafeInteger(boundaryEnd) || !Number.isFinite(new Date(boundaryEnd).getTime())) {
+    throw new PortholeError('captureSchedule boundary exceeds the timestamp range', 'PORTHOLE_VALIDATION', 400);
+  }
   if (Date.parse(committedAt) > Date.parse(startedAt)) {
     throw new PortholeError(
       'captureSchedule must be committed no later than startedAt',
@@ -922,7 +927,35 @@ function expectedCaptureCountFor(
   if (closedAt !== undefined && Date.parse(closedAt) < Date.parse(manifest.startedAt) + durationMs) {
     throw new PortholeError('fixed-duration capture closed before its committed boundary', 'PORTHOLE_CONFLICT', 409);
   }
-  return Math.floor(durationMs / schedule.samplingIntervalMs);
+  // A nonempty partial final interval is still an expected slot. Integer
+  // arithmetic avoids rounding a very large committed duration at division.
+  return Number((BigInt(durationMs) + BigInt(schedule.samplingIntervalMs) - 1n) /
+    BigInt(schedule.samplingIntervalMs));
+}
+
+/**
+ * Purpose: Bind each sample or explicit gap to its committed half-open time slot.
+ * @param manifest Immutable opening and fixed-interval schedule.
+ * @param captureIndex Zero-based slot, including a possible partial final interval.
+ * @param occurred Start timestamp in milliseconds, inclusive at the slot opening.
+ * @param ended End timestamp in milliseconds, allowed to equal the slot end.
+ * @returns Whether the entire evidence interval fits exactly its own slot.
+ */
+function evidenceFitsCaptureSlot(
+  manifest: PortholePerspective,
+  captureIndex: number,
+  occurred: number,
+  ended: number,
+): boolean {
+  const { samplingIntervalMs, boundary } = manifest.captureSchedule;
+  const opened = Date.parse(manifest.startedAt);
+  const offset = captureIndex * samplingIntervalMs;
+  if (!Number.isSafeInteger(captureIndex) || captureIndex < 0 ||
+      !Number.isSafeInteger(offset) || offset >= boundary.durationMs) return false;
+  const slotStart = opened + offset;
+  const slotEnd = opened + Math.min(offset + samplingIntervalMs, boundary.durationMs);
+  return Number.isFinite(occurred) && Number.isFinite(ended) &&
+    occurred >= slotStart && occurred < slotEnd && ended >= occurred && ended <= slotEnd;
 }
 
 /**
@@ -981,6 +1014,9 @@ function assertEvidenceChronology(
         409,
       );
     }
+  }
+  if (!evidenceFitsCaptureSlot(manifest, captureIndex, occurred, ended)) {
+    throw new PortholeError('capture evidence does not fit its committed capture slot', 'PORTHOLE_CONFLICT', 409);
   }
 }
 
@@ -2312,6 +2348,10 @@ export function createPortholeStore(options: PortholeStoreOptions) {
           422,
         );
       }
+      if (!evidenceFitsCaptureSlot(manifest, captureIndex, Date.parse(segment.capturedAt),
+        Date.parse(segment.endedAt ?? segment.capturedAt))) {
+        throw new PortholeError('Porthole sealed segment is outside its capture slot', 'PORTHOLE_DECRYPT_FAILED', 422);
+      }
       const mediaBytes = Buffer.from(requiredString(segment.mediaBase64, 'mediaBase64'), 'base64');
       let receipt: PortholePrivacyReceipt;
       try {
@@ -2629,12 +2669,14 @@ export function createPortholeStore(options: PortholeStoreOptions) {
    * @param manifest Stored perspective identity, privacy, encryption, and schedule binding.
    * @param segments Recorded segment events to inspect.
    * @param chain Independently computed metadata-chain verdict.
+   * @param chronologyValid Independent per-slot timing verdict for all segments and gaps.
    * @returns A per-segment verification report combined with the supplied chain verdict.
    */
   function inspectSegmentEvidence(
     manifest: PortholePerspective,
     segments: PortholeEvent[],
     chain: { valid: boolean; checked: number; error?: string },
+    chronologyValid: boolean,
   ): PortholeEvidenceVerification {
     const issues: PortholeEvidenceIssue[] = [];
     let missingCiphertextCount = 0;
@@ -2667,7 +2709,8 @@ export function createPortholeStore(options: PortholeStoreOptions) {
       channelKey?.fill(0);
     }
     return {
-      valid: chain.valid && issues.length === 0,
+      valid: chain.valid && chronologyValid && issues.length === 0,
+      chronologyValid,
       chain,
       checkedSegmentCount: segments.length,
       missingCiphertextCount,
@@ -2697,8 +2740,10 @@ export function createPortholeStore(options: PortholeStoreOptions) {
       ? opened + manifest.captureSchedule.boundary.durationMs
       : null;
     let previous = opened;
+    let expectedIndex = 0;
     for (const event of evidenceEvents) {
       const occurred = Date.parse(event.occurredAt);
+      let ended = occurred;
       const captureIndex = event.ordinal - 1;
       if (
         !Number.isFinite(occurred) ||
@@ -2706,6 +2751,7 @@ export function createPortholeStore(options: PortholeStoreOptions) {
         occurred > closed ||
         (fixedBoundary !== null && occurred > fixedBoundary) ||
         !Number.isSafeInteger(event.payload.captureIndex) ||
+        captureIndex !== expectedIndex ||
         Number(event.payload.captureIndex) !== captureIndex
       ) {
         return false;
@@ -2714,7 +2760,7 @@ export function createPortholeStore(options: PortholeStoreOptions) {
         if (event.payload.capturedAt !== event.occurredAt) return false;
         if (event.payload.endedAt !== null) {
           if (typeof event.payload.endedAt !== 'string') return false;
-          const ended = Date.parse(event.payload.endedAt);
+          ended = Date.parse(event.payload.endedAt);
           if (
             !Number.isFinite(ended) ||
             ended < occurred ||
@@ -2729,13 +2775,15 @@ export function createPortholeStore(options: PortholeStoreOptions) {
         const duration = event.payload.durationMs;
         if (duration !== null) {
           if (!Number.isSafeInteger(duration) || Number(duration) < 0) return false;
-          const gapEnd = occurred + Number(duration);
-          if (gapEnd > closed || (fixedBoundary !== null && gapEnd > fixedBoundary)) return false;
+          ended = occurred + Number(duration);
+          if (ended > closed || (fixedBoundary !== null && ended > fixedBoundary)) return false;
         }
       } else {
         return false;
       }
+      if (!evidenceFitsCaptureSlot(manifest, captureIndex, occurred, ended)) return false;
       previous = occurred;
+      expectedIndex += 1;
     }
     return true;
   }
@@ -2912,7 +2960,7 @@ export function createPortholeStore(options: PortholeStoreOptions) {
           409,
         );
       }
-      const verification = inspectSegmentEvidence(manifest, segments, chain);
+      const verification = inspectSegmentEvidence(manifest, segments, chain, true);
       const unreadableSegmentCount =
         verification.missingCiphertextCount +
         verification.invalidCiphertextCount +
@@ -3169,7 +3217,11 @@ export function createPortholeStore(options: PortholeStoreOptions) {
     const manifest = manifestFor(db, perspectiveId);
     const stream = events(perspectiveId);
     const segments = stream.filter((event) => event.kind === 'segment-recorded');
-    return inspectSegmentEvidence(manifest, segments, verifyChain(perspectiveId));
+    const evidenceEvents = stream.filter((event) => event.kind === 'segment-recorded' || event.kind === 'capture-gap');
+    const closedAt = stream.find((event) => event.kind === 'perspective-completed')?.occurredAt ??
+      new Date(Date.parse(manifest.startedAt) + manifest.captureSchedule.boundary.durationMs).toISOString();
+    const chronologyValid = evidenceChronologyIsValid(manifest, evidenceEvents, closedAt);
+    return inspectSegmentEvidence(manifest, segments, verifyChain(perspectiveId), chronologyValid);
   }
 
   /**

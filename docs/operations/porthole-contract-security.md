@@ -13,6 +13,16 @@ separately owned work.
   completeness, and regression receipts have versioned fixtures. Opaque stage
   descriptors reject extra title/URL fields. Disclosure review completion stays
   beside its review receipt in `artifact.reviewedPreview`; it is not render time.
+  A required step-up must be verified with receipt/time before a lease can be
+  authorized; pending/failed requests cannot carry active authority. Timestamp
+  comparisons remain semantic conformance obligations, not JSON Schema checks.
+- **Time-slot completeness:** slot `i` is `[start + i * interval, min(start +
+  (i + 1) * interval, boundary))`. A segment or gap must start inside its own
+  slot and end no later than that slot's end. The count rounds up to include a
+  partial final interval; multiple samples at one instant cannot fill later
+  slots. Append checks run before blob/ledger writes. Receipt and evidence
+  verification repeat slot checks independently of hashes and signatures;
+  `chronologyValid` reports timing separately from chain integrity.
 - **Canonical commitments:** hashing rejects custom serializers, accessors,
   cycles, sparse arrays, symbols, and non-JSON values. It must not invoke a
   caller's `toJSON` while deciding what bytes a receipt commits to.
@@ -51,7 +61,9 @@ npm test -- --runInBand tests/unit/porthole-recording.test.ts tests/unit/agent-h
 npm run typecheck
 ```
 
-The focused run on the extracted source passes **330 tests in four suites**.
+The focused suite includes regression tests for the independently discovered
+burst-completeness and unsatisfied-step-up defects. Exact current test counts
+and coverage results are recorded with the reviewed source checkpoint in the PR.
 The recording suite includes actual SQLite and filesystem/blob integration
 checks, not merely SQL-string snapshots or mocked vault success. Root CI's
 `unit` project discovers these files on every applicable test run. Test count
@@ -75,7 +87,9 @@ not a second roadmap authority or a claim that these dependencies are assigned.
    generic GC. Retention metadata alone is not a pin.
 2. **Enrolled authority:** wire the existing canonical signing/verification
    mechanism and key lifecycle across the Rust boundary. Test revocation, wrong
-   participant/body, and stale context. Do not introduce a second crypto library
+   participant/body, and stale context. Enforce step-up chronology and verify
+   actual proof authority before consuming a control lease; schema conformance
+   alone never grants control. Do not introduce a second crypto library
    or let a self-attesting signer satisfy the verification seam.
 3. **Adapter admission:** connect only approved sources with an immutable capture
    lease, pre-persistence exclusion/redaction, and explicit gaps. Keep candidate
