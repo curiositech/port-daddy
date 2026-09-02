@@ -19,8 +19,12 @@ formula must accept the tarball layout release.yml will produce), opens a
 version-bump PR with every version surface synced and the CHANGELOG stamped,
 auto-merges it on green, then tags and publishes the Release. To pause it,
 open an issue titled `Release train: hold`; to force a cut now, dispatch the
-workflow. The manual recipe below remains the fallback when the train can't
-run (and for major bumps, which stay human).
+workflow. The recipe below describes manual agent preparation and exceptional
+release phases (including deliberate major bumps). It is not an authentication
+fallback: a train/App configuration or authorization failure never permits
+publication through ambient or personal Git/`gh` credentials. Every GitHub write
+still requires the existing approved App-bound publisher and protected queue;
+exceptional release authorization and source preparation are separate decisions.
 
 ### Release-train authority and recovery
 
@@ -68,6 +72,11 @@ Release publication binds the tag to the **merged version-transition SHA**,
 including when that transition arrived through another PR. The remote tag is
 peeled and checked; `Release.target_commitish` alone is not a tag witness. A tag
 without a Release is incomplete work, and a conflicting tag is never moved.
+Partial-tag recovery also checks bounded, paginated remote stable tags and
+published Releases: equality with its own incomplete version is allowed, but a
+newer stable version supersedes it. That authoritative check is repeated before
+tag creation and immediately before the Release POST; there is no historical
+backfill path that can promote an older version as latest.
 Only a genuine read-side 404 means absence: forbidden, throttled and transport
 failures do not authorize creation. After a lost mutation response, preserve
 the exact-state receipts before deciding what remains; do not blindly repeat a
@@ -139,23 +148,21 @@ node scripts/build-single-binary.mjs --outfile=dist/pd     # release workflow sh
 ./dist/port-daddy --version                                # reports 3.15.0
 SOAK_SECONDS=180 SOAK_PORT=19876 bash scripts/soak-binary.sh dist/port-daddy
 
-# F. PR
+# F. Prepare the reviewed commit, then publish through the approved App boundary
 pd guard check --staged
 git add <explicit paths>
+# Inspect author and committer first; use verified responsible-agent attribution.
+# Follow skills/port-daddy-agent-skill/references/git-discipline.md.
 git commit -m "chore(release): bump to 3.15.0"
-git push -u origin chore/release-3.15.0
-gh pr create --title "chore(release): bump to 3.15.0" --body-file .scratch/pr-body.md
-# wait for CI green, address review, then:
-gh pr merge --squash --delete-branch
+# Hand this exact branch/head and PR body to the existing approved App-bound
+# publisher. Read back App author/head, answer reviews, and use the protected
+# queue. Do not replace a failed publisher with personal git push / gh pr calls.
 
-# G. Tag the merged commit on main
-git fetch origin
-git checkout main && git pull --ff-only
-git tag -a v3.15.0 -m "Port Daddy 3.15.0 — <headline>"
-git push origin v3.15.0
-
-# H. GitHub Release → triggers release.yml
-gh release create v3.15.0 --generate-notes --title "v3.15.0 — <headline>"
+# G. Normal path: the train identifies and tags the exact merged version transition.
+# H. Normal path: the App publishes the matching GitHub Release, triggering release.yml.
+# Exceptional manual tag/Release publication needs its own release authorization
+# through the same approved App boundary. Preserve exact target/tag/Release
+# witnesses and monotonic version checks; never force-retag or bypass auth.
 
 # I. Babysit the binary build
 gh run watch $(gh run list --workflow=release.yml --limit 1 --json databaseId --jq '.[0].databaseId')

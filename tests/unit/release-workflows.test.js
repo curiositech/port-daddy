@@ -41,7 +41,7 @@ describe('release workflow topology contracts', () => {
     expect(workflow).toContain('ref: ${{ steps.release.outputs.release_sha }}');
     expect(workflow).toContain('steps.publication.outputs.should_publish');
     expect(workflow).not.toContain("startsWith(github.event.pull_request.head.ref, 'release-train/')");
-    expect(workflow).toContain("['scripts/release-workflow-state.mjs', 'latest-stable-tag']");
+    expect(workflow).toContain('if (needed) await assertNotSuperseded(tag)');
     expect(workflow).not.toContain("git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -n1");
   });
 
@@ -83,6 +83,8 @@ describe('release workflow topology contracts', () => {
     expect(releasing).toContain('3810450');
     expect(releasing).toContain('cleanup UNCONFIRMED');
     expect(releasing).not.toContain('falls back automatically');
+    expect(releasing).toContain('publication through ambient or personal Git/`gh` credentials');
+    expect(releasing).toContain('Every GitHub write');
     const changelog = readFileSync(join(ROOT, 'CHANGELOG.md'), 'utf8');
     expect(changelog).toContain('RELEASE_TRAIN_TOKEN');
     expect(changelog).toContain('HOMEBREW_TAP_TOKEN');
@@ -555,6 +557,8 @@ async function executeTrain(job, selector, options = {}) {
     }
     if (path === '/users/port-daddy%5Bbot%5D') return response(200, state.bot ?? BOT);
     if (path === '/repos/' + REPO) return response(200, { default_branch: 'main' });
+    if (path.startsWith('/repos/' + REPO + '/tags?')) return response(200, (state.remoteTags ?? ['v3.30.6']).map((name) => ({ name })));
+    if (path.startsWith('/repos/' + REPO + '/releases?')) return response(200, state.remoteReleases ?? []);
     if (path === '/repos/' + REPO + '/commits/main') return response(200, { sha: DEFAULT });
     if (path.includes('/git/commits/')) return response(200, { tree: { sha: path.endsWith(TARGET) ? 'a'.repeat(40) : 'b'.repeat(40) } });
     if (path.includes('/git/trees/')) {
@@ -832,6 +836,57 @@ describe('executable App-only release train', () => {
     expect(result.code).toBe(0);
     expect(result.files.get('output')).toContain('should_publish=true');
     expect(result.writes).toHaveLength(0);
+  });
+
+  test.each(['publication', 'publish'])('old exact tag with missing Release cannot supersede a newer stable version: %s', async (selector) => {
+    const result = await executeTrain('tag-and-publish', selector, { tag: TARGET, remoteTags: ['v3.31.0', 'v9.0.0'] });
+    expect(result.code).toBe(1);
+    expect(result.writes).toHaveLength(0);
+    expect(result.files.get('output') ?? '').not.toContain('should_publish=true');
+  });
+
+  test('equal partial-tag version is allowed, but an independently newer published Release also blocks', async () => {
+    const equal = await executeTrain('tag-and-publish', 'publish', { tag: TARGET, remoteTags: ['v3.31.0'] });
+    expect(equal.code).toBe(0);
+    expect(equal.writes).toHaveLength(1);
+    const newer = await executeTrain('tag-and-publish', 'publish', {
+      tag: TARGET, remoteTags: ['v3.31.0'],
+      remoteReleases: [{ tag_name: 'v9.0.0', draft: false, prerelease: false, published_at: '2026-09-02' }],
+    });
+    expect(newer.code).toBe(1);
+    expect(newer.writes).toHaveLength(0);
+  });
+
+  test('a newer stable version appearing after tag creation prevents the Release POST', async () => {
+    let reads = 0;
+    const result = await executeTrain('tag-and-publish', 'publish', {
+      intercept: ({ path, response }) => {
+        if (!path.startsWith('/repos/' + REPO + '/tags?')) return undefined;
+        return response(200, [{ name: ++reads === 1 ? 'v3.30.6' : 'v9.0.0' }]);
+      },
+    });
+    expect(result.code).toBe(1);
+    expect(result.output).toContain('"phase":"tag"');
+    expect(result.writes.filter((call) => call.path.endsWith('/releases'))).toHaveLength(0);
+  });
+
+  test('remote version enumeration follows pages and refuses incomplete pagination', async () => {
+    const paged = await executeTrain('tag-and-publish', 'publication', {
+      tag: TARGET,
+      intercept: ({ path, response }) => path.endsWith('/tags?per_page=100&page=1')
+        ? response(200, Array.from({ length: 100 }, () => ({ name: 'v1.0.0' })))
+        : path.endsWith('/tags?per_page=100&page=2') ? response(200, [{ name: 'v9.0.0' }]) : undefined,
+    });
+    expect(paged.code).toBe(1);
+    expect(paged.writes).toHaveLength(0);
+    const overflow = await executeTrain('tag-and-publish', 'publish', {
+      tag: TARGET,
+      intercept: ({ path, response }) => path.includes('/tags?')
+        ? response(200, Array.from({ length: 100 }, () => ({ name: 'v1.0.0' }))) : undefined,
+    });
+    expect(overflow.code).toBe(1);
+    expect(overflow.calls.filter((call) => call.path.includes('/tags?'))).toHaveLength(10);
+    expect(overflow.writes).toHaveLength(0);
   });
 
   test('workflow permission compares the target with current default-branch trees', async () => {

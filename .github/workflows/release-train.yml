@@ -500,6 +500,29 @@ jobs:
             if (!/^[a-f0-9]{40}$/.test(current.sha || '')) fail('Invalid default branch witness');
             return (await workflowTree(target)) !== (await workflowTree(current.sha));
           }
+          async function assertNotSuperseded(tag) {
+            const stable = /^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/;
+            const candidate = stable.exec(tag)?.slice(1).map(BigInt);
+            if (!candidate) fail('Invalid stable release version');
+            for (const resource of ['tags', 'releases']) {
+              let complete = false;
+              for (let page = 1; page <= 10; page++) {
+                const values = await api('/repos/' + repo + '/' + resource + '?per_page=100&page=' + page);
+                if (!Array.isArray(values)) fail('Invalid remote release ordering witness');
+                for (const value of values) {
+                  if (resource === 'releases' && (value.draft || value.prerelease || !value.published_at)) continue;
+                  const version = stable.exec(resource === 'tags' ? value.name : value.tag_name)?.slice(1).map(BigInt);
+                  if (!version) continue;
+                  for (let i = 0; i < 3; i++) {
+                    if (version[i] > candidate[i]) fail('Release was superseded by a newer remote stable version; no historical backfill or latest promotion');
+                    if (version[i] < candidate[i]) break;
+                  }
+                }
+                if (values.length < 100) { complete = true; break; }
+              }
+              if (!complete) fail('Remote release ordering exceeded bounded pagination; publication unverified');
+            }
+          }
           async function tagTarget(tag) {
             const ref = await api('/repos/' + repo + '/git/ref/tags/' + encodeURIComponent(tag), { absent: true });
             if (!ref) return null;
@@ -521,11 +544,8 @@ jobs:
               const release = await api('/repos/' + repo + '/releases/tags/' + tag, { absent: true });
               if (release && (!peeled || release.tag_name !== tag || release.draft || release.prerelease || !release.published_at)) fail('Existing Release does not prove this exact stable tag');
               const needed = !release;
-              // Stable ordering remains a gate for new tags; partial tag-only publication is repairable.
-              if (!peeled) {
-                const latest = run('node', ['scripts/release-workflow-state.mjs', 'latest-stable-tag']);
-                if (latest) run('node', ['scripts/release-workflow-state.mjs', 'newer-than', tag.slice(1), latest.replace(/^v/, '')]);
-              }
+              // A tag-only partial release must obey ordering too; equality is allowed.
+              if (needed) await assertNotSuperseded(tag);
               const workflows = needed && await workflowsNeeded(target);
               appendFileSync(env.GITHUB_OUTPUT, 'should_publish=' + needed + '\nworkflows=' + (workflows ? 'write' : '') + '\n');
               receipt({ phase: 'release-discovery', tag, target, status: needed ? 'publication-needed' : 'already-published', workflowsWrite: workflows });
@@ -660,6 +680,29 @@ jobs:
             if (!/^[a-f0-9]{40}$/.test(current.sha || '')) fail('Invalid default branch witness');
             return (await workflowTree(target)) !== (await workflowTree(current.sha));
           }
+          async function assertNotSuperseded(tag) {
+            const stable = /^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/;
+            const candidate = stable.exec(tag)?.slice(1).map(BigInt);
+            if (!candidate) fail('Invalid stable release version');
+            for (const resource of ['tags', 'releases']) {
+              let complete = false;
+              for (let page = 1; page <= 10; page++) {
+                const values = await api('/repos/' + repo + '/' + resource + '?per_page=100&page=' + page);
+                if (!Array.isArray(values)) fail('Invalid remote release ordering witness');
+                for (const value of values) {
+                  if (resource === 'releases' && (value.draft || value.prerelease || !value.published_at)) continue;
+                  const version = stable.exec(resource === 'tags' ? value.name : value.tag_name)?.slice(1).map(BigInt);
+                  if (!version) continue;
+                  for (let i = 0; i < 3; i++) {
+                    if (version[i] > candidate[i]) fail('Release was superseded by a newer remote stable version; no historical backfill or latest promotion');
+                    if (version[i] < candidate[i]) break;
+                  }
+                }
+                if (values.length < 100) { complete = true; break; }
+              }
+              if (!complete) fail('Remote release ordering exceeded bounded pagination; publication unverified');
+            }
+          }
           async function tagTarget(tag) {
             const ref = await api('/repos/' + repo + '/git/ref/tags/' + encodeURIComponent(tag), { absent: true });
             if (!ref) return null;
@@ -680,6 +723,7 @@ jobs:
                   run('git', ['rev-parse', 'HEAD']) !== target) fail('Version transition checkout mismatch');
               // Recheck against the current default branch, not historical workflow churn.
               if (await workflowsNeeded(target) && env.WORKFLOWS_PERMISSION !== 'write') fail('Default branch moved: workflows write is now required; do not broaden this token');
+              await assertNotSuperseded(tag);
               let peeled = await tagTarget(tag);
               if (peeled && peeled !== target) fail('Conflicting tag; never force-retag');
               if (!peeled) {
@@ -701,6 +745,8 @@ jobs:
               const releasePath = '/repos/' + repo + '/releases/tags/' + tag;
               let release = await api(releasePath, { absent: true });
               if (!release) {
+                // Fresh authoritative read after tag creation; a newer release may have arrived.
+                await assertNotSuperseded(tag);
                 try {
                   await api('/repos/' + repo + '/releases', { method: 'POST', body: {
                     tag_name: tag, target_commitish: target, name: tag + ' — release train',
