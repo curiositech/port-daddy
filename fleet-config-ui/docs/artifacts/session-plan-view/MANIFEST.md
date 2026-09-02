@@ -48,8 +48,37 @@ roadmap synchronization, or native Porthole screen-recording permissions.
 | `missing-session.png` | 1440 × 1100 | Exact missing-ID error, no fallback |
 | `denied-session.png` | 1440 × 1100 | Exact forbidden-ID error, no fallback |
 
-The in-app browser emitted JPEG screenshots, converted losslessly in dimensions
-to PNG using `sips -s format png`; no content, colors, or geometry were edited.
+The in-app browser emitted JPEG screenshots, converted to PNG using
+`sips -s format png`; dimensions and depicted content were unchanged.
 No private window, audio, microphone, operator text, or background media was
-captured. Motion proof is recorded separately and must not be described as
-native Porthole or continuous full-rate capture unless actually witnessed.
+captured.
+
+## Sampled browser capture (not continuous or native Porthole)
+
+`sampled-browser-capture.webm` contains 42 acquired browser frames from one real
+sequential interaction run against source checkpoint
+`6dcf18498e391159e2c52078836ba75d8c594618`. It is **sampled browser capture**, not a
+native Porthole recording and not continuous full-rate video. The browser API
+provided screenshots but no video stream. Missing native Porthole capture
+integration remains product debt, not a user-permission failure.
+
+The run actually opened the newest receipt with Enter, followed the source-bound
+session link, refreshed the same session, opened a missing ID, refreshed it
+without fallback, and opened a forbidden ID. `sampled-capture.json` preserves
+action times, frame acquisition start/end times, byte lengths and phases.
+`frames/` preserves every original JPEG. All acquisition gaps survive in
+`sampled-frames.ffconcat`; no interpolation, transitions, invented states or
+speed-up were applied. The WebM runs 12.526 seconds at 1440 × 1100, VP9.
+
+The reusable `scripts/capture-session-plan.mjs` accepts the existing documented
+browser runtime's tab. It never launches another controller or captures an OS
+window. Its timeline writer produced the committed FFmpeg manifest. Encoding:
+
+```sh
+ffmpeg -f concat -safe 0 -i sampled-frames.ffconcat -fps_mode vfr \
+  -c:v libvpx-vp9 -crf 28 -b:v 0 -pix_fmt yuv420p sampled-browser-capture.webm
+```
+
+FFmpeg's output timestamps follow frame acquisition timestamps relative to the
+first frame, to millisecond precision. The final frame ends the recording;
+there is no invented trailing interaction.

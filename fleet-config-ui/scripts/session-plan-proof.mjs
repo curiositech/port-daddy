@@ -1,6 +1,6 @@
 /**
  * Synthetic-only proof server for the built session detail UI.
- * Build first: npm --prefix fleet-config-ui exec -- vite build --outDir ../.scratch/session-plan-build
+ * Build first (from fleet-config-ui): npx vite build --outDir ../.scratch/session-plan-build
  * Then: node fleet-config-ui/scripts/session-plan-proof.mjs
  * Binds an OS-selected loopback port, never connects to a daemon, never writes
  * an operator record, and refuses every mutation. Stop with Ctrl-C/SIGTERM.
@@ -53,6 +53,7 @@ const server = createServer(async (request, response) => {
     response.end(JSON.stringify(value));
   };
   if (request.method !== 'GET' && request.method !== 'HEAD') return json(405, { error: 'Synthetic read-only fixture: mutations are disabled.' });
+  if (url.pathname === '/_session-plan-proof') return json(200, { fixture: 'session-plan-view', syntheticOnly: true, readOnly: true });
   if (url.pathname.startsWith('/sessions/')) {
     const id = decodeURIComponent(url.pathname.slice('/sessions/'.length));
     if (id === 'session-synthetic-denied') return json(403, { error: 'Access to this synthetic session is denied.' });
