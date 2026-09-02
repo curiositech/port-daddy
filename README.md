@@ -301,6 +301,8 @@ Roster agents are daemon-minted `AgentNode` identities that outlive any body or 
 
 ### Coordination Guard (`pd guard`)
 
+`pd advise` / `coordination_preflight` project file claims inside one verified repository and worktree: relative, `./`, and absolute paths share an address only within that scope. A stale session root or stored world produces a critical context diagnostic with the original claims, not a false “unclaimed” recommendation. This is read-only advice, not permission or automatic ownership repair. See [claim projection diagnostics](docs/operations/advisor-claim-projection.md).
+
 `pd guard install` writes merged pre-commit and post-commit hooks that enforce the protocol: an active session plus matching file claims for staged files, checked by `pd guard check --staged`. `pd add` is the claim-aware `git add`. Modes: `advisory`, `warn`, `enforce`.
 
 ---
