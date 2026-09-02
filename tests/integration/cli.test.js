@@ -1631,13 +1631,25 @@ describe('CLI Integration Tests', () => {
       expect(notFoundRes.stderr).toContain('not found');
     });
 
-    test('pre-credential session context refuses both send aliases before attempting an attributed write', () => {
+    test('pre-credential session context refuses both send aliases before attempting an attributed write', async () => {
       const legacyAgentId = `legacy-inbox-sender-${Date.now()}`;
       const legacySlot = `legacy-inbox-sender-${Date.now()}`;
       const message = `must-not-deliver-${Date.now()}`;
+      const fixtureRoot = mkdtempSync(join(tmpdir(), 'pd-legacy-inbox-'));
+      const legacyWorktree = join(fixtureRoot, 'legacy-sender');
       let mintedContext;
 
       try {
+        // The ordinary sender remains active. Give this second principal its
+        // own linked worktree even when CI itself runs from a main checkout.
+        const fixtureGit = (args) => execFileSync('git', [
+          '-c', 'core.hooksPath=/dev/null', '-c', 'commit.gpgsign=false', ...args,
+        ], { cwd: fixtureRoot, stdio: 'ignore' });
+        fixtureGit(['init']);
+        fixtureGit(['-c', 'user.name=PD Test', '-c', 'user.email=pd-test@example.invalid',
+          'commit', '--allow-empty', '-m', 'fixture']);
+        fixtureGit(['worktree', 'add', '--detach', legacyWorktree, 'HEAD']);
+
         // Establish a real active session, then model an upgraded worktree
         // whose persisted context predates credential persistence. This is not
         // a forged principal: the test deliberately removes only the local
@@ -1645,6 +1657,7 @@ describe('CLI Integration Tests', () => {
         const beginRes = runCli(
           ['begin', '--agent', legacyAgentId, '--purpose', 'Pre-credential inbox diagnostic', '--lifecycle', 'durable', '--json'],
           {
+            cwd: legacyWorktree,
             env: {
               PORT_DADDY_CONTEXT_SLOT: legacySlot,
               PD_ACTOR_CREDENTIAL: '',
@@ -1652,7 +1665,11 @@ describe('CLI Integration Tests', () => {
             },
           },
         );
-        expect(beginRes.success).toBe(true);
+        expect({ success: beginRes.success, stderr: beginRes.stderr }).toMatchObject({ success: true });
+
+        const admitted = await requestWithRetry(`/sessions/${JSON.parse(beginRes.stdout).sessionId}`);
+        expect(admitted.ok).toBe(true);
+        expect(admitted.data.session.metadata.worktree).toMatchObject({ root: legacyWorktree, isMain: false });
 
         const { contextDir } = getDaemonState();
         mintedContext = JSON.parse(readFileSync(join(contextDir, 'contexts', `${legacySlot}.json`), 'utf8'));
@@ -1669,6 +1686,7 @@ describe('CLI Integration Tests', () => {
           ['inbox', 'send', receiverId, message, '--agent', legacyAgentId],
         ]) {
           const result = runCli(command, {
+            cwd: legacyWorktree,
             env: {
               PORT_DADDY_CONTEXT_SLOT: legacySlot,
               PD_ACTOR_CREDENTIAL: '',
@@ -1691,6 +1709,7 @@ describe('CLI Integration Tests', () => {
         if (mintedContext) {
           writeTestCurrentContext(mintedContext);
           runCli(['done', '--agent', legacyAgentId, '--status', 'abandoned'], {
+            cwd: legacyWorktree,
             env: {
               PORT_DADDY_CONTEXT_SLOT: legacySlot,
               PD_ACTOR_CREDENTIAL: '',
@@ -1699,6 +1718,7 @@ describe('CLI Integration Tests', () => {
           });
         }
         clearTestCurrentContext(legacySlot);
+        rmSync(fixtureRoot, { recursive: true, force: true });
       }
     });
   });
