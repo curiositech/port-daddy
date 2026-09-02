@@ -929,6 +929,7 @@ describe('executable App-only release train', () => {
     expect(result.writes.map((call) => call.path)).toEqual([
       '/repos/' + REPO + '/git/tags', '/repos/' + REPO + '/git/refs', '/repos/' + REPO + '/releases',
     ]);
+    expect(result.writes.find((call) => call.path.endsWith('/releases')).body.make_latest).toBe('true');
     expect(result.output).toContain('"phase":"release"');
     expect(result.output).toContain('"target":"' + TARGET + '"');
   });

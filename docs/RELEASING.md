@@ -76,7 +76,11 @@ Partial-tag recovery also checks bounded, paginated remote stable tags and
 published Releases: equality with its own incomplete version is allowed, but a
 newer stable version supersedes it. That authoritative check is repeated before
 tag creation and immediately before the Release POST; there is no historical
-backfill path that can promote an older version as latest.
+backfill path. The intended newest stable Release explicitly requests
+`make_latest: "true"`. Train concurrency serializes this workflow only; the
+read-check-POST sequence is not an atomic latest-promotion operation against an
+independent outside publisher. Coordinate exceptional publishers separately;
+these source guards are not a repository-wide publication lock.
 Only a genuine read-side 404 means absence: forbidden, throttled and transport
 failures do not authorize creation. After a lost mutation response, preserve
 the exact-state receipts before deciding what remains; do not blindly repeat a

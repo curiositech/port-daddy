@@ -750,7 +750,7 @@ jobs:
                 try {
                   await api('/repos/' + repo + '/releases', { method: 'POST', body: {
                     tag_name: tag, target_commitish: target, name: tag + ' — release train',
-                    generate_release_notes: true, draft: false, prerelease: false,
+                    generate_release_notes: true, draft: false, prerelease: false, make_latest: 'true',
                   } });
                 } catch { /* Read exactly once; no duplicate POST after a timeout or denied response. */ }
                 release = await api(releasePath, { absent: true });
