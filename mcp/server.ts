@@ -2170,22 +2170,26 @@ const TOOLS = [
   {
     name: 'briefing_generate',
     description:
-      '[Advanced] Generate a project briefing for onboarding new agents. Captures current state of services, sessions, agents, and recent activity.',
+      '[Advanced] Generate and write a project briefing in the supplied directory. Detects the project from its physical repository root unless project is explicit.',
     inputSchema: {
       type: 'object' as const,
       properties: {
-        project_root: { type: 'string', description: 'Project root directory' },
+        project_root: { type: 'string', description: 'Absolute directory in the target project; never the daemon working directory' },
+        project: { type: 'string', description: 'Explicit project name override, including the literal name auto' },
       },
+      required: ['project_root'],
     },
   },
   {
     name: 'briefing_read',
-    description: '[Advanced] Read the most recent briefing for a project.',
+    description: '[Advanced] Read a fresh project briefing from daemon state without writing files. Detects the project from the supplied physical repository root unless project is explicit.',
     inputSchema: {
       type: 'object' as const,
       properties: {
-        project_root: { type: 'string', description: 'Project root directory' },
+        project_root: { type: 'string', description: 'Absolute directory in the target project; never the daemon working directory' },
+        project: { type: 'string', description: 'Explicit project name override, including the literal name auto' },
       },
+      required: ['project_root'],
     },
   },
 
@@ -4444,15 +4448,21 @@ async function handleTool(
 
     // ── Briefing ────────────────────────────────────────────────────
     case 'briefing_generate': {
-      const body: Record<string, unknown> = {};
-      if (args.project_root) body.projectRoot = args.project_root;
+      if (typeof args.project_root !== 'string' || !args.project_root) {
+        throw new McpError(ErrorCode.InvalidParams, 'project_root is required');
+      }
+      const body: Record<string, unknown> = { projectRoot: args.project_root };
+      if (args.project !== undefined) body.project = args.project;
       res = await POST('/briefing', body);
       break;
     }
 
     case 'briefing_read': {
-      const root = args.project_root ? encodeURIComponent(args.project_root as string) : '';
-      res = await GET(`/briefing/${root}`);
+      if (typeof args.project_root !== 'string' || !args.project_root) {
+        throw new McpError(ErrorCode.InvalidParams, 'project_root is required');
+      }
+      const route = args.project ? `/briefing/${encodeURIComponent(args.project as string)}` : '/briefing';
+      res = await GET(`${route}?projectRoot=${encodeURIComponent(args.project_root)}`);
       break;
     }
 

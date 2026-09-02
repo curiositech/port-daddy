@@ -935,6 +935,7 @@
       ],
       "routes": [
         "POST /briefing",
+        "GET /briefing",
         "GET /briefing/:param"
       ],
       "completions": [

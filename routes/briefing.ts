@@ -2,6 +2,7 @@
  * Briefing Routes
  *
  * POST /briefing          — Generate .portdaddy/ in projectRoot, write to disk
+ * GET  /briefing          — Detect project from projectRoot, no disk write
  * GET  /briefing/:project — Return briefing as JSON (no disk write)
  */
 
@@ -40,7 +41,7 @@ export const briefingPlugin: FastifyPluginAsync<{ deps: BriefingRouteDeps }> = a
   const { briefing } = deps;
 
   fastify.post('/briefing', async (request: FastifyRequest, reply: FastifyReply) => {
-    const { projectRoot, project, full } = request.body as any;
+    const { projectRoot, project, full } = (request.body ?? {}) as any;
 
     if (!projectRoot || typeof projectRoot !== 'string') {
       reply.code(400);
@@ -69,9 +70,11 @@ export const briefingPlugin: FastifyPluginAsync<{ deps: BriefingRouteDeps }> = a
     }
   });
 
-  fastify.get('/briefing/:project', async (request: FastifyRequest, reply: FastifyReply) => {
-    const { project } = request.params as any;
-    const projectRoot = ((request.query as any).projectRoot as string) || process.cwd();
+  const readBriefing = async (projectRoot: unknown, project: string | undefined, reply: FastifyReply) => {
+    if (!projectRoot || typeof projectRoot !== 'string') {
+      reply.code(400);
+      return { success: false, error: 'projectRoot is required' };
+    }
 
     const validation = validateProjectRoot(projectRoot);
     if (!validation.ok) {
@@ -87,5 +90,16 @@ export const briefingPlugin: FastifyPluginAsync<{ deps: BriefingRouteDeps }> = a
       reply.code(500);
       return { success: false, error: (err as Error).message };
     }
+  };
+
+  fastify.get('/briefing', async (request: FastifyRequest, reply: FastifyReply) => {
+    // No magic project name: omitted project and the literal name "auto" differ.
+    return readBriefing((request.query as any).projectRoot, undefined, reply);
+  });
+
+  fastify.get('/briefing/:project', async (request: FastifyRequest, reply: FastifyReply) => {
+    const { project } = request.params as { project: string };
+    const projectRoot = (request.query as any).projectRoot ?? process.cwd();
+    return readBriefing(projectRoot, project, reply);
   });
 };

@@ -14,9 +14,10 @@ import { createAgents } from '../../lib/agents.js';
 import { createActivityLog } from '../../lib/activity.js';
 import { createMessaging } from '../../lib/messaging.js';
 import { createResurrection } from '../../lib/resurrection.js';
-import { mkdirSync, existsSync, readFileSync, writeFileSync, rmSync } from 'fs';
-import { join } from 'path';
+import { mkdirSync, existsSync, readFileSync, writeFileSync, rmSync, symlinkSync, realpathSync } from 'fs';
+import { basename, join } from 'path';
 import { tmpdir } from 'os';
+import { execFileSync } from 'node:child_process';
 
 let db;
 let sessions;
@@ -66,6 +67,24 @@ afterEach(() => {
 // =============================================================================
 
 describe('detectProject', () => {
+  function git(cwd, ...args) {
+    const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('GIT_')));
+    return execFileSync('git', args, {
+      cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
+      env: { ...env, GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: '/dev/null' },
+    }).trim();
+  }
+
+  function repository(name, project) {
+    const root = join(testDir, name);
+    mkdirSync(root);
+    git(root, 'init', '-q');
+    writeFileSync(join(root, 'pd-fleet.yml'), `fleet:\n  name: ${project}\n  agents: []\n`);
+    git(root, 'add', 'pd-fleet.yml');
+    git(root, '-c', 'user.name=Fixture Agent', '-c', 'user.email=fixture@example.invalid', 'commit', '-qm', 'fixture');
+    return root;
+  }
+
   test('returns explicit project when provided', () => {
     const result = briefing.detectProject(testDir, 'myapp');
     expect(result).toBe('myapp');
@@ -85,6 +104,72 @@ describe('detectProject', () => {
 
     const result = briefing.detectProject(testDir);
     expect(result).toBe('configured-project');
+  });
+
+  test('linked and nested worktrees use the root fleet name, not a folder or nested config', () => {
+    const root = repository('primary', 'my-project');
+    const linked = join(testDir, 'unrelated-checkout-name');
+    git(root, 'worktree', 'add', '--detach', linked);
+    const nested = join(linked, 'src', 'nested');
+    mkdirSync(nested, { recursive: true });
+    writeFileSync(join(nested, 'pd-fleet.yml'), 'fleet:\n  name: wrong-nested\n');
+    writeFileSync(join(nested, '.portdaddyrc'), JSON.stringify({ project: 'wrong-rc' }));
+    expect(briefing.detectProject(linked)).toBe('my-project');
+    expect(briefing.detectProject(nested)).toBe('my-project');
+    expect(briefing.detectProject(nested, 'override')).toBe('override');
+    expect(briefing.detectProject(nested, 'auto')).toBe('auto');
+  });
+
+  test('a physical directory alias uses its target repository, not the alias parent config', () => {
+    const root = repository('primary', 'physical-project');
+    const alias = join(testDir, 'alias');
+    symlinkSync(root, alias, 'dir');
+    writeFileSync(join(testDir, '.portdaddyrc'), JSON.stringify({ project: 'foreign-parent' }));
+    expect(briefing.detectProject(alias)).toBe('physical-project');
+  });
+
+  test('root fleet configuration wins over root rc configuration', () => {
+    const root = repository('primary', 'fleet-project');
+    writeFileSync(join(root, '.portdaddyrc'), JSON.stringify({ project: 'rc-project' }));
+    expect(briefing.detectProject(root)).toBe('fleet-project');
+  });
+
+  test('sibling repositories remain distinct and foreign sessions or claims stay out', () => {
+    const a = repository('checkout-a', 'project-a');
+    const b = repository('checkout-b', 'project-b');
+    const first = sessions.start('Owned A', { project: 'project-a' });
+    const second = sessions.start('Foreign B', { project: 'project-b' });
+    sessions.claimFiles(first.id, ['same.ts']);
+    sessions.claimFiles(second.id, ['same.ts']);
+    const before = db.prepare('SELECT * FROM sessions ORDER BY id').all();
+    const data = briefing.generate(a, { writeToDisk: false }).briefing;
+    expect(data.project).toBe('project-a');
+    expect(data.activeSessions.map(s => s.id)).toEqual([first.id]);
+    expect(data.fileClaims.map(c => c.sessionId)).toEqual([first.id]);
+    expect(briefing.generate(b, { writeToDisk: false }).briefing.project).toBe('project-b');
+    expect(db.prepare('SELECT * FROM sessions ORDER BY id').all()).toEqual(before);
+    expect(existsSync(join(a, '.portdaddy'))).toBe(false);
+  });
+
+  test('a root with no local config does not inherit a parent rc project', () => {
+    writeFileSync(join(testDir, '.portdaddyrc'), JSON.stringify({ project: 'foreign-parent' }));
+    const root = join(testDir, 'plain-repository');
+    mkdirSync(root);
+    git(root, 'init', '-q');
+    expect(briefing.detectProject(root)).toBe('plain-repository');
+    const nonGit = join(testDir, 'plain-directory');
+    mkdirSync(nonGit);
+    expect(briefing.detectProject(nonGit)).toBe('plain-directory');
+  });
+
+  test.each(['pd-fleet.yml', '.portdaddyrc'])('does not use a %s symlink into a sibling repository', filename => {
+    const sibling = repository('sibling', 'foreign-project');
+    writeFileSync(join(sibling, '.portdaddyrc'), JSON.stringify({ project: 'foreign-project' }));
+    const root = join(testDir, 'no-local-project');
+    mkdirSync(root);
+    git(root, 'init', '-q');
+    symlinkSync(join(sibling, filename), join(root, filename));
+    expect(briefing.detectProject(root)).toBe(basename(realpathSync(root)));
   });
 });
 

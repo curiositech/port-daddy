@@ -9,10 +9,11 @@
  */
 
 import type Database from 'better-sqlite3';
-import { mkdirSync, writeFileSync, existsSync, readFileSync } from 'fs';
-import { join, resolve } from 'path';
+import { mkdirSync, writeFileSync, existsSync, readFileSync, realpathSync } from 'fs';
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'path';
 import { getWorktreeInfo } from './worktree.js';
-import { loadConfig } from './config.js';
+import { findConfig, loadConfig } from './config.js';
+import { findFleetConfigPath, loadFleetConfig } from './fleet-engine.js';
 import { validateProjectRoot } from './utils.js';
 
 // =============================================================================
@@ -281,25 +282,40 @@ export function createBriefing(db: Database.Database, deps: BriefingDeps) {
 
   /**
    * Detect the project name for a given directory.
-   * Priority: explicit override > .portdaddyrc project > worktree directory name
+   * Priority: explicit override > root fleet name > root .portdaddyrc > root name.
+   * A linked worktree's directory name is not its configured project identity.
    */
   function detectProject(projectRoot: string, explicitProject?: string | null): string {
     if (explicitProject) return explicitProject;
 
-    // Check .portdaddyrc
-    try {
-      const config = loadConfig(projectRoot);
-      if (config?.project) return config.project;
-    } catch {
-      // No config found
+    const physicalDirectory = existsSync(projectRoot) ? realpathSync(projectRoot) : resolve(projectRoot);
+    const info = getWorktreeInfo(physicalDirectory);
+    const root = info ? realpathSync(info.root) : physicalDirectory;
+    const withinRoot = relative(root, physicalDirectory);
+    if (withinRoot === '..' || withinRoot.startsWith(`..${sep}`) || isAbsolute(withinRoot)) {
+      throw new Error('Briefing worktree root does not contain projectRoot');
     }
 
-    // Fall back to worktree name
-    const info = getWorktreeInfo(projectRoot);
-    if (info) return info.name;
+    // Resolve only the selected physical root's config. Never inherit a sibling
+    // repository's config through parent traversal or a config-file symlink.
+    const fleetPath = findFleetConfigPath(root);
+    if (fleetPath && dirname(realpathSync(fleetPath)) === root) {
+      const fleet = loadFleetConfig(root);
+      if (fleet?.name) return fleet.name;
+    }
 
-    // Last resort: directory basename
-    return resolve(projectRoot).split('/').pop() || 'unknown';
+    // Keep the existing local rc contract, but not an ancestor's project name.
+    try {
+      const configPath = findConfig(root);
+      if (configPath && dirname(realpathSync(configPath)) === root) {
+        const config = loadConfig(root);
+        if (config?.project) return config.project;
+      }
+    } catch {
+      // No usable root-local rc config found.
+    }
+
+    return basename(root) || 'unknown';
   }
 
   /**

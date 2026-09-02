@@ -25,10 +25,10 @@ export async function handleBriefing(options: CLIOptions): Promise<void> {
 
   // --json mode: return briefing as JSON to stdout, no disk write
   if (isJson(options)) {
-    const detectedProject = project || 'auto';
+    const route = project ? `/briefing/${encodeURIComponent(project)}` : '/briefing';
     const qs = `?projectRoot=${encodeURIComponent(projectRoot)}`;
     const res: PdFetchResponse = await pdFetch(
-      `${PORT_DADDY_URL}/briefing/${encodeURIComponent(detectedProject)}${qs}`
+      `${PORT_DADDY_URL}${route}${qs}`
     );
     const data = await res.json();
 

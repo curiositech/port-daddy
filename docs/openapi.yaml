@@ -3678,6 +3678,33 @@ paths:
   # BRIEFING
   # ===========================================================================
   /briefing:
+    get:
+      tags: [briefing]
+      summary: Detect the project at its physical repository root and return fresh briefing data without writing files
+      operationId: getDetectedBriefing
+      parameters:
+        - name: projectRoot
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Absolute directory in the target project. Project detection uses its physical Git worktree root, root-local fleet name, then root-local rc configuration.
+      responses:
+        '200':
+          description: Fresh project briefing data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  briefing:
+                    type: object
+        '400':
+          description: projectRoot required or invalid
+        '500':
+          $ref: '#/components/responses/InternalError'
     post:
       tags: [briefing]
       summary: Generate .portdaddy/ briefing and write to disk
