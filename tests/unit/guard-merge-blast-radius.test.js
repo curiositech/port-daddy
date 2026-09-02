@@ -208,6 +208,21 @@ describe('stagedFiles — exact all-parent attribution', () => {
     expect(facts.violations).toEqual([expect.objectContaining({ code: 'unclaimed-file', file: ' private.txt ' })]);
   });
 
+  test.each([false, true])('a leading Unicode BOM belongs to the first filename (merge=%s)', merging => {
+    const dir = merging ? pendingMerge() : freshRepo('leading-bom');
+    const path = '\uFEFFprivate.txt';
+    write(dir, path, 'authored\n');
+    const files = stagedFiles(dir);
+    expect(files).toEqual([path]);
+    expect(ownerQueryPaths(path, dir)).toEqual([path, resolve(dir, path)]);
+    const facts = evaluateGuardFacts({ config: { ...DEFAULT_GUARD_CONFIG, enabled: true, mode: 'enforce' },
+      active: true, agentId: 'own-agent', sessionId: 'own-session', files,
+      ownersByFile: { 'private.txt': [{ agentId: 'own-agent', sessionId: 'own-session' }] } });
+    expect(facts.files).toEqual([path]);
+    expect(facts.shouldBlock).toBe(true);
+    expect(facts.violations).toEqual([expect.objectContaining({ code: 'unclaimed-file', file: path })]);
+  });
+
   test('undecodable native path bytes fail instead of aliasing a valid replacement character', () => {
     const dir = freshRepo('non-utf8');
     // APFS refuses such a filename on disk; Git can still receive it in an index.
