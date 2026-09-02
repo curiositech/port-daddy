@@ -99,7 +99,7 @@ pd setup
 
 `pd setup` detects your installed editors (Claude Code, Claude Desktop, Cursor, Windsurf, Gemini, Cline and friends), writes MCP configuration for each, installs the agent skill and Port Daddy Pilot definitions, starts the daemon under launchd supervision, and installs the exact matching signed FleetBar release on macOS. FleetBar updates itself from its out-of-date card: it verifies the version-pinned archive checksum, Curiositech Developer ID, and Apple notarization before replacing the app, preserves the previous bundle for rollback, and relaunches through launchd. The operator never has to hunt for a download or run an update command.
 
-The [release train](docs/RELEASING.md#release-train-authority-and-recovery) publishes through the Port Daddy GitHub App with repository-scoped authority, exact source/tag/Release receipts and explicit cleanup status. Approved Actions configuration and a controlled live rollout are separate from source validation; signing, soak, protected review/queue and fresh-install gates remain in place.
+The [release train](docs/RELEASING.md#release-train-authority-and-recovery) publishes through the Port Daddy GitHub App with repository-scoped authority, exact source/tag/Release receipts and explicit cleanup status. Release discovery accepts large changelogs while rejecting missing dated headers or failed Git reads. Approved Actions configuration and a controlled live rollout are separate from source validation; signing, soak, protected review/queue and fresh-install gates remain in place.
 
 ### 3. Verify
 
