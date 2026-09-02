@@ -1099,7 +1099,7 @@ describe('kill', () => {
     spawner.kill(running.agentId);
     const closeHandler = mockChildProcess.on.mock.calls.find(([event]) => event === 'close');
     if (closeHandler) closeHandler[1](null);
-    const result = await pending;
+    await pending;
 
     const doneCalls = mockFetch.mock.calls.filter(
       ([url]) => typeof url === 'string' && url.includes('/sugar/done')

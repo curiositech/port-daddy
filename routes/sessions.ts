@@ -965,7 +965,7 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
     try {
       const sessionIdParam = (request.params as any).id;
       const sessionId = typeof sessionIdParam === 'string' ? sessionIdParam : sessionIdParam[0];
-      const { status, note, agentId } = (request.body || {}) as any;
+      const { status, agentId } = (request.body || {}) as any;
 
       const routeAuth = authorizeSessionMutationRoute(request, agentId, sessionId, 'PUT /sessions/:id');
       if (!routeAuth.success) {
