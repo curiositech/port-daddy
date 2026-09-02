@@ -397,15 +397,23 @@ export const roadmapPlugin: FastifyPluginAsync<{ deps: RoadmapDeps }> = async (f
         _request.log?.warn?.({ err }, 'roadmap_board_write_plan_edges_failed');
       }
     }
-    // Real ADR-0086 estimates drive the Gantt bars; an unsized item defaults to
-    // one effort unit so it still earns visible geometry (the board renders a
-    // duration chart now, not an unweighted topological-depth chart).
-    const estimateBySlug = new Map(rows.map((r) => [r.slug, r.estimate ?? 1]));
+    // Real effort estimates from roadmap_items.estimate, keyed by slug. `derivePlan` collapses
+    // duplicate slugs to the first occurrence in slug-sort order (see planner-migrate.ts), so this
+    // lookup mirrors that same tie-break instead of last-write-wins from `rows`' natural order.
+    const estimateBySlug = new Map<string, number | null>();
+    for (const r of [...rows].sort((a, b) => (a.slug < b.slug ? -1 : a.slug > b.slug ? 1 : 0))) {
+      if (!estimateBySlug.has(r.slug)) estimateBySlug.set(r.slug, r.estimate);
+    }
+    // No task in `roadmap_items` sets `estimate` yet (there is currently no write path for it —
+    // see lib/roadmap-items.ts). DEFAULT_ESTIMATE_UNITS is the explicit, documented fallback for
+    // that "genuinely unset" case, matching the estimate every task got before this fix.
+    const DEFAULT_ESTIMATE_UNITS = 1;
     const sched = schedule(
-      plan.tasks.map((t) => ({
-        id: t.slug as string,
-        estimate: estimateBySlug.get(t.slug as string) ?? 1,
-      })),
+      plan.tasks.map((t) => {
+        const real = estimateBySlug.get(t.slug as string);
+        const estimate = typeof real === 'number' ? real : DEFAULT_ESTIMATE_UNITS;
+        return { id: t.slug as string, estimate };
+      }),
       plan.dependsOnEdges,
     );
     const adrs: Record<string, AdrMeta> = {};

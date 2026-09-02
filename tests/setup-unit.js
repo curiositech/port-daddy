@@ -283,6 +283,13 @@ export function createTestDb() {
       completed_at INTEGER,
       source_refs_json TEXT,
       deleted_at INTEGER,
+      -- Mirrors lib/db.ts's PRAGMA-guarded ALTER TABLE for the PD Planner
+      -- estimate/started_at/due_at columns (ADR-0086). estimate is the only
+      -- one currently read by any code path (routes/roadmap.ts's Gantt
+      -- scheduler); started_at/due_at exist for future use.
+      started_at INTEGER,
+      due_at INTEGER,
+      estimate INTEGER,
       UNIQUE(slug, harbor)
     );
     CREATE INDEX IF NOT EXISTS idx_roadmap_items_harbor_status
