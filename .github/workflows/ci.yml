@@ -1040,6 +1040,21 @@ jobs:
           PORTHOLE_TEST_CONFIGURATION: release
         run: /usr/bin/python3 apps/porthole-stage-capture/Scripts/test-ci-artifact.py
 
+      - name: Render synthetic light-dark UI and motion without screen capture
+        run: |
+          set -euo pipefail
+          apps/porthole-stage-capture/.build/release/PortholeStageCapture \
+            --render-synthetic-proof "$RUNNER_TEMP/porthole-stage-synthetic-ui"
+
+      - name: Upload synthetic presentation evidence, not capture proof
+        uses: actions/upload-artifact@v4
+        with:
+          name: porthole-stage-SYNTHETIC-UI-NOT-CAPTURE-${{ github.sha }}
+          path: ${{ runner.temp }}/porthole-stage-synthetic-ui/
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
+
       - name: Upload the explicitly non-production CI artifact
         uses: actions/upload-artifact@v4
         with:

@@ -83,6 +83,10 @@ These renders demonstrate presentation and animation only. They do not prove
 that a person or agent moved a real cursor, selected a real window, granted
 consent, or captured in the background. The manual acceptance gates below remain.
 
+Browse the [dated visual evidence and provenance](Evidence/synthetic-ui-20260902/README.md).
+Every affected CI run also uploads a seven-day `SYNTHETIC-UI-NOT-CAPTURE` artifact
+containing newly rendered images, motion, and its integrity manifest.
+
 Packaging generates all ten ICNS representations and signs the fixture before
 sealing its executable digest into Porthole's resources. Fixture verification
 checks that resource seal and the running program's identity and digest; it no

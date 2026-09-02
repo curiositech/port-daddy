@@ -1,0 +1,72 @@
+{
+  "appearances" : [
+    "dark",
+    "light"
+  ],
+  "backgroundCaptureProof" : false,
+  "capturePerformed" : false,
+  "cursorTransportProof" : false,
+  "files" : [
+    {
+      "bytes" : 639351,
+      "filename" : "stage-dark-12.png",
+      "pixelHeight" : 830,
+      "pixelsPerPoint" : 1,
+      "pixelWidth" : 1320,
+      "sha256" : "df734d163e843dbb7b250a22f1473acd1d711df21de95bd0c2a85723617ecdde"
+    },
+    {
+      "bytes" : 639938,
+      "filename" : "stage-dark-60.png",
+      "pixelHeight" : 830,
+      "pixelsPerPoint" : 1,
+      "pixelWidth" : 1320,
+      "sha256" : "e2e02e3b9066248ec4832dbc05f1a7df728710e67cb64c773c377b80a63a6b13"
+    },
+    {
+      "bytes" : 527768,
+      "decodedVideoFrames" : 72,
+      "filename" : "stage-dark-synthetic.mov",
+      "pixelHeight" : 830,
+      "pixelsPerPoint" : 1,
+      "pixelWidth" : 1320,
+      "sha256" : "1c9f3b40052d0d23fbb01c0bcf3b5e024a1f92cc6ebcb46f89986ac711d3ea49"
+    },
+    {
+      "bytes" : 636995,
+      "filename" : "stage-light-12.png",
+      "pixelHeight" : 830,
+      "pixelsPerPoint" : 1,
+      "pixelWidth" : 1320,
+      "sha256" : "35af8b694cd4a2e18a60d31160a096e4b28c1f44fedbcca108a5205367601085"
+    },
+    {
+      "bytes" : 637471,
+      "filename" : "stage-light-60.png",
+      "pixelHeight" : 830,
+      "pixelsPerPoint" : 1,
+      "pixelWidth" : 1320,
+      "sha256" : "6665c73106e7676af753c99b8bd7a44d97e46d890f5a06f26fce1338b9e1ed82"
+    },
+    {
+      "bytes" : 527360,
+      "decodedVideoFrames" : 72,
+      "filename" : "stage-light-synthetic.mov",
+      "pixelHeight" : 830,
+      "pixelsPerPoint" : 1,
+      "pixelWidth" : 1320,
+      "sha256" : "8084b89bd4006b3e3bf59f81806a857f4a725ca48082e0fe402a95f45661f65c"
+    }
+  ],
+  "framesPerAppearance" : 72,
+  "framesPerSecond" : 24,
+  "logicalSizePoints" : {
+    "height" : 830,
+    "width" : 1320
+  },
+  "operatorDataRead" : false,
+  "permissionProof" : false,
+  "productionDistribution" : false,
+  "schema" : "pd.porthole.synthetic-ui-proof.v1",
+  "source" : "StageView + synthetic presentation model"
+}
