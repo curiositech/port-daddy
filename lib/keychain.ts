@@ -149,7 +149,7 @@ function loadSecretResult(service: string, account: string): KeychainReadResult 
     // that exact outcome proves absence. Permission denial, timeout, locked
     // keychain, and all other failures stay distinct so root-key callers never
     // mistake an unreadable existing item for a safe creation opportunity.
-    return (error as { status?: number }).status === 44
+    return (error as { status?: number } | null | undefined)?.status === 44
       ? { status: 'missing' }
       : { status: 'error' };
   }

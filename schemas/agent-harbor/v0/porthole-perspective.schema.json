@@ -73,16 +73,16 @@
     },
     "captureSchedule": {
       "type": "object",
-      "description": "A schedule commitment created no later than startedAt. Version 1 implements only fixed-interval sampling with a fixed-duration boundary; unsupported modes fail before any ledger write. A consumer must also verify the commitment hash and timestamp ordering.",
+      "description": "A schedule commitment created no later than startedAt. Version 1 implements only fixed-interval sampling with a fixed-duration boundary. Slot i starts at startedAt + i * samplingIntervalMs and ends at min(startedAt + (i + 1) * samplingIntervalMs, startedAt + durationMs). Capture or gap starts must lie in their own half-open slot; ends may equal that slot's end but cannot spill into another. Expected count is ceil(durationMs / samplingIntervalMs), including a partial final interval. Consumers verify the commitment, contiguous indices, slot timing, and closure no earlier than the committed boundary.",
       "properties": {
         "scheduleId": { "type": "string", "minLength": 1 },
         "mode": { "const": "fixed-interval" },
-        "samplingIntervalMs": { "type": "number", "minimum": 1 },
+        "samplingIntervalMs": { "type": "integer", "minimum": 1, "maximum": 9007199254740991 },
         "boundary": {
           "type": "object",
           "properties": {
             "kind": { "const": "fixed-duration" },
-            "durationMs": { "type": "number", "minimum": 1 },
+            "durationMs": { "type": "integer", "minimum": 1, "maximum": 9007199254740991 },
             "terminalEventKind": { "const": null }
           },
           "required": ["kind", "durationMs", "terminalEventKind"],
