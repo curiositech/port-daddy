@@ -240,46 +240,66 @@ function gitPath(path: string, cwd = process.cwd()): string | null {
 }
 
 /**
- * The SHA of the other parent during an in-progress merge (`git merge` with
- * a real conflict, mid-resolution), or null when not merging. `rev-parse`
- * (not a raw `.git/MERGE_HEAD` read) so this resolves correctly across
- * worktrees, where `--git-path` points at the per-worktree git dir.
+ * Read Git evidence without converting failed discovery into an empty claim set.
+ * The design keeps diagnostics fixed: arbitrary Git stderr is not authority.
+ * @param args Read-only Git arguments, never shell-interpolated paths.
+ * @param cwd The selected checkout, including a linked worktree.
+ * @returns Complete stdout, preserving NUL-delimited native filenames.
  */
-function mergeHeadSha(cwd = process.cwd()): string | null {
-  const result = spawnSync('git', ['rev-parse', '--verify', '-q', 'MERGE_HEAD'], { cwd, encoding: 'utf8' });
-  if (result.status !== 0) return null;
-  const sha = result.stdout.trim();
-  return sha || null;
+function stagedGit(args: string[], cwd: string): string {
+  const result = spawnSync('git', args, { cwd, encoding: 'utf8', timeout: 10_000, maxBuffer: 16 * 1024 * 1024 });
+  if (result.error || result.status !== 0) throw new Error('Guard cannot determine staged files: Git evidence is unavailable.');
+  return result.stdout;
 }
 
 /**
- * Files staged for the next commit, scoped to what THIS commit actually
- * authors — not what merely arrives via a merge.
- *
- * A plain `git diff --cached` against HEAD is correct for a normal commit,
- * but during an in-progress merge (`.git/MERGE_HEAD` set) it compares the
- * post-merge tree to the STALE pre-merge HEAD, so every file the other
- * branch touched shows up as "staged" — even ones this session never edited
- * and that arrived unchanged from the branch being merged in. On a
- * rebase-forward of a stale PR branch onto origin/main, that swept in
- * hundreds of main's files, each still under some OTHER live session's
- * active claim, and the coordination guard correctly-but-wrongly refused the
- * commit as if this session were overwriting their work.
- *
- * Fix: when merging, diff the staged tree against MERGE_HEAD (the tip being
- * merged in) instead of HEAD. A file whose resolved content equals
- * MERGE_HEAD's is a pure pass-through — not authored here, exempt from
- * claim checks. A file that differs (an actual conflict resolution) still
- * counts, correctly. `commitFiles()` below needs no equivalent fix: git's
- * own default combined-diff for `git show <merge-commit>` already applies
- * this exact rule post-commit.
+ * Resolve every incoming parent from this worktree's merge metadata. The purpose
+ * is to distinguish an absent merge from corrupt or unreadable merge evidence;
+ * a failed ref lookup must never silently select ordinary-commit semantics.
+ * @param cwd The selected checkout.
+ * @returns Verified immutable commit IDs, or no parents when not merging.
+ */
+function mergeHeadShas(cwd: string): string[] {
+  const path = stagedGit(['rev-parse', '--git-path', 'MERGE_HEAD'], cwd).trim();
+  if (!path) throw new Error('Guard cannot determine staged files: merge location is unavailable.');
+  let content: string;
+  try {
+    content = readFileSync(resolve(cwd, path), 'utf8');
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
+    throw new Error('Guard cannot determine staged files: merge metadata is unreadable.');
+  }
+  const parents = content.trim().split(/\r?\n/);
+  if (parents.some(parent => !/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/.test(parent))) {
+    throw new Error('Guard cannot determine staged files: merge metadata is invalid.');
+  }
+  return [...new Set(parents)].map(parent =>
+    stagedGit(['rev-parse', '--verify', '--end-of-options', `${parent}^{commit}`], cwd).trim());
+}
+
+/**
+ * Discover paths authored by the pending commit, not either parent's unchanged
+ * pass-through. A merge path is included only when its staged entry differs from
+ * HEAD and every incoming parent, matching Git's combined-diff path semantics.
+ * Compare exact paths without rename heuristics during merges: a real rename
+ * resolution must retain its added destination and any newly deleted source.
+ * Normal commits retain their ordinary cached-diff behavior, including unborn
+ * branches. Unresolved indexes and unavailable evidence stop discovery.
+ * @param cwd The checkout whose index will be committed.
+ * @returns Exact repository-relative paths; no trimming or quote decoding.
  */
 export function stagedFiles(cwd = process.cwd()): string[] {
-  const mergeHead = mergeHeadSha(cwd);
-  const diffArgs = mergeHead
-    ? ['diff', '--cached', '--name-only', '--diff-filter=ACMRDTU', mergeHead]
-    : ['diff', '--cached', '--name-only', '--diff-filter=ACMRDTU'];
-  return gitOutput(diffArgs, cwd);
+  if (stagedGit(['ls-files', '--unmerged', '-z'], cwd)) {
+    throw new Error('Guard cannot determine staged files: the index contains unresolved merges.');
+  }
+  const incoming = mergeHeadShas(cwd);
+  const diffArgs = ['diff', '--cached', '--name-only', '-z', '--no-ext-diff', '--no-textconv', '--ignore-submodules=none', '--diff-filter=ACMRDTU'];
+  if (incoming.length === 0) return stagedGit([...diffArgs, '--'], cwd).split('\0').filter(Boolean);
+
+  const head = stagedGit(['rev-parse', '--verify', '--end-of-options', 'HEAD^{commit}'], cwd).trim();
+  const changes = [head, ...incoming].map(parent =>
+    new Set(stagedGit([...diffArgs, '--no-renames', parent, '--'], cwd).split('\0').filter(Boolean)));
+  return [...changes[0]].filter(path => changes.every(paths => paths.has(path)));
 }
 
 /**
@@ -295,7 +315,7 @@ function commitFiles(ref: string, cwd = process.cwd()): string[] {
 }
 
 function normalizeFiles(files: string[]): string[] {
-  return Array.from(new Set(files.map(file => file.trim()).filter(Boolean)));
+  return Array.from(new Set(files.filter(file => file.length > 0)));
 }
 
 export function fileNeedsRoadmapReceipt(file: string): boolean {
@@ -333,17 +353,16 @@ function relativePathInside(root: string, path: string): string | null {
 }
 
 export function ownerQueryPaths(file: string, repoRoot = process.cwd()): string[] {
-  const trimmed = file.trim();
-  if (!trimmed) return [];
+  if (!file) return [];
 
   const root = resolve(repoRoot);
-  const paths = new Set<string>([trimmed]);
+  const paths = new Set<string>([file]);
 
-  if (isAbsolute(trimmed)) {
-    const rel = relativePathInside(root, trimmed);
+  if (isAbsolute(file)) {
+    const rel = relativePathInside(root, file);
     if (rel) paths.add(rel);
   } else {
-    paths.add(resolve(root, trimmed));
+    paths.add(resolve(root, file));
   }
 
   return Array.from(paths);

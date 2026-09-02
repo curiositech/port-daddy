@@ -1,123 +1,241 @@
 /**
- * The coordination guard's pre-commit file-touch detection must not
- * misattribute a merge's pass-through files to the merging session.
- *
- * `stagedFiles()` used a plain `git diff --cached` against HEAD, which is
- * correct for an ordinary commit but wrong during an in-progress merge: HEAD
- * is the pre-merge tip, so every file the OTHER branch touched shows up as
- * "staged by this commit" even when its content arrived unchanged. On a
- * rebase-forward of a stale PR branch onto origin/main, that swept in
- * hundreds of main's files — many under some other live session's active
- * claim — and the guard refused the commit as a false collision.
- *
- * Fix: during a merge, diff the staged tree against MERGE_HEAD (the tip
- * being merged in) instead of HEAD. A file whose resolved content equals
- * MERGE_HEAD's arrived untouched and is exempt; a file that differs (a real
- * conflict resolution) still counts.
- *
- * Hermetic: builds real temp git repos and drives real `git merge` /
- * `git merge --continue`-style conflict resolution — no mocking, since the
- * defect is in how git itself is queried.
+ * Real isolated Git fixtures for pending-merge ownership, not parent pass-through.
+ * No daemon or network: Git configuration and commit attribution are synthetic.
  */
-import { describe, test, expect, afterEach } from '@jest/globals';
+import { afterAll, afterEach, beforeAll, describe, expect, test } from '@jest/globals';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-
-import { stagedFiles } from '../../cli/commands/guard.js';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { join, resolve } from 'node:path';
+import { DEFAULT_GUARD_CONFIG, evaluateGuardFacts, ownerQueryPaths, stagedFiles } from '../../cli/commands/guard.js';
 
 const scratchDirs = [];
+const savedGitEnv = Object.fromEntries(Object.entries(process.env).filter(([key]) => key.startsWith('GIT_')));
+beforeAll(() => {
+  for (const key of Object.keys(process.env)) if (key.startsWith('GIT_')) delete process.env[key];
+  process.env.GIT_CONFIG_NOSYSTEM = '1';
+  process.env.GIT_CONFIG_GLOBAL = '/dev/null';
+  process.env.GIT_OPTIONAL_LOCKS = '0';
+  process.env.GIT_CEILING_DIRECTORIES = join(homedir(), 'coding', 'tmp');
+});
 afterEach(() => {
-  while (scratchDirs.length) {
-    try { rmSync(scratchDirs.pop(), { recursive: true, force: true }); } catch { /* best-effort */ }
-  }
+  while (scratchDirs.length) rmSync(scratchDirs.pop(), { recursive: true });
+});
+afterAll(() => {
+  for (const key of Object.keys(process.env)) if (key.startsWith('GIT_')) delete process.env[key];
+  Object.assign(process.env, savedGitEnv);
 });
 
-function git(args, cwd) {
-  const r = spawnSync('git', args, { cwd, encoding: 'utf8' });
-  if (r.status !== 0) throw new Error(`git ${args.join(' ')} failed: ${r.stderr}`);
-  return r.stdout;
+function gitResult(args, cwd) {
+  return spawnSync('git', ['-c', 'user.name=Guard fixture', '-c', 'user.email=guard-fixture@example.invalid',
+    '-c', 'commit.gpgsign=false', ...args], { cwd, encoding: 'utf8', timeout: 10_000 });
 }
-
-function freshRepo(name) {
-  const dir = mkdtempSync(join(tmpdir(), `pd-guard-merge-${name}-`));
+function git(args, cwd) {
+  const result = gitResult(args, cwd);
+  if (result.error || result.status !== 0) throw new Error('Fixture Git failed: ' + result.stderr);
+  return result.stdout;
+}
+function freshDirectory(name) {
+  const root = join(homedir(), 'coding', 'tmp');
+  mkdirSync(root, { recursive: true });
+  const dir = mkdtempSync(join(root, 'pd-guard-merge-' + name + '-'));
   scratchDirs.push(dir);
-  git(['init', '-q', '-b', 'trunk'], dir);
-  git(['config', 'user.email', 't@t.com'], dir);
-  git(['config', 'user.name', 't'], dir);
+  return dir;
+}
+function freshRepo(name) {
+  const dir = freshDirectory(name);
+  const template = join(dir, 'empty-template');
+  mkdirSync(template);
+  git(['init', '-q', '-b', 'trunk', '--template=' + template], dir);
+  return dir;
+}
+function write(dir, path, content) {
+  writeFileSync(join(dir, path), content);
+  git(['add', '--', path], dir);
+}
+function commit(dir, message) { git(['commit', '-qm', message], dir); }
+function mergePath(dir, name = 'MERGE_HEAD') {
+  return resolve(dir, git(['rev-parse', '--git-path', name], dir).trim());
+}
+function pendingMerge({ conflict = false } = {}) {
+  const dir = freshRepo(conflict ? 'conflict' : 'clean');
+  write(dir, 'shared.txt', 'base\n');
+  write(dir, 'head-deleted.txt', 'delete in HEAD\n');
+  write(dir, 'incoming-deleted.txt', 'delete incoming\n');
+  commit(dir, 'base');
+  git(['switch', '-qc', 'feature'], dir);
+  write(dir, 'head-only.txt', 'HEAD contribution\n');
+  git(['rm', '-q', '--', 'head-deleted.txt'], dir);
+  if (conflict) write(dir, 'shared.txt', 'HEAD version\n');
+  commit(dir, 'HEAD contribution');
+  git(['switch', '-q', 'trunk'], dir);
+  write(dir, 'incoming-only.txt', 'incoming contribution\n');
+  git(['rm', '-q', '--', 'incoming-deleted.txt'], dir);
+  if (conflict) write(dir, 'shared.txt', 'incoming version\n');
+  commit(dir, 'incoming contribution');
+  git(['switch', '-q', 'feature'], dir);
+  const result = gitResult(['merge', '--no-ff', '--no-commit', 'trunk'], dir);
+  expect(result.status).toBe(conflict ? 1 : 0);
+  expect(existsSync(mergePath(dir))).toBe(true);
   return dir;
 }
 
-describe('stagedFiles — merge blast-radius attribution', () => {
-  test('a clean merge (no conflicts) reports ZERO staged files — nothing was actually authored here', () => {
-    const dir = freshRepo('clean');
-    writeFileSync(join(dir, 'a.txt'), 'base\n');
-    git(['add', '-A'], dir);
-    git(['commit', '-qm', 'base'], dir);
-    git(['checkout', '-qb', 'feature'], dir);
-    writeFileSync(join(dir, 'a.txt'), 'feature edit\n');
-    git(['add', '-A'], dir);
-    git(['commit', '-qm', 'feature edits a'], dir);
-    git(['checkout', '-q', 'trunk'], dir);
-    // trunk grows many unrelated files, simulating other live sessions' work
-    for (const name of ['env.ts', 'execute.ts', 'spend.ts', 'wrangler.toml']) {
-      writeFileSync(join(dir, name), `trunk content for ${name}\n`);
-    }
-    git(['add', '-A'], dir);
-    git(['commit', '-qm', 'trunk adds unrelated files (other sessions)'], dir);
-    git(['checkout', '-q', 'feature'], dir);
-    git(['merge', '-q', '--no-ff', '-m', 'merge trunk', 'trunk'], dir); // auto-merges cleanly, already staged
-
-    const files = stagedFiles(dir);
-    // The pre-fix behavior (diff --cached vs stale HEAD) would report all 4
-    // trunk-only files as "staged by this commit" even though this session
-    // never touched them. The fix reports none — they arrived unchanged.
-    expect(files).toEqual([]);
+describe('stagedFiles — exact all-parent attribution', () => {
+  test('a pending clean merge excludes additions and deletions passed through from either parent', () => {
+    const dir = pendingMerge();
+    const indexBefore = readFileSync(mergePath(dir, 'index'));
+    expect(stagedFiles(dir)).toEqual([]);
+    expect(readFileSync(mergePath(dir, 'index'))).toEqual(indexBefore);
+    expect(existsSync(mergePath(dir))).toBe(true);
   });
 
-  test('a conflicted merge reports ONLY the file this session actually resolved — trunk pass-through files are exempt', () => {
-    const dir = freshRepo('conflict');
-    writeFileSync(join(dir, 'shared.txt'), 'base\n');
-    writeFileSync(join(dir, 'c.txt'), 'base\n');
-    git(['add', '-A'], dir);
-    git(['commit', '-qm', 'base'], dir);
-    git(['checkout', '-qb', 'feature'], dir);
-    writeFileSync(join(dir, 'shared.txt'), 'feature version\n');
-    git(['add', '-A'], dir);
-    git(['commit', '-qm', 'feature edits shared'], dir);
-    git(['checkout', '-q', 'trunk'], dir);
-    writeFileSync(join(dir, 'shared.txt'), 'trunk version\n');
-    // simulate other live sessions' unrelated work landing on trunk
-    for (const name of ['env.ts', 'execute.ts', 'spend-gateway.test.ts']) {
-      writeFileSync(join(dir, name), `trunk content for ${name}\n`);
-    }
-    git(['add', '-A'], dir);
-    git(['commit', '-qm', 'trunk edits shared + adds unrelated files'], dir);
-    git(['checkout', '-q', 'feature'], dir);
-    const merge = spawnSync('git', ['merge', '-q', '--no-ff', '-m', 'merge trunk', 'trunk'], { cwd: dir, encoding: 'utf8' });
-    expect(merge.status).not.toBe(0); // real conflict on shared.txt, as intended
-    // Resolve the ONE real conflict, as a human/agent would:
-    writeFileSync(join(dir, 'shared.txt'), 'resolved content\n');
-    git(['add', 'shared.txt'], dir);
-
-    const files = stagedFiles(dir);
-    expect(files).toEqual(['shared.txt']);
-    // Specifically NOT the trunk-only files other sessions authored:
-    expect(files).not.toContain('env.ts');
-    expect(files).not.toContain('execute.ts');
-    expect(files).not.toContain('spend-gateway.test.ts');
+  test('a real resolution differs from both parents; unrelated work from both is excluded', () => {
+    const dir = pendingMerge({ conflict: true });
+    write(dir, 'shared.txt', 'resolved by this merge\n');
+    expect(stagedFiles(dir)).toEqual(['shared.txt']);
+    commit(dir, 'resolved merge');
+    expect(git(['show', '--format=', '--name-only', '--no-renames', '-z', 'HEAD'], dir).split('\0').filter(Boolean))
+      .toEqual(['shared.txt']);
   });
 
-  test('an ordinary (non-merge) commit is unaffected — plain HEAD diff still applies', () => {
+  test.each(['HEAD', 'MERGE_HEAD'])('choosing %s unchanged excludes that parent contribution', parent => {
+    const dir = pendingMerge({ conflict: true });
+    write(dir, 'shared.txt', git(['show', parent + ':shared.txt'], dir));
+    expect(stagedFiles(dir)).toEqual([]);
+  });
+
+  test('new staged work and a deletion against both parents remain authored', () => {
+    const dir = pendingMerge({ conflict: true });
+    git(['rm', '-q', '--', 'shared.txt'], dir);
+    write(dir, 'resolution.txt', 'new merge result\n');
+    expect(stagedFiles(dir).sort()).toEqual(['resolution.txt', 'shared.txt']);
+  });
+
+  test('a rename resolution retains its destination and newly deleted source', () => {
+    const dir = pendingMerge({ conflict: true });
+    write(dir, 'shared.txt', 'resolved before rename\n');
+    git(['mv', 'shared.txt', 'resolved-name.txt'], dir);
+    git(['config', 'diff.renames', 'copies'], dir);
+    expect(stagedFiles(dir).sort()).toEqual(['resolved-name.txt', 'shared.txt']);
+  });
+
+  test('an unchanged rename from either parent is pass-through', () => {
+    const dir = freshRepo('parent-renames');
+    write(dir, 'left.txt', 'left\n');
+    write(dir, 'right.txt', 'right\n');
+    commit(dir, 'base');
+    git(['switch', '-qc', 'feature'], dir);
+    git(['mv', 'left.txt', 'left-renamed.txt'], dir);
+    commit(dir, 'left rename');
+    git(['switch', '-q', 'trunk'], dir);
+    git(['mv', 'right.txt', 'right-renamed.txt'], dir);
+    commit(dir, 'right rename');
+    git(['switch', '-q', 'feature'], dir);
+    git(['merge', '--no-ff', '--no-commit', 'trunk'], dir);
+    expect(stagedFiles(dir)).toEqual([]);
+  });
+
+  test('mode, symlink and binary changes against both parents are retained', () => {
+    const dir = pendingMerge();
+    chmodSync(join(dir, 'shared.txt'), 0o755);
+    git(['add', '--', 'shared.txt'], dir);
+    symlinkSync('shared.txt', join(dir, 'link'));
+    git(['add', '--', 'link'], dir);
+    write(dir, 'binary.bin', Buffer.from([0, 1, 2, 255]));
+    expect(stagedFiles(dir).sort()).toEqual(['binary.bin', 'link', 'shared.txt']);
+  });
+
+  test('linked worktrees resolve their own merge metadata, preserving the parent index', () => {
+    const repo = pendingMerge({ conflict: true });
+    const indexBefore = readFileSync(mergePath(repo, 'index'));
+    const linked = join(freshDirectory('linked-parent'), 'checkout');
+    git(['worktree', 'add', '-q', '-b', 'linked-feature', linked, 'HEAD'], repo);
+    expect(gitResult(['merge', '--no-ff', '--no-commit', 'trunk'], linked).status).toBe(1);
+    write(linked, 'shared.txt', 'linked resolution\n');
+    expect(stagedFiles(linked)).toEqual(['shared.txt']);
+    expect(readFileSync(mergePath(repo, 'index'))).toEqual(indexBefore);
+  });
+
+  test('every incoming octopus parent counts, not only the first MERGE_HEAD line', () => {
+    const dir = freshRepo('octopus');
+    write(dir, 'base.txt', 'base\n');
+    commit(dir, 'base');
+    git(['switch', '-qc', 'left'], dir);
+    write(dir, 'left.txt', 'left\n');
+    commit(dir, 'left');
+    git(['switch', '-qc', 'right', 'trunk'], dir);
+    write(dir, 'right.txt', 'right\n');
+    commit(dir, 'right');
+    git(['switch', '-q', 'trunk'], dir);
+    git(['merge', '--no-ff', '--no-commit', 'left', 'right'], dir);
+    expect(readFileSync(mergePath(dir), 'utf8').trim().split('\n')).toHaveLength(2);
+    expect(stagedFiles(dir)).toEqual([]);
+    write(dir, 'authored.txt', 'new\n');
+    expect(stagedFiles(dir)).toEqual(['authored.txt']);
+  });
+
+  test('ordinary and unborn commits retain additions, edits, renames and deletions', () => {
     const dir = freshRepo('plain');
-    writeFileSync(join(dir, 'a.txt'), 'base\n');
-    git(['add', '-A'], dir);
-    git(['commit', '-qm', 'base'], dir);
-    writeFileSync(join(dir, 'a.txt'), 'edited\n');
-    writeFileSync(join(dir, 'b.txt'), 'new\n');
-    git(['add', '-A'], dir);
+    write(dir, 'edited.txt', 'base\n');
+    write(dir, 'deleted.txt', 'delete\n');
+    write(dir, 'renamed.txt', 'rename\n');
+    expect(stagedFiles(dir).sort()).toEqual(['deleted.txt', 'edited.txt', 'renamed.txt']);
+    commit(dir, 'base');
+    write(dir, 'edited.txt', 'edit\n');
+    write(dir, 'added.txt', 'new\n');
+    git(['rm', '-q', '--', 'deleted.txt'], dir);
+    git(['mv', 'renamed.txt', 'new-name.txt'], dir);
+    expect(stagedFiles(dir).sort()).toEqual(['added.txt', 'deleted.txt', 'edited.txt', 'new-name.txt']);
+  });
 
-    expect(stagedFiles(dir).sort()).toEqual(['a.txt', 'b.txt']);
+  test.each([false, true])('NUL paths stay exact through discovery and queries (merge=%s)', merging => {
+    const dir = merging ? pendingMerge() : freshRepo('unusual-paths');
+    const names = [' leading.txt', 'trailing.txt ', '   ', 'tab\tname.txt', 'line\nname.txt',
+      'quote"name.txt', 'back\\slash.txt', '-option.txt', '海.txt'];
+    for (const name of names) write(dir, name, 'authored\n');
+    expect(stagedFiles(dir).sort()).toEqual([...names].sort());
+    for (const name of names) expect(ownerQueryPaths(name, dir)).toEqual([name, resolve(dir, name)]);
+  });
+
+  test('a trimmed sibling claim cannot authorize a whitespace-distinct staged file', () => {
+    const dir = pendingMerge();
+    write(dir, ' private.txt ', 'new\n');
+    const facts = evaluateGuardFacts({ config: { ...DEFAULT_GUARD_CONFIG, enabled: true, mode: 'enforce' },
+      active: true, agentId: 'own-agent', sessionId: 'own-session', files: stagedFiles(dir),
+      ownersByFile: { 'private.txt': [{ agentId: 'own-agent', sessionId: 'own-session' }] } });
+    expect(facts.files).toEqual([' private.txt ']);
+    expect(facts.shouldBlock).toBe(true);
+    expect(facts.violations).toEqual([expect.objectContaining({ code: 'unclaimed-file', file: ' private.txt ' })]);
+  });
+
+  test('unresolved index stages fail instead of disappearing from the intersection', () => {
+    expect(() => stagedFiles(pendingMerge({ conflict: true }))).toThrow('index contains unresolved merges');
+  });
+
+  test.each(['', 'not-a-ref\n', 'f'.repeat(40) + '\n', '--output=/private/fixture-secret\n'])
+    ('unknown or malformed merge evidence fails closed (%j)', content => {
+      const dir = pendingMerge();
+      writeFileSync(mergePath(dir), content);
+      expect(() => stagedFiles(dir)).toThrow('Guard cannot determine staged files');
+      try { stagedFiles(dir); } catch (error) { expect(error.message).not.toContain('fixture-secret'); }
+    });
+
+  test('unreadable merge metadata does not fall back to ordinary HEAD semantics', () => {
+    const dir = pendingMerge();
+    const path = mergePath(dir);
+    renameSync(path, path + '.saved');
+    mkdirSync(path);
+    expect(() => stagedFiles(dir)).toThrow('merge metadata is unreadable');
+  });
+
+  test('corrupt indexes and invalid repository boundaries are unavailable evidence, not empty work', () => {
+    const dir = freshRepo('corrupt');
+    writeFileSync(mergePath(dir, 'index'), 'not a Git index');
+    expect(() => stagedFiles(dir)).toThrow('Git evidence is unavailable');
+    const invalid = freshDirectory('not-a-repo');
+    // An ancestor may itself be a checkout; explicitly stop parent discovery.
+    writeFileSync(join(invalid, '.git'), 'invalid fixture repository boundary\n');
+    expect(() => stagedFiles(invalid)).toThrow('Git evidence is unavailable');
+    expect(() => stagedFiles(join(invalid, 'missing'))).toThrow('Git evidence is unavailable');
   });
 });
