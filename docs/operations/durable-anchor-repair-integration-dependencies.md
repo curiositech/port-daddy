@@ -101,17 +101,19 @@ and an allowed action. A reason string alone does not authorize a write, and thi
 tracked feature does not use that exemption. Represent tracked versus exempt
 roadmap evidence explicitly in the existing intent/receipt contract.
 
-For **this lane's exceptional bootstrap boundary**, the separately requested
-operator approval names one exact commit/branch/repository/PR action. It must
-preserve provider/App read-back and disclose that the normal adjudicator was not
-used. This exception does not cover later heads, merge, deployment, credential
-disclosure, admission, or live claim repair; it cannot be self-granted.
+An existing operator-authorized Fleetbot bootstrap may publish a reviewed slice
+within its approved repository, branch and PR-action scope. It must preserve
+exact source/base/head and provider/App read-back, and disclose that the normal
+governed publisher was not used. That approval does not establish canonical
+AgentNode admission or authorize credential disclosure, merge, deployment,
+admission, or live claim repair.
 
-That exact-commit exception is not the normal product workflow. Scoped publication
-authority must support ordinary review fixes and rebases, with renewed head/tree,
-owner/claim/lease and policy validation for each resulting action. It must not
-require another human approval for every routine revision already within that
-scope; material scope or authority changes still require the appropriate consent.
+Scoped publication authority supports reviewed documentation corrections, ordinary
+review fixes and rebases, with renewed head/tree, owner/claim/lease and policy
+validation for each resulting action. An agent-authored plan must not invent an
+additional per-commit human-approval gate. Material scope or authority changes
+still require the appropriate consent; the bootstrap is not generic permission
+for agents to bypass governed publishing.
 
 Grand Harbor's hot interaction and Porthole/Logbook evidence remain projections
 and citations of these durable facts, never substitute authorization. Recovery
