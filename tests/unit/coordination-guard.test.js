@@ -1,9 +1,13 @@
-import { describe, expect, test } from '@jest/globals';
-import { mkdtempSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { afterEach, beforeEach, describe, expect, test } from '@jest/globals';
+import { existsSync, mkdtempSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
+import { createServer } from 'node:http';
+import { once } from 'node:events';
+import { createRequire } from 'node:module';
 import {
+  asPostCommitAudit,
   DEFAULT_GUARD_CONFIG,
   describeGuardBlock,
   evaluateGuardFacts,
@@ -614,6 +618,17 @@ describe('describeGuardBlock — HITL escalation policy', () => {
     expect(describeGuardBlock(result)).toBeNull();
   });
 
+  test.each(['rent-due', 'rent-unverifiable', 'daemon-unreachable', 'claimed-by-other-session'])(
+    'post-commit %s findings never issue a false commit-failure notification', (code) => {
+      const result = {
+        shouldBlock: true,
+        violations: [{ code, severity: 'critical', message: 'Outstanding finding' }],
+      };
+      expect(describeGuardBlock(result, { hook: true, postCommit: true })).toBeNull();
+      expect(describeGuardBlock(asPostCommitAudit(result, 'a'.repeat(40)), { hook: true })).toBeNull();
+    },
+  );
+
   test('no active session → structural; notifies the operator even outside the git hook', () => {
     const result = evaluateGuardFacts({ config: enforce, active: false, files: ['src/a.ts'] });
     const notice = describeGuardBlock(result, { hook: false });
@@ -651,5 +666,217 @@ describe('describeGuardBlock — HITL escalation policy', () => {
     expect(manual.severity).toBe('requirement');
     expect(manual.notifyOperator).toBe(false);
     expect(describeGuardBlock(result, { hook: true }).notifyOperator).toBe(true);
+  });
+});
+
+describe('post-commit audit — real Git commits and executable CLI handler', () => {
+  const require = createRequire(import.meta.url);
+  const tsxLoader = require.resolve('tsx/esm');
+  const handlerUrl = new URL('../../cli/commands/guard.ts', import.meta.url).href;
+  let repo;
+  let server;
+  let daemonUrl;
+  let latestNoteAt = 0;
+  let notesStatus = 200;
+  const requests = [];
+
+  function git(args, extraEnv = {}) {
+    const result = spawnSync('git', args, {
+      cwd: repo,
+      encoding: 'utf8',
+      env: { ...process.env, ...extraEnv },
+    });
+    expect(result.status).toBe(0);
+    return result.stdout.trim();
+  }
+
+  async function check(options = {}, positional = ['check']) {
+    // Invoke the actual handler in a separate process: output and process.exit
+    // are part of the contract, not just the pure evaluator's return values.
+    const env = {
+      PATH: `${join(repo, 'fixture-bin')}:${process.env.PATH}`,
+      TMPDIR: tmpdir(),
+      PORT_DADDY_URL: daemonUrl,
+      PORT_DADDY_FORCE_TCP: '1',
+      PORT_DADDY_PREFIX: join(repo, 'state'),
+      PORT_DADDY_CONTEXT_DIR: join(repo, 'context'),
+      PORT_DADDY_CONTEXT_SLOT: 'guard-test',
+      PD_AGENT_ID: 'agent-guard-test',
+      PD_SESSION_ID: 'session-guard-test',
+      PORT_DADDY_DISABLE_KEYCHAIN: '1',
+      PORT_DADDY_NO_RETRY: '1',
+      PD_TEST: '1',
+      GUARD_TEST_NOTICE: join(repo, 'notification'),
+      NO_COLOR: '1',
+    };
+    const child = spawn(process.execPath, [
+      '--import', tsxLoader, '--input-type=module', '-e',
+      `import { handleGuard } from ${JSON.stringify(handlerUrl)}; await handleGuard(${JSON.stringify(positional)}, ${JSON.stringify(options)});`,
+    ], { cwd: repo, env, stdio: ['ignore', 'pipe', 'pipe'] });
+    let stdout = '';
+    let stderr = '';
+    child.stdout.on('data', chunk => { stdout += chunk; });
+    child.stderr.on('data', chunk => { stderr += chunk; });
+    const timeout = setTimeout(() => child.kill('SIGKILL'), 8000);
+    try {
+      const [code, signal] = await once(child, 'close');
+      expect(signal).toBeNull();
+      return { code, stdout, stderr };
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  beforeEach(async () => {
+    requests.length = 0;
+    latestNoteAt = 0;
+    notesStatus = 200;
+    repo = mkdtempSync(join(tmpdir(), 'pd-guard-audit-'));
+    git(['init', '-b', 'main']);
+    git(['config', 'user.name', 'Guard Fixture']);
+    git(['config', 'user.email', 'guard-fixture@example.invalid']);
+    git(['config', 'commit.gpgsign', 'false']);
+    // The fixture never loads the operator's hooks or global credential store.
+    const hooks = join(repo, 'empty-hooks');
+    mkdirSync(hooks);
+    git(['config', 'core.hooksPath', hooks]);
+    const fixtureBin = join(repo, 'fixture-bin');
+    mkdirSync(fixtureBin);
+    writeFileSync(join(fixtureBin, 'osascript'), '#!/bin/sh\nprintf "notified\\n" > "$GUARD_TEST_NOTICE"\n', { mode: 0o755 });
+    writeFileSync(join(repo, 'fixture.txt'), 'base\n');
+    git(['add', 'fixture.txt']);
+    git(['commit', '-m', 'fixture base'], {
+      GIT_AUTHOR_DATE: '2020-01-01T00:00:00Z', GIT_COMMITTER_DATE: '2020-01-01T00:00:00Z',
+    });
+    git(['update-ref', 'refs/remotes/origin/main', 'HEAD']);
+    git(['switch', '-c', 'fixture-work']);
+    const guardPath = localGuardConfigPath(repo);
+    mkdirSync(dirname(guardPath), { recursive: true });
+    writeFileSync(guardPath, JSON.stringify({ ...DEFAULT_GUARD_CONFIG, enabled: true, mode: 'enforce' }));
+    server = createServer((request, response) => {
+      requests.push({ method: request.method, path: request.url });
+      const path = new URL(request.url, 'http://fixture.invalid').pathname;
+      response.setHeader('Content-Type', 'application/json');
+      if (path === '/sugar/whoami') {
+        response.end(JSON.stringify({ active: true, agentId: 'agent-guard-test', sessionId: 'session-guard-test' }));
+      } else if (path === '/files/who-owns') {
+        response.end(JSON.stringify({ owners: [{ agentId: 'agent-guard-test', sessionId: 'session-guard-test' }] }));
+      } else if (path === '/sessions/session-guard-test/notes') {
+        response.statusCode = notesStatus;
+        response.end(JSON.stringify({ notes: [{ createdAt: latestNoteAt }] }));
+      } else if (path === '/sessions/session-guard-test') {
+        response.end(JSON.stringify({ files: ['fixture.txt'] }));
+      } else {
+        response.statusCode = 404;
+        response.end(JSON.stringify({ error: 'Unexpected fixture request' }));
+      }
+    });
+    server.listen(0, '127.0.0.1');
+    await once(server, 'listening');
+    daemonUrl = `http://127.0.0.1:${server.address().port}`;
+  });
+
+  afterEach(async () => {
+    if (server?.listening) await new Promise(resolve => server.close(resolve));
+    if (repo) rmSync(repo, { recursive: true, force: true });
+  });
+
+  test('a just-created commit remains successful; debt blocks only the next pre-commit until a note', async () => {
+    latestNoteAt = Date.parse('2020-01-01T00:00:00Z');
+    writeFileSync(join(repo, 'fixture.txt'), 'first change\n');
+    git(['add', 'fixture.txt']);
+    expect((await check({ staged: true })).code).toBe(0);
+    git(['commit', '-m', 'first fixture change'], {
+      GIT_AUTHOR_DATE: '2020-01-02T00:00:00Z', GIT_COMMITTER_DATE: '2020-01-02T00:00:00Z',
+    });
+    const commit = git(['rev-parse', 'HEAD']);
+    const report = await check({ 'post-commit': true, hook: true });
+    expect(report.code).toBe(0);
+    expect(report.stdout).toContain(`Commit ${commit} exists`);
+    expect(report.stdout).toContain('post-commit audit needs attention');
+    expect(report.stdout).toContain('Persistence: not attempted');
+    expect(report.stderr).toMatch(/1 commit\(s\) on this sandbox have no coordination note/);
+    expect(report.stderr).toContain('before the next commit');
+    expect(report.stdout + report.stderr).not.toMatch(/commit blocked|ERROR:|Escalating to the operator/);
+    expect(git(['rev-parse', 'HEAD'])).toBe(commit);
+
+    const json = JSON.parse((await check({ 'post-commit': true, json: true })).stdout);
+    expect(json).toMatchObject({ success: true, passed: false, shouldBlock: false, postCommitAudit: {
+      commit, status: 'issues', preCommitWouldBlock: true, persistence: 'not-attempted',
+    } });
+    expect(json.violations.map(v => v.code)).toContain('rent-due');
+    expect((await check({ staged: true })).code).toBe(1);
+
+    latestNoteAt = Date.parse('2020-01-03T00:00:00Z');
+    expect((await check({ staged: true })).code).toBe(0);
+    expect(JSON.parse((await check({ 'post-commit': true, json: true })).stdout).postCommitAudit.status).toBe('passed');
+  });
+
+  test('multiple rewritten commits retain their full debt rather than subtracting the newest commit', async () => {
+    latestNoteAt = Date.parse('2020-01-01T00:00:00Z');
+    writeFileSync(join(repo, 'fixture.txt'), 'first change\n');
+    git(['add', 'fixture.txt']);
+    git(['commit', '-m', 'first fixture change'], {
+      GIT_AUTHOR_DATE: '2020-01-02T00:00:00Z', GIT_COMMITTER_DATE: '2020-01-02T00:00:00Z',
+    });
+    git(['commit', '--amend', '--no-edit'], {
+      GIT_AUTHOR_DATE: '2020-01-02T00:00:00Z', GIT_COMMITTER_DATE: '2020-01-04T00:00:00Z',
+    });
+    writeFileSync(join(repo, 'fixture.txt'), 'second change\n');
+    git(['add', 'fixture.txt']);
+    git(['commit', '-m', 'second fixture change'], {
+      GIT_AUTHOR_DATE: '2020-01-05T00:00:00Z', GIT_COMMITTER_DATE: '2020-01-05T00:00:00Z',
+    });
+    git(['commit', '--amend', '--no-edit'], {
+      GIT_AUTHOR_DATE: '2020-01-05T00:00:00Z', GIT_COMMITTER_DATE: '2020-01-06T00:00:00Z',
+    });
+    const audit = await check({ 'post-commit': true, json: true });
+    expect(audit.code).toBe(0);
+    const report = JSON.parse(audit.stdout);
+    expect(report.violations.find(v => v.code === 'rent-due').message).toMatch(/2 commit\(s\)/);
+    expect((await check({ staged: true })).code).toBe(1);
+  });
+
+  test('failed note reads report unverifiable audit without claiming the commit failed or was persisted', async () => {
+    notesStatus = 503;
+    try {
+      const audit = await check({ 'post-commit': true, hook: true, json: true });
+      expect(audit.code).toBe(0);
+      expect(audit.stderr).not.toMatch(/commit blocked|ERROR:|Escalating/);
+      expect(JSON.parse(audit.stdout)).toMatchObject({ passed: false, shouldBlock: false,
+        postCommitAudit: { status: 'unverifiable', persistence: 'not-attempted', preCommitWouldBlock: true },
+      });
+      expect(existsSync(join(repo, 'notification'))).toBe(false);
+    } finally {
+      notesStatus = 200;
+    }
+  });
+
+  test('unresolved commit fails the audit command without asserting an outcome or escalating a commit block', async () => {
+    const audit = await check({ 'post-commit': true, commit: 'does-not-exist', hook: true, json: true });
+    expect(audit.code).toBe(1);
+    expect(audit.stderr).not.toMatch(/commit blocked|ERROR:|Escalating/);
+    expect(JSON.parse(audit.stdout)).toMatchObject({ success: false, passed: false, shouldBlock: false,
+      postCommitAudit: { commit: null, status: 'unverifiable', persistence: 'not-attempted' },
+    });
+  });
+
+  test.each([{ staged: true }, { 'git-verb': 'rebase' }])('post-commit cannot suppress a different enforcement check: %j', async (options) => {
+    const audit = await check({ 'post-commit': true, ...options });
+    expect(audit.code).toBe(1);
+    expect(audit.stderr).toContain('cannot be combined');
+  });
+
+  test.each([['fixture.txt'], ['check', 'fixture.txt']])('post-commit rejects positional file checks: %j', async (...positional) => {
+    const audit = await check({ 'post-commit': true }, positional);
+    expect(audit.code).toBe(1);
+    expect(audit.stderr).toContain('cannot be combined');
+  });
+
+  test('the audit never writes a fake coordination note or receipt', async () => {
+    expect((await check({ 'post-commit': true })).code).toBe(0);
+    expect(requests.length).toBeGreaterThan(0);
+    expect(requests.every(request => request.method === 'GET')).toBe(true);
+    expect(existsSync(join(repo, 'notification'))).toBe(false);
   });
 });
