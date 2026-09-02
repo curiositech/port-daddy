@@ -201,8 +201,11 @@ const FORBIDDEN_PATTERNS = [
   // optionally decimal, optionally one trailing unit letter) — narrower than
   // "any word after a colon" so it doesn't trip on unrelated `key:value`
   // strings (a content hash "sha256:unknown", a semantic id
-  // "project:stack:context").
-  '\\b[a-z]+[0-9]+(\\.[0-9]+)?(-[a-z]+)?:[0-9]+(\\.[0-9]+)?[a-z]?\\b',
+  // "project:stack:context"). Exclude only a complete sha256 content digest:
+  // the exact namespace, 64 hex characters, and a token boundary. Numeric
+  // fixture digests are identities, not local-model selections. No file or
+  // line is exempted, so a real model id beside a digest still fails.
+  '\\b(?!sha256:[a-f0-9]{64}(?![a-zA-Z0-9_.:-]))[a-z]+[0-9]+(\\.[0-9]+)?(-[a-z]+)?:[0-9]+(\\.[0-9]+)?[a-z]?\\b',
   // Bare vendor nicknames as a quoted string value, standing in for a real
   // model id outside the documented CLI-alias allowlist above.
   "['\"](opus|sonnet|haiku)['\"]",
@@ -293,4 +296,29 @@ describe('no-hardcoded-model-ids', () => {
       expect(offenders).toEqual([]);
     });
   }
+});
+
+describe('content digests are not model ids', () => {
+  test.each([
+    `"worktreePhysicalId": "sha256:${'1'.repeat(64)}",`,
+    `"contentHash": "sha256:${'abcdef01'.repeat(8)}"`,
+    `const nonceHash = 'sha256:${'9'.repeat(64)}';`,
+  ])('recognizes the exact digest token in %s', (line) => {
+    expect(FORBIDDEN_PATTERNS.some((pattern) => new RegExp(pattern).test(line))).toBe(false);
+  });
+
+  test.each([
+    'const model = "llama3.1:8b";',
+    'const model = "qwen2.5-coder:7b";',
+    'const model = "claude-sonnet-4-6";',
+    'const model = "gpt-4.1";',
+    'const model = "sha256:8b";',
+    `const model = "sha256:${'1'.repeat(63)}";`,
+    `const model = "sha256:${'1'.repeat(65)}";`,
+    `const model = "sha256:${'1'.repeat(64)}-suffix";`,
+    `{"contentHash":"sha256:${'1'.repeat(64)}","model":"llama3.1:8b"}`,
+    `{"model":"qwen2.5-coder:7b","nonceHash":"sha256:${'9'.repeat(64)}"}`,
+  ])('still rejects model-like or non-digest tokens in %s', (line) => {
+    expect(FORBIDDEN_PATTERNS.some((pattern) => new RegExp(pattern).test(line))).toBe(true);
+  });
 });

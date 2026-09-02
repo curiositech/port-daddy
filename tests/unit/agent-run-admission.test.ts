@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, jest, test } from '@jest/globals';
+import { afterEach, beforeEach, describe, expect, test } from '@jest/globals';
 import { closeDatabase, initDatabase } from '../../lib/db.js';
 import type { DatabaseInstance } from '../../lib/sqlite-runtime.js';
 import { createClaimForest } from '../../lib/claim-forest.js';

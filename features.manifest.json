@@ -237,6 +237,27 @@
         "sdk": false
       }
     },
+    "durable_ownership": {
+      "description": "Authenticated ownership projections, canonical epoch bootstrap, and exact short-lived signed takeover grants over the existing durable AgentNode and claim ledger",
+      "cli": [],
+      "sdk": [
+        "bootstrapDurableOwnership",
+        "prepareDurableTakeover",
+        "getDurableTakeoverGrant"
+      ],
+      "routes": [
+        "GET /roadmap/items/:param/ownership",
+        "GET /takeover-grants/:param",
+        "POST /roadmap/items/:param/ownership/bootstrap",
+        "POST /roadmap/items/:param/takeovers"
+      ],
+      "completions": [],
+      "docs": {
+        "readme": true,
+        "sdk": true
+      },
+      "_note": "SDK/API-only in this revision: routes/durable-ownership.ts exposes the four operations above, with IPC peers for the SDK methods. Grant acceptance is takeoverSession(sourceSessionId, { grantId, nonce }) through the existing sessions feature. The legacy pd takeover / pd session takeover CLI does not supply a grant and fails with RECOVERY_GRANT_REQUIRED; it is not functional coverage for this route category. Staleness, a claimed actor name, and operator soulClass alone grant no authority. Operator recovery stays denied without a configured recent-human, action-bound presence verifier. See docs/sdk.md and docs/openapi.yaml."
+    },
     "agent_cockpit": {
       "description": "Watch + Grab the Wheel (Phase 0) \u2014 additive console surface for one agent or spawned run. GET /agents/:id/stream is a single SSE feed merging that agent's lifecycle status, its steering-channel tube/control messages, and its ship-run transcript events into typed envelopes ({v,kind,agentId,body,ts}). POST /agents/:id/interrupt delivers a SOFT cancel/steer signal (a control.interrupt message on the agent's `agent:<id>` steering channel) that a cooperating agent loop can observe \u2014 pause/redirect, NOT the hard process kill of DELETE /spawn/:id.",
       "cli": [],

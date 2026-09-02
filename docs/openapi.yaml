@@ -4967,6 +4967,198 @@ paths:
         '500':
           description: Context-continuity evidence could not be read or verified
 
+  /roadmap/items/{slug}/ownership:
+    get:
+      tags: [sessions]
+      summary: Read authenticated canonical ownership and claim history
+      operationId: getDurableOwnership
+      description: >
+        Projects the current/prior AgentNode owners, stale state, current epoch,
+        claims, and active grant id from the existing ownership coordinator.
+        A read is not takeover authority. No dedicated SDK convenience method
+        or grant-capable CLI adapter exists for this read in this revision.
+      parameters:
+        - { name: slug, in: path, required: true, schema: { type: string } }
+        - name: harbor
+          in: query
+          schema: { type: string }
+          description: Exact harbor; omission uses the configured daemon default.
+        - $ref: '#/components/parameters/XActorCredential'
+        - $ref: '#/components/parameters/XAgentId'
+      responses:
+        '200': { description: 'success and redacted ownership projection, including currentOwner, priorOwners, currentState, currentEpoch, and activeGrantId' }
+        '401': { description: Missing or invalid actor credential }
+        '403': { description: Verified actor or asserted identity is not authorized }
+        '404': { description: Roadmap item not found in the requested harbor }
+        '409': { description: Current roadmap and ownership bindings disagree }
+        '503': { description: Stored signed ownership evidence cannot be verified }
+
+  /roadmap/items/{slug}/ownership/bootstrap:
+    post:
+      tags: [sessions]
+      summary: Bootstrap an epoch from an already bound canonical owner session
+      operationId: bootstrapDurableOwnership
+      description: >
+        SDK/API-only. Requires the authenticated actor of the active, admitted
+        source session and agreement with the roadmap AgentNode assignee.
+        The daemon captures claims and exact Git/worktree facts; request fields
+        cannot choose an owner or impersonate one. Does not mint an AgentNode,
+        admit a session, spawn a body, or transfer claims.
+      parameters:
+        - { name: slug, in: path, required: true, schema: { type: string } }
+        - $ref: '#/components/parameters/XAgentId'
+        - name: x-actor-credential
+          in: header
+          schema: { type: string }
+          description: Daemon-minted credential; required unless the legacy body credential field is used.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [sourceSessionId, reason]
+              properties:
+                harbor: { type: string, description: Exact harbor or configured daemon default if omitted }
+                sourceSessionId: { type: string, minLength: 1 }
+                reason: { type: string, minLength: 1 }
+                agentId: { type: string, description: Asserted identity verified against the credential, not authority }
+                credential: { type: string, writeOnly: true, description: Legacy credential transport; prefer the actor credential header }
+      responses:
+        '200': { description: Initial signed ownership epoch and receipt, or exact idempotent replay }
+        '400': { description: Invalid input or unknown request field }
+        '401': { description: Missing or invalid actor credential }
+        '403': { description: Caller is not the actor bound to the canonical owner }
+        '404': { description: Roadmap item or source session not found }
+        '409': { description: Owner, admission, session, claim, or worktree binding mismatch }
+        '503': { description: Signed ownership store unavailable or unverifiable }
+
+  /roadmap/items/{slug}/takeovers:
+    post:
+      tags: [sessions]
+      summary: Issue an exact short-lived signed takeover grant
+      operationId: prepareDurableTakeover
+      description: >
+        SDK/API-only proposal, not acceptance. Requires the current owner's
+        verified actor or a verified operator with stale/terminal predecessor
+        evidence and a configured recent-human, action-bound presence verifier.
+        Operator soulClass alone is insufficient; without the verifier operator
+        recovery remains denied with OPERATOR_PRESENCE_REQUIRED. The successor
+        must already be admitted as a different AgentNode. The daemon derives
+        the owner epoch, actor joins, physical workspaces, heads, claims, and
+        sanitized briefing. Issuance returns grant, nonce, and receipt without
+        transferring claims. The named recipient accepts via
+        POST /sessions/:id/takeover with grantId and nonce. The legacy takeover
+        CLI does not supply them and fails with RECOVERY_GRANT_REQUIRED.
+      parameters:
+        - { name: slug, in: path, required: true, schema: { type: string } }
+        - $ref: '#/components/parameters/XAgentId'
+        - name: x-actor-credential
+          in: header
+          schema: { type: string }
+          description: Daemon-minted credential; required unless the legacy body credential field is used.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [successorSessionId, reason, claimDispositions]
+              properties:
+                harbor: { type: string, description: Exact harbor or configured daemon default if omitted }
+                successorSessionId: { type: string, minLength: 1 }
+                reason: { type: string, minLength: 1 }
+                claimDispositions:
+                  type: array
+                  description: Complete set of source claims and the requested disposition for each.
+                  items:
+                    type: object
+                    required: [claimNodeId, disposition]
+                    properties:
+                      claimNodeId: { type: string, minLength: 1 }
+                      disposition: { type: string, enum: [transfer, release] }
+                ttlMs: { type: number, minimum: 10000, maximum: 900000, default: 300000 }
+                operatorPresenceProof: { type: string, writeOnly: true, description: Action-bound proof validated by the configured presence adapter, never a caller assertion }
+                agentId: { type: string, description: Asserted identity verified against the credential }
+                credential: { type: string, writeOnly: true, description: Legacy credential transport; prefer the actor credential header }
+      responses:
+        '200': { description: Signed grant with compact sanitized briefing, one-shot nonce for its named recipient, and issuance receipt }
+        '400': { description: Invalid input, incomplete claim dispositions, or unknown request field }
+        '401': { description: Missing or invalid actor credential }
+        '403': { description: Authority denied or recent action-bound operator presence unavailable }
+        '404': { description: Roadmap, session, or AgentNode not found }
+        '409': { description: Epoch, exact worktree/head, admission, claim, or predecessor-state conflict }
+        '503': { description: Signed store, required evidence, or presence verifier unavailable }
+
+  /sessions/{id}/takeover:
+    post:
+      tags: [sessions]
+      summary: Accept a signed takeover grant as its already-admitted successor
+      operationId: takeoverSession
+      description: >
+        The id is the predecessor session, not the successor. Requires the
+        named successor's verified actor credential and the exact grantId and
+        one-shot nonce from issuance. Acceptance rechecks signed evidence,
+        expiry, current epoch, admissions, worktrees, heads, and claims before
+        atomically enacting the explicit dispositions and new ownership epoch.
+        Old ownership and notes remain historical evidence. Does not spawn or
+        admit a session. The SDK is takeoverSession(sourceSessionId, { grantId,
+        nonce }); the legacy takeover CLI lacks these fields and is denied.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string }, description: Predecessor session id bound into the signed grant }
+        - $ref: '#/components/parameters/XAgentId'
+        - name: x-actor-credential
+          in: header
+          schema: { type: string }
+          description: Named successor actor credential; required unless the legacy body credential field is used.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [grantId, nonce]
+              properties:
+                grantId: { type: string, minLength: 1 }
+                nonce: { type: string, minLength: 1, writeOnly: true, description: One-shot nonce from authenticated issuance; never include it in public notes }
+                agentId: { type: string, description: Optional asserted alias verified against the credential }
+                credential: { type: string, writeOnly: true, description: Legacy credential transport; prefer the actor credential header }
+      responses:
+        '200': { description: 'success, predecessorId, successorId, signed ownership epoch summary, receipt, explicit claim disposition, and context continuation' }
+        '400': { description: Unknown request field }
+        '401': { description: Missing or invalid actor credential }
+        '403': { description: Credential is not the named successor or another signed authority check fails }
+        '404': { description: Grant or bound resource not found }
+        '409': { description: 'RECOVERY_GRANT_REQUIRED, expired or consumed grant, route binding mismatch, or changed epoch/admission/worktree/head/claims' }
+        '500': { description: Unexpected internal error; acceptance must not be inferred }
+        '503': { description: Canonical ownership service or verifiable signed evidence unavailable }
+
+  /takeover-grants/{grantId}:
+    get:
+      tags: [sessions]
+      summary: Read a party-authorized redacted takeover grant lifecycle
+      operationId: getDurableTakeoverGrant
+      description: >
+        Only the verified issuer actor or named successor actor may read this
+        lifecycle. Returns state, timestamps, consumed epoch id, and receipt
+        references/signatures; never returns the one-shot nonce or raw briefing.
+        An optional harbor must agree with the signed grant.
+      parameters:
+        - { name: grantId, in: path, required: true, schema: { type: string } }
+        - { name: harbor, in: query, schema: { type: string } }
+        - $ref: '#/components/parameters/XActorCredential'
+        - $ref: '#/components/parameters/XAgentId'
+      responses:
+        '200': { description: success and redacted grant lifecycle }
+        '401': { description: Missing or invalid actor credential }
+        '403': { description: Actor is not a party to this grant }
+        '404': { description: Grant not found }
+        '409': { description: Requested harbor does not match the signed grant }
+        '503': { description: Stored signed evidence cannot be verified }
+
   /durable-agents:
     get:
       tags: [agents]

@@ -12,6 +12,11 @@ published [PR #9993](https://github.com/curiositech/port-daddy/pull/9993) head
 `bbeb4f8109ef8c9e191f3790b85d8a8d4b3a5583`. Its transaction tests do not prove
 new-body admission, a mounted repair route, or operator-facing recovery.
 
+The follow-through in [PR #10010](https://github.com/curiositech/port-daddy/pull/10010)
+merges the reviewed parent CI repair `9bd06297fd91f5f32b7188e01b2e0d0eab2bfed0`
+without rewriting either published history. It adds the anchor contract to the
+schema inventory; the library checkpoint and integration limits remain unchanged.
+
 ```text
 existing ownership/claim-forest core
   -> canonical continuation admission + matching ownership validator
