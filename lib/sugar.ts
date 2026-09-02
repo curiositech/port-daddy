@@ -9,6 +9,7 @@
 import { randomBytes } from 'crypto';
 import { parseIdentity } from './identity.js';
 import { classifySessionLiveness, decideBeginResume } from './session-liveness.js';
+import { scanPlanChecklist } from './plan-checklist.js';
 import type { VerifiedContextBootstrapLookup } from './agent-harbor/context-continuity.js';
 
 /** How recent an agent heartbeat counts as "a live process is driving this session right now". */
@@ -1376,8 +1377,7 @@ export function createSugar(deps: SugarDeps) {
       const planNotes = (planNotesResult.success && Array.isArray(planNotesResult.notes) ? planNotesResult.notes : []) as Array<{ content: string }>;
       if (planNotes.length > 0) {
         const latestPlan = planNotes[0].content;
-        const uncheckedRegex = /\[\s\]/;
-        if (uncheckedRegex.test(latestPlan)) {
+        if (scanPlanChecklist(latestPlan).some((task) => !task.checked)) {
           return {
             success: false,
             code: 'PLAN_UNCHECKED_ITEMS',

@@ -640,6 +640,57 @@ describe('sugar.done', () => {
     expect(result.sessionStatus).toBe('completed');
   });
 
+  test.each([
+    ['prose marker', 'Instructions mention [ ] but no visible task.'],
+    ['backtick example', '- [x] Done\n```md\n- [ ] Example\n```'],
+    ['tilde example', '- [X] Done\n~~~~\n- [-] Example\n~~~\n- [ ] Still example\n~~~~'],
+    ['HTML comment', '- [x] Done\n<!--\n- [ ] Hidden\n-->'],
+    ['open fence', '- [x] Done\n```\n- [ ] Example'],
+    ['open comment', '- [x] Done\n<!--\n- [ ] Hidden'],
+    ['literal fence info', '```md <!-- literal\n- [ ] Example\n```\n- [X] Done'],
+    ['trailing comment', '- [x] Done <!--\n- [ ] Hidden\n-->'],
+  ])('does not block completion on %s', (_name, content) => {
+    const { sugar, sessions, db } = setup();
+    try {
+      const begin = sugar.begin({ lifecycle: 'ephemeral', purpose: 'Visible plan fixture', agentId: 'visible-plan-agent' });
+      expect(begin.success).toBe(true);
+      sessions.addNote(begin.sessionId, '- [ ] Old unfinished version', { type: 'todo_list' });
+      sessions.addNote(begin.sessionId, content, { type: 'todo_list' });
+      const originalPlans = sessions.getNotes(begin.sessionId, { type: 'todo_list' }).notes;
+      const result = sugar.done({ agentId: begin.agentId, sessionId: begin.sessionId, note: VALID_RESULT_NOTE_WITH_PR });
+      expect(result).toMatchObject({ success: true, sessionStatus: 'completed' });
+      expect(sessions.getNotes(begin.sessionId, { type: 'todo_list' }).notes).toEqual(originalPlans);
+    } finally { db.close(); }
+  });
+
+  test.each([
+    ['hyphen task', '- [-] Working'],
+    ['ordered task', '1. [-] Working'],
+    ['nested task', '# Plan\n\n  * [ ] Working'],
+    ['after hidden prefix', '<!-- hidden --> + [ ] Working'],
+    ['after a fence with literal HTML', '```md <!-- literal\n- [ ] Example\n```\n- [ ] Working'],
+    ['before trailing comment', '- [-] Working <!--\n- [ ] Hidden\n-->'],
+    ['CRLF task', '# Plan\r\n\r\n2) [-] Working\r\n'],
+  ])('preserves session, claims, notes and agent when refusing %s', (_name, content) => {
+    const { sugar, sessions, agents, db } = setup();
+    try {
+      const begin = sugar.begin({ lifecycle: 'ephemeral', purpose: 'Unfinished visible plan fixture', agentId: 'unfinished-plan-agent', files: ['fixture.ts'] });
+      expect(begin.success).toBe(true);
+      sessions.addNote(begin.sessionId, '- [x] Old completed version', { type: 'todo_list' });
+      sessions.addNote(begin.sessionId, content, { type: 'todo_list' });
+      const before = sessions.get(begin.sessionId);
+      const notes = sessions.getNotes(begin.sessionId).notes;
+      // Persisted identity must not change; computed heartbeat age may advance.
+      const agent = db.prepare('SELECT * FROM agents WHERE id = ?').get(begin.agentId);
+      const result = sugar.done({ agentId: begin.agentId, sessionId: begin.sessionId, note: VALID_RESULT_NOTE_WITH_PR });
+      expect(result).toMatchObject({ success: false, code: 'PLAN_UNCHECKED_ITEMS' });
+      expect(sessions.get(begin.sessionId)).toEqual(before);
+      expect(sessions.getNotes(begin.sessionId).notes).toEqual(notes);
+      expect(agents.get(begin.agentId).success).toBe(true);
+      expect(db.prepare('SELECT * FROM agents WHERE id = ?').get(begin.agentId)).toEqual(agent);
+    } finally { db.close(); }
+  });
+
   test('rejects public forceIncomplete without treating a reason as operator authority', () => {
     const { sugar, sessions } = setup();
 

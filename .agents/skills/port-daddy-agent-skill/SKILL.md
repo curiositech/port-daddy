@@ -201,7 +201,7 @@ Every agent must establish a versioned todo checklist using `pd plan set`.
 - **Set a plan**: Run `pd plan set` with markdown checklist items.
 - **View latest plan**: Run `pd plan show` or `pd plan`.
 - **Mark item completed**: Run `pd plan check <index>` (e.g., `pd plan check 1` or `pd plan check "step one"`).
-- **Close session gate**: `pd done` checks your active plan. If any unchecked `[ ]` items remain, completion fails closed. Finish the plan or explicitly abandon the session; a caller-supplied reason is not operator authority. `pd done --no-pr` is narrower than “I chose not to open a PR”: it succeeds only for a clean worktree whose `HEAD` has no commit absent from every remote ref. This verifier runs even when the branch is fully pushed; dirty or unpublished repository work remains blocked.
+- **Close session gate**: `pd done` and `pd plan check` use the same visible checklist tasks. Unfinished `[ ]` or `[-]` tasks block completion; fenced examples, HTML comments, and prose markers do not. Checked `[x]` and `[X]` tasks are complete. Finish the plan or explicitly abandon the session; a caller-supplied reason is not operator authority. `pd done --no-pr` is narrower than “I chose not to open a PR”: it succeeds only for a clean worktree whose `HEAD` has no commit absent from every remote ref. This verifier runs even when the branch is fully pushed; dirty or unpublished repository work remains blocked.
 
 ## Session Continuity
 

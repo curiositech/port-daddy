@@ -3,6 +3,7 @@ import { type CLIOptions, isQuiet } from '../types.js';
 import * as ui from '../utils/ui.js';
 import { resolveCurrentContext } from '../utils/current-context.js';
 import { resolveCliActorCredential } from '../utils/actor-credential.js';
+import { scanPlanChecklist } from '../../lib/plan-checklist.js';
 
 /**
  * Read or append an exact session's canonical checklist. The design binds writes
@@ -132,46 +133,7 @@ export async function handlePlan(args: string[], options: CLIOptions): Promise<v
     return;
   }
   const lines = latest.content.split('\n');
-  const tasks: Array<{ line: number; marker: number; checked: boolean; label: string }> = [];
-  let fence: { character: string; length: number } | undefined;
-  let comment = false;
-  for (let line = 0; line < lines.length; line++) {
-    // Fence contents are literal examples, including apparent HTML comments.
-    if (fence) {
-      const closing = /^\s*(`{3,}|~{3,})\s*$/.exec(lines[line]);
-      if (closing && closing[1][0] === fence.character && closing[1].length >= fence.length) fence = undefined;
-      continue;
-    }
-    // An eligible fence owns its entire info string, even apparent HTML. Do
-    // this before comment scanning, but never open a fence inside a comment.
-    const opening = !comment && /^\s*(`{3,}|~{3,})(.*)\r?$/.exec(lines[line]);
-    if (opening) {
-      fence = { character: opening[1][0], length: opening[1].length };
-      continue;
-    }
-    // Mask comments positionally, including a comment opened after a visible
-    // task. Offsets still address the original canonical string positions.
-    const visible = lines[line].split('');
-    for (let at = 0; at < lines[line].length;) {
-      if (!comment && lines[line].startsWith('<!--', at)) comment = true;
-      if (comment && lines[line].startsWith('-->', at)) {
-        visible.fill(' ', at, at + 3);
-        comment = false;
-        at += 3;
-      } else {
-        if (comment) visible[at] = ' ';
-        at++;
-      }
-    }
-    const visibleLine = visible.join('');
-    const boundary = /^\s*(`{3,}|~{3,})(.*)\r?$/.exec(visibleLine);
-    if (boundary) {
-      fence = { character: boundary[1][0], length: boundary[1].length };
-      continue;
-    }
-    const task = /^(\s*(?:[-+*]|\d+[.)])\s+\[)([ xX-])(\]\s+)(.*)\r?$/.exec(visibleLine);
-    if (task) tasks.push({ line, marker: task[1].length, checked: /[xX]/.test(task[2]), label: task[4].trim() });
-  }
+  const tasks = scanPlanChecklist(latest.content);
   const selector = data.trim();
   let target;
   if (/^\d+$/.test(selector)) {
