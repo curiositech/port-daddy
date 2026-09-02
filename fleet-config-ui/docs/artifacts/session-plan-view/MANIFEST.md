@@ -73,7 +73,7 @@ action times, frame acquisition start/end times, byte lengths and phases.
 `sampled-frames.ffconcat`; no interpolation, transitions, invented states or
 speed-up were applied. The WebM runs 12.526 seconds at 1440 × 1100, VP9.
 
-The reusable `scripts/capture-session-plan.mjs` accepts the existing documented
+The reusable `fleet-config-ui/scripts/capture-session-plan.mjs` accepts the existing documented
 browser runtime's tab. It never launches another controller or captures an OS
 window. Its timeline writer produced the committed FFmpeg manifest. Encoding:
 
