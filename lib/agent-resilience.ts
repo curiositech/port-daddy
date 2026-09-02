@@ -29,6 +29,7 @@ import {
   isRetryable,
   makeError,
 } from './event-envelope.js';
+import { createHash } from 'node:crypto';
 
 /** The circuit breaker for a backend is OPEN; the call was not attempted. */
 export class CircuitOpenError extends Error {
@@ -89,6 +90,21 @@ export function isWitnessedBackendFailure(value: unknown): value is AgentError {
  */
 function ownData(value: object, key: string): unknown {
   try { return Object.getOwnPropertyDescriptor(value, key)?.value; } catch { return undefined; }
+}
+
+/**
+ * Keep diagnostic labels bounded without copying an arbitrary private name.
+ * Known runtime aliases stay readable; custom ids use an opaque correlation tag.
+ * @param value Internal backend or dependency identifier, never error prose.
+ * @param kind The closed diagnostic namespace.
+ * @returns A bounded label; opaque tags are correlation, not encryption.
+ */
+export function safeDiagnosticIdentifier(value: unknown, kind: 'backend' | 'dependency' = 'backend'): string {
+  if (typeof value !== 'string' || value.length === 0 || value.length > 1024) return `${kind}:unspecified`;
+  const known = new Set(['codex', 'claude', 'claude-code', 'gemini', 'agy', 'groq', 'groq-cli', 'openai', 'anthropic', 'embedder']);
+  const name = value.startsWith('cli:') ? value.slice(4) : value;
+  if (known.has(name)) return value;
+  return `${kind}:${createHash('sha256').update(value).digest('hex').slice(0, 16)}`;
 }
 
 /**
@@ -166,13 +182,17 @@ export function classifyAgentError(
   const chain = errorChain(err);
   const raw = chain.length ? ownData(chain[0], 'message') : err;
   const message = typeof raw === 'string' ? raw : '';
-  const statuses = chain.map(error => statusCode(ownData(error, 'status') ?? ownData(error, 'statusCode'))).filter((code): code is AgentErrorCode => code !== undefined);
+  const structuralFields = chain.flatMap(error => ['status', 'statusCode'].map(key => {
+    try { return Object.getOwnPropertyDescriptor(error, key); } catch { return { get: true }; }
+  }));
+  const opaqueStatus = structuralFields.some(field => field && !('value' in field));
+  const statuses = structuralFields.map(field => field && 'value' in field ? statusCode(field.value) : undefined).filter((code): code is AgentErrorCode => code !== undefined);
   // An explicit permanent status in the exception chain wins over a transient
   // wrapper. Plain object/tool JSON status fields have no transport provenance.
   const structured = statuses.find(code => !TRANSIENT_CODES.has(code)) ?? statuses[0];
   const hits = SIGNALS.filter(signal => signal.re.test(message));
   const hit = hits.find(signal => !TRANSIENT_CODES.has(signal.code)) ?? hits[0];
-  const code: AgentErrorCode = structured ?? hit?.code ?? 'INTERNAL';
+  const code: AgentErrorCode = opaqueStatus ? 'INTERNAL' : structured ?? hit?.code ?? 'INTERNAL';
   const retryAfterMs = parseRetryAfterMs(message);
   const invalidRetryHint = /\bretry[- ]after\b/i.test(message) && retryAfterMs === undefined;
   return makeError({
@@ -182,7 +202,7 @@ export function classifyAgentError(
     ...(retryAfterMs !== undefined ? { retryAfterMs } : {}),
     ...(opts.maxRetries !== undefined ? { maxRetries: opts.maxRetries } : {}),
     ...((opts.backend || invalidRetryHint) ? { details: {
-      ...(opts.backend ? { backend: opts.backend } : {}),
+      ...(opts.backend ? { backend: safeDiagnosticIdentifier(opts.backend) } : {}),
       ...(invalidRetryHint ? { reason: 'invalid_retry_after' } : {}),
     } } : {}),
   });

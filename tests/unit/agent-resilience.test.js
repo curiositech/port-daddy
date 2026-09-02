@@ -22,6 +22,7 @@ import {
   runResilientSpawn,
   witnessedBackendFailure,
   isWitnessedBackendFailure,
+  safeDiagnosticIdentifier,
 } from '../../lib/agent-resilience.js';
 import { isRetryable } from '../../lib/event-envelope.js';
 
@@ -81,10 +82,26 @@ describe('classifyAgentError', () => {
   });
 
   test('exception getters are not executed', () => {
-    const error = new Error('unknown');
+    const error = new Error('429 timeout');
     Object.defineProperty(error, 'status', { get() { throw new Error('getter executed'); } });
     expect(() => classifyAgentError(error)).not.toThrow();
     expect(classifyAgentError(error).retryable).toBe(false);
+  });
+
+  test.each([401, 403])('conflicting own status fields retain permanent authority fact %s', statusCode => {
+    const error = Object.assign(new Error('429 timeout'), { status: 429, statusCode });
+    expect(classifyAgentError(error)).toMatchObject({ code: 'UNAUTHORIZED', retryable: false });
+    expect(classifyAgentError(Object.assign(new Error('503 unavailable'), { status: 503, cause: error })).retryable).toBe(false);
+  });
+
+  test('private or oversized identifiers cannot enter diagnostics verbatim', () => {
+    const marker = 'SYNTHETIC_PRIVATE_MARKER';
+    const result = classifyAgentError(new Error('401 denied'), { backend: marker });
+    expect(JSON.stringify(result)).not.toContain(marker);
+    expect(result.details.backend).toMatch(/^backend:[a-f0-9]{16}$/);
+    expect(safeDiagnosticIdentifier(marker, 'dependency')).toMatch(/^dependency:[a-f0-9]{16}$/);
+    expect(safeDiagnosticIdentifier('x'.repeat(1025))).toBe('backend:unspecified');
+    expect(safeDiagnosticIdentifier('cli:codex')).toBe('cli:codex');
   });
 });
 
