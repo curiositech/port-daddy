@@ -150,7 +150,7 @@ myAgent.addBehaviour(seq);
 
 **Critical feature**: If a sub-behavior calls `block()`, the entire SequentialBehaviour blocks. Control returns to the agent scheduler, which can run other behaviors.
 
-**For WinDAGs**: This is the **DAG linearization pattern**. If you have a dependency chain (Skill A → Skill B → Skill C), represent it as:
+**For Jury-rig**: This is the **DAG linearization pattern**. If you have a dependency chain (Skill A → Skill B → Skill C), represent it as:
 
 ```python
 seq = SequentialBehaviour()
@@ -180,7 +180,7 @@ myAgent.addBehaviour(par);
 - `WHEN_ALL`: Wait for all sub-behaviors to finish
 - `WHEN_ANY`: Finish as soon as one sub-behavior finishes (race)
 
-**For WinDAGs**: This is the **parallel skill execution pattern**. If Skill A, B, and C can run concurrently (no dependencies between them):
+**For Jury-rig**: This is the **parallel skill execution pattern**. If Skill A, B, and C can run concurrently (no dependencies between them):
 
 ```python
 par = ParallelBehaviour(WHEN_ALL)
@@ -216,7 +216,7 @@ fsm.registerTransition("Accept", "Confirm", 0);
 4. Transition to next state
 5. Repeat until reaching a last state
 
-**For WinDAGs**: This is the **decision-point pattern**. If Skill A succeeds, invoke Skill B; if Skill A fails, invoke Skill C (fallback):
+**For Jury-rig**: This is the **decision-point pattern**. If Skill A succeeds, invoke Skill B; if Skill A fails, invoke Skill C (fallback):
 
 ```python
 fsm = FSMBehaviour()
@@ -260,7 +260,7 @@ seq.addSubBehaviour(new Negotiate());
 
 **Key insight**: The DataStore is **scoped to the composite behavior**. Sub-behaviors of the same parent share the store; unrelated behaviors don't see it. This is **lexical scoping for agent state**.
 
-**For WinDAGs**: Implement a **workflow context** (similar to DataStore):
+**For Jury-rig**: Implement a **workflow context** (similar to DataStore):
 
 ```python
 class WorkflowContext:
@@ -446,7 +446,7 @@ SequentialBehaviour (main)
 
 **Key insight**: Each `BookNegotiator` is independent. They run concurrently (ParallelBehaviour), but each is internally an FSM with blocking waits. The agent scheduler interleaves their execution.
 
-**For WinDAGs**: Nested workflows enable **reusable sub-workflows**:
+**For Jury-rig**: Nested workflows enable **reusable sub-workflows**:
 
 ```python
 class InvokeSkillWithRetry(SequentialBehaviour):
@@ -596,4 +596,4 @@ This approach scales to arbitrarily complex workflows because:
 - **Compositional semantics**: Behavior of composite = semantics of composition operator + semantics of sub-behaviors
 - **Graceful failure**: Each behavior can fail independently without crashing the entire workflow
 
-For WinDAGs managing 180+ skills, this means: Don't write a 10,000-line orchestrator function. Compose small, reusable behaviors (InvokeSkill, Retry, Timeout, Fallback) into hierarchies that match your task structure. The resulting system is understandable, maintainable, and extensible.
+For Jury-rig managing 180+ skills, this means: Don't write a 10,000-line orchestrator function. Compose small, reusable behaviors (InvokeSkill, Retry, Timeout, Fallback) into hierarchies that match your task structure. The resulting system is understandable, maintainable, and extensible.

@@ -58,7 +58,7 @@ The paper reveals this thinking explicitly: "The first technique is the well-kno
 
 ### 1. Task Decomposition in DAG Orchestration
 
-When WinDAGs decomposes a complex task into subtasks, **the decomposition strategy determines coordination complexity**:
+When Jury-rig decomposes a complex task into subtasks, **the decomposition strategy determines coordination complexity**:
 
 **Bad decomposition** (Paxos-like):
 - Task A produces intermediate state
@@ -133,7 +133,7 @@ The Raft decomposition assumes:
 
 The authors acknowledge this: "Raft's strong leadership approach simplifies the algorithm, but it precludes some performance optimizations. For example, Egalitarian Paxos (EPaxos) can achieve higher performance under some conditions with a leaderless approach" (p. 16).
 
-## Implication for WinDAGs
+## Implication for Jury-rig
 
 When decomposing complex problems into skills/agents:
 
@@ -235,7 +235,7 @@ But the paper argues these are acceptable tradeoffs: "In the common case, a comm
 - No single agent can handle coordination load
 - Byzantine failures are possible (can't trust a leader)
 
-For WinDAGs orchestrating 180+ skills: **Strong leadership makes sense**. The orchestrator:
+For Jury-rig orchestrating 180+ skills: **Strong leadership makes sense**. The orchestrator:
 - Decides task execution order
 - Handles skill routing and selection
 - Manages failure recovery
@@ -262,7 +262,7 @@ Raft teaches that there's a spectrum:
 - Extensive negotiation to reach agreement
 - Slowest but most resilient to malicious leaders
 
-For agent systems: **Match leadership strength to trust model**. If agents are cooperating toward a common goal (WinDAGs), strong leadership works. If agents have conflicting objectives (blockchain), you need weaker leadership or none at all.
+For agent systems: **Match leadership strength to trust model**. If agents are cooperating toward a common goal (Jury-rig), strong leadership works. If agents have conflicting objectives (blockchain), you need weaker leadership or none at all.
 
 ### 3. The "Follower-Only" Agent Pattern
 
@@ -277,7 +277,7 @@ But they never:
 - Propose log entries
 - Negotiate with other followers
 
-**Application**: In WinDAGs, most skills should be "follower-like":
+**Application**: In Jury-rig, most skills should be "follower-like":
 - They execute when invoked by the orchestrator
 - They validate inputs and report errors
 - They don't coordinate with other skills directly
@@ -453,7 +453,7 @@ The paper explains: "The first property follows from the fact that a leader crea
 
 ### 1. Task DAG Constraints
 
-For WinDAGs orchestrating tasks:
+For Jury-rig orchestrating tasks:
 
 **Prevent state explosion with constraints**:
 - **No orphan tasks**: Every task (except root) has a verified parent completion
@@ -467,7 +467,7 @@ For WinDAGs orchestrating tasks:
 
 ### 2. Skill Invocation Constraints
 
-For 180+ skills in WinDAGs:
+For 180+ skills in Jury-rig:
 
 **Constrain skill interactions**:
 - **No skill-to-skill calls**: Skills only report results to orchestrator, never invoke each other
@@ -1338,7 +1338,7 @@ The paper notes VR is "similar in many ways" but has "additional mechanism" for 
 
 ### The Specification Gap in AI Orchestration
 
-When designing WinDAGs or similar agent orchestration systems, there's a temptation to specify only the "interesting" parts:
+When designing Jury-rig or similar agent orchestration systems, there's a temptation to specify only the "interesting" parts:
 - How tasks are decomposed
 - How skills are selected
 - How dependencies are resolved

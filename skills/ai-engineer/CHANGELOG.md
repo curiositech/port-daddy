@@ -2,7 +2,7 @@
 
 ## v1.1.0 (2026-07-04)
 
-- Imported from the global windags skill catalog (`ai-engineer`, SKILL.md-only) into the repo.
+- Imported from the global jury_rig skill catalog (`ai-engineer`, SKILL.md-only) into the repo.
 - Upgraded to the port-daddy agentic-family standard: block-style `metadata.provenance` (first-party/port-daddy),
   `metadata.pairs-with` re-pointed at real repo skills (`agentic-app-architecture`, `agentic-infrastructure-2026`,
   `llm-router`, `episodic-memory-algorithms`; dropped `prompt-engineer`/`chatbot-analytics`/`backend-architect`,
@@ -24,5 +24,5 @@
 
 ## v1.0.0 (imported, undated)
 
-- Original windags-catalog content: Decision Points (RAG component selection, model routing strategy,
+- Original jury_rig-catalog content: Decision Points (RAG component selection, model routing strategy,
   agent-vs-RAG), five Failure Modes, a worked customer-support-chatbot example, and Quality Gates.

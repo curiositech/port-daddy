@@ -75,7 +75,7 @@ index 00000000..a1388f6d
 +- **`docs/per-project-ships.md`** — schema reference for the per-repo
 +  ship roster, plus three worked examples: port-daddy's seven code
 +  reviewers, expungement-guide's UPL/citation/plain-language/
-+  accessibility checkers, windags' skill-media/mermaid-author/
++  accessibility checkers, jury_rig' skill-media/mermaid-author/
 +  skill-grammar ships.
 +- **`isValidShipHandle(handle)`** — exported helper for caller-side
 +  validation against the lower-kebab-case grammar.
@@ -172,7 +172,7 @@ index 00000000..2c635804
 +  of Law in drafts), `citation-checker` (validates state-specific
 +  citations), `plain-language` (Flesch-Kincaid + legalese), and
 +  `accessibility`.
-+- **windags** runs `skill-media` (generates hero illustrations for skill
++- **jury_rig** runs `skill-media` (generates hero illustrations for skill
 +  dossiers), `mermaid-author` (draws diagrams referenced in copy), and
 +  `skill-grammar` (lints SKILL.md frontmatter and required sections).
 +

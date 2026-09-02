@@ -14,6 +14,7 @@ import { join, relative } from 'node:path';
 
 const {
   collectSkillUnion,
+  defaultSkillCatalogRoots,
   ensureGeminiPortDaddyExtension,
   runtimeSkillTargets,
   syncAgentSkills,
@@ -41,23 +42,65 @@ function writeSkill(root, rel, name, description = 'test skill') {
 }
 
 describe('cross-tool agent skill sync', () => {
+  test('default catalog uses local and explicit roots without Jury-rig runtime discovery', () => {
+    const projectRoot = join(tmpRoot, 'project');
+    const home = join(tmpRoot, 'home');
+    const explicit = join(tmpRoot, 'explicit-skills');
+    mkdirSync(join(projectRoot, 'skills'), { recursive: true });
+    mkdirSync(join(home, '.agents', 'skills'), { recursive: true });
+    mkdirSync(explicit, { recursive: true });
+
+    const previous = process.env.PORT_DADDY_SKILL_SOURCE_ROOTS;
+    process.env.PORT_DADDY_SKILL_SOURCE_ROOTS = explicit;
+    try {
+      const roots = defaultSkillCatalogRoots(projectRoot, home);
+      expect(roots.map((root) => root.label)).toEqual(expect.arrayContaining(['env:1', 'port-daddy', 'user-agents']));
+      expect(roots.some((root) => /jury_rig|workgroup-ai/i.test(`${root.label}:${root.path}`))).toBe(false);
+    } finally {
+      if (previous === undefined) delete process.env.PORT_DADDY_SKILL_SOURCE_ROOTS;
+      else process.env.PORT_DADDY_SKILL_SOURCE_ROOTS = previous;
+    }
+  });
+
+  test('default catalog skips empty, missing, and non-directory explicit roots', () => {
+    const projectRoot = join(tmpRoot, 'project');
+    const home = join(tmpRoot, 'home');
+    const valid = join(tmpRoot, 'valid-skills');
+    const missing = join(tmpRoot, 'missing-skills');
+    const file = join(tmpRoot, 'not-a-directory');
+    mkdirSync(valid, { recursive: true });
+    writeFileSync(file, 'not a skill root');
+
+    const previous = process.env.PORT_DADDY_SKILL_SOURCE_ROOTS;
+    process.env.PORT_DADDY_SKILL_SOURCE_ROOTS = `:${missing}:${file}:${valid}:`;
+    try {
+      const roots = defaultSkillCatalogRoots(projectRoot, home);
+      expect(roots.filter((root) => root.label.startsWith('env:'))).toEqual([
+        { label: 'env:4', path: valid },
+      ]);
+    } finally {
+      if (previous === undefined) delete process.env.PORT_DADDY_SKILL_SOURCE_ROOTS;
+      else process.env.PORT_DADDY_SKILL_SOURCE_ROOTS = previous;
+    }
+  });
+
   test('collectSkillUnion resolves duplicate ids by source order and candidate quality', () => {
-    const windags = join(tmpRoot, 'windags');
+    const jury_rig = join(tmpRoot, 'jury_rig');
     const workgroup = join(tmpRoot, 'workgroup');
-    writeSkill(windags, 'alpha', 'alpha', 'from windags');
+    writeSkill(jury_rig, 'alpha', 'alpha', 'from jury_rig');
     writeSkill(workgroup, 'alpha', 'alpha', 'from workgroup');
     writeSkill(workgroup, 'skill-architect/output', 'skill-architect', 'generated output');
     const canonicalSkillArchitect = writeSkill(workgroup, 'skill-architect/skill-architect', 'skill-architect', 'canonical nested copy');
 
     const union = collectSkillUnion([
-      { label: 'windags', path: windags },
+      { label: 'jury_rig', path: jury_rig },
       { label: 'workgroup', path: workgroup },
     ]);
 
     const alpha = union.skills.find((skill) => skill.id === 'alpha');
     const skillArchitect = union.skills.find((skill) => skill.id === 'skill-architect');
 
-    expect(alpha.sourceLabel).toBe('windags');
+    expect(alpha.sourceLabel).toBe('jury_rig');
     expect(skillArchitect.path).toBe(canonicalSkillArchitect);
     expect(union.collisions.some((collision) => collision.id === 'alpha')).toBe(true);
     expect(union.collisions.some((collision) => collision.id === 'skill-architect')).toBe(true);

@@ -33,7 +33,7 @@ The GOMS framework reveals a profound insight about how intelligent systems shou
 
 ## Why Hierarchies Matter for Coordination
 
-In a multi-agent system like WinDAGs, agents don't communicate through a shared understanding of the entire problem space. Instead, they coordinate through **goal decomposition**—one agent accomplishes a goal by invoking subgoals that other agents (or itself at a different level) fulfill. GOMS shows that this only works when decomposition follows certain principles:
+In a multi-agent system like Jury-rig, agents don't communicate through a shared understanding of the entire problem space. Instead, they coordinate through **goal decomposition**—one agent accomplishes a goal by invoking subgoals that other agents (or itself at a different level) fulfill. GOMS shows that this only works when decomposition follows certain principles:
 
 **Subgoal Independence**: Each subgoal must be accomplishable without detailed knowledge of its parent goal's context. Kieras notes, "A method may call for sub-Goals to be accomplished, so the Methods have a hierarchical structure" (p. 2). The critical design question: what information does a subgoal need? GOMS represents this through pseudoparameters and the task description, showing exactly what context must be passed down.
 
@@ -129,7 +129,7 @@ The interstep vs. intrastep distinction matters for failure handling. Interstep 
 
 ## What This Means for DAG Construction
 
-A DAG in WinDAGs is essentially a method hierarchy made explicit as a graph. Each node is a goal; each edge is a subgoal relationship. GOMS teaches:
+A DAG in Jury-rig is essentially a method hierarchy made explicit as a graph. Each node is a goal; each edge is a subgoal relationship. GOMS teaches:
 
 - **Nodes at the same depth should be comparable in complexity**: If one node takes 100x longer than its siblings, the decomposition is unbalanced.
 - **Shared subDAGs indicate consistency**: When multiple top-level tasks invoke the same sub-pattern, you've found a reusable component.
@@ -148,7 +148,7 @@ GOMS hierarchical decomposition works best when:
 
 ## Connection to Agent System Design
 
-For WinDAGs specifically:
+For Jury-rig specifically:
 
 - **Skill definition = method definition**: Each skill should be documentable as a GOMS method—clear goal, defined steps, explicit subgoal calls, identifiable completion.
 - **Skill composition = method hierarchy**: When Skill A invokes Skill B, document the pseudoparameters (what context is passed) and the working memory contract (what state must exist).
@@ -378,7 +378,7 @@ The transformation: every constant becomes a task property reference. The method
 
 Kieras's insistence on generative models isn't pedantic formalism—it's the requirement that models capture actual understanding rather than superficial behavior. A system that can only execute memorized traces hasn't learned anything transferable.
 
-For WinDAGs and similar agent systems: **generativity should be a quality gate for skill definitions**. If a skill can't be expressed with parameters and general logic that works across instances, it doesn't belong in a reusable skill library. It might be useful as a one-off solution, but it's not a building block for intelligence.
+For Jury-rig and similar agent systems: **generativity should be a quality gate for skill definitions**. If a skill can't be expressed with parameters and general logic that works across instances, it doesn't belong in a reusable skill library. It might be useful as a one-off solution, but it's not a building block for intelligence.
 
 The test is simple: Can you change the task parameters and have the skill still work? If not, you've memorized a trace, not modeled a capability.
 ```
@@ -712,7 +712,7 @@ The bypass heuristic teaches that **useful models are strategically incomplete**
 
 This is the opposite of "we'll model everything eventually"—it's acknowledging that complete models are neither achievable nor necessary. The skill is knowing where to draw the boundary.
 
-For WinDAGs: skills should be incomplete in the right ways. They should fully model their core capability while explicitly bypassing adjacent complexity that isn't their responsibility. The orchestration layer manages these boundaries, passing yellow-pad information between skills.
+For Jury-rig: skills should be incomplete in the right ways. They should fully model their core capability while explicitly bypassing adjacent complexity that isn't their responsibility. The orchestration layer manages these boundaries, passing yellow-pad information between skills.
 
 The test of good bypass: Can you clearly articulate what the skill needs to know (yellow pad contents) versus what it needs to figure out (its actual logic)? If the boundary is fuzzy, the bypass is probably wrong.
 ```
@@ -1443,7 +1443,7 @@ The deepest lesson: **any useful task model embeds a theory of user cognition**.
 
 GOMS makes this explicit and systematic. It doesn't eliminate judgment—it structures judgment, documents it, and makes its implications traceable.
 
-For WinDAGs and agent systems: **orchestration design is cognitive engineering**. You're not just wiring up capabilities—you're creating a structure that encourages certain ways of thinking about tasks. Document your theory of how users think. Test it when possible. Revise when wrong. But don't pretend you don't have a theory. That just makes your theory unconscious and untestable.
+For Jury-rig and agent systems: **orchestration design is cognitive engineering**. You're not just wiring up capabilities—you're creating a structure that encourages certain ways of thinking about tasks. Document your theory of how users think. Test it when possible. Revise when wrong. But don't pretend you don't have a theory. That just makes your theory unconscious and untestable.
 
 The standard: thoughtful, documented, revisable speculation beats unconscious assumption.
 ```

@@ -118,7 +118,7 @@ not a description of what *should* happen in some ideal world. It is a formal
 specification of *exactly* what the interpreter does when it processes an external
 event. The correspondence is the guarantee.
 
-**Applied to WinDAGs**: Every coordination mechanism — routing decisions, skill
+**Applied to Jury-rig**: Every coordination mechanism — routing decisions, skill
 invocation, state update, failure propagation — should have a corresponding formal
 description, even if informal. The question to ask of every component: "Can I write
 down exactly what this does as a state transition? If not, what is the implicit

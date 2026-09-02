@@ -65,11 +65,11 @@ Search propagation is controlled by constraints (Section 6.1.4):
 
 Depth-first traversal with `max-depth` control is the FIPA default, but the federation topology can encode any search strategy. A star topology (one central DF that knows all local DFs) gives breadth-first-like behavior if the central DF propagates in parallel.
 
-## Application to WinDAGs Skill Discovery
+## Application to Jury-rig Skill Discovery
 
 ### The Skill Template Query
 
-When a WinDAGs orchestrator needs to decompose a task and find appropriate skills for each step, it should express what each step *requires* as a partial template and send that to the Skill Directory. The template specifies:
+When a Jury-rig orchestrator needs to decompose a task and find appropriate skills for each step, it should express what each step *requires* as a partial template and send that to the Skill Directory. The template specifies:
 
 - **Service type**: What category of skill is needed (e.g., `code-analysis`, `security-audit`, `test-generation`)
 - **Ontologies/schemas supported**: What data representation the skill must understand (e.g., `Python-AST-v3`, `OWASP-CWE-2023`)
@@ -87,7 +87,7 @@ The partial matching model encourages specifying the *minimum necessary constrai
 
 ### Hierarchical Capability Decomposition
 
-Federated DFs in FIPA suggest a hierarchical skill discovery model for large WinDAGs deployments:
+Federated DFs in FIPA suggest a hierarchical skill discovery model for large Jury-rig deployments:
 
 - **Local skill registries**: Each team or domain maintains a registry of their skills
 - **Domain DF**: Aggregates registries within a domain (e.g., "code quality skills," "security skills," "data processing skills")
@@ -95,17 +95,17 @@ Federated DFs in FIPA suggest a hierarchical skill discovery model for large Win
 
 When an orchestrator needs a skill, it queries the local registry first (fastest, most specific). If not found, it propagates to the domain DF. If still not found, it propagates to the platform DF. The `max-depth` constraint controls how far the search propagates, and `max-results` ensures the query terminates once enough candidates are found.
 
-This mirrors the FIPA depth-first federated search exactly. The depth control is important in WinDAGs because propagating a complex search query across all skill registries on every task step would create a performance problem.
+This mirrors the FIPA depth-first federated search exactly. The depth control is important in Jury-rig because propagating a complex search query across all skill registries on every task step would create a performance problem.
 
 ### Dynamic Capability Registration
 
-Skills in WinDAGs should be able to dynamically update their DF registration as their capabilities evolve. When a code review skill adds support for a new framework, it sends a `modify` to the Skill Directory with the updated service description. The directory accepts the modification, and from that point forward, searches for that framework's capabilities will find this skill.
+Skills in Jury-rig should be able to dynamically update their DF registration as their capabilities evolve. When a code review skill adds support for a new framework, it sends a `modify` to the Skill Directory with the updated service description. The directory accepts the modification, and from that point forward, searches for that framework's capabilities will find this skill.
 
 This dynamic registration capability is what makes the DF model superior to static routing tables: the registry reflects current reality, not a snapshot from deployment time.
 
 ### The Non-Guarantee of DF Results
 
-A crucial point from Section 4.1.1 must be preserved in WinDAGs:
+A crucial point from Section 4.1.1 must be preserved in Jury-rig:
 
 > "The DF cannot guarantee the validity or accuracy of the information that has been registered with it."
 
@@ -116,13 +116,13 @@ Skills self-report their capabilities. The directory cannot verify them. Therefo
 
 ### Implementing the Matching Semantics
 
-The FIPA matching algorithm is worth implementing directly in the WinDAGs skill directory, because it provides exactly the semantics needed: subsumption-based capability matching with partial templates. The recursive sequence matching and the subset-based set matching are both implementable as straightforward algorithms.
+The FIPA matching algorithm is worth implementing directly in the Jury-rig skill directory, because it provides exactly the semantics needed: subsumption-based capability matching with partial templates. The recursive sequence matching and the subset-based set matching are both implementable as straightforward algorithms.
 
 For performance, the skill directory should index by service type first (the most discriminating filter in most searches), then filter by ontologies, then by properties. This matches the natural query pattern: you almost always know what *type* of service you need, and then want to refine by specific capabilities.
 
 ## Search Constraints as Efficiency Tools
 
-The `search-constraints` object (Section 6.1.4) with `max-depth` and `max-results` is worth implementing in WinDAGs skill search for efficiency:
+The `search-constraints` object (Section 6.1.4) with `max-depth` and `max-results` is worth implementing in Jury-rig skill search for efficiency:
 
 - **`max-results`**: If you need just one skill for a task step, setting `max-results=1` allows the directory to stop searching after the first match. No need to enumerate all possibilities.
 - **`max-depth`**: If you know the capability is available locally, setting `max-depth=0` prevents unnecessary federated search.
@@ -131,7 +131,7 @@ For orchestrators doing fast path routing (finding the obvious skill for a simpl
 
 ## Caveats
 
-**Semantic equivalence is not handled**: The FIPA matching semantics are purely syntactic — string equality for names and values. There's no inference that `security-audit` and `vulnerability-scanning` are related. A more sophisticated WinDAGs implementation might add ontology-based subsumption reasoning on top of the FIPA model.
+**Semantic equivalence is not handled**: The FIPA matching semantics are purely syntactic — string equality for names and values. There's no inference that `security-audit` and `vulnerability-scanning` are related. A more sophisticated Jury-rig implementation might add ontology-based subsumption reasoning on top of the FIPA model.
 
 **Performance with many registered agents**: Partial matching against hundreds of registered service descriptions can be slow if done naively. Inverted indexes, pre-computed capability clusters, and embedding-based semantic search are all reasonable extensions to the FIPA model for large-scale deployments.
 
@@ -139,4 +139,4 @@ For orchestrators doing fast path routing (finding the obvious skill for a simpl
 
 ## Summary
 
-FIPA's capability search mechanism uses partial template matching (subset semantics for sets, subsequence semantics for sequences) to find agents whose capabilities are a superset of what you need. Federated search extends this across multiple directories with depth and result count controls. For WinDAGs, this translates to: define skill capabilities as structured service descriptions, query with partial templates expressing minimum requirements, use federation for large-scale skill ecosystems, and always treat results as candidates requiring verification at invocation time.
+FIPA's capability search mechanism uses partial template matching (subset semantics for sets, subsequence semantics for sequences) to find agents whose capabilities are a superset of what you need. Federated search extends this across multiple directories with depth and result count controls. For Jury-rig, this translates to: define skill capabilities as structured service descriptions, query with partial templates expressing minimum requirements, use federation for large-scale skill ecosystems, and always treat results as candidates requiring verification at invocation time.

@@ -231,11 +231,16 @@ Documents`.
   should correct the other. Note drift in the PR.
 - **Work at maximal tool + skill access, and pause to find the right skill.** Start
   with the broadest toolset you can reach. If you catch yourself working without a
-  matching skill, stop and do skill research before improvising what a skill
-  already encodes. Skill matching is meant to live in a **seamanship** module
-  (proposed, not yet built): a match-cascade-and-graft selector modelled on the
-  windags repo's `windags_skill_induct` / `windags_skill_graft` cascade. Until it
-  lands, match by hand against `skills/`.
+  matching skill, stop and run `pd jury-rig query "<task>"` before improvising
+  what a skill already encodes. Jury-rig is Port Daddy's native hybrid discovery
+  surface: it ranks the local, explicitly configured catalog and reads requested
+  references through the guarded `pd jury-rig reference` path. A third-party skill
+  remains provenance-labelled catalog input; its scripts, hooks, MCP servers,
+  subagents, and planning pipelines never become executable authority merely
+  because Jury-rig selected it. Planning authority remains this guide plus the
+  session's `pd plan`. **Seamanship** is the planned native planning/orchestration
+  module and is not yet a shipped verb; until it lands, do not register or invoke
+  an external planning runtime as a substitute.
 - **Launch other agents *through* Port Daddy.** When you need more hands, spawn
   them through PD's own fabric — `pd agent` / `pd sortie` / `pd dispatch` and the
   tube → spawner router (conductor) — never a raw side-channel, so the work is
