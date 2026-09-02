@@ -123,9 +123,11 @@ describe('CLI Integration Tests', () => {
       // CI checks out a main worktree. Two live principals must use actual
       // linked worktrees instead of depending on a caller-asserted bypass.
       fixtureRoot = mkdtempSync(join(tmpdir(), 'pd-lock-owners-'));
-      const fixtureGit = (args) => execFileSync('git', args, { cwd: fixtureRoot, stdio: 'ignore' });
+      const fixtureGit = (args) => execFileSync('git', [
+        '-c', 'core.hooksPath=/dev/null', '-c', 'commit.gpgsign=false', ...args,
+      ], { cwd: fixtureRoot, stdio: 'ignore' });
       fixtureGit(['init']);
-      fixtureGit(['-c', 'core.hooksPath=/dev/null', '-c', 'user.name=PD Test',
+      fixtureGit(['-c', 'user.name=PD Test',
         '-c', 'user.email=pd-test@example.invalid', 'commit', '--allow-empty', '-m', 'fixture']);
       worktreeA = join(fixtureRoot, 'owner-a');
       worktreeB = join(fixtureRoot, 'owner-b');

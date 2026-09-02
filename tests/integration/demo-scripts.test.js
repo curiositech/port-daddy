@@ -118,9 +118,11 @@ describe('Demo 2 — agents (pd begin / pd note / pd pub / pd salvage / pd lock 
     // A dedicated linked Git fixture behaves identically under a local linked
     // checkout and CI's main checkout, without bypassing crowded-main policy.
     fixtureRoot = mkdtempSync(join(tmpdir(), 'pd-demo-stage-'));
-    const fixtureGit = (args) => execFileSync('git', args, { cwd: fixtureRoot, stdio: 'ignore' });
+    const fixtureGit = (args) => execFileSync('git', [
+      '-c', 'core.hooksPath=/dev/null', '-c', 'commit.gpgsign=false', ...args,
+    ], { cwd: fixtureRoot, stdio: 'ignore' });
     fixtureGit(['init']);
-    fixtureGit(['-c', 'core.hooksPath=/dev/null', '-c', 'user.name=PD Test',
+    fixtureGit(['-c', 'user.name=PD Test',
       '-c', 'user.email=pd-test@example.invalid', 'commit', '--allow-empty', '-m', 'fixture']);
     cliOptions.cwd = join(fixtureRoot, 'stage');
     fixtureGit(['worktree', 'add', '--detach', cliOptions.cwd, 'HEAD']);
@@ -154,7 +156,12 @@ describe('Demo 2 — agents (pd begin / pd note / pd pub / pd salvage / pd lock 
   });
 
   test('demo session is bound to its own linked stage worktree', async () => {
-    const res = await request(`/sessions/${sessionId}`);
+    let res = await request(`/sessions/${sessionId}`);
+    // The shared HTTP pool can reuse a socket closed by the prior suite.
+    // Retry only an explicitly aborted, idempotent read; never a 401/403/404.
+    for (let attempt = 0; res.aborted === true && attempt < 2; attempt++) {
+      res = await request(`/sessions/${sessionId}`);
+    }
     expect({ ok: res.ok, status: res.status, code: res.data?.code }).toMatchObject({ ok: true, status: 200 });
     expect(res.data.session.metadata.worktree).toMatchObject({ root: cliOptions.cwd, isMain: false });
   });
