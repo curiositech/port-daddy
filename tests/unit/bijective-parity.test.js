@@ -412,7 +412,12 @@ describe('Test Group 3: API -> CLI Parity', () => {
   // recovery is the bonded account-recovery route domain; editorrecovery is a
   // registered 503-only Harbor Editor scaffold. Neither gets a CLI alias: doing
   // so would expose token mint/consume or imply missing recovery authority exists.
-  const API_ONLY_ROUTES = new Set(['arbiter', 'pheromone', 'mergequeue', 'symbols', 'observability', 'metricsprom', 'operator', 'semantic', 'resources', 'usage', 'testhooks', 'blob', 'githubwebhook', 'context', 'harvest', 'custodian', 'cloudapptelemetry', 'visualtasks', 'sorties', 'galaxy', 'fleetwebhooks', 'roadmapactivity', 'recovery', 'editorrecovery']);
+  // durableownership: authenticated ownership/bootstrap/grant routes have the
+  // real SDK methods bootstrapDurableOwnership, prepareDurableTakeover and
+  // getDurableTakeoverGrant. The legacy takeover CLI does not supply the signed
+  // grant required by takeoverSession; its RECOVERY_GRANT_REQUIRED denial is
+  // not working CLI coverage. Keep this API-only until that adapter is wired.
+  const API_ONLY_ROUTES = new Set(['arbiter', 'pheromone', 'mergequeue', 'symbols', 'observability', 'metricsprom', 'operator', 'semantic', 'resources', 'usage', 'testhooks', 'blob', 'githubwebhook', 'context', 'harvest', 'custodian', 'cloudapptelemetry', 'visualtasks', 'sorties', 'galaxy', 'fleetwebhooks', 'roadmapactivity', 'recovery', 'editorrecovery', 'durableownership']);
 
   test('all route modules have at least one corresponding CLI command', () => {
     const missingCoverage = [];

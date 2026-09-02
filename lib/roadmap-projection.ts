@@ -526,48 +526,6 @@ function ownershipAgent(
   };
 }
 
-function parseOwnershipBriefing(raw: string | null): RoadmapOwnershipBriefingSummary | null {
-  if (!raw) return null;
-  try {
-    const value = JSON.parse(raw) as Record<string, unknown>;
-    const handoff = value.handoff && typeof value.handoff === 'object'
-      ? value.handoff as Record<string, unknown>
-      : null;
-    const lineage = handoff?.lineage && typeof handoff.lineage === 'object'
-      ? handoff.lineage as Record<string, unknown>
-      : null;
-    const unresolved = Array.isArray(value.unresolvedQuestions) ? value.unresolvedQuestions : [];
-    const evidence = Array.isArray(value.evidence) ? value.evidence : [];
-    return {
-      briefingId: asNullableString(value.briefingId) ?? '',
-      contentHash: asNullableString(value.contentHash) ?? '',
-      generatedAt: asFiniteNumber(value.generatedAt) ?? 0,
-      handoffCapsuleId: asNullableString(lineage?.capsuleId),
-      knownGaps: parseStringArray(JSON.stringify(value.knownGaps ?? [])),
-      omittedSources: parseStringArray(JSON.stringify(value.omittedSources ?? [])),
-      unresolvedQuestions: unresolved.flatMap((entry) => {
-        if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return [];
-        const item = entry as Record<string, unknown>;
-        const id = asNullableString(item.id);
-        const text = asNullableString(item.text);
-        if (!id || !text) return [];
-        return [{ id, text, sourceRef: asNullableString(item.sourceRef) }];
-      }),
-      evidence: evidence.flatMap((entry) => {
-        if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return [];
-        const item = entry as Record<string, unknown>;
-        const source = asNullableString(item.source);
-        const ref = asNullableString(item.ref);
-        const label = asNullableString(item.label);
-        if (!source || !ref || !label) return [];
-        return [{ source, ref, label, contentHash: asNullableString(item.contentHash) }];
-      }),
-    };
-  } catch {
-    return null;
-  }
-}
-
 function buildOwnershipByItem(
   db: Database.Database,
   harbor: string,

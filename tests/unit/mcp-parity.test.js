@@ -325,6 +325,12 @@ const MCP_EXEMPT_FEATURES = new Set([
   // CONVERTED to real MCP tools (#199): harbors, pheromone, symbols, semantic, cartographer, roadmap, commitments.
   'secrets',        // PR #197 managed provider credential store. CLI-only (`pd secret set/list/reveal/rm`); write + reveal routes are loopback-only (makeLoopbackGuard). Intentionally NO SDK/MCP surface — an agent must not be able to set or read managed provider API keys (e.g. poison ANTHROPIC_API_KEY to exfiltrate prompts). Follows the `setup` CLI-only precedent.
   'quorum',         // New propose/vote primitive; agents drive consensus via SDK calls in v1, MCP wrapper deferred to v4
+  // Explicit SDK/API-only grant protocol in this revision: bootstrapDurableOwnership,
+  // prepareDurableTakeover and getDurableTakeoverGrant use authenticated HTTP/IPC.
+  // No MCP tool currently carries this exact grant/recipient contract. Neither
+  // roster continuation nor the legacy grant-less takeover CLI is a substitute.
+  // Remove this one feature's exemption when its real grant-capable adapter lands.
+  'durable_ownership',
   'shipwright',     // Survey + propose + apply for fleet authoring; CLI-driven workflow (long-running, interactive review). MCP wrapper deferred until the propose/apply step is non-interactive.
   'cut',            // CLI/CI-only release engineering (pd cut) — a human/pipeline act, not an agent action; no routes, no MCP.
   'setup',          // Local machine onboarding can run installer commands; daemon routes require loopback + GUI capability token, not MCP exposure.

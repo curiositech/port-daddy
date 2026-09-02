@@ -99,6 +99,51 @@ await pd.removeSession(session.id);
 
 ---
 
+## Durable Ownership and Signed Takeover
+
+These are authenticated SDK/API operations, not new CLI commands. Both parties
+use their own daemon-minted actor credential. A roster alias, process id, stale
+heartbeat, or handoff prose is not authority. The source session must already
+belong to the roadmap's canonical `AgentNode`; the successor must already have
+a verified AgentRun admission for a **different** `AgentNode`. These operations
+do not spawn or admit a successor.
+
+| SDK method | Existing HTTP operation | Result |
+|---|---|---|
+| `pd.bootstrapDurableOwnership({ roadmapSlug, harbor, sourceSessionId, reason })` | `POST /roadmap/items/:slug/ownership/bootstrap` | Initial signed epoch from the current owner's stored session, claims, and exact worktree |
+| `pd.prepareDurableTakeover({ roadmapSlug, harbor, successorSessionId, reason, claimDispositions, ttlMs?, operatorPresenceProof? })` | `POST /roadmap/items/:slug/takeovers` | Signed grant, one-shot nonce, and issuance receipt; no claim transfer yet |
+| `pd.getDurableTakeoverGrant(grantId, { harbor? })` | `GET /takeover-grants/:grantId` | Redacted grant lifecycle and receipts; available only to its issuer or successor actor |
+| `pd.takeoverSession(sourceSessionId, { grantId, nonce })` | `POST /sessions/:id/takeover` | Named successor accepts; exact state is rechecked, claims are explicitly transferred/released, and a new epoch/receipt is appended |
+
+`GET /roadmap/items/:slug/ownership?harbor=...` also exposes the authenticated
+current/prior owner, stale state, current epoch, claims, and active grant id.
+It has no dedicated SDK convenience method in this revision. The three
+ownership SDK methods have matching IPC operations; grant acceptance uses the
+existing session takeover operation.
+
+`claimDispositions` is the complete reviewed list of
+`{ claimNodeId, disposition: 'transfer' | 'release' }` for the source claims.
+The daemon derives the owner, actor bindings, workspace/head/base, claim
+snapshots, and briefing from stored and physically probed evidence; the client
+cannot supply replacement authority facts. `ttlMs` defaults to 300,000 and must
+be between 10,000 and 900,000. Keep the issuance nonce private to the named
+recipient; it is not returned by the grant-status read.
+
+The current owner can propose a voluntary handoff. Operator recovery additionally
+requires stale/terminal predecessor evidence and a configured, recent-human,
+action-bound presence verifier; `soulClass: operator` alone cannot authorize it.
+Without that verifier the coordinator denies operator recovery with
+`OPERATOR_PRESENCE_REQUIRED`. The legacy `pd takeover` / `pd session takeover`
+adapter does not supply `grantId`/`nonce` and still returns
+`RECOVERY_GRANT_REQUIRED`; its presence is not working CLI coverage.
+
+Old owners, source notes, and claim history remain evidence. A briefing contains
+sanitized recorded context and gaps, never purported hidden reasoning. This
+contract documents source behavior, not proof that a particular installed daemon
+has these routes or that an operator-presence adapter is deployed.
+
+---
+
 ## Sugar (Compound Operations)
 
 Sugar methods combine multiple coordination steps into single atomic calls. Use these instead of the individual `register`, `startSession`, `endSession`, and `unregister` methods for the standard agent lifecycle.

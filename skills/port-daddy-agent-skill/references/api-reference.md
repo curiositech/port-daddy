@@ -1861,3 +1861,61 @@ Attach a sanitized handoff episode or execution notes.
 
 ### POST /durable-agents/:id/retire
 Retire a durable agent identity (soft-delete).
+
+---
+
+## Durable Ownership and Signed Takeover
+
+These authenticated SDK/API operations reuse canonical AgentNode admission,
+roadmap ownership epochs, claims, and signed receipts. They do not mint an
+identity, admit a session, or spawn a body. Staleness alone grants no authority.
+This describes the source contract; verify the selected daemon implements it.
+
+### GET /roadmap/items/:slug/ownership
+Read current/prior owners, stale state, the current epoch, claims, and active
+grant id. Optional `harbor` selects the exact namespace. The read requires an
+actor credential and does not authorize takeover.
+
+### POST /roadmap/items/:slug/ownership/bootstrap
+Establish the initial epoch for an active, admitted source session already
+bound to the roadmap's canonical owner. Body: `{ sourceSessionId, reason,
+harbor? }`. SDK: `bootstrapDurableOwnership({ roadmapSlug, harbor,
+sourceSessionId, reason })`. The daemon captures owner, worktree, head, and
+claim facts; the caller cannot select another owner.
+
+### POST /roadmap/items/:slug/takeovers
+Prepare a signed grant for an already-admitted successor with a different
+AgentNode. Body: `{ successorSessionId, reason, claimDispositions, harbor?,
+ttlMs?, operatorPresenceProof? }`; each disposition is `{ claimNodeId,
+disposition: "transfer" | "release" }`. SDK: `prepareDurableTakeover` with
+`roadmapSlug` and `harbor` plus those fields. TTL defaults to 300000 ms and is
+limited to 10000–900000 ms. Issuance captures the compact sanitized briefing
+and exact resource bindings without transferring claims. It returns a nonce
+for the named recipient; never publish that nonce in notes or PRs.
+
+The current owner's verified actor may issue a voluntary handoff. Operator
+recovery also requires stale/terminal predecessor evidence and a configured
+recent-human, action-bound presence verifier. An operator class or an old
+heartbeat is insufficient; absent presence verification remains a denial.
+
+### GET /takeover-grants/:grantId
+Only the verified issuer or named successor actor may read grant lifecycle,
+timestamps, consumed epoch id, and receipt references. Optional `harbor` must
+match the grant. SDK: `getDurableTakeoverGrant(grantId, harbor?)`. This view
+redacts the nonce and raw briefing.
+
+### POST /sessions/:id/takeover
+The named successor accepts with `{ grantId, nonce }` and its own actor
+credential; `id` is the predecessor session. SDK:
+`takeoverSession(sourceSessionId, { grantId, nonce })`. Acceptance rechecks
+expiry, one-shot state, actors, admissions, exact worktrees/heads, claims, and
+current epoch before appending the new epoch and receipt. Prior ownership and
+notes remain historical evidence; claims are explicitly transferred/released.
+Expired, consumed, or mismatched grants are denied, not silently retried.
+
+All writes accept optional `agentId` and legacy body `credential`; prefer the
+`x-actor-credential` header. Unknown fields are rejected. Grantless acceptance
+returns `409 RECOVERY_GRANT_REQUIRED`, including the legacy `pd takeover` /
+`pd session takeover` CLI, which cannot yet supply a signed grant. No MCP
+grant adapter exists in this revision. The SDK methods have IPC peers; transport
+selection does not weaken these checks or expose hidden reasoning.

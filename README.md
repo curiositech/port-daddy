@@ -241,11 +241,11 @@ When an agent dies (crash, lost connection, context exhaustion) its sessions and
 
 ```bash
 pd salvage --project myapp         # list dead agents' recoverable work
-pd salvage claim dead-agent-99     # inherit a dead agent's session, claims, and notes
-pd takeover <old-session-id>       # successor session with recorded lineage
 ```
 
-`pd session takeover` creates a successor session, records the lineage in append-only notes, releases stale predecessor claims, and reclaims those files when there is no live conflict. `pd session rm` is archival: it releases active claims and writes a tombstone, but never deletes the session, notes, or claim history.
+Staleness is evidence to inspect, not permission to inherit an identity or its claims. The `durable_ownership` SDK/API requires an already-admitted successor and an exact, short-lived signed grant: `bootstrapDurableOwnership` establishes the current canonical owner's epoch, `prepareDurableTakeover` records the proposed claim transfers/releases and sanitized briefing, and the named successor accepts with `takeoverSession(sourceSessionId, { grantId, nonce })`. Historical owners and notes remain intact; acceptance appends the new epoch and receipt. `getDurableTakeoverGrant` returns an authenticated, redacted lifecycle view, not the one-shot nonce. See the [SDK ownership contract](docs/sdk.md#durable-ownership-and-signed-takeover) and [API reference](docs/openapi.yaml).
+
+The legacy `pd takeover` / `pd session takeover` CLI does **not** yet supply that grant and fails with `RECOVERY_GRANT_REQUIRED`; it is not an automatic stale-claim recovery path. Operator-initiated recovery remains denied without a configured recent-human, action-bound presence verifier. `pd session rm` is archival: it releases active claims and writes a tombstone, but never deletes the session, notes, or claim history.
 
 ### Say / Look — the consolidated verbs
 
@@ -1084,7 +1084,7 @@ The **agent field manual** ships as a portable skill at [`skills/port-daddy-agen
 
 ## 🌐 HTTP API
 
-The full API contract lives at [`docs/openapi.yaml`](docs/openapi.yaml) — OpenAPI 3.1, **133 paths, 166 operations**, covering everything the CLI and MCP server can do plus SSE streams (`/fleet/events`, inbox watch, channel subscribe). The daemon binds loopback with a DNS-rebinding guard; secret routes are additionally loopback-gated per-route.
+The full API contract lives at [`docs/openapi.yaml`](docs/openapi.yaml) — OpenAPI 3.1, **138 paths, 171 operations**, covering everything the CLI and MCP server can do plus SSE streams (`/fleet/events`, inbox watch, channel subscribe). The daemon binds loopback with a DNS-rebinding guard; secret routes are additionally loopback-gated per-route.
 
 The `editor_recovery` Harbor Editor salvage routes are authenticated, fail-closed scaffolding at `POST /editor/recovery/request`, `/prepare`, `/replay`, and `/finalize`; registration does **not** make a usable recovery pipeline. Four external build gates remain unimplemented: the P1 Rust operation-receipt producer, P1B, the canonical Rust Loro recovery adapter, and the P3 same-database released-claim transfer adapter. Daemon scope minting also cannot yet supply the required verified worktree root device/inode witness, and production has no content-hash/parser-generation symbol lease or daemon file-mutation generation authority. The routes therefore remain 503-gated with no CLI/MCP bypass.
 
