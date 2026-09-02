@@ -1,116 +1,146 @@
-import { pdFetch, PORT_DADDY_URL } from '../utils/fetch.js';
-import { CLIOptions, isQuiet } from '../types.js';
+import { pdFetch, PORT_DADDY_URL, type FetchOptions } from '../utils/fetch.js';
+import { type CLIOptions, isQuiet } from '../types.js';
 import * as ui from '../utils/ui.js';
-import { readCurrentContext } from '../utils/current-context.js';
+import { resolveCurrentContext } from '../utils/current-context.js';
+import { resolveCliActorCredential } from '../utils/actor-credential.js';
 
+/**
+ * Read or append an exact session's canonical checklist. The design binds writes
+ * to the selected caller, never to a credential discovered from the target.
+ * Updates append a complete plan; they are not an atomic compare-and-swap.
+ * @param args - Action followed by complete Markdown or an exact task selector.
+ * @param options - CLI options; session selects the target, not its authority.
+ * @returns After displaying the plan or receiving a successful append receipt.
+ */
 export async function handlePlan(args: string[], options: CLIOptions): Promise<void> {
-  const action = args[0];
+  const action = args[0] || 'show';
   const data = args.slice(1).join(' ');
-  const current = readCurrentContext();
-  const sessionId = (options.session as string) || current?.sessionId;
-
-  if (!sessionId) {
-    ui.error('No active session found. Use --session <id> or start one with pd begin.');
+  const fail: (message: string) => never = (message) => {
+    ui.error(message);
     process.exit(1);
+  };
+  if (!['show', 'set', 'check'].includes(action)) fail('Unknown plan action. Use show, set, or check.');
+  const resolution = resolveCurrentContext();
+  if (!resolution.success) {
+    fail('CONTEXT_CONFLICT: environment identity and context slot disagree. Inspect pd whoami and select the intended caller context; --session changes only the target.');
   }
-
-  const act = action || 'show';
-
-  if (act === 'show') {
-    const res = await pdFetch(`${PORT_DADDY_URL}/sessions/${sessionId}/notes?type=todo_list`);
-    const json = (await res.json()) as any;
-    if (!res.ok) {
-      ui.error(json.error || 'Failed to fetch plan');
-      process.exit(1);
-    }
-    const plans = json.notes || [];
-    if (plans.length === 0) {
-      console.log('No plan exists for this session.');
-      return;
-    }
-    const latestPlan = plans[plans.length - 1];
-    console.log(`Plan for session ${sessionId}:\n`);
-    console.log(latestPlan.content || latestPlan.note);
-    return;
+  const current = resolution.context;
+  if (options.session !== undefined && (typeof options.session !== 'string' || !options.session.trim())) {
+    fail('Invalid --session target. Supply an exact non-empty session id; no active-session fallback was selected.');
   }
-
-  if (act === 'set') {
-    if (!data) {
-      ui.error('Usage: pd plan set "<markdown checklist>"');
-      process.exit(1);
+  const sessionId = typeof options.session === 'string' && options.session.trim()
+    ? options.session.trim() : current?.sessionId;
+  if (!sessionId) fail('No active session found. Use --session <id> to read an exact plan, or pd begin for new work.');
+  if (action !== 'show' && !data.trim()) fail(`Usage: pd plan ${action} "${action === 'set' ? '<markdown checklist>' : '<task number or exact label>'}"`);
+  if (action !== 'show' && !current?.agentId) {
+    fail('CALLER_CONTEXT_REQUIRED: select your existing caller context before writing. --session does not borrow the target owner’s credential.');
+  }
+  const credential = current?.agentId ? resolveCliActorCredential(current.agentId) : undefined;
+  if (action !== 'show' && !credential) {
+    fail('IDENTITY_CREDENTIAL_REQUIRED: no credential is available for the selected caller. Inspect pd whoami; no other context or identity was substituted.');
+  }
+  const headers: Record<string, string> = credential ? { 'x-actor-credential': credential } : {};
+  const notesUrl = `${PORT_DADDY_URL}/sessions/${encodeURIComponent(sessionId)}/notes`;
+  // Never print arbitrary response bodies, nested errors, credential-bearing
+  // URLs, or transport exceptions. Status plus an allowlisted hint is useful.
+  const hints: Record<string, string> = {
+    IDENTITY_CREDENTIAL_REQUIRED: 'The daemon requires the selected caller’s credential.',
+    IDENTITY_CREDENTIAL_INVALID: 'The daemon rejected the selected caller’s credential.',
+    IDENTITY_ALIAS_MISMATCH: 'The caller alias does not belong to the presented actor.',
+    SESSION_OWNERSHIP_MISMATCH: 'The selected caller does not own this exact session.',
+    SESSION_OWNER_UNVERIFIABLE: 'The daemon cannot verify the stored session owner.',
+    SESSION_NOT_ACTIVE: 'The exact session is not active; no automatic resume was attempted.',
+    SESSION_NOT_FOUND: 'The exact session does not exist on the selected daemon.',
+    SESSION_SCOPE_REQUIRED: 'The daemon requires an exact session target.',
+    VALIDATION_ERROR: 'The daemon rejected the plan payload.',
+    ADVERSARIAL_PROJECT_GUARD: 'This project requires its protected note envelope.',
+  };
+  const request = async (operation: 'read' | 'append', init: FetchOptions): Promise<Record<string, unknown>> => {
+    let response;
+    try {
+      response = await pdFetch(notesUrl + (operation === 'read' ? '?type=todo_list&limit=1' : ''), {
+        ...init, headers: { ...headers, ...init.headers }, retry: false,
+      });
+    } catch {
+      return fail(`Plan ${operation} transport failed. ${operation === 'append' ? 'The append outcome is unknown; read the exact plan before retrying.' : 'Nothing was written.'}`);
     }
-    const res = await pdFetch(`${PORT_DADDY_URL}/sessions/${sessionId}/notes`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        note: data,
-        content: data,
-        type: 'todo_list',
-        agentId: current?.agentId
-      })
+    let body: Record<string, unknown> | null = null;
+    try {
+      const parsed = await response.json();
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) body = parsed;
+    } catch { /* Status remains useful even when the body is not JSON. */ }
+    if (!response.ok || body?.success === false) {
+      const code = typeof body?.code === 'string' && Object.hasOwn(hints, body.code) ? body.code : null;
+      fail(`Plan ${operation} failed (HTTP ${response.status ?? 'unknown'}${code ? `, ${code}` : ''}). ${code ? hints[code] : 'The selected daemon rejected the request.'}`);
+    }
+    if (!body) fail(`Plan ${operation} returned malformed JSON. ${operation === 'append' ? 'The append outcome is unknown; read the exact plan before retrying.' : 'Nothing was written.'}`);
+    return body;
+  };
+  const append = async (content: string): Promise<void> => {
+    const result = await request('append', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      // The server checks its stamped owner; a redundant display agentId can
+      // falsely conflict even when this caller presents the same actor.
+      body: JSON.stringify({ content, type: 'todo_list' }),
     });
-    if (!res.ok) {
-      const json = (await res.json()) as any;
-      ui.error(json.error || 'Failed to set plan');
-      process.exit(1);
+    if (result.success !== true || result.sessionId !== sessionId || !Number.isSafeInteger(result.noteId)) {
+      fail('Plan append receipt is incomplete or names a different session. Read the exact plan before retrying; no automatic retry was attempted.');
     }
+  };
+  if (action === 'set') {
+    await append(data);
     if (!isQuiet(options)) console.log(`Plan updated for session ${sessionId}`);
     return;
   }
-
-  if (act === 'check') {
-    if (!data) {
-      ui.error('Usage: pd plan check "<item text or index>"');
-      process.exit(1);
-    }
-    const res = await pdFetch(`${PORT_DADDY_URL}/sessions/${sessionId}/notes?type=todo_list`);
-    const json = (await res.json()) as any;
-    const plans = json.notes || [];
-    if (plans.length === 0) {
-      ui.error('No plan exists for this session.');
-      process.exit(1);
-    }
-    const latestPlan = plans[plans.length - 1].content || plans[plans.length - 1].note;
-    const lines = latestPlan.split('\n');
-    const index = parseInt(data, 10);
-    
-    let updated = false;
-    if (!isNaN(index) && index > 0 && index <= lines.length) {
-      lines[index - 1] = lines[index - 1].replace(/\[ \]/, '[x]').replace(/\[-\]/, '[x]');
-      updated = true;
-    } else {
-      for (let i = 0; i < lines.length; i++) {
-        if (lines[i].includes(data) && (lines[i].includes('[ ]') || lines[i].includes('[-]'))) {
-          lines[i] = lines[i].replace(/\[ \]/, '[x]').replace(/\[-\]/, '[x]');
-          updated = true;
-          break;
-        }
-      }
-    }
-
-    if (!updated) {
-      ui.error('Could not find unchecked item matching: ' + data);
-      process.exit(1);
-    }
-
-    const setRes = await pdFetch(`${PORT_DADDY_URL}/sessions/${sessionId}/notes`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        note: lines.join('\n'),
-        content: lines.join('\n'),
-        type: 'todo_list',
-        agentId: current?.agentId
-      })
-    });
-    if (!setRes.ok) {
-      ui.error('Failed to save updated plan');
-      process.exit(1);
-    }
-    if (!isQuiet(options)) console.log(`Plan item checked off.`);
+  const result = await request('read', {});
+  if (!Array.isArray(result.notes)) fail('Plan read returned an invalid notes envelope. Nothing was written.');
+  const plans = result.notes as Array<{ id: number; createdAt: number; content: string; sessionId: string; type: string }>;
+  if (plans.some((note) => !note || note.sessionId !== sessionId || note.type !== 'todo_list'
+    || !Number.isSafeInteger(note.id) || !Number.isFinite(note.createdAt) || typeof note.content !== 'string')) {
+    fail('Plan read returned an invalid or wrong-session note. Nothing was written.');
+  }
+  if (!plans.length) {
+    if (action === 'check') fail('No plan exists for this exact session. Nothing was written.');
+    console.log('No plan exists for this session.');
     return;
   }
-
-  ui.error(`Unknown plan action: ${act}. Use show, set, or check.`);
-  process.exit(1);
+  // The session API returns the newest tail. Explicit timestamp/id ordering
+  // also keeps adapters from accidentally selecting the first/oldest note.
+  const latest = [...plans].sort((a, b) => a.createdAt - b.createdAt || a.id - b.id).at(-1)!;
+  if (action === 'show') {
+    console.log(`Plan for session ${sessionId}:\n`);
+    console.log(latest.content);
+    return;
+  }
+  const lines = latest.content.split('\n');
+  const tasks: Array<{ line: number; marker: number; checked: boolean; label: string }> = [];
+  let fence: { character: string; length: number } | undefined;
+  for (let line = 0; line < lines.length; line++) {
+    const boundary = /^\s*(`{3,}|~{3,})(.*)$/.exec(lines[line]);
+    if (boundary) {
+      if (!fence) fence = { character: boundary[1][0], length: boundary[1].length };
+      else if (boundary[1][0] === fence.character && boundary[1].length >= fence.length && !boundary[2].trim()) fence = undefined;
+      continue;
+    }
+    if (fence) continue;
+    const task = /^(\s*(?:[-+*]|\d+[.)])\s+\[)([ xX-])(\]\s+)(.*)\r?$/.exec(lines[line]);
+    if (task) tasks.push({ line, marker: task[1].length, checked: /[xX]/.test(task[2]), label: task[4].trim() });
+  }
+  const selector = data.trim();
+  let target;
+  if (/^\d+$/.test(selector)) {
+    const ordinal = Number(selector);
+    if (!Number.isSafeInteger(ordinal) || ordinal < 1 || ordinal > tasks.length) fail(`Task number out of range: this plan has ${tasks.length} checklist items.`);
+    target = tasks[ordinal - 1];
+  } else {
+    const matches = tasks.filter((task) => task.label === selector);
+    if (matches.length > 1) fail('Ambiguous task label. Use its checklist number; nothing was written.');
+    if (!matches.length) fail('No exact task label matches. Use the complete label or its checklist number; nothing was written.');
+    target = matches[0];
+  }
+  if (target.checked) fail('That task is already checked; no duplicate plan was appended.');
+  const line = lines[target.line];
+  lines[target.line] = line.slice(0, target.marker) + 'x' + line.slice(target.marker + 1);
+  await append(lines.join('\n'));
+  if (!isQuiet(options)) console.log('Plan item checked off.');
 }
