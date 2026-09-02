@@ -652,4 +652,19 @@ describe('describeGuardBlock — HITL escalation policy', () => {
     expect(manual.notifyOperator).toBe(false);
     expect(describeGuardBlock(result, { hook: true }).notifyOperator).toBe(true);
   });
+
+  test('post-commit rent is presented as follow-up after a completed commit, never as a block', () => {
+    const result = evaluateGuardFacts({
+      config: enforce, active: true, agentId: 'agent-self', sessionId: 'session-self',
+      files: ['src/a.ts'], ownersByFile: { 'src/a.ts': [{ agentId: 'agent-self', sessionId: 'session-self' }] },
+      commitsSinceLastNote: 1, atCommitTime: true,
+    });
+    const notice = describeGuardBlock(result, { hook: true, postCommit: true });
+    expect(notice.severity).toBe('requirement');
+    expect(notice.notifyOperator).toBe(true);
+    expect(notice.title).toBe('Port Daddy: coordination note due before the next commit');
+    expect(notice.body).toMatch(/^The commit already completed\./);
+    expect(notice.title).not.toMatch(/blocked/i);
+    expect(notice.body).not.toMatch(/commit blocked/i);
+  });
 });

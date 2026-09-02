@@ -208,8 +208,54 @@ final class SquidHarnessStoreTests: XCTestCase {
         await store.refresh(projectDir: "/work/repo")
 
         XCTAssertEqual(store.snapshot?.state, .degraded)
-        XCTAssertEqual(store.snapshot?.health?.circuits.first?.state, .open)
+        let legacyCircuit = store.snapshot?.health?.circuits.first
+        XCTAssertEqual(legacyCircuit?.state, .open)
+        XCTAssertNil(legacyCircuit?.probeState)
+        XCTAssertNil(legacyCircuit?.probeStartedAt)
+        XCTAssertNil(legacyCircuit?.probeExpectedBy)
+        XCTAssertNil(legacyCircuit?.recoveryReady)
+        XCTAssertEqual(legacyCircuit?.timingLine, "Automatic recovery available at 2026-08-21T20:05:00.000Z")
         XCTAssertEqual(store.message, "PD EDIT disabled itself after repeated exit 127 events. Choose Repair.")
+    }
+
+    func testRefreshDistinguishesAnActiveRecoveryProbeFromADisabledHook() async {
+        let recovering = """
+        {
+          "schemaVersion": 1,
+          "state": "DEGRADED",
+          "workspace": "/work/repo",
+          "daemonAlive": true,
+          "tentaclesStaged": true,
+          "providers": [],
+          "identity": {
+            "statuslineStaged": true, "statuslineProject": true, "statuslineUser": false,
+            "slashCommand": true, "pilotSessionStart": true, "daemonAlive": true
+          },
+          "value": {"beforeTurn":"context","beforeEdit":"gate","afterTool":"cumulative"},
+          "health": {
+            "degraded": true,
+            "capturedAt": "2026-09-01T03:00:02.000Z",
+            "thresholds": {"consecutiveFailures":3,"slowMs":250,"cooldownMs":300000},
+            "circuits": [{
+              "hook":"pd-hook-prompt","label":"PD TURN","state":"half_open","consecutiveFailures":9,
+              "openedAt":"2026-09-01T02:55:00.000Z","retryAt":"2026-09-01T03:00:00.000Z",
+              "lastReason":"slow","lastDurationMs":770,"lastExitCode":0,"updatedAt":"2026-09-01T02:55:00.000Z",
+              "probeState":"active","probeStartedAt":"2026-09-01T03:00:01.000Z",
+              "probeExpectedBy":"2026-09-01T03:00:06.000Z","recoveryReady":false
+            }],
+            "remediation":"A single bounded recovery probe is running and should finish by 2026-09-01T03:00:06.000Z."
+          }
+        }
+        """
+        let store = SquidHarnessStore { _ in SquidCommandResult(status: 0, stdout: recovering, stderr: "") }
+
+        await store.refresh(projectDir: "/work/repo")
+
+        let circuit = store.snapshot?.health?.circuits.first
+        XCTAssertEqual(circuit?.state, .halfOpen)
+        XCTAssertEqual(circuit?.probeState, .active)
+        XCTAssertEqual(circuit?.timingLine, "Probe started 2026-09-01T03:00:01.000Z · expected by 2026-09-01T03:00:06.000Z")
+        XCTAssertEqual(store.message, "PD TURN is running one bounded recovery probe; expected by 2026-09-01T03:00:06.000Z.")
     }
 
     func testArmUsesFullHarnessCommandThenRefreshes() async {
