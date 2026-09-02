@@ -265,6 +265,10 @@ describe('Guard command receipt plumbing — actual handler in an isolated Git f
         PORT_DADDY_CONTEXT_DIR: join(fixture, 'context'),
         PORT_DADDY_CONTEXT_SLOT: 'fixture',
         PORT_DADDY_DISABLE_KEYCHAIN: '1',
+        // tsx probes an optional parent IPC pipe under os.tmpdir(). Keep even
+        // that missing probe inside owned scratch, never a global /tmp socket.
+        TMPDIR: fixture,
+        TSX_DISABLE_CACHE: '1',
         PD_AGENT_ID: 'fixture-agent', PD_SESSION_ID: 'fixture-session', PD_TEST: '1',
         GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: '/dev/null',
         NO_COLOR: '1', ...envOverrides,
