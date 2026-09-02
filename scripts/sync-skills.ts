@@ -27,8 +27,8 @@
  * mirror, and the user's declared Claude/AGENTS libraries. External catalogs are
  * inputs only when explicitly configured; discovery never installs their runtime.
  */
-import { execFileSync } from 'node:child_process';
 import { resolve } from 'node:path';
+import { skillSyncRepositoryRoot } from '../lib/skill-sync-git.js';
 import {
   formatSkillSyncSummary,
   syncAgentSkills,
@@ -50,11 +50,10 @@ interface Cli {
  */
 function repoRoot(): string {
   try {
-    return execFileSync('git', ['rev-parse', '--show-toplevel'], {
-      encoding: 'utf8',
-    }).trim();
+    return skillSyncRepositoryRoot(process.cwd());
   } catch {
-    return process.cwd();
+    process.stderr.write('sync-skills: unable to verify the selected project root; no links written\n');
+    process.exit(1);
   }
 }
 
@@ -151,6 +150,7 @@ function main(): void {
     const changed =
       result.created > 0 ||
       result.replaced > 0 ||
+      result.errors.length > 0 ||
       result.audit.missingLinks > 0 ||
       result.audit.staleSymlinks > 0;
     if (!cli.quiet || changed) {
