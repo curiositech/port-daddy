@@ -1,6 +1,8 @@
 import { jest } from '@jest/globals';
 import Fastify from 'fastify';
 import { briefingPlugin } from '../../routes/briefing.js';
+import { readFileSync } from 'node:fs';
+import YAML from 'yaml';
 
 describe('briefing HTTP project contract', () => {
   let app;
@@ -58,5 +60,17 @@ describe('briefing HTTP project contract', () => {
     briefing.generate.mockImplementationOnce(() => { throw new Error('fixture failed'); });
     expect((await app.inject('/briefing?projectRoot=%2Fproject')).statusCode).toBe(500);
     expect(briefing.sync).not.toHaveBeenCalled();
+  });
+
+  test('README API inventory matches actual OpenAPI paths and HTTP operations', () => {
+    const doc = YAML.parse(readFileSync(new URL('../../docs/openapi.yaml', import.meta.url), 'utf8'));
+    const verbs = new Set(['get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'trace']);
+    const paths = Object.keys(doc.paths).length;
+    const operations = Object.values(doc.paths).reduce((sum, item) => sum + Object.keys(item).filter(key => verbs.has(key)).length, 0);
+    const readme = readFileSync(new URL('../../README.md', import.meta.url), 'utf8');
+    expect(readme).toContain(`**${paths} paths, ${operations} operations**`);
+    expect(doc.paths['/briefing'].get.parameters).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: 'projectRoot', in: 'query', required: true }),
+    ]));
   });
 });

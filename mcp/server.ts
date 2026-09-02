@@ -4448,6 +4448,9 @@ async function handleTool(
 
     // ── Briefing ────────────────────────────────────────────────────
     case 'briefing_generate': {
+      if (typeof args.project_root !== 'string' || !args.project_root) {
+        throw new McpError(ErrorCode.InvalidParams, 'project_root is required');
+      }
       const body: Record<string, unknown> = { projectRoot: args.project_root };
       if (args.project !== undefined) body.project = args.project;
       res = await POST('/briefing', body);

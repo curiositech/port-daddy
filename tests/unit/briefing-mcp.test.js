@@ -72,8 +72,10 @@ describe('briefing MCP actual handler request contract', () => {
     expect(requests).toEqual([{ method: 'POST', path: '/briefing', body: { projectRoot: '/fixture' } }]);
   });
 
-  test.each([undefined, '', 42])('a missing or malformed root %s cannot select the MCP or daemon cwd', async project_root => {
-    await expect(call('briefing_read', { project_root })).rejects.toThrow('project_root is required');
-    expect(requests).toEqual([]);
+  describe.each(['briefing_read', 'briefing_generate'])('%s', tool => {
+    test.each([undefined, '', 42, null, {}, ['/fixture']])('a missing or malformed root %s cannot select the MCP or daemon cwd', async project_root => {
+      await expect(call(tool, { project_root })).rejects.toThrow('project_root is required');
+      expect(requests).toEqual([]);
+    });
   });
 });
