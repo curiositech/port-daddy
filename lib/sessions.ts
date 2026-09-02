@@ -934,8 +934,9 @@ export function createSessions(
       durable = false,
     } = options;
 
-    // Auto-detect worktree if not explicitly provided
-    const resolvedWorktreeId = worktreeId ?? getWorktreeId() ?? null;
+    // Omission may auto-detect for local callers. Explicit null is a verified
+    // projectless admission, never permission to borrow the daemon's Git world.
+    const resolvedWorktreeId = options.worktreeId === undefined ? getWorktreeId() ?? null : worktreeId;
     const identityProject = project || null;
 
     // Validate agentId if provided

@@ -3017,7 +3017,7 @@ const TOOLS = [
         model_tier: { type: 'string', description: 'Optional model tier shortcut: low, mid, or high' },
         purpose: { type: 'string', description: 'Optional short human-readable label for the run' },
         files: { type: 'array', description: 'Optional focused file list, mainly for aider-backed runs', items: { type: 'string' } },
-        workdir: { type: 'string', description: 'Optional working directory override' },
+        workdir: { type: 'string', description: 'Existing absolute working directory, required for local CLI/file-capable agents. Omit only for API-only projectless runs; never defaults to the daemon directory.' },
         timeout: { type: 'number', description: 'Optional timeout in milliseconds' },
         allowed_tools: { type: 'string', description: 'Comma-separated tool list (e.g. "Read,Grep,Glob,Write")' },
         max_tokens: { type: 'number', description: 'Optional token ceiling for claude or claude-cli launches' },

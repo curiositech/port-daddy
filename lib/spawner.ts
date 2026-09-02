@@ -48,6 +48,7 @@ import { cliBinarySearchPath, resolveCliBinary } from './cli-bin-dirs.js';
 import { resolveFleetAgentRuntime, type FleetModelTier } from './fleet-runtime.js';
 import { nativeHarnessSessionIdError } from './harness-session-id.js';
 import {
+  captureWorkspaceIdentity,
   sameWorkspaceIdentity,
   type WorkspaceIdentity,
 } from './workspace-identity.js';
@@ -359,6 +360,9 @@ export interface ManagedSessionLifecycle {
     pid: number;
     metadata: Record<string, unknown>;
     lifecycle: 'ephemeral';
+    /** Physical target only; the daemon derives the Git world itself. */
+    workdir?: string;
+    allowSharedCheckout: boolean;
   }, options: { signal: AbortSignal }): Promise<Record<string, unknown>>;
   bind(input: {
     sessionId: string;
@@ -724,8 +728,10 @@ async function runConfinedChild(
     dotenvKeys: Object.keys(loadDotenvOnce()),
   });
   try {
-    const nativeWorkspaceError = validateNativeResumeWorkspace(opts.spec);
-    if (nativeWorkspaceError) throw new Error(nativeWorkspaceError);
+    await opts.context?.beforeChildLaunch?.();
+    opts.context?.signal?.throwIfAborted();
+    const workspaceError = validateNativeResumeWorkspace(opts.spec) ?? validateSpawnWorkspace(opts.spec);
+    if (workspaceError) throw new Error(workspaceError);
     const res = await runChild({
       cmd: cg.cmd,
       args: cg.args,
@@ -774,6 +780,10 @@ interface BackendRunResult {
 }
 
 interface BackendRunContext {
+  /** Prevent a child launch if its managed lifecycle ended during sandbox setup. */
+  signal?: AbortSignal;
+  /** Private daemon witness check, repeated after asynchronous sandbox setup. */
+  beforeChildLaunch?: () => Promise<void>;
   /** Durable outer spawn identity threaded into subprocess receipts. */
   agentId?: string;
   onChildProcess?: (child: ChildProcess) => void;
@@ -1239,7 +1249,9 @@ async function runCliTube(
     onStreamLine,
     permissionMode: spec.permissionMode,
     resumeSessionId: spec.nativeResume?.sessionId,
-    workspaceIdentity: spec.nativeResume?.workspaceIdentity,
+    workspaceIdentity: spec.nativeResume?.workspaceIdentity ?? spec.workspaceIdentity,
+    signal: context?.signal,
+    beforeChildLaunch: context?.beforeChildLaunch,
     // Live observability (ADR-0060): publish the exchange on the operator-
     // discoverable channel (dispatch:<id>) when both a channel and a tube client
     // are present. When `tubeChannel` is undefined, spawnViaCliTube falls back to
@@ -2293,6 +2305,24 @@ export function createSpawner(deps: SpawnerDeps = {}) {
    * Automatically wires PD session + heartbeat + done.
    */
   async function spawn(spec: SpawnSpec): Promise<SpawnResult> {
+    // Snapshot before the first await. Callers may reuse/mutate their spec while
+    // harbor or session admission waits; that must not redirect an admitted run.
+    spec = {
+      ...spec,
+      env: spec.env ? { ...spec.env } : undefined,
+      workspaceIdentity: spec.workspaceIdentity ? { ...spec.workspaceIdentity } : undefined,
+      nativeResume: spec.nativeResume ? {
+        ...spec.nativeResume,
+        workspaceIdentity: spec.nativeResume.workspaceIdentity ? { ...spec.nativeResume.workspaceIdentity } : undefined,
+      } : undefined,
+    };
+    const requestedWorkdir = spec.workdir;
+    const targetDirectory = requestedWorkdir === undefined ? null : captureWorkspaceIdentity(requestedWorkdir);
+    Object.defineProperty(spec, 'workdir', {
+      value: targetDirectory?.canonicalPath ?? requestedWorkdir,
+      enumerable: true,
+      writable: false,
+    });
     cleanupStaleAgents();
 
     // Hard global limit — never exceed MAX_CONCURRENT_RUNNING processes
@@ -2316,6 +2346,15 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       startedAt: Date.now(),
       completedAt: Date.now(),
     });
+    if (requestedWorkdir !== undefined && !targetDirectory) {
+      return blockedResult('Spawn workdir must be an existing owned absolute directory.');
+    }
+    const transport = getBackendCatalogEntry(runtime.effectiveBackend)?.adapter.spawn.transport;
+    const projectlessBackend = transport === 'provider-http' || transport === 'model-server-http'
+      || transport === 'provider-sdk'; // Current provider SDK adapters make remote calls, not local agent-tool calls.
+    if (managedSessionLifecycle && !targetDirectory && !projectlessBackend) {
+      return blockedResult('This local backend requires an explicit workdir; no daemon working directory is inherited.');
+    }
     const continuationWorkspaceError = validateNativeResume(spec, runtime) ?? validateSpawnWorkspace(spec);
     if (continuationWorkspaceError) {
       counters?.bump('spawn.blocked', dims);
@@ -2328,7 +2367,11 @@ export function createSpawner(deps: SpawnerDeps = {}) {
 
     // Worktree isolation (layer 2): never launch a file-writing agent into a
     // repository main checkout — parallel agents there steamroll each other.
-    const isolation = assessSpawnIsolation(spec);
+    // A projectless API call has no filesystem target. Running the daemon from
+    // a main checkout must not silently turn that call into work in that repo.
+    const isolation = requestedWorkdir === undefined && projectlessBackend
+      ? { blocked: false, reason: null }
+      : assessSpawnIsolation(spec);
     if (isolation.blocked) {
       counters?.bump('spawn.blocked', dims);
       return blockedResult(isolation.reason as string);
@@ -2665,9 +2708,12 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       purpose: spec.purpose || spec.task.slice(0, 80),
       lifecycle: 'ephemeral' as const,
       metadata: coordinationMetadata,
+      workdir: spec.workdir,
+      allowSharedCheckout: spec.allowSharedCheckout === true,
     };
     let beginResponse: Record<string, unknown> | null = null;
     let managedSessionBindingError: string | null = null;
+    let revalidateManagedWorktree: (() => Promise<void>) | undefined;
     let managedAdmissionTimedOut = false;
     if (record.status !== 'killed') {
       if (managedSessionLifecycle) {
@@ -2713,6 +2759,9 @@ export function createSpawner(deps: SpawnerDeps = {}) {
         // Preserve the admission refusal/timeout as the root cause.
       } else if (!record.actorCredential || !record.coordinationSessionId) {
         managedSessionBindingError = 'managed spawn admission did not return an exact session and actor credential';
+      } else if (!beginResponse?.worktreeBinding || typeof beginResponse.worktreeBinding !== 'object'
+        || (beginResponse.worktreeBinding as Record<string, unknown>).cwd !== (targetDirectory?.canonicalPath ?? null)) {
+        managedSessionBindingError = 'managed spawn admission did not return the exact physical target receipt';
       } else {
         const sessionId = record.coordinationSessionId;
         const credential = record.actorCredential;
@@ -2732,7 +2781,17 @@ export function createSpawner(deps: SpawnerDeps = {}) {
           managedSessionBindingError = typeof binding.value.error === 'string'
             ? binding.value.error
             : 'managed spawn session binding was refused';
+        } else if (JSON.stringify(binding.value.worktreeBinding) !== JSON.stringify(beginResponse.worktreeBinding)) {
+          managedSessionBindingError = 'managed spawn binding changed the admitted worktree receipt';
+        } else if (typeof binding.value.validateBeforeLaunch !== 'function') {
+          managedSessionBindingError = 'managed spawn binding did not return its private launch validator';
         } else {
+          const validate = binding.value.validateBeforeLaunch as (options: { signal: AbortSignal }) => Promise<Record<string, unknown>>;
+          revalidateManagedWorktree = async () => {
+            const checked = await runManagedOperation(record, 'managed launch worktree validation', validate, { cancelOnKill: true });
+            if (!checked.success) throw new Error(checked.error);
+            if (checked.value.success !== true) throw new Error(String(checked.value.error ?? 'Managed launch worktree validation refused'));
+          };
           record.managedSessionBound = true;
         }
       }
@@ -2780,14 +2839,21 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       if (record.status === 'killed') {
         throw new Error('Killed by spawner before backend execution');
       }
+      await revalidateManagedWorktree?.();
+      record.lifecycleAbort.signal.throwIfAborted();
       const executionSpec: SpawnSpec = {
         ...spec,
         backend: runtime.effectiveBackend,
         model: runtime.effectiveModel,
+        workspaceIdentity: spec.workspaceIdentity ?? targetDirectory ?? undefined,
       };
       const finalContinuationWorkspaceError = validateNativeResume(executionSpec, runtime)
         ?? validateSpawnWorkspace(executionSpec);
       if (finalContinuationWorkspaceError) throw new Error(finalContinuationWorkspaceError);
+      if (targetDirectory && (!sameWorkspaceIdentity(requestedWorkdir, targetDirectory)
+        || !sameWorkspaceIdentity(spec.workdir, targetDirectory))) {
+        throw new Error('Spawn physical directory changed before backend execution');
+      }
       const override = runnerOverrides[runtime.effectiveBackend];
       let result: BackendRunResult;
 
@@ -2796,6 +2862,8 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       } else {
         const childContext: BackendRunContext = {
           agentId,
+          signal: record.lifecycleAbort.signal,
+          beforeChildLaunch: revalidateManagedWorktree,
           onChildProcess: (child) => {
             if (record.status === 'running') {
               record.childProcess = child;
