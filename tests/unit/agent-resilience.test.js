@@ -86,8 +86,53 @@ describe('classifyAgentError', () => {
     const wrapper = Object.assign(new Error('503 unavailable'), { status: 503, cause: denied });
     expect(classifyAgentError(wrapper).code).toBe('UNAUTHORIZED');
     denied.cause = wrapper;
-    expect(classifyAgentError(wrapper).code).toBe('UNAUTHORIZED');
+    expect(classifyAgentError(wrapper)).toMatchObject({ code: 'INTERNAL', retryable: false, details: { reason: 'incomplete_error_chain' } });
     expect(classifyAgentError('401 Unauthorized; untrusted detail mentions 429 timeout').retryable).toBe(false);
+  });
+
+  test('complete shallow transient chains remain retryable and eight visible errors preserve permanent status', () => {
+    const transient = Object.assign(new Error('SYNTHETIC_PRIVATE_MARKER'), { status: 503 });
+    expect(classifyAgentError(new Error('wrapper', { cause: transient }))).toMatchObject({ code: 'UNAVAILABLE', retryable: true });
+    let failure = Object.assign(new Error('denied'), { status: 401 });
+    for (let i = 0; i < 7; i++) failure = new Error('503 wrapper', { cause: failure });
+    expect(classifyAgentError(failure)).toMatchObject({ code: 'UNAUTHORIZED', retryable: false });
+  });
+
+  test('a ninth inner authentication failure cannot be hidden by eight transient wrappers', () => {
+    let innerInspections = 0;
+    let failure = new Proxy(Object.assign(new Error('SYNTHETIC_PRIVATE_MARKER'), { status: 401 }), {
+      getOwnPropertyDescriptor(target, key) { innerInspections++; return Reflect.getOwnPropertyDescriptor(target, key); },
+      getPrototypeOf(target) { innerInspections++; return Reflect.getPrototypeOf(target); },
+    });
+    for (let i = 0; i < 8; i++) failure = new Error('503 SYNTHETIC_PRIVATE_MARKER', { cause: failure });
+    const classified = classifyAgentError(failure);
+    expect(classified).toMatchObject({ code: 'INTERNAL', retryable: false, details: { reason: 'incomplete_error_chain' } });
+    expect(innerInspections).toBe(0);
+    expect(JSON.stringify(classified)).not.toContain('SYNTHETIC_PRIVATE_MARKER');
+  });
+
+  test('transient cycles are incomplete rather than retry authority', () => {
+    const failure = Object.assign(new Error('503 SYNTHETIC_PRIVATE_MARKER'), { status: 503 });
+    failure.cause = failure;
+    const classified = classifyAgentError(failure);
+    expect(classified).toMatchObject({ code: 'INTERNAL', retryable: false, details: { reason: 'incomplete_error_chain' } });
+    expect(JSON.stringify(classified)).not.toContain('SYNTHETIC_PRIVATE_MARKER');
+  });
+
+  test('throwing cause accessors are never invoked and cannot conceal authority', () => {
+    const getter = jest.fn(() => { throw new Error('SYNTHETIC_PRIVATE_MARKER'); });
+    const failure = Object.assign(new Error('503 SYNTHETIC_PRIVATE_MARKER'), { status: 503 });
+    Object.defineProperty(failure, 'cause', { get: getter });
+    const classified = classifyAgentError(failure);
+    expect(getter).not.toHaveBeenCalled();
+    expect(classified).toMatchObject({ code: 'INTERNAL', retryable: false, details: { reason: 'incomplete_error_chain' } });
+    expect(JSON.stringify(classified)).not.toContain('SYNTHETIC_PRIVATE_MARKER');
+  });
+
+  test.each(['401 SYNTHETIC_PRIVATE_MARKER', { status: 401 }])('opaque non-Error causes are not silently ignored: %p', cause => {
+    expect(classifyAgentError(new Error('503 wrapper', { cause }))).toMatchObject({
+      code: 'INTERNAL', retryable: false, details: { reason: 'incomplete_error_chain' },
+    });
   });
 
   test('JSON cannot impersonate a host witness and diagnostics omit private error content', () => {

@@ -146,17 +146,28 @@ export function safeDiagnosticIdentifier(value: unknown, kind: 'backend' | 'depe
 /**
  * Keep exception-cause traversal bounded and cycle-safe by design.
  * @param value Raw failure; arbitrary JSON is not an Error instance.
- * @returns At most eight concrete exceptions, without running accessors.
+ * @returns At most eight concrete exceptions and whether inspection was opaque.
  */
-function errorChain(value: unknown): Error[] {
+function errorChain(value: unknown): { chain: Error[]; incomplete: boolean } {
   const chain: Error[] = [];
   const seen = new Set<Error>();
-  while (value instanceof Error && !seen.has(value) && chain.length < 8) {
-    seen.add(value);
-    chain.push(value);
-    value = ownData(value, 'cause');
+  while (value !== undefined && value !== null) {
+    // Do not inspect a ninth exception, even to discover its status or shape.
+    if (chain.length === 8) return { chain, incomplete: true };
+    try {
+      if (!(value instanceof Error)) return { chain, incomplete: chain.length > 0 };
+      if (seen.has(value)) return { chain, incomplete: true };
+      seen.add(value);
+      chain.push(value);
+      const cause = Object.getOwnPropertyDescriptor(value, 'cause');
+      if (!cause) return { chain, incomplete: false };
+      if (!('value' in cause)) return { chain, incomplete: true };
+      value = cause.value;
+    } catch {
+      return { chain, incomplete: true };
+    }
   }
-  return chain;
+  return { chain, incomplete: false };
 }
 
 /**
@@ -222,7 +233,14 @@ export function classifyAgentError(
   if (typeof err === 'object' && err !== null && classifiedFailures.has(err)) return err as AgentError;
   const localPolicy = typeof err === 'object' && err !== null ? localPolicyFailures.get(err) : undefined;
   if (localPolicy) return localPolicy;
-  const chain = errorChain(err);
+  const { chain, incomplete } = errorChain(err);
+  if (incomplete) return closedError({
+    code: 'INTERNAL', message: 'Backend failure: INTERNAL', retryable: false,
+    details: {
+      reason: 'incomplete_error_chain',
+      ...(opts.backend ? { backend: safeDiagnosticIdentifier(opts.backend) } : {}),
+    },
+  });
   const messages = chain.length ? chain.map(error => ownData(error, 'message')) : [err];
   const message = messages.filter((value): value is string => typeof value === 'string').join('\n');
   const structuralFields = chain.flatMap(error => ['status', 'statusCode'].map(key => {
