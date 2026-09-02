@@ -11,6 +11,7 @@ let errors;
 let logSpy;
 let errorSpy;
 let originalExitCode;
+let originalGeneratorBackend;
 
 function writeSkill(id, description, extra = '') {
   const dir = join(root, 'skills', id);
@@ -31,10 +32,12 @@ ${extra || description}
 }
 
 beforeEach(() => {
-  root = mkdtempSync(join(tmpdir(), 'pd-skill-graft-cli-'));
+  root = mkdtempSync(join(tmpdir(), 'pd-jury-rig-cli-'));
   logs = [];
   errors = [];
   originalExitCode = process.exitCode;
+  originalGeneratorBackend = process.env.PD_SKILL_GRAFT_BACKEND;
+  delete process.env.PD_SKILL_GRAFT_BACKEND;
   process.exitCode = undefined;
   logSpy = jest.spyOn(console, 'log').mockImplementation((...args) => logs.push(args.join(' ')));
   errorSpy = jest.spyOn(console, 'error').mockImplementation((...args) => errors.push(args.join(' ')));
@@ -46,6 +49,8 @@ afterEach(() => {
   logSpy.mockRestore();
   errorSpy.mockRestore();
   process.exitCode = originalExitCode;
+  if (originalGeneratorBackend === undefined) delete process.env.PD_SKILL_GRAFT_BACKEND;
+  else process.env.PD_SKILL_GRAFT_BACKEND = originalGeneratorBackend;
   rmSync(root, { recursive: true, force: true });
 });
 
@@ -119,6 +124,8 @@ test('pd jury-rig bootstrap plan emits a redacted zero-write plan and fails clos
   const body = JSON.parse(logs.join('\n'));
   expect(body.actions.every((action) => !Object.hasOwn(action, 'content'))).toBe(true);
   expect(body.verdict).toBe('blocked');
+  expect(body.blockers.map((blocker) => blocker.code)).toContain('NATIVE_HOOK_REQUIRED');
+  expect(body.blockers.map((blocker) => blocker.code)).not.toContain('EXPECTED_NATIVE_HEAD_REQUIRED');
   expect(process.exitCode).toBe(1);
   expect(existsSync(join(root, '.port-daddy', 'jury-rig-cutover'))).toBe(false);
 });
