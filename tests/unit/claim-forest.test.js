@@ -406,4 +406,142 @@ describe('claim forest store', () => {
       worldId: 'unscoped',
     });
   });
+
+  it('transfers an exact AgentNode-bound claim and its legacy twin while preserving siblings', () => {
+    const sourceSessionId = insertSession('session-source');
+    const successorSessionId = insertSession('session-successor');
+    db.prepare("UPDATE sessions SET agent_id = 'agent-successor' WHERE id = ?").run(successorSessionId);
+    const forest = createClaimForest(db);
+    const predecessorAgentNodeId = 'agent_node_predecessor';
+    const successorAgentNodeId = 'agent_node_successor';
+    const contentHash = `sha256:${'a'.repeat(64)}`;
+    const legacy = db.prepare(`
+      INSERT INTO session_files (
+        session_id, file_path, start_line, end_line, symbol, symbol_path,
+        claimed_at, released_at, agent_node_id
+      ) VALUES (?, ?, NULL, NULL, NULL, NULL, ?, NULL, ?)
+    `).run(sourceSessionId, 'lib/owned.ts', 1200, predecessorAgentNodeId);
+    const target = forest.claim({
+      repoId: 'port-daddy',
+      world: { kind: 'worktree', id: 'wt-a' },
+      selector: { kind: 'file', path: 'lib/owned.ts', contentHash },
+    }, {
+      sessionId: sourceSessionId,
+      agentId: 'agent-a',
+      agentNodeId: predecessorAgentNodeId,
+      claimedAt: 1200,
+      legacySessionFileId: Number(legacy.lastInsertRowid),
+    });
+    const sibling = forest.claim({
+      repoId: 'port-daddy',
+      world: { kind: 'worktree', id: 'wt-a' },
+      selector: { kind: 'file', path: 'lib/sibling.ts', contentHash: null },
+    }, {
+      sessionId: sourceSessionId,
+      agentId: 'agent-a',
+      agentNodeId: predecessorAgentNodeId,
+      claimedAt: 1210,
+    });
+
+    const disposition = db.transaction(() => forest.transferExactClaims({
+      grantId: 'otgrant_exact',
+      sourceSessionId,
+      successorSessionId,
+      predecessorAgentNodeId,
+      successorAgentNodeId,
+      successorAgentId: 'agent-successor',
+      allowUnboundPredecessor: false,
+      transferredAt: 1300,
+      bindings: [{
+        claimNodeId: target.nodeId,
+        filePath: 'lib/owned.ts',
+        selectorKind: 'file',
+        startLine: null,
+        endLine: null,
+        symbol: null,
+        symbolPath: null,
+        worldKind: 'worktree',
+        worldId: 'wt-a',
+        claimedAt: 1200,
+        mode: 'X',
+        contentHash,
+        disposition: 'transfer',
+      }],
+    })).immediate();
+
+    expect(disposition).toEqual({
+      successorSessionId,
+      transferredClaimNodeIds: [target.nodeId],
+      releasedClaimNodeIds: [],
+      preservedClaimNodeIds: [sibling.nodeId],
+    });
+    expect(forest.listClaimsForSession(sourceSessionId)).toEqual([
+      expect.objectContaining({ nodeId: sibling.nodeId, agentNodeId: predecessorAgentNodeId }),
+    ]);
+    expect(forest.listClaimsForSession(successorSessionId)).toEqual([
+      expect.objectContaining({
+        nodeId: target.nodeId,
+        agentId: 'agent-successor',
+        agentNodeId: successorAgentNodeId,
+        claimedAt: 1300,
+      }),
+    ]);
+    expect(db.prepare(`
+      SELECT session_id AS sessionId, released_at AS releasedAt, agent_node_id AS agentNodeId
+      FROM session_files ORDER BY id
+    `).all()).toEqual([
+      { sessionId: sourceSessionId, releasedAt: 1300, agentNodeId: predecessorAgentNodeId },
+      { sessionId: successorSessionId, releasedAt: null, agentNodeId: successorAgentNodeId },
+    ]);
+  });
+
+  it('rolls every exact claim disposition back when a later binding drifts', () => {
+    const sourceSessionId = insertSession('session-source');
+    const successorSessionId = insertSession('session-successor');
+    const forest = createClaimForest(db);
+    const predecessorAgentNodeId = 'agent_node_predecessor';
+    const first = forest.claim({
+      repoId: 'port-daddy',
+      world: { kind: 'worktree', id: 'wt-a' },
+      selector: { kind: 'file', path: 'lib/first.ts' },
+    }, { sessionId: sourceSessionId, agentNodeId: predecessorAgentNodeId, claimedAt: 1200 });
+    const second = forest.claim({
+      repoId: 'port-daddy',
+      world: { kind: 'worktree', id: 'wt-a' },
+      selector: { kind: 'file', path: 'lib/second.ts' },
+    }, { sessionId: sourceSessionId, agentNodeId: predecessorAgentNodeId, claimedAt: 1210 });
+    const binding = (nodeId, path, claimedAt) => ({
+      claimNodeId: nodeId,
+      filePath: path,
+      selectorKind: 'file',
+      startLine: null,
+      endLine: null,
+      symbol: null,
+      symbolPath: null,
+      worldKind: 'worktree',
+      worldId: 'wt-a',
+      claimedAt,
+      mode: 'X',
+      contentHash: null,
+      disposition: 'transfer',
+    });
+
+    expect(() => db.transaction(() => forest.transferExactClaims({
+      grantId: 'otgrant_drift',
+      sourceSessionId,
+      successorSessionId,
+      predecessorAgentNodeId,
+      successorAgentNodeId: 'agent_node_successor',
+      successorAgentId: 'agent-successor',
+      allowUnboundPredecessor: false,
+      transferredAt: 1300,
+      bindings: [
+        binding(first.nodeId, 'lib/first.ts', 1200),
+        binding(second.nodeId, 'lib/wrong.ts', 1210),
+      ],
+    })).immediate()).toThrow(/binding drifted/);
+
+    expect(forest.listClaimsForSession(sourceSessionId)).toHaveLength(2);
+    expect(forest.listClaimsForSession(successorSessionId)).toHaveLength(0);
+  });
 });

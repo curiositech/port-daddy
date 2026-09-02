@@ -1,0 +1,120 @@
+{
+  "schema": "pd.agent-harbor.ownership-successor-brief.v0",
+  "briefingId": "obrief_01",
+  "generatedAt": 1788000000000,
+  "predecessorAgentNodeId": "agent_node_predecessor",
+  "successorAgentNodeId": "agent_node_successor",
+  "sourceSessionId": "session-old",
+  "successorSessionId": "session-new",
+  "roadmap": {
+    "itemId": "roadmap_01",
+    "slug": "durable-ownership",
+    "status": "now",
+    "summary": "Finish exact unfinished work",
+    "remit": "Preserve provenance and change only the signed claim set."
+  },
+  "exactWork": {
+    "repoId": "github.com/port-daddy/port-daddy",
+    "worktreeId": "worktree-old",
+    "worktreeRoot": "/Users/operator/coding/tmp/port-daddy-old-work",
+    "worktreeRealpath": "/Users/operator/coding/tmp/port-daddy-old-work",
+    "worktreePhysicalId": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "gitDirRealpath": "/Users/operator/coding/port-daddy/.git/worktrees/port-daddy-old-work",
+    "gitDirPhysicalId": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+    "repoCommonDir": "/Users/operator/coding/port-daddy/.git",
+    "branch": "agent/unfinished-work",
+    "remote": "git@github.com:port-daddy/port-daddy.git",
+    "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "base": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "dirtyTreeHash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "dirtyPaths": ["lib/unfinished.ts"],
+    "prUrls": ["https://github.com/port-daddy/port-daddy/pull/1234"]
+  },
+  "handoff": {
+    "schema": "pd.agent-harbor.handoff-successor-brief.v0",
+    "continuationRequest": "Continue only the exact signed work and revalidate it before mutation.",
+    "durableIdentity": {
+      "agentId": "agent_node_successor",
+      "project": "port-daddy",
+      "harbor": "port-daddy"
+    },
+    "lineage": {
+      "capsuleId": "capsule-1",
+      "sourceAdapter": "codex",
+      "sourceSessionId": "session-old",
+      "sourceAgentId": "agent_node_predecessor",
+      "predecessorRunId": "run-old",
+      "capturedAt": "2026-08-31T12:00:00.000Z",
+      "contentHash": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+    },
+    "workspace": {
+      "cwd": "/Users/operator/coding/tmp/port-daddy-old-work",
+      "repoRoot": "/Users/operator/coding/tmp/port-daddy-old-work",
+      "branch": "agent/unfinished-work",
+      "worktreeId": "worktree-old",
+      "gitHead": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "dirtyFiles": ["lib/unfinished.ts"]
+    },
+    "objective": "Finish exact unfinished work.",
+    "operatorTurns": [
+      { "id": "operator-1", "at": "2026-08-31T11:00:00.000Z", "text": "Preserve the existing work." }
+    ],
+    "decisions": [
+      { "id": "decision-1", "at": "2026-08-31T11:05:00.000Z", "text": "Use one canonical owner.", "source": "operator" }
+    ],
+    "coordination": [
+      { "id": "coord-1", "at": "2026-08-31T11:10:00.000Z", "text": "The old owner stopped responding.", "kind": "blocker" }
+    ],
+    "artifacts": [
+      { "path": "lib/unfinished.ts", "kind": "source", "summary": "Dirty implementation bytes", "sourceBlockId": null }
+    ],
+    "recentContext": [
+      { "id": "tail-1", "at": "2026-08-31T11:15:00.000Z", "text": "Visible final status only.", "role": "assistant" }
+    ],
+    "omissions": { "tail": 0, "artifacts": 0 }
+  },
+  "plans": [
+    { "id": "plan-1", "at": 1787999999000, "text": "Complete the transaction seam.", "sourceRef": "roadmap://plan-1" }
+  ],
+  "roadmapNotes": [
+    { "id": "note-1", "at": 1787999999500, "text": "Do not disturb sibling claims.", "sourceRef": "logbook://note-1" }
+  ],
+  "unresolvedQuestions": [
+    { "id": "question-1", "at": null, "text": "Does the live PR head still match?", "sourceRef": null }
+  ],
+  "evidence": [
+    {
+      "source": "porthole",
+      "ref": "porthole://capture-1",
+      "label": "Visible source-bound terminal proof",
+      "contentHash": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+    },
+    {
+      "source": "logbook",
+      "ref": "logbook://session-old",
+      "label": "Append-only coordination record",
+      "contentHash": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+    }
+  ],
+  "claims": [
+    {
+      "claimNodeId": "claim-node-1",
+      "filePath": "lib/unfinished.ts",
+      "selectorKind": "file",
+      "startLine": null,
+      "endLine": null,
+      "symbol": null,
+      "symbolPath": null,
+      "worldKind": "worktree",
+      "worldId": "worktree-old",
+      "claimedAt": 1788000000000,
+      "mode": "X",
+      "contentHash": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "disposition": "transfer"
+    }
+  ],
+  "knownGaps": ["No hidden model reasoning is available."],
+  "omittedSources": ["Provider-private chain of thought"],
+  "hiddenReasoningAvailable": false,
+  "contentHash": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+}

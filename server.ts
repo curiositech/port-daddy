@@ -133,6 +133,8 @@ import { createLocalEmbedder, createSemanticResolver, defaultTransformersCacheDi
 import { installGovernor } from './lib/observability/index.js';
 import { createObservabilityMaintenance } from './lib/observability/maintenance.js';
 import { createDurableAgentRoster } from './lib/durable-agent-roster.js';
+import { createAgentRunAdmissionService } from './lib/agent-run-admission.js';
+import { createDurableOwnershipService } from './lib/durable-ownership.js';
 import { createGalaxy } from './lib/galaxy.js';
 import { createBosunHeartbeat, createSocketHealthProbe } from './lib/bosun-heartbeat.js';
 import { createDbIntegrityProofOutOfProcess } from './lib/db-integrity.js';
@@ -811,6 +813,38 @@ try {
 } catch (err) {
   console.error('[actor-souls] grandfather migration failed (spend routing may throttle pre-existing agents until this is fixed):', err);
 }
+const durableOwnership = createDurableOwnershipService(db, {
+  signer: {
+    keyId: `ed25519:${harborTokens.phase2PublicKeyHex()}`,
+    signDigest: digestHex => harborTokens.signHex(digestHex),
+    verifyDigest: (digestHex, signature) => harborTokens.verifyHex(digestHex, signature),
+  },
+  agentNodeExists: (agentNodeId) => {
+    try {
+      durableAgentRoster.get(agentNodeId);
+      return true;
+    } catch {
+      return false;
+    }
+  },
+  getAgentNode: (agentNodeId) => {
+    try {
+      return durableAgentRoster.get(agentNodeId);
+    } catch {
+      return null;
+    }
+  },
+  readSessionNotes: (sessionId) => {
+    const result = sessions.getNotes(sessionId, { limit: 500 }) as {
+      notes?: Array<{ id: number; content: string; type: string; createdAt: number }>;
+    };
+    return result.notes ?? [];
+  },
+  repoRoot: REPO_ROOT,
+});
+const agentRunAdmission = createAgentRunAdmissionService(db, {
+  getAgentNode: (agentNodeId) => durableAgentRoster.get(agentNodeId),
+});
 const budgetGuard = createBudgetGuard(db, {}, {
   broadcast: (channel, event) => messaging.publish(channel, event),
   souls: actorSouls,
@@ -1691,7 +1725,7 @@ await registerAllRoutes(
     roadmapActivity,
     commitments, obligationMonitor, suggestions, whois,
     contextBootstrapLookup,
-    bonds, budgetGuard, budgetPause, actorSouls,
+    bonds, budgetGuard, budgetPause, actorSouls, durableOwnership, agentRunAdmission,
     arbiter, bosunHeartbeat,
     VERSION, CODE_HASH, STARTED_AT, __dirname, repoRoot: REPO_ROOT,
     runningBinarySnapshot: RUNNING_BINARY_SNAPSHOT,
@@ -1983,6 +2017,8 @@ const ipcRouter = createIpcRouter({
   pheromones,
   resurrection,
   sugar,
+  actorSouls,
+  durableOwnership,
   fleet: {
     promptLine: (project: string, since?: number) => fleetDaemon.getPromptLine(project, since),
   },

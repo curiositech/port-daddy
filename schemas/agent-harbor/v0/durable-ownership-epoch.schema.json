@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://portdaddy.dev/schemas/agent-harbor/v0/durable-ownership-epoch.schema.json",
+  "title": "DurableOwnershipEpochV0",
+  "description": "Append-only, daemon-signed ownership history for one roadmap item. AgentNode is the owner; actor and session identifiers are attributable bodies, never alternate owner principals.",
+  "type": "object",
+  "additionalProperties": false,
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "signature": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "algorithm": { "const": "ed25519" },
+        "keyId": { "type": "string", "minLength": 1 },
+        "value": { "type": "string", "minLength": 1 }
+      },
+      "required": ["algorithm", "keyId", "value"]
+    },
+    "exactWork": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "repoId": { "type": "string", "minLength": 1 },
+        "worktreeId": { "type": "string", "minLength": 1 },
+        "worktreeRoot": { "type": "string", "minLength": 1 },
+        "worktreeRealpath": { "type": "string", "minLength": 1 },
+        "worktreePhysicalId": { "$ref": "durable-ownership-epoch.schema.json#/$defs/sha256" },
+        "gitDirRealpath": { "type": "string", "minLength": 1 },
+        "gitDirPhysicalId": { "$ref": "durable-ownership-epoch.schema.json#/$defs/sha256" },
+        "repoCommonDir": { "type": "string", "minLength": 1 },
+        "branch": { "type": "string", "minLength": 1 },
+        "remote": { "type": "string", "minLength": 1 },
+        "head": { "type": "string", "pattern": "^[a-f0-9]{40,64}$" },
+        "base": { "type": "string", "pattern": "^[a-f0-9]{40,64}$" },
+        "dirtyTreeHash": { "$ref": "durable-ownership-epoch.schema.json#/$defs/sha256" },
+        "dirtyPaths": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "prUrls": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+      },
+      "required": ["repoId", "worktreeId", "worktreeRoot", "worktreeRealpath", "worktreePhysicalId", "gitDirRealpath", "gitDirPhysicalId", "repoCommonDir", "branch", "remote", "head", "base", "dirtyTreeHash", "dirtyPaths", "prUrls"]
+    },
+    "exactClaim": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "claimNodeId": { "type": "string", "minLength": 1 },
+        "filePath": { "type": "string" },
+        "selectorKind": { "enum": ["file", "symbol", "range", "directory", "repo"] },
+        "startLine": { "type": ["integer", "null"], "minimum": 1 },
+        "endLine": { "type": ["integer", "null"], "minimum": 1 },
+        "symbol": { "type": ["string", "null"] },
+        "symbolPath": { "type": ["string", "null"] },
+        "worldKind": { "enum": ["worktree", "ref", "commit", "harbor"] },
+        "worldId": { "type": "string", "minLength": 1 },
+        "claimedAt": { "type": "integer", "minimum": 0 },
+        "mode": { "enum": ["S", "X", "IS", "IX", "SIX"] },
+        "contentHash": { "oneOf": [{ "$ref": "durable-ownership-epoch.schema.json#/$defs/sha256" }, { "type": "null" }] },
+        "disposition": { "enum": ["retain", "transfer", "release"] }
+      },
+      "required": ["claimNodeId", "filePath", "selectorKind", "startLine", "endLine", "symbol", "symbolPath", "worldKind", "worldId", "claimedAt", "mode", "contentHash", "disposition"]
+    }
+  },
+  "properties": {
+    "schema": { "const": "pd.agent-harbor.durable-ownership-epoch.v0" },
+    "epochId": { "type": "string", "minLength": 1 },
+    "roadmapItemId": { "type": "string", "minLength": 1 },
+    "roadmapSlug": { "type": "string", "minLength": 1 },
+    "harbor": { "type": "string", "minLength": 1 },
+    "epochNumber": { "type": "integer", "minimum": 1 },
+    "ownerAgentNodeId": { "type": "string", "minLength": 1 },
+    "priorEpochId": { "type": ["string", "null"] },
+    "priorOwnerAgentNodeId": { "type": ["string", "null"] },
+    "cause": { "enum": ["assignment", "voluntary-handoff", "operator-takeover"] },
+    "sourceSessionId": { "type": ["string", "null"] },
+    "successorSessionId": { "type": ["string", "null"] },
+    "takeoverGrantId": { "type": ["string", "null"] },
+    "workBinding": { "$ref": "durable-ownership-epoch.schema.json#/$defs/exactWork" },
+    "claimBindings": {
+      "type": "array",
+      "maxItems": 5000,
+      "items": { "$ref": "durable-ownership-epoch.schema.json#/$defs/exactClaim" }
+    },
+    "claimSetHash": { "$ref": "durable-ownership-epoch.schema.json#/$defs/sha256" },
+    "briefingHash": { "oneOf": [{ "$ref": "durable-ownership-epoch.schema.json#/$defs/sha256" }, { "type": "null" }] },
+    "reason": { "type": "string", "minLength": 1 },
+    "authoredByAgentNodeId": { "type": "string", "minLength": 1 },
+    "authorizedActorId": { "type": "string", "minLength": 1 },
+    "createdAt": { "type": "integer", "minimum": 0 },
+    "contentHash": { "$ref": "durable-ownership-epoch.schema.json#/$defs/sha256" },
+    "signature": { "$ref": "durable-ownership-epoch.schema.json#/$defs/signature" }
+  },
+  "required": ["schema", "epochId", "roadmapItemId", "roadmapSlug", "harbor", "epochNumber", "ownerAgentNodeId", "priorEpochId", "priorOwnerAgentNodeId", "cause", "sourceSessionId", "successorSessionId", "takeoverGrantId", "workBinding", "claimBindings", "claimSetHash", "briefingHash", "reason", "authoredByAgentNodeId", "authorizedActorId", "createdAt", "contentHash", "signature"]
+}

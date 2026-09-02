@@ -1,0 +1,110 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://portdaddy.dev/schemas/agent-harbor/v0/durable-takeover-grant.schema.json",
+  "title": "DurableTakeoverGrantV0",
+  "description": "Short-lived, exact, daemon-signed, one-shot authority for an explicit ownership epoch transition. Staleness and predecessor evidence gaps are evidence only and never grant authority.",
+  "type": "object",
+  "additionalProperties": false,
+  "$defs": {
+    "sessionWitness": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "sessionId": { "type": "string", "minLength": 1 },
+        "agentNodeId": { "type": ["string", "null"] },
+        "actorId": { "type": ["string", "null"] },
+        "identityVerified": { "type": "boolean" },
+        "worktreeId": { "type": ["string", "null"] },
+        "metadataWorktreeId": { "type": ["string", "null"] },
+        "status": { "type": "string", "minLength": 1 },
+        "durable": { "type": "boolean" },
+        "lineageHash": {
+          "oneOf": [
+            { "$ref": "durable-ownership-epoch.schema.json#/$defs/sha256" },
+            { "type": "null" }
+          ]
+        }
+      },
+      "required": ["sessionId", "agentNodeId", "actorId", "identityVerified", "worktreeId", "metadataWorktreeId", "status", "durable", "lineageHash"]
+    },
+    "predecessorEvidenceGap": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "sourceSessionId": { "type": "string", "minLength": 1 },
+        "observedActorId": { "type": ["string", "null"] },
+        "lineageHash": { "$ref": "durable-ownership-epoch.schema.json#/$defs/sha256" },
+        "recordedByActorId": { "type": "string", "minLength": 1 },
+        "knownGaps": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } }
+      },
+      "required": ["sourceSessionId", "observedActorId", "lineageHash", "recordedByActorId", "knownGaps"]
+    },
+    "operatorPresenceReceipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "receiptId": { "type": "string", "minLength": 1 },
+        "daemonGeneration": { "type": "string", "minLength": 1 },
+        "actorId": { "type": "string", "minLength": 1 },
+        "action": { "const": "durable-ownership-takeover" },
+        "harbor": { "type": "string", "minLength": 1 },
+        "roadmapSlug": { "type": "string", "minLength": 1 },
+        "predecessorEpochId": { "type": "string", "minLength": 1 },
+        "sourceSessionId": { "type": "string", "minLength": 1 },
+        "successorSessionId": { "type": "string", "minLength": 1 },
+        "successorActorId": { "type": "string", "minLength": 1 },
+        "claimSetHash": { "$ref": "durable-ownership-epoch.schema.json#/$defs/sha256" },
+        "verifiedAt": { "type": "integer", "minimum": 0 },
+        "expiresAt": { "type": "integer", "minimum": 0 }
+      },
+      "required": ["receiptId", "daemonGeneration", "actorId", "action", "harbor", "roadmapSlug", "predecessorEpochId", "sourceSessionId", "successorSessionId", "successorActorId", "claimSetHash", "verifiedAt", "expiresAt"]
+    }
+  },
+  "properties": {
+    "schema": { "const": "pd.agent-harbor.durable-takeover-grant.v0" },
+    "grantId": { "type": "string", "minLength": 1 },
+    "roadmapItemId": { "type": "string", "minLength": 1 },
+    "roadmapSlug": { "type": "string", "minLength": 1 },
+    "harbor": { "type": "string", "minLength": 1 },
+    "predecessorEpochId": { "type": "string", "minLength": 1 },
+    "predecessorAgentNodeId": { "type": "string", "minLength": 1 },
+    "successorAgentNodeId": { "type": "string", "minLength": 1 },
+    "issuerAgentNodeId": { "type": ["string", "null"], "minLength": 1 },
+    "authorizedActorId": { "type": "string", "minLength": 1 },
+    "successorActorId": { "type": "string", "minLength": 1 },
+    "authorityKind": { "enum": ["current-owner", "operator"] },
+    "operatorPresenceReceipt": {
+      "oneOf": [
+        { "$ref": "durable-takeover-grant.schema.json#/$defs/operatorPresenceReceipt" },
+        { "type": "null" }
+      ]
+    },
+    "reason": { "type": "string", "minLength": 1 },
+    "sourceSessionId": { "type": "string", "minLength": 1 },
+    "successorSessionId": { "type": "string", "minLength": 1 },
+    "sourceWitnessCanonical": { "type": "boolean" },
+    "sourceWitness": { "$ref": "durable-takeover-grant.schema.json#/$defs/sessionWitness" },
+    "successorWitness": { "$ref": "durable-takeover-grant.schema.json#/$defs/sessionWitness" },
+    "predecessorEvidenceGap": {
+      "oneOf": [
+        { "$ref": "durable-takeover-grant.schema.json#/$defs/predecessorEvidenceGap" },
+        { "type": "null" }
+      ]
+    },
+    "workBinding": { "$ref": "durable-ownership-epoch.schema.json#/$defs/exactWork" },
+    "claimBindings": {
+      "type": "array",
+      "maxItems": 5000,
+      "items": { "$ref": "durable-ownership-epoch.schema.json#/$defs/exactClaim" }
+    },
+    "claimSetHash": { "$ref": "durable-ownership-epoch.schema.json#/$defs/sha256" },
+    "briefing": { "$ref": "ownership-successor-brief.schema.json" },
+    "briefingHash": { "$ref": "durable-ownership-epoch.schema.json#/$defs/sha256" },
+    "nonceHash": { "$ref": "durable-ownership-epoch.schema.json#/$defs/sha256" },
+    "issuedAt": { "type": "integer", "minimum": 0 },
+    "expiresAt": { "type": "integer", "minimum": 0 },
+    "contentHash": { "$ref": "durable-ownership-epoch.schema.json#/$defs/sha256" },
+    "signature": { "$ref": "durable-ownership-epoch.schema.json#/$defs/signature" }
+  },
+  "required": ["schema", "grantId", "roadmapItemId", "roadmapSlug", "harbor", "predecessorEpochId", "predecessorAgentNodeId", "successorAgentNodeId", "issuerAgentNodeId", "authorizedActorId", "successorActorId", "authorityKind", "operatorPresenceReceipt", "reason", "sourceSessionId", "successorSessionId", "sourceWitnessCanonical", "sourceWitness", "successorWitness", "predecessorEvidenceGap", "workBinding", "claimBindings", "claimSetHash", "briefing", "briefingHash", "nonceHash", "issuedAt", "expiresAt", "contentHash", "signature"]
+}

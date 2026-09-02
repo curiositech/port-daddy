@@ -30,10 +30,34 @@
       "type": "object",
       "properties": {
         "repo": { "type": "string" },
+        "repoId": { "type": "string" },
+        "repoScopeKey": { "type": "string" },
+        "repoCommonDir": { "type": "string" },
         "worktree": { "type": "string" },
+        "worktreeId": { "type": "string" },
+        "worktreeRealpath": { "type": "string" },
+        "worktreePhysicalId": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "gitDirRealpath": { "type": "string" },
+        "gitDirPhysicalId": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
         "branch": { "type": "string" },
-        "baseCommit": { "type": "string" }
+        "headCommit": { "type": "string", "minLength": 1 },
+        "baseCommit": { "type": "string", "minLength": 1 }
       }
+    },
+    "admission": {
+      "type": "object",
+      "description": "Daemon-authored proof that a verified session promotion, not a caller-selected identity, admitted this body to the durable AgentNode.",
+      "properties": {
+        "kind": { "const": "verified-session-promotion" },
+        "authorizedActorId": { "type": "string", "minLength": 1 },
+        "harbor": { "type": "string", "minLength": 1 },
+        "sourceAdapter": { "type": "string", "minLength": 1 },
+        "handoffEpisodeId": { "type": "integer", "minimum": 1 },
+        "profileRevision": { "type": "integer", "minimum": 1 },
+        "profileLedgerSeq": { "type": "integer", "minimum": 1 }
+      },
+      "required": ["kind", "authorizedActorId", "harbor", "sourceAdapter", "handoffEpisodeId", "profileRevision", "profileLedgerSeq"],
+      "additionalProperties": false
     },
     "transcriptId": { "type": ["string", "null"], "description": "Non-null before the first model turn for official runs." },
     "retentionPolicyId": { "type": ["string", "null"] },

@@ -24,6 +24,8 @@ let app;
 let db;
 let graphEdges;
 let durableAgentRoster;
+let ownershipBySlug;
+let durableOwnership;
 
 beforeEach(async () => {
   db = initDatabase({ inMemory: true });
@@ -38,6 +40,23 @@ beforeEach(async () => {
     gitleaksRunner: () => ({ findings: [] }),
     logger: { info: jest.fn(), error: jest.fn() },
   });
+  ownershipBySlug = new Map();
+  durableOwnership = {
+    capabilities: { operatorPresenceVerifier: false },
+    getProjection: jest.fn((slug, harbor) => ownershipBySlug.get(slug) ?? ({
+      roadmapItemId: slug,
+      roadmapSlug: slug,
+      currentOwner: null,
+      currentEpoch: null,
+      currentState: null,
+      priorOwners: [],
+      epochs: [],
+      activeGrantId: null,
+      harbor,
+    })),
+    getGrant: jest.fn(() => null),
+    actorCanReadDetails: jest.fn(() => false),
+  };
   const roadmapPromote = {
     promoteFromFeedback: () => {
       throw new Error('not used in jira-card tests');
@@ -45,7 +64,7 @@ beforeEach(async () => {
   };
   app = Fastify();
   await app.register(roadmapPlugin, {
-    deps: { roadmapItems, roadmapPromote, graphEdges, durableAgentRoster },
+    deps: { roadmapItems, roadmapPromote, graphEdges, durableAgentRoster, durableOwnership },
   });
   await app.ready();
 });
@@ -122,6 +141,56 @@ describe('durable owner: assignee_id validates against the durable-agent roster'
     const cleared = await upsertItem({ slug: 'owned-item', summaryMd: 'v3', assigneeId: null });
     expect(cleared.statusCode).toBe(201);
     expect(cleared.json().item.assigneeId).toBeNull();
+  });
+
+  test('a signed ownership epoch makes generic assignee edits fail closed', async () => {
+    const predecessor = await registerRosterAgent('predecessor-owner');
+    const successor = await registerRosterAgent('successor-owner');
+    await upsertItem({
+      slug: 'epoch-owned-item',
+      summaryMd: 'signed current owner',
+      assigneeId: predecessor.agentNodeId,
+    });
+    ownershipBySlug.set('epoch-owned-item', {
+      roadmapItemId: 'epoch-owned-item',
+      roadmapSlug: 'epoch-owned-item',
+      currentOwner: predecessor.agentNodeId,
+      currentEpoch: {
+        epochId: 'ownership-epoch-current',
+        ownerAgentNodeId: predecessor.agentNodeId,
+      },
+      currentState: 'current',
+      priorOwners: [],
+      epochs: [],
+      activeGrantId: null,
+    });
+
+    const reassigned = await upsertItem({
+      slug: 'epoch-owned-item',
+      summaryMd: 'attempt generic reassignment',
+      assigneeId: successor.agentNodeId,
+    });
+    expect(reassigned.statusCode).toBe(409);
+    expect(reassigned.json()).toMatchObject({
+      code: 'OWNERSHIP_TRANSITION_REQUIRED',
+      currentOwnerAgentNodeId: predecessor.agentNodeId,
+      currentEpochId: 'ownership-epoch-current',
+    });
+
+    const cleared = await upsertItem({
+      slug: 'epoch-owned-item',
+      summaryMd: 'attempt generic clear',
+      assigneeId: null,
+    });
+    expect(cleared.statusCode).toBe(409);
+
+    const idempotent = await upsertItem({
+      slug: 'epoch-owned-item',
+      summaryMd: 'ordinary edit with same owner',
+      assigneeId: predecessor.agentNodeId,
+    });
+    expect(idempotent.statusCode).toBe(201);
+    expect(idempotent.json().item.assigneeId).toBe(predecessor.agentNodeId);
   });
 
   test('list and detail reads join owner display info (name/status) from the roster', async () => {

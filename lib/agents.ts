@@ -606,6 +606,25 @@ export function createAgents(db: Database.Database, options?: AgentsOptions) {
   }
 
   /**
+   * Minimal authoritative registry lookup for IPC admission. Unlike get(),
+   * absence is represented as null so the auth boundary cannot mistake an
+   * error envelope for a registered principal.
+   */
+  function isRegistered(agentId: string): { id: string; identity?: string; purpose?: string } | null {
+    if (!agentId || typeof agentId !== 'string') return null;
+    const agent = stmts.get.get(agentId) as AgentRow | undefined;
+    if (!agent) return null;
+    const identity = [agent.identity_project, agent.identity_stack, agent.identity_context]
+      .filter((value): value is string => typeof value === 'string' && value.length > 0)
+      .join(':');
+    return {
+      id: agent.id,
+      ...(identity ? { identity } : {}),
+      ...(agent.purpose ? { purpose: agent.purpose } : {}),
+    };
+  }
+
+  /**
    * Safely parse JSON, returning null on failure
    */
   function safeJsonParse(value: string | null): Record<string, unknown> | null {
@@ -877,6 +896,7 @@ export function createAgents(db: Database.Database, options?: AgentsOptions) {
     heartbeat,
     unregister,
     get,
+    isRegistered,
     list,
     listStale,
     canClaimService,

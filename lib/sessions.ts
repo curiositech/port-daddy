@@ -44,6 +44,7 @@ interface SessionRow {
   status: string;
   phase: string | null;
   agent_id: string | null;
+  agent_node_id?: string | null;
   worktree_id: string | null;
   identity_project: string | null;
   created_at: number;
@@ -126,6 +127,11 @@ interface QuickNoteOptions {
   sessionId?: string | null;
   agentId?: string | null;
   type?: string;
+  /**
+   * Explicit caller worktree world. `null` means the caller has no Git world;
+   * omission preserves legacy in-process cwd discovery only.
+   */
+  worktreeId?: string | null;
 }
 
 interface GetNotesOptions {
@@ -198,6 +204,7 @@ export function createSessions(
       status TEXT NOT NULL DEFAULT 'active',
       phase TEXT DEFAULT 'in_progress',
       agent_id TEXT,
+      agent_node_id TEXT,
       worktree_id TEXT,
       identity_project TEXT,
       created_at INTEGER NOT NULL,
@@ -220,7 +227,8 @@ export function createSessions(
       symbol TEXT,
       symbol_path TEXT,
       claimed_at INTEGER NOT NULL,
-      released_at INTEGER
+      released_at INTEGER,
+      agent_node_id TEXT
     )`,
     `CREATE INDEX IF NOT EXISTS idx_session_files_path ON session_files(file_path)`,
     // NOTE: idx_session_files_session and idx_session_files_region created after migration below
@@ -271,6 +279,11 @@ export function createSessions(
     if (!hasDurable) {
       db.prepare("ALTER TABLE sessions ADD COLUMN is_durable INTEGER NOT NULL DEFAULT 0").run();
     }
+    // Canonical durable principal for this replaceable session body.
+    const hasAgentNodeId = columns.some(c => c.name === 'agent_node_id');
+    if (!hasAgentNodeId) {
+      db.prepare('ALTER TABLE sessions ADD COLUMN agent_node_id TEXT').run();
+    }
   } catch {
     // Column already exists or table doesn't exist yet
   }
@@ -295,10 +308,17 @@ export function createSessions(
         symbol TEXT,
         symbol_path TEXT,
         claimed_at INTEGER NOT NULL,
-        released_at INTEGER
+        released_at INTEGER,
+        agent_node_id TEXT
       )`).run();
-      db.prepare(`INSERT INTO session_files_new (session_id, file_path, claimed_at, released_at)
-        SELECT session_id, file_path, claimed_at, released_at FROM session_files`).run();
+      if (fileColumns.some(c => c.name === 'agent_node_id')) {
+        db.prepare(`INSERT INTO session_files_new (
+          session_id, file_path, claimed_at, released_at, agent_node_id
+        ) SELECT session_id, file_path, claimed_at, released_at, agent_node_id FROM session_files`).run();
+      } else {
+        db.prepare(`INSERT INTO session_files_new (session_id, file_path, claimed_at, released_at)
+          SELECT session_id, file_path, claimed_at, released_at FROM session_files`).run();
+      }
       db.prepare(`DROP TABLE session_files`).run();
       db.prepare(`ALTER TABLE session_files_new RENAME TO session_files`).run();
       db.prepare(`CREATE INDEX IF NOT EXISTS idx_session_files_path ON session_files(file_path)`).run();
@@ -308,6 +328,12 @@ export function createSessions(
     } else if (!hasSymbolPath) {
       db.prepare("ALTER TABLE session_files ADD COLUMN symbol_path TEXT").run();
     }
+    if (!fileColumns.some(c => c.name === 'agent_node_id')) {
+      const migratedColumns = db.prepare('PRAGMA table_info(session_files)').all() as Array<{ name: string }>;
+      if (!migratedColumns.some(c => c.name === 'agent_node_id')) {
+        db.prepare('ALTER TABLE session_files ADD COLUMN agent_node_id TEXT').run();
+      }
+    }
   } catch {
     // Table might not exist yet (fresh install) — that's fine, schema statements above handle it
   }
@@ -316,6 +342,8 @@ export function createSessions(
   db.prepare(`CREATE INDEX IF NOT EXISTS idx_session_files_session ON session_files(session_id)`).run();
   db.prepare(`CREATE INDEX IF NOT EXISTS idx_session_files_region ON session_files(file_path, start_line, end_line)`).run();
   db.prepare(`CREATE INDEX IF NOT EXISTS idx_session_files_symbol_path ON session_files(file_path, symbol_path)`).run();
+  db.prepare('CREATE INDEX IF NOT EXISTS idx_sessions_agent_node ON sessions(agent_node_id, status, updated_at)').run();
+  db.prepare('CREATE INDEX IF NOT EXISTS idx_session_files_agent_node ON session_files(agent_node_id, released_at)').run();
   const claimForest = createClaimForest(db);
   claimForest.backfillFromSessionFiles();
 
@@ -407,6 +435,12 @@ export function createSessions(
     mostRecentActiveByAgentAndWorktree: db.prepare(`
       SELECT * FROM sessions WHERE status = 'active' AND agent_id = ? AND worktree_id = ? ORDER BY updated_at DESC LIMIT 1
     `),
+    mostRecentActiveByAgentWithoutWorktree: db.prepare(`
+      SELECT * FROM sessions WHERE status = 'active' AND agent_id = ? AND worktree_id IS NULL ORDER BY updated_at DESC LIMIT 1
+    `),
+    listActiveWithoutWorktree: db.prepare(`
+      SELECT * FROM sessions WHERE status = 'active' AND worktree_id IS NULL ORDER BY updated_at DESC LIMIT ?
+    `),
     // Cleanup is intentionally non-destructive. Older builds physically
     // deleted completed/abandoned sessions here; that violated the note
     // monotonicity contract. These count the rows that would have been removed
@@ -471,13 +505,17 @@ export function createSessions(
 
     // Files — whole-file claims
     claimFile: db.prepare(`
-      INSERT INTO session_files (session_id, file_path, start_line, end_line, symbol, symbol_path, claimed_at, released_at)
-      VALUES (?, ?, NULL, NULL, NULL, NULL, ?, NULL)
+      INSERT INTO session_files (
+        session_id, file_path, start_line, end_line, symbol, symbol_path,
+        claimed_at, released_at, agent_node_id
+      ) VALUES (?, ?, NULL, NULL, NULL, NULL, ?, NULL, ?)
     `),
     // Files — region claims
     claimRegion: db.prepare(`
-      INSERT INTO session_files (session_id, file_path, start_line, end_line, symbol, symbol_path, claimed_at, released_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, NULL)
+      INSERT INTO session_files (
+        session_id, file_path, start_line, end_line, symbol, symbol_path,
+        claimed_at, released_at, agent_node_id
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?)
     `),
     releaseFile: db.prepare(`
       UPDATE session_files SET released_at = ? WHERE session_id = ? AND file_path = ? AND released_at IS NULL
@@ -925,6 +963,7 @@ export function createSessions(
 
     const now = Date.now();
     const id = generateSessionId(trimmedPurpose);
+    const hasExplicitWorktreeId = Object.prototype.hasOwnProperty.call(options, 'worktreeId');
     const {
       agentId = null,
       worktreeId = null,
@@ -934,8 +973,13 @@ export function createSessions(
       durable = false,
     } = options;
 
-    // Auto-detect worktree if not explicitly provided
-    const resolvedWorktreeId = worktreeId ?? getWorktreeId() ?? null;
+    // Only legacy in-process callers that omit worktreeId entirely may inherit
+    // this process's cwd. HTTP/IPC admission always supplies the daemon-derived
+    // id or an explicit null, so a daemon installed inside an unrelated Git
+    // checkout cannot silently create a split-world session.
+    const resolvedWorktreeId = hasExplicitWorktreeId
+      ? (worktreeId ?? null)
+      : (getWorktreeId() ?? null);
     const identityProject = project || null;
 
     // Validate agentId if provided
@@ -1275,132 +1319,18 @@ export function createSessions(
   }
 
   /**
-   * Non-destructively continue an existing session as a successor session.
-   *
-   * The predecessor remains queryable. If it was active, takeover abandons it
-   * and releases its active claims before the successor claims the same files.
+   * Legacy primitive retained only as a typed refusal for old in-process
+   * callers. Canonical takeover is exclusively DurableOwnershipService:
+   * callers must prepare and consume an exact signed one-shot grant through
+   * the authenticated HTTP/IPC boundary.
    */
-  function takeover(sessionId: string, options: TakeoverOptions = {}) {
-    if (!sessionId || typeof sessionId !== 'string') {
-      return { success: false, error: 'sessionId must be a non-empty string', code: 'VALIDATION_ERROR' };
-    }
-
-    const predecessor = stmts.getById.get(sessionId) as SessionRow | undefined;
-    if (!predecessor) {
-      return { success: false, error: 'session not found', code: 'SESSION_NOT_FOUND' };
-    }
-
-    if (options.agentId !== undefined && options.agentId !== null && typeof options.agentId !== 'string') {
-      return { success: false, error: 'agentId must be a string', code: 'VALIDATION_ERROR' };
-    }
-    const predecessorAgentId = normalizeAgentId(predecessor.agent_id);
-    const normalizedAgentId = normalizeAgentId(options.agentId) || predecessorAgentId;
-    if (options.agentId !== undefined && options.agentId !== null && !normalizedAgentId) {
-      return { success: false, error: 'agentId must be a non-empty string when provided', code: 'VALIDATION_ERROR' };
-    }
-
-    if (options.purpose !== undefined && options.purpose !== null && typeof options.purpose !== 'string') {
-      return { success: false, error: 'purpose must be a string', code: 'VALIDATION_ERROR' };
-    }
-    const successorPurpose = typeof options.purpose === 'string' && options.purpose.trim()
-      ? options.purpose.trim()
-      : predecessor.purpose;
-
-    const now = Date.now();
-    const takeoverReason = typeof options.note === 'string' && options.note.trim()
-      ? options.note.trim()
-      : null;
-    const activeFiles = stmts.getActiveFilesBySession.all(sessionId) as SessionFileRow[];
-    const shouldTransferClaims = options.claimFiles !== false && activeFiles.length > 0;
-
-    const startResult = start(successorPurpose, {
-      agentId: normalizedAgentId,
-      project: options.project ?? predecessor.identity_project,
-      worktreeId: options.worktreeId ?? undefined,
-      durable: options.durable ?? predecessor.is_durable === 1,
-      metadata: {
-        ...(options.metadata && typeof options.metadata === 'object' ? options.metadata : {}),
-        predecessorSessionId: sessionId,
-        predecessorStatus: predecessor.status,
-        predecessorAgentId: predecessor.agent_id,
-        predecessorWorktreeId: predecessor.worktree_id,
-        takeoverAt: now,
-        takeoverReason,
-      },
-    });
-
-    if (!startResult.success || typeof startResult.id !== 'string') {
-      return {
-        success: false,
-        error: startResult.error || 'failed to create successor session',
-        code: startResult.code || 'SESSION_CREATE_FAILED',
-      };
-    }
-
-    const successorId = startResult.id;
-    mergeMetadata(predecessor, {
-      takenOverAt: now,
-      takenOverBySessionId: successorId,
-      takenOverByAgentId: normalizedAgentId,
-      takeoverReason,
-    }, now);
-
-    const predecessorNote = `Taken over non-destructively by ${successorId}${normalizedAgentId ? ` (${normalizedAgentId})` : ''}.${takeoverReason ? ` Reason: ${takeoverReason}` : ''}`;
-    let predecessorResult: Record<string, unknown> | undefined;
-    if (predecessor.status === 'active') {
-      predecessorResult = end(sessionId, { status: 'abandoned', note: predecessorNote });
-    } else {
-      predecessorResult = addNote(sessionId, predecessorNote, { type: 'takeover' });
-    }
-
-    const successorNote = `Successor session for ${sessionId}.${takeoverReason ? ` Reason: ${takeoverReason}` : ''}`;
-    const successorNoteResult = addNote(successorId, successorNote, { type: 'takeover' });
-
-    const claimedFiles: string[] = [];
-    const conflicts: FileConflict[] = [];
-    const claimErrors: string[] = [];
-    if (shouldTransferClaims) {
-      const { wholeFiles, regions } = splitTransferClaims(activeFiles);
-      if (wholeFiles.length > 0) {
-        const claimResult = claimFiles(successorId, wholeFiles, { agentId: normalizedAgentId });
-        if (claimResult.success) {
-          claimedFiles.push(...((claimResult.claimed as string[] | undefined) ?? []));
-          conflicts.push(...((claimResult.conflicts as FileConflict[] | undefined) ?? []));
-        } else if (claimResult.error) {
-          claimErrors.push(String(claimResult.error));
-        }
-      }
-      if (regions.length > 0) {
-        const claimResult = claimFiles(successorId, [], { regions, agentId: normalizedAgentId });
-        if (claimResult.success) {
-          claimedFiles.push(...((claimResult.claimed as string[] | undefined) ?? []));
-          conflicts.push(...((claimResult.conflicts as FileConflict[] | undefined) ?? []));
-        } else if (claimResult.error) {
-          claimErrors.push(String(claimResult.error));
-        }
-      }
-    }
-
-    const successor = stmts.getById.get(successorId) as SessionRow | undefined;
-
+  function takeover(sessionId: string, options: TakeoverOptions = {}): Record<string, any> {
+    void sessionId;
+    void options;
     return {
-      success: true,
-      predecessorId: sessionId,
-      successorId,
-      session: successor ? formatSession(successor) : undefined,
-      predecessorStatus: predecessor.status === 'active' ? 'abandoned' : predecessor.status,
-      predecessorNoteId: predecessorResult && 'noteId' in predecessorResult ? predecessorResult.noteId : undefined,
-      successorNoteId: successorNoteResult.success ? successorNoteResult.noteId : undefined,
-      notesPreserved: true,
-      claimsTransferred: shouldTransferClaims,
-      releasedFiles: activeFiles.map(file => file.file_path),
-      claimedFiles: [...new Set(claimedFiles)],
-      conflicts,
-      warnings: [
-        ...(predecessorResult?.success === false && predecessorResult.error ? [String(predecessorResult.error)] : []),
-        ...(successorNoteResult.success ? [] : [String(successorNoteResult.error)]),
-        ...claimErrors,
-      ],
+      success: false,
+      code: 'RECOVERY_GRANT_REQUIRED',
+      error: 'legacy in-process takeover is disabled; use the signed durable-ownership grant flow',
     };
   }
 
@@ -1491,8 +1421,12 @@ export function createSessions(
 
     const { sessionId: requestedSessionId = null, agentId = null, type = 'note' } = options;
 
-    // Auto-detect current worktree for session scoping
-    const currentWorktreeId = getWorktreeId();
+    // HTTP/IPC callers pass an explicit world (including null). Only legacy
+    // in-process callers that omit the field may inherit this process's cwd.
+    const hasExplicitWorktreeId = Object.prototype.hasOwnProperty.call(options, 'worktreeId');
+    const currentWorktreeId = hasExplicitWorktreeId
+      ? (options.worktreeId ?? null)
+      : (getWorktreeId() ?? null);
 
     let session: SessionRow | undefined;
     if (requestedSessionId) {
@@ -1505,6 +1439,8 @@ export function createSessions(
       }
     } else if (agentId && currentWorktreeId) {
       session = stmts.mostRecentActiveByAgentAndWorktree.get(agentId, currentWorktreeId) as SessionRow | undefined;
+    } else if (agentId && hasExplicitWorktreeId) {
+      session = stmts.mostRecentActiveByAgentWithoutWorktree.get(agentId) as SessionRow | undefined;
     } else if (agentId) {
       session = stmts.mostRecentActiveByAgent.get(agentId) as SessionRow | undefined;
     } else if (currentWorktreeId) {
@@ -1515,6 +1451,17 @@ export function createSessions(
         return {
           success: false,
           error: 'multiple active sessions exist in this worktree; specify a sessionId or agentId',
+          code: 'AMBIGUOUS_ACTIVE_SESSION',
+        };
+      }
+    } else if (hasExplicitWorktreeId) {
+      const sessionsWithoutWorktree = stmts.listActiveWithoutWorktree.all(2) as SessionRow[];
+      if (sessionsWithoutWorktree.length === 1) {
+        session = sessionsWithoutWorktree[0];
+      } else if (sessionsWithoutWorktree.length > 1) {
+        return {
+          success: false,
+          error: 'multiple active sessions exist without a Git worktree; specify a sessionId or agentId',
           code: 'AMBIGUOUS_ACTIVE_SESSION',
         };
       }
@@ -1529,7 +1476,10 @@ export function createSessions(
         };
       }
 
-      const startResult = start('Quick notes', { agentId });
+      const startResult = start('Quick notes', {
+        agentId,
+        ...(hasExplicitWorktreeId ? { worktreeId: currentWorktreeId } : {}),
+      });
       if (!startResult.success) {
         return { success: false, error: 'failed to create session', code: 'SESSION_CREATE_FAILED' };
       }
@@ -1724,10 +1674,11 @@ export function createSessions(
       // Release any existing whole-file claim from this session first, then insert new
       stmts.releaseFile.run(now, sessionId, filePath);
       claimForest.releaseByFilePath(sessionId, filePath, now);
-      const legacyResult = stmts.claimFile.run(sessionId, filePath, now);
+      const legacyResult = stmts.claimFile.run(sessionId, filePath, now, session.agent_node_id ?? null);
       claimForest.claim(claimForest.addressForSessionClaim(session, { path: filePath }), {
         sessionId,
         agentId: session.agent_id,
+        agentNodeId: session.agent_node_id ?? null,
         claimedAt: now,
         observedBy: 'sessions.claimFiles',
         legacySessionFileId: Number(legacyResult.lastInsertRowid),
@@ -1772,7 +1723,16 @@ export function createSessions(
         });
       }
 
-      const legacyResult = stmts.claimRegion.run(sessionId, region.path, startLine, endLine, symbol, symbolPath, now);
+      const legacyResult = stmts.claimRegion.run(
+        sessionId,
+        region.path,
+        startLine,
+        endLine,
+        symbol,
+        symbolPath,
+        now,
+        session.agent_node_id ?? null,
+      );
       claimForest.claim(claimForest.addressForSessionClaim(session, {
         path: region.path,
         startLine,
@@ -1782,6 +1742,7 @@ export function createSessions(
       }), {
         sessionId,
         agentId: session.agent_id,
+        agentNodeId: session.agent_node_id ?? null,
         claimedAt: now,
         observedBy: 'sessions.claimFiles',
         legacySessionFileId: Number(legacyResult.lastInsertRowid),

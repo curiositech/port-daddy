@@ -926,6 +926,18 @@ impl DaemonClient {
         &self.http
     }
 
+    /// Build an authenticated read request without exposing the held actor
+    /// credential to a pane. Most daemon reads are intentionally public, but
+    /// projections containing exact claims, handoff citations, or action-bound
+    /// receipts reveal their full form only to a verified ownership party.
+    ///
+    /// This remains a read helper: it conveys identity to the daemon so the
+    /// daemon can choose the projection visibility. It does not confer write
+    /// authority and panes never receive the credential value itself.
+    pub fn authenticated_get(&self, url: &str) -> reqwest::RequestBuilder {
+        self.with_actor_credential(self.http.get(url))
+    }
+
     /// Post a turn up the tube.
     pub async fn tube_send(&self, channel: &str, text: &str, sender: &str) -> Result<()> {
         let body = serde_json::json!({ "payload": { "text": text }, "sender": sender });
@@ -1830,8 +1842,8 @@ mod tests {
 
     #[test]
     fn transcript_url_has_one_route_separator_and_encodes_the_id() {
-        let url = transcript_url("http://127.0.0.1:43129/", "tx/one two")
-            .expect("daemon transcript URL");
+        let url =
+            transcript_url("http://127.0.0.1:43129/", "tx/one two").expect("daemon transcript URL");
         assert_eq!(
             url.as_str(),
             "http://127.0.0.1:43129/transcripts/tx%2Fone%20two"

@@ -6,6 +6,7 @@ import { verifyAgent, actionRequiresRegistration } from '../../lib/ipc-auth.ts';
 // ─── Mock services with call tracking ───────────────────────────────────────
 
 function createMockDeps() {
+  const actorFor = (handle) => `actor:${handle}`;
   return {
     services: {
       claim: jest.fn((id, opts) => ({ id, port: 3001, assigned: true })),
@@ -60,6 +61,43 @@ function createMockDeps() {
     },
     fleet: {
       promptLine: jest.fn((project, since) => `[${project}] since=${since ?? 'none'}`),
+    },
+    actorSouls: {
+      constants: { defaultHarbor: 'port-daddy' },
+      verifyCredential: jest.fn((credential) => credential.startsWith('credential:')
+        ? actorFor(credential.slice('credential:'.length))
+        : null),
+      resolveActor: jest.fn((handle) => ({ actorId: actorFor(handle), soulClass: 'graduated' })),
+    },
+    durableOwnership: {
+      getGrant: jest.fn((grantId) => grantId === 'grant-123' ? {
+        state: 'active',
+        grant: {
+          grantId,
+          harbor: 'port-daddy',
+          sourceSessionId: 'session-123',
+          successorSessionId: 'session-new',
+          predecessorAgentNodeId: 'agent_node_predecessor',
+          successorAgentNodeId: 'agent_node_successor',
+        },
+      } : null),
+      acceptTakeover: jest.fn(async (_input, actor) => ({
+        grant: {
+          grantId: 'grant-123',
+          sourceSessionId: 'session-123',
+          successorSessionId: 'session-new',
+          predecessorAgentNodeId: 'agent_node_predecessor',
+          successorAgentNodeId: 'agent_node_successor',
+        },
+        epoch: {
+          epochId: 'epoch-successor',
+          cause: 'voluntary-handoff',
+          contentHash: 'sha256:successor',
+          signature: { algorithm: 'ed25519', keyId: 'test-key', value: 'signature' },
+        },
+        receipt: { receiptId: 'receipt-consumed', actorId: actor.actorId },
+        disposition: { transferredClaimNodeIds: [], releasedClaimNodeIds: [] },
+      })),
     },
   };
 }
@@ -243,7 +281,7 @@ describe('IPC Router', () => {
     expect(replies[0].type).toBe(Performative.INFORM_DONE);
   });
 
-  test('session.start delegates to sessions.start', () => {
+  test('session.start delegates to sessions.start with a verified actor stamp', () => {
     const deps = createMockDeps();
     const router = createIpcRouter(deps);
     const replies = [];
@@ -255,20 +293,164 @@ describe('IPC Router', () => {
         payload: {
           action: IpcAction.SESSION_START,
           purpose: 'Clean up parity',
-          agentId: 'cli-123',
+          agentId: 'registered-cli',
+          credential: 'credential:registered-cli',
           files: ['src/auth.ts'],
           force: true,
         },
       },
-      mockConn('cli-123'),
+      mockConn('registered-cli'),
       (f) => replies.push(f),
     );
 
     expect(deps.sessions.start).toHaveBeenCalledWith('Clean up parity', expect.objectContaining({
       files: ['src/auth.ts'],
       force: true,
+      agentId: 'registered-cli',
+      worktreeId: null,
+      metadata: expect.objectContaining({
+        identity: expect.objectContaining({ verified: true, actorId: 'actor:registered-cli' }),
+      }),
     }));
     expect(replies[0].payload.result.purpose).toBe('Clean up parity');
+  });
+
+  test('session.start derives the exact linked-worktree world and matching metadata over IPC', () => {
+    const deps = createMockDeps();
+    const worktree = {
+      id: '95fb91b9',
+      root: '/Users/example/coding/tmp/port-daddy-linked',
+      name: 'port-daddy-linked',
+      branch: 'codex/ipc-parity',
+      isMain: false,
+    };
+    deps.sessionWorktreeProbe = jest.fn(() => ({
+      ...worktree,
+      commonDir: '/Users/example/coding/port-daddy/.git',
+    }));
+    const router = createIpcRouter(deps);
+    const replies = [];
+
+    router.handleFrame({
+      type: Performative.REQUEST,
+      convId: 260,
+      payload: {
+        action: IpcAction.SESSION_START,
+        purpose: 'Stay in the caller world',
+        agentId: 'registered-cli',
+        credential: 'credential:registered-cli',
+        worktree,
+        requireLinkedWorktree: true,
+        metadata: {
+          worktree,
+          sessionWorktreePolicy: {
+            requireLinkedWorktree: true,
+            allowMainWorktree: false,
+          },
+        },
+      },
+    }, mockConn('registered-cli'), (frame) => replies.push(frame));
+
+    expect(deps.sessionWorktreeProbe).toHaveBeenCalledWith(worktree.root);
+    expect(deps.sessions.start).toHaveBeenCalledWith('Stay in the caller world', expect.objectContaining({
+      worktreeId: worktree.id,
+      metadata: expect.objectContaining({
+        worktree,
+        identity: expect.objectContaining({ verified: true, actorId: 'actor:registered-cli' }),
+      }),
+    }));
+    expect(replies[0].type).toBe(Performative.INFORM_DONE);
+  });
+
+  test('session.start refuses a caller worktree that disagrees with the daemon probe', () => {
+    const deps = createMockDeps();
+    const root = '/Users/example/coding/tmp/port-daddy-linked';
+    deps.sessionWorktreeProbe = jest.fn(() => ({
+      id: '95fb91b9',
+      root,
+      name: 'port-daddy-linked',
+      branch: 'codex/ipc-parity',
+      isMain: false,
+      commonDir: '/Users/example/coding/port-daddy/.git',
+    }));
+    const router = createIpcRouter(deps);
+    const replies = [];
+
+    router.handleFrame({
+      type: Performative.REQUEST,
+      convId: 261,
+      payload: {
+        action: IpcAction.SESSION_START,
+        purpose: 'Attempt split world',
+        agentId: 'registered-cli',
+        credential: 'credential:registered-cli',
+        worktree: {
+          id: 'b4cc5e56',
+          root,
+          name: 'port-daddy-linked',
+          branch: 'codex/ipc-parity',
+          isMain: false,
+        },
+        requireLinkedWorktree: true,
+      },
+    }, mockConn('registered-cli'), (frame) => replies.push(frame));
+
+    expect(deps.sessions.start).not.toHaveBeenCalled();
+    expect(replies[0].type).toBe(Performative.REFUSE);
+    expect(replies[0].payload.code).toBe('WORKTREE_CONTEXT_MISMATCH');
+  });
+
+  test('session.start enforces the same main-worktree allow or deny decision over IPC', () => {
+    const main = {
+      id: 'main1234',
+      root: '/Users/example/coding/port-daddy',
+      name: 'port-daddy',
+      branch: 'main',
+      isMain: true,
+    };
+    const deps = createMockDeps();
+    deps.sessionWorktreeProbe = jest.fn(() => ({
+      ...main,
+      commonDir: '/Users/example/coding/port-daddy/.git',
+    }));
+    const router = createIpcRouter(deps);
+    const denied = [];
+
+    router.handleFrame({
+      type: Performative.REQUEST,
+      convId: 262,
+      payload: {
+        action: IpcAction.SESSION_START,
+        purpose: 'Main without consent',
+        agentId: 'registered-cli',
+        credential: 'credential:registered-cli',
+        worktree: main,
+        requireLinkedWorktree: true,
+      },
+    }, mockConn('registered-cli'), (frame) => denied.push(frame));
+
+    expect(denied[0].payload.code).toBe('MAIN_WORKTREE_SESSION_FORBIDDEN');
+    expect(deps.sessions.start).not.toHaveBeenCalled();
+
+    const allowed = [];
+    router.handleFrame({
+      type: Performative.REQUEST,
+      convId: 263,
+      payload: {
+        action: IpcAction.SESSION_START,
+        purpose: 'Main with explicit consent',
+        agentId: 'registered-cli',
+        credential: 'credential:registered-cli',
+        worktree: main,
+        requireLinkedWorktree: true,
+        allowMainWorktree: true,
+      },
+    }, mockConn('registered-cli'), (frame) => allowed.push(frame));
+
+    expect(allowed[0].type).toBe(Performative.INFORM_DONE);
+    expect(deps.sessions.start).toHaveBeenCalledWith('Main with explicit consent', expect.objectContaining({
+      worktreeId: main.id,
+    }));
   });
 
   test('session.end delegates to sessions.end', () => {
@@ -351,7 +533,7 @@ describe('IPC Router', () => {
     expect(replies[0].payload.result.removed).toBe(true);
   });
 
-  test('session.takeover delegates to sessions.takeover with connection agent', () => {
+  test('session.takeover consumes the signed grant through durable ownership', async () => {
     const deps = createMockDeps();
     const router = createIpcRouter(deps);
     const replies = [];
@@ -363,7 +545,9 @@ describe('IPC Router', () => {
         payload: {
           action: IpcAction.SESSION_TAKEOVER,
           sessionId: 'session-123',
-          note: 'taking over',
+          grantId: 'grant-123',
+          nonce: 'nonce-123',
+          credential: 'credential:registered-x',
           agentId: 'registered-x',
         },
       },
@@ -371,10 +555,13 @@ describe('IPC Router', () => {
       (f) => replies.push(f),
     );
 
-    expect(deps.sessions.takeover).toHaveBeenCalledWith('session-123', expect.objectContaining({
-      note: 'taking over',
-      agentId: 'registered-x',
-    }));
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(deps.sessions.takeover).not.toHaveBeenCalled();
+    expect(deps.durableOwnership.acceptTakeover).toHaveBeenCalledWith(
+      { sourceSessionId: 'session-123', grantId: 'grant-123', nonce: 'nonce-123' },
+      expect.objectContaining({ actorId: 'actor:registered-x' }),
+    );
     expect(replies[0].payload.result.successorId).toBe('session-new');
   });
 
@@ -772,7 +959,7 @@ describe('IPC Router', () => {
     const replies = [];
 
     router.handleFrame(
-      { type: Performative.REQUEST, convId: 11, payload: { action: IpcAction.BEGIN, agentId: 'registered-a1', purpose: 'testing' } },
+      { type: Performative.REQUEST, convId: 11, payload: { action: IpcAction.BEGIN, agentId: 'registered-a1', credential: 'credential:registered-a1', purpose: 'testing' } },
       mockConn('registered-a1'),
       (f) => replies.push(f),
     );
@@ -1019,9 +1206,10 @@ describe('IPC Auth', () => {
   });
 
   test('protected actions exhaustive list', () => {
-    const protected_ = ['session.begin', 'session.done', 'session.note',
+    const protected_ = ['session.begin', 'session.start', 'session.done', 'session.note',
       'session.files.claim', 'session.files.release',
-      'lock.acquire', 'lock.release', 'salvage.claim'];
+      'lock.acquire', 'lock.release', 'salvage.claim', 'session.takeover',
+      'ownership.bootstrap', 'ownership.takeover.prepare', 'ownership.grant.get'];
     for (const a of protected_) {
       expect(actionRequiresRegistration(a)).toBe(true);
     }
@@ -1032,7 +1220,7 @@ describe('IPC Auth', () => {
       'pheromone.spray', 'pheromone.sniff', 'msg.publish',
       'msg.subscribe', 'agent.register', 'agent.unregister',
       'salvage.list', 'sugar.whoami', 'fleet.prompt',
-      'session.start', 'session.end', 'session.list', 'session.remove', 'session.takeover',
+      'session.end', 'session.list', 'session.remove',
       'lock.check', 'lock.extend', 'lock.list',
       'tuple.out', 'tuple.rd', 'tuple.in', 'tuple.scan', 'tuple.count'];
     for (const a of open) {

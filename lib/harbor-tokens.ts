@@ -31,6 +31,7 @@ import {
   generateKeyPairSync,
   randomBytes,
   sign as cryptoSign,
+  verify as cryptoVerify,
 } from 'node:crypto';
 import { SignJWT, decodeJwt, decodeProtectedHeader, jwtVerify } from 'jose';
 import { keychain, KEYCHAIN_SERVICE } from './keychain.js';
@@ -438,6 +439,30 @@ export function createHarborTokens(db: Database.Database) {
         throw new Error('initDaemonIdentity() must be called before signHex()');
       }
       return cryptoSign(null, Buffer.from(msgHex, 'hex'), phase2PrivateSigningKey).toString('hex');
+    },
+
+    /**
+     * Verify a signature over the hex-decoded bytes of `msgHex` with the
+     * daemon's pinned Phase 2 public identity. Callers never choose the key:
+     * stored key ids are compared separately and this verifier always uses
+     * the key already held by this module.
+     */
+    verifyHex(msgHex: string, signatureHex: string): boolean {
+      if (!phase2PublicVerifyKey) {
+        throw new Error('initDaemonIdentity() must be called before verifyHex()');
+      }
+      if (!/^[0-9a-f]+$/i.test(msgHex) || msgHex.length % 2 !== 0) return false;
+      if (!/^[0-9a-f]+$/i.test(signatureHex) || signatureHex.length % 2 !== 0) return false;
+      try {
+        return cryptoVerify(
+          null,
+          Buffer.from(msgHex, 'hex'),
+          phase2PublicVerifyKey,
+          Buffer.from(signatureHex, 'hex'),
+        );
+      } catch {
+        return false;
+      }
     },
 
     /**

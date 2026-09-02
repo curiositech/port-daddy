@@ -22,6 +22,9 @@
 
 use crate::agent::DaemonClient;
 use crate::pane::{Block, LedgerCell, Pane, SurfaceAction, Tone};
+use crate::roadmap_projection::{
+    RoadmapOwnershipAgent, RoadmapOwnershipProjection, RoadmapProjection,
+};
 use crate::util::{arr, n, s, trunc};
 use anyhow::Result;
 use pd_anchor::schedule::{schedule, SchedEdge, SchedNode};
@@ -53,6 +56,10 @@ struct PlannerItem {
     /// `gantt()` switch that row's bar from the CPM-relative offset to real
     /// wall-clock geometry — see `gantt()`'s date-anchoring pass.
     due_at: Option<i64>,
+    /// Typed, daemon-verified ownership state. Grand Harbor renders this fact;
+    /// it never infers ownership from presence, a live body, or a roadmap
+    /// claim held by an unadmitted chat session.
+    ownership: RoadmapOwnershipProjection,
 }
 
 impl PlannerItem {
@@ -93,6 +100,7 @@ impl PlannerItem {
             estimate,
             started_at,
             due_at,
+            ownership: RoadmapOwnershipProjection::default(),
         }
     }
 }
@@ -261,6 +269,29 @@ fn status_tone(st: &str) -> Tone {
     }
 }
 
+fn ownership_tone(state: &str) -> Tone {
+    match state {
+        "current" => Tone::Engaged,
+        "transferred" => Tone::Landed,
+        "stale" | "abandoned" => Tone::Gated,
+        "inconsistent" => Tone::Conflicted,
+        _ => Tone::Resting,
+    }
+}
+
+fn ownership_agent_label(agent: &RoadmapOwnershipAgent) -> String {
+    let alias = agent
+        .display_name
+        .as_deref()
+        .or(agent.identity.as_deref())
+        .unwrap_or(&agent.agent_node_id);
+    if alias == agent.agent_node_id {
+        alias.to_string()
+    } else {
+        format!("{alias} · {}", agent.agent_node_id)
+    }
+}
+
 /// One epic = an ADR (or the unsorted catch-all), with its task slugs.
 struct Epic {
     /// `adr-0048` or `unsorted`.
@@ -291,6 +322,9 @@ pub struct PlannerPane {
     /// GET /agents. This is the cockpit's "what agents are working on what" axis —
     /// each agent's `purpose` is the real task it was spawned on.
     agents: Vec<(String, String, String)>,
+    /// Projection failures do not erase the roadmap, but they must remain
+    /// visible: an absent ownership projection is unknown, never unassigned.
+    ownership_projection_error: Option<String>,
     last_error: Option<String>,
 }
 
@@ -312,6 +346,7 @@ impl Default for PlannerPane {
             jira_descending: true,
             claims: std::collections::HashMap::new(),
             agents: Vec::new(),
+            ownership_projection_error: None,
             last_error: None,
         }
     }
@@ -320,6 +355,201 @@ impl Default for PlannerPane {
 impl PlannerPane {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Render the daemon's signed ownership projection. The pane never derives
+    /// an owner from the live fleet or from Porthole presence: those remain
+    /// useful witnesses, while the ownership epoch is the authority fact.
+    fn ownership_blocks(item: &PlannerItem) -> Vec<Block> {
+        let ownership = &item.ownership;
+        let mut blocks = Vec::new();
+        let epoch = ownership
+            .current_epoch_number
+            .map(|number| format!(" · epoch {number}"))
+            .unwrap_or_default();
+        let projection_loaded = !ownership.detail_visibility.is_empty();
+        let owner = ownership
+            .current_owner
+            .as_ref()
+            .map(ownership_agent_label)
+            .unwrap_or_else(|| {
+                if ownership.current_state == "inconsistent" {
+                    "no canonical owner".into()
+                } else if projection_loaded {
+                    "unassigned".into()
+                } else {
+                    "unknown · projection unavailable".into()
+                }
+            });
+        let state = if ownership.current_state.is_empty() {
+            "unknown"
+        } else {
+            &ownership.current_state
+        };
+        blocks.push(Block::Chip {
+            label: format!("OWNER · {owner}{epoch} · {}", state.to_ascii_uppercase()),
+            tone: ownership_tone(state),
+        });
+
+        if !ownership.state_evidence.is_empty() && ownership.state_evidence != "none" {
+            blocks.push(Block::KeyVal(
+                "owner evidence".into(),
+                ownership.state_evidence.clone(),
+            ));
+        }
+
+        if !ownership.prior_owners.is_empty() {
+            let prior = ownership
+                .prior_owners
+                .iter()
+                .map(|entry| {
+                    format!(
+                        "epoch {} · {} · {} · {}",
+                        entry.epoch_number,
+                        ownership_agent_label(&entry.owner),
+                        entry.state,
+                        entry.cause
+                    )
+                })
+                .collect::<Vec<_>>()
+                .join("\n");
+            blocks.push(Block::WrappedText {
+                text: format!("PRIOR OWNERS\n{prior}"),
+                tone: Tone::Resting,
+            });
+        }
+
+        let full = ownership.detail_visibility == "full";
+        if ownership.claim_count > 0 {
+            if full {
+                let claims = ownership
+                    .claims
+                    .iter()
+                    .take(12)
+                    .map(|claim| {
+                        let target = if claim.file_path.is_empty() {
+                            "(repository)".to_string()
+                        } else {
+                            planner_breakable(&claim.file_path)
+                        };
+                        format!(
+                            "{} · {} · {} · {}",
+                            claim.disposition, claim.selector_kind, target, claim.claim_node_id
+                        )
+                    })
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                let remainder = ownership
+                    .claim_count
+                    .saturating_sub(ownership.claims.len().min(12));
+                blocks.push(Block::WrappedText {
+                    text: if remainder == 0 {
+                        format!("CLAIMS · {}\n{claims}", ownership.claim_count)
+                    } else {
+                        format!(
+                            "CLAIMS · {}\n{claims}\n+{remainder} more",
+                            ownership.claim_count
+                        )
+                    },
+                    tone: Tone::Engaged,
+                });
+            } else {
+                blocks.push(Block::KeyVal(
+                    "claims".into(),
+                    format!(
+                        "{} · exact selectors require a verified ownership-party credential",
+                        ownership.claim_count
+                    ),
+                ));
+            }
+        }
+
+        if let Some(summary) = &ownership.briefing_summary {
+            blocks.push(Block::KeyVal(
+                "successor briefing".into(),
+                format!(
+                    "{} gaps · {} unresolved · {} citations · {} omitted sources",
+                    summary.known_gap_count,
+                    summary.unresolved_question_count,
+                    summary.evidence_count,
+                    summary.omitted_source_count
+                ),
+            ));
+        }
+        if let Some(briefing) = &ownership.briefing {
+            let mut lines = vec![format!(
+                "digest {} · generated {}",
+                briefing.content_hash, briefing.generated_at
+            )];
+            lines.extend(
+                briefing
+                    .known_gaps
+                    .iter()
+                    .take(8)
+                    .map(|gap| format!("known gap · {gap}")),
+            );
+            lines.extend(
+                briefing
+                    .unresolved_questions
+                    .iter()
+                    .take(8)
+                    .map(|question| format!("unresolved · {}", question.text)),
+            );
+            lines.extend(briefing.evidence.iter().take(12).map(|evidence| {
+                format!(
+                    "{} · {} · {}",
+                    evidence.source, evidence.reference, evidence.label
+                )
+            }));
+            if !briefing.omitted_sources.is_empty() {
+                lines.push(format!("omitted · {}", briefing.omitted_sources.join(", ")));
+            }
+            blocks.push(Block::WrappedText {
+                text: format!("SANITIZED HANDOFF BRIEFING\n{}", lines.join("\n")),
+                tone: Tone::Default,
+            });
+        }
+
+        if ownership.takeover.available {
+            let (label, tone) = if ownership.takeover.active_grant_id.is_some() {
+                ("TAKEOVER · signed one-shot grant issued", Tone::Engaged)
+            } else if ownership.takeover.operator_presence_available {
+                (
+                    "TAKEOVER · eligible for action-bound operator recovery",
+                    Tone::Gated,
+                )
+            } else {
+                (
+                    "TAKEOVER · operator recovery gated; voluntary handoff remains",
+                    Tone::Gated,
+                )
+            };
+            blocks.push(Block::Chip {
+                label: label.into(),
+                tone,
+            });
+            if let Some(url) = &ownership.takeover.action_url {
+                let (action, suffix) = if ownership.takeover.active_grant_id.is_some() {
+                    ("grant acceptance", "requires the signed grant and nonce")
+                } else {
+                    (
+                        "takeover preparation",
+                        "requires an admitted successor and explicit claim dispositions",
+                    )
+                };
+                blocks.push(Block::KeyVal(action.into(), format!("{url} · {suffix}")));
+            }
+            blocks.push(Block::WrappedText {
+                text: format!("RECOVERY CONTRACT\n{}", ownership.takeover.note),
+                tone: Tone::Gated,
+            });
+        } else if !ownership.takeover.note.is_empty() {
+            blocks.push(Block::KeyVal(
+                "takeover".into(),
+                ownership.takeover.note.clone(),
+            ));
+        }
+        blocks
     }
 
     fn sorted_jira_indices(&self) -> Vec<usize> {
@@ -974,6 +1204,15 @@ impl Pane for PlannerPane {
         blocks.push(Block::Gap);
         blocks.push(Block::Header("Port Daddy · local roadmap detail".into()));
 
+        if let Some(error) = &self.ownership_projection_error {
+            blocks.push(Block::WrappedText {
+                text: format!(
+                    "OWNERSHIP PROJECTION UNAVAILABLE\n{error}\nOwner state is unknown; live agents and presence are not substituted as authority."
+                ),
+                tone: Tone::Conflicted,
+            });
+        }
+
         let epics = self.epics();
         let task_total: usize = epics.iter().map(|e| e.tasks.len()).sum();
         let now_n = self.items.iter().filter(|i| i.status == "now").count();
@@ -1113,6 +1352,7 @@ impl Pane for PlannerPane {
                         tone: status_tone(&it.status),
                     });
                 }
+                blocks.extend(Self::ownership_blocks(it));
             }
         }
         blocks
@@ -1148,6 +1388,86 @@ impl Pane for PlannerPane {
                                 .iter()
                                 .map(PlannerItem::from_value)
                                 .collect();
+                            // Ownership is a separate signed projection. Fetch
+                            // it with the held actor credential so the daemon,
+                            // not the pane, decides whether summary or full
+                            // detail is authorized. One projection per harbor
+                            // prevents same-slug cross-harbor identity bleed.
+                            self.ownership_projection_error = None;
+                            let projection_url = format!("{}/roadmap/projection", daemon.base());
+                            let harbors = self
+                                .items
+                                .iter()
+                                .map(|item| item.harbor.clone())
+                                .collect::<std::collections::BTreeSet<_>>();
+                            let mut ownership_by_item = std::collections::HashMap::new();
+                            let mut projection_errors = Vec::new();
+                            for harbor in harbors {
+                                let mut request = daemon.authenticated_get(&projection_url);
+                                if !harbor.is_empty() {
+                                    request = request.query(&[("harbor", harbor.as_str())]);
+                                }
+                                match request.send().await {
+                                    Err(error) => projection_errors.push(format!(
+                                        "{}: {error}",
+                                        if harbor.is_empty() {
+                                            "default harbor"
+                                        } else {
+                                            &harbor
+                                        }
+                                    )),
+                                    Ok(response) => {
+                                        let status = response.status();
+                                        match response.json::<RoadmapProjection>().await {
+                                            Err(error) => projection_errors.push(format!(
+                                                "{}: invalid response: {error}",
+                                                if harbor.is_empty() {
+                                                    "default harbor"
+                                                } else {
+                                                    &harbor
+                                                }
+                                            )),
+                                            Ok(_) if !status.is_success() => {
+                                                projection_errors.push(format!(
+                                                    "{}: GET /roadmap/projection returned {status}",
+                                                    if harbor.is_empty() {
+                                                        "default harbor"
+                                                    } else {
+                                                        &harbor
+                                                    }
+                                                ));
+                                            }
+                                            Ok(projection) => {
+                                                if !harbor.is_empty() && projection.harbor != harbor
+                                                {
+                                                    projection_errors.push(format!(
+                                                        "{harbor}: daemon returned harbor {}",
+                                                        projection.harbor
+                                                    ));
+                                                    continue;
+                                                }
+                                                for projected in projection.items {
+                                                    ownership_by_item.insert(
+                                                        (harbor.clone(), projected.slug),
+                                                        projected.ownership,
+                                                    );
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            for item in &mut self.items {
+                                if let Some(ownership) = ownership_by_item
+                                    .remove(&(item.harbor.clone(), item.slug.clone()))
+                                {
+                                    item.ownership = ownership;
+                                }
+                            }
+                            if !projection_errors.is_empty() {
+                                self.ownership_projection_error =
+                                    Some(projection_errors.join("; "));
+                            }
                             // Who's working on what: active roadmap claims (releasedAt null).
                             self.claims.clear();
                             let curl = format!("{}/cartographer/roadmap-claims", daemon.base());
@@ -1434,6 +1754,105 @@ mod tests {
             .filter(|blk| matches!(blk, Block::Chip { label, .. } if label.starts_with("working:")))
             .count();
         assert_eq!(working_chips, 1);
+    }
+
+    #[test]
+    fn view_exposes_owner_history_claims_briefing_and_gated_takeover() {
+        let mut pane = PlannerPane::default();
+        let mut owned = item("durable-takeover", "now", "Continue unfinished work safely");
+        owned.ownership = serde_json::from_value(json!({
+            "detailVisibility": "full",
+            "currentOwner": {
+                "agentNodeId": "agent_node_successor",
+                "displayName": "Successor Custodian",
+                "identity": "port-daddy:roster:successor-custodian"
+            },
+            "currentEpochId": "ownership_epoch_2",
+            "currentEpochNumber": 2,
+            "currentState": "stale",
+            "stateEvidence": "session-stale",
+            "priorOwners": [{
+                "epochId": "ownership_epoch_1",
+                "epochNumber": 1,
+                "owner": { "agentNodeId": "agent_node_predecessor" },
+                "state": "transferred",
+                "cause": "assignment",
+                "reason": "Initial owner",
+                "createdAt": 1
+            }],
+            "claimCount": 1,
+            "claims": [{
+                "claimNodeId": "claim_1",
+                "filePath": "lib/unfinished.ts",
+                "selectorKind": "file",
+                "claimedAt": 1,
+                "worldKind": "worktree",
+                "worldId": "worktree_1",
+                "mode": "X",
+                "disposition": "transfer"
+            }],
+            "briefingSummary": {
+                "generatedAt": 2,
+                "knownGapCount": 1,
+                "omittedSourceCount": 1,
+                "unresolvedQuestionCount": 1,
+                "evidenceCount": 1
+            },
+            "briefing": {
+                "briefingId": "brief_1",
+                "contentHash": "sha256:brief",
+                "generatedAt": 2,
+                "knownGaps": ["Hosted Fleet verdict is still unknown."],
+                "omittedSources": ["hidden reasoning is unavailable"],
+                "unresolvedQuestions": [{
+                    "id": "q1", "text": "Which exact PR head should continue?"
+                }],
+                "evidence": [{
+                    "source": "porthole", "ref": "porthole:capture:1", "label": "source-pane witness"
+                }]
+            },
+            "takeover": {
+                "available": true,
+                "operatorPresenceAvailable": false,
+                "actionUrl": "/roadmap/items/durable-takeover/takeovers",
+                "activeGrantId": null,
+                "requires": "verified-current-owner-or-recent-operator-presence",
+                "note": "Operator takeover is fail-closed; a current owner may hand off voluntarily."
+            }
+        }))
+        .expect("ownership projection");
+        pane.items = vec![owned];
+
+        let blocks = pane.view();
+        assert!(blocks.iter().any(|block| matches!(
+            block,
+            Block::Chip { label, .. }
+                if label.contains("Successor Custodian")
+                    && label.contains("epoch 2")
+                    && label.contains("STALE")
+        )));
+        assert!(blocks.iter().any(|block| matches!(
+            block,
+            Block::WrappedText { text, .. }
+                if text.contains("PRIOR OWNERS") && text.contains("agent_node_predecessor")
+        )));
+        assert!(blocks.iter().any(|block| matches!(
+            block,
+            Block::WrappedText { text, .. }
+                if text.contains("CLAIMS · 1")
+                    && text.replace('\u{200b}', "").contains("lib/unfinished.ts")
+        )));
+        assert!(blocks.iter().any(|block| matches!(
+            block,
+            Block::WrappedText { text, .. }
+                if text.contains("SANITIZED HANDOFF BRIEFING")
+                    && text.contains("hidden reasoning is unavailable")
+                    && text.contains("porthole:capture:1")
+        )));
+        assert!(blocks.iter().any(|block| matches!(
+            block,
+            Block::Chip { label, .. } if label.contains("operator recovery gated")
+        )));
     }
 
     fn item_with(slug: &str, status: &str, deps: &[&str], estimate: Option<i64>) -> PlannerItem {

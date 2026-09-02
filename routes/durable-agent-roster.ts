@@ -2,6 +2,16 @@ import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
 import type { DurableAgentRoster } from '../lib/durable-agent-roster.js';
 import { DurableAgentRosterError, normalizeDurableAgentScope } from '../lib/durable-agent-roster.js';
 import {
+  AgentRunAdmissionError,
+  type AgentRunAdmissionResult,
+  type AgentRunAdmissionService,
+} from '../lib/agent-run-admission.js';
+import {
+  extractActorCredential,
+  resolveWriteIdentity,
+  type IdentityVerifier,
+} from '../lib/identity-write-boundary.js';
+import {
   HandoffScannerUnavailableError,
   HandoffSecretError,
   HandoffValidationError,
@@ -10,6 +20,8 @@ import type { EpisodicMemory, Episode } from '../lib/episodic-memory.js';
 
 interface DurableAgentRosterRouteDeps {
   durableAgentRoster: DurableAgentRoster;
+  agentRunAdmission: AgentRunAdmissionService;
+  actorSouls: IdentityVerifier & { constants?: { defaultHarbor?: string } };
   episodicMemory: Pick<EpisodicMemory, 'get'>;
   metrics: { errors: number };
   logger: {
@@ -88,6 +100,10 @@ function routeError(
     reply.code(error.statusCode);
     return { success: false, error: error.message, code: error.code };
   }
+  if (error instanceof AgentRunAdmissionError) {
+    reply.code(error.statusCode);
+    return { success: false, error: error.message, code: error.code };
+  }
   if (error instanceof HandoffValidationError) {
     reply.code(400);
     return { success: false, error: error.message, code: 'INVALID_PROFILE' };
@@ -109,6 +125,59 @@ function routeError(
 export const durableAgentRosterPlugin: FastifyPluginAsync<{ deps: DurableAgentRosterRouteDeps }> = async (fastify, opts) => {
   const deps = opts.deps;
   const guard = loopbackGuard(deps.logger);
+
+  function headerAgentId(request: FastifyRequest): string | null {
+    const raw = request.headers['x-agent-id'];
+    const value = Array.isArray(raw) ? raw[0] : raw;
+    return typeof value === 'string' && value.trim() ? value.trim() : null;
+  }
+
+  function verifiedPromotionActor(
+    request: FastifyRequest,
+    reply: FastifyReply,
+    body: Record<string, unknown>,
+  ): { actorId: string; harbor: string } | null {
+    if (body.agentId !== undefined && (typeof body.agentId !== 'string' || !body.agentId.trim())) {
+      reply.code(400).send({ success: false, error: 'agentId must be a non-empty string', code: 'INVALID_REQUEST' });
+      return null;
+    }
+    const harbor = stringValue(body.harbor) ?? deps.actorSouls.constants?.defaultHarbor?.trim();
+    if (!harbor) {
+      reply.code(400).send({ success: false, error: 'harbor is required', code: 'INVALID_REQUEST' });
+      return null;
+    }
+    const verdict = resolveWriteIdentity({
+      souls: deps.actorSouls,
+      credential: extractActorCredential(request.headers as Record<string, unknown>, body),
+      assertedAgentId: typeof body.agentId === 'string' ? body.agentId.trim() : headerAgentId(request),
+      harbor,
+      route: 'POST /durable-agents/promote',
+      logger: deps.logger,
+      requireIdentity: true,
+    });
+    if (!verdict.ok) {
+      reply.code(verdict.httpStatus).send({ success: false, error: verdict.error, code: verdict.code });
+      return null;
+    }
+    if (verdict.kind !== 'verified') {
+      reply.code(401).send({
+        success: false,
+        error: 'session promotion requires a daemon-verified actor',
+        code: 'IDENTITY_CREDENTIAL_REQUIRED',
+      });
+      return null;
+    }
+    return { actorId: verdict.actorId, harbor };
+  }
+
+  function unknownPromotionField(body: Record<string, unknown>): string | null {
+    const allowed = new Set([
+      'slug', 'displayName', 'scope', 'remit', 'instructions', 'skills', 'tools',
+      'backendPreferences', 'permissionPolicy', 'archiveSearch', 'triggers', 'lifecycle',
+      'sourceSessionId', 'handoffEpisodeId', 'harbor', 'agentId', 'credential',
+    ]);
+    return Object.keys(body).find((key) => !allowed.has(key)) ?? null;
+  }
 
   fastify.get('/durable-agents', async (request, reply) => {
     try {
@@ -167,6 +236,12 @@ export const durableAgentRosterPlugin: FastifyPluginAsync<{ deps: DurableAgentRo
   fastify.post('/durable-agents/promote', { preHandler: guard, bodyLimit: 768 * 1024 }, async (request, reply) => {
     try {
       const body = (request.body ?? {}) as Record<string, unknown>;
+      const unknown = unknownPromotionField(body);
+      if (unknown) {
+        throw new DurableAgentRosterError(`unknown promotion field: ${unknown}`, 'INVALID_REQUEST', 400);
+      }
+      const actor = verifiedPromotionActor(request, reply, body);
+      if (!actor) return reply;
       const sourceSessionId = stringValue(body.sourceSessionId);
       if (!sourceSessionId) {
         throw new DurableAgentRosterError('sourceSessionId is required', 'INCOMPLETE_PROMOTION_LINEAGE', 400);
@@ -182,6 +257,22 @@ export const durableAgentRosterPlugin: FastifyPluginAsync<{ deps: DurableAgentRo
           409,
         );
       }
+      const sourceAgentId = stringValue(source.agentId);
+      const sourceAdapter = stringValue(source.adapter);
+      if (!sourceAgentId || !sourceAdapter) {
+        throw new DurableAgentRosterError(
+          'handoff episode lacks exact source agent and adapter lineage',
+          'INCOMPLETE_PROMOTION_LINEAGE',
+          409,
+        );
+      }
+      deps.agentRunAdmission.preflightPromotedSession({
+        sourceSessionId,
+        authorizedActorId: actor.actorId,
+        authorizedHarbor: actor.harbor,
+        expectedSourceAgentId: sourceAgentId,
+        expectedSourceAdapter: sourceAdapter,
+      });
       const requestedScope = body.scope;
       if (
         requestedScope
@@ -213,20 +304,43 @@ export const durableAgentRosterPlugin: FastifyPluginAsync<{ deps: DurableAgentRo
           kind: 'session-promotion' as const,
           sourceSessionId,
           handoffEpisodeId,
-          sourceAgentId: stringValue(source.agentId) ?? null,
-          sourceAdapter: stringValue(source.adapter) ?? null,
+          sourceAgentId,
+          sourceAdapter,
         },
       };
       delete (createInput as Record<string, unknown>).sourceSessionId;
       delete (createInput as Record<string, unknown>).handoffEpisodeId;
-      const result = await deps.durableAgentRoster.create(createInput as any, { verifiedPromotion: true });
+      delete (createInput as Record<string, unknown>).harbor;
+      delete (createInput as Record<string, unknown>).agentId;
+      delete (createInput as Record<string, unknown>).credential;
+      let admission: AgentRunAdmissionResult | null = null;
+      const result = await deps.durableAgentRoster.create(createInput as any, {
+        verifiedPromotion: true,
+        onNodeAppended: (agent) => {
+          admission = deps.agentRunAdmission.admitPromotedSession({
+            agentNodeId: agent.agentNodeId,
+            sourceSessionId,
+            authorizedActorId: actor.actorId,
+            authorizedHarbor: actor.harbor,
+            expectedSourceAgentId: sourceAgentId,
+            expectedSourceAdapter: sourceAdapter,
+          });
+        },
+      });
+      if (!admission) {
+        throw new AgentRunAdmissionError(
+          'promotion committed without an AgentRun admission witness',
+          'ADMISSION_EVENT_CONFLICT',
+          503,
+        );
+      }
       deps.logger.info('durable_agent_promoted', {
         agentNodeId: result.agent.agentNodeId,
         sourceSessionId,
         handoffEpisodeId,
       });
       reply.code(201);
-      return { success: true, ...result };
+      return { success: true, ...result, agentRun: admission };
     } catch (error) {
       return routeError(error, reply, deps);
     }

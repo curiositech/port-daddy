@@ -2,21 +2,27 @@
  * Unit Tests for session worktree policy.
  */
 
-import { describe, test, expect } from '@jest/globals';
+import { describe, test, expect, jest } from '@jest/globals';
 
 import {
   evaluateSessionWorktreePolicy,
   mergeSessionWorktreeMetadata,
   normalizeSessionWorktreeContext,
+  resolveSessionWorktreeAdmission,
 } from '../../lib/worktree-policy.js';
 
 const linkedWorktree = {
   id: 'wt123456',
-  root: '/tmp/port-daddy-feature',
+  root: '/Users/example/coding/tmp/port-daddy-feature',
   name: 'port-daddy-feature',
   branch: 'codex/worktree-policy',
   isMain: false,
 };
+
+const probeLinkedWorktree = () => ({
+  ...linkedWorktree,
+  commonDir: '/Users/example/coding/port-daddy/.git',
+});
 
 describe('evaluateSessionWorktreePolicy', () => {
   test('allows callers that do not require a linked worktree', () => {
@@ -119,5 +125,76 @@ describe('mergeSessionWorktreeMetadata', () => {
       },
       worktree: linkedWorktree,
     });
+  });
+});
+
+describe('resolveSessionWorktreeAdmission', () => {
+  test('derives one exact column and metadata witness from the daemon probe', () => {
+    const result = resolveSessionWorktreeAdmission({
+      worktree: linkedWorktree,
+      requireLinkedWorktree: true,
+      metadata: {
+        source: 'cli',
+        worktree: linkedWorktree,
+        sessionWorktreePolicy: {
+          requireLinkedWorktree: true,
+          allowMainWorktree: false,
+        },
+      },
+    }, { probeWorktree: probeLinkedWorktree });
+
+    expect(result).toMatchObject({
+      success: true,
+      worktreeId: linkedWorktree.id,
+      worktree: linkedWorktree,
+      metadata: {
+        source: 'cli',
+        worktree: linkedWorktree,
+        sessionWorktreePolicy: {
+          requireLinkedWorktree: true,
+          allowMainWorktree: false,
+        },
+      },
+    });
+  });
+
+  test('rejects a caller id that disagrees with the root re-probe', () => {
+    const result = resolveSessionWorktreeAdmission({
+      worktree: { ...linkedWorktree, id: 'forged99' },
+      requireLinkedWorktree: true,
+    }, { probeWorktree: probeLinkedWorktree });
+
+    expect(result.success).toBe(false);
+    expect(result.code).toBe('WORKTREE_CONTEXT_MISMATCH');
+  });
+
+  test('rejects split-world metadata even when the top-level witness is valid', () => {
+    const result = resolveSessionWorktreeAdmission({
+      worktree: linkedWorktree,
+      requireLinkedWorktree: true,
+      metadata: {
+        worktree: { ...linkedWorktree, id: 'other999' },
+        sessionWorktreePolicy: {
+          requireLinkedWorktree: true,
+          allowMainWorktree: false,
+        },
+      },
+    }, { probeWorktree: probeLinkedWorktree });
+
+    expect(result.success).toBe(false);
+    expect(result.code).toBe('WORKTREE_CONTEXT_MISMATCH');
+  });
+
+  test('records explicit no-worktree instead of inventing the daemon cwd', () => {
+    const probeWorktree = jest.fn();
+    const result = resolveSessionWorktreeAdmission({}, { probeWorktree });
+
+    expect(result).toEqual({
+      success: true,
+      worktree: null,
+      worktreeId: null,
+      metadata: null,
+    });
+    expect(probeWorktree).not.toHaveBeenCalled();
   });
 });

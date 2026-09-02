@@ -58,11 +58,20 @@ import type Database from 'better-sqlite3';
 import { getWorktreeInfo, type WorktreeInfo } from './worktree.js';
 import { AGENT_RUN_LIVE_EVIDENCE_MAX_AGE_MS } from './agent-run-receipts.js';
 import type { RoadmapStatus } from './roadmap-items.js';
+import type {
+  DurableTakeoverGrantView,
+  ExactClaimBinding,
+  OwnershipProjection,
+  OwnershipState,
+} from './durable-ownership.js';
 
 export const ROADMAP_PROJECTION_VERSION = 1 as const;
 
 /** A live claim is only trustworthy while its stream evidence is this fresh. */
 export const ROADMAP_LIVE_EVIDENCE_MAX_AGE_MS = AGENT_RUN_LIVE_EVIDENCE_MAX_AGE_MS;
+
+/** Staleness is an operator warning, never takeover authority. */
+export const ROADMAP_OWNERSHIP_STALE_AFTER_MS = 24 * 60 * 60 * 1000;
 
 /**
  * How far ahead of the reader's clock an evidence timestamp may sit before the
@@ -116,6 +125,67 @@ export interface RoadmapProjectionClaim {
   agentId: string | null;
 }
 
+export interface RoadmapOwnershipAgent {
+  agentNodeId: string;
+  displayName: string | null;
+  identity: string | null;
+}
+
+export interface RoadmapOwnershipHistoryEntry {
+  epochId: string;
+  epochNumber: number;
+  owner: RoadmapOwnershipAgent;
+  state: OwnershipState;
+  cause: string;
+  reason: string;
+  createdAt: number;
+  sourceSessionId: string | null;
+  successorSessionId: string | null;
+  takeoverGrantId: string | null;
+}
+
+export interface RoadmapOwnershipBriefingSummary {
+  briefingId: string;
+  contentHash: string;
+  generatedAt: number;
+  handoffCapsuleId: string | null;
+  knownGaps: string[];
+  omittedSources: string[];
+  unresolvedQuestions: Array<{ id: string; text: string; sourceRef: string | null }>;
+  evidence: Array<{ source: string; ref: string; label: string; contentHash: string | null }>;
+}
+
+export interface RoadmapOwnershipBriefingCounts {
+  generatedAt: number;
+  knownGapCount: number;
+  omittedSourceCount: number;
+  unresolvedQuestionCount: number;
+  evidenceCount: number;
+}
+
+export interface RoadmapOwnershipProjection {
+  /** Public reads expose summary; exact claims/briefing/actions require a verified party. */
+  detailVisibility: 'summary' | 'full';
+  currentOwner: RoadmapOwnershipAgent | null;
+  currentEpochId: string | null;
+  currentEpochNumber: number | null;
+  currentState: OwnershipState | 'unassigned' | 'inconsistent';
+  stateEvidence: 'ownership-event' | 'session-status' | 'session-stale' | 'none';
+  priorOwners: RoadmapOwnershipHistoryEntry[];
+  claimCount: number;
+  claims: ExactClaimBinding[];
+  briefingSummary: RoadmapOwnershipBriefingCounts | null;
+  briefing: RoadmapOwnershipBriefingSummary | null;
+  takeover: {
+    available: boolean;
+    operatorPresenceAvailable: boolean;
+    actionUrl: string | null;
+    activeGrantId: string | null;
+    requires: 'verified-current-owner-or-recent-operator-presence';
+    note: string;
+  };
+}
+
 export interface RoadmapLiveEvidence {
   /** true ONLY with a popper receipt trail AND fresh stream evidence (law 13). */
   live: boolean;
@@ -138,6 +208,7 @@ export interface RoadmapProjectionItem {
   claim: RoadmapProjectionClaim | null;
   receipts: RoadmapProjectionReceipt[];
   liveEvidence: RoadmapLiveEvidence;
+  ownership: RoadmapOwnershipProjection;
   lastTouchedAt: number;
   dependencies: string[];
 }
@@ -165,6 +236,21 @@ export interface BuildRoadmapProjectionOptions {
   env?: Record<string, string | undefined>;
   /** Worktree probe injection (defaults to the real git probe). */
   getWorktree?: (root: string) => WorktreeInfo | null;
+  /** Optional canonical roster lookup; IDs remain visible if profile lookup fails. */
+  resolveAgentNode?: (agentNodeId: string) => { displayName?: string | null; identity?: string | null } | null;
+  /**
+   * Verified ownership facts from the constitutional daemon coordinator.
+   * The generic roadmap projector never reads signed tables directly.
+   */
+  resolveDurableOwnership?: (
+    roadmapSlug: string,
+    harbor: string,
+  ) => { projection: OwnershipProjection; epochGrant: DurableTakeoverGrantView | null };
+  /** True only when this daemon has a real one-shot recent-human-presence verifier. */
+  operatorPresenceAvailable?: boolean;
+  /** Per-item authorization decision. Omission is public-summary, fail-closed. */
+  ownershipDetail?: (roadmapSlug: string, harbor: string) => 'summary' | 'full';
+  ownershipStaleAfterMs?: number;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -397,7 +483,278 @@ interface RawItemRow {
   priority?: unknown;
   nightshift_eligible?: unknown;
   dispatch_id?: unknown;
+  assignee_id?: unknown;
   deleted_at?: unknown;
+}
+
+interface RawOwnershipEpochRow {
+  epoch_id: string;
+  roadmap_item_id: string;
+  epoch_number: number;
+  owner_agent_node_id: string;
+  cause: string;
+  source_session_id: string | null;
+  successor_session_id: string | null;
+  takeover_grant_id: string | null;
+  claim_bindings_json: string;
+  reason: string;
+  created_at: number;
+}
+
+interface RawOwnershipGrantRow {
+  grant_id: string;
+  predecessor_epoch_id: string;
+  briefing_json: string;
+  issued_at: number;
+  expires_at: number;
+}
+
+function ownershipAgent(
+  agentNodeId: string,
+  resolver: BuildRoadmapProjectionOptions['resolveAgentNode'],
+): RoadmapOwnershipAgent {
+  let resolved: ReturnType<NonNullable<BuildRoadmapProjectionOptions['resolveAgentNode']>> = null;
+  try {
+    resolved = resolver?.(agentNodeId) ?? null;
+  } catch {
+    // The canonical id remains truthful even if its optional roster profile is unavailable.
+  }
+  return {
+    agentNodeId,
+    displayName: asNullableString(resolved?.displayName),
+    identity: asNullableString(resolved?.identity),
+  };
+}
+
+function parseOwnershipBriefing(raw: string | null): RoadmapOwnershipBriefingSummary | null {
+  if (!raw) return null;
+  try {
+    const value = JSON.parse(raw) as Record<string, unknown>;
+    const handoff = value.handoff && typeof value.handoff === 'object'
+      ? value.handoff as Record<string, unknown>
+      : null;
+    const lineage = handoff?.lineage && typeof handoff.lineage === 'object'
+      ? handoff.lineage as Record<string, unknown>
+      : null;
+    const unresolved = Array.isArray(value.unresolvedQuestions) ? value.unresolvedQuestions : [];
+    const evidence = Array.isArray(value.evidence) ? value.evidence : [];
+    return {
+      briefingId: asNullableString(value.briefingId) ?? '',
+      contentHash: asNullableString(value.contentHash) ?? '',
+      generatedAt: asFiniteNumber(value.generatedAt) ?? 0,
+      handoffCapsuleId: asNullableString(lineage?.capsuleId),
+      knownGaps: parseStringArray(JSON.stringify(value.knownGaps ?? [])),
+      omittedSources: parseStringArray(JSON.stringify(value.omittedSources ?? [])),
+      unresolvedQuestions: unresolved.flatMap((entry) => {
+        if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return [];
+        const item = entry as Record<string, unknown>;
+        const id = asNullableString(item.id);
+        const text = asNullableString(item.text);
+        if (!id || !text) return [];
+        return [{ id, text, sourceRef: asNullableString(item.sourceRef) }];
+      }),
+      evidence: evidence.flatMap((entry) => {
+        if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return [];
+        const item = entry as Record<string, unknown>;
+        const source = asNullableString(item.source);
+        const ref = asNullableString(item.ref);
+        const label = asNullableString(item.label);
+        if (!source || !ref || !label) return [];
+        return [{ source, ref, label, contentHash: asNullableString(item.contentHash) }];
+      }),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function buildOwnershipByItem(
+  db: Database.Database,
+  harbor: string,
+  at: number,
+  rows: RawItemRow[],
+  options: BuildRoadmapProjectionOptions,
+): Map<string, RoadmapOwnershipProjection> {
+  const result = new Map<string, RoadmapOwnershipProjection>();
+  const resolver = options.resolveAgentNode;
+  const staleAfterMs = options.ownershipStaleAfterMs ?? ROADMAP_OWNERSHIP_STALE_AFTER_MS;
+
+  const sessions = new Map<string, { status: string; updatedAt: number }>();
+  if (tableExists(db, 'sessions')) {
+    for (const session of db.prepare('SELECT id, status, updated_at FROM sessions').all() as Array<{
+      id: string;
+      status: string;
+      updated_at: number;
+    }>) {
+      sessions.set(session.id, { status: session.status, updatedAt: session.updated_at });
+    }
+  }
+
+  for (const row of rows) {
+    const assignee = asNullableString(row.assignee_id);
+    const detailVisibility = options.ownershipDetail?.(row.slug, harbor) === 'full'
+      ? 'full' as const
+      : 'summary' as const;
+    let verified: ReturnType<NonNullable<BuildRoadmapProjectionOptions['resolveDurableOwnership']>> | null = null;
+    if (options.resolveDurableOwnership) {
+      try {
+        verified = options.resolveDurableOwnership(row.slug, harbor);
+      } catch {
+        result.set(row.id, {
+          detailVisibility,
+          // The mutable roadmap assignee is evidence of a mismatch, not a
+          // substitute AgentNode owner when signed history cannot be verified.
+          currentOwner: null,
+          currentEpochId: null,
+          currentEpochNumber: null,
+          currentState: 'inconsistent',
+          stateEvidence: 'none',
+          priorOwners: [],
+          claimCount: 0,
+          claims: [],
+          briefingSummary: null,
+          briefing: null,
+          takeover: {
+            available: false,
+            operatorPresenceAvailable: options.operatorPresenceAvailable === true,
+            actionUrl: null,
+            activeGrantId: null,
+            requires: 'verified-current-owner-or-recent-operator-presence',
+            note: 'Signed ownership history could not be verified; takeover is unavailable until daemon integrity is restored.',
+          },
+        });
+        continue;
+      }
+    }
+    const projection = verified?.projection ?? null;
+    const current = projection?.currentEpoch ?? null;
+    if (!current) {
+      const hasUnverifiedOwnershipStore = tableExists(db, 'roadmap_ownership_epochs');
+      result.set(row.id, {
+        detailVisibility,
+        // Never relabel a legacy/display assignee as a canonical AgentNode.
+        // The roadmap row itself still carries the mismatch for repair.
+        currentOwner: null,
+        currentEpochId: null,
+        currentEpochNumber: null,
+        currentState: assignee || (!options.resolveDurableOwnership && hasUnverifiedOwnershipStore)
+          ? 'inconsistent'
+          : 'unassigned',
+        stateEvidence: 'none',
+        priorOwners: [],
+        claimCount: 0,
+        claims: [],
+        briefingSummary: null,
+        briefing: null,
+        takeover: {
+          available: false,
+          operatorPresenceAvailable: options.operatorPresenceAvailable === true,
+          actionUrl: null,
+          activeGrantId: null,
+          requires: 'verified-current-owner-or-recent-operator-presence',
+          note: hasUnverifiedOwnershipStore && !options.resolveDurableOwnership
+            ? 'Ownership storage exists but no verified daemon projector is attached; raw signed rows are never rendered.'
+            : assignee
+              ? 'Roadmap owner has no canonical ownership epoch; bootstrap is required before takeover.'
+              : 'Assign a durable AgentNode before takeover.',
+        },
+      });
+      continue;
+    }
+
+    let currentState: RoadmapOwnershipProjection['currentState'] = projection?.currentState ?? 'current';
+    let stateEvidence: RoadmapOwnershipProjection['stateEvidence'] = projection?.currentState
+      ? 'ownership-event'
+      : 'none';
+    const effectiveSessionId = current.successorSessionId ?? current.sourceSessionId;
+    const session = effectiveSessionId ? sessions.get(effectiveSessionId) : null;
+    if (currentState === 'current' && session?.status === 'abandoned') {
+      currentState = 'abandoned';
+      stateEvidence = 'session-status';
+    } else if (
+      currentState === 'current'
+      && session?.status === 'active'
+      && Number.isFinite(session.updatedAt)
+      && at - session.updatedAt > staleAfterMs
+    ) {
+      currentState = 'stale';
+      stateEvidence = 'session-stale';
+    }
+    if (assignee !== current.ownerAgentNodeId || projection?.currentOwner !== current.ownerAgentNodeId) {
+      currentState = 'inconsistent';
+      stateEvidence = 'none';
+    }
+    // The epoch retains every predecessor disposition for provenance, but a
+    // released claim is not associated with the successor's current work.
+    // Current-owner projections therefore show retained/acquired claims only;
+    // the signed grant and briefing keep the explicit release history.
+    const claims = current.claimBindings.filter(claim => claim.disposition !== 'release');
+    const takeoverAvailable = currentState === 'stale' || currentState === 'abandoned';
+    const brief = verified?.epochGrant?.grant.briefing ?? null;
+    const briefingSummary = brief ? {
+      generatedAt: brief.generatedAt,
+      knownGapCount: brief.knownGaps.length,
+      omittedSourceCount: brief.omittedSources.length,
+      unresolvedQuestionCount: brief.unresolvedQuestions.length,
+      evidenceCount: brief.evidence.length,
+    } : null;
+    result.set(row.id, {
+      detailVisibility,
+      currentOwner: ownershipAgent(current.ownerAgentNodeId, resolver),
+      currentEpochId: current.epochId,
+      currentEpochNumber: current.epochNumber,
+      currentState,
+      stateEvidence,
+      priorOwners: (projection?.epochs ?? []).slice(1).map(epoch => ({
+        epochId: epoch.epochId,
+        epochNumber: epoch.epochNumber,
+        owner: ownershipAgent(epoch.ownerAgentNodeId, resolver),
+        state: 'transferred',
+        cause: epoch.cause,
+        reason: detailVisibility === 'full'
+          ? epoch.reason
+          : 'Historical reason requires an ownership-party or operator credential.',
+        createdAt: epoch.createdAt,
+        sourceSessionId: detailVisibility === 'full' ? epoch.sourceSessionId : null,
+        successorSessionId: detailVisibility === 'full' ? epoch.successorSessionId : null,
+        takeoverGrantId: detailVisibility === 'full' ? epoch.takeoverGrantId : null,
+      })),
+      claimCount: claims.length,
+      claims: detailVisibility === 'full' ? claims : [],
+      briefingSummary,
+      briefing: detailVisibility === 'full' && brief ? {
+        briefingId: brief.briefingId,
+        contentHash: brief.contentHash,
+        generatedAt: brief.generatedAt,
+        handoffCapsuleId: brief.handoff.lineage.capsuleId ?? null,
+        knownGaps: [...brief.knownGaps],
+        omittedSources: [...brief.omittedSources],
+        unresolvedQuestions: brief.unresolvedQuestions.map(question => ({
+          id: question.id,
+          text: question.text,
+          sourceRef: question.sourceRef,
+        })),
+        evidence: brief.evidence.map(evidence => ({ ...evidence })),
+      } : null,
+      takeover: {
+        available: takeoverAvailable,
+        operatorPresenceAvailable: options.operatorPresenceAvailable === true,
+        actionUrl: detailVisibility === 'full' && takeoverAvailable
+          ? projection?.activeGrantId && effectiveSessionId
+            ? `/sessions/${encodeURIComponent(effectiveSessionId)}/takeover`
+            : `/roadmap/items/${encodeURIComponent(row.slug)}/takeovers`
+          : null,
+        activeGrantId: detailVisibility === 'full' ? projection?.activeGrantId ?? null : null,
+        requires: 'verified-current-owner-or-recent-operator-presence',
+        note: takeoverAvailable
+          ? options.operatorPresenceAvailable === true
+            ? 'Staleness is evidence only; operator takeover still requires recent action-bound presence, an admitted successor AgentRun, and an exact signed one-shot grant.'
+            : 'Operator takeover is fail-closed because this daemon has no recent-human-presence verifier. A verified current owner may still issue a voluntary handoff to an admitted successor AgentRun.'
+          : 'Takeover is shown only for stale or abandoned ownership; it never follows from presence alone.',
+      },
+    });
+  }
+  return result;
 }
 
 export function buildRoadmapProjection(
@@ -514,6 +871,7 @@ export function buildRoadmapProjection(
   const doneSlugs = new Set(
     rows.filter((r) => r.status === 'done').map((r) => r.slug),
   );
+  const ownershipByItem = buildOwnershipByItem(db, harbor, at, rows, options);
 
   const items: RoadmapProjectionItem[] = rows.map((row) => {
     const status = (
@@ -571,6 +929,7 @@ export function buildRoadmapProjection(
         statusEventAts: statusEvents.map((e) => e.at),
         now: at,
       }),
+      ownership: ownershipByItem.get(row.id)!,
       lastTouchedAt: row.last_touched_at,
       dependencies: parseStringArray(row.dependencies_json),
     };

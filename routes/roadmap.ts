@@ -60,6 +60,7 @@ import type { RoadmapPromote, PromoteFromFeedbackInput } from '../lib/roadmap-pr
 import { renderNextCutsMarkdown, applyRoadmapMarkdown } from '../lib/roadmap-render.js';
 import {
   buildRoadmapProjection,
+  resolveProjectionHarbor,
   serializeRoadmapProjection,
 } from '../lib/roadmap-projection.js';
 import type Database from 'better-sqlite3';
@@ -79,6 +80,12 @@ import {
 } from '../lib/planner-edges.js';
 import type { GraphEdges } from '../lib/graph-edges.js';
 import type { DurableAgentRoster, DurableAgentRecord } from '../lib/durable-agent-roster.js';
+import type { DurableOwnershipService } from '../lib/durable-ownership.js';
+import {
+  extractActorCredential,
+  resolveWriteIdentity,
+  type IdentityVerifier,
+} from '../lib/identity-write-boundary.js';
 import { parseAdrIdentity } from '../lib/adr-matrix.js';
 import { renderMarkdown } from '../lib/mini-markdown.js';
 import { readFileSync, readdirSync } from 'node:fs';
@@ -91,6 +98,8 @@ interface RoadmapDeps {
   jiraSecretReader?: JiraSecretReader;
   /** Test/custom runtime injection; production uses the bounded cached reader. */
   jiraReader?: JiraRoadmapReader;
+  durableOwnership?: DurableOwnershipService;
+  actorSouls?: (IdentityVerifier & { constants?: { defaultHarbor?: string } }) | null;
 }
 
 interface UpsertBody {
@@ -348,8 +357,53 @@ export const roadmapPlugin: FastifyPluginAsync<{ deps: RoadmapDeps }> = async (f
     }
     const q = (request.query ?? {}) as Record<string, unknown>;
     const harbor = asString(q.harbor);
+    const resolvedHarbor = resolveProjectionHarbor(repoRoot ?? process.cwd(), { harbor });
+    const headerAgent = request.headers['x-agent-id'];
+    const assertedAgentId = Array.isArray(headerAgent) ? headerAgent[0] : headerAgent;
+    const credential = extractActorCredential(request.headers as Record<string, unknown>, null);
+    let projectionActor: { actorId: string; soulClass: string } | null = null;
+    if (credential || (typeof assertedAgentId === 'string' && assertedAgentId.trim())) {
+      const verdict = resolveWriteIdentity({
+        souls: opts.deps.actorSouls,
+        credential,
+        assertedAgentId: typeof assertedAgentId === 'string' ? assertedAgentId.trim() : null,
+        harbor: resolvedHarbor,
+        route: 'GET /roadmap/projection',
+        requireIdentity: true,
+      });
+      if (!verdict.ok) {
+        reply.code(verdict.httpStatus);
+        return { success: false, code: verdict.code, error: verdict.error };
+      }
+      if (verdict.kind === 'verified') {
+        projectionActor = { actorId: verdict.actorId, soulClass: verdict.soulClass };
+      }
+    }
     try {
-      const projection = buildRoadmapProjection(db, repoRoot ?? process.cwd(), { harbor });
+      const projection = buildRoadmapProjection(db, repoRoot ?? process.cwd(), {
+        harbor,
+        resolveDurableOwnership: opts.deps.durableOwnership
+          ? (roadmapSlug, resolvedHarbor) => {
+              const ownership = opts.deps.durableOwnership!.getProjection(roadmapSlug, resolvedHarbor);
+              const epochGrantId = ownership.currentEpoch?.takeoverGrantId ?? null;
+              return {
+                projection: ownership,
+                epochGrant: epochGrantId ? opts.deps.durableOwnership!.getGrant(epochGrantId) : null,
+              };
+            }
+          : undefined,
+        operatorPresenceAvailable:
+          opts.deps.durableOwnership?.capabilities.operatorPresenceVerifier === true,
+        ownershipDetail: (roadmapSlug, projectionHarbor) => {
+          if (!projectionActor || !opts.deps.durableOwnership) return 'summary';
+          if (projectionActor.soulClass === 'operator') return 'full';
+          return opts.deps.durableOwnership.actorCanReadDetails(
+            roadmapSlug,
+            projectionHarbor,
+            projectionActor.actorId,
+          ) ? 'full' : 'summary';
+        },
+      });
       reply.type('application/json; charset=utf-8');
       return serializeRoadmapProjection(projection);
     } catch (error) {
@@ -502,6 +556,44 @@ export const roadmapPlugin: FastifyPluginAsync<{ deps: RoadmapDeps }> = async (f
           }
         } else {
           input.assigneeId = assigneeId;
+        }
+      }
+
+      // Once an item has a signed ownership epoch, assignee_id is only its
+      // read projection. Reassigning or clearing it through generic roadmap
+      // upsert would create a second authority system and erase the handoff
+      // receipt/claim-transfer boundary. Idempotently writing the same owner
+      // remains allowed for ordinary item edits.
+      const existingItem = roadmapItems.get(slug, input.harbor);
+      if (existingItem && opts.deps.durableOwnership) {
+        let ownership: ReturnType<DurableOwnershipService['getProjection']>;
+        try {
+          ownership = opts.deps.durableOwnership.getProjection(slug, existingItem.harbor);
+        } catch (error) {
+          reply.code(503);
+          return {
+            success: false,
+            code: 'OWNERSHIP_VERIFICATION_REQUIRED',
+            error: `cannot verify canonical ownership before changing roadmap assignee: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+          };
+        }
+        if (
+          ownership.currentEpoch
+          && (
+            ownership.currentOwner !== ownership.currentEpoch.ownerAgentNodeId
+            || input.assigneeId !== ownership.currentEpoch.ownerAgentNodeId
+          )
+        ) {
+          reply.code(409);
+          return {
+            success: false,
+            code: 'OWNERSHIP_TRANSITION_REQUIRED',
+            error: 'roadmap assignee is a projection of the signed ownership epoch; use the explicit durable handoff/takeover grant flow',
+            currentOwnerAgentNodeId: ownership.currentEpoch.ownerAgentNodeId,
+            currentEpochId: ownership.currentEpoch.epochId,
+          };
         }
       }
     }

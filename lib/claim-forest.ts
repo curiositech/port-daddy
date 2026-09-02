@@ -9,6 +9,7 @@
 
 import { createHash } from 'node:crypto';
 import type Database from 'better-sqlite3';
+import type { ExactClaimBinding, TakeoverDisposition } from './durable-ownership.js';
 
 export type ClaimForestWorldKind = 'worktree' | 'ref' | 'commit' | 'harbor';
 export type ClaimForestSelectorKind = 'repo' | 'directory' | 'file' | 'symbol' | 'range';
@@ -35,6 +36,7 @@ export interface ClaimForestAddress {
 export interface ClaimForestClaimInput {
   sessionId: string;
   agentId?: string | null;
+  agentNodeId?: string | null;
   mode?: ClaimForestMode;
   intent?: string | null;
   claimedAt?: number;
@@ -52,6 +54,7 @@ export interface ClaimForestClaim {
   worldKind: ClaimForestWorldKind;
   worldId: string;
   gitOid: string | null;
+  contentHash: string | null;
   selectorKind: ClaimForestSelectorKind;
   filePath: string;
   startLine: number | null;
@@ -61,6 +64,7 @@ export interface ClaimForestClaim {
   sessionId: string;
   purpose: string;
   agentId: string | null;
+  agentNodeId: string | null;
   phase: string;
   mode: ClaimForestMode;
   intent: string | null;
@@ -75,6 +79,19 @@ export interface ClaimForestScope {
   repoId?: string | null;
   worldKind?: ClaimForestWorldKind | null;
   worldId?: string | null;
+}
+
+export interface ExactClaimTransferInput {
+  grantId: string;
+  sourceSessionId: string;
+  successorSessionId: string;
+  predecessorAgentNodeId: string;
+  successorAgentNodeId: string;
+  successorAgentId: string | null;
+  /** Only an operator grant carrying signed predecessor-gap evidence may set this. */
+  allowUnboundPredecessor: boolean;
+  bindings: ExactClaimBinding[];
+  transferredAt?: number;
 }
 
 interface SessionContext {
@@ -93,6 +110,7 @@ interface LegacySessionFileRow {
   symbol_path: string | null;
   claimed_at: number;
   released_at: number | null;
+  agent_node_id: string | null;
   agent_id: string | null;
   worktree_id: string | null;
   identity_project: string | null;
@@ -106,6 +124,7 @@ interface ClaimForestRow {
   world_id: string;
   selector_kind: ClaimForestSelectorKind;
   path: string | null;
+  content_hash: string | null;
   symbol: string | null;
   symbol_path: string | null;
   start_line: number | null;
@@ -116,12 +135,16 @@ interface ClaimForestRow {
   session_id: string;
   purpose: string;
   session_agent_id: string | null;
+  claim_agent_id: string | null;
+  agent_node_id: string | null;
   phase: string | null;
   claimed_at: number;
   released_at: number | null;
   observed_by: string | null;
   confidence: number;
   legacy_session_file_id: number | null;
+  metadata: string | null;
+  claim_content_hash: string | null;
 }
 
 const DEFAULT_REPO_ID = 'local';
@@ -165,6 +188,7 @@ export const CLAIM_FOREST_SCHEMA_SQL = `
     node_id TEXT NOT NULL REFERENCES claim_forest_nodes(id) ON DELETE CASCADE,
     session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
     agent_id TEXT,
+    agent_node_id TEXT,
     mode TEXT NOT NULL DEFAULT 'X' CHECK(mode IN ('S','X','IS','IX','SIX')),
     intent TEXT,
     claimed_at INTEGER NOT NULL,
@@ -172,6 +196,7 @@ export const CLAIM_FOREST_SCHEMA_SQL = `
     observed_by TEXT,
     confidence REAL NOT NULL DEFAULT 1,
     legacy_session_file_id INTEGER,
+    claim_content_hash TEXT,
     metadata TEXT
   );
   CREATE INDEX IF NOT EXISTS idx_claim_forest_claims_node_active
@@ -181,6 +206,8 @@ export const CLAIM_FOREST_SCHEMA_SQL = `
   CREATE UNIQUE INDEX IF NOT EXISTS idx_claim_forest_claims_legacy_session_file
     ON claim_forest_claims(legacy_session_file_id)
     WHERE legacy_session_file_id IS NOT NULL;
+  CREATE INDEX IF NOT EXISTS idx_claim_forest_claims_active_session_node
+    ON claim_forest_claims(node_id, session_id, released_at);
 `;
 
 function stableId(prefix: string, parts: unknown[]): string {
@@ -281,6 +308,7 @@ function rowToClaim(row: ClaimForestRow): ClaimForestClaim {
     worldKind: row.world_kind,
     worldId: row.world_id,
     gitOid: row.git_oid,
+    contentHash: row.claim_content_hash ?? row.content_hash,
     selectorKind: row.selector_kind,
     filePath: row.path ?? '',
     startLine: row.start_line,
@@ -290,6 +318,7 @@ function rowToClaim(row: ClaimForestRow): ClaimForestClaim {
     sessionId: row.session_id,
     purpose: row.purpose,
     agentId: row.session_agent_id,
+    agentNodeId: row.agent_node_id,
     phase: row.phase || 'in_progress',
     mode: row.mode,
     intent: row.intent,
@@ -316,6 +345,7 @@ function ensureLegacySessionFileColumns(db: Database.Database): void {
     ['end_line', 'INTEGER'],
     ['symbol', 'TEXT'],
     ['symbol_path', 'TEXT'],
+    ['agent_node_id', 'TEXT'],
   ];
   const missingColumns = legacyColumns.filter(([name]) => !names.has(name));
 
@@ -324,11 +354,34 @@ function ensureLegacySessionFileColumns(db: Database.Database): void {
   }
 }
 
+function ensureClaimSnapshotColumns(db: Database.Database): void {
+  const columns = db.prepare('PRAGMA table_info(claim_forest_claims)').all() as Array<{ name: string }>;
+  if (!columns.some(column => column.name === 'agent_node_id')) {
+    db.prepare('ALTER TABLE claim_forest_claims ADD COLUMN agent_node_id TEXT').run();
+  }
+  if (!columns.some(column => column.name === 'claim_content_hash')) {
+    db.prepare('ALTER TABLE claim_forest_claims ADD COLUMN claim_content_hash TEXT').run();
+    db.prepare(`
+      UPDATE claim_forest_claims
+      SET claim_content_hash = (
+        SELECT content_hash FROM claim_forest_nodes WHERE id = claim_forest_claims.node_id
+      )
+      WHERE claim_content_hash IS NULL
+    `).run();
+  }
+  db.prepare(`
+    CREATE INDEX IF NOT EXISTS idx_claim_forest_claims_agent_node
+    ON claim_forest_claims(agent_node_id, released_at)
+  `).run();
+}
+
 export function createClaimForest(db: Database.Database) {
   ensureLegacySessionFileColumns(db);
   db.exec(CLAIM_FOREST_SCHEMA_SQL);
+  ensureClaimSnapshotColumns(db);
 
   const stmts = {
+    selectNodeContentHash: db.prepare('SELECT content_hash FROM claim_forest_nodes WHERE id = ?'),
     upsertNode: db.prepare(`
       INSERT INTO claim_forest_nodes (
         id, repo_id, world_kind, world_id, parent_id, selector_kind, path,
@@ -359,16 +412,18 @@ export function createClaimForest(db: Database.Database) {
     `),
     insertClaim: db.prepare(`
       INSERT OR IGNORE INTO claim_forest_claims (
-        node_id, session_id, agent_id, mode, intent, claimed_at, released_at,
-        observed_by, confidence, legacy_session_file_id, metadata
+        node_id, session_id, agent_id, agent_node_id, mode, intent, claimed_at, released_at,
+        observed_by, confidence, legacy_session_file_id, claim_content_hash, metadata
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `),
     listActive: db.prepare(`
-      SELECT c.id, c.node_id, c.session_id, c.mode, c.intent, c.claimed_at,
+      SELECT c.id, c.node_id, c.session_id, c.agent_id AS claim_agent_id,
+             c.agent_node_id, c.mode, c.intent, c.claimed_at,
              c.released_at, c.observed_by, c.confidence, c.legacy_session_file_id,
              n.repo_id, n.world_kind, n.world_id, n.selector_kind, n.path, n.symbol,
-             n.symbol_path, n.start_line, n.end_line, n.git_oid,
+             n.symbol_path, n.start_line, n.end_line, n.git_oid, n.content_hash,
+             c.metadata, c.claim_content_hash,
              s.purpose, s.agent_id AS session_agent_id, s.phase
       FROM claim_forest_claims c
       JOIN claim_forest_nodes n ON n.id = c.node_id
@@ -377,10 +432,12 @@ export function createClaimForest(db: Database.Database) {
       ORDER BY n.path ASC, n.start_line ASC, c.claimed_at ASC
     `),
     listBySession: db.prepare(`
-      SELECT c.id, c.node_id, c.session_id, c.mode, c.intent, c.claimed_at,
+      SELECT c.id, c.node_id, c.session_id, c.agent_id AS claim_agent_id,
+             c.agent_node_id, c.mode, c.intent, c.claimed_at,
              c.released_at, c.observed_by, c.confidence, c.legacy_session_file_id,
              n.repo_id, n.world_kind, n.world_id, n.selector_kind, n.path, n.symbol,
-             n.symbol_path, n.start_line, n.end_line, n.git_oid,
+             n.symbol_path, n.start_line, n.end_line, n.git_oid, n.content_hash,
+             c.metadata, c.claim_content_hash,
              s.purpose, s.agent_id AS session_agent_id, s.phase
       FROM claim_forest_claims c
       JOIN claim_forest_nodes n ON n.id = c.node_id
@@ -414,9 +471,70 @@ export function createClaimForest(db: Database.Database) {
       SET released_at = ?
       WHERE session_id = ? AND released_at IS NULL
     `),
+    selectExactActiveClaim: db.prepare(`
+      SELECT c.id, c.node_id, c.session_id, c.agent_id AS claim_agent_id,
+             c.agent_node_id, c.mode, c.intent, c.claimed_at,
+             c.released_at, c.observed_by, c.confidence, c.legacy_session_file_id,
+             c.metadata, c.claim_content_hash, n.repo_id, n.world_kind, n.world_id, n.selector_kind,
+             n.path, n.symbol, n.symbol_path, n.start_line, n.end_line,
+             n.git_oid, n.content_hash, s.purpose,
+             s.agent_id AS session_agent_id, s.phase
+      FROM claim_forest_claims c
+      JOIN claim_forest_nodes n ON n.id = c.node_id
+      JOIN sessions s ON s.id = c.session_id
+      WHERE c.node_id = ? AND c.session_id = ? AND c.released_at IS NULL
+      ORDER BY c.id DESC LIMIT 1
+    `),
+    countExactActiveClaims: db.prepare(`
+      SELECT COUNT(*) AS count FROM claim_forest_claims
+      WHERE node_id = ? AND session_id = ? AND released_at IS NULL
+    `),
+    listActiveNodeIdsBySession: db.prepare(`
+      SELECT node_id FROM claim_forest_claims
+      WHERE session_id = ? AND released_at IS NULL
+      ORDER BY node_id
+    `),
+    releaseExactClaim: db.prepare(`
+      UPDATE claim_forest_claims SET released_at = ?
+      WHERE id = ? AND session_id = ? AND released_at IS NULL
+    `),
+    insertTransferredClaim: db.prepare(`
+      INSERT INTO claim_forest_claims (
+        node_id, session_id, agent_id, agent_node_id, mode, intent, claimed_at,
+        released_at, observed_by, confidence, legacy_session_file_id, claim_content_hash, metadata
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?)
+    `),
+    selectExactLegacySessionFile: db.prepare(`
+      SELECT id, session_id, file_path, start_line, end_line, symbol,
+             symbol_path, claimed_at, released_at, agent_node_id
+      FROM session_files
+      WHERE id = ? AND session_id = ? AND released_at IS NULL
+      LIMIT 1
+    `),
+    countUnlinkedMatchingLegacySessionFiles: db.prepare(`
+      SELECT COUNT(*) AS count
+      FROM session_files sf
+      LEFT JOIN claim_forest_claims linked ON linked.legacy_session_file_id = sf.id
+      WHERE sf.session_id = ? AND sf.released_at IS NULL AND linked.id IS NULL
+        AND sf.file_path = ?
+        AND sf.start_line IS ? AND sf.end_line IS ?
+        AND sf.symbol IS ? AND sf.symbol_path IS ?
+        AND sf.claimed_at = ?
+    `),
+    releaseExactLegacySessionFile: db.prepare(`
+      UPDATE session_files SET released_at = ?
+      WHERE id = ? AND session_id = ? AND released_at IS NULL
+    `),
+    insertTransferredLegacySessionFile: db.prepare(`
+      INSERT INTO session_files (
+        session_id, file_path, start_line, end_line, symbol, symbol_path,
+        claimed_at, released_at, agent_node_id
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?)
+    `),
     legacyRowsMissingForest: db.prepare(`
       SELECT sf.rowid AS id, sf.session_id, sf.file_path, sf.start_line, sf.end_line,
              sf.symbol, sf.symbol_path, sf.claimed_at, sf.released_at,
+             sf.agent_node_id,
              s.agent_id, s.worktree_id, s.identity_project
       FROM session_files sf
       JOIN sessions s ON s.id = sf.session_id
@@ -508,7 +626,9 @@ export function createClaimForest(db: Database.Database) {
       null,
       null,
       world.gitOid,
-      null,
+      selector.kind === 'file' || selector.kind === 'directory'
+        ? selector.contentHash ?? null
+        : null,
       now,
       now,
       null,
@@ -546,6 +666,7 @@ export function createClaimForest(db: Database.Database) {
   function claim(address: ClaimForestAddress, input: ClaimForestClaimInput) {
     const claimedAt = input.claimedAt ?? Date.now();
     const node = ensureNode(address);
+    const nodeContentHash = (stmts.selectNodeContentHash.get(node.id) as { content_hash?: string | null } | undefined)?.content_hash ?? null;
     if (input.releasedAt == null) {
       stmts.releaseExistingNodeSession.run(claimedAt, node.id, input.sessionId);
     }
@@ -553,6 +674,7 @@ export function createClaimForest(db: Database.Database) {
       node.id,
       input.sessionId,
       input.agentId ?? null,
+      input.agentNodeId ?? null,
       input.mode ?? 'X',
       input.intent ?? null,
       claimedAt,
@@ -560,6 +682,7 @@ export function createClaimForest(db: Database.Database) {
       input.observedBy ?? null,
       input.confidence ?? 1,
       input.legacySessionFileId ?? null,
+      address.selector.contentHash ?? nodeContentHash,
       input.metadata ? JSON.stringify(input.metadata) : null,
     );
     return { nodeId: node.id, claimId: Number(result.lastInsertRowid), changes: result.changes };
@@ -610,6 +733,194 @@ export function createClaimForest(db: Database.Database) {
     return (stmts.listBySession.all(sessionId, includeReleased) as ClaimForestRow[]).map(rowToClaim);
   }
 
+  /**
+   * Transfer or release exactly the claim snapshot carried by a signed
+   * takeover grant. The caller must invoke this inside the ownership service's
+   * SQLite IMMEDIATE transaction. Any mismatch throws before a successor claim
+   * is minted, so the outer transaction rolls back the complete disposition.
+   */
+  function transferExactClaims(input: ExactClaimTransferInput): TakeoverDisposition {
+    const transferredAt = input.transferredAt ?? Date.now();
+    if (!input.grantId.trim() || !input.sourceSessionId.trim() || !input.successorSessionId.trim()) {
+      throw new Error('exact claim transfer requires grant, source session, and successor session ids');
+    }
+    if (input.sourceSessionId === input.successorSessionId) {
+      throw new Error('exact claim transfer requires a distinct successor session');
+    }
+    if (!Number.isInteger(transferredAt) || transferredAt < 0) {
+      throw new Error('exact claim transfer timestamp is invalid');
+    }
+    const bindings = [...input.bindings].sort((a, b) => a.claimNodeId.localeCompare(b.claimNodeId));
+    if (new Set(bindings.map(binding => binding.claimNodeId)).size !== bindings.length) {
+      throw new Error('exact claim transfer contains duplicate claim node ids');
+    }
+    const activeBefore = (stmts.listActiveNodeIdsBySession.all(input.sourceSessionId) as Array<{ node_id: string }>)
+      .map(row => row.node_id);
+    const transferredClaimNodeIds: string[] = [];
+    const releasedClaimNodeIds: string[] = [];
+
+    for (const binding of bindings) {
+      if (binding.disposition !== 'transfer' && binding.disposition !== 'release') {
+        throw new Error(`takeover claim lacks transfer/release disposition: ${binding.claimNodeId}`);
+      }
+      const exactCount = Number((stmts.countExactActiveClaims.get(
+        binding.claimNodeId,
+        input.sourceSessionId,
+      ) as { count?: number } | undefined)?.count ?? 0);
+      if (exactCount !== 1) {
+        throw new Error(`exact claim cardinality drifted (${exactCount} active rows): ${binding.claimNodeId}`);
+      }
+      const row = stmts.selectExactActiveClaim.get(
+        binding.claimNodeId,
+        input.sourceSessionId,
+      ) as ClaimForestRow | undefined;
+      if (!row) throw new Error(`exact claim is no longer active: ${binding.claimNodeId}`);
+      if (
+        row.agent_node_id !== input.predecessorAgentNodeId
+        && !(input.allowUnboundPredecessor && row.agent_node_id === null)
+      ) {
+        throw new Error(`exact claim owner AgentNode drifted: ${binding.claimNodeId}`);
+      }
+      const actual = {
+        claimNodeId: row.node_id,
+        filePath: row.path ?? '',
+        selectorKind: row.selector_kind,
+        startLine: row.start_line,
+        endLine: row.end_line,
+        symbol: row.symbol,
+        symbolPath: row.symbol_path,
+        worldKind: row.world_kind,
+        worldId: row.world_id,
+        claimedAt: row.claimed_at,
+        mode: row.mode,
+        contentHash: row.claim_content_hash,
+      };
+      const expected = {
+        claimNodeId: binding.claimNodeId,
+        filePath: binding.selectorKind === 'repo' ? binding.filePath : (normalizePath(binding.filePath) ?? ''),
+        selectorKind: binding.selectorKind,
+        startLine: binding.startLine,
+        endLine: binding.endLine,
+        symbol: binding.symbol,
+        symbolPath: binding.symbolPath,
+        worldKind: binding.worldKind,
+        worldId: binding.worldId,
+        claimedAt: binding.claimedAt,
+        mode: binding.mode,
+        contentHash: binding.contentHash,
+      };
+      if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+        throw new Error(`exact claim binding drifted: ${binding.claimNodeId}`);
+      }
+
+      let successorLegacySessionFileId: number | null = null;
+      const unlinkedLegacyCount = Number((stmts.countUnlinkedMatchingLegacySessionFiles.get(
+        input.sourceSessionId,
+        expected.filePath,
+        binding.startLine,
+        binding.endLine,
+        binding.symbol,
+        binding.symbolPath,
+        binding.claimedAt,
+      ) as { count?: number } | undefined)?.count ?? 0);
+      if (unlinkedLegacyCount > 0) {
+        throw new Error(`unlinked active legacy claim twin exists: ${binding.claimNodeId}`);
+      }
+      if (row.legacy_session_file_id !== null) {
+        const legacy = stmts.selectExactLegacySessionFile.get(
+          row.legacy_session_file_id,
+          input.sourceSessionId,
+        ) as LegacySessionFileRow & { agent_node_id: string | null } | undefined;
+        if (!legacy) throw new Error(`legacy claim twin drifted: ${binding.claimNodeId}`);
+        if (
+          legacy.agent_node_id !== input.predecessorAgentNodeId
+          && !(input.allowUnboundPredecessor && legacy.agent_node_id === null)
+        ) {
+          throw new Error(`legacy claim twin owner AgentNode drifted: ${binding.claimNodeId}`);
+        }
+        if (
+          (normalizePath(legacy.file_path) ?? '') !== expected.filePath
+          || legacy.start_line !== binding.startLine
+          || legacy.end_line !== binding.endLine
+          || legacy.symbol !== binding.symbol
+          || legacy.symbol_path !== binding.symbolPath
+          || legacy.claimed_at !== binding.claimedAt
+        ) {
+          throw new Error(`legacy claim twin binding drifted: ${binding.claimNodeId}`);
+        }
+        if (stmts.releaseExactLegacySessionFile.run(
+          transferredAt,
+          legacy.id,
+          input.sourceSessionId,
+        ).changes !== 1) {
+          throw new Error(`legacy claim twin release lost its compare-and-swap: ${binding.claimNodeId}`);
+        }
+        if (binding.disposition === 'transfer') {
+          const inserted = stmts.insertTransferredLegacySessionFile.run(
+            input.successorSessionId,
+            legacy.file_path,
+            legacy.start_line,
+            legacy.end_line,
+            legacy.symbol,
+            legacy.symbol_path,
+            transferredAt,
+            input.successorAgentNodeId,
+          );
+          successorLegacySessionFileId = Number(inserted.lastInsertRowid);
+        }
+      }
+
+      if (stmts.releaseExactClaim.run(transferredAt, row.id, input.sourceSessionId).changes !== 1) {
+        throw new Error(`claim release lost its compare-and-swap: ${binding.claimNodeId}`);
+      }
+      if (binding.disposition === 'transfer') {
+        let priorMetadata: Record<string, unknown> = {};
+        try {
+          const parsed = row.metadata ? JSON.parse(row.metadata) : {};
+          if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) priorMetadata = parsed;
+        } catch {
+          // Malformed historical metadata is retained as a known raw value.
+          priorMetadata = { predecessorMetadataMalformed: true };
+        }
+        stmts.insertTransferredClaim.run(
+          row.node_id,
+          input.successorSessionId,
+          input.successorAgentId,
+          input.successorAgentNodeId,
+          row.mode,
+          row.intent,
+          transferredAt,
+          `durable-takeover:${input.grantId}`,
+          row.confidence,
+          successorLegacySessionFileId,
+          row.claim_content_hash,
+          JSON.stringify({
+            ...priorMetadata,
+            ownershipTransfer: {
+              grantId: input.grantId,
+              predecessorClaimId: row.id,
+              predecessorSessionId: input.sourceSessionId,
+              predecessorAgentNodeId: input.predecessorAgentNodeId,
+              successorAgentNodeId: input.successorAgentNodeId,
+              transferredAt,
+            },
+          }),
+        );
+        transferredClaimNodeIds.push(binding.claimNodeId);
+      } else {
+        releasedClaimNodeIds.push(binding.claimNodeId);
+      }
+    }
+
+    const grantedIds = new Set(bindings.map(binding => binding.claimNodeId));
+    return {
+      successorSessionId: input.successorSessionId,
+      transferredClaimNodeIds,
+      releasedClaimNodeIds,
+      preservedClaimNodeIds: activeBefore.filter(nodeId => !grantedIds.has(nodeId)).sort(),
+    };
+  }
+
   function releaseByFilePath(sessionId: string, filePath: string, releasedAt = Date.now()) {
     const normalizedPath = normalizePath(filePath) ?? filePath;
     return stmts.releaseByPath.run(releasedAt, sessionId, normalizedPath).changes;
@@ -641,6 +952,7 @@ export function createClaimForest(db: Database.Database) {
         claim(sessionAddressForLegacy(row), {
           sessionId: row.session_id,
           agentId: row.agent_id,
+          agentNodeId: row.agent_node_id,
           claimedAt: row.claimed_at,
           releasedAt: row.released_at,
           observedBy: 'session_files.backfill',
@@ -684,6 +996,7 @@ export function createClaimForest(db: Database.Database) {
     claim,
     listActiveClaims,
     listClaimsForSession,
+    transferExactClaims,
     getActiveClaimsForFile,
     getActiveClaimsForFileExcludingSession,
     releaseByFilePath,

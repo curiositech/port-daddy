@@ -1,0 +1,61 @@
+{
+  "schema": "pd.agent-harbor.durable-ownership-epoch.v0",
+  "epochId": "oepoch_01",
+  "roadmapItemId": "roadmap_01",
+  "roadmapSlug": "durable-ownership",
+  "harbor": "port-daddy",
+  "epochNumber": 2,
+  "ownerAgentNodeId": "agent_node_successor",
+  "priorEpochId": "oepoch_00",
+  "priorOwnerAgentNodeId": "agent_node_predecessor",
+  "cause": "operator-takeover",
+  "sourceSessionId": "session-old",
+  "successorSessionId": "session-new",
+  "takeoverGrantId": "otgrant_01",
+  "workBinding": {
+    "repoId": "github.com/port-daddy/port-daddy",
+    "worktreeId": "worktree-old",
+    "worktreeRoot": "/Users/operator/coding/tmp/port-daddy-old-work",
+    "worktreeRealpath": "/Users/operator/coding/tmp/port-daddy-old-work",
+    "worktreePhysicalId": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "gitDirRealpath": "/Users/operator/coding/port-daddy/.git/worktrees/port-daddy-old-work",
+    "gitDirPhysicalId": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+    "repoCommonDir": "/Users/operator/coding/port-daddy/.git",
+    "branch": "agent/unfinished-work",
+    "remote": "git@github.com:port-daddy/port-daddy.git",
+    "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "base": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "dirtyTreeHash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "dirtyPaths": ["lib/unfinished.ts"],
+    "prUrls": ["https://github.com/port-daddy/port-daddy/pull/1234"]
+  },
+  "claimBindings": [
+    {
+      "claimNodeId": "claim-node-1",
+      "filePath": "lib/unfinished.ts",
+      "selectorKind": "file",
+      "startLine": null,
+      "endLine": null,
+      "symbol": null,
+      "symbolPath": null,
+      "worldKind": "worktree",
+      "worldId": "worktree-old",
+      "claimedAt": 1788000000000,
+      "mode": "X",
+      "contentHash": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "disposition": "transfer"
+    }
+  ],
+  "claimSetHash": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+  "briefingHash": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+  "reason": "Operator returned after the predecessor stopped responding.",
+  "authoredByAgentNodeId": "agent_node_successor",
+  "authorizedActorId": "01OPERATORACTOR",
+  "createdAt": 1788000000000,
+  "contentHash": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+  "signature": {
+    "algorithm": "ed25519",
+    "keyId": "daemon-key-1",
+    "value": "signed-epoch"
+  }
+}

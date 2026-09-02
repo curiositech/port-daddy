@@ -1310,6 +1310,8 @@ class PortDaddy {
     options: {
       agentId?: string;
       performative?: number;
+      /** One-shot mutations must never replay after a connected IPC attempt. */
+      noFallbackAfterConnect?: boolean;
     } = {},
   ): Promise<T | null> {
     if (this._explicitUrl || process.env.PORT_DADDY_SOCK || this.socketPath !== DEFAULT_SOCK) return null;
@@ -1324,10 +1326,12 @@ class PortDaddy {
       requestTimeout: this.timeout,
     });
 
+    let connected = false;
     try {
       if (ipc.state !== 'ready') {
         await ipc.connect();
       }
+      connected = true;
 
       const frame = await ipc.request(
         (options.performative ?? Performative.REQUEST) as typeof Performative.REQUEST,
@@ -1336,11 +1340,32 @@ class PortDaddy {
       );
 
       if (frame.type !== Performative.INFORM_DONE) {
-        return null;
+        const message = typeof frame.payload.message === 'string'
+          ? frame.payload.message
+          : typeof frame.payload.error === 'string'
+            ? frame.payload.error
+            : 'IPC request was refused';
+        const status = frame.type === Performative.REFUSE
+          ? 409
+          : frame.type === Performative.FAILURE
+            ? 503
+            : 400;
+        throw new PortDaddyError(message, status, frame.payload);
       }
 
       return (frame.payload.result ?? null) as T | null;
-    } catch {
+    } catch (error) {
+      // A protocol-level REFUSE/FAILURE is an authoritative daemon verdict.
+      // Falling back to HTTP would replay a rejected ownership mutation through
+      // a different transport. Only connection/setup failures may fall back.
+      if (error instanceof PortDaddyError) throw error;
+      if (connected && options.noFallbackAfterConnect) {
+        throw new PortDaddyError(
+          'IPC delivery outcome is ambiguous; reconcile the signed grant status before retrying',
+          503,
+          { code: 'IPC_DELIVERY_AMBIGUOUS', action },
+        );
+      }
       return null;
     } finally {
       ipc.destroy();
@@ -2317,7 +2342,8 @@ class PortDaddy {
     }
     const ipcResult = await this._requestViaIpc<SessionResponse>(
       IpcAction.SESSION_START,
-      ipcOptions,
+      { ...ipcOptions, credential: this.credential },
+      { agentId: options.agentId || this.agentId },
     );
     if (ipcResult) {
       if (ipcResult.success === false) {
@@ -2407,9 +2433,12 @@ class PortDaddy {
    * Start a successor session from an existing one without deleting its notes.
    */
   async takeoverSession(sessionId: string, options?: {
+    grantId?: string;
+    nonce?: string;
     agentId?: string;
-    purpose?: string;
+    /** @deprecated Legacy fields are accepted by the TypeScript surface only so old callers receive RECOVERY_GRANT_REQUIRED at runtime. */
     note?: string;
+    purpose?: string;
     project?: string;
     worktreeId?: string;
     metadata?: Record<string, unknown>;
@@ -2419,21 +2448,27 @@ class PortDaddy {
     lifecycle?: 'durable' | 'ephemeral';
     claimFiles?: boolean;
   }): Promise<SessionTakeoverResponse> {
+    if (!options?.grantId?.trim() || !options.nonce?.trim()) {
+      throw new PortDaddyError(
+        'session takeover requires a signed durable-ownership grantId and one-shot nonce',
+        409,
+        { code: 'RECOVERY_GRANT_REQUIRED' },
+      );
+    }
     const body: Record<string, unknown> = {
-      ...(options || {}),
+      grantId: options.grantId.trim(),
+      nonce: options.nonce.trim(),
       agentId: options?.agentId || this.agentId,
     };
-    if (options?.lifecycle) {
-      body.durable = options.lifecycle === 'durable';
-      delete body.lifecycle;
-    }
 
     const ipcResult = await this._requestViaIpc<SessionTakeoverResponse>(
       IpcAction.SESSION_TAKEOVER,
       {
         sessionId,
         ...body,
+        credential: this.credential,
       },
+      { agentId: options?.agentId || this.agentId, noFallbackAfterConnect: true },
     );
     if (ipcResult) {
       if (ipcResult.success === false) {
@@ -2442,6 +2477,89 @@ class PortDaddy {
       return ipcResult;
     }
     return this._request('POST', `/sessions/${sessionId}/takeover`, body) as Promise<SessionTakeoverResponse>;
+  }
+
+  /** Issue a short-lived signed takeover grant from daemon-captured facts. */
+  async prepareDurableTakeover(options: {
+    roadmapSlug: string;
+    harbor: string;
+    successorSessionId: string;
+    reason: string;
+    claimDispositions: Array<{ claimNodeId: string; disposition: 'transfer' | 'release' }>;
+    ttlMs?: number;
+    operatorPresenceProof?: string;
+    agentId?: string;
+  }): Promise<Record<string, unknown>> {
+    const body: Record<string, unknown> = {
+      harbor: options.harbor,
+      successorSessionId: options.successorSessionId,
+      reason: options.reason,
+      claimDispositions: options.claimDispositions,
+      ttlMs: options.ttlMs,
+      operatorPresenceProof: options.operatorPresenceProof,
+      agentId: options.agentId || this.agentId,
+    };
+    const ipcResult = await this._requestViaIpc<Record<string, unknown>>(
+      IpcAction.OWNERSHIP_TAKEOVER_PREPARE,
+      { roadmapSlug: options.roadmapSlug, ...body, credential: this.credential },
+      { agentId: options.agentId || this.agentId, noFallbackAfterConnect: true },
+    );
+    if (ipcResult) return ipcResult;
+    return this._request(
+      'POST',
+      `/roadmap/items/${encodeURIComponent(options.roadmapSlug)}/takeovers`,
+      body,
+    ) as Promise<Record<string, unknown>>;
+  }
+
+  /** Read the authenticated, redacted lifecycle of a signed takeover grant. */
+  async getDurableTakeoverGrant(
+    grantId: string,
+    options: { harbor?: string; agentId?: string } = {},
+  ): Promise<Record<string, unknown>> {
+    const ipcResult = await this._requestViaIpc<Record<string, unknown>>(
+      IpcAction.OWNERSHIP_GRANT_GET,
+      {
+        grantId,
+        harbor: options.harbor,
+        agentId: options.agentId || this.agentId,
+        credential: this.credential,
+      },
+      { agentId: options.agentId || this.agentId },
+    );
+    if (ipcResult) return ipcResult;
+    const query = options.harbor ? `?harbor=${encodeURIComponent(options.harbor)}` : '';
+    return this._request(
+      'GET',
+      `/takeover-grants/${encodeURIComponent(grantId)}${query}`,
+    ) as Promise<Record<string, unknown>>;
+  }
+
+  /** Bootstrap epoch one from an already daemon-bound durable session. */
+  async bootstrapDurableOwnership(options: {
+    roadmapSlug: string;
+    harbor: string;
+    sourceSessionId: string;
+    reason: string;
+    agentId?: string;
+  }): Promise<Record<string, unknown>> {
+    const body: Record<string, unknown> = {
+      harbor: options.harbor,
+      sourceSessionId: options.sourceSessionId,
+      reason: options.reason,
+      agentId: options.agentId || this.agentId,
+    };
+    const ipcResult = await this._requestViaIpc<Record<string, unknown>>(
+      IpcAction.OWNERSHIP_BOOTSTRAP,
+      { roadmapSlug: options.roadmapSlug, ...body, credential: this.credential },
+      { agentId: options.agentId || this.agentId },
+    );
+    if (ipcResult) return ipcResult;
+    return this._request(
+      'POST',
+      `/roadmap/items/${encodeURIComponent(options.roadmapSlug)}/ownership/bootstrap`,
+      body,
+    ) as Promise<Record<string, unknown>>;
   }
 
   /**
