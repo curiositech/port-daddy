@@ -222,6 +222,8 @@ Completion is only entered through `pd done` (or `POST /sugar/done`), which chec
 
 In the dashboard, open **Agents → Open exact session** to read a session's latest complete plan and expand its retained note history. A link such as `/fleet-ui/?surface=agents&session=<session-id>` targets that exact Port Daddy session, even without a registered agent. Existing `surface=sessions` links reach the same read-only view. Missing or inaccessible sessions report an error rather than choosing another session by working directory. This is the selected daemon's session ledger, not a separate roadmap authority.
 
+The agent directory marks dormant salvage entries **On hold** and distinguishes an earlier admitted replacement from a running process. Held entries cannot be dismissed or started/resumed there; hold clearance is not implemented. Distinct agent instances keep separate rows even when their fleet roles match, and ambiguous role-only controls stay unavailable. Exact-session evidence and explicitly scoped Stop remain separate from the hold.
+
 Every active session requires planning. You can set, show, and check off todo list items:
 
 ```bash
