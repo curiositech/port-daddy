@@ -217,6 +217,8 @@ Every session progresses through **phases** for swarm visibility: `planning`, `i
 
 ### Plan and Checklist Enforcement
 
+In the dashboard, open **Agents → Open exact session** to read a session's latest complete plan and expand its retained note history. A link such as `/fleet-ui/?surface=agents&session=<session-id>` targets that exact Port Daddy session, even without a registered agent. Existing `surface=sessions` links reach the same read-only view. Missing or inaccessible sessions report an error rather than choosing another session by working directory. This is the selected daemon's session ledger, not a separate roadmap authority.
+
 Every active session requires planning. You can set, show, and check off todo list items:
 
 ```bash
