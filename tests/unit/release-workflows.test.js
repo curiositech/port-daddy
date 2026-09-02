@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -205,7 +205,10 @@ describe('release changelog discovery with real Git and bash pipefail', () => {
     const scratch = mkdtempSync(join(scratchRoot, 'release-changelog-stream-test-'));
     // This is an isolated synthetic repository, never the caller's Git identity,
     // selectors, hooks, credentials, or Port Daddy session.
-    const env = { PATH: process.env.PATH, GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1',
+    // Do not resolve tools through a developer/hosted-runner PATH shim. In
+    // particular a successful shim can still emit a brew/HOME startup error.
+    const fixtureBin = join(scratch, 'bin');
+    const env = { PATH: `${fixtureBin}:/usr/bin:/bin`, GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1',
       GIT_AUTHOR_NAME: 'Synthetic release actor', GIT_AUTHOR_EMAIL: 'release@example.invalid',
       GIT_COMMITTER_NAME: 'Synthetic release actor', GIT_COMMITTER_EMAIL: 'release@example.invalid' };
     const git = (args) => {
@@ -214,6 +217,9 @@ describe('release changelog discovery with real Git and bash pipefail', () => {
       return result.stdout.trim();
     };
     try {
+      mkdirSync(fixtureBin);
+      symlinkSync(process.execPath, join(fixtureBin, 'node'));
+      symlinkSync('/usr/bin/git', join(fixtureBin, 'git'));
       const template = join(scratch, 'empty-template');
       mkdirSync(template);
       mkdirSync(join(scratch, 'scripts'));
@@ -227,11 +233,11 @@ describe('release changelog discovery with real Git and bash pipefail', () => {
       const output = join(scratch, 'step-output');
       const step = parseYaml(readWorkflow('release-train.yml')).jobs['tag-and-publish'].steps
         .find((candidate) => candidate.id === 'release');
-      const run = (script = step.run) => spawnSync('bash', ['-c', script], {
+      const run = (script = step.run) => spawnSync('/bin/bash', ['--noprofile', '--norc', '-c', script], {
         cwd: scratch, env: { ...env, MERGE_SHA: sha, GITHUB_OUTPUT: output },
         encoding: 'utf8', timeout: 30_000,
       });
-      verify({ run, sha, readOutput: () => existsSync(output) ? readFileSync(output, 'utf8') : '' });
+      verify({ run, sha, scratch, readOutput: () => existsSync(output) ? readFileSync(output, 'utf8') : '' });
     } finally {
       rmSync(scratch, { recursive: true });
     }
@@ -247,6 +253,36 @@ describe('release changelog discovery with real Git and bash pipefail', () => {
       expect(actual.stderr).toBe('');
       expect(readOutput()).toBe(`version=${version}\ntag=v${version}\nrelease_sha=${sha}\n`);
     });
+  });
+
+  test('hostile inherited PATH and shell startup loaders never run in the fixture', () => {
+    const hostile = mkdtempSync(join(homedir(), 'coding', 'tmp', 'release-hostile-parent-'));
+    const marker = join(hostile, 'startup-was-executed');
+    const loader = join(hostile, 'startup');
+    const keys = ['PATH', 'BASH_ENV', 'ENV'];
+    const saved = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
+    try {
+      writeFileSync(loader, `echo hostile-startup >&2\ntouch '${marker}'\nexit 77\n`);
+      for (const name of ['bash', 'git', 'node']) writeFileSync(join(hostile, name), '#!/bin/sh\necho hostile-tool >&2\nexit 78\n', { mode: 0o700 });
+      process.env.PATH = hostile;
+      process.env.BASH_ENV = loader;
+      process.env.ENV = loader;
+      // Poison the parent before the fixture constructs its environment, so
+      // a regression to inherited PATH fails during setup or the actual step.
+      withReleaseFixture(heading + '\n', ({ run, readOutput, sha }) => {
+        const actual = run();
+        expect(actual.status).toBe(0);
+        expect(actual.stderr).toBe('');
+        expect(existsSync(marker)).toBe(false);
+        expect(readOutput()).toBe(`version=${version}\ntag=v${version}\nrelease_sha=${sha}\n`);
+      });
+    } finally {
+      for (const key of keys) {
+        if (saved[key] === undefined) delete process.env[key];
+        else process.env[key] = saved[key];
+      }
+      rmSync(hostile, { recursive: true });
+    }
   });
 
   test('an absent dated header still fails without producing release outputs', () => {
