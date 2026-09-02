@@ -10,7 +10,7 @@
  * Sandbox lives under the repo's .scratch/ — NEVER /tmp.
  */
 import { execFileSync, spawn, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, writeFileSync, readFileSync, renameSync, rmSync, statSync, symlinkSync, utimesSync } from 'node:fs';
+import { closeSync, existsSync, mkdirSync, openSync, writeFileSync, readFileSync, renameSync, rmSync, statSync, symlinkSync, utimesSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   stageTentacles,
@@ -59,6 +59,37 @@ function writeTentacleSources(): void {
   mkdirSync(SRC, { recursive: true });
   for (const name of TENTACLES) {
     writeFileSync(join(SRC, name), `#!/bin/sh\nprintf '%s\\n' '${name}'\nexit 0\n`);
+  }
+}
+
+let fixtureStdinSequence = 0;
+
+/**
+ * Give a readiness-only fixture finite input without racing a parent pipe.
+ * A gate may correctly exit before reading stdin; execFileSync's input pipe
+ * can then report EPIPE despite exit 0. A regular descriptor preserves the
+ * payload and real child failures without catching or suppressing either.
+ * Streaming, debug and deadline tests deliberately retain their real pipes.
+ */
+function runWithFixtureStdin(
+  command: string,
+  args: string[],
+  options: { cwd?: string; env?: NodeJS.ProcessEnv },
+  input = '{}',
+): string {
+  const inputPath = join(SANDBOX, `readiness-stdin-${++fixtureStdinSequence}.json`);
+  writeFileSync(inputPath, input, { flag: 'wx', mode: 0o600 });
+  let descriptor: number | undefined;
+  try {
+    descriptor = openSync(inputPath, 'r');
+    return execFileSync(command, args, {
+      ...options,
+      stdio: [descriptor, 'pipe', 'pipe'],
+      encoding: 'utf8',
+    });
+  } finally {
+    if (descriptor !== undefined) closeSync(descriptor);
+    rmSync(inputPath);
   }
 }
 
@@ -390,6 +421,28 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     expect(run()).toBe('');
   });
 
+  test('finite fixture stdin delivers every payload byte', () => {
+    const input = JSON.stringify({ prompt: 'fixture λ '.repeat(4096), tail: 'complete' });
+    const output = runWithFixtureStdin(process.execPath, [
+      '-e', 'process.stdout.write(require("node:fs").readFileSync(0))',
+    ], {}, input);
+    expect(output).toBe(input);
+  });
+
+  test('finite fixture stdin permits an immediate successful exit without reading', () => {
+    expect(runWithFixtureStdin('/bin/sh', ['-c', 'exit 0'], {}, 'x'.repeat(1024 * 1024))).toBe('');
+  });
+
+  test('finite fixture stdin preserves a real nonzero child exit and stderr', () => {
+    let failure: unknown;
+    try {
+      runWithFixtureStdin('/bin/sh', ['-c', 'printf "fixture failure\\n" >&2; exit 7'], {}, 'x'.repeat(1024 * 1024));
+    } catch (error) {
+      failure = error;
+    }
+    expect(failure).toMatchObject({ status: 7, stderr: 'fixture failure\n' });
+  });
+
   test('stays inert through bootstrap and daemon generation changes', () => {
     const pdHome = join(SANDBOX, 'ready-generation-home');
     const binDir = join(pdHome, 'bin');
@@ -398,11 +451,9 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     writeFileSync(join(pdHome, 'heartbeat'), '{}');
     writeFileSync(join(pdHome, 'daemon.pid'), '5001');
     registerSquidProject(REPO, join(pdHome, 'squid', 'projects'));
-    const run = (): string => execFileSync(join(binDir, 'pd-hook-prompt'), [], {
+    const run = (): string => runWithFixtureStdin(join(binDir, 'pd-hook-prompt'), [], {
       cwd: REPO,
       env: { ...process.env, PD_HOME: pdHome },
-      input: '{}',
-      encoding: 'utf8',
     });
 
     expect(run()).toBe(''); // process is alive but still behind its boot gate
@@ -429,7 +480,7 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     writeFileSync(readyFile, '6001\n');
     registerSquidProject(REPO, join(pdHome, 'squid', 'projects'));
 
-    const out = execFileSync(join(binDir, 'pd-hook-prompt'), [], {
+    const out = runWithFixtureStdin(join(binDir, 'pd-hook-prompt'), [], {
       cwd: REPO,
       env: {
         ...process.env,
@@ -438,8 +489,6 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
         PORT_DADDY_PID_FILE: pidFile,
         PORT_DADDY_READY_FILE: readyFile,
       },
-      input: '{}',
-      encoding: 'utf8',
     });
     expect(out).toContain('pd-hook-prompt');
   });
@@ -454,15 +503,32 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     writeFileSync(join(pdHome, 'daemon.pid'), '7002');
     registerSquidProject(REPO, join(pdHome, 'squid', 'projects'));
 
-    const out = execFileSync(join(binDir, 'pd-hook-prompt'), [], {
+    const out = runWithFixtureStdin(join(binDir, 'pd-hook-prompt'), [], {
       cwd: REPO,
       env: { ...process.env, PD_HOME: pdHome },
-      input: '{}',
-      encoding: 'utf8',
     });
 
     expect(out).toBe('');
   });
+
+  test.each(['0', 'not-a-pid', '7001:7001'])(
+    'does not delegate when the readiness generation is malformed (%s)',
+    (generation) => {
+      const pdHome = join(SANDBOX, `invalid-generation-${generation}`);
+      const binDir = join(pdHome, 'bin');
+      mkdirSync(join(REPO, '.portdaddy'), { recursive: true });
+      stageTentacles(SRC, binDir);
+      writeFileSync(join(pdHome, 'heartbeat'), '{}');
+      markDaemonReady(pdHome, 7001);
+      writeFileSync(join(pdHome, 'daemon.ready'), `${generation}\n`);
+      registerSquidProject(REPO, join(pdHome, 'squid', 'projects'));
+
+      expect(runWithFixtureStdin(join(binDir, 'pd-hook-prompt'), [], {
+        cwd: REPO,
+        env: { ...process.env, PD_HOME: pdHome },
+      })).toBe('');
+    },
+  );
 
   test.each(['daemon.ready', 'daemon.pid', 'heartbeat'])(
     'fails open instead of trusting a symlinked %s lease with an otherwise matching generation',

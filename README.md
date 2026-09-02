@@ -174,6 +174,8 @@ pd begin "Fix flaky auth tests" --identity myapp:api --lifecycle durable --sideq
 - `durable` — ordinary agent work. The session outlives the process; if the agent dies mid-task, the session stays visible for salvage or takeover.
 - `ephemeral` — heartbeat-bound process sessions. When the process stops heartbeating, the session ends with it.
 
+Heartbeat expiry abandons only ephemeral sessions. Verified active durable work keeps its directory row **inactive and not ready**, with its session, claims, and notes preserved. Existing replacement entries become `dormant` with `holdReason: durable_session_active`; their capsules survive, while an already-admitted attempt stays `resurrecting` and is not canceled by the hold. `pd salvage --all` shows held entries. Ordinary salvage mutations and new heartbeats cannot clear them. **Hold clearance is not implemented yet**; explicit session end, abandon, and takeover retain their existing contracts but do not clear saved queue holds.
+
 The same requirement applies to `pd session start` and the MCP `begin_session` tool.
 
 After registration, `pd begin` may print up to three semantically matched live
