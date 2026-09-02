@@ -850,14 +850,23 @@ describe('Route error codes: sessions', () => {
   });
 
   test('PUT /sessions/:id returns SESSION_NOT_FOUND', async () => {
-    const res = await app.inject({ method: 'PUT', url: '/sessions/session-nonexistent', payload: { status: 'completed' } });
+    const res = await app.inject({
+      method: 'PUT',
+      url: '/sessions/session-nonexistent',
+      headers: creds['agent-owner'].headers,
+      payload: { status: 'abandoned' },
+    });
 
     expect(res.statusCode).toBe(404);
     expect(res.json().code).toBe('SESSION_NOT_FOUND');
   });
 
   test('DELETE /sessions/:id returns SESSION_NOT_FOUND', async () => {
-    const res = await app.inject({ method: 'DELETE', url: '/sessions/session-nonexistent' });
+    const res = await app.inject({
+      method: 'DELETE',
+      url: '/sessions/session-nonexistent',
+      headers: creds['agent-owner'].headers,
+    });
 
     expect(res.statusCode).toBe(404);
     expect(res.json().code).toBe('SESSION_NOT_FOUND');
@@ -875,14 +884,24 @@ describe('Route error codes: sessions', () => {
   }, 30000);
 
   test('POST /sessions/:id/notes returns SESSION_NOT_FOUND for bad session', async () => {
-    const res = await app.inject({ method: 'POST', url: '/sessions/session-nonexistent/notes', payload: { content: 'hello' } });
+    const res = await app.inject({
+      method: 'POST',
+      url: '/sessions/session-nonexistent/notes',
+      headers: creds['agent-owner'].headers,
+      payload: { content: 'hello' },
+    });
 
     expect(res.statusCode).toBe(404);
     expect(res.json().code).toBe('SESSION_NOT_FOUND');
   });
 
   test('POST /sessions/:id/notes uses the canonical quick-note write path', async () => {
-    const session = await app.inject({ method: 'POST', url: '/sessions', payload: { purpose: 'test' } });
+    const session = await app.inject({
+      method: 'POST',
+      url: '/sessions',
+      headers: creds['agent-owner'].headers,
+      payload: { purpose: 'test', agentId: 'agent-owner' },
+    });
     const sessionId = session.json().id;
     const quickNote = jest.spyOn(sessionsMod, 'quickNote');
     const addNote = jest.spyOn(sessionsMod, 'addNote');
@@ -890,6 +909,7 @@ describe('Route error codes: sessions', () => {
     const res = await app.inject({
       method: 'POST',
       url: `/sessions/${sessionId}/notes`,
+      headers: creds['agent-owner'].headers,
       payload: { content: 'hello from compat route', type: 'progress' },
     });
 
@@ -911,7 +931,7 @@ describe('Route error codes: sessions', () => {
     expect(res.json().code).toBe('VALIDATION_ERROR');
   });
 
-  test('POST /sessions/:id/files returns SESSION_AGENT_REQUIRED for agentless sessions', async () => {
+  test('POST /sessions/:id/files requires a credential before session lookup', async () => {
     const session = await app.inject({ method: 'POST', url: '/sessions', payload: { purpose: 'test' } });
     const sessionId = session.json().id;
 
@@ -921,8 +941,8 @@ describe('Route error codes: sessions', () => {
       payload: { files: ['file-a.ts'] },
     });
 
-    expect(res.statusCode).toBe(409);
-    expect(res.json().code).toBe('SESSION_AGENT_REQUIRED');
+    expect(res.statusCode).toBe(401);
+    expect(res.json().code).toBe('IDENTITY_CREDENTIAL_REQUIRED');
   });
 
   test('POST /sessions/:id/files requires the owning agent before conflict checks', async () => {
@@ -945,8 +965,8 @@ describe('Route error codes: sessions', () => {
       url: `/sessions/${sessionId}/files`,
       payload: { files: ['file-a.ts'] },
     });
-    expect(noAgent.statusCode).toBe(409);
-    expect(noAgent.json().code).toBe('SESSION_AGENT_REQUIRED');
+    expect(noAgent.statusCode).toBe(401);
+    expect(noAgent.json().code).toBe('IDENTITY_CREDENTIAL_REQUIRED');
 
     const wrongAgent = await app.inject({
       method: 'POST',
@@ -993,17 +1013,17 @@ describe('Route error codes: sessions', () => {
     expect(res.json().code).toBe('VALIDATION_ERROR');
   });
 
-  test('POST /notes returns AMBIGUOUS_ACTIVE_SESSION when two sessions are active and no sessionId/agentId is given', async () => {
+  test('POST /notes requires one exact session scope even when active sessions exist', async () => {
     await app.inject({ method: 'POST', url: '/sessions', payload: { purpose: 'Session A' } });
     await app.inject({ method: 'POST', url: '/sessions', payload: { purpose: 'Session B' } });
 
     const res = await app.inject({ method: 'POST', url: '/notes', payload: { content: 'which session am I?' } });
 
-    expect(res.statusCode).toBe(409);
-    expect(res.json().code).toBe('AMBIGUOUS_ACTIVE_SESSION');
+    expect(res.statusCode).toBe(400);
+    expect(res.json().code).toBe('SESSION_SCOPE_REQUIRED');
   });
 
-  test('POST /notes resolves the ambiguity when agentId is given (mcp add_note fix regression guard)', async () => {
+  test('POST /notes rejects agent-only implicit selection', async () => {
     const owner = await app.inject({
       method: 'POST',
       url: '/sessions',
@@ -1020,11 +1040,12 @@ describe('Route error codes: sessions', () => {
       headers: creds['agent-owner'].headers,
     });
 
-    expect(res.statusCode).toBe(200);
-    expect(res.json().sessionId).toBe(ownerSessionId);
+    expect(res.statusCode).toBe(400);
+    expect(res.json().code).toBe('SESSION_SCOPE_REQUIRED');
+    expect(sessionsMod.getNotes(ownerSessionId).notes).toHaveLength(0);
   });
 
-  test('POST /notes creates a standalone Quick notes session for an unknown opaque agentId', async () => {
+  test('POST /notes does not auto-create a standalone session for an agent alias', async () => {
     const res = await app.inject({
       method: 'POST',
       url: '/notes',
@@ -1032,17 +1053,12 @@ describe('Route error codes: sessions', () => {
       headers: creds['agent-without-session'].headers,
     });
 
-    expect(res.statusCode).toBe(200);
-    const created = sessionsMod.get(res.json().sessionId);
-    expect(created.success).toBe(true);
-    expect(created.session).toMatchObject({
-      purpose: 'Quick notes',
-      agentId: 'agent-without-session',
-      noteCount: 1,
-    });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().code).toBe('SESSION_SCOPE_REQUIRED');
+    expect(sessionsMod.list({ agentId: 'agent-without-session' }).sessions).toHaveLength(0);
   });
 
-  test('POST /notes treats an explicit sessionId as authoritative when agentId is also given', async () => {
+  test('POST /notes binds an explicit sessionId to its stored owner', async () => {
     const explicit = await app.inject({
       method: 'POST',
       url: '/sessions',
@@ -1063,9 +1079,9 @@ describe('Route error codes: sessions', () => {
       payload: {
         content: 'explicit session wins',
         sessionId: explicitSessionId,
-        agentId: 'agent-fallback',
+        agentId: 'agent-explicit',
       },
-      headers: creds['agent-fallback'].headers,
+      headers: creds['agent-explicit'].headers,
     });
 
     expect(res.statusCode).toBe(200);

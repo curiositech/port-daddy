@@ -287,6 +287,66 @@ describe('Durable Sessions', () => {
 });
 
 describe('CLI file-claim session selection', () => {
+  describe.each(['slot', 'environment', 'explicit'])('exact %s selector is terminal', (carrier) => {
+    let contextDir;
+    let saved;
+    const keys = ['PORT_DADDY_CONTEXT_DIR', 'PORT_DADDY_CONTEXT_SLOT', 'PD_AGENT_ID', 'PD_SESSION_ID'];
+
+    beforeEach(() => {
+      saved = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
+      contextDir = mkdtempSync(join(tmpdir(), 'pd-exact-session-'));
+      process.env.PORT_DADDY_CONTEXT_DIR = contextDir;
+      process.env.PORT_DADDY_CONTEXT_SLOT = 'exact-test';
+      delete process.env.PD_AGENT_ID;
+      delete process.env.PD_SESSION_ID;
+      writeCurrentContext({ agentId: 'exact-agent', sessionId: 'exact-session' });
+      if (carrier === 'environment') {
+        process.env.PD_AGENT_ID = 'exact-agent';
+        process.env.PD_SESSION_ID = 'exact-session';
+      }
+    });
+
+    afterEach(() => {
+      for (const key of keys) {
+        if (saved[key] === undefined) delete process.env[key];
+        else process.env[key] = saved[key];
+      }
+      rmSync(contextDir, { recursive: true, force: true });
+    });
+
+    const active = { success: true, active: true, sessionId: 'exact-session', agentId: 'exact-agent' };
+    it.each([
+      ['dormant', { ...active, active: false, dormant: true, resumable: true }, 'SESSION_NOT_ACTIVE'],
+      ['missing', { success: true, active: false }, 'SESSION_NOT_ACTIVE'],
+      ['failed response', { ...active, success: false }, 'SESSION_RESOLUTION_FAILED'],
+      ['transport error', new Error('lookup failed'), 'SESSION_RESOLUTION_FAILED'],
+      ['wrong session', { ...active, sessionId: 'other-session' }, 'SESSION_SCOPE_MISMATCH'],
+      ['wrong agent', { ...active, agentId: 'other-agent' }, 'SESSION_SCOPE_MISMATCH'],
+      ['missing session', { ...active, sessionId: undefined }, 'SESSION_SCOPE_MISMATCH'],
+      ['missing owner', { ...active, agentId: undefined }, 'SESSION_SCOPE_MISMATCH'],
+    ])('rejects %s without discovering another session', async (_label, response, code) => {
+      const pd = {
+        agentId: 'exact-agent',
+        whoami: response instanceof Error
+          ? jest.fn().mockRejectedValue(response)
+          : jest.fn().mockResolvedValue(response),
+        sessions: jest.fn().mockResolvedValue({
+          success: true,
+          count: 1,
+          sessions: [{ id: 'other-session', agentId: 'exact-agent', worktreeId: 'other-worktree' }],
+        }),
+      };
+      const options = carrier === 'explicit' ? { session: 'exact-session', agent: 'exact-agent' } : {};
+
+      const result = await resolveActiveSessionForFiles(pd, options);
+
+      expect(result).toMatchObject({ success: false, code });
+      expect(pd.whoami).toHaveBeenCalledTimes(1);
+      expect(pd.whoami).toHaveBeenCalledWith({ sessionId: 'exact-session', agentId: 'exact-agent' });
+      expect(pd.sessions).not.toHaveBeenCalled();
+    });
+  });
+
   it('returns AMBIGUOUS_ACTIVE_SESSION with every candidate session/worktree id', async () => {
     const pd = {
       whoami: jest.fn(),
@@ -313,7 +373,7 @@ describe('CLI file-claim session selection', () => {
     });
   });
 
-  it('lets an explicit session and agent outrank contradictory ambient context', async () => {
+  it('lets the exact session/agent tuple used by done, relink, and phase outrank contradictory ambient context', async () => {
     const contextDir = mkdtempSync(join(tmpdir(), 'pd-session-selection-'));
     const keys = ['PORT_DADDY_CONTEXT_DIR', 'PORT_DADDY_CONTEXT_SLOT', 'PD_AGENT_ID', 'PD_SESSION_ID'];
     const saved = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
@@ -349,6 +409,88 @@ describe('CLI file-claim session selection', () => {
         agentId: 'explicit-agent',
         sessionId: 'explicit-session',
       });
+      expect(pd.sessions).not.toHaveBeenCalled();
+    } finally {
+      for (const key of keys) {
+        if (saved[key] === undefined) delete process.env[key];
+        else process.env[key] = saved[key];
+      }
+      rmSync(contextDir, { recursive: true, force: true });
+    }
+  });
+
+  it('derives the stored owner for an exact session without grafting a conflicting ambient agent', async () => {
+    const contextDir = mkdtempSync(join(tmpdir(), 'pd-session-owner-selection-'));
+    const keys = ['PORT_DADDY_CONTEXT_DIR', 'PORT_DADDY_CONTEXT_SLOT', 'PD_AGENT_ID', 'PD_SESSION_ID'];
+    const saved = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
+    try {
+      process.env.PORT_DADDY_CONTEXT_DIR = contextDir;
+      process.env.PORT_DADDY_CONTEXT_SLOT = 'owner-selection-test';
+      writeCurrentContext({ agentId: 'ambient-agent', sessionId: 'ambient-session' });
+      process.env.PD_AGENT_ID = 'different-env-agent';
+      process.env.PD_SESSION_ID = 'different-env-session';
+
+      const pd = {
+        agentId: undefined,
+        whoami: jest.fn().mockResolvedValue({
+          success: true,
+          active: true,
+          agentId: 'stored-owner',
+          sessionId: 'exact-session',
+        }),
+        sessions: jest.fn(),
+      };
+
+      const result = await resolveActiveSessionForFiles(pd, { session: 'exact-session' });
+
+      expect(result).toEqual({
+        success: true,
+        sessionId: 'exact-session',
+        agentId: 'stored-owner',
+        source: 'explicit-session',
+      });
+      expect(pd.whoami).toHaveBeenCalledWith({ sessionId: 'exact-session' });
+      expect(pd.sessions).not.toHaveBeenCalled();
+    } finally {
+      for (const key of keys) {
+        if (saved[key] === undefined) delete process.env[key];
+        else process.env[key] = saved[key];
+      }
+      rmSync(contextDir, { recursive: true, force: true });
+    }
+  });
+
+  it('suppresses an internally consistent but stale ambient tuple for an explicit session', async () => {
+    const contextDir = mkdtempSync(join(tmpdir(), 'pd-session-stale-ambient-'));
+    const keys = ['PORT_DADDY_CONTEXT_DIR', 'PORT_DADDY_CONTEXT_SLOT', 'PD_AGENT_ID', 'PD_SESSION_ID'];
+    const saved = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
+    try {
+      process.env.PORT_DADDY_CONTEXT_DIR = contextDir;
+      process.env.PORT_DADDY_CONTEXT_SLOT = 'stale-ambient-test';
+      writeCurrentContext({ agentId: 'ambient-agent-a', sessionId: 'ambient-session-a' });
+      process.env.PD_AGENT_ID = 'ambient-agent-a';
+      process.env.PD_SESSION_ID = 'ambient-session-a';
+
+      const pd = {
+        agentId: 'ambient-agent-a',
+        whoami: jest.fn().mockResolvedValue({
+          success: true,
+          active: true,
+          agentId: 'stored-owner-b',
+          sessionId: 'explicit-session-b',
+        }),
+        sessions: jest.fn(),
+      };
+
+      const result = await resolveActiveSessionForFiles(pd, { session: 'explicit-session-b' });
+
+      expect(result).toEqual({
+        success: true,
+        sessionId: 'explicit-session-b',
+        agentId: 'stored-owner-b',
+        source: 'explicit-session',
+      });
+      expect(pd.whoami).toHaveBeenCalledWith({ sessionId: 'explicit-session-b' });
       expect(pd.sessions).not.toHaveBeenCalled();
     } finally {
       for (const key of keys) {

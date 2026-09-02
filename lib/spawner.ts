@@ -272,6 +272,15 @@ export interface SpawnResult {
   coastGuard?: CoastGuardReceipt | null;
   /** Harness session preserved by a validated native-resume launch. */
   harnessSessionId?: string;
+  /** Separate witness for the exact managed-session terminal transition. */
+  managedSession?: ManagedSessionSettlement;
+}
+
+export interface ManagedSessionSettlement {
+  requestedStatus: 'completed' | 'abandoned';
+  outcome: 'succeeded' | 'refused' | 'timed_out';
+  code?: string;
+  error?: string;
 }
 
 export interface SpawnTelemetry {
@@ -305,6 +314,7 @@ export interface SpawnedAgent {
    * manufacture a confinement/egress claim for the operator surface.
    */
   coastGuard?: CoastGuardReceipt;
+  managedSession?: ManagedSessionSettlement;
 }
 
 export interface TelemetryBypassApproval {
@@ -326,6 +336,48 @@ interface AgentRecord extends SpawnedAgent {
    * are rejected 401 without a verified credential.
    */
   actorCredential?: string | null;
+  /** Exact session returned by the managed `/sugar/begin` admission. */
+  coordinationSessionId?: string | null;
+  /** True only after the daemon durably stamped this exact managed session. */
+  managedSessionBound?: boolean;
+  /** Exactly-once terminal write shared by normal finish and kill paths. */
+  managedTerminalPromise?: Promise<Record<string, unknown>> | null;
+  /** Terminal intent chosen before the asynchronous write begins. */
+  managedTerminalStatus?: 'completed' | 'abandoned' | null;
+  /** True once transcript success is decided and the terminal write begins. */
+  terminalStarted?: boolean;
+  /** Cancels admission/binding waits when kill wins before backend start. */
+  lifecycleAbort: AbortController;
+}
+
+export interface ManagedSessionLifecycle {
+  admit(input: {
+    agentId: string;
+    name: string;
+    identity: string | null;
+    purpose: string;
+    pid: number;
+    metadata: Record<string, unknown>;
+    lifecycle: 'ephemeral';
+  }, options: { signal: AbortSignal }): Promise<Record<string, unknown>>;
+  bind(input: {
+    sessionId: string;
+    agentId: string;
+    credential: string;
+  }, options: { signal: AbortSignal }): Promise<Record<string, unknown>>;
+  complete(input: {
+    sessionId: string;
+    agentId: string;
+    credential: string;
+    note: string;
+    status: 'completed' | 'abandoned';
+  }, options: { signal: AbortSignal }): Promise<Record<string, unknown>>;
+  abort(input: {
+    sessionId: string;
+    agentId: string;
+    credential: string;
+    note: string;
+  }, options: { signal: AbortSignal }): Promise<Record<string, unknown>>;
 }
 
 export interface ResolvedSpawnRuntime {
@@ -371,6 +423,16 @@ interface SpawnerDeps {
    * Absent → no publishing (the spawn still runs); same posture as before.
    */
   tubeClient?: TubeClientLike;
+  /**
+   * Daemon-owned exact-session lifecycle for spawned ephemeral agents.
+   * Public `/sugar/done` override booleans are intentionally unavailable;
+   * the live server injects this credential-verifying in-process authority.
+   */
+  managedSessionLifecycle?: ManagedSessionLifecycle;
+  /** Finite daemon coordination deadline; injectable only for deterministic tests. */
+  coordinationTimeoutMs?: number;
+  /** Finite private lifecycle deadline; injectable only for deterministic tests. */
+  managedLifecycleTimeoutMs?: number;
 }
 
 const ANSI_RESET = '\x1b[0m';
@@ -414,6 +476,47 @@ interface PdCoordinateOptions {
   pid?: number | null;
   /** ADR-0040 actor credential to present as `x-actor-credential` (#8877). */
   credential?: string | null;
+  signal?: AbortSignal;
+  timeoutMs?: number;
+}
+
+class CoordinationTimeoutError extends Error {}
+
+function boundedSignal(parent: AbortSignal | undefined, timeoutMs: number): {
+  signal: AbortSignal;
+  cleanup: () => void;
+  timedOut: () => boolean;
+} {
+  const controller = new AbortController();
+  let timeout = false;
+  const onAbort = () => controller.abort(parent?.reason ?? new Error('coordination cancelled'));
+  if (parent?.aborted) onAbort();
+  else parent?.addEventListener('abort', onAbort, { once: true });
+  const timer = setTimeout(() => {
+    timeout = true;
+    controller.abort(new CoordinationTimeoutError(`coordination timed out after ${timeoutMs}ms`));
+  }, timeoutMs);
+  timer.unref?.();
+  return {
+    signal: controller.signal,
+    cleanup: () => {
+      clearTimeout(timer);
+      parent?.removeEventListener('abort', onAbort);
+    },
+    timedOut: () => timeout,
+  };
+}
+
+async function awaitAbortable<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
+  if (signal.aborted) throw signal.reason ?? new Error('coordination cancelled');
+  return await new Promise<T>((resolve, reject) => {
+    const onAbort = () => reject(signal.reason ?? new Error('coordination cancelled'));
+    signal.addEventListener('abort', onAbort, { once: true });
+    promise.then(
+      (value) => { signal.removeEventListener('abort', onAbort); resolve(value); },
+      (error) => { signal.removeEventListener('abort', onAbort); reject(error); },
+    );
+  });
 }
 
 function normalizeCoordinationPid(pid: number | null | undefined): number | undefined {
@@ -445,6 +548,7 @@ function registryPidFor(record: Pick<AgentRecord, 'childProcess'>): number {
  * @returns The parsed JSON response body, or null on any failure.
  */
 async function pdCoordinate(path: string, body: Record<string, unknown>, options: PdCoordinateOptions = {}): Promise<Record<string, unknown> | null> {
+  const bounded = boundedSignal(options.signal, options.timeoutMs ?? 5_000);
   try {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     const pid = normalizeCoordinationPid(options.pid);
@@ -455,15 +559,18 @@ async function pdCoordinate(path: string, body: Record<string, unknown>, options
       method: 'POST',
       headers,
       body: JSON.stringify(body),
+      signal: bounded.signal,
     });
     try {
-      return await res.json() as Record<string, unknown>;
+      return await awaitAbortable(Promise.resolve(res.json()), bounded.signal) as Record<string, unknown>;
     } catch {
       return null;
     }
   } catch {
     // Silent — coordination failures never block spawning
     return null;
+  } finally {
+    bounded.cleanup();
   }
 }
 
@@ -1831,7 +1938,78 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     telemetryBypassApproval,
     runnerOverrides = {},
     tubeClient,
+    managedSessionLifecycle,
+    coordinationTimeoutMs = 5_000,
+    managedLifecycleTimeoutMs = 5_000,
   } = deps;
+
+  async function runManagedOperation(
+    record: AgentRecord,
+    label: string,
+    operation: (options: { signal: AbortSignal }) => Promise<Record<string, unknown>>,
+    options: { cancelOnKill: boolean },
+  ): Promise<{ success: true; value: Record<string, unknown> } | { success: false; timedOut: boolean; error: string }> {
+    const parentSignal = options.cancelOnKill ? record.lifecycleAbort?.signal : undefined;
+    const bounded = boundedSignal(parentSignal, managedLifecycleTimeoutMs);
+    try {
+      const value = await awaitAbortable(Promise.resolve(operation({ signal: bounded.signal })), bounded.signal);
+      return { success: true, value };
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      return {
+        success: false,
+        timedOut: bounded.timedOut(),
+        error: bounded.timedOut() ? `${label} timed out after ${managedLifecycleTimeoutMs}ms` : detail,
+      };
+    } finally {
+      bounded.cleanup();
+    }
+  }
+
+  /**
+   * Commit one exact managed session terminal transition.
+   *
+   * The promise is installed synchronously before the daemon call, so a kill
+   * racing normal completion observes and reuses the same transition. A
+   * session whose binding failed uses the narrower abort path: it still must
+   * present the captured credential for the exact minted session, but it does
+   * not pretend a managed stamp exists.
+   */
+  function settleManagedSession(
+    record: AgentRecord,
+    status: 'completed' | 'abandoned',
+    note: string,
+  ): Promise<Record<string, unknown>> | null {
+    if (!managedSessionLifecycle || !record.actorCredential || !record.coordinationSessionId) return null;
+    if (record.managedTerminalPromise) return record.managedTerminalPromise;
+    record.managedTerminalStatus = status;
+    const exact = {
+      sessionId: record.coordinationSessionId,
+      agentId: record.agentId,
+      credential: record.actorCredential,
+      note,
+    };
+    record.managedTerminalPromise = (async () => {
+      const outcome = await runManagedOperation(
+        record,
+        record.managedSessionBound ? 'managed session completion' : 'managed session abort',
+        (options) => record.managedSessionBound
+          ? managedSessionLifecycle.complete({ ...exact, status }, options)
+          : managedSessionLifecycle.abort(exact, options),
+        { cancelOnKill: false },
+      );
+      if (!outcome.success) {
+        return {
+          success: false,
+          code: outcome.timedOut ? 'MANAGED_SESSION_TIMEOUT' : 'MANAGED_SESSION_ERROR',
+          error: outcome.error,
+          timedOut: outcome.timedOut,
+        };
+      }
+      return outcome.value;
+    })();
+    return record.managedTerminalPromise;
+  }
 
   // ── Transcript helpers ──────────────────────────────────────────────────
   // Fail-loud under enforcement (the daemon's posture): if recording throws,
@@ -2418,6 +2596,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       childProcess: null,
       bondId,
       bondUsd,
+      lifecycleAbort: new AbortController(),
     };
     agents.set(agentId, record);
 
@@ -2472,25 +2651,92 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       identity: spec.identity || null,
       purpose: spec.purpose || spec.task.slice(0, 80),
       metadata: coordinationMetadata,
-    }, { pid: initialRegistryPid });
+    }, { pid: initialRegistryPid, signal: record.lifecycleAbort.signal, timeoutMs: coordinationTimeoutMs });
 
     // PD coordination: start session. Begin is the ADR-0040 mint door: an
     // uncredentialed begin mints this agent's soul and returns its credential
     // ONCE — capture it, because `/sugar/done` (and every other attributed
     // write) rejects without it (#8877 / ADR-0122).
-    const beginResponse = await pdCoordinate('/sugar/begin', {
+    const admissionInput = {
       agentId,
       name: displayName,
-      type: 'spawned',
       pid: initialRegistryPid,
       identity: spec.identity || null,
       purpose: spec.purpose || spec.task.slice(0, 80),
-      lifecycle: 'ephemeral',
+      lifecycle: 'ephemeral' as const,
       metadata: coordinationMetadata,
-    }, { pid: initialRegistryPid });
+    };
+    let beginResponse: Record<string, unknown> | null = null;
+    let managedSessionBindingError: string | null = null;
+    let managedAdmissionTimedOut = false;
+    if (record.status !== 'killed') {
+      if (managedSessionLifecycle) {
+        const admission = await runManagedOperation(
+          record,
+          'managed session admission',
+          (options) => managedSessionLifecycle.admit(admissionInput, options),
+          { cancelOnKill: true },
+        );
+        if (!admission.success) {
+          managedSessionBindingError = admission.error;
+          managedAdmissionTimedOut = admission.timedOut;
+        } else if (admission.value.success !== true) {
+          managedSessionBindingError = typeof admission.value.error === 'string'
+            ? admission.value.error
+            : 'managed spawn admission was refused';
+        } else {
+          beginResponse = admission.value;
+        }
+      } else {
+        beginResponse = await pdCoordinate('/sugar/begin', {
+          ...admissionInput,
+          type: 'spawned',
+        }, {
+          pid: initialRegistryPid,
+          signal: record.lifecycleAbort.signal,
+          timeoutMs: coordinationTimeoutMs,
+        });
+      }
+    }
     record.actorCredential = typeof beginResponse?.credential === 'string'
       ? beginResponse.credential
       : null;
+    record.coordinationSessionId = typeof beginResponse?.sessionId === 'string'
+      ? beginResponse.sessionId
+      : null;
+    if (managedSessionLifecycle) {
+      if (record.status === 'killed') {
+        // If admission already returned an exact receipt, cleanup below uses
+        // abort. If kill won earlier, no session was minted and there is
+        // deliberately nothing to bind or infer.
+      } else if (managedSessionBindingError) {
+        // Preserve the admission refusal/timeout as the root cause.
+      } else if (!record.actorCredential || !record.coordinationSessionId) {
+        managedSessionBindingError = 'managed spawn admission did not return an exact session and actor credential';
+      } else {
+        const sessionId = record.coordinationSessionId;
+        const credential = record.actorCredential;
+        const binding = await runManagedOperation(
+          record,
+          'managed session binding',
+          (options) => managedSessionLifecycle.bind({
+            sessionId,
+            agentId,
+            credential,
+          }, options),
+          { cancelOnKill: true },
+        );
+        if (!binding.success) {
+          managedSessionBindingError = binding.error;
+        } else if (binding.value.success !== true) {
+          managedSessionBindingError = typeof binding.value.error === 'string'
+            ? binding.value.error
+            : 'managed spawn session binding was refused';
+        } else {
+          record.managedSessionBound = true;
+        }
+      }
+    }
 
     // Start heartbeat interval
     record.heartbeatInterval = setInterval(async () => {
@@ -2527,6 +2773,12 @@ export function createSpawner(deps: SpawnerDeps = {}) {
         throw new Error(
           `Spawn refused: ${transcriptStartError}. A backend must not run unless its conversation is recorded.`,
         );
+      }
+      if (managedSessionBindingError) {
+        throw new Error(`Spawn refused: ${managedSessionBindingError}. Managed session authority must be bound before backend execution.`);
+      }
+      if (record.status === 'killed') {
+        throw new Error('Killed by spawner before backend execution');
       }
       const executionSpec: SpawnSpec = {
         ...spec,
@@ -2684,7 +2936,6 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     const completedAt = record.completedAt ?? Date.now();
     let status: SpawnResult['status'] = wasKilled ? 'killed' : budgetOverrunError ? 'over_budget' : error ? 'failed' : 'completed';
 
-    record.status = status;
     record.completedAt = completedAt;
     record.childProcess = null;
     // The result already carries this receipt, but the daemon's /spawn history
@@ -2700,20 +2951,6 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     if (enteredHarborName && harbors) {
       try { harbors.leaveAll(agentId); } catch {}
       enteredHarborName = null;
-    }
-
-    if (!wasKilled) {
-      const doneNote = error ? `Failed: ${error.slice(0, 200)}` : `Completed: ${(output || '').slice(0, 200)}`;
-      // Spawner-managed agents bypass the pd-done origin-push rule: they
-      // are ephemeral workflow agents whose lifetime is tied to a
-      // subprocess, not a feature branch. The override marker makes the
-      // bypass auditable in session notes.
-      await pdCoordinate('/sugar/done', {
-        agentId,
-        note: doneNote,
-        skipOriginCheck: true,
-        skipOriginCheckReason: 'spawner-managed agent — lifecycle is subprocess, not feature branch',
-      }, { credential: record.actorCredential });
     }
 
     // Record the conversation + finalize transcript. Order matters: we append
@@ -2781,6 +3018,56 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       try { txFinalize(transcriptId, 'failed', completedAt, telemetry, error); } catch { /* row may be unreachable; the SpawnResult already reports failed */ }
     }
 
+    // Session terminal state is the LAST success gate. In particular, an
+    // enforced transcript append/finalize failure above must turn a would-be
+    // completion into abandonment before the durable session is closed.
+    const terminalStatus: 'completed' | 'abandoned' = wasKilled || error ? 'abandoned' : 'completed';
+    const terminalNote = wasKilled
+      ? 'Killed by spawner'
+      : error
+        ? `Failed: ${error.slice(0, 200)}`
+        : `Completed: ${(output || '').slice(0, 200)}`;
+    record.terminalStarted = true;
+    let managedSettlement: ManagedSessionSettlement | undefined;
+    if (managedSessionLifecycle && record.actorCredential && record.coordinationSessionId) {
+      const terminal = settleManagedSession(record, terminalStatus, terminalNote);
+      const completion = terminal ? await terminal : null;
+      if (completion?.success === true) {
+        managedSettlement = { requestedStatus: terminalStatus, outcome: 'succeeded' };
+      } else {
+        const timedOut = completion?.timedOut === true || completion?.code === 'MANAGED_SESSION_TIMEOUT';
+        managedSettlement = {
+          requestedStatus: terminalStatus,
+          outcome: timedOut ? 'timed_out' : 'refused',
+          ...(typeof completion?.code === 'string' ? { code: completion.code } : {}),
+          error: typeof completion?.error === 'string'
+            ? completion.error
+            : 'managed terminal transition was refused',
+        };
+      }
+    } else if (managedSessionLifecycle) {
+      managedSettlement = {
+        requestedStatus: terminalStatus,
+        outcome: managedAdmissionTimedOut ? 'timed_out' : 'refused',
+        code: managedAdmissionTimedOut ? 'MANAGED_SESSION_TIMEOUT' : 'MANAGED_SESSION_ADMISSION_FAILED',
+        error: managedSessionBindingError
+          ?? (wasKilled ? 'killed before managed session admission completed' : 'managed admission returned no exact session'),
+      };
+    } else {
+      // Non-daemon/test constructions have no privileged lifecycle seam.
+      // Use the ordinary exact-session path with no override semantics. The
+      // spawn continuation owns this call for both finish and kill so that
+      // transcript finalization always precedes the terminal mutation.
+      await pdCoordinate('/sugar/done', {
+        agentId,
+        sessionId: record.coordinationSessionId,
+        note: terminalNote,
+        status: terminalStatus,
+      }, { credential: record.actorCredential, timeoutMs: coordinationTimeoutMs });
+    }
+    if (managedSettlement) record.managedSession = managedSettlement;
+    record.status = wasKilled ? 'killed' : status;
+
     // Resolve bond. Clean exit → full refund; error → slash full bond with reason.
     // Why slash on any error: an error means the spawn didn't do its job; the
     // commons pool absorbs the cost so the operator doesn't eat it silently.
@@ -2832,6 +3119,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       startedAt,
       completedAt,
       coastGuard: coastGuardReceipt,
+      ...(managedSettlement ? { managedSession: managedSettlement } : {}),
       ...(spec.nativeResume ? { harnessSessionId: spec.nativeResume.sessionId } : {}),
     };
   }
@@ -2857,6 +3145,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       startedAt: r.startedAt,
       completedAt: r.completedAt,
       ...(r.coastGuard ? { coastGuard: r.coastGuard } : {}),
+      ...(r.managedSession ? { managedSession: r.managedSession } : {}),
     }));
   }
 
@@ -2865,7 +3154,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
    */
   function kill(agentId: string): void {
     const record = agents.get(agentId);
-    if (!record) return;
+    if (!record || record.status !== 'running' || record.terminalStarted) return;
 
     // Clean up heartbeat
     if (record.heartbeatInterval) {
@@ -2883,6 +3172,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     }
 
     record.status = 'killed';
+    record.lifecycleAbort?.abort(new Error('killed by spawner'));
     record.completedAt = Date.now();
     counters?.bump('spawn.killed', metricDims(record.backend, record.model, record.identity));
 
@@ -2897,30 +3187,10 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       } catch {}
     }
 
-    // PD coordination: done (fire-and-forget)
-    pdCoordinate('/sugar/done', {
-      agentId,
-      note: 'Killed by spawner',
-      status: 'abandoned',
-      skipOriginCheck: true,
-      skipOriginCheckReason: 'spawner-managed agent killed by operator',
-    }, { credential: record.actorCredential }).catch(() => {});
-
-    // Finalize any open transcript for this agent. We don't keep the
-    // transcriptId on the AgentRecord (to avoid a circular type dep on the
-    // public SpawnedAgent shape), so kill() finalizes by spawned_agent_id.
-    if (transcripts) {
-      try {
-        const open = transcripts.listTranscripts({ agentId, status: 'running', limit: 1 });
-        for (const tx of open) {
-          transcripts.finalize(tx.id, {
-            status: 'killed',
-            ended_at: Date.now(),
-            error: 'Killed by spawner',
-          });
-        }
-      } catch { /* swallow */ }
-    }
+    // The spawn continuation owns transcript finalization and the one exact
+    // session terminal write. Keeping kill synchronous and side-effect-limited
+    // prevents a race where the session is abandoned before its evidence row
+    // is finalized or both kill and normal finish write terminal states.
   }
 
   return { spawn, list, kill };

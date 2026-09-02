@@ -189,10 +189,6 @@ import {
 } from '../cli/utils/remote-daemon.js';
 import { maybeNudgeStaleness } from '../cli/utils/staleness-nudge.js';
 import { readCurrentContext } from '../cli/utils/current-context.js';
-import {
-  attachCliSessionWorktreePolicy,
-  resolveCliSessionWorktreePolicy,
-} from '../cli/utils/session-worktree-policy.js';
 import { requireConfirmation, DESTRUCTIVE_EXIT_CODE } from '../cli/utils/destructive-confirm.js';
 import { resolveTier, tierBadge, TIER_LEGEND, type Tier } from '../cli/permission-tiers.js';
 
@@ -214,11 +210,10 @@ const TIER_1_COMMANDS: Set<string> = new Set([
   'claim', 'c',
   'release', 'r',
   'find', 'f', 'list', 'l', 'ps',
-  'lock', 'unlock', 'locks',
+  'locks',
   'status', 'version',
   'ports',               // 'ports cleanup' is Tier 1
-  'session', 'sessions', 'takeover',
-  'note', 'notes',
+  'sessions', 'notes',
 ]);
 
 const TIER_2_COMMANDS: Set<string> = new Set([
@@ -229,7 +224,11 @@ const TIER_2_COMMANDS: Set<string> = new Set([
   'advise', 'preflight', 'compass', 'guard',
   'metrics', 'health', 'dashboard',
   'bench', 'benchmark', 'demo', 'tuple', 'sortie', 'roadmap',
-  'secret', 'secrets', 'jury-rig', 'plan'
+  'secret', 'secrets', 'jury-rig', 'plan',
+  // Session and note writes require the daemon's credential verifier and
+  // exact-owner policy. Direct SQLite is a read-only recovery surface for
+  // this state; it must never become a second identity authority.
+  'session', 'takeover', 'note', 'lock', 'unlock'
 ]);
 
 /**
@@ -1793,113 +1792,6 @@ async function executeDirectMode(
       return true;
     }
 
-    case 'lock': {
-      const name = positional[0];
-      const lk = getDirectLocks();
-
-      // Handle 'lock extend'
-      if (name === 'extend') {
-        const extArgs = process.argv.slice(process.argv.indexOf('extend') + 1);
-        let extName: string | undefined;
-        let extTtl: string | undefined;
-        for (let i = 0; i < extArgs.length; i++) {
-          if (extArgs[i] === '--ttl' && extArgs[i + 1]) {
-            extTtl = extArgs[++i];
-          } else if (!extArgs[i].startsWith('-') && !extName) {
-            extName = extArgs[i];
-          }
-        }
-        if (!extName) {
-          console.error('Usage: port-daddy lock extend <name> [--ttl <ms>]');
-          process.exit(1);
-        }
-
-        const result = lk.extend(extName, {
-          ttl: extTtl ? parseInt(extTtl, 10) : 300000,
-          owner: options.owner as string | undefined,
-        });
-
-        if (!result.success) {
-          ui.error(result.error || 'Failed to extend lock');
-          process.exit(1);
-        }
-        if (options.json) {
-          console.log(JSON.stringify(result, null, 2));
-        } else if (!options.quiet) {
-          console.log(`Extended lock: ${extName}`);
-        }
-        return true;
-      }
-
-      if (!name) {
-        console.error('Usage: port-daddy lock <name> [--ttl <ms>] [--owner <id>]');
-        process.exit(1);
-      }
-
-      const result = lk.acquire(name, {
-        owner: options.owner as string | undefined,
-        ttl: options.ttl ? parseInt(options.ttl as string, 10) : 300000,
-        pid: process.pid,
-      });
-
-      if (!result.success) {
-        if (result.error === 'lock is held') {
-          console.error(`Lock '${name}' is held by ${result.holder}`);
-          if (result.heldSince) console.error(`  Held since: ${new Date(result.heldSince as number).toISOString()}`);
-          if (result.expiresAt) {
-            const remaining = Math.max(0, (result.expiresAt as number) - Date.now());
-            console.error(`  Expires in: ${Math.ceil(remaining / 1000)}s`);
-          }
-          process.exit(1);
-        }
-        ui.error(result.error || 'Failed to acquire lock');
-        process.exit(1);
-      }
-
-      if (options.json) {
-        console.log(JSON.stringify(result, null, 2));
-      } else if (options.quiet) {
-        // Silent success for scripting
-      } else {
-        ui.success(`Acquired lock: ${name}`);
-        if (result.expiresAt) {
-          const ttlSeconds = Math.ceil(((result.expiresAt as number) - (result.acquiredAt as number)) / 1000);
-          console.log(`  TTL: ${ttlSeconds}s`);
-        }
-      }
-      return true;
-    }
-
-    case 'unlock': {
-      const name = positional[0];
-      if (!name) {
-        console.error('Usage: port-daddy unlock <name> [--force]');
-        process.exit(1);
-      }
-
-      const lk = getDirectLocks();
-      const result = lk.release(name, {
-        owner: options.owner as string | undefined,
-        force: options.force === true,
-      });
-
-      if (!result.success) {
-        ui.error(result.error || 'Failed to release lock');
-        process.exit(1);
-      }
-
-      if (options.json) {
-        console.log(JSON.stringify(result, null, 2));
-      } else if (!options.quiet) {
-        if (result.released) {
-          ui.success(`Released lock: ${name}`);
-        } else {
-          ui.warn(`Lock '${name}' was not held`);
-        }
-      }
-      return true;
-    }
-
     case 'locks': {
       const lk = getDirectLocks();
       const result = lk.list();
@@ -1988,279 +1880,6 @@ async function executeDirectMode(
       return true;
     }
 
-    case 'session': {
-      const subcommand = positional[0];
-      const rest = positional.slice(1);
-      const sess = getDirectSessions();
-
-      if (!subcommand) {
-        console.error('Usage: port-daddy session <start|end|done|abandon|takeover|rm> [args]');
-        process.exit(1);
-      }
-
-      switch (subcommand) {
-        case 'start': {
-          const purpose = rest[0];
-          if (!purpose) {
-            console.error('Usage: port-daddy session start <purpose> --lifecycle durable|ephemeral [--agent AGENT_ID] [--force]');
-            process.exit(1);
-          }
-
-          const lifecycle = typeof options.lifecycle === 'string' ? options.lifecycle.trim().toLowerCase() : '';
-          if (lifecycle !== 'durable' && lifecycle !== 'ephemeral') {
-            console.error('Usage: port-daddy session start <purpose> --lifecycle durable|ephemeral [--agent AGENT_ID] [--force]');
-            process.exit(1);
-          }
-
-          const startOpts: Record<string, unknown> = {};
-          const current = readCurrentSession();
-          const agentId = typeof options.agent === 'string'
-            ? options.agent
-            : current?.agentId || `cli-${process.pid}`;
-          if (agentId) startOpts.agentId = agentId;
-          if (options.force) startOpts.force = true;
-          startOpts.durable = lifecycle === 'durable';
-
-          // Collect files: --files may appear as a single string (one occurrence)
-          // or an array (repeated --files flags). Positional tail also accepted.
-          const files: string[] = [];
-          if (typeof options.files === 'string') files.push(options.files);
-          else if (Array.isArray(options.files)) files.push(...(options.files as string[]));
-          for (let i = 1; i < rest.length; i++) {
-            if (!rest[i].startsWith('-')) files.push(rest[i]);
-          }
-          if (files.length > 0) startOpts.files = files;
-
-          const worktreePolicy = resolveCliSessionWorktreePolicy(options);
-          if (!worktreePolicy.success) {
-            ui.error(worktreePolicy.error || 'Session worktree policy failed');
-            if (worktreePolicy.hint) console.error(`  ${worktreePolicy.hint}`);
-            process.exit(1);
-          }
-          attachCliSessionWorktreePolicy(startOpts, worktreePolicy);
-          if (worktreePolicy.worktree) startOpts.worktreeId = worktreePolicy.worktree.id;
-
-          const result = sess.start(purpose, startOpts as Parameters<typeof sess.start>[1]);
-
-          if (!(result as Record<string, unknown>).success) {
-            console.error((result as Record<string, unknown>).error || 'Failed to start session');
-            process.exit(1);
-          }
-
-          // sessions.start() returns 'id' not 'sessionId'
-          const sessionId = (result as Record<string, unknown>).id;
-          if (options.json) {
-            console.log(JSON.stringify(result, null, 2));
-          } else if (options.quiet) {
-            console.log(sessionId);
-          } else {
-            ui.success(`Started session: ${sessionId}`);
-            console.log(`  Purpose: ${purpose}`);
-            if (files.length > 0) console.log(`  Files claimed: ${files.length}`);
-          }
-          break;
-        }
-
-        case 'end':
-        case 'done': {
-          const note = rest[0];
-          const status = (options.status as string) || 'completed';
-
-          // Find active session
-          const listResult = sess.list({ status: 'active', limit: 1 });
-          const sessionsList = (listResult as Record<string, unknown>).sessions as Array<{ id: string }>;
-          if (!sessionsList || sessionsList.length === 0) {
-            ui.error('No active session found');
-            process.exit(1);
-          }
-
-          const sessionId = sessionsList[0].id;
-          const endOpts: Record<string, unknown> = { status };
-          if (note) endOpts.note = note;
-
-          const result = sess.end(sessionId, endOpts as Parameters<typeof sess.end>[1]);
-
-          if (!result.success) {
-            ui.error(result.error || 'Failed to end session');
-            process.exit(1);
-          }
-
-          if (options.json) {
-            console.log(JSON.stringify({ success: true, id: sessionId, status }, null, 2));
-          } else if (!options.quiet) {
-            ui.success(`Ended session: ${sessionId}`);
-            console.log(`  Status: ${status}`);
-          }
-          break;
-        }
-
-        case 'abandon': {
-          const note = rest[0];
-
-          const listResult = sess.list({ status: 'active', limit: 1 });
-          const sessionsList = (listResult as Record<string, unknown>).sessions as Array<{ id: string }>;
-          if (!sessionsList || sessionsList.length === 0) {
-            ui.error('No active session found');
-            process.exit(1);
-          }
-
-          const sessionId = sessionsList[0].id;
-          const result = sess.abandon(sessionId);
-
-          if (!result.success) {
-            ui.error(result.error || 'Failed to abandon session');
-            process.exit(1);
-          }
-
-          if (options.json) {
-            console.log(JSON.stringify({ success: true, id: sessionId, status: 'abandoned' }, null, 2));
-          } else if (!options.quiet) {
-            ui.warn(`Abandoned session: ${sessionId}`);
-          }
-          break;
-        }
-
-        case 'takeover': {
-          const sessionId = rest[0];
-          if (!sessionId) {
-            console.error('Usage: port-daddy session takeover <id> [note]');
-            process.exit(1);
-          }
-
-          const current = readCurrentSession();
-          const agentId = typeof options.agent === 'string'
-            ? options.agent
-            : current?.agentId || `cli-${process.pid}`;
-          const takeoverOpts: Record<string, unknown> = {
-            agentId,
-            note: rest.slice(1).join(' ') || undefined,
-            purpose: typeof options.purpose === 'string' ? options.purpose : undefined,
-            claimFiles: !(options['no-files'] || options['no-claims']),
-          };
-
-          const lifecycle = typeof options.lifecycle === 'string' ? options.lifecycle.trim().toLowerCase() : '';
-          if (lifecycle) {
-            if (lifecycle !== 'durable' && lifecycle !== 'ephemeral') {
-              console.error('Usage: port-daddy session takeover <id> [note] --lifecycle durable|ephemeral');
-              process.exit(1);
-            }
-            takeoverOpts.durable = lifecycle === 'durable';
-          }
-
-          const worktreePolicy = resolveCliSessionWorktreePolicy(options);
-          if (!worktreePolicy.success) {
-            ui.error(worktreePolicy.error || 'Session worktree policy failed');
-            if (worktreePolicy.hint) console.error(`  ${worktreePolicy.hint}`);
-            process.exit(1);
-          }
-          attachCliSessionWorktreePolicy(takeoverOpts, worktreePolicy);
-          if (worktreePolicy.worktree) takeoverOpts.worktreeId = worktreePolicy.worktree.id;
-
-          const result = sess.takeover(sessionId, takeoverOpts as Parameters<typeof sess.takeover>[1]);
-          if (!result.success) {
-            ui.error(typeof result.error === 'string' ? result.error : 'Failed to take over session');
-            process.exit(1);
-          }
-
-          if (options.json) {
-            console.log(JSON.stringify(result, null, 2));
-          } else if (options.quiet) {
-            console.log(result.successorId);
-          } else {
-            ui.success(`Took over session: ${sessionId}`);
-            console.log(`  Successor: ${result.successorId}`);
-            console.log('  Notes preserved: yes');
-          }
-          break;
-        }
-
-        case 'rm': {
-          const sessionId = rest[0];
-          if (!sessionId) {
-            console.error('Usage: port-daddy session rm <id>');
-            process.exit(1);
-          }
-
-          const result = sess.remove(sessionId);
-          if (!result.success) {
-            console.error(result.error || 'Failed to archive session');
-            process.exit(1);
-          }
-
-          if (options.json) {
-            console.log(JSON.stringify(result, null, 2));
-          } else if (!options.quiet) {
-            console.log(`Archived session: ${sessionId}`);
-            console.log('  Notes preserved: yes');
-          }
-          break;
-        }
-
-        case 'files': {
-          const rawFilesCmd = rest[0];
-          const filesCmd = rawFilesCmd === 'claim'
-            ? 'add'
-            : rawFilesCmd === 'release'
-              ? 'rm'
-              : rawFilesCmd;
-          if (!filesCmd || !['add', 'rm'].includes(filesCmd)) {
-            console.error('Usage: port-daddy session files <add|rm> <paths...>');
-            console.error('       Compatibility aliases: claim -> add, release -> rm');
-            process.exit(1);
-          }
-
-          const paths = rest.slice(1);
-          if (paths.length === 0) {
-            console.error(`Usage: port-daddy session files ${filesCmd} <paths...>`);
-            process.exit(1);
-          }
-
-          const current = readCurrentSession();
-          const agentId = typeof options.agent === 'string'
-            ? options.agent
-            : current?.agentId || `cli-${process.pid}`;
-          const listResult = sess.list({ status: 'active', agentId, limit: 1 });
-          const sessionsList = (listResult as Record<string, unknown>).sessions as Array<{ id: string }>;
-          if (!sessionsList || sessionsList.length === 0) {
-            console.error('No active session found');
-            process.exit(1);
-          }
-
-          const sessionId = sessionsList[0].id;
-
-          if (filesCmd === 'add') {
-            const result = sess.claimFiles(sessionId, paths, { agentId });
-            if (!(result as Record<string, unknown>).success) {
-              console.error((result as Record<string, unknown>).error || 'Failed to claim files');
-              process.exit(1);
-            }
-            if (options.json) {
-              console.log(JSON.stringify(result, null, 2));
-            } else if (!options.quiet) {
-              console.log(`Claimed ${paths.length} file(s) in session ${sessionId}`);
-            }
-          } else {
-            const result = sess.releaseFiles(sessionId, paths, { agentId });
-            if (!(result as Record<string, unknown>).success) {
-              console.error((result as Record<string, unknown>).error || 'Failed to release files');
-              process.exit(1);
-            }
-            if (options.json) {
-              console.log(JSON.stringify(result, null, 2));
-            } else if (!options.quiet) {
-              console.log(`Released file(s) from session ${sessionId}`);
-            }
-          }
-          break;
-        }
-
-        default:
-          console.error(`Unknown session command: ${subcommand}`);
-          process.exit(1);
-      }
-      return true;
-    }
-
     case 'sessions': {
       const sess = getDirectSessions();
       const listOpts: Record<string, unknown> = {};
@@ -2320,65 +1939,6 @@ async function executeDirectMode(
       }
       console.log('');
       console.log(`Total: ${count} session(s)`);
-      return true;
-    }
-
-    case 'note': {
-      const content = positional[0];
-      if (!content) {
-        console.error('Usage: port-daddy note <content> [--type TYPE]');
-        process.exit(1);
-      }
-
-      const sess = getDirectSessions();
-      const context = readCurrentContext();
-      const noteOpts: Record<string, unknown> = {};
-      if (options.type) noteOpts.type = options.type;
-      const explicitSessionId = typeof options.session === 'string' ? options.session : undefined;
-      const explicitAgentId = typeof options.agent === 'string' ? options.agent : undefined;
-      let sessionId = explicitSessionId;
-      let agentId = explicitAgentId;
-
-      if (!sessionId && !explicitAgentId && context?.sessionId) {
-        const currentSession = sess.get(context.sessionId) as { success?: boolean };
-        if (currentSession?.success) {
-          sessionId = context.sessionId;
-          agentId = context.agentId;
-        }
-      }
-
-      if (!sessionId && !agentId && context?.agentId) {
-        const activeForAgent = sess.list({
-          status: 'active',
-          agentId: context.agentId,
-          allWorktrees: true,
-          limit: 1,
-        }) as { success?: boolean; sessions?: unknown[] };
-        if (activeForAgent?.success && Array.isArray(activeForAgent.sessions) && activeForAgent.sessions.length > 0) {
-          agentId = context.agentId;
-        }
-      }
-
-      if (sessionId) noteOpts.sessionId = sessionId;
-      if (agentId) noteOpts.agentId = agentId;
-
-      const result = sess.quickNote(content, noteOpts as Parameters<typeof sess.quickNote>[1]);
-      const data = result as Record<string, unknown>;
-
-      if (!data.success) {
-        console.error(data.error || 'Failed to create note');
-        process.exit(1);
-      }
-
-      if (options.quiet) {
-        console.log(data.noteId);
-      } else {
-        console.log(`Created note: ${data.noteId}`);
-        console.log(`  Session: ${data.sessionId}`);
-        if (data.sessionCreated) {
-          console.log(`  (New session auto-created)`);
-        }
-      }
       return true;
     }
 

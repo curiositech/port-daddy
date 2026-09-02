@@ -321,17 +321,28 @@ interface DoneOptions {
   sessionId?: string;
   note?: string;
   status?: string;
-  /**
-   * Operator escape hatch. When true, the origin-push + result-note
-   * preconditions are skipped. `skipOriginCheckReason` is REQUIRED — the
-   * override is loud (the final note gets a [OPERATOR-OVERRIDE] prefix).
-   */
+  /** Rejected on the public boundary; retained only for a structured compatibility error. */
   skipOriginCheck?: boolean;
   skipOriginCheckReason?: string;
   noPr?: boolean;
   subtask?: boolean;
   forceIncomplete?: boolean;
   forceIncompleteReason?: string;
+}
+
+interface ManagedSessionBindingOptions {
+  sessionId: string;
+  agentId: string;
+  actorId: string;
+}
+
+interface ManagedSessionCompletionOptions extends ManagedSessionBindingOptions {
+  note?: string;
+  status?: 'completed' | 'abandoned';
+}
+
+interface ManagedSessionAbortOptions extends ManagedSessionBindingOptions {
+  note?: string;
 }
 
 interface WhoamiOptions {
@@ -456,7 +467,43 @@ export function createSugar(deps: SugarDeps) {
     return rows.map((row) => ({
       sessionId: typeof row.id === 'string' ? row.id : '<unknown>',
       worktreeId: typeof row.worktreeId === 'string' ? row.worktreeId : null,
+      status: typeof row.status === 'string' ? row.status : null,
+      lifecycle: row.durable === true || row.is_durable === true || row.is_durable === 1
+        ? 'durable'
+        : 'ephemeral',
     }));
+  }
+
+  /**
+   * Read the daemon-owned actor id from a session metadata envelope.
+   *
+   * Purpose: automatic resume is a mutation, not a search convenience. Both
+   * the incoming begin request and the stored session must carry verified
+   * identity stamps before the service may reuse claims or rewrite rent
+   * metadata; display aliases alone are never ownership proof.
+   *
+   * @param value - Session or request metadata in parsed or serialized form.
+   * @returns The verified stamped actor id, or null when unavailable/malformed.
+   */
+  function verifiedActorIdFromMetadata(value: unknown): string | null {
+    let metadata: Record<string, unknown> | null = null;
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      metadata = value as Record<string, unknown>;
+    } else if (typeof value === 'string') {
+      try {
+        const parsed = JSON.parse(value) as unknown;
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          metadata = parsed as Record<string, unknown>;
+        }
+      } catch {}
+    }
+    const rawIdentity = metadata?.identity;
+    const identity = rawIdentity && typeof rawIdentity === 'object' && !Array.isArray(rawIdentity)
+      ? rawIdentity as Record<string, unknown>
+      : null;
+    return identity?.verified === true && typeof identity.actorId === 'string' && identity.actorId.trim()
+      ? identity.actorId.trim()
+      : null;
   }
 
   /**
@@ -494,7 +541,7 @@ export function createSugar(deps: SugarDeps) {
       agentName: cleanAgentDisplayName(agent?.name) || null,
       name: cleanAgentDisplayName(agent?.name) || null,
       worktreeId: typeof session.worktreeId === 'string' ? session.worktreeId : null,
-      hint: `Session "${session.id as string}" is a dormant durable context. Use pd begin to resume or take it over explicitly.`,
+      hint: `Session "${session.id as string}" is a dormant durable context. Continue it explicitly with: pd session takeover ${session.id as string}`,
     };
   }
 
@@ -678,169 +725,97 @@ export function createSugar(deps: SugarDeps) {
         active && typeof active === 'object' && Array.isArray((active as { sessions?: unknown[] }).sessions)
           ? ((active as { sessions: Array<Record<string, unknown>> }).sessions)
           : [];
-      // Match on the EXACT full identity, not just the project: two identities
-      // that share a project but differ by stack/context (demo:test:alpha vs
-      // demo:test:beta) must NOT collapse. identityProject is a cheap pre-filter;
-      // the agent's full identity is the real key.
-      let match: Record<string, unknown> | undefined;
-      let matchAgent: { identity?: unknown; timeSinceHeartbeat?: unknown } | undefined;
-      for (const s of activeRows) {
-        if (!s || s.identityProject !== resumeProject || typeof s.agentId !== 'string') continue;
-        
-        // `identityString`, not `identity`: the latter is the daemon's
-        // reserved identity-verdict slot (lib/identity-write-boundary.ts).
+      // Match on the exact full identity, never merely the project prefix.
+      // Closed history is deliberately projected as candidates rather than
+      // auto-selected: only an exact `pd session takeover <id>` may create
+      // lineage from a dormant/completed predecessor.
+      const matchingIdentity = (row: Record<string, unknown>) => {
+        if (!row || row.identityProject !== resumeProject || typeof row.agentId !== 'string') return null;
         let storedIdentity: string | null = null;
-        if (s.metadata && typeof s.metadata === 'object') {
-          const metaObj = s.metadata as Record<string, unknown>;
-          if (typeof metaObj.identityString === 'string') {
-            storedIdentity = metaObj.identityString;
-          }
-        } else if (s.metadata && typeof s.metadata === 'string') {
+        const rawMetadata = row.metadata;
+        if (rawMetadata && typeof rawMetadata === 'object') {
+          const metadata = rawMetadata as Record<string, unknown>;
+          storedIdentity = typeof metadata.identityString === 'string' ? metadata.identityString : null;
+        } else if (typeof rawMetadata === 'string') {
           try {
-            const parsed = JSON.parse(s.metadata);
-            if (parsed && typeof parsed.identityString === 'string') {
-              storedIdentity = parsed.identityString;
-            }
-          } catch (e) {}
+            const metadata = JSON.parse(rawMetadata) as Record<string, unknown>;
+            storedIdentity = typeof metadata.identityString === 'string' ? metadata.identityString : null;
+          } catch {}
         }
+        const agentResult = agents.get(row.agentId) as { agent?: { identity?: unknown; timeSinceHeartbeat?: unknown } };
+        const agent = agentResult?.agent;
+        return storedIdentity === identity || agent?.identity === identity ? { row, agent } : null;
+      };
+      const stableMatches = (rows: Array<Record<string, unknown>>) => rows
+        .map(matchingIdentity)
+        .filter((entry): entry is { row: Record<string, unknown>; agent: { identity?: unknown; timeSinceHeartbeat?: unknown } | undefined } => Boolean(entry))
+        .sort((left, right) => {
+          const leftStarted = typeof left.row.createdAt === 'number' ? left.row.createdAt : 0;
+          const rightStarted = typeof right.row.createdAt === 'number' ? right.row.createdAt : 0;
+          if (leftStarted !== rightStarted) return rightStarted - leftStarted;
+          return String(left.row.id || '').localeCompare(String(right.row.id || ''));
+        });
 
-        if (storedIdentity === identity) {
-          match = s;
-          const agentResult = agents.get(s.agentId) as { agent?: { identity?: unknown; timeSinceHeartbeat?: unknown } };
-          if (agentResult && agentResult.agent) matchAgent = agentResult.agent;
-          break;
-        }
-
-        // Fallback to agent roster
-        const agentResult = agents.get(s.agentId) as { agent?: { identity?: unknown; timeSinceHeartbeat?: unknown } };
-        if (agentResult && agentResult.agent && agentResult.agent.identity === identity) {
-          match = s;
-          matchAgent = agentResult.agent;
-          break;
-        }
+      const activeMatches = stableMatches(activeRows);
+      if (activeMatches.length > 1) {
+        return {
+          success: false,
+          code: 'AMBIGUOUS_ACTIVE_SESSION',
+          error: `Identity "${identity}" has multiple active sessions in this worktree; select one exact session.`,
+          candidates: projectSessionCandidates(activeMatches.map((entry) => entry.row)),
+        };
       }
 
-      if (!match) {
-        // Fall back to recently closed (completed or abandoned) sessions of the same identity in the same worktree
+      if (activeMatches.length === 0) {
         const listOptsClosed: Record<string, unknown> = { allWorktrees: false, limit: 50 };
         if (worktreePolicy.worktree) listOptsClosed.worktreeId = worktreePolicy.worktree.id;
         const allSessions = sessions.list(listOptsClosed);
-        const allRows: Array<Record<string, unknown>> =
-          allSessions && typeof allSessions === 'object' && Array.isArray((allSessions as { sessions?: unknown[] }).sessions)
-            ? ((allSessions as { sessions: Array<Record<string, unknown>> }).sessions)
-            : [];
-        for (const s of allRows) {
-          if (!s || s.status === 'active' || s.identityProject !== resumeProject || typeof s.agentId !== 'string') {
-            continue;
-          }
-
-          // `identityString`, not `identity`: the latter is the daemon's
-          // reserved identity-verdict slot (lib/identity-write-boundary.ts).
-          let storedIdentity: string | null = null;
-          if (s.metadata && typeof s.metadata === 'object') {
-            const metaObj = s.metadata as Record<string, unknown>;
-            if (typeof metaObj.identityString === 'string') {
-              storedIdentity = metaObj.identityString;
-            }
-          } else if (s.metadata && typeof s.metadata === 'string') {
-            try {
-              const parsed = JSON.parse(s.metadata);
-              if (parsed && typeof parsed.identityString === 'string') {
-                storedIdentity = parsed.identityString;
-              }
-            } catch (e) {}
-          }
-
-          if (storedIdentity === identity) {
-            match = s;
-            const agentResult = agents.get(s.agentId) as { agent?: { identity?: unknown; timeSinceHeartbeat?: unknown } };
-            if (agentResult && agentResult.agent) matchAgent = agentResult.agent;
-            break;
-          }
-
-          // Fallback to agent roster
-          const agentResult = agents.get(s.agentId) as { agent?: { identity?: unknown; timeSinceHeartbeat?: unknown } };
-          if (agentResult && agentResult.agent && agentResult.agent.identity === identity) {
-            match = s;
-            matchAgent = agentResult.agent;
-            break;
-          }
+        const allRows = allSessions && typeof allSessions === 'object'
+          && Array.isArray((allSessions as { sessions?: unknown[] }).sessions)
+          ? (allSessions as { sessions: Array<Record<string, unknown>> }).sessions
+          : [];
+        const closedMatches = stableMatches(allRows.filter((row) => row.status !== 'active'));
+        if (closedMatches.length > 0) {
+          const candidates = projectSessionCandidates(closedMatches.map((entry) => entry.row));
+          return {
+            success: false,
+            code: 'CLOSED_SESSION_REQUIRES_EXPLICIT_TAKEOVER',
+            error: `Identity "${identity}" has closed session history; automatic revival is disabled.`,
+            hint: candidates.length === 1
+              ? `Continue it with: pd session takeover ${candidates[0].sessionId}`
+              : 'Choose one candidate and run: pd session takeover <sessionId>',
+            candidates,
+          };
         }
       }
 
+      const activeMatch = activeMatches[0];
+      const match = activeMatch?.row;
+      const matchAgent = activeMatch?.agent;
       if (match && typeof match.id === 'string' && typeof match.agentId === 'string') {
-        if (match.status !== 'active' && sessions.takeover) {
-          // Resumption / takeover of recently closed session
-          const finalAgentId = options.agentId || match.agentId;
-          const takeoverRes = sessions.takeover(match.id, {
-            agentId: finalAgentId,
-            purpose: purpose.trim(),
-            project: resumeProject,
-            worktreeId: worktreePolicy.worktree?.id || undefined,
-            durable: durable,
-            claimFiles: true,
-            metadata: {
-              ...rentMetadata,
-              takeoverReason: 'Idempotent resumption of recently closed session',
-            }
-          }) as any;
-
-          if (takeoverRes && takeoverRes.success) {
-            materializePendingRoadmapNew();
-            const displayName = takeoverRes.sessionName || purpose.trim();
-            const resumed: Record<string, unknown> = {
-              success: true,
-              resumed: true,
-              takeover: true,
-              agentId: finalAgentId,
-              sessionId: takeoverRes.successorId,
-              agentName: displayName,
-              sessionName: displayName,
-              name: displayName,
-              identity: identity || null,
-              purpose: purpose.trim(),
-              lifecycle: durable ? 'durable' : 'ephemeral',
-              agentRegistered: false,
-              sessionStarted: false,
-            };
-            if (worktreePolicy.worktree) resumed.worktree = worktreePolicy.worktree;
-            if (takeoverRes.claimedFiles) resumed.fileClaims = takeoverRes.claimedFiles;
-            if (takeoverRes.conflicts) resumed.fileConflicts = takeoverRes.conflicts;
-            if (rent.roadmapLink) resumed.roadmapLink = rent.roadmapLink;
-            if (rent.sidequestReason) resumed.sidequestReason = rent.sidequestReason;
-            if (rent.roadmapCreated) resumed.roadmapCreated = true;
-            if (rent.roadmapExisting) resumed.roadmapExisting = true;
-            // The takeover result, not a caller-provided field, proves which
-            // predecessor may contribute bounded context. A missing/invalid
-            // lookup remains `none`/`withheld`; it never falls back to notes.
-            resumed.contextContinuation = projectContextContinuation(
-              typeof takeoverRes.predecessorId === 'string' ? takeoverRes.predecessorId : null,
-              deps.contextBootstrapLookup,
-            );
-
-            // Auto-enroll commitment for takeover
-            if (deps.commitments) {
-              deps.commitments.create({
-                ownerActorId: finalAgentId,
-                objectText: `De-register agent and close session for project: ${identity || 'default'}`,
-                scope: 'default',
-                commitmentStrategy: 'single',
-                successCheck: `session:${takeoverRes.successorId}:completed`,
-              });
-            }
-
-            activityLog.log('sugar_begin', {
-              agentId: finalAgentId,
-              details: 'sugar_begin_takeover_closed',
-              metadata: { sessionId: takeoverRes.successorId, predecessorSessionId: match.id, identity: identity || null },
-            });
-            return resumed;
-          }
-        } else if (match.status === 'active') {
-        // A session is a DURABLE WORK CONTEXT: resume it whether a process is
-        // actively driving it (active) or it's been parked since you closed your
-        // laptop (dormant). Only a `done` session forks a fresh one. See
-        // lib/session-liveness.ts.
+        const callerActorId = verifiedActorIdFromMetadata(options.metadata);
+        const ownerActorId = verifiedActorIdFromMetadata(match.metadata);
+        if ((callerActorId || ownerActorId) && (!callerActorId || !ownerActorId)) {
+          return {
+            success: false,
+            code: 'SESSION_OWNER_UNVERIFIABLE',
+            error: `Session "${match.id}" cannot be resumed automatically because its actor ownership cannot be verified.`,
+            hint: `Continue it explicitly with: pd session takeover ${match.id}`,
+            candidates: projectSessionCandidates([match]),
+          };
+        }
+        if (callerActorId && ownerActorId && callerActorId !== ownerActorId) {
+          return {
+            success: false,
+            code: 'SESSION_OWNERSHIP_MISMATCH',
+            error: `The presented actor credential does not own session "${match.id}".`,
+            hint: `The current owner must abandon it before an explicit takeover: pd session takeover ${match.id}`,
+            candidates: projectSessionCandidates([match]),
+          };
+        }
+        // Only an active exact identity match may resume automatically. Closed
+        // history is returned above as an explicit takeover candidate so a
+        // caller never revives the first plausible historical row.
         const nowMs = Date.now();
         const sinceBeat = typeof matchAgent?.timeSinceHeartbeat === 'number' ? matchAgent.timeSinceHeartbeat : null;
         const liveness = classifySessionLiveness({
@@ -916,7 +891,6 @@ export function createSugar(deps: SugarDeps) {
         // decision.action === 'create' falls through to start a fresh session.
       }
     }
-  }
 
     // Crowded-main-worktree gate. `--allow-main-worktree` survives only
     // when the operator is alone in the main worktree. As soon as another
@@ -1128,10 +1102,103 @@ export function createSugar(deps: SugarDeps) {
   }
 
   /**
+   * Finalize one already-authorized exact session.
+   *
+   * Design intent: public completion and the daemon-owned managed-spawn path
+   * share one mutation tail, while keeping their authorization/precondition
+   * gates separate. This helper never selects a session and never interprets
+   * caller override flags.
+   *
+   * @param sessionId - Exact session selected and authorized upstream.
+   * @param effectiveAgentId - Canonical stored session owner.
+   * @param effectiveNote - Final note after upstream policy processing.
+   * @param status - Terminal status to persist.
+   * @returns Structured completion result.
+   */
+  function finalizeAuthorizedSession(
+    sessionId: string,
+    effectiveAgentId: string | null,
+    effectiveNote: string | undefined,
+    status: string,
+  ) {
+    const notesBefore = sessions.getNotes(sessionId);
+    const beforeCount = (notesBefore.notes as unknown[] || []).length;
+    const endOpts: Record<string, unknown> = { status };
+    if (effectiveNote) endOpts.note = effectiveNote;
+    const sessionResult = sessions.end(sessionId, endOpts);
+    if (!sessionResult.success) {
+      return {
+        success: false,
+        error: `Session end failed: ${sessionResult.error}`,
+        code: 'SESSION_END_FAILED',
+      };
+    }
+
+    let agentUnregistered = false;
+    let remainingActiveSessions = 0;
+    if (effectiveAgentId) {
+      const remaining = sessions.list({
+        agentId: effectiveAgentId,
+        status: 'active',
+        allWorktrees: true,
+        limit: 50,
+      });
+      const rows = Array.isArray(remaining.sessions) ? remaining.sessions : [];
+      remainingActiveSessions = typeof remaining.count === 'number' ? remaining.count : rows.length;
+      if (remainingActiveSessions === 0) {
+        const unregResult = agents.unregister(effectiveAgentId);
+        agentUnregistered = !!unregResult.unregistered;
+      }
+    }
+
+    if (deps.commitments && effectiveAgentId) {
+      try {
+        const openCommitments = deps.commitments.list({ ownerActorId: effectiveAgentId, state: 'open' }) as any;
+        const rows = Array.isArray(openCommitments) ? openCommitments : (openCommitments?.commitments || []);
+        for (const commitment of rows) {
+          if (commitment.successCheck === `session:${sessionId}:completed`) {
+            deps.commitments.close(commitment.id, `session:${sessionId}:completed`);
+          }
+        }
+      } catch {
+        // Completion remains authoritative when optional commitment cleanup fails.
+      }
+    }
+
+    const totalNotes = beforeCount + (effectiveNote ? 1 : 0);
+    const sessionInfo = sessions.get(sessionId);
+    const session = sessionInfo.success && sessionInfo.session ? sessionInfo.session as Record<string, unknown> : null;
+    const identityProject = typeof session?.identityProject === 'string' ? session.identityProject : null;
+    activityLog.log('sugar_done', {
+      agentId: effectiveAgentId,
+      targetId: sessionTarget(identityProject, sessionId),
+      details: `Agent ${effectiveAgentId || 'unknown'} done: ${status}`,
+      metadata: {
+        agentId: effectiveAgentId,
+        sessionId,
+        status,
+        identityProject: identityProject || undefined,
+      } as Record<string, unknown>,
+    });
+
+    return {
+      success: true,
+      agentId: effectiveAgentId,
+      sessionId,
+      sessionStatus: status,
+      agentUnregistered,
+      remainingActiveSessions,
+      notesCount: totalNotes,
+      finalNote: !!effectiveNote,
+      releasedFiles: (sessionResult as any).releasedFiles,
+    };
+  }
+
+  /**
    * Done — end session + unregister agent.
    * Finds active session by agentId if sessionId not provided.
    *
-   * Hard preconditions (enforced unless `skipOriginCheck` is set):
+   * Hard preconditions:
    *   1. The session's branch is not ahead of its upstream on origin.
    *   2. The result note contains one of: a PR URL, "no-pr-yet: <reason>",
    *      or "not-applicable: <reason>".
@@ -1141,11 +1208,14 @@ export function createSugar(deps: SugarDeps) {
   function done(options: DoneOptions) {
     const { agentId, note, status = 'completed' } = options;
     let { sessionId } = options;
-    const skipOriginCheck = options.skipOriginCheck === true;
-    const skipOriginCheckReason = typeof options.skipOriginCheckReason === 'string'
-      ? options.skipOriginCheckReason.trim()
-      : '';
-
+    if (options.skipOriginCheck === true || options.forceIncomplete === true) {
+      return {
+        success: false,
+        code: 'OPERATOR_CAPABILITY_REQUIRED',
+        error: 'completion overrides require a daemon-verified, action-scoped operator capability',
+        hint: 'Actor credentials and reason strings do not grant operator authority. Complete the normal gates or use the daemon-owned managed-spawn completion path.',
+      };
+    }
     // Find session by agent if not provided
     if (!sessionId && agentId) {
       const listResult = sessions.list({ agentId, status: 'active', allWorktrees: true, limit: 50 });
@@ -1253,64 +1323,47 @@ export function createSugar(deps: SugarDeps) {
         }
       }
 
-      if (!skipOriginCheck) {
-        // 1) Note-sentinel check (cheap, do it first so operators get the most
-        //    actionable error when they forget BOTH things).
-        const sentinel = checkResultNoteSentinel(effectiveNote);
-        if (!sentinel.ok) {
-          if (isSubtaskOrNoPr) {
-            const standardSentinel = options.noPr === true
-              ? 'not-applicable: ledger-only session, no repository artifact'
-              : 'not-applicable: subtask code delivery';
-            effectiveNote = effectiveNote && effectiveNote.trim()
-              ? `${effectiveNote.trim()}\n\n${standardSentinel}`
-              : standardSentinel;
-          } else {
-            return {
-              success: false,
-              code: 'RESULT_NOTE_MISSING_SENTINEL',
-              error: 'pd done refused — ' + noteSentinelErrorMessage(),
-              hint: noteSentinelErrorMessage(),
-            };
-          }
-        }
-
-        // 2) Origin-push check. `--no-pr` has already passed its stricter
-        // ledger-only verification above; ordinary completions still require a
-        // published branch unless the operator supplied the loud override.
-        if (options.noPr !== true) {
-          const originCheck = gitOriginChecker.checkBranchOnOrigin(worktreeRoot);
-          if (!originCheck.ok) {
-            return {
-              success: false,
-              code: 'BRANCH_NOT_ON_ORIGIN',
-              error: `pd done refused — ${originCheck.error}`,
-              hint: originCheck.hint,
-              branch: originCheck.branch ?? null,
-              upstream: originCheck.upstream ?? null,
-              ahead: originCheck.ahead ?? null,
-              originCheckCode: originCheck.code,
-              ledgerOnlyCheckCode: null,
-              dirtyEntries: null,
-              unpublishedCommits: null,
-            };
-          }
-        }
-      } else {
-        // Skip-origin-check requested. Require a reason and stamp the note.
-        if (!skipOriginCheckReason) {
+      // 1) Note-sentinel check (cheap, do it first so callers get the most
+      // actionable error when they forget both publication preconditions).
+      const sentinel = checkResultNoteSentinel(effectiveNote);
+      if (!sentinel.ok) {
+        if (isSubtaskOrNoPr) {
+          const standardSentinel = options.noPr === true
+            ? 'not-applicable: ledger-only session, no repository artifact'
+            : 'not-applicable: subtask code delivery';
+          effectiveNote = effectiveNote && effectiveNote.trim()
+            ? `${effectiveNote.trim()}\n\n${standardSentinel}`
+            : standardSentinel;
+        } else {
           return {
             success: false,
-            code: 'SKIP_ORIGIN_CHECK_REASON_REQUIRED',
-            error: 'pd done --skip-origin-check requires --reason "<reason>".',
-            hint: 'Provide a one-line reason describing why the origin-push gate is being bypassed (e.g., "local experiment, not shipping").',
+            code: 'RESULT_NOTE_MISSING_SENTINEL',
+            error: 'pd done refused — ' + noteSentinelErrorMessage(),
+            hint: noteSentinelErrorMessage(),
           };
         }
-        // Prepend a loud override marker so audits can grep for them.
-        const overrideStamp = `[OPERATOR-OVERRIDE skip-origin-check] reason: ${skipOriginCheckReason}`;
-        effectiveNote = effectiveNote && effectiveNote.length > 0
-          ? `${overrideStamp}\n${effectiveNote}`
-          : overrideStamp;
+      }
+
+      // 2) Origin-push check. `--no-pr` has already passed its stricter
+      // ledger-only verification above; ordinary completions require a
+      // published branch.
+      if (options.noPr !== true) {
+        const originCheck = gitOriginChecker.checkBranchOnOrigin(worktreeRoot);
+        if (!originCheck.ok) {
+          return {
+            success: false,
+            code: 'BRANCH_NOT_ON_ORIGIN',
+            error: `pd done refused — ${originCheck.error}`,
+            hint: originCheck.hint,
+            branch: originCheck.branch ?? null,
+            upstream: originCheck.upstream ?? null,
+            ahead: originCheck.ahead ?? null,
+            originCheckCode: originCheck.code,
+            ledgerOnlyCheckCode: null,
+            dirtyEntries: null,
+            unpublishedCommits: null,
+          };
+        }
       }
     }
 
@@ -1322,106 +1375,159 @@ export function createSugar(deps: SugarDeps) {
         const latestPlan = planNotes[0].content;
         const uncheckedRegex = /\[\s\]/;
         if (uncheckedRegex.test(latestPlan)) {
-          const forceIncomplete = options.forceIncomplete === true;
-          const forceIncompleteReason = typeof options.forceIncompleteReason === 'string'
-            ? options.forceIncompleteReason.trim()
-            : '';
-
-          if (!forceIncomplete) {
-            return {
-              success: false,
-              code: 'PLAN_UNCHECKED_ITEMS',
-              error: 'pd done refused — your session plan still has unchecked todo items.',
-              hint: 'Complete the items, update your plan with "pd plan check <id>", or close with "pd done --force-incomplete --reason \\"<why>\\"".',
-            };
-          }
-
-          if (!forceIncompleteReason || forceIncompleteReason.length < 12) {
-            return {
-              success: false,
-              code: 'FORCE_INCOMPLETE_REASON_REQUIRED',
-              error: 'pd done --force-incomplete requires --reason "<reason>" (min 12 chars).',
-              hint: 'Provide a clear description of why the plan is incomplete (e.g., "features deferred to next ticket").',
-            };
-          }
-
-          // Prepend incomplete marker to final note
-          const overrideStamp = `[OPERATOR-OVERRIDE force-incomplete] reason: ${forceIncompleteReason}`;
-          effectiveNote = effectiveNote && effectiveNote.length > 0
-            ? `${overrideStamp}\n${effectiveNote}`
-            : overrideStamp;
+          return {
+            success: false,
+            code: 'PLAN_UNCHECKED_ITEMS',
+            error: 'pd done refused — your session plan still has unchecked todo items.',
+            hint: 'Complete the items and update your plan with "pd plan check <id>". Public callers cannot self-authorize an incomplete-plan override.',
+          };
         }
       }
     }
 
-    // Count notes before ending (end adds the handoff note)
-    const notesBefore = sessions.getNotes(sessionId);
-    const beforeCount = (notesBefore.notes as unknown[] || []).length;
-
-    // End the session
-    const endOpts: Record<string, unknown> = { status };
-    if (effectiveNote) endOpts.note = effectiveNote;
-    const sessionResult = sessions.end(sessionId, endOpts);
-
-    if (!sessionResult.success) {
-      return {
-        success: false,
-        error: `Session end failed: ${sessionResult.error}`,
-        code: 'SESSION_END_FAILED',
-      };
-    }
-
-    // Unregister the agent
-    let agentUnregistered = false;
     const effectiveAgentId = agentId || findAgentForSession(sessionId);
-    if (effectiveAgentId) {
-      const unregResult = agents.unregister(effectiveAgentId);
-      agentUnregistered = !!unregResult.unregistered;
+    return finalizeAuthorizedSession(sessionId, effectiveAgentId, effectiveNote, status);
+  }
+
+  /**
+   * Stamp an exact ephemeral session as daemon-managed spawn work.
+   *
+   * Purpose: public request metadata is untrusted and cannot authorize a
+   * completion bypass. Only the in-process spawner callback reaches this
+   * method after the server has verified the captured actor credential. The
+   * durable stamp is therefore both exact-session and actor bound.
+   *
+   * @param options - Exact session, stored agent, and verified actor binding.
+   * @returns Durable binding receipt or a structured refusal.
+   */
+  function bindManagedSession(options: ManagedSessionBindingOptions) {
+    const sessionInfo = sessions.get(options.sessionId);
+    const session = sessionInfo.success && sessionInfo.session
+      ? sessionInfo.session as Record<string, unknown>
+      : null;
+    if (!session) {
+      return { success: false, code: 'SESSION_NOT_FOUND', error: `Session ${options.sessionId} not found` };
     }
-
-    // Close associated commitments
-    if (deps.commitments && effectiveAgentId) {
-      try {
-        const openCommitments = deps.commitments.list({ ownerActorId: effectiveAgentId, state: 'open' }) as any;
-        const rows = Array.isArray(openCommitments) ? openCommitments : (openCommitments?.commitments || []);
-        for (const c of rows) {
-          if (c.successCheck === `session:${sessionId}:completed`) {
-            deps.commitments.close(c.id, `session:${sessionId}:completed`);
-          }
-        }
-      } catch (err) {
-        // Fail silently
-      }
+    if (session.status !== 'active') {
+      return { success: false, code: 'SESSION_NOT_ACTIVE', error: `Session ${options.sessionId} is not active` };
     }
-
-    const totalNotes = beforeCount + (effectiveNote ? 1 : 0);
-
-    const sessionInfo = sessions.get(sessionId);
-    const session = sessionInfo.success && sessionInfo.session ? sessionInfo.session as Record<string, unknown> : null;
-    const identityProject = typeof session?.identityProject === 'string' ? session.identityProject : null;
-
-    activityLog.log('sugar_done', {
-      agentId: effectiveAgentId || null,
-      targetId: sessionTarget(identityProject, sessionId),
-      details: `Agent ${effectiveAgentId || 'unknown'} done: ${status}`,
-      metadata: {
-        agentId: effectiveAgentId || null,
-        sessionId,
-        status,
-        identityProject: identityProject || undefined,
-      } as unknown as Record<string, unknown>,
-    });
-
-    return {
-      success: true,
-      agentId: effectiveAgentId || null,
-      sessionId,
-      sessionStatus: status,
-      agentUnregistered,
-      notesCount: totalNotes,
-      finalNote: !!effectiveNote,
-      releasedFiles: (sessionResult as any).releasedFiles,
+    if (session.agentId !== options.agentId) {
+      return { success: false, code: 'SESSION_OWNERSHIP_MISMATCH', error: 'managed-session agent does not own the target session' };
+    }
+    const metadata = session.metadata && typeof session.metadata === 'object'
+      ? session.metadata as Record<string, unknown>
+      : {};
+    const identity = metadata.identity && typeof metadata.identity === 'object'
+      ? metadata.identity as Record<string, unknown>
+      : null;
+    if (identity?.verified !== true || identity.actorId !== options.actorId) {
+      return { success: false, code: 'SESSION_OWNERSHIP_MISMATCH', error: 'managed-session actor does not match the daemon-stamped session owner' };
+    }
+    if (lifecycleForSession(session) !== 'ephemeral') {
+      return { success: false, code: 'MANAGED_SESSION_NOT_EPHEMERAL', error: 'only ephemeral sessions may use managed completion' };
+    }
+    if (!sessions.updateMetadata) {
+      return { success: false, code: 'SESSION_METADATA_UNAVAILABLE', error: 'managed-session metadata cannot be persisted' };
+    }
+    const managedSpawn = {
+      verified: true,
+      actorId: options.actorId,
+      agentId: options.agentId,
+      sessionId: options.sessionId,
+      boundAt: Date.now(),
+      source: 'daemon-spawner',
     };
+    const updated = sessions.updateMetadata(options.sessionId, { managedSpawn });
+    if (updated.success === false) return updated;
+    return { success: true, sessionId: options.sessionId, managedSpawn };
+  }
+
+  /**
+   * Abandon an exact ephemeral admission whose managed stamp could not bind.
+   *
+   * This is deliberately separate from public `done`: it is reachable only
+   * through the server's in-process spawner seam after the captured credential
+   * was verified against the stored session owner. The original daemon identity
+   * stamp is still required; failure to stamp identity never becomes cleanup
+   * authority.
+   */
+  function abortManagedSession(options: ManagedSessionAbortOptions) {
+    const sessionInfo = sessions.get(options.sessionId);
+    const session = sessionInfo.success && sessionInfo.session
+      ? sessionInfo.session as Record<string, unknown>
+      : null;
+    if (!session) {
+      return { success: false, code: 'SESSION_NOT_FOUND', error: `Session ${options.sessionId} not found` };
+    }
+    if (session.status !== 'active') {
+      return { success: false, code: 'SESSION_NOT_ACTIVE', error: `Session ${options.sessionId} is not active` };
+    }
+    if (session.agentId !== options.agentId || lifecycleForSession(session) !== 'ephemeral') {
+      return { success: false, code: 'MANAGED_SESSION_SCOPE_MISMATCH', error: 'managed abort requires the exact ephemeral session owner' };
+    }
+    const metadata = session.metadata && typeof session.metadata === 'object'
+      ? session.metadata as Record<string, unknown>
+      : null;
+    const identity = metadata?.identity && typeof metadata.identity === 'object'
+      ? metadata.identity as Record<string, unknown>
+      : null;
+    if (identity?.verified !== true || identity.actorId !== options.actorId) {
+      return { success: false, code: 'SESSION_OWNERSHIP_MISMATCH', error: 'managed abort actor does not match the daemon-stamped session owner' };
+    }
+    return finalizeAuthorizedSession(
+      options.sessionId,
+      options.agentId,
+      options.note || 'Managed spawn admission aborted before backend execution',
+      'abandoned',
+    );
+  }
+
+  /**
+   * Complete one daemon-bound managed spawn without public override flags.
+   *
+   * Design intent: the subprocess lifecycle is not repository delivery work,
+   * so its completion legitimately skips origin/plan gates. That exception is
+   * available only through this in-process exact-session path and only after
+   * verifying the durable managed-spawn stamp created above.
+   *
+   * @param options - Exact stamped session and verified actor binding.
+   * @returns Standard sugar completion result or a structured refusal.
+   */
+  function completeManagedSession(options: ManagedSessionCompletionOptions) {
+    const sessionInfo = sessions.get(options.sessionId);
+    const session = sessionInfo.success && sessionInfo.session
+      ? sessionInfo.session as Record<string, unknown>
+      : null;
+    if (!session) {
+      return { success: false, code: 'SESSION_NOT_FOUND', error: `Session ${options.sessionId} not found` };
+    }
+    if (session.status !== 'active') {
+      return { success: false, code: 'SESSION_NOT_ACTIVE', error: `Session ${options.sessionId} is not active` };
+    }
+    if (session.agentId !== options.agentId || lifecycleForSession(session) !== 'ephemeral') {
+      return { success: false, code: 'MANAGED_SESSION_SCOPE_MISMATCH', error: 'managed completion requires the exact ephemeral session owner' };
+    }
+    const metadata = session.metadata && typeof session.metadata === 'object'
+      ? session.metadata as Record<string, unknown>
+      : null;
+    const stamp = metadata?.managedSpawn && typeof metadata.managedSpawn === 'object'
+      ? metadata.managedSpawn as Record<string, unknown>
+      : null;
+    if (
+      stamp?.verified !== true
+      || stamp.actorId !== options.actorId
+      || stamp.agentId !== options.agentId
+      || stamp.sessionId !== options.sessionId
+      || stamp.source !== 'daemon-spawner'
+    ) {
+      return { success: false, code: 'MANAGED_SESSION_PROOF_REQUIRED', error: 'managed completion requires a daemon-stamped exact-session proof' };
+    }
+    return finalizeAuthorizedSession(
+      options.sessionId,
+      options.agentId,
+      options.note,
+      options.status || 'completed',
+    );
   }
 
   /**
@@ -1819,5 +1925,14 @@ export function createSugar(deps: SugarDeps) {
     };
   }
 
-  return { begin, done, whoami, relink, getWelcomeBriefing };
+  return {
+    begin,
+    done,
+    bindManagedSession,
+    abortManagedSession,
+    completeManagedSession,
+    whoami,
+    relink,
+    getWelcomeBriefing,
+  };
 }

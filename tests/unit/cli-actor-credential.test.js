@@ -13,8 +13,8 @@
  * And the fail-closed floor: nothing resolvable → undefined (daemon 401s).
  */
 
-import { describe, test, expect, beforeEach, afterEach } from '@jest/globals';
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { describe, test, expect, beforeEach, afterEach, jest } from '@jest/globals';
+import { chmodSync, linkSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
@@ -81,9 +81,12 @@ describe('cli/utils/actor-credential', () => {
     expect(stored).toEqual({ agentId: 'lock-shell', credential: 'ACTOR01.secret-hex' });
   });
 
-  test('the persisted credential file is owner-only (0o600) — it holds a plaintext bearer secret', () => {
+  test('the persisted credential directory is 0700 and its atomically replaced file is 0600', () => {
     persistCliActorCredential('ACTOR01.secret-hex', null);
+    expect(statSync(contextDir).mode & 0o777).toBe(0o700);
+    expect(statSync(join(contextDir, 'actors')).mode & 0o777).toBe(0o700);
     expect(statSync(actorFile()).mode & 0o777).toBe(0o600);
+    expect(readdirSync(join(contextDir, 'actors'))).toEqual(['test-slot.json']);
   });
 
   test('persist CLAMPS a pre-existing loose file back to 0o600 — mode:0o600 alone only applies at creation', () => {
@@ -97,6 +100,18 @@ describe('cli/utils/actor-credential', () => {
     persistCliActorCredential('ACTOR06.fresh-secret', null);
     expect(statSync(actorFile()).mode & 0o777).toBe(0o600);
     expect(resolveCliActorCredential()).toBe('ACTOR06.fresh-secret');
+  });
+
+  test('read repairs loose context, actor-directory, and credential-file modes', () => {
+    persistCliActorCredential('ACTOR07.read-repair', 'repair-agent');
+    chmodSync(contextDir, 0o755);
+    chmodSync(join(contextDir, 'actors'), 0o755);
+    chmodSync(actorFile(), 0o644);
+
+    expect(resolveCliActorCredential('repair-agent')).toBe('ACTOR07.read-repair');
+    expect(statSync(contextDir).mode & 0o777).toBe(0o700);
+    expect(statSync(join(contextDir, 'actors')).mode & 0o777).toBe(0o700);
+    expect(statSync(actorFile()).mode & 0o777).toBe(0o600);
   });
 
   test('a persisted credential is WITHHELD when the command asserts a DIFFERENT agentId', () => {
@@ -181,5 +196,55 @@ describe('cli/utils/actor-credential', () => {
   test('nothing resolvable → undefined, so the daemon 401s the attributed write (fail-closed)', () => {
     expect(resolveCliActorCredential()).toBeUndefined();
     expect(resolveCliActorCredential('any-agent')).toBeUndefined();
+  });
+
+  test('a symlinked actor directory cannot exfiltrate a persisted credential', () => {
+    const target = mkdtempSync(join(tmpdir(), 'pd-actor-symlink-target-'));
+    chmodSync(target, 0o755);
+    symlinkSync(target, join(contextDir, 'actors'));
+
+    persistCliActorCredential('SECRET.must-not-escape', 'safe-agent');
+
+    expect(readdirSync(target)).toEqual([]);
+    expect(statSync(target).mode & 0o777).toBe(0o755);
+    expect(resolveCliActorCredential('safe-agent')).toBeUndefined();
+    rmSync(target, { recursive: true, force: true });
+  });
+
+  test('a symlinked actor file is neither read nor chmodded', () => {
+    mkdirSync(join(contextDir, 'actors'), { mode: 0o700 });
+    const target = join(contextDir, 'outside-credential.json');
+    writeFileSync(target, JSON.stringify({ agentId: 'safe-agent', credential: 'STOLEN.secret' }), { mode: 0o644 });
+    symlinkSync(target, actorFile());
+
+    expect(resolveCliActorCredential('safe-agent')).toBeUndefined();
+    expect(statSync(target).mode & 0o777).toBe(0o644);
+  });
+
+  test('a hardlinked actor file is neither read nor chmodded', () => {
+    mkdirSync(join(contextDir, 'actors'), { mode: 0o700 });
+    const target = join(contextDir, 'outside-credential.json');
+    const original = JSON.stringify({ agentId: 'safe-agent', credential: 'FIXTURE.secret' });
+    writeFileSync(target, original, { mode: 0o644 });
+    linkSync(target, actorFile());
+
+    expect(statSync(target).nlink).toBe(2);
+    expect(resolveCliActorCredential('safe-agent')).toBeUndefined();
+    expect(statSync(target).mode & 0o777).toBe(0o644);
+    expect(readFileSync(target, 'utf8')).toBe(original);
+  });
+
+  test('another user cannot trigger credential-directory repair or replacement', () => {
+    persistCliActorCredential('OWNER.secret', 'owner');
+    chmodSync(contextDir, 0o755);
+    const uid = jest.spyOn(process, 'getuid').mockReturnValue(statSync(contextDir).uid + 1);
+    try {
+      expect(resolveCliActorCredential()).toBeUndefined();
+      persistCliActorCredential('OTHER.secret', 'other');
+      expect(statSync(contextDir).mode & 0o777).toBe(0o755);
+      expect(JSON.parse(readFileSync(actorFile(), 'utf8')).credential).toBe('OWNER.secret');
+    } finally {
+      uid.mockRestore();
+    }
   });
 });

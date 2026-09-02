@@ -44,7 +44,8 @@ type ActiveSessionResolution = {
 };
 type ActiveSessionResolutionFailure = {
   success: false;
-  code: 'CONTEXT_CONFLICT' | 'AMBIGUOUS_ACTIVE_SESSION';
+  code: 'CONTEXT_CONFLICT' | 'AMBIGUOUS_ACTIVE_SESSION' | 'SESSION_NOT_ACTIVE'
+    | 'SESSION_SCOPE_MISMATCH' | 'SESSION_RESOLUTION_FAILED';
   error: string;
   provenances?: {
     environment: CurrentContextProvenance;
@@ -90,12 +91,27 @@ function createSessionClient(options: CLIOptions): PortDaddy {
   const explicitAgentId = stringOption(options, 'agent', 'agent-id', 'agentId');
   const explicitSessionId = stringOption(options, 'session', 'session-id', 'sessionId');
   const contextResolution = resolveCurrentContext();
+  if (!contextResolution.success && !explicitAgentId && !explicitSessionId) {
+    const conflict = {
+      success: false,
+      code: contextResolution.code,
+      error: contextResolution.error,
+      provenances: contextResolution.provenances,
+    };
+    if (isJson(options)) {
+      console.error(JSON.stringify(conflict, null, 2));
+    } else {
+      ui.error(`${conflict.code}: ${conflict.error}`);
+      console.error(JSON.stringify({ provenances: conflict.provenances }, null, 2));
+    }
+    process.exit(1);
+  }
   const current = contextResolution.success ? contextResolution.context : null;
   const agentId = explicitAgentId
     || (explicitSessionId ? undefined : current?.agentId || `cli-${process.pid}`);
   return new PortDaddy({
     agentId,
-    credential: resolveCliActorCredential(agentId),
+    credential: agentId ? resolveCliActorCredential(agentId) : undefined,
     pid: process.pid,
   });
 }
@@ -221,7 +237,11 @@ export async function resolveActiveSessionForFiles(
   const contextAgentId = current?.agentId;
   const candidateSessionId = explicitSessionId
     || (explicitAgentId && contextAgentId !== explicitAgentId ? undefined : contextSessionId);
-  const candidateAgentId = explicitAgentId || contextAgentId || pd.agentId;
+  // An explicit session without an explicit agent must derive its owner from
+  // that exact stored session. Ambient agent context may be valid for a
+  // different session and must not be grafted onto the explicit selector.
+  const candidateAgentId = explicitAgentId
+    || (explicitSessionId ? undefined : (contextAgentId || pd.agentId));
 
   if (candidateSessionId) {
     try {
@@ -229,24 +249,41 @@ export async function resolveActiveSessionForFiles(
         ...(candidateAgentId ? { agentId: candidateAgentId } : {}),
         sessionId: candidateSessionId,
       });
-      if (whoami?.active && whoami.sessionId) {
+      if (whoami?.success !== true) {
         return {
-          success: true,
-          sessionId: whoami.sessionId,
-          agentId: whoami.agentId || candidateAgentId,
-          source: explicitSessionId ? 'explicit-session' : 'current-context',
+          success: false,
+          code: 'SESSION_RESOLUTION_FAILED',
+          error: `Could not verify exact session "${candidateSessionId}"; no fallback attempted.`,
         };
       }
-      if (explicitSessionId) {
-        ui.error(whoami?.hint || `Session "${explicitSessionId}" is not active`);
-        process.exit(1);
+      if (whoami.active !== true) {
+        return {
+          success: false,
+          code: 'SESSION_NOT_ACTIVE',
+          error: whoami?.hint || `Session "${candidateSessionId}" is not active; select or resume that exact session explicitly.`,
+        };
       }
+      if (whoami.sessionId !== candidateSessionId || !whoami.agentId?.trim()
+        || (candidateAgentId && whoami.agentId !== candidateAgentId)) {
+        return {
+          success: false,
+          code: 'SESSION_SCOPE_MISMATCH',
+          error: `Resolved identity does not match exact session "${candidateSessionId}" and its selected owner.`,
+        };
+      }
+      return {
+        success: true,
+        sessionId: candidateSessionId,
+        agentId: whoami.agentId,
+        source: explicitSessionId ? 'explicit-session' : 'current-context',
+      };
     } catch (error) {
-      if (explicitSessionId) {
-        const errorBody = getErrorBody(error);
-        ui.error((errorBody.error as string) || (error as Error).message || 'Failed to resolve session');
-        process.exit(1);
-      }
+      const errorBody = getErrorBody(error);
+      return {
+        success: false,
+        code: 'SESSION_RESOLUTION_FAILED',
+        error: (errorBody.error as string) || (error as Error).message || `Failed to resolve exact session "${candidateSessionId}"`,
+      };
     }
   }
 
@@ -381,7 +418,7 @@ async function sessionStart(rest: string[], options: CLIOptions): Promise<void> 
     process.exit(1);
   }
 
-  const pd = createSessionClient(options);
+  let pd = createSessionClient(options);
   // #8877: an attributed session start requires a daemon-minted credential.
   // Mint one through POST /actors/register when this shell does not already
   // hold one (env or matching context); the alias binds the asserted agentId
@@ -507,6 +544,27 @@ async function sessionEnd(rest: string[], options: CLIOptions, status: string): 
   }
 
   const pd = createSessionClient(options);
+  const activeSession = await resolveActiveSessionForFiles(pd, options);
+  if (!activeSession) {
+    ui.error('No active session found');
+    process.exit(1);
+  }
+  if (!activeSession.success) {
+    ui.error(`${activeSession.code}: ${activeSession.error}`);
+    if (activeSession.provenances) {
+      console.error(JSON.stringify({ code: activeSession.code, provenances: activeSession.provenances }, null, 2));
+    }
+    if (activeSession.candidates) {
+      for (const candidate of activeSession.candidates) {
+        console.error(`  ${candidate.sessionId} (worktree ${candidate.worktreeId || '<unknown>'})`);
+      }
+    }
+    process.exit(1);
+  }
+  if (activeSession.agentId) {
+    pd.agentId = activeSession.agentId;
+    pd.credential = resolveCliActorCredential(activeSession.agentId);
+  }
   let data: SessionEndResult;
   try {
     if (status === 'completed') {
@@ -516,8 +574,8 @@ async function sessionEnd(rest: string[], options: CLIOptions, status: string): 
       const skipOriginCheckReason = (options.reason as string | undefined) || undefined;
 
       const sugarResult = await pd.done(note, {
-        agentId: stringOption(options, 'agent', 'agent-id', 'agentId'),
-        sessionId: stringOption(options, 'session', 'session-id', 'sessionId'),
+        agentId: activeSession.agentId,
+        sessionId: activeSession.sessionId,
         status,
         skipOriginCheck: skipOriginCheck ? true : undefined,
         skipOriginCheckReason: skipOriginCheck ? skipOriginCheckReason : undefined,
@@ -532,7 +590,7 @@ async function sessionEnd(rest: string[], options: CLIOptions, status: string): 
         releasedFiles: sugarResult.releasedFiles,
       } as any;
     } else {
-      data = await pd.endSession(note, { status });
+      data = await pd.endSession(activeSession.sessionId, { status, note });
     }
   } catch (error) {
     const errorBody = getErrorBody(error);
@@ -574,7 +632,26 @@ async function sessionRemove(rest: string[], options: CLIOptions): Promise<void>
     process.exit(1);
   }
 
-  const pd = createSessionClient(options);
+  const pd = createSessionClient({ ...options, session: sessionId });
+  const explicitAgentId = stringOption(options, 'agent', 'agent-id', 'agentId');
+  let exact;
+  try {
+    exact = await pd.whoami({ sessionId });
+  } catch (error) {
+    const errorBody = getErrorBody(error);
+    ui.error((errorBody.error as string) || (error as Error).message || 'Failed to resolve session owner');
+    process.exit(1);
+  }
+  if (!exact.sessionId || !exact.agentId) {
+    ui.error(exact.error || exact.hint || `Session "${sessionId}" was not found`);
+    process.exit(1);
+  }
+  if (explicitAgentId && explicitAgentId !== exact.agentId) {
+    ui.error(`SESSION_OWNERSHIP_MISMATCH: session "${sessionId}" belongs to "${exact.agentId}", not "${explicitAgentId}"`);
+    process.exit(1);
+  }
+  pd.agentId = exact.agentId;
+  pd.credential = resolveCliActorCredential(exact.agentId);
   let data: SessionRemoveResult;
   try {
     data = await pd.removeSession(sessionId);
@@ -805,9 +882,23 @@ async function sessionPhase(rest: string[], options: CLIOptions): Promise<void> 
     process.exit(1);
   }
 
+  const pd = createSessionClient({ ...options, session: sessionId });
+  const activeSession = await resolveActiveSessionForFiles(pd, { ...options, session: sessionId });
+  if (!activeSession || !activeSession.success) {
+    const message = activeSession && !activeSession.success
+      ? `${activeSession.code}: ${activeSession.error}`
+      : `Session "${sessionId}" is not active`;
+    ui.error(message);
+    process.exit(1);
+  }
+  const ownerAgentId = activeSession.agentId;
+  const credential = resolveCliActorCredential(ownerAgentId);
   const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/sessions/${encodeURIComponent(sessionId)}/phase`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(credential ? { 'X-Actor-Credential': credential } : {}),
+    },
     body: JSON.stringify({ phase })
   });
 
@@ -840,9 +931,27 @@ async function sessionRelink(options: CLIOptions): Promise<void> {
     process.exit(1);
   }
 
-  const ctx = readCurrentContext();
-  const agentId = (typeof options.agent === 'string' ? options.agent : undefined) || ctx?.agentId;
-  const sessionId = (typeof options.session === 'string' ? options.session : undefined) || ctx?.sessionId;
+  const pd = createSessionClient(options);
+  const activeSession = await resolveActiveSessionForFiles(pd, options);
+  if (!activeSession) {
+    ui.error('No active session found');
+    process.exit(1);
+  }
+  if (!activeSession.success) {
+    ui.error(`${activeSession.code}: ${activeSession.error}`);
+    if (activeSession.provenances) {
+      console.error(JSON.stringify({ code: activeSession.code, provenances: activeSession.provenances }, null, 2));
+    }
+    if (activeSession.candidates) {
+      for (const candidate of activeSession.candidates) {
+        console.error(`  ${candidate.sessionId} (worktree ${candidate.worktreeId || '<unknown>'})`);
+      }
+    }
+    process.exit(1);
+  }
+  const agentId = activeSession.agentId;
+  const sessionId = activeSession.sessionId;
+  const credential = resolveCliActorCredential(agentId);
 
   const body: Record<string, unknown> = {};
   if (agentId) body.agentId = agentId;
@@ -852,7 +961,10 @@ async function sessionRelink(options: CLIOptions): Promise<void> {
 
   const res: PdFetchResponse = await pdFetch('/sugar/relink', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(credential ? { 'X-Actor-Credential': credential } : {}),
+    },
     body: JSON.stringify(body),
   });
 
@@ -1247,10 +1359,24 @@ export async function handleNote(content: string | undefined, options: CLIOption
   const current = readCurrentContext();
   const explicitSessionId = typeof options.session === 'string' ? options.session : undefined;
   const explicitAgentId = typeof options.agent === 'string' ? options.agent : undefined;
-  const pd = createSessionClient(options);
+  let pd = createSessionClient(options);
 
   let sessionId = explicitSessionId;
   let agentId = explicitAgentId;
+
+  if (sessionId && !agentId) {
+    const exact = await pd.whoami({ sessionId });
+    if (!exact.active || !exact.agentId) {
+      ui.error(exact.error || exact.hint || `Session ${sessionId} is not active`);
+      process.exit(1);
+    }
+    agentId = exact.agentId;
+    pd = new PortDaddy({
+      agentId,
+      credential: resolveCliActorCredential(agentId),
+      pid: process.pid,
+    });
+  }
 
   if (!sessionId && !explicitAgentId && current?.sessionId) {
     try {

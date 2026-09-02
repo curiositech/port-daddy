@@ -1,4 +1,19 @@
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
+import {
+  constants as fsConstants,
+  closeSync,
+  existsSync,
+  fchmodSync,
+  fstatSync,
+  lstatSync,
+  mkdirSync,
+  openSync,
+  readFileSync,
+  readdirSync,
+  renameSync,
+  rmSync,
+  unlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { basename, join } from 'node:path';
 
 export interface CurrentContext {
@@ -135,31 +150,109 @@ export function getContextPathForSlot(slot: string, cwd: string = process.cwd())
 }
 
 function readContextFile(path: string): CurrentContext | null {
+  let fd: number | null = null;
   try {
     if (!existsSync(path)) return null;
-    const parsed = JSON.parse(readFileSync(path, 'utf8')) as CurrentContext | null;
+    const link = lstatSync(path);
+    const uid = process.getuid?.();
+    if (link.isSymbolicLink() || !link.isFile() || link.nlink !== 1 || (uid !== undefined && link.uid !== uid)) return null;
+    fd = openSync(path, fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW);
+    const opened = fstatSync(fd);
+    if (!opened.isFile() || opened.nlink !== 1 || opened.ino !== link.ino || opened.dev !== link.dev
+      || (uid !== undefined && opened.uid !== uid)) return null;
+    if ((opened.mode & 0o777) !== 0o600) fchmodSync(fd, 0o600);
+    const parsed = JSON.parse(readFileSync(fd, 'utf8')) as CurrentContext | null;
     if (!parsed || typeof parsed !== 'object') return null;
     if (typeof parsed.agentId !== 'string' || typeof parsed.sessionId !== 'string') return null;
     return parsed;
   } catch {
     return null;
+  } finally {
+    if (fd !== null) try { closeSync(fd); } catch {}
+  }
+}
+
+function repairPrivateDirectory(path: string, create: boolean): boolean {
+  let fd: number | null = null;
+  try {
+    if (!existsSync(path)) {
+      if (!create) return false;
+      mkdirSync(path, { mode: 0o700 });
+    }
+    const link = lstatSync(path);
+    if (link.isSymbolicLink() || !link.isDirectory()) throw new Error(`refusing unsafe context directory: ${path}`);
+    fd = openSync(path, fsConstants.O_RDONLY | fsConstants.O_DIRECTORY | fsConstants.O_NOFOLLOW);
+    const opened = fstatSync(fd);
+    const uid = process.getuid?.();
+    if (!opened.isDirectory() || opened.ino !== link.ino || opened.dev !== link.dev
+      || (uid !== undefined && opened.uid !== uid)) throw new Error(`refusing unsafe context directory: ${path}`);
+    fchmodSync(fd, 0o700);
+    return true;
+  } finally {
+    if (fd !== null) try { closeSync(fd); } catch {}
   }
 }
 
 function ensureContextDirs(cwd: string): void {
   const dir = getContextDir(cwd);
-  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-  const storeDir = getContextStoreDir(cwd);
-  if (!existsSync(storeDir)) mkdirSync(storeDir, { recursive: true });
+  repairPrivateDirectory(dir, true);
+  repairPrivateDirectory(getContextStoreDir(cwd), true);
+}
+
+function contextDirectoryTreeIsSafeForMutation(cwd: string): boolean {
+  const contextDir = getContextDir(cwd);
+  try {
+    if (!existsSync(contextDir)) return false;
+    repairPrivateDirectory(contextDir, false);
+    const storeDir = getContextStoreDir(cwd);
+    if (existsSync(storeDir)) repairPrivateDirectory(storeDir, false);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function unlinkContextFile(path: string, cwd: string, storeScoped: boolean): boolean {
+  try {
+    if (!contextDirectoryTreeIsSafeForMutation(cwd)) return false;
+    if (storeScoped && !existsSync(getContextStoreDir(cwd))) return false;
+    const entry = lstatSync(path);
+    if (entry.isSymbolicLink() || !entry.isFile()) return false;
+    unlinkSync(path);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function writeJson(path: string, value: CurrentContext): void {
-  writeFileSync(path, JSON.stringify(value, null, 2));
+  const temporaryPath = `${path}.tmp-${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  let fd: number | null = null;
+  try {
+    if (existsSync(path)) {
+      const destination = lstatSync(path);
+      if (destination.isSymbolicLink() || !destination.isFile()) {
+        throw new Error(`refusing unsafe context file: ${path}`);
+      }
+    }
+    fd = openSync(temporaryPath, 'wx', 0o600);
+    fchmodSync(fd, 0o600);
+    writeFileSync(fd, JSON.stringify(value, null, 2));
+    closeSync(fd);
+    fd = null;
+    renameSync(temporaryPath, path);
+  } catch (error) {
+    if (fd !== null) {
+      try { closeSync(fd); } catch {}
+    }
+    try { unlinkSync(temporaryPath); } catch {}
+    throw error;
+  }
 }
 
 function listStoredContexts(cwd: string): Array<{ path: string; context: CurrentContext; mtimeMs: number }> {
   const storeDir = getContextStoreDir(cwd);
-  if (!existsSync(storeDir)) return [];
+  if (!existsSync(storeDir) || !repairPrivateDirectory(storeDir, false)) return [];
   return readdirSync(storeDir)
     .filter((entry) => entry.endsWith('.json'))
     .map((entry) => {
@@ -168,7 +261,8 @@ function listStoredContexts(cwd: string): Array<{ path: string; context: Current
       if (!context) return null;
       let mtimeMs = 0;
       try {
-        mtimeMs = statSync(path).mtimeMs;
+        const info = lstatSync(path);
+        mtimeMs = info.isSymbolicLink() || !info.isFile() ? 0 : info.mtimeMs;
       } catch {
         mtimeMs = 0;
       }
@@ -191,6 +285,14 @@ function listStoredContexts(cwd: string): Array<{ path: string; context: Current
  * @returns A resolved context, no context, or a structured CONTEXT_CONFLICT.
  */
 export function resolveCurrentContext(cwd: string = process.cwd()): CurrentContextResolution {
+  const contextDir = getContextDir(cwd);
+  const contextStoreDir = getContextStoreDir(cwd);
+  try {
+    if (existsSync(contextDir)) repairPrivateDirectory(contextDir, false);
+    if (existsSync(contextStoreDir)) repairPrivateDirectory(contextStoreDir, false);
+  } catch {
+    return { success: true, context: null, provenance: null };
+  }
   const slot = resolveContextSlot();
   const slotPath = getContextPathForSlot(slot, cwd);
   const slotRecord = readContextFile(slotPath);
@@ -276,26 +378,30 @@ export function readCurrentContext(cwd: string = process.cwd()): CurrentContext 
 }
 
 export function clearCurrentContext(cwd: string = process.cwd()): void {
+  // A repository controls `.portdaddy`, so clearing must validate both parent
+  // directories before it resolves or unlinks any credential-bearing path.
+  // Otherwise a symlinked root/store could turn a routine `pd done` cleanup
+  // into deletion outside the repository.
+  if (!contextDirectoryTreeIsSafeForMutation(cwd)) return;
+
   const slot = resolveContextSlot();
   const slotPath = getContextPathForSlot(slot, cwd);
-  try {
-    if (existsSync(slotPath)) unlinkSync(slotPath);
-  } catch {}
+  unlinkContextFile(slotPath, cwd, true);
 
   const legacyPath = getLegacyContextPath(cwd);
+  if (!contextDirectoryTreeIsSafeForMutation(cwd)) return;
   const legacy = readContextFile(legacyPath);
   if (!legacy) return;
 
   const clearLegacy = canUseLegacyContextForSlot(legacy, slot);
   if (legacy.contextSlot && legacy.contextSlot !== slot) {
     if (!clearLegacy) return;
-    try {
-      unlinkSync(getContextPathForSlot(legacy.contextSlot, cwd));
-    } catch {}
+    unlinkContextFile(getContextPathForSlot(legacy.contextSlot, cwd), cwd, true);
   }
   if (!legacy.contextSlot && legacy.sessionId) {
     const fallback = listStoredContexts(cwd)[0];
     if (fallback) {
+      if (!contextDirectoryTreeIsSafeForMutation(cwd)) return;
       writeJson(legacyPath, fallback.context);
       return;
     }
@@ -303,13 +409,12 @@ export function clearCurrentContext(cwd: string = process.cwd()): void {
 
   const replacement = listStoredContexts(cwd)[0];
   if (replacement) {
+    if (!contextDirectoryTreeIsSafeForMutation(cwd)) return;
     writeJson(legacyPath, replacement.context);
     return;
   }
 
-  try {
-    unlinkSync(legacyPath);
-  } catch {}
+  unlinkContextFile(legacyPath, cwd, false);
 }
 
 export function readCurrentContextFromPaths(paths: string[]): CurrentContext | null {
@@ -322,10 +427,9 @@ export function readCurrentContextFromPaths(paths: string[]): CurrentContext | n
 }
 
 export function removeAllContextFiles(cwd: string = process.cwd()): void {
+  if (!contextDirectoryTreeIsSafeForMutation(cwd)) return;
   try {
     rmSync(getContextStoreDir(cwd), { recursive: true, force: true });
   } catch {}
-  try {
-    unlinkSync(getLegacyContextPath(cwd));
-  } catch {}
+  unlinkContextFile(getLegacyContextPath(cwd), cwd, false);
 }

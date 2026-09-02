@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { existsSync, mkdtempSync } from 'node:fs';
+import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
+import { chmodSync, existsSync, linkSync, mkdirSync, mkdtempSync, readFileSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
@@ -285,5 +285,137 @@ describe('current-context helper', () => {
     expect(existsSync(getLegacyContextPath(projectDir))).toBe(true);
     expect(existsSync(join(projectDir, '.portdaddy', 'current.json'))).toBe(false);
     expect(readCurrentContext(projectDir)?.sessionId).toBe('session-a');
+  });
+
+  it('creates context directories as 0700 and credential-bearing files as 0600', () => {
+    process.env.PORT_DADDY_CONTEXT_SLOT = 'secure-shell';
+    writeCurrentContext({
+      agentId: 'secure-agent',
+      sessionId: 'secure-session',
+      credential: 'actor.secret',
+    }, projectDir);
+
+    expect(statSync(getContextDir(projectDir)).mode & 0o777).toBe(0o700);
+    expect(statSync(join(getContextDir(projectDir), 'contexts')).mode & 0o777).toBe(0o700);
+    expect(statSync(getContextPathForSlot('secure-shell', projectDir)).mode & 0o777).toBe(0o600);
+    expect(statSync(getLegacyContextPath(projectDir)).mode & 0o777).toBe(0o600);
+  });
+
+  it('repairs pre-existing loose context directory and file permissions on read/write', () => {
+    process.env.PORT_DADDY_CONTEXT_SLOT = 'repair-shell';
+    const contextDir = getContextDir(projectDir);
+    const contextsDir = join(contextDir, 'contexts');
+    writeCurrentContext({ agentId: 'repair-agent', sessionId: 'repair-session', credential: 'actor.secret' }, projectDir);
+    const slotPath = getContextPathForSlot('repair-shell', projectDir);
+    const legacyPath = getLegacyContextPath(projectDir);
+    chmodSync(contextDir, 0o755);
+    chmodSync(contextsDir, 0o755);
+    chmodSync(slotPath, 0o644);
+    chmodSync(legacyPath, 0o644);
+    writeFileSync(slotPath, JSON.stringify({ agentId: 'repair-agent', sessionId: 'repair-session', credential: 'actor.secret' }));
+
+    expect(readCurrentContext(projectDir)?.sessionId).toBe('repair-session');
+    expect(statSync(contextDir).mode & 0o777).toBe(0o700);
+    expect(statSync(contextsDir).mode & 0o777).toBe(0o700);
+    expect(statSync(slotPath).mode & 0o777).toBe(0o600);
+
+    writeCurrentContext({ agentId: 'repair-agent', sessionId: 'next-session', credential: 'next.secret' }, projectDir);
+    expect(statSync(legacyPath).mode & 0o777).toBe(0o600);
+  });
+
+  it('rejects a symlinked context root without reading, chmodding, or writing through it', () => {
+    process.env.PORT_DADDY_CONTEXT_SLOT = 'symlink-root';
+    const target = join(projectDir, 'attacker-target');
+    mkdirSync(target, { mode: 0o755 });
+    writeFileSync(join(target, 'current.json'), JSON.stringify({ agentId: 'attacker', sessionId: 'victim' }), { mode: 0o644 });
+    symlinkSync(target, getContextDir(projectDir));
+
+    expect(readCurrentContext(projectDir)).toBeNull();
+    expect(statSync(target).mode & 0o777).toBe(0o755);
+    expect(statSync(join(target, 'current.json')).mode & 0o777).toBe(0o644);
+    expect(() => writeCurrentContext({ agentId: 'safe', sessionId: 'safe-session', credential: 'secret' }, projectDir)).toThrow(/unsafe context directory/);
+    expect(existsSync(join(target, 'contexts'))).toBe(false);
+  });
+
+  it('rejects symlinked context subdirectories and files without touching their targets', () => {
+    process.env.PORT_DADDY_CONTEXT_SLOT = 'symlink-leaf';
+    const contextDir = getContextDir(projectDir);
+    mkdirSync(contextDir, { mode: 0o700 });
+    const targetDir = join(projectDir, 'outside-contexts');
+    mkdirSync(targetDir, { mode: 0o755 });
+    const targetFile = join(targetDir, 'symlink-leaf.json');
+    writeFileSync(targetFile, JSON.stringify({ agentId: 'attacker', sessionId: 'victim', credential: 'stolen' }), { mode: 0o644 });
+    symlinkSync(targetDir, join(contextDir, 'contexts'));
+
+    expect(readCurrentContext(projectDir)).toBeNull();
+    expect(statSync(targetDir).mode & 0o777).toBe(0o755);
+    expect(statSync(targetFile).mode & 0o777).toBe(0o644);
+    expect(() => writeCurrentContext({ agentId: 'safe', sessionId: 'safe-session', credential: 'secret' }, projectDir)).toThrow(/unsafe context directory/);
+  });
+
+  it('refuses to clear through a symlinked context root', () => {
+    process.env.PORT_DADDY_CONTEXT_SLOT = 'symlink-clear-root';
+    const targetDir = join(projectDir, 'outside-clear-root');
+    const targetStore = join(targetDir, 'contexts');
+    mkdirSync(targetStore, { recursive: true, mode: 0o755 });
+    const victim = join(targetStore, 'symlink-clear-root.json');
+    writeFileSync(victim, JSON.stringify({ agentId: 'victim', sessionId: 'victim-session' }), { mode: 0o644 });
+    writeFileSync(join(targetDir, 'current.json'), JSON.stringify({
+      agentId: 'victim',
+      sessionId: 'victim-session',
+      contextSlot: 'symlink-clear-root',
+    }), { mode: 0o644 });
+    symlinkSync(targetDir, getContextDir(projectDir));
+
+    clearCurrentContext(projectDir);
+
+    expect(existsSync(victim)).toBe(true);
+    expect(existsSync(join(targetDir, 'current.json'))).toBe(true);
+  });
+
+  it.each(['slot', 'legacy'])('rejects a hardlinked %s context without reading or changing its outside inode', (carrier) => {
+    process.env.PORT_DADDY_CONTEXT_SLOT = 'hardlink-test';
+    const contextDir = getContextDir(projectDir);
+    mkdirSync(join(contextDir, 'contexts'), { recursive: true, mode: 0o700 });
+    const target = join(projectDir, 'outside-context.json');
+    const original = JSON.stringify({ agentId: 'other-agent', sessionId: 'other-session', credential: 'FIXTURE.secret' });
+    writeFileSync(target, original, { mode: 0o644 });
+    linkSync(target, carrier === 'slot'
+      ? getContextPathForSlot('hardlink-test', projectDir)
+      : getLegacyContextPath(projectDir));
+
+    expect(statSync(target).nlink).toBe(2);
+    expect(readCurrentContext(projectDir)).toBeNull();
+    expect(statSync(target).mode & 0o777).toBe(0o644);
+    expect(readFileSync(target, 'utf8')).toBe(original);
+  });
+
+  it('refuses to repair or write context directories owned by another user', () => {
+    writeCurrentContext({ agentId: 'owner', sessionId: 'owned' }, projectDir);
+    const contextDir = getContextDir(projectDir);
+    chmodSync(contextDir, 0o755);
+    const uid = jest.spyOn(process, 'getuid').mockReturnValue(statSync(contextDir).uid + 1);
+    try {
+      expect(readCurrentContext(projectDir)).toBeNull();
+      expect(() => writeCurrentContext({ agentId: 'other', sessionId: 'other' }, projectDir)).toThrow(/unsafe context directory/);
+      expect(statSync(contextDir).mode & 0o777).toBe(0o755);
+    } finally {
+      uid.mockRestore();
+    }
+  });
+
+  it('refuses to clear through a symlinked context store', () => {
+    process.env.PORT_DADDY_CONTEXT_SLOT = 'symlink-clear-store';
+    const contextDir = getContextDir(projectDir);
+    mkdirSync(contextDir, { mode: 0o700 });
+    const targetStore = join(projectDir, 'outside-clear-store');
+    mkdirSync(targetStore, { mode: 0o755 });
+    const victim = join(targetStore, 'symlink-clear-store.json');
+    writeFileSync(victim, JSON.stringify({ agentId: 'victim', sessionId: 'victim-session' }), { mode: 0o644 });
+    symlinkSync(targetStore, join(contextDir, 'contexts'));
+
+    clearCurrentContext(projectDir);
+
+    expect(existsSync(victim)).toBe(true);
   });
 });
