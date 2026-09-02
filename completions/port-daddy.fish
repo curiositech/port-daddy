@@ -846,8 +846,6 @@ for prog in port-daddy pd
     complete -c $prog -n "__pd_using_command done" -s a -l agent -d 'Agent ID' -x -a '(__pd_agent_ids)'
     complete -c $prog -n "__pd_using_command done" -l session -d 'Session ID' -x
     complete -c $prog -n "__pd_using_command done" -s s -l status -d 'Session end status' -x -a 'completed abandoned'
-    complete -c $prog -n "__pd_using_command done" -l force-incomplete -d 'Force end session with incomplete tasks'
-    complete -c $prog -n "__pd_using_command done" -l reason -d 'Reason for force incomplete' -x
 
     # plan
     complete -c $prog -n "__pd_using_command plan" -a 'show set check' -d 'Action'

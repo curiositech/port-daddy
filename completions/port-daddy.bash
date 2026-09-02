@@ -1393,11 +1393,11 @@ _port_daddy() {
       ;;
 
     # -----------------------------------------------------------------------
-    # done  ["note"] [--agent ID] [--session ID] [--status STATUS] [--force-incomplete] [--reason REASON]
+    # done  ["note"] [--agent ID] [--session ID] [--status STATUS]
     # -----------------------------------------------------------------------
     done)
       case "$prev" in
-        --agent|--session|--reason)
+        --agent|--session)
           COMPREPLY=()  # Free-form
           ;;
         --status)
@@ -1405,7 +1405,7 @@ _port_daddy() {
           COMPREPLY=( $(compgen -W "completed abandoned" -- "$cur") )
           ;;
         *)
-          _pd_opts '--note -n --agent -a --session --status -s --force-incomplete --reason'
+          _pd_opts '--note -n --agent -a --session --status -s'
           ;;
       esac
       ;;

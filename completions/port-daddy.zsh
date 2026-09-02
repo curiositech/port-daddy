@@ -1290,8 +1290,6 @@ _pd_cmd_done() {
     '(-a --agent)'{-a,--agent}'[agent ID]:agent ID:_pd_complete_agents' \
     '--session[session ID]:session ID:' \
     '(-s --status)'{-s,--status}'[session end status]:status:(completed abandoned)' \
-    '--force-incomplete[force end session with incomplete tasks]' \
-    '--reason[reason for force incomplete]:reason:' \
     '(-j --json)'{-j,--json}'[JSON output]' \
     '(-q --quiet)'{-q,--quiet}'[suppress output]' \
     '(-h --help)'{-h,--help}'[show help]' \

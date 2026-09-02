@@ -201,7 +201,7 @@ Every agent must establish a versioned todo checklist using `pd plan set`.
 - **Set a plan**: Run `pd plan set` with markdown checklist items.
 - **View latest plan**: Run `pd plan show` or `pd plan`.
 - **Mark item completed**: Run `pd plan check <index>` (e.g., `pd plan check 1` or `pd plan check "step one"`).
-- **Close session gate**: `pd done` checks your active plan. If any unchecked `[ ]` items remain, the close operation fails closed. Bypass with `pd done --force-incomplete --reason "<why>"` if incomplete work is intentionally handshaked or deferred. `pd done --no-pr` is narrower than “I chose not to open a PR”: it succeeds only for a clean worktree whose `HEAD` has no commit absent from every remote ref. This verifier runs even when the branch is fully pushed; dirty or unpublished repository work remains blocked.
+- **Close session gate**: `pd done` checks your active plan. If any unchecked `[ ]` items remain, completion fails closed. Finish the plan or explicitly abandon the session; a caller-supplied reason is not operator authority. `pd done --no-pr` is narrower than “I chose not to open a PR”: it succeeds only for a clean worktree whose `HEAD` has no commit absent from every remote ref. This verifier runs even when the branch is fully pushed; dirty or unpublished repository work remains blocked.
 
 ## Session Continuity
 
@@ -275,6 +275,21 @@ and trust the owner-leased continuation
 receipt, not a model's claim that it resumed. A backend override that changes
 adapter family, a lost accepted-to-running lease, or a failed terminal receipt
 transition must fail closed before Port Daddy reports success.
+
+Session selection itself is deterministic. `PD_SESSION_ID` and `PD_AGENT_ID`
+are one atomic identity: a partial pair does not hide a complete context slot,
+and a complete environment pair that disagrees with the slot fails with
+`CONTEXT_CONFLICT` plus both provenances. Do not clear variables or retry a
+broader selector to route around that error. Exact mutations send the selected
+session and its stored owner together; agent-only ambiguity returns
+`AMBIGUOUS_ACTIVE_SESSION` candidates. Dormant, missing, failed, or mismatched
+exact-session lookups never fall through to another worktree's active session.
+Completion, including the completed phase, must pass `pd done`'s plan and delivery
+checks. Credential files must be owner-held, single-link regular files; never
+repair a credential by copying another actor's bearer. `pd session takeover <id>` resumes only
+the daemon-stamped owner of that dormant session. Raw IPC and direct SQLite are
+read-only for session, note, claim, lock, and salvage authority; mutations use
+the credentialed daemon HTTP path.
 
 Inspect portability with `pd backend adapters --matrix` or
 `GET /harness-adapters/continuation-matrix`. Read the grid as declared mechanics,

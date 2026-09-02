@@ -214,6 +214,7 @@ unpublished repository work still fails closed; the flag cannot hide an
 unpushed change behind a “no artifact” receipt.
 
 Every session progresses through **phases** for swarm visibility: `planning`, `in_progress`, `testing`, `reviewing`, `completed` / `abandoned`.
+Completion is only entered through `pd done` (or `POST /sugar/done`), which checks the exact session's plan and delivery evidence. Setting `phase: completed` directly cannot skip those checks. If the exact local session is dormant or missing, commands report that condition without silently selecting a different worktree's active session.
 
 ### Plan and Checklist Enforcement
 
@@ -228,11 +229,7 @@ pd plan check "docs"   # Check off item by substring matching
 
 When completing a session with `pd done`, the daemon checks if there are any unchecked checklist items (`[ ]` or `[-]`) in your plan. If unchecked items exist, `pd done` fails closed with code `PLAN_UNCHECKED_ITEMS`.
 
-To bypass the check and complete a session with remaining incomplete tasks:
-```bash
-pd done "Complete session" --force-incomplete --reason "Deferred features to next ticket"
-```
-The reason must be at least 12 characters and will be stamped with `[OPERATOR-OVERRIDE force-incomplete]` in the handoff notes.
+There is no caller-supplied override for this gate. Legacy `--force-incomplete` and `--skip-origin-check` requests are retained only long enough to return the structured `OPERATOR_CAPABILITY_REQUIRED` refusal: an actor credential and a reason string prove identity and intent, not operator authority. Complete the checklist and delivery gates before closing the session. Daemon-managed ephemeral spawns use a private, credential-bound exact-session lifecycle after their transcript is finalized; that internal path is not available as a CLI flag.
 
 ### Salvage, takeover & resurrection
 
@@ -245,7 +242,9 @@ pd salvage claim dead-agent-99     # inherit a dead agent's session, claims, and
 pd takeover <old-session-id>       # successor session with recorded lineage
 ```
 
-`pd session takeover` creates a successor session, records the lineage in append-only notes, releases stale predecessor claims, and reclaims those files when there is no live conflict. `pd session rm` is archival: it releases active claims and writes a tombstone, but never deletes the session, notes, or claim history.
+`pd session takeover` creates a successor for one exact dormant session and its daemon-stamped owner, records lineage in append-only notes, releases stale predecessor claims, and reclaims those files when there is no live conflict. Another actor's valid credential cannot adopt the session; operator-witnessed transfer remains a separate authority workflow. `pd session rm` is archival: it releases active claims and writes a tombstone, but never deletes the session, notes, or claim history.
+
+Session context is deterministic. `PD_SESSION_ID` and `PD_AGENT_ID` are an atomic pair; a partial pair cannot hide a complete context slot, and a disagreeing complete pair returns `CONTEXT_CONFLICT` with both provenances. Agent-only mutations fail with `AMBIGUOUS_ACTIVE_SESSION` when more than one active session matches. Session, note, claim, lock, and salvage mutations use credentialed daemon HTTP; raw IPC and direct SQLite expose only their safe read surfaces.
 
 ### Say / Look — the consolidated verbs
 
@@ -1084,7 +1083,7 @@ The **agent field manual** ships as a portable skill at [`skills/port-daddy-agen
 
 ## 🌐 HTTP API
 
-The full API contract lives at [`docs/openapi.yaml`](docs/openapi.yaml) — OpenAPI 3.1, **133 paths, 166 operations**, covering everything the CLI and MCP server can do plus SSE streams (`/fleet/events`, inbox watch, channel subscribe). The daemon binds loopback with a DNS-rebinding guard; secret routes are additionally loopback-gated per-route.
+The full API contract lives at [`docs/openapi.yaml`](docs/openapi.yaml) — OpenAPI 3.1, **135 paths, 168 operations**, covering everything the CLI and MCP server can do plus SSE streams (`/fleet/events`, inbox watch, channel subscribe). The daemon binds loopback with a DNS-rebinding guard; secret routes are additionally loopback-gated per-route.
 
 The `editor_recovery` Harbor Editor salvage routes are authenticated, fail-closed scaffolding at `POST /editor/recovery/request`, `/prepare`, `/replay`, and `/finalize`; registration does **not** make a usable recovery pipeline. Four external build gates remain unimplemented: the P1 Rust operation-receipt producer, P1B, the canonical Rust Loro recovery adapter, and the P3 same-database released-claim transfer adapter. Daemon scope minting also cannot yet supply the required verified worktree root device/inode witness, and production has no content-hash/parser-generation symbol lease or daemon file-mutation generation authority. The routes therefore remain 503-gated with no CLI/MCP bypass.
 
