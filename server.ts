@@ -41,7 +41,7 @@ import { createServices } from './lib/services.js';
 import { createMessaging } from './lib/messaging.js';
 import { createLocks } from './lib/locks.js';
 import { createHealth } from './lib/health.js';
-import { createAgents } from './lib/agents.js';
+import { createAgents, getDeadThresholdForStatus } from './lib/agents.js';
 import { createActivityLog, ActivityType } from './lib/activity.js';
 import { createWebhooks, WebhookEvent } from './lib/webhooks.js';
 import { createProjects } from './lib/projects.js';
@@ -50,6 +50,7 @@ import { createAgentInbox, inboxMessageForMessaging } from './lib/agent-inbox.js
 import { createAttention } from './lib/attention.js';
 import { createClaimWatcher } from './lib/claim-watcher.js';
 import { createResurrection } from './lib/resurrection.js';
+import { createHeartbeatDeathHandler } from './lib/agent-heartbeat-death.js';
 import { createChangelog } from './lib/changelog.js';
 import { createTunnel } from './lib/tunnel.js';
 import { createDns } from './lib/dns.js';
@@ -107,7 +108,6 @@ import { createContextWindowTracker } from './lib/context-window-tracker.js';
 import { createTool2VecReconciler } from './lib/skill-graft-reconciler.js';
 import { resolveSkillGraftRuntime } from './lib/skill-graft-runtime.js';
 import { createKnowledgeCustodian } from './lib/knowledge-custodian.js';
-import { normalizeSelfSalvage } from './lib/telos-salvage.js';
 import { createOperatorPermissions } from './lib/operator-permissions.js';
 import { createCounters } from './lib/counters.js';
 import { createUsageTelemetry } from './lib/usage-telemetry.js';
@@ -1383,62 +1383,10 @@ resurrection.on('agent:stale', (agent) => {
   logger.info('agent_stale', { agentId: agent.id, name: agent.name });
 });
 
-resurrection.on('agent:dead', (agent) => {
-  harbors.leaveAll(agent.id);
-
-  // Capture the agent's active session ids BEFORE abandoning them, so the custodian
-  // can harvest each session's notes into episodic memory while they remain queryable
-  // (Item 6 — on-death fast path; without it, notes wait up to a poll interval or are
-  // lost when the zombie protocol abandons the session first).
-  const abandonedSessionIds = sessions.activeSessionIdsByAgent(agent.id);
-  const zombied = sessions.abandonByAgent(agent.id);
-  if (zombied > 0) {
-    logger.warn('zombie_sessions_abandoned', { agentId: agent.id, count: zombied });
-    activityLog.log(ActivityType.SESSION_END, {
-      details: `Zombie protocol: ${zombied} active session(s) abandoned — agent ${agent.name || agent.id} is dead`,
-      metadata: { agentId: agent.id, zombied }
-    });
-  }
-  messaging.publish('resurrection', JSON.stringify({
-    event: 'dead', agentId: agent.id, name: agent.name, purpose: agent.purpose,
-    lastHeartbeat: agent.lastHeartbeat, staleSince: agent.staleSince, zombiedSessions: zombied
-  }));
-  messaging.publish('agents', JSON.stringify({
-    event: 'dead', agentId: agent.id,
-    message: `Agent ${agent.name || agent.id} is dead and queued for resurrection`
-  }));
-  logger.warn('agent_dead', { agentId: agent.id, name: agent.name });
-  activityLog.log(ActivityType.AGENT_CLEANUP, {
-    details: `Agent ${agent.name || agent.id} detected as dead, queued for resurrection`,
-    metadata: { agentId: agent.id, staleSince: agent.staleSince }
-  });
-
-  if (custodian) {
-    // Item 6 (on-death harvest): promote each abandoned session's notes immediately.
-    for (const sid of abandonedSessionIds) void custodian.onSessionEnd(sid);
-
-    // Items 1b + 2 (auto-resurrect): read the dying agent's self-salvage capsule as
-    // untrusted respawn CONTEXT, and hand the custodian the AUTHENTICATED scope from the
-    // verified StaleAgent record — never from the forgeable capsule. Passing scope as a
-    // distinct argument makes a forged `capsule.identityProject` structurally unable to
-    // influence the operator-permission check (ADR-0040 trust boundary).
-    //
-    // The raw capsule read back from resurrection.getSalvageCapsule() is only guaranteed
-    // to be *some* plain object (see resurrection.ts's getSalvageCapsule — it just checks
-    // `typeof === 'object'`), never that it matches SelfSalvageCapsule's shape. Run it
-    // through the same normalizeSelfSalvage() producer contract that governs the capsule
-    // elsewhere (telos-salvage.ts) before handing it to the custodian, so a malformed or
-    // corrupted capsule degrades to `undefined` respawn context instead of propagating an
-    // arbitrary shape into the resurrection_context inbox message / operator approval
-    // payload.
-    const rawCapsule = resurrection.getSalvageCapsule(agent.id);
-    const salvage = normalizeSelfSalvage(rawCapsule);
-    if (rawCapsule && !salvage.success) {
-      logger.warn('salvage_capsule_invalid', { agentId: agent.id, error: salvage.error });
-    }
-    void custodian.onAgentDead(agent.id, agent.identityProject ?? '', salvage.capsule as Record<string, unknown> | undefined);
-  }
+const handleAgentHeartbeatDeath = createHeartbeatDeathHandler({
+  sessions, harbors, resurrection, messaging, logger, activityLog, custodian,
 });
+resurrection.on('agent:dead', handleAgentHeartbeatDeath);
 
 resurrection.on('agent:resurrected', (oldAgentId, newAgentId) => {
   messaging.publish('resurrection', JSON.stringify({ event: 'resurrected', oldAgentId, newAgentId }));
@@ -1504,6 +1452,7 @@ function cleanupStale(): ReturnType<typeof services.cleanup> {
       const agentSessionRows = db.prepare(`
         SELECT agent_id, id AS session_id FROM sessions
         WHERE agent_id IN (${placeholders}) AND status = 'active'
+          AND (is_durable IS NULL OR is_durable = 0)
         GROUP BY agent_id HAVING MAX(updated_at)
       `).all(...inactiveIds) as AgentSessionRow[];
 
@@ -1530,6 +1479,17 @@ function cleanupStale(): ReturnType<typeof services.cleanup> {
       }
 
       for (const agent of inactiveAgents) {
+        const hold = resurrection.holdForDurableSessions(agent.id);
+        if (hold.held) {
+          if (Date.now() - agent.lastHeartbeat > getDeadThresholdForStatus(agent.status)) {
+            handleAgentHeartbeatDeath({
+              id: agent.id, name: agent.name || agent.id, purpose: agent.metadata?.purpose ?? null,
+              lastHeartbeat: agent.lastHeartbeat, staleSince: agent.lastHeartbeat + getDeadThresholdForStatus(agent.status),
+              identityProject: agent.identityProject ?? null,
+            });
+          }
+          continue;
+        }
         const sessionId = agentSessionMap.get(agent.id);
         const notes = sessionId ? (notesBySession.get(sessionId) ?? []) : [];
         resurrection.check({
