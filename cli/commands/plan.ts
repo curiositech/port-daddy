@@ -46,6 +46,8 @@ export async function handlePlan(args: string[], options: CLIOptions): Promise<v
   }
   const headers: Record<string, string> = credential ? { 'x-actor-credential': credential } : {};
   const notesUrl = `${PORT_DADDY_URL}/sessions/${encodeURIComponent(sessionId)}/notes`;
+  // One total command budget, not only the socket's resettable inactivity timer.
+  const signal = AbortSignal.timeout(10_000);
   // Never print arbitrary response bodies, nested errors, credential-bearing
   // URLs, or transport exceptions. Status plus an allowlisted hint is useful.
   const hints: Record<string, string> = {
@@ -71,7 +73,7 @@ export async function handlePlan(args: string[], options: CLIOptions): Promise<v
     let response;
     try {
       response = await pdFetch(notesUrl + (operation === 'read' ? '?type=todo_list&limit=1' : ''), {
-        ...init, headers: { ...headers, ...init.headers }, retry: false, socketFallback: false,
+        ...init, headers: { ...headers, ...init.headers }, retry: false, socketFallback: false, signal,
       });
     } catch {
       return fail(`Plan ${operation} transport failed. ${operation === 'append' ? 'The append outcome is unknown; read the exact plan before retrying.' : 'Nothing was written.'}`);
@@ -140,6 +142,13 @@ export async function handlePlan(args: string[], options: CLIOptions): Promise<v
       if (closing && closing[1][0] === fence.character && closing[1].length >= fence.length) fence = undefined;
       continue;
     }
+    // An eligible fence owns its entire info string, even apparent HTML. Do
+    // this before comment scanning, but never open a fence inside a comment.
+    const opening = !comment && /^\s*(`{3,}|~{3,})(.*)\r?$/.exec(lines[line]);
+    if (opening) {
+      fence = { character: opening[1][0], length: opening[1].length };
+      continue;
+    }
     // Mask comments positionally, including a comment opened after a visible
     // task. Offsets still address the original canonical string positions.
     const visible = lines[line].split('');
@@ -155,7 +164,7 @@ export async function handlePlan(args: string[], options: CLIOptions): Promise<v
       }
     }
     const visibleLine = visible.join('');
-    const boundary = /^\s*(`{3,}|~{3,})(.*)$/.exec(visibleLine);
+    const boundary = /^\s*(`{3,}|~{3,})(.*)\r?$/.exec(visibleLine);
     if (boundary) {
       fence = { character: boundary[1][0], length: boundary[1].length };
       continue;

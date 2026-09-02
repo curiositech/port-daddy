@@ -192,6 +192,12 @@ describe('complete canonical plan projection and exact task selectors', () => {
     await handlePlan(['check', '1'], {});
     expect(plans().at(-1).content).toBe(content.replace('[ ] Visible', '[x] Visible'));
   });
+  test.each(['\n', '\r\n'])('HTML-like opening fence info stays literal with separator %#', async (newline) => {
+    const content = ['```md <!-- literal info string', '- [ ] Example', '```', '- [ ] Visible'].join(newline);
+    seed(content);
+    await handlePlan(['check', '1'], {});
+    expect(plans().at(-1).content).toBe(content.replace('[ ] Visible', '[x] Visible'));
+  });
   test('a hidden exact label cannot append', async () => {
     seed('<!--\n- [ ] Hidden\n-->\n- [ ] Visible');
     await refuses(['check', 'Hidden'], 'No exact task label');

@@ -29,7 +29,7 @@ const { pdFetch } = await import('../../cli/utils/fetch.js');
 const { handlePlan } = await import('../../cli/commands/plan.js');
 let directory: string, unix: http.Server, tcp: http.Server, exit: any, log: any;
 let unixPosts: string[], tcpPosts: string[], unixReads: number;
-let loseResponse: boolean, hangResponse: boolean;
+let loseResponse: boolean, hangResponse: boolean, dripResponse: boolean;
 const originalPlan = '# Tasks\n\n- [ ] One\n- [ ] Two';
 
 beforeEach(async () => {
@@ -39,7 +39,7 @@ beforeEach(async () => {
   socketPath = join(directory, 's');
   selected = 'unix';
   unixPosts = []; tcpPosts = []; unixReads = 0;
-  loseResponse = true; hangResponse = false;
+  loseResponse = true; hangResponse = false; dripResponse = false;
   const server = (kind: 'unix' | 'tcp') => http.createServer((req, res) => {
     const chunks: Buffer[] = [];
     req.on('data', (chunk) => chunks.push(chunk));
@@ -47,6 +47,13 @@ beforeEach(async () => {
       if (req.method === 'POST') {
         expect(req.headers['x-actor-credential']).toBe(credential);
         (kind === 'unix' ? unixPosts : tcpPosts).push(Buffer.concat(chunks).toString());
+        if (kind === 'unix' && dripResponse) {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.write('{');
+          const interval = setInterval(() => res.write(' '), 5);
+          res.on('close', () => clearInterval(interval));
+          return;
+        }
         if (kind === 'unix' && hangResponse) return;
         if (kind === 'unix' && loseResponse) { req.socket.destroy(); return; }
         res.end(JSON.stringify({ success: true, sessionId: 'exact-session', noteId: 2 }));
@@ -129,3 +136,20 @@ test('accepted Unix write timeout cannot replay through TCP', async () => {
   expect(unixPosts).toHaveLength(1);
   expect(tcpPosts).toHaveLength(0);
 });
+
+test('a continuously dripping response still stops at the total plan deadline without replay', async () => {
+  dripResponse = true;
+  const timeout = AbortSignal.timeout.bind(AbortSignal);
+  // Exercise the real abort/HTTP path promptly while asserting the production
+  // command budget, rather than spending ten seconds in every unit run.
+  const clock = jest.spyOn(AbortSignal, 'timeout').mockImplementation((milliseconds) => {
+    expect(milliseconds).toBe(10_000);
+    return timeout(100);
+  });
+  try {
+    await expect(handlePlan(['set', originalPlan], {})).rejects.toThrow('exit:1');
+    expect(unixPosts).toHaveLength(1);
+    expect(tcpPosts).toHaveLength(0);
+    expect(error).toHaveBeenLastCalledWith(expect.stringContaining('append outcome is unknown'));
+  } finally { clock.mockRestore(); }
+}, 2_000);
