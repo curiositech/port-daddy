@@ -1521,6 +1521,33 @@ describe('Webhooks', () => {
 });
 
 // =============================================================================
+// Actor identity
+// =============================================================================
+
+describe('Actor identity', () => {
+  test('registerActor sends only active registration fields', async () => {
+    const pd = createClient();
+    queueResponse({
+      success: true,
+      status: 'minted',
+      actorId: 'soul_test',
+      soulClass: 'newcomer',
+      credential: 'soul_test.secret',
+    }, 201);
+
+    await pd.registerActor({ alias: 'port-daddy:test:client' });
+
+    expect(receivedRequests).toHaveLength(1);
+    expect(receivedRequests[0]).toMatchObject({
+      method: 'POST',
+      url: '/actors/register',
+      body: { alias: 'port-daddy:test:client' },
+    });
+    expect(receivedRequests[0].body).not.toHaveProperty('project');
+  });
+});
+
+// =============================================================================
 // System
 // =============================================================================
 
