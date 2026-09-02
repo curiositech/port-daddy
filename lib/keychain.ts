@@ -31,7 +31,8 @@
  *
  * NOT SUPPORTED YET: Linux Secret Service (gnome-keyring / kwallet),
  * Windows Credential Manager. Callers get `available() === false` and
- * are expected to have a file fallback ready.
+ * must apply their own explicit persistence policy. Porthole root-key callers
+ * fail closed; this accessor does not authorize a plaintext-file fallback.
  *
  * ════════════════════════════════════════════════════════════════════════
  *  USAGE
@@ -67,6 +68,8 @@ import * as childProcess from 'node:child_process';
  *
  * @example
  *   if (keychain.available()) { ... } // on macOS without the opt-out → true
+ * Purpose: Keep unsupported platforms and disabled test environments away from the shared OS keystore.
+ * @returns Whether this platform/configuration permits attempting Keychain access, not proof access will succeed.
  */
 function available(): boolean {
   if (process.env.PORT_DADDY_DISABLE_KEYCHAIN === '1') return false;
@@ -79,36 +82,29 @@ function available(): boolean {
  * (no prefix) when the stored value contains bytes it considers
  * non-printable — notably newlines, which rules out storing PEM blocks
  * directly. A simple all-hex-digits + even-length heuristic catches it.
+ * Purpose: Recognize the existing Keychain CLI hex wrapper before decoding stored secret text.
+ * @param s Raw Keychain CLI output to inspect.
+ * @returns Whether the string is nonempty, even-length hexadecimal.
  */
 function isHexDump(s: string): boolean {
   if (s.length === 0 || s.length % 2 !== 0) return false;
   return /^[0-9a-fA-F]+$/.test(s);
 }
 
+export type KeychainReadResult =
+  | { status: 'found'; value: string }
+  | { status: 'missing' }
+  | { status: 'unavailable' }
+  | { status: 'error' };
+
 /**
- * Read a secret value from the OS keychain. Returns null when the
- * platform doesn't support it, the entry doesn't exist, or the value
- * couldn't be read. NEVER throws — first-run absence is normal.
- *
- * Values are stored base64-encoded (see {@link saveSecret}) so that
- * multi-line PEM blocks round-trip safely through the `security` CLI.
- * On the way out we detect both shapes:
- *   - normal: base64 text → decode to UTF-8.
- *   - hex-dump: `security` chose to emit the bytes as hex (happens for
- *     values `security` considers binary, which includes anything with
- *     newlines — even if our base64 output is pure ASCII, legacy
- *     non-base64 stores can hit this). Decode hex → interpret as UTF-8.
- *
- * @param service  Keychain service identifier (use 'port-daddy').
- * @param account  Per-secret account name, e.g. 'master-key'.
- * @returns The secret as a string, or null.
- *
- * @example
- *   const hex = keychain.loadSecret('port-daddy', 'master-key');
- *   // → '4f3a...' or null
+ * Purpose: Distinguish proven absence from unavailable or failed reads so root-key callers never overwrite unreadable material.
+ * @param service OS-Keychain service identifier.
+ * @param account Per-secret account identifier.
+ * @returns Found value, missing, unavailable, or error; only exit status 44 proves absence.
  */
-function loadSecret(service: string, account: string): string | null {
-  if (!available()) return null;
+function loadSecretResult(service: string, account: string): KeychainReadResult {
+  if (!available()) return { status: 'unavailable' };
   try {
     const out = childProcess.execFileSync(
       '/usr/bin/security',
@@ -116,7 +112,7 @@ function loadSecret(service: string, account: string): string | null {
       { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 5000 },
     );
     const raw = out.trim();
-    if (raw.length === 0) return null;
+    if (raw.length === 0) return { status: 'error' };
 
     // Path A: `security` hex-dumped the value. This happens for stored
     // bytes with newlines/non-printables. We've seen this when the
@@ -135,7 +131,7 @@ function loadSecret(service: string, account: string): string | null {
     // If the value looks like pure hex and decodes to non-printable
     // bytes, assume legacy and return as-is.
     if (isHexDump(normalized)) {
-      return normalized;
+      return { status: 'found', value: normalized };
     }
 
     // Path C: standard base64-wrapped value.
@@ -143,14 +139,31 @@ function loadSecret(service: string, account: string): string | null {
       const decoded = Buffer.from(normalized, 'base64').toString('utf8');
       // Guard against spurious decodes — require at least one non-zero
       // char and that re-encoding produces the same string (modulo ==).
-      if (decoded.length > 0) return decoded;
-      return normalized;
+      if (decoded.length > 0) return { status: 'found', value: decoded };
+      return { status: 'found', value: normalized };
     } catch {
-      return normalized;
+      return { status: 'found', value: normalized };
     }
-  } catch {
-    return null;
+  } catch (error) {
+    // `security` maps errSecItemNotFound (-25300) to shell status 44. Only
+    // that exact outcome proves absence. Permission denial, timeout, locked
+    // keychain, and all other failures stay distinct so root-key callers never
+    // mistake an unreadable existing item for a safe creation opportunity.
+    return (error as { status?: number }).status === 44
+      ? { status: 'missing' }
+      : { status: 'error' };
   }
+}
+
+/**
+ * Purpose: Preserve the existing nullable accessor for ordinary consumers; root-key creation must use loadSecretResult.
+ * @param service OS-Keychain service identifier.
+ * @param account Per-secret account identifier.
+ * @returns The found secret or null, without proving absence.
+ */
+function loadSecret(service: string, account: string): string | null {
+  const result = loadSecretResult(service, account);
+  return result.status === 'found' ? result.value : null;
 }
 
 /**
@@ -172,6 +185,11 @@ function loadSecret(service: string, account: string): string | null {
  * @example
  *   keychain.saveSecret('port-daddy', 'master-key', hex32);
  *   keychain.saveSecret('port-daddy', 'harbor-signing-private-v2', pemBlock);
+ * Purpose: Support explicit replacement of ordinary secrets; root-key creation must use saveSecretIfAbsent.
+ * @param service OS-Keychain service identifier.
+ * @param account Per-secret account identifier.
+ * @param value Candidate value to validate or encode.
+ * @returns True on successful Keychain write, false on failure.
  */
 function saveSecret(service: string, account: string, value: string): boolean {
   if (!available()) return false;
@@ -195,12 +213,48 @@ function saveSecret(service: string, account: string, value: string): boolean {
 }
 
 /**
+ * Atomically create a keychain entry without replacing an existing value.
+ * Long-lived root-key callers must use this plus a read-back instead of
+ * `saveSecret()`, whose `-U` behavior intentionally updates ordinary secrets.
+ * Purpose: Create a root candidate without -U so an existing winner cannot be overwritten; callers must read back.
+ * @param service OS-Keychain service identifier.
+ * @param account Per-secret account identifier.
+ * @param value Candidate value to validate or encode.
+ * @returns True on insertion, false for either an existing item or an operational failure.
+ */
+function saveSecretIfAbsent(service: string, account: string, value: string): boolean {
+  if (!available()) return false;
+  try {
+    const encoded = Buffer.from(value, 'utf8').toString('base64');
+    childProcess.execFileSync(
+      '/usr/bin/security',
+      [
+        'add-generic-password',
+        '-s', service,
+        '-a', account,
+        '-w', encoded,
+      ],
+      { stdio: 'ignore', timeout: 5000 },
+    );
+    return true;
+  } catch {
+    // An existing item and an operational failure both return false. The
+    // caller must perform a tri-state read-back and accept only a found value.
+    return false;
+  }
+}
+
+/**
  * Delete a secret from the OS keychain. Returns true if the entry was
  * present and deleted, false if not present or unavailable.
  *
  * @example
  *   // After successful migration from a legacy location, clean up:
  *   keychain.deleteSecret('port-daddy', 'legacy-account');
+ * Purpose: Provide an explicit Keychain deletion primitive for authorized secret retirement.
+ * @param service OS-Keychain service identifier.
+ * @param account Per-secret account identifier.
+ * @returns True when deletion succeeds; false when unavailable, missing, or failed.
  */
 function deleteSecret(service: string, account: string): boolean {
   if (!available()) return false;
@@ -219,7 +273,9 @@ function deleteSecret(service: string, account: string): boolean {
 export const keychain = Object.freeze({
   available,
   loadSecret,
+  loadSecretResult,
   saveSecret,
+  saveSecretIfAbsent,
   deleteSecret,
 });
 
