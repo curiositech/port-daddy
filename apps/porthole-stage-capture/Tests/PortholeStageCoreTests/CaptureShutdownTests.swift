@@ -124,14 +124,29 @@ final class CaptureShutdownTests: XCTestCase {
         late?(NSError(domain: "late", code: 1))
     }
 
+    @MainActor
     func testStopAndWriterShareOneDeadlineRatherThanEachGettingFullBudget() async throws {
-        let deadline = CaptureShutdownDeadline(seconds: 0.08)
-        try await deadline.wait(phase: "stop") { callback in
-            DispatchQueue.global().asyncAfter(deadline: .now() + 0.04) { callback(nil) }
-        }
-        // Spend the remainder explicitly, then prove no second framework call
-        // is made after the absolute deadline already expired.
-        try await Task.sleep(for: .milliseconds(60))
+        var stopDeadline: UInt64?
+        var writerDeadline: UInt64?
+        var published = false
+        let approval = BoundaryFixtures.approval()
+        let controller = try StageCaptureController(shutdownWork: CaptureShutdownWork(approval: approval,
+            closeDelivery: {}, stop: { stopDeadline = $0.deadline.uptimeNanoseconds },
+            finalize: { writerDeadline = $0.deadline.uptimeNanoseconds },
+            publish: { published = true; return nil }, cancel: {}), approval: approval)
+        await controller.stopCapture()
+        // Observe the actual controller's forwarding rather than require a
+        // synthetic callback to win a millisecond race on a loaded CI runner.
+        XCTAssertEqual(try XCTUnwrap(stopDeadline), try XCTUnwrap(writerDeadline))
+        XCTAssertTrue(published)
+        XCTAssertEqual(controller.lifecycle, .stopped)
+    }
+
+    func testExpiredDeadlineDoesNotStartAnotherFrameworkPhase() async throws {
+        let deadline = CaptureShutdownDeadline(seconds: 0.001)
+        // Only a lower-bound wait is needed. Scheduler delay cannot turn this
+        // into a race, and the expired absolute deadline must reject startup.
+        try await Task.sleep(for: .milliseconds(2))
         do {
             try await deadline.wait(phase: "writer") { _ in XCTFail("expired budget must not start writer") }
             XCTFail("expired budget must fail")
