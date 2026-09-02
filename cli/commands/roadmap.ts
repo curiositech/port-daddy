@@ -675,13 +675,18 @@ async function deleteRoadmapItem(slug: string, harbor?: string): Promise<Roadmap
  * `pd roadmap upsert` silently forked receipts off the project board (which
  * lives in the `<project>` harbor). Resolving the project here keeps writes on
  * the same board the operator reads.
+ * The design also lets readers pass their selected target directory, so Guard
+ * checks invoked with --dir cannot infer a different caller repository's scope.
+ * @param options - Explicit harbor selection, ahead of environment defaults.
+ * @param cwd - Target directory for canonical project and basename inference.
+ * @returns The intended harbor, or undefined when no scope can be inferred.
  */
-export function resolveRoadmapHarbor(options: CLIOptions): string | undefined {
+export function resolveRoadmapHarbor(options: CLIOptions, cwd = process.cwd()): string | undefined {
   const explicit = readOption(options, 'harbor');
   if (explicit) return explicit;
   const env = process.env.PD_HARBOR?.trim();
   if (env) return env;
-  const worktree = getWorktreeInfo(process.cwd());
+  const worktree = getWorktreeInfo(cwd);
   if (worktree) {
     const commonDir = resolve(worktree.root, worktree.commonDir);
     const canonicalRoot = basename(commonDir) === '.git'
@@ -690,7 +695,7 @@ export function resolveRoadmapHarbor(options: CLIOptions): string | undefined {
     const projectName = basename(canonicalRoot);
     if (projectName) return projectName;
   }
-  const cwdBase = basename(process.cwd());
+  const cwdBase = basename(cwd);
   return cwdBase || undefined;
 }
 

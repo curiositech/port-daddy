@@ -9,6 +9,7 @@ import type { CLIOptions } from '../types.js';
 import { requireConfirmation, DESTRUCTIVE_EXIT_CODE } from '../utils/destructive-confirm.js';
 import { evaluateLeaseRent } from '../../lib/coast-guard/compulsion.js';
 import { gatherCommitsSinceLastNote } from '../../lib/coast-guard/compulsion-facts.js';
+import { resolveRoadmapHarbor } from './roadmap.js';
 
 /**
  * Destructive git verbs intercepted by the optional `~/.port-daddy/bin/git`
@@ -68,6 +69,11 @@ export interface GuardRoadmapReceipt {
   lastTouchedAt?: number | null;
   promotedByAgentId?: string | null;
   notes?: Array<{ at?: number | null; by?: string | null; text?: string | null }>;
+}
+
+export interface GuardRoadmapReceiptLookup {
+  receipts: GuardRoadmapReceipt[];
+  issue?: 'unavailable' | 'incomplete' | 'scope-unavailable';
 }
 
 export interface GuardViolation {
@@ -436,6 +442,13 @@ export function mergePostCommitHook(existing: string): string {
   return mergeHookBlock(existing, guardPostCommitBlock());
 }
 
+/**
+ * Evaluate gathered coordination facts without performing work or repairing state.
+ * The design keeps enforcement separate from collection: unavailable roadmap
+ * evidence remains unknown rather than becoming a fabricated missing receipt.
+ * @param input - Verified context, ownership and bounded receipt observations.
+ * @returns The unchanged enforcement decision with precise evidence diagnostics.
+ */
 export function evaluateGuardFacts(input: {
   config: CoordinationGuardConfig;
   mode?: CoordinationGuardMode;
@@ -458,6 +471,8 @@ export function evaluateGuardFacts(input: {
    *  invariant; dirty-tree advisory checks should not demand a roadmap receipt. */
   atCommitTime?: boolean;
   roadmapReceipts?: GuardRoadmapReceipt[];
+  /** Read failures and bounded-page omissions are not proof of absence. */
+  roadmapReceiptLookupIssue?: GuardRoadmapReceiptLookup['issue'];
   nowMs?: number;
 }): GuardCheckResult {
   const mode = input.mode ?? (input.config.enabled ? input.config.mode : 'off');
@@ -575,11 +590,16 @@ export function evaluateGuardFacts(input: {
         receiptMatchesAgent(receipt, input.agentId, since),
       );
       if (!hasReceipt) {
+        const lookupIssue = input.roadmapReceiptLookupIssue;
         violations.push({
-          code: 'roadmap-receipt-missing',
+          code: lookupIssue ? 'roadmap-receipt-unverifiable' : 'roadmap-receipt-missing',
           severity: 'critical',
           file: roadmapFiles[0],
-          message:
+          message: lookupIssue
+            ? `The roadmap receipt could not be verified (${lookupIssue}). ` +
+              'Verify the session roadmap link and intended harbor, then retry the selected daemon; ' +
+              'an incomplete or unavailable lookup does not prove that a receipt is missing.'
+            :
             `Coordination architecture changed (${roadmapFiles.slice(0, 3).join(', ')}${roadmapFiles.length > 3 ? ', …' : ''}) ` +
             'without a recent roadmap_items receipt from this agent. Run `pd roadmap upsert <slug> --summary <md>` or `pd roadmap touch <slug> --note <why>`.',
         });
@@ -606,11 +626,19 @@ async function fetchJson(path: string): Promise<Record<string, unknown>> {
   return await res.json();
 }
 
+/**
+ * Read the selected session and its daemon-stored roadmap link together.
+ * The design carries only returned context facts into receipt selection, never
+ * borrowing a different session's link or making an authority mutation here.
+ * @param cwd - Current worktree used by the existing context selector.
+ * @returns Active context and liveness evidence, including its optional link.
+ */
 async function loadActiveContext(cwd = process.cwd()): Promise<{
   active: boolean;
   daemonReachable: boolean;
   agentId?: string | null;
   sessionId?: string | null;
+  roadmapLink?: string | null;
 }> {
   const context = readCurrentContext(cwd);
   if (!context?.agentId && !context?.sessionId) {
@@ -634,6 +662,7 @@ async function loadActiveContext(cwd = process.cwd()): Promise<{
       daemonReachable: true,
       agentId: typeof data.agentId === 'string' ? data.agentId : context.agentId,
       sessionId: typeof data.sessionId === 'string' ? data.sessionId : context.sessionId,
+      roadmapLink: typeof data.roadmapLink === 'string' ? data.roadmapLink : null,
     };
   } catch {
     return {
@@ -896,21 +925,59 @@ async function loadAllActiveClaims(): Promise<string[]> {
   }
 }
 
-async function loadRoadmapReceipts(): Promise<GuardRoadmapReceipt[]> {
+/**
+ * Read only the selected session's linked item in the intended write-side harbor.
+ * The design avoids treating the first status-ranked page as an existence check:
+ * unrelated items, including same-named items in other harbors, cannot pay rent
+ * for linked work. An unlinked session retains a bounded scoped diagnostic read.
+ *
+ * @param input - Daemon-returned session link and write-side harbor selection.
+ * @returns Sanitized local receipts plus an explicit unknown/incomplete diagnostic.
+ */
+export async function loadRoadmapReceipts(input: {
+  roadmapLink?: string | null;
+  harbor?: string;
+}): Promise<GuardRoadmapReceiptLookup> {
+  const harbor = input.harbor?.trim();
+  if (!harbor) return { receipts: [], issue: 'scope-unavailable' };
+  const slug = input.roadmapLink?.trim();
+  const limit = 200;
+  const params = new URLSearchParams(slug ? { harbor } : { status: 'all', limit: String(limit), harbor });
+  const path = slug ? `/roadmap/items/${encodeURIComponent(slug)}` : '/roadmap/items';
   try {
-    const data = await fetchJson('/roadmap/items?status=all&limit=200');
-    if (!Array.isArray(data.items)) return [];
-    return data.items
-      .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === 'object')
-      .map((item) => ({
-        slug: typeof item.slug === 'string' ? item.slug : '',
-        lastTouchedAt: typeof item.lastTouchedAt === 'number' ? item.lastTouchedAt : null,
+    const res = await pdFetch(`${PORT_DADDY_URL}${path}?${params}`, {
+      timeout: 2000, retry: false, signal: AbortSignal.timeout(2000),
+    });
+    if (slug && res.status === 404) return { receipts: [] };
+    if (!res.ok) return { receipts: [], issue: 'unavailable' };
+    const data = await res.json();
+    if (!data || data.success !== true) return { receipts: [], issue: 'unavailable' };
+    const items = slug ? [data.item] : data.items;
+    if (!Array.isArray(items) || (!slug && (data.count !== items.length || items.length > limit))) {
+      return { receipts: [], issue: 'unavailable' };
+    }
+    const receipts: GuardRoadmapReceipt[] = [];
+    for (const raw of items) {
+      if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return { receipts: [], issue: 'unavailable' };
+      const item = raw as Record<string, unknown>;
+      if (typeof item.slug !== 'string' || !item.slug.trim() || item.harbor !== harbor || (slug && item.slug !== slug)) {
+        return { receipts: [], issue: 'unavailable' };
+      }
+      receipts.push({
+        slug: item.slug,
+        lastTouchedAt: typeof item.lastTouchedAt === 'number' && Number.isFinite(item.lastTouchedAt) ? item.lastTouchedAt : null,
         promotedByAgentId: typeof item.promotedByAgentId === 'string' ? item.promotedByAgentId : null,
-        notes: Array.isArray(item.notes) ? item.notes as GuardRoadmapReceipt['notes'] : [],
-      }))
-      .filter((item) => item.slug);
+        notes: Array.isArray(item.notes) ? item.notes.flatMap((note) =>
+          note && typeof note === 'object' && typeof note.by === 'string' &&
+          typeof note.at === 'number' && Number.isFinite(note.at)
+            ? [{ by: note.by, at: note.at }]
+            : [],
+        ) : [],
+      });
+    }
+    return !slug && receipts.length === limit ? { receipts, issue: 'incomplete' } : { receipts };
   } catch {
-    return [];
+    return { receipts: [], issue: 'unavailable' };
   }
 }
 
@@ -962,6 +1029,14 @@ export function filterClaimsToRepo(paths: string[], repoRoot: string): string[] 
   });
 }
 
+/**
+ * Gather the actual command's scoped facts and evaluate them once.
+ * The design resolves roadmap scope through the same harbor contract as writes;
+ * a post-commit audit observes the result without changing commit history.
+ * @param positional - Explicit paths for a non-staged advisory check.
+ * @param options - Guard mode, commit scope and intended harbor selection.
+ * @returns Enforcement or post-commit audit facts for the unchanged presenter.
+ */
 async function runCheck(positional: string[], options: CLIOptions): Promise<GuardCheckResult> {
   const cwd = resolve(typeof options.dir === 'string' ? options.dir : process.cwd());
   const config = readGuardConfig(cwd);
@@ -1020,13 +1095,13 @@ async function runCheck(positional: string[], options: CLIOptions): Promise<Guar
       rentUnverifiable = true;
     }
   }
-  const roadmapReceipts =
+  const roadmapLookup =
     mode !== 'off' &&
     atCommitTime &&
     config.requireRoadmapForCoordinationChanges &&
     context.active &&
     files.some(fileNeedsRoadmapReceipt)
-      ? await loadRoadmapReceipts()
+      ? await loadRoadmapReceipts({ roadmapLink: context.roadmapLink, harbor: resolveRoadmapHarbor(options, cwd) })
       : undefined;
 
   const result = evaluateGuardFacts({
@@ -1041,7 +1116,8 @@ async function runCheck(positional: string[], options: CLIOptions): Promise<Guar
     commitsSinceLastNote,
     rentUnverifiable,
     atCommitTime,
-    roadmapReceipts,
+    roadmapReceipts: roadmapLookup?.receipts,
+    roadmapReceiptLookupIssue: roadmapLookup?.issue,
   });
   return postCommit ? asPostCommitAudit(result, auditedCommit) : result;
 }
