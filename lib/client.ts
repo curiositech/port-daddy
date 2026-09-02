@@ -4023,6 +4023,7 @@ interface SpawnSpec {
   purpose?: string;
   task: string;
   files?: string[];
+  /** Existing absolute directory; required for local agents. API-only projectless runs may omit it. No daemon-cwd default. */
   workdir?: string;
   env?: Record<string, string>;
   timeout?: number;

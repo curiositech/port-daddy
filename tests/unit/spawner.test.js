@@ -1170,7 +1170,7 @@ describe('PD coordination', () => {
         worktreeBinding,
         };
       }),
-      bind: jest.fn(async () => ({ success: true, worktreeBinding })),
+      bind: jest.fn(async () => ({ success: true, worktreeBinding, validateBeforeLaunch: async () => ({ success: true }) })),
       complete: jest.fn().mockResolvedValue({ success: true }),
       abort: jest.fn().mockResolvedValue({ success: true }),
       ...overrides,

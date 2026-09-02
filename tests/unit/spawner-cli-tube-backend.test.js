@@ -344,6 +344,57 @@ describe('CLI tube provider registry contract', () => {
 });
 
 describe('spawnViaCliTube — provider policy behavior', () => {
+  test.each(CLI_TUBE_TOOLS)('%s refuses an ordinary replaced workspace before sandbox setup', async (cli) => {
+    const workspace = join(fakeHome, 'workspace');
+    mkdirSync(workspace);
+    const workspaceIdentity = captureWorkspaceIdentity(workspace);
+    renameSync(workspace, workspace + '-old');
+    mkdirSync(workspace);
+    const result = await spawnViaCliTube({ cli, prompt: 'must not run', cwd: workspace, workspaceIdentity });
+    expect(result.error).toMatch(/workspace identity changed/);
+    expect(mockWithCoastGuard).not.toHaveBeenCalled();
+    expect(mockSpawn).not.toHaveBeenCalled();
+  });
+
+  test.each(CLI_TUBE_TOOLS)('%s rechecks ordinary workspace after sandbox preparation and cleans up', async (cli) => {
+    const workspace = join(fakeHome, 'workspace');
+    mkdirSync(workspace);
+    const workspaceIdentity = captureWorkspaceIdentity(workspace);
+    mockWithCoastGuard.mockImplementationOnce(async (input) => {
+      await Promise.resolve();
+      renameSync(workspace, workspace + '-old');
+      mkdirSync(workspace);
+      return { cmd: input.cmd, args: input.args, env: input.env, receipt: () => mockCoastGuardReceipt, dispose: mockCoastGuardDispose };
+    });
+    const result = await spawnViaCliTube({ cli, prompt: 'must not run', cwd: workspace, workspaceIdentity });
+    expect(result.error).toMatch(/workspace identity changed/);
+    expect(result.coastGuardReceipt).toEqual(mockCoastGuardReceipt);
+    expect(mockSpawn).not.toHaveBeenCalled();
+    expect(mockCoastGuardDispose).toHaveBeenCalledTimes(1);
+    const scratch = join(fakeHome, '.port-daddy', 'cli-tube-scratch');
+    expect(existsSync(scratch) ? readdirSync(scratch) : []).toEqual([]);
+  });
+
+  test.each(CLI_TUBE_TOOLS)('%s does not launch after cancellation during sandbox preparation', async (cli) => {
+    const controller = new AbortController();
+    mockWithCoastGuard.mockImplementationOnce(async (input) => {
+      await Promise.resolve();
+      controller.abort();
+      return { cmd: input.cmd, args: input.args, env: input.env, receipt: () => mockCoastGuardReceipt, dispose: mockCoastGuardDispose };
+    });
+    const result = await spawnViaCliTube({ cli, prompt: 'must not run', signal: controller.signal });
+    expect(result.error).toMatch(/cancelled before child launch/);
+    expect(mockSpawn).not.toHaveBeenCalled();
+    expect(mockCoastGuardDispose).toHaveBeenCalledTimes(1);
+  });
+
+  test.each(['claude-code', 'codex'])('%s still requires the native-resume witness', async (cli) => {
+    const result = await spawnViaCliTube({ cli, prompt: 'must not run', cwd: fakeHome, resumeSessionId: '11111111-1111-4111-8111-111111111111' });
+    expect(result.error).toMatch(/Native resume blocked/);
+    expect(mockWithCoastGuard).not.toHaveBeenCalled();
+    expect(mockSpawn).not.toHaveBeenCalled();
+  });
+
   test('rechecks native-resume workspace identity at the CLI child boundary', async () => {
     const workspace = join(fakeHome, 'workspace');
     const movedWorkspace = join(fakeHome, 'moved-workspace');

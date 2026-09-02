@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, jest, test } from '@jest/globals
 import { execFileSync } from 'node:child_process';
 import * as actualChildProcess from 'node:child_process';
 import { mkdtempSync, mkdirSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { createHash } from 'node:crypto';
 import { createTestDb } from '../setup-unit.js';
@@ -12,20 +12,36 @@ import { createSugar } from '../../lib/sugar.js';
 import { createActivityLog } from '../../lib/activity.js';
 import type { ManagedSessionLifecycle, SpawnSpec } from '../../lib/spawner.js';
 import type { ManagedSpawnWorktree } from '../../lib/managed-spawn-worktree.js';
+import * as actualCliBinDirs from '../../lib/cli-bin-dirs.js';
 
 let fixture: string;
 let main: string;
 let a: string;
 let b: string;
 let plain: string;
+let duringSandboxPreparation: () => void = () => {};
+const childSpawn = jest.fn(() => { throw new Error('Refused managed launch reached child_process.spawn'); });
+const sandboxDispose = jest.fn();
 // ~/coding is itself a Git repo on the development machine. Model a separate
 // filesystem boundary for this test fixture using Git's ceiling option. Every
 // probe still runs real Git; production neither receives nor trusts this seam.
 jest.unstable_mockModule('node:child_process', () => ({
   ...actualChildProcess,
+  spawn: childSpawn,
   execFile: (file: string, args: string[], options: Record<string, any>, callback: any) => actualChildProcess.execFile(
     file, args, { ...options, env: { ...options.env, GIT_CEILING_DIRECTORIES: fixture } }, callback,
   ),
+}));
+jest.unstable_mockModule('../../lib/cli-bin-dirs.js', () => ({
+  ...actualCliBinDirs,
+  resolveCliBinary: () => ({ found: true, command: '/synthetic-cli-never-launched' }),
+}));
+jest.unstable_mockModule('../../lib/spawner/coast-guard-runner.js', () => ({
+  withCoastGuard: async (input: any) => {
+    await Promise.resolve();
+    duringSandboxPreparation();
+    return { cmd: input.cmd, args: input.args, env: input.env, receipt: () => ({ confined: false }), dispose: sandboxDispose };
+  },
 }));
 const { captureManagedSpawnWorktree, managedSpawnWorktreeReceipt, verifyManagedSpawnWorktree } = await import('../../lib/managed-spawn-worktree.js');
 const { createSpawner } = await import('../../lib/spawner.js');
@@ -39,7 +55,9 @@ function git(cwd: string, ...args: string[]) {
 }
 
 beforeAll(() => {
-  fixture = mkdtempSync(join(tmpdir(), 'pd-spawn-world-'));
+  const scratchParent = join(homedir(), 'coding', 'tmp');
+  mkdirSync(scratchParent, { recursive: true });
+  fixture = mkdtempSync(join(scratchParent, 'pd-spawn-world-'));
   main = join(fixture, 'repo'); a = join(fixture, 'a'); b = join(fixture, 'b'); plain = join(fixture, 'plain');
   mkdirSync(main); mkdirSync(plain);
   git(main, 'init', '-b', 'main');
@@ -51,7 +69,7 @@ beforeAll(() => {
 afterAll(() => { global.fetch = originalFetch; rmSync(fixture, { recursive: true, force: true }); });
 
 function storedSession(target: ManagedSpawnWorktree) {
-  return { worktreeId: target.worktree?.id ?? null, metadata: { worktree: target.worktree, spawnWorkdir: target.directory } };
+  return { status: 'active', worktreeId: target.worktree?.id ?? null, metadata: { worktree: target.worktree, spawnWorkdir: target.directory } };
 }
 
 describe('physical spawn world witness', () => {
@@ -100,6 +118,13 @@ describe('physical spawn world witness', () => {
     await expect(captureManagedSpawnWorktree(broken, signal())).rejects.toThrow('Git identity');
   });
 
+  test('supports an unborn repository and a detached linked worktree', async () => {
+    const unborn = join(fixture, 'unborn'); mkdirSync(unborn); git(unborn, 'init', '-b', 'starting');
+    expect((await captureManagedSpawnWorktree(unborn, signal())).worktree).toMatchObject({ branch: 'starting', isMain: true });
+    const detached = join(fixture, 'detached'); git(main, 'worktree', 'add', '--detach', detached);
+    expect((await captureManagedSpawnWorktree(detached, signal())).worktree).toMatchObject({ branch: null, isMain: false });
+  });
+
   test('detects same-path directory replacement', async () => {
     const path = join(fixture, 'replace'); mkdirSync(path);
     const target = await captureManagedSpawnWorktree(path, signal());
@@ -122,6 +147,10 @@ describe('physical spawn world witness', () => {
     expect(getter).toHaveBeenCalledTimes(1);
     const abort = new AbortController(); abort.abort();
     await expect(captureManagedSpawnWorktree(a, abort.signal)).rejects.toThrow();
+    const duringProbe = new AbortController();
+    const pending = captureManagedSpawnWorktree(a, duringProbe.signal);
+    duringProbe.abort();
+    await expect(pending).rejects.toThrow();
   });
 });
 
@@ -144,7 +173,14 @@ function managedHarness() {
     bind: async (input, { signal }) => {
       const target = targets.get(input.sessionId)!;
       await verifyManagedSpawnWorktree(target, () => sessions.get(input.sessionId).session as Record<string, unknown>, signal);
-      return { ...sugar.bindManagedSession({ ...input, actorId: input.agentId }), worktreeBinding: managedSpawnWorktreeReceipt(target) };
+      return {
+        ...sugar.bindManagedSession({ ...input, actorId: input.agentId }),
+        worktreeBinding: managedSpawnWorktreeReceipt(target),
+        validateBeforeLaunch: async ({ signal: launchSignal }: { signal: AbortSignal }) => {
+          await verifyManagedSpawnWorktree(target, () => sessions.get(input.sessionId).session as Record<string, unknown>, launchSignal);
+          return { success: true };
+        },
+      };
     },
     complete: async (input) => sugar.completeManagedSession({ ...input, actorId: input.agentId }),
     abort: async (input) => sugar.abortManagedSession({ ...input, actorId: input.agentId }),
@@ -174,7 +210,10 @@ describe('managed provider admission', () => {
 
   test('concurrent A/B admission does not share worlds, exact terminal IDs, or caller mutations', async () => {
     const h = managedHarness();
-    const runner = jest.fn(async (spec: SpawnSpec) => ({ output: spec.workdir!, error: null }));
+    const runner = jest.fn(async (spec: SpawnSpec) => ({
+      output: execFileSync(process.execPath, ['-p', 'process.cwd()'], { cwd: spec.workdir, encoding: 'utf8' }).trim(),
+      error: null,
+    }));
     const s = spawner(h, 'ollama', runner);
     const mutable: SpawnSpec = { backend: 'ollama', task: 'A', workdir: a };
     try {
@@ -213,6 +252,21 @@ describe('managed provider admission', () => {
     } finally { h.db.close(); }
   });
 
+  test('a projectless API call stays projectless when the daemon cwd is a main checkout', async () => {
+    const originalCwd = process.cwd(); const priorIsolation = process.env.PD_SPAWN_ISOLATION_OFF;
+    const h = managedHarness();
+    try {
+      process.chdir(main); delete process.env.PD_SPAWN_ISOLATION_OFF;
+      const result = await spawner(h, 'ollama', async () => ({ output: 'no filesystem target', error: null })).spawn({ backend: 'ollama', task: 'remote only' });
+      expect(result.status).toBe('completed');
+      expect(h.sessions.get(h.admitted[0]).session?.worktreeId).toBeNull();
+    } finally {
+      process.chdir(originalCwd);
+      if (priorIsolation === undefined) delete process.env.PD_SPAWN_ISOLATION_OFF; else process.env.PD_SPAWN_ISOLATION_OFF = priorIsolation;
+      h.db.close();
+    }
+  });
+
   test('stored wrong world refuses backend and abandons only the exact admitted session', async () => {
     const h = managedHarness(); const original = h.lifecycle.admit;
     h.lifecycle.admit = async (input, options) => {
@@ -228,6 +282,83 @@ describe('managed provider admission', () => {
       expect(h.sessions.get(h.admitted[0]).session?.status).toBe('abandoned');
       expect(h.sessions.get(unrelated.id!).session?.status).toBe('active');
     } finally { h.db.close(); }
+  });
+
+  test('same-path replacement after admission prevents every backend and exact admission is abandoned', async () => {
+    const h = managedHarness(); const original = h.lifecycle.admit;
+    const path = join(fixture, 'replace-after-admit'); mkdirSync(path);
+    h.lifecycle.admit = async (input, options) => {
+      const result = await original(input, options);
+      renameSync(path, path + '-old'); mkdirSync(path);
+      return result;
+    };
+    const runner = jest.fn(async () => ({ output: 'must not run', error: null }));
+    try {
+      const result = await spawner(h, 'ollama', runner).spawn({ backend: 'ollama', task: 'replacement', workdir: path });
+      expect(result.status).toBe('failed'); expect(result.error).toContain('changed'); expect(runner).not.toHaveBeenCalled();
+      expect(h.sessions.get(h.admitted[0]).session?.status).toBe('abandoned');
+    } finally { h.db.close(); }
+  });
+
+  test('kill during real Git verification cannot mint a late session or start a backend', async () => {
+    const h = managedHarness(); const original = h.lifecycle.admit;
+    let entered!: () => void; const admissionStarted = new Promise<void>(accept => { entered = accept; });
+    h.lifecycle.admit = (input, options) => { entered(); return original(input, options); };
+    const runner = jest.fn(async () => ({ output: 'must not run', error: null }));
+    const s = spawner(h, 'ollama', runner);
+    try {
+      const pending = s.spawn({ backend: 'ollama', task: 'cancel during physical proof', workdir: a });
+      await admissionStarted;
+      s.kill(s.list()[0].agentId);
+      const result = await pending;
+      expect(result.status).toBe('killed'); expect(h.admitted).toEqual([]); expect(runner).not.toHaveBeenCalled();
+    } finally { h.db.close(); }
+  });
+
+  test('malformed admission or binding receipts fail before backend execution', async () => {
+    for (const boundary of ['admit', 'bind'] as const) {
+      const h = managedHarness(); const original = h.lifecycle[boundary];
+      h.lifecycle[boundary] = async (input: any, options: any) => {
+        const result = await (original as any)(input, options);
+        return { ...result, worktreeBinding: { cwd: '/wrong-target', root: null, worktreeId: null } };
+      };
+      const runner = jest.fn(async () => ({ output: 'must not run', error: null }));
+      try {
+        const result = await spawner(h, 'ollama', runner).spawn({ backend: 'ollama', task: 'bad receipt', workdir: a });
+        expect(result.status).toBe('failed'); expect(result.error).toContain('receipt'); expect(runner).not.toHaveBeenCalled();
+        expect(h.sessions.get(h.admitted[0]).session?.status).toBe('abandoned');
+      } finally { h.db.close(); }
+    }
+  });
+
+  test.each(['custom', 'cli:codex', 'cli:agy'] as const)('%s refuses Git-world replacement after sandbox setup without forking', async backend => {
+    for (const change of ['git-pointer', 'non-git-becomes-git'] as const) {
+      const h = managedHarness();
+      const target = join(fixture, `${backend.replace(':', '-')}-${change}`);
+      if (change === 'git-pointer') git(main, 'worktree', 'add', '-b', `race-${backend.replace(':', '-')}`, target);
+      else mkdirSync(target);
+      const s = createSpawner({ managedSessionLifecycle: h.lifecycle, enforceTranscriptPolicy: false,
+        enforceTelemetryPolicy: false, telemetryBypassApproval: { humanConfirmed: true, confirmedBy: 'fixture', reason: 'No actual child is launched in a refused-workspace test' } });
+      childSpawn.mockClear(); sandboxDispose.mockClear();
+      duringSandboxPreparation = () => {
+        if (change === 'git-pointer') writeFileSync(join(target, '.git'), readFileSync(join(b, '.git')));
+        else git(target, 'init', '-b', 'new-world');
+      };
+      try {
+        const result = await s.spawn({ backend, task: 'must not run', workdir: target });
+        expect(result.status).toBe('failed');
+        expect(result.error).toMatch(/target changed|outside its reported Git worktree/);
+        expect(childSpawn).not.toHaveBeenCalled();
+        expect(sandboxDispose).toHaveBeenCalledTimes(1);
+        expect(h.sessions.get(h.admitted[0]).session?.status).toBe('abandoned');
+      } finally { duringSandboxPreparation = () => {}; h.db.close(); }
+    }
+  });
+
+  test('a completed exact session cannot pass the private launch validator', async () => {
+    const target = await captureManagedSpawnWorktree(a, signal());
+    await expect(verifyManagedSpawnWorktree(target, () => ({ ...storedSession(target), status: 'completed' }), signal()))
+      .rejects.toThrow('no longer active');
   });
 
   test('production private lifecycle derives and verifies the target, not supplied world IDs', () => {

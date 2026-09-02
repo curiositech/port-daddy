@@ -728,8 +728,10 @@ async function runConfinedChild(
     dotenvKeys: Object.keys(loadDotenvOnce()),
   });
   try {
-    const nativeWorkspaceError = validateNativeResumeWorkspace(opts.spec);
-    if (nativeWorkspaceError) throw new Error(nativeWorkspaceError);
+    await opts.context?.beforeChildLaunch?.();
+    opts.context?.signal?.throwIfAborted();
+    const workspaceError = validateNativeResumeWorkspace(opts.spec) ?? validateSpawnWorkspace(opts.spec);
+    if (workspaceError) throw new Error(workspaceError);
     const res = await runChild({
       cmd: cg.cmd,
       args: cg.args,
@@ -778,6 +780,10 @@ interface BackendRunResult {
 }
 
 interface BackendRunContext {
+  /** Prevent a child launch if its managed lifecycle ended during sandbox setup. */
+  signal?: AbortSignal;
+  /** Private daemon witness check, repeated after asynchronous sandbox setup. */
+  beforeChildLaunch?: () => Promise<void>;
   /** Durable outer spawn identity threaded into subprocess receipts. */
   agentId?: string;
   onChildProcess?: (child: ChildProcess) => void;
@@ -1243,7 +1249,9 @@ async function runCliTube(
     onStreamLine,
     permissionMode: spec.permissionMode,
     resumeSessionId: spec.nativeResume?.sessionId,
-    workspaceIdentity: spec.nativeResume?.workspaceIdentity,
+    workspaceIdentity: spec.nativeResume?.workspaceIdentity ?? spec.workspaceIdentity,
+    signal: context?.signal,
+    beforeChildLaunch: context?.beforeChildLaunch,
     // Live observability (ADR-0060): publish the exchange on the operator-
     // discoverable channel (dispatch:<id>) when both a channel and a tube client
     // are present. When `tubeChannel` is undefined, spawnViaCliTube falls back to
@@ -2299,7 +2307,15 @@ export function createSpawner(deps: SpawnerDeps = {}) {
   async function spawn(spec: SpawnSpec): Promise<SpawnResult> {
     // Snapshot before the first await. Callers may reuse/mutate their spec while
     // harbor or session admission waits; that must not redirect an admitted run.
-    spec = { ...spec, env: spec.env ? { ...spec.env } : undefined };
+    spec = {
+      ...spec,
+      env: spec.env ? { ...spec.env } : undefined,
+      workspaceIdentity: spec.workspaceIdentity ? { ...spec.workspaceIdentity } : undefined,
+      nativeResume: spec.nativeResume ? {
+        ...spec.nativeResume,
+        workspaceIdentity: spec.nativeResume.workspaceIdentity ? { ...spec.nativeResume.workspaceIdentity } : undefined,
+      } : undefined,
+    };
     const requestedWorkdir = spec.workdir;
     const targetDirectory = requestedWorkdir === undefined ? null : captureWorkspaceIdentity(requestedWorkdir);
     Object.defineProperty(spec, 'workdir', {
@@ -2351,7 +2367,11 @@ export function createSpawner(deps: SpawnerDeps = {}) {
 
     // Worktree isolation (layer 2): never launch a file-writing agent into a
     // repository main checkout — parallel agents there steamroll each other.
-    const isolation = assessSpawnIsolation(spec);
+    // A projectless API call has no filesystem target. Running the daemon from
+    // a main checkout must not silently turn that call into work in that repo.
+    const isolation = requestedWorkdir === undefined && projectlessBackend
+      ? { blocked: false, reason: null }
+      : assessSpawnIsolation(spec);
     if (isolation.blocked) {
       counters?.bump('spawn.blocked', dims);
       return blockedResult(isolation.reason as string);
@@ -2693,6 +2713,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     };
     let beginResponse: Record<string, unknown> | null = null;
     let managedSessionBindingError: string | null = null;
+    let revalidateManagedWorktree: (() => Promise<void>) | undefined;
     let managedAdmissionTimedOut = false;
     if (record.status !== 'killed') {
       if (managedSessionLifecycle) {
@@ -2762,7 +2783,15 @@ export function createSpawner(deps: SpawnerDeps = {}) {
             : 'managed spawn session binding was refused';
         } else if (JSON.stringify(binding.value.worktreeBinding) !== JSON.stringify(beginResponse.worktreeBinding)) {
           managedSessionBindingError = 'managed spawn binding changed the admitted worktree receipt';
+        } else if (typeof binding.value.validateBeforeLaunch !== 'function') {
+          managedSessionBindingError = 'managed spawn binding did not return its private launch validator';
         } else {
+          const validate = binding.value.validateBeforeLaunch as (options: { signal: AbortSignal }) => Promise<Record<string, unknown>>;
+          revalidateManagedWorktree = async () => {
+            const checked = await runManagedOperation(record, 'managed launch worktree validation', validate, { cancelOnKill: true });
+            if (!checked.success) throw new Error(checked.error);
+            if (checked.value.success !== true) throw new Error(String(checked.value.error ?? 'Managed launch worktree validation refused'));
+          };
           record.managedSessionBound = true;
         }
       }
@@ -2810,10 +2839,13 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       if (record.status === 'killed') {
         throw new Error('Killed by spawner before backend execution');
       }
+      await revalidateManagedWorktree?.();
+      record.lifecycleAbort.signal.throwIfAborted();
       const executionSpec: SpawnSpec = {
         ...spec,
         backend: runtime.effectiveBackend,
         model: runtime.effectiveModel,
+        workspaceIdentity: spec.workspaceIdentity ?? targetDirectory ?? undefined,
       };
       const finalContinuationWorkspaceError = validateNativeResume(executionSpec, runtime)
         ?? validateSpawnWorkspace(executionSpec);
@@ -2830,6 +2862,8 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       } else {
         const childContext: BackendRunContext = {
           agentId,
+          signal: record.lifecycleAbort.signal,
+          beforeChildLaunch: revalidateManagedWorktree,
           onChildProcess: (child) => {
             if (record.status === 'running') {
               record.childProcess = child;

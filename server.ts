@@ -994,6 +994,9 @@ const spawner = createSpawner({
       if (!authority.success) return authority;
       const target = managedSpawnWorktrees.get(input.sessionId);
       if (!target) return { success: false, code: 'MANAGED_SPAWN_TARGET_REQUIRED', error: 'Exact spawn target witness is missing' };
+      // The authorized one-shot binding attempt owns this local witness now.
+      // Failed terminal persistence must not leak an unbounded map of targets.
+      managedSpawnWorktrees.delete(input.sessionId);
       await verifyManagedSpawnWorktree(target, () => {
         const lookup = sugarSessions.get(input.sessionId);
         return lookup.success && lookup.session ? lookup.session as Record<string, unknown> : null;
@@ -1006,7 +1009,21 @@ const spawner = createSpawner({
         agentId: currentAuthority.agentId,
         actorId: currentAuthority.actorId,
       });
-      return { ...bound, worktreeBinding: managedSpawnWorktreeReceipt(target) };
+      return {
+        ...bound,
+        worktreeBinding: managedSpawnWorktreeReceipt(target),
+        // This closure retains the already verified witness, not a second
+        // identity store or a caller-controlled world. Child runners invoke it
+        // again after sandbox setup, when Git metadata may have changed.
+        validateBeforeLaunch: async ({ signal: launchSignal }: { signal: AbortSignal }) => {
+          await verifyManagedSpawnWorktree(target, () => {
+            const lookup = sugarSessions.get(input.sessionId);
+            return lookup.success && lookup.session ? lookup.session as Record<string, unknown> : null;
+          }, launchSignal);
+          launchSignal.throwIfAborted();
+          return authorizeManagedSpawnerSession(input);
+        },
+      };
     },
     complete: async (input) => {
       const authority = authorizeManagedSpawnerSession(input);
