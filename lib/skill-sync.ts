@@ -13,6 +13,7 @@ import {
 } from 'node:fs';
 import { homedir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
+import { skillSyncGitPolicy } from './skill-sync-git.js';
 
 export type SkillSyncScope = 'user' | 'project';
 
@@ -243,7 +244,9 @@ export function syncAgentSkills(options: SyncAgentSkillsOptions): SyncAgentSkill
   const union = collectSkillUnion(roots);
   const targets = options.targets ?? runtimeSkillTargets(options.baseDir, options.scope);
   const dryRun = !!options.dryRun || !!options.statusOnly;
-  const initialAudit = auditSkillLinks(union.skills, targets);
+  const policy = skillSyncGitPolicy(options.baseDir, targets.flatMap((target) => union.skills.map((skill) => join(target.path, skill.id))));
+  const excluded = new Set([...policy.preserved.keys(), ...policy.errors.keys()]);
+  const initialAudit = auditSkillLinks(union.skills, targets, excluded);
   const result: SyncAgentSkillsResult = {
     scope: options.scope,
     baseDir: options.baseDir,
@@ -256,8 +259,8 @@ export function syncAgentSkills(options: SyncAgentSkillsOptions): SyncAgentSkill
     created: 0,
     replaced: 0,
     alreadyLinked: 0,
-    skippedExisting: [],
-    errors: [],
+    skippedExisting: [...policy.preserved].map(([target, reason]) => ({ target, reason })),
+    errors: [...policy.errors].map(([target, error]) => ({ target, error })),
     audit: initialAudit,
   };
 
@@ -268,7 +271,8 @@ export function syncAgentSkills(options: SyncAgentSkillsOptions): SyncAgentSkill
   for (const targetRoot of targets) {
     for (const skill of union.skills) {
       const target = join(targetRoot.path, skill.id);
-      const outcome = ensureSymlink(target, skill.path, dryRun);
+      if (excluded.has(target)) continue;
+      const outcome = ensureSymlink(target, skill.path, dryRun, policy.gitManaged, () => policy.checkParents(target));
       switch (outcome.kind) {
         case 'created':
           result.created++;
@@ -290,13 +294,13 @@ export function syncAgentSkills(options: SyncAgentSkillsOptions): SyncAgentSkill
   }
 
   if (!dryRun) {
-    result.audit = auditSkillLinks(union.skills, targets);
+    result.audit = auditSkillLinks(union.skills, targets, excluded);
   }
 
   return result;
 }
 
-export function auditSkillLinks(skills: SkillEntry[], targets: RuntimeSkillTarget[]): SkillLinkAudit {
+export function auditSkillLinks(skills: SkillEntry[], targets: RuntimeSkillTarget[], preserved: ReadonlySet<string> = new Set()): SkillLinkAudit {
   const audit: SkillLinkAudit = {
     expectedLinks: skills.length * targets.length,
     currentLinks: 0,
@@ -316,6 +320,7 @@ export function auditSkillLinks(skills: SkillEntry[], targets: RuntimeSkillTarge
   for (const targetRoot of targets) {
     for (const skill of skills) {
       const target = join(targetRoot.path, skill.id);
+      if (preserved.has(target)) { audit.expectedLinks--; continue; }
       const exampleBase = {
         skill: skill.id,
         runtime: targetRoot.label,
@@ -385,7 +390,7 @@ export function formatSkillSyncSummary(result: SyncAgentSkillsResult): string[] 
   if (!result.statusOnly) {
     lines.push(
       `  linked: created ${result.created}, replaced ${result.replaced}, already ${result.alreadyLinked}`,
-      `  skipped existing non-symlinks: ${result.skippedExisting.length}`,
+      `  preserved targets: ${result.skippedExisting.length}`,
       `  errors: ${result.errors.length}`,
     );
   }
@@ -405,7 +410,7 @@ export function formatSkillSyncSummary(result: SyncAgentSkillsResult): string[] 
       lines.push(`    skipped ${skipped.target}: ${skipped.reason}`);
     }
     if (result.skippedExisting.length > 5) {
-      lines.push(`    ... ${result.skippedExisting.length - 5} more skipped existing files`);
+      lines.push(`    ... ${result.skippedExisting.length - 5} more preserved targets`);
     }
   }
 
@@ -538,14 +543,26 @@ type SymlinkOutcome =
   | { kind: 'skipped'; reason: string }
   | { kind: 'error'; error: string };
 
-function ensureSymlink(target: string, source: string, dryRun: boolean): SymlinkOutcome {
+function ensureSymlink(target: string, source: string, dryRun: boolean, gitManaged = false, checkParents?: () => string | null): SymlinkOutcome {
   try {
+    const refusal = checkParents?.();
+    if (refusal) return { kind: 'error', error: refusal };
     const parent = dirname(target);
     if (!dryRun) mkdirSync(parent, { recursive: true });
+    const changedParent = checkParents?.();
+    if (changedParent) return { kind: 'error', error: changedParent };
 
     const stat = lstatSafe(target);
     if (!stat) {
-      if (!dryRun) symlinkSync(source, target, 'dir');
+      if (!dryRun) {
+        try { symlinkSync(source, target, 'dir'); }
+        catch (error) {
+          if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
+          const appeared = lstatSafe(target);
+          if (appeared?.isSymbolicLink() && sameLinkTarget(target, readlinkSync(target), source)) return { kind: 'already' };
+          return { kind: 'skipped', reason: 'target appeared during projection; preserved without replacement' };
+        }
+      }
       return { kind: 'created' };
     }
 
@@ -554,6 +571,9 @@ function ensureSymlink(target: string, source: string, dryRun: boolean): Symlink
       if (sameLinkTarget(target, current, source)) {
         return { kind: 'already' };
       }
+      // Git worktrees use create-only projection. Never unlink a pre-existing
+      // link after a policy snapshot: another hook or editor may now own it.
+      if (gitManaged) return { kind: 'skipped', reason: 'existing Git-worktree link differs; preserved for explicit reconciliation' };
       if (!dryRun) {
         unlinkSync(target);
         symlinkSync(source, target, 'dir');

@@ -310,6 +310,8 @@ Roster agents are daemon-minted `AgentNode` identities that outlive any body or 
 
 `pd guard install` writes merged pre-commit and post-commit hooks that enforce the protocol: an active session plus matching file claims for staged files, checked by `pd guard check --staged`. `pd add` is the claim-aware `git add`. Modes: `advisory`, `warn`, `enforce`.
 
+For coordination changes, Guard checks the linked session's exact local roadmap item in the intended harbor with fresh same-agent evidence; unrelated items cannot satisfy that link, and incomplete or unavailable reads are distinguished from missing receipts, not presented as canonical remote authority.
+
 During a pending merge, Guard checks paths whose staged contents or file modes differ from **every parent**, including `HEAD`. Unchanged contributions from either branch do not need new claims; genuine resolutions, new files, and deletions still do. Staged filenames remain exact, including whitespace, and unresolved indexes or unavailable Git evidence stop the check explicitly. Ordinary commits keep their normal staged-diff behavior.
 
 ---
@@ -1089,7 +1091,7 @@ pd mcp install          # auto-detect Claude Code, Claude Desktop, Cursor, Winds
 pd mcp install --list   # show what would be configured
 ```
 
-The **agent field manual** ships as a portable skill at [`skills/port-daddy-agent-skill/`](skills/port-daddy-agent-skill/) — mirrored into `.claude/skills/`, `.codex/skills/`, `.agents/skills/`, and `.gemini/extensions/` so every harness sees the same doctrine. `npm run skills:sync` keeps mirrors aligned; CI checks them.
+The **agent field manual** ships as a portable skill at [`skills/port-daddy-agent-skill/`](skills/port-daddy-agent-skill/) — mirrored into `.claude/skills/`, `.codex/skills/`, `.agents/skills/`, and `.gemini/extensions/` so every harness sees the same doctrine. `node scripts/sync-skill-mirrors.mjs` maintains the checked-in copies; CI runs its `--check` mode. Separately, `npm run skills:sync` runs runtime link projection (`scripts/sync-skills.ts --scope project`), preserving Git-tracked mirrors and excluded sparse paths while leaving unverifiable Git state, non-cone directory projections, and conflicting existing links untouched.
 
 ---
 
