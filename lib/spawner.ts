@@ -48,6 +48,7 @@ import { cliBinarySearchPath, resolveCliBinary } from './cli-bin-dirs.js';
 import { resolveFleetAgentRuntime, type FleetModelTier } from './fleet-runtime.js';
 import { nativeHarnessSessionIdError } from './harness-session-id.js';
 import {
+  captureWorkspaceIdentity,
   sameWorkspaceIdentity,
   type WorkspaceIdentity,
 } from './workspace-identity.js';
@@ -359,6 +360,9 @@ export interface ManagedSessionLifecycle {
     pid: number;
     metadata: Record<string, unknown>;
     lifecycle: 'ephemeral';
+    /** Physical target only; the daemon derives the Git world itself. */
+    workdir?: string;
+    allowSharedCheckout: boolean;
   }, options: { signal: AbortSignal }): Promise<Record<string, unknown>>;
   bind(input: {
     sessionId: string;
@@ -2293,6 +2297,16 @@ export function createSpawner(deps: SpawnerDeps = {}) {
    * Automatically wires PD session + heartbeat + done.
    */
   async function spawn(spec: SpawnSpec): Promise<SpawnResult> {
+    // Snapshot before the first await. Callers may reuse/mutate their spec while
+    // harbor or session admission waits; that must not redirect an admitted run.
+    spec = { ...spec, env: spec.env ? { ...spec.env } : undefined };
+    const requestedWorkdir = spec.workdir;
+    const targetDirectory = requestedWorkdir === undefined ? null : captureWorkspaceIdentity(requestedWorkdir);
+    Object.defineProperty(spec, 'workdir', {
+      value: targetDirectory?.canonicalPath ?? requestedWorkdir,
+      enumerable: true,
+      writable: false,
+    });
     cleanupStaleAgents();
 
     // Hard global limit — never exceed MAX_CONCURRENT_RUNNING processes
@@ -2316,6 +2330,15 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       startedAt: Date.now(),
       completedAt: Date.now(),
     });
+    if (requestedWorkdir !== undefined && !targetDirectory) {
+      return blockedResult('Spawn workdir must be an existing owned absolute directory.');
+    }
+    const transport = getBackendCatalogEntry(runtime.effectiveBackend)?.adapter.spawn.transport;
+    const projectlessBackend = transport === 'provider-http' || transport === 'model-server-http'
+      || transport === 'provider-sdk'; // Current provider SDK adapters make remote calls, not local agent-tool calls.
+    if (managedSessionLifecycle && !targetDirectory && !projectlessBackend) {
+      return blockedResult('This local backend requires an explicit workdir; no daemon working directory is inherited.');
+    }
     const continuationWorkspaceError = validateNativeResume(spec, runtime) ?? validateSpawnWorkspace(spec);
     if (continuationWorkspaceError) {
       counters?.bump('spawn.blocked', dims);
@@ -2665,6 +2688,8 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       purpose: spec.purpose || spec.task.slice(0, 80),
       lifecycle: 'ephemeral' as const,
       metadata: coordinationMetadata,
+      workdir: spec.workdir,
+      allowSharedCheckout: spec.allowSharedCheckout === true,
     };
     let beginResponse: Record<string, unknown> | null = null;
     let managedSessionBindingError: string | null = null;
@@ -2713,6 +2738,9 @@ export function createSpawner(deps: SpawnerDeps = {}) {
         // Preserve the admission refusal/timeout as the root cause.
       } else if (!record.actorCredential || !record.coordinationSessionId) {
         managedSessionBindingError = 'managed spawn admission did not return an exact session and actor credential';
+      } else if (!beginResponse?.worktreeBinding || typeof beginResponse.worktreeBinding !== 'object'
+        || (beginResponse.worktreeBinding as Record<string, unknown>).cwd !== (targetDirectory?.canonicalPath ?? null)) {
+        managedSessionBindingError = 'managed spawn admission did not return the exact physical target receipt';
       } else {
         const sessionId = record.coordinationSessionId;
         const credential = record.actorCredential;
@@ -2732,6 +2760,8 @@ export function createSpawner(deps: SpawnerDeps = {}) {
           managedSessionBindingError = typeof binding.value.error === 'string'
             ? binding.value.error
             : 'managed spawn session binding was refused';
+        } else if (JSON.stringify(binding.value.worktreeBinding) !== JSON.stringify(beginResponse.worktreeBinding)) {
+          managedSessionBindingError = 'managed spawn binding changed the admitted worktree receipt';
         } else {
           record.managedSessionBound = true;
         }
@@ -2788,6 +2818,10 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       const finalContinuationWorkspaceError = validateNativeResume(executionSpec, runtime)
         ?? validateSpawnWorkspace(executionSpec);
       if (finalContinuationWorkspaceError) throw new Error(finalContinuationWorkspaceError);
+      if (targetDirectory && (!sameWorkspaceIdentity(requestedWorkdir, targetDirectory)
+        || !sameWorkspaceIdentity(spec.workdir, targetDirectory))) {
+        throw new Error('Spawn physical directory changed before backend execution');
+      }
       const override = runnerOverrides[runtime.effectiveBackend];
       let result: BackendRunResult;
 

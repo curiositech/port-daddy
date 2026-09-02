@@ -15,8 +15,19 @@
 
 import { jest } from '@jest/globals';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import * as actualFs from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { basename, join, relative } from 'node:path';
+
+// These are deliberately synthetic filesystem fixtures, not real Git clones.
+// An unrelated parent repo (for example ~/coding/.git) must not change their
+// semantics. Keep the production ancestor walk intact; bound only this mock.
+let root, mainCheckout, worktree, nonRepo, mainSubdir;
+jest.unstable_mockModule('node:fs', () => ({
+  ...actualFs,
+  existsSync: (path) => root && basename(String(path)) === '.git' && relative(root, String(path)).startsWith('..')
+    ? false : actualFs.existsSync(path),
+}));
 
 // Mock child_process so a spawn that gets PAST the guard never launches a real
 // process (and we can assert the guard short-circuits before any launch).
@@ -62,8 +73,6 @@ afterAll(() => {
 });
 
 // --- fixtures: a main checkout, a worktree, a non-repo dir ------------------
-let root, mainCheckout, worktree, nonRepo, mainSubdir;
-
 beforeEach(() => {
   root = mkdtempSync(join(tmpdir(), 'pd-iso-'));
   mainCheckout = join(root, 'main');

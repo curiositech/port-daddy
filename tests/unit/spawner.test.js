@@ -283,7 +283,7 @@ describe('spawn — instrumentation', () => {
       backend: 'ollama',
       task: 'resolve workdir',
       identity: 'myapp:api:test',
-      workdir: '.',
+      workdir: process.cwd(),
     });
 
     expect(result.status).toBe('completed');
@@ -607,7 +607,7 @@ describe('spawn — backend dispatch', () => {
     await spawner.spawn({
       backend: 'custom',
       task: 'ls',
-      workdir: '/tmp/test',
+      workdir: process.cwd(),
       env: { FOO: 'bar' },
     });
 
@@ -615,7 +615,7 @@ describe('spawn — backend dispatch', () => {
       '/bin/sh',
       ['-c', 'ls'],
       expect.objectContaining({
-        cwd: '/tmp/test',
+        cwd: process.cwd(),
         shell: false,
       })
     );
@@ -1159,13 +1159,18 @@ describe('kill', () => {
 
 describe('PD coordination', () => {
   function makeManagedLifecycle(sessionId, overrides = {}) {
+    let worktreeBinding = { cwd: null, worktreeId: null, root: null };
     return {
-      admit: jest.fn().mockResolvedValue({
+      admit: jest.fn(async (input) => {
+        worktreeBinding = { cwd: input.workdir ?? null, worktreeId: null, root: null };
+        return {
         success: true,
         sessionId,
         credential: 'actor-managed.secret',
+        worktreeBinding,
+        };
       }),
-      bind: jest.fn().mockResolvedValue({ success: true }),
+      bind: jest.fn(async () => ({ success: true, worktreeBinding })),
       complete: jest.fn().mockResolvedValue({ success: true }),
       abort: jest.fn().mockResolvedValue({ success: true }),
       ...overrides,
@@ -1404,7 +1409,7 @@ describe('PD coordination', () => {
     mockChildProcess.stderr.on.mockImplementation(() => {});
     mockChildProcess.on.mockImplementation(() => {});
     const spawner = createSpawner({ managedSessionLifecycle });
-    const spawnPromise = spawner.spawn({ backend: 'custom', task: 'sleep 9999' });
+    const spawnPromise = spawner.spawn({ backend: 'custom', task: 'sleep 9999', workdir: process.cwd() });
     await new Promise(r => setTimeout(r, 10));
     const running = spawner.list().find(agent => agent.status === 'running');
     expect(running).toBeTruthy();
@@ -2097,13 +2102,13 @@ describe('spawn — claude-cli backend', () => {
     await spawner.spawn({
       backend: 'claude-cli',
       task: 'Read files',
-      workdir: '/tmp/my-project',
+      workdir: process.cwd(),
     });
 
     // --cwd is not a valid claude CLI flag; workdir is passed as spawn option
     const args = cpSpawn.mock.calls[0][1];
     expect(args).not.toContain('--cwd');
-    expect(cpSpawn.mock.calls[0][2].cwd).toBe('/tmp/my-project');
+    expect(cpSpawn.mock.calls[0][2].cwd).toBe(process.cwd());
   });
 
   test('does not pass --max-tokens (not a valid claude CLI flag)', async () => {
@@ -2128,7 +2133,7 @@ describe('spawn — claude-cli backend', () => {
       backend: 'claude-cli',
       task: 'Do everything',
       model: 'sonnet',
-      workdir: '/tmp/test',
+      workdir: process.cwd(),
       allowedTools: 'Read,Write',
       maxTokens: 500,
     });
@@ -2139,7 +2144,7 @@ describe('spawn — claude-cli backend', () => {
       '--model', 'sonnet',
       '--allowedTools', 'Read,Write',
     ]);
-    expect(cpSpawn.mock.calls[0][2].cwd).toBe('/tmp/test');
+    expect(cpSpawn.mock.calls[0][2].cwd).toBe(process.cwd());
   });
 
   test('handles non-zero exit code', async () => {
@@ -2200,7 +2205,7 @@ describe('spawn — claude-cli backend', () => {
 describe('spawn — codex backend', () => {
   test('spawns codex exec and returns the captured final message', async () => {
     const spawner = createSpawner();
-    const codexWorkdir = join(process.cwd(), '.scratch', 'port-daddy-codex-test');
+    const codexWorkdir = process.cwd();
     mockChildProcess.stdout.on.mockImplementation(() => {});
     mockChildProcess.stderr.on.mockImplementation(() => {});
     mockChildProcess.on.mockImplementation((event, cb) => {
@@ -2478,7 +2483,7 @@ describe('spawn — codex backend', () => {
       backend: 'codex',
       task: 'Say exactly: Codex clean output',
       identity: 'port-daddy:fleet:cartographer',
-      workdir: '/tmp/port-daddy-codex-test',
+      workdir: process.cwd(),
     });
 
     expect(result.status).toBe('completed');

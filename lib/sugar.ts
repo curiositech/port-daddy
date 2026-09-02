@@ -292,7 +292,8 @@ interface BeginOptions {
   files?: string[];
   force?: boolean;
   metadata?: Record<string, unknown>;
-  worktree?: SessionWorktreeContext;
+  /** undefined lets ordinary callers auto-detect; null explicitly means no Git world. */
+  worktree?: SessionWorktreeContext | null;
   requireLinkedWorktree?: boolean;
   allowMainWorktree?: boolean;
   /** Session retention behavior. Durable survives without a live heartbeat process. */
@@ -980,6 +981,7 @@ export function createSugar(deps: SugarDeps) {
     if (type) registerOpts.type = type;
     if (metadata) registerOpts.metadata = metadata;
     if (worktreePolicy.worktree) registerOpts.worktreeId = worktreePolicy.worktree.id;
+    else if (options.worktree === null) registerOpts.worktreeId = null;
 
     const agentResult = agents.register(agentId, registerOpts);
     if (!agentResult.success) {
@@ -993,6 +995,7 @@ export function createSugar(deps: SugarDeps) {
     // Step 2: Start session (rollback agent on failure)
     const sessionOpts: Record<string, unknown> = { agentId };
     if (worktreePolicy.worktree) sessionOpts.worktreeId = worktreePolicy.worktree.id;
+    else if (options.worktree === null) sessionOpts.worktreeId = null;
     let identityProject: string | null = null;
     if (identity) {
       const parsedIdentity = parseIdentity(identity);
