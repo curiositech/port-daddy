@@ -17,6 +17,7 @@ Stored forest worlds are checked when present. Older `session_files` rows withou
 | `context.claim-scope-inconsistent` | Recorded session/root/repository/forest witnesses disagree. | Inspect the exact session and original claims; use an authorized recovery path. Do not rewrite IDs or borrow another actor's credential. |
 | `context.claim-scope-unavailable` | The current Git worktree boundary cannot be established. | Inspect the selected project/worktree and its availability. No global-session fallback is used. |
 | `context.files-outside-root` | A requested path escapes, traverses, or cannot be resolved within the root. | Correct the intended source path or select its actual project. |
+| `claims.stale-legacy-projection` | A legacy row still looks active but its forest record was released, as can happen with repeated region claims or normalized-spelling releases. | Inspect recorded history. The old row supplies no live claim coverage; a current replacement still counts. This warning is not a global stop. |
 
 Inconsistent scope includes the recorded claim count and a bounded sample of original claim paths, selectors, and worlds. Claims remain in their recorded world. The advisor suppresses claim coverage and refinement advice until scope is consistent, instead of recommending duplicate claims to hide the mismatch. These diagnostics do not identify the historical producer of a stale anchor or imply that a repair has occurred.
 

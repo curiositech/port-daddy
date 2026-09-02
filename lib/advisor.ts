@@ -100,6 +100,7 @@ interface SessionRow {
 }
 
 interface ClaimRow extends SessionRow {
+  legacy_claim_id: number;
   file_path: string;
   start_line: number | null;
   end_line: number | null;
@@ -113,6 +114,7 @@ interface ClaimRow extends SessionRow {
   forest_repo_id: string | null;
   forest_world_kind: string | null;
   forest_world_id: string | null;
+  forest_released_at: number | null;
 }
 
 interface ClaimScope {
@@ -356,14 +358,14 @@ export function createAdvisor(db: Database.Database, deps: AdvisorDeps = {}) {
       args.push(scope.worldId, scope.repoId);
     }
     const forestFields = tables.claimForest
-      ? 'fc.id AS forest_claim_id, fn.repo_id AS forest_repo_id, fn.world_kind AS forest_world_kind, fn.world_id AS forest_world_id'
-      : 'NULL AS forest_claim_id, NULL AS forest_repo_id, NULL AS forest_world_kind, NULL AS forest_world_id';
+      ? 'fc.id AS forest_claim_id, fn.repo_id AS forest_repo_id, fn.world_kind AS forest_world_kind, fn.world_id AS forest_world_id, fc.released_at AS forest_released_at'
+      : 'NULL AS forest_claim_id, NULL AS forest_repo_id, NULL AS forest_world_kind, NULL AS forest_world_id, NULL AS forest_released_at';
     const forestJoin = tables.claimForest
       ? `LEFT JOIN claim_forest_claims fc ON fc.legacy_session_file_id = sf.id
          LEFT JOIN claim_forest_nodes fn ON fn.id = fc.node_id`
       : '';
     return db.prepare(
-      `SELECT sf.file_path, sf.start_line, sf.end_line, sf.symbol, sf.symbol_path, sf.claimed_at,
+      `SELECT sf.id AS legacy_claim_id, sf.file_path, sf.start_line, sf.end_line, sf.symbol, sf.symbol_path, sf.claimed_at,
               s.id AS session_id, s.id, s.purpose, s.status, s.agent_id, s.worktree_id,
               s.identity_project, s.created_at, s.updated_at, s.metadata, ${forestFields}
        FROM session_files sf
@@ -512,7 +514,7 @@ export function createAdvisor(db: Database.Database, deps: AdvisorDeps = {}) {
       }));
     }
 
-    if (selectedSession && agentId && selectedSession.agent_id && selectedSession.agent_id !== agentId) {
+    if (selectedSession && agentId && selectedSession.agent_id !== agentId) {
       output.push(advice({
         id: 'context.agent-mismatch',
         category: 'context',
@@ -581,9 +583,37 @@ export function createAdvisor(db: Database.Database, deps: AdvisorDeps = {}) {
     const requestedPaths = new Set(files.map(file => relative(projectRoot, file)));
     const projectedClaims: ProjectedClaim[] = canProjectClaims
       ? scopedCandidates.flatMap(claim => {
+        // A released forest record is history, not a missing forest projection.
+        // Do not re-admit it through the legacy-row read path.
+        if (claim.forest_claim_id !== null && claim.forest_released_at !== null) return [];
         const projected = projectFile(projectRoot, claim.file_path);
         return projected ? [{ ...claim, ...projected }] : [];
       }) : [];
+    const staleProjectionClaims = canProjectClaims ? scopedCandidates.filter(claim => {
+      if (claim.forest_claim_id === null || claim.forest_released_at === null) return false;
+      const projected = projectFile(projectRoot, claim.file_path);
+      return projected && (requestedFiles.length === 0
+        ? claim.session_id === sessionId : requestedPaths.has(projected.relativePath));
+    }) : [];
+    if (staleProjectionClaims.length > 0) {
+      output.push(advice({
+        id: 'claims.stale-legacy-projection', category: 'claim', severity: 'warning',
+        title: 'Legacy claim rows retain released forest history',
+        why: 'Repeated region claims or normalized-path releases can leave an older legacy row unreleased. Its released forest record is excluded from current coverage, conflict, and refinement advice; a live replacement still counts.',
+        risk: 'Treating an old projection row as live would resurrect released ownership.',
+        confidence: 1,
+        evidence: [
+          { label: 'staleClaimCount', value: staleProjectionClaims.length },
+          ...staleProjectionClaims.slice(0, 8).flatMap(claim => [
+            { label: 'legacyClaimId', value: claim.legacy_claim_id },
+            { label: 'claimSessionId', value: claim.session_id },
+            { label: 'recordedClaim', value: claim.file_path, path: claim.file_path },
+            { label: 'forestReleasedAt', value: claim.forest_released_at },
+          ]),
+        ],
+        actions: [{ label: 'Inspect recorded claim history', method: 'GET', path: `/sessions/${encodeURIComponent(staleProjectionClaims[0].session_id)}` }],
+      }));
+    }
     const activeClaims = projectedClaims.filter(claim => requestedPaths.has(claim.relativePath));
     const conflicts = activeClaims.filter(claim => !sessionId || claim.session_id !== sessionId);
     if (conflicts.length > 0) {

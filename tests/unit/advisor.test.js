@@ -322,6 +322,54 @@ describe('coordination advisor', () => {
     expect(unbound.advice.map(item => item.id)).not.toContain('claims.refine-whole-file');
   });
 
+  test('supplied agent against an anonymous session produces an explicit mismatch, not silent readiness', () => {
+    const sessionId = startSession(null);
+    const result = evaluate(sessionId, ['README.md'], { agentId: 'not-the-owner' });
+    const mismatch = result.advice.find(item => item.id === 'context.agent-mismatch');
+    expect(mismatch?.severity).toBe('critical');
+    expect(mismatch.evidence).toContainEqual({ label: 'sessionAgentId', value: null });
+    expect(result.advice.filter(item => item.category === 'claim')).toEqual([]);
+  });
+
+  test('repeated region claims warn about stale history while the active replacement remains claimed', () => {
+    const sessionId = startSession();
+    const regions = [{ path: 'src/target.ts', startLine: 3, endLine: 7 }];
+    expect(sessions.claimFiles(sessionId, [], { regions }).success).toBe(true);
+    expect(sessions.claimFiles(sessionId, [], { regions }).success).toBe(true);
+    expect(db.prepare('SELECT COUNT(*) AS count FROM session_files WHERE released_at IS NULL').get().count).toBe(2);
+    expect(db.prepare('SELECT COUNT(*) AS count FROM claim_forest_claims WHERE released_at IS NULL').get().count).toBe(1);
+    const before = db.serialize();
+    const result = evaluate(sessionId);
+    expectClaimed(result);
+    const warning = result.advice.find(item => item.id === 'claims.stale-legacy-projection');
+    expect(warning?.severity).toBe('warning');
+    expect(warning.evidence).toContainEqual({ label: 'staleClaimCount', value: 1 });
+    expect(result.advice.map(item => item.id)).not.toContain('claims.refine-whole-file');
+    expect(db.serialize()).toEqual(before);
+  });
+
+  test('normalized-spelling release cannot resurrect stale coverage, contention, or refinement', () => {
+    const owner = startSession('owner');
+    sessions.claimFiles(owner, ['./src/target.ts']);
+    expect(sessions.releaseFiles(owner, ['src/target.ts']).success).toBe(true);
+    expect(db.prepare('SELECT COUNT(*) AS count FROM session_files WHERE released_at IS NULL').get().count).toBe(1);
+    expect(db.prepare('SELECT COUNT(*) AS count FROM claim_forest_claims WHERE released_at IS NULL').get().count).toBe(0);
+    db.prepare(`INSERT INTO symbols
+      (file_path, symbol_name, symbol_type, symbol_path, start_line, end_line, parsed_at)
+      VALUES (?, 'target', 'function', 'target', 1, 5, ?)`).run(filePath, Date.now());
+    const caller = startSession('caller');
+    const before = db.serialize();
+    for (const id of [owner, caller]) {
+      const result = evaluate(id);
+      expect(result.advice.map(item => item.id)).toContain('claims.stale-legacy-projection');
+      expect(result.advice.map(item => item.id)).toContain('claims.unclaimed-requested-files');
+      expect(result.advice.map(item => item.id)).not.toContain('claims.conflicting-active-claims');
+      expect(result.advice.map(item => item.id)).not.toContain('claims.refine-whole-file');
+      expect(result.advice.some(item => item.severity === 'critical')).toBe(false);
+    }
+    expect(db.serialize()).toEqual(before);
+  });
+
   test('keeps verified legacy session rows readable without creating a forest table on reads', () => {
     const sessionId = startSession();
     sessions.claimFiles(sessionId, ['src/target.ts']);
