@@ -1101,7 +1101,7 @@ async function runCheck(positional: string[], options: CLIOptions): Promise<Guar
     config.requireRoadmapForCoordinationChanges &&
     context.active &&
     files.some(fileNeedsRoadmapReceipt)
-      ? await loadRoadmapReceipts({ roadmapLink: context.roadmapLink, harbor: resolveRoadmapHarbor(options) })
+      ? await loadRoadmapReceipts({ roadmapLink: context.roadmapLink, harbor: resolveRoadmapHarbor(options, cwd) })
       : undefined;
 
   const result = evaluateGuardFacts({

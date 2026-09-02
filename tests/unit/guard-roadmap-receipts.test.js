@@ -251,11 +251,11 @@ describe('Guard command receipt plumbing — actual handler in an isolated Git f
     if (fixture) rmSync(fixture, { recursive: true, force: true });
   });
 
-  async function command(options = {}, envOverrides = {}) {
+  async function command(options = {}, envOverrides = {}, callerDir = fixture) {
     const child = spawn(process.execPath, ['--import', loader, '--input-type=module', '-e',
       `import { handleGuard } from ${JSON.stringify(handler)}; await handleGuard(['check'], ${JSON.stringify({ staged: true, json: true, ...options })});`,
     ], {
-      cwd: fixture,
+      cwd: callerDir,
       env: {
         PATH: process.env.PATH,
         PORT_DADDY_URL: daemonUrl,
@@ -303,6 +303,23 @@ describe('Guard command receipt plumbing — actual handler in an isolated Git f
     expectedHarbor = basename(fixture);
     item.harbor = expectedHarbor;
     expect(await command()).toMatchObject({ code: 0, report: { passed: true } });
+  });
+
+  test.each(['project', 'environment', 'explicit'])('cross-repository --dir preserves %s harbor selection', async (selection) => {
+    const callerDir = join(fixture, 'different-caller-repository');
+    mkdirSync(callerDir);
+    expect(spawnSync('git', ['init', '-b', 'main'], {
+      cwd: callerDir,
+      env: { PATH: process.env.PATH, GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: '/dev/null' },
+    }).status).toBe(0);
+    expectedHarbor = selection === 'project' ? basename(fixture) : `${selection}-harbor`;
+    item.harbor = expectedHarbor;
+    const options = { dir: fixture, ...(selection === 'explicit' ? { harbor: expectedHarbor } : {}) };
+    const env = selection === 'project' ? {} : { PD_HARBOR: selection === 'environment' ? expectedHarbor : 'wrong-environment-harbor' };
+    expect(await command(options, env, callerDir)).toMatchObject({ code: 0, report: { passed: true } });
+    expect(seen.filter((r) => r.url.startsWith('/roadmap/'))).toEqual([
+      { method: 'GET', url: `/roadmap/items/${linked.roadmapLink}?harbor=${expectedHarbor}` },
+    ]);
   });
 
   test.each([404, 503])('keeps missing and unavailable distinct through the actual command: HTTP %s', async (status) => {
