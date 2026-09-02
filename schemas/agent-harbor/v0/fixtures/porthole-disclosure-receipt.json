@@ -1,0 +1,139 @@
+{
+  "schema": "pd.porthole.disclosure-receipt.v1",
+  "receiptId": "pdr_01JZPORTDISCLOSE01",
+  "disclosureId": "disclosure_01JZPORT01",
+  "stageId": "stage_01JZPORT0001",
+  "source": {
+    "interval": {
+      "startedAt": "2026-08-30T18:04:10.000Z",
+      "endedAt": "2026-08-30T18:04:18.000Z"
+    },
+    "items": [
+      {
+        "sourceId": "stage_evt_01JZPORTCOMMENT",
+        "kind": "event",
+        "commitment": "sha256:a111111111111111111111111111111111111111111111111111111111111111"
+      },
+      {
+        "sourceId": "stage_evt_01JZPORTBUG",
+        "kind": "event",
+        "commitment": "sha256:a222222222222222222222222222222222222222222222222222222222222222"
+      },
+      {
+        "sourceId": "pov_01JZPORT0001",
+        "kind": "perspective",
+        "commitment": "sha256:a333333333333333333333333333333333333333333333333333333333333333"
+      }
+    ],
+    "sourceSetCommitment": "sha256:a444444444444444444444444444444444444444444444444444444444444444"
+  },
+  "sealedMetadata": {
+    "envelopeRef": "sealed-disclosure-metadata:disclosure_01JZPORT01",
+    "commitment": "sha256:a555555555555555555555555555555555555555555555555555555555555555",
+    "protectedFields": ["recipient", "purpose", "work-item", "reviewer"],
+    "privacyReceiptRef": "privacy_receipt_disclosure_metadata_01"
+  },
+  "artifact": {
+    "canonicalManifest": {
+      "manifestId": "manifest_disclosure_01JZPORT01_v1",
+      "immutableVersion": 1,
+      "objects": [
+        {
+          "objectId": "object_redacted_video_01",
+          "mediaType": "video/mp4",
+          "sha256": "6666666666666666666666666666666666666666666666666666666666666666"
+        },
+        {
+          "objectId": "object_redacted_events_01",
+          "mediaType": "application/vnd.portdaddy.porthole-stage-events+json",
+          "sha256": "7777777777777777777777777777777777777777777777777777777777777777"
+        }
+      ],
+      "manifestHash": "sha256:a888888888888888888888888888888888888888888888888888888888888888",
+      "rawEvidenceIncluded": false
+    },
+    "reviewedPreview": {
+      "previewRef": "preview_disclosure_01JZPORT01_v1",
+      "artifactHash": "sha256:a999999999999999999999999999999999999999999999999999999999999999",
+      "manifestId": "manifest_disclosure_01JZPORT01_v1",
+      "manifestHash": "sha256:a888888888888888888888888888888888888888888888888888888888888888",
+      "reviewReceiptRef": "review_receipt_disclosure_01",
+      "reviewerMetadataEnvelopeRef": "sealed-reviewer:disclosure_01JZPORT01",
+      "reviewerMetadataCommitment": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "reviewedAt": "2026-08-30T18:06:00.000Z"
+    },
+    "delivery": {
+      "deliveryRef": "delivery_disclosure_01JZPORT01_v1",
+      "artifactHash": "sha256:a999999999999999999999999999999999999999999999999999999999999999",
+      "manifestId": "manifest_disclosure_01JZPORT01_v1",
+      "manifestHash": "sha256:a888888888888888888888888888888888888888888888888888888888888888",
+      "deliveredAt": "2026-08-30T18:06:05.000Z"
+    }
+  },
+  "privacy": {
+    "state": "redacted",
+    "policyId": "porthole-share-default-v1",
+    "pipelineVersion": "2026-08-30.1",
+    "scanReceiptRef": "privacy_scan_receipt_disclosure_01",
+    "scanCommitment": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "coverage": "verified-complete",
+    "coverageVerificationReceiptRef": "coverage_verification_receipt_01",
+    "coverageKeyDerivationSuite": "independent-enrolled-ed25519-v1",
+    "coverageVerifierKeyId": "coverage_verifier_key_01",
+    "coverageCommitment": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "withheldCount": 2
+  },
+  "grant": {
+    "grantId": "grant_01JZPORT01",
+    "status": "active",
+    "recipientKeyEnvelopeRef": "sealed-recipient-key:grant_01JZPORT01",
+    "recipientKeyEnvelopeHash": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "capabilities": ["view", "comment"],
+    "issuedAt": "2026-08-30T18:06:05.000Z",
+    "expiresAt": "2026-09-06T18:06:05.000Z",
+    "terminalAt": null,
+    "keyGrantReceiptRef": "key_grant_receipt_01JZPORT01"
+  },
+  "encryption": {
+    "suite": "hpke-rfc9180-derivative-v1",
+    "keyEpoch": 1,
+    "keyEnvelopeHash": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+  },
+  "accessLedger": {
+    "streamId": "disclosure_access_01JZPORT01",
+    "grantReceipt": {
+      "receiptRef": "key_grant_receipt_01JZPORT01",
+      "sequence": 0,
+      "occurredAt": "2026-08-30T18:06:05.000Z",
+      "contentHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "prevHash": "sha256:a000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "accessReceipts": [
+      {
+        "receiptRef": "access_receipt_01JZPORT01_1",
+        "sequence": 1,
+        "kind": "access",
+        "occurredAt": "2026-08-30T18:07:00.000Z",
+        "contentHash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "prevHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    ],
+    "revokeReceipt": null,
+    "expireReceipt": null,
+    "headHash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  },
+  "lineageRunId": "openlineage-run_disclosure_01JZPORT01_v1",
+  "issuer": {
+    "harborId": "harbor_local",
+    "participantId": "person_erich",
+    "deviceId": "device_erich_mac",
+    "signingKeyId": "signing_key_erich_mac_1"
+  },
+  "createdAt": "2026-08-30T18:07:01.000Z",
+  "contentHash": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+  "signature": {
+    "algorithm": "ed25519",
+    "keyId": "signing_key_erich_mac_1",
+    "value": "bW9jay1lZDI1NTE5LWRpc2Nsb3N1cmUtc2lnbmF0dXJlLTAx"
+  }
+}

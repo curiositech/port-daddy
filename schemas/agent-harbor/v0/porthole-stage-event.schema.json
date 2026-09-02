@@ -1,0 +1,270 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://portdaddy.dev/schemas/agent-harbor/v0/porthole-stage-event.schema.json",
+  "title": "PortholeStageEvent",
+  "description": "A closed, attributable event on a cooperative Porthole stage. Ephemeral presence and pointer updates carry only closed geometry/status state. Every durable event carries only an encrypted envelope reference, verified privacy receipt, complete multi-clock timing, concrete Body attribution, append-only hash link, device issuer, and Ed25519 signature.",
+  "type": "object",
+  "properties": {
+    "schema": { "const": "pd.porthole.stage-event.v1" },
+    "eventId": { "type": "string", "minLength": 1 },
+    "stageId": { "type": "string", "minLength": 1 },
+    "harborId": { "type": "string", "minLength": 1 },
+    "bodyId": { "type": "string", "minLength": 1 },
+    "streamId": { "type": "string", "minLength": 1 },
+    "sequence": { "type": ["integer", "null"], "minimum": 0 },
+    "participantId": { "type": "string", "minLength": 1 },
+    "kind": {
+      "enum": [
+        "presence", "pointer",
+        "stage-proposed", "stage-consented", "stage-prepared", "stage-ready", "stage-live", "stage-draining", "stage-sealed", "stage-aborted",
+        "participant-invited", "participant-joined", "participant-left", "participant-removed", "participant-capability-changed",
+        "perspective-opened", "perspective-rekeyed", "perspective-paused", "perspective-resumed", "perspective-gapped", "perspective-sealed",
+        "target-bound", "target-changed", "target-refused", "secure-mask-policy-changed",
+        "clock-anchor", "clock-discontinuity", "source-display-mapping", "jump-cut",
+        "cursor-sample-summary", "selection", "comment-created", "comment-revised", "comment-resolved",
+        "control-request", "control-decision", "control-lease", "control-revocation", "control-expiry",
+        "action-intent", "input-dispatch", "observed-effect", "unknown-effect", "input-denied",
+        "encrypted-media-segment-committed", "encrypted-semantic-segment-committed",
+        "redaction", "quarantine", "tombstone", "crypto-shred",
+        "bug-report", "expected-behavior", "candidate-test", "rerun-result", "review-decision",
+        "index-derivation", "summary-derivation", "embedding-derivation", "lineage-derivation",
+        "share-proposed", "share-previewed", "share-granted", "share-accessed", "share-revoked", "share-expired",
+        "storage-transition", "quota-decision", "compaction", "deletion-receipt"
+      ]
+    },
+    "durability": { "enum": ["ephemeral", "checkpoint", "append-only"] },
+    "phase": { "enum": ["intent", "effect", "observation", "receipt"] },
+    "timing": {
+      "type": "object",
+      "properties": {
+        "sourceMonotonic": {
+          "type": "object",
+          "properties": {
+            "clockId": { "type": "string", "minLength": 1 },
+            "hostBootId": { "type": "string", "minLength": 1 },
+            "ticksNs": { "type": "string", "pattern": "^(0|[1-9][0-9]*)$" }
+          },
+          "required": ["clockId", "hostBootId", "ticksNs"],
+          "additionalProperties": false
+        },
+        "sourceWall": {
+          "type": "object",
+          "properties": {
+            "timestamp": { "type": "string", "format": "date-time" },
+            "uncertaintyMs": { "type": "number", "minimum": 0 }
+          },
+          "required": ["timestamp", "uncertaintyMs"],
+          "additionalProperties": false
+        },
+        "stage": {
+          "type": "object",
+          "properties": {
+            "epoch": { "type": "integer", "minimum": 0 },
+            "offsetMs": { "type": "number", "minimum": 0 }
+          },
+          "required": ["epoch", "offsetMs"],
+          "additionalProperties": false
+        },
+        "display": {
+          "type": ["object", "null"],
+          "properties": {
+            "timelineId": { "type": "string", "minLength": 1 },
+            "offsetMs": { "type": "number", "minimum": 0 }
+          },
+          "required": ["timelineId", "offsetMs"],
+          "additionalProperties": false
+        },
+        "committedAt": { "type": ["string", "null"], "format": "date-time" }
+      },
+      "required": ["sourceMonotonic", "sourceWall", "stage", "display", "committedAt"],
+      "additionalProperties": false
+    },
+    "ephemeralState": {
+      "type": ["object", "null"],
+      "properties": {
+        "perspectiveId": { "type": "string", "minLength": 1 },
+        "geometry": {
+          "type": ["object", "null"],
+          "properties": {
+            "x": { "type": "number", "minimum": 0, "maximum": 1 },
+            "y": { "type": "number", "minimum": 0, "maximum": 1 }
+          },
+          "required": ["x", "y"],
+          "additionalProperties": false
+        },
+        "presenceStatus": { "enum": ["active", "idle", "away", "disconnected", null] },
+        "pointerStatus": { "enum": ["visible", "hidden", "pressed", null] }
+      },
+      "required": ["perspectiveId", "geometry", "presenceStatus", "pointerStatus"],
+      "additionalProperties": false
+    },
+    "sealedContent": {
+      "type": ["object", "null"],
+      "properties": {
+        "envelopeRef": { "type": "string", "pattern": "^sealed-event:[A-Za-z0-9_-]+$" },
+        "commitment": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$",
+          "description": "Hash of randomized authenticated ciphertext, never of low-entropy plaintext."
+        },
+        "privacyReceipt": {
+          "type": "object",
+          "properties": {
+            "receiptId": { "type": "string", "minLength": 1 },
+            "policyId": { "type": "string", "minLength": 1 },
+            "verification": { "const": "verified" },
+            "verifiedAt": { "type": "string", "format": "date-time" }
+          },
+          "required": ["receiptId", "policyId", "verification", "verifiedAt"],
+          "additionalProperties": false
+        }
+      },
+      "required": ["envelopeRef", "commitment", "privacyReceipt"],
+      "additionalProperties": false
+    },
+    "embeddingSpace": {
+      "type": ["object", "null"],
+      "description": "Immutable retrieval-plane identity for an embedding derivation. embeddingSpaceId is the deterministic SHA-256 commitment to model, revision, dimension, normalization, task, and privacyPolicy. An index contains one exact space; consumers must reject cross-space cosine comparisons.",
+      "properties": {
+        "embeddingSpaceId": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "model": { "type": "string", "minLength": 1 },
+        "revision": { "type": "string", "minLength": 1 },
+        "dimension": { "type": "integer", "minimum": 32, "maximum": 1536 },
+        "normalization": { "const": "l2" },
+        "task": { "type": "string", "minLength": 1 },
+        "privacyPolicy": { "type": "string", "minLength": 1 }
+      },
+      "required": [
+        "embeddingSpaceId", "model", "revision", "dimension", "normalization",
+        "task", "privacyPolicy"
+      ],
+      "additionalProperties": false
+    },
+    "causedByEventIds": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "controlLeaseId": { "type": ["string", "null"], "minLength": 1 },
+    "leaseGrantEventId": { "type": ["string", "null"], "minLength": 1 },
+    "authorizationReceiptId": { "type": ["string", "null"], "minLength": 1 },
+    "actionIntentEventId": { "type": ["string", "null"], "minLength": 1 },
+    "issuer": {
+      "type": ["object", "null"],
+      "properties": {
+        "participantId": { "type": "string", "minLength": 1 },
+        "deviceId": { "type": "string", "minLength": 1 },
+        "signingKeyId": { "type": "string", "minLength": 1 }
+      },
+      "required": ["participantId", "deviceId", "signingKeyId"],
+      "additionalProperties": false
+    },
+    "contentHash": { "type": ["string", "null"], "pattern": "^sha256:[a-f0-9]{64}$" },
+    "prevHash": { "type": ["string", "null"], "pattern": "^sha256:[a-f0-9]{64}$" },
+    "signature": {
+      "type": ["object", "null"],
+      "properties": {
+        "algorithm": { "const": "ed25519" },
+        "keyId": { "type": "string", "minLength": 1 },
+        "value": { "type": "string", "pattern": "^[A-Za-z0-9_-]+$", "minLength": 32 }
+      },
+      "required": ["algorithm", "keyId", "value"],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "schema", "eventId", "stageId", "harborId", "bodyId", "streamId", "sequence",
+    "participantId", "kind", "durability", "phase", "timing", "ephemeralState",
+    "sealedContent", "embeddingSpace", "causedByEventIds", "controlLeaseId", "leaseGrantEventId",
+    "authorizationReceiptId", "actionIntentEventId", "issuer", "contentHash", "prevHash", "signature"
+  ],
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": { "properties": { "durability": { "const": "ephemeral" } }, "required": ["durability"] },
+      "then": {
+        "properties": {
+          "kind": { "enum": ["presence", "pointer"] },
+          "phase": { "const": "observation" },
+          "sequence": { "const": null },
+          "ephemeralState": { "type": "object" },
+          "sealedContent": { "const": null },
+          "embeddingSpace": { "const": null },
+          "causedByEventIds": { "type": "array", "maxItems": 0 },
+          "controlLeaseId": { "const": null },
+          "leaseGrantEventId": { "const": null },
+          "authorizationReceiptId": { "const": null },
+          "actionIntentEventId": { "const": null },
+          "issuer": { "const": null },
+          "contentHash": { "const": null },
+          "prevHash": { "const": null },
+          "signature": { "const": null },
+          "timing": { "properties": { "committedAt": { "const": null } } }
+        }
+      },
+      "else": {
+        "properties": {
+          "sequence": { "type": "integer", "minimum": 0 },
+          "ephemeralState": { "const": null },
+          "sealedContent": { "type": "object" },
+          "issuer": { "type": "object" },
+          "contentHash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+          "signature": { "type": "object" },
+          "timing": { "properties": { "committedAt": { "type": "string", "format": "date-time" } } }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "kind": { "const": "stage-proposed" } }, "required": ["kind"] },
+      "then": { "properties": { "prevHash": { "const": null } } },
+      "else": {
+        "if": { "properties": { "durability": { "enum": ["checkpoint", "append-only"] } }, "required": ["durability"] },
+        "then": { "properties": { "prevHash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" } } }
+      }
+    },
+    {
+      "if": { "properties": { "kind": { "const": "pointer" } }, "required": ["kind"] },
+      "then": {
+        "properties": {
+          "durability": { "const": "ephemeral" },
+          "ephemeralState": { "properties": { "geometry": { "type": "object" }, "presenceStatus": { "const": null }, "pointerStatus": { "enum": ["visible", "hidden", "pressed"] } } }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "kind": { "const": "presence" } }, "required": ["kind"] },
+      "then": {
+        "properties": {
+          "durability": { "const": "ephemeral" },
+          "ephemeralState": { "properties": { "geometry": { "const": null }, "presenceStatus": { "enum": ["active", "idle", "away", "disconnected"] }, "pointerStatus": { "const": null } } }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "kind": { "const": "action-intent" } }, "required": ["kind"] },
+      "then": {
+        "properties": {
+          "phase": { "const": "intent" },
+          "controlLeaseId": { "type": "string", "minLength": 1 },
+          "leaseGrantEventId": { "type": "string", "minLength": 1 },
+          "authorizationReceiptId": { "type": "string", "minLength": 1 },
+          "actionIntentEventId": { "const": null },
+          "causedByEventIds": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "kind": { "enum": ["input-dispatch", "observed-effect", "unknown-effect", "input-denied"] } }, "required": ["kind"] },
+      "then": {
+        "properties": {
+          "controlLeaseId": { "type": "string", "minLength": 1 },
+          "leaseGrantEventId": { "type": "string", "minLength": 1 },
+          "authorizationReceiptId": { "type": "string", "minLength": 1 },
+          "actionIntentEventId": { "type": "string", "minLength": 1 },
+          "causedByEventIds": { "type": "array", "minItems": 2, "items": { "type": "string", "minLength": 1 } }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "kind": { "const": "embedding-derivation" } }, "required": ["kind"] },
+      "then": { "properties": { "embeddingSpace": { "type": "object" } } },
+      "else": { "properties": { "embeddingSpace": { "const": null } } }
+    }
+  ]
+}

@@ -84,12 +84,40 @@ const SCHEMA_NAMES = [
   'transcript-search-query',
   'transcript-search-result',
   'blackboard-item',
+  'porthole-perspective',
+  'porthole-completeness-receipt',
+  'porthole-stage',
+  'porthole-stage-event',
+  'porthole-control-lease',
+  'porthole-disclosure-receipt',
+  'porthole-regression-receipt',
 ];
+
+const PORTHOLE_SCHEMA_CONSTS = {
+  'porthole-perspective': 'pd.porthole.perspective.v1',
+  'porthole-completeness-receipt': 'pd.porthole.completeness-receipt.v1',
+  'porthole-stage': 'pd.porthole.stage.v1',
+  'porthole-stage-event': 'pd.porthole.stage-event.v1',
+  'porthole-control-lease': 'pd.porthole.control-lease.v1',
+  'porthole-disclosure-receipt': 'pd.porthole.disclosure-receipt.v1',
+  'porthole-regression-receipt': 'pd.porthole.regression-receipt.v1',
+};
 
 const STRICT_SCHEMA_NAMES = new Set([
   'handoff-capsule',
   'handoff-successor-brief',
   'harness-continuation-matrix',
+  // These v1 contracts have not shipped. Their security-sensitive shape is
+  // deliberately fail-closed so an old plaintext descriptor, byte-count side
+  // channel, or incomplete authority receipt cannot be accepted as a future
+  // extension.
+  'porthole-perspective',
+  'porthole-completeness-receipt',
+  'porthole-stage',
+  'porthole-stage-event',
+  'porthole-control-lease',
+  'porthole-disclosure-receipt',
+  'porthole-regression-receipt',
 ]);
 
 // ---------------------------------------------------------------------------
@@ -101,7 +129,8 @@ const VALIDATION_KEYWORDS = new Set([
   '$ref',
   'type', 'properties', 'required', 'additionalProperties', 'items',
   'enum', 'const', 'minLength', 'maxLength', 'minimum', 'maximum',
-  'minItems', 'maxItems', 'pattern', '$defs', '$ref', 'oneOf', 'format',
+  'minItems', 'maxItems', 'pattern', '$defs', '$ref', 'oneOf', 'allOf',
+  'if', 'then', 'else', 'not', 'format',
 ]);
 
 function resolveLocalRef(ref) {
@@ -151,6 +180,20 @@ function compile(schema, path = '#', resolving = new Set()) {
   if (schema.properties) {
     for (const [prop, sub] of Object.entries(schema.properties)) compile(sub, `${path}/properties/${prop}`, resolving);
   }
+  if (schema.$defs) {
+    for (const [name, sub] of Object.entries(schema.$defs)) compile(sub, `${path}/$defs/${name}`, resolving);
+  }
+  for (const keyword of ['oneOf', 'allOf']) {
+    if (schema[keyword] !== undefined) {
+      if (!Array.isArray(schema[keyword]) || schema[keyword].length === 0) {
+        throw new Error(`${path}/${keyword}: expected a non-empty schema array`);
+      }
+      schema[keyword].forEach((sub, i) => compile(sub, `${path}/${keyword}/${i}`, resolving));
+    }
+  }
+  for (const keyword of ['if', 'then', 'else', 'not']) {
+    if (schema[keyword] !== undefined) compile(schema[keyword], `${path}/${keyword}`, resolving);
+  }
   if (schema.items) compile(schema.items, `${path}/items`, resolving);
   if (schema.additionalProperties !== undefined && typeof schema.additionalProperties !== 'boolean') {
     compile(schema.additionalProperties, `${path}/additionalProperties`, resolving);
@@ -185,6 +228,24 @@ function validate(schema, value, path = '$', resolving = new Set()) {
     resolving.add(schema.$ref);
     errors.push(...validate(resolveLocalRef(schema.$ref), value, path, resolving));
     resolving.delete(schema.$ref);
+  }
+  if (schema.allOf !== undefined) {
+    schema.allOf.forEach((sub) => errors.push(...validate(sub, value, path, resolving)));
+  }
+  if (schema.oneOf !== undefined) {
+    const matched = schema.oneOf.filter((sub) => validate(sub, value, path, resolving).length === 0).length;
+    if (matched !== 1) errors.push(`${path}: expected exactly one oneOf branch, matched ${matched}`);
+  }
+  if (schema.if !== undefined) {
+    const conditionMatched = validate(schema.if, value, path, resolving).length === 0;
+    if (conditionMatched && schema.then !== undefined) {
+      errors.push(...validate(schema.then, value, path, resolving));
+    } else if (!conditionMatched && schema.else !== undefined) {
+      errors.push(...validate(schema.else, value, path, resolving));
+    }
+  }
+  if (schema.not !== undefined && validate(schema.not, value, path, resolving).length === 0) {
+    errors.push(`${path}: matched forbidden not schema`);
   }
   if (schema.type !== undefined) {
     const declared = Array.isArray(schema.type) ? schema.type : [schema.type];
@@ -271,12 +332,242 @@ function loadFixture(name) {
   return JSON.parse(readFileSync(join(fixtureDir, `${name}.json`), 'utf8'));
 }
 
+function copy(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+/**
+ * Cross-field Porthole invariants that portable JSON Schema cannot express
+ * (dynamic equality, arithmetic, reference membership, and timestamp order).
+ * Every language binding must implement the same checks before accepting a
+ * manifest or receipt as authoritative.
+ */
+function validatePortholeSemantics(name, value) {
+  const errors = [];
+  const time = (field, candidate) => {
+    const parsed = Date.parse(candidate);
+    if (!Number.isFinite(parsed)) errors.push(`${field}: invalid timestamp`);
+    return parsed;
+  };
+
+  if (name === 'porthole-perspective') {
+    if (time('captureSchedule.committedAt', value.captureSchedule.committedAt) > time('startedAt', value.startedAt)) {
+      errors.push('captureSchedule must be committed before capture starts');
+    }
+    if (value.retention.unitId !== value.perspectiveId) {
+      errors.push('retention unitId must equal perspectiveId');
+    }
+    if (value.retention.channelId !== value.encryption.channelId) {
+      errors.push('retention and encryption channelId must match');
+    }
+    if (value.actor.role === 'operator' && value.actor.kind !== 'person') {
+      errors.push('the operator role belongs to a person actor');
+    }
+  }
+
+  if (name === 'porthole-stage-event') {
+    if (['action-intent', 'input-dispatch', 'observed-effect', 'unknown-effect'].includes(value.kind)
+      && !value.causedByEventIds.includes(value.leaseGrantEventId)) {
+      errors.push('input event must cite its lease grant in causedByEventIds');
+    }
+    if (['input-dispatch', 'observed-effect', 'unknown-effect', 'input-denied'].includes(value.kind)
+      && !value.causedByEventIds.includes(value.actionIntentEventId)) {
+      errors.push('input outcome must cite its action intent in causedByEventIds');
+    }
+    if (value.durability !== 'ephemeral') {
+      if (value.issuer.participantId !== value.participantId) {
+        errors.push('durable event issuer must match attributed participant');
+      }
+      if (value.signature.keyId !== value.issuer.signingKeyId) {
+        errors.push('durable event signature key must match issuer signing key');
+      }
+      const sourceWall = time('timing.sourceWall.timestamp', value.timing.sourceWall.timestamp);
+      const committed = time('timing.committedAt', value.timing.committedAt);
+      if (committed + value.timing.sourceWall.uncertaintyMs < sourceWall) {
+        errors.push('durable event commit precedes source wall time beyond uncertainty');
+      }
+      if (time('sealedContent.privacyReceipt.verifiedAt', value.sealedContent.privacyReceipt.verifiedAt) > committed) {
+        errors.push('privacy receipt cannot be verified after durable commit');
+      }
+    }
+  }
+
+  if (name === 'porthole-control-lease') {
+    const requested = time('timing.requestedAt', value.timing.requestedAt);
+    const granted = value.timing.grantedAt === null ? null : time('timing.grantedAt', value.timing.grantedAt);
+    const authorized = value.timing.authorizedAt === null ? null : time('timing.authorizedAt', value.timing.authorizedAt);
+    const expires = value.timing.expiresAt === null ? null : time('timing.expiresAt', value.timing.expiresAt);
+    const terminationRequested = value.timing.terminationRequestedAt === null
+      ? null : time('timing.terminationRequestedAt', value.timing.terminationRequestedAt);
+    const terminal = value.timing.terminalAt === null ? null : time('timing.terminalAt', value.timing.terminalAt);
+    if (granted !== null && granted < requested) errors.push('grantedAt precedes requestedAt');
+    if (authorized !== null && (granted === null || authorized < granted)) errors.push('authorizedAt precedes grantedAt');
+    if (expires !== null && (authorized === null || expires <= authorized)) errors.push('expiresAt must follow authorizedAt');
+    if (terminal !== null && terminal < requested) errors.push('terminalAt precedes requestedAt');
+    if (value.status === 'expired' && terminal !== expires) errors.push('expired lease terminalAt must equal expiresAt');
+    if (authorized !== null && expires !== null && expires - authorized > value.limits.maxTtlMs) {
+      errors.push('lease TTL exceeds maxTtlMs');
+    }
+    if (terminationRequested !== null && terminal !== null
+      && terminal - terminationRequested > value.limits.revokeEffectBoundMs) {
+      errors.push('lease terminal effect exceeds revoke bound');
+    }
+    if (value.actionBudget.usedActions > value.actionBudget.maxActions) {
+      errors.push('usedActions exceeds maxActions');
+    }
+    if (value.capabilities.includes('clipboard-read')
+      && value.clipboardReadPolicy.authorizationReceiptRef === null) {
+      errors.push('clipboard-read requires an explicit authorization receipt');
+    }
+    if (value.signature.keyId !== value.issuer.signingKeyId) {
+      errors.push('lease signature key must match issuer signing key');
+    }
+    const expectedIssuer = value.status === 'requested'
+      ? value.requestedByParticipantId
+      : value.status === 'denied'
+        ? value.decisionParticipantId
+        : value.grantorParticipantId;
+    if (value.issuer.participantId !== expectedIssuer) {
+      errors.push('lease issuer must match the authoritative lifecycle participant');
+    }
+    if (value.status === 'active'
+      && (value.atomicFocusRevalidation.checkedAt === null || value.atomicFocusRevalidation.receiptRef === null)) {
+      errors.push('active lease requires atomic focus revalidation');
+    }
+  }
+
+  if (name === 'porthole-completeness-receipt') {
+    if (value.recordedSegmentCount !== value.verifiedSegmentCount + value.unreadableSegmentCount) {
+      errors.push('recorded count must equal verified plus unreadable');
+    }
+    if (value.expectedCaptureCount
+      !== value.recordedSegmentCount + value.declaredGapCount + value.missingCaptureCount) {
+      errors.push('expected count must equal recorded plus declared gaps plus missing');
+    }
+    const first = value.streamBoundary.firstCaptureIndex;
+    const last = value.streamBoundary.lastCaptureIndex;
+    if (value.expectedCaptureCount === 0 && (first !== null || last !== null)) {
+      errors.push('empty stream boundary must use null capture indexes');
+    }
+    if (value.expectedCaptureCount > 0
+      && (first === null || last === null || last < first || last - first + 1 !== value.expectedCaptureCount)) {
+      errors.push('stream capture-index boundary must span expected count');
+    }
+    if (value.signature.keyId !== value.issuer.signingKeyId) {
+      errors.push('receipt signature key must match issuer signing key');
+    }
+    if (time('streamBoundary.closedAt', value.streamBoundary.closedAt) > time('issuedAt', value.issuedAt)) {
+      errors.push('receipt cannot be issued before its stream closes');
+    }
+  }
+
+  if (name === 'porthole-regression-receipt') {
+    if (time('source.interval.startedAt', value.source.interval.startedAt)
+      > time('source.interval.endedAt', value.source.interval.endedAt)) {
+      errors.push('regression source interval is reversed');
+    }
+    const eventIds = value.source.events.map((event) => event.eventId);
+    if (new Set(eventIds).size !== eventIds.length) errors.push('regression source event ids must be unique');
+    const perspectiveIds = value.source.perspectives.map((perspective) => perspective.perspectiveId);
+    if (new Set(perspectiveIds).size !== perspectiveIds.length) errors.push('regression source perspective ids must be unique');
+    for (const boundaryId of [value.source.interval.startEventId, value.source.interval.endEventId]) {
+      if (!eventIds.includes(boundaryId)) errors.push('regression interval boundary must cite a committed event');
+    }
+    const bugEvent = value.source.events.find((event) => event.eventId === value.source.bugReport.eventId);
+    if (!bugEvent || bugEvent.commitment !== value.source.bugReport.commitment) {
+      errors.push('bug report id and commitment must match the canonical event source');
+    }
+    if (value.privacy.scan.artifactManifestHash !== value.artifactManifest.manifestHash) {
+      errors.push('privacy scan must bind the generated artifact manifest');
+    }
+    if (value.execution.targetBuildCommit !== value.environment.build.commitHash) {
+      errors.push('execution target must match the attested build commit');
+    }
+    if (time('execution.startedAt', value.execution.startedAt) > time('execution.completedAt', value.execution.completedAt)) {
+      errors.push('regression execution interval is reversed');
+    }
+    value.execution.attempts.forEach((attempt, index) => {
+      if (attempt.attempt !== index + 1) errors.push('regression attempt ordinals must be contiguous');
+      if (time(`execution.attempts[${index}].startedAt`, attempt.startedAt)
+        > time(`execution.attempts[${index}].completedAt`, attempt.completedAt)) {
+        errors.push('regression attempt interval is reversed');
+      }
+    });
+    const attemptStatuses = value.execution.attempts.map((attempt) => attempt.status);
+    if (attemptStatuses.at(-1) !== value.execution.status) errors.push('execution status must match the final attempt');
+    if (value.execution.flakeAssessment === 'stable' && new Set(attemptStatuses).size !== 1) {
+      errors.push('stable assessment requires identical attempt outcomes');
+    }
+    if (value.execution.flakeAssessment === 'flaky' && new Set(attemptStatuses).size < 2) {
+      errors.push('flaky assessment requires differing attempt outcomes');
+    }
+    if (value.signature.keyId !== value.issuer.signingKeyId) {
+      errors.push('regression signature key must match issuer signing key');
+    }
+  }
+
+  if (name === 'porthole-disclosure-receipt') {
+    if (time('source.interval.startedAt', value.source.interval.startedAt)
+      > time('source.interval.endedAt', value.source.interval.endedAt)) {
+      errors.push('disclosure source interval is reversed');
+    }
+    const sourceIds = value.source.items.map((item) => item.sourceId);
+    if (new Set(sourceIds).size !== sourceIds.length) errors.push('disclosure source ids must be unique');
+    const { canonicalManifest, reviewedPreview, delivery } = value.artifact;
+    if (reviewedPreview.manifestId !== canonicalManifest.manifestId
+      || delivery.manifestId !== canonicalManifest.manifestId
+      || reviewedPreview.manifestHash !== canonicalManifest.manifestHash
+      || delivery.manifestHash !== canonicalManifest.manifestHash) {
+      errors.push('reviewed and delivered manifests must match the canonical manifest');
+    }
+    if (reviewedPreview.artifactHash !== delivery.artifactHash) {
+      errors.push('delivered artifact hash must match the reviewed preview');
+    }
+    if (value.privacy.coverageVerifierKeyId === value.issuer.signingKeyId) {
+      errors.push('coverage verification must not be self-attested by the disclosure issuer');
+    }
+    if (time('grant.issuedAt', value.grant.issuedAt) >= time('grant.expiresAt', value.grant.expiresAt)) {
+      errors.push('disclosure grant must expire after issue');
+    }
+    if (value.grant.recipientKeyEnvelopeHash !== value.encryption.keyEnvelopeHash) {
+      errors.push('key grant must bind the delivered encryption envelope');
+    }
+    if (value.grant.keyGrantReceiptRef !== value.accessLedger.grantReceipt.receiptRef) {
+      errors.push('access ledger must begin with the key grant receipt');
+    }
+    const chain = [
+      value.accessLedger.grantReceipt,
+      ...value.accessLedger.accessReceipts,
+      ...(value.accessLedger.revokeReceipt ? [value.accessLedger.revokeReceipt] : []),
+      ...(value.accessLedger.expireReceipt ? [value.accessLedger.expireReceipt] : []),
+    ];
+    chain.forEach((receipt, index) => {
+      if (receipt.sequence !== index) errors.push('disclosure access receipt sequence must be contiguous');
+      if (index > 0 && receipt.prevHash !== chain[index - 1].contentHash) {
+        errors.push('disclosure access receipt hash chain is broken');
+      }
+    });
+    if (value.accessLedger.headHash !== chain.at(-1).contentHash) {
+      errors.push('disclosure access head must match the final receipt');
+    }
+    if (time('artifact.reviewedPreview.reviewedAt', reviewedPreview.reviewedAt)
+      > time('artifact.delivery.deliveredAt', delivery.deliveredAt)) {
+      errors.push('disclosure cannot be delivered before preview review');
+    }
+    if (value.signature.keyId !== value.issuer.signingKeyId) {
+      errors.push('disclosure signature key must match issuer signing key');
+    }
+  }
+
+  return errors;
+}
+
 // ---------------------------------------------------------------------------
 // 1. Compilation and package shape
 // ---------------------------------------------------------------------------
 
 describe('agent-harbor v0 schema package', () => {
-  it('ships exactly the twenty-five frozen contracts plus fixtures', () => {
+  it('ships exactly the frozen contracts plus fixtures', () => {
     const files = readdirSync(schemaDir).filter((f) => f.endsWith('.schema.json')).sort();
     expect(files).toEqual(SCHEMA_NAMES.map((n) => `${n}.schema.json`).sort());
   });
@@ -306,6 +597,9 @@ describe('agent-harbor v0 schema package', () => {
           // TranscriptEvent is pinned by ch09's schemaVersion, not a schema const.
           expect(schema.properties.schemaVersion.const).toBe(1);
           expect(schema.required).toContain('schemaVersion');
+        } else if (name in PORTHOLE_SCHEMA_CONSTS) {
+          expect(schema.properties.schema.const).toBe(PORTHOLE_SCHEMA_CONSTS[name]);
+          expect(schema.required).toContain('schema');
         } else {
           expect(schema.properties.schema.const).toBe(`pd.agent-harbor.${name}.v0`);
           expect(schema.required).toContain('schema');
@@ -357,6 +651,542 @@ describe('agent-harbor v0 schema package', () => {
     // The boolean-false form: undeclared keys are rejected even with no `properties` map.
     const closed = { type: 'object', additionalProperties: false };
     expect(validate(closed, { anything: 1 }).some((e) => e.includes('unexpected property'))).toBe(true);
+  });
+});
+
+describe('Porthole v1 security and causality invariants', () => {
+  it('separates a person/operator actor from the captured surface and seals target descriptors', () => {
+    const schema = loadSchema('porthole-perspective');
+    const fixture = loadFixture('porthole-perspective');
+    expect(fixture.actor).toEqual({ kind: 'person', role: 'operator', personId: 'person_erich' });
+    expect(fixture.agentNodeId).toBeNull();
+    expect(validate(schema, fixture)).toEqual([]);
+    expect(validatePortholeSemantics('porthole-perspective', fixture)).toEqual([]);
+
+    const personClaimingAgentNode = copy(fixture);
+    personClaimingAgentNode.agentNodeId = 'agent_node_forged';
+    expect(validate(schema, personClaimingAgentNode).some((error) => error.includes('agentNodeId'))).toBe(true);
+
+    const leakedTarget = copy(fixture);
+    leakedTarget.surface.title = 'Secret customer checkout';
+    expect(validate(schema, leakedTarget).some((error) => error.includes('unexpected property "title"'))).toBe(true);
+
+    const disembodied = copy(fixture);
+    disembodied.bodyId = null;
+    expect(validate(schema, disembodied).some((error) => error.includes('bodyId'))).toBe(true);
+  });
+
+  it('requires an AgentNode for agent actors and enforces the pre-capture schedule shape', () => {
+    const schema = loadSchema('porthole-perspective');
+    const agent = copy(loadFixture('porthole-perspective'));
+    agent.actor = { kind: 'agent', role: 'collaborator', personId: null };
+    agent.participantId = 'agent_builder';
+    agent.agentNodeId = 'agent_node_builder';
+    agent.bodyId = 'body_chrome_tab_42';
+    expect(validate(schema, agent)).toEqual([]);
+
+    agent.agentNodeId = null;
+    expect(validate(schema, agent).some((error) => error.includes('agentNodeId'))).toBe(true);
+
+    const eventDriven = copy(loadFixture('porthole-perspective'));
+    eventDriven.captureSchedule.mode = 'event-driven';
+    eventDriven.captureSchedule.samplingIntervalMs = null;
+    expect(validate(schema, eventDriven).some((error) => error.includes('captureSchedule.mode'))).toBe(true);
+
+    for (const boundaryKind of ['event-delimited', 'operator-stop']) {
+      const unsupportedBoundary = copy(loadFixture('porthole-perspective'));
+      unsupportedBoundary.captureSchedule.boundary = {
+        kind: boundaryKind,
+        durationMs: null,
+        terminalEventKind: boundaryKind === 'event-delimited' ? 'checkout-finished' : null,
+      };
+      expect(validate(schema, unsupportedBoundary).some((error) => error.includes('boundary.kind'))).toBe(true);
+    }
+
+    const committedLate = copy(loadFixture('porthole-perspective'));
+    committedLate.captureSchedule.committedAt = '2026-08-30T18:00:01.000Z';
+    expect(validatePortholeSemantics('porthole-perspective', committedLate)).toContain(
+      'captureSchedule must be committed before capture starts',
+    );
+  });
+
+  it('makes a perspective/channel one retention unit', () => {
+    const fixture = loadFixture('porthole-perspective');
+    const wrongUnit = copy(fixture);
+    wrongUnit.retention.unitId = 'segment_42';
+    expect(validatePortholeSemantics('porthole-perspective', wrongUnit)).toContain(
+      'retention unitId must equal perspectiveId',
+    );
+    const wrongChannel = copy(fixture);
+    wrongChannel.retention.channelId = 'porthole:another-perspective';
+    expect(validatePortholeSemantics('porthole-perspective', wrongChannel)).toContain(
+      'retention and encryption channelId must match',
+    );
+  });
+
+  it('keeps the durable stage target opaque and rejects every raw descriptor field', () => {
+    const schema = loadSchema('porthole-stage');
+    const fixture = loadFixture('porthole-stage');
+    const targetSchema = schema.properties.target;
+    const forbidden = ['application', 'processId', 'windowId', 'bundleId', 'title', 'url'];
+
+    expect(validate(schema, fixture)).toEqual([]);
+    expect(targetSchema.additionalProperties).toBe(false);
+    expect(targetSchema.properties.descriptor.additionalProperties).toBe(false);
+    expect(Object.keys(fixture.target).sort()).toEqual(['descriptor', 'kind', 'platform', 'targetId']);
+    for (const field of forbidden) {
+      expect(targetSchema.properties).not.toHaveProperty(field);
+      const leaked = copy(fixture);
+      leaked.target[field] = field.endsWith('Id') ? 8842 : 'private descriptor';
+      expect(validate(schema, leaked).some((error) => error.includes(`unexpected property "${field}"`))).toBe(true);
+    }
+
+    const leakedInsideEnvelope = copy(fixture);
+    leakedInsideEnvelope.target.descriptor.title = 'Secret customer checkout';
+    expect(validate(schema, leakedInsideEnvelope).some((error) => error.includes('unexpected property "title"'))).toBe(true);
+
+    const revealingHandle = copy(fixture);
+    revealingHandle.target.targetId = 'mac-window:8842';
+    expect(validate(schema, revealingHandle).some((error) => error.includes('targetId'))).toBe(true);
+
+    for (const [site, field] of [
+      ['participants', 'email'],
+      ['semanticAdapters', 'rawConfiguration'],
+      ['transport', 'relayToken'],
+      ['controlPolicy', 'operatorSecret'],
+    ]) {
+      const leaked = copy(fixture);
+      if (site === 'participants' || site === 'semanticAdapters') leaked[site][0][field] = 'private';
+      else leaked[site][field] = 'private';
+      expect(validate(schema, leaked).some((error) => error.includes(`unexpected property "${field}"`))).toBe(true);
+    }
+  });
+
+  it('requires consent, readiness, privacy policy, and E2EE device policy before a stage is live or remote', () => {
+    const schema = loadSchema('porthole-stage');
+    const fixture = loadFixture('porthole-stage');
+    expect(validate(schema, fixture)).toEqual([]);
+    expect(fixture.controlPolicy).toMatchObject({
+      pointing: 'concurrent',
+      commenting: 'concurrent',
+      input: 'explicit-lease',
+    });
+
+    const unconsented = copy(fixture);
+    unconsented.consent.state = 'pending';
+    expect(validate(schema, unconsented).some((error) => error.includes('consent.state'))).toBe(true);
+
+    const unready = copy(fixture);
+    unready.readiness.state = 'degraded';
+    expect(validate(schema, unready).some((error) => error.includes('readiness.state'))).toBe(true);
+
+    for (const field of ['exactTargetOnly', 'backgroundMediaBlocked', 'secretStrippingRequired']) {
+      const unsafe = copy(fixture);
+      unsafe.privacyPolicy[field] = false;
+      expect(validate(schema, unsafe).some((error) => error.includes(field))).toBe(true);
+    }
+
+    for (const field of ['pointing', 'commenting']) {
+      const leasedCollaboration = copy(fixture);
+      leasedCollaboration.controlPolicy[field] = 'lease';
+      expect(validate(schema, leasedCollaboration).some((error) => error.includes(field))).toBe(true);
+    }
+
+    const remote = copy(fixture);
+    remote.transport = {
+      scope: 'remote',
+      media: 'webrtc',
+      events: 'data-channel',
+      endToEndEncrypted: true,
+      enrolledDevicePolicyRef: 'device-policy_porthole-team-1',
+      rekeyPolicyRef: 'rekey-policy_porthole-hourly-1',
+    };
+    expect(validate(schema, remote)).toEqual([]);
+
+    const unencryptedRemote = copy(remote);
+    unencryptedRemote.transport.endToEndEncrypted = false;
+    expect(validate(schema, unencryptedRemote).some((error) => error.includes('endToEndEncrypted'))).toBe(true);
+    const unenrolledRemote = copy(remote);
+    unenrolledRemote.transport.enrolledDevicePolicyRef = null;
+    expect(validate(schema, unenrolledRemote).some((error) => error.includes('enrolledDevicePolicyRef'))).toBe(true);
+    const remoteDisguisedAsLocal = copy(remote);
+    remoteDisguisedAsLocal.transport.scope = 'local';
+    expect(validate(schema, remoteDisguisedAsLocal).some((error) => error.includes('scope'))).toBe(true);
+  });
+
+  it('allows null hashes only for truly ephemeral pointer or presence events', () => {
+    const schema = loadSchema('porthole-stage-event');
+    const pointer = copy(loadFixture('porthole-stage-event'));
+    Object.assign(pointer, {
+      eventId: 'pointer_ephemeral_1',
+      kind: 'pointer',
+      durability: 'ephemeral',
+      phase: 'observation',
+      sequence: null,
+      bodyId: 'body_pointer_client_1',
+      timing: {
+        ...pointer.timing,
+        display: null,
+        committedAt: null,
+      },
+      ephemeralState: {
+        perspectiveId: 'pov_01JZPORT0001',
+        geometry: { x: 0.71, y: 0.64 },
+        presenceStatus: null,
+        pointerStatus: 'visible',
+      },
+      sealedContent: null,
+      causedByEventIds: [],
+      controlLeaseId: null,
+      leaseGrantEventId: null,
+      authorizationReceiptId: null,
+      actionIntentEventId: null,
+      issuer: null,
+      contentHash: null,
+      prevHash: null,
+      signature: null,
+    });
+    expect(validate(schema, pointer)).toEqual([]);
+
+    const ephemeralComment = { ...pointer, kind: 'comment-created' };
+    expect(validate(schema, ephemeralComment).some((error) => error.includes('kind'))).toBe(true);
+    const unhashedCheckpoint = { ...pointer, durability: 'checkpoint', sequence: 8 };
+    expect(validate(schema, unhashedCheckpoint).some((error) => error.includes('contentHash'))).toBe(true);
+
+    const signedEphemeral = copy(pointer);
+    signedEphemeral.signature = copy(loadFixture('porthole-stage-event').signature);
+    expect(validate(schema, signedEphemeral).some((error) => error.includes('signature'))).toBe(true);
+  });
+
+  it('seals all durable event content and requires a verified privacy receipt plus attributable signature', () => {
+    const schema = loadSchema('porthole-stage-event');
+    const event = loadFixture('porthole-stage-event');
+    expect(validate(schema, event)).toEqual([]);
+    expect(schema.properties).not.toHaveProperty('payload');
+    expect(schema.properties).not.toHaveProperty('anchor');
+
+    for (const leakedField of ['payload', 'anchor']) {
+      const leaked = copy(event);
+      leaked[leakedField] = { text: 'secret', semantic: { name: 'Place order', path: '/Checkout' } };
+      expect(validate(schema, leaked).some((error) => error.includes(`unexpected property "${leakedField}"`))).toBe(true);
+    }
+    const leakedEnvelope = copy(event);
+    leakedEnvelope.sealedContent.semanticName = 'Place order';
+    expect(validate(schema, leakedEnvelope).some((error) => error.includes('unexpected property "semanticName"'))).toBe(true);
+
+    const unverifiedPrivacy = copy(event);
+    unverifiedPrivacy.sealedContent.privacyReceipt.verification = 'pending';
+    expect(validate(schema, unverifiedPrivacy).some((error) => error.includes('verification'))).toBe(true);
+    const unsigned = copy(event);
+    unsigned.signature = null;
+    expect(validate(schema, unsigned).some((error) => error.includes('signature'))).toBe(true);
+    const unattributed = copy(event);
+    unattributed.issuer = null;
+    expect(validate(schema, unattributed).some((error) => error.includes('issuer'))).toBe(true);
+
+    const forgedSigner = copy(event);
+    forgedSigner.signature.keyId = 'another-key';
+    expect(validatePortholeSemantics('porthole-stage-event', forgedSigner)).toContain(
+      'durable event signature key must match issuer signing key',
+    );
+    const forgedAttribution = copy(event);
+    forgedAttribution.issuer.participantId = 'person_someone_else';
+    expect(validatePortholeSemantics('porthole-stage-event', forgedAttribution)).toContain(
+      'durable event issuer must match attributed participant',
+    );
+  });
+
+  it('freezes one deterministic embedding space per retrieval derivation', () => {
+    const schema = loadSchema('porthole-stage-event');
+    const derivation = copy(loadFixture('porthole-stage-event'));
+    derivation.kind = 'embedding-derivation';
+    derivation.embeddingSpace = {
+      embeddingSpaceId: `sha256:${'1'.repeat(64)}`,
+      model: 'test/pinned-embedding-model',
+      revision: 'pinned-revision-1',
+      dimension: 1536,
+      normalization: 'l2',
+      task: 'porthole-authorized-retrieval-v1',
+      privacyPolicy: 'porthole-retrieval-scrubbed-v1',
+    };
+    expect(validate(schema, derivation)).toEqual([]);
+    expect(schema.properties.embeddingSpace.description).toMatch(/reject cross-space cosine/i);
+
+    const missingSpace = copy(derivation);
+    missingSpace.embeddingSpace = null;
+    expect(validate(schema, missingSpace).some((error) => error.includes('embeddingSpace'))).toBe(true);
+
+    const oversizedSpace = copy(derivation);
+    oversizedSpace.embeddingSpace.dimension = 4096;
+    expect(validate(schema, oversizedSpace).some((error) => error.includes('dimension'))).toBe(true);
+
+    const metadataOnRawEvent = copy(loadFixture('porthole-stage-event'));
+    metadataOnRawEvent.embeddingSpace = copy(derivation.embeddingSpace);
+    expect(validate(schema, metadataOnRawEvent).some((error) => error.includes('embeddingSpace'))).toBe(true);
+  });
+
+  it('requires append-only input effects to cite body, lease grant, authorization, and intent', () => {
+    const schema = loadSchema('porthole-stage-event');
+    const effect = loadFixture('porthole-stage-event');
+    expect(validate(schema, effect)).toEqual([]);
+    expect(validatePortholeSemantics('porthole-stage-event', effect)).toEqual([]);
+
+    for (const field of ['bodyId', 'controlLeaseId', 'leaseGrantEventId', 'authorizationReceiptId', 'actionIntentEventId']) {
+      const broken = copy(effect);
+      broken[field] = null;
+      expect(validate(schema, broken).some((error) => error.includes(field))).toBe(true);
+    }
+
+    const disconnected = copy(effect);
+    disconnected.causedByEventIds = ['some_other_event', disconnected.leaseGrantEventId];
+    expect(validatePortholeSemantics('porthole-stage-event', disconnected)).toContain(
+      'input outcome must cite its action intent in causedByEventIds',
+    );
+  });
+
+  it('enforces coherent control-lease states and receipt transitions', () => {
+    const schema = loadSchema('porthole-control-lease');
+    const active = loadFixture('porthole-control-lease');
+    expect(validate(schema, active)).toEqual([]);
+    expect(validatePortholeSemantics('porthole-control-lease', active)).toEqual([]);
+
+    const activeWithoutAuthorization = copy(active);
+    activeWithoutAuthorization.receipts.authorization = null;
+    expect(validate(schema, activeWithoutAuthorization).some((error) => error.includes('authorization'))).toBe(true);
+
+    const requestedWithGrant = copy(active);
+    Object.assign(requestedWithGrant, {
+      status: 'requested',
+      decisionParticipantId: null,
+      grantorParticipantId: null,
+    });
+    Object.assign(requestedWithGrant.timing, {
+      grantedAt: null, authorizedAt: null, expiresAt: null,
+      terminationRequestedAt: null, terminalAt: null,
+    });
+    Object.assign(requestedWithGrant.atomicFocusRevalidation, { checkedAt: null, receiptRef: null });
+    requestedWithGrant.receipts.authorization = null;
+    requestedWithGrant.receipts.terminal = null;
+    requestedWithGrant.issuer.participantId = requestedWithGrant.requestedByParticipantId;
+    expect(validate(schema, requestedWithGrant).some((error) => error.includes('receipts.grant'))).toBe(true);
+
+    const reversed = copy(active);
+    reversed.timing.expiresAt = '2026-08-30T18:00:14.500Z';
+    expect(validatePortholeSemantics('porthole-control-lease', reversed)).toContain(
+      'expiresAt must follow authorizedAt',
+    );
+
+    for (const forbidden of ['pointer', 'clipboard']) {
+      const legacy = copy(active);
+      legacy.capabilities = [forbidden];
+      expect(validate(schema, legacy).some((error) => error.includes('capabilities'))).toBe(true);
+    }
+    const overlong = copy(active);
+    overlong.timing.expiresAt = '2026-08-30T18:00:46.000Z';
+    expect(validatePortholeSemantics('porthole-control-lease', overlong)).toContain('lease TTL exceeds maxTtlMs');
+
+    const overBudget = copy(active);
+    overBudget.actionBudget = { maxActions: 1, usedActions: 2 };
+    expect(validatePortholeSemantics('porthole-control-lease', overBudget)).toContain('usedActions exceeds maxActions');
+
+    const clipboardRead = copy(active);
+    clipboardRead.capabilities = ['clipboard-read'];
+    expect(validatePortholeSemantics('porthole-control-lease', clipboardRead)).toContain(
+      'clipboard-read requires an explicit authorization receipt',
+    );
+
+    const forgedSigner = copy(active);
+    forgedSigner.signature.keyId = 'another-key';
+    expect(validatePortholeSemantics('porthole-control-lease', forgedSigner)).toContain(
+      'lease signature key must match issuer signing key',
+    );
+  });
+
+  it('binds completeness to the committed schedule, exact stream boundary, verified counts, and issuer', () => {
+    const schema = loadSchema('porthole-completeness-receipt');
+    const receipt = loadFixture('porthole-completeness-receipt');
+    expect(validate(schema, receipt)).toEqual([]);
+    expect(validatePortholeSemantics('porthole-completeness-receipt', receipt)).toEqual([]);
+    expect(schema.properties).not.toHaveProperty('plaintextByteCount');
+    expect(schema.properties).not.toHaveProperty('ciphertextByteCount');
+
+    const launderedCounts = copy(receipt);
+    launderedCounts.verifiedSegmentCount = 11;
+    expect(validatePortholeSemantics('porthole-completeness-receipt', launderedCounts)).toContain(
+      'recorded count must equal verified plus unreadable',
+    );
+
+    const falselyComplete = copy(receipt);
+    falselyComplete.status = 'complete';
+    expect(validate(schema, falselyComplete).some((error) => error.includes('unreadableSegmentCount'))).toBe(true);
+
+    const forgedSigner = copy(receipt);
+    forgedSigner.signature.keyId = 'another-key';
+    expect(validatePortholeSemantics('porthole-completeness-receipt', forgedSigner)).toContain(
+      'receipt signature key must match issuer signing key',
+    );
+
+    const disembodiedIssuer = copy(receipt);
+    disembodiedIssuer.issuer.bodyId = null;
+    expect(validate(schema, disembodiedIssuer).some((error) => error.includes('issuer.bodyId'))).toBe(true);
+  });
+
+  it('requires signed, privacy-scanned regression evidence with attested execution and terminal review', () => {
+    const schema = loadSchema('porthole-regression-receipt');
+    const receipt = loadFixture('porthole-regression-receipt');
+    expect(validate(schema, receipt)).toEqual([]);
+    expect(validatePortholeSemantics('porthole-regression-receipt', receipt)).toEqual([]);
+    for (const superseded of [
+      'bugReportEventId', 'sourceEventIds', 'perspectiveIds', 'framework',
+      'artifactRef', 'artifactHash', 'generatedAt',
+    ]) {
+      expect(schema.properties).not.toHaveProperty(superseded);
+    }
+
+    const duplicateSource = copy(receipt);
+    duplicateSource.source.events[1].eventId = duplicateSource.source.events[0].eventId;
+    expect(validatePortholeSemantics('porthole-regression-receipt', duplicateSource)).toContain(
+      'regression source event ids must be unique',
+    );
+    const mismatchedBug = copy(receipt);
+    mismatchedBug.source.bugReport.commitment = 'sha256:0000000000000000000000000000000000000000000000000000000000000000';
+    expect(validatePortholeSemantics('porthole-regression-receipt', mismatchedBug)).toContain(
+      'bug report id and commitment must match the canonical event source',
+    );
+
+    for (const [path, mutate] of [
+      ['privacy.scan.status', (broken) => { broken.privacy.scan.status = 'failed'; }],
+      ['environment.cleanProfile.state', (broken) => { broken.environment.cleanProfile.state = 'dirty'; }],
+      ['artifactManifest.files[0].sha256', (broken) => { broken.artifactManifest.files[0].sha256 = 'not-a-hash'; }],
+      ['signature', (broken) => { broken.signature = null; }],
+    ]) {
+      const broken = copy(receipt);
+      mutate(broken);
+      expect(validate(schema, broken).some((error) => error.includes(path.split('.')[0]))).toBe(true);
+    }
+
+    const noFlakeProof = copy(receipt);
+    noFlakeProof.execution.attempts = [noFlakeProof.execution.attempts[0]];
+    expect(validate(schema, noFlakeProof).some((error) => error.includes('attempts'))).toBe(true);
+    const falseStable = copy(receipt);
+    falseStable.execution.attempts[0].status = 'failed';
+    expect(validatePortholeSemantics('porthole-regression-receipt', falseStable)).toContain(
+      'stable assessment requires identical attempt outcomes',
+    );
+
+    const acceptedFailure = copy(receipt);
+    acceptedFailure.execution.status = 'failed';
+    acceptedFailure.execution.attempts[1].status = 'failed';
+    expect(validate(schema, acceptedFailure).some((error) => error.includes('execution.status'))).toBe(true);
+    const contradictoryRejection = copy(receipt);
+    contradictoryRejection.review.decision = 'rejected';
+    contradictoryRejection.review.rejectionReason = 'Generated selector was unstable.';
+    expect(validate(schema, contradictoryRejection).some((error) => error.includes('acceptedCommit'))).toBe(true);
+
+    const forgedSigner = copy(receipt);
+    forgedSigner.signature.keyId = 'another-key';
+    expect(validatePortholeSemantics('porthole-regression-receipt', forgedSigner)).toContain(
+      'regression signature key must match issuer signing key',
+    );
+  });
+
+  it('binds review completion to its exact preview receipt and rejects delivery before review', () => {
+    const schema = loadSchema('porthole-disclosure-receipt');
+    const receipt = loadFixture('porthole-disclosure-receipt');
+    const reviewed = schema.properties.artifact.properties.reviewedPreview;
+    expect(reviewed.required).toEqual(expect.arrayContaining(['reviewReceiptRef', 'reviewedAt']));
+    expect(validate(schema, receipt)).toEqual([]);
+    const misplacedTime = copy(receipt);
+    misplacedTime.artifact.reviewedAt = misplacedTime.artifact.reviewedPreview.reviewedAt;
+    delete misplacedTime.artifact.reviewedPreview.reviewedAt;
+    expect(validate(schema, misplacedTime).some((error) => error.includes('reviewedAt'))).toBe(true);
+    const deliveredBeforeReview = copy(receipt);
+    deliveredBeforeReview.artifact.reviewedPreview.reviewedAt = '2026-08-30T19:00:00.000Z';
+    deliveredBeforeReview.artifact.delivery.deliveredAt = '2026-08-30T18:00:00.000Z';
+    expect(validatePortholeSemantics('porthole-disclosure-receipt', deliveredBeforeReview))
+      .toContain('disclosure cannot be delivered before preview review');
+  });
+
+  it('binds disclosure preview, delivery, source commitments, sealed metadata, grants, and access receipts', () => {
+    const schema = loadSchema('porthole-disclosure-receipt');
+    const receipt = loadFixture('porthole-disclosure-receipt');
+    expect(validate(schema, receipt)).toEqual([]);
+    expect(validatePortholeSemantics('porthole-disclosure-receipt', receipt)).toEqual([]);
+
+    const declaredPropertyNames = [];
+    const collectPropertyNames = (node) => {
+      if (!node || typeof node !== 'object') return;
+      if (node.properties) declaredPropertyNames.push(...Object.keys(node.properties));
+      for (const child of Object.values(node)) collectPropertyNames(child);
+    };
+    collectPropertyNames(schema);
+    for (const plaintextField of ['purpose', 'recipientId', 'workItemRef', 'reviewedBy']) {
+      expect(declaredPropertyNames).not.toContain(plaintextField);
+    }
+    const leakedPurpose = copy(receipt);
+    leakedPurpose.purpose = { statement: 'private bug report purpose' };
+    expect(validate(schema, leakedPurpose).some((error) => error.includes('unexpected property "purpose"'))).toBe(true);
+    const incompleteSealing = copy(receipt);
+    incompleteSealing.sealedMetadata.protectedFields = ['recipient', 'purpose'];
+    expect(validate(schema, incompleteSealing).some((error) => error.includes('protectedFields'))).toBe(true);
+
+    const rawDerivative = copy(receipt);
+    rawDerivative.artifact.canonicalManifest.rawEvidenceIncluded = true;
+    expect(validate(schema, rawDerivative).some((error) => error.includes('rawEvidenceIncluded'))).toBe(true);
+
+    const duplicateSource = copy(receipt);
+    duplicateSource.source.items[1].sourceId = duplicateSource.source.items[0].sourceId;
+    expect(validatePortholeSemantics('porthole-disclosure-receipt', duplicateSource)).toContain(
+      'disclosure source ids must be unique',
+    );
+    const swappedDelivery = copy(receipt);
+    swappedDelivery.artifact.delivery.artifactHash = 'sha256:0000000000000000000000000000000000000000000000000000000000000000';
+    expect(validatePortholeSemantics('porthole-disclosure-receipt', swappedDelivery)).toContain(
+      'delivered artifact hash must match the reviewed preview',
+    );
+    const differentManifest = copy(receipt);
+    differentManifest.artifact.delivery.manifestHash = 'sha256:0000000000000000000000000000000000000000000000000000000000000000';
+    expect(validatePortholeSemantics('porthole-disclosure-receipt', differentManifest)).toContain(
+      'reviewed and delivered manifests must match the canonical manifest',
+    );
+
+    const selfAttestedCoverage = copy(receipt);
+    selfAttestedCoverage.privacy.coverageVerifierKeyId = selfAttestedCoverage.issuer.signingKeyId;
+    expect(validatePortholeSemantics('porthole-disclosure-receipt', selfAttestedCoverage)).toContain(
+      'coverage verification must not be self-attested by the disclosure issuer',
+    );
+    expect(receipt.privacy.coverageKeyDerivationSuite).toBe('independent-enrolled-ed25519-v1');
+    const ambiguousCoverageKey = copy(receipt);
+    delete ambiguousCoverageKey.privacy.coverageKeyDerivationSuite;
+    expect(validate(schema, ambiguousCoverageKey).some((error) => error.includes('coverageKeyDerivationSuite')))
+      .toBe(true);
+    const issuerDerivedCoverageKey = copy(receipt);
+    issuerDerivedCoverageKey.privacy.coverageKeyDerivationSuite = 'issuer-derived-ed25519-v1';
+    expect(validate(schema, issuerDerivedCoverageKey).some((error) => error.includes('coverageKeyDerivationSuite')))
+      .toBe(true);
+    const bareCoverage = copy(receipt);
+    bareCoverage.privacy.coverage = 'complete';
+    expect(validate(schema, bareCoverage).some((error) => error.includes('coverage'))).toBe(true);
+
+    const brokenChain = copy(receipt);
+    brokenChain.accessLedger.accessReceipts[0].prevHash = 'sha256:0000000000000000000000000000000000000000000000000000000000000000';
+    expect(validatePortholeSemantics('porthole-disclosure-receipt', brokenChain)).toContain(
+      'disclosure access receipt hash chain is broken',
+    );
+    const undeclaredAccessPayload = copy(receipt);
+    undeclaredAccessPayload.accessLedger.accessReceipts[0].viewer = 'person_reviewer';
+    expect(validate(schema, undeclaredAccessPayload).some((error) => error.includes('unexpected property "viewer"'))).toBe(true);
+
+    const revokedWithoutReceipt = copy(receipt);
+    revokedWithoutReceipt.grant.status = 'revoked';
+    revokedWithoutReceipt.grant.terminalAt = '2026-08-30T18:08:00.000Z';
+    expect(validate(schema, revokedWithoutReceipt).some((error) => error.includes('revokeReceipt'))).toBe(true);
+
+    const forgedSigner = copy(receipt);
+    forgedSigner.signature.keyId = 'another-key';
+    expect(validatePortholeSemantics('porthole-disclosure-receipt', forgedSigner)).toContain(
+      'disclosure signature key must match issuer signing key',
+    );
   });
 });
 
