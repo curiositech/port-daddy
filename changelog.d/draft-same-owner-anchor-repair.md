@@ -1,4 +1,4 @@
-### Fixed
+type: added
 
 - Added a source-only, explicit same-owner anchor-repair contract to the existing durable ownership coordinator. The same canonical AgentNode and verified actor must own both sessions; the successor must already have daemon admission and no claims. A signed current ownership epoch remains mandatory. Roster names, stale leases, operator presence, and caller-supplied worktree ids do not substitute for those witnesses.
 - Repair signs the complete old-to-new claim-node mapping, exact physical Git workspace, compact inspectable briefing, reason, nonce and idempotency binding. Acceptance preserves historical world/node identities, atomically transfers or releases every legacy/forest claim, and appends a new ownership epoch and signed receipt. Signing, expiry, concurrent drift or any transaction failure leaves the old ownership and claims intact. Duplicate acceptance reads the original signed outcome.
