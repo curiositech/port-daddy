@@ -92,6 +92,7 @@
       ]
     },
     "workBinding": { "$ref": "durable-ownership-epoch.schema.json#/$defs/exactWork" },
+    "anchorRepair": { "$ref": "durable-anchor-repair.schema.json" },
     "claimBindings": {
       "type": "array",
       "maxItems": 5000,

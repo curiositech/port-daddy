@@ -82,6 +82,7 @@ const SCHEMA_NAMES = [
   'durable-ownership-epoch',
   'ownership-successor-brief',
   'durable-takeover-grant',
+  'durable-anchor-repair',
   'durable-takeover-receipt',
   'compaction-packet',
   'memory-episode',
@@ -97,6 +98,7 @@ const STRICT_SCHEMA_NAMES = new Set([
   'durable-ownership-epoch',
   'ownership-successor-brief',
   'durable-takeover-grant',
+  'durable-anchor-repair',
   'durable-takeover-receipt',
 ]);
 
