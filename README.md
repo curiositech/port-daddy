@@ -214,8 +214,11 @@ unpublished repository work still fails closed; the flag cannot hide an
 unpushed change behind a “no artifact” receipt.
 
 Every session progresses through **phases** for swarm visibility: `planning`, `in_progress`, `testing`, `reviewing`, `completed` / `abandoned`.
+Completion is only entered through `pd done` (or `POST /sugar/done`), which checks the exact session's plan and delivery evidence. Setting `phase: completed` directly cannot skip those checks. If the exact local session is dormant or missing, commands report that condition without silently selecting a different worktree's active session.
 
 ### Plan and Checklist Enforcement
+
+In the dashboard, open **Agents → Open exact session** to read a session's latest complete plan and expand its retained note history. A link such as `/fleet-ui/?surface=agents&session=<session-id>` targets that exact Port Daddy session, even without a registered agent. Existing `surface=sessions` links reach the same read-only view. Missing or inaccessible sessions report an error rather than choosing another session by working directory. This is the selected daemon's session ledger, not a separate roadmap authority.
 
 Every active session requires planning. You can set, show, and check off todo list items:
 
@@ -228,11 +231,7 @@ pd plan check "docs"   # Check off item by substring matching
 
 When completing a session with `pd done`, the daemon checks if there are any unchecked checklist items (`[ ]` or `[-]`) in your plan. If unchecked items exist, `pd done` fails closed with code `PLAN_UNCHECKED_ITEMS`.
 
-To bypass the check and complete a session with remaining incomplete tasks:
-```bash
-pd done "Complete session" --force-incomplete --reason "Deferred features to next ticket"
-```
-The reason must be at least 12 characters and will be stamped with `[OPERATOR-OVERRIDE force-incomplete]` in the handoff notes.
+There is no caller-supplied override for this gate. Legacy `--force-incomplete` and `--skip-origin-check` requests are retained only long enough to return the structured `OPERATOR_CAPABILITY_REQUIRED` refusal: an actor credential and a reason string prove identity and intent, not operator authority. Complete the checklist and delivery gates before closing the session. Daemon-managed ephemeral spawns use a private, credential-bound exact-session lifecycle after their transcript is finalized; that internal path is not available as a CLI flag.
 
 ### Salvage, takeover & resurrection
 
@@ -245,7 +244,9 @@ pd salvage claim dead-agent-99     # inherit a dead agent's session, claims, and
 pd takeover <old-session-id>       # successor session with recorded lineage
 ```
 
-`pd session takeover` creates a successor session, records the lineage in append-only notes, releases stale predecessor claims, and reclaims those files when there is no live conflict. `pd session rm` is archival: it releases active claims and writes a tombstone, but never deletes the session, notes, or claim history.
+`pd session takeover` creates a successor for one exact dormant session and its daemon-stamped owner, records lineage in append-only notes, releases stale predecessor claims, and reclaims those files when there is no live conflict. Another actor's valid credential cannot adopt the session; operator-witnessed transfer remains a separate authority workflow. `pd session rm` is archival: it releases active claims and writes a tombstone, but never deletes the session, notes, or claim history.
+
+Session context is deterministic. `PD_SESSION_ID` and `PD_AGENT_ID` are an atomic pair; a partial pair cannot hide a complete context slot, and a disagreeing complete pair returns `CONTEXT_CONFLICT` with both provenances. Agent-only mutations fail with `AMBIGUOUS_ACTIVE_SESSION` when more than one active session matches. Session, note, claim, lock, and salvage mutations use credentialed daemon HTTP; raw IPC and direct SQLite expose only their safe read surfaces.
 
 ### Say / Look — the consolidated verbs
 
@@ -300,6 +301,8 @@ pd roster continue <agent-node-id> --backend cli:codex --mode auto
 Roster agents are daemon-minted `AgentNode` identities that outlive any body or session. Their meaningful slug is a scoped human alias, profile edits append revisions, and promotion requires a fail-closed sanitized handoff episode bound to the native harness session being promoted. Port Daddy coordination can enrich that handoff but is not required for historical sessions. Expertise lookup currently fuses BM25 with the local MiniLM fallback; any lexical fallback is labeled degraded. Runtime choice does not change the person: `pd roster continue` uses the existing native-or-sanitized-handoff receipt ledger. Stored permissions and triggers are explicitly declarations until a witnessed runtime enforces them. See ADR-0119.
 
 ### Coordination Guard (`pd guard`)
+
+`pd advise` / `coordination_preflight` project file claims inside one verified repository and worktree: relative, `./`, and absolute paths share an address only within that scope. A stale session root or stored world produces a critical context diagnostic with the original claims, not a false “unclaimed” recommendation. This is read-only advice, not permission or automatic ownership repair. See [claim projection diagnostics](docs/operations/advisor-claim-projection.md).
 
 `pd guard install` writes merged pre-commit and post-commit hooks that enforce the protocol: an active session plus matching file claims for staged files, checked by `pd guard check --staged`. `pd add` is the claim-aware `git add`. Modes: `advisory`, `warn`, `enforce`.
 
@@ -551,7 +554,9 @@ pd backend adapters --probe                               # local discovery, not
 pd roster search "SQLite migration recovery" --repo .    # durable expert lookup (hybrid)
 ```
 
-Search across Port Daddy is **hybrid** — BM25 plus one shared local embedding model (`Xenova/all-MiniLM-L6-v2`, prefetched at install per ADR-0061). Jury-rig's Tool2Vec centroids are reconciled content-hash-by-content-hash across the local and explicitly configured user catalog; no external skill runtime is required. Setup and daemon ticks use only loopback Ollama, never an inherited fleet or cloud backend, while a manual `pd jury-rig warm` may use an explicitly pinned `PD_SKILL_GRAFT_BACKEND`. The SQLite lease and row checkpoints make daemon, setup, and manual callers safe to resume after interruption. `pd doctor` reports current, cold, reconciling, embedder-down, or generator-down coverage. `pd memory tiers` prints the three-tier vocabulary overlay over the same SQLite substrate.
+Search across Port Daddy is **hybrid** — BM25 plus the current local MiniLM path (`Xenova/all-MiniLM-L6-v2`, cache lifecycle per ADR-0061). Jury-rig's Tool2Vec centroids are reconciled content-hash-by-content-hash across the local and explicitly configured user catalog; no external skill runtime is required. Setup and daemon ticks use only loopback Ollama, never an inherited fleet or cloud backend, while a manual `pd jury-rig warm` may use an explicitly pinned `PD_SKILL_GRAFT_BACKEND`. The SQLite lease and row checkpoints make daemon, setup, and manual callers safe to resume after interruption. `pd doctor` reports current, cold, reconciling, embedder-down, or generator-down coverage. `pd memory tiers` prints the three-tier vocabulary overlay over the same SQLite substrate.
+
+The [provider-neutral retrieval design](docs/proposals/provider-neutral-retrieval-fabric.md) replaces the universal-model rule with corpus-approved profiles, compatible index generations, RRF of rankings, and privacy filters before both retrievers. The [research record](docs/research/embedding-retrieval-model-landscape-2026.md) identifies candidates, not production winners. The registry foundation is source-present; role selection, signed producer conformance, remote budget integration, migrations, and operator controls remain separate implementation work. This documentation does not activate a model or prove an installed runtime upgrade.
 
 Backend-neutral continuation uses `POST /memory/handoffs` with `{ capsule, tokenBudget?, coordinationSessionId? }`, where `capsule` follows `pd.agent-harbor.handoff-capsule.v0`. The daemon enforces a 2 MiB ingress boundary, allowlists and bounds the capsule fields, preserves every operator turn and durable decision, sheds transcript tail before artifact summaries when a token budget is tight, recursively redacts structured credentials, and then requires a clean external `gitleaks stdin` verdict. Homebrew installs Gitleaks with Port Daddy; other installation paths must place `gitleaks` on `PATH` or set `PD_GITLEAKS_BIN`. Missing scanners, residual findings, or a budget too small for operator context fail closed; only the sanitized capsule is stored as an idempotent handoff episode keyed by source agent and session. Optional coordination-note harvest runs after that durable write and reports a warning rather than discarding a clean capsule when harvest is unavailable. The canonical schema is [`schemas/agent-harbor/v0/handoff-capsule.schema.json`](schemas/agent-harbor/v0/handoff-capsule.schema.json), extending the salvage contract in ADR-0028 without replaying raw provider transcripts.
 
@@ -653,6 +658,8 @@ Agent Node.
 Quiet mode (`-q`) prints raw output to stdout and exits non-zero on failure — perfect for shell scripts.
 
 **Key flags:** `--backend`, `--model`, `--tier`, `--identity`, `--purpose`, `--budget`, `--allowedTools` (claude-cli), `--maxTokens`, `--workdir`, `--timeout`
+
+Managed local spawns require an explicit absolute working directory: the CLI supplies its own current directory, while API/MCP/SDK callers supply `workdir`. The daemon derives the session's Git world from that physical target, checks the stored binding, and rechecks directory identity and cancellation after sandbox setup before starting a child. API-only projectless runs may omit a filesystem target; an explicit non-Git directory receives no invented Git world. See [managed spawn worktree binding](docs/operations/managed-spawn-worktree-binding.md) for caller contracts, recovery, and verification limits.
 
 **Backends in source:** `claude` (SDK), `claude-cli`, `codex`, `gemini`, `cloudflare` (Workers AI), `openai`, `groq`, `deepseek`, `xai`, `ollama`, `lmstudio`, `aider`, `custom`, and CLI-tube backends `cli:claude-code`, `cli:codex`, `cli:agy`, `cli:gemini`, `cli:groq`, `cli:grok`. Operator-facing launches are **fail-closed on telemetry**: metered API backends need exact token counts, an exact nonzero rate, and a persisted exact cost record. Spawn results and transcripts expose requested/effective backend+model provenance plus the override source when preflight or a forced CLI selection changes what actually ran. CLI-tube backends ride the operator's authenticated local CLI and record a flat session estimate; `cli:agy` captures the user prompt plus final stdout/stderr only until agy exposes a documented stream. `pd backend` switches the active provider/model configuration; `pd backend adapters` prints the generated N:N portability contract and `--probe` discovers installed binaries, advertised flags, and declared transcript roots without claiming spawn/resume conformance; `pd benchmark run` compares backends with real (paid) calls.
 
@@ -1084,7 +1091,7 @@ The **agent field manual** ships as a portable skill at [`skills/port-daddy-agen
 
 ## 🌐 HTTP API
 
-The full API contract lives at [`docs/openapi.yaml`](docs/openapi.yaml) — OpenAPI 3.1, **133 paths, 166 operations**, covering everything the CLI and MCP server can do plus SSE streams (`/fleet/events`, inbox watch, channel subscribe). The daemon binds loopback with a DNS-rebinding guard; secret routes are additionally loopback-gated per-route.
+The full API contract lives at [`docs/openapi.yaml`](docs/openapi.yaml) — OpenAPI 3.1, **135 paths, 168 operations**, covering everything the CLI and MCP server can do plus SSE streams (`/fleet/events`, inbox watch, channel subscribe). The daemon binds loopback with a DNS-rebinding guard; secret routes are additionally loopback-gated per-route.
 
 The `editor_recovery` Harbor Editor salvage routes are authenticated, fail-closed scaffolding at `POST /editor/recovery/request`, `/prepare`, `/replay`, and `/finalize`; registration does **not** make a usable recovery pipeline. Four external build gates remain unimplemented: the P1 Rust operation-receipt producer, P1B, the canonical Rust Loro recovery adapter, and the P3 same-database released-claim transfer adapter. Daemon scope minting also cannot yet supply the required verified worktree root device/inode witness, and production has no content-hash/parser-generation symbol lease or daemon file-mutation generation authority. The routes therefore remain 503-gated with no CLI/MCP bypass.
 
@@ -1176,6 +1183,7 @@ Start with [CONTRIBUTING.md](CONTRIBUTING.md). Every PR is filled out against [`
 - [`docs/operations/daemon-and-supervision.md`](docs/operations/daemon-and-supervision.md) — launchd, Bosun, supervision integrity
 - [`docs/RELEASING.md`](docs/RELEASING.md) / [`docs/VERSIONING.md`](docs/VERSIONING.md) — the release contract
 - [`docs/SECURITY_SOUNDNESS.md`](docs/SECURITY_SOUNDNESS.md) — what is and is not defended
+- [Dated delivery evidence](docs/research/2026-09-02-delivery-census.md) — published work, preserved checkpoints, and runtime follow-ups; a sanitized audit, not roadmap authority
 - White papers at `/whitepaper` on [portdaddy.dev](https://portdaddy.dev): **The Anchor Protocol**, **The Bonded Commons**
 
 ---

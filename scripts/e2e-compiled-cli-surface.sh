@@ -440,7 +440,7 @@ run_read "takeover (usage)"  takeover -- takeover
 # inside that repo, so the check would refuse with "Detached HEAD: cannot verify
 # origin push." That refusal is correct for real work but irrelevant to a
 # read-surface probe that never pushes anything.
-run_ok  "done"               done     -- done "Result: e2e cli-surface round-trip complete. not-applicable: CI surface probe, no code change." --skip-origin-check --reason "compiled-CLI surface E2E probe — no branch, no push (CI detached HEAD)"
+run_ok  "done"               done     -- done "Result: e2e cli-surface round-trip complete. not-applicable: CI surface probe, no code change." --status abandoned
 
 # pub -> channels reflects it (sub/subscribe/listen/wait are blocking → skipped)
 run_ok  "pub"                pub      -- pub e2e:surface:chan "hello from cli-surface e2e"

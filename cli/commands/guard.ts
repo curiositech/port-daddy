@@ -88,6 +88,14 @@ export interface GuardCheckResult {
   agentId?: string | null;
   sessionId?: string | null;
   violations: GuardViolation[];
+  /** A read-only audit of an existing commit, never a veto of that commit. */
+  postCommitAudit?: {
+    commit: string | null;
+    status: 'passed' | 'issues' | 'unverifiable' | 'off';
+    /** The unchanged pre-commit evaluator's decision on these same facts. */
+    preCommitWouldBlock: boolean;
+    persistence: 'not-attempted';
+  };
 }
 
 export const DEFAULT_GUARD_CONFIG: CoordinationGuardConfig = {
@@ -385,17 +393,11 @@ function guardHookBlock(): string {
 }
 
 /**
- * The post-commit guard block. Git invokes post-commit on `commit`,
- * `cherry-pick`, `rebase`, `revert`, and `merge --no-ff` — every path
- * that creates a commit. post-commit's exit code is *informational*
- * (git ignores it), so this block:
- *   - prints loudly when a commit was made without coordination
- *   - never blocks (post-commit can't), but the violation is recorded
- *     by `pd guard check --post-commit` in the daemon log so the
- *     operator can see what slipped through pre-commit
- *
- * This is the only enforcement path for cherry-pick/rebase/revert,
- * which silently bypass pre-commit hooks in git's sequencer.
+ * The post-commit block is a read-only audit after Git has created a commit.
+ * Its purpose is to report outstanding coordination requirements without
+ * pretending it can undo the successful Git operation. It neither publishes
+ * a coordination note nor proves that another publisher persisted a receipt.
+ * The pre-commit path still enforces all outstanding rent on the next commit.
  */
 function guardPostCommitBlock(): string {
   return [
@@ -686,9 +688,12 @@ export interface GuardBlockNotice {
 }
 
 export function describeGuardBlock(
-  result: Pick<GuardCheckResult, 'shouldBlock' | 'violations'>,
-  context: { hook?: boolean } = {},
+  result: Pick<GuardCheckResult, 'shouldBlock' | 'violations' | 'postCommitAudit'>,
+  context: { hook?: boolean; postCommit?: boolean } = {},
 ): GuardBlockNotice | null {
+  // Audit findings cannot become a notification that the completed commit
+  // failed, even if a caller passes the underlying pre-commit evaluation.
+  if (context.postCommit || result.postCommitAudit) return null;
   if (!result.shouldBlock) return null;
   const codes = new Set(result.violations.map((v) => v.code));
   const structural =
@@ -726,7 +731,9 @@ export function describeGuardBlock(
  * banner fires before the caller's process.exit.
  */
 function notifyOperatorOfGuardBlock(result: GuardCheckResult, options: CLIOptions): void {
-  const notice = describeGuardBlock(result, { hook: Boolean(options.hook) });
+  const notice = describeGuardBlock(result, {
+    hook: Boolean(options.hook), postCommit: Boolean(options['post-commit']),
+  });
   if (!notice || !notice.notifyOperator) return;
 
   // Loud stderr banner — points only to the corrective action, never names a
@@ -763,6 +770,28 @@ function printCheckResult(result: GuardCheckResult, options: CLIOptions): void {
     return;
   }
 
+  if (result.postCommitAudit) {
+    const audit = result.postCommitAudit;
+    if (!audit.commit) {
+      ui.warn(`${COORDINATION_GUARD_NAME}: post-commit audit could not resolve the requested commit.`);
+    } else {
+      console.log(`Commit ${audit.commit} exists; this audit does not change the Git outcome.`);
+      const status = audit.status === 'issues' ? 'needs attention' : audit.status;
+      console.log(`${COORDINATION_GUARD_NAME}: post-commit audit ${status}`);
+    }
+    for (const violation of result.violations) {
+      console.error(`  - ${violation.message}`);
+      if (violation.owners?.length) {
+        console.error(`    owners: ${violation.owners.map(owner => `${owner.agentId ?? 'unknown'}:${owner.sessionId ?? 'unknown'}`).join(', ')}`);
+      }
+    }
+    if (audit.preCommitWouldBlock) {
+      console.error('  Repair these findings before the next commit; pre-commit enforcement is unchanged.');
+    }
+    console.log('  Persistence: not attempted. This read-only audit does not publish a coordination note or receipt.');
+    return;
+  }
+
   const label = result.mode === 'enforce' ? 'ENFORCE' : result.mode === 'warn' ? 'WARN' : 'OFF';
   if (result.mode === 'off') {
     console.log(`${COORDINATION_GUARD_NAME}: off`);
@@ -795,6 +824,38 @@ function printCheckResult(result: GuardCheckResult, options: CLIOptions): void {
   if (result.mode === 'warn') {
     console.error('  mode=warn: not blocking. Use pd guard enable --mode enforce to block.');
   }
+}
+
+/**
+ * Preserve the evaluator's findings while separating an audit from a veto.
+ * The design keeps all rent debt intact: the next pre-commit check evaluates
+ * those facts normally. A missing commit is an audit-input failure, never proof
+ * that an earlier Git operation failed. No persistence is performed here.
+ * @param result The unchanged pre-commit policy evaluation.
+ * @param commit A verified commit object id, or null when resolution failed.
+ * @returns A post-commit report with explicit audit and persistence status.
+ */
+export function asPostCommitAudit(result: GuardCheckResult, commit: string | null): GuardCheckResult {
+  const violations = commit ? result.violations : [...result.violations, {
+    code: 'commit-unresolved',
+    severity: 'critical' as const,
+    message: 'The requested commit could not be verified; no Git outcome is asserted.',
+  }];
+  const unverifiable = violations.some(({ code }) =>
+    ['commit-unresolved', 'daemon-unreachable', 'no-active-session', 'rent-unverifiable'].includes(code));
+  return {
+    ...result,
+    success: commit !== null,
+    passed: commit !== null && result.passed,
+    shouldBlock: false,
+    violations,
+    postCommitAudit: {
+      commit,
+      status: unverifiable ? 'unverifiable' : result.mode === 'off' ? 'off' : result.passed ? 'passed' : 'issues',
+      preCommitWouldBlock: result.shouldBlock,
+      persistence: 'not-attempted',
+    },
+  };
 }
 
 export function extractClaimPaths(data: Record<string, unknown>): string[] {
@@ -909,6 +970,17 @@ async function runCheck(positional: string[], options: CLIOptions): Promise<Guar
   const gitVerb = typeof options['git-verb'] === 'string' ? String(options['git-verb']).trim() : '';
   const commitRef = typeof options.commit === 'string' && options.commit.length > 0 ? options.commit : 'HEAD';
   const root = gitRoot(cwd) ?? cwd;
+  // Pin the object before reading its paths so a moving HEAD cannot relabel
+  // evidence. --end-of-options prevents a ref from becoming a Git flag.
+  const auditedCommit = postCommit
+    ? gitText(['rev-parse', '--verify', '--end-of-options', `${commitRef}^{commit}`], cwd).trim() || null
+    : null;
+  if (postCommit && !auditedCommit) {
+    return asPostCommitAudit({
+      success: false, passed: false, shouldBlock: false,
+      mode, enabled: mode !== 'off', files: [], violations: [],
+    }, null);
+  }
   const files = normalizeFiles(
     gitVerb && DESTRUCTIVE_GIT_VERBS.has(gitVerb)
       // For destructive verbs the universe of risk is "any claim that
@@ -919,7 +991,7 @@ async function runCheck(positional: string[], options: CLIOptions): Promise<Guar
       // positive refusals on rebases here.
       ? filterClaimsToRepo(await loadAllActiveClaims(), root)
       : postCommit
-        ? commitFiles(commitRef, cwd)
+        ? commitFiles(auditedCommit ?? commitRef, cwd)
         : options.staged || options.hook
           ? stagedFiles(cwd)
           : positional.length > 0
@@ -932,8 +1004,8 @@ async function runCheck(positional: string[], options: CLIOptions): Promise<Guar
   // Rent is only assessed at commit-time (staged / hook / post-commit), never on
   // a plain dirty-tree advisory check — you owe a note for a *commit*, not for
   // unsaved edits. Compute it only when the guard is live and a session is
-  // attached; daemon/git failures degrade to "no rent owed" (fail-open here, so
-  // a flaky daemon never wedges every commit — the claim discipline still bites).
+  // attached. An unreadable probe remains a critical finding; post-commit only
+  // changes how the result is reported, never the rent calculation.
   const atCommitTime = Boolean(options.staged || options.hook || postCommit);
   let commitsSinceLastNote: number | undefined;
   let rentUnverifiable = false;
@@ -957,7 +1029,7 @@ async function runCheck(positional: string[], options: CLIOptions): Promise<Guar
       ? await loadRoadmapReceipts()
       : undefined;
 
-  return evaluateGuardFacts({
+  const result = evaluateGuardFacts({
     config,
     mode,
     files,
@@ -971,6 +1043,7 @@ async function runCheck(positional: string[], options: CLIOptions): Promise<Guar
     atCommitTime,
     roadmapReceipts,
   });
+  return postCommit ? asPostCommitAudit(result, auditedCommit) : result;
 }
 
 async function handleInstallShim(options: CLIOptions): Promise<void> {
@@ -1106,8 +1179,7 @@ async function installGuard(options: CLIOptions): Promise<void> {
 
   const hooks: Array<{ name: string; merge: (existing: string) => string }> = [
     { name: 'pre-commit', merge: mergePreCommitHook },
-    // post-commit is the only enforcement path for cherry-pick / rebase /
-    // revert, since git's sequencer skips pre-commit on those.
+    // Read-only audit; it cannot veto commits already created by Git.
     { name: 'post-commit', merge: mergePostCommitHook },
   ];
 
@@ -1146,6 +1218,10 @@ function printUsage(): void {
 export async function handleGuard(positional: string[], options: CLIOptions): Promise<void> {
   const subcommand = positional[0] || 'status';
   const rest = positional.slice(1);
+  if (options['post-commit'] && (subcommand !== 'check' || options.staged || options['git-verb'] || rest.length > 0)) {
+    ui.error('Post-commit audit requires guard check and cannot be combined with staged, destructive-verb, or file checks.');
+    process.exit(1);
+  }
 
   switch (subcommand) {
     case 'status':
@@ -1177,6 +1253,7 @@ export async function handleGuard(positional: string[], options: CLIOptions): Pr
         notifyOperatorOfGuardBlock(result, options);
         process.exit(1);
       }
+      if (result.postCommitAudit && !result.success) process.exit(1);
       return;
     }
     case 'help':
@@ -1191,6 +1268,7 @@ export async function handleGuard(positional: string[], options: CLIOptions): Pr
         notifyOperatorOfGuardBlock(result, options);
         process.exit(1);
       }
+      if (result.postCommitAudit && !result.success) process.exit(1);
     }
   }
 }

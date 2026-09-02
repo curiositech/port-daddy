@@ -145,25 +145,54 @@ git rebase origin/main
   → guard says no        → shim prints the refusal + suggests `pd guard status`
 ```
 
-A refusal is not a bug. **The right response to a shim refusal is to
-coordinate, not to bypass.** Read the refusal — it lists the specific
-files held by which other sessions. Then:
+A refusal may describe a valid ownership conflict or a coordination defect.
+**Inspect the exact evidence without bypassing the guard.** Read the claimed
+files, owners and scope; continue authorized disjoint work while resolving
+the bounded disagreement. Then:
 
-1. **Salvage if the holders are dead.** `pd sessions --all-worktrees` and
-   inspect the note content (a "usage limit exceeded" note from days ago
-   is a corpse). `pd salvage --project <p>` cleans dead claims.
-2. **Wait if the holders are live.** Live sessions own their surface
-   until they release. Working *around* a live claim is the failure
-   mode this discipline exists to prevent.
+1. **Inspect exact ownership before recovery.** Check the selected daemon,
+   session, recorded owner, worktree/root and original claim history. An old
+   error note or an absent process is not proof of transfer authority.
+   `pd salvage --project <p>` lists recovery candidates; a read does not clean
+   claims. A supported recovery mutation needs its own authorization and
+   exact successor/claim readback.
+2. **Coordinate a real live overlap.** A verified live holder in the same
+   scope still owns its surface. A released legacy projection is history,
+   not a live lock; a warning about it must not halt unrelated authorized work.
 3. **Coordinate if the work is co-located.** `pd inbox send <agent>` the
    claim holder, or post in the project channel. Resolve by file
    partition, symbol partition, or merge order — never by force.
 
-Agents have no self-authorized in-band escape. If the shim is wrong about
-your situation, fix the guard input (claim more files, release a stale
-claim, or explain the exception with a `pd note`). If the refusal remains
-factually wrong, publish exact evidence to `coordination:inconsistency` and
-surface the blocker to the operator; do not disable or route around the shim.
+Agents have no self-authorized in-band escape. If the shim is wrong, record
+the exact disagreement before changing its inputs. A scope mismatch is not
+an unclaimed file: do not duplicate claims, borrow credentials, edit world IDs
+or mass-release historical owners to hide it. Use the supported repair for the
+verified owner. Ordinary fresh scope may use normal narrow claims in its own
+verified worktree without altering old claims. If refusal remains factually
+wrong, publish exact evidence to `coordination:inconsistency`; continue safe,
+disjoint work and route the bounded blocker to its responsible owner.
+
+After Git creates a commit, a post-commit Guard message is an audit, not an
+undo operation. Verify the SHA; record and read back a SHA-bound note before
+the next commit. The audit does not publish that note itself, and an audit
+warning is not a reason to repeat or amend an already successful commit.
+
+## Git attribution is separate from publication identity
+
+Before the first commit, inspect `git var GIT_AUTHOR_IDENT` and
+`git var GIT_COMMITTER_IDENT`. Attribute both to the verified responsible
+agent, with actor/session trailers linking the work to its durable context.
+Use command-scoped Git identity settings; do not silently inherit the
+operator's identity or change global machine configuration. These metadata
+fields are not cryptographic signatures and do not establish App/Fleetbot
+authorization. Follow the separate governed publication path for GitHub.
+
+If attribution is wrong in your own **unpublished** commits, first prove
+their exact range and that no published ref or other agent's work is included.
+Preserve each original tree and message, correct only that range, then compare
+every rewritten tree and message to its original before publishing. Record
+the old-to-new SHA mapping in a session note. Published or another agent's
+history is outside this repair; report its provenance rather than rewriting it.
 
 ## See also
 

@@ -1,8 +1,8 @@
 # Embedding, Reranking, and Multimodal Retrieval Landscape (2026)
 
-**Research date:** 2026-09-01
+**Research date:** 2026-09-01; model-card and source reconciliation: 2026-09-02
 **Decision served:** candidate discovery for `provider-neutral-retrieval-fabric`
-**Responsible agent:** `cli-93505`
+**Original researcher:** `cli-93505`; publication steward actor `01M1HHCB63KA5BR59M53SSC873`
 **Rule:** no candidate below is approved for production without Port Daddy golden-corpus,
 privacy, latency, cost, and conformance evidence.
 
@@ -19,7 +19,10 @@ tests needed to make an attributable promotion decision.
 
 - Primary sources only for product/model capability claims: official model cards, vendor
   documentation, and research papers.
-- Current provider documentation was checked on 2026-09-01. Provider aliases, limits,
+- Provider documentation was initially checked on 2026-09-01; the cited BGE, Qwen,
+  Nomic, Jina, Voyage, and OpenAI model/capability pages were revisited on 2026-09-02.
+  This was documentation-only: no model download, inference, or benchmark experiment.
+  Provider aliases, limits,
   availability, pricing, and policies can change; execution profiles must pin a revision
   and refresh evidence.
 - Vendor benchmark claims are labeled as claims, not independently reproduced results.
@@ -46,8 +49,11 @@ candidates.
 
 ### BAAI bge-base-en-v1.5
 
-PR #9982 registers BGE Base English v1.5 as a stronger declarative profile alongside
-MiniLM. The official BAAI model card describes a 768-dimensional, 512-token English model
+[PR #9982](https://github.com/curiositech/port-daddy/pull/9982) is merged; its
+[`config/models.yaml`](../../config/models.yaml) declares the BGE Base English v1.5
+target alongside MiniLM. The generated rows remain `degraded-fallback` and
+`declarative-only`, not runtime conformance or quality promotion. The official BAAI model
+card describes a 768-dimensional, 512-token English model
 and publishes self-reported MTEB results. That is enough to justify a text-retrieval
 candidate, not enough to activate it without exact runtime conformance and Port Daddy
 evaluation.
@@ -100,8 +106,8 @@ Port Daddy queries, batch throughput, and RAM/latency relative to Qwen and BGE.
 
 ### Jina Embeddings v4
 
-Jina's official model card describes a Qwen2.5-VL-based 4B model for multilingual text,
-images, visually rich documents, and code-related tasks. It supports dense single vectors,
+Jina's official model card identifies `Qwen2.5-VL-3B-Instruct` as the base for multilingual
+text, images, visually rich documents, and code-related tasks. It supports dense single vectors,
 late-interaction multi-vectors, task-specific adapters, a 32K context window, and
 Matryoshka dimensions from 128 through 2048. The published repository is large and requires
 custom model code, so "open weights" does not mean "fits Port Daddy's default local path."
@@ -149,6 +155,11 @@ encoding as an exact profile, Port Daddy text/code/visual slices, reranker lift 
 fusion, truncation behavior, p50/p95/p99 latency, request failures, data-policy review, and
 actual per-index/per-query cost receipts. Provider-declared series compatibility is recorded
 but does not replace Port Daddy's exact `spaceId` calculation.
+
+**Documentation caveat:** the model-choice table lists `voyage-code-4`, while some parameter
+and example lists on the same page still name `voyage-code-3`. The exact deployed API
+revision and supported arguments therefore remain an integration verification requirement,
+not something this research infers from the family name.
 
 ### OpenAI text-embedding-3-large
 
@@ -270,9 +281,10 @@ produce durable receipts.
 2. MiniLM remains useful as a local-fast baseline, not as universal design authority.
 3. PR #9982's immutable logical-space kernel is compatible with local and managed providers
    and should remain the foundation.
-4. Qwen3 and Nomic are credible local text/code candidates; Jina is a credible heavier
-   multimodal candidate; managed Voyage and OpenAI profiles expand the comparison set where
-   corpus policy allows egress. None is promoted by this research.
+4. Qwen3 is a credible local text/code candidate; Nomic is a credible local multilingual
+   text candidate; Jina is a credible heavier multimodal candidate. Managed Voyage and
+   OpenAI profiles expand the comparison set where corpus policy allows egress. None is
+   promoted by this research.
 5. Embedding and reranking are separate roles. Their quality, latency, cost, and privacy
    evidence must be independently visible.
 6. External benchmarks should seed, structure, and sanity-check evaluation. Only the

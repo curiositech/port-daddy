@@ -36,6 +36,7 @@ function queryToInput(query: Record<string, unknown>): AdvisorInput {
     agentId: typeof query.agentId === 'string' ? query.agentId : undefined,
     task: typeof query.task === 'string' ? query.task : undefined,
     files: parseFiles(query.files ?? query.file),
+    changedFiles: parseFiles(query.changedFiles),
     includeChannels: parseBoolean(query.includeChannels),
     includeTupleHints: parseBoolean(query.includeTupleHints),
   };

@@ -1,3 +1,3 @@
 type: changed
 
-- **Embedding and retrieval now have one provider-neutral architecture contract.** The design preserves immutable vector-space identity while defining policy-selected local and remote quality tiers, separate text/code/UI/reranking roles, lexical+dense+metadata/lineage fusion, golden-corpus promotion, privacy firewalls, measurable receipts, and no-mix dual-index migrations; the README labels today's MiniLM path as transitional instead of universal.
+- **Documented the provider-neutral retrieval design; no runtime feature is activated.** The proposal and primary-source research define immutable vector-space identity, corpus-selected profiles, RRF of rankings, pre-candidate privacy boundaries, signed receipt requirements, and no-mix index migration. MiniLM remains the transitional local path; role selection, producer conformance, remote budget integration, migration proof, and operator controls require separate implementation and review.

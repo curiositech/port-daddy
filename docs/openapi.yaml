@@ -994,7 +994,8 @@ paths:
 
     put:
       tags: [sessions]
-      summary: End or abandon a session
+      summary: Abandon a session
+      description: Direct mutation is limited to abandonment. Successful completion must use POST /sugar/done so delivery and plan gates run.
       operationId: updateSession
       parameters:
         - name: id
@@ -1002,6 +1003,7 @@ paths:
           required: true
           schema:
             type: string
+        - $ref: '#/components/parameters/XActorCredential'
       requestBody:
         required: true
         content:
@@ -1011,11 +1013,8 @@ paths:
               properties:
                 status:
                   type: string
-                  enum: [completed, abandoned]
-                  description: Set to 'abandoned' to abandon the session
-                note:
-                  type: string
-                  description: Optional closing note
+                  enum: [abandoned]
+                  description: The only direct terminal state. completed returns GUARDED_COMPLETION_REQUIRED.
       responses:
         '200':
           description: Session updated
@@ -1034,12 +1033,18 @@ paths:
                       type: string
         '404':
           description: Session not found
+        '401':
+          description: Missing or forged actor credential
+        '403':
+          description: Verified actor does not own the exact target session, or the legacy owner cannot be verified
+        '400':
+          description: Direct completion refused with GUARDED_COMPLETION_REQUIRED
         '500':
           $ref: '#/components/responses/InternalError'
 
     delete:
       tags: [sessions]
-      summary: Delete session and cascade to notes and file claims
+      summary: Archive a session while preserving its append-only evidence
       operationId: deleteSession
       parameters:
         - name: id
@@ -1047,9 +1052,10 @@ paths:
           required: true
           schema:
             type: string
+        - $ref: '#/components/parameters/XActorCredential'
       responses:
         '200':
-          description: Session deleted
+          description: Session archived; notes and historical claims remain available as evidence
           content:
             application/json:
               schema:
@@ -1061,6 +1067,10 @@ paths:
                     type: string
         '404':
           description: Session not found
+        '401':
+          description: Missing or forged actor credential
+        '403':
+          description: Verified actor does not own the exact target session, or the legacy owner cannot be verified
         '500':
           $ref: '#/components/responses/InternalError'
 
@@ -1068,6 +1078,7 @@ paths:
     put:
       tags: [sessions]
       summary: Set session phase
+      description: Sets an exact owned session's non-completion phase. The completed phase must use POST /sugar/done so plan and delivery gates cannot be bypassed.
       operationId: setSessionPhase
       parameters:
         - name: id
@@ -1075,6 +1086,7 @@ paths:
           required: true
           schema:
             type: string
+        - $ref: '#/components/parameters/XActorCredential'
       requestBody:
         required: true
         content:
@@ -1085,7 +1097,7 @@ paths:
               properties:
                 phase:
                   type: string
-                  description: Phase name
+                  description: Phase name other than completed. Use POST /sugar/done for guarded completion.
       responses:
         '200':
           description: Phase set
@@ -1101,9 +1113,13 @@ paths:
                   previousPhase:
                     type: string
         '400':
-          $ref: '#/components/responses/ValidationError'
+          description: Invalid phase or GUARDED_COMPLETION_REQUIRED when requesting completed
         '404':
           description: Session not found
+        '401':
+          description: Missing or forged actor credential
+        '403':
+          description: Verified actor does not own the exact target session, or the legacy owner cannot be verified
         '500':
           $ref: '#/components/responses/InternalError'
 
@@ -1120,6 +1136,7 @@ paths:
           required: true
           schema:
             type: string
+        - $ref: '#/components/parameters/XActorCredential'
       requestBody:
         required: true
         content:
@@ -1149,6 +1166,10 @@ paths:
           $ref: '#/components/responses/ValidationError'
         '404':
           description: Session not found
+        '401':
+          description: Missing or forged actor credential
+        '403':
+          description: Verified actor does not own the exact target session, or the legacy owner cannot be verified
         '500':
           $ref: '#/components/responses/InternalError'
 
@@ -1209,6 +1230,7 @@ paths:
           required: true
           schema:
             type: string
+        - $ref: '#/components/parameters/XActorCredential'
       requestBody:
         required: true
         content:
@@ -1234,7 +1256,7 @@ paths:
                         minimum: 1
                       endLine:
                         type: integer
-                      symbol:
+                      symbolPath:
                         type: string
                   description: Region-level claims
                 force:
@@ -1264,6 +1286,10 @@ paths:
           description: Session not found
         '409':
           description: File conflicts detected
+        '401':
+          description: Missing or forged actor credential
+        '403':
+          description: Verified actor does not own the exact target session, or the legacy owner cannot be verified
         '500':
           $ref: '#/components/responses/InternalError'
 
@@ -1282,6 +1308,7 @@ paths:
           schema:
             type: string
           description: Comma-separated file paths to release
+        - $ref: '#/components/parameters/XActorCredential'
       requestBody:
         content:
           application/json:
@@ -1303,6 +1330,8 @@ paths:
                         type: integer
                       endLine:
                         type: integer
+                      symbolPath:
+                        type: string
       responses:
         '200':
           description: Files released
@@ -1321,22 +1350,75 @@ paths:
           $ref: '#/components/responses/ValidationError'
         '404':
           description: Session not found
+        '401':
+          description: Missing or forged actor credential
+        '403':
+          description: Verified actor does not own the exact target session, or the legacy owner cannot be verified
         '500':
           $ref: '#/components/responses/InternalError'
 
-  /notes:
+  /sessions/{id}/symbols:
     post:
       tags: [sessions]
-      summary: Add a note through the canonical note write path
-      description: Canonical note write endpoint. Pass sessionId to target a known session, or omit it to resolve the active session/quick-note context.
-      operationId: quickNote
+      summary: Claim exact symbols for a session
+      operationId: claimSessionSymbols
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: '#/components/parameters/XActorCredential'
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [content]
+              required: [claims]
+              properties:
+                claims:
+                  type: array
+                  items:
+                    type: object
+                    required: [filePath, symbolPath]
+                    properties:
+                      filePath:
+                        type: string
+                      symbolPath:
+                        type: string
+                      type:
+                        type: string
+                        enum: [read, modify, add-sibling, add-child, delete, rename]
+      responses:
+        '200':
+          description: Symbol claims recorded
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          description: Missing or forged actor credential
+        '403':
+          description: Verified actor does not own the exact target session, or the legacy owner cannot be verified
+        '404':
+          description: Session not found
+        '409':
+          description: Blocking symbol conflict
+
+  /notes:
+    post:
+      tags: [sessions]
+      summary: Add a note through the canonical note write path
+      description: Canonical attributed note write endpoint. An exact active sessionId and its owner's actor credential are required.
+      operationId: quickNote
+      parameters:
+        - $ref: '#/components/parameters/XActorCredential'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content, sessionId]
               properties:
                 content:
                   type: string
@@ -1344,7 +1426,7 @@ paths:
                   type: string
                 sessionId:
                   type: string
-                  description: Target session ID. When omitted, the daemon resolves active session context or creates an implicit quick-note session.
+                  description: Exact active target session ID.
                 type:
                   type: string
       responses:
@@ -1363,6 +1445,12 @@ paths:
                     type: string
         '400':
           $ref: '#/components/responses/ValidationError'
+        '401':
+          description: Missing or forged actor credential
+        '403':
+          description: Verified actor does not own the exact target session, or the legacy owner cannot be verified
+        '404':
+          description: Session not found
         '500':
           $ref: '#/components/responses/InternalError'
 
@@ -3730,6 +3818,8 @@ paths:
       tags: [sugar]
       summary: End session + unregister agent
       operationId: sugarDone
+      parameters:
+        - $ref: '#/components/parameters/XActorCredential'
       requestBody:
         content:
           application/json:
@@ -3747,6 +3837,28 @@ paths:
                   type: string
                   enum: [completed, abandoned]
                   default: completed
+                noPr:
+                  type: boolean
+                  description: Verify a clean ledger-only worktree instead of requiring a PR result.
+                subtask:
+                  type: boolean
+                  description: Append the standard subtask result sentinel; the origin publication gate still applies.
+                skipOriginCheck:
+                  type: boolean
+                  deprecated: true
+                  description: Always rejected with OPERATOR_CAPABILITY_REQUIRED. A reason string and an actor credential do not grant operator authority.
+                skipOriginCheckReason:
+                  type: string
+                  deprecated: true
+                  description: Retained only so older clients receive a structured refusal; never authorizes an override.
+                forceIncomplete:
+                  type: boolean
+                  deprecated: true
+                  description: Always rejected with OPERATOR_CAPABILITY_REQUIRED. Managed ephemeral completion uses a private exact-session daemon path.
+                forceIncompleteReason:
+                  type: string
+                  deprecated: true
+                  description: Retained only so older clients receive a structured refusal; never authorizes an override.
       responses:
         '200':
           description: Session ended and agent unregistered
@@ -3763,8 +3875,65 @@ paths:
                     type: string
                   sessionStatus:
                     type: string
+                  agentUnregistered:
+                    type: boolean
+                    description: True only when the actor has no other active session.
+                  remainingActiveSessions:
+                    type: integer
+                    minimum: 0
+                  candidates:
+                    type: array
+                    description: Exact sessions returned when agent-only completion is ambiguous.
+                    items:
+                      $ref: '#/components/schemas/SessionCandidate'
         '400':
-          description: Invalid status
+          description: Invalid status, missing exact context, failed delivery gate, or unchecked plan
+        '401':
+          description: Missing or forged actor credential
+        '403':
+          description: Session owner mismatch, unverifiable legacy owner, or unsupported public override
+        '409':
+          description: Multiple active sessions match the requested actor; response includes candidates
+        '404':
+          description: No active session found
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /sugar/relink:
+    post:
+      tags: [sugar]
+      summary: Reconcile one exact active session's roadmap rent
+      operationId: sugarRelink
+      parameters:
+        - $ref: '#/components/parameters/XActorCredential'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [sessionId]
+              properties:
+                agentId:
+                  type: string
+                  description: Display identity only; the stored session owner and credential establish authority.
+                sessionId:
+                  type: string
+                roadmapLink:
+                  type: string
+                sidequestReason:
+                  type: string
+      responses:
+        '200':
+          description: Exact session relinked
+        '400':
+          description: Invalid or missing rent selection or exact session scope
+        '401':
+          description: Missing or forged actor credential
+        '403':
+          description: Verified actor does not own the exact target session, or the legacy owner cannot be verified
+        '409':
+          description: Agent-only selection is ambiguous; response includes candidates
         '404':
           description: No active session found
         '500':
@@ -3780,9 +3949,36 @@ paths:
           in: query
           schema:
             type: string
+        - name: sessionId
+          in: query
+          schema:
+            type: string
+          description: Inspect one exact session, including dormant durable history, without resurrecting it.
       responses:
         '200':
-          description: Current context
+          description: Current, dormant, or ambiguous context
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  active: { type: boolean }
+                  dormant: { type: boolean }
+                  resumable: { type: boolean }
+                  agentId: { type: [string, 'null'] }
+                  sessionId: { type: [string, 'null'] }
+                  status: { type: [string, 'null'] }
+                  lifecycle:
+                    type: [string, 'null']
+                    enum: [durable, ephemeral, null]
+                  code: { type: string }
+                  error: { type: string }
+                  hint: { type: string }
+                  candidates:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SessionCandidate'
         '500':
           $ref: '#/components/responses/InternalError'
 
@@ -5619,6 +5815,21 @@ components:
       description: Process ID of the calling process
 
   schemas:
+    SessionCandidate:
+      type: object
+      additionalProperties: false
+      required: [sessionId, worktreeId, status, lifecycle]
+      properties:
+        sessionId:
+          type: string
+        worktreeId:
+          type: [string, 'null']
+        status:
+          type: [string, 'null']
+        lifecycle:
+          type: string
+          enum: [durable, ephemeral]
+
     Tool2VecReconcileStatus:
       type: object
       required: [state, configured, backend, generatorModel, embedderModel, catalogHash, total, current, missing, stale, coveragePct, leaseOwner, leaseExpiresAt, lastTrigger, lastStartedAt, lastCompletedAt, lastErrorKind, lastError]

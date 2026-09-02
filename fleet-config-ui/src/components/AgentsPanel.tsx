@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Bot, Ghost, Mail, PauseCircle, PlayCircle, Radio, RefreshCw, Square, StickyNote } from 'lucide-react';
+import { Bot, Ghost, Mail, PauseCircle, PlayCircle, Radio, RefreshCw, Square } from 'lucide-react';
 import {
   clearAgentInbox,
   fetchActiveAgentRoster,
@@ -37,9 +37,12 @@ import type {
 } from '../types';
 import { agentColor } from '../types';
 import FileActionLinks from './FileActionLinks';
+import { latestSessionPlan, orderSessionNotes, sessionDetailHref } from '../sessionPlan';
+import { SessionNoteContent } from './SessionPlanDetail';
 
 interface Props {
   daemonKey: string;
+  onOpenSession?: (sessionId: string) => void;
   projectName?: string | null;
   projectDir?: string | null;
   fleetConfig?: FleetConfig | null;
@@ -55,6 +58,11 @@ interface ChannelFeed {
   physical: string;
   messages: ChannelMessage[];
 }
+
+// Stable defaults keep an unconfigured/empty directory from retriggering its
+// detail effect on every render (each clear creates fresh empty state arrays).
+const EMPTY_CHANNELS: Record<string, string> = {};
+const EMPTY_RUNTIME_AGENTS: Array<{ agentName: string; status: string }> = [];
 
 function relativeTime(timestamp: number | null | undefined): string {
   if (!timestamp) return 'never';
@@ -172,11 +180,12 @@ function Section({
 
 export default function AgentsPanel({
   daemonKey,
+  onOpenSession,
   projectName,
   projectDir,
   fleetConfig,
-  resolvedChannels = {},
-  runtimeAgents = [],
+  resolvedChannels = EMPTY_CHANNELS,
+  runtimeAgents = EMPTY_RUNTIME_AGENTS,
   onFocusFleetAgent,
   onRunFleetAgent,
   onPauseFleetAgent,
@@ -195,6 +204,7 @@ export default function AgentsPanel({
   const [channelFeeds, setChannelFeeds] = useState<ChannelFeed[]>([]);
   const [actionBusy, setActionBusy] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [sessionInput, setSessionInput] = useState('');
 
   const loadDirectory = useCallback(async () => {
     setLoading(true);
@@ -447,8 +457,17 @@ export default function AgentsPanel({
   }, [loadDirectory, onPauseFleetAgent, selectedFleetAgent, selectedRuntime]);
 
   return (
-    <div className="h-full min-h-0 grid gap-4 p-4" style={{ gridTemplateColumns: '320px minmax(0, 1fr)' }}>
+    <div className="h-full min-h-0 grid gap-4 p-4 grid-cols-1 lg:grid-cols-[320px_minmax(0,1fr)]">
       <section className="rounded-xl overflow-hidden min-h-0 flex flex-col" style={{ backgroundColor: 'var(--pd-surface)', border: '1px solid var(--pd-border)' }}>
+        <form className="p-4 shrink-0" style={{ borderBottom: '1px solid var(--pd-border)' }} onSubmit={(event) => {
+          event.preventDefault();
+          if (sessionInput.trim()) onOpenSession?.(sessionInput.trim());
+        }}>
+          <label htmlFor="exact-session-id" className="block text-sm font-semibold" style={{ color: 'var(--pd-text)' }}>Open exact session</label>
+          <p className="mt-1 mb-2 text-sm" style={{ color: 'var(--pd-muted)' }}>Any Port Daddy session, including one without a registered agent.</p>
+          <input id="exact-session-id" className="min-h-11 w-full min-w-0 rounded-md px-2 text-sm font-mono" style={{ color: 'var(--pd-text)', backgroundColor: 'var(--pd-bg)', border: '1px solid var(--pd-border)' }} value={sessionInput} onChange={(event) => setSessionInput(event.target.value)} placeholder="session-…" autoComplete="off" />
+          <button type="submit" className="mt-2 min-h-11 w-full rounded-md px-3 text-sm font-semibold cursor-pointer disabled:opacity-50" style={{ color: 'var(--pd-accent)', border: '1px solid var(--pd-accent-border)', backgroundColor: 'var(--pd-accent-surface)' }} disabled={!sessionInput.trim() || !onOpenSession}>Open plan and history</button>
+        </form>
         <div className="px-4 py-3 flex items-center justify-between gap-3" style={{ borderBottom: '1px solid var(--pd-border)' }}>
           <div>
             <div className="text-[10px] font-semibold tracking-wider" style={{ color: 'var(--pd-dim)' }}>ALL AGENTS</div>
@@ -809,7 +828,10 @@ export default function AgentsPanel({
                   </div>
                 ) : (
                   <div className="grid gap-3">
-                    {selectedSessions.map((session) => (
+                    {selectedSessions.map((session) => {
+                      const latestPlan = latestSessionPlan(session.notes ?? []);
+                      const recentNote = orderSessionNotes(session.notes ?? [])[0];
+                      return (
                       <div key={session.id} className="rounded-md px-3 py-3" style={{ backgroundColor: 'var(--pd-bg)', border: '1px solid var(--pd-border)' }}>
                         <div className="flex items-start justify-between gap-3">
                           <div>
@@ -828,24 +850,20 @@ export default function AgentsPanel({
                             <div>{session.id}</div>
                           </div>
                         </div>
+                        <a className="mt-3 inline-flex min-h-11 items-center text-sm underline underline-offset-2" style={{ color: 'var(--pd-accent)' }} href={sessionDetailHref(session.id, getDaemonUrl())} onClick={(event) => {
+                          if (!onOpenSession || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+                          event.preventDefault();
+                          onOpenSession(session.id);
+                        }}>Open complete plan and history</a>
                         <div className="mt-3 grid gap-2">
-                          {(session.notes ?? []).slice(0, 3).map((note) => (
-                            <div key={note.id} className="rounded-md px-2.5 py-2" style={{ backgroundColor: 'var(--pd-surface)', border: '1px solid var(--pd-border)' }}>
-                              <div className="flex items-center justify-between gap-3 text-[10px]" style={{ color: 'var(--pd-dim)' }}>
-                                <span className="inline-flex items-center gap-1"><StickyNote size={11} /> {note.type}</span>
-                                <span>{relativeTime(note.createdAt)}</span>
-                              </div>
-                              <div className="mt-1 text-sm whitespace-pre-wrap" style={{ color: 'var(--pd-text)' }}>
-                                {note.content}
-                              </div>
-                            </div>
-                          ))}
+                          {latestPlan && <div className="rounded-md px-3 py-2" style={{ backgroundColor: 'var(--pd-surface)', border: '1px solid var(--pd-border)' }}><div className="mb-2 text-sm font-semibold" style={{ color: 'var(--pd-muted)' }}>Latest recorded plan</div><SessionNoteContent content={latestPlan.content} /></div>}
+                          {recentNote && recentNote.id !== latestPlan?.id && <details className="text-sm" style={{ color: 'var(--pd-text)' }}><summary className="min-h-11 cursor-pointer">Latest note · {recentNote.type} · #{recentNote.id}</summary><SessionNoteContent content={recentNote.content} /></details>}
                           {(session.notes ?? []).length === 0 && (
                             <div className="text-sm" style={{ color: 'var(--pd-muted)' }}>No notes recorded for this session.</div>
                           )}
                         </div>
                       </div>
-                    ))}
+                    );})}
                   </div>
                 )}
               </Section>

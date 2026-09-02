@@ -61,7 +61,7 @@ async function newSession(purpose, agentId) {
   expect(res.ok).toBe(true);
   const id = res.data?.session?.id ?? res.data?.id ?? res.data?.sessionId;
   expect(typeof id).toBe('string');
-  return id;
+  return { id, headers: actor.headers };
 }
 
 describe('symbol conflict prediction (daemon e2e)', () => {
@@ -78,15 +78,17 @@ describe('symbol conflict prediction (daemon e2e)', () => {
     await request('/symbols/parse', { method: 'POST', body: { files: [file] } });
 
     const s1 = await newSession('refactor createRoutes', 'agent-1');
-    const c1 = await request(`/sessions/${s1}/symbols`, {
+    const c1 = await request(`/sessions/${s1.id}/symbols`, {
       method: 'POST',
+      headers: s1.headers,
       body: { claims: [{ filePath: file, symbolPath: 'createRoutes', type: 'modify' }], autoDeriveRadius: false },
     });
     expect(c1.ok).toBe(true);
 
     const s2 = await newSession('also touch createRoutes', 'agent-2');
-    const c2 = await request(`/sessions/${s2}/symbols`, {
+    const c2 = await request(`/sessions/${s2.id}/symbols`, {
       method: 'POST',
+      headers: s2.headers,
       body: { claims: [{ filePath: file, symbolPath: 'createRoutes', type: 'modify' }], autoDeriveRadius: false },
     });
     // ast-a2-1: Claim validator now rejects blocking conflicts (409 instead of advisory).
@@ -97,7 +99,27 @@ describe('symbol conflict prediction (daemon e2e)', () => {
     expect(Array.isArray(c2.data.conflicts)).toBe(true);
     const direct = c2.data.conflicts.find((k) => k.type === 'direct');
     expect(direct).toBeDefined();
-    expect(direct.otherSessionId).toBe(s1);
+    expect(direct.otherSessionId).toBe(s1.id);
+  }, 30000);
+
+  test('anonymous and other-owner requests cannot record a symbol claim', async () => {
+    const owner = await newSession('protect registerRoutes claim', 'symbol-conflicts-owned-session');
+    const stranger = await registerTestActorVia(request, { alias: 'symbol-conflicts-stranger' });
+    for (const [headers, status, code] of [
+      [{}, 401, 'IDENTITY_CREDENTIAL_REQUIRED'],
+      [stranger.headers, 403, 'SESSION_AGENT_MISMATCH'],
+    ]) {
+      const denied = await request(`/sessions/${owner.id}/symbols`, {
+        method: 'POST',
+        headers,
+        body: { claims: [{ filePath: file, symbolPath: 'registerRoutes', type: 'modify' }], autoDeriveRadius: false },
+      });
+      expect(denied.status).toBe(status);
+      expect(denied.data.code).toBe(code);
+      const claims = await request(`/sessions/${owner.id}/symbols`);
+      expect(claims.ok).toBe(true);
+      expect(claims.data.count).toBe(0);
+    }
   }, 30000);
 
   test('blast-radius returns the same-file caller over HTTP (issue #468)', async () => {

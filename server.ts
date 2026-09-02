@@ -55,6 +55,10 @@ import { createTunnel } from './lib/tunnel.js';
 import { createDns } from './lib/dns.js';
 import { createResolver } from './lib/resolver.js';
 import { createSpawner } from './lib/spawner.js';
+import {
+  captureManagedSpawnWorktree, managedSpawnWorktreeReceipt, verifyManagedSpawnWorktree,
+  type ManagedSpawnWorktree,
+} from './lib/managed-spawn-worktree.js';
 import { createTranscripts } from './lib/transcripts.js';
 import { createJsonlTranscriptArchive } from './lib/transcript-archive.js';
 import { createBriefing } from './lib/briefing.js';
@@ -111,6 +115,7 @@ import { createMetricsRegistry } from './lib/metrics-registry.js';
 import { createBonds } from './lib/bonds.js';
 import { createBudgetGuard } from './lib/budget-guard.js';
 import { createActorSouls } from './lib/actor-souls.js';
+import { authorizeSessionOwner, resolveWriteIdentity, stampIdentityMetadata } from './lib/identity-write-boundary.js';
 import { migrateActorSouls } from './scripts/migrate-actor-souls.js';
 import { homedir } from 'node:os';
 import { createBudgetPause } from './lib/budget-pause.js';
@@ -868,6 +873,55 @@ const spawnerHarborBridge = createSpawnerHarborBridge(db, {
   logger,
 });
 
+/**
+ * Verify the spawner's captured credential against one exact stored session.
+ *
+ * Purpose: managed ephemeral completion is an in-process daemon authority,
+ * never a public caller boolean. The credential still has to prove the same
+ * actor stamped on the exact session before the private lifecycle method may
+ * bind or complete it.
+ *
+ * @param input - Exact session, stored display agent, and captured credential.
+ * @returns Verified actor id and canonical stored owner, or a refusal body.
+ */
+function authorizeManagedSpawnerSession(input: {
+  sessionId: string;
+  agentId: string;
+  credential: string;
+}): { success: true; actorId: string; agentId: string } | { success: false; code: string; error: string } {
+  const verdict = resolveWriteIdentity({
+    souls: actorSouls,
+    credential: input.credential,
+    assertedAgentId: input.agentId,
+    route: 'daemon:spawner:managed-session',
+    logger,
+    requireIdentity: true,
+  });
+  if (!verdict.ok || verdict.kind !== 'verified') {
+    return {
+      success: false,
+      code: verdict.ok ? 'IDENTITY_CREDENTIAL_REQUIRED' : verdict.code,
+      error: verdict.ok ? 'managed session requires a verified actor credential' : verdict.error,
+    };
+  }
+  const lookup = sugarSessions.get(input.sessionId);
+  const session = lookup.success && lookup.session && typeof lookup.session === 'object'
+    ? lookup.session as Record<string, unknown>
+    : null;
+  if (!session) {
+    return { success: false, code: 'SESSION_NOT_FOUND', error: `Session ${input.sessionId} not found` };
+  }
+  const ownership = authorizeSessionOwner(session, verdict, actorSouls);
+  if (!ownership.ok) {
+    return { success: false, code: ownership.code, error: ownership.error };
+  }
+  return {
+    success: true,
+    actorId: ownership.ownerActorId,
+    agentId: ownership.ownerAgentId,
+  };
+}
+
 // Session Galaxy — 2-D embedding map of recent agent sessions over
 // fleet_transcripts. createLocalEmbedder gives the batch embed(texts[])
 // interface the semanticResolver singleton lacks (its .embed is single-text);
@@ -879,11 +933,124 @@ const spawnerHarborBridge = createSpawnerHarborBridge(db, {
 const galaxyEmbedder = createLocalEmbedder({ cacheDir: defaultTransformersCacheDir() });
 const galaxy = createGalaxy({ db, transcripts, sessions, embedder: galaxyEmbedder });
 
+// Private, short-lived admission witnesses for exact managed sessions. Durable
+// ownership remains in the existing session store, not this physical recheck map.
+const managedSpawnWorktrees = new Map<string, ManagedSpawnWorktree>();
 const spawner = createSpawner({
   costTracker, counters, bonds, harbors, transcripts,
   harborBridge: spawnerHarborBridge,
   enforceTelemetryPolicy: true,
   enforceTranscriptPolicy: true,
+  managedSessionLifecycle: {
+    admit: async (input, { signal }) => {
+      const target = await captureManagedSpawnWorktree(input.workdir, signal);
+      signal.throwIfAborted();
+      if (target.worktree?.isMain && !input.allowSharedCheckout) {
+        return { success: false, code: 'MAIN_WORKTREE_SESSION_FORBIDDEN', error: 'Spawn target requires a linked worktree.' };
+      }
+      const minted = actorSouls.register({});
+      if (!minted.ok || minted.status !== 'minted') {
+        return {
+          success: false,
+          code: minted.ok ? 'MANAGED_SESSION_CREDENTIAL_UNAVAILABLE' : minted.code,
+          error: 'managed spawn admission could not mint an actor credential',
+        };
+      }
+      const verdict = {
+        ok: true as const,
+        kind: 'verified' as const,
+        actorId: minted.actorId,
+        agentId: input.agentId,
+        soulClass: minted.soulClass,
+        identity: { verified: true as const, actorId: minted.actorId, soulClass: minted.soulClass },
+      };
+      const admitted = sugar.begin({
+        agentId: input.agentId,
+        name: input.name,
+        type: 'spawned',
+        identity: input.identity ?? undefined,
+        purpose: input.purpose,
+        lifecycle: 'ephemeral',
+        worktree: target.worktree,
+        metadata: stampIdentityMetadata({
+          ...input.metadata,
+          worktree: target.worktree,
+          spawnWorkdir: target.directory,
+        }, verdict) ?? undefined,
+      });
+      if (!admitted.success) return admitted;
+      if (typeof admitted.sessionId !== 'string') throw new Error('Managed admission did not return an exact session');
+      managedSpawnWorktrees.set(admitted.sessionId, target);
+      return {
+        ...admitted,
+        credential: minted.credential,
+        actorId: minted.actorId,
+        actorIdentity: verdict.identity,
+        worktreeBinding: managedSpawnWorktreeReceipt(target),
+      };
+    },
+    bind: async (input, { signal }) => {
+      const authority = authorizeManagedSpawnerSession(input);
+      if (!authority.success) return authority;
+      const target = managedSpawnWorktrees.get(input.sessionId);
+      if (!target) return { success: false, code: 'MANAGED_SPAWN_TARGET_REQUIRED', error: 'Exact spawn target witness is missing' };
+      // The authorized one-shot binding attempt owns this local witness now.
+      // Failed terminal persistence must not leak an unbounded map of targets.
+      managedSpawnWorktrees.delete(input.sessionId);
+      await verifyManagedSpawnWorktree(target, () => {
+        const lookup = sugarSessions.get(input.sessionId);
+        return lookup.success && lookup.session ? lookup.session as Record<string, unknown> : null;
+      }, signal);
+      signal.throwIfAborted();
+      const currentAuthority = authorizeManagedSpawnerSession(input);
+      if (!currentAuthority.success) return currentAuthority;
+      const bound = sugar.bindManagedSession({
+        sessionId: input.sessionId,
+        agentId: currentAuthority.agentId,
+        actorId: currentAuthority.actorId,
+      });
+      return {
+        ...bound,
+        worktreeBinding: managedSpawnWorktreeReceipt(target),
+        // This closure retains the already verified witness, not a second
+        // identity store or a caller-controlled world. Child runners invoke it
+        // again after sandbox setup, when Git metadata may have changed.
+        validateBeforeLaunch: async ({ signal: launchSignal }: { signal: AbortSignal }) => {
+          await verifyManagedSpawnWorktree(target, () => {
+            const lookup = sugarSessions.get(input.sessionId);
+            return lookup.success && lookup.session ? lookup.session as Record<string, unknown> : null;
+          }, launchSignal);
+          launchSignal.throwIfAborted();
+          return authorizeManagedSpawnerSession(input);
+        },
+      };
+    },
+    complete: async (input) => {
+      const authority = authorizeManagedSpawnerSession(input);
+      if (!authority.success) return authority;
+      const completed = sugar.completeManagedSession({
+        sessionId: input.sessionId,
+        agentId: authority.agentId,
+        actorId: authority.actorId,
+        note: input.note,
+        status: input.status,
+      });
+      if (completed.success) managedSpawnWorktrees.delete(input.sessionId);
+      return completed;
+    },
+    abort: async (input) => {
+      const authority = authorizeManagedSpawnerSession(input);
+      if (!authority.success) return authority;
+      const aborted = sugar.abortManagedSession({
+        sessionId: input.sessionId,
+        agentId: authority.agentId,
+        actorId: authority.actorId,
+        note: input.note,
+      });
+      if (aborted.success) managedSpawnWorktrees.delete(input.sessionId);
+      return aborted;
+    },
+  },
   // Live observability seam (ADR-0060): give the spawner the daemon's messaging
   // layer as a tube client so cli-tube spawns that carry a stable channel (a
   // folded dispatch stamps `dispatch:<id>`) publish their exchange there. This is

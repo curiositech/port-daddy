@@ -97,7 +97,7 @@ export function createGitOriginChecker(): GitOriginChecker {
           ok: false,
           code: 'NO_REPO',
           error: 'Not inside a Git repository (or git is unavailable).',
-          hint: 'pd done cannot enforce origin push outside a Git repo. Use --skip-origin-check --reason "<reason>" if this is intentional.',
+          hint: 'pd done cannot prove delivery outside a Git repo. Run it from the linked repository worktree, or abandon the session.',
         };
       }
 
@@ -108,7 +108,7 @@ export function createGitOriginChecker(): GitOriginChecker {
           ok: false,
           code: 'GIT_ERROR',
           error: `Could not resolve current branch: ${branchRes.err}`,
-          hint: 'Check the worktree state, or use --skip-origin-check --reason "<reason>".',
+          hint: 'Check the worktree state and publish the branch before completing, or abandon the session.',
         };
       }
       const branch = branchRes.out === 'HEAD' ? null : branchRes.out;
@@ -117,7 +117,7 @@ export function createGitOriginChecker(): GitOriginChecker {
           ok: false,
           code: 'GIT_ERROR',
           error: 'Detached HEAD: cannot verify origin push.',
-          hint: 'Check out a branch (or use --skip-origin-check --reason "<reason>").',
+          hint: 'Check out and publish a branch before completing, or abandon the session.',
           branch: null,
         };
       }
@@ -143,7 +143,7 @@ export function createGitOriginChecker(): GitOriginChecker {
           ok: false,
           code: 'GIT_ERROR',
           error: `Could not compute ahead-of-upstream count: ${aheadRes.err}`,
-          hint: 'Check the worktree state, or use --skip-origin-check --reason "<reason>".',
+          hint: 'Check the worktree state and publish the branch before completing, or abandon the session.',
           branch,
           upstream,
         };
@@ -154,7 +154,7 @@ export function createGitOriginChecker(): GitOriginChecker {
           ok: false,
           code: 'GIT_ERROR',
           error: `Unexpected ahead count: "${aheadRes.out}"`,
-          hint: 'Check the worktree state, or use --skip-origin-check --reason "<reason>".',
+          hint: 'Check the worktree state and publish the branch before completing, or abandon the session.',
           branch,
           upstream,
         };

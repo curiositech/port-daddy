@@ -2,8 +2,9 @@
 
 **Status:** Accepted direction; architecture and research only, not runtime proof.
 **Roadmap:** `provider-neutral-retrieval-fabric` (`1f8336b1-9212-4979-9734-7a6edfbab299`)
-**Responsible agent:** `cli-93505`, session `session-implement-canonical-embedding-profile-registry-a-b336157cc04f`
-**Published:** 2026-09-01
+**Original author:** `cli-93505`, session `session-implement-canonical-embedding-profile-registry-a-b336157cc04f`
+**Publication steward:** actor `01M1HHCB63KA5BR59M53SSC873`, session `session-publish-preserved-pr9995-retrieval-design-and-re-a6b7b9c26f88`
+**Initial draft:** 2026-09-01; source and review reconciliation: 2026-09-02.
 
 Port Daddy needs retrieval that can improve without changing the meaning of existing
 vectors, sending protected corpora to an unapproved provider, or treating a public
@@ -49,7 +50,17 @@ The exact-head audit of PR #9982 used commit
 `9f3844ad88583b722fa28dddf5e9a2aedcf4ac7a`. Its generated registry check, 293 focused
 tests, TypeScript typecheck, skill audit, and diff check passed. Conventional GitHub CI was
 green at audit time. Port Daddy Fleet was terminal `NEUTRAL` because the Purser sandbox
-setup failed in infrastructure, so this proposal does not call the PR merged or shipped.
+setup failed in infrastructure. That historical report is not approval of a later head.
+
+At the 2026-09-02 publication census, GitHub reports PR #9982 merged from
+`844f778ac050b870366ac6ef0e5a8b7fd878a7eb` as
+`5e438c7f932d26e6b313534fd6bc02dc472ba9e4`, present in the candidate's mainline base
+`9ad3b64af14dabaae25f0db440757b1cd957d1f7`. The source is
+[`config/models.yaml`](../../config/models.yaml),
+[`lib/model-registry.ts`](../../lib/model-registry.ts), and the generated
+[`apps/shared/model-registry.generated.ts`](../../apps/shared/model-registry.generated.ts).
+Current embedding rows remain `degraded-fallback` and `declarative-only`. This is source
+availability, not installed-runtime, producer-conformance, or retrieval-program proof.
 
 The audited kernel gets the following boundaries right and must survive later work:
 
@@ -108,10 +119,19 @@ It includes:
 
 An execution profile without conformance evidence remains `declarative-only`. It cannot
 produce authoritative vectors for an index that claims the corresponding logical space.
+Conformance is a renewable, revocable proof rather than a one-time provider assertion. Its
+receipt pins the resolved provider revision and artifact/config digests, a versioned challenge
+vector set, expected output digests or numeric tolerances, and the observed dimensions,
+encoding, finiteness, normalization, and metric constraints. It also carries issuance,
+expiry, revocation, signer, signing-key epoch, and authority-epoch facts. Alias drift,
+provider-revision drift, an expired or revoked receipt, or an output-contract mismatch
+immediately demotes the binding to `declarative-only`; it must requalify before another
+authoritative write.
 
 ### Retrieval role
 
-The registry recognizes separate roles:
+This design requires the registry to recognize separate roles. These proposed role names
+are not claims that PR #9982 already implements a role-selection API:
 
 | Role | Inputs | Output | Required evidence |
 | --- | --- | --- | --- |
@@ -154,18 +174,27 @@ redactionPolicyId: pd.redaction.internal.v1
 retentionPolicyId: pd.retention.roadmap.v1
 latencyBudgetMs: { p50: 80, p95: 250 }
 costCap: { currency: USD, perThousandQueries: 0 }
+budgetAuthority: pd.harbor-runtime.cost-ledger.v1
 promotionPolicyId: pd.retrieval-promotion.roadmap.v1
 ```
 
 This is illustrative, not a shipped schema. The stored policy must be immutable by revision,
 attributable, and referenced by every indexing and query receipt. The selected profile is a
-policy output, not a global environment variable.
+policy output, not a global environment variable. Resolve an authorized role to a promoted
+immutable profile and a compatible index generation; do not hardcode a model family to a
+role or silently substitute MiniLM when that resolution fails.
 
 ## Privacy and corpus firewalls
 
-Authorization happens before ranking. Port Daddy must not retrieve a broad candidate set
+Authorization happens before either lexical or dense candidate generation. Port Daddy must not retrieve a broad candidate set
 and remove unauthorized rows afterward; that leaks counts, timing, rank positions, and
 possibly reranker egress.
+
+Protected evidence is sanitized before tokenization, lexical indexing, or embedding, not
+only when results are displayed. Query screening precedes embedding and provider egress.
+Both retrievers must enforce the same current scope, retention, disclosure, and consent
+snapshot at their candidate boundary. Cache hits and result assembly recheck revocation;
+a schema-valid handoff capsule alone proves neither redaction nor access authority.
 
 Every index partition and row carries:
 
@@ -182,15 +211,38 @@ authorization receipt. A mismatch is a hard rejection. Cross-repo, cross-harbor,
 cross-account retrieval is default-deny and needs an explicit bounded grant that names all
 participating corpora.
 
+That grant is a signed, versioned authorization object, not a boolean ACL. It names its
+immutable grant id, issuer, subject, audience, purpose, every corpus/repo/harbor/account
+scope, allowed roles and providers, policy digest, authority epoch, issued/expiry time, and
+revocation state. The query principal, purpose, audience, and requested corpus set must match
+exactly. Identity or membership alone never activates federation. Revocation is checked
+before candidate retrieval and again before any remote reranker call; stale or ambiguous
+authority fails closed.
+
 Remote execution has an additional firewall:
 
 1. classify the source and query;
 2. apply the versioned redaction policy locally;
 3. verify the corpus policy permits this provider, role, and data class;
 4. emit an egress intent with input digests and bounded size, never raw logging;
-5. invoke the endpoint;
-6. record the provider request/usage receipt and sanitized response metadata;
-7. reject persistence if conformance, scope, or receipt checks fail.
+5. atomically reserve the worst-case cost through the Harbor Agent Runtime's proposed shared
+   reserve/accrue/settle ledger before provider invocation;
+6. invoke the endpoint while accruing actual usage against that reservation;
+7. settle or release the reservation and record the provider request/usage receipt plus
+   sanitized response metadata;
+8. reject persistence if conformance, scope, budget, settlement, or receipt checks fail.
+
+Retrieval supplies usage estimates and provider facts but does not own a parallel budget
+counter. A reservation refusal stops before egress. Timeout, retry, partial response, and
+provider ambiguity settle conservatively against the same idempotency key so concurrent
+requests cannot each spend the same remaining allowance.
+
+**Unimplemented integration gate:** this PR does not provide a reserve/accrue/settle API.
+The `budgetAuthority` value above is illustrative, not a registered runtime contract.
+PR #9991 remains open at `0e06409de394bfa6ad6c476ad4a20790a3fb5c2f`; its versioned
+budget contract and atomic concurrency, idempotency, timeout, and settlement tests must be
+reviewed before remote retrieval is enabled. An existing cost counter or an unsigned local
+report cannot satisfy that gate. No parallel retrieval-owned budget ledger is authorized.
 
 Secrets, credentials, private keys, raw provider transcripts, and raw Porthole evidence are
 never embedding inputs. Retrieval storage must honor deletion and retention events even
@@ -199,13 +251,19 @@ when an older physical index remains during a migration.
 ## Universal Cooperative Stage and Porthole boundary
 
 [PR #9970](https://github.com/curiositech/port-daddy/pull/9970) is the adjacent Universal
-Cooperative Stage/Porthole evidence slice. It remains draft and was conflicting at this
-proposal's audit point, so this document uses a narrow integration contract rather than
+Cooperative Stage/Porthole evidence slice. It remains open at the publication census,
+so this document uses a narrow integration contract rather than
 claiming its implementation is stable.
 
 The Stage owns capture consent, source identity, local encryption, evidence lineage,
 redaction, and disclosure. The retrieval fabric owns validation of index eligibility,
 profile selection, production receipts, index isolation, ranking, and retrieval receipts.
+At the audited head `b4c4a19d77e07fdb1a65e00e88bf15ab7700ca0b`, PR #9970's ADR still
+assigns Porthole a canonical MiniLM index, one-embedder policy, BM25+dense fusion, and future
+multimodal-model approval. Those clauses conflict with this boundary and must be replaced by
+an explicit dependency on the retrieval fabric before #9970 lands. Porthole may declare a
+sanitized derivative's eligible roles; it may not choose the embedding profile, forbid an
+approved second role-specific model, own fusion, or activate an index generation.
 
 The only admissible Stage input is a sanitized derivative envelope containing:
 
@@ -230,6 +288,8 @@ durable Harbor Agent Runtime. The two designs meet at a capability boundary:
 - the runtime requests retrieval with principal, scope, purpose, query, role, and budgets;
 - the retrieval fabric resolves policy and executes authorized retrievers;
 - the runtime receives cited results plus a retrieval receipt;
+- remote retrieval estimates, reserves, accrues, and settles spend through the runtime's
+  shared cost ledger; retrieval does not mint a second budget authority;
 - the runtime provider or harness does not choose the index's logical space;
 - changing the agent body, backend, or execution host does not change memory identity;
 - durable agent identity can be a policy input, but it is not authorization by itself.
@@ -263,11 +323,11 @@ The default pipeline is intentionally explicit:
 
 ```text
 authorized query envelope
-  -> corpus/repo/harbor/account filters
+  -> current corpus/repo/harbor/account/consent/retention filters
   -> query normalization and injection/secret screening
-  -> lexical retrieval (BM25)
-  -> dense retrieval in exactly one compatible space per role
-  -> metadata and lineage constraints
+  -> authorized lexical list (BM25) + authorized dense list
+     (dense query and index use exactly one compatible space per role)
+  -> bounded metadata and lineage ranking features
   -> reciprocal-rank fusion over document/chunk identities
   -> optional bounded reranker over already-authorized candidates
   -> citation and lineage assembly
@@ -278,6 +338,12 @@ RRF is the initial fusion default because it combines rankings without pretendin
 dense, and lineage scores share calibration. It is a baseline, not permanent doctrine. A
 learned fusion method may replace it only after the golden corpus shows repeatable lift and
 the new ranker receives its own versioned profile and promotion receipt.
+
+For a document/chunk identity `d`, the baseline is `sum(1 / (k + rank_r(d)))`
+over retrievers that returned `d`, using one-based ranks after per-list deduplication.
+Absent identities contribute zero. The ranker profile pins `k`, channel participation,
+candidate cutoffs, and deterministic tie-breaking. Do not add or normalize raw BM25 and
+cosine scores as though that were RRF; MiniLM is not a requirement of the fusion method.
 
 Metadata participates in two different ways and must not blur them:
 
@@ -329,7 +395,23 @@ confidence intervals, not only averages. A promotion policy sets per-slice floor
 allowed regressions; an overall average cannot hide a privacy leak or collapse on code or
 visual retrieval.
 
-## Receipts
+## Required receipt contracts (not implemented by this PR)
+
+All receipt types use one tamper-evident proof envelope before their type-specific payload:
+
+- immutable `receiptId`, versioned `schemaId`, operation id, idempotency key, and correlation
+  or parent receipt ids;
+- issuer, subject, signer identity, signing-key epoch, authority epoch, issued time, and
+  optional expiry/revocation reference;
+- canonical serialization version, payload digest, previous-ledger head, signature, and
+  durable append-ledger record id;
+- terminal status (`success`, `partial`, `error`, or `cancelled`) plus typed error and retry
+  facts; a partial receipt never authorizes publication or cutover;
+- exact policy/configuration digests and authoritative input/output snapshot identifiers.
+
+Verifiers reconstruct the canonical payload, verify the signature and ledger linkage, check
+key and authority epochs plus revocation, and reject missing or ambiguous fields. A database
+row, provider request id, or unsigned JSON document is not a receipt.
 
 ### Embedding production receipt
 
@@ -349,6 +431,8 @@ A query receipt records:
 
 - query digest, principal, purpose, scope, and policy revision;
 - selected role/tier/profile and why policy selected it;
+- exact index generation, authoritative source snapshot/watermark, index coverage, and hard
+  filter-policy digest;
 - lexical, dense, metadata/lineage, and reranker candidate counts;
 - truncation, timeout, degraded-mode, and fallback events;
 - per-stage and end-to-end latency, provider usage, and cost;
@@ -372,10 +456,11 @@ The promotion receipt binds candidate and baseline profiles to:
 
 ### Index migration receipt
 
-The migration receipt records source and destination `spaceId`s, corpus policy, source
-generation, expected/processed/skipped/error counts, dual-write interval, shadow-query
-comparison, cutover pointer, rollback pointer, retention deadline, and final deletion or
-archive proof.
+The migration receipt records source and destination `spaceId`s, corpus policy, source and
+destination generations, authoritative snapshot and high-watermark sequence, outbox range,
+expected/processed/skipped/error/tombstone counts, reconciliation digests, dual-write
+interval, shadow-query comparison, cutover barrier and pointer, rollback pointer, retention
+deadline, and final deletion or archive proof.
 
 ## Dual-index migration without vector-space mixing
 
@@ -383,20 +468,32 @@ A new `spaceId` always gets a new physical or logically isolated index generatio
 migration state machine is:
 
 1. **Provision:** create the destination generation with its exact profile and corpus
-   policy; reject writes carrying any other `spaceId`.
-2. **Backfill:** re-derive embeddings from authorized source text or sanitized derivatives.
-   Never synthesize a new-space vector from an old-space vector.
-3. **Dual-write:** new/changed sources write independently to old and new generations,
-   with separate production receipts.
-4. **Shadow-read:** run the same authorized queries against each generation, compare ranked
+   policy; reject writes carrying any other `spaceId`. Start a durable, monotonic source
+   change log/outbox before taking the backfill snapshot; updates and deletions share the
+   same ordered sequence and idempotency identity.
+2. **Snapshot and backfill:** bind an authoritative source snapshot at watermark `S0`, then
+   re-derive embeddings from authorized source text or sanitized derivatives. Never
+   synthesize a new-space vector from an old-space vector.
+3. **Replay and dual-write:** idempotently replay every ordered update and tombstone after
+   `S0`, while new changes write independently to old and new generations with separate
+   production receipts. Retries cannot resurrect a tombstoned row or skip a sequence.
+4. **Reconcile:** prove the destination consumed a contiguous source range through a named
+   high watermark, has no unaccounted errors, and matches authorized source identities,
+   tombstones, counts, and content/lineage digests. Missing source derivatives remain typed
+   exclusions and cannot disappear into a processed total.
+5. **Shadow-read:** run the same authorized queries against each generation, compare ranked
    identities and golden-corpus metrics, but never concatenate their vectors or nearest-
    neighbor scores.
-5. **Cutover:** atomically change the versioned corpus-policy pointer after a promotion
-   receipt passes. New queries use one generation.
-6. **Bake and rollback:** retain the old generation read-only for a bounded interval.
-   Rollback changes the pointer; it does not translate vectors.
-7. **Retire:** prove retention/deletion requirements, remove the old generation, and close
-   the migration receipt.
+6. **Cutover barrier:** acquire the bounded corpus-policy cutover lease, record `S_cut`,
+   drain and reconcile all changes through `S_cut`, then atomically publish the new policy
+   pointer and signed migration receipt in one compare-and-swap. Any new gap, receipt
+   failure, or authority-epoch change aborts cutover.
+7. **Bake and rollback:** keep both generations current through the bounded rollback window.
+   Rollback changes the policy pointer only after proving the old generation has also
+   consumed the required watermark; it never translates vectors.
+8. **Retire:** stop old-generation writes only after rollback expires, reconcile final
+   retention/deletion requirements, remove the old generation, and close the migration
+   receipt with append-ledger proof.
 
 If a source derivative is no longer available or authorized, mark the row un-migratable.
 Do not preserve it by copying opaque coordinates. A learned projection between spaces would
@@ -419,6 +516,34 @@ itself be a new immutable model/profile and is out of scope for the first implem
   degraded receipt and unchanged authorization filter.
 - Vector dimension/space mismatch: quarantine the row or query and emit a typed finding.
 
+### External-dependency failure contract
+
+Retrieval integration must reuse the existing
+[`lib/agent-resilience.ts`](../../lib/agent-resilience.ts) primitives and the source
+boundaries in [`docs/operations/runtime-resilience-boundaries.md`](../operations/runtime-resilience-boundaries.md),
+not introduce a second retry library. Their presence after PR #10007 is not evidence that
+retrieval adapters are wired or that the installed daemon was updated.
+
+- Set an endpoint-specific end-to-end deadline and propagate cancellation through queueing,
+  operations, and backoff. Aborting a request does not prove a remote side effect stopped.
+- Assign exactly one retry-owning layer, at most three total attempts per logical operation,
+  and an explicit rolling retry budget with retries no greater than 10% of original eligible
+  requests. Pin the window, accounting scope, and cold-start behavior; retries cannot create
+  their own budget. Lower layers do not independently retry.
+- Use full-jitter bounded backoff. Honor a valid server minimum only if it fits the remaining
+  deadline; otherwise return a bounded failure, not an earlier retry. Reject malformed hints.
+- Require trusted structured failure provenance. Authorization, consent, validation,
+  cancellation, and unknown outcomes never become retry or model-downgrade permission.
+  After ambiguous acceptance, use the original idempotency key and authorized status readback;
+  do not launch another side effect merely because the first response was lost.
+- Bound per-dependency concurrency and queues; use exclusive, generation-bound half-open
+  probes and settle them once. Stale completions cannot reopen capacity or clear a newer outage.
+- Prove hostile input, duplicated settlement, revocation races, overload, timeout, and recovery
+  with deterministic fixtures. Reuse fixtures across two actual consumers, such as
+  [`lib/observability/gated-loader.ts`](../../lib/observability/gated-loader.ts) and
+  [`lib/dispatch/failover.ts`](../../lib/dispatch/failover.ts), before proposing a shared package.
+  Do not infer retrieval-specific coverage from those consumers' existing tests.
+
 ## Operator surface
 
 FleetBar and the dashboard should expose corpus-centric control, not a raw provider form:
@@ -440,8 +565,8 @@ their policy demands it.
 Each slice is independently reviewable and produces source, tests, receipts, and operator
 truth. None should be folded into this design-only PR.
 
-1. **Land the identity kernel.** Resolve PR #9982's Fleet infrastructure gate and land the
-   exact audited invariants without broadening its claims.
+1. **Retain the landed identity kernel.** PR #9982 is source-present. Preserve its invariants
+   and revalidate generated parity; producer conformance and deployment remain separate gates.
 2. **Extend registry contracts.** Add retrieval roles, execution profiles, corpus policies,
    conformance receipts, and generated parity across daemon and Workers.
 3. **Build the golden corpus harness.** Version judgments, privacy negatives, repeatable
@@ -458,6 +583,14 @@ truth. None should be folded into this design-only PR.
    residency/retention metadata, and fail-closed data-class enforcement.
 9. **Ship operator controls.** Make policy, evidence, migration, rollback, cost, latency,
    quality, and privacy failures inspectable in FleetBar/dashboard.
+
+The canonical roadmap epic must encode these relationships as machine-readable data, not
+only prose: PR #9982 is the landed source dependency; PR #9991 is the proposed shared-budget
+and runtime-consumer dependency; PR #9970 is the sanitized Stage-derivative dependency and
+must remove competing index authority. Source references must include this proposal, its
+research record, and the exact reviewed heads. The existing roadmap owner must reconcile
+these relationships in the selected authority; this document does not create child items,
+change ownership, prove remote persistence, or complete the broader epic.
 
 ## Rejected alternatives
 
@@ -479,10 +612,12 @@ truth. None should be folded into this design-only PR.
 - **Promote from MTEB or a vendor table alone:** those results do not cover Port Daddy's
   corpora, privacy boundaries, latency, cost, or failure behavior.
 
-## Coordination and publication receipts
+## Coordination and publication reports
 
-- The roadmap item was upserted and read back through the live daemon under harbor
-  `port-daddy`; no retired roadmap snapshot was edited.
+- Historical notes record a roadmap upsert and readback through the local daemon under
+  harbor `port-daddy`. That is a local projection report, not a signed remote Oracle receipt;
+  no retired roadmap snapshot was edited. The publication successor reuses the existing
+  `provider-neutral-retrieval-fabric` link without inventing another roadmap authority.
 - The PR #9991 boundary was sent durably to `cli-87957`: agent runtime consumes retrieval
   receipts but does not own vector identity or corpus authority.
 - The PR #9970 boundary was sent durably to `agent-porthole-contract-9970-20260831` and
@@ -491,6 +626,26 @@ truth. None should be folded into this design-only PR.
 - Primary-source candidate research is published in
   [`docs/research/embedding-retrieval-model-landscape-2026.md`](../research/embedding-retrieval-model-landscape-2026.md).
 - Landing requires an independent manager verdict against the final exact head.
+
+### Fleet proposal and review dispositions
+
+The dispositions below answer the existing PR #9995 review against the publication source
+census, not a partial diff excerpt. They do not enqueue work or mint roadmap children.
+
+| Source | Disposition | Existing owner or evidence |
+| --- | --- | --- |
+| Spark: policy selector and dynamic roles | Accepted as registry/policy successor requirements, not a new CLI in this docs PR. No model-to-role assignment is approved by this research. | Existing retrieval epic; implementation steps 2 and 4. |
+| Spark: space validation, fusion comparator, golden-corpus promotion | Accepted as runtime rejection tests and frozen-corpus evaluation. Static analysis alone cannot prove producer conformance or privacy. | Landed registry source; implementation steps 2–4. |
+| Spider: policy, ranking, receipts, evaluation | Conceptually covered by the same epic; its cited Python/JSON filenames were illustrative and are absent from this source tree. They are not implementation evidence or files to scaffold. | Actual seams are `config/models.yaml`, `lib/model-registry.ts`, and generated registry parity. |
+| Lookout: #9982 dependency and role definitions | Foundation now merged; proposed retrieval roles are explicitly unimplemented. No placeholder production definitions added. | Foundation census and role table above. |
+| Lookout: claimed file list | Reconcile against the full five-file docs diff: machine policy, README retrieval wording, proposal, research, and changelog. Preserve unrelated mainline edits. | Exact publication diff and PR Test Plan. |
+| Lookout: #9991 cross-reference | Linked above; reserve/accrue/settle remains an unimplemented integration gate. | Harbor Agent Runtime boundary. |
+| Snipe: reusable evaluation skill | Deferred until a real evaluation contract and two consumers justify reuse; not another framework in this publication slice. | Existing retrieval epic; golden-corpus harness successor. |
+
+The reports and local validation output in this section are unsigned evidence. Only a
+separately verified proof envelope satisfying the receipt contract may be called a signed
+receipt. Landing this design completes neither runtime/index/migration proof nor the
+Charter, Grand Harbor, or broader retrieval commitments.
 
 ## Acceptance conditions for the program
 

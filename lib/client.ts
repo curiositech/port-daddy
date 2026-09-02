@@ -909,6 +909,12 @@ interface SessionResponse {
   conflicts?: Array<{ filePath: string; sessionId: string; purpose: string; claimedAt: number }>;
   error?: string;
   code?: string;
+  candidates?: Array<{
+    sessionId: string;
+    worktreeId: string | null;
+    status?: string | null;
+    lifecycle?: 'durable' | 'ephemeral';
+  }>;
 }
 
 interface SessionTakeoverResponse {
@@ -1361,10 +1367,16 @@ class PortDaddy {
   // ===========================================================================
 
   /** @private */
-  _headers(hasBody: boolean = false): Record<string, string> {
+  _headers(
+    hasBody: boolean = false,
+    identity?: { agentId?: string | null },
+  ): Record<string, string> {
     const h: Record<string, string> = {};
     if (hasBody) h['Content-Type'] = 'application/json';
-    if (this.agentId) h['X-Agent-Id'] = this.agentId;
+    const requestAgentId = identity && Object.prototype.hasOwnProperty.call(identity, 'agentId')
+      ? identity.agentId
+      : this.agentId;
+    if (requestAgentId) h['X-Agent-Id'] = requestAgentId;
     if (this.credential) h['X-Actor-Credential'] = this.credential;
     if (this.pid) h['X-Pid'] = String(this.pid);
     return h;
@@ -1399,10 +1411,15 @@ class PortDaddy {
   }
 
   /** @private */
-  async _request(method: string, path: string, body?: Record<string, unknown>): Promise<unknown> {
+  async _request(
+    method: string,
+    path: string,
+    body?: Record<string, unknown>,
+    identity?: { agentId?: string | null },
+  ): Promise<unknown> {
     const target = this._resolveTarget();
     const jsonBody = body !== undefined ? JSON.stringify(body) : null;
-    const headers = this._headers(jsonBody !== null);
+    const headers = this._headers(jsonBody !== null, identity);
 
     if (jsonBody) {
       headers['Content-Length'] = String(Buffer.byteLength(jsonBody));
@@ -1792,23 +1809,6 @@ class PortDaddy {
    * Acquire a distributed lock.
    */
   async lock(name: string, options: LockOptions = {}): Promise<LockResponse> {
-    const ipcResult = await this._requestViaIpc<LockResponse & { error?: string; code?: string }>(
-      IpcAction.LOCK_ACQUIRE,
-      {
-        name,
-        owner: options.owner || this.agentId,
-        ttl: options.ttl,
-        metadata: options.metadata,
-      },
-    );
-    if (ipcResult) {
-      if (ipcResult.success === false) {
-        const status = ipcResult.code === 'INVALID_TTL' ? 400 : 409;
-        this._throwIpcParityError(ipcResult, 'Failed to acquire lock', status);
-      }
-      return ipcResult;
-    }
-
     return this._request('POST', `/locks/${encodeURIComponent(name)}`, {
       owner: options.owner || this.agentId,
       ttl: options.ttl,
@@ -1820,21 +1820,6 @@ class PortDaddy {
    * Release a distributed lock.
    */
   async unlock(name: string, options: UnlockOptions = {}): Promise<UnlockResponse> {
-    const ipcResult = await this._requestViaIpc<UnlockResponse & { error?: string }>(
-      IpcAction.LOCK_RELEASE,
-      {
-        name,
-        owner: options.owner || this.agentId,
-        force: options.force,
-      },
-    );
-    if (ipcResult) {
-      if (ipcResult.success === false) {
-        this._throwIpcParityError(ipcResult, 'Failed to release lock', 403);
-      }
-      return ipcResult;
-    }
-
     return this._request('DELETE', `/locks/${encodeURIComponent(name)}`, {
       owner: options.owner || this.agentId,
       force: options.force,
@@ -1864,21 +1849,6 @@ class PortDaddy {
    * Extend a lock's TTL.
    */
   async extendLock(name: string, options: LockOptions = {}): Promise<ExtendLockResponse> {
-    const ipcResult = await this._requestViaIpc<ExtendLockResponse & { error?: string; code?: string }>(
-      IpcAction.LOCK_EXTEND,
-      {
-        name,
-        owner: options.owner || this.agentId,
-        ttl: options.ttl,
-      },
-    );
-    if (ipcResult) {
-      if (ipcResult.success === false) {
-        this._throwIpcParityError(ipcResult, 'Failed to extend lock', 400);
-      }
-      return ipcResult;
-    }
-
     return this._request('PUT', `/locks/${encodeURIComponent(name)}`, {
       owner: options.owner || this.agentId,
       ttl: options.ttl,
@@ -2310,22 +2280,6 @@ class PortDaddy {
     if (options.lifecycle !== undefined && options.lifecycle !== 'durable' && options.lifecycle !== 'ephemeral') {
       throw new Error('startSession lifecycle must be "durable" or "ephemeral" when provided');
     }
-    let ipcOptions: Record<string, unknown> = options;
-    if (options.lifecycle) {
-      const { lifecycle, ...rest } = options;
-      ipcOptions = { ...rest, durable: lifecycle === 'durable' };
-    }
-    const ipcResult = await this._requestViaIpc<SessionResponse>(
-      IpcAction.SESSION_START,
-      ipcOptions,
-    );
-    if (ipcResult) {
-      if (ipcResult.success === false) {
-        const status = ipcResult.code === 'FILE_CONFLICT' ? 409 : 400;
-        this._throwIpcParityError(ipcResult, 'Failed to start session', status);
-      }
-      return ipcResult;
-    }
     return this._request('POST', '/sessions', options) as Promise<SessionResponse>;
   }
 
@@ -2335,48 +2289,75 @@ class PortDaddy {
   async endSession(sessionIdOrNote?: string, options?: {
     status?: string;
     note?: string;
+    /** Explicit owner paired by a preceding daemon resolution, never ambient. */
+    agentId?: string;
   }): Promise<SessionResponse> {
     // If first arg looks like a session ID, use it directly
     // Otherwise treat it as a note and find active session
     const isSessionId = sessionIdOrNote?.startsWith('session-');
     const sessionId = isSessionId ? sessionIdOrNote : undefined;
     const note = isSessionId ? options?.note : sessionIdOrNote;
+    const status = options?.status || 'completed';
 
     if (sessionId) {
-      const ipcResult = await this._requestViaIpc<SessionResponse>(
-        IpcAction.SESSION_END,
-        {
-          sessionId,
-          status: options?.status || 'completed',
-          note,
-        },
-      );
-      if (ipcResult) {
-        if (ipcResult.success === false) {
-          this._throwIpcParityError(ipcResult, 'Failed to end session', 404);
-        }
-        return ipcResult;
+      if (status === 'completed') {
+        const result = await this.done(note, { sessionId, status: 'completed', agentId: options?.agentId });
+        return {
+          ...result,
+          id: result.sessionId || sessionId,
+          purpose: '',
+          status: result.sessionStatus || 'completed',
+          createdAt: 0,
+          updatedAt: Date.now(),
+        } as SessionResponse;
       }
       return this._request('PUT', `/sessions/${sessionId}`, {
-        status: options?.status || 'completed',
+        status,
         note,
-      }) as Promise<SessionResponse>;
+        agentId: options?.agentId,
+      }, { agentId: options?.agentId ?? null }) as Promise<SessionResponse>;
     }
 
     // Find active session
     const list = await this.sessions({
       status: 'active',
       agentId: this.agentId,
-      limit: 1,
+      allWorktrees: true,
+      limit: 50,
     });
     if (!list.sessions.length) {
-      return { success: false, id: '', purpose: '', status: '', createdAt: 0, updatedAt: 0 } as SessionResponse;
+      return {
+        success: false,
+        id: '',
+        purpose: '',
+        status: '',
+        createdAt: 0,
+        updatedAt: 0,
+        code: 'NO_ACTIVE_SESSION',
+        error: 'No active session found',
+      } as SessionResponse;
+    }
+    if (list.sessions.length > 1) {
+      return {
+        success: false,
+        id: '',
+        purpose: '',
+        status: '',
+        createdAt: 0,
+        updatedAt: 0,
+        code: 'AMBIGUOUS_ACTIVE_SESSION',
+        error: 'Multiple active sessions match this actor; pass an exact sessionId.',
+        candidates: list.sessions.map((session) => {
+          const row = session as unknown as Record<string, unknown>;
+          return {
+            sessionId: session.id,
+            worktreeId: typeof row.worktreeId === 'string' ? row.worktreeId : null,
+          };
+        }),
+      } as SessionResponse;
     }
 
-    return this._request('PUT', `/sessions/${list.sessions[0].id}`, {
-      status: options?.status || 'completed',
-      note,
-    }) as Promise<SessionResponse>;
+    return this.endSession(list.sessions[0].id, { status, note, agentId: list.sessions[0].agentId ?? undefined });
   }
 
   /**
@@ -2389,18 +2370,16 @@ class PortDaddy {
   /**
    * Delete a session entirely.
    */
-  async removeSession(sessionId: string): Promise<{ success: boolean }> {
-    const ipcResult = await this._requestViaIpc<{ success: boolean; error?: string }>(
-      IpcAction.SESSION_REMOVE,
-      { sessionId },
-    );
-    if (ipcResult) {
-      if (ipcResult.success === false) {
-        this._throwIpcParityError(ipcResult, 'Failed to remove session', 404);
-      }
-      return ipcResult;
-    }
-    return this._request('DELETE', `/sessions/${sessionId}`) as Promise<{ success: boolean }>;
+  async removeSession(
+    sessionId: string,
+    options?: { agentId?: string | null },
+  ): Promise<{ success: boolean }> {
+    return this._request(
+      'DELETE',
+      `/sessions/${sessionId}`,
+      undefined,
+      { agentId: options?.agentId ?? null },
+    ) as Promise<{ success: boolean }>;
   }
 
   /**
@@ -2419,56 +2398,33 @@ class PortDaddy {
     lifecycle?: 'durable' | 'ephemeral';
     claimFiles?: boolean;
   }): Promise<SessionTakeoverResponse> {
-    const body: Record<string, unknown> = {
-      ...(options || {}),
-      agentId: options?.agentId || this.agentId,
-    };
+    const body: Record<string, unknown> = { ...(options || {}) };
     if (options?.lifecycle) {
       body.durable = options.lifecycle === 'durable';
       delete body.lifecycle;
     }
 
-    const ipcResult = await this._requestViaIpc<SessionTakeoverResponse>(
-      IpcAction.SESSION_TAKEOVER,
-      {
-        sessionId,
-        ...body,
-      },
-    );
-    if (ipcResult) {
-      if (ipcResult.success === false) {
-        this._throwIpcParityError(ipcResult, 'Failed to take over session', ipcResult.code === 'VALIDATION_ERROR' ? 400 : 404);
-      }
-      return ipcResult;
-    }
-    return this._request('POST', `/sessions/${sessionId}/takeover`, body) as Promise<SessionTakeoverResponse>;
+    return this._request(
+      'POST',
+      `/sessions/${sessionId}/takeover`,
+      body,
+      { agentId: options?.agentId ?? null },
+    ) as Promise<SessionTakeoverResponse>;
   }
 
-  /**
-   * Add a quick note (auto-creates session if needed).
-   */
+  /** Add an attributed note to one exact session. */
   async note(content: string, options?: {
     type?: string;
     agentId?: string;
     sessionId?: string;
   }): Promise<NoteResponse> {
-    const ipcResult = await this._requestViaIpc<NoteResponse>(
-      IpcAction.NOTE,
-      {
-        sessionId: options?.sessionId,
-        agentId: options?.agentId,
-        content,
-        type: options?.type,
-      },
-      { agentId: options?.agentId },
-    );
-    if (ipcResult) return ipcResult;
-
     return this._request('POST', '/notes', {
       content,
       sessionId: options?.sessionId,
       agentId: options?.agentId,
       type: options?.type,
+    }, {
+      agentId: options?.sessionId ? (options.agentId ?? null) : options?.agentId,
     }) as Promise<NoteResponse>;
   }
 
@@ -2567,15 +2523,16 @@ class PortDaddy {
       regions = options.regions;
       agentId = options.agentId;
     }
-    const callerAgentId = agentId ?? this.agentId;
-    const ipcResult = await this._requestViaIpc<FileClaimResponse>(
-      IpcAction.FILES_CLAIM,
-      { sessionId, paths: files, regions, force, agentId: callerAgentId },
-      { agentId: callerAgentId || undefined },
-    );
-    if (ipcResult) return ipcResult;
-
-    return this._request('POST', `/sessions/${sessionId}/files`, { files, regions, force, agentId: callerAgentId }) as Promise<FileClaimResponse>;
+    // An exact session id is already the target. Never graft the client's
+    // ambient display alias onto it; only an explicitly paired agentId may
+    // travel with the session tuple.
+    const callerAgentId = agentId ?? undefined;
+    return this._request(
+      'POST',
+      `/sessions/${sessionId}/files`,
+      { files, regions, force, agentId: callerAgentId },
+      { agentId: callerAgentId ?? null },
+    ) as Promise<FileClaimResponse>;
   }
 
   /**
@@ -2586,15 +2543,13 @@ class PortDaddy {
     files: string[],
     options?: { regions?: FileRegion[]; agentId?: string | null }
   ): Promise<FileReleaseResponse> {
-    const callerAgentId = options?.agentId ?? this.agentId;
-    const ipcResult = await this._requestViaIpc<FileReleaseResponse>(
-      IpcAction.FILES_RELEASE,
-      { sessionId, paths: files, regions: options?.regions, agentId: callerAgentId },
-      { agentId: callerAgentId || undefined },
-    );
-    if (ipcResult) return ipcResult;
-
-    return this._request('DELETE', `/sessions/${sessionId}/files`, { files, regions: options?.regions, agentId: callerAgentId }) as Promise<FileReleaseResponse>;
+    const callerAgentId = options?.agentId ?? undefined;
+    return this._request(
+      'DELETE',
+      `/sessions/${sessionId}/files`,
+      { files, regions: options?.regions, agentId: callerAgentId },
+      { agentId: callerAgentId ?? null },
+    ) as Promise<FileReleaseResponse>;
   }
 
   // ──────────────────────────────────────────────────────────────
@@ -2605,8 +2560,17 @@ class PortDaddy {
    * Set the phase of a session.
    * Valid phases: planning, in_progress, testing, reviewing, completed, abandoned
    */
-  async setSessionPhase(sessionId: string, phase: string): Promise<Record<string, unknown>> {
-    return this._request('PUT', `/sessions/${sessionId}/phase`, { phase }) as Promise<Record<string, unknown>>;
+  async setSessionPhase(
+    sessionId: string,
+    phase: string,
+    options?: { agentId?: string | null },
+  ): Promise<Record<string, unknown>> {
+    return this._request(
+      'PUT',
+      `/sessions/${sessionId}/phase`,
+      { phase, agentId: options?.agentId },
+      { agentId: options?.agentId ?? null },
+    ) as Promise<Record<string, unknown>>;
   }
 
   // ──────────────────────────────────────────────────────────────
@@ -2807,7 +2771,7 @@ class PortDaddy {
    */
   async done(note?: string, options: DoneSugarOptions = {}): Promise<DoneSugarResponse> {
     const body: Record<string, unknown> = {};
-    if (this.agentId) body.agentId = this.agentId;
+    if (this.agentId && !options.sessionId) body.agentId = this.agentId;
     if (options.agentId) body.agentId = options.agentId;
     if (options.sessionId) body.sessionId = options.sessionId;
     if (note) body.note = note;
@@ -2819,13 +2783,15 @@ class PortDaddy {
     if (options.forceIncomplete) body.forceIncomplete = true;
     if (options.forceIncompleteReason) body.forceIncompleteReason = options.forceIncompleteReason;
 
-    const ipcResult = await this._requestViaIpc<DoneSugarResponse>(IpcAction.DONE, body, {
-      agentId: options.agentId || this.agentId,
-    });
-    const result = ipcResult ?? await this._request('POST', '/sugar/done', body) as DoneSugarResponse;
+    const result = await this._request(
+      'POST',
+      '/sugar/done',
+      body,
+      { agentId: options.sessionId ? (options.agentId ?? null) : options.agentId },
+    ) as DoneSugarResponse;
 
     // Clear agentId since we just unregistered
-    if (result.agentUnregistered) {
+    if (result.agentUnregistered && (!result.agentId || result.agentId === this.agentId)) {
       this.agentId = undefined;
     }
 
@@ -2843,8 +2809,9 @@ class PortDaddy {
     const whoamiOptions = typeof agentIdOrOptions === 'string'
       ? { agentId: agentIdOrOptions }
       : (agentIdOrOptions || {});
-    const resolvedAgentId = whoamiOptions.agentId || this.agentId;
     const sessionId = whoamiOptions.sessionId;
+    const resolvedAgentId = whoamiOptions.agentId
+      || (sessionId ? undefined : this.agentId);
 
     if (resolvedAgentId) {
       const payload: Record<string, unknown> = { agentId: resolvedAgentId };
@@ -2901,7 +2868,7 @@ class PortDaddy {
    */
   async salvageClaim(agentId: string): Promise<SalvageClaimResponse> {
     return this._request('POST', `/resurrection/claim/${encodeURIComponent(agentId)}`, {
-      newAgentId: this.agentId || `sdk-${this.pid}`,
+      newAgentId: this.agentId,
     }) as Promise<SalvageClaimResponse>;
   }
 
@@ -3866,11 +3833,7 @@ interface DoneSugarOptions {
   agentId?: string;
   sessionId?: string;
   status?: string;
-  /**
-   * Operator escape hatch for the origin-push + PR-URL precondition.
-   * When true, pass `skipOriginCheckReason` as well — it is required
-   * server-side and gets stamped into the result note.
-   */
+  /** Deprecated public flag; the daemon now rejects it without an internal action-scoped capability. */
   skipOriginCheck?: boolean;
   skipOriginCheckReason?: string;
   noPr?: boolean;
@@ -3889,6 +3852,15 @@ interface DoneSugarResponse {
   finalNote: boolean;
   releasedFiles?: string[];
   error?: string;
+  code?: string;
+  hint?: string;
+  remainingActiveSessions?: number;
+  candidates?: Array<{
+    sessionId: string;
+    worktreeId: string | null;
+    status?: string | null;
+    lifecycle?: 'durable' | 'ephemeral';
+  }>;
 }
 
 interface WhoamiSugarResponse {
@@ -3910,6 +3882,20 @@ interface WhoamiSugarResponse {
   roadmapLink?: string | null;
   sidequestReason?: string | null;
   hint?: string;
+  error?: string;
+  code?: string;
+  dormant?: boolean;
+  resumable?: boolean;
+  state?: string;
+  lifecycle?: 'durable' | 'ephemeral';
+  status?: string;
+  worktreeId?: string | null;
+  candidates?: Array<{
+    sessionId: string;
+    worktreeId: string | null;
+    status?: string | null;
+    lifecycle?: 'durable' | 'ephemeral';
+  }>;
   localContext?: {
     agentId: string;
     sessionId: string;
@@ -4037,6 +4023,7 @@ interface SpawnSpec {
   purpose?: string;
   task: string;
   files?: string[];
+  /** Existing absolute directory; required for local agents. API-only projectless runs may omit it. No daemon-cwd default. */
   workdir?: string;
   env?: Record<string, string>;
   timeout?: number;

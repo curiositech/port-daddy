@@ -201,7 +201,7 @@ Every agent must establish a versioned todo checklist using `pd plan set`.
 - **Set a plan**: Run `pd plan set` with markdown checklist items.
 - **View latest plan**: Run `pd plan show` or `pd plan`.
 - **Mark item completed**: Run `pd plan check <index>` (e.g., `pd plan check 1` or `pd plan check "step one"`).
-- **Close session gate**: `pd done` checks your active plan. If any unchecked `[ ]` items remain, the close operation fails closed. Bypass with `pd done --force-incomplete --reason "<why>"` if incomplete work is intentionally handshaked or deferred. `pd done --no-pr` is narrower than “I chose not to open a PR”: it succeeds only for a clean worktree whose `HEAD` has no commit absent from every remote ref. This verifier runs even when the branch is fully pushed; dirty or unpublished repository work remains blocked.
+- **Close session gate**: `pd done` checks your active plan. If any unchecked `[ ]` items remain, completion fails closed. Finish the plan or explicitly abandon the session; a caller-supplied reason is not operator authority. `pd done --no-pr` is narrower than “I chose not to open a PR”: it succeeds only for a clean worktree whose `HEAD` has no commit absent from every remote ref. This verifier runs even when the branch is fully pushed; dirty or unpublished repository work remains blocked.
 
 ## Session Continuity
 
@@ -226,9 +226,11 @@ git fetch origin
 Resume the existing session when the user goal, worktree or successor
 worktree, branch lineage, and touched surface are still the same unresolved
 slice. If the previous session is stale, abandoned, or cannot be made active,
-use `pd session takeover <old-session-id> [reason]` (or `pd takeover <old-session-id> [reason]`) to create a linked
-successor. It preserves the predecessor's append-only notes, releases stale
-claims, and records the lineage on both sessions.
+inspect the exact session, recorded owner, worktree/root and claims first.
+Use a supported same-owner `pd session takeover <old-session-id> [reason]`
+(or `pd takeover <old-session-id> [reason]`) only when the selected credential
+is authorized for that predecessor. Read back the actual successor, retained
+notes and claim disposition; the command name alone does not prove a transfer.
 
 Start a new linked session when the product goal changed, the previous slice
 was completed or merged, the branch no longer descends cleanly from the old
@@ -275,6 +277,21 @@ and trust the owner-leased continuation
 receipt, not a model's claim that it resumed. A backend override that changes
 adapter family, a lost accepted-to-running lease, or a failed terminal receipt
 transition must fail closed before Port Daddy reports success.
+
+Session selection itself is deterministic. `PD_SESSION_ID` and `PD_AGENT_ID`
+are one atomic identity: a partial pair does not hide a complete context slot,
+and a complete environment pair that disagrees with the slot fails with
+`CONTEXT_CONFLICT` plus both provenances. Do not clear variables or retry a
+broader selector to route around that error. Exact mutations send the selected
+session and its stored owner together; agent-only ambiguity returns
+`AMBIGUOUS_ACTIVE_SESSION` candidates. Dormant, missing, failed, or mismatched
+exact-session lookups never fall through to another worktree's active session.
+Completion, including the completed phase, must pass `pd done`'s plan and delivery
+checks. Credential files must be owner-held, single-link regular files; never
+repair a credential by copying another actor's bearer. `pd session takeover <id>` resumes only
+the daemon-stamped owner of that dormant session. Raw IPC and direct SQLite are
+read-only for session, note, claim, lock, and salvage authority; mutations use
+the credentialed daemon HTTP path.
 
 Inspect portability with `pd backend adapters --matrix` or
 `GET /harness-adapters/continuation-matrix`. Read the grid as declared mechanics,
@@ -366,6 +383,26 @@ pd guard check --staged
 ```
 
 ## PR Finish Line
+
+Before the first commit, inspect both effective Git author and committer. Use
+the verified responsible agent's attribution and traceable actor/session
+trailers; never silently inherit the operator's identity. Git metadata is
+neither cryptographic signing nor App/Fleetbot publication identity. If you
+discover mistaken attribution in your own unpublished commits, correct only
+that history and prove tree/message equivalence. Never rewrite published or
+another agent's history, or change global machine configuration. See
+`references/git-discipline.md` for the bounded procedure.
+
+Keep the Git outcome separate from the coordination audit. After a commit,
+verify the actual SHA before interpreting hook output. `pd guard check
+--post-commit --json` audits an existing commit; `postCommitAudit.commit`
+identifies it, `status` describes the audit, `preCommitWouldBlock` describes
+remaining debt, and `persistence: not-attempted` means no note was published.
+Even an audit issue does not undo Git. Write a SHA-bound `pd note`, read it
+back from the same selected daemon/session, and clear outstanding findings
+before the next commit. Do not rerun or amend a successful commit merely
+because an older installed hook printed “commit blocked.” Verify installed
+behavior separately from source; never treat an unverifiable audit as green.
 
 When you open or inherit a PR, you own the machine-visible finish line unless
 you explicitly hand it off in Port Daddy notes.
@@ -945,13 +982,15 @@ durable note, and make the standing instruction stronger before continuing.
 
 ### Coordination is continuous, not a session-start ritual
 
-Sessions TTL out. File claims expire. Other agents start and stop while
-your work is in flight. Anchoring once at the top of a session is **not
+Ephemeral sessions can expire; durable session records do not naturally TTL
+out. Claim coverage and live ownership can change while other agents start
+and stop. Anchoring once at the top of a session is **not
 enough**. Re-check at every checkpoint:
 
 - **Before any commit, push, or rebase** — `pd guard check --staged`. If
-  the session timed out, `pd begin` again; if files lost their claim,
-  `pd session files add` them back.
+  the session or claims look stale, inspect the selected daemon, exact session,
+  recorded owner, physical worktree/root and original claim history before
+  changing anything. Age or a missing projection is not transfer authority.
 - **Before pulling against `origin/main`** — `pd sessions --all-worktrees`
   and `pd notes --limit 20`. New work may have landed in your slice
   while you were typing.
@@ -959,12 +998,23 @@ enough**. Re-check at every checkpoint:
   It names exactly which files are claimed by which sessions. See
   `references/git-discipline.md` § *The pd-shim*.
 - **After a long-running build or test run** — re-anchor before pushing.
-  A 20-minute test suite is plenty of time for a session to expire and
-  for someone else to claim your files.
+  A 20-minute test suite is plenty of time for ephemeral liveness to expire
+  or another authorized ownership transition to occur.
 
-The cost of a redundant `pd begin` is zero. The cost of pushing past a
-stale claim is rebasing under conflict pressure or, worse, silently
-overwriting another agent's WIP.
+Continue the same unresolved slice under its verified session; do not create
+duplicate identities just to make a warning disappear. A genuinely new,
+authorized scope can use a fresh linked worktree/session and ordinary narrow
+claims in that verified scope. It does not require rewriting or releasing
+unrelated historical claims.
+
+Read advisor diagnostics precisely. Relative and absolute paths count as the
+same claim only inside a verified repository/worktree/root. A
+`context.claim-scope-inconsistent` result preserves conflicting evidence; it
+does **not** mean “unclaimed.” Use supported authorized recovery, never copied
+credentials or hand-edited world IDs. `claims.stale-legacy-projection` means a
+released history row supplies no live coverage; an active replacement still
+counts. That warning is not an all-agent stop. Check the actual mutation and
+Guard results: read-only advice neither grants a claim nor repairs its owner.
 
 ### Slicing work into reviewable PRs
 

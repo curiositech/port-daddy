@@ -3,13 +3,14 @@
   cannot enter the merge queue:
     1. pr-requirements-guard → a real `## Summary` (≥10 words) and `## Test Plan`
        (≥12 words: commands + their output) below. A visual-surface change also
-       needs a screenshot AND a GIF/recording (or a visual-exempt marker — see
+       needs a screenshot AND a Porthole recording (or a visual-exempt marker — see
        the Visual Proof section / CONTRIBUTING.md). A user-visible change also
        needs a changelog fragment at `changelog.d/<pr>-<slug>.md` (or a
        changelog-exempt marker — see the Changelog section / changelog.d/README.md).
     2. roadmap-link → exactly one `Roadmap-Item:` trailer near the bottom: a known
-       slug, or `none — <reason>` for a chore/docs/hotfix. No slug yet? Run
-       `npx tsx scripts/roadmap-link.ts <pr-number>` to create + stamp it.
+       slug, or `none — <reason>` for a chore/docs/hotfix. Reuse the assigned item;
+       do not create a duplicate just to satisfy the trailer. Verify read-back
+       from the selected authority; local projection is not remote persistence.
   Self-check before you push:
     npm run check:pr-requirements -- --body-file <this-draft.md>
 -->
@@ -50,15 +51,46 @@
 
 -
 
+## Delivery owner & receipts
+
+<!--
+  Code is not done when merely saved or committed. Use a linked worktree, commit
+  small validated checkpoints often, and read back a scoped note after each commit.
+  Publish implementation and requested research artifacts, not just chat summaries.
+  Agent-authored GitHub mutations use the configured App/Fleetbot publisher with
+  responsible-agent attribution; never fall back to the operator's personal account.
+  If unavailable, preserve the commit and record the exact missing capability,
+  responsible owner, and recovery action. Do not relabel an ad-hoc helper as shipped.
+
+  Ready for review means a non-draft PR with evidence. Own it through gracious
+  review replies, regression tests, required checks green, and normal protected
+  merge/queue. Incorporate actionable feedback unless demonstrably wrong or harmful;
+  explain disagreements with evidence. Never bypass a mandatory gate. Queue admission
+  is not merge: verify the final merged-head receipt before calling delivery done.
+  An explicit handoff names the accepting successor and preserves unfinished duties.
+
+  Read-only answers/reviews need no PR. Findings-only reviewers without authoring
+  authority return findings to the author; they must not push or merge.
+-->
+
+- Responsible Port Daddy agent / session:
+- Assigned roadmap item and authority / read-back receipt:
+- Reviewed head and validation receipts:
+- Required checks / actionable review threads:
+- Protected queue receipt (pending is not merged):
+- Final merged commit receipt (fill after merge):
+- Remaining duties / accepting successor, if handed off:
+
 ## Visual Proof
 
 <!--
   REQUIRED when this PR touches a visual surface: core/pd-console (GPUI window or
   any pane/renderer), website-v2/, fleet-config-ui/, public/fleet-ui/, public/,
   dashboard/, or apps/FleetBar/. Attach ALL of: screenshots (light + dark where
-  applicable), a GIF, and a short screen recording of the ACTUAL change. Commit
-  the artifacts and embed them via raw.githubusercontent.com URLs so they survive
-  the squash. An agent will review these and reason about whether they show ideal
+  applicable) and a Porthole recording of the ACTUAL change, with its source and
+  consent scope visible. Include a durable playable recording/export URL accepted
+  by the visual gate; do not substitute a GIF. Keep evidence available after merge.
+  An agent will review these and reason about whether they show ideal
   behavior or an error — sparse/ambiguous evidence is treated as failure.
 
   Not a visual change? Delete this guidance and add an HTML comment whose FIRST
@@ -94,9 +126,9 @@
   run the roadmap/contradiction agents (cartographer, conductor, navigator,
   spider — see pd-fleet.yml / lib/fleet/conductor.ts) and check for extant PRs,
   worktrees, feature branches, or docs proposing the same idea. If found, it is
-  YOUR job to close out the older PRs and MERGE the best of both into this one —
-  the symmetric-difference, best-of-both-worlds version — without derailing
-  existing functionality unless the operator has signed off on the trade-off.
+  your job to coordinate with their owners and propose a durable reconciliation,
+  not silently close their PRs or erase plans. Show affected roadmap items and
+  visual artifacts; obtain the required authority for superseding their work.
 
   Not a doc/plan PR? Delete this guidance; this section is advisory and not
   machine-gated, so no marker is needed.
@@ -105,12 +137,14 @@
 ## Roadmap link
 
 <!--
-  The Roadmap Link Gate (non-blocking CI) reads ONE trailer line below. Put the
-  PR on the roadmap so merges write back to a tracked item — or opt out with a
-  reason. No item yet? Create it and stamp this PR in one step (daemon required):
-      npx tsx scripts/roadmap-link.ts <this-pr-number>
-  Without a valid line, this PR gets the `needs-roadmap-link` label and waits for
-  a human to approve the land.
+  The Roadmap Link Gate reads ONE trailer line below. Link the existing assigned
+  item and attach this PR in the authority's typed PR field when available; read
+  it back. Do not change the item's owner/status merely to satisfy this form.
+  A local daemon write is not a canonical remote receipt. During an authority
+  cutover, record the actual gate/authority gap instead of inventing persistence.
+  No item exists? Create only through the selected authority's supported path,
+  or use the allowed chore/docs/hotfix opt-out with an explicit reason. Required
+  checks remain mandatory; no personal-account or admin workaround.
 
   Use exactly one of:
     Roadmap-Item: <slug>
@@ -143,10 +177,12 @@ Roadmap-Item:
 ## Adversarial review
 
 <!--
-  Every PR goes through skeptical adversarial review before merge (the
-  claude-adversarial-review workflow runs automatically; AGENTS.md § PR Operating
-  Procedure step 2 also applies for non-trivial changes). Record the verdict and
-  how each HIGH finding was addressed.
+  Every PR goes through skeptical adversarial review before merge. Record the
+  reviewer, exact reviewed head, verdict, and how actionable findings were handled.
+  Neutral/skipped Fleet is not substantive review. Do not turn a bot-author skip
+  into a SHIP verdict; obtain a real independent review without bypassing checks.
+  Source tests, built artifacts, installed/runtime behavior and visual proof are
+  separate witnesses. Generated hooks/personas are not live activation receipts.
 -->
 
 - [ ] Adversarial review ran; every HIGH finding is fixed or contested-with-reason

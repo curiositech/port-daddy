@@ -15,6 +15,33 @@
 
 import { jest } from '@jest/globals';
 
+// Mocking the child alone does not isolate the spawner's coordination HTTP.
+// Use a non-forwarding fetch plus an explicit non-routable target so neither
+// the operator's port file nor a later HOME change can select the live daemon.
+const coordinationUrl = 'http://spawner-envelope.test.invalid';
+const originalFetch = global.fetch;
+const originalDaemonUrl = process.env.PORT_DADDY_URL;
+const coordinationFetch = jest.fn(async () => ({
+  ok: true,
+  json: async () => ({ success: true }),
+}));
+beforeAll(() => {
+  global.fetch = coordinationFetch;
+  process.env.PORT_DADDY_URL = coordinationUrl;
+});
+afterAll(() => {
+  global.fetch = originalFetch;
+  if (originalDaemonUrl === undefined) delete process.env.PORT_DADDY_URL;
+  else process.env.PORT_DADDY_URL = originalDaemonUrl;
+});
+afterEach(() => {
+  expect(global.fetch).toBe(coordinationFetch);
+  for (const [url, options] of coordinationFetch.mock.calls) {
+    expect(new URL(url).origin).toBe(coordinationUrl);
+    expect(options.method).toBe('POST');
+  }
+});
+
 const mockChildProcess = {
   stdout: { on: jest.fn() },
   stderr: { on: jest.fn() },
@@ -90,7 +117,10 @@ afterAll(() => {
   else process.env.PD_SPAWN_ISOLATION_OFF = originalSpawnIsolationOff;
 });
 
-beforeEach(() => { cpSpawn.mockClear(); });
+beforeEach(() => {
+  cpSpawn.mockClear();
+  coordinationFetch.mockClear();
+});
 
 describe('spawner P4 — harbor envelope enforcement', () => {
   test('no envelope set → no enforcement, spawn proceeds to escrow', async () => {
@@ -106,6 +136,8 @@ describe('spawner P4 — harbor envelope enforcement', () => {
     expect(result.status).not.toBe('failed');
     expect(harbors.assertWithinEnvelope).not.toHaveBeenCalled();
     expect(bonds.escrow).toHaveBeenCalled();
+    expect(coordinationFetch.mock.calls.map(([url]) => new URL(url).pathname))
+      .toEqual(expect.arrayContaining(['/agents', '/sugar/begin', '/sugar/done']));
   });
 
   test('envelope forbids the backend → blocked before escrow, boundary named, harbor left', async () => {
@@ -125,6 +157,7 @@ describe('spawner P4 — harbor envelope enforcement', () => {
     // The admitted agent is evicted from the harbor on the block (the blocked
     // result carries a sentinel id, so assert the eviction happened at all).
     expect(harbors.leaveAll).toHaveBeenCalled();
+    expect(coordinationFetch).not.toHaveBeenCalled();
   });
 
   test('envelope admits the backend → proceeds and propagates env to child', async () => {
@@ -144,5 +177,7 @@ describe('spawner P4 — harbor envelope enforcement', () => {
     const spawnOpts = cpSpawn.mock.calls.at(-1)[2];
     expect(spawnOpts.env.PD_HARBOR_NAME).toBe('myapp:fleet');
     expect(JSON.parse(spawnOpts.env.PD_HARBOR_ENVELOPE).backends).toEqual(['custom']);
+    expect(coordinationFetch.mock.calls.map(([url]) => new URL(url).pathname))
+      .toEqual(expect.arrayContaining(['/agents', '/sugar/begin', '/sugar/done']));
   });
 });
