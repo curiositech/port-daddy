@@ -156,7 +156,7 @@ Then load balancing emerges from local context-based decisions, not global load-
 
 ## Practical Implications for Orchestration Systems
 
-For WinDAGs-like systems:
+For Jury-rig-like systems:
 
 1. **Routing should be context-aware**: Instead of static routing tables, have agents with plans for "where to send this query" with contexts like "database_available", "cache_hit_rate > threshold", etc.
 
@@ -313,7 +313,7 @@ In traditional orchestration systems, there's typically a central scheduler deci
 - Message passing (belief updates from communication)
 - Complementary plan libraries (Agent A has plans for X, Agent B has plans for Y)
 
-For a WinDAGs-like system: each skill could be an agent, each with plans for "when to activate" (contexts), "what to do" (plan bodies), and "how to coordinate" (communication actions). No central DAG executor—the DAG emerges from agents adopting goals that trigger sub-goals handled by other agents.
+For a Jury-rig-like system: each skill could be an agent, each with plans for "when to activate" (contexts), "what to do" (plan bodies), and "how to coordinate" (communication actions). No central DAG executor—the DAG emerges from agents adopting goals that trigger sub-goals handled by other agents.
 
 ### Implication 2: Load Balancing Through Event Prioritization
 
@@ -754,7 +754,7 @@ The key advantage: **AgentSpeak's failure handling is goal-aware**. You're not j
 
 ## Implications for Orchestration Robustness
 
-For WinDAGs-style systems:
+For Jury-rig-style systems:
 
 1. **Skill Composition as Intention Stacks**: When one skill invokes another, the invocation stack is an intention stack. If inner skill fails, outer skill's failure plan handles it. This creates natural layering: high-level orchestration plans delegate to skills, and skill failures propagate upward for high-level recovery decisions.
 
@@ -1136,7 +1136,7 @@ Agent A delegates to B, B delegates to C, C delegates to A. Deadlock.
 
 The advantage: **future-proofing**. When Agent B learns new ways to achieve goals (new plans added), Agent A's delegations automatically benefit, without A being updated. In SOA, if a service adds a new capability, clients must be updated to use it.
 
-## Implications for WinDAGs Skill Coordination
+## Implications for Jury-rig Skill Coordination
 
 For orchestrating 180+ skills:
 
@@ -1359,7 +1359,7 @@ Poor organization → hard to find relevant plans (for humans reading code, and 
 
 Traditional development: write a program that solves the problem. AgentSpeak development: accumulate a library of know-how that *collectively* addresses the problem space.
 
-For a WinDAGs orchestration system with 180+ skills:
+For a Jury-rig orchestration system with 180+ skills:
 - Don't write one orchestration procedure
 - Instead, build a library where each plan encodes one coordination pattern, one failure recovery strategy, one optimization heuristic
 - The system's intelligence is the size and quality of the library
@@ -1521,7 +1521,7 @@ AgentSpeak combines aspects of all three:
 
 But it's distinct: plans are pre-defined (not generated), but selection is dynamic (not fixed calls). This trades off planning flexibility for execution efficiency and predictability.
 
-## Implications for WinDAGs Skill Orchestration
+## Implications for Jury-rig Skill Orchestration
 
 ### 1. Skills as Composable Know-How Units
 

@@ -1,10 +1,10 @@
 # Git Discipline for Multi-Agent Repos
 
 This page is the load-bearing rule set behind the SKILL.md "Git Discipline"
-section. It is a faithful summary of ADR 0001 from windags-skills, with the
+section. It is a faithful summary of ADR 0001 from external-skill-catalog, with the
 post-mortem that triggered it.
 
-## The triggering incident — windags-skills `bb34efa` (2026-05-03)
+## The triggering incident — external-skill-catalog `bb34efa` (2026-05-03)
 
 Two agents were operating in the same repo. The foreground agent had eight
 files staged for a v2.10.0 release commit. A background skill-creator
@@ -167,7 +167,7 @@ surface the blocker to the operator; do not disable or route around the shim.
 
 ## See also
 
-- `~/coding/windags-skills/docs/adr/0001-background-agent-git-discipline.md` — the full ADR with alternatives considered and migration notes.
+- `~/coding/external-skill-catalog/docs/adr/0001-background-agent-git-discipline.md` — the full ADR with alternatives considered and migration notes.
 - `pd guard install --mode enforce` — install the staging-time enforcement hook.
 - `pd guard check --git-verb <verb>` — manually invoke the shim's guard
   check; useful to see exactly what claims are blocking a destructive op

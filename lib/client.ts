@@ -2717,10 +2717,9 @@ class PortDaddy {
    *
    * @param options.alias - Display alias to bind to the minted soul
    *        (typically the agentId this client asserts on writes).
-   * @param options.project - Project scope for the shared newcomer pool.
    * @returns The mint outcome ({ actorId, credential? }) from the daemon.
    */
-  async registerActor(options: { alias?: string; project?: string } = {}): Promise<{
+  async registerActor(options: { alias?: string } = {}): Promise<{
     success: boolean;
     status: 'minted' | 'resolved';
     actorId: string;
@@ -2729,7 +2728,6 @@ class PortDaddy {
   }> {
     const body: Record<string, unknown> = {};
     if (options.alias) body.alias = options.alias;
-    if (options.project) body.project = options.project;
     if (this.credential) body.credential = this.credential;
     const result = await this._request('POST', '/actors/register', body) as {
       success: boolean;

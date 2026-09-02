@@ -233,12 +233,12 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
       return reservedNameRejection(name);
     }
 
-    // Mint a fresh newcomer soul. The identity's project scopes the shared
-    // newcomer admission pool; the alias is NOT bound (identities like
+    // Mint a fresh newcomer soul. The alias is NOT bound (identities like
     // "proj:node:dev" are shared display strings across a fleet, and binding
     // one agent's soul to them would lock every other legitimate agent out).
-    const project = identity ? identity.split(':')[0] : undefined;
-    const outcome = actorSouls.register({ project });
+    // Budget guard still resolves the minted soul into the shared newcomer
+    // spend pool; registration count is not an authority boundary.
+    const outcome = actorSouls.register({});
     if (!outcome.ok) {
       logger.error('identity_write_rejected', { route: 'POST /sugar/begin', code: outcome.code });
       return {
@@ -246,9 +246,7 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
         httpStatus: outcome.httpStatus,
         result: {
           success: false,
-          error: outcome.code === 'NEWCOMER_ADMIT_LIMIT'
-            ? 'newcomer admission limit reached for this project today'
-            : 'identity store unavailable',
+          error: 'identity store unavailable',
           code: outcome.code,
         },
       };

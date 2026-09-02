@@ -78,18 +78,18 @@ A forwarding actor — one that sends all communications to another actor — is
 
 This enables hot-swapping of agent implementations: replace an actor with a forwarding actor pointing to a new implementation, and all in-flight messages seamlessly redirect. This is the theoretical basis for versioning and live updates in agent systems.
 
-## Application to WinDAGs Routing and Orchestration
+## Application to Jury-rig Routing and Orchestration
 
 ### Skills as receptionists
 
-Each WinDAGs skill endpoint is a receptionist. Skills should be designed with this in mind:
+Each Jury-rig skill endpoint is a receptionist. Skills should be designed with this in mind:
 - Skills may receive their own address as part of a message, enabling callbacks
 - Skills can spawn sub-skills and pass their addresses for direct communication
 - Skills can be dynamically routed by sending their address to appropriate orchestrators
 
 ### Capability-based routing
 
-The actor model suggests that routing decisions should be based on *who has the address*, not on central routing tables. In WinDAGs:
+The actor model suggests that routing decisions should be based on *who has the address*, not on central routing tables. In Jury-rig:
 - An orchestrator that learns of a skill's address during runtime can route to it directly
 - Skills can introduce agents to each other by sending addresses
 - Access control is implicit: if an agent doesn't know a skill's address, it cannot invoke it
@@ -98,7 +98,7 @@ This is more flexible than central routing: new skills can be introduced into a 
 
 ### The resource manager pattern
 
-The printing resource manager maps directly to WinDAGs skill scheduling:
+The printing resource manager maps directly to Jury-rig skill scheduling:
 - The orchestrator is the resource manager
 - Skills are the "printing devices"  
 - The orchestrator should not statically assign work to specific skill instances
@@ -106,14 +106,14 @@ The printing resource manager maps directly to WinDAGs skill scheduling:
 
 ### Dynamic agent spawning for adaptive parallelism
 
-For tasks of unknown size, WinDAGs should support the balanced addition pattern: spawn agents as needed, scaling parallelism to problem size. This requires:
+For tasks of unknown size, Jury-rig should support the balanced addition pattern: spawn agents as needed, scaling parallelism to problem size. This requires:
 - Agents that can create other agents
 - A tagging scheme that guarantees unique task IDs even for dynamically created tasks
 - A DAG structure that grows as computation proceeds
 
 ### Open system composition
 
-When WinDAGs integrates with external systems, the external actor pattern applies:
+When Jury-rig integrates with external systems, the external actor pattern applies:
 - Define external stubs that buffer communications until the external system is connected
 - When integration occurs, send the stub a "become" message with the real address
 - Buffered messages then flow to the real system

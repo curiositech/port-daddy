@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [3.0.0] - 2026-07-04
 
 ### Added
-- **Imported into the port-daddy repo** (`skills/native-app-designer/`) from the WinDAGs global skill store and upgraded to the repo's agentic-family standard.
+- **Imported into the port-daddy repo** (`skills/native-app-designer/`) from the Jury-rig global skill store and upgraded to the repo's agentic-family standard.
 - Family-standard frontmatter: `license: Apache-2.0`, block-style `metadata.provenance` (first-party/port-daddy), `metadata.pairs-with` (`metal-shader-expert`, `web-design-expert`, `beautiful-gui-design`), `metadata.io-contract` (consumes a native-app design brief + native-ui spec, produces an iOS/macOS design + a native-design audit).
 - Deterministic auditor `scripts/native_design_audit.mjs` exporting `auditNativeDesign(spec)` — scores a native-ui-spec against Apple HIG and repo-hard rules: SF Symbols vs emoji icons, 14pt readable-text floor + Dynamic Type, 44pt tap targets, WCAG 4.5:1 contrast, light/dark, safe areas, system materials. Fails closed.
 - `schemas/native-ui-spec.schema.json` (draft-07), `examples/sample-input.json` (passing), `examples/failing-input.json` (emoji icons + 11pt caption + no Dynamic Type + sub-44pt targets + low contrast + light-only — failing).

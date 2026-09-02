@@ -296,9 +296,9 @@ export const referenceArchitecturesSection: DocsContentSection = {
         },
         {
           type: 'paragraph',
-          title: 'WinDAGs lenses used',
+          title: 'Jury-rig lenses used',
           paragraphs: [
-            'This recommendation was checked against the [WinDAGs skill dossiers](http://windag.ai/), especially `agentic-zero-trust-security`, `tunnels-for-agents`, and `reverse-proxy-for-agents`: reachable does not mean trusted, outbound-only is the default NAT story, and relay headers route envelopes rather than granting authority.',
+            'This recommendation was checked against the [Jury-rig skill dossiers](http://windag.ai/), especially `agentic-zero-trust-security`, `tunnels-for-agents`, and `reverse-proxy-for-agents`: reachable does not mean trusted, outbound-only is the default NAT story, and relay headers route envelopes rather than granting authority.',
             'The always-on and vibe-coding skills push the product shape: stale/fresh markers, bounded inputs, cost gates, local policy checks, worktree-aware handoffs, and proof before merge. That is why the phone is a card-based approval surface, the home PC is a locally gated compute worker, and the colleague gets a separate attenuated card.',
           ],
         },

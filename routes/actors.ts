@@ -43,8 +43,6 @@ interface RegisterActorBody {
   credential?: string;
   /** Operator escape hatch (advisory-above-floor; see ADR-0040 §2.4). */
   operatorToken?: string;
-  /** Project the newcomer will spend against — bounds the admit rate-limit. */
-  project?: string;
 }
 
 interface ActorsQuery {
@@ -160,7 +158,7 @@ export const actorsPlugin: FastifyPluginAsync<{ deps?: ActorsRouteDeps }> = asyn
   // ("<actor_id>.<secret>"); re-presenting a valid credential returns the SAME
   // id (idempotent), a forged/mismatched one is rejected 401 (never mints), and
   // an uncredentialed registration mints a fresh NEWCOMER that draws from the
-  // shared per-project pool — so minting fresh ids buys no new budget.
+  // shared spend pool — so minting fresh ids buys no new budget.
   //
   // This is NOT self-asserted registration. POST /agents still exists for
   // liveness bookkeeping but its self-asserted `id` is a DISPLAY handle only;
@@ -184,7 +182,6 @@ export const actorsPlugin: FastifyPluginAsync<{ deps?: ActorsRouteDeps }> = asyn
       alias: typeof body.alias === 'string' ? body.alias : undefined,
       credential: typeof body.credential === 'string' ? body.credential : undefined,
       operatorToken: typeof body.operatorToken === 'string' ? body.operatorToken : undefined,
-      project: typeof body.project === 'string' ? body.project : undefined,
     });
 
     if (!outcome.ok) {
@@ -192,11 +189,9 @@ export const actorsPlugin: FastifyPluginAsync<{ deps?: ActorsRouteDeps }> = asyn
         success: false,
         error: outcome.code === 'CREDENTIAL_INVALID'
           ? 'credential did not verify'
-          : outcome.code === 'NEWCOMER_ADMIT_LIMIT'
-            ? 'newcomer admission limit reached for this project today'
-            : outcome.code === 'RESERVED_ALIAS'
-              ? 'that alias is a reserved authority name; a self-service soul may not bind it (only an operator-token registration can)'
-              : 'identity store unavailable',
+          : outcome.code === 'RESERVED_ALIAS'
+            ? 'that alias is a reserved authority name; a self-service soul may not bind it (only an operator-token registration can)'
+            : 'identity store unavailable',
         code: outcome.code,
       });
     }

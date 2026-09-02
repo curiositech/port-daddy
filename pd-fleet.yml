@@ -889,15 +889,15 @@ fleet:
       singleton: false
       worktree: true
       allowedTools: "Read,Grep,Glob,Write,Edit,Bash(npm test*),Bash(npx vite*),Bash(git*),Bash(gh*)"
-      # skill_graft (NEW): before spawning, splice a native windags-pattern
+      # jury_rig: before spawning, splice native hybrid-ranked skill guidance
       # skill shortlist (lib/skill-graft.ts, scanned+ranked against this
       # ship's own task text via the shared local MiniLM embedder — no
-      # windags MCP dependency) into the task. test-author is a natural
+      # external skill-runtime dependency) into the task. test-author is a natural
       # first ship for this: "what testing/framework skill applies to the
       # file I'm about to write tests for" is exactly the kind of lookup a
       # human test author would do. Fails open — a skill-graft error never
       # blocks the spawn, it just runs without the extra context that once.
-      skill_graft: true
+      jury_rig: true
       prompt: |
         Read fleet/ships/test-author.md end to end before doing
         anything else.

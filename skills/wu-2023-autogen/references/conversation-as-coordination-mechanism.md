@@ -141,6 +141,6 @@ These gaps represent important research directions for making conversational coo
 
 **Conversation is not just a nice interface for users - it can be the foundational coordination mechanism for multi-agent systems**. When agents are capable enough to interpret messages, maintain context, and respond appropriately, conversation-driven control eliminates the need for centralized orchestration logic. This makes systems more modular, composable, and adaptive at the cost of emergent behavior that may be harder to predict and debug.
 
-For WinDAGs specifically, this suggests: Design skills not as functions to be called but as conversable agents that can participate in multi-turn dialogues. Use message-passing patterns to coordinate skill invocation rather than explicit DAG execution logic. Let conversation flow emerge from agent capabilities and message content rather than predetermined workflows.
+For Jury-rig specifically, this suggests: Design skills not as functions to be called but as conversable agents that can participate in multi-turn dialogues. Use message-passing patterns to coordinate skill invocation rather than explicit DAG execution logic. Let conversation flow emerge from agent capabilities and message content rather than predetermined workflows.
 
 The question is not whether to use conversation-based coordination, but **when its benefits (modularity, adaptability, human integration) outweigh its costs (latency, potential inefficiency, emergent complexity)**.

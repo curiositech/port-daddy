@@ -71,7 +71,7 @@ function startTool2VecWarmup(): void {
     const invocation = resolvePortDaddyInvocation();
     const child = spawn(
       invocation.command,
-      [...invocation.args, 'skill-graft', 'warm', '--max-skills', '32', '--local-only', '--quiet'],
+      [...invocation.args, 'jury-rig', 'warm', '--max-skills', '32', '--local-only', '--quiet'],
       { detached: true, stdio: 'ignore', env: process.env },
     );
     child.once('error', (error) => {

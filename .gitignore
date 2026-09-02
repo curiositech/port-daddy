@@ -74,7 +74,7 @@ apps/pd-ios/.build/
 apps/pd-ios/DerivedData/
 **/build/
 .firecrawl/
-.windags/
+.skill-runtime-archive/
 v0-agentsd-main/
 agentsd_mocks/
 .aider.chat.history.md

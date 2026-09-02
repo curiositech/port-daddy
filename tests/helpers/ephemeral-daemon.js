@@ -67,11 +67,6 @@ export async function startEphemeralDaemon(options = {}) {
       PORT_DADDY_NO_TCP: '1',
       PORT_DADDY_SILENT: '1',
       PORT_DADDY_BIN_OVERRIDE: process.execPath,
-      // #8877 / ADR-0122: /sugar/begin is a mint door and integration suites
-      // begin hundreds of fresh agents against this one daemon; raise the
-      // per-project/day newcomer admission bound so the harness never trips
-      // ADR-0040's default (production keeps the default).
-      PORT_DADDY_NEWCOMER_ADMIT_MAX: '100000',
       NODE_ENV: 'test'
     },
     stdio: ['ignore', 'pipe', process.env.DEBUG_TESTS ? 'inherit' : 'pipe'],

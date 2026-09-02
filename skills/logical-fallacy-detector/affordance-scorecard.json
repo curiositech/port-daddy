@@ -7,7 +7,7 @@
     "recoveredAt": "2026-04-17T02:52:20-07:00",
     "recoveredFrom": "/Users/erichowens/coding/workgroup-ai/.claude/worktrees/agent-aa6fba4b/skills/logical-fallacy-detector",
     "worktree": "agent-aa6fba4b",
-    "ctaOverlay": "/Users/erichowens/coding/workgroup-ai/.windags/cta-upgrades/logical-fallacy-detector/after.md",
+    "ctaOverlay": "/Users/erichowens/coding/workgroup-ai/.skill-runtime-archive/cta-upgrades/logical-fallacy-detector/after.md",
     "owners": [
       "some-claude-skills"
     ]
