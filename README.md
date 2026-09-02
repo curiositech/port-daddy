@@ -312,6 +312,8 @@ Roster agents are daemon-minted `AgentNode` identities that outlive any body or 
 
 For coordination changes, Guard checks the linked session's exact local roadmap item in the intended harbor with fresh same-agent evidence; unrelated items cannot satisfy that link, and incomplete or unavailable reads are distinguished from missing receipts, not presented as canonical remote authority.
 
+During a pending merge, Guard checks paths whose staged contents or file modes differ from **every parent**, including `HEAD`. Unchanged contributions from either branch do not need new claims; genuine resolutions, new files, and deletions still do. Staged filenames remain exact, including whitespace, and unresolved indexes or unavailable Git evidence stop the check explicitly. Ordinary commits keep their normal staged-diff behavior.
+
 ---
 
 ## 🔐 CLI Permission Tiers
