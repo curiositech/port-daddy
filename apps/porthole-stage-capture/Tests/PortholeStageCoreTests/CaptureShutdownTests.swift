@@ -4,6 +4,98 @@ import XCTest
 @testable import PortholeStageCore
 
 final class CaptureShutdownTests: XCTestCase {
+    @MainActor
+    func testControllerClosesDeliveryBeforeAwaitAndPublishesOnlyAfterFinalization() async throws {
+        var order: [String] = []
+        let approval = BoundaryFixtures.approval()
+        let controller = try StageCaptureController(shutdownWork: CaptureShutdownWork(approval: approval,
+            closeDelivery: { order.append("closed") }, stop: { _ in order.append("stopped") },
+            finalize: { _ in order.append("finished") }, publish: { order.append("published"); return nil },
+            cancel: { order.append("cancelled") }), approval: approval)
+        await controller.stopCapture()
+        XCTAssertEqual(order, ["closed", "stopped", "finished", "published"])
+        XCTAssertEqual(controller.lifecycle, .stopped)
+        XCTAssertNil(controller.activeCaptureLease)
+    }
+
+    @MainActor
+    func testControllerCancellationAfterSuccessfulFinalizationCannotPublishReceipt() async throws {
+        var published = false
+        var cancelled = false
+        let approval = BoundaryFixtures.approval()
+        let controller = try StageCaptureController(shutdownWork: CaptureShutdownWork(approval: approval,
+            closeDelivery: {}, stop: { _ in }, finalize: { _ in withUnsafeCurrentTask { $0?.cancel() } },
+            publish: { published = true; return nil }, cancel: { cancelled = true }), approval: approval)
+        let task = Task { await controller.stopCapture() }
+        await task.value
+        XCTAssertFalse(published)
+        XCTAssertTrue(cancelled)
+        XCTAssertNil(controller.proofReceipt)
+        XCTAssertEqual(controller.lifecycle, .failed)
+    }
+
+    @MainActor
+    func testControllerSecondStopRetiresFirstAndDoesNotDoubleFinalize() async throws {
+        var continuation: CheckedContinuation<Void, Never>?
+        let entered = expectation(description: "first stop waiting")
+        var finalized = 0
+        var published = 0
+        var cancelled = 0
+        let approval = BoundaryFixtures.approval()
+        let controller = try StageCaptureController(shutdownWork: CaptureShutdownWork(approval: approval,
+            closeDelivery: {}, stop: { _ in await withCheckedContinuation { continuation = $0; entered.fulfill() } },
+            finalize: { _ in finalized += 1 }, publish: { published += 1; return nil },
+            cancel: { cancelled += 1 }), approval: approval)
+        let first = Task { await controller.stopCapture() }
+        await fulfillment(of: [entered], timeout: 1)
+        await controller.stopCapture()
+        continuation?.resume()
+        await first.value
+        XCTAssertEqual(finalized, 0)
+        XCTAssertEqual(published, 0)
+        XCTAssertEqual(cancelled, 1)
+        XCTAssertEqual(controller.lifecycle, .stopped)
+        XCTAssertNil(controller.activeCaptureLease)
+    }
+
+    @MainActor
+    func testControllerRevocationDuringWriterWaitRetiresReceiptAndApproval() async throws {
+        var continuation: CheckedContinuation<Void, Never>?
+        let entered = expectation(description: "writer waiting")
+        var published = false
+        var cancelled = false
+        let approval = BoundaryFixtures.approval()
+        let controller = try StageCaptureController(shutdownWork: CaptureShutdownWork(approval: approval,
+            closeDelivery: {}, stop: { _ in },
+            finalize: { _ in await withCheckedContinuation { continuation = $0; entered.fulfill() } },
+            publish: { published = true; return nil }, cancel: { cancelled = true }), approval: approval)
+        let stop = Task { await controller.stopCapture() }
+        await fulfillment(of: [entered], timeout: 1)
+        await controller.revokeApproval(approval.approvalID)
+        XCTAssertTrue(controller.statusMessage.contains("pending proof is invalidated"))
+        continuation?.resume()
+        await stop.value
+        XCTAssertFalse(published)
+        XCTAssertTrue(cancelled)
+        XCTAssertTrue(controller.approvedSources.isEmpty)
+        XCTAssertNil(controller.activeCaptureLease)
+        XCTAssertEqual(controller.lifecycle, .stopped)
+    }
+
+    @MainActor
+    func testControllerTimedOutRevokeDoesNotReplaceFailureWithStoppedClaim() async throws {
+        let approval = BoundaryFixtures.approval()
+        let controller = try StageCaptureController(shutdownWork: CaptureShutdownWork(approval: approval,
+            closeDelivery: {}, stop: { _ in throw CaptureShutdownError.timedOut("Screen capture") },
+            finalize: { _ in XCTFail("revocation must not finalize") },
+            publish: { XCTFail("revocation must not publish"); return nil }, cancel: {}), approval: approval)
+        await controller.revokeApproval(approval.approvalID)
+        XCTAssertEqual(controller.lifecycle, .failed)
+        XCTAssertTrue(controller.statusMessage.contains("system shutdown is unconfirmed"))
+        XCTAssertFalse(controller.statusMessage.contains("Streams stopped"))
+        XCTAssertTrue(controller.approvedSources.isEmpty)
+    }
+
     func testSynchronousSuccessAndDuplicateCallbackResumeOnlyOnce() async throws {
         try await CaptureShutdownDeadline(seconds: 1).wait(phase: "stop") { callback in
             callback(nil)

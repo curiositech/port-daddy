@@ -1,5 +1,18 @@
 import Foundation
 
+/// Internal resource seam for the actual controller shutdown path. It carries
+/// no source filter or capture-start capability. Tests can supply callbacks
+/// without constructing ScreenCaptureKit or reading operator state.
+@MainActor
+struct CaptureShutdownWork {
+    let approval: SourceApproval?
+    let closeDelivery: () -> Void
+    let stop: (CaptureShutdownDeadline) async throws -> Void
+    let finalize: (CaptureShutdownDeadline) async throws -> Void
+    let publish: () throws -> PortholeProofReceipt?
+    let cancel: () -> Void
+}
+
 enum CaptureShutdownError: Error, Equatable, LocalizedError {
     case timedOut(String)
 

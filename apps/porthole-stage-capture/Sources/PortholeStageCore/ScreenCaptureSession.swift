@@ -617,7 +617,7 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
     private let pickerSourcePolicy: PickerSelectedSourcePolicy
     private let runtime: RuntimeMetadata
     private let metadataEmitter = MetadataEmitter()
-    private let picker = SCContentSharingPicker.shared
+    private let picker: SCContentSharingPicker?
     private let keychainStore = KeychainSignedProgramApprovalStore()
     private var ledger = SourceApprovalLedger()
     private var pickerSelection: PickerSelectionBinding?
@@ -639,9 +639,18 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
     private var proofInvalidated = false
     private var operationGate = CaptureOperationGate()
     private var shutdownGeneration = UUID()
+    private var finalizingApprovalID: String?
+#if DEBUG
+    private var injectedShutdownWork: CaptureShutdownWork?
+#endif
 
-    public init(proofConfiguration: ProofConfiguration? = nil) {
+    public convenience init(proofConfiguration: ProofConfiguration? = nil) {
+        self.init(proofConfiguration: proofConfiguration, useSystemPicker: true)
+    }
+
+    private init(proofConfiguration: ProofConfiguration?, useSystemPicker: Bool) {
         self.proofConfiguration = proofConfiguration
+        picker = useSystemPicker ? SCContentSharingPicker.shared : nil
         pickerSourcePolicy = PickerSelectedSourcePolicy(
             currentProcessID: ProcessInfo.processInfo.processIdentifier
         )
@@ -657,13 +666,29 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
         )
         ring = try! MonotonicFrameRing(capacity: Self.frameRingCapacity)
         super.init()
-        configureSystemPicker()
+        if useSystemPicker { configureSystemPicker() }
     }
+
+#if DEBUG
+    /// Debug-only internal seam: a shutdown callback cannot authorize capture.
+    /// No filters are installed; normal start still requires a real picker and
+    /// signed runtime binding. Release builds do not contain this initializer.
+    convenience init(shutdownWork: CaptureShutdownWork, approval: SourceApproval) throws {
+        self.init(proofConfiguration: nil, useSystemPicker: false)
+        try ledger.approve(approval)
+        approvedSources = ledger.approvedSources
+        selectedApprovalID = approval.approvalID
+        activeCaptureLease = CaptureLeaseIdentity(leaseID: "test-shutdown-only", approvalID: approval.approvalID,
+            displayTitle: approval.displayTitle, sourceKind: .window, sourceWindowID: 77)
+        lifecycle = .live
+        injectedShutdownWork = shutdownWork
+    }
+#endif
 
     deinit {
         leaseTimer?.invalidate()
         proofStopTask?.cancel()
-        picker.remove(self)
+        picker?.remove(self)
     }
 
     public var selectedApprovalCanEnterStage: Bool {
@@ -704,6 +729,7 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
     }
 
     public func presentSystemPicker(for sourceKind: ApprovedSourceKind) async {
+        guard let picker else { return }
         if proofConfiguration != nil, sourceKind != .window {
             statusMessage = "Proof mode accepts one exact fixture window, never an application or display."
             return
@@ -711,6 +737,7 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
         if stream != nil || latestImage != nil {
             await stopStream(finalState: .ready, finalizeProof: true)
             clearLiveState()
+            guard lifecycle != .failed else { return }
         }
         pickerSelection = nil
         pendingApprovalReview = nil
@@ -800,6 +827,7 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
         if activeCaptureLease?.approvalID != approvalID, stream != nil || latestImage != nil {
             await stopStream(finalState: .ready, finalizeProof: true)
             clearLiveState()
+            guard lifecycle != .failed else { return }
         }
         selectedApprovalID = approvalID
         if approvedFilters[approvalID] == nil {
@@ -810,6 +838,8 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
     }
 
     public func revokeApproval(_ approvalID: String) async {
+        let wasFinalizing = finalizingApprovalID == approvalID
+        if wasFinalizing { proofInvalidated = true }
         operationGate.beginStop(cancelPendingStart:
             selectedApprovalID == approvalID || activeCaptureLease?.approvalID == approvalID)
         defer { operationGate.finishStop() }
@@ -825,7 +855,11 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
         approvedFilters.removeValue(forKey: approvalID)
         if selectedApprovalID == approvalID { selectedApprovalID = nil }
         publishLedger()
-        statusMessage = "Revoked. Streams stopped, frames and cursors cleared, and future writes are blocked."
+        if lifecycle != .failed {
+            statusMessage = wasFinalizing
+                ? "Revoked. Local frame delivery is closed and the pending proof is invalidated."
+                : "Revoked. Streams stopped, frames and cursors cleared, and future writes are blocked."
+        }
     }
 
     public func startCapture() async {
@@ -846,6 +880,7 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
         }
         if stream != nil {
             await stopStream(finalState: .ready, finalizeProof: true, cancelPendingStart: false)
+            guard lifecycle != .failed else { return }
         }
         guard operationGate.permitsCompletion(startTicket) else { return }
         guard validateRuntimeBinding(binding, approval: approval),
@@ -921,7 +956,12 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
                 lastMonotonicNanos: 0,
                 proofRecorder: recorder,
                 onFrame: { [weak self] frame in
-                    Task { @MainActor in self?.consume(frame) }
+                    Task { @MainActor in
+                        // A frame may already be queued when Stop detaches its
+                        // stream. It cannot invalidate or revive a newer lease.
+                        guard let self, self.activeCaptureLease == lease else { return }
+                        self.consume(frame)
+                    }
                 },
                 onError: { [weak self] error in
                     Task { @MainActor in
@@ -988,7 +1028,7 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
             lifecycle = .stopped
             statusMessage = didWriteReceipt
                 ? "Stopped · approved proof receipt written · preview cleared"
-                : "Stopped · preview, ring, and cursors cleared · nothing saved"
+                : "Stopped · preview, ring, and cursors cleared · no proof receipt"
         }
     }
 
@@ -1034,6 +1074,7 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
     }
 
     private func configureSystemPicker() {
+        guard let picker else { return }
         var configuration = SCContentSharingPickerConfiguration()
         configuration.allowedPickerModes = [.singleWindow, .singleApplication]
         configuration.excludedBundleIDs = pickerSourcePolicy.excludedBundlePrefixes + [
@@ -1329,6 +1370,32 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
         let stoppingStream = stream
         let recorder = proofRecorder
         let manifest = finalizeProof && !proofInvalidated ? proofManifest(recorder: recorder) : nil
+        let proofOutput = proofConfiguration?.outputDirectory
+        var work = CaptureShutdownWork(
+            approval: manifest?.sourceApproval,
+            closeDelivery: {}, // Real outputs were synchronously retired above.
+            stop: { deadline in
+                if let stoppingStream { try await Self.stop(stoppingStream, deadline: deadline) }
+            },
+            finalize: { deadline in
+                if manifest != nil, let recorder { try await recorder.finish(deadline: deadline) }
+                else { recorder?.cancel() }
+            },
+            publish: {
+                guard let manifest, let proofOutput else { return nil }
+                return try ProofArtifactWriter.write(manifest: manifest, outputDirectory: proofOutput)
+            },
+            cancel: { recorder?.cancel() }
+        )
+#if DEBUG
+        if let injectedShutdownWork {
+            work = injectedShutdownWork
+            self.injectedShutdownWork = nil
+        }
+#endif
+        work.closeDelivery()
+        finalizingApprovalID = work.approval?.approvalID
+        defer { if shutdownGeneration == generation { finalizingApprovalID = nil } }
         stream = nil
         output = nil
         proofRecorder = nil
@@ -1339,24 +1406,21 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
         proofReceipt = nil
         if !preservePreview { clearLiveState() }
         do {
-            if let stoppingStream { try await Self.stop(stoppingStream, deadline: deadline) }
-            guard shutdownGeneration == generation else { recorder?.cancel(); return }
-            if let recorder, let manifest, let proofConfiguration {
-                try await recorder.finish(deadline: deadline)
-                // Revocation or another Stop during finalization cannot be
-                // undone by a late writer callback or create a success receipt.
-                guard shutdownGeneration == generation, !proofInvalidated,
-                      approvedSources.contains(manifest.sourceApproval) else { recorder.cancel(); return }
-                proofReceipt = try ProofArtifactWriter.write(
-                    manifest: manifest,
-                    outputDirectory: proofConfiguration.outputDirectory
-                )
-            } else {
-                recorder?.cancel()
-            }
+            try await work.stop(deadline)
+            guard shutdownGeneration == generation else { work.cancel(); return }
+            if finalizeProof, !proofInvalidated { try await work.finalize(deadline) }
+            else { work.cancel() }
+            // Success callbacks can race with task cancellation, revocation,
+            // or a newer Stop. None can be undone by receipt publication.
+            try Task.checkCancellation()
+            guard shutdownGeneration == generation else { work.cancel(); return }
+            if finalizeProof, !proofInvalidated,
+               work.approval.map({ approvedSources.contains($0) }) ?? true {
+                proofReceipt = try work.publish()
+            } else { work.cancel() }
             if let finalState, lifecycle != .failed { lifecycle = finalState }
         } catch {
-            recorder?.cancel()
+            work.cancel()
             guard shutdownGeneration == generation else { return }
             proofInvalidated = true
             clearLiveState()
