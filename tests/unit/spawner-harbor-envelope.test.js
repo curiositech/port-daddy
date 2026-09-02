@@ -87,6 +87,7 @@ const transportSpies = [
   [https, 'request', 'https-request'], [https, 'get', 'https-get'],
   [net, 'connect', 'net-connect'], [net, 'createConnection', 'net-create-connection'],
   [net.Socket.prototype, 'connect', 'socket-connect'], [tls, 'connect', 'tls-connect'],
+  [net.Server.prototype, 'listen', 'server-listen'],
 ].map(([target, key, kind]) => jest.spyOn(target, key).mockImplementation(() => refuseTransport(kind)));
 // Keep named builtin imports behind the same guard as their default exports.
 syncBuiltinESMExports();
@@ -125,6 +126,23 @@ jest.unstable_mockModule('node:child_process', () => ({
   spawn: jest.fn(() => mockChildProcess),
   execSync: jest.fn(),
   execFileSync: jest.fn(),
+}));
+
+// The real Coast Guard runner starts a loopback meter before launching the
+// child. Metering I/O is outside this envelope unit's scope: use a non-network
+// meter while retaining the real runner, confinement, env scrubbing and finally
+// disposal. Native listen remains forbidden, including under OS network denial.
+const fixtureMeters = [];
+jest.unstable_mockModule('../../lib/coast-guard/egress-meter.js', () => ({
+  EgressMeter: class {
+    constructor() {
+      this.state = { requests: 0, bytes: 0, blocked: 0, injected: 0 };
+      this.proxyUrl = 'http://egress-meter.test.invalid:31337';
+      this.listen = jest.fn(async () => 31337);
+      this.dispose = jest.fn();
+      fixtureMeters.push(this);
+    }
+  },
 }));
 
 const { spawn: cpSpawn } = await import('node:child_process');
@@ -182,16 +200,32 @@ function makeDeps(envelope) {
 // enforcement, not the guard (covered by spawner-isolation-guard.test.js), so
 // opt out of layer-2 isolation for a checkout-independent run.
 const originalSpawnIsolationOff = process.env.PD_SPAWN_ISOLATION_OFF;
-beforeAll(() => { process.env.PD_SPAWN_ISOLATION_OFF = '1'; });
+const originalCoastGuardOff = process.env.PD_COAST_GUARD_OFF;
+beforeAll(() => {
+  process.env.PD_SPAWN_ISOLATION_OFF = '1';
+  // Exercise the enabled runner even if a developer's shell opted out.
+  delete process.env.PD_COAST_GUARD_OFF;
+});
 afterAll(() => {
   if (originalSpawnIsolationOff === undefined) delete process.env.PD_SPAWN_ISOLATION_OFF;
   else process.env.PD_SPAWN_ISOLATION_OFF = originalSpawnIsolationOff;
+  if (originalCoastGuardOff === undefined) delete process.env.PD_COAST_GUARD_OFF;
+  else process.env.PD_COAST_GUARD_OFF = originalCoastGuardOff;
+});
+afterEach(() => {
+  expect(fixtureMeters).toHaveLength(cpSpawn.mock.calls.length);
+  for (const meter of fixtureMeters) {
+    expect(meter.listen).toHaveBeenCalledTimes(1);
+    expect(meter.listen).toHaveBeenCalledWith(0);
+    expect(meter.dispose).toHaveBeenCalledTimes(1);
+  }
 });
 
 beforeEach(() => {
   assertNoUnexpectedNetwork();
   pinFixtureEnvironment();
   registeredAgents.clear();
+  fixtureMeters.length = 0;
   cpSpawn.mockClear();
   coordinationFetch.mockClear();
 });
@@ -211,7 +245,7 @@ describe('hermetic transport boundary', () => {
     try {
       pinFixtureEnvironment();
       const result = await createSpawner(makeDeps(null)).spawn({ backend: 'custom', task: 'fixture only' });
-      expect(result.status).not.toBe('failed');
+      expect({ status: result.status, error: result.error }).toEqual({ status: 'completed', error: null });
       expect(coordinationFetch.mock.calls.map(([url]) => new URL(url).pathname))
         .toEqual(expect.arrayContaining(['/agents', '/sugar/begin', '/sugar/done']));
       expect(transportSpies.every(spy => spy.mock.calls.length === 0)).toBe(true);
@@ -253,6 +287,8 @@ describe('hermetic transport boundary', () => {
     ['net-create-connection', () => net.createConnection({ path: '/operator/daemon.sock' })],
     ['socket-connect', () => new net.Socket().connect({ path: '/operator/daemon.sock' })],
     ['tls-connect', () => tls.connect({ port: 443, host: 'relay.invalid' })],
+    ['server-listen', () => net.createServer().listen(0, '127.0.0.1')],
+    ['server-listen', () => net.createServer().listen('/operator/daemon.sock')],
   ])('blocks the %s escape hatch before opening a connection', (kind, attempt) => {
     try {
       expect(attempt).toThrow('Unexpected network attempt');
@@ -269,7 +305,7 @@ describe('hermetic transport boundary', () => {
     try {
       const result = await createSpawner(makeDeps(null)).spawn({ backend: 'custom', task: 'swallowed-error fixture' });
       // Production intentionally keeps running after a coordination failure.
-      expect(result.status).not.toBe('failed');
+      expect({ status: result.status, error: result.error }).toEqual({ status: 'completed', error: null });
       expect(new URL(coordinationFetch.mock.calls[0][0]).pathname).toBe('/agents');
       expect(networkViolations.length).toBeGreaterThanOrEqual(3);
       expect(networkViolations.every(kind => kind === 'fetch-origin')).toBe(true);
@@ -295,7 +331,7 @@ describe('spawner P4 — harbor envelope enforcement', () => {
       identity: 'myapp:api:test',
     });
 
-    expect(result.status).not.toBe('failed');
+    expect({ status: result.status, error: result.error }).toEqual({ status: 'completed', error: null });
     expect(harbors.assertWithinEnvelope).not.toHaveBeenCalled();
     expect(bonds.escrow).toHaveBeenCalled();
     expect(coordinationFetch.mock.calls.map(([url]) => new URL(url).pathname))
@@ -332,12 +368,14 @@ describe('spawner P4 — harbor envelope enforcement', () => {
       identity: 'myapp:api:test',
     });
 
-    expect(result.status).not.toBe('failed');
+    expect({ status: result.status, error: result.error }).toEqual({ status: 'completed', error: null });
     expect(bonds.escrow).toHaveBeenCalled();
     // PD_HARBOR_ENVELOPE propagated to the child via the env IPC channel
     expect(cpSpawn).toHaveBeenCalled();
     const spawnOpts = cpSpawn.mock.calls.at(-1)[2];
     expect(spawnOpts.env.PD_HARBOR_NAME).toBe('myapp:fleet');
+    expect(spawnOpts.env.PD_COAST_GUARD).toBe('1');
+    expect(spawnOpts.env.HTTPS_PROXY).toBe('http://egress-meter.test.invalid:31337');
     expect(JSON.parse(spawnOpts.env.PD_HARBOR_ENVELOPE).backends).toEqual(['custom']);
     expect(coordinationFetch.mock.calls.map(([url]) => new URL(url).pathname))
       .toEqual(expect.arrayContaining(['/agents', '/sugar/begin', '/sugar/done']));
