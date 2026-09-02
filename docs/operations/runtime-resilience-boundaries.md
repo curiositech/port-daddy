@@ -62,6 +62,12 @@ request, actor and tenant correlation remains attached; the logger's separate
 correlation-input contract is unchanged. Display errors elsewhere are not
 claimed scrubbed by this bounded slice.
 
+Required dependency loads still reject with real `Error` instances. Their
+message and fields come from authentic closed classifications, not arbitrary
+callback rejections. The local model-download refusal preserves fixed
+no-network/explicit-consent guidance without exposing cache or model paths.
+Copied prose and JSON do not gain that diagnostic identity or retry authority.
+
 ## Verified boundary and remaining integration
 
 Source tests cover competing probes, stale and repeated settlement, cancellation

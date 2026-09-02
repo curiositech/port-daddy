@@ -22,6 +22,7 @@
 import {
   BackendCircuitBreaker,
   CircuitOpenError,
+  classifyAgentError,
   runResilientSpawn,
   safeDiagnosticIdentifier,
   type BackoffConfig,
@@ -90,6 +91,12 @@ export function createGatedLoader<T>(
           meta: { dependency: label, code: event.error.code, retryable: event.error.retryable },
         });
       },
+    }).catch((failure: unknown) => {
+      if (failure instanceof CircuitOpenError) throw failure;
+      // Required dependency callers use the Error-instance contract. Preserve
+      // only closed classified fields, never the original exception or cause.
+      const error = classifyAgentError(failure);
+      throw Object.assign(new Error(error.message), error);
     });
     value = v;
     loaded = true;

@@ -57,6 +57,40 @@ interface Signal {
 // Only an in-process host/transport witness may authorize dispatch retry or
 // backend replacement. JSON, stderr, and model output cannot mint this identity.
 const witnessedFailures = new WeakSet<object>();
+const classifiedFailures = new WeakSet<object>();
+const localPolicyFailures = new WeakMap<object, AgentError>();
+
+/**
+ * Keep this module's closed classifications recognizable across its callers.
+ * This identity is diagnostic only, separate from the host failover witness.
+ * @param fields Locally constructed safe error fields, never a raw rejection.
+ * @returns A frozen classified error and frozen diagnostic detail projection.
+ */
+function closedError(fields: Parameters<typeof makeError>[0]): AgentError {
+  const error = Object.freeze(makeError({
+    ...fields, ...(fields.details ? { details: Object.freeze({ ...fields.details }) } : {}),
+  }));
+  classifiedFailures.add(error);
+  return error;
+}
+
+/**
+ * Describe the locally enforced model-download refusal without private paths.
+ * Object identity keeps tool JSON or copied prose from supplying this trusted
+ * diagnostic. This signal is nonretryable and never authorizes a successor.
+ * @returns A real Error with fixed no-network and consent guidance.
+ */
+export function localModelDownloadDisabledError(): Error {
+  const message = 'Semantic embedder unavailable: remote model download is disabled by default '
+    + '(local-only egress policy; no network attempt was made). Prefetch the model or explicitly '
+    + 'enable PORT_DADDY_ALLOW_MODEL_DOWNLOAD=1 for a one-time download. Retrieval remains degraded until a model is available.';
+  const error = Object.freeze(new Error(message));
+  localPolicyFailures.set(error, closedError({
+    code: 'UNAVAILABLE', message, retryable: false,
+    details: Object.freeze({ reason: 'model_download_disabled' }),
+  }));
+  return error;
+}
 
 /**
  * Preserve a locally observed terminal fact in the existing AgentError shape.
@@ -70,7 +104,7 @@ export function witnessedBackendFailure(fact: { kind: 'timeout' } | { kind: 'os'
     : fact.code === 'ENOENT' ? 'BACKEND_ABSENT'
       : ['EAGAIN', 'ECONNRESET', 'ECONNREFUSED', 'ETIMEDOUT', 'EAI_AGAIN'].includes(fact.code) ? 'UNAVAILABLE'
         : ['EACCES', 'EPERM'].includes(fact.code) ? 'UNAUTHORIZED' : 'INTERNAL';
-  const error = Object.freeze(makeError({ code, message: `Backend failure: ${code}` }));
+  const error = closedError({ code, message: `Backend failure: ${code}` });
   witnessedFailures.add(error);
   return error;
 }
@@ -185,6 +219,9 @@ export function classifyAgentError(
   opts: { backend?: string; maxRetries?: number } = {},
 ): AgentError {
   if (isWitnessedBackendFailure(err)) return err;
+  if (typeof err === 'object' && err !== null && classifiedFailures.has(err)) return err as AgentError;
+  const localPolicy = typeof err === 'object' && err !== null ? localPolicyFailures.get(err) : undefined;
+  if (localPolicy) return localPolicy;
   const chain = errorChain(err);
   const messages = chain.length ? chain.map(error => ownData(error, 'message')) : [err];
   const message = messages.filter((value): value is string => typeof value === 'string').join('\n');
@@ -201,7 +238,7 @@ export function classifyAgentError(
   const code: AgentErrorCode = opaqueStatus ? 'INTERNAL' : structured ?? hit?.code ?? 'INTERNAL';
   const retryAfterMs = parseRetryAfterMs(message);
   const invalidRetryHint = /\bretry[- ]after\b/i.test(message) && retryAfterMs === undefined;
-  return makeError({
+  return closedError({
     code,
     message: `Backend failure: ${code}`,
     ...(invalidRetryHint ? { retryable: false } : {}),
@@ -426,7 +463,7 @@ export async function runResilientSpawn<T>(
    * @returns Nothing; wakes bounded waits through the local signal.
    */
   const stop = (code: 'CANCELLED' | 'TIMEOUT') => {
-    boundaryError ??= makeError({ code, message: `Backend failure: ${code}`, retryable: false, details: { reason: code === 'TIMEOUT' ? 'total_deadline' : 'cancelled' } });
+    boundaryError ??= closedError({ code, message: `Backend failure: ${code}`, retryable: false, details: { reason: code === 'TIMEOUT' ? 'total_deadline' : 'cancelled' } });
     controller.abort();
   };
   /** Forward cancellation without its payload by design. @returns Nothing. */
@@ -498,7 +535,7 @@ export async function runResilientSpawn<T>(
         // Honour an upstream Retry-After; else full-jitter backoff.
         const delayMs = error.retryAfterMs ?? fullJitterDelay(attempt, cfg.backoff);
         if (delayMs >= deadline - now()) {
-          const deferred = makeError({ ...error, retryable: false, details: { reason: 'retry_after_exceeds_deadline' } });
+          const deferred = closedError({ ...error, retryable: false, details: { reason: 'retry_after_exceeds_deadline' } });
           emit({ kind: 'permanent', backend: label, attempt, error: deferred });
           throw deferred;
         }
@@ -506,14 +543,14 @@ export async function runResilientSpawn<T>(
         try {
           await bounded(Promise.resolve().then(() => { checkBoundary(); return sleep(delayMs, controller.signal); }));
         } catch {
-          const stopped = boundaryError ?? makeError({ code: 'INTERNAL', message: 'Backoff failed', retryable: false });
+          const stopped = boundaryError ?? closedError({ code: 'INTERNAL', message: 'Backoff failed', retryable: false });
           emit({ kind: 'permanent', backend: label, attempt, error: stopped });
           throw stopped;
         }
       }
     }
 
-    const exhausted = lastErr ?? makeError({ code: 'INTERNAL', message: 'spawn exhausted retries', retryable: false });
+    const exhausted = lastErr ?? closedError({ code: 'INTERNAL', message: 'spawn exhausted retries', retryable: false });
     emit({ kind: 'exhausted', backend: label, attempts: cfg.maxAttempts, error: exhausted });
     throw exhausted;
   } finally {

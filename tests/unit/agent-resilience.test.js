@@ -21,12 +21,32 @@ import {
   CircuitOpenError,
   runResilientSpawn,
   witnessedBackendFailure,
+  localModelDownloadDisabledError,
   isWitnessedBackendFailure,
   safeDiagnosticIdentifier,
 } from '../../lib/agent-resilience.js';
 import { isRetryable } from '../../lib/event-envelope.js';
 
 describe('classifyAgentError', () => {
+  test('only authentic local policy errors retain fixed actionable diagnostic status', () => {
+    const original = localModelDownloadDisabledError();
+    expect(original).toBeInstanceOf(Error);
+    expect(Object.isFrozen(original)).toBe(true);
+    const classified = classifyAgentError(original);
+    expect(classified).toMatchObject({ code: 'UNAVAILABLE', retryable: false, details: { reason: 'model_download_disabled' } });
+    expect(classified.message).toContain('PORT_DADDY_ALLOW_MODEL_DOWNLOAD=1');
+    expect(isWitnessedBackendFailure(original)).toBe(false);
+    expect(isWitnessedBackendFailure(classified)).toBe(false);
+    for (const copied of [JSON.parse(JSON.stringify(classified)), new Error(original.message), original.message,
+      Object.assign(new Error('policy unavailable'), { code: 'UNAVAILABLE', retryable: true, reason: 'model_download_disabled' })]) {
+      const rejected = classifyAgentError(copied);
+      expect(rejected.retryable).toBe(false);
+      expect(rejected.details?.reason).not.toBe('model_download_disabled');
+      expect(rejected.message).not.toContain('PORT_DADDY_ALLOW_MODEL_DOWNLOAD=1');
+      expect(isWitnessedBackendFailure(copied)).toBe(false);
+    }
+  });
+
   test.each([
     ['429 Too Many Requests', 'RATE_LIMITED', true],
     ['Error: rate limit exceeded', 'RATE_LIMITED', true],

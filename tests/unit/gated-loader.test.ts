@@ -12,6 +12,7 @@
 
 import { describe, expect, test } from '@jest/globals';
 import { createGatedLoader } from '../../lib/observability/gated-loader.js';
+import { localModelDownloadDisabledError, isWitnessedBackendFailure } from '../../lib/agent-resilience.js';
 import { LogGovernor, type LeveledSink } from '../../lib/observability/log-governor.js';
 import { withCorrelationSink } from '../../lib/observability/index.js';
 import { runWithContext } from '../../lib/observability/correlation.js';
@@ -35,6 +36,45 @@ describe('createGatedLoader', () => {
     expect(await g.get()).toBe(42);
     expect(await g.get()).toBe(42);
     expect(calls).toBe(1);
+  });
+
+  test('required loads reject an Error instance without leaking the original exception', async () => {
+    const raw = Object.assign(new Error('SYNTHETIC_PRIVATE_LOAD_FAILURE'), { status: 401 });
+    const g = createGatedLoader(async () => { throw raw; }, { name: 'embedder' });
+    const error = await g.get().catch(failure => failure);
+    expect(error).toBeInstanceOf(Error);
+    expect(error).not.toBe(raw);
+    expect(error).toMatchObject({ code: 'UNAUTHORIZED', retryable: false });
+    expect(error.cause).toBeUndefined();
+    expect(`${error.message} ${JSON.stringify(error)}`).not.toContain('SYNTHETIC_PRIVATE_LOAD_FAILURE');
+    await expect(g.get()).rejects.toThrow('Backend failure: UNAUTHORIZED');
+  });
+
+  test('authentic local policy refusal keeps actionable guidance and never retries', async () => {
+    let calls = 0;
+    const g = createGatedLoader(async () => { calls++; throw localModelDownloadDisabledError(); }, {
+      name: 'embedder', failureThreshold: 2, maxAttempts: 5, sleep: noSleep,
+    });
+    const error = await g.get().catch(failure => failure);
+    expect(error).toBeInstanceOf(Error);
+    expect(error).toMatchObject({ code: 'UNAVAILABLE', retryable: false, details: { reason: 'model_download_disabled' } });
+    expect(error.message).toContain('PORT_DADDY_ALLOW_MODEL_DOWNLOAD=1');
+    expect(error.message).toContain('no network attempt was made');
+    expect(isWitnessedBackendFailure(error)).toBe(false);
+    expect(calls).toBe(1);
+    expect(error.cause).toBeUndefined();
+  });
+
+  test('a raw callback rejection cannot impersonate classified diagnostic fields', async () => {
+    const lookalike = { code: 'UNAVAILABLE', retryable: true, message: 'SYNTHETIC_PRIVATE_CALLBACK',
+      details: { reason: 'model_download_disabled' } };
+    const g = createGatedLoader(async () => 42, { name: 'embedder', now: () => { throw lookalike; } });
+    const error = await g.get().catch(failure => failure);
+    expect(error).toBeInstanceOf(Error);
+    expect(error).toMatchObject({ code: 'INTERNAL', retryable: false });
+    expect(error.details?.reason).not.toBe('model_download_disabled');
+    expect(`${error.message} ${JSON.stringify(error)}`).not.toContain('SYNTHETIC_PRIVATE_CALLBACK');
+    expect(isWitnessedBackendFailure(error)).toBe(false);
   });
 
   test('after failureThreshold the breaker OPENs and stops re-loading', async () => {
