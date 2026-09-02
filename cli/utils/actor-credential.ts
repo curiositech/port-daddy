@@ -15,7 +15,7 @@
 
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { getContextDir, readCurrentContext, resolveContextSlot } from './current-context.js';
+import { getContextDir, resolveCurrentContext, resolveContextSlot } from './current-context.js';
 
 interface StoredCliActor {
   agentId?: string | null;
@@ -69,9 +69,13 @@ function readStoredCliActor(): StoredCliActor | null {
 export function resolveCliActorCredential(expectedAgentId?: string): string | undefined {
   const envCredential = process.env.PD_ACTOR_CREDENTIAL?.trim()
     || process.env.PORT_DADDY_ACTOR_CREDENTIAL?.trim();
-  if (envCredential) return envCredential;
+  const pairedEnvAgentId = process.env.PD_AGENT_ID?.trim();
+  if (envCredential && (!expectedAgentId || !pairedEnvAgentId || pairedEnvAgentId === expectedAgentId)) {
+    return envCredential;
+  }
   try {
-    const context = readCurrentContext();
+    const resolution = resolveCurrentContext();
+    const context = resolution.success ? resolution.context : null;
     if (
       context &&
       typeof context.credential === 'string' &&

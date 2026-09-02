@@ -21,6 +21,35 @@ export interface CurrentContext {
   credential?: string | null;
 }
 
+export interface CurrentContextProvenance {
+  source: 'environment' | 'slot' | 'legacy';
+  agentId: string;
+  sessionId: string;
+  contextSlot?: string;
+  path?: string;
+}
+
+export type CurrentContextResolution =
+  | {
+      success: true;
+      context: CurrentContext | null;
+      provenance: CurrentContextProvenance | null;
+      ignoredPartialEnvironment?: {
+        agentId: string | null;
+        sessionId: string | null;
+      };
+    }
+  | {
+      success: false;
+      context: null;
+      code: 'CONTEXT_CONFLICT';
+      error: string;
+      provenances: {
+        environment: CurrentContextProvenance;
+        stored: CurrentContextProvenance;
+      };
+    };
+
 function sanitizeSlot(raw: string): string {
   return raw.replace(/[^A-Za-z0-9._-]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'default';
 }
@@ -149,6 +178,89 @@ function listStoredContexts(cwd: string): Array<{ path: string; context: Current
     .sort((a, b) => b.mtimeMs - a.mtimeMs);
 }
 
+/**
+ * Resolve the calling shell's current identity without guessing across
+ * contradictory authorities. The design treats `PD_AGENT_ID` and
+ * `PD_SESSION_ID` as one atomic environment assertion: a lone half is
+ * diagnostic residue, never authority capable of suppressing a complete
+ * per-slot record. When a complete environment pair contradicts a complete
+ * stored pair, the caller receives both provenances and must either pass an
+ * explicit CLI scope or repair the stale carrier.
+ *
+ * @param cwd - Repository/worktree whose `.portdaddy` context store is read.
+ * @returns A resolved context, no context, or a structured CONTEXT_CONFLICT.
+ */
+export function resolveCurrentContext(cwd: string = process.cwd()): CurrentContextResolution {
+  const slot = resolveContextSlot();
+  const slotPath = getContextPathForSlot(slot, cwd);
+  const slotRecord = readContextFile(slotPath);
+  const legacyPath = getLegacyContextPath(cwd);
+  const legacyRecord = slotRecord ? null : readContextFile(legacyPath);
+  const storedRecord = slotRecord || (legacyRecord && canUseLegacyContextForSlot(legacyRecord, slot) ? legacyRecord : null);
+  const storedProvenance: CurrentContextProvenance | null = storedRecord
+    ? {
+        source: slotRecord ? 'slot' : 'legacy',
+        agentId: storedRecord.agentId,
+        sessionId: storedRecord.sessionId,
+        contextSlot: storedRecord.contextSlot || slot,
+        path: slotRecord ? slotPath : legacyPath,
+      }
+    : null;
+
+  const envAgentId = process.env.PD_AGENT_ID?.trim() || null;
+  const envSessionId = process.env.PD_SESSION_ID?.trim() || null;
+  const completeEnvironment = Boolean(envAgentId && envSessionId);
+  const partialEnvironment = Boolean(envAgentId || envSessionId) && !completeEnvironment;
+
+  if (completeEnvironment) {
+    const environmentProvenance: CurrentContextProvenance = {
+      source: 'environment',
+      agentId: envAgentId as string,
+      sessionId: envSessionId as string,
+    };
+    if (
+      storedProvenance
+      && (
+        storedProvenance.agentId !== environmentProvenance.agentId
+        || storedProvenance.sessionId !== environmentProvenance.sessionId
+      )
+    ) {
+      return {
+        success: false,
+        context: null,
+        code: 'CONTEXT_CONFLICT',
+        error: 'Complete environment identity conflicts with the current context slot; pass explicit --session/--agent or repair the stale carrier.',
+        provenances: {
+          environment: environmentProvenance,
+          stored: storedProvenance,
+        },
+      };
+    }
+
+    return {
+      success: true,
+      context: storedRecord
+        ? { ...storedRecord, agentId: environmentProvenance.agentId, sessionId: environmentProvenance.sessionId }
+        : { agentId: environmentProvenance.agentId, sessionId: environmentProvenance.sessionId },
+      provenance: environmentProvenance,
+    };
+  }
+
+  return {
+    success: true,
+    context: storedRecord,
+    provenance: storedProvenance,
+    ...(partialEnvironment
+      ? {
+          ignoredPartialEnvironment: {
+            agentId: envAgentId,
+            sessionId: envSessionId,
+          },
+        }
+      : {}),
+  };
+}
+
 export function writeCurrentContext(context: CurrentContext, cwd: string = process.cwd()): CurrentContext {
   const slot = sanitizeSlot(context.contextSlot || resolveContextSlot());
   const record: CurrentContext = { ...context, contextSlot: slot };
@@ -159,24 +271,8 @@ export function writeCurrentContext(context: CurrentContext, cwd: string = proce
 }
 
 export function readCurrentContext(cwd: string = process.cwd()): CurrentContext | null {
-  // Env vars take priority — no filesystem needed. Useful in worktrees, CI,
-  // and any shell where `pd begin` exported PD_AGENT_ID.
-  const envAgentId = process.env.PD_AGENT_ID?.trim();
-  const envSessionId = process.env.PD_SESSION_ID?.trim();
-  if (envAgentId || envSessionId) {
-    return {
-      agentId: envAgentId ?? '',
-      sessionId: envSessionId ?? '',
-    };
-  }
-
-  const slot = resolveContextSlot();
-  const slotRecord = readContextFile(getContextPathForSlot(slot, cwd));
-  if (slotRecord) return slotRecord;
-  const legacy = readContextFile(getLegacyContextPath(cwd));
-  if (!legacy) return null;
-  if (!canUseLegacyContextForSlot(legacy, slot)) return null;
-  return legacy;
+  const resolution = resolveCurrentContext(cwd);
+  return resolution.success ? resolution.context : null;
 }
 
 export function clearCurrentContext(cwd: string = process.cwd()): void {
@@ -218,10 +314,9 @@ export function clearCurrentContext(cwd: string = process.cwd()): void {
 
 export function readCurrentContextFromPaths(paths: string[]): CurrentContext | null {
   for (const basePath of paths) {
-    const context = readCurrentContext(basePath);
-    if (context) return context;
-    const legacy = readContextFile(getLegacyContextPath(basePath));
-    if (legacy) return legacy;
+    const resolution = resolveCurrentContext(basePath);
+    if (!resolution.success) return null;
+    if (resolution.context) return resolution.context;
   }
   return null;
 }

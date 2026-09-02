@@ -8,6 +8,7 @@ import {
   getContextPathForSlot,
   getLegacyContextPath,
   readCurrentContext,
+  resolveCurrentContext,
   resolveContextSlot,
   writeCurrentContext,
 } from '../../cli/utils/current-context.js';
@@ -182,21 +183,84 @@ describe('current-context helper', () => {
     expect(readCurrentContext(projectDir)).toBeNull();
   });
 
-  it('returns env-var context when PD_AGENT_ID is set, ignoring filesystem', () => {
+  it('returns a structured conflict when complete environment and slot identities disagree', () => {
     process.env.PD_AGENT_ID = 'agent-from-env';
     process.env.PD_SESSION_ID = 'session-from-env';
-    // Write a conflicting file-based context — env vars must win.
     writeCurrentContext({ agentId: 'agent-from-file', sessionId: 'session-from-file' }, projectDir);
-    const ctx = readCurrentContext(projectDir);
-    expect(ctx?.agentId).toBe('agent-from-env');
-    expect(ctx?.sessionId).toBe('session-from-env');
+
+    const resolution = resolveCurrentContext(projectDir);
+
+    expect(resolution).toMatchObject({
+      success: false,
+      code: 'CONTEXT_CONFLICT',
+      provenances: {
+        environment: {
+          source: 'environment',
+          agentId: 'agent-from-env',
+          sessionId: 'session-from-env',
+        },
+        stored: {
+          source: 'slot',
+          agentId: 'agent-from-file',
+          sessionId: 'session-from-file',
+        },
+      },
+    });
+    expect(readCurrentContext(projectDir)).toBeNull();
   });
 
-  it('returns env-var context when only PD_AGENT_ID is set', () => {
+  it('treats environment identity as atomic so an agent-only half cannot suppress a complete slot', () => {
+    writeCurrentContext({ agentId: 'agent-file', sessionId: 'session-file' }, projectDir);
     process.env.PD_AGENT_ID = 'agent-only';
+
     const ctx = readCurrentContext(projectDir);
-    expect(ctx?.agentId).toBe('agent-only');
-    expect(ctx?.sessionId).toBe('');
+
+    expect(ctx?.agentId).toBe('agent-file');
+    expect(ctx?.sessionId).toBe('session-file');
+    expect(resolveCurrentContext(projectDir)).toMatchObject({
+      success: true,
+      ignoredPartialEnvironment: { agentId: 'agent-only', sessionId: null },
+    });
+  });
+
+  it('treats environment identity as atomic so a session-only half cannot suppress a complete slot', () => {
+    writeCurrentContext({ agentId: 'agent-file', sessionId: 'session-file' }, projectDir);
+    process.env.PD_SESSION_ID = 'session-only';
+
+    const ctx = readCurrentContext(projectDir);
+
+    expect(ctx?.agentId).toBe('agent-file');
+    expect(ctx?.sessionId).toBe('session-file');
+    expect(resolveCurrentContext(projectDir)).toMatchObject({
+      success: true,
+      ignoredPartialEnvironment: { agentId: null, sessionId: 'session-only' },
+    });
+  });
+
+  it('accepts a complete environment pair when it agrees with the slot and preserves slot metadata', () => {
+    writeCurrentContext({
+      agentId: 'same-agent',
+      sessionId: 'same-session',
+      credential: 'same-credential',
+      purpose: 'preserved purpose',
+    }, projectDir);
+    process.env.PD_AGENT_ID = 'same-agent';
+    process.env.PD_SESSION_ID = 'same-session';
+
+    const resolution = resolveCurrentContext(projectDir);
+
+    expect(resolution).toMatchObject({
+      success: true,
+      provenance: {
+        source: 'environment',
+        agentId: 'same-agent',
+        sessionId: 'same-session',
+      },
+      context: {
+        credential: 'same-credential',
+        purpose: 'preserved purpose',
+      },
+    });
   });
 
   it('falls through to file context when PD_AGENT_ID is unset', () => {

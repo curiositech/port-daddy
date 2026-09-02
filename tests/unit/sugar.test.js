@@ -553,6 +553,43 @@ describe('sugar.done', () => {
     expect(result.error).toContain('No active session');
   });
 
+  test('no-context done refuses instead of closing the globally newest active session', () => {
+    const { sugar, sessions } = setup();
+    const first = sugar.begin({ lifecycle: 'ephemeral', purpose: 'First active', agentId: 'scope-first' });
+    const second = sugar.begin({ lifecycle: 'ephemeral', purpose: 'Second active', agentId: 'scope-second' });
+
+    const result = sugar.done({ note: VALID_RESULT_NOTE_WITH_PR });
+
+    expect(result).toMatchObject({
+      success: false,
+      code: 'NO_ACTIVE_SESSION_SCOPE',
+    });
+    expect(sessions.get(first.sessionId).session.status).toBe('active');
+    expect(sessions.get(second.sessionId).session.status).toBe('active');
+  });
+
+  test('agent-only done returns every candidate when multiple sessions are active', () => {
+    const { sugar, sessions } = setup();
+    const first = sugar.begin({ lifecycle: 'ephemeral', purpose: 'Agent session one', agentId: 'multi-session-agent' });
+    const second = sessions.start('Agent session two', {
+      agentId: 'multi-session-agent',
+      worktreeId: 'worktree-two',
+    });
+
+    const result = sugar.done({ agentId: 'multi-session-agent', note: VALID_RESULT_NOTE_WITH_PR });
+
+    expect(result).toMatchObject({
+      success: false,
+      code: 'AMBIGUOUS_ACTIVE_SESSION',
+    });
+    expect(result.candidates).toEqual(expect.arrayContaining([
+      { sessionId: first.sessionId, worktreeId: expect.anything() },
+      { sessionId: second.id, worktreeId: 'worktree-two' },
+    ]));
+    expect(sessions.get(first.sessionId).session.status).toBe('active');
+    expect(sessions.get(second.id).session.status).toBe('active');
+  });
+
   test('refuses pd done when active plan has unchecked todo items', () => {
     const { sugar, sessions } = setup();
 
@@ -1083,6 +1120,24 @@ describe('sugar.whoami', () => {
     expect(result.success).toBe(true);
     expect(result.active).toBe(false);
     expect(result.hint).toBeTruthy();
+  });
+
+  test('agent-only whoami fails on multiple active sessions and names each worktree', () => {
+    const { sugar, sessions } = setup();
+    const first = sugar.begin({ lifecycle: 'ephemeral', purpose: 'Who one', agentId: 'who-many' });
+    const second = sessions.start('Who two', { agentId: 'who-many', worktreeId: 'who-worktree-two' });
+
+    const result = sugar.whoami({ agentId: 'who-many' });
+
+    expect(result).toMatchObject({
+      success: false,
+      active: false,
+      code: 'AMBIGUOUS_ACTIVE_SESSION',
+    });
+    expect(result.candidates).toEqual(expect.arrayContaining([
+      { sessionId: first.sessionId, worktreeId: expect.anything() },
+      { sessionId: second.id, worktreeId: 'who-worktree-two' },
+    ]));
   });
 
   test('falls back to an explicit active session when the agent row was reaped', () => {

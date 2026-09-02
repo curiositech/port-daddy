@@ -444,6 +444,61 @@ export function createSugar(deps: SugarDeps) {
   }
 
   /**
+   * Project session rows into the minimum identifiers an operator or agent
+   * needs to resolve an ambiguous selection. The purpose is to make recovery
+   * actionable without leaking notes, claims, or other session contents into
+   * an error response.
+   *
+   * @param rows - Candidate session rows returned by the session store.
+   * @returns Stable session/worktree identifiers for explicit retry.
+   */
+  function projectSessionCandidates(rows: Array<Record<string, unknown>>) {
+    return rows.map((row) => ({
+      sessionId: typeof row.id === 'string' ? row.id : '<unknown>',
+      worktreeId: typeof row.worktreeId === 'string' ? row.worktreeId : null,
+    }));
+  }
+
+  /**
+   * Describe an abandoned durable session as a resumable work context without
+   * mutating it. `whoami` is an observational command; resurrection belongs to
+   * an explicit `begin` resume/takeover path where claims and lineage can be
+   * reconciled deliberately.
+   *
+   * Design intent: durable identity remains discoverable after abandonment,
+   * while only an explicit lifecycle operation may make it active again.
+   *
+   * @param session - Exact abandoned durable session row.
+   * @param agent - Optional live agent projection associated with the row.
+   * @param fallbackAgentId - Agent id supplied by the lookup when the row lacks one.
+   * @returns A dormant/resumable whoami projection with no state transition.
+   */
+  function buildDormantWhoamiResponse(
+    session: Record<string, unknown>,
+    agent: Record<string, unknown> | null,
+    fallbackAgentId?: string,
+  ) {
+    const agentId = typeof session.agentId === 'string' ? session.agentId : fallbackAgentId;
+    return {
+      success: true,
+      active: false,
+      dormant: true,
+      resumable: true,
+      state: 'dormant',
+      lifecycle: 'durable',
+      status: typeof session.status === 'string' ? session.status : 'abandoned',
+      agentId,
+      sessionId: session.id as string,
+      purpose: session.purpose as string,
+      sessionName: deriveAgentDisplayName({ purpose: session.purpose as string, fallback: 'Port Daddy Session' }),
+      agentName: cleanAgentDisplayName(agent?.name) || null,
+      name: cleanAgentDisplayName(agent?.name) || null,
+      worktreeId: typeof session.worktreeId === 'string' ? session.worktreeId : null,
+      hint: `Session "${session.id as string}" is a dormant durable context. Use pd begin to resume or take it over explicitly.`,
+    };
+  }
+
+  /**
    * Begin — register agent + start session atomically.
    * Rolls back agent registration if session start fails.
    */
@@ -1093,20 +1148,29 @@ export function createSugar(deps: SugarDeps) {
 
     // Find session by agent if not provided
     if (!sessionId && agentId) {
-      const listResult = sessions.list({ agentId, status: 'active', allWorktrees: true });
-      const sessionsList = (listResult.sessions || []) as Array<{ id: string }>;
-      if (sessionsList.length > 0) {
-        sessionId = sessionsList[0].id;
+      const listResult = sessions.list({ agentId, status: 'active', allWorktrees: true, limit: 50 });
+      const sessionsList = (listResult.sessions || []) as Array<Record<string, unknown>>;
+      if (sessionsList.length > 1) {
+        return {
+          success: false,
+          error: `Agent "${agentId}" has multiple active sessions; pass sessionId explicitly.`,
+          code: 'AMBIGUOUS_ACTIVE_SESSION',
+          candidates: projectSessionCandidates(sessionsList),
+        };
+      }
+      if (sessionsList.length === 1) {
+        sessionId = sessionsList[0].id as string;
       }
     }
 
-    // Fallback: find most recent active session (only if no explicit agentId was given)
+    // No-context completion must never close a process-global "most recent"
+    // session. An explicit session, agent, or verified CLI context is required.
     if (!sessionId && !agentId) {
-      const listResult = sessions.list({ status: 'active', allWorktrees: true, limit: 1 });
-      const sessionsList = (listResult.sessions || []) as Array<{ id: string }>;
-      if (sessionsList.length > 0) {
-        sessionId = sessionsList[0].id;
-      }
+      return {
+        success: false,
+        error: 'No active session scope provided; pass sessionId or agentId explicitly.',
+        code: 'NO_ACTIVE_SESSION_SCOPE',
+      };
     }
 
     if (!sessionId) {
@@ -1385,21 +1449,9 @@ export function createSugar(deps: SugarDeps) {
           };
         }
 
-        // Durable sessions remain "active" even if the daemon marked them abandoned
-        // because the agent process heartbeat stopped. They're work contexts, not
-        // process lifetimes — only pd done / worktree-removed / branch-merged ends them.
         const isDurable = session.durable === true ||
           session.is_durable === 1 || session.is_durable === true;
-        const isEffectivelyActive = session.status === 'active' ||
-          (isDurable && session.status === 'abandoned');
-
-        if (isEffectivelyActive) {
-          // For abandoned-but-durable sessions, resurrect to active in the DB
-          // so future checks don't require special-casing.
-          if (isDurable && session.status === 'abandoned') {
-            sessions.resurrect?.(explicitSessionId);
-          }
-
+        if (session.status === 'active') {
           const lookupAgentId = sessionAgentId || agentId;
           const agentResult = lookupAgentId ? agents.get(lookupAgentId) : { success: false };
           const agent = agentResult.success ? agentResult.agent as Record<string, unknown> : null;
@@ -1411,6 +1463,13 @@ export function createSugar(deps: SugarDeps) {
             agent,
             lookupAgentId || undefined,
           );
+        }
+
+        if (isDurable && session.status === 'abandoned') {
+          const lookupAgentId = sessionAgentId || agentId;
+          const agentResult = lookupAgentId ? agents.get(lookupAgentId) : { success: false };
+          const agent = agentResult.success ? agentResult.agent as Record<string, unknown> : null;
+          return buildDormantWhoamiResponse(session, agent, lookupAgentId || undefined);
         }
 
         return {
@@ -1431,48 +1490,50 @@ export function createSugar(deps: SugarDeps) {
       };
     }
 
-    // Look up agent
     const agentResult = agents.get(agentId);
-    if (!agentResult.success) {
+    const agent = agentResult.success ? agentResult.agent as Record<string, unknown> : null;
+
+    // Find active session for this agent
+    const listResult = sessions.list({ agentId, status: 'active', allWorktrees: true, limit: 50 });
+    const sessionsList = (listResult.sessions || []) as Array<Record<string, unknown>>;
+
+    if (sessionsList.length > 1) {
       return {
-        success: true,
+        success: false,
         active: false,
-        hint: `Agent "${agentId}" not found. Use pd begin to start a session.`,
+        agentId,
+        code: 'AMBIGUOUS_ACTIVE_SESSION',
+        error: `Agent "${agentId}" has multiple active sessions; pass sessionId explicitly.`,
+        candidates: projectSessionCandidates(sessionsList),
       };
     }
 
-    const agent = agentResult.agent as Record<string, unknown>;
-
-    // Find active session for this agent
-    const listResult = sessions.list({ agentId, status: 'active', allWorktrees: true });
-    const sessionsList = (listResult.sessions || []) as Array<Record<string, unknown>>;
-
     if (sessionsList.length === 0) {
-      // Abandoned-but-durable sessions are still live work contexts: an
-      // abandonment write (e.g. zombie protocol) suspends them, it doesn't
-      // end them. Find the most recent one, resurrect it, and report active.
-      const abandonedResult = sessions.list({ agentId, status: 'abandoned', allWorktrees: true });
-      const abandonedList = (abandonedResult.sessions || []) as Array<Record<string, unknown>>;
-      const durableSession = abandonedList.find(s => s.durable === true);
-      if (durableSession) {
-        sessions.resurrect?.(durableSession.id as string);
-        const durableDetail = sessions.get(durableSession.id as string);
-        if (durableDetail.success && durableDetail.session) {
-          return buildWhoamiResponse(
-            durableDetail.session as Record<string, unknown>,
-            (durableDetail.notes as unknown[] | undefined) || [],
-            (durableDetail.files as Array<Record<string, unknown>> | undefined) || [],
-            agent,
-            agentId,
-          );
-        }
+      const abandonedResult = sessions.list({ agentId, status: 'abandoned', allWorktrees: true, limit: 50 });
+      const durableSessions = ((abandonedResult.sessions || []) as Array<Record<string, unknown>>)
+        .filter((session) => session.durable === true);
+      if (durableSessions.length > 1) {
+        return {
+          success: false,
+          active: false,
+          agentId,
+          code: 'AMBIGUOUS_ACTIVE_SESSION',
+          error: `Agent "${agentId}" has multiple dormant durable sessions; pass sessionId explicitly.`,
+          candidates: projectSessionCandidates(durableSessions),
+        };
+      }
+      if (durableSessions.length === 1) {
+        const durableSession = durableSessions[0];
+        return buildDormantWhoamiResponse(durableSession, agent, agentId);
       }
 
       return {
         success: true,
         active: false,
         agentId,
-        hint: `Agent "${agentId}" registered but no active session.`,
+        hint: agent
+          ? `Agent "${agentId}" registered but no active session.`
+          : `Agent "${agentId}" not found. Use pd begin to start a session.`,
       };
     }
 
@@ -1581,14 +1642,24 @@ export function createSugar(deps: SugarDeps) {
     // Resolve the active session (same resolution order as done()).
     // ------------------------------------------------------------------
     if (!sessionId && agentId) {
-      const listResult = sessions.list({ agentId, status: 'active', allWorktrees: true });
-      const sessionsList = (listResult.sessions || []) as Array<{ id: string }>;
-      if (sessionsList.length > 0) sessionId = sessionsList[0].id;
+      const listResult = sessions.list({ agentId, status: 'active', allWorktrees: true, limit: 50 });
+      const sessionsList = (listResult.sessions || []) as Array<Record<string, unknown>>;
+      if (sessionsList.length > 1) {
+        return {
+          success: false,
+          error: `Agent "${agentId}" has multiple active sessions; pass sessionId explicitly.`,
+          code: 'AMBIGUOUS_ACTIVE_SESSION',
+          candidates: projectSessionCandidates(sessionsList),
+        };
+      }
+      if (sessionsList.length === 1) sessionId = sessionsList[0].id as string;
     }
     if (!sessionId && !agentId) {
-      const listResult = sessions.list({ status: 'active', allWorktrees: true, limit: 1 });
-      const sessionsList = (listResult.sessions || []) as Array<{ id: string }>;
-      if (sessionsList.length > 0) sessionId = sessionsList[0].id;
+      return {
+        success: false,
+        error: 'No active session scope provided; pass sessionId or agentId explicitly.',
+        code: 'NO_ACTIVE_SESSION_SCOPE',
+      };
     }
     if (!sessionId) {
       return {

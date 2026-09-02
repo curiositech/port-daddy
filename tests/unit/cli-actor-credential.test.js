@@ -129,6 +129,26 @@ describe('cli/utils/actor-credential', () => {
     expect(resolveCliActorCredential()).toBe('SHORTV1.secret');
   });
 
+  test('an env credential is withheld when its paired PD_AGENT_ID conflicts with the asserted agent', () => {
+    process.env.PD_AGENT_ID = 'env-agent-a';
+    process.env.PD_ACTOR_CREDENTIAL = 'ENV0002.agent-a-secret';
+
+    expect(resolveCliActorCredential('env-agent-b')).toBeUndefined();
+    expect(resolveCliActorCredential('env-agent-a')).toBe('ENV0002.agent-a-secret');
+  });
+
+  test('a contradictory complete env context never releases the slot credential by accident', () => {
+    writeCurrentContext({
+      agentId: 'slot-agent',
+      sessionId: 'slot-session',
+      credential: 'CONTEXT.slot-secret',
+    });
+    process.env.PD_AGENT_ID = 'env-agent';
+    process.env.PD_SESSION_ID = 'env-session';
+
+    expect(resolveCliActorCredential('slot-agent')).toBeUndefined();
+  });
+
   test('the `pd begin` context credential outranks the per-slot actor file', () => {
     persistCliActorCredential('STORED.slot-secret', null);
     writeCurrentContext({
