@@ -216,6 +216,8 @@ unpushed change behind a “no artifact” receipt.
 Every session progresses through **phases** for swarm visibility: `planning`, `in_progress`, `testing`, `reviewing`, `completed` / `abandoned`.
 Completion is only entered through `pd done` (or `POST /sugar/done`), which checks the exact session's plan and delivery evidence. Setting `phase: completed` directly cannot skip those checks. If the exact local session is dormant or missing, commands report that condition without silently selecting a different worktree's active session.
 
+Briefings resolve the configured project from the physical Git worktree root, even when started in a nested directory. An explicit project name takes precedence; another repository's parent or symlinked configuration does not. `pd briefing --json` and MCP `briefing_read` request fresh daemon data without writing files through `GET /briefing?projectRoot=<absolute-directory>`; `GET /briefing/<project>` keeps names literal, including `auto`. MCP briefing tools require `project_root` and accept an optional `project` override. This corrects project visibility, not identity, ownership, or repository authorization.
+
 ### Plan and Checklist Enforcement
 
 In the dashboard, open **Agents → Open exact session** to read a session's latest complete plan and expand its retained note history. A link such as `/fleet-ui/?surface=agents&session=<session-id>` targets that exact Port Daddy session, even without a registered agent. Existing `surface=sessions` links reach the same read-only view. Missing or inaccessible sessions report an error rather than choosing another session by working directory. This is the selected daemon's session ledger, not a separate roadmap authority.
