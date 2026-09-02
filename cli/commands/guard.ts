@@ -247,9 +247,13 @@ function gitPath(path: string, cwd = process.cwd()): string | null {
  * @returns Complete stdout, preserving NUL-delimited native filenames.
  */
 function stagedGit(args: string[], cwd: string): string {
-  const result = spawnSync('git', args, { cwd, encoding: 'utf8', timeout: 10_000, maxBuffer: 16 * 1024 * 1024 });
+  const result = spawnSync('git', args, { cwd, timeout: 10_000, maxBuffer: 16 * 1024 * 1024 });
   if (result.error || result.status !== 0) throw new Error('Guard cannot determine staged files: Git evidence is unavailable.');
-  return result.stdout;
+  try {
+    return new TextDecoder('utf-8', { fatal: true }).decode(result.stdout);
+  } catch {
+    throw new Error('Guard cannot determine staged files: Git evidence contains an unsupported path encoding.');
+  }
 }
 
 /**

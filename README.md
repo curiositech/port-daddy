@@ -310,6 +310,8 @@ Roster agents are daemon-minted `AgentNode` identities that outlive any body or 
 
 `pd guard install` writes merged pre-commit and post-commit hooks that enforce the protocol: an active session plus matching file claims for staged files, checked by `pd guard check --staged`. `pd add` is the claim-aware `git add`. Modes: `advisory`, `warn`, `enforce`.
 
+During a pending merge, Guard checks paths whose staged contents or file modes differ from **every parent**, including `HEAD`. Unchanged contributions from either branch do not need new claims; genuine resolutions, new files, and deletions still do. Staged filenames remain exact, including whitespace, and unresolved indexes or unavailable Git evidence stop the check explicitly. Ordinary commits keep their normal staged-diff behavior.
+
 ---
 
 ## 🔐 CLI Permission Tiers

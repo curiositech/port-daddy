@@ -26,9 +26,9 @@ afterAll(() => {
   Object.assign(process.env, savedGitEnv);
 });
 
-function gitResult(args, cwd) {
+function gitResult(args, cwd, input) {
   return spawnSync('git', ['-c', 'user.name=Guard fixture', '-c', 'user.email=guard-fixture@example.invalid',
-    '-c', 'commit.gpgsign=false', ...args], { cwd, encoding: 'utf8', timeout: 10_000 });
+    '-c', 'commit.gpgsign=false', ...args], { cwd, encoding: 'utf8', timeout: 10_000, input });
 }
 function git(args, cwd) {
   const result = gitResult(args, cwd);
@@ -191,7 +191,7 @@ describe('stagedFiles — exact all-parent attribution', () => {
   test.each([false, true])('NUL paths stay exact through discovery and queries (merge=%s)', merging => {
     const dir = merging ? pendingMerge() : freshRepo('unusual-paths');
     const names = [' leading.txt', 'trailing.txt ', '   ', 'tab\tname.txt', 'line\nname.txt',
-      'quote"name.txt', 'back\\slash.txt', '-option.txt', '海.txt'];
+      'quote"name.txt', 'back\\slash.txt', '-option.txt', '海.txt', 'replacement-\uFFFD.txt'];
     for (const name of names) write(dir, name, 'authored\n');
     expect(stagedFiles(dir).sort()).toEqual([...names].sort());
     for (const name of names) expect(ownerQueryPaths(name, dir)).toEqual([name, resolve(dir, name)]);
@@ -206,6 +206,16 @@ describe('stagedFiles — exact all-parent attribution', () => {
     expect(facts.files).toEqual([' private.txt ']);
     expect(facts.shouldBlock).toBe(true);
     expect(facts.violations).toEqual([expect.objectContaining({ code: 'unclaimed-file', file: ' private.txt ' })]);
+  });
+
+  test('undecodable native path bytes fail instead of aliasing a valid replacement character', () => {
+    const dir = freshRepo('non-utf8');
+    // APFS refuses such a filename on disk; Git can still receive it in an index.
+    const blob = gitResult(['hash-object', '-w', '--stdin'], dir, 'authored\n');
+    expect(blob.status).toBe(0);
+    const entry = Buffer.concat([Buffer.from('100644 ' + blob.stdout.trim() + '\t'), Buffer.from([0xff, 0])]);
+    expect(gitResult(['update-index', '-z', '--index-info'], dir, entry).status).toBe(0);
+    expect(() => stagedFiles(dir)).toThrow('unsupported path encoding');
   });
 
   test('unresolved index stages fail instead of disappearing from the intersection', () => {
