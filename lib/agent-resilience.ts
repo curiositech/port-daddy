@@ -231,7 +231,11 @@ export function fullJitterDelay(attempt: number, cfg: BackoffConfig): number {
     throw new RangeError('Invalid bounded backoff configuration');
   }
   const rand = cfg.random ?? Math.random;
-  const exponential = Math.min(cfg.capMs, cfg.baseMs * Math.pow(2, attempt));
+  // Zero times an overflowing exponent is NaN, not zero. Cap the exponent
+  // before evaluating it; a positive base needs at most 31 doublings here.
+  const exponential = cfg.baseMs === 0 || cfg.capMs === 0 ? 0
+    : attempt >= Math.ceil(Math.log2(cfg.capMs / cfg.baseMs)) ? cfg.capMs
+      : cfg.baseMs * Math.pow(2, attempt);
   const sample = rand();
   if (!Number.isFinite(sample) || sample < 0 || sample > 1) throw new RangeError('Invalid jitter sample');
   return Math.floor(sample * exponential);

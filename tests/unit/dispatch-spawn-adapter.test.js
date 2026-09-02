@@ -1,9 +1,9 @@
 /**
  * Tests for lib/dispatch/spawn-adapter.ts
  *
- * All tests use injectable fns (spawnFn, worktreeAddFn, openPrFn) so no real
- * subprocess is spawned, no real worktree is created, and no real GitHub API
- * is called. The tests verify:
+ * Tests use injectable fns (spawnFn, worktreeAddFn, openPrFn), except one
+ * synthetic Node child/grandchild timeout fixture. No provider, real worktree,
+ * or GitHub API is used. The tests verify:
  *
  *   - correct worktree path construction from the queue row
  *   - correct branch + baseRef derivation
@@ -18,7 +18,9 @@
 
 import { jest } from '@jest/globals';
 import { EventEmitter } from 'node:events';
+import { execFile } from 'node:child_process';
 import { isWitnessedBackendFailure, witnessedBackendFailure } from '../../lib/agent-resilience.js';
+import { classifyForFailover } from '../../lib/dispatch/failover.js';
 import { createTestDb } from '../setup-unit.js';
 import { createDispatchQueue } from '../../lib/dispatch/queue.js';
 import {
@@ -71,12 +73,50 @@ describe('host child lifecycle failure witnesses', () => {
     expect(result.failure).toBeUndefined();
     expect(result.error).toContain('ENOENT');
   });
-  test('the actual local timeout creates its witness only after child close', async () => {
+  test('local timeout and direct-child close cannot prove owned-tree termination', async () => {
     const child = childFixture();
     const result = await run(child, 10);
     expect(child.kill).toHaveBeenCalledWith('SIGTERM');
-    expect(result.failure.code).toBe('TIMEOUT');
-    expect(isWitnessedBackendFailure(result.failure)).toBe(true);
+    expect(result.error).toContain('timed out');
+    expect(result.failure).toBeUndefined();
+    expect(isWitnessedBackendFailure(result.failure)).toBe(false);
+  });
+
+  test('a surviving synthetic grandchild cannot earn timeout failover after child close', async () => {
+    let directChild;
+    let grandchildPid;
+    // The grandchild closes inherited pipes, so the direct child's close is
+    // observable while the descendant is still alive. Its own 10s exit is a
+    // final cleanup bound even if this test fails before receiving its PID.
+    const source = `
+      const { spawn } = require('node:child_process');
+      const descendant = spawn(process.execPath, ['-e', 'setTimeout(() => {}, 10000)'], { stdio: 'ignore' });
+      process.stdout.write(String(descendant.pid) + '\\n');
+      setInterval(() => {}, 1000);
+    `;
+    try {
+      const result = await runAgentInWorktree({
+        command: 'codex', args: [], env: {}, worktreePath: process.cwd(), timeoutMs: 1000,
+        execFileFn: (_file, _args, options) => {
+          directChild = execFile(process.execPath, ['-e', source], options);
+          directChild.stdout.on('data', data => {
+            const parsed = Number(data.toString().trim());
+            if (Number.isSafeInteger(parsed) && parsed > 0) grandchildPid = parsed;
+          });
+          return directChild;
+        },
+      });
+      expect(grandchildPid).toBeGreaterThan(0);
+      expect(() => process.kill(grandchildPid, 0)).not.toThrow();
+      expect(directChild.signalCode).toBe('SIGTERM');
+      expect(result.error).toContain('timed out');
+      expect(result.failure).toBeUndefined();
+      expect(classifyForFailover(result.failure)).toMatchObject({ transient: false, backendAbsent: false });
+    } finally {
+      // These exact PIDs came from this fixture, never from a global scan.
+      if (grandchildPid) { try { process.kill(grandchildPid, 'SIGKILL'); } catch {} }
+      if (directChild && directChild.exitCode === null && directChild.signalCode === null) directChild.kill('SIGKILL');
+    }
   });
 });
 

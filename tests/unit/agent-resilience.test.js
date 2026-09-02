@@ -155,6 +155,12 @@ describe('fullJitterDelay', () => {
     const d = fullJitterDelay(20, { ...cfg, random: () => 1 });
     expect(d).toBeLessThanOrEqual(cfg.capMs);
   });
+
+  test.each([1024, Number.MAX_SAFE_INTEGER])('zero base and huge attempt %s stay finite', attempt => {
+    expect(fullJitterDelay(attempt, { baseMs: 0, capMs: 10, random: () => 1 })).toBe(0);
+    expect(fullJitterDelay(attempt, { baseMs: 1, capMs: 10, random: () => 1 })).toBe(10);
+    expect(fullJitterDelay(attempt, { baseMs: 10, capMs: 0, random: () => 1 })).toBe(0);
+  });
 });
 
 describe('BackendCircuitBreaker', () => {

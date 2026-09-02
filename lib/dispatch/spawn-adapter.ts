@@ -419,10 +419,10 @@ export async function runAgentInWorktree(params: {
     const timeoutId = setTimeout(() => {
       if (settled) return;
       timedOut = true;
-      try { process.kill(-child.pid!, 'SIGTERM'); } catch { /* already gone */ }
+      // execFile did not create an owned process group. Signal only this
+      // child; a negative PID would pretend to own an unrelated group.
       try { child.kill('SIGTERM'); } catch { /* already gone */ }
       forceKill = setTimeout(() => {
-        try { process.kill(-child.pid!, 'SIGKILL'); } catch {}
         try { child.kill('SIGKILL'); } catch {}
       }, 5_000);
       forceKill.unref?.();
@@ -441,7 +441,10 @@ export async function runAgentInWorktree(params: {
       const out = stdout.join('');
       const err = stderr.join('');
       if (timedOut) {
-        res({ output: out, error: `Agent timed out after ${Math.round(params.timeoutMs / 60000)} min${err ? `: ${err.slice(0, 200)}` : ''}`, failure: witnessedBackendFailure({ kind: 'timeout' }) });
+        // Direct-child close does not prove descendants stopped. Keep this
+        // display failure non-authorizing until an owned-tree supervisor can
+        // provide physical completion evidence for the entire execution.
+        res({ output: out, error: `Agent timed out after ${Math.round(params.timeoutMs / 60000)} min${err ? `: ${err.slice(0, 200)}` : ''}` });
       } else if (code !== 0) {
         res({ output: out, error: err || `${params.command} exited with code ${code}` });
       } else {

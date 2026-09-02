@@ -45,7 +45,9 @@ credential to spawn another agent.
 
 Dispatch accepts recoverable failures only when their exact error object has
 an in-process host witness. The foreground adapter creates this witness from
-an actual child OS error or an actual timeout after the child closes. It never
+an actual child OS error. A foreground timeout remains non-authorizing: direct
+child close does not prove that descendants stopped, and this launcher does not
+own a process group. It signals only its child, never a guessed group. It never
 parses stderr, model output, or tool JSON into transport authority. A JSON clone
 does not retain the witness. Actual ENOENT can skip a useless same-backend retry;
 unknown failures and permission failures cannot authorize successors. Existing
@@ -64,7 +66,8 @@ claimed scrubbed by this bounded slice.
 
 Source tests cover competing probes, stale and repeated settlement, cancellation
 in backoff, operation-plus-sleep deadlines, oversized retry hints, uncooperative
-loads, actual child-event fixtures, and the real LogGovernor/correlation sink.
+loads, actual child-event fixtures, a synthetic child/grandchild surviving the
+parent's timeout, and the real LogGovernor/correlation sink.
 No live provider calls or real secret fixtures are needed.
 
 The daemon uses `createConductorSpawnAdapter`, not the foreground adapter.
