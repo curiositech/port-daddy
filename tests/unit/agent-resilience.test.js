@@ -161,17 +161,17 @@ describe('BackendCircuitBreaker', () => {
     const clock = mkClock();
     const cb = new BackendCircuitBreaker({ failureThreshold: 3, successThreshold: 2, openTimeoutMs: 1000, now: clock.now });
     expect(cb.state('codex')).toBe('CLOSED');
-    cb.onRetryableFailure('codex');
-    cb.onRetryableFailure('codex');
+    cb.before('codex').settle('failure');
+    cb.before('codex').settle('failure');
     expect(cb.state('codex')).toBe('CLOSED'); // 2 < 3
-    cb.onRetryableFailure('codex');
+    cb.before('codex').settle('failure');
     expect(cb.state('codex')).toBe('OPEN');
   });
 
   test('OPEN gate throws CircuitOpenError until cooldown, then HALF_OPEN', () => {
     const clock = mkClock();
     const cb = new BackendCircuitBreaker({ failureThreshold: 1, successThreshold: 1, openTimeoutMs: 1000, now: clock.now });
-    cb.onRetryableFailure('gemini'); // opens
+    cb.before('gemini').settle('failure'); // opens
     expect(cb.state('gemini')).toBe('OPEN');
     expect(() => cb.before('gemini')).toThrow(CircuitOpenError);
     clock.advance(1000);
@@ -182,28 +182,26 @@ describe('BackendCircuitBreaker', () => {
   test('HALF_OPEN: probe success closes after successThreshold', () => {
     const clock = mkClock();
     const cb = new BackendCircuitBreaker({ failureThreshold: 1, successThreshold: 2, openTimeoutMs: 100, now: clock.now });
-    cb.onRetryableFailure('groq');
+    cb.before('groq').settle('failure');
     clock.advance(100);
-    cb.before('groq'); // → HALF_OPEN
-    cb.onSuccess('groq'); // 1
+    cb.before('groq').settle('success'); // 1
     expect(cb.state('groq')).toBe('HALF_OPEN');
-    cb.onSuccess('groq'); // 2 → CLOSED
+    cb.before('groq').settle('success'); // 2 → CLOSED
     expect(cb.state('groq')).toBe('CLOSED');
   });
 
   test('HALF_OPEN: probe failure re-opens immediately', () => {
     const clock = mkClock();
     const cb = new BackendCircuitBreaker({ failureThreshold: 1, successThreshold: 1, openTimeoutMs: 100, now: clock.now });
-    cb.onRetryableFailure('claude-cli');
+    cb.before('claude-cli').settle('failure');
     clock.advance(100);
-    cb.before('claude-cli'); // → HALF_OPEN
-    cb.onRetryableFailure('claude-cli'); // re-open
+    cb.before('claude-cli').settle('failure'); // re-open
     expect(cb.state('claude-cli')).toBe('OPEN');
   });
 
   test('per-backend isolation: one tripping does not gate another', () => {
     const cb = new BackendCircuitBreaker({ failureThreshold: 1, successThreshold: 1, openTimeoutMs: 1000 });
-    cb.onRetryableFailure('codex');
+    cb.before('codex').settle('failure');
     expect(cb.state('codex')).toBe('OPEN');
     expect(cb.state('gemini')).toBe('CLOSED');
     expect(() => cb.before('gemini')).not.toThrow();
@@ -211,12 +209,45 @@ describe('BackendCircuitBreaker', () => {
 
   test('a success resets the consecutive-failure count', () => {
     const cb = new BackendCircuitBreaker({ failureThreshold: 3, successThreshold: 1, openTimeoutMs: 1000 });
-    cb.onRetryableFailure('codex');
-    cb.onRetryableFailure('codex');
-    cb.onSuccess('codex'); // reset
-    cb.onRetryableFailure('codex');
-    cb.onRetryableFailure('codex');
+    cb.before('codex').settle('failure');
+    cb.before('codex').settle('failure');
+    cb.before('codex').settle('success'); // reset
+    cb.before('codex').settle('failure');
+    cb.before('codex').settle('failure');
     expect(cb.state('codex')).toBe('CLOSED'); // would have opened without the reset
+  });
+
+  test('one probe, exact-once settlement, and stale-generation completions', () => {
+    const c = mkClock();
+    const cb = new BackendCircuitBreaker({ failureThreshold: 1, successThreshold: 2, openTimeoutMs: 100, now: c.now });
+    const stale = cb.before('codex');
+    cb.before('codex').settle('failure');
+    c.advance(100);
+    const probe = cb.before('codex');
+    expect(() => cb.before('codex')).toThrow(CircuitOpenError);
+    stale.settle('success');
+    expect(cb.state('codex')).toBe('HALF_OPEN');
+    expect(() => cb.before('codex')).toThrow(CircuitOpenError);
+    probe.settle('success');
+    probe.settle('success');
+    expect(cb.state('codex')).toBe('HALF_OPEN');
+    cb.before('codex').settle('success');
+    expect(cb.state('codex')).toBe('CLOSED');
+  });
+
+  test('an abandoned physical probe retains its reservation until it really settles', () => {
+    const c = mkClock();
+    const cb = new BackendCircuitBreaker({ failureThreshold: 1, successThreshold: 1, openTimeoutMs: 100, now: c.now });
+    cb.before('codex').settle('failure');
+    c.advance(100);
+    const probe = cb.before('codex');
+    probe.abandon();
+    c.advance(1000);
+    expect(() => cb.before('codex')).toThrow(CircuitOpenError);
+    probe.settle('success'); // late success cannot close the newer outage
+    expect(cb.state('codex')).toBe('OPEN');
+    cb.before('codex').settle('success');
+    expect(cb.state('codex')).toBe('CLOSED');
   });
 });
 
@@ -321,5 +352,77 @@ describe('runResilientSpawn', () => {
       sleep: async (ms) => { delays.push(ms); },
     });
     expect(delays).toEqual([7000]); // Retry-After wins over jitter(=0)
+  });
+
+  test('server minimum that cannot fit total deadline never sleeps or retries early', async () => {
+    const fn = jest.fn().mockRejectedValue(new Error('429 retry after 100000000000 min'));
+    const sleep = jest.fn();
+    await expect(runResilientSpawn('codex', fn, {
+      maxAttempts: 3, totalTimeoutMs: 100, breaker: mkBreaker(), sleep,
+      backoff: { baseMs: 1, capMs: 2 },
+    })).rejects.toMatchObject({ retryable: false, details: { reason: 'retry_after_exceeds_deadline' } });
+    expect(fn).toHaveBeenCalledTimes(1);
+    expect(sleep).not.toHaveBeenCalled();
+  });
+
+  test('one deadline includes operations plus backoff and private observer labels are safe', async () => {
+    let now = 0;
+    const events = [];
+    const fn = jest.fn().mockImplementation(async () => { now += 6; throw new Error('503 SYNTHETIC_SECRET'); });
+    await expect(runResilientSpawn('SYNTHETIC_PRIVATE_BACKEND', fn, {
+      maxAttempts: 5, totalTimeoutMs: 10, now: () => now, breaker: mkBreaker(),
+      backoff: { baseMs: 3, capMs: 3, random: () => 1 }, sleep: async ms => { now += ms; },
+      onEvent: event => events.push(event),
+    })).rejects.toMatchObject({ code: 'TIMEOUT', retryable: false });
+    expect(fn).toHaveBeenCalledTimes(2);
+    expect(JSON.stringify(events)).not.toContain('SYNTHETIC');
+  });
+
+  test('cancellation during backoff does not launch again and discards private abort reason', async () => {
+    const controller = new AbortController();
+    const fn = jest.fn().mockRejectedValue(new Error('503 unavailable'));
+    await expect(runResilientSpawn('codex', fn, {
+      maxAttempts: 3, breaker: mkBreaker(), signal: controller.signal,
+      backoff: { baseMs: 1, capMs: 2 },
+      sleep: async () => { controller.abort('SYNTHETIC_SECRET'); await new Promise(() => {}); },
+    })).rejects.toMatchObject({ code: 'CANCELLED', retryable: false });
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
+
+  test('real deadline aborts an uncooperative probe but retains its physical reservation', async () => {
+    const breaker = mkBreaker({ failureThreshold: 1, openTimeoutMs: 0 });
+    breaker.before('codex').settle('failure');
+    let release;
+    let signal;
+    const work = new Promise(resolve => { release = resolve; });
+    await expect(runResilientSpawn('codex', async s => { signal = s; return work; }, {
+      maxAttempts: 2, totalTimeoutMs: 10, breaker, backoff: { baseMs: 1, capMs: 2 },
+    })).rejects.toMatchObject({ code: 'TIMEOUT' });
+    expect(signal.aborted).toBe(true);
+    expect(() => breaker.before('codex')).toThrow(CircuitOpenError);
+    release('late');
+    await new Promise(resolve => setImmediate(resolve));
+    expect(breaker.state('codex')).toBe('OPEN');
+    breaker.before('codex').settle('success');
+    expect(breaker.state('codex')).toBe('CLOSED');
+  });
+
+  test('observer exceptions cannot strand a probe or retry successful work', async () => {
+    const breaker = mkBreaker({ failureThreshold: 1, openTimeoutMs: 0 });
+    breaker.before('codex').settle('failure');
+    const fn = jest.fn().mockResolvedValue('ok');
+    expect(await runResilientSpawn('codex', fn, {
+      maxAttempts: 2, breaker, backoff: { baseMs: 1, capMs: 2 }, onEvent: () => { throw new Error('observer'); },
+    })).toBe('ok');
+    expect(fn).toHaveBeenCalledTimes(1);
+    expect(breaker.state('codex')).toBe('CLOSED');
+  });
+
+  test.each([Infinity, 0, -1, 2_147_483_648])('rejects invalid total budget %s before work', async totalTimeoutMs => {
+    const fn = jest.fn();
+    await expect(runResilientSpawn('codex', fn, {
+      maxAttempts: 2, totalTimeoutMs, breaker: mkBreaker(), backoff: { baseMs: 1, capMs: 2 },
+    })).rejects.toThrow(RangeError);
+    expect(fn).not.toHaveBeenCalled();
   });
 });

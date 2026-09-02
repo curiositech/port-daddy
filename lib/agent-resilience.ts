@@ -30,12 +30,15 @@ import {
   makeError,
 } from './event-envelope.js';
 import { createHash } from 'node:crypto';
+import { setTimeout as sleepTimer } from 'node:timers/promises';
 
 /** The circuit breaker for a backend is OPEN; the call was not attempted. */
 export class CircuitOpenError extends Error {
   readonly code = 'CIRCUIT_OPEN' as const;
-  constructor(readonly backend: string, readonly retryAtMs: number) {
-    super(`circuit OPEN for backend '${backend}'; retry after ${new Date(retryAtMs).toISOString()}`);
+  readonly backend: string;
+  constructor(backend: string, readonly retryAtMs: number) {
+    super(`Circuit unavailable: ${safeDiagnosticIdentifier(backend)}`);
+    this.backend = safeDiagnosticIdentifier(backend);
     this.name = 'CircuitOpenError';
   }
 }
@@ -219,9 +222,16 @@ export interface BackoffConfig {
 
 /** Full-jitter backoff: random(0, min(cap, base * 2^attempt)). attempt is 0-indexed. */
 export function fullJitterDelay(attempt: number, cfg: BackoffConfig): number {
+  if (!Number.isSafeInteger(attempt) || attempt < 0
+    || !Number.isSafeInteger(cfg.baseMs) || cfg.baseMs < 0
+    || !Number.isSafeInteger(cfg.capMs) || cfg.capMs < 0 || cfg.capMs > MAX_TIMER_MS) {
+    throw new RangeError('Invalid bounded backoff configuration');
+  }
   const rand = cfg.random ?? Math.random;
   const exponential = Math.min(cfg.capMs, cfg.baseMs * Math.pow(2, attempt));
-  return Math.floor(rand() * exponential);
+  const sample = rand();
+  if (!Number.isFinite(sample) || sample < 0 || sample > 1) throw new RangeError('Invalid jitter sample');
+  return Math.floor(sample * exponential);
 }
 
 // ── Per-backend circuit breaker ──────────────────────────────────────────────
@@ -244,25 +254,42 @@ interface CircuitEntry {
   failures: number;
   successes: number;
   openedAt: number | null;
+  generation: number;
+  probe: object | null;
+  abandoned: Set<object>;
 }
+
+/** A single admitted operation; closures bind settlement to its exact generation. */
+export interface CircuitLease {
+  /** Settle exactly once, after the underlying operation has stopped. */
+  settle(outcome: 'success' | 'failure' | 'neutral'): void;
+  /** Invalidate an unfinished operation, retaining its probe slot until settlement. */
+  abandon(): void;
+}
+
+const MAX_TIMER_MS = 2_147_483_647;
 
 /**
  * One breaker per backend name. `before()` gates a launch (throws
- * CircuitOpenError when OPEN and still cooling). `onSuccess`/`onRetryableFailure`
- * drive the state machine. NON-retryable failures do NOT trip the breaker — a
- * malformed task must not take a healthy backend offline.
+ * CircuitOpenError when cooling or a probe is running). The returned lease
+ * binds completion to one operation and generation. No string-only completion
+ * API exists: old completions cannot repair a newer outage.
  */
 export class BackendCircuitBreaker {
   private readonly entries = new Map<string, CircuitEntry>();
   private readonly now: () => number;
   constructor(private readonly cfg: CircuitConfig) {
+    if (![cfg.failureThreshold, cfg.successThreshold].every(n => Number.isSafeInteger(n) && n > 0)
+      || !Number.isSafeInteger(cfg.openTimeoutMs) || cfg.openTimeoutMs < 0 || cfg.openTimeoutMs > MAX_TIMER_MS) {
+      throw new RangeError('Invalid bounded circuit configuration');
+    }
     this.now = cfg.now ?? Date.now;
   }
 
   private entry(backend: string): CircuitEntry {
     let e = this.entries.get(backend);
     if (!e) {
-      e = { state: 'CLOSED', failures: 0, successes: 0, openedAt: null };
+      e = { state: 'CLOSED', failures: 0, successes: 0, openedAt: null, generation: 0, probe: null, abandoned: new Set() };
       this.entries.set(backend, e);
     }
     return e;
@@ -272,9 +299,14 @@ export class BackendCircuitBreaker {
     return this.entry(backend).state;
   }
 
-  /** Throws CircuitOpenError if the backend is OPEN and still cooling down. */
-  before(backend: string): void {
+  /**
+   * Admit one operation; the motivation is atomic single-probe ownership.
+   * @param backend Internal backend key, not diagnostic text.
+   * @returns An idempotent lease that must settle when physical work ends.
+   */
+  before(backend: string): CircuitLease {
     const e = this.entry(backend);
+    if (e.probe || e.abandoned.size) throw new CircuitOpenError(backend, this.now() + this.cfg.openTimeoutMs);
     if (e.state === 'OPEN') {
       const elapsed = this.now() - (e.openedAt ?? 0);
       if (elapsed < this.cfg.openTimeoutMs) {
@@ -283,33 +315,47 @@ export class BackendCircuitBreaker {
       e.state = 'HALF_OPEN';
       e.successes = 0;
     }
-  }
-
-  onSuccess(backend: string): void {
-    const e = this.entry(backend);
-    e.failures = 0;
-    if (e.state === 'HALF_OPEN') {
-      e.successes += 1;
-      if (e.successes >= this.cfg.successThreshold) {
-        e.state = 'CLOSED';
-        e.openedAt = null;
-      }
-    }
-  }
-
-  /** A retryable failure: counts toward opening (or re-opens a HALF_OPEN probe). */
-  onRetryableFailure(backend: string): void {
-    const e = this.entry(backend);
-    if (e.state === 'HALF_OPEN') {
+    const token = {};
+    const generation = e.generation;
+    if (e.state === 'HALF_OPEN') e.probe = token;
+    let settled = false;
+    let abandoned = false;
+    const open = () => {
       e.state = 'OPEN';
       e.openedAt = this.now();
-      return;
-    }
-    e.failures += 1;
-    if (e.failures >= this.cfg.failureThreshold) {
-      e.state = 'OPEN';
-      e.openedAt = this.now();
-    }
+      e.generation += 1;
+      e.successes = 0;
+    };
+    return Object.freeze({
+      settle: (outcome: 'success' | 'failure' | 'neutral') => {
+        if (settled) return;
+        settled = true;
+        e.abandoned.delete(token);
+        if (e.probe === token) e.probe = null;
+        if (abandoned || e.generation !== generation) return;
+        if (outcome === 'failure') {
+          e.failures += 1;
+          if (e.state === 'HALF_OPEN' || e.failures >= this.cfg.failureThreshold) open();
+        } else if (outcome === 'success') {
+          e.failures = 0;
+          if (e.state === 'HALF_OPEN' && ++e.successes >= this.cfg.successThreshold) {
+            e.state = 'CLOSED';
+            e.openedAt = null;
+            e.generation += 1;
+          }
+        } else if (e.state === 'HALF_OPEN') {
+          // A rejected task is not successful proof that the backend recovered.
+          open();
+        }
+      },
+      abandon: () => {
+        if (settled || abandoned) return;
+        abandoned = true;
+        e.abandoned.add(token);
+        if (e.generation === generation) open();
+        // Keep e.probe until physical completion; abort is only a request.
+      },
+    });
   }
 }
 
@@ -319,8 +365,14 @@ export interface ResilientSpawnConfig {
   maxAttempts: number;
   backoff: BackoffConfig;
   breaker: BackendCircuitBreaker;
+  /** Total operation + retry budget. Default 60 seconds, never per-attempt. */
+  totalTimeoutMs?: number;
+  signal?: AbortSignal;
+  now?: () => number;
+  /** Dependency availability is distinct from whether a call is retryable. */
+  circuitFailurePolicy?: 'retryable-only' | 'any-failure';
   /** Sleep impl; injected for tests. */
-  sleep?: (ms: number) => Promise<void>;
+  sleep?: (ms: number, signal: AbortSignal) => Promise<void>;
   /** Structured observer for each attempt/outcome (logging/telemetry hook). */
   onEvent?: (e: ResilienceEvent) => void;
 }
@@ -333,7 +385,7 @@ export type ResilienceEvent =
   | { kind: 'circuit-open'; backend: string; retryAtMs: number }
   | { kind: 'exhausted'; backend: string; attempts: number; error: AgentError };
 
-const defaultSleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+const defaultSleep = (ms: number, signal: AbortSignal) => sleepTimer(ms, undefined, { signal });
 
 /**
  * Run an expensive launch with classification + full-jitter backoff + circuit
@@ -344,45 +396,102 @@ const defaultSleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms))
  */
 export async function runResilientSpawn<T>(
   backend: string,
-  fn: () => Promise<T>,
+  fn: (signal: AbortSignal) => Promise<T>,
   cfg: ResilientSpawnConfig,
 ): Promise<T> {
+  const totalTimeoutMs = cfg.totalTimeoutMs ?? 60_000;
+  if (!Number.isSafeInteger(totalTimeoutMs) || totalTimeoutMs <= 0 || totalTimeoutMs > MAX_TIMER_MS
+    || !Number.isSafeInteger(cfg.maxAttempts) || cfg.maxAttempts < 1) {
+    throw new RangeError('Invalid bounded retry configuration');
+  }
+  const now = cfg.now ?? Date.now;
+  const deadline = now() + totalTimeoutMs;
   const sleep = cfg.sleep ?? defaultSleep;
-  const emit = (e: ResilienceEvent) => cfg.onEvent?.(e);
-  let lastErr: AgentError | null = null;
-
-  for (let attempt = 0; attempt < cfg.maxAttempts; attempt++) {
+  const label = safeDiagnosticIdentifier(backend);
+  const emit = (e: ResilienceEvent) => { try { cfg.onEvent?.(e); } catch { /* diagnostics cannot change execution */ } };
+  const controller = new AbortController();
+  let boundaryError: AgentError | null = null;
+  const stop = (code: 'CANCELLED' | 'TIMEOUT') => {
+    boundaryError ??= makeError({ code, message: `Backend failure: ${code}`, retryable: false, details: { reason: code === 'TIMEOUT' ? 'total_deadline' : 'cancelled' } });
+    controller.abort();
+  };
+  const onAbort = () => stop('CANCELLED');
+  cfg.signal?.addEventListener('abort', onAbort, { once: true });
+  if (cfg.signal?.aborted) onAbort();
+  const timer = setTimeout(() => stop('TIMEOUT'), totalTimeoutMs);
+  const checkBoundary = () => {
+    if (now() >= deadline) stop('TIMEOUT');
+    if (boundaryError) throw boundaryError;
+  };
+  const bounded = async <V>(work: Promise<V>): Promise<V> => {
+    let rejectBoundary: () => void = () => {};
+    const interrupted = new Promise<never>((_, reject) => { rejectBoundary = () => reject(boundaryError); });
+    controller.signal.addEventListener('abort', rejectBoundary, { once: true });
+    if (controller.signal.aborted) rejectBoundary();
     try {
-      cfg.breaker.before(backend);
+      const result = await Promise.race([work, interrupted]);
+      checkBoundary();
+      return result;
+    } catch (error) {
+      checkBoundary();
+      throw error;
+    } finally {
+      controller.signal.removeEventListener('abort', rejectBoundary);
+    }
+  };
+  let lastErr: AgentError | null = null;
+  try {
+  for (let attempt = 0; attempt < cfg.maxAttempts; attempt++) {
+    checkBoundary();
+    let lease: CircuitLease;
+    try {
+      lease = cfg.breaker.before(backend);
     } catch (e) {
-      if (e instanceof CircuitOpenError) emit({ kind: 'circuit-open', backend, retryAtMs: e.retryAtMs });
+      if (e instanceof CircuitOpenError) emit({ kind: 'circuit-open', backend: label, retryAtMs: e.retryAtMs });
       throw e;
     }
-
-    emit({ kind: 'attempt', backend, attempt });
+    emit({ kind: 'attempt', backend: label, attempt });
+    const operation = Promise.resolve().then(() => { checkBoundary(); return fn(controller.signal); });
     try {
-      const value = await fn();
-      cfg.breaker.onSuccess(backend);
-      emit({ kind: 'success', backend, attempt });
+      const value = await bounded(operation);
+      lease.settle('success');
+      emit({ kind: 'success', backend: label, attempt });
       return value;
     } catch (raw) {
+      if (boundaryError) {
+        lease.abandon();
+        void operation.then(() => lease.settle('neutral'), () => lease.settle('neutral'));
+        emit({ kind: 'permanent', backend: label, attempt, error: boundaryError });
+        throw boundaryError;
+      }
       const error = classifyAgentError(raw, { backend });
       lastErr = error;
+      lease.settle(isRetryable(error) || cfg.circuitFailurePolicy === 'any-failure' ? 'failure' : 'neutral');
       if (!isRetryable(error)) {
-        emit({ kind: 'permanent', backend, attempt, error });
+        emit({ kind: 'permanent', backend: label, attempt, error });
         throw error; // structural decision — never retry a non-retryable failure
       }
-      cfg.breaker.onRetryableFailure(backend);
       const isLast = attempt === cfg.maxAttempts - 1;
       if (isLast) break;
       // Honour an upstream Retry-After; else full-jitter backoff.
       const delayMs = error.retryAfterMs ?? fullJitterDelay(attempt, cfg.backoff);
-      emit({ kind: 'retry', backend, attempt, delayMs, error });
-      await sleep(delayMs);
+      if (delayMs >= deadline - now()) {
+        throw makeError({ ...error, retryable: false, details: { reason: 'retry_after_exceeds_deadline' } });
+      }
+      emit({ kind: 'retry', backend: label, attempt, delayMs, error });
+      try {
+        await bounded(Promise.resolve().then(() => { checkBoundary(); return sleep(delayMs, controller.signal); }));
+      } catch {
+        throw boundaryError ?? makeError({ code: 'INTERNAL', message: 'Backoff failed', retryable: false });
+      }
     }
   }
 
   const exhausted = lastErr ?? makeError({ code: 'INTERNAL', message: 'spawn exhausted retries', retryable: false });
-  emit({ kind: 'exhausted', backend, attempts: cfg.maxAttempts, error: exhausted });
+  emit({ kind: 'exhausted', backend: label, attempts: cfg.maxAttempts, error: exhausted });
   throw exhausted;
+  } finally {
+    clearTimeout(timer);
+    cfg.signal?.removeEventListener('abort', onAbort);
+  }
 }
