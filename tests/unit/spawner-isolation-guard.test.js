@@ -14,9 +14,9 @@
  */
 
 import { jest } from '@jest/globals';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, realpathSync } from 'node:fs';
 import * as actualFs from 'node:fs';
-import { tmpdir } from 'node:os';
+import { homedir } from 'node:os';
 import { basename, join, relative } from 'node:path';
 
 // These are deliberately synthetic filesystem fixtures, not real Git clones.
@@ -74,7 +74,11 @@ afterAll(() => {
 
 // --- fixtures: a main checkout, a worktree, a non-repo dir ------------------
 beforeEach(() => {
-  root = mkdtempSync(join(tmpdir(), 'pd-iso-'));
+  const scratchParent = join(homedir(), 'coding', 'tmp');
+  mkdirSync(scratchParent, { recursive: true });
+  // Compare canonical paths on both sides of the bounded mock. macOS /var
+  // aliases otherwise make our own .git look outside the synthetic fixture.
+  root = realpathSync(mkdtempSync(join(scratchParent, 'pd-iso-')));
   mainCheckout = join(root, 'main');
   mainSubdir = join(mainCheckout, 'lib', 'deep');
   worktree = join(root, 'wt');
