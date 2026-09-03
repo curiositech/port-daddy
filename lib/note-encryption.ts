@@ -14,9 +14,11 @@
 
 import { randomBytes, createCipheriv, createDecipheriv, createHmac } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync, mkdirSync, statSync, chmodSync } from 'node:fs';
-import { join } from 'node:path';
+import * as scopedFs from 'node:fs';
+import { join, resolve } from 'node:path';
 import { homedir } from 'node:os';
 import { keychain, KEYCHAIN_SERVICE } from './keychain.js';
+import { PD_HOME } from '../shared/paths.js';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
@@ -25,22 +27,30 @@ const KEY_LENGTH = 32;  // 256 bits
 const IV_LENGTH = 12;   // GCM standard nonce
 const TAG_LENGTH = 16;  // GCM standard tag
 
-const MASTER_KEY_DIR = join(homedir(), '.port-daddy');
+const MASTER_KEY_DIR = PD_HOME;
 const MASTER_KEY_PATH = join(MASTER_KEY_DIR, 'master.key');
+const SCOPED_KEY_ROOT = resolve(MASTER_KEY_DIR) !== resolve(join(homedir(), '.port-daddy'));
+
+/** Existing key corruption is never permission to replace encryption identity. */
+class InvalidMasterKeyError extends Error {}
 
 /** Keychain account for the master key. One per install. */
 const KEYCHAIN_ACCOUNT = 'master-key';
 
 /**
  * Load the master key from the OS keychain. Delegates to the shared
- * primitive; converts hex → Buffer and validates length. Returns null
- * on any failure (platform not supported, entry missing, malformed).
+ * primitive; converts hex → Buffer and validates length. Returns null when
+ * unavailable or absent; malformed existing values throw rather than regenerate.
+ * The design preserves encryption identity instead of silently replacing it.
+ *
+ * @returns The existing valid master key, or null when no key is available.
+ * @throws InvalidMasterKeyError when an existing value is malformed.
  */
 function loadKeyFromKeychain(): Buffer | null {
   const hex = keychain.loadSecret(KEYCHAIN_SERVICE, KEYCHAIN_ACCOUNT);
-  if (!hex) return null;
-  const buf = Buffer.from(hex, 'hex');
-  return buf.length === KEY_LENGTH ? buf : null;
+  if (hex === null) return null;
+  if (!/^[0-9a-f]{64}$/i.test(hex)) throw new InvalidMasterKeyError('Invalid existing Keychain master key');
+  return Buffer.from(hex, 'hex');
 }
 
 /**
@@ -99,7 +109,8 @@ export interface NoteEncryption {
 export interface NoteEncryptionOptions {
   /**
    * When true, master-key initialization failures are fatal instead of falling
-   * back to plaintext note storage.
+   * back to plaintext note storage. Explicit scoped storage and invalid existing
+   * keys always fail, independently of this option.
    */
   requireMasterKey?: boolean;
 }
@@ -133,6 +144,97 @@ function verifyPermissions(path: string, expectedMode: number, label: string): v
 
 // ─── Implementation ─────────────────────────────────────────────────────────
 
+/**
+ * Inspect scoped storage without repairing it: the purpose is to reject foreign
+ * or aliased storage before a key read, not change another directory's ownership.
+ *
+ * @returns The verified directory inode for a post-operation identity check.
+ */
+function inspectScopedKeyDirectory(): scopedFs.Stats {
+  const directory = scopedFs.lstatSync(MASTER_KEY_DIR);
+  if (!directory.isDirectory() || directory.isSymbolicLink()
+      || scopedFs.realpathSync(MASTER_KEY_DIR) !== resolve(MASTER_KEY_DIR)) {
+    throw new Error('Scoped master-key storage must be a real directory without symlinks');
+  }
+  if (typeof process.getuid === 'function' && directory.uid !== process.getuid()) {
+    throw new Error('Scoped master-key directory ownership does not match this process');
+  }
+  if ((directory.mode & 0o777) !== 0o700) throw new Error('Scoped master-key directory permissions must be 0700');
+  return directory;
+}
+
+/**
+ * Load one private file key or create it exclusively. Design: no canonical
+ * Keychain fallback, no symlink following, and no concurrent-creator overwrite.
+ * The directory remains a same-user resource, not a filesystem sandbox.
+ *
+ * @returns A verified 32-byte key held only in process memory.
+ */
+function loadScopedFileMasterKey(): Buffer {
+  const directory = inspectScopedKeyDirectory();
+  let existing: scopedFs.Stats | undefined;
+  try { existing = scopedFs.lstatSync(MASTER_KEY_PATH); }
+  catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; }
+  if (existing && (!existing.isFile() || existing.isSymbolicLink() || existing.nlink !== 1)) {
+    throw new Error('Scoped master key must be a regular file without symbolic or hard links');
+  }
+  if (typeof scopedFs.constants.O_NOFOLLOW !== 'number') throw new Error('Scoped master-key no-follow support is unavailable');
+  const flags = scopedFs.constants.O_NOFOLLOW | scopedFs.constants.O_NONBLOCK | (existing
+    ? scopedFs.constants.O_RDONLY
+    : scopedFs.constants.O_WRONLY | scopedFs.constants.O_CREAT | scopedFs.constants.O_EXCL);
+  const fd = scopedFs.openSync(MASTER_KEY_PATH, flags, 0o600);
+  try {
+    const file = scopedFs.fstatSync(fd);
+    if (!file.isFile() || file.nlink !== 1 || (existing && (file.dev !== existing.dev || file.ino !== existing.ino))) {
+      throw new Error('Scoped master-key regular file identity changed during initialization');
+    }
+    if (typeof process.getuid === 'function' && file.uid !== process.getuid()) {
+      throw new Error('Scoped master-key file ownership does not match this process');
+    }
+    if ((file.mode & 0o777) !== 0o600) throw new Error('Scoped master-key file permissions must be 0600');
+    let key: Buffer;
+    if (existing) {
+      if (file.size !== KEY_LENGTH) throw new InvalidMasterKeyError('Invalid existing master-key length; expected 32 bytes');
+      key = Buffer.alloc(KEY_LENGTH);
+      const extra = Buffer.alloc(1);
+      if (scopedFs.readSync(fd, key, 0, KEY_LENGTH, 0) !== KEY_LENGTH
+          || scopedFs.readSync(fd, extra, 0, 1, KEY_LENGTH) !== 0) {
+        throw new InvalidMasterKeyError('Existing master-key length changed during bounded read');
+      }
+    } else {
+      key = randomBytes(KEY_LENGTH);
+    }
+    if (!existing) {
+      scopedFs.writeFileSync(fd, key);
+      scopedFs.fsyncSync(fd);
+    }
+    const after = inspectScopedKeyDirectory();
+    if (after.dev !== directory.dev || after.ino !== directory.ino) {
+      throw new Error('Scoped master-key directory identity changed during initialization');
+    }
+    const finalFile = scopedFs.fstatSync(fd);
+    const finalPath = scopedFs.lstatSync(MASTER_KEY_PATH);
+    if (!finalPath.isFile() || finalPath.isSymbolicLink() || finalPath.nlink !== 1
+        || finalFile.nlink !== 1 || finalFile.size !== KEY_LENGTH
+        || finalPath.size !== KEY_LENGTH || finalPath.dev !== file.dev || finalPath.ino !== file.ino
+        || (finalFile.mode & 0o777) !== 0o600 || finalFile.uid !== file.uid
+        || (existing && (finalFile.mtimeMs !== file.mtimeMs || finalFile.ctimeMs !== file.ctimeMs))) {
+      throw new Error('Scoped master-key pathname or file identity changed during initialization');
+    }
+    return key;
+  } finally {
+    scopedFs.closeSync(fd);
+  }
+}
+
+/**
+ * Initialize session-note encryption with its selected storage identity.
+ * Design: canonical installs retain Keychain preference; explicit private roots
+ * cannot borrow the canonical key or silently replace existing key material.
+ *
+ * @param options Whether an unavailable default-install master key is fatal.
+ * @returns The note encryption interface bound to this initialization's key.
+ */
 export function createNoteEncryption(options: NoteEncryptionOptions = {}): NoteEncryption {
   const requireMasterKey = options.requireMasterKey === true;
   let masterKey: Buffer | null = null;
@@ -151,9 +253,15 @@ export function createNoteEncryption(options: NoteEncryptionOptions = {}): NoteE
   // IO failures degrade encryption gracefully (plaintext notes) unless
   // requireMasterKey is true, in which case they are fatal.
   try {
+    if (SCOPED_KEY_ROOT) {
+      if (process.env.PORT_DADDY_DISABLE_KEYCHAIN !== '1') {
+        throw new Error('Scoped note encryption requires PORT_DADDY_DISABLE_KEYCHAIN=1; canonical Keychain access is refused');
+      }
+      masterKey = loadScopedFileMasterKey();
+    }
     // Tier 1: Keychain
-    masterKey = loadKeyFromKeychain();
-    if (masterKey) {
+    if (!SCOPED_KEY_ROOT) masterKey = loadKeyFromKeychain();
+    if (masterKey && !SCOPED_KEY_ROOT) {
       console.error('[NoteEncryption] Master key loaded from macOS Keychain');
     }
 
@@ -171,7 +279,7 @@ export function createNoteEncryption(options: NoteEncryptionOptions = {}): NoteE
           );
         }
       } else {
-        console.error('[NoteEncryption] Master key file wrong length, regenerating');
+        throw new InvalidMasterKeyError('Invalid existing master-key length; expected 32 bytes');
       }
     }
 
@@ -183,7 +291,7 @@ export function createNoteEncryption(options: NoteEncryptionOptions = {}): NoteE
         console.error('[NoteEncryption] Generated new master key in macOS Keychain');
       } else {
         mkdirSync(MASTER_KEY_DIR, { recursive: true, mode: 0o700 });
-        writeFileSync(MASTER_KEY_PATH, masterKey, { mode: 0o600 });
+        writeFileSync(MASTER_KEY_PATH, masterKey, { mode: 0o600, flag: 'wx' });
         console.error(
           '[NoteEncryption] Generated new master key at', MASTER_KEY_PATH,
           keychainAvailable()
@@ -193,7 +301,7 @@ export function createNoteEncryption(options: NoteEncryptionOptions = {}): NoteE
       }
     }
   } catch (err) {
-    if (requireMasterKey) {
+    if (requireMasterKey || SCOPED_KEY_ROOT || err instanceof InvalidMasterKeyError) {
       throw new Error(
         `Note encryption is mandatory but master-key initialization failed: ${(err as Error).message}`
       );
@@ -210,7 +318,7 @@ export function createNoteEncryption(options: NoteEncryptionOptions = {}): NoteE
   // Permission verification only matters when the file fallback is in use.
   // If the key lives in the Keychain, the file may not exist — that is
   // the desired state going forward.
-  if (masterKey && existsSync(MASTER_KEY_PATH)) {
+  if (masterKey && !SCOPED_KEY_ROOT && existsSync(MASTER_KEY_PATH)) {
     verifyPermissions(MASTER_KEY_DIR, 0o700, 'key directory');
     verifyPermissions(MASTER_KEY_PATH, 0o600, 'master key file');
   }

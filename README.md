@@ -980,7 +980,7 @@ pd safe fix                     # opt-in chmod of crown-jewel permissions
 
 ### Note Encryption
 
-Session notes are encrypted at rest with AES-256-GCM. Master key at `~/.port-daddy/master.key` (auto-generated); per-session keys wrapped with it. ProVerif-verified: an attacker with database access cannot learn note content.
+Session notes use AES-256-GCM with per-session keys wrapped by a master key. The default installation prefers the OS Keychain, with `~/.port-daddy/master.key` as its file fallback. An explicit noncanonical `PD_HOME` instead uses `PD_HOME/master.key` and requires `PORT_DADDY_DISABLE_KEYCHAIN=1`, refusing the canonical note-key Keychain account. Scoped file storage must be an owned real 0700 directory with a regular, single-link 0600 key. Invalid existing keys are not replaced; missing keys are created exclusively. This scopes the **session-note key only**, not every secret or Porthole's separate OS-keystore-only root provider.
 
 ### Formal verification
 
