@@ -176,6 +176,8 @@ pd begin "Fix flaky auth tests" --identity myapp:api --lifecycle durable --sideq
 
 Heartbeat expiry abandons only ephemeral sessions. Verified active durable work keeps its directory row **inactive and not ready**, with its session, claims, and notes preserved. Existing replacement entries become `dormant` with `holdReason: durable_session_active`; their capsules survive, while an already-admitted attempt stays `resurrecting` and is not canceled by the hold. `pd salvage --all` shows held entries. Ordinary salvage mutations and new heartbeats cannot clear them. **Hold clearance is not implemented yet**; explicit session end, abandon, and takeover retain their existing contracts but do not clear saved queue holds.
 
+The separate seven-day archival sweep also preserves durable sessions. It abandons only an unchanged active ephemeral session whose timestamp and exact-session notes remain older than the sweep cutoff after harvesting; malformed timestamps or durability preserve the session. Original claims and notes remain intact, and completion counts reflect actual transitions. This is a source contract, not proof that an installed daemon has been upgraded.
+
 The same requirement applies to `pd session start` and the MCP `begin_session` tool.
 
 After registration, `pd begin` may print up to three semantically matched live
