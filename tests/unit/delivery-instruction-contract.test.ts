@@ -5,10 +5,40 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 
 import { runLearnOrientation } from '../../cli/commands/tutorial.ts';
+import { extractSystemPrompt, pilotRenderTargets, type PilotConfig } from '../../lib/pilot-agent-render.ts';
 
 const REPO = process.cwd();
 const template = readFileSync(join(REPO, '.github/PULL_REQUEST_TEMPLATE.md'), 'utf8');
 const fixtures: string[] = [];
+const publicRoots = ['skills', '.codex/skills', '.claude/skills', '.agents/skills', '.gemini/extensions/port-daddy/skills'];
+const internalRoots = ['skills', '.codex/skills', '.claude/skills', '.agents/skills'];
+
+/** Read source-owned instructions; the test must not consult installed user agents. */
+function source(path: string): string {
+  return readFileSync(join(REPO, path), 'utf8');
+}
+
+/** Select a named instruction section so an unrelated later disclaimer cannot satisfy it. */
+function section(text: string, start: string, end: string): string {
+  const begin = text.indexOf(start);
+  const finish = text.indexOf(end, begin + start.length);
+  expect(begin).toBeGreaterThanOrEqual(0);
+  expect(finish).toBeGreaterThan(begin);
+  return text.slice(begin, finish);
+}
+
+/** Assert delivery milestones in order, rejecting a premature completion command. */
+function expectDeliveryOrder(text: string): void {
+  const compact = text.replace(/\s+/g, ' ');
+  const publish = compact.indexOf('ready, non-draft App/Fleetbot PR');
+  const review = compact.toLowerCase().indexOf('gracious', publish);
+  const merge = compact.indexOf('actual merged-head receipt', review);
+  const done = compact.indexOf('pd done', merge);
+  expect(publish).toBeGreaterThan(-1);
+  expect(review).toBeGreaterThan(publish);
+  expect(merge).toBeGreaterThan(review);
+  expect(done).toBeGreaterThan(merge);
+}
 
 /** Create only an isolated project marker; the design never borrows live context. */
 function projectFixture(): string {
@@ -67,6 +97,106 @@ afterEach(() => {
 });
 
 describe('delivery instruction contract', () => {
+  test('canonical Pilot renders its full delivery and recovery contract into all five real formats', () => {
+    const dir = projectFixture();
+    const config = JSON.parse(source('agents/port-daddy-pilot/agent.config.json')) as PilotConfig;
+    const system = extractSystemPrompt(source('agents/port-daddy-pilot/AGENT.md'));
+    const before = readdirSync(dir);
+    const targets = pilotRenderTargets(dir, config, system);
+    expect(targets.map(target => target.runtime)).toEqual([
+      'Claude Code', 'Codex CLI', 'Gemini CLI', 'Gemini extension (Antigravity)', 'Generic agents',
+    ]);
+    expect(new Set(targets.map(target => target.path)).size).toBe(5);
+    for (const target of targets) {
+      expect(target.path.startsWith(`${dir}/`)).toBe(true);
+      expect(target.content).toContain(system);
+      expectDeliveryOrder(target.content);
+      for (const phrase of ['linked worktree', 'checkpoints', 'regression tests', 'protected merge/queue',
+        'required checks', 'Neutral/skipped', 'queue admission is not merge', 'read-only',
+        'must not push or merge', 'wrong or harmful', 'accepting successor', 'typed PR receipt',
+        'complete', 'pd plan set', 'prior plan history', 'all GitHub access is', 'broker-routed',
+        'repository/operator policy', 'is not a shipped surface', 'CONTEXT_CONFLICT',
+        'genuinely new child with its own context slot', 'exact successor/claim',
+        'Jury-rig', 'pd jury-rig query', 'pd jury-rig reference']) {
+        expect(target.content.replace(/\s+/g, ' ').toLowerCase()).toContain(phrase.toLowerCase());
+      }
+      expect(target.content).not.toContain('PD_SESSION_ID="" PD_AGENT_ID=""');
+      expect(target.content).not.toContain('/Cellar/windags/');
+      expect(target.content).not.toContain('windags_skill_');
+    }
+    // Pure rendering is not installation or runtime enforcement.
+    expect(readdirSync(dir)).toEqual(before);
+    expect(config.description).toContain("Port Daddy's Jury-rig");
+    expect(config.mcpServers).toEqual(expect.arrayContaining([expect.objectContaining({ name: 'port-daddy' })]));
+    // Third-party catalog identifiers remain provenance, not a required runtime.
+    expect(config.skills).toContain('next-move');
+    expect(system).toContain('Do not require\n  or install an external planning runtime');
+  });
+
+  test.each(publicRoots)('%s public instructions and decision tree are exact canonical mirrors', (prefix) => {
+    for (const suffix of ['SKILL.md', 'decisions/before-publish.md']) {
+      expect(source(`${prefix}/port-daddy-agent-skill/${suffix}`))
+        .toBe(source(`skills/port-daddy-agent-skill/${suffix}`));
+    }
+  });
+
+  test.each(internalRoots)('%s contributor instructions retain exact canonical parity', (prefix) => {
+    expect(source(`${prefix}/port-daddy-internal-dev/SKILL.md`))
+      .toBe(source('skills/port-daddy-internal-dev/SKILL.md'));
+  });
+
+  test('both public quick loops defer completion until the full PR finish line', () => {
+    const text = source('skills/port-daddy-agent-skill/SKILL.md');
+    const loops = [section(text, '## Default Agent Happy Path', '## Plan & Todo List Tracking'),
+      section(text, '## Operating Loop', '## Decision Points')];
+    for (const loop of loops) {
+      const compact = loop.replace(/\s+/g, ' ');
+      const publish = compact.indexOf('ready, non-draft App/Fleetbot PR');
+      const merged = compact.indexOf('merged-head receipt', publish);
+      expect(publish).toBeGreaterThan(-1);
+      expect(merged).toBeGreaterThan(publish);
+      expect(compact.indexOf('pd done')).toBeGreaterThan(merged);
+    }
+    const finish = section(text, '## PR Finish Line', '## Small Decision Table').replace(/\s+/g, ' ');
+    expect(finish).toContain('all GitHub access is broker-routed');
+    expect(finish).toContain('honor that policy for reads too');
+    expect(finish).toContain('Read-only reviewers');
+    expect(finish).toContain('must not push or merge');
+    expect(finish).toContain('accepting successor');
+    expect(finish).toContain('postCommitAudit.commit');
+    expect(finish).toContain('does not undo Git');
+    expect(text).toContain('a caller-supplied reason is not operator authority');
+    expect(text).toContain('This verifier runs even when the branch is fully pushed');
+  });
+
+  test('contributor lifecycle and decision tree cannot turn PR creation or missing context into done', () => {
+    const internal = source('skills/port-daddy-internal-dev/SKILL.md');
+    const lifecycle = section(internal, '## PR Lifecycle', '### Shell gotchas').replace(/\s+/g, ' ');
+    expectDeliveryOrder(lifecycle);
+    for (const phrase of ['do not run', 'at PR creation', 'actual merge',
+      'all GitHub access is broker-routed', 'honor that policy for reads too',
+      'accepting handoff', 'planned ActionReceipt API', 'is not a shipped surface']) {
+      expect(lifecycle).toContain(phrase);
+    }
+    const recovery = section(internal, '- **A `git add -A` / `reset --hard`', '- **Binary drift');
+    expect(recovery.replace(/\s+/g, ' ')).toContain('Do not rerun `pd begin`');
+    expect(recovery).toContain('Never clear an existing');
+    expect(recovery).toContain('`CONTEXT_CONFLICT`');
+    expect(recovery).not.toContain('PD_SESSION_ID="" PD_AGENT_ID=""');
+    const loop = section(internal, '## Operating Loop (contributor)', '**For releases**');
+    expectDeliveryOrder(loop);
+    expect(loop).not.toContain('gh pr create');
+    expect(loop).not.toContain('git push -u');
+    const tree = source('skills/port-daddy-agent-skill/decisions/before-publish.md');
+    for (const phrase of ['not automatic `pd begin`', 'age is not authority', 'queue admission is not merge',
+      'all GitHub access is broker-routed', 'honor\nthat policy for reads too', 'ready, non-draft App/Fleetbot PR',
+      'hotfix does not grant an exception', 'Only after actual merge']) expect(tree).toContain(phrase);
+    expect(tree).not.toContain('safe to resolve');
+    expect(tree).not.toContain('open PR if one is expected');
+    expect(internal).toContain('Guard receipt lookups must not infer absence from a capped list');
+    expect(internal).toContain('Generated relay migration ledgers land through a PR');
+  });
+
   test.each(['startup', 'orientation', 'template'] as const)(
     '%s carries review, publication, ownership and protected-merge obligations',
     async (surface) => {

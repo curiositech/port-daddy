@@ -384,23 +384,39 @@ carries the canonical copy — this is the contributor-repo mirror.
 
 **Create.** Linked worktree off `origin/main` under `~/coding/tmp/wt-<slug>`
 (never the main checkout — it carries the operator's WIP) → `pd begin
-"<purpose>" --identity port-daddy:contrib:<slug>` → scope `pd note` → `pd
-session files add <files>` *before* editing → edit → `pd guard check
---staged` → commit (no Claude co-author trailer) → `git push -u origin
-<branch>` → `gh pr create` → `pd done`.
+"<purpose>" --identity port-daddy:contrib:<slug> --lifecycle durable` → full
+`pd plan set` → scope `pd note` → smallest claims *before* editing → edit and
+test → `pd guard check --staged` → frequent coherent checkpoints with verified
+agent author/committer attribution → ready, non-draft App/Fleetbot PR through
+the authorized publication path. A checkpoint is not delivery; **do not run
+`pd done` at PR creation**. Retain ownership through actual merge.
 
-**Update** (review + CI). Pull bot comments with `gh api
-repos/curiositech/port-daddy/pulls/<n>/comments` and fix the real ones.
-Land every HIGH adversarial finding as a named fixup commit. Get `npx tsc
+GitHub writes (push, PR, comment, review and queue mutations) use that scoped
+App path, never ambient personal `gh`/API credentials. Read-only inspection is
+distinct from publication and may use tools permitted by repository/operator
+policy; where **all GitHub access is broker-routed**, honor that policy for
+reads too. A planned ActionReceipt API or an ad-hoc helper is not a shipped
+surface. If the required publisher is missing, preserve the exact commits and
+body, record the missing capability and arrange an accepting handoff; do not
+invent a command, switch identities or replay an uncertain write.
+
+**Update** (review + CI). Read live comments, replies and checks through the
+permitted inspection path. Respond graciously, incorporating actionable
+feedback unless clearly wrong or harmful; explain disagreements with evidence.
+Add regression tests and land high-confidence findings as named fixup commits.
+Get `npx tsc
 --noEmit`, jest, `npm run parity`, and the build green. Rebase onto latest
-`origin/main`, resolve conflicts, push.
+`origin/main`, resolve conflicts with affected owners, validate and update the
+same App PR. Read-only reviewers must not push or merge; preserve role scope.
 
 **Land.** Merge in dependency order: base before dependent, and rebase the
 dependent after *each* merge — mergeability can flip MERGEABLE → CONFLICTING
-the moment the base lands. Use the protected flow: `gh pr merge <n> --auto`
-when the merge queue is active, and let branch protection choose the merge
-strategy. Do not add `--squash`, `--merge`,
-`--rebase`, or `--admin` as routine agent flow. A human maintainer may make an
+the moment the base lands. Use the authorized App protected merge/queue path
+and let branch protection choose the merge strategy. Keep required checks and
+review gates intact; neutral/skipped Fleet is not a clean required verdict.
+Queue admission is not merge: verify the actual merged-head receipt, merge
+commit and timestamp, then update the full plan and typed roadmap PR receipt
+before ordinary `pd done`. Do not add `--admin` as routine agent flow. A human maintainer may make an
 explicit, documented emergency bypass; an agent does not admin-skip a real
 required gate. Cloudflare Pages may be external/advisory, but prove that from
 branch protection and record the evidence before treating it as non-blocking.
@@ -466,11 +482,18 @@ The friction below costs every fresh session real time. Internalize it.
   check --staged`.
 - **A `git add -A` / `reset --hard` / `rebase` refused with "coordination
   guard … could not be verified"** (not the routine advisory refusal) means the
-  daemon-side guard couldn't confirm your session. Re-run `pd begin`, then
-  retry. If direct session state, claims, and the refusal still disagree,
-  publish exact evidence to `coordination:inconsistency` and surface the blocker
-  to the operator instead of routing around the guard.
-- **Environment variables override context slot**: When running Port Daddy commands (like `pd begin`, `pd done`, `pd session files add`) inside subagent execution lanes spawned by harnesses (such as Antigravity/Claude Code), the harness may inject `PD_SESSION_ID` and `PD_AGENT_ID` of the parent/old session into the environment. Because the CLI prioritizes these environment variables over context slot files, any command will resolve to that old session (which may be completed, leading to "No active session found"). Fix this by prefixing your commands with `PD_SESSION_ID="" PD_AGENT_ID=""` to force the CLI to read the active context from the filesystem context slots.
+  daemon-side guard could not confirm your session. Inspect the selected daemon,
+  exact session, owner, physical worktree/root and retained claim history. Do
+  not rerun `pd begin` to hide the disagreement. Use supported authorized
+  recovery, read back its actual successor/claim disposition, or record the
+  bounded defect and continue authorized disjoint work. Missing projections
+  and released history are not permission to borrow claims or credentials.
+- **Inherited selectors are not a recovery shortcut.** Only at launch of a
+  genuinely new child with its own context slot may the launcher remove
+  inherited parent selectors before fresh admission. Never clear an existing
+  `CONTEXT_CONFLICT`, broaden selectors, or copy a credential to bypass a proven
+  contradiction. Retain the exact caller for notes, claims and completion;
+  inspect runtime support before any recovery mutation and read back the result.
 - **Binary drift in integration tests on dev machine**: Ephemeral test daemons started by the integration test framework will verify binary hashes. If there's a global Homebrew or PATH-installed `pd` binary, it may cause false positive "binary drift" checks. Fix this by overriding the comparable on-disk path by setting `PORT_DADDY_BIN_OVERRIDE: process.execPath` inside the test environment for both the CLI runs and the ephemeral daemon spawns (now configured automatically in `tests/helpers/integration-setup.js` and `tests/helpers/ephemeral-daemon.js`).
 - **Roadmap authority during Oracle cutover**: Core coordination paths may still trigger the legacy Coordination Guard check for a local roadmap receipt. Do not satisfy that check by minting or touching a local roadmap row: local roadmap stores and files are transitional projections, not new authority. Use an attributable, fresh, signed remote Oracle work receipt once that writer is deployed and a remote read-back succeeds. Until then, fail closed and record the exact violation plus the operator-authorized, narrowly scoped commit exception or handoff for the slice; do not weaken Guard globally or claim a canonical remote receipt.
 - **Guard receipt lookups must not infer absence from a capped list.** Linked sessions read only their exact `roadmapLink` in the same intended harbor selected by `pd roadmap` writes; wrong-harbor and unrelated-item receipts cannot satisfy them. Keep freshness and agent attribution checks. Unlinked sessions use one scoped bounded page, reporting incomplete or unavailable evidence separately from missing receipts. These are local projection checks, not canonical remote authority.
@@ -691,14 +714,16 @@ re-asking them is the failure mode this section exists to kill.
    are first-class reviews: fix-and-reply, or dismiss-with-reason against
    origin/main. A PR with unanswered threads is not "ready".
 5. **Land in dependency order**, base before dependent, rebasing the
-   dependent after each merge. Use `gh pr merge <n> --auto` for merge-queue
-   repos and let the protected branch choose strategy. Admin bypass is not a
-   routine agent landing path.
+   dependent after each merge. Use the authorized App protected merge/queue
+   path; required checks and review gates stay binding. Queue admission is not
+   merge. Verify the actual merged-head receipt before advancing dependents.
 6. **Clean up**: delete only worktrees whose branch is merged AND whose
    `git status --porcelain` is clean. Never touch the main checkout.
 7. **Close the ledger**: `pd note "Result: ... Validation: ... Remaining: ..."`,
-   `pd done`, `pd feedback` — and if the sweep taught this skill something,
-   land the skill edit in the same sweep.
+   the complete plan and typed roadmap PR receipt, then `pd done` and
+   `pd feedback` only after actual merge or an accepting, attributable handoff.
+   Preserve unfinished work in the plan; PR creation is not completion. If the
+   sweep taught this skill something, land the skill edit in the same sweep.
 
 Built bundles (`public/fleet-ui/`) conflict on every rebase because both
 sides rebuilt them: resolve toward main's bundle, finish the rebase, rebuild
@@ -736,15 +761,17 @@ pd guard check --staged
 node scripts/release-surface-audit.mjs   # if present
 # OR walk the Release-Surface Drift list above by hand
 
-# 7. Commit + push (NOT tag — tags are release work, see RELEASING.md §1)
+# 7. Checkpoint + publish (NOT tag — tags are release work, see RELEASING.md §1)
 git add <explicit paths>
 git status --porcelain          # MUST be clean of foreign files
-git commit -m "<scope>: <change>"
-git push -u origin <feature-branch>
-gh pr create ...                # standard PR flow
+git commit -m "<scope>: <change>" # verified agent author AND committer
+# Publish a ready, non-draft App/Fleetbot PR through the authorized path.
+# Respond graciously; add regression tests; fix required checks and reviews.
+# Use protected merge/queue and verify the actual merged-head receipt.
 
-# 8. Close
-pd note "Result: <change>. Validation: <evidence>. Remaining: <Lookout drifts, follow-ups>."
+# 8. Close only after actual merge, not PR creation or queue admission
+# Update the complete plan and typed roadmap PR receipt first.
+pd note "Result: <change + PR + merged SHA>. Validation: <evidence>. Remaining: <Lookout drifts, follow-ups>."
 pd done "<outcome>"
 pd feedback "<contributor experience report>"   # bare form; auto slug + agent
 ```

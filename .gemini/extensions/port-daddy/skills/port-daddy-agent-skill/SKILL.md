@@ -178,9 +178,13 @@ pd plan set "- [ ] Setup X\n- [ ] Fix Y\n- [ ] Verify Z"
 pd advise <likely-path> --task "<plain-language task>"
 pd note "Scope: <files>. Assumptions: <truth>. Validation: <commands>."
 pd session files add <path>
-# work, validate, check off plan, and keep notes current
+# Work in a linked worktree; commit validated checkpoints with agent attribution.
+# Keep the complete plan and notes current. A checkpoint is not delivery.
 pd plan check "Setup X"
-pd note "Result: <change>. Validation: <evidence>. Remaining: <risk>."
+# Publish a ready, non-draft App/Fleetbot PR through the authorized path.
+# Own reviews, regression tests, required checks and the protected merge/queue.
+# Verify the actual merged-head receipt; queue admission is not merge.
+pd note "Result: <change + PR + merged SHA>. Validation: <evidence>. Remaining: <risk>."
 pd done "<short outcome>"
 ```
 
@@ -384,6 +388,29 @@ pd guard check --staged
 
 ## PR Finish Line
 
+**Code is not done until it is ready to merge to main. Delivery ownership
+continues through the actual merge.** Commit coherent, validated checkpoints
+often in a linked worktree; a commit or pushed branch is recoverable progress,
+not completion. Requested research and planning artifacts also belong in a PR.
+Keep their remaining publication, review and merge tasks in the complete plan.
+
+Publish ready, non-draft PRs, comments and review replies through the
+repository's authorized App/Fleetbot path, with the responsible agent, session,
+scope and exact head in the receipt. Do not publish as the operator with
+ambient personal credentials. Read-only inspection is distinct from
+publication and may use tools permitted by repository/operator policy; where
+**all GitHub access is broker-routed**, honor that policy for reads too.
+If a required publisher is unavailable, preserve the commits and prepared PR
+body, record the exact missing capability and arrange an attributable handoff.
+An ad-hoc helper is not a shipped surface; do not invent a publisher command or
+pretend a planned ActionReceipt API is available. Uncertain writes require
+exact readback, not replay through another identity or transport.
+
+Read-only reviewers and non-authoring agents must not push or merge merely
+because they read this contract. Their finish line is the assigned review or
+handoff, with its evidence; `pd done --no-pr` retains the narrower verifier
+described under Plan & Todo List Tracking.
+
 Before the first commit, inspect both effective Git author and committer. Use
 the verified responsible agent's attribution and traceable actor/session
 trailers; never silently inherit the operator's identity. Git metadata is
@@ -405,10 +432,15 @@ because an older installed hook printed “commit blocked.” Verify installed
 behavior separately from source; never treat an unverifiable audit as green.
 
 When you open or inherit a PR, you own the machine-visible finish line unless
-you explicitly hand it off in Port Daddy notes.
+an accepting successor takes the explicit handoff in Port Daddy notes. Link
+the PR in the existing roadmap item's typed PR field and read it back without
+overwriting another owner's status, edges or plans.
 
 - Read live PR comments, reviews, inline bot findings, and status checks before
   declaring the branch ready.
+- Respond graciously to comments and incorporate actionable feedback unless
+  clearly wrong or harmful; explain a disagreement with concrete evidence.
+  Add regression tests for fixes and improve relevant CI/CD when needed.
 - Treat bot comments as review findings — fleetbot included. The
   `port-daddy-fleet` bot posts `[pd-code-reviewer]` and `[pd-qa]` threads on
   every PR; read and answer them alongside Copilot, Claude review, Cloudflare
@@ -426,8 +458,15 @@ you explicitly hand it off in Port Daddy notes.
 - "CI green" includes GitHub checks and attached external deploy/status checks.
   If a red check is truly external, inspect the linked logs and document the
   owner/root cause in both the PR and a `pd note`; otherwise fix the branch.
-- Before the final handoff, post the validation evidence on the PR, leave a
-  `pd note`, and `pd done` the session.
+- Once the exact head's required checks and review gates pass, use the normal
+  protected merge/queue. Neutral/skipped Fleet is not a clean required verdict;
+  neither queue admission nor auto-merge configuration is merge. Never use an
+  admin bypass to manufacture green.
+- Read back the actual merged head, merge commit and timestamp before marking
+  the merge task complete. Then post attributable validation evidence, update
+  the plan and linked receipt, and `pd done` the session. Do not close at PR
+  creation or abandon ownership while checks run. A true external blocker gets
+  exact evidence and an accepting handoff, not a false completion claim.
 
 ## Small Decision Table
 
@@ -549,7 +588,10 @@ git rebase origin/main           # use origin/master only when that remote branc
 pd sessions --all-worktrees
 pd notes --limit 20
 pd guard check --staged
-pd note "Result: <change>. Validation: <evidence>. Remaining: <risk>."
+# Commit validated checkpoints; publish a ready, non-draft App/Fleetbot PR.
+# Follow PR Finish Line: gracious reviews, regression tests, required checks,
+# protected merge/queue, and an actual merged-head receipt before completion.
+pd note "Result: <change + PR + merged SHA>. Validation: <evidence>. Remaining: <risk>."
 pd done "<short outcome>"
 ```
 
