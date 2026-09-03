@@ -29,11 +29,14 @@ function section(text: string, start: string, end: string): string {
 
 /** Assert delivery milestones in order, rejecting a premature completion command. */
 function expectDeliveryOrder(text: string): void {
-  const compact = text.replace(/\s+/g, ' ');
+  // Exempt only this explicit inline-code prohibition, not executable commands
+  // (with or without arguments), arrows, or a later valid completion command.
+  const compact = text.replace(/\bdo not run\s+`pd done`/gi, '')
+    .replace(/\s+/g, ' ');
   const publish = compact.indexOf('ready, non-draft App/Fleetbot PR');
   const review = compact.toLowerCase().indexOf('gracious', publish);
   const merge = compact.indexOf('actual merged-head receipt', review);
-  const done = compact.indexOf('pd done', merge);
+  const done = compact.indexOf('pd done');
   expect(publish).toBeGreaterThan(-1);
   expect(review).toBeGreaterThan(publish);
   expect(merge).toBeGreaterThan(review);
@@ -97,6 +100,35 @@ afterEach(() => {
 });
 
 describe('delivery instruction contract', () => {
+  test.each(['before publication', 'before review', 'before merge'])(
+    'delivery-order assertion rejects an executable completion %s despite a later valid completion', (placement) => {
+      const original = section(source('skills/port-daddy-internal-dev/SKILL.md'),
+        '## PR Lifecycle', '### Shell gotchas');
+      const anchor = placement === 'before publication' ? '**Create.**'
+        : placement === 'before review' ? '**Update**' : '**Land.**';
+      const mutant = original.replace(anchor, `\n\`\`\`sh\npd done "premature"\n\`\`\`\n${anchor}`);
+      expect(mutant).not.toBe(original);
+      expect(() => expectDeliveryOrder(original)).not.toThrow();
+      expect(() => expectDeliveryOrder(mutant)).toThrow();
+    },
+  );
+
+  test.each(['pd done', '`pd done`', '→ `pd done` →', 'pd done "early"'])(
+    'delivery-order assertion rejects an early command spelling: %s', (command) => {
+      const ordered = 'ready, non-draft App/Fleetbot PR\nRespond graciously\nactual merged-head receipt\npd done "complete"';
+      expect(() => expectDeliveryOrder(ordered)).not.toThrow();
+      expect(() => expectDeliveryOrder(`${command}\n${ordered}`)).toThrow();
+    },
+  );
+
+  test('delivery-order assertion permits explicit prohibitions but still requires actual completion', () => {
+    const prohibition = 'Do not run `pd done` at PR creation.\n**do not run\n`pd done` at PR creation**.';
+    const ordered = `${prohibition}\nready, non-draft App/Fleetbot PR\nRespond graciously\nactual merged-head receipt`;
+    expect(() => expectDeliveryOrder(`${ordered}\npd done "complete"`)).not.toThrow();
+    expect(() => expectDeliveryOrder(ordered)).toThrow();
+    expect(() => expectDeliveryOrder(`${prohibition}\npd done "early"\n${ordered}\npd done "complete"`)).toThrow();
+  });
+
   test('canonical Pilot renders its full delivery and recovery contract into all five real formats', () => {
     const dir = projectFixture();
     const config = JSON.parse(source('agents/port-daddy-pilot/agent.config.json')) as PilotConfig;
