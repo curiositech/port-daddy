@@ -1208,6 +1208,7 @@ Start with [CONTRIBUTING.md](CONTRIBUTING.md). Every PR is filled out against [`
 - [`docs/RELEASING.md`](docs/RELEASING.md) / [`docs/VERSIONING.md`](docs/VERSIONING.md) — the release contract
 - [`docs/SECURITY_SOUNDNESS.md`](docs/SECURITY_SOUNDNESS.md) — what is and is not defended
 - [Dated delivery evidence](docs/research/2026-09-02-delivery-census.md) — published work, preserved checkpoints, and runtime follow-ups; a sanitized audit, not roadmap authority
+- [Machine-instruction parity audit](docs/research/2026-09-02-machine-instruction-parity.md) — installed-guide and Pilot/skill provenance, preservation boundaries, and the remaining repair contract; source delivery is not installation
 - White papers at `/whitepaper` on [portdaddy.dev](https://portdaddy.dev): **The Anchor Protocol**, **The Bonded Commons**
 
 ---
