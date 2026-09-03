@@ -337,19 +337,23 @@ function noteMatchesAgent(
   note: { at?: number | null; by?: string | null },
   agentId: string | null | undefined,
   since: number,
+  nowMs: number,
 ): boolean {
   if (!agentId) return false;
-  return note.by === agentId && typeof note.at === 'number' && note.at >= since;
+  return note.by === agentId && typeof note.at === 'number' && Number.isSafeInteger(note.at)
+    && note.at > 0 && note.at >= since && note.at <= nowMs;
 }
 
 function receiptMatchesAgent(
   receipt: GuardRoadmapReceipt,
   agentId: string | null | undefined,
   since: number,
+  nowMs: number,
 ): boolean {
-  const touchedRecently = typeof receipt.lastTouchedAt === 'number' && receipt.lastTouchedAt >= since;
-  if (touchedRecently && agentId && receipt.promotedByAgentId === agentId) return true;
-  return Array.isArray(receipt.notes) && receipt.notes.some((note) => noteMatchesAgent(note, agentId, since));
+  // A shared touch time is not proof that the original promoter did work.
+  // Promotion inputs are not verified receipt records either. Credit only
+  // this caller's own bounded note timestamp, never somebody else's update.
+  return Array.isArray(receipt.notes) && receipt.notes.some((note) => noteMatchesAgent(note, agentId, since, nowMs));
 }
 
 function posixPath(path: string): string {
@@ -608,9 +612,10 @@ export function evaluateGuardFacts(input: {
   ) {
     const roadmapFiles = files.filter(fileNeedsRoadmapReceipt);
     if (roadmapFiles.length > 0) {
-      const since = (input.nowMs ?? Date.now()) - ROADMAP_RECEIPT_WINDOW_MS;
+      const nowMs = input.nowMs ?? Date.now();
+      const since = nowMs - ROADMAP_RECEIPT_WINDOW_MS;
       const hasReceipt = (input.roadmapReceipts ?? []).some((receipt) =>
-        receiptMatchesAgent(receipt, input.agentId, since),
+        receiptMatchesAgent(receipt, input.agentId, since, nowMs),
       );
       if (!hasReceipt) {
         const lookupIssue = input.roadmapReceiptLookupIssue;
