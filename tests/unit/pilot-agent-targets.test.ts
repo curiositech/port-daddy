@@ -13,6 +13,7 @@ describe('Pilot target ownership, using only owned filesystem fixtures', () => {
   let baseDir: string;
 
   beforeEach(() => {
+    mkdirSync(join(homedir(), 'coding', 'tmp'), { recursive: true });
     root = mkdtempSync(join(homedir(), 'coding', 'tmp', 'pd-pilot-target-test-'));
     sourceDir = join(root, 'source');
     baseDir = join(root, 'targets');
