@@ -27,8 +27,11 @@ absence or exact type and byte hashes, parent identity, source hashes, proposed
 actions and preservation conflicts. Preview and invalid-source handling write
 nothing: no target directories, locks, receipts or backups.
 
-Apply binds the reviewed preview digest, checks the source before filesystem
-mutation, and revalidates the target/parent observations. A narrow installation
+With `--expect-target-sha256`, apply binds a previously reviewed preview digest.
+Without that option it validates an immediate snapshot, not a separately reviewed
+or signed plan. Source checks precede filesystem mutation and apply revalidates
+the target/parent observations. The selected base directory must already exist;
+preview does not create it. A narrow installation
 lock serializes cooperating installers. Special files, unreadable paths,
 redirected parents, broken links and changed previews produce explicit refusals.
 No generic force or adoption option exists.
@@ -41,10 +44,14 @@ Retire a working predecessor only after its replacement is verified. Each target
 operation has a durable witness; five independent file replacements are not a
 single filesystem transaction.
 
-An interruption reports the exact completed steps and a recovery handle. Recovery
-checks recorded before/after identities and refuses to overwrite later user edits.
-It does not delete an unfamiliar lock or journal. Creating a backup without an
-executable recovery path is not sufficient.
+An interruption after exclusive lock acquisition reports observed target effects
+and a recovery handle. Recovery checks recorded before/after identities and
+refuses to overwrite later user edits. Interrupted restoration and pointer updates
+can resume from their verified witnesses. It does not delete an unfamiliar lock,
+journal or unwitnessed staging file. Missing or damaged evidence remains a visible
+partial result requiring deliberate reconciliation; this is not a promise to
+automatically repair every disk failure. Creating a backup without an executable
+recovery path is not sufficient.
 
 ## Caller and release boundaries
 

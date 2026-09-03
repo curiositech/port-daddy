@@ -49,7 +49,7 @@ type Journal = {
 };
 type Receipt = { version: 1; id: string; baseDir: string; entries: Record<string, Owner> };
 const SHA = /^[a-f0-9]{64}$/;
-const RUN = /^[a-f0-9-]{36}$/;
+const RUN = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/;
 const MAX_FILE = 256 * 1024;
 const MAX_RECORD = 8 * 1024 * 1024;
 
@@ -181,7 +181,9 @@ export function createPilotTargetExecutor(fs: typeof nativeFs = nativeFs) {
     parents(base, receiptPath);
     const raw = read(receiptPath, MAX_RECORD, true).bytes;
     if (hash(raw) !== pointer.sha256) refuse('INVALID_INSTALL_RECORD');
-    const receipt = JSON.parse(raw.toString('utf8')) as Receipt;
+    let receipt: Receipt;
+    try { receipt = JSON.parse(raw.toString('utf8')) as Receipt; }
+    catch { refuse('INVALID_INSTALL_RECORD'); }
     if (receipt.version !== 1 || receipt.id !== id || receipt.baseDir !== base
       || !receipt.entries || typeof receipt.entries !== 'object' || Array.isArray(receipt.entries)
       || Object.keys(receipt.entries).length > 16) refuse('INVALID_INSTALL_RECORD');
@@ -281,17 +283,20 @@ export function createPilotTargetExecutor(fs: typeof nativeFs = nativeFs) {
   /** The purpose is create-only parent acquisition, never chmod of existing data. @param base Root. @param path Leaf. @param made Witness map. @returns Nothing. */
   function ensureParents(base: string, path: string, made: Map<string, Identity>): void {
     for (const p of parents(base, path)) {
-      if (!p.identity) fs.mkdirSync(absolute(base, p.path), { mode: 0o700 });
+      if (!p.identity) {
+        fs.mkdirSync(absolute(base, p.path), { mode: 0o700 });
+        flushDirectory(dirname(absolute(base, p.path)));
+      }
       const st = fs.lstatSync(absolute(base, p.path));
       if (!st.isDirectory() || st.isSymbolicLink()) refuse('UNSAFE_TARGET_PARENT');
       if (!p.identity) made.set(p.path, identity(st));
     }
   }
-  /** Design: use exclusive creation plus flush for durable immutable evidence. @param path New file. @param bytes Exact bytes. @param mode Mode. @returns Stable observation. */
-  function createFile(path: string, bytes: Buffer | string, mode = 0o600): Observation {
+  /** Design: use exclusive creation plus flush for durable immutable evidence. @param path New file. @param bytes Exact bytes. @param mode Mode. @param acquired Record exclusive acquisition before a subsequent write can fail. @returns Stable observation. */
+  function createFile(path: string, bytes: Buffer | string, mode = 0o600, acquired?: () => void): Observation {
     if (Buffer.byteLength(bytes) > MAX_RECORD) refuse('INSTALL_RECORD_TOO_LARGE');
     const fd = fs.openSync(path, fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_EXCL | fs.constants.O_NOFOLLOW, mode);
-    try { fs.writeFileSync(fd, bytes); fs.fsyncSync(fd); } finally { fs.closeSync(fd); }
+    try { acquired?.(); fs.writeFileSync(fd, bytes); fs.fsyncSync(fd); } finally { fs.closeSync(fd); }
     return observe(path, MAX_RECORD);
   }
   /** The purpose is flushing directory metadata on supported local filesystems. @param path Directory. @returns Nothing. */
@@ -315,6 +320,7 @@ export function createPilotTargetExecutor(fs: typeof nativeFs = nativeFs) {
     const changed: number[] = [];
     let directory: string | undefined;
     let lock: Observation | undefined;
+    let lockAcquired = false;
     const state = statePath(plan.baseDir, plan.id);
     const active = join(state, 'active.json');
     const made = new Map<string, Identity>();
@@ -339,7 +345,10 @@ export function createPilotTargetExecutor(fs: typeof nativeFs = nativeFs) {
       const beforePointer = plan.pointer.kind === 'absent' ? null : read(join(state, 'current.json'), MAX_RECORD, true).bytes.toString('base64');
       const journal: Journal = { version: 1, run, plan, beforePointer, backups };
       createFile(join(directory, 'journal.json'), json(journal));
-      lock = createFile(active, json({ version: 1, run, digest: plan.digest }));
+      lock = createFile(active, json({ version: 1, run, digest: plan.digest }), 0o600, () => {
+        lockAcquired = true;
+        result.recovery = { runId: run, directory: directory! };
+      });
       flushDirectory(state);
       result.recovery = { runId: run, directory };
       const entries = owners(plan.baseDir, plan.id);
@@ -365,9 +374,12 @@ export function createPilotTargetExecutor(fs: typeof nativeFs = nativeFs) {
           if (!equal(observe(path), e.before)) refuse('TARGET_CHANGED');
           if (e.action === 'create') {
             fs.linkSync(staged, path); // atomic no-clobber publication for absence
+            changed.push(index); // Publication already happened if staging cleanup fails.
             fs.unlinkSync(staged);
-          } else fs.renameSync(staged, path);
-          changed.push(index);
+          } else {
+            fs.renameSync(staged, path);
+            changed.push(index);
+          }
           const after = observe(path);
           if (after.kind !== 'file' || after.sha256 !== hash(e.content!) || after.ino !== (stagedState as Identity).ino) refuse('TARGET_READBACK_FAILED');
           entries[e.path] = { run, index, sha256: after.sha256! };
@@ -394,7 +406,7 @@ export function createPilotTargetExecutor(fs: typeof nativeFs = nativeFs) {
       delete result.recovery;
       return result;
     } catch (e) {
-      result.outcome = lock ? 'partial' : 'blocked';
+      result.outcome = lockAcquired ? 'partial' : 'blocked';
       result.written = plan.entries.flatMap((entry, index) => changed.includes(index) && entry.action !== 'remove'
         ? [{ runtime: entry.runtime, path: absolute(plan.baseDir, entry.path), changed: true }] : []);
       result.cleaned = plan.entries.flatMap((entry, index) => changed.includes(index) && entry.action === 'remove'
@@ -432,16 +444,48 @@ export function createPilotTargetExecutor(fs: typeof nativeFs = nativeFs) {
         || !validDigest(plan) || (lock && lock.digest !== plan.digest)
         || journal.backups.length !== plan.entries.length) refuse('INVALID_RECOVERY_JOURNAL');
       if (!equal(identity(fs.lstatSync(base)), plan.root)) refuse('RECOVERY_ROOT_CHANGED');
-      if (!lock) {
-        const priorRecovery = record<{ observations: Observation[] }>(join(directory, 'recovered.json'));
-        if (!Array.isArray(priorRecovery.observations) || priorRecovery.observations.length !== plan.entries.length) refuse('INVALID_RECOVERY_JOURNAL');
+      const pointerPath = join(state, 'current.json');
+      const recoveredPath = join(directory, 'recovered.json');
+      if (stat(recoveredPath)) {
+        const priorRecovery = record<{ version: number; run: string; observations: Observation[]; pointer: Observation }>(recoveredPath);
+        if (priorRecovery.version !== 1 || priorRecovery.run !== run || !Array.isArray(priorRecovery.observations)
+          || priorRecovery.observations.length !== plan.entries.length) refuse('INVALID_RECOVERY_JOURNAL');
         for (const [index, e] of plan.entries.entries()) {
           parents(base, absolute(base, e.path));
           if (!equal(observe(absolute(base, e.path)), priorRecovery.observations[index])) refuse('RECOVERY_TARGET_CHANGED');
         }
+        if (!equal(observe(pointerPath), priorRecovery.pointer)) refuse('RECOVERY_RECORD_CHANGED');
+        if (lock) {
+          if (!equal(observe(active), lockState)) refuse('RECOVERY_LOCK_MISMATCH');
+          fs.unlinkSync(active);
+          flushDirectory(state);
+        }
         result.outcome = 'recovered';
         delete result.recovery;
         return result;
+      }
+      if (!lock) refuse('RECOVERY_LOCK_MISMATCH');
+      // Validate all prior bytes and pointer state before restoring any target.
+      for (const [index, e] of plan.entries.entries()) {
+        if (e.before.kind === 'file' && ['replace', 'remove'].includes(e.action)) {
+          const backup = journal.backups[index];
+          if (typeof backup !== 'string' || hash(Buffer.from(backup, 'base64')) !== e.before.sha256) refuse('INVALID_RECOVERY_BACKUP');
+        }
+      }
+      if (journal.beforePointer !== null && (typeof journal.beforePointer !== 'string'
+        || plan.pointer.kind !== 'file' || hash(Buffer.from(journal.beforePointer, 'base64')) !== plan.pointer.sha256)) refuse('INVALID_RECOVERY_BACKUP');
+      const pointerBeforeRecovery = observe(pointerPath);
+      const pointerRestoreRecord = join(directory, 'restore-pointer-state.json');
+      const priorPointerRestore = stat(pointerRestoreRecord) ? record<{ state: Observation }>(pointerRestoreRecord) : null;
+      let restorePointer = false;
+      if (!equal(pointerBeforeRecovery, plan.pointer)
+        && !(priorPointerRestore && equal(pointerBeforeRecovery, priorPointerRestore.state))) {
+        const pointer = pointerBeforeRecovery.kind === 'file'
+          ? record<{ version: number; run: string; sha256: string }>(pointerPath) : null;
+        const receiptPath = join(directory, 'receipt.json');
+        if (!pointer || pointer.version !== 1 || pointer.run !== run || !SHA.test(pointer.sha256)
+          || !stat(receiptPath) || hash(read(receiptPath, MAX_RECORD, true).bytes) !== pointer.sha256) refuse('RECOVERY_RECORD_CHANGED');
+        restorePointer = true;
       }
       const changes: Array<{ e: Entry; index: number; current: Observation }> = [];
       for (let index = 0; index < plan.entries.length; index++) {
@@ -449,18 +493,31 @@ export function createPilotTargetExecutor(fs: typeof nativeFs = nativeFs) {
         if (!['create', 'replace', 'remove'].includes(e.action)) continue;
         const path = absolute(base, e.path);
         const parentRows = parents(base, path);
+        for (const [prefix, recordPrefix] of [['.pd-pilot-', 'stage-'], ['.pd-pilot-restore-', 'restore-']]) {
+          const staged = join(dirname(path), prefix + run + '-' + index);
+          if (stat(staged) && !stat(join(directory, recordPrefix + index + '.json'))) refuse('RECOVERY_UNWITNESSED_STAGE');
+        }
         const parentRecord = join(directory, 'parents-' + index + '.json');
         if (stat(parentRecord) && !equal(parentRows, record<Parent[]>(parentRecord))) refuse('RECOVERY_PARENT_CHANGED');
         let links = 1;
         const currentStat = stat(path);
         if (currentStat?.nlink === 2) {
-          const stage = record<{ path: string; state: Observation }>(join(directory, 'stage-' + index + '.json'));
-          const stagedPath = absolute(base, stage.path);
-          parents(base, stagedPath);
-          const stagedStat = fs.lstatSync(stagedPath);
-          if (stage.state.kind !== 'file' || stagedStat.nlink !== 2
-            || stagedStat.ino !== currentStat.ino || stagedStat.dev !== currentStat.dev
-            || stage.state.ino !== currentStat.ino || stage.state.dev !== currentStat.dev) refuse('RECOVERY_TARGET_CHANGED');
+          const candidates = [
+            { file: join(directory, 'stage-' + index + '.json'), restore: false },
+            { file: join(directory, 'restore-' + index + '.json'), restore: true },
+          ];
+          let matched = false;
+          for (const candidate of candidates) {
+            if (!stat(candidate.file)) continue;
+            const stage = record<{ path: string; state: Observation }>(candidate.file);
+            const stagedPath = candidate.restore ? join(dirname(path), '.pd-pilot-restore-' + run + '-' + index) : absolute(base, stage.path);
+            parents(base, stagedPath);
+            const stagedStat = stat(stagedPath);
+            if (stage.state.kind === 'file' && stagedStat?.nlink === 2
+              && stagedStat.ino === currentStat.ino && stagedStat.dev === currentStat.dev
+              && stage.state.ino === currentStat.ino && stage.state.dev === currentStat.dev) matched = true;
+          }
+          if (!matched) refuse('RECOVERY_TARGET_CHANGED');
           links = 2;
         }
         const current = observe(path, MAX_FILE, links);
@@ -469,9 +526,8 @@ export function createPilotTargetExecutor(fs: typeof nativeFs = nativeFs) {
         const restoredPath = join(directory, 'restore-' + index + '.json');
         if (stat(restoredPath)) {
           const restored = record<{ state: Observation }>(restoredPath);
-          if (current.kind === 'file' && restored.state.kind === 'file'
-            && current.ino === restored.state.ino && current.dev === restored.state.dev
-            && e.before.kind === 'file' && current.sha256 === e.before.sha256) continue;
+          if (equal(current, restored.state) && e.before.kind === 'file'
+            && current.kind === 'file' && current.sha256 === e.before.sha256) continue;
         }
         const stepPath = join(directory, 'step-' + index + '.json');
         if (stat(stepPath)) {
@@ -495,41 +551,64 @@ export function createPilotTargetExecutor(fs: typeof nativeFs = nativeFs) {
           const prior = Buffer.from(journal.backups[index]!, 'base64');
           if (hash(prior) !== e.before.sha256) refuse('INVALID_RECOVERY_BACKUP');
           const restore = join(dirname(path), '.pd-pilot-restore-' + run + '-' + index);
-          const restoredState = createFile(restore, prior, e.before.mode);
-          createFile(join(directory, 'restore-' + index + '.json'), json({ state: restoredState }));
-          flushDirectory(directory);
+          const restoreRecord = join(directory, 'restore-' + index + '.json');
+          if (stat(restoreRecord)) {
+            const restored = record<{ state: Observation }>(restoreRecord);
+            if (!equal(observe(restore), restored.state) || restored.state.kind !== 'file'
+              || restored.state.sha256 !== e.before.sha256 || restored.state.mode !== e.before.mode) refuse('RECOVERY_STAGE_CHANGED');
+          } else {
+            const restoredState = createFile(restore, prior, e.before.mode);
+            createFile(restoreRecord, json({ state: restoredState }));
+            flushDirectory(directory);
+          }
           if (!equal(observe(path), current)) refuse('RECOVERY_TARGET_CHANGED');
           if (current.kind === 'absent') { fs.linkSync(restore, path); fs.unlinkSync(restore); }
           else fs.renameSync(restore, path);
           if (read(path).bytes.compare(prior) !== 0) refuse('RECOVERY_READBACK_FAILED');
         }
         flushDirectory(dirname(path));
-        result.written.push({ runtime: e.runtime, path, changed: true });
+        (e.before.kind === 'absent' ? result.cleaned : result.written).push({ runtime: e.runtime, path, changed: true });
       }
       // Discard only our exact staged inode. Never sweep a directory by prefix.
-      for (const [index] of plan.entries.entries()) {
-        const stagePath = join(directory, 'stage-' + index + '.json');
-        if (!stat(stagePath)) continue;
-        const stage = record<{ path: string; state: Observation }>(stagePath);
-        const stagedPath = absolute(base, stage.path);
-        parents(base, stagedPath);
-        const staged = observe(stagedPath);
-        if (staged.kind === 'absent') continue;
-        if (!equal(staged, stage.state)) refuse('RECOVERY_STAGE_CHANGED');
-        fs.unlinkSync(stagedPath);
-        flushDirectory(dirname(stagedPath));
+      for (const [index, e] of plan.entries.entries()) {
+        for (const kind of ['stage', 'restore']) {
+          const stagePath = join(directory, kind + '-' + index + '.json');
+          if (!stat(stagePath)) continue;
+          const stage = record<{ path: string; state: Observation }>(stagePath);
+          const stagedPath = kind === 'restore'
+            ? join(dirname(absolute(base, e.path)), '.pd-pilot-restore-' + run + '-' + index) : absolute(base, stage.path);
+          parents(base, stagedPath);
+          const links = stat(stagedPath)?.nlink === 2 ? 2 : 1;
+          if (links === 2) {
+            const target = stat(absolute(base, e.path));
+            if (stage.state.kind !== 'file' || target?.ino !== stage.state.ino || target?.dev !== stage.state.dev) refuse('RECOVERY_STAGE_CHANGED');
+          }
+          const staged = observe(stagedPath, MAX_FILE, links);
+          if (staged.kind === 'absent') continue;
+          if (!equal(staged, stage.state)) refuse('RECOVERY_STAGE_CHANGED');
+          fs.unlinkSync(stagedPath);
+          flushDirectory(dirname(stagedPath));
+        }
       }
-      const pointerPath = join(state, 'current.json');
-      const pointer = stat(pointerPath) ? record<{ run: string }>(pointerPath) : null;
-      if (pointer && pointer.run === run) {
+      if (!equal(observe(pointerPath), pointerBeforeRecovery)) refuse('RECOVERY_RECORD_CHANGED');
+      if (restorePointer) {
         if (journal.beforePointer === null) fs.unlinkSync(pointerPath);
         else {
+          const previous = Buffer.from(journal.beforePointer, 'base64');
+          if (plan.pointer.kind !== 'file' || hash(previous) !== plan.pointer.sha256) refuse('INVALID_RECOVERY_BACKUP');
           const restore = join(directory, 'restore-pointer.json');
-          createFile(restore, Buffer.from(journal.beforePointer, 'base64'));
+          if (priorPointerRestore) {
+            if (!equal(observe(restore), priorPointerRestore.state)) refuse('RECOVERY_STAGE_CHANGED');
+          } else {
+            const restored = createFile(restore, previous);
+            createFile(pointerRestoreRecord, json({ state: restored }));
+            flushDirectory(directory);
+          }
           fs.renameSync(restore, pointerPath);
         }
-      } else if (!equal(observe(pointerPath), plan.pointer)) refuse('RECOVERY_RECORD_CHANGED');
-      createFile(join(directory, 'recovered.json'), json({ version: 1, run,
+        flushDirectory(state);
+      }
+      createFile(recoveredPath, json({ version: 1, run, pointer: observe(pointerPath),
         observations: plan.entries.map(e => observe(absolute(base, e.path))) }));
       flushDirectory(directory);
       if (!equal(observe(active), lockState)) refuse('RECOVERY_LOCK_MISMATCH');

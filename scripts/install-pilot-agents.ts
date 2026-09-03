@@ -36,7 +36,7 @@ function findRepoRoot(): string {
  * @returns Human-readable provenance and per-runtime results, not an atomic-install claim.
  */
 export function summarize(result: PilotInstallResult, dryRun: boolean): string[] {
-  const verb = dryRun ? 'would write' : 'wrote';
+  const verb = dryRun ? 'would write' : result.outcome === 'recovered' ? 'restored' : 'wrote';
   const lines = [
     `Port Daddy Pilot: ${result.outcome}; ${verb} ${result.written.length} runtime definition(s) from ${result.sourceDir}`,
   ];
@@ -52,6 +52,8 @@ export function summarize(result: PilotInstallResult, dryRun: boolean): string[]
     }
   }
   if (result.recovery) lines.push('  Recovery handle: ' + result.recovery.runId + ' (evidence: ' + result.recovery.directory + ')');
+  const removed = result.cleaned.filter(target => target.changed);
+  if (removed.length) lines.push('  ' + (dryRun ? 'Would remove' : 'Removed') + ' ' + removed.length + ' target(s)');
   for (const w of result.written) {
     const state = w.changed ? '(updated)' : '(unchanged)';
     lines.push(`  ${w.runtime}: ${w.path} ${state}`);
@@ -102,7 +104,7 @@ export function parseInstallArguments(args: string[]): InstallArguments {
   const expectedTarget = values.get('--expect-target-sha256');
   const recoveryRun = values.get('--recover');
   if (expectedTarget !== undefined && !/^[a-f0-9]{64}$/.test(expectedTarget)) throw new Error('Target preview digest must be lowercase SHA-256');
-  if (recoveryRun !== undefined && !/^[a-f0-9-]{36}$/.test(recoveryRun)) throw new Error('Recovery requires an exact recorded run ID');
+  if (recoveryRun !== undefined && !/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/.test(recoveryRun)) throw new Error('Recovery requires an exact recorded run ID');
   if ((recoveryRun || switches.has('--uninstall')) && (!values.has('--base-dir') || !values.has('--source-dir'))) {
     throw new Error('Recovery and uninstall require explicit --base-dir and --source-dir');
   }

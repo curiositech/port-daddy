@@ -361,7 +361,7 @@ export function installPilotAgents(options: {
 }
 
 /**
- * Uninstall uses the same verified source and target ownership boundary.
+ * Design: uninstall uses the same verified source and target ownership boundary.
  * @param options Explicit source and selected root; no path-only deletion API.
  * @returns Preserved conflicts or receipt-backed removal outcomes.
  */

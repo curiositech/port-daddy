@@ -28,6 +28,7 @@ jest.unstable_mockModule('node:fs', () => ({
 }));
 const { installPilotAgents, loadPilotSource, resolvePilotSourceDir, pilotRenderTargets } = await import('../../lib/pilot-agent-render.ts');
 const { parseInstallArguments } = await import('../../scripts/install-pilot-agents.ts');
+const { createPilotTargetExecutor } = await import('../../lib/pilot-agent-targets.ts');
 
 const config = { id: 'port-daddy-pilot', name: 'Pilot fixture', description: 'Synthetic source fixture' };
 const prompt = (marker: string) => `Documentation\n--- BEGIN SYSTEM PROMPT ---\n${marker}\n--- END SYSTEM PROMPT ---\n`;
@@ -123,7 +124,7 @@ for (const key of ['renameSync','linkSync','copyFileSync']) {
     return original(from, to, ...rest);
   };
 }
-for (const key of ['writeSync','ftruncateSync','fchmodSync']) {
+for (const key of ['writeSync','ftruncateSync','fchmodSync','fsyncSync']) {
   const original = fs[key].bind(fs);
   fs[key] = (fd, ...rest) => {
     if (!descriptors.has(fd) || !inside(descriptors.get(fd))) return forbidden('write-outside-target')();
@@ -267,6 +268,9 @@ describe('actual standalone installer entrypoint', () => {
     ['homedir', "import {homedir} from 'node:os'; try { homedir(); } catch {}"],
     ['child.execFileSync', "import {execFileSync} from 'node:child_process'; try { execFileSync('security', []); } catch {}"],
     ['write-outside-target', "import {writeFileSync} from 'node:fs'; try { writeFileSync('/forbidden-target', 'no'); } catch {}"],
+    ['write-outside-target', "import {openSync} from 'node:fs'; try { openSync('/forbidden-target', 'w'); } catch {}"],
+    ...['renameSync', 'linkSync', 'copyFileSync'].map(key => ['write-outside-target', `import * as fs from 'node:fs'; try { fs.${key}('/forbidden-source', '/forbidden-target'); } catch {}`]),
+    ...['writeSync', 'ftruncateSync', 'fchmodSync', 'fsyncSync', 'writeFileSync'].map(key => ['write-outside-target', `import * as fs from 'node:fs'; const fd=fs.openSync('/dev/null', 'r'); try { fs.${key}(fd, ${key === 'writeSync' || key === 'writeFileSync' ? "'blocked'" : '0'}); } catch {} finally { fs.closeSync(fd); }`]),
   ])('independent ledger detects swallowed forbidden %s calls', (kind, probe) => {
     const f = fixture(); const before = snapshot(f.base);
     const control = cli(f, [], { probe, violations: [kind] });
@@ -306,6 +310,9 @@ describe('actual standalone installer entrypoint', () => {
     ['--expect-agent-sha256', 'a'.repeat(64)], ['--expect-config-sha256', 'a'.repeat(64)],
     ['--expect-agent-sha256', 'bad', '--expect-config-sha256', 'a'.repeat(64)],
     ['--help', '--dry-run'],
+    ['--uninstall'], ['--uninstall', '--uninstall'], ['--recover', '-bad'],
+    ['--recover', '-'.repeat(36)], ['--recover', '11111111-1111-4111-8111-111111111111'],
+    ['--expect-target-sha256', 'A'.repeat(64)], ['--expect-target-sha256', 'a'.repeat(64), '--expect-target-sha256', 'b'.repeat(64)],
   ])('bad arguments %j fail before discovery, home lookup or writes', (...args) => {
     const f = fixture(); seedRetained(f.base); const before = snapshot(f.base);
     const result = cli(f, args);
@@ -325,5 +332,54 @@ describe('actual standalone installer entrypoint', () => {
   test('parser preserves exact path spelling and requires paired pins', () => {
     expect(parseInstallArguments(['--source-dir', ' source ', '--base-dir', ' target '])).toMatchObject({ sourceDir: ' source ', baseDir: ' target ' });
     expect(() => parseInstallArguments(['--expect-agent-sha256', 'a'.repeat(64), '--expect-agent-sha256', 'b'.repeat(64)])).toThrow('Duplicate');
+  });
+
+  test('a reviewed target digest binds an apply, and drift produces a zero-write refusal', () => {
+    const f = fixture();
+    const args = ['--source-dir', f.current, '--base-dir', f.base];
+    const preview = cli(f, [...args, '--dry-run']);
+    expect(preview.status).toBe(0);
+    expect(snapshot(f.base)).toEqual({});
+    const digest = preview.stdout.match(/Target preview SHA-256: ([a-f0-9]{64})/)![1];
+    const apply = cli(f, [...args, '--expect-target-sha256', digest]);
+    expect(apply.status).toBe(0);
+    expect(apply.stdout).toContain('complete;');
+    const nextPreview = cli(f, [...args, '--dry-run']);
+    const nextDigest = nextPreview.stdout.match(/Target preview SHA-256: ([a-f0-9]{64})/)![1];
+    fs.writeFileSync(pilotRenderTargets(f.base, config, 'CURRENT_SOURCE')[0].path, 'Later user edit');
+    const before = snapshot(f.base);
+    const refused = cli(f, [...args, '--expect-target-sha256', nextDigest]);
+    expect(refused.status).toBe(1);
+    expect(snapshot(f.base)).toEqual(before);
+  });
+
+  test('actual uninstall removes only managed outputs and reports its removals', () => {
+    const f = fixture();
+    const args = ['--source-dir', f.current, '--base-dir', f.base];
+    expect(cli(f, args).status).toBe(0);
+    const targets = pilotRenderTargets(f.base, config, 'CURRENT_SOURCE');
+    const removed = cli(f, [...args, '--uninstall']);
+    expect(removed.status).toBe(0);
+    expect(removed.stdout).toContain('Removed 5 target(s)');
+    expect(targets.every(t => !fs.existsSync(t.path))).toBe(true);
+  });
+
+  test('actual recovery consumes an exact recorded handle and rolls back only the interrupted outputs', () => {
+    const f = fixture();
+    const loaded = loadPilotSource(f.current);
+    const request = { baseDir: f.base, id: config.id, source: loaded.provenance, targets: pilotRenderTargets(f.base, loaded.config, loaded.system) };
+    let links = 0;
+    const executor = createPilotTargetExecutor({ ...fs, linkSync: ((...args: Parameters<typeof fs.linkSync>) => {
+      if (++links === 2) throw Object.assign(new Error('fixture interruption'), { code: 'EIO' });
+      return fs.linkSync(...args);
+    }) } as typeof fs);
+    const plan = executor.preview(request);
+    const interrupted = executor.apply(plan, plan.digest);
+    expect(interrupted.outcome).toBe('partial');
+    const recovered = cli(f, ['--source-dir', f.current, '--base-dir', f.base, '--recover', interrupted.recovery!.runId]);
+    expect(recovered.status).toBe(0);
+    expect(recovered.stdout).toContain('recovered;');
+    expect(recovered.stdout).toContain('Removed 1 target(s)');
+    expect(request.targets.every(t => !fs.existsSync(t.path))).toBe(true);
   });
 });
