@@ -543,12 +543,16 @@ export class CoordinationPeer {
       includeNotes: false,
       limit: 10_000,
     });
-    const sessions = Array.isArray(listed.sessions) ? listed.sessions : [];
-    const projectSessionIds = new Set<string>();
+    if (listed.success !== true || !Array.isArray(listed.sessions)) {
+      throw new Error('coordination session snapshot is unavailable');
+    }
+    const sessions = listed.sessions;
+    const notes: Array<Record<string, unknown>> = [];
     for (const raw of sessions) {
       const session = asRecord(raw);
-      if (!session || typeof session.id !== 'string' || typeof session.purpose !== 'string') continue;
-      projectSessionIds.add(session.id);
+      if (!session || typeof session.id !== 'string' || typeof session.purpose !== 'string') {
+        throw new Error('coordination session snapshot is malformed');
+      }
       const value: CoordinationSessionValue = {
         purpose: session.purpose,
         status: typeof session.status === 'string' ? session.status : 'active',
@@ -565,7 +569,25 @@ export class CoordinationPeer {
       entities.push({ kind: 'session', localKey: session.id, entityId, value });
 
       const detail = this.sessions.get(session.id);
-      const files = Array.isArray(detail.files) ? detail.files : [];
+      const detailSession = asRecord(detail.session);
+      if (detail.success !== true || detailSession?.id !== session.id
+        || detailSession.identityProject !== this.config.project
+        || !Array.isArray(detail.files) || !Array.isArray(detail.notes)
+        || detailSession.noteCount !== detail.notes.length) {
+        throw new Error('coordination session detail snapshot is incomplete');
+      }
+      // Full detail already reads and decrypts every retained note for these
+      // exact sessions. Do not turn a bounded getNotes page (or its refusal)
+      // into a supposedly complete replication snapshot.
+      for (const rawNote of detail.notes) {
+        const note = asRecord(rawNote);
+        if (!note || !Number.isSafeInteger(note.id) || (note.id as number) < 1
+          || note.sessionId !== session.id || typeof note.content !== 'string') {
+          throw new Error('coordination session note snapshot is malformed');
+        }
+        notes.push(note);
+      }
+      const files = detail.files;
       if (value.status !== 'active') continue;
       for (const rawFile of files) {
         const file = asRecord(rawFile);
@@ -583,17 +605,12 @@ export class CoordinationPeer {
       }
     }
 
-    const notesResult = this.sessions.getNotes(null, { project: this.config.project, limit: 10_000 });
-    const notes = Array.isArray(notesResult.notes) ? notesResult.notes : [];
-    for (const raw of notes) {
-      const note = asRecord(raw);
-      if (!note || typeof note.id !== 'number' || typeof note.sessionId !== 'string') continue;
-      if (!projectSessionIds.has(note.sessionId) || typeof note.content !== 'string') continue;
+    for (const note of notes) {
       const localKey = String(note.id);
       const mapped = this.binding('note', localKey);
       const value: CoordinationNoteValue = {
-        sessionId: note.sessionId,
-        content: note.content,
+        sessionId: note.sessionId as string,
+        content: note.content as string,
         type: typeof note.type === 'string' ? note.type : 'note',
         createdAt: numberOrNull(note.createdAt) ?? this.now(),
       };

@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { jest } from '@jest/globals';
 import { createTestDb } from '../setup-unit.js';
 import {
   CoordinationLedger,
@@ -351,11 +352,17 @@ describe('ADR-0092 local coordination peer', () => {
   test('byte-batches a large offline outbox below the route ceiling without head-of-line blocking', async () => {
     const room = new MemoryCoordinationRoom();
     const local = replica('large-backlog', room, 10_000);
-    const started = local.sessions.start('large offline backlog', {
-      agentId: 'large-backlog', project: 'port-daddy', worktreeId: 'local', durable: true,
-    });
-    for (let index = 0; index < 12; index++) {
-      expect(local.sessions.addNote(started.id, `${index}:${'x'.repeat(100_000)}`).success).toBe(true);
+    // The aggregate exceeds one transport batch without any invalid note or
+    // per-session burst: three independent 40-note durable histories.
+    for (let group = 0; group < 3; group++) {
+      const started = local.sessions.start(`large offline backlog ${group}`, {
+        agentId: 'large-backlog', project: 'port-daddy', worktreeId: 'local', durable: true,
+      });
+      for (let index = 0; index < 40; index++) {
+        const content = `${group}:${index}:` + 'x'.repeat(10_000);
+        expect(Buffer.byteLength(content)).toBeLessThanOrEqual(10_240);
+        expect(local.sessions.addNote(started.id, content).success).toBe(true);
+      }
     }
     const sizes = [];
     const bounded = createCoordinationPeer({
@@ -377,7 +384,140 @@ describe('ADR-0092 local coordination peer', () => {
     expect(await bounded.syncOnce()).toMatchObject({ connected: true, outbox: 0 });
     expect(sizes.length).toBeGreaterThan(1);
     expect(Math.max(...sizes)).toBeLessThanOrEqual(1024 * 1024);
-    expect(room.entries.filter(entry => entry.operation.kind === 'note')).toHaveLength(12);
+    expect(room.entries.filter(entry => entry.operation.kind === 'note')).toHaveLength(120);
+  });
+
+  test('exports every original note beyond 1000 through complete exact-session detail', async () => {
+    const room = new MemoryCoordinationRoom();
+    const local = replica('retained-history', room, 10_000);
+    const started = local.sessions.start('complete export', {
+      agentId: 'retained-history', project: 'port-daddy', worktreeId: 'local', durable: true,
+    });
+    const other = local.sessions.start('different project', {
+      agentId: 'retained-history', project: 'other-project', worktreeId: 'local', durable: true,
+    });
+    expect(local.sessions.addNote(other.id, 'not this project').success).toBe(true);
+    const clock = jest.spyOn(Date, 'now');
+    try {
+      for (let index = 0; index < 1005; index++) {
+        clock.mockReturnValue(1_000_000 + Math.floor(index / 50) * 60_001);
+        expect(local.sessions.addNote(started.id, `retained ${index}`, {
+          type: index === 1004 ? 'todo_list' : 'note',
+        }).success).toBe(true);
+      }
+      expect(local.sessions.end(started.id).success).toBe(true);
+    } finally { clock.mockRestore(); }
+    const original = local.sessions.get(started.id).notes;
+    const exported = [];
+    const peer = createCoordinationPeer({
+      db: local.db, sessions: { ...local.sessions, getNotes() { throw Error('bounded pages are not complete snapshots'); } },
+      locks: local.locks,
+      config: { url: 'https://relay.invalid', project: 'port-daddy', actorId: 'retained-history', macaroon: 'synthetic' },
+      // This is export proof, not a claim that another peer can admit the
+      // complete one-session backlog within its receive burst window.
+      fetch: async (_url, init) => {
+        const body = JSON.parse(init.body);
+        exported.push(...body.operations);
+        return Response.json({ cursor: body.since, operations: [], hasMore: false,
+          accepted: body.operations.map(op => op.opId), pending: [] });
+      },
+      now: () => 30_000,
+    });
+    expect(await peer.syncOnce()).toMatchObject({ connected: true, outbox: 0 });
+    const notes = exported.filter(op => op.kind === 'note');
+    expect(notes).toHaveLength(1005);
+    // Transport batches may use an op-ID tie-break within the same capture
+    // millisecond; compare complete identities/content, not arrival order.
+    expect(notes.map(op => op.value.content).sort()).toEqual(original.map(note => note.content).sort());
+    for (const note of original) expect(notes.find(op => op.value.content === note.content)?.value).toEqual({
+      sessionId: note.sessionId, content: note.content, type: note.type, createdAt: note.createdAt,
+    });
+    expect(notes.find(op => op.value.content === 'retained 1004').value.type).toBe('todo_list');
+    expect(notes.every(op => op.value.sessionId === started.id)).toBe(true);
+    expect(exported.some(op => op.entityId === other.id)).toBe(false);
+    expect(local.sessions.get(started.id).notes).toEqual(original);
+    const bindings = local.db.prepare("SELECT local_key FROM coordination_peer_bindings WHERE kind = 'note' ORDER BY CAST(local_key AS INTEGER)").all();
+    expect(bindings.map(row => Number(row.local_key))).toEqual(original.map(note => note.id));
+    const count = exported.length;
+    expect(await peer.syncOnce()).toMatchObject({ connected: true, outbox: 0 });
+    expect(exported).toHaveLength(count);
+  });
+
+  test.each([
+    ['failed read', () => ({ success: false, error: 'synthetic private detail' })],
+    ['missing notes', detail => ({ ...detail, notes: undefined })],
+    ['truncated notes', detail => ({ ...detail, notes: [] })],
+    ['missing files', detail => ({ ...detail, files: undefined })],
+    ['wrong exact session', detail => ({ ...detail, session: { ...detail.session, id: 'other' } })],
+    ['wrong project', detail => ({ ...detail, session: { ...detail.session, identityProject: 'other' } })],
+    ['malformed note', detail => ({ ...detail, notes: [null] })],
+    ['foreign note', detail => ({ ...detail, notes: [{ ...detail.notes[0], sessionId: 'other' }] })],
+  ])('refuses %s without treating a partial snapshot as removals', async (_label, corrupt) => {
+    const room = new MemoryCoordinationRoom();
+    const local = replica('read-failure', room, 10_000);
+    const started = local.sessions.start('retained', {
+      agentId: 'read-failure', project: 'port-daddy', worktreeId: 'local', durable: true,
+    });
+    expect(local.sessions.addNote(started.id, 'preserve original').success).toBe(true);
+    expect(local.sessions.claimFiles(started.id, ['src/retained.ts'], { agentId: 'read-failure' }).success).toBe(true);
+    expect(await local.peer.syncOnce()).toMatchObject({ connected: true });
+    const tables = ['coordination_peer_outbox', 'coordination_peer_bindings', 'coordination_peer_versions', 'coordination_peer_state'];
+    const snapshot = () => tables.map(table => local.db.prepare(`SELECT * FROM ${table} ORDER BY rowid`).all());
+    const before = snapshot();
+    const fetch = jest.fn();
+    const peer = createCoordinationPeer({
+      db: local.db, sessions: { ...local.sessions, get: id => corrupt(local.sessions.get(id)) }, locks: local.locks,
+      config: { url: 'https://relay.invalid', project: 'port-daddy', actorId: 'read-failure', macaroon: 'synthetic' },
+      fetch, now: () => 30_000,
+    });
+    expect(await peer.syncOnce()).toMatchObject({ connected: false, lastError: expect.stringMatching(/^coordination session (detail|note) snapshot/) });
+    expect(fetch).not.toHaveBeenCalled();
+    expect(snapshot()).toEqual(before);
+    expect(local.sessions.get(started.id).notes[0].content).toBe('preserve original');
+    expect(local.sessions.getClaimOwner('src/retained.ts').claimed).toBe(true);
+  });
+
+  test('exports the existing decrypted detail projection with original note identity', async () => {
+    const db = createTestDb();
+    // Synthetic reversible storage marker, not a cryptography test or live key.
+    const encryption = { isEnabled: () => true, generateSessionKey: () => Buffer.alloc(32, 1),
+      wrapSessionKey: key => key.toString('base64'), unwrapSessionKey: text => Buffer.from(text, 'base64'),
+      encryptNote: text => JSON.stringify({ fixture: text }),
+      decryptNote: text => JSON.parse(text).fixture, isEncrypted: text => text.startsWith('{') };
+    const sessions = createSessions(db, encryption);
+    const locks = createLocks(db);
+    const room = new MemoryCoordinationRoom();
+    const started = sessions.start('synthetic encrypted storage', {
+      agentId: 'projection', project: 'port-daddy', worktreeId: 'local', durable: true,
+    });
+    const added = sessions.addNote(started.id, 'projected plaintext', { type: 'progress' });
+    expect(added.success).toBe(true);
+    expect(db.prepare('SELECT content FROM session_notes WHERE id = ?').get(added.noteId).content).not.toBe('projected plaintext');
+    const peer = createCoordinationPeer({ db, sessions, locks,
+      config: { url: 'https://relay.invalid', project: 'port-daddy', actorId: 'projection', macaroon: 'synthetic' },
+      fetch: room.fetch, now: () => 1_000 });
+    expect(await peer.syncOnce()).toMatchObject({ connected: true, outbox: 0 });
+    expect(room.entries.filter(e => e.operation.kind === 'note').map(e => e.operation.value)).toEqual([
+      expect.objectContaining({ sessionId: started.id, content: 'projected plaintext', type: 'progress' }),
+    ]);
+    expect(db.prepare("SELECT local_key FROM coordination_peer_bindings WHERE kind = 'note'").get().local_key).toBe(String(added.noteId));
+  });
+
+  test.each([
+    { success: false, error: 'synthetic private list failure' },
+    { success: true, sessions: [null] },
+  ])('rejects a failed or malformed session list before snapshot mutations: %j', async result => {
+    const room = new MemoryCoordinationRoom();
+    const local = replica('list-failure', room, 10_000);
+    const fetch = jest.fn();
+    const peer = createCoordinationPeer({ db: local.db, locks: local.locks,
+      sessions: { ...local.sessions, list: () => result },
+      config: { url: 'https://relay.invalid', project: 'port-daddy', actorId: 'list-failure', macaroon: 'synthetic' },
+      fetch, now: () => 30_000 });
+    expect(await peer.syncOnce()).toMatchObject({ connected: false, outbox: 0,
+      lastError: expect.stringMatching(/^coordination session snapshot is (unavailable|malformed)$/) });
+    expect(fetch).not.toHaveBeenCalled();
+    expect(local.db.prepare('SELECT COUNT(*) AS n FROM coordination_peer_versions').get().n).toBe(0);
   });
 
   test('advances past a claim that races with completion and reaches its tombstone', async () => {
