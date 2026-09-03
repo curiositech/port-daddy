@@ -84,9 +84,14 @@ import { renderMarkdown } from '../lib/mini-markdown.js';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { authorizeSessionOwner, extractActorCredential, resolveWriteIdentity, type IdentityVerifier } from '../lib/identity-write-boundary.js';
+
 interface RoadmapDeps {
   roadmapItems: RoadmapItems;
   roadmapPromote: RoadmapPromote;
+  /** Existing daemon dependencies; absent custom runtimes cannot write receipts. */
+  actorSouls?: IdentityVerifier;
+  sessions?: { get(sessionId: string): Record<string, unknown> };
   /** Test/custom runtime injection; production reads the managed Keychain. */
   jiraSecretReader?: JiraSecretReader;
   /** Test/custom runtime injection; production uses the bounded cached reader. */
@@ -997,12 +1002,67 @@ export const roadmapPlugin: FastifyPluginAsync<{ deps: RoadmapDeps }> = async (f
     }
     const q = (request.query ?? {}) as Record<string, unknown>;
     const harbor = asString(q.harbor);
-    const item = roadmapItems.touch(slug, harbor);
-    if (!item) {
-      reply.code(404);
-      return { success: false, error: `roadmap item '${slug}' not found` };
+    const body = request.body as Record<string, unknown> | undefined;
+    const note = body?.note as Record<string, unknown> | undefined;
+    // This endpoint accepts an append, not mutable item fields or asserted
+    // authorship. The credential realm is deliberately NOT the data harbor.
+    if (!harbor || Object.keys(q).some((key) => key !== 'harbor')
+      || !body || typeof body !== 'object' || Array.isArray(body)
+      || Object.keys(body).some((key) => !['sessionId', 'note', 'credential'].includes(key))
+      || typeof body.sessionId !== 'string' || !body.sessionId.trim()
+      || !note || typeof note !== 'object' || Array.isArray(note)
+      || Object.keys(note).some((key) => !['at', 'text'].includes(key))
+      || !Number.isSafeInteger(note.at) || (note.at as number) <= 0
+      || typeof note.text !== 'string' || !note.text.trim() || Buffer.byteLength(note.text, 'utf8') > 4096) {
+      reply.code(400);
+      return { success: false, code: 'VALIDATION_ERROR', error: 'Touch requires an exact harbor, sessionId, and one bounded note { at, text }; item fields and note.by are not accepted.' };
     }
-    return { success: true, item };
+    const verdict = resolveWriteIdentity({
+      souls: opts.deps.actorSouls,
+      credential: extractActorCredential(request.headers as Record<string, unknown>, request.body),
+      route: 'POST /roadmap/items/:slug/touch', requireIdentity: true,
+    });
+    if (!verdict.ok) {
+      reply.code(verdict.httpStatus);
+      return { success: false, code: verdict.code, error: verdict.error };
+    }
+    if (verdict.kind !== 'verified' || !opts.deps.sessions) {
+      reply.code(503);
+      return { success: false, code: 'SESSION_VERIFIER_UNAVAILABLE', error: 'Session ownership verification is unavailable; nothing was appended.' };
+    }
+    try {
+      const sessionId = body.sessionId.trim();
+      const lookup = opts.deps.sessions.get(sessionId);
+      const session = lookup.session as Record<string, unknown> | undefined;
+      if (lookup.success !== true || !session || session.id !== sessionId) {
+        reply.code(404);
+        return { success: false, code: 'SESSION_NOT_FOUND', error: 'The exact session was not found.' };
+      }
+      const owner = authorizeSessionOwner(session, verdict, opts.deps.actorSouls);
+      if (!owner.ok) {
+        reply.code(owner.httpStatus);
+        return { success: false, code: owner.code, error: owner.error };
+      }
+      if (session.status !== 'active') {
+        reply.code(409);
+        return { success: false, code: 'SESSION_NOT_ACTIVE', error: 'The exact session is not active; no automatic resume was attempted.' };
+      }
+      const authorizedNote = { at: note.at as number, text: note.text, by: owner.ownerAgentId };
+      const item = roadmapItems.touch(slug, harbor, authorizedNote);
+      if (!item) {
+        reply.code(404);
+        return { success: false, code: 'ROADMAP_ITEM_NOT_FOUND', error: 'The exact live roadmap item was not found in this harbor.' };
+      }
+      return { success: true, item, receipt: { sessionId, actorId: owner.ownerActorId, note: authorizedNote } };
+    } catch (error) {
+      const code = error instanceof Error && ['ROADMAP_HISTORY_INVALID', 'ROADMAP_NOTE_CLOCK_INVALID'].includes(error.message)
+        ? error.message : 'ROADMAP_TOUCH_FAILED';
+      reply.code(code === 'ROADMAP_NOTE_CLOCK_INVALID' ? 400 : code === 'ROADMAP_HISTORY_INVALID' ? 409 : 500);
+      return { success: false, code, error: code === 'ROADMAP_NOTE_CLOCK_INVALID'
+        ? 'A new receipt timestamp must be a positive safe integer no later than the daemon clock; no timestamp was substituted.'
+        : code === 'ROADMAP_HISTORY_INVALID' ? 'Stored roadmap history is malformed; it was preserved without an append.'
+          : 'The receipt could not be confirmed; inspect the exact item before retrying.' };
+    }
   });
 
   fastify.post('/roadmap/render', async (request: FastifyRequest, reply: FastifyReply) => {

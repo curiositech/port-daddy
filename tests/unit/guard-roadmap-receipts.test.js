@@ -28,7 +28,7 @@ const receipt = (overrides = {}) => ({
   harbor: linked.harbor,
   lastTouchedAt: now,
   promotedByAgentId: 'fixture-agent',
-  notes: [],
+  notes: [{ at: now, by: 'fixture-agent', text: 'Exact own receipt' }],
   ...overrides,
 });
 const response = (body, status = 200) => ({
@@ -131,9 +131,9 @@ describe('Guard exact linked roadmap receipt lookup', () => {
   });
 
   test.each([
-    { promotedByAgentId: 'different-agent' },
-    { lastTouchedAt: now - 86_400_001 },
-    { lastTouchedAt: Number.POSITIVE_INFINITY },
+    { notes: [] },
+    { notes: [{ at: now - 86_400_001, by: 'fixture-agent' }] },
+    { notes: [{ at: Number.POSITIVE_INFINITY, by: 'fixture-agent' }] },
     { promotedByAgentId: 'different-agent', notes: [{ by: 'different-agent', at: now }] },
   ])('a genuine but stale or differently attributed receipt still fails: %p', async (changed) => {
     request.mockResolvedValue(response({ success: true, item: receipt(changed) }));
@@ -168,7 +168,7 @@ describe('Guard unlinked receipt diagnostic fallback', () => {
   });
 
   test('a full page cannot prove absence; return incomplete, not missing', async () => {
-    const items = Array.from({ length: 200 }, (_, i) => receipt({ slug: `row-${i}`, promotedByAgentId: 'other-agent' }));
+    const items = Array.from({ length: 200 }, (_, i) => receipt({ slug: `row-${i}`, promotedByAgentId: 'other-agent', notes: [] }));
     request.mockResolvedValue(response({ success: true, items, count: 200 }));
     const lookup = await loadRoadmapReceipts({ harbor: linked.harbor });
     expect(lookup.issue).toBe('incomplete');
