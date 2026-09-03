@@ -17,24 +17,33 @@
  * touching the filesystem. installPilotAgents() is the only fs-touching export.
  */
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync, lstatSync, unlinkSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync, lstatSync, unlinkSync, rmSync, realpathSync, statSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import { homedir } from 'node:os';
+import { createHash } from 'node:crypto';
 
 /**
  * Resolve the canonical Pilot source dir (the one holding AGENT.md +
- * agent.config.json). Brew install wins over the repo checkout so an upgraded
- * package re-renders from the shipped source.
+ * agent.config.json). The design preserves package-first upgrades only when
+ * no explicit source is selected; an explicit invalid selection never falls
+ * back to a different prompt.
+ * @param projectRoot Checkout used as the default fallback after Homebrew.
+ * @param explicitSourceDir Exact optional source selection, including relative paths.
+ * @returns The selected physical source directory, or null when no default exists.
  */
-export function resolvePilotSourceDir(projectRoot: string): string | null {
+export function resolvePilotSourceDir(projectRoot: string, explicitSourceDir?: string): string | null {
+  if (explicitSourceDir !== undefined) return pilotSourcePaths(explicitSourceDir).sourceDir;
   const candidates: string[] = [];
   const brew = spawnSync('brew', ['--prefix'], { encoding: 'utf8' });
   if (brew.status === 0) {
     candidates.push(join(brew.stdout.trim(), 'share', 'port-daddy', 'agents', 'port-daddy-pilot'));
   }
   candidates.push(join(projectRoot, 'agents', 'port-daddy-pilot'));
-  return candidates.find((p) => existsSync(join(p, 'AGENT.md'))) ?? null;
+  for (const candidate of candidates) {
+    try { return pilotSourcePaths(candidate).sourceDir; } catch { /* Try the next default only. */ }
+  }
+  return null;
 }
 
 export interface PilotConfig {
@@ -225,20 +234,70 @@ export function pilotRenderTargets(
   ];
 }
 
+export interface PilotSourceHashes {
+  agentSha256: string;
+  configSha256: string;
+}
+
+export interface PilotSourceProvenance extends PilotSourceHashes {
+  sourceDir: string;
+  agentPath: string;
+  configPath: string;
+}
+
 export interface PilotInstallResult {
   written: Array<{ runtime: string; path: string; changed: boolean }>;
   cleaned: Array<{ runtime: string; path: string; changed: boolean }>;
   errors: Array<{ runtime: string; path: string; error: string }>;
   sourceDir: string;
+  /** Exact source bytes used by the renderers; null if source loading failed. */
+  provenance: PilotSourceProvenance | null;
 }
 
-/** Load the canonical config + system prompt from a source directory. */
-export function loadPilotSource(sourceDir: string): { config: PilotConfig; system: string } {
-  const configPath = join(sourceDir, 'agent.config.json');
-  const agentMdPath = join(sourceDir, 'AGENT.md');
-  const config = JSON.parse(readFileSync(configPath, 'utf8')) as PilotConfig;
-  const system = extractSystemPrompt(readFileSync(agentMdPath, 'utf8'));
-  return { config, system };
+/**
+ * Resolve physical inputs before reading, by design rejecting absent or special files.
+ * This is source provenance, not a filesystem sandbox or atomic multi-file snapshot.
+ * @param sourceDir Explicit or discovered directory containing the two source files.
+ * @returns Physical directory and regular input paths without reading their contents.
+ */
+function pilotSourcePaths(sourceDir: string): Pick<PilotSourceProvenance, 'sourceDir' | 'agentPath' | 'configPath'> {
+  if (typeof sourceDir !== 'string' || sourceDir.trim().length === 0) {
+    throw new Error('Pilot source directory must be a nonempty path');
+  }
+  try {
+    const physicalDir = realpathSync(sourceDir);
+    const agentPath = realpathSync(join(physicalDir, 'AGENT.md'));
+    const configPath = realpathSync(join(physicalDir, 'agent.config.json'));
+    if (statSync(physicalDir).isDirectory() && statSync(agentPath).isFile() && statSync(configPath).isFile()) {
+      return { sourceDir: physicalDir, agentPath, configPath };
+    }
+  } catch { /* Keep the source diagnostic actionable without exposing filesystem error data. */ }
+  throw new Error('Pilot source requires a directory containing regular AGENT.md and agent.config.json files');
+}
+
+/**
+ * Capture each input once so hashes and parsed/rendered content share the same bytes.
+ * The motivation is reviewable provenance, not an assertion of installation or trust.
+ * @param sourceDir Selected source directory; invalid explicit input never falls back.
+ * @returns Existing config/system contract plus physical paths and exact SHA-256 digests.
+ */
+export function loadPilotSource(sourceDir: string): { config: PilotConfig; system: string; provenance: PilotSourceProvenance } {
+  const paths = pilotSourcePaths(sourceDir);
+  const configBytes = readFileSync(paths.configPath);
+  const agentBytes = readFileSync(paths.agentPath);
+  const config = JSON.parse(configBytes.toString('utf8')) as PilotConfig;
+  if (!config || typeof config !== 'object' || Array.isArray(config)
+    || typeof config.id !== 'string' || !/^[a-z][a-z0-9-]*$/.test(config.id)
+    || typeof config.name !== 'string' || typeof config.description !== 'string') {
+    throw new Error('Pilot config requires a safe agent id and string name/description');
+  }
+  const system = extractSystemPrompt(agentBytes.toString('utf8'));
+  const provenance = {
+    ...paths,
+    agentSha256: createHash('sha256').update(agentBytes).digest('hex'),
+    configSha256: createHash('sha256').update(configBytes).digest('hex'),
+  };
+  return { config, system, provenance };
 }
 
 /**
@@ -247,18 +306,35 @@ export function loadPilotSource(sourceDir: string): { config: PilotConfig; syste
  * We write real files (not symlinks) because each runtime needs a different
  * *format* — a symlink can't be a .md here and a .toml there. The header of
  * each rendered file points back to AGENT.md so nobody hand-edits the copy.
+ * Design: validate source/pins before entering any target cleanup or write.
+ * @param options Source, optional target directory, preview flag and paired reviewed hashes.
+ * @returns Per-target outcomes and captured provenance, or a zero-write source error.
  */
 export function installPilotAgents(options: {
   sourceDir: string;
   baseDir?: string;
   dryRun?: boolean;
+  expectedSource?: PilotSourceHashes;
 }): PilotInstallResult {
   const baseDir = options.baseDir ?? homedir();
-  const result: PilotInstallResult = { written: [], cleaned: [], errors: [], sourceDir: options.sourceDir };
+  const result: PilotInstallResult = { written: [], cleaned: [], errors: [], sourceDir: options.sourceDir, provenance: null };
   let config: PilotConfig;
   let system: string;
   try {
-    ({ config, system } = loadPilotSource(options.sourceDir));
+    const expected = options.expectedSource;
+    if (expected !== undefined && (!expected || typeof expected !== 'object'
+      || Object.keys(expected).length !== 2
+      || typeof expected.agentSha256 !== 'string' || !/^[a-f0-9]{64}$/.test(expected.agentSha256)
+      || typeof expected.configSha256 !== 'string' || !/^[a-f0-9]{64}$/.test(expected.configSha256))) {
+      throw new Error('Expected Pilot source requires both lowercase SHA-256 digests');
+    }
+    const loaded = loadPilotSource(options.sourceDir);
+    ({ config, system } = loaded);
+    result.provenance = loaded.provenance;
+    if (expected && (expected.agentSha256 !== loaded.provenance.agentSha256
+      || expected.configSha256 !== loaded.provenance.configSha256)) {
+      throw new Error('Pilot source changed: reviewed AGENT.md or agent.config.json SHA-256 does not match');
+    }
   } catch (err) {
     result.errors.push({ runtime: 'source', path: options.sourceDir, error: (err as Error).message });
     return result;

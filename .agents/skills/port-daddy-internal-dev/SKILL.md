@@ -560,6 +560,15 @@ block in its frontmatter declares targets:
 | `.gemini/extensions/port-daddy/skills/` | Gemini CLI extension surface | install.sh |
 | external-skill-catalog (out of repo) | Public catalog distribution | manual `cp -r` from this repo to `~/coding/external-skill-catalog/skills/` |
 
+The standalone `scripts/install-pilot-agents.ts` accepts `--source-dir` before
+Homebrew discovery; an invalid explicit source never falls back. Preview with
+`--dry-run`, then bind an apply using both `--expect-agent-sha256` and
+`--expect-config-sha256` from the captured source receipt. Those digests describe
+the exact prompt/config bytes rendered into all five formats, not trusted-source
+attestation, atomic target replacement or proof of an installed runtime. Without
+a source override, package-first defaults remain; setup/MCP flags and target
+cleanup are unchanged.
+
 `port-daddy-internal-dev` (this skill) **is intentionally absent** from
 the mirrors-list above. Do not propose distributing it. Its presence on a
 non-port-daddy machine would be confusing noise.
