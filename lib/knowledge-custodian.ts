@@ -437,6 +437,12 @@ export class KnowledgeCustodian {
 
   // ─── Duty: archiveTTL ────────────────────────────────────────────────────────
 
+  /**
+   * Archive expired knowledge and retire only provably inactive ephemeral work.
+   * The design rechecks the same SQLite predicates after asynchronous harvest:
+   * collecting evidence must never overwrite a renewed or completed session.
+   * @returns Immediately; completion logging counts actual conditional updates.
+   */
   runArchiveTTLDuty(): void {
     const { db, deps } = this;
 
@@ -455,29 +461,56 @@ export class KnowledgeCustodian {
       deps.resurrection.cleanup(30 * 24 * 60 * 60 * 1000);
     }
 
-    // Harvest + abandon sessions inactive > 7 days
-    const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    // One sweep clock: elapsed harvest time cannot age newly observed activity
+    // into eligibility. Malformed storage/clock values are not expiry evidence.
+    const sweepAt = Date.now();
+    const sevenDaysAgo = sweepAt - 7 * 24 * 60 * 60 * 1000;
+    if (!Number.isSafeInteger(sweepAt) || sevenDaysAgo < 0) {
+      deps.logger.error('Custodian archiveTTL clock invalid');
+      return;
+    }
+    const eligible = `
+      status = 'active'
+      AND (is_durable IS NULL OR (typeof(is_durable) = 'integer' AND is_durable = 0))
+      AND typeof(updated_at) = 'integer' AND updated_at >= 0 AND updated_at < @cutoff
+      AND NOT EXISTS (
+        SELECT 1 FROM session_notes sn WHERE sn.session_id = sessions.id AND (
+          typeof(sn.created_at) != 'integer' OR sn.created_at < 0
+          OR sn.created_at >= @cutoff
+        )
+      )
+    `;
     const orphaned = db.prepare(`
-      SELECT id FROM sessions WHERE status = 'active' AND updated_at < ?
-    `).all(sevenDaysAgo) as Array<{ id: string }>;
+      SELECT id, updated_at FROM sessions WHERE ${eligible}
+    `).all({ cutoff: sevenDaysAgo }) as Array<{ id: string; updated_at: number }>;
+    const abandon = db.prepare(`
+      UPDATE sessions SET status = 'abandoned', phase = 'abandoned',
+        completed_at = @sweepAt, updated_at = @sweepAt
+      WHERE id = @id AND updated_at = @capturedUpdatedAt AND ${eligible}
+    `);
 
-    for (const { id } of orphaned) {
+    const harvests = orphaned.map(({ id, updated_at }) =>
       harvestSession(id, db, {
         episodicMemory: deps.episodicMemory as unknown as Parameters<typeof harvestSession>[2]['episodicMemory'],
         blobs: deps.blobs,
       })
         .then(() => {
-          db.prepare(`UPDATE sessions SET status = 'abandoned', updated_at = ? WHERE id = ?`).run(Date.now(), id);
+          return abandon.run({ id, capturedUpdatedAt: updated_at, cutoff: sevenDaysAgo, sweepAt }).changes;
         })
         .catch(err => {
           deps.logger.error('Custodian archiveTTL harvest failed', { sessionId: id, err });
-        });
-    }
+          return 0;
+        }),
+    );
 
-    if (archived > 0 || orphaned.length > 0) {
-      deps.logger.info('Custodian archiveTTL duty complete', { archived, orphanedSessions: orphaned.length });
-    }
-    this.lastDuty.archiveTTL = Date.now();
+    void Promise.all(harvests).then(changes => {
+      if (archived > 0 || orphaned.length > 0) {
+        deps.logger.info('Custodian archiveTTL duty complete', {
+          archived, orphanedSessions: changes.reduce((sum, count) => sum + count, 0),
+        });
+      }
+    });
+    this.lastDuty.archiveTTL = sweepAt;
   }
 }
 
