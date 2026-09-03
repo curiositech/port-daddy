@@ -202,8 +202,9 @@ export function createGitOriginChecker(): GitOriginChecker {
       const upstream = originUpstream ? `origin/${originUpstream.slice('refs/heads/'.length)}` : null;
       type Advertisement = { defaultRef?: string; defaultOid?: string; upstreamOid?: string };
       /**
-       * Read only the named origin and exact candidate refs. The motivation for
-       * strict uniqueness is that malformed/duplicate evidence must not win.
+       * Read the named origin, then select exact candidate refs: ls-remote
+       * patterns also match slash-delimited tails. Legitimate extra rows are
+       * not proof; contradictory or duplicate selected evidence must not win.
        * @returns A fresh advertisement, or undefined for missing/ambiguous data.
        */
       const advertisement = (): Advertisement | undefined => {
@@ -212,6 +213,7 @@ export function createGitOriginChecker(): GitOriginChecker {
         let defaultRef: string | undefined;
         let defaultOid: string | undefined;
         let upstreamOid: string | undefined;
+        const refOids = new Map<string, string>();
         for (const line of result.out.split('\n')) {
           const parts = line.split('\t');
           if (parts.length !== 2) return undefined;
@@ -222,13 +224,28 @@ export function createGitOriginChecker(): GitOriginChecker {
           } else if (ref === 'HEAD' && oid(value)) {
             if (defaultOid !== undefined) return undefined;
             defaultOid = value;
-          } else if (originUpstream && ref === originUpstream && oid(value)) {
-            if (upstreamOid !== undefined) return undefined;
-            upstreamOid = value;
-          } else return undefined;
+          } else {
+            // HEAD can also return refs/heads/topic/HEAD, tags and their
+            // peeled rows. Even a full ref pattern can match a longer tail.
+            // Validate these rows, but never use a tail match as the selected
+            // upstream or default branch's own OID.
+            const peeled = ref.endsWith('^{}');
+            const namedRef = peeled ? ref.slice(0, -3) : ref;
+            const matches = namedRef.endsWith('/HEAD') || (originUpstream
+              && (namedRef === originUpstream || namedRef.endsWith(`/${originUpstream}`)));
+            if (!oid(value) || !matches || !namedRef.startsWith('refs/')
+              || (peeled && !namedRef.startsWith('refs/tags/'))
+              || !run(['check-ref-format', namedRef]).ok || refOids.has(ref)) return undefined;
+            refOids.set(ref, value);
+            if (ref === originUpstream) upstreamOid = value;
+          }
         }
         if (defaultRef && (!defaultOid || !run(['check-ref-format', defaultRef]).ok)) return undefined;
         if (defaultOid && !defaultRef) return undefined;
+        // The HEAD pseudoref and its named branch must agree whenever both
+        // rows were returned. No other candidate may rescue contradictory
+        // evidence from the same advertised branch.
+        if (defaultRef && refOids.has(defaultRef) && refOids.get(defaultRef) !== defaultOid) return undefined;
         if (!defaultRef && !upstreamOid) return undefined;
         return { ...(defaultRef ? { defaultRef, defaultOid } : {}), ...(upstreamOid ? { upstreamOid } : {}) };
       };

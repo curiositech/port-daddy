@@ -78,6 +78,9 @@ if (args.includes('ls-remote')) {
   if (mode === 'malformed') output = 'ref: refs/tags/not-a-default\\tHEAD\\n' + 'a'.repeat(40) + '\\tHEAD\\n';
   if (mode === 'unknown-ref') output += 'a'.repeat(40) + '\\trefs/heads/extra\\n';
   if (mode === 'object-missing') output = output.replace(/[0-9a-f]{40}(?=\\tHEAD)/g,'f'.repeat(40));
+  if (mode === 'contradictory-head' || mode === 'contradictory-head-reordered') output = output.replace(/^[0-9a-f]{40}\\tHEAD$/m,execute(work,['rev-parse','HEAD']).trim()+'\\tHEAD');
+  if (mode === 'contradictory-default-row') output = output.replace(/^[0-9a-f]{40}\\trefs\\/heads\\/trunk$/m,execute(work,['rev-parse','HEAD^']).trim()+'\\trefs/heads/trunk');
+  if (mode === 'reverse-order' || mode === 'contradictory-head-reordered') output = output.trim().split('\\n').reverse().join('\\n')+'\\n';
   process.stdout.write(output); process.exit(0);
 }
 process.stdout.write(execute(process.cwd(),args));
@@ -129,6 +132,45 @@ describe('ordinary completion origin delivery evidence', () => {
     const head = commit();
     git(work, 'push', 'origin', 'HEAD:refs/heads/trunk');
     expect(check()).toMatchObject({ ok: true, upstream: null, proof: { kind: 'origin-default-ancestry', head, ref: 'refs/heads/trunk', oid: head } });
+  });
+  test('ignores legitimate HEAD-tail branches and annotated tags when proving the exact default', () => {
+    const head = git(work, 'rev-parse', 'HEAD');
+    git(origin, 'update-ref', 'refs/heads/topic/HEAD', head);
+    git(work, 'tag', '-a', 'archive/HEAD', '-m', 'synthetic annotated tail');
+    git(work, 'push', 'origin', 'refs/tags/archive/HEAD');
+    expect(check()).toMatchObject({ ok: true, proof: { kind: 'origin-default-ancestry', ref: 'refs/heads/trunk', oid: head } });
+  });
+  test('does not use a legitimate HEAD-tail branch as proof for unpublished work', () => {
+    commit('unpublished');
+    git(work, 'push', 'origin', 'HEAD:refs/heads/topic/HEAD');
+    expect(check()).toMatchObject({ ok: false, code: 'NO_UPSTREAM' });
+  });
+  test('checks a default branch ending in HEAD consistently regardless of row order', () => {
+    const head = git(work, 'rev-parse', 'HEAD');
+    git(origin, 'update-ref', 'refs/heads/project/HEAD', head);
+    git(origin, 'symbolic-ref', 'HEAD', 'refs/heads/project/HEAD');
+    const expected = { ok: true, proof: { kind: 'origin-default-ancestry', ref: 'refs/heads/project/HEAD', oid: head } };
+    expect(check()).toMatchObject(expected);
+    withFault('reverse-order', () => expect(check()).toMatchObject(expected));
+  });
+  test('ignores a longer tail match of a fully qualified upstream ref', () => {
+    const head = commit('published');
+    git(work, 'push', '-u', 'origin', 'feature');
+    git(origin, 'update-ref', 'refs/heads/archive/refs/heads/feature', git(work, 'rev-parse', 'HEAD^'));
+    expect(check()).toMatchObject({ ok: true, proof: { kind: 'origin-upstream', ref: 'refs/heads/feature', oid: head } });
+  });
+  test.each(['contradictory-head', 'contradictory-head-reordered'])('rejects %s instead of rescuing unpublished HEAD', mode => {
+    commit('unpublished');
+    git(work, 'branch', '--set-upstream-to=origin/trunk', 'feature');
+    expect(check().ok).toBe(false);
+    withFault(mode, () => expect(check()).toMatchObject({ ok: false, code: 'GIT_ERROR' }));
+  });
+  test('rejects a contradictory default row even when HEAD ancestry would otherwise pass', () => {
+    commit('published');
+    git(work, 'push', 'origin', 'HEAD:refs/heads/trunk');
+    git(work, 'branch', '--set-upstream-to=origin/trunk', 'feature');
+    expect(check().ok).toBe(true);
+    withFault('contradictory-default-row', () => expect(check()).toMatchObject({ ok: false, code: 'GIT_ERROR' }));
   });
   test('accepts merged work after the configured upstream is deleted and pruned', () => {
     const head = commit();
