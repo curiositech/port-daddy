@@ -207,6 +207,16 @@ Every agent must establish a versioned todo checklist using `pd plan set`.
 - **Mark item completed**: Run `pd plan check <index>` (e.g., `pd plan check 1` or `pd plan check "step one"`).
 - **Close session gate**: `pd done` and `pd plan check` use the same visible checklist tasks. Unfinished `[ ]` or `[-]` tasks block completion; fenced examples, HTML comments, and prose markers do not. Checked `[x]` and `[X]` tasks are complete. Finish the plan or explicitly abandon the session; a caller-supplied reason is not operator authority. `pd done --no-pr` is narrower than “I chose not to open a PR”: it succeeds only for a clean worktree whose `HEAD` has no commit absent from every remote ref. This verifier runs even when the branch is fully pushed; dirty or unpublished repository work remains blocked.
 
+Ordinary code delivery has a separate Git publication/containment gate: the
+worktree must be clean and its exact `HEAD` must be contained in a freshly
+advertised `origin` upstream or `origin` default branch. Missing or deleted
+tracking metadata is not proof that work was never pushed. The default-branch
+proof records ancestry, not feature-branch publication history; neither proof
+establishes CI, independent review, or protected merge. Keep the PR Finish Line
+requirements. The check does not fetch or rewrite Git state, retains ignored
+evidence, and refuses missing objects, changed evidence, or unproven squash/rebase
+ancestry. Verify installed behavior separately from this source contract.
+
 ## Session Continuity
 
 A resumed coding session is not automatically a new Port Daddy session. Treat
