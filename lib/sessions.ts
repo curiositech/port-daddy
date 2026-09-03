@@ -352,8 +352,9 @@ export function createSessions(
       SELECT wrapped_session_key, identity_project FROM sessions WHERE id = ?
     `),
     abandonActiveByAgent: db.prepare(`
-      UPDATE sessions SET status = 'abandoned', updated_at = ?, completed_at = ?
-      WHERE status = 'active' AND agent_id = ?
+      UPDATE sessions SET status = 'abandoned', phase = 'abandoned', updated_at = ?, completed_at = ?
+      WHERE status = 'active' AND agent_id = ? AND (is_durable IS NULL OR is_durable = 0)
+      RETURNING id
     `),
     setMetadata: db.prepare(`
       UPDATE sessions SET metadata = ?, updated_at = ? WHERE id = ?
@@ -1133,23 +1134,43 @@ export function createSessions(
   }
 
   /**
-   * Zombie protocol: abandon all active sessions owned by a dead agent.
-   * Called when the resurrection reaper marks an agent as dead.
+   * Heartbeat expiry ends only ephemeral process sessions. Return the IDs
+   * actually changed by this write, never surviving durable work to harvest.
+   * @param agentId Dead process identity whose temporary sessions are eligible.
+   * @returns IDs atomically changed, by design excluding all durable work.
    */
-  function abandonByAgent(agentId: string): number {
+  function abandonByAgent(agentId: string): string[] {
     const now = Date.now();
-    const result = stmts.abandonActiveByAgent.run(now, now, agentId);
-    return result.changes;
+    const rows = stmts.abandonActiveByAgent.all(now, now, agentId) as Array<{ id: string }>;
+    return rows.map(row => row.id);
   }
 
-  // Ids of an agent's currently-active sessions. Read this BEFORE abandonByAgent so a
-  // caller (e.g. the zombie-protocol death handler) can harvest each session's notes
-  // while they are still queryable, then abandon them.
+  // General identity lookup: deliberately includes both lifecycle modes.
   function activeSessionIdsByAgent(agentId: string): string[] {
     const rows = db.prepare(
       `SELECT id FROM sessions WHERE status = 'active' AND agent_id = ?`
     ).all(agentId) as Array<{ id: string }>;
     return rows.map((r) => r.id);
+  }
+
+  /**
+   * Durable work outlives its process. The design separates directory retention
+   * from live authority; a stored verified stamp never refreshes execution rights.
+   * @param agentId Exact process identity to inspect.
+   * @param options Require a daemon-stamped verified actor for directory/queue decisions.
+   * @returns Matching active durable session IDs without changing any session.
+   */
+  function activeDurableSessionIdsByAgent(agentId: string, options: { verifiedOnly?: boolean } = {}): string[] {
+    const rows = db.prepare(
+      `SELECT id, metadata FROM sessions WHERE status = 'active' AND agent_id = ? AND is_durable = 1`
+    ).all(agentId) as Array<{ id: string; metadata: string | null }>;
+    return rows.filter(row => {
+      if (!options.verifiedOnly) return true;
+      const identity = safeJsonParse(row.metadata)?.identity;
+      if (!identity || typeof identity !== 'object' || Array.isArray(identity)) return false;
+      const stamp = identity as { verified?: unknown; actorId?: unknown };
+      return stamp.verified === true && typeof stamp.actorId === 'string' && stamp.actorId.trim().length > 0;
+    }).map(row => row.id);
   }
 
   function mergeMetadata(row: SessionRow, patch: Record<string, unknown>, now = Date.now()) {
@@ -2288,6 +2309,7 @@ export function createSessions(
     abandon,
     abandonByAgent,
     activeSessionIdsByAgent,
+    activeDurableSessionIdsByAgent,
     remove,
     takeover,
     addNote,
