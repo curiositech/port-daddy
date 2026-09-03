@@ -3,7 +3,8 @@
 import { afterEach, beforeEach, expect, jest, test } from '@jest/globals';
 import Fastify from 'fastify';
 import Database from 'better-sqlite3';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync, readFileSync } from 'node:fs';
+import yaml from 'js-yaml';
 import { join } from 'node:path';
 import { createTestDb } from '../setup-unit.js';
 import { createSessions } from '../../lib/sessions.ts';
@@ -39,6 +40,30 @@ beforeEach(async () => {
   });
 });
 afterEach(async () => { clock.mockRestore(); await app.close(); if (db.open) db.close(); });
+
+test.each([undefined, null, 0, -1, NaN, Infinity, '1', Number.MAX_SAFE_INTEGER + 1])('timeline refuses untraceable persisted ID %s in either source', async invalidId => {
+  for (const source of ['activity', 'note']) {
+    const activity = { getRecent: () => ({ entries: source === 'activity' ? [{ id: invalidId, timestamp: 1000, type: 'fixture' }] : [] }) };
+    const store = { getNotes: () => ({ success: true, notes: source === 'note' ? [{ id: invalidId, sessionId: 'exact', createdAt: 1000, content: 'fixture', type: 'note' }] : [] }) };
+    await expect(createCorrelationEngine(activity, store).getTimeline()).rejects.toMatchObject({ code: 'TIMELINE_SOURCE_UNAVAILABLE' });
+  }
+});
+
+test.each([undefined, null, '', ' ', 'sibling'])('timeline refuses missing or wrong selected session provenance %s', async returnedSession => {
+  const activity = { getRecent: () => ({ entries: [] }) };
+  const store = { getNotes: () => ({ success: true, notes: [{ id: 1, sessionId: returnedSession, createdAt: 1000, content: 'fixture', type: 'note' }] }) };
+  await expect(createCorrelationEngine(activity, store).getTimeline({ sessionId: 'exact' })).rejects.toMatchObject({ code: 'TIMELINE_SOURCE_UNAVAILABLE' });
+});
+
+test('OpenAPI describes bounded count snapshots and explicit timeline failures', () => {
+  const spec = yaml.load(readFileSync(new URL('../../docs/openapi.yaml', import.meta.url), 'utf8'));
+  const counts = spec.paths['/notes'].get.responses['200'].content['application/json'].schema.properties;
+  for (const key of ['count', 'total', 'beforeSinceTotal']) expect(counts[key]).toMatchObject({ type: 'integer', minimum: 0 });
+  const timeline = spec.paths['/activity/timeline'].get;
+  expect(timeline.parameters.find(p => p.name === 'limit').schema).toMatchObject({ minimum: 1, maximum: 1000 });
+  expect(timeline.responses['400']).toBeDefined();
+  expect(timeline.responses['503'].description).toContain('TIMELINE_SOURCE_UNAVAILABLE');
+});
 
 test('memory tiers counts retained old and recent notes through the actual notes route', async () => {
   expect(sessions.addNote(id, 'Synthetic old note').success).toBe(true);

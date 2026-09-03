@@ -17,6 +17,7 @@ import type { SemanticIndex } from './semantic-index.js';
 import type { EpisodicMemory } from './episodic-memory.js';
 import type { Symbol as IndexedSymbol, SymbolIndex } from './symbol-index.js';
 import { createClaimForest, type ClaimForestClaim } from './claim-forest.js';
+import { isCoordinationScopeId, validateCoordinationOperation, type CoordinationOperation, type CoordinationNoteValue } from './coordination-ledger.js';
 
 const MAX_NOTES_PER_SESSION = 500;
 export const SESSION_NOTE_MAX_BYTES = 10 * 1024;
@@ -236,7 +237,8 @@ export function createSessions(
       session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
       content TEXT NOT NULL,
       type TEXT NOT NULL DEFAULT 'note',
-      created_at INTEGER NOT NULL
+      created_at INTEGER NOT NULL,
+      append_origin TEXT NOT NULL DEFAULT 'ordinary' CHECK (append_origin IN ('ordinary', 'replicated'))
     )`,
     `CREATE INDEX IF NOT EXISTS idx_session_notes_session ON session_notes(session_id, created_at)`,
     `CREATE INDEX IF NOT EXISTS idx_session_notes_type ON session_notes(type)`,
@@ -246,6 +248,14 @@ export function createSessions(
   for (const sql of schemaStatements) {
     db.prepare(sql).run();
   }
+
+  // Existing rows retain ordinary admission provenance. A failed migration is
+  // not permission to run without the distinction used by the burst query.
+  const noteColumns = db.prepare('PRAGMA table_info(session_notes)').all() as Array<{ name: string }>;
+  if (!noteColumns.some(column => column.name === 'append_origin')) {
+    db.prepare("ALTER TABLE session_notes ADD COLUMN append_origin TEXT NOT NULL DEFAULT 'ordinary' CHECK (append_origin IN ('ordinary', 'replicated'))").run();
+  }
+  db.prepare("CREATE INDEX IF NOT EXISTS idx_session_notes_authoring_burst ON session_notes(session_id, created_at DESC, id DESC) WHERE append_origin = 'ordinary'").run();
 
   // Migration: add worktree_id column to existing databases that don't have it
   try {
@@ -538,6 +548,10 @@ export function createSessions(
       INSERT INTO session_notes (session_id, content, type, created_at)
       VALUES (?, ?, ?, ?)
     `),
+    insertReplicatedNote: db.prepare(`
+      INSERT INTO session_notes (session_id, content, type, created_at, append_origin)
+      VALUES (?, ?, ?, ?, 'replicated')
+    `),
     getNotesBySession: db.prepare(`
       SELECT sn.*, s.purpose as session_purpose, s.agent_id as session_agent_id, s.identity_project as identity_project
       FROM session_notes sn
@@ -566,7 +580,7 @@ export function createSessions(
       WHERE session_id = ? AND type = ? AND created_at >= ?
     `),
     getDurableBurst: db.prepare(`
-      SELECT created_at FROM session_notes WHERE session_id = ? AND created_at > ?
+      SELECT created_at FROM session_notes WHERE session_id = ? AND append_origin = 'ordinary' AND created_at > ?
       ORDER BY created_at DESC, id DESC LIMIT ?
     `),
     getRecentNotesBySession: db.prepare(`
@@ -645,7 +659,7 @@ export function createSessions(
 
     try {
       const key = noteEncryption.unwrapSessionKey(row.wrapped_session_key, noteEncryptionScope(row.identity_project));
-      sessionKeyCache.set(sessionId, key);
+      if (!replicatedPageActive) sessionKeyCache.set(sessionId, key);
       return key;
     } catch {
       return null;
@@ -938,13 +952,131 @@ export function createSessions(
 
   let activityLog: ActivityLogger | null = null;
 
-  // Takeover composes the ordinary writers under one SQLite transaction. Their
+  // Takeover and peer replay compose writers under one SQLite transaction. Their
   // external projections must not escape its rollback. This queue is private
   // and synchronous; standalone writers retain their existing behavior.
   let deferredProjections: Array<{ run: () => void; warning: string }> | null = null;
+  let replicatedPageActive = false;
+  let replicatedPageRefused = false;
   function projectAfterCommit(run: () => void, warning: string): void {
     if (deferredProjections) deferredProjections.push({ run, warning });
     else run();
+  }
+
+  /**
+   * Internal peer ingress, deliberately absent from HTTP/CLI/SDK authoring.
+   * The synchronous callback owns the whole page transaction and a short-lived
+   * project-bound append capability. Historical time/content are not new writes
+   * for burst admission; cursor, bindings and projections commit with the page.
+   */
+  function applyReplicatedPage(project: string, apply: (append: (operation: CoordinationOperation) => number) => unknown) {
+    if (replicatedPageActive) {
+      replicatedPageRefused = true;
+      throw new Error('replicated page cannot be nested');
+    }
+    if (!isCoordinationScopeId(project, 200) || typeof apply !== 'function'
+      || db.inTransaction || deferredProjections || replicatedPageActive) {
+      throw new Error('replicated page requires an outer synchronous project transaction');
+    }
+    const projections: Array<{ run: () => void; warning: string }> = [];
+    const keys = new Map<string, { key: Buffer; wrapped: string }>();
+    const appended = new Map<string, { serialized: string; noteId: number }>();
+    let active = true;
+    let rejected = false;
+    deferredProjections = projections;
+    replicatedPageActive = true;
+    replicatedPageRefused = false;
+    try {
+      db.transaction(() => {
+        const append = (operation: CoordinationOperation): number => {
+          if (!active || !replicatedPageActive || !db.inTransaction) {
+            throw new Error('replicated append capability is no longer active');
+          }
+          try {
+            if (validateCoordinationOperation(operation) || operation.project !== project
+              || operation.kind !== 'note' || operation.mutation !== 'upsert') {
+              throw new Error('invalid replicated note');
+            }
+            const serialized = JSON.stringify(operation);
+            const previous = appended.get(operation.opId);
+            if (previous) {
+              if (previous.serialized !== serialized) throw new Error('replicated note identity changed');
+              return previous.noteId;
+            }
+            const value = operation.value as CoordinationNoteValue;
+            const session = stmts.getById.get(value.sessionId) as SessionRow | undefined;
+            if (!session || session.identity_project !== project) throw new Error('replicated note scope mismatch');
+            let storedContent = value.content;
+            if (noteEncryption?.isEnabled()) {
+              const row = stmts.getWrappedKey.get(session.id) as { wrapped_session_key: string | null };
+              let wrapped = row.wrapped_session_key;
+              let key = keys.get(session.id)?.wrapped === wrapped ? keys.get(session.id)!.key : undefined;
+              if (!key) {
+                if (wrapped === null) {
+                  key = noteEncryption.generateSessionKey();
+                  wrapped = noteEncryption.wrapSessionKey(key, noteEncryptionScope(project));
+                  if (typeof wrapped !== 'string' || !wrapped) throw new Error('invalid wrapped session key');
+                  const storedKey = stmts.setWrappedKey.run(wrapped, session.id);
+                  const persistedKey = stmts.getWrappedKey.get(session.id) as { wrapped_session_key: string | null; identity_project: string | null };
+                  if (storedKey.changes !== 1 || persistedKey?.wrapped_session_key !== wrapped || persistedKey.identity_project !== project) {
+                    throw new Error('replicated session key was not persisted');
+                  }
+                } else {
+                  if (typeof wrapped !== 'string' || !wrapped) throw new Error('invalid existing wrapped session key');
+                  key = noteEncryption.unwrapSessionKey(wrapped, noteEncryptionScope(project));
+                }
+                if (!Buffer.isBuffer(key) || key.length !== 32) throw new Error('invalid session key');
+                keys.set(session.id, { key, wrapped });
+              }
+              storedContent = noteEncryption.encryptNote(value.content, key);
+              if (typeof storedContent !== 'string' || !noteEncryption.isEncrypted(storedContent)) {
+                throw new Error('replicated note encryption failed');
+              }
+            }
+            const inserted = stmts.insertReplicatedNote.run(session.id, storedContent, value.type, value.createdAt);
+            const noteId = Number(inserted.lastInsertRowid);
+            const persisted = db.prepare('SELECT * FROM session_notes WHERE id = ?').get(noteId) as (SessionNoteRow & { append_origin: string }) | undefined;
+            if (inserted.changes !== 1 || !Number.isSafeInteger(noteId) || noteId < 1
+              || persisted?.session_id !== session.id || persisted.content !== storedContent || persisted.type !== value.type
+              || persisted.created_at !== value.createdAt || persisted.append_origin !== 'replicated') {
+              throw new Error('replicated note was not persisted');
+            }
+            appended.set(operation.opId, { serialized, noteId });
+            projectAfterCommit(() => rememberEpisode(session, value.type, `${session.id}:note:${noteId}`,
+              `${session.agent_id || 'agent'} ${value.type}`, value.content, { sessionId: session.id, noteType: value.type, replicated: true }), 'NOTE_MEMORY_PROJECTION_FAILED');
+            projectAfterCommit(() => activityLog?.log(ActivityType.SESSION_NOTE, {
+              agentId: session.agent_id, targetId: sessionTarget(project, session.id), details: `Note replicated to session ${session.id}`,
+              metadata: { sessionId: session.id, noteId, type: value.type, identityProject: project, replicated: true, createdAt: value.createdAt },
+            }), 'NOTE_ACTIVITY_PROJECTION_FAILED');
+            return noteId;
+          } catch {
+            rejected = true;
+            throw new Error('replicated note validation or persistence failed');
+          }
+        };
+        const result = apply(append);
+        if (result != null && typeof (result as { then?: unknown }).then === 'function') {
+          // Consume an async callback's rejection after revocation, but never
+          // wait for it or allow its synchronous prefix to commit.
+          void Promise.resolve(result).catch(() => {});
+          throw new Error('replicated page callback must be synchronous');
+        }
+        if (rejected || replicatedPageRefused) throw new Error('replicated page contained a refused append');
+      }).immediate();
+    } catch {
+      throw new Error('replicated page rejected; no page changes committed');
+    } finally {
+      active = false;
+      replicatedPageActive = false;
+      replicatedPageRefused = false;
+      deferredProjections = null;
+    }
+    for (const [sessionId, entry] of keys) sessionKeyCache.set(sessionId, entry.key);
+    const warnings: string[] = [];
+    for (const projection of projections) {
+      try { projection.run(); } catch { warnings.push(projection.warning); }
+    }
+    return { warnings };
   }
 
   function setActivityLog(logger: ActivityLogger): void {
@@ -1131,7 +1263,17 @@ export function createSessions(
           return { success: false as const, code: 'SESSION_NOT_ACTIVE', error: 'session is already terminal; no handoff or lifecycle state was changed' };
         }
         const now = Date.now();
-        const noteId = trimmedNote ? Number(stmts.insertNote.run(sessionId, maybeEncrypt(sessionId, trimmedNote), 'handoff', now).lastInsertRowid) : null;
+        let noteId: number | null = null;
+        if (trimmedNote) {
+          const storedContent = maybeEncrypt(sessionId, trimmedNote);
+          const inserted = stmts.insertNote.run(sessionId, storedContent, 'handoff', now);
+          noteId = Number(inserted.lastInsertRowid);
+          const persisted = db.prepare('SELECT * FROM session_notes WHERE id = ?').get(noteId) as SessionNoteRow | undefined;
+          if (inserted.changes !== 1 || !Number.isSafeInteger(noteId) || noteId < 1 || persisted?.session_id !== sessionId
+            || persisted.content !== storedContent || persisted.type !== 'handoff' || persisted.created_at !== now) {
+            throw new Error('terminal handoff was not persisted');
+          }
+        }
         const activeFiles = stmts.getActiveFilesBySession.all(sessionId) as SessionFileRow[];
         stmts.releaseAllFiles.run(now, sessionId);
         claimForest.releaseAllBySession(sessionId, now);
@@ -1561,7 +1703,13 @@ export function createSessions(
         }
         const storedContent = maybeEncrypt(sessionId, trimmedContent);
         const result = stmts.insertNote.run(sessionId, storedContent, type, now);
-        return { success: true as const, session, noteId: Number(result.lastInsertRowid) };
+        const noteId = Number(result.lastInsertRowid);
+        const persisted = db.prepare('SELECT * FROM session_notes WHERE id = ?').get(noteId) as SessionNoteRow | undefined;
+        if (result.changes !== 1 || !Number.isSafeInteger(noteId) || noteId < 1 || persisted?.session_id !== sessionId
+          || persisted.content !== storedContent || persisted.type !== type || persisted.created_at !== now) {
+          throw new Error('ordinary note was not persisted');
+        }
+        return { success: true as const, session, noteId };
       }).immediate();
     } catch {
       return { success: false, code: 'NOTE_STORAGE_FAILED', error: 'note persistence failed; no note was appended' };
@@ -2429,6 +2577,7 @@ export function createSessions(
     remove,
     takeover,
     addNote,
+    applyReplicatedPage,
     quickNote,
     getNotes,
     claimFiles,

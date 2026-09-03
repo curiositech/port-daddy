@@ -167,7 +167,7 @@ describe('getTimeline', () => {
 
   test('respects limit option', async () => {
     const entries = Array.from({ length: 10 }, (_, i) =>
-      makeActivityEntry({ id: i, timestamp: i * 1000 })
+      makeActivityEntry({ id: i + 1, timestamp: i * 1000 })
     );
     const engine = createCorrelationEngine(
       makeMockActivityLog(entries),
@@ -199,7 +199,7 @@ describe('getTimeline', () => {
 
   test('default limit is 100', async () => {
     const entries = Array.from({ length: 150 }, (_, i) =>
-      makeActivityEntry({ id: i, timestamp: i })
+      makeActivityEntry({ id: i + 1, timestamp: i })
     );
     const engine = createCorrelationEngine(
       makeMockActivityLog(entries),

@@ -1559,7 +1559,7 @@ paths:
           description: Unix milliseconds, inclusive
       responses:
         '200':
-          description: Recent notes
+          description: Bounded note page and exact matching counts from one read snapshot; the returned page length is not the persisted total
           content:
             application/json:
               schema:
@@ -1573,6 +1573,16 @@ paths:
                       $ref: '#/components/schemas/Note'
                   count:
                     type: integer
+                    minimum: 0
+                    description: Number of notes returned in this bounded page
+                  total:
+                    type: integer
+                    minimum: 0
+                    description: Exact matching persisted count, at or after the inclusive since cutoff when supplied
+                  beforeSinceTotal:
+                    type: integer
+                    minimum: 0
+                    description: Present when since is supplied; exact matching count strictly before that same cutoff, using the identical base scope and type filters
         '400':
           $ref: '#/components/responses/ValidationError'
         '500':
@@ -2896,6 +2906,8 @@ paths:
           schema:
             type: integer
             default: 50
+            minimum: 1
+            maximum: 1000
         - name: agent
           in: query
           schema:
@@ -2907,6 +2919,10 @@ paths:
       responses:
         '200':
           description: Unified timeline
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '503':
+          description: TIMELINE_SOURCE_UNAVAILABLE; an activity or note source failed or returned malformed data, with no partial timeline presented as success
         '500':
           $ref: '#/components/responses/InternalError'
 

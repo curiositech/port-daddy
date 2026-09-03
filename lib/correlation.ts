@@ -22,7 +22,8 @@ export function createCorrelationEngine(activityLog: any, sessions: any) {
     try { activityResult = activityLog.getRecent({ limit, agentId }); }
     catch { throw Object.assign(new Error('timeline activity is unavailable'), { code: 'TIMELINE_SOURCE_UNAVAILABLE' }); }
     if (activityResult?.success === false || !Array.isArray(activityResult?.entries)
-      || activityResult.entries.some((entry: any) => !entry || !Number.isFinite(entry.timestamp) || typeof entry.type !== 'string')) {
+      || activityResult.entries.some((entry: any) => !entry || !Number.isSafeInteger(entry.id) || entry.id < 1
+        || !Number.isFinite(entry.timestamp) || typeof entry.type !== 'string')) {
       throw Object.assign(new Error('timeline activity is unavailable'), { code: 'TIMELINE_SOURCE_UNAVAILABLE' });
     }
     const activityEntries: TimelineEntry[] = activityResult.entries.map((e: any) => ({
@@ -41,7 +42,9 @@ export function createCorrelationEngine(activityLog: any, sessions: any) {
     try { notesResult = sessions.getNotes(sessionId, { limit, agentId }); }
     catch { throw Object.assign(new Error('timeline notes are unavailable'), { code: 'TIMELINE_SOURCE_UNAVAILABLE' }); }
     if (notesResult?.success !== true || !Array.isArray(notesResult?.notes)
-      || notesResult.notes.some((note: any) => !note || !Number.isFinite(note.createdAt)
+      || notesResult.notes.some((note: any) => !note || !Number.isSafeInteger(note.id) || note.id < 1
+        || typeof note.sessionId !== 'string' || !note.sessionId.trim() || (sessionId !== undefined && note.sessionId !== sessionId)
+        || !Number.isFinite(note.createdAt)
         || typeof note.content !== 'string' || typeof note.type !== 'string')) {
       throw Object.assign(new Error('timeline notes are unavailable'), { code: 'TIMELINE_SOURCE_UNAVAILABLE' });
     }

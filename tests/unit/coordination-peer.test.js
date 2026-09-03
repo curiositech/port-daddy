@@ -788,7 +788,7 @@ describe('ADR-0092 local coordination peer', () => {
     const status = await atomic.syncOnce();
     expect(status.connected).toBe(false);
     expect(status.cursor).toBe(0);
-    expect(status.lastError).toMatch(/missing session/);
+    expect(status.lastError).toMatch(/replicated page rejected/);
     expect(local.sessions.get('page-session').success).toBe(false);
   });
 });
