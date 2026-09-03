@@ -834,6 +834,11 @@ receipt.
 **Fix:** Build named-profile environments through `buildDaemonProfileEnv()` and assert every mutable runtime path equals the resolved profile path. Acceptance-test the running profile on a noncanonical port, then inspect its open files and require that no canonical registry handle appears.
 **Why:** A profile is a state-plane boundary, not a naming convention. Isolation must survive new consumers and refactors without depending on every module reimplementing prefix inference correctly.
 
+### Assuming Prefix Isolation Also Isolates The Note Key
+**Detection:** A synthetic daemon selects its own DB but still resolves the session-note master key through the canonical Keychain account or machine key file.
+**Fix:** Use shared `PD_HOME` for note-key storage. A noncanonical root requires `PORT_DADDY_DISABLE_KEYCHAIN=1`; use an owned real 0700 directory and a regular, single-link 0600 key. Never copy the canonical key or change HOME to make a fixture boot. Test bounded nonblocking reads, exclusive creation, pathname revalidation and restart with synthetic keys; invalid existing keys must fail unchanged.
+**Boundary:** This is session-note key isolation, not a same-user filesystem sandbox, a claim that all berth secrets are isolated, a change to Porthole's separate root provider, or proof of an installed release.
+
 ### Demoing One Slice Of A Multi-PR Feature
 **Detection:** The feature spans multiple unmerged PRs, but the triple was built from a single PR branch.
 **Symptoms:** The operator files rage-bugs against branch A for everything branch B already fixed; review time is spent re-litigating known-done work.
