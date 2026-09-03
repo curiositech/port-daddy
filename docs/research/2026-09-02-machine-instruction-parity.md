@@ -24,12 +24,12 @@ These are bounded findings, not copies of private user instructions. The origina
 
 | Entrypoint | Observed discrepancy | Preservation boundary / next action |
 | --- | --- | --- |
-| `~/AGENTS.md` | Lines 3–83 designate the retired WinDAGs runtime and a versioned Cellar source; 102–105 recommend its old installer. The current publication/review/merge loop is absent. | The footer identifies a historical generator, not present overwrite authority. Reconcile the runtime/installer passages while preserving the operator's work-directory rule and third-party provenance. |
+| `~/AGENTS.md` | Lines 3–83 designate the retired third-party skill runtime and a versioned Cellar source; 102–105 recommend its old installer. The current publication/review/merge loop is absent. | The footer identifies a historical generator, not present overwrite authority. Reconcile the runtime/installer passages while preserving the operator's work-directory rule and third-party provenance. |
 | `~/.codex/AGENTS.md` | A symlink to `~/AGENTS.md`, inheriting the same discrepancy. | Preserve the link and repair its shared target once; do not create a competing copy. |
 | `~/.claude/CLAUDE.md` | The loop at 119–126 ends at note/completion; 138 promotes the retired runtime; 397 contains an ambient add-all/commit/direct-main push example. | Mixed, user-curated content. Review only the implicated passages; preserve unrelated preferences and project guidance. A file mentioning Port Daddy is not thereby managed. |
 | `~/.gemini/GEMINI.md` | A marked generated block at 6–19 forwards to the older system and guide, without the current delivery finish line. | Reconcile only that block and its shared-guide relationship. Preserve preceding user memory; unrelated process-control advice requires a separate review and is not reproduced here. |
 
-The historical generator named by the shared guide was `/opt/homebrew/Cellar/windags/2.7.0/libexec/scripts/install.sh`. That path explains the observation; it is **not a recommended installer or runtime authority**. The audit did not execute it.
+The historical generator named by the shared guide had the normalized path `/opt/homebrew/Cellar/<retired-skill-runtime>/2.7.0/libexec/scripts/install.sh`. The placeholder replaces the retired package name in this public derivative; the fingerprinted private inventory preserves the exact original. This path explains the observation; it is **not a recommended installer or runtime authority**. The audit did not execute it.
 
 ### Five installed Pilot targets
 
