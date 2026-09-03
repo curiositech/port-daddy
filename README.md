@@ -807,7 +807,10 @@ the prompt hook injects the end-of-turn SITREP table contract each turn — the
 harness's visible value surface, riding outside the coordination byte cap.
 `suggest` injects the contract as a suggestion; `enforce` marks a turn that
 ends without the table incomplete. Scaffold the table with `pd sitrep
---template`. Reinstalling hooks is idempotent and migrates older duplicate
+--template`. The template labels missing session evidence unavailable; recorded
+metadata is not live capture, compliance or authorization proof. Its roadmap rows
+are an exact-session returned preview, never another session's substitute or a
+complete ownership census. Reinstalling hooks is idempotent and migrates older duplicate
 registrations while preserving user-owned hooks. The installed graph is
 intentionally only one turn hook plus one direct-edit gate. Opaque shell/exec
 tools do not schedule Port Daddy hooks, and no `PostToolUse` process is
