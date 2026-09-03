@@ -330,6 +330,10 @@ nothing, and specifying a handoff type does not grant that exception.
 and non-negative safe-integer `since` timestamps in milliseconds (inclusive).
 Exact-session pages return the newest matching tail in chronological timestamp/id
 order and an exact matching `total`; `count` is only the returned page length.
+Global pages also report exact matching totals. With `since`, `beforeSinceTotal`
+counts the strictly older notes under the identical base filters, in the same
+read snapshot as the page. Memory's Recall/Archival rows share one bounded
+request and cutoff; unavailable count metadata is not replaced by page length.
 Full session detail keeps its existing complete-history default. This does not
 add a cursor API, silently prune history, or establish installed runtime proof.
 

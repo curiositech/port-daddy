@@ -28,7 +28,7 @@ function makeMockSessions(notes = []) {
       if (sessionId) result = result.filter(n => n.sessionId === sessionId);
       if (agentId) result = result.filter(n => n.agentId === agentId);
       if (limit) result = result.slice(0, limit);
-      return { notes: result };
+      return { success: true, notes: result };
     }
   };
 }
@@ -222,7 +222,7 @@ describe('getTimeline', () => {
     const mockSessions = {
       getNotes(sid, { agentId }) {
         notesAgentId = agentId;
-        return { notes: [] };
+        return { success: true, notes: [] };
       }
     };
 
@@ -239,7 +239,7 @@ describe('getTimeline', () => {
     const mockSessions = {
       getNotes(sessionId) {
         receivedSessionId = sessionId;
-        return { notes: [] };
+        return { success: true, notes: [] };
       }
     };
 
@@ -248,21 +248,19 @@ describe('getTimeline', () => {
     expect(receivedSessionId).toBe('sess-123');
   });
 
-  test('handles getRecent returning undefined entries gracefully', async () => {
+  test('rejects missing activity entries rather than silently dropping that source', async () => {
     const engine = createCorrelationEngine(
       { getRecent: () => ({}) },          // no `entries` key
       { getNotes: () => ({ notes: [] }) }
     );
-    const timeline = await engine.getTimeline();
-    expect(Array.isArray(timeline)).toBe(true);
+    await expect(engine.getTimeline()).rejects.toMatchObject({ code: 'TIMELINE_SOURCE_UNAVAILABLE' });
   });
 
-  test('handles getNotes returning undefined notes gracefully', async () => {
+  test('rejects missing notes rather than silently dropping that source', async () => {
     const engine = createCorrelationEngine(
       { getRecent: () => ({ entries: [] }) },
       { getNotes: () => ({}) }            // no `notes` key
     );
-    const timeline = await engine.getTimeline();
-    expect(Array.isArray(timeline)).toBe(true);
+    await expect(engine.getTimeline()).rejects.toMatchObject({ code: 'TIMELINE_SOURCE_UNAVAILABLE' });
   });
 });

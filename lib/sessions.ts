@@ -613,6 +613,14 @@ export function createSessions(
     countNotesBySession: db.prepare(`
       SELECT COUNT(*) as count FROM session_notes WHERE session_id = ?
     `),
+    countGlobalNotePartition: db.prepare(`
+      SELECT COUNT(*) AS all_count,
+        COALESCE(SUM(CASE WHEN ? IS NULL OR sn.created_at >= ? THEN 1 ELSE 0 END), 0) AS recent_count
+      FROM session_notes sn JOIN sessions s ON s.id = sn.session_id
+      WHERE (s.agent_id LIKE ? ESCAPE '\\' OR ? IS NULL)
+        AND (s.identity_project LIKE ? ESCAPE '\\' OR ? IS NULL)
+        AND (sn.type = ? OR ? IS NULL)
+    `),
   };
 
   // ─── Note Encryption Helpers ──────────────────────────────────────────────
@@ -1661,7 +1669,8 @@ export function createSessions(
    * chronological order; complete session detail remains a separate read.
    * @param sessionId - Optional exact session; omission selects global history.
    * @param options - Validated limit, inclusive timestamp and type/owner filters.
-   * @returns Page, returned count and exact session-match total, or validation error.
+   * @returns Page and exact matching total from one read snapshot. Global since
+   * reads also count the strictly older partition without materializing it.
    */
   function getNotes(sessionId?: string | null, options: GetNotesOptions = {}) {
     const { limit = 50, type, since, agentId, project } = options;
@@ -1673,70 +1682,86 @@ export function createSessions(
     }
     const projectPattern = project ? (patternToSql(project) ?? project) : null;
 
-    let notes: Array<SessionNoteRow & { session_purpose?: string }>;
-    let total: number | null = null;
+    return db.transaction(() => {
+      let notes: Array<SessionNoteRow & { session_purpose?: string }>;
+      let total: number | null = null;
+      let beforeSinceTotal: number | undefined;
 
-    if (sessionId) {
-      // Get notes for specific session
-      const session = stmts.getById.get(sessionId) as SessionRow | undefined;
-      if (!session) {
-        return { success: false, error: 'session not found' };
-      }
+      if (sessionId) {
+        // Get notes for specific session
+        const session = stmts.getById.get(sessionId) as SessionRow | undefined;
+        if (!session) {
+          return { success: false, error: 'session not found' };
+        }
 
-      if (!type && since === undefined && !agentId && !projectPattern) {
-        // The common session-ledger and salvage path gets both an exact total
-        // and a DB-bounded tail. Avoid materializing an entire long-running
-        // session only to discard all but its newest few notes.
-        total = (stmts.countNotesBySession.get(sessionId) as { count: number }).count;
-        notes = (stmts.getRecentNotesBySession.all(sessionId, limit) as SessionNoteRow[]).reverse();
-      } else {
-        if ((agentId && session.agent_id !== agentId)
-          || (projectPattern && !matchesSqlLike(projectPattern, session.identity_project))) {
-          notes = [];
-          total = 0;
+        if (!type && since === undefined && !agentId && !projectPattern) {
+          // The common session-ledger and salvage path gets both an exact total
+          // and a DB-bounded tail. Avoid materializing an entire long-running
+          // session only to discard all but its newest few notes.
+          total = (stmts.countNotesBySession.get(sessionId) as { count: number }).count;
+          notes = (stmts.getRecentNotesBySession.all(sessionId, limit) as SessionNoteRow[]).reverse();
         } else {
-          const filters = type ? [sessionId, type, since ?? Number.MIN_SAFE_INTEGER] : [sessionId, since ?? Number.MIN_SAFE_INTEGER];
-          const count = type ? stmts.countFilteredTypedNotesBySession : stmts.countFilteredNotesBySession;
-          const tail = type ? stmts.getFilteredTypedNotesBySession : stmts.getFilteredNotesBySession;
-          total = (count.get(...filters) as { count: number }).count;
-          notes = (tail.all(...filters, limit) as SessionNoteRow[]).reverse();
+          if ((agentId && session.agent_id !== agentId)
+            || (projectPattern && !matchesSqlLike(projectPattern, session.identity_project))) {
+            notes = [];
+            total = 0;
+          } else {
+            const filters = type ? [sessionId, type, since ?? Number.MIN_SAFE_INTEGER] : [sessionId, since ?? Number.MIN_SAFE_INTEGER];
+            const count = type ? stmts.countFilteredTypedNotesBySession : stmts.countFilteredNotesBySession;
+            const tail = type ? stmts.getFilteredTypedNotesBySession : stmts.getFilteredNotesBySession;
+            total = (count.get(...filters) as { count: number }).count;
+            notes = (tail.all(...filters, limit) as SessionNoteRow[]).reverse();
+          }
+        }
+      } else if (agentId || projectPattern) {
+        // Get notes by agent/project pattern across sessions
+        const agentPattern = agentId
+          ? (patternToSql(agentId) ?? agentId.replace(/\*/g, '%'))
+          : null;
+        notes = stmts.getNotesByPattern.all(
+          agentPattern,
+          agentPattern,
+          projectPattern,
+          projectPattern,
+          type ?? null,
+          type ?? null,
+          since ?? null,
+          since ?? null,
+          limit
+        ) as Array<SessionNoteRow & { session_purpose?: string }>;
+      } else {
+        // Get recent notes across all sessions
+        if (since !== undefined && type) {
+          notes = stmts.getNotesSinceByType.all(since, type, limit) as Array<SessionNoteRow & { session_purpose?: string }>;
+        } else if (since !== undefined) {
+          notes = stmts.getNotesSince.all(since, limit) as Array<SessionNoteRow & { session_purpose?: string }>;
+        } else if (type) {
+          notes = stmts.getRecentNotesByType.all(type, limit) as Array<SessionNoteRow & { session_purpose?: string }>;
+        } else {
+          notes = stmts.getRecentNotes.all(limit) as Array<SessionNoteRow & { session_purpose?: string }>;
         }
       }
-    } else if (agentId || projectPattern) {
-      // Get notes by agent/project pattern across sessions
-      const agentPattern = agentId
-        ? (patternToSql(agentId) ?? agentId.replace(/\*/g, '%'))
-        : null;
-      notes = stmts.getNotesByPattern.all(
-        agentPattern,
-        agentPattern,
-        projectPattern,
-        projectPattern,
-        type ?? null,
-        type ?? null,
-        since ?? null,
-        since ?? null,
-        limit
-      ) as Array<SessionNoteRow & { session_purpose?: string }>;
-    } else {
-      // Get recent notes across all sessions
-      if (since !== undefined && type) {
-        notes = stmts.getNotesSinceByType.all(since, type, limit) as Array<SessionNoteRow & { session_purpose?: string }>;
-      } else if (since !== undefined) {
-        notes = stmts.getNotesSince.all(since, limit) as Array<SessionNoteRow & { session_purpose?: string }>;
-      } else if (type) {
-        notes = stmts.getRecentNotesByType.all(type, limit) as Array<SessionNoteRow & { session_purpose?: string }>;
-      } else {
-        notes = stmts.getRecentNotes.all(limit) as Array<SessionNoteRow & { session_purpose?: string }>;
-      }
-    }
 
-    return {
-      success: true,
-      notes: notes.map(formatNote),
-      count: notes.length,
-      total: total ?? notes.length,
-    };
+      if (!sessionId) {
+        const agentPattern = agentId ? (patternToSql(agentId) ?? agentId.replace(/\*/g, '%')) : null;
+        const typeFilter = agentId || projectPattern ? type ?? null : type || null;
+        // The identical base predicates feed both sides of this single aggregate:
+        // recent includes the cutoff, archival is strictly older. The surrounding
+        // read transaction binds this aggregate to the returned page snapshot.
+        const counts = stmts.countGlobalNotePartition.get(since ?? null, since ?? null,
+          agentPattern, agentPattern, projectPattern, projectPattern, typeFilter, typeFilter) as
+          { all_count: number; recent_count: number };
+        total = counts.recent_count;
+        if (since !== undefined) beforeSinceTotal = counts.all_count - counts.recent_count;
+      }
+      return {
+        success: true,
+        notes: notes.map(formatNote),
+        count: notes.length,
+        total: total ?? notes.length,
+        ...(beforeSinceTotal !== undefined ? { beforeSinceTotal } : {}),
+      };
+    }).deferred();
   }
 
   /**
