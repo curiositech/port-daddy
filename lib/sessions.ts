@@ -19,6 +19,10 @@ import type { Symbol as IndexedSymbol, SymbolIndex } from './symbol-index.js';
 import { createClaimForest, type ClaimForestClaim } from './claim-forest.js';
 
 const MAX_NOTES_PER_SESSION = 500;
+export const SESSION_NOTE_MAX_BYTES = 10 * 1024;
+export const SESSION_NOTE_READ_LIMIT = 1000;
+const DURABLE_NOTE_BURST_LIMIT = 60;
+const DURABLE_NOTE_WINDOW_MS = 60_000;
 
 // Optional activity logger interface — injected after creation via setActivityLog()
 interface ActivityLogger {
@@ -120,6 +124,8 @@ interface TakeoverOptions {
 
 interface AddNoteOptions {
   type?: string;
+  /** Quick writes must recheck liveness inside the admission transaction. */
+  requireActive?: boolean;
 }
 
 interface QuickNoteOptions {
@@ -234,6 +240,7 @@ export function createSessions(
     )`,
     `CREATE INDEX IF NOT EXISTS idx_session_notes_session ON session_notes(session_id, created_at)`,
     `CREATE INDEX IF NOT EXISTS idx_session_notes_type ON session_notes(type)`,
+    `CREATE INDEX IF NOT EXISTS idx_session_notes_session_type_time ON session_notes(session_id, type, created_at, id)`,
   ];
 
   for (const sql of schemaStatements) {
@@ -537,11 +544,30 @@ export function createSessions(
       JOIN sessions s ON s.id = sn.session_id
       WHERE sn.session_id = ? ORDER BY sn.created_at ASC, sn.id ASC
     `),
-    getNotesBySessionAndType: db.prepare(`
+    getFilteredNotesBySession: db.prepare(`
       SELECT sn.*, s.purpose as session_purpose, s.agent_id as session_agent_id, s.identity_project as identity_project
       FROM session_notes sn
       JOIN sessions s ON s.id = sn.session_id
-      WHERE sn.session_id = ? AND sn.type = ? ORDER BY sn.created_at ASC, sn.id ASC
+      WHERE sn.session_id = ? AND sn.created_at >= ?
+      ORDER BY sn.created_at DESC, sn.id DESC LIMIT ?
+    `),
+    countFilteredNotesBySession: db.prepare(`
+      SELECT COUNT(*) as count FROM session_notes
+      WHERE session_id = ? AND created_at >= ?
+    `),
+    getFilteredTypedNotesBySession: db.prepare(`
+      SELECT sn.*, s.purpose as session_purpose, s.agent_id as session_agent_id, s.identity_project as identity_project
+      FROM session_notes sn JOIN sessions s ON s.id = sn.session_id
+      WHERE sn.session_id = ? AND sn.type = ? AND sn.created_at >= ?
+      ORDER BY sn.created_at DESC, sn.id DESC LIMIT ?
+    `),
+    countFilteredTypedNotesBySession: db.prepare(`
+      SELECT COUNT(*) as count FROM session_notes
+      WHERE session_id = ? AND type = ? AND created_at >= ?
+    `),
+    getDurableBurst: db.prepare(`
+      SELECT created_at FROM session_notes WHERE session_id = ? AND created_at > ?
+      ORDER BY created_at DESC, id DESC LIMIT ?
     `),
     getRecentNotesBySession: db.prepare(`
       SELECT sn.*, s.purpose as session_purpose, s.agent_id as session_agent_id, s.identity_project as identity_project
@@ -555,25 +581,25 @@ export function createSessions(
     getRecentNotes: db.prepare(`
       SELECT sn.*, s.purpose as session_purpose, s.agent_id as session_agent_id, s.identity_project as identity_project FROM session_notes sn
       JOIN sessions s ON s.id = sn.session_id
-      ORDER BY sn.created_at DESC LIMIT ?
+      ORDER BY sn.created_at DESC, sn.id DESC LIMIT ?
     `),
     getRecentNotesByType: db.prepare(`
       SELECT sn.*, s.purpose as session_purpose, s.agent_id as session_agent_id, s.identity_project as identity_project FROM session_notes sn
       JOIN sessions s ON s.id = sn.session_id
       WHERE sn.type = ?
-      ORDER BY sn.created_at DESC LIMIT ?
+      ORDER BY sn.created_at DESC, sn.id DESC LIMIT ?
     `),
     getNotesSince: db.prepare(`
       SELECT sn.*, s.purpose as session_purpose, s.agent_id as session_agent_id, s.identity_project as identity_project FROM session_notes sn
       JOIN sessions s ON s.id = sn.session_id
       WHERE sn.created_at >= ?
-      ORDER BY sn.created_at DESC LIMIT ?
+      ORDER BY sn.created_at DESC, sn.id DESC LIMIT ?
     `),
     getNotesSinceByType: db.prepare(`
       SELECT sn.*, s.purpose as session_purpose, s.agent_id as session_agent_id, s.identity_project as identity_project FROM session_notes sn
       JOIN sessions s ON s.id = sn.session_id
       WHERE sn.created_at >= ? AND sn.type = ?
-      ORDER BY sn.created_at DESC LIMIT ?
+      ORDER BY sn.created_at DESC, sn.id DESC LIMIT ?
     `),
     getNotesByPattern: db.prepare(`
       SELECT sn.*, s.purpose as session_purpose, s.agent_id as session_agent_id, s.identity_project as identity_project FROM session_notes sn
@@ -582,7 +608,7 @@ export function createSessions(
         AND (s.identity_project LIKE ? ESCAPE '\\' OR ? IS NULL)
         AND (sn.type = ? OR ? IS NULL)
         AND (sn.created_at >= ? OR ? IS NULL)
-      ORDER BY sn.created_at DESC LIMIT ?
+      ORDER BY sn.created_at DESC, sn.id DESC LIMIT ?
     `),
     countNotesBySession: db.prepare(`
       SELECT COUNT(*) as count FROM session_notes WHERE session_id = ?
@@ -670,9 +696,7 @@ export function createSessions(
     return buildHumanReadableId('session', purpose, randomBytes(6).toString('hex'), 'work');
   }
 
-  function formatSession(row: SessionRow) {
-    const fileCount = (stmts.countActiveFilesBySession.get(row.id) as { count: number }).count;
-    const noteCount = (stmts.countNotesBySession.get(row.id) as { count: number }).count;
+  function formatSession(row: SessionRow, includeCounts = true) {
     return {
       id: row.id,
       purpose: row.purpose,
@@ -681,8 +705,10 @@ export function createSessions(
       agentId: row.agent_id,
       worktreeId: row.worktree_id,
       identityProject: row.identity_project,
-      fileCount,
-      noteCount,
+      ...(includeCounts ? {
+        fileCount: (stmts.countActiveFilesBySession.get(row.id) as { count: number }).count,
+        noteCount: (stmts.countNotesBySession.get(row.id) as { count: number }).count,
+      } : {}),
       createdAt: row.created_at,
       updatedAt: row.updated_at,
       completedAt: row.completed_at,
@@ -1051,60 +1077,64 @@ export function createSessions(
   }
 
   /**
-   * End a session (set status to completed or custom)
+   * End active work with at most one bounded terminal handoff. The design keeps
+   * exhausted ordinary-note admission from trapping completion, without making
+   * repeated end calls an unlimited alternate writer. SQLite atomically retains
+   * the handoff, releases claims and records the terminal lifecycle transition.
+   * @param sessionId - Exact session to complete or abandon.
+   * @param options - Optional bounded handoff and terminal status.
+   * @returns Lifecycle receipt, unchanged repeat receipt, or non-mutating error.
    */
   function end(sessionId: string, options: EndOptions = {}) {
     if (!sessionId || typeof sessionId !== 'string') {
       return { success: false, error: 'sessionId must be a non-empty string' };
     }
 
-    const session = stmts.getById.get(sessionId) as SessionRow | undefined;
-    if (!session) {
-      return { success: false, error: 'session not found' };
-    }
-
-    const now = Date.now();
     const { note, status = 'completed' } = options;
-
-    // Add handoff note if provided, preserving the same encryption path as addNote().
-    if (note) {
-      const trimmedNote = note.trim();
-      if (trimmedNote) {
-        const storedNote = maybeEncrypt(sessionId, trimmedNote);
-        const noteResult = stmts.insertNote.run(sessionId, storedNote, 'handoff', now);
-        rememberEpisode(
-          session,
-          'handoff',
-          `${sessionId}:note:${Number(noteResult.lastInsertRowid)}`,
-          `${session.agent_id || 'agent'} handoff`,
-          trimmedNote,
-          {
-            sessionId,
-            noteType: 'handoff',
-          },
-        );
-      }
+    if (typeof status !== 'string' || !status.trim() || status === 'active') {
+      return { success: false, code: 'VALIDATION_ERROR', error: 'end requires a non-active status' };
     }
-
-    // Release all active file claims
-    const activeFiles = stmts.getActiveFilesBySession.all(sessionId) as SessionFileRow[];
-    stmts.releaseAllFiles.run(now, sessionId);
-    claimForest.releaseAllBySession(sessionId, now);
-    const releasedFiles = activeFiles.map(f => f.file_path);
-
-    // Keep the coarse lifecycle status and operator-facing phase coherent.
-    if (status === 'completed' || status === 'abandoned') {
-      stmts.setPhase.run(status, now, sessionId);
+    if (note && status !== 'completed' && status !== 'abandoned') {
+      return { success: false, code: 'VALIDATION_ERROR', error: 'the handoff admission exception requires a terminal transition' };
     }
-    stmts.updateStatus.run(status, now, now, sessionId);
-
-    // Remove from trie (targeted 1:N removal by entryId)
-    if (semanticIndex && session.identity_project) {
-      semanticIndex.unindexEntry(session.identity_project, sessionId);
+    if (note !== undefined && typeof note !== 'string') {
+      return { success: false, code: 'VALIDATION_ERROR', error: 'handoff note must be a string' };
     }
-
-    if (activityLog) {
-      activityLog.log(ActivityType.SESSION_END, {
+    if (note && Buffer.byteLength(note, 'utf8') > SESSION_NOTE_MAX_BYTES) {
+      return { success: false, code: 'NOTE_TOO_LARGE', error: 'note content exceeds 10240 UTF-8 bytes', maxBytes: SESSION_NOTE_MAX_BYTES };
+    }
+    const trimmedNote = note?.trim();
+    let ended;
+    try {
+      ended = db.transaction(() => {
+        const session = stmts.getById.get(sessionId) as SessionRow | undefined;
+        if (!session) return { success: false as const, error: 'session not found', code: 'SESSION_NOT_FOUND' };
+        if (session.status !== 'active') {
+          if (session.status === status) return { success: true as const, session, noteId: null, releasedFiles: [] as string[], alreadyEnded: true };
+          return { success: false as const, code: 'SESSION_NOT_ACTIVE', error: 'session is already terminal; no handoff or lifecycle state was changed' };
+        }
+        const now = Date.now();
+        const noteId = trimmedNote ? Number(stmts.insertNote.run(sessionId, maybeEncrypt(sessionId, trimmedNote), 'handoff', now).lastInsertRowid) : null;
+        const activeFiles = stmts.getActiveFilesBySession.all(sessionId) as SessionFileRow[];
+        stmts.releaseAllFiles.run(now, sessionId);
+        claimForest.releaseAllBySession(sessionId, now);
+        if (status === 'completed' || status === 'abandoned') stmts.setPhase.run(status, now, sessionId);
+        stmts.updateStatus.run(status, now, now, sessionId);
+        return { success: true as const, session, noteId, releasedFiles: activeFiles.map(f => f.file_path) };
+      }).immediate();
+    } catch {
+      return { success: false, code: 'NOTE_STORAGE_FAILED', error: 'terminal persistence failed; handoff, lifecycle and claims are unchanged' };
+    }
+    if (!ended.success) return ended;
+    if ('alreadyEnded' in ended) return { success: true, id: sessionId, status, releasedFiles: [], alreadyEnded: true };
+    const { session, noteId, releasedFiles } = ended;
+    const warnings: string[] = [];
+    try {
+      if (noteId && trimmedNote) rememberEpisode(session, 'handoff', `${sessionId}:note:${noteId}`, `${session.agent_id || 'agent'} handoff`, trimmedNote, { sessionId, noteType: 'handoff' });
+      if (semanticIndex && session.identity_project) semanticIndex.unindexEntry(session.identity_project, sessionId);
+    } catch { warnings.push('SESSION_END_PROJECTION_FAILED'); }
+    try {
+      activityLog?.log(ActivityType.SESSION_END, {
         agentId: session.agent_id,
         targetId: sessionTarget(session.identity_project, sessionId),
         details: `Session ended: ${sessionId} (${status})`,
@@ -1116,13 +1146,14 @@ export function createSessions(
           releasedFiles: releasedFiles.length,
         } as unknown as Record<string, unknown>,
       });
-    }
+    } catch { warnings.push('SESSION_END_ACTIVITY_FAILED'); }
 
     return {
       success: true,
       id: sessionId,
       status,
       releasedFiles,
+      ...(warnings.length ? { warnings } : {}),
     };
   }
 
@@ -1427,9 +1458,18 @@ export function createSessions(
   }
 
   /**
-   * Add a note to a session (immutable — create only)
+   * Append immutable history without turning durable age into a permanent ban.
+   * Design: an IMMEDIATE transaction shares admission across database handles;
+   * the retained notes themselves are the sliding-window witness, not a second
+   * counter store. Projection failures cannot deny an already accepted append.
+   * @param sessionId - Exact session, whose lifecycle determines admission.
+   * @param content - Canonical content, bounded in UTF-8 bytes before encryption.
+   * @param options - Note classification, including complete todo_list versions.
+   * @returns Accepted note identity or a non-mutating, bounded refusal.
    */
-  function addNote(sessionId: string, content: string, options: AddNoteOptions = {}) {
+  function addNote(sessionId: string, content: string, options: AddNoteOptions = {}):
+    | { success: true; noteId: number; sessionId: string; warnings?: string[] }
+    | { success: false; code: string; error: string; maxBytes?: number; retryAt?: number; retryAfterMs?: number; limit?: number; windowMs?: number } {
     if (!sessionId || typeof sessionId !== 'string') {
       return { success: false, error: 'sessionId must be a non-empty string', code: 'VALIDATION_ERROR' };
     }
@@ -1440,67 +1480,61 @@ export function createSessions(
     if (!trimmedContent) {
       return { success: false, error: 'content must be a non-empty string', code: 'VALIDATION_ERROR' };
     }
-
-    const session = stmts.getById.get(sessionId) as SessionRow | undefined;
-    if (!session) {
-      return { success: false, error: 'session not found' };
+    if (Buffer.byteLength(content, 'utf8') > SESSION_NOTE_MAX_BYTES) {
+      return { success: false, code: 'NOTE_TOO_LARGE', error: 'note content exceeds 10240 UTF-8 bytes', maxBytes: SESSION_NOTE_MAX_BYTES };
     }
-
-    // Enforce max notes per session
-    const noteCount = (stmts.countNotesBySession.get(sessionId) as { count: number }).count;
-    if (noteCount >= MAX_NOTES_PER_SESSION) {
-      return {
-        success: false,
-        error: `session has reached the maximum of ${MAX_NOTES_PER_SESSION} notes`,
-        code: 'NOTES_LIMIT_EXCEEDED',
-      };
-    }
-
-    const now = Date.now();
     const { type = 'note' } = options;
-
-    // Encrypt note content if encryption is enabled for this session
-    const storedContent = maybeEncrypt(sessionId, trimmedContent);
-
-    const result = stmts.insertNote.run(sessionId, storedContent, type, now);
-    const noteId = Number(result.lastInsertRowid);
-
-    rememberEpisode(
-      session,
-      type,
-      `${sessionId}:note:${noteId}`,
-      `${session.agent_id || 'agent'} ${type}`,
-      trimmedContent,
-      {
-        sessionId,
-        noteType: type,
-      },
-    );
-
-    if (activityLog) {
-      activityLog.log(ActivityType.SESSION_NOTE, {
-        agentId: session.agent_id,
-        targetId: sessionTarget(session.identity_project, sessionId),
-        details: `Note added to session ${sessionId}`,
-        metadata: {
-          sessionId,
-          noteId,
-          type,
-          agentId: session.agent_id || undefined,
-          identityProject: session.identity_project || undefined,
-        } as unknown as Record<string, unknown>,
-      });
+    if (typeof type !== 'string' || !type.trim() || Buffer.byteLength(type, 'utf8') > 128) {
+      return { success: false, code: 'VALIDATION_ERROR', error: 'note type must contain 1 to 128 UTF-8 bytes' };
     }
-
-    return {
-      success: true,
-      noteId,
-      sessionId,
-    };
+    let accepted;
+    try {
+      accepted = db.transaction(() => {
+        const session = stmts.getById.get(sessionId) as SessionRow | undefined;
+        if (!session) return { success: false as const, error: 'session not found', code: 'SESSION_NOT_FOUND' };
+        if (options.requireActive && session.status !== 'active') return { success: false as const, error: 'session is not active', code: 'SESSION_NOT_ACTIVE' };
+        const now = Date.now();
+        if (session.is_durable === 1) {
+          // Future rows still count after clock rollback; never erase them or
+          // make a reset clock a way to refill admission early.
+          const recent = stmts.getDurableBurst.all(sessionId, now - DURABLE_NOTE_WINDOW_MS, DURABLE_NOTE_BURST_LIMIT) as Array<{ created_at: number }>;
+          if (recent.length === DURABLE_NOTE_BURST_LIMIT) {
+            const retryAt = recent[recent.length - 1].created_at + DURABLE_NOTE_WINDOW_MS;
+            return { success: false as const, code: 'NOTE_RATE_LIMITED', error: 'durable note burst exhausted; retained history is unchanged',
+              retryAt, retryAfterMs: Math.max(1, retryAt - now), limit: DURABLE_NOTE_BURST_LIMIT, windowMs: DURABLE_NOTE_WINDOW_MS };
+          }
+        } else if ((stmts.countNotesBySession.get(sessionId) as { count: number }).count >= MAX_NOTES_PER_SESSION) {
+          return { success: false as const, error: `ephemeral session has reached the maximum of ${MAX_NOTES_PER_SESSION} notes`, code: 'NOTES_LIMIT_EXCEEDED' };
+        }
+        const storedContent = maybeEncrypt(sessionId, trimmedContent);
+        const result = stmts.insertNote.run(sessionId, storedContent, type, now);
+        return { success: true as const, session, noteId: Number(result.lastInsertRowid) };
+      }).immediate();
+    } catch {
+      return { success: false, code: 'NOTE_STORAGE_FAILED', error: 'note persistence failed; no note was appended' };
+    }
+    if (!accepted.success) return accepted;
+    const { session, noteId } = accepted;
+    const warnings: string[] = [];
+    try {
+      rememberEpisode(session, type, `${sessionId}:note:${noteId}`, `${session.agent_id || 'agent'} ${type}`, trimmedContent, { sessionId, noteType: type });
+    } catch { warnings.push('NOTE_MEMORY_PROJECTION_FAILED'); }
+    try {
+      activityLog?.log(ActivityType.SESSION_NOTE, {
+        agentId: session.agent_id, targetId: sessionTarget(session.identity_project, sessionId), details: `Note added to session ${sessionId}`,
+        metadata: { sessionId, noteId, type, agentId: session.agent_id || undefined, identityProject: session.identity_project || undefined },
+      });
+    } catch { warnings.push('NOTE_ACTIVITY_PROJECTION_FAILED'); }
+    return { success: true, noteId, sessionId, ...(warnings.length ? { warnings } : {}) };
   }
 
   /**
-   * Quick note — find or create a session, add a note to it
+   * Resolve an explicit or unambiguous active session and append bounded history.
+   * Design: validate before the legacy implicit-create path so rejected content cannot
+   * create an empty session; addNote rechecks active lifecycle atomically.
+   * @param content - Original input, including outer whitespace for byte limits.
+   * @param options - Exact session or scoped agent plus ordinary note type.
+   * @returns Accepted note identity or a typed refusal without a note append.
    */
   function quickNote(content: string, options: QuickNoteOptions = {}) {
     if (!content || typeof content !== 'string') {
@@ -1512,6 +1546,12 @@ export function createSessions(
     }
 
     const { sessionId: requestedSessionId = null, agentId = null, type = 'note' } = options;
+    if (Buffer.byteLength(content, 'utf8') > SESSION_NOTE_MAX_BYTES) {
+      return { success: false, code: 'NOTE_TOO_LARGE', error: 'note content exceeds 10240 UTF-8 bytes', maxBytes: SESSION_NOTE_MAX_BYTES };
+    }
+    if (typeof type !== 'string' || !type.trim() || Buffer.byteLength(type, 'utf8') > 128) {
+      return { success: false, code: 'VALIDATION_ERROR', error: 'note type must contain 1 to 128 UTF-8 bytes' };
+    }
 
     // Auto-detect current worktree for session scoping
     const currentWorktreeId = getWorktreeId();
@@ -1562,23 +1602,30 @@ export function createSessions(
     }
     const sessionId = session.id;
 
-    const noteResult = addNote(sessionId, trimmedContent, { type });
+    const noteResult = addNote(sessionId, content, { type, requireActive: true });
     if (!noteResult.success) {
       return noteResult;
     }
 
-    return {
-      success: true,
-      noteId: noteResult.noteId,
-      sessionId,
-    };
+    return noteResult;
   }
 
   /**
-   * Get notes — by session, or across all sessions
+   * Read a DB-bounded note page without truncating retained history.
+   * Design: session pages select the newest matching tail in SQL, then return stable
+   * chronological order; complete session detail remains a separate read.
+   * @param sessionId - Optional exact session; omission selects global history.
+   * @param options - Validated limit, inclusive timestamp and type/owner filters.
+   * @returns Page, returned count and exact session-match total, or validation error.
    */
   function getNotes(sessionId?: string | null, options: GetNotesOptions = {}) {
     const { limit = 50, type, since, agentId, project } = options;
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > SESSION_NOTE_READ_LIMIT) {
+      return { success: false, code: 'VALIDATION_ERROR', error: 'note limit must be an integer from 1 to 1000' };
+    }
+    if (since !== undefined && (!Number.isSafeInteger(since) || since < 0)) {
+      return { success: false, code: 'VALIDATION_ERROR', error: 'note since must be a non-negative safe integer timestamp' };
+    }
     const projectPattern = project ? (patternToSql(project) ?? project) : null;
 
     let notes: Array<SessionNoteRow & { session_purpose?: string }>;
@@ -1591,34 +1638,24 @@ export function createSessions(
         return { success: false, error: 'session not found' };
       }
 
-      if (!type && !since && !agentId && !projectPattern) {
+      if (!type && since === undefined && !agentId && !projectPattern) {
         // The common session-ledger and salvage path gets both an exact total
         // and a DB-bounded tail. Avoid materializing an entire long-running
         // session only to discard all but its newest few notes.
         total = (stmts.countNotesBySession.get(sessionId) as { count: number }).count;
         notes = (stmts.getRecentNotesBySession.all(sessionId, limit) as SessionNoteRow[]).reverse();
-      } else if (type) {
-        notes = stmts.getNotesBySessionAndType.all(sessionId, type) as SessionNoteRow[];
       } else {
-        notes = stmts.getNotesBySession.all(sessionId) as SessionNoteRow[];
-      }
-
-      // Apply since/agent/project filters manually for session-specific queries if needed
-      if (since) {
-        notes = notes.filter(n => n.created_at >= since);
-      }
-      if (agentId) {
-        // Simple exact match for session-specific query (usually agent matches session)
-        if (session.agent_id !== agentId) notes = [];
-      }
-      if (projectPattern && !matchesSqlLike(projectPattern, session.identity_project)) {
-        notes = [];
-      }
-
-      // Apply limit
-      if (total === null) total = notes.length;
-      if (notes.length > limit) {
-        notes = notes.slice(Math.max(notes.length - limit, 0));
+        if ((agentId && session.agent_id !== agentId)
+          || (projectPattern && !matchesSqlLike(projectPattern, session.identity_project))) {
+          notes = [];
+          total = 0;
+        } else {
+          const filters = type ? [sessionId, type, since ?? Number.MIN_SAFE_INTEGER] : [sessionId, since ?? Number.MIN_SAFE_INTEGER];
+          const count = type ? stmts.countFilteredTypedNotesBySession : stmts.countFilteredNotesBySession;
+          const tail = type ? stmts.getFilteredTypedNotesBySession : stmts.getFilteredNotesBySession;
+          total = (count.get(...filters) as { count: number }).count;
+          notes = (tail.all(...filters, limit) as SessionNoteRow[]).reverse();
+        }
       }
     } else if (agentId || projectPattern) {
       // Get notes by agent/project pattern across sessions
@@ -1638,9 +1675,9 @@ export function createSessions(
       ) as Array<SessionNoteRow & { session_purpose?: string }>;
     } else {
       // Get recent notes across all sessions
-      if (since && type) {
+      if (since !== undefined && type) {
         notes = stmts.getNotesSinceByType.all(since, type, limit) as Array<SessionNoteRow & { session_purpose?: string }>;
-      } else if (since) {
+      } else if (since !== undefined) {
         notes = stmts.getNotesSince.all(since, limit) as Array<SessionNoteRow & { session_purpose?: string }>;
       } else if (type) {
         notes = stmts.getRecentNotesByType.all(type, limit) as Array<SessionNoteRow & { session_purpose?: string }>;
@@ -2016,9 +2053,14 @@ export function createSessions(
   }
 
   /**
-   * Get a single session with its notes and file claims
+   * Read exact session detail or its owner/lifecycle metadata only.
+   * Design: metadata authorization avoids content, claim and count reads;
+   * callers that omit the option retain the complete-history detail contract.
+   * @param sessionId - Exact persisted session identity, without fallback.
+   * @param options - Internal metadata-only projection for write authorization.
+   * @returns Session projection and, by default, all retained notes and claims.
    */
-  function get(sessionId: string) {
+  function get(sessionId: string, options: { metadataOnly?: boolean } = {}) {
     if (!sessionId || typeof sessionId !== 'string') {
       return { success: false, error: 'sessionId must be a non-empty string' };
     }
@@ -2028,6 +2070,10 @@ export function createSessions(
       return { success: false, error: 'session not found' };
     }
 
+    // Write authorization needs owner/lifecycle metadata only. Do not decrypt
+    // or materialize history (or count it) on that path; the default detail
+    // contract still returns the complete retained notes and claims.
+    if (options.metadataOnly) return { success: true, session: formatSession(session, false) };
     const notes = stmts.getNotesBySession.all(sessionId) as SessionNoteRow[];
     const files = claimForest.listClaimsForSession(sessionId, { includeReleased: true });
 
