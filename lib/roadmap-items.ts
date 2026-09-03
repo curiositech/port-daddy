@@ -849,9 +849,11 @@ export function createRoadmapItems(deps: RoadmapItemsDeps) {
         throw new Error('ROADMAP_HISTORY_INVALID');
       }
       const item = hydrateDependencies(rowToItem(row));
-      const notes = note ? mergeNotes(item.notes, [note]) : item.notes;
       // A retry must not manufacture newer freshness from an old receipt.
-      if (note && notes.length === item.notes.length) return item;
+      // Compare the tuple fields directly: delimiters can occur in valid
+      // stored strings, and historical notes must never be deduplicated here.
+      if (note && item.notes.some((entry) => entry.at === note.at && entry.by === note.by && entry.text === note.text)) return item;
+      const notes = note ? [...item.notes, note] : item.notes;
       const serverNow = now();
       if (note && (!Number.isSafeInteger(note.at) || note.at <= 0 || note.at > serverNow)) {
         throw new Error('ROADMAP_NOTE_CLOCK_INVALID');

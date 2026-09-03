@@ -70,6 +70,21 @@ describe('atomic existing-item receipt append', () => {
     expect(db.prepare('SELECT * FROM tuples ORDER BY id').all()).toEqual(tuples);
   });
 
+  test('embedded NUL characters cannot collide with a distinct tuple or collapse stored history', () => {
+    const old = { at: note.at, by: 'owner\u0000part', text: 'rest' };
+    const next = { at: note.at, by: 'owner', text: 'part\u0000rest' };
+    const history = [...JSON.parse(row().notes_json), old, { ...old }];
+    db.prepare('UPDATE roadmap_items SET notes_json = ? WHERE id = ?').run(JSON.stringify(history), row().id);
+    const appended = roadmap.touch('shared-slug', 'project-a', next);
+    expect(appended.notes).toEqual([...history, next]);
+    const before = row();
+    const tuples = db.prepare('SELECT * FROM tuples ORDER BY id').all();
+    clock = note.at - 100;
+    expect(roadmap.touch('shared-slug', 'project-a', { ...next })).toEqual(appended);
+    expect(row()).toEqual(before);
+    expect(db.prepare('SELECT * FROM tuples ORDER BY id').all()).toEqual(tuples);
+  });
+
   test('a new future note fails and an accepted new note never moves shared freshness backward', () => {
     const before = row();
     expect(() => roadmap.touch('shared-slug', 'project-a', { ...note, at: clock + 1 })).toThrow('ROADMAP_NOTE_CLOCK_INVALID');

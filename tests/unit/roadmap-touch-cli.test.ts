@@ -175,6 +175,17 @@ describe('strict route authorization and exact accepted replay', () => {
     expect((await post(requestBody())).json().code).toBe('SESSION_VERIFIER_UNAVAILABLE');
     expect(item()).toEqual(before);
   });
+  test.each(['verifyCredential', 'resolveActor'])('%s failure is typed and sanitized without a write', async (method) => {
+    const before = item();
+    const tuples = db.prepare('SELECT * FROM tuples ORDER BY id').all();
+    deps.actorSouls = { ...deps.actorSouls, [method]: () => { throw new Error('synthetic-private-detail?token=NEVER_PRINT'); } };
+    const res = await post(requestBody());
+    expect(res.statusCode).toBe(503);
+    expect(res.json()).toEqual({ success: false, code: 'IDENTITY_VERIFIER_UNAVAILABLE', error: 'Identity verification is unavailable; nothing was appended.' });
+    expect(res.body).not.toContain('NEVER_PRINT');
+    expect(item()).toEqual(before);
+    expect(db.prepare('SELECT * FROM tuples ORDER BY id').all()).toEqual(tuples);
+  });
   test.each([
     (body: any) => ({ ...body, summaryMd: 'Stale overwrite' }),
     (body: any) => ({ ...body, status: 'done' }),
@@ -200,6 +211,20 @@ describe('strict route authorization and exact accepted replay', () => {
     db.prepare('UPDATE sessions SET status = ? WHERE id = ?').run('abandoned', a.sessionId);
     expect((await post(payload)).statusCode).toBe(409);
     expect(item()).toEqual(before);
+  });
+  test('a NUL-delimiter collision remains a new authenticated note and then an exact no-op replay', async () => {
+    const payload = { sessionId: a.sessionId, note: { at: Date.now() - 100, text: 'part\u0000rest' } };
+    const history = [...item().notes, { at: payload.note.at, by: `${a.agentId}\u0000part`, text: 'rest' }];
+    db.prepare('UPDATE roadmap_items SET notes_json = ? WHERE id = ?').run(JSON.stringify(history), item().id);
+    const first = await post(payload);
+    expect(first.statusCode).toBe(200);
+    expect(first.json().item.notes).toEqual([...history, { ...payload.note, by: a.agentId }]);
+    const before = item();
+    const tuples = db.prepare('SELECT * FROM tuples ORDER BY id').all();
+    serverClock = payload.note.at - 1;
+    expect((await post(payload)).statusCode).toBe(200);
+    expect(item()).toEqual(before);
+    expect(db.prepare('SELECT * FROM tuples ORDER BY id').all()).toEqual(tuples);
   });
   test('future clock, malformed stored history and deleted targets have truthful errors', async () => {
     const payload = requestBody(); serverClock = payload.note.at - 1;

@@ -1017,11 +1017,17 @@ export const roadmapPlugin: FastifyPluginAsync<{ deps: RoadmapDeps }> = async (f
       reply.code(400);
       return { success: false, code: 'VALIDATION_ERROR', error: 'Touch requires an exact harbor, sessionId, and one bounded note { at, text }; item fields and note.by are not accepted.' };
     }
-    const verdict = resolveWriteIdentity({
-      souls: opts.deps.actorSouls,
-      credential: extractActorCredential(request.headers as Record<string, unknown>, request.body),
-      route: 'POST /roadmap/items/:slug/touch', requireIdentity: true,
-    });
+    let verdict: ReturnType<typeof resolveWriteIdentity>;
+    try {
+      verdict = resolveWriteIdentity({
+        souls: opts.deps.actorSouls,
+        credential: extractActorCredential(request.headers as Record<string, unknown>, request.body),
+        route: 'POST /roadmap/items/:slug/touch', requireIdentity: true,
+      });
+    } catch {
+      reply.code(503);
+      return { success: false, code: 'IDENTITY_VERIFIER_UNAVAILABLE', error: 'Identity verification is unavailable; nothing was appended.' };
+    }
     if (!verdict.ok) {
       reply.code(verdict.httpStatus);
       return { success: false, code: verdict.code, error: verdict.error };
