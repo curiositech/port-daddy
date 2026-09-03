@@ -198,6 +198,11 @@ arrival brief.
 `pd sitrep` is similarly a bounded projection: collections expose limits,
 returned counts, and truncation; nested salvage histories and strings are
 capped. Use `pd sitrep --quiet` when only the summary is needed.
+The `--template` scaffold shows recorded metadata or explicit unavailable values,
+not a fresh runtime, capture or authorization attestation. Roadmap rows match the
+exact selected session within the returned preview; empty and unavailable are
+distinct, and neither proves a complete ownership census. Never substitute another
+session's work or create duplicate roadmap items just to populate the table.
 
 ## Plan & Todo List Tracking
 
