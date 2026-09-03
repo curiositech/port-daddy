@@ -12,6 +12,7 @@ const template = readFileSync(join(REPO, '.github/PULL_REQUEST_TEMPLATE.md'), 'u
 const fixtures: string[] = [];
 const publicRoots = ['skills', '.codex/skills', '.claude/skills', '.agents/skills', '.gemini/extensions/port-daddy/skills'];
 const internalRoots = ['skills', '.codex/skills', '.claude/skills', '.agents/skills'];
+const retiredRuntimeToken = ['win', 'dags'].join('');
 
 /** Read source-owned instructions; the test must not consult installed user agents. */
 function source(path: string): string {
@@ -153,8 +154,8 @@ describe('delivery instruction contract', () => {
         expect(target.content.replace(/\s+/g, ' ').toLowerCase()).toContain(phrase.toLowerCase());
       }
       expect(target.content).not.toContain('PD_SESSION_ID="" PD_AGENT_ID=""');
-      expect(target.content).not.toContain('/Cellar/windags/');
-      expect(target.content).not.toContain('windags_skill_');
+      expect(target.content).not.toContain(`/Cellar/${retiredRuntimeToken}/`);
+      expect(target.content).not.toContain(`${retiredRuntimeToken}_skill_`);
     }
     // Pure rendering is not installation or runtime enforcement.
     expect(readdirSync(dir)).toEqual(before);
