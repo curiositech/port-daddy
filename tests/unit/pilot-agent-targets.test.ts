@@ -55,6 +55,89 @@ describe('Pilot target ownership, using only owned filesystem fixtures', () => {
     expect(lstatSync(next.written[0].path).mode & 0o777).toBe(0o640);
   });
 
+  it.each([false, true])('preserves 0640 under umask 077 during update and recovery=%s', interrupted => {
+    expect(installPilotAgents({ sourceDir, baseDir }).outcome).toBe('complete');
+    const original = input();
+    const before = original.targets.map(t => readFileSync(t.path, 'utf8'));
+    original.targets.forEach(t => fs.chmodSync(t.path, 0o640));
+    writeFileSync(join(sourceDir, 'AGENT.md'), '--- BEGIN SYSTEM PROMPT ---\nRestrictive umask fixture.\n--- END SYSTEM PROMPT ---\n');
+    const created = new Map<number, string>();
+    const adjusted: string[] = [];
+    const modeFs = { ...fs,
+      openSync: ((...args: Parameters<typeof fs.openSync>) => {
+        const fd = fs.openSync(...args);
+        if (typeof args[1] === 'number' && (args[1] & fs.constants.O_EXCL)) created.set(fd, String(args[0]));
+        else created.delete(fd);
+        return fd;
+      }),
+      fchmodSync: ((fd: number, mode: fs.Mode) => {
+        const path = created.get(fd);
+        expect(path).toMatch(/\/\.pd-pilot-(?:restore-)?[a-f0-9-]+-\d+$/);
+        expect(original.targets.some(t => t.path === path)).toBe(false);
+        adjusted.push(path!);
+        fs.fchmodSync(fd, mode);
+      }),
+    } as typeof fs;
+    let replacements = 0;
+    const applying = createPilotTargetExecutor({ ...modeFs, renameSync: ((...args: Parameters<typeof fs.renameSync>) => {
+      if (interrupted && ++replacements === 2) throw Object.assign(new Error('fixture second replacement'), { code: 'EIO' });
+      return fs.renameSync(...args);
+    }) } as typeof fs);
+    const request = input();
+    const oldMask = process.umask(0o077);
+    try {
+      const plan = applying.preview(request);
+      const applied = applying.apply(plan, plan.digest);
+      expect(applied.outcome).toBe(interrupted ? 'partial' : 'complete');
+      const final = interrupted
+        ? createPilotTargetExecutor(modeFs).recover(baseDir, request.id, applied.recovery!.runId, request.source)
+        : applied;
+      expect(final.errors).toEqual([]);
+      expect(final.outcome).toBe(interrupted ? 'recovered' : 'complete');
+      expect(request.targets.map(t => lstatSync(t.path).mode & 0o777)).toEqual(Array(5).fill(0o640));
+      expect(request.targets.map(t => readFileSync(t.path, 'utf8'))).toEqual(interrupted ? before : request.targets.map(t => t.content));
+      expect(adjusted.length).toBeGreaterThan(0);
+      if (interrupted) expect(adjusted.some(p => p.includes('/.pd-pilot-restore-'))).toBe(true);
+    } finally { process.umask(oldMask); }
+  });
+
+  it.each(['apply-throw', 'apply-noop', 'recovery-throw', 'recovery-noop'])('does not publish or restore a target after fd mode failure: %s', boundary => {
+    expect(installPilotAgents({ sourceDir, baseDir }).outcome).toBe('complete');
+    input().targets.forEach(t => fs.chmodSync(t.path, 0o640));
+    writeFileSync(join(sourceDir, 'AGENT.md'), '--- BEGIN SYSTEM PROMPT ---\nMode failure fixture.\n--- END SYSTEM PROMPT ---\n');
+    const request = input();
+    let run: string | undefined;
+    if (boundary.startsWith('recovery')) {
+      let replacements = 0;
+      const interrupted = createPilotTargetExecutor({ ...fs, renameSync: ((...args: Parameters<typeof fs.renameSync>) => {
+        if (++replacements === 2) throw Object.assign(new Error('fixture second replacement'), { code: 'EIO' });
+        return fs.renameSync(...args);
+      }) } as typeof fs);
+      const plan = interrupted.preview(request);
+      const partial = interrupted.apply(plan, plan.digest);
+      expect(partial.outcome).toBe('partial');
+      run = partial.recovery!.runId;
+    }
+    const snapshot = () => request.targets.map(t => ({ bytes: readFileSync(t.path, 'utf8'), ino: lstatSync(t.path).ino, mode: lstatSync(t.path).mode & 0o777 }));
+    const before = snapshot();
+    let attempts = 0;
+    const faulty = createPilotTargetExecutor({ ...fs, fchmodSync: (() => {
+      attempts++;
+      if (boundary.endsWith('throw')) throw Object.assign(new Error('fixture fd chmod'), { code: 'EPERM' });
+    }) } as typeof fs);
+    const oldMask = process.umask(0o077);
+    try {
+      const plan = faulty.preview(request);
+      const result = run ? faulty.recover(baseDir, request.id, run, request.source) : faulty.apply(plan, plan.digest);
+      expect(attempts).toBe(1);
+      expect(result.outcome).toBe('partial');
+      expect(result.errors[0].code).toBe(boundary.endsWith('throw') ? 'EPERM' : 'TARGET_MODE_MISMATCH');
+      expect(result.written).toEqual([]);
+      expect(result.recovery).toBeDefined();
+      expect(snapshot()).toEqual(before);
+    } finally { process.umask(oldMask); }
+  });
+
   it('uninstalls verified outputs through the same receipt boundary', () => {
     const first = installPilotAgents({ sourceDir, baseDir });
     expect(first.outcome).toBe('complete');

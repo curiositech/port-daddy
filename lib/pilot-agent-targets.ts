@@ -292,12 +292,30 @@ export function createPilotTargetExecutor(fs: typeof nativeFs = nativeFs) {
       if (!p.identity) made.set(p.path, identity(st));
     }
   }
-  /** Design: use exclusive creation plus flush for durable immutable evidence. @param path New file. @param bytes Exact bytes. @param mode Mode. @param acquired Record exclusive acquisition before a subsequent write can fail. @returns Stable observation. */
-  function createFile(path: string, bytes: Buffer | string, mode = 0o600, acquired?: () => void): Observation {
+  /**
+   * Design: use exclusive creation plus flush for durable immutable evidence.
+   * Target staging/restoration sets the newly acquired fd's mode explicitly so
+   * umask cannot silently change preserved permissions. Existing targets are never chmodded.
+   * @param path New file. @param bytes Exact bytes. @param mode Mode.
+   * @param acquired Record exclusive acquisition before a subsequent write can fail.
+   * @param exactMode Preserve and verify mode on this new target-stage fd only.
+   * @returns Stable observation.
+   */
+  function createFile(path: string, bytes: Buffer | string, mode = 0o600, acquired?: () => void, exactMode = false): Observation {
     if (Buffer.byteLength(bytes) > MAX_RECORD) refuse('INSTALL_RECORD_TOO_LARGE');
     const fd = fs.openSync(path, fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_EXCL | fs.constants.O_NOFOLLOW, mode);
-    try { acquired?.(); fs.writeFileSync(fd, bytes); fs.fsyncSync(fd); } finally { fs.closeSync(fd); }
-    return observe(path, MAX_RECORD);
+    try {
+      acquired?.();
+      fs.writeFileSync(fd, bytes);
+      if (exactMode) {
+        fs.fchmodSync(fd, mode);
+        if ((fs.fstatSync(fd).mode & 0o777) !== mode) refuse('TARGET_MODE_MISMATCH');
+      }
+      fs.fsyncSync(fd);
+    } finally { fs.closeSync(fd); }
+    const observed = observe(path, MAX_RECORD);
+    if (exactMode && (observed.kind !== 'file' || observed.mode !== mode)) refuse('TARGET_MODE_MISMATCH');
+    return observed;
   }
   /** The purpose is flushing directory metadata on supported local filesystems. @param path Directory. @returns Nothing. */
   function flushDirectory(path: string): void {
@@ -367,7 +385,7 @@ export function createPilotTargetExecutor(fs: typeof nativeFs = nativeFs) {
           delete entries[e.path];
         } else {
           const staged = join(dirname(path), '.pd-pilot-' + run + '-' + index);
-          const stagedState = createFile(staged, e.content!, e.before.kind === 'file' ? e.before.mode : 0o600);
+          const stagedState = createFile(staged, e.content!, e.before.kind === 'file' ? e.before.mode : 0o600, undefined, true);
           createFile(join(directory, 'stage-' + index + '.json'), json({ path: local(plan.baseDir, staged), state: stagedState }));
           flushDirectory(directory);
           checkParents(plan, e, made);
@@ -381,7 +399,8 @@ export function createPilotTargetExecutor(fs: typeof nativeFs = nativeFs) {
             changed.push(index);
           }
           const after = observe(path);
-          if (after.kind !== 'file' || after.sha256 !== hash(e.content!) || after.ino !== (stagedState as Identity).ino) refuse('TARGET_READBACK_FAILED');
+          if (after.kind !== 'file' || after.sha256 !== hash(e.content!) || after.ino !== (stagedState as Identity).ino
+            || after.mode !== (stagedState as Identity).mode) refuse('TARGET_READBACK_FAILED');
           entries[e.path] = { run, index, sha256: after.sha256! };
         }
         if (!changed.includes(index)) changed.push(index);
@@ -557,14 +576,15 @@ export function createPilotTargetExecutor(fs: typeof nativeFs = nativeFs) {
             if (!equal(observe(restore), restored.state) || restored.state.kind !== 'file'
               || restored.state.sha256 !== e.before.sha256 || restored.state.mode !== e.before.mode) refuse('RECOVERY_STAGE_CHANGED');
           } else {
-            const restoredState = createFile(restore, prior, e.before.mode);
+            const restoredState = createFile(restore, prior, e.before.mode, undefined, true);
             createFile(restoreRecord, json({ state: restoredState }));
             flushDirectory(directory);
           }
           if (!equal(observe(path), current)) refuse('RECOVERY_TARGET_CHANGED');
           if (current.kind === 'absent') { fs.linkSync(restore, path); fs.unlinkSync(restore); }
           else fs.renameSync(restore, path);
-          if (read(path).bytes.compare(prior) !== 0) refuse('RECOVERY_READBACK_FAILED');
+          const restored = read(path);
+          if (restored.bytes.compare(prior) !== 0 || (restored.st.mode & 0o777) !== e.before.mode) refuse('RECOVERY_READBACK_FAILED');
         }
         flushDirectory(dirname(path));
         (e.before.kind === 'absent' ? result.cleaned : result.written).push({ runtime: e.runtime, path, changed: true });
