@@ -91,22 +91,53 @@ cp.spawnSync = (command, argv) => {
   return forbidden('child.spawnSync')();
 };
 for (const key of ['exec','execSync','execFile','execFileSync','spawn','fork']) cp[key] = forbidden('child.' + key);
-for (const key of ['writeFileSync','mkdirSync','unlinkSync','rmSync']) {
+const descriptors = new Map();
+const open = fs.openSync.bind(fs);
+const close = fs.closeSync.bind(fs);
+const targetRoot = require('node:path').resolve(process.env.PD_PILOT_TEST_TARGET);
+const inside = (path) => {
+  const full = require('node:path').resolve(String(path));
+  return full === targetRoot || full.startsWith(targetRoot + '/');
+};
+fs.openSync = (path, flags, ...rest) => {
+  const writing = typeof flags === 'number' ? Boolean(flags & (fs.constants.O_WRONLY | fs.constants.O_RDWR | fs.constants.O_CREAT)) : /[wa+]/.test(flags);
+  if (writing && !inside(path)) return forbidden('write-outside-target')();
+  const fd = open(path, flags, ...rest);
+  descriptors.set(fd, path);
+  return fd;
+};
+fs.closeSync = (fd) => { const result = close(fd); descriptors.delete(fd); return result; };
+for (const key of ['writeFileSync','mkdirSync','unlinkSync','rmSync','truncateSync','chmodSync','symlinkSync']) {
   const original = fs[key].bind(fs);
   fs[key] = (path, ...rest) => {
-    const full = require('node:path').resolve(String(path));
-    if (full !== ${JSON.stringify(f.base)} && !full.startsWith(${JSON.stringify(f.base + '/')})) return forbidden('write-outside-target')();
+    const actual = typeof path === 'number' ? descriptors.get(path) : path;
+    if (actual === undefined || !inside(actual)) return forbidden('write-outside-target')();
+    if (key === 'symlinkSync' && !inside(rest[0])) return forbidden('write-outside-target')();
     return original(path, ...rest);
+  };
+}
+for (const key of ['renameSync','linkSync','copyFileSync']) {
+  const original = fs[key].bind(fs);
+  fs[key] = (from, to, ...rest) => {
+    if (!inside(from) || !inside(to)) return forbidden('write-outside-target')();
+    return original(from, to, ...rest);
+  };
+}
+for (const key of ['writeSync','ftruncateSync','fchmodSync']) {
+  const original = fs[key].bind(fs);
+  fs[key] = (fd, ...rest) => {
+    if (!descriptors.has(fd) || !inside(descriptors.get(fd))) return forbidden('write-outside-target')();
+    return original(fd, ...rest);
   };
 }
 syncBuiltinESMExports();
 process.on('exit', () => write(${JSON.stringify(ledger)}, JSON.stringify({ events, violations })));
 `);
-  // Compile the actual two source modules in-process. A runtime TS loader opens
+  // Compile the actual source modules in-process. A runtime TS loader opens
   // its own IPC socket, which would contradict this entrypoint's zero-I/O guard.
   const ts = require('typescript');
   const compiled = join(f.directory, 'compiled');
-  for (const relative of ['scripts/install-pilot-agents.ts', 'lib/pilot-agent-render.ts']) {
+  for (const relative of ['scripts/install-pilot-agents.ts', 'lib/pilot-agent-render.ts', 'lib/pilot-agent-targets.ts']) {
     const target = join(compiled, relative.replace(/\.ts$/, '.js'));
     fs.mkdirSync(dirname(target), { recursive: true });
     fs.writeFileSync(target, ts.transpileModule(fs.readFileSync(join(root, relative), 'utf8'), {
@@ -119,7 +150,7 @@ process.on('exit', () => write(${JSON.stringify(ledger)}, JSON.stringify({ event
     '--require', preload, ...entry,
   ], {
     cwd: root, encoding: 'utf8', timeout: 10000,
-    env: { PATH: '/usr/bin:/bin', TSX_DISABLE_CACHE: '1', PD_URL: 'https://forbidden.invalid', PORT_DADDY_URL: 'http://127.0.0.1:1', PORT_DADDY_DISABLE_KEYCHAIN: '1' },
+    env: { PATH: '/usr/bin:/bin', PD_PILOT_TEST_TARGET: f.base, TSX_DISABLE_CACHE: '1', PD_URL: 'https://forbidden.invalid', PORT_DADDY_URL: 'http://127.0.0.1:1', PORT_DADDY_DISABLE_KEYCHAIN: '1' },
   });
   expect(result.error).toBeUndefined();
   expect(fs.existsSync(ledger)).toBe(true);

@@ -10,18 +10,16 @@
  *   - Antigravity (agy)      → reuses the Gemini command via `agy plugin import` (gemini-cli source)
  *   - Generic .agents drop   → ~/.agents/agents/port-daddy-pilot.md    (universal markdown)
  *
- * Editing the rendered copies by hand is pointless: `pd setup` re-renders them
- * from source on every install/upgrade. Edit AGENT.md instead.
- *
- * This module is pure (string in, string out) so it can be unit-tested without
- * touching the filesystem. installPilotAgents() is the only fs-touching export.
+ * Pure formatters are separate from source reads and receipt-backed target
+ * installation. Edited or unrecorded destinations are preserved, not adopted.
  */
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync, lstatSync, unlinkSync, rmSync, realpathSync, statSync } from 'node:fs';
+import { readFileSync, realpathSync, statSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
-import { dirname, join } from 'node:path';
+import { join } from 'node:path';
 import { homedir } from 'node:os';
 import { createHash } from 'node:crypto';
+import { pilotTargetExecutor, type PilotTargetResult } from './pilot-agent-targets.js';
 
 /**
  * Resolve the canonical Pilot source dir (the one holding AGENT.md +
@@ -245,10 +243,7 @@ export interface PilotSourceProvenance extends PilotSourceHashes {
   configPath: string;
 }
 
-export interface PilotInstallResult {
-  written: Array<{ runtime: string; path: string; changed: boolean }>;
-  cleaned: Array<{ runtime: string; path: string; changed: boolean }>;
-  errors: Array<{ runtime: string; path: string; error: string }>;
+export interface PilotInstallResult extends PilotTargetResult {
   sourceDir: string;
   /** Exact source bytes used by the renderers; null if source loading failed. */
   provenance: PilotSourceProvenance | null;
@@ -315,9 +310,12 @@ export function installPilotAgents(options: {
   baseDir?: string;
   dryRun?: boolean;
   expectedSource?: PilotSourceHashes;
+  expectedTarget?: string;
+  operation?: 'install' | 'uninstall';
+  recoveryRun?: string;
 }): PilotInstallResult {
   const baseDir = options.baseDir ?? homedir();
-  const result: PilotInstallResult = { written: [], cleaned: [], errors: [], sourceDir: options.sourceDir, provenance: null };
+  const result: PilotInstallResult = { written: [], cleaned: [], errors: [], outcome: 'blocked', sourceDir: options.sourceDir, provenance: null };
   let config: PilotConfig;
   let system: string;
   try {
@@ -340,70 +338,33 @@ export function installPilotAgents(options: {
     return result;
   }
 
-  for (const target of pilotRenderTargets(baseDir, config, system)) {
-    try {
-      for (const stalePath of target.cleanup ?? []) {
-        result.cleaned.push({
-          runtime: target.runtime,
-          path: stalePath,
-          changed: removeGeneratedPilotFile(stalePath, config.id, !!options.dryRun),
-        });
-      }
-
-      const dir = dirname(target.path);
-      if (!options.dryRun && !existsSync(dir)) mkdirSync(dir, { recursive: true });
-
-      // Never clobber a real file the user authored at the same path that isn't
-      // ours — only overwrite our own generated files (detected by the header).
-      let changed = true;
-      if (existsSync(target.path)) {
-        const existing = readFileSync(target.path, 'utf8');
-        if (existing === target.content) {
-          changed = false;
-        } else if (!existing.includes(config.id)) {
-          result.errors.push({
-            runtime: target.runtime,
-            path: target.path,
-            error: 'exists and is not a Port Daddy Pilot file — skipping',
-          });
-          continue;
-        }
-      }
-
-      if (changed && !options.dryRun) {
-        // If a symlink sits where we want a real file, drop it first.
-        try {
-          if (lstatSync(target.path).isSymbolicLink()) unlinkSync(target.path);
-        } catch { /* not present */ }
-        writeFileSync(target.path, target.content, 'utf8');
-      }
-      result.written.push({ runtime: target.runtime, path: target.path, changed });
-    } catch (err) {
-      result.errors.push({ runtime: target.runtime, path: target.path, error: (err as Error).message });
-    }
-  }
-
-  return result;
-}
-
-function removeGeneratedPilotFile(path: string, id: string, dryRun: boolean): boolean {
-  if (!existsSync(path)) return false;
   try {
-    const stat = lstatSync(path);
-    if (!stat.isFile() && !stat.isSymbolicLink()) return false;
-    const existing = readFileSync(path, 'utf8');
-    if (!existing.includes(id)) return false;
-    if (!dryRun) rmSync(path, { force: true });
-    return true;
-  } catch {
-    return false;
+    if (options.expectedTarget !== undefined && !/^[a-f0-9]{64}$/.test(options.expectedTarget)) {
+      throw new Error('Expected target preview requires a lowercase SHA-256 digest');
+    }
+    if (options.recoveryRun) {
+      if (options.dryRun || options.expectedTarget || options.operation) throw new Error('Recovery cannot be combined with preview, uninstall or apply pins');
+      return { ...result, ...pilotTargetExecutor.recover(baseDir, config.id, options.recoveryRun, result.provenance!) };
+    }
+    const plan = pilotTargetExecutor.preview({
+      baseDir, id: config.id, source: result.provenance!,
+      targets: pilotRenderTargets(baseDir, config, system), operation: options.operation,
+    });
+    const targetResult = options.dryRun
+      ? pilotTargetExecutor.resultFor(plan, true)
+      : pilotTargetExecutor.apply(plan, options.expectedTarget ?? plan.digest);
+    return { ...result, ...targetResult };
+  } catch (err) {
+    result.errors.push({ runtime: 'installation', path: baseDir, error: (err as Error).message });
+    return result;
   }
 }
 
-/** Remove every rendered Pilot definition (used by tests / uninstall). */
-export function uninstallPilotAgents(baseDir: string, id = 'port-daddy-pilot'): void {
-  const stub: PilotConfig = { id, name: id, description: '', tools: {} };
-  for (const target of pilotRenderTargets(baseDir, stub, '')) {
-    try { rmSync(target.path, { force: true }); } catch { /* ignore */ }
-  }
+/**
+ * Uninstall uses the same verified source and target ownership boundary.
+ * @param options Explicit source and selected root; no path-only deletion API.
+ * @returns Preserved conflicts or receipt-backed removal outcomes.
+ */
+export function uninstallPilotAgents(options: Parameters<typeof installPilotAgents>[0]): PilotInstallResult {
+  return installPilotAgents({ ...options, operation: 'uninstall' });
 }
