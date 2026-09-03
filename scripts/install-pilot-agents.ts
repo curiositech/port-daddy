@@ -36,15 +36,24 @@ function findRepoRoot(): string {
  * @returns Human-readable provenance and per-runtime results, not an atomic-install claim.
  */
 export function summarize(result: PilotInstallResult, dryRun: boolean): string[] {
-  const verb = dryRun ? 'would write' : 'wrote';
+  const verb = dryRun ? 'would write' : result.outcome === 'recovered' ? 'restored' : 'wrote';
   const lines = [
-    `Port Daddy Pilot: ${verb} ${result.written.length} runtime definition(s) from ${result.sourceDir}`,
+    `Port Daddy Pilot: ${result.outcome}; ${verb} ${result.written.length} runtime definition(s) from ${result.sourceDir}`,
   ];
   if (result.provenance) {
     lines.push(`  Source directory: ${result.provenance.sourceDir}`);
     lines.push(`  AGENT.md SHA-256: ${result.provenance.agentSha256}`);
     lines.push(`  agent.config.json SHA-256: ${result.provenance.configSha256}`);
   }
+  if (result.plan) {
+    lines.push('  Target preview SHA-256: ' + result.plan.digest);
+    for (const target of result.plan.entries) {
+      lines.push('  Plan ' + target.action + ': ' + target.path + ' (was ' + target.before.kind + ')');
+    }
+  }
+  if (result.recovery) lines.push('  Recovery handle: ' + result.recovery.runId + ' (evidence: ' + result.recovery.directory + ')');
+  const removed = result.cleaned.filter(target => target.changed);
+  if (removed.length) lines.push('  ' + (dryRun ? 'Would remove' : 'Removed') + ' ' + removed.length + ' target(s)');
   for (const w of result.written) {
     const state = w.changed ? '(updated)' : '(unchanged)';
     lines.push(`  ${w.runtime}: ${w.path} ${state}`);
@@ -61,6 +70,9 @@ interface InstallArguments {
   baseDir?: string;
   sourceDir?: string;
   expectedSource?: PilotSourceHashes;
+  expectedTarget?: string;
+  operation?: 'uninstall';
+  recoveryRun?: string;
 }
 
 /**
@@ -72,11 +84,11 @@ export function parseInstallArguments(args: string[]): InstallArguments {
   if (args.length === 1 && args[0] === '--help') return { help: true, dryRun: false };
   const values = new Map<string, string>();
   const switches = new Set<string>();
-  const valueFlags = new Set(['--base-dir', '--source-dir', '--expect-agent-sha256', '--expect-config-sha256']);
+  const valueFlags = new Set(['--base-dir', '--source-dir', '--expect-agent-sha256', '--expect-config-sha256', '--expect-target-sha256', '--recover']);
   for (let index = 0; index < args.length; index++) {
     const arg = args[index];
-    if (arg === '--dry-run') {
-      if (switches.has(arg)) throw new Error('Duplicate --dry-run');
+    if (arg === '--dry-run' || arg === '--uninstall') {
+      if (switches.has(arg)) throw new Error('Duplicate ' + arg);
       switches.add(arg);
     } else if (valueFlags.has(arg)) {
       if (values.has(arg)) throw new Error(`Duplicate ${arg}`);
@@ -89,6 +101,14 @@ export function parseInstallArguments(args: string[]): InstallArguments {
       throw new Error('Unknown installer argument; use --help for supported options');
     }
   }
+  const expectedTarget = values.get('--expect-target-sha256');
+  const recoveryRun = values.get('--recover');
+  if (expectedTarget !== undefined && !/^[a-f0-9]{64}$/.test(expectedTarget)) throw new Error('Target preview digest must be lowercase SHA-256');
+  if (recoveryRun !== undefined && !/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/.test(recoveryRun)) throw new Error('Recovery requires an exact recorded run ID');
+  if ((recoveryRun || switches.has('--uninstall')) && (!values.has('--base-dir') || !values.has('--source-dir'))) {
+    throw new Error('Recovery and uninstall require explicit --base-dir and --source-dir');
+  }
+  if (recoveryRun && (switches.size > 0 || expectedTarget)) throw new Error('Recovery cannot be combined with preview, uninstall or target pins');
   const agentSha256 = values.get('--expect-agent-sha256');
   const configSha256 = values.get('--expect-config-sha256');
   if ((agentSha256 !== undefined || configSha256 !== undefined)
@@ -101,6 +121,9 @@ export function parseInstallArguments(args: string[]): InstallArguments {
     baseDir: values.get('--base-dir'),
     sourceDir: values.get('--source-dir'),
     expectedSource: agentSha256 && configSha256 ? { agentSha256, configSha256 } : undefined,
+    expectedTarget,
+    operation: switches.has('--uninstall') ? 'uninstall' : undefined,
+    recoveryRun,
   };
 }
 
@@ -114,13 +137,14 @@ function main(): void {
     if (options.help) {
       console.log('Usage: install-pilot-agents.ts [--dry-run] [--base-dir <directory>] [--source-dir <directory>] [--expect-agent-sha256 <sha256> --expect-config-sha256 <sha256>]');
       console.log('Explicit source selection never falls back to Homebrew. Preview reports exact source hashes; paired pins bind a later apply. Without --source-dir, package-first discovery remains the default.');
+      console.log('Use --expect-target-sha256 <preview digest> to bind a reviewed target plan. --uninstall and --recover <recorded run ID> require explicit source and target directories; neither adopts unmanaged files.');
       return;
     }
     const sourceDir = resolvePilotSourceDir(findRepoRoot(), options.sourceDir);
     if (!sourceDir) throw new Error('Port Daddy Pilot source not found (brew prefix or repo checkout).');
     const result = installPilotAgents({ ...options, sourceDir });
     for (const line of summarize(result, options.dryRun)) console.log(line);
-    process.exitCode = result.errors.some((e) => !e.error.includes('not a Port Daddy Pilot')) ? 1 : 0;
+    process.exitCode = result.errors.length ? 1 : 0;
   } catch (error) {
     console.error(error instanceof Error ? error.message : 'Pilot installation failed');
     process.exitCode = 1;

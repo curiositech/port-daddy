@@ -566,8 +566,19 @@ Homebrew discovery; an invalid explicit source never falls back. Preview with
 `--expect-config-sha256` from the captured source receipt. Those digests describe
 the exact prompt/config bytes rendered into all five formats, not trusted-source
 attestation, atomic target replacement or proof of an installed runtime. Without
-a source override, package-first defaults remain; setup/MCP flags and target
-cleanup are unchanged.
+a source override, package-first defaults remain and no setup/MCP flags are added;
+the shared target executor now governs replacement, cleanup and uninstall.
+
+Target ownership requires a verified prior output record, never an ID substring
+or equality with newly rendered bytes. Preserve historical unmanaged targets.
+`--expect-target-sha256` binds an explicitly reviewed target preview; without that
+pin, apply validates an immediate snapshot, not a separately reviewed or signed
+plan. Source validation precedes target, backup and receipt writes; preview writes
+nothing. `--uninstall` and explicit `--recover <run-id>` require both source and
+base directories. Partial recovery must preserve later edits and report unresolved
+evidence. There is no force/adopt option, automatic recovery, actor grant, same-UID
+sandbox or all-five-file transaction. Source tests do not authorize a real-home
+installation; machine actuation needs its own exact preview and execution evidence.
 
 `port-daddy-internal-dev` (this skill) **is intentionally absent** from
 the mirrors-list above. Do not propose distributing it. Its presence on a
