@@ -61,7 +61,11 @@ if (args.includes('ls-remote')) {
   const countPath = root + '/reads';
   const count = fs.existsSync(countPath) ? Number(fs.readFileSync(countPath,'utf8')) + 1 : 1;
   fs.writeFileSync(countPath,String(count));
-  fs.writeFileSync(root + '/query-env.json',JSON.stringify(process.env));
+  const policyKeys = ['GIT_DIR','GIT_WORK_TREE','GIT_COMMON_DIR','GIT_CONFIG_COUNT',
+    'GIT_TRACE','GIT_TRACE2_EVENT','GIT_TERMINAL_PROMPT','SSH_ASKPASS_REQUIRE',
+    'GIT_OPTIONAL_LOCKS','GIT_NO_REPLACE_OBJECTS','GIT_NO_LAZY_FETCH','GIT_SSH_COMMAND'];
+  fs.writeFileSync(root + '/query-env.json',JSON.stringify(Object.fromEntries(
+    policyKeys.filter(key => process.env[key] !== undefined).map(key => [key,process.env[key]]))));
   if (mode === 'timeout') { Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,30000); }
   if (mode === 'oversized') { process.stdout.write('x'.repeat(70000)); process.exit(0); }
   if (mode === 'failure') { process.stderr.write('https://synthetic:secret@invalid.example/private'); process.exit(128); }
