@@ -21,6 +21,85 @@ beforeEach(async () => {
   id = started.json().id;
   clock = jest.spyOn(Date, 'now').mockReturnValue(1_000_000);
 });
+
+describe('existing protected envelope input follows exact owner authorization', () => {
+  // Shape-only synthetic ciphertext accepted by the existing guard. These are
+  // route/admission fixtures, not cryptographic verification or Keychain proof.
+  const envelope = project => ({ v: 1, key_id: `${project}-fleet-key.v1`,
+    iv: Buffer.alloc(12, 1).toString('base64'), ct: 'c3ludGhldGlj', tag: Buffer.alloc(16, 2).toString('base64'),
+    ad: 'c3ludGhldGlj', sig: 'c3ludGhldGlj', ts: '2026-09-03T00:00:00.000Z', signed_by: 'synthetic-owner' });
+  const project = value => db.prepare('UPDATE sessions SET identity_project = ? WHERE id = ?').run(value, id);
+  const submit = (payload, headers = owner.headers, path = `/sessions/${id}/notes`) => app.inject({ method: 'POST', url: path, headers, payload });
+
+  it.each(['redteam-review', 'whitehat-defense'])('accepts envelope-only %s notes on both existing aliases', async value => {
+    project(value);
+    const body = envelope(value);
+    expect((await submit({ envelope: body })).statusCode).toBe(200);
+    expect((await submit({ envelope: body, sessionId: id }, owner.headers, '/notes')).statusCode).toBe(200);
+    expect(sessions.get(id).notes.map(n => JSON.parse(n.content))).toEqual([body, body]);
+  });
+  it('rejects plaintext, smuggling and wrong-namespace inputs without appending', async () => {
+    project('redteam-review');
+    for (const payload of [{ content: 'plaintext' }, { content: 'plaintext', envelope: envelope('redteam-review') },
+      { envelope: envelope('whitehat-defense') }, { envelope: { ...envelope('redteam-review'), v: 9 } }]) {
+      expect((await submit(payload)).statusCode).toBe(403);
+    }
+    expect(sessions.get(id).notes).toEqual([]);
+  });
+  it('never treats an envelope shape as owner authority', async () => {
+    project('redteam-review');
+    expect((await submit({ envelope: envelope('redteam-review') }, {})).statusCode).toBe(401);
+    expect((await submit({ envelope: envelope('redteam-review') }, stranger.headers)).statusCode).toBe(403);
+    expect(sessions.get(id).notes).toEqual([]);
+  });
+  it('retains ordinary plaintext behavior and bounds serialized envelopes in UTF-8 bytes', async () => {
+    expect((await submit({ content: 'ordinary' })).statusCode).toBe(200);
+    expect((await submit({ envelope: envelope('redteam-review') })).statusCode).toBe(400);
+    project('redteam-review');
+    expect((await submit({ envelope: { ...envelope('redteam-review'), ct: 'x'.repeat(10240) } })).statusCode).toBe(413);
+    expect(sessions.get(id).notes.map(n => n.content)).toEqual(['ordinary']);
+  });
+});
+
+describe('takeover propagates bounded admission without weakening route authority', () => {
+  const take = (payload = {}, headers = owner.headers) => app.inject({ method: 'POST', url: `/sessions/${id}/takeover`, headers, payload });
+  const snapshot = () => Object.fromEntries(['sessions', 'session_notes', 'session_files', 'claim_forest_nodes',
+    'claim_forest_edges', 'claim_forest_claims'].map(table => [table, db.prepare(`SELECT * FROM ${table} ORDER BY rowid`).all()]));
+
+  it('retains missing/foreign caller and still-active predecessor refusals', async () => {
+    const before = snapshot();
+    expect((await take({}, {})).statusCode).toBe(401);
+    expect((await take({}, stranger.headers)).statusCode).toBe(403);
+    expect((await take()).json()).toMatchObject({ code: 'SESSION_STILL_ACTIVE' });
+    expect(snapshot()).toEqual(before);
+  });
+  it('returns HTTP429 and precise retry time for a completed predecessor at its burst boundary', async () => {
+    for (let i = 0; i < 60; i++) expect(sessions.addNote(id, `Retained ${i}`).success).toBe(true);
+    expect(sessions.end(id, { note: 'Original terminal note' }).success).toBe(true);
+    const before = snapshot();
+    const result = await take({ note: 'continue' });
+    expect(result.statusCode).toBe(429);
+    expect(result.headers['retry-after']).toBe('60');
+    expect(result.json()).toMatchObject({ code: 'NOTE_RATE_LIMITED', retryAt: 1_060_000 });
+    expect(snapshot()).toEqual(before);
+    clock.mockReturnValue(1_060_000);
+    expect((await take({ note: 'same authorized owner after recovery' })).statusCode).toBe(200);
+  });
+  it('returns HTTP413 for an oversized generated handoff, and503 for an actual note storage refusal', async () => {
+    sessions.end(id, { note: 'Original terminal note' });
+    const before = snapshot();
+    const large = await take({ note: 'x'.repeat(10240) });
+    expect(large.statusCode).toBe(413);
+    expect(large.json().code).toBe('NOTE_TOO_LARGE');
+    expect(snapshot()).toEqual(before);
+    db.exec("CREATE TRIGGER reject_takeover_note BEFORE INSERT ON session_notes BEGIN SELECT RAISE(ABORT, 'synthetic private storage'); END");
+    const failed = await take({ note: 'bounded' });
+    expect(failed.statusCode).toBe(503);
+    expect(failed.json().code).toBe('NOTE_STORAGE_FAILED');
+    expect(failed.body).not.toContain('private');
+    expect(snapshot()).toEqual(before);
+  });
+});
 afterEach(async () => { clock.mockRestore(); await app.close(); db.close(); });
 const write = (content, headers = owner.headers) => app.inject({ method: 'POST', url: `/sessions/${id}/notes`, headers, payload: { content } });
 

@@ -197,3 +197,122 @@ describe('one terminal handoff, not an alternate unlimited writer', () => {
     expect(sessions.get(id).notes.at(-1).content).toBe('now committed');
   });
 });
+
+describe('takeover composes note admission atomically', () => {
+  const snapshot = () => Object.fromEntries([
+    'sessions', 'session_notes', 'session_files', 'claim_forest_nodes',
+    'claim_forest_edges', 'claim_forest_claims', 'sqlite_sequence',
+  ].map(table => [table, db.prepare(`SELECT * FROM ${table} ORDER BY rowid`).all()]));
+  let effects, source;
+  beforeEach(() => {
+    effects = [];
+    const project = kind => (...args) => effects.push({ kind, args, inTransaction: db.inTransaction });
+    sessions = createSessions(db, undefined, {
+      semanticIndex: { index: project('index'), unindexEntry: project('unindex') },
+      episodicMemory: { remember: project('memory') },
+      requireAgentForFileClaims: true,
+    });
+    sessions.setActivityLog({ log: project('activity') });
+    source = sessions.start('Synthetic takeover', { durable: true, agentId: 'old-owner',
+      worktreeId: 'synthetic-world', project: 'synthetic-project', metadata: { retained: 'original' },
+      files: ['synthetic-whole.ts'] }).id;
+    expect(sessions.claimFiles(source, [], { agentId: 'old-owner', regions: [
+      { path: 'synthetic-region.ts', startLine: 5, endLine: 9 },
+    ] }).success).toBe(true);
+    sessions.addNote(source, 'Original evidence');
+    effects.length = 0;
+  });
+
+  const denied = (expected, options = {}) => {
+    const before = snapshot();
+    const result = sessions.takeover(source, { agentId: 'new-owner', note: 'Bounded reason', ...options });
+    expect(result).toMatchObject({ success: false, code: expected });
+    expect(JSON.stringify(result)).not.toContain('synthetic private');
+    expect(snapshot()).toEqual(before);
+    expect(effects).toEqual([]);
+    return result;
+  };
+
+  it('rejects an oversized generated handoff without a successor, metadata or either claim representation', () => {
+    denied('NOTE_TOO_LARGE', { note: 'x'.repeat(10240) });
+  });
+
+  it('rolls back when the predecessor terminal status write fails after its handoff and releases', () => {
+    db.exec("CREATE TRIGGER reject_terminal BEFORE UPDATE OF status ON sessions BEGIN SELECT RAISE(ABORT, 'synthetic private terminal'); END");
+    denied('NOTE_STORAGE_FAILED');
+  });
+
+  it('rolls back the predecessor transition when the successor note cannot be stored', () => {
+    db.exec("CREATE TRIGGER reject_successor_note BEFORE INSERT ON session_notes WHEN NEW.type = 'takeover' BEGIN SELECT RAISE(ABORT, 'synthetic private successor note'); END");
+    denied('NOTE_STORAGE_FAILED');
+  });
+
+  it.each(['session_files', 'claim_forest_claims'])('rolls back both claim representations after a late %s write failure', table => {
+    db.exec(`CREATE TRIGGER reject_claim BEFORE INSERT ON ${table} BEGIN SELECT RAISE(ABORT, 'synthetic private late claim'); END`);
+    denied('NOTE_STORAGE_FAILED');
+  });
+
+  it('does not turn a completed predecessor into a burst-admission bypass', () => {
+    for (let i = 1; i < 60; i++) expect(sessions.addNote(source, `Retained ${i}`).success).toBe(true);
+    expect(sessions.end(source, { note: 'Original terminal handoff' }).success).toBe(true);
+    effects.length = 0;
+    expect(denied('NOTE_RATE_LIMITED')).toMatchObject({ retryAt: 1_060_000, retryAfterMs: 60_000 });
+  });
+
+  it('preserves normal successful whole/region transfer and only projects committed state', () => {
+    const result = sessions.takeover(source, { agentId: 'new-owner', note: 'Bounded reason' });
+    expect(result).toMatchObject({ success: true, claimsTransferred: true, predecessorStatus: 'abandoned', warnings: [] });
+    expect(sessions.get(source).notes[0].content).toBe('Original evidence');
+    expect(sessions.get(source).session.metadata).toMatchObject({ retained: 'original', takenOverBySessionId: result.successorId });
+    expect(sessions.get(result.successorId).files.filter(f => f.releasedAt === null)).toHaveLength(2);
+    expect(sessions.listAllActiveClaims().count).toBe(2);
+    expect(effects.map(e => e.kind)).toEqual(['index', 'activity', 'memory', 'unindex', 'activity', 'memory', 'activity', 'activity', 'activity']);
+    expect(effects.every(e => e.inTransaction === false)).toBe(true);
+  });
+
+  it('does not project from an uncommitted caller-owned transaction or mutate through it', () => {
+    db.transaction(() => denied('TAKEOVER_TRANSACTION_ACTIVE')).immediate();
+  });
+
+  it('reports projection failures as warnings after committed transfer, never as persistence refusal', () => {
+    sessions.setActivityLog({ log() { throw Error('synthetic private projection'); } });
+    const result = sessions.takeover(source, { agentId: 'new-owner' });
+    expect(result).toMatchObject({ success: true, claimsTransferred: true });
+    expect(result.warnings).toEqual(['SESSION_START_ACTIVITY_FAILED', 'SESSION_END_ACTIVITY_FAILED', 'NOTE_ACTIVITY_PROJECTION_FAILED', 'FILE_CLAIM_ACTIVITY_FAILED', 'FILE_CLAIM_ACTIVITY_FAILED']);
+    expect(sessions.get(source).session.status).toBe('abandoned');
+    expect(sessions.get(result.successorId).session.status).toBe('active');
+    expect(sessions.listAllActiveClaims().count).toBe(2);
+  });
+
+  it('discards rollback projections and leaves earlier session-key cache entries usable', () => {
+    const unwrap = jest.fn(value => Buffer.from(value, 'base64'));
+    let generated = 0, rolledBackId;
+    const encryption = { isEnabled: () => true, generateSessionKey: () => {
+      if (++generated === 2) rolledBackId = db.prepare('SELECT id FROM sessions ORDER BY rowid DESC LIMIT 1').get().id;
+      return Buffer.alloc(32, generated);
+    },
+      wrapSessionKey: key => key.toString('base64'), unwrapSessionKey: unwrap,
+      encryptNote: (text, key) => JSON.stringify({ text, key: key[0] }),
+      decryptNote: (text, key) => JSON.parse(text).key === key[0] ? JSON.parse(text).text : null,
+      isEncrypted: text => text.startsWith('{') };
+    const store = createSessions(db, encryption);
+    const retained = store.start('Retained encrypted fixture', { agentId: 'old-owner', worktreeId: 'synthetic' }).id;
+    expect(store.addNote(retained, 'original').success).toBe(true);
+    db.exec("CREATE TRIGGER reject_encrypted_successor BEFORE INSERT ON session_notes WHEN NEW.type = 'takeover' BEGIN SELECT RAISE(ABORT, 'synthetic private note'); END");
+    expect(store.takeover(retained, { agentId: 'new-owner' }).code).toBe('NOTE_STORAGE_FAILED');
+    expect(store.addNote(retained, 'same key remains cached').success).toBe(true);
+    expect(unwrap).not.toHaveBeenCalled();
+    expect(store.get(retained).notes.map(n => n.content)).toEqual(['original', 'same key remains cached']);
+    db.exec('DROP TRIGGER reject_encrypted_successor');
+    // Reuse the rollback ID only in this isolated fixture with a different
+    // stored key. A leaked successor cache entry would incorrectly encrypt
+    // with key2 instead of unwrapping key9 from this new row.
+    expect(db.prepare('SELECT id FROM sessions WHERE id = ?').get(rolledBackId)).toBeUndefined();
+    db.prepare('INSERT INTO sessions(id,purpose,status,created_at,updated_at,wrapped_session_key) VALUES(?,?,?,?,?,?)')
+      .run(rolledBackId, 'Synthetic cache witness', 'active', 1_000_000, 1_000_000, Buffer.alloc(32, 9).toString('base64'));
+    expect(store.addNote(rolledBackId, 'new stored key').success).toBe(true);
+    expect(unwrap).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(rows(rolledBackId)[0].content).key).toBe(9);
+    expect(store.takeover(retained, { agentId: 'new-owner' }).success).toBe(true);
+  });
+});

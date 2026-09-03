@@ -700,15 +700,6 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
   ) => {
     const { content, sessionId: bodySessionId, agentId, type } = request.body as any;
 
-    if (!content || typeof content !== 'string') {
-      reply.code(400);
-      return {
-        success: false,
-        error: 'content must be a non-empty string',
-        code: 'VALIDATION_ERROR'
-      };
-    }
-
     const sessionId = routeSessionId ?? bodySessionId;
     if (typeof sessionId !== 'string' || !sessionId.trim()) {
       reply.code(400);
@@ -753,6 +744,13 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
       if (guard.envelopeRequired && guard.envelope) {
         writtenContent = JSON.stringify(guard.envelope);
       }
+    }
+
+    // Validate the guarded representation, not an unconditional plaintext
+    // field: protected projects supply only the existing envelope form.
+    if (!writtenContent || typeof writtenContent !== 'string') {
+      reply.code(400);
+      return { success: false, error: 'content must be a non-empty string', code: 'VALIDATION_ERROR' };
     }
 
     const result = sessions.quickNote(writtenContent, {
@@ -1098,8 +1096,10 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
       });
 
       if (!result.success) {
-        const statusCode = result.code === 'VALIDATION_ERROR' ? 400 : 404;
-        reply.code(statusCode);
+        reply.code(noteWriteStatus(result));
+        if (result.code === 'NOTE_RATE_LIMITED' && typeof result.retryAfterMs === 'number') {
+          reply.header('Retry-After', Math.max(1, Math.ceil(result.retryAfterMs / 1000)));
+        }
         return result;
       }
 

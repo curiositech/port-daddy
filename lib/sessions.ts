@@ -930,6 +930,15 @@ export function createSessions(
 
   let activityLog: ActivityLogger | null = null;
 
+  // Takeover composes the ordinary writers under one SQLite transaction. Their
+  // external projections must not escape its rollback. This queue is private
+  // and synchronous; standalone writers retain their existing behavior.
+  let deferredProjections: Array<{ run: () => void; warning: string }> | null = null;
+  function projectAfterCommit(run: () => void, warning: string): void {
+    if (deferredProjections) deferredProjections.push({ run, warning });
+    else run();
+  }
+
   function setActivityLog(logger: ActivityLogger): void {
     activityLog = logger;
   }
@@ -1052,13 +1061,13 @@ export function createSessions(
 
     // Keep trie in sync (1:N via entryId = sessionId)
     if (semanticIndex && identityProject) {
-      semanticIndex.index(identityProject, {
+      projectAfterCommit(() => semanticIndex.index(identityProject, {
         type: 'session', id, identity: identityProject, status: 'active',
-      }, id);
+      }, id), 'SESSION_START_PROJECTION_FAILED');
     }
 
     if (activityLog) {
-      activityLog.log(ActivityType.SESSION_START, {
+      projectAfterCommit(() => activityLog?.log(ActivityType.SESSION_START, {
         agentId: normalizedAgentId,
         targetId: sessionTarget(identityProject, id),
         details: `Session started: ${trimmedPurpose}`,
@@ -1070,7 +1079,7 @@ export function createSessions(
           identityProject: identityProject || undefined,
           worktreeId: resolvedWorktreeId || undefined,
         } as unknown as Record<string, unknown>,
-      });
+      }), 'SESSION_START_ACTIVITY_FAILED');
     }
 
     return result;
@@ -1130,11 +1139,13 @@ export function createSessions(
     const { session, noteId, releasedFiles } = ended;
     const warnings: string[] = [];
     try {
-      if (noteId && trimmedNote) rememberEpisode(session, 'handoff', `${sessionId}:note:${noteId}`, `${session.agent_id || 'agent'} handoff`, trimmedNote, { sessionId, noteType: 'handoff' });
-      if (semanticIndex && session.identity_project) semanticIndex.unindexEntry(session.identity_project, sessionId);
+      projectAfterCommit(() => {
+        if (noteId && trimmedNote) rememberEpisode(session, 'handoff', `${sessionId}:note:${noteId}`, `${session.agent_id || 'agent'} handoff`, trimmedNote, { sessionId, noteType: 'handoff' });
+        if (semanticIndex && session.identity_project) semanticIndex.unindexEntry(session.identity_project, sessionId);
+      }, 'SESSION_END_PROJECTION_FAILED');
     } catch { warnings.push('SESSION_END_PROJECTION_FAILED'); }
     try {
-      activityLog?.log(ActivityType.SESSION_END, {
+      projectAfterCommit(() => activityLog?.log(ActivityType.SESSION_END, {
         agentId: session.agent_id,
         targetId: sessionTarget(session.identity_project, sessionId),
         details: `Session ended: ${sessionId} (${status})`,
@@ -1145,7 +1156,7 @@ export function createSessions(
           identityProject: session.identity_project || undefined,
           releasedFiles: releasedFiles.length,
         } as unknown as Record<string, unknown>,
-      });
+      }), 'SESSION_END_ACTIVITY_FAILED');
     } catch { warnings.push('SESSION_END_ACTIVITY_FAILED'); }
 
     return {
@@ -1332,129 +1343,163 @@ export function createSessions(
    *
    * The predecessor remains queryable. If it was active, takeover abandons it
    * and releases its active claims before the successor claims the same files.
+   * All persisted state commits together; a refused note/claim rolls back the
+   * successor, predecessor metadata, history and both claim representations.
+   * External projections run only after that commit, never from a savepoint.
    */
   function takeover(sessionId: string, options: TakeoverOptions = {}) {
     if (!sessionId || typeof sessionId !== 'string') {
       return { success: false, error: 'sessionId must be a non-empty string', code: 'VALIDATION_ERROR' };
     }
 
-    const predecessor = stmts.getById.get(sessionId) as SessionRow | undefined;
-    if (!predecessor) {
-      return { success: false, error: 'session not found', code: 'SESSION_NOT_FOUND' };
+    // There is no commit notification for a caller-owned transaction. Refuse
+    // rather than publish projections that its later rollback could invalidate.
+    if (db.inTransaction) {
+      return { success: false, code: 'TAKEOVER_TRANSACTION_ACTIVE', error: 'takeover must own its transaction; no session state was changed' };
     }
-
-    if (options.agentId !== undefined && options.agentId !== null && typeof options.agentId !== 'string') {
-      return { success: false, error: 'agentId must be a string', code: 'VALIDATION_ERROR' };
-    }
-    const predecessorAgentId = normalizeAgentId(predecessor.agent_id);
-    const normalizedAgentId = normalizeAgentId(options.agentId) || predecessorAgentId;
-    if (options.agentId !== undefined && options.agentId !== null && !normalizedAgentId) {
-      return { success: false, error: 'agentId must be a non-empty string when provided', code: 'VALIDATION_ERROR' };
-    }
-
-    if (options.purpose !== undefined && options.purpose !== null && typeof options.purpose !== 'string') {
-      return { success: false, error: 'purpose must be a string', code: 'VALIDATION_ERROR' };
-    }
-    const successorPurpose = typeof options.purpose === 'string' && options.purpose.trim()
-      ? options.purpose.trim()
-      : predecessor.purpose;
-
-    const now = Date.now();
-    const takeoverReason = typeof options.note === 'string' && options.note.trim()
-      ? options.note.trim()
-      : null;
-    const activeFiles = stmts.getActiveFilesBySession.all(sessionId) as SessionFileRow[];
-    const shouldTransferClaims = options.claimFiles !== false && activeFiles.length > 0;
-
-    const startResult = start(successorPurpose, {
-      agentId: normalizedAgentId,
-      project: options.project ?? predecessor.identity_project,
-      worktreeId: options.worktreeId ?? undefined,
-      durable: options.durable ?? predecessor.is_durable === 1,
-      metadata: {
-        ...(options.metadata && typeof options.metadata === 'object' ? options.metadata : {}),
-        predecessorSessionId: sessionId,
-        predecessorStatus: predecessor.status,
-        predecessorAgentId: predecessor.agent_id,
-        predecessorWorktreeId: predecessor.worktree_id,
-        takeoverAt: now,
-        takeoverReason,
-      },
-    });
-
-    if (!startResult.success || typeof startResult.id !== 'string') {
-      return {
-        success: false,
-        error: startResult.error || 'failed to create successor session',
-        code: startResult.code || 'SESSION_CREATE_FAILED',
-      };
-    }
-
-    const successorId = startResult.id;
-    mergeMetadata(predecessor, {
-      takenOverAt: now,
-      takenOverBySessionId: successorId,
-      takenOverByAgentId: normalizedAgentId,
-      takeoverReason,
-    }, now);
-
-    const predecessorNote = `Taken over non-destructively by ${successorId}${normalizedAgentId ? ` (${normalizedAgentId})` : ''}.${takeoverReason ? ` Reason: ${takeoverReason}` : ''}`;
-    let predecessorResult: Record<string, unknown> | undefined;
-    if (predecessor.status === 'active') {
-      predecessorResult = end(sessionId, { status: 'abandoned', note: predecessorNote });
-    } else {
-      predecessorResult = addNote(sessionId, predecessorNote, { type: 'takeover' });
-    }
-
-    const successorNote = `Successor session for ${sessionId}.${takeoverReason ? ` Reason: ${takeoverReason}` : ''}`;
-    const successorNoteResult = addNote(successorId, successorNote, { type: 'takeover' });
-
-    const claimedFiles: string[] = [];
-    const conflicts: FileConflict[] = [];
-    const claimErrors: string[] = [];
-    if (shouldTransferClaims) {
-      const { wholeFiles, regions } = splitTransferClaims(activeFiles);
-      if (wholeFiles.length > 0) {
-        const claimResult = claimFiles(successorId, wholeFiles, { agentId: normalizedAgentId });
-        if (claimResult.success) {
-          claimedFiles.push(...((claimResult.claimed as string[] | undefined) ?? []));
-          conflicts.push(...((claimResult.conflicts as FileConflict[] | undefined) ?? []));
-        } else if (claimResult.error) {
-          claimErrors.push(String(claimResult.error));
-        }
+    const projections: Array<{ run: () => void; warning: string }> = [];
+    const previousProjections = deferredProjections;
+    const refusedMarker = Symbol('takeover admission refused');
+    let refusal: Record<string, unknown> | undefined;
+    let createdSuccessorId: string | undefined;
+    const requireSuccess = (result: Record<string, unknown>): void => {
+      if (result.success !== true) {
+        refusal = result;
+        throw refusedMarker;
       }
-      if (regions.length > 0) {
-        const claimResult = claimFiles(successorId, [], { regions, agentId: normalizedAgentId });
-        if (claimResult.success) {
-          claimedFiles.push(...((claimResult.claimed as string[] | undefined) ?? []));
-          conflicts.push(...((claimResult.conflicts as FileConflict[] | undefined) ?? []));
-        } else if (claimResult.error) {
-          claimErrors.push(String(claimResult.error));
-        }
-      }
-    }
-
-    const successor = stmts.getById.get(successorId) as SessionRow | undefined;
-
-    return {
-      success: true,
-      predecessorId: sessionId,
-      successorId,
-      session: successor ? formatSession(successor) : undefined,
-      predecessorStatus: predecessor.status === 'active' ? 'abandoned' : predecessor.status,
-      predecessorNoteId: predecessorResult && 'noteId' in predecessorResult ? predecessorResult.noteId : undefined,
-      successorNoteId: successorNoteResult.success ? successorNoteResult.noteId : undefined,
-      notesPreserved: true,
-      claimsTransferred: shouldTransferClaims,
-      releasedFiles: activeFiles.map(file => file.file_path),
-      claimedFiles: [...new Set(claimedFiles)],
-      conflicts,
-      warnings: [
-        ...(predecessorResult?.success === false && predecessorResult.error ? [String(predecessorResult.error)] : []),
-        ...(successorNoteResult.success ? [] : [String(successorNoteResult.error)]),
-        ...claimErrors,
-      ],
     };
+    let receipt;
+    deferredProjections = projections;
+    try {
+      receipt = db.transaction(() => {
+
+        const predecessor = stmts.getById.get(sessionId) as SessionRow | undefined;
+        if (!predecessor) {
+          return { success: false, error: 'session not found', code: 'SESSION_NOT_FOUND' };
+        }
+
+        if (options.agentId !== undefined && options.agentId !== null && typeof options.agentId !== 'string') {
+          return { success: false, error: 'agentId must be a string', code: 'VALIDATION_ERROR' };
+        }
+        const predecessorAgentId = normalizeAgentId(predecessor.agent_id);
+        const normalizedAgentId = normalizeAgentId(options.agentId) || predecessorAgentId;
+        if (options.agentId !== undefined && options.agentId !== null && !normalizedAgentId) {
+          return { success: false, error: 'agentId must be a non-empty string when provided', code: 'VALIDATION_ERROR' };
+        }
+
+        if (options.purpose !== undefined && options.purpose !== null && typeof options.purpose !== 'string') {
+          return { success: false, error: 'purpose must be a string', code: 'VALIDATION_ERROR' };
+        }
+        const successorPurpose = typeof options.purpose === 'string' && options.purpose.trim()
+          ? options.purpose.trim()
+          : predecessor.purpose;
+
+        const now = Date.now();
+        const takeoverReason = typeof options.note === 'string' && options.note.trim()
+          ? options.note.trim()
+          : null;
+        const activeFiles = stmts.getActiveFilesBySession.all(sessionId) as SessionFileRow[];
+        const shouldTransferClaims = options.claimFiles !== false && activeFiles.length > 0;
+
+        const startResult = start(successorPurpose, {
+          agentId: normalizedAgentId,
+          project: options.project ?? predecessor.identity_project,
+          worktreeId: options.worktreeId ?? undefined,
+          durable: options.durable ?? predecessor.is_durable === 1,
+          metadata: {
+            ...(options.metadata && typeof options.metadata === 'object' ? options.metadata : {}),
+            predecessorSessionId: sessionId,
+            predecessorStatus: predecessor.status,
+            predecessorAgentId: predecessor.agent_id,
+            predecessorWorktreeId: predecessor.worktree_id,
+            takeoverAt: now,
+            takeoverReason,
+          },
+        });
+
+        if (!startResult.success || typeof startResult.id !== 'string') {
+          // start's legacy storage diagnostic can contain backend details. No
+          // successor creation failure is allowed to commit or expose that text.
+          requireSuccess({
+            success: false,
+            error: 'successor persistence failed; takeover state is unchanged',
+            code: 'NOTE_STORAGE_FAILED',
+          });
+        }
+
+        const successorId = startResult.id as string;
+        createdSuccessorId = successorId;
+        mergeMetadata(predecessor, {
+          takenOverAt: now,
+          takenOverBySessionId: successorId,
+          takenOverByAgentId: normalizedAgentId,
+          takeoverReason,
+        }, now);
+
+        const predecessorNote = `Taken over non-destructively by ${successorId}${normalizedAgentId ? ` (${normalizedAgentId})` : ''}.${takeoverReason ? ` Reason: ${takeoverReason}` : ''}`;
+        let predecessorResult: Record<string, unknown> | undefined;
+        if (predecessor.status === 'active') {
+          predecessorResult = end(sessionId, { status: 'abandoned', note: predecessorNote });
+        } else {
+          predecessorResult = addNote(sessionId, predecessorNote, { type: 'takeover' });
+        }
+        requireSuccess(predecessorResult);
+
+        const successorNote = `Successor session for ${sessionId}.${takeoverReason ? ` Reason: ${takeoverReason}` : ''}`;
+        const successorNoteResult = addNote(successorId, successorNote, { type: 'takeover' });
+        requireSuccess(successorNoteResult);
+
+        const claimedFiles: string[] = [];
+        const conflicts: FileConflict[] = [];
+        if (shouldTransferClaims) {
+          const { wholeFiles, regions } = splitTransferClaims(activeFiles);
+          if (wholeFiles.length > 0) {
+            const claimResult = claimFiles(successorId, wholeFiles, { agentId: normalizedAgentId });
+            requireSuccess(claimResult);
+            claimedFiles.push(...((claimResult.claimed as string[] | undefined) ?? []));
+            conflicts.push(...((claimResult.conflicts as FileConflict[] | undefined) ?? []));
+          }
+          if (regions.length > 0) {
+            const claimResult = claimFiles(successorId, [], { regions, agentId: normalizedAgentId });
+            requireSuccess(claimResult);
+            claimedFiles.push(...((claimResult.claimed as string[] | undefined) ?? []));
+            conflicts.push(...((claimResult.conflicts as FileConflict[] | undefined) ?? []));
+          }
+        }
+
+        const successor = stmts.getById.get(successorId) as SessionRow | undefined;
+
+        return {
+          success: true,
+          predecessorId: sessionId,
+          successorId,
+          session: successor ? formatSession(successor) : undefined,
+          predecessorStatus: predecessor.status === 'active' ? 'abandoned' : predecessor.status,
+          predecessorNoteId: predecessorResult && 'noteId' in predecessorResult ? predecessorResult.noteId : undefined,
+          successorNoteId: successorNoteResult.success ? successorNoteResult.noteId : undefined,
+          notesPreserved: true,
+          claimsTransferred: shouldTransferClaims,
+          releasedFiles: activeFiles.map(file => file.file_path),
+          claimedFiles: [...new Set(claimedFiles)],
+          conflicts,
+          warnings: [] as string[],
+        };
+      }).immediate();
+    } catch (error) {
+      // A failed nested write may already have returned a typed refusal. Keep
+      // it truthful, but never leak arbitrary SQLite/claim implementation text.
+      if (createdSuccessorId) sessionKeyCache.delete(createdSuccessorId);
+      if (error === refusedMarker && refusal) return refusal;
+      return { success: false, code: 'NOTE_STORAGE_FAILED', error: 'takeover persistence failed; sessions, notes and claims are unchanged' };
+    } finally {
+      deferredProjections = previousProjections;
+    }
+    if (!receipt.success) return receipt;
+    const warnings: string[] = [];
+    for (const projection of projections) {
+      try { projection.run(); } catch { warnings.push(projection.warning); }
+    }
+    return { ...receipt, warnings };
   }
 
   /**
@@ -1517,13 +1562,13 @@ export function createSessions(
     const { session, noteId } = accepted;
     const warnings: string[] = [];
     try {
-      rememberEpisode(session, type, `${sessionId}:note:${noteId}`, `${session.agent_id || 'agent'} ${type}`, trimmedContent, { sessionId, noteType: type });
+      projectAfterCommit(() => rememberEpisode(session, type, `${sessionId}:note:${noteId}`, `${session.agent_id || 'agent'} ${type}`, trimmedContent, { sessionId, noteType: type }), 'NOTE_MEMORY_PROJECTION_FAILED');
     } catch { warnings.push('NOTE_MEMORY_PROJECTION_FAILED'); }
     try {
-      activityLog?.log(ActivityType.SESSION_NOTE, {
+      projectAfterCommit(() => activityLog?.log(ActivityType.SESSION_NOTE, {
         agentId: session.agent_id, targetId: sessionTarget(session.identity_project, sessionId), details: `Note added to session ${sessionId}`,
         metadata: { sessionId, noteId, type, agentId: session.agent_id || undefined, identityProject: session.identity_project || undefined },
-      });
+      }), 'NOTE_ACTIVITY_PROJECTION_FAILED');
     } catch { warnings.push('NOTE_ACTIVITY_PROJECTION_FAILED'); }
     return { success: true, noteId, sessionId, ...(warnings.length ? { warnings } : {}) };
   }
@@ -1849,7 +1894,7 @@ export function createSessions(
     }
 
     if (activityLog && claimed.length > 0) {
-      activityLog.log(ActivityType.FILE_CLAIM, {
+      projectAfterCommit(() => activityLog?.log(ActivityType.FILE_CLAIM, {
         agentId: session.agent_id,
         targetId: sessionTarget(session.identity_project, sessionId),
         details: `Claimed ${claimed.length} file(s) for session ${sessionId}`,
@@ -1860,7 +1905,7 @@ export function createSessions(
           agentId: session.agent_id || undefined,
           identityProject: session.identity_project || undefined,
         } as unknown as Record<string, unknown>,
-      });
+      }), 'FILE_CLAIM_ACTIVITY_FAILED');
     }
 
     return {
