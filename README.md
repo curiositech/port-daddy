@@ -220,6 +220,8 @@ unpushed change behind a “no artifact” receipt.
 Every session progresses through **phases** for swarm visibility: `planning`, `in_progress`, `testing`, `reviewing`, `completed` / `abandoned`.
 Completion is only entered through `pd done` (or `POST /sugar/done`), which checks the exact session's plan and delivery evidence. Setting `phase: completed` directly cannot skip those checks. If the exact local session is dormant or missing, commands report that condition without silently selecting a different worktree's active session.
 
+The public and contributor skills and canonical Pilot persona carry the same delivery contract into Claude, Codex, Gemini, Antigravity and generic-agent definitions: commit validated checkpoints in linked worktrees, publish ready attributed App/Fleetbot PRs, respond graciously to reviews, make required checks green, and own the protected merge/queue through an actual merged-head receipt before closing. Read-only roles keep their assigned scope, and repository/operator GitHub access policy still applies, including broker-only reads. These source instructions and rendered definitions do not prove a machine-global install or runtime enforcement.
+
 ### Plan and Checklist Enforcement
 
 In the dashboard, open **Agents → Open exact session** to read a session's latest complete plan and expand its retained note history. A link such as `/fleet-ui/?surface=agents&session=<session-id>` targets that exact Port Daddy session, even without a registered agent. Existing `surface=sessions` links reach the same read-only view. Missing or inaccessible sessions report an error rather than choosing another session by working directory. This is the selected daemon's session ledger, not a separate roadmap authority.
