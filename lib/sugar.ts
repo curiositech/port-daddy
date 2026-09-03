@@ -1126,7 +1126,7 @@ export function createSugar(deps: SugarDeps) {
     status: string,
   ) {
     const notesBefore = sessions.getNotes(sessionId);
-    const beforeCount = (notesBefore.notes as unknown[] || []).length;
+    const beforeCount = typeof notesBefore.total === 'number' ? notesBefore.total : (notesBefore.notes as unknown[] || []).length;
     const endOpts: Record<string, unknown> = { status };
     if (effectiveNote) endOpts.note = effectiveNote;
     const sessionResult = sessions.end(sessionId, endOpts);
@@ -1169,7 +1169,8 @@ export function createSugar(deps: SugarDeps) {
       }
     }
 
-    const totalNotes = beforeCount + (effectiveNote ? 1 : 0);
+    const finalNote = !!effectiveNote && sessionResult.alreadyEnded !== true;
+    const totalNotes = beforeCount + (finalNote ? 1 : 0);
     const sessionInfo = sessions.get(sessionId);
     const session = sessionInfo.success && sessionInfo.session ? sessionInfo.session as Record<string, unknown> : null;
     const identityProject = typeof session?.identityProject === 'string' ? session.identityProject : null;
@@ -1192,8 +1193,8 @@ export function createSugar(deps: SugarDeps) {
       sessionStatus: status,
       agentUnregistered,
       remainingActiveSessions,
-      notesCount: totalNotes,
-      finalNote: !!effectiveNote,
+      notesCount: typeof session?.noteCount === 'number' ? session.noteCount : totalNotes,
+      finalNote,
       releasedFiles: (sessionResult as any).releasedFiles,
     };
   }

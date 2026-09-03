@@ -5,6 +5,8 @@ import { join } from 'node:path';
 import Fastify from 'fastify';
 import { createTestDb } from '../setup-unit.js';
 import { createSessions } from '../../lib/sessions.js';
+import { createSugar } from '../../lib/sugar.js';
+import { createAgents } from '../../lib/agents.js';
 import { createTestActorSouls, mintTestActor } from '../helpers/actor-credentials.js';
 import { writeCurrentContext } from '../../cli/utils/current-context.js';
 import { sessionsPlugin } from '../../routes/sessions.js';
@@ -245,6 +247,44 @@ describe('complete canonical plan projection and exact task selectors', () => {
 });
 
 describe('truthful bounded failures and ambiguous append outcomes', () => {
+  test('durable history beyond600 notes supports normal plan set/check/done and truthful complete count', async () => {
+    const started = await app.inject({ method: 'POST', url: '/sessions', headers: { 'x-actor-credential': a.credential },
+      payload: { purpose: 'Long-running plan lifecycle', agentId: a.agentId, lifecycle: 'durable' } });
+    expect(started.statusCode).toBe(200);
+    const sessionId = started.json().id;
+    writeCurrentContext({ ...a, sessionId });
+    const clock = jest.spyOn(Date, 'now');
+    try {
+      for (let i = 0; i < 600; i++) {
+        clock.mockReturnValue(1_000_000 + Math.floor(i / 50) * 60_000);
+        expect(sessions.addNote(sessionId, `Original ${i}`).success).toBe(true);
+      }
+      const original = sessions.get(sessionId).notes;
+      await handlePlan(['set', '# Current\n- [ ] One\n- [ ] Two'], {});
+      const checker = { checkBranchOnOrigin: jest.fn(() => ({ ok: true, branch: 'synthetic', upstream: 'origin/main', ahead: 0 })) };
+      const sugar = createSugar({ sessions, agents: createAgents(db), activityLog: { log() {} } as any, gitOriginChecker: checker });
+      const opts = { sessionId, agentId: a.agentId, note: 'Synthetic reviewed delivery https://github.com/example/repo/pull/1' };
+      expect(sugar.done(opts).code).toBe('PLAN_UNCHECKED_ITEMS');
+      await handlePlan(['check', '1'], {});
+      await handlePlan(['check', '2'], {});
+      for (let i = 0; i < 7; i++) expect(sessions.addNote(sessionId, `Burst remainder ${i}`).success).toBe(true);
+      expect(sessions.addNote(sessionId, 'ordinary write refused').code).toBe('NOTE_RATE_LIMITED');
+      const result = sugar.done(opts);
+      expect(result).toMatchObject({ success: true, sessionStatus: 'completed', notesCount: 611, finalNote: true });
+      expect(checker.checkBranchOnOrigin).toHaveBeenCalledTimes(2);
+      const final = sessions.get(sessionId);
+      expect(final.notes.slice(0, 600)).toEqual(original);
+      expect(final.notes).toHaveLength(611);
+      expect(sessions.getNotes(sessionId, { type: 'todo_list', limit: 1 }).notes[0].content).toBe('# Current\n- [x] One\n- [x] Two');
+      expect(final.session.status).toBe('completed');
+    } finally { clock.mockRestore(); }
+  });
+  test.each([['NOTE_RATE_LIMITED', 429], ['NOTE_TOO_LARGE', 413], ['NOTE_STORAGE_FAILED', 503]])('keeps %s diagnostic bounded and does not retry', async (code, status) => {
+    fetchMock.mockResolvedValueOnce(response(status as number, { code, error: 'PRIVATE'.repeat(10000) }));
+    await refuses(['set', '- [ ] Test'], String(code));
+    expect(posts()).toHaveLength(1);
+    expect(JSON.stringify(error.mock.calls)).not.toContain('PRIVATE');
+  });
   test.each([401, 404, 500])('GET HTTP %s cannot be mistaken for an empty/writable plan', async (status) => {
     fetchMock.mockResolvedValueOnce(response(status, { notes: [{ content: '- [ ] Do not write' }], error: 'private secret must not print' }));
     await refuses(['check', '1'], `HTTP ${status}`);

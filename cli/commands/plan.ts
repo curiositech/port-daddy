@@ -61,6 +61,10 @@ export async function handlePlan(args: string[], options: CLIOptions): Promise<v
     SESSION_NOT_FOUND: 'The exact session does not exist on the selected daemon.',
     SESSION_SCOPE_REQUIRED: 'The daemon requires an exact session target.',
     VALIDATION_ERROR: 'The daemon rejected the plan payload.',
+    NOTE_TOO_LARGE: 'Keep the complete plan within 10240 UTF-8 bytes; prior versions remain unchanged.',
+    NOTE_RATE_LIMITED: 'The durable note burst is exhausted. Wait for the daemon’s retry time; do not create another session or discard history.',
+    NOTES_LIMIT_EXCEEDED: 'This ephemeral session has reached its lifetime note limit; no history was removed.',
+    NOTE_STORAGE_FAILED: 'The daemon could not persist the note; no append was accepted.',
     ADVERSARIAL_PROJECT_GUARD: 'This project requires its protected note envelope.',
   };
   /**

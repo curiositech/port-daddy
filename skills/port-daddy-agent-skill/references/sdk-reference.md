@@ -313,6 +313,30 @@ Show current agent and session context.
 
 Returns `{ success, active, agentId?, sessionId?, purpose?, identity?, noteCount?, duration? }`.
 
+### Note admission and history reads
+
+Exact-session note writes require the stored owner's verified credential. Durable
+sessions have no lifetime note-count ceiling: ordinary appends admit 60 notes per
+rolling 60 seconds per session, with content at most 10240 UTF-8 bytes and type at
+most 128 bytes. HTTP 429 `NOTE_RATE_LIMITED` returns `retryAt` (Unix milliseconds),
+`retryAfterMs`, and the `Retry-After` seconds header. Read the exact session after
+an ambiguous write; appends are not automatically idempotent. HTTP 413
+`NOTE_TOO_LARGE` and 503 `NOTE_STORAGE_FAILED` accept no append. Ephemeral
+sessions retain their 500-note admission cap. One actual terminal transition
+permits a bounded handoff outside burst admission; repeated end calls append
+nothing, and specifying a handoff type does not grant that exception.
+
+`GET /sessions/:id/notes` and `GET /notes` accept integer page limits 1–1000
+and non-negative safe-integer `since` timestamps in milliseconds (inclusive).
+Exact-session pages return the newest matching tail in chronological timestamp/id
+order and an exact matching `total`; `count` is only the returned page length.
+Global pages also report exact matching totals. With `since`, `beforeSinceTotal`
+counts the strictly older notes under the identical base filters, in the same
+read snapshot as the page. Memory's Recall/Archival rows share one bounded
+request and cutoff; unavailable count metadata is not replaced by page length.
+Full session detail keeps its existing complete-history default. This does not
+add a cursor API, silently prune history, or establish installed runtime proof.
+
 ### Example
 
 ```js

@@ -1127,7 +1127,7 @@ paths:
     post:
       tags: [sessions]
       summary: Compatibility alias for adding a note to a session
-      description: Legacy spelling for targeted note writes. New callers should use POST /notes with sessionId in the request body; this route delegates to the same quickNote path.
+      description: Legacy spelling for targeted note writes. New callers should use POST /notes with sessionId in the request body; this route delegates to the same quickNote path. Durable sessions admit 60 ordinary appends per rolling 60 seconds without a lifetime count ceiling; ephemeral sessions retain their 500-note limit. Content is bounded to 10240 UTF-8 bytes and type to 128 bytes. The stored session project selects ordinary plaintext or the existing guarded envelope form; the request cannot select that policy. Envelope admission is not cryptographic verification. The overall HTTP body limit also applies.
       operationId: addSessionNote
       deprecated: true
       parameters:
@@ -1143,10 +1143,37 @@ paths:
           application/json:
             schema:
               type: object
-              required: [content]
+              oneOf:
+                - required: [content]
+                  properties:
+                    content:
+                      type: string
+                      pattern: '\S'
+                      description: Ordinary-project plaintext; at most 10240 UTF-8 bytes before trimming.
+                - required: [envelope]
+                  properties:
+                    content:
+                      type: [string, 'null']
+                      enum: ['', null]
+                    payload:
+                      type: [string, 'null']
+                      enum: ['', null]
+                    message:
+                      type: [string, 'null']
+                      enum: ['', null]
+                    envelope:
+                      type: object
+                      required: [v, key_id, iv, ct, tag, ad, sig]
+                      properties:
+                        v: { type: integer, enum: [1] }
+                        key_id: { type: string, minLength: 1 }
+                        iv: { type: string, minLength: 1 }
+                        ct: { type: string, minLength: 1 }
+                        tag: { type: string, minLength: 1 }
+                        ad: { type: string, minLength: 1 }
+                        sig: { type: string, minLength: 1 }
+                      description: Existing protected-project envelope. The runtime guard also checks the stored session project's fleet-key namespace, 12-byte decoded IV and 16-byte decoded tag, and refuses nonempty plaintext fields. This is shape/namespace admission, not cryptographic verification. The serialized envelope must fit 10240 UTF-8 bytes.
               properties:
-                content:
-                  type: string
                 type:
                   type: string
                   description: Note type (e.g. note, progress, decision, blocker)
@@ -1170,6 +1197,14 @@ paths:
           description: Missing or forged actor credential
         '403':
           description: Verified actor does not own the exact target session, or the legacy owner cannot be verified
+        '409':
+          description: Exact session inactive or ephemeral lifetime admission exhausted
+        '413':
+          description: NOTE_TOO_LARGE; no append accepted
+        '429':
+          description: NOTE_RATE_LIMITED; retryAt Unix milliseconds and retryAfterMs in body, Retry-After seconds header; no append accepted
+        '503':
+          description: NOTE_STORAGE_FAILED; no append accepted
         '500':
           $ref: '#/components/responses/InternalError'
 
@@ -1193,14 +1228,18 @@ paths:
           schema:
             type: integer
             default: 100
+            minimum: 1
+            maximum: 1000
         - name: since
           in: query
           schema:
             type: integer
-          description: Unix timestamp — only notes after this time
+            minimum: 0
+            maximum: 9007199254740991
+          description: Unix milliseconds, inclusive; only notes at or after this time
       responses:
         '200':
-          description: Session notes
+          description: Newest matching tail in chronological timestamp/id order; originals remain retained.
           content:
             application/json:
               schema:
@@ -1214,6 +1253,11 @@ paths:
                       $ref: '#/components/schemas/Note'
                   count:
                     type: integer
+                  total:
+                    type: integer
+                    description: Exact matching persisted total, not page length
+        '400':
+          $ref: '#/components/responses/ValidationError'
         '404':
           description: Session not found
         '500':
@@ -1408,7 +1452,7 @@ paths:
     post:
       tags: [sessions]
       summary: Add a note through the canonical note write path
-      description: Canonical attributed note write endpoint. An exact active sessionId and its owner's actor credential are required.
+      description: Canonical attributed note write endpoint. An exact active sessionId and its owner's actor credential are required. Durable sessions admit 60 ordinary appends per rolling 60 seconds without a lifetime count ceiling; ephemeral sessions retain their 500-note limit. Content is bounded to 10240 UTF-8 bytes and type to 128 bytes. The stored session project selects ordinary plaintext or the existing guarded envelope form; the request cannot select that policy. Envelope admission is not cryptographic verification. The overall HTTP body limit also applies.
       operationId: quickNote
       parameters:
         - $ref: '#/components/parameters/XActorCredential'
@@ -1418,10 +1462,38 @@ paths:
           application/json:
             schema:
               type: object
-              required: [content, sessionId]
+              required: [sessionId]
+              oneOf:
+                - required: [content]
+                  properties:
+                    content:
+                      type: string
+                      pattern: '\S'
+                      description: Ordinary-project plaintext; at most 10240 UTF-8 bytes before trimming.
+                - required: [envelope]
+                  properties:
+                    content:
+                      type: [string, 'null']
+                      enum: ['', null]
+                    payload:
+                      type: [string, 'null']
+                      enum: ['', null]
+                    message:
+                      type: [string, 'null']
+                      enum: ['', null]
+                    envelope:
+                      type: object
+                      required: [v, key_id, iv, ct, tag, ad, sig]
+                      properties:
+                        v: { type: integer, enum: [1] }
+                        key_id: { type: string, minLength: 1 }
+                        iv: { type: string, minLength: 1 }
+                        ct: { type: string, minLength: 1 }
+                        tag: { type: string, minLength: 1 }
+                        ad: { type: string, minLength: 1 }
+                        sig: { type: string, minLength: 1 }
+                      description: Existing protected-project envelope. The runtime guard also checks the stored session project's fleet-key namespace, 12-byte decoded IV and 16-byte decoded tag, and refuses nonempty plaintext fields. This is shape/namespace admission, not cryptographic verification. The serialized envelope must fit 10240 UTF-8 bytes.
               properties:
-                content:
-                  type: string
                 agentId:
                   type: string
                 sessionId:
@@ -1451,6 +1523,14 @@ paths:
           description: Verified actor does not own the exact target session, or the legacy owner cannot be verified
         '404':
           description: Session not found
+        '409':
+          description: Exact session inactive or ephemeral lifetime admission exhausted
+        '413':
+          description: NOTE_TOO_LARGE; no append accepted
+        '429':
+          description: NOTE_RATE_LIMITED; retryAt Unix milliseconds and retryAfterMs in body, Retry-After seconds header; no append accepted
+        '503':
+          description: NOTE_STORAGE_FAILED; no append accepted
         '500':
           $ref: '#/components/responses/InternalError'
 
@@ -1464,6 +1544,8 @@ paths:
           schema:
             type: integer
             default: 50
+            minimum: 1
+            maximum: 1000
         - name: type
           in: query
           schema:
@@ -1472,10 +1554,12 @@ paths:
           in: query
           schema:
             type: integer
-          description: Unix timestamp
+            minimum: 0
+            maximum: 9007199254740991
+          description: Unix milliseconds, inclusive
       responses:
         '200':
-          description: Recent notes
+          description: Bounded note page and exact matching counts from one read snapshot; the returned page length is not the persisted total
           content:
             application/json:
               schema:
@@ -1489,6 +1573,18 @@ paths:
                       $ref: '#/components/schemas/Note'
                   count:
                     type: integer
+                    minimum: 0
+                    description: Number of notes returned in this bounded page
+                  total:
+                    type: integer
+                    minimum: 0
+                    description: Exact matching persisted count, at or after the inclusive since cutoff when supplied
+                  beforeSinceTotal:
+                    type: integer
+                    minimum: 0
+                    description: Present when since is supplied; exact matching count strictly before that same cutoff, using the identical base scope and type filters
+        '400':
+          $ref: '#/components/responses/ValidationError'
         '500':
           $ref: '#/components/responses/InternalError'
 
@@ -2810,6 +2906,8 @@ paths:
           schema:
             type: integer
             default: 50
+            minimum: 1
+            maximum: 1000
         - name: agent
           in: query
           schema:
@@ -2821,6 +2919,10 @@ paths:
       responses:
         '200':
           description: Unified timeline
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '503':
+          description: TIMELINE_SOURCE_UNAVAILABLE; an activity or note source failed or returned malformed data, with no partial timeline presented as success
         '500':
           $ref: '#/components/responses/InternalError'
 

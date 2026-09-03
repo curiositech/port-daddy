@@ -212,6 +212,16 @@ Every agent must establish a versioned todo checklist using `pd plan set`.
 - **Mark item completed**: Run `pd plan check <index>` (e.g., `pd plan check 1` or `pd plan check "step one"`).
 - **Close session gate**: `pd done` and `pd plan check` use the same visible checklist tasks. Unfinished `[ ]` or `[-]` tasks block completion; fenced examples, HTML comments, and prose markers do not. Checked `[x]` and `[X]` tasks are complete. Finish the plan or explicitly abandon the session; a caller-supplied reason is not operator authority. `pd done --no-pr` is narrower than “I chose not to open a PR”: it succeeds only for a clean worktree whose `HEAD` has no commit absent from every remote ref. This verifier runs even when the branch is fully pushed; dirty or unpublished repository work remains blocked.
 
+Durable note history has no lifetime count ceiling. Ordinary appends allow 60
+notes per rolling 60 seconds per session, with content bounded to 10 KiB UTF-8;
+honor a temporary refusal's retry time without replacing the session or deleting
+history. One actual terminal transition may append a bounded handoff at an
+exhausted burst; repeated completion and caller-selected handoff types cannot
+bypass admission. Ephemeral sessions still cap ordinary notes at 500. Requested
+pages accept limits 1–1000, while exact-session detail retains its complete
+history default. A persisted total is not a preview length. Verify the installed
+daemon separately; this does not promise a hostwide storage quota.
+
 Ordinary code delivery has a separate Git publication/containment gate: the
 worktree must be clean and its exact `HEAD` must be contained in a freshly
 advertised `origin` upstream or `origin` default branch. Missing or deleted
