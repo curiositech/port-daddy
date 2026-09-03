@@ -164,15 +164,37 @@ export async function handleSitrep(options: CLIOptions): Promise<void> {
 
   if (options.template) {
     const current = readCurrentContext();
+    /**
+     * Design: treat JSON envelopes as data, without coercing primitive payloads.
+     * @param value - Untrusted decoded value.
+     * @returns The object record, or null for a malformed envelope.
+     */
     const record = (value: unknown): Record<string, unknown> | null =>
       value !== null && typeof value === 'object' && !Array.isArray(value)
         ? value as Record<string, unknown> : null;
+    /**
+     * Purpose: preserve exact identifiers while refusing ambiguous table text.
+     * @param value - Session, agent or roadmap identifier from a returned record.
+     * @returns Whether it is a bounded, nonempty, single-token identifier.
+     */
     const identifier = (value: unknown): value is string =>
       typeof value === 'string' && value.length > 0 && value.length <= 512
       && value.trim() === value && !/[\s|\u0000-\u001f\u007f]/u.test(value);
+    /**
+     * Design: bound display metadata without converting objects into text.
+     * @param value - Optional recorded text.
+     * @param limit - Maximum displayed characters.
+     * @returns Single-line text, or null when no text was recorded.
+     */
     const field = (value: unknown, limit = 200): string | null =>
       typeof value === 'string' && value.trim()
         ? value.replace(/[\u0000-\u001f\u007f\s]+/gu, ' ').trim().slice(0, limit) : null;
+    /**
+     * Purpose: keep one record in one Markdown cell, never an injected row.
+     * @param value - Recorded label or claimant.
+     * @param limit - Maximum displayed characters.
+     * @returns Bounded text with table separators escaped by substitution.
+     */
     const cell = (value: unknown, limit: number): string | null =>
       field(value, limit)?.replace(/\|/g, '/') ?? null;
     const sessionId = identifier(current?.sessionId) ? current.sessionId : 'unknown';
