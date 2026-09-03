@@ -217,6 +217,16 @@ That verifier runs even when the branch itself is fully pushed. Dirty or
 unpublished repository work still fails closed; the flag cannot hide an
 unpushed change behind a “no artifact” receipt.
 
+Ordinary code delivery uses a different, origin-bound Git gate: the worktree
+must be clean and `HEAD` must be contained in the freshly advertised origin
+upstream or origin default branch. Missing or deleted branch tracking no longer
+means “never pushed.” The default-branch result proves ancestry, not a pushed
+feature branch, passing CI, independent review, or protected merge; those
+delivery requirements still apply. The bounded check makes no fetch/ref/config
+writes and keeps ignored evidence. Missing objects, changed evidence and
+unproven squash/rebase ancestry remain explicit refusals. Source behavior is
+not proof that the installed daemon has been upgraded.
+
 Every session progresses through **phases** for swarm visibility: `planning`, `in_progress`, `testing`, `reviewing`, `completed` / `abandoned`.
 Completion is only entered through `pd done` (or `POST /sugar/done`), which checks the exact session's plan and delivery evidence. Setting `phase: completed` directly cannot skip those checks. If the exact local session is dormant or missing, commands report that condition without silently selecting a different worktree's active session.
 

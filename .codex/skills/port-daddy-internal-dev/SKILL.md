@@ -421,6 +421,16 @@ explicit, documented emergency bypass; an agent does not admin-skip a real
 required gate. Cloudflare Pages may be external/advisory, but prove that from
 branch protection and record the evidence before treating it as non-blocking.
 
+The ordinary completion Git gate verifies clean, origin-bound publication or
+advertised-default-branch ancestry, not the reviewed protected merge required
+above. `lib/git-origin-check.ts` returns the exact proof kind and commit/ref
+observation; missing local tracking metadata must not be labeled never-pushed.
+Keep tests for absent and deleted upstreams, dirty/untracked work, non-origin
+refs, missing objects and read-time movement. Reads have a ten-second total
+budget, bounded output and no interactive prompts; they do not fetch, rewrite
+refs/config, infer squash/rebase delivery, or promote the installed runtime.
+The separate ledger-only `--no-pr` verifier remains unchanged.
+
 **Cleanup.** Delete a worktree only when its branch is merged AND `git -C
 <wt> status --porcelain` is clean. Never delete a worktree with uncommitted
 work; never reset or clobber the main checkout.
