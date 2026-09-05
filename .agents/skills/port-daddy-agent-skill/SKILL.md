@@ -178,9 +178,13 @@ pd plan set "- [ ] Setup X\n- [ ] Fix Y\n- [ ] Verify Z"
 pd advise <likely-path> --task "<plain-language task>"
 pd note "Scope: <files>. Assumptions: <truth>. Validation: <commands>."
 pd session files add <path>
-# work, validate, check off plan, and keep notes current
+# Work in a linked worktree; commit validated checkpoints with agent attribution.
+# Keep the complete plan and notes current. A checkpoint is not delivery.
 pd plan check "Setup X"
-pd note "Result: <change>. Validation: <evidence>. Remaining: <risk>."
+# Publish a ready, non-draft App/Fleetbot PR through the authorized path.
+# Own reviews, regression tests, required checks and the protected merge/queue.
+# Verify the actual merged-head receipt; queue admission is not merge.
+pd note "Result: <change + PR + merged SHA>. Validation: <evidence>. Remaining: <risk>."
 pd done "<short outcome>"
 ```
 
@@ -194,6 +198,11 @@ arrival brief.
 `pd sitrep` is similarly a bounded projection: collections expose limits,
 returned counts, and truncation; nested salvage histories and strings are
 capped. Use `pd sitrep --quiet` when only the summary is needed.
+The `--template` scaffold shows recorded metadata or explicit unavailable values,
+not a fresh runtime, capture or authorization attestation. Roadmap rows match the
+exact selected session within the returned preview; empty and unavailable are
+distinct, and neither proves a complete ownership census. Never substitute another
+session's work or create duplicate roadmap items just to populate the table.
 
 ## Plan & Todo List Tracking
 
@@ -201,7 +210,27 @@ Every agent must establish a versioned todo checklist using `pd plan set`.
 - **Set a plan**: Run `pd plan set` with markdown checklist items.
 - **View latest plan**: Run `pd plan show` or `pd plan`.
 - **Mark item completed**: Run `pd plan check <index>` (e.g., `pd plan check 1` or `pd plan check "step one"`).
-- **Close session gate**: `pd done` checks your active plan. If any unchecked `[ ]` items remain, the close operation fails closed. Bypass with `pd done --force-incomplete --reason "<why>"` if incomplete work is intentionally handshaked or deferred. `pd done --no-pr` is narrower than “I chose not to open a PR”: it succeeds only for a clean worktree whose `HEAD` has no commit absent from every remote ref. This verifier runs even when the branch is fully pushed; dirty or unpublished repository work remains blocked.
+- **Close session gate**: `pd done` and `pd plan check` use the same visible checklist tasks. Unfinished `[ ]` or `[-]` tasks block completion; fenced examples, HTML comments, and prose markers do not. Checked `[x]` and `[X]` tasks are complete. Finish the plan or explicitly abandon the session; a caller-supplied reason is not operator authority. `pd done --no-pr` is narrower than “I chose not to open a PR”: it succeeds only for a clean worktree whose `HEAD` has no commit absent from every remote ref. This verifier runs even when the branch is fully pushed; dirty or unpublished repository work remains blocked.
+
+Durable note history has no lifetime count ceiling. Ordinary appends allow 60
+notes per rolling 60 seconds per session, with content bounded to 10 KiB UTF-8;
+honor a temporary refusal's retry time without replacing the session or deleting
+history. One actual terminal transition may append a bounded handoff at an
+exhausted burst; repeated completion and caller-selected handoff types cannot
+bypass admission. Ephemeral sessions still cap ordinary notes at 500. Requested
+pages accept limits 1–1000, while exact-session detail retains its complete
+history default. A persisted total is not a preview length. Verify the installed
+daemon separately; this does not promise a hostwide storage quota.
+
+Ordinary code delivery has a separate Git publication/containment gate: the
+worktree must be clean and its exact `HEAD` must be contained in a freshly
+advertised `origin` upstream or `origin` default branch. Missing or deleted
+tracking metadata is not proof that work was never pushed. The default-branch
+proof records ancestry, not feature-branch publication history; neither proof
+establishes CI, independent review, or protected merge. Keep the PR Finish Line
+requirements. The check does not fetch or rewrite Git state, retains ignored
+evidence, and refuses missing objects, changed evidence, or unproven squash/rebase
+ancestry. Verify installed behavior separately from this source contract.
 
 ## Session Continuity
 
@@ -226,9 +255,11 @@ git fetch origin
 Resume the existing session when the user goal, worktree or successor
 worktree, branch lineage, and touched surface are still the same unresolved
 slice. If the previous session is stale, abandoned, or cannot be made active,
-use `pd session takeover <old-session-id> [reason]` (or `pd takeover <old-session-id> [reason]`) to create a linked
-successor. It preserves the predecessor's append-only notes, releases stale
-claims, and records the lineage on both sessions.
+inspect the exact session, recorded owner, worktree/root and claims first.
+Use a supported same-owner `pd session takeover <old-session-id> [reason]`
+(or `pd takeover <old-session-id> [reason]`) only when the selected credential
+is authorized for that predecessor. Read back the actual successor, retained
+notes and claim disposition; the command name alone does not prove a transfer.
 
 Start a new linked session when the product goal changed, the previous slice
 was completed or merged, the branch no longer descends cleanly from the old
@@ -275,6 +306,21 @@ and trust the owner-leased continuation
 receipt, not a model's claim that it resumed. A backend override that changes
 adapter family, a lost accepted-to-running lease, or a failed terminal receipt
 transition must fail closed before Port Daddy reports success.
+
+Session selection itself is deterministic. `PD_SESSION_ID` and `PD_AGENT_ID`
+are one atomic identity: a partial pair does not hide a complete context slot,
+and a complete environment pair that disagrees with the slot fails with
+`CONTEXT_CONFLICT` plus both provenances. Do not clear variables or retry a
+broader selector to route around that error. Exact mutations send the selected
+session and its stored owner together; agent-only ambiguity returns
+`AMBIGUOUS_ACTIVE_SESSION` candidates. Dormant, missing, failed, or mismatched
+exact-session lookups never fall through to another worktree's active session.
+Completion, including the completed phase, must pass `pd done`'s plan and delivery
+checks. Credential files must be owner-held, single-link regular files; never
+repair a credential by copying another actor's bearer. `pd session takeover <id>` resumes only
+the daemon-stamped owner of that dormant session. Raw IPC and direct SQLite are
+read-only for session, note, claim, lock, and salvage authority; mutations use
+the credentialed daemon HTTP path.
 
 Inspect portability with `pd backend adapters --matrix` or
 `GET /harness-adapters/continuation-matrix`. Read the grid as declared mechanics,
@@ -367,11 +413,59 @@ pd guard check --staged
 
 ## PR Finish Line
 
+**Code is not done until it is ready to merge to main. Delivery ownership
+continues through the actual merge.** Commit coherent, validated checkpoints
+often in a linked worktree; a commit or pushed branch is recoverable progress,
+not completion. Requested research and planning artifacts also belong in a PR.
+Keep their remaining publication, review and merge tasks in the complete plan.
+
+Publish ready, non-draft PRs, comments and review replies through the
+repository's authorized App/Fleetbot path, with the responsible agent, session,
+scope and exact head in the receipt. Do not publish as the operator with
+ambient personal credentials. Read-only inspection is distinct from
+publication and may use tools permitted by repository/operator policy; where
+**all GitHub access is broker-routed**, honor that policy for reads too.
+If a required publisher is unavailable, preserve the commits and prepared PR
+body, record the exact missing capability and arrange an attributable handoff.
+An ad-hoc helper is not a shipped surface; do not invent a publisher command or
+pretend a planned ActionReceipt API is available. Uncertain writes require
+exact readback, not replay through another identity or transport.
+
+Read-only reviewers and non-authoring agents must not push or merge merely
+because they read this contract. Their finish line is the assigned review or
+handoff, with its evidence; `pd done --no-pr` retains the narrower verifier
+described under Plan & Todo List Tracking.
+
+Before the first commit, inspect both effective Git author and committer. Use
+the verified responsible agent's attribution and traceable actor/session
+trailers; never silently inherit the operator's identity. Git metadata is
+neither cryptographic signing nor App/Fleetbot publication identity. If you
+discover mistaken attribution in your own unpublished commits, correct only
+that history and prove tree/message equivalence. Never rewrite published or
+another agent's history, or change global machine configuration. See
+`references/git-discipline.md` for the bounded procedure.
+
+Keep the Git outcome separate from the coordination audit. After a commit,
+verify the actual SHA before interpreting hook output. `pd guard check
+--post-commit --json` audits an existing commit; `postCommitAudit.commit`
+identifies it, `status` describes the audit, `preCommitWouldBlock` describes
+remaining debt, and `persistence: not-attempted` means no note was published.
+Even an audit issue does not undo Git. Write a SHA-bound `pd note`, read it
+back from the same selected daemon/session, and clear outstanding findings
+before the next commit. Do not rerun or amend a successful commit merely
+because an older installed hook printed “commit blocked.” Verify installed
+behavior separately from source; never treat an unverifiable audit as green.
+
 When you open or inherit a PR, you own the machine-visible finish line unless
-you explicitly hand it off in Port Daddy notes.
+an accepting successor takes the explicit handoff in Port Daddy notes. Link
+the PR in the existing roadmap item's typed PR field and read it back without
+overwriting another owner's status, edges or plans.
 
 - Read live PR comments, reviews, inline bot findings, and status checks before
   declaring the branch ready.
+- Respond graciously to comments and incorporate actionable feedback unless
+  clearly wrong or harmful; explain a disagreement with concrete evidence.
+  Add regression tests for fixes and improve relevant CI/CD when needed.
 - Treat bot comments as review findings — fleetbot included. The
   `port-daddy-fleet` bot posts `[pd-code-reviewer]` and `[pd-qa]` threads on
   every PR; read and answer them alongside Copilot, Claude review, Cloudflare
@@ -389,8 +483,15 @@ you explicitly hand it off in Port Daddy notes.
 - "CI green" includes GitHub checks and attached external deploy/status checks.
   If a red check is truly external, inspect the linked logs and document the
   owner/root cause in both the PR and a `pd note`; otherwise fix the branch.
-- Before the final handoff, post the validation evidence on the PR, leave a
-  `pd note`, and `pd done` the session.
+- Once the exact head's required checks and review gates pass, use the normal
+  protected merge/queue. Neutral/skipped Fleet is not a clean required verdict;
+  neither queue admission nor auto-merge configuration is merge. Never use an
+  admin bypass to manufacture green.
+- Read back the actual merged head, merge commit and timestamp before marking
+  the merge task complete. Then post attributable validation evidence, update
+  the plan and linked receipt, and `pd done` the session. Do not close at PR
+  creation or abandon ownership while checks run. A true external blocker gets
+  exact evidence and an accepting handoff, not a false completion claim.
 
 ## Small Decision Table
 
@@ -487,7 +588,7 @@ When a client is using MCP instead of the CLI, use the matching Port Daddy MCP
 tools for claims, sessions, notes, locks, messaging, salvage, harbors, spawning,
 and service orchestration. Prefer MCP for model clients that already have it
 installed; prefer the CLI when you need shell-local git, build, or deployment
-evidence. `skill_graft_status()` maps to `GET /skill-graft/status` and is
+evidence. `jury_rig_status()` maps to `GET /jury-rig/status` and is
 strictly read-only: it reports current-hash Tool2Vec coverage without generating
 centroids or calling an LLM. Reconciliation stays on the explicit CLI/API path;
 do not add an agent-triggered MCP mutation for it.
@@ -512,7 +613,10 @@ git rebase origin/main           # use origin/master only when that remote branc
 pd sessions --all-worktrees
 pd notes --limit 20
 pd guard check --staged
-pd note "Result: <change>. Validation: <evidence>. Remaining: <risk>."
+# Commit validated checkpoints; publish a ready, non-draft App/Fleetbot PR.
+# Follow PR Finish Line: gracious reviews, regression tests, required checks,
+# protected merge/queue, and an actual merged-head receipt before completion.
+pd note "Result: <change + PR + merged SHA>. Validation: <evidence>. Remaining: <risk>."
 pd done "<short outcome>"
 ```
 
@@ -945,13 +1049,15 @@ durable note, and make the standing instruction stronger before continuing.
 
 ### Coordination is continuous, not a session-start ritual
 
-Sessions TTL out. File claims expire. Other agents start and stop while
-your work is in flight. Anchoring once at the top of a session is **not
+Ephemeral sessions can expire; durable session records do not naturally TTL
+out. Claim coverage and live ownership can change while other agents start
+and stop. Anchoring once at the top of a session is **not
 enough**. Re-check at every checkpoint:
 
 - **Before any commit, push, or rebase** — `pd guard check --staged`. If
-  the session timed out, `pd begin` again; if files lost their claim,
-  `pd session files add` them back.
+  the session or claims look stale, inspect the selected daemon, exact session,
+  recorded owner, physical worktree/root and original claim history before
+  changing anything. Age or a missing projection is not transfer authority.
 - **Before pulling against `origin/main`** — `pd sessions --all-worktrees`
   and `pd notes --limit 20`. New work may have landed in your slice
   while you were typing.
@@ -959,12 +1065,23 @@ enough**. Re-check at every checkpoint:
   It names exactly which files are claimed by which sessions. See
   `references/git-discipline.md` § *The pd-shim*.
 - **After a long-running build or test run** — re-anchor before pushing.
-  A 20-minute test suite is plenty of time for a session to expire and
-  for someone else to claim your files.
+  A 20-minute test suite is plenty of time for ephemeral liveness to expire
+  or another authorized ownership transition to occur.
 
-The cost of a redundant `pd begin` is zero. The cost of pushing past a
-stale claim is rebasing under conflict pressure or, worse, silently
-overwriting another agent's WIP.
+Continue the same unresolved slice under its verified session; do not create
+duplicate identities just to make a warning disappear. A genuinely new,
+authorized scope can use a fresh linked worktree/session and ordinary narrow
+claims in that verified scope. It does not require rewriting or releasing
+unrelated historical claims.
+
+Read advisor diagnostics precisely. Relative and absolute paths count as the
+same claim only inside a verified repository/worktree/root. A
+`context.claim-scope-inconsistent` result preserves conflicting evidence; it
+does **not** mean “unclaimed.” Use supported authorized recovery, never copied
+credentials or hand-edited world IDs. `claims.stale-legacy-projection` means a
+released history row supplies no live coverage; an active replacement still
+counts. That warning is not an all-agent stop. Check the actual mutation and
+Guard results: read-only advice neither grants a claim nor repairs its owner.
 
 ### Slicing work into reviewable PRs
 
@@ -1045,7 +1162,7 @@ the YAML in `pd-fleet.yml` so they can review before launch.
 | **Fleet observer** | Background agents drift, stop firing |
 | **Post-mortem proposer** | Multi-agent friction or "wow we fought dumb git shit" moments |
 | **Adversarial QA** | Code lands without thinking about how it breaks |
-| **Skill auditor** | Project ships skills (windags-skills, .claude/skills, etc.) |
+| **Skill auditor** | Project ships skills (`skills/`, `.claude/skills`, etc.) |
 
 These are not a fixed menu. **Always think creatively** about what this
 specific project needs, and propose new agent shapes as the project shape
@@ -1054,25 +1171,25 @@ block in `pd-fleet.yml`, leave a `pd note` summarizing what it would do,
 and message Cartographer with a one-line recommendation. The user approves
 before anything starts firing.
 
-## Catalog-First Reflex (use the WinDAGs MCP)
+## Catalog-First Reflex (use Jury-rig)
 
-There are 600+ specialist skills in the WinDAGs catalog. Most coding tasks
-have a skill written for them already. **Search the catalog before you
-start, not after you're stuck.**
+Port Daddy assembles a local catalog from project and user skill directories,
+plus explicit `PORT_DADDY_SKILL_SOURCE_ROOTS`. Most coding tasks have useful
+guidance already. **Search the catalog before you start, not after you're stuck.**
 
 ```bash
-windags_skill_search "<one-line description of what you're about to do>"
-windags_skill_graft <skill-id-1> <skill-id-2>   # pull the full SKILL.md bodies into your prompt
+pd jury-rig query "<one-line description of what you're about to do>"
+pd jury-rig reference <skill-id> <path>   # guarded read inside that skill
 ```
 
 Default reflexes:
 
-- **Before every meaningful task** — one `windags_skill_search` call. If a top result is >0.4 score, graft it.
+- **Before every meaningful task** — one `pd jury-rig query` call. Read the returned bodies and load only the references the task needs.
 - **When you find yourself reasoning about a domain you don't own** — the catalog has a skill for that. Search.
 - **When a skill would help on this project long-term** — install it into the project's `.claude/skills/` and leave a `pd note` recording the install.
 - **When you used a skill and it was wrong / stale** — that's a Maintain-These-Skills moment (next section).
 
-If you go a whole session without a single `windags_skill_search`, that's
+If you go a whole session without a single `pd jury-rig query`, that's
 probably a missed leverage opportunity.
 
 ## Maintain These Skills (standing invitation)
@@ -1173,7 +1290,7 @@ pd feedback "SKIPPED: pd salvage. Reason: I judged the task too small. In hindsi
 ### Sweeping Up Peers' Work With `git add -A`
 **Detection:** Background agent's commit contains files it did not author.
 **Fix:** Per Git Discipline above — worktree, explicit-path staging, dirty-tree pre-check.
-**Triggering incident:** windags-skills `bb34efa`. Force-push was disallowed; the audit trail had to be corrected via tagging instead.
+**Triggering incident:** external-skill-catalog `bb34efa`. Force-push was disallowed; the audit trail had to be corrected via tagging instead.
 
 ### Spawning A New Agent Where A Note Would Do
 **Detection:** The fleet shows N+1 agents but the actual work is one bounded change.
@@ -1193,5 +1310,5 @@ pd feedback "SKIPPED: pd salvage. Reason: I judged the task too small. In hindsi
 - [ ] You ran `pd guard check --staged` before commit / push / deploy.
 - [ ] You ended with `pd done` AND `pd feedback "..."` (or MCP `drop_feedback`).
 - [ ] If you skipped any of the above, you owned up to it explicitly in the feedback.
-- [ ] You ran at least one `windags_skill_search` for the task domain before starting.
+- [ ] You ran at least one `pd jury-rig query` for the task domain before starting.
 - [ ] **You asked yourself: "did this skill mislead, mis-instruct, or under-equip me?"** If yes, you committed the fix to `skills/port-daddy-agent-skill/SKILL.md` (or `port-daddy-internal-dev` for contributor-only wisdom) in the same slice — no separate ticket, no permission needed. The bar is "would past-me have wanted to know this?", not "is this big enough to be its own PR." See "Maintain These Skills".

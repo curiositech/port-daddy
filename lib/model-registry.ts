@@ -17,7 +17,11 @@
  * cost-rate table — every other runtime site must come through here.
  */
 
-import { MODEL_REGISTRY_DATA, type ModelRegistryData } from './model-registry-data.js';
+import {
+  MODEL_REGISTRY_DATA,
+  type EmbeddingProfile,
+  type ModelRegistryData,
+} from './model-registry-data.js';
 
 export type Capability = 'cheap' | 'balanced' | 'high' | 'max-thinking' | 'code';
 
@@ -162,6 +166,40 @@ export function resolveModelAlias(name: string): string {
  */
 export function modelAliases(): Record<string, string> {
   return { ...(load().modelAliases ?? {}) };
+}
+
+/**
+ * Every declared embedding profile, separate from backend capability ladders.
+ * These rows are content-addressed targets, not producer attestations. A
+ * `declarative-only` row must not stamp persisted vectors, authorize
+ * ResourceScope compatibility, or enter similarity comparison; callers keep
+ * its output ephemeral/quarantined until a separate signed conformance receipt
+ * binds the space id, artifact digests, preprocessing digest, and runtime.
+ *
+ * @returns A model-keyed copy whose rows callers cannot mutate into registry drift.
+ */
+export function embeddingProfiles(): Readonly<Record<string, Readonly<EmbeddingProfile>>> {
+  const profiles = Object.fromEntries(
+    Object.entries(load().embeddingProfiles).map(([modelId, profile]) => [
+      modelId,
+      Object.freeze({ ...profile }),
+    ]),
+  );
+  return Object.freeze(profiles);
+}
+
+/**
+ * Read the declared vector-space target for one exact model row.
+ * Callers must inspect `runtimeBinding`; a declarative profile is not evidence
+ * that the active provider or loader honored its content or preprocessing and
+ * is never sufficient authority for persistence or similarity on its own.
+ *
+ * @param modelId Exact key from `config/models.yaml`.
+ * @returns A defensive copy, or undefined when the model is not an embedder.
+ */
+export function embeddingProfileForModel(modelId: string): EmbeddingProfile | undefined {
+  const profile = load().embeddingProfiles[modelId];
+  return profile ? { ...profile } : undefined;
 }
 
 export function resolveModel(opts: ResolveModelOptions): string {

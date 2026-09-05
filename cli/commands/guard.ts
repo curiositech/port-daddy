@@ -9,6 +9,7 @@ import type { CLIOptions } from '../types.js';
 import { requireConfirmation, DESTRUCTIVE_EXIT_CODE } from '../utils/destructive-confirm.js';
 import { evaluateLeaseRent } from '../../lib/coast-guard/compulsion.js';
 import { gatherCommitsSinceLastNote } from '../../lib/coast-guard/compulsion-facts.js';
+import { resolveRoadmapHarbor } from './roadmap.js';
 
 /**
  * Destructive git verbs intercepted by the optional `~/.port-daddy/bin/git`
@@ -70,6 +71,11 @@ export interface GuardRoadmapReceipt {
   notes?: Array<{ at?: number | null; by?: string | null; text?: string | null }>;
 }
 
+export interface GuardRoadmapReceiptLookup {
+  receipts: GuardRoadmapReceipt[];
+  issue?: 'unavailable' | 'incomplete' | 'scope-unavailable';
+}
+
 export interface GuardViolation {
   code: string;
   severity: 'warning' | 'critical';
@@ -88,6 +94,14 @@ export interface GuardCheckResult {
   agentId?: string | null;
   sessionId?: string | null;
   violations: GuardViolation[];
+  /** A read-only audit of an existing commit, never a veto of that commit. */
+  postCommitAudit?: {
+    commit: string | null;
+    status: 'passed' | 'issues' | 'unverifiable' | 'off';
+    /** The unchanged pre-commit evaluator's decision on these same facts. */
+    preCommitWouldBlock: boolean;
+    persistence: 'not-attempted';
+  };
 }
 
 export const DEFAULT_GUARD_CONFIG: CoordinationGuardConfig = {
@@ -232,46 +246,70 @@ function gitPath(path: string, cwd = process.cwd()): string | null {
 }
 
 /**
- * The SHA of the other parent during an in-progress merge (`git merge` with
- * a real conflict, mid-resolution), or null when not merging. `rev-parse`
- * (not a raw `.git/MERGE_HEAD` read) so this resolves correctly across
- * worktrees, where `--git-path` points at the per-worktree git dir.
+ * Read Git evidence without converting failed discovery into an empty claim set.
+ * The design keeps diagnostics fixed: arbitrary Git stderr is not authority.
+ * @param args Read-only Git arguments, never shell-interpolated paths.
+ * @param cwd The selected checkout, including a linked worktree.
+ * @returns Complete stdout, preserving NUL-delimited native filenames.
  */
-function mergeHeadSha(cwd = process.cwd()): string | null {
-  const result = spawnSync('git', ['rev-parse', '--verify', '-q', 'MERGE_HEAD'], { cwd, encoding: 'utf8' });
-  if (result.status !== 0) return null;
-  const sha = result.stdout.trim();
-  return sha || null;
+function stagedGit(args: string[], cwd: string): string {
+  const result = spawnSync('git', args, { cwd, timeout: 10_000, maxBuffer: 16 * 1024 * 1024 });
+  if (result.error || result.status !== 0) throw new Error('Guard cannot determine staged files: Git evidence is unavailable.');
+  try {
+    return new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(result.stdout);
+  } catch {
+    throw new Error('Guard cannot determine staged files: Git evidence contains an unsupported path encoding.');
+  }
 }
 
 /**
- * Files staged for the next commit, scoped to what THIS commit actually
- * authors — not what merely arrives via a merge.
- *
- * A plain `git diff --cached` against HEAD is correct for a normal commit,
- * but during an in-progress merge (`.git/MERGE_HEAD` set) it compares the
- * post-merge tree to the STALE pre-merge HEAD, so every file the other
- * branch touched shows up as "staged" — even ones this session never edited
- * and that arrived unchanged from the branch being merged in. On a
- * rebase-forward of a stale PR branch onto origin/main, that swept in
- * hundreds of main's files, each still under some OTHER live session's
- * active claim, and the coordination guard correctly-but-wrongly refused the
- * commit as if this session were overwriting their work.
- *
- * Fix: when merging, diff the staged tree against MERGE_HEAD (the tip being
- * merged in) instead of HEAD. A file whose resolved content equals
- * MERGE_HEAD's is a pure pass-through — not authored here, exempt from
- * claim checks. A file that differs (an actual conflict resolution) still
- * counts, correctly. `commitFiles()` below needs no equivalent fix: git's
- * own default combined-diff for `git show <merge-commit>` already applies
- * this exact rule post-commit.
+ * Resolve every incoming parent from this worktree's merge metadata. The purpose
+ * is to distinguish an absent merge from corrupt or unreadable merge evidence;
+ * a failed ref lookup must never silently select ordinary-commit semantics.
+ * @param cwd The selected checkout.
+ * @returns Verified immutable commit IDs, or no parents when not merging.
+ */
+function mergeHeadShas(cwd: string): string[] {
+  const path = stagedGit(['rev-parse', '--git-path', 'MERGE_HEAD'], cwd).trim();
+  if (!path) throw new Error('Guard cannot determine staged files: merge location is unavailable.');
+  let content: string;
+  try {
+    content = readFileSync(resolve(cwd, path), 'utf8');
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
+    throw new Error('Guard cannot determine staged files: merge metadata is unreadable.');
+  }
+  const parents = content.trim().split(/\r?\n/);
+  if (parents.some(parent => !/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/.test(parent))) {
+    throw new Error('Guard cannot determine staged files: merge metadata is invalid.');
+  }
+  return [...new Set(parents)].map(parent =>
+    stagedGit(['rev-parse', '--verify', '--end-of-options', `${parent}^{commit}`], cwd).trim());
+}
+
+/**
+ * Discover paths authored by the pending commit, not either parent's unchanged
+ * pass-through. A merge path is included only when its staged entry differs from
+ * HEAD and every incoming parent, matching Git's combined-diff path semantics.
+ * Compare exact paths without rename heuristics during merges: a real rename
+ * resolution must retain its added destination and any newly deleted source.
+ * Normal commits retain their ordinary cached-diff behavior, including unborn
+ * branches. Unresolved indexes and unavailable evidence stop discovery.
+ * @param cwd The checkout whose index will be committed.
+ * @returns Exact repository-relative paths; no trimming or quote decoding.
  */
 export function stagedFiles(cwd = process.cwd()): string[] {
-  const mergeHead = mergeHeadSha(cwd);
-  const diffArgs = mergeHead
-    ? ['diff', '--cached', '--name-only', '--diff-filter=ACMRDTU', mergeHead]
-    : ['diff', '--cached', '--name-only', '--diff-filter=ACMRDTU'];
-  return gitOutput(diffArgs, cwd);
+  if (stagedGit(['ls-files', '--unmerged', '-z'], cwd)) {
+    throw new Error('Guard cannot determine staged files: the index contains unresolved merges.');
+  }
+  const incoming = mergeHeadShas(cwd);
+  const diffArgs = ['diff', '--cached', '--name-only', '-z', '--no-ext-diff', '--no-textconv', '--ignore-submodules=none', '--diff-filter=ACMRDTU'];
+  if (incoming.length === 0) return stagedGit([...diffArgs, '--'], cwd).split('\0').filter(Boolean);
+
+  const head = stagedGit(['rev-parse', '--verify', '--end-of-options', 'HEAD^{commit}'], cwd).trim();
+  const changes = [head, ...incoming].map(parent =>
+    new Set(stagedGit([...diffArgs, '--no-renames', parent, '--'], cwd).split('\0').filter(Boolean)));
+  return [...changes[0]].filter(path => changes.every(paths => paths.has(path)));
 }
 
 /**
@@ -287,7 +325,7 @@ function commitFiles(ref: string, cwd = process.cwd()): string[] {
 }
 
 function normalizeFiles(files: string[]): string[] {
-  return Array.from(new Set(files.map(file => file.trim()).filter(Boolean)));
+  return Array.from(new Set(files.filter(file => file.length > 0)));
 }
 
 export function fileNeedsRoadmapReceipt(file: string): boolean {
@@ -299,19 +337,23 @@ function noteMatchesAgent(
   note: { at?: number | null; by?: string | null },
   agentId: string | null | undefined,
   since: number,
+  nowMs: number,
 ): boolean {
   if (!agentId) return false;
-  return note.by === agentId && typeof note.at === 'number' && note.at >= since;
+  return note.by === agentId && typeof note.at === 'number' && Number.isSafeInteger(note.at)
+    && note.at > 0 && note.at >= since && note.at <= nowMs;
 }
 
 function receiptMatchesAgent(
   receipt: GuardRoadmapReceipt,
   agentId: string | null | undefined,
   since: number,
+  nowMs: number,
 ): boolean {
-  const touchedRecently = typeof receipt.lastTouchedAt === 'number' && receipt.lastTouchedAt >= since;
-  if (touchedRecently && agentId && receipt.promotedByAgentId === agentId) return true;
-  return Array.isArray(receipt.notes) && receipt.notes.some((note) => noteMatchesAgent(note, agentId, since));
+  // A shared touch time is not proof that the original promoter did work.
+  // Promotion inputs are not verified receipt records either. Credit only
+  // this caller's own bounded note timestamp, never somebody else's update.
+  return Array.isArray(receipt.notes) && receipt.notes.some((note) => noteMatchesAgent(note, agentId, since, nowMs));
 }
 
 function posixPath(path: string): string {
@@ -325,17 +367,16 @@ function relativePathInside(root: string, path: string): string | null {
 }
 
 export function ownerQueryPaths(file: string, repoRoot = process.cwd()): string[] {
-  const trimmed = file.trim();
-  if (!trimmed) return [];
+  if (!file) return [];
 
   const root = resolve(repoRoot);
-  const paths = new Set<string>([trimmed]);
+  const paths = new Set<string>([file]);
 
-  if (isAbsolute(trimmed)) {
-    const rel = relativePathInside(root, trimmed);
+  if (isAbsolute(file)) {
+    const rel = relativePathInside(root, file);
     if (rel) paths.add(rel);
   } else {
-    paths.add(resolve(root, trimmed));
+    paths.add(resolve(root, file));
   }
 
   return Array.from(paths);
@@ -385,17 +426,11 @@ function guardHookBlock(): string {
 }
 
 /**
- * The post-commit guard block. Git invokes post-commit on `commit`,
- * `cherry-pick`, `rebase`, `revert`, and `merge --no-ff` — every path
- * that creates a commit. post-commit's exit code is *informational*
- * (git ignores it), so this block:
- *   - prints loudly when a commit was made without coordination
- *   - never blocks (post-commit can't), but the violation is recorded
- *     by `pd guard check --post-commit` in the daemon log so the
- *     operator can see what slipped through pre-commit
- *
- * This is the only enforcement path for cherry-pick/rebase/revert,
- * which silently bypass pre-commit hooks in git's sequencer.
+ * The post-commit block is a read-only audit after Git has created a commit.
+ * Its purpose is to report outstanding coordination requirements without
+ * pretending it can undo the successful Git operation. It neither publishes
+ * a coordination note nor proves that another publisher persisted a receipt.
+ * The pre-commit path still enforces all outstanding rent on the next commit.
  */
 function guardPostCommitBlock(): string {
   return [
@@ -434,6 +469,13 @@ export function mergePostCommitHook(existing: string): string {
   return mergeHookBlock(existing, guardPostCommitBlock());
 }
 
+/**
+ * Evaluate gathered coordination facts without performing work or repairing state.
+ * The design keeps enforcement separate from collection: unavailable roadmap
+ * evidence remains unknown rather than becoming a fabricated missing receipt.
+ * @param input - Verified context, ownership and bounded receipt observations.
+ * @returns The unchanged enforcement decision with precise evidence diagnostics.
+ */
 export function evaluateGuardFacts(input: {
   config: CoordinationGuardConfig;
   mode?: CoordinationGuardMode;
@@ -456,6 +498,8 @@ export function evaluateGuardFacts(input: {
    *  invariant; dirty-tree advisory checks should not demand a roadmap receipt. */
   atCommitTime?: boolean;
   roadmapReceipts?: GuardRoadmapReceipt[];
+  /** Read failures and bounded-page omissions are not proof of absence. */
+  roadmapReceiptLookupIssue?: GuardRoadmapReceiptLookup['issue'];
   nowMs?: number;
 }): GuardCheckResult {
   const mode = input.mode ?? (input.config.enabled ? input.config.mode : 'off');
@@ -568,16 +612,22 @@ export function evaluateGuardFacts(input: {
   ) {
     const roadmapFiles = files.filter(fileNeedsRoadmapReceipt);
     if (roadmapFiles.length > 0) {
-      const since = (input.nowMs ?? Date.now()) - ROADMAP_RECEIPT_WINDOW_MS;
+      const nowMs = input.nowMs ?? Date.now();
+      const since = nowMs - ROADMAP_RECEIPT_WINDOW_MS;
       const hasReceipt = (input.roadmapReceipts ?? []).some((receipt) =>
-        receiptMatchesAgent(receipt, input.agentId, since),
+        receiptMatchesAgent(receipt, input.agentId, since, nowMs),
       );
       if (!hasReceipt) {
+        const lookupIssue = input.roadmapReceiptLookupIssue;
         violations.push({
-          code: 'roadmap-receipt-missing',
+          code: lookupIssue ? 'roadmap-receipt-unverifiable' : 'roadmap-receipt-missing',
           severity: 'critical',
           file: roadmapFiles[0],
-          message:
+          message: lookupIssue
+            ? `The roadmap receipt could not be verified (${lookupIssue}). ` +
+              'Verify the session roadmap link and intended harbor, then retry the selected daemon; ' +
+              'an incomplete or unavailable lookup does not prove that a receipt is missing.'
+            :
             `Coordination architecture changed (${roadmapFiles.slice(0, 3).join(', ')}${roadmapFiles.length > 3 ? ', …' : ''}) ` +
             'without a recent roadmap_items receipt from this agent. Run `pd roadmap upsert <slug> --summary <md>` or `pd roadmap touch <slug> --note <why>`.',
         });
@@ -604,11 +654,19 @@ async function fetchJson(path: string): Promise<Record<string, unknown>> {
   return await res.json();
 }
 
+/**
+ * Read the selected session and its daemon-stored roadmap link together.
+ * The design carries only returned context facts into receipt selection, never
+ * borrowing a different session's link or making an authority mutation here.
+ * @param cwd - Current worktree used by the existing context selector.
+ * @returns Active context and liveness evidence, including its optional link.
+ */
 async function loadActiveContext(cwd = process.cwd()): Promise<{
   active: boolean;
   daemonReachable: boolean;
   agentId?: string | null;
   sessionId?: string | null;
+  roadmapLink?: string | null;
 }> {
   const context = readCurrentContext(cwd);
   if (!context?.agentId && !context?.sessionId) {
@@ -632,6 +690,7 @@ async function loadActiveContext(cwd = process.cwd()): Promise<{
       daemonReachable: true,
       agentId: typeof data.agentId === 'string' ? data.agentId : context.agentId,
       sessionId: typeof data.sessionId === 'string' ? data.sessionId : context.sessionId,
+      roadmapLink: typeof data.roadmapLink === 'string' ? data.roadmapLink : null,
     };
   } catch {
     return {
@@ -686,9 +745,12 @@ export interface GuardBlockNotice {
 }
 
 export function describeGuardBlock(
-  result: Pick<GuardCheckResult, 'shouldBlock' | 'violations'>,
-  context: { hook?: boolean } = {},
+  result: Pick<GuardCheckResult, 'shouldBlock' | 'violations' | 'postCommitAudit'>,
+  context: { hook?: boolean; postCommit?: boolean } = {},
 ): GuardBlockNotice | null {
+  // Audit findings cannot become a notification that the completed commit
+  // failed, even if a caller passes the underlying pre-commit evaluation.
+  if (context.postCommit || result.postCommitAudit) return null;
   if (!result.shouldBlock) return null;
   const codes = new Set(result.violations.map((v) => v.code));
   const structural =
@@ -726,7 +788,9 @@ export function describeGuardBlock(
  * banner fires before the caller's process.exit.
  */
 function notifyOperatorOfGuardBlock(result: GuardCheckResult, options: CLIOptions): void {
-  const notice = describeGuardBlock(result, { hook: Boolean(options.hook) });
+  const notice = describeGuardBlock(result, {
+    hook: Boolean(options.hook), postCommit: Boolean(options['post-commit']),
+  });
   if (!notice || !notice.notifyOperator) return;
 
   // Loud stderr banner — points only to the corrective action, never names a
@@ -763,6 +827,28 @@ function printCheckResult(result: GuardCheckResult, options: CLIOptions): void {
     return;
   }
 
+  if (result.postCommitAudit) {
+    const audit = result.postCommitAudit;
+    if (!audit.commit) {
+      ui.warn(`${COORDINATION_GUARD_NAME}: post-commit audit could not resolve the requested commit.`);
+    } else {
+      console.log(`Commit ${audit.commit} exists; this audit does not change the Git outcome.`);
+      const status = audit.status === 'issues' ? 'needs attention' : audit.status;
+      console.log(`${COORDINATION_GUARD_NAME}: post-commit audit ${status}`);
+    }
+    for (const violation of result.violations) {
+      console.error(`  - ${violation.message}`);
+      if (violation.owners?.length) {
+        console.error(`    owners: ${violation.owners.map(owner => `${owner.agentId ?? 'unknown'}:${owner.sessionId ?? 'unknown'}`).join(', ')}`);
+      }
+    }
+    if (audit.preCommitWouldBlock) {
+      console.error('  Repair these findings before the next commit; pre-commit enforcement is unchanged.');
+    }
+    console.log('  Persistence: not attempted. This read-only audit does not publish a coordination note or receipt.');
+    return;
+  }
+
   const label = result.mode === 'enforce' ? 'ENFORCE' : result.mode === 'warn' ? 'WARN' : 'OFF';
   if (result.mode === 'off') {
     console.log(`${COORDINATION_GUARD_NAME}: off`);
@@ -795,6 +881,38 @@ function printCheckResult(result: GuardCheckResult, options: CLIOptions): void {
   if (result.mode === 'warn') {
     console.error('  mode=warn: not blocking. Use pd guard enable --mode enforce to block.');
   }
+}
+
+/**
+ * Preserve the evaluator's findings while separating an audit from a veto.
+ * The design keeps all rent debt intact: the next pre-commit check evaluates
+ * those facts normally. A missing commit is an audit-input failure, never proof
+ * that an earlier Git operation failed. No persistence is performed here.
+ * @param result The unchanged pre-commit policy evaluation.
+ * @param commit A verified commit object id, or null when resolution failed.
+ * @returns A post-commit report with explicit audit and persistence status.
+ */
+export function asPostCommitAudit(result: GuardCheckResult, commit: string | null): GuardCheckResult {
+  const violations = commit ? result.violations : [...result.violations, {
+    code: 'commit-unresolved',
+    severity: 'critical' as const,
+    message: 'The requested commit could not be verified; no Git outcome is asserted.',
+  }];
+  const unverifiable = violations.some(({ code }) =>
+    ['commit-unresolved', 'daemon-unreachable', 'no-active-session', 'rent-unverifiable'].includes(code));
+  return {
+    ...result,
+    success: commit !== null,
+    passed: commit !== null && result.passed,
+    shouldBlock: false,
+    violations,
+    postCommitAudit: {
+      commit,
+      status: unverifiable ? 'unverifiable' : result.mode === 'off' ? 'off' : result.passed ? 'passed' : 'issues',
+      preCommitWouldBlock: result.shouldBlock,
+      persistence: 'not-attempted',
+    },
+  };
 }
 
 export function extractClaimPaths(data: Record<string, unknown>): string[] {
@@ -835,21 +953,59 @@ async function loadAllActiveClaims(): Promise<string[]> {
   }
 }
 
-async function loadRoadmapReceipts(): Promise<GuardRoadmapReceipt[]> {
+/**
+ * Read only the selected session's linked item in the intended write-side harbor.
+ * The design avoids treating the first status-ranked page as an existence check:
+ * unrelated items, including same-named items in other harbors, cannot pay rent
+ * for linked work. An unlinked session retains a bounded scoped diagnostic read.
+ *
+ * @param input - Daemon-returned session link and write-side harbor selection.
+ * @returns Sanitized local receipts plus an explicit unknown/incomplete diagnostic.
+ */
+export async function loadRoadmapReceipts(input: {
+  roadmapLink?: string | null;
+  harbor?: string;
+}): Promise<GuardRoadmapReceiptLookup> {
+  const harbor = input.harbor?.trim();
+  if (!harbor) return { receipts: [], issue: 'scope-unavailable' };
+  const slug = input.roadmapLink?.trim();
+  const limit = 200;
+  const params = new URLSearchParams(slug ? { harbor } : { status: 'all', limit: String(limit), harbor });
+  const path = slug ? `/roadmap/items/${encodeURIComponent(slug)}` : '/roadmap/items';
   try {
-    const data = await fetchJson('/roadmap/items?status=all&limit=200');
-    if (!Array.isArray(data.items)) return [];
-    return data.items
-      .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === 'object')
-      .map((item) => ({
-        slug: typeof item.slug === 'string' ? item.slug : '',
-        lastTouchedAt: typeof item.lastTouchedAt === 'number' ? item.lastTouchedAt : null,
+    const res = await pdFetch(`${PORT_DADDY_URL}${path}?${params}`, {
+      timeout: 2000, retry: false, signal: AbortSignal.timeout(2000),
+    });
+    if (slug && res.status === 404) return { receipts: [] };
+    if (!res.ok) return { receipts: [], issue: 'unavailable' };
+    const data = await res.json();
+    if (!data || data.success !== true) return { receipts: [], issue: 'unavailable' };
+    const items = slug ? [data.item] : data.items;
+    if (!Array.isArray(items) || (!slug && (data.count !== items.length || items.length > limit))) {
+      return { receipts: [], issue: 'unavailable' };
+    }
+    const receipts: GuardRoadmapReceipt[] = [];
+    for (const raw of items) {
+      if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return { receipts: [], issue: 'unavailable' };
+      const item = raw as Record<string, unknown>;
+      if (typeof item.slug !== 'string' || !item.slug.trim() || item.harbor !== harbor || (slug && item.slug !== slug)) {
+        return { receipts: [], issue: 'unavailable' };
+      }
+      receipts.push({
+        slug: item.slug,
+        lastTouchedAt: typeof item.lastTouchedAt === 'number' && Number.isFinite(item.lastTouchedAt) ? item.lastTouchedAt : null,
         promotedByAgentId: typeof item.promotedByAgentId === 'string' ? item.promotedByAgentId : null,
-        notes: Array.isArray(item.notes) ? item.notes as GuardRoadmapReceipt['notes'] : [],
-      }))
-      .filter((item) => item.slug);
+        notes: Array.isArray(item.notes) ? item.notes.flatMap((note) =>
+          note && typeof note === 'object' && typeof note.by === 'string' &&
+          typeof note.at === 'number' && Number.isFinite(note.at)
+            ? [{ by: note.by, at: note.at }]
+            : [],
+        ) : [],
+      });
+    }
+    return !slug && receipts.length === limit ? { receipts, issue: 'incomplete' } : { receipts };
   } catch {
-    return [];
+    return { receipts: [], issue: 'unavailable' };
   }
 }
 
@@ -901,6 +1057,14 @@ export function filterClaimsToRepo(paths: string[], repoRoot: string): string[] 
   });
 }
 
+/**
+ * Gather the actual command's scoped facts and evaluate them once.
+ * The design resolves roadmap scope through the same harbor contract as writes;
+ * a post-commit audit observes the result without changing commit history.
+ * @param positional - Explicit paths for a non-staged advisory check.
+ * @param options - Guard mode, commit scope and intended harbor selection.
+ * @returns Enforcement or post-commit audit facts for the unchanged presenter.
+ */
 async function runCheck(positional: string[], options: CLIOptions): Promise<GuardCheckResult> {
   const cwd = resolve(typeof options.dir === 'string' ? options.dir : process.cwd());
   const config = readGuardConfig(cwd);
@@ -909,6 +1073,17 @@ async function runCheck(positional: string[], options: CLIOptions): Promise<Guar
   const gitVerb = typeof options['git-verb'] === 'string' ? String(options['git-verb']).trim() : '';
   const commitRef = typeof options.commit === 'string' && options.commit.length > 0 ? options.commit : 'HEAD';
   const root = gitRoot(cwd) ?? cwd;
+  // Pin the object before reading its paths so a moving HEAD cannot relabel
+  // evidence. --end-of-options prevents a ref from becoming a Git flag.
+  const auditedCommit = postCommit
+    ? gitText(['rev-parse', '--verify', '--end-of-options', `${commitRef}^{commit}`], cwd).trim() || null
+    : null;
+  if (postCommit && !auditedCommit) {
+    return asPostCommitAudit({
+      success: false, passed: false, shouldBlock: false,
+      mode, enabled: mode !== 'off', files: [], violations: [],
+    }, null);
+  }
   const files = normalizeFiles(
     gitVerb && DESTRUCTIVE_GIT_VERBS.has(gitVerb)
       // For destructive verbs the universe of risk is "any claim that
@@ -919,7 +1094,7 @@ async function runCheck(positional: string[], options: CLIOptions): Promise<Guar
       // positive refusals on rebases here.
       ? filterClaimsToRepo(await loadAllActiveClaims(), root)
       : postCommit
-        ? commitFiles(commitRef, cwd)
+        ? commitFiles(auditedCommit ?? commitRef, cwd)
         : options.staged || options.hook
           ? stagedFiles(cwd)
           : positional.length > 0
@@ -932,8 +1107,8 @@ async function runCheck(positional: string[], options: CLIOptions): Promise<Guar
   // Rent is only assessed at commit-time (staged / hook / post-commit), never on
   // a plain dirty-tree advisory check — you owe a note for a *commit*, not for
   // unsaved edits. Compute it only when the guard is live and a session is
-  // attached; daemon/git failures degrade to "no rent owed" (fail-open here, so
-  // a flaky daemon never wedges every commit — the claim discipline still bites).
+  // attached. An unreadable probe remains a critical finding; post-commit only
+  // changes how the result is reported, never the rent calculation.
   const atCommitTime = Boolean(options.staged || options.hook || postCommit);
   let commitsSinceLastNote: number | undefined;
   let rentUnverifiable = false;
@@ -948,16 +1123,16 @@ async function runCheck(positional: string[], options: CLIOptions): Promise<Guar
       rentUnverifiable = true;
     }
   }
-  const roadmapReceipts =
+  const roadmapLookup =
     mode !== 'off' &&
     atCommitTime &&
     config.requireRoadmapForCoordinationChanges &&
     context.active &&
     files.some(fileNeedsRoadmapReceipt)
-      ? await loadRoadmapReceipts()
+      ? await loadRoadmapReceipts({ roadmapLink: context.roadmapLink, harbor: resolveRoadmapHarbor(options, cwd) })
       : undefined;
 
-  return evaluateGuardFacts({
+  const result = evaluateGuardFacts({
     config,
     mode,
     files,
@@ -969,8 +1144,10 @@ async function runCheck(positional: string[], options: CLIOptions): Promise<Guar
     commitsSinceLastNote,
     rentUnverifiable,
     atCommitTime,
-    roadmapReceipts,
+    roadmapReceipts: roadmapLookup?.receipts,
+    roadmapReceiptLookupIssue: roadmapLookup?.issue,
   });
+  return postCommit ? asPostCommitAudit(result, auditedCommit) : result;
 }
 
 async function handleInstallShim(options: CLIOptions): Promise<void> {
@@ -1106,8 +1283,7 @@ async function installGuard(options: CLIOptions): Promise<void> {
 
   const hooks: Array<{ name: string; merge: (existing: string) => string }> = [
     { name: 'pre-commit', merge: mergePreCommitHook },
-    // post-commit is the only enforcement path for cherry-pick / rebase /
-    // revert, since git's sequencer skips pre-commit on those.
+    // Read-only audit; it cannot veto commits already created by Git.
     { name: 'post-commit', merge: mergePostCommitHook },
   ];
 
@@ -1146,6 +1322,10 @@ function printUsage(): void {
 export async function handleGuard(positional: string[], options: CLIOptions): Promise<void> {
   const subcommand = positional[0] || 'status';
   const rest = positional.slice(1);
+  if (options['post-commit'] && (subcommand !== 'check' || options.staged || options['git-verb'] || rest.length > 0)) {
+    ui.error('Post-commit audit requires guard check and cannot be combined with staged, destructive-verb, or file checks.');
+    process.exit(1);
+  }
 
   switch (subcommand) {
     case 'status':
@@ -1177,6 +1357,7 @@ export async function handleGuard(positional: string[], options: CLIOptions): Pr
         notifyOperatorOfGuardBlock(result, options);
         process.exit(1);
       }
+      if (result.postCommitAudit && !result.success) process.exit(1);
       return;
     }
     case 'help':
@@ -1191,6 +1372,7 @@ export async function handleGuard(positional: string[], options: CLIOptions): Pr
         notifyOperatorOfGuardBlock(result, options);
         process.exit(1);
       }
+      if (result.postCommitAudit && !result.success) process.exit(1);
     }
   }
 }

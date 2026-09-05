@@ -55,7 +55,7 @@ The absence of a genuine taxonomy, Yates shows, means that CTA "lacks a common v
 
 ## Application to Agent Skill Taxonomies
 
-The parallel to AI agent systems with large skill libraries (like the 180+ skills referenced for WinDAGs) is direct and important.
+The parallel to AI agent systems with large skill libraries (like the 180+ skills referenced for Jury-rig) is direct and important.
 
 ### The Current State: Proliferation Without Theory
 A system with 180+ skills faces the same challenge as CTA with 100+ methods. If skills are classified primarily by what they do mechanically (their process), rather than by what knowledge type or problem type they address (their outcome), practitioners (agents and orchestration systems) will face the same problem CTA practitioners face: "no clear guidelines for the practitioner to choose the appropriate combination of methods to apply to a specific task or intended results" (p. 7, paraphrasing Cooke, 1994).

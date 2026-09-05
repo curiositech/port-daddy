@@ -24,6 +24,19 @@ async function lockerHeaders() {
   return locker.headers;
 }
 
+async function newOwnedSession(purpose) {
+  const owner = await registerTestActorVia(request, { alias: `adversarial-${purpose}` });
+  const res = await request('/sessions', {
+    method: 'POST',
+    headers: owner.headers,
+    body: { purpose, agentId: owner.actorId },
+  });
+  expect(res.ok).toBe(true);
+  const sessionId = res.data.id || res.data.session_id;
+  expect(typeof sessionId).toBe('string');
+  return { sessionId, headers: owner.headers };
+}
+
 /**
  * Make a raw HTTP request over the Unix socket (for testing malformed bodies, wrong content types, etc.)
  * Unlike the `request()` helper, this does NOT auto-serialize to JSON.
@@ -242,26 +255,23 @@ describe('Adversarial Testing - Session/Notes Edge Cases', () => {
 
   describe('Notes Operations', () => {
     test('add note to non-existent session', async () => {
+      const writer = await registerTestActorVia(request, { alias: 'adversarial-missing-note-writer' });
       const res = await request('/sessions/nonexistent-session-xyz/notes', {
         method: 'POST',
+        headers: writer.headers,
         body: { content: 'test' }
       });
       expect(res.status).toBe(404);
+      expect(res.data.code).toBe('SESSION_NOT_FOUND');
     });
 
     test('add very large note (100KB+)', async () => {
-      // Create a session first
-      const sessionRes = await request('/sessions', {
-        method: 'POST',
-        body: { purpose: 'large-note-test' }
-      });
-      expect(sessionRes.ok).toBe(true);
-
-      const sessionId = sessionRes.data.id || sessionRes.data.session_id;
+      const { sessionId, headers } = await newOwnedSession('large-note-test');
       const largeContent = 'x'.repeat(102400);
 
       const res = await request(`/sessions/${sessionId}/notes`, {
         method: 'POST',
+        headers,
         body: { content: largeContent }
       });
 
@@ -270,16 +280,11 @@ describe('Adversarial Testing - Session/Notes Edge Cases', () => {
     });
 
     test('add notes with unicode content', async () => {
-      const sessionRes = await request('/sessions', {
-        method: 'POST',
-        body: { purpose: 'unicode-note-test' }
-      });
-      expect(sessionRes.ok).toBe(true);
-
-      const sessionId = sessionRes.data.id || sessionRes.data.session_id;
+      const { sessionId, headers } = await newOwnedSession('unicode-note-test');
 
       const res = await request(`/sessions/${sessionId}/notes`, {
         method: 'POST',
+        headers,
         body: { content: '测试内容 café 🎉 日本語' }
       });
 
@@ -287,16 +292,11 @@ describe('Adversarial Testing - Session/Notes Edge Cases', () => {
     });
 
     test('add note with SQL injection attempt', async () => {
-      const sessionRes = await request('/sessions', {
-        method: 'POST',
-        body: { purpose: 'injection-test' }
-      });
-      expect(sessionRes.ok).toBe(true);
-
-      const sessionId = sessionRes.data.id || sessionRes.data.session_id;
+      const { sessionId, headers } = await newOwnedSession('injection-test');
 
       const res = await request(`/sessions/${sessionId}/notes`, {
         method: 'POST',
+        headers,
         body: { content: "'); DELETE FROM session_notes; --" }
       });
 
@@ -309,11 +309,7 @@ describe('Adversarial Testing - Session/Notes Edge Cases', () => {
 
   describe('Session Deletion', () => {
     test('delete session while notes are being added (race)', async () => {
-      const sessionRes = await request('/sessions', {
-        method: 'POST',
-        body: { purpose: 'race-delete' }
-      });
-      const sessionId = sessionRes.data.id || sessionRes.data.session_id;
+      const { sessionId, headers } = await newOwnedSession('race-delete');
 
       // Start adding notes and deleting simultaneously
       const promises = [];
@@ -321,25 +317,50 @@ describe('Adversarial Testing - Session/Notes Edge Cases', () => {
         promises.push(
           request(`/sessions/${sessionId}/notes`, {
             method: 'POST',
+            headers,
             body: { content: `note-${i}` }
           })
         );
       }
       promises.push(
-        request(`/sessions/${sessionId}`, { method: 'DELETE' })
+        request(`/sessions/${sessionId}`, { method: 'DELETE', headers })
       );
 
       const results = await Promise.all(promises);
-      // All operations should complete without crashes
+      // Archiving preserves the session and its notes, so all owned writes
+      // succeed regardless of the arrival order. Auth denials are not a race pass.
       expect(results.length).toBe(4);
+      expect(results.every((result) => result.ok)).toBe(true);
+      const notes = await request(`/sessions/${sessionId}/notes`);
+      expect(notes.ok).toBe(true);
+      expect(notes.data.notes.map((note) => note.content)).toEqual(expect.arrayContaining(['note-0', 'note-1', 'note-2']));
     });
 
     test('delete non-existent session', async () => {
+      const owner = await registerTestActorVia(request, { alias: 'adversarial-missing-delete-owner' });
       const res = await request('/sessions/nonexistent-session-xyz', {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: owner.headers,
       });
       expect(res.status).toBe(404);
+      expect(res.data.code).toBe('SESSION_NOT_FOUND');
     });
+  });
+
+  test.each([
+    ['note', 'POST', '/notes', { content: 'must not persist' }],
+    ['archive', 'DELETE', '', null],
+  ])('anonymous %s requests cannot mutate an owned session', async (label, method, suffix, body) => {
+    const { sessionId } = await newOwnedSession(`anonymous-${label}-denial`);
+    const before = await request(`/sessions/${sessionId}`);
+    expect(before.ok).toBe(true);
+    const denied = await request(`/sessions/${sessionId}${suffix}`, { method, body });
+    expect(denied.status).toBe(401);
+    expect(denied.data.code).toBe('IDENTITY_CREDENTIAL_REQUIRED');
+    const after = await request(`/sessions/${sessionId}`);
+    expect(after.ok).toBe(true);
+    expect(after.data.session.status).toBe('active');
+    expect(after.data.notes).toEqual(before.data.notes);
   });
 });
 

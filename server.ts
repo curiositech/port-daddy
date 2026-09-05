@@ -41,7 +41,7 @@ import { createServices } from './lib/services.js';
 import { createMessaging } from './lib/messaging.js';
 import { createLocks } from './lib/locks.js';
 import { createHealth } from './lib/health.js';
-import { createAgents } from './lib/agents.js';
+import { createAgents, getDeadThresholdForStatus } from './lib/agents.js';
 import { createActivityLog, ActivityType } from './lib/activity.js';
 import { createWebhooks, WebhookEvent } from './lib/webhooks.js';
 import { createProjects } from './lib/projects.js';
@@ -50,11 +50,16 @@ import { createAgentInbox, inboxMessageForMessaging } from './lib/agent-inbox.js
 import { createAttention } from './lib/attention.js';
 import { createClaimWatcher } from './lib/claim-watcher.js';
 import { createResurrection } from './lib/resurrection.js';
+import { createHeartbeatDeathHandler } from './lib/agent-heartbeat-death.js';
 import { createChangelog } from './lib/changelog.js';
 import { createTunnel } from './lib/tunnel.js';
 import { createDns } from './lib/dns.js';
 import { createResolver } from './lib/resolver.js';
 import { createSpawner } from './lib/spawner.js';
+import {
+  captureManagedSpawnWorktree, managedSpawnWorktreeReceipt, verifyManagedSpawnWorktree,
+  type ManagedSpawnWorktree,
+} from './lib/managed-spawn-worktree.js';
 import { createTranscripts } from './lib/transcripts.js';
 import { createJsonlTranscriptArchive } from './lib/transcript-archive.js';
 import { createBriefing } from './lib/briefing.js';
@@ -103,7 +108,6 @@ import { createContextWindowTracker } from './lib/context-window-tracker.js';
 import { createTool2VecReconciler } from './lib/skill-graft-reconciler.js';
 import { resolveSkillGraftRuntime } from './lib/skill-graft-runtime.js';
 import { createKnowledgeCustodian } from './lib/knowledge-custodian.js';
-import { normalizeSelfSalvage } from './lib/telos-salvage.js';
 import { createOperatorPermissions } from './lib/operator-permissions.js';
 import { createCounters } from './lib/counters.js';
 import { createUsageTelemetry } from './lib/usage-telemetry.js';
@@ -111,6 +115,7 @@ import { createMetricsRegistry } from './lib/metrics-registry.js';
 import { createBonds } from './lib/bonds.js';
 import { createBudgetGuard } from './lib/budget-guard.js';
 import { createActorSouls } from './lib/actor-souls.js';
+import { authorizeSessionOwner, resolveWriteIdentity, stampIdentityMetadata } from './lib/identity-write-boundary.js';
 import { migrateActorSouls } from './scripts/migrate-actor-souls.js';
 import { homedir } from 'node:os';
 import { createBudgetPause } from './lib/budget-pause.js';
@@ -799,17 +804,7 @@ const bonds = createBonds(db, {
 // no new budget. HONEST LIMIT: the anti-launder only fully bites once the `door`
 // lane makes the SQLite write-boundary real (a same-UID agent can otherwise
 // write a ledger/pool row directly). This is ADR-0040's explicit non-goal.
-// PORT_DADDY_NEWCOMER_ADMIT_MAX: operational knob for the per-project/day
-// distinct-newcomer admission bound. #8877 made /sugar/begin a mint door, so
-// high-churn fleets (and the integration test harness, which begins hundreds
-// of fresh agents against one ephemeral daemon) need a way to raise the
-// default without patching code. Unset/invalid keeps ADR-0040's default.
-const newcomerAdmitMaxEnv = Number(process.env.PORT_DADDY_NEWCOMER_ADMIT_MAX);
-const actorSouls = createActorSouls(db, {
-  ...(Number.isFinite(newcomerAdmitMaxEnv) && newcomerAdmitMaxEnv > 0
-    ? { newcomerAdmitMax: newcomerAdmitMaxEnv }
-    : {}),
-});
+const actorSouls = createActorSouls(db);
 // Grandfather EXISTING agents (from budget_ledger/bond_escrow/agents) into
 // trusted souls before budgetGuard starts routing spend through the souls
 // choke below -- otherwise every already-running agent looks like a brand
@@ -878,6 +873,55 @@ const spawnerHarborBridge = createSpawnerHarborBridge(db, {
   logger,
 });
 
+/**
+ * Verify the spawner's captured credential against one exact stored session.
+ *
+ * Purpose: managed ephemeral completion is an in-process daemon authority,
+ * never a public caller boolean. The credential still has to prove the same
+ * actor stamped on the exact session before the private lifecycle method may
+ * bind or complete it.
+ *
+ * @param input - Exact session, stored display agent, and captured credential.
+ * @returns Verified actor id and canonical stored owner, or a refusal body.
+ */
+function authorizeManagedSpawnerSession(input: {
+  sessionId: string;
+  agentId: string;
+  credential: string;
+}): { success: true; actorId: string; agentId: string } | { success: false; code: string; error: string } {
+  const verdict = resolveWriteIdentity({
+    souls: actorSouls,
+    credential: input.credential,
+    assertedAgentId: input.agentId,
+    route: 'daemon:spawner:managed-session',
+    logger,
+    requireIdentity: true,
+  });
+  if (!verdict.ok || verdict.kind !== 'verified') {
+    return {
+      success: false,
+      code: verdict.ok ? 'IDENTITY_CREDENTIAL_REQUIRED' : verdict.code,
+      error: verdict.ok ? 'managed session requires a verified actor credential' : verdict.error,
+    };
+  }
+  const lookup = sugarSessions.get(input.sessionId);
+  const session = lookup.success && lookup.session && typeof lookup.session === 'object'
+    ? lookup.session as Record<string, unknown>
+    : null;
+  if (!session) {
+    return { success: false, code: 'SESSION_NOT_FOUND', error: `Session ${input.sessionId} not found` };
+  }
+  const ownership = authorizeSessionOwner(session, verdict, actorSouls);
+  if (!ownership.ok) {
+    return { success: false, code: ownership.code, error: ownership.error };
+  }
+  return {
+    success: true,
+    actorId: ownership.ownerActorId,
+    agentId: ownership.ownerAgentId,
+  };
+}
+
 // Session Galaxy — 2-D embedding map of recent agent sessions over
 // fleet_transcripts. createLocalEmbedder gives the batch embed(texts[])
 // interface the semanticResolver singleton lacks (its .embed is single-text);
@@ -889,11 +933,124 @@ const spawnerHarborBridge = createSpawnerHarborBridge(db, {
 const galaxyEmbedder = createLocalEmbedder({ cacheDir: defaultTransformersCacheDir() });
 const galaxy = createGalaxy({ db, transcripts, sessions, embedder: galaxyEmbedder });
 
+// Private, short-lived admission witnesses for exact managed sessions. Durable
+// ownership remains in the existing session store, not this physical recheck map.
+const managedSpawnWorktrees = new Map<string, ManagedSpawnWorktree>();
 const spawner = createSpawner({
   costTracker, counters, bonds, harbors, transcripts,
   harborBridge: spawnerHarborBridge,
   enforceTelemetryPolicy: true,
   enforceTranscriptPolicy: true,
+  managedSessionLifecycle: {
+    admit: async (input, { signal }) => {
+      const target = await captureManagedSpawnWorktree(input.workdir, signal);
+      signal.throwIfAborted();
+      if (target.worktree?.isMain && !input.allowSharedCheckout) {
+        return { success: false, code: 'MAIN_WORKTREE_SESSION_FORBIDDEN', error: 'Spawn target requires a linked worktree.' };
+      }
+      const minted = actorSouls.register({});
+      if (!minted.ok || minted.status !== 'minted') {
+        return {
+          success: false,
+          code: minted.ok ? 'MANAGED_SESSION_CREDENTIAL_UNAVAILABLE' : minted.code,
+          error: 'managed spawn admission could not mint an actor credential',
+        };
+      }
+      const verdict = {
+        ok: true as const,
+        kind: 'verified' as const,
+        actorId: minted.actorId,
+        agentId: input.agentId,
+        soulClass: minted.soulClass,
+        identity: { verified: true as const, actorId: minted.actorId, soulClass: minted.soulClass },
+      };
+      const admitted = sugar.begin({
+        agentId: input.agentId,
+        name: input.name,
+        type: 'spawned',
+        identity: input.identity ?? undefined,
+        purpose: input.purpose,
+        lifecycle: 'ephemeral',
+        worktree: target.worktree,
+        metadata: stampIdentityMetadata({
+          ...input.metadata,
+          worktree: target.worktree,
+          spawnWorkdir: target.directory,
+        }, verdict) ?? undefined,
+      });
+      if (!admitted.success) return admitted;
+      if (typeof admitted.sessionId !== 'string') throw new Error('Managed admission did not return an exact session');
+      managedSpawnWorktrees.set(admitted.sessionId, target);
+      return {
+        ...admitted,
+        credential: minted.credential,
+        actorId: minted.actorId,
+        actorIdentity: verdict.identity,
+        worktreeBinding: managedSpawnWorktreeReceipt(target),
+      };
+    },
+    bind: async (input, { signal }) => {
+      const authority = authorizeManagedSpawnerSession(input);
+      if (!authority.success) return authority;
+      const target = managedSpawnWorktrees.get(input.sessionId);
+      if (!target) return { success: false, code: 'MANAGED_SPAWN_TARGET_REQUIRED', error: 'Exact spawn target witness is missing' };
+      // The authorized one-shot binding attempt owns this local witness now.
+      // Failed terminal persistence must not leak an unbounded map of targets.
+      managedSpawnWorktrees.delete(input.sessionId);
+      await verifyManagedSpawnWorktree(target, () => {
+        const lookup = sugarSessions.get(input.sessionId);
+        return lookup.success && lookup.session ? lookup.session as Record<string, unknown> : null;
+      }, signal);
+      signal.throwIfAborted();
+      const currentAuthority = authorizeManagedSpawnerSession(input);
+      if (!currentAuthority.success) return currentAuthority;
+      const bound = sugar.bindManagedSession({
+        sessionId: input.sessionId,
+        agentId: currentAuthority.agentId,
+        actorId: currentAuthority.actorId,
+      });
+      return {
+        ...bound,
+        worktreeBinding: managedSpawnWorktreeReceipt(target),
+        // This closure retains the already verified witness, not a second
+        // identity store or a caller-controlled world. Child runners invoke it
+        // again after sandbox setup, when Git metadata may have changed.
+        validateBeforeLaunch: async ({ signal: launchSignal }: { signal: AbortSignal }) => {
+          await verifyManagedSpawnWorktree(target, () => {
+            const lookup = sugarSessions.get(input.sessionId);
+            return lookup.success && lookup.session ? lookup.session as Record<string, unknown> : null;
+          }, launchSignal);
+          launchSignal.throwIfAborted();
+          return authorizeManagedSpawnerSession(input);
+        },
+      };
+    },
+    complete: async (input) => {
+      const authority = authorizeManagedSpawnerSession(input);
+      if (!authority.success) return authority;
+      const completed = sugar.completeManagedSession({
+        sessionId: input.sessionId,
+        agentId: authority.agentId,
+        actorId: authority.actorId,
+        note: input.note,
+        status: input.status,
+      });
+      if (completed.success) managedSpawnWorktrees.delete(input.sessionId);
+      return completed;
+    },
+    abort: async (input) => {
+      const authority = authorizeManagedSpawnerSession(input);
+      if (!authority.success) return authority;
+      const aborted = sugar.abortManagedSession({
+        sessionId: input.sessionId,
+        agentId: authority.agentId,
+        actorId: authority.actorId,
+        note: input.note,
+      });
+      if (aborted.success) managedSpawnWorktrees.delete(input.sessionId);
+      return aborted;
+    },
+  },
   // Live observability seam (ADR-0060): give the spawner the daemon's messaging
   // layer as a tube client so cli-tube spawns that carry a stable channel (a
   // folded dispatch stamps `dispatch:<id>`) publish their exchange there. This is
@@ -1226,62 +1383,10 @@ resurrection.on('agent:stale', (agent) => {
   logger.info('agent_stale', { agentId: agent.id, name: agent.name });
 });
 
-resurrection.on('agent:dead', (agent) => {
-  harbors.leaveAll(agent.id);
-
-  // Capture the agent's active session ids BEFORE abandoning them, so the custodian
-  // can harvest each session's notes into episodic memory while they remain queryable
-  // (Item 6 — on-death fast path; without it, notes wait up to a poll interval or are
-  // lost when the zombie protocol abandons the session first).
-  const abandonedSessionIds = sessions.activeSessionIdsByAgent(agent.id);
-  const zombied = sessions.abandonByAgent(agent.id);
-  if (zombied > 0) {
-    logger.warn('zombie_sessions_abandoned', { agentId: agent.id, count: zombied });
-    activityLog.log(ActivityType.SESSION_END, {
-      details: `Zombie protocol: ${zombied} active session(s) abandoned — agent ${agent.name || agent.id} is dead`,
-      metadata: { agentId: agent.id, zombied }
-    });
-  }
-  messaging.publish('resurrection', JSON.stringify({
-    event: 'dead', agentId: agent.id, name: agent.name, purpose: agent.purpose,
-    lastHeartbeat: agent.lastHeartbeat, staleSince: agent.staleSince, zombiedSessions: zombied
-  }));
-  messaging.publish('agents', JSON.stringify({
-    event: 'dead', agentId: agent.id,
-    message: `Agent ${agent.name || agent.id} is dead and queued for resurrection`
-  }));
-  logger.warn('agent_dead', { agentId: agent.id, name: agent.name });
-  activityLog.log(ActivityType.AGENT_CLEANUP, {
-    details: `Agent ${agent.name || agent.id} detected as dead, queued for resurrection`,
-    metadata: { agentId: agent.id, staleSince: agent.staleSince }
-  });
-
-  if (custodian) {
-    // Item 6 (on-death harvest): promote each abandoned session's notes immediately.
-    for (const sid of abandonedSessionIds) void custodian.onSessionEnd(sid);
-
-    // Items 1b + 2 (auto-resurrect): read the dying agent's self-salvage capsule as
-    // untrusted respawn CONTEXT, and hand the custodian the AUTHENTICATED scope from the
-    // verified StaleAgent record — never from the forgeable capsule. Passing scope as a
-    // distinct argument makes a forged `capsule.identityProject` structurally unable to
-    // influence the operator-permission check (ADR-0040 trust boundary).
-    //
-    // The raw capsule read back from resurrection.getSalvageCapsule() is only guaranteed
-    // to be *some* plain object (see resurrection.ts's getSalvageCapsule — it just checks
-    // `typeof === 'object'`), never that it matches SelfSalvageCapsule's shape. Run it
-    // through the same normalizeSelfSalvage() producer contract that governs the capsule
-    // elsewhere (telos-salvage.ts) before handing it to the custodian, so a malformed or
-    // corrupted capsule degrades to `undefined` respawn context instead of propagating an
-    // arbitrary shape into the resurrection_context inbox message / operator approval
-    // payload.
-    const rawCapsule = resurrection.getSalvageCapsule(agent.id);
-    const salvage = normalizeSelfSalvage(rawCapsule);
-    if (rawCapsule && !salvage.success) {
-      logger.warn('salvage_capsule_invalid', { agentId: agent.id, error: salvage.error });
-    }
-    void custodian.onAgentDead(agent.id, agent.identityProject ?? '', salvage.capsule as Record<string, unknown> | undefined);
-  }
+const handleAgentHeartbeatDeath = createHeartbeatDeathHandler({
+  sessions, harbors, resurrection, messaging, logger, activityLog, custodian,
 });
+resurrection.on('agent:dead', handleAgentHeartbeatDeath);
 
 resurrection.on('agent:resurrected', (oldAgentId, newAgentId) => {
   messaging.publish('resurrection', JSON.stringify({ event: 'resurrected', oldAgentId, newAgentId }));
@@ -1347,6 +1452,7 @@ function cleanupStale(): ReturnType<typeof services.cleanup> {
       const agentSessionRows = db.prepare(`
         SELECT agent_id, id AS session_id FROM sessions
         WHERE agent_id IN (${placeholders}) AND status = 'active'
+          AND (is_durable IS NULL OR is_durable = 0)
         GROUP BY agent_id HAVING MAX(updated_at)
       `).all(...inactiveIds) as AgentSessionRow[];
 
@@ -1373,6 +1479,17 @@ function cleanupStale(): ReturnType<typeof services.cleanup> {
       }
 
       for (const agent of inactiveAgents) {
+        const hold = resurrection.holdForDurableSessions(agent.id);
+        if (hold.held) {
+          if (Date.now() - agent.lastHeartbeat > getDeadThresholdForStatus(agent.status)) {
+            handleAgentHeartbeatDeath({
+              id: agent.id, name: agent.name || agent.id, purpose: agent.metadata?.purpose ?? null,
+              lastHeartbeat: agent.lastHeartbeat, staleSince: agent.lastHeartbeat + getDeadThresholdForStatus(agent.status),
+              identityProject: agent.identityProject ?? null,
+            });
+          }
+          continue;
+        }
         const sessionId = agentSessionMap.get(agent.id);
         const notes = sessionId ? (notesBySession.get(sessionId) ?? []) : [];
         resurrection.check({

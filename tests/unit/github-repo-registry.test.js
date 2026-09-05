@@ -76,10 +76,10 @@ describe('buildRepoRegistry', () => {
   test('infers from git origin when no declaration', () => {
     const dir = '/p/inferred';
     const readers = fixtureReaders({
-      [dir]: { fleetYaml: 'fleet:\n  agents: {}\n', origin: 'git@github.com:curiositech/windags.git' },
+      [dir]: { fleetYaml: 'fleet:\n  agents: {}\n', origin: 'git@github.com:curiositech/example-service.git' },
     });
     const { map } = buildRepoRegistry([dir], readers);
-    const entry = map.get('curiositech/windags');
+    const entry = map.get('curiositech/example-service');
     expect(entry).toBeDefined();
     expect(entry.source).toBe('inferred');
   });

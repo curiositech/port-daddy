@@ -105,25 +105,25 @@ The composition mechanism is pure message-passing: external actors in one system
 
 "The composition of two programs is carried out by mapping them to the initial configurations they define and composing these configurations using the rules of composition." (p. 156)
 
-## Application to WinDAGs System Design
+## Application to Jury-rig System Design
 
-### The Brock-Ackerman warning for WinDAGs
+### The Brock-Ackerman warning for Jury-rig
 
-When evaluating whether two WinDAGs agent configurations are interchangeable, I/O equivalence testing is not sufficient. You must test them in composition with realistic orchestration patterns, not just in isolation.
+When evaluating whether two Jury-rig agent configurations are interchangeable, I/O equivalence testing is not sufficient. You must test them in composition with realistic orchestration patterns, not just in isolation.
 
 Specifically: if agent version B produces the same outputs as agent version A for all test inputs, that does NOT guarantee B can replace A in a running system without behavioral changes. The timing of when B produces its outputs relative to its inputs may differ from A, and downstream agents may be sensitive to this timing difference.
 
-**Recommendation**: Define behavioral contracts for WinDAGs agents that include:
+**Recommendation**: Define behavioral contracts for Jury-rig agents that include:
 - Not just what outputs are produced, but when (relative to which inputs)
 - What the agent's state is after producing each output (what subsequent inputs it will accept and how it will respond)
 
 ### Observation equivalence as the agent upgrade criterion
 
-Two WinDAGs agent implementations should be considered safely interchangeable if and only if they are observation equivalent: no realistic orchestration pattern can distinguish their behavior. This is a stronger criterion than I/O equivalence but the correct one.
+Two Jury-rig agent implementations should be considered safely interchangeable if and only if they are observation equivalent: no realistic orchestration pattern can distinguish their behavior. This is a stronger criterion than I/O equivalence but the correct one.
 
 ### Receptionist-based modularity
 
-In WinDAGs, each skill should have a clearly defined *interface surface* — the messages it accepts from the outside. Internal implementation details (how the skill decomposes a task, what sub-skills it calls, how it maintains state) should be hidden.
+In Jury-rig, each skill should have a clearly defined *interface surface* — the messages it accepts from the outside. Internal implementation details (how the skill decomposes a task, what sub-skills it calls, how it maintains state) should be hidden.
 
 When a skill is updated or replaced, the guarantee is that its receptionist interface is preserved. The internal changes are not observable by callers.
 
@@ -140,7 +140,7 @@ This implements atomic multi-skill transactions without a global lock manager.
 
 ### Abstraction levels for debugging
 
-The receptionist model suggests WinDAGs should support multiple levels of observability:
+The receptionist model suggests Jury-rig should support multiple levels of observability:
 - **Fine-grained**: Individual skill invocations and their timings (for debugging)
 - **Transaction-level**: The inputs and outputs of complete sub-plans (for monitoring)
 - **Goal-level**: High-level outcomes (for reporting)

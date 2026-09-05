@@ -15,7 +15,7 @@ import { EventEmitter } from 'events';
 import { patternToSql } from './identity.js';
 import { getDeadThresholdForStatus, getStaleThresholdForStatus } from './agents.js';
 
-export type SalvageQueueStatus = 'pending' | 'stale' | 'dead' | 'resurrecting';
+export type SalvageQueueStatus = 'pending' | 'stale' | 'dead' | 'resurrecting' | 'dormant';
 
 export interface StaleAgent {
   id: string;
@@ -25,6 +25,8 @@ export interface StaleAgent {
   lastHeartbeat: number;
   staleSince: number;
   status: SalvageQueueStatus;
+  holdReason?: 'durable_session_active';
+  replacementAlreadyAdmitted?: boolean;
   notes?: string[];
   /** Exact session-note total when available, even when notes is a bounded tail. */
   noteCount?: number;
@@ -45,6 +47,7 @@ interface ResurrectionQueueRow {
   resurrection_attempts: number;
   last_attempt_at: number | null;
   metadata: string | null;
+  hold_reason: string | null;
   // Semantic identity components for prefix filtering
   identity_project: string | null;
   identity_stack: string | null;
@@ -59,6 +62,7 @@ export interface ResurrectionEvents {
 }
 
 interface ResurrectionSessions {
+  activeDurableSessionIdsByAgent?(agentId: string, options: { verifiedOnly: boolean }): string[];
   getNotes(sessionId?: string | null, options?: { limit?: number }): {
     success: boolean;
     notes?: Array<{ content?: unknown }>;
@@ -96,6 +100,7 @@ export function createResurrection(db: Database.Database, deps: ResurrectionDeps
       resurrection_attempts INTEGER NOT NULL DEFAULT 0,
       last_attempt_at INTEGER,
       metadata TEXT,
+      hold_reason TEXT,
       identity_project TEXT,
       identity_stack TEXT,
       identity_context TEXT
@@ -107,6 +112,7 @@ export function createResurrection(db: Database.Database, deps: ResurrectionDeps
 
   // Migrations for existing tables
   const migrations = [
+    'ALTER TABLE resurrection_queue ADD COLUMN hold_reason TEXT',
     'ALTER TABLE resurrection_queue ADD COLUMN identity_project TEXT',
     'ALTER TABLE resurrection_queue ADD COLUMN identity_stack TEXT',
     'ALTER TABLE resurrection_queue ADD COLUMN identity_context TEXT',
@@ -184,7 +190,13 @@ export function createResurrection(db: Database.Database, deps: ResurrectionDeps
     `),
     remove: db.prepare(`DELETE FROM resurrection_queue WHERE agent_id = ?`),
     setMetadata: db.prepare(`UPDATE resurrection_queue SET metadata = ? WHERE agent_id = ?`),
-    cleanup: db.prepare(`DELETE FROM resurrection_queue WHERE detected_at < ?`),
+    holdDurable: db.prepare(`
+      UPDATE resurrection_queue
+      SET status = CASE WHEN status = 'resurrecting' THEN status ELSE 'dormant' END,
+          hold_reason = 'durable_session_active'
+      WHERE agent_id = ? AND hold_reason IS NULL
+    `),
+    cleanup: db.prepare(`DELETE FROM resurrection_queue WHERE detected_at < ? AND hold_reason IS NULL AND status != 'dormant'`),
     countByProject: db.prepare(`SELECT COUNT(*) as count FROM resurrection_queue WHERE status = 'pending' AND identity_project = ?`),
   };
 
@@ -264,6 +276,38 @@ export function createResurrection(db: Database.Database, deps: ResurrectionDeps
     }
   }
 
+  /**
+   * Preserve saved recovery bytes. By design a hold never cancels an already
+   * admitted attempt or upgrades a stored identity stamp into fresh authority.
+   * @param agentId Exact process identity whose current work is inspected.
+   * @returns Idempotent hold evidence, including any already-admitted replacement.
+   */
+  function holdForDurableSessions(agentId: string) {
+    const row = stmts.get.get(agentId) as ResurrectionQueueRow | undefined;
+    const verifiedDurable = deps.sessions?.activeDurableSessionIdsByAgent?.(agentId, { verifiedOnly: true }) ?? [];
+    if (!row?.hold_reason && row?.status !== 'dormant' && verifiedDurable.length === 0) {
+      return { held: false, changed: false, replacementAlreadyAdmitted: false };
+    }
+    const changed = row ? stmts.holdDurable.run(agentId).changes > 0 : false;
+    return { held: true, changed, replacementAlreadyAdmitted: row?.status === 'resurrecting' };
+  }
+
+  /**
+   * Refuse ordinary queue mutations while evidence awaits reconciliation.
+   * The purpose is to prevent stale callbacks from discarding or reopening work.
+   * @param agentId Queue entry and durable-work identity to inspect.
+   * @returns A structured refusal when held, otherwise null.
+   */
+  function heldRefusal(agentId: string) {
+    const hold = holdForDurableSessions(agentId);
+    return hold.held ? {
+      success: false as const,
+      code: 'DURABLE_SESSION_ACTIVE',
+      error: 'Durable recovery evidence is held. Hold clearance is not implemented; ordinary salvage credentials cannot replace or discard it.',
+      replacementAlreadyAdmitted: hold.replacementAlreadyAdmitted,
+    } : null;
+  }
+
   function formatQueueEntry(row: ResurrectionQueueRow, maxNotes = noteLimit): StaleAgent {
     const metadata = parseMetadata(row.metadata);
     const noteWindow = notesForRow(row, metadata, maxNotes);
@@ -275,6 +319,10 @@ export function createResurrection(db: Database.Database, deps: ResurrectionDeps
       lastHeartbeat: metadata.lastHeartbeat || 0,
       staleSince: row.detected_at,
       status: row.status as SalvageQueueStatus,
+      ...(row.hold_reason === 'durable_session_active' ? {
+        holdReason: 'durable_session_active' as const,
+        replacementAlreadyAdmitted: row.status === 'resurrecting',
+      } : {}),
       notes: noteWindow.notes,
       noteCount: noteWindow.total,
       identityProject: row.identity_project,
@@ -284,6 +332,7 @@ export function createResurrection(db: Database.Database, deps: ResurrectionDeps
   }
 
   return {
+    holdForDurableSessions,
     /**
      * Check an agent and queue it for resurrection if stale/dead
      */
@@ -302,18 +351,27 @@ export function createResurrection(db: Database.Database, deps: ResurrectionDeps
     }) {
       const now = Date.now();
       const sinceHeartbeat = now - agent.lastHeartbeat;
-
-      // Use adaptive thresholds based on agent status
       const agentStaleThreshold = getStaleThreshold(agent.status);
       const agentDeadThreshold = getDeadThreshold(agent.status);
-
+      const existing = stmts.get.get(agent.id) as ResurrectionQueueRow | undefined;
+      // Work durability does not turn a healthy process into a dormant one.
+      if (!existing && sinceHeartbeat < agentStaleThreshold) return { status: 'healthy' };
+      // This lookup is daemon-owned session evidence, never a durability flag
+      // supplied by the heartbeat caller. Holds survive later healthy heartbeats.
+      const hold = holdForDurableSessions(agent.id);
+      if (hold.held) {
+        return {
+          status: hold.replacementAlreadyAdmitted ? 'resurrecting' : 'dormant',
+          queued: false, holdReason: 'durable_session_active',
+          replacementAlreadyAdmitted: hold.replacementAlreadyAdmitted,
+        };
+      }
       if (sinceHeartbeat < agentStaleThreshold) {
         // Agent is healthy, remove from queue if present
         stmts.remove.run(agent.id);
         return { status: 'healthy' };
       }
 
-      const existing = stmts.get.get(agent.id) as ResurrectionQueueRow | undefined;
       const status = sinceHeartbeat >= agentDeadThreshold ? 'dead' : 'stale';
 
       const metadata = JSON.stringify({
@@ -441,6 +499,8 @@ export function createResurrection(db: Database.Database, deps: ResurrectionDeps
      * Returns the agent's context so a new agent can continue their work
      */
     claim(agentId: string) {
+      const refusal = heldRefusal(agentId);
+      if (refusal) return refusal;
       const row = stmts.get.get(agentId) as ResurrectionQueueRow | undefined;
       if (!row) {
         return { success: false, error: 'Agent not in resurrection queue' };
@@ -471,6 +531,8 @@ export function createResurrection(db: Database.Database, deps: ResurrectionDeps
      * Mark resurrection as complete
      */
     complete(oldAgentId: string, newAgentId: string) {
+      const refusal = heldRefusal(oldAgentId);
+      if (refusal) return refusal;
       stmts.remove.run(oldAgentId);
       emitter.emit('agent:resurrected', oldAgentId, newAgentId);
       return { success: true };
@@ -480,6 +542,8 @@ export function createResurrection(db: Database.Database, deps: ResurrectionDeps
      * Abandon a resurrection attempt
      */
     abandon(agentId: string) {
+      const refusal = heldRefusal(agentId);
+      if (refusal) return refusal;
       stmts.updateStatus.run('pending', Date.now(), agentId);
       return { success: true };
     },
@@ -488,6 +552,8 @@ export function createResurrection(db: Database.Database, deps: ResurrectionDeps
      * Dismiss an agent from the queue (user reviewed, not resurrecting)
      */
     dismiss(agentId: string) {
+      const refusal = heldRefusal(agentId);
+      if (refusal) return refusal;
       stmts.remove.run(agentId);
       return { success: true };
     },
@@ -524,8 +590,15 @@ export function createResurrection(db: Database.Database, deps: ResurrectionDeps
      */
     cleanup(olderThan: number = 7 * 24 * 60 * 60 * 1000) {
       const cutoff = Date.now() - olderThan;
-      const result = stmts.cleanup.run(cutoff);
-      return { cleaned: result.changes };
+      return db.transaction(() => {
+        // A retention sweep can run before the heartbeat sweep after restart.
+        // Apply the same session proof before any old queue evidence is deleted.
+        const candidates = db.prepare(`SELECT agent_id FROM resurrection_queue
+          WHERE detected_at < ? AND hold_reason IS NULL AND status != 'dormant'`)
+          .all(cutoff) as Array<{ agent_id: string }>;
+        for (const row of candidates) holdForDurableSessions(row.agent_id);
+        return { cleaned: stmts.cleanup.run(cutoff).changes };
+      })();
     },
 
     /**

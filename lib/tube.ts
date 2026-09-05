@@ -80,7 +80,7 @@ function asPerformative(v: unknown): Performative | undefined {
  * `inReplyTo` / `conversationId` context). Where the `performative` types a
  * message's INTENT (FIPA act — request / propose / inform), the `relationship`
  * types its DISCOURSE MOVE — how this contribution relates to the prior one.
- * This is the missing half of windags' `SwarmDiscourse` (port-daddy already
+ * This is the missing half of jury_rig' `SwarmDiscourse` (port-daddy already
  * ships the act half via ADR-0047 Phase 0) and the substrate RCP-14
  * (argumentative lineage / digest-with-zoom for reasoning provenance) builds on:
  * a thread of `inReplyTo` edges typed by relationship IS the argument graph.

@@ -6,7 +6,7 @@ The workflow patterns paper makes a crucial statement in its abstract: patterns 
 
 This is the imperative approach: A executes, then the system evaluates conditions and explicitly routes to B or C. Contrast with declarative: specify constraints ("B requires A's output," "C cannot run until security check passes") and let a solver determine execution order.
 
-For agent orchestration systems like WinDAGs, understanding this tension is critical because **different coordination problems are naturally imperative or declarative**, and forcing the wrong model creates complexity.
+For agent orchestration systems like Jury-rig, understanding this tension is critical because **different coordination problems are naturally imperative or declarative**, and forcing the wrong model creates complexity.
 
 ## What "Imperative Workflow Style" Means
 
@@ -99,7 +99,7 @@ Example where declarative fails:
 
 Forcing this into declarative constraints loses semantic clarity and controllability.
 
-## For WinDAGs: Which Problems Are Naturally Imperative?
+## For Jury-rig: Which Problems Are Naturally Imperative?
 
 Agent orchestration workflows span the imperative-declarative spectrum. Some are naturally imperative:
 
@@ -146,7 +146,7 @@ For these workflows, declarative specification is cleaner:
 
 ## The Hybrid Reality: DAGs as Middle Ground
 
-DAG-based systems like WinDAGs occupy a middle ground:
+DAG-based systems like Jury-rig occupy a middle ground:
 - **More imperative than declarative**: Edges represent explicit dependencies (A→B means "B after A")
 - **More declarative than imperative code**: No explicit "if-then-else" in edges; just dependencies
 
@@ -174,7 +174,7 @@ When you force imperative workflows into declarative systems (or vice versa), se
 - Imperative approach: Explicit build steps in fixed order
 - **Problem**: Overspecifies execution order, prevents parallelism, hard to maintain when dependencies change
 
-For WinDAGs, the question is: **which mismatch is more acceptable?**
+For Jury-rig, the question is: **which mismatch is more acceptable?**
 - If you force users to express declarative workflows imperatively, you sacrifice parallelism and flexibility
 - If you force users to express imperative workflows declaratively, you sacrifice control and clarity
 
@@ -216,7 +216,7 @@ The imperative-declarative tension creates documentation challenges:
 
 Neither is obviously superior; they suit different cognitive styles.
 
-For WinDAGs: if your system is DAG-based (more imperative), documentation should emphasize:
+For Jury-rig: if your system is DAG-based (more imperative), documentation should emphasize:
 - Explicit routing paths (what happens after each task)
 - Conditional edges (what conditions determine routing)
 - Execution flow (walk through the DAG explaining order)
@@ -228,7 +228,7 @@ If your system supports declarative elements (constraints, dataflow), documentat
 
 ## Practical Design Guidance
 
-**For WinDAGs designers:**
+**For Jury-rig designers:**
 
 **1. Embrace the imperative nature of complex workflows**
 - Acknowledge that many agent coordination problems require explicit routing
@@ -246,7 +246,7 @@ If your system supports declarative elements (constraints, dataflow), documentat
 - Don't trap users in abstractions that don't fit
 
 **4. Be honest about where you are on the spectrum**
-- If WinDAGs is fundamentally imperative (explicit routing), document this
+- If Jury-rig is fundamentally imperative (explicit routing), document this
 - If certain patterns require declarative reformulation (or are impossible), document this
 - Don't claim to be "fully flexible" if you have strong imperative or declarative bias
 
@@ -258,7 +258,7 @@ Medical protocols, legal processes, approval chains, iterative refinement—thes
 
 For agent orchestration: some agent workflows are imperative (reasoning chains with conditional routing), some are declarative (parallel analysis with dependency constraints). A good orchestration system respects both.
 
-For WinDAGs:
+For Jury-rig:
 - If your DAG formalism is imperative-leaning (explicit edges, conditional routing), lean into it—support rich routing logic
 - If you want to support declarative workflows too, add constraint-based scheduling for parallel tasks
 - Don't try to be everything—be excellent at your natural style and honest about limitations

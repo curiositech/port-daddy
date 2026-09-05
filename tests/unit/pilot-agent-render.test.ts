@@ -25,7 +25,6 @@ const SAMPLE_CONFIG: PilotConfig = {
   skills: ['port-daddy-agent-skill'],
   tools: {
     portDaddyMcp: ['begin_session', 'coordination_preflight'],
-    windagsMcp: ['windags_skill_search'],
     editorLocal: ['Read', 'Edit', 'Bash'],
   },
 };
@@ -78,7 +77,6 @@ describe('claudeToolList', () => {
     expect(claudeToolList(SAMPLE_CONFIG)).toEqual([
       'mcp__port-daddy__begin_session',
       'mcp__port-daddy__coordination_preflight',
-      'mcp__windags__windags_skill_search',
       'Read',
       'Edit',
       'Bash',
@@ -93,7 +91,7 @@ describe('renderClaude', () => {
       '---',
       'name: port-daddy-pilot',
       'description: "The ideal Port Daddy agent: coordinates before it cuts."',
-      'tools: mcp__port-daddy__begin_session, mcp__port-daddy__coordination_preflight, mcp__windags__windags_skill_search, Read, Edit, Bash',
+      'tools: mcp__port-daddy__begin_session, mcp__port-daddy__coordination_preflight, Read, Edit, Bash',
       'model: opus',
       'color: green',
       '---',
@@ -184,11 +182,10 @@ describe('installPilotAgents', () => {
     mkdirSync(join(base, '.claude', 'agents'), { recursive: true });
     writeFileSync(claudePath, foreignContent);
     const result = installPilotAgents({ sourceDir: src, baseDir: base });
-    expect(result.errors).toContainEqual({
+    expect(result.errors).toContainEqual(expect.objectContaining({
       runtime: 'Claude Code',
-      path: claudePath,
-      error: 'exists and is not a Port Daddy Pilot file — skipping',
-    });
+      code: 'UNMANAGED_TARGET',
+    }));
     expect(result.written.map((w) => w.runtime)).not.toContain('Claude Code');
     expect(readFileSync(claudePath, 'utf8')).toBe(foreignContent);
   });
@@ -201,7 +198,7 @@ describe('installPilotAgents', () => {
     ]);
   });
 
-  test('removes stale generated copies without deleting foreign files', () => {
+  test('preserves stale files without verified prior-installation ownership', () => {
     const src = seedSource();
     const base = makeTmp();
     const staleGenerated = join(base, '.codex', 'agents', 'port-daddy-pilot.md');
@@ -215,15 +212,15 @@ describe('installPilotAgents', () => {
 
     expect(result.cleaned).toContainEqual({
       runtime: 'Codex CLI',
-      path: staleGenerated,
-      changed: true,
+      path: expect.stringContaining('/.codex/agents/port-daddy-pilot.md'),
+      changed: false,
     });
     expect(result.cleaned).toContainEqual({
       runtime: 'Generic agents',
-      path: staleForeign,
+      path: expect.stringContaining('/.agents/port-daddy-pilot.md'),
       changed: false,
     });
-    expect(existsSync(staleGenerated)).toBe(false);
+    expect(readFileSync(staleGenerated, 'utf8')).toBe('old generated port-daddy-pilot markdown');
     expect(readFileSync(staleForeign, 'utf8')).toBe('hand-written universal agent');
   });
 });

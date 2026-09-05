@@ -9,9 +9,9 @@ description: >
   demote them to EXPLORATORY, or prune them before launching the next wave. Parley is a scheduled operation triggered by
   wave completion — not an ad-hoc intervention — making wave boundaries the natural formation-break point where plans
   meet reality.
-author: soma-windags-graft
+author: soma-jury_rig-graft
 tags:
-  - windags
+  - jury_rig
   - dag-execution
   - wave-management
   - parley
@@ -20,24 +20,24 @@ tags:
   - commitment-level
   - adaptive-planning
 pairs-with:
-  - windags-premortem
-  - windags-resilience
-  - windags-decomposer
-  - windags-architect
+  - jury_rig-premortem
+  - jury_rig-resilience
+  - jury_rig-decomposer
+  - jury_rig-architect
   - dag-mutation-strategist
 license: Apache-2.0
 allowed-tools: Read,Write,Edit,Glob,Grep
 metadata:
   provenance:
     kind: imported
-    source: workgroup-ai / windags skill library (rehomed 2026-07-04)
+    source: workgroup-ai / jury_rig skill library (rehomed 2026-07-04)
 ---
 
 # Wave-by-Wave Parley
 
 ## When to Use
 
-- Any multi-wave WinDAGs execution where the decomposer emitted at least one subtask with
+- Any multi-wave Jury-rig execution where the decomposer emitted at least one subtask with
   `commitment_level: TENTATIVE` or `EXPLORATORY` — those nodes were uncertain at plan time and
   must be re-evaluated after each wave delivers new evidence.
 - The premortem returned `recommendation: ACCEPT_WITH_MONITORING` or `ESCALATE_TO_HUMAN` before

@@ -12,6 +12,7 @@ import type { Counters } from './counters.js';
 import type { TupleSpace } from './tuples.js';
 import type { SemanticAlias } from './semantic-terms.js';
 import { createGatedLoader, type GatedLoader } from './observability/gated-loader.js';
+import { localModelDownloadDisabledError } from './agent-resilience.js';
 import type { LogGovernor } from './observability/log-governor.js';
 
 /**
@@ -814,13 +815,7 @@ async function createDefaultEmbedder(cacheDir: string, modelId: string): Promise
   mkdirSync(cacheDir, { recursive: true });
   const policy = resolveRemoteModelPolicy(cacheDir, modelId);
   if (policy.mode === 'unavailable') {
-    throw new Error(
-      `semantic embedder unavailable: model ${modelId} is not cached at ${cacheDir} and remote model ` +
-      'download is disabled by default (local-only egress policy; no network attempt was made). ' +
-      'Prefetch it while online (npx tsx scripts/prefetch-embedding-model.ts) or set ' +
-      `${ALLOW_MODEL_DOWNLOAD_ENV}=1 to opt in to a one-time download from huggingface.co. ` +
-      'Until then, retrieval falls back to the lexical (BM25) path and is labeled degraded.',
-    );
+    throw localModelDownloadDisabledError();
   }
   ensureOnnxRuntimeNativeLibFindable();
   const { env, pipeline } = await import('@huggingface/transformers');

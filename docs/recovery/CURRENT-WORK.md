@@ -195,7 +195,7 @@ The `agentsd.ai` public-site reset is now explicit repo work, not chat residue.
     `dns_records` zero-row).
 - 2026-04-29 app-native development cockpit sketch:
   - New product sketch at `docs/shipwright/APP-NATIVE-DEVELOPMENT-COCKPIT.md`.
-  - It ties roadmap intake, Idea Lab/Trove curation, Windags skill-grafted planning, Coordination Guard, multi-backend launches, worktree collapse, editor claim overlays, HITL decisions, Tube, and day-over-day progress logs into one Fleet Control Center cockpit.
+  - It ties roadmap intake, Idea Lab/Trove curation, Jury-rig skill-grafted planning, Coordination Guard, multi-backend launches, worktree collapse, editor claim overlays, HITL decisions, Tube, and day-over-day progress logs into one Fleet Control Center cockpit.
   - The Idea Lab lane makes `IDEAS-TROVE.md` visible as the promotion surface for Spark/Spider output instead of treating raw `.spark/ideas/` or `.spider/connections/` files as backlog truth.
 - 2026-04-29 stash/worktree harvest:
   - New stash recovery branches `codex/stash-exact-20260429-19-*` and

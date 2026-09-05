@@ -10,6 +10,7 @@
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import type { ActorSouls } from '../lib/actor-souls.js';
 import {
+  authorizeSessionOwner,
   extractActorCredential,
   resolveWriteIdentity,
   stampIdentityMetadata,
@@ -27,6 +28,10 @@ import { isReservedIdentityName } from '../lib/reserved-identity-names.js';
 type SugarActorSouls = Pick<ActorSouls, 'verifyCredential' | 'resolveActor' | 'register'>;
 
 interface SugarRouteDeps {
+  sessions?: {
+    get(sessionId: string): Record<string, unknown>;
+    list(options?: Record<string, unknown>): Record<string, unknown>;
+  } | null;
   sugar: {
     begin(options: Record<string, unknown>): Record<string, unknown>;
     done(options: Record<string, unknown>): Record<string, unknown>;
@@ -62,7 +67,7 @@ function parseBeginLifecycle(value: unknown): BeginLifecycle | null {
 // =============================================================================
 export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (fastify, opts) => {
   const { deps } = opts;
-  const { sugar, metrics, logger, actorSouls } = deps;
+  const { sugar, sessions, metrics, logger, actorSouls } = deps;
 
   /**
    * Resolve the identity for `/sugar/begin` — the fleet's mint door.
@@ -233,12 +238,12 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
       return reservedNameRejection(name);
     }
 
-    // Mint a fresh newcomer soul. The identity's project scopes the shared
-    // newcomer admission pool; the alias is NOT bound (identities like
+    // Mint a fresh newcomer soul. The alias is NOT bound (identities like
     // "proj:node:dev" are shared display strings across a fleet, and binding
     // one agent's soul to them would lock every other legitimate agent out).
-    const project = identity ? identity.split(':')[0] : undefined;
-    const outcome = actorSouls.register({ project });
+    // Budget guard still resolves the minted soul into the shared newcomer
+    // spend pool; registration count is not an authority boundary.
+    const outcome = actorSouls.register({});
     if (!outcome.ok) {
       logger.error('identity_write_rejected', { route: 'POST /sugar/begin', code: outcome.code });
       return {
@@ -246,9 +251,7 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
         httpStatus: outcome.httpStatus,
         result: {
           success: false,
-          error: outcome.code === 'NEWCOMER_ADMIT_LIMIT'
-            ? 'newcomer admission limit reached for this project today'
-            : 'identity store unavailable',
+          error: 'identity store unavailable',
           code: outcome.code,
         },
       };
@@ -308,6 +311,156 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
     return { success: true, verdict };
   };
 
+  /**
+   * Authorize an explicit sugar target against the owner stored on that
+   * session, then return its canonical agent id for the service layer.
+   *
+   * Design intent: a valid credential proves the caller actor but never grants
+   * authority over an arbitrary `sessionId`. Caller-supplied `agentId` is not
+   * consulted here; the daemon-stamped owner is the only binding.
+   *
+   * @param sessionId - Explicit request target, when present.
+   * @param verdict - Credential-backed identity verdict from this request.
+   * @returns Stored owner for an authorized target, no owner for agent-scoped
+   *          resolution, or a structured HTTP rejection.
+   */
+  const authorizeSugarSession = (
+    sessionId: unknown,
+    assertedAgentId: unknown,
+    verdict: Extract<IdentityWriteVerdict, { ok: true }>,
+  ):
+    | { success: true; sessionId: string; ownerAgentId: string }
+    | { success: false; httpStatus: number; result: Record<string, unknown> } => {
+    if (verdict.kind !== 'verified') {
+      return {
+        success: false,
+        httpStatus: 401,
+        result: {
+          success: false,
+          code: 'IDENTITY_CREDENTIAL_REQUIRED',
+          error: 'explicit session mutation requires a verified actor credential',
+        },
+      };
+    }
+    if (!sessions) {
+      return {
+        success: false,
+        httpStatus: 503,
+        result: {
+          success: false,
+          code: 'SESSION_STORE_UNAVAILABLE',
+          error: 'session ownership cannot be verified because the session store is unavailable',
+        },
+      };
+    }
+    const explicitSessionId = typeof sessionId === 'string' && sessionId.trim()
+      ? sessionId.trim()
+      : null;
+    const asserted = typeof assertedAgentId === 'string' && assertedAgentId.trim()
+      ? assertedAgentId.trim()
+      : null;
+    let candidates: Array<Record<string, unknown>> = [];
+    if (explicitSessionId) {
+      const lookup = sessions.get(explicitSessionId);
+      const stored = lookup.success === true && lookup.session && typeof lookup.session === 'object'
+        ? lookup.session as Record<string, unknown>
+        : null;
+      if (stored) candidates = [stored];
+    } else {
+      const listed = sessions.list({
+        status: 'active',
+        ...(asserted ? { agentId: asserted } : {}),
+        allWorktrees: true,
+        limit: 5_000,
+      });
+      candidates = listed.success === true && Array.isArray(listed.sessions)
+        ? listed.sessions.filter((row): row is Record<string, unknown> => Boolean(row) && typeof row === 'object')
+        : [];
+    }
+
+    if (candidates.length === 0) {
+      return {
+        success: false,
+        httpStatus: 404,
+        result: {
+          success: false,
+          code: 'NO_ACTIVE_SESSION',
+          error: explicitSessionId
+            ? `Session ${explicitSessionId} not found`
+            : 'No active session belongs to the presented actor.',
+        },
+      };
+    }
+
+    const authorized = candidates.flatMap((stored) => {
+      const authorization = authorizeSessionOwner(stored, verdict, actorSouls);
+      return authorization.ok ? [{ stored, authorization }] : [];
+    });
+    if (authorized.length === 0) {
+      if (!explicitSessionId) {
+        return {
+          success: false,
+          httpStatus: 404,
+          result: {
+            success: false,
+            code: 'NO_ACTIVE_SESSION',
+            error: 'No active session belongs to the presented actor.',
+          },
+        };
+      }
+      const firstFailure = authorizeSessionOwner(candidates[0], verdict, actorSouls);
+      return {
+        success: false,
+        httpStatus: firstFailure.ok ? 403 : firstFailure.httpStatus,
+        result: {
+          success: false,
+          code: firstFailure.ok ? 'SESSION_OWNERSHIP_MISMATCH' : firstFailure.code,
+          error: firstFailure.ok
+            ? 'the presented credential does not own the selected session'
+            : firstFailure.error,
+        },
+      };
+    }
+    if (authorized.length > 1) {
+      return {
+        success: false,
+        httpStatus: 409,
+        result: {
+          success: false,
+          code: 'AMBIGUOUS_ACTIVE_SESSION',
+          error: 'Multiple active sessions match this actor; pass an exact sessionId.',
+          candidates: authorized.map(({ stored }) => ({
+            sessionId: typeof stored.id === 'string' ? stored.id : '<unknown>',
+            worktreeId: typeof stored.worktreeId === 'string' ? stored.worktreeId : null,
+            status: typeof stored.status === 'string' ? stored.status : null,
+            lifecycle: stored.durable === true ? 'durable' : 'ephemeral',
+          })),
+        },
+      };
+    }
+
+    const [{ stored, authorization }] = authorized;
+    const resolvedSessionId = typeof stored.id === 'string' && stored.id.trim()
+      ? stored.id.trim()
+      : null;
+    if (!resolvedSessionId) {
+      return {
+        success: false,
+        httpStatus: 403,
+        result: {
+          success: false,
+          code: 'SESSION_OWNER_UNVERIFIABLE',
+          error: 'the selected session has no stable identifier; refusing mutation',
+        },
+      };
+    }
+    return {
+      success: true,
+      sessionId: resolvedSessionId,
+      ownerAgentId: authorization.ownerAgentId,
+    };
+  };
+
   // POST /sugar/begin
   fastify.post('/sugar/begin', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
@@ -323,7 +476,6 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
         worktree,
         requireLinkedWorktree,
         allowMainWorktree,
-        bypassCrowdedGate,
         lifecycle: rawLifecycle,
         roadmapLink,
         sidequestReason,
@@ -387,6 +539,14 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
         return beginIdentity.result;
       }
 
+      const callerMetadata = metadata && typeof metadata === 'object' && !Array.isArray(metadata)
+        ? { ...metadata as Record<string, unknown> }
+        : null;
+      // This proof is written only by the daemon's in-process spawner seam.
+      // A public caller cannot pre-seed the marker and acquire managed
+      // completion authority through request metadata.
+      if (callerMetadata) delete callerMetadata.managedSpawn;
+
       const result = sugar.begin({
         purpose,
         identity,
@@ -399,13 +559,12 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
         // identity verdict into its metadata (the caller-supplied `identity`
         // metadata key can never pre-fill the daemon's verdict slot).
         metadata: stampIdentityMetadata(
-          metadata && typeof metadata === 'object' && !Array.isArray(metadata) ? metadata : null,
+          callerMetadata,
           beginIdentity.verdict,
         ),
         worktree,
         requireLinkedWorktree,
         allowMainWorktree,
-        bypassCrowdedGate,
         lifecycle,
         roadmapLink,
         sidequestReason,
@@ -413,7 +572,12 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
       });
 
       if (!result.success) {
-        const status = result.code === 'AGENT_REGISTRATION_FAILED'
+        const status = result.code === 'SESSION_OWNERSHIP_MISMATCH'
+          || result.code === 'SESSION_OWNER_UNVERIFIABLE'
+          ? 403
+          : result.code === 'AMBIGUOUS_ACTIVE_SESSION'
+            ? 409
+        : result.code === 'AGENT_REGISTRATION_FAILED'
           || result.code === 'WORKTREE_REQUIRED'
           || result.code === 'MAIN_WORKTREE_SESSION_FORBIDDEN'
           || result.code === 'MAIN_WORKTREE_CROWDED'
@@ -422,8 +586,8 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
           || result.code === 'ROADMAP_TITLE_REQUIRED'
           || result.code === 'SIDEQUEST_REASON_TOO_SHORT'
           || result.code === 'ROADMAP_ITEMS_UNAVAILABLE'
-          ? 400
-          : 500;
+            ? 400
+            : 500;
         logger.warn('sugar_begin_rejected', {
           code: result.code,
           error: result.error,
@@ -504,9 +668,25 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
         return doneIdentity.result;
       }
 
+      const doneSession = authorizeSugarSession(sessionId, agentId, doneIdentity.verdict);
+      if (!doneSession.success) {
+        reply.code(doneSession.httpStatus);
+        return doneSession.result;
+      }
+
+      if (skipOriginCheck === true || forceIncomplete === true) {
+        reply.code(403);
+        return {
+          success: false,
+          code: 'OPERATOR_CAPABILITY_REQUIRED',
+          error: 'completion overrides require a daemon-verified, action-scoped operator capability; actor credentials and reason strings are not operator authority',
+          hint: 'Complete the delivery and plan gates normally. Managed ephemeral spawns use the daemon-owned exact-session completion path.',
+        };
+      }
+
       const result = sugar.done({
-        agentId,
-        sessionId,
+        agentId: doneSession.ownerAgentId,
+        sessionId: doneSession.sessionId,
         note,
         status,
         skipOriginCheck,
@@ -521,12 +701,16 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
         const httpStatus = result.code === 'NO_ACTIVE_SESSION'
           ? 404
           : result.code === 'SESSION_OWNERSHIP_MISMATCH'
-            ? 409
+            || result.code === 'SESSION_OWNER_UNVERIFIABLE'
+            || result.code === 'OPERATOR_CAPABILITY_REQUIRED'
+            ? 403
+            : result.code === 'AMBIGUOUS_ACTIVE_SESSION'
+              ? 409
+              : result.code === 'NO_ACTIVE_SESSION_SCOPE'
+                ? 400
             : result.code === 'BRANCH_NOT_ON_ORIGIN'
               || result.code === 'RESULT_NOTE_MISSING_SENTINEL'
-              || result.code === 'SKIP_ORIGIN_CHECK_REASON_REQUIRED'
               || result.code === 'PLAN_UNCHECKED_ITEMS'
-              || result.code === 'FORCE_INCOMPLETE_REASON_REQUIRED'
               ? 400
               : 500;
         reply.code(httpStatus);
@@ -561,13 +745,29 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
         return relinkIdentity.result;
       }
 
-      const result = sugar.relink({ agentId, sessionId, roadmapLink, sidequestReason });
+      const relinkSession = authorizeSugarSession(sessionId, agentId, relinkIdentity.verdict);
+      if (!relinkSession.success) {
+        reply.code(relinkSession.httpStatus);
+        return relinkSession.result;
+      }
+
+      const result = sugar.relink({
+        agentId: relinkSession.ownerAgentId,
+        sessionId: relinkSession.sessionId,
+        roadmapLink,
+        sidequestReason,
+      });
 
       if (!result.success) {
         const status = result.code === 'NO_ACTIVE_SESSION'
           ? 404
           : result.code === 'SESSION_OWNERSHIP_MISMATCH'
-            ? 409
+            || result.code === 'SESSION_OWNER_UNVERIFIABLE'
+            ? 403
+            : result.code === 'AMBIGUOUS_ACTIVE_SESSION'
+              ? 409
+              : result.code === 'NO_ACTIVE_SESSION_SCOPE'
+                ? 400
             : result.code === 'ROADMAP_RENT_CONFLICT'
               || result.code === 'ROADMAP_RENT_REQUIRED'
               || result.code === 'ROADMAP_SLUG_UNKNOWN'

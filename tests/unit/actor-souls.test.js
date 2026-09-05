@@ -82,7 +82,7 @@ describe('actor-souls: register() outcome table (property c)', () => {
   let db, souls;
   beforeEach(() => {
     db = createTestDb();
-    souls = createActorSouls(db, { operatorSecret: 'operator-shibboleth', newcomerAdmitMax: 3 });
+    souls = createActorSouls(db, { operatorSecret: 'operator-shibboleth' });
   });
   afterEach(() => db.close());
 
@@ -116,44 +116,34 @@ describe('actor-souls: register() outcome table (property c)', () => {
     expect(out.ok && out.soulClass).toBe('newcomer');
   });
 
-  test('admission rate-limit rejects 429 past newcomerAdmitMax per project/day', () => {
+  test('more than 25 project and projectless newcomers mint unique credentials without changing the legacy counter', () => {
     const day = '2026-07-15';
-    for (let i = 0; i < 3; i++) {
-      const ok = souls.register({ alias: `p:s:${i}`, project: 'proj', day });
-      expect(ok.ok).toBe(true);
-    }
-    const over = souls.register({ alias: 'p:s:overflow', project: 'proj', day });
-    expect(over.ok).toBe(false);
-    expect(over.code).toBe('NEWCOMER_ADMIT_LIMIT');
-    expect(over.httpStatus).toBe(429);
-  });
+    db.prepare(`
+      INSERT INTO newcomer_pool (project, day, spend_usd, souls_seen)
+      VALUES ('proj', ?, 0.25, 25), ('__projectless__', ?, 0.5, 25)
+    `).run(day, day);
 
-  // Defect B (#8877): a registration that omits `project` must STILL be
-  // metered. Before the fix the admission pool was keyed only when a project
-  // was supplied, so `register({})` skipped the pool entirely and minted
-  // unlimited free souls (500+ observed with no 429) — the anti-launder floor
-  // was opt-in. Projectless registrations now share one reserved global bucket.
-  test('projectless registrations are metered and 429 past the admit limit', () => {
-    const day = '2026-07-15';
-    for (let i = 0; i < 3; i++) {
-      const ok = souls.register({ day }); // no project, no alias — the bypass
-      expect(ok.ok).toBe(true);
-      expect(ok.status).toBe('minted');
-    }
-    const over = souls.register({ day });
-    expect(over.ok).toBe(false);
-    expect(over.code).toBe('NEWCOMER_ADMIT_LIMIT');
-    expect(over.httpStatus).toBe(429);
-  });
+    const projectMints = Array.from({ length: 30 }, (_, i) => (
+      souls.register({ alias: `p:s:${i}`, project: 'proj', day })
+    ));
+    const projectlessMints = Array.from({ length: 30 }, () => souls.register({ day }));
+    const allMints = [...projectMints, ...projectlessMints];
 
-  test('the projectless bucket is distinct from a named project (no cross-starvation)', () => {
-    const day = '2026-07-15';
-    // Exhaust the projectless bucket.
-    for (let i = 0; i < 3; i++) expect(souls.register({ day }).ok).toBe(true);
-    expect(souls.register({ day }).code).toBe('NEWCOMER_ADMIT_LIMIT');
-    // A named project still has its own fresh allowance — projectless spend did
-    // not consume it, and a real project cannot be starved by the sentinel.
-    expect(souls.register({ project: 'proj', day }).ok).toBe(true);
+    for (const outcome of allMints) {
+      expect(outcome).toMatchObject({ ok: true, status: 'minted', soulClass: 'newcomer' });
+      expect(typeof outcome.credential).toBe('string');
+    }
+    expect(new Set(allMints.map((outcome) => outcome.actorId)).size).toBe(60);
+    expect(new Set(allMints.map((outcome) => outcome.credential)).size).toBe(60);
+    expect(db.prepare(`
+      SELECT project, spend_usd, souls_seen
+      FROM newcomer_pool
+      WHERE day = ?
+      ORDER BY project
+    `).all(day)).toEqual([
+      { project: '__projectless__', spend_usd: 0.5, souls_seen: 25 },
+      { project: 'proj', spend_usd: 0.25, souls_seen: 25 },
+    ]);
   });
 
   // ── Defect C (round 2): the register/alias-bind door is the SECOND way to

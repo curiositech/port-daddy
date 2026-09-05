@@ -387,9 +387,9 @@ function PrimitiveMapPage({ page }: { page: DocsContentPage }) {
       </section>
 
       <SurfacePanel tone="blue" className="space-y-[var(--panel-gap)]">
-        <BracketLabel surface="blue">WinDAGs dossier trail</BracketLabel>
+        <BracketLabel surface="blue">Jury-rig dossier trail</BracketLabel>
         <PanelTitle as="h2" size="card" tone="primary" className="max-w-[18ch]">
-          WinDAGs skill dossiers.
+          Jury-rig skill dossiers.
         </PanelTitle>
         <PanelBody tone="primary" className="max-w-[58rem]">
           External coordination references for the primitive map.

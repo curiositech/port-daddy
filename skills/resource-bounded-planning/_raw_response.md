@@ -47,13 +47,13 @@ The authors identify three specific ways plans constrain reasoning:
 
 ## Why This Matters for Agent Systems
 
-For multi-agent orchestration systems like WinDAGs, this architectural insight has profound implications:
+For multi-agent orchestration systems like Jury-rig, this architectural insight has profound implications:
 
 **Decomposition**: When a WinDAG agent receives a complex task, the act of forming even a partial plan (deciding on high-level approach) immediately constrains what skills need to be considered next. The partial plan doesn't solve the problem, but it transforms an intractable "consider everything" problem into a focused "how do I accomplish X?" problem.
 
 **Coordination**: When multiple agents operate, each agent's plans serve as commitment signals that other agents can rely on for their own planning. If Agent A has committed to producing data in format X by time T, Agent B can plan around this assumption without constantly checking whether A has changed its mind. The stability of plans enables distributed reasoning without constant synchronization.
 
-**Skill Selection**: The 180+ skills in WinDAGs represent an overwhelming option space. If every decision point required evaluating all skills, the system would spend more time in meta-reasoning than actual work. Plans filter this: once you've committed to "refactor this Python module," you're looking at code analysis and transformation skills, not network security audits.
+**Skill Selection**: The 180+ skills in Jury-rig represent an overwhelming option space. If every decision point required evaluating all skills, the system would spend more time in meta-reasoning than actual work. Plans filter this: once you've committed to "refactor this Python module," you're looking at code analysis and transformation skills, not network security audits.
 
 ## The Consistency Requirement
 
@@ -75,7 +75,7 @@ A crucial implication of the constraint-based view is that **plans should be str
 
 This might seem like procrastination, but it's rational resource management. The authors explain: "In addition to bounded computational resources, agents have bounded knowledge. They are neither prescient nor omniscient: the world may change around them in ways they are not in a position to anticipate. Hence highly detailed plans about the far future will often be of little use, the details not worth bothering about" (p. 9).
 
-For WinDAGs: An orchestration system receives a request to "implement OAuth authentication." A rational response is:
+For Jury-rig: An orchestration system receives a request to "implement OAuth authentication." A rational response is:
 1. **Immediate commitment**: "I will implement OAuth authentication"
 2. **Partial decomposition**: "I need to (a) choose OAuth provider, (b) implement token exchange, (c) add middleware"
 3. **Deferred details**: Specific library choices, error handling strategies, and test approaches remain unspecified
@@ -127,7 +127,7 @@ By committing to plans that constrain future reasoning, the agent accepts that i
 
 As the authors note: "Other things being equal, an agent's plans should be consistent, both internally and with her beliefs" (p. 8). That "other things being equal" is crucial — when things aren't equal (major unexpected changes), plans can be revised. But the default is stability, because stability is what enables the computational savings that make bounded rationality possible.
 
-For WinDAGs and similar systems, the lesson is clear: **don't architect agents as optimization engines that continuously re-evaluate everything. Architect them as commitment-forming systems that use plans to bound their reasoning and create tractable subproblems.** The partial plan isn't a limitation to be overcome; it's the mechanism that makes intelligent action possible under resource bounds.
+For Jury-rig and similar systems, the lesson is clear: **don't architect agents as optimization engines that continuously re-evaluate everything. Architect them as commitment-forming systems that use plans to bound their reasoning and create tractable subproblems.** The partial plan isn't a limitation to be overcome; it's the mechanism that makes intelligent action possible under resource bounds.
 
 ```
 
@@ -254,7 +254,7 @@ The paper suggests concrete approaches for implementing filter override mechanis
 - **Risk thresholds**: Reconsider if current plan has > Y failure probability
 - **Priority thresholds**: Reconsider if new option addresses higher-priority goal
 
-For WinDAGs: Override rules might include:
+For Jury-rig: Override rules might include:
 ```
 IF new_option.security_impact = CRITICAL THEN override
 IF new_option.cost_saving > 50% THEN override  
@@ -460,7 +460,7 @@ The structurally partial plan sidesteps this: it defers decisions until informat
 
 ## Implementation for Agent Orchestration
 
-For a system like WinDAGs, this suggests an architecture where:
+For a system like Jury-rig, this suggests an architecture where:
 
 ### 1. Plans Are Explicitly Hierarchical
 
@@ -521,7 +521,7 @@ Better to coordinate early (when plans are partial and flexible) than discover c
 
 ### 4. Skill Selection Is Hierarchical
 
-The 180+ skills in WinDAGs naturally form a hierarchy:
+The 180+ skills in Jury-rig naturally form a hierarchy:
 - High-level: "implement feature", "refactor module", "debug issue"
 - Mid-level: "add authentication", "optimize database queries", "trace error source"
 - Low-level: "generate OAuth code", "add database index", "inspect stack trace"
@@ -947,7 +947,7 @@ The deeper insight is that consistency maintenance is not just a correctness cri
 3. **Problem detection**: Inconsistency signals need for communication or replanning
 4. **Resource management**: Consistent plans don't waste resources on conflicting actions
 
-For WinDAGs and similar systems: **make consistency checking explicit and first-class**. Don't assume plans are consistent; check actively. Don't make consistency checks expensive; use hierarchical approximations. Don't ignore inconsistencies; treat them as coordination requirements.
+For Jury-rig and similar systems: **make consistency checking explicit and first-class**. Don't assume plans are consistent; check actively. Don't make consistency checks expensive; use hierarchical approximations. Don't ignore inconsistencies; treat them as coordination requirements.
 
 The consistency requirement transforms distributed decision-making from intractable (every agent must consider every other agent's detailed plans) to tractable (agents maintain compatible high-level plans and coordinate only when refinements create conflicts).
 
@@ -1437,7 +1437,7 @@ When multiple agents coordinate, temporal dynamics create patterns:
 
 **Hierarchical Execution**: Agent B executes subtask for Agent A. Requires B's deadline < A's means-end coherence threat time.
 
-For WinDAGs orchestrating 180+ skills across multiple agents:
+For Jury-rig orchestrating 180+ skills across multiple agents:
 
 **Temporal coordination overhead scales with plan precision**:
 - High-level plans ("implement authentication", "update tests") → minimal coordination needed, can execute concurrently
@@ -1521,7 +1521,7 @@ For agent systems: **Make temporal dynamics explicit**. Don't just track what th
 ## CROSS-DOMAIN CONNECTIONS
 
 **Agent Orchestration**: 
-The BDI architecture provides a complete framework for orchestrating multiple AI agents. Each agent maintains beliefs (about world state and other agents), desires (goals to achieve), and intentions (committed plans). The filtering and override mechanisms enable agents to coordinate without constant communication — consistency checking against partial plans allows independent execution with bounded coordination overhead. For WinDAGs specifically, this maps to: beliefs = system state and capability models, desires = user requests and system goals, intentions = committed execution plans with deferred details.
+The BDI architecture provides a complete framework for orchestrating multiple AI agents. Each agent maintains beliefs (about world state and other agents), desires (goals to achieve), and intentions (committed plans). The filtering and override mechanisms enable agents to coordinate without constant communication — consistency checking against partial plans allows independent execution with bounded coordination overhead. For Jury-rig specifically, this maps to: beliefs = system state and capability models, desires = user requests and system goals, intentions = committed execution plans with deferred details.
 
 **Task Decomposition**: 
 The paper's treatment of structural partiality and means-end coherence provides a principled approach to hierarchical decomposition. Rather than expanding all details immediately (traditional hierarchical planning), decompose to the level necessary for means-end coherence and defer further detail. This "just-in-time decomposition" matches how humans actually break down complex tasks — commit to approach before finalizing implementation details. For agent systems, this means task queues should support hierarchical partial tasks, not flat lists.
