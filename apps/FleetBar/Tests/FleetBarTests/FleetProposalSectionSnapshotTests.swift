@@ -1,10 +1,37 @@
 import AppKit
 import SwiftUI
+import ViewInspector
 import XCTest
 @testable import FleetBar
 
 @MainActor
 final class FleetProposalSectionSnapshotTests: XCTestCase {
+    override func tearDown() {
+        StubURLProtocol.handler = nil
+        super.tearDown()
+    }
+
+    func testCriticalAskDisablesAssignmentButLeavesRejectionAvailable() async throws {
+        StubURLProtocol.handler = { _ in
+            StubURLProtocol.Stub(status: 200, body: Self.pendingProposalEnvelope)
+        }
+        let store = FleetProposalStore(
+            autoStart: false,
+            baseURL: "https://daemon.example",
+            session: StubURLProtocol.makeSession()
+        )
+        await store.refresh()
+        let reason = "Resolve critical operator ask “Choose deployment target” before starting more work."
+        let inspected = try FleetProposalSection(
+            store: store,
+            criticalBlockTitle: "Choose deployment target"
+        ).inspect()
+
+        XCTAssertTrue(try inspected.find(button: "Yes, Assign").isDisabled())
+        XCTAssertFalse(try inspected.find(button: "No").isDisabled())
+        XCTAssertNoThrow(try inspected.find(text: reason))
+    }
+
     func testRenderFleetProposalSectionSnapshotWhenRequested() async throws {
         let env = ProcessInfo.processInfo.environment
         guard let output = env["FLEETBAR_PROPOSAL_SNAPSHOT_OUT"], !output.isEmpty else {
@@ -38,4 +65,26 @@ final class FleetProposalSectionSnapshotTests: XCTestCase {
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         try data.write(to: url)
     }
+
+    private static let pendingProposalEnvelope = """
+    {
+      "success": true,
+      "pendingCount": 1,
+      "proposals": [{
+        "id": "proposal-1",
+        "title": "Build the account lane",
+        "summary": "Add native account settings.",
+        "proposalMarkdown": "A focused proposal.",
+        "sourceShip": "spark",
+        "sourceKind": "cloud-fleet",
+        "assignmentType": "specialist-pr",
+        "baseBranch": "main",
+        "writePolicy": "approved-dispatch-only",
+        "expectedArtifacts": [],
+        "links": [],
+        "status": "pending",
+        "createdAt": 2000000000000
+      }]
+    }
+    """.data(using: .utf8)!
 }

@@ -468,6 +468,82 @@ final class FleetPopoverTests: XCTestCase {
         XCTAssertTrue(fired, "Remediation button must invoke onRemediateProject when tapped")
     }
 
+    func testCriticalAskDisablesPopoverStartButKeepsStopAvailable() throws {
+        let critical = InterruptionsStore.fixture(phase: .open([
+            OperatorInterruption(
+                id: "oi-critical",
+                title: "Choose deployment target",
+                urgency: .critical,
+                sourceAgent: "operator-gate",
+                createdAt: 0
+            ),
+        ]))
+
+        let idleStore = FleetStore(autoStart: false)
+        idleStore.isDaemonRunning = true
+        idleStore.projects = [project(agents: [agent(name: "builder", status: .idle)])]
+        let idlePopover = try FleetPopover(
+            store: idleStore,
+            costStore: CostStore(autoStart: false),
+            backendStore: BackendStore(autoStart: false),
+            interruptionsStore: critical
+        ).inspect()
+        XCTAssertTrue(try idlePopover.find(button: "Start Fleet").isDisabled())
+
+        let runningStore = FleetStore(autoStart: false)
+        runningStore.isDaemonRunning = true
+        runningStore.projects = [project(agents: [agent(name: "builder", status: .running)])]
+        let runningPopover = try FleetPopover(
+            store: runningStore,
+            costStore: CostStore(autoStart: false),
+            backendStore: BackendStore(autoStart: false),
+            interruptionsStore: critical
+        ).inspect()
+        XCTAssertFalse(try runningPopover.find(button: "Stop Fleet").isDisabled())
+    }
+
+    func testCriticalAskDisablesStartFleetRemediationButKeepsInspectionAvailable() throws {
+        let remediation = ProjectRemediation(
+            action: "start_fleet",
+            title: "Start fleet",
+            detail: "Starts this pd-fleet.yml on the current daemon.",
+            command: nil,
+            suggestedBudgetUsdPerDay: nil
+        )
+        let row = ProjectReadinessRow(
+            project: projectWithRemediation(remediation),
+            criticalBlockTitle: "Choose deployment target",
+            onOpenProject: {},
+            onOpenVisualTask: {},
+            onRemediateProject: {}
+        )
+        let inspected = try row.inspect()
+
+        XCTAssertTrue(try inspected.find(button: "Start fleet").isDisabled())
+        let buttons = inspected.findAll(ViewType.Button.self)
+        XCTAssertEqual(buttons.count, 3)
+        XCTAssertEqual(buttons.filter { !$0.isDisabled() }.count, 2)
+    }
+
+    func testCriticalAskDoesNotDisableBudgetRemediation() throws {
+        let remediation = ProjectRemediation(
+            action: "set_budget",
+            title: "Set $5/day budget",
+            detail: "Sets a budget without starting work.",
+            command: nil,
+            suggestedBudgetUsdPerDay: 5
+        )
+        let row = ProjectReadinessRow(
+            project: projectWithRemediation(remediation),
+            criticalBlockTitle: "Choose deployment target",
+            onOpenProject: {},
+            onOpenVisualTask: {},
+            onRemediateProject: {}
+        )
+        let inspected = try row.inspect()
+        XCTAssertFalse(try inspected.find(button: "Set $5/day budget").isDisabled())
+    }
+
     func testRemediationButtonIconMapsActionToVerb() throws {
         // The icon picker is private to ProjectReadinessRow but the user-
         // visible contract is "the glyph reinforces the verb". Spot-check a

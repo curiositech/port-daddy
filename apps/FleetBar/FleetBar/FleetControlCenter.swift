@@ -1,11 +1,65 @@
 import SwiftUI
 
+enum CriticalAttentionAction: CaseIterable {
+    case startFleet
+    case assignProposal
+    case proposeDispatch
+    case approveDispatch
+    case stopFleet
+    case reject
+    case inspect
+    case recovery
+
+    var startsNewWork: Bool {
+        switch self {
+        case .startFleet, .assignProposal, .proposeDispatch, .approveDispatch: return true
+        case .stopFleet, .reject, .inspect, .recovery: return false
+        }
+    }
+}
+
+enum CriticalAttentionGate {
+    static func blockReason(for action: CriticalAttentionAction, criticalTitle: String?) -> String? {
+        guard action.startsNewWork, let criticalTitle else { return nil }
+        let title = criticalTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        let displayTitle = title.isEmpty ? "Untitled critical request" : title
+        return "Resolve critical operator ask “\(displayTitle)” before starting more work."
+    }
+}
+
+struct CriticalAttentionBanner: View {
+    let reason: String
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: Fleet.Space.s) {
+            Image(systemName: "exclamationmark.octagon.fill")
+                .foregroundStyle(Fleet.Color.failure)
+            Text(reason)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(Fleet.Color.failure)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, Fleet.Space.m)
+        .padding(.vertical, Fleet.Space.s)
+        .background(
+            Fleet.Color.failure.opacity(0.09),
+            in: RoundedRectangle(cornerRadius: Fleet.Radius.medium, style: .continuous)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: Fleet.Radius.medium, style: .continuous)
+                .stroke(Fleet.Color.failure.opacity(0.24), lineWidth: 1)
+        )
+    }
+}
+
 struct FleetControlCenter: View {
     @ObservedObject var store: FleetStore
     @ObservedObject var costStore: CostStore
     @ObservedObject var dispatchStore: DispatchStore
     @ObservedObject var proposalStore: FleetProposalStore
     @ObservedObject var backendStore: BackendStore
+    @ObservedObject var interruptionsStore: InterruptionsStore
     @StateObject private var cloudFleetStore = CloudFleetStore()
     @StateObject private var squidHarnessStore = SquidHarnessStore(baseURL: DaemonLocation.availableBaseURL())
 
@@ -150,6 +204,25 @@ struct FleetControlCenter: View {
         return store.totalActive > 0 ? Fleet.Color.failure : Fleet.Color.healthy
     }
 
+    private var fleetActionStartsNewWork: Bool {
+        if let selectedProject {
+            if selectedProject.needsBudget { return false }
+            if selectedProject.remediation?.action == "fix_yaml" { return false }
+            if selectedProject.remediation?.action == "create_fleet"
+                || selectedProject.remediation?.action == "run_scan" { return false }
+            return !selectedProject.isRunning
+        }
+        return store.totalActive == 0
+    }
+
+    private var fleetActionBlockReason: String? {
+        guard fleetActionStartsNewWork else { return nil }
+        return CriticalAttentionGate.blockReason(
+            for: .startFleet,
+            criticalTitle: interruptionsStore.criticalSpawnBlockTitle
+        )
+    }
+
     private var embeddedControlPlaneURL: URL? {
         guard let daemonURL = store.daemonURL,
               var components = URLComponents(string: "\(daemonURL)/fleet-ui/") else {
@@ -240,7 +313,19 @@ struct FleetControlCenter: View {
                         value: "\(store.totalActive)/\(store.totalAgents)",
                         color: store.totalActive > 0 ? Fleet.Color.active : Fleet.Color.dormant
                     )
+                    statusBadge(
+                        title: "Attention",
+                        value: interruptionsStore.openCount.map { String($0) } ?? "unknown",
+                        color: interruptionsStore.openCritical != nil
+                            ? Fleet.Color.failure
+                            : (interruptionsStore.openCount == nil ? Fleet.Color.warning : Fleet.Color.healthy)
+                    )
                 }
+            }
+
+            if let title = interruptionsStore.criticalSpawnBlockTitle,
+               let reason = CriticalAttentionGate.blockReason(for: .startFleet, criticalTitle: title) {
+                CriticalAttentionBanner(reason: reason)
             }
 
             if let daemonStatus = store.daemonStatus {
@@ -282,8 +367,10 @@ struct FleetControlCenter: View {
             ActionPill(
                 title: fleetActionTitle,
                 systemImage: fleetActionIcon,
-                color: fleetActionColor
+                color: fleetActionColor,
+                disabledReason: fleetActionBlockReason
             ) {
+                guard fleetActionBlockReason == nil else { return }
                 Task {
                     if let selectedProject {
                         if selectedProject.needsBudget {
@@ -556,7 +643,10 @@ struct FleetControlCenter: View {
     private var nativeSurfaceContent: some View {
         switch selectedSurface {
         case .proposals:
-            FleetProposalSection(store: proposalStore)
+            FleetProposalSection(
+                store: proposalStore,
+                criticalBlockTitle: interruptionsStore.criticalSpawnBlockTitle
+            )
         case .cloudfleet:
             ScrollView {
                 CloudFleetSection(
@@ -567,7 +657,10 @@ struct FleetControlCenter: View {
                 )
             }
         case .nightshift:
-            FleetControlNightshiftSection(store: dispatchStore)
+            FleetControlNightshiftSection(
+                store: dispatchStore,
+                criticalBlockTitle: interruptionsStore.criticalSpawnBlockTitle
+            )
         case .backend:
             // Backend renders in-process so the operator sees the same
             // BackendStore truth FleetBar's menubar uses, rather than riding
@@ -869,6 +962,7 @@ struct FleetControlCenter: View {
         await dispatchStore.refresh()
         await backendStore.refresh()
         await cloudFleetStore.refresh()
+        await interruptionsStore.refresh()
         syncProjectSelection()
         await squidHarnessStore.refresh(projectDir: selectedProject?.projectDir)
     }
@@ -879,6 +973,7 @@ private struct ActionPill: View {
     let title: String
     let systemImage: String
     let color: Color
+    var disabledReason: String? = nil
     let action: () -> Void
 
     var body: some View {
@@ -894,6 +989,9 @@ private struct ActionPill: View {
                 )
         }
         .buttonStyle(.plain)
+        .disabled(disabledReason != nil)
+        .opacity(disabledReason == nil ? 1 : 0.48)
+        .help(disabledReason ?? "")
     }
 }
 
