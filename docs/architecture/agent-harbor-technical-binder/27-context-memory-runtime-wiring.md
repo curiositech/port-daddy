@@ -214,7 +214,7 @@ loopback Ollama; a remote/cloud generator requires an explicit manual warm.
 
 **The fix (operator-directed):**
 
-- The shipped **build step** is `pd skill-graft warm`; setup starts a detached
+- The shipped **build step** is `pd jury-rig warm`; setup starts a detached
   local-only batch, and daemon startup plus a low-frequency tick invoke the same
   reconciler. `GET /skill-graft/status` is read-only; loopback operators can
   request a bounded batch with `POST /skill-graft/reconcile`. Corpus scale still

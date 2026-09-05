@@ -58,8 +58,8 @@ Split by **disjoint edit surface**, not by line count:
   notes, the validation command. A narrow context is a faster, more accurate
   agent.
 - Where the work needs *different expertise* (Swift vs SQL vs CSS), give each
-  implementer a matching skill via `pd jury-rig query` so the right tacit
-  knowledge is loaded, rather than one generalist guessing across domains.
+  implementer a metadata shortlist via `pd jury-rig search`; graft the selected
+  guidance only when needed rather than loading every candidate or guessing across domains.
 
 `swarm_awareness` is how the coordinator keeps the split honest: before spawning
 the next implementer it checks who already holds what, so newly-discovered work

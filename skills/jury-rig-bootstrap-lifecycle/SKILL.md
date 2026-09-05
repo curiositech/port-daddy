@@ -23,7 +23,7 @@ authority. Do not restore retired aliases or introduce a bulk replacement script
 
 | Evidence | Action | Required readback |
 | --- | --- | --- |
-| Ordinary skill lookup | Use `pd jury-rig query`; leave bootstrap alone. | Selected source, semantic tier, and guarded reference path. |
+| Ordinary skill lookup | Use `pd jury-rig search`; graft only a selected result and leave bootstrap alone. | Metadata shortlist, semantic tier, explicit graft, and guarded reference path. |
 | Unknown bootstrap state | Run `pd jury-rig bootstrap status --json`. | Exact transaction root and returned authenticated receipts. |
 | Need to inspect proposed changes | Run `pd jury-rig bootstrap plan --json`. | Verdict, blockers, exact action paths, preimage/postimage hashes, removed authority fields. |
 | Plan reports a target, privacy, ownership, or private-authority blocker | Record the exact failed condition; work on authorized disjoint tasks. | No machine-change claim; hand the bounded defect to its owner. |

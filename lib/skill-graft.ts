@@ -2,8 +2,8 @@
  * Skill Graft — native, local skill-injection for Port Daddy's autonomous
  * fleet ships.
  *
- * Mirrors the jury_rig MCP tool pattern (`pd jury-rig query` /
- * `pd jury-rig reference` / `pd seamanship list`): given a task
+ * Implements the native Jury-rig pattern (`pd jury-rig search` /
+ * `pd jury-rig graft` / `pd jury-rig reference`): given a task
  * description, return a CHEAP ranked shortlist of candidate skills (id +
  * one-line description + similarity) across every scanned skill, plus the
  * FULL `SKILL.md` body for only the top few (context-cost capped). A
@@ -11,19 +11,9 @@
  * from a skill's own directory on demand — the local equivalent of
  * `pd jury-rig reference`.
  *
- * Deliberately local, deliberately not a jury_rig client: no MCP call, no
- * network dependency on the jury_rig server being configured. This exists
- * because `apps/fleet-executor` (autonomous ships spawned from
- * `pd-fleet.yml`) has zero jury_rig integration today — jury_rig only covers
- * interactive sessions where it happens to be wired in as an MCP server.
- * Borrows jury_rig' *design*, not jury_rig itself, matching the
- * shared-library-not-hard-runtime-dependency precedent this repo already
- * applies elsewhere (see the M8 semantic-conflict-predictor architecture
- * recommendation, `docs/architecture/agent-harbor-technical-binder/
- * work-packets/m8-semantic-conflict-predictor-architecture-recommendation.md`
- * on branch `m8/semantic-conflict-research` / PR #722 at time of writing —
- * unmerged, so not citable from `main` yet, but the pattern it argues for
- * is the one this module follows).
+ * Deliberately local: no MCP call and no network runtime dependency. The CLI
+ * and autonomous Fleet ships share this library so discovery, ranking, body
+ * caps, and guarded reference reads cannot drift across execution surfaces.
  *
  * Reuse, not reinvention:
  * - Embeddings: `createLocalEmbedder` from `./semantic-resolver.js` — the
@@ -48,9 +38,8 @@
  * skill is exactly right — comparing a shovel to a bonsai tree. Both sides
  * need to live in the same semantic space for cosine to mean anything.
  *
- * Fixed the way jury_rig' Tool2Vec cascade fixes it (see
- * https://example.com/blog/the-skill-matching-cascade): `./skill-graft-tool2vec.js`
- * generates ~15 synthetic user-phrased task descriptions per skill via a
+ * The native Tool2Vec cascade in `./skill-graft-tool2vec.js` generates ~15
+ * synthetic user-phrased task descriptions per skill via a
  * cheap LLM call, embeds them with the shared local embedder, and averages
  * them into a centroid — comparing the task against "what would you use
  * this for," not "what is this." Centroids are cached content-hash-keyed
@@ -64,8 +53,8 @@
  * 'lexical-only'`) rather than silently reintroducing the cosine-vs-
  * description bug as a "fallback."
  *
- * Scoped deliberately: jury_rig' full cascade also has cross-encoder
- * reranking, local attribution k-NN, and cross-installation global priors.
+ * Scoped deliberately: cross-encoder reranking, local attribution k-NN, and
+ * cross-installation global priors remain possible future extensions.
  * None of those are built here — they need a second (reranker) model, an
  * outcomes-tracking DB, and a multi-installation telemetry population
  * respectively, none of which exist yet for this native single-repo
@@ -152,15 +141,13 @@ export interface SkillGraftEntry extends SkillShortlistEntry {
   sourcePath: string;
 }
 
-export interface SkillGraftResult {
+export interface SkillSearchResult {
   query: string;
   /** Total skills scanned across all roots (not just the shortlist size). */
   scannedCount: number;
   roots: SkillGraftRoot[];
   /** Cheap: id + description + similarity for up to `shortlistLimit` skills. */
   shortlist: SkillShortlistEntry[];
-  /** Expensive: full SKILL.md body for up to `topLimit` skills (<= shortlist.length). */
-  top: SkillGraftEntry[];
   /**
    * Which signals actually contributed to THIS ranking (not merely whether
    * a generator is theoretically configured).
@@ -178,6 +165,11 @@ export interface SkillGraftResult {
   semanticTier: 'hybrid' | 'lexical-only';
 }
 
+export interface SkillGraftResult extends SkillSearchResult {
+  /** Expensive: full SKILL.md body for up to `topLimit` skills (<= shortlist.length). */
+  top: SkillGraftEntry[];
+}
+
 export interface SkillReferenceResult {
   skillId: string;
   filePath: string;
@@ -187,9 +179,12 @@ export interface SkillReferenceResult {
   error?: string;
 }
 
-export interface SkillGraftCraftOptions {
+export interface SkillSearchOptions {
   /** How many skills to include in the cheap shortlist. Default 10, capped at 50. */
   shortlistLimit?: number;
+}
+
+export interface SkillGraftCraftOptions extends SkillSearchOptions {
   /** How many of the shortlist get their full SKILL.md body attached. Default 3. */
   topLimit?: number;
 }
@@ -248,6 +243,12 @@ export interface SkillGraftOptions extends SkillGraftCraftOptions {
 
 export interface SkillGraftIndex {
   /**
+   * Rank the catalog and return metadata only. This never reads or returns a
+   * selected skill body; callers must explicitly use `craft()` after deciding
+   * that the added context is warranted.
+   */
+  search(query: string, options?: SkillSearchOptions): Promise<SkillSearchResult>;
+  /**
    * Rank every scanned skill against `query` — BM25 lexical score fused
    * with Tool2Vec synthetic-query-centroid semantic score via reciprocal
    * rank fusion (k=60), then widened by exactly one first-hop graph step
@@ -280,7 +281,7 @@ export interface SkillGraftIndex {
    * generates centroids — `craft()` never does, deliberately, so a live
    * ship spawn can never block on hundreds of LLM calls across a cold
    * cache. Call this out of band from any spawn path: a maintenance
-   * script, a future `pd skill-graft warm` CLI command, or
+   * script, `pd jury-rig warm`, or
    * `scripts/verify-skill-graft.ts`'s manual verification run. Returns
    * cache-hit accounting so operators can see the one-time cost happen and
    * then disappear on subsequent runs. When no synthetic-query generator
@@ -299,9 +300,8 @@ const DEFAULT_MAX_BODY_CHARS = 8000;
 const MIN_MAX_BODY_CHARS = 500;
 const MAX_MAX_BODY_CHARS = 50000;
 
-/** Just this repo's `skills/` directory — "start with this repo's skills/
- *  dir" per the task brief. Callers who want the fuller jury_rig/workgroup-ai/
- *  user-level catalog can pass `lib/skill-sync.ts`'s `defaultSkillCatalogRoots()`
+/** Just this repo's `skills/` directory. Callers who want the fuller user-level
+ *  catalog can pass `lib/skill-sync.ts`'s `defaultSkillCatalogRoots()`
  *  as `roots` explicitly; Skill Graft does not reach for those on its own so
  *  a bare `createSkillGraftIndex()` call never depends on another tool being
  *  installed on the operator's machine. */
@@ -379,7 +379,7 @@ export function createSkillGraftIndex(options: SkillGraftOptions = {}): SkillGra
    * hundreds of LLM calls and thousands of embeddings, which would block a
    * real ship spawn for an unacceptable amount of time (Copilot review
    * finding on this fix's own diff). Callers that want the semantic tier
-   * warm — an operator maintenance script, a future `pd skill-graft warm`
+   * warm — an operator maintenance script, `pd jury-rig warm`,
    * CLI command, `scripts/verify-skill-graft.ts` — call `refresh()`
    * explicitly, out of band from any live spawn path.
    */
@@ -401,57 +401,63 @@ export function createSkillGraftIndex(options: SkillGraftOptions = {}): SkillGra
     return { embedded, reused, removed };
   }
 
+  async function search(query: string, callOptions: SkillSearchOptions = {}): Promise<SkillSearchResult> {
+    ensureScanned();
+
+    const trimmed = query.trim();
+    const shortlistLimit = clampLimit(callOptions.shortlistLimit, defaultShortlistLimit);
+
+    if (!trimmed) {
+      return { query, scannedCount: catalog.length, roots, shortlist: [], semanticTier: 'lexical-only' };
+    }
+
+    const lexicalRank = bm25Rank(trimmed, catalog);
+    let semanticRank: Tool2VecRankedEntry[] = [];
+    if (centroidStore) {
+      const [queryVector] = await embedder.embed([trimmed]);
+      semanticRank = queryVector ? tool2VecRank(queryVector, catalog, centroidStore) : [];
+    }
+
+    const fusedFull = reciprocalRankFusion(lexicalRank, semanticRank);
+    // Widen the pool by one graph hop from the top-K fused seeds, then apply
+    // the same shortlist cap. Search changes who competes, never how much
+    // metadata enters the caller's context.
+    const fused = expandFirstHopCandidates(fusedFull, shortlistLimit, adjacency).slice(0, shortlistLimit);
+    const semanticById = new Map(semanticRank.map((entry) => [entry.id, entry.similarity]));
+
+    const shortlist: SkillShortlistEntry[] = [];
+    for (const { id, via, hopSeed } of fused) {
+      const skill = catalogById.get(id);
+      if (!skill) continue;
+      const entry: SkillShortlistEntry = {
+        id: skill.id,
+        description: skill.description,
+        category: skill.category,
+        tags: skill.tags,
+        similarity: semanticById.get(id) ?? 0,
+      };
+      if (via) { entry.via = via; entry.hopSeed = hopSeed; }
+      shortlist.push(entry);
+    }
+
+    return {
+      query,
+      scannedCount: catalog.length,
+      roots,
+      shortlist,
+      semanticTier: semanticRank.length > 0 ? 'hybrid' : 'lexical-only',
+    };
+  }
+
   return {
+    search,
+
     async craft(query, callOptions = {}) {
-      ensureScanned();
-
-      const trimmed = query.trim();
-      const shortlistLimit = clampLimit(callOptions.shortlistLimit, defaultShortlistLimit);
-      const topLimit = Math.min(clampLimit(callOptions.topLimit, defaultTopLimit), shortlistLimit);
-
-      if (!trimmed) {
-        return { query, scannedCount: catalog.length, roots, shortlist: [], top: [], semanticTier: 'lexical-only' };
-      }
-
-      const lexicalRank = bm25Rank(trimmed, catalog);
-      let semanticRank: Tool2VecRankedEntry[] = [];
-      if (centroidStore) {
-        const [queryVector] = await embedder.embed([trimmed]);
-        semanticRank = queryVector ? tool2VecRank(queryVector, catalog, centroidStore) : [];
-      }
-
-      const fusedFull = reciprocalRankFusion(lexicalRank, semanticRank);
-      // Widen the pool by one graph hop from the top-K (K = shortlistLimit)
-      // fused seeds, THEN apply the same cap `craft()` always applied —
-      // expansion only widens who competes, never raises the cap itself.
-      // See `expandFirstHopCandidates()` for the weight/decay rationale.
-      const fused = expandFirstHopCandidates(fusedFull, shortlistLimit, adjacency).slice(0, shortlistLimit);
-      const semanticById = new Map(semanticRank.map((entry) => [entry.id, entry.similarity]));
-
-      const shortlist: SkillShortlistEntry[] = [];
-      for (const { id, via, hopSeed } of fused) {
-        const skill = catalogById.get(id);
-        // Stale/unknown id: either a fused list computed before a rescan,
-        // or a `pairs-with`/prose-mention target that isn't a real skill id
-        // (typo, or a skill outside the scanned roots) — defensive, not
-        // expected on a well-formed catalog.
-        if (!skill) continue;
-        const entry: SkillShortlistEntry = {
-          id: skill.id,
-          description: skill.description,
-          category: skill.category,
-          tags: skill.tags,
-          similarity: semanticById.get(id) ?? 0,
-        };
-        // Only ever set for a candidate whose score actually came from a
-        // hop boost — see SkillShortlistEntry.via's doc comment for why an
-        // ordinary direct match carries no `via` key at all.
-        if (via) { entry.via = via; entry.hopSeed = hopSeed; }
-        shortlist.push(entry);
-      }
+      const searched = await search(query, callOptions);
+      const topLimit = Math.min(clampLimit(callOptions.topLimit, defaultTopLimit), searched.shortlist.length);
 
       const top: SkillGraftEntry[] = [];
-      for (const entry of shortlist.slice(0, topLimit)) {
+      for (const entry of searched.shortlist.slice(0, topLimit)) {
         const skill = catalogById.get(entry.id);
         if (!skill) continue;
         const body = readSkillBody(skill.sourcePath, maxBodyChars, options.onWarning);
@@ -460,17 +466,8 @@ export function createSkillGraftIndex(options: SkillGraftOptions = {}): SkillGra
       }
 
       return {
-        query,
-        scannedCount: catalog.length,
-        roots,
-        shortlist,
+        ...searched,
         top,
-        // Reflects whether the semantic tier actually contributed a cached
-        // centroid to THIS result — not merely whether a generator is
-        // configured. Centroid generation is a separate, explicit step
-        // (`refresh()`, never run automatically by `craft()`), so a cold
-        // cache genuinely means 'lexical-only' even with a generator wired.
-        semanticTier: semanticRank.length > 0 ? 'hybrid' : 'lexical-only',
       };
     },
 
@@ -532,6 +529,23 @@ export function createSkillGraftIndex(options: SkillGraftOptions = {}): SkillGra
  * in unconditionally without an extra emptiness check.
  */
 export function renderSkillGraftContext(result: SkillGraftResult): string {
+  const metadata = renderSkillSearchResults(result);
+  if (!metadata) return '';
+
+  const lines: string[] = [metadata];
+
+  if (result.top.length > 0) {
+    lines.push('', 'Full guidance for the top match(es) — read before writing code in this area:');
+    for (const entry of result.top) {
+      lines.push('', `--- ${entry.id} (SKILL.md) ---`, entry.body.trim());
+    }
+  }
+
+  return lines.join('\n');
+}
+
+/** Render shortlist metadata without loading or implying any skill body. */
+export function renderSkillSearchResults(result: SkillSearchResult): string {
   if (result.shortlist.length === 0) return '';
 
   const lines: string[] = [
@@ -549,13 +563,6 @@ export function renderSkillGraftContext(result: SkillGraftResult): string {
       ? `similarity ${entry.similarity.toFixed(2)}`
       : 'lexical match';
     lines.push(`- ${entry.id} (${relevance}): ${truncate(entry.description, 160)}`);
-  }
-
-  if (result.top.length > 0) {
-    lines.push('', 'Full guidance for the top match(es) — read before writing code in this area:');
-    for (const entry of result.top) {
-      lines.push('', `--- ${entry.id} (SKILL.md) ---`, entry.body.trim());
-    }
   }
 
   return lines.join('\n');

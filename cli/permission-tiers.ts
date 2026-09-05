@@ -238,10 +238,11 @@ export const SUBCOMMAND_TIERS: Record<string, Tier> = {
   'embed stdin': 'silent',
   'embed prefetch': 'notify',
 
-  // jury-rig: query/reference are read-only; warm refreshes the shared local
+  // jury-rig: search/graft/reference are read-only; warm refreshes the shared local
   // skill index and may call the configured graft backend when enabled.
-  'jury-rig': 'silent',         // default subcommand = query
-  'jury-rig query': 'silent',
+  'jury-rig': 'silent',         // default subcommand = metadata-only search
+  'jury-rig search': 'silent',
+  'jury-rig graft': 'silent',
   'jury-rig reference': 'silent',
   'jury-rig warm': 'notify',
   'jury-rig bootstrap': 'silent',
