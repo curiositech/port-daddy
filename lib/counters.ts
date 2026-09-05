@@ -10,9 +10,11 @@
  * Design:
  * - Batches increments in memory, flushes to SQLite every 10s.
  *   This means no per-event DB write — dozens of fleet spawns/sec are fine.
- * - Time buckets: minute detail for the recent window, then lossless hourly
- *   rollups. Maintenance consumes a fixed row budget per transaction, so an
- *   upgrade cannot lock the daemon while compacting an inherited large table.
+ * - Time buckets: minute detail for the recent window, then total-preserving
+ *   hourly rollups. Historical query boundaries must use whole hours because
+ *   minute placement inside a compacted hour is intentionally unavailable.
+ * - Maintenance scans a fixed rowid window per transaction and persists its
+ *   cursor, so an upgrade cannot scan or mutate the inherited table at once.
  * - Dimensions stored as sorted-key JSON for consistent grouping.
  * - Cleanup: hourly history older than 30 days is pruned in the same bounded,
  *   crash-resumable maintenance loop.
@@ -20,13 +22,33 @@
 
 import type { Database } from 'better-sqlite3';
 
+export const COUNTER_HISTORICAL_RESOLUTION_MS = 3_600_000;
+
+export class CounterHistoryResolutionError extends RangeError {
+  readonly code = 'COUNTER_HISTORY_RESOLUTION_UNSUPPORTED';
+  readonly historicalResolution = 'hour';
+  readonly resolutionMs = COUNTER_HISTORICAL_RESOLUTION_MS;
+  readonly supportedBoundaries = {
+    since: 'hour-start',
+    until: 'hour-final-minute-inclusive',
+  } as const;
+
+  constructor(message: string) {
+    super(message);
+    this.name = 'CounterHistoryResolutionError';
+  }
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface CounterQueryOpts {
   key: string;
   dims?: Record<string, string>;
-  since?: number;   // timestamp ms
+  /** Timestamp ms; older-than-detail boundaries must start on an hour. */
+  since?: number;
+  /** Inclusive timestamp ms; historical bounds must end at HH:59. */
   until?: number;
+  /** Required as `hour` whenever the requested range may include rollups. */
   groupBy?: 'minute' | 'hour';
 }
 
@@ -41,6 +63,17 @@ export interface CounterSummaryRow {
   key: string;
   total: number;
   perHour: number;  // rate over the query window
+}
+
+export interface CounterMaintenanceStatus {
+  active: boolean;
+  scanAfterRowid: number;
+  scanThroughRowid: number;
+  passCount: number;
+  lastPassAt: number | null;
+  lastPassScannedRows: number;
+  lastPassCompactedRows: number;
+  lastPassPrunedRows: number;
 }
 
 interface CounterRow {
@@ -60,9 +93,55 @@ export interface CounterOptions {
   retainMs?: number;
   /** Minimum delay between maintenance passes when there is no backlog. */
   maintenanceIntervalMs?: number;
-  /** Maximum source rows compacted or pruned by one maintenance transaction. */
+  /** Maximum source rows inspected by one maintenance transaction. */
   maintenanceBatchRows?: number;
 }
+
+/** Exact production SQL exported so tests can detect a full-source scan. */
+export const COUNTER_MAINTENANCE_SQL = Object.freeze({
+  selectScanBatch: `
+    INSERT INTO temp.metric_counter_maintenance_batch (source_rowid, action)
+    SELECT
+      rowid,
+      CASE
+        WHEN bucket_hour < ? THEN 1
+        WHEN bucket_hour < ? AND bucket_minute != bucket_hour THEN 2
+        ELSE 0
+      END
+    FROM metric_counters
+    WHERE rowid > ? AND rowid <= ?
+    ORDER BY rowid ASC
+    LIMIT ?
+  `,
+  aggregateBatch: `
+    INSERT INTO metric_counters
+      (key, dims_json, bucket_minute, bucket_hour, value, updated_at)
+    SELECT
+      source.key,
+      source.dims_json,
+      source.bucket_hour,
+      source.bucket_hour,
+      SUM(source.value),
+      MAX(source.updated_at)
+    FROM temp.metric_counter_maintenance_batch AS batch
+    CROSS JOIN metric_counters AS source
+    WHERE batch.action = 2
+      AND source.rowid = batch.source_rowid
+    GROUP BY source.key, source.dims_json, source.bucket_hour
+    ON CONFLICT (key, dims_json, bucket_minute)
+    DO UPDATE SET
+      value = value + excluded.value,
+      updated_at = MAX(updated_at, excluded.updated_at)
+  `,
+  deleteBatch: `
+    DELETE FROM metric_counters
+    WHERE rowid IN (
+      SELECT source_rowid
+      FROM temp.metric_counter_maintenance_batch
+      WHERE action IN (1, 2)
+    )
+  `,
+});
 
 // ─── Module factory ───────────────────────────────────────────────────────────
 
@@ -79,6 +158,17 @@ export function createCounters(db: Database, options: CounterOptions = {}) {
     );
     CREATE INDEX IF NOT EXISTS idx_mc_key_hour ON metric_counters(key, bucket_hour);
     CREATE INDEX IF NOT EXISTS idx_mc_hour     ON metric_counters(bucket_hour);
+    CREATE TABLE IF NOT EXISTS metric_counter_maintenance_state (
+      singleton                INTEGER PRIMARY KEY CHECK (singleton = 1),
+      scan_after_rowid         INTEGER NOT NULL DEFAULT 0,
+      scan_through_rowid       INTEGER NOT NULL DEFAULT 0,
+      pass_count               INTEGER NOT NULL DEFAULT 0,
+      last_pass_at             INTEGER,
+      last_pass_scanned_rows   INTEGER NOT NULL DEFAULT 0,
+      last_pass_compacted_rows INTEGER NOT NULL DEFAULT 0,
+      last_pass_pruned_rows    INTEGER NOT NULL DEFAULT 0
+    );
+    INSERT OR IGNORE INTO metric_counter_maintenance_state (singleton) VALUES (1);
   `);
 
   // A connection-local row-id set lets the aggregate and delete statements
@@ -86,7 +176,8 @@ export function createCounters(db: Database, options: CounterOptions = {}) {
   // transaction as the rollup, interruption rolls the whole batch back.
   db.exec(`
     CREATE TEMP TABLE IF NOT EXISTS metric_counter_maintenance_batch (
-      source_rowid INTEGER PRIMARY KEY
+      source_rowid INTEGER PRIMARY KEY,
+      action       INTEGER NOT NULL CHECK (action IN (0, 1, 2))
     );
   `);
 
@@ -95,7 +186,7 @@ export function createCounters(db: Database, options: CounterOptions = {}) {
   let flushTimer: ReturnType<typeof setInterval> | null = null;
   let lastMaintenance: number | null = null;
   let maintenanceBacklog = false;
-  const HOUR_MS = 3_600_000;
+  const HOUR_MS = COUNTER_HISTORICAL_RESOLUTION_MS;
   const MAINTENANCE_INTERVAL_MS = options.maintenanceIntervalMs ?? 6 * HOUR_MS;
   const MINUTE_DETAIL_MS = options.minuteDetailMs ?? 24 * HOUR_MS;
   const RETAIN_MS = options.retainMs ?? 30 * 86_400_000;
@@ -148,89 +239,161 @@ export function createCounters(db: Database, options: CounterOptions = {}) {
   const clearMaintenanceBatchStmt = db.prepare(
     'DELETE FROM temp.metric_counter_maintenance_batch',
   );
-  const selectPruneBatchStmt = db.prepare(`
-    INSERT INTO temp.metric_counter_maintenance_batch (source_rowid)
-    SELECT rowid
-    FROM metric_counters
-    WHERE bucket_hour < ?
-    ORDER BY bucket_hour ASC, rowid ASC
-    LIMIT ?
-  `);
-  const selectCompactBatchStmt = db.prepare(`
-    INSERT INTO temp.metric_counter_maintenance_batch (source_rowid)
-    SELECT rowid
-    FROM metric_counters
-    WHERE bucket_hour >= ?
-      AND bucket_hour < ?
-      AND bucket_minute != bucket_hour
-    ORDER BY bucket_hour ASC, rowid ASC
-    LIMIT ?
-  `);
-  const aggregateMaintenanceBatchStmt = db.prepare(`
-    INSERT INTO metric_counters
-      (key, dims_json, bucket_minute, bucket_hour, value, updated_at)
+  const selectMaintenanceScanBatchStmt = db.prepare(COUNTER_MAINTENANCE_SQL.selectScanBatch);
+  const aggregateMaintenanceBatchStmt = db.prepare(COUNTER_MAINTENANCE_SQL.aggregateBatch);
+  const deleteMaintenanceBatchStmt = db.prepare(COUNTER_MAINTENANCE_SQL.deleteBatch);
+  const maxSourceRowidStmt = db.prepare(
+    'SELECT COALESCE(MAX(rowid), 0) AS max_rowid FROM metric_counters',
+  );
+  const maintenanceBatchStatsStmt = db.prepare(`
     SELECT
-      source.key,
-      source.dims_json,
-      source.bucket_hour,
-      source.bucket_hour,
-      SUM(source.value),
-      MAX(source.updated_at)
-    FROM metric_counters AS source
-    JOIN temp.metric_counter_maintenance_batch AS batch
-      ON batch.source_rowid = source.rowid
-    GROUP BY source.key, source.dims_json, source.bucket_hour
-    ON CONFLICT (key, dims_json, bucket_minute)
-    DO UPDATE SET
-      value = value + excluded.value,
-      updated_at = MAX(updated_at, excluded.updated_at)
+      COUNT(*) AS scanned_rows,
+      COALESCE(MAX(source_rowid), 0) AS last_scanned_rowid,
+      COALESCE(SUM(action = 2), 0) AS compacted_rows,
+      COALESCE(SUM(action = 1), 0) AS pruned_rows
+    FROM temp.metric_counter_maintenance_batch
   `);
-  const deleteMaintenanceBatchStmt = db.prepare(`
-    DELETE FROM metric_counters
-    WHERE rowid IN (
-      SELECT source_rowid FROM temp.metric_counter_maintenance_batch
-    )
+  const readMaintenanceStateStmt = db.prepare(`
+    SELECT
+      scan_after_rowid,
+      scan_through_rowid,
+      pass_count,
+      last_pass_at,
+      last_pass_scanned_rows,
+      last_pass_compacted_rows,
+      last_pass_pruned_rows
+    FROM metric_counter_maintenance_state
+    WHERE singleton = 1
   `);
-  const maintenanceBacklogStmt = db.prepare(`
-    SELECT EXISTS (
-      SELECT 1
-      FROM metric_counters
-      WHERE bucket_hour < ?
-        OR (bucket_hour < ? AND bucket_minute != bucket_hour)
-      LIMIT 1
-    ) AS has_backlog
+  const writeMaintenanceStateStmt = db.prepare(`
+    UPDATE metric_counter_maintenance_state
+    SET
+      scan_after_rowid = ?,
+      scan_through_rowid = ?,
+      pass_count = pass_count + 1,
+      last_pass_at = ?,
+      last_pass_scanned_rows = ?,
+      last_pass_compacted_rows = ?,
+      last_pass_pruned_rows = ?
+    WHERE singleton = 1
   `);
 
+  interface MaintenanceStateRow {
+    scan_after_rowid: number;
+    scan_through_rowid: number;
+    pass_count: number;
+    last_pass_at: number | null;
+    last_pass_scanned_rows: number;
+    last_pass_compacted_rows: number;
+    last_pass_pruned_rows: number;
+  }
+
+  interface MaintenanceBatchStatsRow {
+    scanned_rows: number;
+    last_scanned_rowid: number;
+    compacted_rows: number;
+    pruned_rows: number;
+  }
+
+  const initialMaintenanceState = readMaintenanceStateStmt.get() as MaintenanceStateRow;
+  maintenanceBacklog = initialMaintenanceState.scan_through_rowid
+    > initialMaintenanceState.scan_after_rowid;
+
   /**
-   * Consume at most MAINTENANCE_BATCH_ROWS source rows in one atomic step.
-   * Expired rows use the budget first; the balance compacts old minute rows.
-   * No persisted cursor is needed: committed source-row deletion is progress,
-   * and rollback leaves every source row available to retry after a restart.
+   * Inspect at most MAINTENANCE_BATCH_ROWS source rows in one atomic step.
+   * The persisted rowid window is both a restart cursor and a bound on actual
+   * source-table reads. New rows beyond the captured high-water mark are
+   * chained as a tail window; a later scheduled sweep revisits rows that age
+   * into the compaction or retention cutoffs.
    */
   const maintenanceStep = db.transaction((at: number): boolean => {
     const minuteCutoffHour = Math.floor((at - MINUTE_DETAIL_MS) / HOUR_MS) * HOUR_MS;
     const retentionCutoffHour = Math.floor((at - RETAIN_MS) / HOUR_MS) * HOUR_MS;
-    let remainingBudget = MAINTENANCE_BATCH_ROWS;
+    const previous = readMaintenanceStateStmt.get() as MaintenanceStateRow;
+    let scanAfterRowid = previous.scan_after_rowid;
+    let scanThroughRowid = previous.scan_through_rowid;
 
-    clearMaintenanceBatchStmt.run();
-    selectPruneBatchStmt.run(retentionCutoffHour, remainingBudget);
-    const pruned = Number(deleteMaintenanceBatchStmt.run().changes);
-    remainingBudget -= pruned;
-
-    clearMaintenanceBatchStmt.run();
-    if (remainingBudget > 0) {
-      selectCompactBatchStmt.run(retentionCutoffHour, minuteCutoffHour, remainingBudget);
-      aggregateMaintenanceBatchStmt.run();
-      deleteMaintenanceBatchStmt.run();
+    if (scanThroughRowid <= scanAfterRowid) {
+      scanAfterRowid = 0;
+      scanThroughRowid = Number(
+        (maxSourceRowidStmt.get() as { max_rowid: number }).max_rowid,
+      );
     }
-    clearMaintenanceBatchStmt.run();
 
-    const row = maintenanceBacklogStmt.get(
+    clearMaintenanceBatchStmt.run();
+    selectMaintenanceScanBatchStmt.run(
       retentionCutoffHour,
       minuteCutoffHour,
-    ) as { has_backlog?: number } | undefined;
-    return row?.has_backlog === 1;
+      scanAfterRowid,
+      scanThroughRowid,
+      MAINTENANCE_BATCH_ROWS,
+    );
+    const batch = maintenanceBatchStatsStmt.get() as MaintenanceBatchStatsRow;
+
+    if (batch.compacted_rows > 0) aggregateMaintenanceBatchStmt.run();
+    if (batch.compacted_rows > 0 || batch.pruned_rows > 0) {
+      deleteMaintenanceBatchStmt.run();
+    }
+
+    const reachedHighWater = batch.scanned_rows === 0
+      || batch.last_scanned_rowid >= scanThroughRowid
+      || batch.scanned_rows < MAINTENANCE_BATCH_ROWS;
+    let nextScanAfterRowid = batch.last_scanned_rowid || scanAfterRowid;
+    let nextScanThroughRowid = scanThroughRowid;
+
+    if (reachedHighWater) {
+      const currentMaxRowid = Number(
+        (maxSourceRowidStmt.get() as { max_rowid: number }).max_rowid,
+      );
+      if (currentMaxRowid > scanThroughRowid) {
+        // Rows written while this sweep was in flight, including newly created
+        // canonical hour rows, form a bounded tail instead of forcing a rescan.
+        nextScanAfterRowid = scanThroughRowid;
+        nextScanThroughRowid = currentMaxRowid;
+      } else {
+        nextScanAfterRowid = 0;
+        nextScanThroughRowid = 0;
+      }
+    }
+
+    writeMaintenanceStateStmt.run(
+      nextScanAfterRowid,
+      nextScanThroughRowid,
+      at,
+      batch.scanned_rows,
+      batch.compacted_rows,
+      batch.pruned_rows,
+    );
+    clearMaintenanceBatchStmt.run();
+    return nextScanThroughRowid > nextScanAfterRowid;
   });
+
+  function maintenanceStatus(): CounterMaintenanceStatus {
+    const state = readMaintenanceStateStmt.get() as MaintenanceStateRow;
+    return {
+      active: state.scan_through_rowid > state.scan_after_rowid,
+      scanAfterRowid: state.scan_after_rowid,
+      scanThroughRowid: state.scan_through_rowid,
+      passCount: state.pass_count,
+      lastPassAt: state.last_pass_at,
+      lastPassScannedRows: state.last_pass_scanned_rows,
+      lastPassCompactedRows: state.last_pass_compacted_rows,
+      lastPassPrunedRows: state.last_pass_pruned_rows,
+    };
+  }
+
+  function minuteDetailCutoffHour(at = now()): number {
+    return Math.floor((at - MINUTE_DETAIL_MS) / HOUR_MS) * HOUR_MS;
+  }
+
+  function assertHistoricalSinceIsExact(since: number, operation: string): void {
+    const sinceMinute = Math.floor(since / 60_000) * 60_000;
+    if (sinceMinute < minuteDetailCutoffHour() && sinceMinute % HOUR_MS !== 0) {
+      throw new CounterHistoryResolutionError(
+        `${operation} cannot use a partial-hour since boundary in compacted counter history; use an hour-aligned timestamp`,
+      );
+    }
+  }
 
   function maintain(at: number): void {
     const due = lastMaintenance === null
@@ -300,9 +463,28 @@ export function createCounters(db: Database, options: CounterOptions = {}) {
    * Flushes pending batch first only if there is something pending, keeping
    * the event loop impact proportional to actual work. Multiple sequential
    * query() calls (e.g. inside /metrics/golden) only pay the flush cost once.
+   * Minute grouping and partial-hour boundaries are exact only inside the
+   * configured minute-detail window; older requests fail rather than estimate.
    */
   function query(opts: CounterQueryOpts): CounterResult[] {
     if (pending.size > 0) flush();
+    const historical = opts.since === undefined
+      || Math.floor(opts.since / 60_000) * 60_000 < minuteDetailCutoffHour();
+    if (historical && opts.groupBy !== 'hour') {
+      throw new CounterHistoryResolutionError(
+        'query requires groupBy="hour" when its range can include compacted counter history',
+      );
+    }
+    if (opts.since !== undefined) assertHistoricalSinceIsExact(opts.since, 'query');
+    if (opts.until !== undefined) {
+      const untilMinute = Math.floor(opts.until / 60_000) * 60_000;
+      if (untilMinute < minuteDetailCutoffHour()
+          && untilMinute % HOUR_MS !== HOUR_MS - 60_000) {
+        throw new CounterHistoryResolutionError(
+          'query cannot use a partial-hour until boundary in compacted counter history; use the final minute of an hour',
+        );
+      }
+    }
     const conditions: string[] = ['key = ?'];
     const params: unknown[] = [opts.key];
 
@@ -352,6 +534,7 @@ export function createCounters(db: Database, options: CounterOptions = {}) {
   function queryTotals(keys: string[], opts: { since?: number; groupBy?: 'minute' | 'hour' } = {}): Map<string, number> {
     if (pending.size > 0) flush();
     if (keys.length === 0) return new Map();
+    if (opts.since !== undefined) assertHistoricalSinceIsExact(opts.since, 'queryTotals');
 
     const groupField = opts.groupBy === 'hour' ? 'bucket_hour' : 'bucket_minute';
     const placeholders = keys.map(() => '?').join(', ');
@@ -395,6 +578,7 @@ export function createCounters(db: Database, options: CounterOptions = {}) {
     const sinceMinute = since
       ? Math.floor(since / 60_000) * 60_000
       : Math.floor((now() - 86_400_000) / 60_000) * 60_000;
+    assertHistoricalSinceIsExact(sinceMinute, 'topN');
 
     // Validate dimName to prevent json_extract path injection
     if (!/^[a-zA-Z0-9_]+$/.test(dimName)) {
@@ -424,6 +608,7 @@ export function createCounters(db: Database, options: CounterOptions = {}) {
     if (pending.size > 0) flush();
     const currentTime = now();
     const sinceMs = since ?? currentTime - 86_400_000;
+    assertHistoricalSinceIsExact(sinceMs, 'summary');
     const sinceMinute = Math.floor(sinceMs / 60_000) * 60_000;
     const ageHours = (currentTime - sinceMinute) / HOUR_MS;
 
@@ -451,7 +636,7 @@ export function createCounters(db: Database, options: CounterOptions = {}) {
     flush();
   }
 
-  return { bump, query, queryTotals, topN, summary, flush, shutdown };
+  return { bump, query, queryTotals, topN, summary, maintenanceStatus, flush, shutdown };
 }
 
 export type Counters = ReturnType<typeof createCounters>;
