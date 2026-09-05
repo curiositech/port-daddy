@@ -153,6 +153,7 @@ jobs:
       fleetbar: ${{ steps.filter.outputs.fleetbar }}
       console: ${{ steps.filter.outputs.console }}
       pd-ios: ${{ steps.filter.outputs.pd-ios }}
+      porthole-stage: ${{ steps.filter.outputs.porthole-stage }}
     steps:
       - id: filter
         env:
@@ -162,19 +163,25 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           if [ "$EVENT_NAME" != "pull_request" ]; then
-            echo "recordings=true" >> "$GITHUB_OUTPUT"
-            echo "fleetbar=true" >> "$GITHUB_OUTPUT"
-            echo "console=true" >> "$GITHUB_OUTPUT"
-            echo "pd-ios=true" >> "$GITHUB_OUTPUT"
+            {
+              echo "recordings=true"
+              echo "fleetbar=true"
+              echo "console=true"
+              echo "pd-ios=true"
+              echo "porthole-stage=true"
+            } >> "$GITHUB_OUTPUT"
             exit 0
           fi
           # Fail safe: if the files API errors (outage, rate limit), run the
           # gated jobs rather than silently skipping a required gate.
           if ! changed="$(gh api "repos/${REPO}/pulls/${PR_NUMBER}/files" --paginate --jq '.[].filename')"; then
-            echo "recordings=true" >> "$GITHUB_OUTPUT"
-            echo "fleetbar=true" >> "$GITHUB_OUTPUT"
-            echo "console=true" >> "$GITHUB_OUTPUT"
-            echo "pd-ios=true" >> "$GITHUB_OUTPUT"
+            {
+              echo "recordings=true"
+              echo "fleetbar=true"
+              echo "console=true"
+              echo "pd-ios=true"
+              echo "porthole-stage=true"
+            } >> "$GITHUB_OUTPUT"
             exit 0
           fi
           if printf '%s\n' "$changed" | grep -qE '^(website-v2/|bin/|cli/|lib/|scripts/|server\.ts$|package(-lock)?\.json$|\.github/workflows/ci\.yml$)'; then
@@ -212,6 +219,14 @@ jobs:
             echo "pd-ios=true" >> "$GITHUB_OUTPUT"
           else
             echo "pd-ios=false" >> "$GITHUB_OUTPUT"
+          fi
+          # Native Porthole Stage is a self-contained SwiftPM package plus its
+          # strict ad-hoc CI packager. Merge-group and API-error runs fail safe
+          # to true above, while unrelated pull requests avoid a macOS runner.
+          if printf '%s\n' "$changed" | grep -qE '^(apps/porthole-stage-capture/|\.github/workflows/ci\.yml$)'; then
+            echo "porthole-stage=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "porthole-stage=false" >> "$GITHUB_OUTPUT"
           fi
 
   # PR-blocking unit tests: only the node-22 legs (the required checks). The
@@ -945,6 +960,112 @@ jobs:
       - name: Test FleetBar
         run: swift test
 
+  porthole-stage:
+    # Compile and test the exact-window Stage, then emit a strictly verified,
+    # ad-hoc CI artifact. This is deliberately not a release lane: it has no
+    # secrets or write grant, and every artifact surface says non-production.
+    name: porthole-stage
+    runs-on: macos-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.porthole-stage == 'true'
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Record the Apple toolchain
+        run: |
+          set -euo pipefail
+          swift --version
+          xcodebuild -version
+
+      - name: Install the deterministic icon renderer
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: '1'
+        run: brew install librsvg
+
+      - name: Test the Stage policy and capture core
+        run: swift test --package-path apps/porthole-stage-capture
+
+      - name: Assemble two ad-hoc CI packages from one release build
+        env:
+          PACKAGE_ROOT: apps/porthole-stage-capture
+        run: |
+          set -euo pipefail
+          "$PACKAGE_ROOT/Scripts/package-apps.sh" \
+            --configuration release \
+            --output "$RUNNER_TEMP/porthole-stage-pass-a" \
+            --signing-identity - \
+            --allow-ad-hoc
+          "$PACKAGE_ROOT/Scripts/package-apps.sh" \
+            --configuration release \
+            --skip-build \
+            --output "$RUNNER_TEMP/porthole-stage-pass-b" \
+            --signing-identity - \
+            --allow-ad-hoc
+
+      - name: Strict-verify and prove deterministic CI assembly
+        env:
+          PACKAGE_ROOT: apps/porthole-stage-capture
+        run: |
+          set -euo pipefail
+          source_sha="$(git rev-parse HEAD)"
+          source_epoch="$(git show -s --format=%ct HEAD)"
+          mkdir -p "$RUNNER_TEMP/porthole-stage-artifacts"
+          /usr/bin/python3 "$PACKAGE_ROOT/Scripts/build-ci-artifact.py" \
+            --input "$RUNNER_TEMP/porthole-stage-pass-a" \
+            --output "$RUNNER_TEMP/porthole-stage-artifacts/porthole-stage-ci-a.tar" \
+            --source-sha "$source_sha" \
+            --source-date-epoch "$source_epoch"
+          /usr/bin/python3 "$PACKAGE_ROOT/Scripts/build-ci-artifact.py" \
+            --input "$RUNNER_TEMP/porthole-stage-pass-b" \
+            --output "$RUNNER_TEMP/porthole-stage-artifacts/porthole-stage-ci-b.tar" \
+            --source-sha "$source_sha" \
+            --source-date-epoch "$source_epoch"
+          cmp \
+            "$RUNNER_TEMP/porthole-stage-artifacts/porthole-stage-ci-a.tar" \
+            "$RUNNER_TEMP/porthole-stage-artifacts/porthole-stage-ci-b.tar"
+          mv \
+            "$RUNNER_TEMP/porthole-stage-artifacts/porthole-stage-ci-a.tar" \
+            "$RUNNER_TEMP/porthole-stage-artifacts/porthole-stage-ci-adhoc-NOT-FOR-DISTRIBUTION.tar"
+          (
+            cd "$RUNNER_TEMP/porthole-stage-artifacts"
+            shasum -a 256 porthole-stage-ci-adhoc-NOT-FOR-DISTRIBUTION.tar \
+              > porthole-stage-ci-adhoc-NOT-FOR-DISTRIBUTION.tar.sha256
+          )
+
+      - name: Prove the verifier rejects package authority and privacy drift
+        env:
+          PORTHOLE_TEST_CONFIGURATION: release
+        run: /usr/bin/python3 apps/porthole-stage-capture/Scripts/test-ci-artifact.py
+
+      - name: Render synthetic light-dark UI and motion without screen capture
+        run: |
+          set -euo pipefail
+          apps/porthole-stage-capture/.build/release/PortholeStageCapture \
+            --render-synthetic-proof "$RUNNER_TEMP/porthole-stage-synthetic-ui"
+
+      - name: Upload synthetic presentation evidence, not capture proof
+        uses: actions/upload-artifact@v4
+        with:
+          name: porthole-stage-SYNTHETIC-UI-NOT-CAPTURE-${{ github.sha }}
+          path: ${{ runner.temp }}/porthole-stage-synthetic-ui/
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
+
+      - name: Upload the explicitly non-production CI artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: porthole-stage-adhoc-NOT-FOR-DISTRIBUTION-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/porthole-stage-artifacts/porthole-stage-ci-adhoc-NOT-FOR-DISTRIBUTION.tar
+            ${{ runner.temp }}/porthole-stage-artifacts/porthole-stage-ci-adhoc-NOT-FOR-DISTRIBUTION.tar.sha256
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
+
   pd-ios:
     # Build + unit-test the Port Daddy iOS operator app (ADR-0125).
     #
@@ -1217,6 +1338,7 @@ jobs:
       - integration-tests
       - lint
       - pd-ios
+      - porthole-stage
       - porthole-cast-gate
       - rust-console
       - rust-console-gpui
