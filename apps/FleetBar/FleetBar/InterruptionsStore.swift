@@ -92,49 +92,6 @@ struct OperatorInterruption: Decodable, Identifiable, Equatable {
     }
 }
 
-/// The operator credential minted by the device flow and stored locally by
-/// the CLI (see cli/commands/account.ts). FleetBar reads it; it never mints
-/// or refreshes tokens itself.
-struct OperatorAccount: Equatable {
-    let token: String
-    let relayUrl: String
-    let login: String?
-}
-
-enum OperatorAccountFile {
-    /// Same default as the CLI account command.
-    static let defaultRelay = "https://port-daddy-relay.erich-owens.workers.dev"
-
-    static var accountURL: URL {
-        FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".port-daddy", isDirectory: true)
-            .appendingPathComponent("account.json", isDirectory: false)
-    }
-
-    static func load(
-        from url: URL = accountURL,
-        environment: [String: String] = ProcessInfo.processInfo.environment
-    ) -> OperatorAccount? {
-        struct Stored: Decodable {
-            let token: String?
-            let login: String?
-            let relayUrl: String?
-        }
-        guard let data = try? Data(contentsOf: url),
-              let stored = try? JSONDecoder().decode(Stored.self, from: data),
-              let token = stored.token?.trimmingCharacters(in: .whitespacesAndNewlines),
-              !token.isEmpty
-        else { return nil }
-
-        // PD_ACCOUNTS_RELAY_URL overrides, exactly like the CLI.
-        let envRelay = environment["PD_ACCOUNTS_RELAY_URL"]?
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        var relay = (envRelay?.isEmpty == false ? envRelay! : (stored.relayUrl ?? defaultRelay))
-        while relay.hasSuffix("/") { relay.removeLast() }
-        return OperatorAccount(token: token, relayUrl: relay, login: stored.login)
-    }
-}
-
 // MARK: - Store
 
 @MainActor
@@ -146,7 +103,7 @@ final class InterruptionsStore: ObservableObject {
         /// failure, non-200, rejected token). NEVER rendered as all-clear.
         case unknown(String)
         /// No pdu_ token on this machine — status is unknowable until the
-        /// operator signs in with the CLI.
+        /// operator connects an account in FleetBar.
         case signedOut
         /// A successful poll returned these open asks (possibly zero — the
         /// only state allowed to claim the queue is empty).
@@ -157,6 +114,7 @@ final class InterruptionsStore: ObservableObject {
     @Published private(set) var account: OperatorAccount?
     @Published private(set) var lastPollAt: Date?
     @Published private(set) var consecutiveFailures = 0
+    @Published private(set) var lastKnownOpenItems: [OperatorInterruption] = []
 
     /// Healthy poll ceiling — the contract requires 30 s or less, full jitter.
     static let pollBaseSeconds: TimeInterval = 30
@@ -172,7 +130,7 @@ final class InterruptionsStore: ObservableObject {
     private let session: URLSession
     private let loadAccount: () -> OperatorAccount?
     private let now: () -> Date
-    private var isRefreshing = false
+    private var refreshGeneration = UUID()
     private nonisolated(unsafe) var pollTask: Task<Void, Never>?
 
     init(
@@ -217,7 +175,11 @@ final class InterruptionsStore: ObservableObject {
     /// Non-nil while a critical ask is open: the title of the ask that blocks
     /// NEW dependent work (spawn approvals, run-agent). Contract clause 3.
     var criticalSpawnBlockTitle: String? {
-        openCritical?.title
+        let critical = openCritical
+            ?? lastKnownOpenItems.first { $0.urgency == .critical }
+        guard let critical else { return nil }
+        let title = critical.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        return title.isEmpty ? "Untitled critical request" : title
     }
 
     /// Where answer/ack happens: the session-gated web page. Never in-app.
@@ -258,17 +220,25 @@ final class InterruptionsStore: ObservableObject {
         }
     }
 
+    /// Account replacement must wake a parked poll immediately. Cancelling
+    /// the old loop plus a refresh generation prevents its stale response
+    /// from overwriting the new account's result.
+    func accountDidChange() {
+        refreshGeneration = UUID()
+        start()
+    }
+
     nonisolated func stop() {
         pollTask?.cancel()
         pollTask = nil
     }
 
     func refresh() async {
-        guard !isRefreshing else { return }
-        isRefreshing = true
-        defer { isRefreshing = false }
+        let generation = UUID()
+        refreshGeneration = generation
 
         guard let account = loadAccount() else {
+            guard refreshGeneration == generation, !Task.isCancelled else { return }
             self.account = nil
             phase = .signedOut
             // Signed-out is not a relay failure; keep the base cadence so a
@@ -296,6 +266,7 @@ final class InterruptionsStore: ObservableObject {
 
         do {
             let (data, response) = try await session.data(for: request)
+            guard refreshGeneration == generation, !Task.isCancelled else { return }
             guard let http = response as? HTTPURLResponse else {
                 consecutiveFailures += 1
                 phase = .unknown("Relay unreachable.")
@@ -306,7 +277,7 @@ final class InterruptionsStore: ObservableObject {
                 // Saturate the backoff instead of hammering the relay, and say
                 // exactly what the operator should do.
                 consecutiveFailures = Self.parkedFailures
-                phase = .unknown("Relay rejected the stored token (HTTP \(http.statusCode)). Sign in again with the pd CLI.")
+                phase = .unknown("Relay rejected the saved connection (HTTP \(http.statusCode)). Reconnect in FleetBar Account Settings.")
                 return
             }
             guard http.statusCode == 200 else {
@@ -320,10 +291,13 @@ final class InterruptionsStore: ObservableObject {
             }
             let envelope = try JSONDecoder().decode(Envelope.self, from: data)
             // Belt-and-braces: only ever surface rows that are actually open.
-            phase = .open(envelope.interruptions.filter { $0.state == "open" })
+            let openItems = envelope.interruptions.filter { $0.state == "open" }
+            lastKnownOpenItems = openItems
+            phase = .open(openItems)
             consecutiveFailures = 0
             lastPollAt = now()
         } catch {
+            guard refreshGeneration == generation, !Task.isCancelled else { return }
             consecutiveFailures += 1
             phase = .unknown("Interruptions poll failed: \(error.localizedDescription)")
         }
@@ -340,6 +314,7 @@ final class InterruptionsStore: ObservableObject {
         let store = InterruptionsStore(autoStart: false, loadAccount: { account })
         store.account = account
         store.phase = phase
+        if case .open(let items) = phase { store.lastKnownOpenItems = items }
         return store
     }
 }
