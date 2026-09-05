@@ -23,3 +23,14 @@ The budget is expressed as bounded reasoning work, not a fabricated dollar total
 - Discount novelty that does not change user value, authority, risk, or implementation order.
 - Prototype only replacement previews needed to test comprehension.
 - Record uncertainty instead of buying more inference when the missing fact requires human authority.
+
+## Spend receipts
+
+| Work | Runtime | Ceiling or actual | State |
+| --- | --- | ---: | --- |
+| Phase 0 setup and local source triage | Synthesis Steward local tools | $0 external inference recorded | complete |
+| authority inventory | `gpt-5.4-mini` through `pd spawn` | $0.75 ceiling; actual unavailable | incomplete; process exited without terminal receipt |
+| mechanics inventory | `gpt-5.4-mini` through `pd spawn` | $0.75 ceiling; actual unavailable | incomplete; upstream transport timeout recorded |
+| surface inventory | `gpt-5.4-mini` through `pd spawn` | $0.75 ceiling; actual unavailable | incomplete; process exited without terminal receipt |
+| independent Field Guide review attempt | `gpt-5.4-mini` through `pd spawn` | $0; refused before execution | closed; no duplicate retry after delegated review arrived |
+| independent Field Guide review, source task | separately commissioned delegated reviewer | actual cost unavailable to this session | complete; result adopted without a duplicate retry |

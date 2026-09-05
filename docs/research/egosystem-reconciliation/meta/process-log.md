@@ -36,6 +36,16 @@
 - Evaluate the Field Guide's Meeseeks PR owner and six persistent reviewer personas for independent evidence gathering, typed epistemic status, support/attack relations, accountable synthesis, human-value escalation, and anti-herding.
 - Adopted conclusions must land in this roadmap-linked work, not a competing authority document.
 
+## 2026-09-05 — Inventory checkpoint
+
+- Current source maps to the eight Project Epistemology objects without treating source presence as runtime proof.
+- Primary-source literature mapping narrows the candidate contribution; append-only project memory, fact/opinion separation, formal argumentation, BDI protocols, and multi-agent memory are not novel claims.
+- The Field Guide source was read at `#page-review`, lines 11254–12009. Its bounded PR audit, proposed reviewer roster, and explicitly invented mock remain separate evidence classes.
+- An independent Field Guide review launch was attempted only after the source was scoped. The daemon refused before execution because three active inventory scouts held the available bond balance. No fallback or duplicate agent was launched.
+- A separately commissioned, independently produced Field Guide review then arrived through the source task. It converged on the Synthesis Steward model and added frozen-head review envelopes, compact finding classes, append-only review history beneath GitHub projections, a durable-principal/session-embodiment identity pair, explicit actuator/queue/operator separation, and forward impact previews. These deltas were adopted in `research/field-guide-case.md` and the experimental protocol.
+- The three broad inventory scouts exited after roughly 25 minutes without terminal receipts. One transcript records an upstream transport timeout; the other two preserve partial inspection traces but no final evidence table. No substantive claim from those traces is treated as accepted research evidence. The parent inventory remains grounded in independently rechecked source paths, and later agent commissions are narrowed to immutable, bounded inputs.
+- `check-doc-citations` passed for all five inventory artifacts. `check:rich-docs` scanned the entire library despite path arguments and reported 13,978 pre-existing JSDoc issues; it is unrelated baseline noise, not evidence against this docs slice.
+
 ## Open operator input
 
 The operator can add a stakeholder, private/public boundary, representative conflict story, or unacceptable decision outcome at any time. Work continues unless the input changes authority, disclosure, publication, or canonical roadmap state.
