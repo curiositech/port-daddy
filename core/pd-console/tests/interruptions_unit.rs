@@ -76,6 +76,11 @@ fn ask(id: &str, title: &str, urgency: Urgency, created_at_ms: i64) -> Interrupt
     }
 }
 
+fn valid_operator_token(hex: char) -> String {
+    assert!(hex.is_ascii_hexdigit());
+    format!("pdu_{}", hex.to_string().repeat(64))
+}
+
 // ── Jitter bounds ────────────────────────────────────────────────────────────
 
 #[test]
@@ -547,33 +552,147 @@ fn unconfigured_is_unknown_not_all_clear() {
 
 #[test]
 fn credentials_default_to_account_json_and_explicit_dev_overrides_win() {
-    let stored = r#"{
-        "token":"pdu_stored",
+    let stored_token = valid_operator_token('a');
+    let stored = format!(
+        r#"{{
+        "token":"{stored_token}",
         "login":"operator",
         "relayUrl":"https://stored.example/"
-    }"#;
-    let account = resolve_relay_credentials(None, None, Some(stored));
+    }}"#
+    );
+    let account = resolve_relay_credentials(None, None, Some(&stored));
     assert_eq!(account.url, "https://stored.example");
-    assert_eq!(account.token, "pdu_stored");
+    assert_eq!(account.token, stored_token);
     assert_eq!(account.login, "operator");
 
-    let fallback = resolve_relay_credentials(None, None, Some(r#"{"token":"pdu_only"}"#));
+    let fallback_token = valid_operator_token('b');
+    let fallback_json = format!(r#"{{"token":"{fallback_token}"}}"#);
+    let fallback = resolve_relay_credentials(None, None, Some(&fallback_json));
     assert_eq!(
         fallback.url, "https://relay.portdaddy.dev",
         "a signed-in account without relayUrl uses the product relay"
     );
 
+    let override_token = valid_operator_token('c');
     let overridden = resolve_relay_credentials(
         Some("https://dev.example/".into()),
-        Some("pdu_dev".into()),
-        Some(stored),
+        Some(override_token.clone()),
+        Some(&stored),
     );
     assert_eq!(overridden.url, "https://dev.example");
-    assert_eq!(overridden.token, "pdu_dev");
+    assert_eq!(overridden.token, override_token);
+    assert!(
+        overridden.login.is_empty(),
+        "a development override must not inherit operator identity"
+    );
 
     let signed_out = resolve_relay_credentials(None, None, Some("not-json"));
     assert!(signed_out.url.is_empty());
     assert!(signed_out.token.is_empty());
+}
+
+#[test]
+fn malformed_account_tokens_fail_closed() {
+    let malformed = [
+        "pdu_short".to_string(),
+        format!("ghp_{}", "a".repeat(64)),
+        format!("pdu_{}", "g".repeat(64)),
+        format!(" pdu_{}", "a".repeat(64)),
+    ];
+    for token in malformed {
+        let json = format!(r#"{{"token":"{token}","relayUrl":"https://relay.example"}}"#);
+        let credentials = resolve_relay_credentials(None, None, Some(&json));
+        assert!(
+            credentials.url.is_empty() && credentials.token.is_empty(),
+            "malformed account token must not configure a relay: {credentials:?}"
+        );
+    }
+}
+
+#[test]
+fn unsafe_account_relay_and_partial_overrides_fail_closed() {
+    let token = valid_operator_token('d');
+    for relay in [
+        "http://relay.example",
+        "ftp://relay.example",
+        "https://operator:secret@relay.example",
+        "https://relay.example?redirect=attacker",
+        "https://relay.example#fragment",
+    ] {
+        let json = format!(r#"{{"token":"{token}","relayUrl":"{relay}"}}"#);
+        let credentials = resolve_relay_credentials(None, None, Some(&json));
+        assert!(
+            credentials.url.is_empty() && credentials.token.is_empty(),
+            "unsafe account relay must fail closed: {relay}"
+        );
+    }
+
+    let stored = format!(r#"{{"token":"{token}","relayUrl":"https://relay.example"}}"#);
+    assert!(
+        resolve_relay_credentials(Some("https://override.example".into()), None, Some(&stored))
+            .token
+            .is_empty(),
+        "never send a stored bearer to a partial URL override"
+    );
+    assert!(
+        resolve_relay_credentials(None, Some(token), Some(&stored))
+            .token
+            .is_empty(),
+        "a development override requires URL and token together"
+    );
+
+    let malformed_override = resolve_relay_credentials(
+        Some("https://override.example".into()),
+        Some("pdu_short".into()),
+        Some(&stored),
+    );
+    assert!(
+        malformed_override.url.is_empty() && malformed_override.token.is_empty(),
+        "a malformed override must not fall back to account credentials"
+    );
+}
+
+#[test]
+fn plaintext_relay_is_loopback_only_for_account_and_development_config() {
+    let token = valid_operator_token('e');
+    for relay in [
+        "http://localhost:9876/",
+        "http://127.0.0.1:9876/",
+        "http://[::1]:9876/",
+    ] {
+        let overridden = resolve_relay_credentials(Some(relay.into()), Some(token.clone()), None);
+        assert_eq!(overridden.url, relay.trim_end_matches('/'));
+        assert_eq!(overridden.token, token);
+
+        let account_json = format!(r#"{{"token":"{token}","relayUrl":"{relay}"}}"#);
+        let account = resolve_relay_credentials(None, None, Some(&account_json));
+        assert_eq!(account.url, relay.trim_end_matches('/'));
+        assert_eq!(account.token, token);
+    }
+
+    let remote_override = resolve_relay_credentials(
+        Some("http://relay.example".into()),
+        Some(token.clone()),
+        None,
+    );
+    assert!(remote_override.url.is_empty() && remote_override.token.is_empty());
+
+    let remote_account_json = format!(r#"{{"token":"{token}","relayUrl":"http://relay.example"}}"#);
+    let remote_account = resolve_relay_credentials(None, None, Some(&remote_account_json));
+    assert!(remote_account.url.is_empty() && remote_account.token.is_empty());
+}
+
+#[test]
+fn relay_credentials_debug_redacts_the_bearer() {
+    let token = valid_operator_token('f');
+    let credentials = RelayCredentials {
+        url: "https://relay.example".into(),
+        token: token.clone(),
+        login: "operator".into(),
+    };
+    let debug = format!("{credentials:?}");
+    assert!(!debug.contains(&token));
+    assert!(debug.contains("<redacted>"));
 }
 
 #[test]
@@ -582,23 +701,23 @@ fn account_file_is_reread_after_sign_in_and_rotation() {
     std::fs::create_dir_all(&root).expect("target exists");
     let path = root.join(format!("hitl-account-{}.json", std::process::id()));
 
-    std::fs::write(
-        &path,
-        r#"{"token":"pdu_first","login":"operator","relayUrl":"https://one.example/"}"#,
-    )
-    .expect("write first account");
+    let first_token = valid_operator_token('1');
+    let first_json = format!(
+        r#"{{"token":"{first_token}","login":"operator","relayUrl":"https://one.example/"}}"#
+    );
+    std::fs::write(&path, first_json).expect("write first account");
     let first = load_relay_credentials_from(Some(&path), None, None);
     assert_eq!(first.url, "https://one.example");
-    assert_eq!(first.token, "pdu_first");
+    assert_eq!(first.token, first_token);
 
-    std::fs::write(
-        &path,
-        r#"{"token":"pdu_second","login":"operator","relayUrl":"https://two.example/"}"#,
-    )
-    .expect("rotate account");
+    let second_token = valid_operator_token('2');
+    let second_json = format!(
+        r#"{{"token":"{second_token}","login":"operator","relayUrl":"https://two.example/"}}"#
+    );
+    std::fs::write(&path, second_json).expect("rotate account");
     let second = load_relay_credentials_from(Some(&path), None, None);
     assert_eq!(second.url, "https://two.example");
-    assert_eq!(second.token, "pdu_second");
+    assert_eq!(second.token, second_token);
     assert_ne!(first, second, "a live process observes the rotated file");
 
     std::fs::remove_file(path).expect("remove test account");

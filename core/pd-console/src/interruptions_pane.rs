@@ -22,17 +22,110 @@ use crate::interruptions::{
 use crate::pane::{Block, Pane};
 use anyhow::Result;
 use serde_json::Value;
+use std::fmt;
 use std::path::{Path, PathBuf};
 
 pub(crate) const DEFAULT_RELAY_URL: &str = "https://relay.portdaddy.dev";
 
 /// The signed-in operator relay identity shared by Interruptions and Cloud
 /// Fleet. The bearer remains private to the process and is never rendered.
-#[derive(Debug, Default, PartialEq)]
+#[derive(Default, PartialEq)]
 pub(crate) struct RelayCredentials {
     pub(crate) url: String,
     pub(crate) token: String,
     pub(crate) login: String,
+}
+
+/// Bearer credentials must remain safe even when a containing state value is
+/// printed during a failed assertion or diagnostic. Never derive `Debug` for
+/// this type: the token is deliberately replaced with a presence marker.
+impl fmt::Debug for RelayCredentials {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("RelayCredentials")
+            .field("url", &self.url)
+            .field(
+                "token",
+                &if self.token.is_empty() {
+                    "<absent>"
+                } else {
+                    "<redacted>"
+                },
+            )
+            .field("login", &self.login)
+            .finish()
+    }
+}
+
+fn is_valid_operator_token(token: &str) -> bool {
+    token.len() == 68
+        && token.starts_with("pdu_")
+        && token[4..].bytes().all(|byte| byte.is_ascii_hexdigit())
+}
+
+fn normalize_relay_url(raw: &str, allow_loopback_http: bool) -> Option<String> {
+    let normalized = raw.trim().trim_end_matches('/');
+    let parsed = reqwest::Url::parse(normalized).ok()?;
+    let host = parsed.host_str()?.to_ascii_lowercase();
+    if !parsed.username().is_empty()
+        || parsed.password().is_some()
+        || parsed.query().is_some()
+        || parsed.fragment().is_some()
+    {
+        return None;
+    }
+
+    let transport_is_safe = match parsed.scheme() {
+        "https" => true,
+        "http" if allow_loopback_http => {
+            matches!(host.as_str(), "localhost" | "127.0.0.1" | "::1" | "[::1]")
+        }
+        _ => false,
+    };
+    transport_is_safe.then_some(normalized.to_string())
+}
+
+fn account_credentials(account_json: Option<&str>) -> Option<RelayCredentials> {
+    let account = serde_json::from_str::<Value>(account_json?).ok()?;
+    let token = account.get("token")?.as_str()?.to_string();
+    if !is_valid_operator_token(&token) {
+        return None;
+    }
+    let raw_url = account
+        .get("relayUrl")
+        .and_then(Value::as_str)
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or(DEFAULT_RELAY_URL);
+    // Match FleetBar's shared account contract exactly: remote credentials
+    // require HTTPS; plaintext is permitted only for a relay bound to this Mac
+    // so explicit local development remains possible.
+    let url = normalize_relay_url(raw_url, true)?;
+    let login = account
+        .get("login")
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .trim()
+        .to_string();
+    Some(RelayCredentials { url, token, login })
+}
+
+fn development_override(
+    env_url: Option<String>,
+    env_token: Option<String>,
+) -> Option<RelayCredentials> {
+    // An override is one explicit credential pair. Never combine an override
+    // URL with the operator's stored bearer (or the reverse): a partial or
+    // malformed override fails closed instead of silently changing where an
+    // account secret is sent.
+    let token = env_token?;
+    if !is_valid_operator_token(&token) {
+        return None;
+    }
+    let url = normalize_relay_url(&env_url?, true)?;
+    Some(RelayCredentials {
+        url,
+        token,
+        login: String::new(),
+    })
 }
 
 pub(crate) fn resolve_relay_credentials(
@@ -40,49 +133,11 @@ pub(crate) fn resolve_relay_credentials(
     env_token: Option<String>,
     account_json: Option<&str>,
 ) -> RelayCredentials {
-    let account = account_json
-        .and_then(|raw| serde_json::from_str::<Value>(raw).ok())
-        .unwrap_or(Value::Null);
-    let stored_token = account
-        .get("token")
-        .and_then(Value::as_str)
-        .unwrap_or_default()
-        .trim()
-        .to_string();
-    let stored_url = account
-        .get("relayUrl")
-        .and_then(Value::as_str)
-        .unwrap_or_default()
-        .trim()
-        .trim_end_matches('/')
-        .to_string();
-    let login = account
-        .get("login")
-        .and_then(Value::as_str)
-        .unwrap_or_default()
-        .trim()
-        .to_string();
-
-    // These variables intentionally outrank the signed-in account for
-    // deterministic mocks and named development builds only. Operator copy
-    // points at the account setup surface instead of this plumbing.
-    let token = env_token
-        .map(|value| value.trim().to_string())
-        .filter(|value| !value.is_empty())
-        .unwrap_or(stored_token);
-    let url = env_url
-        .map(|value| value.trim().trim_end_matches('/').to_string())
-        .filter(|value| !value.is_empty())
-        .or_else(|| (!stored_url.is_empty()).then_some(stored_url))
-        .unwrap_or_else(|| {
-            if token.is_empty() {
-                String::new()
-            } else {
-                DEFAULT_RELAY_URL.into()
-            }
-        });
-
-    RelayCredentials { url, token, login }
+    let override_requested = env_url.is_some() || env_token.is_some();
+    if override_requested {
+        return development_override(env_url, env_token).unwrap_or_default();
+    }
+    account_credentials(account_json).unwrap_or_default()
 }
 
 pub(crate) fn load_relay_credentials_from(

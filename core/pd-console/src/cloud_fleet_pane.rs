@@ -1528,23 +1528,28 @@ mod tests {
 
     #[test]
     fn credentials_default_to_signed_in_account_and_allow_explicit_overrides() {
-        let stored = r#"{
-            "token":"pdu_stored",
+        let stored_token = format!("pdu_{}", "a".repeat(64));
+        let stored = format!(
+            r#"{{
+            "token":"{stored_token}",
             "login":"operator",
             "relayUrl":"https://stored.example/"
-        }"#;
-        let stored_only = resolve_relay_credentials(None, None, Some(stored));
+        }}"#
+        );
+        let stored_only = resolve_relay_credentials(None, None, Some(&stored));
         assert_eq!(stored_only.url, "https://stored.example");
-        assert_eq!(stored_only.token, "pdu_stored");
+        assert_eq!(stored_only.token, stored_token);
         assert_eq!(stored_only.login, "operator");
 
+        let override_token = format!("pdu_{}", "b".repeat(64));
         let overridden = resolve_relay_credentials(
             Some("https://dev.example/".into()),
-            Some("pdu_dev".into()),
-            Some(stored),
+            Some(override_token.clone()),
+            Some(&stored),
         );
         assert_eq!(overridden.url, "https://dev.example");
-        assert_eq!(overridden.token, "pdu_dev");
+        assert_eq!(overridden.token, override_token);
+        assert!(overridden.login.is_empty());
     }
 
     #[test]
