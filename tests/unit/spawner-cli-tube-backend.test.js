@@ -37,6 +37,7 @@ const mockWithCoastGuard = jest.fn(async (input) => ({
   cmd: input.cmd,
   args: input.args,
   env: input.env,
+  confined: true,
   receipt: () => mockCoastGuardReceipt,
   dispose: mockCoastGuardDispose,
 }));
@@ -115,6 +116,7 @@ beforeEach(() => {
     cmd: input.cmd,
     args: input.args,
     env: input.env,
+    confined: true,
     receipt: () => mockCoastGuardReceipt,
     dispose: mockCoastGuardDispose,
   }));
@@ -364,7 +366,7 @@ describe('spawnViaCliTube — provider policy behavior', () => {
       await Promise.resolve();
       renameSync(workspace, workspace + '-old');
       mkdirSync(workspace);
-      return { cmd: input.cmd, args: input.args, env: input.env, receipt: () => mockCoastGuardReceipt, dispose: mockCoastGuardDispose };
+      return { cmd: input.cmd, args: input.args, env: input.env, confined: true, receipt: () => mockCoastGuardReceipt, dispose: mockCoastGuardDispose };
     });
     const result = await spawnViaCliTube({ cli, prompt: 'must not run', cwd: workspace, workspaceIdentity });
     expect(result.error).toMatch(/workspace identity changed/);
@@ -380,7 +382,7 @@ describe('spawnViaCliTube — provider policy behavior', () => {
     mockWithCoastGuard.mockImplementationOnce(async (input) => {
       await Promise.resolve();
       controller.abort();
-      return { cmd: input.cmd, args: input.args, env: input.env, receipt: () => mockCoastGuardReceipt, dispose: mockCoastGuardDispose };
+      return { cmd: input.cmd, args: input.args, env: input.env, confined: true, receipt: () => mockCoastGuardReceipt, dispose: mockCoastGuardDispose };
     });
     const result = await spawnViaCliTube({ cli, prompt: 'must not run', signal: controller.signal });
     expect(result.error).toMatch(/cancelled before child launch/);
@@ -1470,6 +1472,95 @@ describe('createCliTubeBackend', () => {
 });
 
 describe('spawnViaCliTube — codex shape', () => {
+  test.each(CLI_TUBE_TOOLS.filter((tool) => tool !== 'codex'))(
+    '%s never receives Codex-only overrides or working-directory flags', (tool) => {
+      const { args } = CLI_TUBE_PROVIDER_SPECS[tool].buildArgs({
+        prompt: 'unchanged task', cwd: '/workspace',
+        codexConfig: ['skills.include_instructions=true'], externalConfinement: true,
+      });
+      expect(args.some((arg) => arg.includes('skills.include_instructions'))).toBe(false);
+      expect(args).not.toContain('--dangerously-bypass-approvals-and-sandbox');
+      expect(args).not.toContain('-C');
+      expect(args.at(-1)).toBe('unchanged task');
+    },
+  );
+
+  test.each([undefined, '22222222-2222-4222-8222-222222222222'])(
+    'shared Codex builder emits cwd only for fresh runs (%s)', (resumeSessionId) => {
+      const { args } = CLI_TUBE_PROVIDER_SPECS.codex.buildArgs({
+        prompt: 'task', cwd: '/workspace', resumeSessionId,
+      });
+      if (resumeSessionId) expect(args).not.toContain('-C');
+      else expect(args[args.indexOf('-C') + 1]).toBe('/workspace');
+    },
+  );
+
+  test.each([undefined, '22222222-2222-4222-8222-222222222222'])(
+    'fresh/resume %s disables eager skill context and uses proven external confinement', async (resumeSessionId) => {
+      mockSpawn.mockImplementation((_binary, args) => {
+        writeFileSync(args[args.indexOf('--output-last-message') + 1], 'captured answer');
+        return fakeChild({ stdout: '{"type":"event"}\n' });
+      });
+      const res = await spawnViaCliTube({
+        cli: 'codex', prompt: 'unchanged task', model: 'gpt-5.4-mini',
+        codexConfig: ['skills.include_instructions=true', 'model_reasoning_effort="high"'],
+        cwd: fakeHome, resumeSessionId,
+        workspaceIdentity: captureWorkspaceIdentity(fakeHome),
+        coastGuard: { envSource: {} },
+      });
+      expect(res.error).toBeNull();
+      const args = mockSpawn.mock.calls[0][1];
+      expect(args).toContain('--dangerously-bypass-approvals-and-sandbox');
+      expect(args).not.toContain('--approve-for-me');
+      expect(args).not.toContain('--sandbox');
+      expect(args).not.toContain('--full-auto');
+      const overrides = args.filter((_, index) => args[index - 1] === '-c');
+      expect(overrides.at(-1)).toBe('skills.include_instructions=false');
+      expect(overrides).toContain('model_reasoning_effort="high"');
+      expect(args[args.indexOf('--model') + 1]).toBe('gpt-5.4-mini');
+      expect(args.at(-1)).toBe('unchanged task');
+      if (resumeSessionId) {
+        expect(args.slice(0, 3)).toEqual(['exec', '--dangerously-bypass-approvals-and-sandbox', 'resume']);
+        expect(args.at(-2)).toBe(resumeSessionId);
+      }
+      expect(res.output).toBe('captured answer');
+      expect(res.rawStdout).toBe('{"type":"event"}\n');
+    },
+  );
+
+  test.each([
+    { spec: { coastGuard: false }, envSource: {} },
+    { envSource: { PD_COAST_GUARD_OFF: '1' } },
+  ])('explicitly disabled Coast Guard retains Codex sandboxing: %j', async (coastGuard) => {
+    mockWithCoastGuard.mockImplementation(async (input) => ({
+      cmd: input.cmd, args: input.args, env: input.env, confined: false,
+      receipt: () => ({ ...mockCoastGuardReceipt, confined: false }),
+      dispose: mockCoastGuardDispose,
+    }));
+    mockSpawn.mockReturnValue(fakeChild({ stdout: 'safe sandbox' }));
+    const res = await spawnViaCliTube({ cli: 'codex', prompt: 'task', coastGuard });
+    expect(res.error).toBeNull();
+    const args = mockSpawn.mock.calls[0][1];
+    expect(args).toContain('--approve-for-me');
+    expect(args).not.toContain('--dangerously-bypass-approvals-and-sandbox');
+    expect(args).toContain('skills.include_instructions=false');
+  });
+
+  test.each([false, undefined])('missing confinement proof (%s) fails closed before spawn', async (confined) => {
+    mockWithCoastGuard.mockImplementation(async (input) => ({
+      cmd: input.cmd, args: input.args, env: input.env, confined,
+      receipt: () => ({ ...mockCoastGuardReceipt, confined: false }),
+      dispose: mockCoastGuardDispose,
+    }));
+    const res = await spawnViaCliTube({ cli: 'codex', prompt: 'task', coastGuard: { envSource: {} } });
+    expect(res.error).toContain('did not establish external confinement');
+    expect(mockSpawn).not.toHaveBeenCalled();
+    expect(mockCoastGuardDispose).toHaveBeenCalledTimes(1);
+    const input = mockWithCoastGuard.mock.calls[0][0];
+    const outputPath = input.args[input.args.indexOf('--output-last-message') + 1];
+    expect(existsSync(join(outputPath, '..'))).toBe(false);
+  });
+
   test('uses --output-last-message and reads it on success', async () => {
     mockSpawn.mockReturnValue(fakeChild({ stdout: '{"type":"log"}', exitCode: 0 }));
     const res = await spawnViaCliTube({ cli: 'codex', prompt: 'do thing' });

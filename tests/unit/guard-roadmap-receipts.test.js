@@ -222,7 +222,9 @@ describe('Guard command receipt plumbing — actual handler in an isolated Git f
     }));
     sessionLink = linked.roadmapLink;
     expectedHarbor = linked.harbor;
-    item = receipt({ lastTouchedAt: Date.now() });
+    const receiptNow = Date.now();
+    // The real handler uses wall time; keep its own-note receipt inside the window.
+    item = receipt({ lastTouchedAt: receiptNow, notes: [{ at: receiptNow, by: 'fixture-agent', text: 'Exact own receipt' }] });
     itemStatus = 200;
     seen.length = 0;
     server = createServer((req, res) => {

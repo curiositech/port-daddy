@@ -12,7 +12,7 @@ jest.unstable_mockModule('../../lib/spawner/coast-guard-runner.js', () => ({
   withCoastGuard: async (input: any) => {
     await Promise.resolve();
     duringPreparation();
-    return { cmd: input.cmd, args: input.args, env: input.env, receipt: () => ({ confined: false }), dispose };
+    return { cmd: input.cmd, args: input.args, env: input.env, confined: true, receipt: () => ({ confined: true }), dispose };
   },
 }));
 const { createSpawner } = await import('../../lib/spawner.js');

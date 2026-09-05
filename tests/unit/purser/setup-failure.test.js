@@ -76,6 +76,7 @@ describe('spawnViaCliTube — synchronous spawn throw after a successful wrap', 
       cmd: '/usr/bin/sandbox-wrapper',
       args: ['--', input.cmd, ...input.args],
       env: { ...input.env, PD_TEST_CONFINED: '1' },
+      confined: true,
       receipt: () => mockCoastGuardReceipt,
       dispose: mockCoastGuardDispose,
     }));

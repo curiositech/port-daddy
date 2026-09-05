@@ -14,9 +14,13 @@
  */
 
 import { jest } from '@jest/globals';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+
+const realFs = await import('node:fs');
+const mockRmSync = jest.fn((...args) => realFs.rmSync(...args));
+jest.unstable_mockModule('node:fs', () => ({ ...realFs, rmSync: mockRmSync }));
 
 // Capture every spawn call; return a fake child that "closes" cleanly.
 const spawnCalls = [];
@@ -44,11 +48,13 @@ jest.unstable_mockModule('node:child_process', () => ({
 }));
 
 const { createSpawner: createSpawnerBase } = await import('../../lib/spawner.js');
+const { spawn: mockSpawn } = await import('node:child_process');
 // coast-guard is NOT mocked — import the real posture readers so the
 // uncontained-scope assertion can branch on what THIS machine actually enforces
 // (armed → enforced 'read' → INFO steady-state; degraded → null → WARN).
 const { coastGuardStatus } = await import('../../lib/coast-guard.js');
 const { enforcedContainmentTier } = await import('../../lib/coast-guard.js');
+const { captureWorkspaceIdentity } = await import('../../lib/workspace-identity.js');
 
 const TEST_TELEMETRY_BYPASS = {
   humanConfirmed: true,
@@ -66,6 +72,7 @@ function createSpawner(deps = {}) {
 
 let worktree;
 beforeEach(() => {
+  mockRmSync.mockImplementation((...args) => realFs.rmSync(...args));
   worktree = mkdtempSync(join(tmpdir(), 'pd-cg-wt-'));
   // Make it look like a git WORKTREE so the isolation guard allows the spawn.
   writeFileSync(join(worktree, '.git'), 'gitdir: /somewhere/.git/worktrees/wt\n');
@@ -81,6 +88,90 @@ afterEach(() => {
 });
 
 describe('Coast Guard is the default for subprocess spawns', () => {
+  test.each([false, true])('codex fresh/resume (%s) delegates only to a real wrapper', async (resume) => {
+    const sessionId = '22222222-2222-4222-8222-222222222222';
+    const res = await createSpawner().spawn({
+      backend: 'codex', task: 'unchanged task', model: 'gpt-5.4-mini', workdir: worktree,
+      ...(resume ? { nativeResume: {
+        adapterFamily: 'codex-cli', sessionId, workspaceIdentity: captureWorkspaceIdentity(worktree),
+      } } : {}),
+    });
+    if (spawnCalls.length === 0) {
+      expect(res.status).toBe('failed');
+      expect(res.error).toContain('did not establish external confinement');
+      return;
+    }
+    expect(res.coastGuard.confined).toBe(true);
+    const call = spawnCalls[0];
+    expect(call.cmd).not.toBe('codex');
+    expect(call.args).toContain('--dangerously-bypass-approvals-and-sandbox');
+    expect(call.args).not.toContain('--approve-for-me');
+    expect(call.args).toContain('skills.include_instructions=false');
+    expect(call.args).toContain('gpt-5.4-mini');
+    expect(call.args.at(-1)).toBe('unchanged task');
+    if (resume) expect(call.args.at(-2)).toBe(sessionId);
+    const outputPath = call.args[call.args.indexOf('--output-last-message') + 1];
+    expect(existsSync(dirname(outputPath))).toBe(false);
+  });
+
+  test.each([false, true])('codex fresh/resume (%s) retains sandbox when Coast Guard is disabled', async (resume) => {
+    const sessionId = '22222222-2222-4222-8222-222222222222';
+    await createSpawner().spawn({
+      backend: 'codex', task: 'sandboxed task', workdir: worktree, coastGuard: false,
+      ...(resume ? { nativeResume: {
+        adapterFamily: 'codex-cli', sessionId, workspaceIdentity: captureWorkspaceIdentity(worktree),
+      } } : {}),
+    });
+    expect(spawnCalls).toHaveLength(1);
+    const call = spawnCalls[0];
+    expect(call.cmd).toBe('codex');
+    expect(call.args).toContain('--approve-for-me');
+    expect(call.args).not.toContain('--dangerously-bypass-approvals-and-sandbox');
+    expect(call.args).toContain('skills.include_instructions=false');
+    expect(call.args.at(-1)).toBe('sandboxed task');
+    if (resume) expect(call.args.at(-2)).toBe(sessionId);
+    const outputPath = call.args[call.args.indexOf('--output-last-message') + 1];
+    expect(existsSync(dirname(outputPath))).toBe(false);
+  });
+
+  test('legacy Codex removes its scratch directory when child launch throws', async () => {
+    let outputPath;
+    mockSpawn.mockImplementationOnce((_cmd, args) => {
+      outputPath = args[args.indexOf('--output-last-message') + 1];
+      throw new Error('synthetic child launch rejected');
+    });
+    const res = await createSpawner().spawn({
+      backend: 'codex', task: 'must not run', workdir: worktree, coastGuard: false,
+    });
+    expect(res.status).toBe('failed');
+    expect(res.error).toContain('synthetic child launch rejected');
+    expect(outputPath).toBeDefined();
+    expect(existsSync(dirname(outputPath))).toBe(false);
+  });
+
+  test('legacy Codex preserves the launch error when scratch cleanup also fails', async () => {
+    let scratch;
+    mockSpawn.mockImplementationOnce((_cmd, args) => {
+      scratch = dirname(args[args.indexOf('--output-last-message') + 1]);
+      throw new Error('primary launch failure');
+    });
+    mockRmSync.mockImplementation((path, options) => {
+      if (path === scratch) throw new Error('synthetic cleanup denial');
+      return realFs.rmSync(path, options);
+    });
+    try {
+      const res = await createSpawner().spawn({
+        backend: 'codex', task: 'must not run', workdir: worktree, coastGuard: false,
+      });
+      expect(res.status).toBe('failed');
+      expect(res.error).toContain('primary launch failure');
+      expect(res.error).toContain('Codex scratch cleanup failed');
+      expect(res.error).toContain('synthetic cleanup denial');
+    } finally {
+      if (scratch) realFs.rmSync(scratch, { recursive: true, force: true });
+    }
+  });
+
   test('custom backend is sandbox-wrapped, key-scrubbed, and proxied', async () => {
     process.env.ANTHROPIC_API_KEY = 'sk-should-not-reach-child';
     const spawner = createSpawner();
