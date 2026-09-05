@@ -82,6 +82,22 @@ describe('buildSeatbeltProfile — workdir dotenv root (pure)', () => {
     // both the nested and the direct form of the workdir's dotenv are denied
     expect(profile).toContain('/var/work/proj/.*/\\.env($|\\.)');
     expect(profile).toContain('/var/work/proj/\\.env($|\\.)');
+    // The exact tracked template is readable after the broad denial so Git can
+    // prove a checkout is clean; no other dotenv suffix is re-allowed.
+    expect(profile).toContain('(allow file-read* (literal "/var/work/proj/.env.example"))');
+    expect(profile).toContain('/var/work/proj/.*/\\.env\\.example$');
+    expect(profile.indexOf('(allow file-read* (literal "/var/work/proj/.env.example"))'))
+      .toBeGreaterThan(profile.indexOf('/var/work/proj/\\.env($|\\.)'));
+    expect(profile).not.toContain('.env.local"))');
+  });
+
+  test('does not re-allow templates when the workdir overlaps a crown jewel', () => {
+    const jewels = {
+      ...defaultCrownJewels('/home/op'),
+      extraDotenvRoots: ['/home/op/.ssh/project'],
+    };
+    const profile = buildSeatbeltProfile(jewels);
+    expect(profile).not.toContain('(allow file-read*');
   });
 });
 
@@ -132,6 +148,21 @@ describe('buildSeatbeltProfile — scope-tier write confinement (pure)', () => {
 const SCRATCH_ROOT = join(process.env.HOME || homedir(), 'coding', 'tmp');
 
 d('live Seatbelt write confinement (macOS)', () => {
+  function runUnderReadOnly(workdir, shellCmd) {
+    const w = wrapWithSandbox(
+      'sh',
+      ['-c', shellCmd],
+      defaultCrownJewels(homedir()),
+      workdir,
+      'read-only',
+    );
+    expect(w.confined).toBe(true);
+    expect(w.mechanism).toBe('seatbelt');
+    const r = spawnSync(w.cmd, w.args, { encoding: 'utf-8' });
+    for (const c of w.cleanup) rmSync(c, { recursive: true, force: true });
+    return { status: r.status, out: (r.stdout || '') + (r.stderr || '') };
+  }
+
   function runWrite(workdir, writePolicy) {
     // Try to create a file inside the workdir under the policy.
     const target = join(workdir, 'agent-wrote-this.txt');
@@ -171,6 +202,63 @@ d('live Seatbelt write confinement (macOS)', () => {
       expect(r.stdout).toContain('readable');
     } finally {
       await rm(work, { recursive: true, force: true });
+    }
+  });
+
+  test('tracked .env.example stays readable and Git still proves the sandboxed worktree clean', async () => {
+    await mkdir(SCRATCH_ROOT, { recursive: true });
+    const work = await mkdtemp(join(SCRATCH_ROOT, 'cg-template-'));
+    try {
+      const template = join(work, '.env.example');
+      const secret = join(work, '.env.local');
+      writeFileSync(template, 'PUBLIC_PLACEHOLDER=replace-me\n');
+
+      for (const args of [
+        ['init', '-q', work],
+        ['-C', work, 'config', 'user.email', 'coast-guard-test@invalid'],
+        ['-C', work, 'config', 'user.name', 'Coast Guard Test'],
+        ['-C', work, 'add', '.env.example'],
+        ['-C', work, 'commit', '-qm', 'tracked template fixture'],
+      ]) {
+        const setup = spawnSync('git', args, { encoding: 'utf-8' });
+        expect(setup.status).toBe(0);
+      }
+
+      const readable = runUnderReadOnly(work, `cat ${template}`);
+      expect(readable.status).toBe(0);
+      expect(readable.out).toContain('PUBLIC_PLACEHOLDER=replace-me');
+
+      const clean = runUnderReadOnly(work, `git -C ${work} status --short`);
+      expect(clean.status).toBe(0);
+      expect(clean.out).toBe('');
+
+      writeFileSync(secret, 'PRIVATE_TOKEN=must-not-leak\n');
+      const denied = runUnderReadOnly(work, `cat ${secret} 2>&1`);
+      expect(denied.status).not.toBe(0);
+      expect(denied.out).toMatch(/not permitted/i);
+      expect(denied.out).not.toContain('must-not-leak');
+    } finally {
+      await rm(work, { recursive: true, force: true });
+    }
+  });
+
+  test('.env.example cannot use a symlink to escape the dotenv secret deny', async () => {
+    await mkdir(SCRATCH_ROOT, { recursive: true });
+    const work = await mkdtemp(join(SCRATCH_ROOT, 'cg-template-link-'));
+    const secretDir = await mkdtemp(join(SCRATCH_ROOT, 'cg-template-secret-'));
+    try {
+      const secret = join(secretDir, '.env.local');
+      const templateLink = join(work, '.env.example');
+      writeFileSync(secret, 'PRIVATE_TOKEN=symlink-secret\n');
+      symlinkSync(secret, templateLink);
+
+      const denied = runUnderReadOnly(work, `cat ${templateLink} 2>&1`);
+      expect(denied.status).not.toBe(0);
+      expect(denied.out).toMatch(/not permitted/i);
+      expect(denied.out).not.toContain('symlink-secret');
+    } finally {
+      await rm(work, { recursive: true, force: true });
+      await rm(secretDir, { recursive: true, force: true });
     }
   });
 
