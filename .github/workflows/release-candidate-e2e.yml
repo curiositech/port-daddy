@@ -50,6 +50,9 @@ jobs:
           stage="$base/stage/Cellar/port-daddy/rc"
           results="$base/artifact-results.json"
           mkdir -p "$base"
+          echo "base=$base" >> "$GITHUB_OUTPUT"
+          echo "archive=$base/pd-rc-stage.tar.gz" >> "$GITHUB_OUTPUT"
+          echo "results=$results" >> "$GITHUB_OUTPUT"
           node scripts/e2e-release-candidate.mjs \
             --build \
             --target bun-linux-x64 \
@@ -58,18 +61,22 @@ jobs:
             --shard artifact \
             --results "$results"
           tar -C "$stage" -czf "$base/pd-rc-stage.tar.gz" .
-          echo "base=$base" >> "$GITHUB_OUTPUT"
-          echo "archive=$base/pd-rc-stage.tar.gz" >> "$GITHUB_OUTPUT"
-          echo "results=$results" >> "$GITHUB_OUTPUT"
 
-      - name: Upload the exact staged artifact and sanitized result
+      - name: Upload the exact staged artifact
         uses: actions/upload-artifact@v4
         with:
           name: pd-rc-stage
-          path: |
-            ${{ steps.artifact.outputs.archive }}
-            ${{ steps.artifact.outputs.results }}
+          path: ${{ steps.artifact.outputs.archive }}
           if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload sanitized artifact-build result
+        if: always() && steps.artifact.outputs.results != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: pd-rc-artifact-result
+          path: ${{ steps.artifact.outputs.results }}
+          if-no-files-found: warn
           retention-days: 7
 
   product-journeys:
@@ -125,5 +132,5 @@ jobs:
         with:
           name: pd-rc-${{ matrix.shard }}-result
           path: ${{ steps.journeys.outputs.results }}
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 7

@@ -251,7 +251,9 @@ export function redactReleaseCandidateText(input, secrets = []) {
     .replace(/\b(?:gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,})\b/g, '[REDACTED GITHUB TOKEN]')
     .replace(/\b(Bearer|token)\s+[A-Za-z0-9._~+/=-]{12,}\b/gi, '$1 [REDACTED]')
     .replace(/\b([A-Z0-9_]*(?:TOKEN|SECRET|PASSWORD|CREDENTIAL|PRIVATE_KEY)[A-Z0-9_]*)\s*=\s*([^\s]+)/gi, '$1=[REDACTED]')
-    .replace(/("(?:token|secret|password|credential|privateKey)"\s*:\s*")[^"]*(")/gi, '$1[REDACTED]$2');
+    .replace(/("(?:token|secret|password|credential|privateKey)"\s*:\s*")[^"]*(")/gi, '$1[REDACTED]$2')
+    .replace(/\/Users\/[^/\s"'`)]+/g, '~')
+    .replace(/\/home\/[^/\s"'`)]+/g, '~');
 }
 
 /** Return only environment variables that cannot carry ambient credentials. */

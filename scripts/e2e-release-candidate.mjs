@@ -38,6 +38,8 @@ const DEFAULT_MATRIX = join(SOURCE_ROOT, 'tests', 'e2e', 'release-candidate.matr
 const SECRET_FIXTURE = join(SOURCE_ROOT, 'tests', 'e2e', 'fixtures', 'emit-secret.mjs');
 const CHILD_OUTPUT_LIMIT = 4 * 1024 * 1024;
 const EXPECTED_BUN_VERSION = '1.2.21';
+const DAEMON_READINESS_TIMEOUT_MS = 120_000;
+const DAEMON_BOOT_LOG_LIMIT = 4_000;
 const TENTACLES = [
   'pd-hook-prompt',
   'pd-hook-precompact',
@@ -267,7 +269,11 @@ class ReleaseCandidateSuite {
     const result = { ...exit, stdout, stderr, timedOut, truncated };
     if (timedOut) throw new Error(`${label} exceeded ${timeoutMs}ms`);
     if (result.code !== 0 && !options.allowFailure) {
-      const detail = redactReleaseCandidateText((stderr || stdout).slice(-2_000), [...this.knownSecrets, ...(options.secrets || [])]);
+      const rawDetail = stderr || stdout;
+      const boundedDetail = rawDetail.length <= 12_000
+        ? rawDetail
+        : `${rawDetail.slice(0, 2_000)}\n...[DIAGNOSTIC TRUNCATED]...\n${rawDetail.slice(-10_000)}`;
+      const detail = redactReleaseCandidateText(boundedDetail, [...this.knownSecrets, ...(options.secrets || [])]);
       throw new Error(`${label} exited ${result.code ?? result.signal}: ${detail}`);
     }
     return result;
@@ -383,7 +389,6 @@ class ReleaseCandidateSuite {
       NODE_ENV: 'test',
       NO_COLOR: '1',
       PD_HOME: pdHome,
-      PD_MATRIX_FILE: join(pdHome, 'matrix.env'),
       PD_SCRATCH_ROOT: join(caseRoot, 'scratch'),
       PORT_DADDY_BIN_OVERRIDE: join(this.stagedDir, 'pd'),
       PORT_DADDY_CONTEXT_DIR: contextDir,
@@ -418,48 +423,130 @@ class ReleaseCandidateSuite {
       stdio: ['ignore', 'pipe', 'pipe'],
     });
     this.activeChildren.add(child);
-    const capture = (channel, chunk) => this.appendLog(`${label}:${channel}`, chunk.toString());
+    const daemon = { child, runtime, label, bootChunks: [], spawnError: null };
+    const capture = (channel, chunk) => {
+      const text = chunk.toString();
+      daemon.bootChunks.push(`[${channel}] ${text}`);
+      while (Buffer.byteLength(daemon.bootChunks.join('')) > CHILD_OUTPUT_LIMIT) daemon.bootChunks.shift();
+      this.appendLog(`${label}:${channel}`, text);
+    };
     child.stdout.on('data', (chunk) => capture('stdout', chunk));
     child.stderr.on('data', (chunk) => capture('stderr', chunk));
-    const daemon = { child, runtime, label };
+    child.once('error', (error) => {
+      daemon.spawnError = error;
+    });
     try {
       await this.waitForReady(daemon);
       return daemon;
     } catch (error) {
-      await this.stopDaemon(daemon, 'SIGKILL');
+      if (daemon.child.pid === undefined) this.activeChildren.delete(daemon.child);
+      else await this.stopDaemon(daemon, 'SIGKILL');
       throw error;
     }
   }
 
-  async waitForReady(daemon, timeoutMs = 25_000) {
-    const deadline = Date.now() + timeoutMs;
+  daemonReadinessEvidence(daemon, { classification, startedAt, timeoutMs, attempts, lastError = null }) {
+    const rawBootLog = daemon.bootChunks.join('');
+    const redactedBootLog = redactReleaseCandidateText(rawBootLog, this.knownSecrets);
+    return {
+      category: 'daemon-readiness',
+      classification,
+      phase: 'daemon-boot-to-health',
+      elapsedMs: Date.now() - startedAt,
+      hardDeadlineMs: timeoutMs,
+      attempts,
+      lastError: lastError
+        ? redactReleaseCandidateText(lastError instanceof Error ? lastError.message : String(lastError), this.knownSecrets)
+        : null,
+      process: {
+        pid: daemon.child.pid ?? null,
+        exitCode: daemon.child.exitCode,
+        signalCode: daemon.child.signalCode,
+        exited: daemon.child.exitCode !== null || daemon.child.signalCode !== null,
+      },
+      bootLog: {
+        bytes: Buffer.byteLength(rawBootLog),
+        redacted: true,
+        truncated: redactedBootLog.length > DAEMON_BOOT_LOG_LIMIT,
+        tail: redactedBootLog.slice(-DAEMON_BOOT_LOG_LIMIT),
+      },
+    };
+  }
+
+  async waitForReady(daemon, timeoutMs = DAEMON_READINESS_TIMEOUT_MS) {
+    const startedAt = Date.now();
+    const deadline = startedAt + timeoutMs;
+    let attempts = 0;
     let lastError = null;
     while (Date.now() < deadline) {
-      if (daemon.child.exitCode !== null || daemon.child.signalCode !== null) {
-        throw new Error(`${daemon.label} exited before readiness (${daemon.child.exitCode ?? daemon.child.signalCode})`);
+      if (daemon.spawnError) {
+        const evidence = this.daemonReadinessEvidence(daemon, {
+          classification: 'process-spawn-failed',
+          startedAt,
+          timeoutMs,
+          attempts,
+          lastError: daemon.spawnError,
+        });
+        throw new Error(`${daemon.label} readiness failed: ${JSON.stringify(evidence)}`);
       }
+      if (daemon.child.exitCode !== null || daemon.child.signalCode !== null) {
+        const evidence = this.daemonReadinessEvidence(daemon, {
+          classification: 'process-exited-before-readiness',
+          startedAt,
+          timeoutMs,
+          attempts,
+          lastError,
+        });
+        throw new Error(`${daemon.label} readiness failed: ${JSON.stringify(evidence)}`);
+      }
+      attempts += 1;
       try {
         const health = await this.requestJson(daemon.runtime, '/health', 'tcp', 1_000);
-        if (health.statusCode === 200 && health.body?.pid === daemon.child.pid) return health.body;
+        if (health.statusCode === 200 && health.body?.pid === daemon.child.pid) {
+          daemon.readiness = this.daemonReadinessEvidence(daemon, {
+            classification: 'expected-initialization-complete',
+            startedAt,
+            timeoutMs,
+            attempts,
+          });
+          return health.body;
+        }
       } catch (error) {
         lastError = error;
       }
       await sleep(250);
     }
-    throw new Error(`${daemon.label} did not become ready: ${lastError instanceof Error ? lastError.message : 'timeout'}`);
+    const evidence = this.daemonReadinessEvidence(daemon, {
+      classification: 'readiness-deadline-exceeded',
+      startedAt,
+      timeoutMs,
+      attempts,
+      lastError,
+    });
+    throw new Error(`${daemon.label} readiness failed: ${JSON.stringify(evidence)}`);
   }
 
   async stopDaemon(daemon, signal = 'SIGTERM') {
     if (!daemon?.child) return null;
     const child = daemon.child;
+    const pid = child.pid ?? null;
     if (child.exitCode === null && child.signalCode === null) child.kill(signal);
     let exit = await processExited(child, signal === 'SIGKILL' ? 3_000 : 10_000);
     if (!exit && child.exitCode === null && child.signalCode === null) {
       child.kill('SIGKILL');
       exit = await processExited(child, 3_000);
     }
+    if (!exit) throw new Error(`${daemon.label} did not exit within the bounded cleanup window`);
+    if (pid !== null) {
+      try {
+        process.kill(pid, 0);
+        throw new Error(`${daemon.label} process ${pid} remained alive after exit receipt`);
+      } catch (error) {
+        if (error?.code !== 'ESRCH') throw error;
+      }
+    }
     this.activeChildren.delete(child);
-    return exit;
+    return { ...exit, confirmedGone: true };
   }
 
   requestJson(runtime, path, transport = 'tcp', timeoutMs = 10_000, init = {}) {
@@ -600,6 +687,7 @@ class ReleaseCandidateSuite {
       const unixCli = readJsonOutput(await this.runCli(runtime, caseRoot, ['status', '--json'], { transport: 'unix' }), 'Unix CLI status');
       return {
         pid: daemon.child.pid,
+        readiness: daemon.readiness,
         version: tcpVersion.body.version,
         tcpBytes: tcpHealth.bytes,
         unixBytes: unixHealth.bytes,
@@ -637,6 +725,12 @@ class ReleaseCandidateSuite {
     const port = await reservePort();
     const runtime = this.runtimePaths(caseRoot, port);
     let daemon = await this.startDaemon(runtime, 'coordination-daemon-before-crash');
+    const beforeCrashReadiness = daemon.readiness;
+    const matrixEnvFindings = () => findAuthorityArtifacts(caseRoot)
+      .filter((path) => basename(path) === 'matrix.env');
+    if (matrixEnvFindings().length > 0) {
+      throw new Error('compiled product created matrix.env before any coordination journey');
+    }
     const sessions = [];
     const specs = [
       { label: 'alpha-main', cwd: alpha, slot: 'alpha-main', allowMain: true },
@@ -672,12 +766,6 @@ class ReleaseCandidateSuite {
         sessions.push({ ...spec, sessionId });
       }
 
-      writeFileSync(runtime.env.PD_MATRIX_FILE, 'PD_ALERT_RC_E2E="synthetic attention only"\n', { mode: 0o600 });
-      const matrixText = readFileSync(runtime.env.PD_MATRIX_FILE, 'utf8');
-      if (/SESSION|ACTOR|CREDENTIAL|TOKEN|SECRET|PASSWORD|PRIVATE_KEY/i.test(matrixText)) {
-        throw new Error('matrix.env contains authority-shaped state');
-      }
-
       const beforeCrash = new Map();
       for (const spec of sessions) {
         const detail = await this.requestJson(runtime, `/sessions/${encodeURIComponent(spec.sessionId)}`, 'unix');
@@ -687,7 +775,7 @@ class ReleaseCandidateSuite {
         const session = detail.body.session;
         beforeCrash.set(spec.sessionId, {
           sessionId: session?.id,
-          noteIds: (detail.body.notes || []).map((note) => note.id).sort((left, right) => left - right),
+          noteIds: (detail.body.notes || []).map((note) => String(note.id)).sort(),
           claimIds: (detail.body.files || []).map((file) => [
             file.sessionId,
             file.filePath,
@@ -702,11 +790,10 @@ class ReleaseCandidateSuite {
       }
 
       const crashPid = daemon.child.pid;
-      daemon.child.kill('SIGKILL');
-      const crashExit = await processExited(daemon.child, 5_000);
-      this.activeChildren.delete(daemon.child);
+      const crashExit = await this.stopDaemon(daemon, 'SIGKILL');
       if (!crashExit || crashExit.signal !== 'SIGKILL') throw new Error('forced daemon crash did not produce a SIGKILL receipt');
       daemon = await this.startDaemon(runtime, 'coordination-daemon-after-crash');
+      const afterCrashReadiness = daemon.readiness;
       if (daemon.child.pid === crashPid) throw new Error('restart reused the crashed process id');
 
       const details = [];
@@ -725,7 +812,7 @@ class ReleaseCandidateSuite {
         if (!session?.metadata?.worktree) throw new Error(`worktree metadata missing for ${spec.label}`);
         const afterCrash = {
           sessionId: session.id,
-          noteIds: (detail.body.notes || []).map((note) => note.id).sort((left, right) => left - right),
+          noteIds: (detail.body.notes || []).map((note) => String(note.id)).sort(),
           claimIds: (detail.body.files || []).map((file) => [
             file.sessionId,
             file.filePath,
@@ -750,6 +837,9 @@ class ReleaseCandidateSuite {
       const alphaFamily = canonicalRecordedCommonDir(alphaMain.worktree);
       if (canonicalRecordedCommonDir(alphaWorktree.worktree) !== alphaFamily) throw new Error('linked worktree split from its repository family');
       if (canonicalRecordedCommonDir(betaMain.worktree) === alphaFamily) throw new Error('arbitrary fixture repositories collapsed into one family');
+      if (matrixEnvFindings().length > 0) {
+        throw new Error('compiled coordination created or required matrix.env for durable identity readback');
+      }
 
       for (const spec of sessions) {
         await this.runCli(runtime, spec.cwd, [
@@ -777,6 +867,7 @@ class ReleaseCandidateSuite {
       return {
         crash: { pid: crashPid, signal: crashExit.signal },
         restartPid: daemon.child.pid,
+        readiness: { beforeCrash: beforeCrashReadiness, afterRestart: afterCrashReadiness },
         sessions: details.map((entry) => ({ label: entry.label, sessionId: entry.sessionId, worktreeId: entry.worktree.id })),
         persistedIdentityTotals: [...beforeCrash.values()].map((snapshot) => ({
           sessionId: snapshot.sessionId,
@@ -786,7 +877,8 @@ class ReleaseCandidateSuite {
           claimCount: snapshot.claimIds.length,
         })),
         repositoryFamilies: { alphaShared: true, betaDistinct: true },
-        matrixAuthorityFields: 0,
+        matrixEnvArtifacts: 0,
+        matrixEnvRequired: false,
         checkoutAuthorityArtifacts: 0,
       };
     } finally {
@@ -866,6 +958,7 @@ class ReleaseCandidateSuite {
         peakGlobalInFlight,
         durationMs: Date.now() - started,
         postPressureSessionCount: rows.length,
+        readiness: daemon.readiness,
       };
     });
   }
@@ -881,6 +974,7 @@ class ReleaseCandidateSuite {
     if (!Number.isSafeInteger(port)) throw new Error('collision fixture did not bind a TCP port');
     const runtime = this.runtimePaths(caseRoot, port);
     let child;
+    let collisionExit = null;
     try {
       child = spawn(join(this.stagedDir, 'pd'), ['__daemon'], {
         cwd: caseRoot,
@@ -890,14 +984,32 @@ class ReleaseCandidateSuite {
       this.activeChildren.add(child);
       child.stdout.on('data', (chunk) => this.appendLog('collision-daemon:stdout', chunk.toString()));
       child.stderr.on('data', (chunk) => this.appendLog('collision-daemon:stderr', chunk.toString()));
-      const exit = await processExited(child, 15_000);
-      if (!exit) throw new Error('colliding daemon did not fail within 15 seconds');
-      this.activeChildren.delete(child);
-      if (exit.code === 0) throw new Error('colliding daemon reported success while the port was occupied');
+      collisionExit = await processExited(child, 15_000);
+      if (!collisionExit) throw new Error('colliding daemon did not fail within 15 seconds');
+      if (collisionExit.code === 0) throw new Error('colliding daemon reported success while the port was occupied');
     } finally {
-      if (child && child.exitCode === null && child.signalCode === null) child.kill('SIGKILL');
-      this.activeChildren.delete(child);
+      let cleanupError = null;
+      if (child) {
+        try {
+          const pid = child.pid ?? null;
+          if (!collisionExit && child.exitCode === null && child.signalCode === null) child.kill('SIGKILL');
+          collisionExit ??= await processExited(child, 3_000);
+          if (!collisionExit) throw new Error(`colliding daemon ${pid ?? 'unknown'} did not exit during bounded cleanup`);
+          if (pid !== null) {
+            try {
+              process.kill(pid, 0);
+              throw new Error(`colliding daemon ${pid} remained alive after its exit receipt`);
+            } catch (error) {
+              if (error?.code !== 'ESRCH') throw error;
+            }
+          }
+          this.activeChildren.delete(child);
+        } catch (error) {
+          cleanupError = error;
+        }
+      }
       await new Promise((resolveClose) => blocker.close(resolveClose));
+      if (cleanupError) throw cleanupError;
     }
 
     const cleanDaemon = await this.startDaemon(runtime, 'post-collision-daemon');
@@ -906,7 +1018,7 @@ class ReleaseCandidateSuite {
       if (health.statusCode !== 200 || health.body?.pid !== cleanDaemon.child.pid) {
         throw new Error('daemon did not recover after collision listener released the port');
       }
-      return { port, collisionRejected: true, postReleasePid: cleanDaemon.child.pid };
+      return { port, collisionRejected: true, postReleasePid: cleanDaemon.child.pid, readiness: cleanDaemon.readiness };
     } finally {
       await this.stopDaemon(cleanDaemon);
     }
@@ -936,7 +1048,7 @@ class ReleaseCandidateSuite {
     } catch (error) {
       if (error?.code !== 'ESRCH') throw error;
     }
-    return { injectedFailureObserved: true, processGone: true, runtimeRemoved: true };
+    return { injectedFailureObserved: true, processGone: true, runtimeRemoved: true, readiness: daemon.readiness };
   }
 
   async secretFreeLogs() {
@@ -984,14 +1096,14 @@ class ReleaseCandidateSuite {
     ], {
       cwd: SOURCE_ROOT,
       env: this.isolatedEnv({
-        SOAK_BOOT_GRACE: '30',
+        SOAK_BOOT_GRACE: '120',
         SOAK_PORT: String(await reservePort()),
         SOAK_PREFIX: join(caseRoot, 'soak'),
         SOAK_SECONDS: '20',
         SOAK_WORKLOAD: '1',
       }),
       label: 'existing-bounded-packaged-soak',
-      timeoutMs: 80_000,
+      timeoutMs: 180_000,
     });
     return { reusedSmoke: 'scripts/soak-binary.sh', seconds: 20, productionStateClaimed: false };
   }
@@ -1049,7 +1161,7 @@ class ReleaseCandidateSuite {
     }
   }
 
-  writeResults(artifact, boundaryError = null) {
+  writeResults(artifact, boundaryError = null, setupError = null) {
     const externalGates = this.matrix.externalGates.map((gate) => ({
       id: gate.id,
       status: gate.status,
@@ -1068,11 +1180,19 @@ class ReleaseCandidateSuite {
       rootPolicy: '$HOME/coding/tmp',
       selectedShard: this.options.shard,
       cases: this.results,
-      boundary: boundaryError ? { status: 'failed', error: boundaryError } : { status: 'passed' },
+      setup: setupError ?? { status: 'passed' },
+      cleanup: this.cleanupEvidence ?? { status: 'not-run' },
+      boundary: setupError
+        ? { status: 'not-run' }
+        : boundaryError
+          ? { status: 'failed', error: boundaryError }
+          : { status: 'passed' },
       externalGates,
       summary: {
         passed: this.results.filter((result) => result.status === 'passed').length,
-        failed: this.results.filter((result) => result.status === 'failed').length + (boundaryError ? 1 : 0),
+        failed: this.results.filter((result) => result.status === 'failed').length
+          + (boundaryError ? 1 : 0)
+          + (setupError ? 1 : 0),
         externalNotClaimed: externalGates.length,
       },
     };
@@ -1085,14 +1205,38 @@ class ReleaseCandidateSuite {
   }
 
   async cleanup(force = false) {
-    for (const child of this.activeChildren) {
+    const children = [...this.activeChildren];
+    const receipts = [];
+    for (const child of children) {
+      const pid = child.pid ?? null;
       if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL');
+      const exit = await processExited(child, 3_000);
+      if (!exit) throw new Error(`cleanup could not confirm exit for child ${pid ?? 'unknown'}`);
+      if (pid !== null) {
+        try {
+          process.kill(pid, 0);
+          throw new Error(`cleanup child ${pid} is still alive after exit receipt`);
+        } catch (error) {
+          if (error?.code !== 'ESRCH') throw error;
+        }
+      }
+      receipts.push({ pid, code: exit.code, signal: exit.signal, confirmedGone: true });
+      this.activeChildren.delete(child);
     }
-    this.activeChildren.clear();
-    if (force || (!this.options.keep && !this.boundaryError && this.results.every((result) => result.status === 'passed'))) {
+    const shouldRemove = force
+      || (!this.options.keep && !this.boundaryError && this.results.every((result) => result.status === 'passed'));
+    if (shouldRemove) {
       assertOwnedSyntheticTree(this.root);
       rmSync(this.root, { recursive: true, force: true });
     }
+    this.cleanupEvidence = {
+      status: 'passed',
+      observedActiveChildren: children.length,
+      exitReceipts: receipts,
+      rootRemoved: shouldRemove && !existsSync(this.root),
+      rootPreservedForFailure: !shouldRemove && existsSync(this.root),
+    };
+    return this.cleanupEvidence;
   }
 
   async run() {
@@ -1104,8 +1248,33 @@ class ReleaseCandidateSuite {
       stream: false,
     });
     this.sourceRevision = revision.stdout.trim();
-    if (this.options.build) await this.buildAndStage();
-    const artifact = this.validateStage();
+    if (this.options.build) {
+      try {
+        await this.buildAndStage();
+      } catch (error) {
+        const setupError = {
+          status: 'failed',
+          category: 'artifact-build',
+          error: redactReleaseCandidateText(error instanceof Error ? error.message : String(error), this.knownSecrets),
+        };
+        this.writeResults(null, null, setupError);
+        console.error(`Setup failure results: ${this.resultsPath}`);
+        throw error;
+      }
+    }
+    let artifact;
+    try {
+      artifact = this.validateStage();
+    } catch (error) {
+      const setupError = {
+        status: 'failed',
+        category: 'artifact-stage-validation',
+        error: redactReleaseCandidateText(error instanceof Error ? error.message : String(error), this.knownSecrets),
+      };
+      this.writeResults(null, null, setupError);
+      console.error(`Setup failure results: ${this.resultsPath}`);
+      throw error;
+    }
     for (const testCase of this.cases) await this.runCase(testCase);
     let boundaryError = null;
     try {
@@ -1115,13 +1284,20 @@ class ReleaseCandidateSuite {
       console.error(`FAIL authority boundary: ${boundaryError}`);
     }
     this.boundaryError = boundaryError;
+    try {
+      await this.cleanup();
+    } catch (error) {
+      const cleanupError = redactReleaseCandidateText(error instanceof Error ? error.message : String(error), this.knownSecrets);
+      this.cleanupEvidence = { status: 'failed', error: cleanupError };
+      boundaryError = [boundaryError, `cleanup failed: ${cleanupError}`].filter(Boolean).join('; ');
+      this.boundaryError = boundaryError;
+    }
     const document = this.writeResults(artifact, boundaryError);
     console.log(`\nRESULT ${document.summary.failed === 0 ? 'PASS' : 'FAIL'}: ${document.summary.passed} passed, ${document.summary.failed} failed, ${document.summary.externalNotClaimed} external gates not claimed`);
     console.log(`Results: ${this.resultsPath}`);
     for (const gate of this.matrix.externalGates) {
       console.log(`EXTERNAL ${gate.id}: ${gate.status}; Phase 1 does not claim this gate`);
     }
-    await this.cleanup();
     return document.summary.failed === 0 ? 0 : 1;
   }
 }

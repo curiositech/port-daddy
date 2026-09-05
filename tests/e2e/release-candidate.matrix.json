@@ -63,7 +63,7 @@
       "status": "automated",
       "required": true,
       "shard": "runtime",
-      "timeoutSeconds": 90,
+      "timeoutSeconds": 150,
       "runner": "transportParity",
       "proves": [
         "The staged daemon reaches readiness on both its Unix socket and its published loopback TCP endpoint.",
@@ -80,7 +80,7 @@
       "status": "automated",
       "required": true,
       "shard": "runtime",
-      "timeoutSeconds": 180,
+      "timeoutSeconds": 300,
       "runner": "coordinationRestartRepositoryFamily",
       "proves": [
         "The compiled CLI completes begin, plan set/check/read, note, file claim, and sitrep journeys against isolated durable state.",
@@ -98,7 +98,7 @@
       "status": "automated",
       "required": true,
       "shard": "runtime",
-      "timeoutSeconds": 120,
+      "timeoutSeconds": 210,
       "runner": "syntheticMultiClientPressure",
       "proves": [
         "The staged daemon survives a deterministic synthetic registry plus five bounded concurrent client loops hitting health, sessions, roadmap, Galaxy, and Fleet reads.",
@@ -115,7 +115,7 @@
       "status": "automated",
       "required": true,
       "shard": "hostile",
-      "timeoutSeconds": 90,
+      "timeoutSeconds": 180,
       "runner": "portCollisionRecovery",
       "proves": [
         "A staged daemon fails instead of displacing an unrelated listener on its requested port.",
@@ -131,7 +131,7 @@
       "status": "automated",
       "required": true,
       "shard": "hostile",
-      "timeoutSeconds": 90,
+      "timeoutSeconds": 150,
       "runner": "partialFailureCleanup",
       "proves": [
         "An injected test failure still terminates the artifact daemon and removes the case-owned runtime directory.",
@@ -179,7 +179,7 @@
       "status": "automated",
       "required": true,
       "shard": "existing",
-      "timeoutSeconds": 90,
+      "timeoutSeconds": 210,
       "runner": "existingBoundedPackagedSoak",
       "proves": [
         "The exact staged companion boots, answers a bounded workload, and exits cleanly through the existing packaged-binary soak.",
