@@ -1472,6 +1472,29 @@ describe('createCliTubeBackend', () => {
 });
 
 describe('spawnViaCliTube — codex shape', () => {
+  test.each(CLI_TUBE_TOOLS.filter((tool) => tool !== 'codex'))(
+    '%s never receives Codex-only overrides or working-directory flags', (tool) => {
+      const { args } = CLI_TUBE_PROVIDER_SPECS[tool].buildArgs({
+        prompt: 'unchanged task', cwd: '/workspace',
+        codexConfig: ['skills.include_instructions=true'], externalConfinement: true,
+      });
+      expect(args.some((arg) => arg.includes('skills.include_instructions'))).toBe(false);
+      expect(args).not.toContain('--dangerously-bypass-approvals-and-sandbox');
+      expect(args).not.toContain('-C');
+      expect(args.at(-1)).toBe('unchanged task');
+    },
+  );
+
+  test.each([undefined, '22222222-2222-4222-8222-222222222222'])(
+    'shared Codex builder emits cwd only for fresh runs (%s)', (resumeSessionId) => {
+      const { args } = CLI_TUBE_PROVIDER_SPECS.codex.buildArgs({
+        prompt: 'task', cwd: '/workspace', resumeSessionId,
+      });
+      if (resumeSessionId) expect(args).not.toContain('-C');
+      else expect(args[args.indexOf('-C') + 1]).toBe('/workspace');
+    },
+  );
+
   test.each([undefined, '22222222-2222-4222-8222-222222222222'])(
     'fresh/resume %s disables eager skill context and uses proven external confinement', async (resumeSessionId) => {
       mockSpawn.mockImplementation((_binary, args) => {

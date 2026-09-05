@@ -14,9 +14,9 @@
  */
 
 import { jest } from '@jest/globals';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 
 // Capture every spawn call; return a fake child that "closes" cleanly.
 const spawnCalls = [];
@@ -44,6 +44,7 @@ jest.unstable_mockModule('node:child_process', () => ({
 }));
 
 const { createSpawner: createSpawnerBase } = await import('../../lib/spawner.js');
+const { spawn: mockSpawn } = await import('node:child_process');
 // coast-guard is NOT mocked — import the real posture readers so the
 // uncontained-scope assertion can branch on what THIS machine actually enforces
 // (armed → enforced 'read' → INFO steady-state; degraded → null → WARN).
@@ -104,6 +105,8 @@ describe('Coast Guard is the default for subprocess spawns', () => {
     expect(call.args).toContain('gpt-5.4-mini');
     expect(call.args.at(-1)).toBe('unchanged task');
     if (resume) expect(call.args.at(-2)).toBe(sessionId);
+    const outputPath = call.args[call.args.indexOf('--output-last-message') + 1];
+    expect(existsSync(dirname(outputPath))).toBe(false);
   });
 
   test.each([false, true])('codex fresh/resume (%s) retains sandbox when Coast Guard is disabled', async (resume) => {
@@ -122,6 +125,23 @@ describe('Coast Guard is the default for subprocess spawns', () => {
     expect(call.args).toContain('skills.include_instructions=false');
     expect(call.args.at(-1)).toBe('sandboxed task');
     if (resume) expect(call.args.at(-2)).toBe(sessionId);
+    const outputPath = call.args[call.args.indexOf('--output-last-message') + 1];
+    expect(existsSync(dirname(outputPath))).toBe(false);
+  });
+
+  test('legacy Codex removes its scratch directory when child launch throws', async () => {
+    let outputPath;
+    mockSpawn.mockImplementationOnce((_cmd, args) => {
+      outputPath = args[args.indexOf('--output-last-message') + 1];
+      throw new Error('synthetic child launch rejected');
+    });
+    const res = await createSpawner().spawn({
+      backend: 'codex', task: 'must not run', workdir: worktree, coastGuard: false,
+    });
+    expect(res.status).toBe('failed');
+    expect(res.error).toContain('synthetic child launch rejected');
+    expect(outputPath).toBeDefined();
+    expect(existsSync(dirname(outputPath))).toBe(false);
   });
 
   test('custom backend is sandbox-wrapped, key-scrubbed, and proxied', async () => {

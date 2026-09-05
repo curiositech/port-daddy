@@ -5,6 +5,8 @@ export type CliTubePermissionMode = 'default' | 'acceptEdits' | 'bypassPermissio
 export interface CliTubeBuildArgsInput {
   prompt: string;
   outputPath?: string;
+  /** Codex fresh-run working root; native resume uses the bound child cwd. */
+  cwd?: string;
   model?: string;
   permissionMode?: CliTubePermissionMode;
   codexConfig?: string[];
@@ -228,6 +230,7 @@ function buildCliTubeArgsFromSpec(
       const args = resumeSessionId
         ? ['exec', approvalFlag, 'resume', '--skip-git-repo-check', '--json']
         : ['exec', '--skip-git-repo-check', approvalFlag, '--json'];
+      if (input.cwd && !resumeSessionId) args.push('-C', input.cwd);
       if (input.outputPath) args.push('--output-last-message', input.outputPath);
       pushModelArg(args, spec, input.model);
       for (const config of normalizeCodexConfigOverrides(input.codexConfig)) {

@@ -286,10 +286,9 @@ export function buildSpawnArgv(
     // The cli-tube provider registry is the canonical Codex policy contract.
     // Its --approve-for-me mode already supplies auto-reviewed workspace-write;
     // adding an explicit --sandbox beside it is a hard Codex parse error. Keep
-    // dispatch's runner-only -C argument, but derive every confinement/approval
-    // flag from the shared provider builder so the two launch paths cannot drift.
-    const args = [...buildCliTubeArgs('codex', { prompt: goal, model }).args];
-    args.splice(-1, 0, '-C', worktreePath);
+    // dispatch's working root and every confinement/approval flag in the shared
+    // provider builder so the launch paths cannot drift.
+    const { args } = buildCliTubeArgs('codex', { prompt: goal, model, cwd: worktreePath });
     return { command: 'codex', args };
   }
   // gemini / groq / grok — all three share the claude-code-style headless

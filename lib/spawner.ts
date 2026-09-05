@@ -1492,12 +1492,12 @@ function runCodexCli(spec: SpawnSpec, model: string, context?: BackendRunContext
   const externalConfinement = resolveCoastGuardPolicy(spec).enabled;
   const { args } = buildCliTubeArgs('codex', {
     prompt: spec.task,
+    cwd: workspace,
     outputPath,
     model,
     resumeSessionId: spec.nativeResume?.sessionId,
     externalConfinement,
   });
-  if (!spec.nativeResume) args.splice(1, 0, '-C', workspace);
 
   return runConfinedChild({
     spec,
