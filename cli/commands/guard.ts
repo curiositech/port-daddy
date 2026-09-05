@@ -9,6 +9,7 @@ import type { CLIOptions } from '../types.js';
 import { requireConfirmation, DESTRUCTIVE_EXIT_CODE } from '../utils/destructive-confirm.js';
 import { evaluateLeaseRent } from '../../lib/coast-guard/compulsion.js';
 import { gatherCommitsSinceLastNote } from '../../lib/coast-guard/compulsion-facts.js';
+import { resolveRoadmapHarbor } from './roadmap.js';
 
 /**
  * Destructive git verbs intercepted by the optional `~/.port-daddy/bin/git`
@@ -68,6 +69,11 @@ export interface GuardRoadmapReceipt {
   lastTouchedAt?: number | null;
   promotedByAgentId?: string | null;
   notes?: Array<{ at?: number | null; by?: string | null; text?: string | null }>;
+}
+
+export interface GuardRoadmapReceiptLookup {
+  receipts: GuardRoadmapReceipt[];
+  issue?: 'unavailable' | 'incomplete' | 'scope-unavailable';
 }
 
 export interface GuardViolation {
@@ -240,46 +246,70 @@ function gitPath(path: string, cwd = process.cwd()): string | null {
 }
 
 /**
- * The SHA of the other parent during an in-progress merge (`git merge` with
- * a real conflict, mid-resolution), or null when not merging. `rev-parse`
- * (not a raw `.git/MERGE_HEAD` read) so this resolves correctly across
- * worktrees, where `--git-path` points at the per-worktree git dir.
+ * Read Git evidence without converting failed discovery into an empty claim set.
+ * The design keeps diagnostics fixed: arbitrary Git stderr is not authority.
+ * @param args Read-only Git arguments, never shell-interpolated paths.
+ * @param cwd The selected checkout, including a linked worktree.
+ * @returns Complete stdout, preserving NUL-delimited native filenames.
  */
-function mergeHeadSha(cwd = process.cwd()): string | null {
-  const result = spawnSync('git', ['rev-parse', '--verify', '-q', 'MERGE_HEAD'], { cwd, encoding: 'utf8' });
-  if (result.status !== 0) return null;
-  const sha = result.stdout.trim();
-  return sha || null;
+function stagedGit(args: string[], cwd: string): string {
+  const result = spawnSync('git', args, { cwd, timeout: 10_000, maxBuffer: 16 * 1024 * 1024 });
+  if (result.error || result.status !== 0) throw new Error('Guard cannot determine staged files: Git evidence is unavailable.');
+  try {
+    return new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(result.stdout);
+  } catch {
+    throw new Error('Guard cannot determine staged files: Git evidence contains an unsupported path encoding.');
+  }
 }
 
 /**
- * Files staged for the next commit, scoped to what THIS commit actually
- * authors — not what merely arrives via a merge.
- *
- * A plain `git diff --cached` against HEAD is correct for a normal commit,
- * but during an in-progress merge (`.git/MERGE_HEAD` set) it compares the
- * post-merge tree to the STALE pre-merge HEAD, so every file the other
- * branch touched shows up as "staged" — even ones this session never edited
- * and that arrived unchanged from the branch being merged in. On a
- * rebase-forward of a stale PR branch onto origin/main, that swept in
- * hundreds of main's files, each still under some OTHER live session's
- * active claim, and the coordination guard correctly-but-wrongly refused the
- * commit as if this session were overwriting their work.
- *
- * Fix: when merging, diff the staged tree against MERGE_HEAD (the tip being
- * merged in) instead of HEAD. A file whose resolved content equals
- * MERGE_HEAD's is a pure pass-through — not authored here, exempt from
- * claim checks. A file that differs (an actual conflict resolution) still
- * counts, correctly. `commitFiles()` below needs no equivalent fix: git's
- * own default combined-diff for `git show <merge-commit>` already applies
- * this exact rule post-commit.
+ * Resolve every incoming parent from this worktree's merge metadata. The purpose
+ * is to distinguish an absent merge from corrupt or unreadable merge evidence;
+ * a failed ref lookup must never silently select ordinary-commit semantics.
+ * @param cwd The selected checkout.
+ * @returns Verified immutable commit IDs, or no parents when not merging.
+ */
+function mergeHeadShas(cwd: string): string[] {
+  const path = stagedGit(['rev-parse', '--git-path', 'MERGE_HEAD'], cwd).trim();
+  if (!path) throw new Error('Guard cannot determine staged files: merge location is unavailable.');
+  let content: string;
+  try {
+    content = readFileSync(resolve(cwd, path), 'utf8');
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
+    throw new Error('Guard cannot determine staged files: merge metadata is unreadable.');
+  }
+  const parents = content.trim().split(/\r?\n/);
+  if (parents.some(parent => !/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/.test(parent))) {
+    throw new Error('Guard cannot determine staged files: merge metadata is invalid.');
+  }
+  return [...new Set(parents)].map(parent =>
+    stagedGit(['rev-parse', '--verify', '--end-of-options', `${parent}^{commit}`], cwd).trim());
+}
+
+/**
+ * Discover paths authored by the pending commit, not either parent's unchanged
+ * pass-through. A merge path is included only when its staged entry differs from
+ * HEAD and every incoming parent, matching Git's combined-diff path semantics.
+ * Compare exact paths without rename heuristics during merges: a real rename
+ * resolution must retain its added destination and any newly deleted source.
+ * Normal commits retain their ordinary cached-diff behavior, including unborn
+ * branches. Unresolved indexes and unavailable evidence stop discovery.
+ * @param cwd The checkout whose index will be committed.
+ * @returns Exact repository-relative paths; no trimming or quote decoding.
  */
 export function stagedFiles(cwd = process.cwd()): string[] {
-  const mergeHead = mergeHeadSha(cwd);
-  const diffArgs = mergeHead
-    ? ['diff', '--cached', '--name-only', '--diff-filter=ACMRDTU', mergeHead]
-    : ['diff', '--cached', '--name-only', '--diff-filter=ACMRDTU'];
-  return gitOutput(diffArgs, cwd);
+  if (stagedGit(['ls-files', '--unmerged', '-z'], cwd)) {
+    throw new Error('Guard cannot determine staged files: the index contains unresolved merges.');
+  }
+  const incoming = mergeHeadShas(cwd);
+  const diffArgs = ['diff', '--cached', '--name-only', '-z', '--no-ext-diff', '--no-textconv', '--ignore-submodules=none', '--diff-filter=ACMRDTU'];
+  if (incoming.length === 0) return stagedGit([...diffArgs, '--'], cwd).split('\0').filter(Boolean);
+
+  const head = stagedGit(['rev-parse', '--verify', '--end-of-options', 'HEAD^{commit}'], cwd).trim();
+  const changes = [head, ...incoming].map(parent =>
+    new Set(stagedGit([...diffArgs, '--no-renames', parent, '--'], cwd).split('\0').filter(Boolean)));
+  return [...changes[0]].filter(path => changes.every(paths => paths.has(path)));
 }
 
 /**
@@ -295,7 +325,7 @@ function commitFiles(ref: string, cwd = process.cwd()): string[] {
 }
 
 function normalizeFiles(files: string[]): string[] {
-  return Array.from(new Set(files.map(file => file.trim()).filter(Boolean)));
+  return Array.from(new Set(files.filter(file => file.length > 0)));
 }
 
 export function fileNeedsRoadmapReceipt(file: string): boolean {
@@ -307,19 +337,23 @@ function noteMatchesAgent(
   note: { at?: number | null; by?: string | null },
   agentId: string | null | undefined,
   since: number,
+  nowMs: number,
 ): boolean {
   if (!agentId) return false;
-  return note.by === agentId && typeof note.at === 'number' && note.at >= since;
+  return note.by === agentId && typeof note.at === 'number' && Number.isSafeInteger(note.at)
+    && note.at > 0 && note.at >= since && note.at <= nowMs;
 }
 
 function receiptMatchesAgent(
   receipt: GuardRoadmapReceipt,
   agentId: string | null | undefined,
   since: number,
+  nowMs: number,
 ): boolean {
-  const touchedRecently = typeof receipt.lastTouchedAt === 'number' && receipt.lastTouchedAt >= since;
-  if (touchedRecently && agentId && receipt.promotedByAgentId === agentId) return true;
-  return Array.isArray(receipt.notes) && receipt.notes.some((note) => noteMatchesAgent(note, agentId, since));
+  // A shared touch time is not proof that the original promoter did work.
+  // Promotion inputs are not verified receipt records either. Credit only
+  // this caller's own bounded note timestamp, never somebody else's update.
+  return Array.isArray(receipt.notes) && receipt.notes.some((note) => noteMatchesAgent(note, agentId, since, nowMs));
 }
 
 function posixPath(path: string): string {
@@ -333,17 +367,16 @@ function relativePathInside(root: string, path: string): string | null {
 }
 
 export function ownerQueryPaths(file: string, repoRoot = process.cwd()): string[] {
-  const trimmed = file.trim();
-  if (!trimmed) return [];
+  if (!file) return [];
 
   const root = resolve(repoRoot);
-  const paths = new Set<string>([trimmed]);
+  const paths = new Set<string>([file]);
 
-  if (isAbsolute(trimmed)) {
-    const rel = relativePathInside(root, trimmed);
+  if (isAbsolute(file)) {
+    const rel = relativePathInside(root, file);
     if (rel) paths.add(rel);
   } else {
-    paths.add(resolve(root, trimmed));
+    paths.add(resolve(root, file));
   }
 
   return Array.from(paths);
@@ -436,6 +469,13 @@ export function mergePostCommitHook(existing: string): string {
   return mergeHookBlock(existing, guardPostCommitBlock());
 }
 
+/**
+ * Evaluate gathered coordination facts without performing work or repairing state.
+ * The design keeps enforcement separate from collection: unavailable roadmap
+ * evidence remains unknown rather than becoming a fabricated missing receipt.
+ * @param input - Verified context, ownership and bounded receipt observations.
+ * @returns The unchanged enforcement decision with precise evidence diagnostics.
+ */
 export function evaluateGuardFacts(input: {
   config: CoordinationGuardConfig;
   mode?: CoordinationGuardMode;
@@ -458,6 +498,8 @@ export function evaluateGuardFacts(input: {
    *  invariant; dirty-tree advisory checks should not demand a roadmap receipt. */
   atCommitTime?: boolean;
   roadmapReceipts?: GuardRoadmapReceipt[];
+  /** Read failures and bounded-page omissions are not proof of absence. */
+  roadmapReceiptLookupIssue?: GuardRoadmapReceiptLookup['issue'];
   nowMs?: number;
 }): GuardCheckResult {
   const mode = input.mode ?? (input.config.enabled ? input.config.mode : 'off');
@@ -570,16 +612,22 @@ export function evaluateGuardFacts(input: {
   ) {
     const roadmapFiles = files.filter(fileNeedsRoadmapReceipt);
     if (roadmapFiles.length > 0) {
-      const since = (input.nowMs ?? Date.now()) - ROADMAP_RECEIPT_WINDOW_MS;
+      const nowMs = input.nowMs ?? Date.now();
+      const since = nowMs - ROADMAP_RECEIPT_WINDOW_MS;
       const hasReceipt = (input.roadmapReceipts ?? []).some((receipt) =>
-        receiptMatchesAgent(receipt, input.agentId, since),
+        receiptMatchesAgent(receipt, input.agentId, since, nowMs),
       );
       if (!hasReceipt) {
+        const lookupIssue = input.roadmapReceiptLookupIssue;
         violations.push({
-          code: 'roadmap-receipt-missing',
+          code: lookupIssue ? 'roadmap-receipt-unverifiable' : 'roadmap-receipt-missing',
           severity: 'critical',
           file: roadmapFiles[0],
-          message:
+          message: lookupIssue
+            ? `The roadmap receipt could not be verified (${lookupIssue}). ` +
+              'Verify the session roadmap link and intended harbor, then retry the selected daemon; ' +
+              'an incomplete or unavailable lookup does not prove that a receipt is missing.'
+            :
             `Coordination architecture changed (${roadmapFiles.slice(0, 3).join(', ')}${roadmapFiles.length > 3 ? ', …' : ''}) ` +
             'without a recent roadmap_items receipt from this agent. Run `pd roadmap upsert <slug> --summary <md>` or `pd roadmap touch <slug> --note <why>`.',
         });
@@ -606,11 +654,19 @@ async function fetchJson(path: string): Promise<Record<string, unknown>> {
   return await res.json();
 }
 
+/**
+ * Read the selected session and its daemon-stored roadmap link together.
+ * The design carries only returned context facts into receipt selection, never
+ * borrowing a different session's link or making an authority mutation here.
+ * @param cwd - Current worktree used by the existing context selector.
+ * @returns Active context and liveness evidence, including its optional link.
+ */
 async function loadActiveContext(cwd = process.cwd()): Promise<{
   active: boolean;
   daemonReachable: boolean;
   agentId?: string | null;
   sessionId?: string | null;
+  roadmapLink?: string | null;
 }> {
   const context = readCurrentContext(cwd);
   if (!context?.agentId && !context?.sessionId) {
@@ -634,6 +690,7 @@ async function loadActiveContext(cwd = process.cwd()): Promise<{
       daemonReachable: true,
       agentId: typeof data.agentId === 'string' ? data.agentId : context.agentId,
       sessionId: typeof data.sessionId === 'string' ? data.sessionId : context.sessionId,
+      roadmapLink: typeof data.roadmapLink === 'string' ? data.roadmapLink : null,
     };
   } catch {
     return {
@@ -896,21 +953,59 @@ async function loadAllActiveClaims(): Promise<string[]> {
   }
 }
 
-async function loadRoadmapReceipts(): Promise<GuardRoadmapReceipt[]> {
+/**
+ * Read only the selected session's linked item in the intended write-side harbor.
+ * The design avoids treating the first status-ranked page as an existence check:
+ * unrelated items, including same-named items in other harbors, cannot pay rent
+ * for linked work. An unlinked session retains a bounded scoped diagnostic read.
+ *
+ * @param input - Daemon-returned session link and write-side harbor selection.
+ * @returns Sanitized local receipts plus an explicit unknown/incomplete diagnostic.
+ */
+export async function loadRoadmapReceipts(input: {
+  roadmapLink?: string | null;
+  harbor?: string;
+}): Promise<GuardRoadmapReceiptLookup> {
+  const harbor = input.harbor?.trim();
+  if (!harbor) return { receipts: [], issue: 'scope-unavailable' };
+  const slug = input.roadmapLink?.trim();
+  const limit = 200;
+  const params = new URLSearchParams(slug ? { harbor } : { status: 'all', limit: String(limit), harbor });
+  const path = slug ? `/roadmap/items/${encodeURIComponent(slug)}` : '/roadmap/items';
   try {
-    const data = await fetchJson('/roadmap/items?status=all&limit=200');
-    if (!Array.isArray(data.items)) return [];
-    return data.items
-      .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === 'object')
-      .map((item) => ({
-        slug: typeof item.slug === 'string' ? item.slug : '',
-        lastTouchedAt: typeof item.lastTouchedAt === 'number' ? item.lastTouchedAt : null,
+    const res = await pdFetch(`${PORT_DADDY_URL}${path}?${params}`, {
+      timeout: 2000, retry: false, signal: AbortSignal.timeout(2000),
+    });
+    if (slug && res.status === 404) return { receipts: [] };
+    if (!res.ok) return { receipts: [], issue: 'unavailable' };
+    const data = await res.json();
+    if (!data || data.success !== true) return { receipts: [], issue: 'unavailable' };
+    const items = slug ? [data.item] : data.items;
+    if (!Array.isArray(items) || (!slug && (data.count !== items.length || items.length > limit))) {
+      return { receipts: [], issue: 'unavailable' };
+    }
+    const receipts: GuardRoadmapReceipt[] = [];
+    for (const raw of items) {
+      if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return { receipts: [], issue: 'unavailable' };
+      const item = raw as Record<string, unknown>;
+      if (typeof item.slug !== 'string' || !item.slug.trim() || item.harbor !== harbor || (slug && item.slug !== slug)) {
+        return { receipts: [], issue: 'unavailable' };
+      }
+      receipts.push({
+        slug: item.slug,
+        lastTouchedAt: typeof item.lastTouchedAt === 'number' && Number.isFinite(item.lastTouchedAt) ? item.lastTouchedAt : null,
         promotedByAgentId: typeof item.promotedByAgentId === 'string' ? item.promotedByAgentId : null,
-        notes: Array.isArray(item.notes) ? item.notes as GuardRoadmapReceipt['notes'] : [],
-      }))
-      .filter((item) => item.slug);
+        notes: Array.isArray(item.notes) ? item.notes.flatMap((note) =>
+          note && typeof note === 'object' && typeof note.by === 'string' &&
+          typeof note.at === 'number' && Number.isFinite(note.at)
+            ? [{ by: note.by, at: note.at }]
+            : [],
+        ) : [],
+      });
+    }
+    return !slug && receipts.length === limit ? { receipts, issue: 'incomplete' } : { receipts };
   } catch {
-    return [];
+    return { receipts: [], issue: 'unavailable' };
   }
 }
 
@@ -962,6 +1057,14 @@ export function filterClaimsToRepo(paths: string[], repoRoot: string): string[] 
   });
 }
 
+/**
+ * Gather the actual command's scoped facts and evaluate them once.
+ * The design resolves roadmap scope through the same harbor contract as writes;
+ * a post-commit audit observes the result without changing commit history.
+ * @param positional - Explicit paths for a non-staged advisory check.
+ * @param options - Guard mode, commit scope and intended harbor selection.
+ * @returns Enforcement or post-commit audit facts for the unchanged presenter.
+ */
 async function runCheck(positional: string[], options: CLIOptions): Promise<GuardCheckResult> {
   const cwd = resolve(typeof options.dir === 'string' ? options.dir : process.cwd());
   const config = readGuardConfig(cwd);
@@ -1020,13 +1123,13 @@ async function runCheck(positional: string[], options: CLIOptions): Promise<Guar
       rentUnverifiable = true;
     }
   }
-  const roadmapReceipts =
+  const roadmapLookup =
     mode !== 'off' &&
     atCommitTime &&
     config.requireRoadmapForCoordinationChanges &&
     context.active &&
     files.some(fileNeedsRoadmapReceipt)
-      ? await loadRoadmapReceipts()
+      ? await loadRoadmapReceipts({ roadmapLink: context.roadmapLink, harbor: resolveRoadmapHarbor(options, cwd) })
       : undefined;
 
   const result = evaluateGuardFacts({
@@ -1041,7 +1144,8 @@ async function runCheck(positional: string[], options: CLIOptions): Promise<Guar
     commitsSinceLastNote,
     rentUnverifiable,
     atCommitTime,
-    roadmapReceipts,
+    roadmapReceipts: roadmapLookup?.receipts,
+    roadmapReceiptLookupIssue: roadmapLookup?.issue,
   });
   return postCommit ? asPostCommitAudit(result, auditedCommit) : result;
 }

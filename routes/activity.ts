@@ -63,13 +63,21 @@ export const activityPlugin: FastifyPluginAsync<{ deps: ActivityRouteDeps }> = a
   fastify.get('/activity/timeline', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const { limit, agent, session } = request.query as any;
+      const parsedLimit = limit === undefined ? 50 : typeof limit === 'string' && /^\d+$/.test(limit) ? Number(limit) : NaN;
+      if (!Number.isSafeInteger(parsedLimit) || parsedLimit < 1 || parsedLimit > 1000) {
+        return reply.code(400).send({ success: false, code: 'VALIDATION_ERROR', error: 'timeline limit must be an integer from 1 to 1000' });
+      }
       const result = await correlationEngine.getTimeline({
-        limit: limit ? parseInt(limit as string, 10) : 50,
+        limit: parsedLimit,
         agentId: agent as string | undefined,
         sessionId: session as string | undefined
       });
       return result;
     } catch (error) {
+      if ((error as { code?: string })?.code === 'TIMELINE_SOURCE_UNAVAILABLE') {
+        metrics.errors++;
+        return reply.code(503).send({ success: false, code: 'TIMELINE_SOURCE_UNAVAILABLE', error: 'one or more timeline sources are unavailable' });
+      }
       metrics.errors++;
       reply.code(500);
       return { error: 'internal server error' };

@@ -1,0 +1,91 @@
+ffconcat version 1.0
+file 'frames/frame-0000.jpg'
+option framerate 1000
+duration 0.205
+file 'frames/frame-0001.jpg'
+option framerate 1000
+duration 0.201
+file 'frames/frame-0002.jpg'
+option framerate 1000
+duration 0.204
+file 'frames/frame-0003.jpg'
+option framerate 1000
+duration 0.211
+file 'frames/frame-0004.jpg'
+option framerate 1000
+duration 0.202
+file 'frames/frame-0005.jpg'
+option framerate 1000
+duration 0.496
+file 'frames/frame-0006.jpg'
+option framerate 1000
+duration 0.196
+file 'frames/frame-0007.jpg'
+option framerate 1000
+duration 0.209
+file 'frames/frame-0008.jpg'
+option framerate 1000
+duration 0.204
+file 'frames/frame-0009.jpg'
+option framerate 1000
+duration 0.204
+file 'frames/frame-0010.jpg'
+option framerate 1000
+duration 0.203
+file 'frames/frame-0011.jpg'
+option framerate 1000
+duration 0.509
+file 'frames/frame-0012.jpg'
+option framerate 1000
+duration 0.204
+file 'frames/frame-0013.jpg'
+option framerate 1000
+duration 0.204
+file 'frames/frame-0014.jpg'
+option framerate 1000
+duration 0.203
+file 'frames/frame-0015.jpg'
+option framerate 1000
+duration 0.204
+file 'frames/frame-0016.jpg'
+option framerate 1000
+duration 0.201
+file 'frames/frame-0017.jpg'
+option framerate 1000
+duration 0.465
+file 'frames/frame-0018.jpg'
+option framerate 1000
+duration 0.252
+file 'frames/frame-0019.jpg'
+option framerate 1000
+duration 0.308
+file 'frames/frame-0020.jpg'
+option framerate 1000
+duration 0.195
+file 'frames/frame-0021.jpg'
+option framerate 1000
+duration 0.210
+file 'frames/frame-0022.jpg'
+option framerate 1000
+duration 0.201
+file 'frames/frame-0023.jpg'
+option framerate 1000
+duration 0.303
+file 'frames/frame-0024.jpg'
+option framerate 1000
+duration 0.202
+file 'frames/frame-0025.jpg'
+option framerate 1000
+duration 0.203
+file 'frames/frame-0026.jpg'
+option framerate 1000
+duration 0.203
+file 'frames/frame-0027.jpg'
+option framerate 1000
+duration 0.208
+file 'frames/frame-0028.jpg'
+option framerate 1000
+duration 0.199
+file 'frames/frame-0029.jpg'
+option framerate 1000
+duration 0.180

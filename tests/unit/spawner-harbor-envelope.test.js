@@ -14,27 +14,99 @@
  */
 
 import { jest } from '@jest/globals';
+import http from 'node:http';
+import https from 'node:https';
+import net from 'node:net';
+import tls from 'node:tls';
+import { syncBuiltinESMExports } from 'node:module';
 
 // Mocking the child alone does not isolate the spawner's coordination HTTP.
-// Use a non-forwarding fetch plus an explicit non-routable target so neither
-// the operator's port file nor a later HOME change can select the live daemon.
+// Install BEFORE importing the real spawner, and never forward to live fetch.
+// pdCoordinate deliberately swallows transport errors: an independent ledger
+// must fail the test even when an unexpected request's rejection was caught.
 const coordinationUrl = 'http://spawner-envelope.test.invalid';
 const originalFetch = global.fetch;
-const originalDaemonUrl = process.env.PORT_DADDY_URL;
-const coordinationFetch = jest.fn(async () => ({
-  ok: true,
-  json: async () => ({ success: true }),
-}));
-beforeAll(() => {
-  global.fetch = coordinationFetch;
+const daemonEnvKeys = ['PD_URL', 'PORT_DADDY_URL', 'PORT_DADDY_SOCK'];
+const snapshotDaemonEnv = () => Object.fromEntries(daemonEnvKeys.map(key => [key, process.env[key]]));
+const originalDaemonEnv = snapshotDaemonEnv();
+const networkViolations = [];
+const registeredAgents = new Set();
+
+function restoreDaemonEnv(snapshot) {
+  for (const key of daemonEnvKeys) {
+    if (snapshot[key] === undefined) delete process.env[key];
+    else process.env[key] = snapshot[key];
+  }
+}
+
+function pinFixtureEnvironment() {
+  process.env.PD_URL = coordinationUrl;
   process.env.PORT_DADDY_URL = coordinationUrl;
+  delete process.env.PORT_DADDY_SOCK;
+}
+
+function refuseTransport(kind) {
+  networkViolations.push(kind);
+  throw Object.assign(new Error('Unexpected network attempt in hermetic spawner test'), { code: 'TEST_NETWORK_LEAK' });
+}
+
+function assertNoUnexpectedNetwork() {
+  if (networkViolations.length) throw new Error('Hermetic transport violation ledger is not empty');
+}
+
+const coordinationFetch = jest.fn(async (input, options) => {
+  let url;
+  try {
+    url = new URL(typeof input === 'string' || input instanceof URL ? input : input.url);
+  } catch {
+    return refuseTransport('fetch-input');
+  }
+  if (url.origin !== coordinationUrl || url.username || url.password || url.search || url.hash) return refuseTransport('fetch-origin');
+  if (options?.method !== 'POST') return refuseTransport('fetch-method');
+  let body;
+  try {
+    body = JSON.parse(options.body);
+  } catch {
+    return refuseTransport('fetch-body');
+  }
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return refuseTransport('fetch-body');
+  if (url.pathname === '/agents' && typeof body.id === 'string' && body.id.length) {
+    registeredAgents.add(body.id);
+  } else if (['/sugar/begin', '/sugar/done'].includes(url.pathname) && registeredAgents.has(body.agentId)) {
+    // These are fixture-only lifecycle writes, not real admissions.
+  } else if (![...registeredAgents].some(id => url.pathname === `/agents/${id}/heartbeat`)) {
+    return refuseTransport('fetch-route');
+  }
+  return { ok: true, status: 200, json: async () => ({ success: true }) };
 });
+
+global.fetch = coordinationFetch;
+pinFixtureEnvironment();
+const transportSpies = [
+  [http, 'request', 'http-request'], [http, 'get', 'http-get'],
+  [https, 'request', 'https-request'], [https, 'get', 'https-get'],
+  [net, 'connect', 'net-connect'], [net, 'createConnection', 'net-create-connection'],
+  [net.Socket.prototype, 'connect', 'socket-connect'], [tls, 'connect', 'tls-connect'],
+  [net.Server.prototype, 'listen', 'server-listen'],
+].map(([target, key, kind]) => jest.spyOn(target, key).mockImplementation(() => refuseTransport(kind)));
+// Keep named builtin imports behind the same guard as their default exports.
+syncBuiltinESMExports();
+
+beforeAll(() => assertNoUnexpectedNetwork());
 afterAll(() => {
-  global.fetch = originalFetch;
-  if (originalDaemonUrl === undefined) delete process.env.PORT_DADDY_URL;
-  else process.env.PORT_DADDY_URL = originalDaemonUrl;
+  // Every spawn below is awaited through completion; its heartbeat has cleared.
+  try {
+    assertNoUnexpectedNetwork();
+  } finally {
+    // A failing leak assertion must not poison the next suite's transports.
+    for (const spy of transportSpies.reverse()) spy.mockRestore();
+    syncBuiltinESMExports();
+    global.fetch = originalFetch;
+    restoreDaemonEnv(originalDaemonEnv);
+  }
 });
 afterEach(() => {
+  assertNoUnexpectedNetwork();
   expect(global.fetch).toBe(coordinationFetch);
   for (const [url, options] of coordinationFetch.mock.calls) {
     expect(new URL(url).origin).toBe(coordinationUrl);
@@ -54,6 +126,23 @@ jest.unstable_mockModule('node:child_process', () => ({
   spawn: jest.fn(() => mockChildProcess),
   execSync: jest.fn(),
   execFileSync: jest.fn(),
+}));
+
+// The real Coast Guard runner starts a loopback meter before launching the
+// child. Metering I/O is outside this envelope unit's scope: use a non-network
+// meter while retaining the real runner, confinement, env scrubbing and finally
+// disposal. Native listen remains forbidden, including under OS network denial.
+const fixtureMeters = [];
+jest.unstable_mockModule('../../lib/coast-guard/egress-meter.js', () => ({
+  EgressMeter: class {
+    constructor() {
+      this.state = { requests: 0, bytes: 0, blocked: 0, injected: 0 };
+      this.proxyUrl = 'http://egress-meter.test.invalid:31337';
+      this.listen = jest.fn(async () => 31337);
+      this.dispose = jest.fn();
+      fixtureMeters.push(this);
+    }
+  },
 }));
 
 const { spawn: cpSpawn } = await import('node:child_process');
@@ -111,15 +200,124 @@ function makeDeps(envelope) {
 // enforcement, not the guard (covered by spawner-isolation-guard.test.js), so
 // opt out of layer-2 isolation for a checkout-independent run.
 const originalSpawnIsolationOff = process.env.PD_SPAWN_ISOLATION_OFF;
-beforeAll(() => { process.env.PD_SPAWN_ISOLATION_OFF = '1'; });
+const originalCoastGuardOff = process.env.PD_COAST_GUARD_OFF;
+beforeAll(() => {
+  process.env.PD_SPAWN_ISOLATION_OFF = '1';
+  // Exercise the enabled runner even if a developer's shell opted out.
+  delete process.env.PD_COAST_GUARD_OFF;
+});
 afterAll(() => {
   if (originalSpawnIsolationOff === undefined) delete process.env.PD_SPAWN_ISOLATION_OFF;
   else process.env.PD_SPAWN_ISOLATION_OFF = originalSpawnIsolationOff;
+  if (originalCoastGuardOff === undefined) delete process.env.PD_COAST_GUARD_OFF;
+  else process.env.PD_COAST_GUARD_OFF = originalCoastGuardOff;
+});
+afterEach(() => {
+  expect(fixtureMeters).toHaveLength(cpSpawn.mock.calls.length);
+  for (const meter of fixtureMeters) {
+    expect(meter.listen).toHaveBeenCalledTimes(1);
+    expect(meter.listen).toHaveBeenCalledWith(0);
+    expect(meter.dispose).toHaveBeenCalledTimes(1);
+  }
 });
 
 beforeEach(() => {
+  assertNoUnexpectedNetwork();
+  pinFixtureEnvironment();
+  registeredAgents.clear();
+  fixtureMeters.length = 0;
   cpSpawn.mockClear();
   coordinationFetch.mockClear();
+});
+
+describe('hermetic transport boundary', () => {
+  test.each([
+    ['PD_URL', { PD_URL: 'http://127.0.0.1:9876' }],
+    ['PORT_DADDY_URL', { PORT_DADDY_URL: 'http://127.0.0.1:9876' }],
+    ['socket', { PORT_DADDY_SOCK: '/operator/daemon.sock' }],
+    ['conflicting inherited selectors', {
+      PD_URL: 'http://127.0.0.1:9876', PORT_DADDY_URL: 'http://foreign.invalid:4444', PORT_DADDY_SOCK: '/operator/daemon.sock',
+    }],
+  ])('isolates and restores inherited %s without real transport', async (_name, inherited) => {
+    const before = snapshotDaemonEnv();
+    Object.assign(process.env, inherited);
+    const contaminated = snapshotDaemonEnv();
+    try {
+      pinFixtureEnvironment();
+      const result = await createSpawner(makeDeps(null)).spawn({ backend: 'custom', task: 'fixture only' });
+      expect({ status: result.status, error: result.error }).toEqual({ status: 'completed', error: null });
+      expect(coordinationFetch.mock.calls.map(([url]) => new URL(url).pathname))
+        .toEqual(expect.arrayContaining(['/agents', '/sugar/begin', '/sugar/done']));
+      expect(transportSpies.every(spy => spy.mock.calls.length === 0)).toBe(true);
+      restoreDaemonEnv(contaminated);
+      expect(snapshotDaemonEnv()).toEqual(contaminated);
+    } finally {
+      restoreDaemonEnv(before);
+    }
+  });
+
+  test.each([
+    ['wrong origin', 'http://127.0.0.1:9876/agents', 'POST', 'fetch-origin'],
+    ['unknown route', `${coordinationUrl}/relay/publish`, 'POST', 'fetch-route'],
+    ['wrong method', `${coordinationUrl}/agents`, 'GET', 'fetch-method'],
+    ['unregistered heartbeat', `${coordinationUrl}/agents/foreign/heartbeat`, 'POST', 'fetch-route'],
+    ['malformed URL', 'not-a-url', 'POST', 'fetch-input'],
+    ['malformed body', `${coordinationUrl}/agents`, 'POST', 'fetch-body', '{'],
+    ['null body', `${coordinationUrl}/agents`, 'POST', 'fetch-body', 'null'],
+    ['array body', `${coordinationUrl}/agents`, 'POST', 'fetch-body', '[]'],
+  ])('records %s before any request can escape', async (_name, url, method, kind, body = '{}') => {
+    try {
+      await expect(coordinationFetch(url, { method, body })).rejects.toMatchObject({ code: 'TEST_NETWORK_LEAK' });
+      expect(networkViolations).toEqual([kind]);
+      expect(() => assertNoUnexpectedNetwork()).toThrow('violation ledger');
+      expect(registeredAgents.size).toBe(0);
+    } finally {
+      // Only a negative control may consume its already-asserted violations.
+      networkViolations.length = 0;
+      coordinationFetch.mockClear();
+    }
+  });
+
+  test.each([
+    ['http-request', () => http.request('http://127.0.0.1:9876/agents')],
+    ['http-get', () => http.get('http://127.0.0.1:9876/agents')],
+    ['https-request', () => https.request('https://relay.invalid/events')],
+    ['https-get', () => https.get('https://relay.invalid/events')],
+    ['net-connect', () => net.connect({ port: 9876 })],
+    ['net-create-connection', () => net.createConnection({ path: '/operator/daemon.sock' })],
+    ['socket-connect', () => new net.Socket().connect({ path: '/operator/daemon.sock' })],
+    ['tls-connect', () => tls.connect({ port: 443, host: 'relay.invalid' })],
+    ['server-listen', () => net.createServer().listen(0, '127.0.0.1')],
+    ['server-listen', () => net.createServer().listen('/operator/daemon.sock')],
+  ])('blocks the %s escape hatch before opening a connection', (kind, attempt) => {
+    try {
+      expect(attempt).toThrow('Unexpected network attempt');
+      expect(networkViolations).toEqual([kind]);
+      expect(() => assertNoUnexpectedNetwork()).toThrow('violation ledger');
+    } finally {
+      networkViolations.length = 0;
+      for (const spy of transportSpies) spy.mockClear();
+    }
+  });
+
+  test('detects a forbidden registration even when real pdCoordinate swallows the error', async () => {
+    process.env.PORT_DADDY_URL = 'http://127.0.0.1:9876';
+    try {
+      const result = await createSpawner(makeDeps(null)).spawn({ backend: 'custom', task: 'swallowed-error fixture' });
+      // Production intentionally keeps running after a coordination failure.
+      expect({ status: result.status, error: result.error }).toEqual({ status: 'completed', error: null });
+      expect(new URL(coordinationFetch.mock.calls[0][0]).pathname).toBe('/agents');
+      expect(networkViolations.length).toBeGreaterThanOrEqual(3);
+      expect(networkViolations.every(kind => kind === 'fetch-origin')).toBe(true);
+      expect(registeredAgents.size).toBe(0);
+      expect(() => assertNoUnexpectedNetwork()).toThrow('violation ledger');
+      expect(transportSpies.every(spy => spy.mock.calls.length === 0)).toBe(true);
+    } finally {
+      pinFixtureEnvironment();
+      networkViolations.length = 0;
+      coordinationFetch.mockClear();
+    }
+  });
 });
 
 describe('spawner P4 — harbor envelope enforcement', () => {
@@ -133,7 +331,7 @@ describe('spawner P4 — harbor envelope enforcement', () => {
       identity: 'myapp:api:test',
     });
 
-    expect(result.status).not.toBe('failed');
+    expect({ status: result.status, error: result.error }).toEqual({ status: 'completed', error: null });
     expect(harbors.assertWithinEnvelope).not.toHaveBeenCalled();
     expect(bonds.escrow).toHaveBeenCalled();
     expect(coordinationFetch.mock.calls.map(([url]) => new URL(url).pathname))
@@ -170,12 +368,14 @@ describe('spawner P4 — harbor envelope enforcement', () => {
       identity: 'myapp:api:test',
     });
 
-    expect(result.status).not.toBe('failed');
+    expect({ status: result.status, error: result.error }).toEqual({ status: 'completed', error: null });
     expect(bonds.escrow).toHaveBeenCalled();
     // PD_HARBOR_ENVELOPE propagated to the child via the env IPC channel
     expect(cpSpawn).toHaveBeenCalled();
     const spawnOpts = cpSpawn.mock.calls.at(-1)[2];
     expect(spawnOpts.env.PD_HARBOR_NAME).toBe('myapp:fleet');
+    expect(spawnOpts.env.PD_COAST_GUARD).toBe('1');
+    expect(spawnOpts.env.HTTPS_PROXY).toBe('http://egress-meter.test.invalid:31337');
     expect(JSON.parse(spawnOpts.env.PD_HARBOR_ENVELOPE).backends).toEqual(['custom']);
     expect(coordinationFetch.mock.calls.map(([url]) => new URL(url).pathname))
       .toEqual(expect.arrayContaining(['/agents', '/sugar/begin', '/sugar/done']));
