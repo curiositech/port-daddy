@@ -17,6 +17,7 @@ export type FleetbotOperation =
   | 'pull-request.request-reviewers'
   | 'pull-request.comment'
   | 'pull-request.review-reply'
+  | 'pull-request.enqueue'
   | 'pull-request.inspect';
 
 export interface FleetbotTreeChange {
@@ -33,6 +34,8 @@ export interface FleetbotAuthorship {
   agentId: string;
   sessionId: string;
   purpose: string;
+  /** Canonical daemon project/harbor scope stored on the session. */
+  identityProject: string;
   roadmapItem: string | null;
   sidequestReason: string | null;
   worktreeId: string | null;
@@ -60,6 +63,9 @@ export interface FleetbotReceipt {
   operation: FleetbotOperation;
   repository: string;
   idempotencyKey: string;
+  /** Relay-authenticated account scope; never supplied by the daemon. */
+  accountUserId: string;
+  accountGithubUserId: number;
   actorId: string;
   agentId: string;
   sessionId: string;
@@ -239,3 +245,10 @@ export function fleetbotReceiptId(idempotencyKey: string): string {
   return `github_receipt_${idempotencyKey.replace(/^pd-gh-/, '').slice(0, 32)}`;
 }
 
+/** Exact signed receipt payload. The signature field can never sign itself. */
+export function fleetbotReceiptPreimage(
+  receipt: Omit<FleetbotReceipt, 'signature'> | FleetbotReceipt,
+): string {
+  const { signature: _signature, ...unsigned } = receipt as FleetbotReceipt;
+  return stableJson(unsigned);
+}

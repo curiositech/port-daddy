@@ -2,6 +2,7 @@ import { describe, expect, test } from '@jest/globals';
 import {
   FLEETBOT_ACTION_SCHEMA,
   fleetbotIdempotencyPreimage,
+  fleetbotReceiptPreimage,
   roadmapTrailers,
   stampFleetbotMessage,
   stampPullRequestBody,
@@ -15,6 +16,7 @@ const authorship: FleetbotAuthorship = {
   agentId: 'agent-publisher',
   sessionId: 'session-publisher',
   purpose: 'Publish a tested fix',
+  identityProject: 'port-daddy',
   roadmapItem: 'provable-action-adjudicator',
   sidequestReason: null,
   worktreeId: 'worktree-1',
@@ -77,5 +79,35 @@ describe('Fleetbot publisher contract', () => {
     expect(stamped).toContain('Addressed the review.');
     expect(stamped).toContain('Responsible agent: `agent-publisher`');
     expect(stamped).toContain('Relay receipt: `receipt-2`');
+  });
+
+  test('signs a receipt preimage that excludes only the signature', () => {
+    const receipt = {
+      schema: 'port-daddy.fleetbot-receipt.v1' as const,
+      receiptId: 'github_receipt_abc',
+      authority: 'port-daddy-relay-github-app' as const,
+      appSlug: 'port-daddy',
+      operation: 'pull-request.enqueue' as const,
+      repository: 'curiositech/port-daddy',
+      idempotencyKey: 'pd-gh-abc',
+      accountUserId: 'user-1',
+      accountGithubUserId: 42,
+      actorId: authorship.actorId,
+      agentId: authorship.agentId,
+      sessionId: authorship.sessionId,
+      roadmapItem: authorship.roadmapItem,
+      resourceUrl: 'https://github.com/curiositech/port-daddy/pull/1',
+      resourceNumber: 1,
+      publishedBranch: 'pd-agent/fix-abc',
+      sourceHeadSha: 'a'.repeat(40),
+      githubHeadSha: 'b'.repeat(40),
+      result: 'updated' as const,
+      verifiedAt: 1,
+      relayPublicKey: 'c'.repeat(64),
+      tokenCleanup: 'confirmed' as const,
+      signature: 'd'.repeat(128),
+    };
+    expect(fleetbotReceiptPreimage(receipt)).not.toContain(receipt.signature);
+    expect(fleetbotReceiptPreimage(receipt)).toContain('github_receipt_abc');
   });
 });
