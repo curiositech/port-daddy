@@ -572,7 +572,7 @@ const semanticResolver = createSemanticResolver(db, {
 });
 // Automatic reconciliation is local-only: a daemon tick must never send a
 // private SKILL.md catalog to a cloud backend or create surprise spend. An
-// explicit manual `pd skill-graft warm` may use the operator-pinned cloud
+// explicit manual `pd jury-rig warm` may use the operator-pinned cloud
 // backend; setup/startup/ticks only use an explicitly configured Ollama.
 const tool2VecReconciler = createTool2VecReconciler({
   projectRoot: REPO_ROOT,

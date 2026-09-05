@@ -13,7 +13,8 @@ Port Daddy first-party catalog, explicitly configured
 libraries. Because user-level entries are symlinks, updates to those declared
 source catalogs are visible to Gemini without recopying Markdown.
 
-Use `pd jury-rig query "<task>"` for native hybrid skill discovery and
+Use `pd jury-rig search "<task>"` for metadata-only native hybrid discovery,
+`pd jury-rig graft "<task>"` only for selected full guidance, and
 `pd jury-rig reference <skill-id> <path>` for guarded reference reads. Catalog
 selection never authorizes a third-party skill's scripts, hooks, MCP servers,
 subagents, or planning pipeline to execute. Planning remains under Port Daddy's

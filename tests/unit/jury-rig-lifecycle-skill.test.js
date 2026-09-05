@@ -136,7 +136,7 @@ test('query and runtime-link duplicate-ID policies are distinct, not a blanket e
 
 test('README example matches explicit-root augmentation and narrow CLI root semantics', () => {
   const readme = readFileSync(new URL('README.md', repo), 'utf8');
-  expect(readme).toContain('PORT_DADDY_SKILL_SOURCE_ROOTS="/path/to/team/skills:/path/to/personal/skills" pd jury-rig query');
+  expect(readme).toContain('PORT_DADDY_SKILL_SOURCE_ROOTS="/path/to/team/skills:/path/to/personal/skills" pd jury-rig search');
   expect(readme).toContain('They are searched **first**, followed by the normal project/user roots');
   expect(readme).toContain('--root/--dir instead select project-local roots');
   expect(readme).toContain('skills/jury-rig-bootstrap-lifecycle/SKILL.md');

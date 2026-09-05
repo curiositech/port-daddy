@@ -146,8 +146,9 @@ integrations.
 - **Port Daddy MCP** is your first instinct for anything coordination-shaped:
   sessions, claims, locks, notes, ports, swarm awareness, sorties, discovery
   (`pd_discover` surfaces DNS, pub/sub, tunnels, webhooks, inboxes).
-- **Jury-rig** for capability work: `pd jury-rig query` finds relevant skills
-  through the native hybrid index, and `pd jury-rig reference` loads a named
+- **Jury-rig** for capability work: `pd jury-rig search` returns a bounded
+  metadata shortlist through the native hybrid index. `pd jury-rig graft`
+  explicitly loads selected full guidance, and `pd jury-rig reference` loads a named
   skill-owned file through containment and symlink-escape guards. Do not require
   or install an external planning runtime for skill discovery.
 - **Skills** are pre-loaded expertise. Use `port-daddy-agent-skill` as your

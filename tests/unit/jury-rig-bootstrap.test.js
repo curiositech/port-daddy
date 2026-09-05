@@ -65,7 +65,7 @@ function fixture() {
   const legacySkill = join(root, 'legacy', LEGACY_NAME, 'libexec', 'skills', 'demo-skill');
 
   put(pdBinary, 'fixture installed pd binary\n', 0o755);
-  put(nativeHookPath, '// Native Jury-rig Pilot hook\nconst command = "pd jury-rig query";\n', 0o644);
+  put(nativeHookPath, '// Native Jury-rig Pilot hook\nconst command = "pd jury-rig search";\n', 0o644);
   put(installedHook, `// legacy ${LEGACY_NAME} SessionStart authority\n`, 0o755);
   put(join(home, 'AGENTS.md'), `# AGENTS.md — User-Level Agent Guide
 
@@ -204,7 +204,7 @@ function proof(f, overrides = {}) {
     installedKeg: f.keg,
     nativeHookPath: f.nativeHookPath,
     nativeHookSha256: sha256(readFileSync(f.nativeHookPath)),
-    juryRigQueryScannedCount: 1,
+    juryRigSearchScannedCount: 1,
     verifiedAt: NOW.toISOString(),
     ...overrides,
   };
@@ -368,7 +368,8 @@ describe('native Jury-rig machine cutover', () => {
     expect(claude.permissions.allow).toEqual(['mcp__port-daddy__status']);
     expect(claude.unrelated).toEqual({ nested: 42 });
 
-    expect(readFileSync(join(f.home, 'AGENTS.md'), 'utf8')).toContain('pd jury-rig query');
+    expect(readFileSync(join(f.home, 'AGENTS.md'), 'utf8')).toContain('pd jury-rig search');
+    expect(readFileSync(join(f.home, 'AGENTS.md'), 'utf8')).toContain('pd jury-rig graft');
     expect(readFileSync(join(f.home, '.gemini', 'GEMINI.md'), 'utf8')).toContain('Keep this unrelated sentence.');
     expect(readFileSync(join(f.home, '.claude', 'CLAUDE.md'), 'utf8')).toContain(`Historical note: the ${LEGACY_NAME} migration`);
     expect(readFileSync(f.installedHook, 'utf8')).toBe(readFileSync(f.nativeHookPath, 'utf8'));

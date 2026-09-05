@@ -100,7 +100,7 @@ export interface ReadSquidConformanceOptions {
 const SQUID_TRUTH = {
   bufferProtection: 'Pre-edit ownership and lock gate; it does not back up unsaved editor buffers.',
   parley: 'Parley turns can reach agent inboxes; convening is still explicit, not automatic.',
-  skillGrafting: '`pd skill-graft` is adjacent guidance, not a Squid tentacle today.',
+  skillGrafting: '`pd jury-rig search` is adjacent metadata discovery; explicit grafting is not a Squid tentacle today.',
 } as const;
 
 export function canonicalSquidProjectRoot(projectDir: string): string {

@@ -54,24 +54,39 @@ afterEach(() => {
   rmSync(root, { recursive: true, force: true });
 });
 
-test('pd jury-rig query emits structured JSON for a local skill catalog', async () => {
-  await handleJuryRig(['query', 'write', 'fleet', 'trigger', 'tests'], { root, json: true, 'top-limit': 1 });
+test('pd jury-rig search emits metadata-only JSON for a local skill catalog', async () => {
+  await handleJuryRig(['search', 'write', 'fleet', 'trigger', 'tests'], { root, json: true });
 
   const body = JSON.parse(logs.join('\n'));
   expect(body.scannedCount).toBe(2);
   expect(body.semanticTier).toBe('lexical-only');
   expect(body.shortlist[0].id).toBe('fleet-test-author');
+  expect(body).not.toHaveProperty('top');
+  expect(JSON.stringify(body)).not.toContain('# fleet-test-author');
+});
+
+test('pd jury-rig graft is the explicit full-body operation', async () => {
+  await handleJuryRig(['graft', 'write', 'fleet', 'trigger', 'tests'], { root, json: true, 'top-limit': 1 });
+
+  const body = JSON.parse(logs.join('\n'));
   expect(body.top).toHaveLength(1);
   expect(body.top[0].body).toContain('# fleet-test-author');
 });
 
-test('pd jury-rig shorthand query renders guidance and lexical fallback note', async () => {
+test('pd jury-rig shorthand renders metadata without skill bodies', async () => {
   await handleJuryRig(['write fleet trigger tests'], { root });
 
   const output = logs.join('\n');
   expect(output).toContain('Relevant skills');
   expect(output).toContain('fleet-test-author');
+  expect(output).not.toContain('# fleet-test-author');
+  expect(output).toContain('Metadata only; no SKILL.md body was loaded');
   expect(output).toContain('Semantic Tool2Vec tier is cold or unconfigured');
+});
+
+test('pd jury-rig query is removed instead of silently retaining body-loading semantics', async () => {
+  await expect(handleJuryRig(['query', 'write', 'fleet', 'trigger', 'tests'], { root }))
+    .rejects.toThrow('Use `pd jury-rig search` for metadata or `pd jury-rig graft` for full guidance');
 });
 
 test('pd jury-rig warm scans without requiring an LLM backend', async () => {

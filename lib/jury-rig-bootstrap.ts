@@ -86,8 +86,10 @@ const LEGACY_GEMINI_END = `<!-- ${LEGACY_NAME}-skills:end -->`;
 const NATIVE_GUIDE_BLOCK = `${NATIVE_GUIDE_START}
 # Port Daddy Native Skill Guidance
 
-Use \`pd jury-rig query "<task>"\` before meaningful work, then load only the
-needed reference with \`pd jury-rig reference <skill-id> <path>\`. Jury-rig is
+Use \`pd jury-rig search "<task>"\` before meaningful work. Search returns
+bounded metadata only; use \`pd jury-rig graft "<task>"\` only for selected
+guidance, then load only the needed reference with
+\`pd jury-rig reference <skill-id> <path>\`. Jury-rig is
 Port Daddy's native hybrid discovery surface over the local and explicitly
 configured catalog.
 
@@ -308,7 +310,7 @@ export interface NativeJuryRigProof {
   installedKeg: string;
   nativeHookPath: string;
   nativeHookSha256: string;
-  juryRigQueryScannedCount: number;
+  juryRigSearchScannedCount: number;
   verifiedAt: string;
 }
 
@@ -1644,12 +1646,18 @@ export function verifyNativeJuryRigRuntime(
   if (hasLegacyName(hook) || !hook.toLowerCase().includes('jury-rig')) {
     throw new Error('installed release Pilot hook is not native Jury-rig guidance');
   }
-  const query = runJson(pdPath, [
-    'jury-rig', 'query', 'native skill discovery cutover preflight',
-    '--top-limit', '1', '--body-chars', '64', '--json',
-  ], 'installed pd jury-rig query') as { scannedCount?: unknown };
-  if (typeof query.scannedCount !== 'number' || query.scannedCount < 1) {
-    throw new Error('installed pd jury-rig query did not prove a readable native catalog');
+  const search = runJson(pdPath, [
+    'jury-rig', 'search', 'native skill discovery cutover preflight', '--json',
+  ], 'installed pd jury-rig search') as { scannedCount?: unknown; top?: unknown };
+  if (typeof search.scannedCount !== 'number' || search.scannedCount < 1 || 'top' in search) {
+    throw new Error('installed pd jury-rig search did not prove metadata-only native discovery');
+  }
+  const graft = runJson(pdPath, [
+    'jury-rig', 'graft', 'native skill discovery cutover preflight',
+    '--top-limit', '1', '--body-chars', '500', '--json',
+  ], 'installed pd jury-rig graft') as { top?: unknown };
+  if (!Array.isArray(graft.top) || graft.top.length !== 1) {
+    throw new Error('installed pd jury-rig graft did not prove explicit bounded guidance loading');
   }
 
   const gh = resolveExecutable(options.ghCommand ?? 'gh');
@@ -1699,7 +1707,7 @@ export function verifyNativeJuryRigRuntime(
     installedKeg: keg,
     nativeHookPath,
     nativeHookSha256: sha256(hook),
-    juryRigQueryScannedCount: query.scannedCount,
+    juryRigSearchScannedCount: search.scannedCount,
     verifiedAt: iso(now),
   };
 }
