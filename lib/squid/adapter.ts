@@ -442,10 +442,12 @@ export class ClaudeCliSquidAdapter implements GiantSquidAdapter {
     if (existsSync(settingsPath)) {
       try {
         settings = JSON.parse(readFileSync(settingsPath, 'utf8')) as ClaudeSettings;
-      } catch {
-        // Corrupt settings → start clean rather than crash. The vendor loop must
-        // boot even if a previous writer left junk (ADR fail-open posture).
-        settings = {};
+      } catch (error) {
+        throw new Error(`Claude hook installation blocked: existing settings JSON is unreadable or malformed; original file preserved. ${String(error)}`);
+      }
+      if (!settings || typeof settings !== 'object' || Array.isArray(settings)
+        || (settings.hooks !== undefined && (!settings.hooks || typeof settings.hooks !== 'object' || Array.isArray(settings.hooks)))) {
+        throw new Error('Claude hook installation blocked: existing settings must be an object with an object-valued hooks field; original file preserved.');
       }
     }
     settings.hooks ??= {};

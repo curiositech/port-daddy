@@ -125,7 +125,7 @@ describe('cli:claude-code sortie launch gate (real readiness + real preflight)',
   });
 
   test.each(['cli:codex', 'cli:gemini', 'cli:groq', 'cli:grok'])(
-    '%s also launches when its binary is present',
+    '%s launchability respects policy even when its binary is present',
     async (backend) => {
       installCli(BACKEND_BIN[backend]);
 
@@ -135,8 +135,9 @@ describe('cli:claude-code sortie launch gate (real readiness + real preflight)',
         budgetUsd: 5,
       }, { costTracker });
 
-      expect(result.launchReady).toBe(true);
-      expect(result.blockedReasons).toEqual([]);
+      expect(result.launchReady).toBe(backend === 'cli:codex');
+      if (backend === 'cli:codex') expect(result.blockedReasons).toEqual([]);
+      else expect(result.blockedReasons.join(' ')).toContain('blocked');
     },
   );
 });

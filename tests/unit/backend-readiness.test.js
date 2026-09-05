@@ -28,6 +28,14 @@ jest.unstable_mockModule('../../lib/secret-env.js', () => ({
 const { assessBackendReadiness } = await import('../../lib/backend-readiness.js');
 
 describe('backend readiness', () => {
+  test.each(['cli:gemini', 'cli:groq', 'cli:grok'])('%s is never advertised as launchable even with an installed binary', async backend => {
+    installCli(backend.slice(4));
+    const readiness = await assessBackendReadiness(backend);
+    expect(readiness).toMatchObject({ status: 'blocked', launchableUnverified: false });
+    expect(readiness.summary).toContain('Managed CLI launch blocked');
+    expect(readiness.nextStep).not.toContain(' -p ');
+    expect(readiness.setupCommand).toBeUndefined();
+  });
   const originalAnthropicKey = process.env.ANTHROPIC_API_KEY;
   const originalGeminiKey = process.env.GEMINI_API_KEY;
   const originalCfAccountId = process.env.CLOUDFLARE_ACCOUNT_ID;
@@ -282,9 +290,6 @@ describe('backend readiness', () => {
 
   test.each([
     ['cli:agy', 'agy', 'PD_CLI_AGY_BIN'],
-    ['cli:gemini', 'gemini', 'PD_CLI_GEMINI_BIN'],
-    ['cli:groq', 'groq', 'PD_CLI_GROQ_BIN'],
-    ['cli:grok', 'grok', 'PD_CLI_GROK_BIN'],
   ])('%s reports manual_check when the resolver finds its executable', async (backend, bin, envKey) => {
     delete process.env[envKey];
 
@@ -313,7 +318,6 @@ describe('backend readiness', () => {
 
   test.each([
     ['cli:agy', 'agy-beta', 'PD_CLI_AGY_BIN'],
-    ['cli:gemini', 'gemini-beta', 'PD_CLI_GEMINI_BIN'],
   ])('%s honors its binary override env var', async (backend, overrideName, envKey) => {
     const cli = installCli(overrideName);
     process.env[envKey] = cli;

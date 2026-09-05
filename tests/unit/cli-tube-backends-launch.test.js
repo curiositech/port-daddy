@@ -124,7 +124,7 @@ describe('cli-tube buildArgs — placeholder model never reaches the CLI', () =>
 
   test('agy placeholder drops --model (CLI uses its account default)', () => {
     const { args } = buildArgs('agy', 'hi', undefined, 'agy-cli');
-    expect(args).toEqual(['--print', 'hi']);
+    expect(args).toEqual(['--print', '--disable-slash-commands', 'hi']);
   });
 
   test('a real explicit model is forwarded unchanged', () => {

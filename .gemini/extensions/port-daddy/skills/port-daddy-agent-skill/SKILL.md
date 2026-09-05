@@ -911,8 +911,10 @@ offline-first local replica.
 **Dispatch** (`cli/commands/dispatch.ts`, `lib/dispatch/runner.ts`) is the
 operator queue for autonomous feature work: drop a sentence-shaped goal, a
 worker runs it in an **isolated git worktree** under `~/coding/tmp/port-daddy-dispatch-<id>`
-(never `/tmp`), then opens a **draft PR** via `lib/dispatch/spawn-adapter.ts`.
-The operator accepts or rejects through `pd review`.
+(never `/tmp`) through `lib/dispatch/conductor-adapter.ts`. Plans contain semantic
+intent, not executable commands. Publication needs a configured GitHub App
+publisher, which is not yet wired: completed local work is preserved in salvage
+with a human-attention receipt. No ambient-account push or draft PR is attempted.
 
 ```bash
 pd dispatch propose "<goal text>"     # queue a goal (state=proposed)
@@ -920,7 +922,7 @@ pd dispatch queue                     # list proposed dispatches
 pd dispatch list                      # list dispatches (filter with --state)
 pd dispatch show <id>                 # one dispatch in detail
 pd dispatch run <id>                  # DRY-RUN by default — prints the plan
-pd dispatch run <id> --really-run     # actually spawn the worker + open the draft PR
+pd dispatch run <id> --really-run     # Conductor execution; publication may need attention
 pd dispatch cancel <id> --reason "<why>"
 ```
 

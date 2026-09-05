@@ -9,7 +9,7 @@
  *
  * First-cut policy: this module DOES NOT spawn an autonomous agent during
  * an operator session. It plans the run -- creates the worktree, derives the
- * branch name, builds the spawn command -- and either prints the plan
+ * branch name, describes semantic intent -- and either prints the plan
  * (default `dryRun: true`) or invokes the spawner adapter (only when
  * `dryRun: false` AND the caller has supplied a real spawner).
  *
@@ -20,8 +20,8 @@
  *   - base_branch defaults to 'main' (per dispatch.baseBranch column)
  *   - bypass flag is explicitly chosen per backend
  *   - timeout default is 3h; max 6h (operator override only)
- *   - the spawn command is built but not handed to a shell -- we return
- *     an argv array so callers can spawn the child process without shell.
+ *   - no executable command or argv is present in the plan; only Conductor
+ *     delegates to a managed provider after real wrapper admission.
  */
 
 import { existsSync, mkdirSync } from 'node:fs';
@@ -32,7 +32,6 @@ import type { Dispatch, DispatchQueue, DispatchBackend } from './queue.js';
 import { decideFailover } from './failover.js';
 import { deriveBranchName } from './queue.js';
 import type { TubeClientLike } from '../spawner/backends/cli-tube.js';
-import { buildCliTubeArgs } from '../spawner/backends/cli-tube-provider-specs.js';
 
 // Re-export the canonical DispatchBackend (defined in ./queue.js to avoid an
 // import cycle) so existing importers of `runner.js` keep working unchanged.
@@ -68,27 +67,24 @@ export function deriveWorktreePath(id: string): string {
 // `DispatchBackend` is the full cli-tube backend set (ADR-0060 fold-in widened
 // it from the original claude-code/codex pair). It is defined canonically in
 // ./queue.js and re-exported above; the runtime allow-list below mirrors it.
-const SUPPORTED_BACKENDS: ReadonlySet<DispatchBackend> = new Set<DispatchBackend>([
+export const SUPPORTED_DISPATCH_BACKENDS: ReadonlySet<DispatchBackend> = new Set<DispatchBackend>([
   'cli:claude-code',
   'cli:codex',
   'cli:agy',
-  'cli:gemini',
-  'cli:groq',
-  'cli:grok',
 ]);
 
 export const DEFAULT_BACKEND: DispatchBackend = 'cli:codex';
 
 export interface RunnerPlan {
+  executionIntent: 'autonomous';
   dispatch: Dispatch;
   backend: DispatchBackend;
   worktreePath: string;
   branch: string;
   /** `<remote>/<base_branch>` -- the ref the worktree branches from. */
   baseRef: string;
-  /** Command + args. Pass to spawnChild WITHOUT a shell. */
-  command: string;
-  args: string[];
+  /** Semantic requirement, not a fabricated wrapper receipt or executable argv. */
+  confinementRequired: true;
   /**
    * Optional model override forwarded to the cli-tube spawn (`--model`). Absent
    * → the CLI uses its authenticated account's default (claude-code → `sonnet`
@@ -267,50 +263,12 @@ function clampBudget(requested: number | null | undefined): number {
 }
 
 /**
- * Build the argv used to launch the backend in autonomous mode. The goal
- * text is always an explicit positional arg so injection is impossible at
- * this layer (no shell interpolation).
- */
-export function buildSpawnArgv(
-  backend: DispatchBackend,
-  worktreePath: string,
-  goal: string,
-  model?: string,
-): { command: string; args: string[] } {
-  if (backend === 'cli:claude-code') {
-    const args = ['--dangerously-skip-permissions', '-p', goal];
-    if (model) args.push('--model', model);
-    return { command: 'claude', args };
-  }
-  if (backend === 'cli:codex') {
-    // The cli-tube provider registry is the canonical Codex policy contract.
-    // Its --approve-for-me mode already supplies auto-reviewed workspace-write;
-    // adding an explicit --sandbox beside it is a hard Codex parse error. Keep
-    // dispatch's working root and every confinement/approval flag in the shared
-    // provider builder so the launch paths cannot drift.
-    const { args } = buildCliTubeArgs('codex', { prompt: goal, model, cwd: worktreePath });
-    return { command: 'codex', args };
-  }
-  // gemini / groq / grok — all three share the claude-code-style headless
-  // surface: `-p <prompt>` runs one non-interactive turn, `--model` overrides
-  // the model (mirrors cli-tube.ts buildArgs). NOTE: this argv is only used for
-  // the dry-run rationale display; the real spawn goes through the Conductor's
-  // cli-tube spawner (which builds its own stream/tube-aware argv). The command
-  // name is the CLI binary (gemini/groq/grok), stripped of the `cli:` prefix.
-  const cliName = backend.slice('cli:'.length);
-  const args = ['-p'];
-  if (model) args.push('--model', model);
-  args.push(goal);
-  return { command: cliName, args };
-}
-
-/**
  * Plan a run for a specific dispatch without consuming the queue. Pure and
  * deterministic given the dispatch.
  */
 export function planRunFor(dispatch: Dispatch, opts: RunnerOptions = {}): RunnerPlan {
   const backend = opts.backend ?? (dispatch.backend as DispatchBackend | null) ?? DEFAULT_BACKEND;
-  if (!SUPPORTED_BACKENDS.has(backend)) {
+  if (!SUPPORTED_DISPATCH_BACKENDS.has(backend)) {
     throw new Error(`planRunFor: unsupported backend ${backend}`);
   }
   const remote = opts.remote ?? 'origin';
@@ -320,7 +278,6 @@ export function planRunFor(dispatch: Dispatch, opts: RunnerOptions = {}): Runner
   const timeoutMs = clampTimeout(dispatch.timeoutMs);
   const budgetUsd = clampBudget(dispatch.budgetUsd);
   const model = opts.model;
-  const { command, args } = buildSpawnArgv(backend, worktreePath, dispatch.goal, model);
 
   const rationale: string[] = [];
   rationale.push(`backend = ${backend}`);
@@ -330,18 +287,8 @@ export function planRunFor(dispatch: Dispatch, opts: RunnerOptions = {}): Runner
   rationale.push(`merge_policy = ${dispatch.mergePolicy}`);
   rationale.push(`timeout = ${Math.round(timeoutMs / 60000)} min`);
   rationale.push(`budget = $${budgetUsd.toFixed(2)}`);
-  if (backend === 'cli:claude-code') {
-    rationale.push('claude bypass = --dangerously-skip-permissions');
-    rationale.push('blast-radius = wrapper deny-list (PR #161 destructive-op shim is the floor)');
-  } else if (backend === 'cli:codex') {
-    rationale.push('codex approval = --approve-for-me (auto-reviewed workspace-write; no explicit --sandbox)');
-    rationale.push('blast-radius = codex auto-reviewed workspace-write mode (self-confining; not double-wrapped)');
-  } else {
-    // gemini / groq / grok have no built-in OS sandbox; the isolated worktree
-    // under ~/coding/tmp is the blast-radius boundary (same as claude-code).
-    rationale.push(`${backend.slice('cli:'.length)} headless = -p <goal> (one non-interactive turn)`);
-    rationale.push('blast-radius = isolated worktree (no built-in CLI sandbox)');
-  }
+  rationale.push('NON-EXECUTABLE semantic plan: Conductor must obtain an actual confined:true wrapper before constructing provider argv');
+  rationale.push('native skill suppression is mandatory; caller guidance has no inferred selection receipt');
   if (model) {
     rationale.push(`model = ${model}`);
   }
@@ -354,12 +301,12 @@ export function planRunFor(dispatch: Dispatch, opts: RunnerOptions = {}): Runner
 
   return {
     dispatch,
+    executionIntent: 'autonomous',
     backend,
     worktreePath,
     branch,
     baseRef,
-    command,
-    args,
+    confinementRequired: true,
     model,
     env: {
       PD_DISPATCH_ID: dispatch.id,
@@ -530,7 +477,7 @@ async function attemptFailover(args: {
       error: result.error,
       costUsd: result.costUsd,
       ...(failover.preferredChain ? { preferredChain: failover.preferredChain } : {}),
-      ...(failover.isUnavailable ? { isUnavailable: failover.isUnavailable } : {}),
+      isUnavailable: (backend) => !SUPPORTED_DISPATCH_BACKENDS.has(backend) || Boolean(failover.isUnavailable?.(backend)),
     });
 
     if (decision.action !== 'failover' || !decision.nextBackend) {

@@ -4014,6 +4014,7 @@ interface ChangelogIdentitiesResponse {
 export type BackendOverrideSource = 'none' | 'env' | 'persisted' | 'preflight';
 
 interface SpawnSpec {
+  executionIntent?: 'manual' | 'edit-only' | 'autonomous';
   backend: 'ollama' | 'lmstudio' | 'claude' | 'claude-cli' | 'gemini' | 'cloudflare' | 'openai' | 'groq' | 'deepseek' | 'xai' | 'codex' | 'aider' | 'custom' | 'cli:claude-code' | 'cli:codex' | 'cli:agy' | 'cli:gemini' | 'cli:groq' | 'cli:grok';
   name?: string;
   model?: string;
@@ -4035,6 +4036,7 @@ interface SpawnSpec {
 }
 
 interface SpawnResult {
+  executionIntent?: 'manual' | 'edit-only' | 'autonomous';
   success: boolean;
   agentId: string;
   name?: string;
@@ -4060,6 +4062,7 @@ interface SpawnResult {
 }
 
 interface SpawnedAgent {
+  executionIntent?: 'manual' | 'edit-only' | 'autonomous';
   agentId: string;
   name?: string;
   backend: SpawnSpec['backend'];

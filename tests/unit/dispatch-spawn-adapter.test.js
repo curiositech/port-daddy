@@ -1,579 +1,137 @@
-/**
- * Tests for lib/dispatch/spawn-adapter.ts
- *
- * Tests use injectable fns (spawnFn, worktreeAddFn, openPrFn), except one
- * synthetic Node child/grandchild timeout fixture. No provider, real worktree,
- * or GitHub API is used. The tests verify:
- *
- *   - correct worktree path construction from the queue row
- *   - correct branch + baseRef derivation
- *   - correct spawn argv forwarded to the spawn function
- *   - correct gh pr create invocation shape (via openPrFn)
- *   - state machine transitions: claimed → in_progress → produced → review_pending
- *   - failure path: worktree error → failed
- *   - failure path: agent error with no PR → failed
- *   - failure path: agent error but PR opened → settled (reviewable partial work)
- *   - requireCli throws a clear message for a missing binary
- */
-
-import { jest } from '@jest/globals';
-import { EventEmitter } from 'node:events';
-import { execFile } from 'node:child_process';
-import { isWitnessedBackendFailure, witnessedBackendFailure } from '../../lib/agent-resilience.js';
-import { classifyForFailover } from '../../lib/dispatch/failover.js';
+import { test, expect, jest } from '@jest/globals';
 import { createTestDb } from '../setup-unit.js';
 import { createDispatchQueue } from '../../lib/dispatch/queue.js';
-import {
-  createSpawnAdapter,
-  gitWorktreeAdd,
-  requireCli,
-  runAgentInWorktree,
-} from '../../lib/dispatch/spawn-adapter.js';
-import {
-  planRunFor,
-  runNext,
-  DISPATCH_WORKTREE_ROOT,
-} from '../../lib/dispatch/runner.js';
+import { planRunFor } from '../../lib/dispatch/runner.js';
+import { createDispatchWorker } from '../../lib/dispatch/worker.js';
+import { createConductorSpawnAdapter } from '../../lib/dispatch/conductor-adapter.js';
+import { reapWorktree } from '../../lib/dispatch/worktree-cleanup.js';
+import { gitWorktreeAdd, requireGitHubAppPublisher } from '../../lib/dispatch/conductor-lifecycle.js';
+import { deriveWorktreePath } from '../../lib/dispatch/runner.js';
 
-// ── helpers ──────────────────────────────────────────────────────────────────
+test.each(['cli:claude-code', 'cli:codex', 'cli:agy'])('%s plans contain semantic intent, no executable command/argv or fabricated wrapper', async backend => {
+  const db = createTestDb();
+  try {
+    const queue = createDispatchQueue({ db });
+    const proposed = queue.propose({ goal: 'bounded task', backend, projectDir: '/source/project' });
+    const dispatch = queue.claim({ id: proposed.id, worktreePath: deriveWorktreePath(proposed.id), branch: 'dispatch/test', sessionId: 'fixture-session' });
+    const plan = planRunFor(dispatch, { backend });
+    expect(plan).toMatchObject({ executionIntent: 'autonomous', confinementRequired: true });
+    expect(plan).not.toHaveProperty('command');
+    expect(plan).not.toHaveProperty('args');
+    expect(plan).not.toHaveProperty('coastGuard');
+    expect(JSON.stringify(plan)).not.toContain('--dangerously');
+    const launch = jest.fn(async () => ({ admitted: false, refusedReason: 'no actual confinement' }));
+    const adapter = createConductorSpawnAdapter({ launch });
+    const result = await adapter({ plan, queue });
+    expect(result.state).toBe('failed');
+    expect(launch).toHaveBeenCalledWith(expect.objectContaining({ executionIntent: 'autonomous', backend }));
+  } finally { db.close(); }
+});
 
-function makeQueue(db) {
-  return createDispatchQueue({ db, now: () => Date.now() });
+test('worker has no default raw execution or publication transport', () => {
+  const db = createTestDb();
+  try { expect(() => createDispatchWorker({ queue: createDispatchQueue({ db }) })).toThrow(/Conductor-backed/); }
+  finally { db.close(); }
+});
+
+test('cleanup refuses paths outside exact dispatch worktrees', async () => {
+  await expect(reapWorktree('/Users/erichowens/coding', '/source/project', { expectedBranch: 'dispatch/test' })).rejects.toThrow(/Refusing cleanup/);
+});
+
+test('local worktree creation and cleanup are bound to source project, not daemon cwd', async () => {
+  const target = deriveWorktreePath('local-lifecycle-test');
+  const execFileFn = identityGit(target);
+  await gitWorktreeAdd(target, 'dispatch/test', 'origin/main', { repoWorkdir: '/durable/project', existsFn: () => false, execFileFn });
+  await reapWorktree(target, '/durable/project', { expectedBranch: 'dispatch/test', existsFn: () => true, execFileFn });
+  for (const [cmd, args, opts] of execFileFn.mock.calls) {
+    expect(cmd).toBe('git');
+    expect(['/durable/project', target]).toContain(opts.cwd);
+    expect(args).not.toContain('push');
+    expect(args).not.toContain('--force');
+  }
+  expect(execFileFn).toHaveBeenLastCalledWith('git', ['worktree', 'remove', target], expect.objectContaining({ cwd: '/durable/project' }));
+  await expect(reapWorktree(target)).rejects.toThrow(/source project binding/);
+});
+
+function identityGit(target, overrides = {}) {
+  return jest.fn(async (_cmd, args, opts) => {
+    const key = args.join(' ');
+    if (opts.cwd === target && overrides[key] instanceof Error) throw overrides[key];
+    const defaults = {
+      'rev-parse --show-toplevel': opts.cwd,
+      'rev-parse --path-format=absolute --git-common-dir': '/durable/project/.git',
+      'rev-parse --absolute-git-dir': '/durable/project/.git/worktrees/test',
+      'symbolic-ref --short HEAD': 'dispatch/test',
+    };
+    return { stdout: opts.cwd === target ? (overrides[key] ?? defaults[key] ?? '') : (defaults[key] ?? ''), stderr: '' };
+  });
 }
 
-const SOURCE_PROJECT = '/repo';
-
-describe('host child lifecycle failure witnesses', () => {
-  function childFixture() {
-    const child = new EventEmitter();
-    child.stdin = { end: jest.fn() };
-    child.stdout = new EventEmitter();
-    child.stderr = new EventEmitter();
-    child.kill = jest.fn(() => { queueMicrotask(() => child.emit('close', 1)); return true; });
-    return child;
-  }
-  function run(child, timeoutMs = 1000) {
-    return runAgentInWorktree({ command: 'codex', args: [], env: {}, worktreePath: SOURCE_PROJECT, timeoutMs, execFileFn: () => child });
-  }
-  test('actual child error code, not its message, creates the host witness', async () => {
-    const child = childFixture();
-    const pending = run(child);
-    child.emit('error', Object.assign(new Error('401 misleading detail'), { code: 'ENOENT' }));
-    const result = await pending;
-    expect(result.failure.code).toBe('BACKEND_ABSENT');
-    expect(isWitnessedBackendFailure(result.failure)).toBe(true);
-    expect(isWitnessedBackendFailure(JSON.parse(JSON.stringify(result.failure)))).toBe(false);
-  });
-  test('stderr or nonzero exit cannot self-assert a recoverable transport failure', async () => {
-    const child = childFixture();
-    const pending = run(child);
-    child.stderr.emit('data', Buffer.from('{"code":"UNAVAILABLE","status":503} ENOENT 429'));
-    child.emit('close', 1);
-    const result = await pending;
-    expect(result.failure).toBeUndefined();
-    expect(result.error).toContain('ENOENT');
-  });
-  test('local timeout and direct-child close cannot prove owned-tree termination', async () => {
-    const child = childFixture();
-    const result = await run(child, 10);
-    expect(child.kill).toHaveBeenCalledWith('SIGTERM');
-    expect(result.error).toContain('timed out');
-    expect(result.failure).toBeUndefined();
-    expect(isWitnessedBackendFailure(result.failure)).toBe(false);
-  });
-
-  test('a surviving synthetic grandchild cannot earn timeout failover after child close', async () => {
-    let directChild;
-    let grandchildPid;
-    // The grandchild closes inherited pipes, so the direct child's close is
-    // observable while the descendant is still alive. Its own 10s exit is a
-    // final cleanup bound even if this test fails before receiving its PID.
-    const source = `
-      const { spawn } = require('node:child_process');
-      const descendant = spawn(process.execPath, ['-e', 'setTimeout(() => {}, 10000)'], { stdio: 'ignore' });
-      process.stdout.write(String(descendant.pid) + '\\n');
-      setInterval(() => {}, 1000);
-    `;
-    try {
-      const result = await runAgentInWorktree({
-        command: 'codex', args: [], env: {}, worktreePath: process.cwd(), timeoutMs: 1000,
-        execFileFn: (_file, _args, options) => {
-          directChild = execFile(process.execPath, ['-e', source], options);
-          directChild.stdout.on('data', data => {
-            const parsed = Number(data.toString().trim());
-            if (Number.isSafeInteger(parsed) && parsed > 0) grandchildPid = parsed;
-          });
-          return directChild;
-        },
+test.each([
+  ['wrong repository', { 'rev-parse --path-format=absolute --git-common-dir': '/other/project/.git' }],
+  ['wrong branch', { 'symbolic-ref --short HEAD': 'main' }],
+  ['not a worktree', { 'rev-parse --show-toplevel': new Error('not a git repository') }],
+  ['nested directory', { 'rev-parse --show-toplevel': '/durable/project' }],
+  ['main checkout', { 'rev-parse --absolute-git-dir': '/durable/project/.git' }],
+])('refuses %s on preexisting and partial-created targets', async (_name, overrides) => {
+  const target = deriveWorktreePath('identity-proof');
+  for (const partialCreate of [false, true]) {
+    const execFileFn = identityGit(target, overrides);
+    let exists = !partialCreate;
+    if (partialCreate) {
+      const git = execFileFn.getMockImplementation();
+      execFileFn.mockImplementation(async (cmd, args, opts) => {
+        if (args[0] === 'worktree') { exists = true; throw new Error('.git/config.lock File exists'); }
+        return git(cmd, args, opts);
       });
-      expect(grandchildPid).toBeGreaterThan(0);
-      expect(() => process.kill(grandchildPid, 0)).not.toThrow();
-      expect(directChild.signalCode).toBe('SIGTERM');
-      expect(result.error).toContain('timed out');
-      expect(result.failure).toBeUndefined();
-      expect(classifyForFailover(result.failure)).toMatchObject({ transient: false, backendAbsent: false });
-    } finally {
-      // These exact PIDs came from this fixture, never from a global scan.
-      if (grandchildPid) { try { process.kill(grandchildPid, 'SIGKILL'); } catch {} }
-      if (directChild && directChild.exitCode === null && directChild.signalCode === null) directChild.kill('SIGKILL');
     }
-  });
+    await expect(gitWorktreeAdd(target, 'dispatch/test', 'origin/main', {
+      repoWorkdir: '/durable/project', existsFn: () => exists, execFileFn,
+    })).rejects.toThrow(/identity mismatch|not a git repository/);
+  }
 });
 
-/** Build a no-op adapter that records its calls. */
-function makeAdapter(overrides = {}) {
-  const calls = {
-    worktreeAdd: [],
-    spawn: [],
-    openPr: [],
-  };
-
-  const worktreeAddFn = jest.fn(async (path, branch, baseRef, options) => {
-    calls.worktreeAdd.push({ path, branch, baseRef, options });
-    if (overrides.worktreeAddFn) return overrides.worktreeAddFn(path, branch, baseRef, options);
+test('reuses only proven linked worktree identity and retries transient branch creation', async () => {
+  const target = deriveWorktreePath('identity-good');
+  const execFileFn = identityGit(target);
+  await gitWorktreeAdd(target, 'dispatch/test', 'origin/main', { repoWorkdir: '/durable/project', existsFn: () => true, execFileFn });
+  expect(execFileFn.mock.calls.some(([, args]) => args[0] === 'worktree')).toBe(false);
+  const git = execFileFn.getMockImplementation();
+  let attempts = 0;
+  execFileFn.mockImplementation(async (cmd, args, opts) => {
+    if (args[0] === 'worktree' && ++attempts === 1) throw new Error('.git/config.lock File exists');
+    return git(cmd, args, opts);
   });
-
-  const spawnFn = jest.fn(async (params) => {
-    calls.spawn.push(params);
-    if (overrides.spawnFn) return overrides.spawnFn(params);
-    return { output: 'agent output', error: null };
+  const sleepFn = jest.fn(async () => {});
+  await gitWorktreeAdd(target, 'dispatch/test', 'origin/main', {
+    repoWorkdir: '/durable/project', existsFn: () => false, execFileFn, sleepFn,
   });
-
-  const openPrFn = jest.fn(async (params) => {
-    calls.openPr.push(params);
-    if (overrides.openPrFn) return overrides.openPrFn(params);
-    return 'https://github.com/curiositech/port-daddy/pull/999';
-  });
-
-  const adapter = createSpawnAdapter({ spawnFn, worktreeAddFn, openPrFn });
-  return { adapter, calls, spawnFn, worktreeAddFn, openPrFn };
-}
-
-// ── DISPATCH_WORKTREE_ROOT safety check ──────────────────────────────────────
-
-import { homedir } from 'node:os';
-import { resolve as pathResolve, join as pathJoin } from 'node:path';
-
-describe('DISPATCH_WORKTREE_ROOT safety', () => {
-  test('resolves under ~/coding or ~/.port-daddy, never /tmp', () => {
-    const home = homedir();
-    const root = pathResolve(DISPATCH_WORKTREE_ROOT);
-    const allowed = [pathJoin(home, 'coding'), pathJoin(home, '.port-daddy')];
-    expect(allowed.some((r) => root.startsWith(r))).toBe(true);
-    expect(root.startsWith('/tmp/')).toBe(false);
-    expect(root.startsWith('/private/tmp/')).toBe(false);
-  });
+  expect(attempts).toBe(2);
+  expect(sleepFn).toHaveBeenCalledTimes(1);
+  expect(execFileFn).toHaveBeenCalledWith('git', ['worktree', 'add', target, 'dispatch/test'], { cwd: '/durable/project' });
 });
 
-// ── requireCli ───────────────────────────────────────────────────────────────
+test('missing App publisher is a typed attention failure, not an ambient GitHub attempt', async () => {
+  await expect(requireGitHubAppPublisher()).rejects.toMatchObject({ code: 'GITHUB_APP_PUBLISHER_REQUIRED', needsAttention: true });
+});
 
-describe('requireCli', () => {
-  test('returns a path for binaries that exist on PATH', () => {
-    // `which` itself is always present.
-    expect(requireCli('which')).toBeTruthy();
-    expect(typeof requireCli('which')).toBe('string');
-  });
-
-  test('throws a clear error for a missing binary', () => {
-    expect(() => requireCli('__definitely_not_on_path_xyzzy__')).toThrow(
-      /not on PATH/,
-    );
-  });
-
-  test('error message for missing claude mentions the install URL', () => {
-    // We call requireCli with a known-absent name but expect the "claude" install
-    // hint to be in the message when we pass 'claude' as the binary name.
-    // Override to simulate claude not found: use __fake_claude.
-    // Instead just test the message content directly by checking what requireCli
-    // would say for 'claude' if 'claude' were absent. We test by verifying the
-    // thrown message shape via a known-absent sentinel that starts with 'claude'.
-    // Most CI machines won't have the Claude CLI:
-    try {
-      requireCli('__fake_claude_sentinel__');
-    } catch (err) {
-      expect(err.message).toMatch(/not on PATH/);
-      expect(err.message).toMatch(/pd dispatch run --really-run/);
+test('cleanup preserves wrong ownership and dirty work without force or raw removal', async () => {
+  const target = deriveWorktreePath('cleanup-preserve');
+  for (const wrongBranch of [true, false]) {
+    const execFileFn = identityGit(target, wrongBranch ? { 'symbolic-ref --short HEAD': 'someone-elses-work' } : {});
+    const git = execFileFn.getMockImplementation();
+    execFileFn.mockImplementation(async (cmd, args, opts) => {
+      if (args[0] === 'worktree') throw new Error('worktree contains modified or untracked files');
+      return git(cmd, args, opts);
+    });
+    await expect(reapWorktree(target, '/durable/project', {
+      expectedBranch: 'dispatch/test', existsFn: () => true, execFileFn,
+    })).rejects.toThrow(wrongBranch ? /identity mismatch/ : /modified or untracked/);
+    for (const [cmd, args] of execFileFn.mock.calls) {
+      expect(cmd).toBe('git');
+      expect(args).not.toContain('--force');
+      expect(args).not.toContain('prune');
     }
-  });
-});
-
-// ── gitWorktreeAdd — repository config-lock contention ──────────────────────
-
-describe('gitWorktreeAdd', () => {
-  test('retries bounded repository config-lock contention with jitter', async () => {
-    const calls = [];
-    const cwdCalls = [];
-    const sleeps = [];
-    let addAttempts = 0;
-    const configLock = Object.assign(
-      new Error('git worktree add failed'),
-      {
-        stderr:
-          'error: could not lock config file /repo/.git/config: File exists\n' +
-          'error: unable to write upstream branch configuration',
-      },
-    );
-
-    await gitWorktreeAdd('/repo/worktree', 'dispatch/test', 'origin/main', {
-      repoWorkdir: SOURCE_PROJECT,
-      execFileFn: async (_file, args, options) => {
-        calls.push(args);
-        cwdCalls.push(options?.cwd);
-        if (args[0] === 'worktree' && ++addAttempts === 1) throw configLock;
-        return { stdout: '', stderr: '' };
-      },
-      existsFn: () => false,
-      sleepFn: async (delayMs) => { sleeps.push(delayMs); },
-      randomFn: () => 0.5,
-    });
-
-    expect(calls.filter((args) => args[0] === 'worktree')).toHaveLength(2);
-    expect(calls.filter((args) => args[0] === 'worktree')[0]).toContain('--no-track');
-    expect(calls.filter((args) => args[0] === 'worktree')[1]).toEqual([
-      'worktree', 'add', '/repo/worktree', 'dispatch/test',
-    ]);
-    expect(sleeps).toEqual([50]);
-    expect(cwdCalls.every((cwd) => cwd === SOURCE_PROJECT)).toBe(true);
-  });
-
-  test('refuses to infer the source repository from daemon cwd', async () => {
-    await expect(gitWorktreeAdd('/repo/worktree', 'dispatch/test', 'main', {
-      repoWorkdir: '',
-    })).rejects.toThrow(/absolute source project binding/);
-  });
-
-  test('accepts a worktree materialized before Git loses the config-lock race', async () => {
-    let pathChecks = 0;
-    let addAttempts = 0;
-    const configLock = Object.assign(
-      new Error('unable to write upstream branch configuration'),
-      { stderr: 'could not lock config file /repo/.git/config: File exists' },
-    );
-
-    await gitWorktreeAdd('/repo/worktree', 'dispatch/test', 'main', {
-      repoWorkdir: SOURCE_PROJECT,
-      execFileFn: async (_file, args) => {
-        if (args[0] === 'worktree') {
-          addAttempts += 1;
-          throw configLock;
-        }
-        return { stdout: '', stderr: '' };
-      },
-      existsFn: () => ++pathChecks > 1,
-      sleepFn: async () => { throw new Error('must not sleep'); },
-    });
-
-    expect(addAttempts).toBe(1);
-  });
-
-  test('does not retry non-transient worktree failures', async () => {
-    let addAttempts = 0;
-
-    await expect(gitWorktreeAdd('/repo/worktree', 'dispatch/test', 'main', {
-      repoWorkdir: SOURCE_PROJECT,
-      execFileFn: async (_file, args) => {
-        if (args[0] === 'worktree') addAttempts += 1;
-        if (args[0] === 'worktree') throw new Error('fatal: invalid reference: main');
-        return { stdout: '/repo', stderr: '' };
-      },
-      existsFn: () => false,
-      sleepFn: async () => { throw new Error('must not sleep'); },
-    })).rejects.toThrow(/invalid reference/);
-
-    expect(addAttempts).toBe(1);
-  });
-});
-
-// ── createSpawnAdapter — worktree path ───────────────────────────────────────
-
-describe('createSpawnAdapter — worktree path', () => {
-  let db, queue;
-  beforeEach(() => {
-    db = createTestDb();
-    queue = makeQueue(db);
-  });
-  afterEach(() => { db.close(); });
-
-  test('worktreeAddFn receives the correct path derived from the dispatch id', async () => {
-    const dispatch = queue.propose({ goal: 'write a hello-world test', projectDir: SOURCE_PROJECT });
-    const plan = planRunFor(dispatch);
-    const { adapter, calls } = makeAdapter();
-
-    await runNext(queue, { dryRun: false, spawnAdapter: adapter });
-
-    expect(calls.worktreeAdd).toHaveLength(1);
-    const { path, branch, baseRef, options } = calls.worktreeAdd[0];
-    // Path must be under DISPATCH_WORKTREE_ROOT and contain the dispatch prefix.
-    expect(path.startsWith(DISPATCH_WORKTREE_ROOT)).toBe(true);
-    expect(path).toContain('port-daddy-dispatch-');
-    // Must match what planRunFor derived.
-    expect(path).toBe(plan.worktreePath);
-    // Branch and baseRef must match.
-    expect(branch).toBe(plan.branch);
-    expect(baseRef).toBe(plan.baseRef);
-    expect(options).toEqual({ repoWorkdir: SOURCE_PROJECT });
-  });
-
-  test('branch is dispatch/<slug>-<idShort>', async () => {
-    queue.propose({ goal: 'implement feature xyz', projectDir: SOURCE_PROJECT });
-    const { adapter, calls } = makeAdapter();
-
-    await runNext(queue, { dryRun: false, spawnAdapter: adapter });
-
-    const { branch } = calls.worktreeAdd[0];
-    expect(branch).toMatch(/^dispatch\//);
-    expect(branch).toContain('implement-feature-xyz');
-  });
-
-  test('baseRef uses origin/<baseBranch>', async () => {
-    queue.propose({
-      goal: 'do something',
-      baseBranch: 'release/2026.06',
-      projectDir: SOURCE_PROJECT,
-    });
-    const { adapter, calls } = makeAdapter();
-
-    await runNext(queue, { dryRun: false, spawnAdapter: adapter });
-
-    expect(calls.worktreeAdd[0].baseRef).toBe('origin/release/2026.06');
-  });
-});
-
-// ── createSpawnAdapter — spawn argv ─────────────────────────────────────────
-
-describe('createSpawnAdapter — spawn argv', () => {
-  let db, queue;
-  beforeEach(() => {
-    db = createTestDb();
-    queue = makeQueue(db);
-  });
-  afterEach(() => { db.close(); });
-
-  test.each([false, true])('adapter preserves only exact process-local witness (clone=%s)', async clone => {
-    queue.propose({ goal: 'preserve failure facts', projectDir: SOURCE_PROJECT });
-    const witness = witnessedBackendFailure({ kind: 'os', code: 'ENOENT' });
-    const supplied = clone ? JSON.parse(JSON.stringify(witness)) : witness;
-    const { adapter } = makeAdapter({
-      spawnFn: async () => ({ output: '', error: 'ENOENT display', failure: supplied }),
-      openPrFn: async () => { throw new Error('no artifact'); },
-    });
-    const response = await runNext(queue, { dryRun: false, spawnAdapter: adapter });
-    expect(response.result.error).toBe(clone ? undefined : witness);
-  });
-
-  test('spawnFn receives the correct command + args for cli:codex (default)', async () => {
-    const dispatch = queue.propose({ goal: 'write unit tests for the spawner', projectDir: SOURCE_PROJECT });
-    const plan = planRunFor(dispatch);
-    const { adapter, calls } = makeAdapter();
-
-    await runNext(queue, { dryRun: false, spawnAdapter: adapter });
-
-    expect(calls.spawn).toHaveLength(1);
-    const spawnCall = calls.spawn[0];
-    expect(spawnCall.command).toBe(plan.command);
-    expect(spawnCall.args).toEqual(plan.args);
-    expect(spawnCall.cwd).toBe(plan.worktreePath);
-    expect(spawnCall.timeoutMs).toBe(plan.timeoutMs);
-  });
-
-  test('spawnFn receives the correct command + args for cli:claude-code', async () => {
-    const dispatch = queue.propose({
-      goal: 'refactor the config module',
-      backend: 'cli:claude-code',
-      projectDir: SOURCE_PROJECT,
-    });
-    const plan = planRunFor(dispatch);
-    const { adapter, calls } = makeAdapter();
-
-    await runNext(queue, { dryRun: false, spawnAdapter: adapter });
-
-    const spawnCall = calls.spawn[0];
-    expect(spawnCall.command).toBe('claude');
-    expect(spawnCall.args).toContain('--dangerously-skip-permissions');
-    expect(spawnCall.args).toContain('-p');
-    expect(spawnCall.args).toContain(dispatch.goal);
-    expect(spawnCall.cwd).toBe(plan.worktreePath);
-  });
-
-  test('spawnFn env includes PD_DISPATCH_ID from plan.env', async () => {
-    const dispatch = queue.propose({ goal: 'clean up stale tests', projectDir: SOURCE_PROJECT });
-    const { adapter, calls } = makeAdapter();
-
-    await runNext(queue, { dryRun: false, spawnAdapter: adapter });
-
-    const env = calls.spawn[0].env;
-    expect(env.PD_DISPATCH_ID).toBe(dispatch.id);
-    expect(env.PD_DISPATCH_BRANCH).toBeTruthy();
-    expect(env.PD_DISPATCH_WORKTREE).toBeTruthy();
-  });
-});
-
-// ── createSpawnAdapter — gh pr create shape ───────────────────────────────────
-
-describe('createSpawnAdapter — gh pr create', () => {
-  let db, queue;
-  beforeEach(() => {
-    db = createTestDb();
-    queue = makeQueue(db);
-  });
-  afterEach(() => { db.close(); });
-
-  test('openPrFn receives the correct branch, baseBranch, goal, and dispatchId', async () => {
-    const dispatch = queue.propose({
-      goal: 'add integration tests for the dispatch queue',
-      baseBranch: 'develop',
-      projectDir: SOURCE_PROJECT,
-    });
-    const { adapter, calls } = makeAdapter();
-
-    await runNext(queue, { dryRun: false, spawnAdapter: adapter });
-
-    expect(calls.openPr).toHaveLength(1);
-    const prCall = calls.openPr[0];
-    expect(prCall.branch).toMatch(/^dispatch\//);
-    expect(prCall.baseBranch).toBe('develop');
-    expect(prCall.goal).toBe(dispatch.goal);
-    expect(prCall.dispatchId).toBe(dispatch.id);
-    expect(prCall.worktreePath).toBeTruthy();
-  });
-
-  test('resultArtifact on the queue row is the PR URL returned by openPrFn', async () => {
-    const dispatch = queue.propose({ goal: 'improve error handling', projectDir: SOURCE_PROJECT });
-    const fakePrUrl = 'https://github.com/curiositech/port-daddy/pull/42';
-    const { adapter } = makeAdapter({
-      openPrFn: async () => fakePrUrl,
-    });
-
-    await runNext(queue, { dryRun: false, spawnAdapter: adapter });
-
-    // The adapter walks through produced → review_pending → settled, recording the PR url.
-    const updated = queue.get(dispatch.id);
-    expect(updated.resultArtifact).toBe(fakePrUrl);
-    expect(updated.state).toBe('settled');
-  });
-});
-
-// ── createSpawnAdapter — state machine transitions ───────────────────────────
-
-describe('createSpawnAdapter — state machine', () => {
-  let db, queue;
-  beforeEach(() => {
-    db = createTestDb();
-    queue = makeQueue(db);
-  });
-  afterEach(() => { db.close(); });
-
-  test('dispatch transitions: proposed → claimed → in_progress → produced → settled', async () => {
-    const dispatch = queue.propose({ goal: 'wire the spawn adapter into the CLI', projectDir: SOURCE_PROJECT });
-    const { adapter } = makeAdapter();
-
-    expect(queue.get(dispatch.id).state).toBe('proposed');
-
-    await runNext(queue, { dryRun: false, spawnAdapter: adapter });
-
-    const updated = queue.get(dispatch.id);
-    // Adapter settles to 'settled' after walking through produced; PR url is in resultArtifact.
-    expect(updated.state).toBe('settled');
-    expect(updated.claimedAt).toBeTruthy();
-    expect(updated.startedAt).toBeTruthy();
-    expect(updated.producedAt).toBeTruthy();
-  });
-
-  test('adapter returns state=settled when PR opened (adapter lifecycle signal)', async () => {
-    queue.propose({ goal: 'add telemetry to the spawner', projectDir: SOURCE_PROJECT });
-    const { adapter } = makeAdapter();
-
-    const result = await runNext(queue, { dryRun: false, spawnAdapter: adapter });
-
-    expect(result.result.state).toBe('settled');
-    expect(result.result.resultArtifact).toBe('https://github.com/curiositech/port-daddy/pull/999');
-  });
-
-  test('worktree error → dispatch settled as failed, no spawn called', async () => {
-    const dispatch = queue.propose({ goal: 'fix the nightly test failure', projectDir: SOURCE_PROJECT });
-    const { adapter, calls } = makeAdapter({
-      worktreeAddFn: async () => { throw new Error('git worktree add failed: branch exists'); },
-    });
-
-    const result = await runNext(queue, { dryRun: false, spawnAdapter: adapter });
-
-    expect(result.result.state).toBe('failed');
-    expect(result.result.errorMessage).toMatch(/worktree/);
-    expect(calls.spawn).toHaveLength(0); // agent was never started
-    expect(queue.get(dispatch.id).state).toBe('failed');
-  });
-
-  test('missing source project binding fails closed before worktree creation', async () => {
-    const dispatch = queue.propose({ goal: 'must not use daemon cwd' });
-    const { adapter, calls } = makeAdapter();
-
-    const result = await runNext(queue, { dryRun: false, spawnAdapter: adapter });
-
-    expect(result.result.state).toBe('failed');
-    expect(result.result.errorMessage).toMatch(/source project binding/);
-    expect(calls.worktreeAdd).toHaveLength(0);
-    expect(calls.spawn).toHaveLength(0);
-    expect(queue.get(dispatch.id).state).toBe('failed');
-  });
-
-  test('agent error + PR opened → settled (partial work is still reviewable)', async () => {
-    const dispatch = queue.propose({ goal: 'prototype the new config loader', projectDir: SOURCE_PROJECT });
-    const { adapter } = makeAdapter({
-      spawnFn: async () => ({ output: 'partial output', error: 'agent exited with code 1' }),
-      openPrFn: async () => 'https://github.com/curiositech/port-daddy/pull/77',
-    });
-
-    const result = await runNext(queue, { dryRun: false, spawnAdapter: adapter });
-
-    expect(result.result.state).toBe('settled');
-    expect(result.result.resultArtifact).toBe('https://github.com/curiositech/port-daddy/pull/77');
-    // The combined error is preserved for the operator to see.
-    expect(result.result.errorMessage).toMatch(/agent exited with code 1/);
-    // Adapter settles to 'settled' (terminal) after the PR was opened, even with an agent error.
-    expect(queue.get(dispatch.id).state).toBe('settled');
-  });
-
-  test('agent error + no PR → dispatch settled as failed', async () => {
-    const dispatch = queue.propose({ goal: 'update the CI config', projectDir: SOURCE_PROJECT });
-    const { adapter } = makeAdapter({
-      spawnFn: async () => ({ output: '', error: 'agent failed' }),
-      openPrFn: async () => { throw new Error('gh pr create: nothing to push'); },
-    });
-
-    const result = await runNext(queue, { dryRun: false, spawnAdapter: adapter });
-
-    expect(result.result.state).toBe('failed');
-    expect(result.result.errorMessage).toMatch(/agent failed/);
-    expect(queue.get(dispatch.id).state).toBe('failed');
-  });
-});
-
-// ── dry-run stays unchanged ───────────────────────────────────────────────────
-
-describe('dry-run mode is unchanged (no adapter called)', () => {
-  let db, queue;
-  beforeEach(() => {
-    db = createTestDb();
-    queue = makeQueue(db);
-  });
-  afterEach(() => { db.close(); });
-
-  test('runNext with dryRun=true (default) does NOT call the adapter', async () => {
-    const adapterFn = jest.fn(async () => ({ state: 'settled' }));
-    queue.propose({ goal: 'something' });
-
-    const result = await runNext(queue, { dryRun: true, spawnAdapter: adapterFn });
-
-    expect(adapterFn).not.toHaveBeenCalled();
-    expect(result.plan).toBeTruthy();
-    expect(result.result).toBeUndefined();
-  });
-
-  test('dispatch remains proposed after a dry run', async () => {
-    const dispatch = queue.propose({ goal: 'something' });
-
-    await runNext(queue, { dryRun: true });
-
-    expect(queue.get(dispatch.id).state).toBe('proposed');
-  });
+    if (wrongBranch) expect(execFileFn.mock.calls.some(([, args]) => args[0] === 'worktree')).toBe(false);
+  }
 });

@@ -4,6 +4,10 @@ import { tmpdir, homedir } from 'node:os';
 import { join } from 'node:path';
 
 const mockPdFetch = jest.fn();
+const realOs = await import('node:os');
+const testHome = mkdtempSync(join(homedir(), 'coding/tmp/pd-backend-selection-test-'));
+jest.unstable_mockModule('node:os', () => ({ ...realOs, homedir: () => testHome }));
+afterAll(() => rmSync(testHome, { recursive: true, force: true }));
 
 jest.unstable_mockModule('../../cli/utils/fetch.js', () => ({
   pdFetch: mockPdFetch,
@@ -49,7 +53,7 @@ function captureStdout() {
 }
 
 describe('pd backend list', () => {
-  const persistPath = join(homedir(), '.port-daddy-cli-backend');
+  const persistPath = join(testHome, '.port-daddy-cli-backend');
   let savedPersist;
 
   beforeEach(() => {
@@ -71,6 +75,20 @@ describe('pd backend list', () => {
   afterEach(() => {
     if (existsSync(persistPath)) rmSync(persistPath);
     if (savedPersist != null) writeFileSync(persistPath, savedPersist);
+  });
+
+  test.each(['gemini', 'groq', 'grok'])('renders stale persisted %s as blocked without activation advice', async value => {
+    writeFileSync(persistPath, value);
+    mockPdFetch.mockResolvedValue(jsonResponse({ success: true, backends: [] }));
+    const out = captureStdout();
+    try {
+      await handleBackend(['list'], {});
+      expect(uiCalls.info.join('\n')).toContain(`${value} (blocked; ignored)`);
+      expect(uiCalls.info.join('\n')).not.toContain('Activate in shell');
+      await handleBackend(['list'], { json: true });
+      expect(JSON.parse(out.lines.at(-1))).toMatchObject({ persistedSelection: value, persistedSelectionStatus: 'blocked-ignored' });
+      expect(readFileSync(persistPath, 'utf8')).toBe(value);
+    } finally { out.restore(); }
   });
 
   test('emits machine-readable JSON when --json is set', async () => {
@@ -165,7 +183,7 @@ describe('pd backend list', () => {
 });
 
 describe('pd backend use', () => {
-  const persistPath = join(homedir(), '.port-daddy-cli-backend');
+  const persistPath = join(testHome, '.port-daddy-cli-backend');
   let savedPersist;
 
   beforeEach(() => {
@@ -231,15 +249,17 @@ describe('pd backend use', () => {
     expect(existsSync(persistPath)).toBe(false);
   });
 
-  test('rejects backends without a pdUseCliBackend value', async () => {
+  test.each(['openai', 'cli:gemini', 'cli:groq', 'cli:grok', 'gemini', 'groq', 'grok'])('rejects unselectable backend %s without overwriting selection', async target => {
     const orig = process.exitCode;
+    writeFileSync(persistPath, 'codex\n');
     const cap = captureStdout();
     try {
-      await handleBackend(['use', 'openai'], {});
+      await handleBackend(['use', target], {});
     } finally {
       cap.restore();
     }
     expect(process.exitCode).toBe(1);
+    expect(readFileSync(persistPath, 'utf8')).toBe('codex\n');
     expect(uiCalls.error.some((m) => m.includes('No CLI-routable backend'))).toBe(true);
     process.exitCode = orig;
   });

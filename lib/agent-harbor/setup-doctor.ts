@@ -262,7 +262,7 @@ export interface KeychainFacts {
 
 export interface ProviderKeyFact {
   backend: string;
-  status: 'ready' | 'needs_setup' | 'manual_check' | 'unknown';
+  status: 'ready' | 'needs_setup' | 'manual_check' | 'unknown' | 'blocked';
   launchableUnverified?: boolean;
   nextStep?: string;
 }
@@ -410,7 +410,7 @@ export function assessProviderKeys(facts: ProviderKeyFact[]): RemediationCard {
     return okCard('provider-keys',
       `${launchable.length}/${facts.length} backend(s) launchable (${launchable.map((f) => f.backend).join(', ')}).`);
   }
-  const first = facts.find((f) => f.nextStep);
+  const first = facts.find((f) => f.status !== 'blocked' && f.nextStep);
   // WARN, not CRITICAL: zero launchable backends is an incomplete-setup state
   // (a fresh machine or bare CI runner before `claude`/`codex` exist), not a
   // broken Port Daddy installation. `pd doctor`'s exit code gates CI builds on
@@ -421,7 +421,7 @@ export function assessProviderKeys(facts: ProviderKeyFact[]): RemediationCard {
     `0/${facts.length} backends launchable — the fleet will arm but every spawn is policy-blocked.`,
     {
       command: first?.nextStep ?? 'pd backend list',
-      description: 'Completes credential setup for the first blocked backend.',
+      description: first ? 'Completes credential setup for the first configurable backend.' : 'Select a supported adapter; blocked CLI contracts cannot be repaired by login or setup.',
       oneClick: false,
     });
 }

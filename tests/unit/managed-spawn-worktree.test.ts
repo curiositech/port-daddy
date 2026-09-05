@@ -194,7 +194,7 @@ function spawner(harness: ReturnType<typeof managedHarness>, backend: SpawnSpec[
 }
 
 describe('managed provider admission', () => {
-  test.each(['cli:codex', 'cli:claude-code', 'cli:agy', 'cli:gemini', 'claude', 'openai', 'cloudflare'] as const)(
+  test.each(['cli:codex', 'cli:claude-code', 'cli:agy', 'claude', 'openai', 'cloudflare'] as const)(
     '%s receives exact physical cwd and matching SQLite session world', async (backend) => {
       const h = managedHarness(); const runner = jest.fn(async (spec: SpawnSpec) => ({ output: spec.workdir!, error: null }));
       try {
@@ -243,7 +243,7 @@ describe('managed provider admission', () => {
     } finally { h.db.close(); }
   });
 
-  test.each(['cli:codex', 'cli:claude-code', 'cli:agy', 'cli:gemini', 'custom'] as const)('%s cannot inherit daemon cwd', async (backend) => {
+  test.each(['cli:codex', 'cli:claude-code', 'cli:agy', 'custom'] as const)('%s cannot inherit daemon cwd', async (backend) => {
     const h = managedHarness(); const runner = jest.fn(async () => ({ output: 'must not run', error: null }));
     try {
       const result = await spawner(h, backend, runner).spawn({ backend, task: 'missing target' });

@@ -41,6 +41,7 @@ import { withCoastGuard } from './spawner/coast-guard-runner.js';
 import type { CoastGuardReceipt } from './coast-guard.js';
 import { coastGuardStatus, resolveCoastGuardPolicy } from './coast-guard.js';
 import { buildCliTubeArgs } from './spawner/backends/cli-tube-provider-specs.js';
+import { assertManagedCliConfinement, createManagedCliLaunchPolicy, resolveManagedCliExecutionIntent, type ManagedCliLaunchPolicy, type ManagedCliExecutionIntent } from './spawner/backends/managed-cli-launch-policy.js';
 import { priceBond, classifyScope, scopeTierWritePolicy, pricedBondLogLines } from './bond-pricing.js';
 import { getDaemonTcpUrl } from '../shared/daemon-discovery.js';
 import { deriveAgentDisplayName } from './agent-names.js';
@@ -205,14 +206,8 @@ export interface SpawnSpec {
   maxBytes?: number | null; // optional hard egress byte cap
   /** Estimated input prompt token count — used to gate spawn if it would exceed effective context. */
   estimatedPromptTokens?: number;
-  /**
-   * File-edit permission mode for the `cli:claude-code` backend. Forwarded to
-   * the CLI as `--permission-mode <mode>` (only when set). `acceptEdits` lets a
-   * spawned agent edit files in its `workdir` non-interactively;
-   * `bypassPermissions` removes all gating. Unset = current behavior (the CLI's
-   * default interactive gating). Ignored by backends that don't support it.
-   */
-  permissionMode?: 'default' | 'acceptEdits' | 'bypassPermissions';
+  /** Explicit worker intent; enabling confinement alone never grants autonomy. */
+  executionIntent?: ManagedCliExecutionIntent;
   /**
    * Optional stable tube channel the cli-tube backend publishes the agent
    * exchange on, so an operator can watch the run live (`pd tube <channel>`).
@@ -224,11 +219,11 @@ export interface SpawnSpec {
   tubeChannel?: string;
   /**
    * Giant Squid Harness (ADR-0091) opt-in. When true, the `claude-cli` /
-   * `cli:claude-code` launch first injects the pd-hook-* tentacles into the
+   * `cli:claude-code` launch installs hooks after wrapper admission into the
    * workspace's `.claude/settings.json` (via lib/squid/adapter.ts) so the
    * UserPromptSubmit / PreToolUse / PostToolUse hooks fire inside Claude Code's
-   * own loop. Off by default — existing spawns are byte-for-byte unchanged. The
-   * actor identity used by the lock gate comes from `spec.identity` / PD_ACTOR.
+   * own loop. Off by default; requested installation failure blocks launch.
+   * Other backend ids reject this option rather than implying HITL support.
    */
   injectSquidHooks?: boolean;
   /**
@@ -255,6 +250,8 @@ export interface SpawnStartedReceipt {
 }
 
 export interface SpawnResult {
+  /** Requested semantic mode, separate from the actual Coast Guard receipt. */
+  executionIntent?: ManagedCliExecutionIntent;
   agentId: string;
   name?: string;
   backend: SpawnSpec['backend'];
@@ -295,6 +292,7 @@ export interface SpawnTelemetry {
 }
 
 export interface SpawnedAgent {
+  executionIntent?: ManagedCliExecutionIntent;
   agentId: string;
   name: string;
   backend: SpawnSpec['backend'];
@@ -695,7 +693,7 @@ interface ConfinedChildOpts {
   stdio?: ('ignore' | 'pipe')[];
   context?: BackendRunContext;
   /** Fail closed if a provider delegates its sandbox to Coast Guard. */
-  externalConfinement?: boolean;
+  launchPolicy?: ManagedCliLaunchPolicy;
 }
 
 /**
@@ -734,10 +732,9 @@ async function runConfinedChild(
     // just the managed allow-list — those files ARE the operator's secret store.
     dotenvKeys: Object.keys(loadDotenvOnce()),
   });
+  let primaryError: unknown;
   try {
-    if (opts.externalConfinement && cg.confined !== true) {
-      throw new Error('Codex launch blocked: Coast Guard did not establish external confinement.');
-    }
+    if (opts.launchPolicy) assertManagedCliConfinement(opts.launchPolicy, cg);
     await opts.context?.beforeChildLaunch?.();
     opts.context?.signal?.throwIfAborted();
     const workspaceError = validateNativeResumeWorkspace(opts.spec) ?? validateSpawnWorkspace(opts.spec);
@@ -751,9 +748,17 @@ async function runConfinedChild(
       stdio: opts.stdio,
       onChild: opts.context?.onChildProcess,
     });
+    if (res.error) primaryError = new Error(res.error);
     return { ...res, coastGuardReceipt: cg.receipt() };
+  } catch (error) {
+    primaryError = error;
+    throw error;
   } finally {
-    cg.dispose();
+    try { cg.dispose(); }
+    catch (cleanupError) {
+      if (primaryError) throw new AggregateError([primaryError, cleanupError], `${String(primaryError)}; Coast Guard cleanup failed: ${String(cleanupError)}`);
+      throw cleanupError;
+    }
   }
 }
 
@@ -1231,6 +1236,8 @@ async function runCliTube(
   cli: CliTubeTool,
   context?: BackendRunContext,
 ): Promise<BackendRunResult> {
+  createManagedCliLaunchPolicy(cli, resolveCoastGuardPolicy(spec).enabled,
+    resolveManagedCliExecutionIntent(spec.executionIntent));
   // Live per-line streaming: map each JSONL event the child emits to a
   // transcript delta AS IT ARRIVES, so the cockpit sees thinking / tool calls /
   // assistant text mid-run. Only wired when the spawn loop provided a delta
@@ -1253,15 +1260,21 @@ async function runCliTube(
     prompt: spec.task,
     timeoutMs: spec.timeout,
     cwd: spec.workdir,
-    env: { ...spec.env },
+    env: cli === 'claude-code'
+      ? { ...Object.fromEntries(Object.entries(loadDotenvOnce()).filter(([key]) => key !== 'ANTHROPIC_API_KEY')), ...spec.env }
+      : { ...spec.env },
     model: spec.model,
     onChild: context?.onChildProcess,
     onStreamLine,
-    permissionMode: spec.permissionMode,
+    executionIntent: spec.executionIntent,
+    allowedTools: spec.allowedTools,
     resumeSessionId: spec.nativeResume?.sessionId,
     workspaceIdentity: spec.nativeResume?.workspaceIdentity ?? spec.workspaceIdentity,
     signal: context?.signal,
-    beforeChildLaunch: context?.beforeChildLaunch,
+    beforeChildLaunch: async () => {
+      await context?.beforeChildLaunch?.();
+      if (cli === 'claude-code') await injectManagedClaudeHooks(spec);
+    },
     // Live observability (ADR-0060): publish the exchange on the operator-
     // discoverable channel (dispatch:<id>) when both a channel and a tube client
     // are present. When `tubeChannel` is undefined, spawnViaCliTube falls back to
@@ -1476,10 +1489,13 @@ function codexScratchRoot(): string {
  * @param context Cancellation and child lifecycle callbacks.
  * @returns Captured answer, transcript usage, and confinement evidence.
  */
-function runCodexCli(spec: SpawnSpec, model: string, context?: BackendRunContext): Promise<BackendRunResult> {
+async function runCodexCli(spec: SpawnSpec, model: string, context?: BackendRunContext): Promise<BackendRunResult> {
   const workspace = spec.workdir || process.cwd();
+  const launchPolicy = createManagedCliLaunchPolicy('codex', resolveCoastGuardPolicy(spec).enabled, resolveManagedCliExecutionIntent(spec.executionIntent));
   const tempDir = mkdtempSync(join(codexScratchRoot(), 'run-'));
   const outputPath = join(tempDir, 'last-message.txt');
+  let primaryError: unknown;
+  try {
   const env: Record<string, string | undefined> = {
     ...process.env,
     ...loadDotenvOnce(),
@@ -1489,31 +1505,30 @@ function runCodexCli(spec: SpawnSpec, model: string, context?: BackendRunContext
   for (const key of CODEX_DAEMON_CONTEXT_ENV_KEYS) {
     delete env[key];
   }
-  const externalConfinement = resolveCoastGuardPolicy(spec).enabled;
   const { args } = buildCliTubeArgs('codex', {
     prompt: spec.task,
     cwd: workspace,
     outputPath,
     model,
     resumeSessionId: spec.nativeResume?.sessionId,
-    externalConfinement,
+    launchPolicy,
   });
 
-  return runConfinedChild({
+  const result = await runConfinedChild({
     spec,
     cmd: 'codex',
-    externalConfinement,
+    launchPolicy,
     args,
     env,
     cwd: workspace,
     timeout: spec.timeout,
     stdio: ['ignore', 'pipe', 'pipe'],
     context,
-  }).then((result) => {
-    try {
+  });
       const usage = parseCodexUsage(result.output || '');
       const structuredError = parseCodexError(result.output || '');
       const error = structuredError ? `Codex CLI failed: ${structuredError}` : result.error;
+      if (error) primaryError = new Error(error);
       // Full-depth capture: turn the `--json` event stream into ordered
       // reasoning / command / message turns. This is the whole reason codex
       // runs with `--json` — previously the stream was parsed only for tokens.
@@ -1524,20 +1539,19 @@ function runCodexCli(spec: SpawnSpec, model: string, context?: BackendRunContext
       }
       const sanitized = sanitizeCodexOutput(result.output || '');
       return { output: sanitized, error, ...usage, transcript, coastGuardReceipt: result.coastGuardReceipt };
-    } finally {
-      rmSync(tempDir, { recursive: true, force: true });
-    }
-  }).catch((error) => {
+  } catch (error) {
+    primaryError = error;
+    throw error;
+  } finally {
     try {
       rmSync(tempDir, { recursive: true, force: true });
     } catch (cleanupError) {
       throw new AggregateError(
-        [error, cleanupError],
-        `${String(error)}; Codex scratch cleanup failed: ${String(cleanupError)}`,
+        [primaryError, cleanupError].filter(Boolean),
+        `${primaryError ? `${String(primaryError)}; ` : ''}Codex scratch cleanup failed: ${String(cleanupError)}`,
       );
     }
-    throw error;
-  });
+  }
 }
 
 function runAider(spec: SpawnSpec, model: string, context?: BackendRunContext): Promise<BackendRunResult> {
@@ -1630,33 +1644,46 @@ export function parseClaudeCliResult(raw: string, task: string): BackendRunResul
   }
 }
 
-async function runClaudeCli(spec: SpawnSpec, context?: BackendRunContext): Promise<BackendRunResult> {
+/**
+ * Install opt-in Squid hooks consistently for both Claude CLI backend ids.
+ * Design: validate the bound Git world before touching workspace configuration;
+ * requested hook installation fails closed instead of silently losing coordination.
+ * @param spec Bound managed launch and explicit hook opt-in.
+ * @returns Completion before either Claude CLI can boot.
+ */
+async function injectManagedClaudeHooks(spec: SpawnSpec): Promise<void> {
   // Giant Squid Harness (ADR-0091): optionally sink the pd-hook-* tentacles into
   // this workspace's .claude/settings.json BEFORE the CLI boots, so the
   // UserPromptSubmit / PreToolUse / PostToolUse hooks fire inside Claude Code's
-  // own loop. Single, opt-in, fail-open call site — never blocks the launch.
+  // own loop. An explicitly requested hook setup failure blocks the launch.
   if (spec.injectSquidHooks) {
-    try {
-      const { ClaudeCliSquidAdapter } = await import('./squid/adapter.js');
-      await new ClaudeCliSquidAdapter().injectHooks(spec.workdir || process.cwd());
-    } catch (err) {
-      console.warn(`[spawner] squid hook injection skipped: ${(err as Error).message}`);
-    }
+    const workspaceError = validateNativeResumeWorkspace(spec) ?? validateSpawnWorkspace(spec);
+    if (workspaceError) throw new Error(workspaceError);
+    const { ClaudeCliSquidAdapter } = await import('./squid/adapter.js');
+    await new ClaudeCliSquidAdapter().injectHooks(spec.workdir || process.cwd());
   }
+}
+
+/**
+ * Execute the direct Claude alias with shared policy and its JSON usage parser.
+ * Design: alias choice changes capture format, not permission or hook authority.
+ * @param spec Bound launch request.
+ * @param context Lifecycle and transcript observers.
+ * @returns Provider output, measured usage, and the actual confinement receipt.
+ */
+async function runClaudeCli(spec: SpawnSpec, context?: BackendRunContext): Promise<BackendRunResult> {
   // `--output-format json` makes the CLI report its own exact usage, which we
   // parse below. Without it the CLI prints plain prose and we get no token
   // counts — the gap that previously fail-closed every claude-cli launch.
-  const args = spec.nativeResume
-    ? ['--resume', spec.nativeResume.sessionId, '-p', '--output-format', 'json', spec.task]
-    : ['-p', '--output-format', 'json', spec.task];
-  // `claude-cli` is the DEFAULT_MODELS sentinel for "the CLI manages its own
-  // default model"; it is runtime provenance, not a concrete Claude model id.
-  if (spec.model && spec.model !== 'claude-cli') {
-    args.push('--model', spec.model);
-  }
-  if (spec.allowedTools) {
-    args.push('--allowedTools', spec.allowedTools);
-  }
+  const launchPolicy = createManagedCliLaunchPolicy('claude-code', resolveCoastGuardPolicy(spec).enabled, resolveManagedCliExecutionIntent(spec.executionIntent));
+  const { args } = buildCliTubeArgs('claude-code', {
+    prompt: spec.task,
+    model: spec.model === 'claude-cli' ? undefined : spec.model,
+    claudeOutputFormat: 'json',
+    allowedTools: spec.allowedTools,
+    resumeSessionId: spec.nativeResume?.sessionId,
+    launchPolicy,
+  });
 
   // Strip ANTHROPIC_API_KEY from BOTH dotenv AND process.env before passing to
   // the claude subprocess. The claude CLI manages its own authentication (OAuth).
@@ -1670,17 +1697,21 @@ async function runClaudeCli(spec: SpawnSpec, context?: BackendRunContext): Promi
   // cli:claude-code. A stale PD_CLI_CLAUDE_CODE_BIN must not strand the
   // launchd daemon when a standard user-install `claude` is discoverable.
   const resolution = resolveCliBinary('claude', { envOverride: 'PD_CLI_CLAUDE_CODE_BIN' });
-  const currentPath = process.env.PATH || '';
+  const currentPath = spec.env?.PATH ?? process.env.PATH ?? '';
   const augmentedPath = cliBinarySearchPath(currentPath);
 
   const res = await runConfinedChild({
     spec,
     cmd: resolution.command,
+    launchPolicy,
     args,
     env: { ...processEnvSafe, ...dotenvSafe, ...(spec.env || {}), PATH: augmentedPath },
     timeout: spec.timeout,
     stdio: ['ignore', 'pipe', 'pipe'],
-    context,
+    context: { ...context, beforeChildLaunch: async () => {
+      await context?.beforeChildLaunch?.();
+      await injectManagedClaudeHooks(spec);
+    } },
   });
   if (res.error) return { output: res.output, error: res.error, coastGuardReceipt: res.coastGuardReceipt };
   return { ...parseClaudeCliResult(res.output, spec.task), coastGuardReceipt: res.coastGuardReceipt };
@@ -2360,6 +2391,19 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       startedAt: Date.now(),
       completedAt: Date.now(),
     });
+    let managedPolicy: ManagedCliLaunchPolicy | undefined;
+    try {
+      const claudeAlias = ['claude-cli', 'cli:claude-code'].includes(runtime.effectiveBackend);
+      if ('permissionMode' in spec) throw new Error('permissionMode was removed; use executionIntent');
+      if (spec.injectSquidHooks !== undefined && !claudeAlias) throw new Error('injectSquidHooks is supported only by Claude CLI aliases');
+      const provider = runtime.effectiveBackend === 'claude-cli' ? 'claude-code'
+        : runtime.effectiveBackend === 'codex' ? 'codex'
+          : runtime.effectiveBackend.startsWith('cli:') ? runtime.effectiveBackend.slice(4) as CliTubeTool : undefined;
+      if (provider) managedPolicy = createManagedCliLaunchPolicy(provider, resolveCoastGuardPolicy(spec).enabled,
+        resolveManagedCliExecutionIntent(spec.executionIntent));
+    } catch (error) {
+      return blockedResult(String(error));
+    }
     if (requestedWorkdir !== undefined && !targetDirectory) {
       return blockedResult('Spawn workdir must be an existing owned absolute directory.');
     }
@@ -2635,6 +2679,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
 
     // Register agent record (running)
     const record: AgentRecord = {
+      executionIntent: managedPolicy?.executionIntent,
       agentId,
       name: displayName,
       backend: runtime.effectiveBackend,
@@ -3201,6 +3246,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       startedAt,
       completedAt,
       coastGuard: coastGuardReceipt,
+      executionIntent: record.executionIntent,
       ...(managedSettlement ? { managedSession: managedSettlement } : {}),
       ...(spec.nativeResume ? { harnessSessionId: spec.nativeResume.sessionId } : {}),
     };
@@ -3227,6 +3273,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       startedAt: r.startedAt,
       completedAt: r.completedAt,
       ...(r.coastGuard ? { coastGuard: r.coastGuard } : {}),
+      ...(r.executionIntent ? { executionIntent: r.executionIntent } : {}),
       ...(r.managedSession ? { managedSession: r.managedSession } : {}),
     }));
   }

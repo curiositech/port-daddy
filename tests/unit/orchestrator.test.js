@@ -640,6 +640,24 @@ describe('createReactiveOrchestrator()', () => {
     if (db) db.close();
   });
 
+  test.each([undefined, 'manual', 'edit-only', 'autonomous'])('reactive worker preserves explicit intent %s, defaulting only absent intent', async executionIntent => {
+    const conductor = { launch: jest.fn(async () => ({ success: true, launch: { id: 'launch-test' } })) };
+    const reactor = createReactiveOrchestrator(db, mockMessaging, mockSpawner, conductor);
+    reactor.addRule({ name: 'managed-worker', channelPattern: 'build', action: 'spawn', payload: { backend: 'cli:claude-code', task: 'finish the bounded fix', executionIntent }, enabled: true });
+    mockMessaging._trigger('build', { channel: 'build', payload: 'ready' });
+    await new Promise(resolve => setImmediate(resolve));
+    expect(conductor.launch).toHaveBeenCalledWith(expect.objectContaining({ source: 'orchestrator', executionIntent: executionIntent ?? 'autonomous', backend: 'cli:claude-code' }));
+    expect(mockSpawner.spawn).not.toHaveBeenCalled();
+    reactor.close?.();
+  });
+
+  test('invalid reactive worker intent is refused before rule persistence', () => {
+    const reactor = createReactiveOrchestrator(db, mockMessaging, mockSpawner);
+    expect(() => reactor.addRule({ name: 'bad-mode', channelPattern: 'build', action: 'spawn', payload: { executionIntent: 'yolo' }, enabled: true })).toThrow(/executionIntent/);
+    expect(reactor.listRules()).toHaveLength(0);
+    reactor.close?.();
+  });
+
   // ---------------------------------------------------------------------------
   // Instantiation
   // ---------------------------------------------------------------------------

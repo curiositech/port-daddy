@@ -1143,7 +1143,7 @@ describe('agent-harbor routes', () => {
           adapterFamilies: 17,
           paths: 289,
           nativePaths: 4,
-          handoffPaths: 285,
+          handoffPaths: 268,
           witnessedPaths: 1,
         },
       });

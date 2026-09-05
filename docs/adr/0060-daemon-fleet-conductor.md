@@ -21,10 +21,17 @@ half-redundant ways to launch an agent**, and none of them is the all-powerful
 conductor the operator wants. They each reinvent a slice of the same lifecycle and
 each is missing a different safety property.
 
-### The four spawn surfaces today
+### The four spawn surfaces at proposal time (2026-06-18)
+
+Implementation update (2026-09-05): the historical raw dispatch adapter described
+below has been removed. Current plans are non-executable semantic data and require
+`lib/dispatch/conductor-adapter.ts`. Local worktree lifecycle lives in
+`lib/dispatch/conductor-lifecycle.ts`, retaining Guard and exact Git identity
+proof. No GitHub App publisher is wired yet; completed local work is preserved in
+salvage with an attention receipt rather than published through ambient accounts.
 
 1. **`dispatch`** — `lib/dispatch/queue.ts`, `lib/dispatch/runner.ts`,
-   `lib/dispatch/spawn-adapter.ts`, `lib/dispatch/state-machine.ts`,
+   the former raw spawn adapter (removed in the implementation update), `lib/dispatch/state-machine.ts`,
    `routes/dispatches.ts`, `cli/commands/dispatch.ts`.
    - Best-in-class **state machine** (`queue.ts:11-35`, `state-machine.ts:87`):
      `proposed → claimed → in_progress → produced → review_pending →
@@ -376,8 +383,9 @@ ADR and not a one-PR refactor.
   machine** (extended with `admitted`, `embodied`, `halted`).
 - `lib/dispatch/queue.ts` SQLite persistence → the Conductor's launch store
   (add `root_id`, `parent_id`, `depth`, `lineage_ceiling_usd` columns).
-- `lib/dispatch/spawn-adapter.ts` worktree+PR logic → the `worktree:'create'`
-  branch of the Conductor.
+- Historical raw-adapter worktree logic → `lib/dispatch/conductor-lifecycle.ts`
+  behind Conductor's `worktree:'create'` hook. Ambient PR logic was removed;
+  publication fails closed until an authorized App publisher is wired.
 - `lib/spawner.ts` `spawner.spawn` → unchanged; remains the only true launcher,
   now called *only* by the Conductor.
 - `lib/sorties.ts` episodic-memory hook → kept; fires on Conductor terminal states.
@@ -471,8 +479,9 @@ the safe way to introduce a chokepoint.
   via `cli/commands/nightshift.ts`) · ADR-0046 Operator Console · ADR-0047
   Conversation Protocol (FIPA performatives) · ADR-0050 Coast Guard (bonds, rent,
   slash, sandbox) · ADR-0056 The Steward.
-- Code: `lib/dispatch/queue.ts`, `lib/dispatch/runner.ts`,
-  `lib/dispatch/spawn-adapter.ts`, `lib/dispatch/state-machine.ts`,
+- Current code: `lib/dispatch/queue.ts`, `lib/dispatch/runner.ts`,
+  `lib/dispatch/conductor-adapter.ts`, `lib/dispatch/conductor-lifecycle.ts`,
+  `lib/dispatch/worktree-cleanup.ts`, `lib/dispatch/state-machine.ts`,
   `lib/sorties.ts`, `routes/sorties.ts`, `lib/spawner.ts`,
   `lib/spawner/backends/cli-tube.ts`, `lib/orchestrator.ts`, `lib/fleet-engine.ts`,
   `lib/budget-pause.ts`, `lib/bonds.ts`, `lib/coast-guard/`, `lib/harbors.ts`,

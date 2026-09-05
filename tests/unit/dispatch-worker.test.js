@@ -18,6 +18,7 @@ import { createTestDb } from '../setup-unit.js';
 import { createDispatchQueue } from '../../lib/dispatch/queue.js';
 import { createDispatchWorker as createDispatchWorkerBase } from '../../lib/dispatch/worker.js';
 import { deriveWorktreePath } from '../../lib/dispatch/runner.js';
+import { createConductorSpawnAdapter } from '../../lib/dispatch/conductor-adapter.js';
 import { createWorkIntentService } from '../../lib/agent-harbor/work-intent-service.js';
 import { readEvents } from '../../lib/agent-harbor/event-ledger.js';
 
@@ -55,6 +56,22 @@ function settlingAdapter({ artifact = 'https://example.com/pr/1', cost = 0.01 } 
 }
 
 describe('DispatchWorker — autonomous drain', () => {
+  test('mint identity refusal preserves the target and never invokes the reaper', async () => {
+    const d = queue.propose({ goal: 'preserve foreign checkout' });
+    let targetPresent = true;
+    const reaper = jest.fn(async () => { targetPresent = false; });
+    const spawnAdapter = createConductorSpawnAdapter({ launch: async () => ({
+      admitted: true, spawn: null, launch: { id: 'identity-refusal', state: 'salvage', agentId: null,
+        errorMessage: 'mintWorktree failed: Worktree identity mismatch: wrong branch' },
+    }) });
+    const worker = createDispatchWorker({ queue, spawnAdapter, reaper });
+    await worker.poll();
+    await new Promise(resolve => setImmediate(resolve));
+    expect(queue.get(d.id).state).toBe('salvage');
+    expect(reaper).not.toHaveBeenCalled();
+    expect(targetPresent).toBe(true);
+  });
+
   test('claims and runs a proposed dispatch with NO foreground caller', async () => {
     const d = queue.propose({ goal: 'write a file' });
     const reaper = jest.fn(async () => {});

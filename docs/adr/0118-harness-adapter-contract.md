@@ -57,10 +57,10 @@ renderer used by `pd backend adapters`.
 |---|---|---|---|---|---|---|---|---|
 | claude-code | cli:claude-code, claude-cli | `claude -p {prompt}` | session: `claude --resume {sessionId} -p {prompt}` | initial prompt | terminal, stream-json, remote-control | harness:claude-jsonl | oauth-subscription, api-key | Native resume requires a canonical UUID, an explicit Claude JSONL transcript reference, and daemon-witnessed session metadata bound to the canonical source workspace; another harness must enter through a sanitized handoff capsule. |
 | codex-cli | cli:codex, codex | `codex exec --json {prompt}` | session: `codex exec resume {sessionId} {prompt}` | initial prompt | terminal, app-server | harness:codex-rollout-jsonl | oauth-subscription, api-key | Native resume requires a canonical UUID, an explicit Codex rollout reference, and daemon-witnessed session_meta bound to the canonical source workspace; cross-harness continuation creates a successor from a handoff capsule. |
-| agy-cli | cli:agy | `agy --print {prompt}` | session: `agy --conversation {sessionId} --print {prompt}` | initial prompt | terminal | harness:agy-log | delegated-cli | Native resume requires a canonical UUID, the conversation-keyed brain transcript, and an exact workspace-to-conversation binding in Antigravity last_conversations metadata. Structured transcript streaming is not documented; Port Daddy currently captures prompt plus final output. |
-| gemini-cli | cli:gemini | `gemini --prompt {prompt}` | session: `gemini --resume {sessionId} --prompt {prompt}` | initial prompt | terminal, acp | harness:gemini-session-json | oauth-subscription, api-key | Gemini UUID resume is project-scoped and requires an explicit chat reference; Port Daddy witnesses the canonical UUID, project hash, registry entry, chat file, and canonical workspace before launch. |
+| agy-cli | cli:agy | `agy --print {prompt}` | session: `agy --conversation {sessionId} --print {prompt}` | initial prompt | terminal | harness:agy-log | delegated-cli | Native resume requires a canonical UUID, the conversation-keyed brain transcript, and an exact workspace-to-conversation binding in Antigravity last_conversations metadata. Stream JSON is documented, but the fixture-backed parser is pending; Port Daddy captures prompt plus final output. Native skills are disabled by the managed launcher; use Port Daddy-selected guidance. |
+| gemini-cli | cli:gemini | `gemini --prompt {prompt}` | session: `gemini --resume {sessionId} --prompt {prompt}` | initial prompt | terminal, acp | harness:gemini-session-json | oauth-subscription, api-key | Gemini UUID resume is project-scoped and requires an explicit chat reference; Port Daddy witnesses the canonical UUID, project hash, registry entry, chat file, and canonical workspace before launch. Managed CLI launch is blocked until policy-preserving native skill suppression is implemented; the Gemini API backend is unaffected. Stream JSON is documented, but the fixture-backed parser is pending; Port Daddy captures prompt plus final output. |
 | groq-cli | cli:groq | `groq -p {prompt}` | handoff-only | initial prompt | terminal | none:none | delegated-cli, api-key | No stable session-id resume or structured transcript surface is documented for the installed Port Daddy integration. |
-| grok-claude-proxy | cli:grok | `grok -p {prompt}` | handoff-only | initial prompt | terminal | none:none | delegated-cli | The current grok command is a Claude proxy, not an independent durable harness. Resume ownership remains with the underlying Claude session and is not exposed by the wrapper. |
+| grok-claude-proxy | cli:grok | agent-cli | handoff-only | none | terminal | none:none | delegated-cli | The installed Claude proxy has no supported noninteractive prompt/model contract; managed launches are refused. |
 | anthropic-api | claude | provider-sdk | handoff-only | initial prompt | http | port-daddy:port-daddy-jsonl | api-key | Provider calls have no native harness session identity; continuation is reconstructed from a handoff capsule. |
 | gemini-api | gemini | provider-http | handoff-only | initial prompt | http | port-daddy:port-daddy-jsonl | api-key | Provider calls have no native harness session identity; continuation is reconstructed from a handoff capsule. |
 | cloudflare-workers-ai | cloudflare | provider-http | handoff-only | initial prompt | http | port-daddy:port-daddy-jsonl | api-token | Provider calls have no native harness session identity; continuation is reconstructed from a handoff capsule. Workers AI model calls are stateless; Cloudflare Agents durable state is a separate runtime adapter, not implied by this row. |
@@ -85,23 +85,23 @@ handoff. The symbols describe mechanical paths, not conformance grants.
 <!-- BEGIN GENERATED HARNESS CONTINUATION MATRIX -->
 ```text
 Source                   01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17
-01 claude-code            N  H  H  H  H  H  H  H  H  H  H  H  H  H  H  H  H
-02 codex-cli              H  N  H  H  H  H  H  H  H  H  H  H  H  H  H  H  H
-03 agy-cli                H  H  N  H  H  H  H  H  H  H  H  H  H  H  H  H  H
-04 gemini-cli             H  H  H  N  H  H  H  H  H  H  H  H  H  H  H  H  H
-05 groq-cli               H  H  H  H  H  H  H  H  H  H  H  H  H  H  H  H  H
-06 grok-claude-proxy      H  H  H  H  H  H  H  H  H  H  H  H  H  H  H  H  H
-07 anthropic-api          H  H  H  H  H  H  H  H  H  H  H  H  H  H  H  H  H
-08 gemini-api             H  H  H  H  H  H  H  H  H  H  H  H  H  H  H  H  H
-09 cloudflare-workers-ai  H  H  H  H  H  H  H  H  H  H  H  H  H  H  H  H  H
-10 openai-api             H  H  H  H  H  H  H  H  H  H  H  H  H  H  H  H  H
-11 groq-api               H  H  H  H  H  H  H  H  H  H  H  H  H  H  H  H  H
-12 deepseek-api           H  H  H  H  H  H  H  H  H  H  H  H  H  H  H  H  H
-13 xai-api                H  H  H  H  H  H  H  H  H  H  H  H  H  H  H  H  H
-14 ollama                 H  H  H  H  H  H  H  H  H  H  H  H  H  H  H  H  H
-15 lmstudio               H  H  H  H  H  H  H  H  H  H  H  H  H  H  H  H  H
-16 aider                  H  H  H  H  H  H  H  H  H  H  H  H  H  H  H  H  H
-17 custom-command         H  H  H  H  H  H  H  H  H  H  H  H  H  H  H  H  H
+01 claude-code            N  H  H  H  H  —  H  H  H  H  H  H  H  H  H  H  H
+02 codex-cli              H  N  H  H  H  —  H  H  H  H  H  H  H  H  H  H  H
+03 agy-cli                H  H  N  H  H  —  H  H  H  H  H  H  H  H  H  H  H
+04 gemini-cli             H  H  H  N  H  —  H  H  H  H  H  H  H  H  H  H  H
+05 groq-cli               H  H  H  H  H  —  H  H  H  H  H  H  H  H  H  H  H
+06 grok-claude-proxy      H  H  H  H  H  —  H  H  H  H  H  H  H  H  H  H  H
+07 anthropic-api          H  H  H  H  H  —  H  H  H  H  H  H  H  H  H  H  H
+08 gemini-api             H  H  H  H  H  —  H  H  H  H  H  H  H  H  H  H  H
+09 cloudflare-workers-ai  H  H  H  H  H  —  H  H  H  H  H  H  H  H  H  H  H
+10 openai-api             H  H  H  H  H  —  H  H  H  H  H  H  H  H  H  H  H
+11 groq-api               H  H  H  H  H  —  H  H  H  H  H  H  H  H  H  H  H
+12 deepseek-api           H  H  H  H  H  —  H  H  H  H  H  H  H  H  H  H  H
+13 xai-api                H  H  H  H  H  —  H  H  H  H  H  H  H  H  H  H  H
+14 ollama                 H  H  H  H  H  —  H  H  H  H  H  H  H  H  H  H  H
+15 lmstudio               H  H  H  H  H  —  H  H  H  H  H  H  H  H  H  H  H
+16 aider                  H  H  H  H  H  —  H  H  H  H  H  H  H  H  H  H  H
+17 custom-command         H  H  H  H  H  —  H  H  H  H  H  H  H  H  H  H  H
 
 N = same-family native session path is mechanically available; H = sanitized successor handoff; — = unsupported.
 Symbols describe mechanics only. Runtime proof appears separately as durable witnesses.

@@ -92,6 +92,7 @@ describe('Coast Guard is the default for subprocess spawns', () => {
     const sessionId = '22222222-2222-4222-8222-222222222222';
     const res = await createSpawner().spawn({
       backend: 'codex', task: 'unchanged task', model: 'gpt-5.4-mini', workdir: worktree,
+      executionIntent: 'autonomous',
       ...(resume ? { nativeResume: {
         adapterFamily: 'codex-cli', sessionId, workspaceIdentity: captureWorkspaceIdentity(worktree),
       } } : {}),
@@ -125,7 +126,7 @@ describe('Coast Guard is the default for subprocess spawns', () => {
     expect(spawnCalls).toHaveLength(1);
     const call = spawnCalls[0];
     expect(call.cmd).toBe('codex');
-    expect(call.args).toContain('--approve-for-me');
+    expect(call.args).not.toContain('--approve-for-me');
     expect(call.args).not.toContain('--dangerously-bypass-approvals-and-sandbox');
     expect(call.args).toContain('skills.include_instructions=false');
     expect(call.args.at(-1)).toBe('sandboxed task');
@@ -170,6 +171,18 @@ describe('Coast Guard is the default for subprocess spawns', () => {
     } finally {
       if (scratch) realFs.rmSync(scratch, { recursive: true, force: true });
     }
+  });
+
+  test.each(['claude-cli', 'cli:claude-code'])('%s refuses malformed hook settings without launch or byte loss', async backend => {
+    const path = join(worktree, '.claude', 'settings.json');
+    realFs.mkdirSync(dirname(path), { recursive: true });
+    const original = '{ "operatorPolicy": [ do not overwrite this';
+    realFs.writeFileSync(path, original);
+    const result = await createSpawner().spawn({ backend, task: 'must not launch', workdir: worktree, coastGuard: false, executionIntent: 'manual', injectSquidHooks: true });
+    expect(result.status).toBe('failed');
+    expect(result.error).toContain('original file preserved');
+    expect(realFs.readFileSync(path, 'utf8')).toBe(original);
+    expect(spawnCalls).toHaveLength(0);
   });
 
   test('custom backend is sandbox-wrapped, key-scrubbed, and proxied', async () => {

@@ -2034,14 +2034,14 @@ describe('spawn — claude-cli backend', () => {
     expect(result.status).toBe('completed');
     expect(result.output).toContain('Claude output here');
     expect(result.backend).toBe('claude-cli');
-    expect(cpSpawn).toHaveBeenCalledWith(
-      expect.stringMatching(/(?:^|[/\\])claude$/),
-      ['-p', '--output-format', 'json', 'Write a hello world program'],
-      expect.objectContaining({
-        detached: true,
-        shell: false,
-      })
-    );
+    // Assert argv separately so a mismatch never dumps the inherited environment.
+    expect(cpSpawn.mock.calls[0][0]).toMatch(/(?:^|[/\\])claude$/);
+    expect(cpSpawn.mock.calls[0][1]).toEqual([
+      '-p', '--disable-slash-commands', '--output-format', 'json', '--model', 'sonnet',
+      'Write a hello world program',
+    ]);
+    expect(cpSpawn.mock.calls[0][2].detached).toBe(true);
+    expect(cpSpawn.mock.calls[0][2].shell).toBe(false);
     // No spec.timeout was given, so no hidden wall clock should be applied.
     expect(cpSpawn.mock.calls[0][2]).not.toHaveProperty('timeout');
   });
@@ -2059,7 +2059,8 @@ describe('spawn — claude-cli backend', () => {
     });
 
     expect(cpSpawn.mock.calls[0][1]).toEqual([
-      '--resume', sessionId, '-p', '--output-format', 'json', 'Continue this session',
+      '--resume', sessionId, '-p', '--disable-slash-commands', '--output-format', 'json',
+      '--model', 'sonnet', 'Continue this session',
     ]);
     expect(result.harnessSessionId).toBe(sessionId);
   });
@@ -2090,8 +2091,8 @@ describe('spawn — claude-cli backend', () => {
     });
 
     expect(cpSpawn.mock.calls[0][1]).toEqual([
-      '-p', '--output-format', 'json', 'Fix the bug',
-      '--model', 'haiku',
+      '-p', '--disable-slash-commands', '--output-format', 'json',
+      '--model', 'haiku', 'Fix the bug',
     ]);
   });
 
@@ -2140,9 +2141,10 @@ describe('spawn — claude-cli backend', () => {
 
     const args = cpSpawn.mock.calls[0][1];
     expect(args).toEqual([
-      '-p', '--output-format', 'json', 'Do everything',
+      '-p', '--disable-slash-commands', '--output-format', 'json',
       '--model', 'sonnet',
       '--allowedTools', 'Read,Write',
+      'Do everything',
     ]);
     expect(cpSpawn.mock.calls[0][2].cwd).toBe(process.cwd());
   });
@@ -2232,7 +2234,6 @@ describe('spawn — codex backend', () => {
       expect.arrayContaining([
         'exec',
         '--skip-git-repo-check',
-        '--approve-for-me',
         '-C', codexWorkdir,
         '--model', 'gpt-5.4-mini',
         '--json',
@@ -2260,7 +2261,7 @@ describe('spawn — codex backend', () => {
     });
 
     const args = cpSpawn.mock.calls[0][1];
-    expect(args.slice(0, 3)).toEqual(['exec', '--approve-for-me', 'resume']);
+    expect(args.slice(0, 2)).toEqual(['exec', 'resume']);
     expect(args).toEqual(expect.arrayContaining([sessionId, 'Continue this Codex session']));
     expect(args).not.toContain('--full-auto');
     expect(args).not.toContain('--sandbox');

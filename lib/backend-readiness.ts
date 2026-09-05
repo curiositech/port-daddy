@@ -1,12 +1,13 @@
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
 import { assessBackendTelemetryPolicy } from './backend-telemetry-policy.js';
+import { createManagedCliLaunchPolicy, type ManagedCliProvider } from './spawner/backends/managed-cli-launch-policy.js';
 import { getSecret } from './secret-env.js';
 import { CLOUDFLARE_BACKEND_SETUP_LINKS, type BackendSetupLink } from './backend-setup-links.js';
 
 export interface BackendReadiness {
   backend: string;
-  status: 'ready' | 'needs_setup' | 'manual_check' | 'unknown';
+  status: 'ready' | 'needs_setup' | 'manual_check' | 'unknown' | 'blocked';
   /**
    * True when the daemon may attempt a spawn even though `status` is not
    * `ready`. Set for installed local CLI backends whose auth genuinely cannot
@@ -426,69 +427,15 @@ export async function assessBackendReadiness(
       }, telemetryPolicy);
     }
 
-    case 'cli:gemini': {
-      const resolution = resolveCliBinary('gemini', { envOverride: 'PD_CLI_GEMINI_BIN' });
-      if (!resolution.found) {
-        return applyTelemetryPolicy({
-          backend,
-          status: 'needs_setup',
-          summary: cliMissingSummary('Gemini CLI', resolution),
-          nextStep: 'Install the Gemini CLI (npm install -g @google/gemini-cli) and run `gemini` once to authenticate.',
-          setupCommand: 'npm install -g @google/gemini-cli',
-        }, telemetryPolicy);
-      }
-      return applyTelemetryPolicy({
-        backend,
-        status: 'manual_check',
-        launchableUnverified: true,
-        summary: cliSummary('Gemini CLI', resolution, 'auth cannot be verified non-interactively'),
-        nextStep: 'Run `gemini -p "hello"` once to confirm auth. PD_USE_CLI_BACKEND=gemini forces all spawns through this CLI.',
-        setupCommand: 'gemini -p "hello"',
-      }, telemetryPolicy);
-    }
-
-    case 'cli:groq': {
-      const resolution = resolveCliBinary('groq', { envOverride: 'PD_CLI_GROQ_BIN' });
-      if (!resolution.found) {
-        return applyTelemetryPolicy({
-          backend,
-          status: 'needs_setup',
-          summary: cliMissingSummary('Groq CLI', resolution),
-          nextStep: 'Install the Groq Code CLI (npm install -g groq-code-cli) and run `groq` once to authenticate.',
-          setupCommand: 'npm install -g groq-code-cli',
-        }, telemetryPolicy);
-      }
-      return applyTelemetryPolicy({
-        backend,
-        status: 'manual_check',
-        launchableUnverified: true,
-        summary: cliSummary('Groq CLI', resolution, 'auth cannot be verified non-interactively'),
-        nextStep: 'Run `groq -p "hello"` once to confirm auth. PD_USE_CLI_BACKEND=groq forces all spawns through this CLI.',
-        setupCommand: 'groq -p "hello"',
-      }, telemetryPolicy);
-    }
-
+    case 'cli:gemini':
+    case 'cli:groq':
     case 'cli:grok': {
-      const resolution = resolveCliBinary('grok', { envOverride: 'PD_CLI_GROK_BIN' });
-      if (!resolution.found) {
-        return applyTelemetryPolicy({
-          backend,
-          status: 'needs_setup',
-          summary: cliMissingSummary('Grok CLI', resolution),
-          nextStep: 'Install the Grok CLI (npm install -g @vibe-kit/grok-cli) and authenticate before using this backend.',
-          setupCommand: 'npm install -g @vibe-kit/grok-cli',
-        }, telemetryPolicy);
-      }
-      return applyTelemetryPolicy({
-        backend,
-        status: 'manual_check',
-        launchableUnverified: true,
-        summary: cliSummary('Grok CLI', resolution, 'auth cannot be verified non-interactively'),
-        nextStep: 'Run `grok -p "hello"` once to confirm auth. PD_USE_CLI_BACKEND=grok forces all spawns through this CLI.',
-        setupCommand: 'grok -p "hello"',
-      }, telemetryPolicy);
+      let summary = 'Managed CLI adapter is unavailable';
+      try { createManagedCliLaunchPolicy(backend.slice(4) as ManagedCliProvider, false); }
+      catch (error) { summary = String(error); }
+      return { backend, status: 'blocked', launchableUnverified: false, summary,
+        nextStep: 'Select Claude Code, Codex, or agy. Gemini and Groq API backends are unaffected; CLI support requires a verified policy-preserving adapter.' };
     }
-
     case 'ollama': {
       if (await ollamaReachable()) {
         return applyTelemetryPolicy({

@@ -6,11 +6,9 @@
 import { jest } from '@jest/globals';
 import { createTestDb } from '../setup-unit.js';
 import { createDispatchQueue, deriveSlug, deriveBranchName } from '../../lib/dispatch/queue.js';
-import { buildCliTubeArgs } from '../../lib/spawner/backends/cli-tube-provider-specs.js';
 import {
   planRunFor,
   runNext,
-  buildSpawnArgv,
   deriveWorktreePath,
   DEFAULT_BACKEND,
   DEFAULT_BUDGET_USD,
@@ -85,48 +83,6 @@ describe('deriveWorktreePath', () => {
   });
 });
 
-describe('buildSpawnArgv', () => {
-  test('claude backend uses --dangerously-skip-permissions and -p', () => {
-    const { command, args } = buildSpawnArgv(
-      'cli:claude-code',
-      '/scratch/x',
-      'do the thing',
-    );
-    expect(command).toBe('claude');
-    expect(args).toContain('--dangerously-skip-permissions');
-    expect(args).toContain('-p');
-    expect(args[args.indexOf('-p') + 1]).toBe('do the thing');
-  });
-
-  test('codex backend uses the cli-tube auto-reviewed workspace-write contract', () => {
-    const { command, args } = buildSpawnArgv(
-      'cli:codex',
-      '/scratch/x',
-      'do the thing',
-    );
-    expect(command).toBe('codex');
-    expect(args).toContain('--approve-for-me');
-    expect(args).not.toContain('--full-auto');
-    expect(args).not.toContain('--sandbox');
-    expect(args).not.toContain('--dangerously-bypass-approvals-and-sandbox');
-    expect(args).toContain('skills.include_instructions=false');
-    expect(args).toContain('/scratch/x');
-    expect(args[args.length - 1]).toBe('do the thing');
-
-    const cwdIndex = args.indexOf('-C');
-    const providerArgs = args.filter((_, index) => index !== cwdIndex && index !== cwdIndex + 1);
-    expect(providerArgs).toEqual(buildCliTubeArgs('codex', { prompt: 'do the thing' }).args);
-  });
-
-  test('attaches --model when provided', () => {
-    const claude = buildSpawnArgv('cli:claude-code', '/x', 'foo', 'sonnet-4.7');
-    expect(claude.args).toContain('--model');
-    expect(claude.args[claude.args.indexOf('--model') + 1]).toBe('sonnet-4.7');
-    const codex = buildSpawnArgv('cli:codex', '/x', 'foo', 'gpt-5.4-mini');
-    expect(codex.args).toContain('--model');
-  });
-});
-
 describe('planRunFor', () => {
   let db;
   let queue;
@@ -148,7 +104,9 @@ describe('planRunFor', () => {
     expect(plan.worktreePath).toContain('port-daddy-dispatch-');
     expect(plan.branch.startsWith('dispatch/normalize-design-tokens-')).toBe(true);
     expect(plan.baseRef).toBe('origin/main');
-    expect(plan.command === 'claude' || plan.command === 'codex').toBe(true);
+    expect(plan.confinementRequired).toBe(true);
+    expect(plan).not.toHaveProperty('command');
+    expect(plan).not.toHaveProperty('args');
   });
 
   test('uses dispatch.baseBranch for baseRef', () => {
@@ -202,7 +160,8 @@ describe('planRunFor', () => {
     const plan = planRunFor(d);
     const rationaleText = plan.rationale.join('\n');
     expect(rationaleText).toContain('codex');
-    expect(rationaleText).toContain('workspace-write');
+    expect(rationaleText).toContain('NON-EXECUTABLE');
+    expect(rationaleText).toContain('confined:true');
     expect(rationaleText).toContain('budget');
     expect(rationaleText).toContain('base_branch');
   });

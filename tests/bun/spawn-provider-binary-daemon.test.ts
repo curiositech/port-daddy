@@ -43,15 +43,17 @@ interface Harness {
 }
 
 interface ProviderCase {
-  backend: 'cli:claude-code' | 'cli:codex';
-  binName: 'claude' | 'codex';
-  envOverride: 'PD_CLI_CLAUDE_CODE_BIN' | 'PD_CLI_CODEX_BIN';
-  markerEnv: 'PD_FAKE_CLAUDE_INVOKED_FILE' | 'PD_FAKE_CODEX_INVOKED_FILE';
+  backend: 'cli:claude-code' | 'cli:codex' | 'cli:gemini' | 'cli:agy';
+  binName: 'claude' | 'codex' | 'gemini' | 'agy';
+  envOverride: string;
+  markerEnv: string;
   finalText: string;
   expectedRoles: string[];
 }
 
 const PROVIDERS: ProviderCase[] = [
+  { backend: 'cli:gemini', binName: 'gemini', envOverride: 'PD_CLI_GEMINI_BIN', markerEnv: 'PD_FAKE_GEMINI_INVOKED_FILE', finalText: 'pd-bun-gemini-provider', expectedRoles: ['user', 'assistant'] },
+  { backend: 'cli:agy', binName: 'agy', envOverride: 'PD_CLI_AGY_BIN', markerEnv: 'PD_FAKE_AGY_INVOKED_FILE', finalText: 'pd-bun-agy-provider', expectedRoles: ['user', 'assistant'] },
   {
     backend: 'cli:claude-code',
     binName: 'claude',
@@ -76,8 +78,12 @@ const envKeysToRestore = [
   'PD_CLI_BIN_DIRS',
   'PD_CLI_CLAUDE_CODE_BIN',
   'PD_CLI_CODEX_BIN',
+  'PD_CLI_GEMINI_BIN',
+  'PD_CLI_AGY_BIN',
   'PD_FAKE_CLAUDE_INVOKED_FILE',
   'PD_FAKE_CODEX_INVOKED_FILE',
+  'PD_FAKE_GEMINI_INVOKED_FILE',
+  'PD_FAKE_AGY_INVOKED_FILE',
   'PD_SPAWN_ISOLATION_OFF',
   'PD_COAST_GUARD_OFF',
 ] as const;
@@ -181,7 +187,7 @@ function writeFakeProviderBinary(provider: ProviderCase, binPath: string): void 
       },
     ].map((line) => JSON.stringify(line));
     writeFileSync(binPath, `#!/bin/sh\n${marker}\n${lines.map((line) => `printf '%s\\n' ${shellQuote(line)}`).join('\n')}\n`);
-  } else {
+  } else if (provider.backend === 'cli:codex') {
     const lines = [
       { type: 'agent_reasoning', text: 'daemon binary resolved' },
       { type: 'agent_message', message: provider.finalText },
@@ -198,6 +204,8 @@ function writeFakeProviderBinary(provider: ProviderCase, binPath: string): void 
       binPath,
       `#!/bin/sh\n${marker}\nwhile [ "$#" -gt 0 ]; do\n  if [ "$1" = "--output-last-message" ]; then\n    shift\n    printf '%s\\n' ${shellQuote(provider.finalText)} > "$1"\n  fi\n  shift || break\ndone\n${lines.map((line) => `printf '%s\\n' ${shellQuote(line)}`).join('\n')}\n`,
     );
+  } else {
+    writeFileSync(binPath, `#!/bin/sh\n${marker}\nprintf '%s\\n' ${shellQuote(provider.finalText)}\n`);
   }
   chmodSync(binPath, 0o755);
 }
@@ -215,6 +223,7 @@ function writeFailingProviderBinary(provider: ProviderCase, binPath: string): vo
 function spawnBody(provider: ProviderCase, workdir: string) {
   return {
     backend: provider.backend,
+    executionIntent: 'manual',
     identity: `port-daddy:e2e:${provider.backend.replace(/[^a-z0-9]+/gi, '-')}`,
     task: `Reply with exactly: ${provider.finalText}`,
     budgetUsd: 0.01,
@@ -256,7 +265,7 @@ afterEach(() => {
 });
 
 describe('daemon /spawn provider binary launch path', () => {
-  test('invokes daemon-resolved Claude and Codex provider binaries and persists transcript output', async () => {
+  test('invokes three admitted providers and refuses Gemini before its fake binary launches', async () => {
     const tmp = mkdtempSync(join(tmpdir(), 'pd-provider-binary-ok-'));
     const harness = await startHarness();
     try {
@@ -279,20 +288,33 @@ describe('daemon /spawn provider binary launch path', () => {
       for (const provider of PROVIDERS) {
         const response = await injectProviderSpawn(harness, provider, workdir);
 
-        expect(response.statusCode).toBe(200);
+        expect(response.statusCode).toBe(provider.backend === 'cli:gemini' ? 400 : 200);
         const body = response.json();
+        if (provider.backend === 'cli:gemini') {
+          expect(body.success).toBe(false);
+          expect(body.error).toContain('native skill suppression');
+          expect(existsSync(markers[provider.backend])).toBe(false);
+          continue;
+        }
         expect(body).toMatchObject({
           success: true,
           backend: provider.backend,
           status: 'completed',
+          executionIntent: 'manual',
           error: null,
         });
         expect(existsSync(markers[provider.backend])).toBe(true);
         const marker = readFileSync(markers[provider.backend], 'utf8');
         expect(marker).toContain(`binary=${join(binDir, provider.binName)}`);
         expect(marker).not.toContain(join(tmp, 'stale', provider.binName));
+        expect(marker).not.toContain('--dangerously-skip-permissions');
+        expect(marker).not.toContain('--approval-mode yolo');
+        expect(marker).not.toContain('--bare');
+        expect(marker).not.toContain('--safe-mode');
+        if (provider.backend !== 'cli:codex') expect(marker).not.toContain('skills.include_instructions');
+        if (provider.backend !== 'cli:codex') expect(marker).toContain('--disable-slash-commands');
         if (provider.backend === 'cli:codex') {
-          expect(marker).toContain('--approve-for-me');
+          expect(marker).not.toContain('--approve-for-me');
           expect(marker).not.toContain('--dangerously-bypass-approvals-and-sandbox');
           expect(marker).toContain('skills.include_instructions=false');
         }
@@ -335,8 +357,15 @@ describe('daemon /spawn provider binary launch path', () => {
       for (const provider of PROVIDERS) {
         const response = await injectProviderSpawn(harness, provider, workdir);
 
-        expect(response.statusCode).toBe(200);
+        expect(response.statusCode).toBe(provider.backend === 'cli:gemini' ? 400 : 200);
         const body = response.json();
+        if (provider.backend === 'cli:gemini') {
+          expect(body.success).toBe(false);
+          expect(body.error).toContain('native skill suppression');
+          expect(existsSync(markers[provider.backend])).toBe(false);
+          expect(body.agentId).toBeUndefined();
+          continue;
+        }
         expect(body).toMatchObject({
           success: false,
           backend: provider.backend,
@@ -348,7 +377,7 @@ describe('daemon /spawn provider binary launch path', () => {
         const marker = readFileSync(markers[provider.backend], 'utf8');
         expect(marker).toContain(`binary=${join(binDir, provider.binName)}`);
         if (provider.backend === 'cli:codex') {
-          expect(marker).toContain('--approve-for-me');
+          expect(marker).not.toContain('--approve-for-me');
           expect(marker).not.toContain('--dangerously-bypass-approvals-and-sandbox');
           expect(marker).toContain('skills.include_instructions=false');
         }

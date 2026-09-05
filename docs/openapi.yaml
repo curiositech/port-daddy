@@ -4170,9 +4170,18 @@ paths:
                 backend:
                   type: string
                   enum: [ollama, lmstudio, claude, claude-cli, gemini, cloudflare, openai, groq, deepseek, xai, codex, aider, custom, cli:claude-code, cli:codex, cli:agy, cli:gemini, cli:groq, cli:grok]
+                  description: Managed CLI admission currently supports Claude Code, Codex, and agy with mandatory native skill suppression. Gemini CLI is blocked pending a policy-preserving suppression overlay; Groq CLI and Grok are unverified or unsupported. API gemini is unaffected.
                 model:
                   type: string
                   description: Model name (backend-specific)
+                executionIntent:
+                  type: string
+                  enum: [manual, edit-only, autonomous]
+                  default: manual
+                  description: Managed CLI intent. Autonomous requires enabled Coast Guard and actual confined=true proof before launch; configuration alone never grants autonomy. Edit-only requires a verified provider control.
+                injectSquidHooks:
+                  type: boolean
+                  description: Accepted only for claude-cli and cli:claude-code. When true, installs workspace hooks after wrapper admission and before child launch. Installation failure blocks launch; no managed Codex or agy HITL-hook support is implied.
                 modelTier:
                   type: string
                   enum: [low, mid, high]
@@ -4222,6 +4231,10 @@ paths:
                   model:
                     type: string
                     description: Effective model used for telemetry/cost/result provenance.
+                  executionIntent:
+                    type: string
+                    enum: [manual, edit-only, autonomous]
+                    description: Requested managed CLI intent, also retained in the current daemon's spawn history. Correlate with the Coast Guard receipt; intent alone is not confinement proof.
                   requestedBackend:
                     type: string
                     enum: [ollama, lmstudio, claude, claude-cli, gemini, cloudflare, openai, groq, deepseek, xai, codex, aider, custom, cli:claude-code, cli:codex, cli:agy, cli:gemini, cli:groq, cli:grok]

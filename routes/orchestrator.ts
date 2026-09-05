@@ -68,6 +68,10 @@ export const orchestratorPlugin: FastifyPluginAsync<{ deps: OrchestratorRouteDep
         reply.code(400); return { error: 'payload is required and must be an object' };
       }
 
+      if (body.action === 'spawn' && body.payload.executionIntent !== undefined
+        && !['manual', 'edit-only', 'autonomous'].includes(body.payload.executionIntent)) {
+        reply.code(400); return { error: 'executionIntent must be manual, edit-only, or autonomous' };
+      }
       if (body.action === 'exec') {
         const cmd = body.payload?.cmd;
         if (!cmd || typeof cmd !== 'string') {

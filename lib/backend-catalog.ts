@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { modelsForBackend, resolveCliModelAlias, CAPABILITIES } from './model-registry.js';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
+import { MANAGED_CLI_CAPABILITIES, type ManagedCliCapabilities } from './spawner/backends/managed-cli-launch-policy.js';
 
 /**
  * Backend Catalog — single source of truth for the fleet's available LLM backends.
@@ -88,6 +89,8 @@ export interface HarnessProbeSpec {
 }
 
 export interface HarnessAdapterCapabilities {
+  /** Verified argv capability, not proof of installed runtime or confinement. */
+  managedCli?: ManagedCliCapabilities;
   /** Stable adapter family. Several billing rows may share one harness. */
   family: string;
   spawn: {
@@ -144,10 +147,10 @@ export interface BackendCatalogEntry {
   /**
    * If non-null, the env var the operator would set to force this backend
    * for every spawn regardless of pd-fleet.yml. The CLI-tube backends
-   * (`cli:claude-code`, `cli:codex`, `cli:agy`, `cli:gemini`, `cli:groq`, `cli:grok`)
+   * (`cli:claude-code`, `cli:codex`, `cli:agy`)
    * honor this (via PD_USE_CLI_BACKEND).
    */
-  pdUseCliBackendValue?: 'claude-code' | 'codex' | 'agy' | 'gemini' | 'groq' | 'grok';
+  pdUseCliBackendValue?: 'claude-code' | 'codex' | 'agy';
   /**
    * Show this prominently in the picker. Used to rank "free via subscription"
    * options ahead of metered ones in the FleetBar/dashboard picker.
@@ -158,6 +161,7 @@ export interface BackendCatalogEntry {
 }
 
 const CLAUDE_CLI_ADAPTER: HarnessAdapterCapabilities = {
+  managedCli: MANAGED_CLI_CAPABILITIES['claude-code'],
   family: 'claude-code',
   spawn: {
     transport: 'agent-cli',
@@ -190,6 +194,7 @@ const CLAUDE_CLI_ADAPTER: HarnessAdapterCapabilities = {
 };
 
 const CODEX_CLI_ADAPTER: HarnessAdapterCapabilities = {
+  managedCli: MANAGED_CLI_CAPABILITIES.codex,
   family: 'codex-cli',
   spawn: {
     transport: 'agent-cli',
@@ -222,6 +227,7 @@ const CODEX_CLI_ADAPTER: HarnessAdapterCapabilities = {
 };
 
 const AGY_CLI_ADAPTER: HarnessAdapterCapabilities = {
+  managedCli: MANAGED_CLI_CAPABILITIES.agy,
   family: 'agy-cli',
   spawn: {
     transport: 'agent-cli',
@@ -238,7 +244,7 @@ const AGY_CLI_ADAPTER: HarnessAdapterCapabilities = {
   authModes: ['delegated-cli'],
   limitations: [
     'Native resume requires a canonical UUID, the conversation-keyed brain transcript, and an exact workspace-to-conversation binding in Antigravity last_conversations metadata.',
-    'Structured transcript streaming is not documented; Port Daddy currently captures prompt plus final output.',
+    'Stream JSON is documented, but the fixture-backed parser is pending; Port Daddy captures prompt plus final output. Native skills are disabled by the managed launcher; use Port Daddy-selected guidance.',
   ],
   probe: {
     executable: 'agy',
@@ -250,6 +256,7 @@ const AGY_CLI_ADAPTER: HarnessAdapterCapabilities = {
 };
 
 const GEMINI_CLI_ADAPTER: HarnessAdapterCapabilities = {
+  managedCli: MANAGED_CLI_CAPABILITIES.gemini,
   family: 'gemini-cli',
   spawn: {
     transport: 'agent-cli',
@@ -271,6 +278,8 @@ const GEMINI_CLI_ADAPTER: HarnessAdapterCapabilities = {
   authModes: ['oauth-subscription', 'api-key'],
   limitations: [
     'Gemini UUID resume is project-scoped and requires an explicit chat reference; Port Daddy witnesses the canonical UUID, project hash, registry entry, chat file, and canonical workspace before launch.',
+    'Managed CLI launch is blocked until policy-preserving native skill suppression is implemented; the Gemini API backend is unaffected.',
+    'Stream JSON is documented, but the fixture-backed parser is pending; Port Daddy captures prompt plus final output.',
   ],
   probe: {
     executable: 'gemini',
@@ -455,47 +464,45 @@ export const BACKEND_CATALOG: readonly BackendCatalogEntry[] = [
     id: 'cli:gemini',
     name: 'Gemini CLI',
     costModel: 'subscription',
-    framing: 'FREE tier — your Google account',
-    description: "Drives your local `gemini` binary as a child process. Auth and billing flow through your Google account (generous free tier) or Gemini Code Assist subscription.",
-    tagline: 'Google-account Gemini CLI free tier powers spawns at $0 marginal',
+    framing: 'Blocked: native skill suppression not implemented',
+    description: "Managed Gemini CLI launches are blocked pending a policy-preserving native skill-suppression overlay. The Gemini API backend remains available.",
+    tagline: 'Unavailable until a policy-preserving adapter is implemented',
     models: catalogModels('gemini'),
-    pdUseCliBackendValue: 'gemini',
     adapter: GEMINI_CLI_ADAPTER,
   },
   {
     id: 'cli:groq',
     name: 'Groq Code CLI',
     costModel: 'subscription',
-    framing: 'Rides your Groq account',
-    description: "Drives your local `groq` binary as a child process. Auth and billing flow through your Groq account; the CLI manages its own key.",
-    tagline: 'Groq LPU speed through your existing groq CLI login',
+    framing: 'Blocked: CLI contract unverified',
+    description: "Local Groq CLI launch and native skill-suppression contracts are unverified. All managed launches are refused; select a verified provider.",
+    tagline: 'Unavailable until the CLI adapter is verified',
     models: catalogModels('groq'),
-    pdUseCliBackendValue: 'groq',
-    adapter: promptOnlyCliAdapter(
+    adapter: { managedCli: MANAGED_CLI_CAPABILITIES.groq, ...promptOnlyCliAdapter(
       'groq-cli',
       'groq',
       ['delegated-cli', 'api-key'],
       ['No stable session-id resume or structured transcript surface is documented for the installed Port Daddy integration.'],
-    ),
+    ) },
   },
   {
     id: 'cli:grok',
     name: 'Grok CLI',
     costModel: 'subscription',
-    framing: 'Rides your xAI / SuperGrok subscription',
-    description: "Drives your local `grok` binary as a child process. Auth and billing flow through your xAI account or SuperGrok subscription.",
-    tagline: 'SuperGrok subscription powers spawns at $0 marginal',
+    framing: 'Unsupported local proxy launcher',
+    description: "The installed Grok proxy does not expose the required prompt/model contract. Managed launches fail closed; select a verified provider.",
     models: catalogModels('xai'),
-    pdUseCliBackendValue: 'grok',
-    adapter: promptOnlyCliAdapter(
-      'grok-claude-proxy',
-      'grok',
-      ['delegated-cli'],
-      [
-        'The current grok command is a Claude proxy, not an independent durable harness.',
-        'Resume ownership remains with the underlying Claude session and is not exposed by the wrapper.',
-      ],
-    ),
+    adapter: {
+      family: 'grok-claude-proxy',
+      managedCli: MANAGED_CLI_CAPABILITIES.grok,
+      spawn: { transport: 'agent-cli' },
+      resume: { native: false, scope: 'none' },
+      acceptsInitialPrompt: false,
+      interactiveChannels: ['terminal'],
+      transcript: { format: 'none', owner: 'none', stability: 'none' },
+      authModes: ['delegated-cli'],
+      limitations: ['The installed Claude proxy has no supported noninteractive prompt/model contract; managed launches are refused.'],
+    },
   },
 
   // ──── Metered (pay per token) ───────────────────────────────────────────
@@ -803,9 +810,7 @@ function normalizeForcedCliBackend(raw: string | undefined | null): {
   }
   if (normalized === 'codex') return { id: 'cli:codex', value: 'codex' };
   if (normalized === 'agy' || normalized === 'antigravity') return { id: 'cli:agy', value: 'agy' };
-  if (normalized === 'gemini') return { id: 'cli:gemini', value: 'gemini' };
-  if (normalized === 'groq') return { id: 'cli:groq', value: 'groq' };
-  if (normalized === 'grok') return { id: 'cli:grok', value: 'grok' };
+  // Blocked adapters cannot become daemon-wide defaults via stale persisted/env choices.
   return null;
 }
 

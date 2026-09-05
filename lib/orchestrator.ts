@@ -500,6 +500,10 @@ export function createReactiveOrchestrator(db: any, messaging: any, spawner: any
   };
 
   function addRule(rule: OrchestratorRule) {
+    if (rule.action === 'spawn' && rule.payload.executionIntent !== undefined
+      && !['manual', 'edit-only', 'autonomous'].includes(rule.payload.executionIntent)) {
+      throw new Error('executionIntent must be manual, edit-only, or autonomous');
+    }
     const result = stmts.insert.run(rule.name, rule.channelPattern, rule.condition || null, rule.action, JSON.stringify(rule.payload), rule.enabled ? 1 : 0);
     return { success: true, id: Number(result.lastInsertRowid) };
   }
@@ -550,6 +554,7 @@ export function createReactiveOrchestrator(db: any, messaging: any, spawner: any
           // review gate (never) — matching the legacy fire-and-forget behavior.
           const launchResult = await conductor.launch({
             source: 'orchestrator',
+            executionIntent: spec.executionIntent ?? 'autonomous',
             goal: typeof spec.task === 'string' && spec.task.trim()
               ? spec.task
               : `orchestrator:${rule.name}`,

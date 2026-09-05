@@ -61,7 +61,7 @@ function usage(): never {
   console.error('');
   console.error('Options:');
   console.error('  --tags a,b,c              Comma-separated tags for propose');
-  console.error('  --backend <name>          cli:claude-code | cli:codex (default: cli:codex)');
+  console.error('  --backend <name>          cli:claude-code | cli:codex | cli:agy (default: cli:codex)');
   console.error('  --base-branch <name>      Branch the worktree is carved from (default: main)');
   console.error('  --merge-policy <p>        review | auto | never (default: review)');
   console.error('                              review = operator runs `pd review --accept` + merges by hand');
@@ -87,8 +87,9 @@ function usage(): never {
 }
 
 function parseBackend(value: unknown): DispatchBackend | undefined {
-  if (value === 'cli:claude-code' || value === 'cli:codex') return value;
-  return undefined;
+  if (value === undefined) return undefined;
+  if (value === 'cli:claude-code' || value === 'cli:codex' || value === 'cli:agy') return value;
+  throw new Error(`Unsupported autonomous dispatch backend: ${String(value)}. Choose cli:claude-code, cli:codex, or cli:agy. Gemini CLI requires verified native skill suppression; Groq and Grok are not supported.`);
 }
 
 function parseMergePolicy(value: unknown): MergePolicy | undefined {
@@ -701,7 +702,7 @@ function printPlan(plan: ReturnType<typeof planRunFor>, dryRun: boolean, options
       tone: dryRun ? 'pending' : 'running',
       zone: dryRun ? 'dry run' : 'ready to run',
       rows,
-      footer: `${plan.command} ${plan.args.join(' ')}`,
+      footer: `Non-executable plan: ${plan.executionIntent} ${plan.backend}; Conductor must prove confined:true before launch`,
     }));
     return;
   }
@@ -714,7 +715,7 @@ function printPlan(plan: ReturnType<typeof planRunFor>, dryRun: boolean, options
   console.log(`  baseRef:     ${plan.baseRef}`);
   console.log(`  timeout:     ${Math.round(plan.timeoutMs / 60000)} min`);
   console.log(`  budget:      $${plan.budgetUsd.toFixed(2)}`);
-  console.log(`  command:     ${plan.command} ${plan.args.join(' ')}`);
+  console.log(`  non-executable intent: ${plan.executionIntent}; Conductor must prove confined:true before launch`);
   console.log(`  rationale:`);
   for (const line of plan.rationale) console.log(`    - ${line}`);
   if (dryRun) {

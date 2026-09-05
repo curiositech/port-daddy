@@ -9,8 +9,10 @@
  * requires a `merge_queue` row — a two-key, operator-approval flow). Auto
  * merge_policy dispatches never go through harbormaster; they never need an
  * `accepted` state at all, because the dispatch worker already settles a
- * produced dispatch straight to `settled` once the PR is open (see
- * lib/dispatch/spawn-adapter.ts) — `settled` here means "the autonomous run
+ * produced dispatch straight to `settled` once a PR artifact exists (see
+ * lib/dispatch/conductor-adapter.ts). The current Conductor publisher is not
+ * wired: new local completions enter salvage instead of reaching this sweep.
+ * For existing PR-bearing rows, `settled` here means "the autonomous run
  * finished and a PR exists," not "the PR is merged." This module is what
  * actually gets the PR merged for the `auto` policy.
  *
@@ -55,36 +57,14 @@
  * wire it here. Until then this is a clearly-marked gap, not a silent no-op.
  */
 
-import { execFile, execFileSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 
 import type { Dispatch, DispatchQueue } from './queue.js';
+import { reapWorktree } from './worktree-cleanup.js';
+import { isAbsolute } from 'node:path';
 
 const execFileAsync = promisify(execFile);
-
-/**
- * Reap a dispatch worktree. Deliberately NOT imported from
- * lib/dispatch/spawn-adapter.ts: that module does a module-load-time sanity
- * check against `runner.ts`'s `DISPATCH_WORKTREE_ROOT`, which couples this
- * module's import graph to the CLI-only spawn path (and to every test that
- * mocks `runner.js` without that export). This is the identical
- * remove-then-prune logic as spawn-adapter.ts's `reapWorktree` — best-effort,
- * a reap failure must never flip a successful merge into a reported failure.
- */
-async function reapWorktree(worktreePath: string): Promise<void> {
-  if (!existsSync(worktreePath)) return;
-  try {
-    await execFileAsync('git', ['worktree', 'remove', '--force', worktreePath]);
-  } catch {
-    try {
-      execFileSync('rm', ['-rf', worktreePath]);
-    } catch { /* give up — surfaced via logs, not a merge failure */ }
-  }
-  try {
-    await execFileAsync('git', ['worktree', 'prune']);
-  } catch { /* housekeeping; non-fatal */ }
-}
 
 // ─── Command runner (injectable for tests) ─────────────────────────────────
 
@@ -370,9 +350,7 @@ function trimErr(s: string): string {
 
 export interface CleanupOptions {
   runner: CommandRunner;
-  /** cwd for `git branch -D`; must be the main checkout, not the (likely already-gone) worktree. */
-  repoRoot: string;
-  reaper?: (worktreePath: string) => Promise<void>;
+  reaper?: typeof reapWorktree;
 }
 
 export interface CleanupResult {
@@ -386,7 +364,7 @@ export interface CleanupResult {
  * best-effort and idempotent: the dispatch worker already reaps the worktree
  * when a dispatch settles (see lib/dispatch/worker.ts `runOne`), so by the
  * time a merge happens the worktree is usually already gone — that's fine,
- * `reapWorktree` no-ops on a missing path. `git branch -D` similarly no-ops
+ * `reapWorktree` no-ops on a missing path. `git branch -d` similarly no-ops
  * (non-zero exit, swallowed) if the local branch ref was never created here
  * (e.g. a dispatch worktree that was reaped without ever checking out a local
  * branch name still known to the main repo).
@@ -397,18 +375,22 @@ export async function cleanupMergedDispatch(
 ): Promise<CleanupResult> {
   const reaper = opts.reaper ?? reapWorktree;
   const notes: string[] = [];
+  if (!dispatch.projectDir || !isAbsolute(dispatch.projectDir) || !dispatch.branch) {
+    return { worktreeReaped: false, branchDeleted: false, notes: ['cleanup preserved: durable project and branch binding required'] };
+  }
   let worktreeReaped = false;
   if (dispatch.worktreePath) {
     try {
-      await reaper(dispatch.worktreePath);
+      await reaper(dispatch.worktreePath, dispatch.projectDir, { expectedBranch: dispatch.branch });
       worktreeReaped = true;
     } catch (err) {
       notes.push(`worktree reap failed: ${err instanceof Error ? err.message : String(err)}`);
+      return { worktreeReaped: false, branchDeleted: false, notes };
     }
   }
   let branchDeleted = false;
   if (dispatch.branch) {
-    const res = await opts.runner.run('git', ['-C', opts.repoRoot, 'branch', '-D', dispatch.branch]);
+    const res = await opts.runner.run('git', ['-C', dispatch.projectDir, 'branch', '-d', dispatch.branch]);
     branchDeleted = res.code === 0;
     if (!branchDeleted && !/not found|not fully merged/i.test(res.stderr)) {
       notes.push(`local branch delete: ${trimErr(res.stderr)}`);
@@ -426,8 +408,7 @@ export interface AutoMergeLogger {
 
 export interface AutoMergeOptions {
   runner?: CommandRunner;
-  repoRoot?: string;
-  reaper?: (worktreePath: string) => Promise<void>;
+  reaper?: typeof reapWorktree;
   postNote?: (text: string) => void | Promise<void>;
   logger?: AutoMergeLogger;
 }
@@ -490,7 +471,6 @@ export async function checkAndCompleteDispatch(
   | { outcome: 'error'; error: string }
 > {
   const runner = opts.runner ?? createDefaultCommandRunner();
-  const repoRoot = opts.repoRoot ?? process.cwd();
   const postNote = opts.postNote ?? defaultPostNote(runner);
   const logger = opts.logger ?? noopLogger;
 
@@ -510,7 +490,7 @@ export async function checkAndCompleteDispatch(
   }
 
   if (info.state === 'MERGED') {
-    const cleanup = await cleanupMergedDispatch(dispatch, { runner, repoRoot, reaper: opts.reaper });
+    const cleanup = await cleanupMergedDispatch(dispatch, { runner, reaper: opts.reaper });
     return { outcome: 'already_merged', cleanup };
   }
   if (info.state === 'CLOSED') {
@@ -548,7 +528,7 @@ export async function checkAndCompleteDispatch(
     `${new Date().toISOString()} — CI green, mergeable, 0 unresolved review threads` +
     (mergeResult.mergeCommit ? `, commit ${mergeResult.mergeCommit}` : ''),
   );
-  const cleanup = await cleanupMergedDispatch(dispatch, { runner, repoRoot, reaper: opts.reaper });
+  const cleanup = await cleanupMergedDispatch(dispatch, { runner, reaper: opts.reaper });
   return { outcome: 'merged', mergeCommit: mergeResult.mergeCommit, cleanup };
 }
 

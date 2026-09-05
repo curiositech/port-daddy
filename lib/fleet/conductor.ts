@@ -99,10 +99,14 @@ export const LAUNCH_TERMINAL_STATES: ReadonlyArray<LaunchState> = [
 ];
 
 /**
- * The unified intent. `dispatch`/`sortie`/`fleet`/`orchestrator`/`nightshift`/
- * agent-recursion construct this with different defaults; they no longer spawn.
+ * The Conductor admission intent. Dispatch and reactive orchestration request
+ * autonomous execution explicitly; operator sorties and continuations default
+ * to manual. Fleet-engine and Tube-recursion paths still have separate admission
+ * contracts and must not be mistaken for Conductor-witnessed lineage.
  */
 export interface LaunchIntent {
+  /** Requested managed CLI authority; default is manual, never inferred from confinement. */
+  executionIntent?: import('../spawner/backends/managed-cli-launch-policy.js').ManagedCliExecutionIntent;
   // identity & lineage (Conductor-stamped; a caller MAY NOT forge depth) —
   /** Top-of-tree operator launch id. If omitted, this launch IS a root. */
   rootId?: string;
@@ -792,6 +796,7 @@ export function createConductor(deps: ConductorDeps) {
       task: intent.task ?? intent.goal,
     };
     if (intent.model != null) spec.model = intent.model;
+    if (intent.executionIntent != null) spec.executionIntent = intent.executionIntent;
     if (intent.modelTier != null) spec.modelTier = intent.modelTier;
     if (intent.identity != null) spec.identity = intent.identity;
     if (intent.purpose != null) spec.purpose = intent.purpose;
@@ -888,8 +893,8 @@ export function createConductor(deps: ConductorDeps) {
       // leaked reservations wall off the lineage/global ceiling and every
       // subsequent dispatch is refused with LINEAGE_BUDGET_CONSERVED /
       // GLOBAL_BREAKER. Mirror the isMainCheckout release below and the
-      // spawn-threw handler: release the reservation, settle the row `'failed'`,
-      // and return a failed LaunchResult rather than throwing.
+      // spawn-threw handler: release the reservation. Preserve as `'salvage'`
+      // because a failed mint proves no cleanup ownership over an existing path.
       try {
         workdir = await mintWorktree(admitted, intent);
       } catch (err) {
@@ -897,7 +902,8 @@ export function createConductor(deps: ConductorDeps) {
           breaker.release(lineageScope(admitted.rootId), reserved);
           breaker.release(GLOBAL_SCOPE, reserved);
         }
-        setState(admitted.id, 'failed', {
+        // Mint failure proves no cleanup ownership; preserve any existing path.
+        setState(admitted.id, 'salvage', {
           errorMessage: `mintWorktree failed: ${err instanceof Error ? err.message : String(err)}`,
           settledAt: now(),
         });

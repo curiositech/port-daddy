@@ -623,6 +623,36 @@ See `references/git-discipline-internal.md` for port-daddy-specific
 extensions (release-tag immutability, the v-prefix convention, the brew
 formula update protocol).
 
+## Managed CLI Contributor Invariants
+
+`lib/spawner/backends/managed-cli-launch-policy.ts` owns provider capability and
+execution-intent translation. Never infer autonomous authority from Coast Guard
+configuration: native bypass/yolo flags require explicit autonomous intent and
+an actual `withCoastGuard` result with `confined === true` before child spawn.
+Manual means native permission defaults, never automatic approval review.
+Dispatch previews contain semantic intent, never executable argv or a fabricated
+wrapper. Remove raw dispatch execution and ambient GitHub publication fallbacks;
+without a wired App publisher, record attention and preserve local work.
+Reactive rules preserve explicit intent. executionIntent is the sole contract;
+permissionMode is removed. Reject hook options on non-Claude effective providers.
+Install requested Claude hooks only after actual
+wrapper admission; setup failure blocks launch and malformed settings bytes remain
+untouched. Do not imply Codex/agy HITL hooks. Blocked adapters must be unselectable,
+not labelled as fixable by login or installation.
+Pin fresh and native-resume argv, rejected-proof cleanup, and direct/Tube Claude
+alias parity (tools, hooks, cwd, caller environment, inherited-key scrubbing).
+Keep scratch allocation after policy validation and preserve both primary and
+cleanup failures. Never add the installed skill catalog to worker prompts.
+Codex requires last-wins `skills.include_instructions=false`; Claude and agy
+require `--disable-slash-commands` even on resume. Dynamic selection authority
+is PD Jury-rig/caller-selected guidance, not native skills. Arbitrary caller
+prompts do not prove a selection receipt; guidance attachment and native
+suppression are distinct. Gemini CLI remains blocked in readiness and execution
+until a policy-preserving settings overlay is proven; Groq/Grok fail
+closed for unverified/unsupported contracts. Never erase existing system policy.
+Help/parse probes and fake binaries establish argv contracts, not paid-model,
+confinement, transcript-parser, or installed-daemon runtime conformance.
+
 ## Fleet Model Tiers (never choose from memory)
 
 Every Workers AI model decision — a ship's tier, a purser step model, a new

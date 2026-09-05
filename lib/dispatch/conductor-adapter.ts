@@ -9,7 +9,8 @@
  * `RunnerPlan` to a `LaunchIntent` and calls `conductor.launch(intent)` — so a
  * dispatch is now bond-gated, ceiling-gated, depth-capped, halt-able, and
  * capability-scoped exactly like every other launch, and the Conductor owns the
- * worktree mint, cost pricing, and draft-PR publish via its hooks.
+ * worktree mint and cost pricing. Its publication hook refuses with attention
+ * until an authorized App publisher is wired, preserving local work in salvage.
  *
  * The two interfaces map 1:1, which is the whole reason the fold-in is an
  * injection rather than a rewrite:
@@ -42,6 +43,7 @@ export function planToLaunchIntent(plan: RunnerPlan): LaunchIntent {
   return {
     goal: d.goal,
     backend: plan.backend,
+    executionIntent: plan.executionIntent,
     source: 'dispatch',
     model: plan.model,
 
@@ -83,8 +85,8 @@ export function planToLaunchIntent(plan: RunnerPlan): LaunchIntent {
  * The `tubeClient`/`costFn` on the SpawnAdapterInput are intentionally unused
  * here: the Conductor owns tube publishing (via the forwarded `tubeChannel` on
  * the spawn spec) and cost pricing (via its own `readCost`), so the dispatch
- * layer no longer needs to thread them through. They remain on the interface
- * for the legacy inline adapter and CLI foreground path.
+ * layer no longer needs to thread them through. The raw inline adapter and
+ * foreground execution path have been removed.
  */
 export function createConductorSpawnAdapter(conductor: ConductorLike): SpawnAdapter {
   return async function conductorSpawnAdapter(
@@ -168,6 +170,7 @@ export function createConductorSpawnAdapter(conductor: ConductorLike): SpawnAdap
     const launchState = r.launch.state;
     switch (launchState) {
       case 'halted':
+      case 'salvage':
         // Operator halt landed on this launch → preserve the worktree/transcript
         // for the operator to salvage rather than discarding it as a failure.
         return {

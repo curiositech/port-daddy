@@ -245,6 +245,12 @@ describe('per-area judgments', () => {
     expect(card.repair.command).toBe('claude');
   });
 
+  test('blocked adapters never present login as a cure', () => {
+    const card = assessProviderKeys([{ backend: 'cli:grok', status: 'blocked', nextStep: 'do not execute' }]);
+    expect(card.repair.command).toBe('pd backend list');
+    expect(card.repair.description).toContain('cannot be repaired by login');
+  });
+
   test('launchableUnverified counts as launchable (matches spawn preflight)', () => {
     const card = assessProviderKeys([{ backend: 'cli:claude-code', status: 'manual_check', launchableUnverified: true }]);
     expect(card.status).toBe('ok');

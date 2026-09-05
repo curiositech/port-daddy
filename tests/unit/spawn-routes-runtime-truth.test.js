@@ -128,6 +128,38 @@ describe('spawn route effective runtime truth with real preflight', () => {
     if (tmp) rmSync(tmp, { recursive: true, force: true });
   });
 
+  test.each([{ permissionMode: 'acceptEdits' }, { injectSquidHooks: true }])('non-Claude route rejects Claude-only option %j', async option => {
+    const app = await buildApp({ transcripts, costTracker: makeCostTracker() });
+    try {
+      const response = await app.inject({ method: 'POST', url: '/spawn', payload: { backend: 'cli:codex', task: 'x', budgetUsd: 1, identity: 'port-daddy:test:claude-only-option', ...option } });
+      expect(response.statusCode).toBe(400);
+      expect(response.json().error).toMatch(/supported only by Claude CLI aliases|permissionMode was removed/);
+      expect(mockSpawnViaCliTube).not.toHaveBeenCalled();
+    } finally { await app.close(); }
+  });
+
+  test.each([
+    ['cli:claude-code', 'codex', 400],
+    ['cli:codex', 'claude-code', 200],
+  ])('hook support follows effective backend: requested=%s forced=%s', async (backend, forced, status) => {
+    process.env.PD_USE_CLI_BACKEND = forced;
+    installFakeCli(tmp, 'claude');
+    const app = await buildApp({ transcripts, costTracker: makeCostTracker() });
+    try {
+      const response = await app.inject({ method: 'POST', url: '/spawn', payload: {
+        backend, task: 'x', budgetUsd: 1, identity: 'port-daddy:test:forced-hook', workdir: tmp, injectSquidHooks: true,
+      } });
+      expect(response.statusCode).toBe(status);
+      if (status === 400) {
+        expect(response.json().error).toContain('supported only by Claude CLI aliases');
+        expect(mockSpawnViaCliTube).not.toHaveBeenCalled();
+      } else {
+        expect(mockSpawnViaCliTube.mock.calls[0][0].cli).toBe('claude-code');
+        expect(mockSpawnViaCliTube.mock.calls[0][0].beforeChildLaunch).toEqual(expect.any(Function));
+      }
+    } finally { await app.close(); }
+  });
+
   test('forced cli:codex route keeps requested high-tier model and effective codex sentinel', async () => {
     const requestedHighModel = resolveModel({ backend: 'claude', tier: 'high' });
     const costTracker = makeCostTracker();
@@ -203,14 +235,17 @@ describe('spawn route effective runtime truth with real preflight', () => {
       const guarded = await app.inject({
         method: 'POST',
         url: '/spawn',
-        payload: { backend: 'claude', task: 'guarded completion', identity: 'port-daddy:test:cli-tube-receipt', budgetUsd: 0.75 },
+        payload: { backend: 'claude', task: 'guarded completion', identity: 'port-daddy:test:cli-tube-receipt', budgetUsd: 0.75, executionIntent: 'autonomous' },
       });
       expect(guarded.statusCode).toBe(200);
+      expect(guarded.json().executionIntent).toBe('autonomous');
+      expect(mockSpawnViaCliTube.mock.calls.at(-1)[0].executionIntent).toBe('autonomous');
 
       const guardedHistory = await app.inject({ method: 'GET', url: '/spawn' });
       const guardedAgent = guardedHistory.json().agents.find((agent) => agent.agentId === guarded.json().agentId);
       expect(guardedAgent).toEqual(expect.objectContaining({
         status: 'completed',
+        executionIntent: 'autonomous',
         coastGuard: expect.objectContaining({
           mechanism: 'seatbelt',
           egress: { requests: 4, bytes: 1280, blocked: 1, injected: 0 },

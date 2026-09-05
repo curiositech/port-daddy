@@ -48,8 +48,8 @@ describe('harness continuation conformance matrix', () => {
       adapterFamilies: 17,
       paths: 289,
       nativePaths: 4,
-      handoffPaths: 285,
-      unsupportedPaths: 0,
+      handoffPaths: 268,
+      unsupportedPaths: 17,
       witnessedPaths: 0,
     });
     expect(report.compatibility.find((cell) => (

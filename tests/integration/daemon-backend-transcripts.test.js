@@ -306,7 +306,7 @@ describe('daemon backend transcript E2E smoke', () => {
       });
       expect(spawned.ok).toBe(true);
       const args = readFileSync(argvFile, 'utf8').trimEnd().split('\n');
-      expect(args).toContain('--approve-for-me');
+      expect(args).not.toContain('--approve-for-me');
       expect(args).not.toContain('--dangerously-bypass-approvals-and-sandbox');
       expect(args).toContain('skills.include_instructions=false');
 

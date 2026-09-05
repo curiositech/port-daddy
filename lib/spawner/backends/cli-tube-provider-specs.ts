@@ -1,6 +1,5 @@
 import { normalizeNativeHarnessSessionId } from '../../harness-session-id.js';
-
-export type CliTubePermissionMode = 'default' | 'acceptEdits' | 'bypassPermissions';
+import { createManagedCliLaunchPolicy, resolveManagedCliExecutionIntent, type ManagedCliLaunchPolicy, type ManagedCliProvider, type ManagedCliExecutionIntent } from './managed-cli-launch-policy.js';
 
 export interface CliTubeBuildArgsInput {
   prompt: string;
@@ -8,12 +7,15 @@ export interface CliTubeBuildArgsInput {
   /** Codex fresh-run working root; native resume uses the bound child cwd. */
   cwd?: string;
   model?: string;
-  permissionMode?: CliTubePermissionMode;
+  executionIntent?: ManagedCliExecutionIntent;
   codexConfig?: string[];
   timeoutMs?: number;
   resumeSessionId?: string;
-  /** Request external confinement; the launcher must prove its wrapper before spawn. */
-  externalConfinement?: boolean;
+  /** Shared permission/disclosure policy; wrapper proof is required before spawn. */
+  launchPolicy?: ManagedCliLaunchPolicy;
+  /** Direct Claude CLI retains its exact JSON usage parser. */
+  claudeOutputFormat?: 'json' | 'stream-json';
+  allowedTools?: string;
 }
 
 export interface CliTubeBuildArgsResult {
@@ -135,13 +137,9 @@ export const CLI_TUBE_PROVIDER_SPECS = defineCliTubeProviderRegistry({
     emptySuccess: 'allow',
   },
   agy: {
-    // NOT STREAMED, deliberately (2026-08-23). Every other lane in this file
-    // either has a documented per-event JSON format (claude-code's stream-json,
-    // codex's --json) or falls back to whole-output print mode. Antigravity
-    // documents no streaming format, and inventing a parser for an undocumented
-    // one is how a lane silently drops turns — which is worse than an honest
-    // batch lane, because a partial stream LOOKS live. When agy publishes one,
-    // this becomes an argStyle change plus a mapper, exactly like the other two.
+    // Installed agy 1.1.19 documents stream-json, but PD has no verified event
+    // mapper for it yet. Keep capture honestly batch-only until that parser is
+    // fixture-proven; documented provider support is not PD live-stream support.
     defaultBinary: 'agy',
     binaryEnvOverride: 'PD_CLI_AGY_BIN',
     authNextStep: 'Run `agy --print "hello"` once interactively to confirm authentication.',
@@ -211,25 +209,29 @@ function buildCliTubeArgsFromSpec(
   input: CliTubeBuildArgsInput,
 ): CliTubeBuildArgsResult {
   const resumeSessionId = normalizeResumeSessionId(spec.id, input.resumeSessionId);
+  if ('permissionMode' in input) throw new Error('permissionMode was removed; use executionIntent');
+  const policy = input.launchPolicy ?? createManagedCliLaunchPolicy(spec.id as ManagedCliProvider, false,
+    resolveManagedCliExecutionIntent(input.executionIntent));
+  if (policy.provider !== spec.id) throw new Error('Managed CLI policy/provider mismatch');
+  if (resumeSessionId && !policy.capabilities.nativeResume) throw new Error(`${spec.id} does not expose native session resume`);
   switch (spec.argStyle.kind) {
     case 'claude-stream-json': {
-      const args = resumeSessionId
-        ? ['--resume', resumeSessionId, '-p', '--output-format', 'stream-json', '--verbose']
-        : ['-p', '--output-format', 'stream-json', '--verbose'];
+      const format = input.claudeOutputFormat ?? 'stream-json';
+      const args = resumeSessionId ? ['--resume', resumeSessionId] : [];
+      args.push('-p', '--disable-slash-commands', '--output-format', format);
+      if (format === 'stream-json') args.push('--verbose');
+      args.push(...policy.permissionArgs);
       pushModelArg(args, spec, input.model);
-      if (input.permissionMode) args.push('--permission-mode', input.permissionMode);
+      if (input.allowedTools) args.push('--allowedTools', input.allowedTools);
       args.push(input.prompt);
       return { args, stdin: null };
     }
     case 'codex-exec-json': {
       // One policy flag only. External mode is admitted by the launcher only
       // after Coast Guard confirms a real OS confinement wrapper.
-      const approvalFlag = input.externalConfinement
-        ? '--dangerously-bypass-approvals-and-sandbox'
-        : '--approve-for-me';
       const args = resumeSessionId
-        ? ['exec', approvalFlag, 'resume', '--skip-git-repo-check', '--json']
-        : ['exec', '--skip-git-repo-check', approvalFlag, '--json'];
+        ? ['exec', ...policy.permissionArgs, 'resume', '--skip-git-repo-check', '--json']
+        : ['exec', '--skip-git-repo-check', ...policy.permissionArgs, '--json'];
       if (input.cwd && !resumeSessionId) args.push('-C', input.cwd);
       if (input.outputPath) args.push('--output-last-message', input.outputPath);
       pushModelArg(args, spec, input.model);
@@ -245,6 +247,8 @@ function buildCliTubeArgsFromSpec(
     }
     case 'print': {
       const args = resumeSessionId ? ['--conversation', resumeSessionId, '--print'] : ['--print'];
+      args.push('--disable-slash-commands');
+      args.push(...policy.permissionArgs);
       pushModelArg(args, spec, input.model);
       if (input.timeoutMs && Number.isFinite(input.timeoutMs) && input.timeoutMs > 0) {
         args.push(spec.argStyle.timeoutFlag, `${Math.max(1, Math.ceil(input.timeoutMs / 1000))}s`);
@@ -257,6 +261,7 @@ function buildCliTubeArgsFromSpec(
         throw new Error(`${spec.id} does not expose native session resume`);
       }
       const args = resumeSessionId ? ['--resume', resumeSessionId, '-p'] : ['-p'];
+      args.push(...policy.permissionArgs);
       pushModelArg(args, spec, input.model);
       args.push(input.prompt);
       return { args, stdin: null };

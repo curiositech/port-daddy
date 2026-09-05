@@ -12,9 +12,10 @@
  * THE FIX (mirrors the sortie model, where POST /sorties runs server-side via
  * the daemon): a background poll loop INSIDE the daemon process. It finds
  * claimable (`proposed`) dispatches, claims them atomically, and runs them via
- * `runClaimedDispatch(queue, dispatch, { spawnAdapter: defaultSpawnAdapter })`
+ * `runClaimedDispatch` with a required injected Conductor-backed adapter
  * — fully detached from any CLI. Bounded concurrency so it can drain a queue
- * overnight without overrunning the box. On completion it reaps the worktree.
+ * overnight without overrunning the box. Salvage preserves local work, including
+ * refused mint identity and missing App publication authority.
  *
  * Lifecycle (per dispatch), driven entirely server-side:
  *   proposed → (worker claims) claimed → (adapter) in_progress → produced →
@@ -36,7 +37,7 @@ import {
   type FailoverOptions,
   type SuccessorRequest,
 } from './runner.js';
-import { defaultSpawnAdapter, reapWorktree } from './spawn-adapter.js';
+import { reapWorktree } from './worktree-cleanup.js';
 import type { TubeClientLike } from '../spawner/backends/cli-tube.js';
 import type { DispatchQueue, Dispatch } from './queue.js';
 import type { WorkIntentService } from '../agent-harbor/work-intent-service.js';
@@ -55,16 +56,15 @@ export interface DispatchWorkerOptions {
   /** Poll cadence in ms. Default 5000. */
   pollIntervalMs?: number;
   /**
-   * The spawn adapter that actually runs the backend in a worktree. Defaults to
-   * the real `defaultSpawnAdapter`. Injectable for tests so no real subprocess
-   * is started.
+   * Required Conductor-backed launch adapter. There is no raw CLI fallback.
+   * Tests may inject a semantic fake that performs no actual child launch.
    */
   spawnAdapter?: SpawnAdapter;
   /**
    * Worktree reaper, run after each dispatch reaches a terminal state. Defaults
    * to the real `reapWorktree`. Injectable for tests.
    */
-  reaper?: (worktreePath: string) => Promise<void>;
+  reaper?: typeof reapWorktree;
   /**
    * Daemon-wide DEFAULT backend, used only when a dispatch does not name one.
    *
@@ -141,7 +141,7 @@ export class DispatchWorker {
   private readonly maxConcurrency: number;
   private readonly pollIntervalMs: number;
   private readonly spawnAdapter: SpawnAdapter;
-  private readonly reaper: (worktreePath: string) => Promise<void>;
+  private readonly reaper: typeof reapWorktree;
   private readonly backend: RunnerOptions['backend'];
   private readonly remote: string;
   private readonly model: string | undefined;
@@ -166,7 +166,8 @@ export class DispatchWorker {
     this.logger = opts.logger ?? noopLogger;
     this.maxConcurrency = Math.max(1, opts.maxConcurrency ?? 2);
     this.pollIntervalMs = Math.max(500, opts.pollIntervalMs ?? 5000);
-    this.spawnAdapter = opts.spawnAdapter ?? defaultSpawnAdapter;
+    if (!opts.spawnAdapter) throw new Error('Dispatch worker requires a Conductor-backed launch adapter; raw CLI execution is unavailable');
+    this.spawnAdapter = opts.spawnAdapter;
     this.reaper = opts.reaper ?? reapWorktree;
     this.backend = opts.backend;
     this.remote = opts.remote ?? 'origin';
@@ -459,7 +460,7 @@ export class DispatchWorker {
       } else {
         // Best-effort; never throws out.
         try {
-          await this.reaper(worktreePath);
+          await this.reaper(worktreePath, claimed.projectDir, { expectedBranch: claimed.branch });
         } catch (err) {
           this.logger.warn('dispatch_worker_reap_failed', {
             id: idShort,

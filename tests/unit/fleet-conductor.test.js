@@ -28,6 +28,7 @@ import { describe, expect, test, beforeEach, jest } from '@jest/globals';
 import Database from 'better-sqlite3';
 
 import { createConductor } from '../../lib/fleet/conductor.js';
+import { requireGitHubAppPublisher } from '../../lib/dispatch/conductor-lifecycle.js';
 import { createFleetCircuitBreaker, GLOBAL_SCOPE } from '../../lib/fleet/circuit-breaker.js';
 
 // ─── Fakes ───────────────────────────────────────────────────────────────────
@@ -752,9 +753,9 @@ describe('settlement & lifecycle', () => {
   // FIX 1 (CRITICAL, I4/I5): an unguarded `await mintWorktree` leaks the breaker
   // reservation. A `worktree:'create'` launch whose mint throws (real
   // gitWorktreeAdd can fail: branch exists, stale .git/worktrees lock, full disk,
-  // slow NFS) must release the reservation and settle the row `'failed'` — NOT
+  // slow NFS) must release the reservation and preserve the row `'salvage'` — NOT
   // throw out of launch() leaving the row `'admitted'` and the bond walled off.
-  test('worktree:create whose mintWorktree throws releases the reservation and fails the row (no leak)', async () => {
+  test('worktree:create whose mintWorktree throws releases the reservation and preserves salvage (no leak)', async () => {
     const { conductor, breaker } = makeConductor({
       // The mint hook throws exactly like a wedged `git worktree add` would.
       mintWorktree: () => { throw new Error('git worktree add: branch already exists'); },
@@ -765,12 +766,12 @@ describe('settlement & lifecycle', () => {
       bondUsd: 5,
       lineageCeilingUsd: 10,
     });
-    // The launch does NOT throw; it returns a failed LaunchResult.
+    // The launch does NOT throw; it returns a salvage LaunchResult.
     expect(res.admitted).toBe(true);
     expect(res.spawn).toBeNull();
-    // The row is settled `'failed'`, not stuck at `'admitted'`.
-    expect(res.launch.state).toBe('failed');
-    expect(conductor.get(res.launch.id).state).toBe('failed');
+    // The row is preserved as `'salvage'`, not stuck at `'admitted'`.
+    expect(res.launch.state).toBe('salvage');
+    expect(conductor.get(res.launch.id).state).toBe('salvage');
     expect(res.launch.errorMessage).toMatch(/mintWorktree failed/);
     // CRITICAL: the $5 reservation was released back to the lineage scope. With
     // the leak, $5 stays reserved and a fresh $10 reserve (5+10 > 10) is refused.
@@ -800,7 +801,7 @@ describe('settlement & lifecycle', () => {
     const first = await conductor.launch({
       ...ROOT_INTENT, worktree: 'create', bondUsd: 5, lineageCeilingUsd: 5,
     });
-    expect(first.launch.state).toBe('failed');
+    expect(first.launch.state).toBe('salvage');
     // If the first reservation leaked, the global breaker is at $5/$5 and this
     // second $5 launch is refused (GLOBAL_BREAKER). With the fix, it is admitted.
     const second = await conductor.launch({
@@ -1119,6 +1120,15 @@ describe('ADR-0060 dispatch fold-in — mintWorktree + publishArtifact', () => {
     expect(res.launch.state).toBe('failed');
     expect(publishArtifact).not.toHaveBeenCalled();
     expect(res.launch.resultArtifact).toBeNull();
+  });
+
+  test('missing authorized App publisher preserves produced work and records the exact attention boundary', async () => {
+    const { conductor } = makeConductor({ publishArtifact: requireGitHubAppPublisher });
+    const result = await conductor.launch({ ...DISPATCH_INTENT });
+    expect(result.launch.state).toBe('produced');
+    expect(result.launch.resultArtifact).toBeNull();
+    expect(result.launch.errorMessage).toContain('GITHUB_APP_PUBLISHER_REQUIRED');
+    expect(conductor.get(result.launch.id).errorMessage).toContain('no push or PR was attempted');
   });
 
   test('a THROWING publishArtifact leaves the run produced with resultArtifact null (run NOT lost)', async () => {

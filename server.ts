@@ -81,10 +81,8 @@ import { createSpawnerHarborBridge } from './lib/agent-harbor/spawner-bridge.js'
 import { loadLatestVerifiedContextBootstrap } from './lib/agent-harbor/context-continuity.js';
 import {
   gitWorktreeAdd,
-  gitPushBranch,
-  openDraftPr,
-  disableGuardInWorktree,
-} from './lib/dispatch/spawn-adapter.js';
+  requireGitHubAppPublisher,
+} from './lib/dispatch/conductor-lifecycle.js';
 import { createCorrelationEngine } from './lib/correlation.js';
 import { createArbiter } from './lib/arbiter.js';
 import { createJsonlForensicsArchive } from './lib/forensics-archive.js';
@@ -1134,8 +1132,7 @@ const conductor = createConductor({
   // baseRef); every other launch leaves them untouched.
   mintWorktree: async (_launch, intent) => {
     // I2 NO_SPAWN_ON_MAIN is satisfied here: carve a fresh off-main worktree on
-    // the dispatch branch, then scope-disable the Coordination Guard inside it so
-    // the autonomous agent can commit without an interactive `pd begin` session.
+    // the dispatch branch. Managed session admission retains Coordination Guard.
     const dispatchShaped = intent.source === 'dispatch'
       || Boolean(intent.worktreePath || intent.worktreeBranch || intent.worktreeBaseRef);
     if (!dispatchShaped) return intent.workdir;
@@ -1148,34 +1145,12 @@ const conductor = createConductor({
     await gitWorktreeAdd(intent.worktreePath, intent.worktreeBranch, intent.worktreeBaseRef, {
       repoWorkdir: intent.workdir,
     });
-    disableGuardInWorktree(intent.worktreePath);
     return intent.worktreePath;
   },
-  publishArtifact: async (launch, intent) => {
-    // Push the dispatch branch and open a draft PR; return its URL. Runs OUTSIDE
-    // the cost breaker/bonds (Conductor guarantees this). A throw is swallowed by
-    // the Conductor (resultArtifact stays null, launch not lost), but we also
-    // catch here so the log message is dispatch-specific.
-    if (!intent.worktreePath || !intent.worktreeBranch) return null;
-    try {
-      await gitPushBranch(intent.worktreePath, intent.worktreeBranch);
-      // worktreeBaseRef is `<remote>/<branch>` (e.g. origin/main); the PR base is
-      // the branch name with the remote prefix stripped.
-      const baseRef = intent.worktreeBaseRef ?? 'origin/main';
-      const slash = baseRef.indexOf('/');
-      const baseBranch = slash >= 0 ? baseRef.slice(slash + 1) : baseRef;
-      return await openDraftPr({
-        branch: intent.worktreeBranch,
-        baseBranch,
-        goal: launch.goal,
-        dispatchId: launch.id,
-        worktreePath: intent.worktreePath,
-      });
-    } catch (e) {
-      console.error('[Conductor] dispatch PR publish failed:', e);
-      return null;
-    }
-  },
+  // Conductor records this typed attention error on the produced launch;
+  // dispatch maps absent publication to salvage and preserves the worktree.
+  // Scoped token minting alone is not a wired App publisher. Never use ambient gh.
+  publishArtifact: requireGitHubAppPublisher,
 });
 // ARM I5: register the GLOBAL ceiling so aggregate fleet spend is bounded. Without
 // this the global breaker has a null ceiling = unbounded and never trips.
@@ -1278,7 +1253,7 @@ const DISPATCH_AUTOMERGE_POLL_MS = Number.isFinite(_autoMergePollMs) && _autoMer
 let autoMergeTimer: ReturnType<typeof setInterval> | null = null;
 if (DISPATCH_AUTOMERGE_ENABLED) {
   const tick = () => {
-    runAutoMergeSweep(dispatchQueue, { repoRoot: REPO_ROOT }).then((result) => {
+    runAutoMergeSweep(dispatchQueue).then((result) => {
       if (result.merged.length > 0 || result.errors.length > 0) {
         logger.info('dispatch_auto_merge_sweep', {
           checked: result.checked,

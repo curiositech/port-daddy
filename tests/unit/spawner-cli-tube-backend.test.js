@@ -66,6 +66,7 @@ const {
   CLI_TUBE_TOOLS,
 } = await import('../../lib/spawner/backends/cli-tube.js');
 const { captureWorkspaceIdentity } = await import('../../lib/workspace-identity.js');
+const RUNNABLE_CLI_TOOLS = ['claude-code', 'codex', 'agy'];
 
 // Helper: build a fake ChildProcess that we can drive from the test.
 // `stdout` may be a string (emitted as one chunk) or an array of strings
@@ -207,14 +208,14 @@ describe('buildArgs', () => {
   test('agy uses --print with no model flag by default', () => {
     const { args, stdin } = buildArgs('agy', 'hello agy');
     expect(stdin).toBeNull();
-    expect(args).toEqual(['--print', 'hello agy']);
+    expect(args).toEqual(['--print', '--disable-slash-commands', 'hello agy']);
   });
 
   test.each(['agy-cli', 'agy-default', 'agy', 'default', 'cli'])(
     'agy drops placeholder/sentinel model %s instead of forwarding --model',
     (sentinel) => {
       const { args } = buildArgs('agy', 'hi', undefined, sentinel);
-      expect(args).toEqual(['--print', 'hi']);
+      expect(args).toEqual(['--print', '--disable-slash-commands', 'hi']);
       expect(args).not.toContain('--model');
       expect(args).not.toContain(sentinel);
     },
@@ -224,6 +225,7 @@ describe('buildArgs', () => {
     const { args } = buildArgs('agy', 'hi', undefined, 'real-agy-model', undefined, undefined, 1234);
     expect(args).toEqual([
       '--print',
+      '--disable-slash-commands',
       '--model', 'real-agy-model',
       '--print-timeout', '2s',
       'hi',
@@ -234,7 +236,7 @@ describe('buildArgs', () => {
     const { args } = buildArgs('codex', 'hello');
     expect(args[0]).toBe('exec');
     expect(args).toContain('--skip-git-repo-check');
-    expect(args).toContain('--approve-for-me');
+    expect(args).not.toContain('--approve-for-me');
     expect(args).not.toContain('--full-auto');
     expect(args).not.toContain('--sandbox');
     expect(args).toContain('--json');
@@ -243,16 +245,15 @@ describe('buildArgs', () => {
   test('codex resume places the parent-only approval flag before the subcommand', () => {
     const sessionId = '22222222-2222-4222-8222-222222222222';
     const { args } = buildArgs('codex', 'continue', undefined, undefined, undefined, undefined, undefined, sessionId);
-    expect(args.slice(0, 3)).toEqual(['exec', '--approve-for-me', 'resume']);
+    expect(args.slice(0, 2)).toEqual(['exec', 'resume']);
     expect(args).toContain(sessionId);
     expect(args).not.toContain('--full-auto');
   });
 
   test.each([
     ['claude-code', '11111111-1111-4111-8111-111111111111', ['--resume', '11111111-1111-4111-8111-111111111111', '-p'], []],
-    ['codex', '22222222-2222-4222-8222-222222222222', ['exec', '--approve-for-me', 'resume', '22222222-2222-4222-8222-222222222222'], ['--sandbox', 'workspace-write', '--full-auto']],
+    ['codex', '22222222-2222-4222-8222-222222222222', ['exec', 'resume', '22222222-2222-4222-8222-222222222222'], ['--approve-for-me', '--sandbox', 'workspace-write', '--full-auto']],
     ['agy', '33333333-3333-4333-8333-333333333333', ['--conversation', '33333333-3333-4333-8333-333333333333', '--print'], []],
-    ['gemini', '44444444-4444-4444-8444-444444444444', ['--resume', '44444444-4444-4444-8444-444444444444', '-p'], []],
   ])('%s builds native-resume argv without replaying another harness shape', (cli, sessionId, expected, forbidden) => {
     const { args } = buildArgs(cli, 'continue', undefined, undefined, undefined, undefined, undefined, sessionId);
     expect(args).toEqual(expect.arrayContaining(expected));
@@ -262,12 +263,12 @@ describe('buildArgs', () => {
 
   test('rejects native resume for prompt-only wrappers and unsafe session ids', () => {
     expect(() => buildArgs('groq', 'continue', undefined, undefined, undefined, undefined, undefined, 'session-1'))
-      .toThrow(/does not expose native session resume/);
+      .toThrow(/native skill suppression/);
     expect(() => buildArgs('gemini', 'continue', undefined, undefined, undefined, undefined, undefined, 'bad\nsession'))
       .toThrow(/safe non-empty harness identifier/);
   });
 
-  test.each(['claude-code', 'codex', 'agy', 'gemini'])(
+  test.each(['claude-code', 'codex', 'agy'])(
     '%s rejects option-shaped resume identities before argv construction',
     (cli) => {
       expect(() => buildArgs(cli, 'continue', undefined, undefined, undefined, undefined, undefined, '--last'))
@@ -297,24 +298,15 @@ describe('buildArgs', () => {
       .toThrow(/Invalid Codex config override/);
   });
 
-  test.each(['gemini', 'groq', 'grok'])('%s uses -p headless flag with prompt last', (cli) => {
-    const { args } = buildArgs(cli, 'hello');
-    expect(args[0]).toBe('-p');
-    expect(args[args.length - 1]).toBe('hello');
-  });
-
-  test.each(['gemini', 'groq', 'grok'])('%s includes --model when provided', (cli) => {
-    const { args } = buildArgs(cli, 'hi', undefined, 'some-model');
-    const idx = args.indexOf('--model');
-    expect(idx).toBeGreaterThan(-1);
-    expect(args[idx + 1]).toBe('some-model');
+  test.each(['gemini', 'groq'])('%s refuses even manual argv until native catalog suppression is verified', (cli) => {
+    expect(() => buildArgs(cli, 'hello')).toThrow(/native skill suppression/);
   });
 
   test('claude-code forwards --permission-mode only when set', () => {
     // Unset → no flag (preserves the CLI's default interactive gating).
     expect(buildArgs('claude-code', 'hi').args).not.toContain('--permission-mode');
     // Set → flag with the mode, letting a spawned agent edit files non-interactively.
-    const { args } = buildArgs('claude-code', 'hi', undefined, undefined, 'acceptEdits');
+    const { args } = buildArgs('claude-code', 'hi', undefined, undefined, 'edit-only');
     const idx = args.indexOf('--permission-mode');
     expect(idx).toBeGreaterThan(-1);
     expect(args[idx + 1]).toBe('acceptEdits');
@@ -346,7 +338,34 @@ describe('CLI tube provider registry contract', () => {
 });
 
 describe('spawnViaCliTube — provider policy behavior', () => {
-  test.each(CLI_TUBE_TOOLS)('%s refuses an ordinary replaced workspace before sandbox setup', async (cli) => {
+  test.each(['claude-code', 'codex', 'agy'])('%s autonomous fresh/resume launch checks actual wrapper proof before raw spawn', async cli => {
+    for (const resumeSessionId of [undefined, '22222222-2222-4222-8222-222222222222']) {
+      for (const confined of [false, undefined, true]) {
+        mockSpawn.mockClear(); mockCoastGuardDispose.mockClear(); mockWithCoastGuard.mockClear();
+        mockWithCoastGuard.mockImplementation(async input => ({ ...input, confined, receipt: () => ({ ...mockCoastGuardReceipt, confined }), dispose: mockCoastGuardDispose }));
+        mockSpawn.mockReturnValue(fakeChild({ stdout: 'captured answer' }));
+        const result = await spawnViaCliTube({ cli, prompt: 'selected guidance only', executionIntent: 'autonomous', coastGuard: { envSource: {} }, cwd: fakeHome, workspaceIdentity: captureWorkspaceIdentity(fakeHome), resumeSessionId });
+        if (confined === true) {
+          expect(result.error).toBeNull(); expect(mockSpawn).toHaveBeenCalledTimes(1);
+          expect(mockSpawn.mock.calls[0][1].at(-1)).toBe('selected guidance only');
+        } else {
+          expect(result.error).toContain('did not establish external confinement'); expect(mockSpawn).not.toHaveBeenCalled();
+        }
+        expect(mockCoastGuardDispose).toHaveBeenCalledTimes(1);
+        if (cli === 'codex') {
+          const args = mockWithCoastGuard.mock.calls[0][0].args;
+          expect(existsSync(join(args[args.indexOf('--output-last-message') + 1], '..'))).toBe(false);
+        }
+      }
+    }
+  });
+
+  test.each(['claude-code', 'codex', 'agy'])('%s explicit autonomous mode cannot fall back when confinement is disabled', async cli => {
+    const result = await spawnViaCliTube({ cli, prompt: 'must not run', executionIntent: 'autonomous', coastGuard: { spec: { coastGuard: false }, envSource: {} } });
+    expect(result.error).toContain('autonomous launch blocked');
+    expect(mockWithCoastGuard).not.toHaveBeenCalled(); expect(mockSpawn).not.toHaveBeenCalled();
+  });
+  test.each(RUNNABLE_CLI_TOOLS)('%s refuses an ordinary replaced workspace before sandbox setup', async (cli) => {
     const workspace = join(fakeHome, 'workspace');
     mkdirSync(workspace);
     const workspaceIdentity = captureWorkspaceIdentity(workspace);
@@ -358,7 +377,7 @@ describe('spawnViaCliTube — provider policy behavior', () => {
     expect(mockSpawn).not.toHaveBeenCalled();
   });
 
-  test.each(CLI_TUBE_TOOLS)('%s rechecks ordinary workspace after sandbox preparation and cleans up', async (cli) => {
+  test.each(RUNNABLE_CLI_TOOLS)('%s rechecks ordinary workspace after sandbox preparation and cleans up', async (cli) => {
     const workspace = join(fakeHome, 'workspace');
     mkdirSync(workspace);
     const workspaceIdentity = captureWorkspaceIdentity(workspace);
@@ -377,7 +396,7 @@ describe('spawnViaCliTube — provider policy behavior', () => {
     expect(existsSync(scratch) ? readdirSync(scratch) : []).toEqual([]);
   });
 
-  test.each(CLI_TUBE_TOOLS)('%s does not launch after cancellation during sandbox preparation', async (cli) => {
+  test.each(RUNNABLE_CLI_TOOLS)('%s does not launch after cancellation during sandbox preparation', async (cli) => {
     const controller = new AbortController();
     mockWithCoastGuard.mockImplementationOnce(async (input) => {
       await Promise.resolve();
@@ -418,7 +437,7 @@ describe('spawnViaCliTube — provider policy behavior', () => {
     expect(mockSpawn).not.toHaveBeenCalled();
   });
 
-  test.each(CLI_TUBE_TOOLS)('%s auth failures include provider-specific next-step guidance', async (cli) => {
+  test.each(RUNNABLE_CLI_TOOLS)('%s auth failures include provider-specific next-step guidance', async (cli) => {
     mockSpawn.mockReturnValue(fakeChild({
       stdout: '',
       stderr: 'Error: not authenticated. Please log in.',
@@ -433,7 +452,6 @@ describe('spawnViaCliTube — provider policy behavior', () => {
     ['claude-code', 'claude-cli', '--model', 'sonnet'],
     ['codex', 'codex-cli', null, null],
     ['agy', 'agy-default', null, null],
-    ['gemini', 'gemini-2.5-pro', '--model', 'gemini-2.5-pro'],
   ])('%s model policy affects the actual spawned argv for %s', async (cli, requestedModel, expectedFlag, expectedValue) => {
     mockSpawn.mockReturnValue(fakeChild({ stdout: 'ok', exitCode: 0 }));
     await spawnViaCliTube({ cli, prompt: 'hi', model: requestedModel });
@@ -464,7 +482,7 @@ describe('spawnViaCliTube — provider policy behavior', () => {
     expect(res.output).toBe('final answer from file');
   });
 
-  test.each(CLI_TUBE_TOOLS.filter((tool) => tool !== 'codex'))(
+  test.each(RUNNABLE_CLI_TOOLS.filter((tool) => tool !== 'codex'))(
     '%s does not receive codex last-message output capture',
     async (cli) => {
       mockSpawn.mockImplementation((_binary, args) => {
@@ -535,9 +553,6 @@ describe('spawnViaCliTube — onStreamLine (live per-line buffering)', () => {
 describe('spawnViaCliTube — agy/gemini/groq/grok binaries + overrides', () => {
   test.each([
     ['agy', 'agy', 'PD_CLI_AGY_BIN'],
-    ['gemini', 'gemini', 'PD_CLI_GEMINI_BIN'],
-    ['groq', 'groq', 'PD_CLI_GROQ_BIN'],
-    ['grok', 'grok', 'PD_CLI_GROK_BIN'],
   ])('%s invokes the `%s` binary by default and honors %s', async (cli, bin, envKey) => {
     mockSpawn.mockReturnValue(fakeChild({ stdout: 'ok', exitCode: 0 }));
     const res = await spawnViaCliTube({ cli, prompt: 'say hi' });
@@ -552,11 +567,11 @@ describe('spawnViaCliTube — agy/gemini/groq/grok binaries + overrides', () => 
     expect(mockSpawn.mock.calls[1][0]).toBe(override);
   });
 
-  test('gemini maps auth-flavored stderr to an actionable error', async () => {
-    mockSpawn.mockReturnValue(fakeChild({ stderr: 'Error: not authenticated', exitCode: 1 }));
-    const res = await spawnViaCliTube({ cli: 'gemini', prompt: 'hi' });
-    expect(res.error).toMatch(/authentication failed/i);
-    expect(res.error).toMatch(/GEMINI_API_KEY/);
+  test.each(['gemini', 'groq'])('%s fails closed before wrapper or raw CLI even with a binary installed', async cli => {
+    const res = await spawnViaCliTube({ cli, prompt: 'hi' });
+    expect(res.error).toMatch(/native skill suppression/);
+    expect(mockSpawn).not.toHaveBeenCalled();
+    expect(mockWithCoastGuard).not.toHaveBeenCalled();
   });
 
   test('agy maps auth-flavored stderr to agy-specific guidance', async () => {
@@ -566,11 +581,11 @@ describe('spawnViaCliTube — agy/gemini/groq/grok binaries + overrides', () => 
     expect(res.error).toMatch(/agy --print "hello"/);
   });
 
-  test('grok ENOENT maps to install guidance', async () => {
-    const err = new Error('spawn grok ENOENT');
-    mockSpawn.mockReturnValue(fakeChild({ error: err }));
+  test('grok fails closed before attempting the unsupported proxy CLI', async () => {
     const res = await spawnViaCliTube({ cli: 'grok', prompt: 'hi' });
-    expect(res.error).toMatch(/not found on PATH/);
+    expect(res.error).toMatch(/no supported noninteractive prompt contract/);
+    expect(mockSpawn).not.toHaveBeenCalled();
+    expect(mockWithCoastGuard).not.toHaveBeenCalled();
   });
 });
 
@@ -595,6 +610,7 @@ describe('spawnViaCliTube — Coast Guard confinement (ADR-0050, default-on)', (
       cmd: '/usr/bin/sandbox-wrapper',
       args: ['--', input.cmd, ...input.args],
       env: { ...input.env, PD_TEST_CONFINED: '1' },
+      confined: true,
       receipt: () => mockCoastGuardReceipt,
       dispose: mockCoastGuardDispose,
     }));
@@ -672,6 +688,7 @@ describe('spawnViaCliTube — claude-code happy path', () => {
       cmd: '/usr/bin/sandbox-wrapper',
       args: ['--', input.cmd, ...input.args],
       env: { ...input.env, PD_TEST_CONFINED: '1' },
+      confined: true,
       receipt: () => mockCoastGuardReceipt,
       dispose: mockCoastGuardDispose,
     }));
@@ -869,6 +886,7 @@ describe('spawnViaCliTube — failure paths', () => {
       cmd: '/usr/bin/sandbox-wrapper',
       args: ['--', input.cmd, ...input.args],
       env: input.env,
+      confined: true,
       receipt: () => mockCoastGuardReceipt,
       dispose: mockCoastGuardDispose,
     }));
@@ -917,10 +935,8 @@ describe('spawnViaCliTube — failure paths', () => {
     const res = await spawnViaCliTube({ cli: 'grok', prompt: 'hi' });
 
     expect(mockSpawn).not.toHaveBeenCalled();
-    expect(res.exitCode).toBe(127);
-    expect(res.error).toContain('grok CLI binary unavailable');
-    expect(res.error).toContain('PD_CLI_GROK_BIN');
-    expect(res.error).toContain('GROK_API_KEY / XAI_API_KEY');
+    expect(res.exitCode).toBe(1);
+    expect(res.error).toContain('no supported noninteractive prompt contract');
   });
 
   test('unknown CLI tool fails gracefully before child execution', async () => {
@@ -980,14 +996,14 @@ describe('spawnViaCliTube — failure paths', () => {
     expect(res.error).toContain('agy --print "hello"');
   });
 
-  test.each(['claude-code', 'codex', 'gemini'])('%s exit 0 with no output remains successful (agy-only no-output policy)', async (cli) => {
+  test.each(['claude-code', 'codex'])('%s exit 0 with no output remains successful (agy-only no-output policy)', async (cli) => {
     mockSpawn.mockReturnValue(fakeChild({ stdout: '', stderr: '', exitCode: 0 }));
     const res = await spawnViaCliTube({ cli, prompt: 'hi' });
     expect(res.exitCode).toBe(0);
     expect(res.error).toBeNull();
   });
 
-  test.each(['claude-code', 'codex', 'gemini', 'groq', 'grok'])('%s empty success is not contaminated by agy no-output policy', async (cli) => {
+  test.each(['claude-code', 'codex'])('%s empty success is not contaminated by agy no-output policy', async (cli) => {
     mockSpawn.mockReturnValue(fakeChild({ stdout: '', stderr: '', exitCode: 0 }));
     const res = await spawnViaCliTube({ cli, prompt: 'hi' });
     expect(res.exitCode).toBe(0);
@@ -1472,11 +1488,32 @@ describe('createCliTubeBackend', () => {
 });
 
 describe('spawnViaCliTube — codex shape', () => {
-  test.each(CLI_TUBE_TOOLS.filter((tool) => tool !== 'codex'))(
+  test.each([0, 1])('wrapper cleanup error is retained after child exit %s', async exitCode => {
+    mockSpawn.mockReturnValue(fakeChild({ stdout: 'primary output', stderr: exitCode ? 'primary failure' : '', exitCode }));
+    mockCoastGuardDispose.mockImplementationOnce(() => { throw new Error('wrapper disposal failure'); });
+    const result = await spawnViaCliTube({ cli: 'codex', prompt: 'x' });
+    expect(result.error).toContain('wrapper disposal failure');
+    if (exitCode) expect(result.error).toContain('primary failure');
+    expect(result.output).toBe('primary output');
+    expect(mockCoastGuardDispose).toHaveBeenCalledTimes(1);
+  });
+
+  test.each([undefined, '22222222-2222-4222-8222-222222222222'])('Codex actual fresh/resume %s binds exact child cwd and fresh-only -C', async resumeSessionId => {
+    mockSpawn.mockReturnValue(fakeChild({ stdout: 'answer' }));
+    const cwd = fakeHome;
+    const { captureWorkspaceIdentity } = await import('../../lib/workspace-identity.js');
+    const result = await spawnViaCliTube({ cli: 'codex', prompt: 'x', cwd, resumeSessionId, workspaceIdentity: captureWorkspaceIdentity(cwd) });
+    expect(result.error).toBeNull();
+    const [, args, options] = mockSpawn.mock.calls[0];
+    expect(options.cwd).toBe(cwd);
+    expect(args.includes('-C')).toBe(!resumeSessionId);
+    if (!resumeSessionId) expect(args[args.indexOf('-C') + 1]).toBe(cwd);
+  });
+  test.each(['claude-code', 'agy'])(
     '%s never receives Codex-only overrides or working-directory flags', (tool) => {
       const { args } = CLI_TUBE_PROVIDER_SPECS[tool].buildArgs({
         prompt: 'unchanged task', cwd: '/workspace',
-        codexConfig: ['skills.include_instructions=true'], externalConfinement: true,
+        codexConfig: ['skills.include_instructions=true'],
       });
       expect(args.some((arg) => arg.includes('skills.include_instructions'))).toBe(false);
       expect(args).not.toContain('--dangerously-bypass-approvals-and-sandbox');
@@ -1503,6 +1540,7 @@ describe('spawnViaCliTube — codex shape', () => {
       });
       const res = await spawnViaCliTube({
         cli: 'codex', prompt: 'unchanged task', model: 'gpt-5.4-mini',
+        executionIntent: 'autonomous',
         codexConfig: ['skills.include_instructions=true', 'model_reasoning_effort="high"'],
         cwd: fakeHome, resumeSessionId,
         workspaceIdentity: captureWorkspaceIdentity(fakeHome),
@@ -1541,7 +1579,7 @@ describe('spawnViaCliTube — codex shape', () => {
     const res = await spawnViaCliTube({ cli: 'codex', prompt: 'task', coastGuard });
     expect(res.error).toBeNull();
     const args = mockSpawn.mock.calls[0][1];
-    expect(args).toContain('--approve-for-me');
+    expect(args).not.toContain('--approve-for-me');
     expect(args).not.toContain('--dangerously-bypass-approvals-and-sandbox');
     expect(args).toContain('skills.include_instructions=false');
   });
@@ -1552,7 +1590,7 @@ describe('spawnViaCliTube — codex shape', () => {
       receipt: () => ({ ...mockCoastGuardReceipt, confined: false }),
       dispose: mockCoastGuardDispose,
     }));
-    const res = await spawnViaCliTube({ cli: 'codex', prompt: 'task', coastGuard: { envSource: {} } });
+    const res = await spawnViaCliTube({ cli: 'codex', prompt: 'task', executionIntent: 'autonomous', coastGuard: { envSource: {} } });
     expect(res.error).toContain('did not establish external confinement');
     expect(mockSpawn).not.toHaveBeenCalled();
     expect(mockCoastGuardDispose).toHaveBeenCalledTimes(1);
@@ -1578,16 +1616,16 @@ describe('spawnViaCliTube — binary override scoping + PATH parity', () => {
   test('per-spawn opts.env cannot override the binary (operator process.env only)', async () => {
     mockSpawn.mockReturnValue(fakeChild({ stdout: 'ok', exitCode: 0 }));
     await spawnViaCliTube({
-      cli: 'gemini',
+      cli: 'agy',
       prompt: 'hi',
-      env: { PD_CLI_GEMINI_BIN: '/attacker/controlled/binary' },
+      env: { PD_CLI_AGY_BIN: '/attacker/controlled/binary' },
     });
-    expect(mockSpawn.mock.calls[0][0]).toBe(join(fakeHome, '.local', 'bin', 'gemini'));
+    expect(mockSpawn.mock.calls[0][0]).toBe(join(fakeHome, '.local', 'bin', 'agy'));
   });
 
   test('child PATH is augmented with the per-user install dirs readiness checks', async () => {
     mockSpawn.mockReturnValue(fakeChild({ stdout: 'ok', exitCode: 0 }));
-    await spawnViaCliTube({ cli: 'groq', prompt: 'hi' });
+    await spawnViaCliTube({ cli: 'agy', prompt: 'hi' });
     const env = mockSpawn.mock.calls[0][2].env;
     expect(env.PATH).toContain('.local/bin');
     expect(env.PATH).toContain('/opt/homebrew/bin');
@@ -1595,7 +1633,7 @@ describe('spawnViaCliTube — binary override scoping + PATH parity', () => {
 
   test('caller-supplied PATH stays as the base and still gets augmented', async () => {
     mockSpawn.mockReturnValue(fakeChild({ stdout: 'ok', exitCode: 0 }));
-    await spawnViaCliTube({ cli: 'groq', prompt: 'hi', env: { PATH: '/caller/bin' } });
+    await spawnViaCliTube({ cli: 'agy', prompt: 'hi', env: { PATH: '/caller/bin' } });
     const env = mockSpawn.mock.calls[0][2].env;
     expect(env.PATH.startsWith('/caller/bin')).toBe(true);
     expect(env.PATH).toContain('.local/bin');

@@ -67,10 +67,22 @@ describe('backend-catalog', () => {
     }
   });
 
+  test('managed CLI rows expose verified, unverified and unsupported contracts honestly', () => {
+    for (const id of ['cli:claude-code', 'claude-cli', 'cli:codex', 'codex', 'cli:gemini', 'cli:agy']) {
+      expect(getBackendCatalogEntry(id).adapter.managedCli.launchContract).toBe('verified');
+    }
+    for (const id of ['cli:gemini', 'cli:agy']) {
+      expect(getBackendCatalogEntry(id).adapter.managedCli.nativeStreaming).toBe('documented-parser-pending');
+    }
+    expect(getBackendCatalogEntry('cli:groq').adapter.managedCli.launchContract).toBe('unverified');
+    expect(getBackendCatalogEntry('cli:grok').adapter.managedCli.launchContract).toBe('unsupported');
+    expect(getBackendCatalogEntry('cli:grok').adapter.spawn.command).toBeUndefined();
+  });
+
   test('every backend declares a shell-free N:N adapter contract', () => {
     for (const entry of BACKEND_CATALOG) {
       expect(entry.adapter.family).toMatch(/^[a-z0-9-]+$/);
-      expect(entry.adapter.acceptsInitialPrompt).toBe(true);
+      expect(entry.adapter.acceptsInitialPrompt).toBe(entry.id !== 'cli:grok');
       expect(entry.adapter.authModes.length).toBeGreaterThan(0);
       expect(entry.adapter.limitations.length).toBeGreaterThan(0);
       for (const command of [entry.adapter.spawn.command, entry.adapter.resume.command]) {
@@ -252,15 +264,15 @@ describe('backend-catalog', () => {
       expect(entry.costModel).toBe('subscription');
       expect(entry.models.length).toBeGreaterThan(0);
     }
-    expect(getBackendCatalogEntry('cli:gemini').pdUseCliBackendValue).toBe('gemini');
-    expect(getBackendCatalogEntry('cli:groq').pdUseCliBackendValue).toBe('groq');
-    expect(getBackendCatalogEntry('cli:grok').pdUseCliBackendValue).toBe('grok');
+    expect(getBackendCatalogEntry('cli:gemini').pdUseCliBackendValue).toBeUndefined();
+    expect(getBackendCatalogEntry('cli:groq').pdUseCliBackendValue).toBeUndefined();
+    expect(getBackendCatalogEntry('cli:grok').pdUseCliBackendValue).toBeUndefined();
   });
 
-  test('detectForcedCliBackend maps gemini/groq/grok to cli:* ids', () => {
-    expect(detectForcedCliBackend({ PD_USE_CLI_BACKEND: 'gemini' })).toBe('cli:gemini');
-    expect(detectForcedCliBackend({ PD_USE_CLI_BACKEND: 'GROQ' })).toBe('cli:groq');
-    expect(detectForcedCliBackend({ PD_USE_CLI_BACKEND: 'grok' })).toBe('cli:grok');
+  test('detectForcedCliBackend ignores blocked gemini/groq/grok choices', () => {
+    expect(detectForcedCliBackend({ PD_USE_CLI_BACKEND: 'gemini' })).toBeNull();
+    expect(detectForcedCliBackend({ PD_USE_CLI_BACKEND: 'GROQ' })).toBeNull();
+    expect(detectForcedCliBackend({ PD_USE_CLI_BACKEND: 'grok' })).toBeNull();
     expect(detectForcedCliBackendValue({ PD_USE_CLI_BACKEND: 'Antigravity' })).toBe('agy');
   });
 

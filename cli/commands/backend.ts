@@ -204,6 +204,7 @@ function statusBadge(entry: FleetModelEntry): string {
   if (entry.available || entry.launchable) return '● ready';
   if (entry.readinessStatus === 'manual_check') return '◌ check';
   if (entry.readinessStatus === 'needs_setup') return '○ setup';
+  if (entry.readinessStatus === 'blocked') return '⊘ blocked';
   if (entry.readinessStatus === 'unknown') return '? unknown';
   return '○ —';
 }
@@ -226,6 +227,7 @@ function costModelBadge(costModel: string | undefined): string {
 async function listCommand(options: CLIOptions): Promise<void> {
   const availableOnly = Boolean(options.available || options['available-only']);
   const persisted = readPersistedSelection();
+  const persistedBlocked = Boolean(persisted && !BACKEND_CATALOG.some(b => b.pdUseCliBackendValue === persisted));
   const data = (await fetchBackends()) || offlineCatalogFallback();
 
   let backends = data.backends || [];
@@ -242,6 +244,7 @@ async function listCommand(options: CLIOptions): Promise<void> {
           forcedCliBackend: data.forcedCliBackend ?? null,
           pdUseCliBackend: data.pdUseCliBackend ?? null,
           persistedSelection: persisted,
+          persistedSelectionStatus: persistedBlocked ? 'blocked-ignored' : persisted ? 'selectable' : 'none',
           backends,
         },
         null,
@@ -261,8 +264,9 @@ async function listCommand(options: CLIOptions): Promise<void> {
     if (entry) console.log(`    ${entry.name} — ${entry.framing || ''}`);
     console.log('');
   } else if (persisted) {
-    ui.info(`Persisted selection: ${persisted} (~/.port-daddy-cli-backend)`);
-    ui.info('  Activate in shell:  eval "$(pd backend use ' + persisted + ')"');
+    ui.info(`Persisted selection: ${persisted}${persistedBlocked ? ' (blocked; ignored)' : ''} (~/.port-daddy-cli-backend)`);
+    if (persistedBlocked) ui.info('Choose a supported managed adapter or clear this stale selection.');
+    else ui.info('  Activate in shell:  eval "$(pd backend use ' + persisted + ')"');
     console.log('');
   }
 
@@ -277,7 +281,7 @@ async function listCommand(options: CLIOptions): Promise<void> {
       console.log(`              Switch:  pd backend use ${b.pdUseCliBackendValue}`);
     }
     if (!b.available && !b.launchable && b.readinessNextStep) {
-      console.log(`              Setup:   ${b.readinessNextStep}`);
+      console.log(`              ${b.readinessStatus === 'blocked' ? 'Blocked' : 'Setup'}:   ${b.readinessNextStep}`);
     }
     console.log('');
   }
@@ -320,7 +324,7 @@ async function useCommand(target: string | undefined, options: CLIOptions): Prom
 
   if (!entry || !entry.pdUseCliBackendValue) {
     ui.error(`No CLI-routable backend matches "${target}".`);
-    ui.info('Valid choices: claude-code, codex, none');
+    ui.info('Valid choices: claude-code, codex, agy, none. Gemini/Groq/Grok CLI adapters are blocked, not repairable by login or setup.');
     process.exitCode = 1;
     return;
   }

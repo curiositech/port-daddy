@@ -26,6 +26,7 @@ import {
   runAutoMergeSweep,
   parseGithubPrUrl,
   looksLikeGithubPrUrl,
+  cleanupMergedDispatch,
 } from '../../lib/dispatch/auto-merge.js';
 
 const PR_URL = 'https://github.com/acme/widget/pull/42';
@@ -101,7 +102,7 @@ function makeFakeRunner(config = {}) {
 }
 
 function proposeAutoDispatch(overrides = {}) {
-  const d = queue.propose({ goal: 'ship the widget', mergePolicy: 'auto', ...overrides });
+  const d = queue.propose({ goal: 'ship the widget', mergePolicy: 'auto', projectDir: '/source/project', ...overrides });
   queue.claim({ id: d.id, worktreePath: '/tmp-ish/does-not-exist', branch: 'dispatch/ship-abc', sessionId: 's1' });
   queue.start(d.id);
   queue.produce({ id: d.id, resultArtifact: PR_URL });
@@ -215,6 +216,33 @@ describe('findAutoMergeCandidates', () => {
 
 // ── checkAndCompleteDispatch: the merge + cleanup unit ───────────────────
 
+describe('source-bound cleanup', () => {
+  test('missing durable project binding preserves everything without invoking cleanup', async () => {
+    const reaper = jest.fn(async () => {});
+    const { runner } = makeFakeRunner();
+    const result = await cleanupMergedDispatch({ worktreePath: '/foreign/path', branch: 'dispatch/work', projectDir: null }, { runner, reaper });
+    expect(result).toMatchObject({ worktreeReaped: false, branchDeleted: false });
+    expect(reaper).not.toHaveBeenCalled();
+    expect(runner.run).not.toHaveBeenCalled();
+  });
+
+  test('ownership or dirty-work refusal cannot fall through to branch deletion', async () => {
+    for (const message of ['identity mismatch', 'modified or untracked files']) {
+      const { runner } = makeFakeRunner();
+      const reaper = jest.fn(async () => { throw new Error(message); });
+      const result = await cleanupMergedDispatch({ projectDir: '/source/project', worktreePath: '/foreign/path', branch: 'dispatch/work' }, { runner, reaper });
+      expect(result).toMatchObject({ worktreeReaped: false, branchDeleted: false });
+      expect(runner.run).not.toHaveBeenCalled();
+    }
+  });
+
+  test('branch cleanup uses durable source project and non-forced delete', async () => {
+    const { runner } = makeFakeRunner();
+    await cleanupMergedDispatch({ projectDir: '/source/project', worktreePath: '/fixture/path', branch: 'dispatch/work' }, { runner, reaper: async () => {} });
+    expect(runner.run).toHaveBeenCalledWith('git', ['-C', '/source/project', 'branch', '-d', 'dispatch/work']);
+  });
+});
+
 describe('checkAndCompleteDispatch', () => {
   test('merges when green + mergeable + 0 unresolved threads, then cleans up and logs once', async () => {
     const d = proposeAutoDispatch();
@@ -228,7 +256,7 @@ describe('checkAndCompleteDispatch', () => {
     expect(outcome.mergeCommit).toBe('abc1234');
     expect(outcome.cleanup.worktreeReaped).toBe(true);
     expect(outcome.cleanup.branchDeleted).toBe(true);
-    expect(reaper).toHaveBeenCalledWith('/tmp-ish/does-not-exist');
+    expect(reaper).toHaveBeenCalledWith('/tmp-ish/does-not-exist', '/source/project', { expectedBranch: 'dispatch/ship-abc' });
     expect(postNote).toHaveBeenCalledTimes(1);
     expect(postNote.mock.calls[0][0]).toMatch(/merged/);
     expect(postNote.mock.calls[0][0]).toMatch(PR_URL);

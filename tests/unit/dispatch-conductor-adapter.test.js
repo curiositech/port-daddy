@@ -112,6 +112,7 @@ describe('planToLaunchIntent', () => {
     const intent = planToLaunchIntent(plan);
 
     expect(intent.source).toBe('dispatch');
+    expect(intent.executionIntent).toBe('autonomous');
     expect(intent.goal).toBe(dispatch.goal);
     expect(intent.backend).toBe('cli:codex');
 

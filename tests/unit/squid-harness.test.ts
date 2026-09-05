@@ -1637,6 +1637,14 @@ describe('Giant Squid Harness — ClaudeCliSquidAdapter.injectHooks', () => {
     expect(preCompact.privacy).toBe(SQUID_HOOK_METADATA.preCompact.privacy);
   });
 
+  test.each(['{broken settings', '[]', 'null', '{"hooks":[]}'])('injectHooks preserves invalid existing settings bytes: %s', async original => {
+    const path = join(WORKSPACE, '.claude', 'settings.json');
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, original);
+    await expect(new ClaudeCliSquidAdapter().injectHooks(WORKSPACE)).rejects.toThrow(/original file preserved/);
+    expect(readFileSync(path, 'utf8')).toBe(original);
+  });
+
   test('injectHooks is idempotent (re-run does not duplicate PD entries)', async () => {
     const adapter = new ClaudeCliSquidAdapter();
     await adapter.injectHooks(WORKSPACE);

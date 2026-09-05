@@ -50,6 +50,7 @@ import { join } from 'node:path';
 import { cliBinarySearchPath, resolveCliBinary } from '../../cli-bin-dirs.js';
 import type { CoastGuardReceipt } from '../../coast-guard.js';
 import { resolveCoastGuardPolicy } from '../../coast-guard.js';
+import { assertManagedCliConfinement, createManagedCliLaunchPolicy, resolveManagedCliExecutionIntent, type ManagedCliExecutionIntent } from './managed-cli-launch-policy.js';
 import {
   withCoastGuard,
   type CoastGuardRun,
@@ -64,7 +65,6 @@ import {
   CLI_TUBE_PROVIDER_SPECS,
   CLI_TUBE_TOOLS,
   normalizeCodexConfigOverrides,
-  type CliTubePermissionMode,
   type CliTubeProviderSpec,
   type CliTubeTool,
 } from './cli-tube-provider-specs.js';
@@ -166,13 +166,11 @@ export interface CliTubeOptions {
    */
   onStreamLine?: (line: string) => void;
   /**
-   * Optional permission mode forwarded to claude-code as `--permission-mode
-   * <mode>` (only when set). `acceptEdits` lets a spawned agent edit files in
-   * its workdir non-interactively; `bypassPermissions` removes all gating.
-   * Unset = the CLI's default (interactive prompts), preserving prior behavior.
-   * Ignored for CLIs that don't support the flag.
+   * Sole semantic execution contract. Unset means native manual defaults;
+   * autonomous mode requires an actual confined wrapper before child launch.
    */
-  permissionMode?: CliTubePermissionMode;
+  executionIntent?: ManagedCliExecutionIntent;
+  allowedTools?: string;
   /** Validated harness-owned session id for native resume. */
   resumeSessionId?: string;
   /** Canonical workspace identity rechecked immediately before child spawn. */
@@ -246,7 +244,7 @@ export function buildArgs(
   prompt: string,
   outputPath?: string,
   model?: string,
-  permissionMode?: CliTubePermissionMode,
+  executionIntent?: ManagedCliExecutionIntent,
   codexConfig?: string[],
   timeoutMs?: number,
   resumeSessionId?: string,
@@ -255,7 +253,7 @@ export function buildArgs(
     prompt,
     outputPath,
     model,
-    permissionMode,
+    executionIntent,
     codexConfig,
     timeoutMs,
     resumeSessionId,
@@ -309,6 +307,15 @@ export async function spawnViaCliTube(
       coastGuardReceipt: null,
     };
   }
+  let launchPolicy;
+  try {
+    if ('permissionMode' in opts) throw new Error('permissionMode was removed; use executionIntent');
+    launchPolicy = createManagedCliLaunchPolicy(cli, resolveCoastGuardPolicy(
+      opts.coastGuard?.spec, opts.coastGuard?.envSource ?? process.env,
+    ).enabled, resolveManagedCliExecutionIntent(opts.executionIntent));
+  } catch (error) {
+    return { output: '', exitCode: 1, error: String(error), tube: null, durationMs: 0, rawStdout: '', coastGuardReceipt: null };
+  }
   // Binary override is OPERATOR-scoped: read PD_CLI_*_BIN from process.env
   // only, never from per-spawn opts.env/spec.env — a caller-supplied env
   // must not be able to redirect which executable runs.
@@ -348,7 +355,9 @@ export async function spawnViaCliTube(
     OTEL_SDK_DISABLED: 'true',
   } as Record<string, string>;
   for (const key of provider.stripEnvKeys ?? []) {
-    delete env[key];
+    // Only an explicit per-launch value can opt into provider-key auth.
+    // Inherited daemon credentials never override provider-managed OAuth.
+    if (!Object.prototype.hasOwnProperty.call(opts.env ?? {}, key)) delete env[key];
   }
   // No fallback: an absent deadline means no deadline. `deadlineMs` stays
   // `undefined` all the way down to `waitForCliChildProcess`, which then
@@ -363,6 +372,24 @@ export async function spawnViaCliTube(
   // goes under ~/.port-daddy (NOT the OS temp dir, which macOS purges on a
   // timer and could yank the file out from under an in-flight run).
   let tempDir: string | null = null;
+  const cleanupErrors: string[] = [];
+  /** Design: attempt every owned cleanup and retain failures alongside the primary error.
+   * @param action One independent cleanup operation.
+   * @returns Nothing; failures accumulate for the result receipt.
+   */
+  const clean = (action: () => void): void => {
+    try { action(); } catch (error) { cleanupErrors.push(String(error)); }
+  };
+  /** Design: remove only this run's owned scratch, retaining cleanup evidence.
+   * @returns Nothing; any failure is accumulated without hiding the primary error.
+   */
+  const cleanScratch = (): void => { if (tempDir) clean(() => rmSync(tempDir!, { recursive: true, force: true })); };
+  /** Design: primary execution evidence precedes independent cleanup failures.
+   * @param error Original run error, if any.
+   * @returns Combined structured result error without discarding either cause.
+   */
+  const withCleanupErrors = (error: string | null): string | null =>
+    cleanupErrors.length ? [error, `Managed CLI cleanup failed: ${cleanupErrors.join('; ')}`].filter(Boolean).join('; ') : error;
   let outputPath: string | undefined;
   if (provider.outputCapture === 'last-message-file') {
     const scratchRoot = join(homedir(), '.port-daddy', 'cli-tube-scratch');
@@ -371,19 +398,23 @@ export async function spawnViaCliTube(
     outputPath = join(tempDir, 'last-message.txt');
   }
 
-  const externalConfinement = cli === 'codex' && resolveCoastGuardPolicy(
-    opts.coastGuard?.spec, opts.coastGuard?.envSource ?? process.env,
-  ).enabled;
-  const { args } = provider.buildArgs({
+  let args: string[];
+  try {
+  ({ args } = provider.buildArgs({
     prompt: opts.prompt,
+    cwd: opts.cwd,
     outputPath,
     model: opts.model,
-    permissionMode: opts.permissionMode,
+    allowedTools: opts.allowedTools,
     codexConfig: opts.codexConfig,
     timeoutMs: deadlineMs,
     resumeSessionId: opts.resumeSessionId,
-    externalConfinement,
-  });
+    launchPolicy,
+  }));
+  } catch (error) {
+    cleanScratch();
+    return { output: '', exitCode: 1, error: withCleanupErrors(String(error)), tube: tubeChannel, durationMs: 0, rawStdout: '', coastGuardReceipt: null };
+  }
 
   const startedAt = Date.now();
 
@@ -397,11 +428,11 @@ export async function spawnViaCliTube(
   };
   const initialLaunchError = launchError();
   if (initialLaunchError) {
-    if (tempDir) rmSync(tempDir, { recursive: true, force: true });
+    cleanScratch();
     return {
       output: '',
       exitCode: 1,
-      error: initialLaunchError,
+      error: withCleanupErrors(initialLaunchError),
       tube: tubeChannel,
       durationMs: Date.now() - startedAt,
       rawStdout: '',
@@ -436,13 +467,11 @@ export async function spawnViaCliTube(
     // withCoastGuard is responsible for tearing down its own partial state on
     // this path — but the codex scratch tempDir is ours and must not leak, and
     // the caller must still get a structured CliTubeResult, not a rejection.
-    if (tempDir) {
-      try { rmSync(tempDir, { recursive: true, force: true }); } catch { /* best effort */ }
-    }
+    cleanScratch();
     return {
       output: '',
       exitCode: 1,
-      error: `Coast Guard confinement setup failed for ${binary}: ${(err as Error).message}`,
+      error: withCleanupErrors(`Coast Guard confinement setup failed for ${binary}: ${(err as Error).message}`),
       tube: tubeChannel,
       durationMs: Date.now() - startedAt,
       rawStdout: '',
@@ -452,9 +481,7 @@ export async function spawnViaCliTube(
 
   let child: ChildProcess;
   try {
-    if (externalConfinement && cg.confined !== true) {
-      throw new Error('Codex launch blocked: Coast Guard did not establish external confinement.');
-    }
+    assertManagedCliConfinement(launchPolicy, cg);
     await opts.beforeChildLaunch?.();
     // Sandbox preparation awaits I/O. Recheck afterwards, with no intervening
     // await before the actual spawn; a cancelled/replaced target must not run.
@@ -468,18 +495,17 @@ export async function spawnViaCliTube(
       stdio: ['ignore', 'pipe', 'pipe'],
     });
   } catch (err) {
-    const coastGuardReceipt = cg.receipt();
-    cg.dispose();
-    if (tempDir) {
-      try { rmSync(tempDir, { recursive: true, force: true }); } catch { /* best effort */ }
-    }
+    let coastGuardReceipt: CoastGuardReceipt | null = null;
+    clean(() => { coastGuardReceipt = cg.receipt(); });
+    clean(() => cg.dispose());
+    cleanScratch();
     // Name what was actually attempted: under a sandbox wrap the executable is
     // the wrapper, not the raw CLI binary — a debugging operator needs both.
     const attempted = cg.cmd === binary ? cg.cmd : `${cg.cmd} (Coast Guard wrapper for "${binary}")`;
     return {
       output: '',
       exitCode: 1,
-      error: `Failed to spawn ${attempted}: ${(err as Error).message}`,
+      error: withCleanupErrors(`Failed to spawn ${attempted}: ${(err as Error).message}`),
       tube: tubeChannel,
       durationMs: Date.now() - startedAt,
       rawStdout: '',
@@ -530,20 +556,22 @@ export async function spawnViaCliTube(
   child.stderr?.on('data', onStderrData);
 
   let result: CliChildWaitResult;
-  let coastGuardReceipt: CoastGuardReceipt;
+  let coastGuardReceipt: CoastGuardReceipt | null = null;
   try {
     result = await waitForCliChildProcess(child, {
       deadlineMs,
       killGraceMs: TIMEOUT_KILL_GRACE_MS,
       killCloseDeadlineMs: TIMEOUT_KILL_CLOSE_DEADLINE_MS,
     });
+  } catch (error) {
+    result = { code: 1, timedOut: false, spawnErr: String(error) };
   } finally {
     child.stdout?.off('data', onStdoutData);
     child.stderr?.off('data', onStderrData);
     // The receipt folds in the final egress tally, so it is captured after the
     // child exits and BEFORE dispose tears down the meter.
-    coastGuardReceipt = cg.receipt();
-    cg.dispose();
+    clean(() => { coastGuardReceipt = cg.receipt(); });
+    clean(() => cg.dispose());
   }
 
   // Flush any trailing partial line (a final JSONL line without a terminating
@@ -564,9 +592,7 @@ export async function spawnViaCliTube(
     } catch { /* fall through to stdout */ }
   }
 
-  if (tempDir) {
-    try { rmSync(tempDir, { recursive: true, force: true }); } catch { /* best effort */ }
-  }
+  cleanScratch();
 
   let error: string | null = null;
   if (result.spawnErr) {
@@ -594,6 +620,7 @@ export async function spawnViaCliTube(
     error = `${emptySuccessError} ${provider.authNextStep}`;
   }
 
+  error = withCleanupErrors(error);
   // Optional: publish the result on the tube so subscribed observers
   // see what came out. Failures here never block the spawn — tube
   // publish is best-effort transparency.

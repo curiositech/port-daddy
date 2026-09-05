@@ -30,6 +30,7 @@ import { isMap, parse as parseYaml, parseDocument } from 'yaml';
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import type { createFleetDaemon } from '../lib/fleet-daemon.js';
 import type { Conductor } from '../lib/fleet/conductor.js';
+import { MANAGED_CLI_CAPABILITIES, type ManagedCliProvider } from '../lib/spawner/backends/managed-cli-launch-policy.js';
 import type { CloudAppTelemetry } from '../lib/cloud-app-telemetry.js';
 import {
   BUILTIN_MODEL_TIERS,
@@ -814,7 +815,7 @@ export const fleetPlugin: FastifyPluginAsync<{ deps: FleetRouteDeps }> = async (
           name: backend.name,
           models,
           modelTiers: tierDefaults || undefined,
-          supported: true,
+          supported: !backend.id.startsWith('cli:') || MANAGED_CLI_CAPABILITIES[backend.id.slice(4) as ManagedCliProvider]?.launchContract !== 'unsupported',
           // `launchable` historically meant "credentials are present"; we keep
           // that strict definition, but expose `available` as the broader
           // "PD can spawn through this right now (binary present / key present

@@ -27,13 +27,13 @@ const mockPlanRunFor = jest.fn(() => ({
     baseBranch: 'main',
   },
   backend: 'cli:codex',
-  worktreePath: '/tmp/worktree',
+  worktreePath: '/coding/tmp/worktree',
   branch: 'dispatch/dispatch-one-dispatch',
   baseRef: 'origin/main',
   timeoutMs: 60_000,
   budgetUsd: 5,
-  command: 'codex',
-  args: ['exec', 'do work'],
+  executionIntent: 'autonomous',
+  confinementRequired: true,
   rationale: [],
 }));
 const mockUi = {
@@ -55,6 +55,7 @@ jest.unstable_mockModule('../../lib/agent-harbor/work-intent-service.js', () => 
 }));
 
 jest.unstable_mockModule('../../lib/dispatch/runner.js', () => ({
+  DISPATCH_WORKTREE_ROOT: '/coding/tmp',
   planRunFor: mockPlanRunFor,
   runNext: mockRunNext,
 }));

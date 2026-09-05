@@ -120,6 +120,8 @@ describe('fleet routes /fleet/models', () => {
 
     expect(res.statusCode).toBe(200);
     expect(body.success).toBe(true);
+    expect(body.backends.find(b => b.id === 'cli:grok').supported).toBe(false);
+    for (const id of ['cli:gemini', 'cli:groq']) expect(body.backends.find(b => b.id === id).supported).toBe(true);
     expect(body.backends).toEqual(expect.arrayContaining([
       expect.objectContaining({
         id: 'claude-cli',
