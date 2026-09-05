@@ -40,7 +40,7 @@ jest.unstable_mockModule('../../lib/spawner/coast-guard-runner.js', () => ({
   withCoastGuard: async (input: any) => {
     await Promise.resolve();
     duringSandboxPreparation();
-    return { cmd: input.cmd, args: input.args, env: input.env, receipt: () => ({ confined: false }), dispose: sandboxDispose };
+    return { cmd: input.cmd, args: input.args, env: input.env, confined: true, receipt: () => ({ confined: true }), dispose: sandboxDispose };
   },
 }));
 const { captureManagedSpawnWorktree, managedSpawnWorktreeReceipt, verifyManagedSpawnWorktree } = await import('../../lib/managed-spawn-worktree.js');
