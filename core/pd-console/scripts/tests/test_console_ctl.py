@@ -1,7 +1,7 @@
 import importlib.util
 import pathlib
 import unittest
-from unittest import mock
+import unittest.mock as mock
 
 
 SCRIPT = pathlib.Path(__file__).parents[1] / "console-ctl.py"

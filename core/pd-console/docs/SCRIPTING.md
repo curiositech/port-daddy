@@ -1,17 +1,17 @@
 # Semantic scripting for pd-console
 
 Launch a named development app with a unique, owner-only Unix socket, then use
-`scripts/console-ctl.py` to discover and drive the controls the window actually
+`core/pd-console/scripts/console-ctl.py` to discover and drive the controls the window actually
 exposes. Automation names product actions, not screen coordinates.
 
 ```sh
-python3 scripts/console-ctl.py --sock "$PD_CONSOLE_CONTROL_SOCK" describe
-python3 scripts/console-ctl.py --sock "$PD_CONSOLE_CONTROL_SOCK" context
-python3 scripts/console-ctl.py --sock "$PD_CONSOLE_CONTROL_SOCK" click nav.mission
-python3 scripts/console-ctl.py --sock "$PD_CONSOLE_CONTROL_SOCK" type mission.composer "Inspect the active claims"
-python3 scripts/console-ctl.py --sock "$PD_CONSOLE_CONTROL_SOCK" assert mission.composer.value "Inspect the active claims"
-python3 scripts/console-ctl.py --sock "$PD_CONSOLE_CONTROL_SOCK" click mission.send
-python3 scripts/console-ctl.py --sock "$PD_CONSOLE_CONTROL_SOCK" wait mission.awaitingReply false --timeout-ms 30000
+python3 core/pd-console/scripts/console-ctl.py --sock "$PD_CONSOLE_CONTROL_SOCK" describe
+python3 core/pd-console/scripts/console-ctl.py --sock "$PD_CONSOLE_CONTROL_SOCK" context
+python3 core/pd-console/scripts/console-ctl.py --sock "$PD_CONSOLE_CONTROL_SOCK" click nav.mission
+python3 core/pd-console/scripts/console-ctl.py --sock "$PD_CONSOLE_CONTROL_SOCK" type mission.composer "Inspect the active claims"
+python3 core/pd-console/scripts/console-ctl.py --sock "$PD_CONSOLE_CONTROL_SOCK" assert mission.composer.value "Inspect the active claims"
+python3 core/pd-console/scripts/console-ctl.py --sock "$PD_CONSOLE_CONTROL_SOCK" click mission.send
+python3 core/pd-console/scripts/console-ctl.py --sock "$PD_CONSOLE_CONTROL_SOCK" wait mission.awaitingReply false --timeout-ms 30000
 ```
 
 `describe` is authoritative for the current window. Every selector reports its
