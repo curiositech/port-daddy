@@ -66,9 +66,16 @@ repo-specific mechanics:
 - **Coordinate + pay rent.** Clean linked worktree off `origin/main`,
   `pd begin … --lifecycle durable`, `pd session files add` before editing, a
   `pd note` per commit (the Coordination Guard enforces it), `pd done` at the end.
-  When inheriting stale work, prefer `pd takeover <old-session-id> [reason]`
-  (or `pd session takeover <old-session-id> [reason]`) over deleting or silently reusing the old session; notes and claim
-  history are append-only evidence.
+  When inheriting stale work, inspect the predecessor's real authority before
+  changing it. AgentNode-bound work uses signed durable ownership. A
+  pre-AgentNode session may use
+  `pd session takeover <old-session-id> --same-owner [reason]` only from its
+  exact worktree and context slot with the original daemon-stamped actor
+  credential. That path moves all unreleased claims transactionally but does
+  not transfer roadmap ownership or invent an AgentNode. Never archive first,
+  copy credentials, trust a display alias, request a partial transfer, or use
+  IPC. Notes and claim history remain append-only evidence; a later AgentNode
+  upgrade goes through sanitized-handoff `pd roster promote`.
 - **Supplant, don't migrate.** No users yet (operator directive, 2026-08-22):
   a new mechanism that overlaps an old one replaces it exhaustively in the same
   slice — delete the legacy path, fix every caller, no compat shims, no

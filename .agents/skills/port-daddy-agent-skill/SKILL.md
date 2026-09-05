@@ -225,10 +225,17 @@ git fetch origin
 
 Resume the existing session when the user goal, worktree or successor
 worktree, branch lineage, and touched surface are still the same unresolved
-slice. If the previous session is stale, abandoned, or cannot be made active,
-use `pd session takeover <old-session-id> [reason]` (or `pd takeover <old-session-id> [reason]`) to create a linked
-successor. It preserves the predecessor's append-only notes, releases stale
-claims, and records the lineage on both sessions.
+slice. A takeover requires proof; stale or abandoned state alone is not
+authority. AgentNode-bound work uses the signed durable-ownership grant path.
+A session created before AgentNode binding may use
+`pd session takeover <old-session-id> --same-owner [reason]` only from the exact
+predecessor worktree and context slot whose stored credential resolves to the
+predecessor's daemon-stamped actor. That actor-only path moves the complete
+unreleased claim set in one transaction, preserves the historical label and
+notes, and transfers no AgentNode, roadmap ownership, or durable epoch. It never
+accepts `--agent`, partial/no-file transfer, auto-minting, alternate credentials,
+or IPC. Promote the successor through the normal sanitized-handoff roster
+ceremony before attempting signed durable ownership.
 
 Start a new linked session when the product goal changed, the previous slice
 was completed or merged, the branch no longer descends cleanly from the old
@@ -399,7 +406,7 @@ you explicitly hand it off in Port Daddy notes.
 | You will edit files | Start a session, leave a scope note, and claim the smallest real files or regions. |
 | The live daemon looks stale | Verify daemon provenance before trusting docs, source, or memory. |
 | Another session may overlap | Read notes, claims, activity, and ownership before changing the surface. |
-| Work was interrupted | Use salvage or `pd session takeover`; preserve the abandoned intent. |
+| Work was interrupted | Inspect salvage and authority. Use signed AgentNode takeover, or `pd session takeover <id> --same-owner` only for exact pre-AgentNode credential continuity. |
 | The same coding vibe resumes days later | Re-anchor, then resume the old session or create a takeover successor with explicit predecessor provenance. |
 | You are about to commit, push, or deploy | Fetch, reconcile, re-read live coordination state, stage narrowly, and run the guard. |
 
@@ -725,7 +732,7 @@ pd salvage --project <project>           # recover dead-agent intent
 # Sessions & coordination
 pd begin "<task>" --identity <project>:<stack>:<context> --lifecycle durable
 pd note "Scope: ..."                     # durable progress evidence
-pd takeover <old-session-id>             # linked successor; notes stay append-only
+pd takeover <old-session-id> --same-owner # pre-AgentNode same-actor successor; exact slot/worktree/full claims
 pd session files add <path>              # claim a file region
 pd done "<outcome>"                      # close + leave result note
 

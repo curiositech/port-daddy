@@ -135,6 +135,7 @@ import { createObservabilityMaintenance } from './lib/observability/maintenance.
 import { createDurableAgentRoster } from './lib/durable-agent-roster.js';
 import { createAgentRunAdmissionService } from './lib/agent-run-admission.js';
 import { createDurableOwnershipService } from './lib/durable-ownership.js';
+import { createLegacySessionContinuation } from './lib/legacy-session-continuation.js';
 import { createGalaxy } from './lib/galaxy.js';
 import { createBosunHeartbeat, createSocketHealthProbe } from './lib/bosun-heartbeat.js';
 import { createDbIntegrityProofOutOfProcess } from './lib/db-integrity.js';
@@ -661,6 +662,7 @@ const sessions = createSessions(db, noteEncryption, {
   symbolIndex,
   requireAgentForFileClaims: true,
 });
+const legacySessionContinuation = createLegacySessionContinuation(db, noteEncryption);
 sessions.setActivityLog(activityLog);
 
 // ADR-0092: optional cloud coordination peer. Local SQLite remains the write
@@ -1725,7 +1727,7 @@ await registerAllRoutes(
   {
     db, logger, metrics, config,
     routeRegistry,
-    services, messaging, locks, health, agents, activityLog, webhooks, projects, sessions,
+    services, messaging, locks, health, agents, activityLog, webhooks, projects, sessions, legacySessionContinuation,
     agentInbox, resurrection, changelog, tunnel, dns, resolver, briefing, sugar, attention, symbolClaims,
     harbors, sorties, conductor, dispatchQueue, dispatchWorker, workIntentService, orchestrator, correlationEngine, spawner, transcripts, tuples, blobs, booty, fleetDaemon, repoRegistry,
     orchestratorRegistry, symbolIndex, mergeQueue, graphEdges, episodicMemory, semanticResolver, durableAgentRoster, costTracker, cloudAppTelemetry, counters, metricsRegistry, usageTelemetry,

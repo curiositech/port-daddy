@@ -453,7 +453,7 @@ describe('IPC Router', () => {
     }));
   });
 
-  test('session.end delegates to sessions.end', () => {
+  test('session.end refuses unauthenticated IPC cleanup', () => {
     const deps = createMockDeps();
     const router = createIpcRouter(deps);
     const replies = [];
@@ -474,11 +474,9 @@ describe('IPC Router', () => {
       (f) => replies.push(f),
     );
 
-    expect(deps.sessions.end).toHaveBeenCalledWith('session-123', expect.objectContaining({
-      status: 'completed',
-      note: 'wrapped up',
-    }));
-    expect(replies[0].payload.result.ended).toBe(true);
+    expect(deps.sessions.end).not.toHaveBeenCalled();
+    expect(replies[0].type).toBe(Performative.REFUSE);
+    expect(replies[0].payload.code).toBe('AUTHENTICATED_HTTP_REQUIRED');
   });
 
   test('session.list delegates to sessions.list', () => {
@@ -510,7 +508,7 @@ describe('IPC Router', () => {
     expect(replies[0].payload.result.count).toBe(0);
   });
 
-  test('session.remove delegates to sessions.remove', () => {
+  test('session.remove refuses unauthenticated IPC cleanup', () => {
     const deps = createMockDeps();
     const router = createIpcRouter(deps);
     const replies = [];
@@ -529,8 +527,9 @@ describe('IPC Router', () => {
       (f) => replies.push(f),
     );
 
-    expect(deps.sessions.remove).toHaveBeenCalledWith('session-123');
-    expect(replies[0].payload.result.removed).toBe(true);
+    expect(deps.sessions.remove).not.toHaveBeenCalled();
+    expect(replies[0].type).toBe(Performative.REFUSE);
+    expect(replies[0].payload.code).toBe('AUTHENTICATED_HTTP_REQUIRED');
   });
 
   test('session.takeover consumes the signed grant through durable ownership', async () => {
@@ -563,6 +562,30 @@ describe('IPC Router', () => {
       expect.objectContaining({ actorId: 'actor:registered-x' }),
     );
     expect(replies[0].payload.result.successorId).toBe('session-new');
+  });
+
+  test('session.takeover refuses actor-only continuation over IPC before any ownership service call', () => {
+    const deps = createMockDeps();
+    const router = createIpcRouter(deps);
+    const replies = [];
+
+    router.handleFrame({
+      type: Performative.REQUEST,
+      convId: 31,
+      payload: {
+        action: IpcAction.SESSION_TAKEOVER,
+        sessionId: 'session-123',
+        sameOwner: true,
+        credential: 'credential:registered-x',
+        agentId: 'registered-x',
+      },
+    }, mockConn('registered-x'), (frame) => replies.push(frame));
+
+    expect(replies[0].type).toBe(Performative.REFUSE);
+    expect(replies[0].payload.code).toBe('AUTHENTICATED_HTTP_REQUIRED');
+    expect(deps.durableOwnership.getGrant).not.toHaveBeenCalled();
+    expect(deps.durableOwnership.acceptTakeover).not.toHaveBeenCalled();
+    expect(deps.sessions.takeover).not.toHaveBeenCalled();
   });
 
   test('sugar.whoami delegates to sugar service', () => {

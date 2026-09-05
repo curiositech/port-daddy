@@ -1,0 +1,3 @@
+type: security
+
+- **Pre-AgentNode same-owner recovery now preserves identity and claims without fabricating authority.** `pd session takeover <id> --same-owner` uses only the exact context-slot credential, daemon-probed physical Git evidence, and the predecessor's verified actor stamp; one rollback-safe transaction moves the full dual-store claim set, preserves historical claim metadata and labels, retires only exact grandfather split-alias artifacts, and reports that no AgentNode, roadmap owner, or durable epoch moved. Exact session end/archive operations now require the same stamped actor over HTTP and reject agent assertions or unauthenticated IPC.
