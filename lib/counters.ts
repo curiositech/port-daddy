@@ -10,9 +10,12 @@
  * Design:
  * - Batches increments in memory, flushes to SQLite every 10s.
  *   This means no per-event DB write — dozens of fleet spawns/sec are fine.
- * - Time buckets: minute (primary key) + hour (index for fast rollups).
+ * - Time buckets: minute detail for the recent window, then lossless hourly
+ *   rollups. Maintenance consumes a fixed row budget per transaction, so an
+ *   upgrade cannot lock the daemon while compacting an inherited large table.
  * - Dimensions stored as sorted-key JSON for consistent grouping.
- * - Cleanup: rows older than 30 days are pruned automatically on flush.
+ * - Cleanup: hourly history older than 30 days is pruned in the same bounded,
+ *   crash-resumable maintenance loop.
  */
 
 import type { Database } from 'better-sqlite3';
@@ -48,9 +51,22 @@ interface CounterRow {
   value: number;
 }
 
+export interface CounterOptions {
+  /** Injectable clock for deterministic maintenance tests. */
+  now?: () => number;
+  /** How long to retain minute-level detail before hourly compaction. */
+  minuteDetailMs?: number;
+  /** Total retention for compacted counter history. */
+  retainMs?: number;
+  /** Minimum delay between maintenance passes when there is no backlog. */
+  maintenanceIntervalMs?: number;
+  /** Maximum source rows compacted or pruned by one maintenance transaction. */
+  maintenanceBatchRows?: number;
+}
+
 // ─── Module factory ───────────────────────────────────────────────────────────
 
-export function createCounters(db: Database) {
+export function createCounters(db: Database, options: CounterOptions = {}) {
   db.exec(`
     CREATE TABLE IF NOT EXISTS metric_counters (
       key          TEXT    NOT NULL,
@@ -65,12 +81,41 @@ export function createCounters(db: Database) {
     CREATE INDEX IF NOT EXISTS idx_mc_hour     ON metric_counters(bucket_hour);
   `);
 
+  // A connection-local row-id set lets the aggregate and delete statements
+  // consume exactly the same batch. Because its writes live inside the same
+  // transaction as the rollup, interruption rolls the whole batch back.
+  db.exec(`
+    CREATE TEMP TABLE IF NOT EXISTS metric_counter_maintenance_batch (
+      source_rowid INTEGER PRIMARY KEY
+    );
+  `);
+
   // In-memory batch accumulator: composite key → delta
   const pending = new Map<string, number>();
   let flushTimer: ReturnType<typeof setInterval> | null = null;
-  let lastCleanup = 0;
-  const CLEANUP_INTERVAL = 6 * 3600_000;  // prune old rows every 6h
-  const RETAIN_MS = 30 * 86_400_000;       // keep 30 days
+  let lastMaintenance: number | null = null;
+  let maintenanceBacklog = false;
+  const HOUR_MS = 3_600_000;
+  const MAINTENANCE_INTERVAL_MS = options.maintenanceIntervalMs ?? 6 * HOUR_MS;
+  const MINUTE_DETAIL_MS = options.minuteDetailMs ?? 24 * HOUR_MS;
+  const RETAIN_MS = options.retainMs ?? 30 * 86_400_000;
+  const MAINTENANCE_BATCH_ROWS = options.maintenanceBatchRows ?? 5_000;
+  const now = options.now ?? Date.now;
+
+  if (!Number.isFinite(MAINTENANCE_INTERVAL_MS) || MAINTENANCE_INTERVAL_MS < 0) {
+    throw new Error('maintenanceIntervalMs must be a non-negative finite number');
+  }
+  if (!Number.isFinite(MINUTE_DETAIL_MS) || MINUTE_DETAIL_MS < 0) {
+    throw new Error('minuteDetailMs must be a non-negative finite number');
+  }
+  if (!Number.isFinite(RETAIN_MS) || RETAIN_MS <= 0 || RETAIN_MS < MINUTE_DETAIL_MS) {
+    throw new Error('retainMs must be finite, positive, and at least minuteDetailMs');
+  }
+  if (!Number.isSafeInteger(MAINTENANCE_BATCH_ROWS)
+      || MAINTENANCE_BATCH_ROWS < 1
+      || MAINTENANCE_BATCH_ROWS > 50_000) {
+    throw new Error('maintenanceBatchRows must be an integer between 1 and 50000');
+  }
 
   // Prepared statement cache — avoids re-compiling identical SQL on every query() call.
   // Keyed by the full SQL string (unique per condition combination).
@@ -93,36 +138,137 @@ export function createCounters(db: Database) {
     DO UPDATE SET value = value + excluded.value, updated_at = excluded.updated_at
   `);
 
-  const flushMany = db.transaction((entries: Array<[string, number]>) => {
-    const now = Date.now();
+  const flushMany = db.transaction((entries: Array<[string, number]>, flushedAt: number) => {
     for (const [compositeKey, delta] of entries) {
       const parts = compositeKey.split('\x00');
-      upsertStmt.run(parts[0], parts[1], parseInt(parts[2], 10), parseInt(parts[3], 10), delta, now);
+      upsertStmt.run(parts[0], parts[1], parseInt(parts[2], 10), parseInt(parts[3], 10), delta, flushedAt);
     }
   });
 
-  function flush(): void {
-    if (pending.size === 0) return;
-    const entries = [...pending.entries()];
-    pending.clear();
+  const clearMaintenanceBatchStmt = db.prepare(
+    'DELETE FROM temp.metric_counter_maintenance_batch',
+  );
+  const selectPruneBatchStmt = db.prepare(`
+    INSERT INTO temp.metric_counter_maintenance_batch (source_rowid)
+    SELECT rowid
+    FROM metric_counters
+    WHERE bucket_hour < ?
+    ORDER BY bucket_hour ASC, rowid ASC
+    LIMIT ?
+  `);
+  const selectCompactBatchStmt = db.prepare(`
+    INSERT INTO temp.metric_counter_maintenance_batch (source_rowid)
+    SELECT rowid
+    FROM metric_counters
+    WHERE bucket_hour >= ?
+      AND bucket_hour < ?
+      AND bucket_minute != bucket_hour
+    ORDER BY bucket_hour ASC, rowid ASC
+    LIMIT ?
+  `);
+  const aggregateMaintenanceBatchStmt = db.prepare(`
+    INSERT INTO metric_counters
+      (key, dims_json, bucket_minute, bucket_hour, value, updated_at)
+    SELECT
+      source.key,
+      source.dims_json,
+      source.bucket_hour,
+      source.bucket_hour,
+      SUM(source.value),
+      MAX(source.updated_at)
+    FROM metric_counters AS source
+    JOIN temp.metric_counter_maintenance_batch AS batch
+      ON batch.source_rowid = source.rowid
+    GROUP BY source.key, source.dims_json, source.bucket_hour
+    ON CONFLICT (key, dims_json, bucket_minute)
+    DO UPDATE SET
+      value = value + excluded.value,
+      updated_at = MAX(updated_at, excluded.updated_at)
+  `);
+  const deleteMaintenanceBatchStmt = db.prepare(`
+    DELETE FROM metric_counters
+    WHERE rowid IN (
+      SELECT source_rowid FROM temp.metric_counter_maintenance_batch
+    )
+  `);
+  const maintenanceBacklogStmt = db.prepare(`
+    SELECT EXISTS (
+      SELECT 1
+      FROM metric_counters
+      WHERE bucket_hour < ?
+        OR (bucket_hour < ? AND bucket_minute != bucket_hour)
+      LIMIT 1
+    ) AS has_backlog
+  `);
+
+  /**
+   * Consume at most MAINTENANCE_BATCH_ROWS source rows in one atomic step.
+   * Expired rows use the budget first; the balance compacts old minute rows.
+   * No persisted cursor is needed: committed source-row deletion is progress,
+   * and rollback leaves every source row available to retry after a restart.
+   */
+  const maintenanceStep = db.transaction((at: number): boolean => {
+    const minuteCutoffHour = Math.floor((at - MINUTE_DETAIL_MS) / HOUR_MS) * HOUR_MS;
+    const retentionCutoffHour = Math.floor((at - RETAIN_MS) / HOUR_MS) * HOUR_MS;
+    let remainingBudget = MAINTENANCE_BATCH_ROWS;
+
+    clearMaintenanceBatchStmt.run();
+    selectPruneBatchStmt.run(retentionCutoffHour, remainingBudget);
+    const pruned = Number(deleteMaintenanceBatchStmt.run().changes);
+    remainingBudget -= pruned;
+
+    clearMaintenanceBatchStmt.run();
+    if (remainingBudget > 0) {
+      selectCompactBatchStmt.run(retentionCutoffHour, minuteCutoffHour, remainingBudget);
+      aggregateMaintenanceBatchStmt.run();
+      deleteMaintenanceBatchStmt.run();
+    }
+    clearMaintenanceBatchStmt.run();
+
+    const row = maintenanceBacklogStmt.get(
+      retentionCutoffHour,
+      minuteCutoffHour,
+    ) as { has_backlog?: number } | undefined;
+    return row?.has_backlog === 1;
+  });
+
+  function maintain(at: number): void {
+    const due = lastMaintenance === null
+      || at < lastMaintenance
+      || at - lastMaintenance >= MAINTENANCE_INTERVAL_MS;
+    if (!maintenanceBacklog && !due) return;
+
     try {
-      flushMany(entries);
-    } catch (err) {
-      // On failure, re-queue (best-effort; don't crash the daemon)
-      for (const [k, v] of entries) {
-        pending.set(k, (pending.get(k) ?? 0) + v);
+      maintenanceBacklog = maintenanceStep(at);
+      lastMaintenance = at;
+    } catch {
+      // The transaction rolled back, so retry on the next flush instead of
+      // sleeping for the ordinary six-hour maintenance interval.
+      maintenanceBacklog = true;
+    }
+  }
+
+  function flush(): void {
+    const flushedAt = now();
+    let pendingWriteFailed = false;
+    if (pending.size > 0) {
+      const entries = [...pending.entries()];
+      pending.clear();
+      try {
+        flushMany(entries, flushedAt);
+      } catch (err) {
+        // On failure, re-queue (best-effort; don't crash the daemon)
+        for (const [k, v] of entries) {
+          pending.set(k, (pending.get(k) ?? 0) + v);
+        }
+        pendingWriteFailed = true;
       }
     }
 
-    // Periodic cleanup of stale rows
-    const now = Date.now();
-    if (now - lastCleanup > CLEANUP_INTERVAL) {
-      lastCleanup = now;
-      try {
-        db.prepare('DELETE FROM metric_counters WHERE bucket_minute < ?')
-          .run(now - RETAIN_MS);
-      } catch { /* non-critical */ }
-    }
+    // Do not let a failed counter write race ahead into maintenance. Otherwise
+    // every timer/manual flush makes one bounded, resumable maintenance step,
+    // even when no new counters arrived during this interval.
+    if (!pendingWriteFailed) maintain(flushedAt);
   }
 
   function ensureFlushTimer(): void {
@@ -139,9 +285,9 @@ export function createCounters(db: Database) {
    */
   function bump(key: string, dims?: Record<string, string>, n = 1): void {
     ensureFlushTimer();
-    const now = Date.now();
-    const bucketMinute = Math.floor(now / 60_000) * 60_000;
-    const bucketHour   = Math.floor(now / 3_600_000) * 3_600_000;
+    const bumpedAt = now();
+    const bucketMinute = Math.floor(bumpedAt / 60_000) * 60_000;
+    const bucketHour   = Math.floor(bumpedAt / HOUR_MS) * HOUR_MS;
     const dimsJson = dims && Object.keys(dims).length > 0
       ? JSON.stringify(Object.fromEntries(Object.entries(dims).sort()))
       : '{}';
@@ -248,7 +394,7 @@ export function createCounters(db: Database) {
     if (pending.size > 0) flush();
     const sinceMinute = since
       ? Math.floor(since / 60_000) * 60_000
-      : Math.floor((Date.now() - 86_400_000) / 60_000) * 60_000;
+      : Math.floor((now() - 86_400_000) / 60_000) * 60_000;
 
     // Validate dimName to prevent json_extract path injection
     if (!/^[a-zA-Z0-9_]+$/.test(dimName)) {
@@ -276,9 +422,10 @@ export function createCounters(db: Database) {
    */
   function summary(since?: number): CounterSummaryRow[] {
     if (pending.size > 0) flush();
-    const sinceMs = since ?? Date.now() - 86_400_000;
+    const currentTime = now();
+    const sinceMs = since ?? currentTime - 86_400_000;
     const sinceMinute = Math.floor(sinceMs / 60_000) * 60_000;
-    const ageHours = (Date.now() - sinceMinute) / 3_600_000;
+    const ageHours = (currentTime - sinceMinute) / HOUR_MS;
 
     const rows = db.prepare(`
       SELECT key, SUM(value) as total

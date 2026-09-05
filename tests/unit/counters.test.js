@@ -158,4 +158,267 @@ describe('Counters', () => {
     expect(r1[0].value).toBe(r2[0].value);
     expect(r2[0].value).toBe(r3[0].value);
   });
+
+  test('maintenance preserves totals while bounded batches compact and prune incrementally', () => {
+    counters.shutdown();
+    let currentTime = Date.parse('2026-09-05T12:30:00.000Z');
+    counters = createCounters(db, {
+      now: () => currentTime,
+      minuteDetailMs: 24 * 3_600_000,
+      retainMs: 30 * 86_400_000,
+      maintenanceIntervalMs: 0,
+      maintenanceBatchRows: 2,
+    });
+
+    const hourMs = 3_600_000;
+    const oldHour = Math.floor((currentTime - 48 * hourMs) / hourMs) * hourMs;
+    const recentMinute = Math.floor((currentTime - hourMs) / 60_000) * 60_000;
+    const expiredHour = Math.floor((currentTime - 31 * 86_400_000) / hourMs) * hourMs;
+    const dims = JSON.stringify({ route: '/fleet' });
+    const insert = db.prepare(`
+      INSERT INTO metric_counters
+        (key, dims_json, bucket_minute, bucket_hour, value, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `);
+
+    insert.run('http.requests', dims, oldHour, oldHour, 2, oldHour);
+    insert.run('http.requests', dims, oldHour + 60_000, oldHour, 3, oldHour + 60_000);
+    insert.run('http.requests', dims, oldHour + 120_000, oldHour, 4, oldHour + 120_000);
+    insert.run('http.requests', dims, recentMinute, Math.floor(recentMinute / hourMs) * hourMs, 5, recentMinute);
+    insert.run('http.requests', dims, expiredHour, expiredHour, 7, expiredHour);
+
+    // One expired row consumes half the two-row budget; only one old minute
+    // can compact in this transaction. The other remains as the resume cursor.
+    counters.flush();
+    expect(db.prepare(`
+      SELECT COUNT(*) AS count FROM metric_counters
+      WHERE key = 'http.requests' AND bucket_hour = ? AND bucket_minute != bucket_hour
+    `).get(oldHour).count).toBe(1);
+    expect(db.prepare(`
+      SELECT SUM(value) AS total FROM metric_counters WHERE key = 'http.requests'
+    `).get().total).toBe(14);
+
+    // Recreate the counter service between passes. Progress lives in the
+    // committed source rows, not an in-memory cursor, so startup can resume.
+    counters = createCounters(db, {
+      now: () => currentTime,
+      minuteDetailMs: 24 * 3_600_000,
+      retainMs: 30 * 86_400_000,
+      maintenanceIntervalMs: 0,
+      maintenanceBatchRows: 2,
+    });
+    counters.flush();
+    expect(db.prepare(`
+      SELECT bucket_minute, bucket_hour, value
+      FROM metric_counters
+      WHERE key = 'http.requests'
+      ORDER BY bucket_minute
+    `).all()).toEqual([
+      { bucket_minute: oldHour, bucket_hour: oldHour, value: 9 },
+      {
+        bucket_minute: recentMinute,
+        bucket_hour: Math.floor(recentMinute / hourMs) * hourMs,
+        value: 5,
+      },
+    ]);
+
+    // A later pass is idempotent; the canonical hour row cannot feed itself.
+    currentTime += 1;
+    counters.flush();
+    expect(db.prepare(`
+      SELECT value FROM metric_counters
+      WHERE key = 'http.requests' AND bucket_minute = ?
+    `).get(oldHour).value).toBe(9);
+  });
+
+  test('an interrupted aggregate-and-delete batch rolls back and resumes exactly once', () => {
+    counters.shutdown();
+    const currentTime = Date.parse('2026-09-05T12:30:00.000Z');
+    counters = createCounters(db, {
+      now: () => currentTime,
+      maintenanceIntervalMs: 6 * 3_600_000,
+      maintenanceBatchRows: 10,
+    });
+
+    const hourMs = 3_600_000;
+    const oldHour = Math.floor((currentTime - 48 * hourMs) / hourMs) * hourMs;
+    const dims = JSON.stringify({ backend: 'codex' });
+    const insert = db.prepare(`
+      INSERT INTO metric_counters
+        (key, dims_json, bucket_minute, bucket_hour, value, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `);
+    insert.run('interrupt', dims, oldHour + 60_000, oldHour, 3, oldHour + 60_000);
+    insert.run('interrupt', dims, oldHour + 120_000, oldHour, 4, oldHour + 120_000);
+    db.exec(`
+      CREATE TRIGGER interrupt_counter_maintenance
+      BEFORE DELETE ON metric_counters
+      WHEN OLD.key = 'interrupt'
+      BEGIN
+        SELECT RAISE(ABORT, 'synthetic maintenance interruption');
+      END;
+    `);
+
+    // flush() deliberately swallows maintenance failure, but SQLite must have
+    // rolled back both the inserted rollup and the source-row deletion.
+    counters.flush();
+    expect(db.prepare(`
+      SELECT bucket_minute, value FROM metric_counters
+      WHERE key = 'interrupt' ORDER BY bucket_minute
+    `).all()).toEqual([
+      { bucket_minute: oldHour + 60_000, value: 3 },
+      { bucket_minute: oldHour + 120_000, value: 4 },
+    ]);
+
+    db.exec('DROP TRIGGER interrupt_counter_maintenance');
+    // The failed step marks a backlog, so the identical clock retries without
+    // waiting for the ordinary six-hour interval.
+    counters.flush();
+    expect(db.prepare(`
+      SELECT bucket_minute, value FROM metric_counters WHERE key = 'interrupt'
+    `).all()).toEqual([{ bucket_minute: oldHour, value: 7 }]);
+    counters.flush();
+    expect(db.prepare(`
+      SELECT value FROM metric_counters WHERE key = 'interrupt'
+    `).get().value).toBe(7);
+  });
+
+  test('late old rows and current pending writes preserve dimensions and totals across passes', () => {
+    counters.shutdown();
+    const currentTime = Date.parse('2026-09-05T12:30:00.000Z');
+    counters = createCounters(db, {
+      now: () => currentTime,
+      maintenanceIntervalMs: 0,
+      maintenanceBatchRows: 1,
+    });
+
+    const hourMs = 3_600_000;
+    const oldHour = Math.floor((currentTime - 48 * hourMs) / hourMs) * hourMs;
+    const currentMinute = Math.floor(currentTime / 60_000) * 60_000;
+    const dims = JSON.stringify({ backend: 'codex', harbor: 'local' });
+    const insert = db.prepare(`
+      INSERT INTO metric_counters
+        (key, dims_json, bucket_minute, bucket_hour, value, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `);
+    insert.run('concurrent', dims, oldHour + 60_000, oldHour, 2, oldHour + 60_000);
+    insert.run('concurrent', dims, oldHour + 120_000, oldHour, 3, oldHour + 120_000);
+
+    counters.flush();
+    // Simulate a late write from another connection after the first atomic
+    // batch, while an ordinary current-minute bump waits in memory.
+    insert.run('concurrent', dims, oldHour + 180_000, oldHour, 5, oldHour + 180_000);
+    counters.bump('concurrent', { harbor: 'local', backend: 'codex' }, 7);
+    counters.flush();
+    counters.flush();
+
+    expect(db.prepare(`
+      SELECT dims_json, bucket_minute, value
+      FROM metric_counters WHERE key = 'concurrent'
+      ORDER BY bucket_minute
+    `).all()).toEqual([
+      { dims_json: dims, bucket_minute: oldHour, value: 10 },
+      { dims_json: dims, bucket_minute: currentMinute, value: 7 },
+    ]);
+  });
+
+  test('production-shaped first flush consumes only the default 5000-row budget', () => {
+    counters.shutdown();
+    const currentTime = Date.parse('2026-09-05T12:30:00.000Z');
+    counters = createCounters(db, { now: () => currentTime });
+
+    const totalRows = 1_549_896;
+    const oldRows = 1_494_630;
+    const alignedRows = 25_596;
+    const combos = 17 * 471;
+    const hourMs = 3_600_000;
+    const minuteMs = 60_000;
+    const oldAnchor = Math.floor((currentTime - 48 * hourMs) / hourMs) * hourMs;
+    const recentAnchor = Math.floor((currentTime - 2 * hourMs) / hourMs) * hourMs;
+
+    db.prepare(`
+      WITH RECURSIVE sequence(i) AS (
+        VALUES (0)
+        UNION ALL
+        SELECT i + 1 FROM sequence WHERE i + 1 < ?
+      ), shaped AS (
+        SELECT
+          i,
+          i % ? AS combination,
+          CAST(i / ? AS INTEGER) AS sequence_no
+        FROM sequence
+      ), stamped AS (
+        SELECT
+          i,
+          combination,
+          CASE
+            WHEN i < ? THEN ? - sequence_no * ?
+            WHEN i < ? THEN
+              ? - (10 + CAST(sequence_no / 59 AS INTEGER)) * ?
+                + ((sequence_no % 59) + 1) * ?
+            ELSE ? + (sequence_no - 185) * ?
+          END AS bucket_minute
+        FROM shaped
+      )
+      INSERT INTO metric_counters
+        (key, dims_json, bucket_minute, bucket_hour, value, updated_at)
+      SELECT
+        'metric.' || (combination % 17),
+        '{"dimension":"' || CAST(CAST(combination / 17 AS INTEGER) AS TEXT) || '"}',
+        bucket_minute,
+        CAST(bucket_minute / ? AS INTEGER) * ?,
+        1,
+        ?
+      FROM stamped
+    `).run(
+      totalRows,
+      combos,
+      combos,
+      alignedRows,
+      oldAnchor,
+      hourMs,
+      oldRows,
+      oldAnchor,
+      hourMs,
+      minuteMs,
+      recentAnchor,
+      minuteMs,
+      hourMs,
+      hourMs,
+      currentTime,
+    );
+
+    const shape = db.prepare(`
+      SELECT
+        COUNT(*) AS total_rows,
+        SUM(bucket_minute < ?) AS older_than_day,
+        SUM(bucket_minute = bucket_hour) AS hour_aligned,
+        COUNT(DISTINCT key) AS keys,
+        COUNT(DISTINCT dims_json) AS dimensions
+      FROM metric_counters
+    `).get(currentTime - 24 * hourMs);
+    expect(shape).toEqual({
+      total_rows: totalRows,
+      older_than_day: oldRows,
+      hour_aligned: alignedRows,
+      keys: 17,
+      dimensions: 471,
+    });
+
+    const eligible = () => db.prepare(`
+      SELECT COUNT(*) AS count
+      FROM metric_counters
+      WHERE bucket_hour < ? AND bucket_minute != bucket_hour
+    `).get(Math.floor((currentTime - 24 * hourMs) / hourMs) * hourMs).count;
+    const total = () => db.prepare('SELECT SUM(value) AS total FROM metric_counters').get().total;
+    const beforeEligible = eligible();
+
+    counters.flush();
+    expect(beforeEligible - eligible()).toBe(5_000);
+    expect(total()).toBe(totalRows);
+
+    counters.flush();
+    expect(beforeEligible - eligible()).toBe(10_000);
+    expect(total()).toBe(totalRows);
+  }, 60_000);
 });
