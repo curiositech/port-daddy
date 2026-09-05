@@ -18,17 +18,32 @@
  * Stripping") is public-domain and small enough to implement directly.
  */
 
+import { analyze } from './lexical-index.js';
 import type { SkillEntry } from './shipwright/skill-index.js';
 
 // ─── Tokenizer + Porter stemmer ─────────────────────────────────────────────
 
-/** Lowercase, split on non-alphanumeric, drop 1-char tokens — same shape
- *  `lib/whois.ts`'s tokenizer uses, plus a stemming pass. */
+/**
+ * Tokenize via the shared Unicode-safe analyzer (`lib/lexical-index.ts`).
+ *
+ * This docstring used to describe the thing that was wrong — "lowercase, split
+ * on non-alphanumeric, drop 1-char tokens, same shape as lib/whois.ts's" — and
+ * that description was the bug: splitting on non-alphanumeric makes every
+ * non-ASCII character a delimiter. Left in place it would have invited the next
+ * reader to "restore" the behaviour it names.
+ *
+ * NO stemming happens here. {@link tokenizeAndStem} is the stemming pass, and
+ * it is a separate function because BM25 indexing and query analysis do not
+ * always want the same aggressiveness.
+ */
 export function tokenize(text: string): string[] {
-  return text
-    .toLowerCase()
-    .split(/[^a-z0-9]+/i)
-    .filter((token) => token.length > 1);
+  // Shared Unicode-safe analyzer (lib/lexical-index.ts). This was the original
+  // ASCII-only split — `[^a-z0-9]+` makes every non-ASCII character a
+  // delimiter — and three other modules copied it. Skill ids and descriptions
+  // are the corpus an agent searches when it does not know what it needs, so
+  // silently dropping a whole script's worth of them was the worst place for
+  // it to live.
+  return analyze(text);
 }
 
 const VOWEL = 'aeiou';
