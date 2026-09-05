@@ -275,10 +275,18 @@ describe('daemon backend transcript E2E smoke', () => {
     const spawnWorktree = createScratchSpawnWorktree(tmp);
     const fakeCodex = join(tmp, 'bin', 'codex');
     writeFakeCodexBinary(fakeCodex, 'pd-codex-smoke');
+    const argvFile = join(tmp, 'codex-argv.txt');
+    writeFileSync(fakeCodex, readFileSync(fakeCodex, 'utf8').replace(
+      '#!/bin/sh\n',
+      '#!/bin/sh\nprintf \'%s\\n\' "$@" > "$PD_FAKE_CODEX_ARGV_FILE"\n',
+    ));
     const daemonEnv = {
       PATH: LAUNCHD_RESTRICTED_PATH,
       PD_USE_CLI_BACKEND: 'codex',
       PD_CLI_CODEX_BIN: fakeCodex,
+      PD_FAKE_CODEX_ARGV_FILE: argvFile,
+      // Only this isolated fake-provider daemon opts out; Codex must stay sandboxed.
+      PD_COAST_GUARD_OFF: '1',
       PD_BACKEND_TRANSCRIPT_ALLOW_FORCED_OVERRIDE: '1',
     };
     const daemon = await startEphemeralDaemon({
@@ -297,6 +305,10 @@ describe('daemon backend transcript E2E smoke', () => {
         timeout: 70000,
       });
       expect(spawned.ok).toBe(true);
+      const args = readFileSync(argvFile, 'utf8').trimEnd().split('\n');
+      expect(args).toContain('--approve-for-me');
+      expect(args).not.toContain('--dangerously-bypass-approvals-and-sandbox');
+      expect(args).toContain('skills.include_instructions=false');
 
       const transcript = await fetchTranscriptForSpawn(
         daemon,
