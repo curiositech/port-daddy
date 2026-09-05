@@ -127,7 +127,37 @@ function makeGraftIndex(rootDir, overrides = {}) {
   });
 }
 
-// ─── craft(): shortlist + top-K full body ──────────────────────────────────
+// ─── search(): metadata only; craft(): explicit top-K full body ───────────
+
+describe('createSkillGraftIndex().search', () => {
+  test('preserves hybrid ranking while omitting all body-bearing fields', async () => {
+    writeSkill(tmpRoot, 'duckdb-analytics', 'analytical SQL over parquet csv json duckdb olap columnar', { category: 'Data' });
+    writeSkill(tmpRoot, 'oauth2-and-oidc-from-scratch', 'oauth2 oidc pkce authorization code flow token refresh', { category: 'Auth' });
+
+    const graft = makeGraftIndex(tmpRoot);
+    await graft.refresh();
+    const result = await graft.search('parquet columnar olap analytics duckdb');
+
+    expect(result.semanticTier).toBe('hybrid');
+    expect(result.shortlist[0].id).toBe('duckdb-analytics');
+    expect(result).not.toHaveProperty('top');
+    for (const entry of result.shortlist) {
+      expect(entry).not.toHaveProperty('body');
+      expect(entry).not.toHaveProperty('sourcePath');
+    }
+  });
+
+  test('does not reread a selected SKILL.md body after metadata is indexed', async () => {
+    writeSkill(tmpRoot, 'disappearing-skill', 'metadata remains searchable after the source is removed');
+    const graft = makeGraftIndex(tmpRoot, { generateSyntheticQueries: undefined });
+    await graft.search('metadata searchable');
+    rmSync(join(tmpRoot, 'disappearing-skill', 'SKILL.md'));
+
+    const result = await graft.search('metadata searchable');
+    expect(result.shortlist[0].id).toBe('disappearing-skill');
+    expect(result).not.toHaveProperty('top');
+  });
+});
 
 describe('createSkillGraftIndex().craft', () => {
   test('ranks skills by similarity and returns a cheap shortlist', async () => {
