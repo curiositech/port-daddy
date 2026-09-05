@@ -49,6 +49,7 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { cliBinarySearchPath, resolveCliBinary } from '../../cli-bin-dirs.js';
 import type { CoastGuardReceipt } from '../../coast-guard.js';
+import { resolveCoastGuardPolicy } from '../../coast-guard.js';
 import {
   withCoastGuard,
   type CoastGuardRun,
@@ -370,6 +371,9 @@ export async function spawnViaCliTube(
     outputPath = join(tempDir, 'last-message.txt');
   }
 
+  const externalConfinement = cli === 'codex' && resolveCoastGuardPolicy(
+    opts.coastGuard?.spec, opts.coastGuard?.envSource ?? process.env,
+  ).enabled;
   const { args } = provider.buildArgs({
     prompt: opts.prompt,
     outputPath,
@@ -378,6 +382,7 @@ export async function spawnViaCliTube(
     codexConfig: opts.codexConfig,
     timeoutMs: deadlineMs,
     resumeSessionId: opts.resumeSessionId,
+    externalConfinement,
   });
 
   const startedAt = Date.now();
@@ -447,6 +452,9 @@ export async function spawnViaCliTube(
 
   let child: ChildProcess;
   try {
+    if (externalConfinement && cg.confined !== true) {
+      throw new Error('Codex launch blocked: Coast Guard did not establish external confinement.');
+    }
     await opts.beforeChildLaunch?.();
     // Sandbox preparation awaits I/O. Recheck afterwards, with no intervening
     // await before the actual spawn; a cancelled/replaced target must not run.

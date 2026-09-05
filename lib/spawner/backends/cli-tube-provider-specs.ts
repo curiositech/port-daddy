@@ -10,6 +10,8 @@ export interface CliTubeBuildArgsInput {
   codexConfig?: string[];
   timeoutMs?: number;
   resumeSessionId?: string;
+  /** Request external confinement; the launcher must prove its wrapper before spawn. */
+  externalConfinement?: boolean;
 }
 
 export interface CliTubeBuildArgsResult {
@@ -194,6 +196,14 @@ export function buildCliTubeArgs(
   return getCliTubeProviderSpec(tool).buildArgs(input);
 }
 
+/**
+ * Build provider-native fresh or resume arguments from one policy definition.
+ * Design: managed Codex overrides follow caller settings so dynamic skill
+ * discovery remains available without eager catalog instructions.
+ * @param spec Provider capabilities and argument style.
+ * @param input Prompt, model, capture, resume, and confinement settings.
+ * @returns Native argument vector and optional standard input.
+ */
 function buildCliTubeArgsFromSpec(
   spec: CliTubeProviderSpec,
   input: CliTubeBuildArgsInput,
@@ -210,16 +220,22 @@ function buildCliTubeArgsFromSpec(
       return { args, stdin: null };
     }
     case 'codex-exec-json': {
-      // --approve-for-me already selects auto-reviewed workspace-write and is
-      // mutually exclusive with Codex's explicit --sandbox option.
+      // One policy flag only. External mode is admitted by the launcher only
+      // after Coast Guard confirms a real OS confinement wrapper.
+      const approvalFlag = input.externalConfinement
+        ? '--dangerously-bypass-approvals-and-sandbox'
+        : '--approve-for-me';
       const args = resumeSessionId
-        ? ['exec', '--approve-for-me', 'resume', '--skip-git-repo-check', '--json']
-        : ['exec', '--skip-git-repo-check', '--approve-for-me', '--json'];
+        ? ['exec', approvalFlag, 'resume', '--skip-git-repo-check', '--json']
+        : ['exec', '--skip-git-repo-check', approvalFlag, '--json'];
       if (input.outputPath) args.push('--output-last-message', input.outputPath);
       pushModelArg(args, spec, input.model);
       for (const config of normalizeCodexConfigOverrides(input.codexConfig)) {
         args.push('-c', config);
       }
+      // Keep discovery available without eagerly injecting the installed skill
+      // catalog. Last override wins even when callers request eager instructions.
+      args.push('-c', 'skills.include_instructions=false');
       if (resumeSessionId) args.push(resumeSessionId);
       args.push(input.prompt);
       return { args, stdin: null };

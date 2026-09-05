@@ -39,7 +39,8 @@ import { xaiAdapter, DEFAULT_XAI_MODEL } from './spawner/backends/xai.js';
 import { spawnViaCliTube, type CliTubeTool, type TubeClientLike } from './spawner/backends/cli-tube.js';
 import { withCoastGuard } from './spawner/coast-guard-runner.js';
 import type { CoastGuardReceipt } from './coast-guard.js';
-import { coastGuardStatus } from './coast-guard.js';
+import { coastGuardStatus, resolveCoastGuardPolicy } from './coast-guard.js';
+import { buildCliTubeArgs } from './spawner/backends/cli-tube-provider-specs.js';
 import { priceBond, classifyScope, scopeTierWritePolicy, pricedBondLogLines } from './bond-pricing.js';
 import { getDaemonTcpUrl } from '../shared/daemon-discovery.js';
 import { deriveAgentDisplayName } from './agent-names.js';
@@ -693,12 +694,18 @@ interface ConfinedChildOpts {
   timeout?: number;
   stdio?: ('ignore' | 'pipe')[];
   context?: BackendRunContext;
+  /** Fail closed if a provider delegates its sandbox to Coast Guard. */
+  externalConfinement?: boolean;
 }
 
 /**
  * Apply the Coast Guard, run the child, attach the receipt, then dispose. The
  * returned `runChild` result is augmented with `coastGuardReceipt` so the spawn
  * loop can persist it. Confinement is ON unless the spec/operator opts out.
+ * Design: providers may delegate their own sandbox only after the returned
+ * Coast Guard handle confirms confinement; disposal covers failed admission.
+ * @param opts Provider invocation, work scope, and optional confinement requirement.
+ * @returns Captured child output and the corresponding Coast Guard receipt.
  */
 async function runConfinedChild(
   opts: ConfinedChildOpts,
@@ -728,6 +735,9 @@ async function runConfinedChild(
     dotenvKeys: Object.keys(loadDotenvOnce()),
   });
   try {
+    if (opts.externalConfinement && cg.confined !== true) {
+      throw new Error('Codex launch blocked: Coast Guard did not establish external confinement.');
+    }
     await opts.context?.beforeChildLaunch?.();
     opts.context?.signal?.throwIfAborted();
     const workspaceError = validateNativeResumeWorkspace(opts.spec) ?? validateSpawnWorkspace(opts.spec);
@@ -1457,6 +1467,15 @@ function codexScratchRoot(): string {
   return root;
 }
 
+/**
+ * Run Codex through the shared managed-worker policy and final-message capture.
+ * Design: shared argv keeps fresh and resumed runs consistent across both Codex
+ * backends, while the child boundary proves external confinement before spawn.
+ * @param spec Requested task and optional native resume target.
+ * @param model Resolved provider model.
+ * @param context Cancellation and child lifecycle callbacks.
+ * @returns Captured answer, transcript usage, and confinement evidence.
+ */
 function runCodexCli(spec: SpawnSpec, model: string, context?: BackendRunContext): Promise<BackendRunResult> {
   const workspace = spec.workdir || process.cwd();
   const tempDir = mkdtempSync(join(codexScratchRoot(), 'run-'));
@@ -1470,35 +1489,20 @@ function runCodexCli(spec: SpawnSpec, model: string, context?: BackendRunContext
   for (const key of CODEX_DAEMON_CONTEXT_ENV_KEYS) {
     delete env[key];
   }
-  // Current Codex defines --approve-for-me as automatic review *using* the
-  // workspace-write sandbox. Passing --sandbox beside it is a hard CLI error,
-  // so keep this one policy flag as the single source of truth.
-  const args = spec.nativeResume
-    ? [
-        'exec',
-        '--approve-for-me',
-        'resume',
-        '--skip-git-repo-check',
-        '--output-last-message', outputPath,
-        '--model', model,
-        '--json',
-        spec.nativeResume.sessionId,
-        spec.task,
-      ]
-    : [
-        'exec',
-        '--skip-git-repo-check',
-        '--approve-for-me',
-        '-C', workspace,
-        '--output-last-message', outputPath,
-        '--model', model,
-        '--json',
-        spec.task,
-      ];
+  const externalConfinement = resolveCoastGuardPolicy(spec).enabled;
+  const { args } = buildCliTubeArgs('codex', {
+    prompt: spec.task,
+    outputPath,
+    model,
+    resumeSessionId: spec.nativeResume?.sessionId,
+    externalConfinement,
+  });
+  if (!spec.nativeResume) args.splice(1, 0, '-C', workspace);
 
   return runConfinedChild({
     spec,
     cmd: 'codex',
+    externalConfinement,
     args,
     env,
     cwd: workspace,
@@ -1523,6 +1527,9 @@ function runCodexCli(spec: SpawnSpec, model: string, context?: BackendRunContext
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
     }
+  }).catch((error) => {
+    rmSync(tempDir, { recursive: true, force: true });
+    throw error;
   });
 }
 

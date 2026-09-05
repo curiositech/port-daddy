@@ -108,6 +108,8 @@ describe('buildSpawnArgv', () => {
     expect(args).toContain('--approve-for-me');
     expect(args).not.toContain('--full-auto');
     expect(args).not.toContain('--sandbox');
+    expect(args).not.toContain('--dangerously-bypass-approvals-and-sandbox');
+    expect(args).toContain('skills.include_instructions=false');
     expect(args).toContain('/scratch/x');
     expect(args[args.length - 1]).toBe('do the thing');
 

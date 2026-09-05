@@ -49,6 +49,7 @@ const { createSpawner: createSpawnerBase } = await import('../../lib/spawner.js'
 // (armed → enforced 'read' → INFO steady-state; degraded → null → WARN).
 const { coastGuardStatus } = await import('../../lib/coast-guard.js');
 const { enforcedContainmentTier } = await import('../../lib/coast-guard.js');
+const { captureWorkspaceIdentity } = await import('../../lib/workspace-identity.js');
 
 const TEST_TELEMETRY_BYPASS = {
   humanConfirmed: true,
@@ -81,6 +82,48 @@ afterEach(() => {
 });
 
 describe('Coast Guard is the default for subprocess spawns', () => {
+  test.each([false, true])('codex fresh/resume (%s) delegates only to a real wrapper', async (resume) => {
+    const sessionId = '22222222-2222-4222-8222-222222222222';
+    const res = await createSpawner().spawn({
+      backend: 'codex', task: 'unchanged task', model: 'gpt-5.4-mini', workdir: worktree,
+      ...(resume ? { nativeResume: {
+        adapterFamily: 'codex-cli', sessionId, workspaceIdentity: captureWorkspaceIdentity(worktree),
+      } } : {}),
+    });
+    if (spawnCalls.length === 0) {
+      expect(res.status).toBe('failed');
+      expect(res.error).toContain('did not establish external confinement');
+      return;
+    }
+    expect(res.coastGuard.confined).toBe(true);
+    const call = spawnCalls[0];
+    expect(call.cmd).not.toBe('codex');
+    expect(call.args).toContain('--dangerously-bypass-approvals-and-sandbox');
+    expect(call.args).not.toContain('--approve-for-me');
+    expect(call.args).toContain('skills.include_instructions=false');
+    expect(call.args).toContain('gpt-5.4-mini');
+    expect(call.args.at(-1)).toBe('unchanged task');
+    if (resume) expect(call.args.at(-2)).toBe(sessionId);
+  });
+
+  test.each([false, true])('codex fresh/resume (%s) retains sandbox when Coast Guard is disabled', async (resume) => {
+    const sessionId = '22222222-2222-4222-8222-222222222222';
+    await createSpawner().spawn({
+      backend: 'codex', task: 'sandboxed task', workdir: worktree, coastGuard: false,
+      ...(resume ? { nativeResume: {
+        adapterFamily: 'codex-cli', sessionId, workspaceIdentity: captureWorkspaceIdentity(worktree),
+      } } : {}),
+    });
+    expect(spawnCalls).toHaveLength(1);
+    const call = spawnCalls[0];
+    expect(call.cmd).toBe('codex');
+    expect(call.args).toContain('--approve-for-me');
+    expect(call.args).not.toContain('--dangerously-bypass-approvals-and-sandbox');
+    expect(call.args).toContain('skills.include_instructions=false');
+    expect(call.args.at(-1)).toBe('sandboxed task');
+    if (resume) expect(call.args.at(-2)).toBe(sessionId);
+  });
+
   test('custom backend is sandbox-wrapped, key-scrubbed, and proxied', async () => {
     process.env.ANTHROPIC_API_KEY = 'sk-should-not-reach-child';
     const spawner = createSpawner();
