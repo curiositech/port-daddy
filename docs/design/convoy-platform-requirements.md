@@ -1,12 +1,27 @@
 # Convoy Platform — Requirements from the First Consumer
 
 **Status:** Requirements / RFC · **Author:** the builder of Convoy #1 (autonomous business steward for
-expungement.guide) · **Audience:** the Port-Daddy building agents · **Date:** 2026-08-31
+expungement.guide) · **Audience:** the Port-Daddy building agents · **Filed:** 2026-08-31 · **Amended:** 2026-09-05
 
 > This document is filed by Port Daddy's **first flagship consumer**. It is not a plan for Port Daddy to
 > implement on my schedule — it is a statement of what I *require* to build a real thing on top of the platform,
 > paired with an honest scorecard of what already works and what doesn't, grounded in a survey of the current
 > codebase. **Don't build it from my head — read this, push back, and tell me what you'll commit to.**
+
+> **Program placement.** Convoy is the first application and release slice inside the larger **Grand Harbor**
+> program (anchored by the [Agent Harbor Binder PRD/test plan](../architecture/agent-harbor-technical-binder/00-prd-roadmap-and-test-plan.md)),
+> not a parallel product program or a second roadmap. **Chartroom / Oracle**
+> (`apps/relay/src/chartroom.ts`, proposed in [PR #9989](https://github.com/curiositech/port-daddy/pull/9989) and not
+> yet shipped on this branch) is intended to become the single program authority. Until that authority is writable
+> and its remote read-back is proven, this RFC is the durable intake record for the Convoy slice. Its requirements
+> and any later work derived from them must become attributed nodes in the Grand Harbor hypertree, with source,
+> revision, ownership, dependencies, disposition, and proof evidence preserved.
+>
+> The current critical path is **Authority → durable AgentNode**
+> (`schemas/agent-harbor/v0/agent-node.schema.json`) **identity/whois** (`lib/whois.ts`) **→ Evidence and the Provable
+> Action Adjudicator** (`skills/provable-action-adjudicator/SKILL.md`, design guidance rather than a runtime) **→ frozen
+> provider-neutral runtime and release-capsule contracts → the first hosted-web Convoy proof**.
+> This ordering is a planning claim, not evidence that any unshipped stage is complete.
 
 ---
 
@@ -23,14 +38,14 @@ that runtime should not be a one-off. It should be a **platform primitive** so t
 
 | Persona | Wants | Primary requirements |
 |---|---|---|
-| **Erich-the-developer** | A Port-Daddy **SDK** to declare and run a convoy *as code* — a team of always-on agents with roles, budgets, schedules, coordination | R1 (convoy object), R7 (SDK) |
-| **Erich-the-owner** | A **clean Mac + phone + web UI** focused on *his business*, with porthole-grade transparency into every action, and no Port-Daddy jargon | R5 (transparency), R6 (owner surfaces) |
-| *(both)* | The business actually runs, spends safely, and can't bankrupt or embarrass the owner | R2, R3, R4 |
+| **Erich-the-developer** | A Port-Daddy **SDK** to declare and run a convoy *as code* — a team of always-on agents with roles, budgets, schedules, coordination | R1 (convoy object), R8 (SDK) |
+| **Erich-the-owner** | A **clean Mac + phone + web UI** focused on *his business*, with porthole-grade transparency into every action, and no Port-Daddy jargon | R6 (transparency), R7 (owner surfaces) |
+| *(both)* | The business actually runs, spends safely, and can't bankrupt or embarrass the owner | R2, R3, R4, R5 |
 
 ### 0.1 Two layers, and the surface each needs (the crucial distinction)
 
 There are **two layers** here, and they have *opposite* transparency requirements — conflating them is the trap
-(this document originally made that mistake; §R6 is written to avoid it):
+(this document originally made that mistake; §R7 is written to avoid it):
 
 - **Layer A — the convoy control plane (port-daddy-*adjacent*, transparent).** Where you *build and steer the swarm*:
   durable-identity agents, what each one did, its external API calls, PRs, REST calls, MCP invocations, and spend —
@@ -88,11 +103,12 @@ ConvoySource            — versioned declaration: agent roles + coordination to
 Staged instance         — the source running under FULL Port Daddy (develop, simulate, inspect, approve) with
                           isolated identities and inspectable evidence
 ConvoyReleaseCapsule    — frozen + signed: resolved source digest, target-specific capability closure, generated
-                          runtime assets, SBOM/license/provenance manifest, stage receipts + acceptance result,
-                          signer/signature/expiry, upgrade lineage, revocation handle
+                          runtime assets, exact CompiledPolicyCapsule, SBOM/license/provenance manifest, stage
+                          receipts + acceptance result, signer/signature/expiry, upgrade lineage, revocation handle
 Target runtime          — the capsule lowered into a profile; may NARROW the signed policy, never widen it
-Operation               — receipts bind action → agent identity → capability → capsule digest; upgrade = a second
-                          signed capsule; a superseded capsule cannot silently regain authority
+Operation               — consequential effects flow through ActionIntent → one-use ActionPermit → ActionReceipt;
+                          receipts bind action → agent identity → capability → policy + release capsule digests;
+                          upgrade = a second signed capsule; a superseded capsule cannot silently regain authority
 ```
 
 "Compile the development plane away" means: strip the dev CLI, daemon supervision, editor surfaces, and unused
@@ -102,6 +118,11 @@ refuses on unresolved references, mutable skill/model/tool identities, undeclare
 closure, missing budget/evidence policy, or a target profile that would ship developer authority. Signing is necessary
 but not sufficient — a signed artifact can faithfully preserve an unsafe policy, so the *stage* is where policy is
 judged.
+
+The release capsule must carry the exact **CompiledPolicyCapsule** it was staged and tested against. Target lowering
+may narrow its action universe, scopes, budgets, obligations, or authority epochs, but it may not broaden them or
+silently substitute another policy. Release provenance binds the source, agent graph, SDK, policy, acceptance suite,
+signing identity, and output digest. The exact manifest and typed schemas remain open decisions in §5.
 
 ### 1.2 On the name — not silly; use it
 
@@ -116,14 +137,66 @@ federation/market boundary) and NOT a rename of `fleet` (which stays the raw age
 with the one-line contract above to prevent fleet/convoy synonym-drift — the exact "no feature owns two names" rot the
 coarsened-architecture doc's invariant #6 already fights.
 
-### 1.3 Where it sits in the architecture
+### 1.3 Program authority and architectural placement
 
 Convoy is the **named crystallization of Seam A (Harbors: tenancy → federation)**, sitting on **Plane 2 (Identity &
-Capability)** for the harbor scope/membership + macaroon budget authority, **Plane 5 (Runtime)** for the metered-spend
-ledger and transcript stream, and the **Fleet engine** for the always-on agents. It degrades to "just my machine,
-offline" like every other seam.
+Capability)** for harbor scope/membership and budget authority, **Plane 5 (Runtime)** for metered execution and
+evidence, and the **Fleet engine** for always-on agents. It degrades to "just my machine, offline" like every other
+seam. It is nevertheless only one application/release slice of Grand Harbor.
 
-### 1.4 Where a convoy lives — repo topology (a repo per concern)
+The intended authority model is:
+
+1. **Chartroom / Oracle** becomes the only writable program graph and proves remote read-back. PRs, ADRs, research,
+   plans, and this RFC remain source documents attached to its nodes, not competing backlogs.
+2. **AgentNode** (`schemas/agent-harbor/v0/agent-node.schema.json`) is the durable principal across provider, process,
+   device, body replacement, and app release; **whois** (`lib/whois.ts`) resolves the attributable live body and its
+   authority rather than treating a provider runtime as identity.
+3. **ResourceScope** (`lib/resource-scope.ts`) and authority epochs constrain what that principal may do;
+   **WorkIntent** and **WorkReceipt** (`schemas/agent-harbor/v0/work-intent.schema.json` and
+   `schemas/agent-harbor/v0/work-receipt.schema.json`) make requested work and terminal evidence attributable.
+4. The Provable Action Adjudicator (§R4) turns those facts into a preventive pre-effect decision and a one-use permit.
+5. The provider-neutral Harbor Agent Runtime and Convoy compiler consume those foundations. Providers and deployment
+   substrates are replaceable bodies, not identity, plan, policy, memory, receipt, or history authority.
+6. A signed `ConvoyReleaseCapsule` binds the staged application to its compiled policy, proof evidence, and target
+   constraints before the hosted-web proof is allowed to act.
+
+This is the critical path because commerce, long-running cloud agents, marketplace trust, and compiled applications
+all depend on attributable authority and causal evidence. Command success, a passing plan validator, or a signed but
+unsafe artifact is not sufficient proof.
+
+### 1.4 One Grand Harbor intake, not parallel roadmaps
+
+Once Chartroom is writable, the Agent Harbor Binder, the Grand Harbor plan, the provider-neutral runtime proposal in
+[PR #9991](https://github.com/curiositech/port-daddy/pull/9991),
+[`THE_FULL_WHEEL.md`](../plans/THE_FULL_WHEEL.md), the Binder's
+[Chapter 20](../architecture/agent-harbor-technical-binder/20-design-system-story-linework.md), the
+[iOS authority ADR](../adr/0125-ios-operator-surface.md), Porthole lifecycle proof, and this RFC must be imported and
+reconciled into one hypertree. Each imported node needs its exact source revision, owner and authority boundary,
+implementation truth, prerequisites and dependents, contradiction/disposition record, proof gate, evidence links,
+and Now / First Vertical Proof / Later placement.
+
+The surrounding work remains part of that one program:
+
+| Program area | Placement relative to this RFC |
+|---|---|
+| Chartroom authority, durable identity/whois, scoped authority, signed intents/receipts, and Provable Action Adjudicator | **Now — critical-path foundation.** |
+| Provider-neutral Harbor Agent Runtime and Convoy compiler/capsule contracts | **Now — freeze after the foundation; implement for the first proof.** |
+| Binder reconciliation and contradiction closure | **Now after Chartroom is writable, then a continuous program gate.** |
+| **Porthole** (`demos/porthole/PRODUCT.md`) causal evidence and Trial Basin controlled Genesis runs | **First Vertical Proof — human and machine views of the same causal chain.** |
+| pd-console, FleetBar, Harbor Editor, Parley, owner-depth PWA, and pd-iOS | **Later projections of the same authority; they do not own separate truth.** |
+| Chandlery, skill commerce, customer-funded economics, and creator settlement | **Later, after preventive action and economics proofs.** |
+| Chapter 20 site/docs rollout and cross-platform release trust | **Later delivery work, with accessibility, provenance, and target constraints shaping contracts now.** |
+| Apple [Virtualization framework](https://developer.apple.com/documentation/virtualization) containment | **Later optional Coast Guard tier for high-risk evaluation and proof, not default runtime or authority.** |
+
+The Binder remains the product and test constitution, not merely background documentation. Its
+[PRD/test plan](../architecture/agent-harbor-technical-binder/00-prd-roadmap-and-test-plan.md),
+[runtime review](../architecture/agent-harbor-technical-binder/13-platform-plays-and-runtime-surface-review.md),
+[launch board](../architecture/agent-harbor-technical-binder/18-build-prescription-agent-launch-board.md), and
+[operator-surface contract](../architecture/agent-harbor-technical-binder/19-operator-surface-triad.md) must become
+attributed requirements and proof cards, with contradictions resolved explicitly instead of silently choosing a
+favorite source.
+
+### 1.5 Where a convoy lives — repo topology (a repo per concern)
 
 A convoy spans the layers, and its code should too. The clean shape is **a repo per concern**:
 
@@ -144,7 +217,7 @@ and let the steward's needs pull the SDK forward.
 - **B1 — port-daddy-*invisible* product** (expungement.guide): the convoy operates on it *externally*; it ships no
   port-daddy code.
 - **B2 — port-daddy-*embedding* product** (the portfolio/resume app, **sold on app stores**): the product *itself*
-  ships port-daddy governance compiled in (see R8). Its repo depends on port-daddy's **embeddable profile** and adds a
+  ships port-daddy governance compiled in (see R9). Its repo depends on port-daddy's **embeddable profile** and adds a
   store **build/sign/notarize** pipeline.
 
 **Convoy #2 repo shape:** `portfolio-steward` (NEW, Layer A) runs Erich's portfolio *business*; `portfolio-app`
@@ -159,15 +232,17 @@ org (`curiositech`?), and private-vs-public.
 ## 2. Requirements
 
 Each requirement states **what I need**, **what you have** (from the survey, with the working parts named),
-**the gap**, a rough **effort**, and a **priority** (P0 = needed for Convoy #1 MVP; P1 = needed for a reusable
-platform; P2 = needed at scale / Convoy #2+).
+**the gap**, a rough **effort**, and sometimes a requirement-local **priority**. Those P0/P1/P2 annotations describe
+consumer urgency inside a requirement; they are not a rival program roadmap. The authoritative top-level ordering is
+Now / First Vertical Proof / Later in §4 and, once available, its attributed projection in Chartroom.
 
 ### R1 — The convoy object (the binding + the lifecycle)
 
 - **Require:** a first-class `ConvoySource → staged instance → ConvoyReleaseCapsule` contract (§1.1b), with Harbor and
   Fleet as constituent primitives — a named object I can author, stage, freeze/sign, address, start/stop, and observe
   as one unit, with a shared burn envelope across its agents and a single owner-report seam. The economic-policy
-  digest (R3) and the target-profile constraints (R8) are part of the source and capsule from the start.
+  digest (R3), compiled action policy (R4), and target-profile constraints (R9) are part of the source and capsule
+  from the start.
 - **Have:** `harbors`/`harbor_members` tables + harbor-cards (named membership); the fleet engine (declarative team);
   the Conductor's **lineage budget (I4)** already shares a spend ceiling across an agent subtree — a strong starting
   point for a shared convoy burn envelope.
@@ -236,12 +311,13 @@ platform; P2 = needed at scale / Convoy #2+).
   missing pricing telemetry** (`backend-telemetry-policy.ts` blocks launch for any model with no exact rate). And the
   **macaroon spend-caveat kernel is PROVEN** — `core/kernel/pd-anchor/src/macaroon.rs`, ProVerif-modelled, carries
   `spend_usd`/`host`/`expires`, attenuate-only, per-hop verify, discharge — with a TS mirror + FFI.
-- **Gap (the crucial disconnect):** **the proven spend-caveat macaroon has ZERO runtime callers.** `verifyPushGrant`
-  is invoked by nothing; the only macaroon actually *enforced* in production is the narrow first-party coordination
-  macaroon in the relay, which **carries no spend authority.** So: the crypto ceiling and the metering ceiling are two
-  different numbers, and the metering one isn't cryptographically bound. Also missing: a **revenue-aware burn
-  governor** (budget enforcement is spend-cap only; there's no realized-revenue ledger or "burn relative to income"
-  check) and **per-convoy sub-budgets** (only global/actor/project scopes today).
+- **Gap (the crucial disconnect):** **no production spend/egress action path binds and verifies the proven
+  spend-caveat macaroon.** `verifyPushGrant` exists behind the macaroon library/store and test surfaces, but the survey
+  found no egress or spend actuator calling it; the only macaroon actually *enforced* in production is the narrow
+  first-party coordination macaroon in the relay, which **carries no spend authority.** So: the crypto ceiling and the
+  metering ceiling are two different numbers, and the metering one isn't cryptographically bound. Also missing: a
+  **revenue-aware burn governor** (budget enforcement is spend-cap only; there's no realized-revenue ledger or "burn
+  relative to income" check) and **per-convoy sub-budgets** (only global/actor/project scopes today).
 - **Effort:** wire the spend macaroon into the real action path (mint per-action grants, verify at every spend/egress
   point, bind the egress-meter cap to the `spend_usd` caveat) = **Medium** (integration, not new crypto — "a focused
   week or two" per survey). Revenue-aware burn governor = **Medium** (add a funding-receipt ledger + an envelope check
@@ -251,7 +327,133 @@ platform; P2 = needed at scale / Convoy #2+).
   gate**: no capsule that takes paid external actions ships until its capability closure binds spend/host/expiry to
   the real action path. This is the literal "don't make me broke" requirement.
 
-### R4 — Isolation: decide the honest posture
+### R4 — Provable Action Adjudicator: preventive, compiled action correctness
+
+- **Require:** every consequential action is suspended and reduced to a typed `ActionIntent`, evaluated by an
+  isolated deterministic **reference monitor** ([FORGE](https://arxiv.org/html/2602.16708) — a component interposed
+  before policy-relevant effects that decides whether execution may proceed) against a signed compiled policy and
+  authoritative causal substrate. An actuator may execute only with a one-use `ActionPermit` bound to that exact
+  action; the outcome and discharged obligations become an immutable `ActionReceipt`.
+- **Require (typed semantics, not a prematurely frozen schema):**
+  - `ActionIntent` identifies the exact candidate action and target, normalized parameters or their digest, the
+    durable AgentNode and current body lease proposing it, requested scopes and economic reservation, relevant causal
+    predecessors, authority epoch, release/policy context, and idempotency identity.
+  - `ActionPermit` exists only for `Permit` or `PermitWithObligations`. It is signed, single-use, short-lived, and
+    bound to the action digest, compiled-policy digest, release-capsule digest, authority epoch, nonce, expiry, and
+    any obligations the actuator must discharge. `Deny` never yields a permit.
+  - `ActionReceipt` binds the permit to the exact attempted effect and observed result, agent/body attribution,
+    policy and capsule digests, authoritative cost evidence, obligation discharge, and terminal outcome. Denials must
+    also leave durable causal evidence without pretending an actuator ran. The exact fields, canonical encoding, and
+    denial-record shape are unresolved in §5.
+- **Require (six correctness claims, kept separate):**
+  1. **Policy meaning** — the operator approved this exact constrained policy, and every formal clause maps back to
+     its source clause.
+  2. **Compilation correctness** — the compiler preserves the formal policy semantics.
+  3. **Evaluator correctness** — the runtime verdict matches those semantics.
+  4. **Substrate truth** — identities, body leases, scopes, authority epochs, causal predecessors, balances, and
+     prior receipts are authentic and fresh.
+  5. **Complete mediation** ([FORGE §3](https://arxiv.org/html/2602.16708) — every relevant effect point is
+     interposed before it can execute) — filesystem, network, process, GitHub, payment, secret, and coordination
+     effects cannot bypass the monitor within the declared threat model.
+  6. **Effect binding** — the actuator performs exactly the permitted action, once, and records the result and every
+     discharged obligation.
+
+#### R4.1 Offline compilation versus the hot path
+
+Natural language is source material, not executable authority. An LLM may draft a constrained policy, but explicit
+human approval plus contradiction and coverage analysis produces the signed source. Unknown, ambiguous, unsupported,
+or unbound clauses fail compilation. The intended offline pipeline is:
+
+```
+PolicySource
+→ constrained ConvoyPolicy IR
+→ typed predicate and action universe
+→ dependency / entailment DAG
+→ contradiction, redundancy, subsumption, totality, and unknown-predicate checks
+→ relational policy compilation
+→ arithmetic and economic invariant compilation
+→ formal model and selected proofs for the supported core
+→ differential and mutation tests
+→ signed CompiledPolicyCapsule
+```
+
+The compiled capsule binds the policy-source digest and clause map, substrate-schema version, compiler and evaluator
+versions, action universe, compiled-policy digest, proof/model artifacts, authority epoch and rollout constraints,
+signer, and revocation identity. **Datalog** ([FORGE §4](https://arxiv.org/html/2602.16708) — a relational rule
+language with deterministic evaluation and useful static analyses) is a candidate policy representation, not a
+decision made by this RFC.
+
+The hot path is intentionally smaller:
+
+```
+agent or harness proposes ActionIntent
+→ actuator remains suspended
+→ monitor authenticates AgentNode and body lease
+→ monitor materializes only the policy-relevant causal backward slice
+→ compiled evaluator returns Deny, Permit, or PermitWithObligations
+→ monitor emits a one-use ActionPermit bound to the exact action and authority state
+→ actuator rechecks the binding and executes at most once
+→ result and obligation discharge become immutable receipt evidence
+→ Porthole renders the causal chain
+```
+
+No model call, tactic search, proof generation, remote policy fetch, or natural-language interpretation belongs on
+that path. The per-action input is the candidate action plus the minimal policy-relevant causal slice, not a replay of
+the full event ledger.
+
+#### R4.2 Trusted boundary, research basis, and performance targets
+
+The single-implementation constraint comes from [ADR-0120](../adr/0120-rust-kernel-boundary.md): the adjudication
+security primitive belongs once in the Rust trusted core, while TypeScript, Swift, web, Fleet, Convoy SDK, MCP, CLI,
+and hosted-provider surfaces consume one FFI/RPC contract rather than reimplementing authorization. The exact runtime
+placement and transport remain unresolved in §5.
+
+The first spike should compare a **Soufflé-compiled policy library**
+([Soufflé](https://souffle-lang.github.io/) — a Datalog engine that can stage logic into optimized parallel C++) with
+a small native Rust evaluator generated from the same IR. **Lean-based verification-guided development**
+([AWS's Cedar account](https://aws.amazon.com/blogs/opensource/lean-into-verified-software-development/) — prove an
+executable model, optimize production Rust separately, then use differential tests to hold the implementation to the
+model) can establish selected properties of compilation and evaluation. It does not by itself prove substrate truth,
+complete mediation, or effect binding. Evaluator, IR, proof scope, and the smallest acceptable trusted computing base
+remain open decisions.
+
+[FORGE](https://arxiv.org/html/2602.16708) demonstrates pre-action join points, policy over a causal dependency
+graph, an explicit environment contract, sub-millisecond median authorization, and tens of thousands of decisions
+per second in its evaluated system. It reports 19–38% end-to-end latency increases dominated by blocked-action retry
+round-trips rather than policy evaluation. AWS reports about 5 µs for one Lean-model differential-test input versus
+7 µs for Rust in Cedar's development process, while checking all proofs and compiling the models took about 185
+seconds. Those results motivate the architecture; they are not Port Daddy measurements and do not mean a fresh proof
+runs for each action.
+
+Port Daddy's **unproven performance and behavior targets**, to be measured on explicitly named supported local
+hardware, are:
+
+- identical bounded input produces an identical verdict and reason;
+- p50 below 100 µs for a local fixed-policy decision;
+- p99 below 1 ms including authoritative substrate materialization for a bounded causal slice;
+- zero runtime LLM calls;
+- default deny for an unknown action, missing fact, stale epoch, bad signature, or policy mismatch;
+- no actuator accepts a missing, reused, expired, revoked, or differently bound permit; and
+- authorization latency is reported separately from agent retry and replanning overhead.
+
+These remain targets until the First Vertical Proof produces reproducible benchmark and bypass-adversary receipts.
+The existing Arbiter remains detect-and-compensate until this gate is demonstrably pre-effect; a subscriber that
+notices a forbidden write after commit is not this preventive monitor.
+
+- **Have:** durable AgentNode/WorkIntent/WorkReceipt schemas, whois, ResourceScope, cost-accrual and macaroon kernels,
+  an append-only Agent Harbor event ledger (`lib/agent-harbor/event-ledger.ts`), and a pre/post tool-gate design
+  (`lib/agent-harbor/governance/tool-gate.ts`) provide ingredients.
+- **Gap:** this branch has no end-to-end `ActionIntent → ActionPermit → actuator → ActionReceipt` contract, no frozen
+  policy compiler/evaluator, no authoritative substrate adapter, and no proof that every consequential effect is
+  mediated. The tool-gate is not wired into a production action path.
+- **Effort / local priority:** Large, cross-cutting, and **Now** because it is a release gate for the first hosted-web
+  capsule, not a later safety enhancement.
+- **Planning disposition:** the current source snapshot already contains
+  `provable-action-adjudicator` (`docs/roadmap/roadmap.snapshot.json`, RCP-9). This RFC changes its architectural
+  dependency and Now placement; the Chartroom cutover must reconcile that existing node and its dependent egress/App
+  work without minting a duplicate.
+
+### R5 — Isolation: decide the honest posture
 
 - **Require:** a clear, honest answer to "can a misbehaving convoy agent bankrupt or embarrass the owner?" — and a
   posture I can trust for a money-spending, internet-connected team.
@@ -275,7 +477,7 @@ platform; P2 = needed at scale / Convoy #2+).
   (signed system-extension, notarization, pf). **Priority:** tool-gate wiring **P1**; true containment **P2** (but
   name it loudly as the gap).
 
-### R5 — Transparency: "porthole for actions" (the owner's trust mechanism)
+### R6 — Transparency: "porthole for actions" (the owner's trust mechanism)
 
 - **Require:** a single, **legible, plain-English, per-action feed** the money-phobic owner can glance at and trust —
   every external API call, opened PR, REST/HTTP request, MCP tool call, file edit, and **dollar spent** — each with a
@@ -296,7 +498,7 @@ platform; P2 = needed at scale / Convoy #2+).
   owner's trust mechanism); per-call HTTPS legibility **P2** (aggregate + the macaroon `host` allowlist is enough for
   Convoy #1).
 
-### R6 — The Convoy Console (Layer A): developer depth + owner depth
+### R7 — The Convoy Console (Layer A): developer depth + owner depth
 
 - **Require:** ONE port-daddy-adjacent console surface with **two depths over the same action/spend truth**:
   **developer depth** (durable agent identities, coordination, the raw per-action feed — Erich-the-developer, jargon
@@ -321,7 +523,7 @@ platform; P2 = needed at scale / Convoy #2+).
   Mac extension = **Small–Medium** (extend FleetBar/pd-console). **Priority:** owner-depth **PWA P0**; developer-depth
   Mac extension P1.
 
-### R7 — Developer SDK: convoy-as-code
+### R8 — Developer SDK: convoy-as-code
 
 - **Require:** `import { Convoy } from 'port-daddy'` → declare agents (role + prompt + backend + budget + schedule +
   triggers + coordination) in TypeScript → `.deploy()` / `.up()` / `.observe()`. A typed, ergonomic authoring +
@@ -340,9 +542,9 @@ platform; P2 = needed at scale / Convoy #2+).
   new inline `POST /fleet/apply` endpoint. Python client = Medium (OpenAPI-generated). **Priority:** **pulled forward
   to P0** — the SDK is the `ConvoySource` authoring API and the compiler entrypoint (§1.1b), so it must exist for the
   first compiler proof. It must avoid daemon-only types and transport assumptions, because the same source contract
-  compiles to target profiles that have no local daemon (R8).
+  compiles to target profiles that have no local daemon (R9).
 
-### R8 — Embeddable product profile: port-daddy compiled INTO a store-distributed app
+### R9 — Embeddable product profile: port-daddy compiled INTO a store-distributed app
 
 - **Require:** for **Convoy #2's product** (the resume/portfolio builder **sold on app stores**), port-daddy's
   *governance* must **compile into a code-signed, sandboxed, store-submittable app** (iOS App Store, Mac App Store,
@@ -368,7 +570,7 @@ platform; P2 = needed at scale / Convoy #2+).
 - **Effort:** **Large** overall and partly **architectural** — it forces the clean split between the two profiles
   below. Compose `agent-labor-pricing-function` (per-customer metering), `macaroon-capability-credentials` (per-buyer
   attenuated spend), `rust-tauri-development`/`rust-app-distribution`/`ios-app-beauty` (build/sign/ship). **Priority:**
-  shipped slices are **P2**, but the profile constraints **shape R1/R7 now** — otherwise the SDK encodes daemon-only
+  shipped slices are **P2**, but the profile constraints **shape R1/R8 now** — otherwise the SDK encodes daemon-only
   assumptions the compiler must later break.
 
 > **Two profiles of port-daddy, made explicit.** The **operator/daemon profile** (Convoy #1 steward, and Erich running
@@ -382,85 +584,166 @@ platform; P2 = needed at scale / Convoy #2+).
 
 ## 3. The two personas, mapped
 
-- **Erich-the-developer** is served by **R1 + R7** (the convoy object + the SDK to author it as code), standing on
-  R2/R3 (lifecycle + budget). The survey's verdict: this is an **M-sized authoring/lifecycle layer over machinery that
-  already ships** — the single highest-leverage move is adding a `Convoy`/`pd.fleet` namespace to the existing TS SDK.
-- **Erich-the-owner** is served by **R5 + R6** (the narrated action ledger + a clean web/phone/Mac business UI), which
-  hide R1–R4 entirely. He should never see "harbor," "conductor," "macaroon," or "berth" — he sees *his business*,
-  *what it made and spent*, and *the one decision he owes*.
+- **Erich-the-developer** is served by **R1 + R8** (the convoy object + the SDK to author it as code), standing on
+  R2/R3/R4 (lifecycle, economics, and preventive action authority). The SDK and compiler are useful only if the
+  identities, policies, and receipts they package remain authoritative at runtime.
+- **Erich-the-owner** is served by **R6 + R7** (the narrated action ledger + a clean web/phone/Mac business UI), which
+  hide R1–R5 entirely. He should never see "harbor," "conductor," "macaroon," or "berth" — he sees *his business*,
+  *what it made and spent*, *why an action was permitted or denied*, and *the one decision he owes*.
 
 The convoy is the seam between them: **the same object the developer declares as code is the object the owner watches
 as a business.**
 
 ---
 
-## 4. The sequenced ask (what I need first)
+## 4. Program sequence: Now → First Vertical Proof → Later
 
-I am not asking for all of this at once. Convoy slots **immediately after the current trust-kernel landing wave**
-(identity, exact admission, ResourceScope, trusted staged inputs, receipts) and **before** the owner PWA, native iOS
-packaging, marketplace, or general embedded runtime. The economic schema goes into the contract now; live customer
-money goes into a later, separately-gated slice. Local FloatPlan (worker settlement) is a **separate later program** —
-the first paid convoy does not depend on it, and customer-funded execution must never silently become worker
-settlement.
+This is one ordering inside Grand Harbor, not a replacement top-level roadmap. Requirement-local priority labels above
+remain useful for consumer urgency, but they do not outrank the critical path or create another authority.
 
-**Slice 0 — contract only (now):** revise this RFC / a successor ADR to carry §1.1b (source/stage/capsule) and R3's
-economic records, invariants, and funding modes. No Stripe, StoreKit, subscriptions, or money movement in this slice.
+### Now — authority, identity, evidence, and contract freeze
 
-**Slice 1 — the first compiler proof (hosted-web, two agents, no customer money):**
-1. Declare a tiny two-agent application in code (`ConvoySource` via the R7 SDK): coordination edge, bounded
-   tools/hosts, budget, input/output schemas, evidence policy, one hosted-web target profile.
-2. Stage it under full Port Daddy with isolated identities and a deterministic fixture; resolve every
-   skill/model/tool reference to immutable digests, failing on mutable or missing inputs.
-3. Run the **deterministic economics simulator** under `OWNER_FUNDED` with a tiny explicit grant: concurrent actions
-   whose combined maximum exceeds the grant must yield exactly the admissible subset of atomic reservations;
-   completion/abort/timeout/retry/failure each produce one final receipt and release unused authority.
-4. Emit a signed `ConvoyReleaseCapsule` + an accessible manifest of what ships and what was stripped.
-5. Build the web artifact — **no Port Daddy CLI, local daemon, launchd, or developer-console dependency** — talking
-   only through its declared hosted runtime seam; complete one interaction and read back a receipt binding source
-   digest + capsule digest + agent identity + funding grant + cost evidence.
-6. Demonstrate upgrade and revocation with a second signed capsule; the first must not silently regain authority.
+1. **Authority:** make Chartroom / Oracle writable as the single program authority and prove remote read-back. Import
+   source documents with exact revisions and explicit dispositions; do not mint duplicate roadmap nodes when a source
+   and local projection disagree.
+2. **Durable identity and whois:** make AgentNode the durable principal across body replacement, devices, providers,
+   and releases; bind the live body lease, ResourceScope, external-action attribution, revocation, and authority epoch.
+3. **Evidence and Provable Action Adjudicator:** freeze the semantic contracts for `ActionIntent`, `ActionPermit`, and
+   `ActionReceipt`; compile only approved constrained policy; provide authentic policy-relevant substrate facts; and
+   interpose the deterministic monitor before consequential effects. Porthole and machine receipts must expose the
+   same causal decision chain.
+4. **Provider-neutral runtime and capsule contracts:** freeze the Harbor Agent Runtime boundary, `ConvoySource`,
+   `CompiledPolicyCapsule`, `ConvoyReleaseCapsule`, hosted-runtime seam, upgrade, and revocation contracts. A release
+   capsule carries the exact policy capsule it was staged and tested against.
 
-**Acceptance gate for Slice 1:** another engineer can reproduce the signed capsule from the same source revision,
-inspect the exact capability delta, run the hosted-web fixture, and verify the runtime receipt against the signed
-capsule — without Port Daddy's developer CLI inside the product artifact — and an adversarial pass proves no-mint,
-no-oversubscription, exact partial-COGS commits, fail-closed stale pricing, and reversal-without-history-rewrite.
-**Kill/revisit trigger:** if the target requires shipping daemon/CLI authority, unresolved dynamic code, long-lived
-privileged credentials, or opaque hosted behavior — stop and revise the profile boundary before adding iOS or agents.
+The contract-only work moves no customer money and integrates no Stripe, StoreKit, subscription, or settlement
+adapter. Local FloatPlan remains a separate later worker-settlement concern; customer-funded execution must never
+silently become worker settlement. After Chartroom is writable, Binder and source reconciliation may proceed alongside
+the foundation, but neither source intake nor runtime work may claim the proof gate before stages 1–4 hold.
 
-**Slice 2 — money and consumers, in order:** technical alpha (tiny owner-funded ceiling or user-provider adapter; no
-auto-refill) → prepaid service beta (one payment adapter, test mode first; live only after refund/dispute/fraud/tax/
-settlement-maturity have owners and tests) → hosted iOS profile (lower the *already-proved* capsule; distribution-
-specific payment adapter) → Convoy #1 steward runs live on the platform → owner PWA console (R6).
+### First Vertical Proof — hosted web, two agents, owner funded
 
-**Slice 3 — scale & prove generality:** true containment (separate-UID + pf) before *untrusted* convoy agents;
-per-call external-API legibility (MITM-CA); bounded embedded runtime; **Convoy #2** (the portfolio app, Layer B2) as
-the real test that convoy generalizes. Explicitly later: postpaid/auto-refill credit, "unlimited" subscriptions,
-multi-currency, agents purchasing goods or transferring money, marketplace billing, and federated settlement.
+The first product proof includes the action kernel rather than bolting it on after commerce:
+
+1. Declare a tiny two-agent application in code (`ConvoySource` via the R8 SDK): one coordination edge, bounded
+   tools and hosts, explicit AgentNodes/body leases, budget and economic policy, input/output schemas, evidence policy,
+   constrained action policy, and one hosted-web target profile.
+2. Compile three policy families from reviewed source into one `CompiledPolicyCapsule`:
+   - **authority:** only the live AgentNode/body lease with the required ResourceScope may invoke the action on the
+     exact target;
+   - **economics:** reservation and realized COGS remain within the funded nested ceiling, without minting or
+     double-spend; and
+   - **consequence:** a destructive or external effect requires the correct recent human gate and produces a receipt.
+3. Stage under full Port Daddy with isolated identities and deterministic fixtures. Resolve every skill, model, tool,
+   compiler, evaluator, and schema reference to an immutable digest; mutable or missing inputs fail closed.
+4. Run the deterministic economics simulator under `OWNER_FUNDED` with a tiny explicit grant. Concurrent actions
+   whose combined maximum exceeds the grant must yield only the admissible atomic reservations; completion, abort,
+   timeout, retry, and failure each finalize exactly one accrual receipt and release unused authority.
+5. Run a controlled Genesis covering a permitted action, obvious denial, stale authority, forged identity, replayed
+   permit, changed target after permit, concurrent budget race, direct-tool bypass, shell/network escape, omitted
+   obligation, policy contradiction at compilation, and daemon/reference-monitor restart between permit and effect.
+6. Emit a signed `CompiledPolicyCapsule` and a `ConvoyReleaseCapsule` that binds it, plus an accessible manifest of
+   what ships and what was stripped. Another engineer must be able to reproduce the artifacts from the same source
+   revision and inspect the exact capability and policy delta.
+7. Build the hosted-web artifact with **no Port Daddy CLI, local daemon, launchd, or developer-console dependency**.
+   It may use only the declared hosted-runtime seam. Complete an interaction and read back evidence binding source,
+   policy and release capsule digests, AgentNode/body lease, authority epoch, funding grant, permit, exact effect,
+   obligation discharge, and authoritative cost.
+8. Demonstrate denial, at-most-once permit use, restart behavior, upgrade, and revocation. A prior or superseded
+   capsule must not silently regain authority. Repeat the same action fixtures across replaceable model/provider
+   bodies and require identical policy verdicts.
+9. Measure the §R4 targets on named hardware and report authorization/substrate latency separately from agent retry
+   and replanning overhead. A result is evidence for this bounded proof, not a universal shipping claim.
+
+**Causal proof gate:** Porthole shows `Stimulus → authoritative substrate → policy digest → verdict → actuator
+behavior → receipt`, while the machine projection verifies the same chain. The acceptance suite must demonstrate all
+six correctness claims within its declared threat model, or state exactly which claim remains unproved. A command
+exit, plan validator, screenshot, or post-effect alert is not a substitute.
+
+**Kill/revisit trigger:** if the target needs daemon/CLI authority inside the product artifact, unresolved dynamic
+code, natural-language interpretation on the hot path, long-lived privileged credentials, an effect path that bypasses
+the monitor, or opaque hosted behavior, stop and revise the profile or mediation boundary before adding customer money,
+iOS, or more agents.
+
+### Later — only after the bounded hosted-web proof
+
+- Technical alpha with a tiny owner-funded ceiling or user-provider adapter and no auto-refill.
+- Prepaid-service beta with one payment adapter, test mode first; live funds wait for named owners and tests for
+  refund, dispute, fraud, tax, and settlement maturity.
+- Convoy #1 operating on the platform and the owner-depth PWA over the same receipts and authority, with the exact
+  web-versus-phone presentation priority still open in §5.
+- Hosted iOS lowering of the already-proved capsule, with its distinct App Store identity, signing, entitlement,
+  payment-adapter, reachability, passkey, redaction, and on-device-decryption gates.
+- Chandlery, skill commerce, customer-funded economics, creator payout, and broader marketplace settlement only from
+  adjudicated policy-compliant receipts.
+- True containment before untrusted convoy agents; optional VM-tier productionization for high-risk evaluation and
+  clean-room proof where its measured cost justifies it.
+- Per-call external-API legibility, broader cross-platform releases, the bounded embedded runtime, and Convoy #2 as
+  the generality proof.
+- Explicitly later: postpaid or auto-refill credit, "unlimited" subscriptions, multi-currency, agent purchases or
+  transfers, marketplace billing, and federated settlement.
 
 ---
 
-## 5. Open questions for the building agents (please answer these)
+## 5. Explicit unresolved decisions
 
-Decided by operator disposition (2026-09-01): `convoy` is accepted as the named primitive with the §1.1b lifecycle;
-the sequence in §4 is the accepted staging; the owner console ships as a PWA and follows the first compiler proof.
-Still open:
+The operator has accepted `convoy` as the named primitive, the source → stage → policy-and-release-capsule lifecycle,
+the owner console as a PWA after the first proof, Chartroom / Oracle as the intended single program authority, and the
+Now → First Vertical Proof → Later ordering in §4. The following questions remain deliberately unresolved. Candidate
+technologies and field semantics elsewhere in this RFC are constraints or options, not invented decisions.
 
-1. **Where does the convoy contract live** — a revision of this RFC or a successor ADR? Either way it must carry
-   §1.1b and the R3 economic records/invariants as the single source of truth.
-2. **Isolation posture for a money-spending convoy of *my own* agents:** are we agreed that "cooperative isolation +
-   macaroon-bound egress cap + platform-native ad budget cap" is an acceptable, *honestly-labeled* P0 defense, with
-   true containment (separate-UID + pf) as the named P2 blocker before untrusted agents? Or do you want true
-   containment before any real money flows?
-3. **Owner-UI platform priority:** web-first (fastest legible surface, greenfield since the dashboard is retired) or
-   phone-first (the owner is mobile and absent)? I've assumed **web-first**; push back if the relay/pd-ios story makes
-   phone cheaper than it looks.
-4. **Who owns the narrated per-action ledger** (R5) — is it a new projection in the daemon over the transcript event
-   stream, a pd-console feature ported to web, or a relay-side aggregation? I need one owner, not three half-feeds.
-5. **Revenue ledger design (R3):** where does "realized attributed revenue" live — a new `cost-ledger` sibling keyed
-   on the business's Stripe events, or inside the convoy object? This is the input to the burn governor.
-6. **Roster-trigger wiring (R2):** the durable-agent roster already declares `schedule|email|webhook` triggers as
-   `enforcement: 'declaration-only'`. Is flipping these to execution (a supervisor that arms declared triggers →
-   `conductor.launch`) already on the roadmap, or does this RFC pull it forward?
+### Provable Action Adjudicator contracts and proof boundary
+
+1. **Exact schemas:** what are the canonical versioned encodings and required/optional fields for `ActionIntent`,
+   `ActionPermit`, `ActionReceipt`, denial evidence, obligations, result/error evidence, and their digest/signature
+   envelopes? Which identifiers survive retries, restarts, upgrade, and cross-provider body replacement?
+2. **Policy IR / language:** is the constrained `ConvoyPolicy` source itself Datalog, a smaller typed IR compiled to
+   Datalog and arithmetic checks, Cedar-like policy, or another representation? What policy subset is executable, and
+   how are unknown, ambiguous, or unsupported natural-language clauses represented and rejected?
+3. **Evaluator choice:** does production use a Soufflé-compiled library, a small generated native Rust evaluator, or
+   another engine? What benchmark, expressiveness, portability, auditability, and trusted-code criteria select it?
+4. **Mediation boundary:** which filesystem, network, process, GitHub, payment, secret, coordination, model/tool, and
+   hosted-provider join points are consequential and must suspend before effect? What is explicitly outside the threat
+   model, and how is any unavoidable bypass made visible and fail-closed?
+5. **Authoritative substrate API:** what minimal versioned interface supplies authentic AgentNode/body lease,
+   ResourceScope, authority epoch, causal predecessor, balance/reservation, approval, revocation, policy, and prior
+   receipt facts? How is the policy-relevant backward slice derived without replaying the full Logbook, and what
+   freshness proof is required?
+6. **Restart semantics:** where is a permit's one-use nonce durably reserved and consumed? What happens if the monitor,
+   daemon, hosted runtime, or actuator restarts or partitions after permit issuance but before/during effect? Which
+   outcomes are safe to retry, compensate, or leave indeterminate?
+7. **Proof scope:** which compilation and evaluator properties are modeled and proved in Lean, which are established
+   by differential/mutation testing, and which substrate, mediation, effect-binding, hardware, or deployment claims
+   remain outside formal proof? What proof artifacts must ship in `CompiledPolicyCapsule`?
+8. **Runtime placement:** while ADR-0120 fixes one Rust security implementation, where does the monitor actually run
+   for local daemon, hosted web, iOS, and embedded profiles? Which FFI/RPC boundary, actuator co-location, failure
+   domain, and policy/substrate cache are permitted without creating competing authorization semantics?
+
+### Convoy product, economics, and program placement
+
+9. **Convoy contract authority:** after this RFC, does the frozen contract live in a successor ADR, generated schema
+   package, or another Chartroom-owned artifact? It must not split §1.1b, R3, and R4 across rival sources of truth.
+10. **Isolation posture for a money-spending convoy of my own agents:** is honestly labeled cooperative isolation plus
+    adjudicated action permits, macaroon-bound egress caps, and the ad platform's native cap enough for the first live
+    money slice, or is true containment required before any real money flows? True containment remains required before
+    untrusted agents either way.
+11. **Owner-UI platform priority:** the product proof is hosted web, but that does not decide whether owner depth should
+    prioritize the installable web/Mac PWA or phone presentation first. Which is the first reviewable owner surface?
+12. **Narrated per-action ledger ownership (R6):** is the owner projection produced beside the authoritative event
+    ledger, in pd-console then ported to web, or at the hosted relay boundary? One component must own the projection;
+    three partial feeds are not acceptable.
+13. **Revenue ledger design (R3):** where does realized attributed revenue and settlement maturity live: an extension
+    of the existing Agent Harbor ledger/projection, a convoy-scoped record family, or another authoritative source?
+    It must not become a rival cost ledger.
+14. **Roster-trigger wiring (R2):** is the supervisor that arms declared `schedule|email|webhook|message|task-state|
+    agent` triggers into governed WorkIntents and conductor launches part of the runtime contract, and what restart,
+    deduplication, and attribution semantics does it owe?
+15. **Later iOS / embedded shape:** does hosted iOS hold attenuated authority and call the hosted runtime exclusively,
+    which adjudication pieces must execute locally, and what bounded application class would justify a direct-provider
+    embedded runtime? Store payment and release ceremonies remain distribution-specific.
+16. **Repository naming, organization, and visibility:** what are the final steward/product repo names, which GitHub
+    organization owns them, and which repositories or artifacts are public versus private? Repo creation remains an
+    outward-facing operator decision.
 
 ---
 
@@ -473,7 +756,8 @@ Honest, constructive, from the survey.
 | **Budget / cost enforcement** | ✅ **Strongest** | Real-time accrual, admission, throttle/kill, fail-closed-on-pricing — all wired. |
 | **Declarative fleet lifecycle** | ✅ **Real** | `pd-fleet.yml` is a true engine (AST, cron+events, restart-survival), not shell scripts. |
 | **Coordination substrate** | ✅ **Real** | Claims, notes, inbox, tuples, pheromones, harbors, pub/sub — first-class in SDK + MCP. |
-| **Macaroon spend kernel** | 🟡 **Proven, unwired** | Crypto is done and ProVerif-modelled; **zero runtime callers** for spend grants. |
+| **Macaroon spend kernel** | 🟡 **Proven, unwired** | Crypto is done and ProVerif-modelled; no production spend/egress action path binds and verifies its spend grants. |
+| **Provable Action Adjudicator** | ❌ **Specified, unbuilt** | Typed semantics and proof obligations are now requirements; no compiled policy capsule, preventive reference-monitor path, permit-bound actuator, or end-to-end receipt exists. |
 | **Coast Guard isolation** | 🟡 **Wired, cooperative-only** | Egress meter + secret broker + Seatbelt are real; same-UID = detection, not containment (said honestly in-code). |
 | **Action-transparency data** | 🟡 **Captured, not narrated** | Transcripts capture tool-calls/PRs/commits/cost + SSE; only rendered in the Mac GPUI console; no layperson feed. |
 | **Durable named-agent roster** | 🟡 **Declared, inert** | Right trigger kinds exist but `enforcement: 'declaration-only'` — nothing wakes them. The #1 "looks done, isn't wired" gap. |
@@ -483,12 +767,14 @@ Honest, constructive, from the survey.
 | **Owner UI (web/phone)** | ❌ **Missing** | Web retired, phone fixtures-only; nothing business-framed on any platform. |
 | **Convoy-as-code SDK** | ❌ **Missing** | Great SDK, but zero fleet methods — the declarative team layer is invisible to consumers. |
 
-**Net:** the hard, proven kernels (budget, crypto, coordination, fleet) are built; the end-to-end convoy lifecycle —
-object, compiler/capsule, target lowering, trigger wiring, spend wiring, owner surface, upgrade/revocation — has never
-been built, released, and operated. The work is largely *platform assembly* (connective tissue between proven parts)
-plus a small number of genuinely new surfaces (the compiler, the economic contract, the owner console), and it's
-exactly what this convoy — Port Daddy's first real business tenant — should drive into existence.
+**Net:** important kernels (budget, crypto, coordination, fleet) are built, but the current critical path is not.
+Chartroom authority, durable cross-body identity/whois, authoritative causal substrate, preventive compiled action
+adjudication, the bound policy/release capsules, and the end-to-end hosted-web proof have not all been built and proven
+together. The Convoy lifecycle — object, compiler/capsules, target lowering, trigger and spend wiring, owner surface,
+upgrade, and revocation — has therefore never been released and operated as one attributable unit. Existing parts make
+the program tractable; they do not make the missing proof implicit.
 
 ---
 
-*Filed as requirements, not a plan. Reply on the six open questions in §5 and tell me which P0 slices you'll own.*
+*Filed as requirements and a durable intake record, not a rival roadmap. Resolve §5 explicitly in the single Grand
+Harbor authority; do not infer answers from the candidate architecture.*
