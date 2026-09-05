@@ -37,7 +37,10 @@ mod util;
 use interruptions::{
     deep_link_for, full_jitter_ms, parse_open_interruptions, view_blocks, HitlHealth, HitlSnapshot,
     Interruption, PollFailure, PollMachine, PollPhase, Urgency, BREAKER_BASE_MS, BREAKER_CAP_MS,
-    BREAKER_THRESHOLD, POLL_MAX_MS,
+    POLL_MAX_MS,
+};
+use interruptions_pane::{
+    load_relay_credentials_from, resolve_relay_credentials, RelayCredentials,
 };
 use pane::{Block, Tone};
 
@@ -532,10 +535,73 @@ fn unconfigured_is_unknown_not_all_clear() {
     let text = blocks_text(&view_blocks(&HitlSnapshot::default(), None, 0));
     assert!(text.contains("unknown"));
     assert!(
-        text.contains("PD_CONSOLE_RELAY_URL"),
-        "actionable config hint"
+        text.contains("FleetBar Credentials"),
+        "operator-facing setup guidance"
+    );
+    assert!(
+        !text.contains("PD_CONSOLE_"),
+        "never asks operators for env vars"
     );
     assert!(!text.contains("no open interruptions"));
+}
+
+#[test]
+fn credentials_default_to_account_json_and_explicit_dev_overrides_win() {
+    let stored = r#"{
+        "token":"pdu_stored",
+        "login":"operator",
+        "relayUrl":"https://stored.example/"
+    }"#;
+    let account = resolve_relay_credentials(None, None, Some(stored));
+    assert_eq!(account.url, "https://stored.example");
+    assert_eq!(account.token, "pdu_stored");
+    assert_eq!(account.login, "operator");
+
+    let fallback = resolve_relay_credentials(None, None, Some(r#"{"token":"pdu_only"}"#));
+    assert_eq!(
+        fallback.url, "https://relay.portdaddy.dev",
+        "a signed-in account without relayUrl uses the product relay"
+    );
+
+    let overridden = resolve_relay_credentials(
+        Some("https://dev.example/".into()),
+        Some("pdu_dev".into()),
+        Some(stored),
+    );
+    assert_eq!(overridden.url, "https://dev.example");
+    assert_eq!(overridden.token, "pdu_dev");
+
+    let signed_out = resolve_relay_credentials(None, None, Some("not-json"));
+    assert!(signed_out.url.is_empty());
+    assert!(signed_out.token.is_empty());
+}
+
+#[test]
+fn account_file_is_reread_after_sign_in_and_rotation() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../target");
+    std::fs::create_dir_all(&root).expect("target exists");
+    let path = root.join(format!("hitl-account-{}.json", std::process::id()));
+
+    std::fs::write(
+        &path,
+        r#"{"token":"pdu_first","login":"operator","relayUrl":"https://one.example/"}"#,
+    )
+    .expect("write first account");
+    let first = load_relay_credentials_from(Some(&path), None, None);
+    assert_eq!(first.url, "https://one.example");
+    assert_eq!(first.token, "pdu_first");
+
+    std::fs::write(
+        &path,
+        r#"{"token":"pdu_second","login":"operator","relayUrl":"https://two.example/"}"#,
+    )
+    .expect("rotate account");
+    let second = load_relay_credentials_from(Some(&path), None, None);
+    assert_eq!(second.url, "https://two.example");
+    assert_eq!(second.token, "pdu_second");
+    assert_ne!(first, second, "a live process observes the rotated file");
+
+    std::fs::remove_file(path).expect("remove test account");
 }
 
 #[test]
@@ -646,6 +712,32 @@ fn a_401_from_the_relay_parks_the_pane() {
         }
         other => panic!("a rejected poll is UNKNOWN, got {other:?}"),
     }
+}
+
+#[test]
+fn rotated_account_unparks_and_succeeds_without_console_restart() {
+    let body = r#"{"code":"OK","error":null,"openCount":0,"interruptions":[]}"#;
+    let (url, _rx) = mock_relay(vec![
+        (
+            "401 Unauthorized",
+            r#"{"code":"UNAUTHENTICATED","error":"expired"}"#.to_string(),
+        ),
+        ("200 OK", body.to_string()),
+    ]);
+    let daemon = agent::DaemonClient::new("http://127.0.0.1:1".into());
+    let mut pane = interruptions_pane::InterruptionsPane::with_relay(&url, "pdu_expired");
+    block_on(pane.poll_now(&daemon));
+    assert_eq!(*pane.machine().phase(), PollPhase::Parked { status: 401 });
+
+    assert!(pane.apply_credentials(RelayCredentials {
+        url,
+        token: "pdu_rotated".into(),
+        login: "operator".into(),
+    }));
+    assert_eq!(*pane.machine().phase(), PollPhase::Ready);
+    block_on(pane.poll_now(&daemon));
+    assert_eq!(pane.snapshot().health, HitlHealth::Live);
+    assert!(pane.snapshot().open.is_empty());
 }
 
 #[test]
