@@ -1,0 +1,326 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://portdaddy.dev/schemas/agent-harbor/v0/porthole-disclosure-receipt.schema.json",
+  "title": "PortholeDisclosureReceipt",
+  "description": "A signed, immutable receipt for one purpose-limited evidence disclosure. Source identifiers are individually paired with commitments. Recipient, purpose, work-item, and reviewer metadata remain sealed. The reviewed preview, canonical manifest, and delivered artifact are hash-bound to the same bytes; privacy coverage requires an independent verification receipt; and grant, access, revoke, and expiry transitions retain append-only receipt references.",
+  "type": "object",
+  "properties": {
+    "schema": { "const": "pd.porthole.disclosure-receipt.v1" },
+    "receiptId": { "type": "string", "minLength": 1 },
+    "disclosureId": { "type": "string", "minLength": 1 },
+    "stageId": { "type": "string", "minLength": 1 },
+    "source": {
+      "type": "object",
+      "properties": {
+        "interval": {
+          "type": "object",
+          "properties": {
+            "startedAt": { "type": "string", "format": "date-time" },
+            "endedAt": { "type": "string", "format": "date-time" }
+          },
+          "required": ["startedAt", "endedAt"],
+          "additionalProperties": false
+        },
+        "items": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "properties": {
+              "sourceId": { "type": "string", "minLength": 1 },
+              "kind": { "enum": ["event", "perspective"] },
+              "commitment": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+            },
+            "required": ["sourceId", "kind", "commitment"],
+            "additionalProperties": false
+          }
+        },
+        "sourceSetCommitment": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+      },
+      "required": ["interval", "items", "sourceSetCommitment"],
+      "additionalProperties": false
+    },
+    "sealedMetadata": {
+      "type": "object",
+      "properties": {
+        "envelopeRef": { "type": "string", "pattern": "^sealed-disclosure-metadata:[A-Za-z0-9_-]+$" },
+        "commitment": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "protectedFields": { "const": ["recipient", "purpose", "work-item", "reviewer"] },
+        "privacyReceiptRef": { "type": "string", "minLength": 1 }
+      },
+      "required": ["envelopeRef", "commitment", "protectedFields", "privacyReceiptRef"],
+      "additionalProperties": false
+    },
+    "artifact": {
+      "type": "object",
+      "properties": {
+        "canonicalManifest": {
+          "type": "object",
+          "properties": {
+            "manifestId": { "type": "string", "minLength": 1 },
+            "immutableVersion": { "type": "integer", "minimum": 1 },
+            "objects": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "properties": {
+                  "objectId": { "type": "string", "minLength": 1 },
+                  "mediaType": { "type": "string", "minLength": 1 },
+                  "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+                },
+                "required": ["objectId", "mediaType", "sha256"],
+                "additionalProperties": false
+              }
+            },
+            "manifestHash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+            "rawEvidenceIncluded": { "const": false }
+          },
+          "required": ["manifestId", "immutableVersion", "objects", "manifestHash", "rawEvidenceIncluded"],
+          "additionalProperties": false
+        },
+        "reviewedPreview": {
+          "type": "object",
+          "description": "The completed review receipt and the exact artifact and manifest the reviewer approved; this is not preview-render telemetry.",
+          "properties": {
+            "previewRef": { "type": "string", "minLength": 1 },
+            "artifactHash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+            "manifestId": { "type": "string", "minLength": 1 },
+            "manifestHash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+            "reviewReceiptRef": { "type": "string", "minLength": 1 },
+            "reviewerMetadataEnvelopeRef": { "type": "string", "pattern": "^sealed-reviewer:[A-Za-z0-9_-]+$" },
+            "reviewerMetadataCommitment": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+            "reviewedAt": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Completion time of reviewReceiptRef for these exact artifact and manifest hashes, not the time the preview was rendered. Must not follow delivery.deliveredAt."
+            }
+          },
+          "required": [
+            "previewRef", "artifactHash", "manifestId", "manifestHash", "reviewReceiptRef",
+            "reviewerMetadataEnvelopeRef", "reviewerMetadataCommitment", "reviewedAt"
+          ],
+          "additionalProperties": false
+        },
+        "delivery": {
+          "type": "object",
+          "properties": {
+            "deliveryRef": { "type": "string", "minLength": 1 },
+            "artifactHash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+            "manifestId": { "type": "string", "minLength": 1 },
+            "manifestHash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+            "deliveredAt": { "type": "string", "format": "date-time" }
+          },
+          "required": ["deliveryRef", "artifactHash", "manifestId", "manifestHash", "deliveredAt"],
+          "additionalProperties": false
+        }
+      },
+      "required": ["canonicalManifest", "reviewedPreview", "delivery"],
+      "additionalProperties": false
+    },
+    "privacy": {
+      "type": "object",
+      "properties": {
+        "state": { "enum": ["scrubbed", "redacted"] },
+        "policyId": { "type": "string", "minLength": 1 },
+        "pipelineVersion": { "type": "string", "minLength": 1 },
+        "scanReceiptRef": { "type": "string", "minLength": 1 },
+        "scanCommitment": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "coverage": { "enum": ["verified-complete", "verified-partial"] },
+        "coverageVerificationReceiptRef": { "type": "string", "minLength": 1 },
+        "coverageKeyDerivationSuite": {
+          "const": "independent-enrolled-ed25519-v1",
+          "description": "The coverage verifier is an independently enrolled Ed25519 key, not a key derived from or controlled by the disclosure issuer."
+        },
+        "coverageVerifierKeyId": { "type": "string", "minLength": 1 },
+        "coverageCommitment": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "withheldCount": { "type": "integer", "minimum": 0 }
+      },
+      "required": [
+        "state", "policyId", "pipelineVersion", "scanReceiptRef", "scanCommitment",
+        "coverage", "coverageVerificationReceiptRef", "coverageKeyDerivationSuite", "coverageVerifierKeyId",
+        "coverageCommitment", "withheldCount"
+      ],
+      "additionalProperties": false
+    },
+    "grant": {
+      "type": "object",
+      "properties": {
+        "grantId": { "type": "string", "minLength": 1 },
+        "status": { "enum": ["active", "revoked", "expired"] },
+        "recipientKeyEnvelopeRef": { "type": "string", "pattern": "^sealed-recipient-key:[A-Za-z0-9_-]+$" },
+        "recipientKeyEnvelopeHash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "capabilities": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "enum": ["view", "download", "comment"] }
+        },
+        "issuedAt": { "type": "string", "format": "date-time" },
+        "expiresAt": { "type": "string", "format": "date-time" },
+        "terminalAt": { "type": ["string", "null"], "format": "date-time" },
+        "keyGrantReceiptRef": { "type": "string", "minLength": 1 }
+      },
+      "required": [
+        "grantId", "status", "recipientKeyEnvelopeRef", "recipientKeyEnvelopeHash",
+        "capabilities", "issuedAt", "expiresAt", "terminalAt", "keyGrantReceiptRef"
+      ],
+      "additionalProperties": false
+    },
+    "encryption": {
+      "type": "object",
+      "properties": {
+        "suite": { "const": "hpke-rfc9180-derivative-v1" },
+        "keyEpoch": { "type": "integer", "minimum": 1 },
+        "keyEnvelopeHash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+      },
+      "required": ["suite", "keyEpoch", "keyEnvelopeHash"],
+      "additionalProperties": false
+    },
+    "accessLedger": {
+      "type": "object",
+      "properties": {
+        "streamId": { "type": "string", "minLength": 1 },
+        "grantReceipt": {
+          "type": "object",
+          "properties": {
+            "receiptRef": { "type": "string", "minLength": 1 },
+            "sequence": { "const": 0 },
+            "occurredAt": { "type": "string", "format": "date-time" },
+            "contentHash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+            "prevHash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+          },
+          "required": ["receiptRef", "sequence", "occurredAt", "contentHash", "prevHash"],
+          "additionalProperties": false
+        },
+        "accessReceipts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "receiptRef": { "type": "string", "minLength": 1 },
+              "sequence": { "type": "integer", "minimum": 1 },
+              "kind": { "const": "access" },
+              "occurredAt": { "type": "string", "format": "date-time" },
+              "contentHash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+              "prevHash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+            },
+            "required": ["receiptRef", "sequence", "kind", "occurredAt", "contentHash", "prevHash"],
+            "additionalProperties": false
+          }
+        },
+        "revokeReceipt": {
+          "type": ["object", "null"],
+          "properties": {
+            "receiptRef": { "type": "string", "minLength": 1 },
+            "sequence": { "type": "integer", "minimum": 1 },
+            "kind": { "const": "revoke" },
+            "occurredAt": { "type": "string", "format": "date-time" },
+            "contentHash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+            "prevHash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+          },
+          "required": ["receiptRef", "sequence", "kind", "occurredAt", "contentHash", "prevHash"],
+          "additionalProperties": false
+        },
+        "expireReceipt": {
+          "type": ["object", "null"],
+          "properties": {
+            "receiptRef": { "type": "string", "minLength": 1 },
+            "sequence": { "type": "integer", "minimum": 1 },
+            "kind": { "const": "expire" },
+            "occurredAt": { "type": "string", "format": "date-time" },
+            "contentHash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+            "prevHash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+          },
+          "required": ["receiptRef", "sequence", "kind", "occurredAt", "contentHash", "prevHash"],
+          "additionalProperties": false
+        },
+        "headHash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+      },
+      "required": ["streamId", "grantReceipt", "accessReceipts", "revokeReceipt", "expireReceipt", "headHash"],
+      "additionalProperties": false
+    },
+    "lineageRunId": { "type": "string", "minLength": 1 },
+    "issuer": {
+      "type": "object",
+      "properties": {
+        "harborId": { "type": "string", "minLength": 1 },
+        "participantId": { "type": "string", "minLength": 1 },
+        "deviceId": { "type": "string", "minLength": 1 },
+        "signingKeyId": { "type": "string", "minLength": 1 }
+      },
+      "required": ["harborId", "participantId", "deviceId", "signingKeyId"],
+      "additionalProperties": false
+    },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "contentHash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "signature": {
+      "type": "object",
+      "properties": {
+        "algorithm": { "const": "ed25519" },
+        "keyId": { "type": "string", "minLength": 1 },
+        "value": { "type": "string", "pattern": "^[A-Za-z0-9_-]+$", "minLength": 32 }
+      },
+      "required": ["algorithm", "keyId", "value"],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "schema", "receiptId", "disclosureId", "stageId", "source", "sealedMetadata",
+    "artifact", "privacy", "grant", "encryption", "accessLedger", "lineageRunId",
+    "issuer", "createdAt", "contentHash", "signature"
+  ],
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": { "grant": { "properties": { "status": { "const": "active" } }, "required": ["status"] } },
+        "required": ["grant"]
+      },
+      "then": {
+        "properties": {
+          "grant": { "properties": { "terminalAt": { "const": null } } },
+          "accessLedger": {
+            "properties": {
+              "revokeReceipt": { "const": null },
+              "expireReceipt": { "const": null }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "grant": { "properties": { "status": { "const": "revoked" } }, "required": ["status"] } },
+        "required": ["grant"]
+      },
+      "then": {
+        "properties": {
+          "grant": { "properties": { "terminalAt": { "type": "string", "format": "date-time" } } },
+          "accessLedger": {
+            "properties": {
+              "revokeReceipt": { "type": "object" },
+              "expireReceipt": { "const": null }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "grant": { "properties": { "status": { "const": "expired" } }, "required": ["status"] } },
+        "required": ["grant"]
+      },
+      "then": {
+        "properties": {
+          "grant": { "properties": { "terminalAt": { "type": "string", "format": "date-time" } } },
+          "accessLedger": {
+            "properties": {
+              "revokeReceipt": { "const": null },
+              "expireReceipt": { "type": "object" }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

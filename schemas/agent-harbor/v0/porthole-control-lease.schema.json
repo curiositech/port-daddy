@@ -1,0 +1,234 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://portdaddy.dev/schemas/agent-harbor/v0/porthole-control-lease.schema.json",
+  "title": "PortholeControlLease",
+  "description": "A signed, short, attributable authorization for consequential input into one concrete target/body generation. Pointing and comments are never lease capabilities. Focus and target generations, step-up, trusted authority receipts, bounded action count, physical-user preemption, atomic focus revalidation, and revoke timing are explicit and fail closed.",
+  "type": "object",
+  "properties": {
+    "schema": { "const": "pd.porthole.control-lease.v1" },
+    "leaseId": { "type": "string", "minLength": 1 },
+    "stageId": { "type": "string", "minLength": 1 },
+    "harborId": { "type": "string", "minLength": 1 },
+    "bodyId": { "type": "string", "minLength": 1 },
+    "holderParticipantId": { "type": "string", "minLength": 1 },
+    "requestedByParticipantId": { "type": "string", "minLength": 1 },
+    "decisionParticipantId": { "type": ["string", "null"], "minLength": 1 },
+    "grantorParticipantId": { "type": ["string", "null"], "minLength": 1 },
+    "targetBinding": {
+      "type": "object",
+      "properties": {
+        "targetId": { "type": "string", "minLength": 1 },
+        "targetGeneration": { "type": "integer", "minimum": 0 },
+        "focusGeneration": { "type": "integer", "minimum": 0 },
+        "focusSnapshotCommitment": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+      },
+      "required": ["targetId", "targetGeneration", "focusGeneration", "focusSnapshotCommitment"],
+      "additionalProperties": false
+    },
+    "capabilities": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 7,
+      "items": { "enum": ["click", "scroll", "keyboard", "clipboard-read", "clipboard-write", "drag", "app-command"] }
+    },
+    "status": { "enum": ["requested", "active", "revoked", "preempted", "expired", "completed", "denied"] },
+    "reason": { "type": "string", "minLength": 8 },
+    "authoritySnapshot": {
+      "type": "object",
+      "properties": {
+        "snapshotId": { "type": "string", "minLength": 1 },
+        "commitment": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "capturedAt": { "type": "string", "format": "date-time" },
+        "stepUpLevel": { "enum": ["none", "recent-user", "webauthn", "platform-biometric"] }
+      },
+      "required": ["snapshotId", "commitment", "capturedAt", "stepUpLevel"],
+      "additionalProperties": false
+    },
+    "stepUp": {
+      "type": "object",
+      "properties": {
+        "required": { "type": "boolean" },
+        "status": { "enum": ["not-required", "pending", "verified", "failed"] },
+        "receiptRef": { "type": ["string", "null"], "minLength": 1 },
+        "verifiedAt": { "type": ["string", "null"], "format": "date-time" }
+      },
+      "required": ["required", "status", "receiptRef", "verifiedAt"],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": { "properties": { "required": { "const": true } }, "required": ["required"] },
+          "then": { "properties": { "status": { "enum": ["pending", "verified", "failed"] } } },
+          "else": { "properties": { "status": { "const": "not-required" } } }
+        },
+        {
+          "if": { "properties": { "status": { "const": "verified" } }, "required": ["status"] },
+          "then": { "properties": { "receiptRef": { "type": "string", "minLength": 1 }, "verifiedAt": { "type": "string", "format": "date-time" } } },
+          "else": { "properties": { "receiptRef": { "const": null }, "verifiedAt": { "const": null } } }
+        }
+      ]
+    },
+    "actionBudget": {
+      "type": "object",
+      "properties": {
+        "maxActions": { "type": "integer", "minimum": 1, "maximum": 5 },
+        "usedActions": { "type": "integer", "minimum": 0, "maximum": 5 }
+      },
+      "required": ["maxActions", "usedActions"],
+      "additionalProperties": false
+    },
+    "clipboardReadPolicy": {
+      "type": "object",
+      "properties": {
+        "default": { "const": "deny" },
+        "authorizationReceiptRef": { "type": ["string", "null"], "minLength": 1 }
+      },
+      "required": ["default", "authorizationReceiptRef"],
+      "additionalProperties": false
+    },
+    "physicalUserPreemption": {
+      "type": "object",
+      "properties": {
+        "enabled": { "const": true },
+        "revokeBoundMs": { "type": "number", "minimum": 0, "maximum": 250 }
+      },
+      "required": ["enabled", "revokeBoundMs"],
+      "additionalProperties": false
+    },
+    "atomicFocusRevalidation": {
+      "type": "object",
+      "properties": {
+        "required": { "const": true },
+        "checkedAt": { "type": ["string", "null"], "format": "date-time" },
+        "receiptRef": { "type": ["string", "null"], "minLength": 1 }
+      },
+      "required": ["required", "checkedAt", "receiptRef"],
+      "additionalProperties": false
+    },
+    "limits": {
+      "type": "object",
+      "properties": {
+        "maxTtlMs": { "type": "number", "minimum": 1, "maximum": 30000 },
+        "revokeEffectBoundMs": { "type": "number", "minimum": 0, "maximum": 250 }
+      },
+      "required": ["maxTtlMs", "revokeEffectBoundMs"],
+      "additionalProperties": false
+    },
+    "timing": {
+      "type": "object",
+      "properties": {
+        "requestedAt": { "type": "string", "format": "date-time" },
+        "grantedAt": { "type": ["string", "null"], "format": "date-time" },
+        "authorizedAt": { "type": ["string", "null"], "format": "date-time" },
+        "expiresAt": { "type": ["string", "null"], "format": "date-time" },
+        "terminationRequestedAt": { "type": ["string", "null"], "format": "date-time" },
+        "terminalAt": { "type": ["string", "null"], "format": "date-time" }
+      },
+      "required": ["requestedAt", "grantedAt", "authorizedAt", "expiresAt", "terminationRequestedAt", "terminalAt"],
+      "additionalProperties": false
+    },
+    "receipts": {
+      "type": "object",
+      "properties": {
+        "request": {
+          "type": "object",
+          "properties": {
+            "receiptId": { "type": "string", "minLength": 1 },
+            "verification": { "const": "verified" },
+            "signingKeyId": { "type": "string", "minLength": 1 }
+          },
+          "required": ["receiptId", "verification", "signingKeyId"],
+          "additionalProperties": false
+        },
+        "grant": { "type": ["object", "null"], "properties": { "receiptId": { "type": "string", "minLength": 1 }, "verification": { "const": "verified" }, "signingKeyId": { "type": "string", "minLength": 1 } }, "required": ["receiptId", "verification", "signingKeyId"], "additionalProperties": false },
+        "authorization": { "type": ["object", "null"], "properties": { "receiptId": { "type": "string", "minLength": 1 }, "verification": { "const": "verified" }, "signingKeyId": { "type": "string", "minLength": 1 } }, "required": ["receiptId", "verification", "signingKeyId"], "additionalProperties": false },
+        "terminal": { "type": ["object", "null"], "properties": { "receiptId": { "type": "string", "minLength": 1 }, "verification": { "const": "verified" }, "signingKeyId": { "type": "string", "minLength": 1 } }, "required": ["receiptId", "verification", "signingKeyId"], "additionalProperties": false }
+      },
+      "required": ["request", "grant", "authorization", "terminal"],
+      "additionalProperties": false
+    },
+    "operatorInterruptible": { "const": true },
+    "issuer": {
+      "type": "object",
+      "properties": {
+        "participantId": { "type": "string", "minLength": 1 },
+        "deviceId": { "type": "string", "minLength": 1 },
+        "signingKeyId": { "type": "string", "minLength": 1 }
+      },
+      "required": ["participantId", "deviceId", "signingKeyId"],
+      "additionalProperties": false
+    },
+    "contentHash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "signature": {
+      "type": "object",
+      "properties": {
+        "algorithm": { "const": "ed25519" },
+        "keyId": { "type": "string", "minLength": 1 },
+        "value": { "type": "string", "pattern": "^[A-Za-z0-9_-]+$", "minLength": 32 }
+      },
+      "required": ["algorithm", "keyId", "value"],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "schema", "leaseId", "stageId", "harborId", "bodyId", "holderParticipantId",
+    "requestedByParticipantId", "decisionParticipantId", "grantorParticipantId",
+    "targetBinding", "capabilities", "status", "reason", "authoritySnapshot",
+    "stepUp", "actionBudget", "clipboardReadPolicy", "physicalUserPreemption",
+    "atomicFocusRevalidation", "limits", "timing", "receipts", "operatorInterruptible",
+    "issuer", "contentHash", "signature"
+  ],
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": { "properties": { "timing": { "properties": { "authorizedAt": { "type": "string" } }, "required": ["authorizedAt"] }, "stepUp": { "properties": { "required": { "const": true } }, "required": ["required"] } }, "required": ["timing", "stepUp"] },
+      "then": {
+        "properties": {
+          "stepUp": { "properties": { "status": { "const": "verified" } } },
+          "authoritySnapshot": { "properties": { "stepUpLevel": { "enum": ["recent-user", "webauthn", "platform-biometric"] } } }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "status": { "const": "requested" } }, "required": ["status"] },
+      "then": {
+        "properties": {
+          "decisionParticipantId": { "const": null }, "grantorParticipantId": { "const": null },
+          "timing": { "properties": { "grantedAt": { "const": null }, "authorizedAt": { "const": null }, "expiresAt": { "const": null }, "terminationRequestedAt": { "const": null }, "terminalAt": { "const": null } } },
+          "receipts": { "properties": { "grant": { "const": null }, "authorization": { "const": null }, "terminal": { "const": null } } },
+          "atomicFocusRevalidation": { "properties": { "checkedAt": { "const": null }, "receiptRef": { "const": null } } }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "status": { "const": "active" } }, "required": ["status"] },
+      "then": {
+        "properties": {
+          "decisionParticipantId": { "type": "string", "minLength": 1 }, "grantorParticipantId": { "type": "string", "minLength": 1 },
+          "timing": { "properties": { "grantedAt": { "type": "string", "format": "date-time" }, "authorizedAt": { "type": "string", "format": "date-time" }, "expiresAt": { "type": "string", "format": "date-time" }, "terminationRequestedAt": { "const": null }, "terminalAt": { "const": null } } },
+          "receipts": { "properties": { "grant": { "type": "object" }, "authorization": { "type": "object" }, "terminal": { "const": null } } },
+          "atomicFocusRevalidation": { "properties": { "checkedAt": { "type": "string", "format": "date-time" }, "receiptRef": { "type": "string", "minLength": 1 } } }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "status": { "const": "denied" } }, "required": ["status"] },
+      "then": {
+        "properties": {
+          "decisionParticipantId": { "type": "string", "minLength": 1 }, "grantorParticipantId": { "const": null },
+          "timing": { "properties": { "grantedAt": { "const": null }, "authorizedAt": { "const": null }, "expiresAt": { "const": null }, "terminationRequestedAt": { "type": "string", "format": "date-time" }, "terminalAt": { "type": "string", "format": "date-time" } } },
+          "receipts": { "properties": { "grant": { "const": null }, "authorization": { "const": null }, "terminal": { "type": "object" } } }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "status": { "enum": ["revoked", "preempted", "expired", "completed"] } }, "required": ["status"] },
+      "then": {
+        "properties": {
+          "decisionParticipantId": { "type": "string", "minLength": 1 }, "grantorParticipantId": { "type": "string", "minLength": 1 },
+          "timing": { "properties": { "grantedAt": { "type": "string", "format": "date-time" }, "authorizedAt": { "type": "string", "format": "date-time" }, "expiresAt": { "type": "string", "format": "date-time" }, "terminationRequestedAt": { "type": "string", "format": "date-time" }, "terminalAt": { "type": "string", "format": "date-time" } } },
+          "receipts": { "properties": { "grant": { "type": "object" }, "authorization": { "type": "object" }, "terminal": { "type": "object" } } }
+        }
+      }
+    }
+  ]
+}

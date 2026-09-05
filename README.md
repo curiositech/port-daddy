@@ -1189,6 +1189,12 @@ The public site uses **`/examples`** as the single source-backed catalogue. Daem
 
 ## 🛠️ Development & Testing
 
+Porthole's [internal contract and security checks](docs/operations/porthole-contract-security.md)
+cover strict evidence schemas, sealed payload validation, and append-only SQLite
+history. This is an unexposed storage foundation, not a capture or retrieval
+service. Shared blob-retention integration and enrolled signing authority remain
+release prerequisites; native-app delivery is a separate workstream.
+
 ### Setup
 
 ```bash
