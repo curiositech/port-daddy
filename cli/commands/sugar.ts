@@ -599,7 +599,11 @@ export async function handleBegin(
   });
 
   if (isJson(options)) {
-    console.log(JSON.stringify(data, null, 2));
+    // Admission credentials belong in the private context, not machine-readable
+    // logs. Keep the original response intact for explicit shell exports below.
+    const publicResult = { ...data };
+    delete publicResult.credential;
+    console.log(JSON.stringify(publicResult, null, 2));
     return;
   }
 

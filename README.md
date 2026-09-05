@@ -537,6 +537,8 @@ sender is your session. Reads, clears and mark-read on another agent's inbox
 are still unauthenticated — see the deferral in
 [`docs/security/identity-write-boundary-audit.md`](docs/security/identity-write-boundary-audit.md).
 
+`pd begin --json` retains public session and identity metadata but omits the credential after private persistence; explicitly selected `PD_EMIT_EXPORTS=1` shell output still carries the credential, unless JSON mode takes precedence.
+
 ### Durable Commitments
 
 `pd commit` records an obligation ("I will fix the flaky test by Friday") that the obligation monitor tracks; `pd commit close` finalizes it, and overdue commitments surface in briefings (ADR-0041).
