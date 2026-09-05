@@ -23,6 +23,7 @@ import type { DaemonTarget as ConnectionTarget } from '../shared/daemon-discover
 import { createIpcClient } from './ipc-client.js';
 import { IpcAction, Performative } from './ipc-types.js';
 import { DEFAULT_SOCK, DEFAULT_IPC } from '../shared/paths.js';
+import type { SalvageQueueStatus } from './resurrection.js';
 
 // =============================================================================
 // SDK option / result interfaces
@@ -434,7 +435,9 @@ interface StaleAgent {
   sessionId: string | null;
   lastHeartbeat: number;
   staleSince: number;
-  status: 'stale' | 'dead' | 'resurrecting';
+  status: SalvageQueueStatus;
+  holdReason?: 'durable_session_active';
+  replacementAlreadyAdmitted?: boolean;
   notes?: string[];
   identityProject: string | null;
   identityStack: string | null;

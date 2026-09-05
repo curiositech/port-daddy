@@ -285,7 +285,7 @@ describe('Coordination Guard', () => {
       expect(result.violations.map(v => v.code)).toContain('roadmap-receipt-missing');
     });
 
-    test('passes when this agent recently touched roadmap_items', () => {
+    test('does not credit a promoter from a shared roadmap touch timestamp', () => {
       const result = evaluateGuardFacts({
         ...owned,
         files: ['lib/swarm-coordination.ts'],
@@ -300,8 +300,8 @@ describe('Coordination Guard', () => {
         }],
       });
 
-      expect(result.violations.map(v => v.code)).not.toContain('roadmap-receipt-missing');
-      expect(result.passed).toBe(true);
+      expect(result.violations.map(v => v.code)).toContain('roadmap-receipt-missing');
+      expect(result.passed).toBe(false);
     });
 
     test('passes when this agent left a recent roadmap note receipt', () => {
