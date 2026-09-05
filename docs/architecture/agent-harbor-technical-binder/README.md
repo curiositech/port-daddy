@@ -41,7 +41,11 @@ Read this binder as a layered source of truth, not as a pile of equal notes:
    defines the bounded hook lifecycle, plan-first continuation, repository PR
    digests, suggestion packets, Fleetbot settlement, and the future Postmaster
    role without claiming that local ship is already running.
-11. Implementation truth must eventually move from prose into ADRs, schemas,
+11. [29 Porthole Cooperative Body And Evidence](./29-porthole-cooperative-body-and-evidence.md)
+   owns the binder-wide live cooperative body contract, epistemic vocabulary,
+   institutional/evidence/ledger/search boundaries, and capability-invocation
+   proof gates. ADR-0135 in PR #9970 remains the Porthole decision authority.
+12. Implementation truth must eventually move from prose into ADRs, schemas,
    tests, events, and runtime projections. A section is not "real" until the
    matching proof gate passes.
 
@@ -56,6 +60,8 @@ Port Daddy is the operator control plane for AI software work.
 The user should be able to:
 
 - start, inspect, steer, pause, resume, and retire agents across providers;
+- open an agent's Porthole live, point, comment, request or hand over bounded
+  control, and later reopen the same session as source-classified evidence;
 - see live streams, past transcripts, tool calls, diffs, files, claims, PRs,
   costs, approvals, and memory with timestamps and provenance;
 - make agents coordinate through enforceable Articles of Agreement instead of
@@ -93,6 +99,35 @@ Soul:
 Body:
   A concrete runtime that can die and be replaced: Claude Code, Codex CLI,
   Cloudflare Worker, LM Studio, Ollama, a custom stdio agent, or a human peer.
+
+Porthole:
+  The body-neutral live cooperative session and historical evidence substrate.
+  It binds named participants and concrete Bodies to exact targets,
+  perspectives, clocks, consent, control, completeness, gaps, effects, and
+  disclosure. It is not synonymous with a screen recording or Parley replay.
+
+BodyAdapter:
+  The versioned boundary that declares and witnesses what a concrete Body can
+  observe or affect. It binds the cross-runtime execution envelope, target,
+  perspectives, semantic anchors, clocks, readiness, privacy limits, supported
+  actions, and receipts. Missing capabilities remain explicitly unavailable.
+
+ControlLease:
+  The domain-level, short, attributable, target-bound and revocable authority
+  to apply consequential input through a Body. ADR-0135 serializes it as
+  `PortholeControlLease`. Presence, attention, focus and room membership do not
+  confer it.
+
+Evidence Class:
+  One of the closed vocabulary `witnessed`, `reported`, `derived`, `inferred`,
+  or `unavailable`. Projections, search and institutional acceptance preserve
+  the class and lineage rather than silently promoting certainty.
+
+Grand Harbor:
+  Port Daddy's institutional view of authorized objectives, ownership,
+  commitments, policies, decisions and accepted transitions. It cites Porthole
+  evidence and ledger history but does not replace either. The remote Chartroom
+  authority remains target work until its own cutover gates pass.
 
 Articles of Agreement:
   The contract every official Port Daddy agent signs: how it registers,
@@ -248,6 +283,11 @@ Work Receipt:
   hook-lifecycle receipts, PR/review digests, roadmap/doc/AST suggestions,
   Fleetbot author-reviewer settlement, plan-first compaction, context-clustered
   successor workgroups, and the gated future Postmaster ship.
+- [29 Porthole Cooperative Body And Evidence](./29-porthole-cooperative-body-and-evidence.md):
+  the canonical binder integration for Porthole as live plus historical agent
+  body/evidence substrate, the BodyAdapter and ControlLease boundaries,
+  epistemic classes, live Fleet and multiplayer testing, governed capability
+  invocation, and mutual non-exfiltration honesty.
 - [Work packet: Destructive Daemon Runtime Refactor](./work-packets/destructive-daemon-runtime-refactor.md):
   the Wave 2 Lane A authority packet for implementation lanes: destructive
   legacy entry disposition, local/cloud authority, `harbor_events`, Surface
@@ -286,6 +326,11 @@ flowchart LR
   HotBus --> Kernel["Local Runtime Kernel"]
   CoolBus --> Kernel
   Kernel --> WorkIntent["WorkIntent -> WorkPlan -> AgentNode -> AgentRun"]
+  WorkIntent --> Porthole["PortholeStage -> BodyAdapter -> Perspective"]
+  Porthole --> Ledger["Append-only event and evidence ledger"]
+  Ledger --> Search["Authorized cited search and lineage"]
+  Search --> GrandHarbor["Grand Harbor institutional projection"]
+  GrandHarbor --> WorkIntent
 
   Kernel --> DaemonLease
   subgraph Supervisor["pd-supervisor"]
@@ -318,7 +363,11 @@ Spec-only or target until proven by tests:
 - browser-verifiable Work Receipts;
 - passkey/device account flow;
 - C6 successor replay;
-- complete transcript/session joins for every body.
+- complete transcript/session joins for every body;
+- universal Porthole contracts, encrypted evidence storage and native Stage
+  work remain active PRs, not merged or installed runtime proof;
+- live Fleet Portholes, multiplayer browser/app testing and governed rented
+  capability invocation remain gated target behavior.
 
 Target, not fully real yet:
 
@@ -355,6 +404,15 @@ The architecture is not complete until these user-visible tests pass:
     retention, export/delete data, and opt into or out of cloud sync separately.
 11. Produce a Work Receipt for a completed Agent Node and verify it in a browser
     or CLI without trusting the app's current UI.
+12. Join a local Porthole before an embodied action, point and comment, grant
+    one bounded ControlLease, witness its effect, then reopen sealed history
+    with source identity, clocks, completeness and gaps intact.
+13. Open an active worker from FleetBar or Grand Harbor and see the real
+    available perspectives and controller; render a missing native/browser POV
+    as `unavailable`, never inferred from a transcript or demo.
+14. Run a signed rented capability against fixture customer data with
+    default-deny egress and compatible privacy-preserving invocation receipts;
+    do not claim provider-IP secrecy on an ordinary customer-controlled host.
 
 ## Source corpus folded into this binder
 

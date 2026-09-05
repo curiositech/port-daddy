@@ -142,3 +142,104 @@ next Architect of Record run after that merge should check this specifically.
 - GitHub API `pull_request_read` on #7279, #9639, #9667, #9764 (`curiositech/port-daddy`) — full bodies and merge/base state read live at run time (2026-08-23T17:02Z), not recalled.
 - `git merge-base` / `git merge-base --is-ancestor` across `origin/main`, `origin/purser/pr-9639-tests`, `origin/claude/port-daddy-ios-server-fna9dy` — confirms the WS-H merge landed downstream of an unmerged PR, not on `main`.
 - `docs/adr/0128-mandatory-harbors.md` at `origin/claude/mandatory-harbors-adr` (not yet shipped to `main` — that is this finding's point) — full text read; Decision section quoted directly above.
+
+---
+
+## Entry 2 — 2026-09-04
+
+```text
+pd note "binder-aor-log: 2026-09-05T05:55:35Z | window 2026-08-23T17:02:06Z..2026-09-05T05:55:35Z | chapters scanned: README, 00, 05, 06, 13, 16, 29 candidate | source corpus scanned: ADR-0022/0122/0124/0134/0136, in-flight ADR-0135 and PRs #6786 #9822 #9914 #9970 #9989 #9992 #9995 #9997 #10013, local roadmap records | ambitions classified: absorbed 4, deferred 2, superseded 1 | contradictions: 1 Tier-2 schema/ordering contradiction on main; resolution candidate in this change | coverage gaps: 6 explicit operator/architecture decisions | proof gates changed: PH-01..PH-07 and F0/M1/M4 contract gates | operator decisions: confidential execution, leakage policy, provider observation, commercial settlement, publisher admission/revocation, Chartroom cutover | confidence: 0.88; repository and live PR state verified, installed/runtime proof not inferred | handover: reconcile this chapter and evidence vocabulary into ADR-0135 before either PR merges; refresh exact PR heads and close the main contradiction only after merge"
+```
+
+### Task scope
+
+This is a scoped reconciliation of the Porthole/Grand Harbor architecture and
+its directly related active work, not the overdue full-corpus baseline sweep.
+It changes only binder, AOR-ledger and changelog surfaces. It does not edit the
+in-flight ADR-0135, Porthole schemas/runtime, the separately staged Grand Harbor
+product-atlas draft, roadmap snapshots, native capture app, Sugar runtime,
+Chartroom kernel, retrieval design, or blind-session implementation.
+
+### Contradiction list
+
+| Kind | Contradiction | Tier | Candidate resolution | Main status |
+| --- | --- | --- | --- | --- |
+| `schema` | Binder 00 placed cooperation after transcript/control truth and omitted PortholeStage/BodyAdapter/ControlLease/evidence classes from F0, while in-flight ADR-0135 makes the live stage foundational and explicitly forbids recorder-first sequencing | 2 | Chapter 29 owns the binder integration; binder 00 moves the contract into F0 and PH-01 into the immediate local vertical slice; chapter 05 makes advanced cooperation later over that substrate | unresolved until this change and ADR-0135 are reconciled and merged |
+
+The intended resolution does not reorder every later product. Full remote
+stages, device breadth, marketplace UX, confidential execution and full Harbor
+Editor collaboration remain phased. Their shared identity, capability,
+session, evidence, gap and disclosure contracts do not.
+
+### Coverage matrix update
+
+#### Customer and deployment axis
+
+| Customer or deployment | Owner | Status | Gate | Failure mode | Recovery | Source |
+| --- | --- | --- | --- | --- | --- | --- |
+| Solo local operator | Porthole program | partial across separate PRs | PH-01 | capture starts late, wrong target, silent gap, or decorative control | block action until capture-ready; revoke lease; record gap/unavailable | chapter 29; ADR-0135; PRs #9970/#10013/#9992 |
+| Local cooperative team | Porthole + Agent Harbor | target | PH-01/PH-06 | presence treated as authority or participants receive unequal hidden state | signed capabilities, one explicit lease per uninstrumented target, per-Body observation receipts | chapter 29 |
+| Multiplayer browser/app testing | Porthole adapter owner | target | PH-02 | browser content instructs authority, anchor drifts, or a candidate test lacks an oracle | treat content as data, re-resolve versioned anchor, refuse unsupported oracle | chapter 29; ADR-0135 |
+| Remote participant/device | Remote Porthole owner | deferred | ADR-0135 Phase 6 plus PH-01 prerequisites | realtime disconnect or E2EE confused with durable evidence/authorization | local producing witness, per-participant observation receipt, explicit reconnect gap | chapter 29; ADR-0135 |
+| Customer renting capability | Security/capability owner | target/partial substrate | PH-04 | customer data egress or receipt leaks secret input | default-deny egress, typed output, separate disclosure grant, privacy-preserving receipt | chapter 29; PRs #6786/#9822 |
+| Provider protecting skill/model | Security/capability owner plus operator decision | deferred strongest claim | PH-05 | customer-controlled host extracts implementation; output becomes extraction oracle | honest unavailable label or attested confidential execution with bounded output/query policy | chapter 29; PR #6786 |
+
+#### Technical contingency axis
+
+| Contingency | Owner | Status | Gate | Failure mode | Recovery | Source |
+| --- | --- | --- | --- | --- | --- | --- |
+| Required modality absent | BodyAdapter owner | target contract | PH-06 | transcript or composite masquerades as pixels/DOM/AX | `unavailable` plus expected modality/reason; no promotion | chapter 29 |
+| Target/focus changes | BodyAdapter and control authority | active target work | PH-01 | queued input reaches another window/secure field | atomically revalidate generation and revoke/discard | ADR-0135; PR #9992 |
+| Realtime transport loss | Porthole transport owner | target | PH-01 then remote Phase 6 | missed presence mistaken for missed durable effects, or vice versa | separate lossy/reliable/durable lanes and append explicit gaps | chapter 29; ADR-0135 |
+| Evidence store crash/contention | Porthole contract owner | active gate | PR #10013 exact-head gates | committed event outlives or ambiguously binds ciphertext | fail closed, dedicated pinned evidence blobs, crash/contention tests | PRs #9970/#10013 |
+| Capability replay/overreach | Security/capability owner | active substrate | PH-04 plus one-use capability gates | expired/replayed/broader grant authorizes effect | signed attenuation, nonce/TTL/audience/resource binding, atomic spend/revocation | chapter 29; PR #9822 |
+| Output exfiltration/model extraction | Security/capability owner plus operator decision | residual risk | PH-04/PH-05 | secrets encoded in allowed output or capability behavior extracted by queries | typed output, denial, bounded queries/rates, inspection, attestation where selected, residual-risk disclosure | chapter 29; PR #6786 |
+
+#### Architecture consistency axis
+
+| Axis | Owner | Status | Gate | Failure mode | Recovery | Source |
+| --- | --- | --- | --- | --- | --- | --- |
+| Terms | Harbor Architect of Record | candidate aligned | F0/PH-06 | Body, Anode, BodyAdapter, Porthole and Parley collapse into aliases | canonical definitions and protocol-independence test | binder README/00/05/29 |
+| Authority | Harbor/Chartroom and Porthole owners | explicit target boundary | PH-01/PH-03 | evidence or search authorizes institutional transition; room presence authorizes input | Grand Harbor acceptance policy, signed capabilities and ControlLease, local authority until cutover | ADR-0122; chapter 29; PR #9989 |
+| Epistemic schema | Porthole contract owner | target; owner must reconcile into ADR/schema | PH-06 | projections silently promote reported/inferred/unavailable | closed EvidenceClass and lineage-preserving projections | chapter 29; PRs #9970/#10013 |
+| Shipped versus target | Harbor Architect of Record and PR owners | explicit | exact-head/runtime/visual/installed/acceptance witnesses remain separate | active PR or synthetic media described as deployed cooperative capture | implementation/evidence map and unavailable labels | chapter 29 |
+
+### Ambition archaeology table
+
+| Ambition family | Classification | Source | Destination | Rationale |
+| --- | --- | --- | --- | --- |
+| Porthole live cooperative body | `absorbed` | referenced design; ADR-0135 | chapter 29 and PH-01 | foundational live-to-history contract |
+| Cooperative coding and multiplayer testing | `absorbed` | referenced design; binder 05; ADR-0135 | chapters 05/29 and PH-01/PH-02 | same bodies, perspectives and control boundary |
+| Live Fleet Portholes | `absorbed` | referenced design; ADR-0135 active-body roster | chapter 29 and PH-03 | status/deep-link surface, not a second stage runtime |
+| Private data plus rented skill/agent/model | `absorbed` | referenced design; PRs #6786/#9822 | chapter 29 and PH-04/PH-05 | contract now; marketplace product later |
+| Hardware-backed mutual confidentiality | `deferred` | referenced design; PR #6786 residual-risk statement | chapter 29 unresolved decisions | named substrate and policy require operator/security selection |
+| Remote/mobile/device breadth | `deferred` | ADR-0135 phases 6/8 | chapter 29/ADR-0135 | depends on exact-target local and live-session gates |
+| Porthole defined by Parley replay | `superseded` | binder 05; ADR-0135 | chapter 29 protocol-independence rule | Sugar/Parley remains useful as one protocol over bodies |
+
+### Proof gates changed
+
+- Added PH-01 through PH-07 for local live-to-history, multiplayer tests, live
+  Fleet, rented capability, mutual-secrecy honesty, epistemic downgrade, and
+  Sugar/Parley independence.
+- Expanded F0 with the live body, capability, evidence-class, completeness and
+  disclosure contract.
+- Changed M1 from transcript-only truth to perspective truth and made PH-01 a
+  hard part of M4 rather than deferring the live substrate to M8.
+
+### Operator decisions requested
+
+The six decisions in chapter 29 remain open: confidential-computing/attestation
+substrate; leakage and query policy; provider observation rights; commercial
+license/settlement/dispute rules; publisher-key and execution-measurement
+admission/revocation; and the exact Chartroom authority cutover/import gate.
+The binder records the alternatives and honest unavailable states without
+choosing them.
+
+### Handover
+
+Before either the binder candidate or ADR-0135 merges, the PR owners should
+reconcile the closed epistemic vocabulary, `BodyAdapter`, live Fleet references,
+governed invocation receipts, and non-exfiltration honesty into the ADR/schema
+lane without copying the whole binder chapter. Refresh exact PR heads because
+#9970 is dirty and #10013/#9992/#9989/#9995 are blocked or draft. Close the
+Tier-2 contradiction only after the final merge state is verified.

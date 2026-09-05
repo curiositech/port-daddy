@@ -28,6 +28,31 @@ Harbor co-edit:
   Humans and agents become co-equal peers in a governed editor buffer, with
   claims, semantic conflicts, and salvage.
 
+## Porthole is the cooperation substrate
+
+The live session protocol is foundational, not an M8 feature bolted onto a
+recorder. Chapter 29 and ADR-0135 define `PortholeStage`, `BodyAdapter`,
+perspectives, anchors, presence, evidence classes, and the short revocable
+`ControlLease`. A local exact-target stage begins before an embodied action and
+seals the same attributable session into historical evidence afterward.
+
+This supports pair and ensemble coding, live Fleet observation, and
+multiplayer browser/app testing without creating separate collaboration stacks.
+Advanced semantic conflict prediction, blackboards, reputation and governance
+can remain later layers over the same protocol.
+
+Presence and attention are not authorization. Seeing a participant's cursor,
+joining a room, following a presenter, or selecting an object never grants
+control or tool capability. Consequential effects require attributable,
+current capabilities and a target-bound ControlLease when a live body is being
+driven.
+
+Sugar is an interaction style and Parley is one reconciliation protocol that
+can run between these bodies. Their messages and settlement receipts may
+become attributed Porthole inputs after their own runtime proof passes, but
+they do not define Porthole identity, lifecycle, authority, evidence,
+completeness, or disclosure.
+
 ## Who controls the agents?
 
 The operator controls the harbor policy.

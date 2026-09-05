@@ -26,11 +26,16 @@ Port Daddy turns that intent into a governed agent team:
    infrastructure helper.
 3. Attach the right skills, rules, budget, worktree, and provider/body.
 4. Refuse to launch if the agent cannot be observed, governed, or repaired.
-5. Stream visible messages, tool calls, files, diffs, costs, blocks, and
-   decisions while the work happens.
-6. Let the operator interrupt, steer, fork, resume, or retire the work.
-7. Produce a signed Work Receipt with transcript, diff, cost, tests, PR state,
-   decisions, and resume point.
+5. Open a capture-ready Porthole before embodied action so people and agents can
+   see the available perspectives, point, comment, and negotiate bounded
+   control while the work happens.
+6. Stream visible messages, tool calls, files, diffs, costs, blocks, decisions,
+   effects, completeness, and gaps with their evidence class.
+7. Let the operator interrupt, steer, fork, resume, retire, or join the work
+   live without confusing presence with authorization.
+8. Seal the live session into historical evidence and produce a signed Work
+   Receipt with transcript, diff, cost, tests, PR state, decisions, evidence
+   references, disclosure state, and resume point.
 
 The product is not another chat window. It is the place where Claude Code,
 Codex, local models, Cloudflare workers, custom agents, and future bodies become
@@ -73,6 +78,15 @@ the transcript and files, not summarize from vibes.
 When work is done, I want a Work Receipt I can inspect, share, verify, search,
 and use as a resume point.
 
+When a person or another agent needs to collaborate, I want them to open the
+same live body, point at the exact target, comment, request or hand over bounded
+control, and later return to the same witnessed moment.
+
+When I invoke someone else's skill, agent, or model against private data, I want
+separate input, execution, observation, output, and disclosure grants; denied
+egress; and compatible signed receipts without pretending ordinary containers
+prove two-sided secrecy.
+
 ## Non-Negotiable Acceptance Criteria
 
 The architecture is real only when these pass against daemon truth, not cached
@@ -93,6 +107,18 @@ UI state:
 9. Local transcripts are saved by default. Cloud sync is separate and opt-in.
 10. A completed run emits a Work Receipt that verifies transcript and diff
     hashes after daemon restart.
+11. A local Porthole reaches `capture-ready` before an embodied action, supports
+    attributable person/agent pointing and comments, enforces one revocable
+    target-bound ControlLease, and reopens as sealed history after restart.
+12. Every historical assertion carries `witnessed`, `reported`, `derived`,
+    `inferred`, or `unavailable`; projection and search fixtures cannot promote
+    it silently.
+13. FleetBar or Grand Harbor opens an active or recent worker's real Porthole
+    and shows source identity, capture health, current controller, completeness,
+    gaps, and unsupported perspectives.
+14. A signed rented-capability fixture denies ungranted network/egress, emits
+    only its typed output, and returns compatible receipts without customer
+    secrets or provider implementation material.
 
 ## Big Ideas We Embrace
 
@@ -120,6 +146,19 @@ compliant. They can only pass probes and receive leases.
 Save visible local transcripts by default. Notes remain append-only and useful
 for explicit handoffs, claims, and commitments, but transcripts should capture
 the ordinary work without forcing agents to write manual status prose.
+
+### Cooperative stage first, witness second
+
+Porthole is the live cooperative session protocol and the historical evidence
+substrate for concrete Bodies. Freeze `PortholeStage`, `BodyAdapter`,
+perspectives, `ControlLease`, capability and evidence-class contracts before
+adapters diverge. The local stage begins capture-ready before action and seals
+the same session afterward. Advanced governance, remote rooms, device breadth,
+and marketplace UX may be phased; the protocol is not deferred with them.
+
+Grand Harbor owns institutional truth, Porthole owns experiential evidence, the
+append-only ledger owns causal history, and authorized cited search connects
+them. None silently substitutes for another.
 
 ### Contract-net magic, plain-language surface
 
@@ -154,7 +193,8 @@ the native app is the main human surface.
 
 ## What We Toss Or Park
 
-Park until after local Agent Node truth:
+Park their full product implementation until after local Agent Node and
+Porthole truth:
 
 - public harbors;
 - marketplace and trust economy;
@@ -165,6 +205,11 @@ Park until after local Agent Node truth:
 - hosted remote swarms;
 - training/fine-tuning pipelines;
 - elaborate art and marketing pages not backed by live proof.
+
+The live-session, BodyAdapter, ControlLease, signed capability-invocation,
+epistemic-class, completeness, gap, and disclosure contracts are not parked.
+They belong in F0 even when remote stages, confidential execution,
+marketplace listing/pricing/settlement, and broad device support ship later.
 
 Toss as product direction:
 
@@ -177,6 +222,8 @@ Toss as product direction:
   `custom` is the actual user-level choice;
 - deleting notes or transcripts to keep surfaces tidy;
 - building a whole editor before transcript, registry, and control truth exist.
+- treating Porthole as Parley replay or a recorder that receives cooperation
+  after its transport and evidence contracts are fixed.
 
 ## Technical Roadmap
 
@@ -190,6 +237,18 @@ Freeze the v0 executable contract:
 - `WorkPlan`
 - `AgentNode`
 - `AgentRun`
+- `PortholeStage`
+- `BodyAdapter`
+- `Perspective`
+- `ObservationBundle`
+- `PortholeControlLease`
+- `CapabilityGrant`
+- `ActionIntent`
+- `EffectReceipt`
+- `InvocationReceipt`
+- `EvidenceClass`
+- `POVCompletenessReceipt`
+- `DisclosureReceipt`
 - `TranscriptEvent`
 - `ControlCommand`
 - `ComplianceProbeResult`
@@ -199,12 +258,15 @@ Freeze the v0 executable contract:
 - `WorkReceipt`
 
 Gate:
-  Every user-visible control maps to a command, query, event, or explicit
-  unsupported state. UI cannot invent truth.
+  Every user-visible control maps to a command, query, event, signed capability
+  or explicit unsupported state. The contract distinguishes presence from
+  authority, action acknowledgement from witnessed effect, and all five
+  evidence classes. UI cannot invent truth.
 
 ### C1 - Ledger And Projections
 
-Build append-only event storage and projections for roster, transcript,
+Build append-only event/evidence storage and projections for roster,
+transcript, Porthole stage/perspective state, action/effect/gap/disclosure,
 files touched, costs, claims, compliance, and receipts.
 
 Gate:
@@ -220,7 +282,9 @@ Implement probes and adapters for:
 - Cloudflare worker bodies;
 - Ollama / LM Studio;
 - custom stdio or HTTP agents;
-- observed imports.
+- observed imports;
+- exact-window, terminal, browser, editor and app-SDK `BodyAdapter`
+  conformance, with unsupported modalities explicit.
 
 Gate:
   One compliant body, one weak body, one observed body, and one malicious fixture
@@ -233,13 +297,16 @@ Make `pd-console` the proof surface:
 - conjoined active/recent roster and detail panes;
 - live stream renderer;
 - historical transcript renderer;
+- live Porthole join/view/point/comment/control state and sealed evidence
+  inspector;
 - file preview and absolute path resolution;
 - provider/model/cost/context/compliance display;
 - click controls for interrupt, steer, checkpoint, successor, retire.
 
 Gate:
-  No ordinary operator action requires typing an id. Screenshot, GIF, and
-  recording show live and historical states.
+  No ordinary operator action requires typing an id. Live and historical
+  states descend to their source-classified evidence; screenshot, GIF and
+  recording proof remains labeled by the modality it actually witnessed.
 
 ### C5 - Governance And Tool Gates
 
@@ -270,9 +337,9 @@ Gate:
   Broken hook, missing provider key, disabled MCP, and stale daemon fixtures all
   produce repair cards and retest.
 
-### C4/C6/C7 - Memory, Skills, And Cooperation
+### C4/C6/C7 - Memory, Skills, And Advanced Cooperation
 
-After transcript and control truth:
+After the minimal local Porthole live-to-history and control truth:
 
 - context pressure tracking;
 - cited compaction packets;
@@ -302,7 +369,7 @@ Gate:
   fixtures each produce one bounded, idempotent next action backed by durable
   plan, cursor, packet, or settlement evidence.
 
-### Later - Harbor Editor, Mobile, Cloud, Teams
+### Later - Full Harbor Editor, Remote Stages, Mobile, Cloud, Teams, Marketplace
 
 Only after local Agent Node truth works:
 
@@ -312,27 +379,32 @@ Only after local Agent Node truth works:
 - hosted remote agents;
 - BYOK cloud vault;
 - team/public harbors;
-- billing and export/delete controls.
+- billing and export/delete controls;
+- marketplace discovery, pricing, settlement and dispute flows;
+- attested confidential execution for the strongest mutual non-exfiltration
+  claim.
 
 Gate:
   Local-only mode proves no upload. Cloud mode proves explicit pairing,
-  encryption, budget, and delete/export.
+  encryption, budget, and delete/export. Provider-IP/customer-data secrecy is
+  labeled `unavailable` until the chosen confidential-execution profile passes
+  measurement, key-release, egress, output and revocation tests.
 
 ## Milestone Gates
 
 | Milestone | Outcome | Hard gate |
 | --- | --- | --- |
-| M0 Canon | Binder and glossary aligned | AOR contradiction process exists |
-| M1 Transcript Truth | transcript absence is visible | Codex or Claude body emits transcript events |
+| M0 Canon | Binder and glossary aligned | AOR contradiction process exists; Porthole/body/evidence contracts are in F0 |
+| M1 Perspective Truth | transcript and POV absence are visible | Codex or Claude body emits transcript events; every requested modality has evidence class and completeness state |
 | M2 Agent Registry | compliant vs non-compliant is real | registry/probe distinguishes compliant, weak, observed, fake |
 | M2.5 Agent Lab | agents can be tested before prod | dry-run/probe returns plan without launch |
 | M3 Setup/Doctor | install and repair are humane | broken setup fixture repairs or explains |
 | M3.5 Governance | controls are not decorative | destructive git blocked before side effect |
-| M4 Control Panel | operator can click, stream, inspect | active and past Agent Nodes render from daemon truth |
+| M4 Control Panel | operator can click, stream, join and inspect | active and past Agent Nodes render from daemon truth; one local Porthole passes PH-01 |
 | M5 Suggestibility | Port Daddy gets in front of turns/tools | turn-start guidance and tool gates visible |
 | M6 Memory/Search | transcripts become reusable memory | cited compaction and transcript search work |
 | M7 Skills | grafting is explicit and validated | user-mentioned skill reaches agent; missing skill remediates |
-| M8 Cooperation | agents coordinate safely | conflict/parley shown and recorded |
+| M8 Advanced Cooperation | agents coordinate safely | conflict/parley shown and recorded over the already-frozen Porthole protocol |
 | M9 Harbor Editor | humans and agents co-edit safely | local Loro edit + claim-aware agent edit works |
 | M10 Cloud/Mobile/Teams | harbor spans devices/users | phone interrupts remote agent; local-only uploads nothing |
 
@@ -510,6 +582,22 @@ Verify:
 - malformed events quarantine without losing the rest;
 - stale projections are labeled and never authorize commands.
 
+### Porthole Conformance Gates PH-01..PH-07
+
+Chapter 29 owns the cross-cutting live-to-history gates for:
+
+- a local person/agent Porthole with one bounded ControlLease;
+- multiplayer browser/app test derivation;
+- live Fleet Porthole entry and honest unavailable states;
+- customer-bound rented capability invocation and denied egress;
+- provider-IP/confidential-execution honesty;
+- epistemic downgrade across projection and search; and
+- Sugar/Parley protocol independence.
+
+These are part of this PRD's acceptance matrix. They use a separate `PH-`
+namespace because chapters 19 and 22 already continue the `IT-` sequence from
+IT-015.
+
 ## Agent Work Packets
 
 Launch work only when each packet has input, output, owner, and proof gate.
@@ -517,18 +605,21 @@ Launch work only when each packet has input, output, owner, and proof gate.
 Immediate sequence:
 
 1. F0 contract freeze.
-2. C1 ledger/projections.
-3. C2 compliance probes.
-4. C3 operator control panel.
-5. C5 governance/tool gate.
-6. C8 setup/doctor.
+2. PH-01 local live-to-history vertical slice across C1/C2/C3/C5.
+3. C1 ledger/projections.
+4. C2 compliance probes and BodyAdapter conformance.
+5. C3 operator control panel and Porthole inspector.
+6. C5 governance/tool gate.
+7. C8 setup/doctor.
 
 Parallelization rule:
   F0 is serial. After F0, C1/C2/C3/C5/C8 can proceed in parallel if they agree
   on schema names and the integration agent owns merge order.
 
-Do not launch separate agents for cloud/mobile/editor/marketplace until C1-C5
-have a passing local proof.
+Do not launch separate agents for cloud/mobile/full-editor/marketplace product
+implementation until C1-C5 and PH-01 have a passing local proof. Their
+cross-runtime, capability, evidence and disclosure contracts are still frozen
+in F0.
 
 ## Current Source-Of-Truth Stack
 
@@ -541,8 +632,11 @@ Read in this order:
 5. `03-agent-contract-and-extension-api.md` for compliance/protocol.
 6. `09-data-model-and-api.md` for daemon records and APIs.
 7. `10-operator-control-panel.md` for native app behavior.
-8. `frame0/user-story-and-figma-brief.md` for product-language and UI story.
-9. `16-binder-architect-of-record.md` for contradiction handling.
+8. `29-porthole-cooperative-body-and-evidence.md` for the live body/evidence
+   contract and Porthole proof gates. ADR-0135 in active PR #9970 remains its
+   decision authority until reconciled into `main`.
+9. `frame0/user-story-and-figma-brief.md` for product-language and UI story.
+10. `16-binder-architect-of-record.md` for contradiction handling.
 
 If these disagree, this file names the current product commitment, but schema,
 ADR, and runtime tests supersede prose once they exist.
@@ -557,6 +651,14 @@ ADR, and runtime tests supersede prose once they exist.
   do not pretend to be local.
 - Transcripts saved by default require strong local retention/export/delete UX
   before cloud sync or team sharing.
+- Current Porthole work is split across active, blocked/dirty PRs; binder
+  convergence does not prove merge, installation, capture, or live cooperative
+  behavior.
+- Ordinary sandboxes can reduce exfiltration risk but cannot prove both
+  customer-data secrecy and provider-IP secrecy against mutually distrustful
+  parties; confidential execution and leakage-policy decisions remain open.
+- The evidence-class vocabulary needs one schema owner and migration rule when
+  ADR-0135 contracts reconcile, or projections may drift into silent promotion.
 - The binder is large enough that contradiction drift is likely unless the AOR
   process is treated as product infrastructure.
 
