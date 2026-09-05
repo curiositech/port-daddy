@@ -34,7 +34,8 @@ use crate::palette::{Theme, ThemeMode};
 use crate::pane::{Alert, AlertLevel, Block, LedgerCellWidth, OperatorTurn, Pane, Tone};
 use crate::presentation::{self, ZoomAction};
 use crate::shell_drawer::{
-    terminal_key_bytes, ShellDrawerGeometry, ShellEvent, ShellStatus, ShellTerminal, TerminalColor,
+    launch_path_bound_to_project, terminal_key_bytes, ShellDrawerGeometry, ShellEvent, ShellStatus,
+    ShellTerminal, TerminalColor,
 };
 use crate::story_linework::{corner_ticks, micro_flag, state_stripe};
 use crate::tokens;
@@ -473,17 +474,6 @@ fn surface_for_query(query: &str) -> Option<SurfaceKind> {
         .into_iter()
         .find(|n| n.key == q || n.id.starts_with(&q) || n.label.to_lowercase().starts_with(&q))
         .map(|n| surface_for_launcher_id(n.id))
-}
-
-fn retired_galaxy_pane_reply(pane: &str) -> Option<serde_json::Value> {
-    if pane.trim().eq_ignore_ascii_case("galaxy") {
-        Some(serde_json::json!({
-            "ok": false,
-            "error": "pane galaxy was renamed to sextant; use pane=sextant.",
-        }))
-    } else {
-        None
-    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -996,6 +986,71 @@ fn filetree_entries(root: Option<&str>) -> std::result::Result<Vec<FileEntry>, S
             .then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase()))
     });
     Ok(entries)
+}
+
+fn redact_daemon_url(raw: &str) -> String {
+    let Ok(mut url) = reqwest::Url::parse(raw) else {
+        return "invalid://redacted".into();
+    };
+    let _ = url.set_username("");
+    let _ = url.set_password(None);
+    url.set_query(None);
+    url.set_fragment(None);
+    url.to_string().trim_end_matches('/').to_string()
+}
+
+fn script_error(code: &str, message: impl Into<String>) -> serde_json::Value {
+    serde_json::json!({
+        "ok": false,
+        "error": {"code": code, "message": message.into()},
+    })
+}
+
+fn script_assert_matches(
+    actual: &serde_json::Value,
+    op: crate::script::AssertOp,
+    expected: Option<&serde_json::Value>,
+) -> bool {
+    use crate::script::AssertOp;
+    match op {
+        AssertOp::Exists => !actual.is_null(),
+        AssertOp::Eq => expected == Some(actual),
+        AssertOp::Ne => expected != Some(actual),
+        AssertOp::Contains => match (actual, expected) {
+            (serde_json::Value::String(actual), Some(serde_json::Value::String(expected))) => {
+                actual.contains(expected)
+            }
+            (serde_json::Value::Array(actual), Some(expected)) => actual.contains(expected),
+            _ => false,
+        },
+        AssertOp::Gte => actual
+            .as_f64()
+            .zip(expected.and_then(serde_json::Value::as_f64))
+            .is_some_and(|(actual, expected)| actual >= expected),
+        AssertOp::Lte => actual
+            .as_f64()
+            .zip(expected.and_then(serde_json::Value::as_f64))
+            .is_some_and(|(actual, expected)| actual <= expected),
+    }
+}
+
+fn work_snapshot_project_dir(snapshot: &crate::agent::WorkSnapshot) -> Option<String> {
+    ["/constraints/workdir", "/source/worktree"]
+        .into_iter()
+        .find_map(|pointer| {
+            snapshot
+                .intent
+                .pointer(pointer)
+                .and_then(serde_json::Value::as_str)
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .map(str::to_string)
+        })
+}
+
+fn is_mission_surface(surface: &SurfaceKind) -> bool {
+    matches!(surface, SurfaceKind::Mission)
+        || matches!(surface, SurfaceKind::Panel { nav } if nav == "work")
 }
 
 /// The FileTree surface as read-only `Block`s (the terminal face + the GPUI
@@ -2261,6 +2316,8 @@ pub struct ConsoleView {
     work_execution_projection: Option<String>,
     work_execution_session: Option<String>,
     work_execution_worktree: Option<String>,
+    /// Daemon-admitted Mission root, distinct from the runtime-created worktree.
+    work_project_dir: Option<String>,
     /// The node the operator clicked in the live Work canvas — drives the
     /// inspector drawer (full role/contracts/why/model/cost). `None` ⇒ no drawer.
     work_selected_node: Option<String>,
@@ -2279,6 +2336,8 @@ pub struct ConsoleView {
     flag_motion: FlagMotion,
     /// Last viewport width, to derive horizontal (resize/pan) velocity per frame.
     prev_viewport_w: f32,
+    /// Last authored viewport height, used by semantic drawer resize actions.
+    last_viewport_h: f32,
     /// True while a flag-settle loop is scheduled (one at a time, idempotent kick).
     flag_ticking: bool,
     /// Operator chat transcript (bubbles) + a transient transport error. Folded by
@@ -2288,6 +2347,8 @@ pub struct ConsoleView {
     /// so keydown pushes `key_char` here (case-preserving) the same way the command
     /// line does, and Enter submits a turn up the tube.
     chat_input: String,
+    /// The same scroll model the Mission transcript element tracks on screen.
+    mission_scroll: ScrollHandle,
     // ── Sextant state (rendered by `galaxy_canvas`; pub(crate) because
     // the bespoke canvas module reads them — the two-layer rule keeps all the
     // math in `galaxy_pane`, all the pixels there, and only state here). ──
@@ -2649,6 +2710,7 @@ impl ConsoleView {
             work_execution_projection: None,
             work_execution_session: None,
             work_execution_worktree: None,
+            work_project_dir: None,
             work_selected_node: None,
             // Screenshot/demo hook (mirrors `--pane`): open the launcher on startup
             // so capture tooling can grab it without injecting a keystroke.
@@ -2660,9 +2722,11 @@ impl ConsoleView {
             daemon_connected: false,
             flag_motion: FlagMotion::default(),
             prev_viewport_w: 0.0,
+            last_viewport_h: 0.0,
             flag_ticking: false,
             chat: ChatLog::default(),
             chat_input: String::new(),
+            mission_scroll: ScrollHandle::new(),
             galaxy: crate::galaxy_pane::GalaxySnapshot::default(),
             galaxy_selected: HashSet::new(),
             galaxy_hover: None,
@@ -3081,6 +3145,53 @@ impl ConsoleView {
 
     /// Handle one multiplexer command after the leader key. Disarming is done
     /// by the caller.
+    fn toggle_mission_terminal(&mut self) -> bool {
+        if self.shell_open {
+            self.shell_open = false;
+            self.shell_resize_drag = None;
+            return true;
+        }
+        let Some(project_dir) = self.work_project_dir.clone() else {
+            self.control_flash = Some(
+                "Terminal stayed closed: the Mission has no admitted project directory.".into(),
+            );
+            return false;
+        };
+        let cwd = self.shell.launch_cwd_label();
+        if launch_path_bound_to_project(Some(&project_dir), &cwd) != Some(true) {
+            if let Err(error) = self.shell.rebind(std::path::PathBuf::from(&project_dir)) {
+                self.control_flash = Some(format!(
+                    "Terminal stayed closed: it could not bind to the admitted Mission project ({error:#})."
+                ));
+                return false;
+            }
+        }
+        if launch_path_bound_to_project(Some(&project_dir), &self.shell.launch_cwd_label())
+            != Some(true)
+        {
+            self.control_flash = Some(
+                "Terminal stayed closed: its launch directory is not bound to the admitted Mission project."
+                    .into(),
+            );
+            return false;
+        }
+        self.shell_open = true;
+        true
+    }
+
+    fn set_mission_project_dir(&mut self, project_dir: Option<String>) {
+        self.work_project_dir = project_dir;
+        if self.shell_open
+            && launch_path_bound_to_project(
+                self.work_project_dir.as_deref(),
+                &self.shell.launch_cwd_label(),
+            ) != Some(true)
+        {
+            self.shell_open = false;
+            self.shell_resize_drag = None;
+        }
+    }
+
     fn leader_command(&mut self, key: &str, ctrl: bool, cx: &mut Context<Self>) {
         match key {
             // Splits duplicate the focused surface (tmux behaviour); swap after.
@@ -3114,10 +3225,7 @@ impl ConsoleView {
             // The PTY is global chrome, not a pane: it rises over any operator
             // surface and preserves its process when hidden.
             "`" | "grave" => {
-                self.shell_open = !self.shell_open;
-                if !self.shell_open {
-                    self.shell_resize_drag = None;
-                }
+                self.toggle_mission_terminal();
             }
             // Maximize / restore the focused pane.
             "z" => {
@@ -3849,12 +3957,36 @@ impl ConsoleView {
         self.control_flash = Some(format!("Opened {nav} beside Mission."));
     }
 
+    fn focus_or_open_mission(&mut self) {
+        let existing = self.ws().leaves().into_iter().find(|pane_id| {
+            self.ws()
+                .surface_at(*pane_id)
+                .is_some_and(is_mission_surface)
+        });
+        if let Some(pane_id) = existing {
+            self.ws_mut().focus(pane_id);
+        } else {
+            self.ws_mut().swap_surface(SurfaceKind::Mission);
+        }
+        self.launcher_open = false;
+    }
+
     /// The pane launcher overlay (Ctrl-A Space / the ⊞ button): an animated grid
     /// of surface tiles. Click — or press a tile's Ctrl-A key — to swap the
     /// focused pane to that surface. Motion discipline (rust-gpui-motion): no
     /// transforms — entrance is a one-shot staggered opacity fade (one owner per
     /// tile, no repeat()); hover "lift" is a BoxShadow glow; reduced-motion
     /// renders tiles at full opacity but keeps the hover glow for orientation.
+    fn activate_semantic_surface(&mut self, id: &str) -> bool {
+        if !launcher_items().iter().any(|item| item.id == id) {
+            return false;
+        }
+        self.ws_mut().swap_surface(surface_for_launcher_id(id));
+        self.launcher_open = false;
+        self.control_flash = Some(format!("→ {id}"));
+        true
+    }
+
     fn render_launcher(&self, window: &mut Window, cx: &mut Context<Self>) -> AnyElement {
         let t = current_theme();
         let reduced = reduced_motion();
@@ -3928,9 +4060,7 @@ impl ConsoleView {
                             .child(format!("⌃A {}", item.key)),
                     )
                     .on_click(cx.listener(move |this, _ev, _window, cx| {
-                        this.ws_mut().swap_surface(surface_for_launcher_id(id));
-                        this.launcher_open = false;
-                        this.control_flash = Some(format!("→ {id}"));
+                        this.activate_semantic_surface(id);
                         cx.notify();
                     }));
 
@@ -4097,6 +4227,7 @@ impl ConsoleView {
         match update {
             WorkUpdate::Receipt(receipt) => {
                 self.clear_work_projection_failure();
+                self.set_mission_project_dir(work_snapshot_project_dir(&receipt.snapshot));
                 self.work_mission =
                     crate::mission_view::MissionViewModel::starting(&receipt.snapshot);
                 let intent_id = receipt.snapshot.intent_id().to_string();
@@ -4124,6 +4255,7 @@ impl ConsoleView {
             }
             WorkUpdate::Execution(receipt) => {
                 self.clear_work_projection_failure();
+                self.set_mission_project_dir(work_snapshot_project_dir(&receipt.snapshot));
                 self.work_mission = crate::mission_view::MissionViewModel::from_execution(&receipt);
                 self.work_intent_id = Some(receipt.snapshot.intent_id().to_string());
                 self.work_plan_state = receipt.snapshot.plan_state().to_string();
@@ -4143,6 +4275,16 @@ impl ConsoleView {
             }
             WorkUpdate::Snapshot(snapshot) => {
                 self.clear_work_projection_failure();
+                self.set_mission_project_dir(work_snapshot_project_dir(&snapshot));
+                self.work_execution_state = snapshot.execution_state().to_string();
+                self.work_execution_id = snapshot.dispatch_id().map(str::to_string);
+                self.work_execution_session = snapshot
+                    .execution
+                    .as_ref()
+                    .and_then(|value| value.get("sessionId"))
+                    .and_then(serde_json::Value::as_str)
+                    .map(str::to_string);
+                self.work_execution_worktree = snapshot.worktree_path().map(str::to_string);
                 self.work_mission = crate::mission_view::MissionViewModel::from_snapshot(&snapshot);
                 self.work_intent_id = Some(snapshot.intent_id().to_string());
                 self.work_plan_state = snapshot.plan_state().to_string();
@@ -4158,6 +4300,7 @@ impl ConsoleView {
             }
             WorkUpdate::Reset => {
                 self.clear_work_projection_failure();
+                self.set_mission_project_dir(None);
                 crate::mission_callbacks::WorkProjectionBindings {
                     mission: &mut self.work_mission,
                     plan_graph: &mut self.work_plan_graph,
@@ -4248,131 +4391,392 @@ impl ConsoleView {
     /// the same channel every operator button uses, so scripting can never
     /// reach state the UI couldn't.
     pub fn handle_script(&mut self, req: crate::script::ScriptRequest) -> serde_json::Value {
-        use crate::script::{alert_to_json, block_to_json, ScriptRequest};
+        use crate::script::{alert_to_json, ScriptRequest};
         use serde_json::json;
         match req {
+            ScriptRequest::Describe => {
+                let mission_focused = is_mission_surface(self.ws().focused_surface());
+                let composer_ready = mission_focused && !self.chat_input.trim().is_empty();
+                let terminal_launch_cwd = self.shell.launch_cwd_label();
+                let terminal_bound_at_launch = launch_path_bound_to_project(
+                    self.work_project_dir.as_deref(),
+                    &terminal_launch_cwd,
+                );
+                let terminal_toggle_enabled = self.shell_open
+                    || self
+                        .work_project_dir
+                        .as_deref()
+                        .is_some_and(|path| std::path::Path::new(path).is_dir());
+                json!({
+                    "ok": true,
+                    "selectors": [
+                        {"selector": "mission.composer", "actions": ["type"], "enabled": mission_focused,
+                         "whyDisabled": if mission_focused { serde_json::Value::Null } else { json!("Mission is not focused") }},
+                        {"selector": "mission.send", "actions": ["click"], "enabled": composer_ready,
+                         "whyDisabled": if mission_focused && !composer_ready { json!("Mission composer is empty") } else if !mission_focused { json!("Mission is not focused") } else { serde_json::Value::Null }},
+                        {"selector": "nav.mission", "actions": ["click"], "enabled": true},
+                        {"selector": "nav.launcher", "actions": ["click"], "enabled": true},
+                        {"selector": "terminal.toggle", "actions": ["click"], "enabled": terminal_toggle_enabled,
+                         "whyDisabled": if terminal_toggle_enabled { serde_json::Value::Null } else { json!("Mission has no available admitted project directory") }},
+                        {"selector": "terminal.resize", "actions": ["drag"], "enabled": self.shell_open && self.last_viewport_h > 0.0 && terminal_bound_at_launch == Some(true)},
+                        {"selector": "terminal.scrollback", "actions": ["scroll"], "enabled": self.shell_open && terminal_bound_at_launch == Some(true)},
+                        {"selector": "terminal.live", "actions": ["click"], "enabled": self.shell_open && self.shell.scrollback_offset() > 0},
+                        {"selector": "terminal.clear", "actions": ["click"], "enabled": self.shell_open && self.shell.previous_receipt().is_some()},
+                        {"selector": "mission.transcript", "actions": ["scroll"], "enabled": mission_focused}
+                    ],
+                    "missionContextSelectors": [
+                        {"selector": "mission.context.plan", "actions": ["click"], "enabled": mission_focused},
+                        {"selector": "mission.context.skills", "actions": ["click"], "enabled": mission_focused},
+                        {"selector": "mission.context.claims", "actions": ["click"], "enabled": mission_focused},
+                        {"selector": "mission.context.next-move", "actions": ["click"], "enabled": mission_focused},
+                        {"selector": "mission.context.receipt", "actions": ["click"], "enabled": mission_focused},
+                        {"selector": "mission.context.latest-evidence", "actions": ["click"], "enabled": mission_focused},
+                        {"selector": "mission.context.cost", "actions": ["click"], "enabled": mission_focused}
+                    ],
+                    "surfaces": launcher_items().iter().map(|item| json!({
+                        "selector": format!("surface.{}", item.id),
+                        "actions": ["click"],
+                        "enabled": true,
+                        "label": item.label,
+                    })).collect::<Vec<_>>(),
+                    "workspaces": self.ws().dividers().iter().filter(|divider| divider.selector == "workspace.primary-companion.divider").map(|divider| json!({
+                        "selector": divider.selector,
+                        "actions": ["drag"],
+                        "enabled": self.split_bounds.borrow().contains_key(&divider.path),
+                        "orientation": match divider.dir { Dir::Row => "vertical", Dir::Col => "horizontal" },
+                        "fraction": divider.fraction,
+                    })).collect::<Vec<_>>(),
+                    "assertions": [
+                        "daemon.connected", "launcher.open", "mission.agentId",
+                        "mission.awaitingReply", "mission.composer.empty",
+                        "mission.composer.value", "mission.executionId",
+                        "mission.sessionId", "mission.state", "surface.focused",
+                        "terminal.open", "terminal.projectBoundAtLaunch",
+                        "terminal.scrollbackOffset"
+                    ]
+                })
+            }
+            ScriptRequest::Context => {
+                let project_dir = self.work_project_dir.clone();
+                let repo = project_dir.as_deref().and_then(|path| {
+                    std::path::Path::new(path)
+                        .file_name()
+                        .map(|name| name.to_string_lossy().into_owned())
+                });
+                let worktree = self
+                    .work_execution_worktree
+                    .clone()
+                    .or_else(|| self.work_mission.worktree.clone())
+                    .clone();
+                let terminal_launch_cwd = self.shell.launch_cwd_label();
+                let terminal_bound_at_launch =
+                    launch_path_bound_to_project(project_dir.as_deref(), &terminal_launch_cwd);
+                json!({
+                    "ok": true,
+                    "daemon": {"url": redact_daemon_url(&self.daemon_url), "connected": self.daemon_connected},
+                    "project": {
+                        "projectDir": project_dir,
+                        "projectDirAvailability": if self.work_project_dir.is_some() { "available" } else { "unknown" },
+                        "repo": {"availability": "unknown", "directoryName": repo, "provenance": "directoryName inferred from daemon WorkIntent projectDir; repository identity is not exposed"},
+                        "worktree": worktree,
+                        "worktreeAvailability": if self.work_execution_worktree.is_some() || self.work_mission.worktree.is_some() { "available" } else { "unknown" },
+                        "worktreeProvenance": if self.work_execution_worktree.is_some() || self.work_mission.worktree.is_some() { "daemon-execution" } else { "unavailable" },
+                        "provenance": if self.work_project_dir.is_some() { "daemon-work-intent" } else { "unavailable" },
+                    },
+                    "mission": {
+                        "intentId": self.work_intent_id.clone().or_else(|| self.work_mission.intent_id.clone()),
+                        "executionId": self.work_execution_id,
+                        "sessionId": self.work_execution_session,
+                        "agentId": self.work_mission.agent_id,
+                        "state": self.work_execution_state,
+                        "backend": self.work_mission.backend,
+                        "model": self.work_mission.model,
+                        "provenance": "daemon-work-projection",
+                    },
+                    "terminal": {
+                        "launchCwd": terminal_launch_cwd,
+                        "launchCwdProvenance": "PTY launch binding; shell cd changes are not observed",
+                        "liveCwd": serde_json::Value::Null,
+                        "liveCwdAvailability": "unknown",
+                        "projectBoundAtLaunch": terminal_bound_at_launch,
+                        "state": if terminal_bound_at_launch == Some(true) { "bound-at-launch" } else if terminal_bound_at_launch == Some(false) { "launch-mismatch" } else { "unknown" },
+                    },
+                    "capabilities": {
+                        "tools": {"availability": "unknown", "provenance": "not exposed by the current WorkIntent snapshot"},
+                        "mcp": {"availability": "unknown", "provenance": "not exposed by the current WorkIntent snapshot"},
+                    },
+                })
+            }
+            ScriptRequest::Type {
+                target,
+                text,
+                append,
+            } => {
+                if target != "mission.composer" {
+                    return script_error(
+                        "unknown_selector",
+                        format!("unknown type selector \"{target}\""),
+                    );
+                }
+                if !is_mission_surface(self.ws().focused_surface()) {
+                    return script_error("selector_disabled", "Mission is not focused");
+                }
+                if append {
+                    self.chat_input.push_str(&text);
+                } else {
+                    self.chat_input = text;
+                }
+                json!({"ok": true, "target": target, "changed": true, "sent": false, "value": self.chat_input})
+            }
+            ScriptRequest::Click { target } => {
+                if target.starts_with("mission.context.")
+                    && !is_mission_surface(self.ws().focused_surface())
+                {
+                    return script_error("selector_disabled", "Mission is not focused");
+                }
+                match target.as_str() {
+                    "mission.send" => {
+                        if !is_mission_surface(self.ws().focused_surface()) {
+                            script_error("selector_disabled", "Mission is not focused")
+                        } else if self.chat_input.trim().is_empty() {
+                            script_error("selector_disabled", "Mission composer is empty")
+                        } else {
+                            let before = self.chat.messages.len();
+                            self.submit_chat();
+                            json!({
+                                "ok": true,
+                                "target": target,
+                                "submitted": self.chat.messages.len() > before,
+                                "awaitingReply": self.chat.awaiting_reply,
+                            })
+                        }
+                    }
+                    "nav.launcher" => {
+                        self.launcher_open = true;
+                        json!({"ok": true, "target": target, "open": true})
+                    }
+                    "nav.mission" => {
+                        self.focus_or_open_mission();
+                        json!({"ok": true, "target": target, "focused": "mission"})
+                    }
+                    "terminal.toggle" => {
+                        let old_launch_cwd = self.shell.launch_cwd_label();
+                        if self.toggle_mission_terminal() {
+                            let new_launch_cwd = self.shell.launch_cwd_label();
+                            let rebound = old_launch_cwd != new_launch_cwd;
+                            let project_bound_at_launch = launch_path_bound_to_project(
+                                self.work_project_dir.as_deref(),
+                                &new_launch_cwd,
+                            );
+                            json!({
+                                "ok": true,
+                                "target": target,
+                                "open": self.shell_open,
+                                "binding": {
+                                    "oldLaunchCwd": old_launch_cwd,
+                                    "newLaunchCwd": new_launch_cwd,
+                                    "liveCwd": serde_json::Value::Null,
+                                    "liveCwdAvailability": "unknown",
+                                    "projectBoundAtLaunch": project_bound_at_launch,
+                                    "rebound": rebound,
+                                    "projectDir": self.work_project_dir,
+                                    "provenance": "daemon WorkIntent projectDir applied as PTY launch binding; shell cd changes are not observed"
+                                }
+                            })
+                        } else {
+                            script_error("selector_disabled", "Terminal launch binding is not proven to match the admitted Mission project")
+                        }
+                    }
+                    "terminal.live" => {
+                        if !self.shell_open || self.shell.scrollback_offset() == 0 {
+                            script_error("selector_disabled", "Terminal is closed or already live")
+                        } else {
+                            self.shell.scroll_to_live();
+                            json!({"ok": true, "target": target, "scrollbackOffset": 0, "live": true})
+                        }
+                    }
+                    "terminal.clear" => {
+                        if !self.shell_open || self.shell.previous_receipt().is_none() {
+                            script_error(
+                                "selector_disabled",
+                                "No visible terminal recovery receipt",
+                            )
+                        } else {
+                            self.shell.clear_previous_receipt();
+                            self.control_flash = Some("previous shell receipt cleared".into());
+                            json!({"ok": true, "target": target, "cleared": true})
+                        }
+                    }
+                    "mission.context.plan" | "mission.context.skills" => {
+                        self.open_mission_context(crate::mission_view::MissionContextTarget::Plan);
+                        json!({"ok": true, "target": target, "opened": "plan", "missionPreserved": true})
+                    }
+                    "mission.context.claims" => {
+                        self.open_mission_context(
+                            crate::mission_view::MissionContextTarget::Claims,
+                        );
+                        json!({"ok": true, "target": target, "opened": "claims", "missionPreserved": true})
+                    }
+                    "mission.context.next-move" => {
+                        self.open_mission_context(
+                            crate::mission_view::MissionContextTarget::Suggestions,
+                        );
+                        json!({"ok": true, "target": target, "opened": "suggest", "missionPreserved": true})
+                    }
+                    "mission.context.receipt" | "mission.context.latest-evidence" => {
+                        self.open_mission_context(
+                            crate::mission_view::MissionContextTarget::Activity,
+                        );
+                        json!({"ok": true, "target": target, "opened": "activity", "missionPreserved": true})
+                    }
+                    "mission.context.cost" => {
+                        self.open_mission_context(crate::mission_view::MissionContextTarget::Cost);
+                        json!({"ok": true, "target": target, "opened": "ledger", "missionPreserved": true})
+                    }
+                    _ if target.starts_with("surface.") => {
+                        let id = target.trim_start_matches("surface.");
+                        if self.activate_semantic_surface(id) {
+                            json!({"ok": true, "target": target, "focused": id})
+                        } else {
+                            script_error(
+                                "unknown_selector",
+                                format!("unknown surface selector \"{target}\""),
+                            )
+                        }
+                    }
+                    _ => script_error(
+                        "unknown_selector",
+                        format!("unknown click selector \"{target}\""),
+                    ),
+                }
+            }
+            ScriptRequest::Drag { target, delta } => {
+                if target == "workspace.primary-companion.divider" {
+                    let Some(divider) = self
+                        .ws()
+                        .dividers()
+                        .into_iter()
+                        .find(|item| item.selector == target)
+                    else {
+                        return script_error(
+                            "unknown_selector",
+                            format!("unknown drag selector \"{target}\""),
+                        );
+                    };
+                    let Some(bounds) = self.split_bounds.borrow().get(&divider.path).copied()
+                    else {
+                        return script_error(
+                            "selector_disabled",
+                            "Workspace boundary is not laid out",
+                        );
+                    };
+                    let axis = match divider.dir {
+                        Dir::Row => f32::from(bounds.size.width),
+                        Dir::Col => f32::from(bounds.size.height),
+                    }
+                    .max(1.0);
+                    self.dragging = Some(DragState {
+                        path: divider.path,
+                        left: divider.left,
+                        dir: divider.dir,
+                    });
+                    let result = self.ws_mut().drag_divider(&target, delta as f32 / axis);
+                    self.dragging = None;
+                    match result {
+                        Some((before, after)) => {
+                            json!({"ok": true, "target": target, "before": before, "after": after, "released": true})
+                        }
+                        None => script_error(
+                            "unknown_selector",
+                            format!("unknown drag selector \"{target}\""),
+                        ),
+                    }
+                } else if target != "terminal.resize" {
+                    script_error(
+                        "unknown_selector",
+                        format!("unknown drag selector \"{target}\""),
+                    )
+                } else if !self.shell_open || self.last_viewport_h <= 0.0 {
+                    script_error("selector_disabled", "Terminal drawer is not laid out")
+                } else if launch_path_bound_to_project(
+                    self.work_project_dir.as_deref(),
+                    &self.shell.launch_cwd_label(),
+                ) != Some(true)
+                {
+                    script_error("selector_disabled", "Terminal launch binding is not proven to match the admitted Mission project")
+                } else {
+                    let before = self.shell_geometry.height_px(self.last_viewport_h);
+                    self.shell_geometry.resize_from_anchor(
+                        before,
+                        delta as f32,
+                        self.last_viewport_h,
+                    );
+                    let after = self.shell_geometry.height_px(self.last_viewport_h);
+                    self.shell_resize_drag = None;
+                    json!({"ok": true, "target": target, "beforePx": before, "afterPx": after, "clamped": (before - delta as f32 - after).abs() > 0.5, "released": true})
+                }
+            }
+            ScriptRequest::Scroll { target, delta } => {
+                match target.as_str() {
+                    "terminal.scrollback" => {
+                        if !self.shell_open
+                            || launch_path_bound_to_project(
+                                self.work_project_dir.as_deref(),
+                                &self.shell.launch_cwd_label(),
+                            ) != Some(true)
+                        {
+                            script_error("selector_disabled", "Terminal is closed or its Mission project launch binding is unproved")
+                        } else {
+                            self.shell.scroll_rows(delta);
+                            let offset = self.shell.scrollback_offset();
+                            json!({"ok": true, "target": target, "scrollbackOffset": offset, "live": offset == 0})
+                        }
+                    }
+                    "mission.transcript" => {
+                        if !is_mission_surface(self.ws().focused_surface()) {
+                            script_error("selector_disabled", "Mission is not focused")
+                        } else {
+                            let current = f32::from(self.mission_scroll.offset().y);
+                            let maximum = f32::from(self.mission_scroll.max_offset().height);
+                            let next = (current - delta as f32).clamp(-maximum, 0.0);
+                            self.mission_scroll
+                                .set_offset(point(gpui::px(0.0), gpui::px(next)));
+                            json!({"ok": true, "target": target, "offsetPx": -next, "maxOffsetPx": maximum, "live": next <= -maximum})
+                        }
+                    }
+                    _ => script_error(
+                        "unknown_selector",
+                        format!("unknown scroll selector \"{target}\""),
+                    ),
+                }
+            }
+            ScriptRequest::Assert { path, op, expected } => {
+                let Some(actual) = self.script_state_value(&path) else {
+                    return script_error(
+                        "unknown_assertion",
+                        format!("unknown assertion path \"{path}\""),
+                    );
+                };
+                let passed = script_assert_matches(&actual, op, expected.as_ref());
+                let mut response = json!({
+                    "ok": passed,
+                    "path": path,
+                    "op": format!("{op:?}").to_ascii_lowercase(),
+                    "actual": actual,
+                    "expected": expected,
+                    "passed": passed,
+                });
+                if !passed {
+                    response["error"] = json!({"code": "assertion_failed", "message": "assertion did not match", "actual": response["actual"].clone(), "expected": response["expected"].clone()});
+                }
+                response
+            }
             ScriptRequest::Ping => json!({
                 "ok": true,
-                "daemon": self.daemon_url,
+                "daemon": {"url": redact_daemon_url(&self.daemon_url)},
                 "booted": self.booted,
                 "focused": self.ws().focused_surface().label(),
             }),
-            ScriptRequest::Panes => json!({
-                "ok": true,
-                "panes": launcher_items().iter().map(|item| item.id).collect::<Vec<_>>(),
-                "focused": self.ws().focused_surface().label(),
-            }),
-            ScriptRequest::Focus { pane } => {
-                if let Some(reply) = retired_galaxy_pane_reply(&pane) {
-                    reply
-                } else {
-                    match surface_for_query(&pane) {
-                        Some(SurfaceKind::Editor { path, region }) => {
-                            match self.open_editor(path, region, EditorPlacement::ReplaceFocused) {
-                                Ok(()) => json!({
-                                    "ok": true,
-                                    "focused": self.ws().focused_surface().label(),
-                                }),
-                                Err(error) => json!({
-                                    "ok": false,
-                                    "error": error,
-                                    "focused": self.ws().focused_surface().label(),
-                                }),
-                            }
-                        }
-                        Some(surface) => {
-                            self.ws_mut().swap_surface(surface);
-                            json!({"ok": true, "focused": self.ws().focused_surface().label()})
-                        }
-                        None => json!({
-                            "ok": false,
-                            "error": format!("unknown pane \"{pane}\""),
-                            "panes": launcher_items().iter().map(|item| item.id).collect::<Vec<_>>(),
-                        }),
-                    }
-                }
-            }
-            ScriptRequest::State { pane } => {
-                if pane.is_none() {
-                    if let SurfaceKind::Editor { path, region } = self.ws().focused_surface() {
-                        let key = editor_key(path, *region);
-                        return match self.editors.get(&key) {
-                            Some(state) => {
-                                let blame = match &state.blame {
-                                    EditorBlameState::Off => "off",
-                                    EditorBlameState::Loading => "loading",
-                                    EditorBlameState::Ready(_) => "ready",
-                                    EditorBlameState::Stale => "stale",
-                                    EditorBlameState::Error(_) => "error",
-                                };
-                                json!({
-                                    "ok": true,
-                                    "pane": "editor",
-                                    "path": path,
-                                    "text": state.pane.text(),
-                                    "wrap": state.wrap_lines,
-                                    "showBlame": state.show_blame,
-                                    "blame": blame,
-                                    "syntax": crate::syntax::lang_for_path(path).label(),
-                                })
-                            }
-                            None => json!({
-                                "ok": false,
-                                "pane": "editor",
-                                "path": path,
-                                "error": "focused editor state is not loaded",
-                            }),
-                        };
-                    }
-                }
-                let target = pane.unwrap_or_else(|| {
-                    nav_id_for_surface(self.ws().focused_surface())
-                        .unwrap_or("fleet")
-                        .to_string()
-                });
-                if let Some(reply) = retired_galaxy_pane_reply(&target) {
-                    return reply;
-                }
-                let Some(surface) = surface_for_query(&target) else {
-                    return json!({
-                        "ok": false,
-                        "error": format!("unknown pane \"{target}\""),
-                        "panes": launcher_items().iter().map(|item| item.id).collect::<Vec<_>>(),
-                    });
-                };
-                let blocks: Vec<serde_json::Value> = self
-                    .blocks_for_surface(&surface)
-                    .iter()
-                    .map(block_to_json)
-                    .collect();
-                let mut out = json!({"ok": true, "pane": target, "blocks": blocks});
-                if target == "sextant" {
-                    out["sextant"] = json!({
-                        "computedAt": self.galaxy.computed_at,
-                        "error": self.galaxy.last_error,
-                        "points": self.galaxy.points.iter().map(|p| json!({
-                            "id": p.id,
-                            "agentId": p.agent_id,
-                            "x": p.x,
-                            "y": p.y,
-                            "cluster": p.cluster_id,
-                            "purpose": p.purpose,
-                        })).collect::<Vec<_>>(),
-                        "clusters": self.galaxy.clusters.iter().map(|c| json!({
-                            "id": c.id,
-                            "label": c.label,
-                            "size": c.size,
-                        })).collect::<Vec<_>>(),
-                        "selected": self.galaxy_selected.iter().cloned().collect::<Vec<_>>(),
-                        "viewport": {
-                            "zoom": self.galaxy_viewport.zoom,
-                            "panX": self.galaxy_viewport.pan_x,
-                            "panY": self.galaxy_viewport.pan_y,
-                        },
-                    });
-                }
-                out
-            }
             ScriptRequest::Galaxy {
                 window_hours,
                 min_tokens,
@@ -4459,7 +4863,7 @@ impl ConsoleView {
                 Some(tx) => {
                     let _ = tx.send(ControlMsg::RebindDaemon { url: url.clone() });
                     self.daemon_url = url.clone();
-                    json!({"ok": true, "daemon": url})
+                    json!({"ok": true, "daemon": {"url": redact_daemon_url(&url)}})
                 }
                 None => {
                     json!({"ok": false, "error": "no control channel (view constructed without one)"})
@@ -4469,6 +4873,31 @@ impl ConsoleView {
                 "ok": true,
                 "alerts": self.alerts.iter().map(alert_to_json).collect::<Vec<_>>(),
             }),
+        }
+    }
+
+    fn script_state_value(&self, path: &str) -> Option<serde_json::Value> {
+        use serde_json::json;
+        match path {
+            "daemon.connected" => Some(json!(self.daemon_connected)),
+            "launcher.open" => Some(json!(self.launcher_open)),
+            "mission.agentId" => Some(json!(self.work_mission.agent_id)),
+            "mission.awaitingReply" => Some(json!(self.chat.awaiting_reply)),
+            "mission.composer.empty" => Some(json!(self.chat_input.trim().is_empty())),
+            "mission.composer.value" => Some(json!(self.chat_input)),
+            "mission.executionId" => Some(json!(self.work_execution_id)),
+            "mission.sessionId" => Some(json!(self.work_execution_session)),
+            "mission.state" => Some(json!(self.work_execution_state)),
+            "surface.focused" => Some(json!(nav_id_for_surface(self.ws().focused_surface())
+                .map(str::to_string)
+                .unwrap_or_else(|| self.ws().focused_surface().label()))),
+            "terminal.projectBoundAtLaunch" => Some(json!(launch_path_bound_to_project(
+                self.work_project_dir.as_deref(),
+                &self.shell.launch_cwd_label()
+            ))),
+            "terminal.open" => Some(json!(self.shell_open)),
+            "terminal.scrollbackOffset" => Some(json!(self.shell.scrollback_offset())),
+            _ => None,
         }
     }
 
@@ -5027,6 +5456,11 @@ impl ConsoleView {
                     .gap(px(if is_daemons { tokens::SPACE_2 } else { 0.0 }))
                     .px(px(if is_daemons { tokens::SPACE_3 } else { 0.0 }))
                     .pt(px(if is_daemons { tokens::SPACE_2 } else { 0.0 }));
+                let body = if is_mission {
+                    body.track_scroll(&self.mission_scroll)
+                } else {
+                    body
+                };
                 match filetree {
                     // FileTree: interactive clickable rows (open file / descend dir).
                     Some((root, entries)) => {
@@ -6426,7 +6860,7 @@ fn mission_home_btn(cx: &mut Context<ConsoleView>) -> impl IntoElement {
         })
         .child("MISSION")
         .on_click(cx.listener(move |this, _ev, _window, cx| {
-            this.ws_mut().swap_surface(SurfaceKind::Mission);
+            this.focus_or_open_mission();
             cx.notify();
         }))
 }
@@ -9220,6 +9654,7 @@ impl Render for ConsoleView {
         let presentation_scale = presentation::zoom_factor();
         let authored_viewport_width_px = viewport_width_px / presentation_scale;
         let authored_viewport_height_px = viewport_height_px / presentation_scale;
+        self.last_viewport_h = authored_viewport_height_px;
         let shell_drawer_height_px = self.shell_geometry.height_px(authored_viewport_height_px);
         let shell_terminal_rows = self.shell_geometry.terminal_rows(
             authored_viewport_height_px,
@@ -9702,10 +10137,7 @@ impl Render for ConsoleView {
                                     .child(">_ CLI"),
                             )
                             .on_click(cx.listener(|this, _event, _window, cx| {
-                                this.shell_open = !this.shell_open;
-                                if !this.shell_open {
-                                    this.shell_resize_drag = None;
-                                }
+                                this.toggle_mission_terminal();
                                 cx.notify();
                             }))
                     })
@@ -9923,6 +10355,129 @@ impl Render for ConsoleView {
 #[cfg(test)]
 mod add_pane_tests {
     use super::*;
+
+    #[test]
+    fn scripting_mission_type_send_and_context_click_use_live_view_state() {
+        let mut cx = gpui::TestAppContext::single();
+        let window = cx.add_window(|_window, cx| {
+            ConsoleView::new("http://127.0.0.1:9876".into(), Some("mission".into()), cx)
+        });
+        let exercised = window
+            .update(&mut cx, |view, _window, _cx| {
+                let typed = view.handle_script(crate::script::ScriptRequest::Type {
+                    target: "mission.composer".into(),
+                    text: "Inspect the active receipt".into(),
+                    append: false,
+                });
+                assert_eq!(typed["ok"], true);
+                assert_eq!(typed["sent"], false);
+                assert!(view.chat.messages.is_empty());
+
+                let sent = view.handle_script(crate::script::ScriptRequest::Click {
+                    target: "mission.send".into(),
+                });
+                assert_eq!(sent["ok"], true);
+                assert_eq!(sent["submitted"], true);
+                assert!(view.chat_input.is_empty());
+                assert_eq!(view.chat.messages.len(), 1);
+
+                let opened = view.handle_script(crate::script::ScriptRequest::Click {
+                    target: "mission.context.receipt".into(),
+                });
+                assert_eq!(opened["ok"], true);
+                assert_eq!(opened["missionPreserved"], true);
+                assert_eq!(view.ws().leaves().len(), 2);
+                assert!(view
+                    .ws()
+                    .leaves()
+                    .into_iter()
+                    .filter_map(|id| view.ws().surface_at(id))
+                    .any(is_mission_surface));
+                true
+            })
+            .unwrap_or(false);
+        assert!(exercised);
+    }
+
+    #[test]
+    fn scripting_whitespace_composer_is_empty_and_send_is_disabled() {
+        let mut cx = gpui::TestAppContext::single();
+        let window = cx.add_window(|_window, cx| {
+            ConsoleView::new("http://127.0.0.1:9876".into(), Some("mission".into()), cx)
+        });
+        let exercised = window
+            .update(&mut cx, |view, _window, _cx| {
+                view.handle_script(crate::script::ScriptRequest::Type {
+                    target: "mission.composer".into(),
+                    text: "   ".into(),
+                    append: false,
+                });
+                assert_eq!(
+                    view.script_state_value("mission.composer.empty"),
+                    Some(serde_json::json!(true))
+                );
+                let sent = view.handle_script(crate::script::ScriptRequest::Click {
+                    target: "mission.send".into(),
+                });
+                assert_eq!(sent["ok"], false);
+                assert_eq!(sent["error"]["code"], "selector_disabled");
+
+                view.shell_open = true;
+                view.set_mission_project_dir(Some(
+                    "/path-that-does-not-exist/pd-console-mission".into(),
+                ));
+                assert!(
+                    !view.shell_open,
+                    "a Mission project change closes a mismatched drawer"
+                );
+                assert!(!view.toggle_mission_terminal());
+                assert!(view
+                    .control_flash
+                    .as_deref()
+                    .is_some_and(|message| message.contains("could not bind")));
+                assert!(
+                    !view.shell_open,
+                    "a failed replacement never opens the drawer"
+                );
+                true
+            })
+            .unwrap_or(false);
+        assert!(exercised);
+    }
+
+    #[test]
+    fn scripting_context_redacts_daemon_secrets_and_preserves_work_intent_provenance() {
+        assert_eq!(
+            redact_daemon_url("https://operator:secret@127.0.0.1:9876/base?token=hidden#frag"),
+            "https://127.0.0.1:9876/base"
+        );
+        let snapshot = crate::agent::WorkSnapshot {
+            intent: serde_json::json!({
+                "constraints": {"workdir": "/Users/operator/project"},
+                "source": {"worktree": "/Users/operator/fallback"}
+            }),
+            plan: None,
+            execution: None,
+        };
+        assert_eq!(
+            work_snapshot_project_dir(&snapshot).as_deref(),
+            Some("/Users/operator/project")
+        );
+    }
+
+    #[test]
+    fn scripting_assertions_are_typed_and_whitelisted() {
+        assert!(script_assert_matches(
+            &serde_json::json!("mission ready"),
+            crate::script::AssertOp::Contains,
+            Some(&serde_json::json!("ready"))
+        ));
+        assert!(!script_assert_matches(
+            &serde_json::json!(2),
+            crate::script::AssertOp::Gte,
+            Some(&serde_json::json!(3))
+        ));
+    }
 
     #[test]
     fn ledger_cell_width_is_semantic_not_inferred_from_its_label() {
