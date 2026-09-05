@@ -20,6 +20,7 @@ const {
   createSkillGraftIndex,
   defaultSkillGraftRoots,
   renderSkillGraftContext,
+  renderSkillSearchResults,
 } = await import('../../lib/skill-graft.js');
 const { porterStem, tokenizeAndStem, bm25Rank } = await import('../../lib/skill-graft-bm25.js');
 const { createTool2VecStore, computeCentroid, getOrBuildCentroid } = await import('../../lib/skill-graft-tool2vec.js');
@@ -945,9 +946,40 @@ describe('getOrBuildCentroid', () => {
 // ─── defaultSkillGraftRoots ─────────────────────────────────────────────────
 
 describe('defaultSkillGraftRoots', () => {
-  test('defaults to just <projectRoot>/skills — no jury_rig/workgroup-ai reach-out', () => {
+  test('defaults to just <projectRoot>/skills with no hidden runtime reach-out', () => {
     const roots = defaultSkillGraftRoots('/Users/example/coding/port-daddy');
     expect(roots).toEqual([{ label: 'port-daddy', path: '/Users/example/coding/port-daddy/skills' }]);
+  });
+});
+
+describe('renderSkillSearchResults', () => {
+  test('renders bounded metadata without a full-guidance heading or body', () => {
+    const text = renderSkillSearchResults({
+      query: 'hybrid retrieval',
+      scannedCount: 42,
+      roots: [{ label: 'port-daddy', path: '/x/skills' }],
+      shortlist: [
+        { id: 'rag-retrieval-pattern-design', description: 'RAG chunking and hybrid search', category: 'AI', tags: [], similarity: 0.83 },
+        { id: 'duckdb-analytics', description: 'Analytical SQL over parquet', category: 'Data', tags: [], similarity: 0 },
+      ],
+      semanticTier: 'hybrid',
+    });
+
+    expect(text).toContain('Relevant skills (2 of 42 scanned)');
+    expect(text).toContain('rag-retrieval-pattern-design (similarity 0.83)');
+    expect(text).toContain('duckdb-analytics (lexical match)');
+    expect(text).not.toContain('Full guidance');
+    expect(text).not.toContain('SKILL.md');
+  });
+
+  test('renders nothing for an empty shortlist', () => {
+    expect(renderSkillSearchResults({
+      query: 'none',
+      scannedCount: 0,
+      roots: [],
+      shortlist: [],
+      semanticTier: 'lexical-only',
+    })).toBe('');
   });
 });
 
