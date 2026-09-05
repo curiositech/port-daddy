@@ -34,6 +34,12 @@ Porthole now serves a local JSONL control plane at
 `~/Library/Application Support/Porthole/control.sock`. The app creates its
 parent directory as `0700` and the socket as `0600`; a second Porthole process,
 symlinked path, non-owner path, or ambiguously live stale socket fails closed.
+Up to eight clients run concurrently; an idle connection or finite recording
+does not monopolize status and control. Additional connections are closed.
+Persistence requires exact-window scope in both the manual review and automation
+paths. Changing to an app scope clears and disables that capability. Source cards
+report the active persistence gate, and saving rechecks the signed launch and
+the exact picker binding before admitting pixels to a file.
 The bundled stdlib-only driver is
 `Porthole.app/Contents/Resources/porthole-control` (the source copy is
 `Scripts/porthole-control.py`). It prints one structured receipt and returns

@@ -89,6 +89,25 @@ final class AutomationControlTests: XCTestCase {
         ).allowed)
     }
 
+    func testRecordingAdmissionAndRepeatedMonitorTicksKeepSamePersistencePolicy() {
+        let approval = BoundaryFixtures.approval()
+        for tick in 0...40 {
+            let assessment = PrivacyAssessment(status: .clear, reason: "test", assessedAtMonotonicNanos: UInt64(tick))
+            XCTAssertTrue(PortholeAutomationPersistencePolicy.evaluateActiveMode(
+                automationRecording: true, approval: approval, sourceIsCurrent: true, assessment: assessment,
+                explicitFixtureApproval: false, verifiedFixture: false).allowed)
+            XCTAssertFalse(PortholeAutomationPersistencePolicy.evaluateActiveMode(
+                automationRecording: false, approval: approval, sourceIsCurrent: true, assessment: assessment,
+                explicitFixtureApproval: false, verifiedFixture: false).allowed)
+        }
+        for privacy: PrivacyStatus in [.clear, .unknown, .protected] {
+            XCTAssertFalse(PortholeAutomationPersistencePolicy.evaluateActiveMode(
+                automationRecording: true, approval: approval, sourceIsCurrent: false,
+                assessment: PrivacyAssessment(status: privacy, reason: "revoked", assessedAtMonotonicNanos: 41),
+                explicitFixtureApproval: false, verifiedFixture: false).allowed)
+        }
+    }
+
     @MainActor
     func testCoordinatorEnforcesPendingReviewAndRevocation() async throws {
         let fake = FakeAutomationController()
@@ -241,6 +260,73 @@ final class AutomationControlTests: XCTestCase {
         XCTAssertEqual(response.result?.message, "pong")
     }
 
+    func testSecondClientRespondsWhileFirstClientIsIdle() throws {
+        let root = try scratchDirectory()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let url = root.appendingPathComponent("idle.sock")
+        let server = PortholeAutomationServer(socketURL: url) { request in
+            .success(request, result: PortholeAutomationResult(message: "pong"))
+        }
+        try server.start()
+        defer { server.stop() }
+        let idle = try connectSocket(url)
+        defer { Darwin.close(idle) }
+        let response = try socketRequest(url, #"{"id":"second","command":"ping"}"#)
+        XCTAssertTrue(response.ok, "second client must respond within its one-second read deadline")
+    }
+
+    func testNinthConcurrentClientIsClosedWithoutQueueingAndStopClosesIdleClients() throws {
+        let root = try scratchDirectory()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let url = root.appendingPathComponent("cap.sock")
+        let handled = DispatchSemaphore(value: 0)
+        let server = PortholeAutomationServer(socketURL: url) { request in
+            handled.signal()
+            return .success(request, result: PortholeAutomationResult(message: "pong"))
+        }
+        try server.start()
+        defer { server.stop() }
+        var descriptors: [Int32] = []
+        defer { for descriptor in descriptors { Darwin.close(descriptor) } }
+        for _ in 0..<PortholeAutomationServer.maximumConcurrentClients {
+            let descriptor = try connectSocket(url)
+            descriptors.append(descriptor)
+            let data = Data((#"{"id":"hold","command":"ping"}"# + "\n").utf8)
+            _ = data.withUnsafeBytes { Darwin.write(descriptor, $0.baseAddress, data.count) }
+            XCTAssertEqual(handled.wait(timeout: .now() + 1), .success)
+            var byte: UInt8 = 0
+            while Darwin.read(descriptor, &byte, 1) == 1, byte != 0x0a {}
+        }
+        let refused = try connectSocket(url)
+        defer { Darwin.close(refused) }
+        var byte: UInt8 = 0
+        XCTAssertEqual(Darwin.read(refused, &byte, 1), 0, "capacity refusal is prompt EOF, not a queued idle request")
+        server.stop()
+        for descriptor in descriptors { XCTAssertEqual(Darwin.read(descriptor, &byte, 1), 0) }
+    }
+
+    func testSecondClientRespondsWhileFirstCommandAwaitsLongOperation() throws {
+        let root = try scratchDirectory()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let url = root.appendingPathComponent("long.sock")
+        let entered = DispatchSemaphore(value: 0)
+        let server = PortholeAutomationServer(socketURL: url) { request in
+            if request.command == .wait {
+                entered.signal()
+                try? await Task.sleep(for: .seconds(3))
+            }
+            return .success(request, result: PortholeAutomationResult(message: "pong"))
+        }
+        try server.start()
+        defer { server.stop() }
+        let long = try connectSocket(url)
+        defer { Darwin.close(long) }
+        let request = Data((#"{"id":"long","command":"wait","lifecycle":"live"}"# + "\n").utf8)
+        _ = request.withUnsafeBytes { Darwin.write(long, $0.baseAddress, request.count) }
+        XCTAssertEqual(entered.wait(timeout: .now() + 1), .success)
+        XCTAssertTrue(try socketRequest(url, #"{"id":"second","command":"ping"}"#).ok)
+    }
+
     func testServerReturnsStructuredFailureWhenResponseExceedsBound() throws {
         let root = try scratchDirectory()
         defer { try? FileManager.default.removeItem(at: root) }
@@ -294,9 +380,21 @@ final class AutomationControlTests: XCTestCase {
         _ socketURL: URL,
         _ line: String
     ) throws -> PortholeAutomationResponse {
+        let descriptor = try connectSocket(socketURL)
+        defer { Darwin.close(descriptor) }
+        let request = Data((line + "\n").utf8)
+        _ = request.withUnsafeBytes { Darwin.write(descriptor, $0.baseAddress, request.count) }
+        var response = Data()
+        var byte: UInt8 = 0
+        while Darwin.read(descriptor, &byte, 1) == 1, byte != 0x0a { response.append(byte) }
+        return try JSONDecoder().decode(PortholeAutomationResponse.self, from: response)
+    }
+
+    private func connectSocket(_ socketURL: URL) throws -> Int32 {
         let descriptor = Darwin.socket(AF_UNIX, SOCK_STREAM, 0)
         guard descriptor >= 0 else { throw CocoaError(.fileReadUnknown) }
-        defer { Darwin.close(descriptor) }
+        var timeout = timeval(tv_sec: 1, tv_usec: 0)
+        _ = setsockopt(descriptor, SOL_SOCKET, SO_RCVTIMEO, &timeout, socklen_t(MemoryLayout<timeval>.size))
         var address = sockaddr_un()
         address.sun_family = sa_family_t(AF_UNIX)
         let capacity = MemoryLayout.size(ofValue: address.sun_path)
@@ -310,13 +408,8 @@ final class AutomationControlTests: XCTestCase {
                 Darwin.connect(descriptor, $0, socklen_t(MemoryLayout<sockaddr_un>.size))
             }
         }
-        guard connected == 0 else { throw CocoaError(.fileReadUnknown) }
-        let request = Data((line + "\n").utf8)
-        _ = request.withUnsafeBytes { Darwin.write(descriptor, $0.baseAddress, request.count) }
-        var response = Data()
-        var byte: UInt8 = 0
-        while Darwin.read(descriptor, &byte, 1) == 1, byte != 0x0a { response.append(byte) }
-        return try JSONDecoder().decode(PortholeAutomationResponse.self, from: response)
+        guard connected == 0 else { Darwin.close(descriptor); throw CocoaError(.fileReadUnknown) }
+        return descriptor
     }
 
     private func bindStaleSocket(_ socketURL: URL) throws {

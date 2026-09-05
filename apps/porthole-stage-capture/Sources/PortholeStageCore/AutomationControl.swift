@@ -595,6 +595,20 @@ public enum PortholeAutomationOutputDirectory {
 }
 
 public enum PortholeAutomationPersistencePolicy {
+    /// Admission and every lease-monitor tick must evaluate the same recording
+    /// mode. Ordinary preview retains its separate fixture-only write gate.
+    public static func evaluateActiveMode(
+        automationRecording: Bool, approval: SourceApproval, sourceIsCurrent: Bool,
+        assessment: PrivacyAssessment, explicitFixtureApproval: Bool, verifiedFixture: Bool
+    ) -> PersistenceGate {
+        if automationRecording {
+            return evaluate(approval: approval, sourceIsCurrent: sourceIsCurrent, assessment: assessment)
+        }
+        return SourcePersistencePolicy.evaluate(approval: approval, sourceIsCurrent: sourceIsCurrent,
+            assessment: assessment, explicitOperatorApproval: explicitFixtureApproval,
+            isSyntheticSafeFixture: verifiedFixture).gate
+    }
+
     public static func evaluate(
         approval: SourceApproval,
         sourceIsCurrent: Bool,
@@ -797,6 +811,9 @@ public final class PortholeAutomationServer: @unchecked Sendable {
     private let socketURL: URL
     private let handler: Handler
     private let queue = DispatchQueue(label: "dev.portdaddy.porthole.local-control", qos: .userInitiated)
+    private let clients = DispatchQueue(label: "dev.portdaddy.porthole.control-clients", qos: .userInitiated, attributes: .concurrent)
+    public static let maximumConcurrentClients = 8
+    private var activeClients: Set<Int32> = []
     private let stateLock = NSLock()
     private var listeningDescriptor: Int32 = -1
     private var socketIdentity: (device: dev_t, inode: ino_t)?
@@ -863,6 +880,8 @@ public final class PortholeAutomationServer: @unchecked Sendable {
         let descriptor = stateLock.withLock { () -> Int32 in
             guard !stopped else { return -1 }
             stopped = true
+            // Wake idle readers; the worker remains the sole descriptor closer.
+            for client in activeClients { _ = shutdown(client, SHUT_RDWR) }
             defer { listeningDescriptor = -1 }
             return listeningDescriptor
         }
@@ -886,8 +905,21 @@ public final class PortholeAutomationServer: @unchecked Sendable {
                 if errno == EINTR { continue }
                 return
             }
-            handle(client: client)
-            Darwin.close(client)
+            let admitted = stateLock.withLock { () -> Bool in
+                guard !stopped, activeClients.count < Self.maximumConcurrentClients else { return false }
+                activeClients.insert(client)
+                return true
+            }
+            guard admitted else { Darwin.close(client); continue }
+            clients.async { [self] in
+                defer {
+                    stateLock.withLock {
+                        activeClients.remove(client)
+                        Darwin.close(client)
+                    }
+                }
+                handle(client: client)
+            }
         }
     }
 

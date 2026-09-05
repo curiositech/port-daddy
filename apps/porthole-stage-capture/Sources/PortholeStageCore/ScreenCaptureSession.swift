@@ -710,7 +710,7 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
         guard let selectedApprovalID,
               let approval = approvedSources.first(where: { $0.approvalID == selectedApprovalID })
         else { return false }
-        return approvedFilters[selectedApprovalID] != nil
+        return isApprovalReady(selectedApprovalID)
             && SourceApprovalPolicy.permits(.preview, approval: approval)
             && lifecycle != .live
     }
@@ -721,7 +721,10 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
     }
 
     public func isApprovalReady(_ approvalID: String) -> Bool {
-        approvedFilters[approvalID] != nil
+        guard let binding = approvedFilters[approvalID],
+              let approval = approvedSources.first(where: { $0.approvalID == approvalID })
+        else { return false }
+        return validateRuntimeBinding(binding, approval: approval)
     }
 
     public func bootstrap() async {
@@ -777,6 +780,10 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
             return
         }
         let review = pickerSelection.review
+        guard SourceApprovalPolicy.supports(scope: scope, capabilities: capabilities) else {
+            statusMessage = "Persistence requires this exact window. Review the scope and capabilities again."
+            return
+        }
         var proofAttestation: SafeFixtureAttestation?
         if let proofConfiguration {
             guard ledger.approvedSources.isEmpty,
@@ -793,19 +800,11 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
             }
             proofAttestation = attestation
         }
-        let approval = SourceApproval(
-            approvalID: UUID().uuidString.lowercased(),
-            scope: scope,
-            sourceKind: scope == .exactWindow ? .window : review.sourceKind,
-            displayTitle: scope == .exactWindow ? review.displayTitle : review.programDisplayTitle,
-            capabilities: capabilities,
-            program: review.program,
-            runningInstance: scope == .signedProgram ? nil : review.runningInstance,
-            exactWindow: scope == .exactWindow ? review.exactWindow : nil,
-            createdAtMonotonicNanos: DispatchTime.now().uptimeNanoseconds
-        )
         do {
-            try SourceApprovalPolicy.validate(approval)
+            let approval = try SourceApprovalPolicy.reviewedApproval(
+                review: review, scope: scope, capabilities: capabilities,
+                approvalID: UUID().uuidString.lowercased(),
+                createdAtMonotonicNanos: DispatchTime.now().uptimeNanoseconds)
             if approval.scope == .signedProgram {
                 try keychainStore.save(approval)
             }
@@ -934,18 +933,11 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
                 assessedAtMonotonicNanos: DispatchTime.now().uptimeNanoseconds
             )
             : ProtectedFieldInspector.assess(processID: binding.source.ownerPID)
-        persistenceGate = if automationRecordingRequest != nil {
-            PortholeAutomationPersistencePolicy.evaluate(
-                approval: approval, sourceIsCurrent: true, assessment: privacyAssessment
-            )
-        } else {
-            SourcePersistencePolicy.evaluate(
-                approval: approval, sourceIsCurrent: true,
-                assessment: privacyAssessment,
-                explicitOperatorApproval: proofConfiguration?.explicitSafeFixtureApproval == true,
-                isSyntheticSafeFixture: attestation?.verified == true
-            ).gate
-        }
+        persistenceGate = PortholeAutomationPersistencePolicy.evaluateActiveMode(
+            automationRecording: automationRecordingRequest != nil, approval: approval,
+            sourceIsCurrent: isApprovalReady(approval.approvalID), assessment: privacyAssessment,
+            explicitFixtureApproval: proofConfiguration?.explicitSafeFixtureApproval == true,
+            verifiedFixture: attestation?.verified == true)
 
         let filter = binding.filter
         let width = Self.evenDimension(filter.contentRect.width * CGFloat(filter.pointPixelScale))
@@ -1333,12 +1325,11 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
                     )
                     : ProtectedFieldInspector.assess(processID: binding.source.ownerPID)
                 self.privacyAssessment = assessment
-                self.persistenceGate = SourcePersistencePolicy.evaluate(
-                    approval: approval, sourceIsCurrent: valid,
-                    assessment: assessment,
-                    explicitOperatorApproval: self.proofConfiguration?.explicitSafeFixtureApproval == true,
-                    isSyntheticSafeFixture: self.safeFixtureAttestation?.verified == true
-                ).gate
+                self.persistenceGate = PortholeAutomationPersistencePolicy.evaluateActiveMode(
+                    automationRecording: self.automationRecordingRequest != nil, approval: approval,
+                    sourceIsCurrent: valid, assessment: assessment,
+                    explicitFixtureApproval: self.proofConfiguration?.explicitSafeFixtureApproval == true,
+                    verifiedFixture: self.safeFixtureAttestation?.verified == true)
                 if !self.persistenceGate.allowed, self.proofRecorder != nil {
                     self.proofRecorder?.suspend()
                     self.statusMessage = "Live preview continues · persistence synchronously paused for privacy uncertainty"
@@ -1366,7 +1357,9 @@ public final class StageCaptureController: NSObject, ObservableObject, SCContent
             launchIdentity: observedIdentity.launchIdentity,
             openWindowIDs: openWindowIDs
         )
-        return SourceApprovalValidity.remainsValid(approval, observation: observation)
+        return SourceApprovalValidity.pickerBindingIsCurrent(
+            approval, sourceWindowID: binding.source.windowID, sourceOwnerPID: binding.source.ownerPID,
+            boundIdentity: binding.runtimeIdentity, observation: observation)
     }
 
     private func invalidateActiveLease(reason: String) async {
@@ -1694,14 +1687,16 @@ extension StageCaptureController: PortholeAutomationControlling {
                 "Requested scope is not supported by the current picker selection."
             )
         }
-        if capabilities.persistRecording, scope != .exactWindow {
+        if !SourceApprovalPolicy.supports(scope: scope, capabilities: capabilities) {
             throw PortholeAutomationError.authorityRequired(
-                "Automation persistence can be granted only to the exact picker-selected window."
+                "Persistence requires the exact picker-selected window and at least one capability."
             )
         }
         let before = approvedSources.count
         approvePending(scope: scope, capabilities: capabilities)
-        guard pendingApprovalReview == nil, approvedSources.count == before + 1 else {
+        guard pendingApprovalReview == nil, approvedSources.count == before + 1,
+              let granted = approvedSources.first(where: { $0.approvalID == selectedApprovalID }),
+              granted.scope == scope, granted.capabilities == capabilities else {
             throw PortholeAutomationError.authorityRequired(statusMessage)
         }
     }
@@ -1766,6 +1761,8 @@ extension StageCaptureController: PortholeAutomationControlling {
               let approval = activeApproval,
               approvedSources.contains(approval),
               let lease = activeCaptureLease,
+              lease.approvalID == approval.approvalID,
+              lease.sourceWindowID == approval.exactWindow?.windowID,
               lease.sourceKind == .window,
               let image = latestImage,
               let metadata = latestMetadata,
@@ -1777,7 +1774,7 @@ extension StageCaptureController: PortholeAutomationControlling {
         }
         let gate = PortholeAutomationPersistencePolicy.evaluate(
             approval: approval,
-            sourceIsCurrent: true,
+            sourceIsCurrent: isApprovalReady(approval.approvalID),
             assessment: privacyAssessment
         )
         guard gate.allowed else { throw PortholeAutomationError.authorityRequired(gate.reason) }
@@ -1808,7 +1805,7 @@ extension StageCaptureController: PortholeAutomationControlling {
               let approval = approvedSources.first(where: { $0.approvalID == selectedApprovalID }),
               approval.scope == .exactWindow,
               approval.capabilities.persistRecording,
-              approvedFilters[selectedApprovalID] != nil
+              isApprovalReady(selectedApprovalID)
         else {
             throw PortholeAutomationError.authorityRequired(
                 "Recording requires a current exact-window picker approval with persistence capability."
