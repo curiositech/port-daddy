@@ -1,0 +1,3 @@
+type: fixed
+
+- **Porthole Stage closes review-reported capture and proof boundaries.** Local cursor streams discard partial input on close and restart, cap line buffering, and reject stale callbacks. Source approval now fails closed on malformed identity/scope data; recording requires both current source authority and explicit privacy approval. Fixture verification uses a sealed companion digest instead of an installation-path assumption. Strict proof-duration parsing, checked metadata output, stale start/stop protection, exhaustive policy tests, real pipe tests, icon checks, and deterministic package mutation tests run in the native CI lane.
