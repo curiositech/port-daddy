@@ -79,6 +79,7 @@ const envKeysToRestore = [
   'PD_FAKE_CLAUDE_INVOKED_FILE',
   'PD_FAKE_CODEX_INVOKED_FILE',
   'PD_SPAWN_ISOLATION_OFF',
+  'PD_COAST_GUARD_OFF',
 ] as const;
 
 let envSnapshot: Partial<Record<(typeof envKeysToRestore)[number], string | undefined>>;
@@ -100,6 +101,9 @@ function setDaemonCliEnv(overrides: Record<string, string | undefined>): void {
   process.env.PATH = LAUNCHD_RESTRICTED_PATH;
   process.env.PD_USE_CLI_BACKEND = 'none';
   process.env.PD_SPAWN_ISOLATION_OFF = '1';
+  // Provider-resolution fixtures do not require an OS sandbox on the CI host.
+  // Explicit opt-out must keep Codex's own safe sandbox flag, asserted below.
+  process.env.PD_COAST_GUARD_OFF = '1';
   for (const [key, value] of Object.entries(overrides)) {
     if (value === undefined) delete process.env[key];
     else process.env[key] = value;
@@ -287,6 +291,11 @@ describe('daemon /spawn provider binary launch path', () => {
         const marker = readFileSync(markers[provider.backend], 'utf8');
         expect(marker).toContain(`binary=${join(binDir, provider.binName)}`);
         expect(marker).not.toContain(join(tmp, 'stale', provider.binName));
+        if (provider.backend === 'cli:codex') {
+          expect(marker).toContain('--approve-for-me');
+          expect(marker).not.toContain('--dangerously-bypass-approvals-and-sandbox');
+          expect(marker).toContain('skills.include_instructions=false');
+        }
 
         const transcript = transcriptFor(harness, provider.backend, body.agentId);
         expect(transcript.status).toBe('completed');
@@ -336,7 +345,13 @@ describe('daemon /spawn provider binary launch path', () => {
         expect(body.error).toMatch(/fake launch failed|exited with code 127/i);
         expect(body.error).toContain(provider.binName);
         expect(existsSync(markers[provider.backend])).toBe(true);
-        expect(readFileSync(markers[provider.backend], 'utf8')).toContain(`binary=${join(binDir, provider.binName)}`);
+        const marker = readFileSync(markers[provider.backend], 'utf8');
+        expect(marker).toContain(`binary=${join(binDir, provider.binName)}`);
+        if (provider.backend === 'cli:codex') {
+          expect(marker).toContain('--approve-for-me');
+          expect(marker).not.toContain('--dangerously-bypass-approvals-and-sandbox');
+          expect(marker).toContain('skills.include_instructions=false');
+        }
 
         const transcript = transcriptFor(harness, provider.backend, body.agentId);
         expect(transcript.status).toBe('failed');
