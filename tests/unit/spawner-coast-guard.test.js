@@ -18,6 +18,10 @@ import { existsSync, mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 
+const realFs = await import('node:fs');
+const mockRmSync = jest.fn((...args) => realFs.rmSync(...args));
+jest.unstable_mockModule('node:fs', () => ({ ...realFs, rmSync: mockRmSync }));
+
 // Capture every spawn call; return a fake child that "closes" cleanly.
 const spawnCalls = [];
 function fakeChild() {
@@ -68,6 +72,7 @@ function createSpawner(deps = {}) {
 
 let worktree;
 beforeEach(() => {
+  mockRmSync.mockImplementation((...args) => realFs.rmSync(...args));
   worktree = mkdtempSync(join(tmpdir(), 'pd-cg-wt-'));
   // Make it look like a git WORKTREE so the isolation guard allows the spawn.
   writeFileSync(join(worktree, '.git'), 'gitdir: /somewhere/.git/worktrees/wt\n');
@@ -142,6 +147,29 @@ describe('Coast Guard is the default for subprocess spawns', () => {
     expect(res.error).toContain('synthetic child launch rejected');
     expect(outputPath).toBeDefined();
     expect(existsSync(dirname(outputPath))).toBe(false);
+  });
+
+  test('legacy Codex preserves the launch error when scratch cleanup also fails', async () => {
+    let scratch;
+    mockSpawn.mockImplementationOnce((_cmd, args) => {
+      scratch = dirname(args[args.indexOf('--output-last-message') + 1]);
+      throw new Error('primary launch failure');
+    });
+    mockRmSync.mockImplementation((path, options) => {
+      if (path === scratch) throw new Error('synthetic cleanup denial');
+      return realFs.rmSync(path, options);
+    });
+    try {
+      const res = await createSpawner().spawn({
+        backend: 'codex', task: 'must not run', workdir: worktree, coastGuard: false,
+      });
+      expect(res.status).toBe('failed');
+      expect(res.error).toContain('primary launch failure');
+      expect(res.error).toContain('Codex scratch cleanup failed');
+      expect(res.error).toContain('synthetic cleanup denial');
+    } finally {
+      if (scratch) realFs.rmSync(scratch, { recursive: true, force: true });
+    }
   });
 
   test('custom backend is sandbox-wrapped, key-scrubbed, and proxied', async () => {

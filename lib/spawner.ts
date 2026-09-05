@@ -1528,7 +1528,14 @@ function runCodexCli(spec: SpawnSpec, model: string, context?: BackendRunContext
       rmSync(tempDir, { recursive: true, force: true });
     }
   }).catch((error) => {
-    rmSync(tempDir, { recursive: true, force: true });
+    try {
+      rmSync(tempDir, { recursive: true, force: true });
+    } catch (cleanupError) {
+      throw new AggregateError(
+        [error, cleanupError],
+        `${String(error)}; Codex scratch cleanup failed: ${String(cleanupError)}`,
+      );
+    }
     throw error;
   });
 }
