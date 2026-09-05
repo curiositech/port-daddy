@@ -42,6 +42,13 @@ runtime sandbox unless `--keep` is supplied; failed runs preserve it for
 forensics. Sanitized JSON results are written beside the runtime sandbox by
 default.
 
+Daemon startup uses the same 120-second hard readiness deadline as the stable
+runtime convergence path. Successful cases record measured boot-to-health
+timing and a redacted boot-log tail. A child exit fails immediately with its
+exit/signal receipt; a live but unready child fails at the deadline. Artifact
+build or stage-validation failures still write a sanitized result document,
+but no unexecuted case is reported as passed.
+
 ## Phase-1 boundaries
 
 The runtime shard creates two arbitrary synthetic Git repositories and one
@@ -50,7 +57,9 @@ checks plans, writes notes, claims files, and reads sitreps. It snapshots exact
 session IDs, note IDs and counts, and claim identity tuples and counts before a
 forced daemon crash, then compares those values after restart. It also checks
 that the two worktrees share a canonical Git common directory while the second
-repository remains isolated.
+repository remains isolated. No `PD_MATRIX_FILE` is supplied; the journey fails
+if the product creates or requires `matrix.env` for identity, plan, note, claim,
+or restart readback.
 
 The pressure case writes only deterministic synthetic metadata. Five bounded
 client loops read health, sessions, roadmap, Galaxy, and Fleet data with one
