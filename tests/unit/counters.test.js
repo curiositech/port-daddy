@@ -4,8 +4,14 @@
  * Uses in-memory SQLite (createTestDb from setup-unit.js).
  */
 
+import { mkdtempSync, rmSync } from 'node:fs';
+import { join } from 'node:path';
+import Database from 'better-sqlite3';
 import { createTestDb } from '../setup-unit.js';
-import { createCounters } from '../../lib/counters.js';
+import {
+  COUNTER_MAINTENANCE_SQL,
+  createCounters,
+} from '../../lib/counters.js';
 
 describe('Counters', () => {
   let db;
@@ -78,7 +84,11 @@ describe('Counters', () => {
     counters.bump('fleet.spawn.started');
     counters.flush();
 
-    const results = counters.query({ key: 'fleet.spawn.started', groupBy: 'minute' });
+    const results = counters.query({
+      key: 'fleet.spawn.started',
+      since: Date.now() - 3_600_000,
+      groupBy: 'minute',
+    });
     expect(results.length).toBeGreaterThan(0);
     expect(results[0].key).toBe('fleet.spawn.started');
     expect(results[0].value).toBe(1);
@@ -152,9 +162,10 @@ describe('Counters', () => {
     counters.bump('cache.test', {}, 1);
     counters.flush();
 
-    const r1 = counters.query({ key: 'cache.test', groupBy: 'minute' });
-    const r2 = counters.query({ key: 'cache.test', groupBy: 'minute' });
-    const r3 = counters.query({ key: 'cache.test', groupBy: 'minute' });
+    const since = Date.now() - 3_600_000;
+    const r1 = counters.query({ key: 'cache.test', since, groupBy: 'minute' });
+    const r2 = counters.query({ key: 'cache.test', since, groupBy: 'minute' });
+    const r3 = counters.query({ key: 'cache.test', since, groupBy: 'minute' });
     expect(r1[0].value).toBe(r2[0].value);
     expect(r2[0].value).toBe(r3[0].value);
   });
@@ -181,11 +192,11 @@ describe('Counters', () => {
       VALUES (?, ?, ?, ?, ?, ?)
     `);
 
-    insert.run('http.requests', dims, oldHour, oldHour, 2, oldHour);
+    insert.run('http.requests', dims, expiredHour, expiredHour, 7, expiredHour);
     insert.run('http.requests', dims, oldHour + 60_000, oldHour, 3, oldHour + 60_000);
+    insert.run('http.requests', dims, oldHour, oldHour, 2, oldHour);
     insert.run('http.requests', dims, oldHour + 120_000, oldHour, 4, oldHour + 120_000);
     insert.run('http.requests', dims, recentMinute, Math.floor(recentMinute / hourMs) * hourMs, 5, recentMinute);
-    insert.run('http.requests', dims, expiredHour, expiredHour, 7, expiredHour);
 
     // One expired row consumes half the two-row budget; only one old minute
     // can compact in this transaction. The other remains as the resume cursor.
@@ -198,8 +209,8 @@ describe('Counters', () => {
       SELECT SUM(value) AS total FROM metric_counters WHERE key = 'http.requests'
     `).get().total).toBe(14);
 
-    // Recreate the counter service between passes. Progress lives in the
-    // committed source rows, not an in-memory cursor, so startup can resume.
+    // Recreate the counter service between passes. The transaction commits its
+    // rowid cursor with the aggregate/delete, so startup resumes at row 3.
     counters = createCounters(db, {
       now: () => currentTime,
       minuteDetailMs: 24 * 3_600_000,
@@ -208,6 +219,12 @@ describe('Counters', () => {
       maintenanceBatchRows: 2,
     });
     counters.flush();
+    expect(counters.maintenanceStatus()).toMatchObject({
+      active: true,
+      scanAfterRowid: 4,
+      scanThroughRowid: 5,
+      lastPassScannedRows: 2,
+    });
     expect(db.prepare(`
       SELECT bucket_minute, bucket_hour, value
       FROM metric_counters
@@ -224,7 +241,7 @@ describe('Counters', () => {
 
     // A later pass is idempotent; the canonical hour row cannot feed itself.
     currentTime += 1;
-    counters.flush();
+    while (counters.maintenanceStatus().active) counters.flush();
     expect(db.prepare(`
       SELECT value FROM metric_counters
       WHERE key = 'http.requests' AND bucket_minute = ?
@@ -283,6 +300,60 @@ describe('Counters', () => {
     `).get().value).toBe(7);
   });
 
+  test('maintenance cursor survives a database close and process-style reopen', () => {
+    const fixtureDir = mkdtempSync(join(process.cwd(), '.counter-restart-'));
+    const databasePath = join(fixtureDir, 'counters.db');
+    const currentTime = Date.parse('2026-09-05T12:30:00.000Z');
+    const hourMs = 3_600_000;
+    const oldHour = Math.floor((currentTime - 48 * hourMs) / hourMs) * hourMs;
+    let fileDb;
+
+    try {
+      fileDb = new Database(databasePath);
+      const first = createCounters(fileDb, {
+        now: () => currentTime,
+        maintenanceIntervalMs: 0,
+        maintenanceBatchRows: 1,
+      });
+      const insert = fileDb.prepare(`
+        INSERT INTO metric_counters
+          (key, dims_json, bucket_minute, bucket_hour, value, updated_at)
+        VALUES ('restart', '{}', ?, ?, 1, ?)
+      `);
+      insert.run(oldHour + 60_000, oldHour, oldHour + 60_000);
+      insert.run(oldHour + 120_000, oldHour, oldHour + 120_000);
+      first.flush();
+      expect(first.maintenanceStatus()).toMatchObject({
+        active: true,
+        scanAfterRowid: 1,
+        scanThroughRowid: 2,
+        passCount: 1,
+      });
+      fileDb.close();
+
+      fileDb = new Database(databasePath);
+      const resumed = createCounters(fileDb, {
+        now: () => currentTime,
+        maintenanceIntervalMs: 0,
+        maintenanceBatchRows: 1,
+      });
+      expect(resumed.maintenanceStatus()).toMatchObject({
+        active: true,
+        scanAfterRowid: 1,
+        scanThroughRowid: 2,
+        passCount: 1,
+      });
+      while (resumed.maintenanceStatus().active) resumed.flush();
+      expect(fileDb.prepare(`
+        SELECT bucket_minute, value FROM metric_counters WHERE key = 'restart'
+      `).all()).toEqual([{ bucket_minute: oldHour, value: 2 }]);
+      expect(resumed.maintenanceStatus().passCount).toBeGreaterThan(1);
+    } finally {
+      if (fileDb?.open) fileDb.close();
+      rmSync(fixtureDir, { recursive: true, force: true });
+    }
+  });
+
   test('late old rows and current pending writes preserve dimensions and totals across passes', () => {
     counters.shutdown();
     const currentTime = Date.parse('2026-09-05T12:30:00.000Z');
@@ -309,8 +380,7 @@ describe('Counters', () => {
     // batch, while an ordinary current-minute bump waits in memory.
     insert.run('concurrent', dims, oldHour + 180_000, oldHour, 5, oldHour + 180_000);
     counters.bump('concurrent', { harbor: 'local', backend: 'codex' }, 7);
-    counters.flush();
-    counters.flush();
+    while (counters.maintenanceStatus().active) counters.flush();
 
     expect(db.prepare(`
       SELECT dims_json, bucket_minute, value
@@ -322,7 +392,129 @@ describe('Counters', () => {
     ]);
   });
 
-  test('production-shaped first flush consumes only the default 5000-row budget', () => {
+  test('maintenance plans scan the bounded rowid batch before source lookups', () => {
+    const selectPlan = db.prepare(
+      `EXPLAIN QUERY PLAN ${COUNTER_MAINTENANCE_SQL.selectScanBatch}`,
+    ).all(0, 0, 0, 10_000, 5_000).map(row => row.detail);
+    const aggregatePlan = db.prepare(
+      `EXPLAIN QUERY PLAN ${COUNTER_MAINTENANCE_SQL.aggregateBatch}`,
+    ).all().map(row => row.detail);
+    const deletePlan = db.prepare(
+      `EXPLAIN QUERY PLAN ${COUNTER_MAINTENANCE_SQL.deleteBatch}`,
+    ).all().map(row => row.detail);
+
+    expect(selectPlan).toEqual(expect.arrayContaining([
+      expect.stringMatching(/SEARCH metric_counters USING INTEGER PRIMARY KEY \(rowid>[?] AND rowid<[?]\)/),
+    ]));
+    expect(selectPlan.join('\n')).not.toMatch(/SCAN metric_counters/);
+    expect(aggregatePlan).toEqual(expect.arrayContaining([
+      expect.stringMatching(/SCAN batch/),
+      expect.stringMatching(/SEARCH source USING INTEGER PRIMARY KEY \(rowid=[?]\)/),
+    ]));
+    expect(aggregatePlan.join('\n')).not.toMatch(/SCAN source/);
+    expect(deletePlan).toEqual(expect.arrayContaining([
+      expect.stringMatching(/SEARCH metric_counters USING INTEGER PRIMARY KEY \(rowid=[?]\)/),
+    ]));
+    expect(deletePlan.join('\n')).not.toMatch(/SCAN metric_counters/);
+  });
+
+  test('compacted history rejects partial-hour windows instead of returning silent approximations', () => {
+    counters.shutdown();
+    const currentTime = Date.parse('2026-09-05T12:30:00.000Z');
+    counters = createCounters(db, {
+      now: () => currentTime,
+      maintenanceIntervalMs: 0,
+      maintenanceBatchRows: 10,
+    });
+
+    const hourMs = 3_600_000;
+    const oldHour = Math.floor((currentTime - 48 * hourMs) / hourMs) * hourMs;
+    const insert = db.prepare(`
+      INSERT INTO metric_counters
+        (key, dims_json, bucket_minute, bucket_hour, value, updated_at)
+      VALUES ('resolution', '{}', ?, ?, ?, ?)
+    `);
+    insert.run(oldHour, oldHour, 2, oldHour);
+    insert.run(oldHour + 15 * 60_000, oldHour, 3, oldHour + 15 * 60_000);
+    insert.run(oldHour + 45 * 60_000, oldHour, 4, oldHour + 45 * 60_000);
+    counters.flush();
+
+    expect(() => counters.query({
+      key: 'resolution',
+      since: oldHour + 15 * 60_000,
+      groupBy: 'hour',
+    })).toThrow(/partial-hour since boundary/);
+    expect(() => counters.queryTotals(
+      ['resolution'],
+      { since: oldHour + 15 * 60_000 },
+    )).toThrow(/partial-hour since boundary/);
+    expect(() => counters.query({
+      key: 'resolution',
+      since: oldHour,
+      groupBy: 'minute',
+    })).toThrow(/requires groupBy="hour"/);
+    expect(() => counters.query({ key: 'resolution' }))
+      .toThrow(/requires groupBy="hour"/);
+    expect(() => counters.query({
+      key: 'resolution',
+      since: oldHour,
+      until: oldHour + 15 * 60_000,
+      groupBy: 'hour',
+    })).toThrow(/partial-hour until boundary/);
+
+    expect(counters.query({
+      key: 'resolution',
+      since: oldHour,
+      until: oldHour + 59 * 60_000,
+      groupBy: 'hour',
+    })).toEqual([{
+      key: 'resolution',
+      dims: {},
+      bucket: oldHour,
+      value: 9,
+    }]);
+    expect(counters.queryTotals(['resolution'], { since: oldHour }).get('resolution')).toBe(9);
+    expect(counters.query({ key: 'resolution', groupBy: 'hour' })[0]).toMatchObject({
+      bucket: oldHour,
+      value: 9,
+    });
+  });
+
+  test('the ordinary rolling 24-hour callers retain exact minute boundaries', () => {
+    counters.shutdown();
+    const currentTime = Date.parse('2026-09-05T12:30:00.000Z');
+    counters = createCounters(db, {
+      now: () => currentTime,
+      maintenanceIntervalMs: 0,
+      maintenanceBatchRows: 10,
+    });
+
+    const hourMs = 3_600_000;
+    const boundaryHour = Math.floor((currentTime - 24 * hourMs) / hourMs) * hourMs;
+    const insert = db.prepare(`
+      INSERT INTO metric_counters
+        (key, dims_json, bucket_minute, bucket_hour, value, updated_at)
+      VALUES ('rolling', ?, ?, ?, ?, ?)
+    `);
+    insert.run('{"backend":"before"}', boundaryHour + 15 * 60_000, boundaryHour, 2, boundaryHour);
+    insert.run('{"backend":"inside"}', boundaryHour + 45 * 60_000, boundaryHour, 3, boundaryHour);
+    counters.flush();
+
+    const since = currentTime - 24 * hourMs;
+    expect(counters.query({ key: 'rolling', since, groupBy: 'minute' })).toEqual([{
+      key: 'rolling',
+      dims: { backend: 'inside' },
+      bucket: boundaryHour + 45 * 60_000,
+      value: 3,
+    }]);
+    expect(counters.queryTotals(['rolling'], { since }).get('rolling')).toBe(3);
+    expect(counters.topN('rolling', 'backend', 10, since)).toEqual([
+      { value: 'inside', count: 3 },
+    ]);
+    expect(counters.summary(since).find(row => row.key === 'rolling')).toMatchObject({ total: 3 });
+  });
+
+  test('production-shaped maintenance bounds every scan and drains without aligned-row rescans', () => {
     counters.shutdown();
     const currentTime = Date.parse('2026-09-05T12:30:00.000Z');
     counters = createCounters(db, { now: () => currentTime });
@@ -413,12 +605,50 @@ describe('Counters', () => {
     const total = () => db.prepare('SELECT SUM(value) AS total FROM metric_counters').get().total;
     const beforeEligible = eligible();
 
-    counters.flush();
-    expect(beforeEligible - eligible()).toBe(5_000);
+    const passes = [];
+    do {
+      const startedAt = performance.now();
+      counters.flush();
+      const durationMs = performance.now() - startedAt;
+      const status = counters.maintenanceStatus();
+      passes.push({ durationMs, ...status });
+      expect(status.lastPassScannedRows).toBeLessThanOrEqual(5_000);
+      if (passes.length > 1_000) throw new Error('maintenance did not converge');
+    } while (counters.maintenanceStatus().active);
+
+    expect(passes[0]).toMatchObject({
+      lastPassScannedRows: 5_000,
+      lastPassCompactedRows: 0,
+    });
+    expect(eligible()).toBe(0);
     expect(total()).toBe(totalRows);
 
+    const maxRowid = db.prepare(
+      'SELECT COALESCE(MAX(rowid), 0) AS max_rowid FROM metric_counters',
+    ).get().max_rowid;
+    const appendedCanonicalRows = maxRowid - totalRows;
+    const scannedRows = passes.reduce((sum, pass) => sum + pass.lastPassScannedRows, 0);
+    // Every inherited row and every appended canonical row is inspected once.
+    // A cursor reset would make this exceed the exact rowid high-water total.
+    expect(scannedRows).toBe(totalRows + appendedCanonicalRows);
+    expect(beforeEligible).toBeGreaterThan(1_000_000);
+
+    const passCountBeforeEmptyFlush = counters.maintenanceStatus().passCount;
+    const emptyStartedAt = performance.now();
     counters.flush();
-    expect(beforeEligible - eligible()).toBe(10_000);
-    expect(total()).toBe(totalRows);
+    const emptyDurationMs = performance.now() - emptyStartedAt;
+    expect(counters.maintenanceStatus().passCount).toBe(passCountBeforeEmptyFlush);
+
+    const middle = passes[Math.floor(passes.length / 2)];
+    const final = passes[passes.length - 1];
+    console.info('production-shaped counter maintenance timings', {
+      passes: passes.length,
+      scannedRows,
+      appendedCanonicalRows,
+      firstMs: Number(passes[0].durationMs.toFixed(3)),
+      middleMs: Number(middle.durationMs.toFixed(3)),
+      finalMs: Number(final.durationMs.toFixed(3)),
+      emptyMs: Number(emptyDurationMs.toFixed(3)),
+    });
   }, 60_000);
 });

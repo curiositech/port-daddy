@@ -9,6 +9,7 @@
  */
 
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
+import { CounterHistoryResolutionError } from '../lib/counters.js';
 import type { Counters } from '../lib/counters.js';
 import type { CostTracker } from '../lib/cost-tracker.js';
 import type { CloudAppTelemetry } from '../lib/cloud-app-telemetry.js';
@@ -17,6 +18,18 @@ interface ObservabilityDeps {
   counters: Counters;
   costTracker: CostTracker;
   cloudAppTelemetry?: CloudAppTelemetry;
+}
+
+function counterHistoryResolutionResponse(reply: FastifyReply, error: unknown): unknown {
+  if (!(error instanceof CounterHistoryResolutionError)) throw error;
+  reply.code(400);
+  return {
+    error: error.message,
+    code: error.code,
+    historicalResolution: error.historicalResolution,
+    resolutionMs: error.resolutionMs,
+    supportedBoundaries: error.supportedBoundaries,
+  };
 }
 
 export const observabilityPlugin: FastifyPluginAsync<{ deps: ObservabilityDeps }> = async (fastify, opts) => {
@@ -35,21 +48,27 @@ export const observabilityPlugin: FastifyPluginAsync<{ deps: ObservabilityDeps }
    * ?key=spawn.started   filter to one key (returns time-bucketed results)
    * ?since=3600          seconds in the past (default: 86400 = 24h)
    * ?groupBy=hour        bucket by hour instead of minute
+   * Historical ranges require hour grouping and whole-hour boundaries; an
+   * unsupported partial-hour request returns a structured 400 resolution hint.
    */
-  fastify.get('/metrics/counters', async (request: FastifyRequest) => {
+  fastify.get('/metrics/counters', async (request: FastifyRequest, reply: FastifyReply) => {
     const q = request.query as Record<string, string>;
     const sinceSecs = q.since ? parseInt(q.since, 10) : 86_400;
     const since = Date.now() - sinceSecs * 1_000;
 
-    if (q.key) {
-      const groupBy = q.groupBy === 'hour' ? 'hour' as const : 'minute' as const;
-      return {
-        key: q.key, since, groupBy,
-        results: counters.query({ key: q.key, since, groupBy }),
-      };
-    }
+    try {
+      if (q.key) {
+        const groupBy = q.groupBy === 'hour' ? 'hour' as const : 'minute' as const;
+        return {
+          key: q.key, since, groupBy,
+          results: counters.query({ key: q.key, since, groupBy }),
+        };
+      }
 
-    return { since, counters: counters.summary(since) };
+      return { since, counters: counters.summary(since) };
+    } catch (error) {
+      return counterHistoryResolutionResponse(reply, error);
+    }
   });
 
   /**
@@ -64,7 +83,11 @@ export const observabilityPlugin: FastifyPluginAsync<{ deps: ObservabilityDeps }
     }
     const since = parseSince(q);
     const n = Math.min(parseInt(q.n ?? '10', 10), 100);
-    return { key: q.key, dim: q.dim, results: counters.topN(q.key, q.dim, n, since) };
+    try {
+      return { key: q.key, dim: q.dim, results: counters.topN(q.key, q.dim, n, since) };
+    } catch (error) {
+      return counterHistoryResolutionResponse(reply, error);
+    }
   });
 
   // ── Golden Signals (RED method for fleet spawns) ──────────────────────────
