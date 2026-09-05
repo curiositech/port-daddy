@@ -147,6 +147,8 @@ next Architect of Record run after that merge should check this specifically.
 
 ## Entry 2 — 2026-09-04
 
+Tracking issue: [#10038 — Agent Harbor binder truth log](https://github.com/curiositech/port-daddy/issues/10038).
+
 ```text
 pd note "binder-aor-log: 2026-09-05T05:55:35Z | window 2026-08-23T17:02:06Z..2026-09-05T05:55:35Z | chapters scanned: README, 00, 05, 06, 13, 16, 29 candidate | source corpus scanned: ADR-0022/0122/0124/0134/0136, in-flight ADR-0135 and PRs #6786 #9822 #9914 #9970 #9989 #9992 #9995 #9997 #10013, local roadmap records | ambitions classified: absorbed 4, deferred 2, superseded 1 | contradictions: 1 Tier-2 schema/ordering contradiction on main; resolution candidate in this change | coverage gaps: 6 explicit operator/architecture decisions | proof gates changed: PH-01..PH-07 and F0/M1/M4 contract gates | operator decisions: confidential execution, leakage policy, provider observation, commercial settlement, publisher admission/revocation, Chartroom cutover | confidence: 0.88; repository and live PR state verified, installed/runtime proof not inferred | handover: reconcile this chapter and evidence vocabulary into ADR-0135 before either PR merges; refresh exact PR heads and close the main contradiction only after merge"
 ```
