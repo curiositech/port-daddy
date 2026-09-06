@@ -86,12 +86,22 @@ class TestColors(PrecheckTestCase):
         self.assertEqual(report["summary"]["result"], "fail")
 
     def test_allowed_chapter_color_with_mixing_passes(self):
+        # A palette hue with a mix level is fine; a stock LaTeX colour is not
+        # (P16/the colour rule: figures name pd-palette.tex hues only).
         report = self.run_on(
-            "% source\n\\begin{tikzpicture}\n\\fill[fill=hhteal!8] (0,0) rectangle (1,1);\n"
-            "\\node[draw=black] at (0,0) {x};\n\\end{tikzpicture}\n",
+            "% source\n\\begin{tikzpicture}\n\\fill[fill=pdteal!24,draw=pdteal] (0,0) rectangle (1,1);\n"
+            "\\node[draw=pdink] at (0,0) {x};\n\\end{tikzpicture}\n",
             corpus="chapter",
         )
         self.assertFalse(self.findings_for(report, "color"))
+
+    def test_stock_latex_colour_is_refused(self):
+        report = self.run_on(
+            "% source\n\\begin{tikzpicture}\n\\fill[fill=blue!20,draw=black] (0,0) rectangle (1,1);\n"
+            "\\end{tikzpicture}\n",
+            corpus="chapter",
+        )
+        self.assertTrue(self.findings_for(report, "color"))
 
     def test_research_corpus_uses_its_own_palette(self):
         # "shipred" is disallowed for the chapter corpus but fine for research;
@@ -148,9 +158,12 @@ class TestNodeWrapping(PrecheckTestCase):
         self.assertFalse(self.findings_for(report, "node-wrap"))
 
     def test_known_unsafe_house_style_still_fails(self):
-        # "pd axis label" does NOT set align/text width in pd-figure-language.tex.
+        # A stroke style carries no wrapping: a multi-word node using one
+        # still needs its own align=/text width=. ("pd axis label" was the old
+        # example; under pd-figure-language v2 it aliases "pd label", which
+        # bakes in align=center, so it is safe now.)
         report = self.run_on(
-            "% source\n\\begin{tikzpicture}\n\\node[pd axis label] at (0,0) {two words here};\n"
+            "% source\n\\begin{tikzpicture}\n\\node[pd hairline] at (0,0) {two words here};\n"
             "\\end{tikzpicture}\n"
         )
         self.assertTrue(self.findings_for(report, "node-wrap"))

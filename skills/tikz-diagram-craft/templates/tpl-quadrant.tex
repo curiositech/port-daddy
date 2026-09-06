@@ -1,0 +1,37 @@
+% TEMPLATE: quadrant / regime plot (where a rule holds in a plane).
+% Two axes stated as full clauses, four cells, exactly one of them shaded and
+% named; every cell carries a concrete instance, not a label.
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \def\w{4.55}  \def\h{2.35}  \def\ox{2.35}  \def\oy{0.00}
+  % the one regime the chapter is about, shaded and edged
+  \draw[pd focus fill] ({\ox+\w},{\oy+\h}) rectangle ({\ox+2*\w},{\oy+2*\h});
+  \draw[pd rule] (\ox,\oy) rectangle ({\ox+2*\w},{\oy+2*\h});
+  \draw[pd rule] ({\ox+\w},\oy) -- ({\ox+\w},{\oy+2*\h});
+  \draw[pd rule] (\ox,{\oy+\h}) -- ({\ox+2*\w},{\oy+\h});
+  \foreach \cx/\cy/\head/\inst in {%
+    0/1/{detect only}/{a plan stated in the model's context},
+    1/1/{preventable}/{\texttt{git push}: net egress, spawn child},
+    0/0/{detect only}/{a thought},
+    1/0/{detect only}/{an effect whose guard reads unwitnessed state}}{
+      \node[pd title,anchor=north] at ({\ox+\cx*\w+\w/2},{\oy+\cy*\h+\h-.28}) {\head};
+      \node[pd label,text width=3.9cm,anchor=north] at ({\ox+\cx*\w+\w/2},{\oy+\cy*\h+\h-.78}) {\inst};}
+  % axes stated as clauses, not as words
+  \node[pd label,rotate=90,anchor=south,text width=4.3cm] at ({\ox-1.35},{\oy+\h})
+    {the daemon controls the event};
+  \node[pd label,anchor=north,text width=9cm] at ({\ox+\w},{\oy-.22})
+    {the trigger is witnessed at the mediation boundary};
+  \foreach \cx/\l in {0/no, 1/yes}{
+    \node[pd label,anchor=south] at ({\ox+\cx*\w+\w/2},{\oy+2*\h+.08}) {\l};}
+  \foreach \cy/\l in {0/no, 1/yes}{
+    \node[pd label,anchor=east] at ({\ox-.20},{\oy+\cy*\h+\h/2}) {\l};}
+\end{tikzpicture}
+\caption{Preventability is one cell, not a spectrum. An event is preventable
+exactly when it is controllable by the daemon (top row) \emph{and} its trigger
+is witnessed at the mediation boundary (right column): the shaded cell. Each of
+the other three cells names a concrete case that is detect-only, so the reader
+can test the rule against an instance rather than a label. [internal]}
+\label{fig:tpl-quadrant}
+\end{figure}

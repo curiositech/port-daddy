@@ -29,7 +29,19 @@ Checks (hard, fail the build unless noted):
                      `draw=` of its own -- the `pd ... fill` house styles are
                      exempt (they draw their own edge).
   - P14 row-labels  (WARN) a `\node[...anchor=east...,font=\scriptsize|\tiny]`
-                     whose text is one bare word -- suggests `pd row label`.
+                     whose text is one bare word -- suggests `pd title`.
+  - P15 type-ladder (FAIL) the figure type ladder (three voices, tied to
+                     roles, carried by the shared styles) broken at the point
+                     of use: a `font=` key outside a `/.style={...}` body; a
+                     `\textbf`/`\bfseries`/`\itshape`/`\textit`/`\emph`/
+                     `\scshape`/`\textsc`/`\\uppercase`/`\MakeUppercase` in
+                     the fragment body; an ALL-CAPS word of four or more
+                     letters outside `\texttt`; or more than three distinct
+                     point-of-use voices in one picture.
+  - P16 retired-hue (WARN) an `hh*` colour other than `hhink`/`hhpaper`: the
+                     sand/teal/amber set is being retired in favour of the
+                     pd-palette.tex story hues. Any colour outside
+                     pd-palette.tex plus those two is a hard `color` finding.
 
 Usage:
   tikz_precheck.py FRAGMENT.tex [FRAGMENT.tex ...]
@@ -59,33 +71,72 @@ from pathlib import Path
 # by pointing at a real style-definition file (parsed the same way).
 # --------------------------------------------------------------------------- #
 
-CHAPTER_COLORS = {
-    "hhsand", "hhsanddeep", "hhebony", "hhink", "hhcobalt", "hhamber",
-    "hhteal", "hhpaper", "hhgray",
-    "codebg", "codeframe", "darkgreen", "darkblue", "accent",
+# The Book's semantic palette (figures/pd-palette.tex). Hue is meaning; these
+# are the only colours a figure may name.
+PALETTE_COLORS = {
+    "pdcobalt", "pdteal", "pdhealth", "pdindigo", "pdviolet", "pdrust",
+    "pdgold", "pderror", "pdamber", "pdlime", "pdink", "pdinkmuted",
+    "pdcream", "pdcreamraised", "pdcreamstrong",
+    # the chapter hue, resolved from \pdcurrentchaptercolor by pd figure
+    "pdfocus",
 }
+# Ink and paper survive from the hh* set; every other hh* colour is retiring
+# (P16 warns on it) but still parses, so an untouched fragment keeps building.
+RETIRED_HH_COLORS = {
+    "hhsand", "hhsanddeep", "hhebony", "hhcobalt", "hhamber", "hhteal",
+    "hhgray", "hhink", "hhpaper",
+}
+CHAPTER_COLORS = (
+    PALETTE_COLORS
+    | RETIRED_HH_COLORS
+    | {"hhink", "hhpaper", "codebg", "codeframe"}
+)
 RESEARCH_COLORS = {"harborblue", "shipred", "seagreen"}
-UNIVERSAL_COLORS = {"black", "white", "none", "gray", "grey"}
+# `none` is the absence of a colour, not a colour. Every real colour a figure
+# names must be a pd-palette.tex name; stock colours (black/white/gray, and
+# tints such as blue!20, red!30, green!40) are the LaTeX default palette and
+# are refused outright.
+UNIVERSAL_COLORS = {"none"}
 
 # Every style name defined in figures/pd-figure-language.tex (chapter/
 # whitepaper corpora). Used to keep the color check from mistaking a bare
 # style reference (`\node[pd actor]`) for an unrecognized color.
+_PD_CONCEPTS = (
+    "pd truth", "pd legible", "pd ready", "pd protocol", "pd identity",
+    "pd reputation", "pd value", "pd breach", "pd warn",
+)
 CHAPTER_STYLE_NAMES = {
-    "pd figure", "pd hairline", "pd rule", "pd focus rule", "pd caution rule",
-    "pd guide", "pd arrow", "pd focus arrow", "pd caution arrow",
-    "pd panel title", "pd axis label", "pd direct label", "pd note",
-    "pd tick", "pd datum", "pd focus datum", "pd caution datum",
-    "pd state", "pd terminal", "pd actor", "pd artifact", "pd boundary",
-    "pd focus fill", "pd caution fill", "pd neutral fill", "pd hatch",
+    # v2 roles
+    "pd figure", "pd title", "pd label", "pd note", "pd tag", "pd kind",
+    "pd state", "pd terminal", "pd artifact", "pd panel", "pd hatch",
+    "pd hairline", "pd guide", "pd tick", "pd rule", "pd spine",
+    "pd thin arrow", "pd arrow", "pd spine arrow",
+    "pd focus rule", "pd focus arrow", "pd focus state", "pd focus fill",
+    "pd focus datum", "pd neutral fill",
+    "pd datum", "pd badge", "pd focus badge", "pd to badge", "pd from badge",
+    # v1 names, kept as deprecated aliases by pd-figure-language v2
+    "pd row label", "pd panel title", "pd axis label", "pd direct label",
+    "pd actor", "pd boundary", "pd caution rule", "pd caution arrow",
+    "pd caution fill", "pd caution datum",
 }
+for _c in _PD_CONCEPTS:
+    CHAPTER_STYLE_NAMES |= {
+        _c, _c + " rule", _c + " arrow", _c + " state", _c + " fill",
+        _c + " datum",
+    }
 # The subset of the above whose definition already bakes in `align=` or
 # `text width=` -- so a multi-word node using one of these does not need its
 # own wrapping key. Derived mechanically from pd-figure-language.tex's own
 # `.style={...}` bodies, not guessed.
 CHAPTER_SAFE_STYLES = {
-    "pd panel title", "pd direct label", "pd note",
-    "pd state", "pd terminal", "pd actor", "pd artifact",
+    "pd title", "pd label", "pd note", "pd tag", "pd kind", "pd panel",
+    "pd state", "pd terminal", "pd artifact", "pd focus state", "pd badge",
+    "pd focus badge",
+    "pd panel title", "pd direct label", "pd axis label", "pd actor",
+    "pd boundary", "pd row label",
 }
+for _c in _PD_CONCEPTS:
+    CHAPTER_SAFE_STYLES |= {_c + " state"}
 
 RESEARCH_STYLE_NAMES = {"relnode", "relarrow", "regimebox"}
 RESEARCH_SAFE_STYLES = {"relnode", "regimebox"}
@@ -122,7 +173,7 @@ STYLE_DEF_RE = re.compile(r"([A-Za-z][A-Za-z0-9 _-]*?)/\.style\s*=\s*\{")
 # Numbered rule ids introduced alongside the original, unnumbered checks
 # above. Kept in one place so the summary/"counts per id" machinery and the
 # markdown report can iterate them without hardcoding the list twice.
-RULE_IDS = ["P10", "P11", "P12", "P13", "P14"]
+RULE_IDS = ["P10", "P11", "P12", "P13", "P14", "P15", "P16"]
 
 
 def strip_comments(text):
@@ -521,6 +572,147 @@ def check_row_labels(text):
     return findings
 
 
+# --------------------------------------------------------------------------- #
+# P15 -- the figure type ladder.
+#
+# The Book's figures carry exactly three text voices, each tied to a role and
+# each owned by a shared style: `pd title` (small caps: panel titles, row and
+# actor heads), `pd label` (upright: node text, state names, axis titles, tick
+# words, relation words, badge numerals) and `pd note` (italic: the one
+# annotation a figure is allowed). A fragment names a role; it never sets a
+# font. `\texttt` is reserved for identifiers that are literally code, and is
+# therefore not counted as a voice.
+# --------------------------------------------------------------------------- #
+
+VOICE_CMD_RE = re.compile(
+    r"\\(textbf|bfseries|itshape|textit|emph|scshape|textsc|"
+    r"uppercase|MakeUppercase|MakeTextUppercase|sffamily|ttfamily|rmfamily|"
+    r"normalfont|fontfamily|fontsize|selectfont|usefont)\b"
+)
+FONT_KEY_RE = re.compile(r"\bfont\s*=\s*")
+ALLCAPS_RE = re.compile(r"(?<![A-Za-z0-9\\])[A-Z]{4,}(?![A-Za-z0-9])")
+VOICE_LIMIT = 3
+
+
+def _style_body_spans(text):
+    """Character ranges of every `name/.style={...}` body. A style definition
+    is where a voice is SUPPOSED to be declared, so P15 does not look inside
+    one -- it polices the point of use."""
+    spans = []
+    for m in STYLE_DEF_RE.finditer(text):
+        try:
+            brace = text.index("{", m.end() - 1)
+        except ValueError:
+            continue
+        _, end = find_braced(text, brace)
+        spans.append((m.start(), end))
+    return spans
+
+
+def _texttt_spans(text):
+    spans = []
+    for m in re.finditer(r"\\(?:texttt|lstinline|verb)\b", text):
+        i = m.end()
+        while i < len(text) and text[i].isspace():
+            i += 1
+        if i < len(text) and text[i] == "{":
+            _, end = find_braced(text, i)
+            spans.append((m.start(), end))
+    return spans
+
+
+def _in_spans(pos, spans):
+    return any(a <= pos < b for a, b in spans)
+
+
+def check_type_ladder(text):
+    """P15: the type ladder, enforced at the point of use."""
+    findings = []
+    stripped = strip_comments(text)
+    style_spans = _style_body_spans(stripped)
+    tt_spans = _texttt_spans(stripped)
+    # The caption is prose in the body voice, not figure text; the ladder
+    # governs the picture. Exclude everything from \caption{ to its close.
+    caption_spans = []
+    for m in re.finditer(r"\\caption\b", stripped):
+        i = m.end()
+        while i < len(stripped) and stripped[i] in " \n[":
+            if stripped[i] == "[":
+                _, i = find_braced_bracket(stripped, i)
+                continue
+            i += 1
+        if i < len(stripped) and stripped[i] == "{":
+            _, end = find_braced(stripped, i)
+            caption_spans.append((m.start(), end))
+    skip = style_spans + caption_spans
+
+    voices = set()
+    for m in FONT_KEY_RE.finditer(stripped):
+        if _in_spans(m.start(), skip):
+            continue
+        line = stripped.count("\n", 0, m.start()) + 1
+        tail = stripped[m.end():m.end() + 40].split(",")[0].split("]")[0].strip()
+        voices.add("font=" + tail)
+        findings.append({
+            "check": "type-ladder", "id": "P15", "severity": "fail", "line": line,
+            "message": f"`font={tail}` set at the point of use; name a role style "
+                       f"(pd title / pd label / pd note) instead",
+        })
+    for m in VOICE_CMD_RE.finditer(stripped):
+        if _in_spans(m.start(), skip):
+            continue
+        line = stripped.count("\n", 0, m.start()) + 1
+        voices.add(m.group(1))
+        findings.append({
+            "check": "type-ladder", "id": "P15", "severity": "fail", "line": line,
+            "message": f"\\{m.group(1)} in the picture; the three voices are carried "
+                       f"by pd title / pd label / pd note, never by a switch",
+        })
+    for m in ALLCAPS_RE.finditer(stripped):
+        if _in_spans(m.start(), skip) or _in_spans(m.start(), tt_spans):
+            continue
+        word = m.group(0)
+        line = stripped.count("\n", 0, m.start()) + 1
+        findings.append({
+            "check": "type-ladder", "id": "P15", "severity": "fail", "line": line,
+            "message": f"ALL-CAPS word {word!r}: set a state name in sentence case in "
+                       f"the label voice, or in \\texttt if it is literally code",
+        })
+    if len(voices) > VOICE_LIMIT:
+        findings.append({
+            "check": "type-ladder", "id": "P15", "severity": "fail", "line": 1,
+            "message": f"{len(voices)} distinct point-of-use text voices "
+                       f"({', '.join(sorted(voices))}); at most {VOICE_LIMIT} voices "
+                       f"exist in the ladder and a fragment should declare none",
+        })
+    return findings
+
+
+def check_retired_hues(text, retired):
+    """P16: an hh* colour other than hhink/hhpaper. The sand/teal/amber set is
+    being retired in favour of the pd-palette.tex story hues; a fragment that
+    still names one keeps building but is flagged for migration."""
+    findings = []
+    seen = {}
+    def note(raw, line):
+        for seg in (s.strip() for s in raw.split("!")):
+            if seg in retired and seg not in seen:
+                seen[seg] = line
+    for m in COLOR_KEY_RE.finditer(text):
+        note(m.group(2), text.count("\n", 0, m.start()) + 1)
+    for m in TEXTCOLOR_RE.finditer(text):
+        note(m.group(1), text.count("\n", 0, m.start()) + 1)
+    for m in COLOR_CMD_RE.finditer(text):
+        note(m.group(1), text.count("\n", 0, m.start()) + 1)
+    for name, line in sorted(seen.items()):
+        findings.append({
+            "check": "retired-hue", "id": "P16", "severity": "warn", "line": line,
+            "message": f"colour '{name}' is being retired; use the pd-palette.tex "
+                       f"story hue for the concept it stands for",
+        })
+    return findings
+
+
 def check_colors(text, allowed_colors, known_style_names):
     findings = []
 
@@ -644,6 +836,9 @@ def run_precheck(path, corpus="auto", extra_style_defs=None, extra_colors=None):
     findings += check_row_labels(text)
     findings += check_colors(text, base_colors, known_names)
     findings += check_node_wrapping(text, safe_styles)
+    findings += check_type_ladder(text)
+    if resolved_corpus == "chapter":
+        findings += check_retired_hues(text, RETIRED_HH_COLORS)
     findings += check_title_numbers(text)
 
     hard = [f for f in findings if f["severity"] == "fail"]

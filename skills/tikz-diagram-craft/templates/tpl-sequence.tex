@@ -1,0 +1,39 @@
+% TEMPLATE: sequence diagram (a protocol between named parties).
+% Change the head names, the lifeline spacing and the message list; everything
+% else follows. One message per row, numbered on the line it labels, the number
+% breaking the stroke so no rule ever crosses a word.
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \def\dy{1.14}          % one message per row
+  \def\rows{4}           % how many message rows
+  \def\gap{3.85}         % lifeline spacing
+  % ---- heads, evenly spaced across the measure -----------------------------
+  \foreach \i/\name/\role in {0/operator/author, 1/daemon/actor, 2/agents/multitude}{
+    \node[pd state,minimum width=2.6cm] (h\i) at ({1.55+\i*\gap},0) {\name};
+    \node[pd label,text=pdinkmuted,anchor=north] at ({1.55+\i*\gap},-0.46) {\role};
+    \draw[pd guide] ({1.55+\i*\gap},-1.02) -- ({1.55+\i*\gap},{-\rows*\dy-0.95});}
+  % ---- messages: from, to, number, words, style ----------------------------
+  % An arrow's hue is its meaning: focus = the grant, ink = ordinary traffic,
+  % breach = the override that bypasses a party.
+  \foreach \a/\b/\k/\w/\s in {%
+    0/1/1/{scoped grant g}/{pd focus arrow},
+    2/1/2/{act a1 under g}/{pd arrow},
+    1/2/3/{gate or escalate}/{pd arrow},
+    0/1/4/{override: revoke g}/{pd breach arrow}}{
+      \node[pd badge] (m\k) at ({1.55+(\a+\b)*\gap/2},{-\k*\dy-0.55}) {\k};
+      \draw[\s,-,pd to badge]   ({1.55+\a*\gap},{-\k*\dy-0.55}) -- (m\k);
+      \draw[\s,pd from badge]   (m\k) -- ({1.55+\b*\gap},{-\k*\dy-0.55});
+      \node[pd tag,anchor=south] at ({1.55+(\a+\b)*\gap/2},{-\k*\dy-0.17}) {\w};}
+  \node[pd note,anchor=north west,text width=10.4cm] at (0.20,{-\rows*\dy-1.25})
+    {one grant; the daemon gates every act; only the operator overrides};
+\end{tikzpicture}
+\caption{The grant-and-gate sequence: three lifelines, four messages, no
+crossing. The operator grants once (1); every agent act (2) is gated or
+escalated by the daemon (3); the override (4, red and dashed) is the one edge
+that runs straight from operator to daemon, bypassing the agents. Idealised to
+one representative act: a live fleet repeats 2 and 3 per act, not per grant.
+[internal]}
+\label{fig:tpl-sequence}
+\end{figure}

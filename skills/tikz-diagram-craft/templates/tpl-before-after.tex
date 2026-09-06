@@ -1,0 +1,34 @@
+% TEMPLATE: before/after pair (the same system, one change, identical geometry).
+% Two panels on ONE grid: same origin, same pitch, same scale, so the reader
+% compares by position. Only the difference is coloured.
+\begin{figure}[H]
+\centering
+\pdfigurehue{pdcobalt}%
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \def\x0{2.45}  \def\xe{10.55}  \def\dy{0.62}
+  \foreach \p/\oy/\title in {0/0.00/{unsequenced execution}, 1/-3.25/{consented serialization}}{
+    \node[pd title,anchor=west] at (0.00,{\oy+.62}) {\title};
+    \foreach \i/\a/\b in {0/0.4/3.4, 1/1.2/4.9, 2/2.5/6.4, 3/3.6/7.6}{
+      \node[pd label,anchor=east] at ({\x0-.22},{\oy-\i*\dy}) {\i};
+      \draw[pd hairline] (\x0,{\oy-\i*\dy}) -- (\xe,{\oy-\i*\dy});}
+    \draw[pd rule,-{Stealth[length=1.9pt 3.2,width=1.5pt 2.4]}]
+      (\x0,{\oy-2.85}) -- (\xe,{\oy-2.85});
+    \node[pd label,anchor=west] at (\xe,{\oy-2.85}) {time};}
+  % before: bands overlap and nothing records an order
+  \foreach \i/\a/\b in {0/0.4/3.4, 1/1.2/4.9, 2/2.5/6.4, 3/3.6/7.6}{
+    \draw[pd neutral fill] ({\x0+\a},{-\i*\dy-.22}) rectangle ({\x0+\b},{-\i*\dy+.22});}
+  % after: the same four requests, now each ending on its own commit point
+  \foreach \i/\a/\b in {0/0.4/2.3, 1/1.2/3.5, 2/2.5/4.9, 3/3.6/6.3}{
+    \draw[pd focus fill] ({\x0+\a},{-3.25-\i*\dy-.22}) rectangle ({\x0+\b},{-3.25-\i*\dy+.22});
+    \draw[pd guide] ({\x0+\b},{-3.25-\i*\dy}) -- ({\x0+\b},-6.10);
+    \node[pd focus datum] at ({\x0+\b},-6.10) {};}
+  \node[pd note,anchor=north west,text width=10.4cm] at (0.00,-6.55)
+    {the same four requests; consent changes the schedule, not who may take part};
+\end{tikzpicture}
+\caption{The same four write requests, drawn twice on one grid. Above, they
+overlap on the artefact with no total order between them. Below, consented
+serialization gives each request its own commit point on the writer's rail, and
+each band now ends at the instant it lands. The geometry is identical in both
+panels, so the only visible difference is the one the change makes. [internal]}
+\label{fig:tpl-before-after}
+\end{figure}
