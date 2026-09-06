@@ -217,7 +217,7 @@ build_one() {
 list_unchanged_since() {
   local ref="$1" row srcdir roottex dest
   for row in "${PAPERS[@]}"; do
-    IFS='|' read -r srcdir roottex dest <<< "$row"
+    IFS='|' read -r srcdir roottex dest < <(printf '%s\n' "$row")
     paper_changed_since "$ref" "$srcdir" "$roottex" || printf '%s\n' "$dest"
   done
 }
@@ -229,7 +229,7 @@ main() {
     return 0
   fi
   for row in "${PAPERS[@]}"; do
-    IFS='|' read -r srcdir roottex dest <<< "$row"
+    IFS='|' read -r srcdir roottex dest < <(printf '%s\n' "$row")
     base="${roottex%.tex}"
     if [ -n "$FILTER" ] && [ "$FILTER" != "$base" ] && [ "$FILTER" != "${dest##*/}" ]; then
       continue

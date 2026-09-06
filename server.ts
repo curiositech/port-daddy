@@ -50,6 +50,7 @@ import { createAgentInbox, inboxMessageForMessaging } from './lib/agent-inbox.js
 import { createAttention } from './lib/attention.js';
 import { createClaimWatcher } from './lib/claim-watcher.js';
 import { createResurrection } from './lib/resurrection.js';
+import { createHaltWatch, haltSentinelPath, distressFilePath } from './lib/halt-watch.js';
 import { createHeartbeatDeathHandler } from './lib/agent-heartbeat-death.js';
 import { createChangelog } from './lib/changelog.js';
 import { createTunnel } from './lib/tunnel.js';
@@ -614,7 +615,15 @@ function triggerTool2VecReconcile(trigger: string): void {
   });
 }
 const episodicMemory = createEpisodicMemory(db, { tuples, graphEdges, semanticResolver });
-const durableAgentRoster = createDurableAgentRoster(db, { resolver: semanticResolver, logger });
+// Durable forensics journal — every Arbiter security event AND every identity
+// retirement / resurrection (actor souls, durable roster) is written, in full,
+// to an append-only JSONL journal OUTSIDE the live DB (~/.port-daddy/forensics/),
+// so it survives the 7-day activity_log prune. Default on; opt out with
+// PD_FORENSICS_ARCHIVE=off. (ADR-0089.) Created here, ahead of the identity
+// stores, because they journal through it.
+const forensicsSink =
+  process.env.PD_FORENSICS_ARCHIVE === 'off' ? undefined : createJsonlForensicsArchive();
+const durableAgentRoster = createDurableAgentRoster(db, { resolver: semanticResolver, logger, forensicsSink });
 const quorum = createQuorum({ tuples });
 const feedback = createFeedback({ tuples });
 const roadmapItems = createRoadmapItems({ db, tuples, graphEdges });
@@ -804,7 +813,9 @@ const bonds = createBonds(db, {
 // no new budget. HONEST LIMIT: the anti-launder only fully bites once the `door`
 // lane makes the SQLite write-boundary real (a same-UID agent can otherwise
 // write a ledger/pool row directly). This is ADR-0040's explicit non-goal.
-const actorSouls = createActorSouls(db);
+// Retirement is final unless resurrected through the audited path; both
+// transitions are journaled to the forensics sink (identity keystone).
+const actorSouls = createActorSouls(db, { forensicsSink });
 // Grandfather EXISTING agents (from budget_ledger/bond_escrow/agents) into
 // trusted souls before budgetGuard starts routing spend through the souls
 // choke below -- otherwise every already-running agent looks like a brand
@@ -1304,12 +1315,8 @@ function resolveArbiterStrictMode(value: string | undefined): boolean {
 
 semanticIndex.initialize();
 const arbiterStrictMode = resolveArbiterStrictMode(process.env.PORT_DADDY_ARBITER_STRICT);
-// Durable forensics journal — every Arbiter security event is written, in full,
-// to an append-only JSONL journal OUTSIDE the live DB (~/.port-daddy/forensics/),
-// so it survives the 7-day activity_log prune. Default on; opt out with
-// PD_FORENSICS_ARCHIVE=off. (ADR-0089.)
-const forensicsSink =
-  process.env.PD_FORENSICS_ARCHIVE === 'off' ? undefined : createJsonlForensicsArchive();
+// The forensics journal (`forensicsSink`, ADR-0089) is created above, next to
+// the identity stores that also write to it.
 const arbiter = createArbiter(
   { activityLog, agents, sessions, locks, resurrection, bonds, forensicsSink },
   { strictMode: arbiterStrictMode }
@@ -1372,6 +1379,33 @@ const fleetDaemon = createFleetDaemon({
 const repoRegistry = createRepoRegistry({
   getProjectDirs: () => fleetDaemon.listProjects(),
   logger,
+});
+
+// ── ADR-0132 listening watch (phase 3) ──────────────────────────────────────
+// A 30 s unref'd timer that does one `existsSync` on ~/.port-daddy/HALT. On
+// the nominal → halted transition every background sweep that could spend or
+// coordinate is stopped here — the reaper/resurrection cleanup interval, the
+// dispatch worker, the auto-merge sweep, and the fleet daemon — and the
+// watch writes SEEN then COMPLIED to the distress file. `/health` answers
+// `state: 'halted'`. The sentinel's later absence does NOT resume anything:
+// only a signed operator ALL-CLEAR (phase 4) lifts a halt, and until then a
+// halted daemon stays halted until it is restarted. Created here (so the
+// route deps can read its state) and armed in the LIFECYCLE section once the
+// cleanup interval it must be able to stop exists.
+let cleanupTimer: ReturnType<typeof setInterval> | null = null;
+const haltWatch = createHaltWatch({
+  entity: `daemon:${DAEMON_PLANE}`,
+  sentinelPath: haltSentinelPath(),
+  distressPath: distressFilePath(),
+  repoDistressPath: join(REPO_ROOT, '.portdaddy', 'DISTRESS'),
+  logger,
+  onHalt: (halt) => {
+    logger.warn('halt_entered', { ref: halt.ref, line: halt.line });
+    if (cleanupTimer) { clearInterval(cleanupTimer); cleanupTimer = null; }
+    try { dispatchWorker?.stop(); } catch (err) { logger.warn('halt_dispatch_worker_stop_failed', { error: (err as Error).message }); }
+    if (autoMergeTimer) { clearInterval(autoMergeTimer); autoMergeTimer = null; }
+    try { fleetDaemon.stop(); } catch (err) { logger.warn('halt_fleet_stop_failed', { error: (err as Error).message }); }
+  },
 });
 
 // Wire resurrection events (identical to server.ts)
@@ -1824,6 +1858,7 @@ await registerAllRoutes(
     runningBinarySnapshot: RUNNING_BINARY_SNAPSHOT,
     daemonBerth: DAEMON_BERTH,
     plane: DAEMON_PLANE,
+    haltWatch,
     cleanupStale, getSystemPorts,
     // Relay (ADR-0049) connection status — the LIVE lifecycle's snapshot.
     // `connected` is true only while the relay has an accepted SSE stream
@@ -1920,7 +1955,13 @@ app.setErrorHandler((err: Error & { type?: string; statusCode?: number }, reques
 // LIFECYCLE (identical to server.ts)
 // =============================================================================
 
-setInterval(() => cleanupStale(), config.cleanup.interval_ms);
+cleanupTimer = setInterval(() => cleanupStale(), config.cleanup.interval_ms);
+
+// ADR-0132: arm the listening watch now that every sweep it may have to stop
+// exists. The first check runs synchronously, so a daemon started under a
+// hoisted flag is `halted` — sweeps off, SEEN/COMPLIED written — before it
+// serves a single request.
+haltWatch.start();
 
 setInterval(() => {
   const now = Date.now();
@@ -1972,6 +2013,7 @@ function shutdown(signal: string): void {
   try { dispatchWorker?.stop(); } catch {}
   try { if (autoMergeTimer) clearInterval(autoMergeTimer); } catch {}
   try { if (tool2VecTimer) clearInterval(tool2VecTimer); } catch {}
+  try { haltWatch.stop(); } catch {}
   systemPortsRefresh.stop();
   if (ipcServer) ipcServer.stop().catch(() => {});
   closeDatabase(db);
@@ -2062,6 +2104,9 @@ function onReady(): void {
   // same project fleet as the canonical daemon.
   if (DISABLE_FLEET) {
     logger.info('fleet_daemon_disabled', { reason: 'PORT_DADDY_NO_FLEET' });
+  } else if (haltWatch.state() === 'halted') {
+    // ADR-0132: a halt seen at boot must not be undone by the ready path.
+    logger.info('fleet_daemon_disabled', { reason: 'halt_sentinel', ref: haltWatch.halt()?.ref });
   } else {
     try {
       fleetDaemon.start();

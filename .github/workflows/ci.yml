@@ -899,6 +899,50 @@ jobs:
       - name: vitest (incl. hv:2 harbor-card parity fixture ⇄ core/harbor-card-rs)
         run: npx vitest run
 
+  fleet-executor-tests:
+    # apps/fleet-executor is the LIVE cloud fleet bot (the Cloudflare Queues
+    # consumer that posts PR review comments and check runs) with its own
+    # tsconfig graph and vitest suite; root jest never compiles or runs it
+    # (jest.config only matches tests/unit/** and tests/integration/**). Until
+    # now the ONLY workflow that ran `npx vitest run` for it was
+    # deploy-fleet-executor.yml, which fires on push to main — i.e. after the
+    # merge. Every fleet-executor PR before this job (#5915 among them) merged
+    # with a green ci-gate that had never executed one line of its own diff.
+    #
+    # Always-run, NOT path-gated on apps/fleet-executor/**: src/ imports from
+    # apps/shared/ (model-registry.generated, github-app-crypto, repo-ai-
+    # settings) and from the root lib/ (coordination-ledger, coordination-
+    # grant-contract, transcript-emergency-constants), so a lib/ change can
+    # break this Worker without touching a file under its directory. A gate
+    # that skips on exactly the PRs that can break it silently is not a gate.
+    # The whole job is ~30s on ubuntu (npm ci ~20s, suite ~4s). Wired into
+    # ci-gate's needs like every other enforced job.
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/fleet-executor
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: apps/fleet-executor/package-lock.json
+
+      - name: Install dependencies
+        # The lockfile has no onnxruntime-node (no CUDA binary fetch to guard),
+        # so this retry only covers registry flakes.
+        run: npm ci --no-audit --no-fund || (echo "npm ci failed (registry flake); retrying once in 30s" && sleep 30 && npm ci --no-audit --no-fund)
+
+      - name: Type check (tsc --noEmit)
+        run: npx tsc --noEmit
+
+      - name: vitest (verdict/conclusion logic, zero-trust ref invariant, purser, sandbox runner)
+        run: npx vitest run
+
   steward-tests:
     # apps/steward is the Steward's seat (ADR-0109; docs/plans/THE_FULL_WHEEL.md
     # P1) — a Cloudflare Worker with its own tsconfig graph and vitest suite
@@ -1333,15 +1377,19 @@ jobs:
       - changelog-guard
       - compiled-daemon-smoke
       - doc-citation-guard
+      - fleet-executor-tests
       - fleet-ui
       - fleetbar
       - integration-tests
       - lint
       - pd-ios
-      - porthole-stage
       - porthole-cast-gate
+      - porthole-stage
+      - relay-tests
+      - rust-broker
       - rust-console
       - rust-console-gpui
+      - rust-harbor-card
       - rust-kernel
       - skill-hygiene
       - steward-tests
