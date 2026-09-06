@@ -77,3 +77,9 @@ jobs:
 
       - name: Reviewer corrections reached every site that echoes them
         run: python3 scripts/harbor-research/check_propagated_corrections.py
+
+      - name: Library index matches the corpora it claims to index
+        run: python3 scripts/harbor-research/check_library_index.py
+
+      - name: LIBRARY-INDEX.md is a fresh render of library-index.json
+        run: python3 scripts/harbor-research/check_library_index.py --check-md
