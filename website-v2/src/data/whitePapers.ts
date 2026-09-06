@@ -225,8 +225,8 @@ export const COLLECTED_VOLUME: CollectedVolume = {
   downloadUrl:
     'https://raw.githubusercontent.com/curiositech/port-daddy/main/website-v2/public/whitepaper/coordination-papers-mega-volume.pdf',
   date: TEXTBOOK.edition.date,
-  pages: 268,
-  sizeKb: 2211,
+  pages: 287,
+  sizeKb: 7545,
   references: 221,
 }
 
@@ -424,8 +424,8 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     readerHref: '/whitepaper/single-writer-kernel',
     overviewHref: '/whitepaper?paper=single-writer-kernel',
     date: 'August 2026',
-    pages: 40,
-    sizeKb: 718,
+    pages: 58,
+    sizeKb: 876,
     status: 'Version 1.2 (textbook edition)',
     order: '01',
     chapter: 1,
