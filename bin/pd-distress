@@ -116,6 +116,25 @@ cmd_raise() {
   registered=$(class_of_code "$code") || die "unregistered code '$code' — extend the registry through ADR-0132, never ad hoc"
   [ "$registered" = "$cls" ] || die "code $code belongs to class $registered, not $cls"
 
+  # Who may hoist or lift a halt is part of the registry, not a courtesy
+  # (ADR-0132 §1, §4): HALT comes from the operator or a daemon, ALL-CLEAR
+  # from the operator alone (and is only honoured when signed). The TS twin's
+  # writeHalt() is operator-only; a stray `agent:x SECURITE HALT` would
+  # otherwise become a halt that only the operator's key can lift.
+  kind=${entity%%:*}
+  case "$code" in
+    HALT)
+      case "$kind" in
+        operator|daemon) ;;
+        *) die "SECURITE HALT may only be raised by operator:* or daemon:* (ADR-0132 §1), not '$entity'" 3 ;;
+      esac ;;
+    ALL-CLEAR)
+      case "$kind" in
+        operator) ;;
+        *) die "SECURITE ALL-CLEAR may only be raised by operator:* (ADR-0132 §4), not '$entity'" 3 ;;
+      esac ;;
+  esac
+
   ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)
   line="$ts $entity $cls $code"
   while [ $# -gt 0 ]; do

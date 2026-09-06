@@ -49,11 +49,28 @@ assert_match "$out" 'not an all-clear' 'show-halt says absence is not all-clear'
 
 # ── raise outside a repo: machine-wide only ─────────────────────────────────
 cd "$SCRATCH" || exit 2
-line=$("$BIN" raise -e agent:claude-code:ranking-shadow SECURITE HALT reason=spend-runaway ref=docs/incidents/x.md -- hello world); rc=$?
+line=$("$BIN" raise -e operator:erich SECURITE HALT reason=spend-runaway ref=docs/incidents/x.md -- hello world); rc=$?
 assert_rc $rc 0 'raise succeeds'
-assert_match "$line" '^[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}T[0-9]\{2\}:[0-9]\{2\}:[0-9]\{2\}Z agent:claude-code:ranking-shadow SECURITE HALT reason=spend-runaway ref=docs/incidents/x.md -- hello world$' 'wire format is exact'
+assert_match "$line" '^[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}T[0-9]\{2\}:[0-9]\{2\}:[0-9]\{2\}Z operator:erich SECURITE HALT reason=spend-runaway ref=docs/incidents/x.md -- hello world$' 'wire format is exact'
 assert_eq "$(cat "$PD_HOME/DISTRESS")" "$line" 'machine-wide file holds exactly the line'
 [ -e "$SCRATCH/.portdaddy/DISTRESS" ] && ko 'no repo-scoped file outside a repo' || ok
+
+# ── who may hoist or lift a halt (ADR-0132 §1, §4) ──────────────────────────
+# Own PD_HOME so these raises never shift the line counts asserted below.
+WHO="$SCRATCH/who"; mkdir -p "$WHO"
+out=$(PD_HOME="$WHO" "$BIN" raise -e agent:claude-code:x SECURITE HALT reason=nope 2>&1); rc=$?
+assert_rc $rc 3 'an agent cannot raise SECURITE HALT'
+assert_match "$out" 'only be raised by operator:\* or daemon:\*' 'HALT refusal names who may'
+out=$(PD_HOME="$WHO" "$BIN" raise -e daemon:stable SECURITE ALL-CLEAR ref=x 2>&1); rc=$?
+assert_rc $rc 3 'a daemon cannot raise SECURITE ALL-CLEAR'
+assert_match "$out" 'only be raised by operator:\*' 'ALL-CLEAR refusal names who may'
+out=$(PD_HOME="$WHO" "$BIN" raise -e agent:claude-code:x SECURITE ALL-CLEAR ref=x 2>&1); rc=$?
+assert_rc $rc 3 'an agent cannot raise SECURITE ALL-CLEAR'
+[ -e "$WHO/DISTRESS" ] && ko 'refused halts and lifts append nothing' || ok
+PD_HOME="$WHO" "$BIN" raise -e daemon:stable SECURITE HALT reason=split-brain >/dev/null; assert_rc $? 0 'a daemon may raise SECURITE HALT'
+PD_HOME="$WHO" "$BIN" raise -e operator:erich SECURITE ALL-CLEAR ref=x >/dev/null; assert_rc $? 0 'the operator may raise SECURITE ALL-CLEAR'
+PD_HOME="$WHO" "$BIN" raise -e agent:claude-code:x SECURITE DRILL >/dev/null; assert_rc $? 0 'any entity may raise a DRILL'
+assert_eq "$(wc -l < "$WHO/DISTRESS" | tr -d ' ')" 3 'the three permitted raises landed in the isolated file'
 
 # ── PAN PAN as two words and as one, plus the control shorthand class ───────
 "$BIN" raise PAN PAN UNREACHABLE peer=daemon:prod >/dev/null; assert_rc $? 0 'PAN PAN as two args'
@@ -105,8 +122,11 @@ out=$("$BIN" show-halt 2>/dev/null); rc=$?; assert_rc $rc 0 'show-halt exits 0 f
 assert_eq "$out" "$line" 'show-halt falls back to the standing register HALT'
 err=$("$BIN" show-halt 2>&1 >/dev/null); assert_match "$err" 'absence is not all-clear' 'show-halt explains the sentinel is gone but the halt stands'
 halt_ts=${line%% *}
-"$BIN" raise -e agent:rogue SECURITE ALL-CLEAR "ref=$halt_ts" sig=abc >/dev/null
-"$BIN" halt-active; assert_rc $? 0 'an agent ALL-CLEAR does not lift the halt'
+# `raise` now refuses a non-operator ALL-CLEAR at the door; a rogue writer
+# would not use raise, so plant the line straight into the register and prove
+# the reader still ignores it.
+printf '%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ) agent:rogue SECURITE ALL-CLEAR ref=$halt_ts sig=abc" >> "$PD_HOME/DISTRESS"
+"$BIN" halt-active; assert_rc $? 0 'an agent ALL-CLEAR planted in the register does not lift the halt'
 "$BIN" raise -e operator:erich SECURITE ALL-CLEAR "ref=$halt_ts" >/dev/null
 "$BIN" halt-active; assert_rc $? 0 'an unsigned operator ALL-CLEAR does not lift the halt'
 "$BIN" raise -e operator:erich SECURITE ALL-CLEAR ref=2020-01-01T00:00:00Z sig=abc >/dev/null
