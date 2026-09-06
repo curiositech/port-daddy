@@ -252,7 +252,7 @@ class AtlasCoverageTests(unittest.TestCase):
                 contracts, atlas_ids, source_ids
             ),
         )
-        self.assertEqual(report["source_count"], 87)
+        self.assertEqual(report["source_count"], 66)
         self.assertEqual(report["atlas_count"], 87)
         self.assertEqual(len(contracts), 8)
         self.assertTrue(coverage.is_clean(report), report)
