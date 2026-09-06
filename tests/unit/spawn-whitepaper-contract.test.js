@@ -36,6 +36,8 @@ const publicationPdfs = [
   'website-v2/public/whitepaper/agent-transactions-whitepaper.pdf',
   'website-v2/public/whitepaper/federated-harbor-whitepaper.pdf',
   'website-v2/public/whitepaper/coordination-papers-mega-volume.pdf',
+  'website-v2/public/whitepaper/coordination-papers-mega-volume-swiss.pdf',
+  'website-v2/public/whitepaper/coordination-papers-mega-volume-technical.pdf',
 ];
 
 function publicationDigests() {
@@ -226,9 +228,15 @@ describe('Spawn-to-Person publication contract', () => {
     // digests live now that the PDFs are regenerated per edition.
     // The proof manifest is a frozen record of the first-edition review
     // (August 2026, seven chapters plus the Book); the Sealed Harbor chapter
-    // postdates it and is bound by publication-digests.json alone.
+    // and the Book's Swiss and technical editions postdate it and are bound by
+    // publication-digests.json alone.
+    const postdatesReview = [
+      'sealed-harbor-whitepaper.pdf',
+      'coordination-papers-mega-volume-swiss.pdf',
+      'coordination-papers-mega-volume-technical.pdf',
+    ];
     const firstEditionPdfs = publicationPdfs.filter(
-      (artifact) => !artifact.endsWith('sealed-harbor-whitepaper.pdf'),
+      (artifact) => !postdatesReview.some((suffix) => artifact.endsWith(suffix)),
     );
     for (const artifact of firstEditionPdfs) {
       expect(proof).toContain(`\`${artifact}\``);
