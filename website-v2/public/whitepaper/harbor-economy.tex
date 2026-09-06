@@ -338,7 +338,14 @@ Harbor~$C$ and sells a licensed lint-and-type skill. \textbf{Judy} is a human
 grader who arbitrates disputes for a bond. The two harbors do \emph{not} trust each
 other and neither is a root of authority for the other; that distrust is the entire
 reason the rest of the paper exists. We price everything in an abstract unit, the
-\emph{credit} (\textsc{cr}); read it as a stablecoin cent if you like.}
+\emph{credit} (\textsc{cr}); read it as a stablecoin cent if you like. The honest
+defense of an internal unit is older than this program: Sutherland priced computer
+time with a futures market~\cite{sutherland1968}, Miller and Drexler made prices the
+coordination signal of open computation~\cite{millerdrexler1988}, and Simon named
+the scarce resource such prices ration, attention~\cite{simon1971}. A bond forfeited
+to its own issuer conserves trivially, so the credit is an optimization signal
+first; its purchasing power outside the harbor is whatever the settlement rules
+make external.}
 
 % ═══════════════════════════════════════════════════════════════════════════════
 \section{The thesis: a market, not a payment rail}\label{sec:thesis}
@@ -1405,7 +1412,12 @@ it on one harbor trade, check that the slice really is bilateral (not
 multi-party), that values/costs are private and independently drawn from a
 common prior, that the supports genuinely overlap, that utility is transferable
 under risk neutrality, and exactly which of the four desiderata is being
-claimed --- the theorem only binds the ones actually asserted together.
+claimed --- the theorem only binds the ones actually asserted together. Applied
+to a harbor: when buyer and seller both price a job off the same grading oracle,
+their values are no longer independent private draws, so the independence item
+fails and the theorem's premise is voided; the harbor is outside the
+impossibility, not rescued from it, and what it owes instead is the oracle's own
+integrity (\pdchapref{stp}{From Spawn to Person}).
 \end{pdsolution}
 \begin{pdexercise}[kind=Trace,rating=2]{ex:he-two-currency-example}
 Give a two-currency example in which native-unit conservation holds but the
@@ -2681,6 +2693,17 @@ Chartered Resolution, and the Exact Price of Sole Ownership.} The Harbor Researc
 Program, Paper~6, 2026. (Theorems 1a and 1b are the detection theorem and its
 frontier; Theorem~3 is the succession price; the sweeps are
 \texttt{b4\_deontic\_fragment.py} and \texttt{b8\_specialization.py}.)
+
+\bibitem{sutherland1968} I. E. Sutherland. ``A Futures Market in Computer Time.''
+\emph{Communications of the ACM} 11(6):449--451, 1968.
+
+\bibitem{millerdrexler1988} M. S. Miller \& K. E. Drexler. ``Markets and Computation:
+Agoric Open Systems.'' In B. A. Huberman (ed.), \emph{The Ecology of Computation},
+pp.~133--176. North-Holland, 1988.
+
+\bibitem{simon1971} H. A. Simon. ``Designing Organizations for an Information-Rich
+World.'' In M. Greenberger (ed.), \emph{Computers, Communications, and the Public
+Interest}, pp.~37--72. Johns Hopkins Press, 1971.
 
 \bibitem{dg84} W. F. Dowling \& J. H. Gallier. ``Linear-Time Algorithms for Testing
 the Satisfiability of Propositional Horn Formulae.'' \emph{Journal of Logic

@@ -422,7 +422,7 @@ Figure~\ref{fig:fh-xfer} shows the protocol as a sequence diagram. The four mess
 \item $\mathsf{xfer\_deliver}\langle C_B' \rangle$ --- $D_B$ delivers $C_B'$ to the agent at $B$ that will use it. Subsequent presentations of $C_B'$ at $B$ verify under $\mathit{sk}_B$ alone --- no $A$-side lookup is needed at the hot path.
 \end{enumerate}
 
-The critical property is that after message (3), no further synchronous interaction with $A$ is required for the agent to operate at $B$. The cost is that revocation of $C_A$ at $A$ does not instantaneously revoke $C_B'$ at $B$; Theorem~\ref{thm:fh-conv} gives an expectation only under its delivery model, and partitions require fail-closed policy or bounded credential TTLs.
+Each derivative $C_B'$ carries the transfer identifier of the offer that produced it, and $D_B$ mints at most one derivative per identifier, so a replayed $\mathsf{xfer\_offer}$ cannot produce a second $C_B'$; the identifier is part of what the counter-signature covers. The critical property is that after message (3), no further synchronous interaction with $A$ is required for the agent to operate at $B$. The cost is that revocation of $C_A$ at $A$ does not instantaneously revoke $C_B'$ at $B$; Theorem~\ref{thm:fh-conv} gives an expectation only under its delivery model, and partitions require fail-closed policy or bounded credential TTLs.
 
 \subsection{Why this composes cleanly with Anchor}\label{sec:fh-xfer-compose}
 
@@ -492,7 +492,7 @@ Two pieces are added on top of the Anchor mechanism: (a) per-epoch roots $R_X^{(
 
 \subsection{Convergence bound}\label{sec:fh-conv-bound}
 
-Standard epidemic dissemination gives an expected $O(\Delta \log m)$ completion time only under an appropriate connected, reliable-round model~\cite{demers1987epidemic}. The property below instantiates that model at the federation level, treating each harbor's filter as one node in a complete overlay regardless of how many local daemons participate in the harbor's mesh. It is a model-conditional expectation, not an inherited wall-clock deadline.
+Standard epidemic dissemination gives an expected $\Theta(\Delta \log m)$ completion time only under an appropriate connected, reliable-round model~\cite{demers1987epidemic}. The property below instantiates that model at the federation level, treating each harbor's filter as one node in a complete overlay regardless of how many local daemons participate in the harbor's mesh. It is a model-conditional expectation, not an inherited wall-clock deadline.
 
 \begin{pdclaim}{Theorem}{Conditional Revocation Dissemination}
 \label{thm:fh-conv}
@@ -509,6 +509,8 @@ The first item is the standard asymptotic epidemic-dissemination result~\cite{de
 \begin{corollary}[Service-Level Attacker Window]\label{cor:fh-window}
 If an operator additionally imposes a partition bound $T_p$ and a delivery service level $T_g$, then stale-card exposure is bounded by $T_p+T_g$. Without those operational assumptions the protocol supplies an expected latency under its model, not a structural maximum.
 \end{corollary}
+
+\input{figures/fig-fh-revocation-regime}
 
 The distinction determines the exposure bound. A bond can be priced against an operator-declared service-level window, but an unbounded partition creates an unbounded exposure tail. Deployments must therefore combine bond sizing with expiry, fail-closed acceptance, or an explicit partition limit.
 
@@ -541,9 +543,11 @@ The rollback configuration's counterexample is not a bug in the model; it \emph{
 
 \subsection{Event Log \& Ephemeral Cuckoo Discipline}\label{sec:fh-cuckoo}
 
-By resolving the bitwise merging impossibility of probabilistic structures, the cuckoo filter is now purely a local, ephemeral read-path index derived from the authoritative Append-Only Event Log. The filter retains local Anchor-side disciplines (load capping, pollution resistance) but cross-harbor validation is strict: a filter at $B$ that holds $c \in F_B$ where $c$ was revoked at $A$ is correct only if there is a corresponding inclusion proof in $R_A^{(e+1)}$ in the witness log. False positives are corrected by rebuilding the local filter from the event log; spurious revocations injected by an attacker into a peer's log are rejected on first attempt to verify against the witness log. The discipline is: \emph{local filters are advisory read-caches; the event and witness logs are authoritative}.
+Two Bloom filters over the same universe merge by a bitwise OR; two cuckoo filters cannot, because each stores a fingerprint in one of two hashed buckets that can overflow, so a union may have nowhere to place a fingerprint. The cuckoo filter is therefore purely a local, ephemeral read-path index derived from the authoritative Append-Only Event Log. The filter retains local Anchor-side disciplines (load capping, pollution resistance) but cross-harbor validation is strict: a filter at $B$ that holds $c \in F_B$ where $c$ was revoked at $A$ is correct only if there is a corresponding inclusion proof in $R_A^{(e+1)}$ in the witness log. False positives are corrected by rebuilding the local filter from the event log; spurious revocations injected by an attacker into a peer's log are rejected on first attempt to verify against the witness log. The discipline is: \emph{local filters are advisory read-caches; the event and witness logs are authoritative}.
 
 \subsection{Sheaf Laplacian and Abramsky--Brandenburger Contextuality}\label{sec:fh-sheaf}
+
+Three harbors in a ring each record the offset between their own log and the neighbor they last compared with. Walk the ring and add the offsets: if the sum returns to zero, one consistent history explains every reading; if it does not, some offset was misreported, and the size of the residual says by how much. That is the whole picture; the formalism below states it for arbitrary topologies.
 
 The global consistency of federated witness logs can be modeled sheaf-theoretically, and it is worth being precise about which object carries the weight. The intuitive picture is a poset $(X, \le)$ of administrative domains ordered by scoped visibility, assigning to each domain $U$ the semilattice of prefix-compatible append-only logs, with restriction given by prefix projection. That picture is right about the ordering and useless for computation: a semilattice has no subtraction, no adjoint, and no spectrum, so none of the machinery below would be defined over it. The working object is therefore the \emph{cellular sheaf} $\mathcal{F}$ of the cohomology of equivocation,\footnote{A standalone, submission-form version of the results folded into this subsection is \emph{The Cohomology of Equivocation} (research paper~7)~\cite{owens2026sheaf}; the harness and the sweeps cited here are its artifacts, regenerated at seed 20260816.} carried on the gossip graph $G=(V,E)$ of witnesses: witness $v$ holds a real stalk $\mathbb{R}^{d_v}$ encoding its log state; edge $e=\{u,v\}$ holds $\mathbb{R}^{|S_e|}$, the shared prefix coordinates $S_e$ its two endpoints both report; and the restriction maps $\rho_{v,e}$ are the coordinate selections that cut a witness's state down to what that edge can see. Over real stalks the coboundary $\delta$, its adjoint $\delta^*$, and the observed disagreement cochain $(\delta s)_e = \rho_{u,e}s_u - \rho_{v,e}s_v$ all exist. The semilattice stays as intuition; the vector-space sheaf is what the theorem below quantifies over.
 
@@ -561,7 +565,7 @@ the minimum over global sections $x$ and over the free severed blocks $g_{\mathr
 
 \noindent The structural identity behind the mechanism --- local consistency with no global section --- is the Abramsky--Brandenburger contextuality equivalence~\cite{abramsky2011operational}: an equivocation (a harbor signing two mutually incompatible prefixes) manufactures for its neighbors exactly a locally-consistent, globally-unglueable family of views, the relational-semantics analogue of Bell contextuality. Note what the theorem does \emph{not} say. The textbook fact that $H^1(\mathcal{U};\mathcal{F}) = 0$ is equivalent to every local family gluing is a statement about the cover and the restriction maps alone; it is blind to any particular lie, and it is not the detector. The detector is the residual $r$ of the observed data.
 
-\noindent\emph{Scope (what the theorem does and does not license).} Three bindings keep this claim inside its proven regime. \textbf{(i) The obstruction lives in the data, not the sheaf:} the detector is the observed disagreement cochain's failure to be a coboundary (its harmonic residual), not $\dim H^1$ of the abstract sheaf, which is a property of the restriction maps alone and is blind to any particular lie. \textbf{(ii) Visible cycles are required:} cohomology adds power over $O(|E|)$ pairwise digest comparison exactly when an uncompared (partitioned) edge lies on a cycle \emph{of the visible subgraph} $K_c$, so the sum-around-the-loop constraint substitutes for the missing comparison; across a \emph{cut} edge there is no loop to close, and a loop through a \emph{severed} edge is no loop at all for this purpose, so the method provably sees nothing --- redundant gossip paths are a detection requirement, not a luxury. \textbf{(iii) Non-vanishing is an alarm; vanishing is not an all-clear:} over real coefficients the obstruction is sufficient but not necessary (the abelianization gap of Car\`u), so a zero residual licenses no safety conclusion. Detection and localization here \emph{complement} forensic attribution --- signatures attribute, cohomology triages under partial visibility --- and neither replaces the other.
+\noindent\emph{Scope (what the theorem does and does not license).} Three bindings keep this claim inside its proven regime. \textbf{(i) The obstruction lives in the data, not the sheaf:} the detector is the observed disagreement cochain's failure to be a coboundary (its harmonic residual), not $\dim H^1$ of the abstract sheaf, which is a property of the restriction maps alone and is blind to any particular lie. \textbf{(ii) Visible cycles are required:} cohomology adds power over $O(|E|)$ pairwise digest comparison exactly when an uncompared (partitioned) edge lies on a cycle \emph{of the visible subgraph} $K_c$, so the sum-around-the-loop constraint substitutes for the missing comparison; across a \emph{cut} edge there is no loop to close, and a loop through a \emph{severed} edge is no loop at all for this purpose, so the method provably sees nothing --- redundant gossip paths are a detection requirement, not a luxury. \textbf{(iii) Non-vanishing is an alarm; vanishing is not an all-clear:} over real coefficients the obstruction is sufficient but not necessary (the abelianization gap of Car\`u), so a zero residual licenses no safety conclusion. Detection and localization here \emph{complement} forensic attribution --- signatures attribute, cohomology localizes under partial visibility --- and neither replaces the other.
 
 \paragraph{The harness, pre-registered.} Before it ran, the harness committed
 to its gates: the completion residual must detect split-view equivocation on
@@ -844,6 +848,16 @@ Summing over bonds gives $\sum_b(P_b+E_b+C_b+R_b)=\sum_b a_b$. External top-ups 
 
 This is the federation-layer analogue of Conservation in Bonded. The intra-harbor Conservation invariants hold per-harbor (Bonded gives the proofs); the cross-harbor property adds the constraint that bonds in transit between harbors --- i.e., posted at $A$, locked in escrow, awaiting clearance against $B$ --- are accounted for as in-escrow rather than as either posted at $A$ or cleared to $B$. The escrow's role as the holder of in-flight bonds is what makes the conservation accounting tractable.
 
+\begin{pdexample}{One bond across two harbors}
+A \$100 bond posted at $A$ has buckets $(P,E,C,R)=(100,0,0,0)$. The transfer
+locks it in escrow, $(0,100,0,0)$. Clearance at $B$ pays \$90 to the
+counterparty and \$10 in fees, recorded as two cleared recipients, so the row
+is $(0,0,100,0)$ with $C=90+10$; a refund instead gives $(0,0,0,100)$. In every
+row exactly one bucket holds the whole amount and the four sum to 100
+[internal]; a fee that vanished from the row would be the first sign of a
+broken partition.
+\end{pdexample}
+
 \subsection{Settlement protocol}\label{sec:fh-settle-proto}
 
 Figure~\ref{fig:fh-settlement} shows the three-step protocol. To unpack the figure:
@@ -872,7 +886,7 @@ We are explicit that for small federations (two or three harbors), $\phi$ is lik
 \section{Federation Admission}\label{sec:fh-admission}
 % ═════════════════════════════════════════════════════════════════════════════
 
-The Federated Harbor is not a permissionless market in identities. A new harbor enters the federation through an admission ceremony. The ceremony is invitation-bounded by design: Sybil attacks against the federation~\cite{douceur2002sybil} are costly for an attacker precisely because each identity requires a real admission event.
+The Federated Harbor is not a permissionless market in identities. A new harbor enters the federation through an admission ceremony. Agents inside an admitted harbor are named by certificates the harbor issues, each binding a principal identifier, an agent key, the issuer, an epoch, a policy, and an expiry; the federation never sees a bare key, and a certificate outlives neither its epoch nor its policy. The ceremony is invitation-bounded by design: Sybil attacks against the federation~\cite{douceur2002sybil} are costly for an attacker precisely because each identity requires a real admission event.
 
 \subsection{The bonded-sponsor pattern}\label{sec:fh-sponsor}
 
@@ -951,7 +965,7 @@ The escrow verifies $\mathsf{cl}_B$: it checks the inclusion proof against $R_B^
 
 \subsection{Step 4: Revocation propagation}\label{sec:fh-ex-revocation}
 
-At this point, Acme's risk officer revokes Controller-7's \texttt{db:migrate} card and publishes $R_A^{(e+2)}$. Under Theorem~\ref{thm:fh-conv}'s connected reliable-round model, dissemination completes in expected $\Theta(\Delta\log m)$ time. During a partition, receiving harbors must rely on expiry or a fail-closed freshness policy; the example does not pretend gossip supplies a deadline.
+At this point, Acme's risk officer revokes Controller-7's \texttt{db:migrate} card and publishes $R_A^{(e+2)}$. Under Theorem~\ref{thm:fh-conv}'s connected reliable-round model, dissemination completes in expected $\Theta(\Delta\log m)$ time; for a federation of eight harbors that is about three rounds ($\log_2 8=3$), since each round roughly doubles the informed set [internal]. During a partition, receiving harbors must rely on expiry or a fail-closed freshness policy; the example does not pretend gossip supplies a deadline.
 
 \subsection{What this example shows}\label{sec:fh-ex-shows}
 
@@ -1102,7 +1116,7 @@ and its predecessors supply.
 \section{Limitations and Open Questions}\label{sec:fh-limitations}
 % ═════════════════════════════════════════════════════════════════════════════
 
-We close with the honest open frontier. These are not throwaway caveats; they are the questions the paper does not answer, named precisely enough to motivate subsequent work.
+We close with the honest open frontier. These are not throwaway caveats; they are the questions the paper does not answer, named precisely enough to motivate subsequent work. Figure~\ref{fig:fh-threat-bands} is the map they sit on: each of the questions below belongs to one of its three bands, and the band says what kind of answer would close it.
 
 \subsection{The multi-principal correlated-equilibrium extension}\label{sec:fh-lim-correlated}
 
@@ -1139,7 +1153,7 @@ The cryptographic assertions and per-write durability checkpoints this layer inh
 
 A federation paper with six named open questions is doing its job. The point of the paper is to draw the new boundary cleanly so the open problems are visible; if every claim in this paper were closed, there would be no third paper to write. The honest read is that the Federated Harbor is closer to a research agenda than to a deployed product, and the prior two papers (Anchor, Bonded) have a tighter ratio of theorem to conjecture for the same reason. The substrate is real; the federation layer is in progress.
 
-\pullquote{The point of the paper is to draw the new boundary cleanly so that the unsolved problems are visible rather than hidden.}
+\pullquote{A boundary drawn cleanly is itself a result: it says where the next proof has to start.}
 
 \begin{pdexercise}[kind=Open,rating=3]{ex:fh-correlated-equilibrium}
 \S\ref{sec:fh-lim-correlated} names two candidate resolutions for the correlated-equilibrium concept once two daemons, not one, are in play. State a stochastic/Bayesian game model of the two-harbor case in which the witness log could serve as a correlation device, name the informational event (a common-view or freshness event) under which you would try to prove a coarse correlated equilibrium, and give a safe degraded policy for the case where that event has not occurred.

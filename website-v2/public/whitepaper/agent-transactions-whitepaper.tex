@@ -1558,6 +1558,25 @@ No run is needed to predict this: it follows from the definitions already in the
 
 \paragraph{Agentic-commerce protocols.} While this paper was in preparation, the transaction rails of an agent economy shipped as industry standards: the Universal Commerce Protocol~\cite{ucp2026} (Google/Shopify, 2026) for merchant-hosted agent-mediated retail, its platform-mediated rival the Agentic Commerce Protocol~\cite{acp2025} (OpenAI/Stripe), and the Agent Payments Protocol~\cite{ap2mandates2026}, whose signed mandate chain --- W3C Verifiable Credentials in SD-JWT form, principal~$\to$~platform~$\to$~merchant --- is the deployed sibling of our countersigned Float Plan. All three are explicit that agent \emph{trustworthiness} is out of scope; published security analyses~\cite{datadome2026} observe that they regulate how agents transact while providing no collateral, no settlement oracle, and no priced deterrent against a misbehaving agent. That gap is precisely the synthesis this paper contributes (\S\ref{sec:related} \emph{supra}): bonded participation, capability attenuation, advisory coordination, and immutable attribution. The reference implementation accordingly adopts their credential formats at the harbor boundary (SD-JWT-VC cards, JWS detached-content countersigns over JCS; ADR-0094) while keeping the bonding mechanism they lack.
 
+\begin{table}[H]
+\centering\small
+\caption{What the commons borrows from each prior body of work, where it departs, and why.}
+\label{tab:related-borrow-depart}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.19\textwidth} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
+\toprule
+\textbf{Body of work} & \textbf{Borrowed} & \textbf{Departure} & \textbf{Why} \\
+\midrule
+Social contract theory & Authority accepted before interaction begins & The sovereign is a daemon whose rules are inspectable and whose consent is revocable per task & Agents can exit; Hobbes's subjects could not \\
+Impossibility results & Liberalism against Pareto efficiency & Applied to enforced file claims & It is the reason claims stay advisory \\
+Long-lived transactions & Compensation for work that outlives a transaction & Economic settlement in place of mechanical compensation & Compensation cannot undo an external effect; a bond can price it \\
+BDI and generative agents & Beliefs, desires, intentions; memory streams & The evidence trail is read by an adversarial operator, not a private memory & The reader, not the agent, is the customer of the record \\
+Capability-based security & Attenuable capabilities & Capabilities bind to bonded identities with settlement & Authority without liability is the failure the commons prices \\
+Mechanism design & Incentive compatibility as the design target & Bonds priced by the claim-signaling threshold $\delta^{*}$, not by an optimal auction & The commons is a repeated game, not a one-shot sale \\
+Agentic-commerce protocols & The credential envelope & The envelope carries authorization; the commons carries liability & A standard format shrinks the problem without settling it \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
 % ═══════════════════════════════════════════════════════════════════════════════
 \section{Discussion and Limitations}\label{sec:discussion-limitations}
 % ═══════════════════════════════════════════════════════════════════════════════

@@ -926,15 +926,18 @@ each is in Appendix~\ref{app:honest}.
 
 \input{figures/legible-swarm-authority-organs}
 
-\subsection{Roadmap-as-truth: the artifact the authority is accountable to}\label{sec:roadmap}
+\subsection{The roadmap as a versioned statement of intent}\label{sec:roadmap}
 
 A coordinator that prevents collisions answers ``what is the swarm doing?'' It does
 not answer ``is the swarm doing the \emph{right} thing?'' That question needs a
 single legible artifact the authority is measured against: a \textbf{roadmap} --- a
-phase-keyed plan, maintained as governing truth, against which the swarm's actual
-output can be compared. The authority's legitimacy is then measured by \emph{whether
-the roadmap stays true}: every unit of work keys to a plan item, and drift between
-plan and reality is itself a legible, surfaced anomaly.
+phase-keyed, versioned, amendable statement of intent, priority, and dependency,
+against which the swarm's actual output can be compared. It is not truth about the
+world; calling it that would turn every lesson the work teaches into drift. The
+authority's legitimacy is measured by \emph{whether the roadmap stays honest}: every
+unit of work keys to a plan item, amendments are recorded as amendments, and drift
+between plan and reality is itself a legible, surfaced anomaly rather than a fact to
+be hidden.
 
 \subsection{Adversarial review: the quality organ}\label{sec:review}
 
@@ -1049,7 +1052,7 @@ confirms it. The boundary is genuinely tight here; note that a positive
 accountability value $A$ lowers $g_A$ below $g$ and can buy the sole owner back.)
 
 \begin{pdexample}{Where the exact and superseded thresholds cross}
-At the round number $\rho=0.5$: $g(0.5,2)=1+2(0.5)-0.5^2=1.75$ [verified, closed form]. The superseded $\tilde g(\rho,2)=1+\rho/(1-\rho)$ gives $\tilde g(0.5,2)=2.00$ at the same point --- already a visible gap. Setting $g=\tilde g$ and clearing denominators leaves $\rho(\rho^2-3\rho+1)=0$, whose root in $(0,1)$ is $\rho=(3-\sqrt5)/2\approx0.382$ [verified, closed form]: below it $\tilde g$ over-certifies specialization (false-certify), above it $\tilde g$ over-rejects (false-reject), which is exactly why the superseded form was wrong in \emph{both} directions rather than merely conservative. \emph{Now you try:} run the falsification sweep behind this crossing (Exercise~\ref{ex:ls-b8-specialization-run}).
+At the round number $\rho=0.5$: $g(0.5,2)=1+2(0.5)-0.5^2=1.75$ [verified, closed form].\footnote{Worked numbers carry a tag throughout: [verified] when a named script in the repository regenerates them, [internal] when only the chapter's own derivation does.} The superseded $\tilde g(\rho,2)=1+\rho/(1-\rho)$ gives $\tilde g(0.5,2)=2.00$ at the same point --- already a visible gap. Setting $g=\tilde g$ and clearing denominators leaves $\rho(\rho^2-3\rho+1)=0$, whose root in $(0,1)$ is $\rho=(3-\sqrt5)/2\approx0.382$ [verified, closed form]: below it $\tilde g$ over-certifies specialization (false-certify), above it $\tilde g$ over-rejects (false-reject), which is exactly why the superseded form was wrong in \emph{both} directions rather than merely conservative. \emph{Now you try:} run the falsification sweep behind this crossing (Exercise~\ref{ex:ls-b8-specialization-run}).
 \end{pdexample}
 
 \input{figures/legible-swarm-specialization}
@@ -1303,12 +1306,12 @@ Let an operator decision over an action have sensitivity $d'$ and criterion $\be
 With miss probability $P_{\text{miss}}(\beta)$, false-alarm probability
 $P_{\text{fa}}(\beta)$, miss cost $C_{\text{miss}}$ (large: irreversible damage),
 false-alarm cost $C_{\text{fa}}$ (small: wasted attention-seconds), base rate $\pi$
-of genuinely dangerous actions, and per-decision attention cost $a$, the operator
+of genuinely dangerous actions, and per-decision attention cost $c_{\mathrm{att}}$, the operator
 objective is
 \begin{equation}\label{eq:sdt}
 \min_{\beta}\ \Big[\, \pi\,C_{\text{miss}}\,P_{\text{miss}}(\beta)
    \;+\; (1-\pi)\,C_{\text{fa}}\,P_{\text{fa}}(\beta)
-   \;+\; a\,\mathbb{E}[\text{zooms}(\beta)] \,\Big].
+   \;+\; c_{\mathrm{att}}\,\mathbb{E}[\text{zooms}(\beta)] \,\Big].
 \end{equation}
 The forced-zoom policy $p(r,s,v)$ is calibrated against this loss after specifying
 the score distributions that determine $P_{\text{miss}}$ and $P_{\text{fa}}$.
@@ -1329,8 +1332,8 @@ reputation layer exists, $r$ is a flat prior.
 artifact for the human-factors reader, so it should be checkable on a napkin. Collapse
 it to its crudest useful form --- zoom \emph{every} item in an action class, or zoom
 \emph{none} --- and the two costs are $\pi C_{\text{miss}}$ against
-$(1-\pi)C_{\text{fa}} + a$. Table~\ref{tab:sdt-numbers} runs three real action classes
-through it at $C_{\text{fa}}=1$ and $a=0.2$ attention-seconds.
+$(1-\pi)C_{\text{fa}} + c_{\mathrm{att}}$. Table~\ref{tab:sdt-numbers} runs three real action classes
+through it at $C_{\text{fa}}=1$ and $c_{\mathrm{att}}=0.2$ attention-seconds.
 
 \begin{table}[H]
 \centering
@@ -1346,7 +1349,7 @@ Migration dropping a foreign key & $0.2$ & $500$ & $100.0$ & $1.00$ & forced zoo
 \bottomrule
 \end{tabularx}
 \caption{Equation~\ref{eq:sdt} on three action classes at $C_{\text{fa}}=1$,
-$a=0.2$. The first row is Mara's auto-land grant (\S\ref{sec:consent}) falling out of
+$c_{\mathrm{att}}=0.2$. The first row is Mara's auto-land grant (\S\ref{sec:consent}) falling out of
 the arithmetic rather than being granted by taste. The third is decided by the
 miss term alone --- $0.2\times500=100$ swamps a hundred false-alarm zooms --- so the
 objective forces the zoom before irreversibility is separately priced. The middle
@@ -1856,7 +1859,7 @@ can be gamed. Does the bound survive an adversary who controls which artifacts
 \emph{appear} critical? Connect to adversarial legibility (Exercise~\ref{ex:ls-adversarial-legibility}).
 \end{pdexercise}
 \begin{pdsolution}{ex:ls-adversarial-critical-set}
-The theorem is conditional on an encoder that knows the true critical set. If an adversary controls apparent criticality and can make a critical artifact observationally indistinguishable from inert artifacts, any policy that opens fewer than all $N$ can be forced to miss one --- the same narration-versus-artifact gap Exercise~\ref{ex:ls-adversarial-legibility} probes at L2. Zero miss then requires inspecting all $N$, a trusted independent signal that restricts the adversary, or a randomized guarantee stated probabilistically. The combinatorial bound still applies once a true set is fixed; it does not by itself solve adversarial set identification.
+The theorem is conditional on an encoder that knows the true critical set. If an adversary controls apparent criticality and can make a critical artifact observationally indistinguishable from inert artifacts, any policy that opens fewer than all $N$ can be forced to miss one --- the same narration-versus-artifact gap Exercise~\ref{ex:ls-adversarial-legibility} probes at L2. Zero miss then requires inspecting all $N$, a trusted independent signal that restricts the adversary, or a randomized guarantee stated probabilistically. The combinatorial bound still applies once a true set is fixed; it does not by itself solve adversarial set identification. Against an adaptive adversary the floor becomes $\log_2\binom{N}{k'}$ with $k'$ the size of the indistinguishability class the adversary can manufacture: an inflation attack pushes $k'$ toward $N$ (a legibility denial of service), a mimicry attack makes a critical item look routine, and both are priced by the Becker condition of \pdchapref{he}{The Harbor Economy}: the attack pays only while its expected gain exceeds the audit probability times the sanction.
 \end{pdsolution}
 \begin{pdexercise}[kind=Trace,rating=2]{ex:ls-b1-frontier-run}
 Run \texttt{python3 skills/harbor-results/scripts/b1\_frontier.py} and read off the
@@ -1994,6 +1997,12 @@ reader. \qed
 above shows only that \emph{this} pair of heads cannot be identified. The general
 fact says when sharing \emph{is} safe, which is the statement a designer needs.
 
+\paragraph{The scene.}
+Two readers want two numbers from one thermometer. The successor wants the reading
+that predicts tomorrow's weather; the operator wants the reading that says whether
+to act now. One scalar can serve both only when the two orderings agree item by
+item, and the theorem says exactly when that holds.
+
 \begin{pdclaim}{Theorem}{Comonotone characterization}
 \label{thm:comonotone}
 A scalar head $h:X\to\mathbb R$ \emph{serves} a reader with loss $L_r$ if ranking by
@@ -2043,7 +2052,8 @@ For an unreviewed item $x$ let $C_{\mathrm{miss}}(x)=\mathrm{stakes}(x)\cdot
 $a(x)=\Pr(\mathsf{bad}\mid\text{evidence}(x))$ be a \emph{calibrated} posterior,
 $c_{\mathrm{att}}$ the marginal attention cost, and $C_{\mathrm{fa}}$ the
 non-attention cost of inspecting a good item. The expected unrecoverable loss of
-passing is exactly $C_{\mathrm{miss}}(x)\,a(x)$, and the Bayes-optimal policy
+passing is exactly $C_{\mathrm{miss}}(x)\,a(x)$, and, among all policies that
+decide inspect-or-pass per item from its evidence alone, the Bayes-optimal policy
 inspects iff
 \begin{equation}\label{eq:bayes-regret}
 C_{\mathrm{miss}}(x)\,a(x)\;\ge\;c_{\mathrm{att}}+C_{\mathrm{fa}}\bigl(1-a(x)\bigr),
@@ -2196,7 +2206,7 @@ State Thm.~\ref{thm:split-ranker} in one sentence and give the loss function
 each head optimizes.
 \end{pdexercise}
 \begin{pdsolution}{ex:ls-split-ranker-statement}
-No monotone scalar transform can identify collaborator fit and operator regret on a domain containing both high-fit/low-risk and low-fit/high-risk items, so one ranker cannot serve both jobs. Discovery minimizes routing loss (or maximizes capability fit); the attention head minimizes expected loss from \emph{not} inspecting, ideally value-of-inspection over attention, second, not merely raw stakes times anomaly.
+No monotone scalar transform can identify collaborator fit and operator regret on a domain containing both high-fit/low-risk and low-fit/high-risk items, so one ranker cannot serve both jobs. Discovery minimizes routing loss (or maximizes capability fit); the attention head minimizes expected loss from \emph{not} inspecting, and its rank is the ratio of expected loss avoided by inspecting to the operator-seconds inspection costs, with Theorem~\ref{thm:regret-head} fixing the numerator per item; raw stakes times anomaly is not that quantity.
 \end{pdsolution}
 \begin{pdexercise}[kind=Check,rating=1]{ex:ls-goodhart-exposure}
 Why is the attention queue more Goodhart-exposed than the
@@ -2343,6 +2353,15 @@ Theorem~\ref{thm:split-digest} dictates that the system must never ask the worke
 \item \textbf{Task-Continuation Head ($R_1$, \Designed):} Authored by the worker agent or structured state-checkpoints, optimized for continuation fidelity.
 \item \textbf{Oversight Head ($R_2$, \Vision):} An embedded, air-gapped \textbf{Small Language Model (SLM) Sidecar} (e.g., a local 8B model running via \texttt{llama.cpp}) that \emph{would} read raw kernel events and disk diffs as data, computing $\mathrm{regret}(x)$ and surfacing truthful digests without worker collusion.
 \end{enumerate}
+\noindent The sidecar treats every agent-authored token as tainted data: it runs
+under a fixed policy and schema, holds no tool authority, and must cite a
+kernel-recorded source for every line it emits. What can be proved of it is
+syntactic (schema conformance, provenance closure, absence of authority); whether
+its digests are faithful is an empirical hypothesis, measured by sampling them for
+re-audit at the rate $\rho^\star=G/(dB)$ of \pdchapref{stp}{From Spawn to Person},
+so that a sidecar which could gain $G$ by mimicking a routine summary is deterred
+once the audit probability times the sanction exceeds $G$.
+
 \noindent No sidecar exists in the reference implementation today, and no design
 document specifies one; the row is carried in Appendix~\ref{app:honest} with the rest.
 
@@ -3168,7 +3187,7 @@ L & Discovery router (relevance ranking) & \Designed & ADR-0030; \texttt{lib/rou
 L & Text-only operator console & \Designed & ADR-0046; \texttt{core/pd-tui} not yet on disk \\
 L & Task-continuation head (successor-facing compaction) & \Designed & Thm.~\ref{thm:split-digest}; \texttt{lib/resurrection.ts} is the partial form \\
 L & Oversight head / SLM sidecar (air-gapped digest authoring) & \Vision & Thm.~\ref{thm:split-digest} corollary; no design doc yet \\
-A & Roadmap-as-truth (authority accountable to it) & \BuiltWeak & rows/matrices exist; accountability \Designed \\
+A & Roadmap as versioned intent (authority accountable to it) & \BuiltWeak & rows/matrices exist; accountability \Designed \\
 A & Adversarial / conflict-free review organ & \Designed & ADR-0047 Phase 1 \\
 A & Sole-responsibility roles (assigned against the boundary) & \Vision & Thm.~\ref{thm:specialization} is \Verified; no role-assignment mechanism in code \\
 A & Completionist completion (verifier-gated) & \Vision & Def.~\ref{def:completionist}; no design doc yet \\
