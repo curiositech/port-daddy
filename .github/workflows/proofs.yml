@@ -462,3 +462,155 @@ jobs:
           name: kani-harbor-card-log
           path: core/harbor-card-rs/kani.log
 
+  # ── Relay TLA+ (TLC): revocation finality and webhook delivery ──────────────
+  # proofs/relay/{CardRevocation,WebhookDelivery}.tla and their five .cfg files
+  # had zero CI coverage. Both models exhaust their finite bounded state space
+  # -- once every card is issued+revoked, or every event delivered, there is
+  # nothing left to do -- so `-deadlock` is required on every config (verified
+  # locally: without it, TLC reports "Error: Deadlock reached" on the PASSING
+  # configs too; -deadlock does not affect genuine invariant violations, which
+  # TLC still reports normally).
+  tla-relay-card-revocation:
+    if: github.event_name != 'merge_group'
+    name: TLA+ / relay CardRevocation (TLC)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Download TLA+ tools
+        run: |
+          set -euo pipefail
+          mkdir -p "${HOME}/tla"
+          curl -sSL -o "${HOME}/tla/tla2tools.jar" \
+            https://github.com/tlaplus/tlaplus/releases/download/v1.8.0/tla2tools.jar
+          echo "TLA_TOOLS_JAR=${HOME}/tla/tla2tools.jar" >> "$GITHUB_ENV"
+
+      - name: Run CardRevocation under TLC (baseline, epoch mitigation, rollback attack)
+        working-directory: proofs/relay
+        run: |
+          set -euo pipefail
+          java -XX:+UseParallelGC -cp "${TLA_TOOLS_JAR}" tlc2.TLC -deadlock \
+            -config CardRevocation_baseline.cfg CardRevocation.tla \
+            | tee CardRevocation_baseline.tlc.log
+          java -XX:+UseParallelGC -cp "${TLA_TOOLS_JAR}" tlc2.TLC -deadlock \
+            -config CardRevocation_epoch.cfg CardRevocation.tla \
+            | tee CardRevocation_epoch.tlc.log
+          # Negative control: Rollback=TRUE, Epoched=FALSE reproduces ADR-0018
+          # Attack Vector 2 (backup/restore) and MUST violate RevocationFinal.
+          # TLC exits nonzero when it finds a violation; `|| true` lets this
+          # specific run "fail" so the assertion step below can judge it --
+          # the baseline/epoch runs above are NOT given this treatment, so an
+          # unexpected TLC failure on either of those still aborts the job here.
+          java -XX:+UseParallelGC -cp "${TLA_TOOLS_JAR}" tlc2.TLC -deadlock \
+            -config CardRevocation_rollback.cfg CardRevocation.tla \
+            | tee CardRevocation_rollback.tlc.log || true
+
+      - name: Assert baseline and epoch mitigation hold, rollback is refuted by design
+        working-directory: proofs/relay
+        run: |
+          set -euo pipefail
+          for cfg in baseline epoch; do
+            if grep -q "No error has been found" "CardRevocation_${cfg}.tlc.log"; then
+              echo "PASS: CardRevocation_${cfg} -- TLC found no invariant violation."
+            else
+              echo "FAIL: CardRevocation_${cfg} did not report 'No error has been found'."
+              tail -50 "CardRevocation_${cfg}.tlc.log"
+              exit 1
+            fi
+          done
+          if grep -q "No error has been found" CardRevocation_rollback.tlc.log; then
+            echo "FAIL: CardRevocation_rollback was expected to violate RevocationFinal (the backup/restore attack, ADR-0018 Attack Vector 2) but TLC reported no error -- the negative control has gone vacuous."
+            exit 1
+          fi
+          if grep -q "Invariant RevocationFinal is violated" CardRevocation_rollback.tlc.log; then
+            echo "PASS: CardRevocation_rollback violates RevocationFinal as designed (negative control)."
+          else
+            echo "FAIL: CardRevocation_rollback did not report the expected RevocationFinal violation -- TLC may have failed for an unrelated reason."
+            tail -50 CardRevocation_rollback.tlc.log
+            exit 1
+          fi
+
+      - name: Upload CardRevocation TLC logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: relay-card-revocation-tlc-log
+          path: |
+            proofs/relay/CardRevocation_baseline.tlc.log
+            proofs/relay/CardRevocation_epoch.tlc.log
+            proofs/relay/CardRevocation_rollback.tlc.log
+
+  tla-relay-webhook-delivery:
+    if: github.event_name != 'merge_group'
+    name: TLA+ / relay WebhookDelivery (TLC)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Download TLA+ tools
+        run: |
+          set -euo pipefail
+          mkdir -p "${HOME}/tla"
+          curl -sSL -o "${HOME}/tla/tla2tools.jar" \
+            https://github.com/tlaplus/tlaplus/releases/download/v1.8.0/tla2tools.jar
+          echo "TLA_TOOLS_JAR=${HOME}/tla/tla2tools.jar" >> "$GITHUB_ENV"
+
+      - name: Run WebhookDelivery under TLC (fixed daemon, negative control)
+        working-directory: proofs/relay
+        run: |
+          set -euo pipefail
+          java -XX:+UseParallelGC -cp "${TLA_TOOLS_JAR}" tlc2.TLC -deadlock \
+            -config WebhookDelivery.cfg WebhookDelivery.tla \
+            | tee WebhookDelivery.tlc.log
+          # Negative control: Dedup=FALSE dispatches whatever the (adversarial)
+          # relay delivers. AtMostOnce MUST fail once the relay duplicates a
+          # delivery. See the CardRevocation job above for why `|| true` here
+          # is deliberate and scoped to only this one, expected-to-fail run.
+          java -XX:+UseParallelGC -cp "${TLA_TOOLS_JAR}" tlc2.TLC -deadlock \
+            -config WebhookDelivery_vuln.cfg WebhookDelivery.tla \
+            | tee WebhookDelivery_vuln.tlc.log || true
+
+      - name: Assert the fixed daemon holds, the negative control is refuted by design
+        working-directory: proofs/relay
+        run: |
+          set -euo pipefail
+          if grep -q "No error has been found" WebhookDelivery.tlc.log; then
+            echo "PASS: WebhookDelivery (Dedup=TRUE) -- TLC found no safety or liveness violation."
+          else
+            echo "FAIL: WebhookDelivery did not report 'No error has been found'."
+            tail -50 WebhookDelivery.tlc.log
+            exit 1
+          fi
+          if grep -q "No error has been found" WebhookDelivery_vuln.tlc.log; then
+            echo "FAIL: WebhookDelivery_vuln (Dedup=FALSE) was expected to violate AtMostOnce but TLC reported no error -- the negative control has gone vacuous."
+            exit 1
+          fi
+          if grep -q "Invariant AtMostOnce is violated" WebhookDelivery_vuln.tlc.log; then
+            echo "PASS: WebhookDelivery_vuln violates AtMostOnce as designed (negative control)."
+          else
+            echo "FAIL: WebhookDelivery_vuln did not report the expected AtMostOnce violation -- TLC may have failed for an unrelated reason."
+            tail -50 WebhookDelivery_vuln.tlc.log
+            exit 1
+          fi
+
+      - name: Upload WebhookDelivery TLC logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: relay-webhook-delivery-tlc-log
+          path: |
+            proofs/relay/WebhookDelivery.tlc.log
+            proofs/relay/WebhookDelivery_vuln.tlc.log
+
