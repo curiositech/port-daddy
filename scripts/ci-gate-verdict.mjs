@@ -35,6 +35,7 @@
  * showing an author — the code that produced it is usually still in the branch.
  */
 
+import { realpathSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 
 /** `needs.*.result` values GitHub can emit. */
@@ -144,7 +145,18 @@ export async function resolveStale({ eventName, repo, prNumber, runHeadSha, toke
  * completely silent, and it is covered by the child-process tests in
  * ci-gate-verdict.test.mjs rather than left to inspection.
  */
-const isMain = process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url;
+// Node resolves import.meta.url through symlinks (--preserve-symlinks is off)
+// but leaves argv[1] as typed, so on a symlinked checkout (macOS /var ->
+// /private/var, some self-hosted runners) the two differ, isMain is false,
+// and the gate exits 0 having decided nothing. Realpath both sides.
+const isMain = (() => {
+  if (!process.argv[1]) return false;
+  try {
+    return pathToFileURL(realpathSync(process.argv[1])).href === import.meta.url;
+  } catch {
+    return false;
+  }
+})();
 if (isMain) {
   const raw = process.env.RESULTS ?? '{}';
   let needs;

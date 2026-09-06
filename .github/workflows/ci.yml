@@ -1383,11 +1383,13 @@ jobs:
       - integration-tests
       - lint
       - pd-ios
-      - porthole-stage
       - porthole-cast-gate
+      - porthole-stage
       - relay-tests
+      - rust-broker
       - rust-console
       - rust-console-gpui
+      - rust-harbor-card
       - rust-kernel
       - skill-hygiene
       - steward-tests
