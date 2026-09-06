@@ -95,6 +95,11 @@
  *                                               2026-08-22, PR 1)
  *   GET  /v1/roadmap/mirror?repo=              (session/pdu; own mirror read —
  *                                               board / item detail / activity)
+ *   POST /v1/chartroom/capabilities             (same-origin account step-up;
+ *                                               GitHub-verified scoped grant)
+ *   POST /v1/chartroom/events                   (capability + signed harbor intent)
+ *   GET  /v1/chartroom/projection               (bounded typed current state)
+ *   GET  /v1/chartroom/export                   (bounded append-only event page)
  *   POST /v1/harbors                           (session/pdu; create a remote harbor — client-supplied pubkey)
  *   GET  /v1/harbors                           (session/pdu; harbors I belong to)
  *   GET  /v1/harbors/:namespace/:name          (member-gated; detail + members)
@@ -303,6 +308,12 @@ import {
 } from './device-keys.js';
 import { handleRoadmapSnapshotPut, handleRoadmapMirrorGet } from './roadmap-mirror.js';
 import {
+  handleChartroomCapabilityPost,
+  handleChartroomEventPost,
+  handleChartroomProjectionGet,
+  handleChartroomExportGet,
+} from './chartroom.js';
+import {
   handleCoordinationGrant,
   handleCoordinationSync,
   parseCoordinationProject,
@@ -313,6 +324,14 @@ export { HarborChannel };
 export { HarborQuota };
 export { CoordinationRoom };
 
+/**
+ * Add public credential-less CORS headers at the Relay choke point. The design
+ * keeps route modules focused on authorization while making ordinary API
+ * responses consistently browser-readable.
+ *
+ * @param response - Handler response before cross-origin headers.
+ * @returns Equivalent response with public CORS headers.
+ */
 function cors(response: Response): Response {
   const headers = new Headers(response.headers);
   headers.set('Access-Control-Allow-Origin', '*');
@@ -329,6 +348,13 @@ function cors(response: Response): Response {
 const WEB_ORIGIN = 'https://portdaddy.dev';
 const CREDENTIALED_CORS_PATHS: ReadonlySet<string> = new Set(['/auth/whoami', '/auth/status']);
 
+/**
+ * Add origin-pinned credentialed CORS for the two account probes. The design
+ * never combines wildcard origin with browser credentials.
+ *
+ * @param response - Account-probe response before cross-origin headers.
+ * @returns Equivalent response pinned to the marketing-site origin.
+ */
 function corsCredentialed(response: Response): Response {
   const headers = new Headers(response.headers);
   headers.set('Access-Control-Allow-Origin', WEB_ORIGIN);
@@ -361,6 +387,12 @@ function safeDecodeSegment(segment: string): string {
   }
 }
 
+/**
+ * Produce the uniform missing-route envelope. The design prevents abandoned or
+ * misspelled namespaces from acquiring accidental handler-specific behavior.
+ *
+ * @returns Stable JSON 404 response.
+ */
 function notFound(): Response {
   return Response.json({ error: 'Not found', code: 'NOT_FOUND' }, { status: 404 });
 }
@@ -372,7 +404,12 @@ function notFound(): Response {
  * ERROR envelope (status ≥ 400) additionally gains a `requestId` field — so a
  * caller quoting an error can always hand the operator a correlatable id,
  * whichever module produced the envelope. Success bodies (including SSE
- * streams) pass through untouched.
+ * streams) pass through untouched. The design intent is correlation without
+ * forcing every route module to understand the observability envelope.
+ *
+ * @param response - Handler response to correlate.
+ * @param requestId - Relay-minted request identifier.
+ * @returns Correlated response with header and, for JSON errors, body field.
  */
 async function withRequestId(response: Response, requestId: string): Promise<Response> {
   const headers = new Headers(response.headers);
@@ -391,6 +428,18 @@ async function withRequestId(response: Response, requestId: string): Promise<Res
   return new Response(response.body, { status: response.status, headers });
 }
 
+/**
+ * Apply correlation, asynchronous SLO sampling, and the correct CORS policy.
+ * The design centralizes these cross-cutting guarantees so a newly registered
+ * route cannot silently omit observability or browser policy.
+ *
+ * @param response - Route handler response.
+ * @param requestId - Relay-minted correlation id.
+ * @param pathname - Request path used to choose credentialed CORS.
+ * @param env - Worker bindings used by the SLO recorder.
+ * @param ctx - Execution context that keeps asynchronous sampling alive.
+ * @returns Fully finalized public response.
+ */
 async function finalizeResponse(
   response: Response,
   requestId: string,
@@ -411,6 +460,16 @@ async function finalizeResponse(
 }
 
 export default {
+  /**
+   * Dispatch one Relay request through the explicit route table. The design
+   * uses one global error/finalization boundary so every route gets correlated
+   * errors, SLO sampling, and consistent CORS behavior.
+   *
+   * @param request - Incoming Worker request.
+   * @param env - Relay bindings and secrets.
+   * @param ctx - Worker execution context.
+   * @returns Finalized response for the matched route or a uniform 404.
+   */
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     // One id per request, minted before any routing so even the INTERNAL_ERROR
     // path carries it. The `req_` prefix keeps it recognizable in logs.
@@ -917,6 +976,20 @@ export default {
     }
     else if (pathname === '/v1/roadmap/mirror' && method === 'GET') {
       response = await handleRoadmapMirrorGet(request, env);
+    }
+
+    // ── Chartroom canonical program authority (ADR-0137) ────────────────────
+    else if (pathname === '/v1/chartroom/capabilities' && method === 'POST') {
+      response = await handleChartroomCapabilityPost(request, env);
+    }
+    else if (pathname === '/v1/chartroom/events' && method === 'POST') {
+      response = await handleChartroomEventPost(request, env);
+    }
+    else if (pathname === '/v1/chartroom/projection' && method === 'GET') {
+      response = await handleChartroomProjectionGet(request, env);
+    }
+    else if (pathname === '/v1/chartroom/export' && method === 'GET') {
+      response = await handleChartroomExportGet(request, env);
     }
 
     // ── Remote harbors (grand-plan X2 v1; src/harbors.ts) ────────────────────
