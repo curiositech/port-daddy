@@ -160,6 +160,8 @@ describe('reproducible whitepaper source scoping', () => {
       'website-v2/public/whitepaper/legible-swarm-whitepaper.pdf',
       'website-v2/public/whitepaper/single-writer-kernel-whitepaper.pdf',
       'website-v2/public/whitepaper/coordination-papers-mega-volume.pdf',
+      'website-v2/public/whitepaper/coordination-papers-mega-volume-swiss.pdf',
+      'website-v2/public/whitepaper/coordination-papers-mega-volume-technical.pdf',
     ]);
   });
 
