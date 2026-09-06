@@ -81,8 +81,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # Don't ship a red build. main is already tested by ci.yml, but a deploy
-      # that skips its own gate can push a broken Worker if the two ever drift.
+      # Don't ship a red build. PRs are gated by ci.yml's fleet-executor-tests
+      # job (typecheck + vitest, required via ci-gate), but a deploy that skips
+      # its own gate can push a broken Worker if the two ever drift — and for a
+      # long time ci.yml had NO fleet-executor job at all, so this step was the
+      # only place the suite ran, and only after merge.
       - name: Typecheck
         run: npx tsc --noEmit -p tsconfig.json
 
