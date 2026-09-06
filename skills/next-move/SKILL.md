@@ -28,7 +28,8 @@ allowed-tools:
   - Bash(pnpm:*)
   - Bash(open:*)
   - Bash(curl:*)
-  - pd jury-rig query
+  - pd jury-rig search
+  - pd jury-rig graft
   - mcp__jury_rig__jury_rig_history
 user-invocable: true
 argument-hint: "[--fresh] [focus hint]"
@@ -205,9 +206,9 @@ Rules:
 
 For each subtask, search skills in parallel:
 
-- Prefer `pd jury-rig query`
-- fall back to grep over `skills/*/SKILL.md`
-- fall back again to the `pairs-with` skills in this skill's frontmatter
+- Run `pd jury-rig search` for a bounded metadata shortlist.
+- Use `pd jury-rig graft` only for the selected skill when its full guidance is needed.
+- Load named references on demand; never fall back to lexical-only grep over skill bodies.
 
 ### Step 5: Skill Selector + PreMortem
 

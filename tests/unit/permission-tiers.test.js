@@ -165,6 +165,8 @@ describe('TIER_REGISTRY: coverage', () => {
 
 describe('resolveTier', () => {
   test('Jury-rig bootstrap reads are silent while apply and rollback are destructive', () => {
+    expect(resolveTier('jury-rig', ['search', 'task'])).toBe('silent');
+    expect(resolveTier('jury-rig', ['graft', 'task'])).toBe('silent');
     expect(resolveTier('jury-rig', ['bootstrap', 'plan'])).toBe('silent');
     expect(resolveTier('jury-rig', ['bootstrap', 'status'])).toBe('silent');
     expect(resolveTier('jury-rig', ['bootstrap', 'apply'])).toBe('destructive');

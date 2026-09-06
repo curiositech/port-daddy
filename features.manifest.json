@@ -1778,7 +1778,7 @@
       }
     },
     "skill_graft": {
-      "description": "Jury-rig native skill discovery, checkpointed Tool2Vec catalog reconciliation, and guarded skill-owned reference loading. Fleet ships call lib/skill-graft.ts through lib/fleet-engine.ts; `pd jury-rig` queries, warms, and reads contained references from the same index without requiring an external skill runtime. Setup and daemon callers are restricted to loopback Ollama; remote generation is manual and actor-pinned.",
+      "description": "Jury-rig native skill discovery, checkpointed Tool2Vec catalog reconciliation, and guarded skill-owned reference loading. Fleet ships call lib/skill-graft.ts through lib/fleet-engine.ts; `pd jury-rig search` returns bounded metadata, `graft` explicitly loads selected guidance, and `reference` reads one contained file on demand. Setup and daemon callers are restricted to loopback Ollama; remote generation is manual and actor-pinned.",
       "module": "lib/skill-graft.ts",
       "cli": [
         "jury-rig"

@@ -577,7 +577,8 @@ pd memory tiers                                           # Core / Recall / Arch
 pd embed status                                           # shared local embedder (MiniLM) state
 pd embed text "salvage a dead agent's session"            # embed ad-hoc text
 pd embed prefetch                                         # one-time ~27 MB model download
-pd jury-rig "write tests for a flaky fleet trigger"       # preview the local skill guidance a fleet ship would receive
+pd jury-rig "write tests for a flaky fleet trigger"       # search skill metadata without loading bodies
+pd jury-rig graft "write tests for a flaky fleet trigger" # explicitly load bounded guidance for selected matches
 pd jury-rig warm --local-only                             # checkpoint a bounded Tool2Vec batch with loopback Ollama only
 pd jury-rig warm --all                                    # explicit full warm; may use the actor-pinned generator backend
 # MCP: jury_rig_status() reads coverage without generating or calling an LLM
@@ -586,15 +587,15 @@ pd backend adapters --probe                               # local discovery, not
 pd roster search "SQLite migration recovery" --repo .    # durable expert lookup (hybrid)
 ```
 
-Search across Port Daddy is **hybrid** — BM25 plus the current local MiniLM path (`Xenova/all-MiniLM-L6-v2`, cache lifecycle per ADR-0061). Jury-rig's Tool2Vec centroids are reconciled content-hash-by-content-hash across the local and explicitly configured user catalog; no external skill runtime is required. Setup and daemon ticks use only loopback Ollama, never an inherited fleet or cloud backend, while a manual `pd jury-rig warm` may use an explicitly pinned `PD_SKILL_GRAFT_BACKEND`. The SQLite lease and row checkpoints make daemon, setup, and manual callers safe to resume after interruption. `pd doctor` reports current, cold, reconciling, embedder-down, or generator-down coverage. `pd memory tiers` prints the three-tier vocabulary overlay over the same SQLite substrate.
+Search across Port Daddy is **hybrid** — BM25 plus the current local MiniLM path (`Xenova/all-MiniLM-L6-v2`, cache lifecycle per ADR-0061). `pd jury-rig search` and its shorthand return only a bounded metadata shortlist; they do not put SKILL.md bodies into agent context. `pd jury-rig graft` is the explicit bounded body-loading step, and `reference` reads one contained supporting file on demand. Jury-rig's Tool2Vec centroids are reconciled content-hash-by-content-hash across the local and explicitly configured user catalog; no external skill runtime is required. Setup and daemon ticks use only loopback Ollama, never an inherited fleet or cloud backend, while a manual `pd jury-rig warm` may use an explicitly pinned `PD_SKILL_GRAFT_BACKEND`. The SQLite lease and row checkpoints make daemon, setup, and manual callers safe to resume after interruption. `pd doctor` reports current, cold, reconciling, embedder-down, or generator-down coverage. `pd memory tiers` prints the three-tier vocabulary overlay over the same SQLite substrate.
 
 The [provider-neutral retrieval design](docs/proposals/provider-neutral-retrieval-fabric.md) replaces the universal-model rule with corpus-approved profiles, compatible index generations, RRF of rankings, and privacy filters before both retrievers. The [research record](docs/research/embedding-retrieval-model-landscape-2026.md) identifies candidates, not production winners. The registry foundation is source-present; role selection, signed producer conformance, remote budget integration, migrations, and operator controls remain separate implementation work. This documentation does not activate a model or prove an installed runtime upgrade.
 
 To include additional catalogs, pass existing directories in `PORT_DADDY_SKILL_SOURCE_ROOTS`, separated by colons. They are searched **first**, followed by the normal project/user roots; duplicate real paths are removed. This augments the defaults, not replaces them. Discovery order is not an override guarantee: query catalog collisions currently keep the later root's skill, while runtime-link synchronization uses its separate first-party preference. For example, replace these placeholder paths with your selected catalog directories:
 
 ```bash
-PORT_DADDY_SKILL_SOURCE_ROOTS="/path/to/team/skills:/path/to/personal/skills" pd jury-rig query "review a bootstrap rollback"
-# Result: ranked guidance from explicit and default catalogs, with the semantic tier reported.
+PORT_DADDY_SKILL_SOURCE_ROOTS="/path/to/team/skills:/path/to/personal/skills" pd jury-rig search "review a bootstrap rollback"
+# Result: ranked metadata from explicit and default catalogs, with the semantic tier reported and no skill bodies loaded.
 # Missing/non-directory entries are skipped; --root/--dir instead select project-local roots.
 ```
 

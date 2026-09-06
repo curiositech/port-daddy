@@ -1382,10 +1382,12 @@ Examples:
   'jury-rig': `Jury-rig — Native skill discovery and guarded skill loading
 
 Commands:
-  jury-rig "<task>"              Shorthand for query
-  jury-rig query "<task>"        Rank local skills and render bounded guidance
+  jury-rig "<task>"              Shorthand for metadata-only search
+  jury-rig search "<task>"       Rank local skills without loading their bodies
     --root <path>                Project root to scan (default: cwd)
     --shortlist-limit <n>        Number of cheap matches to show
+
+  jury-rig graft "<task>"        Explicitly load bounded SKILL.md guidance
     --top-limit <n>              Number of full SKILL.md bodies to include
     --body-chars <n>             Hard cap per inlined SKILL.md body
     --json                       Emit the structured SkillGraftResult
@@ -1398,9 +1400,10 @@ Commands:
                                  Read one file from inside a skill directory
 
 This is the same lib/skill-graft.ts index used by lib/fleet-engine.ts when a
-pd-fleet.yml ship opts into jury_rig: true. Query is safe on a cold cache:
-it scans the full user catalog and ranks via BM25 until Tool2Vec centroids are
-warmed. Setup and daemon callers are local-only. A manual warm may use an
+pd-fleet.yml ship opts into jury_rig: true. Search is metadata-only and is the
+default; graft is the explicit body-loading step. Both are safe on a cold cache
+and rank via BM25 until Tool2Vec centroids are warmed. Setup and daemon callers
+are local-only. A manual warm may use an
 explicit PD_SKILL_GRAFT_BACKEND; the fleet default is never inherited.
 
 The catalog is assembled from Port Daddy, user agent/Claude skill directories,
@@ -1409,6 +1412,7 @@ other external skill runtime. Reference reads reject traversal and symlink escap
 
 Examples:
   pd jury-rig "write tests for a flaky fleet trigger"
+  pd jury-rig graft "write tests for a flaky fleet trigger"
   pd jury-rig warm --local-only --json
   pd jury-rig reference rag-retrieval-pattern-design scripts/audit.mjs`,
 

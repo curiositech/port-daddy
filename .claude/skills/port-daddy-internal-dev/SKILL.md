@@ -99,8 +99,9 @@ repo-specific mechanics:
   Single-Writer Kernel, Spawn to Person, Harbor Economy, Anchor Protocol, Bonded
   Commons, Federated Harbor); note drift in the PR.
 - **Skill matching.** If you're missing a matching skill, pause and run
-  `pd jury-rig query`. It uses Port Daddy's native hybrid catalog and guarded
-  reference loader; no external skill runtime is required.
+  `pd jury-rig search`. It returns bounded metadata from Port Daddy's native
+  hybrid catalog. Use `pd jury-rig graft` only for selected full guidance and
+  the guarded reference loader only for a needed supporting file.
 - **Launch work through PD spawn** (`pd spawn`, SDK `spawn()`, or MCP `spawn`),
   never a raw side-channel — so the work is registered, sandboxed, budgeted, salvageable.
 - **Managers orchestrate; workers author PRs.** A manager lane delegates
@@ -646,16 +647,17 @@ distributed transactions, pre-mortems, evaluation harnesses, design
 systems for the website, and more.
 
 ```bash
-pd jury-rig query "<the thing you're about to do>"
+pd jury-rig search "<the thing you're about to do>"
+pd jury-rig graft "<the thing you're about to do>"  # only when full guidance is warranted
 pd jury-rig reference <skill-id> <path-within-skill>
 ```
 
 **Before every contributor slice**, one search. Examples that have paid off:
 
-- Editing the daemon's lock-acquire path? `pd jury-rig query "distributed lock semantics"` surfaces the closest local guidance.
-- Adding a new MCP tool description? `pd jury-rig query "MCP tool description writing"` surfaces `mcp-creator` when installed.
-- Touching the website? `pd jury-rig query "responsive layout master"` finds the available design-system skills.
-- Writing pre-release tests? `pd jury-rig query "adversarial QA"` finds installed QA and web-app testing guidance.
+- Editing the daemon's lock-acquire path? `pd jury-rig search "distributed lock semantics"` surfaces the closest local metadata.
+- Adding a new MCP tool description? `pd jury-rig search "MCP tool description writing"` surfaces `mcp-creator` when installed.
+- Touching the website? `pd jury-rig search "responsive layout master"` finds the available design-system skills.
+- Writing pre-release tests? `pd jury-rig search "adversarial QA"` finds installed QA and web-app testing guidance.
 
 If the catalog is wrong or stale for our domain, that's a Cartographer
 issue: `pd actor cartographer --message "Catalog gap: <what skill should exist>. Use case: <internal slice>."`
@@ -975,7 +977,7 @@ it in one commit.** Land the rename in phases through Cartographer:
 - [ ] You did not edit `docs/recovery/CURRENT-WORK.md` directly.
 - [ ] You ended with `pd done` AND `pd feedback "..."` (CLI bare form) or MCP `drop_feedback`.
 - [ ] If you skipped any of the above, you owned up to it explicitly in the feedback.
-- [ ] You ran `pd jury-rig query` for the slice's domain before starting.
+- [ ] You ran `pd jury-rig search` for the slice's domain before starting and grafted only guidance you needed.
 - [ ] **Two-skill maintenance check.** You asked: "did the public `port-daddy-agent-skill` or this internal skill mislead me, mis-instruct me, or under-equip me?" If yes, you landed the fix on the correct surface (public vs. internal — see "Maintain These Skills") *in the same slice*. Drive-by edits are explicitly welcome; no separate ticket required.
 - [ ] You did NOT propagate internal-only wisdom into `port-daddy-agent-skill` (that's the public skill's split-decision rule).
 

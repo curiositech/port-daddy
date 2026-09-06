@@ -1,8 +1,8 @@
 {
-  "generatedAt": 1788149878497,
+  "generatedAt": 1788629411504,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 318,
+  "count": 319,
   "items": [
     {
       "slug": "a-add-to-the-papers",
@@ -1183,6 +1183,11 @@
       "slug": "io-wiring-phase-5-imessage-calendar",
       "status": "backlog",
       "summaryMd": "PHASE 5: iMessage (macOS FDA) + Calendar (CalDAV / OAuth / EventKit). Platform-gated."
+    },
+    {
+      "slug": "jury-rig-metadata-only-skill-search",
+      "status": "now",
+      "summaryMd": "Separate native Jury-rig metadata search from bounded full-body grafting"
     },
     {
       "slug": "land-694-galaxy-main-merge",
