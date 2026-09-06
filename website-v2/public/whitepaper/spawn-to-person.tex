@@ -1071,12 +1071,13 @@ at least $\Delta$ for some non-trivial window, relative to never having produced
 the outcome.
 \end{definition}
 
-\begin{theorem}[Non-forgeable identity is necessary]\label{thm:necessity}
+\begin{pdclaim}{Theorem}{Non-forgeable identity is necessary}
+\label{thm:necessity}
 If an actor can mint a fresh identity at cost $c = 0$ and freely route future work
 through it, then no mechanism $M$ is sanction-respecting. Equivalently: a
 non-forgeable identity (one with strictly positive abandonment cost) is
 \emph{necessary} for any sanction-respecting reputation.
-\end{theorem}
+\end{pdclaim}
 \begin{proof}
 Suppose $M$ is sanction-respecting with penalty $\Delta>0$, and suppose identity
 minting is free. Let an actor produce a dishonest outcome under identity $i$, so
@@ -1195,7 +1196,8 @@ the design question is \emph{how much}. The newcomer policy answers it as a
 \emph{shape, not a scalar}, and that shape implies a clean bound on what a
 whitewasher pays.
 
-\begin{theorem}[Whitewashing-cost bound]\label{thm:whitewash-cost}
+\begin{pdclaim}{Theorem}{Whitewashing-cost bound}
+\label{thm:whitewash-cost}
 Let an honest actor's witnessed history raise its economic ceiling from the
 newcomer ceiling $\kappa_0$ to a steady-state ceiling $\kappa^\star > \kappa_0$
 over a maturation window, and let the per-period surplus an actor can extract be
@@ -1212,7 +1214,7 @@ unprofitable exactly when the one-time gain from escaping the sanction is less t
 $W$; choosing the ceiling schedule so that $W$ exceeds the maximum single-outcome
 fraud gain makes honesty the dominant strategy for any actor that intends to keep
 working.
-\end{theorem}
+\end{pdclaim}
 \begin{proof}[Proof sketch]
 A sanctioned identity that does not whitewash retains its ceiling $\kappa^\star$
 (minus the explicit sanction); an identity that whitewashes resets to $\kappa_0$
@@ -1269,7 +1271,8 @@ Theorem~\ref{thm:whitewash-cost}'s cost $W$ fall on whitewashers (who keep
 resetting their ceiling) and not on honest newcomers (who keep theirs and climb).
 A flat ``distrust all newcomers'' policy taxes the wrong party.}
 
-\begin{theorem}[Front-loaded probation dominance, under a ceiling]\label{thm:probation-dominance}
+\begin{pdclaim}{Theorem}{Front-loaded probation dominance, under a ceiling}
+\label{thm:probation-dominance}
 Let a newcomer restriction schedule specify earning holdbacks $g_t$ across periods
 $t\in\{0,1,\dots,T\}$. Let honest participants have patient discount factor
 $\delta_h\in(0,1)$ while strategic whitewashers (who seek short-term defection gains
@@ -1298,7 +1301,7 @@ qualifications bind and are part of the statement, not footnotes to it:
   schedule shape deters, and the honest response is a different instrument (a bond,
   an escrow), not a different schedule.
 \end{enumerate}
-\end{theorem}
+\end{pdclaim}
 
 \begin{proof}[Proof sketch]
 Minimize $H(g)=\sum_t \delta_h^t g_t$ subject to $\sum_t \delta_f^t g_t\ge G_{\max}$
@@ -1383,15 +1386,14 @@ carried as item B6 of the research ledger. The winning shape is a
 the moment accumulated deterrence clears $G_{\max}$, never eased in gradually
 --- any schedule that defers mass to a later period is strictly dominated, so
 the corner solution is the whole answer, not an approximation to one.
-\textbf{Honest boundary on the evidence:} that sweep was generated
+\textbf{Boundary on the evidence:} that sweep was generated
 \emph{without} the per-period cap, so it certifies the uncapped statement and
 the exchange step, not the bang-bang shape under a binding $L$; re-running it
 with $g_t\le L$ is an open verification debt. \emph{One citation is owed and
 unresolved:} the foil above is stated as the deferred-compensation folklore
-one might import from Lazear, not as a confirmed reversal of his result --- we
-have not been able to obtain his article, and if his contract front-loads the
-honest worker's implicit bond in the same direction, the cliff agrees with him
-rather than correcting him. Here the re-payable hurdle is itself the
+one might import from Lazear, not as a confirmed reversal of his result. If
+his contract front-loads the honest worker's implicit bond in the same
+direction, the cliff agrees with him rather than correcting him. Here the re-payable hurdle is itself the
 punishment a whitewasher faces on every reset, so front-loading taxes resets,
 not tenure --- but that framing stays folklore until the citation is checked.
 \emph{Now you try:} run the script yourself and check the instance count
@@ -1429,6 +1431,201 @@ entity (human/org) that owns a fleet, posts its bonds, and inherits the
 reputational consequence of its agents' witnessed outcomes. Each agent's
 non-forgeable identity is bound to exactly one principal at mint time.
 \end{definition}
+
+\subsection{The body behind the name: engine swaps and resurrection}\label{sec:body-behind-name}
+
+Everything above binds a record to a name the actor cannot re-pick. It says
+nothing yet about what is running \emph{behind} the name.\footnote{A
+standalone, submission-form version of this section is \emph{Continuity
+Without Metaphysics} (research paper~5)~\cite{harborpaper5}; the sweeps and the
+migration model check cited here are its artifacts, regenerated by
+\texttt{b5\_engine\_substitution.py} at seed 20260816.} Two operations that
+are routine for software and exotic for people force the question. An
+identity can swap the model engine behind its name between one witnessed
+outcome and the next, and an identity whose provider dies can be resurrected
+from a checkpoint somewhere else. Both are body changes under a constant name,
+and the ledger must decide what follows the name and what follows the body.
+
+\medskip\noindent\textbf{In one breath.} Unattested, a price can never depend
+on the engine actually running, so swapping a cheap engine in behind a good
+record pays at every price and pooling on quality dies by Akerlof's spiral
+inside a single identity. Attest the engine on every witnessed outcome and,
+provided the attested price passes the full quality difference through, the
+substitution incentive flips to the planner's own efficiency rule at zero
+audit stake. A record may then cross providers exactly when three checks pass
+together, and dropping any one of them opens a named two-step attack.
+
+\paragraph{The scene.} An identity builds a glowing record running a strong
+engine $\theta_H$, then quietly runs a cheap engine $\theta_L$ behind the same
+name. Buyers see the reputation; they do not see the engine. This is the
+used-car market of Akerlof~\cite{akerlof1970} with one twist that makes it
+sharper: the asymmetric information is not about which seller you drew but
+about what is running behind a name you already trust. The lemon is wearing
+the plum's history. Reputation was supposed to solve adverse selection by
+aggregating past quality~\cite{mailath-samuelson}; the swap severs the link
+between the record and the machine that will produce the next outcome, so the
+record measures the wrong object.
+
+\begin{pdclaim}{Theorem}{Adverse selection within one identity, and the attested flip}
+\label{thm:engine-swap}
+Let two engines $\theta_H>\theta_L$ run at costs $c_H>c_L$, write
+$\Delta\theta=\theta_H-\theta_L$ and $\Delta c=c_H-c_L$, and let a buyer pay
+$p$ for a witnessed outcome.
+\begin{enumerate}[label=(\alph*),leftmargin=2em,itemsep=2pt]
+\item \emph{Unattested.} If the engine is unobserved, the one-period gain
+from swapping, $(p-c_L)-(p-c_H)=\Delta c>0$, is independent of $p$: no price
+supports pooling on $\theta_H$, and no costless signal inside the identity
+separates the types. Committed $\theta_H$ sellers stay in the market iff the
+pooled price clears their cost, $\mu\theta_H+(1-\mu)\theta_L\ge c_H$, that is
+iff the committed share satisfies
+$\mu\ge\mu^\star=(c_H-\theta_L)/\Delta\theta$; below $\mu^\star$ the spiral
+runs inside one identity down to $\theta_L$. Deterring the swap without
+attestation needs an audited bond with $qB\ge\Delta c$ (audit probability
+$q$, slashable bond $B$).
+\item \emph{Attested.} If the daemon attests the engine id on every witnessed
+outcome, reputation keys on the pair (principal, engine), the price schedule
+splits into $p_H$ and $p_L$, and the swap gain becomes $\Delta c-(p_H-p_L)$.
+If the attested schedule prices quality at its full social value,
+$p_H-p_L=\Delta\theta$, the gain is $\Delta c-\Delta\theta$: swapping pays
+exactly when the cheap engine is socially efficient, which is the planner's
+own rule, at zero audit stake.
+\end{enumerate}
+The pass-through condition in (b) is a hypothesis about the market, not a
+consequence of attestation: under Bertrand competition on attested keys
+$p_\theta=c_\theta$ and the gain collapses to zero, and any schedule that
+passes through less than the full quality difference moves the flip point.
+\end{pdclaim}
+\begin{proof}
+(a) The buyer's payment does not depend on the engine, so the seller's payoff
+difference between the two engines is the cost difference alone. A gain that
+is constant in $p$ cannot be priced away, and a signal that costs the low type
+nothing more than the high type separates nobody. The pooled price at
+committed share $\mu$ is the expected quality $\mu\theta_H+(1-\mu)\theta_L$;
+a committed seller whose cost exceeds it exits, which lowers $\mu$ and the
+price after it, and that descent is the spiral. An audit that catches the
+swap with probability $q$ and slashes $B$ makes the expected gain
+$\Delta c-qB$, nonpositive iff $qB\ge\Delta c$.
+(b) With the engine attested, a seller receives the price of the engine it
+ran, so the payoff from swapping is $(p_L-c_L)-(p_H-c_H)=\Delta c-(p_H-p_L)$.
+Under full pass-through this is $\Delta c-\Delta\theta$, and
+$\Delta c>\Delta\theta$ says precisely that $\theta_L-c_L>\theta_H-c_H$: the
+cheap engine produces more surplus. No audit enters, because the gain is
+already nonpositive whenever the strong engine is the efficient one.
+\end{proof}
+
+\noindent\textbf{Checked.} Sweeps at seed 20260816: $4{,}000$ instances
+$\times$ $8$ prices with $0$ violations of price-independence; the
+$\mu^\star$ and $qB$ lines match simulation with $0$ mismatches; $2{,}000$
+heterogeneous-cost spirals are all monotone to the Akerlof fixed point
+($\mu_0=0.5\to\mu_\infty=1/3$ at price $0.6$; $\mu_0=0.2\to 0$ at price
+$\theta_L=0.4$); the attested incentive sign equals the efficiency sign in
+$4{,}000/4{,}000$ draws [internal, \texttt{b5\_engine\_substitution.py}].
+The wrong-threshold mutant $\mu^\star=\Delta c/\Delta\theta$ is caught
+$1{,}305$ times and the no-flip mutant (attestation without re-keying the
+price) $1{,}975$ times [internal].
+
+\begin{pdexample}{Numbers by hand: the swap gain and the attested flip}
+Take $\theta_H=1$, $\theta_L=0.4$, $c_H=0.5$, $c_L=0.2$. Unattested, the swap
+gain is $c_H-c_L=0.3$ at every price [verified]. The pool clears $c_H$ when
+$\mu\cdot 1+(1-\mu)\cdot 0.4\ge 0.5$, that is $0.6\mu\ge 0.1$, so
+$\mu^\star=1/6\approx 0.167$ [verified]; the deterrence bond at audit rate
+$q=0.6$ is $B^\star=\Delta c/q=0.5$ [verified]. Attested, keeping the strong
+engine earns $\theta_H-c_H=0.50$ and swapping earns $\theta_L-c_L=0.20$, so
+the flip is $\Delta c-\Delta\theta=0.3-0.6=-0.3$ and the required audit stake
+is $0$ [verified; the sweep reproduces every line, internal]. \emph{Now you
+try:} raise the strong engine's cost to $c_H=0.7$. What committed share keeps
+the unattested pool alive? ($\mu^\star=(0.7-0.4)/0.6=0.5$: half the market
+must be committed before quality can break even [verified].) Then run the
+script's Part~3 (Exercise~\ref{ex:stp-resurrection-soundness}).
+\end{pdexample}
+
+\paragraph{What it buys.} The buyer-facing sentence in its provable form:
+reputation you can trust because the engine behind it is attested. The
+misread to preempt is that attestation forces everyone onto the expensive
+engine. It does not. Swapping pays exactly when $\Delta c>\Delta\theta$, when
+the cheap engine really is the better social bargain, so attestation does not
+freeze technology choice; it aligns it. What dies is only the trade that was
+profitable because it was invisible. The engineering literature on covert
+model substitution stops exactly where part~(b) starts: Cai et
+al.~\cite{cai2025} formalize substitution in commercial model APIs, show that
+software-only auditing is query-intensive and defeated by inference
+nondeterminism, conclude that hardware-backed attestation is the only robust
+channel, and name weak provider incentives as the obstacle to adopting it. The
+flip removes that obstacle. Attestation makes substitution unprofitable
+precisely when it is inefficient, so a provider's reason to attest is price
+rather than civic-mindedness.
+
+\paragraph{Resurrection with teeth.} The provider hosting an agent shuts down.
+The principal holds a checkpoint and a competitor will run it. Whether the
+resurrected process \emph{is} the same agent is the question this chapter
+refuses; the question it answers is which verifications make it safe for the
+successor to inherit the predecessor's score, in the precise sense that
+Definition~\ref{def:sanction-respecting} still holds after the move.
+Resurrection must carry the debts, not just the assets.
+
+\begin{pdclaim}{Model-checked property}{Resurrection soundness}
+\label{thm:resurrection-soundness}
+Sanction-respecting reputation (Definition~\ref{def:sanction-respecting}) is
+preserved across provider migration under three clauses: (i) the successor's
+lineage is verified by credential and continuity witness; (ii) every
+successor outcome carries an engine attestation, so the migrated score stays
+keyed to the attested engine that earned it; (iii) open commitments are
+closed or renegotiated with an escrow delta before cutover. Each dropped
+clause admits a shortest-trace escape. Without (i) a sanctioned identity
+re-enters clean through migration (\emph{whitewash-by-resurrection}, two
+steps). Without (ii) the successor runs $\theta_L$ while being paid on the
+$\theta_H$ key, its accessible score exceeding even a clean twin's
+(\emph{engine-history shedding}, two steps). Without (iii) in-flight
+obligations land on nobody (\emph{liability stranding}, two steps).
+
+\smallskip\noindent\emph{Scope lemma.} Prices key on the pair (principal,
+engine); sanctions key on the principal alone, across all of its engine keys.
+Collapsing either direction reopens a hole: engine-keyed sanctions hand over
+the sibling engine key inside the same identity as an escape hatch (caught in
+one step, no migration needed), and principal-keyed prices reopen part~(a) of
+Theorem~\ref{thm:engine-swap}.
+
+\smallskip\noindent\emph{Checked.} Bounded model check of the migration
+protocol: $747$ reachable states to depth $7$ ($467$ of them
+post-migration), and the intact protocol satisfies
+Definition~\ref{def:sanction-respecting} in every state. Mutants caught with
+shortest crimes: key-scoped sanctions in $1$ step, whitewash-by-resurrection
+in $2$, engine-history shedding in $2$, liability stranding in $2$ [internal,
+\texttt{b5\_engine\_substitution.py}].
+\end{pdclaim}
+
+\paragraph{The wrong turn.} A first pass keyed sanctions the way it keyed
+prices, per (principal, engine), and the intact protocol failed
+Definition~\ref{def:sanction-respecting} in one step with no migration
+involved: work dishonestly on one engine key, keep acting at full score on the
+sibling key. The fix is the scope lemma's one line, price per (principal,
+engine) and sanction per principal, and it is the same rule that closes
+skill-versioning's escape (a sanctioned \texttt{v1} must not act clean through
+\texttt{v2}): one lemma, two doors. The resume button and provider migration
+therefore ship with their own security property and the three attacks it was
+tested against, by name. The composition with the no-mint law of
+\S\ref{sec:continuity} is exact: migration moves a score whole, with its
+sources closed, and forking splits one with a debit. Both are the same
+conservation law, so an adversary cannot arbitrage between the resurrection
+door and the fork door.
+
+\begin{pdboundary}
+The engine-swap theorem is a two-period stylization: the strategic type has no
+reputational continuation value beyond the bond $B$, and a long-horizon
+analysis would shift the unattested deterrence line. Attestation soundness is
+a deployment assumption (enclave and daemon integrity); the theorem prices
+what attestation buys, not whether a given attestation is sound. Quality
+$\theta$ is a scalar; multi-dimensional quality with task-dependent rankings
+needs the pricing key extended, not the sanction key. The migration result is
+bounded small-model checking of the protocol specification (depth $7$, at
+most two migrations, integer scores); it certifies that the clauses have
+teeth, not that the clause list is complete.
+Definition~\ref{def:sanction-respecting} is score-only, so the escrow side of
+clause (iii) enters as attribution (the default lands on an identity), not as
+a monetary conservation theorem. Continuity witnesses attest lineage, not
+welfare: nothing here says the checkpoint restored the agent's experience,
+only that the ledger followed the right body.
+\end{pdboundary}
 
 \begin{pdexercise}[kind=Check,rating=1]{ex:stp-property-reality}
 State Property~\ref{prop:reality} in your own words and give the two-attack
@@ -1519,6 +1716,8 @@ what does it \emph{not}, by itself, certify?
 or the shape of the ceiling schedule?
 \item Why must a resurrection/migration protocol sanction by principal rather
 than by (identity, engine)?
+\item Under attestation, when does an engine swap still pay, and why is that
+the intended outcome rather than a failure of the mechanism?
 \end{pdrecitation}
 
 % ═════════════════════════════════════════════════════════════════════════════
@@ -2184,7 +2383,8 @@ program's running parameters ($G=10$, $d=0.8$, $B=50$) the honest number is
 $\rho^\star = 10/(0.8\cdot 50) = 0.25$ --- audit one grade in four --- where the
 $d$-free form would have said $0.2$, a $20\%$ under-quote.
 
-\begin{theorem}[Tower contraction; imported from the companion paper]\label{thm:tower-imported}
+\begin{pdclaim}{Theorem}{Tower contraction; imported from the companion paper}
+\label{thm:tower-imported}
 \emph{(Theorem `tower contraction' of \emph{Reputation is Amortized
 Verification}~\cite{harborpaper3}, restated; proof and verification artifacts
 live there.)} Let level $k{+}1$ audit level-$k$ auditors, each audit sampled
@@ -2207,7 +2407,7 @@ Consequently finite bond capital certifies a tower deep enough to push surviving
 corrupt value below any fixed unit: one bond $B$ per level for
 $\lceil \log G_0 / \log\tfrac{1}{1-\rho d}\rceil$ levels --- a depth
 \emph{logarithmic} in the initial corrupt value, not an unbounded one.
-\end{theorem}
+\end{pdclaim}
 
 \noindent\textbf{Numbers by hand.} Take $G_0 = 400$ with the running parameters
 above, so $\rho d = 0.2$, $\beta = 10$, and the geometric factor is
@@ -2829,6 +3029,16 @@ Jean-Charles Rochet and Jean Tirole.
 George A. Akerlof.
 \newblock The Market for ``Lemons'': Quality Uncertainty and the Market Mechanism.
 \newblock \textit{Quarterly Journal of Economics}, 84(3):488--500, 1970.
+
+\bibitem{mailath-samuelson}
+George J. Mailath and Larry Samuelson.
+\newblock Who Wants a Good Reputation?
+\newblock \textit{Review of Economic Studies}, 68(2):415--441, 2001.
+
+\bibitem{cai2025}
+W. Cai, T. Shi, X. Zhao, and D. Song.
+\newblock Are You Getting What You Pay For? Auditing Model Substitution in LLM APIs.
+\newblock arXiv:2504.04715, 2025.
 
 \bibitem{ostrom1990}
 Elinor Ostrom.

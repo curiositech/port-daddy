@@ -289,13 +289,21 @@ One section per indexed idea (R1-R17, CR, B6, and every already-folded textbook 
 | Location | File | Labels | Sections |
 |---|---|---|---|
 | Standalone paper | `docs/harbor-research/tex/paper5.tex` | (none) | S3 (sec:engine), boxed "Theorem 2a"/"Theorem 2b (the IC flip)"; S4 (sec:resurrection), boxed "Theorem 3 (resurrection soundness)" and its scope Lemma, which names the migration soundness property "Def. III.6.1" |
-| Chapter 4 (From Spawn to Person) | `website-v2/public/whitepaper/spawn-to-person.tex` | def:sanction-respecting | S(sec:identity) Identity: the root the whole chain hangs from -- "Sanction-respecting reputation", the Def. III.6.1 that paper5.tex's Theorem 3 (resurrection soundness) names by that designation as the property preserved across migration. The chapter does not restate Theorem 3 itself, only the definition it is stated in terms of. |
+| Chapter 4 (From Spawn to Person) | `website-v2/public/whitepaper/spawn-to-person.tex` | def:sanction-respecting, thm:engine-swap, thm:resurrection-soundness | S(sec:identity) Identity: the root the whole chain hangs from -- "Sanction-respecting reputation" (the Def. III.6.1 that paper5.tex's Theorem 3 names), and its subsection sec:body-behind-name "The body behind the name: engine swaps and resurrection", which restates Theorems 2a/2b as the labeled claim thm:engine-swap (Theorem, with proof) and Theorem 3 with its scope lemma as thm:resurrection-soundness (Model-checked property), with the worked numbers in a pdexample and the two-period/bounded-check limits in a pdboundary. |
 
 **Figures:** `docs/harbor-research/figures/fig-r13-regime.tex`
 
 **Scripts:** `skills/harbor-results/scripts/b5_engine_substitution.py`
 
 **Site:** `/research/paper5.pdf`
+
+| Number | Value | Tag |
+|---|---|---|
+| swap_gain_price_independent | 0.3 at every price | verified |
+| committed_share_threshold_mu_star | 1/6 | verified |
+| attested_keep_vs_swap | 0.50 vs 0.20 (flip -0.3) | verified |
+| migration_reachable_states | 747 (467 post-migration) | internal |
+| mutant_shortest_crimes | 1, 2, 2, 2 | internal |
 
 ## R14 -- Costly-escalation threshold equilibrium and the debit tuning band
 <a id="r14"></a>

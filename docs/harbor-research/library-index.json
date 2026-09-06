@@ -538,10 +538,12 @@
           "chapter": 4,
           "prefix": "stp",
           "labels": [
-            "def:sanction-respecting"
+            "def:sanction-respecting",
+            "thm:engine-swap",
+            "thm:resurrection-soundness"
           ],
           "sections": [
-            "S(sec:identity) Identity: the root the whole chain hangs from -- \"Sanction-respecting reputation\", the Def. III.6.1 that paper5.tex's Theorem 3 (resurrection soundness) names by that designation as the property preserved across migration. The chapter does not restate Theorem 3 itself, only the definition it is stated in terms of."
+            "S(sec:identity) Identity: the root the whole chain hangs from -- \"Sanction-respecting reputation\" (the Def. III.6.1 that paper5.tex's Theorem 3 names), and its subsection sec:body-behind-name \"The body behind the name: engine swaps and resurrection\", which restates Theorems 2a/2b as the labeled claim thm:engine-swap (Theorem, with proof) and Theorem 3 with its scope lemma as thm:resurrection-soundness (Model-checked property), with the worked numbers in a pdexample and the two-period/bounded-check limits in a pdboundary."
           ]
         }
       ],
@@ -551,7 +553,38 @@
       "scripts": [
         "skills/harbor-results/scripts/b5_engine_substitution.py"
       ],
-      "numbers": [],
+      "numbers": [
+        {
+          "name": "swap_gain_price_independent",
+          "value": "0.3 at every price",
+          "tag": "verified",
+          "regex": "0\\.3\\$ at every price"
+        },
+        {
+          "name": "committed_share_threshold_mu_star",
+          "value": "1/6",
+          "tag": "verified",
+          "regex": "\\\\mu\\^\\\\star=1/6"
+        },
+        {
+          "name": "attested_keep_vs_swap",
+          "value": "0.50 vs 0.20 (flip -0.3)",
+          "tag": "verified",
+          "regex": "0\\.3-0\\.6=-0\\.3"
+        },
+        {
+          "name": "migration_reachable_states",
+          "value": "747 (467 post-migration)",
+          "tag": "internal",
+          "regex": "747"
+        },
+        {
+          "name": "mutant_shortest_crimes",
+          "value": "1, 2, 2, 2",
+          "tag": "internal",
+          "regex": "engine-history shedding in \\$?2"
+        }
+      ],
       "mechanization": [],
       "site": [
         "/research/paper5.pdf"
