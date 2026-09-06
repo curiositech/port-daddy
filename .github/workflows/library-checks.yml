@@ -23,6 +23,8 @@ on:
       - 'scripts/harbor-research/**'
       - 'scripts/generate-mega-whitepaper.mjs'
       - 'scripts/generate-mega-whitepaper.test.mjs'
+      - 'scripts/build-whitepapers.sh'
+      - 'skills/whitepaper-figure-system/**'
       - '.github/workflows/library-checks.yml'
   push:
     branches: [main]
@@ -36,6 +38,8 @@ on:
       - 'scripts/harbor-research/**'
       - 'scripts/generate-mega-whitepaper.mjs'
       - 'scripts/generate-mega-whitepaper.test.mjs'
+      - 'scripts/build-whitepapers.sh'
+      - 'skills/whitepaper-figure-system/**'
       - '.github/workflows/library-checks.yml'
   # Merge queue: run unconditionally so a required check context always
   # appears (a path-filtered workflow that does not match would hang the
@@ -86,3 +90,6 @@ jobs:
 
       - name: Critique ledger Markdown and JSON agree and every Status cell is well-formed
         run: python3 scripts/harbor-research/check_critique_ledger.py
+
+      - name: Semantic figure atlas covers every canonical figure (no drift from textbook.json)
+        run: python3 skills/whitepaper-figure-system/scripts/check_atlas_coverage.py
