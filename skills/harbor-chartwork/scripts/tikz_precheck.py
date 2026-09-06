@@ -217,9 +217,8 @@ def find_node_calls(text):
                     j += 1
                 i = j
             elif c == "{":
-                content, end = find_braced(text, i)
+                content, _end = find_braced(text, i)
                 out.append((",".join(style_parts), content, m.start()))
-                i = end
                 break
             else:
                 break
