@@ -142,6 +142,11 @@ def walk_tex(root: Path) -> list[tuple[Path, str]]:
         if resolved in visited:
             return
         if not resolved.is_file():
+            if "\\" in str(path):
+                # An \input whose path is built from a macro (the generated
+                # per-chapter solutions file, sol-\pdchapterprefix) resolves
+                # only at TeX time; it carries no figure environments.
+                return
             raise FileNotFoundError(f"included TeX source does not exist: {resolved}")
         visited.add(resolved)
         text = strip_tex_comments(resolved.read_text(encoding="utf-8"))

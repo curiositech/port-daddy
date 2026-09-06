@@ -116,25 +116,24 @@ Canonical root: `whitepaper/legible-swarm.tex` (14 figures).
 
 ## Volume II: The Single-Writer Kernel
 
-Canonical root: `whitepaper/single-writer-kernel.tex` (12 graphical figures and 2 algorithm
-exhibits).
+Canonical root: `whitepaper/single-writer-kernel.tex` (9 graphical figures, 2 recorded terminal
+sessions set as listings, and 2 algorithm exhibits). The seven-organs, communication-organ and
+deontic-split exhibits are tables in the chapter (round 4, 2026-09-06); the bouncer sketch and the
+dual-runtime mirror were cut with a written rationale in the figure triage.
 
 | Atlas ID | Reader question / claim | First-choice grammar | Must encode | Reject |
 |---|---|---|---|---|
 | `II/fig:swk-stack-map` | Which L0--L3 layers does the kernel own, and what machine floor does it assume? | four-rung coordination stack plus machine-floor band using the shared stack contract | L0--L3; machine floor; II highlighted on all L0 and the implemented carrier half of L1; layer API direction; chapter numbers are not layer numbers | seven-paper layers; ornamental tower; perspective architecture |
-| `II/fig:swk-seven-organs` | What seven contracts compose the kernel? | aligned contract matrix around a shared state spine | seven distinct contracts; state each reads/writes; common transactional substrate | radial organs; seven equal bubbles; prose wheel |
 | `II/fig:swk-single-writer` | How do many callers become one serial commit history? | converging request queue into one commit spine | concurrent callers; queue order; exactly one active writer; durable outcomes | many arrows into a database icon; unlabeled central box |
 | `II/fig:swk-durability-faultclass` | Which persistence guarantee answers which fault class? | fault-class-by-guarantee matrix | process, machine, storage, and recovery fault classes; guarantee boundary; unsupported cells | ladder without axes; decorative shields |
 | `II/fig:swk-claim-lifecycle` | Which states can an exclusive claim enter, and how does it leave? | compact state machine | admissible states; acquisition guard; expiry/release/revoke transitions; terminal outcomes | generic flowchart; lifecycle circle with no guards |
 | `II/alg:acquire` | Which atomic decision selects the single winner? | annotated pseudocode with a short transaction sequence | unique-key insert; competing callers; commit/constraint outcome; no race gap | node graph; source code shrunk below print size |
-| `II/fig:swk-comm-organ` | How are carrier, speech act, and provenance kept distinct? | layered message envelope with provenance rail | transport envelope; typed act; actor/reason; durable cursor; verification boundary | speech bubbles; one box labeled communication |
-| `II/fig:swk-deontic-split` | Why are prohibition, obligation, and permission different mechanisms? | three-column formal taxonomy | trigger; enforcement mode; success/failure condition; example for each category | Venn diagram; three unlabeled icons; traffic-light colors only |
 | `II/fig:swk-reference-monitor` | Does every effect pass through a small complete mediator? | effect path through one narrow mediation gate | all request origins; reference monitor; allowed/denied branches; audited effect | broad hub; firewall clip art; hidden bypass paths |
 | `II/fig:swk-commitment-oracle` | What evidence permits a commitment to close? | state machine with oracle-gated terminal transition | open state; candidate evidence; typed oracle; close/refuse outcomes; freshness | sequence of prose boxes; magic checkmark |
 | `II/alg:close` | How does a finite oracle vocabulary decide closure? | annotated pseudocode plus decision table | allowed oracle types; validation order; terminal result; failure behavior | node graph; untyped decision diamond chain |
 | `II/fig:swk-continuity-organs` | How do memory, checkpoint, identity, continuity, and reputation depend on one another? | layered dependency spine | dependency direction; durable artifacts; identity anchor; computed reputation | organic anatomy; equal boxes with crossing arrows |
 | `II/fig:swk-consistency-model` | How do interleaved operations map to a serial history? | swimlane sequence with serialization points | actors; operation intervals; linearization/commit points; resulting total order | set diagram; before/after node clouds |
-| `II/fig:swk-dual-runtime` | How do two implementations satisfy the same contract? | mirrored conformance diagram with one shared test/interface rail | shared interface; two runtimes; identical invariants/tests; allowed implementation differences | two unrelated architecture boxes; logo comparison |
+| `II/fig:swk-marker-decay` | How long does a stigmergic marker live under exponential decay before the prune threshold removes it? | measured-quantity plot: weight against ticks for two decay rates with the threshold as a rule and the two lifetimes marked | the two rates; the prune threshold; the tick at which each curve crosses it (29 and 59) | unlabeled decay sketch; a curve without the threshold; a table of two numbers pretending to be a figure |
 
 ## Volume III: From Spawn to Person
 
