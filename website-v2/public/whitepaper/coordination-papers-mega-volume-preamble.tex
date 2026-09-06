@@ -367,23 +367,40 @@
   \vspace{9pt}}
 \newcommand{\pdpart}[5]{%
   \clearpage
-  \pagecolor{#3}\color{hhpaper}%
   \thispagestyle{empty}%
   \refstepcounter{part}\label{part:#1}%
   \addcontentsline{toc}{part}{\textbf{\scshape Part #1}\quad #2}%
-  \vspace*{1.6cm}
-  \noindent\pdweightrule[hhpaper]{\csname pdpartindexof#1\endcsname}{0.5\textwidth}{2pt}\par
-  \vspace{0.6cm}
-  \noindent{\scshape\Large Part #1}\par
-  \vspace{0.3cm}
-  \noindent{\fontsize{40}{46}\selectfont\bfseries #2\par}
-  \vspace{0.9cm}
-  \noindent\begin{minipage}{0.80\textwidth}{\large #4\par}\end{minipage}\par
-  \vspace{1.1cm}
-  {\hypersetup{linkcolor=hhpaper}\noindent\begin{minipage}{0.92\textwidth}#5\end{minipage}\par}
-  \vfill
   \IfFileExists{plates/part-#1.jpg}{%
-    \noindent\begin{center}\includegraphics[width=\textwidth,height=0.40\textheight,keepaspectratio]{plates/part-#1.jpg}\end{center}}{}%
+    % With a plate the part opens like the cover: the wash fills the sheet and
+    % the part's type sits in ink over its open upper wash. The weight rule
+    % keeps the book's four hues; nothing else on the page is colored.
+    \pagecolor{hhpaper}\color{hhink}%
+    \AddToShipoutPictureBG*{\AtPageLowerLeft{\includegraphics[width=\paperwidth,height=\paperheight]{plates/part-#1.jpg}}}%
+    \vspace*{1.1cm}
+    \noindent\pdweightrule{\csname pdpartindexof#1\endcsname}{0.42\textwidth}{2pt}\par
+    \vspace{0.55cm}
+    \noindent{\fontfamily{ptm}\scshape\large Part #1}\par
+    \vspace{0.22cm}
+    \noindent{\fontfamily{ptm}\fontsize{36}{42}\selectfont #2\par}
+    \vspace{0.65cm}
+    \noindent\begin{minipage}{0.60\textwidth}{\fontfamily{ptm}\itshape\fontsize{12.5}{16.5}\selectfont #4\par}\end{minipage}\par
+    \vspace{0.85cm}
+    {\hypersetup{linkcolor=hhink}\noindent\begin{minipage}{0.70\textwidth}#5\end{minipage}\par}
+    \vfill
+  }{%
+    \pagecolor{#3}\color{hhpaper}%
+    \vspace*{1.6cm}
+    \noindent\pdweightrule[hhpaper]{\csname pdpartindexof#1\endcsname}{0.5\textwidth}{2pt}\par
+    \vspace{0.6cm}
+    \noindent{\scshape\Large Part #1}\par
+    \vspace{0.3cm}
+    \noindent{\fontsize{40}{46}\selectfont\bfseries #2\par}
+    \vspace{0.9cm}
+    \noindent\begin{minipage}{0.80\textwidth}{\large #4\par}\end{minipage}\par
+    \vspace{1.1cm}
+    {\hypersetup{linkcolor=hhpaper}\noindent\begin{minipage}{0.92\textwidth}#5\end{minipage}\par}
+    \vfill
+  }%
   \clearpage
   \nopagecolor\color{hhink}%
 }

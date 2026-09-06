@@ -1,7 +1,7 @@
 {
   "generated": "2026-09-06",
   "model": "gemini-3-pro-image-preview (Nano Banana) via nano-banana-image-gen/scripts/generate.py",
-  "post": "inset crop, paper-tone balance to #FBF7EF (percentile white), cream-on-hue compositing for part plates, Lanczos resize, JPEG",
+  "post": "crop inside the painted sheet edges, paper-tone balance to #FBF7EF (percentile white), border feather into the page stock on chapter plates, Lanczos resize, JPEG",
   "plates": {
     "jacket": {
       "file": "jacket.jpg",
@@ -27,124 +27,124 @@
     },
     "part-I": {
       "file": "part-I.jpg",
-      "source_render": "part-I.png",
+      "source_render": "part-I-tall-a.png",
       "size": [
-        1800,
-        1200
+        1627,
+        2300
       ],
-      "bytes": 253400,
-      "note": "Part I technical drawing as cream ink on the part hue",
-      "prompt": "A technical illustration plate from a 1960s engineering research report: a copper-plate style line drawing in one dark ink on plain white paper, printed by letterpress; crisp hatching and stipple for shading; an exploded or cutaway view; numbered-callout leader lines pointing to parts, each ending in a small empty rectangular label box, with no words or numerals anywhere; the drawing centered with generous white margin on every side; no border, no title block, no background surface, no paper edges, no color. Subject: a single tall monolithic gate in cutaway, its one narrow channel and the single writer mechanism behind it, a file of five small identical craft approaching in a straight line."
+      "bytes": 483914,
+      "note": "Part I wash, full page behind the part type, sheet edges cropped away, paper balanced to the page stock",
+      "prompt": "A faded watercolor wash landscape reproduced on aged, lightly embossed paper stock: visible paper tooth, salt texture and pigment blooms in the washes, offset print grain, colors muted and slightly bled as in an old lithographed reproduction, no hard outlines, no ink linework, no bright saturated color. Palette: pale greys, cobalt and violet washes faded almost to paper, one warm lamp-glow. Space-opera scale: one colossal, smooth, unearthly presence dominates the picture, rendered as soft masses of pale wash with almost no detail, and one small everyday human-scale thing sits beneath it, tiny and exact. Tall vertical picture: the upper third is open, nearly empty pale wash (sky and mist), the colossal presence occupies the middle, the small thing sits low. No people's faces, no crews, no lettering, no border; the wash runs to all four edges. Scene: a sphere the size of a small moon descending through cloud over a flat grey sea, its underside smooth and featureless, and far below it one small sailing vessel with a single lamp lit, its sail the only crisp shape in the picture."
     },
     "part-II": {
       "file": "part-II.jpg",
-      "source_render": "part-II.png",
+      "source_render": "part-II-tall-a.png",
       "size": [
-        1800,
-        1200
+        1627,
+        2300
       ],
-      "bytes": 242382,
-      "note": "Part II technical drawing as cream ink on the part hue",
-      "prompt": "A technical illustration plate from a 1960s engineering research report: a copper-plate style line drawing in one dark ink on plain white paper, printed by letterpress; crisp hatching and stipple for shading; an exploded or cutaway view; numbered-callout leader lines pointing to parts, each ending in a small empty rectangular label box, with no words or numerals anywhere; the drawing centered with generous white margin on every side; no border, no title block, no background surface, no paper edges, no color. Subject: a lantern-and-lens assembly in exploded view, with its narrow cone of illumination drawn as construction lines over a grid of tiny identical vessels."
+      "bytes": 468226,
+      "note": "Part II wash, full page behind the part type, sheet edges cropped away, paper balanced to the page stock",
+      "prompt": "A faded watercolor wash landscape reproduced on aged, lightly embossed paper stock: visible paper tooth, salt texture and pigment blooms in the washes, offset print grain, colors muted and slightly bled as in an old lithographed reproduction, no hard outlines, no ink linework, no bright saturated color. Palette: pale greys, cobalt and violet washes faded almost to paper, one warm lamp-glow. Space-opera scale: one colossal, smooth, unearthly presence dominates the picture, rendered as soft masses of pale wash with almost no detail, and one small everyday human-scale thing sits beneath it, tiny and exact. Tall vertical picture: the upper third is open, nearly empty pale wash (sky and mist), the colossal presence occupies the middle, the small thing sits low. No people's faces, no crews, no lettering, no border; the wash runs to all four edges. Scene: an immense ring, kilometers wide, hanging on edge in a hazy sky, its top cut off by the frame, over a low headland where one small stone watchtower stands; a single thin beam from the tower touches the ring; everything else is mist."
     },
     "part-III": {
       "file": "part-III.jpg",
-      "source_render": "part-III.png",
+      "source_render": "part-III-tall-b.png",
       "size": [
-        1800,
-        1200
+        1627,
+        2300
       ],
-      "bytes": 386315,
-      "note": "Part III technical drawing as cream ink on the part hue",
-      "prompt": "A technical illustration plate from a 1960s engineering research report: a copper-plate style line drawing in one dark ink on plain white paper, printed by letterpress; crisp hatching and stipple for shading; an exploded or cutaway view; numbered-callout leader lines pointing to parts, each ending in a small empty rectangular label box, with no words or numerals anywhere; the drawing centered with generous white margin on every side; no border, no title block, no background surface, no paper edges, no color. Subject: a ship's keel and frames in elevation, the left half with old plates and the right half with new plates on one continuous keel, a single line marking the join; a logbook detail."
+      "bytes": 527528,
+      "note": "Part III wash, full page behind the part type, sheet edges cropped away, paper balanced to the page stock",
+      "prompt": "A faded watercolor wash landscape reproduced on aged, lightly embossed paper stock: visible paper tooth, salt texture and pigment blooms in the washes, offset print grain, colors muted and slightly bled as in an old lithographed reproduction, no hard outlines, no ink linework, no bright saturated color. Palette: pale greys, cobalt and violet washes faded almost to paper, one warm lamp-glow. Space-opera scale: one colossal, smooth, unearthly presence dominates the picture, rendered as soft masses of pale wash with almost no detail, and one small everyday human-scale thing sits beneath it, tiny and exact. Tall vertical picture: the upper third is open, nearly empty pale wash (sky and mist), the colossal presence occupies the middle, the small thing sits low. No people's faces, no crews, no lettering, no border; the wash runs to all four edges. Scene: the hull of a derelict machine the size of a mountain range half-buried in a tidal flat under a pale dawn, its top lost in mist, and leaving its shadow, one small boat with a lit cabin window, trailing a wake. Even sparser: more mist, the colossal presence fainter and larger, the small thing smaller."
     },
     "part-IV": {
       "file": "part-IV.jpg",
-      "source_render": "part-IV.png",
+      "source_render": "part-IV-tall-a.png",
       "size": [
-        1800,
-        1200
+        1627,
+        2300
       ],
-      "bytes": 381745,
-      "note": "Part IV technical drawing as cream ink on the part hue",
-      "prompt": "A technical illustration plate from a 1960s engineering research report: a copper-plate style line drawing in one dark ink on plain white paper, printed by letterpress; crisp hatching and stipple for shading; an exploded or cutaway view; numbered-callout leader lines pointing to parts, each ending in a small empty rectangular label box, with no words or numerals anywhere; the drawing centered with generous white margin on every side; no border, no title block, no background surface, no paper edges, no color. Subject: two quays facing each other across a gap with no bridge, a balance scale on each, and a single small ferry between them; drawn in plan and elevation."
+      "bytes": 535826,
+      "note": "Part IV wash, full page behind the part type, sheet edges cropped away, paper balanced to the page stock",
+      "prompt": "A faded watercolor wash landscape reproduced on aged, lightly embossed paper stock: visible paper tooth, salt texture and pigment blooms in the washes, offset print grain, colors muted and slightly bled as in an old lithographed reproduction, no hard outlines, no ink linework, no bright saturated color. Palette: pale greys, cobalt and violet washes faded almost to paper, one warm lamp-glow. Space-opera scale: one colossal, smooth, unearthly presence dominates the picture, rendered as soft masses of pale wash with almost no detail, and one small everyday human-scale thing sits beneath it, tiny and exact. Tall vertical picture: the upper third is open, nearly empty pale wash (sky and mist), the colossal presence occupies the middle, the small thing sits low. No people's faces, no crews, no lettering, no border; the wash runs to all four edges. Scene: two colossal smooth masses, one dark and one pale, facing each other across a narrow strait in evening haze, their tops lost in cloud, and between them, low in the picture, one tiny sail crossing under a single hair-thin line of light strung from one to the other."
     },
     "chapter-swk": {
       "file": "chapter-swk.jpg",
-      "source_render": "ch-swk.png",
+      "source_render": "ch-swk-b.png",
       "size": [
         1800,
         1200
       ],
-      "bytes": 369723,
-      "note": "chapter swk technical drawing, paper balanced to the page stock",
-      "prompt": "A technical illustration plate from a 1960s engineering research report: a copper-plate style line drawing in one dark ink on plain white paper, printed by letterpress; crisp hatching and stipple for shading; an exploded or cutaway view; numbered-callout leader lines pointing to parts, each ending in a small empty rectangular label box, with no words or numerals anywhere; the drawing centered with generous white margin on every side; no border, no title block, no background surface, no paper edges, no color. Subject: a cutaway of a harbor lock-gate mechanism for small spacecraft: one channel open, a queue of five identical small craft waiting in single file, the gate's single ratchet-and-pawl writer mechanism exposed, a ledger desk beside the gate."
+      "bytes": 247822,
+      "note": "chapter swk wash, sheet edges cropped away, paper balanced to the page stock, borders bled into it",
+      "prompt": "A faded watercolor wash landscape reproduced on aged, lightly embossed paper stock: visible paper tooth, salt texture and pigment blooms in the washes, offset print grain, colors muted and slightly bled as in an old lithographed reproduction, no hard outlines, no ink linework, no bright saturated color. Space-opera scale: one colossal, smooth, unearthly presence dominates the picture, rendered as soft masses of pale wash with almost no detail, and one small everyday human-scale thing sits beneath or beside it, tiny and exact. Most of the picture is open pale wash, mist and water. No people's faces, no crews, no lettering of any kind, no border; the wash runs to all four edges.Scene: a small stone lighthouse at the end of a mole, its lamp lit at dusk, and behind it, filling the whole sky, the smooth curved flank of a descended sphere so vast its edge cannot be seen; the harbor water flat and pale. Palette: pale ochre and sea-green washes faded almost to paper, mist everywhere, one warm lamp-glow. Composition even sparser: the small thing in a lower corner, the colossal thing cut off by the frame."
     },
     "chapter-anchor": {
       "file": "chapter-anchor.jpg",
-      "source_render": "ch-anchor.png",
+      "source_render": "ch-anchor-a.png",
       "size": [
         1800,
         1200
       ],
-      "bytes": 385566,
-      "note": "chapter anchor technical drawing, paper balanced to the page stock",
-      "prompt": "A technical illustration plate from a 1960s engineering research report: a copper-plate style line drawing in one dark ink on plain white paper, printed by letterpress; crisp hatching and stipple for shading; an exploded or cutaway view; numbered-callout leader lines pointing to parts, each ending in a small empty rectangular label box, with no words or numerals anywhere; the drawing centered with generous white margin on every side; no border, no title block, no background surface, no paper edges, no color. Subject: an exploded view of three successive airlock gates in a row, each narrower than the last, with a card-stamping mechanism at each gate and a chain of keys at the first; a small craft shown passing the second gate."
+      "bytes": 229464,
+      "note": "chapter anchor wash, sheet edges cropped away, paper balanced to the page stock, borders bled into it",
+      "prompt": "A faded watercolor wash landscape reproduced on aged, lightly embossed paper stock: visible paper tooth, salt texture and pigment blooms in the washes, offset print grain, colors muted and slightly bled as in an old lithographed reproduction, no hard outlines, no ink linework, no bright saturated color. Space-opera scale: one colossal, smooth, unearthly presence dominates the picture, rendered as soft masses of pale wash with almost no detail, and one small everyday human-scale thing sits beneath or beside it, tiny and exact. Most of the picture is open pale wash, mist and water. No people's faces, no crews, no lettering of any kind, no border; the wash runs to all four edges.Scene: a procession of immense smooth monoliths floating above a calm sea, each smaller and fainter than the one before, receding into haze; at the front a single rowboat holds one taut rope to the nearest monolith. Palette: pale greys, cobalt and violet washes faded almost to paper, one warm lamp-glow."
     },
     "chapter-ls": {
       "file": "chapter-ls.jpg",
-      "source_render": "ch-ls-v2.png",
+      "source_render": "ch-ls-a.png",
       "size": [
         1800,
         1200
       ],
-      "bytes": 319343,
-      "note": "chapter ls technical drawing, paper balanced to the page stock",
-      "prompt": "A technical illustration plate from a 1960s engineering research report: a copper-plate style line drawing in one dark ink on plain white paper, printed by letterpress; crisp hatching and stipple for shading; an exploded or cutaway view; numbered-callout leader lines pointing to parts, each ending in a small empty rectangular label box, with no words or numerals anywhere; the drawing centered with generous white margin on every side; no border, no title block, no background surface, no paper edges, no color. Subject: a cutaway of an observation tower's lantern and lens assembly throwing a narrow cone downward over a field of many identical small vessels drawn in plan view; only the vessels inside the cone are drawn in full detail, the rest as faint outlines."
+      "bytes": 300920,
+      "note": "chapter ls wash, sheet edges cropped away, paper balanced to the page stock, borders bled into it",
+      "prompt": "A faded watercolor wash landscape reproduced on aged, lightly embossed paper stock: visible paper tooth, salt texture and pigment blooms in the washes, offset print grain, colors muted and slightly bled as in an old lithographed reproduction, no hard outlines, no ink linework, no bright saturated color. Space-opera scale: one colossal, smooth, unearthly presence dominates the picture, rendered as soft masses of pale wash with almost no detail, and one small everyday human-scale thing sits beneath or beside it, tiny and exact. Most of the picture is open pale wash, mist and water. No people's faces, no crews, no lettering of any kind, no border; the wash runs to all four edges.Scene: a small wooden pier with one hanging lantern at night, its light a small warm circle on the water, and beneath the whole bay, dimly through the water, a single vast pale shape the size of the town, only its curve visible. Palette: pale greys, cobalt and violet washes faded almost to paper, one warm lamp-glow."
     },
     "chapter-stp": {
       "file": "chapter-stp.jpg",
-      "source_render": "ch-stp.png",
+      "source_render": "ch-stp-a.png",
       "size": [
         1800,
         1200
       ],
-      "bytes": 413789,
-      "note": "chapter stp technical drawing, paper balanced to the page stock",
-      "prompt": "A technical illustration plate from a 1960s engineering research report: a copper-plate style line drawing in one dark ink on plain white paper, printed by letterpress; crisp hatching and stipple for shading; an exploded or cutaway view; numbered-callout leader lines pointing to parts, each ending in a small empty rectangular label box, with no words or numerals anywhere; the drawing centered with generous white margin on every side; no border, no title block, no background surface, no paper edges, no color. Subject: a dry dock in cutaway with a small starship on blocks, its hull half old plating and half new plating on one continuous keel; the removed old plates laid in a row on the quay; a logbook on a crate; an exploded detail of one hull plate and its rivets."
+      "bytes": 290183,
+      "note": "chapter stp wash, sheet edges cropped away, paper balanced to the page stock, borders bled into it",
+      "prompt": "A faded watercolor wash landscape reproduced on aged, lightly embossed paper stock: visible paper tooth, salt texture and pigment blooms in the washes, offset print grain, colors muted and slightly bled as in an old lithographed reproduction, no hard outlines, no ink linework, no bright saturated color. Space-opera scale: one colossal, smooth, unearthly presence dominates the picture, rendered as soft masses of pale wash with almost no detail, and one small everyday human-scale thing sits beneath or beside it, tiny and exact. Most of the picture is open pale wash, mist and water. No people's faces, no crews, no lettering of any kind, no border; the wash runs to all four edges.Scene: the ribs of an immense wrecked machine rising from a mist-covered estuary like a range of hills, and in the foreground one small sailboat at anchor with a lit cabin, its laundry on a line, the morning continuing. Palette: pale greys, cobalt and violet washes faded almost to paper, one warm lamp-glow."
     },
     "chapter-he": {
       "file": "chapter-he.jpg",
-      "source_render": "ch-he.png",
+      "source_render": "ch-he-a.png",
       "size": [
         1800,
         1200
       ],
-      "bytes": 349457,
-      "note": "chapter he technical drawing, paper balanced to the page stock",
-      "prompt": "A technical illustration plate from a 1960s engineering research report: a copper-plate style line drawing in one dark ink on plain white paper, printed by letterpress; crisp hatching and stipple for shading; an exploded or cutaway view; numbered-callout leader lines pointing to parts, each ending in a small empty rectangular label box, with no words or numerals anywhere; the drawing centered with generous white margin on every side; no border, no title block, no background surface, no paper edges, no color. Subject: an isometric cutaway of a spaceport market quay: three rows of stalls each with a balance scale, a harbor-master's booth with a ledger, freighters docked along the quay, crates in transit between them."
+      "bytes": 327165,
+      "note": "chapter he wash, sheet edges cropped away, paper balanced to the page stock, borders bled into it",
+      "prompt": "A faded watercolor wash landscape reproduced on aged, lightly embossed paper stock: visible paper tooth, salt texture and pigment blooms in the washes, offset print grain, colors muted and slightly bled as in an old lithographed reproduction, no hard outlines, no ink linework, no bright saturated color. Space-opera scale: one colossal, smooth, unearthly presence dominates the picture, rendered as soft masses of pale wash with almost no detail, and one small everyday human-scale thing sits beneath or beside it, tiny and exact. Most of the picture is open pale wash, mist and water. No people's faces, no crews, no lettering of any kind, no border; the wash runs to all four edges.Scene: a vast smooth platform hangs low over a fishing harbor at dawn, casting a soft shadow over the quay, and on the quay one small table with two chairs and a lamp, set for a meeting, nothing else moving. Palette: pale greys, cobalt and violet washes faded almost to paper, one warm lamp-glow."
     },
     "chapter-bonded": {
       "file": "chapter-bonded.jpg",
-      "source_render": "ch-bonded-v2.png",
+      "source_render": "ch-bonded-a.png",
       "size": [
         1800,
         1200
       ],
-      "bytes": 300396,
-      "note": "chapter bonded technical drawing, paper balanced to the page stock",
-      "prompt": "A technical illustration plate from a 1960s engineering research report: a copper-plate style line drawing in one dark ink on plain white paper, printed by letterpress; crisp hatching and stipple for shading; an exploded or cutaway view; numbered-callout leader lines pointing to parts, each ending in a small empty rectangular label box, with no words or numerals anywhere; the drawing centered with generous white margin on every side; no border, no title block, no background surface, no paper edges, no color. Subject: an exploded view of a strongbox with its chain and lock mechanism, mounted to a notary's post on a quay; two figures in suits on either side; a sealed bond paper shown as a detail; a freighter behind each figure."
+      "bytes": 347162,
+      "note": "chapter bonded wash, sheet edges cropped away, paper balanced to the page stock, borders bled into it",
+      "prompt": "A faded watercolor wash landscape reproduced on aged, lightly embossed paper stock: visible paper tooth, salt texture and pigment blooms in the washes, offset print grain, colors muted and slightly bled as in an old lithographed reproduction, no hard outlines, no ink linework, no bright saturated color. Space-opera scale: one colossal, smooth, unearthly presence dominates the picture, rendered as soft masses of pale wash with almost no detail, and one small everyday human-scale thing sits beneath or beside it, tiny and exact. Most of the picture is open pale wash, mist and water. No people's faces, no crews, no lettering of any kind, no border; the wash runs to all four edges.Scene: a single colossal pillar of pale light stands from a night sea into cloud, and on the near shore a small village of a dozen roofs, every window dark but one; the pillar's reflection crosses the water to that window. Palette: pale greys, cobalt and violet washes faded almost to paper, one warm lamp-glow."
     },
     "chapter-fh": {
       "file": "chapter-fh.jpg",
-      "source_render": "ch-fh.png",
+      "source_render": "ch-fh-a.png",
       "size": [
         1800,
         1200
       ],
-      "bytes": 279653,
-      "note": "chapter fh technical drawing, paper balanced to the page stock",
-      "prompt": "A technical illustration plate from a 1960s engineering research report: a copper-plate style line drawing in one dark ink on plain white paper, printed by letterpress; crisp hatching and stipple for shading; an exploded or cutaway view; numbered-callout leader lines pointing to parts, each ending in a small empty rectangular label box, with no words or numerals anywhere; the drawing centered with generous white margin on every side; no border, no title block, no background surface, no paper edges, no color. Subject: a plan view and an elevation of two harbor stations facing each other across a narrow strait with no bridge, each with a beacon tower and a customs hall; a single small ferry drawn mid-crossing with sealed crates; dashed sight lines between the beacons."
+      "bytes": 323217,
+      "note": "chapter fh wash, sheet edges cropped away, paper balanced to the page stock, borders bled into it",
+      "prompt": "A faded watercolor wash landscape reproduced on aged, lightly embossed paper stock: visible paper tooth, salt texture and pigment blooms in the washes, offset print grain, colors muted and slightly bled as in an old lithographed reproduction, no hard outlines, no ink linework, no bright saturated color. Space-opera scale: one colossal, smooth, unearthly presence dominates the picture, rendered as soft masses of pale wash with almost no detail, and one small everyday human-scale thing sits beneath or beside it, tiny and exact. Most of the picture is open pale wash, mist and water. No people's faces, no crews, no lettering of any kind, no border; the wash runs to all four edges.Scene: two vast spheres, one on each horizon, in morning haze over a small harbor town going about its day, a few boats out; a single thin line of light passes from sphere to sphere high above the roofs. Palette: pale greys, cobalt and violet washes faded almost to paper, one warm lamp-glow."
     }
   }
 }
