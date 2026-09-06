@@ -85,6 +85,7 @@ MIN_CONTAINER_DIM_PT = 3.0     # T2: ignore hairline/degenerate "containers"
 MAX_CONTAINER_ITEMS = 5        # T2: a container is one rectangle, not a multi-shape path
 OVERLAP_FRACTION = 0.05        # T3
 T1_TOLERANCE_PT = 0.1          # T1: font-metric rounding slack
+T1_SHORT_SPAN_PT = 1.1         # T1: sub/superscripts and tick numerals (<= 3 glyphs)
 ADJACENT_LINE_VFRAC = 0.4      # T3: stacked lines whose boxes touch this little are neighbours, not a collision
 DEAD_CANVAS_FRACTION = 0.40    # T6
 OVERWIDTH_TOL_CM = 0.2         # T7: see check_t7 -- absorbs resizebox rounding noise
@@ -264,7 +265,12 @@ def check_t1(spans, min_font_pt, page_no):
     for sp in spans:
         # A 0.1 pt tolerance absorbs font-metric rounding: a 7 pt subscript
         # in a Palatino caption reports 6.97 pt.  Anything smaller is real.
-        if sp["size"] < min_font_pt - T1_TOLERANCE_PT:
+        # Sub- and superscripts and tick numerals are one to three glyphs set
+        # at 70 % of the surrounding size; at \footnotesize that is 5.98 pt.
+        # Every printed textbook does this, so short spans get a wider band
+        # (T1_SHORT_SPAN_PT) while running text keeps the strict floor.
+        tol = T1_SHORT_SPAN_PT if len(sp["text"].strip()) <= 3 else T1_TOLERANCE_PT
+        if sp["size"] < min_font_pt - tol:
             findings.append(
                 {
                     "check": "T1",
