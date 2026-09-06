@@ -1,6 +1,7 @@
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
 \usepackage{lmodern}
+\usepackage[fontsize=10.5pt]{fontsize}
 \usepackage{microtype}
 \usepackage{geometry}
 \usepackage{amsmath,amssymb,amsthm}
@@ -25,7 +26,11 @@
 \usepackage{pgfplots}
 \pgfplotsset{compat=1.18}
 
-\geometry{margin=2.35cm}
+% Trim 7 x 10 in (Wave 12, L1): one text column of 4.5 in (about 66 characters
+% at 10.5 pt) and a 1.3 in outer margin column that carries sidenotes, margin
+% heads, exercise pointers and margin figures. The standalone chapters keep A4.
+\geometry{paperwidth=7in,paperheight=10in,twoside,inner=0.8in,outer=1.7in,%
+  top=0.85in,bottom=0.95in,textwidth=4.5in,marginparsep=0.2in,marginparwidth=1.3in}
 \captionsetup{font=small,labelfont=bf}
 \setlength{\emergencystretch}{2em}
 % Depth 1 (parts, chapters, and top-level sections) is a deliberate choice for
@@ -89,6 +94,7 @@
 \input{figures/pd-palette}
 \input{figures/pd-textbook-map}
 \input{figures/pd-pedagogy}
+\pdmargincolumntrue
 \input{figures/pd-figure-language}
 
 % One maturity vocabulary for the collected volume. Uppercase aliases preserve

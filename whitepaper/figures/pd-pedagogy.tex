@@ -7,10 +7,18 @@
 % \input this immediately after figures/pd-textbook-map (so \pdchapterprefix
 % and \pdchapternumber already resolve) and before figures/pd-hyperlinks.
 %
-% mdframed's DEFAULT frame method is used throughout -- never
-% framemethod=tikz. Every environment here is a plain left- or top/bottom-rule
-% box on a flat fill; the default method draws that without needing the tikz
-% picture machinery every chapter already loads for its own figures.
+% Page grammar (Wave 12): a content kind is signalled by typography and the
+% margin, never by a tinted rectangle. Claims: a hairline above, a small-caps
+% run-in head, a short hairline below. Worked examples: two hairlines and an
+% italic head. Boundaries: a plain ink bar at the left, no fill. Recitation:
+% margin prompts in the Book, a compact list in a standalone chapter.
+% Exercises: a numbered hanging paragraph with kind and stars in small caps,
+% the solution page in the margin. Nothing here paints a background.
+%
+% \ifpdmargincolumn is false by default (standalone A4 chapters have no margin
+% column); the Book's preamble sets \pdmargincolumntrue after its geometry.
+% mdframed is used only for the bars (leftline) and hairlines (top/bottom),
+% with the DEFAULT frame method -- never framemethod=tikz.
 %
 % Key-value parsing for \pdexercise uses pgfkeys: pgf ships as part of tikz,
 % which every preamble already loads, so this adds no new dependency (keyval
@@ -22,9 +30,30 @@
 \makeatletter
 \@ifpackageloaded{mdframed}{}{\usepackage{mdframed}}
 \@ifpackageloaded{answers}{}{\usepackage{answers}}
+\@ifpackageloaded{marginnote}{}{\usepackage{marginnote}}
+\@ifpackageloaded{environ}{}{\usepackage{environ}}
 
 % ---------------------------------------------------------------------------
-% \pdkind, pdclaim
+% Shared helpers: the margin-column switch, the margin head, the margin glyph.
+% ---------------------------------------------------------------------------
+% The Book defines \pdcurrentchaptercolor (per part) AFTER this file; a
+% standalone chapter never does. Resolve it lazily, falling back to cobalt.
+\newcommand{\pd@chaptercolor}{\ifdefined\pdcurrentchaptercolor\pdcurrentchaptercolor\else pdcobalt\fi}
+\newif\ifpdmargincolumn
+\pdmargincolumnfalse
+\renewcommand*{\marginfont}{\footnotesize\raggedright\color{pdinkmuted}}
+% A small-caps head: set in the margin when the Book has a margin column,
+% otherwise run in at the start of the paragraph.
+\newcommand{\pd@marginhead}[1]{%
+  \ifpdmargincolumn\marginnote{\scshape #1}\else{\scshape\bfseries #1.}\enspace\fi}
+% A small square in the chapter's hue, in the margin, marking a worked example
+% so a reader flipping through finds every one.
+\newcommand{\pd@marginglyph}{%
+  \ifpdmargincolumn\marginnote{\textcolor{\pd@chaptercolor}{\rule[-0.5pt]{4.5pt}{4.5pt}}}\fi}
+
+% ---------------------------------------------------------------------------
+% \pdkind, pdclaim -- a numbered, labelled statement. Hairline above, run-in
+% head "THEOREM 1.3  Title." in small caps and bold, short hairline below.
 % ---------------------------------------------------------------------------
 \newcommand{\pd@claim@kinds}{Theorem,Design invariant,Model-checked property,Empirical hypothesis}
 \newcommand{\pdkind}[1]{%
@@ -34,77 +63,75 @@
     \PackageError{pd-pedagogy}{Unknown pdclaim kind '#1'}%
       {Use one of: Theorem, Design invariant, Model-checked property, Empirical hypothesis.}%
   \fi
-  {\scshape\color{pdinkmuted}#1}%
+  {\scshape\bfseries #1}%
 }
 \newenvironment{pdclaim}[2]{%
-  \par\vspace{8pt}\noindent
-  \begin{mdframed}[linecolor=pdcobalt,linewidth=2pt,leftline=true,topline=false,%
-      rightline=false,bottomline=false,backgroundcolor=pdcreamraised,%
-      innerleftmargin=10pt,innertopmargin=6pt,innerbottommargin=6pt,%
-      skipabove=8pt,skipbelow=8pt]%
+  \par\addvspace{10pt plus 2pt minus 1pt}%
+  \noindent{\color{pdink}\rule{\linewidth}{0.5pt}}\par\nobreak\vspace{4pt}%
+  \noindent
   % A claim is a numbered object: it steps the chapter's shared theorem
   % counter (every chapter and the Book define `theorem` within section), so a
   % \label placed right after \begin{pdclaim} refers to the claim, prints as
-  % "Theorem 3.1" in prose, and links to this box. Without the step, the label
-  % would silently resolve to the enclosing section.
-  \ifcsname c@theorem\endcsname\refstepcounter{theorem}\pdkind{#1}~{\scshape\color{pdinkmuted}\thetheorem}\else\pdkind{#1}\fi\par\smallskip
-  \noindent\textbf{#2}\par\smallskip\noindent\ignorespaces
+  % "Theorem 3.1" in prose, and links to this head.
+  \ifcsname c@theorem\endcsname\refstepcounter{theorem}\pdkind{#1}~{\scshape\bfseries\thetheorem}\else\pdkind{#1}\fi
+  \enspace{\bfseries #2.}\enspace\ignorespaces
 }{%
-  \end{mdframed}%
+  \par\nobreak\vspace{3pt}\noindent{\color{pdink}\rule{4em}{0.5pt}}\par
+  \addvspace{8pt plus 2pt minus 1pt}%
 }
 
 % ---------------------------------------------------------------------------
-% pdboundary -- "Where this stops". No optional arguments.
+% pdboundary -- "Where this stops". A 1.2pt ink bar at the left, no fill; the
+% head sits in the margin (Book) or runs in (standalone).
 % ---------------------------------------------------------------------------
 \newenvironment{pdboundary}{%
-  \par\vspace{8pt}\noindent
-  \begin{mdframed}[linecolor=pdink,linewidth=2pt,leftline=true,topline=false,%
-      rightline=false,bottomline=false,backgroundcolor=pdcreamraised,%
-      innerleftmargin=10pt,innertopmargin=6pt,innerbottommargin=6pt,%
-      skipabove=8pt,skipbelow=8pt]%
-  {\scshape\bfseries Where this stops}\par\smallskip\noindent\ignorespaces
+  \par\addvspace{8pt plus 1pt}%
+  \begin{mdframed}[linecolor=pdink,linewidth=1.2pt,leftline=true,topline=false,%
+      rightline=false,bottomline=false,backgroundcolor=white,%
+      innerleftmargin=9pt,innerrightmargin=0pt,innertopmargin=1pt,innerbottommargin=1pt,%
+      skipabove=4pt,skipbelow=4pt]%
+  \noindent\pd@marginhead{Where this stops}\ignorespaces
 }{%
   \end{mdframed}%
 }
 
 % ---------------------------------------------------------------------------
-% pdexample -- a worked, numbers-by-hand box. Thin top/bottom rules only (no
-% fill), so it reads as a calculation set off from the surrounding claims and
-% boundaries rather than another one of them.
+% pdexample -- a worked, numbers-by-hand passage. Two hairlines, an italic
+% run-in head, and a small square in the margin.
 % ---------------------------------------------------------------------------
 \newenvironment{pdexample}[1]{%
-  \par\vspace{8pt}\noindent
-  \begin{mdframed}[linecolor=pdinkmuted,linewidth=0.5pt,topline=true,%
-      bottomline=true,leftline=false,rightline=false,%
-      innertopmargin=6pt,innerbottommargin=6pt,skipabove=8pt,skipbelow=8pt]%
-  {\itshape Numbers by hand --- #1}\par\smallskip\noindent\ignorespaces
+  \par\addvspace{8pt plus 1pt}%
+  \begin{mdframed}[linecolor=pdinkmuted,linewidth=0.4pt,topline=true,%
+      bottomline=true,leftline=false,rightline=false,backgroundcolor=white,%
+      innerleftmargin=0pt,innerrightmargin=0pt,%
+      innertopmargin=5pt,innerbottommargin=5pt,skipabove=6pt,skipbelow=6pt]%
+  \noindent\pd@marginglyph{\itshape Numbers by hand --- #1.}\enspace\ignorespaces
 }{%
   \end{mdframed}%
 }
 
 % ---------------------------------------------------------------------------
-% pdrecitation -- retrieval prompts. The body is a bare list of \item's; the
-% environment supplies the itemize around them, so a chapter writes exactly
-% \begin{pdrecitation}\item ...\item ...\end{pdrecitation}.
+% pdrecitation -- retrieval prompts. The body is a bare list of \item's. In
+% the Book the prompts sit in the margin under a small-caps "Recall"; in a
+% standalone chapter they are a compact numbered list. No box either way.
 % ---------------------------------------------------------------------------
-\newenvironment{pdrecitation}{%
-  \par\vspace{8pt}\noindent
-  \begin{mdframed}[linecolor=pdteal,linewidth=2pt,leftline=true,topline=false,%
-      rightline=false,bottomline=false,backgroundcolor=pdcreamraised,%
-      innerleftmargin=10pt,innertopmargin=6pt,innerbottommargin=6pt,%
-      skipabove=8pt,skipbelow=8pt]%
-  {\scshape\bfseries Recitation}\par\smallskip
-  \begin{itemize}[leftmargin=1.4em,itemsep=2pt,topsep=2pt]
-}{%
-  \end{itemize}%
-  \end{mdframed}%
-}
+\NewEnviron{pdrecitation}{%
+  \ifpdmargincolumn
+    \marginnote{{\scshape Recall}\par\nobreak\vspace{1pt}%
+      \begin{enumerate}[leftmargin=1.1em,itemsep=1pt,topsep=0pt,parsep=0pt,label=\arabic*.]%
+      \footnotesize\BODY\end{enumerate}}%
+  \else
+    \par\addvspace{6pt}\noindent{\scshape\bfseries Recall.}\par\nobreak
+    \begin{enumerate}[leftmargin=1.6em,itemsep=1pt,topsep=2pt,parsep=0pt,label=\arabic*.]%
+    \small\BODY\end{enumerate}\addvspace{6pt}%
+  \fi}
 
 % ---------------------------------------------------------------------------
-% pdexercise -- numbered "Exercise <chapter>.<n>", kind and star rating via
-% pgfkeys, closing with a live "Solution on page N" line. The environment
-% issues \label{<label>} itself; the exercise's own displayed number
-% (\thepdexercise) is what \ref{<label>} later returns wherever it is cited.
+% pdexercise -- numbered "1.7  CHECK *" as a hanging paragraph, kind and star
+% rating via pgfkeys, the solution page in the margin (Book) or in a trailing
+% parenthesis (standalone). The environment issues \label{<label>} itself;
+% the exercise's own displayed number (\thepdexercise) is what \ref{<label>}
+% later returns wherever it is cited.
 % ---------------------------------------------------------------------------
 \newcounter{pdexercise}
 \renewcommand{\thepdexercise}{\pdchapternumber.\arabic{pdexercise}}
@@ -112,12 +139,8 @@
 % anchor name that, left at its default, is just \arabic{pdexercise} -- fine
 % within one document, but pdexercise resets to 0 at every \pdchapter in the
 % Book, so chapter 1's Exercise 1 and chapter 5's Exercise 1 would claim the
-% SAME anchor name. hyperref then silently keeps whichever chapter compiled
-% first and every later chapter's \ref/\pageref to its OWN exercise mislinks
-% there instead (the exercise's own \pageref{sol:...} link is unaffected: it
-% is anchored by \phantomsection, which is already globally unique). Keying
-% off \pdchapterprefix -- unique per chapter in both a standalone chapter and
-% the Book -- keeps every exercise's anchor unique too.
+% SAME anchor name. Keying off \pdchapterprefix -- unique per chapter in both
+% a standalone chapter and the Book -- keeps every exercise's anchor unique.
 \renewcommand{\theHpdexercise}{\pdchapterprefix.\arabic{pdexercise}}
 \pgfkeys{
   /pdexercise/kind/.store in=\pdexercise@kind,
@@ -151,16 +174,12 @@
   \refstepcounter{pdexercise}%
   \label{#2}%
   \def\pdexercise@label{#2}%
-  \par\vspace{8pt}\noindent
-  \begin{mdframed}[linecolor=pdgold,linewidth=2pt,leftline=true,topline=false,%
-      rightline=false,bottomline=false,backgroundcolor=pdcreamraised,%
-      innerleftmargin=10pt,innertopmargin=6pt,innerbottommargin=6pt,%
-      skipabove=8pt,skipbelow=8pt]%
-  {\scshape\bfseries Exercise~\thepdexercise\ \textperiodcentered\ \pdexercise@kind\ \textperiodcentered\ \pdexercise@stars}%
-  \par\smallskip\noindent\ignorespaces
+  \par\addvspace{7pt plus 1pt}\noindent\hangindent=2.4em\hangafter=1
+  \ifpdmargincolumn\marginnote{\itshape Solution p.\,\pageref{sol:#2}}\fi
+  {\bfseries\thepdexercise}\enspace{\footnotesize\scshape\pdexercise@kind}\,{\footnotesize\pdexercise@stars}\enspace\ignorespaces
 }{%
-  \par\noindent\hfill{\small\itshape Solution on page~\pageref{sol:\pdexercise@label}}\par
-  \end{mdframed}%
+  \ifpdmargincolumn\par\else\space{\small\itshape(solution on page~\pageref{sol:\pdexercise@label})}\par\fi
+  \addvspace{2pt}%
 }
 
 % ---------------------------------------------------------------------------
@@ -191,16 +210,12 @@
 % \endFilesave has no such side effect, so the closing side calls it inline.
 % ---------------------------------------------------------------------------
 \newenvironment{pdSolution}[1]{%
-  \par\vspace{8pt}\noindent
-  \begin{mdframed}[linecolor=pdhealth,linewidth=2pt,leftline=true,topline=false,%
-      rightline=false,bottomline=false,backgroundcolor=pdcreamraised,%
-      innerleftmargin=10pt,innertopmargin=6pt,innerbottommargin=6pt,%
-      skipabove=8pt,skipbelow=8pt]%
+  \par\addvspace{7pt plus 1pt}\noindent\hangindent=2.4em\hangafter=1
   \phantomsection\label{sol:#1}%
-  \textbf{Solution to Exercise~\ref{#1}}\par
-  {\small(exercise on page~\pageref{#1})}\par\smallskip\noindent\ignorespaces
+  \ifpdmargincolumn\marginnote{\itshape Exercise p.\,\pageref{#1}}\fi
+  {\bfseries\ref{#1}}\enspace\ifpdmargincolumn\else{\small\itshape(exercise on page~\pageref{#1})}\enspace\fi\ignorespaces
 }{%
-  \end{mdframed}%
+  \par\addvspace{2pt}%
 }
 \newenvironment{pdsolution}[1]{%
   \let\pd@sol@tmp\relax
@@ -271,4 +286,23 @@
   \par\smallskip\noindent{\small\itshape Exercises #1--#2, page~#3.}\par}
 \newcommand{\pdexercisepointerone}[2]{%
   \par\smallskip\noindent{\small\itshape Exercise #1, page~#2.}\par}
+% ---------------------------------------------------------------------------
+% The older tinted-box macros (\keyidea, \pitfall, \scene, \xrefbox,
+% \pullquote) are still defined, as tikz boxes, in every chapter preamble and
+% in the Book's preamble AFTER this file is read. They are re-typeset here at
+% \begin{document} in the same page grammar -- a run-in or margin head and
+% plain prose, no fill -- so no chapter source and no preamble has to change
+% for the boxes to disappear. \long\def so a body may contain \par.
+% ---------------------------------------------------------------------------
+\AtBeginDocument{%
+  \long\def\keyidea#1{\par\addvspace{6pt plus 1pt}\noindent\pd@marginhead{Key idea}#1\par\addvspace{6pt plus 1pt}}%
+  \long\def\pitfall#1{\par\addvspace{6pt plus 1pt}\noindent\pd@marginhead{Pitfall}#1\par\addvspace{6pt plus 1pt}}%
+  \long\def\scene#1#2{\par\addvspace{6pt plus 1pt}\noindent\pd@marginhead{Scene}{\bfseries #1}\enspace{\itshape #2}\par\addvspace{6pt plus 1pt}}%
+  \long\def\xrefbox#1{\par\addvspace{4pt}\noindent\pd@marginhead{See also}{\small #1}\par\addvspace{4pt}}%
+  \long\def\pullquote#1{\par\addvspace{8pt plus 1pt}%
+    \begin{mdframed}[linecolor=\pd@chaptercolor,linewidth=1.5pt,leftline=true,topline=false,%
+        rightline=false,bottomline=false,backgroundcolor=white,innerleftmargin=10pt,innerrightmargin=0pt,%
+        innertopmargin=1pt,innerbottommargin=1pt,skipabove=4pt,skipbelow=4pt]%
+    {\itshape\large #1}\end{mdframed}\addvspace{8pt plus 1pt}}%
+}
 \makeatother
