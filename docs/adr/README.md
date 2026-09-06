@@ -51,8 +51,8 @@ ADRs follow the [MADR format](https://adr.github.io/madr/) (Markdown Architectur
 | [0089](0089-durable-security-forensics-journal.md) | Durable security-forensics journal — security events survive the 7-day prune | Accepted | 2026-06 |
 | [0090](0090-the-harbor.md) | The Harbor — one helm for human+agent fleets (North Star; extends ADR-0048) | Proposed | 2026-06 |
 | … | _(0091–0130 — pending the same index backfill as 0025–0042; see the registry for the live list)_ | | |
-| [0131](0131-verdict-integrity-separating-infra-failure-from-review-verdict.md) | Verdict Integrity — separating infrastructure failure from review verdict | Proposed | 2026-08 |
-| [0132](0132-distress-register-emergency-broadcast.md) | The Distress Register — emergency broadcast that works when Port Daddy doesn't | Proposed | 2026-09 |
+| [0137](0137-verdict-integrity-separating-infra-failure-from-review-verdict.md) | Verdict Integrity — separating infrastructure failure from review verdict | Proposed | 2026-08 |
+| [0138](0138-distress-register-emergency-broadcast.md) | The Distress Register — emergency broadcast that works when Port Daddy doesn't | Proposed | 2026-09 |
 
 > **Numbering authority.** The machine-authoritative number → file map is
 > [`adr-numbering-registry.json`](adr-numbering-registry.json), a pure projection
