@@ -138,18 +138,6 @@ if [ -z "${TECTONIC_CACHE_DIR:-}" ] && [ -d "$CHARTWORK_SCRATCH_TEX/cache" ]; th
   export TECTONIC_CACHE_DIR="$CHARTWORK_SCRATCH_TEX/cache"
 fi
 
-# --- auto-detect preamble mode ----------------------------------------------
-if [ -z "$PREAMBLE_MODE" ]; then
-  if [ -f "$PARENT_DIR/tex/preamble.tex" ]; then
-    PREAMBLE_MODE="research"
-  elif [ -f "$FRAG_DIR/pd-figure-language.tex" ]; then
-    PREAMBLE_MODE="chapter"
-  else
-    echo "compile_fragment.sh: cannot auto-detect preamble mode for $FRAGMENT_ABS (no sibling ../tex/preamble.tex or pd-figure-language.tex); pass --preamble chapter|research" >&2
-    exit 2
-  fi
-fi
-
 BUILD="$(mktemp -d "${TMPDIR:-/tmp}/chartwork-compile.XXXXXX")"
 cleanup() { rm -rf "$BUILD"; }
 trap cleanup EXIT
@@ -162,36 +150,73 @@ MAIN_JOBNAME="wrapper"
 # system and are already complete standalone documents. Any future fragment
 # that similarly declares its own class is handled the same way: it needs no
 # wrapping, and wrapping it would double up \documentclass and fail to build.)
+# Checked BEFORE preamble auto-detection, deliberately: such a fragment needs
+# no preamble pieces at all, so it should never be blocked by living
+# somewhere auto-detection cannot place in either corpus.
 if grep -q '\\documentclass' "$FRAGMENT_ABS"; then
   MAIN_JOBNAME="$STEM"
   cp "$FRAGMENT_ABS" "$BUILD/$STEM.tex"
   WRAPPER="$BUILD/$STEM.tex"
 else
+  # --- auto-detect preamble mode ---------------------------------------------
+  if [ -z "$PREAMBLE_MODE" ]; then
+    if [ -f "$PARENT_DIR/tex/preamble.tex" ]; then
+      PREAMBLE_MODE="research"
+    elif [ -f "$FRAG_DIR/pd-figure-language.tex" ]; then
+      PREAMBLE_MODE="chapter"
+    else
+      echo "compile_fragment.sh: cannot auto-detect preamble mode for $FRAGMENT_ABS (no sibling ../tex/preamble.tex or pd-figure-language.tex); pass --preamble chapter|research" >&2
+      exit 2
+    fi
+  fi
   HAS_FIGURE_ENV=0
   grep -q '\\begin{figure' "$FRAGMENT_ABS" && HAS_FIGURE_ENV=1
 
+  # Extract FILE's preamble: everything from line 1 up to (but not including)
+  # its `\begin{document}` line. Printed via awk, not sed, so the boundary
+  # line itself is cleanly excluded rather than fiddled with afterward.
+  extract_preamble() {
+    awk '/\\begin\{document\}/{exit} {print}' "$1"
+  }
+
   if [ "$PREAMBLE_MODE" = "chapter" ]; then
-    # Find a real chapter/whitepaper root in the fragment's parent dir that
-    # loads the shared style file, and reuse its preamble block verbatim
-    # (documentclass through the `\input{figures/pd-figure-language}` line).
+    # Prefer the ONE real chapter/whitepaper root that actually `\input`s
+    # this fragment (its full preamble, not just the shared style import --
+    # a fragment can rely on a `\newcommand` or a package that only ITS real
+    # chapter root defines). Fall back to any root that loads the shared
+    # style file, through that import line only, for a fragment nothing
+    # currently inputs (there is no "real" context to be faithful to).
     REF_ROOT=""
     for cand in "$PARENT_DIR"/*.tex; do
       [ -f "$cand" ] || continue
-      if grep -q '\\input{figures/pd-figure-language}' "$cand"; then
+      if grep -qE "\\\\input\\{figures/${STEM}(\\.tex)?\\}" "$cand"; then
         REF_ROOT="$cand"
         break
       fi
     done
-    if [ -z "$REF_ROOT" ]; then
-      echo "compile_fragment.sh: no chapter root in $PARENT_DIR inputs figures/pd-figure-language; cannot build a chapter preamble" >&2
-      exit 2
-    fi
+
     mkdir -p "$BUILD/figures"
     cp "$FRAG_DIR/pd-figure-language.tex" "$BUILD/figures/pd-figure-language.tex"
     [ -f "$FRAG_DIR/pd-palette.tex" ] && cp "$FRAG_DIR/pd-palette.tex" "$BUILD/figures/pd-palette.tex"
     cp "$FRAGMENT_ABS" "$BUILD/figures/$STEM.tex"
 
-    sed -n '1,/\\input{figures\/pd-figure-language}/p' "$REF_ROOT" > "$WRAPPER"
+    if [ -n "$REF_ROOT" ]; then
+      extract_preamble "$REF_ROOT" > "$WRAPPER"
+    else
+      FALLBACK_ROOT=""
+      for cand in "$PARENT_DIR"/*.tex; do
+        [ -f "$cand" ] || continue
+        if grep -q '\\input{figures/pd-figure-language}' "$cand"; then
+          FALLBACK_ROOT="$cand"
+          break
+        fi
+      done
+      if [ -z "$FALLBACK_ROOT" ]; then
+        echo "compile_fragment.sh: no chapter root in $PARENT_DIR inputs figures/pd-figure-language; cannot build a chapter preamble" >&2
+        exit 2
+      fi
+      sed -n '1,/\\input{figures\/pd-figure-language}/p' "$FALLBACK_ROOT" > "$WRAPPER"
+    fi
     if [ "$HAS_FIGURE_ENV" -eq 0 ]; then
       # Bare tikzpicture: swap the article documentclass line for a
       # tight-cropping standalone one; keep every other preamble line.
@@ -208,30 +233,51 @@ else
     } >> "$WRAPPER"
 
   else  # research
-    REF_PREAMBLE="$PARENT_DIR/tex/preamble.tex"
-    cp "$REF_PREAMBLE" "$BUILD/preamble.tex"
+    # Prefer the ONE real tex/*.tex document that actually `\input`s this
+    # fragment (its full preamble) -- the same rationale as chapter mode
+    # above. Not just paper*.tex: exec1.tex/exec2.tex/exec3.tex each
+    # `\input` exactly one figure too. This matters in practice: paper3.tex
+    # and paper6.tex each add `\usetikzlibrary{patterns}` beyond the shared
+    # preamble.tex, purely for one figure apiece (fig-r7-regime.tex,
+    # fig-paper6-regime.tex).
+    REF_ROOT=""
+    for cand in "$PARENT_DIR"/tex/*.tex; do
+      [ -f "$cand" ] || continue
+      if grep -qE "\\\\input\\{${STEM}(\\.tex)?\\}" "$cand"; then
+        REF_ROOT="$cand"
+        break
+      fi
+    done
+
+    cp "$PARENT_DIR/tex/preamble.tex" "$BUILD/preamble.tex"
     cp "$FRAGMENT_ABS" "$BUILD/$STEM.tex"
 
-    if [ "$HAS_FIGURE_ENV" -eq 1 ]; then
+    if [ -n "$REF_ROOT" ]; then
+      extract_preamble "$REF_ROOT" > "$WRAPPER"
+    else
       cat > "$WRAPPER" <<EOF
 \documentclass[11pt,a4paper]{article}
 \input{preamble}
 \usepackage{graphicx}
-\begin{document}
-\pagestyle{empty}
-\newgeometry{textwidth=${TEXTWIDTH_CM}cm,textheight=${TEXTHEIGHT_CM}cm,top=1cm,bottom=1cm}
-\input{$STEM.tex}
-\end{document}
-EOF
-    else
-      cat > "$WRAPPER" <<EOF
-\documentclass[tikz,border=2mm]{standalone}
-\input{preamble}
-\begin{document}
-\input{$STEM.tex}
-\end{document}
 EOF
     fi
+    if [ "$HAS_FIGURE_ENV" -eq 0 ]; then
+      # Bare tikzpicture: swap just the `\documentclass[11pt,a4paper]{article}`
+      # substring for a tight-cropping standalone class -- a substring
+      # replacement, not a whole-line one, because paper2.tex crams several
+      # preamble commands onto that same physical line and a whole-line
+      # replace would silently drop them.
+      sed -i '1s#\\documentclass\[11pt,a4paper\]{article}#\\documentclass[tikz,border=2mm]{standalone}#' "$WRAPPER"
+    fi
+    {
+      echo '\begin{document}'
+      if [ "$HAS_FIGURE_ENV" -eq 1 ]; then
+        echo '\pagestyle{empty}'
+        echo "\\newgeometry{textwidth=${TEXTWIDTH_CM}cm,textheight=${TEXTHEIGHT_CM}cm,top=1cm,bottom=1cm}"
+      fi
+      echo "\\input{$STEM.tex}"
+      echo '\end{document}'
+    } >> "$WRAPPER"
   fi
 fi
 
@@ -249,7 +295,7 @@ cp "$LOG_SRC" "$OUT_DIR_ABS/$STEM.log" 2>/dev/null
 if [ "$STATUS" -ne 0 ] || [ ! -f "$PDF_SRC" ]; then
   FIRST_ERROR="$(grep -m1 -E '^! ' "$LOG_SRC" 2>/dev/null)"
   [ -z "$FIRST_ERROR" ] && FIRST_ERROR="$(tail -n 20 "$LOG_CAPTURE" 2>/dev/null)"
-  echo "compile_fragment.sh: FAILED to compile $FRAGMENT_ABS ($PREAMBLE_MODE mode)" >&2
+  echo "compile_fragment.sh: FAILED to compile $FRAGMENT_ABS (${PREAMBLE_MODE:-self-contained} mode)" >&2
   echo "$FIRST_ERROR" >&2
   exit 1
 fi
