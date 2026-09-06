@@ -332,7 +332,10 @@ def canonical_roots_from_build_script(repo_root: Path) -> set[str]:
     roots: set[str] = set()
     for match in BUILD_PAPER_RE.finditer(text):
         root = match.group("root")
-        if root == "coordination-papers-mega-volume.tex":
+        # The Book and its edition drivers (coordination-papers-mega-volume-<edition>.tex,
+        # two-line roots that set \pdedition and \input the Book) carry no figures of
+        # their own; the chapters they assemble are the canonical roots.
+        if root.startswith("coordination-papers-mega-volume"):
             continue
         source_dir = match.group("src")
         if source_dir == "$PUB":
