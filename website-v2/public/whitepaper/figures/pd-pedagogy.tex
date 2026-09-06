@@ -255,4 +255,20 @@
   \section*{Solutions to the exercises}%
   \IfFileExists{sol-\pdchapterprefix.tex}{\input{sol-\pdchapterprefix}}{}%
 }
+% ---------------------------------------------------------------------------
+% Chapter-end exercise sections (Wave 12). The body keeps a pointer where a
+% cluster of exercises used to stand; the exercises themselves live in the
+% chapter's closing \section{Exercises}, grouped under \pdexercisesfor heads.
+% Arguments are pre-wrapped in \ref/\pageref by the relocation script so the
+% Book generator's label namespacing sees them.
+%   \pdexercisesfor{\S\ref{sec:x}}{Section title}
+%   \pdexercisepointer{\ref{ex:first}}{\ref{ex:last}}{\pageref{ex:first}}
+%   \pdexercisepointerone{\ref{ex:only}}{\pageref{ex:only}}
+% ---------------------------------------------------------------------------
+\newcommand{\pdexercisesfor}[2]{%
+  \par\vspace{12pt}\noindent{\scshape\bfseries #1\enspace #2}\par\smallskip}
+\newcommand{\pdexercisepointer}[3]{%
+  \par\smallskip\noindent{\small\itshape Exercises #1--#2, page~#3.}\par}
+\newcommand{\pdexercisepointerone}[2]{%
+  \par\smallskip\noindent{\small\itshape Exercise #1, page~#2.}\par}
 \makeatother
