@@ -14,7 +14,7 @@
  */
 import { describe, expect, test } from '@jest/globals';
 import { spawnSync } from 'node:child_process';
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { GIT_SHIM_CONTENT, SHIM_VERSION } from '../../cli/utils/git-shim.js';
@@ -292,6 +292,70 @@ describe('git shim v5: PATH walk cannot deadlock on a self-read pipe', () => {
     expect(res.status).toBe(127);
     expect(res.stderr).toContain('pd-shim: cannot find a real git binary on PATH');
     expect(res.stderr).not.toContain('command not found');
+  });
+
+  // ADR-0132 A0: under a hoisted halt the shim's OFF rung is `test -f` on the
+  // sentinel. pd is the thing that was halted; the shim must not boot it.
+  describe('ADR-0132: the halt sentinel turns the guard OFF without running pd', () => {
+    function runShimWithPd(argv, { halt }) {
+      const dir = mkdtempSync(join(tmpdir(), 'pd-shim-halt-'));
+      try {
+        const shimDir = join(dir, 'shim');
+        const realDir = join(dir, 'real');
+        const pdDir = join(dir, 'pdbin');
+        const pdHome = join(dir, 'pd-home');
+        for (const d of [shimDir, realDir, pdDir, pdHome]) mkdirSync(d);
+        const shim = join(shimDir, 'git');
+        writeFileSync(shim, GIT_SHIM_CONTENT);
+        chmodSync(shim, 0o755);
+        writeFileSync(join(realDir, 'git'), '#!/bin/sh\nprintf "REAL_GIT %s\\n" "$*"\n');
+        chmodSync(join(realDir, 'git'), 0o755);
+        const calls = join(dir, 'pd-calls');
+        // A pd that refuses everything: if the shim consults it, the verb is refused.
+        writeFileSync(join(pdDir, 'pd'), `#!/bin/sh\nprintf '%s\\n' "$*" >> "${calls}"\nexit 1\n`);
+        chmodSync(join(pdDir, 'pd'), 0o755);
+        if (halt) writeFileSync(join(pdHome, 'HALT'), '2026-09-05T14:02:11Z operator:erich SECURITE HALT reason=spend-runaway\n');
+        const res = spawnSync(BASH, [shim, ...argv], {
+          env: { ...process.env, PATH: [shimDir, pdDir, realDir, '/usr/bin', '/bin'].join(':'), HOME: dir, PD_HOME: pdHome, PD_SHIM_OFF: '' },
+          encoding: 'utf8',
+          timeout: 10_000,
+        });
+        return { ...res, pdCalls: existsSync(calls) ? readFileSync(calls, 'utf8').trim().split('\n') : [] };
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    }
+
+    test('the shim tests the sentinel with test -f before command -v pd', () => {
+      const haltTest = '[ -f "${PD_HOME:-$HOME/.port-daddy}/HALT" ]';
+      expect(GIT_SHIM_CONTENT).toContain(haltTest);
+      expect(GIT_SHIM_CONTENT.indexOf(haltTest)).toBeLessThan(GIT_SHIM_CONTENT.indexOf('command -v pd'));
+    });
+
+    (bashAvailable ? test : test.skip)('sentinel hoisted: a destructive verb passes through with one OFF line and pd is never executed', () => {
+      const res = runShimWithPd(['reset', '--hard'], { halt: true });
+      expect(res.error).toBeUndefined();
+      expect(res.status).toBe(0);
+      expect(res.stdout.trim()).toBe('REAL_GIT reset --hard');
+      expect(res.stderr).toMatch(/^Coordination Guard: OFF — Port Daddy is halted \(SECURITE HALT sentinel .*\/pd-home\/HALT\); proceeding without coordination rent\.\n$/);
+      expect(res.pdCalls).toEqual([]);
+    });
+
+    (bashAvailable ? test : test.skip)('no sentinel: pd guard check is consulted and its refusal stops the verb', () => {
+      const res = runShimWithPd(['reset', '--hard'], { halt: false });
+      expect(res.error).toBeUndefined();
+      expect(res.status).toBe(1);
+      expect(res.stderr).toContain('pd-shim: reset-hard refused by Port Daddy coordination guard.');
+      expect(res.pdCalls).toEqual(['guard check --git-verb reset-hard --hook']);
+      expect(res.stdout).toBe('');
+    });
+
+    (bashAvailable ? test : test.skip)('sentinel hoisted, non-destructive verb: silent pass-through, no OFF line', () => {
+      const res = runShimWithPd(['status'], { halt: true });
+      expect(res.status).toBe(0);
+      expect(res.stderr).toBe('');
+      expect(res.pdCalls).toEqual([]);
+    });
   });
 
   (bashAvailable ? test : test.skip)('a PATH entry carrying a $(...) payload is never evaluated', () => {

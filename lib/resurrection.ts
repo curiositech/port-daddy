@@ -14,6 +14,7 @@ import type Database from 'better-sqlite3';
 import { EventEmitter } from 'events';
 import { patternToSql } from './identity.js';
 import { getDeadThresholdForStatus, getStaleThresholdForStatus } from './agents.js';
+import { haltActive } from './distress.js';
 
 export type SalvageQueueStatus = 'pending' | 'stale' | 'dead' | 'resurrecting' | 'dormant';
 
@@ -73,7 +74,17 @@ interface ResurrectionSessions {
 interface ResurrectionDeps {
   sessions?: ResurrectionSessions;
   noteLimit?: number;
+  /**
+   * ADR-0132 A0: is a halt hoisted? Defaults to the real sentinel check in
+   * lib/distress.ts; injectable for tests. While halted, `check()` queues
+   * nothing and `claim()` refuses — silence during a halt is compliance.
+   */
+  haltActive?: () => boolean;
 }
+
+/** Why a resurrection call did nothing: the sentinel is hoisted. */
+export const RESURRECTION_HALTED_ERROR =
+  'Port Daddy is halted (SECURITE HALT); resurrection is suspended until the operator lifts the halt.';
 
 interface QueueMetadata {
   lastHeartbeat?: number;
@@ -213,6 +224,7 @@ export function createResurrection(db: Database.Database, deps: ResurrectionDeps
   const STALE_THRESHOLD = getStaleThreshold('ready');
   const DEAD_THRESHOLD = getDeadThreshold('ready');
   const noteLimit = deps.noteLimit ?? 200;
+  const isHalted = deps.haltActive ?? (() => haltActive());
 
   function parseMetadata(metadata: string | null): QueueMetadata {
     if (!metadata) return {};
@@ -349,6 +361,10 @@ export function createResurrection(db: Database.Database, deps: ResurrectionDeps
       identityStack?: string;
       identityContext?: string;
     }) {
+      // ADR-0132 §2 rung 22: during a HALT, silence is not death. Nothing is
+      // queued, promoted, or announced; the queue is exactly as it was and the
+      // sweep resumes with the same facts when the halt lifts.
+      if (isHalted()) return { status: 'halted' as const, queued: false, halted: true };
       const now = Date.now();
       const sinceHeartbeat = now - agent.lastHeartbeat;
       const agentStaleThreshold = getStaleThreshold(agent.status);
@@ -499,6 +515,9 @@ export function createResurrection(db: Database.Database, deps: ResurrectionDeps
      * Returns the agent's context so a new agent can continue their work
      */
     claim(agentId: string) {
+      // A halt suspends relaunch outright: nothing may be resurrected while
+      // the sentinel is hoisted, whoever asks (ADR-0132 §3, Daemon row).
+      if (isHalted()) return { success: false, error: RESURRECTION_HALTED_ERROR, halted: true };
       const refusal = heldRefusal(agentId);
       if (refusal) return refusal;
       const row = stmts.get.get(agentId) as ResurrectionQueueRow | undefined;

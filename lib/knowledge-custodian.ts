@@ -19,6 +19,7 @@ import type { Database } from 'better-sqlite3';
 import { harvestSession } from './session-harvest.js';
 import { createOperatorPermissions, type OperatorPermissions } from './operator-permissions.js';
 import { isSubscriptionBackend } from './backend-catalog.js';
+import { haltActive } from './distress.js';
 
 /** Capability tier the escalation guard reasons about. `high` always forces HITL. */
 export type ResurrectTier = 'fast' | 'high';
@@ -70,6 +71,13 @@ interface CustodianDeps {
   pollIntervalMs?: number;
   /** archiveTTL interval in ms (default 6 * 60 * 60 * 1000) */
   archiveIntervalMs?: number;
+  /**
+   * ADR-0132 A0: is a halt hoisted? Defaults to the real sentinel check in
+   * lib/distress.ts; injectable for tests. While halted the resurrect duty
+   * does nothing — not even an approval request — because a halt means
+   * "do not start, restart, or resurrect anything".
+   */
+  haltActive?: () => boolean;
 }
 
 interface DutyTimestamps {
@@ -214,6 +222,14 @@ export class KnowledgeCustodian {
   ): Promise<void> {
     const { deps } = this;
     if (!deps.messaging) return;
+
+    // ADR-0132 §3 (Daemon row): a hoisted halt suspends resurrection outright.
+    // No spawn, no approval request, no queue mutation — silence during a
+    // halt is compliance, and the custodian must not turn it into a relaunch.
+    if ((deps.haltActive ?? haltActive)()) {
+      deps.logger.info('Custodian resurrect suspended: Port Daddy is halted (SECURITE HALT)', { agentId, scope: identityProject ?? '' });
+      return;
+    }
 
     // TRUST BOUNDARY (ADR-0040): the authorization scope comes from the daemon-owned
     // StaleAgent.identityProject, NEVER from the attacker-controllable capsule. A forged

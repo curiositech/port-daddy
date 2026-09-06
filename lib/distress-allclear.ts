@@ -64,10 +64,10 @@
  * ── Interface contract ───────────────────────────────────────────────────────
  *
  * Phase 0 owns `lib/distress.ts` (appendDistress / readDistress / haltActive /
- * readHalt) and `bin/pd-distress`. This module reads the sentinel and appends
- * register lines INLINE per the shared contract, using the exact ADR wire
- * format. TODO(adr-0132-phase-0): switch the fs primitives below to
- * lib/distress.ts once phase 0 merges; keep the verification here.
+ * readHalt) and `bin/pd-distress`. `lib/distress.ts#haltActive/readHalt`
+ * delegate to `readHaltState` here, so this module must NOT import
+ * lib/distress.ts back (it would be a cycle); the sentinel read and register
+ * append below stay inline, in the exact ADR wire format, for that reason.
  */
 
 import {
@@ -661,16 +661,10 @@ export function readHaltState(opts: ReadHaltStateOptions = {}): HaltEvaluation {
   return evaluation;
 }
 
-/** The hoisted HALT record, or null when no halt is hoisted. Absence is NOT all-clear; it is only "no halt hoisted". */
-export function readHalt(opts: ReadHaltStateOptions = {}): RegistryLine | null {
-  const ev = readHaltState(opts);
-  return ev.status.state === 'hoisted' ? ev.status.halt : null;
-}
-
-/** True while a halt is hoisted and no verified ALL-CLEAR has lifted it. */
-export function haltActive(opts: ReadHaltStateOptions = {}): boolean {
-  return readHaltState(opts).status.state === 'hoisted';
-}
+// The halt PREDICATE (`haltActive()` / `readHalt()`) lives in lib/distress.ts
+// and delegates to `readHaltState` above. It is deliberately not duplicated
+// here: two exports with the same name and different answers is how a deleted
+// sentinel came to resume the ladder in the phase-0 review.
 
 export interface ApplyAllClearOptions extends ReadHaltStateOptions {
   /** Repo root for the repo-scoped register copy; omit outside a repo. */
