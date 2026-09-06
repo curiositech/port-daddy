@@ -16,14 +16,17 @@
 \ifXeTeX
   \XeTeXuseglyphmetrics=0
   \usepackage{fontspec}
-  \setmonofont{texgyrecursor-regular.otf}[BoldFont=texgyrecursor-bold.otf,
-    ItalicFont=texgyrecursor-italic.otf,BoldItalicFont=texgyrecursor-bolditalic.otf,
+  % Source Code Pro: dense, with a bold that separates typed input from output
+  % in a session; sized to Palatino's lowercase.
+  \setmonofont{SourceCodePro-Regular.otf}[BoldFont=SourceCodePro-Bold.otf,
     Scale=MatchLowercase]
   % The part openers set their display type in Times (the cover's face). Under
   % fontspec the legacy \fontfamily{ptm} has no TU italic or small caps, so the
   % face is declared here, with both.
   \newfontfamily\pdpartface{texgyretermes-regular.otf}[ItalicFont=texgyretermes-italic.otf,
     BoldFont=texgyretermes-bold.otf,BoldItalicFont=texgyretermes-bolditalic.otf,Ligatures=TeX]
+  \newfontfamily\pdgrotesk{texgyreheros-regular.otf}[ItalicFont=texgyreheros-italic.otf,
+    BoldFont=texgyreheros-bold.otf,BoldItalicFont=texgyreheros-bolditalic.otf,Ligatures=TeX]
   % A 66-character column cannot hold a script path in one piece. Inside
   % \texttt, XeTeX's inter-character tokens allow a break (no hyphen) after
   % / _ . - = : and , so paths and flags wrap where a reader expects.
@@ -38,9 +41,10 @@
   \makeatother
 \else
   \newcommand\pdpartface{\fontfamily{ptm}\selectfont}
+  \newcommand\pdgrotesk{\fontfamily{qhv}\selectfont}
   % pdfTeX fallback (not the published path; scripts/build-whitepapers.sh
   % compiles the Book with xelatex): the same face through its Type 1 package.
-  \usepackage{tgcursor}
+  \usepackage[scale=0.92]{sourcecodepro}
 \fi
 \let\openbox\relax
 \usepackage[fontsize=10.5pt]{fontsize}
@@ -89,6 +93,24 @@
 % Trim 7 x 10 in (Wave 12, L1): one text column of 4.5 in (about 66 characters
 % at 10.5 pt) and a 1.3 in outer margin column that carries sidenotes, margin
 % heads, exercise pointers and margin figures. The standalone chapters keep A4.
+% ---------------------------------------------------------------------------
+% Editions. One set of chapter sources, three characters: maritime (the
+% watercolour plates), swiss (colour blocking, grotesk display, flat marks) and
+% technical (the Seventies manual: monoline ink, halftone, one warm accent,
+% drawing-sheet openers). A driver root sets \pdedition before \input-ing the
+% Book; without one, the Book is the maritime edition.
+% ---------------------------------------------------------------------------
+\providecommand{\pdedition}{maritime}
+\newif\ifpdmaritime\newif\ifpdswiss\newif\ifpdtechnical
+\makeatletter
+\edef\pd@ed{\pdedition}
+\def\pd@tmp{maritime}\ifx\pd@ed\pd@tmp\pdmaritimetrue\fi
+\def\pd@tmp{swiss}\ifx\pd@ed\pd@tmp\pdswisstrue\fi
+\def\pd@tmp{technical}\ifx\pd@ed\pd@tmp\pdtechnicaltrue\fi
+\makeatother
+\definecolor{pdtechorange}{HTML}{C8641E}
+\definecolor{pdtechochre}{HTML}{B08A2E}
+\definecolor{pdtecholive}{HTML}{5E6B3A}
 \geometry{paperwidth=7in,paperheight=10in,left=0.8in,right=1.7in,%
   top=0.85in,bottom=0.95in,textwidth=4.5in,marginparsep=0.2in,marginparwidth=1.3in}
 \captionsetup{font=small,labelfont=bf}
@@ -238,14 +260,18 @@
         {{\scshape\bfseries\textcolor{hhink}{Exercises.}}\par\vspace{3pt}#1};
   \end{tikzpicture}\par\vspace{6pt}}
 
-\lstdefinestyle{pdcode}{language=C,backgroundcolor=\color{codebg},frame=single,
-  rulecolor=\color{codeframe},basicstyle=\ttfamily\small,
-  keywordstyle=\color{hhink}\bfseries,commentstyle=\color{hhgray}\itshape,
-  stringstyle=\color{hhgray},numbers=left,numberstyle=\tiny\color{gray},
-  numbersep=8pt,breaklines=true,breakatwhitespace=false,
-  postbreak=\mbox{\textcolor{gray}{$\hookrightarrow$}\space},
-  showstringspaces=false,tabsize=2,
-  xleftmargin=15pt,xrightmargin=5pt,framexleftmargin=15pt,captionpos=b}
+% Code and pseudocode as a printed book sets them: an indented block in a
+% dense monospace with tight leading, keywords bold, comments italic grey,
+% small grey line numbers, no frame, no background, no stripes. A wrapped
+% line continues under a small grey hook.
+\lstdefinestyle{pdcode}{language=C,backgroundcolor={},frame=none,
+  basicstyle=\ttfamily\fontsize{8.6}{10.6}\selectfont,columns=fullflexible,keepspaces=true,
+  keywordstyle=\bfseries,commentstyle=\color{hhgray}\itshape,
+  stringstyle=\color{hhink!70!hhgray},numbers=left,numberstyle=\fontsize{6.5}{7}\selectfont\color{hhgray},
+  numbersep=7pt,breaklines=true,breakatwhitespace=false,breakindent=1.6em,
+  postbreak=\mbox{\textcolor{hhgray}{\fontsize{7}{7}\selectfont$\hookrightarrow$}\space},
+  showstringspaces=false,tabsize=2,aboveskip=7pt,belowskip=5pt,
+  xleftmargin=1.9em,xrightmargin=0pt,captionpos=b}
 \lstdefinestyle{pseudocode}{style=pdcode,
   morekeywords={function,return,if,then,else,for,while,do,begin,end,atomic,transaction,reject,commit,assert,raise}}
 \lstdefinestyle{proverif}{style=pdcode}
@@ -368,16 +394,8 @@
 % The chapter opener: one page with the title, an epigraph, a plate when the
 % chapter has one, and the question the chapter answers with its one-breath
 % answer. Nothing else. The chapter's first section starts on the next page.
-\newsavebox{\pdqbox}\newlength{\pdplateh}
-\newcommand{\pdchapter}[4]{%
-  \clearpage
-  \renewcommand{\pdcurrentchapter}{#1}%
-  \renewcommand{\pdchapterprefix}{#3}%
-  \renewcommand{\pdcurrentchaptercolor}{#4}%
-  \setcounter{pdchapter}{#1}\addtocounter{pdchapter}{-1}\refstepcounter{pdchapter}%
-  \label{chap:#3}%
-  \addcontentsline{toc}{chapter}{\protect\numberline{#1}#2}%
-  \thispagestyle{empty}%
+\makeatletter
+\def\pd@chapter@maritime#1#2#3#4{%
   \vspace*{0.1cm}
   \noindent{\scshape\footnotesize\color{hhgray}Chapter #1 of \pdchaptercount\hfill\pdchapterpartlabel}\par
   \vspace{0.25cm}
@@ -419,6 +437,79 @@
   \vfill
   \noindent\usebox{\pdqbox}\par
   \vspace{0.2cm}
+}
+% swiss: a colour band carries number and title; the question sits on paper
+\def\pd@chapter@swiss#1#2#3#4{%
+  \begin{adjustwidth}{0pt}{-\dimexpr\marginparsep+\marginparwidth\relax}
+  \vspace*{-0.5cm}
+  \noindent\begin{tikzpicture}
+    \node[fill=#4,inner sep=0pt,minimum width=\linewidth,minimum height=0.36\textheight,anchor=north west] (band) at (0,0) {};
+    \node[anchor=north west,text=hhpaper,font=\pdgrotesk\fontsize{9.5}{12}\selectfont\bfseries,inner sep=0pt]
+      at (0.45cm,-0.5cm) {Chapter #1 of \pdchaptercount\quad\textperiodcentered\quad\pdchapterpartlabel};
+    \node[anchor=south west,text=hhpaper,font=\pdgrotesk\fontsize{96}{96}\selectfont\bfseries,inner sep=0pt]
+      at (0.4cm,{-0.36\textheight+3.2cm}) {#1};
+    \node[anchor=south west,text=hhpaper,font=\pdgrotesk\fontsize{27}{31}\selectfont\bfseries,inner sep=0pt,
+      text width={\dimexpr\linewidth-1cm\relax},align=left] at (0.45cm,{-0.36\textheight+0.55cm}) {#2};
+  \end{tikzpicture}\par
+  \vspace{1.0cm}
+  \noindent{\pdgrotesk\footnotesize\bfseries\color{hhgray}The question this chapter answers}\par
+  \vspace{6pt}
+  {\noindent\fontsize{21}{26}\selectfont\color{hhink}\hyphenpenalty=10000\exhyphenpenalty=10000\raggedright\pdchapterquestion\par}
+  \vspace{9pt}
+  {\noindent\small\itshape\pdchapteroneline\par}
+  \vfill
+  \begin{flushright}
+    \begin{minipage}{0.84\linewidth}\raggedleft
+      {\itshape\pdchapterepigraph\par}
+      \vspace{5pt}
+      {\pdgrotesk\footnotesize\color{hhgray}\pdchapterepigraphsource\par}
+    \end{minipage}
+  \end{flushright}
+  \vspace{0.3cm}
+  \end{adjustwidth}}
+% technical: a drawing sheet; the chapter numeral in the accent, the title
+% block at the foot
+\def\pd@chapter@technical#1#2#3#4{%
+  \pd@techsheet{#2}{Chapter #1}%
+  \begin{adjustwidth}{0pt}{-\dimexpr\marginparsep+\marginparwidth\relax}
+  \vspace*{0.5cm}
+  \noindent{\pdgrotesk\footnotesize Chapter #1 of \pdchaptercount\hfill\pdchapterpartlabel}\par
+  \vspace{0.3cm}\noindent{\color{hhink}\rule{\linewidth}{0.5pt}}\par
+  \vspace{0.9cm}
+  \noindent{\pdgrotesk\fontsize{96}{96}\selectfont\color{pdtechorange}#1\par}
+  \vspace{0.6cm}
+  \noindent{\pdgrotesk\fontsize{26}{31}\selectfont\hyphenpenalty=10000\exhyphenpenalty=10000\raggedright #2\par}
+  \vspace{0.9cm}
+  \begin{flushright}
+    \begin{minipage}{0.84\linewidth}\raggedleft
+      {\itshape\pdchapterepigraph\par}
+      \vspace{5pt}
+      {\pdgrotesk\footnotesize\color{hhgray}\pdchapterepigraphsource\par}
+    \end{minipage}
+  \end{flushright}
+  \vfill
+  \noindent{\pdgrotesk\footnotesize\bfseries\color{hhgray}The question this chapter answers}\par
+  \vspace{6pt}
+  {\noindent\fontsize{21}{26}\selectfont\color{hhink}\hyphenpenalty=10000\exhyphenpenalty=10000\raggedright\pdchapterquestion\par}
+  \vspace{9pt}
+  {\noindent\small\itshape\pdchapteroneline\par}
+  \vspace{2.6cm}
+  \end{adjustwidth}}
+\makeatother
+\newsavebox{\pdqbox}\newlength{\pdplateh}
+\makeatletter
+\newcommand{\pdchapter}[4]{%
+  \clearpage
+  \renewcommand{\pdcurrentchapter}{#1}%
+  \renewcommand{\pdchapterprefix}{#3}%
+  \renewcommand{\pdcurrentchaptercolor}{#4}%
+  \setcounter{pdchapter}{#1}\addtocounter{pdchapter}{-1}\refstepcounter{pdchapter}%
+  \label{chap:#3}%
+  \addcontentsline{toc}{chapter}{\protect\numberline{#1}#2}%
+  \thispagestyle{empty}%
+  \ifpdswiss\pd@chapter@swiss{#1}{#2}{#3}{#4}\else
+  \ifpdtechnical\pd@chapter@technical{#1}{#2}{#3}{#4}\else
+  \pd@chapter@maritime{#1}{#2}{#3}{#4}\fi\fi
   \clearpage
   \setcounter{section}{0}\setcounter{figure}{0}\setcounter{table}{0}\setcounter{equation}{0}\setcounter{lstlisting}{0}\setcounter{pdexercise}{0}%
   \renewcommand{\thesection}{#1.\arabic{section}}%
@@ -436,6 +527,7 @@
   \fancyhead[L]{\small\itshape\color{hhgray} Chapter #1. #2}%
   \fancyfoot[C]{\footnotesize\color{hhgray} \pdeditiontitle\ \textperiodcentered\ Chapter #1 of \pdchaptercount}%
 }
+\makeatother
 \newcommand{\pdchapterappendix}{%
   \clearpage\setcounter{section}{0}%
   \renewcommand{\thesection}{\pdcurrentchapter.\Alph{section}}%
@@ -456,19 +548,35 @@
   \par\noindent\pdchaplink{#2}{{\Large\bfseries #1}\quad{\large\bfseries #3}}\par
   \vspace{2pt}\noindent\hspace*{2.4em}\begin{minipage}{0.82\textwidth}\small #4\end{minipage}\par
   \vspace{9pt}}
-\newcommand{\pdpart}[5]{%
-  \clearpage
-  \thispagestyle{empty}%
-  \refstepcounter{part}\label{part:#1}%
-  \addcontentsline{toc}{part}{\textbf{\scshape Part #1}\quad #2}%
-  \IfFileExists{plates/part-#1.jpg}{%
-    % With a plate the part opens like the cover: the wash fills the sheet and
-    % the part's type sits in ink over its open upper wash. The weight rule
-    % keeps the book's four hues; nothing else on the page is colored.
+\makeatletter
+% The drawing sheet of the technical edition: frame, inch ticks, faint grid,
+% title block bottom right. #1 title, #2 sheet name.
+\def\pd@techsheet#1#2{%
+  \AddToShipoutPictureBG*{\AtPageLowerLeft{\begin{tikzpicture}[x=1in,y=1in]
+    \draw[hhgray!28,line width=.3pt,step=0.25] (0.6,0.6) grid (6.4,9.4);
+    \draw[hhink,line width=.7pt] (0.5,0.5) rectangle (6.5,9.5);
+    \foreach \x in {1,...,6} \draw[hhink,line width=.5pt] (\x,0.5)--(\x,0.6) (\x,9.4)--(\x,9.5);
+    \foreach \y in {1,...,9} \draw[hhink,line width=.5pt] (0.5,\y)--(0.6,\y) (6.4,\y)--(6.5,\y);
+    \fill[hhpaper] (3.3,0.5) rectangle (6.5,1.45);
+    \draw[hhink,line width=.6pt] (3.3,0.5) rectangle (6.5,1.45);
+    \draw[hhink,line width=.4pt] (3.3,0.98)--(6.5,0.98) (5.25,0.5)--(5.25,1.45) (5.9,0.5)--(5.9,1.45);
+    \node[anchor=north west,font=\pdgrotesk\fontsize{5.5}{6}\selectfont,text=hhgray,inner sep=2pt] at (3.3,1.45) {TITLE};
+    \node[anchor=south west,font=\pdgrotesk\footnotesize,text=hhink,text width=1.85in,align=left,inner sep=3pt] at (3.3,0.98) {#1};
+    \node[anchor=north west,font=\pdgrotesk\fontsize{5.5}{6}\selectfont,text=hhgray,inner sep=2pt] at (5.25,1.45) {SHEET};
+    \node[anchor=south west,font=\pdgrotesk\footnotesize,text=hhink,inner sep=3pt] at (5.25,0.98) {#2};
+    \node[anchor=north west,font=\pdgrotesk\fontsize{5.5}{6}\selectfont,text=hhgray,inner sep=2pt] at (5.9,1.45) {REV};
+    \node[anchor=south west,font=\pdgrotesk\footnotesize,text=hhink,inner sep=3pt] at (5.9,0.98) {3.0};
+    \node[anchor=north west,font=\pdgrotesk\fontsize{5.5}{6}\selectfont,text=hhgray,inner sep=2pt] at (3.3,0.98) {WORK};
+    \node[anchor=south west,font=\pdgrotesk\footnotesize,text=hhink,text width=1.85in,align=left,inner sep=3pt] at (3.3,0.5) {\pdeditiontitle};
+    \node[anchor=north west,font=\pdgrotesk\fontsize{5.5}{6}\selectfont,text=hhgray,inner sep=2pt] at (5.25,0.98) {DATE};
+    \node[anchor=south west,font=\pdgrotesk\footnotesize,text=hhink,inner sep=3pt] at (5.25,0.5) {\pdeditiondate};
+    \node[anchor=north west,font=\pdgrotesk\fontsize{5.5}{6}\selectfont,text=hhgray,inner sep=2pt] at (5.9,0.98) {SCALE};
+    \node[anchor=south west,font=\pdgrotesk\footnotesize,text=hhink,inner sep=3pt] at (5.9,0.5) {1:1};
+  \end{tikzpicture}}}}
+% maritime: the wash fills the sheet; type in ink over its open upper wash
+\def\pd@part@maritime#1#2#3#4#5{%
     \pagecolor{hhpaper}\color{hhink}%
     \AddToShipoutPictureBG*{\AtPageLowerLeft{\includegraphics[width=\paperwidth,height=\paperheight]{plates/part-#1.jpg}}}%
-    % The part page has no margin notes, so its type takes the full 6 in
-    % (column and margin) at the proportions of the first printing's A4 page.
     \begin{adjustwidth}{0pt}{-\dimexpr\marginparsep+\marginparwidth\relax}
     \vspace*{1.1cm}
     \noindent\pdweightrule{\csname pdpartindexof#1\endcsname}{0.42\linewidth}{2pt}\par
@@ -481,24 +589,54 @@
     \vspace{0.85cm}
     {\hypersetup{linkcolor=hhink}\noindent\begin{minipage}{0.74\linewidth}#5\end{minipage}\par}
     \end{adjustwidth}
-    \vfill
-  }{%
+    \vfill}
+% swiss: the part's colour fills the page; grotesk type on a hard grid
+\def\pd@part@swiss#1#2#3#4#5{%
     \pagecolor{#3}\color{hhpaper}%
-    \vspace*{1.6cm}
-    \noindent\pdweightrule[hhpaper]{\csname pdpartindexof#1\endcsname}{0.5\textwidth}{2pt}\par
-    \vspace{0.6cm}
-    \noindent{\scshape\Large Part #1}\par
-    \vspace{0.3cm}
-    \noindent{\fontsize{40}{46}\selectfont\bfseries #2\par}
+    \begin{adjustwidth}{0pt}{-\dimexpr\marginparsep+\marginparwidth\relax}
+    \vspace*{0.3cm}
+    \noindent{\pdgrotesk\fontsize{9.5}{12}\selectfont\bfseries Part #1}\hfill{\pdgrotesk\fontsize{9.5}{12}\selectfont\pdeditiontitle}\par
+    \vspace{0.3cm}\noindent{\color{hhpaper}\rule{\linewidth}{1.4pt}}\par
+    \vspace{1.4cm}
+    \noindent{\pdgrotesk\fontsize{150}{150}\selectfont\bfseries #1\par}
     \vspace{0.9cm}
-    \noindent\begin{minipage}{0.80\textwidth}{\large #4\par}\end{minipage}\par
-    \vspace{1.1cm}
-    {\hypersetup{linkcolor=hhpaper}\noindent\begin{minipage}{0.92\textwidth}#5\end{minipage}\par}
+    \noindent{\pdgrotesk\fontsize{30}{34}\selectfont\bfseries\hyphenpenalty=10000\raggedright #2\par}
+    \vspace{0.9cm}
+    \noindent\begin{minipage}{0.62\linewidth}{\pdgrotesk\fontsize{11}{15}\selectfont\hyphenpenalty=10000\raggedright #4\par}\end{minipage}\par
     \vfill
-  }%
+    {\hypersetup{linkcolor=hhpaper}\noindent\begin{minipage}{0.74\linewidth}\pdgrotesk #5\end{minipage}\par}
+    \vspace{0.5cm}
+    \end{adjustwidth}}
+% technical: a drawing sheet with the part's numeral in the one warm accent
+\def\pd@part@technical#1#2#3#4#5{%
+    \pagecolor{hhpaper}\color{hhink}%
+    \pd@techsheet{#2}{Part #1}%
+    \begin{adjustwidth}{0pt}{-\dimexpr\marginparsep+\marginparwidth\relax}
+    \vspace*{0.9cm}
+    \noindent{\pdgrotesk\footnotesize Part #1\hfill\pdeditiontitle}\par
+    \vspace{0.3cm}\noindent{\color{hhink}\rule{\linewidth}{0.5pt}}\par
+    \vspace{1.4cm}
+    \noindent{\pdgrotesk\fontsize{140}{140}\selectfont\color{pdtechorange}#1\par}
+    \vspace{0.9cm}
+    \noindent{\pdgrotesk\fontsize{26}{31}\selectfont\hyphenpenalty=10000\raggedright #2\par}
+    \vspace{0.7cm}
+    \noindent\begin{minipage}{0.62\linewidth}{\itshape\hyphenpenalty=10000\raggedright #4\par}\end{minipage}\par
+    \vfill
+    {\hypersetup{linkcolor=hhink}\noindent\begin{minipage}{0.74\linewidth}#5\end{minipage}\par}
+    \vspace{2.4cm}
+    \end{adjustwidth}}
+\newcommand{\pdpart}[5]{%
+  \clearpage
+  \thispagestyle{empty}%
+  \refstepcounter{part}\label{part:#1}%
+  \addcontentsline{toc}{part}{\textbf{\scshape Part #1}\quad #2}%
+  \ifpdswiss\pd@part@swiss{#1}{#2}{#3}{#4}{#5}\else
+  \ifpdtechnical\pd@part@technical{#1}{#2}{#3}{#4}{#5}\else
+  \IfFileExists{plates/part-#1.jpg}{\pd@part@maritime{#1}{#2}{#3}{#4}{#5}}{\pd@part@swiss{#1}{#2}{#3}{#4}{#5}}\fi\fi
   \clearpage
   \nopagecolor\color{hhink}%
 }
+\makeatother
 
 % Front-matter map ("The argument, chapter by chapter"), generated from the
 % JSON. A chrome page: its links take each part's hue; \pdcontentsend restores

@@ -46,3 +46,10 @@
   \draw[pd rule,-{Stealth[length=1.65mm,width=1.05mm]}] (#1,#2) -- (#1,#3);
   \node[pd axis label,anchor=south,align=center] at (#1,#3) {#4};
 }
+
+% ---------------------------------------------------------------------------
+% Editions. The Book sets \pdedition (maritime | swiss | technical) and the
+% matching override file restyles the same names, so one drawing renders in
+% each edition's character. Standalone chapters have no edition.
+% ---------------------------------------------------------------------------
+\ifdefined\pdedition\IfFileExists{figures/pd-figure-language-\pdedition.tex}{\input{figures/pd-figure-language-\pdedition}}{}\fi

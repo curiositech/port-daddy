@@ -66,6 +66,8 @@ PAPERS=(
   "whitepaper|legible-swarm.tex|$PUB/legible-swarm-whitepaper.pdf"
   "whitepaper|single-writer-kernel.tex|$PUB/single-writer-kernel-whitepaper.pdf"
   "$PUB|coordination-papers-mega-volume.tex|$PUB/coordination-papers-mega-volume.pdf"
+  "$PUB|coordination-papers-mega-volume-swiss.tex|$PUB/coordination-papers-mega-volume-swiss.pdf"
+  "$PUB|coordination-papers-mega-volume-technical.tex|$PUB/coordination-papers-mega-volume-technical.pdf"
 )
 
 CHANGED_SINCE=""
@@ -188,9 +190,9 @@ build_one() {
     # package) and turns off XeTeX's glyph-metric line boxes, so it is
     # compiled with xelatex; the standalone chapters stay on pdfTeX.
     local engine=pdflatex latexmk_engine=-pdf
-    if [ "$roottex" = "coordination-papers-mega-volume.tex" ]; then
-      engine=xelatex; latexmk_engine=-xelatex
-    fi
+    case "$roottex" in
+      coordination-papers-mega-volume*.tex) engine=xelatex; latexmk_engine=-xelatex ;;
+    esac
     if command -v latexmk >/dev/null 2>&1; then
       latexmk "$latexmk_engine" -interaction=nonstopmode -halt-on-error -file-line-error \
               -outdir="$outdir" "$roottex"

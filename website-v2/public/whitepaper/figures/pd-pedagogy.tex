@@ -264,13 +264,19 @@
 %   ...
 %   \end{pdsession}
 % ---------------------------------------------------------------------------
-\lstdefinestyle{pdsession}{basicstyle=\ttfamily\footnotesize,columns=fullflexible,numbers=none,backgroundcolor=\color{white},
-  keepspaces=true,breaklines=true,breakatwhitespace=false,frame=none,
-  xleftmargin=0pt,aboveskip=3pt,belowskip=3pt,showstringspaces=false,
-  language={},keywordstyle={},commentstyle={},stringstyle={},identifierstyle={}}
+% The convention of Kernighan's books and every serious manual since: what
+% the reader types is bold (the prompt line), what the program prints is
+% regular; dense monospace, tight leading, no box.
+\lstdefinestyle{pdsession}{basicstyle=\ttfamily\fontsize{8.6}{10.6}\selectfont,columns=fullflexible,numbers=none,backgroundcolor={},
+  keepspaces=true,breaklines=true,breakatwhitespace=false,breakindent=2em,frame=none,
+  postbreak=\mbox{\textcolor{hhgray}{\fontsize{7}{7}\selectfont$\hookrightarrow$}\space},
+  xleftmargin=0pt,aboveskip=4pt,belowskip=2pt,showstringspaces=false,
+  language={},keywordstyle={},commentstyle={},stringstyle={},identifierstyle={},
+  moredelim=[l][\bfseries]{\$\ }}
 \newlength{\pd@sessionwidth}
 \lstnewenvironment{pdsession}[1][]{%
   \endgraf\addvspace{8pt plus 1pt}%
+  \ifdefined\Needspace\Needspace{7\baselineskip}\fi
   % In the Book a transcript runs across the column and the margin (6 in,
   % 83 monospace characters), the full-width block of the page grammar.
   % (through the listing's own width key: a nested environment would change
@@ -280,7 +286,7 @@
   \else
     \setlength{\pd@sessionwidth}{\linewidth}%
   \fi
-  \noindent\makebox[\linewidth][l]{\color{pdinkmuted}\rule{\pd@sessionwidth}{0.4pt}}\endgraf\nobreak\vspace{2pt}%
+  \noindent\makebox[\linewidth][l]{\color{pdinkmuted}\rule{\pd@sessionwidth}{0.4pt}}\endgraf\nobreak\vspace{3pt}%
   \noindent\pd@marginhead{At the terminal}%
   \ifx\relax#1\relax\else{\itshape #1.}\fi\endgraf\nobreak
   \lstset{style=pdsession,linewidth=\pd@sessionwidth}%
