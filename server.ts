@@ -614,7 +614,15 @@ function triggerTool2VecReconcile(trigger: string): void {
   });
 }
 const episodicMemory = createEpisodicMemory(db, { tuples, graphEdges, semanticResolver });
-const durableAgentRoster = createDurableAgentRoster(db, { resolver: semanticResolver, logger });
+// Durable forensics journal — every Arbiter security event AND every identity
+// retirement / resurrection (actor souls, durable roster) is written, in full,
+// to an append-only JSONL journal OUTSIDE the live DB (~/.port-daddy/forensics/),
+// so it survives the 7-day activity_log prune. Default on; opt out with
+// PD_FORENSICS_ARCHIVE=off. (ADR-0089.) Created here, ahead of the identity
+// stores, because they journal through it.
+const forensicsSink =
+  process.env.PD_FORENSICS_ARCHIVE === 'off' ? undefined : createJsonlForensicsArchive();
+const durableAgentRoster = createDurableAgentRoster(db, { resolver: semanticResolver, logger, forensicsSink });
 const quorum = createQuorum({ tuples });
 const feedback = createFeedback({ tuples });
 const roadmapItems = createRoadmapItems({ db, tuples, graphEdges });
@@ -804,7 +812,9 @@ const bonds = createBonds(db, {
 // no new budget. HONEST LIMIT: the anti-launder only fully bites once the `door`
 // lane makes the SQLite write-boundary real (a same-UID agent can otherwise
 // write a ledger/pool row directly). This is ADR-0040's explicit non-goal.
-const actorSouls = createActorSouls(db);
+// Retirement is final unless resurrected through the audited path; both
+// transitions are journaled to the forensics sink (identity keystone).
+const actorSouls = createActorSouls(db, { forensicsSink });
 // Grandfather EXISTING agents (from budget_ledger/bond_escrow/agents) into
 // trusted souls before budgetGuard starts routing spend through the souls
 // choke below -- otherwise every already-running agent looks like a brand
@@ -1304,12 +1314,8 @@ function resolveArbiterStrictMode(value: string | undefined): boolean {
 
 semanticIndex.initialize();
 const arbiterStrictMode = resolveArbiterStrictMode(process.env.PORT_DADDY_ARBITER_STRICT);
-// Durable forensics journal — every Arbiter security event is written, in full,
-// to an append-only JSONL journal OUTSIDE the live DB (~/.port-daddy/forensics/),
-// so it survives the 7-day activity_log prune. Default on; opt out with
-// PD_FORENSICS_ARCHIVE=off. (ADR-0089.)
-const forensicsSink =
-  process.env.PD_FORENSICS_ARCHIVE === 'off' ? undefined : createJsonlForensicsArchive();
+// The forensics journal (`forensicsSink`, ADR-0089) is created above, next to
+// the identity stores that also write to it.
 const arbiter = createArbiter(
   { activityLog, agents, sessions, locks, resurrection, bonds, forensicsSink },
   { strictMode: arbiterStrictMode }
