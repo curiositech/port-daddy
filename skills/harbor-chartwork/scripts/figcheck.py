@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """figcheck.py -- mechanical geometry QA on one compiled figure PDF.
 
-Runs seven PyMuPDF geometry checks against a single-figure PDF (as produced by
+Runs eight PyMuPDF geometry checks against a single-figure PDF (as produced by
 compile_fragment.sh) and reports pass/fail/warn per check:
 
   T1  minimum rendered text size       (below --min-font-pt: FAIL)
@@ -17,25 +17,40 @@ compile_fragment.sh) and reports pass/fail/warn per check:
   T6  dead canvas                      (drawn+text content bbox under 40% of
                                          the page in BOTH width and height: WARN)
   T7  wider than the chapter textwidth (content bbox wider than --textwidth-cm: WARN)
+  T8  caption collision                (a vector drawing or a tikzpicture text
+                                         span intersects the caption's own text
+                                         block: FAIL)
 
 All checks operate purely on rendered PDF geometry (PyMuPDF's get_text("dict")
 and get_drawings()), not on the TikZ source -- this is deliberately the
 complement of tikz_precheck.py, which reads source and needs no compile.
 
+T8 identifies the caption as the rendered text LINE whose text starts with
+"Figure"/"Table" followed by a number or colon (e.g. "Figure 1: ..."); if no
+line matches that pattern, it falls back to the lowest (bottom-most) text
+line on the page, on the theory that a caption is normally the last thing on
+a standalone figure page. Any other text line or any drawing (path/line/rect
+from get_drawings()) that geometrically intersects that line's bbox is a hit
+-- the figure's own artwork or a reproduced caption bar bleeding into the
+real caption. (Line, not pymupdf's own coarser "block" grouping, on purpose:
+a block can merge two visually-close-but-unrelated lines into one region,
+which would blur exactly the collision this check looks for.)
+
 Units: T1 works in PDF points (a span's reported font size already IS points).
-T2-T6 all work in PDF points internally; T7's --textwidth-cm is converted to
-points (1cm = 28.346456692913385pt) before comparing.
+T2-T6, T8 all work in PDF points internally; T7's --textwidth-cm is converted
+to points (1cm = 28.346456692913385pt) before comparing.
 
 Usage:
   figcheck.py PDF [--json OUT.json] [--md OUT.md] [--min-font-pt 7] [--textwidth-cm 16.3]
 
 Exit status:
-  0  every T1-T5 check passed on every page (T6/T7 warnings do not affect this)
-  1  at least one T1-T5 check failed
+  0  every T1-T5, T8 check passed on every page (T6/T7 warnings do not affect this)
+  1  at least one T1-T5, T8 check failed
   2  usage error, or the PDF could not be opened
 """
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -46,9 +61,18 @@ except ImportError:  # pragma: no cover - environment guard, not a code path und
     sys.exit(2)
 
 PT_PER_CM = 72.0 / 2.54
-HARD_CHECKS = ("T1", "T2", "T3", "T4", "T5")
+HARD_CHECKS = ("T1", "T2", "T3", "T4", "T5", "T8")
 WARN_CHECKS = ("T6", "T7")
 ALL_CHECKS = HARD_CHECKS + WARN_CHECKS
+
+# T8: a caption line's text starts with "Figure"/"Table" followed shortly by
+# a digit or a colon -- "Figure 1: ...", "Table 2 ...", "Figure: ...".
+# Matched per rendered text LINE, not the coarser pymupdf "block" grouping --
+# a block can merge two visually-close-but-unrelated lines together (exactly
+# the collision T8 is looking for), so identifying "the caption" at block
+# granularity would blur it with whatever it collides with. A line is the
+# same unit T2-T5 already reason about.
+CAPTION_LEAD_RE = re.compile(r"^\s*(Figure|Table)\s*[\d:]")
 
 # Geometry tolerances (points). These absorb normal font-metric/antialiasing
 # fuzz so the checks fire on real problems, not on floating-point noise.
@@ -439,6 +463,62 @@ def check_t7(content_rect, textwidth_pt, textwidth_cm, page_no):
     return []
 
 
+def find_caption_lines(lines):
+    """The line(s) whose text opens like a caption ("Figure 1: ...",
+    "Table 2 ..."); if none match, fall back to the single lowest (largest
+    bottom-edge y) text line on the page -- a standalone figure PDF normally
+    has its caption as the last thing on the page even when it isn't
+    literally prefixed "Figure"/"Table"."""
+    matches = [ln for ln in lines if CAPTION_LEAD_RE.match(ln["text"])]
+    if matches:
+        return matches
+    if not lines:
+        return []
+    return [max(lines, key=lambda ln: ln["bbox"][3])]
+
+
+def check_t8(lines, drawings, page_no):
+    findings = []
+    for cap in find_caption_lines(lines):
+        cap_rect = cap["bbox"]
+        cap_text = cap["text"].strip()
+        for d in drawings:
+            if rect_overlap_area(cap_rect, d["rect"]) <= 0:
+                continue
+            findings.append(
+                {
+                    "check": "T8",
+                    "severity": "fail",
+                    "page": page_no,
+                    "bbox": d["rect"],
+                    "caption_bbox": cap_rect,
+                    "caption_text": cap_text,
+                    "message": f"a drawing at {tuple(round(v, 1) for v in d['rect'])} "
+                    f"intersects the caption {cap_text!r} at "
+                    f"{tuple(round(v, 1) for v in cap_rect)}",
+                }
+            )
+        for ln in lines:
+            if ln is cap:
+                continue  # the caption's own line, not a collision with itself
+            if rect_overlap_area(cap_rect, ln["bbox"]) <= 0:
+                continue
+            findings.append(
+                {
+                    "check": "T8",
+                    "severity": "fail",
+                    "page": page_no,
+                    "bbox": ln["bbox"],
+                    "caption_bbox": cap_rect,
+                    "caption_text": cap_text,
+                    "text": ln["text"],
+                    "message": f"text {ln['text']!r} intersects the caption {cap_text!r} "
+                    f"at {tuple(round(v, 1) for v in cap_rect)}",
+                }
+            )
+    return findings
+
+
 # --------------------------------------------------------------------------- #
 # Driver
 # --------------------------------------------------------------------------- #
@@ -464,6 +544,7 @@ def run_figcheck(pdf_path, min_font_pt=7.0, textwidth_cm=16.3):
         findings += check_t5(lines, drawings, page_rect, page_no)
         findings += check_t6(content_rect, page_rect, page_no)
         findings += check_t7(content_rect, textwidth_pt, textwidth_cm, page_no)
+        findings += check_t8(lines, drawings, page_no)
 
     by_check = {c: [] for c in ALL_CHECKS}
     for f in findings:
@@ -504,6 +585,7 @@ CHECK_LABELS = {
     "T5": "content outside the MediaBox",
     "T6": "dead canvas (warn only)",
     "T7": "wider than chapter textwidth (warn only)",
+    "T8": "caption collision",
 }
 
 
