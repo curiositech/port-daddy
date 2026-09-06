@@ -70,10 +70,13 @@ Commitments, deadlines, messages, outcomes, and recovery evidence persist beyond
 one process. A universally portable execution capsule and provider-independent
 semantic restoration remain \Designed{}.
 
-\paragraph{Authentication and attenuation --- \Closed{} at the model boundary.}
-ProVerif and Kani artifacts verify the recorded proof-of-possession and monotone
-attenuation properties. Runtime callers still owe conformance: the verified
-primitive must be the primitive that every protected effect actually checks.
+\paragraph{Authentication and attenuation --- \Closed{} for the protocol model, \Partial{} for the code.}
+ProVerif closes the recorded proof-of-possession and every-hop attenuation
+queries at the model boundary. The Kani harnesses over the deployed Rust crate
+are bounded: no panic in the parser on 32-byte inputs with the cryptography
+stubbed, no panic in the comparator, and two concrete vectors for the subset
+check. Runtime callers still owe conformance: the verified primitive must be the
+primitive that every protected effect actually checks.
 
 \paragraph{Escrow and settlement --- mixed.}
 Ledger and conservation slices are \BuiltWeak{}. Cross-authority custody,

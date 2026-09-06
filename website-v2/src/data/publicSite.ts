@@ -78,7 +78,7 @@ export const proofPanels: ProofPanel[] = [
     command: 'cargo kani --harness proof_verify_logic_only',
     output: [
       'Adversarial token parsing explored',
-      'Memory-safety properties checked',
+      'No-panic properties checked within the harness bound',
       'Malformed input paths bounded',
       'Constant-time comparison harnesses included',
     ],

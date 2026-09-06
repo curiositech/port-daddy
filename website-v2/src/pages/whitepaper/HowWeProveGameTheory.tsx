@@ -901,10 +901,13 @@ z3 cubic-root.smt2
                     </li>
                     <li>
                       <strong className="text-[var(--text-primary)]">Kani.</strong>
-                      {' '}The Rust capability-subset check{' '}
-                      (<code>harbor-card-rs</code>), formally checked, then
-                      compiled into the running binary. No gap between proof
-                      and code.
+                      {' '}Bounded harnesses over the Rust card verifier{' '}
+                      (<code>harbor-card-rs</code>): the parser cannot panic on
+                      bounded symbolic tokens with the cryptography stubbed, the
+                      comparator cannot panic on any 16-byte pair, and the
+                      subset check passes two concrete vectors. Same crate the
+                      daemon loads; the every-hop attenuation property belongs
+                      to ProVerif.
                     </li>
                     <li>
                       <strong className="text-[var(--text-primary)]">EasyCrypt.</strong>

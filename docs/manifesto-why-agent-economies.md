@@ -73,8 +73,9 @@ That is the trilogy, and each paper is one beam:
   it is allowed to do* to the local daemon. This is the cryptographic floor —
   capability tokens that attenuate (a token can only ever grant *less* than the token it
   came from), verified with ProVerif under an unbounded-session Dolev–Yao attacker and
-  with Kani against the deployed Rust. Not "we tested it." *We proved the class of
-  attack cannot land.*
+  bounded with Kani harnesses over the deployed Rust core. Not "we tested it." *The
+  model excludes the class of attack; the harnesses pin the code to the model as far
+  as they reach.*
 - **III — The Federated Harbor** is what happens when the sovereign is not single —
   your laptop and my laptop, neither one a root of authority for the other. Capability
   transfer across the trust boundary, revocation that gossips between machines with a

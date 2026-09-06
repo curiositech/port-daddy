@@ -158,7 +158,7 @@
 \medskip\noindent
 As AI agents transition from isolated copilots to collaborative, autonomous swarms, local development environments face a crisis of coordination and trust. Existing tools designed for human-driven, static infrastructures lack the primitives required to prevent dynamic agents from corrupting shared state or squatting on ephemeral ports.
 
-This paper introduces the \textbf{Anchor Protocol}, a cryptographic and semantic identity framework built into the Port Daddy daemon. We detail the protocol's evolution from symmetric MACs to Ed25519 signatures and multi-hop delegation chains inspired by Macaroons~\cite{birgisson2014macaroons}. ProVerif~\cite{blanchet2016modeling} checks symbolic authentication and attenuation properties of the protocol models; Kani checks bounded memory-safety and source-level control-flow properties of the Rust core; runtime conformance tests cover the deployed bridge. These layers do not amount to a proof of the entire implementation or of hardware-level constant time, and the multi-hop proof is structurally bounded rather than session-unbounded --- Section~\ref{sec:limitations} records those boundaries explicitly.
+This paper introduces the \textbf{Anchor Protocol}, a cryptographic and semantic identity framework built into the Port Daddy daemon. We detail the protocol's evolution from symmetric MACs to Ed25519 signatures and multi-hop delegation chains inspired by Macaroons~\cite{birgisson2014macaroons}. ProVerif~\cite{blanchet2016modeling} checks symbolic authentication and attenuation properties of the protocol models; Kani checks that the Rust core's parsing and comparison paths cannot panic on bounded symbolic inputs, with the cryptography stubbed; runtime conformance tests cover the deployed bridge. These layers do not amount to a proof of the entire implementation or of hardware-level constant time, and the multi-hop proof is structurally bounded rather than session-unbounded --- Section~\ref{sec:limitations} records those boundaries explicitly.
 \end{abstract}
 
 \vspace{0.5cm}
@@ -383,11 +383,11 @@ Violations are logged and can trigger the ``man overboard'' salvage protocol: th
 A secure protocol is useless if the implementation contains buffer overflows or timing leaks. We extracted the critical JWT parsing and cryptographic comparison logic into a verified core.
 
 \begin{property}[Memory Safety]
-Using the \textbf{Kani} Rust Verifier~\cite{aws2022kani}, we performed bounded model checking to prove that our parsing logic never panics or accesses out-of-bounds memory, regardless of the input payload.
+Using the \textbf{Kani} Rust Verifier~\cite{aws2022kani}, we bounded-model-check the token parser with key decoding, base64 decoding, and signature verification stubbed to return either outcome. For every 32-byte input that is valid UTF-8 and contains a dot, and within ten loop iterations, the parse path neither panics nor accesses memory out of bounds. The bound is the harness's, not the parser's: longer tokens and the real cryptographic primitives lie outside it.
 \end{property}
 
 \begin{property}[Secret-Independent Source Control Flow]
-The Rust comparator uses no source-level branch on secret byte values, and Kani checks that bounded control-flow property. This is useful evidence but not a hardware-level constant-time proof: compiler transformations, memory behavior, and microarchitecture remain outside the model.
+The Rust comparator (\texttt{constant\_time\_compare}) folds the XOR of every byte pair into one accumulator and tests the accumulator once, so no source-level branch depends on secret bytes. That is a property of the source text, established by inspection; Kani's harness adds only that the comparator cannot panic on any pair of 16-byte inputs. Neither is a hardware-level constant-time proof: compiler transformations, memory behavior, and microarchitecture remain outside both.
 \end{property}
 
 \subsection{The procedures, precisely}\label{sec:algorithms}
@@ -498,7 +498,7 @@ function Harbor.VerifyChain(chain, pk_root):
 
 The verified cryptographic core is not a reference implementation---it is the \textbf{deployed production code}. The open-source Rust crate \texttt{harbor-card-rs} is compiled to a C dynamic library (\texttt{cdylib}) and called from the Node.js daemon via FFI through the daemon's runtime-enforcement (Arbiter) module.
 
-This architecture eliminates the gap between ``verified code'' and ``running code'' that weakens many formal verification efforts. The same binary that Kani model-checks is the same binary that the daemon loads at runtime.
+This architecture narrows the gap between ``verified code'' and ``running code'' that weakens many formal verification efforts: the harnesses are compiled from the same crate the daemon loads at runtime. Kani checks the source under \texttt{cfg(kani)}, not the shipped shared library, so the gap that remains is the compiler's.
 
 \subsection{Core Verification Logic}
 
@@ -613,9 +613,9 @@ fn proof_capability_attenuation() {
 }
 \end{lstlisting}
 
-The stubbing strategy deserves explanation: \texttt{proof\_verify\_logic\_only} stubs out Ed25519 signature verification and base64 decoding (which involve curve arithmetic that Kani cannot symbolically execute within practical bounds) and exhaustively explores the \emph{parsing and control flow logic}---the split-on-dots, payload extraction, expiry comparison, and error handling paths. This verifies that the logic surrounding the cryptographic primitives never panics, never accesses out-of-bounds memory, and handles all malformed inputs gracefully, regardless of what the cryptographic layer returns.
+The stubbing strategy deserves explanation: \texttt{proof\_verify\_logic\_only} stubs out Ed25519 signature verification and base64 decoding (which involve curve arithmetic that Kani cannot symbolically execute within practical bounds) and explores the \emph{parsing and control flow logic}---the split-on-dots, payload extraction, expiry comparison, and error handling paths---for every 32-byte token the harness admits. Within that bound the logic surrounding the cryptographic primitives never panics and never accesses memory out of bounds, whichever outcome the stubbed cryptographic layer returns. The bound is a harness choice, and it has a consequence worth stating: a 32-byte input cannot hold a real three-part card, so what is exercised is the parser's rejection of malformed input, not its acceptance path. The third harness, \texttt{proof\_capability\_attenuation}, checks two concrete vectors and is a unit test in a proof's clothing; the every-hop attenuation property is established by the ProVerif model of \S\ref{sec:attn-soundness}, not by Kani.
 
-The build output at \texttt{target/kani/aarch64-apple-darwin/debug} contains the CBMC intermediate representations used by Kani's bounded model checker.
+The three harnesses run under \texttt{cargo kani} in the repository's proof workflow; the run log, not a local build directory, is the evidence that they pass.
 
 % ═════════════════════════════════════════════════════════════════════════════
 \section{What the adversary can do, and what it cannot}\label{sec:adversary}
@@ -666,7 +666,7 @@ Mechanized at depth~3 and single-hop for the enriched order; depth is a spawn-ti
 
 \begin{table}[H]
 \centering
-\caption{All seven listed properties are mechanically verified, but only the three Kani-checked properties also run inside the deployed binary; the four ProVerif properties hold of the protocol design, not, by themselves, of the shipped code. ``Deployed'' indicates the verified Rust code is called by the production daemon via FFI from the Arbiter module into the \texttt{harbor-card-rs} crate.}
+\caption{The four ProVerif properties hold of the protocol design, not, by themselves, of the shipped code. The three Kani rows are bounded harnesses over the deployed crate: a no-panic check of the parser on 32-byte inputs with the cryptography stubbed, a no-panic check of the comparator on 16-byte pairs, and two concrete vectors for the subset check. ``Deployed'' indicates the Rust code is called by the production daemon via FFI from the Arbiter module into the \texttt{harbor-card-rs} crate.}
 \label{tab:properties}
 \begin{tabular}{@{}lllll@{}}
 \toprule
@@ -676,9 +676,9 @@ Master Key Secrecy & Yes & ProVerif & --- & \cite{blanchet2016modeling} \\
 Algorithm Confusion Immunity & Yes & ProVerif & --- & \cite{mclean2015critical} \\
 Authentication correspondence & Yes & ProVerif & --- & \cite{lowe1997hierarchy} \\
 Delegation Integrity & Yes & ProVerif & --- & \cite{birgisson2014macaroons} \\
-Memory Safety (parsing) & Yes & Kani & Yes (FFI) & \cite{aws2022kani} \\
-Secret-independent source branching & Yes & Kani & Yes (FFI) & \cite{brumley2011remote} \\
-Capability Attenuation & Yes & Kani & Yes (FFI) & \cite{birgisson2014macaroons} \\
+No-panic parsing (32-byte inputs, crypto stubbed) & Bounded & Kani & Yes (FFI) & \cite{aws2022kani} \\
+Secret-independent source branching & By inspection & --- & Yes (FFI) & \cite{brumley2011remote} \\
+Capability subset check & Two vectors & Kani & Yes (FFI) & \cite{birgisson2014macaroons} \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -695,13 +695,13 @@ Capability Attenuation & Yes & Kani & Yes (FFI) & \cite{birgisson2014macaroons} 
 \section{Proofs are leverage, not decoration}\label{sec:conclusion}
 % ═════════════════════════════════════════════════════════════════════════════
 
-A proof is decoration when it is about a model nobody deploys, or when its scope is quietly larger in the prose than in the tool output. It is leverage when it lets you delete a defensive check you would otherwise have had to write, and when the thing proved is the thing that runs. That is the test this chapter has tried to hold itself to: the Kani harnesses run against the same \texttt{harbor-card-rs} crate the daemon loads at runtime; the ProVerif attenuation model was rewritten (Appendix~\ref{app:phase3}, \S\ref{sec:attn-soundness}) once a reviewer showed the original could not even \emph{express} the attack it claimed to exclude; and every claim whose mechanization is partial or absent is marked \Partial\ or \Open\ in Table~\ref{tab:anchor-status} rather than rounded up.
+A proof is decoration when it is about a model nobody deploys, or when its scope is quietly larger in the prose than in the tool output. It is leverage when it lets you delete a defensive check you would otherwise have had to write, and when the thing proved is the thing that runs. That is the test this chapter has tried to hold itself to: the Kani harnesses are bounded, say so, and run against the same \texttt{harbor-card-rs} crate the daemon loads at runtime; the ProVerif attenuation model was rewritten (Appendix~\ref{app:phase3}, \S\ref{sec:attn-soundness}) once a reviewer showed the original could not even \emph{express} the attack it claimed to exclude; and every claim whose mechanization is partial or absent is marked \Partial\ or \Open\ in Table~\ref{tab:anchor-status} rather than rounded up.
 
 The Anchor Protocol replaces several hope-based assumptions with explicit, checkable obligations. It combines:
 
 \begin{itemize}
   \item Symbolic protocol proofs (ProVerif~\cite{blanchet2016modeling})
-  \item Memory-safe implementation (Rust/Kani~\cite{aws2022kani})
+  \item Memory-safe implementation (Rust; bounded Kani harnesses~\cite{aws2022kani})
   \item Capability-based delegation (inspired by Macaroons~\cite{birgisson2014macaroons})
 \end{itemize}
 
