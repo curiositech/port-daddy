@@ -23,6 +23,7 @@
 \usepackage{xcolor}
 \usepackage{booktabs}
 \usepackage{tabularx}
+\usepackage{xltabular}
 \usepackage{graphicx}
 \usepackage{fancyhdr}
 \usepackage{tikz}
@@ -448,16 +449,7 @@ For any cross-realm card $C_B' = \mathrm{att}_B(\mathrm{att}_A(C_A))$, the set o
 Each attenuation is a subset operation in the Anchor algebra; subset composition is a subset. Cross-realm policy at $B$ adds the constraint ``and the operation must be permitted by $B$'s local policy,'' which can only further restrict. See the Anchor accompanying chapter's capability-attenuation section for the intra-harbor argument; the cross-realm case adds no new mathematics, only a new applicable attenuation step.
 \end{proof}
 
-\begin{pdexercise}[kind=Trace,rating=2]{ex:fh-xfer-attenuation}
-Alice's card $C_A$ authorizes \texttt{db:write} on $A$'s \emph{test} database. $D_B$ accepts it and mints $C_B' = \mathrm{att}_B(\mathrm{att}_A(C_A))$ authorizing \texttt{db:write} on $B$'s \emph{staging} database. Trace Theorem~\ref{lem:fh-att}'s proof sketch against this concrete case: at which step, if any, does ``subset composition is a subset'' stop being a statement about the \emph{same} resource space? State precisely what kind of act minting $C_B'$ actually is here, and what two things a correct $D_B$ must additionally establish before minting it.
-\end{pdexercise}
-\begin{pdsolution}{ex:fh-xfer-attenuation}
-The proof sketch's move --- ``each attenuation is a subset operation in the Anchor algebra; subset composition is a subset'' --- is exactly right when $\mathrm{att}_A$ and $\mathrm{att}_B$ both narrow authority \emph{within one shared capability/resource universe}. It stops being a statement about the same resource space at the second attenuation: $\mathrm{att}_B$ does not narrow a set of operations on $A$'s test database, because $D_B$ has no test database to narrow into. It grants a \emph{new} authority, over a resource $D_A$ never named, that $D_B$ alone controls. Calling $C_B'$ a ``subset of $C_A$'' silently assumes a mapping between the two harbors' resource namespaces that nothing in the four-message ceremony (\S\ref{sec:fh-xfer-ceremony}) actually constructs.
-
-What minting $C_B'$ really is, in this case, is \textbf{token exchange and new authorization at $B$}, not attenuation of $C_A$. A correct $D_B$ must additionally establish: (a) \emph{$A$-side input eligibility} --- a signed semantic/resource mapping saying that $C_A$'s authority over $A$'s test database is the kind of thing that may be exchanged at all, recorded with its dependency on $A$'s issuing epoch root $R_A^{(e)}$ so a later revocation of $C_A$ is traceable to $C_B'$; and (b) \emph{$B$-side local authorization} --- $D_B$'s own policy minting a genuinely new child grant over its staging database, under $D_B$'s sovereignty (Definition~\ref{def:fh-sovereignty}, item 2), rather than treating $\mathrm{att}_B$ as if it were narrowing $A$'s grant.
-
-One more gap rides along with this one and is worth naming here rather than assuming solved: Bob's harbor observing a failed acceptance check, or an inclusion proof against $R_B^{(e)}$, does not by itself establish that Alice's agent \emph{caused} the failure (\S\ref{sec:fh-settle-proto}'s damage-claim step). Settlement evidence must bind the exact work-unit, the base and result trees, the mediated effects, the acceptance policy in force, and the verifier that checked it; semantic causation --- ``$\alpha$'s write is why the check failed'' --- remains a claim for the adjudicator named in \S\ref{sec:fh-escrow}'s 2-of-3 instantiation to weigh, not something the inclusion proof settles on its own. Theorem~\ref{lem:fh-att} is not false; it is scoped to the case its proof sketch actually covers, and this exercise is that scope made concrete.
-\end{pdsolution}
+\pdexercisepointerone{\ref{ex:fh-xfer-attenuation}}{\pageref{ex:fh-xfer-attenuation}}
 
 \subsection{Threats foreclosed and threats deferred}\label{sec:fh-xfer-threats}
 
@@ -526,20 +518,7 @@ The interesting case is disagreement. Harbor $A$ has revoked card $c$; harbor $B
 
 We adopt rule (2). The pessimistic rule has the wrong defaults; the epoch-bounded rule is operationally the same as (2) with a watchdog. Adopting (2) means the Conservation invariant of \S\ref{sec:fh-settlement} can be stated cleanly.
 
-\begin{pdexercise}[kind=Trace,rating=2]{ex:fh-revocation-finality}
-The ``only-issuer-revokes'' rule above is trustworthy only if a harbor's own local revocation record is \emph{final} --- once revoked, always revoked, even across an operational mishap at the relay. \path{proofs/relay/CardRevocation.tla} model-checks exactly this property (\texttt{RevocationFinal == badAccept = FALSE}) under three configurations. Read \path{proofs/relay/CardRevocation.md} and state, for each of the baseline, rollback, and epoch configurations, what changes in the model and what TLC found.
-\end{pdexercise}
-\begin{pdsolution}{ex:fh-revocation-finality}
-All three configurations share one module; only the \texttt{Rollback} and \texttt{Epoched} constants change. The committed results (\path{proofs/relay/CardRevocation.md}, ``Results (TLC v1.8.0, Homebrew OpenJDK)''), quoted exactly:
-\begin{lstlisting}
-baseline:  Model checking completed. No error has been found.   (13 distinct states)
-rollback:  Invariant RevocationFinal is violated.               (backup-restore re-accepts a revoked card)
-epoch:     Model checking completed. No error has been found.   (76 distinct states)
-\end{lstlisting}
-\textbf{Baseline} (\texttt{Rollback=FALSE, Epoched=FALSE}, \path{CardRevocation_baseline.cfg}): no adversary action is available, so a card in \texttt{revoked} stays revoked and \texttt{RevocationFinal} holds trivially over 13 reachable states. \textbf{Rollback} (\texttt{Rollback=TRUE, Epoched=FALSE}, \path{CardRevocation_rollback.cfg}): \texttt{RollbackRestore} can drop a card from the DB's \texttt{revoked} set while \texttt{everRevoked} (ground truth) stays set; \texttt{Accept} then only checks \texttt{revoked}, so the restored card is accepted again and \texttt{badAccept} fires --- the invariant is violated \emph{by design}, as the negative control for the attack. \textbf{Epoch} (\texttt{Rollback=TRUE, Epoched=TRUE}, \path{CardRevocation_epoch.cfg}): the mitigation adds an external epoch that \texttt{Revoke} bumps and that a restore does \emph{not} roll back; \texttt{Accept} now additionally requires \texttt{cardEpoch[c] = epoch}, so a restored card's stale epoch disables acceptance even though \texttt{revoked} was rolled back, and the invariant holds again over the larger 76-state space (the mitigation adds reachable states without reintroducing the breach).
-
-The rollback configuration's counterexample is not a bug in the model; it \emph{is} the ADR-0018 Attack Vector 2 the model exists to demonstrate. A relay revokes card $c$ (an agent's leaked capability); the relay's database is later restored from a backup taken before the revocation; the restored \texttt{revoked} set no longer contains $c$; the relay's own \texttt{Accept} check, consulting only that set, admits a presentation of $c$ it had already promised to refuse. TLC's counterexample trace is exactly \texttt{Issue(c)} $\to$ \texttt{Revoke(c)} $\to$ \texttt{RollbackRestore(c)} $\to$ \texttt{Accept(c)}, four transitions, \texttt{badAccept} true at the end. The failure is the intended result because a baseline or an untested mitigation would give false comfort: it is precisely the negative control that lets the epoch configuration's clean pass mean something, the same discipline \S\ref{sec:fh-sheaf}'s negative-control ProVerif line and mutation suite apply. This chapter's own per-epoch roots $R_X^{(e)}$ (\S\ref{sec:fh-witness}) are the same design move at the federation layer: an external, monotonic anchor that a local rollback cannot touch is what makes ``only-issuer-revokes'' something a cross-harbor verifier can actually rely on, rather than merely something the issuer asserts.
-\end{pdsolution}
+\pdexercisepointerone{\ref{ex:fh-revocation-finality}}{\pageref{ex:fh-revocation-finality}}
 
 \subsection{Event Log \& Ephemeral Cuckoo Discipline}\label{sec:fh-cuckoo}
 
@@ -641,23 +620,7 @@ P6 relayed cut edge,   lie 3.0:  r = ...        R_eff = 1.000000 -> predicted 0
 matching the hand value to six decimals on $C_6$, and on $P_6$ holding the printed residual under $10^{-9}$ (the script's own \texttt{TOL\_SILENT} zero-residual threshold) rather than printing a literal $0$ [internal, \texttt{sheaf\_consistency\_radius.py}]. The general law is $r=|s|/\sqrt n$ on any $C_n$: $|s|/2$ at $n{=}4$, $|s|/\sqrt6\approx0.4082|s|$ at $n{=}6$, $|s|/\sqrt8\approx0.3536|s|$ at $n{=}8$ [verified, closed form] --- conviction dilutes monotonically as the ring lengthens, and any path reads as silence regardless of $n$. \emph{Now you try:} reproduce both printed lines and the general law against the script (Exercise~\ref{ex:fh-consistency-radius-run}), then reason about why the theorem needs a \emph{single} equivocator (Exercise~\ref{ex:fh-two-liar-boundary}).
 \end{pdexample}
 
-\begin{pdexercise}[kind=Trace,rating=2]{ex:fh-consistency-radius-run}
-Read \path{skills/harbor-results/scripts/sheaf_consistency_radius.py}, section \texttt{[0]} (function \texttt{section0}). By hand, using $r=|s|\sqrt{1-R_{\mathrm{eff}}(e)}$ and $R_{\mathrm{eff}}=(n-1)/n$ on $C_n$, confirm the two numbers the script's closed-form check pins for $C_6$ and $P_6$ at lie magnitude $3.0$. Then state what the script's \texttt{check(\ldots)} call actually asserts for each case, and to what tolerance.
-\end{pdexercise}
-\begin{pdsolution}{ex:fh-consistency-radius-run}
-By hand: $C_6$ has $R_{\mathrm{eff}}=5/6$, so $r=3\sqrt{1-5/6}=3/\sqrt6=1.224745$ [verified]. $P_6$'s relayed edge is a bridge (a path has no route between an edge's endpoints other than the edge itself), so $R_{\mathrm{eff}}=1$ and $r=3\sqrt{1-1}=0$ exactly [verified].
-
-The script's own printed lines (\path{skills/harbor-results/scripts/sheaf_consistency_radius.py}, \texttt{section0}), quoted in the worked example above [internal, \texttt{sheaf\_consistency\_radius.py}]: the $C_6$ line's two computed quantities (the least-squares solve's $r$ and the closed form's \texttt{pred}) are asserted equal to within $10^{-9}$ of each other and within $10^{-6}$ of $1.224745$ (\texttt{check(abs(r - pred) < 1e-9 and abs(r - 1.224745) < 1e-6, \ldots)}) --- the numerical solve and the hand formula are checked against each other, not merely printed side by side. The $P_6$ line's assertion is different in kind: \texttt{check(rP < TOL\_SILENT and abs(ReffP - 1.0) < 1e-9, \ldots)} with \texttt{TOL\_SILENT}$=10^{-9}$, i.e.\ it asserts the residual is \emph{below a silence threshold}, not equal to a specific float --- the honest way to assert ``zero'' about a least-squares solve that carries ordinary floating-point roundoff rather than landing on the exact bit pattern for $0.0$.
-\end{pdsolution}
-
-\begin{pdexercise}[kind=Open,rating=3]{ex:fh-two-liar-boundary}
-Theorem~\ref{thm:sheaf-equivocation} assumes a \emph{single} equivocator and says outright that this is not decoration. Two colluding reporters sit on the same visible cycle $K_c$ and each reports an offset; either offset alone would be detected. Using only the definition of the completion residual $r$ as a minimum over global sections and free severed blocks, explain why a coalition can drive $r$ to (numerically) zero even though neither liar's offset is small, and say what kind of evidence --- if any --- could still catch the coalition.
-\end{pdexercise}
-\begin{pdsolution}{ex:fh-two-liar-boundary}
-$r$ is defined as the \emph{best-fit} residual: the smallest disagreement left over after choosing the global section $x$ and the free severed blocks $g_{\mathrm{sev}}$ that explain as much of the observed data as any choice can. It is not a per-liar quantity; it is a property of the whole observed cochain $g_K$. If two equivocators on a common cycle choose offsets $o_1$ and $o_2$ such that $o_1+o_2$ happens to be a coboundary --- i.e.\ the \emph{sum} of their two lies is indistinguishable from a single consistent state change --- then the best-fit global section can absorb $o_1+o_2$ entirely, leaving a near-zero residual, exactly the way a lone liar's offset is absorbed when it lies off a visible cycle (the cut-edge case above). Nothing in the definition of $r$ requires the offsets to be individually small for their \emph{sum} to be small or zero; it requires only that the sum land in the image of $\delta$, the space the completion can always explain away. This is why the single-equivocator hypothesis is load-bearing rather than a simplifying nicety: the moment a second colluding reporter is admitted on the same cycle, the detector's soundness guarantee (Theorem~\ref{thm:sheaf-equivocation}'s ``if and only if'') no longer applies to the \emph{pair}, only to each alone under the counterfactual that the other is honest.
-
-The compendium's own sweep states the shape of this exactly: a solo equivocator on an 8-cycle is bounded below at $r\ge|s|/\sqrt8$, while a coordinating coalition of two on the same cycle drives the same statistic to $r\approx6\times10^{-15}$ --- numerically the silence of a true coboundary, not a small-but-detectable residual [internal, \texttt{sheaf\_consistency\_radius.py}]. What could still catch the coalition is exactly what $r$ is not: per-report attribution rather than a single scalar. Signature-level forensics can ask whether the \emph{same} reporter's two prefixes are individually self-consistent (an equivocator still signs two incompatible things even if the aggregate looks clean); cross-checking against a third, independent visible cycle through only one of the two colluders can isolate that one's contribution if such a cycle exists; and widening $K$ --- comparing more edges directly rather than relying on relayed reports --- shrinks the coalition's room to choose a cancelling pair in the first place. None of this is a proof that coalitions are caught in general; \S\ref{sec:fh-lim-cartel} names the cross-harbor cartel question as open for exactly this reason, and this exercise is that same boundary stated at the level of one theorem rather than the whole federation.
-\end{pdsolution}
+\pdexercisepointer{\ref{ex:fh-consistency-radius-run}}{\ref{ex:fh-two-liar-boundary}}{\pageref{ex:fh-consistency-radius-run}}
 
 \paragraph{The residual as a certificate.} Robinson's consistency radius asks how
 far local data sits from the nearest global section~\cite{robinson}; the
@@ -1004,25 +967,7 @@ This says: if $B$ accepts a cross-realm card for capability \texttt{cap} at epoc
 
 The model is drafted and the proof script is in progress. The full mechanization is named open work; see Appendix~\ref{app:fh-mech} for the status table.
 
-\begin{pdexercise}[kind=Trace,rating=2]{ex:fh-proverif-federation}
-\path{proofs/bonded/federated/federated.pv} is a separate, already-mechanized ProVerif model from the cross-realm sketch above --- it is Bonded Commons \S7's federated multi-principal secrecy theorem, reused here because it is the formal backbone for reasoning about trust split across administrative principals. Read the model's header comment and state: which four principals it names, which single query it actually runs, and why running only the ``daemon + email + KMS compromised'' scenario is enough to cover the weaker three-principal scenarios too.
-\end{pdexercise}
-\begin{pdsolution}{ex:fh-proverif-federation}
-The four principals are the daemon's local DB ($D$, read-only), the KMS ($K$, read-only key witness), the email provider ($E$, read access to the user's mailbox), and the passphrase ($P$, out-of-band, held only in the user's head --- deliberately not modeled as compromisable, since \S7 does not defend against the user revealing their own passphrase). The single query the file states is \texttt{query attacker(account\_root)}: can the attacker ever derive the reconstructed vault. The model has no destructor for \texttt{combine4}, so the four shares can only be combined by the honest user's own process, never inverted by an attacker who merely holds some subset of them.
-
-Only one scenario is actually run --- the top-level \texttt{process} compromises $D$, $E$, and $K$ simultaneously (three of four), leaving $P$ uncompromised. The file's own comment states why this subsumes the weaker cases: ``if the vault is safe with daemon+email+KMS public, it is also safe with any subset of those compromised.'' An attacker who additionally lacks one of $D$, $E$, or $K$ is strictly weaker than the modeled attacker, so a query that holds against the strongest three-of-four attacker holds against every subset of it for free; running the weaker scenarios separately would add nothing this run does not already dominate.
-
-Pinned verdict (\path{proofs/bonded/federated/federated.run.log}), quoted exactly:
-\begin{lstlisting}
-Starting query not attacker(account_root[])
-RESULT not attacker(account_root[]) is true.
---------------------------------------------------------------
-Verification summary:
-
-Query not attacker(account_root[]) is true.
-\end{lstlisting}
-What this does \emph{not} cover, stated as plainly as \S\ref{sec:fh-xfer-mech} states its own draft status: all four principals compromised at once (explicitly out of scope --- the four-eyes attacker), and the \S7.5 Shamir 3-of-4 recovery path, which is the honest user's own reconstruction option, not an attacker capability. Neither this model nor the cross-realm sketch above substitutes for the other: one is a completed secrecy result about who must collude for a vault to fall, the other is this chapter's own in-progress model of cross-realm card authenticity.
-\end{pdsolution}
+\pdexercisepointerone{\ref{ex:fh-proverif-federation}}{\pageref{ex:fh-proverif-federation}}
 
 \subsection{TLA+ extension for cross-harbor conservation}\label{sec:fh-tla-ext}
 
@@ -1154,6 +1099,85 @@ The cryptographic assertions and per-write durability checkpoints this layer inh
 A federation paper with six named open questions is doing its job. The point of the paper is to draw the new boundary cleanly so the open problems are visible; if every claim in this paper were closed, there would be no third paper to write. The honest read is that the Federated Harbor is closer to a research agenda than to a deployed product, and the prior two papers (Anchor, Bonded) have a tighter ratio of theorem to conjecture for the same reason. The substrate is real; the federation layer is in progress.
 
 \pullquote{A boundary drawn cleanly is itself a result: it says where the next proof has to start.}
+
+\pdexercisepointer{\ref{ex:fh-correlated-equilibrium}}{\ref{ex:fh-synthesis}}{\pageref{ex:fh-correlated-equilibrium}}
+
+% ═══════════════════════════════════════════════════════════════════════════════
+\section{Exercises}
+\label{sec:fh-exercises}
+% ═══════════════════════════════════════════════════════════════════════════════
+
+\pdexercisesfor{\S\ref{sec:fh-xfer}}{Cross-Harbor Capability Transfer}
+
+\begin{pdexercise}[kind=Trace,rating=2]{ex:fh-xfer-attenuation}
+Alice's card $C_A$ authorizes \texttt{db:write} on $A$'s \emph{test} database. $D_B$ accepts it and mints $C_B' = \mathrm{att}_B(\mathrm{att}_A(C_A))$ authorizing \texttt{db:write} on $B$'s \emph{staging} database. Trace Theorem~\ref{lem:fh-att}'s proof sketch against this concrete case: at which step, if any, does ``subset composition is a subset'' stop being a statement about the \emph{same} resource space? State precisely what kind of act minting $C_B'$ actually is here, and what two things a correct $D_B$ must additionally establish before minting it.
+\end{pdexercise}
+\begin{pdsolution}{ex:fh-xfer-attenuation}
+The proof sketch's move --- ``each attenuation is a subset operation in the Anchor algebra; subset composition is a subset'' --- is exactly right when $\mathrm{att}_A$ and $\mathrm{att}_B$ both narrow authority \emph{within one shared capability/resource universe}. It stops being a statement about the same resource space at the second attenuation: $\mathrm{att}_B$ does not narrow a set of operations on $A$'s test database, because $D_B$ has no test database to narrow into. It grants a \emph{new} authority, over a resource $D_A$ never named, that $D_B$ alone controls. Calling $C_B'$ a ``subset of $C_A$'' silently assumes a mapping between the two harbors' resource namespaces that nothing in the four-message ceremony (\S\ref{sec:fh-xfer-ceremony}) actually constructs.
+
+What minting $C_B'$ really is, in this case, is \textbf{token exchange and new authorization at $B$}, not attenuation of $C_A$. A correct $D_B$ must additionally establish: (a) \emph{$A$-side input eligibility} --- a signed semantic/resource mapping saying that $C_A$'s authority over $A$'s test database is the kind of thing that may be exchanged at all, recorded with its dependency on $A$'s issuing epoch root $R_A^{(e)}$ so a later revocation of $C_A$ is traceable to $C_B'$; and (b) \emph{$B$-side local authorization} --- $D_B$'s own policy minting a genuinely new child grant over its staging database, under $D_B$'s sovereignty (Definition~\ref{def:fh-sovereignty}, item 2), rather than treating $\mathrm{att}_B$ as if it were narrowing $A$'s grant.
+
+One more gap rides along with this one and is worth naming here rather than assuming solved: Bob's harbor observing a failed acceptance check, or an inclusion proof against $R_B^{(e)}$, does not by itself establish that Alice's agent \emph{caused} the failure (\S\ref{sec:fh-settle-proto}'s damage-claim step). Settlement evidence must bind the exact work-unit, the base and result trees, the mediated effects, the acceptance policy in force, and the verifier that checked it; semantic causation --- ``$\alpha$'s write is why the check failed'' --- remains a claim for the adjudicator named in \S\ref{sec:fh-escrow}'s 2-of-3 instantiation to weigh, not something the inclusion proof settles on its own. Theorem~\ref{lem:fh-att} is not false; it is scoped to the case its proof sketch actually covers, and this exercise is that scope made concrete.
+\end{pdsolution}
+
+\pdexercisesfor{\S\ref{sec:fh-revocation}}{Federated Revocation}
+
+\begin{pdexercise}[kind=Trace,rating=2]{ex:fh-revocation-finality}
+The ``only-issuer-revokes'' rule above is trustworthy only if a harbor's own local revocation record is \emph{final} --- once revoked, always revoked, even across an operational mishap at the relay. \path{proofs/relay/CardRevocation.tla} model-checks exactly this property (\texttt{RevocationFinal == badAccept = FALSE}) under three configurations. Read \path{proofs/relay/CardRevocation.md} and state, for each of the baseline, rollback, and epoch configurations, what changes in the model and what TLC found.
+\end{pdexercise}
+\begin{pdsolution}{ex:fh-revocation-finality}
+All three configurations share one module; only the \texttt{Rollback} and \texttt{Epoched} constants change. The committed results (\path{proofs/relay/CardRevocation.md}, ``Results (TLC v1.8.0, Homebrew OpenJDK)''), quoted exactly:
+\begin{lstlisting}
+baseline:  Model checking completed. No error has been found.   (13 distinct states)
+rollback:  Invariant RevocationFinal is violated.               (backup-restore re-accepts a revoked card)
+epoch:     Model checking completed. No error has been found.   (76 distinct states)
+\end{lstlisting}
+\textbf{Baseline} (\texttt{Rollback=FALSE, Epoched=FALSE}, \path{CardRevocation_baseline.cfg}): no adversary action is available, so a card in \texttt{revoked} stays revoked and \texttt{RevocationFinal} holds trivially over 13 reachable states. \textbf{Rollback} (\texttt{Rollback=TRUE, Epoched=FALSE}, \path{CardRevocation_rollback.cfg}): \texttt{RollbackRestore} can drop a card from the DB's \texttt{revoked} set while \texttt{everRevoked} (ground truth) stays set; \texttt{Accept} then only checks \texttt{revoked}, so the restored card is accepted again and \texttt{badAccept} fires --- the invariant is violated \emph{by design}, as the negative control for the attack. \textbf{Epoch} (\texttt{Rollback=TRUE, Epoched=TRUE}, \path{CardRevocation_epoch.cfg}): the mitigation adds an external epoch that \texttt{Revoke} bumps and that a restore does \emph{not} roll back; \texttt{Accept} now additionally requires \texttt{cardEpoch[c] = epoch}, so a restored card's stale epoch disables acceptance even though \texttt{revoked} was rolled back, and the invariant holds again over the larger 76-state space (the mitigation adds reachable states without reintroducing the breach).
+
+The rollback configuration's counterexample is not a bug in the model; it \emph{is} the ADR-0018 Attack Vector 2 the model exists to demonstrate. A relay revokes card $c$ (an agent's leaked capability); the relay's database is later restored from a backup taken before the revocation; the restored \texttt{revoked} set no longer contains $c$; the relay's own \texttt{Accept} check, consulting only that set, admits a presentation of $c$ it had already promised to refuse. TLC's counterexample trace is exactly \texttt{Issue(c)} $\to$ \texttt{Revoke(c)} $\to$ \texttt{RollbackRestore(c)} $\to$ \texttt{Accept(c)}, four transitions, \texttt{badAccept} true at the end. The failure is the intended result because a baseline or an untested mitigation would give false comfort: it is precisely the negative control that lets the epoch configuration's clean pass mean something, the same discipline \S\ref{sec:fh-sheaf}'s negative-control ProVerif line and mutation suite apply. This chapter's own per-epoch roots $R_X^{(e)}$ (\S\ref{sec:fh-witness}) are the same design move at the federation layer: an external, monotonic anchor that a local rollback cannot touch is what makes ``only-issuer-revokes'' something a cross-harbor verifier can actually rely on, rather than merely something the issuer asserts.
+\end{pdsolution}
+
+\begin{pdexercise}[kind=Trace,rating=2]{ex:fh-consistency-radius-run}
+Read \path{skills/harbor-results/scripts/sheaf_consistency_radius.py}, section \texttt{[0]} (function \texttt{section0}). By hand, using $r=|s|\sqrt{1-R_{\mathrm{eff}}(e)}$ and $R_{\mathrm{eff}}=(n-1)/n$ on $C_n$, confirm the two numbers the script's closed-form check pins for $C_6$ and $P_6$ at lie magnitude $3.0$. Then state what the script's \texttt{check(\ldots)} call actually asserts for each case, and to what tolerance.
+\end{pdexercise}
+\begin{pdsolution}{ex:fh-consistency-radius-run}
+By hand: $C_6$ has $R_{\mathrm{eff}}=5/6$, so $r=3\sqrt{1-5/6}=3/\sqrt6=1.224745$ [verified]. $P_6$'s relayed edge is a bridge (a path has no route between an edge's endpoints other than the edge itself), so $R_{\mathrm{eff}}=1$ and $r=3\sqrt{1-1}=0$ exactly [verified].
+
+The script's own printed lines (\path{skills/harbor-results/scripts/sheaf_consistency_radius.py}, \texttt{section0}), quoted in the worked example above [internal, \texttt{sheaf\_consistency\_radius.py}]: the $C_6$ line's two computed quantities (the least-squares solve's $r$ and the closed form's \texttt{pred}) are asserted equal to within $10^{-9}$ of each other and within $10^{-6}$ of $1.224745$ (\texttt{check(abs(r - pred) < 1e-9 and abs(r - 1.224745) < 1e-6, \ldots)}) --- the numerical solve and the hand formula are checked against each other, not merely printed side by side. The $P_6$ line's assertion is different in kind: \texttt{check(rP < TOL\_SILENT and abs(ReffP - 1.0) < 1e-9, \ldots)} with \texttt{TOL\_SILENT}$=10^{-9}$, i.e.\ it asserts the residual is \emph{below a silence threshold}, not equal to a specific float --- the honest way to assert ``zero'' about a least-squares solve that carries ordinary floating-point roundoff rather than landing on the exact bit pattern for $0.0$.
+\end{pdsolution}
+
+\begin{pdexercise}[kind=Open,rating=3]{ex:fh-two-liar-boundary}
+Theorem~\ref{thm:sheaf-equivocation} assumes a \emph{single} equivocator and says outright that this is not decoration. Two colluding reporters sit on the same visible cycle $K_c$ and each reports an offset; either offset alone would be detected. Using only the definition of the completion residual $r$ as a minimum over global sections and free severed blocks, explain why a coalition can drive $r$ to (numerically) zero even though neither liar's offset is small, and say what kind of evidence --- if any --- could still catch the coalition.
+\end{pdexercise}
+\begin{pdsolution}{ex:fh-two-liar-boundary}
+$r$ is defined as the \emph{best-fit} residual: the smallest disagreement left over after choosing the global section $x$ and the free severed blocks $g_{\mathrm{sev}}$ that explain as much of the observed data as any choice can. It is not a per-liar quantity; it is a property of the whole observed cochain $g_K$. If two equivocators on a common cycle choose offsets $o_1$ and $o_2$ such that $o_1+o_2$ happens to be a coboundary --- i.e.\ the \emph{sum} of their two lies is indistinguishable from a single consistent state change --- then the best-fit global section can absorb $o_1+o_2$ entirely, leaving a near-zero residual, exactly the way a lone liar's offset is absorbed when it lies off a visible cycle (the cut-edge case above). Nothing in the definition of $r$ requires the offsets to be individually small for their \emph{sum} to be small or zero; it requires only that the sum land in the image of $\delta$, the space the completion can always explain away. This is why the single-equivocator hypothesis is load-bearing rather than a simplifying nicety: the moment a second colluding reporter is admitted on the same cycle, the detector's soundness guarantee (Theorem~\ref{thm:sheaf-equivocation}'s ``if and only if'') no longer applies to the \emph{pair}, only to each alone under the counterfactual that the other is honest.
+
+The compendium's own sweep states the shape of this exactly: a solo equivocator on an 8-cycle is bounded below at $r\ge|s|/\sqrt8$, while a coordinating coalition of two on the same cycle drives the same statistic to $r\approx6\times10^{-15}$ --- numerically the silence of a true coboundary, not a small-but-detectable residual [internal, \texttt{sheaf\_consistency\_radius.py}]. What could still catch the coalition is exactly what $r$ is not: per-report attribution rather than a single scalar. Signature-level forensics can ask whether the \emph{same} reporter's two prefixes are individually self-consistent (an equivocator still signs two incompatible things even if the aggregate looks clean); cross-checking against a third, independent visible cycle through only one of the two colluders can isolate that one's contribution if such a cycle exists; and widening $K$ --- comparing more edges directly rather than relying on relayed reports --- shrinks the coalition's room to choose a cancelling pair in the first place. None of this is a proof that coalitions are caught in general; \S\ref{sec:fh-lim-cartel} names the cross-harbor cartel question as open for exactly this reason, and this exercise is that same boundary stated at the level of one theorem rather than the whole federation.
+\end{pdsolution}
+
+\pdexercisesfor{\S\ref{sec:fh-formal}}{Formal Model}
+
+\begin{pdexercise}[kind=Trace,rating=2]{ex:fh-proverif-federation}
+\path{proofs/bonded/federated/federated.pv} is a separate, already-mechanized ProVerif model from the cross-realm sketch above --- it is Bonded Commons \S7's federated multi-principal secrecy theorem, reused here because it is the formal backbone for reasoning about trust split across administrative principals. Read the model's header comment and state: which four principals it names, which single query it actually runs, and why running only the ``daemon + email + KMS compromised'' scenario is enough to cover the weaker three-principal scenarios too.
+\end{pdexercise}
+\begin{pdsolution}{ex:fh-proverif-federation}
+The four principals are the daemon's local DB ($D$, read-only), the KMS ($K$, read-only key witness), the email provider ($E$, read access to the user's mailbox), and the passphrase ($P$, out-of-band, held only in the user's head --- deliberately not modeled as compromisable, since \S7 does not defend against the user revealing their own passphrase). The single query the file states is \texttt{query attacker(account\_root)}: can the attacker ever derive the reconstructed vault. The model has no destructor for \texttt{combine4}, so the four shares can only be combined by the honest user's own process, never inverted by an attacker who merely holds some subset of them.
+
+Only one scenario is actually run --- the top-level \texttt{process} compromises $D$, $E$, and $K$ simultaneously (three of four), leaving $P$ uncompromised. The file's own comment states why this subsumes the weaker cases: ``if the vault is safe with daemon+email+KMS public, it is also safe with any subset of those compromised.'' An attacker who additionally lacks one of $D$, $E$, or $K$ is strictly weaker than the modeled attacker, so a query that holds against the strongest three-of-four attacker holds against every subset of it for free; running the weaker scenarios separately would add nothing this run does not already dominate.
+
+Pinned verdict (\path{proofs/bonded/federated/federated.run.log}), quoted exactly:
+\begin{lstlisting}
+Starting query not attacker(account_root[])
+RESULT not attacker(account_root[]) is true.
+--------------------------------------------------------------
+Verification summary:
+
+Query not attacker(account_root[]) is true.
+\end{lstlisting}
+What this does \emph{not} cover, stated as plainly as \S\ref{sec:fh-xfer-mech} states its own draft status: all four principals compromised at once (explicitly out of scope --- the four-eyes attacker), and the \S7.5 Shamir 3-of-4 recovery path, which is the honest user's own reconstruction option, not an attacker capability. Neither this model nor the cross-realm sketch above substitutes for the other: one is a completed secrecy result about who must collude for a vault to fall, the other is this chapter's own in-progress model of cross-realm card authenticity.
+\end{pdsolution}
+
+\pdexercisesfor{\S\ref{sec:fh-limitations}}{Limitations and Open Questions}
 
 \begin{pdexercise}[kind=Open,rating=3]{ex:fh-correlated-equilibrium}
 \S\ref{sec:fh-lim-correlated} names two candidate resolutions for the correlated-equilibrium concept once two daemons, not one, are in play. State a stochastic/Bayesian game model of the two-harbor case in which the witness log could serve as a correlation device, name the informational event (a common-view or freshness event) under which you would try to prove a coarse correlated equilibrium, and give a safe degraded policy for the case where that event has not occurred.
@@ -1412,15 +1436,20 @@ Eric Bach.
 \paragraph{Artifact registry.} The cross-paper status table in Bonded Commons~\cite{owens2026bonded} carries the items that are shared across the series; this appendix lists only the items specific to the Federated Harbor.
 
 \renewcommand{\arraystretch}{1.15}
-\begin{table}[H]
-\centering
-\caption{Federated Harbor verification status. \Closed: model verified and runtime conformance test passes. \Partial: design specified, mechanization in draft. \Open: known unmechanized; threat band visible in Figure~\ref{fig:fh-threat-bands} (cobalt).}
-\label{tab:fh-status}
-\small
-\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.30\textwidth} >{\raggedright\arraybackslash}p{0.19\textwidth} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{0.19\textwidth}@{}}
+{\small
+\begin{xltabular}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.30\textwidth} >{\raggedright\arraybackslash}p{0.19\textwidth} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{0.19\textwidth}@{}}
+\caption{Federated Harbor verification status. \Closed: model verified and runtime conformance test passes. \Partial: design specified, mechanization in draft. \Open: known unmechanized; threat band visible in Figure~\ref{fig:fh-threat-bands} (cobalt).}\label{tab:fh-status}\\
 \toprule
 \textbf{Claim} & \textbf{Method} & \textbf{Result} & \textbf{Artifact} \\
 \midrule
+\endfirsthead
+\multicolumn{4}{@{}l}{\small\itshape (continued)}\\
+\toprule
+\textbf{Claim} & \textbf{Method} & \textbf{Result} & \textbf{Artifact} \\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
 Single-harbor capability authenticity (inherited) & ProVerif 2.05 & \Closed & Anchor \path{harbor_card_v*.pv} \\
 Cross-realm authenticity (\S\ref{sec:fh-xfer}) & ProVerif (draft) & \Partial\ pending witness-log freshness assumption & \texttt{fh-xfer.pv} (draft) \\
 Attenuation monotonicity across boundary (Lem.~\ref{lem:fh-att}) & ProVerif + Anchor sub-result & \Partial & \texttt{fh-att.pv} (draft) \\
@@ -1434,9 +1463,7 @@ Sheaf-Laplacian relaxation-time bound (\S\ref{sec:fh-sheaf}) & --- & \Open\ no d
 Trustless settlement for non-fungible bonds & --- & \Open\ no construction or impossibility proof & --- \\
 Multi-principal correlated-equilibrium extension & --- & \Open & --- \\
 Cross-federation cartel-resistance bound & --- & \Open & --- \\
-\bottomrule
-\end{tabularx}
-\end{table}
+\end{xltabular}}
 
 \paragraph{What this table means.} Every row in the \Partial\ band is committed to and on the active workplan. Every row in the \Open\ band is a research question we cannot resolve from the desk; the proposal~\cite{owens2026proposal} names collaborators whose contributions are necessary to close them. We err toward listing fewer items as closed rather than more, in the same posture as Anchor and Bonded.
 

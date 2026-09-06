@@ -1,14 +1,19 @@
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
-\usepackage{lmodern}
+% Font A (chosen 2026-09-06): Palatino via newpx for text and math; the
+% standalone chapters keep Latin Modern until their own layout pass.
+\usepackage{newpxtext}
+\usepackage{newpxmath}
+\let\openbox\relax
 \usepackage[fontsize=10.5pt]{fontsize}
 \usepackage{microtype}
 \usepackage{geometry}
-\usepackage{amsmath,amssymb,amsthm}
+\usepackage{amsmath,amsthm}
 \usepackage{listings}
 \usepackage{xcolor}
 \usepackage{booktabs}
 \usepackage{tabularx}
+\usepackage{xltabular}
 \usepackage{array}
 \usepackage{graphicx}
 \usepackage{fancyhdr}

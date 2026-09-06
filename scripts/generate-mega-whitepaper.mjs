@@ -977,49 +977,6 @@ function texCode(text) {
   return `\\texttt{${texEscapeBreakable(text)}}`;
 }
 
-// Un-floated tabularx cannot paginate on its own (confirmed empirically: one
-// long tabularx block overflowed a page's height outright rather than
-// breaking), and the fix that actually solves that — longtable — cannot be
-// loaded from here: \input{longtable.sty} after \begin{document} throws
-// "Can be used only in preamble", and this emitter must not touch the Book's
-// preamble file. So a method's rows are instead split into several shorter
-// tabularx blocks (each repeating the header), giving LaTeX real page-break
-// points between them. Chunked by an estimate of wrapped line count, not a
-// fixed row count, since one row's evidence policy runs to a few hundred
-// characters and the next one's is a bare "---".
-const CHUNK_CHARS_PER_LINE_ESTIMATE = 55; // the wide (~0.42\textwidth) evidence-policy column
-const CHUNK_PATH_CHARS_PER_LINE_ESTIMATE = 18; // the narrower (~0.21\textwidth) artifact column
-const CHUNK_LINE_BUDGET = 24;
-
-function chunkRowsForPagination(rows) {
-  const chunks = [];
-  let current = [];
-  let weight = 0;
-  for (const row of rows) {
-    const evidenceLength = (row.evidencePolicy ?? row.ci.reason ?? '---').length;
-    // texPaths (see above) now prints every path on its own \newline, so a
-    // multi-path row's height is at least one line PER PATH, not one line
-    // per ~30 combined characters — undercounting this by using the joined
-    // length here is exactly what left one row (18 paths) taller than
-    // estimated and still part of an overfull page in an earlier version of
-    // this function.
-    const pathsLines = row.paths.reduce(
-      (sum, path) => sum + Math.max(1, Math.ceil(path.length / CHUNK_PATH_CHARS_PER_LINE_ESTIMATE)),
-      0,
-    );
-    const rowWeight = Math.max(2, Math.ceil(evidenceLength / CHUNK_CHARS_PER_LINE_ESTIMATE), pathsLines);
-    if (current.length > 0 && weight + rowWeight > CHUNK_LINE_BUDGET) {
-      chunks.push(current);
-      current = [];
-      weight = 0;
-    }
-    current.push(row);
-    weight += rowWeight;
-  }
-  if (current.length > 0) chunks.push(current);
-  return chunks;
-}
-
 // Status is one word ("current"/"partial"/"historical") in \textsc, which
 // rendered slightly wider than a plain 0.08\textwidth column at this point
 // size — 0.10 clears it. Claim and CI give up the difference; the X
@@ -1047,7 +1004,7 @@ function renderRow(row) {
  * actually runs (scripts/check-whitepaper-corpus.mjs is the manifest's own
  * checker). One \small, booktabs-style tabularx table per verification
  * method — chunked into several shorter blocks so it can break across pages
- * (see chunkRowsForPagination) — sorted by id within each table, with the
+ * — sorted by id within each table, with the
  * method tables themselves in alphabetical order. Takes the parsed manifest
  * object directly (not a path) so a test can hand it a synthetic manifest.
  */
@@ -1081,42 +1038,32 @@ function renderMechanizedClaims(raw, { source = 'whitepaper/corpus.json' } = {})
     const methodWired = rows.filter((row) => row.ci.status === 'wired').length;
     const methodRetired = rows.length - methodWired;
     const slug = method.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-    // The caption and the first chunk travel together: \captionof leaves a
-    // legal break point between itself and the table, and with several
-    // paragraph-separated chunks per method TeX took it, stranding a caption
-    // at the foot of one page with its table on the next. Wrapping the two in
-    // an unbreakable full-width minipage removes that break point while the
-    // remaining chunks keep their own.
+    // One page-breaking table per method (xltabular = longtable + tabularx):
+    // the caption rides in the first head, the column heads repeat on every
+    // continuation page, and TeX may break between any two rows. This
+    // replaced the earlier chunked-tabularx scheme, which could not break a
+    // chunk and overflowed the 7 x 10 in page at the Book's narrower measure.
+    const ncol = TABLE_HEADER_ROW.split('&').length;
     lines.push(
       '\\medskip',
-      '\\noindent\\begin{minipage}{\\textwidth}',
-      `\\captionof{table}{${texText(method)} artifacts (${methodWired} wired, ${methodRetired} retired).}`,
-      `\\label{tab:mechanized-${slug}}`,
-      '\\small',
+      '{\\small',
+      `\\begin{xltabular}{\\textwidth}{${TABLE_COLUMN_SPEC}}`,
+      `\\caption{${texText(method)} artifacts (${methodWired} wired, ${methodRetired} retired).}`
+        + `\\label{tab:mechanized-${slug}}\\\\`,
+      '\\toprule',
+      TABLE_HEADER_ROW,
+      '\\midrule',
+      '\\endfirsthead',
+      `\\multicolumn{${ncol}}{@{}l}{\\small\\itshape (continued)}\\\\`,
+      '\\toprule',
+      TABLE_HEADER_ROW,
+      '\\midrule',
+      '\\endhead',
+      '\\bottomrule',
+      '\\endlastfoot',
+      ...rows.map(renderRow),
+      '\\end{xltabular}}',
     );
-    // Each chunk is its own top-level paragraph, separated from its
-    // neighbors by a genuine blank line (not just a source newline). A
-    // non-floating tabularx placed in vertical mode opens an implicit
-    // paragraph for its own hbox but never closes it with \par; without a
-    // real paragraph break here, one chunk's \end{tabularx} and the next
-    // chunk's \begin{tabularx} stayed inside the SAME paragraph, so TeX had
-    // no legal page-break point between them and, empirically, shipped
-    // several chunks onto one page as a single massively overfull \vbox.
-    const chunks = chunkRowsForPagination(rows);
-    chunks.forEach((chunk, chunkIndex) => {
-      if (chunkIndex > 0) lines.push('', '\\noindent{\\small\\itshape (continued)}', '');
-      lines.push(
-        `\\begin{tabularx}{\\textwidth}{${TABLE_COLUMN_SPEC}}`,
-        '\\toprule',
-        TABLE_HEADER_ROW,
-        '\\midrule',
-        ...chunk.map(renderRow),
-        '\\bottomrule',
-        '\\end{tabularx}',
-      );
-      if (chunkIndex === 0) lines.push('\\end{minipage}');
-      lines.push('');
-    });
     lines.push('');
   }
   return lines.join('\n');
