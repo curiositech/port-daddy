@@ -1,73 +1,64 @@
-% Figure 7 — Signal Detection Theory view of the operator's forced-zoom decision.
-% Two overlapping distributions (safe vs dangerous actions); the criterion beta
-% slides; the asymmetric cost inequality pins where it should sit.
-% Design: error-region labels sit inside their regions (no pointer arrows);
-% the cost reasoning lives in the caption, the canvas keeps only the inequality.
-% Greyscale survival: the two distributions differ by DASH PATTERN as well as hue,
-% so "safe" and "dangerous" stay distinguishable in a monochrome print — the same
-% defense-in-depth fig-zoom-vs-potemkin uses for its dead zoom path.
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-
+% Figure 7 — Signal Detection Theory view of the operator's forced-zoom
+% decision, redrawn to spec [ch4.md 4.7] with pgfplots. Two named densities;
+% the criterion beta trades misses for false alarms; d' is their separation.
+% Greyscale survival: the dangerous curve is dashed as well as differently
+% hued, and the two error regions are edged and labelled, never told apart
+% by tint alone. Vertical zones, bottom to top: axis, error labels, curves
+% and their name tags, beta's own label, the d' dimension on top.
 \begin{figure}[H]
 \centering
-\resizebox{0.82\textwidth}{!}{%
-\begin{tikzpicture}[font=\small,
+\begin{tikzpicture}[pd figure,
   declare function={
     safe(\x)   = 5*exp(-((\x-3)^2)/1.4);
     danger(\x) = 5*exp(-((\x-6)^2)/1.4);
   }]
-% error regions (under the curves, drawn first)
-\fill[hhcobalt!25,domain=0:5,samples=80,smooth] plot (\x,{danger(\x)}) -- (5,0) -- (0,0) -- cycle;
-\fill[hhteal!30,domain=5:9.5,samples=80,smooth] plot (\x,{safe(\x)}) -- (9.5,0) -- (5,0) -- cycle;
+\begin{axis}[
+  width=8.6cm,height=6.1cm,
+  axis lines=left,
+  axis line style={pd rule},
+  xmin=0,xmax=10,ymin=0,ymax=8.6,
+  xtick={0,2,4,6,8,10},ytick={0},
+  tick label style={font=\footnotesize,text=hhink!80!hhgray},
+  xlabel={evidence of danger the operator reads},
+  ylabel={density},
+  every axis label/.style={font=\footnotesize,text=hhink!80!hhgray},
+  clip=false,
+  axis on top,
+  ]
+  % miss area: dangerous mass left of beta
+  \addplot[pd caution fill,domain=0:5.0,samples=80,smooth] {danger(x)} \closedcycle;
+  % false-alarm area: safe mass right of beta
+  \addplot[pd neutral fill,domain=5.0:10,samples=80,smooth] {safe(x)} \closedcycle;
 
-% axes
-\draw[->,thick] (0,0) -- (10.2,0) node[right,font=\footnotesize]{evidence of danger (operator's read)};
-\draw[->,thick] (0,0) -- (0,5.8) node[above,font=\footnotesize]{density};
+  \addplot[pd focus rule,line width=1.1pt,domain=0:10,samples=120,smooth] {safe(x)};
+  \addplot[pd rule,dashed,line width=1.0pt,domain=0:10,samples=120,smooth] {danger(x)};
 
-% distributions
-\draw[hhteal,very thick,domain=0:9.5,samples=120,smooth] plot (\x,{safe(\x)});
-\draw[hhcobalt,very thick,densely dashed,domain=0:9.5,samples=120,smooth] plot (\x,{danger(\x)});
-\node[text=hhink,font=\bfseries\footnotesize] at (2.3,5.4) {safe actions};
-\node[text=hhink,font=\bfseries\footnotesize] at (7.4,5.4) {dangerous actions {\normalfont(dashed)}};
+  % error labels, low, inside their own tinted region, clear of the axis
+  \node[pd direct label,anchor=south,align=center] at (axis cs:3.6,0.55) {miss};
+  \node[pd direct label,text=hhteal,anchor=south,align=center] at (axis cs:7.3,0.55) {false alarm};
 
-% criterion line beta
-\draw[hhamber,very thick,dashed] (5.0,0) -- (5.0,5.55)
-   node[above,text=hhink,font=\bfseries\footnotesize]{criterion $\beta$};
-\draw[->,thick,hhamber] (5.2,4.6) -- (6.0,4.6) node[right,font=\scriptsize,text=hhink]{lax (fewer zooms)};
-\draw[->,thick,hhamber] (4.8,4.6) -- (4.0,4.6) node[left,font=\scriptsize,text=hhink]{stringent (more zooms)};
+  % curve name tags, just above each peak, growing away from each other
+  \node[pd direct label,text=hhteal,anchor=south east] at (axis cs:2.7,5.25) {safe actions};
+  \node[pd direct label,anchor=south west] at (axis cs:6.3,5.25) {dangerous (dashed)};
 
-% Error labels name the event and lead directly to the correctly shaded tail.
-\node[draw=hhcobalt,thick,fill=hhcobalt!10,rounded corners=1pt,inner sep=3pt,
-      text=hhink,font=\scriptsize,align=center] (miss) at (4.0,1.02)
-  {\textbf{miss}\\dangerous act waved through};
-\draw[hhcobalt,thin] (miss.south) -- (4.55,0.18);
-\node[draw=hhteal,thick,fill=hhteal!10,rounded corners=1pt,inner sep=3pt,
-      text=hhink,font=\scriptsize,align=center,anchor=west] (fa) at (6.58,1.24)
-  {\textbf{false alarm}\\safe act zoomed};
-\draw[hhteal,thin] (fa.west) -- (5.35,0.12);
+  % criterion beta: full-height rule with its own label in the low valley
+  \draw[pd rule,line width=1.0pt] (axis cs:5.0,0) -- (axis cs:5.0,6.7);
+  \node[pd direct label,anchor=south west] at (axis cs:5.1,3.3) {criterion $\beta$};
 
-% d-prime bracket
-\draw[<->,thick,hhink] (3,-0.7) -- (6,-0.7) node[midway,below,font=\footnotesize]{$d'$ (operator sensitivity)};
-
-% the one canvas-worthy fact
-\node[draw=hhebony,thick,fill=hhpaper,rounded corners=2pt,inner sep=5pt,
-      font=\footnotesize,align=center] at (8.6,3.2)
-  {\textbf{asymmetric cost}\\[1pt] $C_{\text{miss}}\!\gg\!C_{\text{fa}}$};
-\end{tikzpicture}%
-}
+  % d' dimension, above everything, spanning the two peaks
+  \draw[pd hairline,{Stealth[length=1.4mm]}-{Stealth[length=1.4mm]}] (axis cs:3,7.4) -- (axis cs:6,7.4);
+  \node[pd axis label,anchor=south,align=center,text width=3.4cm] at (axis cs:4.5,7.5) {d\textquotesingle{} (sensitivity)};
+\end{axis}
+\end{tikzpicture}
 \caption{The operator's forced-zoom decision as Signal Detection Theory
-(Def.~\ref{def:sdt}, Eq.~\ref{eq:sdt}). Most actions are safe (left curve); a few
-are dangerous (right). Zooming triggers when evidence of danger exceeds criterion $\beta$. Moving $\beta$ left
-is more stringent: it causes more zooms, fewer misses, and more false alarms. Moving $\beta$ right
-is more lax: it minimizes attention-seconds but increases misses. Because $C_{\text{miss}}\gg C_{\text{fa}}$, the
-optimal criterion sits well to the left of the throughput optimum: \emph{the miss-cost term is what forces the
-zoom}. Sensitivity $d'$ (curve separation) is improved by better legibility; $\beta$
-is the policy knob $p(r,s,v)$.}
+(Def.~\ref{def:sdt}). Two named densities over the evidence the operator
+reads: safe actions (solid) and dangerous actions (dashed), separated by
+sensitivity d\textquotesingle. Zooming triggers when evidence exceeds the
+criterion $\beta$; moving $\beta$ left trades the caution-tinted miss region
+for more of the neutral-tinted false-alarm region. Because a miss costs far
+more than a false alarm --- at the chapter's running costs, 100 against 5,
+the inspect bar sits at $a\ge0.057$ --- the optimal criterion sits well to
+the left of the throughput optimum: idealized as two fixed Gaussians, not the
+fitted mixture the deployed detector would use [internal].}
 \label{fig:sdt}
 \end{figure}

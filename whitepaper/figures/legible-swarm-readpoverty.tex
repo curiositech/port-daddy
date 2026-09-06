@@ -1,41 +1,53 @@
-% Figure 9 — paired scaling views. The left encodes lookup cost; the right
-% distinguishes value that exists at n=1 from discovery value that arrives later.
+% Figure 9 — measured xy plot, redrawn to spec [ch4.md 4.9]. The R1 sweep's
+% own CSV (whitepaper/figures/data/r1-floor.csv) is not committed, so this
+% draws the two ANALYTIC curves the chapter's own Floor(N,k,m) formula
+% (Thm.~\ref{thm:lowerbound}, \ref{thm:split-penalty}) reduces to at m=8: the
+% flat (joint, 2k=4) and split (per-reader, k=2) zero-miss floors, with only
+% the N=60 points the chapter works by hand labelled. Deviation is named in
+% the caption.
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}[pd figure,x=.90cm,y=.92cm]
-  \node[pd panel title,anchor=west] at (.15,4.85) {read cost};
-  \node[pd panel title,anchor=west] at (8.25,4.85) {value of the legibility layer};
+\begin{tikzpicture}[pd figure,
+  declare function={
+    split(\n)  = ln(\n*(\n-1))/ln(2) - 1 - 4.80735;
+    flat(\n)   = ln(\n*(\n-1)*(\n-2)*(\n-3))/ln(2) - 10.7141;
+  }]
+\begin{axis}[
+  width=8.6cm,height=6.0cm,
+  axis lines=left,
+  axis line style={pd rule},
+  xmin=8,xmax=105,ymin=0,ymax=17.5,
+  xtick={20,40,60,80,100},ytick={0,5,10,15},
+  tick label style={font=\footnotesize,text=hhink!80!hhgray},
+  xlabel={swarm size $N$},
+  ylabel={bits to locate},
+  every axis label/.style={font=\footnotesize,text=hhink!80!hhgray},
+  clip=false,axis on top,
+  ]
+  \draw[pd guide] (axis cs:60,0) -- (axis cs:60,15.6);
+  \node[pd axis label,anchor=south] at (axis cs:60,15.7) {$N{=}60$};
 
-  \draw[pd arrow] (.15,.35)--(7.15,.35);
-  \draw[pd arrow] (.15,.35)--(.15,4.48);
-  \draw[pd rule,line width=1.05pt] plot[smooth] coordinates {(.35,.55)(1.8,1.25)(3.3,2.05)(4.8,2.92)(6.65,4.15)};
-  \draw[pd focus rule,line width=1.05pt] plot[smooth] coordinates {(.35,.72)(1.8,1.18)(3.3,1.42)(4.8,1.58)(6.65,1.72)};
-  \node[pd direct label,anchor=west] at (4.55,3.38) {$O(n)$ eyeball search};
-  \node[pd direct label,text=hhteal,anchor=west] at (4.35,1.86) {$O(\log n)$ index};
-  \node[pd axis label,anchor=west] at (6.35,.08) {population $n$};
-  \node[pd axis label,rotate=90,anchor=south] at (-.35,2.4) {cost to find};
+  \addplot[pd rule,line width=1.05pt,domain=8:105,samples=100,smooth] {flat(x)};
+  \addplot[pd focus rule,line width=1.05pt,domain=8:105,samples=100,smooth] {split(x)};
 
-  \draw[pd arrow] (8.25,.35)--(15.25,.35);
-  \draw[pd arrow] (8.25,.35)--(8.25,4.48);
-  \fill[hhsand!20] (12.75,.35) rectangle (15.1,4.32);
-  \draw[pd focus rule,line width=1.05pt]
-    plot[smooth] coordinates {(8.48,1.30)(9.8,1.82)(11.2,2.36)(12.6,2.78)(14.9,3.23)};
-  \node[pd focus datum] at (8.48,1.30) {};
-  \node[pd direct label,text=hhteal,anchor=west,align=left] at (8.72,1.08)
-    {$n=1$\\already pays};
-  \draw[pd caution rule,dashed] (12.75,.35)--(12.75,4.32);
-  \node[pd direct label,text=hhamber,anchor=west,align=left] at (12.92,3.92)
-    {read-poverty regime\\discovery begins to pay};
-  \node[pd axis label,anchor=west] at (14.65,.08) {swarm size $n$};
-  \node[pd axis label,rotate=90,anchor=south] at (7.75,2.4) {value};
-  \node[pd note,anchor=north] at (11.72,-.04)
-    {onset is a design target, not a measurement};
+  \node[pd datum] at (axis cs:60,{flat(60)}) {};
+  \node[pd focus datum] at (axis cs:60,{split(60)}) {};
+  \node[pd direct label,anchor=south east] at (axis cs:59,{flat(60)+0.4}) {12.77};
+  \node[pd direct label,text=hhteal,anchor=north east] at (axis cs:59,{split(60)-0.4}) {5.98};
+
+  \node[pd direct label,anchor=west] at (axis cs:87,{flat(87)}) {flat digest};
+  \node[pd direct label,text=hhteal,anchor=west] at (axis cs:87,{split(87)}) {split digest};
+\end{axis}
 \end{tikzpicture}
-\caption{Read-poverty has two scales. Left, unindexed eyeball search grows with
-population while a directory keeps lookup near logarithmic. Right, the
-legibility layer has value at $n=1$ through briefing, attestation, footgun
-guards, and honest completion; discovery adds value only after the corpus
-becomes too large to scan. The shaded onset is a design regime, not an empirical
-estimate of a universal swarm-size threshold.}
+\caption{Bits an operator must read to locate the critical artifact, at the
+lower bound of Thm.~\ref{thm:lowerbound} with $m{=}8$, $k{=}2$. One flat
+digest serving both readers jointly needs $\mathrm{Floor}(N,4,8)$ bits; two
+split digests, one per reader, each need only $\mathrm{Floor}(N,2,8)$. At
+$N{=}60$ the split digest costs 5.98 bits against the flat digest's 12.77 ---
+a 2.13$\times$ penalty, not the 2$\times$ that halving the readers would
+predict. The committed sweep CSV (\texttt{r1-floor.csv}) is not yet present,
+so the two curves are the chapter's own closed-form Floor formula rather than
+simulated points; only the $N{=}60$ values it works by hand are marked
+[internal].}
 \label{fig:readpoverty}
 \end{figure}

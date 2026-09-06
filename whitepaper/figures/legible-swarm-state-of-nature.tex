@@ -1,51 +1,69 @@
-% Figure 2 — same arrivals, two execution topologies. The common time scale is
-% the comparison; overlap and queue position, not color, carry the claim.
+% Figure 2 — before/after Gantt pair, redrawn to spec [ch4.md 4.2]. Same time
+% axis (0-8) top and bottom. Top: four write windows that all cover [3,4], so
+% overlap is an ordinary state. Bottom: the same four requests, each band now
+% ending at its own grant on one commit spine; consent changes the schedule,
+% not who may participate.
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
-  \node[pd panel title,anchor=west] at (0,4.15) {unsequenced execution};
-  \node[pd panel title,anchor=west] at (8.25,4.15) {consented serialization};
+\begin{tikzpicture}[pd figure,x=1.02cm,y=1cm]
+  % ---------------- top panel: unsequenced execution ----------------
+  \node[pd panel title,anchor=west] at (0,4.35) {unsequenced execution};
 
-  \draw[pd arrow] (0,0.35)--(7.1,0.35);
-  \draw[pd arrow] (8.25,0.35)--(15.35,0.35);
-  \node[pd axis label,anchor=west] at (6.6,.08) {time};
-  \node[pd axis label,anchor=west] at (14.85,.08) {time};
+  % overlap tint, drawn first so the bands sit on top of it
+  \fill[pd caution fill] (3,0.41) rectangle (4,3.29);
 
-  \foreach \y/\a in {3.35/A,2.65/B,1.95/C,1.25/D}{
-    \node[pd axis label,anchor=east,font=\scriptsize\bfseries] at (.45,\y) {\a};
-    \draw[pd guide] (.62,\y)--(7.0,\y);
-    \node[pd axis label,anchor=east,font=\scriptsize\bfseries] at (8.70,\y) {\a};
-    \draw[pd guide] (8.87,\y)--(15.25,\y);
+  \foreach \y/\a/\xa/\xb in {3.05/A/0.5/4,2.25/B/1/5.5,1.45/C/2/6,0.65/D/3/7.5}{
+    \node[pd row label] at (-0.25,\y) {\a};
+    \draw[pd guide] (0,\y) -- (8,\y);
+    \fill[pd neutral fill] (\xa,\y-0.24) rectangle (\xb,\y+0.24);
+  }
+  % re-stroke the overlap edges on top so the bands do not erase them
+  \draw[pd caution rule] (3,0.41) -- (3,3.29);
+  \draw[pd caution rule] (4,0.41) -- (4,3.29);
+
+  \node[pd direct label,text=hhamber,anchor=south] at (3.5,3.52)
+    {four valid writes overlap};
+  \draw[pd hairline] (3.5,3.44) -- (3.5,3.30);
+
+  \draw[pd rule,-{Stealth[length=1.65mm,width=1.05mm]}] (0,0) -- (8.35,0);
+  \foreach \x in {0,2,4,6,8}{
+    \draw[pd tick] (\x,0) -- (\x,-0.15);
+    \node[pd axis label,anchor=north] at (\x,-0.20) {\x};
+  }
+  \node[pd axis label,anchor=west] at (8.35,0) {time};
+
+  % ---------------- bottom panel: consented serialization ----------------
+  \node[pd panel title,anchor=west] at (0,4.35-6.0) {consented serialization};
+
+  \foreach \y/\a/\xa/\xg in {3.05/A/0.5/2,2.25/B/1/3.5,1.45/C/2/5,0.65/D/3/6.5}{
+    \node[pd row label] at (-0.25,\y-6.0) {\a};
+    \draw[pd guide] (0,\y-6.0) -- (8,\y-6.0);
+    \fill[pd neutral fill] (\xa,\y-0.24-6.0) rectangle (\xg,\y+0.24-6.0);
+    \draw[pd hairline] (\xg,\y-0.24-6.0) -- (\xg,-6.0);
   }
 
-  \fill[hhamber!10] (2.8,.62) rectangle (5.22,3.73);
-  \draw[pd caution rule] (2.8,.62)--(2.8,3.73);
-  \draw[pd caution rule] (5.22,.62)--(5.22,3.73);
-  \foreach \ya/\xa/\xb in {3.35/.95/4.20,2.65/1.75/5.40,1.95/2.55/4.75,1.25/3.15/6.10}{
-    \draw[pd rule,line width=3.6pt,line cap=round] (\xa,\ya)--(\xb,\ya);
-    \node[pd datum] at (\xa,\ya) {};
+  \draw[pd rule,-{Stealth[length=1.65mm,width=1.05mm]}] (0,-6.0) -- (8.35,-6.0);
+  \foreach \x in {0,2,4,6,8}{
+    \draw[pd tick] (\x,-6.0) -- (\x,-6.15);
+    \node[pd axis label,anchor=north] at (\x,-6.20) {\x};
   }
-  \node[pd direct label,text=hhamber,anchor=south] at (4.01,.68)
-    {four valid writers overlap};
+  \node[pd axis label,anchor=west] at (8.35,-6.0) {time};
 
-  \foreach \ya/\xa/\xg/\n in {3.35/9.20/10.05/241,2.65/9.95/11.35/242,1.95/10.75/12.65/243,1.25/11.35/13.95/244}{
-    \node[pd datum] at (\xa,\ya) {};
-    \draw[pd hairline] (\xa,\ya)--(\xg,.82);
-    \node[pd focus datum] at (\xg,.82) {};
-    \node[pd axis label,anchor=north] at (\xg,.58) {\#\n};
+  % commit spine: the four grants land on the time axis in order
+  \draw[pd focus rule,line width=1.25pt] (2,-6.0) -- (6.5,-6.0);
+  \foreach \xg/\lab in {2/g1,3.5/g2,5/g3,6.5/g4}{
+    \node[pd focus datum] at (\xg,-6.0) {};
+    \node[pd axis label,text=hhteal,anchor=north] at (\xg,-6.55) {\lab};
   }
-  \draw[pd focus rule,line width=1.25pt] (9.55,.82)--(14.45,.82);
-  \node[pd direct label,text=hhteal,anchor=south] at (12.0,.97)
-    {one commit spine};
-
-  \draw[pd hairline] (9.70,-.02)--(14.30,-.02);
-  \node[pd axis label,anchor=north] at (12.0,-.10)
-    {each entry: actor $\cdot$ claim $\cdot$ artifact $\cdot$ reason};
+  \node[pd note,anchor=north,align=center] at (4.25,-7.05)
+    {each grant records actor $\cdot$ claim $\cdot$ artifact $\cdot$ reason};
 \end{tikzpicture}
-\caption{The same four arrivals under two execution topologies. Left, write
-intervals overlap on one artifact; no total order exists, so collision is an
-ordinary state. Right, arrival remains concurrent but admission lands on one
-commit spine. Each grant receives an order number and returns actor, claim,
-artifact, and reason. Consent changes the schedule, not who may participate.}
+\caption{Two Gantt panels on one time axis. Top: four write requests A--D
+arrive between $t{=}0.5$ and $t{=}3$ with windows that all cover $[3,4]$, so
+four valid writers overlap on one artifact with no total order among them.
+Bottom: the same four requests under consented serialization, each band now
+ending at its own grant g1--g4 ($t{=}2, 3.5, 5, 6.5$) on one commit
+spine, and every grant recording actor, claim, artifact, and reason. Consent
+changes the schedule, not who may participate [internal].}
 \label{fig:state-of-nature}
 \end{figure}
