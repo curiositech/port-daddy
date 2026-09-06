@@ -1383,8 +1383,8 @@ jobs:
       - integration-tests
       - lint
       - pd-ios
-      - porthole-stage
       - porthole-cast-gate
+      - porthole-stage
       - relay-tests
       - rust-broker
       - rust-console
