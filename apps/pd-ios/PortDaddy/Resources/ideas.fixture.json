@@ -1,0 +1,32 @@
+{
+  "note": "Hand-authored fixture — Snipe's suggestion job and per-idea chat threads are not built. Actions render disabled-with-reason and the composer is inert.",
+  "ideas": [
+    {
+      "id": "cache-index",
+      "title": "Cache the symbol index between sessions",
+      "why": "Cartographer re-indexes src/ every cold start. A content-hashed cache would save ~2m and $0.03 per run.",
+      "source": "Snipe"
+    }
+  ],
+  "exploringTopic": "cache the index",
+  "chat": [
+    {
+      "id": "c1",
+      "role": "them",
+      "author": "Snipe",
+      "text": "Where should the cache live — per-repo in .pd/, or in the daemon's SQLite so it survives worktree churn?"
+    },
+    {
+      "id": "c2",
+      "role": "you",
+      "author": "You",
+      "text": "Daemon SQLite. Worktrees come and go; the index shouldn't."
+    },
+    {
+      "id": "c3",
+      "role": "them",
+      "author": "Snipe",
+      "text": "Agreed. I'll draft an ADR and a spike PR for Cartographer to review. Keyed on content hash so a stale tree invalidates cleanly."
+    }
+  ]
+}

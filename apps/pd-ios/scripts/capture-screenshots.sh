@@ -57,8 +57,8 @@ xcodebuild test \
   >/dev/null
 
 echo "==> Exporting screenshots from the result bundle"
+rm -rf "$OUT_DIR"
 mkdir -p "$OUT_DIR"
-rm -f "$OUT_DIR"/[0-9][0-9]-*.png
 xcrun xcresulttool export attachments \
   --path "$RESULT_BUNDLE" \
   --output-path "$OUT_DIR" >/dev/null
