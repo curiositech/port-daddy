@@ -299,7 +299,7 @@ section that answers their question and to the one figure or theorem that would 
 to survive a review from someone in that role --- so nobody has to read the paper
 end to end to get their own answer out of it.}
 \label{tab:readers-map}
-\begin{tabular}{@{}p{3.6cm} p{6.2cm} p{4.6cm}@{}}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.6cm} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
 \toprule
 \textbf{If you are\dots} & \textbf{\dots start here} & \textbf{\dots critical artifact} \\
 \midrule
@@ -319,7 +319,7 @@ An implementer &
   \S\ref{sec:float-plan} (the built floor) $\to$ Appendix~\ref{app:impl} (status) &
   Table~\ref{tab:honest-state} \\
 \bottomrule
-\end{tabular}
+\end{tabularx}
 \end{table}
 
 \noindent\textbf{Where this chapter sits.} \pdchapref{swk}{The Single-Writer
@@ -479,7 +479,7 @@ refactor, three different ``who knows what'' structures --- and, as the next sec
 shows, one escrow object underneath all of them.
 
 \begin{center}\small
-\begin{tabular}{@{}l l l@{}}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{4.4cm} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
 \toprule
 \textbf{Side} & \textbf{What Bob pays} & \textbf{Who is exposed} \\
 \midrule
@@ -487,7 +487,7 @@ shows, one escrow object underneath all of them.
 2. Capital (rent $a_2$ directly) & $90$\,\textsc{cr} for the afternoon    & Alice, reputation only \\
 3. IP (license Carol's skill)    & $0.5$\,\textsc{cr}/file, metered       & Carol, unpaid unless green \\
 \bottomrule
-\end{tabular}
+\end{tabularx}
 \end{center}
 
 \paragraph{What one mortal body costs.} Side~2 rents a specialist, and the
@@ -656,8 +656,8 @@ locked \emph{before any work runs}. This is the heart of ``no-spawn-without-bond
 \textbf{Pre:} $R$'s wallet holds at least $\textit{bounty}+\textit{bond}$.
 \begin{enumerate}[leftmargin=2.0em,itemsep=1pt,topsep=2pt]
   \item $R \to D$: $\mathsf{sign}_R(\textit{FloatPlan})$ where
-    $\textit{FloatPlan} = \langle \textit{task}, \textit{criteria},
-    \textit{budget}, \textit{bounty}\rangle$.
+    $\textit{FloatPlan} = \langle \textit{task}, \textit{criteria},$
+    $\textit{budget}, \textit{bounty}\rangle$.
   \item $D$ locally, in one serialized transaction:
     debit $\textit{bounty}+\textit{bond}$ from $R$'s wallet, write an escrow row
     keyed by a fresh \textit{anchor id}, commit. \emph{If the transaction aborts,
@@ -718,7 +718,7 @@ free-text ``Result:'' note --- the Goodhart-resistant discipline that the
 commitment layer imposes: \emph{the agent picks the work; the daemon derives the
 grade}.}
 \label{tab:settlement}
-\begin{tabular}{@{}l p{6.6cm} p{4.4cm}@{}}
+\begin{tabularx}{\textwidth}{@{}l >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
 \toprule
 \textbf{State} & \textbf{Flow of funds} & \textbf{Reputation effect} \\
 \midrule
@@ -731,7 +731,7 @@ grade}.}
 \textbf{Dispute}  & escrow $\to$ arbitration hold; 2-of-3 multi-oracle
   (automated / evidence / human) & none until resolved \\
 \bottomrule
-\end{tabular}
+\end{tabularx}
 \end{table}
 
 \paragraph{A settlement, dramatized.} Bob (the requester principal) posts a refactor float plan: bounty $400$\,\textsc{cr}, requiring a provider performance bond of $100$\,\textsc{cr} and acceptance criteria = ``the module's test suite passes and the diff merges.'' Alice (the provider principal) assigns agent $a_2$ and posts the $100$\,\textsc{cr} performance bond into escrow. Bob escrows the $400$\,\textsc{cr} bounty. Before execution, the escrow holds $500$\,\textsc{cr} across two distinct source buckets: $\text{escrow}_{\text{bounty}}(\text{Bob}) = 400$ and $\text{escrow}_{\text{bond}}(\text{Alice}) = 100$.
@@ -948,7 +948,7 @@ $16 \times 0.5 = 8$\,\textsc{cr} releases to Carol and the unused $2$\,\textsc{c
 returns to Bob. Alice's bond is refunded as collateral, not income.
 
 \begin{center}\small
-\begin{tabular}{@{}l r l@{}}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{4.0cm} r >{\raggedright\arraybackslash}X@{}}
 \toprule
 \textbf{Wallet} & \textbf{Net delta} & \textbf{Why} \\
 \midrule
@@ -960,7 +960,7 @@ Commons              & $+0$   & nothing slashed on a Success settlement \\
 \midrule
 \textbf{Sum}         & $\mathbf{0}$ & escrow $560 \to 0$; supply unchanged \\
 \bottomrule
-\end{tabular}
+\end{tabularx}
 \end{center}
 
 \noindent Check it on one line: $-458 + 400 + 50 + 8 + 0 = 0$. Three sides, three
@@ -1859,9 +1859,9 @@ A skill's portfolio proof for v1 says nothing about v2. Specify a
   with a discounted inherited prior --- the newcomer policy, but for code.
 \end{pdexercise}
 \begin{pdsolution}{ex:he-portfolio-version-binding}
-Make each portfolio-tree leaf a tuple $(\text{skill\_id}, \text{version},
-\text{content\_hash}, \text{parent\_hash}, \text{build/dependency hashes},
-\text{license}, \text{evaluation root})$. A v2 proof of membership includes its
+Make each portfolio-tree leaf a tuple $(\text{skill\_id},$ $\text{version},$
+$\text{content\_hash},$ $\text{parent\_hash},$ $\text{build/dependency hashes},$
+$\text{license},$ $\text{evaluation root})$. A v2 proof of membership includes its
 parent's leaf plus v2's own evaluation root. Initialize v2's reputation prior
 with an effective sample size $\gamma\, n_{v1}$, where $\gamma\in[0,1]$ is a
 predeclared compatibility/evaluation discount fixed \emph{before} seeing v2's
@@ -1885,8 +1885,8 @@ why does Theorem~B4.2's reduction from 3-SAT depend on exactly that happening?
 \begin{pdsolution}{ex:he-deontic-conflict-checker}
 The witness: fact \texttt{agent\_deployed}; Horn rule
 \texttt{agent\_deployed}~$\to$~\texttt{prod\_access}; deontic rules
-$O(\texttt{write\_prod},\{\texttt{env:prod}\},[0,10])$ once \texttt{prod\_access}
-holds, and $F(\texttt{write\_prod},\{\texttt{env:prod}\},[5,15])$ unconditionally.
+$O(\texttt{write\_prod},\{\texttt{env:prod}\},$ $[0,10])$ once \texttt{prod\_access}
+holds, and $F(\texttt{write\_prod},\{\texttt{env:prod}\},$ $[5,15])$ unconditionally.
 Running the real checker gives \texttt{conflict=True, O/F pairs=[(0, 1)]} on
 $[5,10]$; the same script's Horn-propagation-ablated mutant gives
 \texttt{conflict=False} on this exact witness, and misses $100$ of the $885$
@@ -1947,8 +1947,8 @@ Specify a cryptographic binding tying $N$ agents to one principal
   shortcut is unavailable). This is the hard half of cross-operator attestation.
 \end{pdexercise}
 \begin{pdsolution}{ex:he-principal-binding}
-A workable certificate binds $(\text{principal\_id}, \text{agent\_key},
-\text{issuer}, \text{epoch}, \text{policy}, \text{expiry})$ and requires the
+A workable certificate binds $(\text{principal\_id},$ $\text{agent\_key},$
+$\text{issuer},$ $\text{epoch},$ $\text{policy},$ $\text{expiry})$ and requires the
 agent to prove possession of its key. Bonds, quotas, newcomer state, and
 sanctions all key on \texttt{principal\_id}; agent certificates are children of
 it. Issuance and revocation publish to a transparency log, and the issuer itself
@@ -2343,7 +2343,7 @@ expected forfeiture must match its gain from misreporting.
 \small
 \caption{How the harbor economy sits relative to the nearest prior art on each axis.}
 \label{tab:related}
-\begin{tabular}{@{}p{3.4cm} p{5.0cm} p{6.0cm}@{}}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.4cm} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
 \toprule
 \textbf{Axis} & \textbf{Nearest prior art} & \textbf{What the harbor does differently} \\
 \midrule
@@ -2367,7 +2367,7 @@ Purchased assurance & Delegated computation~\cite{goldwasser2008}; AI-safety
   Prices assurance as $k$ independently bonded test-writers under a Becker-style
   re-audit rate, against a mutation-testing oracle \\
 \bottomrule
-\end{tabular}
+\end{tabularx}
 \end{table}
 
 % ═══════════════════════════════════════════════════════════════════════════════
@@ -2729,7 +2729,7 @@ detached-content merchant authorization, JCS canonicalization), 2026.
 
 \bibitem{datadome2026} DataDome. ``Agent Trust Management and the Universal
 Commerce Protocol,'' 2026.
-\texttt{datadome.co/agent-trust-management/universal-commerce-protocol/}.
+\path{datadome.co/agent-trust-management/universal-commerce-protocol/}.
 
 \bibitem{goldwasser2008} S. Goldwasser, Y. Kalai \& G. Rothblum. ``Delegating
 Computation: Interactive Proofs for Muggles.'' \emph{STOC}, pp.~613--622, 2008.

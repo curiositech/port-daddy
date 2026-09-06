@@ -485,7 +485,7 @@ anything over a forgeable identity or an agent-authored oracle.
 
 \begin{table}[H]
 \centering\small\renewcommand{\arraystretch}{1.3}
-\begin{tabular}{@{}p{3.0cm} p{3.6cm} p{3.2cm} p{3.4cm}@{}}
+\begin{tabularx}{\textwidth}{@{}l >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
 \toprule
 \textbf{Estimator} & \textbf{Signal it needs} & \textbf{Strength} & \textbf{Wrong if\ldots} \\
 \midrule
@@ -494,7 +494,7 @@ Bradley--Terry~\cite{bradleyterry1952} & full pairwise history & stable MLE & po
 TrueSkill~\cite{herbrich2007trueskill} & pairwise, few games & calibrated $\sigma$ for cold start & you need network propagation \\
 EigenTrust~\cite{kamvar2003eigentrust} & who-trusts-whom graph & resists collusive cliques & signal is per-task quality, not trust \\
 \bottomrule
-\end{tabular}
+\end{tabularx}
 \caption{Estimators by signal type. Choosing the wrong estimator for the signal is
 a real error; choosing \emph{any} estimator before securing the substrate is the
 larger one (\S\ref{sec:substrate}).}
@@ -534,7 +534,7 @@ skin in the game is capturable regardless of how well it is prompted.
 
 \begin{table}[H]
 \centering\small\renewcommand{\arraystretch}{1.3}
-\begin{tabular}{@{}p{4.6cm} p{4.4cm} p{4.6cm}@{}}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
 \toprule
 \textbf{Question} & \textbf{Closest prior art} & \textbf{This paper's contribution} \\
 \midrule
@@ -543,7 +543,7 @@ Why is identity necessary? & cheap pseudonyms; Sybil & \emph{necessity proof} (T
 How to score quality? & Elo/BT/TrueSkill (scalar) & multi-dimensional vector, judge-per-axis (\S\ref{sec:adr0049}) \\
 Who grades the graders? & LLM-as-judge (debias only) & bonded judge ceremony + rate-the-raters recursion (\S\ref{sec:oracle}) \\
 \bottomrule
-\end{tabular}
+\end{tabularx}
 \caption{Where this paper departs from its closest prior art. The contributions are
 the impossibility/cost theorems, the multi-dimensional vector with a judge per
 axis, and treating the grader's incentive-compatibility as a first-class hole.}
@@ -935,7 +935,7 @@ newcomer score be $r_0=50$ and let a dishonest outcome cost $\Delta=30$.
 
 \begin{table}[H]
 \centering\small\renewcommand{\arraystretch}{1.25}
-\begin{tabular}{@{}p{3.6cm} c c c p{4.4cm}@{}}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.6cm} c c c >{\raggedright\arraybackslash}X@{}}
 \toprule
 \textbf{Actor} & $r(i)$ & $r(i)-\Delta$ & \textbf{Accessible score} & \textbf{Does the sanction bite?} \\
 \midrule
@@ -944,7 +944,7 @@ No --- it re-mints and is back at $50$, exactly where the sanction was supposed 
 Strong record, free minting & $90$ & $60$ & $\max(60,50)=60$ &
 Yes --- abandoning costs it $60-50=10$, so it keeps the identity and eats the $30$. \\
 \bottomrule
-\end{tabular}
+\end{tabularx}
 \caption{Free identity minting does not defeat \emph{every} sanction --- it defeats
 every sanction that would push the actor below the newcomer floor $r_0$. That is
 the whole content of Theorem~\ref{thm:necessity}: the floor, not the penalty, is
@@ -2208,7 +2208,7 @@ explicitly owed.
 \centering
 \small
 \renewcommand{\arraystretch}{1.35}
-\begin{tabular}{@{}p{4.8cm} p{3.4cm} p{6.2cm}@{}}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{2.6cm} >{\raggedright\arraybackslash}X@{}}
 \toprule
 \textbf{Artifact} & \textbf{Maturity} & \textbf{Role in the market paper} \\
 \midrule
@@ -2231,7 +2231,7 @@ Cross-operator attestation (Def.~\ref{def:0040b}) & \VISION &
 Tombstone revocation (Prop.~\ref{prop:tombstone}) & \DESIGNED &
 Reputation is revocable; convergence is the market paper's federation job. \\
 \bottomrule
-\end{tabular}
+\end{tabularx}
 \caption{The bridge's hand-off to the market paper. One item still flows \emph{back}
 as a named, unsolved obligation --- cross-operator attestation
 (Def.~\ref{def:0040b}). The second historical debt, the grading oracle's
@@ -2943,7 +2943,7 @@ rhetorical.
 
 \begin{table}[H]
 \centering\small\renewcommand{\arraystretch}{1.3}
-\begin{tabular}{@{}p{4.2cm} p{2.7cm} p{6.2cm}@{}}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{2.2cm} >{\raggedright\arraybackslash}X@{}}
 \toprule
 \textbf{Component (paper concept)} & \textbf{Maturity} & \textbf{Status in the reference system} \\
 \midrule
@@ -2972,7 +2972,7 @@ Append-only ledger semantics are designed; cross-harbor propagation is \VISION. 
 Cross-operator attestation & \VISION &
 The unbuilt keystone for the market; owed to \pdchapref{he}{The Harbor Economy}. \\
 \bottomrule
-\end{tabular}
+\end{tabularx}
 \caption{Maturity of each paper concept against a reference coordination daemon.
 The honest summary: the \emph{organs} of continuity exist (one weakly); the
 \emph{spine} of reputation --- a witnessed-outcome ledger keyed on a non-forgeable

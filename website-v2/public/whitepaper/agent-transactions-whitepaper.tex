@@ -401,7 +401,7 @@ In Hobbes, consent to the sovereign is rational because the alternative---the st
 \centering
 \caption{The commons authority converts six failure modes from ad hoc and manual to deterministic and automatic --- without forbidding anything an agent could already do. Every row is a service the agent gains, not a permission it loses, which is why consent is rational rather than coerced.}
 \label{tab:consent}
-\begin{tabular}{@{}lll@{}}
+\begin{tabularx}{\textwidth}{@{}l >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
 \toprule
 \textbf{Capability} & \textbf{Without Authority} & \textbf{With Authority} \\
 \midrule
@@ -412,7 +412,7 @@ Delegation & Bilateral trust negotiation & Attenuated capability tokens \\
 Reputation & Every interaction from zero & History persists across lifetimes \\
 Accountability & Anonymous harm & Full attribution via evidence chain \\
 \bottomrule
-\end{tabular}
+\end{tabularx}
 \end{table}
 
 The daemon does not need to threaten agents. It provides services that make coordination \emph{rational}. Agents that bypass the daemon are not punished---they are simply worse off.
@@ -726,7 +726,7 @@ This raises a question: if death carries no permanent consequence, what is the L
 \centering
 \caption{The only catastrophic event in this hierarchy is the loss of information, not the loss of an agent. Severity climbs from a crash (none, because salvage recovers the context) to a daemon failure (catastrophic), with dismissal-from-salvage as the one irreversible step a single agent can cause on its own.}
 \label{tab:moral}
-\begin{tabular}{@{}llp{7.5cm}@{}}
+\begin{tabularx}{\textwidth}{@{}l l >{\raggedright\arraybackslash}X@{}}
 \toprule
 \textbf{Event} & \textbf{Severity} & \textbf{Consequence} \\
 \midrule
@@ -735,7 +735,7 @@ Agent defects & Moderate & Immutable history records it. Future delegations atte
 Agent dismissed from salvage & Severe & Irrecoverable information loss. The knowledge accumulated in this agent's trail is permanently destroyed. \\
 Commons authority crashes & Catastrophic & The sovereign falls. No new trust established, no conflicts detected, no salvage possible. State of nature until restart. \\
 \bottomrule
-\end{tabular}
+\end{tabularx}
 \end{table}
 
 The fundamental moral harm in agent societies is not the destruction of an agent---it is the \textbf{irrecoverable loss of information}. An agent can be rebuilt. Knowledge, once dismissed from the commons, cannot.
@@ -961,7 +961,7 @@ Table~\ref{tab:threat-bonds} gives starting bands. These are not parameters, the
 \centering
 \caption{Threat-class bond sizing. Percentages are bond as a fraction of expected task value. Bands are starting points for calibration, not protocol constants.}
 \label{tab:threat-bonds}
-\begin{tabular}{@{}>{\raggedright\arraybackslash}p{2.6cm}>{\raggedright\arraybackslash}p{4.2cm}>{\raggedright\arraybackslash}p{1.7cm}>{\raggedright\arraybackslash}p{4.8cm}@{}}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.3cm}>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}p{1.4cm}>{\raggedright\arraybackslash}X@{}}
 \toprule
 \textbf{Threat} & \textbf{Description} & \textbf{Bond \%} & \textbf{Rationale} \\
 \midrule
@@ -970,7 +970,7 @@ Abandonment & Agent takes the task and ghosts before completion. & 25--50\% & Co
 Active sabotage & Agent intentionally damages shared state. & 100--200\% & Covers full reconstruction of polluted files plus the cleanup of downstream agents that consumed the bad state. Capital-inefficient above 100\%, but acceptable for critical files where reconstruction cost dwarfs the bond. \\
 Data exfiltration & Agent reads and leaks confidential context. & --- (\SpecOnly) & Bonds are an inadequate deterrent: leaked context is worth far more than any feasible bond. Rely on capability scoping (Anchor~\S3.3) and isolation domains (\S\ref{sec:isolation}). \\
 \bottomrule
-\end{tabular}
+\end{tabularx}
 \end{table}
 
 The exfiltration row is an explicit gap. It exists in the table to make the limitation legible: a bonded commons does not stop information theft, because the value of leaked secrets can vastly exceed any bond a principal will rationally post. Confidentiality is a structural problem, not an economic one, and the answer lives in Layer~1 (capability-attenuated tokens, isolation domains) rather than Layer~3. The economic alignment of this paper is correct about damage to \emph{shared state}; it makes no claim about damage from \emph{disclosure of state to outsiders}.
@@ -1184,7 +1184,7 @@ where $\mathrm{causal\_density}$ aggregates token-emission rates strictly weight
 \centering
 \caption{Causal density separates the two agents that a wall-clock or token-rate meter cannot tell apart: the psychotic agent is the \emph{highest} token spender in the table and the only one stopped, while the healthy agent spends a third as much and is nominal. Token rate alone would rank these three in exactly the wrong order.}
 \label{tab:cadence-verdicts}
-\begin{tabular}{@{}llll@{}}
+\begin{tabularx}{\textwidth}{@{}l l >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
 \toprule
 \textbf{Case} & \textbf{Token rate} & \textbf{Evidence in window} & \textbf{Cadence / verdict} \\
 \midrule
@@ -1192,7 +1192,7 @@ Healthy & 15 tok/s & 3 AST diffs, 2 test runs & advances; nominal \\
 Borderline & 15 tok/s & 1 AST diff, 1 test run & advances slowly; flagged for next window \\
 Psychotic & 40 tok/s & none & $\approx 0$; Asylum triggered \\
 \bottomrule
-\end{tabular}
+\end{tabularx}
 \end{table}
 
 \paragraph{A note on the names.} The terms in the rest of this section are playful; the failure modes are not. Read ``Agentic Psychosis,'' ``the Asylum Protocol,'' and ``Inception Canaries'' as defined engineering terms with the operational definitions given below---each one names a detector and a response with a threshold attached---rather than as jokes.
@@ -1570,7 +1570,7 @@ Using $f(\delta)=2\delta(1+\delta+\delta^2)-1$ from the worked example above, ev
 \begin{pdsolution}{ex:bonded-threshold-hand}
 At $\delta=0.34$: $\delta^2=0.1156$, $1+\delta+\delta^2=1.4556$, $2\delta=0.68$, and $0.68\times1.4556=0.989808$, so $f(0.34)=0.989808-1=-0.010192$ [verified]---negative. At $\delta=0.35$: $\delta^2=0.1225$, $1+\delta+\delta^2=1.4725$, $2\delta=0.7$, and $0.7\times1.4725=1.03075$, so $f(0.35)=1.03075-1=0.03075$ [verified]---positive. $f$ is continuous and strictly increasing on $(0,1)$ (every term's coefficient is positive), so a sign change from $\delta=0.34$ to $\delta=0.35$ proves a root lies strictly between them---the Intermediate Value Theorem, not a numerical coincidence.
 
-This matches two independent committed artifacts. \texttt{proofs/economics/delta-threshold.z3}'s second query (\texttt{delta-threshold.expected.txt}) asserts the root lies in $[0.34, 0.35]$ and returns \texttt{sat}, agreeing with the sign change computed here. Independently, \texttt{proofs/economics/sweep-delta.sh}'s committed sample sweep (documented in \texttt{proofs/economics/README.md}) reports the model-checked IC invariant \texttt{VIOLATED} at $\delta=0.34$ and \texttt{HOLDS} at $\delta=0.35$---the same sign change, checked by a state machine instead of a closed-form inequality.
+This matches two independent committed artifacts. \path{proofs/economics/delta-threshold.z3}'s second query (\path{delta-threshold.expected.txt}) asserts the root lies in $[0.34, 0.35]$ and returns \texttt{sat}, agreeing with the sign change computed here. Independently, \path{proofs/economics/sweep-delta.sh}'s committed sample sweep (documented in \path{proofs/economics/README.md}) reports the model-checked IC invariant \texttt{VIOLATED} at $\delta=0.34$ and \texttt{HOLDS} at $\delta=0.35$---the same sign change, checked by a state machine instead of a closed-form inequality.
 \end{pdsolution}
 
 \begin{pdexercise}[kind=Trace,rating=2]{ex:bonded-z3-verdicts}
@@ -1579,7 +1579,7 @@ This matches two independent committed artifacts. \texttt{proofs/economics/delta
 \begin{pdsolution}{ex:bonded-z3-verdicts}
 The script asks, in order: (1) does a real root of $2\delta^3+2\delta^2+2\delta-1=0$ exist in $[0,1]$; (2) does that root lie in the tighter interval $[0.34, 0.35]$; (3) does a \emph{second}, distinct root exist in $[0,1]$ (a uniqueness check, expected to fail).
 
-Pinned verdict sequence (\texttt{proofs/economics/delta-threshold.expected.txt}):
+Pinned verdict sequence (\path{proofs/economics/delta-threshold.expected.txt}):
 \begin{lstlisting}
 sat
 (
@@ -1602,7 +1602,7 @@ The chapter's own verification table (Table~\ref{tab:verification-status}) state
 \begin{pdsolution}{ex:bonded-tla-two-deltas}
 At $\delta=0.30$: $\delta^2=0.09$, $1+\delta+\delta^2=1.39$, $2\delta=0.6$, and $0.6\times1.39=0.834$ [verified]. The inequality $1<0.834$ is false, so the deviation is profitable and the invariant \texttt{NoUnilateralDeviationPositive} fails---matching the table's stated verdict and the committed sweep row \texttt{0.30 VIOLATED} (\texttt{proofs/economics/README.md}). At $\delta=0.35$ (\texttt{proofs/economics/claim\_signaling.cfg}'s own default, \texttt{DeltaNum=35}, \texttt{DeltaDen=100}), $2\delta(1+\delta+\delta^2)=1.03075$ from the worked example above, so $1<1.03075$ holds and the invariant holds---matching \texttt{claim\_signaling.cfg} being the one committed configuration and the sweep row \texttt{0.35 HOLDS}.
 
-The trace: at $\delta=0.30$, TLC's search reaches a state where an agent deviated to $F$ once in round one, was punished for three rounds at the mutual-claim payoff, and reached \texttt{round = Horizon} with \texttt{deviated} true; because the deviator's discounted score from that trajectory (\texttt{actualScore}) exceeds the score it would have earned by cooperating throughout (\texttt{followScore}), the state violates \texttt{NoUnilateralDeviationPositive} and TLC reports it as a counterexample. No such state exists at $\delta=0.35$: the same one-shot-deviation trajectory now scores strictly worse than cooperating, so every reachable state at \texttt{round=Horizon} satisfies \texttt{actualScore} $\le$ \texttt{followScore} and the search completes with ``No error has been found.'' The committed trace is \texttt{proofs/economics/claim\_signaling\_delta30.run.log}, produced by the negative-control configuration \texttt{claim\_signaling\_delta30.cfg}; the proofs workflow asserts on every run that it still violates.
+The trace: at $\delta=0.30$, TLC's search reaches a state where an agent deviated to $F$ once in round one, was punished for three rounds at the mutual-claim payoff, and reached \texttt{round = Horizon} with \texttt{deviated} true; because the deviator's discounted score from that trajectory (\texttt{actualScore}) exceeds the score it would have earned by cooperating throughout (\texttt{followScore}), the state violates \texttt{No}\allowbreak\texttt{Unilateral}\allowbreak\texttt{Deviation}\allowbreak\texttt{Positive} and TLC reports it as a counterexample. No such state exists at $\delta=0.35$: the same one-shot-deviation trajectory now scores strictly worse than cooperating, so every reachable state at \texttt{round=Horizon} satisfies \texttt{actualScore} $\le$ \texttt{followScore} and the search completes with ``No error has been found.'' The committed trace is \path{proofs/economics/claim_signaling_delta30.run.log}, produced by the negative-control configuration \path{claim_signaling_delta30.cfg}; the proofs workflow asserts on every run that it still violates.
 \end{pdsolution}
 
 \begin{pdexercise}[kind=Trace,rating=2]{ex:bonded-sweep-crossover}
@@ -1655,7 +1655,7 @@ The proposal depends most on \emph{calibrated loss/tail dependence}: the catalog
 \texttt{proofs/bonded/conservation/Conservation.tla} is model-checked by TLC. Pin the reachable-state count and the name of the headline invariant from the committed run log, and say precisely what ``reachable'' means there---is it the same number as the states TLC generated?
 \end{pdexercise}
 \begin{pdsolution}{ex:bonded-conservation-states}
-The committed log (\texttt{proofs/bonded/conservation/Conservation.run.log}) reports:
+The committed log (\path{proofs/bonded/conservation/Conservation.run.log}) reports:
 \begin{lstlisting}
 Model checking completed. No error has been found.
 26818 states generated, 1716 distinct states found, 0 states left on queue.
@@ -1924,7 +1924,7 @@ Agentic Commerce Protocol.
 \bibitem{datadome2026}
 DataDome.
 \newblock Agent Trust Management and the Universal Commerce Protocol, 2026.
-\newblock \texttt{datadome.co/agent-trust-management/universal-commerce-protocol/}.
+\newblock \path{datadome.co/agent-trust-management/universal-commerce-protocol/}.
 
 \end{thebibliography}
 
@@ -1962,9 +1962,9 @@ Cuckoo-filter pollution resistance & fast-check, 5 invariants & \Closed\ FP rate
 \midrule
 Merkle-Forest binding (\S\ref{sec:merkle-forest}) & EasyCrypt + fast-check & \Partial\ skeleton discharged; PROM-formal version not in scope & \texttt{binding.ec} \\
 Auction/static comparison (\S\ref{sec:youle:welfare}) & Monte Carlo, 36 configs $\times$ 2k trials & \Partial\ finite-grid result; not a universal Pareto theorem & \texttt{simulation.mjs} \\
-Sybil A5 (\S\ref{sec:youle:a5}) & Monte Carlo over $K$ Sybils & \Partial\ coverage-bounded ceiling at $B_T$ & \texttt{simulation-sybil.mjs} \\
-Cartel repeated-game A6 & Monte Carlo + expected-value recurrence & \Partial\ $p_d^\star{\approx}0.0478$ at $\delta{=}0.95$ in supplied model & \texttt{simulation-cartel.mjs} \\
-Claim-signaling IC (\S\ref{sec:economic}) & TLA+ (TLC) + Z3 SMT & \Closed\ unique root $\delta^\star{\approx}0.3425$; IC invariant fails at $\delta = 0.30$, holds at $\delta = 0.35$ & \texttt{claim\_signaling.tla}, \texttt{delta-threshold.z3} \\
+Sybil A5 (\S\ref{sec:youle:a5}) & Monte Carlo over $K$ Sybils & \Partial\ coverage-bounded ceiling at $B_T$ & \path{simulation-sybil.mjs} \\
+Cartel repeated-game A6 & Monte Carlo + expected-value recurrence & \Partial\ $p_d^\star{\approx}0.0478$ at $\delta{=}0.95$ in supplied model & \path{simulation-cartel.mjs} \\
+Claim-signaling IC (\S\ref{sec:economic}) & TLA+ (TLC) + Z3 SMT & \Closed\ unique root $\delta^\star{\approx}0.3425$; IC invariant fails at $\delta = 0.30$, holds at $\delta = 0.35$ & \path{claim_signaling.tla}, \path{delta-threshold.z3} \\
 Threat-band defensibility (\S\ref{sec:pricing}) & Monte Carlo, $7{\times}3$ grid & \Closed\ matched bands absorb target class within $1.10\times$ upper bound & \texttt{threat-bands.mjs} \\
 \midrule
 Passkey pairing runtime & --- & \SpecOnly\ model exists; no runtime & \texttt{passkey-pair.pv} \\
@@ -1995,7 +1995,7 @@ $P$ estimates the cleanup cost of $\alpha$'s defection or sabotage at \$5---one 
 
 Before $\alpha$ writes a single byte, two artifacts must exist: a capability that bounds what $\alpha$ can touch, and a bond that prices what $\alpha$ might break.
 
-\paragraph{Step 1: Capability issuance (Layer 1).} $P$ requests a Harbor Card for $\alpha$ via the daemon, specifying the capability set $\{\texttt{fs:read:repo}, \texttt{fs:write:auth.ts}, \texttt{fs:write:tests/**}, \texttt{cmd:test}\}$ and a TTL of $30$~minutes. The Anchor Protocol (\S\ref{sec:structural}, accompanying chapters) signs the card. The effect is structural rather than advisory: $\alpha$ can prove its identity and capabilities to any verifier, but it \emph{physically} cannot write to, e.g., \texttt{database.ts}---attempts return a capability error before the file system is even touched. This is the ``physically'' that makes the Layer~1 promise non-negotiable.
+\paragraph{Step 1: Capability issuance (Layer 1).} $P$ requests a Harbor Card for $\alpha$ via the daemon, specifying the capability set $\{\texttt{fs:read:repo},$ $\texttt{fs:write:auth.ts},$ $\texttt{fs:write:tests/**},$ $\texttt{cmd:test}\}$ and a TTL of $30$~minutes. The Anchor Protocol (\S\ref{sec:structural}, accompanying chapters) signs the card. The effect is structural rather than advisory: $\alpha$ can prove its identity and capabilities to any verifier, but it \emph{physically} cannot write to, e.g., \texttt{database.ts}---attempts return a capability error before the file system is even touched. This is the ``physically'' that makes the Layer~1 promise non-negotiable.
 
 \paragraph{Step 2: Bond posting (Layer 3).} With the capability in place, the Bonded Advisor (\S\ref{sec:pricing}) quotes a bond proportional to the cleanup cost: $B_\alpha = \$5 \cdot (1 + s) = \$6$ at slope $s = 0.2$. $P$ posts \$6 into escrow. The settlement preconditions are now fixed up front: (1) acceptance criteria met $\Rightarrow$ \$6 returned, (2) partial completion $\Rightarrow$ pro-rata, (3) sabotage $\Rightarrow$ \$6 liquidated to the commons treasury. The bond is the conversion of $\alpha$'s ``character'' into a settled amount; once it is posted, the question of whether $\alpha$ is trustworthy no longer determines settlement.
 
@@ -2019,7 +2019,7 @@ The crash is where the architecture stops being an abstraction. In Phase B every
 
 The work is done. The daemon now decides what was actually accomplished and acts on the settlement preconditions fixed in Phase A.
 
-\paragraph{Step 7: Settlement.} $\beta$'s final action is \texttt{pd done}. The daemon's acceptance-criteria checker runs the regression suite, confirms \texttt{login.regression.test.ts} passes, confirms no other test regresses, and confirms the diff is bounded to the two files declared in the Harbor Card. All three criteria met. The daemon releases \$6 from escrow to $P$, signs a settlement record over the evidence-chain root, and appends that record to the harbor Merkle forest (\S\ref{sec:merkle-forest}). The settlement is now itself an immutable, attestable artifact.
+\paragraph{Step 7: Settlement.} $\beta$'s final action is \texttt{pd done}. The daemon's acceptance-criteria checker runs the regression suite, confirms \texttt{login\allowbreak.regression\allowbreak.test\allowbreak.ts} passes, confirms no other test regresses, and confirms the diff is bounded to the two files declared in the Harbor Card. All three criteria met. The daemon releases \$6 from escrow to $P$, signs a settlement record over the evidence-chain root, and appends that record to the harbor Merkle forest (\S\ref{sec:merkle-forest}). The settlement is now itself an immutable, attestable artifact.
 
 \paragraph{What did each layer do?}
 \begin{itemize}[nosep]

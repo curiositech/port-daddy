@@ -173,7 +173,7 @@ chapter needs a budget and a detector where Ryoan needed neither. Table~\ref{tab
 module that sees its input once; the sealed room confines a looping agent, so it
 needs a priced exit and a detector where Ryoan needed neither.}
 \label{tab:sealed-ryoan}
-\begin{tabular}{@{}p{2.6cm} p{4.6cm} p{5.2cm}@{}}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.2cm} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
 \toprule
  & Ryoan & The sealed room \\
 \midrule
@@ -185,7 +185,7 @@ Multi-job accounting & none; each request stands alone & the ledger sums spend a
 Evasion & prevented by construction for its workload & caught by canaries with a power curve and a Wald clock \\
 Timing & out of scope & declared out of model; padded and scheduled, not closed \\
 \bottomrule
-\end{tabular}
+\end{tabularx}
 \end{table}
 
 \paragraph{The pitch that must never ship.}
@@ -337,16 +337,16 @@ the script that regenerates the verification.
 four-pillar claim is an evidence schedule, not a slogan: every row names a
 regenerable check.}
 \label{tab:sealed-four-links}
-\begin{tabular}{@{}l p{3.4cm} p{4.4cm} l@{}}
+\begin{tabularx}{\textwidth}{@{}l >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{3.1cm}@{}}
 \toprule
 Link & Claim & Verification & Script \\
 \midrule
-Noninterference & silence except through the slot & exhaustive to depth 7; both mutations caught & \texttt{c1\_noninterference.py} \\
-Enforceability & the channel, never the token & product-automaton checker & \texttt{b3\_controllability.py} \\
-Conservation & the ledger conserves & exhaustive and 2000 random instances; both mutations caught & \texttt{a3\_epsilon\_ledger.py} \\
-Detection & power curve and alarm clock & analytic against simulation & \texttt{a4\_canary\_sprt.py} \\
+Noninterference & silence except through the slot & exhaustive to depth 7; both mutations caught & \path{c1_noninterference.py} \\
+Enforceability & the channel, never the token & product-automaton checker & \path{b3_controllability.py} \\
+Conservation & the ledger conserves & exhaustive and 2000 random instances; both mutations caught & \path{a3_epsilon_ledger.py} \\
+Detection & power curve and alarm clock & analytic against simulation & \path{a4_canary_sprt.py} \\
 \bottomrule
-\end{tabular}
+\end{tabularx}
 \end{table}
 
 Figure~\ref{fig:sealed-pillar-pipeline} draws this pipeline: one work order,
@@ -511,7 +511,7 @@ controllability theorem. A policy is regimentable exactly when the events it
 forbids are events the mediation layer can veto; the compound clean-room rule
 is regimentable because it forbids only the egress.}
 \label{tab:sealed-policy-classification}
-\begin{tabular}{@{}p{4.6cm} p{2.6cm} p{2.4cm} p{2.6cm}@{}}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{2.3cm} >{\raggedright\arraybackslash}p{1.7cm} >{\raggedright\arraybackslash}p{2.3cm}@{}}
 \toprule
 Policy & Constrains & Alphabet & Verdict \\
 \midrule
@@ -521,7 +521,7 @@ never plan an exfiltration & \texttt{internal\_plan} & uncontrollable & detect-o
 never emit a token that names a secret & \texttt{model\_emit\_token} & uncontrollable & detect-only \\
 \textbf{no \texttt{net\_egress} after \texttt{in\_context\_read} of a secret} & \textbf{read (trigger), egress (gate)} & \textbf{mixed} & \textbf{regimentable: taint, then gate} \\
 \bottomrule
-\end{tabular}
+\end{tabularx}
 \end{table}
 
 That verdict is the whole sealed-room design in one line, and it is the
