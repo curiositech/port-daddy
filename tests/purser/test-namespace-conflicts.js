@@ -9,7 +9,7 @@ import {
   subjectAvailable,
 } from './mega-volume-test-helpers.js';
 
-test('generator namespaces identical chapter-local labels and preserves the 7/221 manifest', {
+test('generator namespaces identical chapter-local labels and preserves the 7/222 manifest', {
   skip: subjectAvailable() ? false : 'mega-volume generator lands in the subject PR',
 }, () => {
   const root = makeFixture();
@@ -28,7 +28,7 @@ test('generator namespaces identical chapter-local labels and preserves the 7/22
     const manifest = JSON.parse(readFixture(root, '.cache/generated/mega-volume-generation.json'));
     assert.deepEqual(
       { chapters: manifest.chapters, references: manifest.references, sources: manifest.sources.length },
-      { chapters: 7, references: 221, sources: 7 },
+      { chapters: 7, references: 222, sources: 7 },
     );
   } finally {
     cleanupFixture(root);

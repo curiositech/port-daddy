@@ -119,9 +119,9 @@ One section per indexed idea (R1-R17, CR, B6, and every already-folded textbook 
 | Location | File | Labels | Sections |
 |---|---|---|---|
 | Standalone paper | `docs/harbor-research/tex/paper2.tex` | (none) | S5 (sec:theorem), boxed "Theorem (Regimentation = controllability)"; restated as Theorem 2 in paper4.tex S4 (sec:p2) as Pillar II of the Sealed Harbor |
-| Chapter 1 (The Single-Writer Kernel) | `whitepaper/single-writer-kernel.tex` | thm:decidability | "Synchronous State Decidability -- closing OP-2" -- paper2.tex's own S(compound) names this chapter's "pure deterministic function of committed local DB state" folk theorem as its special case Sigma_c={DB writes} |
+| Chapter 1 (The Single-Writer Kernel) | `whitepaper/single-writer-kernel.tex` | thm:decidability, thm:regimentation-controllability, tab:policy-classification | "Synchronous State Decidability -- closing OP-2" (thm:decidability) is the special case Sigma_c={DB writes}; the general theorem is folded as "The general boundary: regimentation is controllability" (sec:controllability, thm:regimentation-controllability) with the nine-policy table (tab:policy-classification), the gate-the-channel case, partial observation, and exercises ex:swk-classify-two, ex:swk-synthesis |
 
-**Figures:** `docs/harbor-research/figures/fig-r5-relation.tex`, `docs/harbor-research/figures/fig-r5-regime.tex`, `docs/harbor-research/figures/fig-r5-quadrant.tex`
+**Figures:** `docs/harbor-research/figures/fig-r5-quadrant.tex`, `docs/harbor-research/figures/fig-r5-regime.tex`, `docs/harbor-research/figures/fig-r5-relation.tex`, `whitepaper/figures/fig-swk-controllability-quadrant.tex`, `whitepaper/figures/fig-swk-controllability-relation.tex`
 
 **Scripts:** `skills/harbor-results/scripts/b3_controllability.py`
 
@@ -174,16 +174,20 @@ One section per indexed idea (R1-R17, CR, B6, and every already-folded textbook 
 ## R8 -- The work-unit machine
 <a id="r8"></a>
 
-**Kind:** result-family  **Status:** unplaced
+**Kind:** result-family  **Status:** folded
 
 > The state machine (phase, policy, receipt, epoch/holder/stale-token, grants-with-parentage, effect journal, idempotency journal, settlement) satisfies six safety invariants in all 536 reachable states, each guard shown load-bearing by mutation.
 
 | Location | File | Labels | Sections |
 |---|---|---|---|
 | Standalone paper | *(none -- see status)* | | |
-| Chapters | *(not yet folded)* | | |
+| Chapter 1 (The Single-Writer Kernel) | `whitepaper/single-writer-kernel.tex` | thm:workunit, tab:workunit-crimes | "The work unit, model-checked" (sec:workunit): the six invariants as a Model-checked property (thm:workunit), the shortest-crime table (tab:workunit-crimes), exercises ex:swk-crimes and ex:swk-seventh-invariant |
 
 **Scripts:** `skills/harbor-results/scripts/c0_workunit.py`
+
+| Number | Value | Tag |
+|---|---|---|
+| reachable_states | 536 | internal |
 
 ## R9 -- Sealed-room noninterference
 <a id="r9"></a>
@@ -463,6 +467,7 @@ Theorem-family labels/environments in the three corpora that are not (yet) index
 | `thm:conservation` | `website-v2/public/whitepaper/agent-transactions-whitepaper.tex` | Chapter-native theorem ("Conservation"), TLA+-mechanized (proofs/bonded/conservation/Conservation.tla) but not part of the R1-R17/CR/B6 catalog. Chapter-native theorem with no companion research paper restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding. |
 | `thm:federated-security` | `website-v2/public/whitepaper/agent-transactions-whitepaper.tex` | Chapter-native theorem ("Federated Security, informal"); Chapter-native theorem with no companion research paper restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding. |
 | `thm:scope` | `website-v2/public/whitepaper/agent-transactions-whitepaper.tex` | Chapter-native theorem ("Structural Scope Limitation"), Kani-checked (core/harbor-card-rs) but not part of the R1-R17/CR/B6 catalog. Chapter-native theorem with no companion research paper restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding. |
+| `def:anchor-key-hierarchy` | `website-v2/public/whitepaper/anchor-protocol-whitepaper.tex` | Anchor chapter definition (Harbor Key Hierarchy); labelled in Wave 2 so coverage can see it, indexed with the chapter's other definitions in Wave 3. |
 | `def:offline-attn` | `website-v2/public/whitepaper/anchor-protocol-whitepaper.tex` | Chapter-native definition ("Offline Attenuation"); Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only). |
 | `def:revocation` | `website-v2/public/whitepaper/anchor-protocol-whitepaper.tex` | Chapter-native definition ("Revocation-Augmented Verification"); Chapter-native definition with no docs/harbor-research/tex/paperN.tex restating it; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding (task 1 requires R1-R17/CR/B6 plus already-folded theorems only). |
 | `prop:alg-pinning` | `website-v2/public/whitepaper/anchor-protocol-whitepaper.tex` | Chapter-native property ("Algorithmic Pinning"); Chapter-native property/proposition with no companion research paper; not part of the R1-R17/CR/B6 catalog. Out of scope for wave-1 seeding. |

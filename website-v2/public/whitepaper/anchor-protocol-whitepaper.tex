@@ -250,7 +250,7 @@ Figure~\ref{fig:anchor-alg-confusion} shows the two verifier paths side by side:
 
 To support decentralized Agent-to-Agent (A2A) communication without sharing HMAC secrets, the protocol transitioned to \textbf{Ed25519 (EdDSA)}~\cite{bernstein2012high,josefsson2017edwards}. Ed25519 provides fast, deterministic signatures with small keys and signatures, making it ideal for local agent communication.
 
-\begin{definition}[Harbor Key Hierarchy]
+\begin{definition}[Harbor Key Hierarchy]\label{def:anchor-key-hierarchy}
 The Port Daddy Daemon acts as the Root Certificate Authority (CA). Each Harbor is assigned a unique Ed25519 keypair. The Daemon issues Harbor Cards signed by the Harbor's private key. Agents use the Harbor's public key (broadcast via Port Daddy's ambient discovery service) to verify tokens presented by peers.
 \end{definition}
 

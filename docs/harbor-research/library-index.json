@@ -211,17 +211,21 @@
           "chapter": 1,
           "prefix": "swk",
           "labels": [
-            "thm:decidability"
+            "thm:decidability",
+            "thm:regimentation-controllability",
+            "tab:policy-classification"
           ],
           "sections": [
-            "\"Synchronous State Decidability -- closing OP-2\" -- paper2.tex's own S(compound) names this chapter's \"pure deterministic function of committed local DB state\" folk theorem as its special case Sigma_c={DB writes}"
+            "\"Synchronous State Decidability -- closing OP-2\" (thm:decidability) is the special case Sigma_c={DB writes}; the general theorem is folded as \"The general boundary: regimentation is controllability\" (sec:controllability, thm:regimentation-controllability) with the nine-policy table (tab:policy-classification), the gate-the-channel case, partial observation, and exercises ex:swk-classify-two, ex:swk-synthesis"
           ]
         }
       ],
       "figures": [
-        "docs/harbor-research/figures/fig-r5-relation.tex",
+        "docs/harbor-research/figures/fig-r5-quadrant.tex",
         "docs/harbor-research/figures/fig-r5-regime.tex",
-        "docs/harbor-research/figures/fig-r5-quadrant.tex"
+        "docs/harbor-research/figures/fig-r5-relation.tex",
+        "whitepaper/figures/fig-swk-controllability-quadrant.tex",
+        "whitepaper/figures/fig-swk-controllability-relation.tex"
       ],
       "scripts": [
         "skills/harbor-results/scripts/b3_controllability.py"
@@ -338,15 +342,35 @@
       "title": "The work-unit machine",
       "one_breath": "The state machine (phase, policy, receipt, epoch/holder/stale-token, grants-with-parentage, effect journal, idempotency journal, settlement) satisfies six safety invariants in all 536 reachable states, each guard shown load-bearing by mutation.",
       "standalone": null,
-      "chapters": [],
+      "chapters": [
+        {
+          "file": "whitepaper/single-writer-kernel.tex",
+          "chapter": 1,
+          "prefix": "swk",
+          "labels": [
+            "thm:workunit",
+            "tab:workunit-crimes"
+          ],
+          "sections": [
+            "\"The work unit, model-checked\" (sec:workunit): the six invariants as a Model-checked property (thm:workunit), the shortest-crime table (tab:workunit-crimes), exercises ex:swk-crimes and ex:swk-seventh-invariant"
+          ]
+        }
+      ],
       "figures": [],
       "scripts": [
         "skills/harbor-results/scripts/c0_workunit.py"
       ],
-      "numbers": [],
+      "numbers": [
+        {
+          "name": "reachable_states",
+          "value": "536",
+          "tag": "internal",
+          "regex": "536 reachable states"
+        }
+      ],
       "mechanization": [],
       "site": [],
-      "status": "unplaced"
+      "status": "folded"
     },
     {
       "id": "R9",
@@ -1267,6 +1291,11 @@
       "id": "unlabeled-env:docs/harbor-research/tex/exec2.tex:61",
       "file": "docs/harbor-research/tex/exec2.tex",
       "reason": "Pre-existing theorem-family environment with no \\label. Task scope forbids editing .tex files beyond the twin-location comment headers (task 4), so it cannot be labelled from this wave; flagged here as a synthetic id instead. (\\begin{theorem}[Regimentation = controllability], an executive-summary restatement of R5, at line 61.)"
+    },
+    {
+      "id": "def:anchor-key-hierarchy",
+      "file": "website-v2/public/whitepaper/anchor-protocol-whitepaper.tex",
+      "reason": "Anchor chapter definition (Harbor Key Hierarchy); labelled in Wave 2 so coverage can see it, indexed with the chapter's other definitions in Wave 3."
     }
   ]
 }
