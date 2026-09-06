@@ -3,18 +3,18 @@
   "pdfs": {
     "website-v2/public/whitepaper/agent-transactions-whitepaper.pdf": {
       "pages": 52,
-      "bytes": 952972,
-      "sha256": "4cf094453a65ab12cf04e2f28d05cd858d3af0b081e0358f8d196fda46065c4f"
+      "bytes": 953138,
+      "sha256": "0bf7deb4285104a8fe1e532529f5b64bc68601e6966f33ec154d05d6f564f627"
     },
     "website-v2/public/whitepaper/anchor-protocol-whitepaper.pdf": {
-      "pages": 28,
-      "bytes": 735800,
-      "sha256": "93027a9dafeb2225f86a30fc4b6edb02a872def55039519b9327ff66496d909a"
+      "pages": 29,
+      "bytes": 738088,
+      "sha256": "b4c368f022d76069c95dda02ff0ac159b0d3ec596890eed0d2cfa1384b253f60"
     },
     "website-v2/public/whitepaper/coordination-papers-mega-volume.pdf": {
       "pages": 268,
-      "bytes": 2263614,
-      "sha256": "991489c7073edba06b5916bede4d218966aff129d58f352c25bda54a723c47f8"
+      "bytes": 2265506,
+      "sha256": "67f99cdc852a87be4dc5b8e46cbe1a432aebfb72b86cf996f724b08af2b07599"
     },
     "website-v2/public/whitepaper/federated-harbor-whitepaper.pdf": {
       "pages": 32,
