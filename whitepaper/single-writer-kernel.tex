@@ -722,7 +722,7 @@ Within a canonical conflict domain (exact normalized key, transactional interval
 \end{theorem}
 
 \begin{proof}[Proof sketch]
-Within an immediate SQLite transaction (\texttt{BEGIN IMMEDIATE}), the daemon evaluates the conflict predicate against all currently unexpired leases. For exact keys, this is enforced by primary-key uniqueness; for intervals and hierarchies, by an indexed range check within the same transaction. Because all writes funnel through the single connection (Def.~\ref{def:single-writer}), predicate evaluation and insert are atomic. Upon grant or reallocation, the daemon increments the resource's fencing epoch $e$. Downstream effect brokers validate that $e$ matches the active lease at execution time, preventing stale or paused holders from producing side effects after lease expiration.\qed
+Within an immediate SQLite transaction (\texttt{BEGIN IMMEDIATE}), the daemon evaluates the conflict predicate against all currently unexpired leases. For exact keys, this is enforced by primary-key uniqueness; for intervals and hierarchies, by an indexed range check within the same transaction. Because all writes funnel through the single connection (Def.~\ref{def:single-writer}), predicate evaluation and insert are atomic. Upon grant or reallocation, the daemon increments the resource's fencing epoch $e$. Downstream effect brokers validate that $e$ matches the active lease at execution time, preventing stale or paused holders from producing side effects after lease expiration.
 \end{proof}
 
 \paragraph{Worked dramatization: Alice and Bob race for one port.}
@@ -988,7 +988,7 @@ properties through finite bad prefixes and enforces them by suppressing an actio
 before that prefix enters the target execution. A subscriber invoked after commit
 cannot suppress the committing action. Compensation may establish a different
 eventual or bounded-recovery property, but it does not retroactively remove the bad
-prefix.\qed
+prefix.
 \end{proof}
 
 \paragraph{Worked dramatization: Bob attempts a forbidden action.}
@@ -1026,7 +1026,7 @@ Conversely, any invariant requiring external I/O, asynchronous wall-clock verifi
 \end{theorem}
 
 \begin{proof}[Proof sketch]
-In SQLite WAL mode under single-writer serialization, transaction commits occur synchronously on the database connection thread. A predicate $\phi(S, \Delta)$ computable in bounded CPU steps without yielding the event loop can be embedded directly into SQLite constraints (\texttt{UNIQUE}, \texttt{CHECK}) or transaction guard clauses; any transition yielding $\neg \phi$ rolls back atomically before state mutation. If $\phi$ depends on external network I/O or asynchronous delays, holding the exclusive transaction lock during evaluation starves the single-writer queue; hence evaluation must be deferred post-commit, converting the mechanism from a synchronous gate into an asynchronous event subscriber governed by Theorem~\ref{thm:schneider}. \qed
+In SQLite WAL mode under single-writer serialization, transaction commits occur synchronously on the database connection thread. A predicate $\phi(S, \Delta)$ computable in bounded CPU steps without yielding the event loop can be embedded directly into SQLite constraints (\texttt{UNIQUE}, \texttt{CHECK}) or transaction guard clauses; any transition yielding $\neg \phi$ rolls back atomically before state mutation. If $\phi$ depends on external network I/O or asynchronous delays, holding the exclusive transaction lock during evaluation starves the single-writer queue; hence evaluation must be deferred post-commit, converting the mechanism from a synchronous gate into an asynchronous event subscriber governed by Theorem~\ref{thm:schneider}.
 \end{proof}
 
 % ---------------------------------------------------------------------------
@@ -1776,7 +1776,7 @@ each claim/lock operation is exactly such a point: it is atomic
 daemon's response. Non-overlapping operations respect real-time order because a
 later invocation occurs after the earlier response and therefore after its commit;
 overlapping operations may be ordered by commit. Hence the observable history is
-linearizable. \qed
+linearizable.
 \end{proof}
 
 \keyidea{This is why the kernel needs no agreement protocol inside one fault domain.
