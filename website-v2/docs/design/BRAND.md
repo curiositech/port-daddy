@@ -123,11 +123,11 @@ truth to a market of trusted persons.
   (danger → rust → amber → gold → lime, 0–64°) reads as *alarm → value →
   economy*. The cool arc (health → teal → cobalt → indigo → violet, 150–289°)
   reads as *ready → legible → true → federated → continuous*. Palette v2
-  (`public/design-preview/proposal.html`) re-derived indigo, violet and rust so
+  (`website-v2/public/design-preview/proposal.html`) re-derived indigo, violet and rust so
   every semantic pair clears a CIEDE2000 gap of at least 14.6 in both themes,
   and minted gold so the economy stops borrowing the warning token. The Book's
-  TeX palette (`figures/pd-palette.tex`) mirrors the light values one-for-one;
-  `scripts/check-figure-palette.mjs` fails the build if they drift. The two arcs sit roughly
+  TeX palette (`website-v2/public/whitepaper/figures/pd-palette.tex`) mirrors the light values one-for-one;
+  `website-v2/scripts/check-figure-palette.mjs` fails the build if they drift. The two arcs sit roughly
   **opposite** on the wheel — cobalt (220°) is the near-complement of amber
   (40°), so the kernel (truth) and the economy (value) frame the system from
   both sides. That complementary tension is the brand's core: *local truth*

@@ -84,7 +84,7 @@ $\pi(\mathcal{F})$ must exceed the expected reconstruction cost if the agent cau
 $\pi(\mathcal{F})$ must be affordable for legitimate agents. If bonds are too high, only well-funded principals participate, and routine development work (the majority of all work) is priced out.
 
 ### 3. Risk Sensitivity
-Writing to `src/auth/middleware.ts` for 30 minutes should cost more than reading `docs/README.md` for 5 minutes. The function should be monotonically increasing in scope, criticality, and duration.
+Writing to `src/auth/middleware.ts` for 30 minutes should cost more than reading `README.md` for 5 minutes. The function should be monotonically increasing in scope, criticality, and duration.
 
 ### 4. History Adjustment
 A principal with 100 clean completions and 0% failure rate should post less collateral than a new principal with no track record. Reputation is a discount on collateral — but never eliminates it entirely (one-shot defection must always be costly).
