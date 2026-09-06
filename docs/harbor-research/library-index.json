@@ -996,7 +996,9 @@
       ],
       "mechanization": [
         "proofs/economics/delta-threshold.z3",
-        "proofs/economics/claim_signaling.tla"
+        "proofs/economics/claim_signaling.tla",
+        "proofs/economics/claim_signaling_delta30.cfg",
+        "proofs/economics/claim_signaling_delta30.run.log"
       ],
       "site": [],
       "status": "folded"

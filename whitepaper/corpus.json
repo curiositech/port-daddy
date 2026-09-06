@@ -503,6 +503,24 @@
       }
     },
     {
+      "id": "economics-claim-signaling-delta30-negative-control-tla",
+      "kind": "state-machine-model",
+      "authority": "design-claim",
+      "status": "current",
+      "paths": [
+        "proofs/economics/claim_signaling_delta30.cfg"
+      ],
+      "method": "TLA+/TLC",
+      "owner": ".github/workflows/proofs.yml",
+      "evidencePolicy": "negative control: CI asserts the invariant NoUnilateralDeviationPositive is violated at delta=0.30 and that the printed counterexample's trace-state count matches the committed proofs/economics/claim_signaling_delta30.run.log snapshot (6 states); this is the trace cited by the ex:bonded-tla-two-deltas solution in agent-transactions-whitepaper.tex",
+      "ci": {
+        "status": "wired",
+        "job": [
+          "tla-claim-signaling"
+        ]
+      }
+    },
+    {
       "id": "relay-card-revocation-tla",
       "kind": "state-machine-model",
       "authority": "product-runtime",
