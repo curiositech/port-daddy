@@ -42,7 +42,12 @@
       rightline=false,bottomline=false,backgroundcolor=pdcreamraised,%
       innerleftmargin=10pt,innertopmargin=6pt,innerbottommargin=6pt,%
       skipabove=8pt,skipbelow=8pt]%
-  \pdkind{#1}\par\smallskip
+  % A claim is a numbered object: it steps the chapter's shared theorem
+  % counter (every chapter and the Book define `theorem` within section), so a
+  % \label placed right after \begin{pdclaim} refers to the claim, prints as
+  % "Theorem 3.1" in prose, and links to this box. Without the step, the label
+  % would silently resolve to the enclosing section.
+  \ifcsname c@theorem\endcsname\refstepcounter{theorem}\pdkind{#1}~{\scshape\color{pdinkmuted}\thetheorem}\else\pdkind{#1}\fi\par\smallskip
   \noindent\textbf{#2}\par\smallskip\noindent\ignorespaces
 }{%
   \end{mdframed}%
