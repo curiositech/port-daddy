@@ -16,6 +16,7 @@
 \usepackage{caption}
 \usepackage{enumitem}
 \usepackage{refcount}
+\usepackage{eso-pic}   % full-bleed jacket plate behind the title page
 \usepackage[backref=page]{hyperref}
 \usetikzlibrary{arrows.meta,positioning,fit,backgrounds,calc,shapes.geometric,shapes.symbols,decorations.pathmorphing,decorations.pathreplacing}
 
@@ -303,7 +304,7 @@
   \addcontentsline{toc}{chapter}{\protect\numberline{#1}#2}%
   \thispagestyle{empty}%
   \vspace*{0.1cm}
-  \noindent{\scshape\footnotesize\color{#4}Chapter #1 of \pdchaptercount\hfill\pdchapterpartlabel}\par
+  \noindent{\scshape\footnotesize\color{hhgray}Chapter #1 of \pdchaptercount\hfill\pdchapterpartlabel}\par
   \vspace{0.25cm}
   \noindent\pdweightrule{\pdchapterpartindex}{\textwidth}{2pt}\par
   \vspace{1.3cm}
@@ -318,11 +319,11 @@
   \end{flushright}
   \vspace{0.5cm}
   \IfFileExists{plates/chapter-#3.jpg}{%
-    \begin{center}\includegraphics[width=\textwidth,height=0.36\textheight,keepaspectratio]{plates/chapter-#3.jpg}\end{center}}{}%
+    \begin{center}\includegraphics[width=\textwidth,height=0.40\textheight,keepaspectratio]{plates/chapter-#3.jpg}\end{center}}{}%
   \vfill
   \noindent{\scshape\footnotesize\color{hhgray}The question this chapter answers}\par
   \vspace{6pt}
-  {\noindent\fontsize{22}{27}\selectfont\bfseries\color{#4}\pdchapterquestion\par}
+  {\noindent\fontsize{22}{27}\selectfont\bfseries\color{hhink}\pdchapterquestion\par}
   \vspace{10pt}
   {\noindent\small\itshape\pdchapteroneline\par}
   \vspace{0.2cm}
@@ -381,7 +382,7 @@
   {\hypersetup{linkcolor=hhpaper}\noindent\begin{minipage}{0.92\textwidth}#5\end{minipage}\par}
   \vfill
   \IfFileExists{plates/part-#1.jpg}{%
-    \noindent\begin{center}\fcolorbox{hhpaper}{hhpaper}{\includegraphics[width=\dimexpr\textwidth-2\fboxsep-2\fboxrule\relax,height=0.38\textheight,keepaspectratio]{plates/part-#1.jpg}}\end{center}}{}%
+    \noindent\begin{center}\includegraphics[width=\textwidth,height=0.40\textheight,keepaspectratio]{plates/part-#1.jpg}\end{center}}{}%
   \clearpage
   \nopagecolor\color{hhink}%
 }
@@ -397,12 +398,12 @@
 \newlength{\pdbandwidth}
 \newcommand{\pdbandcolor}{pdcobalt}
 \newcommand{\pdcontentspart}[3]{%
-  \hypersetup{linkcolor=#3}%
+  \hypersetup{linkcolor=hhink}%   % text stays ink; the band's tint and rule carry the hue
   \renewcommand{\pdbandcolor}{#3}%
   \setlength{\pdbandwidth}{\dimexpr\textwidth-3pt-22pt\relax}%
   \begin{lrbox}{\pdbandbox}\begin{minipage}[t]{\pdbandwidth}%
     \vspace{9pt}%
-    {\noindent\scshape\bfseries\color{#3}Part #1\enspace\textperiodcentered\enspace #2}\par\vspace{5pt}}
+    {\noindent\scshape\bfseries\color{hhink}Part #1\enspace\textperiodcentered\enspace #2}\par\vspace{5pt}}
 \newcommand{\pdcontentschapter}[5]{%
   \par\noindent\begin{minipage}[t]{1.6em}\raggedleft\bfseries\pdchaplink{#2}{#1}\end{minipage}\hspace{0.7em}%
   \begin{minipage}[t]{\dimexpr\pdbandwidth-2.3em\relax}\raggedright

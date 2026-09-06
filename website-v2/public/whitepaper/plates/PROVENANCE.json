@@ -1,0 +1,150 @@
+{
+  "generated": "2026-09-06",
+  "model": "gemini-3-pro-image-preview (Nano Banana) via nano-banana-image-gen/scripts/generate.py",
+  "post": "inset crop, paper-tone balance to #FBF7EF (percentile white), cream-on-hue compositing for part plates, Lanczos resize, JPEG",
+  "plates": {
+    "jacket": {
+      "file": "jacket.jpg",
+      "source_render": "G2-wash-machine.png",
+      "size": [
+        1627,
+        2300
+      ],
+      "bytes": 502092,
+      "note": "cover wash (the beached moon), sheet edges cropped away, full bleed at A4",
+      "prompt": "A faded watercolor wash landscape reproduced on aged, lightly embossed cover stock: visible paper tooth, salt texture and pigment blooms in the washes, offset print grain, the paper slightly yellowed at the edges. No lettering of any kind. Scene: a very pale watercolor of a vast machine intelligence resting in a harbor like a beached moon, its concentric rings barely there in faded violet and cobalt, a lighthouse tiny beside it; most of the page is open pale wash with pigment blooms."
+    },
+    "frontispiece": {
+      "file": "frontispiece.jpg",
+      "source_render": "E2-etch-clerks.png",
+      "size": [
+        1334,
+        2000
+      ],
+      "bytes": 766959,
+      "note": "frontispiece etching, the colossus of clerks, paper balanced to the page stock",
+      "prompt": "A seventeenth-century copper-plate etching in the manner of a baroque book frontispiece, printed in dark brown-black ink on aged laid paper with a visible plate mark, chain lines, and foxing; dense cross-hatching, fine stipple skies, a landscape below and an allegorical colossus above; an ornate empty cartouche at the bottom left blank. No lettering. Scene: a colossal figure rises out of the sea behind a lighthouse, its torso a lattice of tiny identical clerks at desks each holding a ledger; its face is calm and machine-like, made of concentric rings; below, a harbor with two facing quays and a small ferry between them."
+    },
+    "part-I": {
+      "file": "part-I.jpg",
+      "source_render": "part-I.png",
+      "size": [
+        1800,
+        1200
+      ],
+      "bytes": 253400,
+      "note": "Part I technical drawing as cream ink on the part hue",
+      "prompt": "A technical illustration plate from a 1960s engineering research report: a copper-plate style line drawing in one dark ink on plain white paper, printed by letterpress; crisp hatching and stipple for shading; an exploded or cutaway view; numbered-callout leader lines pointing to parts, each ending in a small empty rectangular label box, with no words or numerals anywhere; the drawing centered with generous white margin on every side; no border, no title block, no background surface, no paper edges, no color. Subject: a single tall monolithic gate in cutaway, its one narrow channel and the single writer mechanism behind it, a file of five small identical craft approaching in a straight line."
+    },
+    "part-II": {
+      "file": "part-II.jpg",
+      "source_render": "part-II.png",
+      "size": [
+        1800,
+        1200
+      ],
+      "bytes": 242382,
+      "note": "Part II technical drawing as cream ink on the part hue",
+      "prompt": "A technical illustration plate from a 1960s engineering research report: a copper-plate style line drawing in one dark ink on plain white paper, printed by letterpress; crisp hatching and stipple for shading; an exploded or cutaway view; numbered-callout leader lines pointing to parts, each ending in a small empty rectangular label box, with no words or numerals anywhere; the drawing centered with generous white margin on every side; no border, no title block, no background surface, no paper edges, no color. Subject: a lantern-and-lens assembly in exploded view, with its narrow cone of illumination drawn as construction lines over a grid of tiny identical vessels."
+    },
+    "part-III": {
+      "file": "part-III.jpg",
+      "source_render": "part-III.png",
+      "size": [
+        1800,
+        1200
+      ],
+      "bytes": 386315,
+      "note": "Part III technical drawing as cream ink on the part hue",
+      "prompt": "A technical illustration plate from a 1960s engineering research report: a copper-plate style line drawing in one dark ink on plain white paper, printed by letterpress; crisp hatching and stipple for shading; an exploded or cutaway view; numbered-callout leader lines pointing to parts, each ending in a small empty rectangular label box, with no words or numerals anywhere; the drawing centered with generous white margin on every side; no border, no title block, no background surface, no paper edges, no color. Subject: a ship's keel and frames in elevation, the left half with old plates and the right half with new plates on one continuous keel, a single line marking the join; a logbook detail."
+    },
+    "part-IV": {
+      "file": "part-IV.jpg",
+      "source_render": "part-IV.png",
+      "size": [
+        1800,
+        1200
+      ],
+      "bytes": 381745,
+      "note": "Part IV technical drawing as cream ink on the part hue",
+      "prompt": "A technical illustration plate from a 1960s engineering research report: a copper-plate style line drawing in one dark ink on plain white paper, printed by letterpress; crisp hatching and stipple for shading; an exploded or cutaway view; numbered-callout leader lines pointing to parts, each ending in a small empty rectangular label box, with no words or numerals anywhere; the drawing centered with generous white margin on every side; no border, no title block, no background surface, no paper edges, no color. Subject: two quays facing each other across a gap with no bridge, a balance scale on each, and a single small ferry between them; drawn in plan and elevation."
+    },
+    "chapter-swk": {
+      "file": "chapter-swk.jpg",
+      "source_render": "ch-swk.png",
+      "size": [
+        1800,
+        1200
+      ],
+      "bytes": 369723,
+      "note": "chapter swk technical drawing, paper balanced to the page stock",
+      "prompt": "A technical illustration plate from a 1960s engineering research report: a copper-plate style line drawing in one dark ink on plain white paper, printed by letterpress; crisp hatching and stipple for shading; an exploded or cutaway view; numbered-callout leader lines pointing to parts, each ending in a small empty rectangular label box, with no words or numerals anywhere; the drawing centered with generous white margin on every side; no border, no title block, no background surface, no paper edges, no color. Subject: a cutaway of a harbor lock-gate mechanism for small spacecraft: one channel open, a queue of five identical small craft waiting in single file, the gate's single ratchet-and-pawl writer mechanism exposed, a ledger desk beside the gate."
+    },
+    "chapter-anchor": {
+      "file": "chapter-anchor.jpg",
+      "source_render": "ch-anchor.png",
+      "size": [
+        1800,
+        1200
+      ],
+      "bytes": 385566,
+      "note": "chapter anchor technical drawing, paper balanced to the page stock",
+      "prompt": "A technical illustration plate from a 1960s engineering research report: a copper-plate style line drawing in one dark ink on plain white paper, printed by letterpress; crisp hatching and stipple for shading; an exploded or cutaway view; numbered-callout leader lines pointing to parts, each ending in a small empty rectangular label box, with no words or numerals anywhere; the drawing centered with generous white margin on every side; no border, no title block, no background surface, no paper edges, no color. Subject: an exploded view of three successive airlock gates in a row, each narrower than the last, with a card-stamping mechanism at each gate and a chain of keys at the first; a small craft shown passing the second gate."
+    },
+    "chapter-ls": {
+      "file": "chapter-ls.jpg",
+      "source_render": "ch-ls-v2.png",
+      "size": [
+        1800,
+        1200
+      ],
+      "bytes": 319343,
+      "note": "chapter ls technical drawing, paper balanced to the page stock",
+      "prompt": "A technical illustration plate from a 1960s engineering research report: a copper-plate style line drawing in one dark ink on plain white paper, printed by letterpress; crisp hatching and stipple for shading; an exploded or cutaway view; numbered-callout leader lines pointing to parts, each ending in a small empty rectangular label box, with no words or numerals anywhere; the drawing centered with generous white margin on every side; no border, no title block, no background surface, no paper edges, no color. Subject: a cutaway of an observation tower's lantern and lens assembly throwing a narrow cone downward over a field of many identical small vessels drawn in plan view; only the vessels inside the cone are drawn in full detail, the rest as faint outlines."
+    },
+    "chapter-stp": {
+      "file": "chapter-stp.jpg",
+      "source_render": "ch-stp.png",
+      "size": [
+        1800,
+        1200
+      ],
+      "bytes": 413789,
+      "note": "chapter stp technical drawing, paper balanced to the page stock",
+      "prompt": "A technical illustration plate from a 1960s engineering research report: a copper-plate style line drawing in one dark ink on plain white paper, printed by letterpress; crisp hatching and stipple for shading; an exploded or cutaway view; numbered-callout leader lines pointing to parts, each ending in a small empty rectangular label box, with no words or numerals anywhere; the drawing centered with generous white margin on every side; no border, no title block, no background surface, no paper edges, no color. Subject: a dry dock in cutaway with a small starship on blocks, its hull half old plating and half new plating on one continuous keel; the removed old plates laid in a row on the quay; a logbook on a crate; an exploded detail of one hull plate and its rivets."
+    },
+    "chapter-he": {
+      "file": "chapter-he.jpg",
+      "source_render": "ch-he.png",
+      "size": [
+        1800,
+        1200
+      ],
+      "bytes": 349457,
+      "note": "chapter he technical drawing, paper balanced to the page stock",
+      "prompt": "A technical illustration plate from a 1960s engineering research report: a copper-plate style line drawing in one dark ink on plain white paper, printed by letterpress; crisp hatching and stipple for shading; an exploded or cutaway view; numbered-callout leader lines pointing to parts, each ending in a small empty rectangular label box, with no words or numerals anywhere; the drawing centered with generous white margin on every side; no border, no title block, no background surface, no paper edges, no color. Subject: an isometric cutaway of a spaceport market quay: three rows of stalls each with a balance scale, a harbor-master's booth with a ledger, freighters docked along the quay, crates in transit between them."
+    },
+    "chapter-bonded": {
+      "file": "chapter-bonded.jpg",
+      "source_render": "ch-bonded-v2.png",
+      "size": [
+        1800,
+        1200
+      ],
+      "bytes": 300396,
+      "note": "chapter bonded technical drawing, paper balanced to the page stock",
+      "prompt": "A technical illustration plate from a 1960s engineering research report: a copper-plate style line drawing in one dark ink on plain white paper, printed by letterpress; crisp hatching and stipple for shading; an exploded or cutaway view; numbered-callout leader lines pointing to parts, each ending in a small empty rectangular label box, with no words or numerals anywhere; the drawing centered with generous white margin on every side; no border, no title block, no background surface, no paper edges, no color. Subject: an exploded view of a strongbox with its chain and lock mechanism, mounted to a notary's post on a quay; two figures in suits on either side; a sealed bond paper shown as a detail; a freighter behind each figure."
+    },
+    "chapter-fh": {
+      "file": "chapter-fh.jpg",
+      "source_render": "ch-fh.png",
+      "size": [
+        1800,
+        1200
+      ],
+      "bytes": 279653,
+      "note": "chapter fh technical drawing, paper balanced to the page stock",
+      "prompt": "A technical illustration plate from a 1960s engineering research report: a copper-plate style line drawing in one dark ink on plain white paper, printed by letterpress; crisp hatching and stipple for shading; an exploded or cutaway view; numbered-callout leader lines pointing to parts, each ending in a small empty rectangular label box, with no words or numerals anywhere; the drawing centered with generous white margin on every side; no border, no title block, no background surface, no paper edges, no color. Subject: a plan view and an elevation of two harbor stations facing each other across a narrow strait with no bridge, each with a beacon tower and a customs hall; a single small ferry drawn mid-crossing with sealed crates; dashed sight lines between the beacons."
+    }
+  }
+}

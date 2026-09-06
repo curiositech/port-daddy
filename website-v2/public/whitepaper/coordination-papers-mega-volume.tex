@@ -23,39 +23,46 @@
 \hypersetup{pageanchor=false}
 \begin{titlepage}
 \pagecolor{hhpaper}\color{hhink}
-\vspace*{-0.8cm}
-\noindent{\scshape\bfseries\large Port Daddy Coordination Papers \hfill Textbook Edition \textperiodcentered\ \pdeditiondate}\par
-\vspace{0.25cm}
-% Four parts, four hues, each segment as long as the part's share of the book.
+% Cover: the wash plate bleeds over the whole page; the type stays minimal and set in Times.
+\IfFileExists{plates/jacket.jpg}{%
+  \AddToShipoutPictureBG*{\AtPageLowerLeft{\includegraphics[width=\paperwidth,height=\paperheight]{plates/jacket.jpg}}}}{}%
+\vspace*{1.2cm}
+\noindent\begin{minipage}{0.88\textwidth}
+{\fontfamily{ptm}\fontsize{38}{46}\selectfont The Harbor, the Person,\\ and the Economy\par}
+\vspace{0.6cm}
+\noindent{\color{pdcobalt}\rule{0.24\textwidth}{1pt}}\par
+\vspace{0.45cm}
+{\fontfamily{ptm}\itshape\fontsize{14.5}{19}\selectfont \pdeditionsubtitle\par}
+\end{minipage}
+\vfill
+\noindent{\fontfamily{ptm}\scshape\small Erich Owens\par\vspace{3pt}Mundus Press\ \textperiodcentered\ Textbook Edition\par}
+\vspace*{0.4cm}
+\end{titlepage}
+% Imprint page: the claim, the ordering rule, and the publication data that the cover no longer carries.
+\clearpage\thispagestyle{empty}\pagecolor{hhpaper}\color{hhink}
+\vspace*{\fill}
 \noindent\pdweightrule{0}{\textwidth}{2.6pt}\par
 \vspace{0.6cm}
-
-\begin{center}
-{\fontsize{31}{37}\selectfont\bfseries The Harbor, the Person,\\[0.15cm]and the Economy}\par
-\vspace{0.45cm}
-{\Large \pdeditionsubtitle}\par
-\vspace{0.8cm}
-\begin{minipage}{0.76\textwidth}
-\centering
-{\large\bfseries \pdeditionclaim\par}
-\vspace{0.35cm}
-{\small\color{hhgray} This book follows that claim from one machine and one
-operator to work shared across principals, economic interests, and mutually
-distrustful systems. Its \pdchaptercountword{} chapters are ordered by what
-they stand on; each proof chapter follows the chapter whose promises it keeps.\par}
+\noindent\begin{minipage}{0.84\textwidth}\small
+{\large\bfseries\pdeditiontitle}\par
+{\pdeditionsubtitle}\par\vspace{8pt}
+{\bfseries\pdeditionclaim}\par\vspace{6pt}
+{\color{hhgray}This book follows that claim from one machine and one operator to work shared
+across principals, economic interests, and mutually distrustful systems. Its \pdchaptercountword{}
+chapters are ordered by what they stand on; each proof chapter follows the chapter whose promises it
+keeps.}\par\vspace{12pt}
+Erich Owens \textperiodcentered\ Curiositech LLC \textperiodcentered\ \texttt{engineering@portdaddy.dev}\par
+Mundus Press \textperiodcentered\ Version \pdeditionversion\ \textperiodcentered\ \pdeditiondate\ \textperiodcentered\ \url{https://portdaddy.dev/whitepaper}\par
 \end{minipage}
-\end{center}
-\vfill
-\IfFileExists{plates/jacket.jpg}{%
-  \begin{center}\includegraphics[width=\textwidth,height=0.40\textheight,keepaspectratio]{plates/jacket.jpg}\end{center}}{}%
-\vfill
-\noindent{\color{hhink}\rule{\textwidth}{0.8pt}}\par
-\vspace{0.25cm}
-\noindent\begin{tabularx}{\textwidth}{@{}Xr@{}}
-\textbf{Erich Owens} \textperiodcentered\ Curiositech LLC & \textbf{\pdeditiondate} \textperiodcentered\ Version \pdeditionversion\\
-\texttt{engineering@portdaddy.dev} & \url{https://portdaddy.dev/whitepaper}\\
-\end{tabularx}
-\end{titlepage}
+\vspace*{1.0cm}
+\clearpage
+% Frontispiece: the etching faces the title matter (plates/frontispiece.jpg is optional).
+\IfFileExists{plates/frontispiece.jpg}{%
+  \thispagestyle{empty}\pagecolor{hhpaper}\color{hhink}%
+  \vspace*{\fill}
+  \begin{center}\includegraphics[height=0.92\textheight,width=\textwidth,keepaspectratio]{plates/frontispiece.jpg}\end{center}
+  \vspace*{\fill}
+  \clearpage}{}%
 \nopagecolor\color{hhink}
 
 \pagenumbering{roman}

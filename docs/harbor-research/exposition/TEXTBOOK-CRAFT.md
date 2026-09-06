@@ -12,7 +12,7 @@ This memo asks what the admired textbooks of mathematics, economics, game theory
 - **Tier B — verified online, not held in hand.** Publisher pages, front-matter PDFs, and sentences confirmed in at least one reliable web source; the citation says where.
 - **Tier C — memory, flagged inline as *[unverified]*** (this environment's egress proxy blocks most publisher and university hosts).
 
-Not reachable from this environment, and therefore not used: the author's essay "How to distill a book into a skill" (windags.ai; the host is blocked and no indexed copy was found), the local corpus at `~/some_claude_skills/corpus/for_erik` on expertise and cognitive task analysis, and the larger PDFs in the author's `~/Downloads`. Where the memo refers to the essay's provenance idea it relies on the coordinator's description of it.
+Not reachable from this environment, and therefore not used: the author's essay "How to distill a book into a skill" (its host is blocked from this environment and no indexed copy was found), the local corpus at `~/some_claude_skills/corpus/for_erik` on expertise and cognitive task analysis, and the larger PDFs in the author's `~/Downloads`. Where the memo refers to the essay's provenance idea it relies on the coordinator's description of it.
 
 The book's claim-hygiene rule forbids promoting a finite check to an unbounded guarantee; the same discipline is applied here to claims about books.
 
