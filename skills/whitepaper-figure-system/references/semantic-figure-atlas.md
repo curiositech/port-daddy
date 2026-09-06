@@ -145,6 +145,7 @@ Canonical root: `website-v2/public/whitepaper/spawn-to-person.tex` (13 figures).
 | `III/fig:tombstone` | How does revoking an ancestor invalidate descendants? | provenance tree with struck ancestor branch | delegation ancestry; revocation point; affected descendants; unaffected siblings; time/order | cemetery/tombstone art; flat list of revoked IDs |
 | `III/fig:stp-deterrence-regime` | For which bond sizes and re-audit probabilities does deterrence hold? | threshold plot: the frontier ρ d B = G with the deterrence region tinted and edged and the worked point marked | the frontier; the region where capture pays; the worked point (ρ = 0.25 at B = 50) | a sketched curve without axes; a table of two numbers; a region distinguished by tint alone |
 | `III/fig:stp-probation-cliff` | Why is the front-loaded probation schedule the cheapest deterrent for an honest newcomer? | bar plot: the honest burden of one unit of deterrence by the period it is placed in, each bar labelled with its multiple | the cliff at t = 0 as the unit; the geometric growth (δ_h/δ_f)^t; the two discount rates in the caption; the script and seed | a schematic ramp with no axis; a curve without the discount rates; a plot of the random search's 4,000 instances instead of the exchange step |
+| `III/fig:stp-nomint-lineage` | Why does inheritance have to debit the source, and what does the copy-fork mutant mint? | three small lineage DAGs of one witnessed episode: budget-only (all live, closure 2.439), transfer (only the leaf live, 0.729), copy-fork (eight live copies, 8.2x) | the discount γ = 0.9 on the edges; live versus spent nodes; the live total under each; the checker's refusal | a single abstract tree; nodes without values; a caption that carries the numbers the drawing omits |
 
 ## Volume IV: The Harbor Economy
 
@@ -202,6 +203,7 @@ Canonical root: `website-v2/public/whitepaper/federated-harbor-whitepaper.tex` (
 | `VII/fig:fh-xfer` | Which four messages transfer capability without transferring root authority? | same semantic contract as `IV/fig:fh-xfer` | identical actor order, message names, and signature semantics | curved-arrow topology; protocol prose boxes |
 | `VII/fig:fh-revocation` | How does revocation spread over epochs and become auditable? | same semantic contract as `IV/fig:fh-revocation` | aligned epochs; A/B/C states; gossip steps; witness publication; convergence assumption | the overlapping epoch diagram; labels on arrows; clipped lower states |
 | `VII/fig:fh-revocation-regime` | Which bound binds a stale card after revocation: partition bound, delivery level, or time to live? | regime plane in rounds: partition bound against delivery service level, the TTL line as the boundary, both regions labelled in words | the two operational bounds; the TTL line; which region each bound governs | a timeline; a Venn diagram; unlabeled regions |
+| `VII/fig:fh-cycle-vs-cut` | Why is the same disagreement detectable on a cycle and invisible on a path? | two six-node graphs side by side, the disagreeing edge marked on each, the consistency radius under each | C6 with r = 1.2247 and P6 with r = 0; the disagreeing overlap; the missing closing edge on the path | a generic graph without the radius; a sheaf-Laplacian formula in place of the two instances |
 | `VII/fig:fh-settlement` | How do bond, claim, verification, and clear/refuse outcomes compose? | same semantic contract as `IV/fig:fh-settlement` | identical custody assumption, actors, evidence, and outcomes | oversized note box; ambiguous three-column flow |
 
 ## Volume VIII: The Sealed Harbor
@@ -229,7 +231,6 @@ merely stylistic:
 | Revocation propagation | `IV/fig:fh-revocation`, `VII/fig:fh-revocation` | same epoch/state grammar and convergence assumptions |
 | Federated settlement | `IV/fig:fh-settlement`, `VII/fig:fh-settlement` | same principals, custody boundary, evidence path, and terminal partition |
 | Cartel condition | `IV/fig:cartel-game-inline`, `VI/fig:cartel-game-inline` | same symbols, inequality orientation, and phase boundary |
-| Coordination stack | `II/fig:swk-stack-map` | preserve the same L0 machine/kernel, L1 agent coordination, L2 operator legibility/authority, and L3 market/economy model; Volume I owns L2 and cross-cuts the L1 directory substrate; Volume II owns L0 and the implemented carrier half of L1; Volume III is the L2-to-L3 continuity/reputation bridge; Volume IV owns L3; chapter numbers never imply layer numbers |
 
 If a shared figure changes, inspect every member of its contract in the same contact sheet. A
 local redraw that subtly reverses direction, changes the scale, or drops an assumption is a
