@@ -1,0 +1,61 @@
+% Figure — revocation narrows what a card admits; it does not rewrite history.
+% [derived from OpenTikZ template:flowchart v0.2.0 axis/lane idiom, restyled to
+%  pd-book contract, chapter 2 hue pdindigo, wave-11]
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm,font=\footnotesize,text=pdink,
+  lane/.style={line width=1pt,line cap=round},
+  admit/.style={lane,draw=pdindigo},
+  refuse/.style={lane,draw=pderror,dashed},
+  stale/.style={lane,draw=pdinkmuted},
+  admitok/.style={lane,draw=pdhealth},
+  guide/.style={draw=pdink,line width=.4pt,dotted},
+  axis/.style={draw=pdink,line width=.55pt},
+  tick/.style={draw=pdink,line width=.55pt},
+  lbl/.style={font=\footnotesize,text=pdink,inner sep=1pt,align=center},
+  head/.style={font=\footnotesize\scshape,text=pdinkmuted,inner sep=1pt,align=center}]
+  % geometry: three lanes over one shared time axis
+  \def\tzero{0}\def\trev{5.0}\def\ttau{6.6}\def\tnow{9.6}
+  \def\yA{6.6}\def\yB{4.6}\def\yC{2.6}\def\yax{0.6}
+  % lane A: card k17, revoked
+  \node[lbl,anchor=south west] at (0.14,\yA+0.3) {card k17, revoked};
+  \draw[admit] (\tzero,\yA) -- (\trev,\yA);
+  \draw[refuse] (\trev,\yA) -- (\tnow,\yA);
+  \node[draw=pderror,fill=white,line width=.8pt,shape=diamond,inner sep=1.4pt] at (\trev,\yA) {};
+  % lane B: card k17, expiry
+  \node[lbl,anchor=south west] at (0.14,\yB+0.3) {card k17, expiry};
+  \draw[admit] (\tzero,\yB) -- (\ttau,\yB);
+  \draw[refuse] (\ttau,\yB) -- (\tnow,\yB);
+  % lane C: correction card k18
+  \node[lbl,anchor=south west] at (0.14,\yC+0.3) {correction card k18};
+  \draw[stale] (\tzero,\yC) -- (\trev,\yC);
+  \draw[admitok] (\trev,\yC) -- (\tnow,\yC);
+  \fill[pdhealth] (\trev,\yC) circle (1.6pt);
+  % shared guides at the two clocks that matter -- stop below the lane
+  % labels, never crossing into their clear space
+  \draw[guide] (\tzero,\yax+0.25) -- (\tzero,\yA+0.16);
+  \draw[guide] (\trev,\yax+0.25) -- (\trev,\yA+0.16);
+  \draw[guide] (\ttau,\yax+0.25) -- (\ttau,\yA+0.16);
+  % time axis with three ticks
+  \draw[axis,-{Stealth[length=2mm,width=1.3mm]}] (\tzero,\yax) -- (\tnow+0.3,\yax);
+  \draw[tick] (\tzero,\yax-0.08) -- (\tzero,\yax+0.08);
+  \draw[tick] (\trev,\yax-0.08) -- (\trev,\yax+0.08);
+  \draw[tick] (\ttau,\yax-0.08) -- (\ttau,\yax+0.08);
+  \node[lbl,anchor=north] at (\tzero,\yax-0.12) {$t_0$};
+  \node[lbl,anchor=north] at (\trev,\yax-0.12) {$t_r$};
+  \node[lbl,anchor=north] at (\ttau,\yax-0.12) {$t_0+\tau$};
+  \node[head,anchor=west] at (\tnow+0.55,\yax) {Time};
+  % the one note
+  \node[lbl,font=\footnotesize\itshape,text=pdinkmuted,anchor=north west,
+        text width=9.4cm] at (\tzero,-0.35)
+    {revocation strictly narrows the accepted set; k17's rejected history is
+     left untouched};
+\end{tikzpicture}
+\caption{Revocation narrows the accepted set going forward; it never rewrites
+what already happened. Card k17 (indigo) is admissible until it is revoked at
+$t_r$, after which every reference to it is refused (red, dashed) even though
+its natural expiry $t_0+\tau$ has not yet arrived. Correction card k18 sits
+inert (muted grey) until $t_r$, then becomes admissible (green) exactly where
+k17 stops, so the accepted set has no gap and no overlap [internal].}
+\label{fig:anchor-card-lifecycle}
+\end{figure}

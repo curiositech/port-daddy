@@ -1,0 +1,84 @@
+% Figure — a guarded spine carries a work unit from proposal to settlement.
+% [derived from OpenTikZ template:flowchart v0.2.0, restyled to pd-book contract, wave-11]
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm,font=\footnotesize,text=pdink,
+  state/.style={draw=pdcobalt,line width=.8pt,fill=white,rounded corners=2pt,
+    minimum height=8mm,minimum width=32mm,align=center},
+  term/.style={state,draw=pdhealth,fill=pdhealth,text=pdcream},
+  badstate/.style={state,draw=pderror,text=pderror,minimum width=20mm},
+  chip/.style={draw=pdcobalt,line width=.55pt,fill=white,rounded corners=1.5pt,
+    minimum height=5.6mm,minimum width=32mm,anchor=west,inner xsep=5pt,align=left},
+  flow/.style={-{Stealth[length=2.2mm,width=1.5mm]},draw=pdcobalt,line width=1pt},
+  ok/.style={-{Stealth[length=2.2mm,width=1.5mm]},draw=pdhealth,line width=1pt},
+  bad/.style={-{Stealth[length=2.2mm,width=1.5mm]},draw=pderror,line width=.8pt,dashed},
+  wire/.style={draw=pdcobalt,line width=.55pt},
+  lbl/.style={font=\footnotesize,text=pdink,inner sep=1pt,align=center},
+  head/.style={font=\footnotesize\scshape,text=pdinkmuted,inner sep=1pt,align=center},
+  guardmark/.style={draw=pdcobalt,line width=.55pt,fill=white,circle,inner sep=0pt,
+    minimum size=4.4mm,font=\footnotesize,text=pdink}]
+  % the spine
+  \node[state] (proposed)   at (2.0,9.4) {Proposed};
+  \node[state] (authorized) at (2.0,7.8) {Authorized};
+  \node[state] (executing)  at (2.0,6.2) {Executing};
+  \node[state] (witnessed)  at (2.0,4.6) {Witnessed};
+  \node[state] (verified)   at (2.0,3.0) {Verified};
+  \node[term]  (settled)    at (2.0,1.4) {Settlement record};
+  \node[head,anchor=south] at (2.0,9.95) {Guarded transitions};
+  % five guarded transitions, one per edge of the spine -- the line breaks
+  % around each guard mark so no line ever crosses drawn text (T4)
+  \node[guardmark] (g1) at (2.0,8.6) {1};
+  \node[guardmark] (g2) at (2.0,7.0) {2};
+  \node[guardmark] (g3) at (2.0,5.4) {3};
+  \node[guardmark] (g4) at (2.0,3.8) {4};
+  \node[guardmark] (g5) at (2.0,2.2) {5};
+  \draw[flow] (proposed.south)   -- (g1.north);
+  \draw[flow] (g1.south)         -- (authorized.north);
+  \draw[flow] (authorized.south) -- (g2.north);
+  \draw[flow] (g2.south)         -- (executing.north);
+  \draw[flow] (executing.south)  -- (g3.north);
+  \draw[flow] (g3.south)         -- (witnessed.north);
+  \draw[flow] (witnessed.south)  -- (g4.north);
+  \draw[flow] (g4.south)         -- (verified.north);
+  \draw[ok]   (verified.south)   -- (g5.north);
+  \draw[ok]   (g5.south)         -- (settled.north);
+  % contested: a refusal exit off witnessed, never rejoining the spine
+  \node[badstate] (contested) at (-1.15,4.6) {Contested};
+  \draw[bad] (witnessed.west) -- (contested.east);
+  \node[lbl,anchor=north,text=pderror,text width=2.2cm] at (-1.15,4.1) {disputed; never settles};
+  % the four append-only write targets, each fed from the state that writes it
+  \node[head,anchor=south west] at (4.6,8.35) {Append-only writes};
+  \draw[pdink,dashed,line width=.55pt,rounded corners=3pt] (4.6,8.15) rectangle (8.55,2.65);
+  \node[chip] (j-epoch) at (4.9,7.8) {role epoch};
+  \node[chip] (j-effect) at (4.9,6.2) {effect journal};
+  \node[chip] (j-idem)  at (4.9,4.6) {idempotency journal};
+  \node[chip] (j-grant) at (4.9,3.0) {grants with parentage};
+  \draw[wire] (authorized.east) -- (j-epoch.west);
+  \draw[wire] (executing.east)  -- (j-effect.west);
+  \draw[wire] (witnessed.east)  -- (j-idem.west);
+  \draw[wire] (verified.east)   -- (j-grant.west);
+\end{tikzpicture}
+
+\vspace{2pt}
+\footnotesize
+\begin{tabular}{@{}lll@{}}
+\toprule
+Guard & Crime once removed & Steps \\
+\midrule
+1.\ admit-effect: current epoch & the stale write & 4 \\
+2.\ external-op: once per key & the double settlement & 2 \\
+3.\ verify: policy and receipt & the hollow verified & 4 \\
+4.\ delegate: scope within parent & the escalated delegation & 1 \\
+5.\ settle: funded, verified, receipted & the wrong-principal payout & 7 \\
+\bottomrule
+\end{tabular}
+
+\caption{A guarded chain carries a work unit from proposal to settlement, with
+five numbered checks gating the five steps of the spine and a witnessed unit
+free to exit to Contested instead of completing. Each append-only ledger at
+right is written exactly once, by the state that owns it. Removing any single
+guard admits a real attack in as few as one step and as many as seven. With
+every guard on, all 536 reachable states of the two-principal instance satisfy
+the six invariants [internal, \texttt{c0\_workunit.py}].}
+\label{fig:swk-workunit-machine}
+\end{figure}

@@ -1,0 +1,52 @@
+% Figure — typed evidence passes a narrow closure aperture. [exemplar, v2 figure language]
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm,font=\footnotesize,text=pdink,
+  state/.style={draw=pdcobalt,line width=.8pt,fill=white,rounded corners=2pt,
+    minimum height=7mm,minimum width=17mm,inner xsep=5pt},
+  chip/.style={draw=pdcobalt,line width=.55pt,fill=white,rounded corners=1.5pt,
+    minimum height=5.6mm,minimum width=28mm,anchor=west,inner xsep=5pt,align=left},
+  flow/.style={-{Stealth[length=2.2mm,width=1.5mm]},draw=pdcobalt,line width=1pt},
+  ok/.style={-{Stealth[length=2.2mm,width=1.5mm]},draw=pdhealth,line width=1pt},
+  bad/.style={-{Stealth[length=2.2mm,width=1.5mm]},draw=pderror,line width=.8pt,dashed},
+  wire/.style={draw=pdcobalt,line width=.55pt},
+  lbl/.style={font=\footnotesize,text=pdink,inner sep=1pt},
+  head/.style={font=\footnotesize\scshape,text=pdinkmuted,inner sep=1pt}]
+  % the gate: one bar with one aperture at the height of the flow
+  \draw[draw=pdcobalt,line width=1.6pt] (5.6,4.7)--(5.6,1.6);
+  \draw[draw=pdcobalt,line width=1.6pt] (5.6,0.9)--(5.6,-0.95);
+  \node[head,anchor=south] at (5.6,4.8) {Typed oracle};
+  % states
+  \node[state] (open) at (1.45,1.25) {Open};
+  \node[state,draw=pdhealth,fill=pdhealth,text=pdcream] (done) at (9.6,1.25) {Done};
+  % the flow through the aperture
+  \draw[flow] (open.east) -- (5.45,1.25);
+  \node[lbl,anchor=north] at (3.3,1.08) {attempt closure};
+  \draw[ok] (5.75,1.25) -- (done.west);
+  \node[lbl,anchor=south] at (7.65,1.4) {re-check passes};
+  % the four admissible references feed one collector into the attempt
+  \node[head,anchor=west] at (0.6,4.75) {Admissible references};
+  \node[chip] (c1) at (0.6,4.15) {released claim};
+  \node[chip] (c2) at (0.6,3.45) {merged commit};
+  \node[chip] (c3) at (0.6,2.75) {passing test id};
+  \node[chip] (c4) at (0.6,2.05) {policy sub-check};
+  \foreach \c in {c1,c2,c3,c4} \draw[wire] (\c.east) -- (\c.east -| 4.45,0);
+  \draw[wire] (4.45,4.15) -- (4.45,1.25);
+  \fill[pdcobalt] (4.45,1.25) circle (1.5pt);
+  % the refusal
+  \node[chip,draw=pderror,text=pderror] (ft) at (0.6,-0.4) {free-text assertion};
+  \draw[bad,solid] (ft.east) -- (5.3,-0.4);
+  \draw[draw=pderror,line width=1.3pt] (5.4,-0.6)--(5.8,-0.2) (5.4,-0.2)--(5.8,-0.6);
+  \draw[bad] (5.6,-0.95) -- (5.6,-1.45) -- (0.25,-1.45) -- (0.25,1.25) -- (open.west);
+  \node[lbl,anchor=north,text=pderror] at (3.5,-1.55) {refused; the commitment stays open};
+  % the deadline
+  \node[lbl,anchor=north west,font=\footnotesize\itshape,text=pdinkmuted,text width=3.9cm,align=left]
+    at (6.3,-0.5) {the deadline is set by the daemon, never by the agent};
+\end{tikzpicture}
+\caption{Typed evidence passes a narrow closure aperture. A commitment moves
+from Open to Done only through the typed oracle: the closing move names one of
+four admissible references, and the daemon re-runs that check itself. A
+free-text assertion is refused at the gate and the commitment stays open. The
+deadline is the daemon's, never the agent's. [internal]}
+\label{fig:swk-commitment-oracle}
+\end{figure}
