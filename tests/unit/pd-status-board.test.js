@@ -16,7 +16,7 @@ describe('Distress Register status board (ADR-0132 phase 2)', () => {
       encoding: 'utf8',
       env: { ...process.env, NO_COLOR: '1' },
     });
-    expect(output).toMatch(/# pass 34/u);
+    expect(output).toMatch(/# pass 38/u);
     expect(output).toMatch(/# fail 0/u);
   });
 });
