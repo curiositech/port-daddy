@@ -88,14 +88,16 @@ source lint pass, and one inventory spanning all three corpora together.
 | File | Consult when |
 |---|---|
 | `references/corpus-audit.md` | You need the current compile/lint/geometry status of a specific fragment, or corpus-wide totals. Regenerate with `build_corpus_audit.py` after any figure change. |
-| `references/taxonomy.md` | Authored by the book's author; pending. |
-| `references/craft-rules.md` | Authored by the book's author; pending. |
-| `references/research-notes.md` | Authored by the book's author; pending. |
+| `references/taxonomy.md` | You are choosing the diagram kind for an idea: the idea shape → kind → TikZ idiom table (Mermaid-inspired inventory), with the figure each kind replaced in the Book. |
+| `references/craft-rules.md` | You are drawing or reviewing a figure: the brief-and-atlas gate, the five-point legibility rubric, page role, per-kind rules, mechanics table, caption grammar and typography. |
+| `references/research-notes.md` | You need the source behind a rule: the design research (Bertin, Cleveland–McGill, Tufte, Wilke, Few, Munzner) and the print-legibility measurements, with citations. |
 
 ## Validation
 
 `tests/test_figcheck.py` and `tests/test_tikz_precheck.py` cover the two Python checkers
-against fixture PDFs/fixture strings (see each script's own `--help` for CLI details):
+against fixture PDFs/fixture strings; `tests/test_figcheck_t8.py` covers the caption-collision
+check (T8) and `tests/test_tikz_precheck_new_rules.py` covers the legibility rules P10–P14
+(see each script's own `--help` for CLI details):
 
 ```bash
 python3 -m unittest discover -s skills/harbor-chartwork/tests -p 'test_*.py' -v

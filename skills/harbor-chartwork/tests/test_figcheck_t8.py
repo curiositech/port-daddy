@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pymupdf
 
-SCRIPT_PATH = Path(__file__).resolve().parent / "figcheck.py"
+SCRIPT_PATH = Path(__file__).resolve().parent.parent / "scripts" / "figcheck.py"
 spec = importlib.util.spec_from_file_location("figcheck", SCRIPT_PATH)
 figcheck = importlib.util.module_from_spec(spec)
 sys.modules["figcheck"] = figcheck

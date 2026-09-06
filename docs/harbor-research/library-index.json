@@ -279,8 +279,7 @@
         "docs/harbor-research/figures/fig-r5-quadrant.tex",
         "docs/harbor-research/figures/fig-r5-regime.tex",
         "docs/harbor-research/figures/fig-r5-relation.tex",
-        "whitepaper/figures/fig-swk-controllability-quadrant.tex",
-        "whitepaper/figures/fig-swk-controllability-relation.tex"
+        "whitepaper/figures/fig-swk-controllability-quadrant.tex"
       ],
       "scripts": [
         "skills/harbor-results/scripts/b3_controllability.py"

@@ -5,7 +5,7 @@ on the rendered pages, with the fixes each finding maps to. Method: the
 `ux-friction-analyzer` journey simulation (time to first checkable fact, chunks per
 step, context preserved, progress shown) plus three measures the book adds for
 itself: **kinds per page** (distinct content kinds a page shows; target ≤ 3 on 95 % of
-body pages, measured by `scripts/harbor-research/page_kinds.py`), **back-references
+body pages, measured by `scripts/harbor-research/page_kinds.py`, not yet shipped on this branch at the time of writing), **back-references
 per page** (cross-references a reader must chase to follow the argument; target ≤ 2),
 and **time to first checkable fact** in a chapter (target: the first spread).
 

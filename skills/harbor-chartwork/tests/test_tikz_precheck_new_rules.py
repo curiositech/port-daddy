@@ -8,7 +8,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-SCRIPT_PATH = Path(__file__).resolve().parent / "tikz_precheck.py"
+SCRIPT_PATH = Path(__file__).resolve().parent.parent / "scripts" / "tikz_precheck.py"
 spec = importlib.util.spec_from_file_location("tikz_precheck", SCRIPT_PATH)
 tikz_precheck = importlib.util.module_from_spec(spec)
 sys.modules["tikz_precheck"] = tikz_precheck

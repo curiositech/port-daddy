@@ -84,7 +84,7 @@ test('renderMechanizedClaims sorts rows by id within a method table, independent
   const rendered = renderMechanizedClaims(fixtureManifest());
   const table = rendered.slice(
     rendered.indexOf('ProVerif artifacts'),
-    rendered.indexOf('\\end{tabularx}', rendered.indexOf('ProVerif artifacts')),
+    rendered.indexOf('\\end{xltabular}', rendered.indexOf('ProVerif artifacts')),
   );
   // The manifest lists zzz-last- before aaa-first-; the rendered table must not.
   assert.ok(
@@ -123,7 +123,7 @@ test('renderMechanizedClaims escapes TeX specials in prose fields but leaves \\p
 
 test('renderMechanizedClaims emits exactly one table per method, not split by wired/retired', () => {
   const rendered = renderMechanizedClaims(fixtureManifest());
-  const captions = [...rendered.matchAll(/\\captionof\{table\}\{([^}]*)\}/g)].map((m) => m[1]);
+  const captions = [...rendered.matchAll(/\\caption\{([^}]*)\}/g)].map((m) => m[1]);
   assert.deepEqual(
     captions.sort(),
     ['Kani artifacts (1 wired, 0 retired).', 'Monte Carlo artifacts (1 wired, 0 retired).', 'ProVerif artifacts (1 wired, 1 retired).'].sort(),
@@ -132,7 +132,7 @@ test('renderMechanizedClaims emits exactly one table per method, not split by wi
   // The single ProVerif table holds both the wired and the retired row.
   const table = collapseBreakHints(rendered.slice(
     rendered.indexOf('ProVerif artifacts'),
-    rendered.indexOf('\\end{tabularx}', rendered.indexOf('ProVerif artifacts')),
+    rendered.indexOf('\\end{xltabular}', rendered.indexOf('ProVerif artifacts')),
   ));
   assert.match(table, /aaa-first-proverif/);
   assert.match(table, /zzz-last-proverif/);
@@ -279,7 +279,7 @@ test('the real whitepaper/corpus.json renders end to end without drift', () => {
   assert.match(rendered, /41 artifacts in total, 36 wired into continuous integration and 5 retired/);
   // Every method actually present in the real manifest gets its own table.
   for (const method of ['ProVerif', 'Kani', 'Z3', 'EasyCrypt', 'Monte Carlo']) {
-    assert.match(rendered, new RegExp(`\\\\captionof\\{table\\}\\{${method} artifacts`));
+    assert.match(rendered, new RegExp(`\\\\caption\\{${method} artifacts`));
   }
 });
 
