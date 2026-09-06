@@ -445,7 +445,7 @@ function ghJson(gh, args, opts) {
 export function findIssue(gh, repo) {
   const rows = ghJson(gh, [
     'issue', 'list', '-R', repo, '--state', 'all', '--limit', '50',
-    '--search', `"${ISSUE_TITLE}" in:title`, '--json', 'number,title,state,url',
+    '--search', `"${ISSUE_TITLE}" in:title`, '--json', 'number,title,state,url,labels,isPinned',
   ]) ?? [];
   const exact = rows.filter((r) => r.title === ISSUE_TITLE);
   const open = exact.find((r) => r.state === 'OPEN');
@@ -463,7 +463,8 @@ export function ensureLabel(gh, repo) {
 
 /**
  * Find-or-create the pinned status issue. Idempotent: a second run finds the
- * first run's issue, re-labels/re-pins only if needed, and creates nothing.
+ * first run's issue, re-labels/re-pins only if needed, and creates nothing —
+ * on an already labelled + pinned board it performs no write at all.
  * @returns {{number: number|null, url: string|null, created: boolean, reopened: boolean}}
  */
 export function initBoard(gh, repo, { log = console.error } = {}) {
@@ -481,11 +482,12 @@ export function initBoard(gh, repo, { log = console.error } = {}) {
     const m = /\/issues\/(\d+)/.exec(out ?? '');
     issue = m ? { number: Number(m[1]), url: out.trim(), state: 'OPEN' } : { number: null, url: null, state: 'OPEN' };
     created = true;
-  } else {
-    // Make sure the label is on it even if a human created the issue by hand.
+  } else if (!(issue.labels ?? []).some((l) => l.name === LABEL)) {
+    // A human may have created the issue by hand; label it so it is findable.
     gh(['issue', 'edit', String(issue.number), '-R', repo, '--add-label', LABEL], { mutation: true });
   }
-  if (issue.number != null) {
+  // Steady state (labelled + pinned) must cost zero writes: `read` calls this.
+  if (issue.number != null && !issue.isPinned) {
     try {
       gh(['issue', 'pin', String(issue.number), '-R', repo], { mutation: true });
     } catch (e) {
