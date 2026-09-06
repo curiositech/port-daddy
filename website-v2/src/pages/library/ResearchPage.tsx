@@ -205,7 +205,7 @@ export default function ResearchLibraryPage() {
                   The whitepapers made the claims. This is where they get proved.
                 </PanelTitle>
                 <PanelBody size="default" className="max-w-[68ch] text-[length:var(--text-lg)]">
-                  Seven library chapters argue the harbor works. Underneath four of
+                  Eight library chapters argue the harbor works. Underneath four of
                   them sit theorems the prose alone can&rsquo;t carry — a digest
                   floor measured in bits, a controllability boundary between what
                   a runtime can prevent and what it can only notice, a
@@ -300,7 +300,7 @@ export default function ResearchLibraryPage() {
                 <div className="space-y-[var(--space-3)]">
                   <PanelEyebrow>The papers</PanelEyebrow>
                   <PanelTitle as="h2" size="display" className="max-w-[16ch]">
-                    Seven proofs, in reading order.
+                    Seven papers, in reading order.
                   </PanelTitle>
                 </div>
                 <PanelBody className="max-w-[60ch] text-[length:var(--text-lg)]">
