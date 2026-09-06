@@ -753,6 +753,14 @@ because all writes route through the one daemon connection
 (Def.~\ref{def:single-writer}), \emph{not} because the expire-then-acquire sequence
 is itself atomic. State which story you mean; do not tell both.}
 
+What the discipline looks like from two terminals: one agent holds a lock on a file,
+a second asks for the same name and is told who holds it and for how long, and only
+after the first releases does the second acquire. Nothing here is advisory --- the
+daemon is the single writer for the \texttt{locks} row, so the second request cannot
+race the first.
+
+\input{figures/session-swk-lock-demo}
+
 \subsection{Fairness without a scheduler: the Stigmergic Ticket-Lock (OP-1)}
 
 The conspicuous gap in the claim lifecycle (Figure~\ref{fig:swk-claim-lifecycle}) is
