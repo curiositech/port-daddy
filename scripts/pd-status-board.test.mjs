@@ -10,6 +10,7 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
+import { generateKeyPairSync, sign as cryptoSign } from 'node:crypto';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -19,6 +20,7 @@ import {
   appendLocalDistress, classifyProbe, computeState, decideFloor, decideObserverPost,
   extractLines, findIssue, formatLine, haltActiveLocal, initBoard, isoNow, liveMaydays,
   main, observerKey, parseArgs, parseLine, parsePostArgs, readBoard, renderState, stateToJson,
+  allClearMessage, findRepoRoot, loadPinnedKeys, pdHomeDir, rejectAllClear, safeJson,
 } from './pd-status-board.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -33,10 +35,10 @@ function scratchDir(prefix) {
 
 const T0 = '2026-09-05T14:02:11Z';
 const HALT = `${T0} operator:erich SECURITE HALT reason=spend-runaway ref=docs/incidents/2026-09-05-port-daddy-halt.md`;
-const SEEN = '2026-09-05T14:02:40Z agent:claude-code:ranking-shadow SEEN ref=2026-09-05T14:02:11Z';
-const COMPLIED = '2026-09-05T14:02:41Z agent:claude-code:ranking-shadow COMPLIED ref=2026-09-05T14:02:11Z';
+const SEEN = '2026-09-05T14:02:40Z agent:claude-code:ranking-shadow control SEEN ref=2026-09-05T14:02:11Z';
+const COMPLIED = '2026-09-05T14:02:41Z agent:claude-code:ranking-shadow control COMPLIED ref=2026-09-05T14:02:11Z';
 const SPLIT = '2026-09-05T14:03:00Z daemon:prod MAYDAY SPLIT-BRAIN pids=812,9944 port=9886';
-const FLOOR = '2026-09-05T14:05:12Z operator:erich TAKING-FLOOR target=daemon:prod';
+const FLOOR = '2026-09-05T14:05:12Z operator:erich control TAKING-FLOOR target=daemon:prod';
 
 // ── Wire format ───────────────────────────────────────────────────────────────
 
@@ -59,7 +61,7 @@ describe('wire format', () => {
     assert.deepEqual(p.fields, { socket: 'ok', tcp: 'dead' });
   });
 
-  test('control codes carry no class word, and identities may contain colons', () => {
+  test('control class is written explicitly, the ADR\'s elided spelling still parses, and identities may contain colons', () => {
     const p = parseLine(FLOOR);
     assert.equal(p.cls, 'control');
     assert.equal(p.code, 'TAKING-FLOOR');
@@ -68,10 +70,11 @@ describe('wire format', () => {
     assert.equal(q.kind, 'agent');
     assert.equal(q.id, 'claude-code:ranking-shadow');
     assert.equal(q.entity, 'agent:claude-code:ranking-shadow');
-    // Explicit `control` class word is tolerated on read, never written.
-    const r = parseLine(`${T0} agent:x control SEEN ref=${T0}`);
+    // The ADR's examples elide `control`; readers accept both, writers emit one spelling.
+    const r = parseLine(`${T0} agent:x SEEN ref=${T0}`);
     assert.equal(r.cls, 'control');
-    assert.equal(formatLine({ ...r, cls: 'control' }), `${T0} agent:x SEEN ref=${T0}`);
+    assert.equal(formatLine(r), `${T0} agent:x control SEEN ref=${T0}`);
+    assert.deepEqual(parseLine(`${T0} agent:x control SEEN ref=${T0}`), { ...r, raw: `${T0} agent:x control SEEN ref=${T0}` });
   });
 
   test('free text after -- is preserved, values may contain = and commas', () => {
@@ -129,17 +132,108 @@ describe('wire format', () => {
 describe('board state', () => {
   const lines = (...raws) => raws.map(parseLine);
 
-  test('halt is active after HALT and lifted only by an operator ALL-CLEAR', () => {
-    let s = computeState(lines(HALT));
+  const operator = generateKeyPairSync('ed25519');
+  const impostor = generateKeyPairSync('ed25519');
+  const operatorPem = operator.publicKey.export({ type: 'spki', format: 'pem' });
+  const signedLift = (key, ref = T0, ts = '2026-09-05T15:00:00Z', who = 'operator:erich') => {
+    const sig = cryptoSign(null, allClearMessage(ref, ts), key).toString('base64');
+    return `${ts} ${who} SECURITE ALL-CLEAR ref=${ref} sig=${sig}`;
+  };
+
+  test('halt is active after HALT and lifted only by a signed operator ALL-CLEAR that names it', () => {
+    const trust = { trustedKeys: [operatorPem] };
+    let s = computeState(lines(HALT), trust);
     assert.equal(s.halt.status, 'active');
-    s = computeState(lines(HALT, '2026-09-05T15:00:00Z agent:rogue SECURITE ALL-CLEAR ref=2026-09-05T14:02:11Z'));
-    assert.equal(s.halt.status, 'active', 'an agent cannot lift its own halt');
-    assert.equal(s.violations.length, 1);
-    assert.match(s.violations[0].reason, /non-operator/);
-    s = computeState(lines(HALT, '2026-09-05T15:00:00Z operator:erich SECURITE ALL-CLEAR ref=2026-09-05T14:02:11Z'));
-    assert.equal(s.halt.status, 'none');
-    s = computeState(lines(HALT, '2026-09-05T15:00:00Z operator:erich SECURITE DRILL'));
+
+    const cases = [
+      ['agent, signed with the real key', signedLift(operator.privateKey, T0, '2026-09-05T15:00:00Z', 'agent:rogue'), /non-operator/],
+      ['operator, unsigned', `2026-09-05T15:00:00Z operator:erich SECURITE ALL-CLEAR ref=${T0}`, /unsigned/],
+      ['operator, forged with another key', signedLift(impostor.privateKey), /does not verify/],
+      ['operator, right key, wrong halt', signedLift(operator.privateKey, '2020-01-01T00:00:00Z'), /not the active halt/],
+      ['operator, right key, no ref', `2026-09-05T15:00:00Z operator:erich SECURITE ALL-CLEAR sig=${'A'.repeat(86)}==`, /without a ref/],
+      ['operator, malformed sig', `2026-09-05T15:00:00Z operator:erich SECURITE ALL-CLEAR ref=${T0} sig=abc`, /malformed/],
+    ];
+    for (const [name, line, why] of cases) {
+      s = computeState(lines(HALT, line), trust);
+      assert.equal(s.halt.status, 'active', `${name}: halt must stand`);
+      assert.equal(s.violations.length, 1, `${name}: one violation`);
+      assert.match(s.violations[0].reason, why, name);
+    }
+
+    s = computeState(lines(HALT, signedLift(operator.privateKey)));
+    assert.equal(s.halt.status, 'active', 'a reader with no pinned key cannot be talked out of a halt');
+    assert.match(s.violations[0].reason, /no operator key is pinned/);
+
+    s = computeState(lines(HALT, signedLift(operator.privateKey)), trust);
+    assert.equal(s.halt.status, 'none', 'a signed operator lift naming this halt ends it');
+    assert.equal(s.violations.length, 0);
+
+    s = computeState(lines(HALT, '2026-09-05T15:00:00Z operator:erich SECURITE DRILL'), trust);
     assert.equal(s.halt.status, 'drill');
+  });
+
+  test('the trust root is the committed pin list, read as text, PEM blocks only', () => {
+    const dir = scratchDir('board-pins-');
+    try {
+      mkdirSync(join(dir, 'lib'), { recursive: true });
+      const pins = join(dir, 'lib', 'distress-allclear-pins.ts');
+      assert.deepEqual(loadPinnedKeys({ repoRoot: dir }), [], 'no pins file: zero keys');
+      writeFileSync(pins, `export const OPERATOR_ALLCLEAR_PINNED_KEYS = [\n  { fingerprint: 'deadbeef', holder: 'operator:erich', pinnedOn: '2026-09-06' },\n];\n`);
+      assert.deepEqual(loadPinnedKeys({ repoRoot: dir }), [], 'a fingerprint-only pin cannot be verified here: treated as absent');
+      writeFileSync(pins, `export const OPERATOR_ALLCLEAR_PINNED_KEYS = [\n  { fingerprint: 'x', publicKeyPem: \`${operatorPem}\`, holder: 'operator:erich', pinnedOn: '2026-09-06' },\n];\n`);
+      const keys = loadPinnedKeys({ repoRoot: dir });
+      assert.equal(keys.length, 1);
+      assert.equal(rejectAllClear(parseLine(signedLift(operator.privateKey)), keys, T0), null);
+      assert.match(rejectAllClear(parseLine(signedLift(impostor.privateKey)), keys, T0), /does not verify/);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test('PD_HOME is honoured for the sentinel and the A0 mirror, like every other floor touch', () => {
+    const dir = scratchDir('board-pdhome-');
+    try {
+      const pd = join(dir, 'elsewhere');
+      const env = { PD_HOME: pd };
+      assert.equal(pdHomeDir({ home: dir, env }), pd);
+      assert.equal(pdHomeDir({ home: dir, env: {} }), join(dir, '.port-daddy'));
+      assert.equal(haltActiveLocal(dir, env), false);
+      appendLocalDistress(HALT, { home: dir, env });
+      assert.ok(existsSync(join(pd, 'DISTRESS')), 'mirror lands under PD_HOME');
+      assert.ok(!existsSync(join(dir, '.port-daddy')), 'nothing under the login home when PD_HOME is set');
+      writeFileSync(join(pd, 'HALT'), `${HALT}\n`);
+      assert.equal(haltActiveLocal(dir, env), true);
+      assert.equal(haltActiveLocal(dir, {}), false, 'the login home stays unaware');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test('repo root is found by walking up for .git (dir or worktree file), never by spawning git', () => {
+    const dir = scratchDir('board-root-');
+    try {
+      const nested = join(dir, 'a', 'b', 'c');
+      mkdirSync(nested, { recursive: true });
+      // The scratch dir may itself sit inside a repo (~/coding is one), so the
+      // baseline is whatever the walk finds above it, never assumed null.
+      assert.equal(findRepoRoot(nested), findRepoRoot(dir), 'nothing between nested and dir: same answer, no throw');
+      assert.equal(findRepoRoot('/'), null, 'the filesystem root has no repo above it');
+      writeFileSync(join(dir, '.git'), 'gitdir: /somewhere/else\n');
+      assert.equal(findRepoRoot(nested), dir);
+      rmSync(join(dir, '.git'));
+      mkdirSync(join(dir, 'a', '.git'));
+      assert.equal(findRepoRoot(nested), join(dir, 'a'));
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test('malformed JSON from the relay or gh is data, not a crash', () => {
+    assert.equal(safeJson('{"ok":true}').ok, true);
+    assert.equal(safeJson('{not json'), null);
+    assert.equal(safeJson(''), null);
+    assert.equal(safeJson(undefined), null);
+    assert.equal(classifyProbe({ http: 200, body: '<html>maintenance</html>' }).state, 'degraded', 'a non-JSON 200 body classifies as degraded, not a crash');
   });
 
   test('a MAYDAY is live until the same entity posts a non-MAYDAY status line', () => {
@@ -425,7 +519,7 @@ describe('CLI', () => {
     try {
       const a = await run(['floor', 'daemon:prod', '--as', 'operator:erich', '--no-local'], { gh: f.gh, home });
       assert.equal(a.code, 0);
-      assert.equal(a.out, `${T0} operator:erich TAKING-FLOOR target=daemon:prod`);
+      assert.equal(a.out, `${T0} operator:erich control TAKING-FLOOR target=daemon:prod`);
       const b = await run(['floor', 'daemon:prod', '--as', 'agent:claude-code:late', '--no-local'], { gh: f.gh, home, now: () => '2026-09-05T14:06:00Z' });
       assert.equal(b.code, 2);
       assert.match(b.out, /held by operator:erich since 2026-09-05T14:02:11Z — stand down/);

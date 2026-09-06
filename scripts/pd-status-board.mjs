@@ -39,9 +39,10 @@
  * behaves identically in Actions and on a laptop.
  */
 import { execFileSync } from 'node:child_process';
+import { createPublicKey, verify as cryptoVerify } from 'node:crypto';
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { homedir, hostname, userInfo } from 'node:os';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve as resolvePath } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const ISSUE_TITLE = 'Port Daddy: status';
@@ -52,7 +53,7 @@ export const RELAY_TARGET = 'relay:prod';
 /** The relay's own health route (apps/relay/src/index.ts → handleHealth). */
 export const DEFAULT_RELAY_HEALTH_URL = 'https://relay.portdaddy.dev/health';
 
-/** Distress classes. `control` is the implicit class of floor/ack codes. */
+/** Distress classes. `control` is written explicitly, like every other class (shared interface contract; phases 0 and 3 do the same). */
 export const CLASSES = ['MAYDAY', 'PAN PAN', 'SECURITE', 'ROUTINE', 'control'];
 
 /**
@@ -87,6 +88,12 @@ const KEY_RE = /^[A-Za-z0-9_.-]+$/;
 // ── Wire format ───────────────────────────────────────────────────────────────
 
 /** Seconds-precision UTC timestamp, the ADR's example form. */
+/** JSON.parse that answers null instead of throwing: relay and gh output is untrusted input. */
+export function safeJson(text) {
+  if (typeof text !== 'string' || !text.trim()) return null;
+  try { return JSON.parse(text); } catch { return null; }
+}
+
 export function isoNow(date = new Date()) {
   return date.toISOString().replace(/\.\d{3}Z$/, 'Z');
 }
@@ -110,9 +117,9 @@ export function formatLine(rec) {
   if (!registered) throw new Error(`unregistered code: ${code} (extend the ADR registry, never ad hoc)`);
   const cls = rec.cls ?? registered;
   if (cls !== registered) throw new Error(`code ${code} belongs to class ${registered}, not ${cls}`);
-  const parts = [ts, `${rec.kind}:${rec.id}`];
-  if (cls !== 'control') parts.push(cls);
-  parts.push(code);
+  // One spelling on the wire: the class is always present, `control` included,
+  // so grep-level readers of the A0 file never meet two forms of one record.
+  const parts = [ts, `${rec.kind}:${rec.id}`, cls, code];
   for (const [k, v] of Object.entries(rec.fields ?? {})) {
     const val = String(v);
     if (!KEY_RE.test(k)) throw new Error(`bad field key: ${k}`);
@@ -203,7 +210,72 @@ export function extractLines(text) {
  *
  * @param {ReturnType<typeof parseLine>[]} lines in append order
  */
-export function computeState(lines) {
+/** The exact bytes phase 4 signs: `ALL-CLEAR|<halt-ts>|<ts>` (lib/distress-allclear.ts allClearMessage). */
+export function allClearMessage(haltTs, ts) {
+  return Buffer.from(`ALL-CLEAR|${haltTs}|${ts}`, 'utf8');
+}
+
+/**
+ * Verify one parsed ALL-CLEAR record against the operator keys this reader
+ * trusts. Mirrors phase 4's verifyAllClear() with node:crypto only, so the
+ * board stays free of lib/ imports. Returns null when the lift is genuine,
+ * otherwise the reason it is not.
+ */
+export function rejectAllClear(rec, trustedKeys, expectedHaltTs) {
+  if (rec.kind !== 'operator') return 'ALL-CLEAR from a non-operator is ignored (ADR-0132 §4)';
+  const ref = rec.fields.ref;
+  if (!ref || !TS_RE.test(ref)) return 'ALL-CLEAR without a ref to the halt it lifts is ignored (ADR-0132 §4)';
+  if (expectedHaltTs && ref !== expectedHaltTs) return `ALL-CLEAR names halt ${ref}, not the active halt ${expectedHaltTs} (ADR-0132 §4)`;
+  const sigB64 = rec.fields.sig;
+  if (!sigB64) return 'unsigned ALL-CLEAR is ignored: only a signed operator lift ends a halt (ADR-0132 §4)';
+  let sig;
+  try { sig = Buffer.from(sigB64, 'base64'); } catch { return 'ALL-CLEAR carries a malformed sig (ADR-0132 §4)'; }
+  if (sig.length !== 64 || sig.toString('base64') !== sigB64) return 'ALL-CLEAR carries a malformed sig (ADR-0132 §4)';
+  if (!trustedKeys.length) return 'ALL-CLEAR cannot be verified: no operator key is pinned for this reader (ADR-0132 §4)';
+  const msg = allClearMessage(ref, rec.ts);
+  for (const key of trustedKeys) {
+    try {
+      if (cryptoVerify(null, msg, key, sig)) return null;
+    } catch {
+      // A key that cannot verify is just a key that did not verify.
+    }
+  }
+  return 'ALL-CLEAR signature does not verify against any pinned operator key: forged or mis-signed (ADR-0132 §4)';
+}
+
+/** Accept SPKI PEM strings or KeyObjects; drop anything that is not an Ed25519 public key. */
+export function normalizeTrustedKeys(keys = []) {
+  const out = [];
+  for (const k of keys) {
+    try {
+      const key = typeof k === 'string' ? createPublicKey(k.replace(/\\n/g, '\n')) : k;
+      if (key && key.asymmetricKeyType === 'ed25519') out.push(key);
+    } catch {
+      // Not a usable public key; never trust by accident.
+    }
+  }
+  return out;
+}
+
+/**
+ * The trust root is the committed pin list (lib/distress-allclear-pins.ts,
+ * #10066), not a same-user-writable file under ~/.port-daddy. The board reads
+ * that TypeScript file as text and lifts out every SPKI PEM block, which keeps
+ * this script free of lib/ imports. A pin without an embedded PEM cannot be
+ * verified here and is treated as absent (correct failure direction: the
+ * halt stands). No repo, no file, or no PEM ⇒ zero trusted keys.
+ */
+export function loadPinnedKeys({ repoRoot = null, pinsFile = null } = {}) {
+  const file = pinsFile ?? (repoRoot ? join(repoRoot, 'lib', 'distress-allclear-pins.ts') : null);
+  if (!file || !existsSync(file)) return [];
+  let text;
+  try { text = readFileSync(file, 'utf8'); } catch { return []; }
+  const pems = text.match(/-----BEGIN PUBLIC KEY-----[\s\S]*?-----END PUBLIC KEY-----/g) ?? [];
+  return normalizeTrustedKeys(pems);
+}
+
+export function computeState(lines, { trustedKeys = [] } = {}) {
+  const keys = normalizeTrustedKeys(trustedKeys);
   const state = {
     halt: { status: 'none', line: null },
     entities: new Map(),
@@ -218,8 +290,10 @@ export function computeState(lines) {
       if (l.code === 'HALT') state.halt = { status: 'active', line: l };
       else if (l.code === 'DRILL') state.halt = { status: 'drill', line: l };
       else if (l.code === 'ALL-CLEAR') {
-        if (l.kind === 'operator') state.halt = { status: 'none', line: l };
-        else state.violations.push({ line: l, reason: 'ALL-CLEAR from a non-operator is ignored (ADR-0132 §4)' });
+        const active = state.halt.status === 'active' ? state.halt.line?.ts : undefined;
+        const reason = rejectAllClear(l, keys, active);
+        if (reason) state.violations.push({ line: l, reason });
+        else state.halt = { status: 'none', line: l };
       }
     } else if (STATUS_CLASSES.has(l.cls)) {
       state.entities.set(l.entity, l);
@@ -328,7 +402,8 @@ export function classifyProbe(probe) {
   let version = null;
   let status = null;
   try {
-    const j = JSON.parse(probe.body ?? '');
+    const j = safeJson(probe.body);
+    if (j === null) throw new Error('relay body is not JSON');
     status = j?.status ?? null;
     version = typeof j?.version === 'string' && /^[\w.+-]+$/.test(j.version) ? j.version : null;
   } catch { /* not JSON: degraded */ }
@@ -438,7 +513,7 @@ export function issueBody() {
 
 function ghJson(gh, args, opts) {
   const out = gh(args, opts);
-  return out && out.trim() ? JSON.parse(out) : null;
+  return safeJson(out);
 }
 
 /** Locate the status issue: open first, else newest closed (to be reopened). */
@@ -502,7 +577,7 @@ export function initBoard(gh, repo, { log = console.error } = {}) {
 export function readBoard(gh, repo, number) {
   const view = ghJson(gh, ['issue', 'view', String(number), '-R', repo, '--json', 'body']) ?? {};
   const raw = gh(['api', `repos/${repo}/issues/${number}/comments`, '--paginate', '--jq', '.[]']) ?? '';
-  const comments = raw.split(/\r?\n/).filter((s) => s.trim()).map((s) => JSON.parse(s));
+  const comments = raw.split(/\r?\n/).filter((s) => s.trim()).map(safeJson).filter((c) => c && typeof c === 'object');
   comments.sort((a, b) => (a.id ?? 0) - (b.id ?? 0));
   const lines = [...extractLines(view.body)];
   for (const c of comments) lines.push(...extractLines(c.body));
@@ -520,12 +595,18 @@ export function postLine(gh, repo, number, line) {
 // script stays free of lib/ imports (the fallback must not depend on the thing
 // it is a fallback for).
 
-export function haltActiveLocal(home = homedir()) {
-  return existsSync(join(home, '.port-daddy', 'HALT'));
+/** The Port Daddy home: `PD_HOME` when set (as lib/distress.ts, bin/pd-distress and the hook tentacles honour it), else `<home>/.port-daddy`. */
+export function pdHomeDir({ home = homedir(), env = process.env } = {}) {
+  const override = env && typeof env.PD_HOME === 'string' ? env.PD_HOME.trim() : '';
+  return override || join(home, '.port-daddy');
 }
 
-export function appendLocalDistress(line, { home = homedir(), repoRoot = null } = {}) {
-  const targets = [join(home, '.port-daddy', 'DISTRESS')];
+export function haltActiveLocal(home = homedir(), env = process.env) {
+  return existsSync(join(pdHomeDir({ home, env }), 'HALT'));
+}
+
+export function appendLocalDistress(line, { home = homedir(), repoRoot = null, env = process.env } = {}) {
+  const targets = [join(pdHomeDir({ home, env }), 'DISTRESS')];
   if (repoRoot) targets.push(join(repoRoot, '.portdaddy', 'DISTRESS'));
   for (const p of targets) {
     mkdirSync(dirname(p), { recursive: true });
@@ -534,11 +615,18 @@ export function appendLocalDistress(line, { home = homedir(), repoRoot = null } 
   return targets;
 }
 
-function gitRepoRoot() {
-  try {
-    return execFileSync('git', ['rev-parse', '--show-toplevel'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim() || null;
-  } catch {
-    return null;
+/**
+ * Repo root by walking up for `.git` (a directory, or the file a worktree
+ * carries), exactly as bin/pd-distress does. The floor must not depend on a
+ * git binary being on PATH, and must not spawn anything to find itself.
+ */
+export function findRepoRoot(start = process.cwd()) {
+  let dir = resolvePath(start);
+  for (;;) {
+    if (existsSync(join(dir, '.git'))) return dir;
+    const parent = dirname(dir);
+    if (parent === dir) return null;
+    dir = parent;
   }
 }
 
@@ -637,7 +725,11 @@ export async function main(argv, deps = {}) {
   const gh = withDryRun(deps.gh ?? makeGh(), dryRun, stderr);
   const now = deps.now ?? (() => isoNow());
   const home = deps.home ?? homedir();
-  const repoRoot = deps.repoRoot === undefined ? gitRepoRoot() : deps.repoRoot;
+  const repoRoot = deps.repoRoot === undefined ? findRepoRoot() : deps.repoRoot;
+  const trustedKeys = deps.trustedKeys ?? [
+    ...loadPinnedKeys({ repoRoot }),
+    ...(flags['trusted-key'] && existsSync(flags['trusted-key']) ? [readFileSync(flags['trusted-key'], 'utf8')] : []),
+  ];
   const fetchImpl = deps.fetch ?? globalThis.fetch;
   const [cmd, ...rest] = positional;
 
@@ -647,7 +739,7 @@ export async function main(argv, deps = {}) {
 
   const mirror = (line) => {
     if (dryRun || flags['no-local']) return;
-    for (const p of appendLocalDistress(line, { home, repoRoot })) stderr(`mirrored to ${p}`);
+    for (const p of appendLocalDistress(line, { home, repoRoot, env })) stderr(`mirrored to ${p}`);
   };
   const boardOrDie = () => {
     const board = initBoard(gh, repo, { log: stderr });
@@ -679,9 +771,9 @@ export async function main(argv, deps = {}) {
     case 'read': {
       const board = boardOrDie();
       const lines = board.number == null ? [] : readBoard(gh, repo, board.number);
-      const state = computeState(lines);
-      if (flags.json) stdout(JSON.stringify({ repo, issue: board.number, localHalt: haltActiveLocal(home), ...stateToJson(state) }, null, 2));
-      else stdout(renderState(state, { header: `${ISSUE_TITLE} — ${repo}#${board.number ?? '(none yet)'}`, localHalt: haltActiveLocal(home) }));
+      const state = computeState(lines, { trustedKeys });
+      if (flags.json) stdout(JSON.stringify({ repo, issue: board.number, localHalt: haltActiveLocal(home, env), trustedKeys: normalizeTrustedKeys(trustedKeys).length, ...stateToJson(state) }, null, 2));
+      else stdout(renderState(state, { header: `${ISSUE_TITLE} — ${repo}#${board.number ?? '(none yet)'}`, localHalt: haltActiveLocal(home, env) }));
       return 0;
     }
     case 'floor': {
@@ -690,7 +782,7 @@ export async function main(argv, deps = {}) {
       const { kind, id } = splitIdentity(me);
       const board = boardOrDie();
       const lines = board.number == null ? [] : readBoard(gh, repo, board.number);
-      const state = computeState(lines);
+      const state = computeState(lines, { trustedKeys });
       if (flags.release) {
         const line = formatLine({ ts: now(), kind, id, code: 'STANDING-DOWN', fields: { target } });
         if (board.number != null) postLine(gh, repo, board.number, line);
@@ -726,7 +818,7 @@ export async function main(argv, deps = {}) {
       const relay = classifyProbe(probe);
       const board = boardOrDie();
       const lines = board.number == null ? [] : readBoard(gh, repo, board.number);
-      const state = computeState(lines);
+      const state = computeState(lines, { trustedKeys });
       const d = decideObserverPost(state, relay, now());
       if (d.post) {
         if (board.number != null) postLine(gh, repo, board.number, d.line);
