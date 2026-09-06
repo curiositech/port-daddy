@@ -26,8 +26,12 @@ disagree, the ledger and `git log` win.
 | CI hygiene | `0dc109b62`, `bf7278c01` | `skills/federated-harbor-whitehat/references/mechanization-targets.md`, `website-v2/public/whitepaper/publication-digests.json` |
 
 Measured on the current head: the kernel chapter compiles standalone to 59
-pages with 0 undefined references and 502 links; the Book compiles to 289
-pages, 6.9 MB, 2,267 links, 0 undefined references. Local build recipe: run
+pages with 0 undefined references and 502 links, the Legible Swarm chapter to
+63 pages and 712 links, the Spawn-to-Person chapter to 57 pages and 484 links;
+the Book compiles to 338 pages, 6.9 MB, 2,644 links, 0 undefined references
+(the mechanized-claims appendix and the four chapters' collected solutions
+account for the growth from 289; the 400-page ceiling is tracked in the
+outline's page-budget item). Local build recipe: run
 the generator into `.cache/whitepaper-build/coordination-papers-mega-volume`
 first (a stale or missing cache fails the Book with "Generated chapter map is
 missing"), then tectonic from `website-v2/public/whitepaper/`.
