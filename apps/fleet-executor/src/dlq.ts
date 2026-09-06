@@ -1,16 +1,17 @@
 /**
  * Dead-letter queue consumer for the fleet executor.
  *
- * The main queue creates the 'Port Daddy Fleet' check run `in_progress` BEFORE
- * any ship runs, so a job lost to exhausted retries leaves an unresolved gate
- * (never green, never absent) — fail-closed. The index.ts docblock promised a
- * "separate DLQ handler [that] MUST complete that check run as 'failure'", but
- * none existed: a dead-lettered blocking job left the check stuck `in_progress`
- * FOREVER, and nothing told the operator. This is that handler.
+ * For an admitted generation, the main queue creates a creator-run-bound Fleet
+ * check before model work. A dead-lettered delivery can therefore leave that
+ * exact check pending. This handler conditionally claims the still-active D1
+ * intent and mutates only the matching App-owned check; missing or degraded
+ * authority is reported and leaves GitHub untouched.
  *
  * For each dead-lettered {@link FleetRunJob} it: mints an installation token,
  * finds the stuck check run for the PR head SHA, completes it as **failure**, and
- * emits an error telemetry event so the drop is operator-visible. Best-effort per
+ * emits an error telemetry event so the drop is operator-visible. The summary it
+ * writes carries the LAST recorded per-attempt failure (delivery-failure.ts), so
+ * the gate says what killed the run instead of only that it died. Best-effort per
  * message; a failure here is logged and the message acked (it has already
  * exhausted retries — re-queuing it would loop).
  */
@@ -23,7 +24,20 @@ import {
 } from './github.js';
 import { emitCloudTelemetry } from './telemetry.js';
 import { runDetailsUrl } from './run-page.js';
-import { CHECK_NAME } from './execute.js';
+import { CHECK_NAME, ensureRunRow } from './execute.js';
+import {
+  countDeliveryContinuations,
+  countDeliveryAttemptStarts,
+  deadLetterSummary,
+  readLastDeliveryFailure,
+  runIdForDelivery,
+} from './delivery-failure.js';
+import { countShipCheckpoints } from './ship-checkpoint.js';
+import { claimFleetIntentForDlq } from './run-intent.js';
+
+export const DLQ_CHECK_OUTPUT_TITLE = 'Port Daddy Fleet — infrastructure failure (no verdict)';
+const DLQ_NO_VERDICT_PREAMBLE =
+  'Port Daddy Fleet infrastructure failed before review completed. This failed check is not a verdict on your change.';
 
 interface DlqTarget {
   owner: string;
@@ -48,29 +62,86 @@ function targetOf(job: FleetRunJob): DlqTarget | null {
  * Never throws.
  */
 export async function handleDlqJob(job: FleetRunJob, env: ExecutorEnv): Promise<void> {
+  if (!env.DB) {
+    console.warn(
+      `[fleet-executor] DLQ: generation ledger unavailable delivery=${job?.deliveryId}; ` +
+        'degraded exact creator-run check lookup only',
+    );
+  }
+  try {
+    const claimed = await claimFleetIntentForDlq(
+      env,
+      job?.deliveryId ?? '',
+      'delivery exhausted queue retries and entered the dead-letter queue',
+    );
+    if (!claimed) {
+      console.log(`[fleet-executor] DLQ: delivery=${job?.deliveryId} not active/current; no GitHub mutation`);
+      return;
+    }
+  } catch (error) {
+    console.error(
+      `[fleet-executor] DLQ: intent authority unavailable delivery=${job?.deliveryId}; no GitHub mutation: ${String(error)}`,
+    );
+    return;
+  }
   const target = targetOf(job);
   if (!target) {
     console.error(`[fleet-executor] DLQ: unparseable job delivery=${job?.deliveryId}`);
     return;
   }
   const { owner, repo, headSha, installationId, prNumber } = target;
-  const summary =
-    `pd-fleet: run for ${owner}/${repo} PR #${prNumber ?? '?'} was lost (job exhausted retries / ` +
-    `dead-lettered). This gate is failed rather than left stuck in-progress.`;
+  // Same deterministic run id the main consumer used, so the failed gate still
+  // links to whatever transcript the lost run managed to write — and so the
+  // per-attempt failures the retry path recorded are readable from here.
+  const runId = runIdForDelivery(job.deliveryId);
 
   try {
+    // Inside the try deliberately. This function is documented "never throws",
+    // and its caller acks the message immediately after it returns; a throw
+    // here would leave a dead-lettered job unacked on a queue whose own
+    // max_retries is 1. readLastDeliveryFailure guards itself, but that
+    // guarantee should be enforced here rather than borrowed from a second
+    // function's discipline.
+    const summary = `${DLQ_NO_VERDICT_PREAMBLE}\n\n${deadLetterSummary(
+      owner,
+      repo,
+      prNumber,
+      await readLastDeliveryFailure(env, runId),
+      await countDeliveryAttemptStarts(env, runId),
+      await countShipCheckpoints(env, runId),
+      await countDeliveryContinuations(env, runId),
+    )}`;
     const token = await getInstallationTokenCached(
       env.GITHUB_APP_ID,
       env.GITHUB_APP_PRIVATE_KEY,
       installationId,
       env.FLEET_TOKENS,
     );
-    const checkRunId = await findFleetCheckRun(owner, repo, headSha, CHECK_NAME, token);
+    const checkRunId = await findFleetCheckRun(
+      owner,
+      repo,
+      headSha,
+      CHECK_NAME,
+      token,
+      env.GITHUB_APP_ID,
+      runId,
+    );
     if (checkRunId) {
-      // Same deterministic run id the main consumer used, so the failed gate
-      // still links to whatever transcript the lost run managed to write.
-      const detailsUrl = await runDetailsUrl(env, `run:${job.deliveryId}`);
-      await completeCheckRun(owner, repo, checkRunId, 'failure', summary, token, detailsUrl);
+      const detailsUrl = await runDetailsUrl(env, runId);
+      // This path never calls recordRunStart at all, so without this the
+      // details_url it publishes would always 404 ("Run not found") — the
+      // DLQ variant of the same gap execute.ts's ensureRunRow closes.
+      await ensureRunRow(env, runId, job.deliveryId, job.repoFullName ?? `${owner}/${repo}`, prNumber, headSha);
+      await completeCheckRun(
+        owner,
+        repo,
+        checkRunId,
+        'failure',
+        summary,
+        token,
+        detailsUrl,
+        DLQ_CHECK_OUTPUT_TITLE,
+      );
     } else {
       console.error(
         `[fleet-executor] DLQ: no '${CHECK_NAME}' check run found for ${owner}/${repo}@${headSha}`,

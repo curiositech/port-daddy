@@ -26,7 +26,9 @@ import {
   getInstallationTokenCached,
   invalidateInstallationToken,
   fetchPRContext,
+  fetchPullRequestMetadataWitness,
   fetchRepoFile,
+  fetchTrustedShipContract,
   fetchOpenPullRequests,
   listRecentBranches,
   renderFleetContext,
@@ -34,18 +36,36 @@ import {
   createReview,
   createCheckRun,
   completeCheckRun,
+  completeCheckRunDetailed,
+  CheckRunCompletionError,
   findFleetCheckRun,
   findFleetCheckRunState,
   createIssue,
   resolveFleetAppLogin,
+  PullRequestHeadValidationError,
+  PullRequestDiffFetchError,
+  ShipCommentPublicationError,
+  bindFleetReviewInputToCheckSummary,
   type PRContext,
+  type PullRequestHeadGuard,
   type ReviewComment,
   PR_FILES_PAGE_SIZE,
 } from './github.js';
-import { parseFleetShips, parseFleetSquidEvents, parseFleetXo, defaultPRShips, type ShipConfig } from './fleet.js';
+import { parseFleetShips, parseFleetSquidEvents, parseFleetXo, parseFleetMediator, defaultPRShips, type ShipConfig } from './fleet.js';
+import {
+  readMediatorReinjectionState,
+  acknowledgeMediatorReinjection,
+  MediatorReinjectionReadError,
+  mediatorReinjectionDigest,
+  renderMediatorOrders,
+  runMediatorScan,
+  buildMediatorScanIo,
+} from './mediator.js';
+import { fetchOpenPullRequestsDetailed, fetchPRFilePatches } from './github.js';
 import { classifyPrAuthorship } from './fleet-identity.js';
 import { classifyPrLifecycle } from './pr-lifecycle.js';
 import { fleetPrBodyTrailers } from './fleet-pr-body.js';
+import { assertFleetIntentCurrent } from './run-intent.js';
 import {
   resolveVerdict,
   aggregateConclusion,
@@ -66,10 +86,28 @@ import {
   openStackedPr,
   GitHubApiError,
 } from './stacked-pr.js';
-import { runTestsInSandbox } from './sandbox-runner.js';
-import { createSkillGraftCache, type SkillGraftCache } from './skill-graft.js';
-import { emitSquidEvent } from './squid-events.js';
+import {
+  runTestsInSandbox,
+  sandboxCoordinationEnrollmentFromEnv,
+} from './sandbox-runner.js';
+import { createSkillGraftCache, type SkillGraft } from './skill-graft.js';
+import { emitSquidEvent, reportRunTotals } from './squid-events.js';
 import { extractAiText, describeResponseShape } from './ai-response.js';
+import {
+  ShipTranscript,
+  runCaptured,
+  flushShipTranscript,
+} from './transcript-capture.js';
+import {
+  describeAiFailure,
+  FleetAiCircuit,
+  FleetAiDependencyError,
+  normalizeProviderQueueAttempt,
+  PROVIDER_MAX_DELIVERY_ATTEMPTS,
+  RUN_ABSOLUTE_DEADLINE_MS,
+  type ShipAiCallStats,
+} from './ai-resilience.js';
+import { resolveAiCallDeadlineMs } from '../../shared/repo-ai-settings.js';
 import {
   classifyShipOutput,
   describeNoUsableOutput,
@@ -92,7 +130,21 @@ import {
 } from './xo.js';
 import type { Proposal } from './proposals.js';
 import { decideShipGate, isDocsOnly, isReviewableForBugs } from './gates.js';
+import { repairContractOutput } from './repair.js';
+import { adjudicateBrokenShips } from './adjudicator.js';
 import { runPurser } from './purser.js';
+import { isDeadLetteredSummary } from './dead-letter-marker.js';
+import {
+  createCheckpointReviewInputSha256,
+  createShipCheckpointBinding,
+  loadShipCheckpoints,
+  saveShipCheckpoint,
+  type ShipCheckpointBinding,
+} from './ship-checkpoint.js';
+import {
+  countDeliveryContinuations,
+  readDeliveryContinuationLivelock,
+} from './delivery-failure.js';
 import { emitCloudTelemetry, extractWorkersAiUsage } from './telemetry.js';
 import { runDetailsUrl } from './run-page.js';
 import {
@@ -101,6 +153,12 @@ import {
   MODEL_CONTEXT_TOKENS,
   hasKnownContextWindow,
 } from './spend.js';
+import {
+  ContextAdmissionError,
+  assessContextAdmission,
+  requireContextAdmission,
+  utf8ByteLength,
+} from './context-admission.js';
 
 const TRANSCRIPT_FAILURE_TELEMETRY_TIMEOUT_MS = 250;
 
@@ -180,12 +238,43 @@ const FALLBACK_MAP_CHUNK_CHARS = 12_000;
 export function mapChunkCharLimit(mapModel: string): number {
   if (!hasKnownContextWindow(mapModel)) return FALLBACK_MAP_CHUNK_CHARS;
   const chars = MODEL_CONTEXT_TOKENS[mapModel] * CHARS_PER_TOKEN * CONTEXT_BUDGET_FRACTION;
-  return Math.max(FALLBACK_MAP_CHUNK_CHARS, Math.floor(chars));
+  return Math.min(MAP_CHUNK_CHARS_CEILING, Math.max(FALLBACK_MAP_CHUNK_CHARS, Math.floor(chars)));
 }
 
+/**
+ * Hard ceiling on the per-chunk character budget, whatever the model's window.
+ *
+ * WHY (issue #7743, 2026-08-19): deriving the budget purely from the context
+ * window turned a 128k-token model into ~192KB chunks — 16× the budget that
+ * shipped for months — and every in-flight MAP call holds several copies of
+ * its chunk (the chunk string, the composed prompt, the serialized request).
+ * Multiplied by the fan-out, peak resident memory scaled with window size ×
+ * concurrency, and runs began dying to uncatchable platform kills (attempt
+ * markers with no recorded failure — memory, not CPU: attempts died well
+ * under the 300s cpu_ms ceiling's reach). A model's ABILITY to read 192KB per
+ * call was never a reason to spend isolate memory doing so; 48KB (~16k
+ * tokens) is ample diff context per call and keeps the memory product an
+ * order of magnitude smaller.
+ */
+export const MAP_CHUNK_CHARS_CEILING = 48_000;
 
-/** Bound Workers AI fan-out so large diffs finish without a rate-limit stampede. */
-const MAP_CONCURRENCY = 8;
+/**
+ * Bound Workers AI fan-out so large diffs finish without a rate-limit
+ * stampede — and, since #7743, so concurrent in-flight prompts stop being a
+ * memory multiplier: halved from 8, because 4 × the chunk ceiling bounds the
+ * in-flight prompt text where 8 × an unbounded budget did not.
+ */
+const MAP_CONCURRENCY = 4;
+
+/**
+ * Cap on MAP chunks per ship. Bounds all three budgets a huge diff would
+ * otherwise spend freely — memory (chunks held), wall-clock (waves × call
+ * latency inside the queue consumer's window), and dollars (calls). A diff
+ * beyond the cap is reviewed on its first chunks, and the truncation is
+ * recorded HONESTLY: a `map-truncated` transcript step names how much was
+ * dropped, so a partial review can never masquerade as a full one.
+ */
+const MAX_MAP_CHUNKS_PER_SHIP = 8;
 /** The umbrella check-run name. Exported so the DLQ handler targets the same run. */
 export const CHECK_NAME = 'Port Daddy Fleet';
 
@@ -196,7 +285,176 @@ export const CHECK_NAME = 'Port Daddy Fleet';
  * ending in an unterminated `"`. A findings/proposals array is small; this is
  * generous headroom while still bounding cost per call.
  */
-const MAX_OUTPUT_TOKENS = 2048;
+/** Completion reserve applied to every conversational Fleet request. */
+export const MAX_OUTPUT_TOKENS = 2048;
+
+/**
+ * Extra room while turning a metadata-only MAP prompt into its final numbered
+ * chunk prompt. Full-request partitioning and the final dispatch both admit the
+ * actual request; this margin keeps ordinary chunks away from that refusal edge.
+ */
+const MAP_PROMPT_PARTITION_MARGIN_TOKENS = 1024;
+
+/** A bounded projection is enough to identify the PR without consuming the diff budget. */
+const MAP_TITLE_BYTE_LIMIT = 1024;
+const MAP_BODY_BYTE_LIMIT = 6 * 1024;
+const MAP_FLEET_CONTEXT_BYTE_LIMIT = 8 * 1024;
+const MAP_FILE_INDEX_LIMIT = 48;
+
+/**
+ * Derive a per-call MAP diff limit after reserving room for the actual system
+ * prompt, the projected PR metadata, and the requested completion. The old
+ * `mapChunkCharLimit(model)` was necessary but insufficient: it knew nothing
+ * about those other request components.
+ */
+function admittedMapChunkCharLimit(
+  model: string,
+  systemPrompt: string,
+  prCtx: PRContext,
+  fleetContext: string,
+): number {
+  const metadataOnly = buildUserMessage(prCtx, '', 0, 1, fleetContext);
+  const admission = assessContextAdmission(
+    model,
+    [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: metadataOnly },
+    ],
+    MAX_OUTPUT_TOKENS,
+  );
+  if (!admission.accepted) throw new ContextAdmissionError(admission);
+
+  const available = admission.remainingInputTokens - MAP_PROMPT_PARTITION_MARGIN_TOKENS;
+  if (available <= 0) {
+    throw new ContextAdmissionError({
+      ...admission,
+      accepted: false,
+      remainingInputTokens: 0,
+      reason: 'system prompt and PR projection leave no safe budget for a diff chunk',
+    });
+  }
+
+  // A UTF-8 byte is a conservative one-token upper bound. This is only a soft
+  // partitioning limit; `partitionMapDiff` and the immediate pre-dispatch
+  // admission below remain authoritative for non-ASCII source.
+  return Math.min(mapChunkCharLimit(model), available);
+}
+
+interface OmittedMapSection {
+  paths: string[];
+  bytes: number;
+  reason: string;
+}
+
+interface MapChunkPartition {
+  chunks: string[];
+  omitted: OmittedMapSection[];
+  firstRejectedAdmission: ReturnType<typeof assessContextAdmission> | null;
+}
+
+/** Assess the exact full MAP prompt, not merely a diff-length heuristic. */
+function assessMapChunkAdmission(
+  model: string,
+  systemPrompt: string,
+  prCtx: PRContext,
+  diffChunk: string,
+  chunkIndex: number,
+  chunkCount: number,
+  fleetContext: string,
+) {
+  return assessContextAdmission(
+    model,
+    [
+      { role: 'system', content: systemPrompt },
+      {
+        role: 'user',
+        content: buildUserMessage(prCtx, diffChunk, chunkIndex, chunkCount, fleetContext),
+      },
+    ],
+    MAX_OUTPUT_TOKENS,
+  );
+}
+
+/**
+ * Re-pack a reviewable diff at `diff --git` boundaries using the *full* MAP
+ * request as the admission predicate. A character budget is a useful soft
+ * memory limit, but it cannot account for scope prose and per-chunk file
+ * indexes. When a compound candidate does not fit, we flush its intact prior
+ * files and try the new file alone; only a single file that itself cannot fit
+ * is recorded as omitted. This prevents a harmless prompt-overhead change
+ * from discarding otherwise reviewable source.
+ */
+function partitionMapDiff(
+  model: string,
+  systemPrompt: string,
+  prCtx: PRContext,
+  diff: string,
+  softCharLimit: number,
+  fleetContext: string,
+): MapChunkPartition {
+  const sections = splitDiffSections(diff);
+  // The final chunk count is not known until partitioning finishes. The number
+  // of source sections is an upper bound, so it retains the multi-chunk scope
+  // block (and its larger path-index form) whenever a final request could need
+  // it. Every dispatched request is admitted again with its exact final count.
+  const conservativeChunkCount = Math.max(1, sections.length);
+  const chunks: string[] = [];
+  const omitted: OmittedMapSection[] = [];
+  let firstRejectedAdmission: ReturnType<typeof assessContextAdmission> | null = null;
+  let current = '';
+
+  for (const section of sections) {
+    const candidate = current ? `${current}${section}` : section;
+    const exceedsSoftLimit = current.length > 0 && candidate.length > softCharLimit;
+    const candidateAdmission = exceedsSoftLimit
+      ? null
+      : assessMapChunkAdmission(
+          model,
+          systemPrompt,
+          prCtx,
+          candidate,
+          chunks.length,
+          conservativeChunkCount,
+          fleetContext,
+        );
+    if (candidateAdmission?.accepted) {
+      current = candidate;
+      continue;
+    }
+
+    if (current) {
+      chunks.push(current);
+      current = '';
+    }
+
+    // The section is tried on its own even when the soft budget asked for a
+    // split. Soft limits shape memory/spend; only full request admission may
+    // declare an intact source file too large to review.
+    const singleAdmission = assessMapChunkAdmission(
+      model,
+      systemPrompt,
+      prCtx,
+      section,
+      chunks.length,
+      conservativeChunkCount,
+      fleetContext,
+    );
+    if (singleAdmission.accepted) {
+      current = section;
+      continue;
+    }
+
+    firstRejectedAdmission ??= singleAdmission;
+    omitted.push({
+      paths: filesInChunk(section).slice(0, 12),
+      bytes: utf8ByteLength(section),
+      reason: singleAdmission.reason ?? 'unknown context-admission failure',
+    });
+  }
+
+  if (current) chunks.push(current);
+  return { chunks, omitted, firstRejectedAdmission };
+}
 
 /**
  * Workers AI call options: a stable per-ship `x-session-affinity` key so the
@@ -409,6 +667,46 @@ function nowSec(): number {
   return Math.floor(Date.now() / 1000);
 }
 
+/**
+ * Return the run-level reason a PR's source projection cannot support an exact
+ * surface-gate decision. The executor currently fetches one changed-file page;
+ * keeping the cap, parse failure, and raw-diff boundary explicit here ensures
+ * every call site makes the same safe decision.
+ */
+function incompletePrSourceCoverageReason(prCtx: PRContext): string | null {
+  const reasons: string[] = [];
+  if (prCtx.filesTruncated) {
+    reasons.push('GitHub changed-file inventory was unavailable, malformed, or truncated');
+  }
+  if (prCtx.files.length >= PR_FILES_PAGE_SIZE) {
+    reasons.push(`GitHub changed-file inventory reached the ${PR_FILES_PAGE_SIZE}-file first-page limit`);
+  }
+  if (prCtx.diffTruncated) {
+    reasons.push(`GitHub stopped the raw diff read at ${prCtx.diffBytes} bytes`);
+  }
+  return reasons.length > 0 ? reasons.join('; ') : null;
+}
+
+/** Keep durable coverage explanations within the checkpoint parser's bound. */
+function appendReviewCoverageReason(existing: string | undefined, addition: string): string {
+  const combined = existing ? `${addition}; ${existing}` : addition;
+  return combined.length <= 2_048 ? combined : `${combined.slice(0, 2_045)}...`;
+}
+
+/**
+ * Source uncertainty applies to the WHOLE run, including errors and resumed
+ * checkpoints whose old result was complete under a prior fetch. A clean
+ * verdict must therefore become partial, which keeps aggregation neutral.
+ */
+function withIncompletePrSourceCoverage(result: ShipResult, reason: string | null): ShipResult {
+  if (!reason) return result;
+  return {
+    ...result,
+    reviewCoverage: 'partial',
+    reviewCoverageReason: appendReviewCoverageReason(result.reviewCoverageReason, reason),
+  };
+}
+
 function validDeliveryId(raw: unknown): string | null {
   if (typeof raw !== 'string') return null;
   if (raw.trim() !== raw) return null;
@@ -447,14 +745,15 @@ async function isFleetPaused(env: ExecutorEnv): Promise<boolean> {
 }
 
 /**
- * Append-only transcript recorder. Each {@link step} writes one fleet_run_steps
- * row with a monotonically increasing seq. Every write is BEST-EFFORT: a missing
+ * Retry-replaceable transcript telemetry. Each {@link step} writes one
+ * fleet_run_steps row with an invocation-local increasing seq. Every write is
+ * BEST-EFFORT: a missing
  * DB binding (unit tests) or a D1 failure is swallowed and can NEVER fail the
  * run, change the conclusion, or alter the merge gate.
  *
- * Uses INSERT OR REPLACE keyed on (run_id, seq) so a retried delivery (same
- * deterministic runId) overwrites its transcript cleanly instead of erroring on
- * the PK — preserving the pipeline's idempotency invariant.
+ * Uses INSERT OR REPLACE keyed on (run_id, seq), so retrying the same
+ * deterministic run id may replace earlier rows. It is operator telemetry, not
+ * append-only provenance or publication authority.
  */
 class Transcript {
   private seq = 0;
@@ -567,8 +866,11 @@ async function emitTranscriptWriteFailureTelemetry(
 
 /**
  * Write the fleet_runs audit header BEFORE any ship runs (conclusion 'pending').
- * Best-effort + idempotent (INSERT OR REPLACE on the deterministic id). A write
- * failure here NEVER aborts the run.
+ * Best-effort + idempotent on the deterministic delivery id. Checkpointed queue
+ * slices revisit this function, so the conflict path deliberately preserves the
+ * first `created_at`, terminal conclusion, and elapsed time: one delivery is one
+ * logical run even when Cloudflare resumes it through several queue attempts.
+ * A write failure here NEVER aborts the run.
  */
 async function recordRunStart(
   env: ExecutorEnv,
@@ -582,9 +884,20 @@ async function recordRunStart(
   const prUrl = `https://github.com/${job.repoFullName}/pull/${prNumber}`;
   try {
     await env.DB.prepare(
-      `INSERT OR REPLACE INTO fleet_runs
+      `INSERT INTO fleet_runs
          (id, delivery_id, repo_full_name, pr_number, pr_url, head_sha, conclusion, ships_csv, ms, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, 0, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, 0, ?)
+       ON CONFLICT(id) DO UPDATE SET
+         delivery_id = excluded.delivery_id,
+         repo_full_name = excluded.repo_full_name,
+         pr_number = excluded.pr_number,
+         pr_url = excluded.pr_url,
+         head_sha = excluded.head_sha,
+         ships_csv = CASE
+           WHEN fleet_runs.ships_csv = '' THEN excluded.ships_csv
+           ELSE fleet_runs.ships_csv
+         END
+       WHERE fleet_runs.conclusion = 'pending'`,
     )
       .bind(
         runId,
@@ -603,9 +916,128 @@ async function recordRunStart(
 }
 
 /**
- * Stamp the final conclusion + wall-clock elapsed onto the fleet_runs row.
- * Best-effort: a write failure NEVER changes the gate (the check run is already
- * the authoritative surface on GitHub).
+ * Record each triggered ship's CONFIGURATION into the transcript, once, before
+ * any ship runs — model, role, and its permission-shaped flags (whether it can
+ * block the merge, whether it needs bash/write execution, purser sandbox
+ * gating, the test-path scope it's confined to).
+ *
+ * WHY: `ShipConfig` is resolved fresh per run from the repo's own pd-fleet.yml
+ * and never persisted anywhere else — without this, the run page could show a
+ * ship's NAME (`ships_csv`) but nothing about what it actually is or is
+ * allowed to do, and an operator asking "what model is pd-purser using, and
+ * can it write files?" had no answer but reading the YAML themselves. One
+ * step per ship (best-effort, like every other transcript write here);
+ * `env.DB` may be absent in local/test runs, matching every sibling recorder.
+ */
+async function recordShipsConfigInTranscript(
+  transcript: Transcript,
+  ships: ShipConfig[],
+): Promise<void> {
+  for (const ship of ships) {
+    await transcript.step('fleet-ship-config', ship.name, `pd-${ship.name} configuration`, {
+      cfModel: ship.cfModel,
+      cfMapModel: ship.cfMapModel ?? null,
+      cfPlanModel: ship.cfPlanModel ?? null,
+      cfAuthorModel: ship.cfAuthorModel ?? null,
+      role: ship.role,
+      telos: ship.telos,
+      blocking: ship.blocking,
+      needsExecution: ship.needsExecution,
+      ideation: ship.ideation,
+      purser: ship.purser,
+      blockWithoutSandbox: ship.blockWithoutSandbox,
+      testPaths: ship.testPaths,
+      graft: ship.graft,
+    });
+  }
+}
+
+/**
+ * Guarantee a `fleet_runs` row exists before a check run's completion is
+ * published — an idempotent (INSERT OR IGNORE) backstop independent of
+ * `recordRunStart`'s own best-effort write.
+ *
+ * `recordRunStart` deliberately swallows write failures ("NEVER aborts the
+ * run" — correct: an audit-log hiccup must not block gating). But that means
+ * a transient D1 error at exactly that moment leaves NO row behind, while the
+ * check run on GitHub still completes normally with a real conclusion — its
+ * `details_url` then points at a run id with no row, and the run page 404s
+ * ("Run not found") even though nothing else went wrong. `dlq.ts`'s
+ * completion path has the same gap: it never calls `recordRunStart` at all.
+ * Calling this once, right after `recordRunStart`, closes both: if the logical
+ * upsert above already succeeded this is a guaranteed no-op (same primary key);
+ * if it silently failed, this creates a minimal-but-truthful
+ * fallback row so the link a completed check publishes always resolves to
+ * something real.
+ */
+export async function ensureRunRow(
+  env: ExecutorEnv,
+  runId: string,
+  deliveryId: string,
+  repoFullName: string | null,
+  prNumber: number | null,
+  headSha: string,
+): Promise<void> {
+  if (!env.DB) return;
+  const repo = repoFullName ?? 'unknown/unknown';
+  const prUrl = prNumber != null ? `https://github.com/${repo}/pull/${prNumber}` : '';
+  try {
+    // Columns: (id, delivery_id, repo_full_name, pr_number, pr_url, head_sha,
+    // conclusion, ships_csv, ms, created_at) — a superset of recordRunStart's
+    // INSERT: the same identity/context columns plus a placeholder 'pending'
+    // conclusion and 0 ms (recordRunComplete stamps the real values later).
+    // ships_csv is empty since this is only ever the no-ships-info fallback
+    // (recordRunStart already succeeded with the real list, or this is the
+    // DLQ path, which never has a ship list to begin with).
+    await env.DB.prepare(
+      `INSERT OR IGNORE INTO fleet_runs
+         (id, delivery_id, repo_full_name, pr_number, pr_url, head_sha, conclusion, ships_csv, ms, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, 0, ?)`,
+    )
+      .bind(runId, deliveryId, repo, prNumber ?? 0, prUrl, headSha, '', nowSec())
+      .run();
+  } catch (err) {
+    console.error(`[fleet-executor] ensureRunRow failed run=${runId}: ${String(err)}`);
+  }
+}
+
+/**
+ * Read back this logical run's TRUE first-attempt start time.
+ *
+ * `recordRunStart`'s `ON CONFLICT` never touches `created_at`, so this column
+ * is the one place a redelivered/continued run's original wall-clock start
+ * survives — everything else in this file only ever sees "now". This is the
+ * value {@link RUN_ABSOLUTE_DEADLINE_MS} is measured against: a run that has
+ * been going, across however many queue continuations, since before that
+ * ceiling must stop rather than keep spending.
+ *
+ * Fails open (returns null) on any missing binding or read error — an
+ * absolute-deadline check that could itself break every run over a D1 hiccup
+ * would be a worse failure mode than the retry storm it exists to prevent.
+ *
+ * @param env - Worker bindings (D1).
+ * @param runId - This run's deterministic id (`run:<deliveryId>`).
+ * @returns The run's original `created_at` in epoch seconds, or null.
+ */
+async function getRunStartedAtSec(env: ExecutorEnv, runId: string): Promise<number | null> {
+  if (!env.DB) return null;
+  try {
+    const row = await env.DB.prepare(`SELECT created_at FROM fleet_runs WHERE id = ?`)
+      .bind(runId)
+      .first<{ created_at: number }>();
+    return typeof row?.created_at === 'number' ? row.created_at : null;
+  } catch (err) {
+    console.error(`[fleet-executor] getRunStartedAtSec failed run=${runId}: ${String(err)}`);
+    return null;
+  }
+}
+
+/**
+ * Stamp the final conclusion + end-to-end wall-clock elapsed onto the run.
+ * The durable first `created_at` is authoritative across checkpoint retries;
+ * `startMs` is only a defensive fallback for a malformed legacy row. Best-effort:
+ * a write failure NEVER changes the gate (the check run is already authoritative
+ * on GitHub).
  */
 async function recordRunEnd(
   env: ExecutorEnv,
@@ -615,11 +1047,81 @@ async function recordRunEnd(
 ): Promise<void> {
   if (!env.DB) return;
   try {
-    await env.DB.prepare(`UPDATE fleet_runs SET conclusion = ?, ms = ? WHERE id = ?`)
-      .bind(conclusion, Date.now() - startMs, runId)
+    const endMs = Date.now();
+    await env.DB.prepare(
+      `UPDATE fleet_runs
+         SET conclusion = ?,
+             ms = MAX(0, ? - CASE
+               WHEN created_at IS NOT NULL
+                AND created_at > 0
+                AND created_at * 1000 <= ?
+               THEN created_at * 1000
+               ELSE ?
+             END)
+       WHERE id = ?`,
+    )
+      .bind(conclusion, endMs, endMs, startMs, runId)
       .run();
   } catch (err) {
     console.error(`[fleet-executor] fleet_runs update failed run=${runId}: ${String(err)}`);
+  }
+}
+
+/**
+ * Best-effort repair of the terminal D1 run projection from an owned,
+ * digest-bound GitHub check. The GitHub App-owned check receipt remains the
+ * gate authority. D1 is a mutable operator projection here: when bound, a
+ * failed write/readback retries; an absent binding remains the explicitly
+ * degraded deployment behavior until the authority migration is complete.
+ */
+async function reconcileTerminalRunProjection(
+  env: ExecutorEnv,
+  creatorRunId: string,
+  job: FleetRunJob,
+  prCtx: PRContext,
+  prNumber: number,
+  ships: ShipConfig[],
+  conclusion: 'success' | 'failure',
+  startMs: number,
+): Promise<void> {
+  if (!env.DB) return;
+  const deliveryId = creatorRunId.startsWith('run:') ? creatorRunId.slice(4) : creatorRunId;
+  const endMs = Date.now();
+  const prUrl = `https://github.com/${job.repoFullName}/pull/${prNumber}`;
+  await env.DB.prepare(
+    `INSERT INTO fleet_runs
+       (id, delivery_id, repo_full_name, pr_number, pr_url, head_sha, conclusion, ships_csv, ms, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?)
+     ON CONFLICT(id) DO UPDATE SET
+       conclusion = excluded.conclusion,
+       ms = MAX(0, ? - CASE
+         WHEN fleet_runs.created_at IS NOT NULL
+          AND fleet_runs.created_at > 0
+          AND fleet_runs.created_at * 1000 <= ?
+         THEN fleet_runs.created_at * 1000
+         ELSE ?
+       END)`,
+  ).bind(
+    creatorRunId,
+    deliveryId,
+    job.repoFullName,
+    prNumber,
+    prUrl,
+    prCtx.headSha,
+    conclusion,
+    ships.map(ship => ship.name).join(','),
+    nowSec(),
+    endMs,
+    endMs,
+    startMs,
+  ).run();
+  const readback = await env.DB.prepare(
+    `SELECT conclusion FROM fleet_runs WHERE id = ?`,
+  ).bind(creatorRunId).first<{ conclusion: string }>();
+  if (readback?.conclusion !== conclusion) {
+    throw new Error(
+      `terminal D1 projection reconciliation failed for ${creatorRunId}: expected ${conclusion}`,
+    );
   }
 }
 
@@ -756,7 +1258,80 @@ async function recordShipSpend(
   }
 }
 
-const REVIEWABLE_PR_ACTIONS = new Set(['opened', 'synchronize', 'reopened', 'ready_for_review']);
+/**
+ * Record ONE `fleet_ai_call_stats` row for a completed ship's Workers AI
+ * calls (best-effort, same contract as {@link recordShipSpend}). Called with
+ * whatever {@link FleetAiCircuit.snapshotShipStats} has accumulated for this
+ * ship by the time it finishes — a no-op when the ship made no AI calls
+ * through `runForShip` (e.g. it errored before reaching one, or ideation-only
+ * ships that route differently).
+ *
+ * Design rationale: one row per ship, not one per call, is the whole point —
+ * see the design note on the migration this table came from
+ * (`apps/relay/migrations/2026-08-23-fleet-ai-call-stats.sql`) for why raw
+ * per-call logging was rejected.
+ *
+ * @param env - Worker bindings (D1).
+ * @param runId - This queue delivery's run id.
+ * @param ship - The ship whose aggregate is being flushed.
+ * @param stats - The accumulated per-ship totals, or null when the ship made
+ *   no tracked AI calls.
+ * @param deadlineMs - The deadline this run's circuit was configured with,
+ *   stamped onto the row so a later reader can tell "3 timeouts at 60000ms"
+ *   apart from "3 timeouts at 300000ms" without a separate join.
+ * @returns Nothing; failures are logged and swallowed, never thrown.
+ */
+export async function recordShipAiCallStats(
+  env: ExecutorEnv,
+  runId: string,
+  ship: ShipConfig,
+  stats: ShipAiCallStats | null,
+  deadlineMs: number,
+): Promise<void> {
+  if (!env.DB || !stats || stats.calls === 0) return;
+  try {
+    // ADD on conflict, never REPLACE: `runId` is stable across every queue
+    // delivery/continuation of one logical run (`run:${deliveryId}`), and
+    // `FleetAiCircuit` is a fresh in-memory instance per invocation. A ship
+    // whose call times out on delivery 1 and succeeds on delivery 2 must
+    // report BOTH attempts — REPLACE semantics silently dropped delivery 1's
+    // timeout the moment delivery 2 flushed its own (unrelated) counters.
+    // This was a DO-NOT-SHIP finding on PR #9800: the exact failure attempts
+    // this table exists to surface were the ones it was losing.
+    await env.DB.prepare(
+      `INSERT INTO fleet_ai_call_stats
+         (run_id, ship, calls, ok_calls, timeout_calls, error_calls, total_elapsed_ms, max_elapsed_ms, deadline_ms, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(run_id, ship) DO UPDATE SET
+         calls = fleet_ai_call_stats.calls + excluded.calls,
+         ok_calls = fleet_ai_call_stats.ok_calls + excluded.ok_calls,
+         timeout_calls = fleet_ai_call_stats.timeout_calls + excluded.timeout_calls,
+         error_calls = fleet_ai_call_stats.error_calls + excluded.error_calls,
+         total_elapsed_ms = fleet_ai_call_stats.total_elapsed_ms + excluded.total_elapsed_ms,
+         max_elapsed_ms = MAX(fleet_ai_call_stats.max_elapsed_ms, excluded.max_elapsed_ms),
+         deadline_ms = excluded.deadline_ms`,
+    )
+      .bind(
+        runId,
+        ship.name,
+        stats.calls,
+        stats.okCalls,
+        stats.timeoutCalls,
+        stats.errorCalls,
+        stats.totalElapsedMs,
+        stats.maxElapsedMs,
+        deadlineMs,
+        nowSec(),
+      )
+      .run();
+  } catch (err) {
+    console.error(
+      `[fleet-executor] fleet_ai_call_stats insert failed run=${runId} ship=${ship.name}: ${String(err)}`,
+    );
+  }
+}
+
+const REVIEWABLE_PR_ACTIONS = new Set(['opened', 'synchronize', 'reopened', 'ready_for_review', 'edited']);
 
 /** The fleet trigger used by reviewable pull_request deliveries. */
 function triggerFor(job: FleetRunJob): string | null {
@@ -770,8 +1345,189 @@ function triggerFor(job: FleetRunJob): string | null {
  * error so the queue consumer can retry; returns normally otherwise (including
  * for non-actionable events, which are simply skipped).
  */
-export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<void> {
+/**
+ * Report `Port Daddy Fleet` on a merge-queue branch.
+ *
+ * WHY A PASS-THROUGH AND NOT A REVIEW. The queue branch is `main` + the queued
+ * PRs, and every PR in it was already gated by the full fleet at
+ * `pull_request` time. Re-running every ship on each queue permutation would
+ * re-spend the entire review budget per entry, per reorder, to re-derive a
+ * verdict the fleet already published — while the queue branch's own CI (which
+ * DOES run on `merge_group`) is what actually exercises the combined code. This
+ * repo already takes that position elsewhere: scripts/check-roadmap-link.ts
+ * treats `merge_group` heads as a pass-through for exactly this reason.
+ *
+ * What matters is that the context REPORTS. It is required on the merge queue,
+ * so a context that never appears is not a strict gate — it is a permanent
+ * deadlock, which is what it had been since 2026-08-06.
+ *
+ * Fails soft on purpose: any error here leaves the check absent, which is
+ * exactly today's behaviour, so this can never be worse than not running.
+ *
+ * @param job the merge_group delivery
+ * @param env executor bindings (token minting + details url)
+ */
+async function reportMergeGroupPassThrough(job: FleetRunJob, env: ExecutorEnv): Promise<void> {
+  const mergeGroup = job.payloadMinimal?.merge_group as Record<string, unknown> | undefined;
+  const headSha = typeof mergeGroup?.head_sha === 'string' ? mergeGroup.head_sha : '';
+  if (!job.repoFullName || !job.installationId || !headSha) return;
+  const [owner, repo] = job.repoFullName.split('/');
+  if (!owner || !repo) return;
+
+  const token = await getInstallationTokenCached(
+    env.GITHUB_APP_ID,
+    env.GITHUB_APP_PRIVATE_KEY,
+    job.installationId,
+    env.FLEET_TOKENS,
+  ).catch(() => null);
+  if (!token) return;
+
+  try {
+    const checkRunId = await createCheckRun(owner, repo, CHECK_NAME, headSha, token, null);
+    await completeCheckRun(
+      owner,
+      repo,
+      checkRunId,
+      'success',
+      'Merge-queue pass-through. Every PR in this group was reviewed by the fleet at ' +
+        'pull_request time; the queue branch is gated by its own CI, which runs on ' +
+        'merge_group. The fleet does not re-review each queue permutation.',
+      token,
+      null,
+    );
+  } catch (err) {
+    // Absent check == today's behaviour. Never throw: a failure here must not
+    // retry the job or dead-letter it.
+    console.error(`[fleet-executor] merge_group pass-through failed for ${job.repoFullName}@${headSha}: ${String(err)}`);
+  }
+}
+
+export type FleetExecutionDisposition =
+  | {
+      kind: 'stale-head';
+      stage?: 'mid-flight';
+      boundary?: string;
+      expectedHead?: string;
+      currentHead?: string;
+      modelSpendPossible?: boolean;
+    }
+  | { kind: 'already-decided'; conclusion: 'success' | 'failure' }
+  | { kind: 'no-cloud-ships' }
+  | { kind: 'continuation'; completedShip: string; remainingShips: string[] };
+
+/**
+ * The authoritative pull-request evidence changed after Fleet froze the input
+ * that shaped model work and checkpoint bindings. Throwing from a publication
+ * boundary leaves the required check pending and asks the queue to refetch and
+ * retry instead of turning infrastructure drift into a broken-ship verdict.
+ */
+export class PullRequestReviewInputDriftError extends Error {
+  readonly retryable = true;
+
+  constructor(
+    readonly boundary: string,
+    readonly expectedReviewInputSha256: string,
+    readonly changedFields: Readonly<Record<string, boolean>>,
+  ) {
+    super(
+      `pull request review input changed at ${boundary}; frozen witness ` +
+        `${expectedReviewInputSha256} no longer matches live metadata`,
+    );
+    this.name = 'PullRequestReviewInputDriftError';
+  }
+}
+
+export interface FleetExecutionOptions {
+  /** Cloudflare Queue's 1-based delivery attempt. Direct callers default final. */
+  queueAttempt?: number;
+  /**
+   * Maximum newly executed ships in this invocation. Resumed and deterministically
+   * gated ships do not count. Omit for direct/full-run callers.
+   */
+  maxNewShipsPerInvocation?: number;
+  /** Re-check the Relay generation ledger at every hot publication boundary. */
+  enforceIntentOwnership?: boolean;
+}
+
+/**
+ * Establish a visible in-progress gate before retrying an unavailable raw diff.
+ *
+ * Normal Fleet check creation follows authoritative PR-context fetch because it
+ * needs the live head. The signed webhook payload is nevertheless the only
+ * safe coordinate available when that fetch's raw-diff leg itself fails. This
+ * helper creates (or preserves) a pending check on that immutable payload head
+ * so an exhausted queue delivery reaches the DLQ with a real check to mark
+ * failed rather than leaving an invisible, passable-looking gap.
+ *
+ * @param owner GitHub repository owner.
+ * @param repo GitHub repository name.
+ * @param prPayload Signed webhook pull-request payload.
+ * @param token Installation token for the check API.
+ * @param detailsUrl Optional durable run-details URL.
+ * @returns Nothing after an existing or newly created gate is confirmed.
+ */
+async function ensureRawDiffFailureGate(
+  owner: string,
+  repo: string,
+  prPayload: Record<string, unknown>,
+  token: string,
+  detailsUrl: string | null,
+  githubAppId: string,
+  runId: string,
+  beforeCreate?: () => Promise<void>,
+): Promise<void> {
+  const head = prPayload.head;
+  const headSha = head && typeof head === 'object'
+    ? (head as Record<string, unknown>).sha
+    : null;
+  if (typeof headSha !== 'string' || !headSha) {
+    throw new Error('raw diff unavailable and webhook payload omitted the pull request head SHA');
+  }
+  const existing = await findFleetCheckRun(owner, repo, headSha, CHECK_NAME, token, githubAppId, runId);
+  if (existing) return;
+  await beforeCreate?.();
+  const checkRunId = await createCheckRun(
+    owner,
+    repo,
+    CHECK_NAME,
+    headSha,
+    token,
+    detailsUrl,
+    undefined,
+    runId,
+  );
+  if (!checkRunId) {
+    throw new Error(
+      `raw diff unavailable and could not establish the Port Daddy Fleet gate for ${owner}/${repo}@${headSha}`,
+    );
+  }
+}
+
+/**
+ * Execute one verified Fleet delivery against the current pull-request head.
+ * The design returns an explicit disposition only when the immutable webhook
+ * head is stale, allowing the queue wrapper to close admission truth without
+ * misrepresenting that acknowledgement as a model-backed verdict.
+ *
+ * @param job - Queue delivery normalized by the signed webhook ingress.
+ * @param env - Executor bindings for GitHub, D1, KV, Queues, and Workers AI.
+ * @returns A stale-head acknowledgement marker, or void for ordinary paths.
+ */
+export async function executeFleet(
+  job: FleetRunJob,
+  env: ExecutorEnv,
+  options: FleetExecutionOptions = {},
+): Promise<FleetExecutionDisposition | void> {
   if (!env.AI) return;
+
+  // MERGE QUEUE: handled before every guard below, all of which assume a PR.
+  // A merge_group delivery has no pull_request and no prNumber, so it would
+  // otherwise fall straight out of `!job.prNumber` and report nothing — the
+  // deadlock this branch exists to end.
+  if (job.eventType === 'merge_group') {
+    await reportMergeGroupPassThrough(job, env);
+    return;
+  }
 
   const trigger = triggerFor(job);
   if (!trigger) return;
@@ -797,6 +1553,23 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
   const transcript = new Transcript(env.DB, runId, (failure) =>
     emitTranscriptWriteFailureTelemetry(env, job, failure)
   );
+  // Intentional checkpoint continuations are successful slices, not Workers AI
+  // dependency failures. Subtract them from Cloudflare's raw delivery counter
+  // before enforcing the provider circuit so ship 5 does not begin on a fake
+  // "attempt 5/3" merely because four earlier ships completed normally.
+  const intentionalContinuations = await countDeliveryContinuations(env, runId);
+  const providerAttempt = normalizeProviderQueueAttempt(
+    typeof options.queueAttempt === 'number'
+      ? options.queueAttempt - intentionalContinuations
+      : options.queueAttempt,
+  );
+  const maxNewShipsPerInvocation =
+    Number.isInteger(options.maxNewShipsPerInvocation) &&
+    (options.maxNewShipsPerInvocation ?? 0) > 0
+      ? options.maxNewShipsPerInvocation as number
+      : Number.POSITIVE_INFINITY;
+  const aiCallDeadlineMs = await resolveAiCallDeadlineMs(env.DB, job.repoFullName);
+  const aiCircuit = new FleetAiCircuit(aiCallDeadlineMs);
 
   // --- KILL SWITCH ---------------------------------------------------------
   // Checked at the very START, before any AI spend or review/comment post.
@@ -829,17 +1602,57 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
         job.installationId,
         env.FLEET_TOKENS,
       );
-      let checkRunId = await findFleetCheckRun(owner, repo, headSha, CHECK_NAME, token).catch(
-        () => null,
-      );
+      const assertPausedGateCurrent = async (boundary: string): Promise<void> => {
+        if (options.enforceIntentOwnership) await assertFleetIntentCurrent(env, job);
+        const live = await fetchPullRequestMetadataWitness(owner, repo, prNumber, token);
+        if (live.headSha !== headSha) {
+          throw new PullRequestHeadValidationError(
+            'changed',
+            headSha,
+            live.headSha || null,
+            boundary,
+            `pull request head changed at ${boundary}: expected ${headSha}, current ${live.headSha || 'unknown'}`,
+          );
+        }
+      };
+      await assertPausedGateCurrent('before paused check admission');
+      let checkRunId = await findFleetCheckRun(
+        owner,
+        repo,
+        headSha,
+        CHECK_NAME,
+        token,
+        env.GITHUB_APP_ID,
+        runId,
+      ).catch(() => null);
       if (!checkRunId) {
-        checkRunId = await createCheckRun(owner, repo, CHECK_NAME, headSha, token, detailsUrl);
+        await assertPausedGateCurrent('immediately before paused check creation');
+        checkRunId = await createCheckRun(
+          owner,
+          repo,
+          CHECK_NAME,
+          headSha,
+          token,
+          detailsUrl,
+          undefined,
+          runId,
+        );
       }
       const summary =
         'Fleet paused by operator; no automated review was performed for this delivery. ' +
         'Resume the fleet (POST /v1/fleet/pause {"paused":false}) or review this PR manually.';
       if (checkRunId) {
-        await completeCheckRun(owner, repo, checkRunId, 'neutral', summary, token, detailsUrl);
+        await completeCheckRun(
+          owner,
+          repo,
+          checkRunId,
+          'neutral',
+          summary,
+          token,
+          detailsUrl,
+          'Port Daddy Fleet',
+          () => assertPausedGateCurrent('immediately before paused neutral PATCH'),
+        );
       }
       await transcript.step(
         'check-completed',
@@ -874,6 +1687,11 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
         installationId: job.installationId,
         files: [],
         diff: '',
+        // Nothing was fetched on a short-circuited run, so zero is the honest
+        // measurement rather than a placeholder.
+        diffBytes: 0,
+        diffTruncated: false,
+        filesTruncated: false,
       };
       await recordRunStart(env, runId, job, stubPrCtx, prNumber, []);
       await recordRunEnd(env, runId, 'neutral', startMs);
@@ -904,14 +1722,15 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
   let prCtx: PRContext;
   let fleetYaml: string | null;
   try {
-    [prCtx, fleetYaml] = await Promise.all([
-      fetchPRContext(owner, repo, prNumber, prPayload, token),
-      // ZERO-TRUST: config is read from the trusted branch, NEVER PR head.
-      fetchRepoFile(owner, repo, 'pd-fleet.yml', branch, token),
-    ]);
-  } catch (err) {
-    // One automatic remint on a likely-401, then retry the fetch.
-    if (is401(err)) {
+    try {
+      [prCtx, fleetYaml] = await Promise.all([
+        fetchPRContext(owner, repo, prNumber, prPayload, token),
+        // ZERO-TRUST: config is read from the trusted branch, NEVER PR head.
+        fetchRepoFile(owner, repo, 'pd-fleet.yml', branch, token),
+      ]);
+    } catch (err) {
+      // One automatic remint on a likely-401, then retry the fetch.
+      if (!is401(err)) throw err;
       await invalidateInstallationToken(job.installationId, env.FLEET_TOKENS);
       token = await getInstallationTokenCached(
         env.GITHUB_APP_ID,
@@ -924,9 +1743,26 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
         fetchPRContext(owner, repo, prNumber, prPayload, token),
         fetchRepoFile(owner, repo, 'pd-fleet.yml', branch, token),
       ]);
-    } else {
-      throw err;
     }
+  } catch (err) {
+    // A non-OK raw diff is unavailable infrastructure, never an empty review.
+    // Create the payload-head gate before handing the error to the queue so an
+    // exhausted retry has an actual check run for the DLQ to fail.
+    if (err instanceof PullRequestDiffFetchError) {
+      await ensureRawDiffFailureGate(
+        owner,
+        repo,
+        prPayload,
+        token,
+        detailsUrl,
+        env.GITHUB_APP_ID,
+        runId,
+        options.enforceIntentOwnership
+          ? () => assertFleetIntentCurrent(env, job)
+          : undefined,
+      );
+    }
+    throw err;
   }
 
   // A synchronize delivery can sit behind an expensive review long enough for
@@ -941,7 +1777,7 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
     console.log(
       `[fleet-executor] delivery=${deliveryId} stale head ${eventHead.slice(0, 12)}; current=${prCtx.headSha.slice(0, 12)}; skipping`,
     );
-    return;
+    return { kind: 'stale-head' };
   }
 
   // --- Resolve ships -------------------------------------------------------
@@ -969,9 +1805,98 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
   // NOTHING about proposals, comments, or the check conclusion.
   const xoEnabled = fleetYaml ? parseFleetXo(fleetYaml) : false;
 
+  // MEDIATOR CONSENT + crash-safe re-injection (grand-plan node mediator-body).
+  // If a human's Modify verdict is pending for THIS PR (control-plane KV,
+  // written by the relay's gate), freeze it without deleting and prepend it to
+  // every ship's context. It is acknowledged only after terminal success.
+  const mediatorConfig = parseFleetMediator(fleetYaml ?? '');
+  let mediatorOrders = '';
+  let mediatorReinjectionState: Awaited<ReturnType<typeof readMediatorReinjectionState>> = null;
+  let mediatorReinjection = null as Awaited<ReturnType<typeof readMediatorReinjectionState>> extends infer T
+    ? T extends { reinjection: infer R } ? R | null : null
+    : null;
+  if (mediatorConfig.enabled) {
+    mediatorReinjectionState = await readMediatorReinjectionState(env, job.repoFullName, prNumber);
+    mediatorReinjection = mediatorReinjectionState && !mediatorReinjectionState.acknowledged
+      ? mediatorReinjectionState.reinjection
+      : null;
+    if (mediatorReinjection) {
+      mediatorOrders = renderMediatorOrders(mediatorReinjection);
+    }
+  }
+  const mediatorOrderSha256 = await mediatorReinjectionDigest(mediatorReinjection);
+  const acknowledgedMediatorOrderSha256 = mediatorReinjectionState?.acknowledged
+    ? await mediatorReinjectionDigest(mediatorReinjectionState.reinjection)
+    : null;
+
   // Cloud-executable ships only (execution ships dispatch to GHA elsewhere).
   const cloudShips = ships.filter(s => !s.needsExecution);
-  if (cloudShips.length === 0) return;
+  if (cloudShips.length === 0) return { kind: 'no-cloud-ships' };
+
+  // Freeze the complete model/checkpoint input before deciding whether an
+  // existing check may be reused. The digest includes exact files and diff;
+  // hot boundary guards below can stay lightweight because unchanged head and
+  // base identities make those large bodies immutable.
+  const reviewInputSha256 = await createCheckpointReviewInputSha256(prCtx);
+  const frozenReviewMetadata = {
+    title: prCtx.title,
+    body: prCtx.body,
+    headSha: prCtx.headSha,
+    headRef: prCtx.headRef,
+    headRepoFullName: prCtx.headRepoFullName ?? '',
+    baseSha: prCtx.baseSha,
+    baseRef: prCtx.baseRef,
+    baseRepoFullName: prCtx.baseRepoFullName ?? '',
+    state: prCtx.state,
+    merged: prCtx.merged,
+  };
+  const assertCurrentReviewInput: PullRequestHeadGuard = async boundary => {
+    if (options.enforceIntentOwnership) await assertFleetIntentCurrent(env, job);
+    let live: Awaited<ReturnType<typeof fetchPullRequestMetadataWitness>>;
+    try {
+      live = await fetchPullRequestMetadataWitness(owner, repo, prNumber, token);
+    } catch (error) {
+      throw new PullRequestHeadValidationError(
+        'unavailable',
+        prCtx.headSha,
+        null,
+        boundary,
+        `could not verify pull request metadata at ${boundary}: ${String(error).slice(0, 500)}`,
+      );
+    }
+    if (!live.headSha) {
+      throw new PullRequestHeadValidationError(
+        'unavailable',
+        prCtx.headSha,
+        null,
+        boundary,
+        `could not verify pull request head at ${boundary}: response omitted head.sha`,
+      );
+    }
+    if (live.headSha !== prCtx.headSha) {
+      throw new PullRequestHeadValidationError(
+        'changed',
+        prCtx.headSha,
+        live.headSha,
+        boundary,
+        `pull request head changed at ${boundary}: expected ${prCtx.headSha}, current ${live.headSha}`,
+      );
+    }
+    if (JSON.stringify(live) === JSON.stringify(frozenReviewMetadata)) return;
+    const changedFields = Object.fromEntries(
+      Object.keys(frozenReviewMetadata).map(key => [
+        key,
+        live[key as keyof typeof live] !== frozenReviewMetadata[key as keyof typeof frozenReviewMetadata],
+      ]),
+    );
+    await transcript.step(
+      'review-input-drift',
+      null,
+      `Fleet stopped at ${boundary}: authoritative pull-request metadata changed`,
+      { boundary, expectedReviewInputSha256: reviewInputSha256, changedFields },
+    );
+    throw new PullRequestReviewInputDriftError(boundary, reviewInputSha256, changedFields);
+  };
 
   // --- Check run (idempotent: reuse one for this head SHA) -----------------
   //
@@ -997,6 +1922,9 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
     prCtx.headSha,
     CHECK_NAME,
     token,
+    env.GITHUB_APP_ID,
+    reviewInputSha256,
+    mediatorOrderSha256,
   ).catch(() => null);
   //
   // `neutral` is deliberately NOT terminal. The fleet completes neutral when it
@@ -1005,20 +1933,132 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
   // would strand a PR permanently unreviewed: unpause the fleet, redeliver, and
   // the guard would skip forever. Only `success` and `failure` mean ships
   // actually ran and reached a verdict.
+  //
+  // …and a DLQ-completed `failure` is NOT decided either, for the same reason
+  // `neutral` isn't: no ship ran, nothing was reviewed, no verdict was reached.
+  // A lost job's red gate is honest fail-closed output, but counting it as
+  // DECIDED strands the head SHA permanently — every later delivery returns
+  // right here, before even creating a check run, so no retry can ever produce
+  // a real verdict and the only escape is a brand-new commit. Observed
+  // 2026-08-19: #7278, #7339 and #7344 each lost one run to a dead-letter and
+  // were then unreviewable at that SHA; reopening them re-ran all of GitHub
+  // Actions CI while the fleet check never reappeared at all.
   const DECIDED: ReadonlySet<string> = new Set(['success', 'failure']);
-  if (existing && existing.status === 'completed' && DECIDED.has(existing.conclusion ?? '')) {
+  const deadLettered = isDeadLetteredSummary(existing?.summary);
+  if (
+    existing &&
+    existing.status === 'completed' &&
+    DECIDED.has(existing.conclusion ?? '') &&
+    !deadLettered &&
+    existing.reviewInputSha256 === reviewInputSha256 &&
+    existing.mediatorOrderSha256 === (acknowledgedMediatorOrderSha256 ?? mediatorOrderSha256) &&
+    existing.creatorRunId === runId
+  ) {
+    await assertCurrentReviewInput('before completed check reuse');
+    const repairMediatorState = mediatorConfig.enabled
+      ? await readMediatorReinjectionState(env, job.repoFullName, prNumber)
+      : null;
+    const repairMediatorDigest = repairMediatorState
+      ? await mediatorReinjectionDigest(repairMediatorState.reinjection)
+      : null;
+    if (repairMediatorDigest !== existing.mediatorOrderSha256) {
+      throw new MediatorReinjectionReadError(
+        `Mediator order changed before completed-check repair for ${owner}/${repo}#${prNumber}; ` +
+          `retrying so the new order is frozen into a fresh check generation and every ship prompt.`,
+      );
+    } else {
+    // GitHub is already terminal, but the Worker may have died before the D1
+    // run projection was finalized. Repair that projection idempotently before
+    // acknowledging this delivery; the check id + bound review digest identify
+    // the exact terminal generation being reconciled.
+    await reconcileTerminalRunProjection(
+      env,
+      existing.creatorRunId,
+      job,
+      prCtx,
+      prNumber,
+      cloudShips,
+      existing.conclusion as 'success' | 'failure',
+      startMs,
+    );
+    if (repairMediatorState) {
+      if (!repairMediatorState.acknowledged) {
+        if (!await acknowledgeMediatorReinjection(env, repairMediatorState.reinjection)) {
+          throw new Error(`Mediator order acknowledgement failed for ${repairMediatorState.reinjection.parleyId}`);
+        }
+      }
+    }
     console.log(
       `[fleet-executor] ${owner}/${repo}@${prCtx.headSha}: check already decided ` +
         `(${existing.conclusion}) — skipping ${cloudShips.length} ship(s). ` +
         `A redelivery cannot reopen a finished check, so running them would spend and change nothing.`,
     );
-    return;
+    return {
+      kind: 'already-decided',
+      conclusion: existing.conclusion as 'success' | 'failure',
+    };
+    }
+  }
+  if (deadLettered) {
+    console.log(
+      `[fleet-executor] ${owner}/${repo}@${prCtx.headSha}: previous check was dead-lettered, ` +
+        `not decided — running ${cloudShips.length} ship(s) for a real verdict.`,
+    );
   }
 
-  let checkRunId = existing?.id ?? null;
+  const completedNeedsReplacement = Boolean(
+    existing &&
+      existing.status === 'completed' &&
+      (deadLettered ||
+        existing.reviewInputSha256 !== reviewInputSha256 ||
+        existing.mediatorOrderSha256 !== mediatorOrderSha256 ||
+        existing.conclusion === 'neutral'),
+  );
+  const generationMismatch = Boolean(
+    existing &&
+      (existing.creatorRunId !== runId ||
+        (existing.reviewInputSha256 !== null && existing.reviewInputSha256 !== reviewInputSha256) ||
+        (existing.reviewInputSha256 !== null && existing.mediatorOrderSha256 !== mediatorOrderSha256)),
+  );
+  if (completedNeedsReplacement && !deadLettered) {
+    console.log(
+      `[fleet-executor] ${owner}/${repo}@${prCtx.headSha}: delivery action ${job.action ?? 'unknown'} retries ` +
+        `completed ${existing?.conclusion ?? 'undecided'} check — minting a fresh gate.`,
+    );
+  }
+
+  // A finished check cannot be reopened, so a dead-lettered one must not be
+  // REUSED either: completing it again would be a no-op against a gate GitHub
+  // considers closed. Mint a fresh check run instead — GitHub surfaces the
+  // newest run of a given name, so the new one is what the branch rule reads.
+  let checkRunId = completedNeedsReplacement || generationMismatch ? null : existing?.id ?? null;
   if (!checkRunId) {
+    if (options.enforceIntentOwnership) await assertFleetIntentCurrent(env, job);
     // No swallow: a createCheckRun failure must propagate so the job RETRIES.
-    checkRunId = await createCheckRun(owner, repo, CHECK_NAME, prCtx.headSha, token, detailsUrl);
+    checkRunId = await createCheckRun(
+      owner,
+      repo,
+      CHECK_NAME,
+      prCtx.headSha,
+      token,
+      detailsUrl,
+      reviewInputSha256,
+      runId,
+      mediatorOrderSha256,
+    );
+  }
+
+  if (mediatorReinjection) {
+    await transcript.step(
+      'mediator-reinjection',
+      null,
+      `Mediator gate MODIFY re-injected (parley ${mediatorReinjection.parleyId}, decided by ${mediatorReinjection.decidedBy})`,
+      {
+        parleyId: mediatorReinjection.parleyId,
+        action: mediatorReinjection.action,
+        decidedBy: mediatorReinjection.decidedBy,
+      },
+    );
   }
   if (!checkRunId) {
     // Fail closed: never proceed (and never ack) when we could not establish the
@@ -1036,6 +2076,140 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
   // the audit trail records every attempt that got far enough to gate. A
   // write failure is swallowed and never changes the run or the gate.
   await recordRunStart(env, runId, job, prCtx, prNumber, cloudShips);
+  // Backstop: guarantee the row exists even if the write above silently
+  // failed, so every completion path below can rely on details_url resolving
+  // to a real run page (see ensureRunRow's docstring).
+  await ensureRunRow(env, runId, job.deliveryId, job.repoFullName, prNumber, prCtx.headSha);
+  // The run's TRUE first-attempt start, surviving every continuation/retry —
+  // see RUN_ABSOLUTE_DEADLINE_MS and the per-ship-loop check below.
+  const runStartedAtSec = await getRunStartedAtSec(env, runId);
+  // A healthy one-ship slice strictly changes the remaining roster. Two
+  // identical durable receipts prove zero progress; stop before a third model
+  // call instead of spending until the three-hour wall-clock deadline.
+  const continuationLivelock = await readDeliveryContinuationLivelock(env, runId);
+  if (continuationLivelock) {
+    const remaining = continuationLivelock.remainingShips.map(ship => `pd-${ship}`).join(', ');
+    const summary =
+      `Fleet stopped because ${continuationLivelock.repeats} consecutive checkpoint continuations ` +
+      `completed pd-${continuationLivelock.completedShip} while leaving the same ` +
+      `${continuationLivelock.remainingShips.length} ship(s) pending (${remaining || 'none'}). ` +
+      `This is a scheduler livelock, not progress; no additional model call was made. Re-push after ` +
+      `repairing checkpoint resume or continuation selection.`;
+    try {
+      await transcript.step(
+        'continuation-livelock',
+        continuationLivelock.completedShip,
+        'Check concluded: neutral (checkpoint continuation repeated without progress)',
+        {
+          checkRunId,
+          conclusion: 'neutral',
+          completedShip: continuationLivelock.completedShip,
+          remainingShips: continuationLivelock.remainingShips,
+          repeats: continuationLivelock.repeats,
+        },
+      );
+    } catch (error) {
+      // The durable evidence is best-effort here: a D1 outage must not prevent
+      // the GitHub check from reaching the terminal state this guard exists to
+      // guarantee.
+      console.error('[fleet] failed to record continuation livelock receipt', error);
+    }
+    await assertCurrentReviewInput('before continuation-livelock neutral completion');
+    await completeCheckRun(
+      owner,
+      repo,
+      checkRunId,
+      'neutral',
+      summary,
+      token,
+      detailsUrl,
+      'Port Daddy Fleet',
+      () => assertCurrentReviewInput('immediately before continuation-livelock neutral PATCH'),
+    );
+    await recordRunEnd(env, runId, 'neutral', startMs);
+    return;
+  }
+  // Record what each ship IS (model, role, blocking/execution posture) once,
+  // before any of them run — see recordShipsConfigInTranscript's docstring.
+  await recordShipsConfigInTranscript(transcript, cloudShips);
+
+  const assertCurrentHead = assertCurrentReviewInput;
+  const completeOwnedCheck = async (
+    completionConclusion: 'success' | 'failure' | 'neutral',
+    completionSummary: string,
+    boundary: string,
+  ): Promise<boolean> => {
+    await assertCurrentHead(boundary);
+    return completeCheckRun(
+      owner,
+      repo,
+      checkRunId,
+      completionConclusion,
+      completionSummary,
+      token,
+      detailsUrl,
+      'Port Daddy Fleet',
+      () => assertCurrentHead(`immediately before ${boundary} PATCH`),
+    );
+  };
+
+  const stopSupersededRun = async (
+    error: unknown,
+    modelSpendPossible: boolean,
+  ): Promise<FleetExecutionDisposition> => {
+    if (!(error instanceof PullRequestHeadValidationError) || error.kind !== 'changed') {
+      throw error;
+    }
+    const currentHead = error.currentHead ?? 'unknown';
+    const summary =
+      `Fleet cancelled because pull request #${prNumber} moved from ` +
+      `${error.expectedHead.slice(0, 12)} to ${currentHead.slice(0, 12)} at ` +
+      `${error.boundary}. Output computed for the superseded head was discarded; ` +
+      `no later review, issue, branch, retarget, checkpoint, or aggregate verdict was published.`;
+    const assertCurrentIntent = async (): Promise<void> => {
+      if (options.enforceIntentOwnership) await assertFleetIntentCurrent(env, job);
+    };
+    await assertCurrentIntent();
+    const checkNeutralized = await completeCheckRun(
+      owner,
+      repo,
+      checkRunId,
+      'neutral',
+      summary,
+      token,
+      detailsUrl,
+      'Port Daddy Fleet',
+      assertCurrentIntent,
+    );
+    await transcript.step(
+      'head-superseded',
+      null,
+      `Fleet cancelled at ${error.boundary}: PR head changed`,
+      {
+        expectedHead: error.expectedHead,
+        currentHead,
+        boundary: error.boundary,
+        modelSpendPossible,
+        checkRunId,
+        checkNeutralized,
+      },
+    );
+    await recordRunEnd(env, runId, 'cancelled', startMs);
+    return {
+      kind: 'stale-head',
+      stage: 'mid-flight',
+      boundary: error.boundary,
+      expectedHead: error.expectedHead,
+      currentHead,
+      modelSpendPossible,
+    };
+  };
+
+  try {
+    await assertCurrentHead('before Fleet ship execution');
+  } catch (error) {
+    return stopSupersededRun(error, intentionalContinuations > 0);
+  }
 
   // --- SELF-REVIEW GUARD (the fleet does not review its own branches) ------
   // WHY THIS SITS HERE — after the gating check exists, before any AI spend.
@@ -1071,6 +2245,19 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
   // FAIL-OPEN: an absent or unrecognised state counts as open. See
   // src/pr-lifecycle.ts — wrongly skipping a live PR silently removes its
   // review gate, which is far worse than wrongly spending on a dead one.
+  // INPUT SIZE, RECORDED (#7743). The bounded reads in #8906 put diffBytes /
+  // diffTruncated on the context but nothing consumed them, which left the
+  // measurement as good as absent — the exact hole that made the OOM take two
+  // investigation cycles. Printing it here, before any ship spends a token,
+  // means every run states the size of what it was handed, and a future memory
+  // kill is attributable from the log line immediately preceding it rather than
+  // from a dashboard round-trip.
+  console.log(
+    `[fleet-executor] pr-context repo=${prCtx.owner}/${prCtx.repo} pr=${prCtx.prNumber} ` +
+      `diffBytes=${prCtx.diffBytes} diffTruncated=${prCtx.diffTruncated} ` +
+      `files=${prCtx.files.length} filesTruncated=${prCtx.filesTruncated}`,
+  );
+
   const lifecycle = classifyPrLifecycle(prCtx);
   if (lifecycle.over) {
     // HUMAN-FACING: this is the entire explanation an author gets for a neutral
@@ -1095,7 +2282,7 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
         shipsRun: 0,
       },
     );
-    await completeCheckRun(owner, repo, checkRunId, 'neutral', summary, token, detailsUrl);
+    await completeOwnedCheck('neutral', summary, 'before lifecycle neutral completion');
     await recordRunEnd(env, runId, 'neutral', startMs);
     return;
   }
@@ -1132,14 +2319,15 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
         shipsRun: 0,
       },
     );
-    await completeCheckRun(owner, repo, checkRunId, 'neutral', summary, token, detailsUrl);
+    await completeOwnedCheck('neutral', summary, 'before self-authored neutral completion');
     await recordRunEnd(env, runId, 'neutral', startMs);
     return;
   }
 
-  // Cloud squid: announce the run (fire-and-forget; disabled unless BOTH
-  // RELAY_PUBLISH_URL and RELAY_PUBLISH_TOKEN are configured AND the tenant
-  // opted in via `squidEvents: true` in pd-fleet.yml).
+  // Cloud squid: announce the run (fire-and-forget; disabled unless
+  // RELAY_PUBLISH_URL + the executor's Ed25519 key + harbor card are all
+  // configured AND the tenant opted in via `squidEvents: true` in
+  // pd-fleet.yml). Signed zero-trust publish — see src/squid-events.ts.
   emitSquidEvent(env, 'run-started', { repo: job.repoFullName, pr: prNumber, runId }, squidConsent);
 
   // --- SPEND CIRCUIT-BREAKER (pre-spend, before any ship runs) --------------
@@ -1158,7 +2346,7 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
       reason: 'credits-exhausted',
       installationId: job.installationId,
     });
-    await completeCheckRun(owner, repo, checkRunId, 'neutral', summary, token, detailsUrl);
+    await completeOwnedCheck('neutral', summary, 'before credits neutral completion');
     await recordRunEnd(env, runId, 'neutral', startMs);
     return;
   }
@@ -1172,6 +2360,30 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
   // ideation ships run on them. Computed once per run from the PR's changed files.
   const changedPaths = prCtx.files.map(f => f.filename).filter(Boolean);
   const docsOnly = isDocsOnly(changedPaths);
+  const sourceCoverageReason = incompletePrSourceCoverageReason(prCtx);
+  // An incomplete file list cannot prove a surface is untouched. Run every
+  // configured cloud ship and mark the final result partial/neutral instead of
+  // allowing an all-gated roster to silently become a green check.
+  const surfaceGate = (candidate: ShipConfig) =>
+    sourceCoverageReason == null
+      ? decideShipGate(candidate, changedPaths, docsOnly)
+      : { run: true as const, reason: 'source inventory incomplete' };
+  if (sourceCoverageReason) {
+    await transcript.step(
+      'source-inventory-incomplete',
+      null,
+      'PR source inventory is incomplete — surface gates disabled and a clean result cannot be complete',
+      {
+        reviewCoverage: 'partial',
+        reason: sourceCoverageReason,
+        filesTruncated: prCtx.filesTruncated,
+        fileCount: prCtx.files.length,
+        filePageSize: PR_FILES_PAGE_SIZE,
+        diffTruncated: prCtx.diffTruncated,
+        diffBytes: prCtx.diffBytes,
+      },
+    );
+  }
 
   // PURSER ordering: purser ships run AFTER every reviewer/ideation ship, so
   // the stacked-tests demand lands on top of (and can reference) the rest of
@@ -1189,12 +2401,94 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
     fetchRepoFile(owner, repo, path, branch, token),
   );
 
-  const results: ShipResult[] = [];
+  // Snapshot every trusted input that can affect a resumption BEFORE reading
+  // checkpoints. `runShip` receives these exact values later, closing the
+  // time-of-check/time-of-use gap where a changed contract or graft could
+  // validate one result but prompt a rerun differently.
+  const trustedContracts = new Map<string, string | null>();
+  const graftsByShip = new Map<string, SkillGraft>();
+  const checkpointBindings = new Map<string, ShipCheckpointBinding>();
+  // Lookout is the one ship whose prompt consumes repository state outside the
+  // PR under review. Read that projection exactly once per invocation, before
+  // constructing any checkpoint binding, then hand this same immutable string
+  // to both the binding and runShip. A changed GitHub projection invalidates
+  // Lookout; an unchanged projection can resume and let a one-ship slice move
+  // monotonically to the next ship. Both projection helpers are deliberately
+  // best-effort and resolve to [] on HTTP or transport failure, so the frozen
+  // value remains an exact empty projection instead of aborting the review.
+  let frozenLookoutProjection = '';
+  if (orderedShips.some(ship => ship.name === 'lookout')) {
+    const [openPullRequests, recentBranches] = await Promise.all([
+      fetchOpenPullRequests(prCtx.owner, prCtx.repo, token, prCtx.prNumber),
+      listRecentBranches(prCtx.owner, prCtx.repo, token),
+    ]);
+    frozenLookoutProjection = renderFleetContext(openPullRequests, recentBranches);
+  }
   for (const ship of orderedShips) {
+    const [contract, graft] = await Promise.all([
+      // Unlike the legacy best-effort helper, only a confirmed 404 means an
+      // absent contract. A 401/5xx must retry the whole delivery rather than
+      // turning an authority outage into a new contract-less review.
+      fetchTrustedShipContract(owner, repo, ship.name, branch, token),
+      skillGrafts.graftFor(ship.graft),
+    ]);
+    const systemPrompt = buildSystemPrompt(ship, contract, graft.text);
+    trustedContracts.set(ship.name, contract);
+    graftsByShip.set(ship.name, graft);
+    checkpointBindings.set(
+      ship.name,
+      await createShipCheckpointBinding(
+        ship,
+        contract,
+        graft.text,
+        systemPrompt,
+        reviewInputSha256,
+        mediatorOrders,
+        ship.name === 'lookout' ? frozenLookoutProjection : null,
+      ),
+    );
+  }
+
+  // Attempt checkpoints (src/ship-checkpoint.ts): ships completed by an
+  // EARLIER attempt of this same delivery — a platform kill (memory/CPU) is
+  // uncatchable, so retries must resume past finished work instead of
+  // re-spending into the same ceiling. Same-delivery only: runId is
+  // `run:<deliveryId>`, so a new push never inherits a stale verdict.
+  //
+  // Every dynamic prompt input now participates in its ship's binding:
+  // mediator orders bind every ship, while the frozen repository projection
+  // binds Lookout only. Therefore no blanket resume disable is necessary — an
+  // actual input change invalidates exactly the affected checkpoint, and a
+  // stable input lets one-ship continuations make monotonic progress.
+  const resumedShips = await loadShipCheckpoints(
+    env,
+    runId,
+    checkpointBindings,
+    async (ship, reason) => {
+      const message = reason === 'non-resumable-result'
+        ? `pd-${ship}: retained broken checkpoint is diagnostic only; re-running the ship`
+        : `pd-${ship}: retained checkpoint did not match the current trusted review inputs; re-running the ship`;
+      await transcript.step(
+        'ship-checkpoint-invalidated',
+        ship,
+        message,
+        { reason },
+      );
+    },
+  );
+
+  const results: ShipResult[] = [];
+  let newlyExecutedShips = 0;
+  for (const [shipIndex, ship] of orderedShips.entries()) {
     // Per-ship wall-clock start: durationMs must reflect THIS ship's work
     // (including its gate/skip decision), not the cumulative run time — else
     // later ships report inflated durations that fold in every earlier ship.
     const shipStartMs = Date.now();
+    try {
+      await assertCurrentHead(`before pd-${ship.name} model work`);
+    } catch (error) {
+      return stopSupersededRun(error, results.length > 0);
+    }
     // Re-check the operator kill switch before each ship. The start-of-job
     // check prevents any setup work while paused; this second gate closes the
     // TOCTOU gap where the operator pauses after the GitHub check is created
@@ -1207,16 +2501,33 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
         conclusion: 'neutral',
         pausedBeforeShip: ship.name,
       });
-      await completeCheckRun(owner, repo, checkRunId, 'neutral', summary, token, detailsUrl);
+      await completeOwnedCheck('neutral', summary, `before pd-${ship.name} paused neutral completion`);
       await recordRunEnd(env, runId, 'neutral', startMs);
       return;
+    }
+
+    // RESUME: an earlier attempt of this delivery already completed this ship.
+    // Its comment is already posted (edit-in-place inside runShip), its
+    // telemetry/spend rows are already written; re-running would produce the
+    // identical result and pay for it again. Reuse the recorded verdict —
+    // findings included, so the final review and conclusion see the full run.
+    const resumed = resumedShips.get(ship.name);
+    if (resumed) {
+      await transcript.step(
+        'ship-resumed',
+        ship.name,
+        `pd-${ship.name}: resumed from a prior attempt's checkpoint — ${resumed.errored ? 'ERROR' : resumed.verdict} reused, no re-run`,
+        { verdict: resumed.verdict, errored: resumed.errored, findings: resumed.findings?.length ?? 0 },
+      );
+      results.push(withIncompletePrSourceCoverage(resumed, sourceCoverageReason));
+      continue;
     }
 
     // Surface gate: skip a ship with nothing to say on this diff, spending no AI.
     // A gated-out ship resolves PASS (advisory-clean) and posts nothing — a
     // gated-out BLOCKING ship (red-team off its security surface) correctly does
     // not block, matching its own "exit clean" contract.
-    const gate = decideShipGate(ship, changedPaths, docsOnly);
+    const gate = surfaceGate(ship);
     if (!gate.run) {
       await transcript.step('ship-skipped', ship.name, `pd-${ship.name}: skipped — ${gate.reason}`, {
         reason: gate.reason,
@@ -1229,27 +2540,116 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
       continue;
     }
 
-    // Skill graft: build this ship's prompt prefix from its `graft:` list.
-    // Unknown ids are a transcript WARNING, never a failure — the ship still
-    // runs, just without the missing skill.
-    let graftText = '';
-    if (ship.graft.length > 0) {
-      const graft = await skillGrafts.graftFor(ship.graft);
-      graftText = graft.text;
-      if (graft.missing.length > 0) {
+    // Re-check the run's ABSOLUTE wall-clock budget immediately before the
+    // first operation that can lead to fresh model spend. Resumed checkpoints
+    // and surface-gated ships above are free, trusted progress; stopping before
+    // reading them made an expired continuation falsely report "0 ships
+    // completed" and name the first roster entry instead of the actual next
+    // uncompleted ship. The deadline must prevent NEW spend, not suppress
+    // already-paid evidence.
+    //
+    // Raising the per-call deadline (see FLEET_AI_CALL_DEADLINE_MS) without a
+    // compensating run-level ceiling would let a roster of retrying ships spend
+    // hours. This bound is measured against the logical run's TRUE first start,
+    // so queue continuations cannot reset it. Missing or implausible durable
+    // starts fail open, matching recordRunEnd's defensive fallback.
+    const runStartedAtMs = runStartedAtSec != null ? runStartedAtSec * 1000 : null;
+    if (runStartedAtMs != null && runStartedAtMs > 0 && runStartedAtMs <= Date.now()) {
+      const runElapsedMs = Date.now() - runStartedAtMs;
+      if (runElapsedMs > RUN_ABSOLUTE_DEADLINE_MS) {
+        const summary =
+          `Fleet review exceeded its ${Math.round(RUN_ABSOLUTE_DEADLINE_MS / 60_000)}-minute run budget ` +
+          `before pd-${ship.name} (${results.length} of ${orderedShips.length} ships completed) — stopping ` +
+          `rather than continuing to spend. Re-push the PR to start a fresh run.`;
         await transcript.step(
-          'skill-graft',
+          'run-deadline-exceeded',
           ship.name,
-          `pd-${ship.name}: unknown graft skill(s) skipped — ${graft.missing.join(', ')}`,
-          { loaded: graft.loaded, missing: graft.missing, warning: true },
+          'Check concluded: neutral (run exceeded its absolute wall-clock budget)',
+          {
+            checkRunId,
+            conclusion: 'neutral',
+            stoppedBeforeShip: ship.name,
+            shipsCompleted: results.length,
+            shipsTotal: orderedShips.length,
+            runElapsedMs,
+            runAbsoluteDeadlineMs: RUN_ABSOLUTE_DEADLINE_MS,
+          },
         );
+        await completeOwnedCheck('neutral', summary, `before pd-${ship.name} deadline neutral completion`);
+        await recordRunEnd(env, runId, 'neutral', startMs);
+        return;
       }
     }
 
+    // Skill graft: build this ship's prompt prefix from its `graft:` list.
+    // Unknown ids are a transcript WARNING, never a failure — the ship still
+    // runs, just without the missing skill.
+    const graft = graftsByShip.get(ship.name);
+    const checkpointBinding = checkpointBindings.get(ship.name);
+    if (!graft || !checkpointBinding || !trustedContracts.has(ship.name)) {
+      throw new Error(`missing trusted checkpoint snapshot for pd-${ship.name}`);
+    }
+    const contract = trustedContracts.get(ship.name) ?? null;
+    const graftText = graft.text;
+    if (graft.missing.length > 0) {
+      await transcript.step(
+        'skill-graft',
+        ship.name,
+        `pd-${ship.name}: unknown graft skill(s) skipped — ${graft.missing.join(', ')}`,
+        { loaded: graft.loaded, missing: graft.missing, warning: true },
+      );
+    }
+
     const metrics = newShipMetrics();
-    const result = ship.purser
-      ? await runPurser(ship, prCtx, env, token, transcript, metrics, graftText, runId, squidConsent)
-      : await runShip(ship, prCtx, token, env, branch, transcript, metrics, graftText, runId, squidConsent, xoEnabled);
+    // Raw session capture for this ship attempt (docs/FLEET-SESSION-TRANSCRIPTS.md):
+    // buffered per (run, ship, attempt), flushed once to R2 + the D1 index on
+    // BOTH exits below — a thrown ship still leaves its partial conversation
+    // behind, which is exactly when the forensics matter most.
+    const capture = new ShipTranscript(runId, ship.name, providerAttempt);
+    let result: ShipResult;
+    try {
+      result = ship.purser
+        ? await runPurser(
+            ship,
+            prCtx,
+            env,
+            token,
+            transcript,
+            metrics,
+            graftText,
+            runId,
+            squidConsent,
+            aiCircuit,
+            providerAttempt,
+            assertCurrentHead,
+            capture,
+          )
+        : await runShip(
+            ship,
+            prCtx,
+            token,
+            env,
+            contract,
+            transcript,
+            metrics,
+            graftText,
+            runId,
+            squidConsent,
+            xoEnabled,
+            mediatorOrders,
+            ship.name === 'lookout' ? frozenLookoutProjection : null,
+            aiCircuit,
+            providerAttempt,
+            assertCurrentHead,
+            capture,
+          );
+      await assertCurrentHead(`after pd-${ship.name} model work, before checkpoint`);
+    } catch (error) {
+      await flushShipTranscript(env, capture);
+      return stopSupersededRun(error, true);
+    }
+    await flushShipTranscript(env, capture);
+    result = withIncompletePrSourceCoverage(result, sourceCoverageReason);
     results.push(result);
     // Cloud squid: one ship-verdict event per ship that ran (fire-and-forget).
     emitSquidEvent(env, 'ship-verdict', {
@@ -1263,35 +2663,156 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
     // Per-run spend: one fleet_run_spend row per ship that actually ran, so the
     // relay can bill per installation. Best-effort — never changes the run.
     await recordShipSpend(env, runId, ship, job.installationId, metrics);
+    // Aggregate (not per-call) Workers AI stats for this ship — see
+    // FleetAiCircuit.runForShip for why per-call D1 rows were rejected.
+    await recordShipAiCallStats(env, runId, ship, aiCircuit.snapshotShipStats(ship.name), aiCallDeadlineMs);
     // …and the same numbers into the transcript, which is what the human-facing
     // run page actually reads for its token tiles.
     await recordShipTokensInTranscript(transcript, ship, metrics);
+    // Checkpoint LAST — only after the ship's comment, telemetry, and spend
+    // rows are durable, so a resumed attempt never skips a ship whose
+    // accounting was lost with the kill. Gated-out ships are not checkpointed:
+    // re-deciding a skip costs nothing.
+    await assertCurrentHead(`before pd-${ship.name} checkpoint`);
+    const checkpointSaved = await saveShipCheckpoint(
+      env,
+      runId,
+      shipIndex,
+      result,
+      checkpointBinding,
+    );
+    newlyExecutedShips += 1;
+
+    // A retryable Workers AI fault exhausted its bounded delivery budget. The
+    // current ship now carries a fleet-wide neutral adjudication; stop before
+    // any remaining ship can add load or spend against the open dependency.
+    if (aiCircuit.isOpen) {
+      const skippedShips = orderedShips.slice(shipIndex + 1).map(candidate => candidate.name);
+      const failure = aiCircuit.failure;
+      await transcript.step(
+        'provider-circuit-open',
+        ship.name,
+        `Workers AI circuit OPEN after provider attempt ${providerAttempt}/${PROVIDER_MAX_DELIVERY_ATTEMPTS}; ` +
+          `${skippedShips.length} remaining ship(s) skipped; fleet-wide dependency fault: ` +
+          `${result.brokenAdjudicated?.reason ?? 'provider retry budget exhausted'}`,
+        {
+          attempt: providerAttempt,
+          maxAttempts: PROVIDER_MAX_DELIVERY_ATTEMPTS,
+          skippedShips,
+          status: failure?.status ?? null,
+          code: failure?.code ?? null,
+          retryable: failure?.retryable ?? false,
+          brokenAdjudicated: result.brokenAdjudicated ?? null,
+        },
+      );
+      break;
+    }
+
+    // A Workers AI invocation may retain provider-side allocations until the
+    // Worker invocation ends. The live ecf53590 delivery proved that running
+    // multiple ships in one isolate crosses the 128 MB ceiling after one or
+    // two ships, while every ship succeeds alone. End this successful slice
+    // only after its checkpoint is durable; the queue wrapper records an
+    // explicit continuation and retries the message without treating it as an
+    // infrastructure failure. If D1 is unavailable, keep running in this
+    // invocation rather than scheduling a continuation that cannot advance.
+    if (checkpointSaved && newlyExecutedShips >= maxNewShipsPerInvocation) {
+      const remainingShips = orderedShips
+        .slice(shipIndex + 1)
+        .filter(candidate =>
+          !resumedShips.has(candidate.name) &&
+          surfaceGate(candidate).run
+        )
+        .map(candidate => candidate.name);
+      if (remainingShips.length > 0) {
+        return { kind: 'continuation', completedShip: ship.name, remainingShips };
+      }
+    }
+  }
+
+  // --- BROKEN-SHIP ADJUDICATION (src/adjudicator.ts) ------------------------
+  // Repair already ran in-ship; anything still broken here is persistent.
+  // Adjudicate WHO the breakage gates: isolated ⇒ the failure stands on this
+  // PR; fleet-wide (same ship broken across other PRs) ⇒ neutral + ONE tracked
+  // issue + a HITL page on first declaration. Best-effort by construction —
+  // any adjudication failure leaves results untouched and the doctrine's
+  // fail-closed default applies.
+  try {
+    await assertCurrentHead('before broken-ship adjudication');
+    await adjudicateBrokenShips(results, {
+      env,
+      owner,
+      repo,
+      prNumber,
+      runId,
+      token,
+      transcript,
+      nowEpochSec: nowSec(),
+      assertCurrentHead,
+      ...(job.installationId != null ? { installationId: job.installationId } : {}),
+    });
+  } catch (error) {
+    return stopSupersededRun(error, true);
   }
 
   // --- Conclusion (verdict logic is REAL; see verdict.ts) ------------------
-  const conclusion = aggregateConclusion(results);
+  const aggregate = aggregateConclusion(results);
+  // Normally every result carries the partial marker above. Keep this explicit
+  // run-level fallback for an empty roster, where no ShipResult exists to keep
+  // an incomplete source projection from resolving as a clean success.
+  const conclusion = sourceCoverageReason && aggregate === 'success' ? 'neutral' : aggregate;
 
   // --- ONE GitHub Review with all inline comments + a roll-up summary -------
   // Inline review is the PRIMARY surface; the per-ship issue comments posted
   // during each runShip() remain for backward-compatible history.
-  const summary = buildSummary(results, conclusion);
+  const summary = buildSummary(results, conclusion, sourceCoverageReason);
 
   // --- XO TRIAGE (advisory-findings curation; src/xo.ts) --------------------
   // The XO ranks which ADVISORY findings are worth doing for THIS PR and the
-  // review comment gains an "XO's orders" section. Strictly fail-open: on any
-  // XO failure the section is '' and the comment renders EXACTLY as today. The
-  // check conclusion (and its summary) is computed above and NEVER touched.
+  // review comment gains an "XO's orders" section. XO judgment/format failures
+  // stay fail-open. A retryable provider fault is queue-owned until its bounded
+  // budget is exhausted, then this optional section disables itself and the
+  // already-computed check conclusion remains untouched.
   let reviewBody = summary;
   if (xoEnabled) {
     const advisories = collectAdvisoryFindings(results);
     if (advisories.length > 0) {
-      const section = await xoOrdersSection({
-        ai: env.AI,
-        model: resolveXoModel(env.XO_MODEL),
-        advisories,
-        changedPaths,
-        gatewayId: env.AI_GATEWAY_ID,
-      });
+      let section: string;
+      try {
+        await assertCurrentHead('before XO triage model work');
+        section = await xoOrdersSection({
+          ai: env.AI,
+          model: resolveXoModel(env.XO_MODEL),
+          advisories,
+          changedPaths,
+          gatewayId: env.AI_GATEWAY_ID,
+          aiCircuit,
+        });
+        await assertCurrentHead('after XO triage model work');
+      } catch (error) {
+        if (error instanceof FleetAiDependencyError) {
+          const failure = error.failure;
+          await transcript.step(
+            'xo-triage',
+            null,
+            `XO triage disabled after Workers AI dependency failure: ${failure.summary}`,
+            {
+              error: failure.summary,
+              status: failure.status,
+              code: failure.code,
+              retryable: failure.retryable,
+              providerAttempt,
+              maxAttempts: PROVIDER_MAX_DELIVERY_ATTEMPTS,
+            },
+          );
+          if (failure.retryable && providerAttempt < PROVIDER_MAX_DELIVERY_ATTEMPTS) {
+            throw error;
+          }
+          section = '';
+        } else {
+          return stopSupersededRun(error, true);
+        }
+      }
       if (section) reviewBody = `${summary}\n\n${section}`;
       await transcript.step(
         'xo-triage',
@@ -1310,16 +2831,54 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
       reviewComments.push({ path: f.path, line: f.line, body: `[${r.ship}] ${f.body}` });
     }
   }
+  // The required check is the durable verdict boundary. Local PATCH retries
+  // are bounded inside completeCheckRun; if all of them fail, propagate the
+  // failure so the queue redelivers and ultimately DLQs instead of acking a
+  // ghost in-progress check. Ship checkpoints make that retry no-spend. Keep
+  // the non-idempotent aggregate review after this boundary so a completion
+  // retry cannot post duplicate reviews.
+  try {
+    await assertCurrentHead('before aggregate check completion');
+  } catch (error) {
+    return stopSupersededRun(error, true);
+  }
+  const checkCompletion = await completeCheckRunDetailed(
+    owner,
+    repo,
+    checkRunId,
+    conclusion,
+    bindFleetReviewInputToCheckSummary(summary, reviewInputSha256, runId, mediatorOrderSha256),
+    token,
+    detailsUrl,
+    'Port Daddy Fleet',
+    () => assertCurrentHead('immediately before aggregate check completion PATCH'),
+  );
+  if (!checkCompletion.ok) {
+    throw new CheckRunCompletionError(
+      `Port Daddy Fleet check completion failed after bounded retries for ${owner}/${repo}#${prNumber} ` +
+        `(check ${checkRunId}): ${checkCompletion.diagnostic ?? 'unknown GitHub response'}`,
+      checkCompletion.retryAfterSeconds,
+    );
+  }
+  if (conclusion === 'success' && mediatorReinjection) {
+    if (!await acknowledgeMediatorReinjection(env, mediatorReinjection)) {
+      throw new Error(`Mediator order acknowledgement failed for ${mediatorReinjection.parleyId}`);
+    }
+  }
+
   if (reviewComments.length > 0 || summary.trim()) {
     // Best-effort: createReview never throws (see github.ts), so a review
-    // failure can't fail the gate or block completing the check run.
+    // failure cannot undo the already-durable required check conclusion.
     // A blocking ship with HIGH findings REJECTS the PR rather than commenting
     // beside it -- see reviewEventFor(). Anything else stays COMMENT.
     const reviewEvent = reviewEventFor(results);
+    try {
+      await assertCurrentHead('before aggregate GitHub review');
+    } catch (error) {
+      return stopSupersededRun(error, true);
+    }
     await createReview(owner, repo, prNumber, reviewEvent, reviewBody, reviewComments, prCtx.headSha, token);
   }
-
-  await completeCheckRun(owner, repo, checkRunId, conclusion, summary, token, detailsUrl);
 
   // Cloud squid: the run is over (fire-and-forget).
   emitSquidEvent(env, 'run-concluded', {
@@ -1328,6 +2887,11 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
     runId,
     verdict: conclusion,
   }, squidConsent);
+  // X7 reconciliation: report this run's event total out-of-band under the
+  // N2 card so the relay can measure fire-and-forget loss. Queued behind the
+  // run-concluded event on the channel tail; same never-disturbs-a-run
+  // contract as the squid itself.
+  reportRunTotals(env, runId, squidConsent);
 
   // --- Transcript: check completion + final run header (best-effort) --------
   await transcript.step('check-completed', null, `Check concluded: ${conclusion}`, {
@@ -1335,6 +2899,46 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
     conclusion,
   });
   await recordRunEnd(env, runId, conclusion, startMs);
+
+  // --- MEDIATOR SCAN (grand-plan node mediator-body; src/mediator.ts) -------
+  // Runs AFTER the run has concluded — a prediction can never change this
+  // run's verdict, exactly like squid telemetry. All gates (tenant consent,
+  // kill-mediator flag, N2 identity) live inside runMediatorScan and fail
+  // closed to inert; the whole call is additionally fenced here so no scan
+  // failure can ever surface as a run failure.
+  try {
+    const scan = await runMediatorScan(env, {
+      repo: job.repoFullName,
+      deliveredPr: prNumber,
+      config: mediatorConfig,
+      io: buildMediatorScanIo({
+        env,
+        owner,
+        repo,
+        token,
+        listOpenPrs: fetchOpenPullRequestsDetailed,
+        fetchPatches: fetchPRFilePatches,
+        createCheckRun,
+        completeCheckRun,
+      }),
+    });
+    if (scan.ran || scan.reason !== 'disabled') {
+      const fired = scan.predictions.filter((p) => p.fired);
+      await transcript.step('mediator-scan', null,
+        scan.ran
+          ? `Mediator scan: ${scan.pairsConsidered} pair(s) considered, ${fired.length} prediction(s) fired`
+          : `Mediator scan: did not run (${scan.reason})`,
+        {
+          ran: scan.ran,
+          reason: scan.reason,
+          pairsConsidered: scan.pairsConsidered,
+          fired: fired.map((p) => ({ otherPr: p.otherPr, confidence: p.confidence, convened: p.convene?.ok ?? false })),
+        },
+      );
+    }
+  } catch {
+    // The concluded run stands; a mediator failure is a mediator failure.
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -1346,13 +2950,14 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
  * sentence ("… returned no usable output — nothing was reviewed"), never a
  * verdict word, so neither the transcript nor the run page can render it as a
  * pass. The returned result carries `noUsableOutput: true`, which
- * {@link aggregateConclusion} gates on: fail-closed for a blocking ship,
- * `neutral` (visible, non-blocking) for an advisory one.
+ * {@link aggregateConclusion} gates on: a broken ship fails the run whatever
+ * its blocking flag (broken-ship doctrine, 2026-08-19).
  *
  * `verdict` is still populated because {@link ShipResult} requires it — BLOCK
  * for a blocking ship (absence of a review is not approval) and PASS for an
- * advisory one (advisory paths fail open) — but `noUsableOutput` is the
- * authoritative signal and every renderer must key on it first.
+ * advisory one (advisory judgment cannot object on its own) — but
+ * `noUsableOutput` is the authoritative signal and every renderer must key on
+ * it first.
  *
  * @param ship The ship whose output could not be used.
  * @param transcript The run's best-effort step recorder.
@@ -1404,16 +3009,18 @@ async function recordNoUsableOutput(
  * Then it parses the structured findings + verdict, posts the per-ship issue
  * comment (edit-in-place => idempotent on retry), and returns the result.
  *
- * Never throws — a ship failure (AI/transport crash OR malformed findings JSON)
- * is captured as `errored: true` so a blocking ship's failure fails the gate
- * (fail-closed) without aborting the rest of the fleet.
+ * Permanent ship failures are captured as `errored: true`. A structurally
+ * retryable Workers AI dependency failure is the one exception: it opens the
+ * per-run circuit and throws to the queue boundary while its three-attempt
+ * provider budget remains. That avoids both silent failure and retry fan-out.
  */
 async function runShip(
   ship: ShipConfig,
   prCtx: PRContext,
   token: string,
   env: ExecutorEnv,
-  branch: string,
+  /** Exact trusted contract snapshot that was bound before checkpoint lookup. */
+  contract: string | null,
   transcript: Transcript,
   metrics: ShipMetrics,
   /** Skill-graft prompt prefix ('' ⇒ none) — see src/skill-graft.ts. */
@@ -1424,44 +3031,166 @@ async function runShip(
   squidConsent = false,
   /** Tenant `xo: true` consent from pd-fleet.yml (default false) — src/xo.ts. */
   xoEnabled = false,
+  /**
+   * MEDIATOR ORDERS ('' ⇒ none): a human gate's Modify verdict re-injected
+   * into this (losing) PR's re-execution — src/mediator.ts
+   * renderMediatorOrders. Prepended to every ship's fleet context so the
+   * whole re-run sees the human's instructions verbatim.
+   */
+  mediatorOrders = '',
+  /** Exact pre-binding Lookout projection; null for ships that do not consume it. */
+  frozenLookoutProjection: string | null = null,
+  /** One circuit shared by every analytical ship in this queue delivery. */
+  aiCircuit = new FleetAiCircuit(),
+  /** Provider attempt after successful checkpoint continuations are excluded. */
+  providerAttempt = PROVIDER_MAX_DELIVERY_ATTEMPTS,
+  /** Fail-closed live-head proof around model work and publication. */
+  assertCurrentHead: PullRequestHeadGuard = async () => {},
+  /**
+   * Raw pd-transcript.v1 session buffer for THIS ship attempt (null ⇒ capture
+   * off). Created and flushed by the orchestrator; this function only records
+   * into it via {@link runCaptured}. See docs/FLEET-SESSION-TRANSCRIPTS.md.
+   */
+  capture: ShipTranscript | null = null,
 ): Promise<ShipResult> {
   try {
-    // ZERO-TRUST: ship contract is read from the trusted branch, NEVER PR head.
-    const contract = await fetchRepoFile(
-      prCtx.owner,
-      prCtx.repo,
-      `fleet/ships/${ship.name}.md`,
-      branch,
-      token,
-    ).catch(() => null);
-
     const systemPrompt = buildSystemPrompt(ship, contract, graftText);
+
+    // Lookout's tools: cross-PR / cross-branch awareness. The orchestrator
+    // fetched and froze this exact projection before checkpoint construction;
+    // reusing the same string here closes the binding-to-prompt TOCTOU seam.
+    let fleetContext = mediatorOrders;
+    if (ship.name === 'lookout') {
+      if (frozenLookoutProjection === null) {
+        throw new Error('missing frozen Lookout projection');
+      }
+      fleetContext = mediatorOrders + frozenLookoutProjection;
+    }
 
     // Drop generated files BEFORE chunking. A lockfile refresh or a regenerated
     // snapshot is often the largest thing in a diff, and every chunk of it is a
     // model call spent on output no human wrote — while displacing real code
-    // into later chunks, which is exactly what makes each reviewer's view of
-    // the change partial. Falls back to the full diff if the filter would leave
-    // nothing, so a genuinely all-generated PR still gets looked at rather than
-    // silently passing.
+    // into later chunks, which is exactly what makes a reviewer's view of the
+    // change partial. Do not fall back to the raw diff when nothing remains:
+    // a terminal recording or derived proof artifact is evidence, not program
+    // source, and sending it anyway would defeat the filter at the exact point
+    // it matters most.
     const reviewableDiff = filterDiffToReviewable(prCtx.diff);
-    const chunks = chunkDiff(reviewableDiff || prCtx.diff, mapChunkCharLimit(mapModelFor(ship)));
-
-    // Lookout's tools: cross-PR / cross-branch awareness. Fetched once per run and
-    // injected into every MAP chunk so it can spot contradictions and duplication
-    // against OTHER open PRs and feature branches. Best-effort (helpers return []
-    // on failure) — Lookout degrades to single-PR reasoning, never crashes.
-    let fleetContext = '';
-    if (ship.name === 'lookout') {
-      const [openPRs, branches] = await Promise.all([
-        fetchOpenPullRequests(prCtx.owner, prCtx.repo, token, prCtx.prNumber),
-        listRecentBranches(prCtx.owner, prCtx.repo, token),
-      ]);
-      fleetContext = renderFleetContext(openPRs, branches);
+    if (prCtx.diff.trim() && !reviewableDiff.trim()) {
+      const sourceTruncationReason =
+        `GitHub stopped the diff read at ${prCtx.diffBytes} bytes; source after that boundary was not available for review`;
+      if (prCtx.diffTruncated) {
+        await transcript.step(
+          'source-fetch-truncated',
+          ship.name,
+          `pd-${ship.name}: source fetch truncated at ${prCtx.diffBytes} bytes — review coverage is partial`,
+          { diffBytes: prCtx.diffBytes, reviewCoverage: 'partial' },
+        );
+      }
+      await transcript.step(
+        'ship-skipped',
+        ship.name,
+        prCtx.diffTruncated
+          ? `pd-${ship.name}: skipped — the available diff prefix contains only generated artifacts or terminal evidence; unseen source may remain after the fetch cap`
+          : `pd-${ship.name}: skipped — diff contains only generated artifacts or terminal evidence; no reviewable source was sent to a model`,
+        {
+          reason: prCtx.diffTruncated ? 'source-fetch-truncated' : 'no-reviewable-source',
+          diffBytes: utf8ByteLength(prCtx.diff),
+        },
+      );
+      return {
+        ship: ship.name,
+        blocking: ship.blocking,
+        verdict: 'PASS',
+        errored: false,
+        reviewCoverage: prCtx.diffTruncated ? 'partial' : 'none',
+        reviewCoverageReason: prCtx.diffTruncated
+          ? sourceTruncationReason
+          : 'diff contains only generated artifacts or terminal evidence; no reviewable source was sent to a model',
+        findings: [],
+      };
+    }
+    const mapModel = mapModelFor(ship);
+    const partition = partitionMapDiff(
+      mapModel,
+      systemPrompt,
+      prCtx,
+      reviewableDiff,
+      admittedMapChunkCharLimit(mapModel, systemPrompt, prCtx, fleetContext),
+      fleetContext,
+    );
+    const allChunks = partition.chunks;
+    // Cap the MAP fan-out per ship (#7743): memory, wall-clock and spend all
+    // scale with chunk count, and an oversized diff must degrade to an honest
+    // partial review — recorded below — rather than kill the whole run.
+    const cappedChunks = allChunks.slice(0, MAX_MAP_CHUNKS_PER_SHIP);
+    if (allChunks.length > cappedChunks.length) {
+      const dropped = allChunks.length - cappedChunks.length;
+      const droppedChars = allChunks.slice(cappedChunks.length).reduce((n, c) => n + c.length, 0);
+      await transcript.step(
+        'map-truncated',
+        ship.name,
+        `Diff truncated for review: ${dropped} of ${allChunks.length} chunks dropped (~${Math.round(droppedChars / 1000)}KB)`,
+        { keptChunks: cappedChunks.length, totalChunks: allChunks.length, droppedChars },
+      );
     }
 
+    // `partitionMapDiff` preserves a whole source file as the smallest
+    // reviewable unit. It re-packs compound candidates at those file boundaries
+    // against the full request before declaring a file indivisibly too large.
+    // That ensures a prompt-overhead change cannot silently drop several files
+    // that would each fit on their own.
+    const omittedForContext = partition.omitted;
+    const firstRejectedAdmission = partition.firstRejectedAdmission;
+    const chunks = cappedChunks;
+
+    if (omittedForContext.length > 0) {
+      await transcript.step(
+        'map-context-omitted',
+        ship.name,
+        `MAP pd-${ship.name}: omitted ${omittedForContext.length} indivisible chunk(s) that cannot fit the ${mapModel} request budget`,
+        {
+          omittedChunks: omittedForContext.length,
+          retainedChunks: chunks.length,
+          omitted: omittedForContext,
+        },
+      );
+    }
+    if (chunks.length === 0 && firstRejectedAdmission) {
+      throw new ContextAdmissionError(firstRejectedAdmission);
+    }
+
+    const coverageReasons: string[] = [];
+    if (prCtx.diffTruncated) {
+      await transcript.step(
+        'source-fetch-truncated',
+        ship.name,
+        `pd-${ship.name}: source fetch truncated at ${prCtx.diffBytes} bytes — review coverage is partial`,
+        { diffBytes: prCtx.diffBytes, reviewCoverage: 'partial' },
+      );
+      coverageReasons.push(
+        `GitHub stopped the diff read at ${prCtx.diffBytes} bytes; source after that boundary was not available for review`,
+      );
+    }
+    if (allChunks.length > cappedChunks.length) {
+      coverageReasons.push(
+        `MAP fan-out cap reviewed ${cappedChunks.length} of ${allChunks.length} context-safe chunks`,
+      );
+    }
+    if (omittedForContext.length > 0) {
+      coverageReasons.push(
+        `${omittedForContext.length} indivisible source file${omittedForContext.length === 1 ? '' : 's'} ` +
+          `exceeded the ${mapModel} context budget`,
+      );
+    }
+    const reviewCoverage = coverageReasons.length > 0
+      ? { reviewCoverage: 'partial' as const, reviewCoverageReason: coverageReasons.join('; ') }
+      : {};
+
     // --- MAP: one ship call per diff chunk ---------------------------------
+    await assertCurrentHead(`before pd-${ship.name} MAP`);
     const partials = await mapWithConcurrency(chunks, MAP_CONCURRENCY, async (chunk, i) => {
+      await assertCurrentHead(`before pd-${ship.name} MAP chunk ${i + 1}/${chunks.length}`);
       const userMessage = buildUserMessage(prCtx, chunk, i, chunks.length, fleetContext);
       const request = {
         messages: [
@@ -1471,13 +3200,22 @@ async function runShip(
         max_tokens: MAX_OUTPUT_TOKENS,
         ...(ship.temperature === null ? {} : { temperature: ship.temperature }),
       };
-      const res = await env.AI.run(
-        mapModelFor(ship) as Parameters<typeof env.AI.run>[0],
+      requireContextAdmission(mapModel, request.messages, MAX_OUTPUT_TOKENS);
+      const res = await runCaptured(
+        capture,
+        { phase: 'map', model: mapModel, chunk: { index: i, count: chunks.length } },
         request,
-        aiOptions(env, ship.name),
+        () =>
+          aiCircuit.runForShip(ship.name, () =>
+            env.AI.run(
+              mapModel as Parameters<typeof env.AI.run>[0],
+              request,
+              aiOptions(env, ship.name),
+            ),
+          ),
       );
       const { text, shape } = extractAiText(res);
-      accumulateUsage(metrics, mapModelFor(ship), res, text);
+      accumulateUsage(metrics, mapModel, res, text);
 
       // Diagnose the silent-blank case: an empty result makes a ship post nothing
       // and resolve PASS. Log the model + response shape so an empty-returning
@@ -1486,7 +3224,7 @@ async function runShip(
       if (!text) {
         console.warn(
           `[fleet-executor] pd-${ship.name} MAP chunk ${i + 1}/${chunks.length} EMPTY on ` +
-            `${mapModelFor(ship)}: ${describeResponseShape(res)}`,
+            `${mapModel}: ${describeResponseShape(res)}`,
         );
       }
 
@@ -1500,12 +3238,17 @@ async function runShip(
         shape,
         ...(text ? {} : { responseShape: describeResponseShape(res) }),
       });
+      await assertCurrentHead(`after pd-${ship.name} MAP chunk ${i + 1}/${chunks.length}`);
       return text;
     });
+    await assertCurrentHead(`after pd-${ship.name} MAP`);
 
     // --- REDUCE: manager merges the partials (only when fan-out > 1) --------
-    const output =
-      chunks.length === 1 ? partials[0] ?? '' : await reduceFindings(ship, partials, env, metrics);
+    if (chunks.length > 1) await assertCurrentHead(`before pd-${ship.name} REDUCE`);
+    let output = chunks.length === 1
+      ? partials[0] ?? ''
+      : await reduceFindings(ship, partials, env, metrics, aiCircuit, transcript, capture);
+    if (chunks.length > 1) await assertCurrentHead(`after pd-${ship.name} REDUCE`);
 
     // Transcript: the REDUCE step exists only on a multi-chunk fan-out.
     if (chunks.length > 1) {
@@ -1515,38 +3258,96 @@ async function runShip(
       });
     }
 
+    // One bounded repair pass (src/repair.ts) shared by every broken-contract
+    // site below. The caller's own parser is the only judge of healing.
+    const tryRepair = async (reason: string, validate: (text: string) => boolean) => {
+      await assertCurrentHead(`before pd-${ship.name} contract repair`);
+      const repair = await repairContractOutput({
+        shipLabel: `pd-${ship.name}`,
+        model: reduceModelFor(ship),
+        contract: ship.ideation ? ideationOutputContract() : buildOutputContract(),
+        priorOutput: output,
+        reason,
+        call: async (model, system, user) => {
+          await assertCurrentHead(`before pd-${ship.name} contract-repair model call`);
+          const text = await shipRepairCall(ship, env, metrics, model, system, user, aiCircuit, capture);
+          await assertCurrentHead(`after pd-${ship.name} contract-repair model call`);
+          return text;
+        },
+        validate,
+        abortOnError: error =>
+          error instanceof PullRequestHeadValidationError ||
+          error instanceof FleetAiDependencyError,
+      });
+      await assertCurrentHead(`after pd-${ship.name} contract repair`);
+      await transcript.step(
+        'ship-repair',
+        ship.name,
+        repair.healed
+          ? `pd-${ship.name}: contract repair HEALED on ${repair.healedBy} (${reason})`
+          : `pd-${ship.name}: contract repair FAILED after ${repair.attempts.length} attempt(s) (${reason})`,
+        { healed: repair.healed, healedBy: repair.healedBy, reason, attempts: repair.attempts },
+      );
+      if (repair.healed) output = repair.text;
+      return repair.healed;
+    };
+
     // --- NO USABLE OUTPUT gate (src/usable-output.ts) ----------------------
     // Before either contract is parsed: did the model say ANYTHING its contract
-    // asked for? If not, the ship reviewed nothing, and must never be folded
-    // into a clean PASS. Blocking ships fail closed here; advisory ships do not
-    // fail the merge gate but are reported honestly (aggregateConclusion turns
-    // them into `neutral`, never `success`).
-    const usability = classifyShipOutput(output, { ideation: ship.ideation });
+    // asked for? If not, try to REPAIR it first (broken output is usually a
+    // formatting slip on a cheap tier, not a missing review); only when repair
+    // also fails is the ship BROKEN, and a broken ship fails the run whatever
+    // its blocking flag (aggregateConclusion, broken-ship doctrine 2026-08-19 —
+    // subject to the adjudicator's fleet-fault amendment).
+    let usability = classifyShipOutput(output, { ideation: ship.ideation });
     if (!usability.usable) {
-      return await recordNoUsableOutput(ship, transcript, usability.reason, {
-        strippedLength: usability.strippedLength,
-        rawLength: output.length,
-        chunkCount: chunks.length,
-      });
+      const healed = await tryRepair(
+        `output failed the '${usability.reason}' contract test`,
+        text => classifyShipOutput(text, { ideation: ship.ideation }).usable,
+      );
+      if (healed) usability = classifyShipOutput(output, { ideation: ship.ideation });
+    }
+    if (!usability.usable) {
+      return {
+        ...(await recordNoUsableOutput(ship, transcript, usability.reason, {
+          strippedLength: usability.strippedLength,
+          rawLength: output.length,
+          chunkCount: chunks.length,
+        })),
+        ...reviewCoverage,
+      };
     }
 
     // --- IDEATION ships: proposals, not findings ---------------------------
     // spark / spider / lookout / snipe propose forward work. Parse the validated
-    // Proposal schema and render it into REAL actionable Port Daddy syntax. These
-    // ships are always advisory: they NEVER gate a merge and NEVER contribute
-    // inline review comments, so a malformed block just falls back to the raw
-    // model output — it can't destabilize the check.
+    // Proposal schema and render it into REAL actionable Port Daddy syntax.
+    // Their JUDGMENT is always advisory — a proposal never gates a merge and
+    // never contributes inline review comments. Their MACHINERY is not: a
+    // malformed proposal block means the ship is broken, and a broken ship
+    // fails the run (`errored: true` → aggregateConclusion `failure`;
+    // broken-ship doctrine, 2026-08-19). The raw model output is still posted
+    // so the prose isn't lost while the breakage gets fixed.
     if (ship.ideation) {
-      const proposals = parseProposals(output);
+      let proposals = parseProposals(output);
+      // A malformed proposals block gets the same one-shot repair as unusable
+      // output — the model's SUBSTANCE is usually fine, the fence is not.
+      if (proposals === null) {
+        const healed = await tryRepair(
+          'the fenced json proposals block was malformed',
+          text => parseProposals(text) !== null,
+        );
+        if (healed) proposals = parseProposals(output);
+      }
 
       // --- XO EDITOR PASS (src/xo.ts) --------------------------------------
       // Before the batch is finalized (rendered / stacked / captured), the XO
       // curates it against the most recent tracked ideas: merge near-dupes,
-      // sharpen titles, drop what's already tracked. Strictly fail-open: any
-      // XO failure keeps `proposals` untouched, and the cosine dedup inside
-      // captureProposals remains the pre-filter/fallback either way.
+      // sharpen titles, drop what's already tracked. XO judgment/format
+      // failures keep `proposals` untouched. A provider-circuit fault instead
+      // propagates to the ship boundary so the queue owns the bounded retry.
       let curated = proposals;
       if (xoEnabled && proposals && proposals.length > 0) {
+        await assertCurrentHead(`before pd-${ship.name} XO editor`);
         const recentIdeas = env.DB
           ? await listRecentIdeas(env.DB, XO_RECENT_IDEAS_LIMIT)
           : [];
@@ -1556,7 +3357,9 @@ async function runShip(
           proposals,
           recentIdeas,
           gatewayId: env.AI_GATEWAY_ID,
+          aiCircuit,
         });
+        await assertCurrentHead(`after pd-${ship.name} XO editor`);
         curated = editor.proposals;
         await transcript.step(
           'xo-editor',
@@ -1579,7 +3382,17 @@ async function runShip(
       // ship per run; every failure mode degrades to a transcript note.
       const stackedPr =
         curated && curated.length > 0
-          ? await maybeStackProposal(ship, prCtx, curated, env, token, transcript, runId, squidConsent)
+          ? await maybeStackProposal(
+              ship,
+              prCtx,
+              curated,
+              env,
+              token,
+              transcript,
+              runId,
+              squidConsent,
+              assertCurrentHead,
+            )
           : null;
       const rendered =
         curated && curated.length > 0
@@ -1593,14 +3406,23 @@ async function runShip(
           : '';
       // When proposals parse to a real set → post the actionable render. When the
       // ship proposed nothing (empty array) → silence. When the block was
-      // malformed (null) → post the raw output so the model's prose isn't lost.
-      const body = rendered || (proposals === null ? output : '');
+      // malformed (null) → post the raw output so the model's prose isn't lost,
+      // and record the ship as BROKEN rather than laundering it into a PASS.
+      const malformed = proposals === null;
+      const body = rendered || (malformed ? output : '');
 
-      await transcript.step('ship-verdict', ship.name, `pd-${ship.name}: PASS (ideation)`, {
-        proposals: curated ?? 'malformed',
-        posted: !!body.trim(),
-      });
+      await transcript.step(
+        malformed ? 'ship-finding' : 'ship-verdict',
+        ship.name,
+        malformed
+          ? `pd-${ship.name}: proposal block MALFORMED — broken ship, fails the run`
+          : `pd-${ship.name}: PASS (ideation)`,
+        malformed
+          ? { error: 'failed to parse proposals', posted: !!body.trim() }
+          : { proposals: curated, posted: !!body.trim() },
+      );
 
+      await assertCurrentHead(`before pd-${ship.name} proposal comment`);
       await postShipComment(
         prCtx.owner,
         prCtx.repo,
@@ -1609,18 +3431,25 @@ async function runShip(
         ship.role,
         body,
         token,
+        env.GITHUB_APP_ID,
+        assertCurrentHead,
       );
 
       // Durably capture the (XO-curated) proposals (D1 + semantic dedup +
       // auto-issue) so a Spark/Spider idea doesn't evaporate when the PR scrolls
-      // away. Best-effort: it NEVER throws or changes the advisory PASS.
+      // away. Product/storage failures remain best-effort. A retryable embedding
+      // dependency fault returns to the queue so later ships never load an open
+      // provider circuit; the final provider attempt adjudicates it fleet-wide.
       if (curated && curated.length > 0) {
+        await assertCurrentHead(`before pd-${ship.name} idea capture`);
         await captureIdeas(
           curated,
           { owner: prCtx.owner, repo: prCtx.repo, prNumber: prCtx.prNumber, shipName: ship.name },
           env,
           token,
           transcript,
+          aiCircuit,
+          assertCurrentHead,
         );
       }
 
@@ -1628,14 +3457,23 @@ async function runShip(
         ship: ship.name,
         blocking: false,
         verdict: 'PASS',
-        errored: false,
+        errored: malformed,
         findings: [],
+        ...reviewCoverage,
       };
     }
 
-    // Parse the structured findings block. `null` => malformed JSON => the ship
-    // is treated as errored (blocking → BLOCK, advisory → PASS, never silent).
-    const parsedFindings = parseShipFindings(output);
+    // Parse the structured findings block. `null` => malformed JSON. Repair
+    // once (the model's findings are usually fine, the fence is not); only a
+    // still-malformed block is treated as errored — a broken ship.
+    let parsedFindings = parseShipFindings(output);
+    if (parsedFindings === null) {
+      const healed = await tryRepair(
+        'the fenced json findings block was malformed',
+        text => parseShipFindings(text) !== null,
+      );
+      if (healed) parsedFindings = parseShipFindings(output);
+    }
 
     // Drop findings that cite a file this PR never touched.
     //
@@ -1662,7 +3500,10 @@ async function runShip(
     // scope contract is the primary defence; this is the backstop, and a
     // backstop that can eat correct output is not worth having.
     const changedPaths = new Set(prCtx.files.map(f => f.filename));
-    const fileListTrustworthy = changedPaths.size > 0 && prCtx.files.length < PR_FILES_PAGE_SIZE;
+    const fileListTrustworthy =
+      !prCtx.filesTruncated &&
+      changedPaths.size > 0 &&
+      prCtx.files.length < PR_FILES_PAGE_SIZE;
     const findings =
       parsedFindings === null || !fileListTrustworthy
         ? parsedFindings
@@ -1707,6 +3548,7 @@ async function runShip(
             shipName: ship.name,
           });
 
+    await assertCurrentHead(`before pd-${ship.name} review comment`);
     await postShipComment(
       prCtx.owner,
       prCtx.repo,
@@ -1715,6 +3557,8 @@ async function runShip(
       ship.role,
       reviewerBody,
       token,
+      env.GITHUB_APP_ID,
+      assertCurrentHead,
     );
 
     // Transcript: the per-ship issue comment was posted (or intentionally
@@ -1735,12 +3579,48 @@ async function runShip(
         verdict: ship.blocking ? 'BLOCK' : 'PASS',
         errored: true,
         findings: [],
+        ...reviewCoverage,
       };
     }
 
     const verdict: Verdict = verdictForTranscript ?? resolveVerdict(output, ship.blocking);
-    return { ship: ship.name, blocking: ship.blocking, verdict, errored: false, findings };
-  } catch {
+    return { ship: ship.name, blocking: ship.blocking, verdict, errored: false, findings, ...reviewCoverage };
+  } catch (error) {
+    if (
+      error instanceof PullRequestHeadValidationError ||
+      error instanceof ShipCommentPublicationError
+    ) throw error;
+    const failure = error instanceof FleetAiDependencyError
+      ? error.failure
+      : describeAiFailure(error);
+
+    await transcript.step(
+      'ship-error',
+      ship.name,
+      `pd-${ship.name}: ERROR — ${failure.summary}`,
+      {
+        error: failure.summary,
+        status: failure.status,
+        code: failure.code,
+        retryable: error instanceof FleetAiDependencyError ? failure.retryable : false,
+        providerCircuitOpen: aiCircuit.isOpen,
+        providerAttempt,
+      },
+    );
+
+    // Retryable provider faults belong to the queue boundary, not a local loop
+    // per MAP chunk. Throw while budget remains: successful earlier ships are
+    // checkpointed, this failed ship is not, and the consumer schedules one
+    // jittered redelivery. On the last allowed attempt, complete NEUTRAL as a
+    // fleet dependency fault and let the outer loop skip remaining ships.
+    if (
+      error instanceof FleetAiDependencyError &&
+      failure.retryable &&
+      providerAttempt < PROVIDER_MAX_DELIVERY_ATTEMPTS
+    ) {
+      throw error;
+    }
+
     // A blocking ship that errors fails the gate (fail-closed). Verdict is
     // forced to BLOCK for blocking ships, PASS for advisory ones; `errored`
     // is the authoritative signal the aggregator keys on.
@@ -1756,6 +3636,17 @@ async function runShip(
       blocking: ship.blocking,
       verdict: ship.blocking ? 'BLOCK' : 'PASS',
       errored: true,
+      failureReason: failure.summary,
+      ...(error instanceof FleetAiDependencyError && failure.retryable
+        ? {
+            brokenAdjudicated: {
+              scope: 'fleet' as const,
+              reason:
+                `Workers AI dependency circuit remained open through ` +
+                `${providerAttempt}/${PROVIDER_MAX_DELIVERY_ATTEMPTS} provider attempts`,
+            },
+          }
+        : {}),
       findings: [],
     };
   }
@@ -1782,10 +3673,9 @@ interface StackOutcome {
  *   - same-repo only (fork PRs are never written to),
  *   - files bounded by {@link validateStackProposalFiles} (≤5 files, ≤16KB
  *     each, purser-grade path whitelist),
- *   - sandbox validation when env.SANDBOX exists: the repo suite runs with
- *     the fix grafted onto the PR head, and a FAILING suite blocks the stack
- *     (a ship must not stack a fix that breaks the build). Absent binding ⇒
- *     the stack proceeds honestly un-validated.
+ *   - mandatory sandbox validation: the repo suite runs with the fix grafted
+ *     onto the PR head, and only an executed, passing suite may mutate GitHub.
+ *     Missing or failed validation leaves the proposal advisory-only.
  */
 async function maybeStackProposal(
   ship: ShipConfig,
@@ -1797,6 +3687,7 @@ async function maybeStackProposal(
   runId: string,
   /** Tenant `squidEvents: true` consent from pd-fleet.yml (default false). */
   squidConsent = false,
+  assertCurrentHead: PullRequestHeadGuard = async () => {},
 ): Promise<StackOutcome | null> {
   const proposalIndex = proposals.findIndex(p => p.action === 'stack');
   if (proposalIndex === -1) return null;
@@ -1821,6 +3712,7 @@ async function maybeStackProposal(
   const validation = validateStackProposalFiles(files);
   if (!validation.ok) return degrade(validation.reason);
 
+  await assertCurrentHead(`before pd-${ship.name} stack sandbox`);
   const sandbox = await runTestsInSandbox({
     sandboxBinding: env.SANDBOX,
     owner: prCtx.owner,
@@ -1828,8 +3720,17 @@ async function maybeStackProposal(
     headSha: prCtx.headSha,
     files,
     token,
+    coordinationEnrollment: sandboxCoordinationEnrollmentFromEnv(env, {
+      project: `${prCtx.owner}/${prCtx.repo}`,
+      runId,
+    }),
   });
-  if (sandbox.executed && sandbox.passed === false) {
+  if (!sandbox.executed) {
+    return degrade(
+      `sandbox validation unavailable — fix not stacked (${sandbox.reason ?? 'test runner did not execute'})`,
+    );
+  }
+  if (sandbox.passed !== true) {
     return degrade(
       `sandbox validation FAILED on the PR head — fix not stacked (tail: ${sandbox.outputTail.slice(-300)})`,
     );
@@ -1837,6 +3738,7 @@ async function maybeStackProposal(
 
   const branchName = `fleet/${ship.name}-pr-${prCtx.prNumber}-${slugify(proposal.title)}`;
   try {
+    await assertCurrentHead(`before pd-${ship.name} stack branch mutation`);
     await createOrUpdateBranch(
       prCtx.owner,
       prCtx.repo,
@@ -1845,16 +3747,19 @@ async function maybeStackProposal(
       files,
       `pd-${ship.name}: ${proposal.title} (stacked on #${prCtx.prNumber})`,
       token,
+      assertCurrentHead,
     );
+    await assertCurrentHead(`before pd-${ship.name} stacked PR mutation`);
     const pr = await openStackedPr(
       prCtx.owner,
       prCtx.repo,
       branchName,
       prCtx.headRef, // BASE = the reviewed PR's head branch
       `pd-${ship.name}: ${proposal.title} (stacks on #${prCtx.prNumber})`,
-      buildStackPrBody(ship, prCtx, proposal, sandbox.executed === true && sandbox.passed === true),
+      buildStackPrBody(ship, prCtx, proposal),
       ['fleet-stack', `pd-${ship.name}`],
       token,
+      assertCurrentHead,
     );
     await transcript.step(
       'stack-posted',
@@ -1866,7 +3771,7 @@ async function maybeStackProposal(
         stackPrUrl: pr.url,
         proposalTitle: proposal.title,
         files: files.map(f => f.path),
-        sandboxValidated: sandbox.executed === true && sandbox.passed === true,
+        sandboxValidated: true,
       },
     );
     emitSquidEvent(env, 'pr-stacked', {
@@ -1878,6 +3783,7 @@ async function maybeStackProposal(
     }, squidConsent);
     return { proposalIndex, number: pr.number, url: pr.url };
   } catch (err) {
+    if (err instanceof PullRequestHeadValidationError) throw err;
     const reason =
       err instanceof GitHubApiError && err.status === 403
         ? 'the GitHub App lacks the `contents: write` permission'
@@ -1900,15 +3806,12 @@ async function maybeStackProposal(
  * @param ship The ideation ship that authored the fix (named in the prose).
  * @param prCtx The reviewed PR this fix stacks on.
  * @param proposal The parsed proposal (title/rationale/files).
- * @param sandboxValidated Whether the repo's suite actually ran green with the
- *   fix applied — stated honestly either way, never assumed.
  * @returns The full markdown body for the stacked fix PR.
  */
 function buildStackPrBody(
   ship: ShipConfig,
   prCtx: PRContext,
   proposal: Proposal,
-  sandboxValidated: boolean,
 ): string {
   const files = (proposal.files ?? []).map(f => `- \`${f.path}\``).join('\n');
   return [
@@ -1917,9 +3820,7 @@ function buildStackPrBody(
       `branch — merging it lands the fix stacked ON TOP of the review diff.`,
     `**Why:** ${proposal.rationale}`,
     files ? `**Files:**\n${files}` : '',
-    sandboxValidated
-      ? `Sandbox-validated: the repo's test suite passed with this fix applied to the PR head.`
-      : `Not sandbox-validated (no sandbox available this run) — review before merging.`,
+    `Sandbox-validated: the repo's test suite passed with this fix applied to the PR head.`,
     fleetPrBodyTrailers(
       `stacked fix proposed by pd-${ship.name} while reviewing #${prCtx.prNumber}; it carries no roadmap ` +
         `item of its own — it is machinery attached to whichever item #${prCtx.prNumber} advances`,
@@ -1934,8 +3835,14 @@ function buildStackPrBody(
  * envelope so the caller (best-effort capture) degrades to "no dedup" rather
  * than throwing.
  */
-async function embedText(ai: Ai, text: string): Promise<number[]> {
-  const res = await ai.run(EMBED_MODEL as Parameters<typeof ai.run>[0], { text: [text] });
+async function embedText(ai: Ai, text: string, aiCircuit: FleetAiCircuit): Promise<number[]> {
+  // transcript-capture: exempt (embeddings are not conversational — no
+  // forensic value, high volume; see the RFC's call-site inventory)
+  // context-admission: exempt (embedding input has a distinct vector contract,
+  // not chat messages plus a requested completion to reserve)
+  const res = await aiCircuit.run(() =>
+    ai.run(EMBED_MODEL as Parameters<typeof ai.run>[0], { text: [text] }),
+  );
   const data = (res as { data?: unknown }).data;
   if (Array.isArray(data) && Array.isArray(data[0])) return data[0] as number[];
   return [];
@@ -1945,7 +3852,9 @@ async function embedText(ai: Ai, text: string): Promise<number[]> {
  * Durably capture an ideation ship's proposals into the relay D1 idea store,
  * semantic-deduped, opening a `fleet-idea` GitHub issue for each novel one.
  * Best-effort: a missing DB binding (unit tests / unconfigured) skips capture
- * entirely, and any failure is swallowed — it can NEVER change the advisory PASS.
+ * entirely, and product/storage/permanent dependency failures are swallowed.
+ * Retryable Workers AI circuit failures propagate so one optional embedding
+ * cannot strand the invocation or let later ships load a failing provider.
  */
 async function captureIdeas(
   proposals: Proposal[],
@@ -1953,6 +3862,8 @@ async function captureIdeas(
   env: ExecutorEnv,
   token: string,
   transcript: Transcript,
+  aiCircuit: FleetAiCircuit,
+  assertCurrentHead: PullRequestHeadGuard = async () => {},
 ): Promise<void> {
   if (!env.DB) return; // no store bound → comment-only fallback (still posted above)
   try {
@@ -1961,11 +3872,26 @@ async function captureIdeas(
       db: env.DB,
       proposals,
       ctx,
-      embed: text => embedText(env.AI, text),
-      openIssue: (title, body, labels) =>
-        createIssue(ctx.owner, ctx.repo, title, body, labels, token),
+      embed: async text => {
+        await assertCurrentHead(`before pd-${ctx.shipName} idea embedding`);
+        const vector = await embedText(env.AI, text, aiCircuit);
+        await assertCurrentHead(`after pd-${ctx.shipName} idea embedding`);
+        return vector;
+      },
+      openIssue: async (title, body, labels) => {
+        await assertCurrentHead(`before pd-${ctx.shipName} idea issue mutation`);
+        return createIssue(ctx.owner, ctx.repo, title, body, labels, token);
+      },
       now: nowSec(),
     });
+    // captureProposals isolates one bad idea so a storage/issue failure does
+    // not discard its siblings. That per-item catcher also sees embedding
+    // errors, so re-surface the shared circuit state here: only the first
+    // provider call ran; later proposals were rejected locally by the open
+    // circuit, and the queue remains the single retry owner.
+    if (aiCircuit.failure) {
+      throw new FleetAiDependencyError(aiCircuit.failure);
+    }
     const created = results.filter(r => r.outcome === 'tracked-new').length;
     const dupes = results.filter(r => r.outcome === 'duplicate' || r.outcome === 'already-tracked').length;
     await transcript.step(
@@ -1975,6 +3901,8 @@ async function captureIdeas(
       { results },
     );
   } catch (err) {
+    if (err instanceof PullRequestHeadValidationError) throw err;
+    if (err instanceof FleetAiDependencyError && err.failure.retryable) throw err;
     console.error(`[fleet-executor] captureIdeas failed pd-${ctx.shipName}: ${String(err)}`);
   }
 }
@@ -2003,8 +3931,7 @@ async function captureIdeas(
  */
 export function filterDiffToReviewable(diff: string): string {
   if (!diff || !diff.trim()) return diff;
-  return diff
-    .split(/(?=^diff --git )/m)
+  return splitDiffSections(diff)
     .filter(part => {
       if (!part.startsWith('diff --git ')) return true; // preamble, keep
       const path = pathFromDiffLine(part.split('\n', 1)[0] ?? '') ?? '';
@@ -2013,12 +3940,21 @@ export function filterDiffToReviewable(diff: string): string {
     .join('');
 }
 
+/**
+ * Preserve unified-diff file boundaries. A preamble is retained as its own
+ * section so every byte the caller supplied remains visible to a reviewer.
+ */
+function splitDiffSections(diff: string): string[] {
+  if (!diff || !diff.trim()) return [''];
+  const sections = diff.split(/(?=^diff --git )/m).filter(section => section.length > 0);
+  return sections.length > 0 ? sections : [diff];
+}
+
 export function chunkDiff(diff: string, limit: number = FALLBACK_MAP_CHUNK_CHARS): string[] {
   if (!diff || !diff.trim()) return [''];
 
   // Split BEFORE each `diff --git` header so each part is one file's hunks.
-  const parts = diff.split(/(?=^diff --git )/m).filter(p => p.length > 0);
-  if (parts.length === 0) return [diff];
+  const parts = splitDiffSections(diff);
 
   const chunks: string[] = [];
   let cur = '';
@@ -2064,79 +4000,267 @@ export async function mapWithConcurrency<T, R>(
   if (!Number.isInteger(limit) || limit < 1) throw new Error('concurrency limit must be a positive integer');
   const results = new Array<R>(items.length);
   let nextIndex = 0;
+  let firstError: unknown;
   const worker = async (): Promise<void> => {
-    while (nextIndex < items.length) {
+    while (firstError === undefined && nextIndex < items.length) {
       const index = nextIndex++;
-      results[index] = await work(items[index], index);
+      try {
+        results[index] = await work(items[index], index);
+      } catch (error) {
+        // Stop this lane, but let the other already-in-flight lanes settle.
+        // Promise.all's ordinary fail-fast behavior used to leave those calls
+        // running after executeFleet had already entered its error path.
+        if (firstError === undefined) firstError = error;
+        return;
+      }
     }
   };
   await Promise.all(Array.from({ length: Math.min(limit, items.length) }, () => worker()));
+  if (firstError !== undefined) throw firstError;
   return results;
 }
 
-/**
- * REDUCE step: one manager call that merges the per-chunk partial reviews into a
- * single structured findings block + exactly one FLEET-VERDICT line.
- */
-async function reduceFindings(
-  ship: ShipConfig,
-  partials: string[],
-  env: ExecutorEnv,
-  metrics: ShipMetrics,
-): Promise<string> {
+/** A bounded reduction tree always converges for the eight MAP partials we retain. */
+const MAX_REDUCE_PARTITION_LEVELS = 4;
+
+function reduceManagerSystem(ship: ShipConfig): string {
   const mergeVerb = ship.ideation ? 'proposals' : 'findings';
-  const managerSystem =
+  return (
     `You are the fleet REDUCE manager for ship pd-${ship.name}. You receive ` +
     `several partial reviews of different chunks of one PR diff. Merge them into ` +
     `a SINGLE review of the whole PR. Deduplicate ${mergeVerb}.\n\n` +
     (ship.ideation ? ideationOutputContract() : buildOutputContract()) +
     (ship.blocking
       ? '\n\nThis ship is BLOCKING: emit FLEET-VERDICT: BLOCK if any partial raised a HIGH finding or objected; otherwise FLEET-VERDICT: PASS.'
-      : '\n\nThis ship is ADVISORY: still emit exactly one FLEET-VERDICT line.');
+      : '\n\nThis ship is ADVISORY: still emit exactly one FLEET-VERDICT line.')
+  );
+}
 
-  const userMessage = partials
-    .map((p, i) => `## Partial review ${i + 1} of ${partials.length}\n\n${p || '(empty)'}`)
+function reduceUserMessage(partials: readonly string[]): string {
+  return partials
+    .map((partial, index) => `## Partial review ${index + 1} of ${partials.length}\n\n${partial || '(empty)'}`)
     .join('\n\n');
+}
 
+/**
+ * Greedily partition independent MAP outputs into complete prompt groups. A
+ * group boundary is an output boundary, never an arbitrary byte slice, so the
+ * later synthesis can still understand every included review.
+ */
+function partitionReducePartials(
+  model: string,
+  managerSystem: string,
+  partials: readonly string[],
+): string[][] {
+  const groups: string[][] = [];
+  let current: string[] = [];
+
+  const fits = (candidate: readonly string[]) =>
+    assessContextAdmission(
+      model,
+      [
+        { role: 'system', content: managerSystem },
+        { role: 'user', content: reduceUserMessage(candidate) },
+      ],
+      MAX_OUTPUT_TOKENS,
+    );
+
+  for (const partial of partials) {
+    const candidate = [...current, partial];
+    if (fits(candidate).accepted) {
+      current = candidate;
+      continue;
+    }
+    if (current.length > 0) groups.push(current);
+    current = [partial];
+    const single = fits(current);
+    if (!single.accepted) throw new ContextAdmissionError(single);
+  }
+  if (current.length > 0) groups.push(current);
+  return groups;
+}
+
+async function runReduceGroup(
+  ship: ShipConfig,
+  partials: readonly string[],
+  groupIndex: number,
+  groupCount: number,
+  managerSystem: string,
+  env: ExecutorEnv,
+  metrics: ShipMetrics,
+  aiCircuit: FleetAiCircuit,
+  capture: ShipTranscript | null,
+): Promise<string> {
+  const model = reduceModelFor(ship);
   const request = {
     messages: [
       { role: 'system', content: managerSystem },
-      { role: 'user', content: userMessage },
+      { role: 'user', content: reduceUserMessage(partials) },
     ],
     max_tokens: MAX_OUTPUT_TOKENS,
     ...(ship.temperature === null ? {} : { temperature: ship.temperature }),
   };
-  const res = await env.AI.run(
-    ship.cfModel as Parameters<typeof env.AI.run>[0],
+  requireContextAdmission(model, request.messages, MAX_OUTPUT_TOKENS);
+  const res = await runCaptured(
+    capture,
+    { phase: 'reduce', model, chunk: { index: groupIndex, count: groupCount } },
     request,
-    aiOptions(env, ship.name),
+    () =>
+      aiCircuit.runForShip(ship.name, () =>
+        env.AI.run(
+          model as Parameters<typeof env.AI.run>[0],
+          request,
+          aiOptions(env, ship.name),
+        ),
+      ),
   );
   const { text } = extractAiText(res);
-  accumulateUsage(metrics, reduceModelFor(ship), res, text);
+  accumulateUsage(metrics, model, res, text);
   if (!text) {
     console.warn(
-      `[fleet-executor] pd-${ship.name} REDUCE EMPTY on ${reduceModelFor(ship)}: ` +
+      `[fleet-executor] pd-${ship.name} REDUCE EMPTY on ${model}: ` +
         `${describeResponseShape(res)}`,
     );
   }
   return text;
 }
 
-function buildSummary(results: ShipResult[], conclusion: string): string {
+/**
+ * REDUCE step: merge MAP outputs into one structured findings block. When the
+ * combined output would overflow the reducer's window, build a bounded tree of
+ * smaller reductions. This is deliberately a synthesis tree, not a text slice:
+ * each intermediary sees complete MAP outputs and its own output is requested
+ * under the same bounded contract before the next level consumes it.
+ */
+async function reduceFindings(
+  ship: ShipConfig,
+  partials: string[],
+  env: ExecutorEnv,
+  metrics: ShipMetrics,
+  aiCircuit: FleetAiCircuit,
+  transcript: Transcript,
+  /** Session capture buffer (null ⇒ off) — see src/transcript-capture.ts. */
+  capture: ShipTranscript | null = null,
+): Promise<string> {
+  const model = reduceModelFor(ship);
+  const managerSystem = reduceManagerSystem(ship);
+  let current = partials;
+
+  for (let level = 0; current.length > 1; level++) {
+    if (level >= MAX_REDUCE_PARTITION_LEVELS) {
+      throw new Error(
+        `reduce partition did not converge after ${MAX_REDUCE_PARTITION_LEVELS} levels for pd-${ship.name}`,
+      );
+    }
+    const groups = partitionReducePartials(model, managerSystem, current);
+    if (groups.length > 1) {
+      await transcript.step(
+        'reduce-partitioned',
+        ship.name,
+        `REDUCE pd-${ship.name}: partitioned ${current.length} partial review(s) into ${groups.length} context-safe group(s)`,
+        { level: level + 1, inputPartials: current.length, groups: groups.map(group => group.length) },
+      );
+    }
+    current = await mapWithConcurrency(groups, MAP_CONCURRENCY, (group, groupIndex) =>
+      runReduceGroup(
+        ship,
+        group,
+        groupIndex,
+        groups.length,
+        managerSystem,
+        env,
+        metrics,
+        aiCircuit,
+        capture,
+      ),
+    );
+  }
+
+  return current[0] ?? '';
+}
+
+/**
+ * One model call for the repair pass (src/repair.ts), on the executor's own
+ * AI plumbing so repair spend is metered exactly like any other ship call.
+ *
+ * MOTIVATION: repair.ts is deliberately a pure orchestration module with no
+ * env/AI imports; this adapter is the single place its calls touch Workers AI,
+ * so gateway options, session affinity, and usage accumulation stay identical
+ * to the MAP/REDUCE paths rather than being re-implemented.
+ *
+ * @param ship The ship being repaired (names the affinity header, temperature).
+ * @param env Worker bindings.
+ * @param metrics The ship's run metrics — repair tokens land here.
+ * @param model The model for THIS attempt (own tier, then escalation).
+ * @param system The repair system prompt.
+ * @param user The repair user message (carries the broken output).
+ * @returns The model's raw text ('' on an empty/odd response shape).
+ */
+async function shipRepairCall(
+  ship: ShipConfig,
+  env: ExecutorEnv,
+  metrics: ShipMetrics,
+  model: string,
+  system: string,
+  user: string,
+  aiCircuit: FleetAiCircuit,
+  /** Session capture buffer (null ⇒ off) — see src/transcript-capture.ts. */
+  capture: ShipTranscript | null = null,
+): Promise<string> {
+  const request = {
+    messages: [
+      { role: 'system', content: system },
+      { role: 'user', content: user },
+    ],
+    max_tokens: MAX_OUTPUT_TOKENS,
+    ...(ship.temperature === null ? {} : { temperature: ship.temperature }),
+  };
+  requireContextAdmission(model, request.messages, MAX_OUTPUT_TOKENS);
+  const res = await runCaptured(capture, { phase: 'repair', model }, request, () =>
+    aiCircuit.runForShip(ship.name, () =>
+      env.AI.run(
+        model as Parameters<typeof env.AI.run>[0],
+        request,
+        aiOptions(env, ship.name),
+      ),
+    ),
+  );
+  const { text } = extractAiText(res);
+  accumulateUsage(metrics, model, res, text);
+  return text;
+}
+
+function buildSummary(results: ShipResult[], conclusion: string, sourceCoverageReason: string | null = null): string {
   const lines = results.map(r => {
     const tag = r.blocking ? ' [BLOCKING]' : '';
     // A ship that produced nothing is reported as exactly that. It must never
     // print as `PASS` here — this summary is the check-run body an operator
-    // reads before merging.
+    // reads before merging. Broken states (error / no usable output) fail the
+    // run whatever the ship's blocking flag — unless the adjudicator judged
+    // the fault fleet-wide, in which case the check says exactly that instead
+    // of blaming this PR. See aggregateConclusion + src/adjudicator.ts.
+    const adjudication = r.brokenAdjudicated
+      ? ` — adjudicated FLEET-WIDE fault${r.brokenAdjudicated.issueNumber != null ? ` (#${r.brokenAdjudicated.issueNumber})` : ''}: ` +
+        `${r.brokenAdjudicated.reason}; not gating this PR; the fleet is on the hook`
+      : ' (broken ship ⇒ run FAILED)';
+    const cause = r.failureReason ? ` — ${r.failureReason}` : '';
+    const coverage = r.reviewCoverage === 'none'
+      ? `not reviewed — ${r.reviewCoverageReason ?? 'no reviewable source was sent to a model'}`
+      : r.reviewCoverage === 'partial'
+        ? `PARTIAL REVIEW (${r.verdict}) — ${r.reviewCoverageReason ?? 'some reviewable source was omitted'}`
+        : null;
     const state = r.noUsableOutput
-      ? 'no usable output — nothing was reviewed'
+      ? `no usable output — nothing was reviewed${adjudication}`
       : r.errored
-        ? 'error'
-        : r.verdict;
+        ? `error${cause}${adjudication}`
+        : coverage ?? r.verdict;
     const advisory =
-      !r.blocking && (r.verdict === 'BLOCK' || r.errored || r.noUsableOutput) ? ' (advisory)' : '';
+      !r.blocking && r.verdict === 'BLOCK' && !r.errored && !r.noUsableOutput ? ' (advisory)' : '';
     return `- pd-${r.ship}${tag}: ${state}${advisory}`;
   });
+  if (sourceCoverageReason) {
+    lines.push(`- fleet source coverage: PARTIAL REVIEW — ${sourceCoverageReason}`);
+  }
   lines.push('');
   lines.push(`Verdict: ${conclusion.toUpperCase()}`);
   return lines.join('\n');
@@ -2164,7 +4288,19 @@ function buildOutputContract(): string {
   );
 }
 
-function buildSystemPrompt(ship: ShipConfig, contract: string | null, graftText = ''): string {
+/**
+ * Build the exact system prompt handed to a standard Fleet reviewer ship.
+ *
+ * This is exported for checkpoint-binding tests because a resumable verdict is
+ * valid only under the same prompt that produced it. The caller owns fetching
+ * the trusted contract and graft snapshot before invoking this pure renderer.
+ *
+ * @param ship Parsed trusted Fleet configuration.
+ * @param contract Exact trusted ship contract, or null when confirmed absent.
+ * @param graftText Exact trusted graft prefix selected for this ship.
+ * @returns The complete immutable system prompt for a model call.
+ */
+export function buildSystemPrompt(ship: ShipConfig, contract: string | null, graftText = ''): string {
   const parts: string[] = [];
 
   // Grafted skills come FIRST: they are the repo's own playbooks, fetched from
@@ -2261,6 +4397,45 @@ function pathFromDiffLine(line: string): string | null {
   return null;
 }
 
+/** Return the largest UTF-8-safe prefix that fits inside a byte budget. */
+function utf8Prefix(value: string, maxBytes: number): string {
+  let low = 0;
+  let high = value.length;
+  while (low < high) {
+    const middle = Math.ceil((low + high) / 2);
+    if (utf8ByteLength(value.slice(0, middle)) <= maxBytes) low = middle;
+    else high = middle - 1;
+  }
+  return value.slice(0, low);
+}
+
+/** Return the largest UTF-8-safe suffix that fits inside a byte budget. */
+function utf8Suffix(value: string, maxBytes: number): string {
+  let low = 0;
+  let high = value.length;
+  while (low < high) {
+    const middle = Math.ceil((low + high) / 2);
+    if (utf8ByteLength(value.slice(value.length - middle)) <= maxBytes) low = middle;
+    else high = middle - 1;
+  }
+  return value.slice(value.length - low);
+}
+
+/**
+ * Bound auxiliary PR context without pretending it was complete. The diff is
+ * never sliced here; it is partitioned separately at file boundaries.
+ */
+function boundedPromptExcerpt(value: string, maxBytes: number, label: string): string {
+  if (!value.trim()) return '(none)';
+  const originalBytes = utf8ByteLength(value);
+  if (originalBytes <= maxBytes) return value;
+
+  const marker = `\n\n[${label} projected from ${originalBytes} bytes to fit the request budget]\n\n`;
+  const available = Math.max(0, maxBytes - utf8ByteLength(marker));
+  const headBytes = Math.floor(available * 0.75);
+  return `${utf8Prefix(value, headBytes)}${marker}${utf8Suffix(value, available - headBytes)}`;
+}
+
 /**
  * Build the MAP-stage prompt for one diff chunk.
  *
@@ -2305,17 +4480,28 @@ function buildUserMessage(
     ? prCtx.files.map(f => ({ filename: f.filename, adds: f.additions, dels: f.deletions }))
     : [...present].map(filename => ({ filename, adds: null as number | null, dels: null as number | null }));
 
-  // Mark in-chunk files so the model can bind a hunk to a path. Files from
-  // other chunks stay listed — the reviewer should know the PR is larger than
-  // what it can see — but are explicitly flagged as not visible here.
-  const fileList = fileRows
-    .map(r => {
-      const here = !partial || present.has(r.filename);
-      const mark = here ? '✔' : '·';
-      const counts = r.adds === null ? '' : ` (+${r.adds}/-${r.dels})`;
-      const note = here ? '' : '  — not in this chunk';
-      return `- ${mark} ${r.filename}${counts}${note}`;
+  // The diff itself is the authority for what this MAP call can cite. The
+  // file index is deliberately bounded: a very large PR's path inventory must
+  // never crowd out the actual code in the request budget.
+  const known = new Set(fileRows.map(row => row.filename));
+  for (const filename of present) {
+    if (!known.has(filename)) fileRows.push({ filename, adds: null, dels: null });
+  }
+  const inChunkRows = fileRows.filter(row => present.has(row.filename));
+  const indexedRows = inChunkRows.slice(0, MAP_FILE_INDEX_LIMIT);
+  const fileList = indexedRows
+    .map(row => {
+      const counts = row.adds === null ? '' : ` (+${row.adds}/-${row.dels})`;
+      return `- ✔ ${row.filename}${counts}`;
     })
+    .concat(
+      inChunkRows.length > indexedRows.length
+        ? [`- … ${inChunkRows.length - indexedRows.length} additional file(s) appear in the diff below`]
+        : [],
+      partial && fileRows.length > inChunkRows.length
+        ? [`- · ${fileRows.length - inChunkRows.length} changed file(s) belong to other chunk(s)`]
+        : [],
+    )
     .join('\n');
 
   const chunkNote = partial ? ` (chunk ${chunkIndex + 1} of ${chunkCount})` : '';
@@ -2325,10 +4511,10 @@ function buildUserMessage(
 
 ## SCOPE — read before reviewing
 
-You are seeing **chunk ${chunkIndex + 1} of ${chunkCount}** of this diff. The files marked \`✔\`
-above are the ONLY ones whose changes are visible to you. Files marked \`·\` are
-part of this PR and were changed, but their hunks are in another chunk that a
-different reviewer is reading.
+You are seeing **chunk ${chunkIndex + 1} of ${chunkCount}** of this diff. The \`✔\`
+paths are a bounded index of files represented below; the diff is the authority
+for what you can see. Files marked \`·\` belong to another chunk. An indexed
+path may be omitted only when the index itself is bounded, never from the diff.
 
 Therefore, in this stage:
 
@@ -2337,22 +4523,26 @@ Therefore, in this stage:
   export, or a registration you did not encounter is almost certainly in a
   chunk you were not given. Claims of absence are decided later, by the stage
   that has every chunk.
-- **Every finding must cite a path marked \`✔\`**, and the code you quote must
-  appear verbatim in the diff below. A snippet from one file reported against
-  another file's path is worse than no finding at all.
+- **Every finding must cite a path and code that appear verbatim in the diff
+  below.** A snippet from one file reported against another file's path is
+  worse than no finding at all.
 - Report only defects you can see *in the code shown here*: a wrong condition,
   an unhandled case, a broken invariant, a real bug in these hunks.`
     : '';
 
-  const contextBlock = fleetContext ? `\n\n${fleetContext}` : '';
+  const contextBlock = fleetContext
+    ? `\n\n${boundedPromptExcerpt(fleetContext, MAP_FLEET_CONTEXT_BYTE_LIMIT, 'Fleet context')}`
+    : '';
+  const title = boundedPromptExcerpt(prCtx.title, MAP_TITLE_BYTE_LIMIT, 'PR title');
+  const body = boundedPromptExcerpt(prCtx.body, MAP_BODY_BYTE_LIMIT, 'PR description');
 
-  return `# PR #${prCtx.prNumber}: ${prCtx.title}
+  return `# PR #${prCtx.prNumber}: ${title}
 
 ## Changed files
 ${fileList || '(none)'}
 
 ## PR description
-${prCtx.body || '(none)'}${scopeBlock}${contextBlock}
+${body}${scopeBlock}${contextBlock}
 
 ## Diff${chunkNote}
 \`\`\`diff

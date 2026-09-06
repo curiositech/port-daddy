@@ -4,6 +4,8 @@ import {
   createOrUpdateBranch,
   openStackedPr,
   retargetPrBase,
+  fetchRepoFileText,
+  fetchRepoTreePaths,
   GitHubApiError,
   MAX_STACKED_FILES,
   MAX_STACKED_FILE_BYTES,
@@ -130,6 +132,31 @@ describe('createOrUpdateBranch — blobs → tree → commit → ref, idempotent
     ).rejects.toThrow(/refused/);
     expect(state.records).toHaveLength(0);
   });
+
+  it('fails closed before the first Git Data write when the mutation guard rejects', async () => {
+    const superseded = new Error('reviewed PR head changed');
+    const guard = vi.fn().mockRejectedValue(superseded);
+
+    await expect(
+      createOrUpdateBranch(
+        OWNER,
+        REPO,
+        'purser/pr-7-tests',
+        'BASESHA',
+        FILES,
+        'msg',
+        TOKEN,
+        guard,
+      ),
+    ).rejects.toBe(superseded);
+
+    expect(guard).toHaveBeenCalledWith('before create blob tests/purser/a.test.ts');
+    expect(state.blobsCreated).toBe(0);
+    expect(state.treesCreated).toBe(0);
+    expect(state.commitsCreated).toBe(0);
+    expect(state.refCreates).toBe(0);
+    expect(state.refUpdates).toBe(0);
+  });
 });
 
 describe('openStackedPr — idempotent create', () => {
@@ -161,6 +188,62 @@ describe('openStackedPr — idempotent create', () => {
       body: 'b2',
     });
   });
+
+  it('does not create a stacked PR when the mutation guard rejects after lookup', async () => {
+    const superseded = new Error('reviewed PR head changed');
+    const guard = vi.fn().mockRejectedValue(superseded);
+
+    await expect(
+      openStackedPr(
+        OWNER,
+        REPO,
+        'purser/pr-7-tests',
+        'main',
+        'title',
+        'body',
+        ['purser'],
+        TOKEN,
+        guard,
+      ),
+    ).rejects.toBe(superseded);
+
+    expect(guard).toHaveBeenCalledWith('before create stacked PR from purser/pr-7-tests');
+    expect(state.stackedPrs).toHaveLength(0);
+    expect(state.labelPosts).toHaveLength(0);
+  });
+
+  it('does not refresh an existing stacked PR when the mutation guard rejects', async () => {
+    const first = await openStackedPr(
+      OWNER,
+      REPO,
+      'purser/pr-7-tests',
+      'main',
+      'title',
+      'body',
+      [],
+      TOKEN,
+    );
+    const superseded = new Error('reviewed PR head changed');
+    const guard = vi.fn().mockRejectedValue(superseded);
+
+    await expect(
+      openStackedPr(
+        OWNER,
+        REPO,
+        'purser/pr-7-tests',
+        'main',
+        'new title',
+        'new body',
+        [],
+        TOKEN,
+        guard,
+      ),
+    ).rejects.toBe(superseded);
+
+    expect(guard).toHaveBeenCalledWith(`before refresh stacked PR #${first.number}`);
+    expect(state.stackedPrs).toHaveLength(1);
+    expect(state.prPatches).toHaveLength(0);
+  });
 });
 
 describe('retargetPrBase', () => {
@@ -172,5 +255,49 @@ describe('retargetPrBase', () => {
       title: undefined,
       body: undefined,
     });
+  });
+
+  it('does not retarget when the mutation guard rejects', async () => {
+    const superseded = new Error('reviewed PR head changed');
+    const guard = vi.fn().mockRejectedValue(superseded);
+
+    await expect(
+      retargetPrBase(OWNER, REPO, 7, 'purser/pr-7-tests', TOKEN, guard),
+    ).rejects.toBe(superseded);
+
+    expect(guard).toHaveBeenCalledWith('before retarget PR #7 base');
+    expect(state.prPatches).toHaveLength(0);
+  });
+});
+
+describe('fetchRepoFileText — evidence for the purser executability gate', () => {
+  it('returns the decoded text of a seeded file', async () => {
+    state.files.set('BASESHA:jest.config.js', "module.exports = { testMatch: ['x'] };");
+    const text = await fetchRepoFileText(OWNER, REPO, 'jest.config.js', 'BASESHA', TOKEN);
+    expect(text).toBe("module.exports = { testMatch: ['x'] };");
+  });
+
+  it('returns null on 404 (file absent) rather than throwing', async () => {
+    const text = await fetchRepoFileText(OWNER, REPO, 'nope.config.js', 'BASESHA', TOKEN);
+    expect(text).toBeNull();
+  });
+
+  it('never trusts the PR head — reads whatever ref it is given, verified via contentsRefs', async () => {
+    state.files.set('BASESHA:jest.config.js', 'x');
+    await fetchRepoFileText(OWNER, REPO, 'jest.config.js', 'BASESHA', TOKEN);
+    expect(state.contentsRefs).toContainEqual({ path: 'jest.config.js', ref: 'BASESHA' });
+  });
+});
+
+describe('fetchRepoTreePaths — evidence for the purser executability gate', () => {
+  it('returns the set of paths from a seeded recursive tree', async () => {
+    state.treeFiles.set('BASESHA', ['tests/unit/a.test.ts', 'tests/support.js']);
+    const paths = await fetchRepoTreePaths(OWNER, REPO, 'BASESHA', TOKEN);
+    expect(paths).toEqual(new Set(['tests/unit/a.test.ts', 'tests/support.js']));
+  });
+
+  it('returns null when the tree was never seeded (unknown, not empty)', async () => {
+    const paths = await fetchRepoTreePaths(OWNER, REPO, 'NOSUCHSHA', TOKEN);
+    expect(paths).toBeNull();
   });
 });

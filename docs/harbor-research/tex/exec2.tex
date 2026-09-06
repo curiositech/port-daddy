@@ -1,0 +1,137 @@
+\documentclass[11pt,a4paper]{article}
+\input{preamble}
+\usepackage{graphicx}
+\title{\textbf{Execution Report \#2}\\[4pt]
+\large The frontier, the controllability characterization, and a chapter's fate\\[3pt]
+\normalsize B1 (digest--zoom Pareto frontier), B3 (hypervisor $=$ Ramadge--Wonham),\\ and the sheaf commit-or-cut verdict}
+\author{Prepared for Erich Owens}
+\date{August 2026}
+\begin{document}
+\maketitle
+
+\noindent\textbf{Status.} Second parallel wave. B1 completes Paper 1 (the frontier and the zoom-advantage theorem, both derived and verified). B3 is executed as a runnable controllability checker that produces the manuscript's needed regimentable-vs-detect-only table and vindicates the channel-not-token clean-room design. The sheaf experiment reached a verdict --- \emph{conditional commit} --- and the path to it is worth reading, because it is a case study in the refute-first discipline earning its keep: the first two formulations were wrong, and being wrong is what taught us the exact boundary of the idea.
+
+\section{B1 --- The digest--zoom Pareto frontier}
+\subsection{The two-constraint rate--distortion function (solved analytically)}
+Each artifact is load-bearing i.i.d.\ Bernoulli$(p)$; a digest is a lossy binary description $\hat X$ (flag/no-flag) with two constraints --- false negatives priced by $\delta$ (misses), flag rate priced by $f$ (open budget):
+\[
+R(\delta,f)=\min_{P_{\hat X|X}} I(X;\hat X)\quad\text{s.t.}\quad \Pr(X{=}1,\hat X{=}0)\le\delta,\ \ \Pr(\hat X{=}1)\le f.
+\]
+For the binary source the optimizing joint is pinned by $(p,f,\delta)$ and the rate is closed-form. Theorem I.6.1's worst-case floor is the $(\delta{=}0,f{=}p)$ corner. Computed values ($p=0.05$):
+\begin{center}
+\begin{tabular}{@{}rrrl@{}}
+\toprule
+$\delta$ & $f$ & $R$ (bits/sym) & regime \\
+\midrule
+$0.00$ & $0.05$ & $0.286$ & zero-miss, tightest flags (\textbf{the floor corner}) \\
+$0.00$ & $0.10$ & $0.186$ & zero-miss, generous flags \\
+$0.00$ & $0.15$ & $0.149$ & zero-miss, very generous flags \\
+$0.01$ & $0.10$ & $0.110$ & miss-tolerant \\
+$0.04$ & $0.06$ & $0.009$ & miss-tolerant \\
+\bottomrule
+\end{tabular}
+\end{center}
+The frontier is exactly the trade the review asked for: \emph{loosening the open budget $f$ lowers the digest rate; tolerating misses $\delta$ lowers it further.} At $N{=}1000$, $R\!\cdot\!N\approx186$ bits at $(\delta{=}0,f{=}2p)$, which sits below the worst-case combinatorial floor $\log_2\binom{N}{pN}\approx282$ bits --- the correct relationship (average-case rate below worst-case covering floor).
+
+\subsection{The zoom-advantage theorem}
+\begin{theorem}[Zoom advantage, with its boundary]
+When the digest flags a set of size $F$ containing $k$ truly load-bearing items, adaptive second-stage inspection (generalized binary splitting inside the flagged set --- open a group, drill only into groups that contain a load-bearing item) identifies all $k$ in $\Theta\!\bigl(k\log_2(F/k)\bigr)$ opens, versus $F$ for flat inspection. The advantage is large precisely when the flagged set is \emph{sparse} in load-bearing items ($k\ll F$) and vanishes when the flagged set is dense.
+\end{theorem}
+Simulation ($N_{\text{pool}}=5000$, 120 trials/config) confirms the regime and its boundary:
+\begin{center}
+\begin{tabular}{@{}rrrrr@{}}
+\toprule
+$|{\text{flagged}}|=F$ & $k$ & flat opens & adaptive opens & ratio \\
+\midrule
+$2500$ & $10$ & $2500$ & $164$ & $15.3\times$ \\
+$1500$ & $10$ & $1500$ & $149$ & $10.1\times$ \\
+$1000$ & $20$ & $1000$ & $233$ & $4.3\times$ \\
+$250$ & $10$ & $250$ & $98$ & $2.5\times$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+\input{fig-b1-frontier.tex}
+
+\noindent\textbf{The honest boundary, stated.} The zoom advantage is \emph{not} universal: when a digest flags a set already dense in positives (e.g.\ $f\approx1.5p$ so most flagged items are load-bearing), group testing's overhead dominates and flat inspection is as good or better. This matters for the design claim: zoom pays when the digest is conservative (low false-negative, over-flagging to be safe), which is the safety-relevant operating point --- so the theorem supports the architecture where it counts and does not overclaim where it does not.
+
+\noindent\textbf{Paper 1 is now complete in substance:} A1 (characterization), A2 (derived policy), A7 (falsification datum), B1 (frontier + zoom). Four pillars, all executed.
+
+\section{B3 --- Hypervisor enforceability is Ramadge--Wonham controllability}
+\subsection{The characterization, made runnable}
+\begin{theorem}[Regimentation $=$ controllability]
+An agent hypervisor can \emph{regiment} (prevent pre-effect) a prefix-closed safety policy $P$ iff $P$ is controllable with respect to the uncontrollable event set $\Sigma_u$ (model-internal steps, in-context reads --- the events the daemon cannot intercept before they occur): $\overline{P}\,\Sigma_u\cap\overline{L}\subseteq\overline{P}$. Otherwise the best available is detect-and-compensate.
+\end{theorem}
+We implemented the controllability test (product-automaton check that no uncontrollable event enabled in the plant leaves the specification) over a realistic agent alphabet: controllable $\Sigma_c=\{$fs\_write, net\_egress, exec\_tool, git\_push, spawn\_child, api\_call$\}$; uncontrollable $\Sigma_u=\{$model\_emit\_token, in\_context\_read, internal\_plan, hidden\_activation$\}$. The checker produces the ledger table the manuscript needs:
+\begin{center}
+\begin{tabular}{@{}llc@{}}
+\toprule
+Policy & Event class & Regimentable? \\
+\midrule
+forbid net\_egress & controllable & \textbf{yes} (regiment) \\
+forbid git\_push & controllable & \textbf{yes} (regiment) \\
+forbid fs\_write & controllable & \textbf{yes} (regiment) \\
+forbid exec\_tool / spawn\_child & controllable & \textbf{yes} (regiment) \\
+forbid model\_emit\_token & uncontrollable & no (detect only) \\
+forbid in\_context\_read & uncontrollable & no (detect only) \\
+forbid internal\_plan (``lie in a report'') & uncontrollable & no (detect only) \\
+\bottomrule
+\end{tabular}
+\end{center}
+This is OP-2 stated correctly. The product reviews' formulation --- ``regimentable iff a pure deterministic function of committed local DB state'' --- is the \emph{special case} where $\Sigma_c$ is exactly the set of database writes; the controllability statement is the general theorem, and it correctly classifies effects (force-push: regimentable) versus semantics (a confident lie: forever detect-only) that the DB-state formulation cannot express.
+
+\subsection{The compound-policy result vindicates the clean room}
+The decisive case the checker settles: \emph{``no net\_egress after in\_context\_read of a secret.''} The trigger (\texttt{in\_context\_read}) is uncontrollable; the effect (\texttt{net\_egress}) is controllable. The checker returns \textbf{regimentable} --- because the policy does not try to forbid the uncontrollable read (it permits and records it as taint), and gates only the controllable egress. This is a computational proof of Document 1's Adjudication 3: the Sealed Harbor gates the \emph{channel}, never the token, precisely because gating the uncontrollable trigger would be unregimentable while gating the controllable effect is not. B3 thus directly underwrites the C1 (Sealed-Harbor noninterference) design and the corrected airlock product claim.
+
+\section{The sheaf commit-or-cut verdict}
+\subsection{Verdict: conditional commit, with a sharply drawn boundary}
+\begin{verdict}
+Sheaf cohomology adds genuine power over $O(|E|)$ pairwise digest comparison \textbf{iff} the unobserved (partitioned) edge lies on a \emph{cycle}, so the cocycle condition substitutes for the missing direct comparison. On a \emph{cut} edge (a single bridge between components) there is no value-add. Commit the sheaf material \emph{only} in the partition-on-a-cycle framing --- which is real for any gossip graph with redundant paths between components --- and state the cut-edge boundary as the honest limit. The consistency-radius result (Robinson) is publishable regardless.
+\end{verdict}
+
+\subsection{The clean mechanism (a rigorous minimal proof)}
+On a cycle $C_n$ with scalar stalks, each edge $e=\{i,i{+}1\}$ reports the disagreement $g_e=x_i-x_{i+1}$. A global section explaining the observations exists iff $\sum_e g_e=0$ around the cycle (the cocycle condition); $H^1=\mathrm{coker}(\delta)=\mathbb{R}$ (the all-ones cocycle), and the harmonic component of the observed $g$ is $(\tfrac1n\sum_e g_e)\cdot\mathbf 1$ --- exactly the cocycle sum. The experiment on $C_6$:
+\begin{center}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+Case & pairwise detects & cohomology signal & cohomology-only? \\
+\midrule
+equivocation on edge 2, all compared & yes & $1.225$ & --- \\
+edge 2 \emph{not} compared (partition) & \textbf{no} & \textbf{1.225} & \textbf{yes} \\
+inconsistency spread on compared edges & yes & $1.225$ & --- \\
+cut edge (path $P_6$), edge 2 uncompared & no & $0.000$ & no (boundary) \\
+\bottomrule
+\end{tabular}
+\end{center}
+The second row is the whole case for the chapter: an equivocation on an edge nobody directly compared, but which lies on a cycle, is caught by the cocycle sum ($1.225\neq0$) while pairwise comparison is blind. The last row is the honest boundary: across a cut edge, cohomology sees nothing either, because a cut edge carries no cocycle constraint. This is the exact analogue of Abramsky--Brandenburger contextuality (locally consistent, globally inconsistent data), now instantiated for Byzantine equivocation.
+
+\subsection{Two wrong turns, reported (the discipline working)}
+The verdict took three formulations, and the two failures are the most instructive part.
+\begin{enumerate}[leftmargin=1.5em]
+\item \emph{First error --- computing the wrong object.} I initially computed $\dim H^1(G;F)$ of the abstract sheaf. But that is a property of the \emph{restriction maps}, independent of any data; with generic vector-valued readouts the coboundary is surjective and $H^1=0$ regardless of equivocation. Equivocation is not a property of the sheaf --- it is a property of a \emph{specific observed assignment}: does the observed local data glue to a global section? The right object is the obstruction of the observed cochain (is $g\in\mathrm{im}\,\delta$?), i.e.\ its harmonic component, which is precisely the contextuality-cohomology construction I had cited but not coded.
+\item \emph{Second error --- the wrong topology.} My first ``partition'' joined two cliques with a single bridge. But a single bridge is a \emph{cut edge}, on no cycle, carrying no cocycle constraint --- exactly the case where cohomology provably cannot help. The value-add requires redundant paths (two bridges, so the severed one lies on a cycle). Getting this wrong is what \emph{located} the boundary: the experiment did not just fail, it told me the precise condition under which the idea works.
+\end{enumerate}
+Reporting these is the point. A commit-or-cut gate that only ever confirms the hoped-for answer is not a gate. Here the process converted a vague ``maybe cohomology helps'' into a precise, defensible claim (\emph{it helps iff the missing edge is on a cycle}) plus a mechanism proof --- which is a better outcome than a premature commit would have been.
+
+\subsection{What Paper 7 becomes}
+Conditional on this framing, Paper 7 (``Cohomology of Equivocation'') is viable but must be scoped exactly: the contribution is \emph{detection and localization of equivocation under partial visibility, where the missing comparisons lie on cycles}, positioned against BFT forensics (Sheng et al.) as a complement (cohomology localizes; forensics attributes with cryptographic proof), and bounded by the abelianization gap (Car\`u: vanishing $H^1$ over $\mathbb{R}$ certifies consistency only up to that gap). The three theorem candidates (independent-equivocation counting, harmonic-support localization, consistency-radius $=$ max prefix divergence) stand, with the cut-edge boundary as a stated limit. This is a real paper --- but a narrow, honest one, not the sweeping ``cohomology detects Byzantine faults'' claim a careless version would attempt.
+
+\section{Where the program stands}
+\begin{center}
+\begin{tabular}{@{}llll@{}}
+\toprule
+Item & Status & Result & Feeds \\
+\midrule
+A2 regret head & \textbf{proved} & derived optimum; SDT fixed & Paper 1 \\
+A1 split-digest & \textbf{proved} & comonotone char.; super-additive floor & Paper 1 \\
+A7 falsification & \textbf{run} & floor holds, 0/16 violations & Paper 1 \\
+B1 frontier + zoom & \textbf{run} & $R(\delta,f)$ closed form; $15\times$ zoom & Paper 1 \\
+B3 controllability & \textbf{run} & regimentability table; clean-room proof & Papers 2, 4 \\
+Sheaf gate & \textbf{decided} & conditional commit; cycle boundary & Paper 7 \\
+\bottomrule
+\end{tabular}
+\end{center}
+Paper 1 (``The Price of a Summary'') is substantively complete. Paper 2 (``Regimented or Enforced'') has its core theorem executed and its table generated. Paper 7's fate is decided and its scope fixed. The natural next wave: B2 (the inspection tower --- the rate-the-raters synthesis, converting Conjecture III.11.1), C0 (the work-unit transition system --- the spine everything plugs into, best done in TLA\textsuperscript{+}/Apalache), and then C1 (Sealed-Harbor noninterference, now unblocked by B3).
+
+\vspace{0.4em}
+\noindent\emph{Reproducibility.} All results regenerate from seed \texttt{20260816} via four self-contained scripts (the A7 experiment, the B1 frontier, the B3 checker, and the sheaf minimal-mechanism proof). The two failed sheaf formulations are retained alongside the correct one as documentation of the boundary.
+\end{document}

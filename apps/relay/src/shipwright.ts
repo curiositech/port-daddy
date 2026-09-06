@@ -4,6 +4,7 @@
  *   GET  /v1/shipwright/history  (session)                → the user's own log
  *   POST /v1/shipwright/chat     (session + same-origin)  → Workers AI, SSE
  *   POST /v1/shipwright/clear    (session + same-origin)  → delete own history
+ *   POST /v1/shipwright/open-pr  (session + same-origin)  → PR in the user's repo
  *
  * The Shipwright interviews the operator (repo + goals), proposes a bespoke
  * ship roster, and emits a complete pd-fleet.yml in a fenced block the page
@@ -23,10 +24,30 @@
  * AI_ERROR with a redaction-safe message. The user message is persisted
  * BEFORE the model call, so a failed generation never loses operator input.
  *
- * HONEST MVP: the Shipwright does NOT open PRs or touch the operator's repo.
- * The system prompt says so, the page says so, and the YAML ships with
- * commit-it-yourself instructions. Direct PR-opening (via the fleet-save
- * GitHub App path) is the plan's next slice, not this one.
+ * PR-OPENING (grand-plan §shipwright-pr-open): the Shipwright's hands are no
+ * longer tied. Once a roster VALIDATES, the page offers an "Open PR" button —
+ * a plain form POST to {@link handleShipwrightOpenPr} — that commits the YAML
+ * to a fresh branch of the operator's own repo and opens a PR, through the
+ * SAME zero-trust mutation core the fleet control-plane uses
+ * (`commitFilesAndOpenPr` in fleet-control.ts, the only code path that can
+ * write). The click is the product (a user-initiated action), not an approval
+ * gate — no new permission-ask machinery (ADR-0109 / D11). What the
+ * Shipwright still cannot do, and still says so: read the repo, push to an
+ * existing branch, or merge anything — PR review/merge stays the gate.
+ *
+ * PR-route trust boundary, in order of the checks:
+ *   1. session + same-origin (as every Shipwright write);
+ *   2. the server RE-VALIDATES the submitted YAML with `validateFleetYaml` —
+ *      a client claiming "it validated" is a claim, not evidence, and an
+ *      invalid roster 400s here no matter what the page showed (fail-closed);
+ *   3. provenance: the YAML must be a fenced block the Shipwright actually
+ *      emitted in THIS user's own stored conversation — the PR body then
+ *      carries that provenance honestly;
+ *   4. tenancy (the billing-page idiom, ADR-0116): `userOwnsInstallation`
+ *      gates on GitHub's own GET /user/installations answer, and the target
+ *      repo must resolve (via the App JWT) to that SAME installation — so a
+ *      session can never target another tenant's installation or repo, and
+ *      never supplies an id the server didn't offer it.
  *
  * VALIDATION (grand-plan §shipwright-yaml-validate): the model's emitted
  * pd-fleet.yml is never trusted on its say-so. Every fenced ```yaml/```yml
@@ -40,24 +61,34 @@
  * old conversations for free. See {@link validateEmittedYaml}.
  */
 
+import { CF_ROLE_MODELS } from '../../shared/model-registry.generated.js';
 import type { Env } from './types.js';
-import { resolveSession, isSameOrigin } from './auth-github.js';
+import { modelBoardPromptFragment } from './model-dossier.js';
+import { resolveSession, isSameOrigin, userOwnsInstallation } from './auth-github.js';
 import {
   insertShipwrightMessage,
   listShipwrightMessages,
   clearShipwrightChats,
 } from './db.js';
 import { validateFleetYaml, type FleetValidationResult } from './fleet-parser.js';
+import { commitFilesAndOpenPr } from './fleet-control.js';
+import {
+  getRepoInstallationId,
+  getInstallationTokenCached,
+  getRepoDefaultBranch,
+} from './github-app.js';
 
-// ── Bounds (protect Workers AI quota + D1 row size) ──────────────────────────
+// ── Bounds ──────────────────────────────────────────────────────────────────
+//
+// Re-exported from the shared turn engine rather than re-declared. Two chat
+// surfaces with two copies of "how long may a message be" is how the copies
+// start to disagree; there is one answer and it lives in chat-engine.ts.
 
-export const MAX_MESSAGE_CHARS = 4_000;
-/** How much conversation the model sees per turn (and the page reloads). */
-export const HISTORY_WINDOW = 40;
-const CHAT_MAX_TOKENS = 2_048;
+export { MAX_MESSAGE_CHARS, HISTORY_WINDOW } from './chat-engine.js';
+import { HISTORY_WINDOW, runChatTurn, type ChatAgent } from './chat-engine.js';
 
 /** Committed default; the SHIPWRIGHT_MODEL var overrides without a deploy. */
-export const SHIPWRIGHT_DEFAULT_MODEL = '@cf/deepseek-ai/deepseek-r1-distill-qwen-32b';
+export const SHIPWRIGHT_DEFAULT_MODEL = CF_ROLE_MODELS.shipwright;
 
 export function shipwrightModel(env: Env): string {
   return env.SHIPWRIGHT_MODEL?.trim() || SHIPWRIGHT_DEFAULT_MODEL;
@@ -74,20 +105,23 @@ YOUR PROCESS, in order:
    - REVIEWER ships — code-reviewer (severity-ranked findings, cites specifics), red-team (tries to break security-relevant diffs; silence is success), tautology-sniffer (catches tests that assert their own mocks), qa (breaks changes with hostile inputs).
    - IDEATION ships — spark (high-temperature buildable product ideas), spider (strict two-premise syllogisms: A + B therefore C), lookout (contradictions and trouble across open PRs; alerts, never fixes), snipe (proposes ONE reusable skill when a PR hand-rolls something).
    - THE PURSER — the adversarial gatekeeper: steel-mans each PR into its strongest contract and authors tests against it. Give the purser a "graft" list of repo skill ids prepended to its prompt; the canonical pair is sandboxed-adversarial-test-harness and steel-man-argument. Start it blocking: false — advisory until trusted.
-   - NAMED ROLE PRESETS — six ready-to-paste ship blocks live in the port-daddy repo's roles/ directory; when an operator's goal matches one, offer the preset BY NAME before designing bespoke: cleanup (stacks small mechanical fixes as PRs on top of the reviewed diff), adversarial-test-writing (the purser packaged as a named role), doc-writing (stacks missing docs), unit-test-writing (stacks coverage-gap tests, sandbox-gated), readme-fixes (stacks README corrections), homebrew-release-shepherd (reviews release-surface drift — findings only, never writes). All six ship blocking: false and a quoted '@cf/qwen/qwen3-30b-a3b-fp8' model.
+   - NAMED ROLE PRESETS — six ready-to-paste ship blocks live in the port-daddy repo's roles/ directory; when an operator's goal matches one, offer the preset BY NAME before designing bespoke: cleanup (stacks small mechanical fixes as PRs on top of the reviewed diff), adversarial-test-writing (the purser packaged as a named role), doc-writing (stacks missing docs), unit-test-writing (stacks coverage-gap tests, sandbox-gated), readme-fixes (stacks README corrections), homebrew-release-shepherd (reviews release-surface drift — findings only, never writes). All six ship blocking: false and \`capability: cheap\` on their cloudflare fallback.
    Fit the roster to the repo: a small library wants 2-3 ships, not eleven. Say what you left out and why. Invite pushback.
 4. When the operator is happy with the roster, EMIT the complete pd-fleet.yml in ONE fenced \`\`\`yaml block — a full, valid file, never a fragment. Schema:
    - Top-level key \`fleet:\` with \`name\`, \`harbor: "{project}:fleet"\`, \`limits:\` (\`max_concurrent_spawns\`, \`max_spawns_per_hour\`, \`budget_usd_per_day\`), and \`agents:\`.
-   - Each agent: \`trigger:\` (e.g. pull_request:opened, git:committed — string or list), \`backend: cli:claude-code\`, a \`fallbacks:\` list ending with \`- backend: cloudflare\` + \`model: '@cf/...'\` (this is the model the cloud executor runs), \`cooldown_ms\`, \`singleton: true\`, \`allowedTools\` where relevant, a \`prompt: |\` block with the ship's full working instructions, \`identity: "{project}:fleet:<ship>"\`, and a one-line \`telos:\`.
+   - Each agent: \`trigger:\` (e.g. pull_request:opened, git:committed — string or list), \`backend: cli:claude-code\`, a \`fallbacks:\` list ending with \`- backend: cloudflare\` + \`capability: cheap\` (the rung the cloud executor resolves — NEVER a literal model id), \`cooldown_ms\`, \`singleton: true\`, \`allowedTools\` where relevant, a \`prompt: |\` block with the ship's full working instructions, \`identity: "{project}:fleet:<ship>"\`, and a one-line \`telos:\`.
    - Ideation ships add \`class: ideation\` and a \`temperature:\`. The purser uses \`class: purser\`, \`blocking: false\`, and a \`graft:\` list.
-   - Quote every @cf/ model id ('@cf/qwen/qwen3-30b-a3b-fp8' for general work, '@cf/qwen/qwen2.5-coder-32b-instruct' for code review).
-5. AFTER the YAML, give commit instructions in 3 short steps: save the block as pd-fleet.yml at the repo root, open a PR to the default branch (git checkout -b fleet-setup && git add pd-fleet.yml && git commit && gh pr create), and install the Port Daddy Fleet GitHub App on the repo so the fleet fires on PR events.
+   - Choose every \`model:\` id FROM THE MODEL BOARD below, quoted exactly, and justify the pick by role fit and price (cheap agentic for reviewers reading diffs, the agentic coder tier for ships that must emit runnable code, frontier tiers only where a single judgment is the product).
+   - A \`model:\` id you choose is honored only if it is admitted; the board contains exactly the admitted set, so quote from it and never invent one. Where a ship's need is a JOB rather than a specific measured model ("whatever fills the cheap reviewer slot"), you may instead write \`capability:\` with one of cheap | balanced | high | max-thinking | code, which survives a re-tier without an edit.
+5. AFTER the YAML, tell the operator how to ship it, in this order: (a) once the roster shows the green "Validates" badge, they can click the "Open PR" button right on this page — you (via the relay) will commit pd-fleet.yml to a fresh branch of their repo and open the PR for them, provided the Port Daddy Fleet GitHub App is installed on that repo; (b) or commit it by hand: save the block as pd-fleet.yml at the repo root and open a PR to the default branch (git checkout -b fleet-setup && git add pd-fleet.yml && git commit && gh pr create). Either way, remind them the fleet only fires once the PR is merged and the App is installed.
 
 HARD RULES:
-- BE HONEST ABOUT YOUR HANDS: you cannot open PRs, read the operator's repo, or change anything anywhere. The operator commits the file; say so whenever you hand over YAML.
+- BE HONEST ABOUT YOUR HANDS: you CAN open a PR — but only when the operator clicks "Open PR" beside a roster that passed validation, only into a repo whose Port Daddy Fleet GitHub App installation they own, and only as a fresh branch + PR (never a push, never a merge — their review is the gate). You still cannot read their repo or change anything anywhere else. Say exactly this much whenever you hand over YAML — no more, no less.
 - Never invent repo facts the operator didn't give you — ask instead.
 - Never emit a partial pd-fleet.yml, and never emit one before you know repo + goals.
-- Keep replies tight: a few short paragraphs or a compact list. No walls of text.`;
+- Keep replies tight: a few short paragraphs or a compact list. No walls of text.
+
+${modelBoardPromptFragment()}`;
 
 // ── Envelope helpers ─────────────────────────────────────────────────────────
 
@@ -141,39 +175,12 @@ export async function handleShipwrightClear(request: Request, env: Env): Promise
 
 // ── POST /v1/shipwright/chat ─────────────────────────────────────────────────
 
-interface ChatBody {
-  message?: string;
-  /** false ⇒ buffered JSON reply (tests / non-SSE clients). Default: stream. */
-  stream?: boolean;
-}
-
-/** Workers AI streaming SSE line shapes we accept (defensive across models). */
-function tokenOf(payload: string): string {
-  try {
-    const o = JSON.parse(payload) as {
-      response?: unknown;
-      choices?: Array<{ delta?: { content?: unknown } }>;
-    };
-    if (typeof o.response === 'string') return o.response;
-    const delta = o.choices?.[0]?.delta?.content;
-    return typeof delta === 'string' ? delta : '';
-  } catch {
-    return '';
-  }
-}
-
-/** Reconstruct the full assistant text from raw SSE wire text. */
-export function assembleSseText(raw: string): string {
-  let out = '';
-  for (const line of raw.split('\n')) {
-    const t = line.trim();
-    if (!t.startsWith('data:')) continue;
-    const payload = t.slice(5).trim();
-    if (!payload || payload === '[DONE]') continue;
-    out += tokenOf(payload);
-  }
-  return out;
-}
+/**
+ * Reconstructing assistant text from raw SSE wire text is the turn engine's
+ * job, not this surface's. Re-exported here because the page and the tests
+ * have always imported it from this module — one implementation, two names.
+ */
+export { assembleSseText } from './chat-engine.js';
 
 // ── YAML validation badge (shipwright-yaml-validate) ─────────────────────────
 
@@ -264,114 +271,243 @@ export function validateEmittedYaml(content: string): FleetValidationResult[] {
 }
 
 /**
- * One chat turn. The user message is persisted first (a failed generation
- * never eats operator input), then the model streams; a pass-through
- * TransformStream forwards the SSE bytes to the browser unchanged while
- * accumulating the text, and persists the assistant message on flush.
+ * The Shipwright as the shared turn engine sees it: a prompt, a store, a model
+ * id, and the one thing that is genuinely this surface's own — the roster
+ * verdict that rides the stream.
+ *
+ * Everything else — the session gate, the same-origin check, the message
+ * bound, the unconfigured-binding refusal, the DAILY SPEND CAP, the
+ * persist-before-call ordering and the SSE pass-through — belongs to
+ * chat-engine.ts and is shared byte-for-byte with every other chat surface.
+ * That is deliberate: this surface used to own a private copy of all of it,
+ * and a private copy is exactly how the relay ended up with a chat that could
+ * call a model with no per-user budget in front of it.
+ */
+export const shipwrightAgent: ChatAgent = {
+  id: 'shipwright',
+  systemPrompt: SHIPWRIGHT_SYSTEM_PROMPT,
+  model: shipwrightModel,
+  unconfiguredCode: 'SHIPWRIGHT_UNCONFIGURED',
+  unconfiguredError: 'no model binding is configured on this relay',
+  store: {
+    insert: (db, m) => insertShipwrightMessage(db, m),
+    list: (db, userId, limit) => listShipwrightMessages(db, userId, limit),
+    clear: (db, userId) => clearShipwrightChats(db, userId),
+  },
+  // The verdict is computed server-side from the deterministic parser, never
+  // asked of the model — a roster's validity is a fact, not a claim.
+  bufferedExtras: (reply) => ({ yaml: validateEmittedYaml(reply) }),
+  streamTrailer: (text) => {
+    // One final synthetic line, AFTER every real token and never blended into
+    // the persisted content, so it cannot be mistaken for the model's own
+    // words. The client recognizes the `pdYamlVerdict` marker and never treats
+    // it as a token (see shipwright-page.ts's pump()). Skipped entirely when
+    // the turn emitted no roster — no verdict line, no badge, nothing to lie
+    // about.
+    const verdicts = validateEmittedYaml(text);
+    if (verdicts.length === 0) return null;
+    return `data: ${JSON.stringify({ pdYamlVerdict: verdicts })}\n\n`;
+  },
+};
+
+/**
+ * One chat turn — delegated whole to {@link runChatTurn}. The user message is
+ * persisted after the spend cap clears and before the model call (a failed
+ * generation never eats operator input); the pass-through stream forwards the
+ * bytes unchanged and persists the assistant message on flush.
  */
 export async function handleShipwrightChat(request: Request, env: Env): Promise<Response> {
-  const session = await resolveSession(request, env);
-  if (!session) return json(401, { code: 'UNAUTHENTICATED', error: 'no session' });
-  if (!isSameOrigin(request, env)) return json(403, { code: 'CROSS_ORIGIN', error: 'cross-origin request refused' });
+  return runChatTurn(request, env, shipwrightAgent);
+}
 
-  const body = await readJson<ChatBody>(request);
-  const message = typeof body?.message === 'string' ? body.message.trim() : '';
-  if (!message) return json(400, { code: 'BAD_JSON', error: 'Request body must be JSON {message: string}' });
-  if (message.length > MAX_MESSAGE_CHARS) {
-    return json(400, { code: 'MESSAGE_TOO_LONG', error: `message exceeds ${MAX_MESSAGE_CHARS} chars` });
+// ── POST /v1/shipwright/open-pr (shipwright-pr-open) ─────────────────────────
+
+/** Upper bound on a submitted roster (D1 row size + GitHub content sanity). */
+export const MAX_YAML_CHARS = 64_000;
+
+/** Branch prefix for Shipwright-opened PRs — distinct from the control-plane prefix. */
+export const SHIPWRIGHT_BRANCH_PREFIX = 'shipwright-fleet-setup-';
+
+function generateShipwrightBranch(): string {
+  const date = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  const rand = Math.random().toString(36).slice(2, 8);
+  return `${SHIPWRIGHT_BRANCH_PREFIX}${date}-${rand}`;
+}
+
+/** `owner/name` — GitHub's own charset; rejects traversal and URL smuggling flat. */
+const REPO_RE = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
+
+/** Is this the page's plain-form dialect (vs the JSON API dialect)? */
+function isFormPost(request: Request): boolean {
+  return (request.headers.get('Content-Type') ?? '').includes('application/x-www-form-urlencoded');
+}
+
+function redirect303(location: string): Response {
+  return new Response(null, { status: 303, headers: { Location: location } });
+}
+
+interface OpenPrFields {
+  yaml: unknown;
+  installationId: unknown;
+  repo: unknown;
+}
+
+/** Read {yaml, installationId, repo} out of whichever dialect posted. */
+async function readOpenPrBody(request: Request, form: boolean): Promise<OpenPrFields | null> {
+  if (form) {
+    const params = new URLSearchParams(await request.text());
+    return {
+      yaml: params.get('yaml'),
+      installationId: params.get('installationId'),
+      repo: params.get('repo'),
+    };
   }
-  if (!env.AI) {
-    // Same honest idiom as BILLING_UNCONFIGURED: the relay deploys before the
-    // [ai] binding is provisioned; the feature says so instead of 500ing.
-    return json(503, { code: 'SHIPWRIGHT_UNCONFIGURED', error: 'Workers AI binding not configured' });
-  }
-  const ai = env.AI;
-  const db = env.DB;
-  const userId = session.user.id;
-  const now = Math.floor(Date.now() / 1000);
+  const body = await readJson<Record<string, unknown>>(request);
+  if (!body) return null;
+  return { yaml: body.yaml, installationId: body.installationId, repo: body.repo };
+}
 
-  await insertShipwrightMessage(db, { userId, role: 'user', content: message, now });
-
-  const history = await listShipwrightMessages(db, userId, HISTORY_WINDOW);
-  const messages = [
-    { role: 'system', content: SHIPWRIGHT_SYSTEM_PROMPT },
-    ...history.map((m) => ({ role: m.role, content: m.content })),
-  ];
-  const model = shipwrightModel(env) as Parameters<typeof ai.run>[0];
-
-  const persistReply = async (content: string): Promise<void> => {
-    const trimmed = content.trim();
-    if (!trimmed) return;
-    await insertShipwrightMessage(db, {
-      userId,
-      role: 'assistant',
-      content: trimmed,
-      now: Math.floor(Date.now() / 1000),
-    });
+/**
+ * Open a PR carrying a validated pd-fleet.yml into the signed-in user's OWN
+ * repository. This is the Shipwright's one write into the world, and it goes
+ * through {@link commitFilesAndOpenPr} — the same zero-trust mutation core as
+ * the fleet control-plane — so "fresh branch + PR, review is the gate" holds
+ * here by construction, not by promise.
+ *
+ * The click that fires this IS the product feature (a user-initiated action),
+ * not an approval gate: no new permission-ask machinery exists or should
+ * (ADR-0109 / D11). What replaces asking is checking:
+ *   - the server re-runs `validateFleetYaml` on the submitted bytes — a client
+ *     that lies about validation gets a 400, unconditionally;
+ *   - the YAML must be a block the Shipwright actually emitted in this user's
+ *     own stored conversation (provenance — and the PR body says so);
+ *   - `userOwnsInstallation` plus the App-JWT repo→installation binding make
+ *     the tenancy boundary GitHub's own answer: session A can never target
+ *     session B's installation, or any repo outside the chosen installation.
+ *
+ * Dialects: JSON (`{yaml, installationId, repo}`) answers JSON; the page's
+ * script-free form POST answers 303 — to the created PR on success, back to
+ * /account/shipwright?notice=<code> on failure (the billing form idiom).
+ */
+export async function handleShipwrightOpenPr(request: Request, env: Env): Promise<Response> {
+  const form = isFormPost(request);
+  const fail = (status: number, code: string, error: string): Response => {
+    if (!form) return json(status, { code, error });
+    if (code === 'UNAUTHENTICATED') return redirect303('/login');
+    return redirect303(`/account/shipwright?notice=${encodeURIComponent(code.toLowerCase())}`);
   };
 
-  // Buffered mode — one JSON envelope, no SSE.
-  if (body?.stream === false) {
-    try {
-      const res = (await ai.run(model, {
-        messages,
-        max_tokens: CHAT_MAX_TOKENS,
-      })) as { response?: string };
-      const reply = (res.response ?? '').trim();
-      await persistReply(reply);
-      return json(200, { code: 'OK', error: null, reply, yaml: validateEmittedYaml(reply) });
-    } catch (e) {
-      return json(500, { code: 'AI_ERROR', error: `Workers AI request failed: ${publicError(e)}` });
-    }
+  const session = await resolveSession(request, env);
+  if (!session) return fail(401, 'UNAUTHENTICATED', 'no session');
+  if (!isSameOrigin(request, env)) return fail(403, 'CROSS_ORIGIN', 'cross-origin request refused');
+  if (!env.GITHUB_APP_ID || !env.GITHUB_APP_PRIVATE_KEY) {
+    // Same honest idiom as SHIPWRIGHT_UNCONFIGURED: a relay deployed before
+    // the GitHub App secrets are provisioned says so instead of 500ing.
+    return fail(503, 'PR_UNCONFIGURED', 'GitHub App not configured on this relay');
   }
 
-  // Streaming mode — pipe the Workers AI SSE stream straight through while
-  // accumulating the text; flush() runs after the last chunk is forwarded and
-  // persists the assistant message (the runtime keeps the request context
-  // alive while the response body is still streaming).
-  let upstream: ReadableStream<Uint8Array>;
+  const body = await readOpenPrBody(request, form);
+  if (!body) return fail(400, 'BAD_JSON', 'Request body must be JSON {yaml, installationId, repo}');
+
+  const yaml = typeof body.yaml === 'string' ? body.yaml.replace(/\s+$/, '') : '';
+  if (!yaml) return fail(400, 'BAD_REQUEST', 'yaml (non-empty string) required');
+  if (yaml.length > MAX_YAML_CHARS) {
+    return fail(400, 'BAD_REQUEST', `yaml exceeds ${MAX_YAML_CHARS} chars`);
+  }
+  const installationId = Number(body.installationId);
+  if (!Number.isInteger(installationId) || installationId <= 0) {
+    return fail(400, 'BAD_REQUEST', 'installationId (positive integer) required');
+  }
+  const repoFull = typeof body.repo === 'string' ? body.repo.trim() : '';
+  if (!REPO_RE.test(repoFull)) {
+    return fail(400, 'BAD_REQUEST', "repo must be 'owner/name'");
+  }
+  const [owner, repo] = repoFull.split('/') as [string, string];
+
+  // ── Gate 1: the server re-validates. The page's badge, the model's claim,
+  // and the client's say-so are all just claims; this is the fact.
+  let verdict: FleetValidationResult;
   try {
-    upstream = (await ai.run(model, {
-      messages,
-      max_tokens: CHAT_MAX_TOKENS,
-      stream: true,
-    })) as unknown as ReadableStream<Uint8Array>;
+    verdict = validateFleetYaml(yaml);
   } catch (e) {
-    return json(500, { code: 'AI_ERROR', error: `Workers AI request failed: ${publicError(e)}` });
+    return fail(400, 'INVALID_YAML', `validator error — treated as invalid: ${publicError(e)}`);
+  }
+  if (!verdict.valid) {
+    return fail(400, 'INVALID_YAML', verdict.message || 'the roster does not validate');
   }
 
-  const decoder = new TextDecoder();
-  const encoder = new TextEncoder();
-  let raw = '';
-  const tee = new TransformStream<Uint8Array, Uint8Array>({
-    transform(chunk, controller) {
-      raw += decoder.decode(chunk, { stream: true });
-      controller.enqueue(chunk);
-    },
-    async flush(controller) {
-      raw += decoder.decode();
-      const text = assembleSseText(raw);
-      await persistReply(text);
-      // The verdict rides the SAME SSE stream as one final synthetic line,
-      // after every real model token — never blended into `raw`/persisted
-      // content, so it can never be mistaken for the model's own words. The
-      // client recognizes the `pdYamlVerdict` marker and never treats it as
-      // a token (see shipwright-page.ts's pump()). Skipped entirely when the
-      // turn emitted no roster — no verdict line, no badge, nothing to lie
-      // about.
-      const verdicts = validateEmittedYaml(text);
-      if (verdicts.length > 0) {
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ pdYamlVerdict: verdicts })}\n\n`));
-      }
-    },
-  });
+  // ── Gate 2: provenance. The YAML must be a fenced block the Shipwright
+  // actually emitted in THIS user's own stored conversation — the PR body's
+  // provenance line is then true, and this route can never be used as a
+  // generic write-anything-to-github primitive.
+  const history = await listShipwrightMessages(env.DB, session.user.id, HISTORY_WINDOW);
+  const fromChat = history.some(
+    (m) => m.role === 'assistant' && extractFencedYamlBlocks(m.content).some((b) => b === yaml),
+  );
+  if (!fromChat) {
+    return fail(400, 'NOT_FROM_CHAT', 'that roster is not one the Shipwright emitted in your conversation');
+  }
 
-  return new Response(upstream.pipeThrough(tee), {
-    status: 200,
-    headers: {
-      'Content-Type': 'text/event-stream; charset=utf-8',
-      'Cache-Control': 'no-store',
-      'X-Accel-Buffering': 'no',
-    },
-  });
+  // ── Gate 3: tenancy (the billing idiom, ADR-0116). GitHub's own answer
+  // decides ownership of the installation, and the App JWT decides which
+  // installation serves the repo — both must agree before anything writes.
+  if (!(await userOwnsInstallation(env, session, installationId))) {
+    return fail(403, 'FORBIDDEN', 'you do not own this installation');
+  }
+  let boundInstallation: number;
+  try {
+    boundInstallation = await getRepoInstallationId(
+      env.GITHUB_APP_ID,
+      env.GITHUB_APP_PRIVATE_KEY,
+      owner,
+      repo,
+      env.KV,
+    );
+  } catch {
+    return fail(403, 'REPO_NOT_INSTALLED', `the Port Daddy Fleet GitHub App is not installed on ${repoFull}`);
+  }
+  if (boundInstallation !== installationId) {
+    return fail(403, 'REPO_NOT_INSTALLED', `${repoFull} does not belong to installation ${installationId}`);
+  }
+
+  // ── The write: fresh branch + PR via the ONE mutation core. Review/merge
+  // stays the gate; nothing here (or anywhere) pushes to an existing branch.
+  try {
+    const token = await getInstallationTokenCached(
+      env.GITHUB_APP_ID,
+      env.GITHUB_APP_PRIVATE_KEY,
+      installationId,
+      env.KV,
+    );
+    const baseBranch = await getRepoDefaultBranch(owner, repo, token);
+    const branchName = generateShipwrightBranch();
+    const when = new Date().toISOString().slice(0, 16).replace('T', ' ') + ' UTC';
+    const shipNames = verdict.ships.map((sh) => `\`${sh.name}\``).join(', ');
+    const prBody = [
+      'Fleet roster drafted in a **Port Daddy Shipwright** conversation.',
+      '',
+      `**Provenance:** designed with GitHub user \`@${session.user.login}\` in their own`,
+      `Shipwright chat and opened at their click on ${when}. The YAML was re-validated`,
+      `server-side before this PR existed: ${verdict.ships.length} ship(s) parse clean (${shipNames}).`,
+      '',
+      'Zero-trust: this PR adds a fresh branch only. The fleet reads config from',
+      `\`${baseBranch}\`, so nothing takes effect until you review and merge. The`,
+      'Shipwright cannot push to existing branches and cannot merge — that part is yours.',
+    ].join('\n');
+    const prUrl = await commitFilesAndOpenPr({
+      owner,
+      repo,
+      baseBranch,
+      branchName,
+      files: { 'pd-fleet.yml': yaml + '\n' },
+      commitMessage: 'fleet: add pd-fleet.yml drafted by the Port Daddy Shipwright',
+      prTitle: 'Add pd-fleet.yml — fleet roster drafted by the Port Daddy Shipwright',
+      prBody,
+      token,
+    });
+    if (form) return redirect303(prUrl);
+    return json(200, { code: 'OK_PR_CREATED', error: null, prUrl, branch: branchName });
+  } catch (e) {
+    return fail(502, 'GITHUB_ERROR', `GitHub API save failed: ${publicError(e)}`);
+  }
 }

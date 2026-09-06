@@ -1,5 +1,21 @@
+# RETIRED-BY: ADR-0126
+# ============================================================================
+# RETIRED — superseded, kept as history.
+#
+# The critical path this graph encodes is dead as a plan: it runs
+# XVIII -> I -> XVII -> II/III, and Part XVII (the daemon sync protocol) was
+# rejected by ADR-0049's non-goals. A critical path through a rejected node
+# orders nothing.
+#
+# The surviving fragment is ADR-0115 (replication classes, sync spine,
+# co-signed PairingReceipt), which absorbed what Part XVII got right.
+#
+# Authority: docs/adr/0126-shared-harbors-resequencing.md, Formal supersessions.
+# Retained deliberately (demote by default, delete only a merged twin).
+# ============================================================================
+
 # Port Daddy V4 Implementation DAG
-# Format: WinDAGs V3-compatible DAGDefinition
+# Format: Jury-rig V3-compatible DAGDefinition
 #
 # This file encodes the dependency graph for implementing V4.
 # Validate with: node scripts/validate-dag.js v4.dag.yaml
@@ -381,60 +397,69 @@ nodes:
 
   - id: part-xvii
     type: vague
-    name: "Distributed State & Sync Protocol"
+    name: "Remote Harbor via Relay Federation"
     plan_part: 17
     tier: 4
     version: "4.0"
     critical_path: true
     commitment_level: COMMITTED
-    loe: 1500
+    loe: 200
     role_description: >
-      WebSocket-based bidirectional sync between daemon pairs.
-      5-bucket Merkle hash comparison, msgpack mutation frames,
-      LWW + HLC conflict resolution. Most complex single module.
+      REDEFINED per ADR-0027 (Relay Harbor Mesh) and the "V4 Remote Harbor:
+      Redefinition" decision — this was originally scoped as distributed
+      state replication (WebSocket bidirectional sync, HLC, 5-bucket
+      Merkle, LWW conflict resolution; the description/sub_dag below through
+      2026-08 read as that original scope and were never migrated after the
+      ADR landed). The accepted decision: a harbor whose membership is
+      shared across daemons via out-of-band Ed25519 keypair exchange, with
+      pub/sub coordination (not state sync) provided by the PD Relay under
+      harbor-fingerprint namespacing. Session state (sessions, notes,
+      locks, agents) stays local per daemon — that's a privacy feature,
+      not a gap. Most of this is already shipped: apps/relay/src/harbors.ts
+      (harbor create/join/membership, ADR-0049 X2 slice),
+      apps/relay/src/harbor-channel.ts (per-harbor-channel Durable Object:
+      SSE fan-out, revocation broadcast, rate limiting — ships with zero
+      direct test coverage as of 2026-08, a real gap), and
+      apps/relay/src/harbor-quota.ts (per-harbor daily quota). The loe:200
+      remaining is the daemon-side `pd harbor share` / `pd harbor join`
+      keypair-exchange CLI verbs (cli/commands/harbors.ts currently only
+      has create/enter/leave/show/destroy — no share/join) plus operator
+      docs for cross-device harbor sharing. No HLC. No Merkle diffing. No
+      LWW/CRDT conflict resolution — those are explicitly rejected, not
+      deferred.
     dependency_list: [part-xviii]
-    estimated_expansion_depth: 8
+    estimated_expansion_depth: 6
     sub_dag:
       - id: part-xvii.1
-        name: "Hybrid Logical Clock (lib/hlc.ts)"
+        name: "pd harbor share / pd harbor join — keypair export/import CLI (remaining gap)"
         depends_on: []
         loe: 100
       - id: part-xvii.2
-        name: "Merkle hash buckets (5 categories)"
-        depends_on: [part-xvii.1]
-        loe: 250
+        name: "Relay harbor-fingerprint namespacing + membership (shipped: apps/relay/src/harbors.ts)"
+        depends_on: []
+        loe: 0
       - id: part-xvii.3
-        name: "WebSocket transport + msgpack codec"
-        depends_on: [part-xvii.2]
-        loe: 300
+        name: "Per-(harbor,channel) SSE fan-out Durable Object (shipped: apps/relay/src/harbor-channel.ts; untested)"
+        depends_on: []
+        loe: 0
       - id: part-xvii.4
-        name: "Conflict resolver (LWW, CRDT modes)"
-        depends_on: [part-xvii.2]
-        loe: 300
+        name: "Per-harbor daily quota + rate limiting (shipped: apps/relay/src/harbor-quota.ts)"
+        depends_on: []
+        loe: 0
       - id: part-xvii.5
-        name: "Sync state machine (CONNECTING→STREAMING)"
-        depends_on: [part-xvii.3, part-xvii.4]
-        loe: 250
-      - id: part-xvii.6
-        name: "Partition detection & reconciliation"
-        depends_on: [part-xvii.5]
-        loe: 150
-      - id: part-xvii.7
-        name: "Trust-tier filtering (Part XII integration)"
-        depends_on: [part-xvii.6]
+        name: "Direct test coverage for harbor-channel.ts (remaining gap — SSE fan-out/revocation/rate-limit untested)"
+        depends_on: [part-xvii.2]
         loe: 100
-      - id: part-xvii.8
-        name: "Integration tests (two-daemon sync)"
-        depends_on: [part-xvii.5]
-        loe: 200
+      - id: part-xvii.6
+        name: "Operator docs: cross-device harbor sharing walkthrough (remaining gap)"
+        depends_on: [part-xvii.1]
+        loe: 0
     produces:
-      - lib/hlc.ts
-      - lib/sync-protocol.ts
-      - lib/conflict-resolver.ts
-      - tests/unit/hlc.test.js
-      - tests/unit/sync-protocol.test.js
-      - tests/unit/conflict-resolver.test.js
-      - tests/integration/partition.test.js
+      - apps/relay/src/harbors.ts
+      - apps/relay/src/harbor-channel.ts
+      - apps/relay/src/harbor-quota.ts
+      - cli/commands/harbors.ts (share/join verbs — not yet added)
+      - tests/unit/routes-harbors.test.js
     soft_deps: [part-i, part-xiii, part-xv]
 
   - id: part-xii
@@ -865,7 +890,7 @@ edges:
     to: part-xii
     type: data-flow
     protocol: hard
-    description: "Merkle hash must be trust-tier-aware"
+    description: "Relay channel visibility must be trust-tier-aware (harbor-card capability scoping under ADR-0027, not Merkle branch filtering — redefined 2026-08)"
 
   - from: part-i
     to: part-ii-iii
@@ -877,7 +902,7 @@ edges:
     to: part-ii-iii
     type: data-flow
     protocol: hard
-    description: "Sync protocol for bidirectional state sync"
+    description: "Relay-joined agents remain bound by local harbor envelope enforcement (ADR-0047) — not bidirectional state sync, which was rejected (redefined 2026-08)"
 
   - from: part-xviii
     to: part-ii-iii
@@ -920,7 +945,7 @@ edges:
     to: part-ix
     type: data-flow
     protocol: hard
-    description: "Dashboard needs sync status API"
+    description: "Dashboard needs relay channel/presence status API (not a two-daemon sync status — redefined 2026-08)"
 
   - from: part-i
     to: part-xxvii
@@ -988,13 +1013,13 @@ edges:
     to: part-xiii
     type: data-flow
     protocol: soft
-    description: "HLC columns in harbor_kv (nullable V4.0)"
+    description: "STALE (redefined 2026-08): HLC is rejected, not deferred, per ADR-0027 — no nullable HLC columns will exist. No replacement coupling to harbor_kv verified yet; candidate for edge removal on next DAG pass."
 
   - from: part-xvii
     to: part-xv
     type: data-flow
     protocol: soft
-    description: "HLC columns in pheromones (nullable V4.0)"
+    description: "STALE (redefined 2026-08): HLC is rejected, not deferred, per ADR-0027 — no nullable HLC columns will exist. No replacement coupling to pheromones verified yet; candidate for edge removal on next DAG pass."
 
   - from: part-xii
     to: part-ii-iii

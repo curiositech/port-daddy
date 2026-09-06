@@ -1,55 +1,48 @@
-% Figure 9 — the five built read-surfaces, each a token-compaction producing a
-% reader-specific digest. The swarm's coordination layer IS a distributed
-% compaction engine.
-% Design: each surface is a name + what it answers; the compaction mechanism
-% per surface lives in the caption.
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-
+% Figure 12 — five addressable projections over one raw event spine. Selection
+% masks, not prose cells, make reader-specific compaction visible.
 \begin{figure}[H]
 \centering
-\resizebox{0.92\textwidth}{!}{%
-\begin{tikzpicture}[
-  font=\small,
-  raw/.style={draw=hhebony,thick,rounded corners=2pt,fill=hhsand!30,align=center,
-              inner sep=5pt,font=\footnotesize,text width=30mm},
-  prim/.style={draw=hhebony,thick,rounded corners=3pt,fill=hhpaper,align=center,
-               inner sep=4pt,font=\footnotesize,text width=36mm,minimum height=12mm},
-  rdr/.style={draw=hhink,thick,rounded corners=2pt,fill=hhsand!30,align=center,
-              inner sep=4pt,font=\footnotesize,text width=26mm},
-  e/.style={-{Latex[length=1.8mm]},thick,hhink},
-]
-\node[raw] (raw) at (0,0) {raw token\\trajectory\\(transcripts,\\diffs, events)};
+\begin{tikzpicture}[pd figure,x=.96cm,y=1cm]
+  \foreach \y/\surface/\reader in {
+    5.15/briefing/arriving agent,
+    4.15/attention/operator,
+    3.15/episodic memory/future self,
+    2.15/pheromone/peer agents,
+    1.15/resurrection/successor}{
+    \node[pd panel title,anchor=east] at (2.55,\y) {\surface};
+    \node[pd axis label,anchor=west] at (13.85,\y) {\reader};
+    \draw[pd hairline] (2.85,\y)--(13.55,\y);
+  }
 
-\node[prim] (br)  at (5.4,3.2) {\textbf{Briefing}\\\emph{state on arrival}};
-\node[prim] (at)  at (5.4,1.6) {\textbf{Attention}\\\emph{what to look at now}};
-\node[prim] (ep)  at (5.4,0.0) {\textbf{Episodic memory}\\\emph{what happened before}};
-\node[prim] (ph)  at (5.4,-1.6){\textbf{Pheromone}\\\emph{the shared trace map}};
-\node[prim] (re)  at (5.4,-3.2){\textbf{Resurrection}\\\emph{notes, not checkpoints}};
+  % Raw event spine and stable addresses.
+  \draw[pd rule,line width=1.05pt] (2.85,.15)--(13.55,.15);
+  \node[pd panel title,anchor=east] at (2.55,.15) {raw ledger};
+  \foreach \x/\n in {3.15/1,4.05/2,4.95/3,5.85/4,6.75/5,7.65/6,8.55/7,9.45/8,10.35/9,11.25/10,12.15/11,13.05/12}{
+    \node[pd datum] at (\x,.15) {};
+    \node[pd axis label,anchor=north] at (\x,-.05) {$e_{\n}$};
+    \draw[pd guide] (\x,.38)--(\x,5.42);
+  }
 
-\node[rdr] (r1) at (10.4,3.2) {arriving agent};
-\node[rdr] (r2) at (10.4,1.6) {agent / operator queue};
-\node[rdr] (r3) at (10.4,0.0) {future self / successor};
-\node[rdr] (r4) at (10.4,-1.6){the swarm (stigmergic)};
-\node[rdr] (r5) at (10.4,-3.2){successor agent};
+  % Each surface selects a different trace while retaining exact coordinates.
+  \foreach \x in {9.45,10.35,11.25,12.15,13.05}{\node[pd focus datum] at (\x,5.15) {};}
+  \draw[pd focus rule] (9.45,5.15)--(13.05,5.15);
+  \foreach \x in {5.85,11.25}{\node[pd caution datum] at (\x,4.15) {};}
+  \foreach \x in {4.05,4.95,5.85,6.75}{\node[pd focus datum] at (\x,3.15) {};}
+  \draw[pd focus rule] (4.05,3.15)--(6.75,3.15);
+  \foreach \x/\s in {8.55/1.6,9.45/2.0,10.35/2.4,11.25/2.8,12.15/3.2,13.05/3.6}{
+    \node[circle,fill=hhteal,draw=none,inner sep=\s pt] at (\x,2.15) {};
+  }
+  \foreach \x in {6.75,7.65,8.55,9.45}{\node[pd focus datum] at (\x,1.15) {};}
+  \draw[pd focus arrow] (6.75,1.15)--(9.45,1.15);
 
-\foreach \p in {br,at,ep,ph,re}{ \draw[e] (raw) -- (\p); }
-\draw[e] (br)--(r1); \draw[e] (at)--(r2); \draw[e] (ep)--(r3);
-\draw[e] (ph)--(r4); \draw[e] (re)--(r5);
-\end{tikzpicture}%
-}
-\caption{Five read-surfaces, each a token-compaction of the raw trajectory produced
-for a specific reader (\S\ref{sec:tokens-digest}): briefing is external note-taking,
-attention is precision compaction, episodic memory is recall-then-precision,
-pheromone is time-decay (forgetting), resurrection is a handoff summary. Viewed
-correctly, the swarm's coordination layer is a \emph{distributed compaction engine}
---- and because each surface is a compaction, each is governed by the same
-cost-and-legibility economics, the same recency-decay (Prop.~\ref{prop:decay}), and
-the same one law (Def.~\ref{def:zoom}).}
+  \node[pd note,anchor=west] at (3.05,5.72)
+    {same substrate; five readers; every selected mark retains its ledger address};
+\end{tikzpicture}
+\caption{Five reader-specific projections over one durable event spine.
+Briefing samples the recent tail; attention selects sparse hazardous events;
+episodic memory retains a prior episode; pheromone expresses a decaying live
+trace; resurrection preserves an ordered continuation chain. Compaction changes
+the selection mask, not the addressability of the underlying claims, notes,
+diffs, episodes, and events.}
 \label{fig:read-surfaces}
 \end{figure}

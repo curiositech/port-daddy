@@ -1,4 +1,5 @@
 import './App.css'
+import { LibraryBanner } from '@/components/landing/LibraryBanner'
 import { Hero } from '@/components/landing/Hero'
 import { ScopeLadderSection } from '@/components/landing/ScopeLadderSection'
 import { CliBackendValueProp } from '@/components/landing/CliBackendValueProp'
@@ -23,7 +24,12 @@ export default function App() {
           followed by its own fan-out follow-on deep dive; two back-to-back
           "install Port Daddy" CTAs with duplicate brew instructions). This
           order scans in one or two screens of intent, with depth reachable
-          by link instead of by scroll:
+          by link instead of by scroll. LibraryBanner (2026-08-27 add) sits
+          outside this numbering on purpose — it's a thin signage strip
+          below the nav, not a content section, naming and linking the two
+          seven-part collections (the Volume, the Proofs) that neither the
+          home page nor — until the 2026-08-26 /library fix — the library
+          page itself ever distinguished by name:
             1. Hero                    — what is this, why should I care
             2. ScopeLadderSection      — the one-idea-four-scales framing,
                                          links to the Harbor Library for
@@ -73,6 +79,7 @@ export default function App() {
           directory (ColdStartSection, DemoGallery, HowItWorks, and others
           predate this pass and were never wired into App.tsx either).
         */}
+        <LibraryBanner />
         <Hero />
         <ScopeLadderSection />
         <CliBackendValueProp />

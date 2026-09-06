@@ -48,7 +48,7 @@ This model is deliberately strong (makes few assumptions) to make the impossibil
 
 ## Why This Matters for Agent Systems
 
-Modern AI agent orchestration systems like WinDAGs face exactly this problem. When multiple agents must coordinate to solve a complex problem:
+Modern AI agent orchestration systems like Jury-rig face exactly this problem. When multiple agents must coordinate to solve a complex problem:
 
 - **You cannot assume agents complete tasks in bounded time**: An agent performing code analysis might take seconds or hours depending on codebase size.
 - **You cannot distinguish hung agents from slow agents**: Is the agent that's been analyzing a security vulnerability for 10 minutes stuck, or just being thorough?

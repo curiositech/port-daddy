@@ -69,9 +69,19 @@ describe('loadManifest', () => {
   test('the real repo release-artifacts.json parses and declares the #3496 cargo', () => {
     const real = loadManifest(resolveManifestPath());
     const ids = real.artifacts.map((a) => a.id);
-    // The silent-failure class this system closes: watchdog + tentacles.
-    for (const id of ['pd', 'port-daddy', 'pd-bosun', 'pd-hook-prompt', 'pd-hook-pre-tool', 'pd-hook-post-tool', 'sessionstart-pilot']) {
+    // The silent-failure class this system closes: tentacles + hooks + the
+    // pkgshare payloads (`pd setup`'s skill + Pilot sources). pd-bosun left the
+    // cargo with the 3.28 single-supervisor cutover — the tap formula's tarball
+    // gate now REJECTS a >=3.28.0 tarball that carries it, so asserting its
+    // presence here would ship a brew-breaking release.
+    for (const id of ['pd', 'port-daddy', 'pd-hook-prompt', 'pd-hook-precompact', 'pd-hook-pre-tool', 'pd-hook-post-tool', 'pd-hook-stop', 'sessionstart-pilot', 'agent-skill', 'pilot-agent']) {
       expect(ids).toContain(id);
+    }
+    expect(ids).not.toContain('pd-bosun');
+    // Tentacles ship ONLY under bin/ — a flat top-level stagedPath would fail
+    // the formula's tarball-entry hash.
+    for (const a of real.artifacts) {
+      if (a.id.startsWith('pd-hook-')) expect(a.stagedPath).toBe(`bin/${a.id}`);
     }
   });
 
@@ -350,5 +360,84 @@ describe('handleBatten imprint — fail-loud CLI contract', () => {
     expect(record.missingRequired.sort()).toEqual(['hook', 'manifest', 'pd']);
     stdout.mockRestore();
     stderr.mockRestore();
+  });
+});
+
+// The Homebrew tap's release-evidence verifier compares imprint.sourceCommit
+// against the candidate commit it is asked to roll and refuses the formula
+// update on a mismatch. It was never emitted, so v3.28.0 built, signed,
+// notarized and published GREEN, then failed in the tap with "sourceCommit
+// does not match candidate" — leaving every brew user on 3.27.0. Pin it.
+describe('imprintArtifacts — sourceCommit (the tap release-evidence contract)', () => {
+  let staged;
+  const oneArtifact = {
+    version: 1,
+    artifacts: [{ id: 'pd', stagedPath: 'pd', required: true, executable: true, minBytes: 1 }],
+  };
+  beforeEach(() => {
+    staged = mkdtempSync(join(DURABLE_SCRATCH, 'pd-batten-commit-'));
+    writeExec(join(staged, 'pd'), '#!/bin/sh\necho hi\n');
+  });
+  afterEach(() => {
+    rmSync(staged, { recursive: true, force: true });
+  });
+
+  test('records a full lowercase commit sha', () => {
+    const record = imprintArtifacts(oneArtifact, staged);
+    expect(record).toHaveProperty('sourceCommit');
+    expect(record.sourceCommit).toMatch(/^[0-9a-f]{40}$/);
+  });
+
+  // The tap's verify-port-daddy-release-evidence.py requires FOUR things of an
+  // imprint: sourceCommit === candidate, releaseVersion === tag,
+  // missingRequired === [], and exactly one sealed `archives` entry for the
+  // uploaded tarball whose sha256/bytes match the file on disk. Emitting three
+  // of four is a failed roll — v3.28.0 died on sourceCommit and v3.28.1 on
+  // releaseVersion, each a separate published-but-unrollable release. Pin all
+  // four together so the next gap fails here, not in another repo.
+  test('seals the full evidence the tap verifier requires', () => {
+    const archive = join(staged, 'pd-darwin-arm64.tar.gz');
+    writeFileSync(archive, 'tarball-bytes-here');
+    const record = imprintArtifacts(oneArtifact, staged, {
+      releaseVersion: 'v9.9.9',
+      archives: ['pd-darwin-arm64.tar.gz'],
+    });
+    expect(record.releaseVersion).toBe('v9.9.9');
+    expect(record.missingRequired).toEqual([]);
+    expect(record.archives).toHaveLength(1);
+    const [sealed] = record.archives;
+    expect(sealed.name).toBe('pd-darwin-arm64.tar.gz');
+    expect(sealed.bytes).toBe(readFileSync(archive).length);
+    expect(sealed.sha256).toBe(
+      createHash('sha256').update(readFileSync(archive)).digest('hex'),
+    );
+  });
+
+  test('releaseVersion is null — not a guess — when the tag is not supplied', () => {
+    const record = imprintArtifacts(oneArtifact, staged);
+    expect(record.releaseVersion).toBeNull();
+    expect(record.archives).toEqual([]);
+  });
+
+  test('prefers GITHUB_SHA — the commit the tag build actually ships', () => {
+    const prev = process.env.GITHUB_SHA;
+    process.env.GITHUB_SHA = 'a'.repeat(40);
+    try {
+      expect(imprintArtifacts(oneArtifact, staged).sourceCommit).toBe('a'.repeat(40));
+    } finally {
+      if (prev === undefined) delete process.env.GITHUB_SHA;
+      else process.env.GITHUB_SHA = prev;
+    }
+  });
+
+  test('ignores a malformed GITHUB_SHA rather than emitting junk evidence', () => {
+    const prev = process.env.GITHUB_SHA;
+    process.env.GITHUB_SHA = 'not-a-sha';
+    try {
+      expect(imprintArtifacts(oneArtifact, staged).sourceCommit).toMatch(/^[0-9a-f]{40}$/);
+    } finally {
+      if (prev === undefined) delete process.env.GITHUB_SHA;
+      else process.env.GITHUB_SHA = prev;
+    }
   });
 });

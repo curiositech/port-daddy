@@ -133,6 +133,9 @@ export interface BranchCommitResult {
   created: boolean;
 }
 
+/** Optional fail-closed proof run immediately before each GitHub mutation. */
+export type GitHubMutationGuard = (boundary: string) => Promise<void>;
+
 /**
  * Create (or force-update) `branchName` to a single commit on top of `fromSha`
  * containing exactly `files`, via blobs → tree → commit → ref. If the ref
@@ -150,6 +153,7 @@ export async function createOrUpdateBranch(
   files: StackedFile[],
   message: string,
   token: string,
+  mutationGuard: GitHubMutationGuard = async () => {},
 ): Promise<BranchCommitResult> {
   const v = validateStackedFiles(files);
   if (!v.ok) throw new Error(`createOrUpdateBranch refused: ${v.reason}`);
@@ -167,6 +171,7 @@ export async function createOrUpdateBranch(
   // 2. One blob per file.
   const treeEntries: Array<{ path: string; mode: string; type: string; sha: string }> = [];
   for (const f of files) {
+    await mutationGuard(`before create blob ${f.path}`);
     const blob = await ghJson<{ sha: string }>(
       `${base}/git/blobs`,
       { method: 'POST', body: JSON.stringify({ content: f.contents, encoding: 'utf-8' }) },
@@ -177,6 +182,7 @@ export async function createOrUpdateBranch(
   }
 
   // 3. Tree on top of the base tree.
+  await mutationGuard(`before create tree for ${branchName}`);
   const tree = await ghJson<{ sha: string }>(
     `${base}/git/trees`,
     { method: 'POST', body: JSON.stringify({ base_tree: baseCommit.tree.sha, tree: treeEntries }) },
@@ -185,6 +191,7 @@ export async function createOrUpdateBranch(
   );
 
   // 4. Commit with the base as sole parent.
+  await mutationGuard(`before create commit for ${branchName}`);
   const commit = await ghJson<{ sha: string }>(
     `${base}/git/commits`,
     { method: 'POST', body: JSON.stringify({ message, tree: tree.sha, parents: [fromSha] }) },
@@ -193,6 +200,7 @@ export async function createOrUpdateBranch(
   );
 
   // 5. Ref: create, or force-update when it already exists (idempotent retry).
+  await mutationGuard(`before create ref ${branchName}`);
   const createRes = await fetch(`${base}/git/refs`, {
     method: 'POST',
     headers: ghHeaders(token),
@@ -202,6 +210,7 @@ export async function createOrUpdateBranch(
 
   if (createRes.status === 422) {
     // "Reference already exists" — force-move it to the fresh commit.
+    await mutationGuard(`before force-update ref ${branchName}`);
     await ghJson(
       `${base}/git/refs/heads/${branchName}`,
       { method: 'PATCH', body: JSON.stringify({ sha: commit.sha, force: true }) },
@@ -240,6 +249,7 @@ export async function openStackedPr(
   body: string,
   labels: string[],
   token: string,
+  mutationGuard: GitHubMutationGuard = async () => {},
 ): Promise<StackedPrResult> {
   const apiBase = `https://api.github.com/repos/${owner}/${repo}`;
 
@@ -255,6 +265,7 @@ export async function openStackedPr(
   const match = existing.find(p => p.head?.ref === head);
   if (match) {
     // Refresh title/body in place; best-effort (staleness is not worth a throw).
+    await mutationGuard(`before refresh stacked PR #${match.number}`);
     await fetch(`${apiBase}/pulls/${match.number}`, {
       method: 'PATCH',
       headers: ghHeaders(token),
@@ -263,6 +274,7 @@ export async function openStackedPr(
     return { number: match.number, url: match.html_url, existed: true };
   }
 
+  await mutationGuard(`before create stacked PR from ${head}`);
   const created = await ghJson<{ number: number; html_url: string }>(
     `${apiBase}/pulls`,
     { method: 'POST', body: JSON.stringify({ title, head, base, body }) },
@@ -271,6 +283,7 @@ export async function openStackedPr(
   );
 
   if (labels.length > 0) {
+    await mutationGuard(`before label stacked PR #${created.number}`);
     await fetch(`${apiBase}/issues/${created.number}/labels`, {
       method: 'POST',
       headers: ghHeaders(token),
@@ -293,7 +306,9 @@ export async function retargetPrBase(
   prNumber: number,
   newBase: string,
   token: string,
+  mutationGuard: GitHubMutationGuard = async () => {},
 ): Promise<void> {
+  await mutationGuard(`before retarget PR #${prNumber} base`);
   await ghJson(
     `https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}`,
     { method: 'PATCH', body: JSON.stringify({ base: newBase }) },
@@ -367,6 +382,97 @@ export async function readBranchFiles(
     files.push({ path, contents: new TextDecoder().decode(bytes) });
   }
   return files.length === paths.length ? files : null;
+}
+
+/**
+ * Fetch a single file's raw text content from a ref, or null when missing, not a
+ * file, or the fetch itself failed.
+ *
+ * Its purpose is to read the target repo's OWN
+ * test-discovery config (jest testMatch) so the purser can verify its authored
+ * tests actually live somewhere the real runner will find them, instead of
+ * trusting only pd-fleet.yml's operator-declared `testPaths`. Any failure mode
+ * (404, network, malformed response) collapses to null — the caller's contract
+ * is "null means unknown, treat as a rejection", never "null means no file so
+ * skip the check".
+ *
+ * @param owner repository owner (org or user) of the target repo
+ * @param repo repository name of the target repo
+ * @param path repo-relative POSIX path to read, e.g. `jest.config.js`
+ * @param ref the ref to read at — the PR's BASE sha, so the content is the
+ *            trusted pre-merge state rather than anything the PR proposes
+ * @param token an installation token authorised for that repo
+ * @returns the file's decoded UTF-8 text, or null for every failure and
+ *          not-a-file case (the caller must treat null as unverifiable)
+ */
+export async function fetchRepoFileText(
+  owner: string,
+  repo: string,
+  path: string,
+  ref: string,
+  token: string,
+): Promise<string | null> {
+  const base = `https://api.github.com/repos/${owner}/${repo}`;
+  let entry: { content?: string; encoding?: string; type?: string };
+  try {
+    entry = await ghJson(
+      `${base}/contents/${path.split('/').map(encodeURIComponent).join('/')}?ref=${encodeURIComponent(ref)}`,
+      { method: 'GET' },
+      token,
+      `read ${path}@${ref}`,
+    );
+  } catch {
+    return null;
+  }
+  if (entry.type !== 'file' || entry.encoding !== 'base64' || typeof entry.content !== 'string') return null;
+  const bin = atob(entry.content.replace(/\s/g, ''));
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new TextDecoder().decode(bytes);
+}
+
+/**
+ * Fetch the FULL set of file paths in the repo tree at `sha` (recursive).
+ *
+ * Its purpose is to verify a generated test file's relative imports actually
+ * resolve to something real instead of a module that does not exist. Null when the tree
+ * could not be fetched OR GitHub truncated it (`truncated: true`) — a
+ * truncated listing is worse than none, because a missing path could just be
+ * past the truncation boundary rather than genuinely absent, so callers must
+ * treat it as unknown, not as a clean miss.
+ *
+ * @param owner repository owner (org or user) of the target repo
+ * @param repo repository name of the target repo
+ * @param sha the tree-ish to list — the PR's BASE sha, so imports are checked
+ *            against the trusted pre-merge tree
+ * @param token an installation token authorised for that repo
+ * @returns a Set of every blob/tree path at that sha, or null when the request
+ *          failed, returned no tree, or GitHub truncated the listing
+ */
+export async function fetchRepoTreePaths(
+  owner: string,
+  repo: string,
+  sha: string,
+  token: string,
+): Promise<Set<string> | null> {
+  let res: { tree?: Array<{ path?: string; type?: string }>; truncated?: boolean };
+  try {
+    res = await ghJson(
+      `https://api.github.com/repos/${owner}/${repo}/git/trees/${encodeURIComponent(sha)}?recursive=1`,
+      { method: 'GET' },
+      token,
+      'get repo tree',
+    );
+  } catch {
+    return null;
+  }
+  if (res.truncated) return null;
+  if (!Array.isArray(res.tree)) return null;
+  const paths = new Set<string>();
+  for (const entry of res.tree) {
+    if (entry && typeof entry.path === 'string') paths.add(entry.path);
+  }
+  return paths;
 }
 
 /**

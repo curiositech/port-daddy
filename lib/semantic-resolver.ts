@@ -1,12 +1,18 @@
 import type Database from 'better-sqlite3';
-import { existsSync, mkdirSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { existsSync, mkdirSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
+import {
+  isBunCompiledRuntime,
+  isOnnxRuntimeNativeLibraryDir,
+  resolveOnnxRuntimeNativeLibraryDir,
+} from '../shared/daemon-binary.js';
 import { homedir } from 'node:os';
 import type { GraphEdges } from './graph-edges.js';
 import type { Counters } from './counters.js';
 import type { TupleSpace } from './tuples.js';
 import type { SemanticAlias } from './semantic-terms.js';
-import { createGatedLoader } from './observability/gated-loader.js';
+import { createGatedLoader, type GatedLoader } from './observability/gated-loader.js';
+import { localModelDownloadDisabledError } from './agent-resilience.js';
 import type { LogGovernor } from './observability/log-governor.js';
 
 /**
@@ -32,6 +38,116 @@ export function defaultTransformersCacheDir(): string {
     join(homedir(), '.port-daddy', 'transformers-cache')
   );
 }
+/**
+ * Name of the explicit opt-in switch for downloading embedding-model artifacts
+ * from huggingface.co at runtime.
+ *
+ * Why a named constant: the string is referenced from the resolver, the
+ * shipwright skill index, error messages, docs, and tests. A single exported
+ * constant keeps every surface agreeing on the exact spelling, following the
+ * repo's `PORT_DADDY_ALLOW_*=1` opt-in convention (`PORT_DADDY_ALLOW_SOURCE_DAEMON`,
+ * `PORT_DADDY_ALLOW_STABLE_FLEET`, ...).
+ */
+export const ALLOW_MODEL_DOWNLOAD_ENV = 'PORT_DADDY_ALLOW_MODEL_DOWNLOAD';
+
+/**
+ * Decide whether the runtime may reach huggingface.co to download embedding
+ * model artifacts.
+ *
+ * Design/motivation: Port Daddy's local-only mode asserts "uploads nothing,
+ * phones nobody" (ADR-0101 / the egress-assertion gate), but the semantic
+ * embedder historically set `env.allowRemoteModels = true` unconditionally,
+ * so the FIRST semantic operation on an uncached machine silently opened a
+ * connection to huggingface.co. The purpose of this predicate is to invert
+ * that default: no network unless the operator explicitly opted in with
+ * `PORT_DADDY_ALLOW_MODEL_DOWNLOAD=1`. The standard Hugging Face
+ * `TRANSFORMERS_OFFLINE` convention is honored as a hard veto — when it is
+ * set truthy, remote fetches stay disabled even if the opt-in is present,
+ * because an operator asserting offline-ness must always win.
+ *
+ * @param env Environment map to consult (injectable for tests; defaults to
+ *   `process.env`).
+ * @returns `true` only when the explicit opt-in is set AND the standard
+ *   `TRANSFORMERS_OFFLINE` veto is not; `false` in every default configuration.
+ */
+export function isRemoteModelDownloadAllowed(
+  env: Record<string, string | undefined> = process.env,
+): boolean {
+  const offline = (env.TRANSFORMERS_OFFLINE ?? '').trim().toLowerCase();
+  if (offline === '1' || offline === 'true' || offline === 'yes' || offline === 'on') return false;
+  return env[ALLOW_MODEL_DOWNLOAD_ENV]?.trim() === '1';
+}
+
+/**
+ * Check whether the embedding model's artifacts are already present in the
+ * shared transformers cache.
+ *
+ * Why this exists: reading an already-downloaded model from disk is not
+ * egress, so a locally cached model must keep working with no opt-in. This is
+ * the same "non-empty model directory" heuristic the install-time prefetch
+ * (`scripts/prefetch-embedding-model.ts`) uses to decide idempotence —
+ * exported from here so runtime and prefetch cannot drift on what "cached"
+ * means. transformers.js lays the model out as `<cacheDir>/<org>/<model>/...`.
+ *
+ * @param cacheDir The transformers cache root (see `defaultTransformersCacheDir`).
+ * @param modelId Hugging Face model id, e.g. `Xenova/all-MiniLM-L6-v2`.
+ * @returns `true` when the model's cache directory exists and is non-empty.
+ */
+export function isEmbeddingModelCached(cacheDir: string, modelId: string): boolean {
+  const modelDir = join(cacheDir, ...modelId.split('/'));
+  try {
+    return existsSync(modelDir) && readdirSync(modelDir).length > 0;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The egress decision an embedder loader must make before touching
+ * `@huggingface/transformers`.
+ *
+ * - `remote-allowed`: the operator explicitly opted in; a download may occur.
+ * - `local-cache-only`: no opt-in, but the model is cached — load from disk,
+ *   with remote fetches disabled as a belt-and-braces guarantee.
+ * - `unavailable`: no opt-in and no cache — the loader must fail fast WITHOUT
+ *   any network attempt so callers degrade to the lexical path.
+ */
+export interface RemoteModelPolicy {
+  allowRemote: boolean;
+  cached: boolean;
+  mode: 'remote-allowed' | 'local-cache-only' | 'unavailable';
+}
+
+/**
+ * Combine the opt-in predicate and the cache probe into the single policy the
+ * embedder loaders act on.
+ *
+ * Design intent: the decision is deliberately a pure, exported function —
+ * separate from the loader that enforces it — so tests can prove the full
+ * opt-in × cached behavior matrix without ever importing the heavy
+ * transformers module or reaching the network, and so every embedder loader
+ * (the semantic resolver's and the shipwright skill index's) enforces the
+ * exact same rule instead of each hand-rolling its own egress logic.
+ *
+ * @param cacheDir The transformers cache root to probe.
+ * @param modelId Hugging Face model id to look for in the cache.
+ * @param env Environment map to consult (injectable for tests).
+ * @returns The resolved {@link RemoteModelPolicy} for this load attempt.
+ */
+export function resolveRemoteModelPolicy(
+  cacheDir: string,
+  modelId: string,
+  env: Record<string, string | undefined> = process.env,
+): RemoteModelPolicy {
+  const allowRemote = isRemoteModelDownloadAllowed(env);
+  const cached = isEmbeddingModelCached(cacheDir, modelId);
+  return {
+    allowRemote,
+    cached,
+    mode: allowRemote ? 'remote-allowed' : cached ? 'local-cache-only' : 'unavailable',
+  };
+}
+
 export const DEFAULT_SEMANTIC_AUTO_THRESHOLD = 0.88;
 export const DEFAULT_SEMANTIC_REVIEW_THRESHOLD = 0.8;
 export const DEFAULT_SEMANTIC_BOUNDARY_MARGIN = 0.02;
@@ -565,6 +681,42 @@ function extractVector(result: EmbeddingPipelineResult | unknown): number[] {
 export interface LocalEmbedder {
   modelId: string;
   embed(texts: string[]): Promise<number[][]>;
+  /** Shared native-loader breaker state for Doctor/reconcilers. */
+  state?(): 'CLOSED' | 'OPEN' | 'HALF_OPEN';
+}
+
+type LoadedLocalEmbedder = { modelId: string; embed(texts: string[]): Promise<number[][]> };
+
+// One loader per cache/model inside a process. The semantic resolver, Galaxy,
+// Tool2Vec, transcript search, and LLM cache all converge here instead of each
+// importing ONNX and materializing the same model independently.
+const sharedLocalEmbedderLoaders = new Map<string, GatedLoader<LoadedLocalEmbedder>>();
+
+/**
+ * Reuses one gated native-model loader per cache/model inside the process. The
+ * design prevents semantic search, Galaxy, and Tool2Vec from independently
+ * materializing the same ONNX model or multiplying loader failure storms.
+ *
+ * @param cacheDir Shared Transformers cache directory.
+ * @param modelId Canonical local embedding model identifier.
+ * @param governor Optional governed logging sink for circuit transitions.
+ * @returns The shared circuit-broken loader for this cache/model pair.
+ */
+function sharedLocalEmbedderLoader(
+  cacheDir: string,
+  modelId: string,
+  governor?: LogGovernor,
+): GatedLoader<LoadedLocalEmbedder> {
+  const key = `${cacheDir}\0${modelId}`;
+  const existing = sharedLocalEmbedderLoaders.get(key);
+  if (existing) return existing;
+  const loader = createGatedLoader(
+    () => createDefaultEmbedder(cacheDir, modelId),
+    { name: `embedder:${modelId}`, failureThreshold: 3, openTimeoutMs: 300_000 },
+    governor,
+  );
+  sharedLocalEmbedderLoaders.set(key, loader);
+  return loader;
 }
 
 /**
@@ -580,13 +732,14 @@ export function createLocalEmbedder(
 ): LocalEmbedder {
   const cacheDir = options.cacheDir ?? join(process.cwd(), '.cache', 'transformers');
   const modelId = options.modelId ?? DEFAULT_SEMANTIC_MODEL_ID;
-  let inner: { modelId: string; embed(texts: string[]): Promise<number[][]> } | null = null;
+  const loader = sharedLocalEmbedderLoader(cacheDir, modelId);
   return {
     modelId,
     async embed(texts: string[]): Promise<number[][]> {
-      if (!inner) inner = await createDefaultEmbedder(cacheDir, modelId);
+      const inner = await loader.get();
       return inner.embed(texts);
     },
+    state: () => loader.state(),
   };
 }
 
@@ -599,48 +752,76 @@ export function createLocalEmbedder(
  * daemon boot fails semantic resolution with "Library not loaded:
  * @rpath/libonnxruntime.*.dylib".
  *
- * Fix: point the dynamic linker's fallback search path at wherever the real
- * runtime library actually lives — dyld/the ELF loader consult
- * DYLD_FALLBACK_LIBRARY_PATH / LD_LIBRARY_PATH at the actual dlopen() call,
- * so this works regardless of where Bun's own extraction puts the `.node`
- * binding. Checked in order: a source/dev override, the location
- * scripts/build-single-binary.mjs packages the library into (a sibling of
- * the compiled executable), and the plain node_modules layout for
- * non-compiled (npm/source) installs.
+ * On macOS the release builder adds an executable-relative LC_RPATH to that
+ * binding before Bun embeds it. This is intentionally not a DYLD_* contract:
+ * hardened runtime strips those variables unless the executable grants a
+ * code-injection entitlement. Linux retains its pre-start LD_LIBRARY_PATH
+ * contract. Source runs need neither override because the binding and shared
+ * library remain siblings in node_modules.
  */
 export function ensureOnnxRuntimeNativeLibFindable(): void {
   if (process.platform !== 'darwin' && process.platform !== 'linux') return;
-
-  const platformArch = `${process.platform}-${process.arch}`;
-  const candidates = [
-    process.env.PORT_DADDY_RESOURCE_DIR?.trim()
-      ? join(process.env.PORT_DADDY_RESOURCE_DIR.trim(), 'dist', 'native', 'onnxruntime-node', platformArch)
-      : null,
-    process.execPath ? join(dirname(process.execPath), 'native', 'onnxruntime-node', platformArch) : null,
-    join(process.cwd(), 'node_modules', 'onnxruntime-node', 'bin', 'napi-v6', process.platform, process.arch),
-  ].filter((candidate): candidate is string => Boolean(candidate));
-
-  const nativeDir = candidates.find(candidate => existsSync(candidate));
+  const resourceDir = process.env.PORT_DADDY_RESOURCE_DIR?.trim();
+  if (!resourceDir) {
+    const compiled = isBunCompiledRuntime({
+      versionsBun: process.versions.bun,
+      importMetaUrl: import.meta.url,
+      errorStack: new Error().stack ?? '',
+      execPath: process.execPath,
+    });
+    if (compiled) {
+      throw new Error(
+        'Compiled semantic runtime was launched without PORT_DADDY_RESOURCE_DIR. ' +
+        'Reinstall or restart the selected Port Daddy daemon so its launcher publishes the distribution root.',
+      );
+    }
+    return;
+  }
+  const nativeDir = resolveOnnxRuntimeNativeLibraryDir(resourceDir, process.execPath);
   if (!nativeDir) return;
 
-  const envVar = process.platform === 'darwin' ? 'DYLD_FALLBACK_LIBRARY_PATH' : 'LD_LIBRARY_PATH';
-  const existing = process.env[envVar];
-  process.env[envVar] = existing ? `${nativeDir}:${existing}` : nativeDir;
+  if (process.platform === 'darwin') return;
+
+  const envVar = 'LD_LIBRARY_PATH';
+  const configured = process.env[envVar]?.split(':').filter(Boolean) ?? [];
+  if (!configured.some(entry => isOnnxRuntimeNativeLibraryDir(entry))) {
+    throw new Error(
+      `Compiled semantic runtime was launched without ${envVar}=${nativeDir}. ` +
+      'Reinstall or restart the selected Port Daddy daemon so its supervisor applies the packaged native-runtime environment.',
+    );
+  }
 }
 
 /**
  * Lazily load the local embedding pipeline with persistent filesystem cache.
  *
- * The first use may download model artifacts. Subsequent uses on the same
- * machine should hit the cache directory and stay local.
+ * Egress design (why the gate lives here): downloads from huggingface.co are
+ * gated behind the explicit `PORT_DADDY_ALLOW_MODEL_DOWNLOAD=1` opt-in via
+ * {@link resolveRemoteModelPolicy}. With no opt-in and no cached model this
+ * throws BEFORE `@huggingface/transformers` is even imported, so no network
+ * attempt of any kind is possible — callers catch the error and degrade to
+ * the lexical/BM25 path (which the expertise-retrieval surfaces label
+ * `degraded`). A locally cached model keeps working with no opt-in because
+ * cache reads are not egress; in that mode `env.allowRemoteModels` is pinned
+ * to `false` so a partially-evicted cache can never silently re-open a
+ * connection.
+ *
+ * @param cacheDir Persistent transformers cache directory shared with the
+ *   install-time prefetch.
+ * @param modelId Hugging Face model id to load.
+ * @returns A lazily constructed embedder that maps texts to normalized vectors.
  */
 async function createDefaultEmbedder(cacheDir: string, modelId: string): Promise<{ modelId: string; embed(texts: string[]): Promise<number[][]> }> {
   mkdirSync(cacheDir, { recursive: true });
+  const policy = resolveRemoteModelPolicy(cacheDir, modelId);
+  if (policy.mode === 'unavailable') {
+    throw localModelDownloadDisabledError();
+  }
   ensureOnnxRuntimeNativeLibFindable();
   const { env, pipeline } = await import('@huggingface/transformers');
   env.cacheDir = cacheDir;
   env.useFSCache = true;
-  env.allowRemoteModels = true;
+  env.allowRemoteModels = policy.allowRemote;
 
   const extractor = await pipeline('feature-extraction', modelId);
 
@@ -861,11 +1042,13 @@ export function createSemanticResolver(db: Database.Database, options: SemanticR
   // a 313 GB write storm. The gated loader wraps creation in a circuit breaker: after a few failures
   // it stops re-attempting the load (no repeated dlopen, no per-tick spam) and periodically re-probes,
   // so a genuinely transient failure still recovers.
-  const embedderLoader = createGatedLoader(
-    options.embedderFactory ?? (() => createDefaultEmbedder(cacheDir, modelId)),
-    { name: `embedder:${modelId}`, failureThreshold: 3, openTimeoutMs: 300_000 },
-    options.governor as LogGovernor | undefined,
-  );
+  const embedderLoader = options.embedderFactory
+    ? createGatedLoader(
+        options.embedderFactory,
+        { name: `embedder:${modelId}`, failureThreshold: 3, openTimeoutMs: 300_000 },
+        options.governor as LogGovernor | undefined,
+      )
+    : sharedLocalEmbedderLoader(cacheDir, modelId, options.governor as LogGovernor | undefined);
   const vectorCache = new Map<string, number[]>();
   let queue = Promise.resolve();
 

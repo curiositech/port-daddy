@@ -9,13 +9,13 @@
 
 ## KEY IDEAS (3-5 sentences each)
 
-1. **Separation of Identity from Location**: An Agent Identifier (AID) is not an address — it is a stable symbolic name that can be *resolved* to transport addresses through a chain of resolvers. This separation means an agent can move, gain new capabilities, or be contacted through multiple protocols without its identity changing. For WinDAGs, this principle implies that skill routing should never hard-code endpoints; it should always resolve capabilities through a registry that tracks current state.
+1. **Separation of Identity from Location**: An Agent Identifier (AID) is not an address — it is a stable symbolic name that can be *resolved* to transport addresses through a chain of resolvers. This separation means an agent can move, gain new capabilities, or be contacted through multiple protocols without its identity changing. For Jury-rig, this principle implies that skill routing should never hard-code endpoints; it should always resolve capabilities through a registry that tracks current state.
 
 2. **Two-Registry Architecture (White Pages + Yellow Pages)**: The AMS provides white pages (who exists, what is their state) while the DF provides yellow pages (who offers what service). These are deliberately separate concerns: existence/lifecycle authority is distinct from capability advertisement. Agent systems collapse when these are conflated — you end up with either stale capability listings or inability to manage agent state independently of service availability.
 
 3. **Agent Lifecycle as a Formal State Machine**: FIPA defines exactly six named states (Initiated, Active, Waiting, Suspended, Transit, Unknown) with explicit transition ownership (some transitions can only be initiated by the AMS, some only by the agent itself). This prevents a whole class of coordination failures where agents attempt operations on peers whose state they have not verified. The lifecycle is not an implementation detail — it is the contract between agents.
 
-4. **Exception as First-Class Ontology**: Failures are not just error codes — they are structured predicates with semantic meaning (unsupported, unrecognised, unexpected, missing, unauthorised, already-registered, not-registered, internal-error). This means a receiving agent can *reason* about why something failed, not just retry blindly. WinDAGs should model failure returns with the same richness.
+4. **Exception as First-Class Ontology**: Failures are not just error codes — they are structured predicates with semantic meaning (unsupported, unrecognised, unexpected, missing, unauthorised, already-registered, not-registered, internal-error). This means a receiving agent can *reason* about why something failed, not just retry blindly. Jury-rig should model failure returns with the same richness.
 
 5. **Federation as Scalable Discovery**: Directory Facilitators can register with each other, creating federated search graphs. Search propagates depth-first with configurable max-depth and max-results constraints. This is the model for how a large skill ecosystem should be discoverable — not a flat global registry, but a federated graph of registries with bounded search.
 
@@ -77,7 +77,7 @@ The simplest AID naming convention constructs the name as `agent-name@hap` where
 
 This is significant because it means an agent that has migrated to a completely different platform still carries its origin in its name. You can always trace an agent back to its point of creation. For distributed systems this is invaluable for debugging, auditing, and accountability.
 
-## Application to WinDAGs Skill Routing
+## Application to Jury-rig Skill Routing
 
 ### Problem: Hard-coded Skill Endpoints Break
 
@@ -85,7 +85,7 @@ The most common failure mode in skill-based orchestration systems is routing tha
 
 ### Solution: Skill Identifiers Separate from Skill Endpoints
 
-Apply the AID principle: every skill in WinDAGs should have a stable symbolic identifier (e.g., `skill:code-review@platform-v1`) that never changes, and a separately maintained routing table that maps that identifier to current invocation endpoints. The routing table is the `:addresses` equivalent — mutable, platform-managed, updated when skills move or scale.
+Apply the AID principle: every skill in Jury-rig should have a stable symbolic identifier (e.g., `skill:code-review@platform-v1`) that never changes, and a separately maintained routing table that maps that identifier to current invocation endpoints. The routing table is the `:addresses` equivalent — mutable, platform-managed, updated when skills move or scale.
 
 ### Resolver Chains for Skill Discovery
 
@@ -103,15 +103,15 @@ Apply the same principle to tasks: a task spawned by an orchestrator gets an imm
 
 **When this principle adds unnecessary overhead**: In a closed, non-migratory system where agents never move and endpoints never change, the indirection layer of name resolution adds latency for no benefit. If your system is a small set of fixed services that you control completely, hard-coded endpoints may be simpler and faster.
 
-**When resolver chains can become a single point of failure**: If all resolution goes through a single AMS and that AMS fails, no new connections can be established. FIPA's response is to allow multiple resolvers in the sequence, and to allow the AMS to be replicated. WinDAGs should similarly ensure that the skill registry is highly available and that agents cache resolved addresses with appropriate TTLs so they can operate even when the registry is temporarily unreachable.
+**When resolver chains can become a single point of failure**: If all resolution goes through a single AMS and that AMS fails, no new connections can be established. FIPA's response is to allow multiple resolvers in the sequence, and to allow the AMS to be replicated. Jury-rig should similarly ensure that the skill registry is highly available and that agents cache resolved addresses with appropriate TTLs so they can operate even when the registry is temporarily unreachable.
 
-**The stale address problem**: A cached `:addresses` value may become stale if the agent has moved since the last resolution. Systems must either accept occasional failed deliveries (and then re-resolve) or implement push notification from the AMS when agent addresses change. FIPA's MTS handles this by buffering messages to agents in Transit state — a pattern WinDAGs can replicate by queueing invocations to skills that are being redeployed.
+**The stale address problem**: A cached `:addresses` value may become stale if the agent has moved since the last resolution. Systems must either accept occasional failed deliveries (and then re-resolve) or implement push notification from the AMS when agent addresses change. FIPA's MTS handles this by buffering messages to agents in Transit state — a pattern Jury-rig can replicate by queueing invocations to skills that are being redeployed.
 
 ## Summary Principle
 
 > Identify by name. Route by address. Resolve name to address on demand. Never conflate the two.
 
-This principle, if consistently applied throughout WinDAGs, eliminates an entire class of fragility: the system becomes robust to skill migration, versioning, replication, and platform evolution because no agent ever holds a hard reference to a location — only a stable reference to an identity.
+This principle, if consistently applied throughout Jury-rig, eliminates an entire class of fragility: the system becomes robust to skill migration, versioning, replication, and platform evolution because no agent ever holds a hard reference to a location — only a stable reference to an identity.
 ```
 
 ### FILE: fipa-two-registry-architecture.md
@@ -182,27 +182,27 @@ Because the AMS and DF track different things:
 3. **Multiple DFs can specialize** — one DF for public services, one for internal platform services, one for experimental capabilities — all coexisting on the same platform
 4. **DF federations can span platforms** — enabling cross-platform discovery without AMS federation (which would imply cross-platform authority, a much stronger and more problematic claim)
 
-## Application to WinDAGs Architecture
+## Application to Jury-rig Architecture
 
-### Two Distinct Registries for WinDAGs
+### Two Distinct Registries for Jury-rig
 
-WinDAGs should maintain the equivalent of both registries:
+Jury-rig should maintain the equivalent of both registries:
 
 **The Orchestration Registry (AMS analog)**:
 - Tracks every skill and agent in the system: its unique ID, current lifecycle state, owning orchestrator, and authorization level
 - Is the gatekeeper for message routing — only registered entities can receive routed tasks
 - Has the authority to force-terminate runaway agents or skills
-- Maintains the "platform description" — what capabilities does this WinDAGs deployment support?
+- Maintains the "platform description" — what capabilities does this Jury-rig deployment support?
 
 **The Skill Capability Directory (DF analog)**:
 - Stores capability advertisements: what each skill can do, what ontologies/schemas it understands, what input/output types it accepts, what protocols it supports
 - Is searched by orchestrators looking for skills to assign to task steps
 - Is explicitly *non-authoritative* — finding a skill in the directory only means it *claims* to support a capability; the skill itself may refuse a specific invocation
-- Can be federated: a WinDAGs deployment might have a local skill directory and federate with remote directories to discover cross-platform capabilities
+- Can be federated: a Jury-rig deployment might have a local skill directory and federate with remote directories to discover cross-platform capabilities
 
 ### Practical Consequences
 
-**Skill onboarding**: When a new skill is added to WinDAGs, it must first register with the Orchestration Registry (get an ID, declare ownership, enter the lifecycle) before it can register with the Skill Directory (advertise capabilities). The two steps are sequential and have different authorization requirements.
+**Skill onboarding**: When a new skill is added to Jury-rig, it must first register with the Orchestration Registry (get an ID, declare ownership, enter the lifecycle) before it can register with the Skill Directory (advertise capabilities). The two steps are sequential and have different authorization requirements.
 
 **Skill maintenance**: A skill can be taken offline for maintenance by deregistering from the Skill Directory (so no new tasks are routed to it) while remaining registered with the Orchestration Registry (so its lifecycle state is tracked and any in-flight tasks it has accepted can complete).
 
@@ -227,7 +227,7 @@ The FIPA model embraces eventual consistency: the directory reflects what agents
 
 **When you need strong consistency**: For safety-critical workflows where routing to a dead skill must never happen, the non-authoritative DF model is insufficient. You may need health-check wrappers around the DF that validate liveness before returning search results. FIPA doesn't preclude this — it just doesn't mandate it, because it would be too expensive in the general case.
 
-**When one registry is enough**: In a small, static WinDAGs deployment with fewer than ~20 skills all running on a single platform, the operational overhead of two separate registries may not be worth it. A unified registry with clearly separated schema fields (lifecycle state vs. capability advertisement) may be a pragmatic simplification.
+**When one registry is enough**: In a small, static Jury-rig deployment with fewer than ~20 skills all running on a single platform, the operational overhead of two separate registries may not be worth it. A unified registry with clearly separated schema fields (lifecycle state vs. capability advertisement) may be a pragmatic simplification.
 
 **The staleness window**: Because agents self-report their capabilities to the DF, there is always a window between when an agent gains or loses a capability and when the DF reflects that change. Orchestrators must design for this by treating DF results as hints and handling invocation failures gracefully, including re-querying the DF if a recommended skill fails.
 
@@ -235,7 +235,7 @@ The FIPA model embraces eventual consistency: the directory reflects what agents
 
 The two-registry architecture is one of FIPA's deepest contributions to multi-agent systems design. Its core insight: existence/authorization and capability/advertisement are different concerns that evolve on different timescales, with different authorities, and with different consistency requirements. Conflating them produces systems that are simultaneously over-coupled and under-informative. Separating them produces systems where agents can be managed, discovered, and invoked through clean, independent interfaces.
 
-For WinDAGs: maintain an Orchestration Registry with lifecycle authority and an Skill Capability Directory with capability advertisement. Keep them separate. Route through the directory. Authorize through the registry. Handle DF non-authoritativeness gracefully at invocation time.
+For Jury-rig: maintain an Orchestration Registry with lifecycle authority and an Skill Capability Directory with capability advertisement. Keep them separate. Route through the directory. Authorize through the registry. Handle DF non-authoritativeness gracefully at invocation time.
 ```
 
 ### FILE: fipa-agent-lifecycle-state-machine.md
@@ -311,11 +311,11 @@ The lifecycle is connected to message delivery behavior in a specified way (Sect
 
 The key insight: **the lifecycle state is the input to message delivery policy**. The MTS consults the lifecycle state before deciding what to do with a message. This means that every message routing decision implicitly queries the lifecycle state of the destination agent. The AMS's lifecycle tracking is therefore not administrative bookkeeping — it is load-bearing infrastructure for correct message delivery.
 
-## Application to WinDAGs
+## Application to Jury-rig
 
 ### Every Skill Needs a Lifecycle
 
-Every skill in WinDAGs should have an explicit lifecycle state maintained by the Orchestration Registry (the AMS analog). The minimal state set from FIPA is exactly right:
+Every skill in Jury-rig should have an explicit lifecycle state maintained by the Orchestration Registry (the AMS analog). The minimal state set from FIPA is exactly right:
 
 - **Active**: Accepting task invocations, processing normally
 - **Initiated**: Skill process started but not yet ready to accept invocations (initialization in progress)
@@ -323,7 +323,7 @@ Every skill in WinDAGs should have an explicit lifecycle state maintained by the
 - **Suspended**: Skill is administratively paused (deployment in progress, maintenance window, resource constraint)
 - **Unknown**: Skill health cannot be determined (process may have crashed, network may be partitioned)
 
-### Transition Ownership in WinDAGs
+### Transition Ownership in Jury-rig
 
 Apply the FIPA ownership model:
 
@@ -331,11 +331,11 @@ Apply the FIPA ownership model:
 - **Skill (agent analog)** can: Enter Wait state (when blocked on dependencies), Enter Suspend state (when it detects a condition requiring administrative intervention), initiate graceful Quit
 - **Both**: Graceful shutdown (Quit)
 
-This asymmetry is important in WinDAGs because it prevents "zombie skills" — skills that have entered a passive state and can't be recovered because no authority has the power to wake them. The orchestrator always has the ability to intervene.
+This asymmetry is important in Jury-rig because it prevents "zombie skills" — skills that have entered a passive state and can't be recovered because no authority has the power to wake them. The orchestrator always has the ability to intervene.
 
 ### The Mandatory `quit` Equivalent
 
-Every skill in WinDAGs must implement a graceful shutdown handler. The orchestrator must be able to request this, and if the skill doesn't respond within a timeout, the orchestrator must be able to force-terminate it. This is not optional robustness — it is the governance contract that makes the system manageable.
+Every skill in Jury-rig must implement a graceful shutdown handler. The orchestrator must be able to request this, and if the skill doesn't respond within a timeout, the orchestrator must be able to force-terminate it. This is not optional robustness — it is the governance contract that makes the system manageable.
 
 ### Lifecycle State as Routing Input
 
@@ -347,7 +347,7 @@ When an orchestrator needs to route a task to a skill, it must consult the skill
 - **Suspended**: Do not route. If no other instance is available, either queue and wait for resume, or escalate to the orchestrator for a decision
 - **Unknown**: Attempt route with circuit-breaker logic; if delivery fails, assume unavailable and re-route
 
-This is the FIPA MTS delivery semantic translated to WinDAGs routing logic.
+This is the FIPA MTS delivery semantic translated to Jury-rig routing logic.
 
 ### Detecting and Recovering from Unknown State
 
@@ -356,7 +356,7 @@ The Unknown state deserves special attention because it is the most dangerous. A
 - Partitioned (messages may succeed or fail unpredictably)
 - Running but unregistered (messages may succeed but the registry is stale)
 
-WinDAGs should treat Unknown state as requiring active recovery:
+Jury-rig should treat Unknown state as requiring active recovery:
 1. Attempt a health-check ping
 2. If ping fails, attempt to force a new skill instance (Create transition)
 3. If ping succeeds but state is inconsistent, attempt AMS-initiated Resume or state reconciliation
@@ -374,19 +374,19 @@ The AMS responds with:
 
 Or, if something went wrong, a `refuse` or `failure` with a specific exception predicate explaining why.
 
-This two-phase response (agree then inform) is important: it separates the acknowledgment of receiving the request from the confirmation of its execution. A WinDAGs skill registration protocol should follow the same pattern to correctly handle the case where the registry accepts the request but then fails during processing.
+This two-phase response (agree then inform) is important: it separates the acknowledgment of receiving the request from the confirmation of its execution. A Jury-rig skill registration protocol should follow the same pattern to correctly handle the case where the registry accepts the request but then fails during processing.
 
 ## Caveats and Boundary Conditions
 
-**Static systems**: If your WinDAGs deployment has a fixed set of skills that never move, never migrate, and never need to be administratively suspended, a full lifecycle state machine is overkill. A simple binary (alive/dead) may suffice. The full lifecycle pays off when skills are dynamic, deployed continuously, or managed across multiple platforms.
+**Static systems**: If your Jury-rig deployment has a fixed set of skills that never move, never migrate, and never need to be administratively suspended, a full lifecycle state machine is overkill. A simple binary (alive/dead) may suffice. The full lifecycle pays off when skills are dynamic, deployed continuously, or managed across multiple platforms.
 
 **State machine explosion**: FIPA's six states are chosen carefully to be minimal. Adding more states (e.g., "degraded," "overloaded," "read-only") creates richer semantics but also more complex transition logic. Resist the temptation to extend the state machine unless there is a clear operational use case.
 
-**Who enforces the state machine**: The FIPA model assumes the AMS is a trusted, reliable authority. In WinDAGs, if the Orchestration Registry (AMS analog) itself fails, the lifecycle state machine breaks down — skills can't be created, destroyed, or recovered. The registry must be highly available and its lifecycle authority must be designed for resilience.
+**Who enforces the state machine**: The FIPA model assumes the AMS is a trusted, reliable authority. In Jury-rig, if the Orchestration Registry (AMS analog) itself fails, the lifecycle state machine breaks down — skills can't be created, destroyed, or recovered. The registry must be highly available and its lifecycle authority must be designed for resilience.
 
 ## Summary
 
-The FIPA lifecycle state machine gives every agent in the system a formal, queryable, manageable state. The transition ownership rules create a governance model where agents can self-manage their passive states but the AMS always retains the authority to override. The connection between lifecycle state and message delivery semantics means that state management is not separate from communication — it is integral to it. For WinDAGs, this means: every skill must have an explicit lifecycle, the orchestrator must track it, routing decisions must consult it, and the orchestrator must always retain the ability to force-terminate any skill.
+The FIPA lifecycle state machine gives every agent in the system a formal, queryable, manageable state. The transition ownership rules create a governance model where agents can self-manage their passive states but the AMS always retains the authority to override. The connection between lifecycle state and message delivery semantics means that state management is not separate from communication — it is integral to it. For Jury-rig, this means: every skill must have an explicit lifecycle, the orchestrator must track it, routing decisions must consult it, and the orchestrator must always retain the ability to force-terminate any skill.
 ```
 
 ### FILE: fipa-exception-taxonomy-as-reasoning-tool.md
@@ -494,7 +494,7 @@ Section 6.3.1 specifies the exact rules for which communicative act to use:
 
 This is a clean decision tree that separates four different things: comprehension failure, capability gap, authorization failure, message quality failure, and execution failure. Each requires a different response from the sender.
 
-## Application to WinDAGs Error Handling
+## Application to Jury-rig Error Handling
 
 ### Current Problem: Undifferentiated Failure
 
@@ -506,7 +506,7 @@ Most orchestration systems treat all skill invocation failures the same: log the
 - If a skill returned `failure: internal-error`, the skill may have left state half-changed. Query state before retrying.
 - If a skill returned `failure: already-registered`, the operation was already done — treat as success.
 
-### Implementing a FIPA-Inspired Exception Taxonomy in WinDAGs
+### Implementing a FIPA-Inspired Exception Taxonomy in Jury-rig
 
 Define a structured exception type for all skill invocation responses with the following hierarchy:
 
@@ -550,9 +550,9 @@ Failed:
   → InternalError: check skill health, attempt once more, then escalate
 ```
 
-### The Agree/Inform Split in WinDAGs
+### The Agree/Inform Split in Jury-rig
 
-WinDAGs skill invocations should distinguish between:
+Jury-rig skill invocations should distinguish between:
 - **Acknowledgment** ("I received your task and will process it"): fast, low-latency
 - **Completion** ("I have finished processing your task"): asynchronous, may take time
 
@@ -596,7 +596,7 @@ Both examples show that the exception carries enough information for the receivi
 
 ## Summary
 
-FIPA's exception taxonomy transforms failures from opaque events into structured, reasoning-amenable information. By categorizing failures along two axes — *when* the failure occurred (before or after agreement) and *why* it occurred (comprehension, capability, authorization, message quality, execution) — the taxonomy enables agents to make intelligent decisions about how to respond. WinDAGs should adopt this structure: define a rich exception type hierarchy, implement specific retry/escalation logic for each exception class, use the agree/completion split for long-running tasks, and treat `failure` (post-agree) as potentially involving partial state changes that must be queried before retrying.
+FIPA's exception taxonomy transforms failures from opaque events into structured, reasoning-amenable information. By categorizing failures along two axes — *when* the failure occurred (before or after agreement) and *why* it occurred (comprehension, capability, authorization, message quality, execution) — the taxonomy enables agents to make intelligent decisions about how to respond. Jury-rig should adopt this structure: define a rich exception type hierarchy, implement specific retry/escalation logic for each exception class, use the agree/completion split for long-running tasks, and treat `failure` (post-agree) as potentially involving partial state changes that must be queried before retrying.
 ```
 
 ### FILE: fipa-capability-search-and-matching.md
@@ -668,11 +668,11 @@ Search propagation is controlled by constraints (Section 6.1.4):
 
 Depth-first traversal with `max-depth` control is the FIPA default, but the federation topology can encode any search strategy. A star topology (one central DF that knows all local DFs) gives breadth-first-like behavior if the central DF propagates in parallel.
 
-## Application to WinDAGs Skill Discovery
+## Application to Jury-rig Skill Discovery
 
 ### The Skill Template Query
 
-When a WinDAGs orchestrator needs to decompose a task and find appropriate skills for each step, it should express what each step *requires* as a partial template and send that to the Skill Directory. The template specifies:
+When a Jury-rig orchestrator needs to decompose a task and find appropriate skills for each step, it should express what each step *requires* as a partial template and send that to the Skill Directory. The template specifies:
 
 - **Service type**: What category of skill is needed (e.g., `code-analysis`, `security-audit`, `test-generation`)
 - **Ontologies/schemas supported**: What data representation the skill must understand (e.g., `Python-AST-v3`, `OWASP-CWE-2023`)
@@ -690,7 +690,7 @@ The partial matching model encourages specifying the *minimum necessary constrai
 
 ### Hierarchical Capability Decomposition
 
-Federated DFs in FIPA suggest a hierarchical skill discovery model for large WinDAGs deployments:
+Federated DFs in FIPA suggest a hierarchical skill discovery model for large Jury-rig deployments:
 
 - **Local skill registries**: Each team or domain maintains a registry of their skills
 - **Domain DF**: Aggregates registries within a domain (e.g., "code quality skills," "security skills," "data processing skills")
@@ -698,17 +698,17 @@ Federated DFs in FIPA suggest a hierarchical skill discovery model for large Win
 
 When an orchestrator needs a skill, it queries the local registry first (fastest, most specific). If not found, it propagates to the domain DF. If still not found, it propagates to the platform DF. The `max-depth` constraint controls how far the search propagates, and `max-results` ensures the query terminates once enough candidates are found.
 
-This mirrors the FIPA depth-first federated search exactly. The depth control is important in WinDAGs because propagating a complex search query across all skill registries on every task step would create a performance problem.
+This mirrors the FIPA depth-first federated search exactly. The depth control is important in Jury-rig because propagating a complex search query across all skill registries on every task step would create a performance problem.
 
 ### Dynamic Capability Registration
 
-Skills in WinDAGs should be able to dynamically update their DF registration as their capabilities evolve. When a code review skill adds support for a new framework, it sends a `modify` to the Skill Directory with the updated service description. The directory accepts the modification, and from that point forward, searches for that framework's capabilities will find this skill.
+Skills in Jury-rig should be able to dynamically update their DF registration as their capabilities evolve. When a code review skill adds support for a new framework, it sends a `modify` to the Skill Directory with the updated service description. The directory accepts the modification, and from that point forward, searches for that framework's capabilities will find this skill.
 
 This dynamic registration capability is what makes the DF model superior to static routing tables: the registry reflects current reality, not a snapshot from deployment time.
 
 ### The Non-Guarantee of DF Results
 
-A crucial point from Section 4.1.1 must be preserved in WinDAGs:
+A crucial point from Section 4.1.1 must be preserved in Jury-rig:
 
 > "The DF cannot guarantee the validity or accuracy of the information that has been registered with it."
 
@@ -719,13 +719,13 @@ Skills self-report their capabilities. The directory cannot verify them. Therefo
 
 ### Implementing the Matching Semantics
 
-The FIPA matching algorithm is worth implementing directly in the WinDAGs skill directory, because it provides exactly the semantics needed: subsumption-based capability matching with partial templates. The recursive sequence matching and the subset-based set matching are both implementable as straightforward algorithms.
+The FIPA matching algorithm is worth implementing directly in the Jury-rig skill directory, because it provides exactly the semantics needed: subsumption-based capability matching with partial templates. The recursive sequence matching and the subset-based set matching are both implementable as straightforward algorithms.
 
 For performance, the skill directory should index by service type first (the most discriminating filter in most searches), then filter by ontologies, then by properties. This matches the natural query pattern: you almost always know what *type* of service you need, and then want to refine by specific capabilities.
 
 ## Search Constraints as Efficiency Tools
 
-The `search-constraints` object (Section 6.1.4) with `max-depth` and `max-results` is worth implementing in WinDAGs skill search for efficiency:
+The `search-constraints` object (Section 6.1.4) with `max-depth` and `max-results` is worth implementing in Jury-rig skill search for efficiency:
 
 - **`max-results`**: If you need just one skill for a task step, setting `max-results=1` allows the directory to stop searching after the first match. No need to enumerate all possibilities.
 - **`max-depth`**: If you know the capability is available locally, setting `max-depth=0` prevents unnecessary federated search.
@@ -734,7 +734,7 @@ For orchestrators doing fast path routing (finding the obvious skill for a simpl
 
 ## Caveats
 
-**Semantic equivalence is not handled**: The FIPA matching semantics are purely syntactic — string equality for names and values. There's no inference that `security-audit` and `vulnerability-scanning` are related. A more sophisticated WinDAGs implementation might add ontology-based subsumption reasoning on top of the FIPA model.
+**Semantic equivalence is not handled**: The FIPA matching semantics are purely syntactic — string equality for names and values. There's no inference that `security-audit` and `vulnerability-scanning` are related. A more sophisticated Jury-rig implementation might add ontology-based subsumption reasoning on top of the FIPA model.
 
 **Performance with many registered agents**: Partial matching against hundreds of registered service descriptions can be slow if done naively. Inverted indexes, pre-computed capability clusters, and embedding-based semantic search are all reasonable extensions to the FIPA model for large-scale deployments.
 
@@ -742,7 +742,7 @@ For orchestrators doing fast path routing (finding the obvious skill for a simpl
 
 ## Summary
 
-FIPA's capability search mechanism uses partial template matching (subset semantics for sets, subsequence semantics for sequences) to find agents whose capabilities are a superset of what you need. Federated search extends this across multiple directories with depth and result count controls. For WinDAGs, this translates to: define skill capabilities as structured service descriptions, query with partial templates expressing minimum requirements, use federation for large-scale skill ecosystems, and always treat results as candidates requiring verification at invocation time.
+FIPA's capability search mechanism uses partial template matching (subset semantics for sets, subsequence semantics for sequences) to find agents whose capabilities are a superset of what you need. Federated search extends this across multiple directories with depth and result count controls. For Jury-rig, this translates to: define skill capabilities as structured service descriptions, query with partial templates expressing minimum requirements, use federation for large-scale skill ecosystems, and always treat results as candidates requiring verification at invocation time.
 ```
 
 ### FILE: fipa-registry-patterns-and-authorization.md
@@ -817,11 +817,11 @@ Dynamic registration is explicitly conditional: "assuming that the AP both suppo
 
 The AP description (Section 6.1.6) includes a `:dynamic` flag indicating whether the platform supports dynamic registration at all. This is a platform-level policy decision, not an agent-level decision. Some platforms may be closed (`:dynamic false`) and only allow pre-configured agents.
 
-## Application to WinDAGs Trust Architecture
+## Application to Jury-rig Trust Architecture
 
 ### Skill Registration Authorization
 
-In WinDAGs, the Orchestration Registry (AMS analog) should enforce:
+In Jury-rig, the Orchestration Registry (AMS analog) should enforce:
 
 1. **Unique skill identifiers**: No two skills can claim the same identifier. The registry validates this on registration.
 
@@ -829,11 +829,11 @@ In WinDAGs, the Orchestration Registry (AMS analog) should enforce:
 
 3. **Forced deregistration authority**: The orchestration system must retain the ability to force-deregister any skill, regardless of the skill's cooperation. This is the Destroy equivalent — essential for removing compromised, malfunctioning, or deprecated skills.
 
-4. **Dynamic registration policy**: The registry should have a configurable policy on whether external skills (from other WinDAGs deployments or third-party providers) can dynamically register. Production deployments may want `:dynamic false` (only pre-approved skills) while development environments want `:dynamic true` (rapid iteration).
+4. **Dynamic registration policy**: The registry should have a configurable policy on whether external skills (from other Jury-rig deployments or third-party providers) can dynamically register. Production deployments may want `:dynamic false` (only pre-approved skills) while development environments want `:dynamic true` (rapid iteration).
 
 ### Preventing Capability Spoofing
 
-One of the authorization concerns FIPA's model addresses is *capability spoofing*: an agent claiming to offer a capability it doesn't have (or more dangerously, claiming to be a well-known agent it isn't). In WinDAGs, this could manifest as a malicious skill registering as `code-review` and receiving sensitive code that it then exfiltrates.
+One of the authorization concerns FIPA's model addresses is *capability spoofing*: an agent claiming to offer a capability it doesn't have (or more dangerously, claiming to be a well-known agent it isn't). In Jury-rig, this could manifest as a malicious skill registering as `code-review` and receiving sensitive code that it then exfiltrates.
 
 Mitigations from the FIPA model:
 - The Orchestration Registry validates skill identifiers for uniqueness at registration time
@@ -847,11 +847,11 @@ Additional mitigations beyond FIPA:
 
 ### The Non-Discriminatory Search Principle and Its Implications
 
-FIPA's principle that DF search results are non-discriminatory (all authorized agents get the same results) has an important implication for WinDAGs: skill discovery is effectively public within the system. Any orchestrator can discover any skill.
+FIPA's principle that DF search results are non-discriminatory (all authorized agents get the same results) has an important implication for Jury-rig: skill discovery is effectively public within the system. Any orchestrator can discover any skill.
 
 This is usually desirable — it's what enables dynamic capability composition. But for sensitive skills (e.g., skills with access to production databases, skills performing financial operations), you may want restricted visibility: only certain orchestrators should even know these skills exist.
 
-The FIPA model addresses this by allowing multiple DFs with different access policies. WinDAGs could implement this as tiered skill directories:
+The FIPA model addresses this by allowing multiple DFs with different access policies. Jury-rig could implement this as tiered skill directories:
 - **Public directory**: All skills visible to all orchestrators
 - **Restricted directory**: Sensitive skills visible only to orchestrators with appropriate clearance
 - **Private directory**: Skills visible only to the owning team
@@ -867,7 +867,7 @@ From Section 6.3.4, when an unauthorized operation is attempted, the response is
 
 This is clean and non-leaking: the `unauthorised` predicate doesn't tell the requester *why* they're unauthorized or what they would need to be authorized. It simply refuses. This prevents information leakage through authorization errors.
 
-WinDAGs should follow the same principle: when an orchestrator attempts an operation on a skill it doesn't have permission to operate on, the response should be a clean `Refused: Unauthorized` — not "you need to be in group X" or "this skill is owned by team Y" (which would leak organizational structure).
+Jury-rig should follow the same principle: when an orchestrator attempts an operation on a skill it doesn't have permission to operate on, the response should be a clean `Refused: Unauthorized` — not "you need to be in group X" or "this skill is owned by team Y" (which would leak organizational structure).
 
 ## The Idempotency Problem: `already-registered`
 
@@ -875,7 +875,7 @@ Section 6.3.5 includes `already-registered` as a `failure` predicate (not a `ref
 
 Because the registration process involves the AMS saying `agree` (I'll try to register you) and then potentially discovering that the name is already taken. The AMS agreed to try, tried, and found a conflict. This is a runtime failure, not a message-level rejection. The distinction matters: the AMS already sent `agree`, meaning it thought the registration was valid at the point of agreement. The conflict was discovered during execution.
 
-For WinDAGs, the `already-registered` pattern is extremely useful for idempotent skill registration: if a skill attempts to re-register on restart, the registry returns `failure: already-registered`. The skill can then either:
+For Jury-rig, the `already-registered` pattern is extremely useful for idempotent skill registration: if a skill attempts to re-register on restart, the registry returns `failure: already-registered`. The skill can then either:
 1. Treat this as success and proceed (the registration from last time is still valid)
 2. Query its current registration state and update if needed (compare with the `modify` function)
 3. Deregister and re-register fresh
@@ -892,7 +892,7 @@ The important thing is that the skill can distinguish "I'm already registered" f
 
 ## Summary
 
-FIPA's authorization model weaves ownership into the registry objects themselves, gives the AMS absolute authority over lifecycle and platform access, and makes modification/deletion ownership-protected while keeping discovery broadly accessible. For WinDAGs: track ownership of every skill, require AMS-equivalent (Orchestration Registry) validation on all registrations, implement tiered directories for sensitive skills, use the exception taxonomy to provide clean authorization feedback without information leakage, and retain forceful-termination authority at the orchestration layer regardless of skill cooperation.
+FIPA's authorization model weaves ownership into the registry objects themselves, gives the AMS absolute authority over lifecycle and platform access, and makes modification/deletion ownership-protected while keeping discovery broadly accessible. For Jury-rig: track ownership of every skill, require AMS-equivalent (Orchestration Registry) validation on all registrations, implement tiered directories for sensitive skills, use the exception taxonomy to provide clean authorization feedback without information leakage, and retain forceful-termination authority at the orchestration layer regardless of skill cooperation.
 ```
 
 ### FILE: fipa-platform-abstraction-and-interoperability.md
@@ -966,7 +966,7 @@ By using URLs as the universal syntax for transport addresses, FIPA achieves tra
 
 The agent can list all of them in its AID `:addresses` field with a preference ordering. Senders try addresses in order until one works. This means the same logical agent can be reached via multiple transport protocols simultaneously, enabling gradual protocol migration and redundancy.
 
-For modern WinDAGs systems, this maps directly to supporting multiple invocation channels per skill: HTTP REST, gRPC, async message queue, direct function call — all potentially valid transport addresses for the same logical skill.
+For modern Jury-rig systems, this maps directly to supporting multiple invocation channels per skill: HTTP REST, gRPC, async message queue, direct function call — all potentially valid transport addresses for the same logical skill.
 
 ## The AP Description as a Capability Declaration
 
@@ -994,9 +994,9 @@ This creates a natural boundary:
 - **Inside an AP**: Implementation freedom. Use whatever is fastest and most convenient.
 - **At AP boundaries**: Use the standardized MTS protocol. This is what enables interoperability.
 
-For WinDAGs, this suggests an analogous boundary:
-- **Within a WinDAGs deployment**: Use whatever communication pattern is most efficient (function calls, shared memory, direct API calls)
-- **Between WinDAGs deployments** (or between WinDAGs and external agent systems): Use a standardized message envelope that follows FIPA-like conventions (structured sender/receiver AIDs, standard content language, standard request/response protocol)
+For Jury-rig, this suggests an analogous boundary:
+- **Within a Jury-rig deployment**: Use whatever communication pattern is most efficient (function calls, shared memory, direct API calls)
+- **Between Jury-rig deployments** (or between Jury-rig and external agent systems): Use a standardized message envelope that follows FIPA-like conventions (structured sender/receiver AIDs, standard content language, standard request/response protocol)
 
 ## Software as Non-Agent Resources
 
@@ -1010,22 +1010,22 @@ This distinction is important because it prevents over-agentification: not every
 
 The FIPA reference specification ([FIPA00079]) on Agent Software Integration addresses how agents discover and acquire software capabilities — a separate problem from how agents discover each other.
 
-## Application to WinDAGs Architecture
+## Application to Jury-rig Architecture
 
 ### Clean Interface Boundaries
 
-WinDAGs should adopt FIPA's core architectural principle: standardize interfaces, not implementations. The specification for what a skill must expose (registration interface, invocation protocol, exception format, lifecycle state) should be a stable contract that any skill can implement however it chooses internally.
+Jury-rig should adopt FIPA's core architectural principle: standardize interfaces, not implementations. The specification for what a skill must expose (registration interface, invocation protocol, exception format, lifecycle state) should be a stable contract that any skill can implement however it chooses internally.
 
 This means:
 - A skill written in Python with PostgreSQL storage and a skill written in Rust with in-memory storage should be indistinguishable at the interface level
 - A skill running as a single process and a skill running as a Kubernetes deployment should present the same management interface
 - A skill invoked via HTTP and a skill invoked via gRPC should produce responses in the same content structure
 
-The interface contract is what WinDAGs enforces. The implementation is the skill developer's concern.
+The interface contract is what Jury-rig enforces. The implementation is the skill developer's concern.
 
 ### Platform Capabilities Metadata
 
-Implement an AP-description analog in WinDAGs: a platform capabilities document that declares:
+Implement an AP-description analog in Jury-rig: a platform capabilities document that declares:
 - What skill capabilities are available on this deployment
 - Whether external skill registration is permitted
 - What communication protocols are supported
@@ -1036,7 +1036,7 @@ This platform-level capability declaration enables orchestrators to reason about
 
 ### Logical vs. Physical Skill Boundaries
 
-Skills in WinDAGs should be thought of as *logical* capabilities, not physical processes. A single skill identifier might be backed by:
+Skills in Jury-rig should be thought of as *logical* capabilities, not physical processes. A single skill identifier might be backed by:
 - A pool of replicated processes
 - A serverless function
 - A microservice
@@ -1048,7 +1048,7 @@ This is especially important for scaling: when a skill is replicated for load ba
 
 ### Transport Address Multiplicity
 
-Following the multi-address AID model, WinDAGs skills should support multiple invocation addresses with preference ordering:
+Following the multi-address AID model, Jury-rig skills should support multiple invocation addresses with preference ordering:
 1. Direct in-process function call (if same process)
 2. Local IPC (if same machine)
 3. gRPC (if network, preferred for binary efficiency)
@@ -1061,7 +1061,7 @@ The orchestrator tries addresses in preference order. This provides automatic fa
 
 One of FIPA's strengths is that its reference model is logically complete: every agent interaction — creation, discovery, communication, lifecycle management, retirement — has a specified home in the model. There are no "and then some magic happens" gaps.
 
-For WinDAGs, this is an important design goal: define a complete model where every possible event in a skill's lifecycle — creation, registration, discovery, invocation, failure, recovery, deprecation, retirement — has a specified protocol. If any event lacks a protocol, that is a gap that will manifest as ambiguity and ad-hoc behavior in production.
+For Jury-rig, this is an important design goal: define a complete model where every possible event in a skill's lifecycle — creation, registration, discovery, invocation, failure, recovery, deprecation, retirement — has a specified protocol. If any event lacks a protocol, that is a gap that will manifest as ambiguity and ad-hoc behavior in production.
 
 ## Caveats
 
@@ -1073,7 +1073,7 @@ For WinDAGs, this is an important design goal: define a complete model where eve
 
 ## Summary
 
-FIPA's architecture achieves interoperability through interface standardization without implementation constraint: specify what must be exposed, not how it must be built. The Agent Platform is a logical boundary that can span any physical topology. Transport addresses are URLs, enabling protocol multiplicity. The `ap-description` object makes platform capabilities machine-queryable. Software resources are distinct from agents and don't require full agent infrastructure. For WinDAGs: standardize the skill interface contract rigorously, implement the platform capabilities declaration, treat skills as logical entities independent of their physical backing, support multiple invocation addresses per skill, and ensure every lifecycle event has a specified protocol.
+FIPA's architecture achieves interoperability through interface standardization without implementation constraint: specify what must be exposed, not how it must be built. The Agent Platform is a logical boundary that can span any physical topology. Transport addresses are URLs, enabling protocol multiplicity. The `ap-description` object makes platform capabilities machine-queryable. Software resources are distinct from agents and don't require full agent infrastructure. For Jury-rig: standardize the skill interface contract rigorously, implement the platform capabilities declaration, treat skills as logical entities independent of their physical backing, support multiple invocation addresses per skill, and ensure every lifecycle event has a specified protocol.
 ```
 
 ### FILE: fipa-message-performatives-and-interaction-patterns.md
@@ -1171,7 +1171,7 @@ The `inform done` then uses the `done` predicate wrapping the same action:
 
 This is a completed-action declaration: "the action (described here) is done." The receiver doesn't need to look up what action was being referred to — it's right there in the message.
 
-For WinDAGs, this self-describing pattern is valuable for long-running orchestrations where the orchestrator needs to match completion notifications to pending task steps. Rather than relying on correlation IDs stored externally, the completion message carries enough context to be matched by content alone.
+For Jury-rig, this self-describing pattern is valuable for long-running orchestrations where the orchestrator needs to match completion notifications to pending task steps. Rather than relying on correlation IDs stored externally, the completion message carries enough context to be matched by content alone.
 
 ## The `propose` Failure: Wrong Performative
 
@@ -1188,7 +1188,7 @@ The DF can handle `request` performatives. It cannot handle `propose` — which 
 
 This example teaches: the communicative act type is not a wrapper — it is load-bearing. Sending the right content with the wrong act type is a communication failure. The receiver's interpretation of the content depends on the act type: a `propose` to deregister is semantically different from a `request` to deregister.
 
-For WinDAGs, this means: skill invocations must use the correct communicative act type for the intended interaction semantics. Sending a "task completion notification" as a request (which demands a response) versus an inform (which is a one-way notification) has very different implications for downstream protocol behavior.
+For Jury-rig, this means: skill invocations must use the correct communicative act type for the intended interaction semantics. Sending a "task completion notification" as a request (which demands a response) versus an inform (which is a one-way notification) has very different implications for downstream protocol behavior.
 
 ## Interaction Protocol Multiplicity
 
@@ -1202,11 +1202,11 @@ While FIPA-Request is the primary protocol used in the Agent Management Specific
 
 The fact that supported protocols are part of the DF registration means agents can discover not just *what* another agent can do, but *how* it prefers to be coordinated with.
 
-## Application to WinDAGs Communication Design
+## Application to Jury-rig Communication Design
 
 ### Performative Types for Skill Invocation
 
-WinDAGs skill invocations should use distinct performative types:
+Jury-rig skill invocations should use distinct performative types:
 
 - **`task-request`**: "Execute this task and report completion" (maps to FIPA-Request)
 - **`capability-query`**: "Can you handle this type of task?" (maps to FIPA-Query)
@@ -1223,7 +1223,7 @@ Follow the FIPA pattern: task completion messages should include enough context 
 
 ### Protocol Labeling
 
-Every message in WinDAGs should carry a `:protocol` label identifying which interaction protocol it belongs to. This enables the receiver to track the correct state machine for the conversation. Without protocol labels, a `failure` message is ambiguous: which of several in-flight interactions did this failure belong to?
+Every message in Jury-rig should carry a `:protocol` label identifying which interaction protocol it belongs to. This enables the receiver to track the correct state machine for the conversation. Without protocol labels, a `failure` message is ambiguous: which of several in-flight interactions did this failure belong to?
 
 ### Language and Ontology Negotiation
 
@@ -1247,19 +1247,19 @@ This echo serves multiple purposes:
 2. The sender knows the specific reason for the not-understood (unsupported-act vs. unrecognised-value)
 3. The sender can correct and retry with the appropriate act type or content format
 
-For WinDAGs, implementing this echo pattern in error responses helps with debugging: when an orchestrator receives a `not-understood` from a skill, it should be able to see exactly what it sent and exactly what part was problematic. This transforms debugging from "why did that fail?" to "oh, I sent the wrong message type" — a much more tractable question.
+For Jury-rig, implementing this echo pattern in error responses helps with debugging: when an orchestrator receives a `not-understood` from a skill, it should be able to see exactly what it sent and exactly what part was problematic. This transforms debugging from "why did that fail?" to "oh, I sent the wrong message type" — a much more tractable question.
 
 ## Caveats
 
-**Verbosity vs. efficiency**: The FIPA message format is verbose — full message echo in every response, full AID descriptions in every sender/receiver field. For high-throughput systems, this verbosity becomes a bottleneck. Performance-critical WinDAGs deployments may need a binary encoding of the same logical structure. The important thing is to preserve the semantic structure, not the FIPA-SL0 syntax specifically.
+**Verbosity vs. efficiency**: The FIPA message format is verbose — full message echo in every response, full AID descriptions in every sender/receiver field. For high-throughput systems, this verbosity becomes a bottleneck. Performance-critical Jury-rig deployments may need a binary encoding of the same logical structure. The important thing is to preserve the semantic structure, not the FIPA-SL0 syntax specifically.
 
 **Stateless message interpretation**: The self-describing message pattern works because each message is (mostly) interpretable standalone. But some interaction patterns inherently require state: you can't properly interpret an `agree` without knowing what was `request`ed. Implementations must maintain conversation state keyed by interaction ID.
 
-**Protocol explosion**: FIPA's protocol library defines many interaction patterns. Using all of them creates a large vocabulary that all parties must implement. In practice, most WinDAGs interactions need only two or three protocols: synchronous request/response, asynchronous task submission, and status query. Start with the minimum set.
+**Protocol explosion**: FIPA's protocol library defines many interaction patterns. Using all of them creates a large vocabulary that all parties must implement. In practice, most Jury-rig interactions need only two or three protocols: synchronous request/response, asynchronous task submission, and status query. Start with the minimum set.
 
 ## Summary
 
-FIPA's communication model is built on speech act theory: messages are performative acts, not just data transfers. The FIPA-Request interaction protocol provides a two-phase commitment pattern (agree then complete/fail) that separates rejection from failure. Messages are self-describing, carrying their own context for interpretation and matching. Ontology and language declarations in every message ensure shared interpretive context. The `not-understood` exception with echoed content enables self-healing communication. For WinDAGs: define distinct performative types for different interaction purposes, use the agree/complete split for long-running tasks, make completion messages self-describing, and implement `not-understood` with content echo as the error response for uninterpretable messages.
+FIPA's communication model is built on speech act theory: messages are performative acts, not just data transfers. The FIPA-Request interaction protocol provides a two-phase commitment pattern (agree then complete/fail) that separates rejection from failure. Messages are self-describing, carrying their own context for interpretation and matching. Ontology and language declarations in every message ensure shared interpretive context. The `not-understood` exception with echoed content enables self-healing communication. For Jury-rig: define distinct performative types for different interaction purposes, use the agree/complete split for long-running tasks, make completion messages self-describing, and implement `not-understood` with content echo as the error response for uninterpretable messages.
 ```
 
 ---

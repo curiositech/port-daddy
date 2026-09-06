@@ -69,11 +69,11 @@ The lifecycle is connected to message delivery behavior in a specified way (Sect
 
 The key insight: **the lifecycle state is the input to message delivery policy**. The MTS consults the lifecycle state before deciding what to do with a message. This means that every message routing decision implicitly queries the lifecycle state of the destination agent. The AMS's lifecycle tracking is therefore not administrative bookkeeping — it is load-bearing infrastructure for correct message delivery.
 
-## Application to WinDAGs
+## Application to Jury-rig
 
 ### Every Skill Needs a Lifecycle
 
-Every skill in WinDAGs should have an explicit lifecycle state maintained by the Orchestration Registry (the AMS analog). The minimal state set from FIPA is exactly right:
+Every skill in Jury-rig should have an explicit lifecycle state maintained by the Orchestration Registry (the AMS analog). The minimal state set from FIPA is exactly right:
 
 - **Active**: Accepting task invocations, processing normally
 - **Initiated**: Skill process started but not yet ready to accept invocations (initialization in progress)
@@ -81,7 +81,7 @@ Every skill in WinDAGs should have an explicit lifecycle state maintained by the
 - **Suspended**: Skill is administratively paused (deployment in progress, maintenance window, resource constraint)
 - **Unknown**: Skill health cannot be determined (process may have crashed, network may be partitioned)
 
-### Transition Ownership in WinDAGs
+### Transition Ownership in Jury-rig
 
 Apply the FIPA ownership model:
 
@@ -89,11 +89,11 @@ Apply the FIPA ownership model:
 - **Skill (agent analog)** can: Enter Wait state (when blocked on dependencies), Enter Suspend state (when it detects a condition requiring administrative intervention), initiate graceful Quit
 - **Both**: Graceful shutdown (Quit)
 
-This asymmetry is important in WinDAGs because it prevents "zombie skills" — skills that have entered a passive state and can't be recovered because no authority has the power to wake them. The orchestrator always has the ability to intervene.
+This asymmetry is important in Jury-rig because it prevents "zombie skills" — skills that have entered a passive state and can't be recovered because no authority has the power to wake them. The orchestrator always has the ability to intervene.
 
 ### The Mandatory `quit` Equivalent
 
-Every skill in WinDAGs must implement a graceful shutdown handler. The orchestrator must be able to request this, and if the skill doesn't respond within a timeout, the orchestrator must be able to force-terminate it. This is not optional robustness — it is the governance contract that makes the system manageable.
+Every skill in Jury-rig must implement a graceful shutdown handler. The orchestrator must be able to request this, and if the skill doesn't respond within a timeout, the orchestrator must be able to force-terminate it. This is not optional robustness — it is the governance contract that makes the system manageable.
 
 ### Lifecycle State as Routing Input
 
@@ -105,7 +105,7 @@ When an orchestrator needs to route a task to a skill, it must consult the skill
 - **Suspended**: Do not route. If no other instance is available, either queue and wait for resume, or escalate to the orchestrator for a decision
 - **Unknown**: Attempt route with circuit-breaker logic; if delivery fails, assume unavailable and re-route
 
-This is the FIPA MTS delivery semantic translated to WinDAGs routing logic.
+This is the FIPA MTS delivery semantic translated to Jury-rig routing logic.
 
 ### Detecting and Recovering from Unknown State
 
@@ -114,7 +114,7 @@ The Unknown state deserves special attention because it is the most dangerous. A
 - Partitioned (messages may succeed or fail unpredictably)
 - Running but unregistered (messages may succeed but the registry is stale)
 
-WinDAGs should treat Unknown state as requiring active recovery:
+Jury-rig should treat Unknown state as requiring active recovery:
 1. Attempt a health-check ping
 2. If ping fails, attempt to force a new skill instance (Create transition)
 3. If ping succeeds but state is inconsistent, attempt AMS-initiated Resume or state reconciliation
@@ -132,16 +132,16 @@ The AMS responds with:
 
 Or, if something went wrong, a `refuse` or `failure` with a specific exception predicate explaining why.
 
-This two-phase response (agree then inform) is important: it separates the acknowledgment of receiving the request from the confirmation of its execution. A WinDAGs skill registration protocol should follow the same pattern to correctly handle the case where the registry accepts the request but then fails during processing.
+This two-phase response (agree then inform) is important: it separates the acknowledgment of receiving the request from the confirmation of its execution. A Jury-rig skill registration protocol should follow the same pattern to correctly handle the case where the registry accepts the request but then fails during processing.
 
 ## Caveats and Boundary Conditions
 
-**Static systems**: If your WinDAGs deployment has a fixed set of skills that never move, never migrate, and never need to be administratively suspended, a full lifecycle state machine is overkill. A simple binary (alive/dead) may suffice. The full lifecycle pays off when skills are dynamic, deployed continuously, or managed across multiple platforms.
+**Static systems**: If your Jury-rig deployment has a fixed set of skills that never move, never migrate, and never need to be administratively suspended, a full lifecycle state machine is overkill. A simple binary (alive/dead) may suffice. The full lifecycle pays off when skills are dynamic, deployed continuously, or managed across multiple platforms.
 
 **State machine explosion**: FIPA's six states are chosen carefully to be minimal. Adding more states (e.g., "degraded," "overloaded," "read-only") creates richer semantics but also more complex transition logic. Resist the temptation to extend the state machine unless there is a clear operational use case.
 
-**Who enforces the state machine**: The FIPA model assumes the AMS is a trusted, reliable authority. In WinDAGs, if the Orchestration Registry (AMS analog) itself fails, the lifecycle state machine breaks down — skills can't be created, destroyed, or recovered. The registry must be highly available and its lifecycle authority must be designed for resilience.
+**Who enforces the state machine**: The FIPA model assumes the AMS is a trusted, reliable authority. In Jury-rig, if the Orchestration Registry (AMS analog) itself fails, the lifecycle state machine breaks down — skills can't be created, destroyed, or recovered. The registry must be highly available and its lifecycle authority must be designed for resilience.
 
 ## Summary
 
-The FIPA lifecycle state machine gives every agent in the system a formal, queryable, manageable state. The transition ownership rules create a governance model where agents can self-manage their passive states but the AMS always retains the authority to override. The connection between lifecycle state and message delivery semantics means that state management is not separate from communication — it is integral to it. For WinDAGs, this means: every skill must have an explicit lifecycle, the orchestrator must track it, routing decisions must consult it, and the orchestrator must always retain the ability to force-terminate any skill.
+The FIPA lifecycle state machine gives every agent in the system a formal, queryable, manageable state. The transition ownership rules create a governance model where agents can self-manage their passive states but the AMS always retains the authority to override. The connection between lifecycle state and message delivery semantics means that state management is not separate from communication — it is integral to it. For Jury-rig, this means: every skill must have an explicit lifecycle, the orchestrator must track it, routing decisions must consult it, and the orchestrator must always retain the ability to force-terminate any skill.

@@ -1,0 +1,167 @@
+\documentclass[11pt,a4paper]{article}
+\input{coordination-papers-mega-volume-preamble.tex}
+\input{coordination-papers-mega-volume-seams.tex}
+\hypersetup{
+  pdftitle={The Harbor, the Person, and the Economy: The Collected Coordination Papers},
+  pdfauthor={Erich Owens},
+  pdfsubject={A seven-part argument for accountable autonomous work},
+  pdfkeywords={Port Daddy, multi-agent systems, capability security, coordination, accountability, federation}
+}
+\newcommand{\pdgeneratedinput}[2]{%
+  \IfFileExists{#1}{\input{#1}}{%
+    \PackageError{coordination-papers-mega-volume}{Generated #2 is missing}{%
+      From the repository root, run: node scripts/generate-mega-whitepaper.mjs
+      .cache/whitepaper-build/coordination-papers-mega-volume}%
+  }%
+}
+
+\begin{document}
+\hypersetup{pageanchor=false}
+\begin{titlepage}
+\pagecolor{hhpaper}\color{hhink}
+\vspace*{-0.8cm}
+\noindent{\scshape\bfseries\large Port Daddy Coordination Papers \hfill Collected Treatise \textperiodcentered\ August 2026}\par
+\vspace{0.25cm}
+\noindent{\color{hhcobalt}\rule{\textwidth}{2.2pt}}\par
+\vspace{0.6cm}
+
+\begin{center}
+{\fontsize{31}{37}\selectfont\bfseries The Harbor, the Person,\\[0.15cm]and the Economy}\par
+\vspace{0.45cm}
+{\Large Seven papers on accountable autonomous work}\par
+\vspace{0.8cm}
+\begin{minipage}{0.76\textwidth}
+\centering
+{\large\bfseries Autonomy scales only when authority, evidence, and consequence
+remain coupled at every effect boundary.\par}
+\vspace{0.35cm}
+{\small\color{hhgray} This book follows that claim from one operator and one
+machine to work shared across principals, economic interests, and mutually
+distrustful systems.\par}
+\end{minipage}
+\vspace{0.8cm}
+\end{center}
+
+\vspace{0.4cm}
+\noindent{\color{hhcobalt}\rule{\textwidth}{0.8pt}}\par
+\vspace{0.25cm}
+\noindent\begin{tabularx}{\textwidth}{@{}Xr@{}}
+\textbf{Erich Owens} \textperiodcentered\ Curiositech LLC & \textbf{August 2026} \textperiodcentered\ Version 3.1 (Research Edition)\\
+\texttt{engineering@portdaddy.dev} & \url{https://portdaddy.dev/whitepaper}\\
+\end{tabularx}
+\end{titlepage}
+\nopagecolor\color{hhink}
+
+\pagenumbering{roman}
+\begin{abstract}\noindent
+Agentic development fails in a predictable way when concurrency grows faster
+than accountability. More processes produce more work, but they also create more
+unread evidence, more overlapping effects, more disposable identities, and more
+ways for a confident report to outrun what actually happened. Better models do
+not remove this institutional problem.
+
+This book makes one claim: \emph{autonomy scales only when authority, evidence,
+and consequence remain coupled at every effect boundary}. Seven independently
+readable papers establish that claim in stages. They derive the information cost
+of legible supervision; place one serial authority at the local write boundary;
+bind work to a durable principal and outcome history; separate payment,
+collateral, evidence, and settlement; prove that delegated capability only
+narrows; connect witnessed acts to audit and bounded remedy; and state what may
+cross between mutually distrustful machines without moving either machine's
+sovereignty. The result is not a plea to trust agents. It is a design for making
+trust unnecessary where structure can suffice, measurable where uncertainty
+remains, and contestable everywhere else.
+\end{abstract}
+
+\section*{How to use this volume}
+\addcontentsline{toc}{section}{How to use this volume}
+Read the book in order for the argument, or enter at the question you need:
+visibility (I), local effect control (II), continuity (III), exchange (IV),
+delegation (V), local institutions (VI), or federation (VII). Every chapter
+retains its standalone abstract and reader map. The short book-owned opening and
+handoff around it explain what the chapter proves for the whole and what the next
+chapter may assume.
+
+The status vocabulary is strict. \Built{} means running code exercised by tests;
+\BuiltWeak{} means a running slice that does not yet satisfy its full contract;
+\Designed{} means a concrete design without a shipping realization; \Vision{}
+is a research direction. Mathematical proofs, imported frameworks, finite model
+checks, repository experiments, and running code remain separate kinds of
+evidence throughout. None is silently promoted into another.
+
+\begingroup\small\sloppy\tableofcontents\endgroup\clearpage
+
+\section{Introduction: the unit of account is the work}
+
+Agentic software is usually measured by the agent: capability, runtime, tool
+access, and parallel copies. That is the wrong unit of account. A process may
+disappear, rename itself, summarize its mistakes, or hand work off. The durable
+object must be the work: its authorization, permitted effects, evidence, open
+obligations, and liability for the outcome.
+
+This book develops that claim in seven propositions.
+
+\begin{enumerate}[leftmargin=2.1em,itemsep=2pt,topsep=4pt]
+  \item \textbf{Supervision has an information cost.} A digest cannot guarantee
+  that a human will notice any one of many relevant events unless it spends
+  enough bits, attention, or artifact openings to distinguish them. A summary
+  is therefore an index into evidence, not a substitute for it.
+
+  \item \textbf{Prevention begins at the effect boundary.} Rules can be enforced
+  before an act only when the system controls the channel through which the act
+  occurs. Local effects therefore pass through one serial authority; semantic
+  failures that no gate can decide remain matters of detection and remedy.
+
+  \item \textbf{Accountability must outlive the process.} A task acquires a
+  durable principal, capability history, evidence record, obligations, and
+  outcome. Restarting an agent or choosing a new name must not erase that case
+  file or refill the resources it already consumed.
+
+  \item \textbf{Exchange requires separated instruments.} Payment rewards the
+  requested work. Collateral prices a bounded failure. Evidence supports a
+  claim. Settlement closes it exactly once. Combining those functions in one
+  score or token makes each of them less trustworthy.
+
+  \item \textbf{Delegation only narrows.} Every child capability is a strict
+  subset of its parent's authority and lifetime. Authentication says who signed;
+  attenuation says what the signature may authorize. Both are needed at every
+  hop.
+
+  \item \textbf{Uncertainty needs an institution.} Some harms cannot be
+  prevented and some outcomes cannot be judged mechanically. Witnesses,
+  randomized audits, bounded bonds, appeals, and conservation rules turn that
+  residual uncertainty into a process that can be inspected and contested.
+
+  \item \textbf{Federation relays evidence, not sovereignty.} Mutually
+  distrustful machines may exchange signed capabilities, revocations, witness
+  roots, and settlement claims without sharing a database or accepting a global
+  ruler. Transport can carry evidence; it cannot decide what either machine is
+  permitted to do with it.
+\end{enumerate}
+
+Together they form one causal chain. Legibility states what a human must recover;
+the kernel marks where effects become real; continuity gives the record a durable
+subject; the economy and protocol bound consequence and authority; the commons
+connects evidence to remedy; federation carries those objects without pretending
+that transport creates consensus.
+
+\subsection{What counts as knowing}
+Every consequential statement has a status and a boundary. Derivations establish
+relations under named assumptions. Finite checks exhaust a stated state space,
+not every deployment. Simulations estimate behavior under a stated generator;
+repository tests exercise named paths; running code proves availability, not
+universal mediation. Counterexamples remain in the record because they mark
+claims the research killed rather than conclusions it merely failed to prove.
+
+Appendix~\ref{app:volume-status} gives the implementation boundary; Appendix
+~\ref{app:result-atlas} records the results and their limits. The companion
+\path{docs/harbor-research/mega-volume-epistemic-manifest.yaml} preserves each
+result's source, status, conditions, boundary, chapter home, and verification
+artifact. The chapters stand alone; the book's claim is the chain they make.
+
+\clearpage
+\pagenumbering{arabic}
+\hypersetup{pageanchor=true}
+\pdgeneratedinput{../../../.cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-body.tex}{chapter body}
+\input{coordination-papers-mega-volume-appendices.tex}
+\end{document}

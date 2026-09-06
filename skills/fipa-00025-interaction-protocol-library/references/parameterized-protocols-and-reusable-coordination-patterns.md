@@ -101,7 +101,7 @@ When an orchestrator invokes skill X on task Y, it is instantiating the skill's 
 
 ### Building a WinDAG Protocol Library
 
-The FIPA approach suggests that WinDAGs should maintain a **protocol library** analogous to the skill library: a registry of named, parameterized protocol templates that can be instantiated for specific coordination needs. This library would contain:
+The FIPA approach suggests that Jury-rig should maintain a **protocol library** analogous to the skill library: a registry of named, parameterized protocol templates that can be instantiated for specific coordination needs. This library would contain:
 
 - Generic patterns (ContractNet-style negotiation, Request-Response, Publish-Subscribe)
 - Domain-specific patterns (code-review-then-merge, verify-then-deploy, decompose-then-aggregate)

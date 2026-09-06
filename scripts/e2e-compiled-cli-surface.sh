@@ -262,10 +262,27 @@ run_read "hints"             hints       -- hints
 run_ok   "use stable"        use         -- use stable
 run_ok   "dev list"          dev         -- dev list
 
-# --help routing regression (HELP_TOPIC_ALIASES): a messaging-family command must
-# resolve to the messaging TOPIC, not silently fall through to the global help.
-__help_out="$(cli inbox --help 2>&1 || true)"
-if printf '%s' "$__help_out" | grep -q 'Direct durable messages'; then
+# Exercise every help resolution path and require a successful exit. A crash or
+# a fallthrough to the global "Get started:" page is not verb help.
+for __verb in session claim attention roster sitrep squid; do
+  if __help_out="$(cli "$__verb" --help 2>&1)"; then __help_rc=0; else __help_rc=$?; fi
+  __help_first="$(printf '%s' "$__help_out" | head -1)"
+  if [ "$__help_rc" -ne 0 ]; then
+    fail "$__verb --help -> verb help" "exited $__help_rc: $__help_first"
+  elif [ -z "$__help_out" ]; then
+    fail "$__verb --help -> verb help" "printed nothing"
+  elif printf '%s' "$__help_first" | grep -q 'Get started:'; then
+    fail "$__verb --help -> verb help" "fell through to global help: $__help_first"
+  else
+    pass "$__verb --help -> verb help (not global help)"
+  fi
+done
+
+# The messaging topic's reliability warning is important enough to pin exactly.
+if __help_out="$(cli inbox --help 2>&1)"; then __help_rc=0; else __help_rc=$?; fi
+if [ "$__help_rc" -ne 0 ]; then
+  fail "inbox --help -> messaging topic" "exited $__help_rc: $(printf '%s' "$__help_out" | head -1)"
+elif printf '%s' "$__help_out" | grep -q 'Direct durable messages'; then
   pass "inbox --help -> messaging topic (not global help)"
 else
   fail "inbox --help -> messaging topic" "got: $(printf '%s' "$__help_out" | head -1)"
@@ -277,13 +294,14 @@ run_read "metrics"           metrics     -- metrics
 run_read "config"            config      -- config
 run_read "graph"             graph       -- graph
 run_read "embed status"      embed       -- embed status
-run_read "skill-graft help"  skill-graft -- skill-graft --help
-run_read "skillgraft help"   skillgraft  -- skillgraft --help
+run_read "jury-rig help"     jury-rig -- jury-rig --help
+run_read "jury-rig bootstrap status" jury-rig -- jury-rig bootstrap status \
+  --home "$WORK/bootstrap-home" --pd-home "$WORK/bootstrap-pd-home" --json
 # Skill registry (cli/commands/seamanship.ts). `seamanship list` (the bare
 # default subcommand) is a pure READ: it walks defaultSkillCatalogRoots() and
 # prints the union, writing nothing. The mutating subforms are NOT run here —
-# `sync` copies $WINDAGS_HOME into ~/.port-daddy/skills/ and `index` rebuilds the
-# catalog on disk, both of which would touch the operator's real skill store.
+# `sync` copies configured sources into ~/.port-daddy/skills/ and `index`
+# rebuilds the catalog on disk; both would touch the operator's real skill store.
 # `skills` is the alias of the same handler; it gets its own probe (rather than
 # an ALIASES fold) so a broken alias arm in the COMPILED dispatch is caught —
 # same pattern as harbormaster/hm and transcripts/transcript above.
@@ -422,7 +440,7 @@ run_read "takeover (usage)"  takeover -- takeover
 # inside that repo, so the check would refuse with "Detached HEAD: cannot verify
 # origin push." That refusal is correct for real work but irrelevant to a
 # read-surface probe that never pushes anything.
-run_ok  "done"               done     -- done "Result: e2e cli-surface round-trip complete. not-applicable: CI surface probe, no code change." --skip-origin-check --reason "compiled-CLI surface E2E probe — no branch, no push (CI detached HEAD)"
+run_ok  "done"               done     -- done "Result: e2e cli-surface round-trip complete. not-applicable: CI surface probe, no code change." --status abandoned
 
 # pub -> channels reflects it (sub/subscribe/listen/wait are blocking → skipped)
 run_ok  "pub"                pub      -- pub e2e:surface:chan "hello from cli-surface e2e"

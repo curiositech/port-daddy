@@ -17,6 +17,7 @@ import { locksPlugin } from '../../routes/locks.js';
 import { sessionsPlugin } from '../../routes/sessions.js';
 import { createServices } from '../../lib/services.js';
 import { createLocks } from '../../lib/locks.js';
+import { createTestActorSouls, mintTestActor } from '../helpers/actor-credentials.js';
 import { createSessions } from '../../lib/sessions.js';
 
 // ============================================================================
@@ -697,11 +698,19 @@ describe('Route: wait routes', () => {
 
 describe('Route error codes: locks', () => {
   let app;
+  let agent1;
+  let agent2;
+  let agentWrong;
 
   beforeEach(async () => {
     const db = createTestDb();
     const logger = createMockLogger();
     const locks = createLocks(db);
+    // #8877 / ADR-0122: lock mutations require daemon-minted credentials.
+    const souls = createTestActorSouls(db);
+    agent1 = mintTestActor(souls, 'agent-1');
+    agent2 = mintTestActor(souls, 'agent-2');
+    agentWrong = mintTestActor(souls, 'agent-wrong');
 
     app = Fastify();
     await app.register(locksPlugin, {
@@ -711,7 +720,8 @@ describe('Route error codes: locks', () => {
         locks,
         agents: { canAcquireLock: () => ({ allowed: true }) },
         activityLog: { logLock: { acquire: () => {}, release: () => {} } },
-        webhooks: { trigger: () => {} }
+        webhooks: { trigger: () => {} },
+        actorSouls: souls,
       }
     });
     await app.ready();
@@ -722,25 +732,25 @@ describe('Route error codes: locks', () => {
   });
 
   test('POST /locks/:name returns LOCK_HELD on conflict', async () => {
-    await app.inject({ method: 'POST', url: '/locks/deploy', payload: { owner: 'agent-1', ttl: 60000 } });
+    await app.inject({ method: 'POST', url: '/locks/deploy', payload: { owner: 'agent-1', ttl: 60000 }, headers: agent1.headers });
 
-    const res = await app.inject({ method: 'POST', url: '/locks/deploy', payload: { owner: 'agent-2', ttl: 60000 } });
+    const res = await app.inject({ method: 'POST', url: '/locks/deploy', payload: { owner: 'agent-2', ttl: 60000 }, headers: agent2.headers });
 
     expect(res.statusCode).toBe(409);
     expect(res.json().code).toBe('LOCK_HELD');
   });
 
-  test('DELETE /locks/:name returns LOCK_NOT_FOUND for wrong owner', async () => {
-    await app.inject({ method: 'POST', url: '/locks/deploy', payload: { owner: 'agent-1', ttl: 60000 } });
+  test('DELETE /locks/:name returns LOCK_OWNER_MISMATCH for wrong owner', async () => {
+    await app.inject({ method: 'POST', url: '/locks/deploy', payload: { owner: 'agent-1', ttl: 60000 }, headers: agent1.headers });
 
-    const res = await app.inject({ method: 'DELETE', url: '/locks/deploy', payload: { owner: 'agent-wrong' } });
+    const res = await app.inject({ method: 'DELETE', url: '/locks/deploy', payload: { owner: 'agent-wrong' }, headers: agentWrong.headers });
 
     expect(res.statusCode).toBe(403);
-    expect(res.json().code).toBe('LOCK_NOT_FOUND');
+    expect(res.json().code).toBe('LOCK_OWNER_MISMATCH');
   });
 
   test('PUT /locks/:name returns LOCK_NOT_FOUND for non-existent lock', async () => {
-    const res = await app.inject({ method: 'PUT', url: '/locks/nonexistent', payload: { owner: 'agent-1', ttl: 60000 } });
+    const res = await app.inject({ method: 'PUT', url: '/locks/nonexistent', payload: { owner: 'agent-1', ttl: 60000 }, headers: agent1.headers });
 
     expect(res.statusCode).toBe(400);
     expect(res.json().code).toBe('LOCK_NOT_FOUND');
@@ -756,12 +766,22 @@ describe('Route error codes: sessions', () => {
   let sessionsMod;
   let logger;
   let activityEntries;
+  let creds;
 
   beforeEach(async () => {
     const db = createTestDb();
     logger = createMockLogger();
     activityEntries = [];
     sessionsMod = createSessions(db, undefined, { requireAgentForFileClaims: true });
+    // #8877 / ADR-0122: attributed session/note/claim writes require
+    // daemon-minted credentials; mint one per agent identity the suite uses.
+    const souls = createTestActorSouls(db);
+    creds = Object.fromEntries(
+      ['agent-from-header', 'agent-owner', 'agent-intruder', 'agent-1', 'agent-2',
+       'agent-without-session', 'agent-explicit', 'agent-fallback'].map(
+        (alias) => [alias, mintTestActor(souls, alias)],
+      ),
+    );
 
     app = Fastify();
     await app.register(sessionsPlugin, {
@@ -769,7 +789,8 @@ describe('Route error codes: sessions', () => {
         sessions: sessionsMod,
         metrics: { errors: 0 },
         logger,
-        activityLog: { log: (...args) => activityEntries.push(args) }
+        activityLog: { log: (...args) => activityEntries.push(args) },
+        actorSouls: souls,
       }
     });
     await app.ready();
@@ -791,7 +812,7 @@ describe('Route error codes: sessions', () => {
     const res = await app.inject({
       method: 'POST',
       url: '/sessions',
-      headers: { 'x-agent-id': 'agent-from-header' },
+      headers: { 'x-agent-id': 'agent-from-header', ...creds['agent-from-header'].headers },
       payload: { purpose: 'header-owned session' },
     });
 
@@ -829,39 +850,62 @@ describe('Route error codes: sessions', () => {
   });
 
   test('PUT /sessions/:id returns SESSION_NOT_FOUND', async () => {
-    const res = await app.inject({ method: 'PUT', url: '/sessions/session-nonexistent', payload: { status: 'completed' } });
+    const res = await app.inject({
+      method: 'PUT',
+      url: '/sessions/session-nonexistent',
+      headers: creds['agent-owner'].headers,
+      payload: { status: 'abandoned' },
+    });
 
     expect(res.statusCode).toBe(404);
     expect(res.json().code).toBe('SESSION_NOT_FOUND');
   });
 
   test('DELETE /sessions/:id returns SESSION_NOT_FOUND', async () => {
-    const res = await app.inject({ method: 'DELETE', url: '/sessions/session-nonexistent' });
+    const res = await app.inject({
+      method: 'DELETE',
+      url: '/sessions/session-nonexistent',
+      headers: creds['agent-owner'].headers,
+    });
 
     expect(res.statusCode).toBe(404);
     expect(res.json().code).toBe('SESSION_NOT_FOUND');
   });
 
   test('POST /sessions/:id/notes returns VALIDATION_ERROR for missing content', async () => {
-    // First create a session
-    const session = await app.inject({ method: 'POST', url: '/sessions', payload: { purpose: 'test' } });
+    const session = await app.inject({ method: 'POST', url: '/sessions',
+      headers: creds['agent-owner'].headers, payload: { purpose: 'test', agentId: 'agent-owner' } });
     const sessionId = session.json().id;
 
-    const res = await app.inject({ method: 'POST', url: `/sessions/${sessionId}/notes`, payload: {} });
+    const unauthenticated = await app.inject({ method: 'POST', url: `/sessions/${sessionId}/notes`, payload: {} });
+    expect(unauthenticated.statusCode).toBe(401);
+    expect(unauthenticated.json().code).toBe('IDENTITY_CREDENTIAL_REQUIRED');
+    const res = await app.inject({ method: 'POST', url: `/sessions/${sessionId}/notes`,
+      headers: creds['agent-owner'].headers, payload: {} });
 
     expect(res.statusCode).toBe(400);
     expect(res.json().code).toBe('VALIDATION_ERROR');
   }, 30000);
 
   test('POST /sessions/:id/notes returns SESSION_NOT_FOUND for bad session', async () => {
-    const res = await app.inject({ method: 'POST', url: '/sessions/session-nonexistent/notes', payload: { content: 'hello' } });
+    const res = await app.inject({
+      method: 'POST',
+      url: '/sessions/session-nonexistent/notes',
+      headers: creds['agent-owner'].headers,
+      payload: { content: 'hello' },
+    });
 
     expect(res.statusCode).toBe(404);
     expect(res.json().code).toBe('SESSION_NOT_FOUND');
   });
 
   test('POST /sessions/:id/notes uses the canonical quick-note write path', async () => {
-    const session = await app.inject({ method: 'POST', url: '/sessions', payload: { purpose: 'test' } });
+    const session = await app.inject({
+      method: 'POST',
+      url: '/sessions',
+      headers: creds['agent-owner'].headers,
+      payload: { purpose: 'test', agentId: 'agent-owner' },
+    });
     const sessionId = session.json().id;
     const quickNote = jest.spyOn(sessionsMod, 'quickNote');
     const addNote = jest.spyOn(sessionsMod, 'addNote');
@@ -869,6 +913,7 @@ describe('Route error codes: sessions', () => {
     const res = await app.inject({
       method: 'POST',
       url: `/sessions/${sessionId}/notes`,
+      headers: creds['agent-owner'].headers,
       payload: { content: 'hello from compat route', type: 'progress' },
     });
 
@@ -890,7 +935,7 @@ describe('Route error codes: sessions', () => {
     expect(res.json().code).toBe('VALIDATION_ERROR');
   });
 
-  test('POST /sessions/:id/files returns SESSION_AGENT_REQUIRED for agentless sessions', async () => {
+  test('POST /sessions/:id/files requires a credential before session lookup', async () => {
     const session = await app.inject({ method: 'POST', url: '/sessions', payload: { purpose: 'test' } });
     const sessionId = session.json().id;
 
@@ -900,8 +945,8 @@ describe('Route error codes: sessions', () => {
       payload: { files: ['file-a.ts'] },
     });
 
-    expect(res.statusCode).toBe(409);
-    expect(res.json().code).toBe('SESSION_AGENT_REQUIRED');
+    expect(res.statusCode).toBe(401);
+    expect(res.json().code).toBe('IDENTITY_CREDENTIAL_REQUIRED');
   });
 
   test('POST /sessions/:id/files requires the owning agent before conflict checks', async () => {
@@ -909,11 +954,13 @@ describe('Route error codes: sessions', () => {
       method: 'POST',
       url: '/sessions',
       payload: { purpose: 'owner', agentId: 'agent-owner', files: ['file-a.ts'] },
+      headers: creds['agent-owner'].headers,
     });
     const session = await app.inject({
       method: 'POST',
       url: '/sessions',
       payload: { purpose: 'intruder', agentId: 'agent-intruder' },
+      headers: creds['agent-intruder'].headers,
     });
     const sessionId = session.json().id;
 
@@ -922,13 +969,14 @@ describe('Route error codes: sessions', () => {
       url: `/sessions/${sessionId}/files`,
       payload: { files: ['file-a.ts'] },
     });
-    expect(noAgent.statusCode).toBe(409);
-    expect(noAgent.json().code).toBe('SESSION_AGENT_REQUIRED');
+    expect(noAgent.statusCode).toBe(401);
+    expect(noAgent.json().code).toBe('IDENTITY_CREDENTIAL_REQUIRED');
 
     const wrongAgent = await app.inject({
       method: 'POST',
       url: `/sessions/${sessionId}/files`,
       payload: { agentId: 'agent-owner', files: ['file-a.ts'] },
+      headers: creds['agent-owner'].headers,
     });
     expect(wrongAgent.statusCode).toBe(403);
     expect(wrongAgent.json().code).toBe('SESSION_AGENT_MISMATCH');
@@ -939,6 +987,7 @@ describe('Route error codes: sessions', () => {
       method: 'POST',
       url: '/sessions',
       payload: { purpose: 'owned release', agentId: 'agent-owner', files: ['file-a.ts'] },
+      headers: creds['agent-owner'].headers,
     });
     const sessionId = session.json().id;
 
@@ -946,6 +995,7 @@ describe('Route error codes: sessions', () => {
       method: 'DELETE',
       url: `/sessions/${sessionId}/files`,
       payload: { agentId: 'agent-intruder', files: ['file-a.ts'] },
+      headers: creds['agent-intruder'].headers,
     });
     expect(wrongAgent.statusCode).toBe(403);
     expect(wrongAgent.json().code).toBe('SESSION_AGENT_MISMATCH');
@@ -954,16 +1004,99 @@ describe('Route error codes: sessions', () => {
       method: 'DELETE',
       url: `/sessions/${sessionId}/files`,
       payload: { agentId: 'agent-owner', files: ['file-a.ts'] },
+      headers: creds['agent-owner'].headers,
     });
     expect(owner.statusCode).toBe(200);
     expect(owner.json().released).toEqual(['file-a.ts']);
   });
 
   test('POST /notes returns VALIDATION_ERROR for empty content', async () => {
-    const res = await app.inject({ method: 'POST', url: '/notes', payload: {} });
+    const session = await app.inject({ method: 'POST', url: '/sessions',
+      headers: creds['agent-owner'].headers, payload: { purpose: 'test', agentId: 'agent-owner' } });
+    const unscoped = await app.inject({ method: 'POST', url: '/notes',
+      headers: creds['agent-owner'].headers, payload: {} });
+    expect(unscoped.statusCode).toBe(400);
+    expect(unscoped.json().code).toBe('SESSION_SCOPE_REQUIRED');
+    const res = await app.inject({ method: 'POST', url: '/notes',
+      headers: creds['agent-owner'].headers, payload: { sessionId: session.json().id, content: '' } });
 
     expect(res.statusCode).toBe(400);
     expect(res.json().code).toBe('VALIDATION_ERROR');
+  });
+
+  test('POST /notes requires one exact session scope even when active sessions exist', async () => {
+    await app.inject({ method: 'POST', url: '/sessions', payload: { purpose: 'Session A' } });
+    await app.inject({ method: 'POST', url: '/sessions', payload: { purpose: 'Session B' } });
+
+    const res = await app.inject({ method: 'POST', url: '/notes', payload: { content: 'which session am I?' } });
+
+    expect(res.statusCode).toBe(400);
+    expect(res.json().code).toBe('SESSION_SCOPE_REQUIRED');
+  });
+
+  test('POST /notes rejects agent-only implicit selection', async () => {
+    const owner = await app.inject({
+      method: 'POST',
+      url: '/sessions',
+      payload: { purpose: 'Session A', agentId: 'agent-owner' },
+      headers: creds['agent-owner'].headers,
+    });
+    const ownerSessionId = owner.json().id;
+    await app.inject({ method: 'POST', url: '/sessions', payload: { purpose: 'Session B' } });
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/notes',
+      payload: { content: 'scoped by agentId', agentId: 'agent-owner' },
+      headers: creds['agent-owner'].headers,
+    });
+
+    expect(res.statusCode).toBe(400);
+    expect(res.json().code).toBe('SESSION_SCOPE_REQUIRED');
+    expect(sessionsMod.getNotes(ownerSessionId).notes).toHaveLength(0);
+  });
+
+  test('POST /notes does not auto-create a standalone session for an agent alias', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/notes',
+      payload: { content: 'standalone agent note', agentId: 'agent-without-session' },
+      headers: creds['agent-without-session'].headers,
+    });
+
+    expect(res.statusCode).toBe(400);
+    expect(res.json().code).toBe('SESSION_SCOPE_REQUIRED');
+    expect(sessionsMod.list({ agentId: 'agent-without-session' }).sessions).toHaveLength(0);
+  });
+
+  test('POST /notes binds an explicit sessionId to its stored owner', async () => {
+    const explicit = await app.inject({
+      method: 'POST',
+      url: '/sessions',
+      payload: { purpose: 'Explicit target', agentId: 'agent-explicit' },
+      headers: creds['agent-explicit'].headers,
+    });
+    const explicitSessionId = explicit.json().id;
+    await app.inject({
+      method: 'POST',
+      url: '/sessions',
+      payload: { purpose: 'Agent fallback', agentId: 'agent-fallback' },
+      headers: creds['agent-fallback'].headers,
+    });
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/notes',
+      payload: {
+        content: 'explicit session wins',
+        sessionId: explicitSessionId,
+        agentId: 'agent-explicit',
+      },
+      headers: creds['agent-explicit'].headers,
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json().sessionId).toBe(explicitSessionId);
   });
 
   test('POST /sessions with conflicting files returns FILE_CONFLICT', async () => {
@@ -972,6 +1105,7 @@ describe('Route error codes: sessions', () => {
       method: 'POST',
       url: '/sessions',
       payload: { purpose: 'session-1', agentId: 'agent-1', files: ['file-a.ts'] },
+      headers: creds['agent-1'].headers,
     });
 
     // Try to create another session with the same files
@@ -979,6 +1113,7 @@ describe('Route error codes: sessions', () => {
       method: 'POST',
       url: '/sessions',
       payload: { purpose: 'session-2', agentId: 'agent-2', files: ['file-a.ts'] },
+      headers: creds['agent-2'].headers,
     });
 
     expect(res.statusCode).toBe(409);

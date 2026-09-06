@@ -8,8 +8,9 @@
 > **real Loro CRDT buffer** and proves the co-equal-replica model that is the whole
 > point of the wedge.
 >
-> **This is the substrate, NOT a finished editor.** Read "What is explicitly NOT
-> done" before assuming more shipped than did.
+> **This records the original substrate slice, not current editor truth.** The
+> later `harbor-editor-local-text-input` slice supplies the platform input bridge;
+> the historical boundary below remains useful provenance.
 
 ## What shipped in this slice
 
@@ -38,10 +39,10 @@
    `peer_id_for_identity(&str) -> PeerId` hashes the PD identity string
    (`project:stack:context` for an agent, the OS user / `pd whoami` for a human)
    with **FNV-1a**, masking off the single `u64::MAX` value Loro reserves. The
-   mapping is **deterministic and stable across process restarts** — so a salvaged
-   successor replaying a dead actor's identity lands on the *same* replica id and
-   authorship stays attributed to the original actor (battle-plan §6 risk:
-   "Loro-replica↔PD-identity binding must survive reconnect/salvage"). The console
+   mapping is **deterministic and stable across process restarts** — so a
+   reconnecting actor lands on the *same* replica id and authorship remains stable.
+   This identity primitive is necessary but not sufficient for P3.5 recovery; a
+   successor cannot self-assert a dead actor's identity. The console
    call site passes the operator's real identity; the buffer itself accepts the
    **injected identity string** so it stays free of any daemon dependency and
    testable headless.
@@ -53,7 +54,7 @@
    and that both replicas converge to identical byte content. **This is the P1
    deliverable — the co-equal-replica substrate, demonstrated.** Supporting tests:
    stable/identity-specific PeerID, opener-attributed seed lines, and idempotent
-   re-import (the salvage-replay foundation).
+   re-import (a P1/P2 merge and reconnect property, not recovery authority).
 
 5. **`EditorPane` renders from the buffer** (`core/pd-console/src/editor_pane.rs`).
    It no longer reads raw bytes with `std::fs::read_to_string`; it holds a
@@ -93,30 +94,30 @@ content). The GPUI face applies this Tone to the gutter cell; the TUI face shows
 author-tag text — both paint the same `Block`s. Color is meaning (semantic `Tone`,
 resolved to theme OKLCH by the renderer); there is **no `rgb(0x…)` hex** anywhere.
 
-## What is explicitly NOT done (no Potemkin)
+## Foundation-slice boundary (historical)
 
-- **No live keystroke editing.** GPUI 0.2.x ships no text-input widget; a usable
-  editable buffer needs a ~300-LOC custom `Element` (selection, IME, shaping). That
-  is the **explicitly-named NEXT step** and was deliberately not attempted in this
-  slice. The buffer is editable *programmatically* (so a merged agent replica's
-  lines render), but a human cannot type into the on-screen pane yet. **We did not
-  fake an editable buffer.** The pane is honestly read-only on screen.
+- **At the time this foundation landed, there was no live keystroke editing.**
+  The later `harbor-editor-local-text-input` slice adds `editor_input.rs`, GPUI's
+  platform `EntityInputHandler`, IME/selection/grapheme handling, guarded Loro
+  replacements, caret paint, and incremental delta broadcast.
 - **No undo-map, no tree-sitter incremental reparse.** Named in the battle-plan's
   full P1 row; out of scope for this foundation slice (the full P1 is multi-week).
 - **No networking / multiplayer / tube sync** — that's P2. `export_ops`/
   `apply_remote_ops` exist and are proven in-process (the merge test), but no
-  transport wires them across processes yet.
+  transport wires them across processes yet. These methods import Loro updates;
+  they do not verify abandonment, prove a complete sequence-zero ledger, authorize
+  another actor, transfer a claim, consume a recovery token, or persist provenance.
 
-## The NAMED next steps (must NOT be deferred indefinitely)
+## The named continuation
 
-1. **The live-edit GPUI text `Element`.** The ~300-LOC custom input widget that
-   turns the read-only pane into an editable one: keystrokes → `HarborBuffer`
-   authored ops → viewport-diff re-render (not full re-layout per op). This is the
-   immediate next step after this slice.
+1. **Undo-map + tree-sitter incremental reparse.** These remain the unfinished
+   P1 items after local input. Local undo must not undo remote peers, and syntax
+   work must consume changed ranges instead of re-lexing the full file.
 2. **P3 — claims (the actual wedge).** `POST /conflicts/predict`, claim-before-edit,
    region/symbol claims rendered as Loro awareness ranges, the `Conflicted` guard
    band on overlap, and the agents-as-peers demo. The battle-plan is explicit: a
-   buffer without claims/salvage is a Potemkin editor, not the product. The gutter
+   buffer without claims and authoritative recovery is a Potemkin editor, not the
+   product. The gutter
    column and `region` seam built in P0/P1 are exactly where the claim bands land.
    **P3 follows the live-edit Element; it is the first slice anyone demos and must
    not be deferred indefinitely.**

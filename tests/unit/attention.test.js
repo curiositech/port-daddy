@@ -6,12 +6,17 @@
  */
 
 import { createTestDb } from '../setup-unit.js';
+import { jest } from '@jest/globals';
 import { createAgentInbox } from '../../lib/agent-inbox.js';
 import { createMessaging } from '../../lib/messaging.js';
 import { createAttention } from '../../lib/attention.js';
-import { createTupleSpace } from '../../lib/tuples.js';
 import { createParley } from '../../lib/parley.js';
-import { rankAttentionSuggestions, renderAttentionLinework } from '../../cli/commands/attention.js';
+import {
+  rankAttentionSuggestions,
+  renderAttentionLinework,
+  handleAttention,
+  unboundAttentionSummary,
+} from '../../cli/commands/attention.js';
 
 function setup() {
   const db = createTestDb();
@@ -22,6 +27,122 @@ function setup() {
 }
 
 describe('attention.compose', () => {
+  test('pre-session attention is an explicit successful empty state', () => {
+    expect(unboundAttentionSummary(true, 1234)).toEqual({
+      success: true,
+      bound: false,
+      items: [],
+      counts: { total: 0, inbox: 0, channels: 0, inboxUnreadRemaining: 0 },
+      subscriptions: [],
+      suggestions: [],
+      peek: true,
+      generatedAt: 1234,
+    });
+  });
+
+  test('pre-session human output is explicit and requires no daemon request', async () => {
+    const priorAgentId = process.env.PD_AGENT_ID;
+    const priorSessionId = process.env.PD_SESSION_ID;
+    const priorContextDir = process.env.PORT_DADDY_CONTEXT_DIR;
+    delete process.env.PD_AGENT_ID;
+    delete process.env.PD_SESSION_ID;
+    process.env.PORT_DADDY_CONTEXT_DIR = `${process.cwd()}/.portdaddy-test-unbound-human-${process.pid}-${Date.now()}`;
+
+    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => undefined);
+
+    try {
+      await handleAttention({});
+      expect(logSpy).toHaveBeenCalledTimes(1);
+      expect(logSpy).toHaveBeenCalledWith('Attention clear (no active agent session).');
+    } finally {
+      logSpy.mockRestore();
+      if (priorAgentId === undefined) delete process.env.PD_AGENT_ID;
+      else process.env.PD_AGENT_ID = priorAgentId;
+      if (priorSessionId === undefined) delete process.env.PD_SESSION_ID;
+      else process.env.PD_SESSION_ID = priorSessionId;
+      if (priorContextDir === undefined) delete process.env.PORT_DADDY_CONTEXT_DIR;
+      else process.env.PORT_DADDY_CONTEXT_DIR = priorContextDir;
+    }
+  });
+
+  test.each([
+    ['subscribe', { subscribe: 'coordination:inconsistency' }],
+    ['unsubscribe', { unsubscribe: 'coordination:inconsistency' }],
+  ])('pre-session %s mutation fails clearly before any daemon request', async (_operation, options) => {
+    const priorAgentId = process.env.PD_AGENT_ID;
+    const priorSessionId = process.env.PD_SESSION_ID;
+    const priorContextDir = process.env.PORT_DADDY_CONTEXT_DIR;
+    delete process.env.PD_AGENT_ID;
+    delete process.env.PD_SESSION_ID;
+    process.env.PORT_DADDY_CONTEXT_DIR = `${process.cwd()}/.portdaddy-test-unbound-${process.pid}-${Date.now()}`;
+
+    const exitSpy = jest.spyOn(process, 'exit').mockImplementation((code) => {
+      throw new Error(`EXIT:${code}`);
+    });
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    try {
+      await expect(handleAttention(options))
+        .rejects.toThrow('EXIT:2');
+      expect(errorSpy).toHaveBeenCalledWith(
+        'ERROR: This attention operation needs an agent identity. Start a session or pass --agent <id>.',
+      );
+    } finally {
+      exitSpy.mockRestore();
+      errorSpy.mockRestore();
+      if (priorAgentId === undefined) delete process.env.PD_AGENT_ID;
+      else process.env.PD_AGENT_ID = priorAgentId;
+      if (priorSessionId === undefined) delete process.env.PD_SESSION_ID;
+      else process.env.PD_SESSION_ID = priorSessionId;
+      if (priorContextDir === undefined) delete process.env.PORT_DADDY_CONTEXT_DIR;
+      else process.env.PORT_DADDY_CONTEXT_DIR = priorContextDir;
+    }
+  });
+
+  test('malformed subscription names fail locally before any daemon request', async () => {
+    const exitSpy = jest.spyOn(process, 'exit').mockImplementation((code) => {
+      throw new Error(`EXIT:${code}`);
+    });
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    try {
+      await expect(handleAttention({ agent: 'agent-x', subscribe: 'bad channel/name' }))
+        .rejects.toThrow('EXIT:2');
+      expect(errorSpy).toHaveBeenCalledWith('ERROR: channel contains invalid characters');
+    } finally {
+      exitSpy.mockRestore();
+      errorSpy.mockRestore();
+    }
+  });
+
+  test('bound empty attention is a one-request fast path with local protocol suggestions', async () => {
+    const fetchMock = jest.fn(async () => new Response(JSON.stringify({
+      success: true,
+      agentId: 'agent-x',
+      items: [],
+      counts: { total: 0, inbox: 0, channels: 0, inboxUnreadRemaining: 0 },
+      subscriptions: [],
+      peek: true,
+      generatedAt: 1234,
+    }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    }));
+    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => undefined);
+
+    try {
+      await handleAttention({ agent: 'agent-x', peek: true, json: true }, { fetch: fetchMock });
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(fetchMock.mock.calls[0][0]).toBe('/attention?agentId=agent-x&peek=true');
+      const printed = JSON.parse(logSpy.mock.calls[0][0]);
+      expect(printed.suggestions.map((entry) => entry.channel)).toEqual([
+        'coordination:inconsistency',
+      ]);
+    } finally {
+      logSpy.mockRestore();
+    }
+  });
+
   test('empty attention recommends concrete, ranked watches instead of a channel placeholder', () => {
     const suggestions = rankAttentionSuggestions([
       {
@@ -151,8 +272,12 @@ describe('attention.compose', () => {
 
   test('parley summons are delivered through inbox and surface in attention', () => {
     const { db, attention, inbox } = setup();
-    const tuples = createTupleSpace(db);
-    const parley = createParley({ tuples, agentInbox: inbox, now: () => 1_700_000_000_000 });
+    const parley = createParley({
+      db,
+      tenantId: 'attention-test',
+      agentInbox: inbox,
+      now: () => 1_700_000_000_000,
+    });
 
     const opened = parley.call({
       surface: 'lib/sessions.ts',
@@ -180,8 +305,12 @@ describe('attention.compose', () => {
 
   test('parley turns are fanned out through inbox and surface in attention', () => {
     const { db, attention, inbox } = setup();
-    const tuples = createTupleSpace(db);
-    const parley = createParley({ tuples, agentInbox: inbox, now: () => 1_700_000_000_000 });
+    const parley = createParley({
+      db,
+      tenantId: 'attention-test',
+      agentInbox: inbox,
+      now: () => 1_700_000_000_000,
+    });
 
     const opened = parley.call({
       surface: 'lib/sessions.ts',
@@ -360,5 +489,18 @@ describe('attention.subscribe / unsubscribe / listSubscriptions', () => {
     expect(attention.subscribe('', 'ch').success).toBe(false);
     expect(attention.subscribe('agent-x', '').success).toBe(false);
     expect(attention.subscribe('agent-x', '   ').success).toBe(false);
+  });
+
+  test('subscribe and unsubscribe reject malformed channel names', () => {
+    const { attention } = setup();
+    expect(attention.subscribe('agent-x', 'bad channel/name')).toEqual({
+      success: false,
+      error: 'channel contains invalid characters',
+    });
+    expect(attention.unsubscribe('agent-x', 'bad channel/name')).toEqual({
+      success: false,
+      error: 'channel contains invalid characters',
+    });
+    expect(attention.listSubscriptions('agent-x')).toEqual([]);
   });
 });

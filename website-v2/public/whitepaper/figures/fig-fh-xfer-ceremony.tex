@@ -1,74 +1,49 @@
-% Cross-harbor capability transfer — four-message ceremony, sequence diagram.
-
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D8C7A6}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhcobalt}{HTML}{003FB8}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-
+% Figure IV.6 --- authority attenuates over the transfer ceremony; source
+% reachback disappears after the destination acknowledgement.
 \begin{figure}[H]
 \centering
 \resizebox{0.95\textwidth}{!}{%
-\begin{tikzpicture}[
-  font=\sffamily\small,
-  lane/.style={draw=hhebony,thick,fill=hhpaper,rounded corners=2pt,
-               inner sep=4pt,minimum width=28mm,
-               font=\sffamily\bfseries\small,align=center},
-  msg/.style={->,>=Latex,thick,draw=hhebony},
-  threat/.style={draw=hhcobalt,thick,fill=hhpaper,rounded corners=2pt,
-                 inner sep=3pt,font=\sffamily\scriptsize\itshape,
-                 text=hhcobalt,align=left,text width=42mm},
-  defended/.style={draw=hhteal,thick,fill=hhpaper,rounded corners=2pt,
-                   inner sep=3pt,font=\sffamily\scriptsize,
-                   text=hhteal,align=left,text width=42mm},
-]
+\begin{tikzpicture}[pd figure]
+  \node[pd panel title,anchor=west] at (-6.8,3.15)
+    {authority shrinks while destination-local verification takes over};
+  \foreach \x/\n/\lab in {-5.4/1/request,-1.8/2/offer,1.8/3/acknowledge,5.4/4/deliver}
+    {\draw[pd guide] (\x,-2.35)--(\x,2.30);
+     \node[pd datum] at (\x,2.15) {};
+     \node[pd direct label,anchor=south] at (\x,2.42) {\n. \lab};}
+  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (-6.15,2.15)--(6.15,2.15);
 
-% ─── Four lanes: Alice, Harbor A, Harbor B, Bob ───────────────────
-\node[lane] (LA) at (0,0) {Alice's agent\\\footnotesize (claim holder)};
-\node[lane,right=22mm of LA] (HA) {Harbor $A$\\\footnotesize (Alice's daemon)};
-\node[lane,right=22mm of HA] (HB) {Harbor $B$\\\footnotesize (Bob's daemon)};
-\node[lane,right=22mm of HB] (LB) {Bob's agent\\\footnotesize (verifier)};
+  % Capability envelope narrows at each authority-changing message.
+  \fill[hhteal!10]
+    (-5.4,1.35)--(-1.8,1.20)--(1.8,.78)--(5.4,.78)--
+    (5.4,-.22)--(1.8,-.22)--(-1.8,-.70)--(-5.4,-1.05)--cycle;
+  \draw[pd focus rule,line width=1.2pt]
+    (-5.4,1.35)--(-1.8,1.20)--(1.8,.78)--(5.4,.78);
+  \draw[pd focus rule,line width=1.2pt]
+    (-5.4,-1.05)--(-1.8,-.70)--(1.8,-.22)--(5.4,-.22);
+  \node[pd direct label,text=hhteal] at (-4.35,.25) {$C_A$: source authority};
+  \node[pd direct label,text=hhteal] at (3.55,.28) {$C'_B\subseteq C_A$};
+  \node[pd note,anchor=south] at (-1.8,1.48) {$R_A^{(e)}$ bound into offer};
+  \node[pd note,anchor=north] at (1.8,-.48) {$R_B^{(e)}$ + attenuated card};
 
-% lifelines
-\foreach \n in {LA,HA,HB,LB} {
-  \draw[dashed,gray] (\n.south) -- ($(\n.south)+(0,-66mm)$);
-}
-
-% ─── Message 1: Alice asks her harbor for an xfer card ─────────────
-\draw[msg] ($(LA.south)+(0,-6mm)$) -- node[above,font=\sffamily\scriptsize]{$\mathsf{xfer\_req}(C_A, B)$} ($(HA.south)+(0,-6mm)$);
-
-% ─── Message 2: Harbor A mints xfer envelope with attenuation ──────
-\draw[msg] ($(HA.south)+(0,-22mm)$) -- node[above,font=\sffamily\scriptsize]{$\mathsf{xfer\_offer}\langle C_A, \mathrm{att}, R_A^{(e)}\rangle$} ($(HB.south)+(0,-22mm)$);
-
-% ─── Message 3: Harbor B counter-signs after attenuating ────────────
-\draw[msg] ($(HB.south)+(0,-40mm)$) -- node[above,font=\sffamily\scriptsize]{$\mathsf{xfer\_ack}\langle C_B', R_B^{(e)}\rangle$} ($(HA.south)+(0,-40mm)$);
-
-% ─── Message 4: Card delivered to Bob's agent ───────────────────────
-\draw[msg] ($(HB.south)+(0,-58mm)$) -- node[above,font=\sffamily\scriptsize]{$\mathsf{xfer\_deliver}\langle C_B'\rangle$} ($(LB.south)+(0,-58mm)$);
-
-% ─── Forecloses / what could still go wrong (bottom annotation band) ─
-\node[threat,below=70mm of LA] (T) {%
-  \textbf{Threats foreclosed:}\\
-  $\bullet$ identity spoofing of $\mathit{sk}_A$ across the boundary;\\
-  $\bullet$ capability inflation across the transfer;\\
-  $\bullet$ replay at $B$ against a stale $R_A$.};
-\node[defended,right=4mm of T]{%
-  \textbf{Threats deferred to other primitives:}\\
-  $\bullet$ revocation latency \,$\to$\, \S\ref{sec:fh-revocation};\\
-  $\bullet$ settlement disputes \,$\to$\, \S\ref{sec:fh-settlement};\\
-  $\bullet$ unbonded harbor admission \,$\to$\, \S\ref{sec:fh-admission}.};
-
-\end{tikzpicture}%
-}
-\caption{The four-message cross-harbor capability transfer ceremony. The
-critical property is that no message after (3) needs to reach back to
-Harbor~$A$ in the hot path: $C_B'$ is verifiable under $\mathit{sk}_B$ alone,
-which is why federation does not turn every authorization into a synchronous
-inter-machine round trip. The epoch root $R_A^{(e)}$ bound into the envelope is
-the load-bearing primitive — a revocation issued by $A$ after epoch $e$
-invalidates $C_B'$ as soon as the new $R_A^{(e+1)}$ reaches the witness log
-that $B$ audits.}
+  % Hot-path source dependency ends at message 3.
+  \draw[pd caution rule,line width=1.2pt] (-5.4,-1.72)--(1.8,-1.72);
+  \draw[pd focus rule,line width=1.2pt] (1.8,-1.72)--(5.4,-1.72);
+  \node[pd caution datum] at (-5.4,-1.72) {};
+  \node[pd focus datum] at (1.8,-1.72) {};
+  \node[pd focus datum] at (5.4,-1.72) {};
+  \node[pd direct label,text=hhamber,anchor=south] at (-1.8,-1.58)
+    {Harbor A still participates};
+  \node[pd direct label,text=hhteal,anchor=south] at (3.6,-1.58)
+    {destination verifies locally};
+  \node[pd axis label,anchor=north] at (0,-2.05)
+    {revocation remains an asynchronous epoch-root dependency, not a hot-path call};
+\end{tikzpicture}}
+\caption{\textbf{The transfer ceremony attenuates authority and then removes
+source reachback from the hot path.} The green envelope narrows from $C_A$ to
+$C'_B\subseteq C_A$ as the signed offer and acknowledgement bind source and
+destination epoch roots. After message 3, Harbor B can verify and deliver the
+attenuated card locally. Harbor A still matters asynchronously: a later epoch
+root can revoke the transfer once that root reaches B's audit surface. Transfer
+therefore neither copies full authority nor makes every use synchronous.}
 \label{fig:fh-xfer}
 \end{figure}

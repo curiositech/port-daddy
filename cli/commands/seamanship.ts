@@ -4,7 +4,7 @@
  * pd seamanship list                     — List installed skills from all roots
  * pd seamanship search <query>           — Substring search over skill IDs and descriptions
  * pd seamanship show <skill-id>          — Print SKILL.md for a skill
- * pd seamanship sync                     — Sync from $WINDAGS_HOME to ~/.port-daddy/skills/
+ * pd seamanship sync                     — Sync from $PORT_DADDY_SKILL_SOURCE_ROOTS to ~/.port-daddy/skills/
  * pd seamanship outcomes [--ship name]   — Show skill application outcomes table
  * pd seamanship index                    — Rebuild skill catalog (Phase 3: BM25+Tool2Vec)
  *
@@ -12,7 +12,7 @@
  * BM25+Tool2Vec engine forked from ~/coding/workgroup-ai.
  */
 
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, writeFileSync, renameSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { homedir } from 'node:os';
 import { pdFetch, PORT_DADDY_URL } from '../utils/fetch.js';
@@ -21,9 +21,36 @@ import {
   defaultSkillCatalogRoots,
   collectSkillUnion,
   syncAgentSkills,
+  type SkillCatalogRoot,
   type SkillEntry,
 } from '../../lib/skill-sync.js';
+import { loadSkillCatalog, type SkillVisibility } from '../../lib/shipwright/skill-index.js';
+import { withVisibility, parseVisibility } from '../../lib/shipwright/skill-visibility.js';
 import * as ui from '../utils/ui.js';
+
+// ── provenance ──────────────────────────────────────────────────────────────
+//
+// Ownership/visibility live in frontmatter (owner, repos, visibility) that
+// `loadSkillCatalog` already parses defensively (absence -> private, unknown
+// values coerce down, never up). `collectSkillUnion` above is the lighter
+// symlink-farm scanner list/show otherwise use, so we build a side lookup
+// from the shared frontmatter parser and merge it in for display only —
+// this is a rendering concern, not a publish decision. Any path that
+// actually exports/publishes a skill must call `isPublishableSkill` instead.
+
+export interface SkillProvenance {
+  owner?: string;
+  repos: string[];
+  visibility: SkillVisibility;
+}
+
+function loadSkillProvenance(roots: SkillCatalogRoot[]): Map<string, SkillProvenance> {
+  const byId = new Map<string, SkillProvenance>();
+  for (const entry of loadSkillCatalog(roots.map((r) => r.path))) {
+    byId.set(entry.id, { owner: entry.owner, repos: entry.repos, visibility: entry.visibility });
+  }
+  return byId;
+}
 
 export async function handleSeamanship(args: string[], options: CLIOptions): Promise<void> {
   const subcommand = args[0] ?? 'list';
@@ -36,6 +63,7 @@ export async function handleSeamanship(args: string[], options: CLIOptions): Pro
     case 'sync':    return cmdSync(options);
     case 'outcomes': return cmdOutcomes(rest, options);
     case 'index':   return cmdIndex(options);
+    case 'visibility': return cmdVisibility(rest, options);
     default:
       ui.error(`Unknown seamanship subcommand: ${subcommand}`);
       printUsage();
@@ -50,9 +78,14 @@ async function cmdList(options: CLIOptions): Promise<void> {
   const union = collectSkillUnion(roots);
   // collectSkillUnion returns { skills: SkillEntry[] } — iterate directly
   const entries: SkillEntry[] = union.skills;
+  const provenance = loadSkillProvenance(roots);
 
   if (isJson(options)) {
-    console.log(JSON.stringify({ skills: entries, count: entries.length }, null, 2));
+    const withProvenance = entries.map((e) => ({
+      ...e,
+      ...(provenance.get(e.id) ?? { visibility: 'private' as const, repos: [] }),
+    }));
+    console.log(JSON.stringify({ skills: withProvenance, count: withProvenance.length }, null, 2));
     return;
   }
 
@@ -61,11 +94,57 @@ async function cmdList(options: CLIOptions): Promise<void> {
     return;
   }
 
-  console.log(`\n  Skills (${entries.length} from ${roots.length} roots)\n`);
-  for (const e of [...entries].sort((a, b) => a.id.localeCompare(b.id))) {
-    console.log(`  ${e.id.padEnd(40)}  ${e.sourceLabel}`);
+  const filter = readVisibilityFlag(options);
+  const shown = filter
+    ? entries.filter((e) => (provenance.get(e.id)?.visibility ?? 'private') === filter)
+    : entries;
+  if (filter && !shown.length) {
+    console.log(`\n  No skills on the ${filter} tier.\n`);
+    return;
   }
+
+  console.log(`\n  Skills (${shown.length}${filter ? ` of ${entries.length}` : ''} from ${roots.length} roots)\n`);
+  for (const e of [...shown].sort((a, b) => a.id.localeCompare(b.id))) {
+    const visibility = provenance.get(e.id)?.visibility ?? 'private';
+    // Every tier is printed, private included. The earlier rendering left
+    // private unmarked on the theory that a clean catalog should look clean;
+    // the operator's ruling is that they want to SEE their private skills, and
+    // a state you cannot read is a state you cannot check.
+    console.log(`  ${e.id.padEnd(40)}  ${ui.dim(formatVisibilityMarker(visibility))}  ${e.sourceLabel}`);
+  }
+  const counts = tierCounts(entries, provenance);
+  console.log(`\n  ${counts.private} private · ${counts.listed} listed · ${counts.public} public`);
+  console.log(ui.dim('  pd seamanship visibility <skill-id> <tier>   to change one'));
   console.log();
+}
+
+/** Tally by tier, so the listing footer states the exposure surface outright. */
+export function tierCounts(
+  entries: ReadonlyArray<{ id: string }>,
+  provenance: Map<string, SkillProvenance>,
+): { private: number; listed: number; public: number } {
+  const counts = { private: 0, listed: 0, public: 0 };
+  for (const e of entries) counts[provenance.get(e.id)?.visibility ?? 'private'] += 1;
+  return counts;
+}
+
+/**
+ * Compact list-row marker for a skill's tier. EVERY tier renders, private
+ * included.
+ *
+ * This used to return `''` for private, on the theory that absence of a grant
+ * should read as ordinary rather than as a missing label. The operator
+ * overruled it (2026-08-22): "you should be showing me a render of these
+ * private skills." They are right, and the earlier reasoning was backwards for
+ * a gate — the unmarked case is unreadable, and a tier you cannot see in the
+ * listing is a tier you cannot audit at a glance. Private is still the DEFAULT
+ * and still the absence of a frontmatter line; it is no longer the absence of a
+ * rendering.
+ *
+ * Fixed width so the tier column lines up across a 300-row catalog.
+ */
+export function formatVisibilityMarker(visibility: SkillVisibility): string {
+  return `[${visibility}]`.padEnd(9);
 }
 
 // ── search ────────────────────────────────────────────────────────────────────
@@ -117,7 +196,154 @@ async function cmdShow(args: string[], _options: CLIOptions): Promise<void> {
   if (!entry) { ui.error(`Skill not found: ${id}`); process.exit(1); }
 
   if (!existsSync(entry.skillFile)) { ui.error(`SKILL.md missing at ${entry.skillFile}`); process.exit(1); }
+
+  const line = formatOwnershipLine(loadSkillProvenance(roots).get(id));
+  if (line) console.log(ui.dim(line));
   console.log(readFileSync(entry.skillFile, 'utf8'));
+}
+
+/**
+ * One line describing ownership/scope, or null when there's nothing beyond
+ * the unmarked default (no declared owner, no repos, private) — the common
+ * case for a skill whose frontmatter never opted into anything, which
+ * should print exactly like it always did before provenance existed.
+ */
+export function formatOwnershipLine(provenance: SkillProvenance | undefined): string | null {
+  const owner = provenance?.owner;
+  const repos = provenance?.repos ?? [];
+  const visibility = provenance?.visibility ?? 'private';
+  if (!owner && repos.length === 0 && visibility === 'private') return null;
+
+  const parts = [`owner: ${owner ?? '(unattributed)'}`, `visibility: ${visibility}`];
+  if (repos.length) parts.push(`repos: ${repos.join(', ')}`);
+  return `  ${parts.join('  ·  ')}`;
+}
+
+// ── visibility ────────────────────────────────────────────────────────────────
+
+const TIERS: readonly SkillVisibility[] = ['private', 'listed', 'public'];
+
+/** Reads `--visibility <tier>`, rejecting an unknown tier rather than ignoring it. */
+export function readVisibilityFlag(options: CLIOptions): SkillVisibility | null {
+  const raw = (options as unknown as Record<string, unknown>).visibility;
+  if (raw === undefined || raw === null) return null;
+  const value = String(raw).trim().toLowerCase();
+  if (!TIERS.includes(value as SkillVisibility)) {
+    ui.error(`Unknown visibility tier: ${String(raw)}. Expected one of: ${TIERS.join(', ')}`);
+    process.exit(1);
+  }
+  return value as SkillVisibility;
+}
+
+/**
+ * `pd seamanship visibility <skill-id> [tier]` — read or change one skill's tier.
+ *
+ * The operator's ruling this answers: "Null needs to be default private,
+ * obviously, it should be easy to change it in the tools obviously." Before
+ * this, the only way to move a skill between tiers was to hand-edit a
+ * `visibility:` line into its SKILL.md, which is a bad way to run a gate that
+ * decides what leaves your machine.
+ *
+ * Writes are read back through `parseVisibility` — the same parser every
+ * publish path uses — before reporting success. A writer that reports what it
+ * INTENDED rather than what the catalog now says is how a skill ends up public
+ * in the tool and private on disk, or the reverse.
+ */
+async function cmdVisibility(args: string[], options: CLIOptions): Promise<void> {
+  const id = args[0];
+  if (!id) {
+    ui.error('Usage: pd seamanship visibility <skill-id> [private|listed|public]');
+    process.exit(1);
+  }
+
+  const roots = defaultSkillCatalogRoots(process.cwd(), homedir());
+  const union = collectSkillUnion(roots);
+  const entry = union.skills.find((e: SkillEntry) => e.id === id);
+  if (!entry) { ui.error(`Skill not found: ${id}`); process.exit(1); }
+  if (!existsSync(entry.skillFile)) {
+    ui.error(`SKILL.md missing at ${entry.skillFile}`);
+    process.exit(1);
+  }
+
+  const current = loadSkillProvenance(roots).get(id)?.visibility ?? 'private';
+
+  // No tier argument: report, change nothing.
+  const requested = args[1];
+  if (!requested) {
+    if (isJson(options)) {
+      console.log(JSON.stringify({ id, visibility: current, path: entry.skillFile }, null, 2));
+      return;
+    }
+    console.log(`  ${id}  ${current}`);
+    console.log(ui.dim(`  ${entry.skillFile}`));
+    return;
+  }
+
+  const target = requested.trim().toLowerCase();
+  if (!TIERS.includes(target as SkillVisibility)) {
+    ui.error(`Unknown visibility tier: ${requested}. Expected one of: ${TIERS.join(', ')}`);
+    process.exit(1);
+  }
+  const tier = target as SkillVisibility;
+
+  if (tier === current) {
+    console.log(`  ${id} is already ${current} — nothing to change.`);
+    return;
+  }
+
+  const before = readFileSync(entry.skillFile, 'utf8');
+  const after = withVisibility(before, tier);
+  if (after === null) {
+    ui.error(`${entry.skillFile}: no YAML frontmatter to edit — refusing to guess where to put it.`);
+    process.exit(1);
+  }
+
+  if ((options as unknown as Record<string, unknown>).dryRun) {
+    console.log(`  ${id}: ${current} -> ${tier}  (dry run, nothing written)`);
+    console.log(ui.dim(`  ${entry.skillFile}`));
+    return;
+  }
+
+  // Atomic: a half-written SKILL.md is a skill whose tier is whatever the
+  // parser makes of a truncated file. tmp + rename means the file is either
+  // wholly the old text or wholly the new one.
+  const tmp = `${entry.skillFile}.pd-visibility.tmp`;
+  writeFileSync(tmp, after, 'utf8');
+  renameSync(tmp, entry.skillFile);
+
+  // Read back through the REAL parser. This is the check that matters: it is
+  // the same function `isPublishableSkill`'s callers feed, so agreement here
+  // is agreement with every publish path.
+  const reread = splitFrontmatterVisibility(readFileSync(entry.skillFile, 'utf8'), entry.skillFile);
+  if (reread !== tier) {
+    ui.error(
+      `Wrote ${entry.skillFile} but the catalog reads it back as "${reread}", not "${tier}". ` +
+      'The file has been changed; do not trust the tier until this is resolved.',
+    );
+    process.exit(1);
+  }
+
+  console.log(`  ${id}: ${current} -> ${tier}`);
+  if (tier === 'private') {
+    console.log(ui.dim('  the visibility line was removed — private is its absence'));
+  }
+  if (tier !== 'private') {
+    console.log(ui.dim('  run `pd seamanship sync` so the mirrors agree, then re-publish the listing'));
+  }
+}
+
+/**
+ * Re-reads one file's visibility through the shared parser, without loading the
+ * whole catalog. Kept separate from `loadSkillProvenance` so the post-write
+ * verification does not depend on an index that may be cached.
+ */
+function splitFrontmatterVisibility(text: string, path: string): SkillVisibility {
+  const m = /^---\r?\n([\s\S]*?)\r?\n---/.exec(text);
+  if (!m) return 'private';
+  const line = /^[ \t]*visibility[ \t]*:[ \t]*(.*)$/m.exec(m[1] ?? '');
+  if (!line) return 'private';
+  const raw = (line[1] ?? '').trim().replace(/\s+#.*$/, '').replace(/^["']|["']$/g, '');
+  return parseVisibility(raw, path);
 }
 
 // ── sync ──────────────────────────────────────────────────────────────────────
@@ -202,8 +428,16 @@ function printUsage(): void {
   list                     List installed skills
   search <query>           Search skills by name/description
   show <skill-id>          Print a skill's SKILL.md
-  sync                     Sync skills from windags home
+  sync                     Sync skills from local and configured roots
   outcomes [--ship name]   Show skill application outcomes
   index                    Rebuild the skill search catalog
+
+  visibility <skill-id>                    Show one skill's visibility
+  visibility <skill-id> <private|listed|public>   Set it
+  list --visibility <tier>                 List only skills on that tier
+
+  private is the default and needs no frontmatter line. Setting a skill back to
+  private REMOVES the line rather than writing it, so a private catalog looks
+  exactly as it did before visibility existed.
 `);
 }

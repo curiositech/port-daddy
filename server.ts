@@ -20,7 +20,7 @@ loadEnvFiles(_dirname(_fileURLToPath(import.meta.url)));
 // read process.env at module-init time, so this has to run first so
 // dependencies (Fastify plugins, winston, Anthropic SDK, etc.) cannot
 // capture the raw env values on load. See lib/secret-env.ts.
-import { snapshotSensitiveEnv } from './lib/secret-env.js';
+import { getSecret, snapshotSensitiveEnv } from './lib/secret-env.js';
 snapshotSensitiveEnv();
 
 import Fastify from 'fastify';
@@ -41,35 +41,44 @@ import { createServices } from './lib/services.js';
 import { createMessaging } from './lib/messaging.js';
 import { createLocks } from './lib/locks.js';
 import { createHealth } from './lib/health.js';
-import { createAgents } from './lib/agents.js';
+import { createAgents, getDeadThresholdForStatus } from './lib/agents.js';
 import { createActivityLog, ActivityType } from './lib/activity.js';
 import { createWebhooks, WebhookEvent } from './lib/webhooks.js';
 import { createProjects } from './lib/projects.js';
 import { createSessions } from './lib/sessions.js';
-import { createAgentInbox } from './lib/agent-inbox.js';
+import { createAgentInbox, inboxMessageForMessaging } from './lib/agent-inbox.js';
 import { createAttention } from './lib/attention.js';
 import { createClaimWatcher } from './lib/claim-watcher.js';
 import { createResurrection } from './lib/resurrection.js';
+import { createHeartbeatDeathHandler } from './lib/agent-heartbeat-death.js';
 import { createChangelog } from './lib/changelog.js';
 import { createTunnel } from './lib/tunnel.js';
 import { createDns } from './lib/dns.js';
 import { createResolver } from './lib/resolver.js';
 import { createSpawner } from './lib/spawner.js';
+import {
+  captureManagedSpawnWorktree, managedSpawnWorktreeReceipt, verifyManagedSpawnWorktree,
+  type ManagedSpawnWorktree,
+} from './lib/managed-spawn-worktree.js';
 import { createTranscripts } from './lib/transcripts.js';
 import { createJsonlTranscriptArchive } from './lib/transcript-archive.js';
 import { createBriefing } from './lib/briefing.js';
 import { createSugar } from './lib/sugar.js';
 import { createHarbors } from './lib/harbors.js';
 import { createHarborTokens } from './lib/harbor-tokens.js';
+import { DaemonRelayConnection } from './lib/relay-connection.js';
 import { createSorties } from './lib/sorties.js';
 import { createPheromoneManager } from './lib/pheromone.js';
 import { createReactiveOrchestrator } from './lib/orchestrator.js';
 import { createConductor } from './lib/fleet/conductor.js';
 import { createDispatchQueue } from './lib/dispatch/queue.js';
 import { createDispatchWorker } from './lib/dispatch/worker.js';
+import { buildHandoffFromTranscript } from './lib/dispatch/handoff-from-transcript.js';
 import { runAutoMergeSweep } from './lib/dispatch/auto-merge.js';
 import { createConductorSpawnAdapter } from './lib/dispatch/conductor-adapter.js';
 import { createWorkIntentService } from './lib/agent-harbor/work-intent-service.js';
+import { createSpawnerHarborBridge } from './lib/agent-harbor/spawner-bridge.js';
+import { loadLatestVerifiedContextBootstrap } from './lib/agent-harbor/context-continuity.js';
 import {
   gitWorktreeAdd,
   gitPushBranch,
@@ -96,19 +105,23 @@ import { createMergeQueue } from './lib/merge-queue.js';
 import { createCostTracker } from './lib/cost-tracker.js';
 import { createCloudAppTelemetry } from './lib/cloud-app-telemetry.js';
 import { createContextWindowTracker } from './lib/context-window-tracker.js';
+import { createTool2VecReconciler } from './lib/skill-graft-reconciler.js';
+import { resolveSkillGraftRuntime } from './lib/skill-graft-runtime.js';
 import { createKnowledgeCustodian } from './lib/knowledge-custodian.js';
-import { normalizeSelfSalvage } from './lib/telos-salvage.js';
 import { createOperatorPermissions } from './lib/operator-permissions.js';
 import { createCounters } from './lib/counters.js';
+import { createUsageTelemetry } from './lib/usage-telemetry.js';
 import { createMetricsRegistry } from './lib/metrics-registry.js';
 import { createBonds } from './lib/bonds.js';
 import { createBudgetGuard } from './lib/budget-guard.js';
 import { createActorSouls } from './lib/actor-souls.js';
+import { authorizeSessionOwner, resolveWriteIdentity, stampIdentityMetadata } from './lib/identity-write-boundary.js';
 import { migrateActorSouls } from './scripts/migrate-actor-souls.js';
 import { homedir } from 'node:os';
 import { createBudgetPause } from './lib/budget-pause.js';
 import { createQuorum } from './lib/quorum.js';
 import { createParley } from './lib/parley.js';
+import { createParleyStore } from './lib/parley-store.js';
 import { createFeedback } from './lib/feedback.js';
 import { createRoadmapItems } from './lib/roadmap-items.js';
 import { createCommitments } from './lib/commitments.js';
@@ -117,6 +130,7 @@ import { createWhois } from './lib/whois.js';
 import { createObligationMonitor } from './lib/obligation-monitor.js';
 import { createRoadmapPromote } from './lib/roadmap-promote.js';
 import { createRoadmapPop } from './lib/roadmap-pop.js';
+import { createRoadmapActivity } from './lib/roadmap-activity.js';
 import { launchFleetBarIfEnabled } from './lib/fleetbar-launcher.js';
 import { createGraphEdges } from './lib/graph-edges.js';
 import { createEpisodicMemory } from './lib/episodic-memory.js';
@@ -127,9 +141,16 @@ import { createDurableAgentRoster } from './lib/durable-agent-roster.js';
 import { createGalaxy } from './lib/galaxy.js';
 import { createBosunHeartbeat, createSocketHealthProbe } from './lib/bosun-heartbeat.js';
 import { createDbIntegrityProofOutOfProcess } from './lib/db-integrity.js';
+import { clearDaemonReady, publishDaemonReady } from './lib/daemon-ready.js';
 import { decideTakeover, probePortOwner } from './lib/port-takeover.js';
 import { createResourceGovernance } from './lib/resource-governance.js';
 import { createDaemonCorsOptions } from './lib/daemon-cors.js';
+import {
+  createCoordinationPeer,
+  coordinationPeerConfigFromEnv,
+  type CoordinationPeer,
+} from './lib/coordination-peer.js';
+import { scopeSugarSessionsToCoordinationProject } from './lib/coordination-session-scope.js';
 
 // Fastify route aggregator (Phase 3 — native Fastify plugins, no Express bridge)
 import { registerAllRoutes } from './routes/index.js';
@@ -199,7 +220,7 @@ const config: PortDaddyServerConfig = existsSync(configPath)
 // package.json without a sync step, but the embedded constant is what the
 // bun-compiled binary actually serves — inside the /$bunfs/ bundle, __dirname
 // resolves to a virtual path where package.json doesn't exist on disk.
-const EMBEDDED_PACKAGE_VERSION: string = '3.27.0';
+const EMBEDDED_PACKAGE_VERSION: string = '3.30.6';
 const pkgPath: string = join(__dirname, 'package.json');
 const pkg: { version: string } = existsSync(pkgPath) ? JSON.parse(readFileSync(pkgPath, 'utf8')) as { version: string } : { version: EMBEDDED_PACKAGE_VERSION };
 const VERSION: string = pkg.version;
@@ -381,7 +402,7 @@ const DAEMON_BERTH: DaemonBerthIdentity = {
   plane: DAEMON_PLANE,
 };
 
-import { DEFAULT_SOCK, DEFAULT_IPC, DEFAULT_PID_FILE, DEFAULT_PORT_FILE } from './shared/paths.js';
+import { DEFAULT_SOCK, DEFAULT_IPC, DEFAULT_PID_FILE, DEFAULT_PORT_FILE, DEFAULT_READY_FILE } from './shared/paths.js';
 const SOCK_PATH: string = process.env.PORT_DADDY_SOCK || (PREFIX ? join(PREFIX, 'port-daddy.sock') : DEFAULT_SOCK);
 const DISABLE_TCP: boolean = process.env.PORT_DADDY_NO_TCP === '1';
 const IPC_PATH: string = process.env.PORT_DADDY_IPC || (PREFIX ? join(PREFIX, 'port-daddy.ipc') : DEFAULT_IPC);
@@ -393,6 +414,7 @@ const CUSTOM_RUNTIME_DIR: string | undefined = PREFIX ?? (process.env.PORT_DADDY
 const PID_FILE: string = process.env.PORT_DADDY_PID_FILE || (CUSTOM_RUNTIME_DIR ? join(CUSTOM_RUNTIME_DIR, 'daemon.pid') : DEFAULT_PID_FILE);
 const PORT_FILE: string = process.env.PORT_DADDY_PORT_FILE || (CUSTOM_RUNTIME_DIR ? join(CUSTOM_RUNTIME_DIR, 'daemon.port') : DEFAULT_PORT_FILE);
 const HEARTBEAT_FILE: string | undefined = process.env.PORT_DADDY_HEARTBEAT_FILE || (CUSTOM_RUNTIME_DIR ? join(CUSTOM_RUNTIME_DIR, 'heartbeat') : undefined);
+const READY_FILE: string = process.env.PORT_DADDY_READY_FILE || (CUSTOM_RUNTIME_DIR ? join(CUSTOM_RUNTIME_DIR, 'daemon.ready') : DEFAULT_READY_FILE);
 
 if (IS_DEV_MODE) {
   const { mkdirSync } = await import('node:fs');
@@ -452,6 +474,11 @@ if (existsSync(SOCK_PATH)) {
   try { unlinkSync(SOCK_PATH); } catch {}
   try { unlinkSync(PID_FILE); } catch {}
 }
+
+// Readiness is a separate generation lease from Bosun liveness. Clear any
+// predecessor only after duplicate-owner detection, so a duplicate process
+// that defers cannot make the healthy daemon's hooks disappear.
+clearDaemonReady(READY_FILE);
 
 // Publish the launchd-owned generation BEFORE opening the production-sized DB
 // or constructing the service graph. Bosun previously saw only the prior
@@ -527,6 +554,11 @@ const tuples = createTupleSpace(db);
 const blobs = createBlobStore();
 const booty = createBootyStore(db);
 const counters = createCounters(db);
+const usageTelemetry = createUsageTelemetry(
+  db,
+  { version: VERSION, codeHash: CODE_HASH, buildDate: new Date(STARTED_AT).toISOString() },
+  { counters },
+);
 const metricsRegistry = createMetricsRegistry();
 const semanticResolver = createSemanticResolver(db, {
   // Stable, daemon-portable cache (~/.port-daddy/transformers-cache) shared with
@@ -538,13 +570,59 @@ const semanticResolver = createSemanticResolver(db, {
   logger,
   governor,
 });
+// Automatic reconciliation is local-only: a daemon tick must never send a
+// private SKILL.md catalog to a cloud backend or create surprise spend. An
+// explicit manual `pd skill-graft warm` may use the operator-pinned cloud
+// backend; setup/startup/ticks only use an explicitly configured Ollama.
+const tool2VecReconciler = createTool2VecReconciler({
+  projectRoot: REPO_ROOT,
+  runtime: resolveSkillGraftRuntime(process.env, { allowRemote: false }),
+  onWarning: (message) => logger.warn('tool2vec_reconcile_warning', { message }),
+});
+const _tool2VecPollMs = Number.parseInt(process.env.PD_TOOL2VEC_RECONCILE_MS ?? '300000', 10);
+const TOOL2VEC_RECONCILE_MS = Number.isFinite(_tool2VecPollMs) && _tool2VecPollMs >= 60_000
+  ? _tool2VecPollMs
+  : 300_000;
+let tool2VecTimer: ReturnType<typeof setInterval> | null = null;
+
+/**
+ * Schedules one bounded reconciliation pass outside daemon readiness. The
+ * design ensures startup and periodic ticks share the durable lease while the
+ * event loop remains available for health and operator traffic.
+ *
+ * @param trigger Durable provenance label for status and logs.
+ */
+function triggerTool2VecReconcile(trigger: string): void {
+  setImmediate(() => {
+    void tool2VecReconciler.reconcile({ trigger, maxSkills: 8 }).then((result) => {
+      logger.info('tool2vec_reconcile', {
+        trigger,
+        state: result.state,
+        acquired: result.acquired,
+        configured: result.configured,
+        embedded: result.embedded,
+        current: result.current,
+        total: result.total,
+        coveragePct: result.coveragePct,
+      });
+    }).catch((error) => {
+      logger.warn('tool2vec_reconcile_failed', {
+        trigger,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    });
+  });
+}
 const episodicMemory = createEpisodicMemory(db, { tuples, graphEdges, semanticResolver });
 const durableAgentRoster = createDurableAgentRoster(db, { resolver: semanticResolver, logger });
 const quorum = createQuorum({ tuples });
 const feedback = createFeedback({ tuples });
-const roadmapItems = createRoadmapItems({ db, tuples });
+const roadmapItems = createRoadmapItems({ db, tuples, graphEdges });
 const roadmapPromote = createRoadmapPromote({ feedback, roadmapItems });
 const roadmapPop = createRoadmapPop({ db, feedback });
+// Live-work join for the roadmap command center (operator mandate 2026-08-22).
+// Read-only projection over roadmap_items/roadmap_claims/sessions/agents.
+const roadmapActivity = createRoadmapActivity({ db });
 
 const services = createServices(db, { semanticIndex });
 const messaging = createMessaging(db);
@@ -588,6 +666,36 @@ const sessions = createSessions(db, noteEncryption, {
 });
 sessions.setActivityLog(activityLog);
 
+// ADR-0092: optional cloud coordination peer. Local SQLite remains the write
+// path regardless of configuration or network health; the peer only observes,
+// queues, and CRDT-merges. A partial/malformed configuration degrades loudly
+// without preventing the offline-first daemon from starting.
+let coordinationPeer: CoordinationPeer | null = null;
+let coordinationProject: string | null = null;
+try {
+  const coordinationConfig = coordinationPeerConfigFromEnv(process.env, getSecret);
+  if (coordinationConfig) {
+    coordinationProject = coordinationConfig.project;
+    coordinationPeer = createCoordinationPeer({
+      db,
+      sessions,
+      locks,
+      config: coordinationConfig,
+      logger,
+    });
+    coordinationPeer.start();
+    logger.info('coordination_peer_started', {
+      project: coordinationConfig.project,
+      actorId: coordinationConfig.actorId,
+      url: coordinationConfig.url,
+    });
+  }
+} catch (error) {
+  logger.error('coordination_peer_configuration_invalid', {
+    error: (error as Error).message,
+  });
+}
+
 const symbolClaims = createSymbolClaims(db, {
   symbolIndex,
   agentForSession: (sessionId: string) => {
@@ -597,13 +705,28 @@ const symbolClaims = createSymbolClaims(db, {
 });
 
 const agentInbox = createAgentInbox(db, (agentId, message) => {
-  messaging.publish(`inbox:${agentId}`, {
-    ...message,
-    sender: message.from || 'SYSTEM',
-    signal: (message as any).signal || 'report'
-  });
+  messaging.publish(`inbox:${agentId}`, inboxMessageForMessaging(message));
 });
-const parley = createParley({ tuples, agentInbox });
+// The local daemon is one tenant. CAP0 owns any future authenticated tenant
+// binding; request data must never choose this STORE0 authority.
+const parleyStore = createParleyStore({ db, tenantId: 'local-daemon' });
+if (parleyStore.legacyMigration && !parleyStore.legacyMigration.replayed) {
+  logger.info('parley_legacy_tuple_migration_completed', {
+    migrationVersion: parleyStore.legacyMigration.migrationVersion,
+    sourceDigest: parleyStore.legacyMigration.sourceDigest,
+    sourceTupleRows: parleyStore.legacyMigration.sourceTupleRows,
+    importedRecords: parleyStore.legacyMigration.importedRecords,
+    importedTurns: parleyStore.legacyMigration.importedTurns,
+    importedSeenReceipts: parleyStore.legacyMigration.importedSeenReceipts,
+    importedSeenProvenance: parleyStore.legacyMigration.importedSeenProvenance,
+    importedOutcomes: parleyStore.legacyMigration.importedOutcomes,
+  });
+}
+const parley = createParley({
+  store: parleyStore,
+  agentInbox,
+  notificationRecovery: {},
+});
 // Mid-claim hash watcher — snapshots claimed files when their content
 // hash changes mid-claim and DMs the claim-holder. Reactive, not
 // preventive — but turns silent steamrolls into recoverable events.
@@ -631,10 +754,39 @@ dns.setActivityLog(activityLog);
 const resolver = createResolver(db);
 dns.setResolver(resolver);
 const briefing = createBriefing(db, { sessions, agents, resurrection, activityLog, services, messaging });
-const sugar = createSugar({ agents, sessions, activityLog, roadmapItems, feedback, commitments });
+const sugarSessions = scopeSugarSessionsToCoordinationProject(sessions, coordinationProject);
+/**
+ * Resolve one predecessor's bounded continuity projection for every daemon
+ * entry point. The design purpose is to keep fresh-begin, takeover, and
+ * salvage flows evidence-led instead of replaying an unbounded transcript.
+ *
+ * @param sourceSessionId - Durable predecessor session identifier to revalidate.
+ * @returns The verified plan-plus-packet projection, or an explicit withheld state.
+ */
+const contextBootstrapLookup = (sourceSessionId: string) => loadLatestVerifiedContextBootstrap(db, sourceSessionId);
+const sugar = createSugar({
+  agents,
+  sessions: sugarSessions,
+  activityLog,
+  roadmapItems,
+  feedback,
+  commitments,
+  contextBootstrapLookup,
+});
 const attention = createAttention({ db, inbox: agentInbox, messaging });
 const harborTokens = createHarborTokens(db);
 await harborTokens.initDaemonIdentity();
+// Relay connection lifecycle (ADR-0049). Replaces the honest-disconnected
+// stub: the daemon now runs the real outbound handshake + SSE loop from
+// lib/relay-connection.ts when a relay_url is configured, and the status
+// surface reports the live state of that loop — connected only while the
+// relay has an accepted stream open. Signing stays inside harbor-tokens
+// (signHex): the connection holds a signing capability, never the key.
+const relayConnection = new DaemonRelayConnection({
+  db,
+  logger,
+  signer: (msgHex) => harborTokens.signHex(msgHex),
+});
 const harbors = createHarbors(db, { harborTokens });
 const sorties = createSorties(db, { episodicMemory });
 
@@ -714,6 +866,62 @@ const transcriptArchive =
   process.env.PD_TRANSCRIPT_ARCHIVE === 'off' ? undefined : createJsonlTranscriptArchive();
 const transcripts = createTranscripts(db, { archiveSink: transcriptArchive });
 
+// Hash-chain the transcript facts the spawner already persists into Agent
+// Harbor. This is an evidence feeder, not a second transcript store.
+const spawnerHarborBridge = createSpawnerHarborBridge(db, {
+  episodicMemory,
+  logger,
+});
+
+/**
+ * Verify the spawner's captured credential against one exact stored session.
+ *
+ * Purpose: managed ephemeral completion is an in-process daemon authority,
+ * never a public caller boolean. The credential still has to prove the same
+ * actor stamped on the exact session before the private lifecycle method may
+ * bind or complete it.
+ *
+ * @param input - Exact session, stored display agent, and captured credential.
+ * @returns Verified actor id and canonical stored owner, or a refusal body.
+ */
+function authorizeManagedSpawnerSession(input: {
+  sessionId: string;
+  agentId: string;
+  credential: string;
+}): { success: true; actorId: string; agentId: string } | { success: false; code: string; error: string } {
+  const verdict = resolveWriteIdentity({
+    souls: actorSouls,
+    credential: input.credential,
+    assertedAgentId: input.agentId,
+    route: 'daemon:spawner:managed-session',
+    logger,
+    requireIdentity: true,
+  });
+  if (!verdict.ok || verdict.kind !== 'verified') {
+    return {
+      success: false,
+      code: verdict.ok ? 'IDENTITY_CREDENTIAL_REQUIRED' : verdict.code,
+      error: verdict.ok ? 'managed session requires a verified actor credential' : verdict.error,
+    };
+  }
+  const lookup = sugarSessions.get(input.sessionId);
+  const session = lookup.success && lookup.session && typeof lookup.session === 'object'
+    ? lookup.session as Record<string, unknown>
+    : null;
+  if (!session) {
+    return { success: false, code: 'SESSION_NOT_FOUND', error: `Session ${input.sessionId} not found` };
+  }
+  const ownership = authorizeSessionOwner(session, verdict, actorSouls);
+  if (!ownership.ok) {
+    return { success: false, code: ownership.code, error: ownership.error };
+  }
+  return {
+    success: true,
+    actorId: ownership.ownerActorId,
+    agentId: ownership.ownerAgentId,
+  };
+}
+
 // Session Galaxy — 2-D embedding map of recent agent sessions over
 // fleet_transcripts. createLocalEmbedder gives the batch embed(texts[])
 // interface the semanticResolver singleton lacks (its .embed is single-text);
@@ -725,10 +933,124 @@ const transcripts = createTranscripts(db, { archiveSink: transcriptArchive });
 const galaxyEmbedder = createLocalEmbedder({ cacheDir: defaultTransformersCacheDir() });
 const galaxy = createGalaxy({ db, transcripts, sessions, embedder: galaxyEmbedder });
 
+// Private, short-lived admission witnesses for exact managed sessions. Durable
+// ownership remains in the existing session store, not this physical recheck map.
+const managedSpawnWorktrees = new Map<string, ManagedSpawnWorktree>();
 const spawner = createSpawner({
   costTracker, counters, bonds, harbors, transcripts,
+  harborBridge: spawnerHarborBridge,
   enforceTelemetryPolicy: true,
   enforceTranscriptPolicy: true,
+  managedSessionLifecycle: {
+    admit: async (input, { signal }) => {
+      const target = await captureManagedSpawnWorktree(input.workdir, signal);
+      signal.throwIfAborted();
+      if (target.worktree?.isMain && !input.allowSharedCheckout) {
+        return { success: false, code: 'MAIN_WORKTREE_SESSION_FORBIDDEN', error: 'Spawn target requires a linked worktree.' };
+      }
+      const minted = actorSouls.register({});
+      if (!minted.ok || minted.status !== 'minted') {
+        return {
+          success: false,
+          code: minted.ok ? 'MANAGED_SESSION_CREDENTIAL_UNAVAILABLE' : minted.code,
+          error: 'managed spawn admission could not mint an actor credential',
+        };
+      }
+      const verdict = {
+        ok: true as const,
+        kind: 'verified' as const,
+        actorId: minted.actorId,
+        agentId: input.agentId,
+        soulClass: minted.soulClass,
+        identity: { verified: true as const, actorId: minted.actorId, soulClass: minted.soulClass },
+      };
+      const admitted = sugar.begin({
+        agentId: input.agentId,
+        name: input.name,
+        type: 'spawned',
+        identity: input.identity ?? undefined,
+        purpose: input.purpose,
+        lifecycle: 'ephemeral',
+        worktree: target.worktree,
+        metadata: stampIdentityMetadata({
+          ...input.metadata,
+          worktree: target.worktree,
+          spawnWorkdir: target.directory,
+        }, verdict) ?? undefined,
+      });
+      if (!admitted.success) return admitted;
+      if (typeof admitted.sessionId !== 'string') throw new Error('Managed admission did not return an exact session');
+      managedSpawnWorktrees.set(admitted.sessionId, target);
+      return {
+        ...admitted,
+        credential: minted.credential,
+        actorId: minted.actorId,
+        actorIdentity: verdict.identity,
+        worktreeBinding: managedSpawnWorktreeReceipt(target),
+      };
+    },
+    bind: async (input, { signal }) => {
+      const authority = authorizeManagedSpawnerSession(input);
+      if (!authority.success) return authority;
+      const target = managedSpawnWorktrees.get(input.sessionId);
+      if (!target) return { success: false, code: 'MANAGED_SPAWN_TARGET_REQUIRED', error: 'Exact spawn target witness is missing' };
+      // The authorized one-shot binding attempt owns this local witness now.
+      // Failed terminal persistence must not leak an unbounded map of targets.
+      managedSpawnWorktrees.delete(input.sessionId);
+      await verifyManagedSpawnWorktree(target, () => {
+        const lookup = sugarSessions.get(input.sessionId);
+        return lookup.success && lookup.session ? lookup.session as Record<string, unknown> : null;
+      }, signal);
+      signal.throwIfAborted();
+      const currentAuthority = authorizeManagedSpawnerSession(input);
+      if (!currentAuthority.success) return currentAuthority;
+      const bound = sugar.bindManagedSession({
+        sessionId: input.sessionId,
+        agentId: currentAuthority.agentId,
+        actorId: currentAuthority.actorId,
+      });
+      return {
+        ...bound,
+        worktreeBinding: managedSpawnWorktreeReceipt(target),
+        // This closure retains the already verified witness, not a second
+        // identity store or a caller-controlled world. Child runners invoke it
+        // again after sandbox setup, when Git metadata may have changed.
+        validateBeforeLaunch: async ({ signal: launchSignal }: { signal: AbortSignal }) => {
+          await verifyManagedSpawnWorktree(target, () => {
+            const lookup = sugarSessions.get(input.sessionId);
+            return lookup.success && lookup.session ? lookup.session as Record<string, unknown> : null;
+          }, launchSignal);
+          launchSignal.throwIfAborted();
+          return authorizeManagedSpawnerSession(input);
+        },
+      };
+    },
+    complete: async (input) => {
+      const authority = authorizeManagedSpawnerSession(input);
+      if (!authority.success) return authority;
+      const completed = sugar.completeManagedSession({
+        sessionId: input.sessionId,
+        agentId: authority.agentId,
+        actorId: authority.actorId,
+        note: input.note,
+        status: input.status,
+      });
+      if (completed.success) managedSpawnWorktrees.delete(input.sessionId);
+      return completed;
+    },
+    abort: async (input) => {
+      const authority = authorizeManagedSpawnerSession(input);
+      if (!authority.success) return authority;
+      const aborted = sugar.abortManagedSession({
+        sessionId: input.sessionId,
+        agentId: authority.agentId,
+        actorId: authority.actorId,
+        note: input.note,
+      });
+      if (aborted.success) managedSpawnWorktrees.delete(input.sessionId);
+      return aborted;
+    },
+  },
   // Live observability seam (ADR-0060): give the spawner the daemon's messaging
   // layer as a tube client so cli-tube spawns that carry a stable channel (a
   // folded dispatch stamps `dispatch:<id>`) publish their exchange there. This is
@@ -814,11 +1136,18 @@ const conductor = createConductor({
     // I2 NO_SPAWN_ON_MAIN is satisfied here: carve a fresh off-main worktree on
     // the dispatch branch, then scope-disable the Coordination Guard inside it so
     // the autonomous agent can commit without an interactive `pd begin` session.
-    if (!intent.worktreePath || !intent.worktreeBranch || !intent.worktreeBaseRef) {
-      // Not a dispatch-shaped intent — fall back to the intent's own workdir.
-      return intent.workdir;
+    const dispatchShaped = intent.source === 'dispatch'
+      || Boolean(intent.worktreePath || intent.worktreeBranch || intent.worktreeBaseRef);
+    if (!dispatchShaped) return intent.workdir;
+    if (!intent.workdir) {
+      throw new Error('dispatch launch is missing its durable source project binding');
     }
-    await gitWorktreeAdd(intent.worktreePath, intent.worktreeBranch, intent.worktreeBaseRef);
+    if (!intent.worktreePath || !intent.worktreeBranch || !intent.worktreeBaseRef) {
+      throw new Error('dispatch launch is missing its worktree path, branch, or base ref');
+    }
+    await gitWorktreeAdd(intent.worktreePath, intent.worktreeBranch, intent.worktreeBaseRef, {
+      repoWorkdir: intent.workdir,
+    });
     disableGuardInWorktree(intent.worktreePath);
     return intent.worktreePath;
   },
@@ -888,6 +1217,18 @@ const DISPATCH_POLL_MS = Number.isFinite(_dispatchPollMs) && _dispatchPollMs >= 
   : 5000;
 // Optional model pin for dispatch work. Absent → the CLI's authenticated default.
 const DISPATCH_MODEL = process.env.PD_DISPATCH_MODEL?.trim() || undefined;
+// Cross-backend failover (ADR-0131). OFF unless the operator turns it on: it
+// mints a second body — and spends a second time — with nobody in the loop, so
+// it is a deliberate choice, not a default. When on, the successor's warm brief
+// comes from the dead body's own transcript through the fail-closed sanitizer;
+// if that cannot be produced the successor runs cold with the original goal
+// rather than not running at all.
+const DISPATCH_FAILOVER_ENABLED = process.env.PD_DISPATCH_FAILOVER === 'true';
+const DISPATCH_FAILOVER_CHAIN = (process.env.PD_DISPATCH_FAILOVER_CHAIN ?? '')
+  .split(',')
+  .map((b) => b.trim())
+  .filter(Boolean);
+
 const dispatchWorker = DISPATCH_WORKER_ENABLED
   ? createDispatchWorker({
       queue: dispatchQueue,
@@ -896,6 +1237,25 @@ const dispatchWorker = DISPATCH_WORKER_ENABLED
       pollIntervalMs: DISPATCH_POLL_MS,
       workIntentService,
       model: DISPATCH_MODEL,
+      ...(DISPATCH_FAILOVER_ENABLED
+        ? {
+            failover: {
+              enabled: true,
+              ...(DISPATCH_FAILOVER_CHAIN.length
+                ? { preferredChain: DISPATCH_FAILOVER_CHAIN }
+                : {}),
+              buildHandoff: async ({ dispatch, fromBackend, toBackend }) => {
+                const handoff = await buildHandoffFromTranscript({
+                  dispatch,
+                  fromBackend,
+                  toBackend,
+                  deps: { transcripts },
+                });
+                return handoff ? { goal: handoff.goal, episodeId: handoff.episodeId } : null;
+              },
+            },
+          }
+        : {}),
       // THE INJECTION POINT: spawn every dispatch through the Conductor.
       spawnAdapter: createConductorSpawnAdapter(conductor),
     })
@@ -1023,62 +1383,10 @@ resurrection.on('agent:stale', (agent) => {
   logger.info('agent_stale', { agentId: agent.id, name: agent.name });
 });
 
-resurrection.on('agent:dead', (agent) => {
-  harbors.leaveAll(agent.id);
-
-  // Capture the agent's active session ids BEFORE abandoning them, so the custodian
-  // can harvest each session's notes into episodic memory while they remain queryable
-  // (Item 6 — on-death fast path; without it, notes wait up to a poll interval or are
-  // lost when the zombie protocol abandons the session first).
-  const abandonedSessionIds = sessions.activeSessionIdsByAgent(agent.id);
-  const zombied = sessions.abandonByAgent(agent.id);
-  if (zombied > 0) {
-    logger.warn('zombie_sessions_abandoned', { agentId: agent.id, count: zombied });
-    activityLog.log(ActivityType.SESSION_END, {
-      details: `Zombie protocol: ${zombied} active session(s) abandoned — agent ${agent.name || agent.id} is dead`,
-      metadata: { agentId: agent.id, zombied }
-    });
-  }
-  messaging.publish('resurrection', JSON.stringify({
-    event: 'dead', agentId: agent.id, name: agent.name, purpose: agent.purpose,
-    lastHeartbeat: agent.lastHeartbeat, staleSince: agent.staleSince, zombiedSessions: zombied
-  }));
-  messaging.publish('agents', JSON.stringify({
-    event: 'dead', agentId: agent.id,
-    message: `Agent ${agent.name || agent.id} is dead and queued for resurrection`
-  }));
-  logger.warn('agent_dead', { agentId: agent.id, name: agent.name });
-  activityLog.log(ActivityType.AGENT_CLEANUP, {
-    details: `Agent ${agent.name || agent.id} detected as dead, queued for resurrection`,
-    metadata: { agentId: agent.id, staleSince: agent.staleSince }
-  });
-
-  if (custodian) {
-    // Item 6 (on-death harvest): promote each abandoned session's notes immediately.
-    for (const sid of abandonedSessionIds) void custodian.onSessionEnd(sid);
-
-    // Items 1b + 2 (auto-resurrect): read the dying agent's self-salvage capsule as
-    // untrusted respawn CONTEXT, and hand the custodian the AUTHENTICATED scope from the
-    // verified StaleAgent record — never from the forgeable capsule. Passing scope as a
-    // distinct argument makes a forged `capsule.identityProject` structurally unable to
-    // influence the operator-permission check (ADR-0040 trust boundary).
-    //
-    // The raw capsule read back from resurrection.getSalvageCapsule() is only guaranteed
-    // to be *some* plain object (see resurrection.ts's getSalvageCapsule — it just checks
-    // `typeof === 'object'`), never that it matches SelfSalvageCapsule's shape. Run it
-    // through the same normalizeSelfSalvage() producer contract that governs the capsule
-    // elsewhere (telos-salvage.ts) before handing it to the custodian, so a malformed or
-    // corrupted capsule degrades to `undefined` respawn context instead of propagating an
-    // arbitrary shape into the resurrection_context inbox message / operator approval
-    // payload.
-    const rawCapsule = resurrection.getSalvageCapsule(agent.id);
-    const salvage = normalizeSelfSalvage(rawCapsule);
-    if (rawCapsule && !salvage.success) {
-      logger.warn('salvage_capsule_invalid', { agentId: agent.id, error: salvage.error });
-    }
-    void custodian.onAgentDead(agent.id, agent.identityProject ?? '', salvage.capsule as Record<string, unknown> | undefined);
-  }
+const handleAgentHeartbeatDeath = createHeartbeatDeathHandler({
+  sessions, harbors, resurrection, messaging, logger, activityLog, custodian,
 });
+resurrection.on('agent:dead', handleAgentHeartbeatDeath);
 
 resurrection.on('agent:resurrected', (oldAgentId, newAgentId) => {
   messaging.publish('resurrection', JSON.stringify({ event: 'resurrected', oldAgentId, newAgentId }));
@@ -1144,6 +1452,7 @@ function cleanupStale(): ReturnType<typeof services.cleanup> {
       const agentSessionRows = db.prepare(`
         SELECT agent_id, id AS session_id FROM sessions
         WHERE agent_id IN (${placeholders}) AND status = 'active'
+          AND (is_durable IS NULL OR is_durable = 0)
         GROUP BY agent_id HAVING MAX(updated_at)
       `).all(...inactiveIds) as AgentSessionRow[];
 
@@ -1170,6 +1479,17 @@ function cleanupStale(): ReturnType<typeof services.cleanup> {
       }
 
       for (const agent of inactiveAgents) {
+        const hold = resurrection.holdForDurableSessions(agent.id);
+        if (hold.held) {
+          if (Date.now() - agent.lastHeartbeat > getDeadThresholdForStatus(agent.status)) {
+            handleAgentHeartbeatDeath({
+              id: agent.id, name: agent.name || agent.id, purpose: agent.metadata?.purpose ?? null,
+              lastHeartbeat: agent.lastHeartbeat, staleSince: agent.lastHeartbeat + getDeadThresholdForStatus(agent.status),
+              identityProject: agent.identityProject ?? null,
+            });
+          }
+          continue;
+        }
         const sessionId = agentSessionMap.get(agent.id);
         const notes = sessionId ? (notesBySession.get(sessionId) ?? []) : [];
         resurrection.check({
@@ -1185,7 +1505,13 @@ function cleanupStale(): ReturnType<typeof services.cleanup> {
       }
     }
 
-    const agentCleanup = agents.cleanup(locks);
+    // `sessions` is what lets the reaper tell whether a dying DISPLAY handle
+    // is actually the soul that holds a stamped lock. Without it the reaper
+    // fails closed and leaves stamped locks to their TTL — correct, but it
+    // means a genuinely dead agent's locks linger, so this must stay wired.
+    // See lib/agent-soul-binding.ts and
+    // tests/unit/heartbeat-lock-invariant.test.js.
+    const agentCleanup = agents.cleanup(locks, { sessions });
     if (agentCleanup.cleaned > 0) {
       logger.info('agent_cleanup', agentCleanup);
       activityLog.log(ActivityType.AGENT_CLEANUP, {
@@ -1485,11 +1811,13 @@ await registerAllRoutes(
     services, messaging, locks, health, agents, activityLog, webhooks, projects, sessions,
     agentInbox, resurrection, changelog, tunnel, dns, resolver, briefing, sugar, attention, symbolClaims,
     harbors, sorties, conductor, dispatchQueue, dispatchWorker, workIntentService, orchestrator, correlationEngine, spawner, transcripts, tuples, blobs, booty, fleetDaemon, repoRegistry,
-    orchestratorRegistry, symbolIndex, mergeQueue, graphEdges, episodicMemory, semanticResolver, durableAgentRoster, costTracker, cloudAppTelemetry, counters, metricsRegistry,
-    contextTracker,
+    orchestratorRegistry, symbolIndex, mergeQueue, graphEdges, episodicMemory, semanticResolver, durableAgentRoster, costTracker, cloudAppTelemetry, counters, metricsRegistry, usageTelemetry,
+    contextTracker, tool2VecReconciler,
     custodian, operatorPermissions,
     quorum, parley, galaxy, resourceGovernance, feedback, roadmapPop, roadmapItems, roadmapPromote,
+    roadmapActivity,
     commitments, obligationMonitor, suggestions, whois,
+    contextBootstrapLookup,
     bonds, budgetGuard, budgetPause, actorSouls,
     arbiter, bosunHeartbeat,
     VERSION, CODE_HASH, STARTED_AT, __dirname, repoRoot: REPO_ROOT,
@@ -1497,22 +1825,40 @@ await registerAllRoutes(
     daemonBerth: DAEMON_BERTH,
     plane: DAEMON_PLANE,
     cleanupStale, getSystemPorts,
-    // Relay (ADR-0049) connection status. The daemon does not yet start the
-    // outbound RelayConnectionManager (lib/relay-client.ts), so this honestly
-    // reports "not connected" — `pd relay status` shows disconnected even when
-    // a relay_url is configured. When the SSE manager is wired, replace this
-    // with the manager's live status getter.
-    getRelayStatus: () => ({
-      connected: false,
-      session_id: null,
-      last_handshake: null as number | null,
-      accepted_channels: [] as string[],
-      relay_version: null as string | null,
-    }),
+    // Relay (ADR-0049) connection status — the LIVE lifecycle's snapshot.
+    // `connected` is true only while the relay has an accepted SSE stream
+    // open to this daemon (lib/relay-connection.ts flips it on the stream's
+    // open signal and off on any error/close), so `pd relay status` reports
+    // evidence, never intent.
+    getRelayStatus: () => relayConnection.getStatus(),
+    // Lets a runtime config write (POST /relay/config) or a fresh card
+    // (POST /relay/exchange) take effect without a daemon restart.
+    notifyRelayConfigChanged: () => relayConnection.restart(),
   },
   arbiter,
   { pheromones, sessions, db },
 );
+
+// Read-only local readiness proof for cloud sandboxes. The macaroon never
+// leaves the daemon process; bootstrap code can still verify that its `pd
+// begin` operation received a durable room acknowledgement (outbox drained)
+// and was observed back through the room cursor.
+app.get('/coordination/status', async () => coordinationPeer?.status() ?? {
+  enabled: false,
+  connected: false,
+  project: null,
+  actorId: null,
+  replicaId: null,
+  cursor: 0,
+  outbox: 0,
+  lastSyncAt: null,
+  lastError: null,
+});
+
+// Start the outbound relay lifecycle after routes exist: a no-op when
+// relay_url is unconfigured (state: disabled — no loop spins against
+// nothing), the real handshake + SSE + backoff loop when it is.
+relayConnection.start();
 
 // =============================================================================
 // DASHBOARD SSE (Fastify raw reply pattern)
@@ -1617,14 +1963,20 @@ function shutdown(signal: string): void {
   try { tunnel.stopAll(); } catch {}
   try { tunnel.dispose?.(); } catch {}
   try { bosunHeartbeat.stop(); } catch {}
+  // Drop the relay stream before closing the DB: a stopping daemon must not
+  // advertise (or hold) a live federation link.
+  try { relayConnection.stop(); } catch {}
+  try { coordinationPeer?.stop(); } catch {}
   // Stop fleet runners before closing DB (graceful drain)
   try { fleetDaemon.stop(); } catch {}
   try { dispatchWorker?.stop(); } catch {}
   try { if (autoMergeTimer) clearInterval(autoMergeTimer); } catch {}
+  try { if (tool2VecTimer) clearInterval(tool2VecTimer); } catch {}
   systemPortsRefresh.stop();
   if (ipcServer) ipcServer.stop().catch(() => {});
   closeDatabase(db);
   try { unlinkSync(SOCK_PATH); } catch {}
+  clearDaemonReady(READY_FILE, process.pid);
   try { unlinkSync(PID_FILE); } catch {}
   try { unlinkSync(PORT_FILE); } catch {}
   process.exit(0);
@@ -1664,6 +2016,18 @@ process.on('uncaughtException', (err: Error) => {
 });
 
 function onReady(): void {
+  try {
+    publishDaemonReady(READY_FILE, process.pid);
+    logger.info('daemon_ready_published', { path: READY_FILE, pid: process.pid });
+  } catch (err) {
+    // Fail shut for hook delegation without taking down an otherwise healthy
+    // daemon. FleetBar can surface the log and repair the private runtime path.
+    logger.error('daemon_ready_publish_failed', {
+      path: READY_FILE,
+      pid: process.pid,
+      error: (err as Error).message,
+    });
+  }
   activityLog.log(ActivityType.DAEMON_START, {
     details: `Port Daddy v${VERSION} started (Fastify)`,
     metadata: { port: PORT, pid: process.pid, codeHash: CODE_HASH, socket: SOCK_PATH }
@@ -1672,6 +2036,18 @@ function onReady(): void {
     version: VERSION, port: PORT, pid: process.pid
   });
   webhooks.retryPending();
+
+  // O3: readiness never waits for a cold catalog. Every caller shares the
+  // same expiring SQLite lease and row checkpoints, so startup and the
+  // low-frequency tick resume missing hashes without duplicate builders.
+  triggerTool2VecReconcile('daemon-startup');
+  if (!tool2VecTimer) {
+    tool2VecTimer = setInterval(
+      () => triggerTool2VecReconcile('daemon-tick'),
+      TOOL2VEC_RECONCILE_MS,
+    );
+    tool2VecTimer.unref?.();
+  }
 
   // Start mid-claim hash watcher. Cheap (sha256 every ~5s over the active
   // claim set), unref()'d so it doesn't keep the process alive on its own.

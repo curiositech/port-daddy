@@ -131,6 +131,13 @@ export const CLI_TUBE_PROVIDER_SPECS = defineCliTubeProviderRegistry({
     emptySuccess: 'allow',
   },
   agy: {
+    // NOT STREAMED, deliberately (2026-08-23). Every other lane in this file
+    // either has a documented per-event JSON format (claude-code's stream-json,
+    // codex's --json) or falls back to whole-output print mode. Antigravity
+    // documents no streaming format, and inventing a parser for an undocumented
+    // one is how a lane silently drops turns — which is worse than an honest
+    // batch lane, because a partial stream LOOKS live. When agy publishes one,
+    // this becomes an argStyle change plus a mapper, exactly like the other two.
     defaultBinary: 'agy',
     binaryEnvOverride: 'PD_CLI_AGY_BIN',
     authNextStep: 'Run `agy --print "hello"` once interactively to confirm authentication.',
@@ -203,9 +210,11 @@ function buildCliTubeArgsFromSpec(
       return { args, stdin: null };
     }
     case 'codex-exec-json': {
+      // --approve-for-me already selects auto-reviewed workspace-write and is
+      // mutually exclusive with Codex's explicit --sandbox option.
       const args = resumeSessionId
-        ? ['exec', 'resume', '--skip-git-repo-check', '--full-auto', '--json']
-        : ['exec', '--skip-git-repo-check', '--full-auto', '--sandbox', 'workspace-write', '--json'];
+        ? ['exec', '--approve-for-me', 'resume', '--skip-git-repo-check', '--json']
+        : ['exec', '--skip-git-repo-check', '--approve-for-me', '--json'];
       if (input.outputPath) args.push('--output-last-message', input.outputPath);
       pushModelArg(args, spec, input.model);
       for (const config of normalizeCodexConfigOverrides(input.codexConfig)) {

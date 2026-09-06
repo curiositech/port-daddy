@@ -35,6 +35,7 @@ jest.unstable_mockModule('node:child_process', () => ({
 // Import after mocking
 const { spawn: cpSpawn } = await import('node:child_process');
 const { createSpawner: createSpawnerBase } = await import('../../lib/spawner.js');
+const { resolveModel } = await import('../../lib/model-registry.js');
 const { captureWorkspaceIdentity } = await import('../../lib/workspace-identity.js');
 const TEST_WORKSPACE_IDENTITY = captureWorkspaceIdentity(process.cwd());
 if (!TEST_WORKSPACE_IDENTITY) throw new Error('test workspace identity unavailable');
@@ -282,7 +283,7 @@ describe('spawn — instrumentation', () => {
       backend: 'ollama',
       task: 'resolve workdir',
       identity: 'myapp:api:test',
-      workdir: '.',
+      workdir: process.cwd(),
     });
 
     expect(result.status).toBe('completed');
@@ -606,7 +607,7 @@ describe('spawn — backend dispatch', () => {
     await spawner.spawn({
       backend: 'custom',
       task: 'ls',
-      workdir: '/tmp/test',
+      workdir: process.cwd(),
       env: { FOO: 'bar' },
     });
 
@@ -614,7 +615,7 @@ describe('spawn — backend dispatch', () => {
       '/bin/sh',
       ['-c', 'ls'],
       expect.objectContaining({
-        cwd: '/tmp/test',
+        cwd: process.cwd(),
         shell: false,
       })
     );
@@ -686,9 +687,12 @@ describe('spawn — backend dispatch', () => {
       'aider',
       ['--yes', '--no-stream', '--model', 'aider', '--message', 'Fix the login bug', 'src/auth.ts', 'src/login.ts'],
       expect.objectContaining({
-        timeout: 300000,
+        detached: true,
+        shell: false,
       })
     );
+    // No spec.timeout was given, so no hidden wall clock should be applied.
+    expect(cpSpawn.mock.calls[0][2]).not.toHaveProperty('timeout');
   });
 
   test('aider backend honors explicit model selection', async () => {
@@ -704,8 +708,9 @@ describe('spawn — backend dispatch', () => {
     expect(cpSpawn).toHaveBeenCalledWith(
       'aider',
       ['--yes', '--no-stream', '--model', 'gpt-5', '--message', 'Refactor carefully'],
-      expect.objectContaining({ timeout: 300000 })
+      expect.objectContaining({ detached: true, shell: false })
     );
+    expect(cpSpawn.mock.calls[0][2]).not.toHaveProperty('timeout');
   });
 
   test('aider backend with no files', async () => {
@@ -719,6 +724,113 @@ describe('spawn — backend dispatch', () => {
 
     const args = cpSpawn.mock.calls[0][1];
     expect(args).toEqual(['--yes', '--no-stream', '--model', 'aider', '--message', 'General help']);
+  });
+
+  test('does not apply hidden timeout when timeout is not specified', async () => {
+    jest.useFakeTimers();
+    try {
+      const spawner = createSpawner();
+
+      // Child process never emits 'close' on its own — if a hidden default
+      // wall clock were still applied, it would be the only thing that ever
+      // terminates this spawn.
+      mockChildProcess.stdout.on.mockImplementation(() => {});
+      mockChildProcess.stderr.on.mockImplementation(() => {});
+      let closeCb;
+      mockChildProcess.on.mockImplementation((event, cb) => {
+        if (event === 'close') closeCb = cb;
+      });
+
+      const spawnPromise = spawner.spawn({
+        backend: 'custom',
+        task: 'long running without timeout',
+      });
+
+      // Flush the microtask chain up to the cpSpawn call — no real wait.
+      await jest.advanceTimersByTimeAsync(0);
+
+      // Verify spawn was called without a timeout in the child-process options.
+      const spawnCall = cpSpawn.mock.calls[0];
+      expect(spawnCall[2]).not.toHaveProperty('timeout');
+
+      // Advance well past the old hidden 5-minute (300000ms) default. Nothing
+      // should signal the child — there is no wall clock to fire.
+      await jest.advanceTimersByTimeAsync(10 * 60 * 1000);
+      expect(mockChildProcess.kill).not.toHaveBeenCalled();
+
+      // Let the child exit on its own and confirm no timer/listener is left
+      // pending once the spawn settles.
+      closeCb(0);
+      await spawnPromise;
+      expect(jest.getTimerCount()).toBe(0);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test('treats an explicit zero timeout as no deadline', async () => {
+    const spawner = createSpawner();
+    resolveChildProcess(0, 'completed without a deadline');
+
+    const result = await spawner.spawn({
+      backend: 'custom',
+      task: 'zero means no timeout',
+      timeout: 0,
+    });
+
+    expect(result.status).toBe('completed');
+    expect(cpSpawn.mock.calls[0][2]).not.toHaveProperty('timeout');
+  });
+
+  test('explicit timeout SIGTERMs then SIGKILLs the child and reports honestly', async () => {
+    jest.useFakeTimers();
+    try {
+      const spawner = createSpawner();
+
+      // Child never exits on its own — only the deadline mechanics should
+      // ever signal it.
+      mockChildProcess.stdout.on.mockImplementation(() => {});
+      mockChildProcess.stderr.on.mockImplementation(() => {});
+      let closeCb;
+      mockChildProcess.on.mockImplementation((event, cb) => {
+        if (event === 'close') closeCb = cb;
+      });
+
+      const spawnPromise = spawner.spawn({
+        backend: 'custom',
+        task: 'sleep forever',
+        timeout: 1000,
+      });
+
+      // Flush to the cpSpawn call and confirm the caller-supplied deadline is
+      // the one actually passed to the child process.
+      await jest.advanceTimersByTimeAsync(0);
+      expect(cpSpawn.mock.calls[0][2].timeout).toBe(1000);
+
+      // Just shy of the deadline: nothing signaled yet.
+      await jest.advanceTimersByTimeAsync(1000 - 25 - 1);
+      expect(mockChildProcess.kill).not.toHaveBeenCalled();
+
+      // Cross the deadline: SIGTERM fires first.
+      await jest.advanceTimersByTimeAsync(2);
+      expect(mockChildProcess.kill).toHaveBeenCalledWith('SIGTERM');
+      expect(mockChildProcess.kill).not.toHaveBeenCalledWith('SIGKILL');
+
+      // The child ignores SIGTERM. After the 5s hard-stop grace window, the
+      // spawner escalates to SIGKILL.
+      await jest.advanceTimersByTimeAsync(5000);
+      expect(mockChildProcess.kill).toHaveBeenCalledWith('SIGKILL');
+
+      // Child finally exits (e.g. killed by the OS). The result must report
+      // the timeout honestly, and cleanup must not leak any timer.
+      closeCb(null);
+      const result = await spawnPromise;
+      expect(result.status).toBe('failed');
+      expect(result.error).toContain('timed out after 1000ms');
+      expect(jest.getTimerCount()).toBe(0);
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   test('unknown backend returns error', async () => {
@@ -740,6 +852,26 @@ describe('spawn — backend dispatch', () => {
 // =============================================================================
 
 describe('spawn — result shape', () => {
+  test('emits the exact agent identity before backend execution', async () => {
+    const onStarted = jest.fn();
+    const spawner = createSpawner();
+    setupOllamaFetchMock('result');
+
+    const result = await spawner.spawn({
+      backend: 'ollama',
+      task: 'test live witness',
+      onStarted,
+    });
+
+    expect(onStarted).toHaveBeenCalledWith(expect.objectContaining({
+      agentId: result.agentId,
+      transcriptId: null,
+      backend: 'ollama',
+      model: 'llama3.1:8b',
+      startedAt: result.startedAt,
+    }));
+  });
+
   test('returns all expected fields on success', async () => {
     const spawner = createSpawner();
     setupOllamaFetchMock('result');
@@ -897,7 +1029,7 @@ describe('list', () => {
     expect(agents[0]).not.toHaveProperty('childProcess');
   });
 
-  test('shows killed status after kill', async () => {
+  test('does not rewrite a completed spawn when kill arrives late', async () => {
     const spawner = createSpawner();
     setupOllamaFetchMock('response');
 
@@ -905,9 +1037,9 @@ describe('list', () => {
     spawner.kill(result.agentId);
 
     const agents = spawner.list();
-    const killed = agents.find(a => a.agentId === result.agentId);
-    expect(killed.status).toBe('killed');
-    expect(killed.completedAt).toBeTruthy();
+    const completed = agents.find(a => a.agentId === result.agentId);
+    expect(completed.status).toBe('completed');
+    expect(completed.completedAt).toBeTruthy();
   });
 });
 
@@ -918,15 +1050,21 @@ describe('list', () => {
 describe('kill', () => {
   test('marks agent as killed', async () => {
     const spawner = createSpawner();
-    setupOllamaFetchMock('response');
-
-    const result = await spawner.spawn({ backend: 'ollama', task: 'test' });
-    spawner.kill(result.agentId);
+    mockChildProcess.stdout.on.mockImplementation(() => {});
+    mockChildProcess.stderr.on.mockImplementation(() => {});
+    mockChildProcess.on.mockImplementation(() => {});
+    const pending = spawner.spawn({ backend: 'custom', task: 'sleep 9999' });
+    await new Promise(r => setTimeout(r, 10));
+    const [running] = spawner.list();
+    spawner.kill(running.agentId);
 
     const agents = spawner.list();
-    const agent = agents.find(a => a.agentId === result.agentId);
+    const agent = agents.find(a => a.agentId === running.agentId);
     expect(agent.status).toBe('killed');
     expect(agent.completedAt).toBeTruthy();
+    const closeHandler = mockChildProcess.on.mock.calls.find(([event]) => event === 'close');
+    if (closeHandler) closeHandler[1](null);
+    await pending;
   });
 
   test('does not throw for non-existent agent', () => {
@@ -936,31 +1074,44 @@ describe('kill', () => {
 
   test('does not throw when called twice', async () => {
     const spawner = createSpawner();
-    setupOllamaFetchMock('response');
-
-    const result = await spawner.spawn({ backend: 'ollama', task: 'test' });
-    expect(() => spawner.kill(result.agentId)).not.toThrow();
-    expect(() => spawner.kill(result.agentId)).not.toThrow();
+    mockChildProcess.stdout.on.mockImplementation(() => {});
+    mockChildProcess.stderr.on.mockImplementation(() => {});
+    mockChildProcess.on.mockImplementation(() => {});
+    const pending = spawner.spawn({ backend: 'custom', task: 'sleep 9999' });
+    await new Promise(r => setTimeout(r, 10));
+    const [running] = spawner.list();
+    expect(() => spawner.kill(running.agentId)).not.toThrow();
+    expect(() => spawner.kill(running.agentId)).not.toThrow();
+    const closeHandler = mockChildProcess.on.mock.calls.find(([event]) => event === 'close');
+    if (closeHandler) closeHandler[1](null);
+    await pending;
   });
 
   test('calls PD coordination /sugar/done on kill', async () => {
     const spawner = createSpawner();
-    setupOllamaFetchMock('response');
-
-    const result = await spawner.spawn({ backend: 'ollama', task: 'test' });
-    mockFetch.mockClear();
-    spawner.kill(result.agentId);
-
-    // kill fires /sugar/done asynchronously — give it a tick
+    mockChildProcess.stdout.on.mockImplementation(() => {});
+    mockChildProcess.stderr.on.mockImplementation(() => {});
+    mockChildProcess.on.mockImplementation(() => {});
+    const pending = spawner.spawn({ backend: 'custom', task: 'sleep 9999' });
     await new Promise(r => setTimeout(r, 10));
+    const [running] = spawner.list();
+    mockFetch.mockClear();
+    spawner.kill(running.agentId);
+    const closeHandler = mockChildProcess.on.mock.calls.find(([event]) => event === 'close');
+    if (closeHandler) closeHandler[1](null);
+    await pending;
 
     const doneCalls = mockFetch.mock.calls.filter(
       ([url]) => typeof url === 'string' && url.includes('/sugar/done')
     );
     expect(doneCalls.length).toBe(1);
     const body = JSON.parse(doneCalls[0][1].body);
-    expect(body.agentId).toBe(result.agentId);
+    expect(body.agentId).toBe(running.agentId);
+    expect(body.sessionId).toBe('test-session-123');
     expect(body.note).toBe('Killed by spawner');
+    expect(body.status).toBe('abandoned');
+    expect(body).not.toHaveProperty('skipOriginCheck');
+    expect(body).not.toHaveProperty('forceIncomplete');
   });
 
   test('kills child process while custom backend is still running', async () => {
@@ -1007,6 +1158,25 @@ describe('kill', () => {
 // =============================================================================
 
 describe('PD coordination', () => {
+  function makeManagedLifecycle(sessionId, overrides = {}) {
+    let worktreeBinding = { cwd: null, worktreeId: null, root: null };
+    return {
+      admit: jest.fn(async (input) => {
+        worktreeBinding = { cwd: input.workdir ?? null, worktreeId: null, root: null };
+        return {
+        success: true,
+        sessionId,
+        credential: 'actor-managed.secret',
+        worktreeBinding,
+        };
+      }),
+      bind: jest.fn(async () => ({ success: true, worktreeBinding, validateBeforeLaunch: async () => ({ success: true }) })),
+      complete: jest.fn().mockResolvedValue({ success: true }),
+      abort: jest.fn().mockResolvedValue({ success: true }),
+      ...overrides,
+    };
+  }
+
   test('registers agent with PD on spawn', async () => {
     const spawner = createSpawner();
     setupOllamaFetchMock('response');
@@ -1060,8 +1230,11 @@ describe('PD coordination', () => {
     );
     expect(doneCalls.length).toBe(1);
     const body = JSON.parse(doneCalls[0][1].body);
+    expect(body.sessionId).toBe('test-session');
     expect(body.note).toContain('Completed');
     expect(body.note).toContain('Great success');
+    expect(body).not.toHaveProperty('skipOriginCheck');
+    expect(body).not.toHaveProperty('forceIncomplete');
   });
 
   test('calls /sugar/done on failure with error message', async () => {
@@ -1078,7 +1251,7 @@ describe('PD coordination', () => {
       return {
         ok: true,
         status: 200,
-        json: async () => ({ success: true }),
+        json: async () => ({ success: true, sessionId: 'failed-session' }),
         text: async () => 'OK',
       };
     });
@@ -1093,7 +1266,482 @@ describe('PD coordination', () => {
     );
     expect(doneCalls.length).toBe(1);
     const body = JSON.parse(doneCalls[0][1].body);
+    expect(body.sessionId).toBe('failed-session');
     expect(body.note).toContain('Failed');
+    expect(body.status).toBe('abandoned');
+    expect(body).not.toHaveProperty('skipOriginCheck');
+    expect(body).not.toHaveProperty('forceIncomplete');
+  });
+
+  test('binds and completes a successful managed spawn through the exact in-process session authority', async () => {
+    const managedSessionLifecycle = makeManagedLifecycle('managed-session-success');
+    mockFetch.mockImplementation(async (url) => {
+      if (typeof url === 'string' && url.includes('/sugar/begin')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            success: true,
+            sessionId: 'managed-session-success',
+            credential: 'actor-managed.secret',
+          }),
+          text: async () => 'OK',
+        };
+      }
+      if (typeof url === 'string' && url.includes('11434')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ message: { content: 'managed output' } }),
+          text: async () => 'managed output',
+        };
+      }
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ success: true }),
+        text: async () => 'OK',
+      };
+    });
+    const spawner = createSpawner({ managedSessionLifecycle });
+
+    const result = await spawner.spawn({ backend: 'ollama', task: 'managed success' });
+
+    expect(result.status).toBe('completed');
+    expect(managedSessionLifecycle.bind).toHaveBeenCalledWith({
+      sessionId: 'managed-session-success',
+      agentId: result.agentId,
+      credential: 'actor-managed.secret',
+    }, expect.objectContaining({ signal: expect.any(Object) }));
+    expect(managedSessionLifecycle.complete).toHaveBeenCalledWith({
+      sessionId: 'managed-session-success',
+      agentId: result.agentId,
+      credential: 'actor-managed.secret',
+      note: 'Completed: managed output',
+      status: 'completed',
+    }, expect.objectContaining({ signal: expect.any(Object) }));
+    expect(result.managedSession).toEqual({ requestedStatus: 'completed', outcome: 'succeeded' });
+    expect(mockFetch.mock.calls.some(([url]) => typeof url === 'string' && url.includes('/sugar/done'))).toBe(false);
+  });
+
+  test('reports managed completion refusal separately without contradicting the finalized transcript result', async () => {
+    const managedSessionLifecycle = makeManagedLifecycle('managed-session-refused', {
+      complete: jest.fn().mockResolvedValue({
+        success: false,
+        code: 'MANAGED_SESSION_PROOF_REQUIRED',
+        error: 'exact managed proof missing',
+      }),
+    });
+    mockFetch.mockImplementation(async (url) => {
+      if (typeof url === 'string' && url.includes('/sugar/begin')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            success: true,
+            sessionId: 'managed-session-refused',
+            credential: 'actor-managed.secret',
+          }),
+          text: async () => 'OK',
+        };
+      }
+      if (typeof url === 'string' && url.includes('11434')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ message: { content: 'backend succeeded' } }),
+          text: async () => 'backend succeeded',
+        };
+      }
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ success: true }),
+        text: async () => 'OK',
+      };
+    });
+    const spawner = createSpawner({ managedSessionLifecycle });
+
+    const result = await spawner.spawn({ backend: 'ollama', task: 'managed refusal' });
+
+    expect(result).toMatchObject({
+      status: 'completed',
+      error: null,
+      managedSession: {
+        requestedStatus: 'completed',
+        outcome: 'refused',
+        code: 'MANAGED_SESSION_PROOF_REQUIRED',
+        error: 'exact managed proof missing',
+      },
+    });
+    expect(spawner.list()[0]).toMatchObject({ status: 'completed', managedSession: result.managedSession });
+    expect(managedSessionLifecycle.complete).toHaveBeenCalledWith(expect.objectContaining({
+      sessionId: 'managed-session-refused',
+      credential: 'actor-managed.secret',
+      status: 'completed',
+    }), expect.objectContaining({ signal: expect.any(Object) }));
+    expect(mockFetch.mock.calls.some(([url]) => typeof url === 'string' && url.includes('/sugar/done'))).toBe(false);
+  });
+
+  test('managed kill abandons the exact bound session and never invokes public done', async () => {
+    const managedSessionLifecycle = makeManagedLifecycle('managed-session-kill');
+    mockFetch.mockImplementation(async (url) => {
+      if (typeof url === 'string' && url.includes('/sugar/begin')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            success: true,
+            sessionId: 'managed-session-kill',
+            credential: 'actor-managed.secret',
+          }),
+          text: async () => 'OK',
+        };
+      }
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ success: true }),
+        text: async () => 'OK',
+      };
+    });
+    mockChildProcess.stdout.on.mockImplementation(() => {});
+    mockChildProcess.stderr.on.mockImplementation(() => {});
+    mockChildProcess.on.mockImplementation(() => {});
+    const spawner = createSpawner({ managedSessionLifecycle });
+    const spawnPromise = spawner.spawn({ backend: 'custom', task: 'sleep 9999', workdir: process.cwd() });
+    await new Promise(r => setTimeout(r, 10));
+    const running = spawner.list().find(agent => agent.status === 'running');
+    expect(running).toBeTruthy();
+
+    spawner.kill(running.agentId);
+    spawner.kill(running.agentId);
+    await new Promise(r => setTimeout(r, 10));
+    const closeHandler = mockChildProcess.on.mock.calls.find(([event]) => event === 'close');
+    if (closeHandler) closeHandler[1](null);
+    const result = await spawnPromise;
+
+    expect(result.status).toBe('killed');
+    expect(managedSessionLifecycle.complete).toHaveBeenCalledWith({
+      sessionId: 'managed-session-kill',
+      agentId: running.agentId,
+      credential: 'actor-managed.secret',
+      note: 'Killed by spawner',
+      status: 'abandoned',
+    }, expect.objectContaining({ signal: expect.any(Object) }));
+    expect(managedSessionLifecycle.complete).toHaveBeenCalledTimes(1);
+    expect(mockFetch.mock.calls.some(([url]) => typeof url === 'string' && url.includes('/sugar/done'))).toBe(false);
+  });
+
+  test('kill during deferred admission binds then abandons once without starting the backend', async () => {
+    let resolveBegin;
+    let admissionSignal;
+    const beginBody = new Promise(resolve => { resolveBegin = resolve; });
+    const runner = jest.fn().mockResolvedValue({ output: 'must not run', error: null });
+    const managedSessionLifecycle = makeManagedLifecycle('managed-session-admission-race', {
+      admit: jest.fn((_input, options) => {
+        admissionSignal = options.signal;
+        return beginBody;
+      }),
+    });
+    mockFetch.mockImplementation(async (url) => {
+      if (typeof url === 'string' && url.includes('/sugar/begin')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => beginBody,
+          text: async () => 'OK',
+        };
+      }
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ success: true }),
+        text: async () => 'OK',
+      };
+    });
+    const spawner = createSpawner({
+      managedSessionLifecycle,
+      runnerOverrides: { ollama: runner },
+    });
+    const pending = spawner.spawn({ backend: 'ollama', task: 'deferred admission' });
+    await new Promise(r => setTimeout(r, 0));
+    const [admitting] = spawner.list();
+    expect(admitting.status).toBe('running');
+    spawner.kill(admitting.agentId);
+    expect(admissionSignal.aborted).toBe(true);
+    resolveBegin({
+      success: true,
+      sessionId: 'managed-session-admission-race',
+      credential: 'actor-managed.secret',
+    });
+
+    const result = await pending;
+
+    expect(result.status).toBe('killed');
+    expect(runner).not.toHaveBeenCalled();
+    expect(managedSessionLifecycle.bind).not.toHaveBeenCalled();
+    expect(managedSessionLifecycle.complete).not.toHaveBeenCalled();
+    expect(managedSessionLifecycle.abort).not.toHaveBeenCalled();
+    expect(result.managedSession).toMatchObject({ requestedStatus: 'abandoned', outcome: 'refused' });
+  });
+
+  test('kill during deferred binding waits for the stamp then abandons once without starting the backend', async () => {
+    let resolveBind;
+    let bindingSignal;
+    const binding = new Promise(resolve => { resolveBind = resolve; });
+    const runner = jest.fn().mockResolvedValue({ output: 'must not run', error: null });
+    const managedSessionLifecycle = makeManagedLifecycle('managed-session-bind-race', {
+      bind: jest.fn((_input, options) => {
+        bindingSignal = options.signal;
+        return binding;
+      }),
+    });
+    mockFetch.mockImplementation(async (url) => {
+      if (typeof url === 'string' && url.includes('/sugar/begin')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            success: true,
+            sessionId: 'managed-session-bind-race',
+            credential: 'actor-managed.secret',
+          }),
+          text: async () => 'OK',
+        };
+      }
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ success: true }),
+        text: async () => 'OK',
+      };
+    });
+    const spawner = createSpawner({
+      managedSessionLifecycle,
+      runnerOverrides: { ollama: runner },
+    });
+    const pending = spawner.spawn({ backend: 'ollama', task: 'deferred bind' });
+    for (let attempt = 0; managedSessionLifecycle.bind.mock.calls.length === 0 && attempt < 20; attempt += 1) {
+      await new Promise(r => setTimeout(r, 0));
+    }
+    const [bindingAgent] = spawner.list();
+    spawner.kill(bindingAgent.agentId);
+    expect(bindingSignal.aborted).toBe(true);
+    resolveBind({ success: true });
+
+    const result = await pending;
+
+    expect(result.status).toBe('killed');
+    expect(runner).not.toHaveBeenCalled();
+    expect(managedSessionLifecycle.complete).not.toHaveBeenCalled();
+    expect(managedSessionLifecycle.abort).toHaveBeenCalledTimes(1);
+    expect(managedSessionLifecycle.abort).toHaveBeenCalledWith(expect.objectContaining({
+      sessionId: 'managed-session-bind-race',
+    }), expect.objectContaining({ signal: expect.any(Object) }));
+  });
+
+  test('bind refusal aborts the exact admission and preserves the root refusal', async () => {
+    const runner = jest.fn().mockResolvedValue({ output: 'must not run', error: null });
+    const managedSessionLifecycle = makeManagedLifecycle('managed-session-bind-refusal', {
+      bind: jest.fn().mockResolvedValue({ success: false, error: 'stamp persistence failed' }),
+      complete: jest.fn().mockResolvedValue({ success: false, error: 'unbound completion refused' }),
+    });
+    mockFetch.mockImplementation(async (url) => {
+      if (typeof url === 'string' && url.includes('/sugar/begin')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            success: true,
+            sessionId: 'managed-session-bind-refusal',
+            credential: 'actor-managed.secret',
+          }),
+          text: async () => 'OK',
+        };
+      }
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ success: true }),
+        text: async () => 'OK',
+      };
+    });
+    const spawner = createSpawner({
+      managedSessionLifecycle,
+      runnerOverrides: { ollama: runner },
+    });
+
+    const result = await spawner.spawn({ backend: 'ollama', task: 'bind refusal' });
+
+    expect(result.status).toBe('failed');
+    expect(result.error).toContain('stamp persistence failed');
+    expect(runner).not.toHaveBeenCalled();
+    expect(managedSessionLifecycle.complete).not.toHaveBeenCalled();
+    expect(managedSessionLifecycle.abort).toHaveBeenCalledTimes(1);
+    expect(managedSessionLifecycle.abort).toHaveBeenCalledWith(expect.objectContaining({
+      sessionId: 'managed-session-bind-refusal',
+      credential: 'actor-managed.secret',
+    }), expect.objectContaining({ signal: expect.any(Object) }));
+  });
+
+  test('kill racing deferred terminal completion is ignored after the exactly-once transition begins', async () => {
+    let resolveCompletion;
+    const terminal = new Promise(resolve => { resolveCompletion = resolve; });
+    const managedSessionLifecycle = makeManagedLifecycle('managed-session-terminal-race', {
+      complete: jest.fn(() => terminal),
+    });
+    mockFetch.mockImplementation(async (url) => {
+      if (typeof url === 'string' && url.includes('/sugar/begin')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            success: true,
+            sessionId: 'managed-session-terminal-race',
+            credential: 'actor-managed.secret',
+          }),
+          text: async () => 'OK',
+        };
+      }
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ success: true }),
+        text: async () => 'OK',
+      };
+    });
+    const spawner = createSpawner({
+      managedSessionLifecycle,
+      runnerOverrides: {
+        ollama: jest.fn().mockResolvedValue({ output: 'terminal race output', error: null }),
+      },
+    });
+    const pending = spawner.spawn({ backend: 'ollama', task: 'terminal race' });
+    for (let attempt = 0; managedSessionLifecycle.complete.mock.calls.length === 0 && attempt < 20; attempt += 1) {
+      await new Promise(r => setTimeout(r, 0));
+    }
+    const [settling] = spawner.list();
+    spawner.kill(settling.agentId);
+    resolveCompletion({ success: true });
+
+    const result = await pending;
+
+    expect(result.status).toBe('completed');
+    expect(spawner.list()[0].status).toBe('completed');
+    expect(managedSessionLifecycle.complete).toHaveBeenCalledTimes(1);
+    expect(managedSessionLifecycle.complete).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'completed' }),
+      expect.objectContaining({ signal: expect.any(Object) }),
+    );
+  });
+
+  test('transcript finalization failure abandons the managed session instead of closing it completed', async () => {
+    const transcripts = {
+      start: jest.fn(() => 'transcript-finalize-failure'),
+      appendMessage: jest.fn(),
+      appendOutput: jest.fn(),
+      finalize: jest.fn(() => {
+        throw new Error('archive unavailable');
+      }),
+    };
+    const managedSessionLifecycle = makeManagedLifecycle('managed-session-transcript-failure');
+    mockFetch.mockImplementation(async (url) => {
+      if (typeof url === 'string' && url.includes('/sugar/begin')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            success: true,
+            sessionId: 'managed-session-transcript-failure',
+            credential: 'actor-managed.secret',
+          }),
+          text: async () => 'OK',
+        };
+      }
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ success: true }),
+        text: async () => 'OK',
+      };
+    });
+    const spawner = createSpawner({
+      transcripts,
+      enforceTranscriptPolicy: true,
+      managedSessionLifecycle,
+      runnerOverrides: {
+        ollama: jest.fn().mockResolvedValue({ output: 'backend completed', error: null }),
+      },
+    });
+
+    const result = await spawner.spawn({ backend: 'ollama', task: 'archive before completion' });
+
+    expect(result.status).toBe('failed');
+    expect(result.error).toContain('transcript recording failed (finalize): archive unavailable');
+    expect(transcripts.finalize).toHaveBeenCalledTimes(2);
+    expect(managedSessionLifecycle.complete).toHaveBeenCalledTimes(1);
+    expect(managedSessionLifecycle.complete).toHaveBeenCalledWith(expect.objectContaining({
+      sessionId: 'managed-session-transcript-failure',
+      status: 'abandoned',
+      note: expect.stringContaining('transcript recording failed (finalize)'),
+    }), expect.objectContaining({ signal: expect.any(Object) }));
+    expect(managedSessionLifecycle.abort).not.toHaveBeenCalled();
+  });
+
+  test('never-settling managed admission is deadline-bounded and never starts a backend', async () => {
+    const runner = jest.fn().mockResolvedValue({ output: 'must not run', error: null });
+    const managedSessionLifecycle = makeManagedLifecycle('unused', {
+      admit: jest.fn(() => new Promise(() => {})),
+    });
+    const spawner = createSpawner({
+      managedSessionLifecycle,
+      managedLifecycleTimeoutMs: 20,
+      runnerOverrides: { ollama: runner },
+    });
+
+    const result = await spawner.spawn({ backend: 'ollama', task: 'admission deadline' });
+
+    expect(runner).not.toHaveBeenCalled();
+    expect(managedSessionLifecycle.bind).not.toHaveBeenCalled();
+    expect(result).toMatchObject({
+      status: 'failed',
+      managedSession: {
+        requestedStatus: 'abandoned',
+        outcome: 'timed_out',
+        code: 'MANAGED_SESSION_TIMEOUT',
+      },
+    });
+  });
+
+  test.each([
+    ['complete', true],
+    ['abort', false],
+  ])('never-settling managed %s is deadline-bounded with one terminal invocation', async (method, bound) => {
+    const managedSessionLifecycle = makeManagedLifecycle(`managed-session-${method}`, {
+      ...(bound
+        ? { complete: jest.fn(() => new Promise(() => {})) }
+        : {
+            bind: jest.fn().mockResolvedValue({ success: false, error: 'binding refused' }),
+            abort: jest.fn(() => new Promise(() => {})),
+          }),
+    });
+    const spawner = createSpawner({
+      managedSessionLifecycle,
+      managedLifecycleTimeoutMs: 20,
+      runnerOverrides: { ollama: jest.fn().mockResolvedValue({ output: 'backend evidence', error: null }) },
+    });
+
+    const result = await spawner.spawn({ backend: 'ollama', task: `${method} deadline` });
+
+    expect(managedSessionLifecycle[method]).toHaveBeenCalledTimes(1);
+    expect(result.managedSession).toMatchObject({
+      requestedStatus: bound ? 'completed' : 'abandoned',
+      outcome: 'timed_out',
+      code: 'MANAGED_SESSION_TIMEOUT',
+    });
+    expect(result.status).toBe(bound ? 'completed' : 'failed');
+    expect(mockFetch.mock.calls.some(([url]) => typeof url === 'string' && url.includes('/sugar/done'))).toBe(false);
   });
 
   test('PD coordination failures do not block spawning', async () => {
@@ -1326,7 +1974,10 @@ describe('spawn — gemini backend', () => {
 
     expect(result.status).toBe('completed');
     expect(result.output).toBe('PONG');
-    expect(result.model).toBe('gemini-2.5-flash');
+    // The backend's DEFAULT is the contract, not a particular id: the spawn must
+    // land on whatever the registry's cheap rung for gemini resolves to. The
+    // literal here was two generations stale.
+    expect(result.model).toBe(resolveModel({ backend: 'gemini', capability: 'cheap' }));
     expect(result.telemetry).toMatchObject({ rateMode: 'exact', inputTokens: 7, outputTokens: 44 });
     // thoughtsTokenCount folded into output: 2 + 42 = 44.
     expect(costTracker.record).toHaveBeenCalledWith(
@@ -1387,9 +2038,12 @@ describe('spawn — claude-cli backend', () => {
       expect.stringMatching(/(?:^|[/\\])claude$/),
       ['-p', '--output-format', 'json', 'Write a hello world program'],
       expect.objectContaining({
-        timeout: 300000,
+        detached: true,
+        shell: false,
       })
     );
+    // No spec.timeout was given, so no hidden wall clock should be applied.
+    expect(cpSpawn.mock.calls[0][2]).not.toHaveProperty('timeout');
   });
 
   test('resumes the exact Claude harness session when adapter ownership matches', async () => {
@@ -1448,13 +2102,13 @@ describe('spawn — claude-cli backend', () => {
     await spawner.spawn({
       backend: 'claude-cli',
       task: 'Read files',
-      workdir: '/tmp/my-project',
+      workdir: process.cwd(),
     });
 
     // --cwd is not a valid claude CLI flag; workdir is passed as spawn option
     const args = cpSpawn.mock.calls[0][1];
     expect(args).not.toContain('--cwd');
-    expect(cpSpawn.mock.calls[0][2].cwd).toBe('/tmp/my-project');
+    expect(cpSpawn.mock.calls[0][2].cwd).toBe(process.cwd());
   });
 
   test('does not pass --max-tokens (not a valid claude CLI flag)', async () => {
@@ -1479,7 +2133,7 @@ describe('spawn — claude-cli backend', () => {
       backend: 'claude-cli',
       task: 'Do everything',
       model: 'sonnet',
-      workdir: '/tmp/test',
+      workdir: process.cwd(),
       allowedTools: 'Read,Write',
       maxTokens: 500,
     });
@@ -1490,7 +2144,7 @@ describe('spawn — claude-cli backend', () => {
       '--model', 'sonnet',
       '--allowedTools', 'Read,Write',
     ]);
-    expect(cpSpawn.mock.calls[0][2].cwd).toBe('/tmp/test');
+    expect(cpSpawn.mock.calls[0][2].cwd).toBe(process.cwd());
   });
 
   test('handles non-zero exit code', async () => {
@@ -1551,6 +2205,7 @@ describe('spawn — claude-cli backend', () => {
 describe('spawn — codex backend', () => {
   test('spawns codex exec and returns the captured final message', async () => {
     const spawner = createSpawner();
+    const codexWorkdir = process.cwd();
     mockChildProcess.stdout.on.mockImplementation(() => {});
     mockChildProcess.stderr.on.mockImplementation(() => {});
     mockChildProcess.on.mockImplementation((event, cb) => {
@@ -1566,7 +2221,7 @@ describe('spawn — codex backend', () => {
     const result = await spawner.spawn({
       backend: 'codex',
       task: 'Say exactly: Codex clean output',
-      workdir: '/tmp/port-daddy-codex-test',
+      workdir: codexWorkdir,
     });
 
     expect(result.status).toBe('completed');
@@ -1577,18 +2232,19 @@ describe('spawn — codex backend', () => {
       expect.arrayContaining([
         'exec',
         '--skip-git-repo-check',
-        '--full-auto',
-        '--sandbox', 'workspace-write',
-        '-C', '/tmp/port-daddy-codex-test',
+        '--approve-for-me',
+        '-C', codexWorkdir,
         '--model', 'gpt-5.4-mini',
         '--json',
         'Say exactly: Codex clean output',
       ]),
       expect.objectContaining({
-        cwd: '/tmp/port-daddy-codex-test',
-        timeout: 300000,
+        cwd: codexWorkdir,
       })
     );
+    expect(cpSpawn.mock.calls[0][1]).not.toContain('--sandbox');
+    // No spec.timeout was given, so no hidden wall clock should be applied.
+    expect(cpSpawn.mock.calls[0][2]).not.toHaveProperty('timeout');
   });
 
   test('uses codex exec resume without unsupported spawn-only sandbox or cwd flags', async () => {
@@ -1604,8 +2260,9 @@ describe('spawn — codex backend', () => {
     });
 
     const args = cpSpawn.mock.calls[0][1];
-    expect(args.slice(0, 2)).toEqual(['exec', 'resume']);
+    expect(args.slice(0, 3)).toEqual(['exec', '--approve-for-me', 'resume']);
     expect(args).toEqual(expect.arrayContaining([sessionId, 'Continue this Codex session']));
+    expect(args).not.toContain('--full-auto');
     expect(args).not.toContain('--sandbox');
     expect(args).not.toContain('-C');
     expect(cpSpawn.mock.calls[0][2].cwd).toBe(TEST_WORKSPACE_IDENTITY.canonicalPath);
@@ -1826,7 +2483,7 @@ describe('spawn — codex backend', () => {
       backend: 'codex',
       task: 'Say exactly: Codex clean output',
       identity: 'port-daddy:fleet:cartographer',
-      workdir: '/tmp/port-daddy-codex-test',
+      workdir: process.cwd(),
     });
 
     expect(result.status).toBe('completed');

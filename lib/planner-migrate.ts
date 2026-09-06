@@ -27,6 +27,15 @@ export interface MigrationItem {
   dependencies: string[];
   notes?: Array<{ text: string }>;
   harbor: string;
+  /**
+   * Optional Gantt date anchors (`RoadmapItem.startedAt`/`dueAt`, epoch ms).
+   * `derivePlan` never reads these — they exist here only so a caller can
+   * build one `MigrationItem[]` and feed it to both `derivePlan` (hierarchy)
+   * and `renderBoard` (which structurally needs a `BoardItemView[]`,
+   * `lib/planner-board.ts`) without a second, field-duplicating mapping pass.
+   */
+  startedAt?: number | null;
+  dueAt?: number | null;
 }
 
 export interface PlanNode {

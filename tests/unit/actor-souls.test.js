@@ -82,7 +82,7 @@ describe('actor-souls: register() outcome table (property c)', () => {
   let db, souls;
   beforeEach(() => {
     db = createTestDb();
-    souls = createActorSouls(db, { operatorSecret: 'operator-shibboleth', newcomerAdmitMax: 3 });
+    souls = createActorSouls(db, { operatorSecret: 'operator-shibboleth' });
   });
   afterEach(() => db.close());
 
@@ -116,16 +116,75 @@ describe('actor-souls: register() outcome table (property c)', () => {
     expect(out.ok && out.soulClass).toBe('newcomer');
   });
 
-  test('admission rate-limit rejects 429 past newcomerAdmitMax per project/day', () => {
+  test('more than 25 project and projectless newcomers mint unique credentials without changing the legacy counter', () => {
     const day = '2026-07-15';
-    for (let i = 0; i < 3; i++) {
-      const ok = souls.register({ alias: `p:s:${i}`, project: 'proj', day });
-      expect(ok.ok).toBe(true);
+    db.prepare(`
+      INSERT INTO newcomer_pool (project, day, spend_usd, souls_seen)
+      VALUES ('proj', ?, 0.25, 25), ('__projectless__', ?, 0.5, 25)
+    `).run(day, day);
+
+    const projectMints = Array.from({ length: 30 }, (_, i) => (
+      souls.register({ alias: `p:s:${i}`, project: 'proj', day })
+    ));
+    const projectlessMints = Array.from({ length: 30 }, () => souls.register({ day }));
+    const allMints = [...projectMints, ...projectlessMints];
+
+    for (const outcome of allMints) {
+      expect(outcome).toMatchObject({ ok: true, status: 'minted', soulClass: 'newcomer' });
+      expect(typeof outcome.credential).toBe('string');
     }
-    const over = souls.register({ alias: 'p:s:overflow', project: 'proj', day });
-    expect(over.ok).toBe(false);
-    expect(over.code).toBe('NEWCOMER_ADMIT_LIMIT');
-    expect(over.httpStatus).toBe(429);
+    expect(new Set(allMints.map((outcome) => outcome.actorId)).size).toBe(60);
+    expect(new Set(allMints.map((outcome) => outcome.credential)).size).toBe(60);
+    expect(db.prepare(`
+      SELECT project, spend_usd, souls_seen
+      FROM newcomer_pool
+      WHERE day = ?
+      ORDER BY project
+    `).all(day)).toEqual([
+      { project: '__projectless__', spend_usd: 0.5, souls_seen: 25 },
+      { project: 'proj', spend_usd: 0.25, souls_seen: 25 },
+    ]);
+  });
+
+  // ── Defect C (round 2): the register/alias-bind door is the SECOND way to
+  // acquire a reserved authority name, poisoning /sugar/begin's guard. A
+  // self-service caller may never bind a reserved alias; only an operator may.
+  test('DEFECT C door 2: an UNCREDENTIALED register cannot bind a reserved alias', () => {
+    const out = souls.register({ alias: 'system' });
+    expect(out.ok).toBe(false);
+    expect(out.code).toBe('RESERVED_ALIAS');
+    expect(out.httpStatus).toBe(403);
+    // Nothing was bound: `system` still resolves to no minted soul.
+    expect(souls.resolveActor('system').soulClass).toBe('unknown');
+  });
+
+  test('DEFECT C door 2: a valid NON-OPERATOR credential cannot bind a reserved alias it does not own', () => {
+    // Mint a plain newcomer, then re-present its credential asking to bind
+    // `coxswain`. A newcomer soul is still self-service — refused.
+    const minted = souls.register({ alias: 'proj:stack:worker' });
+    expect(minted.ok).toBe(true);
+    const out = souls.register({ credential: minted.credential, alias: 'coxswain' });
+    expect(out.ok).toBe(false);
+    expect(out.code).toBe('RESERVED_ALIAS');
+    expect(souls.resolveActor('coxswain').soulClass).toBe('unknown');
+  });
+
+  test('an operator-token register MAY bind a reserved alias (the only legit provisioning path)', () => {
+    const out = souls.register({ operatorToken: 'operator-shibboleth', alias: 'system' });
+    expect(out.ok).toBe(true);
+    expect(out.soulClass).toBe('operator');
+    expect(souls.resolveActor('system').actorId).toBe(out.actorId);
+    // …and that operator soul may re-present its credential to keep the alias.
+    const again = souls.register({ credential: out.credential, alias: 'system' });
+    expect(again.ok).toBe(true);
+    expect(again.status).toBe('resolved');
+  });
+
+  test('a namespaced alias still binds in every path (the guard is bare-word only)', () => {
+    expect(souls.register({ alias: 'proj:node:dev' }).ok).toBe(true);
+    const cred = souls.register({ alias: 'proj:node:other' });
+    expect(souls.register({ credential: cred.credential, alias: 'proj:node:renamed' }).ok).toBe(true);
+    expect(souls.register({ operatorToken: 'operator-shibboleth', alias: 'proj:node:op' }).ok).toBe(true);
   });
 });
 

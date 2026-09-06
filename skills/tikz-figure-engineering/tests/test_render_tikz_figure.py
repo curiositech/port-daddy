@@ -1,0 +1,144 @@
+import importlib.util
+import json
+import subprocess
+import tempfile
+from pathlib import Path
+from unittest import TestCase, mock, skipUnless
+
+ROOT = Path(__file__).resolve().parents[1]
+SCRIPT = ROOT / "scripts" / "render_tikz_figure.py"
+EXAMPLE = ROOT / "examples" / "clean-two-lane-sequence.tex"
+TEMPLATE = ROOT / "templates" / "publication-figure.tex"
+spec = importlib.util.spec_from_file_location("renderer", SCRIPT)
+renderer = importlib.util.module_from_spec(spec)
+assert spec.loader
+spec.loader.exec_module(renderer)
+
+HAS_ENGINE = any(renderer.which(candidate) for candidate in ("pdflatex", "xelatex", "lualatex"))
+HAS_RASTERIZER = bool(renderer.which("pdftocairo") or renderer.which("magick"))
+HAS_PDFINFO = bool(renderer.which("pdfinfo"))
+HAS_RENDER_SUPPORT = HAS_ENGINE and HAS_RASTERIZER
+RENDER_SKIP_REASON = "requires a local LaTeX engine and either pdftocairo or ImageMagick"
+FIT_SKIP_REASON = f"{RENDER_SKIP_REASON}; page-fit assertions also require pdfinfo"
+
+class RendererTests(TestCase):
+    def temporary_dir(self):
+        # Keep test artifacts beside the caller's checkout rather than assuming a
+        # particular home directory or falling back to the OS temporary folder.
+        return tempfile.TemporaryDirectory(prefix="tikz-figure-engineering-", dir=Path.cwd())
+
+    def test_temporary_dir_stays_in_the_caller_workspace(self):
+        with self.temporary_dir() as tmp:
+            self.assertEqual(Path(tmp).parent.resolve(), Path.cwd().resolve())
+
+    def test_source_audit_flags_tiny_and_long_edge_label(self):
+        source = r"\\tiny \\draw (0,0) -- node{this relation label is far too long for an edge} (1,0);"
+        kinds = {item["kind"] for item in renderer.source_warnings(source)}
+        self.assertIn("small-text", kinds)
+        self.assertIn("long-edge-label", kinds)
+
+    def test_missing_engine_is_explained_without_starting_a_subprocess(self):
+        with mock.patch.object(renderer, "which", return_value=None):
+            with self.assertRaisesRegex(RuntimeError, "No LaTeX engine found"):
+                renderer.locate_engine("auto")
+
+    def test_renderer_imports_without_optional_site_packages(self):
+        # The published renderer promises no Python package dependencies.  Test
+        # that promise by importing the actual module with site-packages
+        # disabled, rather than by searching its source for one package name.
+        program = (
+            "import importlib.util\n"
+            f"spec = importlib.util.spec_from_file_location('renderer_smoke', {str(SCRIPT)!r})\n"
+            "module = importlib.util.module_from_spec(spec)\n"
+            "spec.loader.exec_module(module)\n"
+        )
+        result = subprocess.run(
+            ["python3", "-S", "-c", program],
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stdout)
+
+    def test_pdf_dimensions_use_largest_reported_page(self):
+        report = "Page size: 432 x 288 pts\nPage size: 504 x 360 pts\n"
+        with mock.patch.object(renderer, "which", return_value="/usr/bin/pdfinfo"), \
+             mock.patch.object(renderer, "run", return_value=(0, report)):
+            width, height = renderer.parse_pdf_dimensions(Path("figure.pdf"))
+        self.assertEqual(width, 7.0)
+        self.assertEqual(height, 5.0)
+
+    def test_empty_contact_sheet_is_a_clean_noop(self):
+        with self.temporary_dir() as tmp:
+            self.assertIsNone(renderer.contact_sheet([], Path(tmp)))
+
+    @skipUnless(HAS_RENDER_SUPPORT, RENDER_SKIP_REASON)
+    def test_example_renders_and_reports_no_strict_warnings(self):
+        source = EXAMPLE.read_text()
+        self.assertIn("node[above=3mm]{signed transfer}", source)
+        self.assertNotIn("\\tiny", source)
+        with self.temporary_dir() as tmp:
+            out = Path(tmp) / "out"
+            result = subprocess.run(["python3", str(SCRIPT), str(EXAMPLE), "--out-dir", str(out), "--preview", "--strict", "--max-width-in", "6.5", "--max-height-in", "4.6"], text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=False)
+            self.assertEqual(result.returncode, 0, result.stdout)
+            report = json.loads((out / "render-report.json").read_text())
+            figure = report["figures"][0]
+            self.assertTrue(figure["compiled"])
+            self.assertTrue(Path(figure["pdf"]).exists())
+            self.assertTrue(Path(figure["png"]).exists())
+            self.assertEqual(figure["warnings"], [])
+            self.assertTrue(report["preview"])
+            self.assertEqual(report["dpi"], renderer.PREVIEW_DPI)
+
+    @skipUnless(HAS_RENDER_SUPPORT and HAS_PDFINFO, FIT_SKIP_REASON)
+    def test_template_compiles_with_basic_tex_install_and_page_gate(self):
+        with self.temporary_dir() as tmp:
+            out = Path(tmp) / "out"
+            result = subprocess.run(["python3", str(SCRIPT), str(TEMPLATE), "--out-dir", str(out), "--strict", "--max-width-in", "6.5", "--max-height-in", "4.6"], text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=False)
+            self.assertEqual(result.returncode, 0, result.stdout)
+            report = json.loads((out / "render-report.json").read_text())
+            self.assertLessEqual(report["figures"][0]["width_in"], 6.5)
+
+    @skipUnless(HAS_RENDER_SUPPORT, RENDER_SKIP_REASON)
+    def test_relative_output_directory_is_resolved_from_caller(self):
+        with self.temporary_dir() as tmp:
+            cwd = Path(tmp)
+            result = subprocess.run(["python3", str(SCRIPT), str(EXAMPLE), "--out-dir", "relative-build", "--strict"], cwd=cwd, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=False)
+            self.assertEqual(result.returncode, 0, result.stdout)
+            self.assertTrue((cwd / "relative-build" / "render-report.json").exists())
+
+    @skipUnless(HAS_RENDER_SUPPORT and HAS_PDFINFO, FIT_SKIP_REASON)
+    def test_strict_page_limit_rejects_an_oversized_canvas(self):
+        with self.temporary_dir() as tmp:
+            out = Path(tmp) / "out"
+            result = subprocess.run(["python3", str(SCRIPT), str(EXAMPLE), "--out-dir", str(out), "--strict", "--max-width-in", "1.0"], text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=False)
+            self.assertNotEqual(result.returncode, 0)
+            report = json.loads((out / "render-report.json").read_text())
+            kinds = {item["kind"] for item in report["figures"][0]["warnings"]}
+            self.assertIn("page-width", kinds)
+
+    @skipUnless(HAS_RENDER_SUPPORT, RENDER_SKIP_REASON)
+    def test_invalid_latex_emits_a_failed_report(self):
+        with self.temporary_dir() as tmp:
+            source = Path(tmp) / "invalid.tex"
+            source.write_text(r"\documentclass{article}\begin{document}\definitelyundefinedcommand\end{document}")
+            out = Path(tmp) / "out"
+            result = subprocess.run(["python3", str(SCRIPT), str(source), "--out-dir", str(out)], text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=False)
+            self.assertNotEqual(result.returncode, 0, result.stdout)
+            report = json.loads((out / "render-report.json").read_text())
+            self.assertFalse(report["figures"][0]["compiled"])
+            self.assertIn("Undefined control sequence", report["figures"][0]["fatal"])
+
+    @skipUnless(HAS_RENDER_SUPPORT and bool(renderer.which("magick")),
+                "contact-sheet composition requires ImageMagick in addition to the ordinary renderer prerequisites")
+    def test_contact_sheet_is_emitted_for_multiple_figures(self):
+        with self.temporary_dir() as tmp:
+            source_dir = Path(tmp) / "sources"
+            source_dir.mkdir()
+            for source in (EXAMPLE, TEMPLATE):
+                (source_dir / source.name).write_text(source.read_text())
+            out = Path(tmp) / "out"
+            result = subprocess.run(["python3", str(SCRIPT), str(source_dir), "--out-dir", str(out), "--contact-sheet", "--strict", "--max-width-in", "6.5", "--max-height-in", "4.6"], text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=False)
+            self.assertEqual(result.returncode, 0, result.stdout)
+            self.assertTrue((out / "contact-sheet.png").exists())

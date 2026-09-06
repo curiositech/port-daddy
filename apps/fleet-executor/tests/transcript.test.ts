@@ -113,10 +113,13 @@ describe('kill switch (KV fleet:paused)', () => {
     expect(state.completed[0].summary).toContain('Fleet paused by operator');
     expect(d1.runs).toHaveLength(1);
     expect(d1.runs[0].conclusion).toBe('neutral');
-    expect(d1.steps.map(s => s.kind)).toEqual(['check-completed']);
+    // The consumer stamps a delivery-attempt marker on EVERY delivery — paused
+    // ones included (#7743: an attempt's existence must be provable even when
+    // the run itself does nothing). The pause still spends nothing beyond it.
+    expect(d1.steps.map(s => s.kind)).toEqual(['delivery-attempt', 'check-completed']);
   });
 
-  it('paused ⇒ reuses an existing check run for the same head SHA (idempotent retry)', async () => {
+  it('paused ⇒ creates a distinct gate for a distinct webhook delivery on the same head', async () => {
     state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
     const kv = memoryKV();
     seedToken(kv, 42);
@@ -126,13 +129,13 @@ describe('kill switch (KV fleet:paused)', () => {
     await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: kv, AI: ai.ai, DB: memoryD1().db }));
     expect(state.checkRunsCreated).toBe(1);
 
-    // A retried delivery for the SAME head SHA must reuse the check run, not
-    // create a second one.
+    // A different webhook delivery is a new generation even on the same head;
+    // only a queue retry with the exact same delivery/run may reuse a check.
     await executeFleet(
       makeJob({ deliveryId: 'delivery-retry' }),
       makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: kv, AI: ai.ai, DB: memoryD1().db }),
     );
-    expect(state.checkRunsCreated).toBe(1);
+    expect(state.checkRunsCreated).toBe(2);
     expect(state.completed).toHaveLength(2);
     expect(state.completed.every(c => c.conclusion === 'neutral')).toBe(true);
   });
@@ -262,8 +265,11 @@ describe('kill switch (KV fleet:paused)', () => {
     expect(state.completed[0].conclusion).toBe('neutral');
     expect(state.completed[0].summary).toContain('Fleet paused before pd-code-reviewer');
     expect(d1.runs[0].conclusion).toBe('neutral');
-    expect(d1.steps.map(s => s.kind)).toEqual(['check-completed']);
-    expect(d1.steps[0].detail).toContain('"pausedBeforeShip":"code-reviewer"');
+    // Ship configs are recorded once, right after the gating check is
+    // established — before the per-ship loop's own (second) pause check, so
+    // this run's pause-before-first-ship still carries that one config row.
+    expect(d1.steps.map(s => s.kind)).toEqual(['fleet-ship-config', 'check-completed']);
+    expect(d1.steps.find(s => s.kind === 'check-completed')?.detail).toContain('"pausedBeforeShip":"code-reviewer"');
   });
 });
 
@@ -290,17 +296,39 @@ describe('transcript writes (fleet_runs + fleet_run_steps)', () => {
     expect(run.conclusion).toBe('success'); // 'pending' was overwritten by the UPDATE
     expect(run.ms).toBeGreaterThanOrEqual(0);
 
-    // Single chunk ⇒ no reduce step. Order: map-chunk → ship-verdict →
-    // review-posted → ship-spend → check-completed.
+    // Single chunk ⇒ no reduce step. Order: fleet-ship-config (once, before any
+    // ship runs) → map-chunk → ship-verdict → review-posted → ship-spend →
+    // ship-checkpoint → check-completed. The checkpoint row (ship-checkpoint.ts)
+    // is parked in its own seq band, so the Transcript recorder's own seqs stay
+    // monotonic from 0 around it.
     const kinds = d1.steps.map(s => s.kind);
-    expect(kinds).toEqual(['map-chunk', 'ship-verdict', 'review-posted', 'ship-spend', 'check-completed']);
-    // seq is monotonic from 0.
-    expect(d1.steps.map(s => s.seq)).toEqual([0, 1, 2, 3, 4]);
+    expect(kinds).toEqual([
+      'fleet-ship-config',
+      'map-chunk',
+      'ship-verdict',
+      'review-posted',
+      'ship-spend',
+      'ship-checkpoint',
+      'check-completed',
+    ]);
+    // seq is monotonic from 0 for the recorder's own steps.
+    expect(d1.steps.filter(s => s.kind !== 'ship-checkpoint').map(s => s.seq)).toEqual([0, 1, 2, 3, 4, 5]);
     // The verdict step carries the parsed findings as its detail (here: empty).
     const verdict = d1.steps.find(s => s.kind === 'ship-verdict');
     expect(verdict?.ship).toBe('code-reviewer');
     // check-completed is run-scoped (no ship).
     expect(d1.steps.find(s => s.kind === 'check-completed')?.ship).toBeNull();
+    // The ship-config row carries what the run page needs to show "what is
+    // this ship" without the operator reading pd-fleet.yml themselves.
+    const config = d1.steps.find(s => s.kind === 'fleet-ship-config');
+    expect(config?.ship).toBe('code-reviewer');
+    expect(JSON.parse(String(config?.detail ?? '{}'))).toMatchObject({
+      cfModel: '@cf/qwen/qwen2.5-coder-32b-instruct',
+      blocking: true,
+      needsExecution: false,
+      purser: false,
+      ideation: false,
+    });
   });
 
   it('a multi-chunk run records 2 map-chunk steps + exactly one reduce step', async () => {
@@ -311,11 +339,11 @@ describe('transcript writes (fleet_runs + fleet_run_steps)', () => {
     // about "2 map calls" failing for a reason with nothing to do with
     // map-reduce. A fixture that encodes a constant is a fixture that expires.
     //
-    // Sized against the LARGEST budget any known model yields, so the diff
-    // fans out whichever model the ship under test resolves to -- and stays
-    // correct if a model with a bigger window is added later.
-    const budget = Math.max(...Object.keys(MODEL_CONTEXT_TOKENS).map(mapChunkCharLimit));
-    const linesPerFile = Math.ceil((budget * 0.6) / '+line\n'.length);
+    // The ship under test uses the Qwen MAP model. Size this fixture against
+    // that model's real admission budget, including prompt framing, so each
+    // file is admitted while the pair still requires one REDUCE step.
+    const budget = mapChunkCharLimit('@cf/qwen/qwen2.5-coder-32b-instruct');
+    const linesPerFile = Math.ceil((budget * 0.35) / '+line\n'.length);
     const file = (name: string) =>
       `diff --git a/${name} b/${name}\n--- a/${name}\n+++ b/${name}\n` +
       '+line\n'.repeat(linesPerFile);
@@ -336,12 +364,14 @@ describe('transcript writes (fleet_runs + fleet_run_steps)', () => {
     expect(kinds.filter(k => k === 'reduce')).toHaveLength(1);
     // reduce comes after both map chunks, before the verdict.
     expect(kinds).toEqual([
+      'fleet-ship-config',
       'map-chunk',
       'map-chunk',
       'reduce',
       'ship-verdict',
       'review-posted',
       'ship-spend',
+      'ship-checkpoint',
       'check-completed',
     ]);
   });

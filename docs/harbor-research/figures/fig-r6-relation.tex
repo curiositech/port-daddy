@@ -1,0 +1,64 @@
+% R6 relation-map: wristwatches around a table (base) mapped by relations to
+% gossip logs on a graph (target). Structural diagram -- no numeric axes --
+% so plain tikzpicture per CONVENTION.md, not pgfplots. Content (row text,
+% the two numbers 1.225/0.000) matches r6_figures.py's create_relation_map()
+% verbatim; those two numbers are the C6/P6 minimal-pair values verified in
+% \S\ref{sec:mechanism} against sheaf_mechanism_proof.py.
+% [verified: script r6_figures.py]
+\begin{figure}[htbp]
+\centering
+% The two-column base/target layout below is laid out in absolute cm and is
+% natively wider than \textwidth (two ~5cm row-box columns plus a ~10cm gap
+% for the relation arrows/labels); \resizebox scales the whole picture down
+% to the text width so nothing runs off the page margin, without touching
+% any node position or content.
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+  every node/.style={font=\small},
+  rowbox/.style={regimebox,text width=4.7cm,inner sep=6pt},
+  rowlabel/.style={shipred,font=\bfseries\small,align=center,text width=3.5cm},
+]
+\node[harborblue,font=\bfseries\normalsize] (title) at (0,0)
+  {R6 --- equivocation is a watch that cannot add up around the table};
+
+% Row 1
+\node[rowbox,fill=harborblue!10,anchor=north east] (b1) at ($(title.south)+(-4.9,-0.9)$)
+  {Offsets between neighboring watches: consistent iff they sum to ZERO around every loop};
+\node[rowbox,fill=seagreen!10,anchor=north west] (t1) at ($(title.south)+(4.9,-0.9)$)
+  {Edge disagreements on the comm.\ graph: cocycle condition --- sum to zero around every cycle};
+\draw[{Stealth[length=2.5mm]}-{Stealth[length=2.5mm]},shipred,thick] (b1.east) -- (t1.west)
+  node[rowlabel,midway,above] {loop-sum $\Leftrightarrow$ cocycle condition};
+
+% Row 2
+\node[rowbox,fill=harborblue!10,anchor=north east] (b2) at ($(b1.south east)+(0,-1.1)$)
+  {One handshake skipped ON the loop, every other pair on the loop still reporting: those relayed offsets carry the missing check around it};
+\node[rowbox,fill=seagreen!10,anchor=north west] (t2) at ($(t1.south west)+(0,-1.1)$)
+  {Uncompared edge ON a cycle of the VISIBLE subgraph $K_c$: relayed reports substitute; no visible cycle --- a bridge, or a cycle broken by a severed link (tree-$\delta$ surjective): nothing loops back to catch it};
+\draw[{Stealth[length=2.5mm]}-{Stealth[length=2.5mm]},shipred,thick] (b2.east) -- (t2.west)
+  node[rowlabel,midway,above,text width=3.7cm] {cycle $\Rightarrow$ relay substitutes\\ bridge $\Rightarrow$ silent by construction};
+
+% Row 3
+\node[rowbox,fill=harborblue!10,anchor=north east] (b3) at ($(b2.south east)+(0,-1.3)$)
+  {A lying watch can't hide: neighbors' relayed times force a mismatch around the table};
+\node[rowbox,fill=seagreen!10,anchor=north west] (t3) at ($(t2.south west)+(0,-1.3)$)
+  {Completion residual $r>0$ proves no global story exists: $C_6$ relayed-cycle lie $1.225$; $P_6$ bridge/cut-edge lie $0.000$ [\texttt{sheaf\_harness\_v2.py}]};
+\draw[{Stealth[length=2.5mm]}-{Stealth[length=2.5mm]},shipred,thick] (b3.east) -- (t3.west)
+  node[rowlabel,midway,above] {nonzero $r$ convicts --- beyond pairwise comparison};
+
+% Base / target background frames
+\begin{pgfonlayer}{background}
+\node[draw=harborblue,rounded corners,fill=harborblue!6,fit=(b1)(b2)(b3),inner sep=10pt,label={[harborblue,font=\bfseries\small]above:Base: watches around a table}] {};
+\node[draw=seagreen,rounded corners,fill=seagreen!6,fit=(t1)(t2)(t3),inner sep=10pt,label={[seagreen,font=\bfseries\small]above:Target: gossip logs on a graph}] {};
+\end{pgfonlayer}
+
+\node[font=\itshape\small,align=center,text width=12.5cm] at ($(b3.south east)!0.5!(t3.south west)+(0,-1.1)$)
+  {For a single equivocator, cohomology detects a split-view lie beyond pairwise comparison iff the missing edge lies on a cycle the analyst can see --- otherwise, never.};
+\end{tikzpicture}
+}
+\caption{Relation-map for the mechanism. Wristwatch offsets around a table map to signed-log
+disagreements around a gossip cycle by \emph{relations}: loop-sum $\leftrightarrow$ cocycle condition; a loop through the
+missing link $\leftrightarrow$ a cycle through the uncompared edge --- a loop counts only when every pair on it reports, which
+is the visible subgraph $K_c$ of \S\ref{sec:model}. The map predicts, correctly, where the mechanism dies:
+no visible loop, no telescoping, no detection.}
+\label{fig:r6rel}
+\end{figure}

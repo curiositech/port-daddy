@@ -47,6 +47,10 @@ import {
 import { inspectHookTargets } from './hooks-install.js';
 import { isEmbeddingModelCached, prefetchEmbeddingModel } from './embed.js';
 import { DEFAULT_SEMANTIC_MODEL_ID, defaultTransformersCacheDir } from '../../lib/semantic-resolver.js';
+import {
+  createTool2VecReconciler,
+  type Tool2VecReconcileStatus,
+} from '../../lib/skill-graft-reconciler.js';
 import { isStdinInteractive, isStdoutInteractive } from '../utils/tty.js';
 import { createPlatforms } from './mcp-install.js';
 import * as ui from '../utils/ui.js';
@@ -73,7 +77,7 @@ const __dirname = new URL('.', import.meta.url).pathname.replace(/\/$/, '');
 // Baked-in CLI version. The compiled `pd` binary has no sibling package.json to read, so the
 // version checks below fell back to 'unknown' (reported "CLI vunknown" then advised a pointless
 // restart). Stamped every release by scripts/sync-version.ts — do not hand-edit.
-const EMBEDDED_PACKAGE_VERSION: string = '3.27.0';
+const EMBEDDED_PACKAGE_VERSION: string = '3.30.6';
 
 interface StatusCommandResponse {
   status?: string;
@@ -148,12 +152,14 @@ function getLocalCodeHash(): string {
   return calculateRuntimeCodeHash(join(__dirname, '..', '..'));
 }
 
-function resolveDiagnosticPort(): number {
+function resolveDiagnosticPort(): number | null {
   try {
-    const url = new URL(getDaemonUrl());
-    return Number.parseInt(url.port, 10) || (url.protocol === 'https:' ? 443 : CANONICAL_TCP_PORT);
+    const publishedUrl = getDaemonUrl();
+    if (!publishedUrl) return null;
+    const url = new URL(publishedUrl);
+    return Number.parseInt(url.port, 10) || (url.protocol === 'http:' ? 80 : null);
   } catch {
-    return CANONICAL_TCP_PORT;
+    return null;
   }
 }
 
@@ -209,8 +215,9 @@ function collectDiagnosticRuntimeIdentity(
   health: RuntimeHealthSnapshot | null,
   endpointPort = resolveDiagnosticPort(),
 ): RuntimeIdentityAssessment {
+  const scopedEndpointPort = endpointPort ?? health?.daemon?.port ?? 0;
   const scope = resolveRuntimeIdentityScope(health, {
-    endpointPort,
+    endpointPort: scopedEndpointPort,
     runtimePrefix: process.env.PORT_DADDY_PREFIX,
     canonicalSupervisor: inspectCanonicalLaunchdSupervisor(),
   });
@@ -1609,6 +1616,45 @@ export function resolveBosunBinary(rootDir: string): { binaryPath: string; exist
   return { binaryPath, exists: existsSync(binaryPath) };
 }
 
+export interface BosunWatchdogAssessment {
+  severity: Severity;
+  detail: string;
+  hint?: string;
+}
+
+/**
+ * Assess the optional external Bosun watchdog without confusing it with the
+ * supported daemon lifecycle boundary. Since v3.28, Homebrew launchd (or the
+ * installed systemd/LaunchAgent service) is the sole process supervisor and
+ * the daemon writes its own heartbeat. A missing pd-bosun is therefore visible
+ * configuration context, never a release-blocking health failure.
+ */
+export function assessBosunWatchdog(input: {
+  present: boolean;
+  binaryPath: string;
+  running: boolean | null;
+  reason?: string | null;
+}): BosunWatchdogAssessment {
+  if (!input.present) {
+    return {
+      severity: 'warn',
+      detail: 'pd-bosun not installed (optional since v3.28 single-supervisor cutover)',
+      hint: 'No repair is required; FleetBar Health shows the authoritative daemon supervisor and heartbeat.',
+    };
+  }
+  if (input.running === false) {
+    return {
+      severity: 'warn',
+      detail: `optional pd-bosun binary present at ${input.binaryPath} but not active${input.reason ? ` (${input.reason})` : ''}`,
+      hint: 'Use FleetBar Health to remove or repair stale optional Bosun wiring.',
+    };
+  }
+  return {
+    severity: 'ok',
+    detail: `optional pd-bosun present at ${input.binaryPath}${input.reason ? ` (${input.reason})` : ''}`,
+  };
+}
+
 /**
  * Find scattered `port-registry*.db` files in a directory. The known continuity
  * bug (db-fragmentation): backups and brew-Cellar copies leave multiple
@@ -1653,7 +1699,11 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
   let passed: number = 0;
   let total: number = 0;
   const daemonPort = resolveDiagnosticPort();
-  const portLabel = `Daemon TCP port (${daemonPort}${daemonPort === CANONICAL_TCP_PORT ? ' preferred' : ''})`;
+  const doctorDaemonUrl = getDaemonUrl();
+  const doctorDaemonTarget = doctorDaemonUrl || 'the selected Unix socket or published TCP endpoint';
+  const portLabel = daemonPort === null
+    ? 'Daemon TCP endpoint'
+    : `Daemon TCP port (${daemonPort}${daemonPort === CANONICAL_TCP_PORT ? ' preferred' : ''})`;
 
   const libDir: string = join(__dirname, '..', '..');
 
@@ -1801,18 +1851,18 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
       if (parsedHealth && typeof parsedHealth === 'object' && !Array.isArray(parsedHealth)) {
         daemonData = parsedHealth as Record<string, unknown>;
         daemonRunning = true;
-        check('Network', true, `${getDaemonUrl()} is reachable`);
+        check('Network', true, `${doctorDaemonTarget} is reachable`);
       } else {
         // A health check whose SUBJECT is broken must gate the exit code, not warn.
         // `pd doctor --ci/--json` exiting 0 while the daemon is down/broken is the
         // single worst doctor lie (a green build over a dead daemon).
-        criticalFail('Network', `${getDaemonUrl()} returned an invalid /health payload`, 'Run: port-daddy restart');
+        criticalFail('Network', `${doctorDaemonTarget} returned an invalid /health payload`, 'Open FleetBar and choose Restart.');
       }
     } else {
-      criticalFail('Network', `${getDaemonUrl()} returned status ${res.status}`, 'Run: port-daddy start');
+      criticalFail('Network', `${doctorDaemonTarget} returned status ${res.status}`, 'Open FleetBar and choose Restart or Repair.');
     }
   } catch {
-    criticalFail('Network', `Cannot connect to ${getDaemonUrl()}`, 'Run: port-daddy start');
+    criticalFail('Network', `Cannot connect to ${doctorDaemonTarget}`, 'Open FleetBar and choose Restart or Repair.');
   }
 
   // -------------------------------------------------------------------------
@@ -1913,8 +1963,15 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
   // 7. Daemon TCP port availability
   // -------------------------------------------------------------------------
   try {
-    if (daemonRunning) {
-      check(portLabel, true, `Bound to Port Daddy daemon at ${getDaemonUrl()}`);
+    if (daemonRunning && daemonPort !== null) {
+      check(portLabel, true, `Bound to Port Daddy daemon at ${doctorDaemonTarget}`);
+    } else if (daemonPort === null) {
+      check(
+        portLabel,
+        false,
+        'No TCP endpoint is published; no preferred-port probe was attempted.',
+        'Open FleetBar and choose Repair if the daemon should be reachable over TCP.',
+      );
     } else {
       // Check if something else is using the currently discovered daemon port.
       const net = await import('node:net');
@@ -1935,7 +1992,10 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
       }
     }
   } catch (err: unknown) {
-    check(portLabel, false, `Error: ${(err as Error).message}`, `Run: lsof -i :${daemonPort} to investigate`);
+    const hint = daemonPort === null
+      ? 'Open FleetBar and choose Repair.'
+      : `Run: lsof -i :${daemonPort} to investigate`;
+    check(portLabel, false, `Error: ${(err as Error).message}`, hint);
   }
 
   // -------------------------------------------------------------------------
@@ -1982,16 +2042,24 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
   let daemonSupervisionRepairForHarbor: { command: string; description: string } | null = null;
   try {
     if (process.platform === 'darwin') {
-      const supervision = assessSupervisionIntegrity({
-        supervisors: gatherLaunchdSupervisors(),
-        daemonReachable: daemonRunning,
-      });
-      daemonSupervisedForHarbor = supervision.severity === 'ok';
-      if (supervision.severity !== 'ok') {
-        daemonSupervisionDetailForHarbor = supervision.detail;
-        daemonSupervisionRepairForHarbor = supervision.repair ?? null;
+      if (!isCanonicalRuntimeTarget()) {
+        warn(
+          'Supervision integrity',
+          'Canonical launchd supervision not assessed for an explicitly redirected daemon target',
+          'No canonical supervisor claim is applied to this isolated target.',
+        );
+      } else {
+        const supervision = assessSupervisionIntegrity({
+          supervisors: gatherLaunchdSupervisors(),
+          daemonReachable: daemonRunning,
+        });
+        daemonSupervisedForHarbor = supervision.severity === 'ok';
+        if (supervision.severity !== 'ok') {
+          daemonSupervisionDetailForHarbor = supervision.detail;
+          daemonSupervisionRepairForHarbor = supervision.repair ?? null;
+        }
+        recordAssessment('Supervision integrity', supervision);
       }
-      recordAssessment('Supervision integrity', supervision);
     } else if (process.platform === 'linux') {
       const homedir = (await import('node:os')).homedir();
       const unitPath: string = join(homedir, '.config', 'systemd', 'user', 'port-daddy.service');
@@ -2026,10 +2094,11 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
   }
 
   // -------------------------------------------------------------------------
-  // 8b. Bosun watchdog — the Rust heartbeat/PID supervisor (core/pd-bosun).
-  //     Previously this was silently skipped when the binary was missing; now
-  //     it is a loud WARN that names the exact build command. Running-state is
-  //     read from the daemon's guardians.bosun when reachable.
+  // 8b. Optional Bosun watchdog (core/pd-bosun). Since v3.28 the installed
+  //     launchd/systemd service is the sole lifecycle supervisor and the daemon
+  //     writes its own heartbeat. Preserve Bosun visibility for legacy/opt-in
+  //     installs, but never fail a supported binary-free distribution for its
+  //     deliberate absence. Running-state comes from guardians.bosun.
   // -------------------------------------------------------------------------
   try {
     // `libDir` is a naive `join(__dirname, '..', '..')` — correct for a source
@@ -2070,20 +2139,12 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
     }
     const bosunPresent = daemonBinaryExists ?? bosun.exists;
     const bosunPath = daemonBinaryPath ?? bosun.binaryPath;
-    if (!bosunPresent) {
-      // Required (halt-mandate): a brew/tarball install with NO watchdog binary
-      // leaves the daemon with no independent heartbeat/PID supervisor. This is a
-      // shipping defect, not a warning — fail the doctor so it can't reach users.
-      criticalFail('Bosun watchdog',
-        'pd-bosun watchdog binary is MISSING — the daemon has no independent heartbeat/PID supervisor',
-        'Reinstall so the supervisor ships: `brew reinstall port-daddy` (or `npm run build:bosun` in a source checkout)');
-    } else if (bosunRunning === false) {
-      warn('Bosun watchdog',
-        `pd-bosun binary present at ${bosunPath} but not active${bosunReason ? ` (${bosunReason})` : ''}`,
-        'Heartbeat writer is the daemon-side fallback; run `port-daddy install-bosun` to wire the supervisor');
-    } else {
-      check('Bosun watchdog', true, `pd-bosun present at ${bosunPath}${bosunReason ? ` (${bosunReason})` : ''}`);
-    }
+    recordAssessment('Bosun watchdog', assessBosunWatchdog({
+      present: bosunPresent,
+      binaryPath: bosunPath,
+      running: bosunRunning,
+      reason: bosunReason,
+    }));
   } catch (err: unknown) {
     check('Bosun watchdog', false, `Error: ${(err as Error).message}`);
   }
@@ -2200,12 +2261,14 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
   // backing up the wrong registry). One is healthy; more than one is a WARN.
   // -------------------------------------------------------------------------
   try {
-    const registryDbs = scanRegistryDbFiles(PD_HOME);
     const activeDb = resolveDbPath();
     const activeDir = activeDb.slice(0, activeDb.lastIndexOf('/'));
-    // Also count a registry living outside ~/.port-daddy (e.g. a brew Cellar copy).
-    const extra = activeDir && activeDir !== PD_HOME ? scanRegistryDbFiles(activeDir) : [];
-    const all = Array.from(new Set([...registryDbs, ...extra]));
+    // Canonical doctor looks for scattered copies across ~/.port-daddy and the
+    // active DB directory. An explicitly redirected doctor must not pull the
+    // operator's production registry into an isolated test/berth verdict.
+    const canonicalDbs = isCanonicalRuntimeTarget() ? scanRegistryDbFiles(PD_HOME) : [];
+    const activeDbs = activeDir ? scanRegistryDbFiles(activeDir) : [];
+    const all = Array.from(new Set([...canonicalDbs, ...activeDbs]));
     if (all.length <= 1) {
       check('DB fragmentation', true, all.length === 1 ? `Single registry: ${all[0]}` : 'No scattered registry copies');
     } else {
@@ -2313,7 +2376,9 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
   // -------------------------------------------------------------------------
   // 11. Startup blockers (stale sockets, zombie processes, port conflicts)
   // -------------------------------------------------------------------------
-  const startupIssues = diagnoseStartupBlockers(daemonPort, {
+  // Startup allocation may legitimately inspect the preferred seed; unlike a
+  // connection attempt, this is not evidence that a daemon is listening there.
+  const startupIssues = diagnoseStartupBlockers(daemonPort ?? undefined, {
     healthyDaemonPid: daemonRunning && typeof daemonData?.pid === 'number' ? daemonData.pid as number : null,
   });
   if (startupIssues.length === 0 && !daemonRunning) {
@@ -2533,6 +2598,38 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
     }
   } catch (err: unknown) {
     check('Local embedding model', false, `Error: ${(err as Error).message}`, 'Run: pd embed prefetch');
+  }
+
+  // -------------------------------------------------------------------------
+  // 15b. Tool2Vec current-hash coverage (binder ch27 O3 / W9 / W11)
+  // -------------------------------------------------------------------------
+  // Prefer the daemon's exact reconciler view. When the daemon is unavailable
+  // (already a critical result above), inspect the durable cache locally with
+  // generation disabled — Doctor never causes LLM calls or skill-data egress.
+  try {
+    let tool2Vec: Tool2VecReconcileStatus;
+    if (daemonRunning) {
+      const response = await pdFetch(`${PORT_DADDY_URL}/jury-rig/status`);
+      if (!response.ok) throw new Error(`daemon returned HTTP ${response.status ?? 'unknown'}`);
+      tool2Vec = await response.json() as unknown as Tool2VecReconcileStatus;
+    } else {
+      tool2Vec = createTool2VecReconciler({ projectRoot: libDir, runtime: null }).status();
+    }
+
+    const detail = `${tool2Vec.current}/${tool2Vec.total} current-hash centroids (${tool2Vec.coveragePct}%) — ${tool2Vec.state}`;
+    if (tool2Vec.state === 'current') {
+      check('Tool2Vec skill coverage', true, detail);
+    } else if (tool2Vec.state === 'reconciling') {
+      check('Tool2Vec skill coverage', true, `${detail}; checkpointed warm-up is active`);
+    } else if (tool2Vec.state === 'embedder-down') {
+      warn('Tool2Vec skill coverage', detail, 'Repair the local embedder with `pd embed prefetch`, then use FleetBar Setup or run `pd jury-rig warm`.');
+    } else if (tool2Vec.state === 'generator-down') {
+      warn('Tool2Vec skill coverage', detail, 'Check the explicitly configured Tool2Vec generator, then resume the checkpointed warm-up.');
+    } else {
+      warn('Tool2Vec skill coverage', detail, 'Configure local Ollama for automatic warm-up, or explicitly run `pd jury-rig warm` for a manual backend.');
+    }
+  } catch (err: unknown) {
+    warn('Tool2Vec skill coverage', `Could not inspect coverage: ${(err as Error).message}`, 'Repair the daemon, then open FleetBar Setup to resume the catalog warm-up.');
   }
 
   // -------------------------------------------------------------------------

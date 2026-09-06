@@ -44,6 +44,7 @@ function makePlan(over = {}) {
     budgetUsd: over.budgetUsd ?? 7,
     timeoutMs: over.timeoutMs ?? 90 * 60 * 1000,
     baseBranch: over.baseBranch ?? 'main',
+    projectDir: over.projectDir ?? '/Users/operator/coding/port-daddy',
     mergePolicy: over.mergePolicy ?? 'review',
   });
   // Claim the row so it is in `claimed` exactly as the runner leaves it before
@@ -116,6 +117,7 @@ describe('planToLaunchIntent', () => {
 
     // Worktree mint request — the off-main branch the Conductor must carve.
     expect(intent.worktree).toBe('create');
+    expect(intent.workdir).toBe('/Users/operator/coding/port-daddy');
     expect(intent.worktreePath).toBe(plan.worktreePath);
     expect(intent.worktreeBranch).toBe(plan.branch);
     expect(intent.worktreeBaseRef).toBe(plan.baseRef);
@@ -324,6 +326,39 @@ describe('createConductorSpawnAdapter — result mapping', () => {
     expect(intent.lineageCeilingUsd).toBe(9);
     expect(intent.tubeChannel).toBe(`dispatch:${dispatch.id}`);
   });
+
+  test('binds launch and body identities while the conductor is still running', async () => {
+    const { plan, queue, dispatch } = makePlan();
+    const conductor = {
+      launch: jest.fn(async (intent) => {
+        intent.onAdmitted(launch({ id: 'launch-live-2', agentId: null, state: 'admitted' }));
+        intent.onAgentStarted({
+          agentId: 'agent-live-2',
+          transcriptId: 'transcript-live-2',
+          backend: 'cli:codex',
+          model: 'gpt-5.3-codex',
+          startedAt: 42,
+        });
+        expect(queue.get(dispatch.id)).toMatchObject({
+          launchId: 'launch-live-2',
+          agentId: 'agent-live-2',
+          transcriptId: 'transcript-live-2',
+          model: 'gpt-5.3-codex',
+          state: 'in_progress',
+        });
+        return {
+          admitted: true,
+          refusedReason: null,
+          launch: launch({ id: 'launch-live-2', agentId: 'agent-live-2', resultArtifact: 'https://x/pr/2' }),
+          spawn: { agentId: 'agent-live-2', status: 'completed', output: 'ok', error: null },
+        };
+      }),
+    };
+
+    const result = await createConductorSpawnAdapter(conductor)({ plan, queue });
+
+    expect(result).toMatchObject({ launchId: 'launch-live-2', agentId: 'agent-live-2' });
+  });
 });
 
 // ─── FIX 2 (HIGH): the adapter visits in_progress via queue.start BEFORE launch ─
@@ -344,6 +379,7 @@ describe('createConductorSpawnAdapter — queue.start (in_progress) ordering', (
         if (startThrows) throw new Error('dispatch was cancelled');
         return { id, state: 'in_progress' };
       }),
+      bindExecution: jest.fn(),
     };
   }
 

@@ -1,79 +1,46 @@
-% The three-sided market: three sides, one escrow, divergent identity objects.
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D8C7A6}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhcobalt}{HTML}{003FB8}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-
+% Figure IV.2 --- three economically distinct flows close on one journal.
 \begin{figure}[H]
 \centering
-\resizebox{0.96\textwidth}{!}{%
-\begin{tikzpicture}[
-  font=\small,
-  side/.style={draw=hhebony,thick,fill=hhsand!30,rounded corners=3pt,
-               inner sep=5pt,text width=42mm,align=center,minimum height=22mm},
-  escrow/.style={draw=hhebony,line width=1.4pt,fill=hhsand!30,
-                 rounded corners=3pt,inner sep=6pt,text width=58mm,
-                 align=center,minimum height=26mm},
-  idobj/.style={draw=hhcobalt,thick,fill=hhpaper,rounded corners=2pt,
-                inner sep=3pt,font=\scriptsize,text width=42mm,
-                align=center,text=hhink},
-  flow/.style={->,>=Latex,thick,draw=hhebony},
-]
+\resizebox{0.95\textwidth}{!}{%
+\begin{tikzpicture}[pd figure]
+  \node[pd panel title,anchor=west] at (-6.9,3.0)
+    {one agent can carry three different risk signatures};
+  \node[pd axis label,anchor=east] at (-5.65,1.75) {LABOR};
+  \node[pd axis label,anchor=east] at (-5.65,.15) {CAPITAL};
+  \node[pd axis label,anchor=east] at (-5.65,-1.45) {LICENSED IP};
+  \foreach \y in {1.75,.15,-1.45} \draw[pd hairline] (-5.35,\y)--(5.85,\y);
 
-% ─── The three sides across the top ────────────────────────────────────
-\node[side] (labor) at (-62mm,30mm)
-  {\textbf{Side 1 — Labor}\\\footnotesize operator-for-hire};
-\node[side] (capital) at (0,38mm)
-  {\textbf{Side 2 — Capital}\\\footnotesize agent / fleet as rentable asset};
-\node[side] (ip) at (62mm,30mm)
-  {\textbf{Side 3 — IP}\\\footnotesize skill / tool licensed};
+  \node[pd direct label,anchor=west] at (-5.20,2.13) {fleet capability unknown};
+  \node[pd direct label,anchor=west] at (-5.20,.53) {specialist quality hidden};
+  \node[pd direct label,anchor=west] at (-5.20,-1.07) {version quality hidden};
+  \draw[pd caution rule,line width=3.0pt] (-2.45,1.75)--(.15,1.75);
+  \draw[pd caution rule,line width=1.8pt] (-1.70,.15)--(.15,.15);
+  \draw[pd caution rule,line width=1.1pt] (-.95,-1.45)--(.15,-1.45);
+  \node[pd direct label,text=hhamber,anchor=north] at (-1.15,1.53) {principal bond};
+  \node[pd direct label,text=hhamber,anchor=north] at (-.75,-.07) {reputation exposure};
+  \node[pd direct label,text=hhamber,anchor=north] at (-.35,-1.67) {content hash + use};
 
-% ─── The single escrow at the centre ───────────────────────────────────
-\node[escrow] (esc) at (0,-6mm)
-  {\textbf{ONE FLOAT-PLAN ESCROW}\\[2pt]
-   \footnotesize daemon: serialized txn, sign $\{\textit{anchor},\,\textit{plan hash}\}$\\[2pt]
-   \scriptsize\textbf{invariant:} $\text{wallet}+\text{escrow}+\text{commons}=\text{supply}$};
+  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (.15,1.75)--(3.65,1.75);
+  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (.15,.15)--(3.65,.15);
+  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (.15,-1.45)--(3.65,-1.45);
+  \node[pd direct label,anchor=south] at (2.20,1.88) {bounty $\to$ fleet principal};
+  \node[pd direct label,anchor=south] at (2.20,.28) {rent $\to$ asset owner};
+  \node[pd direct label,anchor=south] at (2.20,-1.32) {metered fee $\to$ licensor};
 
-% all three sides settle through the same object
-\draw[flow] (labor.south)   to[out=-90,in=150] (esc.west);
-\draw[flow] (capital.south) -- (esc.north);
-\draw[flow] (ip.south)      to[out=-90,in=30]  (esc.east);
-
-% ─── The oracle / settlement at the bottom ─────────────────────────────
-\node[draw=hhebony,thick,fill=hhsand!30,rounded corners=2pt,inner sep=5pt,
-      text width=92mm,align=center,below=8mm of esc] (settle)
-  {\footnotesize $\mathsf{oracle}(\text{acceptance})\;\Rightarrow\;
-   \{\,\text{success}\mid\text{partial}\mid\text{sabotage}\mid\text{dispute}\,\}$};
-\draw[flow] (esc.south) -- (settle.north);
-
-% ─── The identity divergence band (the category-theory finding) ────────
-\node[idobj,above=2mm of labor]   {keys on the \textbf{principal}\\(human/org)};
-\node[idobj,above=2mm of capital] {keys on the \textbf{asset owner}};
-\node[idobj,above=2mm of ip]      {keys on the \textbf{content hash} (skill version)};
-
-\node[draw=hhcobalt,thick,dashed,rounded corners=3pt,inner sep=3pt,
-      fit=(labor)(capital)(ip)] {};
-
-
-\end{tikzpicture}%
-}
-\caption{The three-sided market. Labor, capital (rented agents), and IP (licensed
-skills) are three distinct \emph{incentive constraints} --- not three UI tabs ---
-that all settle on a \emph{single} float-plan escrow, so conservation holds
-globally without a second ledger. This is the categorical heart of the design: the
-three sides are isomorphic at the conservation object (the escrow) and
-\textbf{non-isomorphic at the identity object} (each side keys reputation on a
-different entity, the dashed band). Calling it ``one structure, three decorations''
-without that qualifier is a decorative-analogy failure. The rider is mandatory: the
-market is three-sided by design and two-sided
-in shipped reality, because sides 2 and 3 presuppose a non-forgeable, durable
-identity (\S\ref{sec:keystone}). The economics per side: labor's margin is
-bounty $-$ slashed sub-bonds $-$ fee; capital's renter holds the runtime jail while
-the owner bears reputation; IP is metered with clawback, paid only on green
-settlement. The escrow and its conservation invariant are implemented and
-property-tested.}
+  \draw[pd focus rule,line width=1.4pt] (4.05,-1.85)--(4.05,2.15);
+  \foreach \y in {1.75,.15,-1.45} \node[pd focus datum] at (4.05,\y) {};
+  \node[pd direct label,text=hhteal,anchor=west,align=left] at (4.35,.15)
+    {one witnessed\\settlement journal};
+  \draw[pd focus rule] (-5.20,-2.35)--(5.75,-2.35);
+  \node[pd note,text=hhteal] at (.25,-2.62)
+    {$\Delta W+\Delta E+\Delta C=0$ despite different counterparties and exposure keys};
+\end{tikzpicture}}
+\caption{\textbf{The three sides are three risk signatures, not three tabs.}
+Labor exposes a principal bond and pays a fleet principal; rented capital exposes
+the owner's reputation and pays rent; licensed IP exposes a version-bound content
+claim and pays a metered fee. Line thickness redundantly distinguishes the forms
+of exposure. All three close through one witnessed journal, so the conservation
+invariant is shared even though the counterparties, private information, and
+reputation keys are not.}
 \label{fig:he-three-sided}
 \end{figure}

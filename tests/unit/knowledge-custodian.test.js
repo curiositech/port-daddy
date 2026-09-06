@@ -4,7 +4,7 @@
  * Tests each duty in isolation with mock deps.
  */
 
-import { describe, test, expect, beforeEach, afterEach } from '@jest/globals';
+import { describe, test, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import { createTestDb } from '../setup-unit.js';
 import { KnowledgeCustodian } from '../../lib/knowledge-custodian.js';
 import { createEpisodicMemory } from '../../lib/episodic-memory.js';
@@ -214,6 +214,239 @@ describe('Duty: contextPressure', () => {
 });
 
 describe('Duty: archiveTTL', () => {
+  const sevenDays = 7 * 24 * 60 * 60 * 1000;
+  let sweepAt;
+  let cutoff;
+  let completed;
+  let errors;
+
+  beforeEach(() => {
+    // Use INTEGER affinity and allow legacy NULL without a daemon or key store.
+    db.exec('ALTER TABLE sessions ADD COLUMN is_durable INTEGER DEFAULT 0');
+    sweepAt = Date.now();
+    cutoff = sweepAt - sevenDays;
+    jest.spyOn(Date, 'now').mockReturnValue(sweepAt);
+    completed = [];
+    errors = [];
+    logger = {
+      info: (message, data) => completed.push({ message, data }),
+      error: (message, data) => errors.push({ message, data }),
+    };
+  });
+
+  afterEach(() => jest.restoreAllMocks());
+
+  function oldSession(id, { updatedAt = cutoff - 1, durable = 0, status = 'active' } = {}) {
+    db.prepare(`INSERT INTO sessions
+      (id, agent_id, purpose, status, created_at, updated_at, is_durable, metadata, worktree_id)
+      VALUES (?, 'archive-owner', 'retained purpose', ?, ?, ?, ?, ?, 'fixture-world')`)
+      .run(id, status, cutoff - 10, updatedAt, durable, '{"identity":{"verified":true,"actorId":"fixture-actor"}}');
+  }
+
+  function oldNote(id, { at = cutoff - 1, content = 'Retained original evidence' } = {}) {
+    return db.prepare('INSERT INTO session_notes (session_id, content, type, created_at) VALUES (?, ?, ?, ?)')
+      .run(id, content, 'finding', at).lastInsertRowid;
+  }
+
+  function row(id) {
+    return db.prepare('SELECT * FROM sessions WHERE id = ?').get(id);
+  }
+
+  async function settled() {
+    // The public duty remains fire-and-forget. Drain actual harvest continuations.
+    await new Promise(resolve => setImmediate(resolve));
+  }
+
+  function deferredHarvest(extraDeps = {}) {
+    let release;
+    const blocked = new Promise(resolve => { release = resolve; });
+    const store = jest.fn(() => blocked);
+    const custodian = makeCustodian({ blobs: { store }, ...extraDeps });
+    return { custodian, store, release: () => release({ id: 'synthetic-archive-blob' }) };
+  }
+
+  test.each([0, null])('retires stale ephemeral storage %p once while preserving claims, notes and identity', async durable => {
+    oldSession('eligible', { durable });
+    oldNote('eligible');
+    db.prepare('INSERT INTO session_files (session_id, file_path, claimed_at) VALUES (?, ?, ?)')
+      .run('eligible', 'kept.ts', cutoff - 1);
+    const before = row('eligible');
+    const notes = db.prepare('SELECT * FROM session_notes').all();
+    const claims = db.prepare('SELECT * FROM session_files').all();
+    const custodian = makeCustodian();
+    custodian.runArchiveTTLDuty();
+    await settled();
+    expect(row('eligible')).toEqual({ ...before, status: 'abandoned', phase: 'abandoned',
+      completed_at: sweepAt, updated_at: sweepAt });
+    expect(db.prepare('SELECT * FROM session_notes').all()).toEqual(notes);
+    expect(db.prepare('SELECT * FROM session_files').all()).toEqual(claims);
+    expect(db.prepare('SELECT COUNT(*) AS n FROM episodic_memory').get().n).toBe(1);
+    expect(completed.map(entry => entry.data.orphanedSessions)).toEqual([1]);
+    custodian.runArchiveTTLDuty();
+    await settled();
+    expect(completed.map(entry => entry.data.orphanedSessions)).toEqual([1]);
+    expect(errors).toEqual([]);
+  });
+
+  test.each([1, -1, 2, 0.5, 'malformed', Buffer.from([0])])('preserves non-ephemeral durability %p without harvesting', async durable => {
+    oldSession('protected', { durable });
+    oldNote('protected', { content: 'x'.repeat(10_001) });
+    const before = row('protected');
+    const { custodian, store } = deferredHarvest();
+    custodian.runArchiveTTLDuty();
+    await settled();
+    expect(store).not.toHaveBeenCalled();
+    expect(row('protected')).toEqual(before);
+    expect(db.prepare('SELECT COUNT(*) AS n FROM episodic_memory').get().n).toBe(0);
+  });
+
+  test('durable preservation does not depend on verified identity metadata', async () => {
+    oldSession('unverified', { durable: 1 });
+    db.prepare('UPDATE sessions SET metadata = NULL WHERE id = ?').run('unverified');
+    makeCustodian().runArchiveTTLDuty();
+    await settled();
+    expect(row('unverified').status).toBe('active');
+  });
+
+  test.each(['completed', 'abandoned', 'ACTIVE'])('preserves non-active exact status %s', async status => {
+    oldSession('terminal', { status });
+    const before = row('terminal');
+    makeCustodian().runArchiveTTLDuty();
+    await settled();
+    expect(row('terminal')).toEqual(before);
+  });
+
+  test.each(['cutoff', 'future', 'text', 'negative', 'fractional', 'unsafe', 'blob'])('refuses %s session timestamps', async kind => {
+    const values = { cutoff, future: sweepAt + 1, text: 'not-a-timestamp', negative: -1,
+      fractional: cutoff - 0.5, unsafe: Number.MAX_SAFE_INTEGER + 1, blob: Buffer.from([0]) };
+    oldSession('timestamp', { updatedAt: values[kind] });
+    const before = row('timestamp');
+    makeCustodian().runArchiveTTLDuty();
+    await settled();
+    expect(row('timestamp')).toEqual(before);
+  });
+
+  test.each(['cutoff', 'recent', 'future', 'text', 'negative', 'fractional', 'unsafe', 'blob'])('preserves sessions with %s exact-session note timestamps', async kind => {
+    const values = { cutoff, recent: sweepAt, future: sweepAt + sevenDays, text: 'invalid',
+      negative: -1, fractional: cutoff - 0.5, unsafe: Number.MAX_SAFE_INTEGER + 1, blob: Buffer.from([0]) };
+    oldSession('note-protected');
+    oldNote('note-protected', { at: values[kind] });
+    const before = row('note-protected');
+    makeCustodian().runArchiveTTLDuty();
+    await settled();
+    expect(row('note-protected')).toEqual(before);
+  });
+
+  test('uses SQLite stored integer semantics for numeric input and isolates sibling notes', async () => {
+    oldSession('numeric', { durable: '0', updatedAt: String(cutoff - 1) });
+    oldSession('sibling');
+    oldNote('sibling', { at: sweepAt + sevenDays });
+    expect(db.prepare('SELECT typeof(is_durable) AS t FROM sessions WHERE id = ?').get('numeric').t).toBe('integer');
+    makeCustodian().runArchiveTTLDuty();
+    await settled();
+    expect(row('numeric').status).toBe('abandoned');
+    expect(row('sibling').status).toBe('active');
+    expect(completed[0].data.orphanedSessions).toBe(1);
+  });
+
+  test.each(['complete', 'refresh', 'older-refresh', 'durable', 'recent-note', 'future-note', 'malformed-note'])('rechecks %s mutation while real blobs.store is awaited', async mutation => {
+    oldSession('raced');
+    oldNote('raced', { content: 'x'.repeat(10_001) });
+    const notesBefore = db.prepare('SELECT * FROM session_notes').all();
+    db.prepare('INSERT INTO session_files (session_id, file_path, claimed_at) VALUES (?, ?, ?)')
+      .run('raced', 'retained.ts', cutoff - 1);
+    const claims = db.prepare('SELECT * FROM session_files').all();
+    const { custodian, store, release } = deferredHarvest();
+    custodian.runArchiveTTLDuty();
+    expect(store).toHaveBeenCalledTimes(1);
+    expect(row('raced').status).toBe('active');
+    if (mutation === 'complete') db.prepare("UPDATE sessions SET status = 'completed', completed_at = ? WHERE id = 'raced'").run(sweepAt);
+    if (mutation === 'refresh') db.prepare("UPDATE sessions SET updated_at = ? WHERE id = 'raced'").run(sweepAt);
+    if (mutation === 'older-refresh') db.prepare("UPDATE sessions SET updated_at = ? WHERE id = 'raced'").run(cutoff - 2);
+    if (mutation === 'durable') db.prepare("UPDATE sessions SET is_durable = 1 WHERE id = 'raced'").run();
+    if (mutation.endsWith('-note')) oldNote('raced', { at: mutation === 'recent-note' ? sweepAt : mutation === 'future-note' ? sweepAt + sevenDays : 'malformed' });
+    const afterMutation = row('raced');
+    release();
+    await settled();
+    expect(row('raced')).toEqual(afterMutation);
+    expect(db.prepare('SELECT * FROM session_files').all()).toEqual(claims);
+    expect(db.prepare('SELECT * FROM session_notes ORDER BY id').all().slice(0, notesBefore.length)).toEqual(notesBefore);
+    expect(completed[0].data.orphanedSessions).toBe(0);
+    expect(db.prepare('SELECT COUNT(*) AS n FROM episodic_memory').get().n).toBe(1);
+    expect(errors).toEqual([]);
+  });
+
+  test('keeps the original cutoff when time advances during harvest', async () => {
+    oldSession('slow');
+    oldNote('slow', { content: 'x'.repeat(10_001) });
+    const { custodian, release } = deferredHarvest();
+    custodian.runArchiveTTLDuty();
+    oldNote('slow', { at: cutoff });
+    Date.now.mockReturnValue(sweepAt + 2 * sevenDays);
+    release();
+    await settled();
+    expect(row('slow').status).toBe('active');
+    expect(completed[0].data.orphanedSessions).toBe(0);
+  });
+
+  test('concurrent sweeps count one actual transition, never two selected rows', async () => {
+    oldSession('overlap');
+    oldNote('overlap', { content: 'x'.repeat(10_001) });
+    const { custodian, store, release } = deferredHarvest();
+    custodian.runArchiveTTLDuty();
+    custodian.runArchiveTTLDuty();
+    expect(store).toHaveBeenCalledTimes(2);
+    release();
+    await settled();
+    expect(row('overlap').status).toBe('abandoned');
+    expect(completed.map(entry => entry.data.orphanedSessions).sort()).toEqual([0, 1]);
+    expect(db.prepare('SELECT COUNT(*) AS n FROM session_notes').get().n).toBe(1);
+  });
+
+  test('failed harvest preserves the session; a later successful sweep may retire it', async () => {
+    oldSession('retry');
+    oldNote('retry', { content: 'x'.repeat(10_001) });
+    const before = row('retry');
+    const remember = jest.spyOn(episodicMemory, 'remember').mockImplementationOnce(() => { throw new Error('synthetic storage refusal'); });
+    const { custodian, release } = deferredHarvest();
+    custodian.runArchiveTTLDuty();
+    release();
+    await settled();
+    expect(row('retry')).toEqual(before);
+    expect(errors).toHaveLength(1);
+    expect(completed[0].data.orphanedSessions).toBe(0);
+    remember.mockRestore();
+    custodian.runArchiveTTLDuty();
+    await settled();
+    expect(row('retry').status).toBe('abandoned');
+    expect(completed.map(entry => entry.data.orphanedSessions)).toEqual([0, 1]);
+  });
+
+  test('blob rejection retains the existing inline-harvest fallback and original note', async () => {
+    oldSession('inline');
+    oldNote('inline', { content: 'x'.repeat(10_001) });
+    const note = db.prepare('SELECT * FROM session_notes').get();
+    const store = jest.fn(async () => { throw new Error('synthetic blob refusal'); });
+    makeCustodian({ blobs: { store } }).runArchiveTTLDuty();
+    await settled();
+    expect(store).toHaveBeenCalledTimes(1);
+    expect(row('inline').status).toBe('abandoned');
+    expect(db.prepare('SELECT * FROM session_notes').get()).toEqual(note);
+    expect(db.prepare('SELECT blob_id FROM episodic_memory').get().blob_id).toBeNull();
+    expect(completed[0].data.orphanedSessions).toBe(1);
+    expect(errors).toEqual([]);
+  });
+
+  test.each([NaN, Infinity, -1, 0, Number.MAX_SAFE_INTEGER + 1, 1.5])('refuses malformed sweep clock %p without session mutation', async now => {
+    oldSession('bad-clock');
+    const before = row('bad-clock');
+    Date.now.mockReturnValue(now);
+    makeCustodian().runArchiveTTLDuty();
+    await settled();
+    expect(row('bad-clock')).toEqual(before);
+    expect(errors.map(entry => entry.message)).toEqual(['Custodian archiveTTL clock invalid']);
+  });
+
   test('archives expired episodes', () => {
     const past = new Date(Date.now() - 1000).toISOString();
     episodicMemory.remember({

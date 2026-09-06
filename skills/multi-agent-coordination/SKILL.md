@@ -52,7 +52,7 @@ You are an expert in coordinating multiple AI agents working simultaneously on s
 **Do NOT use for:**
 - Single-agent behavior and tool use (use agentic-patterns)
 - Choosing agent frameworks (use agentic-infrastructure-2026)
-- Building DAG topologies (use next-move or windags-architect)
+- Building DAG topologies (use next-move or jury_rig-architect)
 - Git basics or branching strategy (use git-best-practices)
 
 ---
@@ -305,7 +305,7 @@ Agents communicate through four event types:
 
 ### The Shared Context Document
 
-For simpler coordination, agents read/write a shared markdown document (e.g., `.windags/coordination.md`) with four sections: **Active Agents** (who, what task, status, files claimed), **Discoveries** (findings that affect other agents), **Contracts** (agreed function signatures / API interfaces), and **Blocked** (who is waiting on whom). Each agent reads this before starting and updates it as they work.
+For simpler coordination, agents read/write a shared markdown document (e.g., `.skill-runtime-archive/coordination.md`) with four sections: **Active Agents** (who, what task, status, files claimed), **Discoveries** (findings that affect other agents), **Contracts** (agreed function signatures / API interfaces), and **Blocked** (who is waiting on whom). Each agent reads this before starting and updates it as they work.
 
 ---
 
@@ -343,7 +343,7 @@ Agent 2 output ──┘         |
 | **Cursor 2.0** | Git worktrees per agent | Background agents, conflict detection | 8 |
 | **Claude Code Task** | Isolated context per sub-agent | Parent/child, results summarized back | Unbounded |
 | **ccswarm** | Git worktrees + Claude CLI | Template scaffolding, coordinator agent | Configurable |
-| **WinDAGs** | ProcessExecutor / WorktreeExecutor | Wave-based (parallel within wave, serial across waves) | Per-wave |
+| **Jury-rig** | ProcessExecutor / WorktreeExecutor | Wave-based (parallel within wave, serial across waves) | Per-wave |
 
 ---
 

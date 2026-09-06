@@ -155,6 +155,33 @@ export interface WhitePaper {
   takeaways: Array<{ title: string; body: string }>
 }
 
+/** The bound edition is a collection of the seven chapters, not an eighth paper. */
+export interface CollectedVolume {
+  id: string
+  title: string
+  subtitle: string
+  pdfPath: string
+  downloadUrl: string
+  date: string
+  pages: number
+  sizeKb: number
+  references: number
+}
+
+export const COLLECTED_VOLUME: CollectedVolume = {
+  id: 'coordination-papers-mega-volume',
+  title: 'The Harbor, the Person, and the Economy',
+  subtitle:
+    'Seven papers on accountable autonomous work, unified by one claim: authority, evidence, and consequence must remain coupled at every effect boundary.',
+  pdfPath: '/whitepaper/coordination-papers-mega-volume.pdf',
+  downloadUrl:
+    'https://raw.githubusercontent.com/curiositech/port-daddy/main/website-v2/public/whitepaper/coordination-papers-mega-volume.pdf',
+  date: 'August 2026',
+  pages: 270,
+  sizeKb: 2190,
+  references: 221,
+}
+
 /**
  * A readonly mirror of `WhitePaper` used only as the inference constraint on
  * `defineWhitePapers`. The runtime / consumer-facing type is still
@@ -233,9 +260,9 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     readerHref: '/whitepaper/legible-swarm',
     overviewHref: '/whitepaper?paper=legible-swarm',
     date: 'August 2026',
-    pages: 40,
-    sizeKb: 762,
-    status: 'Version 1.1 (revised pre-print)',
+    pages: 46,
+    sizeKb: 890,
+    status: 'Version 1.2 (collected-volume edition)',
     order: '01',
     chapter: 'I',
     group: 'explain',
@@ -346,9 +373,9 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     readerHref: '/whitepaper/single-writer-kernel',
     overviewHref: '/whitepaper?paper=single-writer-kernel',
     date: 'August 2026',
-    pages: 35,
-    sizeKb: 740,
-    status: 'Version 1.1 (revised pre-print)',
+    pages: 40,
+    sizeKb: 718,
+    status: 'Version 1.2 (collected-volume edition)',
     order: '02',
     chapter: 'II',
     group: 'explain',
@@ -454,14 +481,14 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     thesis:
       'A swarm produces work, but until that work can be attributed to something that survives the process that did it, none of it can be priced. A role is a bundle of obligation, capability, and authority — an org-chart entry any spawn can fill. A person is a role instance plus continuity: durable memory, a restorable checkpoint, and a witnessed history of outcomes keyed on an identity that cannot be freely re-picked. From this comes the series’ central economic claim, stated identically across the papers: the reputation estimator is cheap; the substrate it scores over — witnessed outcomes on a non-forgeable identity — is the gate.',
     summary:
-      'A guided read of the bridge chapter: the role-vs-person distinction made load-bearing, why reputation is not a bandit problem, a multi-dimensional reputation scored by neutral conflict-free judges, and the honest naming of cross-operator attestation as the unbuilt keystone.',
+      'A guided read of the bridge chapter: the role-vs-person distinction made consequential, why reputation is not a bandit problem, a multi-dimensional reputation scored by neutral conflict-free judges, and the honest naming of cross-operator attestation as the unbuilt keystone.',
     filename: 'spawn-to-person-whitepaper',
     pdfPath: '/whitepaper/spawn-to-person-whitepaper.pdf',
     readerHref: '/whitepaper/spawn-to-person',
     overviewHref: '/whitepaper?paper=spawn-to-person',
     date: 'August 2026',
-    pages: 35,
-    sizeKb: 618,
+    pages: 41,
+    sizeKb: 749,
     status: 'Version 1.4 (collected-volume edition)',
     order: '03',
     chapter: 'III',
@@ -478,7 +505,7 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
       underwrites: [{ chapter: 'IV', why: 'reputation is the thing the market prices and trades' }],
     },
     primer:
-      'Spawn a process, let it do good work, and then ask: whose work was that? If the answer is “the process that has since exited,” the work cannot be priced, trusted across time, or built into a track record. This chapter is the hinge of the library because it draws one distinction and makes it carry weight. A role — “cartographer,” “reviewer” — is a bundle of obligations, capabilities, and authority; any spawn can step into it. A person is a role plus continuity: durable memory, a checkpoint you can restore, and a witnessed history of outcomes attached to an identity that cannot be quietly re-picked. Continuity is what turns disposable computation into someone with a reputation. Following Locke’s memory criterion and Parfit’s psychological continuity, identity here is that continuity, not a fixed essence. And the chapter is blunt about the economics: the clever scoring math is cheap; the expensive, load-bearing part is the substrate it scores over.',
+      'Spawn a process, let it do good work, and then ask: whose work was that? If the answer is “the process that has since exited,” the work cannot be priced, trusted across time, or built into a track record. This chapter is the hinge of the library because it draws one distinction and makes it carry weight. A role — “cartographer,” “reviewer” — is a bundle of obligations, capabilities, and authority; any spawn can step into it. A person is a role plus continuity: durable memory, a checkpoint you can restore, and a witnessed history of outcomes attached to an identity that cannot be quietly re-picked. Continuity is what turns disposable computation into someone with a reputation. Following Locke’s memory criterion and Parfit’s psychological continuity, identity here is that continuity, not a fixed essence. And the chapter is blunt about the economics: the clever scoring math is cheap; the expensive part is the substrate it scores over.',
     glossary: [
       {
         term: 'Role',
@@ -511,7 +538,7 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     forBuilders:
       'If you are building reputation or trust scoring for agents, this chapter is the warning and the blueprint: do not pour effort into the estimator; pour it into the substrate — durable memory, restorable checkpoints, witnessed outcomes, and an identity that cannot be re-rolled. Score multiple axes with neutral judges, and be honest that cross-operator identity is the unsolved part.',
     highlights: [
-      { icon: GitBranch, label: 'Role vs. person, made load-bearing' },
+      { icon: GitBranch, label: 'Role vs. person, made consequential' },
       { icon: Eye, label: 'Witnessed outcomes on a non-forgeable id' },
       { icon: Scale, label: 'Multi-axis reputation, neutral judges' },
       { icon: Shield, label: 'Cross-operator attestation named as the keystone' },
@@ -573,8 +600,8 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     readerHref: '/whitepaper/harbor-economy',
     overviewHref: '/whitepaper?paper=harbor-economy',
     date: 'August 2026',
-    pages: 31,
-    sizeKb: 869,
+    pages: 37,
+    sizeKb: 723,
     status: 'Version 1.3 (collected-volume edition)',
     order: '04',
     chapter: 'IV',
@@ -687,8 +714,8 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     readerHref: '/whitepaper/anchor-protocol',
     overviewHref: '/whitepaper?paper=anchor-protocol',
     date: 'August 2026',
-    pages: 25,
-    sizeKb: 837,
+    pages: 28,
+    sizeKb: 697,
     status: 'Version 1.4 (revised pre-print)',
     order: '05',
     chapter: 'V',
@@ -761,7 +788,7 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
       {
         title: 'Withdrawing a card before it expires',
         content:
-          'If a card leaks, you should be able to cancel it without restarting the world. The paper describes cuckoo-filter revocation and anti-entropy gossip, then states the load-bearing caveat: expected dissemination needs a connected reliable-round model, and a partition has no finite deadline.',
+          'If a card leaks, you should be able to cancel it without restarting the world. The paper describes cuckoo-filter revocation and anti-entropy gossip, then states the decisive caveat: expected dissemination needs a connected reliable-round model, and a partition has no finite deadline.',
       },
       {
         title: 'Where this stops',
@@ -799,8 +826,8 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     readerHref: '/whitepaper/bonded-commons',
     overviewHref: '/whitepaper?paper=bonded-commons',
     date: 'August 2026',
-    pages: 47,
-    sizeKb: 976,
+    pages: 52,
+    sizeKb: 908,
     status: 'Version 2.7 (revised pre-print)',
     order: '06',
     chapter: 'VI',
@@ -918,8 +945,8 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     readerHref: '/whitepaper/federated-harbor',
     overviewHref: '/whitepaper?paper=federated-harbor',
     date: 'August 2026',
-    pages: 28,
-    sizeKb: 730,
+    pages: 31,
+    sizeKb: 673,
     status: 'Version 1.0 (revised pre-print)',
     order: '07',
     chapter: 'VII',
@@ -1103,9 +1130,17 @@ export const LIBRARY_CHANGELOG: LibraryChangelogEntry[] = [
   {
     dateIso: '2026-08-05',
     date: 'August 5, 2026',
+    title: 'The seven papers publish as one audited collected volume',
+    summary:
+      'The seven chapters now publish together as a 247-page collected volume with a global introduction, coherent table of contents, implementation ledger, research roadmap, notation concordance, and 202 collated references. The companion-paper rigor pass repairs figure legibility, rechecks mathematical assumptions and cross-paper notation, and records implementation claims against repository evidence. Versions: I 1.2, II 1.2, III 1.4, IV 1.3, V 1.4, VI 2.7, VII 1.0.',
+    chapters: ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'],
+  },
+  {
+    dateIso: '2026-08-05',
+    date: 'August 5, 2026',
     title: 'Spawn-to-Person diagrams and implementation status align',
     summary:
-      'Chapter III advances to Version 1.4: three repaired figures distinguish the shipped local actor-soul and commitment substrates from the still-open write-boundary, neutral-grading, reputation, and cross-operator-attestation obligations. The 35-page standalone, contact sheet, animated page tour, and SHA-256 proof manifest are published together.',
+      'Chapter III advances to Version 1.4: three repaired figures distinguish the shipped local actor-soul and commitment substrates from the still-open write-boundary, neutral-grading, reputation, and cross-operator-attestation obligations. The 41-page standalone, contact sheet, animated page tour, and SHA-256 proof manifest are published together.',
     chapters: ['III'],
   },
   {

@@ -1,17 +1,30 @@
-import { createTestDb } from '../setup-unit.js';
-import { createTupleSpace } from '../../lib/tuples.js';
+import { afterEach, beforeEach, describe, expect, test } from '@jest/globals';
+import { readFileSync } from 'node:fs';
+import { createAgentInbox } from '../../lib/agent-inbox.js';
 import { createParley } from '../../lib/parley.js';
+import { CONFLICT_SIGNAL_LIMITS } from '../../lib/parley-trigger.js';
+import { createTestDb } from '../setup-unit.js';
+
+const TENANT = 'parley-unit-test';
+const HARBOR = 'port-daddy';
+const BASE_TIME = 1_700_000_000_000;
 
 let db;
-let tuples;
-let parley;
 let clock;
+let inbox;
+let parley;
 
 beforeEach(() => {
   db = createTestDb();
-  tuples = createTupleSpace(db);
-  clock = 1_700_000_000_000;
-  parley = createParley({ tuples, now: () => clock });
+  clock = BASE_TIME;
+  inbox = createAgentInbox(db);
+  parley = createParley({
+    db,
+    tenantId: TENANT,
+    defaultHarbor: HARBOR,
+    agentInbox: inbox,
+    now: () => clock,
+  });
 });
 
 afterEach(() => {
@@ -22,360 +35,529 @@ function advance(ms) {
   clock += ms;
 }
 
-function openParley() {
+function openParley(overrides = {}) {
   return parley.call({
     surface: 'lib/dispatch.ts',
     reason: 'two agents are changing dispatch semantics',
     parties: ['agent-a', 'agent-b'],
     calledBy: 'operator',
-    harbor: 'port-daddy',
+    harbor: HARBOR,
+    ...overrides,
   });
 }
 
-describe('call', () => {
-  test('opens a summoned parley and writes summons tuples', () => {
-    const p = openParley();
+function count(table, suffix = '', params = []) {
+  return Number(db.prepare(`
+    SELECT COUNT(*) AS count FROM ${table}
+    WHERE tenant_id = ? AND harbor = ?${suffix}
+  `).get(TENANT, HARBOR, ...params).count);
+}
 
-    expect(p.parleyId).toEqual(expect.any(String));
-    expect(p.status).toBe('SUMMONED');
-    expect(p.channel).toBe(`parley:${p.parleyId}`);
-
-    const opened = tuples.rd(['parley:opened', p.parleyId, '*'], { harbor: 'port-daddy' });
-    const summons = tuples.rd(['parley:summons', p.parleyId, '*', '*'], { harbor: 'port-daddy' });
-    expect(opened).toHaveLength(1);
-    expect(summons).toHaveLength(2);
-  });
-
-  test('sends structured inbox summons when an inbox dependency is provided', () => {
-    const sent = [];
-    const withInbox = createParley({
-      tuples,
-      now: () => clock,
-      agentInbox: {
-        send(agentId, content, options) {
-          sent.push({ agentId, content, options });
-          return { success: true };
-        },
+function recordingInbox(deliver) {
+  const deliveries = [];
+  const successfulKeys = new Set();
+  return {
+    deliveries,
+    internal: {
+      sendOnce(agentId, content, options) {
+        deliveries.push({ agentId, content, options });
+        const result = deliver?.(agentId, content, options) ?? { success: true };
+        if (result.success) successfulKeys.add(options.deliveryKey);
+        return result.success
+          ? { success: true, messageId: successfulKeys.size }
+          : result;
       },
-    });
+    },
+  };
+}
 
-    const p = withInbox.call({
-      surface: 'lib/dispatch.ts',
-      reason: 'two agents are changing dispatch semantics',
+describe('manual Parley admission', () => {
+  test('opens one indexed Parley and durably delivers one summons per party', () => {
+    const opened = openParley();
+
+    expect(opened).toMatchObject({
+      parleyId: expect.any(String),
+      status: 'SUMMONED',
       parties: ['agent-a', 'agent-b'],
       calledBy: 'operator',
-      harbor: 'port-daddy',
+      harbor: HARBOR,
+      automatic: null,
+    });
+    expect(opened.channel).toBe(`parley:${opened.parleyId}`);
+    expect(count('parley_records', ' AND parley_id = ?', [opened.parleyId])).toBe(1);
+    expect(count('parley_participants', ' AND parley_id = ?', [opened.parleyId])).toBe(3);
+    expect(count('parley_notification_outbox', ' AND parley_id = ? AND state = ?', [opened.parleyId, 'delivered']))
+      .toBe(2);
+    expect(inbox.list('agent-a').messages).toHaveLength(1);
+    expect(inbox.list('agent-b').messages).toHaveLength(1);
+    expect(db.prepare('SELECT delivery_key FROM agent_inbox WHERE agent_id = ?').get('agent-a'))
+      .toEqual({ delivery_key: `parley_summons:${opened.parleyId}:agent-a` });
+  });
+
+  test('uses the idempotent internal inbox boundary and sends structured summons', () => {
+    const target = recordingInbox();
+    const instance = createParley({
+      db,
+      tenantId: TENANT,
+      defaultHarbor: HARBOR,
+      agentInbox: target,
+      now: () => clock,
     });
 
-    expect(sent).toHaveLength(2);
-    expect(sent.map((m) => m.agentId)).toEqual(['agent-a', 'agent-b']);
-    expect(sent[0].options).toMatchObject({ from: 'operator', type: 'parley_summons', contentType: 'json' });
-    expect(sent[0].content).toMatchObject({
+    const opened = instance.call({
+      surface: 'lib/sessions.ts',
+      reason: 'overlapping ownership',
+      parties: ['agent-a', 'agent-b'],
+      calledBy: 'operator',
+    });
+
+    expect(target.deliveries.map((message) => message.agentId)).toEqual(['agent-a', 'agent-b']);
+    expect(target.deliveries[0].options).toMatchObject({
+      from: 'operator',
+      type: 'parley_summons',
+      contentType: 'json',
+      deliveryKey: `parley_summons:${opened.parleyId}:agent-a`,
+    });
+    expect(target.deliveries[0].content).toMatchObject({
       kind: 'parley_summons',
-      parleyId: p.parleyId,
-      surface: 'lib/dispatch.ts',
-      channel: `parley:${p.parleyId}`,
+      parleyId: opened.parleyId,
+      surface: 'lib/sessions.ts',
+      channel: `parley:${opened.parleyId}`,
     });
   });
 
-  test('requires at least two parties', () => {
-    expect(() => parley.call({
+  test('requires exactly one SQLite authority and a tenant for direct database construction', () => {
+    expect(() => createParley({})).toThrow(/exactly one of store or db/);
+    expect(() => createParley({ db })).toThrow(/tenantId is required/);
+  });
+
+  test('rejects malformed or over-capacity calls before durable side effects', () => {
+    expect(() => openParley({ parties: ['agent-a'] })).toThrow(/at least two parties/);
+    expect(() => openParley({ surface: 's'.repeat(CONFLICT_SIGNAL_LIMITS.maxSurfaceChars + 1) }))
+      .toThrow(/surface exceeds/);
+    expect(() => openParley({ reason: 'r'.repeat(CONFLICT_SIGNAL_LIMITS.maxReasonChars + 1) }))
+      .toThrow(/reason exceeds/);
+    expect(() => openParley({ ttlMs: -1 })).toThrow(/bounded non-negative integer/);
+    expect(() => openParley({ roundLimit: 65 })).toThrow(/between 1 and 64/);
+    expect(() => openParley({
+      parties: Array.from({ length: CONFLICT_SIGNAL_LIMITS.maxParties + 1 }, (_, index) => `agent-${index}`),
+    })).toThrow(/parties exceed/);
+    expect(count('parley_records')).toBe(0);
+    expect(count('parley_notification_outbox')).toBe(0);
+  });
+
+  test('manual identities stay random and caller-supplied automatic fields are ignored', () => {
+    const attemptedInternalFields = {
       surface: 'x',
       reason: 'y',
-      parties: ['agent-a'],
+      parties: ['a', 'b'],
       calledBy: 'operator',
-    })).toThrow(/at least two/);
+      harbor: HARBOR,
+      idempotencyKey: 'caller-key',
+      automatic: { signalId: 'forged' },
+    };
+    const first = parley.call(attemptedInternalFields);
+    const second = parley.call(attemptedInternalFields);
+
+    expect(first.parleyId).not.toBe(second.parleyId);
+    expect(first.automatic).toBeNull();
+    expect(second.automatic).toBeNull();
   });
 });
 
-describe('respond and status', () => {
-  test('convenes after every party responds', () => {
-    const p = openParley();
+describe('turns and terminal settlement', () => {
+  test('convenes only after every summoned party responds', () => {
+    const opened = openParley();
     parley.respond({
-      parleyId: p.parleyId,
+      parleyId: opened.parleyId,
       party: 'agent-a',
       performative: 'propose',
       content: 'ship A',
       proposalId: 'a',
     });
 
-    let summary = parley.get(p.parleyId);
-    expect(summary.status).toBe('SUMMONED');
-    expect(summary.missingParties).toEqual(['agent-b']);
-
-    parley.respond({
-      parleyId: p.parleyId,
-      party: 'agent-b',
-      performative: 'propose',
-      content: 'ship B',
-      proposalId: 'b',
+    expect(parley.get(opened.parleyId)).toMatchObject({
+      status: 'SUMMONED',
+      respondedParties: ['agent-a'],
+      missingParties: ['agent-b'],
     });
 
-    summary = parley.get(p.parleyId);
-    expect(summary.status).toBe('CONVENED');
-    expect(summary.respondedParties).toEqual(['agent-a', 'agent-b']);
+    parley.respond({
+      parleyId: opened.parleyId,
+      party: 'agent-b',
+      performative: 'critique',
+      content: 'A needs one revision',
+    });
+
+    expect(parley.get(opened.parleyId)).toMatchObject({
+      status: 'CONVENED',
+      respondedParties: ['agent-a', 'agent-b'],
+      missingParties: [],
+    });
   });
 
-  test('refuse escalates without requiring manual state mutation', () => {
-    const p = openParley();
+  test('refusal escalates atomically and later turns are rejected', () => {
+    const opened = openParley();
     parley.respond({
-      parleyId: p.parleyId,
+      parleyId: opened.parleyId,
       party: 'agent-a',
       performative: 'refuse',
       content: 'cannot accept this scope',
     });
 
-    const summary = parley.get(p.parleyId);
+    const summary = parley.get(opened.parleyId);
     expect(summary.status).toBe('ESCALATED');
-    expect(summary.risks).toContain('party refused; operator escalation required');
-  });
-
-  test('expired response TTL is visible as escalation risk', () => {
-    const p = parley.call({
-      surface: 'x',
-      reason: 'y',
-      parties: ['a', 'b'],
-      calledBy: 'operator',
-      ttlMs: 1000,
+    expect(summary.outcome).toMatchObject({
+      status: 'ESCALATED',
+      reason: 'agent-a refused the Parley',
+      dissenters: ['agent-a'],
     });
-    advance(2000);
-
-    const summary = parley.get(p.parleyId);
-    expect(summary.status).toBe('ESCALATED');
-    expect(summary.expired).toBe(true);
+    expect(() => parley.respond({
+      parleyId: opened.parleyId,
+      party: 'agent-b',
+      performative: 'inform',
+      content: 'too late',
+    })).toThrow(/already ESCALATED/);
   });
 
-  test('rejects unsummoned parties', () => {
-    const p = openParley();
+  test('read-path TTL settlement is exact and idempotent', () => {
+    const opened = openParley({ ttlMs: 1_000 });
+    advance(1_000);
+    expect(parley.get(opened.parleyId)).toMatchObject({ status: 'SUMMONED', expired: false });
+
+    advance(1);
+    const settled = parley.get(opened.parleyId);
+    expect(settled).toMatchObject({ status: 'ESCALATED', expired: true });
+    expect(settled.outcome.reason).toBe('response TTL expired without terminal outcome');
+    expect(parley.get(opened.parleyId).outcome).toEqual(settled.outcome);
+    expect(count('parley_outcomes', ' AND parley_id = ?', [opened.parleyId])).toBe(1);
+  });
+
+  test('rejects unsummoned actors', () => {
+    const opened = openParley();
     expect(() => parley.respond({
-      parleyId: p.parleyId,
+      parleyId: opened.parleyId,
       party: 'agent-c',
       performative: 'inform',
       content: 'hi',
     })).toThrow(/not summoned/);
   });
 
-  test('roundLimit caps non-terminal turns and escalates when exhausted', () => {
-    const p = parley.call({
-      surface: 'x',
-      reason: 'y',
-      parties: ['agent-a', 'agent-b'],
-      calledBy: 'operator',
-      roundLimit: 1,
-    });
+  test('round limits escalate budgeted turns but still allow agreement', () => {
+    const limited = openParley({ roundLimit: 1 });
     parley.respond({
-      parleyId: p.parleyId,
+      parleyId: limited.parleyId,
       party: 'agent-a',
       performative: 'propose',
       content: 'first proposal',
     });
-
     expect(() => parley.respond({
-      parleyId: p.parleyId,
+      parleyId: limited.parleyId,
       party: 'agent-a',
       performative: 'critique',
       content: 'extra critique',
     })).toThrow(/round limit exhausted/);
+    expect(parley.get(limited.parleyId).outcome.reason).toBe('round limit exhausted for agent-a');
 
-    const summary = parley.get(p.parleyId);
-    expect(summary.status).toBe('ESCALATED');
-    expect(summary.outcome.status).toBe('ESCALATED');
-    expect(summary.outcome.reason).toBe('round limit exhausted for agent-a');
-  });
-
-  test('roundLimit still allows terminal agreement after a proposal', () => {
-    const p = parley.call({
-      surface: 'x',
-      reason: 'y',
-      parties: ['agent-a', 'agent-b'],
-      calledBy: 'operator',
-      roundLimit: 1,
-    });
+    const agreement = openParley({ roundLimit: 1 });
     parley.respond({
-      parleyId: p.parleyId,
+      parleyId: agreement.parleyId,
       party: 'agent-a',
       performative: 'propose',
       content: 'first proposal',
     });
-
     expect(() => parley.respond({
-      parleyId: p.parleyId,
+      parleyId: agreement.parleyId,
       party: 'agent-a',
       performative: 'agree',
       content: 'I can live with this',
     })).not.toThrow();
   });
-});
 
-describe('resolve', () => {
-  test('collapses with a decision and blocks later turns', () => {
-    const p = openParley();
-    const outcome = parley.resolve({
-      parleyId: p.parleyId,
-      status: 'COLLAPSED',
-      decision: 'agent-a owns dispatch; agent-b rebases docs only',
-      resolvedBy: 'operator',
-      dissenters: [],
-    });
-
-    expect(outcome.status).toBe('COLLAPSED');
-    const summary = parley.get(p.parleyId);
-    expect(summary.status).toBe('COLLAPSED');
-    expect(summary.outcome.decision).toMatch(/agent-a owns/);
-    expect(() => parley.respond({
-      parleyId: p.parleyId,
-      party: 'agent-a',
-      performative: 'inform',
-      content: 'too late',
-    })).toThrow(/already COLLAPSED/);
-  });
-
-  test('requires decision for collapsed outcome', () => {
-    const p = openParley();
+  test('production resolve is unreachable and exposes no raw store escape hatch', () => {
+    const opened = openParley();
     expect(() => parley.resolve({
-      parleyId: p.parleyId,
+      parleyId: opened.parleyId,
       status: 'COLLAPSED',
-      resolvedBy: 'operator',
-    })).toThrow(/decision/);
+      decision: 'forged decision',
+      resolvedBy: 'self-asserted-operator',
+    })).toThrow(/unavailable until CAP0/);
+    expect(parley.internal).toEqual({
+      admitAutomaticInTransaction: expect.any(Function),
+      drainNotifications: expect.any(Function),
+      recoverDueNotifications: expect.any(Function),
+      stopNotificationRecovery: expect.any(Function),
+    });
+    expect(parley.internal).not.toHaveProperty('store');
+    expect(parley.get(opened.parleyId).status).toBe('SUMMONED');
   });
 });
 
-describe('turn fan-out', () => {
-  function inboxParley(sendImpl) {
-    const sent = [];
+describe('durable notification fan-out', () => {
+  test('a turn reaches every other participant, including the caller', () => {
+    const target = recordingInbox();
     const instance = createParley({
-      tuples,
+      db,
+      tenantId: TENANT,
+      defaultHarbor: HARBOR,
+      agentInbox: target,
       now: () => clock,
-      agentInbox: {
-        send(agentId, content, options) {
-          sent.push({ agentId, content, options });
-          return sendImpl ? sendImpl(agentId, content, options) : { success: true };
-        },
-      },
     });
-    return { instance, sent };
-  }
-
-  test('respond delivers a parley_turn to every other participant, including the caller', () => {
-    const { instance, sent } = inboxParley();
-    const p = instance.call({
-      surface: 'lib/dispatch.ts',
-      reason: 'two agents are changing dispatch semantics',
-      parties: ['agent-a', 'agent-b'],
-      calledBy: 'operator',
-      harbor: 'port-daddy',
-    });
-    sent.length = 0;
-
-    const result = instance.respond({
-      parleyId: p.parleyId,
-      party: 'agent-a',
-      performative: 'propose',
-      content: 'ship A',
-      evidenceRefs: ['docs/adr/0084.md'],
-    });
-
-    expect(result.turn.performative).toBe('propose');
-    expect(result.notified).toEqual(['agent-b', 'operator']);
-    expect(result.notifyFailures).toEqual([]);
-    expect(sent.map((m) => m.agentId)).toEqual(['agent-b', 'operator']);
-    expect(sent[0].options).toMatchObject({ from: 'agent-a', type: 'parley_turn', contentType: 'json' });
-    expect(sent[0].content).toMatchObject({
-      kind: 'parley_turn',
-      parleyId: p.parleyId,
-      surface: 'lib/dispatch.ts',
-      channel: `parley:${p.parleyId}`,
-      party: 'agent-a',
-      performative: 'propose',
-      content: 'ship A',
-      evidenceRefs: ['docs/adr/0084.md'],
-    });
-  });
-
-  test('turn delivery failure is non-fatal: the turn persists and the failure is reported', () => {
-    const { instance } = inboxParley((agentId, _content, options) => (
-      options?.type === 'parley_turn' && agentId === 'agent-b'
-        ? { success: false, error: 'inbox full' }
-        : { success: true }
-    ));
-    const p = instance.call({
+    const opened = instance.call({
       surface: 'lib/dispatch.ts',
       reason: 'overlap',
       parties: ['agent-a', 'agent-b'],
       calledBy: 'operator',
-      harbor: 'port-daddy',
     });
+    target.deliveries.length = 0;
 
     const result = instance.respond({
-      parleyId: p.parleyId,
+      parleyId: opened.parleyId,
+      party: 'agent-a',
+      performative: 'propose',
+      content: 'ship A',
+      evidenceRefs: ['docs/adr/0119.md'],
+    });
+
+    expect(result.notified).toEqual(['agent-b', 'operator']);
+    expect(result.notifyFailures).toEqual([]);
+    expect(target.deliveries.map((message) => message.agentId)).toEqual(['agent-b', 'operator']);
+    expect(target.deliveries[0]).toMatchObject({
+      agentId: 'agent-b',
+      content: {
+        kind: 'parley_turn',
+        parleyId: opened.parleyId,
+        party: 'agent-a',
+        performative: 'propose',
+        evidenceRefs: ['docs/adr/0119.md'],
+      },
+      options: { type: 'parley_turn', from: 'agent-a' },
+    });
+  });
+
+  test('delivery failure never rolls back a committed turn and retries from the outbox', () => {
+    let failAgentB = false;
+    const target = recordingInbox((agentId, _content, options) => {
+      if (failAgentB && options.type === 'parley_turn' && agentId === 'agent-b') {
+        return { success: false, error: 'injected inbox outage' };
+      }
+      return { success: true };
+    });
+    const instance = createParley({
+      db,
+      tenantId: TENANT,
+      defaultHarbor: HARBOR,
+      agentInbox: target,
+      now: () => clock,
+    });
+    const opened = instance.call({
+      surface: 'lib/dispatch.ts',
+      reason: 'overlap',
+      parties: ['agent-a', 'agent-b'],
+      calledBy: 'operator',
+    });
+    failAgentB = true;
+
+    const result = instance.respond({
+      parleyId: opened.parleyId,
       party: 'agent-a',
       performative: 'propose',
       content: 'ship A',
     });
 
     expect(result.notified).toEqual(['operator']);
-    expect(result.notifyFailures).toEqual(['agent-b: inbox full']);
-    expect(instance.get(p.parleyId).turns).toHaveLength(1);
+    expect(result.notifyFailures).toEqual(['agent-b: injected inbox outage']);
+    expect(instance.get(opened.parleyId).turns).toHaveLength(1);
+    expect(count('parley_notification_outbox', ' AND parley_id = ? AND state = ?', [opened.parleyId, 'pending']))
+      .toBe(1);
+
+    failAgentB = false;
+    advance(250);
+    instance.internal.drainNotifications(HARBOR);
+    expect(instance.get(opened.parleyId).turns).toHaveLength(1);
+    expect(count('parley_notification_outbox', ' AND parley_id = ? AND state = ?', [opened.parleyId, 'pending']))
+      .toBe(0);
   });
 });
 
 describe('seen receipts', () => {
-  test('markSeen records a receipt and the summary reports unseen turns per participant', () => {
-    const p = openParley();
-    parley.respond({ parleyId: p.parleyId, party: 'agent-a', performative: 'propose', content: 'ship A' });
-    advance(1000);
-    parley.respond({ parleyId: p.parleyId, party: 'agent-b', performative: 'critique', content: 'A breaks dispatch' });
+  test('summaries report per-participant unseen turns and durable watermarks', () => {
+    const opened = openParley();
+    parley.respond({ parleyId: opened.parleyId, party: 'agent-a', performative: 'propose', content: 'ship A' });
+    advance(1_000);
+    parley.respond({ parleyId: opened.parleyId, party: 'agent-b', performative: 'critique', content: 'A breaks dispatch' });
 
-    let summary = parley.get(p.parleyId);
-    expect(summary.receipts).toEqual([
+    expect(parley.get(opened.parleyId).receipts).toEqual([
       { party: 'agent-a', lastSeenAt: null, unseenTurns: 1 },
       { party: 'agent-b', lastSeenAt: null, unseenTurns: 1 },
       { party: 'operator', lastSeenAt: null, unseenTurns: 2 },
     ]);
 
-    const receipt = parley.markSeen({ parleyId: p.parleyId, party: 'agent-a' });
-    expect(receipt.lastSeenAt).toBe(clock);
+    const receipt = parley.markSeen({ parleyId: opened.parleyId, party: 'agent-a' });
+    expect(receipt).toEqual({ party: 'agent-a', lastSeenAt: clock, unseenTurns: 0 });
+    expect(parley.get(opened.parleyId).receipts.find((item) => item.party === 'operator').unseenTurns)
+      .toBe(2);
+  });
 
-    summary = parley.get(p.parleyId);
-    expect(summary.receipts.find((r) => r.party === 'agent-a')).toEqual({
+  test('a stale turn sequence cannot regress and repeated reads keep one authoritative row', () => {
+    const opened = openParley();
+    parley.respond({
+      parleyId: opened.parleyId,
       party: 'agent-a',
-      lastSeenAt: clock,
-      unseenTurns: 0,
+      performative: 'propose',
+      content: 'first durable turn',
+      idempotencyKey: 'seen-stale:first',
     });
-    expect(summary.receipts.find((r) => r.party === 'operator').unseenTurns).toBe(2);
+    parley.markSeen({ parleyId: opened.parleyId, party: 'agent-a' });
+    advance(1_000);
+    parley.respond({
+      parleyId: opened.parleyId,
+      party: 'agent-b',
+      performative: 'critique',
+      content: 'second durable turn',
+      idempotencyKey: 'seen-stale:second',
+    });
+    parley.markSeen({ parleyId: opened.parleyId, party: 'agent-a' });
+    advance(1_000);
+
+    const stale = parley.markSeen({
+      parleyId: opened.parleyId,
+      party: 'agent-a',
+      throughTurnSequence: 0,
+    });
+    expect(stale.lastSeenAt).toBe(clock - 1_000);
+    expect(count('parley_seen_receipts', ' AND parley_id = ? AND actor_id = ?', [opened.parleyId, 'agent-a']))
+      .toBe(1);
   });
 
-  test('later turns show as unseen until the receipt watermark advances', () => {
-    const p = openParley();
-    parley.respond({ parleyId: p.parleyId, party: 'agent-a', performative: 'propose', content: 'ship A' });
-    parley.markSeen({ parleyId: p.parleyId, party: 'agent-b' });
-    advance(1000);
-    parley.respond({ parleyId: p.parleyId, party: 'agent-a', performative: 'revise', content: 'ship A2' });
+  test('a beyond-frontier turn sequence is rejected and cannot hide a later turn', () => {
+    const opened = openParley();
+    expect(() => parley.markSeen({
+      parleyId: opened.parleyId,
+      party: 'agent-a',
+      throughTurnSequence: 1,
+    })).toThrow(/exceeds durable turn frontier 0/);
 
-    let receipt = parley.get(p.parleyId).receipts.find((r) => r.party === 'agent-b');
-    expect(receipt.unseenTurns).toBe(1);
-
-    parley.markSeen({ parleyId: p.parleyId, party: 'agent-b' });
-    receipt = parley.get(p.parleyId).receipts.find((r) => r.party === 'agent-b');
-    expect(receipt.unseenTurns).toBe(0);
+    advance(1);
+    parley.respond({
+      parleyId: opened.parleyId,
+      party: 'agent-b',
+      performative: 'inform',
+      content: 'this turn must remain visible',
+      idempotencyKey: 'seen-future:later-turn',
+    });
+    expect(parley.get(opened.parleyId).receipts.find((item) => item.party === 'agent-a'))
+      .toEqual({ party: 'agent-a', lastSeenAt: null, unseenTurns: 1 });
   });
 
-  test('repeated markSeen without new turns does not grow the tuple space', () => {
-    const p = openParley();
-    parley.markSeen({ parleyId: p.parleyId, party: 'agent-a' });
-    advance(1000);
-    parley.markSeen({ parleyId: p.parleyId, party: 'agent-a' });
-    advance(1000);
-    const receipt = parley.markSeen({ parleyId: p.parleyId, party: 'agent-a', throughAt: clock - 5000 });
+  test('acknowledging sequence one cannot hide sequence two from the same millisecond', () => {
+    const opened = openParley();
+    const first = parley.respond({
+      parleyId: opened.parleyId,
+      party: 'agent-a',
+      performative: 'propose',
+      content: 'first turn in the shared millisecond',
+      idempotencyKey: 'public-same-ms:first',
+    });
+    const second = parley.respond({
+      parleyId: opened.parleyId,
+      party: 'agent-b',
+      performative: 'critique',
+      content: 'second turn in the shared millisecond',
+      idempotencyKey: 'public-same-ms:second',
+    });
 
-    // Stale watermark never regresses the receipt.
-    expect(receipt.lastSeenAt).toBe(clock - 1000);
-    const rows = tuples.rd(['parley:seen', p.parleyId, 'agent-a', '*'], { harbor: 'port-daddy' });
-    expect(rows.length).toBe(2);
+    expect(first.turn.at).toBe(clock);
+    expect(second.turn.at).toBe(clock);
+    expect(first.turnSequence).toBe(1);
+    expect(second.turnSequence).toBe(2);
+
+    expect(parley.markSeen({
+      parleyId: opened.parleyId,
+      party: 'operator',
+      throughTurnSequence: 1,
+    })).toEqual({ party: 'operator', lastSeenAt: clock, unseenTurns: 1 });
+    expect(parley.get(opened.parleyId).receipts.find((item) => item.party === 'operator'))
+      .toEqual({ party: 'operator', lastSeenAt: clock, unseenTurns: 1 });
   });
 
-  test('markSeen rejects participants that were not summoned', () => {
-    const p = openParley();
-    expect(() => parley.markSeen({ parleyId: p.parleyId, party: 'stranger' })).toThrow(/not part of/);
+  test('timestamp seen watermarks are rejected rather than treated as compatibility input', () => {
+    const opened = openParley();
+    expect(() => parley.markSeen({
+      parleyId: opened.parleyId,
+      party: 'agent-a',
+      throughAt: clock,
+    })).toThrow(/timestamp watermarks are not accepted/);
   });
+
+  test('unknown participants cannot write receipts', () => {
+    const opened = openParley();
+    expect(() => parley.markSeen({ parleyId: opened.parleyId, party: 'stranger' }))
+      .toThrow(/not part of/);
+  });
+});
+
+test('manual call, turn, and receipt paths never write tuple authority', () => {
+  const opened = openParley();
+  parley.respond({
+    parleyId: opened.parleyId,
+    party: 'agent-a',
+    performative: 'propose',
+    content: 'ship A',
+  });
+  parley.markSeen({ parleyId: opened.parleyId, party: 'agent-b' });
+
+  expect(db.prepare(`
+    SELECT COUNT(*) AS count FROM sqlite_master
+    WHERE type = 'table' AND name = 'tuples'
+  `).get()).toEqual({ count: 0 });
+});
+
+test('production Parley authority keeps legacy tuple vocabulary inside the bounded one-way importer', () => {
+  const [parleySource, triggerSource, storeSource] = [
+    new URL('../../lib/parley.ts', import.meta.url),
+    new URL('../../lib/parley-auto-trigger.ts', import.meta.url),
+    new URL('../../lib/parley-store.ts', import.meta.url),
+  ].map((url) => readFileSync(url, 'utf8'));
+  const serverSource = readFileSync(new URL('../../server.ts', import.meta.url), 'utf8');
+  const tupleVocabulary = /parley:(?:opened|summons|turn|outcome|seen|auto)/;
+
+  for (const source of [parleySource, triggerSource, storeSource]) {
+    expect(source).not.toMatch(/from ['"][^'"]*tuples(?:\.js)?['"]/);
+    expect(source).not.toMatch(/\b(?:outOnce|getByIdempotencyKey|takeByIdempotencyKey)\s*\(/);
+  }
+
+  expect(parleySource).not.toMatch(tupleVocabulary);
+  expect(triggerSource).not.toMatch(tupleVocabulary);
+  const begin = '/* LEGACY_PARLEY_TUPLE_IMPORTER_BEGIN */';
+  const end = '/* LEGACY_PARLEY_TUPLE_IMPORTER_END */';
+  const importerSections = [];
+  let cursor = 0;
+  let storeOutsideImporter = '';
+  while (cursor < storeSource.length) {
+    const start = storeSource.indexOf(begin, cursor);
+    if (start === -1) {
+      storeOutsideImporter += storeSource.slice(cursor);
+      break;
+    }
+    storeOutsideImporter += storeSource.slice(cursor, start);
+    const finish = storeSource.indexOf(end, start + begin.length);
+    expect(finish).toBeGreaterThanOrEqual(0);
+    importerSections.push(storeSource.slice(start, finish + end.length));
+    cursor = finish + end.length;
+  }
+  expect(importerSections).toHaveLength(2);
+  const importerSource = importerSections.join('\n');
+  expect(importerSource).toMatch(tupleVocabulary);
+  expect(importerSource).not.toMatch(/\b(?:INSERT\s+INTO|UPDATE|DELETE\s+FROM|ALTER\s+TABLE|DROP\s+TABLE)\s+tuples\b/i);
+  // This negative assertion rejects a new tuple read/write or fallback path
+  // outside the explicitly bounded, receipt-gated importer.
+  expect(storeOutsideImporter).not.toMatch(tupleVocabulary);
+
+  expect(serverSource).toMatch(/const parleyStore = createParleyStore\(\{ db, tenantId: 'local-daemon' \}\);/);
+  expect(serverSource).toMatch(/createParley\(\{\s*store: parleyStore,/);
+  expect((serverSource.match(/createParleyStore\(/g) ?? [])).toHaveLength(1);
+  expect(serverSource).not.toMatch(/createParley\(\{\s*db,/);
+  expect(serverSource).not.toMatch(/createParley\(\{[^}]*\btuples\b/s);
+
 });

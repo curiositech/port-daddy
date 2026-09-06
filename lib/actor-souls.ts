@@ -34,7 +34,7 @@
  * operator owns**, NOT a hostile human operator. This module is calibrated to
  * that bar and no higher:
  *
- *   - ABOVE the newcomer floor (any ceiling > NEWCOMER_*): admission REQUIRES a
+ *   - ABOVE the shared newcomer-spend ceiling: execution REQUIRES a
  *     credentialed, graduated soul (or operator-trusted). No soul ⇒ REJECT. This
  *     is genuine fail-closed — enforced at the spend choke in budget-guard.
  *   - AT/BELOW the floor: an uncredentialed registration is ADMITTED as a
@@ -55,6 +55,7 @@ import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
+import { isReservedIdentityName } from './reserved-identity-names.js';
 
 // ─── Branded principal type (ADR-0040 §8 widening boundary) ─────────────────────
 // A minted ULID *or* a migrated legacy string satisfies this via asActorId().
@@ -71,8 +72,6 @@ export interface ActorSoulsConfig {
   graduationThreshold?: number;
   /** Project-wide daily USD cap shared by ALL uncredentialed newcomers. */
   newcomerPoolCeilingUsd?: number;
-  /** Distinct newcomer souls admitted per project per day before 429. */
-  newcomerAdmitMax?: number;
   /**
    * Operator-trusted secret. Test/embed override. When omitted the module reads
    * ~/.port-daddy/operator.secret (0600). HONEST LIMIT: a same-UID agent can read
@@ -109,7 +108,7 @@ export type RegisterOutcome =
   | { ok: true; status: 'resolved';   actorId: ActorId; soulClass: SoulClass }              // valid credential ⇒ same id
   | { ok: true; status: 'minted';     actorId: ActorId; soulClass: SoulClass; credential: string }
   | { ok: false; status: 'rejected';  code: 'CREDENTIAL_INVALID'; httpStatus: 401 }
-  | { ok: false; status: 'rejected';  code: 'NEWCOMER_ADMIT_LIMIT'; httpStatus: 429 }
+  | { ok: false; status: 'rejected';  code: 'RESERVED_ALIAS'; httpStatus: 403 }
   | { ok: false; status: 'rejected';  code: 'STORE_UNAVAILABLE'; httpStatus: 503 };
 
 export interface ResolvedActor {
@@ -171,7 +170,6 @@ export function createActorSouls(db: Database, config: ActorSoulsConfig = {}) {
   const defaultHarbor = config.defaultHarbor ?? 'local';
   const graduationThreshold = Math.max(1, config.graduationThreshold ?? 3);
   const newcomerPoolCeilingUsd = Math.max(0, config.newcomerPoolCeilingUsd ?? 1.0);
-  const newcomerAdmitMax = Math.max(1, config.newcomerAdmitMax ?? 25);
   const now = config.now ?? Date.now;
 
   const runDDL = (sql: string): void => { db.prepare(sql).run(); };
@@ -206,6 +204,8 @@ export function createActorSouls(db: Database, config: ActorSoulsConfig = {}) {
     )
   `);
   // Shared newcomer budget pool — the anti-launder core (metered by budget-guard).
+  // `souls_seen` remains in the local schema so existing daemon databases retain
+  // their rows unchanged; it is no longer an admission signal.
   runDDL(`
     CREATE TABLE IF NOT EXISTS newcomer_pool (
       project    TEXT NOT NULL,
@@ -244,17 +244,12 @@ export function createActorSouls(db: Database, config: ActorSoulsConfig = {}) {
     ON CONFLICT(harbor, alias) DO NOTHING
   `);
   const selectPool = db.prepare(`
-    SELECT spend_usd, souls_seen FROM newcomer_pool WHERE project = ? AND day = ?
+    SELECT spend_usd FROM newcomer_pool WHERE project = ? AND day = ?
   `);
   const bumpPoolSpend = db.prepare(`
-    INSERT INTO newcomer_pool (project, day, spend_usd, souls_seen)
-    VALUES (?, ?, ?, 0)
+    INSERT INTO newcomer_pool (project, day, spend_usd)
+    VALUES (?, ?, ?)
     ON CONFLICT(project, day) DO UPDATE SET spend_usd = spend_usd + excluded.spend_usd
-  `);
-  const bumpPoolSouls = db.prepare(`
-    INSERT INTO newcomer_pool (project, day, spend_usd, souls_seen)
-    VALUES (?, ?, 0, 1)
-    ON CONFLICT(project, day) DO UPDATE SET souls_seen = souls_seen + 1
   `);
 
   function rowToSoul(row: any): ActorSoulRow {
@@ -376,9 +371,9 @@ export function createActorSouls(db: Database, config: ActorSoulsConfig = {}) {
   }
 
   // ─── Newcomer pool accessors (metered by budget-guard's spend choke) ──────────
-  function poolState(project: string, day: string): { spendUsd: number; soulsSeen: number } {
-    const row = selectPool.get(project, day) as { spend_usd: number; souls_seen: number } | undefined;
-    return row ? { spendUsd: row.spend_usd, soulsSeen: row.souls_seen } : { spendUsd: 0, soulsSeen: 0 };
+  function poolState(project: string, day: string): { spendUsd: number } {
+    const row = selectPool.get(project, day) as { spend_usd: number } | undefined;
+    return row ? { spendUsd: row.spend_usd } : { spendUsd: 0 };
   }
   function chargePool(project: string, day: string, usd: number): number {
     const amount = Number.isFinite(usd) ? Math.max(0, usd) : 0;
@@ -395,10 +390,6 @@ export function createActorSouls(db: Database, config: ActorSoulsConfig = {}) {
     alias?: string | null;
     credential?: string | null;
     operatorToken?: string | null;
-    /** For the admit rate-limit — the project the newcomer will spend against. */
-    project?: string;
-    /** UTC day bucket for the admit rate-limit. */
-    day?: string;
   }): RegisterOutcome {
     const harbor = params.harbor ?? defaultHarbor;
     const ts = now();
@@ -409,6 +400,20 @@ export function createActorSouls(db: Database, config: ActorSoulsConfig = {}) {
         const actorId = verifyCredential(params.credential, harbor);
         if (!actorId) {
           return { ok: false, status: 'rejected', code: 'CREDENTIAL_INVALID', httpStatus: 401 };
+        }
+        // Reserved-alias guard (#8877): a valid soul-secret is still a
+        // SELF-SERVICE principal. It may re-bind a reserved authority alias
+        // (`system`, `coxswain`, …) ONLY when it is an operator-trusted soul,
+        // or already owns that exact alias (an operator provisioned it once).
+        // Otherwise this door is a laundering bypass for /sugar/begin's guard:
+        // bind `system → me`, then begin under agentId "system" passes because
+        // resolveActor("system") now points at the caller's own soul.
+        if (params.alias && isReservedIdentityName(params.alias)) {
+          const isOperator = classify(actorId, harbor) === 'operator';
+          const alreadyOwns = resolveAlias(params.alias, harbor) === actorId;
+          if (!isOperator && !alreadyOwns) {
+            return { ok: false, status: 'rejected', code: 'RESERVED_ALIAS', httpStatus: 403 };
+          }
         }
         touchSoul.run(ts, params.alias ?? null, harbor, actorId);
         if (params.alias) upsertAlias.run(harbor, params.alias, actorId, ts);
@@ -429,18 +434,17 @@ export function createActorSouls(db: Database, config: ActorSoulsConfig = {}) {
       //    NEW newcomer (F2 impersonation guard). So we intentionally do NOT look
       //    the alias up here; every uncredentialed registration mints fresh.
 
-      // 3a. Admission rate-limit: bound distinct newcomer souls per project/day.
-      const project = params.project?.trim();
-      if (project) {
-        const day = params.day ?? new Date(ts).toISOString().slice(0, 10);
-        const { soulsSeen } = poolState(project, day);
-        if (soulsSeen >= newcomerAdmitMax) {
-          return { ok: false, status: 'rejected', code: 'NEWCOMER_ADMIT_LIMIT', httpStatus: 429 };
-        }
-        bumpPoolSouls.run(project, day);
+      // Reserved-alias guard (#8877): an uncredentialed caller is pure
+      // self-service and may NEVER bind a reserved authority alias. Refuse
+      // BEFORE minting — otherwise this door
+      // provisions `system → attacker`, poisoning /sugar/begin's guard.
+      if (params.alias && isReservedIdentityName(params.alias)) {
+        return { ok: false, status: 'rejected', code: 'RESERVED_ALIAS', httpStatus: 403 };
       }
 
-      // 3b. Mint a fresh newcomer soul; issue a credential ONCE.
+      // 3a. Mint a fresh newcomer soul; issue a credential ONCE. Identity
+      // count is not an authority or spend control: credential/provenance
+      // checks protect writes, and budget-guard enforces the shared spend cap.
       const minted = mint({ harbor, alias: params.alias ?? null, credentialKind: 'soul-secret' });
       return { ok: true, status: 'minted', actorId: minted.actorId, soulClass: 'newcomer', credential: minted.credential };
     } catch {
@@ -475,7 +479,6 @@ export function createActorSouls(db: Database, config: ActorSoulsConfig = {}) {
       defaultHarbor,
       graduationThreshold,
       newcomerPoolCeilingUsd,
-      newcomerAdmitMax,
     },
   };
 }

@@ -19,6 +19,15 @@ const SOURCE = readFileSync(STARTER_PATH, 'utf-8');
 // ─── parseFleetSource ─────────────────────────────────────────────────────────
 
 describe('parseFleetSource', () => {
+  test('parses the Jury-rig fleet opt-in and rejects removed skill-graft keys with guidance', () => {
+    const current = astToConfig(parseFleetSource(`name: test\nagents:\n  - name: current\n    task: test\n    jury_rig: true\n`));
+    expect(current.agents[0].juryRig).toBe(true);
+    for (const removedKey of ['skill_graft', 'skillGraft']) {
+      expect(() => parseFleetSource(`name: test\nagents:\n  - name: removed\n    task: test\n    ${removedKey}: true\n`))
+        .toThrow(`uses removed field "${removedKey}"; use "jury_rig" instead`);
+    }
+  });
+
   it('returns null for empty source', () => {
     expect(parseFleetSource('')).toBeNull();
     expect(parseFleetSource('   \n\t  ')).toBeNull();
@@ -251,5 +260,44 @@ describe('astToConfig', () => {
 
   it('no limits on the starter template', () => {
     expect(config.limits).toBeUndefined();
+  });
+
+  it('keeps disabled declarations inspectable in the AST but out of runtime config', () => {
+    const disabledSource = `
+fleet:
+  name: disabled-gate
+  agents:
+    dark:
+      enabled: false
+      schedule: "0 1 * * *"
+      backend: custom
+      prompt: "must never run"
+    armed:
+      enabled: true
+      trigger: git:committed
+      backend: claude-cli
+      prompt: "review"
+`;
+    const disabledAst = parseFleetSource(disabledSource);
+
+    expect(disabledAst.agents.get('dark').enabled?.value).toBe(false);
+    expect(disabledAst.agents.get('armed').enabled?.value).toBe(true);
+    expect(astToConfig(disabledAst).agents.map(agent => agent.name)).toEqual(['armed']);
+  });
+
+  it('fails closed when an enabled declaration is present but not boolean', () => {
+    const malformedAst = parseFleetSource(`
+fleet:
+  name: malformed-gate
+  agents:
+    dark:
+      enabled: "false"
+      schedule: "0 1 * * *"
+      backend: custom
+      prompt: "must never run"
+`);
+
+    expect(malformedAst.agents.get('dark').enabled?.value).toBe(false);
+    expect(astToConfig(malformedAst).agents).toEqual([]);
   });
 });

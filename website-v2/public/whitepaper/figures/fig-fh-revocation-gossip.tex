@@ -1,110 +1,51 @@
-% Federated revocation gossip — three harbors, an issuer revoke event,
-% propagation timeline with the cross-witness audit hook.
-
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D8C7A6}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhcobalt}{HTML}{003FB8}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-
+% Figure IV.9 --- staleness is an area in time-by-authority space.
 \begin{figure}[H]
 \centering
-\resizebox{0.95\textwidth}{!}{%
-\begin{tikzpicture}[
-  font=\sffamily\small,
-  harbor/.style={draw=hhebony,thick,rounded corners=3pt,
-                 fill=hhsand!50,inner sep=4pt,minimum width=20mm,
-                 minimum height=12mm,align=center,
-                 font=\sffamily\bfseries\small},
-  harborrev/.style={harbor,fill=hhcobalt!22},
-  filter/.style={draw=hhebony,thick,fill=hhpaper,rounded corners=2pt,
-                 inner sep=2pt,minimum width=20mm,minimum height=7mm,
-                 align=center,font=\sffamily\scriptsize},
-  filterrev/.style={filter,draw=hhcobalt,fill=hhcobalt!12},
-  note/.style={font=\sffamily\scriptsize\itshape,text width=24mm,align=center},
-  witnesslog/.style={draw=hhteal,very thick,fill=hhpaper,
-                     rounded corners=3pt,inner sep=3pt,
-                     minimum width=92mm,minimum height=10mm,
-                     align=center,font=\sffamily\bfseries\small},
-  edge/.style={->,>=Latex,thick,draw=hhebony},
-  gossip/.style={->,>=Latex,thick,draw=hhteal,dashed},
-  publish/.style={->,>=Latex,semithick,draw=hhamber},
-  glab/.style={font=\sffamily\scriptsize\itshape,fill=hhpaper,inner sep=1pt},
-  tlabel/.style={font=\sffamily\bfseries\small,text=hhebony},
-]
+\resizebox{0.93\textwidth}{!}{%
+\begin{tikzpicture}[pd figure]
+  \node[pd panel title,anchor=west] at (-6.4,3.0)
+    {the spendable revocation window is the amber area};
+  \node[pd axis label,anchor=east] at (-5.15,1.45) {Harbor A};
+  \node[pd axis label,anchor=east] at (-5.15,.20) {Harbor B};
+  \node[pd axis label,anchor=east] at (-5.15,-1.05) {Harbor C};
 
-% Column x-positions and row y-positions (rows generously spaced so the
-% per-cell notes never reach into the row below).
-\def\cx{0}   \def\cy{6}   \def\cz{12}
-\def\rA{-3.4} \def\rB{-7.4} \def\rC{-11.4}
+  % Stale-to-synchronized state bands.
+  \fill[hhteal!13] (-4.80,1.00) rectangle (6.00,1.90);
+  \fill[hhamber!16] (-4.80,-.25) rectangle (-1.20,.65);
+  \fill[hhteal!13] (-1.20,-.25) rectangle (6.00,.65);
+  \fill[hhamber!16] (-4.80,-1.50) rectangle (1.95,-.60);
+  \fill[hhteal!13] (1.95,-1.50) rectangle (6.00,-.60);
+  \foreach \y in {1.00,1.90,-.25,.65,-1.50,-.60}
+    \draw[pd hairline] (-4.80,\y)--(6.00,\y);
 
-% ─── Timeline labels at the top ──────────────────────────────────
-\node[tlabel] at (0,0.4)  {$t = 0$};
-\node[tlabel] at (6,0.4)  {$t = \Delta$};
-\node[tlabel] at (12,0.4) {$t = 2\Delta$};
+  \draw[pd focus rule,line width=1.4pt]
+    (-4.80,1.00)--(-4.80,.65)--(-1.20,.65)--(-1.20,-.60)--(1.95,-.60)--(1.95,-1.50);
+  \node[pd direct label,text=hhteal,anchor=west] at (2.20,-1.05) {refuse locally};
+  \node[pd direct label,text=hhamber,anchor=west] at (-4.45,-1.05) {stale verifier};
 
-% ─── Witness log spanning the whole timeline ─────────────────────
-\node[witnesslog,minimum width=80mm] (W) at (6,-1.4) {Federated Witness Log\\[1pt]\footnotesize\mdseries(roots published on each epoch boundary)};
+  \foreach \x/\lab in {-4.80/$0$,-1.20/$\Delta$,1.95/$2\Delta$,5.20/$3\Delta$}
+    {\draw[pd guide] (\x,-1.72)--(\x,2.15);
+     \node[pd axis label,anchor=north] at (\x,-1.88) {\lab};}
+  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (-4.90,-1.72)--(6.20,-1.72);
+  \node[pd axis label,anchor=west] at (6.30,-1.72) {time};
 
-% ─── Row A : issuer, revokes at t=0, then steady ─────────────────
-\node[harborrev] (A0) at (\cx,\rA) {Harbor $A$};
-\node[filterrev,below=2pt of A0] (FA0) {$c \in F_A$};
-\node[note,below=2pt of FA0] {operator revokes $c$};
-\node[harborrev] (A1) at (\cy,\rA) {Harbor $A$}; \node[filterrev,below=2pt of A1] {$c \in F_A$};
-\node[harborrev] (A2) at (\cz,\rA) {Harbor $A$}; \node[filterrev,below=2pt of A2] {$c \in F_A$};
-
-% ─── Row B : hears at t=Δ ────────────────────────────────────────
-\node[harbor] (B0) at (\cx,\rB) {Harbor $B$};
-\node[filter,below=2pt of B0] (FB0) {$c \notin F_B$};
-\node[note,below=2pt of FB0] {stale (\emph{vulnerable})};
-\node[harborrev] (B1) at (\cy,\rB) {Harbor $B$}; \node[filterrev,below=2pt of B1] {$c \in F_B$};
-\node[harborrev] (B2) at (\cz,\rB) {Harbor $B$}; \node[filterrev,below=2pt of B2] {$c \in F_B$};
-
-% ─── Row C : hears at t=2Δ ───────────────────────────────────────
-\node[harbor] (C0) at (\cx,\rC) {Harbor $C$};
-\node[filter,below=2pt of C0] (FC0) {$c \notin F_C$};
-\node[note,below=2pt of FC0] {stale (\emph{vulnerable})};
-\node[harbor] (C1) at (\cy,\rC) {Harbor $C$};
-\node[filter,below=2pt of C1] (FC1) {$c \notin F_C$};
-\node[note,below=2pt of FC1] {still stale};
-\node[harborrev] (C2) at (\cz,\rC) {Harbor $C$}; \node[filterrev,below=2pt of C2] (FC2) {$c \in F_C$};
-\node[note,below=2pt of FC2,text=hhteal] {auditor can compare\\co-located roots};
-
-% ─── Gossip (anti-entropy) hops: A→B at t=Δ, B→C at t=2Δ ──────────
-\draw[gossip] (A0.east) to[bend left=8]
-  node[glab,pos=0.5]{anti-entropy} (B1.west);
-\draw[gossip] (B1.east) to[bend left=8]
-  node[glab,pos=0.5]{anti-entropy} (C2.west);
-
-% ─── Publish-to-witness arrows, routed up the inter-column gutters ─
-\draw[publish] (A0.north) to[bend right=8]
-  node[glab,pos=0.55]{$R_A^{(e+1)}$} (W.west);
-\draw[publish] (B1.north) to[out=80,in=255]
-  node[glab,pos=0.6]{$R_B^{(e+1)}$} ($(W.south)+(-0.2,0)$);
-\draw[publish] (C2.north) to[out=85,in=285]
-  node[glab,pos=0.62]{$R_C^{(e+1)}$} (W.east);
-
-% ─── Bottom band: convergence claim ───────────────────────────────
-\node[draw=hhebony,thick,fill=hhpaper,rounded corners=3pt,inner sep=6pt,
-      minimum width=140mm,align=center,font=\sffamily\footnotesize]
-      at (6,-14.1) {%
-  \textbf{Conditional convergence:}
-  in a connected reliable-round overlay with randomized fan-out, epidemic
-  spread is expected $\Theta(\log m)$ rounds. An unbounded partition admits
-  no finite deadline. Contradictory roots become locally checkable once the
-  two signed values reach the same auditor.};
-
-\end{tikzpicture}%
-}
-\caption{Federated revocation propagation across three harbors. The cuckoo
-filter mechanism is unchanged from Anchor~\S2.4 of the
-companion paper, but two new pieces are bolted on: (a) per-epoch roots
-$R_X^{(e)}$ published to a shared witness log so a third party can audit any
-harbor's local view, and (b) cross-witness signatures so the auditor pattern
-generalizes Certificate Transparency~\cite{laurie2013ct}. The illustrated
-$\Delta$-spaced hops are one execution, not a universal deadline: availability
-depends on overlay connectivity and delivery assumptions.}
+  \node[pd focus datum] at (-4.80,2.35) {};
+  \node[pd focus datum] at (-1.20,2.35) {};
+  \node[pd focus datum] at (1.95,2.35) {};
+  \draw[pd focus rule] (-4.80,2.35)--(1.95,2.35);
+  \node[pd note,text=hhteal,anchor=west] at (2.20,2.35)
+    {signed epoch roots make the illustrated history auditable};
+  \draw[pd caution rule,<->] (-4.65,-2.45)--(1.80,-2.45);
+  \node[pd note,text=hhamber] at (-1.42,-2.72)
+    {exposure lasts until the local authority receives the revocation};
+\end{tikzpicture}}
+\caption{\textbf{Revocation propagation is a moving staleness frontier.}
+Alice refuses immediately; B remains stale until $\Delta$ and C until
+$2\Delta$ in this illustrated execution. The amber area is precisely where a
+revoked capability can still be admitted by the named local authority. The teal
+staircase marks synchronization, not a global clock. Expected
+$\Theta(\log m)$ dissemination requires connected reliable rounds; a partition
+can extend the amber area without bound and therefore destroys any finite
+deadline.}
 \label{fig:fh-revocation}
 \end{figure}

@@ -3,8 +3,15 @@ name: CI
 on:
   push:
     branches: [main]
+  # No `branches:` filter here on purpose: the purser stacks test PRs onto
+  # other PRs (test-pr -> reviewed-pr -> ... -> main), so most open PRs at any
+  # given time have a non-main base. A `branches: [main]` filter meant only the
+  # bottom of each stack ever got real `npm test`/`tsc` signal — every PR above
+  # it merged through Fleetbot's presence check and nothing else. Run on every
+  # pull_request event regardless of base so the whole stack gets tested against
+  # its own head, and so the purser's adversarial tests are a REAL merge gate on
+  # the PR they were written for rather than an advisory comment.
   pull_request:
-    branches: [main]
   # Merge queue: GitHub builds a temporary branch (latest main + queued PRs)
   # and requires every required check to report on it before merging.
   merge_group:
@@ -68,6 +75,60 @@ jobs:
         run: git fetch --no-tags origin main:refs/remotes/origin/main
       - name: Doc-citation guard (cited repo paths in changed docs must exist)
         run: node scripts/check-doc-citations.mjs
+      - name: Doc-retirement guard (retired docs stay bannered, banners stay registered)
+        # Whole-corpus, not changed-files: the failure this catches is a retired
+        # plan drifting back to reading as current, and the edit that does that
+        # need not touch the manifest. Cheap — it walks markdown and YAML only.
+        run: node scripts/doc-retirement-guard.mjs
+
+  porthole-cast-gate:
+    # Cheap, blocking companion to website-terminal-recordings' raw-text regex
+    # scan: replays every committed website-v2/public/casts/porthole/*.cast
+    # through the SAME VT interpreter the browser player uses
+    # (website-v2/src/lib/porthole/vt.ts) and scans the DECODED transcript.
+    # This closes the exact blind spot AUDIT-2026-08-18.md names for the old
+    # gate: a typed command is char-split across many separate asciicast "o"
+    # events, so a path/secret regex scanning raw file text can miss a leak
+    # that the same regex catches instantly once the bytes are reconstructed
+    # into the line a viewer would actually see. No daemon, no recorder
+    # toolchain — pure static replay of files already in the tree, so this
+    # runs in seconds and does not depend on website-terminal-recordings'
+    # multi-minute pipeline (it can be red or skipped without blocking this).
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.recordings == 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install locked Porthole gate dependencies
+        run: npm ci --prefix website-v2 --ignore-scripts
+      - name: Replay every porthole cast and scan the decoded transcript
+        run: npm --prefix website-v2 run test:porthole
+
+  changelog-guard:
+    # CHANGELOG.md's [Unreleased] section is ASSEMBLED from one file per PR under
+    # changelog.d/ (see changelog.d/README.md). This guard validates that every
+    # fragment parses and is shaped correctly, so a malformed fragment is caught on
+    # the PR that adds it rather than at release time, where the release train would
+    # refuse to stamp and the release would stall.
+    #
+    # This is the FORMAT half only. The "did this PR add a fragment at all" half is
+    # rule (4) of scripts/check-pr-requirements.mjs, which lives in
+    # pr-requirements.yml because it needs the PR body (for the changelog-exempt
+    # marker) and the `edited` trigger. This job needs neither, so it also runs on
+    # merge-queue heads and pushes to main where there is no PR body.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Changelog fragment guard (every changelog.d/ fragment must parse)
+        run: node scripts/assemble-changelog.mjs --check
 
   # NOTE: the PR-description / visual-artifact gate (pr-requirements-guard) lives in
   # its own workflow, .github/workflows/pr-requirements.yml, so it can also re-run on
@@ -91,6 +152,8 @@ jobs:
       recordings: ${{ steps.filter.outputs.recordings }}
       fleetbar: ${{ steps.filter.outputs.fleetbar }}
       console: ${{ steps.filter.outputs.console }}
+      pd-ios: ${{ steps.filter.outputs.pd-ios }}
+      porthole-stage: ${{ steps.filter.outputs.porthole-stage }}
     steps:
       - id: filter
         env:
@@ -100,17 +163,25 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           if [ "$EVENT_NAME" != "pull_request" ]; then
-            echo "recordings=true" >> "$GITHUB_OUTPUT"
-            echo "fleetbar=true" >> "$GITHUB_OUTPUT"
-            echo "console=true" >> "$GITHUB_OUTPUT"
+            {
+              echo "recordings=true"
+              echo "fleetbar=true"
+              echo "console=true"
+              echo "pd-ios=true"
+              echo "porthole-stage=true"
+            } >> "$GITHUB_OUTPUT"
             exit 0
           fi
           # Fail safe: if the files API errors (outage, rate limit), run the
           # gated jobs rather than silently skipping a required gate.
           if ! changed="$(gh api "repos/${REPO}/pulls/${PR_NUMBER}/files" --paginate --jq '.[].filename')"; then
-            echo "recordings=true" >> "$GITHUB_OUTPUT"
-            echo "fleetbar=true" >> "$GITHUB_OUTPUT"
-            echo "console=true" >> "$GITHUB_OUTPUT"
+            {
+              echo "recordings=true"
+              echo "fleetbar=true"
+              echo "console=true"
+              echo "pd-ios=true"
+              echo "porthole-stage=true"
+            } >> "$GITHUB_OUTPUT"
             exit 0
           fi
           if printf '%s\n' "$changed" | grep -qE '^(website-v2/|bin/|cli/|lib/|scripts/|server\.ts$|package(-lock)?\.json$|\.github/workflows/ci\.yml$)'; then
@@ -133,6 +204,29 @@ jobs:
             echo "console=true" >> "$GITHUB_OUTPUT"
           else
             echo "console=false" >> "$GITHUB_OUTPUT"
+          fi
+          # pd-ios (the SwiftUI operator app) depends on its own sources AND on
+          # everything it holds a hand-written port of: lib/maritime-signals.ts,
+          # the control-command contract fixture, and the relay's interruptions
+          # shape (publicShape() plus the operator_interruptions column types,
+          # which live in the feature migration and the relay baseline). Editing
+          # any of those without regenerating the iOS parity fixtures is exactly
+          # the drift this gate catches, so they trigger it. In particular a
+          # relay-only PR that retypes a column must run this job — the shape
+          # mismatch it would otherwise introduce is invisible on the relay side.
+          # ci.yml changes re-run it so the gate can be edited under test.
+          if printf '%s\n' "$changed" | grep -qE '^(apps/pd-ios/|scripts/generate-pd-ios-fixtures\.ts$|lib/maritime(-signals)?\.ts$|skills/agent-control-command-contract/examples/sample-input\.json$|apps/relay/src/interruptions\.ts$|apps/relay/migrations/(2026-08-04-operator-interruptions|2026-08-08-relay-baseline)\.sql$|\.github/workflows/ci\.yml$)'; then
+            echo "pd-ios=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "pd-ios=false" >> "$GITHUB_OUTPUT"
+          fi
+          # Native Porthole Stage is a self-contained SwiftPM package plus its
+          # strict ad-hoc CI packager. Merge-group and API-error runs fail safe
+          # to true above, while unrelated pull requests avoid a macOS runner.
+          if printf '%s\n' "$changed" | grep -qE '^(apps/porthole-stage-capture/|\.github/workflows/ci\.yml$)'; then
+            echo "porthole-stage=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "porthole-stage=false" >> "$GITHUB_OUTPUT"
           fi
 
   # PR-blocking unit tests: only the node-22 legs (the required checks). The
@@ -166,13 +260,21 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci || (echo "npm ci failed (often onnxruntime-node fetching its native binary); retrying once in 30s" && sleep 30 && npm ci)
 
       - name: Type check
         run: npx tsc --noEmit
 
       - name: Run unit tests
-        run: node --experimental-vm-modules node_modules/jest/bin/jest.js --selectProjects unit
+        # `purser` is selected explicitly alongside `unit`: --selectProjects is an
+        # allowlist, so a new jest project is invisible here until it is named.
+        # That is how tests/purser/ stayed inert — see tests/unit/purser-routing.test.js.
+        run: node --experimental-vm-modules node_modules/jest/bin/jest.js --selectProjects unit purser
+
+      - name: Run purser adversarial tests (node:test set)
+        # Routed per-file by tests/purser/ROUTING.json; the jest-shaped ones ran
+        # in the step above, these target node:test.
+        run: npm run test:purser
 
       - name: Daemon backend transcript E2E (hermetic CLI fallback)
         # BIG BROKEN E2E for the launchd-path/stale-Claude-override regression.
@@ -215,12 +317,18 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci || (echo "npm ci failed (often onnxruntime-node fetching its native binary); retrying once in 30s" && sleep 30 && npm ci)
 
       - name: Type check
         run: npx tsc --noEmit
 
       - name: Run unit tests
+        # Two consecutive required macOS jobs exhausted V8's ~2 GiB default
+        # heap after nearly five minutes of otherwise-passing tests. Keep the
+        # larger budget scoped to Jest so setup-node and every other step retain
+        # their normal process limits.
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
         run: node --experimental-vm-modules node_modules/jest/bin/jest.js --selectProjects unit
 
       - name: Test CLI tools
@@ -256,12 +364,24 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci || (echo "npm ci failed (often onnxruntime-node fetching its native binary); retrying once in 30s" && sleep 30 && npm ci)
 
       - name: Type check
         run: npx tsc --noEmit
 
       - name: Run unit tests
+        if: runner.os != 'macOS'
+        run: node --experimental-vm-modules node_modules/jest/bin/jest.js --selectProjects unit
+
+      - name: Run unit tests (macOS 4 GiB heap)
+        if: runner.os == 'macOS'
+        # Both recent main-branch Node 24 macOS runs reached V8's default
+        # ~2 GiB heap after more than five minutes of otherwise-passing tests.
+        # Keep the larger budget on the Jest process only, matching the
+        # required macOS Node 22 job above; setup, install, and typecheck retain
+        # their normal limits, and Linux keeps the original command unchanged.
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
         run: node --experimental-vm-modules node_modules/jest/bin/jest.js --selectProjects unit
 
   integration-tests:
@@ -279,7 +399,7 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci || (echo "npm ci failed (often onnxruntime-node fetching its native binary); retrying once in 30s" && sleep 30 && npm ci)
 
       - name: Run integration tests
         run: node --experimental-vm-modules node_modules/jest/bin/jest.js --selectProjects integration
@@ -305,7 +425,7 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci || (echo "npm ci failed (often onnxruntime-node fetching its native binary); retrying once in 30s" && sleep 30 && npm ci)
 
       - name: Use Bun
         uses: oven-sh/setup-bun@v2
@@ -444,7 +564,7 @@ jobs:
           cache-dependency-path: fleet-config-ui/package-lock.json
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci || (echo "npm ci failed (often onnxruntime-node fetching its native binary); retrying once in 30s" && sleep 30 && npm ci)
 
       - name: Type check (tsc -b — app + node + test projects)
         run: npm run typecheck
@@ -511,7 +631,7 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci || (echo "npm ci failed (often onnxruntime-node fetching its native binary); retrying once in 30s" && sleep 30 && npm ci)
 
       - name: Use Bun
         uses: oven-sh/setup-bun@v2
@@ -629,11 +749,34 @@ jobs:
 
       - name: Install Rust toolchain (stable)
         uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
 
       - name: Cache Rust build artefacts
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: core/kernel
+
+      # fmt/clippy widening (grand-plan node fmt-clippy-widening — ADR-0120's
+      # "mechanical cleanup PR"): pd-anchor is the canonical macaroon discharge
+      # gate, so it gets the same strict-lint treatment rust-harbor-card
+      # pioneered. Scoped to -p pd-anchor on purpose; the sibling kernel crates
+      # join as their sweeps land.
+      - name: cargo fmt --check (pd-anchor)
+        run: cargo fmt -p pd-anchor -- --check
+
+      - name: cargo clippy (pd-anchor)
+        run: cargo clippy -p pd-anchor --all-targets -- -D warnings
+
+      # pd-vault holds harbor key material and the sealed-payload AEAD, so it
+      # joins the strict-lint set from its first commit rather than waiting for a
+      # later sweep — an unlinted crypto crate is the one place the "sibling
+      # crates join as their sweeps land" caveat should not apply.
+      - name: cargo fmt --check (pd-vault)
+        run: cargo fmt -p pd-vault -- --check
+
+      - name: cargo clippy (pd-vault)
+        run: cargo clippy -p pd-vault --all-targets -- -D warnings
 
       - name: cargo check
         run: cargo check --workspace
@@ -660,11 +803,24 @@ jobs:
 
       - name: Install Rust toolchain (stable)
         uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
 
       - name: Cache Rust build artefacts
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: core
+
+      # fmt/clippy widening (grand-plan node fmt-clippy-widening — ADR-0120's
+      # "mechanical cleanup PR"): a TCB slice that mints credentials should not
+      # carry clippy debt. Scoped to -p pd-broker; pd-console's burn-down is a
+      # deliberate follow-up (~40k LOC of GPU code, and an agent is active in
+      # that crate).
+      - name: cargo fmt --check (pd-broker)
+        run: cargo fmt -p pd-broker -- --check
+
+      - name: cargo clippy (pd-broker)
+        run: cargo clippy -p pd-broker --all-targets -- -D warnings
 
       - name: cargo test pd-broker (TCB behavior + DoS isolation + framing)
         run: cargo test -p pd-broker
@@ -735,12 +891,43 @@ jobs:
           cache-dependency-path: apps/relay/package-lock.json
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci || (echo "npm ci failed (often onnxruntime-node fetching its native binary); retrying once in 30s" && sleep 30 && npm ci)
 
       - name: Type check (tsc --noEmit)
         run: npx tsc --noEmit
 
       - name: vitest (incl. hv:2 harbor-card parity fixture ⇄ core/harbor-card-rs)
+        run: npx vitest run
+
+  steward-tests:
+    # apps/steward is the Steward's seat (ADR-0109; docs/plans/THE_FULL_WHEEL.md
+    # P1) — a Cloudflare Worker with its own tsconfig graph and vitest suite
+    # that root jest never compiles or runs. Always-run rather than path-gated
+    # for the same reason relay-tests is: the suite is seconds long, and the
+    # merge-authority scaffold going red only on its own deploy path would be
+    # theater. Wired into ci-gate's needs like every other enforced job.
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/steward
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: apps/steward/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci || (echo "npm ci failed (often onnxruntime-node fetching its native binary); retrying once in 30s" && sleep 30 && npm ci)
+
+      - name: Type check (tsc --noEmit)
+        run: npx tsc --noEmit
+
+      - name: vitest (seat identity, wake inbox, deck-log discipline, ledgers)
         run: npx vitest run
 
   fleetbar:
@@ -773,6 +960,351 @@ jobs:
       - name: Test FleetBar
         run: swift test
 
+  porthole-stage:
+    # Compile and test the exact-window Stage, then emit a strictly verified,
+    # ad-hoc CI artifact. This is deliberately not a release lane: it has no
+    # secrets or write grant, and every artifact surface says non-production.
+    name: porthole-stage
+    runs-on: macos-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.porthole-stage == 'true'
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Record the Apple toolchain
+        run: |
+          set -euo pipefail
+          swift --version
+          xcodebuild -version
+
+      - name: Install the deterministic icon renderer
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: '1'
+        run: brew install librsvg
+
+      - name: Test the Stage policy and capture core
+        run: swift test --package-path apps/porthole-stage-capture
+
+      - name: Assemble two ad-hoc CI packages from one release build
+        env:
+          PACKAGE_ROOT: apps/porthole-stage-capture
+        run: |
+          set -euo pipefail
+          "$PACKAGE_ROOT/Scripts/package-apps.sh" \
+            --configuration release \
+            --output "$RUNNER_TEMP/porthole-stage-pass-a" \
+            --signing-identity - \
+            --allow-ad-hoc
+          "$PACKAGE_ROOT/Scripts/package-apps.sh" \
+            --configuration release \
+            --skip-build \
+            --output "$RUNNER_TEMP/porthole-stage-pass-b" \
+            --signing-identity - \
+            --allow-ad-hoc
+
+      - name: Strict-verify and prove deterministic CI assembly
+        env:
+          PACKAGE_ROOT: apps/porthole-stage-capture
+        run: |
+          set -euo pipefail
+          source_sha="$(git rev-parse HEAD)"
+          source_epoch="$(git show -s --format=%ct HEAD)"
+          mkdir -p "$RUNNER_TEMP/porthole-stage-artifacts"
+          /usr/bin/python3 "$PACKAGE_ROOT/Scripts/build-ci-artifact.py" \
+            --input "$RUNNER_TEMP/porthole-stage-pass-a" \
+            --output "$RUNNER_TEMP/porthole-stage-artifacts/porthole-stage-ci-a.tar" \
+            --source-sha "$source_sha" \
+            --source-date-epoch "$source_epoch"
+          /usr/bin/python3 "$PACKAGE_ROOT/Scripts/build-ci-artifact.py" \
+            --input "$RUNNER_TEMP/porthole-stage-pass-b" \
+            --output "$RUNNER_TEMP/porthole-stage-artifacts/porthole-stage-ci-b.tar" \
+            --source-sha "$source_sha" \
+            --source-date-epoch "$source_epoch"
+          cmp \
+            "$RUNNER_TEMP/porthole-stage-artifacts/porthole-stage-ci-a.tar" \
+            "$RUNNER_TEMP/porthole-stage-artifacts/porthole-stage-ci-b.tar"
+          mv \
+            "$RUNNER_TEMP/porthole-stage-artifacts/porthole-stage-ci-a.tar" \
+            "$RUNNER_TEMP/porthole-stage-artifacts/porthole-stage-ci-adhoc-NOT-FOR-DISTRIBUTION.tar"
+          (
+            cd "$RUNNER_TEMP/porthole-stage-artifacts"
+            shasum -a 256 porthole-stage-ci-adhoc-NOT-FOR-DISTRIBUTION.tar \
+              > porthole-stage-ci-adhoc-NOT-FOR-DISTRIBUTION.tar.sha256
+          )
+
+      - name: Prove the verifier rejects package authority and privacy drift
+        env:
+          PORTHOLE_TEST_CONFIGURATION: release
+        run: /usr/bin/python3 apps/porthole-stage-capture/Scripts/test-ci-artifact.py
+
+      - name: Render synthetic light-dark UI and motion without screen capture
+        run: |
+          set -euo pipefail
+          apps/porthole-stage-capture/.build/release/PortholeStageCapture \
+            --render-synthetic-proof "$RUNNER_TEMP/porthole-stage-synthetic-ui"
+
+      - name: Upload synthetic presentation evidence, not capture proof
+        uses: actions/upload-artifact@v4
+        with:
+          name: porthole-stage-SYNTHETIC-UI-NOT-CAPTURE-${{ github.sha }}
+          path: ${{ runner.temp }}/porthole-stage-synthetic-ui/
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
+
+      - name: Upload the explicitly non-production CI artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: porthole-stage-adhoc-NOT-FOR-DISTRIBUTION-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/porthole-stage-artifacts/porthole-stage-ci-adhoc-NOT-FOR-DISTRIBUTION.tar
+            ${{ runner.temp }}/porthole-stage-artifacts/porthole-stage-ci-adhoc-NOT-FOR-DISTRIBUTION.tar.sha256
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
+
+  pd-ios:
+    # Build + unit-test the Port Daddy iOS operator app (ADR-0125).
+    #
+    # This is the FIRST xcodebuild in this repo. Every other Apple surface here
+    # is SwiftPM plus hand-assembled bundles, and `swift build` cannot target
+    # iOS at all — so the compile proof for apps/pd-ios is xcodebuild against
+    # an iOS Simulator destination, run on the same macos-latest runner and
+    # with the same "whatever Xcode the image ships" convention the fleetbar
+    # job uses. There is no .xcodeproj: xcodebuild builds the SwiftPM package's
+    # generated PortDaddyKit scheme directly.
+    #
+    # SIGNING: none, deliberately. A simulator build is unsigned, and
+    # CODE_SIGNING_ALLOWED=NO is passed so this can never start depending on a
+    # certificate. The five APPLE_* secrets in release.yml are a macOS
+    # Developer ID / notarization pair — they do not cover iOS device signing,
+    # provisioning profiles, or App Store Connect distribution. A TestFlight
+    # lane needs an Apple Distribution certificate and a provisioning profile
+    # that DO NOT EXIST in this account yet; until they do, this gate proves
+    # the app compiles and its tests pass, and nothing here ships an artifact.
+    #
+    # Path-gated via detect-changes: a non-iOS PR skips this, and a skip
+    # satisfies the required ci-gate check.
+    runs-on: macos-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.pd-ios == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.21
+
+      - name: Fixture drift gate (TypeScript -> Swift)
+        # MaritimeSignals.swift, ControlVerbs.swift and Interruptions.swift are
+        # hand-written ports of lib/maritime-signals.ts, the
+        # agent-control-command-contract fixture, and the relay's interruptions
+        # shape. This regenerates the parity fixtures from those canonical
+        # sources and fails if the checked-in copies are stale. The Swift tests
+        # then assert the ports reproduce the fixtures. Together: neither side
+        # can move without the other going red. No `bun install` is needed —
+        # the script imports two dependency-free local modules and READS the
+        # relay's source and migration as text (importing interruptions.ts
+        # would pull @noble/hashes in through crypto.ts).
+        run: bun run scripts/generate-pd-ios-fixtures.ts --check
+
+      - name: Show available schemes
+        # A diagnostic that makes a scheme-resolution failure legible instead of
+        # a wall of xcodebuild output. Never the reason a PR goes red — the
+        # build and test steps below are the gate.
+        continue-on-error: true
+        working-directory: apps/pd-ios
+        run: xcodebuild -list
+
+      - name: Resolve an iOS Simulator destination
+        # Pinning a device name breaks the moment the runner image rotates its
+        # simulators. The helper picks the newest available iPhone and fails
+        # loudly when the image has none, rather than letting xcodebuild build
+        # for something that is not an iPhone.
+        id: sim
+        run: |
+          set -euo pipefail
+          udid="$(xcrun simctl list devices available --json \
+            | python3 apps/pd-ios/scripts/resolve-simulator-destination.py)"
+          echo "udid=$udid" >> "$GITHUB_OUTPUT"
+
+      - name: Build PortDaddyKit for the simulator
+        working-directory: apps/pd-ios
+        run: |
+          set -euo pipefail
+          xcodebuild build \
+            -scheme PortDaddyKit \
+            -destination "id=${{ steps.sim.outputs.udid }}" \
+            -skipMacroValidation \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Test PortDaddyKit
+        working-directory: apps/pd-ios
+        run: |
+          set -euo pipefail
+          xcodebuild test \
+            -scheme PortDaddyKit \
+            -destination "id=${{ steps.sim.outputs.udid }}" \
+            -skipMacroValidation \
+            CODE_SIGNING_ALLOWED=NO
+
+  pd-ios-screenshots:
+    # Automated visual-evidence capture for apps/pd-ios (WS-D). The pd-ios job
+    # above proves PortDaddyKit compiles and its XCTests pass — it never
+    # renders the UI or compiles the @main shim (App/PortDaddyApp.swift), so
+    # "the tests are green" has never meant "the app runs". This job runs
+    # apps/pd-ios/scripts/capture-screenshots.sh — an ephemeral XcodeGen app
+    # target linking PortDaddyKit, driven through all four RootTab cases by an
+    # XCUITest, exported via xcresulttool — and publishes the resulting PNGs
+    # so a reviewer can actually see the app render. Deterministic and
+    # offline: RootView is fixture-backed, so a cold launch needs no
+    # network/pairing/auth.
+    #
+    # Informational, not a merge gate: intentionally absent from ci-gate's
+    # needs and `continue-on-error: true`. Simulator/XcodeGen flakiness
+    # capturing a screenshot should never block a merge the pd-ios job above
+    # already proved sound.
+    #
+    # No repo-write permissions here on purpose: this step compiles and runs
+    # whatever apps/pd-ios/scripts/capture-screenshots.sh is on the PR head,
+    # so it must never hold a token that can push or comment. Publishing is a
+    # separate job below.
+    runs-on: macos-latest
+    needs: [detect-changes, pd-ios]
+    if: needs.detect-changes.outputs.pd-ios == 'true'
+    continue-on-error: true
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: HOMEBREW_NO_AUTO_UPDATE=1 brew install xcodegen
+
+      - name: Capture per-tab screenshots
+        run: apps/pd-ios/scripts/capture-screenshots.sh
+
+      - name: Upload screenshots as a build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pd-ios-screenshots-${{ github.sha }}
+          path: apps/pd-ios/pd-ios-screenshots/*.png
+          retention-days: 30
+
+  pd-ios-screenshots-publish:
+    # Holds the write-scoped token the capture job above deliberately does
+    # not, so the large arbitrary-shell surface in capture-screenshots.sh
+    # (XcodeGen, xcodebuild, simulator boot — the actual PR-authored code
+    # under test) never runs with repo-write access.
+    #
+    # This job's own steps still run from the PR's own workflow version,
+    # same as the rest of this file: for a same-repo `pull_request` run (the
+    # only case that grants a write token at all — GitHub forces
+    # fork-triggered `pull_request` runs to a read-only token regardless of
+    # what's declared here), GitHub sources the whole job — permissions
+    # block included — from the PR branch itself, not the base, so pinning
+    # `actions/checkout` to a different ref cannot change what this job's
+    # own inline `run:` steps execute. Closing that residual gap needs a
+    # `workflow_run`-triggered second workflow (whose definition GitHub
+    # always reads from the default branch) — real follow-up, not done
+    # here. What this split does fix: the biggest, least-reviewable chunk
+    # of PR-controlled code (the whole XcodeGen/xcodebuild/simulator
+    # pipeline) is now read-only, leaving only this job's own small,
+    # narrowly-scoped git/gh-api logic still running with write access.
+    runs-on: ubuntu-latest
+    needs: [detect-changes, pd-ios-screenshots]
+    if: needs.detect-changes.outputs.pd-ios == 'true' && github.event_name == 'pull_request'
+    continue-on-error: true
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download the captured screenshots
+        uses: actions/download-artifact@v4
+        with:
+          name: pd-ios-screenshots-${{ github.sha }}
+          path: apps/pd-ios/pd-ios-screenshots
+
+      - name: Publish screenshots to the ci-screenshots branch
+        id: publish
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          SHA="${{ github.sha }}"
+          DEST="pr-${PR_NUMBER}/${SHA}"
+          WORK="${RUNNER_TEMP}/ci-screenshots-branch"
+          rm -rf "$WORK"
+          git fetch origin ci-screenshots 2>/dev/null || true
+          if git show-ref --verify --quiet refs/remotes/origin/ci-screenshots; then
+            git worktree add "$WORK" origin/ci-screenshots
+            (cd "$WORK" && git checkout -B ci-screenshots)
+          else
+            git worktree add --detach "$WORK"
+            (cd "$WORK" && git checkout --orphan ci-screenshots && git rm -rf . >/dev/null 2>&1 || true)
+          fi
+          cd "$WORK"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          publish_pngs() {
+            rm -rf "pr-${PR_NUMBER}"
+            mkdir -p "$DEST"
+            cp "$GITHUB_WORKSPACE"/apps/pd-ios/pd-ios-screenshots/*.png "$DEST"/
+            git add -A "pr-${PR_NUMBER}"
+          }
+
+          publish_pngs
+          if git diff --cached --quiet; then
+            echo "no changes to publish"
+          else
+            git commit -q -m "pd-ios screenshots for PR #${PR_NUMBER} @ ${SHA}"
+            # Two concurrent pd-ios-screenshots jobs (this PR's own retry, or a
+            # different PR) can race for the ci-screenshots tip: a
+            # non-fast-forward push here is expected contention, not a bug.
+            # Re-sync onto the new tip and redo this job's own write — every
+            # push only ever touches this PR's own pr-<n>/ subtree, so there
+            # is nothing to merge, just a fast-forward to retry onto.
+            attempt=1
+            until git push -q origin HEAD:ci-screenshots; do
+              if [[ "$attempt" -ge 5 ]]; then
+                echo "warning: could not publish screenshots after $attempt attempts (persistent push contention); continuing" >&2
+                break
+              fi
+              echo "push contention on ci-screenshots (attempt $attempt), re-syncing and retrying" >&2
+              git fetch origin ci-screenshots
+              git reset --hard origin/ci-screenshots
+              publish_pngs
+              # A concurrent duplicate run may have already published this
+              # exact PR+sha's content onto the tip we just reset to — that is
+              # success, not a new commit to make.
+              if git diff --cached --quiet; then
+                echo "already published by a concurrent run"
+                break
+              fi
+              git commit -q -m "pd-ios screenshots for PR #${PR_NUMBER} @ ${SHA}"
+              attempt=$((attempt + 1))
+            done
+          fi
+          echo "dest=$DEST" >> "$GITHUB_OUTPUT"
+          cd "$GITHUB_WORKSPACE"
+          git worktree remove --force "$WORK" || true
+
+      - name: Comment the screenshots onto the PR
+        if: steps.publish.outputs.dest != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GITHUB_SHA: ${{ github.sha }}
+          SCREENSHOTS_DEST: ${{ steps.publish.outputs.dest }}
+        run: node scripts/publish-pd-ios-screenshots.mjs
+
   # ---------------------------------------------------------------------------
   # ci-gate: the single required check for branch protection / the merge queue.
   #
@@ -798,16 +1330,21 @@ jobs:
       pull-requests: read
     needs:
       - brand-color-guard
+      - changelog-guard
       - compiled-daemon-smoke
       - doc-citation-guard
       - fleet-ui
       - fleetbar
       - integration-tests
       - lint
+      - pd-ios
+      - porthole-stage
+      - porthole-cast-gate
       - rust-console
       - rust-console-gpui
       - rust-kernel
       - skill-hygiene
+      - steward-tests
       - unit-tests
       - version-drift-guard
       - website-terminal-recordings

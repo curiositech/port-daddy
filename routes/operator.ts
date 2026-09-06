@@ -1,4 +1,4 @@
-import { spawn, spawnSync } from 'node:child_process';
+import { execFile, spawn, spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { basename, dirname, relative, resolve } from 'node:path';
 import { homedir } from 'node:os';
@@ -18,6 +18,11 @@ import type { CoordinationState } from '../lib/maritime-signals.js';
 import { signalFor, ICS_MEANING } from '../lib/maritime-signals.js';
 import type { createBonds } from '../lib/bonds.js';
 import type { Transcripts } from '../lib/transcripts.js';
+import {
+  buildOperatorSessionDirectory,
+  type OperatorSessionDirectory,
+} from '../lib/operator-session-directory.js';
+import type { DaemonBerthIdentity } from '../shared/daemon-berths.js';
 import {
   buildTranscriptEmergencyFromSources,
   parseTranscriptEmergencyPositiveIntQuery,
@@ -98,6 +103,9 @@ interface OperatorRouteDeps {
   bonds?: BondsManager;
   transcripts?: Pick<Transcripts, 'listTranscripts' | 'getTranscript'>;
   cloudAppTelemetry?: TranscriptEmergencySourceDeps['cloudAppTelemetry'];
+  daemonBerth?: DaemonBerthIdentity;
+  /** Test/embedding seam; production uses the local multi-berth discovery. */
+  sessionDirectory?: () => Promise<OperatorSessionDirectory>;
 }
 
 interface OpenFileBody {
@@ -643,6 +651,81 @@ function runGuardCli(projectDir: string, args: string[]): { command: string; res
       error: Object.assign(new Error('ENOENT'), { code: 'ENOENT' }),
     },
   };
+}
+
+interface AsyncGuardCliResult {
+  command: string;
+  available: boolean;
+  status: number | null;
+  stdout: string;
+  timedOut: boolean;
+}
+
+/**
+ * Background-only Guard runner for polled snapshots. Unlike runGuardCli(),
+ * this never blocks Fastify's event loop. Missing binaries fall through the
+ * same absolute-path -> PATH candidate order used by the synchronous explicit
+ * action routes.
+ */
+function runGuardCliAsync(
+  projectDir: string,
+  args: string[],
+  complete: (result: AsyncGuardCliResult) => void,
+): void {
+  const binary = resolvePdBinary();
+  const commands = [...new Set([...(binary ? [binary] : []), 'pd', 'port-daddy'])];
+
+  const attempt = (index: number): void => {
+    const command = commands[index];
+    if (!command) {
+      complete({
+        command: 'pd',
+        available: false,
+        status: 127,
+        stdout: '',
+        timedOut: false,
+      });
+      return;
+    }
+
+    execFile(
+      command,
+      ['guard', ...args, '--dir', projectDir],
+      {
+        cwd: projectDir,
+        encoding: 'utf8',
+        env: process.env,
+        timeout: GUARD_CLI_TIMEOUT_MS,
+        maxBuffer: 1024 * 1024,
+        windowsHide: true,
+      },
+      (error, stdout) => {
+        if (isMissingCommand(error) && index + 1 < commands.length) {
+          attempt(index + 1);
+          return;
+        }
+        const errorDetails = error as (Error & {
+          code?: string | number;
+          killed?: boolean;
+          signal?: string | null;
+        }) | null;
+        const timedOut = errorDetails?.killed === true ||
+          errorDetails?.code === 'ETIMEDOUT' ||
+          errorDetails?.signal === 'SIGTERM';
+        complete({
+          command,
+          available: !isMissingCommand(error),
+          status: error == null
+            ? 0
+            : (typeof errorDetails?.code === 'number' ? errorDetails.code : null),
+          stdout: spawnText(stdout),
+          timedOut,
+        });
+      },
+    );
+  };
+
+  attempt(0);
 }
 
 function parseGuardJson<T>(stdout: string, commandLabel: string): T {
@@ -1220,21 +1303,28 @@ interface NeedsYouItem {
 }
 
 /**
- * Short-TTL caches for the two guard subprocesses GET /operator/state would
- * otherwise spawn on every request. The endpoint is polled by the Operator TUI
- * / FleetBar, and each `pd guard …` invocation boots Node + round-trips the
- * daemon (~1–2s, observed up to ~47s when contended). Running both the status
- * and the staged-check subprocess synchronously per request blocks the Fastify
- * event loop. Memoising per project directory for a few seconds means a burst of
- * polls reuses one subprocess result instead of re-spawning each time.
+ * Short-TTL stale-while-revalidate caches for the two Guard subprocesses used
+ * by GET /operator/state. The endpoint is polled by Operator surfaces, and each
+ * `pd guard …` invocation boots Node + round-trips the daemon (~1–2s, observed
+ * up to ~47s when contended). A request therefore returns the last known value
+ * (or an explicit refreshing/unavailable value on cold start) immediately,
+ * while one deduplicated execFile refresh runs outside the Fastify event loop.
  *
  * These caches back ONLY the /operator/state snapshot. The dedicated
  * /operator/coordination-guard endpoints intentionally call the guard CLI
  * directly so a client asking for guard status always gets a fresh read.
  */
 const GUARD_CACHE_TTL_MS = 5_000;
+type GuardSnapshotStatus = CoordinationGuardStatus & {
+  available: boolean;
+  refreshing?: boolean;
+  stale?: boolean;
+};
 const guardCheckCache = new Map<string, { at: number; check: CoordinationGuardCheck | null }>();
-const guardStatusCache = new Map<string, { at: number; status: CoordinationGuardStatus & { available: boolean } }>();
+const guardStatusCache = new Map<string, { at: number; status: GuardSnapshotStatus }>();
+const guardCheckRefreshes = new Set<string>();
+const guardStatusRefreshes = new Set<string>();
+let guardRefreshEpoch = 0;
 
 /**
  * Test seam: clear the module-level guard caches. The caches are keyed by
@@ -1247,78 +1337,102 @@ export function __resetGuardCachesForTest(): void {
   // Test-only seam. No-op outside the test runner so a shipped binary cannot have
   // its live guard caches cleared by an unrelated importer of routes/operator.
   if (process.env.NODE_ENV !== 'test') return;
+  guardRefreshEpoch += 1;
   guardCheckCache.clear();
   guardStatusCache.clear();
+  guardCheckRefreshes.clear();
+  guardStatusRefreshes.clear();
 }
 
-/**
- * Run (or reuse a recent) `guard status` for the given project dir. Degrades to
- * an "unavailable" status when the binary is missing / the call times out, so
- * the state snapshot never 500s on guard trouble.
- */
-function cachedGuardStatus(projectDir: string): CoordinationGuardStatus & { available: boolean } {
+function unavailableGuardStatus(projectDir: string): GuardSnapshotStatus {
+  return {
+    available: false,
+    success: false,
+    name: 'Coordination Guard',
+    enabled: false,
+    mode: 'off',
+    requireSession: false,
+    requireClaims: false,
+    configPath: '',
+    projectDir,
+  };
+}
+
+function refreshGuardStatus(projectDir: string): void {
+  if (guardStatusRefreshes.has(projectDir)) return;
+  guardStatusRefreshes.add(projectDir);
+  const epoch = guardRefreshEpoch;
+  const previous = guardStatusCache.get(projectDir)?.status;
+
+  runGuardCliAsync(projectDir, ['status', '--json'], (result) => {
+    guardStatusRefreshes.delete(projectDir);
+    if (epoch !== guardRefreshEpoch) return;
+
+    let status = previous ?? unavailableGuardStatus(projectDir);
+    if (result.available && !result.timedOut && result.status === 0) {
+      try {
+        status = {
+          ...parseGuardJson<Omit<CoordinationGuardStatus, 'projectDir'>>(
+            result.stdout,
+            `${result.command} guard status`,
+          ),
+          projectDir,
+          available: true,
+        };
+      } catch {
+        // Keep the last known value. Cold starts remain explicitly unavailable.
+      }
+    }
+    guardStatusCache.set(projectDir, { at: Date.now(), status });
+  });
+}
+
+/** Return cached Guard status immediately and refresh stale state in back. */
+function cachedGuardStatus(projectDir: string): GuardSnapshotStatus {
   const now = Date.now();
   const cached = guardStatusCache.get(projectDir);
   if (cached && now - cached.at < GUARD_CACHE_TTL_MS) {
-    return cached.status;
+    return { ...cached.status, refreshing: false, stale: false };
   }
 
-  let status: CoordinationGuardStatus & { available: boolean };
-  try {
-    status = readCoordinationGuardStatus(projectDir);
-  } catch {
-    status = {
-      available: false,
-      success: false,
-      name: 'Coordination Guard',
-      enabled: false,
-      mode: 'off',
-      requireSession: false,
-      requireClaims: false,
-      configPath: '',
-      projectDir,
-    };
-  }
-
-  guardStatusCache.set(projectDir, { at: now, status });
-  return status;
+  refreshGuardStatus(projectDir);
+  if (cached) return { ...cached.status, refreshing: true, stale: true };
+  return { ...unavailableGuardStatus(projectDir), refreshing: true, stale: false };
 }
 
-/**
- * Run (or reuse a recent) `guard check --staged` for the given project dir.
- * Returns the parsed check, or null when the binary is unavailable / the call
- * timed out / parsing failed. Never throws — a guard check must not break the
- * whole state response.
- */
+function refreshGuardCheck(projectDir: string): void {
+  if (guardCheckRefreshes.has(projectDir)) return;
+  guardCheckRefreshes.add(projectDir);
+  const epoch = guardRefreshEpoch;
+  const previous = guardCheckCache.get(projectDir)?.check ?? null;
+
+  runGuardCliAsync(projectDir, ['check', '--staged', '--json'], (result) => {
+    guardCheckRefreshes.delete(projectDir);
+    if (epoch !== guardRefreshEpoch) return;
+
+    let check = previous;
+    if (result.available && !result.timedOut) {
+      if (result.status === 0) {
+        check = null;
+      } else {
+        try {
+          check = parseGuardJson<CoordinationGuardCheck>(result.stdout, `${result.command} guard check`);
+        } catch {
+          // Keep the last known check on malformed or failed refreshes.
+        }
+      }
+    }
+    guardCheckCache.set(projectDir, { at: Date.now(), check });
+  });
+}
+
+/** Return the last staged check immediately and refresh stale state in back. */
 function cachedGuardCheck(projectDir: string): CoordinationGuardCheck | null {
   const now = Date.now();
   const cached = guardCheckCache.get(projectDir);
-  if (cached && now - cached.at < GUARD_CACHE_TTL_MS) {
-    return cached.check;
-  }
-
-  let check: CoordinationGuardCheck | null = null;
-  const { result: checkResult, available: checkAvailable } = runGuardCli(projectDir, ['check', '--staged', '--json']);
-  // spawnSync sends SIGTERM on timeout (status=null, signal set, empty stdout). A
-  // timeout is NOT "clean": caching its empty result as null would silently
-  // suppress a real guard_violation for the whole TTL. Treat a timeout as
-  // "unknown" — surface no violation for THIS call, and do NOT cache it, so the
-  // next call re-checks instead of serving a stale "clean".
-  const timedOut = checkResult.signal != null;
-  // A non-zero exit is expected when there ARE violations; status 0 means clean.
-  if (checkAvailable && !timedOut && checkResult.status !== 0) {
-    try {
-      check = parseGuardJson<CoordinationGuardCheck>(spawnText(checkResult.stdout), 'guard check');
-    } catch {
-      // Parse failed on a real (non-timeout) response — no actionable check.
-      check = null;
-    }
-  }
-
-  if (!timedOut) {
-    guardCheckCache.set(projectDir, { at: now, check });
-  }
-  return check;
+  if (cached && now - cached.at < GUARD_CACHE_TTL_MS) return cached.check;
+  refreshGuardCheck(projectDir);
+  return cached?.check ?? null;
 }
 
 /**
@@ -1383,9 +1497,8 @@ function buildNeedsYou(
   // 1 · guard_violation — guard is enforcing and has current violations.
   // We reuse the guard *status* already computed by the handler (passed in as
   // `guardStatus`) to gate this branch — no extra `guard status` subprocess.
-  // The one remaining `guard check --staged` call is memoised via
-  // cachedGuardCheck() (short TTL + hard spawn timeout) so polling /operator/state
-  // can't re-block the event loop on every request.
+  // The staged check is stale-while-revalidated with a deduplicated async child
+  // process. Polling /operator/state never waits for it or blocks Fastify.
   if (guardStatus && guardStatus.available && guardStatus.enabled && guardStatus.mode === 'enforce') {
     const effectiveDir = projectDir ?? process.cwd();
     const check = cachedGuardCheck(effectiveDir);
@@ -1663,6 +1776,30 @@ export const operatorPlugin: FastifyPluginAsync<{ deps: OperatorRouteDeps }> = a
   });
 
   /**
+   * GET /operator/session-directory
+   *
+   * A daemon-authored, cross-berth directory for the pd-console Agents surface.
+   * Running daemons remain the only interpreters of their session ledgers. A
+   * stopped berth is listed as ledger-preserved/offline rather than having its
+   * SQLite file opened behind that daemon's back.
+   */
+  fastify.get('/operator/session-directory', async (_request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      return await (opts.deps.sessionDirectory?.() ?? buildOperatorSessionDirectory({
+        currentBerth: opts.deps.daemonBerth,
+      }));
+    } catch (error) {
+      logger?.error?.({ err: error }, 'operator_session_directory_failed');
+      reply.code(500);
+      return {
+        success: false,
+        schema: 'pd.operator.session-directory.v0',
+        error: error instanceof Error ? error.message : 'Failed to build session directory.',
+      };
+    }
+  });
+
+  /**
    * GET /operator/state
    *
    * The suggestibility engine: a single endpoint that returns the full
@@ -1742,8 +1879,7 @@ export const operatorPlugin: FastifyPluginAsync<{ deps: OperatorRouteDeps }> = a
       // Short-TTL cached read (see cachedGuardStatus): keeps the polled snapshot
       // off the per-request `pd guard status` subprocess and degrades gracefully
       // (never 500s) when the binary is absent or the call times out.
-      const guard: (CoordinationGuardStatus & { available: boolean }) | null =
-        cachedGuardStatus(effectiveDir);
+      const guard: GuardSnapshotStatus | null = cachedGuardStatus(effectiveDir);
 
       // ── cockpit missions ─────────────────────────────────────────────────────
       let cockpitMissions: ReturnType<typeof readMissions> | null = null;

@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
-import { ArrowDownRight, ArrowRight, ArrowUpRight, BadgeCheck, Compass, FileText } from 'lucide-react'
+import { ArrowDownRight, ArrowRight, ArrowUpRight, BadgeCheck, Compass, FileText, FlaskConical } from 'lucide-react'
 import { Footer } from '@/components/layout/Footer'
 import { NestingDiagram } from '@/components/library/NestingDiagram'
 import { ReadingDag } from '@/components/library/ReadingDag'
@@ -15,17 +15,18 @@ import {
   PanelTitle,
 } from '@/components/site/primitives'
 import {
+  COLLECTED_VOLUME,
   EXPLAIN_PAPERS,
   LIBRARY_CHANGELOG,
   LIBRARY_SPINE,
   PROVE_PAPERS,
   READING_PATHS,
-  WHITE_PAPERS,
   findWhitePaperByChapter,
   type WhitePaper,
 } from '@/data/whitePapers'
 import { harborEvolutionFigure } from '@/data/manifestoContent'
 import { ThemedImage } from '@/components/site/ThemedImage'
+import { RESEARCH_PAPERS, RESEARCH_PAPER_TOTAL_PAGES } from '@/data/researchPapers'
 
 /**
  * The cross-reference relationships, in the order they read on a chapter card.
@@ -163,8 +164,6 @@ function GroupHeading({
 }
 
 export default function LibraryPage() {
-  const totalPages = WHITE_PAPERS.reduce((sum, paper) => sum + paper.pages, 0)
-
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -179,7 +178,7 @@ export default function LibraryPage() {
               <div className="space-y-[var(--space-5)]">
                 <PanelEyebrow>The Harbor Library — read it as one book</PanelEyebrow>
                 <PanelTitle as="h1" size="hero" className="max-w-[15ch]">
-                  Seven papers. Four explain the system. Three prove it.
+                  Seven chapters. Four explain the system. Three prove it.
                 </PanelTitle>
                 <PanelBody size="default" className="max-w-[62ch] text-[length:var(--text-lg)]">
                   You can now hand a goal to a program and walk away. One coding
@@ -198,7 +197,7 @@ export default function LibraryPage() {
                   {[
                     { value: '04', label: 'chapters explain' },
                     { value: '03', label: 'chapters prove' },
-                    { value: String(totalPages), label: 'pages, free PDFs' },
+                    { value: String(COLLECTED_VOLUME.pages), label: 'pages, collected PDF' },
                   ].map((stat) => (
                     <div key={stat.label} className="space-y-[var(--space-1)]">
                       <div className="font-mono text-[length:var(--text-2xl)] font-black leading-none text-[var(--text-primary)]">
@@ -210,6 +209,32 @@ export default function LibraryPage() {
                     </div>
                   ))}
                 </div>
+
+                <a
+                  href={COLLECTED_VOLUME.downloadUrl}
+                  download
+                  className="group grid gap-[var(--space-3)] border-2 border-[var(--border-strong)] bg-[var(--brand-primary)] p-[var(--space-5)] text-[var(--brand-primary-foreground)] shadow-[var(--shadow-brutal)] transition-transform hover:-translate-y-1 focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)] sm:grid-cols-[auto_1fr_auto] sm:items-center"
+                >
+                  <span className="grid h-12 w-12 place-items-center border-2 border-current">
+                    <FileText aria-hidden="true" size={24} />
+                  </span>
+                  <span className="grid gap-[var(--space-1)]">
+                    <span className="font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)]">
+                      Download the collected volume
+                    </span>
+                    <span className="font-display text-[length:var(--text-xl)] font-black leading-[var(--leading-nav)]">
+                      {COLLECTED_VOLUME.title}
+                    </span>
+                    <span className="font-mono text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)]">
+                      {COLLECTED_VOLUME.pages} pages · {COLLECTED_VOLUME.references} collated references · PDF
+                    </span>
+                  </span>
+                  <ArrowDownRight
+                    aria-hidden="true"
+                    size={24}
+                    className="transition-transform group-hover:translate-x-1 group-hover:translate-y-1"
+                  />
+                </a>
 
                 <div className="flex flex-wrap gap-[var(--space-3)]">
                   <a
@@ -242,6 +267,63 @@ export default function LibraryPage() {
                   through.
                 </figcaption>
               </figure>
+            </div>
+          </PageContainer>
+        </section>
+
+        {/* ── A second, distinct collection: seven research papers, named ── */}
+        <section className="border-b-2 border-[var(--border-strong)] bg-[var(--story-indigo)] py-[var(--space-7)] text-[var(--story-indigo-foreground)] lg:py-[var(--space-8)]">
+          <PageContainer width="wide">
+            <div className="space-y-[var(--space-6)]">
+              <div className="grid gap-[var(--space-3)] sm:grid-cols-[auto,1fr] sm:items-start">
+                <span className="grid h-14 w-14 place-items-center border-2 border-current">
+                  <FlaskConical aria-hidden="true" size={28} />
+                </span>
+                <div className="space-y-[var(--space-2)]">
+                  <span className="font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)]">
+                    Not the seven chapters above — a second, separate collection
+                  </span>
+                  <h2 className="max-w-[40ch] font-display text-[length:var(--text-3xl)] font-black leading-[var(--leading-display-tight)] !text-[var(--story-indigo-foreground)]">
+                    Seven new research papers. Each one proves a theorem the chapters only argue in prose.
+                  </h2>
+                  <p className="max-w-[68ch] text-[length:var(--text-lg)] leading-[var(--leading-body)]">
+                    Closed-form bit floors, an NP-completeness frontier, a sheaf-cohomology
+                    detector with a certified lower bound — {RESEARCH_PAPERS.length} arXiv-style
+                    papers, {RESEARCH_PAPER_TOTAL_PAGES} pages total, adversarially reviewed,
+                    discharging results R1 through R17.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid gap-[var(--space-4)] sm:grid-cols-2 lg:grid-cols-3">
+                {RESEARCH_PAPERS.map((paper) => (
+                  <Link
+                    key={paper.id}
+                    to={`/library/research#paper-${paper.number}`}
+                    className="group grid gap-[var(--space-2)] border-2 border-current bg-[var(--story-indigo)] p-[var(--space-4)] transition-colors hover:bg-[var(--story-indigo-foreground)] hover:text-[var(--story-indigo)] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)]"
+                  >
+                    <span className="flex items-center gap-[var(--space-2)]">
+                      <span className="grid h-7 w-7 shrink-0 place-items-center border-2 border-current font-mono text-[length:var(--text-sm)] font-black leading-none">
+                        {paper.number}
+                      </span>
+                      <span className="font-display text-[length:var(--text-base)] font-black leading-[var(--leading-nav)]">
+                        {paper.title}
+                      </span>
+                    </span>
+                    <span className="text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)]">
+                      {paper.claim}
+                    </span>
+                  </Link>
+                ))}
+              </div>
+
+              <Link
+                to="/library/research"
+                className="group inline-flex w-fit items-center gap-[var(--space-2)] border-2 border-current bg-[var(--story-indigo-foreground)] px-[var(--space-5)] py-[var(--space-3)] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--story-indigo)] transition-transform hover:-translate-y-1 focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)]"
+              >
+                Read the full research library
+                <ArrowRight aria-hidden="true" size={16} className="transition-transform group-hover:translate-x-1" />
+              </Link>
             </div>
           </PageContainer>
         </section>
@@ -473,7 +555,7 @@ export default function LibraryPage() {
                   What changed, and when.
                 </PanelTitle>
                 <PanelBody className="max-w-[44ch] text-[length:var(--text-lg)]">
-                  These papers are living documents: they get argued with, proven
+                  These chapters are living documents: they get argued with, proven
                   against, and revised in the open. One entry per release wave,
                   newest first. For the per-objection history of the adversarial
                   reviews, see{' '}

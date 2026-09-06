@@ -106,7 +106,7 @@ The worst consequence of Option B (baby dying/remaining unhealthy from lack of l
 
 ## Connection to Multi-Agent Orchestration
 
-For a DAG-based orchestration system like WinDAGs:
+For a DAG-based orchestration system like Jury-rig:
 
 **Skill composition conflicts**: When multiple skills could be invoked to solve a problem, but their preconditions/effects conflict:
 - Generate maximal compatible skill chains (paths through the DAG)

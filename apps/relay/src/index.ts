@@ -15,6 +15,12 @@
  *   POST /v1/fleet/optimize-prompt            (operator; rewrite a ship prompt)
  *   POST /v1/fleet/save                       (operator; commit to new branch + PR)
  *   POST /v1/fleet/pause                       (operator; toggle fleet kill switch)
+ *   POST /v1/fleet/executor-identity           (operator; provision the fleet
+ *                                               executor's Ed25519 identity +
+ *                                               hv:2 card; plan N2)
+ *   POST /v1/fleet/run-report                  (signed under the N2 card;
+ *                                               run-concluded reconciliation —
+ *                                               claimed-vs-received totals; X7)
  *   GET  /v1/fleet/activity                    (operator; recent fleet runs)
  *   GET  /v1/fleet/health                      (operator; paused flag + last-run age)
  *   GET  /v1/fleet/runs/:id                    (operator; one run + transcript)
@@ -22,16 +28,59 @@
  *                                                token or operator; ADR-0101)
  *   GET  /account/runs                          (HTML runs index; session +
  *                                                GitHub repo ACL; ADR-0101)
+ *   GET  /account/repos                         (HTML per-repo settings screen;
+ *                                                session; sitrep dial)
+ *   POST /account/repos/set                     (plain form upsert; session +
+ *                                                GitHub repo ACL)
+ *   POST /account/repos/remove                  (plain form delete; session)
+ *   GET  /v1/repo-settings                      (device read path; pdu_ bearer
+ *                                                or session cookie)
  *   GET  /account/parleys                       (HTML; session; → a harbor's list)
  *   GET  /account/parleys/:ns/:name             (HTML parley list; session + member)
  *   GET  /account/parleys/:ns/:name/:id         (HTML parley detail; session + member)
  *   POST /account/parleys/:ns/:name/:id/sign    (plain form sign; same-origin)
+ *   GET  /account/seamanship                    (HTML skill catalog; session;
+ *                                                read live from the operator's
+ *                                                own repos via their GitHub App
+ *                                                installation; G'3)
+ *   POST /account/seamanship/publish            (session, same-origin; sync the
+ *                                                operator's public listing to
+ *                                                what their SKILL.md files say)
+ *   POST /v1/seamanship/publish                 (same, JSON envelope)
+ *   POST /account/seamanship/suggest            (session, same-origin; queue an
+ *                                                Engineman suggestion run for
+ *                                                one repo; G'4)
+ *   POST /account/seamanship/approve            (session, same-origin; THE HUMAN
+ *                                                ACT — mints the single-use
+ *                                                build capability; G'6)
+ *   POST /account/seamanship/dismiss            (session, same-origin; revokes an
+ *                                                unspent build capability)
+ *   GET  /v1/seamanship/suggestions?repo=       (session; own suggestion rows)
+ *   GET  /account/seamanship/chat               (HTML Engineman chat; session;
+ *                                                nonce-scoped CSP; G'5)
+ *   GET  /v1/snipe/history                      (session; own chat history)
+ *   POST /v1/snipe/chat                         (session; capped turn, SSE)
+ *   POST /v1/snipe/clear                        (session; delete own history)
+ *   GET  /skills                                (PUBLIC directory; names +
+ *                                                descriptions of opted-in
+ *                                                skills ONLY; G'7)
+ *   GET  /v1/skills                             (same, JSON)
+ *   GET  /skills/@:login/:id                    (one published skill; the full
+ *                                                SKILL.md body needs a session
+ *                                                AND visibility: public)
+ *   GET  /v1/skills/@:login/:id                 (same, JSON)
+ *   GET  /account/harbors                       (HTML harbors list; session; own memberships only)
+ *   GET  /account/harbors/:ns/:name             (HTML harbor detail; session + member;
+ *                                                presence + reachability verdict)
  *   GET  /account/shipwright                    (HTML Shipwright chat; session;
  *                                                the ONE page with inline JS —
  *                                                nonce-scoped CSP)
  *   GET  /v1/shipwright/history                 (session; own chat history)
  *   POST /v1/shipwright/chat                    (session; Workers AI, SSE)
  *   POST /v1/shipwright/clear                   (session; delete own history)
+ *   POST /v1/shipwright/open-pr                 (session; PR into the user's own
+ *                                                installation's repo — validated
+ *                                                rosters only, server re-checks)
  *   GET  /account/billing                       (HTML billing page; session +
  *                                                GitHub installation ownership; ADR-0116)
  *   POST /billing/checkout                     (session; Stripe Checkout for a credit pack)
@@ -40,10 +89,20 @@
  *   POST /billing/portal                       (session; Stripe Billing Portal link)
  *   GET  /auth/status                          (session cookie → {login, avatarUrl};
  *                                               credentialed CORS for portdaddy.dev)
+ *   PUT  /v1/roadmap/snapshot                  (session/pdu; daemon pushes one
+ *                                               repo's roadmap mirror — full
+ *                                               replace; operator mandate
+ *                                               2026-08-22, PR 1)
+ *   GET  /v1/roadmap/mirror?repo=              (session/pdu; own mirror read —
+ *                                               board / item detail / activity)
  *   POST /v1/harbors                           (session/pdu; create a remote harbor — client-supplied pubkey)
  *   GET  /v1/harbors                           (session/pdu; harbors I belong to)
  *   GET  /v1/harbors/:namespace/:name          (member-gated; detail + members)
  *   POST /v1/harbors/:namespace/:name/members  (owner-gated; add a member)
+ *   POST /v1/harbors/:namespace/:name/invites  (member-gated; mint a single-use invite)
+ *   GET  /v1/harbors/:namespace/:name/invites  (member-gated; list invites + lifecycle)
+ *   POST /v1/harbors/:namespace/:name/invites/:jti/revoke (inviter-or-owner; revoke)
+ *   POST /v1/harbors/:namespace/:name/join     (authed; redeem an invite → member + epoch tick)
  *   POST /v1/harbors/:namespace/:name/presence (member-gated; presence heartbeat, TTL ~90s)
  *   GET  /v1/harbors/:namespace/:name/presence (member-gated; who is online + identity tier)
  *   PUT  /v1/harbors/:namespace/:name/helm     (owner-gated; set helm holder + succession)
@@ -52,6 +111,15 @@
  *   GET  /v1/harbors/:namespace/:name/parleys  (member-gated; list parleys — lazy expiry)
  *   GET  /v1/harbors/:namespace/:name/parleys/:id          (member-gated; detail + positions)
  *   POST /v1/harbors/:namespace/:name/parleys/:id/respond  (named-party-gated; sign a position)
+ *   POST /v1/devices/keys                          (any authed user; register/rotate my device's X25519 pubkey)
+ *   GET  /v1/devices/keys                          (any authed user; list my own registered devices)
+ *   GET  /v1/harbors/:namespace/:name/devices/:deviceId/key (member-gated; a peer device's pubkey)
+ *   POST /v1/harbors/:namespace/:name/wraps        (member-gated; post an HPKE-wrapped envelope; blind relay)
+ *   GET  /v1/harbors/:namespace/:name/wraps        (member-gated + device-ownership-gated; fetch pending wraps)
+ *   PUT  /v1/harbor/card                     (signed self-report of declared capabilities; X5)
+ *   GET  /v1/harbor/directory                (public; listed/consented harbors only; X5)
+ *   GET  /v1/harbor/whois?q=                 (public; TF-IDF + demonstrated ranking; X5)
+ *   PUT  /v1/harbor/directory/weights        (operator; ranking weights — audit-logged; X5)
  *   POST /v1/exchange                        (OIDC → PD card)
  *   POST /v1/revoke
  *   POST /v1/revoke-by-issuer               (operator; acceptance criterion #2)
@@ -60,10 +128,13 @@
  *   PUT  /v1/config/issuers/:issuer_id      (operator; acceptance criterion #1)
  *   DELETE /v1/cache/jwks/:issuer_id        (operator; acceptance criterion #3)
  *   GET  /v1/audit                           (operator; acceptance criterion #4)
+ *   GET  /v1/quotas/:harbor_fingerprint      (operator; X8 quota counters + shadow-vs-enforce delta)
  */
 
 import type { Env } from './types.js';
 import { HarborChannel } from './harbor-channel.js';
+import { HarborQuota } from './harbor-quota.js';
+import { CoordinationRoom } from './coordination-room.js';
 import {
   handleHealth,
   handleHandshake,
@@ -79,6 +150,10 @@ import {
   handleAudit,
 } from './handlers.js';
 import { handleGithubWebhook } from './github-webhook.js';
+import { handleProvisionFleetExecutor } from './fleet-executor-identity.js';
+import { handleRunReport } from './run-report.js';
+import { recordSloSample } from './mercy-hooks.js';
+import { randomHex } from './crypto.js';
 import { handleSessionIntelIngest, handleSessionIntelPending } from './session-intel.js';
 import {
   handleFleetConfig,
@@ -94,7 +169,18 @@ import {
   handleFleetPause,
   handleDeleteFleetRun,
 } from './fleet-observability.js';
-import { handleFleetRunPage } from './fleet-run-page.js';
+import {
+  handleFleetRunPage,
+  handleFleetRunTranscript,
+  handleFleetRunTranscriptIndex,
+  handleFleetRunTranscriptPage,
+} from './fleet-run-page.js';
+import {
+  handleFleetAppleTouchIcon,
+  handleFleetIcon192,
+  handleFleetIcon512,
+  handleFleetManifest,
+} from './fleet-pwa.js';
 import { runRetentionSweep } from './retention-sweep.js';
 import { runMercySweep, handleMercyStatus, handleMercyPage } from './mercy.js';
 import {
@@ -106,6 +192,11 @@ import {
   handleInterruptionsPage,
 } from './interruptions.js';
 import {
+  handleRegisterApnsDevice,
+  handleUnregisterApnsDevice,
+  handleListApnsDevices,
+} from './push-apns.js';
+import {
   handleGithubLogin,
   handleGithubCallback,
   handleAuthMe,
@@ -116,17 +207,53 @@ import {
 } from './auth-github.js';
 import { handleLoginPage, handleAccountPage } from './account-page.js';
 import {
+  handleSeamanshipPage,
+  handleSeamanshipPublishForm,
+  handlePublicSkillsPage,
+  handlePublicSkillPage,
+} from './seamanship-page.js';
+import {
+  handleSeamanshipPublish,
+  handlePublicSkillsListing,
+  handlePublicSkillBody,
+} from './seamanship.js';
+import {
+  handleSnipeApprove,
+  handleSnipeDismiss,
+  handleSnipeSuggest,
+  handleSnipeSuggestionList,
+} from './snipe-builder.js';
+import { handleSnipeChat, handleSnipeClear, handleSnipeHistory } from './snipe-chat.js';
+import { handleSnipeChatPage } from './snipe-chat-page.js';
+import { makeD1CatalogReader, runSnipeSuggestionSweep } from './snipe-suggestions.js';
+import { runSnipeBuildSweep } from './snipe-builder.js';
+import {
   handleParleysIndex,
   handleParleyListPage,
   handleParleyDetailPage,
   handleParleySignForm,
+  handleParleyVerdictForm,
 } from './parleys-page.js';
+import { handleHarborsPage, handleHarborDetailPage, harborNotFoundPage } from './harbors-page.js';
+import {
+  handleMediatorConvene,
+  handleMediatorSummonsRespond,
+  handleMediatorToggle,
+} from './mediator-body.js';
 import { handleRunsPage } from './runs-page.js';
+import { handleStewardPage } from './steward-page.js';
+import {
+  handleRepoSettingsPage,
+  handleRepoSettingsSet,
+  handleRepoSettingsRemove,
+  handleRepoSettingsApi,
+} from './repo-settings-page.js';
 import { handleShipwrightPage } from './shipwright-page.js';
 import {
   handleShipwrightChat,
   handleShipwrightHistory,
   handleShipwrightClear,
+  handleShipwrightOpenPr,
 } from './shipwright.js';
 import { handleBillingPage } from './billing-page.js';
 import { handleDeviceStart, handleDeviceToken, handleWhoami } from './device-flow.js';
@@ -135,6 +262,7 @@ import {
   handleStripeWebhook,
   handleBillingBalance,
   handlePortalLink,
+  handleQuotaStatus,
 } from './billing.js';
 import {
   handleCreateHarbor,
@@ -143,20 +271,47 @@ import {
   handleAddHarborMember,
 } from './harbors.js';
 import {
+  handleMintHarborInvite,
+  handleListHarborInvites,
+  handleRevokeHarborInvite,
+  handleJoinHarbor,
+} from './invites.js';
+import {
   handlePresenceBeat,
   handleGetPresence,
   handleSetHelm,
   handleGetHelm,
 } from './presence.js';
 import {
+  handlePutHarborCard,
+  handleDirectory,
+  handleWhois,
+  handleSetDirectoryWeights,
+} from './directory.js';
+import {
   handleCreateParley,
   handleListParleys,
   handleGetParley,
   handleRespondParley,
 } from './parleys.js';
+import {
+  handleRegisterDeviceKey,
+  handleListDeviceKeys,
+  handleGetHarborDeviceKey,
+  handlePostHarborWrap,
+  handleGetHarborWraps,
+} from './device-keys.js';
+import { handleRoadmapSnapshotPut, handleRoadmapMirrorGet } from './roadmap-mirror.js';
+import {
+  handleCoordinationGrant,
+  handleCoordinationSync,
+  parseCoordinationProject,
+} from './coordination.js';
 
-// Re-export Durable Object class for wrangler to pick up
+// Re-export Durable Object classes for wrangler to pick up
 export { HarborChannel };
+export { HarborQuota };
+export { CoordinationRoom };
 
 function cors(response: Response): Response {
   const headers = new Headers(response.headers);
@@ -185,19 +340,88 @@ function corsCredentialed(response: Response): Response {
   return new Response(response.body, { status: response.status, headers });
 }
 
+/**
+ * Decode one URL path segment FAIL-CLOSED, for the transcript-family routes.
+ *
+ * WHY: malformed percent-encoding (`%zz`) makes decodeURIComponent throw, and
+ * the global boundary would surface that as a 500 — but everything under
+ * /fleet/runs/:id answers one indistinguishable 404 to every failure, and a
+ * malformed id must not be the single input that earns a distinguishable
+ * answer. Returning '' fails the handlers' RUN_ID_RE / ship-name validation,
+ * which IS that 404.
+ *
+ * @param segment The raw (still-encoded) path segment from the route match.
+ * @returns The decoded segment, or '' when the encoding is malformed.
+ */
+function safeDecodeSegment(segment: string): string {
+  try {
+    return decodeURIComponent(segment);
+  } catch {
+    return '';
+  }
+}
+
 function notFound(): Response {
   return Response.json({ error: 'Not found', code: 'NOT_FOUND' }, { status: 404 });
 }
 
+/**
+ * requestId threading (x7-mercy-hooks slice 3), done at the ONE choke point
+ * every module's response passes through instead of rewriting ~20 handler
+ * signatures: every response gains an `X-Request-Id` header, and every JSON
+ * ERROR envelope (status ≥ 400) additionally gains a `requestId` field — so a
+ * caller quoting an error can always hand the operator a correlatable id,
+ * whichever module produced the envelope. Success bodies (including SSE
+ * streams) pass through untouched.
+ */
+async function withRequestId(response: Response, requestId: string): Promise<Response> {
+  const headers = new Headers(response.headers);
+  headers.set('X-Request-Id', requestId);
+  if (response.status >= 400 && (headers.get('Content-Type') ?? '').includes('application/json')) {
+    try {
+      const body = (await response.clone().json()) as unknown;
+      if (typeof body === 'object' && body !== null && !Array.isArray(body)) {
+        (body as Record<string, unknown>).requestId = requestId;
+        return new Response(JSON.stringify(body), { status: response.status, headers });
+      }
+    } catch {
+      // Header claimed JSON but the body was not — header-only threading.
+    }
+  }
+  return new Response(response.body, { status: response.status, headers });
+}
+
+async function finalizeResponse(
+  response: Response,
+  requestId: string,
+  pathname: string,
+  env: Env,
+  ctx: ExecutionContext,
+): Promise<Response> {
+  const correlated = await withRequestId(response, requestId);
+  const sloSample = recordSloSample(env.DB, Date.now(), correlated.status >= 500);
+  try {
+    ctx.waitUntil(sloSample);
+  } catch {
+    void sloSample;
+  }
+  return CREDENTIALED_CORS_PATHS.has(pathname)
+    ? corsCredentialed(correlated)
+    : cors(correlated);
+}
+
 export default {
-  async fetch(request: Request, env: Env, _ctx: ExecutionContext): Promise<Response> {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    // One id per request, minted before any routing so even the INTERNAL_ERROR
+    // path carries it. The `req_` prefix keeps it recognizable in logs.
+    const requestId = `req_${randomHex(8)}`;
     const url = new URL(request.url);
     const { pathname, method } = { pathname: url.pathname, method: request.method };
 
     // CORS preflight
     if (method === 'OPTIONS') {
       const preflight = new Response(null, { status: 204 });
-      return CREDENTIALED_CORS_PATHS.has(pathname) ? corsCredentialed(preflight) : cors(preflight);
+      return finalizeResponse(preflight, requestId, pathname, env, ctx);
     }
 
     let response: Response = notFound();
@@ -229,6 +453,25 @@ export default {
       response = await handlePublish(request, env);
     }
 
+    // ── ADR-0092 cloud coordination peer ───────────────────────────────────
+    // The project is a DO routing key, not an authority boundary. Authority is
+    // the macaroon's project + actor + coordination-sync caveats.
+    else if (pathname.startsWith('/v1/coordination/')) {
+      const rest = pathname.slice('/v1/coordination/'.length);
+      const slash = rest.lastIndexOf('/');
+      const project = slash > 0 ? parseCoordinationProject(rest.slice(0, slash)) : null;
+      const action = slash > 0 ? rest.slice(slash + 1) : '';
+      if (!project) {
+        response = Response.json({ error: 'Invalid coordination project', code: 'VALIDATION_ERROR' }, { status: 400 });
+      } else if (action === 'grant' && method === 'POST') {
+        response = await handleCoordinationGrant(request, env, project);
+      } else if (action === 'sync' && method === 'POST') {
+        response = await handleCoordinationSync(request, env, project);
+      } else {
+        response = notFound();
+      }
+    }
+
     // ── GitHub webhook ingress ───────────────────────────────────────────────
     else if (pathname === '/v1/github/webhook' && method === 'POST') {
       response = await handleGithubWebhook(request, env);
@@ -249,6 +492,19 @@ export default {
     }
     else if (pathname === '/v1/fleet/save' && method === 'POST') {
       response = await handleFleetSave(request, env);
+    }
+    // Fleet-executor identity provisioning (operator; plan N2). The ONLY way
+    // an executor identity or card comes to exist — there is deliberately no
+    // bearer-token publish ingest anywhere in this router.
+    else if (pathname === '/v1/fleet/executor-identity' && method === 'POST') {
+      response = await handleProvisionFleetExecutor(request, env);
+    }
+    // Run-concluded reconciliation (x7-mercy-hooks slice 2): the executor
+    // reports its per-run event totals under its N2 card; the relay records
+    // claimed-vs-received. Signed like a publish — no bearer dialect here
+    // either.
+    else if (pathname === '/v1/fleet/run-report' && method === 'POST') {
+      response = await handleRunReport(request, env);
     }
 
     // ── Session Intelligence cloud-mining ingest (operator-gated) ────────────
@@ -295,6 +551,84 @@ export default {
       response = await handleAckInterruption(request, env, id);
     }
 
+    // ── PWA static assets (public app metadata, no authz — Phase 5 of
+    //    docs/FLEET-SESSION-TRANSCRIPTS.md; src/fleet-pwa.ts) ────────────────
+    else if (pathname === '/fleet/manifest.webmanifest' && method === 'GET') {
+      response = handleFleetManifest();
+    }
+    else if (pathname === '/fleet/apple-touch-icon.png' && method === 'GET') {
+      response = handleFleetAppleTouchIcon();
+    }
+    else if (pathname === '/fleet/icon-192.png' && method === 'GET') {
+      response = handleFleetIcon192();
+    }
+    else if (pathname === '/fleet/icon-512.png' && method === 'GET') {
+      response = handleFleetIcon512();
+    }
+
+    // ── Transcript LEDGER (machine JSON index of every captured ship/attempt;
+    //    same capability scheme; Phase 3 of the RFC) ──────────────────────────
+    else if (
+      pathname.startsWith('/fleet/runs/') &&
+      method === 'GET' &&
+      /^\/fleet\/runs\/.+\/transcripts\.json$/.test(pathname)
+    ) {
+      const m = pathname.match(/^\/fleet\/runs\/(.+)\/transcripts\.json$/);
+      response = await handleFleetRunTranscriptIndex(request, env, safeDecodeSegment(m?.[1] ?? ''));
+    }
+
+    // ── Raw ship session transcript (pd-transcript.v1 JSONL; same capability
+    //    scheme as the run page — docs/FLEET-SESSION-TRANSCRIPTS.md) ─────────
+    else if (
+      pathname.startsWith('/fleet/runs/') &&
+      method === 'GET' &&
+      /^\/fleet\/runs\/.+\/transcript\/[^/]+\.jsonl$/.test(pathname)
+    ) {
+      const m = pathname.match(/^\/fleet\/runs\/(.+)\/transcript\/([^/]+)\.jsonl$/);
+      response = await handleFleetRunTranscript(
+        request,
+        env,
+        safeDecodeSegment(m?.[1] ?? ''),
+        safeDecodeSegment(m?.[2] ?? ''),
+      );
+    }
+
+    // ── Transcript VIEWER (HTML turn-card timeline over the same capture;
+    //    same capability scheme; Phase 2 of the RFC) ─────────────────────────
+    else if (
+      pathname.startsWith('/fleet/runs/') &&
+      method === 'GET' &&
+      /^\/fleet\/runs\/.+\/transcript\/[^/]+$/.test(pathname)
+    ) {
+      const m = pathname.match(/^\/fleet\/runs\/(.+)\/transcript\/([^/]+)$/);
+      response = await handleFleetRunTranscriptPage(
+        request,
+        env,
+        safeDecodeSegment(m?.[1] ?? ''),
+        safeDecodeSegment(m?.[2] ?? ''),
+      );
+    }
+
+    // ── APNs device registry — iOS interruption pages (src/push-apns.ts) ─────
+    else if (pathname === '/v1/push/apns/devices' && method === 'POST') {
+      response = await handleRegisterApnsDevice(request, env);
+    }
+    else if (pathname === '/v1/push/apns/devices' && method === 'GET') {
+      response = await handleListApnsDevices(request, env);
+    }
+    else if (pathname.startsWith('/v1/push/apns/devices/') && method === 'DELETE') {
+      const deviceId = decodeURIComponent(pathname.slice('/v1/push/apns/devices/'.length));
+      response = await handleUnregisterApnsDevice(request, env, deviceId);
+    }
+
+    // ── Device keys (WS-B slice B3; src/device-keys.ts) ───────────────────────
+    else if (pathname === '/v1/devices/keys' && method === 'POST') {
+      response = await handleRegisterDeviceKey(request, env);
+    }
+    else if (pathname === '/v1/devices/keys' && method === 'GET') {
+      response = await handleListDeviceKeys(request, env);
+    }
+
     // ── Fleet run page (HTML; check-run details_url target, ADR-0101) ────────
     else if (pathname.startsWith('/fleet/runs/') && method === 'GET') {
       const runId = decodeURIComponent(pathname.slice('/fleet/runs/'.length));
@@ -317,6 +651,27 @@ export default {
     else if (pathname === '/account/runs' && method === 'GET') {
       response = await handleRunsPage(request, env);
     }
+    // The Steward's ledgers (session + GitHub repo ACL; ADR-0109). Read-only:
+    // this Worker renders the seat's deck log and merge ledger, it never
+    // writes them — single-writer merge authority is the seat's alone.
+    else if (pathname === '/account/steward' && method === 'GET') {
+      response = await handleStewardPage(request, env);
+    }
+    // Per-repo agent settings screen (session + GitHub repo ACL; the sitrep
+    // dial lives here; src/repo-settings-page.ts).
+    else if (pathname === '/account/repos' && method === 'GET') {
+      response = await handleRepoSettingsPage(request, env);
+    }
+    else if (pathname === '/account/repos/set' && method === 'POST') {
+      response = await handleRepoSettingsSet(request, env);
+    }
+    else if (pathname === '/account/repos/remove' && method === 'POST') {
+      response = await handleRepoSettingsRemove(request, env);
+    }
+    // Device-facing read path for per-repo settings (pdu_ bearer or cookie).
+    else if (pathname === '/v1/repo-settings' && method === 'GET') {
+      response = await handleRepoSettingsApi(request, env);
+    }
     // Billing storefront (session + GitHub installation ownership; ADR-0116).
     else if (pathname === '/account/billing' && method === 'GET') {
       response = await handleBillingPage(request, env);
@@ -332,6 +687,71 @@ export default {
     // Shipwright chat page (session-gated HTML; src/shipwright-page.ts).
     else if (pathname === '/account/shipwright' && method === 'GET') {
       response = await handleShipwrightPage(request, env);
+    }
+    // ── Seamanship: the operator's skill catalog + the opt-in public listing ─
+    // The catalog is READ LIVE from the operator's own repos through their
+    // GitHub App installation — the repo is the source of truth and this Worker
+    // never mirrors the corpus. Every path that exposes a skill to anyone but
+    // its owner goes through the ONE predicate, isPublishableSkill
+    // (src/seamanship.ts, re-exporting lib/shipwright/skill-visibility.ts).
+    else if (pathname === '/account/seamanship' && method === 'GET') {
+      response = await handleSeamanshipPage(request, env);
+    }
+    else if (pathname === '/account/seamanship/publish' && method === 'POST') {
+      response = await handleSeamanshipPublishForm(request, env);
+    }
+    else if (pathname === '/v1/seamanship/publish' && method === 'POST') {
+      response = await handleSeamanshipPublish(request, env);
+    }
+    // ── Snipe (the Engineman): suggestions, the approval gate, and the chat ─
+    // The gate is structural, not conventional: approving is the ONLY act that
+    // mints a build capability (src/snipe-builder.ts), the builder's signature
+    // requires one, and the capability is single-use. No approval ⇒ no build ⇒
+    // no pull request, and a pull request the operator merges is the only way
+    // anything reaches a catalog.
+    else if (pathname === '/account/seamanship/suggest' && method === 'POST') {
+      response = await handleSnipeSuggest(request, env);
+    }
+    else if (pathname === '/account/seamanship/approve' && method === 'POST') {
+      response = await handleSnipeApprove(request, env);
+    }
+    else if (pathname === '/account/seamanship/dismiss' && method === 'POST') {
+      response = await handleSnipeDismiss(request, env);
+    }
+    else if (pathname === '/v1/seamanship/suggestions' && method === 'GET') {
+      response = await handleSnipeSuggestionList(request, env);
+    }
+    // The Engineman's chat. Runs on the SHARED turn engine (src/chat-engine.ts)
+    // — the same session gate, streaming path and DAILY SPEND CAP as every
+    // other chat surface, not a second implementation of any of them.
+    else if (pathname === '/account/seamanship/chat' && method === 'GET') {
+      response = await handleSnipeChatPage(request, env);
+    }
+    else if (pathname === '/v1/snipe/history' && method === 'GET') {
+      response = await handleSnipeHistory(request, env);
+    }
+    else if (pathname === '/v1/snipe/chat' && method === 'POST') {
+      response = await handleSnipeChat(request, env);
+    }
+    else if (pathname === '/v1/snipe/clear' && method === 'POST') {
+      response = await handleSnipeClear(request, env);
+    }
+    // PUBLIC listing. `/skills` and `/v1/skills` serve the LISTED tier only
+    // (names + descriptions). The `@login/id` forms serve a full SKILL.md body
+    // and are gated on a session AND a live `visibility: public`.
+    else if (pathname === '/skills' && method === 'GET') {
+      response = await handlePublicSkillsPage(request, env);
+    }
+    else if (pathname === '/v1/skills' && method === 'GET') {
+      response = await handlePublicSkillsListing(request, env);
+    }
+    else if (pathname.startsWith('/skills/') && method === 'GET') {
+      const qualified = decodeURIComponent(pathname.slice('/skills/'.length));
+      response = await handlePublicSkillPage(request, env, qualified);
+    }
+    else if (pathname.startsWith('/v1/skills/') && method === 'GET') {
+      const qualified = decodeURIComponent(pathname.slice('/v1/skills/'.length));
+      response = await handlePublicSkillBody(request, env, qualified);
     }
     // ── Parley HTML surface (session + harbor-member gated; parleys-page.ts) ─
     // /account/parleys                     → redirect to a harbor (or empty state)
@@ -349,8 +769,59 @@ export default {
         response = await handleParleyDetailPage(request, env, pns, pname, pid);
       } else if (pns && pname && pid && seg.length === 4 && pverb === 'sign' && method === 'POST') {
         response = await handleParleySignForm(request, env, pns, pname, pid);
+      } else if (pns && pname && pid && seg.length === 4 && pverb === 'verdict' && method === 'POST') {
+        response = await handleParleyVerdictForm(request, env, pns, pname, pid);
       } else {
         response = new Response('Not Found', { status: 404 });
+      }
+    }
+
+    // ── Mediator body (grand-plan node mediator-body; src/mediator-body.ts) ──
+    // Machine routes: signed chained envelopes only (delegated to the ONE
+    // publish gate); the kill toggle is operator-gated like /v1/fleet/pause.
+    else if (pathname === '/v1/mediator/convene' && method === 'POST') {
+      response = await handleMediatorConvene(request, env);
+    }
+    else if (pathname === '/v1/mediator/summons/respond' && method === 'POST') {
+      response = await handleMediatorSummonsRespond(request, env);
+    }
+    else if (pathname === '/v1/fleet/mediator' && method === 'POST') {
+      response = await handleMediatorToggle(request, env);
+    }
+
+    // ── Harbors HTML surface (session + member gated; harbors-page.ts) ───────
+    // /account/harbors           → every harbor this account belongs to
+    // /account/harbors/:ns/:name → members + presence + reachability verdict
+    else if (pathname === '/account/harbors' && method === 'GET') {
+      response = await handleHarborsPage(request, env);
+    } else if (pathname.startsWith('/account/harbors/')) {
+      // decodeURIComponent throws URIError on a malformed escape ("%ZZ"). The
+      // global boundary below would catch it, but it would answer 500 for what
+      // is only a bad URL — and this surface answers 404 for everything it will
+      // not serve, so that a non-member and a nonexistent harbor are one
+      // response. An undecodable segment joins them rather than standing out.
+      let seg: string[] | null = null;
+      try {
+        seg = pathname.slice('/account/harbors/'.length).split('/').filter(Boolean).map(decodeURIComponent);
+      } catch {
+        seg = null;
+      }
+      const [hns, hname] = seg ?? [];
+      if (seg && hns && hname && seg.length === 2 && method === 'GET') {
+        response = await handleHarborDetailPage(request, env, hns, hname);
+      } else {
+        // The SAME page a nonexistent harbor gets, byte for byte — not a bare
+        // `new Response('Not Found')`. That plaintext 9-byte answer was
+        // distinguishable on sight from the real 404, which made "your escape
+        // sequence was bad" and "no such harbor" two different replies: the
+        // existence oracle the page's own text refuses to be. It also carried
+        // none of this surface's headers — no no-store, no noindex, no CSP.
+        //
+        // NOTE: the parleys branch above (the `else` at the end of the
+        // /account/parleys/ dispatch) still has the bare form and the same
+        // doctrine in parleys-page.ts. Same defect, different surface; it needs
+        // its own change and its own tests rather than a drive-by here.
+        response = harborNotFoundPage();
       }
     }
 
@@ -363,6 +834,9 @@ export default {
     }
     else if (pathname === '/v1/shipwright/clear' && method === 'POST') {
       response = await handleShipwrightClear(request, env);
+    }
+    else if (pathname === '/v1/shipwright/open-pr' && method === 'POST') {
+      response = await handleShipwrightOpenPr(request, env);
     }
 
     // ── GitHub login BFF (ADR-0101 Phase 1) ──────────────────────────────────
@@ -412,8 +886,37 @@ export default {
       const installationId = decodeURIComponent(pathname.slice('/billing/balance/'.length));
       response = await handleBillingBalance(request, env, installationId);
     }
+
+    // X8 quota counters + shadow-vs-enforce delta (operator; src/billing.ts)
+    else if (pathname.startsWith('/v1/quotas/') && method === 'GET') {
+      const harborFp = decodeURIComponent(pathname.slice('/v1/quotas/'.length));
+      response = await handleQuotaStatus(request, env, harborFp, ctx);
+    }
     else if (pathname === '/billing/portal' && method === 'POST') {
       response = await handlePortalLink(request, env);
+    }
+
+    // ── X5 directory + whois (consent-first, D3; src/directory.ts) ───────────
+    else if (pathname === '/v1/harbor/card' && method === 'PUT') {
+      response = await handlePutHarborCard(request, env);
+    }
+    else if (pathname === '/v1/harbor/directory' && method === 'GET') {
+      response = await handleDirectory(env);
+    }
+    else if (pathname === '/v1/harbor/directory/weights' && method === 'PUT') {
+      response = await handleSetDirectoryWeights(request, env);
+    }
+    else if (pathname === '/v1/harbor/whois' && method === 'GET') {
+      response = await handleWhois(request, env);
+    }
+
+    // ── Roadmap command-center mirror (operator mandate 2026-08-22, PR 1;
+    // src/roadmap-mirror.ts). The daemon pushes; the account reads its own. ──
+    else if (pathname === '/v1/roadmap/snapshot' && method === 'PUT') {
+      response = await handleRoadmapSnapshotPut(request, env);
+    }
+    else if (pathname === '/v1/roadmap/mirror' && method === 'GET') {
+      response = await handleRoadmapMirrorGet(request, env);
     }
 
     // ── Remote harbors (grand-plan X2 v1; src/harbors.ts) ────────────────────
@@ -436,6 +939,14 @@ export default {
         response = await handleGetHarbor(request, env, ns, name);
       } else if (ns && name && parts.length === 3 && sub === 'members' && method === 'POST') {
         response = await handleAddHarborMember(request, env, ns, name);
+      } else if (ns && name && parts.length === 3 && sub === 'invites' && method === 'POST') {
+        response = await handleMintHarborInvite(request, env, ns, name);
+      } else if (ns && name && parts.length === 3 && sub === 'invites' && method === 'GET') {
+        response = await handleListHarborInvites(request, env, ns, name);
+      } else if (ns && name && sub === 'invites' && parts.length === 5 && parts[3] && parts[4] === 'revoke' && method === 'POST') {
+        response = await handleRevokeHarborInvite(request, env, ns, name, parts[3]);
+      } else if (ns && name && parts.length === 3 && sub === 'join' && method === 'POST') {
+        response = await handleJoinHarbor(request, env, ns, name);
       } else if (ns && name && parts.length === 3 && sub === 'presence' && method === 'POST') {
         response = await handlePresenceBeat(request, env, ns, name);
       } else if (ns && name && parts.length === 3 && sub === 'presence' && method === 'GET') {
@@ -452,6 +963,12 @@ export default {
         response = await handleGetParley(request, env, ns, name, parleyId);
       } else if (ns && name && sub === 'parleys' && parleyId && parts.length === 5 && parts[4] === 'respond' && method === 'POST') {
         response = await handleRespondParley(request, env, ns, name, parleyId);
+      } else if (ns && name && sub === 'devices' && parts.length === 5 && parts[3] && parts[4] === 'key' && method === 'GET') {
+        response = await handleGetHarborDeviceKey(request, env, ns, name, parts[3]);
+      } else if (ns && name && parts.length === 3 && sub === 'wraps' && method === 'POST') {
+        response = await handlePostHarborWrap(request, env, ns, name);
+      } else if (ns && name && parts.length === 3 && sub === 'wraps' && method === 'GET') {
+        response = await handleGetHarborWraps(request, env, ns, name);
       } else {
         response = notFound();
       }
@@ -513,23 +1030,38 @@ export default {
     } catch (e) {
       // Global fail-closed boundary: any uncaught throw (D1/KV/Durable Object
       // infra error) becomes a controlled {error,code} envelope, never a raw
-      // runtime 500. Matches the contract every handler already uses.
+      // runtime 500. Matches the contract every handler already uses. The
+      // requestId in the log line is the same one the caller receives.
+      console.error(`[relay] ${requestId} INTERNAL_ERROR ${method} ${pathname}:`, e);
       response = Response.json(
         { error: 'internal relay error', code: 'INTERNAL_ERROR' },
         { status: 500 },
       );
     }
 
-    return CREDENTIALED_CORS_PATHS.has(pathname) ? corsCredentialed(response) : cors(response);
+    // x7 slice 3 — requestId on every response (and inside every JSON error
+    // envelope), then one SLO burn sample per request via waitUntil so the
+    // write never sits on the response path. 5xx only: a caller's 4xx is not
+    // the relay burning its own budget. recordSloSample never rejects; test
+    // harnesses may pass a bare object as ctx, hence the guard.
+    return finalizeResponse(response, requestId, pathname, env, ctx);
   },
 
-  // Cron Triggers (ADR-0101; runtime-verification-for-agents). The Worker has
-  // no long-running Arbiter loop, so scheduled maintenance runs here. Two crons
-  // share one handler, dispatched on event.cron (wrangler.deploy.toml):
-  //   "*/5 * * * *"  — MERCY health sweep only (probes are cheap).
-  //   "0 */6 * * *"  — retention/session-reap/erasure sweep (+ a MERCY sweep,
-  //                    since every fire takes vitals). Best-effort: neither
-  //                    sweep ever throws.
+  /**
+   * Cron Triggers (ADR-0101; runtime-verification-for-agents). The Worker has
+   * no long-running Arbiter loop, so scheduled maintenance runs here — the
+   * design intent is that BOTH sweeps stay best-effort and never throw, since
+   * a failed cron must not shadow the next fire. Two crons share this one
+   * handler, dispatched on `event.cron` (wrangler.deploy.toml):
+   *   "*⁠/5 * * * *" — MERCY health sweep only (probes are cheap).
+   *   "0 *⁠/6 * * *" — retention/session-reap/erasure sweep (+ a MERCY sweep,
+   *                    since every fire takes vitals).
+   *
+   * @param event The controller carrying which cron expression fired.
+   * @param env Worker bindings (D1, KV, R2, queues).
+   * @param ctx Execution context — sweeps ride `waitUntil` past the response.
+   * @returns Resolves once the sweeps are scheduled (not completed).
+   */
   async scheduled(event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
     const MERCY_CRON = '*/5 * * * *';
     if (event.cron !== MERCY_CRON) {
@@ -550,6 +1082,34 @@ export default {
         const line =
           `[relay] mercy sweep: overall=${r.overall} remoteHarbors=${r.remoteHarborsPossible} ` +
           `opened=${r.incidentsOpened} resolved=${r.incidentsResolved} paged=${r.pagesSent}`;
+        if (r.errors.length) console.error(`${line} errors: ${r.errors.join('; ')}`);
+        else console.log(line);
+      }),
+    );
+    // Snipe drainers. These are QUEUE DRAINS, not polls of operator state: a
+    // suggestion job exists because a person asked for one, and a build grant
+    // exists because a person approved something. They ride every fire so an
+    // approved suggestion becomes a pull request in minutes rather than hours;
+    // when both queues are empty each costs one indexed SELECT. Both are
+    // internally fail-safe and return counter structs.
+    ctx.waitUntil(
+      runSnipeSuggestionSweep(env, Math.floor(Date.now() / 1000), {
+        catalog: makeD1CatalogReader(env.DB),
+      }).then((r) => {
+        if (r.jobsRun === 0 && r.stuckReaped === 0 && r.errors.length === 0) return;
+        const line =
+          `[relay] snipe suggestion sweep: ran=${r.jobsRun} skipped=${r.jobsSkipped} ` +
+          `produced=${r.suggestionsProduced} reaped=${r.stuckReaped} abandoned=${r.stuckFailed}`;
+        if (r.errors.length) console.error(`${line} errors: ${r.errors.join('; ')}`);
+        else console.log(line);
+      }),
+    );
+    ctx.waitUntil(
+      runSnipeBuildSweep(env, Math.floor(Date.now() / 1000)).then((r) => {
+        if (r.claimed === 0 && r.errors.length === 0) return;
+        const line =
+          `[relay] snipe build sweep: claimed=${r.claimed} built=${r.built} ` +
+          `failed=${r.failed} released=${r.released}`;
         if (r.errors.length) console.error(`${line} errors: ${r.errors.join('; ')}`);
         else console.log(line);
       }),

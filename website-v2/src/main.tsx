@@ -24,6 +24,7 @@ const TutorialsPage = lazyNamed(() => import('@/pages/TutorialsPage'), 'Tutorial
 const ExamplesPage = lazyNamed(() => import('@/pages/ExamplesPage'), 'ExamplesPage')
 const ExampleDetailPage = lazyNamed(() => import('@/pages/ExampleDetailPage'), 'ExampleDetailPage')
 const LibraryPage = lazy(() => import('@/pages/library'))
+const ResearchLibraryPage = lazy(() => import('@/pages/library/ResearchPage'))
 const SecurityPage = lazy(() => import('@/pages/SecurityPage'))
 const HarnessPage = lazy(() => import('@/pages/HarnessPage'))
 const CliBackendPage = lazy(() => import('@/pages/cli-backend'))
@@ -255,6 +256,7 @@ createRoot(document.getElementById('root')!).render(
               <Route path="/squid-codex" element={<SquidCodexPage />} />
               <Route path="/cryptography" element={<Navigate to="/security" replace />} />
               <Route path="/library" element={<LibraryPage />} />
+              <Route path="/library/research" element={<ResearchLibraryPage />} />
               {/* /whitepaper now forwards to the Library (the canonical home for
                   the papers). The URL is preserved as a forwarding link because
                   it was shared externally. Deep links to individual papers below

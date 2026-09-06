@@ -30,7 +30,7 @@ function jsonResponse(body, ok = true, status = 200) {
  * of counts. Order of mockResolvedValueOnce matches the order constructs are
  * iterated in TIER_TABLE, and the number of mocks per construct matches the
  * number of HTTP calls that construct's fetcher actually makes against the
- * daemon. (archived-notes now makes TWO — total + recent — for the partition.)
+ * daemon. Both note rows share ONE bounded snapshot/partition request.
  *
  * Wire shapes here mirror what the live daemon actually emits (see
  * routes/resurrection.ts, routes/notes.ts, etc). Mocking the wrong shape was
@@ -40,18 +40,13 @@ function jsonResponse(body, ok = true, status = 200) {
 function stubAllCounts(counts) {
   pdFetch.mockReset();
   for (const construct of TIER_TABLE.map((r) => r.construct)) {
+    if (construct === 'archived-notes') continue;
     const count = counts[construct];
     if (count === '__err__') {
       pdFetch.mockResolvedValueOnce(jsonResponse({ error: 'forced failure' }, false, 500));
       continue;
     }
-    if (construct === 'archived-notes') {
-      // Partition: archived = total - recall. Mock total = archived + active-notes,
-      // then mock recent = active-notes, so subtraction yields the declared archived count.
-      const active = counts['active-notes'] ?? 0;
-      pdFetch.mockResolvedValueOnce(jsonResponse({ total: count + active }));
-      pdFetch.mockResolvedValueOnce(jsonResponse({ notes: new Array(active).fill({}) }));
-    } else if (construct === 'blobs') {
+    if (construct === 'blobs') {
       pdFetch.mockResolvedValueOnce(jsonResponse({ total: count }));
     } else if (construct === 'episodic-memory') {
       pdFetch.mockResolvedValueOnce(jsonResponse({ total: count }));
@@ -67,7 +62,8 @@ function stubAllCounts(counts) {
     } else if (construct === 'active-file-claims') {
       pdFetch.mockResolvedValueOnce(jsonResponse({ claims: new Array(count).fill({}) }));
     } else if (construct === 'active-notes') {
-      pdFetch.mockResolvedValueOnce(jsonResponse({ notes: new Array(count).fill({}) }));
+      pdFetch.mockResolvedValueOnce(jsonResponse({ success: true, total: count,
+        beforeSinceTotal: counts['archived-notes'], count: Math.min(1, count), notes: [] }));
     } else {
       pdFetch.mockResolvedValueOnce(jsonResponse({}));
     }

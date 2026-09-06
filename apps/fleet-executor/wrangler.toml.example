@@ -33,10 +33,48 @@ main = "src/index.ts"
 compatibility_date = "2026-06-01"
 compatibility_flags = ["nodejs_compat"]
 
+# Required for operator-grade delivery forensics. Console diagnostics include
+# bounded GitHub response status/request-id/rate-limit evidence; request
+# headers, request bodies, and the GitHub token are never recorded.
+[observability]
+enabled = true
+
+# ---------------------------------------------------------------------------
+# CPU budget per invocation.
+#
+# WHY THIS EXISTS: without a [limits] block a Worker gets the 30-second default
+# CPU budget, and a fleet run does not fit in it. Exceeding it is not a JS
+# exception — the runtime TERMINATES the invocation, so index.ts's try/catch
+# never runs, the message is never acked, and the platform redelivers it. With
+# max_retries = 3 that is four full runs of the same PR (four sets of ship
+# comments, four times the model spend) ending in a dead-letter whose only
+# artifact is "was lost (job exhausted retries / dead-lettered)" — a red gate
+# with no cause attached, because no code in this Worker ever got to see one.
+#
+# Observed 2026-08-19 on PRs #7278, #7339, #7344 and #7377: every attempt ran
+# the ideation ships to completion (each rewrote its own edit-in-place comment,
+# four distinct versions per PR) and then vanished mid-run, ~75s of wall clock
+# apiece — far inside the 15-minute wall-clock budget for a queue consumer, and
+# consistent with hitting the CPU ceiling instead.
+#
+# 300_000 ms (5 minutes) is the platform maximum. It is a CEILING, not a
+# reservation: a run that finishes in two seconds of CPU is billed for two
+# seconds. The queue consumer above is already serialized (max_concurrency = 1),
+# so raising this cannot widen concurrent spend.
+[limits]
+cpu_ms = 300000
+
 # ---------------------------------------------------------------------------
 # Workers AI — runs the analytical ships (code-reviewer, qa, red-team, …).
 [ai]
 binding = "AI"
+
+# Relay's named, RPC-only ADR-0092 grant issuer. Deploy that named entrypoint
+# before deploying this caller binding. Fleet never stores a static macaroon.
+[[services]]
+binding = "COORDINATION_GRANTS"
+service = "port-daddy-relay"
+entrypoint = "CoordinationGrantService"
 
 # ---------------------------------------------------------------------------
 # KV — installation-token cache. Keyed by `github_inst_<installationId>`,
@@ -94,18 +132,42 @@ database_id = "REPLACE_WITH_YOUR_RELAY_D1_DATABASE_ID"
 # new_sqlite_classes = ["Sandbox"]
 
 # ---------------------------------------------------------------------------
-# Queue consumer — one message per GitHub delivery, enqueued by relay.
+# Queue producer + consumer — one message per GitHub delivery, enqueued by
+# relay. Successful one-ship slices enqueue an explicit continuation before
+# acknowledging their current delivery; Cloudflare retries are reserved for
+# actual failures.
 # A blocking ship that never completes must never leave a green/pending gate,
 # so after `max_retries` exhausted the message lands in the DLQ where a
 # follow-up handler completes the check run as 'failure' (fail-closed).
+[[queues.producers]]
+binding = "FLEET_CONTINUATIONS"
+queue = "fleet-runs"
+
 [[queues.consumers]]
 queue = "fleet-runs"
-# Isolate long reviews by batch and invocation. A one-message batch alone still
-# permits many concurrent Worker invocations, multiplying each run's model
-# fan-out and allowing obsolete/current heads to review simultaneously.
+# Isolate long reviews by batch while allowing a deliberately small global
+# drain. A single active invocation makes every checkpointed one-ship slice
+# rejoin the back of the FIFO, leaving required checks pending behind unrelated
+# PRs. Three workers are a hard global cap; the durable intent fence admits one
+# sequence per delivery and the executor rechecks the PR head before each ship.
+max_batch_size = 1
+max_concurrency = 3
+max_batch_timeout = 30
+# Each successful invocation runs at most one new provider-heavy ship, records
+# a delivery-continuation step, enqueues the next checkpointed slice, and
+# acknowledges the current message. Retries are therefore true failure
+# attempts, bounded independently of roster size.
+max_retries = 3
+dead_letter_queue = "fleet-runs-dlq"
+
+# Required merge-group checks are deterministic and make no AI calls. Keep them
+# on an independent FIFO so substantive reviews cannot starve the GitHub merge
+# queue while preserving max_concurrency=1 for each workload.
+[[queues.consumers]]
+queue = "fleet-gates"
 max_batch_size = 1
 max_concurrency = 1
-max_batch_timeout = 30
+max_batch_timeout = 5
 max_retries = 3
 dead_letter_queue = "fleet-runs-dlq"
 
@@ -142,15 +204,27 @@ DEFAULT_BRANCH = "main"
 # ONLY once you have a real sink URL, e.g. "https://your-tunnel/telemetry/cloud-app".
 PORT_DADDY_TELEMETRY_URL = ""
 
-# Cloud squid — fleet coordination events (src/squid-events.ts). When BOTH
-# RELAY_PUBLISH_URL (var) and RELAY_PUBLISH_TOKEN (secret) are set, the
-# executor fire-and-forgets run-started / ship-verdict / pr-stacked /
-# run-concluded events onto channel 'fleet-cloud' as
-#   POST <RELAY_PUBLISH_URL>  { event: { channel, type, sender, iat, payload } }
-# with `Authorization: Bearer <RELAY_PUBLISH_TOKEN>`. Point it at a relay
-# ingest that accepts bearer-token publishes. OPTIONAL and DISABLED by default:
-# leave empty ⇒ zero fetches, feature silently off. Events are best-effort —
-# they can never block or change a run, a verdict, or the merge gate.
+# ADR-0092 cloud coordination peer transport. The verified repository and
+# durable Fleet run become the grant's project/actor scope at runtime. Relay
+# remains a peer, never authority: local daemon writes survive its absence.
+PORT_DADDY_COORDINATION_URL = "https://relay.portdaddy.dev"
+
+# Cloud squid — fleet coordination events (src/squid-events.ts). When
+# RELAY_PUBLISH_URL (var) AND the FLEET_EXECUTOR_ED25519_PRIVATE_KEY_HEX +
+# FLEET_EXECUTOR_HARBOR_CARD secrets are all set, the executor fire-and-forgets
+# run-started / ship-verdict / pr-stacked / run-concluded events onto the
+# per-run channel `<relayFp>:fleet-cloud:<runId>` as SIGNED zero-trust
+# publishes to the relay's POST /v1/publish:
+#   POST <RELAY_PUBLISH_URL>  { card, event: { v, sender, channel, seq,
+#                               prev_hash, this_hash, iat, ciphertext, sig } }
+# There is NO bearer token and NO Authorization header — the relay verifies
+# the executor's operator-provisioned identity, its harbor card, and the
+# per-run hash chain. OPTIONAL and DISABLED by default: leave empty ⇒ zero
+# fetches, feature silently off. Events are best-effort — they can never
+# block or change a run, a verdict, or the merge gate.
+#
+# FLEET_DEPLOYMENT (var, optional): names this deployment inside the squid/1
+# body's sender (`fleet-executor@<deployment>`). Default 'default'.
 #
 # TENANCY CONSENT: env wiring alone is NOT enough. Events carry the tenant
 # repo's name, PR numbers, verdicts, and stacked-PR urls onto a shared
@@ -178,7 +252,18 @@ RUN_DETAILS_BASE_URL = ""
 #                              tokens; MUST equal the relay's RUN_PAGE_SECRET
 #                              (openssl rand -hex 32, then wrangler secret put
 #                              RUN_PAGE_SECRET in BOTH workers)
-#   RELAY_PUBLISH_TOKEN        Bearer token for the cloud-squid event POSTs to
-#                              RELAY_PUBLISH_URL (see the [vars] comment above).
-#                              Optional: unset (with an empty URL) ⇒ squid
-#                              events are silently disabled.
+#   FLEET_EXECUTOR_ED25519_PRIVATE_KEY_HEX
+#                              The executor's Ed25519 seed (64 hex chars) for
+#                              signed cloud-squid publishes. Generate with
+#                              `openssl rand -hex 32`, register its PUBLIC key
+#                              via the relay's operator-gated
+#                              POST /v1/fleet/executor-identity, then
+#                              `wrangler secret put` the seed here. Optional:
+#                              unset ⇒ squid events are silently disabled.
+#   FLEET_EXECUTOR_HARBOR_CARD The hv:2 harbor card returned by the same
+#                              provisioning call (relay-signed EdDSA JWT with
+#                              cap pub on <relayFp>:fleet-cloud:*). Rotate by
+#                              POST /v1/revoke-by-issuer (issuer
+#                              `operator:fleet-executor@<deployment>`) and
+#                              re-provisioning with a fresh keypair. Optional:
+#                              unset ⇒ squid events are silently disabled.

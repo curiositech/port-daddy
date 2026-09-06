@@ -1,97 +1,58 @@
-% Federation topology — the basic gestalt: two harbors, neither root for the other,
-% a shared witness log, and a settlement escrow that is structurally bounded.
-
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D8C7A6}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-
+% Figure IV.7 --- two sovereign domains share correlation and settlement rails,
+% not a common root of authority.
 \begin{figure}[H]
 \centering
 \resizebox{0.95\textwidth}{!}{%
-\begin{tikzpicture}[
-  font=\sffamily\small,
-  harbor/.style={draw=hhebony,thick,rounded corners=4pt,
-                 fill=hhsand!50,inner sep=8pt,minimum width=46mm,
-                 minimum height=28mm,align=center},
-  harborlbl/.style={draw=hhebony,thick,fill=hhpaper,
-                    rounded corners=2pt,font=\sffamily\bfseries\small,
-                    inner sep=3pt},
-  witness/.style={draw=hhteal,very thick,fill=hhpaper,
-                  rounded corners=3pt,inner sep=6pt,
-                  minimum width=100mm,minimum height=22mm,align=center,text width=96mm},
-  escrow/.style={draw=hhcobalt,thick,fill=hhpaper,
-                 rounded corners=3pt,inner sep=6pt,
-                 minimum width=46mm,minimum height=16mm,align=center,
-                 font=\sffamily\small},
-  agentdot/.style={circle,draw=hhebony,fill=hhsanddeep,inner sep=1.5pt},
-  edge/.style={->,>=Latex,thick,draw=hhebony},
-  gossipedge/.style={->,>=Latex,thick,draw=hhteal,dashed},
-  settledge/.style={->,>=Latex,thick,draw=hhcobalt},
-]
+\begin{tikzpicture}[pd figure]
+  \node[pd panel title,anchor=west] at (-6.9,3.25)
+    {shared rails correlate sovereign domains without merging their authority};
+  \fill[hhsand!14] (-6.6,-2.6) rectangle (-.55,2.65);
+  \fill[hhsand!7] (.55,-2.6) rectangle (6.6,2.65);
+  \draw[pd caution rule,dashed] (0,-2.75)--(0,2.82);
+  \node[pd direct label,anchor=south] at (-3.55,2.78) {Harbor A $\cdot$ $sk_A$};
+  \node[pd direct label,anchor=south] at (3.55,2.78) {Harbor B $\cdot$ $sk_B$};
+  \node[pd axis label,text=hhamber,anchor=south] at (0,2.84) {no shared root};
 
-% ─── Two harbors ───────────────────────────────────────────────────
-\node[harbor] (HA) at (0,0) {%
-  \textbf{Harbor $A$}\\[2pt]
-  \footnotesize Alice's laptop\\
-  \footnotesize signing key $\mathit{sk}_A$};
-\node[agentdot] at ($(HA.south west)+(8mm,7mm)$) {};
-\node[agentdot] at ($(HA.south)+(0,7mm)$) {};
-\node[agentdot] at ($(HA.south east)+(-8mm,7mm)$) {};
-\node[font=\sffamily\scriptsize\itshape,below=1pt of HA.south,yshift=4mm] {agents under $A$};
+  \node[pd axis label,anchor=east] at (-6.75,1.82) {witness};
+  \node[pd axis label,anchor=east] at (-6.75,.72) {capability};
+  \node[pd axis label,anchor=east] at (-6.75,-.38) {revocation};
+  \node[pd axis label,anchor=east] at (-6.75,-1.72) {settlement};
 
-\node[harbor,right=44mm of HA] (HB) {%
-  \textbf{Harbor $B$}\\[2pt]
-  \footnotesize Bob's laptop\\
-  \footnotesize signing key $\mathit{sk}_B$\\[3pt]
-  };
-\node[agentdot] at ($(HB.south west)+(8mm,7mm)$) {};
-\node[agentdot] at ($(HB.south)+(0,7mm)$) {};
-\node[font=\sffamily\scriptsize\itshape,below=1pt of HB.south,yshift=4mm] {agents under $B$};
+  \draw[pd focus rule,line width=1.45pt] (-6.25,1.82)--(6.25,1.82);
+  \node[pd focus datum] at (-3.55,1.82) {};
+  \node[pd focus datum] at (3.55,1.82) {};
+  \node[pd direct label,text=hhteal] at (0,2.12)
+    {signed roots $R_A^{(e)},R_B^{(e)}$ $\cdot$ equivocation evidence};
+  \draw[pd focus arrow] (-3.55,.15)--(-3.55,1.62);
+  \draw[pd focus arrow] (3.55,.15)--(3.55,1.62);
 
-% ─── Witness log above ─────────────────────────────────────────────
-\node[witness,above=14mm of $(HA)!0.5!(HB)$] (W) {%
-  \textbf{Federated Witness Log} \quad \footnotesize (auditor-verifiable, append-only)\\
-  \footnotesize epoch roots $R_A^{(e)}, R_B^{(e)}$ \,$\cdot$\, cross-signatures \,$\cdot$\, equivocation evidence};
+  \draw[pd focus rule,-{Stealth[length=2mm,width=1.2mm]},line width=1.3pt]
+    (-4.85,.72)--(4.85,.72);
+  \node[pd direct label,text=hhteal] at (0,1.02)
+    {$C_A\mapsto C'_B\subseteq C_A$};
+  \draw[pd rule,dashed,-{Stealth[length=2mm,width=1.2mm]}]
+    (4.85,-.38)--(-4.85,-.38);
+  \node[pd direct label] at (0,-.68) {anti-entropy delta};
 
-% ─── Settlement escrow below ───────────────────────────────────────
-\node[escrow,below=14mm of $(HA)!0.5!(HB)$] (E) {%
-  \textbf{Settlement Escrow}\\[1pt]
-  \footnotesize bounded: can refuse, cannot redirect};
+  \draw[pd caution rule,line width=1.45pt] (-6.25,-1.72)--(6.25,-1.72);
+  \node[pd caution datum] at (-3.55,-1.72) {};
+  \node[pd caution datum] at (3.55,-1.72) {};
+  \node[pd direct label,text=hhamber] at (0,-1.42)
+    {bond at A $\cdot$ measured damage at B $\cdot$ bounded custody only if gate holds};
+  \draw[pd caution arrow] (-3.55,-.15)--(-3.55,-1.50);
+  \draw[pd caution arrow] (3.55,-.15)--(3.55,-1.50);
 
-% ─── Edges: harbors publish roots up; witness gossips; settlement closes ─
-\draw[edge] (HA.north) -- node[font=\sffamily\scriptsize\itshape,above,sloped,xshift=-3mm]{publish $R_A^{(e)}$} (W.south west);
-\draw[edge] (HB.north) -- node[font=\sffamily\scriptsize\itshape,above,sloped,xshift=3mm]{publish $R_B^{(e)}$} (W.south east);
-\draw[gossipedge] (HA.east) to[bend left=12]
-  node[font=\sffamily\scriptsize\itshape,above,midway]{revocation gossip $\Delta$}
-  (HB.west);
-\draw[settledge] (HA.south) to[bend right=14]
-  node[font=\sffamily\scriptsize\itshape,below,sloped,midway]{bond posted at $A$}
-  (E.north west);
-\draw[settledge] (E.north east) to[bend right=14]
-  node[font=\sffamily\scriptsize\itshape,below,sloped,midway]{damage measured at $B$}
-  (HB.south);
-
-% ─── Margin annotation: capability transfer ──────────────────────────
-\draw[->,>=Latex,thick,draw=hhamber] (HA.east) to[bend left=0]
-  node[font=\sffamily\scriptsize\itshape,above,midway,yshift=-1mm,fill=hhpaper,inner sep=1pt]{$\mathsf{xfer}_{A\to B}$ ceremony}
-  (HB.west);
-
-\end{tikzpicture}%
-}
-\caption{The Federated Harbor as a four-element gestalt. Neither harbor is a
-root of authority for the other. The witness log above is the shared
-correlation device — each harbor publishes its epoch root, and any third party
-can audit for equivocation. The escrow below is structurally bounded (it can
-refuse to clear, but it cannot redirect funds or equivocate about its
-decisions). The amber arrow between the harbors is the cross-harbor capability
-transfer ceremony of \S\ref{sec:fh-xfer}; the dashed teal line is the
-federated revocation gossip of \S\ref{sec:fh-revocation}. The diagram is
-deliberately small: every primitive in the paper attaches to one of these four
-elements.}
+  \node[pd note,anchor=west] at (-6.25,-2.95)
+    {witness: correlation, not authorization};
+  \node[pd note,anchor=east] at (6.25,-2.95)
+    {escrow: settlement, not identity};
+\end{tikzpicture}}
+\caption{\textbf{Federation is four independent functions aligned across two
+sovereign domains.} Each harbor keeps its own signing root. The witness rail
+correlates signed epoch roots and exposes equivocation; it does not authorize
+work. The capability and revocation rails carry attenuated authority and later
+invalidation in opposite directions. The settlement rail relates a bond posted at
+A to damage measured at B, but its custody bound remains conditional. No rail
+makes either harbor a root of authority for the other.}
 \label{fig:fh-topology}
 \end{figure}

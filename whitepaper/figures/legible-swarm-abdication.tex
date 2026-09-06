@@ -1,0 +1,39 @@
+% Figure 8 — schematic autonomy trajectory. The unmeasured status is declared
+% on-canvas; the canary is a retention floor, not a claimed recovery curve.
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[pd figure,x=.89cm,y=.9cm]
+  \draw[pd arrow] (0,0)--(14.9,0);
+  \draw[pd arrow] (0,0)--(0,5.35);
+  \node[pd axis label,anchor=west] at (13.25,-.32) {automation autonomy};
+  \node[pd axis label,rotate=90,anchor=south] at (-.62,2.65)
+    {operator situation awareness};
+
+  \draw[pd rule,line width=1.15pt]
+    plot[smooth] coordinates {(.55,4.55)(3.6,4.05)(6.7,2.55)(10.0,1.05)(14.1,.52)};
+  \draw[pd focus rule,line width=1.15pt]
+    plot[smooth] coordinates {(6.7,2.55)(8.8,2.32)(11.3,2.17)(14.1,2.10)};
+  \fill[hhteal!7] (6.7,1.93) rectangle (14.1,2.29);
+
+  \foreach \x/\y/\lab in {.8/4.48/doer,4.15/3.80/approver,8.25/1.75/rubber-stamp,13.45/.58/absent}{
+    \draw[pd guide] (\x,0)--(\x,\y);
+    \node[pd datum] at (\x,\y) {};
+    \node[pd panel title,anchor=north] at (\x,-.20) {\lab};
+  }
+  \node[pd focus datum] at (6.7,2.55) {};
+  \node[pd direct label,text=hhteal,anchor=west,align=left] at (6.92,2.80)
+    {Inception Canary\\known-outcome replay};
+  \node[pd direct label,anchor=west] at (11.4,.76) {abdication trajectory};
+  \node[pd direct label,text=hhteal,anchor=west] at (11.4,2.38) {practice floor};
+  \node[pd note,anchor=west] at (.55,.42)
+    {schematic: the freeze-probe study is the missing measurement};
+\end{tikzpicture}
+\caption{The abdication gradient, drawn explicitly as a hypothesis rather than
+measured data. As automation owns longer plans, the operator can slide from doer
+to approver, rubber-stamp, and absence while situation awareness falls. The
+Inception Canary does not reverse that trend; it proposes a practice floor by
+replaying consented, blinded, known-outcome defects through the live review
+surface. A freeze-probe study must replace these schematic trajectories with
+observations.}
+\label{fig:abdication}
+\end{figure}

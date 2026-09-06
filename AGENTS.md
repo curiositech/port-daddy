@@ -39,14 +39,17 @@ The two Port Daddy skills are the operating instructions for *all* future agents
 
 You are explicitly invited to fix errors, sharpen inefficient passages, and add anti-patterns the moment you notice them — no issue, ticket, or permission required. Same-slice edits (landing the doc fix alongside the code change that revealed the problem) are the default; retrospective edits days later are still owed and welcome. Both skills carry their own "Maintain These Skills" sections with the small ceremony (worktree, explicit-path staging, tests, Cartographer ping). Internal agents working on port-daddy itself own *both* surfaces continuously — split-decision rule lives in `port-daddy-internal-dev`.
 
-## Search & Matching Policy — hybrid, one shared embedder
+## Search & Matching Policy — hybrid, provider-neutral profiles
 
-Operator directive (2026-07-04). Any search, matching, or classification over unstructured text — in a skill, a lib, a script, or the daemon — follows two rules:
+Operator directives (2026-07-04, superseded and expanded 2026-09-01). Any search, matching, reranking, or classification over unstructured content, in a skill, library, script, Worker, app, or daemon, follows these rules:
 
-1. **Never ship lexical-only search.** BM25/TF-IDF alone is the floor, not the ship gate. Pair it with semantic similarity and fuse (RRF or equivalent). Keyword/substring lists remain banned outright.
-2. **One embedding model for everything.** The canonical local model is `Xenova/all-MiniLM-L6-v2` in the shared cache `~/.port-daddy/transformers-cache` (ADR-0061). TypeScript reuses `createLocalEmbedder()` from `lib/semantic-resolver.ts`; everything else (Python skills, shell scripts) shells out to **`pd embed`** (`text`/`stdin` → normalized 384-dim vectors as JSON; `status`/`prefetch` manage the cache). Do not introduce a second model, a per-skill model choice, or a remote embedding API for local matching.
+1. **Never ship lexical-only search.** BM25/TF-IDF is one retriever, not the ship gate. Fuse lexical and compatible dense rankings with RRF or an empirically justified successor. Keyword and substring lists remain banned for unstructured matching.
+2. **Never mix vector spaces.** Every stored vector and query must carry an immutable logical `spaceId` derived from the exact model and model-config digests, preprocessing, pooling, dimensions, normalization, metric, coordinate precision, and quantization recipe. Provider aliases, runtime bindings, and transport encodings are execution provenance, not permission to compare incompatible vectors. A mismatch fails closed or triggers a separately receipted re-embedding migration.
+3. **Use explicit retrieval roles.** Text, code, UI/multimodal, and reranking are separate roles. They may use different versioned profiles. A reranker refines a bounded candidate set and does not silently become an embedding space. A single universal model is allowed only if the golden corpus proves it for every claimed role.
+4. **Select by corpus policy, not machine-wide habit.** A versioned policy chooses an approved local or remote quality tier from the profile registry using corpus privacy, egress authority, quality target, latency budget, and cost cap. Remote inference is allowed only when that corpus policy explicitly permits the provider and data class. Record the selected profile, provider/runtime revision, latency, cost, and benchmark-promotion receipt.
+5. **Filter authority before ranking.** Repo, harbor, account/team, disclosure, retention, and redaction boundaries are hard filters applied before lexical or dense retrieval. Cross-repo and cross-harbor retrieval is default-deny. Index only provenance-bound sanitized derivatives of protected evidence; never let retrieval decrypt raw evidence or widen its disclosure scope.
 
-Lifecycle: `pd setup` offers the one-time ~27 MB download (cancellable); `pd doctor` detects a missing model and offers the same fetch as a repair; `pd embed prefetch` is the manual path. Degrading to lexical-only is allowed **only** as an explicit fallback that warns and points at `pd doctor`.
+The current local embedding source uses `Xenova/all-MiniLM-L6-v2`; treat it as an explicit local/degraded fallback while the provider-neutral fabric in [`docs/proposals/provider-neutral-retrieval-fabric.md`](docs/proposals/provider-neutral-retrieval-fabric.md) is implemented. The registry foundation is source-present, but its profiles remain declarative-only: it does not activate role selection or prove producer conformance. Verify installed CLI support before relying on the source `pd embed` command or its cache-management subcommands; do not infer a daemon upgrade from a merged PR. Lexical-only degradation is allowed only when corpus policy permits it, it is labeled degraded, and it warns with the agent repair path `pd doctor`; a requested semantic contract must never silently downgrade.
 
 ## Port Daddy First
 
@@ -154,6 +157,17 @@ checklist. These extend (don't repeat) `## Port Daddy First`, `## Skill maintena
 is part of every slice`, `## Operator UX Expectations`, and `## Writing Technical
 Documents`.
 
+- **Supplant, don't migrate (operator directive, 2026-08-22, VERY IMPORTANT).**
+  Port Daddy has no users yet. When a new feature or mechanism overlaps an old
+  one, the new one REPLACES the old exhaustively in the same slice: delete the
+  legacy code path, update every caller, and leave behind no compat shims, no
+  feature-flagged "legacy mode", no downgrade fallbacks, and no deprecation
+  windows. Backwards compatibility is built ONLY when the operator explicitly
+  asks for it, per surface, in their own words. Origin incident: the
+  2026-08-22 identity-write-boundary review, where a "loud legacy downgrade"
+  path that still admitted self-asserted identities was rejected — enforcement
+  is theater as long as the legacy path survives.
+
 - **Never assert a competitor/platform claim without researching and citing it
   (operator directive, VERY IMPORTANT).** Before you state what a competitor or
   external platform can or can't do — a Cloudflare/OpenAI/GitHub feature,
@@ -171,7 +185,7 @@ Documents`.
   files add` before editing → `pd done` at the end. Rent is real: every commit
   carries a `pd note` (the Coordination Guard's `requireNotePerCommit` /
   Coast Guard). A silent agent is a non-durable agent.
-- **Establish a Plan and check off milestones.** Every agent must plan. After calling `pd begin`, you must run `pd plan set "- [ ] Step 1\n- [ ] Step 2"` to register a todo list before touching files. Update the plan with `pd plan check <index>` as you work. The `pd done` command will refuse to close the session if there are unchecked checklist items, unless bypassed with `--force-incomplete` and a 12+ character `--reason`.
+- **Establish a Plan and check off milestones.** Every agent must plan. After calling `pd begin`, you must run `pd plan set "- [ ] Step 1\n- [ ] Step 2"` to register a todo list before touching files. Update the plan with `pd plan check <index>` as you work. The `pd done` command refuses to close a completed session while checklist items remain; finish or explicitly abandon the session instead of manufacturing an override.
 - **Run `pd sitrep` when starting or resuming work.** Call `pd sitrep` at the beginning of each turn or session to catch up on what happened while you were away.
 - **Dogfood, and dogfood *novelly*.** Reach deep into the CLI, MCP, and SDK each
   slice; deliberately exercise a surface you have not used before instead of
@@ -217,11 +231,16 @@ Documents`.
   should correct the other. Note drift in the PR.
 - **Work at maximal tool + skill access, and pause to find the right skill.** Start
   with the broadest toolset you can reach. If you catch yourself working without a
-  matching skill, stop and do skill research before improvising what a skill
-  already encodes. Skill matching is meant to live in a **seamanship** module
-  (proposed, not yet built): a match-cascade-and-graft selector modelled on the
-  windags repo's `windags_skill_induct` / `windags_skill_graft` cascade. Until it
-  lands, match by hand against `skills/`.
+  matching skill, stop and run `pd jury-rig query "<task>"` before improvising
+  what a skill already encodes. Jury-rig is Port Daddy's native hybrid discovery
+  surface: it ranks the local, explicitly configured catalog and reads requested
+  references through the guarded `pd jury-rig reference` path. A third-party skill
+  remains provenance-labelled catalog input; its scripts, hooks, MCP servers,
+  subagents, and planning pipelines never become executable authority merely
+  because Jury-rig selected it. Planning authority remains this guide plus the
+  session's `pd plan`. **Seamanship** is the planned native planning/orchestration
+  module and is not yet a shipped verb; until it lands, do not register or invoke
+  an external planning runtime as a substitute.
 - **Launch other agents *through* Port Daddy.** When you need more hands, spawn
   them through PD's own fabric — `pd agent` / `pd sortie` / `pd dispatch` and the
   tube → spawner router (conductor) — never a raw side-channel, so the work is
@@ -261,8 +280,9 @@ bounced (it cannot enter the merge queue):**
 
 1. **`pr-requirements-guard`** — the body needs a real `## Summary` (≥10 words of
    prose) and `## Test Plan` (≥12 words: commands + their output), plus a
-   screenshot + a GIF/recording for any visual-surface change. Self-check before
-   pushing: `npm run check:pr-requirements -- --body-file <draft.md>`.
+   screenshot + a GIF/recording for any visual-surface change, plus a **changelog
+   fragment** for any user-visible change. Self-check before pushing:
+   `npm run check:pr-requirements -- --body-file <draft.md>`.
 2. **`roadmap-link`** — the body needs exactly one `Roadmap-Item: <slug>` trailer
    (or `Roadmap-Item: none — <reason>` for a chore/docs/hotfix). No slug yet?
    `npx tsx scripts/roadmap-link.ts <pr-number>` creates the item and stamps it.
@@ -270,6 +290,17 @@ bounced (it cannot enter the merge queue):**
 The PR template (`.github/PULL_REQUEST_TEMPLATE.md`) pre-stubs both — keep the
 headings and the trailer line, fill in the prose. Both report on `merge_group`
 as pass-throughs, so a PR that is green at PR time never hangs the queue.
+
+**Never hand-edit `CHANGELOG.md`'s `[Unreleased]` section.** It is ASSEMBLED at
+release time from one file per PR under `changelog.d/`. Write
+`changelog.d/<pr>-<slug>.md` (or `draft-<slug>.md` before you have a number) —
+format and rationale in `changelog.d/README.md`, validate with
+`npm run check:changelog`. This exists because every PR used to insert its bullet
+at the same line 11 of the same file: two branches cut from the same base conflict
+on nearly every pair, and a resolver taking "ours" silently drops the other PR's
+entry with nothing failing. One file per PR removes the conflict entirely. If a
+change genuinely ships nothing a user would notice, put
+`<!-- changelog-exempt: <reason> -->` in the body; the reason is required.
 
 **Branch protection on `main` is a ruleset** (`main merge queue`, id `17604542`),
 not classic protection — 18 required checks with `strict` off, merge queue
@@ -343,6 +374,43 @@ For multi-PR ship campaigns, track the state in `TaskCreate` so the merge
 sequence is explicit. The user can interrupt at any boundary; the task
 list is the recovery surface.
 
+### Migration and removal land together (operator directive, 2026-08-22)
+
+**A PR that adds a replacement removes what it replaces, in the same PR, with
+the tests still passing.** Not "addition now, removal in a follow-up." The
+follow-up is what never happens, and two implementations of the same thing is
+the condition every parsimony rule in this file exists to prevent.
+
+Three obligations, all of them before the fact:
+
+1. **Write the tests first, for BOTH sides.** Complete, non-tautological,
+   comprehensive, adversarial tests for the thing being created *and* for the
+   thing being replaced. "The old tests still pass" is not coverage of the old
+   behaviour — old tests were written against the old implementation and often
+   pin its accidents rather than its properties. Write the tests you would want
+   if you had to defend the swap to someone who thinks it is a regression.
+
+2. **Name the losses, plainly, in the PR body.** A replacement almost never
+   does everything the old thing did. **That is allowed.** What is not allowed
+   is discovering it later. List what the old path could do that the new one
+   cannot, and say so as a decision rather than an oversight.
+
+3. **Behavioural identity is NOT required.** Do not contort the new thing into
+   bug-for-bug compatibility with the old one. If the old behaviour was wrong,
+   the new behaviour should be right and the difference should appear under
+   "losses" — or under "fixes". The operator's words: *"Call out losses that
+   are just gone now. Those are OK, too. No need for identity."*
+
+The failure this closes: a PR lands a new module, claims N consumers, and has
+zero — because migrating the consumers was the deferred half. The new module
+then rots beside the old paths it was supposed to retire, and the next agent
+finds two ways to do one thing and picks the wrong one.
+
+If the removal genuinely cannot land in the same PR — the call sites are in
+another language, another repo, or another PR — say so in the body, name every
+site by path, and do not describe the replacement as adopted. A projection with
+no consumers is a projection with no consumers.
+
 ### Respond to every review comment — no silent ignores
 
 A review comment is a question you owe an answer, not a notification you may
@@ -375,8 +443,14 @@ real question — the diff is the record, not a running commentary.
 
 `[M]` Machine-flagged, advisory. `scripts/check-pr-comments-answered.mjs` (the
 `pr-comments-guard` check / its own `pr-comments.yml` workflow) inspects the PR's
-review threads and, when a reviewer spoke last on an open, non-outdated thread,
-marks the PR red and applies the `needs-comment-replies` label. It re-runs every
+review threads and, when a reviewer spoke last on an **open** thread, marks the
+PR red and applies the `needs-comment-replies` label. Only two things clear a
+thread: a reply from you, or resolving it. **Outdated does not count.** GitHub
+marks a thread outdated the moment you push a change to the lines it points at —
+that is you *acting on the feedback*, so it is when you most owe the reviewer a
+sentence saying what you changed. The guard lists those separately ("you changed
+these lines — say what you changed, or resolve") precisely so they read as a
+report to file, not as a fresh nit. It re-runs every
 time a comment, review, or reply lands, so the label clears the moment you
 respond. It is **advisory — it does not block the merge** (a genuinely
 bot-only/no-op PR can opt out with `<!-- pr-comments-exempt: <reason> -->`). The
@@ -569,9 +643,9 @@ tracked work instead of vanishing. The mechanism:
 
 These bite every contributor session; they are not theoretical.
 
-- **`git add -A` is refused by the pd-shim.** When you truly mean "stage
-  everything" (rare — prefer explicit paths), set `PD_SHIM_OFF=1 git add`
-  deliberately so the bypass is intentional and visible in the command.
+- **`git add -A` is refused by the pd-shim.** Stage explicit paths. If the
+  refusal is factually wrong, fix the claim/session input and publish the
+  inconsistency; an agent does not disable the guard it is meant to obey.
 - **The `~/.port-daddy/bin/git` shim sets `core.pager=delta`, which falls
   back to `bat`.** If `bat` is not installed, `git log` / `git show` /
   `git commit` emit `command not found: bat` and can swallow output. Run
@@ -701,6 +775,19 @@ This applies to every technical document, design doc, tutorial, blog post, ADR, 
 - The public website deploy target is Cloudflare Pages project `port-daddy`, serving `port-daddy.pages.dev` and `portdaddy.dev`. Build with `npm --prefix website-v2 run build`, then deploy from `website-v2/` with `npx wrangler pages deploy dist --project-name port-daddy --branch main --commit-hash "$(git rev-parse HEAD)" --commit-message "$(git log -1 --pretty=%s)"`.
 - Deploy from a clean checkout or clean temporary worktree. If `origin/main` moved after your local website commit, deploy latest `origin/main` unless the user explicitly requested a specific commit. After deploy, smoke `https://portdaddy.dev/...` and at least one changed asset/page; for visual work, verify with Playwright or the in-app browser instead of trusting Wrangler success alone.
 
+### Domain Portfolio (owned, operator-registered 2026-08)
+
+The operator holds these domains; consult before naming/branding decisions and never suggest
+buying a name on this list:
+
+- `portdaddy.dev` — primary product site (live, Cloudflare Pages `port-daddy`).
+- `portdaddy.app` — reserved for the packaged desktop/app-store distribution surface (FleetBar/Control Center installers or app deep links).
+- `portholed.com` — Porthole: terminal capture/replay/share/test product (see `demos/porthole/PRODUCT.md`); target home for hosted cast sharing + the marketing site.
+- `harbord.ai` — Harbor brand (editor/governed-workspace surface).
+- `agentsd.ai` — agentsd greenfield scaffold (operator decision 2026-07-15): the agents-daemon brand.
+- `agentsdaemon.com` — long-form/defensive twin of agentsd.ai; redirect to agentsd.ai when live.
+
+
 ### Blog Post Hard Requirements
 
 Any PR that adds, rewrites, or runs a "voice pass" on a post under `website-v2/src/data/blog/` MUST satisfy the following before merging. These are floors, not aspirations — a "voice pass" that skips them is a process bug.
@@ -764,7 +851,7 @@ This rule has bitten us repeatedly when the daemon ran on a non-default port (CI
 - A green exit code is still not clean truth if Jest prints `A worker process has failed to exit gracefully`. Treat that as remaining teardown debt and go hunting with `--detectOpenHandles` on the likely long-running suites.
 - Oversized JSON requests over the Unix socket can surface client-side `EPIPE` / `ECONNRESET` before the daemon’s 413 body is readable. In integration tests, normalize that transport failure back into the daemon’s intended oversized-payload rejection instead of pretending the daemon accepted the body.
 - `pd fleet run <agent>` now inherits `limits.budget_usd_per_day` as its launch ceiling. If it still fails, inspect the live active-agent cap and queue pressure before assuming the agent prompt or backend is broken.
-- **Environment variables override context slot**: When running Port Daddy commands (like `pd begin`, `pd done`, `pd session files add`) inside subagent execution lanes spawned by harnesses (such as Antigravity/Claude Code), the harness may inject `PD_SESSION_ID` and `PD_AGENT_ID` of the parent/old session into the environment. Because the CLI prioritizes these environment variables over context slot files, any command will resolve to that old session (which may be completed, leading to "No active session found"). Fix this by prefixing your commands with `PD_SESSION_ID="" PD_AGENT_ID=""` to force the CLI to read the active context from the filesystem context slots.
+- **Session context is deterministic, not first-match state**: `PD_SESSION_ID` and `PD_AGENT_ID` form one atomic identity. A partial environment pair does not suppress a complete context slot; a complete environment pair that disagrees with the slot fails with `CONTEXT_CONFLICT` and both provenances. Do not clear variables to route around that conflict. Select the intended slot or pass an exact `--session` + `--agent` tuple. Agent-only mutation with more than one active session fails with `AMBIGUOUS_ACTIVE_SESSION` and candidates. Raw IPC and direct SQLite are read-only for session, note, claim, lock, and salvage authority; use the credentialed daemon HTTP path.
 - **Binary drift in integration tests on dev machine**: Ephemeral test daemons started by the integration test framework (`tests/helpers/integration-setup.js` / `tests/helpers/ephemeral-daemon.js`) will verify binary hashes. If there's a global Homebrew or PATH-installed `pd` binary, it may cause false positive "binary drift" checks (since the running test daemon runs under `tsx` Node while PATH resolves to the global executable). Fix this by overriding the comparable on-disk path by setting `PORT_DADDY_BIN_OVERRIDE: process.execPath` inside the test environment for both the CLI runs and the ephemeral daemon spawns.
 - **Roadmap receipts for core coordination changes**: Changes to core coordination paths (like `cli/commands/sessions.ts`) are monitored by the Coordination Guard. The guard will block commits affecting these files unless the committing agent has touched/upserted a corresponding roadmap item (e.g. via `pd roadmap touch <slug> --harbor port-daddy --note <why>`). Note that `--harbor port-daddy` must be specified if you are working in a temporary sandboxed worktree where the folder name diverges from the default repo name.
 - **Rich Docstring Mandate (TypeScript and Rust)**: Every library function and method in the codebase must carry rich, informative documentation. This is enforced by the `npm run check:rich-docs` (under `scripts/check-rich-docs.mjs`) validation loop. TypeScript functions/methods must use `/** ... */` JSDoc blocks including `@param` and `@returns` tags (when parameters/return values are present) and discuss design, motivation, or philosophical rationale (e.g., matching keywords: `motivation`, `purpose`, `philosophy`, `why`, `design`, `intent`). Rust functions must use `///` doc comments discussing the same motivation/philosophy keywords and parameter/return usage. You can run `npm run check:rich-docs -- --staged` to fast-audit only your changed/staged files.
@@ -901,3 +988,21 @@ sequence. Every item below is a real failure from a live demo (2026-07-12), not 
    no-emoji-as-icons rule applies to what renders, not what greps.
 6. **Never create virtual displays or modify display settings.** On-primary-screen
    window openings are allowed only with explicit operator consent, per action.
+
+## HITL escalation & event-cued execution (operator directive, 2026-08-19 — IMPORTANT)
+
+- **A question that blocks progress is asked in a way that blocks execution.** The moment
+  work is blocked on operator input — a merge policy, a deploy on the operator's side, a
+  scope decision, a spend approval — raise it through the MOST IMMEDIATE human-in-the-loop
+  structure the surface offers (`AskUserQuestion` in Claude Code sessions; the HITL
+  interruption surface elsewhere) and WAIT for the answer. Never park blocked work behind
+  timers, polling loops, silent re-arms, or "the next event will tell me."
+- **Blocked longer than one wake cycle = a blocking question.** A gate, merge, or deploy
+  waiting on operator action does not get babysat; it gets elevated as a direct question
+  the operator must answer before loads continue.
+- **Wake on events, not timers.** PR subscriptions, operator messages, and system events
+  are the wake signals. Never poll unchanged state on a schedule; never re-fetch what an
+  event would have delivered.
+- **Launch gates gate launch, not development.** Client surfaces (iOS, web account
+  sections, console, FleetBar) build in parallel against staging keys; do not serialize
+  development behind a launch gate or hold parallel-authorized waves on unrelated merges.

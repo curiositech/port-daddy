@@ -29,10 +29,12 @@ import { listRecentIdeas } from '../src/ideas-store.js';
 import type { Proposal } from '../src/proposals.js';
 import type { ShipResult } from '../src/verdict.js';
 import { executeFleet } from '../src/execute.js';
+import { FleetAiCircuit, FleetAiDependencyError } from '../src/ai-resilience.js';
 import {
   freshState,
   installGitHubFetch,
   memoryKV,
+  memoryD1,
   aiStub,
   makeEnv,
   makeJob,
@@ -225,6 +227,19 @@ describe('runXoEditorPass', () => {
     expect(out.reason).toContain('Workers AI down');
   });
 
+  it('propagates a shared retryable provider-circuit fault instead of hiding it as an XO fallback', async () => {
+    const ai = fakeAi(() => {
+      throw Object.assign(new Error('no capacity'), { status: 429, code: 3040 });
+    });
+    await expect(runXoEditorPass({
+      ai,
+      model: DEFAULT_XO_MODEL,
+      proposals: batch,
+      recentIdeas: [],
+      aiCircuit: new FleetAiCircuit(),
+    })).rejects.toBeInstanceOf(FleetAiDependencyError);
+  });
+
   it('falls back to the ORIGINAL batch on malformed / empty output', async () => {
     for (const response of ['not json at all', '', '<think>all reasoning, no answer']) {
       const ai = fakeAi(() => ({ response }));
@@ -240,6 +255,31 @@ describe('runXoEditorPass', () => {
     expect(out.applied).toBe(false);
     expect((ai.run as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(0);
     void out;
+  });
+
+  it('fails open without dispatching an over-budget editor request', async () => {
+    // Titles and rationales are bounded by the editor projection, but callers
+    // can still hand it an arbitrarily large proposal batch/evidence list.
+    // The final request gate must preserve every proposal rather than making a
+    // doomed Workers AI call or silently slicing the input.
+    const oversized = Array.from({ length: 80 }, (_, index) =>
+      proposal({
+        title: `Proposal ${index}`,
+        evidence: ['e'.repeat(1_024), 'e'.repeat(1_024), 'e'.repeat(1_024)],
+      }),
+    );
+    const ai = fakeAi(() => ({ response: '[]' }));
+
+    const out = await runXoEditorPass({
+      ai,
+      model: '@cf/qwen/qwen3-30b-a3b-fp8',
+      proposals: oversized,
+      recentIdeas: [],
+    });
+
+    expect(out).toMatchObject({ applied: false, proposals: oversized });
+    expect(out.reason).toMatch(/context admission rejected/i);
+    expect((ai.run as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(0);
   });
 });
 
@@ -372,9 +412,35 @@ describe('xoOrdersSection (fail-open contract)', () => {
     expect(await xoOrdersSection({ ai: garbage, model: DEFAULT_XO_MODEL, advisories, changedPaths: [] })).toBe('');
   });
 
+  it('propagates a shared retryable provider-circuit fault so the queue owns its bounded retry', async () => {
+    const ai = fakeAi(() => {
+      throw Object.assign(new Error('no capacity'), { status: 429, code: 3040 });
+    });
+    await expect(xoOrdersSection({
+      ai,
+      model: DEFAULT_XO_MODEL,
+      advisories,
+      changedPaths: [],
+      aiCircuit: new FleetAiCircuit(),
+    })).rejects.toBeInstanceOf(FleetAiDependencyError);
+  });
+
   it('returns "" with zero advisories, spending no AI', async () => {
     const ai = fakeAi(() => ({ response: '{"orders":[]}' }));
     expect(await xoOrdersSection({ ai, model: DEFAULT_XO_MODEL, advisories: [], changedPaths: [] })).toBe('');
+    expect((ai.run as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(0);
+  });
+
+  it('fails open without dispatching an over-budget triage request', async () => {
+    const ai = fakeAi(() => ({ response: '{"orders":[]}' }));
+    const result = await xoOrdersSection({
+      ai,
+      model: '@cf/qwen/qwen3-30b-a3b-fp8',
+      advisories,
+      changedPaths: ['src/' + 'x'.repeat(40_000) + '.ts'],
+    });
+
+    expect(result).toBe('');
     expect((ai.run as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(0);
   });
 });
@@ -431,20 +497,37 @@ function shipYaml(opts: { name: string; ideation?: boolean; xo?: boolean }): str
  */
 function xoAwareAi(
   base: AiStub,
-  opts: { editorOutput?: string; triageOutput?: string; throwOnXo?: boolean },
+  opts: {
+    editorOutput?: string;
+    triageOutput?: string;
+    throwOnXo?: boolean;
+    retryableXoFailure?: boolean;
+    retryableEmbeddingFailure?: boolean;
+  },
 ): { ai: Ai; counters: { editor: number; triage: number } } {
   const counters = { editor: 0, triage: 0 };
   const run = async (model: string, args: unknown, o?: unknown): Promise<unknown> => {
     const messages = (args as { messages?: Array<{ role: string; content: string }> }).messages;
-    if (!messages) return { data: [[0.1, 0.2, 0.3]] }; // embedding call
+    if (!messages) {
+      if (opts.retryableEmbeddingFailure) {
+        throw Object.assign(new Error('embedding provider capacity'), { status: 429, code: 3040 });
+      }
+      return { data: [[0.1, 0.2, 0.3]] };
+    }
     const sys = messages.find(m => m.role === 'system')?.content ?? '';
     if (sys.includes('XO EDITOR')) {
       counters.editor += 1;
+      if (opts.retryableXoFailure) {
+        throw Object.assign(new Error('XO provider capacity'), { status: 429, code: 3040 });
+      }
       if (opts.throwOnXo) throw new Error('XO exploded');
       return { response: opts.editorOutput ?? '' };
     }
     if (sys.includes('XO TRIAGE')) {
       counters.triage += 1;
+      if (opts.retryableXoFailure) {
+        throw Object.assign(new Error('XO provider capacity'), { status: 429, code: 3040 });
+      }
       if (opts.throwOnXo) throw new Error('XO exploded');
       return { response: opts.triageOutput ?? '' };
     }
@@ -513,6 +596,24 @@ describe('XO integration — editor pass', () => {
     expect(state.completed[0].conclusion).toBe('success');
   });
 
+  it('retryable editor dependency failure propagates to the queue before later work', async () => {
+    state.files.set('main:pd-fleet.yml', shipYaml({ name: 'spark', ideation: true, xo: true }));
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const { ai, counters } = xoAwareAi(aiStub({ perShip: { spark: TWO_PROPOSALS } }), {
+      retryableXoFailure: true,
+    });
+
+    await expect(executeFleet(
+      makeJob(),
+      makeEnv({ FLEET_TOKENS: kv, AI: ai }),
+      { queueAttempt: 1 },
+    )).rejects.toBeInstanceOf(FleetAiDependencyError);
+
+    expect(counters.editor).toBe(1);
+    expect(state.completed).toHaveLength(0);
+  });
+
   it('xo flag default-off: no XO call is ever made without `xo: true`', async () => {
     state.files.set('main:pd-fleet.yml', shipYaml({ name: 'spark', ideation: true }));
     const kv = memoryKV();
@@ -570,8 +671,81 @@ describe('XO integration — advisory triage', () => {
     expect(state.reviews).toHaveLength(1);
     const body = state.reviews[0].body;
     expect(body).not.toContain("XO's orders");
-    // The body is byte-identical to the check summary — today's behavior.
-    expect(body).toBe(state.completed[0].summary);
+    // The human review body remains unchanged; only the bot-owned check output
+    // gains the machine-readable generation receipt on its first line.
+    expect(state.completed[0].summary).toBe(
+      `${state.completed[0].summary.split('\n')[0]}\n${body}`,
+    );
     expect(state.completed[0].conclusion).toBe('success');
+  });
+
+  it('retryable triage dependency failure returns to the queue while budget remains', async () => {
+    state.files.set('main:pd-fleet.yml', shipYaml({ name: 'qa', xo: true }));
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const { ai, counters } = xoAwareAi(aiStub({ perShip: { qa: QA_FINDINGS } }), {
+      retryableXoFailure: true,
+    });
+
+    await expect(executeFleet(
+      makeJob(),
+      makeEnv({ FLEET_TOKENS: kv, AI: ai }),
+      { queueAttempt: 1 },
+    )).rejects.toBeInstanceOf(FleetAiDependencyError);
+
+    expect(counters.triage).toBe(1);
+    expect(state.completed).toHaveLength(0);
+  });
+
+  it('disables optional triage after its final provider attempt without changing the verdict', async () => {
+    state.files.set('main:pd-fleet.yml', shipYaml({ name: 'qa', xo: true }));
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const { ai, counters } = xoAwareAi(aiStub({ perShip: { qa: QA_FINDINGS } }), {
+      retryableXoFailure: true,
+    });
+
+    await executeFleet(
+      makeJob(),
+      makeEnv({ FLEET_TOKENS: kv, AI: ai }),
+      { queueAttempt: 3 },
+    );
+
+    expect(counters.triage).toBe(1);
+    expect(state.completed[0].conclusion).toBe('success');
+    expect(state.reviews[0].body).not.toContain("XO's orders");
+  });
+});
+
+describe('semantic idea capture — shared provider circuit', () => {
+  it('returns a retryable embedding failure to the queue instead of hanging best-effort capture', async () => {
+    state.files.set('main:pd-fleet.yml', shipYaml({ name: 'spark', ideation: true }));
+    const kv = memoryKV();
+    const d1 = memoryD1();
+    const db = {
+      prepare(sql: string) {
+        const statement = d1.db.prepare(sql);
+        return {
+          bind: (...args: unknown[]) => statement.bind(...args),
+          run: async () => ({ success: true, meta: {} }),
+        };
+      },
+    } as unknown as D1Database;
+    seedToken(kv, 42);
+    const { ai } = xoAwareAi(aiStub({ perShip: { spark: TWO_PROPOSALS } }), {
+      retryableEmbeddingFailure: true,
+    });
+
+    await expect(executeFleet(
+      makeJob(),
+      makeEnv({ FLEET_TOKENS: kv, DB: db, AI: ai }),
+      { queueAttempt: 1 },
+    )).rejects.toBeInstanceOf(FleetAiDependencyError);
+
+    expect(state.completed).toHaveLength(0);
+    const embeddingCalls = (ai.run as ReturnType<typeof vi.fn>).mock.calls.filter(
+      ([, args]) => !(args as { messages?: unknown }).messages,
+    );
+    expect(embeddingCalls).toHaveLength(1);
   });
 });

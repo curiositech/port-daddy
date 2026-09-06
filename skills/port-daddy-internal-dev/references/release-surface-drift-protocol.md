@@ -60,7 +60,7 @@ same coherent slice — or leave a Lookout drift report naming the gaps.
 | Claude extension | `.claude/skills/...` (synced via install.sh) | Skill bundle change |
 | Gemini extension | `.gemini/extensions/port-daddy/` | Skill bundle change |
 | AGENTS.md | `.agents/skills/...` | Skill bundle change |
-| windags-skills mirror | `~/coding/windags-skills/skills/port-daddy-agent-skill/` | Public-skill change (manual `cp -r` from this repo) |
+| external-skill-catalog mirror | `~/coding/external-skill-catalog/skills/port-daddy-agent-skill/` | Public-skill change (manual `cp -r` from this repo) |
 
 ### Tier 6 — version stamps
 

@@ -33,10 +33,51 @@ main = "src/index.ts"
 compatibility_date = "2026-06-01"
 compatibility_flags = ["nodejs_compat"]
 
+# Required for operator-grade delivery forensics. Console diagnostics include
+# bounded GitHub response status/request-id/rate-limit evidence; request
+# headers, request bodies, and the GitHub token are never recorded.
+[observability]
+enabled = true
+
+# ---------------------------------------------------------------------------
+# CPU budget per invocation.
+#
+# WHY THIS EXISTS: without a [limits] block a Worker gets the 30-second default
+# CPU budget, and a fleet run does not fit in it. Exceeding it is not a JS
+# exception — the runtime TERMINATES the invocation, so index.ts's try/catch
+# never runs, the message is never acked, and the platform redelivers it. With
+# max_retries = 3 that is four full runs of the same PR (four sets of ship
+# comments, four times the model spend) ending in a dead-letter whose only
+# artifact is "was lost (job exhausted retries / dead-lettered)" — a red gate
+# with no cause attached, because no code in this Worker ever got to see one.
+#
+# Observed 2026-08-19 on PRs #7278, #7339, #7344 and #7377: every attempt ran
+# the ideation ships to completion (each rewrote its own edit-in-place comment,
+# four distinct versions per PR) and then vanished mid-run, ~75s of wall clock
+# apiece — far inside the 15-minute wall-clock budget for a queue consumer, and
+# consistent with hitting the CPU ceiling instead.
+#
+# 300_000 ms (5 minutes) is the platform maximum. It is a CEILING, not a
+# reservation: a run that finishes in two seconds of CPU is billed for two
+# seconds. The queue consumer above is already serialized (max_concurrency = 1),
+# so raising this cannot widen concurrent spend.
+[limits]
+cpu_ms = 300000
+
 # ---------------------------------------------------------------------------
 # Workers AI — runs the analytical ships (code-reviewer, qa, red-team, …).
 [ai]
 binding = "AI"
+
+# Relay's named, RPC-only ADR-0092 grant issuer. This binding is the capability:
+# Fleet supplies only a GitHub-verified project and durable run actor, while the
+# Relay keeps the macaroon root. Deploy Relay's CoordinationGrantService before
+# deploying this caller binding. Relay remains a replicated peer, not the
+# coordination ledger's authority.
+[[services]]
+binding = "COORDINATION_GRANTS"
+service = "port-daddy-relay"
+entrypoint = "CoordinationGrantService"
 
 # ---------------------------------------------------------------------------
 # KV — installation-token cache. Keyed by `github_inst_<installationId>`,
@@ -63,6 +104,18 @@ id = "4dc3eaaefbf14b1b90c0d60621b610ae"
 binding = "DB"
 database_name = "port-daddy-relay"
 database_id = "0907431b-9af0-48b5-b2b0-07e6b660bd41"
+
+# ---------------------------------------------------------------------------
+# R2 — raw ship session transcripts (pd-transcript.v1). One JSONL object per
+# (run, ship, attempt), written ONCE at ship completion/error by
+# src/transcript-capture.ts's flushShipTranscript; the relay reads the same
+# bucket for the run page's raw-transcript links. Best-effort like every
+# transcript write: an absent binding or a failed PUT never changes a run.
+# Bucket provisioned 2026-08-24 (`wrangler r2 bucket create fleet-transcripts`).
+# See docs/FLEET-SESSION-TRANSCRIPTS.md.
+[[r2_buckets]]
+binding = "TRANSCRIPTS"
+bucket_name = "fleet-transcripts"
 
 # ---------------------------------------------------------------------------
 # OPTIONAL — Cloudflare Sandboxes (Containers beta) for the purser ship.
@@ -94,19 +147,45 @@ tag = "v1-purser-sandbox"
 new_sqlite_classes = ["Sandbox"]
 
 # ---------------------------------------------------------------------------
-# Queue consumer — one message per GitHub delivery, enqueued by relay.
+# Queue producer + consumer — one message per GitHub delivery, enqueued by
+# relay. Successful one-ship slices enqueue an explicit continuation before
+# acknowledging their current delivery; Cloudflare retries are reserved for
+# actual failures.
 # A blocking ship that never completes must never leave a green/pending gate,
 # so after `max_retries` exhausted the message lands in the DLQ where a
 # follow-up handler completes the check run as 'failure' (fail-closed).
+[[queues.producers]]
+binding = "FLEET_CONTINUATIONS"
+queue = "fleet-runs"
+
 [[queues.consumers]]
 queue = "fleet-runs"
-# Fleet reviews can consume the full Worker wall-clock budget and each run has
-# its own bounded model fan-out. Keep one delivery per invocation AND one active
-# invocation so obsolete/current heads cannot multiply that fan-out, exhaust
-# model capacity, or race the stale-head check before either run finishes.
+# Fleet reviews consume the full Worker wall-clock budget and each run has its
+# own bounded model fan-out. One active invocation globally made every
+# checkpointed one-ship slice rejoin the back of the same FIFO: five live PRs
+# turned a sub-minute ship into a many-minute wait and left required checks
+# pending for hours. Permit a deliberately small, global three-run drain.
+# The durable intent fence admits only one sequence per delivery, while the
+# executor rechecks the PR head before each ship, so this increases throughput
+# without allowing duplicate work for a delivery or an unbounded spend burst.
+max_batch_size = 1
+max_concurrency = 3
+max_batch_timeout = 30
+# The consumer intentionally completes at most one new provider-heavy ship per
+# invocation, checkpoints it, enqueues the next cumulative slice, and
+# acknowledges the current message. Retries are therefore true failure
+# attempts, bounded independently of roster size.
+max_retries = 3
+dead_letter_queue = "fleet-runs-dlq"
+
+# Required merge-group checks are deterministic and make no AI calls. Keep them
+# on an independent FIFO so substantive reviews cannot starve the GitHub merge
+# queue while preserving max_concurrency=1 for each workload.
+[[queues.consumers]]
+queue = "fleet-gates"
 max_batch_size = 1
 max_concurrency = 1
-max_batch_timeout = 30
+max_batch_timeout = 5
 max_retries = 3
 dead_letter_queue = "fleet-runs-dlq"
 
@@ -129,12 +208,19 @@ max_retries = 1
 RUN_DETAILS_BASE_URL = "https://relay.portdaddy.dev"
 GITHUB_APP_ID = "3810450"
 DEFAULT_BRANCH = "main"
+# ADR-0092 peer transport only. Project, actor, and short-lived macaroon are
+# derived/minted per Fleet run through COORDINATION_GRANTS above.
+PORT_DADDY_COORDINATION_URL = "https://relay.portdaddy.dev"
 # XO synthesis officer model (src/xo.ts): the idea editor pass + the advisory
 # "XO's orders" triage, active only for tenants with `xo: true` in pd-fleet.yml.
-# Workers AI ONLY — must be a `@cf/` id; any other value is ignored and the
-# executor falls back to this default (resolveXoModel). The deepseek-r1 distill
-# emits <think> reasoning spans; the executor strips them before parsing.
-XO_MODEL = "@cf/deepseek-ai/deepseek-r1-distill-qwen-32b"
+# Workers AI ONLY — an override must be a `@cf/` id; any other value is ignored
+# and the executor falls back to its committed default (resolveXoModel).
+#
+# NO DEFAULT IS PINNED HERE (supplant, 2026-08-23). The default is the
+# `synthesisOfficer` cloud-plane role in config/models.yaml, reached through the
+# generated shared registry. Restating it here made this file a second place the
+# id had to be right, and the relay's copy of the same pattern had already gone
+# stale on a retired model. Set XO_MODEL only to override.
 
 # ---------------------------------------------------------------------------
 # Secrets (documented; set via `wrangler secret put`, never committed):

@@ -117,6 +117,45 @@ describe('tuples route — adversarial guard', () => {
     });
     expect(res.statusCode).toBe(200);
   });
+
+  test('public tuple routes cannot observe, count, poll, or take internal authority rows', async () => {
+    const key = 'coordination:internal:lineage:route-isolation';
+    const authority = tuples.outOnce(
+      ['coordination:internal:lineage', 'route-isolation', 'signal-1', Date.now()],
+      { harbor: 'fleet', idempotencyKey: key, internalOnly: true },
+    );
+    tuples.outOnce(['visible', 'payload'], {
+      harbor: 'fleet',
+      idempotencyKey: 'visible-route-key',
+    });
+
+    const read = await app.inject({
+      method: 'GET',
+      url: `/tuples?harbor=fleet&pattern=${encodeURIComponent(JSON.stringify(['*']))}`,
+    });
+    const poll = await app.inject({
+      method: 'GET',
+      url: `/tuples/poll?harbor=fleet&pattern=${encodeURIComponent(JSON.stringify(['coordination:internal:lineage']))}`,
+    });
+    const scan = await app.inject({ method: 'GET', url: '/tuples/scan?harbor=fleet' });
+    const count = await app.inject({ method: 'GET', url: '/tuples/count?harbor=fleet' });
+    const take = await app.inject({
+      method: 'DELETE',
+      url: '/tuples',
+      payload: { harbor: 'fleet', pattern: ['coordination:internal:lineage'] },
+    });
+
+    expect(read.json().tuples).toEqual([
+      expect.objectContaining({ fields: ['visible', 'payload'], idempotencyKey: null }),
+    ]);
+    expect(poll.json().tuple).toBeNull();
+    expect(scan.json().tuples).toEqual([
+      expect.objectContaining({ fields: ['visible', 'payload'], idempotencyKey: null }),
+    ]);
+    expect(count.json().count).toBe(1);
+    expect(take.json()).toMatchObject({ count: 0, taken: [] });
+    expect(tuples.getByIdempotencyKey(key, { harbor: 'fleet' })).toEqual(authority.tuple);
+  });
 });
 
 describe('messaging route — adversarial guard', () => {

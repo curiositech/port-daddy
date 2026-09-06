@@ -33,6 +33,21 @@ pub struct TubeMsg {
     pub text: String,
 }
 
+/// One durable human-language turn read from the daemon-owned transcript.
+/// Tool and thinking rows stay in the Mission trace; this projection is only
+/// the operator/assistant dialogue needed to restore the central conversation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TranscriptTurnRole {
+    Operator,
+    Assistant,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TranscriptTurn {
+    pub role: TranscriptTurnRole,
+    pub content: String,
+}
+
 impl TubeMsg {
     /// Parse one message from a `GET /msg/:channel/subscribe` SSE `data:` object.
     ///
@@ -204,14 +219,21 @@ impl SseParser {
     }
 }
 
-/// Thin client for the live daemon — discovers it the canonical way (PR #261):
-/// `PORT_DADDY_URL`, else the TCP port the running daemon wrote to
-/// `~/.port-daddy/daemon.port`. There is no hardcoded port fallback: the daemon
-/// writes that file when it boots, so its absence means there is no daemon to
-/// talk to — fail loudly with the fix rather than guess a port.
+/// Thin client for the live daemon. Startup authority is deliberately narrow:
+/// an explicit `PORT_DADDY_URL`, then the endpoint atomically published in
+/// `~/.port-daddy/daemon.port`, then the canonical stable berth. In-app berth
+/// changes are process-local; they never become an abandoned file that can pin a
+/// later launch to a dead development daemon. See [`DaemonClient::discover`].
 pub struct DaemonClient {
     base: String,
     http: reqwest::Client,
+    /// ADR-0040 daemon-minted actor credential captured from this console's
+    /// own `POST /sugar/begin` (#8877 / ADR-0122). Attributed daemon writes —
+    /// `/sugar/done`, `POST /sessions/:id/files` — are rejected 401 without
+    /// it, so every such request attaches it as `x-actor-credential`. Interior
+    /// mutability (Mutex) because the client is shared by reference across
+    /// panes/threads and the credential arrives after construction.
+    actor_credential: std::sync::Mutex<Option<String>>,
 }
 
 /// Durable daemon truth returned for one operator WorkIntent. `intent` and
@@ -221,6 +243,7 @@ pub struct DaemonClient {
 pub struct WorkSnapshot {
     pub intent: serde_json::Value,
     pub plan: Option<serde_json::Value>,
+    pub execution: Option<serde_json::Value>,
 }
 
 impl WorkSnapshot {
@@ -246,6 +269,112 @@ impl WorkSnapshot {
             .and_then(|v| v.as_str())
             .unwrap_or("unknown")
     }
+
+    fn execution_str(&self, key: &str) -> Option<&str> {
+        self.execution
+            .as_ref()
+            .and_then(|value| value.get(key))
+            .and_then(|value| value.as_str())
+            .filter(|value| !value.trim().is_empty())
+    }
+
+    pub fn execution_state(&self) -> &str {
+        self.execution_str("state").unwrap_or("not-started")
+    }
+
+    pub fn dispatch_id(&self) -> Option<&str> {
+        self.execution_str("dispatchId")
+    }
+
+    pub fn launch_id(&self) -> Option<&str> {
+        self.execution_str("launchId")
+    }
+
+    pub fn execution_agent_id(&self) -> Option<&str> {
+        self.execution_str("agentId")
+    }
+
+    pub fn transcript_id(&self) -> Option<&str> {
+        self.execution_str("transcriptId")
+    }
+
+    pub fn backend(&self) -> Option<&str> {
+        self.execution_str("backend")
+    }
+
+    pub fn model(&self) -> Option<&str> {
+        self.execution_str("model")
+    }
+
+    pub fn result_artifact(&self) -> Option<&str> {
+        self.execution_str("resultArtifact")
+    }
+
+    pub fn worktree_path(&self) -> Option<&str> {
+        self.execution_str("worktreePath")
+    }
+
+    pub fn branch(&self) -> Option<&str> {
+        self.execution_str("branch")
+    }
+
+    pub fn execution_error(&self) -> Option<&str> {
+        self.execution_str("errorMessage")
+    }
+
+    pub fn is_compat_projection(&self) -> bool {
+        self.intent
+            .pointer("/source/kind")
+            .and_then(serde_json::Value::as_str)
+            == Some("compat")
+    }
+
+    pub fn artifact_status(&self) -> Option<&serde_json::Value> {
+        self.execution
+            .as_ref()
+            .and_then(|value| value.get("artifactStatus"))
+            .filter(|value| value.is_object())
+    }
+
+    pub fn execution_fingerprint(&self) -> String {
+        let artifact_status = self
+            .artifact_status()
+            .map(serde_json::Value::to_string)
+            .unwrap_or_default();
+        [
+            self.execution_state(),
+            self.dispatch_id().unwrap_or(""),
+            self.launch_id().unwrap_or(""),
+            self.execution_agent_id().unwrap_or(""),
+            self.transcript_id().unwrap_or(""),
+            self.model().unwrap_or(""),
+            self.result_artifact().unwrap_or(""),
+            artifact_status.as_str(),
+            self.execution_error().unwrap_or(""),
+        ]
+        .join("|")
+    }
+}
+
+/// The query can expose both a native WorkIntent and the dispatch compatibility
+/// projection for the same execution. Preserve list recency, but prefer the
+/// native record when the newest row is only that execution's compatibility
+/// alias. A genuinely legacy dispatch with no native peer remains visible.
+pub fn prefer_native_work_intent(snapshots: Vec<WorkSnapshot>) -> Option<WorkSnapshot> {
+    let mut snapshots = snapshots.into_iter();
+    let first = snapshots.next()?;
+    if !first.is_compat_projection() {
+        return Some(first);
+    }
+    let Some(dispatch_id) = first.dispatch_id().map(str::to_string) else {
+        return Some(first);
+    };
+    snapshots
+        .find(|candidate| {
+            !candidate.is_compat_projection()
+                && candidate.dispatch_id() == Some(dispatch_id.as_str())
+        })
+        .or(Some(first))
 }
 
 #[derive(Debug, Clone)]
@@ -268,6 +397,14 @@ pub struct WorkExecutionReceipt {
     pub state: String,
     pub session_id: Option<String>,
     pub worktree_path: Option<String>,
+    pub branch: Option<String>,
+    pub launch_id: Option<String>,
+    pub agent_id: Option<String>,
+    pub transcript_id: Option<String>,
+    pub backend: Option<String>,
+    pub model: Option<String>,
+    pub result_artifact: Option<String>,
+    pub error_message: Option<String>,
     pub launched_this_tick: usize,
     pub next_action: String,
 }
@@ -279,7 +416,39 @@ fn work_snapshot(value: &serde_json::Value) -> Result<WorkSnapshot> {
         .cloned()
         .ok_or_else(|| anyhow!("Surface Gateway response omitted WorkIntent truth"))?;
     let plan = value.get("plan").filter(|v| v.is_object()).cloned();
-    Ok(WorkSnapshot { intent, plan })
+    let execution = value.get("execution").filter(|v| v.is_object()).cloned();
+    Ok(WorkSnapshot {
+        intent,
+        plan,
+        execution,
+    })
+}
+
+fn transcript_turns(value: &serde_json::Value) -> Result<Vec<TranscriptTurn>> {
+    let messages = value
+        .get("transcript")
+        .and_then(|transcript| transcript.get("messages"))
+        .and_then(serde_json::Value::as_array)
+        .ok_or_else(|| anyhow!("transcript response omitted transcript.messages"))?;
+
+    Ok(messages
+        .iter()
+        .filter_map(|message| {
+            let role = match message.get("role").and_then(serde_json::Value::as_str)? {
+                "user" => TranscriptTurnRole::Operator,
+                "assistant" => TranscriptTurnRole::Assistant,
+                _ => return None,
+            };
+            let content = message.get("content").and_then(serde_json::Value::as_str)?;
+            if content.trim().is_empty() {
+                return None;
+            }
+            Some(TranscriptTurn {
+                role,
+                content: content.to_string(),
+            })
+        })
+        .collect())
 }
 
 fn build_work_intent_envelope(
@@ -391,41 +560,66 @@ fn sse_status_is_retryable(status: reqwest::StatusCode) -> bool {
     status == reqwest::StatusCode::TOO_MANY_REQUESTS || status.is_server_error()
 }
 
+/// Wait before reconnecting an SSE stream, but stop immediately when the pane
+/// that owns the receiver closes or retargets. Quiet streams may never produce
+/// another frame, so checking only `tx.send(...)` leaks the task and its socket.
+async fn wait_for_sse_retry<T>(
+    tx: &tokio::sync::mpsc::Sender<T>,
+    delay: std::time::Duration,
+) -> bool {
+    tokio::select! {
+        _ = tx.closed() => false,
+        _ = tokio::time::sleep(delay) => true,
+    }
+}
+
+fn discovery_base(explicit_url: Option<&str>, published_port: Option<&str>) -> Result<String> {
+    if let Some(url) = explicit_url
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
+        return Ok(url.trim_end_matches('/').to_string());
+    }
+    let port = published_port
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .and_then(|value| value.parse::<u16>().ok())
+        .ok_or_else(|| {
+            anyhow!("cannot locate the Port Daddy daemon: start it or set PORT_DADDY_URL")
+        })?;
+    if port == 0 {
+        return Err(anyhow!(
+            "invalid zero port in the published daemon endpoint"
+        ));
+    }
+    Ok(format!("http://127.0.0.1:{port}"))
+}
+
+fn transcript_url(base: &str, transcript_id: &str) -> Result<reqwest::Url> {
+    let mut url = reqwest::Url::parse(&format!("{}/transcripts", base.trim_end_matches('/')))
+        .context("build transcript URL")?;
+    url.path_segments_mut()
+        .map_err(|_| anyhow!("daemon URL cannot carry a transcript id"))?
+        .push(transcript_id);
+    Ok(url)
+}
+
 impl DaemonClient {
     pub fn discover() -> Result<Self> {
-        // Resolution order, highest priority first:
-        //   1. `PORT_DADDY_URL` env — explicit override for one launch.
-        //   2. `~/.port-daddy/console-daemon.url` — the operator's selected daemon
-        //      (a one-line URL). This is the console's "use this daemon" switch:
-        //      point it at a dev berth (e.g. http://127.0.0.1:9886) WITHOUT
-        //      clobbering the canonical daemon.port. Delete the file to fall back
-        //      to stable. The status bar shows which URL is live.
-        //   3. `~/.port-daddy/daemon.port` — the canonical (stable) daemon.
-        if let Ok(url) = std::env::var("PORT_DADDY_URL") {
-            return Ok(Self::new(url));
-        }
+        // A previously selected development berth is intentionally not startup
+        // authority. PR #5722 removed that split-brain file after it stranded
+        // ordinary launches on a dead sidecar; the in-app picker still changes
+        // the current process without persisting a future surprise.
+        let explicit = std::env::var("PORT_DADDY_URL").ok();
         let home = dirs::home_dir();
-        if let Some(url) = home
+        let published_port = home
             .as_ref()
-            .map(|h| h.join(".port-daddy/console-daemon.url"))
-            .and_then(|p| std::fs::read_to_string(p).ok())
-            .map(|s| s.trim().to_string())
-            .filter(|s| !s.is_empty())
-        {
-            return Ok(Self::new(url));
-        }
-        let port = home
             .map(|h| h.join(".port-daddy/daemon.port"))
-            .and_then(|p| std::fs::read_to_string(p).ok())
-            .and_then(|s| s.trim().parse::<u16>().ok())
-            .ok_or_else(|| {
-                anyhow!(
-                    "cannot locate the Port Daddy daemon: set PORT_DADDY_URL, write \
-                     ~/.port-daddy/console-daemon.url, or start the daemon (it writes \
-                     ~/.port-daddy/daemon.port)"
-                )
-            })?;
-        Ok(Self::new(format!("http://127.0.0.1:{port}")))
+            .and_then(|p| std::fs::read_to_string(p).ok());
+        Ok(Self::new(discovery_base(
+            explicit.as_deref(),
+            published_port.as_deref(),
+        )?))
     }
 
     /// Construct a client against an already-resolved base URL (e.g. the value
@@ -447,6 +641,29 @@ impl DaemonClient {
                 .timeout(std::time::Duration::from_secs(15))
                 .build()
                 .expect("reqwest client with static config cannot fail to build"),
+            actor_credential: std::sync::Mutex::new(None),
+        }
+    }
+
+    /// The ADR-0040 actor credential this console holds, if `begin_session`
+    /// has minted (or the operator injected `PD_ACTOR_CREDENTIAL`). Attributed
+    /// daemon writes attach it as the `x-actor-credential` header; without it
+    /// the daemon rejects them 401 (#8877 fail-closed, by design).
+    fn actor_credential(&self) -> Option<String> {
+        if let Some(held) = self.actor_credential.lock().ok().and_then(|c| c.clone()) {
+            return Some(held);
+        }
+        std::env::var("PD_ACTOR_CREDENTIAL")
+            .ok()
+            .map(|v| v.trim().to_string())
+            .filter(|v| !v.is_empty())
+    }
+
+    /// Attach the actor credential (when held) to an outgoing request.
+    fn with_actor_credential(&self, req: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
+        match self.actor_credential() {
+            Some(credential) => req.header("x-actor-credential", credential),
+            None => req,
         }
     }
 
@@ -595,6 +812,38 @@ impl DaemonClient {
                 .get("worktreePath")
                 .and_then(|v| v.as_str())
                 .map(str::to_string),
+            branch: execution
+                .get("branch")
+                .and_then(|v| v.as_str())
+                .map(str::to_string),
+            launch_id: execution
+                .get("launchId")
+                .and_then(|v| v.as_str())
+                .map(str::to_string),
+            agent_id: execution
+                .get("agentId")
+                .and_then(|v| v.as_str())
+                .map(str::to_string),
+            transcript_id: execution
+                .get("transcriptId")
+                .and_then(|v| v.as_str())
+                .map(str::to_string),
+            backend: execution
+                .get("backend")
+                .and_then(|v| v.as_str())
+                .map(str::to_string),
+            model: execution
+                .get("model")
+                .and_then(|v| v.as_str())
+                .map(str::to_string),
+            result_artifact: execution
+                .get("resultArtifact")
+                .and_then(|v| v.as_str())
+                .map(str::to_string),
+            error_message: execution
+                .get("errorMessage")
+                .and_then(|v| v.as_str())
+                .map(str::to_string),
             launched_this_tick: execution
                 .get("launchedThisTick")
                 .and_then(|v| v.as_u64())
@@ -626,7 +875,10 @@ impl DaemonClient {
             "issuedBy": "pd-console:operator:local",
             "issuedAt": now_iso8601(),
             "idempotencyKey": null,
-            "payload": { "limit": limit.clamp(1, 100) }
+            "payload": {
+                "limit": limit.clamp(1, 100),
+                "includeArtifactStatus": true
+            }
         });
         let response = self
             .http
@@ -647,6 +899,25 @@ impl DaemonClient {
             .iter()
             .map(work_snapshot)
             .collect()
+    }
+
+    /// Restore the operator/assistant dialogue for a durable mission. The
+    /// daemon's transcript route is the authority; the console does not infer a
+    /// prior model reply from a receipt, output artifact, or terminal state.
+    pub async fn transcript_turns(&self, transcript_id: &str) -> Result<Vec<TranscriptTurn>> {
+        let url = transcript_url(&self.base, transcript_id)?;
+        let response = self
+            .http
+            .get(url)
+            .send()
+            .await
+            .context("GET /transcripts/:id")?;
+        let response = ensure_success(response, "transcript_turns").await?;
+        let value: serde_json::Value = response
+            .json()
+            .await
+            .context("GET /transcripts/:id response")?;
+        transcript_turns(&value)
     }
 
     /// Expose the underlying reqwest client so panes can issue arbitrary requests
@@ -729,12 +1000,11 @@ impl DaemonClient {
         self.tube_send(channel, frame_text, "snapshot").await
     }
 
-    /// Append one op-log delta to the durable, immutable op-log via `POST /notes`
-    /// (REUSING [`add_note`](Self::add_note) — notes are write-once, exactly what a
-    /// replayable audit log needs). `note_content` is
-    /// [`crate::editor_sync::encode_oplog_note`]. Isolation note: this is a `/notes`
-    /// write, wholly off BOTH tube lanes — the durable log never competes with live
-    /// doc-ops or coordination for tube bandwidth.
+    /// Append one historical P2 reconstruction envelope via `POST /notes`.
+    /// `note_content` is [`crate::editor_sync::encode_oplog_note`]. This generic note
+    /// is diagnostic coordination history, not a daemon-owned typed editor receipt;
+    /// it cannot authorize P3.5 recovery or canonical replay. Isolation note: this
+    /// `/notes` write stays off both tube lanes.
     pub async fn log_oplog_delta(&self, note_content: &str) -> Result<()> {
         self.add_note(note_content).await
     }
@@ -782,8 +1052,10 @@ impl DaemonClient {
     ) -> Result<()> {
         let body = region_claim_body(path, start_line, end_line, agent_id);
         let resp = self
-            .http
-            .post(format!("{}/sessions/{session_id}/files", self.base))
+            .with_actor_credential(
+                self.http
+                    .post(format!("{}/sessions/{session_id}/files", self.base)),
+            )
             .json(&body)
             .send()
             .await
@@ -937,26 +1209,20 @@ impl DaemonClient {
         Ok(())
     }
 
-    /// Convene an operator parley: `POST /parley/call`. `parties` are AGENT ids
-    /// (`fleet_transcripts.spawned_agent_id` — never transcript/session ids;
-    /// parley DMs each party via its agent inbox) and the daemon 400s below 2
-    /// distinct ids, so callers gate the affordance client-side too. Returns the
-    /// parsed body so the caller can surface `parley.parleyId` / `channel`; a
-    /// non-2xx surfaces the daemon's rejection verbatim through
-    /// [`ensure_success`] (the alert bus shows it, never a silent swallow).
+    /// Convene an operator parley: `POST /parley/call`. The request supplies
+    /// durable session ids, never caller-authored actors or inbox targets. The
+    /// daemon resolves participant authority from those sessions. Returns the
+    /// parsed response; any rejection reaches the alert bus verbatim.
     pub async fn call_parley(
         &self,
         surface: &str,
         reason: &str,
-        called_by: &str,
-        parties: &[String],
+        session_ids: &[String],
     ) -> Result<serde_json::Value> {
         let body = serde_json::json!({
             "surface": surface,
             "reason": reason,
-            "calledBy": called_by,
-            "parties": parties,
-            "trigger": "operator",
+            "sessionIds": session_ids,
         });
         let resp = self
             .http
@@ -989,13 +1255,22 @@ impl DaemonClient {
             body["identity"] = serde_json::json!(identity);
         }
         let resp = self
-            .http
-            .post(format!("{}/sugar/begin", self.base))
+            .with_actor_credential(self.http.post(format!("{}/sugar/begin", self.base)))
             .json(&body)
             .send()
             .await
             .context("POST /sugar/begin")?;
-        ensure_success(resp, "begin_session").await?;
+        let resp = ensure_success(resp, "begin_session").await?;
+        // #8877 / ADR-0122: an uncredentialed begin MINTS this console's
+        // ADR-0040 soul and returns the credential exactly once. Capture it —
+        // `end_session` and `claim_region` are rejected 401 without it.
+        if let Ok(v) = resp.json::<serde_json::Value>().await {
+            if let Some(credential) = v.get("credential").and_then(|c| c.as_str()) {
+                if let Ok(mut held) = self.actor_credential.lock() {
+                    *held = Some(credential.to_string());
+                }
+            }
+        }
         Ok(())
     }
 
@@ -1010,8 +1285,7 @@ impl DaemonClient {
             None => serde_json::json!({}),
         };
         let resp = self
-            .http
-            .post(format!("{}/sugar/done", self.base))
+            .with_actor_credential(self.http.post(format!("{}/sugar/done", self.base)))
             .json(&body)
             .send()
             .await
@@ -1095,7 +1369,7 @@ impl DaemonClient {
         let http = self.http.clone();
         tokio::spawn(async move {
             use futures_util::StreamExt;
-            use tokio::time::{sleep, Duration};
+            use tokio::time::Duration;
             // Resumable, self-healing stream. A transient network blip or a daemon
             // restart used to silently kill the lane (the task just returned and
             // nothing re-opened it unless the WATCH TARGET changed). Now we
@@ -1113,13 +1387,19 @@ impl DaemonClient {
                 if let Some(id) = &last_id {
                     req = req.header("Last-Event-ID", id.as_str());
                 }
-                let resp = match req.send().await {
+                let response = tokio::select! {
+                    _ = tx.closed() => return,
+                    response = req.send() => response,
+                };
+                let resp = match response {
                     Ok(r) if r.status().is_success() => r,
                     // A 429 (rate-limit Retry-After) or 5xx (daemon restarting) is
                     // TRANSIENT — back off and retry so a momentary hiccup can't
                     // kill the live lane forever.
                     Ok(r) if sse_status_is_retryable(r.status()) => {
-                        sleep(backoff).await;
+                        if !wait_for_sse_retry(&tx, backoff).await {
+                            return;
+                        }
                         backoff = (backoff * 2).min(MAX_BACKOFF);
                         continue;
                     }
@@ -1129,7 +1409,9 @@ impl DaemonClient {
                     Err(_) => {
                         // Connection failure — back off and retry (daemon may be
                         // restarting, e.g. a freshness self-heal).
-                        sleep(backoff).await;
+                        if !wait_for_sse_retry(&tx, backoff).await {
+                            return;
+                        }
                         backoff = (backoff * 2).min(MAX_BACKOFF);
                         continue;
                     }
@@ -1137,7 +1419,14 @@ impl DaemonClient {
                 backoff = Duration::from_millis(500); // reset on a healthy connect
                 let mut parser = SseParser::new();
                 let mut body = resp.bytes_stream();
-                while let Some(chunk) = body.next().await {
+                loop {
+                    let chunk = tokio::select! {
+                        _ = tx.closed() => return,
+                        chunk = body.next() => chunk,
+                    };
+                    let Some(chunk) = chunk else {
+                        break;
+                    };
                     let bytes = match chunk {
                         Ok(b) => b,
                         Err(_) => break, // stream error — fall through to reconnect
@@ -1165,7 +1454,9 @@ impl DaemonClient {
                 }
                 // Stream ended without the receiver being dropped (EOF or error):
                 // reconnect with backoff, resuming from `last_id`.
-                sleep(backoff).await;
+                if !wait_for_sse_retry(&tx, backoff).await {
+                    return;
+                }
                 backoff = (backoff * 2).min(MAX_BACKOFF);
             }
         });
@@ -1193,7 +1484,7 @@ impl DaemonClient {
         let http = self.http.clone();
         tokio::spawn(async move {
             use futures_util::StreamExt;
-            use tokio::time::{sleep, Duration};
+            use tokio::time::Duration;
             let mut last_id: Option<String> = None;
             let mut backoff = Duration::from_millis(500);
             const MAX_BACKOFF: Duration = Duration::from_secs(10);
@@ -1202,13 +1493,19 @@ impl DaemonClient {
                 if let Some(id) = &last_id {
                     req = req.header("Last-Event-ID", id.as_str());
                 }
-                let resp = match req.send().await {
+                let response = tokio::select! {
+                    _ = tx.closed() => return,
+                    response = req.send() => response,
+                };
+                let resp = match response {
                     Ok(r) if r.status().is_success() => r,
                     // A 429 (connection-limit Retry-After) or 5xx (daemon restarting)
                     // is TRANSIENT — back off and retry so a momentary rate-limit or
                     // server hiccup can't kill the editor lane forever.
                     Ok(r) if sse_status_is_retryable(r.status()) => {
-                        sleep(backoff).await;
+                        if !wait_for_sse_retry(&tx, backoff).await {
+                            return;
+                        }
                         backoff = (backoff * 2).min(MAX_BACKOFF);
                         continue;
                     }
@@ -1216,7 +1513,9 @@ impl DaemonClient {
                     // ever stream, so stop rather than spin against it.
                     Ok(_) => return,
                     Err(_) => {
-                        sleep(backoff).await;
+                        if !wait_for_sse_retry(&tx, backoff).await {
+                            return;
+                        }
                         backoff = (backoff * 2).min(MAX_BACKOFF);
                         continue;
                     }
@@ -1224,7 +1523,14 @@ impl DaemonClient {
                 backoff = Duration::from_millis(500); // reset on a healthy connect
                 let mut parser = SseParser::new();
                 let mut body = resp.bytes_stream();
-                while let Some(chunk) = body.next().await {
+                loop {
+                    let chunk = tokio::select! {
+                        _ = tx.closed() => return,
+                        chunk = body.next() => chunk,
+                    };
+                    let Some(chunk) = chunk else {
+                        break;
+                    };
                     let bytes = match chunk {
                         Ok(b) => b,
                         Err(_) => break, // stream error — fall through to reconnect
@@ -1246,7 +1552,9 @@ impl DaemonClient {
                     }
                 }
                 // EOF/error without the receiver dropping: reconnect with backoff.
-                sleep(backoff).await;
+                if !wait_for_sse_retry(&tx, backoff).await {
+                    return;
+                }
                 backoff = (backoff * 2).min(MAX_BACKOFF);
             }
         });
@@ -1323,6 +1631,34 @@ fn extract_text(payload: Option<&serde_json::Value>) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn startup_discovery_prefers_explicit_then_published_stable_port() {
+        assert_eq!(
+            discovery_base(Some("  http://127.0.0.1:4123/  "), Some("4567\n"))
+                .expect("explicit endpoint"),
+            "http://127.0.0.1:4123"
+        );
+        assert_eq!(
+            discovery_base(None, Some("4567\n")).expect("published endpoint"),
+            "http://127.0.0.1:4567"
+        );
+    }
+
+    #[test]
+    fn startup_discovery_rejects_missing_invalid_and_zero_published_ports() {
+        assert!(discovery_base(None, None).is_err());
+        assert!(discovery_base(None, Some("not-a-port")).is_err());
+        assert!(discovery_base(None, Some("0")).is_err());
+    }
+
+    #[test]
+    fn startup_discovery_ignores_an_empty_explicit_override() {
+        assert_eq!(
+            discovery_base(Some("  "), Some("4567")).expect("published endpoint"),
+            "http://127.0.0.1:4567"
+        );
+    }
 
     #[test]
     fn work_intent_envelope_has_one_creation_authority() {
@@ -1416,6 +1752,7 @@ mod tests {
             )["payload"]
                 .clone(),
             plan: None,
+            execution: None,
         };
         let body =
             build_work_intent_start_envelope(&snapshot, "start-token", "2026-07-12T00:00:05Z");
@@ -1451,6 +1788,101 @@ mod tests {
             "c"
         );
         assert_eq!(extract_text(None), "");
+    }
+
+    #[test]
+    fn transcript_projection_restores_only_exact_human_language_turns() {
+        let turns = transcript_turns(&serde_json::json!({
+            "success": true,
+            "transcript": {
+                "messages": [
+                    {"role": "user", "content": "Keep this exact prompt.\nSecond line."},
+                    {"role": "tool", "content": "[codex:error]"},
+                    {"role": "thinking", "content": "private scratch"},
+                    {"role": "assistant", "content": "Exact answer."},
+                    {"role": "assistant", "content": "   "}
+                ]
+            }
+        }))
+        .expect("transcript response parses");
+
+        assert_eq!(
+            turns,
+            vec![
+                TranscriptTurn {
+                    role: TranscriptTurnRole::Operator,
+                    content: "Keep this exact prompt.\nSecond line.".into(),
+                },
+                TranscriptTurn {
+                    role: TranscriptTurnRole::Assistant,
+                    content: "Exact answer.".into(),
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn transcript_projection_fails_loudly_when_messages_are_missing() {
+        let error = transcript_turns(&serde_json::json!({"success": true}))
+            .expect_err("missing durable transcript rows must not look empty");
+        assert!(error.to_string().contains("omitted transcript.messages"));
+    }
+
+    #[test]
+    fn transcript_url_has_one_route_separator_and_encodes_the_id() {
+        let url = transcript_url("http://127.0.0.1:43129/", "tx/one two")
+            .expect("daemon transcript URL");
+        assert_eq!(
+            url.as_str(),
+            "http://127.0.0.1:43129/transcripts/tx%2Fone%20two"
+        );
+    }
+
+    #[test]
+    fn latest_native_work_intent_wins_over_its_dispatch_compat_alias() {
+        let snapshot = |intent_id: &str, source_kind: &str, dispatch_id: &str| WorkSnapshot {
+            intent: serde_json::json!({
+                "intentId": intent_id,
+                "source": {"kind": source_kind},
+                "goal": {"text": "same mission"}
+            }),
+            plan: None,
+            execution: Some(serde_json::json!({
+                "dispatchId": dispatch_id,
+                "state": "settled"
+            })),
+        };
+        let selected = prefer_native_work_intent(vec![
+            snapshot("work_intent_compat_dispatch_d7", "compat", "d7"),
+            snapshot("work_intent_console_7", "console", "d7"),
+            snapshot("work_intent_console_older", "console", "d6"),
+        ])
+        .expect("one Mission remains selected");
+
+        assert_eq!(selected.intent_id(), "work_intent_console_7");
+    }
+
+    #[test]
+    fn genuinely_legacy_dispatch_stays_visible_without_a_native_peer() {
+        let legacy = WorkSnapshot {
+            intent: serde_json::json!({
+                "intentId": "work_intent_compat_dispatch_old",
+                "source": {"kind": "compat"},
+                "goal": {"text": "legacy mission"}
+            }),
+            plan: None,
+            execution: Some(serde_json::json!({
+                "dispatchId": "old",
+                "state": "settled"
+            })),
+        };
+
+        assert_eq!(
+            prefer_native_work_intent(vec![legacy])
+                .expect("legacy Mission remains inspectable")
+                .intent_id(),
+            "work_intent_compat_dispatch_old"
+        );
     }
 
     // ── Stream envelope parsing ───────────────────────────────────────────────
@@ -1677,7 +2109,7 @@ mod tests {
     /// Retry-After) and any 5xx (daemon restarting) are transient and MUST be
     /// retried so a blip can't kill the live lane forever; any other 4xx is
     /// permanent and MUST stop (retrying would spin). Guards the editor + agent
-    /// receive lanes' recovery.
+    /// receive lanes' reconnection.
     #[test]
     fn sse_retry_policy_retries_429_and_5xx_but_stops_on_other_4xx() {
         use reqwest::StatusCode;

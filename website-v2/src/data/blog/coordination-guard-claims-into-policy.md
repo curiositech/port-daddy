@@ -165,7 +165,7 @@ Spark and Spider kept turning up the same themes:
 
 Cartographer turned those into the product chores: make enforcement fail closed, extend guard coverage past pre-commit, keep staging claim-preserving, and make coordination inconsistency visible.
 
-That also lines up with the WinDAGs runtime-honesty warning. Planning topology is not runtime topology. A diagram can say "multi-agent team." The runtime has to say what facts it can actually enforce today.
+That also lines up with the Jury-rig runtime-honesty warning. Planning topology is not runtime topology. A diagram can say "multi-agent team." The runtime has to say what facts it can actually enforce today.
 
 Useful dossiers:
 

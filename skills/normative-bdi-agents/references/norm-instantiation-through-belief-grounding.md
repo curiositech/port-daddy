@@ -200,7 +200,7 @@ Numeric comparisons in belief-set.
 
 **Dynamic Task Allocation with Normative Constraints**:
 
-In WinDAGs, tasks may have normative requirements that only activate under certain conditions:
+In Jury-rig, tasks may have normative requirements that only activate under certain conditions:
 
 **Abstract norm for a data processing task**:
 ```
@@ -325,7 +325,7 @@ For instantiation to work, the belief-set must contain:
 
 ## Implementation Patterns
 
-**For WinDAGs orchestration**:
+**For Jury-rig orchestration**:
 
 ```python
 class NormInstantiationEngine:

@@ -31,12 +31,33 @@ function expectFile(path, needle) {
   }
 }
 
+function expectAbsent(path, needle) {
+  if (!existsSync(path)) fail(`expected file was not written: ${path}`);
+  if (readFileSync(path, 'utf8').includes(needle)) {
+    fail(`expected ${path} not to contain ${JSON.stringify(needle)}`);
+  }
+}
+
+function expectCount(path, needle, count) {
+  if (!existsSync(path)) fail(`expected file was not written: ${path}`);
+  const actual = readFileSync(path, 'utf8').split(needle).length - 1;
+  if (actual !== count) {
+    fail(`expected ${path} to contain ${JSON.stringify(needle)} ${count} time(s), got ${actual}`);
+  }
+}
+
 try {
   if (!existsSync(pd)) fail(`compiled pd not found: ${pd}`);
+  // Single-supervisor (3.28) tarball layout: tentacles live ONLY under bin/
+  // (the formula pkgshare-installs the directory and lib/squid/assets.ts
+  // resolves execDir/../share/port-daddy/bin). The flat top-level copies were
+  // dropped with pd-bosun in the 3.28 cutover.
   for (const asset of [
-    'pd-hook-prompt',
-    'pd-hook-pre-tool',
-    'pd-hook-post-tool',
+    'bin/pd-hook-prompt',
+    'bin/pd-hook-precompact',
+    'bin/pd-hook-pre-tool',
+    'bin/pd-hook-post-tool',
+    'bin/pd-hook-stop',
     'bin/pd-statusline',
     'hooks/sessionstart-pilot.mjs',
   ]) {
@@ -72,14 +93,61 @@ try {
   if (!arm.stdout.includes('Giant Squid harness ARMED')) fail('arm output did not claim the fully armed state');
   if (!arm.stdout.includes('PORT DADDY IS ADDING VALUE OUTSIDE THE CONVERSATION')) fail('arm output omitted the non-diegetic value card');
 
-  expectFile(join(project, '.claude', 'settings.json'), 'pd-hook-pre-tool');
+  const claudeConfig = join(project, '.claude', 'settings.json');
+  const geminiConfig = join(project, '.gemini', 'settings.json');
+  const codexConfig = join(home, '.codex', 'config.toml');
+  const agyConfig = join(home, '.gemini', 'hooks.json');
+
+  expectFile(claudeConfig, 'pd-hook-pre-tool');
+  expectFile(claudeConfig, 'pd-hook-precompact');
   expectFile(join(project, '.claude', 'settings.json'), 'sessionstart-pilot.mjs');
   expectFile(join(project, '.claude', 'settings.json'), 'pd-statusline');
   expectFile(join(project, '.claude', 'commands', 'squid.md'), 'pd squid');
-  expectFile(join(project, '.gemini', 'settings.json'), 'pd-hook-pre-tool');
-  expectFile(join(home, '.codex', 'config.toml'), 'Port Daddy Giant Squid Harness tentacles');
-  expectFile(join(home, '.gemini', 'hooks.json'), 'pd-hook-pre-tool');
-  for (const name of ['pd-hook-prompt', 'pd-hook-pre-tool', 'pd-hook-post-tool']) {
+  expectFile(geminiConfig, 'pd-hook-pre-tool');
+  expectFile(codexConfig, 'Port Daddy Giant Squid Harness tentacles');
+  expectFile(agyConfig, 'pd-hook-pre-tool');
+
+  // Configuration is a durable interface; release-asset paths are packaging
+  // details. A Homebrew upgrade may delete the current Cellar version, so every
+  // provider must retain only the user-owned stable shim.
+  for (const config of [claudeConfig, geminiConfig, codexConfig, agyConfig]) {
+    expectFile(config, join(pdHome, 'bin', 'pd-hook-prompt'));
+    expectFile(config, join(pdHome, 'bin', 'pd-hook-pre-tool'));
+    expectFile(config, join(pdHome, 'bin', 'pd-hook-stop'));
+    expectAbsent(config, '/Cellar/');
+    expectAbsent(config, staged);
+  }
+  // The checkpoint is a verified Claude capability, not an inferred provider
+  // parity promise. Its release shim is therefore required in only that config.
+  expectFile(claudeConfig, join(pdHome, 'bin', 'pd-hook-precompact'));
+  for (const config of [geminiConfig, codexConfig, agyConfig]) {
+    expectAbsent(config, 'pd-hook-precompact');
+  }
+
+  // Release invariant: each provider gets one turn briefing, one direct-edit
+  // gate, and one end-of-turn closeout gate. The post-tool binary remains
+  // staged for safe migration/debug history, but it must never be registered
+  // into an interactive lifecycle again.
+  for (const config of [claudeConfig, geminiConfig, agyConfig]) {
+    expectCount(config, 'pd-hook-prompt', 1);
+    expectCount(config, 'pd-hook-pre-tool', 1);
+    expectCount(config, 'pd-hook-stop', 1);
+    expectAbsent(config, 'pd-hook-post-tool');
+  }
+  expectCount(claudeConfig, 'pd-hook-precompact', 1);
+  expectCount(codexConfig, '[[hooks.UserPromptSubmit]]', 1);
+  expectCount(codexConfig, '[[hooks.PreToolUse]]', 1);
+  expectCount(codexConfig, '[[hooks.PreToolUse.hooks]]', 1);
+  expectCount(codexConfig, '[[hooks.Stop]]', 1);
+  expectCount(codexConfig, '[[hooks.Stop.hooks]]', 1);
+  expectAbsent(codexConfig, 'pd-hook-post-tool');
+  expectAbsent(codexConfig, '[[hooks.PostToolUse]]');
+  expectFile(codexConfig, 'matcher = "apply_patch|Edit|Write|edit|write|str_replace_editor"');
+  for (const broadTool of ['Bash', 'exec_command', 'shell_command', 'unified_exec', 'run_shell_command']) {
+    expectAbsent(codexConfig, `matcher = "${broadTool}`);
+    expectAbsent(codexConfig, `|${broadTool}`);
+  }
+  for (const name of ['pd-hook-prompt', 'pd-hook-precompact', 'pd-hook-pre-tool', 'pd-hook-post-tool', 'pd-hook-stop']) {
     expectFile(join(pdHome, 'bin', name), '.portdaddy');
     expectFile(join(pdHome, 'bin', 'squid', name));
   }
@@ -99,12 +167,69 @@ try {
     if (!provider?.detected || !provider?.wired) fail(`${slug} was not detected and wired in its canonical scope`);
   }
 
+  // The compiled launcher has a 64 KiB stdout boundary. Prove a real retained
+  // history is projected into a complete, explicitly truncated JSON document
+  // instead of exiting zero after slicing the document mid-object.
+  const debugDir = join(pdHome, 'squid');
+  const debugStartedAt = Date.now() - 10_000;
+  mkdirSync(debugDir, { recursive: true });
+  writeFileSync(join(debugDir, 'debug.enabled'), `${new Date(debugStartedAt).toISOString()}\n`);
+  const workspaceB64 = Buffer.from(project).toString('base64');
+  const debugEvents = Array.from({ length: 3_500 }, (_, index) => [
+    'v1',
+    'start',
+    `release-debug-${index}`,
+    'codex:release-smoke',
+    'codex',
+    'edit',
+    'pd-hook-pre-tool',
+    String(debugStartedAt + index),
+    '1000',
+    '-',
+    '-',
+    workspaceB64,
+  ].join('\t'));
+  writeFileSync(join(debugDir, 'hook-events.log'), `${debugEvents.join('\n')}\n`);
+  const debugStatus = spawnSync(pd, ['squid', 'debug', 'status', '--json', '--cwd', project], {
+    cwd: root,
+    env,
+    encoding: 'utf8',
+    timeout: 30_000,
+  });
+  if (debugStatus.status !== 0) {
+    fail(`debug status probe exited ${debugStatus.status}\nstdout:\n${debugStatus.stdout}\nstderr:\n${debugStatus.stderr}`);
+  }
+  const debugBytes = Buffer.byteLength(debugStatus.stdout);
+  if (debugBytes >= 64 * 1024) fail(`debug status emitted ${debugBytes} bytes; compiled ceiling is 65536`);
+  let debugSnapshot;
+  try {
+    debugSnapshot = JSON.parse(debugStatus.stdout);
+  } catch (error) {
+    fail(`debug status did not emit complete JSON: ${String(error)}`);
+  }
+  if (debugSnapshot.window?.totalSteps !== 3_500 || !debugSnapshot.window?.truncated) {
+    fail('compiled debug status did not advertise its bounded history window');
+  }
+  if (!(debugSnapshot.window.returnedSteps > 0 && debugSnapshot.window.returnedSteps < 3_500)) {
+    fail(`compiled debug status returned an invalid step window: ${JSON.stringify(debugSnapshot.window)}`);
+  }
+  const newestDebugStep = debugSnapshot.sessions
+    .flatMap((session) => session.steps)
+    .find((step) => step.id === 'release-debug-3499');
+  if (!newestDebugStep?.startedAt || !newestDebugStep?.expectedBy) {
+    fail('compiled debug status dropped the newest actual/expected timestamps');
+  }
+
   // Prove the staged user-level gate is scoped to the exact armed root. A
-  // sibling Port Daddy project must stay inert even while the heartbeat is
-  // fresh and the underlying prompt tentacle has context it could emit.
+  // sibling Port Daddy project must stay inert even while one exact daemon
+  // generation is ready and the underlying prompt tentacle has context it
+  // could emit. This fixture is the release artifact's complete filesystem
+  // lease contract: PID + matching readiness marker + fresh heartbeat.
   const sibling = join(root, 'sibling-project');
   const exactRootMarker = 'exact-root-only-release-smoke';
   mkdirSync(join(sibling, '.portdaddy'), { recursive: true });
+  writeFileSync(join(pdHome, 'daemon.pid'), `${process.pid}\n`);
+  writeFileSync(join(pdHome, 'daemon.ready'), `${process.pid}\n`);
   writeFileSync(join(pdHome, 'heartbeat'), '{}\n');
   writeFileSync(
     join(pdHome, 'matrix.env'),
@@ -127,7 +252,54 @@ try {
     fail(`unarmed sibling project crossed the exact-root gate: ${siblingProbe.stderr || siblingProbe.stdout}`);
   }
 
-  process.stdout.write(`SQUID RELEASE SMOKE PASS: ${snapshot.providers.length} providers, state ${snapshot.state}\n`);
+  // Exercise the compiled wrapper's containment contract, not merely its
+  // generated text. A missing-runtime-style exit 127 must never leak to the
+  // provider, must open after three calls, and must stop executing the child.
+  const breakerCount = join(pdHome, 'breaker-count');
+  writeFileSync(
+    join(pdHome, 'bin', 'squid', 'pd-hook-pre-tool'),
+    `#!/bin/sh\nprintf x >> '${breakerCount}'\nexit 127\n`,
+    { mode: 0o755 },
+  );
+  const runEditGate = () => spawnSync(join(pdHome, 'bin', 'pd-hook-pre-tool'), [], {
+    cwd: project,
+    env,
+    input: JSON.stringify({ cwd: project, tool_name: 'Edit', tool_input: { file_path: 'README.md' } }),
+    encoding: 'utf8',
+    timeout: 30_000,
+  });
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const failure = runEditGate();
+    if (failure.status !== 0) fail(`breaker leaked child exit ${failure.status} on attempt ${attempt + 1}`);
+  }
+  const openStarted = performance.now();
+  const openProbe = runEditGate();
+  const openDurationMs = performance.now() - openStarted;
+  if (openProbe.status !== 0) fail(`open circuit exited ${openProbe.status}`);
+  if (readFileSync(breakerCount, 'utf8') !== 'xxx') fail('open circuit executed the unhealthy child again');
+  if (openDurationMs >= 500) fail(`open circuit no-op took ${Math.round(openDurationMs)} ms`);
+
+  const degradedStatus = spawnSync(pd, ['squid', 'status', '--json', '--cwd', project], {
+    cwd: root,
+    env,
+    encoding: 'utf8',
+    timeout: 30_000,
+  });
+  if (degradedStatus.status !== 1) fail(`degraded status should exit 1, got ${degradedStatus.status}`);
+  const degraded = JSON.parse(degradedStatus.stdout);
+  const editCircuit = degraded.health?.circuits?.find((item) => item.hook === 'pd-hook-pre-tool');
+  if (degraded.state !== 'DEGRADED' || editCircuit?.lastReason !== 'exit_127') {
+    fail('compiled status did not expose the opened edit-hook circuit');
+  }
+  const firstNotice = runPromptGate(project);
+  const secondNotice = runPromptGate(project);
+  if (!firstNotice.stdout.includes('PD SAFE MODE') || secondNotice.stdout.includes('PD SAFE MODE')) {
+    fail('compiled wrapper did not emit exactly one turn-level remediation notice');
+  }
+
+  process.stdout.write(
+    `SQUID RELEASE SMOKE PASS: ${snapshot.providers.length} providers, state ${snapshot.state}, debug ${debugBytes} bytes, open no-op ${Math.round(openDurationMs)}ms\n`,
+  );
 } finally {
   rmSync(root, { recursive: true, force: true });
 }

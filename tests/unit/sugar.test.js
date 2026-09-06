@@ -29,6 +29,7 @@ import { createTupleSpace } from '../../lib/tuples.js';
 function passingChecker() {
   return {
     checkBranchOnOrigin: () => ({ ok: true, branch: 'feat/test', upstream: 'origin/feat/test', ahead: 0 }),
+    checkLedgerOnly: () => ({ ok: true, dirtyEntries: 0, unpublishedCommits: 0 }),
   };
 }
 
@@ -552,6 +553,43 @@ describe('sugar.done', () => {
     expect(result.error).toContain('No active session');
   });
 
+  test('no-context done refuses instead of closing the globally newest active session', () => {
+    const { sugar, sessions } = setup();
+    const first = sugar.begin({ lifecycle: 'ephemeral', purpose: 'First active', agentId: 'scope-first' });
+    const second = sugar.begin({ lifecycle: 'ephemeral', purpose: 'Second active', agentId: 'scope-second' });
+
+    const result = sugar.done({ note: VALID_RESULT_NOTE_WITH_PR });
+
+    expect(result).toMatchObject({
+      success: false,
+      code: 'NO_ACTIVE_SESSION_SCOPE',
+    });
+    expect(sessions.get(first.sessionId).session.status).toBe('active');
+    expect(sessions.get(second.sessionId).session.status).toBe('active');
+  });
+
+  test('agent-only done returns every candidate when multiple sessions are active', () => {
+    const { sugar, sessions } = setup();
+    const first = sugar.begin({ lifecycle: 'ephemeral', purpose: 'Agent session one', agentId: 'multi-session-agent' });
+    const second = sessions.start('Agent session two', {
+      agentId: 'multi-session-agent',
+      worktreeId: 'worktree-two',
+    });
+
+    const result = sugar.done({ agentId: 'multi-session-agent', note: VALID_RESULT_NOTE_WITH_PR });
+
+    expect(result).toMatchObject({
+      success: false,
+      code: 'AMBIGUOUS_ACTIVE_SESSION',
+    });
+    expect(result.candidates).toEqual(expect.arrayContaining([
+      expect.objectContaining({ sessionId: first.sessionId, worktreeId: expect.anything() }),
+      expect.objectContaining({ sessionId: second.id, worktreeId: 'worktree-two' }),
+    ]));
+    expect(sessions.get(first.sessionId).session.status).toBe('active');
+    expect(sessions.get(second.id).session.status).toBe('active');
+  });
+
   test('refuses pd done when active plan has unchecked todo items', () => {
     const { sugar, sessions } = setup();
 
@@ -575,7 +613,85 @@ describe('sugar.done', () => {
     expect(result.code).toBe('PLAN_UNCHECKED_ITEMS');
   });
 
-  test('succeeds pd done with forceIncomplete and reason', () => {
+  test('validates the latest plan when an older plan had unchecked todo items', () => {
+    const { sugar, sessions } = setup();
+
+    const begin = sugar.begin({ lifecycle: 'ephemeral',
+      purpose: 'Latest plan test',
+      agentId: 'plan-test-latest',
+    });
+    expect(begin.success).toBe(true);
+
+    sessions.addNote(begin.sessionId, '- [ ] todo one', { type: 'todo_list' });
+    sessions.addNote(begin.sessionId, '- [x] todo one', { type: 'todo_list' });
+
+    const latestPlan = sessions.getNotes(begin.sessionId, { type: 'todo_list', limit: 1 });
+    expect(latestPlan.success).toBe(true);
+    expect(latestPlan.notes).toHaveLength(1);
+    expect(latestPlan.notes[0].content).toBe('- [x] todo one');
+
+    const result = sugar.done({
+      agentId: 'plan-test-latest',
+      sessionId: begin.sessionId,
+      note: VALID_RESULT_NOTE_WITH_PR,
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.sessionStatus).toBe('completed');
+  });
+
+  test.each([
+    ['prose marker', 'Instructions mention [ ] but no visible task.'],
+    ['backtick example', '- [x] Done\n```md\n- [ ] Example\n```'],
+    ['tilde example', '- [X] Done\n~~~~\n- [-] Example\n~~~\n- [ ] Still example\n~~~~'],
+    ['HTML comment', '- [x] Done\n<!--\n- [ ] Hidden\n-->'],
+    ['open fence', '- [x] Done\n```\n- [ ] Example'],
+    ['open comment', '- [x] Done\n<!--\n- [ ] Hidden'],
+    ['literal fence info', '```md <!-- literal\n- [ ] Example\n```\n- [X] Done'],
+    ['trailing comment', '- [x] Done <!--\n- [ ] Hidden\n-->'],
+  ])('does not block completion on %s', (_name, content) => {
+    const { sugar, sessions, db } = setup();
+    try {
+      const begin = sugar.begin({ lifecycle: 'ephemeral', purpose: 'Visible plan fixture', agentId: 'visible-plan-agent' });
+      expect(begin.success).toBe(true);
+      sessions.addNote(begin.sessionId, '- [ ] Old unfinished version', { type: 'todo_list' });
+      sessions.addNote(begin.sessionId, content, { type: 'todo_list' });
+      const originalPlans = sessions.getNotes(begin.sessionId, { type: 'todo_list' }).notes;
+      const result = sugar.done({ agentId: begin.agentId, sessionId: begin.sessionId, note: VALID_RESULT_NOTE_WITH_PR });
+      expect(result).toMatchObject({ success: true, sessionStatus: 'completed' });
+      expect(sessions.getNotes(begin.sessionId, { type: 'todo_list' }).notes).toEqual(originalPlans);
+    } finally { db.close(); }
+  });
+
+  test.each([
+    ['hyphen task', '- [-] Working'],
+    ['ordered task', '1. [-] Working'],
+    ['nested task', '# Plan\n\n  * [ ] Working'],
+    ['after hidden prefix', '<!-- hidden --> + [ ] Working'],
+    ['after a fence with literal HTML', '```md <!-- literal\n- [ ] Example\n```\n- [ ] Working'],
+    ['before trailing comment', '- [-] Working <!--\n- [ ] Hidden\n-->'],
+    ['CRLF task', '# Plan\r\n\r\n2) [-] Working\r\n'],
+  ])('preserves session, claims, notes and agent when refusing %s', (_name, content) => {
+    const { sugar, sessions, agents, db } = setup();
+    try {
+      const begin = sugar.begin({ lifecycle: 'ephemeral', purpose: 'Unfinished visible plan fixture', agentId: 'unfinished-plan-agent', files: ['fixture.ts'] });
+      expect(begin.success).toBe(true);
+      sessions.addNote(begin.sessionId, '- [x] Old completed version', { type: 'todo_list' });
+      sessions.addNote(begin.sessionId, content, { type: 'todo_list' });
+      const before = sessions.get(begin.sessionId);
+      const notes = sessions.getNotes(begin.sessionId).notes;
+      // Persisted identity must not change; computed heartbeat age may advance.
+      const agent = db.prepare('SELECT * FROM agents WHERE id = ?').get(begin.agentId);
+      const result = sugar.done({ agentId: begin.agentId, sessionId: begin.sessionId, note: VALID_RESULT_NOTE_WITH_PR });
+      expect(result).toMatchObject({ success: false, code: 'PLAN_UNCHECKED_ITEMS' });
+      expect(sessions.get(begin.sessionId)).toEqual(before);
+      expect(sessions.getNotes(begin.sessionId).notes).toEqual(notes);
+      expect(agents.get(begin.agentId).success).toBe(true);
+      expect(db.prepare('SELECT * FROM agents WHERE id = ?').get(begin.agentId)).toEqual(agent);
+    } finally { db.close(); }
+  });
+
+  test('rejects public forceIncomplete without treating a reason as operator authority', () => {
     const { sugar, sessions } = setup();
 
     const begin = sugar.begin({ lifecycle: 'ephemeral',
@@ -587,40 +703,19 @@ describe('sugar.done', () => {
     // Set a plan with unchecked items
     sessions.addNote(begin.sessionId, '- [ ] todo one', { type: 'todo_list' });
 
-    // Done fails if forceIncompleteReason is too short or missing
-    const fail1 = sugar.done({
-      agentId: 'plan-test-2',
-      sessionId: begin.sessionId,
-      note: VALID_RESULT_NOTE_WITH_PR,
-      forceIncomplete: true,
-    });
-    expect(fail1.success).toBe(false);
-    expect(fail1.code).toBe('FORCE_INCOMPLETE_REASON_REQUIRED');
-
-    const fail2 = sugar.done({
-      agentId: 'plan-test-2',
-      sessionId: begin.sessionId,
-      note: VALID_RESULT_NOTE_WITH_PR,
-      forceIncomplete: true,
-      forceIncompleteReason: 'too short',
-    });
-    expect(fail2.success).toBe(false);
-    expect(fail2.code).toBe('FORCE_INCOMPLETE_REASON_REQUIRED');
-
-    // Done succeeds with a long reason
-    const ok = sugar.done({
+    const result = sugar.done({
       agentId: 'plan-test-2',
       sessionId: begin.sessionId,
       note: VALID_RESULT_NOTE_WITH_PR,
       forceIncomplete: true,
       forceIncompleteReason: 'deferred features to next ticket',
     });
-    expect(ok.success).toBe(true);
-
-    // Verify notes have override stamp
-    const notes = sessions.getNotes(begin.sessionId);
-    const handoffNotes = notes.notes.filter(n => n.type === 'handoff');
-    expect(handoffNotes[0].content).toContain('[OPERATOR-OVERRIDE force-incomplete]');
+    expect(result).toMatchObject({
+      success: false,
+      code: 'OPERATOR_CAPABILITY_REQUIRED',
+    });
+    expect(sessions.get(begin.sessionId).session.status).toBe('active');
+    expect(sessions.getNotes(begin.sessionId).notes.filter(n => n.type === 'handoff')).toHaveLength(0);
   });
 
   test('returns note count', () => {
@@ -662,6 +757,138 @@ describe('sugar.done', () => {
     expect(result.code).toBe('SESSION_OWNERSHIP_MISMATCH');
     expect(result.error).toContain('belongs to agent agent-a');
   });
+
+  test('keeps the agent registered while a sibling session remains active', () => {
+    const { sugar, sessions, agents } = setup();
+    const first = sugar.begin({
+      lifecycle: 'ephemeral',
+      purpose: 'First sibling session',
+      agentId: 'sibling-agent',
+    });
+    const second = sessions.start('Second sibling session', {
+      agentId: 'sibling-agent',
+      durable: false,
+    });
+    expect(second.success).toBe(true);
+
+    const done = sugar.done({
+      agentId: 'sibling-agent',
+      sessionId: first.sessionId,
+      note: VALID_RESULT_NOTE_WITH_PR,
+    });
+
+    expect(done).toMatchObject({
+      success: true,
+      agentUnregistered: false,
+      remainingActiveSessions: 1,
+    });
+    expect(agents.get('sibling-agent').success).toBe(true);
+    expect(sessions.get(second.id).session.status).toBe('active');
+  });
+
+  test('managed completion requires and consumes an exact daemon-bound ephemeral proof', () => {
+    const { sugar, sessions } = setup();
+    const begin = sugar.begin({
+      lifecycle: 'ephemeral',
+      purpose: 'Managed spawned work',
+      agentId: 'managed-agent',
+      metadata: {
+        identity: { verified: true, actorId: 'actor-managed' },
+      },
+    });
+
+    const beforeBind = sugar.completeManagedSession({
+      sessionId: begin.sessionId,
+      agentId: 'managed-agent',
+      actorId: 'actor-managed',
+      status: 'completed',
+      note: 'managed success',
+    });
+    expect(beforeBind).toMatchObject({ success: false, code: 'MANAGED_SESSION_PROOF_REQUIRED' });
+
+    const bound = sugar.bindManagedSession({
+      sessionId: begin.sessionId,
+      agentId: 'managed-agent',
+      actorId: 'actor-managed',
+    });
+    expect(bound).toMatchObject({
+      success: true,
+      sessionId: begin.sessionId,
+      managedSpawn: { verified: true, source: 'daemon-spawner' },
+    });
+
+    const wrongActor = sugar.completeManagedSession({
+      sessionId: begin.sessionId,
+      agentId: 'managed-agent',
+      actorId: 'actor-attacker',
+      status: 'completed',
+    });
+    expect(wrongActor).toMatchObject({ success: false, code: 'MANAGED_SESSION_PROOF_REQUIRED' });
+    expect(sessions.get(begin.sessionId).session.status).toBe('active');
+
+    const completed = sugar.completeManagedSession({
+      sessionId: begin.sessionId,
+      agentId: 'managed-agent',
+      actorId: 'actor-managed',
+      status: 'completed',
+      note: 'managed success',
+    });
+    expect(completed).toMatchObject({ success: true, sessionStatus: 'completed' });
+    expect(sessions.get(begin.sessionId).session.status).toBe('completed');
+  });
+
+  test('managed binding refuses durable sessions and forged actor stamps', () => {
+    const { sugar } = setup();
+    const durable = sugar.begin({
+      lifecycle: 'durable',
+      purpose: 'Durable operator work',
+      agentId: 'durable-agent',
+      metadata: { identity: { verified: true, actorId: 'actor-durable' } },
+    });
+    expect(sugar.bindManagedSession({
+      sessionId: durable.sessionId,
+      agentId: 'durable-agent',
+      actorId: 'actor-durable',
+    })).toMatchObject({ success: false, code: 'MANAGED_SESSION_NOT_EPHEMERAL' });
+
+    const forged = sugar.begin({
+      lifecycle: 'ephemeral',
+      purpose: 'Forged managed work',
+      agentId: 'forged-agent',
+      metadata: { identity: { verified: true, actorId: 'actor-owner' } },
+    });
+    expect(sugar.bindManagedSession({
+      sessionId: forged.sessionId,
+      agentId: 'forged-agent',
+      actorId: 'actor-attacker',
+    })).toMatchObject({ success: false, code: 'SESSION_OWNERSHIP_MISMATCH' });
+  });
+
+  test('managed abort closes an exact unbound ephemeral admission but rejects forged scope', () => {
+    const { sugar, sessions } = setup();
+    const begin = sugar.begin({
+      lifecycle: 'ephemeral',
+      purpose: 'Admission awaiting managed bind',
+      agentId: 'abort-agent',
+      metadata: { identity: { verified: true, actorId: 'actor-abort' } },
+    });
+
+    expect(sugar.abortManagedSession({
+      sessionId: begin.sessionId,
+      agentId: 'abort-agent',
+      actorId: 'actor-attacker',
+      note: 'forged abort',
+    })).toMatchObject({ success: false, code: 'SESSION_OWNERSHIP_MISMATCH' });
+    expect(sessions.get(begin.sessionId).session.status).toBe('active');
+
+    expect(sugar.abortManagedSession({
+      sessionId: begin.sessionId,
+      agentId: 'abort-agent',
+      actorId: 'actor-abort',
+      note: 'binding failed before backend execution',
+    })).toMatchObject({ success: true, sessionStatus: 'abandoned' });
+    expect(sessions.get(begin.sessionId).session.status).toBe('abandoned');
+  });
 });
 
 // =============================================================================
@@ -671,7 +898,8 @@ describe('sugar.done', () => {
 // agents wrote `pd done` without ever pushing their work. The rule:
 //   1. Branch must not be ahead of its upstream on origin.
 //   2. Result note must include one of: PR URL, "no-pr-yet:", or "not-applicable:".
-// Escape hatch: --skip-origin-check requires --reason.
+// Public override flags fail closed; managed subprocess completion has a
+// separate exact-session in-process authority path.
 // =============================================================================
 
 describe('pd done origin rule', () => {
@@ -708,6 +936,7 @@ describe('pd done origin rule', () => {
         calls++;
         return { ok: true, branch: 'feat/x', upstream: 'origin/feat/x', ahead: 0 };
       },
+      checkLedgerOnly: () => ({ ok: true, dirtyEntries: 0, unpublishedCommits: 0 }),
     };
   }
 
@@ -754,6 +983,130 @@ describe('pd done origin rule', () => {
     expect(result.originCheckCode).toBe('NO_UPSTREAM');
     expect(result.error).toMatch(/no upstream/);
     expect(result.hint).toMatch(/git push -u origin/);
+  });
+
+  test('--no-pr closes only a verified clean ledger-only branch without an upstream', () => {
+    const checker = {
+      ...noUpstreamChecker(),
+      checkLedgerOnly: () => ({ ok: true, dirtyEntries: 0, unpublishedCommits: 0 }),
+    };
+    const { sugar, sessions } = setup({ gitOriginChecker: checker });
+    const begin = sugar.begin({ lifecycle: 'ephemeral', purpose: 'Ledger-only close', agentId: 'ledger-only-agent' });
+
+    const result = sugar.done({
+      agentId: 'ledger-only-agent',
+      sessionId: begin.sessionId,
+      note: 'Result: reconciliation notes recorded; no repository changes were made.',
+      noPr: true,
+    });
+
+    expect(result.success).toBe(true);
+    const handoff = sessions.getNotes(begin.sessionId).notes.find((note) => note.type === 'handoff');
+    expect(handoff.content).toContain('not-applicable: ledger-only session, no repository artifact');
+  });
+
+  test('--no-pr still refuses dirty or unpublished repository work', () => {
+    const checker = {
+      ...noUpstreamChecker(),
+      checkLedgerOnly: () => ({
+        ok: false,
+        code: 'DIRTY_WORKTREE',
+        error: 'Worktree has 1 uncommitted or untracked entry.',
+        hint: 'Preserve the work first.',
+        dirtyEntries: 1,
+      }),
+    };
+    const { sugar } = setup({ gitOriginChecker: checker });
+    const begin = sugar.begin({ lifecycle: 'ephemeral', purpose: 'Dirty no-pr close', agentId: 'dirty-no-pr-agent' });
+    const result = sugar.done({
+      agentId: 'dirty-no-pr-agent',
+      sessionId: begin.sessionId,
+      note: 'Result: attempted ledger close.',
+      noPr: true,
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.code).toBe('LEDGER_ONLY_CHECK_FAILED');
+    expect(result.ledgerOnlyCheckCode).toBe('DIRTY_WORKTREE');
+    expect(result.dirtyEntries).toBe(1);
+  });
+
+  test('--no-pr verifies ledger-only cleanliness even when the branch is fully pushed', () => {
+    const checker = {
+      checkBranchOnOrigin: () => ({ ok: true, branch: 'feat/x', upstream: 'origin/feat/x', ahead: 0 }),
+      checkLedgerOnly: () => ({
+        ok: false,
+        code: 'DIRTY_WORKTREE',
+        error: 'Worktree has 2 uncommitted or untracked entries.',
+        hint: 'Preserve the work first.',
+        dirtyEntries: 2,
+      }),
+    };
+    const { sugar } = setup({ gitOriginChecker: checker });
+    const begin = sugar.begin({ lifecycle: 'ephemeral', purpose: 'Pushed but dirty close', agentId: 'pushed-dirty-agent' });
+
+    const result = sugar.done({
+      agentId: 'pushed-dirty-agent',
+      sessionId: begin.sessionId,
+      note: 'Result: attempted ledger close.',
+      noPr: true,
+    });
+
+    expect(result).toMatchObject({
+      success: false,
+      code: 'LEDGER_ONLY_CHECK_FAILED',
+      ledgerOnlyCheckCode: 'DIRTY_WORKTREE',
+      dirtyEntries: 2,
+      originCheckCode: null,
+    });
+  });
+
+  test('--no-pr cannot combine with a public skip-origin override', () => {
+    const checker = {
+      checkBranchOnOrigin: () => { throw new Error('origin gate must be skipped'); },
+      checkLedgerOnly: () => ({
+        ok: false,
+        code: 'DIRTY_WORKTREE',
+        error: 'Worktree has 1 uncommitted or untracked entry.',
+        hint: 'Preserve the work first.',
+        dirtyEntries: 1,
+      }),
+    };
+    const { sugar } = setup({ gitOriginChecker: checker });
+    const begin = sugar.begin({ lifecycle: 'ephemeral', purpose: 'Dirty override close', agentId: 'dirty-override-agent' });
+
+    const result = sugar.done({
+      agentId: 'dirty-override-agent',
+      sessionId: begin.sessionId,
+      note: 'Result: attempted ledger close.',
+      noPr: true,
+      skipOriginCheck: true,
+      skipOriginCheckReason: 'operator accepts no upstream for ledger-only work',
+    });
+
+    expect(result).toMatchObject({ success: false, code: 'OPERATOR_CAPABILITY_REQUIRED' });
+  });
+
+  test('a public skip-origin reason never mints authority or an audit marker', () => {
+    const checker = {
+      checkBranchOnOrigin: () => { throw new Error('origin gate must be skipped'); },
+      checkLedgerOnly: () => ({ ok: true, dirtyEntries: 0, unpublishedCommits: 0 }),
+    };
+    const { sugar, sessions } = setup({ gitOriginChecker: checker });
+    const begin = sugar.begin({ lifecycle: 'ephemeral', purpose: 'Clean override close', agentId: 'clean-override-agent' });
+
+    const result = sugar.done({
+      agentId: 'clean-override-agent',
+      sessionId: begin.sessionId,
+      note: 'Result: verified ledger-only completion.',
+      noPr: true,
+      skipOriginCheck: true,
+      skipOriginCheckReason: 'operator accepts no upstream for ledger-only work',
+    });
+
+    expect(result).toMatchObject({ success: false, code: 'OPERATOR_CAPABILITY_REQUIRED' });
+    expect(sessions.get(begin.sessionId).session.status).toBe('active');
+    expect(sessions.getNotes(begin.sessionId).notes.find((entry) => entry.type === 'handoff')).toBeUndefined();
   });
 
   test('refuses pd done when result note lacks a sentinel', () => {
@@ -832,7 +1185,7 @@ describe('pd done origin rule', () => {
     const notes_no_pr = sessions.getNotes(b_no_pr.sessionId).notes;
     const handoff_no_pr = notes_no_pr.find((n) => n.type === 'handoff');
     expect(handoff_no_pr).toBeTruthy();
-    expect(handoff_no_pr.content).toContain('not-applicable: subtask code delivery');
+    expect(handoff_no_pr.content).toContain('not-applicable: ledger-only session, no repository artifact');
 
     const b_subtask = sugar.begin({ lifecycle: 'ephemeral', purpose: 'subtask flag case', agentId: 'subtask-flag-agent' });
     const r_subtask = sugar.done({
@@ -853,41 +1206,32 @@ describe('pd done origin rule', () => {
     expect(sessionInfo.session.status).toBe('completed');
   });
 
-  test('--skip-origin-check works only with a reason; stamps [OPERATOR-OVERRIDE]', () => {
+  test('--skip-origin-check always fails closed on the public API', () => {
     const { sugar, sessions } = setup({ gitOriginChecker: aheadChecker(5) });
 
     const begin = sugar.begin({ lifecycle: 'ephemeral', purpose: 'Override case', agentId: 'override-agent' });
 
-    // Without --reason: refusal.
     const noReason = sugar.done({
       agentId: 'override-agent',
       sessionId: begin.sessionId,
       skipOriginCheck: true,
     });
     expect(noReason.success).toBe(false);
-    expect(noReason.code).toBe('SKIP_ORIGIN_CHECK_REASON_REQUIRED');
+    expect(noReason.code).toBe('OPERATOR_CAPABILITY_REQUIRED');
 
     // Still active after refusal.
     expect(sessions.get(begin.sessionId).session.status).toBe('active');
 
-    // With --reason: success even though the (would-have-been) origin
-    // check would have refused (branch ahead by 5).
-    const ok = sugar.done({
+    const withReason = sugar.done({
       agentId: 'override-agent',
       sessionId: begin.sessionId,
       skipOriginCheck: true,
       skipOriginCheckReason: 'local experiment, not shipping',
-      note: 'tried thing X, did not work', // note WITHOUT a sentinel — override bypasses both gates
+      note: 'tried thing X, did not work',
     });
-    expect(ok.success).toBe(true);
-    expect(ok.sessionStatus).toBe('completed');
-
-    // The stored handoff note must carry the override stamp.
-    const notes = sessions.getNotes(begin.sessionId).notes;
-    const handoff = notes.find((n) => n.type === 'handoff');
-    expect(handoff).toBeTruthy();
-    expect(handoff.content).toMatch(/^\[OPERATOR-OVERRIDE skip-origin-check\] reason: local experiment, not shipping/);
-    expect(handoff.content).toContain('tried thing X');
+    expect(withReason.code).toBe('OPERATOR_CAPABILITY_REQUIRED');
+    expect(sessions.get(begin.sessionId).session.status).toBe('active');
+    expect(sessions.getNotes(begin.sessionId).notes.find((n) => n.type === 'handoff')).toBeUndefined();
   });
 });
 
@@ -923,6 +1267,24 @@ describe('sugar.whoami', () => {
     expect(result.success).toBe(true);
     expect(result.active).toBe(false);
     expect(result.hint).toBeTruthy();
+  });
+
+  test('agent-only whoami fails on multiple active sessions and names each worktree', () => {
+    const { sugar, sessions } = setup();
+    const first = sugar.begin({ lifecycle: 'ephemeral', purpose: 'Who one', agentId: 'who-many' });
+    const second = sessions.start('Who two', { agentId: 'who-many', worktreeId: 'who-worktree-two' });
+
+    const result = sugar.whoami({ agentId: 'who-many' });
+
+    expect(result).toMatchObject({
+      success: false,
+      active: false,
+      code: 'AMBIGUOUS_ACTIVE_SESSION',
+    });
+    expect(result.candidates).toEqual(expect.arrayContaining([
+      expect.objectContaining({ sessionId: first.sessionId, worktreeId: expect.anything() }),
+      expect.objectContaining({ sessionId: second.id, worktreeId: 'who-worktree-two' }),
+    ]));
   });
 
   test('falls back to an explicit active session when the agent row was reaped', () => {
@@ -1105,7 +1467,7 @@ describe('sugar lifecycle', () => {
     expect(activeAfter.length).toBe(0);
   });
 
-  it('should allow takeover/resumption of recently closed sessions', () => {
+  it('requires explicit takeover when an identity has closed history', () => {
     const { sugar } = setup();
 
     const beginRes1 = sugar.begin({
@@ -1123,17 +1485,19 @@ describe('sugar lifecycle', () => {
     });
     expect(doneRes.success).toBe(true);
 
-    // Re-begin for the same identity without force should perform takeover
+    // Re-begin for the same identity must not arbitrarily revive history.
     const beginRes2 = sugar.begin({
       purpose: 'New successor session purpose',
       identity: 'port-daddy:test:takeover',
       lifecycle: 'durable',
     });
 
-    expect(beginRes2.success).toBe(true);
-    expect(beginRes2.resumed).toBe(true);
-    expect(beginRes2.takeover).toBe(true);
-    expect(beginRes2.sessionId).not.toBe(beginRes1.sessionId);
+    expect(beginRes2).toMatchObject({
+      success: false,
+      code: 'CLOSED_SESSION_REQUIRES_EXPLICIT_TAKEOVER',
+      candidates: [expect.objectContaining({ sessionId: beginRes1.sessionId })],
+    });
+    expect(beginRes2.hint).toContain(`pd session takeover ${beginRes1.sessionId}`);
   });
 
   it('should generate a welcome briefing with roadmap, ongoing, high-pri bugs, and dormant sessions', () => {

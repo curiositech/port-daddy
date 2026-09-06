@@ -1,6 +1,6 @@
 {
   "name": "port-daddy",
-  "version": "3.27.0",
+  "version": "3.30.6",
   "description": "Authoritative port management and service orchestration for multi-agent development — port-daddy up/down, atomic assignment, pub/sub messaging, distributed locks, agent registry, and project:stack:context semantic identities",
   "main": "./dist/server.js",
   "type": "module",
@@ -29,6 +29,7 @@
     "test:watch": "npm test -- --watch",
     "test:coverage": "npm test -- --coverage",
     "test:ci": "npm test",
+    "test:purser": "node scripts/run-purser-tests.mjs",
     "test:bun": "bun test tests/bun/",
     "typecheck": "tsc --noEmit",
     "generate:console-model-tiers": "tsx scripts/generate-console-model-tiers.ts --write",
@@ -39,6 +40,7 @@
     "export:public": "tsx scripts/export-public-repo.ts",
     "check:public-export": "tsx scripts/export-public-repo.ts --check",
     "diagnose:node-builtin-imports": "node scripts/check-builtin-named-imports.mjs",
+    "check:changelog": "node scripts/assemble-changelog.mjs --check",
     "check:doc-citations": "node scripts/check-doc-citations.mjs",
     "check:pr-requirements": "node scripts/check-pr-requirements.mjs",
     "check:pr-comments": "node scripts/check-pr-comments-answered.mjs",
@@ -61,6 +63,8 @@
     "build:bin": "node scripts/build-single-binary.mjs",
     "build:bin:all": "node scripts/build-single-binary.mjs --outfile=dist/port-daddy-darwin-arm64 && node scripts/build-single-binary.mjs --target=bun-linux-x64 --outfile=dist/port-daddy-linux-x64",
     "package:fleetbar-preview": "bash scripts/package-fleetbar-preview.sh",
+    "fixtures:pd-ios": "bun run scripts/generate-pd-ios-fixtures.ts",
+    "fixtures:pd-ios:check": "bun run scripts/generate-pd-ios-fixtures.ts --check",
     "package:scout-extension": "node scripts/package-scout-extension.mjs"
   },
   "repository": {
@@ -106,6 +110,7 @@
     "scripts/build-daemon-binary.mjs",
     "scripts/build-public-samples.mjs",
     "scripts/build-single-binary.mjs",
+    "scripts/lib/onnx-runtime-native.mjs",
     "mcp/",
     "schemas/",
     "config.json",
@@ -147,6 +152,8 @@
     "node": ">=20.0.0"
   },
   "devDependencies": {
+    "@noble/ed25519": "^2.2.3",
+    "@noble/hashes": "^1.7.1",
     "@swc/core": "^1.15.11",
     "@swc/jest": "^0.2.39",
     "@types/better-sqlite3": "^7.6.13",

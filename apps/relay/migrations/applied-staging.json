@@ -6,6 +6,98 @@
       "file": "2026-07-23-user-tokens.sql",
       "appliedAt": "2026-08-04T00:00:00Z",
       "note": "seeded at ADR-0119 adoption — was hand-applied to prod before the staging channel existed"
+    },
+    {
+      "file": "2026-08-04-mercy-health.sql",
+      "appliedAt": "2026-08-10T09:35:05Z"
+    },
+    {
+      "file": "2026-08-04-operator-interruptions.sql",
+      "appliedAt": "2026-08-10T09:35:05Z"
+    },
+    {
+      "file": "2026-08-04-remote-harbors.sql",
+      "appliedAt": "2026-08-10T09:35:05Z"
+    },
+    {
+      "file": "2026-08-04-shipwright-chats.sql",
+      "appliedAt": "2026-08-10T09:35:05Z"
+    },
+    {
+      "file": "2026-08-04-x3-presence-helm.sql",
+      "appliedAt": "2026-08-10T09:35:05Z"
+    },
+    {
+      "file": "2026-08-04-x4-parleys.sql",
+      "appliedAt": "2026-08-10T09:35:05Z"
+    },
+    {
+      "file": "2026-08-08-relay-baseline.sql",
+      "appliedAt": "2026-08-22T17:39:02Z"
+    },
+    {
+      "file": "2026-08-09-executor-identity.sql",
+      "appliedAt": "2026-08-22T17:39:02Z"
+    },
+    {
+      "file": "2026-08-09-mediator-body.sql",
+      "appliedAt": "2026-08-22T17:39:02Z"
+    },
+    {
+      "file": "2026-08-09-y1-directory-whois.sql",
+      "appliedAt": "2026-08-22T17:39:02Z"
+    },
+    {
+      "file": "2026-08-09-z-mercy-hooks.sql",
+      "appliedAt": "2026-08-22T17:39:02Z"
+    },
+    {
+      "file": "2026-08-22-fleet-run-intents.sql",
+      "appliedAt": "2026-08-22T17:39:02Z"
+    },
+    {
+      "file": "2026-08-22-repo-settings.sql",
+      "appliedAt": "2026-08-22T21:45:35Z"
+    },
+    {
+      "file": "2026-08-22-roadmap-mirror.sql",
+      "appliedAt": "2026-08-23T18:58:33Z"
+    },
+    {
+      "file": "2026-08-23-user-roles.sql",
+      "appliedAt": "2026-08-24T04:40:33Z"
+    },
+    {
+      "file": "2026-08-20-apns-device-tokens.sql",
+      "appliedAt": "2026-08-28T02:08:50Z"
+    },
+    {
+      "file": "2026-08-22-seamanship-listings.sql",
+      "appliedAt": "2026-08-28T02:08:50Z"
+    },
+    {
+      "file": "2026-08-22-seamanship-suggestions.sql",
+      "appliedAt": "2026-08-28T02:08:50Z"
+    },
+    {
+      "file": "2026-08-22-snipe-chat-spend.sql",
+      "appliedAt": "2026-08-28T02:08:50Z"
+    },
+    {
+      "file": "2026-08-23-fleet-ai-call-stats.sql",
+      "appliedAt": "2026-08-28T02:08:50Z"
+    },
+    {
+      "file": "2026-08-23-harbor-invites.sql",
+      "appliedAt": "2026-08-28T02:08:50Z"
+    },
+    {
+      "file": "2026-08-24-fleet-run-transcripts.sql",
+      "appliedAt": "2026-08-28T02:08:50Z"
+    },
+    {
+      "file": "2026-08-26-b3-device-keys.sql",
+      "appliedAt": "2026-08-30T01:47:43Z"
     }
   ]
 }

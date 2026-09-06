@@ -9,21 +9,18 @@
  */
 
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
+import {
+  extractActorCredential,
+  resolveWriteIdentity,
+  type IdentityVerifier,
+  type IdentityWriteVerdict,
+} from '../lib/identity-write-boundary.js';
+import {
+  projectContextContinuation,
+  type ContextBootstrapLookup,
+} from '../lib/sugar.js';
 
-interface StaleAgent {
-  id: string;
-  name: string;
-  purpose: string | null;
-  sessionId: string | null;
-  lastHeartbeat: number;
-  staleSince: number;
-  status: 'pending' | 'stale' | 'dead' | 'resurrecting';
-  notes?: string[];
-  // Semantic identity components for prefix filtering
-  identityProject: string | null;
-  identityStack: string | null;
-  identityContext: string | null;
-}
+import type { StaleAgent } from '../lib/resurrection.js';
 
 interface ResurrectionRouteDeps {
   logger: {
@@ -34,7 +31,7 @@ interface ResurrectionRouteDeps {
   resurrection: {
     pending(options?: { project?: string; stack?: string; limit?: number }): { success: boolean; agents: StaleAgent[]; count: number; filtered?: boolean };
     list(options?: { limit?: number; project?: string; stack?: string }): { success: boolean; agents: StaleAgent[]; count: number; filtered?: boolean };
-    claim(agentId: string): { success: boolean; agent?: StaleAgent; context?: Record<string, unknown>; error?: string };
+    claim(agentId: string): { success: boolean; agent?: StaleAgent; context?: Record<string, unknown>; error?: string; code?: string; replacementAlreadyAdmitted?: boolean };
     complete(oldAgentId: string, newAgentId: string): { success: boolean };
     abandon(agentId: string): { success: boolean };
     dismiss(agentId: string): { success: boolean };
@@ -46,6 +43,21 @@ interface ResurrectionRouteDeps {
   activityLog: {
     log(type: string, details: Record<string, unknown>): void;
   };
+  /**
+   * ADR-0040 souls store (subset). Salvage mutations REQUIRE the daemon-minted
+   * credential (#8877 / ADR-0122): successor linkage (`complete`) is the
+   * identity-continuity primitive — an unverified `newAgentId` is exactly the
+   * reputation-whitewashing hole #8877 names — so claim/complete/abandon/
+   * dismiss all reject without a verified credential, and a `newAgentId`
+   * bound to a different soul is 403.
+   */
+  actorSouls?: IdentityVerifier | null;
+  /**
+   * Read-only exact-session bridge to compaction evidence. A salvage claim
+   * remains usable without it, but never synthesizes continuity from notes or
+   * agent similarity when the daemon has not wired verified packet lookup.
+   */
+  contextBootstrapLookup?: ContextBootstrapLookup;
 }
 
 /**
@@ -57,7 +69,51 @@ interface ResurrectionRouteDeps {
 // Fastify plugin (dual-export)
 // =============================================================================
 export const resurrectionPlugin: FastifyPluginAsync<{ deps: ResurrectionRouteDeps }> = async (fastify, opts) => {
-  const { logger, metrics, resurrection, messaging } = opts.deps;
+  const { logger, metrics, resurrection, messaging, actorSouls, contextBootstrapLookup } = opts.deps;
+
+  /**
+   * The strict identity gate for every salvage mutation.
+   *
+   * Purpose: salvage claim/complete rewrite ANOTHER agent's lineage (who took
+   * over its work, which successor id continues its record), which makes them
+   * always-attributed write boundaries under #8877 / ADR-0122. The caller
+   * must present the daemon-minted credential (`x-actor-credential` header or
+   * body `credential`); a self-asserted successor id with no credential is
+   * 401, a forged credential is 401, and a successor id that resolves to a
+   * DIFFERENT minted soul than the credential's is 403 — you cannot complete
+   * salvage onto someone else's identity. The dead agent's id in the path is
+   * the TARGET of the operation, not the caller's assertion, so it is not
+   * checked here.
+   *
+   * @param request - The incoming Fastify request (credential carriers).
+   * @param assertedNewAgentId - The successor id the caller asserts, if any.
+   * @param route - Route label for structured reject logs.
+   * @returns The verified verdict, or the HTTP status and error body.
+   */
+  const requireSalvageIdentity = (
+    request: FastifyRequest,
+    assertedNewAgentId: unknown,
+    route: string,
+  ):
+    | { success: true; verdict: Extract<IdentityWriteVerdict, { ok: true; kind: 'verified' }> }
+    | { success: false; httpStatus: number; result: Record<string, unknown> } => {
+    const verdict = resolveWriteIdentity({
+      souls: actorSouls,
+      credential: extractActorCredential(request.headers as Record<string, unknown>, request.body),
+      assertedAgentId: typeof assertedNewAgentId === 'string' ? assertedNewAgentId : null,
+      route,
+      logger,
+      requireIdentity: true,
+    });
+    if (!verdict.ok) {
+      return {
+        success: false,
+        httpStatus: verdict.httpStatus,
+        result: { success: false, error: verdict.error, code: verdict.code },
+      };
+    }
+    return { success: true, verdict: verdict as Extract<IdentityWriteVerdict, { ok: true; kind: 'verified' }> };
+  };
 
   // Shared handler implementations as async functions
 
@@ -101,21 +157,45 @@ export const resurrectionPlugin: FastifyPluginAsync<{ deps: ResurrectionRouteDep
   async function fHandleClaim(request: FastifyRequest, reply: FastifyReply) {
     try {
       const agentId = (request.params as any).agentId as string;
+      const identity = requireSalvageIdentity(request, (request.body as any)?.newAgentId, 'POST /salvage/claim/:agentId');
+      if (!identity.success) {
+        reply.code(identity.httpStatus);
+        return identity.result;
+      }
       const result = resurrection.claim(agentId);
 
       if (!result.success) {
+        if (result.code === 'DURABLE_SESSION_ACTIVE') {
+          reply.code(409);
+          return result;
+        }
         reply.code(400);
         return { error: result.error };
       }
 
+      // Claim is post-auth at this point. The queue's durable agent and
+      // context must agree on one predecessor session before it is eligible
+      // for a continuation lookup; a request-body id never participates.
+      const agentSessionId = typeof result.agent?.sessionId === 'string'
+        ? result.agent.sessionId
+        : null;
+      const contextSessionId = typeof result.context?.sessionId === 'string'
+        ? result.context.sessionId
+        : null;
+      const contextContinuation = projectContextContinuation(
+        agentSessionId && agentSessionId === contextSessionId ? agentSessionId : null,
+        contextBootstrapLookup,
+      );
+
       messaging.publish('salvage', JSON.stringify({
         event: 'claimed',
         agentId,
-        claimedBy: (request.body as any)?.newAgentId || 'unknown'
+        claimedBy: (request.body as any)?.newAgentId || identity.verdict.actorId,
+        claimedByActorId: identity.verdict.actorId
       }));
 
-      logger.info('salvage_claimed', { agentId });
-      return result;
+      logger.info('salvage_claimed', { agentId, claimedByActorId: identity.verdict.actorId });
+      return { ...result, contextContinuation };
     } catch (error) {
       metrics.errors++;
       logger.error('salvage_claim_failed', { error: (error as Error).message });
@@ -129,14 +209,28 @@ export const resurrectionPlugin: FastifyPluginAsync<{ deps: ResurrectionRouteDep
       const oldAgentId = (request.params as any).agentId as string;
       const { newAgentId } = request.body as any;
 
-      if (!newAgentId) {
+      // The successor id must be a non-empty STRING: a truthy non-string
+      // (number, object) would slip past requireSalvageIdentity's typeof
+      // narrowing (it treats non-strings as "no asserted id", skipping the
+      // alias-mismatch check) and land unvalidated in the successor record.
+      if (typeof newAgentId !== 'string' || !newAgentId.trim()) {
         reply.code(400);
         return { error: 'newAgentId required' };
       }
 
-      const result = resurrection.complete(oldAgentId, newAgentId);
+      // #8877: successor linkage is the whitewashing primitive — the caller
+      // must hold a verified credential, and `newAgentId` must not resolve
+      // to a different minted soul than that credential's.
+      const identity = requireSalvageIdentity(request, newAgentId, 'POST /salvage/complete/:agentId');
+      if (!identity.success) {
+        reply.code(identity.httpStatus);
+        return identity.result;
+      }
 
-      logger.info('salvage_complete', { oldAgentId, newAgentId });
+      const result = resurrection.complete(oldAgentId, newAgentId);
+      if (!result.success) { reply.code(409); return result; }
+
+      logger.info('salvage_complete', { oldAgentId, newAgentId, completedByActorId: identity.verdict.actorId });
       return result;
     } catch (error) {
       metrics.errors++;
@@ -149,7 +243,13 @@ export const resurrectionPlugin: FastifyPluginAsync<{ deps: ResurrectionRouteDep
   async function fHandleAbandon(request: FastifyRequest, reply: FastifyReply) {
     try {
       const agentId = (request.params as any).agentId as string;
+      const identity = requireSalvageIdentity(request, null, 'POST /salvage/abandon/:agentId');
+      if (!identity.success) {
+        reply.code(identity.httpStatus);
+        return identity.result;
+      }
       const result = resurrection.abandon(agentId);
+      if (!result.success) { reply.code(409); return result; }
 
       messaging.publish('salvage', JSON.stringify({
         event: 'abandoned',
@@ -168,7 +268,13 @@ export const resurrectionPlugin: FastifyPluginAsync<{ deps: ResurrectionRouteDep
   async function fHandleDismiss(request: FastifyRequest, reply: FastifyReply) {
     try {
       const agentId = (request.params as any).agentId as string;
+      const identity = requireSalvageIdentity(request, null, 'DELETE /salvage/:agentId');
+      if (!identity.success) {
+        reply.code(identity.httpStatus);
+        return identity.result;
+      }
       const result = resurrection.dismiss(agentId);
+      if (!result.success) { reply.code(409); return result; }
 
       logger.info('salvage_dismissed', { agentId });
       return result;

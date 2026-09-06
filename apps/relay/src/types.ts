@@ -10,20 +10,46 @@ export interface Env {
   DB: D1Database;
   // Durable Object namespace — one DO per (harbor_fingerprint, channel)
   HARBOR_CHANNEL: DurableObjectNamespace;
+  // ADR-0092: one authority-free CRDT coordination replica per project.
+  // Optional until the v0003 Durable Object migration is deployed; routes
+  // fail closed with COORDINATION_UNCONFIGURED while absent.
+  COORDINATION_ROOM?: DurableObjectNamespace;
+  // The Steward's seats, bound CROSS-SCRIPT (`script_name = "pd-steward"`):
+  // the class lives in and is migrated by `apps/steward`, and the relay only
+  // ever POSTs `/wake` to it (P1 PR 8). A DO namespace is not publicly
+  // addressable, so this reaches the seat inside the trust boundary and needs
+  // no credential — which is the point: the alternative was handing the relay
+  // STEWARD_ADMIN_TOKEN, the same key that authorizes /ship-it and /charter.
+  // Optional, and deliberately absent from the `latest` environment: a staging
+  // delivery must never wake the production merge authority.
+  STEWARD?: DurableObjectNamespace;
   // Workers KV — JWKS cache + pinned relay key cache
   KV: KVNamespace;
-  // Queue producer — one FleetRunJob per GitHub delivery handed to the
-  // fleet-executor Worker. Optional so the relay still deploys before the
-  // 'fleet-runs' queue is provisioned; ingress guards on its presence.
+  // Queue producers — one FleetRunJob per GitHub delivery handed to the
+  // fleet-executor Worker. Substantive AI reviews stay serialized on
+  // fleet-runs. Deterministic merge-group pass-through checks use fleet-gates
+  // so a long review cannot starve GitHub's required merge-queue context.
+  // Both remain optional so the relay can start before queue provisioning;
+  // a partially provisioned routing state is recorded in the audit log.
   FLEET_RUNS?: Queue<FleetRunJob>;
+  FLEET_GATES?: Queue<FleetRunJob>;
   // Workers AI — fleet control-plane smoke-test + optimize-prompt endpoints.
   // Optional so the relay still type-checks/deploys before the [ai] binding is
   // provisioned; the handlers fail closed with AI_ERROR when it is absent.
   AI?: Ai;
+  // R2 bucket (`fleet-transcripts`) holding raw pd-transcript.v1 session
+  // captures written by the fleet-executor — one JSONL object per (run, ship,
+  // attempt). The relay only READS it (the run page's raw-transcript links).
+  // Optional so the relay deploys before the binding is provisioned; absent ⇒
+  // transcript routes answer 404 and the run page simply shows no links.
+  TRANSCRIPTS?: R2Bucket;
   // Secrets
   RELAY_OPERATOR_TOKEN: string;
   RELAY_ED25519_PRIVATE_KEY_HEX: string;  // relay's own signing key for ServerHello
   GITHUB_WEBHOOK_SECRET: string;          // HMAC-SHA256 secret for GitHub webhook ingress
+  // 32-byte hex root for first-party coordination macaroons. Never exposed;
+  // operator provisioning returns only caveat-scoped grants.
+  COORDINATION_MACAROON_ROOT_KEY_HEX?: string;
   // HMAC secret (>=32 chars) gating the HTML fleet run page (ADR-0101 Phase 0).
   // MUST equal the fleet-executor's RUN_PAGE_SECRET. Optional: unset ⇒ the page
   // only opens with the operator token.
@@ -37,6 +63,10 @@ export interface Env {
   GITHUB_OAUTH_CLIENT_SECRET?: string;  // secret
   USER_TOKEN_WRAPPING_KEY?: string;     // secret, 32-byte hex; AES-GCM wraps the gh token
   PUBLIC_BASE_URL?: string;             // var, relay's public origin; redirect_uri base
+  // GitHub's durable numeric id for the initial Cloud Fleet operator. The
+  // matching account is materialized into user_roles on first authorized read;
+  // this is a public identifier, not an authentication secret.
+  RELAY_OPERATOR_GITHUB_USER_ID?: string;
   // GitHub App credentials — fleet control-plane config read + save (PR) path.
   // GITHUB_APP_PRIVATE_KEY is a secret (PEM); the rest may be vars.
   GITHUB_APP_ID?: string;
@@ -59,9 +89,27 @@ export interface Env {
   // Cloudflare Notifications bridge — see docs/mercy-oncall.md). Unset ⇒
   // incidents are still recorded in D1, but nobody is paged.
   MERCY_PAGE_WEBHOOK?: string;
+  // APNs push for operator interruptions (src/push-apns.ts). The module arms
+  // only when ALL of the key material is present; anything missing ⇒ a silent
+  // config-missing no-op, so the relay works without APNs configured.
+  APNS_AUTH_KEY?: string;    // secret — the .p8 token-auth key, PKCS#8 PEM (ES256/P-256)
+  APNS_KEY_ID?: string;      // secret — 10-char Apple key id of the .p8 key
+  APNS_TEAM_ID?: string;     // secret — 10-char Apple Developer team id
+  APNS_TOPIC?: string;       // var — iOS app bundle id (the apns-topic header)
+  APNS_HOST?: string;        // var, optional — sandbox override (api.sandbox.push.apple.com)
   // Workers AI model id for the Shipwright chat (src/shipwright.ts). A var,
   // not a secret. Optional: unset ⇒ the module's committed default is used.
   SHIPWRIGHT_MODEL?: string;
+  // Model id for the Engineman's chat (src/snipe-chat.ts). A var, not a
+  // secret. Optional: unset ⇒ the relay's one committed chat default is used,
+  // resolved through the existing resolver rather than restated here.
+  SNIPE_MODEL?: string;
+  // Daily per-user chat budget (src/chat-spend.ts), shared by every
+  // conversational surface. Vars, not secrets, and NEVER caller input: nothing
+  // in a request body can reach these. Unset or unparsable values fall back to
+  // the committed defaults — never to "unlimited", and never to zero.
+  CHAT_DAILY_MESSAGES?: string;
+  CHAT_DAILY_TOKENS?: string;
   // X4 mediator body opt-in (src/mediator.ts). The relay-side analogue of the
   // fleet's per-tenant `xo:` / `squidEvents:` consent keys. A var, not a
   // secret. ONLY the exact string 'on' enables the pd-mediator seat's
@@ -81,6 +129,21 @@ export interface Env {
   JWKS_FAIL_SOFT_SECONDS: string;
   REVOCATION_BROADCAST_TIMEOUT_MS: string;
   RATE_LIMIT_WINDOW_MS: string;
+  // X8 quotas (src/harbor-quota.ts). The aggregating per-harbor quota DO.
+  // Optional so the relay still type-checks/deploys before the binding is
+  // provisioned; while absent, the publish path falls back to the legacy
+  // HarborChannel in-memory rate limiter (rate limiting never fails open).
+  HARBOR_QUOTA?: DurableObjectNamespace;
+  // Per-harbor daily budgets, as decimal strings (vars, not secrets). Unset
+  // or unparsable values fall back to the committed defaults in
+  // harbor-quota.ts — never to "unlimited".
+  HARBOR_DAILY_EVENT_BUDGET?: string;
+  HARBOR_DAILY_BYTE_BUDGET?: string;
+  // X8 enforcement switch. ONLY the exact string 'enforce' turns budget
+  // refusal on; anything else (including unset) is SHADOW mode: over-budget
+  // traffic passes and the would-have-denied delta is recorded. The flip is
+  // a deliberate, data-backed config change — see resolveQuotaSettings.
+  QUOTA_ENFORCE?: string;
 }
 
 /**
@@ -100,6 +163,8 @@ export interface FleetRunJob {
     repository?: Record<string, unknown>;
     pull_request?: Record<string, unknown>;
     push?: Record<string, unknown>;
+    /** merge_group deliveries only: carries `head_sha` for the queue branch. */
+    merge_group?: Record<string, unknown>;
   };
 }
 

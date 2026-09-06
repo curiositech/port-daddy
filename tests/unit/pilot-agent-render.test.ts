@@ -25,7 +25,6 @@ const SAMPLE_CONFIG: PilotConfig = {
   skills: ['port-daddy-agent-skill'],
   tools: {
     portDaddyMcp: ['begin_session', 'coordination_preflight'],
-    windagsMcp: ['windags_skill_search'],
     editorLocal: ['Read', 'Edit', 'Bash'],
   },
 };
@@ -78,7 +77,6 @@ describe('claudeToolList', () => {
     expect(claudeToolList(SAMPLE_CONFIG)).toEqual([
       'mcp__port-daddy__begin_session',
       'mcp__port-daddy__coordination_preflight',
-      'mcp__windags__windags_skill_search',
       'Read',
       'Edit',
       'Bash',
@@ -93,7 +91,7 @@ describe('renderClaude', () => {
       '---',
       'name: port-daddy-pilot',
       'description: "The ideal Port Daddy agent: coordinates before it cuts."',
-      'tools: mcp__port-daddy__begin_session, mcp__port-daddy__coordination_preflight, mcp__windags__windags_skill_search, Read, Edit, Bash',
+      'tools: mcp__port-daddy__begin_session, mcp__port-daddy__coordination_preflight, Read, Edit, Bash',
       'model: opus',
       'color: green',
       '---',
@@ -184,11 +182,10 @@ describe('installPilotAgents', () => {
     mkdirSync(join(base, '.claude', 'agents'), { recursive: true });
     writeFileSync(claudePath, foreignContent);
     const result = installPilotAgents({ sourceDir: src, baseDir: base });
-    expect(result.errors).toContainEqual({
+    expect(result.errors).toContainEqual(expect.objectContaining({
       runtime: 'Claude Code',
-      path: claudePath,
-      error: 'exists and is not a Port Daddy Pilot file — skipping',
-    });
+      code: 'UNMANAGED_TARGET',
+    }));
     expect(result.written.map((w) => w.runtime)).not.toContain('Claude Code');
     expect(readFileSync(claudePath, 'utf8')).toBe(foreignContent);
   });
@@ -201,7 +198,7 @@ describe('installPilotAgents', () => {
     ]);
   });
 
-  test('removes stale generated copies without deleting foreign files', () => {
+  test('preserves stale files without verified prior-installation ownership', () => {
     const src = seedSource();
     const base = makeTmp();
     const staleGenerated = join(base, '.codex', 'agents', 'port-daddy-pilot.md');
@@ -215,15 +212,15 @@ describe('installPilotAgents', () => {
 
     expect(result.cleaned).toContainEqual({
       runtime: 'Codex CLI',
-      path: staleGenerated,
-      changed: true,
+      path: expect.stringContaining('/.codex/agents/port-daddy-pilot.md'),
+      changed: false,
     });
     expect(result.cleaned).toContainEqual({
       runtime: 'Generic agents',
-      path: staleForeign,
+      path: expect.stringContaining('/.agents/port-daddy-pilot.md'),
       changed: false,
     });
-    expect(existsSync(staleGenerated)).toBe(false);
+    expect(readFileSync(staleGenerated, 'utf8')).toBe('old generated port-daddy-pilot markdown');
     expect(readFileSync(staleForeign, 'utf8')).toBe('hand-written universal agent');
   });
 });
@@ -318,5 +315,97 @@ describe('sessionstart-pilot.mjs hook script', () => {
     const dir = makeTmp();
     mkdirSync(join(dir, '.portdaddy'), { recursive: true });
     expect(run({ cwd: dir }, { PD_PILOT_DISABLE: '1' })).toBe('');
+  });
+
+  // ── SITREP duty at session birth (operator doctrine 2026-08-22) ──
+  // SessionStart teaches the same per-repo sitrep.endOfTurn dial the per-turn
+  // pd-hook-prompt tentacle enforces: default enforce, opt-out per repo.
+
+  test('teaches the end-of-turn SITREP duty by default (dial enforce)', () => {
+    const dir = makeTmp();
+    mkdirSync(join(dir, '.portdaddy'), { recursive: true });
+    const out = JSON.parse(run({ cwd: dir }));
+    const ctx = out.hookSpecificOutput.additionalContext as string;
+    expect(ctx).toContain('Port Daddy Pilot'); // base steering still present
+    expect(ctx).toContain('SITREP (end-of-turn, per-repo dial)');
+    expect(ctx).toContain('pd sitrep --template');
+    expect(ctx).toContain('pd roadmap upsert');
+  });
+
+  test('omits the SITREP duty when the repo dials endOfTurn off', () => {
+    const dir = makeTmp();
+    mkdirSync(join(dir, '.portdaddy'), { recursive: true });
+    writeFileSync(
+      join(dir, 'agent.config.json'),
+      JSON.stringify({ sitrep: { endOfTurn: 'off' } }),
+    );
+    const out = JSON.parse(run({ cwd: dir }));
+    const ctx = out.hookSpecificOutput.additionalContext as string;
+    expect(ctx).toContain('Port Daddy Pilot');
+    expect(ctx).not.toContain('SITREP (end-of-turn');
+  });
+
+  test('PD_SITREP env override wins over the repo dial at session start', () => {
+    const dir = makeTmp();
+    mkdirSync(join(dir, '.portdaddy'), { recursive: true });
+    writeFileSync(
+      join(dir, 'agent.config.json'),
+      JSON.stringify({ sitrep: { endOfTurn: 'enforce' } }),
+    );
+    const silenced = JSON.parse(run({ cwd: dir }, { PD_SITREP: 'off' }));
+    expect(silenced.hookSpecificOutput.additionalContext).not.toContain('SITREP (end-of-turn');
+
+    writeFileSync(
+      join(dir, 'agent.config.json'),
+      JSON.stringify({ sitrep: { endOfTurn: 'off' } }),
+    );
+    const compelled = JSON.parse(run({ cwd: dir }, { PD_SITREP: 'suggest' }));
+    expect(compelled.hookSpecificOutput.additionalContext).toContain('SITREP (end-of-turn');
+  });
+
+  test('malformed agent.config.json fails toward the default duty (enforce), never silence', () => {
+    // Fail-direction proof at the birth surface: a config the hook cannot
+    // parse must not be treated as an opt-out — the duty still ships.
+    const dir = makeTmp();
+    mkdirSync(join(dir, '.portdaddy'), { recursive: true });
+    writeFileSync(join(dir, 'agent.config.json'), '{not valid json — deliberately malformed');
+    const out = JSON.parse(run({ cwd: dir }));
+    expect(out.hookSpecificOutput.additionalContext).toContain('SITREP (end-of-turn, per-repo dial)');
+  });
+
+  test('conflicting nested configs: the nearest directory wins at session start', () => {
+    // Nearest-wins contract, mirrored from the prompt tentacle: the walk
+    // exhausts all three candidate files per directory before ascending, so a
+    // child repo's opt-out in a lower-ranked file beats the ancestor's
+    // enforce in the highest-ranked file — and the ancestor keeps its own.
+    const dir = makeTmp();
+    mkdirSync(join(dir, '.portdaddy'), { recursive: true });
+    writeFileSync(
+      join(dir, 'agent.config.json'),
+      JSON.stringify({ sitrep: { endOfTurn: 'enforce' } }),
+    );
+    const child = join(dir, 'pkg');
+    mkdirSync(join(child, '.portdaddy'), { recursive: true });
+    writeFileSync(
+      join(child, '.portdaddy', 'sitrep.json'),
+      JSON.stringify({ sitrep: { endOfTurn: 'off' } }),
+    );
+
+    const fromChild = JSON.parse(run({ cwd: child }));
+    expect(fromChild.hookSpecificOutput.additionalContext).not.toContain('SITREP (end-of-turn');
+
+    const fromParent = JSON.parse(run({ cwd: dir }));
+    expect(fromParent.hookSpecificOutput.additionalContext).toContain('SITREP (end-of-turn, per-repo dial)');
+  });
+
+  test('.portdaddy/sitrep.json governs the SessionStart duty like the prompt tentacle', () => {
+    const dir = makeTmp();
+    mkdirSync(join(dir, '.portdaddy'), { recursive: true });
+    writeFileSync(
+      join(dir, '.portdaddy', 'sitrep.json'),
+      JSON.stringify({ sitrep: { endOfTurn: 'off' } }),
+    );
+    const out = JSON.parse(run({ cwd: dir }));
+    expect(out.hookSpecificOutput.additionalContext).not.toContain('SITREP (end-of-turn');
   });
 });

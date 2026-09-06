@@ -1,49 +1,49 @@
-% Fig 2 — role (org-chart, reputation-free) vs person (a thread plus continuity).
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D8C7A6}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-\providecolor{maydayred}{HTML}{8B0000}
-
+% Figure III.2 --- roles persist as slots; persons persist as accountable threads.
 \begin{figure}[H]
 \centering
-\resizebox{0.95\textwidth}{!}{%
-\begin{tikzpicture}[font=\small]
-\node[stp heading] (rh) at (-5.8,2.6) {ROLE};
-\node[stp box,text width=29mm] (role) at (-5.8,1.25)
-  {\textbf{job description}\\[2pt]
-   {\scriptsize obligation\\capability\\authority}};
-\node[stp box,text width=29mm] (fill) at (-5.8,-0.4)
-  {\textit{fillable}\\{\scriptsize by any spawn}};
-\node[stp box,text width=29mm] (history) at (-5.8,-1.95)
-  {\textit{history-free}\\{\scriptsize no reputation}};
+\resizebox{0.96\textwidth}{!}{%
+\begin{tikzpicture}[pd figure]
+  \node[pd panel title,anchor=west] at (-6.8,2.75) {ROLE: one slot, replaceable fillers};
+  \node[pd panel title,anchor=west] at (-6.8,-.05) {PERSON: one identity, changing roles};
 
-\node[stp heading] (ph) at (1.7,2.6)
-  {PERSON = one identity through role instances};
-\node[stp box,text width=20mm] (i1) at (-2.35,1.25)
-  {navigator\\{\scriptsize outcome: pass}};
-\node[stp box,text width=20mm] (i2) at (0.35,1.25)
-  {cartographer\\{\scriptsize outcome: pass}};
-\node[stp box,text width=20mm] (i3) at (3.05,1.25)
-  {cartographer\\{\scriptsize outcome: fail}};
-\node[stp box,text width=20mm] (i4) at (5.75,1.25)
-  {lookout\\{\scriptsize outcome: pass}};
-\draw[stp arrow] (i1) -- (i2);
-\draw[stp arrow] (i2) -- (i3);
-\draw[stp arrow] (i3) -- (i4);
-\node[stp accent box,text width=92mm] (thread) at (1.7,-0.65)
-  {\textbf{continuity} --- witnessed history follows the identity, not the role};
-\draw[stp accent arrow] (i1.south) -- ++(0,-3mm) -| (thread.north west);
-\draw[stp accent arrow] (i4.south) -- ++(0,-3mm) -| (thread.north east);
+  % Role track: the specification is stable while fillers are unrelated.
+  \draw[pd hairline,line width=2.4pt] (-5.6,1.45) -- (6.4,1.45);
+  \node[pd direct label,anchor=east] at (-5.85,1.45)
+    {reviewer role\\[-1pt]{\tiny obligation + capability + authority}};
+  \foreach \x/\body in {-4.25/A,-1.35/B,1.55/C,4.45/D} {
+    \draw[pd rule] (\x,1.08) -- (\x,1.82);
+    \node[pd actor,circle,minimum size=7.5mm,inner sep=0pt] at (\x,1.45) {\body};
+  }
+  \node[pd note,anchor=west] at (-4.75,.72)
+    {the slot survives; no outcome history moves between fillers};
+
+  % Person track: one identity crosses role boundaries and accumulates witnesses.
+  \draw[pd focus rule,line width=2.0pt] (-5.6,-1.25) -- (6.4,-1.25);
+  \node[pd direct label,anchor=east,text=hhteal] at (-5.85,-1.25)
+    {$\kappa_7$\\[-1pt]{\tiny non-forgeable identity}};
+  \foreach \xa/\xb/\role in {-5.6/-2.7/navigator,-2.7/.25/cartographer,.25/3.25/reviewer,3.25/6.4/lookout} {
+    \draw[pd guide] (\xa,-1.82) -- (\xa,-.68);
+    \node[pd direct label,anchor=south] at ({(\xa+\xb)/2},-.68) {\role};
+  }
+  \draw[pd guide] (6.4,-1.82) -- (6.4,-.68);
+
+  \foreach \x/\mark in {-4.75/$o_1$,-3.45/$o_2$,-1.65/$o_3$,-.45/$o_4$,1.05/$o_5$,2.25/$o_6$,4.25/$o_7$,5.55/$o_8$} {
+    \draw[pd focus rule] (\x,-1.25) -- (\x,-1.72);
+    \node[pd axis label,anchor=north] at (\x,-1.77) {\mark};
+  }
+  \node[pd note,anchor=west,text=hhteal] at (-4.75,-2.38)
+    {witnessed outcomes accumulate on the identity across every role change};
+
+  \node[pd axis label,anchor=west] at (-6.8,-2.95) {earlier};
+  \node[pd axis label,anchor=east] at (6.8,-2.95) {later};
+  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (-5.9,-2.90) -- (5.9,-2.90);
 \end{tikzpicture}}
-\caption{\textbf{Role vs.\ person.} A \emph{role} (left) is an org-chart entry ---
-obligations, capabilities, authority --- fillable by any spawn and carrying no
-history. A \emph{person} (right) is one non-forgeable identity walking through a
-sequence of role-instances, accumulating a witnessed outcome history. Reputation
-attaches to the thread, never to the role and never to the process.}
+\caption{\textbf{A role is a slot; a person is a longitudinal record.} The upper
+track holds one reviewer role constant while unrelated bodies fill it in sequence:
+the slot has obligations, capability, and authority, but no reputation of its own.
+The lower track follows one identity $\kappa_7$ through four role intervals while
+witnessed outcomes $o_1\ldots o_8$ accumulate on the same thread. A respawn may
+replace the body, and a reassignment may replace the role, without replacing the
+accountable person.}
 \label{fig:role-person}
 \end{figure}

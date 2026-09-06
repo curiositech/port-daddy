@@ -39,6 +39,7 @@
  */
 
 import { randomUUID } from 'node:crypto';
+import { isAbsolute, resolve } from 'node:path';
 import type Database from 'better-sqlite3';
 
 export type DispatchState =
@@ -94,10 +95,23 @@ export interface Dispatch {
   targetActorId: string | null;
   /** Actor that claimed the work. Filled at claim time. */
   workerActorId: string | null;
+  /** Conductor launch that owns this dispatch's governed execution. */
+  launchId: string | null;
+  /** Exact spawned body handling the dispatch, available while it is running. */
+  agentId: string | null;
+  /** Durable transcript opened for the spawned body before backend execution. */
+  transcriptId: string | null;
+  /** Effective model selected by the governed runtime for this body. */
+  model: string | null;
   /** Actor (or 'operator') responsible for accept/reject. */
   reviewerActorId: string | null;
   /** Branch the worktree was carved from. Default: 'main'. */
   baseBranch: string;
+  /**
+   * Absolute operator-selected project directory that owns the source Git
+   * repository. Worktree minting must use this binding, never daemon cwd.
+   */
+  projectDir: string | null;
   backend: DispatchBackend | null;
   budgetUsd: number | null;
   timeoutMs: number | null;
@@ -114,7 +128,47 @@ export interface Dispatch {
   mergePolicy: MergePolicy;
   /** Operator's reason on `pd review --reject`. Null until rejected. */
   rejectReason: string | null;
+  /**
+   * The dispatch this one succeeded, when it was minted by cross-backend
+   * failover. Null for an original dispatch.
+   *
+   * The succession is modelled as an EDGE rather than a state because "this run
+   * failed and another picked it up" is a relationship between two dispatches;
+   * making it a state would have meant an eleventh entry in a state machine that
+   * is deliberately closed.
+   */
+  predecessorDispatchId: string | null;
+  /** 0 for an original dispatch; n for the nth successor in one chain. */
+  failoverAttempt: number;
+  /** The backend that failed, so a lane can render "codex → claude-code". */
+  failoverFromBackend: string | null;
+  /**
+   * The ADR-0118 handoff episode carrying the sanitized capsule this successor
+   * was briefed with. Null for a same-family native resume, and null for an
+   * original dispatch.
+   */
+  handoffEpisodeId: string | null;
+  /**
+   * The agent id the body actually ran as, stamped when the body starts.
+   *
+   * Its absence was the reason a dispatch could not be joined to its transcript
+   * row: `fleet_transcripts` is keyed by the Conductor's `Launch.agentId`, and
+   * nothing carried that id back to the dispatch. Both the capsule builder and
+   * the per-lane live stream are downstream of this one column.
+   */
+  spawnedAgentId: string | null;
+  /**
+   * Backends this succession may still try, in order, frozen at the moment the
+   * ORIGINAL dispatch started.
+   *
+   * Frozen deliberately: reading the live preference order at failover time
+   * would let a profile edit mid-flight redirect a succession already underway,
+   * which makes the chain a lane renders disagree with the chain that ran.
+   */
+  failoverChain: string[] | null;
   createdAt: number;
+  /** Timestamp of an explicit `dispatch run <id>` request; cleared on claim. */
+  runRequestedAt?: number | null;
   claimedAt: number | null;
   startedAt: number | null;
   producedAt: number | null;
@@ -130,6 +184,8 @@ export interface ProposeDispatchInput {
   timeoutMs?: number;
   /** Default: 'main'. The branch the worktree is carved from. */
   baseBranch?: string;
+  /** Absolute source project directory used to mint the isolated worktree. */
+  projectDir?: string;
   /** Skip `proposed` and land directly in `claimed` (operator opt-in). */
   autoClaim?: boolean;
   /** Targeted actor at propose time (optional -- auto-routing not yet wired). */
@@ -140,6 +196,17 @@ export interface ProposeDispatchInput {
   mergePolicy?: MergePolicy;
   /** Who proposed this. Defaults to 'operator'. */
   requestedBy?: string;
+  /**
+   * Cross-backend succession (ADR-0131). Set together by the failover path; an
+   * ordinary propose leaves all of them unset and the row reads exactly as
+   * before.
+   */
+  predecessorDispatchId?: string;
+  failoverAttempt?: number;
+  failoverFromBackend?: string;
+  handoffEpisodeId?: string;
+  /** The remaining preference order, frozen from the original dispatch. */
+  failoverChain?: string[];
 }
 
 export interface MaterializeDispatchProjectionInput extends ProposeDispatchInput {
@@ -167,6 +234,14 @@ export interface ProduceDispatchInput {
   id: string;
   resultArtifact?: string | null;
   costUsd?: number | null;
+}
+
+export interface BindDispatchExecutionInput {
+  id: string;
+  launchId?: string | null;
+  agentId?: string | null;
+  transcriptId?: string | null;
+  model?: string | null;
 }
 
 export interface SettleDispatchInput {
@@ -204,8 +279,13 @@ interface DispatchRow {
   requested_by: string;
   target_actor_id: string | null;
   worker_actor_id: string | null;
+  launch_id: string | null;
+  agent_id: string | null;
+  transcript_id: string | null;
+  model: string | null;
   reviewer_actor_id: string | null;
   base_branch: string;
+  project_dir: string | null;
   backend: string | null;
   budget_usd: number | null;
   timeout_ms: number | null;
@@ -218,7 +298,14 @@ interface DispatchRow {
   error_message: string | null;
   merge_policy: MergePolicy;
   reject_reason: string | null;
+  predecessor_dispatch_id: string | null;
+  failover_attempt: number;
+  failover_from_backend: string | null;
+  handoff_episode_id: string | null;
+  spawned_agent_id: string | null;
+  failover_chain_json: string | null;
   created_at: number;
+  run_requested_at: number | null;
   claimed_at: number | null;
   started_at: number | null;
   produced_at: number | null;
@@ -253,8 +340,13 @@ const SCHEMA_SQL = `
     requested_by TEXT NOT NULL DEFAULT 'operator',
     target_actor_id TEXT,
     worker_actor_id TEXT,
+    launch_id TEXT,
+    agent_id TEXT,
+    transcript_id TEXT,
+    model TEXT,
     reviewer_actor_id TEXT,
     base_branch TEXT NOT NULL DEFAULT 'main',
+    project_dir TEXT,
     backend TEXT,
     budget_usd REAL,
     timeout_ms INTEGER,
@@ -268,7 +360,25 @@ const SCHEMA_SQL = `
     merge_policy TEXT NOT NULL DEFAULT 'review'
       CHECK(merge_policy IN ('review','auto','never')),
     reject_reason TEXT,
+    -- Cross-backend failover (ADR-0131 helmsman-backend-failover). All additive
+    -- and all nullable: a dispatch that never fails over reads exactly as before.
+    -- The succession is an EDGE, not a state — the 8-state machine is unchanged,
+    -- because "this run failed and a successor picked it up" is a relationship
+    -- between two dispatches, not an eleventh thing a dispatch can be.
+    predecessor_dispatch_id TEXT,
+    failover_attempt INTEGER NOT NULL DEFAULT 0,
+    failover_from_backend TEXT,
+    handoff_episode_id TEXT,
+    -- The agent id the body actually ran as. Without it a dispatch cannot be
+    -- joined to its fleet_transcripts row, which is what both the handoff
+    -- capsule builder and the per-lane live stream need.
+    spawned_agent_id TEXT,
+    -- The remaining preference order this succession may still walk, as JSON.
+    -- Frozen on the ORIGINAL dispatch so a mid-flight profile edit cannot
+    -- redirect a succession already in progress.
+    failover_chain_json TEXT,
     created_at INTEGER NOT NULL,
+    run_requested_at INTEGER,
     claimed_at INTEGER,
     started_at INTEGER,
     produced_at INTEGER,
@@ -311,6 +421,28 @@ export function deriveBranchName(slug: string, id: string): string {
   return `dispatch/${slug}-${safeId}`;
 }
 
+/**
+ * Read the frozen failover chain off a row.
+ *
+ * Corruption is non-fatal by design, matching the tags column above: a
+ * succession that cannot read its chain should fall back to "no further
+ * backends" and settle honestly, not throw while unwinding a failure.
+ *
+ * @param json The stored JSON, or null.
+ * @returns The backend list, or null when absent or unreadable.
+ */
+function parseFailoverChain(json: string | null | undefined): string[] | null {
+  if (!json) return null;
+  try {
+    const parsed = JSON.parse(json);
+    if (!Array.isArray(parsed)) return null;
+    const chain = parsed.filter((b): b is string => typeof b === 'string' && b.length > 0);
+    return chain.length ? chain : null;
+  } catch {
+    return null;
+  }
+}
+
 function rowToDispatch(row: DispatchRow): Dispatch {
   let tags: string[] = [];
   try {
@@ -328,8 +460,13 @@ function rowToDispatch(row: DispatchRow): Dispatch {
     requestedBy: row.requested_by,
     targetActorId: row.target_actor_id,
     workerActorId: row.worker_actor_id,
+    launchId: row.launch_id,
+    agentId: row.agent_id,
+    transcriptId: row.transcript_id,
+    model: row.model,
     reviewerActorId: row.reviewer_actor_id,
     baseBranch: row.base_branch,
+    projectDir: row.project_dir ?? null,
     backend: (row.backend as Dispatch['backend']) || null,
     budgetUsd: row.budget_usd,
     timeoutMs: row.timeout_ms,
@@ -342,7 +479,14 @@ function rowToDispatch(row: DispatchRow): Dispatch {
     errorMessage: row.error_message,
     mergePolicy: row.merge_policy,
     rejectReason: row.reject_reason,
+    predecessorDispatchId: row.predecessor_dispatch_id ?? null,
+    failoverAttempt: row.failover_attempt ?? 0,
+    failoverFromBackend: row.failover_from_backend ?? null,
+    handoffEpisodeId: row.handoff_episode_id ?? null,
+    spawnedAgentId: row.spawned_agent_id ?? null,
+    failoverChain: parseFailoverChain(row.failover_chain_json),
     createdAt: row.created_at,
+    runRequestedAt: row.run_requested_at,
     claimedAt: row.claimed_at,
     startedAt: row.started_at,
     producedAt: row.produced_at,
@@ -477,22 +621,86 @@ export function legacyStatusToState(status: string): DispatchState {
   }
 }
 
+/**
+ * Add the failover/succession columns to an already-created `dispatches` table.
+ *
+ * The rationale for doing this here rather than in a numbered migration file:
+ * `dispatches` is created by this module's own `CREATE TABLE IF NOT EXISTS`, not
+ * by the core schema, so a DB that already has the table would never see a new
+ * column arrive any other way — and `IF NOT EXISTS` succeeds silently against
+ * the old shape, which is precisely how a schema drift boots "verified" and then
+ * fails every write. `migrations/088_dispatch_failover.sql` documents the same
+ * change for readers; this is the applier.
+ *
+ * Idempotent and additive: each column is added only when absent, and every one
+ * is nullable or defaulted, so an existing row needs no backfill.
+ *
+ * @param db The open database.
+ */
+function migrateDispatchFailoverColumns(db: Database.Database): void {
+  const existing = new Set(
+    (db.prepare('PRAGMA table_info(dispatches)').all() as Array<{ name: string }>).map(
+      (c) => c.name,
+    ),
+  );
+  const additions: Array<[string, string]> = [
+    ['predecessor_dispatch_id', 'TEXT'],
+    ['failover_attempt', 'INTEGER NOT NULL DEFAULT 0'],
+    ['failover_from_backend', 'TEXT'],
+    ['handoff_episode_id', 'TEXT'],
+    ['spawned_agent_id', 'TEXT'],
+    ['failover_chain_json', 'TEXT'],
+  ];
+  for (const [name, decl] of additions) {
+    if (existing.has(name)) continue;
+    db.exec(`ALTER TABLE dispatches ADD COLUMN ${name} ${decl}`);
+  }
+}
+
 export function createDispatchQueue(deps: DispatchQueueDeps) {
   const { db } = deps;
   const now = deps.now ?? (() => Date.now());
 
   db.exec(SCHEMA_SQL);
+  migrateDispatchFailoverColumns(db);
+  const dispatchColumns = db.prepare(`PRAGMA table_info(dispatches)`).all() as Array<{ name: string }>;
+  if (!dispatchColumns.some((column) => column.name === 'run_requested_at')) {
+    db.exec(`ALTER TABLE dispatches ADD COLUMN run_requested_at INTEGER`);
+  }
+  if (!dispatchColumns.some((column) => column.name === 'launch_id')) {
+    db.exec(`ALTER TABLE dispatches ADD COLUMN launch_id TEXT`);
+  }
+  if (!dispatchColumns.some((column) => column.name === 'agent_id')) {
+    db.exec(`ALTER TABLE dispatches ADD COLUMN agent_id TEXT`);
+  }
+  if (!dispatchColumns.some((column) => column.name === 'transcript_id')) {
+    db.exec(`ALTER TABLE dispatches ADD COLUMN transcript_id TEXT`);
+  }
+  if (!dispatchColumns.some((column) => column.name === 'model')) {
+    db.exec(`ALTER TABLE dispatches ADD COLUMN model TEXT`);
+  }
+  if (!dispatchColumns.some((column) => column.name === 'project_dir')) {
+    db.exec(`ALTER TABLE dispatches ADD COLUMN project_dir TEXT`);
+  }
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_dispatches_run_request
+      ON dispatches(state, run_requested_at, created_at)
+  `);
   migrateNightshiftIntents(db, 'main');
 
   const insertStmt = db.prepare(`
     INSERT INTO dispatches (
       id, slug, goal, tags_json, state, requested_by, target_actor_id,
-      reviewer_actor_id, base_branch, backend, budget_usd, timeout_ms,
-      merge_policy, created_at, claimed_at
+      reviewer_actor_id, base_branch, project_dir, backend, budget_usd, timeout_ms,
+      merge_policy, created_at, claimed_at,
+      predecessor_dispatch_id, failover_attempt, failover_from_backend,
+      handoff_episode_id, failover_chain_json
     ) VALUES (
       ?, ?, ?, ?, ?, ?, ?,
-      ?, ?, ?, ?, ?,
-      ?, ?, ?
+      ?, ?, ?, ?, ?, ?,
+      ?, ?, ?,
+      ?, ?, ?,
+      ?, ?
     )
   `);
 
@@ -542,8 +750,44 @@ export function createDispatchQueue(deps: DispatchQueueDeps) {
            worktree_path = ?,
            branch = ?,
            session_id = ?,
+           run_requested_at = NULL,
            claimed_at = COALESCE(claimed_at, ?)
      WHERE id = ? AND state = 'proposed'
+  `);
+
+  const releaseUnboundAutoClaimStmt = db.prepare(`
+    UPDATE dispatches
+       SET state = 'proposed',
+           run_requested_at = COALESCE(run_requested_at, ?),
+           claimed_at = NULL
+     WHERE id = ?
+       AND state = 'claimed'
+       AND worker_actor_id IS NULL
+       AND worktree_path IS NULL
+       AND branch IS NULL
+       AND session_id IS NULL
+       AND started_at IS NULL
+  `);
+
+  const prioritizeProposedRunStmt = db.prepare(`
+    UPDATE dispatches
+       SET run_requested_at = COALESCE(run_requested_at, ?)
+     WHERE id = ? AND state = 'proposed'
+  `);
+
+  const restorePreparedRunStmt = db.prepare(`
+    UPDATE dispatches
+       SET state = ?,
+           run_requested_at = ?,
+           claimed_at = ?
+     WHERE id = ?
+       AND state = 'proposed'
+       AND run_requested_at IS ?
+       AND worker_actor_id IS NULL
+       AND worktree_path IS NULL
+       AND branch IS NULL
+       AND session_id IS NULL
+       AND started_at IS NULL
   `);
 
   const startStmt = db.prepare(`
@@ -551,6 +795,16 @@ export function createDispatchQueue(deps: DispatchQueueDeps) {
        SET state = 'in_progress',
            started_at = COALESCE(started_at, ?)
      WHERE id = ? AND state = 'claimed'
+  `);
+
+  const bindExecutionStmt = db.prepare(`
+    UPDATE dispatches
+       SET launch_id = COALESCE(?, launch_id),
+           agent_id = COALESCE(?, agent_id),
+           transcript_id = COALESCE(?, transcript_id),
+           model = COALESCE(?, model)
+     WHERE id = ?
+       AND state IN ('claimed','in_progress','produced','review_pending','accepted','settled','failed','salvage')
   `);
 
   const produceStmt = db.prepare(`
@@ -601,14 +855,18 @@ export function createDispatchQueue(deps: DispatchQueueDeps) {
   const nextSelectStmt = db.prepare<[], DispatchRow>(
     `SELECT * FROM dispatches
      WHERE state = 'proposed'
-     ORDER BY created_at ASC
+     ORDER BY CASE WHEN run_requested_at IS NULL THEN 1 ELSE 0 END,
+              run_requested_at ASC,
+              created_at ASC
      LIMIT 1`,
   );
 
   const nextSelectByBaseStmt = db.prepare<[string], DispatchRow>(
     `SELECT * FROM dispatches
      WHERE state = 'proposed' AND base_branch = ?
-     ORDER BY created_at ASC
+     ORDER BY CASE WHEN run_requested_at IS NULL THEN 1 ELSE 0 END,
+              run_requested_at ASC,
+              created_at ASC
      LIMIT 1`,
   );
 
@@ -633,6 +891,10 @@ export function createDispatchQueue(deps: DispatchQueueDeps) {
     UPDATE dispatches
        SET state = 'proposed',
            worker_actor_id = NULL,
+           launch_id = NULL,
+           agent_id = NULL,
+           transcript_id = NULL,
+           model = NULL,
            session_id = NULL,
            started_at = NULL,
            error_message = ?
@@ -692,6 +954,14 @@ export function createDispatchQueue(deps: DispatchQueueDeps) {
       : [];
     const state: DispatchState = input.autoClaim ? 'claimed' : 'proposed';
     const baseBranch = (input.baseBranch && input.baseBranch.trim()) || 'main';
+    const rawProjectDir = input.projectDir?.trim();
+    if (rawProjectDir && !isAbsolute(rawProjectDir)) {
+      throw new Error('materializeProjection: projectDir must be an absolute path');
+    }
+    if (rawProjectDir?.includes('\0')) {
+      throw new Error('materializeProjection: projectDir contains invalid characters');
+    }
+    const projectDir = rawProjectDir ? resolve(rawProjectDir) : null;
     insertStmt.run(
       input.id,
       slug,
@@ -702,12 +972,20 @@ export function createDispatchQueue(deps: DispatchQueueDeps) {
       input.targetActorId ?? null,
       input.reviewerActorId ?? 'operator',
       baseBranch,
+      projectDir,
       input.backend ?? null,
       input.budgetUsd ?? null,
       input.timeoutMs ?? null,
       mergePolicy,
       at,
       input.autoClaim ? at : null,
+      input.predecessorDispatchId ?? null,
+      input.failoverAttempt ?? 0,
+      input.failoverFromBackend ?? null,
+      input.handoffEpisodeId ?? null,
+      input.failoverChain && input.failoverChain.length
+        ? JSON.stringify(input.failoverChain)
+        : null,
     );
     const row = selectByIdStmt.get(input.id);
     if (!row) throw new Error(`materializeProjection: failed to insert dispatch ${input.id}`);
@@ -753,6 +1031,80 @@ export function createDispatchQueue(deps: DispatchQueueDeps) {
       ? nextSelectByBaseStmt.get(baseBranch)
       : nextSelectStmt.get();
     return row ? rowToDispatch(row) : null;
+  }
+
+  /**
+   * Prepare one explicitly selected dispatch for the daemon worker's atomic
+   * claim. The purpose of this narrow back-edge is to reconcile
+   * `propose --auto-claim` with `dispatch run`: auto-claim creates a claimed
+   * placeholder without a worker lease, while the daemon can only attach its
+   * real worktree/session lease by claiming a proposed row. The design never
+   * releases a row that already names any worker, worktree, branch, or session;
+   * such a row (or one already in progress) is returned unchanged as already
+   * queued. Review and merge-policy fields are untouched. The dedicated
+   * `run_requested_at` priority makes this exact id the canonical next claim
+   * without contaminating worker lease timestamps or teaching the daemon worker
+   * a second selector; the marker is cleared by the atomic real-worker claim.
+   *
+   * @param id - Dispatch selected by `pd dispatch run`.
+   * @returns The proposed row ready for daemon claim, or the unchanged row when
+   *          a real worker already owns it.
+   */
+  function prepareForRun(id: string): Dispatch {
+    const existing = selectByIdStmt.get(id);
+    if (!existing) throw new Error(`prepareForRun: dispatch ${id} not found`);
+    if (existing.state === 'proposed') {
+      prioritizeProposedRunStmt.run(now(), id);
+      const prioritized = selectByIdStmt.get(id);
+      if (!prioritized) throw new Error(`prepareForRun: dispatch ${id} vanished`);
+      return rowToDispatch(prioritized);
+    }
+    if (existing.state === 'in_progress') return rowToDispatch(existing);
+    if (existing.state !== 'claimed') {
+      throw new Error(`prepareForRun: cannot run dispatch in state ${existing.state}`);
+    }
+
+    const hasWorkerLease = existing.worker_actor_id !== null
+      || existing.worktree_path !== null
+      || existing.branch !== null
+      || existing.session_id !== null
+      || existing.started_at !== null;
+    if (hasWorkerLease) return rowToDispatch(existing);
+
+    releaseUnboundAutoClaimStmt.run(now(), id);
+    const updated = selectByIdStmt.get(id);
+    if (!updated) throw new Error(`prepareForRun: dispatch ${id} vanished`);
+    if (updated.state !== 'proposed' && updated.state !== 'claimed' && updated.state !== 'in_progress') {
+      throw new Error(`prepareForRun: dispatch ${id} changed to state ${updated.state}`);
+    }
+    return rowToDispatch(updated);
+  }
+
+  /**
+   * Undo only the reversible queue preparation performed for one failed daemon
+   * request. The compare-and-set on `run_requested_at` plus empty lease fields
+   * prevents rollback from stealing a row that the worker claimed meanwhile.
+   */
+  function restorePreparedRun(original: Dispatch, prepared: Dispatch): Dispatch {
+    if (original.id !== prepared.id) {
+      throw new Error('restorePreparedRun: snapshots must describe the same dispatch');
+    }
+    if (original.state !== 'proposed' && original.state !== 'claimed') {
+      const unchanged = selectByIdStmt.get(original.id);
+      if (!unchanged) throw new Error(`restorePreparedRun: dispatch ${original.id} not found`);
+      return rowToDispatch(unchanged);
+    }
+
+    restorePreparedRunStmt.run(
+      original.state,
+      original.runRequestedAt ?? null,
+      original.claimedAt,
+      original.id,
+      prepared.runRequestedAt ?? null,
+    );
+    const restored = selectByIdStmt.get(original.id);
+    if (!restored) throw new Error(`restorePreparedRun: dispatch ${original.id} vanished`);
+    return rowToDispatch(restored);
   }
 
   function claimProposed(input: ClaimDispatchInput): Dispatch | null {
@@ -817,6 +1169,27 @@ export function createDispatchQueue(deps: DispatchQueueDeps) {
     startStmt.run(now(), id);
     const updated = selectByIdStmt.get(id);
     if (!updated) throw new Error(`start: dispatch ${id} vanished`);
+    return rowToDispatch(updated);
+  }
+
+  /**
+   * Attach the runtime identities as soon as the Conductor admits a launch and
+   * the spawner opens its transcript. This is intentionally independent of the
+   * terminal result path: an operator must be able to follow the exact body
+   * while it is still working, and a failed run must retain the same evidence.
+   */
+  function bindExecution(input: BindDispatchExecutionInput): Dispatch {
+    const existing = selectByIdStmt.get(input.id);
+    if (!existing) throw new Error(`bindExecution: dispatch ${input.id} not found`);
+    bindExecutionStmt.run(
+      input.launchId ?? null,
+      input.agentId ?? null,
+      input.transcriptId ?? null,
+      input.model ?? null,
+      input.id,
+    );
+    const updated = selectByIdStmt.get(input.id);
+    if (!updated) throw new Error(`bindExecution: dispatch ${input.id} vanished`);
     return rowToDispatch(updated);
   }
 
@@ -992,17 +1365,41 @@ export function createDispatchQueue(deps: DispatchQueueDeps) {
     return { requeued, salvaged };
   }
 
+  /**
+   * Stamp the agent id a dispatch's body actually ran as.
+   *
+   * Called at body-start, not at settle, on purpose: the join it enables — a
+   * dispatch to its `fleet_transcripts` row — is what a LIVE lane needs while
+   * the body is still running, and what the handoff-capsule builder needs at the
+   * moment a body dies. Recording it only at the end would give both of them the
+   * id exactly when it stopped being useful.
+   *
+   * @param id The dispatch id.
+   * @param agentId The Conductor `Launch.agentId` the body runs as.
+   * @returns The updated dispatch, or null when the id is unknown.
+   */
+  function recordSpawnedAgent(id: string, agentId: string): Dispatch | null {
+    if (!agentId) return get(id);
+    db.prepare('UPDATE dispatches SET spawned_agent_id = ? WHERE id = ?').run(agentId, id);
+    return get(id);
+  }
+
+
   return {
     propose,
     materializeProjection,
+    recordSpawnedAgent,
     get,
     getBySessionId,
     list,
     peekNextProposed,
+    prepareForRun,
+    restorePreparedRun,
     claimProposed,
     claim,
     nextProposed,
     start,
+    bindExecution,
     produce,
     requestReview,
     accept,

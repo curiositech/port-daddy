@@ -11,6 +11,8 @@
  */
 
 import { jest } from '@jest/globals';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
 
 // ---------------------------------------------------------------------------
 // Mock node:fs — must be hoisted before the module under test is imported
@@ -31,6 +33,10 @@ jest.unstable_mockModule('node:fs', () => ({
   statSync: mockStat,
   chmodSync: mockChmod,
 }));
+
+// This suite covers the default install's repair policy through fake filesystem
+// adapters. A caller's scoped PD_HOME must not redirect it into real fixture I/O.
+jest.unstable_mockModule('../../shared/paths.js', () => ({ PD_HOME: join(homedir(), '.port-daddy') }));
 
 const { createNoteEncryption } = await import('../../lib/note-encryption.js');
 

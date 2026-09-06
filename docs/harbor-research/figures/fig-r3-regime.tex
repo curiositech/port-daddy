@@ -1,0 +1,107 @@
+% R3 regime diagram: two panels.
+% Panel (a): the two loss lines and their crossing, transcribed from
+% create_regime_diagram() in figures/src/r3_figures.py (C_miss=100, c_att=1,
+% C_fa=5), PLUS the second miss-cost case C_miss=1000 that the section's own
+% "Numbers by hand" works but the script never drew.
+% Panel (b): NEW -- calibration sensitivity, the picture Theorem 3's
+% limitation ("exactly as good as its calibration") did not have anywhere in
+% the paper.
+%
+% ANNOTATION REPLACED BY DATA (not silently): the script's panel carried a
+% grey text box reading "raising C_miss LOWERS the bar -- the corrected SDT
+% direction". That is the figure naming a finding it does not show, which is
+% exactly what the house caption rule is written against -- and it is the
+% worst place in the corpus to leave the direction undrawn, since an earlier
+% draft of this same figure had the direction reversed. The box is deleted
+% and the claim is drawn instead: a second miss-cost line at C_miss=1000 with
+% its own marked crossing, and an axis arrow from one threshold to the other.
+%
+% CAPTION CORRECTED (not reproduced): the caption previously stated
+% a* = (c_att+C_fa)/(c_att+C_fa+C_miss) = 6/106 = 0.05660. Solving Theorem
+% 3's own inequality C_miss*a >= c_att + C_fa*(1-a) directly gives
+% a* = (c_att+C_fa)/(C_miss+C_fa) = 6/105 = 0.05714 -- the value the script
+% plots and the value paper1.tex's body text uses. The two forms are NOT
+% algebraically equivalent; they happen to round to the same "~0.057" at
+% three significant figures, which is presumably why it survived this long.
+% The caption below now carries the form that follows from the box.
+% Thresholds used: 6/105 = 0.05714 and 6/1005 = 0.005970 [verified].
+% [verified: script r3_figures.py, correction applied per CONVENTION.md]
+\begin{figure}[t]
+\centering
+\textbf{\color{harborblue}R3 regime --- where inspection pays, and what an uncalibrated score does to it}\par\vspace{4pt}
+\begin{minipage}{0.48\textwidth}
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+  harbor curve,
+  xlabel={calibrated posterior $a(x)$},
+  ylabel={expected loss},
+  title={(a) inspection pays past the crossing ---\\and the crossing moves \emph{left} as $C_{\mathrm{miss}}$ rises},
+  xmin=0,xmax=0.2,ymin=0,ymax=26,
+  legend pos=north east,
+  legend style={font=\tiny,draw=black!25,fill=white,fill opacity=0.92,text opacity=1,rounded corners=1pt,inner sep=2pt},
+]
+\addplot[draw=none,fill=harborblue,fill opacity=0.08] coordinates {
+  (0.05714,0) (0.2,0) (0.2,26) (0.05714,26)
+} \closedcycle;
+\addlegendentry{inspect region ($C_{\mathrm{miss}}{=}100$)}
+\addplot[harborblue,thick,no marks] coordinates {(0,0) (0.2,20)};
+\addlegendentry{loss if ignored: $100\cdot a$}
+\addplot[harborblue!55,thick,dotted,no marks] coordinates {(0,0) (0.026,26)};
+\addlegendentry{loss if ignored: $1000\cdot a$}
+\addplot[seagreen,thick,no marks] coordinates {(0,6) (0.2,5)};
+\addlegendentry{loss if inspected: $1+5(1-a)$}
+\draw[shipred,dashed,thick] (axis cs:0.05714,0) -- (axis cs:0.05714,26);
+\addplot[only marks,mark=*,mark size=2.2pt,shipred,forget plot] coordinates {(0.05714,5.714) (0.005970,5.970)};
+\node[regimebox,fill=white,draw=shipred,font=\tiny,text width=2.1cm,inner sep=2pt,anchor=west] at (axis cs:0.028,17)
+  {$a^\star=6/105$\\$=0.0571$ [verified]};
+\draw[->,shipred,thick] (axis cs:0.050,15.6) -- (axis cs:0.0565,6.3);
+\draw[->,>=Stealth,shipred,thick] (axis cs:0.05714,1.4) -- (axis cs:0.00597,1.4);
+\node[font=\tiny,text=shipred,anchor=west,align=left] at (axis cs:0.062,2.1)
+  {$C_{\mathrm{miss}}{:}\,100\to1000$\\$a^\star\to 6/1005=0.0060$};
+\end{axis}
+\end{tikzpicture}
+\end{minipage}%
+\hfill
+\begin{minipage}{0.48\textwidth}
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+  harbor curve,
+  xlabel={reported anomaly score $s$},
+  ylabel={true posterior $a=g(s)$},
+  title={(b) an uncalibrated score trips at the\\wrong evidence: the gap is the damage},
+  xmin=0,xmax=0.5,ymin=0,ymax=0.5,
+  legend pos=north west,
+  legend style={font=\tiny,draw=black!25,fill=white,fill opacity=0.92,text opacity=1,rounded corners=1pt,inner sep=2pt},
+]
+\addplot[draw=none,fill=shipred,fill opacity=0.10] coordinates {
+  (0.05714,0) (0.23904,0) (0.23904,0.05714) (0.05714,0.05714)
+} \closedcycle;
+\addlegendentry{excess evidence demanded}
+\addplot[gray,dashed,thick,no marks] coordinates {(0,0) (0.5,0.5)};
+\addlegendentry{calibrated: $g=\mathrm{id}$}
+\addplot[harborblue,thick,no marks] coordinates {
+  (0,0) (0.05,0.0025) (0.10,0.0100) (0.15,0.0225) (0.20,0.0400)
+  (0.25,0.0625) (0.30,0.0900) (0.35,0.1225) (0.40,0.1600)
+  (0.45,0.2025) (0.50,0.2500)
+};
+\addlegendentry{overconfident: $g(s)=s^2$}
+\addplot[seagreen,thick,dashdotted,no marks] coordinates {
+  (0,0) (0.0025,0.0500) (0.01,0.1000) (0.02,0.1414) (0.04,0.2000)
+  (0.06,0.2449) (0.09,0.3000) (0.12,0.3464) (0.16,0.4000)
+  (0.20,0.4472) (0.25,0.5000)
+};
+\addlegendentry{underconfident: $g(s)=\sqrt{s}$}
+\addplot[shipred,dotted,thick,no marks] coordinates {(0,0.05714) (0.5,0.05714)};
+\addlegendentry{$a^\star=0.0571$}
+\addplot[only marks,mark=*,mark size=2.0pt,shipred,forget plot] coordinates {(0.00327,0.05714) (0.05714,0.05714) (0.23904,0.05714)};
+\node[font=\tiny,text=shipred,anchor=west,align=left] at (axis cs:0.285,0.042)
+  {overconfident: trips at\\$s{=}0.239$, not $0.057$};
+\draw[->,shipred] (axis cs:0.282,0.048) -- (axis cs:0.242,0.061);
+\end{axis}
+\end{tikzpicture}
+\end{minipage}
+\caption{Regime diagram for the surfacing rule. Panel (a): expected loss of pass against expected loss of inspect, as a function of the calibrated posterior $a(x)$. Inspection pays exactly where the two loss lines cross, at $a^\star=(c_{\mathrm{att}}+C_{\mathrm{fa}})/(C_{\mathrm{miss}}+C_{\mathrm{fa}})$ --- the closed form obtained by solving Theorem 3's inequality directly. At the shown costs ($C_{\mathrm{miss}}{=}100$, $c_{\mathrm{att}}{=}1$, $C_{\mathrm{fa}}{=}5$) that is $6/105\approx0.057$; raising $C_{\mathrm{miss}}$ to $1000$ moves the crossing \emph{left}, to $6/1005\approx0.006$ [verified] --- the counterintuitive direction, drawn rather than asserted. Panel (b): what the theorem's calibration hypothesis is worth. If the reported score $s$ is thresholded at $a^\star$ but the true posterior is $g(s)\ne s$, the rule trips at the wrong evidence: an overconfident scorer ($g(s)=s^2$) demands $s{=}0.239$ before acting where $0.057$ was warranted, and the shaded horizontal gap is the excess evidence the operator is silently made to wait for.}
+\label{fig:r3reg}
+\end{figure}

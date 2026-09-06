@@ -15,7 +15,7 @@ export interface ReferenceGroup {
   items: ReferenceItem[]
 }
 
-export const PORT_DADDY_VERSION = '3.27.0'
+export const PORT_DADDY_VERSION = '3.30.6'
 
 export function referenceAnchor(name: string): string {
   return name
@@ -95,7 +95,11 @@ export const CLI_REFERENCE_GROUPS: ReferenceGroup[] = [
       { name: 'pd mcp', description: 'Start the stdio MCP server for model clients. Use `pd mcp install` to configure supported tools.' },
       { name: 'pd mcp install', href: '/docs/cli/mcp-install', description: 'Auto-detect supported tools, configure MCP, install the agent skill, and write Port Daddy Pilot definitions.' },
       { name: 'pd help <topic>', description: 'Print detailed topic help for setup, sessions, locks, agents, actors, ports, messaging, DNS, orchestration, sugar, semantic, advisor, guard, ideas, roadmap, daemon, and tutorial.' },
-      { name: 'pd learn', description: 'Open the interactive tutorial.', aliases: ['pd tutorial'] },
+      {
+        name: 'pd learn',
+        description: 'Render the operationally read-only agent orientation. The handler makes no headless daemon request; interactive mode may make one bounded GET /health, and the CLI envelope makes one append-only usage-telemetry attempt.',
+        aliases: ['pd tutorial'],
+      },
       { name: 'pd status', href: '/docs/cli/status', description: 'Show daemon version, PID, uptime, fleet readiness, active ports, and Bosun state.' },
       { name: 'pd health', description: 'Check daemon health, optionally for one service identity.' },
       { name: 'pd version', description: 'Print package/runtime version and code hash.' },

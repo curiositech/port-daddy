@@ -100,7 +100,7 @@ From Figure 6 in the paper:
 
 ## Practical Application: Task DAG Simplification
 
-For a WinDAGs orchestration:
+For a Jury-rig orchestration:
 
 ### Before TR Analysis
 ```

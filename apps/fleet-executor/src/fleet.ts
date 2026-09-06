@@ -14,6 +14,14 @@
  */
 
 import { parse as parseYaml } from 'yaml';
+import {
+  CF_MODELS,
+  CF_ROLE_MODELS,
+  CF_ADMITTED_MODELS,
+  resolveCfModel,
+} from '../../shared/model-registry.generated.js';
+
+import { WORKERS_AI_RATES } from './spend.js';
 
 export interface ShipConfig {
   name: string;
@@ -32,6 +40,20 @@ export interface ShipConfig {
    * than a default.
    */
   cfMapModel?: string;
+  /**
+   * Purser only: model for the PLAN step, when it should differ from
+   * {@link cfModel}. Undefined means "same as cfModel".
+   */
+  cfPlanModel?: string;
+  /**
+   * Purser only: model for the per-file AUTHOR step, when it should differ from
+   * {@link cfModel}. Undefined means "same as cfModel".
+   *
+   * Split from {@link cfPlanModel} because the two steps have opposite cost
+   * shapes — PLAN is input-heavy and output-tiny, AUTHOR is the reverse — so one
+   * model for both is wrong in one direction whichever one is picked.
+   */
+  cfAuthorModel?: string;
   temperature: number | null;
   role: string;
   telos: string;
@@ -103,45 +125,86 @@ function deriveIdeation(name: string, agentClass: unknown): boolean {
   return agentClass === 'ideation';
 }
 
-// Default Cloudflare AI model per ship if not declared in fallbacks.
+// Cloudflare AI model selection for the cloud plane.
 //
-// THE "BLACKOUT" WAS A PARSING BUG, NOT AN EMPTY MODEL (corrected 2026-07-08).
-// `@cf/openai/gpt-oss-120b` speaks the OpenAI **Responses API** — its generated
-// text arrives under `output[].content[].text` / `output_text`, NOT `response`.
-// The 2026-07-07 outage was the executor reading only `res.response` (empty for
-// that shape), which {@link extractAiText} (ai-response.ts, #731) now reads
-// correctly. gpt-oss-120b returns real output; treating it as "empty" and
-// remapping it to qwen was a stale reaction to a bug already fixed — and it
-// steered the fleet onto the PRICIER qwen2.5-coder ($0.66/$1.00) when gpt-oss-120b
-// is both MORE capable (120B) AND CHEAPER ($0.35/$0.75). (Prices per the
-// Cloudflare pricing page on 2026-07-08; verify the live page as they drift.)
+// SUPPLANTED (2026-08-23): these were six hand-maintained constants and a
+// hand-rolled allowlist, kept "in sync" with lib/cost-tracker.ts and the daemon
+// registry by comment. They drifted, and one of the drifts was a PHANTOM id —
+// which on Workers AI does not error, it HANGS, and the caller reads the blank
+// as a clean result (#654, and again on 2026-07-03). The ids now come from
+// config/models.yaml through a generated artifact, so an id that is not
+// catalogued and verified cannot reach `ai.run()` at all.
 //
-// gpt-oss-120b works but is PRICEY ($0.35/$0.75 per M tok) — reserve it for the
-// one ship where quality most earns the cost: the CODE REVIEW BOT. Every other
-// ship runs on the cheap qwen3-30b ($0.051/$0.335). Operator directive: "super
-// expensive — only use it for the review bot, nothing else."
-const REVIEW_BOT_CF_MODEL = '@cf/openai/gpt-oss-120b'; // code review bot ONLY
-const CHEAP_CF_MODEL = '@cf/qwen/qwen3-30b-a3b-fp8'; // every other ship
+// The POLICY the old constants encoded is preserved and now lives in that same
+// source as named cloud-plane roles:
+//
+//   shipDefault  every ship that does not name a role
+//   shipMid      steps whose output on shipDefault was too weak to use
+//   reviewBot    the code review bot's DEFAULT — the role a ship gets without
+//                asking; a ship may still pin the same id deliberately
+//   author       steps that emit whole files rather than commentary
+//
+// A role sets what a ship gets by DEFAULT. It is not a ceiling: any admitted id
+// is pinnable, because a ceiling here was measured doing more harm than good
+// (see KNOWN_GOOD_CF_MODELS).
+const REVIEW_BOT_CF_MODEL = CF_ROLE_MODELS.reviewBot; // code review bot ONLY
+const CHEAP_CF_MODEL = CF_ROLE_MODELS.shipDefault; // every other ship
 const WORKING_CF_MODEL = CHEAP_CF_MODEL; // guard fallback: cheap + verified working
 const DEFAULT_CF_MODEL = CHEAP_CF_MODEL; // every ship except the review bot
 const CODER_CF_MODEL = REVIEW_BOT_CF_MODEL; // the code review bot only
 
-// Cloudflare model ids the executor honors as an explicit ship pin. Only the
-// cheap model is honorable — the review bot gets gpt-oss by ROLE (below), not by
-// pin, so no other ship can accidentally pin its way onto the expensive model. An
-// id OUTSIDE this set is remapped to {@link WORKING_CF_MODEL} (the cheap model),
-// because a nonexistent Workers AI id doesn't error — it yields a blank response
-// the parser reads as "clean", silencing the ship.
-const KNOWN_GOOD_CF_MODELS: ReadonlySet<string> = new Set(['@cf/qwen/qwen3-30b-a3b-fp8']);
+// The mid tier has no constant here any more. It had one because the purser's
+// AUTHOR step defaulted to it; that default moved to the `author` role on live
+// evidence, leaving this binding unreferenced. The tier is still reachable —
+// `cf_role: shipMid` resolves through CF_ROLE_MODELS like any other role — and
+// everything the constant's docblock explained (the input-heavy/output-heavy
+// shape, and why #6813's theory was retired) now lives on the catalog rows in
+// config/models.yaml, next to the prices that make the argument.
+
 
 /**
- * Guard a requested Cloudflare model id: pass through a known-good one, else
- * remap to {@link WORKING_CF_MODEL}. Exported for the unit tests that pin this
- * behavior — the fleet must never again go dark because a pinned model id
- * silently returns nothing.
+ * Resolve a pd-fleet.yml model TOKEN — a declared name — to a concrete id.
+ *
+ * pd-fleet.yml no longer carries model ids (supplant, 2026-08-23). A ship names
+ * either a cloud-plane ROLE (`cf_role: shipMid`) or a capability RUNG
+ * (`capability: cheap`), and both vocabularies are declared in
+ * config/models.yaml and reach this file through the generated registry. The
+ * reason is not tidiness: a literal in this YAML was a literal nobody verified,
+ * and an unverified Workers AI id does not error — it hangs.
+ *
+ * The design intent is that unrecognised input degrades identically to how a
+ * bad id used to: this returns undefined so every existing guard keeps its
+ * behavior unchanged: the caller treats it exactly as it treated an id outside
+ * the known-good set, which is to drop the pin rather than dispatch it.
+ *
+ * @param raw The operator's YAML value, in any spelling.
+ * @returns The concrete Workers AI id, or undefined when the token is unknown.
  */
-export function resolveCfModel(requested: string): string {
-  return KNOWN_GOOD_CF_MODELS.has(requested) ? requested : WORKING_CF_MODEL;
+function resolveModelToken(raw: unknown): string | undefined {
+  if (typeof raw !== 'string') return undefined;
+  const token = raw.trim();
+  if (!token) return undefined;
+  // Resolve, then ADMIT. Resolution alone is not safety: `cf_role: embed`
+  // resolves to the ideas-store embedding index, which is a real catalogued
+  // model that no ship may run — it would return vectors where a review should
+  // be. Every caller re-checks admission today, so this is not currently
+  // reachable; filtering here means the safety does not depend on three
+  // separate call sites remembering, and on a fourth one added later
+  // remembering too.
+  const resolved =
+    token in CF_ROLE_MODELS
+      ? CF_ROLE_MODELS[token as keyof typeof CF_ROLE_MODELS]
+      : token in CF_MODELS
+        ? CF_MODELS[token as keyof typeof CF_MODELS]
+        : undefined;
+  if (resolved) return CF_ADMITTED_MODELS.includes(resolved) ? resolved : undefined;
+  // A literal admitted id. Config may name one directly — that is how
+  // pd-fleet.yml records the fleet's measured per-ship assignments, and what
+  // the Shipwright's model board hands an operator to paste. A declared pin is
+  // config data checked against the catalog, not a hardcoded id in code, and
+  // the difference is that this one cannot name a model that does not exist.
+  if (CF_ADMITTED_MODELS.includes(token)) return token;
+  return undefined;
 }
 
 // Tools that require local execution (can't run in a Worker). Matches any
@@ -159,6 +222,23 @@ const CLOUD_STATIC_SHIPS = new Set(['qa']);
 
 interface RawFallback {
   backend?: string;
+  /**
+   * A capability RUNG (`cheap` | `balanced` | `high` | `max-thinking` | `code`)
+   * or a cloud-plane role name — a token that survives a model swap, so a
+   * fleet config does not need editing when the fleet re-tiers. Resolved by
+   * {@link resolveModelToken}, which also accepts `model:` below.
+   */
+  capability?: string;
+  /**
+   * A literal admitted Workers AI id.
+   *
+   * Kept, deliberately, after a revision of this file removed it: pd-fleet.yml
+   * uses it to record the fleet's MEASURED per-ship assignments — which model
+   * actually reviewed code well, which one authored tests that ran — and a
+   * capability rung cannot express a choice made about one specific model. The
+   * two spellings are not redundant: a role says "whatever fills this job", an
+   * id says "this one, because we measured it".
+   */
   model?: string;
 }
 
@@ -173,7 +253,9 @@ interface RawAgent {
   temperature?: unknown;
   blocking?: unknown;
   class?: unknown;
-  /** Purser: direct model pin (still guarded by KNOWN_GOOD_CF_MODELS). */
+  /** Any ship: cloud-plane ROLE pin (`cf_role:`), guarded by CF_ADMITTED_MODELS. */
+  cf_role?: unknown;
+  /** The same ship-level pin as a literal admitted id — pd-fleet.yml's spelling. */
   model?: unknown;
   /** Purser: block when tests could not be executed (default false). */
   blockWithoutSandbox?: unknown;
@@ -182,18 +264,40 @@ interface RawAgent {
   /** Any ship: repo skill ids to graft onto the prompt (skill-graft.ts). */
   graft?: unknown;
   /**
-   * Any ship: the model that scans ONE chunk (`map_model:` in pd-fleet.yml;
-   * `mapModel` / `cfMapModel` accepted too, since operators write all three).
-   * REDUCE keeps the ship's `cfModel`.
+   * Any ship: the cloud-plane role that scans ONE chunk (`map_cf_role:` in
+   * pd-fleet.yml; `mapCfRole` accepted too). REDUCE keeps the ship's `cfModel`.
    *
    * Readable from YAML and not only from code because a tiering only the
    * hardcoded fallback ships can express is a tiering the operator cannot use
    * -- exactly the half-implemented shape map-reduce-invariants.test.ts exists
    * to make impossible.
    */
+  map_cf_role?: unknown;
+  mapCfRole?: unknown;
+  /**
+   * The same MAP pin as a literal id. Every step token below accepts BOTH
+   * spellings, and both are load-bearing rather than one being legacy: a role
+   * says "whatever fills this job" and survives a re-tier untouched, while an
+   * id records a choice made about one specific model — which is exactly what
+   * pd-fleet.yml's per-ship assignments are, each one measured.
+   */
   map_model?: unknown;
   mapModel?: unknown;
   cfMapModel?: unknown;
+  /** Purser: role for the PLAN step (`plan_cf_role:`; camelCase accepted). */
+  plan_cf_role?: unknown;
+  planCfRole?: unknown;
+  /** Purser: the PLAN step as a literal id. */
+  plan_model?: unknown;
+  planModel?: unknown;
+  cfPlanModel?: unknown;
+  /** Purser: role for the per-file AUTHOR step (`author_cf_role:`). */
+  author_cf_role?: unknown;
+  authorCfRole?: unknown;
+  /** Purser: the AUTHOR step as a literal id. */
+  author_model?: unknown;
+  authorModel?: unknown;
+  cfAuthorModel?: unknown;
 }
 
 /**
@@ -224,26 +328,72 @@ function isReviewBot(name: string): boolean {
 
 /**
  * Derive the Cloudflare Workers AI model for a ship:
- *   1. Honor the first `@cf/` fallback IF it is in {@link KNOWN_GOOD_CF_MODELS}
- *      — which is ONLY the cheap qwen3-30b, so a pin can never reach the pricey
- *      model.
- *   2. Otherwise (any other pin, e.g. gpt-oss / kimi / qwen-coder, or no `@cf/`
- *      pin) → a name-based default: {@link CODER_CF_MODEL} (gpt-oss-120b) for the
- *      code-review bot per {@link isReviewBot}, {@link DEFAULT_CF_MODEL} (cheap
- *      qwen3-30b) for every other ship.
+/**
+ * Cloudflare model ids the executor honors as an explicit ship pin.
+ *
+ * WHAT THIS SET GUARDS (recalibrated 2026-08-22, operator directive): it exists
+ * to stop SILENT-BLANK ids, not to enforce a price ceiling. An unknown Workers
+ * AI id does not error — it yields a blank the parser reads as "clean",
+ * silencing the ship; #654's phantom kimi ids are the tombstone. The old "no pin
+ * can reach the priciest model" ratchet was retired with data: over a live
+ * 14-day window the busiest ship's entire Workers AI spend was under $0.90,
+ * while the guard was quietly remapping red-team's declared gpt-oss-120b pin and
+ * code-reviewer's declared kimi-k2.7-code pin down to the cheap tier —
+ * protecting pennies by degrading two ships the operator had deliberately
+ * tiered up. A declared pin is honored iff the id is verified to exist.
+ *
+ * The admission contract used to be three separate facts kept in step by three
+ * separate tests: the id is Cloudflare-hosted, it has a rate row in
+ * WORKERS_AI_RATES, and it has a MODEL_CONTEXT_TOKENS entry. Those are now ONE
+ * catalog row in config/models.yaml, so the contract holds by construction —
+ * a model cannot be admitted without being priced and context-known, because
+ * admission, price and context window are the same row.
+ *
+ * Being honored is not an endorsement: assignments are chosen on evidence and
+ * judged on the scoreboard. Documented exclusions live with the rows they
+ * exclude — the catalog's Deprecated tier (retirable ⇒ blank risk), ids with no
+ * published price (unmeterable), safety classifiers and non-text models (not
+ * generators), and the #654 phantom tombstones.
+ */
+export const KNOWN_GOOD_CF_MODELS: ReadonlySet<string> = new Set(CF_ADMITTED_MODELS);
+
+/**
+ * Guard a requested Workers AI id, re-exported from the generated registry.
+ *
+ * The implementation moved to the shared artifact so the relay parser and this
+ * executor cannot disagree about what is admitted — they previously each had
+ * their own, and the relay's honored ANY `@cf/`-prefixed string, so the surface
+ * an operator validates a config against would certify a model the executor
+ * refuses. The name stays here because callers and tests already know it.
+ */
+export { resolveCfModel };
+
+/**
+ * The Workers AI model one ship runs on.
+ *
+ * Reads the ship's first `cloudflare` fallback and honors its declared pin when
+ * the id is admitted; anything else falls through to the ship's name default.
+ * The `break` is deliberate — a cloudflare fallback that declares nothing
+ * honorable means "run the default", not "keep looking down the list".
+ *
+ * @param agent The raw pd-fleet.yml ship block.
+ * @param name The ship's name, which decides the default.
+ * @returns A concrete, admitted Workers AI model id.
  */
 function deriveCfModel(agent: RawAgent, name: string): string {
   for (const fb of agent.fallbacks ?? []) {
-    if (typeof fb?.model === 'string' && fb.model.startsWith('@cf/')) {
-      if (KNOWN_GOOD_CF_MODELS.has(fb.model)) return fb.model; // explicit, verified pin
-      break; // pin outside the honored set → fall through to the name default
-    }
+    if (fb?.backend !== 'cloudflare') continue;
+    // Both vocabularies are accepted, stable token first: `capability:`/a role
+    // name survives a model swap, a literal id records a measured choice.
+    const pinned = resolveModelToken(fb.capability) ?? resolveModelToken(fb.model);
+    if (pinned && KNOWN_GOOD_CF_MODELS.has(pinned)) return pinned;
+    break; // a cloudflare fallback with no honorable pin → the name default
   }
   return isReviewBot(name) ? CODER_CF_MODEL : DEFAULT_CF_MODEL;
 }
 
 /**
- * The MAP-stage model for a ship, from `map_model:` in pd-fleet.yml.
+ * The MAP-stage model for a ship, from `map_cf_role:` in pd-fleet.yml.
  *
  * Rationale: MAP runs once per chunk and REDUCE runs once, so the cheap model
  * belongs on the stage that repeats. Making this operator-settable is the
@@ -259,28 +409,186 @@ function deriveCfModel(agent: RawAgent, name: string): string {
  *      back to an untiered run: more expensive, but never mute.
  *   2. A MAP pin equal to the ship's REDUCE model is dropped as a no-op, so
  *      `mapModelFor(ship) !== reduceModelFor(ship)` stays a meaningful claim.
- *   3. Nothing here can pin a ship ONTO the expensive model, because only the
- *      cheap id is in the honored set. Tiering can save money; it cannot spend
- *      more of it.
+ *   3. A MAP pin more expensive than the ship's REDUCE model is economically
+ *      backward (MAP repeats per chunk; REDUCE runs once) — that direction is
+ *      enforced by map-reduce-invariants.test.ts against the live rate table
+ *      rather than by shrinking the honored set.
  *
  * @param agent the raw pd-fleet.yml agent entry
  * @param cfModel the ship's already-resolved REDUCE model
  * @returns the MAP model id, or undefined for an untiered ship
  */
 function deriveMapModel(agent: RawAgent, cfModel: string): string | undefined {
-  const raw = agent.map_model ?? agent.mapModel ?? agent.cfMapModel;
-  if (typeof raw !== 'string') return undefined;
-  const pin = raw.trim();
-  if (!KNOWN_GOOD_CF_MODELS.has(pin)) {
-    if (pin) {
-      console.warn(
-        `[fleet-executor] map_model '${pin}' is not a known-good Cloudflare id; ` +
-          `running this ship untiered rather than risking a silent blank MAP stage`,
-      );
-    }
+  // MAP has no default tier: an absent or unusable pin means "run untiered".
+  const pin = deriveStepModel(
+    agent.map_cf_role ?? agent.mapCfRole ?? agent.map_model ?? agent.mapModel ?? agent.cfMapModel,
+    cfModel,
+    'map_cf_role',
+  ).model;
+  if (pin === undefined) return undefined;
+  // Economic direction guard: MAP repeats per chunk, REDUCE runs once, so a
+  // MAP model with a higher blended rate than the ship's REDUCE model spends
+  // the most where the least capability is needed. Now that the known-good
+  // set includes premium ids (2026-08-22), the direction is enforced HERE by
+  // construction rather than by the honored set's price ceiling — a backward
+  // pin is dropped to an untiered run, matching the unusable-pin posture.
+  // Blend weighted toward input (diffs are input-heavy), the same shape
+  // map-reduce-invariants.test.ts asserts over the default ships.
+  //
+  // Unpriced-id semantics (pd-code-reviewer HIGH on #9249, examined): an
+  // unpriced id blends to +Infinity. For the PIN that is deliberate — an
+  // unpriced pin can never pass as "cheaper" and is dropped. For the REDUCE
+  // model the Infinity case is UNREACHABLE by construction: cfModel is always
+  // either a KNOWN_GOOD id or a role default, and the admission-contract test
+  // (spend.test.ts) forces every KNOWN_GOOD id to have a rate row. Were that
+  // invariant ever broken, blended(cfModel)=Infinity makes this guard KEEP
+  // the pin (fail-open tiering), not drop it — the opposite of the reported
+  // failure mode, and the safe direction.
+  /**
+   * Blended $/M for one model — the comparison currency for the direction
+   * guard above; an unpriced id blends to +Infinity by design so it can never
+   * pass as "cheaper".
+   * @param m Workers AI model id
+   * @returns blended per-million-token USD rate
+   */
+  const blended = (m: string): number => {
+    const r = WORKERS_AI_RATES[m];
+    return r ? r.input * 0.8 + r.output * 0.2 : Number.POSITIVE_INFINITY;
+  };
+  if (blended(pin) > blended(cfModel)) {
+    console.warn(
+      `[fleet-executor] map_cf_role '${pin}' is pricier than the ship's reduce model ` +
+        `'${cfModel}'; fan-out on the pricier tier is economically backward — running untiered`,
+    );
     return undefined;
   }
-  return pin === cfModel ? undefined : pin;
+  return pin;
+}
+
+/**
+ * Resolve ONE step's role pin against {@link KNOWN_GOOD_CF_MODELS}.
+ *
+ * Shared by every per-step tier ({@link deriveMapModel} and the purser's
+ * plan/author steps) so there is exactly one place where an unknown token is
+ * dropped. Duplicating this guard per step is how one step quietly ends up
+ * remapping where the others drop.
+ *
+ * @param raw the operator's value, in any of the accepted spellings
+ * @param shipModel the ship's already-resolved default model
+ * @param label the YAML key, for the warning
+ * @returns the pinned id, or undefined to mean "use the ship's own model"
+ */
+function deriveStepModel(raw: unknown, shipModel: string, label: string): StepPin {
+  if (typeof raw !== 'string') return { supplied: false };
+  const token = raw.trim();
+  if (!token) {
+    // `plan_cf_role: ""` falls back to the tier default like any unusable pin,
+    // but it is NOT the same as the key being absent: someone typed the key and
+    // left it blank. Staying silent there was inconsistent with the unknown-id
+    // path below, which warns — so the one config mistake most likely to be a
+    // half-finished edit was the one mistake that produced no output at all.
+    // (Raised HIGH by pd-code-reviewer on #6813.)
+    console.warn(
+      `[fleet-executor] ${label} is present but empty; using the step default. ` +
+        `Remove the key to silence this, or name a pinnable cloud-plane role.`,
+    );
+    return { supplied: false };
+  }
+  const pin = resolveModelToken(token);
+  if (!pin || !KNOWN_GOOD_CF_MODELS.has(pin)) {
+    console.warn(
+      `[fleet-executor] ${label} '${token}' is not a pinnable cloud-plane role or ` +
+        `capability; running this step untiered rather than risking a silent blank stage`,
+    );
+    return { supplied: false };
+  }
+  // A pin equal to the ship's own model resolves to undefined (repo convention:
+  // absent means "same as cfModel") but is still SUPPLIED, so a caller with a
+  // default knows not to override it. Collapsing those two cases is what made
+  // an operator pinning back down to the cheap model get silently upgraded.
+  return { supplied: true, ...(pin === shipModel ? {} : { model: pin }) };
+}
+
+/**
+ * The outcome of reading one step's model pin.
+ *
+ * `supplied` answers "did the operator make a choice here?" — distinct from
+ * `model`, which answers "which model, if it differs from the ship's own". A
+ * step with a DEFAULT must apply that default only when nothing was supplied;
+ * a step without one (map) treats both the same.
+ */
+interface StepPin {
+  supplied: boolean;
+  model?: string;
+}
+
+/**
+ * The purser's PLAN-step model. Defaults to the cheap model.
+ *
+ * PLAN reads the whole diff and emits a handful of paths, so its cost is
+ * dominated by INPUT — exactly where the cheap model's $0.051/M wins and the
+ * mid tier's $0.200/M would be paid for nothing. Naming files is not the step
+ * that needed more capability.
+ */
+function derivePurserPlanModel(agent: RawAgent, cfModel: string): string | undefined {
+  const pin = deriveStepModel(
+    agent.plan_cf_role ?? agent.planCfRole ?? agent.plan_model ?? agent.planModel ?? agent.cfPlanModel,
+    cfModel,
+    'plan_cf_role',
+  );
+  if (pin.supplied) return pin.model;
+  return CHEAP_CF_MODEL === cfModel ? undefined : CHEAP_CF_MODEL;
+}
+
+/**
+ * The purser's per-file AUTHOR-step model default: the strongest verified
+ * Workers AI tier, because this step's failures gate the whole fleet.
+ *
+ * Why not the mid tier anymore (operator ruling 2026-08-22, on live D1
+ * evidence): with gpt-oss-20b authoring, a 14-day window recorded 121
+ * authored-test sets ending NON-EXECUTABLE, an author-repair loop failing 83
+ * of 110 rewrites (75%), and 124 purser BROKEN-SHIP runs — which adjudicated
+ * to fleet-wide neutral on 249 of 584 runs (#8870). The cost delta of
+ * authoring on gpt-oss-120b (output $0.750/M vs $0.300/M over ~2.5M purser
+ * output tokens per two weeks) is about a dollar; the mid tier was saving
+ * that dollar by burning the fleet's verdict signal.
+ *
+ * Which strong tier (revised same day, repertoire expansion): the author step
+ * IS agentic coding — emit a runnable file against a real repo tree — and the
+ * independent record for deepseek-v4-flash-0731 on exactly that shape
+ * (Terminal-Bench 2.1 82.7, DeepSWE 54.4; it beats DeepSeek's own Pro on nine
+ * agent benchmarks) is far stronger than gpt-oss-120b's mixed code-domain
+ * record, at a comparable blended price ($0.44/$1.32 vs $0.35/$0.75) and a 1M
+ * context that ends diff-truncation for authoring. The repair rewrite stays
+ * on {@link REPAIR_ESCALATION_MODEL} (gpt-oss-120b) deliberately: author and
+ * repairer now come from different model families, so one family's blind
+ * spot cannot both write and "fix" the same broken file. Judged on its
+ * after-window via scripts/fleet-ship-stats.mjs.
+ */
+const AUTHOR_CF_MODEL = CF_ROLE_MODELS.author;
+
+/**
+ * The purser's per-file AUTHOR-step model. Defaults to {@link AUTHOR_CF_MODEL}.
+ *
+ * This is the step whose output is a runnable source file, and the one whose
+ * failures are expensive in both directions: a weak model writes tests that
+ * look plausible and do not run, and since those tests become a merge gate, a
+ * bad one blocks a good PR — or, under the broken-ship doctrine, gates the
+ * whole fleet. An operator can still pin the step down to a cheaper tier
+ * (`author_model:`), guarded by the same known-good set.
+ *
+ * @param agent the raw pd-fleet.yml purser entry
+ * @param cfModel the ship's already-resolved default model
+ * @returns the AUTHOR-step model id, or undefined for "same as cfModel"
+ */
+function derivePurserAuthorModel(agent: RawAgent, cfModel: string): string | undefined {
+  const pin = deriveStepModel(
+    agent.author_cf_role ?? agent.authorCfRole ?? agent.author_model ?? agent.authorModel ?? agent.cfAuthorModel,
+    cfModel,
+    'author_cf_role',
+  );
+  if (pin.supplied) return pin.model;
+  return AUTHOR_CF_MODEL === cfModel ? undefined : AUTHOR_CF_MODEL;
 }
 
 /**
@@ -295,11 +603,20 @@ const PURSER_DEFAULT_PROMPT =
   'PR satisfy that interpretation — not its laziest reading. Firm, adversarial, ' +
   'professional. Demands come with reasons; never abuse.';
 
-/** Purser model: honor a direct `model:` pin when known-good, else the usual derivation. */
+/**
+ * Purser model: honor a direct ship-level pin when admitted, else derive.
+ *
+ * BOTH spellings are read, and the second one is not politeness. This function
+ * briefly accepted only `cf_role:` while the live pd-fleet.yml pinned the purser
+ * with `model:` — so the declared pin was silently dropped and the ship ran the
+ * default. It was invisible because the purser's declared model happened to
+ * EQUAL the default; re-tiering it would have been ignored without a word. A
+ * fixture whose pin differs from the default is what catches that, which is why
+ * the test for it pins something else on purpose.
+ */
 function derivePurserModel(agent: RawAgent, name: string): string {
-  if (typeof agent.model === 'string' && KNOWN_GOOD_CF_MODELS.has(agent.model)) {
-    return agent.model;
-  }
+  const pinned = resolveModelToken(agent.cf_role) ?? resolveModelToken(agent.model);
+  if (pinned && KNOWN_GOOD_CF_MODELS.has(pinned)) return pinned;
   return deriveCfModel(agent, name);
 }
 
@@ -409,6 +726,72 @@ export function parseFleetXo(fleetYaml: string): boolean {
   return value === true || value === 'true';
 }
 
+/** The tenant's mediator opt-in block (grand-plan node mediator-body). */
+export interface FleetMediatorConfig {
+  /** True only on an explicit `enabled: true` (fail-closed consent). */
+  enabled: boolean;
+  /** 'namespace/name' of the relay harbor conflict parleys convene in. */
+  harbor: string | null;
+  /** The irreversible action the human gate guards, when declared. */
+  action: 'merge' | 'revert' | 'force-push' | null;
+  /** author login (lowercased) → daemon fingerprint that speaks for them (D11). */
+  daemons: Record<string, string>;
+}
+
+/**
+ * MEDIATOR CONSENT: does this repo's pd-fleet.yml opt in to symbol-level
+ * conflict prediction and auto-convened parleys (src/mediator.ts)? The
+ * mediator posts neutral check runs on the tenant's PRs and reports predicted
+ * conflicts — with PR numbers, author logins, and symbol names — to the
+ * relay, so it is opt-in per tenant exactly like squidEvents and xo, never
+ * ambient. Shape, under `fleet:`:
+ *
+ *   mediator:
+ *     enabled: true                # required, strict (true / 'true' only)
+ *     harbor: alice/dock           # required for convening (ns/name)
+ *     action: merge                # optional; creates the human gate
+ *     daemons:                     # optional; agent-first summons targets
+ *       alice: <64-hex fingerprint>
+ *
+ * Same zero-trust rule as every other config read: TRUSTED default branch
+ * only, never the PR head. Anything malformed degrades to disabled or to the
+ * affected field's absence — a config typo must never widen behavior.
+ *
+ * @param fleetYaml The raw pd-fleet.yml body from the trusted default branch.
+ * @returns The parsed mediator config; `enabled: false` on any refusal path.
+ */
+export function parseFleetMediator(fleetYaml: string): FleetMediatorConfig {
+  const off: FleetMediatorConfig = { enabled: false, harbor: null, action: null, daemons: {} };
+  let doc: unknown;
+  try {
+    doc = parseYaml(fleetYaml);
+  } catch {
+    return off;
+  }
+  const fleet = (doc as { fleet?: { mediator?: unknown } } | null)?.fleet;
+  if (!fleet || typeof fleet !== 'object') return off;
+  const m = (fleet as { mediator?: unknown }).mediator;
+  if (!m || typeof m !== 'object' || Array.isArray(m)) return off;
+  const mm = m as { enabled?: unknown; harbor?: unknown; action?: unknown; daemons?: unknown };
+  if (mm.enabled !== true && mm.enabled !== 'true') return off;
+
+  const harbor =
+    typeof mm.harbor === 'string' && /^[^/\s]+\/[^/\s]+$/.test(mm.harbor.trim())
+      ? mm.harbor.trim().toLowerCase()
+      : null;
+  const action =
+    mm.action === 'merge' || mm.action === 'revert' || mm.action === 'force-push' ? mm.action : null;
+  const daemons: Record<string, string> = {};
+  if (mm.daemons && typeof mm.daemons === 'object' && !Array.isArray(mm.daemons)) {
+    for (const [login, fp] of Object.entries(mm.daemons as Record<string, unknown>)) {
+      if (typeof fp === 'string' && /^[0-9a-f]{64}$/i.test(fp.trim())) {
+        daemons[login.toLowerCase()] = fp.trim().toLowerCase();
+      }
+    }
+  }
+  return { enabled: true, harbor, action, daemons };
+}
+
 /**
  * Deterministically parse pd-fleet.yml and return every ship whose trigger
  * matches `trigger`. Pure (no Workers AI). Reads the ENTIRE document.
@@ -448,6 +831,11 @@ export function parseFleetShips(fleetYaml: string, trigger: string): ShipConfig[
     const ideation = purser ? false : deriveIdeation(name, agent.class);
     const shipCfModel = purser ? derivePurserModel(agent, name) : deriveCfModel(agent, name);
     const shipMapModel = deriveMapModel(agent, shipCfModel);
+    // Per-step tiers exist only for the purser, whose steps genuinely differ in
+    // job and cost shape. Deriving them for every ship would put two keys in
+    // every snapshot that nothing reads.
+    const shipPlanModel = purser ? derivePurserPlanModel(agent, shipCfModel) : undefined;
+    const shipAuthorModel = purser ? derivePurserAuthorModel(agent, shipCfModel) : undefined;
 
     ships.push({
       name,
@@ -458,6 +846,10 @@ export function parseFleetShips(fleetYaml: string, trigger: string): ShipConfig[
       // deriveMapModel(). Spread so an untiered ship has NO key at all rather
       // than an explicit undefined, keeping `cfMapModel` absent in snapshots.
       ...(shipMapModel ? { cfMapModel: shipMapModel } : {}),
+      // Same spread-when-present rule as cfMapModel: an untiered step has NO key
+      // rather than an explicit undefined.
+      ...(shipPlanModel ? { cfPlanModel: shipPlanModel } : {}),
+      ...(shipAuthorModel ? { cfAuthorModel: shipAuthorModel } : {}),
       temperature: coerceTemperature(agent.temperature),
       role,
       telos,

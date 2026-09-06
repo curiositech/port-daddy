@@ -36,6 +36,12 @@ import {
   type UserRow,
 } from './db.js';
 import type { Env } from './types.js';
+// Import cycle note: roadmap-mirror.ts imports isSameOrigin from this module
+// and this module imports exportRoadmapMirrors back. Both bindings are hoisted
+// function declarations used only at request time, so the ESM cycle is inert
+// by design — flagged here so a refactor does not accidentally make either
+// side a top-level evaluation.
+import { exportRoadmapMirrors } from './roadmap-mirror.js';
 
 // External GitHub JSON shapes (OAuth token endpoint + REST). These are a trust
 // boundary: rather than `as`-casting `unknown` JSON into a type and hoping,
@@ -192,6 +198,22 @@ function readSessionCookie(request: Request): string | null {
 
 // ── Handlers ──────────────────────────────────────────────────────────────────
 
+/**
+ * The web session's OAuth scope. `repo` is required — not merely
+ * convenient — because every repo-access check this session's token backs
+ * (`userCanReadRepo`, `userIsRepoAdmin` in this file) calls
+ * `GET /repos/:owner/:repo` and treats a 404 as "not readable." GitHub
+ * returns 404 (not 403) for a private repository the token's scope can't
+ * see, which is indistinguishable from the repo not existing — so a token
+ * scoped to only `read:user user:email` silently fails every private-repo
+ * check, including a repo the user personally owns. `permissions.admin` in
+ * that same response (which `userIsRepoAdmin` reads) is also only populated
+ * for a sufficiently-scoped, authenticated request. `public_repo` alone
+ * would fix public repos but not private ones, which is exactly the
+ * lockout an operator with private repos hits.
+ */
+const WEB_SESSION_SCOPE = 'read:user user:email repo';
+
 /** GET /auth/github/login — mint single-use state, 302 to GitHub. */
 export async function handleGithubLogin(request: Request, env: Env): Promise<Response> {
   if (!loginConfigured(env)) return json(503, { code: 'LOGIN_UNCONFIGURED', error: 'GitHub login is not configured' });
@@ -203,7 +225,7 @@ export async function handleGithubLogin(request: Request, env: Env): Promise<Res
   const url = new URL(GH_AUTHORIZE);
   url.searchParams.set('client_id', env.GITHUB_OAUTH_CLIENT_ID);
   url.searchParams.set('redirect_uri', redirectUri(env));
-  url.searchParams.set('scope', 'read:user user:email');
+  url.searchParams.set('scope', WEB_SESSION_SCOPE);
   url.searchParams.set('state', state);
   url.searchParams.set('allow_signup', 'false');
   return Response.redirect(url.toString(), 302);
@@ -387,6 +409,9 @@ export async function handleAccountExport(request: Request, env: Env): Promise<R
     content: m.content,
     createdAt: m.created_at,
   }));
+  // Roadmap mirrors are the user's own pushed roadmaps (ADR-0101 Critical-2
+  // export/delete matrix, team tier) — all four mirror tables leave with them.
+  const roadmapMirrors = await exportRoadmapMirrors(env, user.id);
   const body = {
     code: 'OK',
     error: null,
@@ -404,6 +429,7 @@ export async function handleAccountExport(request: Request, env: Env): Promise<R
     },
     sessions: { active: sessionCount },
     shipwrightChats,
+    roadmapMirrors,
   };
   return new Response(JSON.stringify(body, null, 2), {
     status: 200,
@@ -436,13 +462,20 @@ export interface ResolvedSession {
   user: UserRow;
   /** The decrypted GitHub user-to-server token — repo-access checks ONLY. */
   ghToken: string | null;
+  /**
+   * SHA-256 of the opaque browser-session cookie.  Authorization decisions are
+   * cached under this value so a renewed OAuth login never inherits a stale
+   * allow or deny result from an earlier session.
+   */
+  cacheNamespace: string;
 }
 
 /** Resolve the __Host-pd_session cookie to a live, unexpired session, or null. */
 export async function resolveSession(request: Request, env: Env): Promise<ResolvedSession | null> {
   const value = readSessionCookie(request);
   if (!value) return null;
-  const row = await getWebSession(env.DB, hashHex(value));
+  const cacheNamespace = hashHex(value);
+  const row = await getWebSession(env.DB, cacheNamespace);
   if (!row) return null;
   if (row.expires_at <= Math.floor(Date.now() / 1000)) return null;
   // The wrapping key is required to decrypt the gh token; without it (login
@@ -451,13 +484,14 @@ export async function resolveSession(request: Request, env: Env): Promise<Resolv
     env.USER_TOKEN_WRAPPING_KEY && row.gh_token_enc && row.gh_token_iv
       ? await openToken(env.USER_TOKEN_WRAPPING_KEY, row.gh_token_enc, row.gh_token_iv)
       : null;
-  return { user: row.user, ghToken };
+  return { user: row.user, ghToken, cacheNamespace };
 }
 
 /**
  * Does the session's user have read access to `owner/repo` on GitHub? Cached in
- * KV for 5 minutes keyed by (user_id, repo) so GitHub stays the single source of
- * authz truth without a request per page view. 200/404 from GET /repos decides.
+ * KV for 5 minutes keyed by (user_id, browser session, repo) so a renewed OAuth
+ * login never inherits a stale decision while GitHub remains the source of authz
+ * truth. 200/404 from GET /repos decides.
  */
 export async function userCanReadRepo(
   env: Env,
@@ -466,21 +500,91 @@ export async function userCanReadRepo(
   repo: string,
 ): Promise<boolean> {
   if (!session.ghToken) return false;
-  const cacheKey = `repo_access:${session.user.id}:${owner}/${repo}`;
+  const cacheKey = `repo_access:${session.user.id}:${session.cacheNamespace}:${owner}/${repo}`;
   const cached = await env.KV.get(cacheKey);
   if (cached === '1') return true;
   if (cached === '0') return false;
-  const res = await fetch(`${GH_API}/repos/${owner}/${repo}`, { headers: ghHeaders(session.ghToken) });
-  const ok = res.status === 200;
-  await env.KV.put(cacheKey, ok ? '1' : '0', { expirationTtl: 300 });
-  return ok;
+  let res: Response;
+  try {
+    res = await fetch(`${GH_API}/repos/${owner}/${repo}`, { headers: ghHeaders(session.ghToken) });
+  } catch {
+    // A transport failure proves nothing about authorization. Fail closed for
+    // this request, but do not poison the session cache with a transient deny.
+    return false;
+  }
+  if (res.status === 200) {
+    await env.KV.put(cacheKey, '1', { expirationTtl: 300 });
+    return true;
+  }
+  if (res.status === 404) {
+    // GitHub intentionally hides inaccessible private repositories as 404.
+    await env.KV.put(cacheKey, '0', { expirationTtl: 300 });
+  }
+  // Rate limits, upstream errors, and malformed responses are unknown rather
+  // than durable denials; retry them on the next request.
+  return false;
+}
+
+/**
+ * Does the session's user have ADMIN permission on `owner/repo`, per GitHub's
+ * own judgment? Reads the same `GET /repos/:owner/:repo` response
+ * `userCanReadRepo` already makes (its `permissions.admin` field reflects the
+ * CALLING user's own access level, not the repo's public visibility), cached
+ * separately in KV for 5 minutes keyed by (user_id, browser session, repo).
+ *
+ * Why this exists: `repo_settings` writes that only affect the writer's own
+ * account (e.g. the sitrep dial) only need read access to gate against
+ * enumeration. A setting fleet-executor treats as authoritative for EVERY
+ * user of a repository — like the Workers AI call deadline — is different: a
+ * mere read-access gate would let any GitHub user who can merely see a public
+ * repository silently change execution behavior for every installation that
+ * reviews it (the DO-NOT-SHIP finding on PR #9800). Requiring admin here is
+ * the cheapest correct gate available without building a real
+ * installation-authority record; `userOwnsInstallation` was considered but
+ * would need an App-authenticated (not user-token) lookup this handler does
+ * not otherwise make, and is deliberately left as a named follow-up.
+ *
+ * @param env - Worker bindings (KV cache, used the same way as userCanReadRepo).
+ * @param session - The resolved session carrying the caller's GitHub token.
+ * @param owner - Repository owner.
+ * @param repo - Repository name.
+ * @returns True iff GitHub reports `permissions.admin: true` for this user.
+ */
+export async function userIsRepoAdmin(
+  env: Env,
+  session: ResolvedSession,
+  owner: string,
+  repo: string,
+): Promise<boolean> {
+  if (!session.ghToken) return false;
+  const cacheKey = `repo_admin:${session.user.id}:${session.cacheNamespace}:${owner}/${repo}`;
+  const cached = await env.KV.get(cacheKey);
+  if (cached === '1') return true;
+  if (cached === '0') return false;
+  let res: Response;
+  try {
+    res = await fetch(`${GH_API}/repos/${owner}/${repo}`, { headers: ghHeaders(session.ghToken) });
+  } catch {
+    return false;
+  }
+  if (res.status === 404) {
+    await env.KV.put(cacheKey, '0', { expirationTtl: 300 });
+    return false;
+  }
+  if (res.status !== 200) return false;
+  const body = await res.json().catch(() => null) as { permissions?: { admin?: boolean } } | null;
+  if (!body || typeof body !== 'object') return false;
+  const admin = body.permissions?.admin === true;
+  await env.KV.put(cacheKey, admin ? '1' : '0', { expirationTtl: 300 });
+  return admin;
 }
 
 /**
  * Does the session's user have access to GitHub App installation `installationId`?
  * GitHub is the single source of truth: `GET /user/installations` lists exactly
  * the app installations the authenticated user can act on. Fail-closed (no token
- * → false), cached in KV for 5 minutes keyed by (user_id, installationId). This
+ * → false), cached in KV for 5 minutes keyed by (user_id, browser session,
+ * installationId). This
  * is the tenant-ownership gate for the billing endpoints (ADR-0116): a signed-in
  * user may only touch billing for an installation GitHub says they own.
  */
@@ -490,7 +594,7 @@ export async function userOwnsInstallation(
   installationId: number,
 ): Promise<boolean> {
   if (!session.ghToken) return false;
-  const cacheKey = `inst_owner:${session.user.id}:${installationId}`;
+  const cacheKey = `inst_owner:${session.user.id}:${session.cacheNamespace}:${installationId}`;
   const cached = await env.KV.get(cacheKey);
   if (cached === '1') return true;
   if (cached === '0') return false;
@@ -500,8 +604,9 @@ export async function userOwnsInstallation(
     const res = await fetch(`${GH_API}/user/installations?per_page=100&page=${page}`, {
       headers: ghHeaders(session.ghToken),
     });
-    if (!res.ok) break;
-    const body = (await res.json()) as { installations?: Array<{ id?: number }> };
+    if (!res.ok) return false;
+    const body = await res.json().catch(() => null) as { installations?: Array<{ id?: number }> } | null;
+    if (!body || !Array.isArray(body.installations)) return false;
     const list = Array.isArray(body.installations) ? body.installations : [];
     if (list.some((i) => i.id === installationId)) ok = true;
     if (list.length < 100) break; // last page

@@ -152,17 +152,21 @@ describe('aggregateConclusion — gate semantics for no usable output', () => {
     expect(aggregateConclusion(results)).toBe('failure');
   });
 
-  it('does NOT fail the merge gate for an ADVISORY ship that produced nothing', () => {
+  it('FAILS the run for an ADVISORY ship that produced nothing — a broken ship is not an opinion', () => {
+    // Broken-ship doctrine (2026-08-19): "advisory" scopes a ship's judgment,
+    // not its machinery. A ship that reviewed nothing is broken, and a broken
+    // ship fails the run whatever its blocking flag — the earlier `neutral`
+    // resolution let a whole run of empty ships sail past the merge gate.
     const results = [ship({ blocking: false, verdict: 'PASS', noUsableOutput: true })];
-    expect(aggregateConclusion(results)).not.toBe('failure');
+    expect(aggregateConclusion(results)).toBe('failure');
   });
 
-  it('but never launders an advisory no-output into success', () => {
+  it('one broken advisory ship fails the run even when every other ship passed', () => {
     const results = [
       ship({ ship: 'code-reviewer', blocking: true, verdict: 'PASS' }),
       ship({ ship: 'snipe', blocking: false, verdict: 'PASS', noUsableOutput: true }),
     ];
-    expect(aggregateConclusion(results)).toBe('neutral');
+    expect(aggregateConclusion(results)).toBe('failure');
   });
 
   it('still returns success when every ship really did answer', () => {

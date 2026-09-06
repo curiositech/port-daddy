@@ -6,7 +6,7 @@
  */
 
 import { existsSync, mkdirSync, symlinkSync, lstatSync, unlinkSync, readlinkSync } from 'node:fs';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { homedir, platform } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -32,6 +32,8 @@ import {
   saveFirstValueRecord,
   transparentHookInventory,
 } from '../../lib/agent-harbor/setup-doctor.js';
+import { resolvePortDaddyInvocation } from '../../lib/port-daddy-command.js';
+import { installFleetBarRelease, packageVersion } from '../../lib/fleetbar-release-installer.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 // Walk up from __dirname looking for the repo marker (Formula/port-daddy.rb
@@ -58,7 +60,29 @@ const PROJECT_ROOT = findProjectRoot(__dirname);
 const AGENT_SKILL_ID = 'port-daddy-agent-skill';
 const TSX_BIN = join(PROJECT_ROOT, 'node_modules', '.bin', 'tsx');
 const INSTALL_DAEMON_SCRIPT = join(PROJECT_ROOT, 'install-daemon.ts');
-const FLEETBAR_INSTALL_SCRIPT = join(PROJECT_ROOT, 'apps', 'FleetBar', 'install.sh');
+
+/**
+ * Starts one detached, bounded, local-only warm-up after skill installation.
+ * The design keeps setup responsive and treats reconciliation as resumable
+ * background work; failures remain visible later through Doctor status.
+ */
+function startTool2VecWarmup(): void {
+  try {
+    const invocation = resolvePortDaddyInvocation();
+    const child = spawn(
+      invocation.command,
+      [...invocation.args, 'jury-rig', 'warm', '--max-skills', '32', '--local-only', '--quiet'],
+      { detached: true, stdio: 'ignore', env: process.env },
+    );
+    child.once('error', (error) => {
+      ui.warn(`Could not start Tool2Vec warm-up: ${error.message}`);
+    });
+    child.unref();
+    ui.info('Tool2Vec catalog warm-up started in the background; Doctor reports current, cold, or dependency-down coverage.');
+  } catch (error) {
+    ui.warn(`Could not start Tool2Vec warm-up: ${(error as Error).message}`);
+  }
+}
 
 const PROJECT_MARKERS = [
   '.git',
@@ -339,7 +363,7 @@ function installPilotAgentDefinitions(options: Record<string, unknown>): boolean
   const result = installPilotAgents({ sourceDir: source, dryRun });
   const changed = result.written.filter((w) => w.changed).length;
   ui.info(
-    `Port Daddy Pilot: ${dryRun ? 'would install' : 'installed'} ${result.written.length} runtime definition(s)` +
+    `Port Daddy Pilot: ${result.outcome}; ${dryRun ? 'would install' : 'installed'} ${result.written.length} runtime definition(s)` +
     (changed ? ` (${changed} updated)` : ' (all current)'),
   );
   for (const err of result.errors.slice(0, 3)) {
@@ -356,7 +380,7 @@ function lstatSyncSafe(p: string) {
   }
 }
 
-function installFleetBarIfEnabled(skipFleetBar: boolean): boolean {
+async function installFleetBarIfEnabled(skipFleetBar: boolean): Promise<boolean> {
   if (skipFleetBar) {
     ui.info('Skipping FleetBar (--no-fleetbar)');
     return true;
@@ -367,26 +391,19 @@ function installFleetBarIfEnabled(skipFleetBar: boolean): boolean {
     return true;
   }
 
-  if (!existsSync(FLEETBAR_INSTALL_SCRIPT)) {
-    ui.warn('FleetBar install script not found');
-    installRemediation('FleetBar', 'pd setup --no-fleetbar, or download the signed app from the Install page');
+  ui.step('Installing the matching signed FleetBar release');
+  try {
+    const version = packageVersion(PROJECT_ROOT);
+    const installed = await installFleetBarRelease(version);
+    ui.success(`FleetBar ${installed.version} installed and relaunched`);
+    ui.info(`App: ${installed.appPath}`);
+    if (installed.backupPath) ui.info(`Previous app retained at ${installed.backupPath}`);
+    return true;
+  } catch (error) {
+    ui.warn(`FleetBar install failed: ${(error as Error).message}`);
+    installRemediation('FleetBar', 'open FleetBar and use its signed update card; the previous app was preserved');
     return false;
   }
-
-  ui.step('Installing FleetBar');
-  const install = spawnSync('/bin/bash', [FLEETBAR_INSTALL_SCRIPT], {
-    cwd: PROJECT_ROOT,
-    stdio: 'inherit',
-  });
-
-  if ((install.status ?? 1) !== 0) {
-    ui.warn('FleetBar install failed');
-    installRemediation('FleetBar', 'pd setup --no-fleetbar, then install FleetBar from the signed zip');
-    return false;
-  }
-
-  ui.success('FleetBar installed');
-  return true;
 }
 
 async function maybeInitProject(projectDir: string | null, options: Record<string, unknown>): Promise<void> {
@@ -569,16 +586,19 @@ export async function handleSetup(options: Record<string, unknown>): Promise<voi
     ui.info('Skipping agent-CLI hooks (--no-hooks)');
   }
 
-  installFleetBarIfEnabled(!!options['no-fleetbar']);
+  await installFleetBarIfEnabled(!!options['no-fleetbar']);
 
   if (!options['no-skill']) {
     installAgentSkillUnion(options);
+    if (!options['no-skill-warmup']) startTool2VecWarmup();
+    else ui.info('Skipping Tool2Vec catalog warm-up (--no-skill-warmup)');
   } else {
     ui.info('Skipping agent skill symlink (--no-skill)');
   }
 
+  let pilotOk = true;
   if (!options['no-agents']) {
-    installPilotAgentDefinitions(options);
+    pilotOk = installPilotAgentDefinitions(options);
   } else {
     ui.info('Skipping Pilot agent definitions (--no-agents)');
   }
@@ -594,10 +614,14 @@ export async function handleSetup(options: Record<string, unknown>): Promise<voi
   const harnessOk = await installProjectHarness(projectDir, options);
 
   console.log('');
-  if (harnessOk) {
+  if (harnessOk && pilotOk) {
     ui.success('Setup complete');
   } else {
     ui.warn('Setup completed with remediation steps above');
+  }
+  if (!pilotOk) {
+    process.exitCode = 1;
+    return; // Do not record full setup completion after a refused/partial Pilot install.
   }
 
   // ── Agent Harbor onboarding receipt (binder ch18 Work Order C8) ──────────

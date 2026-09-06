@@ -51,7 +51,7 @@ Examples:
 port-daddy:fleet:spark
 expungement-guide:fleet:spark        # same silhouette, different livery
 port-daddy:fleet:hawk
-windags:fleet:cartographer
+jury_rig:fleet:cartographer
 ```
 
 ---
@@ -613,7 +613,7 @@ JSON, Swift consumes it. That's a v2 item; GIFs unblock v1 today.
 
 ### 9.4 Cache invalidation
 
-Grammar version bump (`SHIP_GRAMMAR_VERSION`) in `lib/ship-grammar.ts`
+Grammar version bump (`SHIP_GRAMMAR_VERSION`) in `lib/ship-grammar.ts` <!-- cite-exempt -->
 invalidates all keys. Daily TTL for animated assets (12-frame jitter is
 fine; identity never changes within a day). Manual purge via
 `pd shipwright snapshot --purge <identity>`.

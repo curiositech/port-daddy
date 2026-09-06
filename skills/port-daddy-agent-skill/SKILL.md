@@ -70,23 +70,104 @@ Do not use or recommend the removed `pd squid hooks` fork; `pd hooks install`
 is the narrower hook-only repair surface.
 
 Read `pd squid status` before claiming the harness works. `LIVE` means complete
-wiring plus a fresh daemon heartbeat; `READY` means complete wiring with the
-daemon down; `PARTIAL` and `DEGRADED` require repair. Use `--json` when another
-surface needs the same truth and `pd squid tap` to inspect the exact bounded
-next-turn envelope. User-level Codex/agy entries do not make hooks global: the
-wrapper requires the exact project root in the arm registry. `pd squid off`
-removes that root while preserving other projects.
+wiring plus a fresh daemon heartbeat and an exact `daemon.ready` → `daemon.pid`
+generation match. `READY` means the wiring is complete but the daemon is down
+or still behind its boot checks; `PARTIAL` and `DEGRADED` require repair. Use
+`--json` when another surface needs the same truth and `pd squid tap` to inspect
+the exact bounded next-turn envelope. User-level Codex/agy entries do not make
+hooks global: the wrapper requires the exact project root in the arm registry.
+`pd squid off` removes that root while preserving other projects.
+
+Do not infer hook readiness from the Bosun heartbeat alone. The daemon starts
+that heartbeat before its database-integrity gate so its supervisor will not
+kill a legitimately slow boot. The shared Claude/Codex/Gemini/agy wrapper first
+requires the ready PID to match the live PID, then checks heartbeat freshness
+and exact project arming. A missing, malformed, stale, or displaced generation
+is an immediate successful no-op; `pd squid status --json` exposes
+`daemonAlive` and `daemonReady` separately, and debug mode explains the skipped
+boot/displacement step without retaining prompt or tool content.
+
+When hook behavior is slow or confusing, use `pd squid debug on` only for the
+diagnostic window, reproduce the turn, then read `pd squid status` or the
+focused `pd squid debug status` (`--json` works on either). They share one
+diagnostic source. Status returns at most 25 recent hook steps and 20 recent
+matrix values per kind, with total/returned/truncated metadata, so retained
+history cannot cut JSON in half or turn introspection into more hook work. Each
+step shows actual start/finish, the one-second expected-by timestamp, duration,
+gate outcome, and a short explanation. A start with no completion by its
+deadline is `OVERDUE`. `pd squid debug off` stops capture while preserving the
+bounded local timeline; `clear` removes it. The format cannot retain argv,
+environment snapshots, prompts, tool inputs/results, stdout, or stderr.
+Routine `pd squid status` hides retained session identifiers and absolute paths
+while capture is off; use the explicit debug-status surface to inspect them.
+Operators use the FleetBar Squid strip's Inspect button for this same surface.
+Retained PD TRACE rows are legacy history; current installs do not schedule a
+PostToolUse process.
+
+Every staged hook command is a stable `~/.port-daddy/bin/pd-hook-*` shim; a
+provider config that names a Homebrew Cellar version is stale and must be
+repaired. Hooks never retry in the agent's critical path. Three consecutive
+unexpected exits or executions over the 250 ms health budget open a five-minute
+circuit breaker: later calls immediately fail open, one next-turn notice points
+the operator to FleetBar, and the Inspect sheet shows the affected hook, last
+reason, timestamps, and retry time. FleetBar's **Repair** button atomically
+restages the shims, rewires providers, and clears the latch only after success.
+An intentional direct-edit block (`exit 2`) is enforcement, not a hook failure.
+
+Coordination content in the hook path stays bounded: no status message and
+zero coordination stdout when there is no fresh actionable project fact or
+fleet-wide control alert. Its topology is deliberately bounded to one turn
+briefing plus a gate only for direct file-edit tools. Broad shell/exec tools
+and observational PostToolUse hooks are excluded; claims and notes carry
+cumulative outcomes. When coordination is genuinely useful, the prompt hook's
+coordination block is capped at one heading plus two facts (512 bytes of
+context). A hook that waits on the daemon or scans an unbounded matrix is
+still a product bug — but the end-of-turn SITREP is not: it is the harness's
+visible value surface (operator doctrine, 2026-08-22), governed by the
+per-repo `sitrep.endOfTurn` dial (`off` | `suggest` | `enforce`, default
+`enforce`; `PD_SITREP` env override wins, then `agent.config.json` →
+`.portdaddy/sitrep.json` → `.portdaddy/project.json`). At suggest/enforce
+every turn carries the end-of-turn SITREP table contract —
+`| Idea / Suggestion / Remediation | Source (Agent/Operator) | Status |
+Related PR/Issue | Docs / Roadmap Link |` — update Status each turn, carry
+unresolved rows forward, and mint a roadmap link (`pd roadmap upsert`) before
+writing code for a row. `enforce` makes a turn that ends without the table an
+incomplete turn; scaffold it with `pd sitrep --template`. Repos that want
+quiet turns dial it off explicitly.
+`pd attention` is also safe before `pd begin`: without a bound identity its
+default read succeeds as an explicit empty/unbound result; subscription changes
+still require an identity. A normal `pd attention` read advances the caller's
+read cursors; use `pd attention --peek` when inspection must not mark anything
+seen.
 
 The operator drives this through FleetBar's selected-project `◆ GIANT SQUID`
-strip. It exposes state, provider count, and Arm/Repair/Disarm without asking the
-operator to run these agent-facing commands.
+strip. It exposes state, provider count, Arm/Repair/Disarm, and the hook timeline
+without asking the operator to run these agent-facing commands.
+
+Daemon connection code follows published truth. Port `9876` is an allocator
+preference, not a liveness witness: clients use an explicit URL, an existing
+Unix socket, or the selected daemon's published port file. Missing, malformed,
+or unreadable publication fails closed instead of guessing a listener, and the
+SDK's public URL field stays empty rather than publishing a made-up endpoint.
 
 ## Default Agent Happy Path
 
 Use this path before you reach for advanced coordination. It is the normal
 agent loop for repo work on this machine.
 
+`pd learn` is the canonical offline-safe orientation command; `pd tutorial` is
+an exact alias. The orientation handler is operationally read-only: it does not
+create or change sessions, claims, plans, notes, files, indexes, or other work
+resources. Headless execution makes no handler daemon request. On an actual
+interactive controlling terminal, it may make one bounded `GET /health`
+(750 ms, no retry) to label the guide with live daemon status. The surrounding
+CLI envelope still makes exactly one best-effort append-only usage-telemetry
+attempt, so "operationally read-only" does not mean zero I/O. `pd learn` never
+searches, trains, ingests, embeds, or reindexes content; use the explicit
+retrieval and indexing commands for those jobs.
+
 ```bash
+pd attention
 pd status
 pd sitrep --template
 pd briefing
@@ -97,11 +178,31 @@ pd plan set "- [ ] Setup X\n- [ ] Fix Y\n- [ ] Verify Z"
 pd advise <likely-path> --task "<plain-language task>"
 pd note "Scope: <files>. Assumptions: <truth>. Validation: <commands>."
 pd session files add <path>
-# work, validate, check off plan, and keep notes current
+# Work in a linked worktree; commit validated checkpoints with agent attribution.
+# Keep the complete plan and notes current. A checkpoint is not delivery.
 pd plan check "Setup X"
-pd note "Result: <change>. Validation: <evidence>. Remaining: <risk>."
+# Publish a ready, non-draft App/Fleetbot PR through the authorized path.
+# Own reviews, regression tests, required checks and the protected merge/queue.
+# Verify the actual merged-head receipt; queue admission is not merge.
+pd note "Result: <change + PR + merged SHA>. Validation: <evidence>. Remaining: <risk>."
 pd done "<short outcome>"
 ```
+
+After admission, `pd begin` may show at most three semantically matched live
+peers. That optional hint has a 75 ms total budget, disables reconnect retries,
+aborts its request, excludes the new agent, never falls back to lexical matching,
+and fails open without output. A long list of
+salvage, roadmap, docs, files, or sessions during begin is a regression, not an
+arrival brief.
+
+`pd sitrep` is similarly a bounded projection: collections expose limits,
+returned counts, and truncation; nested salvage histories and strings are
+capped. Use `pd sitrep --quiet` when only the summary is needed.
+The `--template` scaffold shows recorded metadata or explicit unavailable values,
+not a fresh runtime, capture or authorization attestation. Roadmap rows match the
+exact selected session within the returned preview; empty and unavailable are
+distinct, and neither proves a complete ownership census. Never substitute another
+session's work or create duplicate roadmap items just to populate the table.
 
 ## Plan & Todo List Tracking
 
@@ -109,7 +210,27 @@ Every agent must establish a versioned todo checklist using `pd plan set`.
 - **Set a plan**: Run `pd plan set` with markdown checklist items.
 - **View latest plan**: Run `pd plan show` or `pd plan`.
 - **Mark item completed**: Run `pd plan check <index>` (e.g., `pd plan check 1` or `pd plan check "step one"`).
-- **Close session gate**: `pd done` checks your active plan. If any unchecked `[ ]` items remain, the close operation fails closed. Bypass with `pd done --force-incomplete --reason "<why>"` if incomplete work is intentionally handshaked or deferred.
+- **Close session gate**: `pd done` and `pd plan check` use the same visible checklist tasks. Unfinished `[ ]` or `[-]` tasks block completion; fenced examples, HTML comments, and prose markers do not. Checked `[x]` and `[X]` tasks are complete. Finish the plan or explicitly abandon the session; a caller-supplied reason is not operator authority. `pd done --no-pr` is narrower than “I chose not to open a PR”: it succeeds only for a clean worktree whose `HEAD` has no commit absent from every remote ref. This verifier runs even when the branch is fully pushed; dirty or unpublished repository work remains blocked.
+
+Durable note history has no lifetime count ceiling. Ordinary appends allow 60
+notes per rolling 60 seconds per session, with content bounded to 10 KiB UTF-8;
+honor a temporary refusal's retry time without replacing the session or deleting
+history. One actual terminal transition may append a bounded handoff at an
+exhausted burst; repeated completion and caller-selected handoff types cannot
+bypass admission. Ephemeral sessions still cap ordinary notes at 500. Requested
+pages accept limits 1–1000, while exact-session detail retains its complete
+history default. A persisted total is not a preview length. Verify the installed
+daemon separately; this does not promise a hostwide storage quota.
+
+Ordinary code delivery has a separate Git publication/containment gate: the
+worktree must be clean and its exact `HEAD` must be contained in a freshly
+advertised `origin` upstream or `origin` default branch. Missing or deleted
+tracking metadata is not proof that work was never pushed. The default-branch
+proof records ancestry, not feature-branch publication history; neither proof
+establishes CI, independent review, or protected merge. Keep the PR Finish Line
+requirements. The check does not fetch or rewrite Git state, retains ignored
+evidence, and refuses missing objects, changed evidence, or unproven squash/rebase
+ancestry. Verify installed behavior separately from this source contract.
 
 ## Session Continuity
 
@@ -134,9 +255,11 @@ git fetch origin
 Resume the existing session when the user goal, worktree or successor
 worktree, branch lineage, and touched surface are still the same unresolved
 slice. If the previous session is stale, abandoned, or cannot be made active,
-use `pd session takeover <old-session-id> [reason]` (or `pd takeover <old-session-id> [reason]`) to create a linked
-successor. It preserves the predecessor's append-only notes, releases stale
-claims, and records the lineage on both sessions.
+inspect the exact session, recorded owner, worktree/root and claims first.
+Use a supported same-owner `pd session takeover <old-session-id> [reason]`
+(or `pd takeover <old-session-id> [reason]`) only when the selected credential
+is authorized for that predecessor. Read back the actual successor, retained
+notes and claim disposition; the command name alone does not prove a transfer.
 
 Start a new linked session when the product goal changed, the previous slice
 was completed or merged, the branch no longer descends cleanly from the old
@@ -184,6 +307,21 @@ receipt, not a model's claim that it resumed. A backend override that changes
 adapter family, a lost accepted-to-running lease, or a failed terminal receipt
 transition must fail closed before Port Daddy reports success.
 
+Session selection itself is deterministic. `PD_SESSION_ID` and `PD_AGENT_ID`
+are one atomic identity: a partial pair does not hide a complete context slot,
+and a complete environment pair that disagrees with the slot fails with
+`CONTEXT_CONFLICT` plus both provenances. Do not clear variables or retry a
+broader selector to route around that error. Exact mutations send the selected
+session and its stored owner together; agent-only ambiguity returns
+`AMBIGUOUS_ACTIVE_SESSION` candidates. Dormant, missing, failed, or mismatched
+exact-session lookups never fall through to another worktree's active session.
+Completion, including the completed phase, must pass `pd done`'s plan and delivery
+checks. Credential files must be owner-held, single-link regular files; never
+repair a credential by copying another actor's bearer. `pd session takeover <id>` resumes only
+the daemon-stamped owner of that dormant session. Raw IPC and direct SQLite are
+read-only for session, note, claim, lock, and salvage authority; mutations use
+the credentialed daemon HTTP path.
+
 Inspect portability with `pd backend adapters --matrix` or
 `GET /harness-adapters/continuation-matrix`. Read the grid as declared mechanics,
 not proof: `N` means same-family native resume is mechanically available and `H`
@@ -205,8 +343,22 @@ edits append revisions. `pd roster continue <agent-node-id> --backend <id>`
 chooses a new body without changing the person and reuses the same witnessed
 native-or-successor continuation receipt path described above. Stored trigger
 and permission fields are declarations, not proof they are active or enforced.
-Roster expertise search fuses BM25 with the shared MiniLM embedder; treat a
-`degraded` lexical fallback as repair work and run `pd doctor`.
+Roster expertise search is hybrid: fuse BM25 with results from a compatible
+semantic space. Prefer the strongest approved, configured embedder that fits
+the corpus privacy boundary, retrieval quality target, latency, and cost. Every
+stored vector and query carries its provider, model id, immutable model
+revision, dimensions, normalization, distance metric, and a `space_id` hashed
+from canonical ordered metadata.
+Reject or re-embed incompatible spaces; never compare them silently.
+
+MiniLM is an explicit local/degraded fallback, not the universal design
+authority. Verify the live `pd embed --help` surface and current source before
+depending on model selection. At the 2026-08-31 audit point, the installed
+stable runtime and `main` exposed only the MiniLM `pd embed` path; treat that as
+a transitional capability and run `pd doctor` when it is unavailable.
+Higher-quality model selection depends on the in-flight control-plane
+embedding-model-registry work; do not claim that registry shipped until source,
+deployed runtime, and a read-back receipt agree.
 
 
 ## Telos vs Purpose
@@ -261,11 +413,59 @@ pd guard check --staged
 
 ## PR Finish Line
 
+**Code is not done until it is ready to merge to main. Delivery ownership
+continues through the actual merge.** Commit coherent, validated checkpoints
+often in a linked worktree; a commit or pushed branch is recoverable progress,
+not completion. Requested research and planning artifacts also belong in a PR.
+Keep their remaining publication, review and merge tasks in the complete plan.
+
+Publish ready, non-draft PRs, comments and review replies through the
+repository's authorized App/Fleetbot path, with the responsible agent, session,
+scope and exact head in the receipt. Do not publish as the operator with
+ambient personal credentials. Read-only inspection is distinct from
+publication and may use tools permitted by repository/operator policy; where
+**all GitHub access is broker-routed**, honor that policy for reads too.
+If a required publisher is unavailable, preserve the commits and prepared PR
+body, record the exact missing capability and arrange an attributable handoff.
+An ad-hoc helper is not a shipped surface; do not invent a publisher command or
+pretend a planned ActionReceipt API is available. Uncertain writes require
+exact readback, not replay through another identity or transport.
+
+Read-only reviewers and non-authoring agents must not push or merge merely
+because they read this contract. Their finish line is the assigned review or
+handoff, with its evidence; `pd done --no-pr` retains the narrower verifier
+described under Plan & Todo List Tracking.
+
+Before the first commit, inspect both effective Git author and committer. Use
+the verified responsible agent's attribution and traceable actor/session
+trailers; never silently inherit the operator's identity. Git metadata is
+neither cryptographic signing nor App/Fleetbot publication identity. If you
+discover mistaken attribution in your own unpublished commits, correct only
+that history and prove tree/message equivalence. Never rewrite published or
+another agent's history, or change global machine configuration. See
+`references/git-discipline.md` for the bounded procedure.
+
+Keep the Git outcome separate from the coordination audit. After a commit,
+verify the actual SHA before interpreting hook output. `pd guard check
+--post-commit --json` audits an existing commit; `postCommitAudit.commit`
+identifies it, `status` describes the audit, `preCommitWouldBlock` describes
+remaining debt, and `persistence: not-attempted` means no note was published.
+Even an audit issue does not undo Git. Write a SHA-bound `pd note`, read it
+back from the same selected daemon/session, and clear outstanding findings
+before the next commit. Do not rerun or amend a successful commit merely
+because an older installed hook printed “commit blocked.” Verify installed
+behavior separately from source; never treat an unverifiable audit as green.
+
 When you open or inherit a PR, you own the machine-visible finish line unless
-you explicitly hand it off in Port Daddy notes.
+an accepting successor takes the explicit handoff in Port Daddy notes. Link
+the PR in the existing roadmap item's typed PR field and read it back without
+overwriting another owner's status, edges or plans.
 
 - Read live PR comments, reviews, inline bot findings, and status checks before
   declaring the branch ready.
+- Respond graciously to comments and incorporate actionable feedback unless
+  clearly wrong or harmful; explain a disagreement with concrete evidence.
+  Add regression tests for fixes and improve relevant CI/CD when needed.
 - Treat bot comments as review findings — fleetbot included. The
   `port-daddy-fleet` bot posts `[pd-code-reviewer]` and `[pd-qa]` threads on
   every PR; read and answer them alongside Copilot, Claude review, Cloudflare
@@ -283,8 +483,15 @@ you explicitly hand it off in Port Daddy notes.
 - "CI green" includes GitHub checks and attached external deploy/status checks.
   If a red check is truly external, inspect the linked logs and document the
   owner/root cause in both the PR and a `pd note`; otherwise fix the branch.
-- Before the final handoff, post the validation evidence on the PR, leave a
-  `pd note`, and `pd done` the session.
+- Once the exact head's required checks and review gates pass, use the normal
+  protected merge/queue. Neutral/skipped Fleet is not a clean required verdict;
+  neither queue admission nor auto-merge configuration is merge. Never use an
+  admin bypass to manufacture green.
+- Read back the actual merged head, merge commit and timestamp before marking
+  the merge task complete. Then post attributable validation evidence, update
+  the plan and linked receipt, and `pd done` the session. Do not close at PR
+  creation or abandon ownership while checks run. A true external blocker gets
+  exact evidence and an accepting handoff, not a false completion claim.
 
 ## Small Decision Table
 
@@ -362,14 +569,18 @@ pd actors --project <project>
 pd actor cartographer --project <project>
 pd actor navigator --inbox-stats
 pd actor navigator --inbox --unread
-pd actor navigator --message "roadmap state changed; see docs/recovery/CURRENT-WORK.md"
+pd actor navigator --message "roadmap state changed; reconcile the live event evidence and projections"
 pd actor lookout --message "release-surface drift fixed in docs, website, README, and skill"
 ```
 
 Mailbox delivery is durable but not an immediate answer. After messaging an
-actor, keep working from the actual source of truth: `docs/recovery/CURRENT-WORK.md`,
-`.cartographer/README.md`, `.cartographer/status.md`, live notes, sessions,
-and the checked-in release surfaces.
+actor, work from live daemon events, notes, sessions, and checked-in release
+evidence. Recovery ledgers, Cartographer files, plans, DAGs, binders, and
+snapshots are sources or projections, not independent authorities. The target
+roadmap authority is the configured remote append-only work-event Oracle after
+a write has a remote read-back receipt. Until that cutover is proven live,
+preserve and label local projections honestly; do not mint another
+"authoritative" file.
 
 ## MCP Equivalents
 
@@ -377,7 +588,10 @@ When a client is using MCP instead of the CLI, use the matching Port Daddy MCP
 tools for claims, sessions, notes, locks, messaging, salvage, harbors, spawning,
 and service orchestration. Prefer MCP for model clients that already have it
 installed; prefer the CLI when you need shell-local git, build, or deployment
-evidence.
+evidence. `jury_rig_status()` maps to `GET /jury-rig/status` and is
+strictly read-only: it reports current-hash Tool2Vec coverage without generating
+centroids or calling an LLM. Reconciliation stays on the explicit CLI/API path;
+do not add an agent-triggered MCP mutation for it.
 
 ## Operating Loop
 
@@ -399,7 +613,10 @@ git rebase origin/main           # use origin/master only when that remote branc
 pd sessions --all-worktrees
 pd notes --limit 20
 pd guard check --staged
-pd note "Result: <change>. Validation: <evidence>. Remaining: <risk>."
+# Commit validated checkpoints; publish a ready, non-draft App/Fleetbot PR.
+# Follow PR Finish Line: gracious reviews, regression tests, required checks,
+# protected merge/queue, and an actual merged-head receipt before completion.
+pd note "Result: <change + PR + merged SHA>. Validation: <evidence>. Remaining: <risk>."
 pd done "<short outcome>"
 ```
 
@@ -544,6 +761,14 @@ readiness, launches, Shipwright, resources, spawned runs, or operator-visible
 coordination. Deeper guidance lives in `references/fleetbar-and-console.md`
 (loaded via the bundled assets map below).
 
+For Cloud Fleet, route the operator to the signed-in FleetBar Cloud Fleet
+section or the `pd-console` Cloud Fleet pane. Those surfaces show logical
+PR-head generations, delivery attempts, queue-ahead estimates, expected run
+timing, failures, and the durable transcript. Do not infer four logical runs
+from four queue deliveries, describe a D1-derived queue estimate as Cloudflare's
+exact queue position, or invent per-step ETAs when the executor has published
+only a run-level estimate.
+
 ## Bundled Assets — Load On Demand
 
 Everything else in this skill is progressive disclosure: each subdirectory has
@@ -650,6 +875,36 @@ pd relay exchange --oidc-token <t>            # OIDC → PD card (CI; reads $ACT
 
 MCP equivalent: `relay_status()` (read-only) tells an agent whether
 cross-machine pub/sub is live before it relies on a remote channel.
+
+### Cloud coordination peer — offline-first federation (ADR-0092 §4)
+
+When the four `PORT_DADDY_COORDINATION_*` settings are present, a daemon keeps
+a durable outbox and CRDT-syncs sessions, notes, advisory file claims, and
+project-scoped logical lock leases with a per-project relay Durable Object.
+The relay is a peer, not an authority: local work remains writable during a
+partition and reconverges later. Ports, PIDs, sockets, process supervision, and
+exclusive machine-local locks never move to the cloud.
+
+Treat logical replicated leases as visibility, not proof of mutual exclusion.
+During a partition two peers can both make progress; after reconnect the HLC
+fold chooses the displayed lease while distinct claims union without loss.
+Remote leases use ownership-verified coordination projection names and choose a
+collision-safe fallback slot when a machine-local lock already occupies one, so
+they cannot overwrite or release machine-local exclusion locks. A replica id
+belongs to the durable local ledger/outbox rather than one process lifetime;
+never rotate it during a restart with pending operations.
+
+MCP equivalent: `coordination_status()` is read-only and reports whether the
+peer is enabled/connected, its project, actor, stable replica id, durable room
+cursor, pending outbox count, last sync, and last error. A disconnected result
+is a federation diagnostic, not evidence that the local ledger is unavailable.
+
+An explicitly selected `PORT_DADDY_URL`, `PD_URL`, or daemon profile is an
+operator-selected peer boundary. If that peer is unavailable, the CLI reports
+the outage and does not silently fall back to a local database or start a
+replacement local daemon. Do not work around that refusal: restore/select the
+intended peer through FleetBar or continue only through an already-running
+offline-first local replica.
 
 ### Dispatch — autonomous feature-dev queue (ADR-0035)
 
@@ -794,13 +1049,15 @@ durable note, and make the standing instruction stronger before continuing.
 
 ### Coordination is continuous, not a session-start ritual
 
-Sessions TTL out. File claims expire. Other agents start and stop while
-your work is in flight. Anchoring once at the top of a session is **not
+Ephemeral sessions can expire; durable session records do not naturally TTL
+out. Claim coverage and live ownership can change while other agents start
+and stop. Anchoring once at the top of a session is **not
 enough**. Re-check at every checkpoint:
 
 - **Before any commit, push, or rebase** — `pd guard check --staged`. If
-  the session timed out, `pd begin` again; if files lost their claim,
-  `pd session files add` them back.
+  the session or claims look stale, inspect the selected daemon, exact session,
+  recorded owner, physical worktree/root and original claim history before
+  changing anything. Age or a missing projection is not transfer authority.
 - **Before pulling against `origin/main`** — `pd sessions --all-worktrees`
   and `pd notes --limit 20`. New work may have landed in your slice
   while you were typing.
@@ -808,12 +1065,23 @@ enough**. Re-check at every checkpoint:
   It names exactly which files are claimed by which sessions. See
   `references/git-discipline.md` § *The pd-shim*.
 - **After a long-running build or test run** — re-anchor before pushing.
-  A 20-minute test suite is plenty of time for a session to expire and
-  for someone else to claim your files.
+  A 20-minute test suite is plenty of time for ephemeral liveness to expire
+  or another authorized ownership transition to occur.
 
-The cost of a redundant `pd begin` is zero. The cost of pushing past a
-stale claim is rebasing under conflict pressure or, worse, silently
-overwriting another agent's WIP.
+Continue the same unresolved slice under its verified session; do not create
+duplicate identities just to make a warning disappear. A genuinely new,
+authorized scope can use a fresh linked worktree/session and ordinary narrow
+claims in that verified scope. It does not require rewriting or releasing
+unrelated historical claims.
+
+Read advisor diagnostics precisely. Relative and absolute paths count as the
+same claim only inside a verified repository/worktree/root. A
+`context.claim-scope-inconsistent` result preserves conflicting evidence; it
+does **not** mean “unclaimed.” Use supported authorized recovery, never copied
+credentials or hand-edited world IDs. `claims.stale-legacy-projection` means a
+released history row supplies no live coverage; an active replacement still
+counts. That warning is not an all-agent stop. Check the actual mutation and
+Guard results: read-only advice neither grants a claim nor repairs its owner.
 
 ### Slicing work into reviewable PRs
 
@@ -843,6 +1111,21 @@ section in `references/cli-reference.md` for the full surface.
 
 When done with the popped item: `pd roadmap release <slug>`. Letting a
 `--begin`-linked session end naturally also releases the claim.
+
+### Ingesting planning docs: `pd roadmap chomp`
+
+When the operator hands you a markdown planning document, do not leave it
+as a doc — chomp it: `pd roadmap chomp <doc.md…>` parses headings into a
+project→epic→story→task hierarchy, checklists into tasks, and explicit
+"depends on / blocked by / requires" phrasing into dependencies. The
+default run is a preview of the exact item tree; the only write path is
+`pd roadmap chomp <doc.md…> --emit-pr-plan <dir>`, which upserts through
+the daemon (idempotent; never clobbers rows enriched since the first
+chomp) and emits the doc-removal PR artifacts: the regenerated roadmap
+snapshot, a `chomp-receipt.json` work receipt, a `git rm` list, and a
+ready PR body. Filing that PR — items in, source docs deleted — is your
+explicit act, never automatic. The legacy `pd roadmap import-markdown`
+is an alias that chomps the three canonical curated piles.
 
 ## Actor Roster (universal Port Daddy concepts)
 
@@ -879,7 +1162,7 @@ the YAML in `pd-fleet.yml` so they can review before launch.
 | **Fleet observer** | Background agents drift, stop firing |
 | **Post-mortem proposer** | Multi-agent friction or "wow we fought dumb git shit" moments |
 | **Adversarial QA** | Code lands without thinking about how it breaks |
-| **Skill auditor** | Project ships skills (windags-skills, .claude/skills, etc.) |
+| **Skill auditor** | Project ships skills (`skills/`, `.claude/skills`, etc.) |
 
 These are not a fixed menu. **Always think creatively** about what this
 specific project needs, and propose new agent shapes as the project shape
@@ -888,25 +1171,25 @@ block in `pd-fleet.yml`, leave a `pd note` summarizing what it would do,
 and message Cartographer with a one-line recommendation. The user approves
 before anything starts firing.
 
-## Catalog-First Reflex (use the WinDAGs MCP)
+## Catalog-First Reflex (use Jury-rig)
 
-There are 600+ specialist skills in the WinDAGs catalog. Most coding tasks
-have a skill written for them already. **Search the catalog before you
-start, not after you're stuck.**
+Port Daddy assembles a local catalog from project and user skill directories,
+plus explicit `PORT_DADDY_SKILL_SOURCE_ROOTS`. Most coding tasks have useful
+guidance already. **Search the catalog before you start, not after you're stuck.**
 
 ```bash
-windags_skill_search "<one-line description of what you're about to do>"
-windags_skill_graft <skill-id-1> <skill-id-2>   # pull the full SKILL.md bodies into your prompt
+pd jury-rig query "<one-line description of what you're about to do>"
+pd jury-rig reference <skill-id> <path>   # guarded read inside that skill
 ```
 
 Default reflexes:
 
-- **Before every meaningful task** — one `windags_skill_search` call. If a top result is >0.4 score, graft it.
+- **Before every meaningful task** — one `pd jury-rig query` call. Read the returned bodies and load only the references the task needs.
 - **When you find yourself reasoning about a domain you don't own** — the catalog has a skill for that. Search.
 - **When a skill would help on this project long-term** — install it into the project's `.claude/skills/` and leave a `pd note` recording the install.
 - **When you used a skill and it was wrong / stale** — that's a Maintain-These-Skills moment (next section).
 
-If you go a whole session without a single `windags_skill_search`, that's
+If you go a whole session without a single `pd jury-rig query`, that's
 probably a missed leverage opportunity.
 
 ## Maintain These Skills (standing invitation)
@@ -1007,7 +1290,7 @@ pd feedback "SKIPPED: pd salvage. Reason: I judged the task too small. In hindsi
 ### Sweeping Up Peers' Work With `git add -A`
 **Detection:** Background agent's commit contains files it did not author.
 **Fix:** Per Git Discipline above — worktree, explicit-path staging, dirty-tree pre-check.
-**Triggering incident:** windags-skills `bb34efa`. Force-push was disallowed; the audit trail had to be corrected via tagging instead.
+**Triggering incident:** external-skill-catalog `bb34efa`. Force-push was disallowed; the audit trail had to be corrected via tagging instead.
 
 ### Spawning A New Agent Where A Note Would Do
 **Detection:** The fleet shows N+1 agents but the actual work is one bounded change.
@@ -1027,5 +1310,5 @@ pd feedback "SKIPPED: pd salvage. Reason: I judged the task too small. In hindsi
 - [ ] You ran `pd guard check --staged` before commit / push / deploy.
 - [ ] You ended with `pd done` AND `pd feedback "..."` (or MCP `drop_feedback`).
 - [ ] If you skipped any of the above, you owned up to it explicitly in the feedback.
-- [ ] You ran at least one `windags_skill_search` for the task domain before starting.
+- [ ] You ran at least one `pd jury-rig query` for the task domain before starting.
 - [ ] **You asked yourself: "did this skill mislead, mis-instruct, or under-equip me?"** If yes, you committed the fix to `skills/port-daddy-agent-skill/SKILL.md` (or `port-daddy-internal-dev` for contributor-only wisdom) in the same slice — no separate ticket, no permission needed. The bar is "would past-me have wanted to know this?", not "is this big enough to be its own PR." See "Maintain These Skills".

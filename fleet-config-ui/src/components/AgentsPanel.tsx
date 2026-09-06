@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Bot, Ghost, Mail, PauseCircle, PlayCircle, Radio, RefreshCw, Square, StickyNote } from 'lucide-react';
+import { Bot, Ghost, Mail, PauseCircle, PlayCircle, Radio, RefreshCw, Square } from 'lucide-react';
 import {
   clearAgentInbox,
   fetchActiveAgentRoster,
@@ -37,9 +37,13 @@ import type {
 } from '../types';
 import { agentColor } from '../types';
 import FileActionLinks from './FileActionLinks';
+import { latestSessionPlan, orderSessionNotes, sessionDetailHref } from '../sessionPlan';
+import { SessionNoteContent } from './SessionPlanDetail';
+import SalvageHoldNotice, { hasSalvageHold } from './SalvageHoldNotice';
 
 interface Props {
   daemonKey: string;
+  onOpenSession?: (sessionId: string) => void;
   projectName?: string | null;
   projectDir?: string | null;
   fleetConfig?: FleetConfig | null;
@@ -55,6 +59,11 @@ interface ChannelFeed {
   physical: string;
   messages: ChannelMessage[];
 }
+
+// Stable defaults keep an unconfigured/empty directory from retriggering its
+// detail effect on every render (each clear creates fresh empty state arrays).
+const EMPTY_CHANNELS: Record<string, string> = {};
+const EMPTY_RUNTIME_AGENTS: Array<{ agentName: string; status: string }> = [];
 
 function relativeTime(timestamp: number | null | undefined): string {
   if (!timestamp) return 'never';
@@ -134,15 +143,12 @@ function openDaemonPath(path: string): void {
 }
 
 /**
- * Normalize a client-side directory entity onto the daemon actor-lens key so
- * lifecycle data can be joined without duplicating merge heuristics here.
- *
- * Example:
- * - input: `{ id: 'agent-123', fleetAgentName: 'spark' }`
- * - output: `'spark'`
+ * Join only an explicit body ID. A shared fleet role is not agent identity.
+ * A role-level actor projection can remain a separate row, but cannot replace
+ * a physical agent or supply its hold, inbox, or lifecycle evidence by name.
  */
-function actorLookupKey(input: { id?: string | null; fleetAgentName?: string | null }): string {
-  return input.fleetAgentName?.trim() || input.id?.trim() || '';
+function actorLookupKey(input: { id?: string | null }): string {
+  return input.id?.trim() || '';
 }
 
 function Section({
@@ -172,11 +178,12 @@ function Section({
 
 export default function AgentsPanel({
   daemonKey,
+  onOpenSession,
   projectName,
   projectDir,
   fleetConfig,
-  resolvedChannels = {},
-  runtimeAgents = [],
+  resolvedChannels = EMPTY_CHANNELS,
+  runtimeAgents = EMPTY_RUNTIME_AGENTS,
   onFocusFleetAgent,
   onRunFleetAgent,
   onPauseFleetAgent,
@@ -195,6 +202,7 @@ export default function AgentsPanel({
   const [channelFeeds, setChannelFeeds] = useState<ChannelFeed[]>([]);
   const [actionBusy, setActionBusy] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [sessionInput, setSessionInput] = useState('');
 
   const loadDirectory = useCallback(async () => {
     setLoading(true);
@@ -242,8 +250,8 @@ export default function AgentsPanel({
       setLiveRoster(roster.agents);
       setProjectSessions(sessions);
       setSelectedAgentId((current) => {
-        if (current && mergedEntities.some((entity) => entity.id === current)) return current;
-        return mergedEntities[0]?.id ?? null;
+        // Refresh may remove an entry, but must not select its sibling instead.
+        return current ?? mergedEntities[0]?.id ?? null;
       });
     } catch (err) {
       setError((err as Error).message);
@@ -258,13 +266,19 @@ export default function AgentsPanel({
   );
 
   const actorByKey = useMemo(() => new Map(
-    actorEntries.map((actor) => [actorLookupKey({ id: actor.id, fleetAgentName: actor.fleetAgentName }), actor]),
+    actorEntries.map((actor) => [actorLookupKey(actor), actor]),
   ), [actorEntries]);
 
   const selectedActor = useMemo(
     () => (selected ? actorByKey.get(actorLookupKey(selected)) ?? null : null),
     [actorByKey, selected],
   );
+
+  // Either read projection can supply positive hold evidence. Never infer a
+  // cleared hold from a second projection that simply omits its optional fields.
+  const selectedHold = hasSalvageHold(selected?.salvage) ? selected!.salvage
+    : hasSalvageHold(selectedActor?.salvage) ? selectedActor!.salvage : null;
+  const holdNoticeId = 'selected-salvage-hold';
 
   const selectedFleetAgent = useMemo(() => {
     const explicit = selected?.fleetAgentName ?? null;
@@ -279,6 +293,11 @@ export default function AgentsPanel({
     () => selectedFleetAgent ? runtimeAgents.find((agent) => agent.agentName === selectedFleetAgent) ?? null : null,
     [runtimeAgents, selectedFleetAgent],
   );
+
+  const ambiguousFleetRole = Boolean(selectedFleetAgent && entities.filter(
+    entity => entity.fleetAgentName === selectedFleetAgent,
+  ).length > 1);
+  const roleNoticeId = 'selected-fleet-role-ambiguity';
 
   const selectedSessions = useMemo(
     () => selectedActor?.sessions ?? (selected ? projectSessions.filter((session) => session.agentId === selected.id).slice(0, 8) : []),
@@ -342,7 +361,9 @@ export default function AgentsPanel({
     orphaned: actorEntries.filter((actor) => actor.actorState === 'orphan_reconciled').length,
     historical: actorEntries.filter((actor) => actor.actorState === 'historical').length,
     idle: actorEntries.filter((actor) => actor.actorState === 'idle').length,
-  }), [actorEntries]);
+    held: entities.filter(entity => hasSalvageHold(entity.salvage)
+      || hasSalvageHold(actorByKey.get(actorLookupKey(entity))?.salvage)).length,
+  }), [actorEntries, actorByKey, entities]);
 
   const liveSummary = useMemo(() => ({
     alive: liveRoster.filter((agent) => agent.liveness === 'alive').length,
@@ -377,7 +398,7 @@ export default function AgentsPanel({
   }, [loadDetails, loadDirectory, selected]);
 
   const handleDismissGhost = useCallback(async () => {
-    if (!selected?.salvage) return;
+    if (!selected?.salvage || selectedHold) return;
     setActionBusy('dismiss');
     setActionError(null);
     try {
@@ -388,7 +409,7 @@ export default function AgentsPanel({
     } finally {
       setActionBusy(null);
     }
-  }, [loadDirectory, selected]);
+  }, [loadDirectory, selected, selectedHold]);
 
   const handleMarkInboxRead = useCallback(async () => {
     if (!selected) return;
@@ -419,7 +440,7 @@ export default function AgentsPanel({
   }, [loadDetails, selected]);
 
   const handleRunFleet = useCallback(async () => {
-    if (!selectedFleetAgent || !onRunFleetAgent) return;
+    if (!selectedFleetAgent || !onRunFleetAgent || selectedHold || ambiguousFleetRole) return;
     setActionBusy('run');
     setActionError(null);
     try {
@@ -430,10 +451,12 @@ export default function AgentsPanel({
     } finally {
       setActionBusy(null);
     }
-  }, [loadDirectory, onRunFleetAgent, selectedFleetAgent]);
+  }, [ambiguousFleetRole, loadDirectory, onRunFleetAgent, selectedFleetAgent, selectedHold]);
 
   const handlePauseResumeFleet = useCallback(async () => {
     if (!selectedFleetAgent || !selectedRuntime || !onPauseFleetAgent) return;
+    if (ambiguousFleetRole) return;
+    if (selectedHold && selectedRuntime.status === 'paused') return;
     setActionBusy('pause');
     setActionError(null);
     try {
@@ -444,11 +467,20 @@ export default function AgentsPanel({
     } finally {
       setActionBusy(null);
     }
-  }, [loadDirectory, onPauseFleetAgent, selectedFleetAgent, selectedRuntime]);
+  }, [ambiguousFleetRole, loadDirectory, onPauseFleetAgent, selectedFleetAgent, selectedRuntime, selectedHold]);
 
   return (
-    <div className="h-full min-h-0 grid gap-4 p-4" style={{ gridTemplateColumns: '320px minmax(0, 1fr)' }}>
+    <div className="h-full min-h-0 grid gap-4 p-4 grid-cols-1 lg:grid-cols-[320px_minmax(0,1fr)]">
       <section className="rounded-xl overflow-hidden min-h-0 flex flex-col" style={{ backgroundColor: 'var(--pd-surface)', border: '1px solid var(--pd-border)' }}>
+        <form className="p-4 shrink-0" style={{ borderBottom: '1px solid var(--pd-border)' }} onSubmit={(event) => {
+          event.preventDefault();
+          if (sessionInput.trim()) onOpenSession?.(sessionInput.trim());
+        }}>
+          <label htmlFor="exact-session-id" className="block text-sm font-semibold" style={{ color: 'var(--pd-text)' }}>Open exact session</label>
+          <p className="mt-1 mb-2 text-sm" style={{ color: 'var(--pd-muted)' }}>Any Port Daddy session, including one without a registered agent.</p>
+          <input id="exact-session-id" className="min-h-11 w-full min-w-0 rounded-md px-2 text-sm font-mono" style={{ color: 'var(--pd-text)', backgroundColor: 'var(--pd-bg)', border: '1px solid var(--pd-border)' }} value={sessionInput} onChange={(event) => setSessionInput(event.target.value)} placeholder="session-…" autoComplete="off" />
+          <button type="submit" className="mt-2 min-h-11 w-full rounded-md px-3 text-sm font-semibold cursor-pointer disabled:opacity-50" style={{ color: 'var(--pd-accent)', border: '1px solid var(--pd-accent-border)', backgroundColor: 'var(--pd-accent-surface)' }} disabled={!sessionInput.trim() || !onOpenSession}>Open plan and history</button>
+        </form>
         <div className="px-4 py-3 flex items-center justify-between gap-3" style={{ borderBottom: '1px solid var(--pd-border)' }}>
           <div>
             <div className="text-[10px] font-semibold tracking-wider" style={{ color: 'var(--pd-dim)' }}>ALL AGENTS</div>
@@ -467,6 +499,10 @@ export default function AgentsPanel({
         </div>
 
         <div className="px-4 py-3 grid grid-cols-2 gap-2 text-[11px]" style={{ borderBottom: '1px solid var(--pd-border)' }}>
+          <div className="col-span-2 rounded-md px-3 py-2 text-sm" style={{ backgroundColor: 'var(--pd-warning-surface)', color: 'var(--pd-text)' }}>
+            <div>On hold entries</div>
+            <div className="font-semibold mt-1">{summary.held}</div>
+          </div>
           <div className="rounded-md px-3 py-2" style={{ backgroundColor: 'var(--pd-bg)' }}>
             <div style={{ color: 'var(--pd-dim)' }}>Running</div>
             <div className="font-semibold mt-1" style={{ color: 'var(--pd-text)' }}>{summary.running}</div>
@@ -510,10 +546,11 @@ export default function AgentsPanel({
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <div className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: entity.fleetAgentName ? agentColor(entity.fleetAgentName) : 'var(--pd-text)' }}>
+                      <div className="text-sm font-semibold uppercase tracking-wide" style={{ color: 'var(--pd-text)' }}>
                         {actor?.label ?? entity.label}
                       </div>
                       <div className="mt-1 flex flex-wrap gap-1">
+                        {(hasSalvageHold(entity.salvage) || hasSalvageHold(actor?.salvage)) && <span className="rounded-md px-2 py-0.5 text-sm font-semibold" style={badgeStyle('salvaged')}>On hold</span>}
                         {actor && <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={badgeStyle(actor.actorState)}>{actor.actorState.replace(/_/g, ' ')}</span>}
                         <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={badgeStyle(entity.isConfiguredFleetAgent ? 'fleet' : 'adhoc')}>
                           {entity.isConfiguredFleetAgent ? 'fleet' : 'ad hoc'}
@@ -604,9 +641,9 @@ export default function AgentsPanel({
         </Section>
 
         {!selected ? (
-          <Section title="AGENT DETAIL" subtitle="Pick an agent from the directory to inspect it.">
+          <Section title="AGENT DETAIL" subtitle={selectedAgentId ? 'The selected agent is no longer in this directory response.' : 'Pick an agent from the directory to inspect it.'}>
             <div className="text-sm" style={{ color: 'var(--pd-muted)' }}>
-              This surface is meant to be the missing bridge between fleet config, live runtime, salvage, notes, and file claims.
+              {selectedAgentId ? 'No other agent was selected automatically. Choose an entry explicitly or refresh this source.' : 'Inspect fleet config, live runtime, salvage, notes, and file claims.'}
             </div>
           </Section>
         ) : (
@@ -651,7 +688,8 @@ export default function AgentsPanel({
                   {selectedFleetAgent && onRunFleetAgent && (
                     <button
                       onClick={() => void handleRunFleet()}
-                      disabled={runBusy}
+                      disabled={runBusy || Boolean(selectedHold) || ambiguousFleetRole}
+                      aria-describedby={selectedHold ? holdNoticeId : ambiguousFleetRole ? roleNoticeId : undefined}
                       className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[11px] font-semibold disabled:opacity-60"
                       style={{ color: 'var(--pd-success)', border: '1px solid var(--pd-success-border)', backgroundColor: 'var(--pd-success-surface)' }}
                     >
@@ -662,7 +700,8 @@ export default function AgentsPanel({
                   {selectedFleetAgent && selectedRuntime && onPauseFleetAgent && (
                     <button
                       onClick={() => void handlePauseResumeFleet()}
-                      disabled={pauseBusy}
+                      disabled={pauseBusy || Boolean(selectedHold && selectedRuntime.status === 'paused') || ambiguousFleetRole}
+                      aria-describedby={selectedHold && selectedRuntime.status === 'paused' ? holdNoticeId : ambiguousFleetRole ? roleNoticeId : undefined}
                       className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[11px] font-semibold disabled:opacity-60"
                       style={{ color: 'var(--pd-warning)', border: '1px solid var(--pd-warning-border)', backgroundColor: 'var(--pd-warning-surface)' }}
                     >
@@ -684,7 +723,8 @@ export default function AgentsPanel({
                   {selected.salvage && (
                     <button
                       onClick={() => void handleDismissGhost()}
-                      disabled={dismissBusy}
+                      disabled={dismissBusy || Boolean(selectedHold)}
+                      aria-describedby={selectedHold ? holdNoticeId : undefined}
                       className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[11px] font-semibold disabled:opacity-60"
                       style={{ color: 'var(--pd-accent)', border: '1px solid var(--pd-accent-border)', backgroundColor: 'var(--pd-accent-surface)' }}
                     >
@@ -694,6 +734,11 @@ export default function AgentsPanel({
                   )}
                 </div>
               </div>
+              {selectedHold && <SalvageHoldNotice agent={selectedHold} id={holdNoticeId}
+                sessionHref={selectedHold.sessionId ? sessionDetailHref(selectedHold.sessionId, getDaemonUrl()) : undefined} />}
+              {ambiguousFleetRole && <p id={roleNoticeId} className="mt-3 text-sm leading-relaxed" style={{ color: 'var(--pd-muted)' }}>
+                This fleet role maps to multiple directory entries. Run and Pause/Resume accept only a role name, so they cannot target this exact instance here. Instance-specific evidence, dismissal, and Stop keep their own boundaries.
+              </p>}
               {actionError && (
                 <div className="mt-4 rounded-md px-3 py-2 text-sm" style={{ color: 'var(--pd-accent)', backgroundColor: 'var(--pd-accent-surface)', border: '1px solid var(--pd-accent-border)' }}>
                   {actionError}
@@ -809,7 +854,10 @@ export default function AgentsPanel({
                   </div>
                 ) : (
                   <div className="grid gap-3">
-                    {selectedSessions.map((session) => (
+                    {selectedSessions.map((session) => {
+                      const latestPlan = latestSessionPlan(session.notes ?? []);
+                      const recentNote = orderSessionNotes(session.notes ?? [])[0];
+                      return (
                       <div key={session.id} className="rounded-md px-3 py-3" style={{ backgroundColor: 'var(--pd-bg)', border: '1px solid var(--pd-border)' }}>
                         <div className="flex items-start justify-between gap-3">
                           <div>
@@ -828,24 +876,20 @@ export default function AgentsPanel({
                             <div>{session.id}</div>
                           </div>
                         </div>
+                        <a className="mt-3 inline-flex min-h-11 items-center text-sm underline underline-offset-2" style={{ color: 'var(--pd-accent)' }} href={sessionDetailHref(session.id, getDaemonUrl())} onClick={(event) => {
+                          if (!onOpenSession || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+                          event.preventDefault();
+                          onOpenSession(session.id);
+                        }}>Open complete plan and history</a>
                         <div className="mt-3 grid gap-2">
-                          {(session.notes ?? []).slice(0, 3).map((note) => (
-                            <div key={note.id} className="rounded-md px-2.5 py-2" style={{ backgroundColor: 'var(--pd-surface)', border: '1px solid var(--pd-border)' }}>
-                              <div className="flex items-center justify-between gap-3 text-[10px]" style={{ color: 'var(--pd-dim)' }}>
-                                <span className="inline-flex items-center gap-1"><StickyNote size={11} /> {note.type}</span>
-                                <span>{relativeTime(note.createdAt)}</span>
-                              </div>
-                              <div className="mt-1 text-sm whitespace-pre-wrap" style={{ color: 'var(--pd-text)' }}>
-                                {note.content}
-                              </div>
-                            </div>
-                          ))}
+                          {latestPlan && <div className="rounded-md px-3 py-2" style={{ backgroundColor: 'var(--pd-surface)', border: '1px solid var(--pd-border)' }}><div className="mb-2 text-sm font-semibold" style={{ color: 'var(--pd-muted)' }}>Latest recorded plan</div><SessionNoteContent content={latestPlan.content} /></div>}
+                          {recentNote && recentNote.id !== latestPlan?.id && <details className="text-sm" style={{ color: 'var(--pd-text)' }}><summary className="min-h-11 cursor-pointer">Latest note · {recentNote.type} · #{recentNote.id}</summary><SessionNoteContent content={recentNote.content} /></details>}
                           {(session.notes ?? []).length === 0 && (
                             <div className="text-sm" style={{ color: 'var(--pd-muted)' }}>No notes recorded for this session.</div>
                           )}
                         </div>
                       </div>
-                    ))}
+                    );})}
                   </div>
                 )}
               </Section>

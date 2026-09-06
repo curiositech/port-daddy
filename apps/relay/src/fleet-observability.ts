@@ -13,21 +13,25 @@
  *                                     at job START, before any AI spend.
  *
  * Shared envelope: every response is JSON `{ code, error, ... }` to match the
- * fleet control-plane contract. Operator gate is the shared {@link operatorOnly}
- * (timing-safe token compare). Reads NEVER mutate; pause writes only KV + audit.
+ * fleet control-plane contract. The gate accepts either the break-glass secret
+ * or an account-backed operator role. Reads NEVER mutate fleet state; pause
+ * writes only KV + audit.
  */
 
-import { operatorOnly } from './handlers.js';
+import { fleetOperatorOnly, type FleetOperatorAuthorization } from './fleet-access.js';
 import {
-  listFleetRuns,
-  getFleetRunWithSteps,
   lastFleetRunAt,
   getFleetPaused,
   setFleetPaused,
   appendAudit,
-  deleteFleetRun,
-  type FleetRunRow,
 } from './db.js';
+import {
+  deleteFleetRunProjection,
+  fleetIntentHealth,
+  getFleetRunProjectionWithSteps,
+  listFleetRunProjections,
+  type FleetRunProjection,
+} from './fleet-run-intents.js';
 import type { Env } from './types.js';
 
 // ── Envelope helpers ──────────────────────────────────────────────────────────
@@ -55,7 +59,7 @@ async function readJson<T>(request: Request): Promise<T | null> {
 }
 
 /** Project a stored run row into the wire shape (short SHA, ships array). */
-function runForList(r: FleetRunRow): Record<string, unknown> {
+function runForList(r: FleetRunProjection): Record<string, unknown> {
   return {
     id: r.id,
     deliveryId: r.delivery_id,
@@ -68,6 +72,19 @@ function runForList(r: FleetRunRow): Record<string, unknown> {
     neurons: r.neurons,
     elapsedMs: r.ms,
     createdAt: r.created_at,
+    state: r.logical_state,
+    generation: r.generation,
+    attemptCount: r.attempt_count,
+    queuedAt: r.queued_at,
+    startedAt: r.started_at,
+    lastProgressAt: r.last_progress_at,
+    finishedAt: r.finished_at,
+    expectedStartAt: r.expected_start_at,
+    expectedFinishAt: r.expected_finish_at,
+    queueAheadEstimate: r.queue_ahead_estimate,
+    hasTranscript: r.has_transcript,
+    supersededBy: r.superseded_by,
+    lastError: r.last_error,
   };
 }
 
@@ -75,15 +92,15 @@ function runForList(r: FleetRunRow): Record<string, unknown> {
 
 /** Recent fleet runs, newest first. Each carries pr_url for hyperlinking. */
 export async function handleFleetActivity(request: Request, env: Env): Promise<Response> {
-  const denied = operatorOnly(request, env);
-  if (denied) return denied;
+  const authorization = await fleetOperatorOnly(request, env);
+  if (authorization instanceof Response) return authorization;
 
   const url = new URL(request.url);
   const raw = parseInt(url.searchParams.get('limit') ?? '50', 10);
   const limit = Math.min(Number.isFinite(raw) && raw > 0 ? raw : 50, 500);
 
   try {
-    const rows = await listFleetRuns(env.DB, limit);
+    const rows = await listFleetRunProjections(env.DB, limit);
     return envelope(200, { code: 'OK', error: null, runs: rows.map(runForList) });
   } catch (e) {
     return fleetErr('INTERNAL_ERROR', `activity read failed: ${msg(e)}`, 500);
@@ -98,15 +115,15 @@ export async function handleFleetRun(
   env: Env,
   runId: string,
 ): Promise<Response> {
-  const denied = operatorOnly(request, env);
-  if (denied) return denied;
+  const authorization = await fleetOperatorOnly(request, env);
+  if (authorization instanceof Response) return authorization;
 
   if (!runId || !isSafeRunId(runId)) {
     return fleetErr('BAD_REQUEST', 'run id required', 400);
   }
 
   try {
-    const found = await getFleetRunWithSteps(env.DB, runId);
+    const found = await getFleetRunProjectionWithSteps(env.DB, runId);
     if (!found) {
       return fleetErr('NOT_FOUND', `Run ${runId} not found`, 404);
     }
@@ -126,6 +143,19 @@ export async function handleFleetRun(
         neurons: run.neurons,
         elapsedMs: run.ms,
         createdAt: run.created_at,
+        state: run.logical_state,
+        generation: run.generation,
+        attemptCount: run.attempt_count,
+        queuedAt: run.queued_at,
+        startedAt: run.started_at,
+        lastProgressAt: run.last_progress_at,
+        finishedAt: run.finished_at,
+        expectedStartAt: run.expected_start_at,
+        expectedFinishAt: run.expected_finish_at,
+        queueAheadEstimate: run.queue_ahead_estimate,
+        hasTranscript: run.has_transcript,
+        supersededBy: run.superseded_by,
+        lastError: run.last_error,
       },
       steps: steps.map((s) => ({
         seq: s.seq,
@@ -148,13 +178,14 @@ export async function handleFleetRun(
  * (Cloudflare Queues does not yet expose depth via API) and returns null.
  */
 export async function handleFleetHealth(request: Request, env: Env): Promise<Response> {
-  const denied = operatorOnly(request, env);
-  if (denied) return denied;
+  const authorization = await fleetOperatorOnly(request, env);
+  if (authorization instanceof Response) return authorization;
 
   try {
-    const [paused, lastAt] = await Promise.all([
+    const [paused, lastAt, intentHealth] = await Promise.all([
       getFleetPaused(env.KV),
       lastFleetRunAt(env.DB),
+      fleetIntentHealth(env.DB),
     ]);
     const lastRunAgeSec = lastAt === null ? null : Math.floor(Date.now() / 1000) - lastAt;
     return envelope(200, {
@@ -162,7 +193,18 @@ export async function handleFleetHealth(request: Request, env: Env): Promise<Res
       error: null,
       paused,
       lastRunAgeSec,
-      queueDepthEstimate: null,
+      // D1-known intents, not a promise of Cloudflare's exact internal queue
+      // position.  The explicit estimate label prevents false precision while
+      // still making the previously invisible backlog actionable.
+      queueDepthEstimate: intentHealth.known === 0
+        ? null
+        : intentHealth.queued + intentHealth.retrying,
+      running: intentHealth.running,
+      retrying: intentHealth.retrying,
+      superseded: intentHealth.superseded,
+      failedAdmission: intentHealth.failedAdmission,
+      oldestQueuedAgeSec: intentHealth.oldestQueuedAgeSec,
+      knownIntents: intentHealth.known,
     });
   } catch (e) {
     return fleetErr('INTERNAL_ERROR', `health read failed: ${msg(e)}`, 500);
@@ -181,8 +223,8 @@ interface PauseBody {
  * Audited.
  */
 export async function handleFleetPause(request: Request, env: Env): Promise<Response> {
-  const denied = operatorOnly(request, env);
-  if (denied) return denied;
+  const authorization = await fleetOperatorOnly(request, env);
+  if (authorization instanceof Response) return authorization;
 
   const body = await readJson<PauseBody>(request);
   if (!body || typeof body.paused !== 'boolean') {
@@ -193,7 +235,7 @@ export async function handleFleetPause(request: Request, env: Env): Promise<Resp
     const state = await setFleetPaused(env.KV, body.paused);
     await appendAudit(env.DB, {
       action: body.paused ? 'fleet_pause' : 'fleet_resume',
-      detail: 'operator toggle',
+      detail: operatorAuditDetail(authorization, body.paused ? 'pause' : 'resume'),
     }).catch(() => {
       /* audit is best-effort; never fail the toggle on an audit write error */
     });
@@ -216,15 +258,19 @@ export async function handleDeleteFleetRun(
   env: Env,
   runId: string,
 ): Promise<Response> {
-  const denied = operatorOnly(request, env);
-  if (denied) return denied;
+  const authorization = await fleetOperatorOnly(request, env);
+  if (authorization instanceof Response) return authorization;
   if (!runId || !isSafeRunId(runId)) {
     return fleetErr('BAD_REQUEST', 'run id required', 400);
   }
   try {
-    const removed = await deleteFleetRun(env.DB, runId);
+    const removed = await deleteFleetRunProjection(env.DB, runId);
     if (removed === 0) return fleetErr('NOT_FOUND', `Run ${runId} not found`, 404);
-    await appendAudit(env.DB, { action: 'fleet_run_delete', target: runId, detail: 'operator delete' }).catch(
+    await appendAudit(env.DB, {
+      action: 'fleet_run_delete',
+      target: runId,
+      detail: operatorAuditDetail(authorization, 'delete-run'),
+    }).catch(
       () => {
         /* best-effort audit */
       },
@@ -236,6 +282,25 @@ export async function handleDeleteFleetRun(
 }
 
 // ── shared ──────────────────────────────────────────────────────────────────
+
+/** Durable actor attribution without ever copying bearer/token material. */
+function operatorAuditDetail(
+  authorization: FleetOperatorAuthorization,
+  operation: 'pause' | 'resume' | 'delete-run',
+): string {
+  return JSON.stringify(
+    authorization.kind === 'account'
+      ? {
+          source: 'account',
+          operation,
+          actor: {
+            userId: authorization.userId,
+            githubUserId: authorization.githubUserId,
+          },
+        }
+      : { source: 'break-glass', operation },
+  );
+}
 
 /** Re-hydrate a step's JSON `detail` blob; pass through non-JSON as a string. */
 function parseDetail(detail: string | null): unknown {

@@ -1,0 +1,75 @@
+% R7 relation map: Base (single audited inspector, the stage game of
+% Theorem~\ref{thm:stage}) vs. Target (the sealed-sampling inspection
+% tower of Theorem~\ref{thm:tower}). Structural diagram -- no numeric
+% axes. Box positions, row text, and connective endpoints transcribed
+% directly from the script's own layout calls (Rectangle geometry,
+% ax.text rows, FancyArrowPatch endpoints) -- see
+% docs/harbor-research/figures/src/r7_figures.py, lines 31-88.
+% [internal, script r7_figures.py]
+%
+% REBUILD NOTE (exposition review B1). Three defects fixed here, none of
+% them layout:
+%   (1) the caption used to describe a *different* relation map (traffic
+%       enforcement vs. agent honesty) than the one drawn. The drawing is
+%       the faithful artefact -- it is what the script renders and what
+%       Sec.~\ref{sec:tower} actually needs -- so the caption was rewritten
+%       to describe the drawing, rather than the drawing replaced to chase
+%       the caption. The traffic-enforcement analogy stays where it works,
+%       in the prose of Sec.~\ref{sec:intro}.
+%   (2) the row-2 arrow label read "bribe floor climbs $\times C$ per
+%       level", which is false: the bribe floor is $\beta=\rho dB$ per
+%       auditor and does not climb. What costs $C\beta$ is buying all $C$
+%       cliques at ONE level. Relabelled to the true relation.
+%   (3) the row-2 label and the footer both asserted "unbounded depth" /
+%       "certifies unbounded levels", the overclaim corrected in the body
+%       and in Theorem~\ref{thm:tower}. Both now state the corrected,
+%       C-dependent finite-depth result.
+\begin{figure}[htbp]\centering
+\resizebox{0.95\textwidth}{!}{%
+\begin{tikzpicture}
+\node[font=\normalsize\bfseries,color=harborblue] at (6,10.3)
+  {R7 --- reputation is amortized verification};
+
+% domain boxes (plain rectangles, matching the script's Rectangle patches)
+\filldraw[draw=harborblue,thick,fill=harborblue!12] (0.2,0.7) rectangle (3.8,9.4);
+\filldraw[draw=seagreen,thick,fill=seagreen!12] (8.2,0.7) rectangle (11.8,9.4);
+\node[font=\normalsize\bfseries] at (2.0,9.05) {Base: one audited inspector};
+\node[font=\normalsize\bfseries] at (10.0,9.05) {Target: the inspection tower};
+
+% -- Row 1 (script row y=7.4) --
+\node[align=center,font=\scriptsize] at (2.0,7.52)
+  {One-shot gain $G$,\\ audit prob $\rho$, detect $d$,\\ bond $B$ posted once\\ Honest iff $\rho\!\cdot\! d\!\cdot\! B \ge G$};
+\node[align=center,font=\scriptsize] at (10.0,7.52)
+  {Same threshold, sealed:\\ draw comes from $C{=}8$\\ disjoint cliques ---\\ $\rho^\star = G/(dB)$ unchanged};
+\draw[shipred,thick,{Stealth[length=2.5mm]}-{Stealth[length=2.5mm]},bend left=6]
+  (3.9,7.25) to (8.1,7.25);
+\node[align=center,font=\scriptsize\bfseries,color=shipred] at (6.0,8.30)
+  {single audit $\Leftrightarrow$ sealed audit\\ briber who learns the draw\\ beats the math};
+
+% -- Row 2 (script row y=4.6) --
+\node[align=center,font=\scriptsize] at (2.0,4.93)
+  {Bribe the one inspector,\\ pocket $G$, done ---\\ no notion of ``depth''};
+\node[align=center,font=\scriptsize] at (10.0,4.93)
+  {Bribe floor $\beta=\rho dB$/auditor;\\ pays only if $G_k > C\cdot B$,\\ else $G_{k+1}=(1-\rho d)G_k$};
+\draw[shipred,thick,{Stealth[length=2.5mm]}-{Stealth[length=2.5mm]},bend left=6]
+  (3.9,4.45) to (8.1,4.45);
+\node[align=center,font=\scriptsize\bfseries,color=shipred] at (6.0,5.60)
+  {one bribe $\Leftrightarrow$\\ $C\beta$ per level,\\ payable at every level\\ the briber wants protected};
+
+% -- Row 3 (script row y=1.9) --
+\node[align=center,font=\scriptsize] at (2.0,2.23)
+  {Flat patrol forever:\\ audit spend grows\\ $\Theta(T)$ over the horizon};
+\node[align=center,font=\scriptsize] at (10.0,2.23)
+  {Vest the bond: $\rho_t=G/(d(B{+}vt))$\\ $\Rightarrow \Theta(\log T)$ spend; add\\ whistleblowers $\Rightarrow O(1)$ spend};
+\draw[shipred,thick,{Stealth[length=2.5mm]}-{Stealth[length=2.5mm]},bend left=6]
+  (3.9,1.75) to (8.1,1.75);
+\node[align=center,font=\scriptsize\bfseries,color=shipred] at (6.0,3.10)
+  {flat patrol\\ $\Leftrightarrow$ amortized\\ ladder\\ $\Theta(\log T) / O(1)$\\ (pre-saturation\\ caveat applies)};
+
+\node[align=center,font=\scriptsize\itshape,text width=10.5cm] at (6.0,0.25)
+  {The tower prices depth, not detection: finite bond, sealed against the draw, certifies a depth logarithmic in the corrupt value --- $27$ levels at $C{=}8$, $53$ at $C{=}1$.};
+\end{tikzpicture}%
+}
+\caption{The relation map: the stage game (left) and the tower (right) are the same deterrence arithmetic, applied once and applied recursively. The arrows carry the load --- a single committed audit maps to a \emph{sealed} draw from $C$ benches; one bribe maps to a bribe bill of $C\beta$ that must be paid \emph{at every level} the briber wants protected; and a flat patrol budget maps to a history-indexed schedule. The relation preserved across all three rows is \emph{expected forfeiture $\ge$ corrupt gain}; what changes is only who pays it and over what horizon. What $C$ buys is depth and capital ($53$ levels and $2650$ at $C{=}1$ against $27$ and $1350$ at $C{=}8$), not the difference between a tower that terminates and one that does not.}
+\label{fig:relation}
+\end{figure}

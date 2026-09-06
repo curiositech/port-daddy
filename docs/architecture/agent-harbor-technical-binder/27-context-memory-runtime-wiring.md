@@ -204,21 +204,22 @@ this skill answers"), embedded with the shared MiniLM embedder, *not* the
 skill's frontmatter or body embedded directly. Centroids are content-hash-keyed
 and cached in `skill-graft-tool2vec.sqlite`.
 
-**The defect:** centroids are computed **lazily**, only when a skill is already a
-ranking candidate. This is a chicken-and-egg failure. You cannot rank a skill
-into the candidate set on a query it has never been ranked for, because its
-centroid does not exist yet. Lazy fill silently loses recall for exactly the
-skills that most need discovery.
+**Reconciler status (2026-08-24): implemented.** Centroids no longer depend on a
+skill first entering the query shortlist. One resumable reconciler scans the
+full user-level catalog, fills content-hash misses in bounded batches, commits
+each skill as its own restart checkpoint, and uses an expiring SQLite lease to
+coalesce setup, daemon, and manual callers. Daemon readiness does not await the
+catalog scan or build. Automatic setup/startup/tick callers are restricted to
+loopback Ollama; a remote/cloud generator requires an explicit manual warm.
 
 **The fix (operator-directed):**
 
-- A **build step** (`pd skills build-embeddings`, and a daemon startup / install
-  reconcile) that materializes tool2vec centroids for the **entire user-level
-  skill catalog** with missing vectors filled eagerly, content-hash-cached,
-  incremental. Corpus scale as measured: 1,532 `SKILL.md` under `~/.claude`
-  (1,460 in plugins), 279 in-repo; no centroid cache exists yet. The step must
-  be incremental and resumable so a full first run (~1,500 one-shot cheap LLM
-  calls + embeddings) is a bounded, restartable job, not a per-query tax.
+- The shipped **build step** is `pd skill-graft warm`; setup starts a detached
+  local-only batch, and daemon startup plus a low-frequency tick invoke the same
+  reconciler. `GET /skill-graft/status` is read-only; loopback operators can
+  request a bounded batch with `POST /skill-graft/reconcile`. Corpus scale still
+  makes a full first warm substantial, so batching and restartability remain
+  part of the contract rather than an implementation detail.
 - **Skill-usage logging:** every graft/selection records which skill was
   proposed, at what cosine, whether it was used, and the outcome, so
   low-recall/misfire skills (stale centroid, never-selected, high-selection
@@ -235,7 +236,7 @@ capability caps; `swarm-coordination.ts:evaluateSwarmFit` recommends a topology
 but is a pure advisory oracle whose inputs are hand-supplied CLI flags, wired
 only to `pd parley fit`. The partition primitive, `NodeSpec.scope`
 (disjoint `files` / `symbols` / `forbiddenSurfaces` per node), is design-only
-(`work-packets/swarm-invocation-and-node-shaping.md`), and `windags_next_move`
+(`work-packets/swarm-invocation-and-node-shaping.md`), and `jury_rig_next_move`
 has zero callers in `lib/`/`cli/`.
 
 Target: a `WorkPlanner` that emits `NodeSpec[]` with **disjoint `scope.files`**
@@ -245,7 +246,7 @@ from *computed* inputs instead of flags; maps each `NodeSpec` -> `LaunchIntent`
 `NodeSpec` is created as an `AgentNode` through the WorkIntent path, not a raw
 `LaunchIntent` — see 27.11). Gate every split on
 the binder rule `split_cost + comm_cost + merge_cost < stay_cost` (04.231,
-node-shaping `:199`). Wire `windags_next_move` decomposer output as the
+node-shaping `:199`). Wire `jury_rig_next_move` decomposer output as the
 decomposition source. Handoff transfers the minimum cited context, never the
 whole harbor (04.252), and returns a summary-only result to the parent, not the
 full child transcript.
@@ -440,7 +441,7 @@ flowchart TD
   W9["W9 Eager tool2vec build step<br/>+ skill-usage logging + doctor coverage"]
   W9 --> W10
   W6 --> W10
-  W10["W10 WorkPlanner: NodeSpec.scope<br/>disjoint files, windags decomposer,<br/>evaluateSwarmFit from computed inputs"]
+  W10["W10 WorkPlanner: NodeSpec.scope<br/>disjoint files, jury_rig decomposer,<br/>evaluateSwarmFit from computed inputs"]
   DOCTOR["Tooling: pd doctor / pd setup /<br/>pd packet / pd compaction / panes"]
   W4 --> DOCTOR
   W6 --> DOCTOR
@@ -458,18 +459,25 @@ independent skills track). Wave 2: W3, W6, W8. Wave 3: W4, W7, W10. Wave 4: W5
 + E2E, then M9/02 exports. Tooling (`pd doctor`/`setup`/inspection/panes) lands
 alongside the wave that produces the data each surface reads.
 
-## 27.10 Open decisions
+## 27.10 Proposed decisions ledger
 
-- **O1 — one episodic store.** Confirm Tier A's `episodic_memory` table is the
-  store of record and Tier B's logic ports onto it (27.2/W1). The alternative
-  (two stores) is rejected.
-- **O2 — envelope producer site.** Hook/harness self-report vs daemon estimate as
-  the default; both may coexist with a confidence flag (W2).
-- **O3 — build-step trigger.** Whether the eager tool2vec fill runs at
-  `pd setup`, at daemon startup reconcile, on a schedule, or all three (W9). The
-  full first run is ~1,500 skills; it must be incremental and resumable.
-- **O4 — buffering default.** Is output-spill on-by-default for all agents or
-  opt-in per compliance level (W8)?
+These are proposed answers, not retrospective claims that the whole contract is
+already shipped. Each becomes **Accepted** only when its gate is witnessed on the
+operator surface and linked evidence is durable. The 2026-08-23 context-continuity
+slice supplies the first O1/O2 evidence for spawner-launched bodies; interactive
+Squid adapters still owe the same envelope producer.
+
+| ID | Proposed answer | Owner | Acceptance gate | Current evidence / status |
+| --- | --- | --- | --- | --- |
+| **O1 — one episodic store** | Keep `episodic_memory` as the sole episodic read/write projection. `harbor_events` remains the append-only primary evidence stream from which episodes are derived; Tier B logic ports onto this projection and must not create a second authoritative episode table. | Agent Harbor storage | A rebuild test can delete and reconstruct derived episodes from cited packet/transcript events, and no production writer targets a second episodic table. | **Proposed · partial proof.** `context-continuity.ts` derives the standard handoff episode from a verified packet and records the packet head/hash as projection provenance. Full rebuild tooling remains W1. |
+| **O2 — envelope producer** | Use both sources with daemon authority: adapters emit their best provider-native usage, the daemon independently estimates from persisted transcript/token evidence, and enforcement classifies `max(adapter, daemon)`. Source, mode, and confidence ride on the envelope; divergence is visible evidence, never silently averaged away. | Harness adapters + daemon context coordinator | Force a disagreement and prove the higher reading drives the threshold, packet, and FleetBar state. Every supported interactive adapter must emit or be conservatively estimated. | **Proposed · implemented for spawner children.** The new terminal producer emits a real `ContextEnvelope`, packet, and projection; tests force 61% daemon versus 95% adapter and require the 95% gate. Interactive Squid coverage remains open. |
+| **O3 — Tool2Vec build trigger** | Build one idempotent, resumable reconciler. `pd setup` starts the initial local-only warm-up; daemon startup and a low-frequency background tick invoke that same reconciler for content-hash misses. They are callers of one checkpointed job, not three competing build systems, and daemon boot never waits for the full catalog. | Shared embedder + setup/doctor | Kill the first build mid-catalog, restart, and prove row-level resume without duplicate vectors or blocking daemon readiness. Doctor distinguishes current, cold, reconciling, embedder-down, and generator-down. | **Accepted · implemented 2026-08-24.** Row-level restart, lease exclusion, nonblocking startup scheduling, status states, and local-only automatic generation have focused tests. W9 skill-usage outcomes remain open. |
+| **O4 — buffering default** | Turn bounded output spill on by default for every daemon-supervised agent/tool output. Compliance changes byte caps and retention, not whether the safety exists. Keep a bounded inline preview; store the remainder behind a capability-scoped pointer carrying session, agent, partition, range, hash, and TTL caveats. Authorization fails closed; storage failure returns an explicit truncated receipt instead of silently flooding context. | Transcript/blob boundary | A multi-megabyte tool result keeps the next turn within budget, pages back byte-identical authorized ranges, denies foreign agents/expired refs, and leaves a visible truncation/spill receipt when storage is unavailable. | **Proposed · not implemented here.** W8/W12 own delivery. |
+
+The immediate contract is therefore: O1 and O2 have a landed vertical proof but
+remain proposed until the wider adapters/rebuild gate pass; O3 is accepted with
+its resumable reconciler and operator diagnostics implemented; O4 remains a
+design answer with an explicit ship gate.
 
 ## 27.11 Relationship to chapters 25 and 26
 

@@ -1,40 +1,50 @@
-% Fig 3 — Parfitian continuity (transitive chain) vs Lockean connectedness (direct, non-transitive).
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D8C7A6}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-\providecolor{maydayred}{HTML}{8B0000}
-
+% Figure III.3 --- adjacent evidence overlap yields transitive continuity.
 \begin{figure}[H]
 \centering
-\resizebox{0.95\textwidth}{!}{%
-\begin{tikzpicture}[font=\small,node distance=34mm]
-\node[stp box,text width=31mm] (b) {incarnation 1\\{\scriptsize the ``boy''}};
-\node[stp box,text width=31mm,right=of b] (o) {incarnation 2\\{\scriptsize the ``officer''}};
-\node[stp box,text width=31mm,right=of o] (g) {incarnation 3\\{\scriptsize the ``general''}};
+\resizebox{0.94\textwidth}{!}{%
+\begin{tikzpicture}[pd figure]
+  \node[pd panel title,anchor=west] at (-6.7,2.75)
+    {direct connectedness is local; continuity is the transitive closure};
 
-% Direct memory connectedness (overlapping but NOT transitive)
-\draw[stp arrow] (b.north east) to[bend left=20]
-  node[stp label] {remembers} (o.north west);
-\draw[stp arrow] (o.north east) to[bend left=20]
-  node[stp label] {remembers} (g.north west);
-\draw[draw=hhgray,line width=0.55pt,dashed]
-  (b.south) to[bend right=15] node[stp label] {no direct memory required} (g.south);
-\draw[decorate,decoration={brace,mirror,amplitude=5pt},draw=hhcobalt,line width=0.8pt]
-  ([yshift=-15mm]b.south west) -- ([yshift=-15mm]g.south east)
-  node[midway,below=5mm,font=\footnotesize\bfseries,text=hhcobalt]
-  {continuity is the transitive overlapping chain};
+  % Incarnation intervals.
+  \draw[pd hairline,line width=5.5pt] (-5.7,1.55) -- (-.9,1.55);
+  \draw[pd hairline,line width=5.5pt] (-1.8,.35) -- (3.0,.35);
+  \draw[pd hairline,line width=5.5pt] (2.1,-.85) -- (6.1,-.85);
+  \node[pd direct label,anchor=east] at (-5.95,1.55) {incarnation 1};
+  \node[pd direct label,anchor=east] at (-2.05,.35) {incarnation 2};
+  \node[pd direct label,anchor=east] at (1.85,-.85) {incarnation 3};
+
+  % Evidence marks, with shared outcomes aligned vertically.
+  \foreach \x/\y/\lab in {-4.75/1.55/$o_1$,-1.35/1.55/$o_2$,-1.35/.35/$o_2$,2.55/.35/$o_3$,2.55/-.85/$o_3$,5.25/-.85/$o_4$} {
+    \node[pd datum] at (\x,\y) {};
+    \node[pd axis label,anchor=south] at (\x,\y+.18) {\lab};
+  }
+  \fill[hhteal!9] (-1.72,-.08) rectangle (-.98,1.98);
+  \draw[pd focus rule] (-1.35,.35) -- (-1.35,1.55);
+  \fill[hhteal!9] (2.18,-1.28) rectangle (2.92,.78);
+  \draw[pd focus rule] (2.55,-.85) -- (2.55,.35);
+  \node[pd direct label,text=hhteal,anchor=west] at (-.82,1.02) {shared witness $o_2$};
+  \node[pd direct label,text=hhteal,anchor=west] at (2.72,-.22) {shared witness $o_3$};
+
+  % Derived accountable chain.
+  \draw[pd focus rule,line width=1.4pt] (-5.7,-2.05) -- (6.1,-2.05);
+  \foreach \x in {-4.75,-1.35,2.55,5.25} \node[pd focus datum] at (\x,-2.05) {};
+  \node[pd direct label,text=hhteal,anchor=north] at (.2,-2.30)
+    {transitive ledger rail: $o_1\leadsto o_2\leadsto o_3\leadsto o_4$};
+
+  % Counterexample: a repeated name without an overlapping witness.
+  \draw[pd caution rule,dashed] (-5.7,-3.18) -- (-2.95,-3.18);
+  \draw[pd caution rule,dashed] (-2.15,-3.18) -- (.55,-3.18);
+  \node[pd direct label,text=hhamber,anchor=west] at (.85,-3.18)
+    {same label, no shared witness $\Rightarrow$ no inherited continuity};
+  \draw[pd caution rule] (-2.80,-3.48) -- (-2.30,-2.88);
+  \draw[pd caution rule] (-2.80,-2.88) -- (-2.30,-3.48);
 \end{tikzpicture}}
-\caption{\textbf{Continuity vs.\ connectedness.} Direct memory connectedness
-(the solid top arcs) overlaps but is not transitive --- the general need not
-remember being the boy (Reid's objection, the dashed arc). Parfit's repair:
-\emph{continuity}, the overlapping \emph{chain} of links, \textbf{is} transitive,
-and it is what survives. Reputation must accumulate across arbitrarily many
-incarnations, so it can only attach to the transitive thing --- the
-\textbf{witnessed-outcome ledger}, not the memory stream.}
+\caption{\textbf{Parfitian continuity is an overlap chain, not permanent
+connectedness.} Incarnation 1 shares witnessed outcome $o_2$ with incarnation 2;
+incarnation 2 shares $o_3$ with incarnation 3. No later body must directly
+remember $o_1$: the overlapping evidence establishes the transitive ledger rail
+$o_1\leadsto o_2\leadsto o_3\leadsto o_4$. The dashed counterexample repeats a
+label without a shared witness and therefore inherits nothing.}
 \label{fig:parfit}
 \end{figure}

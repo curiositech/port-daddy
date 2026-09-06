@@ -10,6 +10,7 @@ import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
+import { registerTestActorVia } from '../helpers/actor-credentials.js';
 import {
   clearTestCurrentContext,
   getDaemonState,
@@ -107,22 +108,93 @@ describe('CLI Integration Tests', () => {
 
   describe('Lock Commands', () => {
     const testLock = `test-lock-${Date.now()}`;
-    const ipcFilepathLock = `/tmp/test-lock-ipc-${Date.now()}.ts`;
+    const httpFileLock = `file:test-lock-http-${Date.now()}.ts`;
+    const lockOwnerA = `lock-owner-a-${Date.now()}`;
+    const lockOwnerB = `lock-owner-b-${Date.now()}`;
+    const lockSlotA = `lock-owner-a-${Date.now()}`;
+    const lockSlotB = `lock-owner-b-${Date.now()}`;
+    let lockSessionA;
+    let lockSessionB;
+    let fixtureRoot;
+    let worktreeA;
+    let worktreeB;
+
+    beforeAll(() => {
+      // CI checks out a main worktree. Two live principals must use actual
+      // linked worktrees instead of depending on a caller-asserted bypass.
+      fixtureRoot = mkdtempSync(join(tmpdir(), 'pd-lock-owners-'));
+      const fixtureGit = (args) => execFileSync('git', [
+        '-c', 'core.hooksPath=/dev/null', '-c', 'commit.gpgsign=false', ...args,
+      ], { cwd: fixtureRoot, stdio: 'ignore' });
+      fixtureGit(['init']);
+      fixtureGit(['-c', 'user.name=PD Test',
+        '-c', 'user.email=pd-test@example.invalid', 'commit', '--allow-empty', '-m', 'fixture']);
+      worktreeA = join(fixtureRoot, 'owner-a');
+      worktreeB = join(fixtureRoot, 'owner-b');
+      fixtureGit(['worktree', 'add', '--detach', worktreeA, 'HEAD']);
+      fixtureGit(['worktree', 'add', '--detach', worktreeB, 'HEAD']);
+      const first = runCli([
+        'begin',
+        'Credentialed lock CLI integration owner A',
+        '--agent', lockOwnerA,
+        '--identity', `port-daddy:test:${lockOwnerA}`,
+        '--lifecycle', 'durable',
+        '--json',
+      ], { cwd: worktreeA, env: { PORT_DADDY_CONTEXT_SLOT: lockSlotA } });
+      expect({ success: first.success, stderr: first.stderr }).toMatchObject({ success: true });
+      lockSessionA = JSON.parse(first.stdout).sessionId;
+
+      const second = runCli([
+        'begin',
+        'Credentialed lock CLI integration owner B',
+        '--agent', lockOwnerB,
+        '--identity', `port-daddy:test:${lockOwnerB}`,
+        '--lifecycle', 'durable',
+        '--json',
+      ], { cwd: worktreeB, env: { PORT_DADDY_CONTEXT_SLOT: lockSlotB } });
+      expect({ success: second.success, stderr: second.stderr }).toMatchObject({ success: true });
+      lockSessionB = JSON.parse(second.stdout).sessionId;
+    });
+
+    const runLockAsA = (args) => runCli(args, {
+      cwd: worktreeA,
+      env: { PORT_DADDY_CONTEXT_SLOT: lockSlotA },
+    });
+    const runLockAsB = (args) => runCli(args, {
+      cwd: worktreeB,
+      env: { PORT_DADDY_CONTEXT_SLOT: lockSlotB },
+    });
 
     afterAll(() => {
-      runCli(['unlock', testLock, '--force']);
-      runCliViaIpc(['unlock', ipcFilepathLock, '--owner', 'ipc-owner-a', '--force']);
-      runCliViaIpc(['unlock', ipcFilepathLock, '--owner', 'ipc-owner-b', '--force']);
+      runLockAsA(['unlock', testLock, '--force']);
+      runLockAsA(['unlock', httpFileLock, '--force']);
+      if (lockSessionA) {
+        runLockAsA(['done', '--session', lockSessionA, '--status', 'abandoned']);
+      }
+      if (lockSessionB) {
+        runLockAsB(['done', '--session', lockSessionB, '--status', 'abandoned']);
+      }
+      clearTestCurrentContext(lockSlotA);
+      clearTestCurrentContext(lockSlotB);
+      if (fixtureRoot) rmSync(fixtureRoot, { recursive: true, force: true });
+    });
+
+    test('lock owners are bound to distinct linked worktrees', async () => {
+      const first = await requestWithRetry(`/sessions/${lockSessionA}`);
+      const second = await requestWithRetry(`/sessions/${lockSessionB}`);
+      expect(first.data.session.metadata.worktree).toMatchObject({ root: worktreeA, isMain: false });
+      expect(second.data.session.metadata.worktree).toMatchObject({ root: worktreeB, isMain: false });
+      expect(first.data.session.worktreeId).not.toBe(second.data.session.worktreeId);
     });
 
     test('lock acquires successfully', () => {
-      const result = runCli(['lock', testLock]);
+      const result = runLockAsA(['lock', testLock]);
       expect(result.success).toBe(true);
       expect(result.stdout).toContain('Acquired lock');
     });
 
     test('second lock fails with conflict', () => {
-      const result = runCli(['lock', testLock]);
+      const result = runLockAsA(['lock', testLock]);
       expect(result.success).toBe(false);
       expect(result.stderr).toContain('held by');
     });
@@ -136,15 +208,15 @@ describe('CLI Integration Tests', () => {
     });
 
     test('unlock releases lock', () => {
-      const result = runCli(['unlock', testLock]);
+      const result = runLockAsA(['unlock', testLock]);
       expect(result.success).toBe(true);
 
       // Verify we can acquire again
-      const lockResult = runCli(['lock', testLock]);
+      const lockResult = runLockAsA(['lock', testLock]);
       expect(lockResult.success).toBe(true);
 
       // Cleanup
-      runCli(['unlock', testLock]);
+      runLockAsA(['unlock', testLock]);
     });
 
     test('with-lock runs command and releases lock afterward', () => {
@@ -154,14 +226,14 @@ describe('CLI Integration Tests', () => {
       writeFileSync(scriptPath, 'process.stdout.write("inside-lock")');
 
       try {
-        const result = runCli(['with-lock', nestedLock, 'node', scriptPath]);
-        expect(result.success).toBe(true);
+        const result = runLockAsA(['with-lock', nestedLock, 'node', scriptPath]);
+        expect(result).toMatchObject({ success: true });
         expect(result.stdout).toContain('inside-lock');
 
-        const reacquire = runCli(['lock', nestedLock]);
+        const reacquire = runLockAsA(['lock', nestedLock]);
         expect(reacquire.success).toBe(true);
 
-        runCli(['unlock', nestedLock]);
+        runLockAsA(['unlock', nestedLock]);
       } finally {
         rmSync(tempDir, { recursive: true, force: true });
       }
@@ -177,7 +249,7 @@ describe('CLI Integration Tests', () => {
       );
 
       try {
-        const result = runCli([
+        const result = runLockAsA([
           'with-lock',
           nestedLock,
           '--',
@@ -189,29 +261,29 @@ describe('CLI Integration Tests', () => {
         expect(result.success).toBe(true);
         expect(JSON.parse(result.stdout)).toEqual(['--json', '--quiet']);
 
-        const reacquire = runCli(['lock', nestedLock]);
+        const reacquire = runLockAsA(['lock', nestedLock]);
         expect(reacquire.success).toBe(true);
 
-        runCli(['unlock', nestedLock]);
+        runLockAsA(['unlock', nestedLock]);
       } finally {
         rmSync(tempDir, { recursive: true, force: true });
       }
     });
 
-    test('IPC lock keeps filepath locks held across command invocations', () => {
-      const first = runCliViaIpc(['lock', ipcFilepathLock, '--owner', 'ipc-owner-a', '--json']);
+    test('credentialed HTTP lock keeps filepath locks held across command invocations', () => {
+      const first = runLockAsA(['lock', httpFileLock, '--json']);
       expect(first.success).toBe(true);
       expect(JSON.parse(first.stdout)).toMatchObject({
         success: true,
-        name: ipcFilepathLock,
-        owner: 'ipc-owner-a'
+        name: httpFileLock,
+        owner: lockOwnerA
       });
 
-      const second = runCliViaIpc(['lock', ipcFilepathLock, '--owner', 'ipc-owner-b', '--json']);
+      const second = runLockAsB(['lock', httpFileLock, '--json']);
       expect(second.success).toBe(false);
-      expect(second.stderr).toContain('held by ipc-owner-a');
+      expect(second.stderr).toContain(`held by ${lockOwnerA}`);
 
-      const unlock = runCliViaIpc(['unlock', ipcFilepathLock, '--owner', 'ipc-owner-a', '--json']);
+      const unlock = runLockAsA(['unlock', httpFileLock, '--json']);
       expect(unlock.success).toBe(true);
       expect(JSON.parse(unlock.stdout)).toMatchObject({
         success: true,
@@ -264,7 +336,7 @@ describe('CLI Integration Tests', () => {
   });
 
   describe('Sugar Recovery Commands', () => {
-    test('done succeeds over IPC when the session is active but the agent registry entry is gone', async () => {
+    test('done abandons the exact session when the durable actor registry entry is gone', async () => {
       const slot = `stale-done-${Date.now()}`;
       const agentId = `stale-done-agent-${Date.now()}`;
 
@@ -288,32 +360,31 @@ describe('CLI Integration Tests', () => {
           purpose: 'CLI stale-session recovery',
           identity: 'port-daddy',
           contextSlot: slot,
+          credential: begin.data.credential,
         });
 
         const unregister = await requestWithRetry(`/agents/${encodeURIComponent(agentId)}`, { method: 'DELETE' });
         expect(unregister.ok).toBe(true);
 
-        // pd-done origin rule (substrate fix 2026-05-20): bypass via the
-        // documented escape hatch for this integration test, which has no
-        // intent to push or open a PR.
-        const result = runCliViaIpc(
+        const result = runCli(
           ['done', 'Recovered after agent registry loss', '--json',
-           '--skip-origin-check', '--reason', 'cli ipc recovery integration test'],
+           '--status', 'abandoned'],
           { env: { PORT_DADDY_CONTEXT_SLOT: slot } },
         );
-        expect(result.success).toBe(true);
+        if (!result.success) throw new Error(`pd done failed: ${JSON.stringify(result)}`);
+        expect(result).toMatchObject({ success: true });
 
         const payload = JSON.parse(result.stdout);
         expect(payload).toMatchObject({
           success: true,
           agentId,
           sessionId,
-          sessionStatus: 'completed',
+          sessionStatus: 'abandoned',
         });
 
         const session = await requestWithRetry(`/sessions/${encodeURIComponent(sessionId)}`);
         expect(session.ok).toBe(true);
-        expect(session.data.session.status).toBe('completed');
+        expect(session.data.session.status).toBe('abandoned');
       } finally {
         clearTestCurrentContext(slot);
       }
@@ -350,13 +421,24 @@ describe('CLI Integration Tests', () => {
 
     test('ideas search can find matching daemon notes', async () => {
       const phrase = `federated-note-${Date.now()}`;
+      const noteAgentId = `ideas-note-${Date.now()}`;
+      // #8877: attributed note writes require a daemon-minted credential.
+      const noteActor = await registerTestActorVia(requestWithRetry, { alias: noteAgentId });
+      const sessionRes = await requestWithRetry('/sessions', {
+        method: 'POST',
+        body: { purpose: 'Ideas note search fixture', agentId: noteAgentId },
+        headers: noteActor.headers,
+      });
+      expect(sessionRes.ok).toBe(true);
       const noteRes = await requestWithRetry('/notes', {
         method: 'POST',
         body: {
           content: `Need ${phrase} in the operator memory surface`,
-          agentId: `ideas-note-${Date.now()}`,
+          sessionId: sessionRes.data.id,
+          agentId: noteAgentId,
           type: 'note',
         },
+        headers: noteActor.headers,
       });
       expect(noteRes.ok).toBe(true);
 
@@ -366,6 +448,13 @@ describe('CLI Integration Tests', () => {
       const data = JSON.parse(result.stdout);
       expect(Array.isArray(data.results)).toBe(true);
       expect(data.results.some((entry) => entry.kind === 'note' && entry.summary.includes(phrase))).toBe(true);
+
+      const cleanup = await requestWithRetry(`/sessions/${sessionRes.data.id}`, {
+        method: 'PUT',
+        body: { status: 'abandoned' },
+        headers: noteActor.headers,
+      });
+      expect(cleanup.ok).toBe(true);
     });
 
     test('ideas search can find matching tuples', async () => {
@@ -573,7 +662,7 @@ describe('CLI Integration Tests', () => {
       runCli(['session', 'rm', firstId]);
     });
 
-    test('session done reports releasedFiles count from actual response shape', () => {
+    test('session abandon reports releasedFiles count from actual response shape', () => {
       const agentId = `bug-done-agent-${Date.now()}`;
       const filePath = `src/released-${Date.now()}.ts`;
       const sessionId = runCli([
@@ -591,13 +680,13 @@ describe('CLI Integration Tests', () => {
 
       const result = runCli([
         'session',
-        'done',
+        'abandon',
         'not-applicable: wrapped up',
+        '--session',
+        sessionId,
         '--agent',
         agentId,
-        '--skip-origin-check',
-        '--reason',
-        'integration test count verification',
+        '--yes',
       ]);
       expect(result.success).toBe(true);
       expect(result.stdout).toContain('Files released: 1');
@@ -841,31 +930,22 @@ describe('CLI Integration Tests', () => {
     // because list() defaulted to listActive when no status was passed
     test('sessions --all shows all statuses (not just active)', async () => {
       const agentId = `bug12-agent-${Date.now()}`;
+      // #8877: attributed session starts require a daemon-minted credential.
+      const actor = await registerTestActorVia(requestWithRetry, { alias: agentId });
 
       // Create sessions with different statuses
       const activeRes = await requestWithRetry('/sessions', {
         method: 'POST',
         body: { purpose: 'Bug 12 active test', agentId },
+        headers: actor.headers,
       });
       expect(activeRes.ok).toBe(true);
       const activeId = activeRes.data.id;
 
-      const completedRes = await requestWithRetry('/sessions', {
-        method: 'POST',
-        body: { purpose: 'Bug 12 completed test', agentId },
-      });
-      expect(completedRes.ok).toBe(true);
-      const completedId = completedRes.data.id;
-
-      const completeDoneRes = await requestWithRetry(`/sessions/${completedId}`, {
-        method: 'PUT',
-        body: { status: 'completed', note: 'Done' },
-      });
-      expect(completeDoneRes.ok).toBe(true);
-
       const abandonedRes = await requestWithRetry('/sessions', {
         method: 'POST',
         body: { purpose: 'Bug 12 abandoned test', agentId },
+        headers: actor.headers,
       });
       expect(abandonedRes.ok).toBe(true);
       const abandonedId = abandonedRes.data.id;
@@ -873,6 +953,7 @@ describe('CLI Integration Tests', () => {
       const abandonDoneRes = await requestWithRetry(`/sessions/${abandonedId}`, {
         method: 'PUT',
         body: { status: 'abandoned' },
+        headers: actor.headers,
       });
       expect(abandonDoneRes.ok).toBe(true);
 
@@ -885,13 +966,15 @@ describe('CLI Integration Tests', () => {
       const allSessions = runCli(['sessions', '--agent', agentId, '--all', '--json']);
       const allData = JSON.parse(allSessions.stdout);
       const statuses = new Set(allData.sessions.map(s => s.status));
-      expect(statuses.has('completed')).toBe(true);
       expect(statuses.has('abandoned')).toBe(true);
 
       // Cleanup
-      runCli(['session', 'rm', activeId]);
-      runCli(['session', 'rm', completedId]);
-      runCli(['session', 'rm', abandonedId]);
+      const activeCleanup = await requestWithRetry(`/sessions/${activeId}`, {
+        method: 'PUT',
+        body: { status: 'abandoned' },
+        headers: actor.headers,
+      });
+      expect(activeCleanup.ok).toBe(true);
     });
   });
 
@@ -899,23 +982,185 @@ describe('CLI Integration Tests', () => {
   // Flag Alternatives (v3.6)
   // =========================================================================
   describe('Flag Alternatives (v3.6)', () => {
+    test('pd plan set preserves a quoted Markdown checklist that starts with a dash', async () => {
+      const sessionResult = runCli([
+        'session',
+        'start',
+        'Plan Markdown payload test',
+        '--lifecycle',
+        'durable',
+        '--json',
+      ]);
+      expect(sessionResult.success).toBe(true);
+      const sessionData = JSON.parse(sessionResult.stdout);
+      const checklist = '- [ ] Preserve "quotes" and \\ paths\n- [x] Read it back exactly';
+
+      try {
+        const setResult = runCli(['plan', 'set', checklist, '--session', sessionData.id]);
+        expect(setResult.success).toBe(true);
+        expect(setResult.stdout).toContain('Plan updated');
+
+        const notesResult = await requestWithRetry(`/sessions/${sessionData.id}/notes?type=todo_list`);
+        expect(notesResult.ok).toBe(true);
+        expect(notesResult.data.notes.at(-1).content).toBe(checklist);
+      } finally {
+        runCli(['session', 'rm', sessionData.id]);
+      }
+    });
+
+    test('pd plan set preserves the first checklist positional after preceding flags', async () => {
+      const sessionResult = runCli([
+        'session',
+        'start',
+        'Plan Markdown flags-first test',
+        '--lifecycle',
+        'durable',
+        '--json',
+      ]);
+      expect(sessionResult.success).toBe(true);
+      const sessionData = JSON.parse(sessionResult.stdout);
+      const checklist = '- [ ] Flags may precede this payload';
+
+      try {
+        const setResult = runCli(['plan', 'set', '--session', sessionData.id, checklist]);
+        expect(setResult.success).toBe(true);
+
+        const notesResult = await requestWithRetry(`/sessions/${sessionData.id}/notes?type=todo_list`);
+        expect(notesResult.ok).toBe(true);
+        expect(notesResult.data.notes.at(-1).content).toBe(checklist);
+      } finally {
+        runCli(['session', 'rm', sessionData.id]);
+      }
+    });
+
+    test('pd plan set does not special-case a malformed checklist marker', () => {
+      const result = runCli(['plan', 'set', '- [x]missing-space-after-marker']);
+      expect(result.success).toBe(false);
+    });
+
     test('pd begin --purpose works as flag alternative to positional', () => {
-      const result = runCli(['begin', '--purpose', 'Flag alternative test', '--lifecycle', 'durable', '-q']);
+      const result = runCli([
+        'begin', '--purpose', 'Flag alternative test',
+        '--identity', `port-daddy:test:flag-alternative-${Date.now()}`,
+        '--lifecycle', 'durable', '-q',
+      ]);
       expect(result.success).toBe(true);
       expect(result.stdout).toBeTruthy(); // agent ID in quiet mode
 
       // Cleanup
       const agentId = result.stdout.trim();
-      runCli(['done', '--agent', agentId]);
+      runCli(['done', '--agent', agentId, '--status', 'abandoned']);
+    });
+
+    test('pd begin --files greedily claims every following path', () => {
+      const slot = `variadic-files-${Date.now()}`;
+      const files = [
+        `coord/${slot}-a.ts`,
+        `coord/${slot}-b.ts`,
+        `coord/${slot}-c.ts`,
+      ];
+      try {
+        const result = runCli([
+          'begin',
+          'Variadic file claim regression',
+          '--identity', 'port-daddy:test:variadic-files',
+          '--files', ...files,
+          '--lifecycle', 'durable',
+          '--sidequest', 'integration parser regression coverage',
+          '--json',
+        ], { env: { PORT_DADDY_CONTEXT_SLOT: slot, PD_RENT_EXEMPT: '' } });
+
+        expect(result.success).toBe(true);
+        const data = JSON.parse(result.stdout);
+        expect(data.fileClaims).toEqual(expect.arrayContaining(files));
+        expect(data.fileClaims).toHaveLength(files.length);
+
+        const done = runCli([
+          'done',
+          'Result: variadic file parsing verified. not-applicable: integration test cleanup',
+          '--session', data.sessionId,
+          '--status', 'abandoned',
+          '--json',
+        ], { env: { PORT_DADDY_CONTEXT_SLOT: slot } });
+        expect(done.success).toBe(true);
+      } finally {
+        clearTestCurrentContext(slot);
+      }
+    });
+
+    test('pd begin accumulates repeated --files groups around other options', () => {
+      const slot = `repeated-variadic-files-${Date.now()}`;
+      const files = [
+        `coord/${slot}-a.ts`,
+        `coord/${slot}-b.ts`,
+      ];
+      try {
+        const result = runCli([
+          'begin',
+          'Repeated variadic file claim regression',
+          '--identity', 'port-daddy:test:repeated-variadic-files',
+          '--files', files[0],
+          '--lifecycle', 'durable',
+          '--files', files[1],
+          '--sidequest', 'integration parser regression coverage',
+          '--json',
+        ], { env: { PORT_DADDY_CONTEXT_SLOT: slot, PD_RENT_EXEMPT: '' } });
+
+        expect(result.success).toBe(true);
+        const data = JSON.parse(result.stdout);
+        expect(data.fileClaims).toEqual(expect.arrayContaining(files));
+        expect(data.fileClaims).toHaveLength(files.length);
+
+        const done = runCli([
+          'done',
+          'Result: repeated variadic file parsing verified. not-applicable: integration test cleanup',
+          '--session', data.sessionId,
+          '--status', 'abandoned',
+          '--json',
+        ], { env: { PORT_DADDY_CONTEXT_SLOT: slot } });
+        expect(done.success).toBe(true);
+      } finally {
+        clearTestCurrentContext(slot);
+      }
+    });
+
+    test('pd begin --files without a path fails loudly', () => {
+      const result = runCli([
+        'begin',
+        'Missing variadic file value',
+        '--files',
+        '--lifecycle', 'durable',
+        '--sidequest', 'integration parser regression coverage',
+      ]);
+
+      expect(result.success).toBe(false);
+      expect(result.stderr + result.stdout).toContain('--files requires at least one path');
+    });
+
+    test('pd begin --files with an empty path fails loudly', () => {
+      const result = runCli([
+        'begin',
+        'Empty variadic file value',
+        '--files', '',
+        '--lifecycle', 'durable',
+        '--sidequest', 'integration parser regression coverage',
+      ]);
+
+      expect(result.success).toBe(false);
+      expect(result.stderr + result.stdout).toContain('--files requires at least one path');
     });
 
     test('pd begin -P works as short flag', () => {
-      const result = runCli(['begin', '-P', 'Short flag test', '--lifecycle', 'durable', '-q']);
+      const result = runCli([
+        'begin', '-P', 'Short flag test',
+        '--identity', `port-daddy:test:short-flag-${Date.now()}`,
+        '--lifecycle', 'durable', '-q',
+      ]);
       expect(result.success).toBe(true);
       expect(result.stdout).toBeTruthy();
 
       const agentId = result.stdout.trim();
-      runCli(['done', '--agent', agentId]);
+      runCli(['done', '--agent', agentId, '--status', 'abandoned']);
     });
 
     test('pd begin --purpose --identity --type all work together', () => {
@@ -935,17 +1180,19 @@ describe('CLI Integration Tests', () => {
       expect(data.identity).toBe('test:cli:flags');
 
       // Cleanup
-      runCli(['done', '--agent', data.agentId]);
+      runCli(['done', '--agent', data.agentId, '--status', 'abandoned']);
     });
 
     test('pd done --note works as flag alternative', () => {
-      const beginResult = runCli(['begin', '-P', 'Done flag test', '--lifecycle', 'durable', '-q']);
+      const beginResult = runCli([
+        'begin', '-P', 'Done flag test',
+        '--identity', `port-daddy:test:done-note-${Date.now()}`,
+        '--lifecycle', 'durable', '-q',
+      ]);
       const agentId = beginResult.stdout.trim();
 
-      // pd-done origin rule (substrate fix 2026-05-20): bypass for this
-      // flag-shape test, which is about argument parsing, not the rule.
       const result = runCli(['done', '--note', 'Finished via flag', '--agent', agentId, '--json',
-        '--skip-origin-check', '--reason', 'cli flag parsing test']);
+        '--status', 'abandoned']);
       expect(result.success).toBe(true);
 
       const data = JSON.parse(result.stdout);
@@ -954,12 +1201,16 @@ describe('CLI Integration Tests', () => {
     });
 
     test('pd done -n works as short flag for note', () => {
-      const beginResult = runCli(['begin', '-P', 'Done short flag test', '--lifecycle', 'durable', '-q']);
+      const beginResult = runCli([
+        'begin', '-P', 'Done short flag test',
+        '--identity', `port-daddy:test:done-short-${Date.now()}`,
+        '--lifecycle', 'durable', '-q',
+      ]);
       const agentId = beginResult.stdout.trim();
 
-      // pd-done origin rule bypass — see comment in --note test above.
       const result = runCli(['done', '-n', 'Short flag note', '--agent', agentId, '--json',
-        '--skip-origin-check', '--reason', 'cli flag parsing test']);
+        '--status', 'abandoned']);
+      if (!result.success) throw new Error(`pd done -n failed: ${JSON.stringify(result)}`);
       expect(result.success).toBe(true);
 
       const data = JSON.parse(result.stdout);
@@ -967,10 +1218,15 @@ describe('CLI Integration Tests', () => {
     });
 
     test('pd done --status works as flag alternative', () => {
-      const beginResult = runCli(['begin', '-P', 'Status flag test', '--lifecycle', 'durable', '-q']);
+      const beginResult = runCli([
+        'begin', '-P', 'Status flag test',
+        '--identity', `port-daddy:test:done-status-${Date.now()}`,
+        '--lifecycle', 'durable', '-q',
+      ]);
       const agentId = beginResult.stdout.trim();
 
       const result = runCli(['done', '--status', 'abandoned', '--agent', agentId, '--json']);
+      if (!result.success) throw new Error(`pd done --status failed: ${JSON.stringify(result)}`);
       expect(result.success).toBe(true);
 
       const data = JSON.parse(result.stdout);
@@ -1059,6 +1315,10 @@ describe('CLI Integration Tests', () => {
         sessionId: 'session-stale-context',
         purpose: 'Stale note fallback',
         contextSlot: `ppid-${process.pid}`,
+        // The context is deliberately STALE (bogus sessionId), but the soul
+        // credential begin minted must survive — #8877 rejects attributed
+        // note writes without it.
+        credential: beginData.credential ?? null,
       });
 
       const result = runCli(['note', '--content', 'Recovered from stale context', '--json']);
@@ -1068,7 +1328,7 @@ describe('CLI Integration Tests', () => {
       expect(data.success).toBe(true);
       expect(data.sessionId).toBe(beginData.sessionId);
 
-      runCli(['done', '--agent', beginData.agentId]);
+      runCli(['done', '--agent', beginData.agentId, '--status', 'abandoned']);
     });
 
     test('integration context writes stay in the isolated test context dir', () => {
@@ -1116,7 +1376,7 @@ describe('CLI Integration Tests', () => {
       expect(data.purpose).toBe('Stale whoami fallback');
       expect(data.identity).toBe('port-daddy:test:stale-whoami');
 
-      runCli(['done', '--session', beginData.sessionId]);
+      runCli(['done', '--session', beginData.sessionId, '--status', 'abandoned']);
     });
 
     test('pd session takeover makes the successor the current noteable context', () => {
@@ -1131,6 +1391,19 @@ describe('CLI Integration Tests', () => {
       ]);
       expect(beginResult.success).toBe(true);
       const beginData = JSON.parse(beginResult.stdout);
+
+      const abandonPredecessor = runCli([
+        'session',
+        'abandon',
+        'Prepare the exact dormant predecessor for takeover',
+        '--session',
+        beginData.sessionId,
+        '--agent',
+        beginData.agentId,
+        '--yes',
+        '--json',
+      ]);
+      expect(abandonPredecessor.success).toBe(true);
 
       const takeoverResult = runCli([
         'session',
@@ -1162,9 +1435,10 @@ describe('CLI Integration Tests', () => {
       const doneResult = runCli([
         'done',
         'Result: takeover context regression complete - not-applicable: integration test cleanup',
-        '--skip-origin-check',
-        '--reason',
-        'takeover context regression test',
+        '--session',
+        takeoverData.successorId,
+        '--status',
+        'abandoned',
         '--json',
       ]);
       expect(doneResult.success).toBe(true);
@@ -1203,23 +1477,25 @@ describe('CLI Integration Tests', () => {
         expect(filePaths).toContain('README.md');
       } finally {
         runCli(['done', '--session', beginData.sessionId,
-          '--skip-origin-check', '--reason', 'cross-repo cli test cleanup']);
+          '--status', 'abandoned']);
         rmSync(otherRepo, { recursive: true, force: true });
       }
     });
 
     test('positional purpose works with explicit lifecycle', () => {
       // Positional purpose
-      const result = runCli(['begin', 'Positional purpose', '--lifecycle', 'durable', '-q']);
+      const result = runCli([
+        'begin', 'Positional purpose',
+        '--identity', `port-daddy:test:positional-${Date.now()}`,
+        '--lifecycle', 'durable', '-q',
+      ]);
       expect(result.success).toBe(true);
       expect(result.stdout).toBeTruthy();
 
       const agentId = result.stdout.trim();
 
-      // Positional note on done — pd-done origin rule bypass for this
-      // positional-args parsing test.
       const doneResult = runCli(['done', 'Positional note', '--agent', agentId, '--json',
-        '--skip-origin-check', '--reason', 'cli positional-args test']);
+        '--status', 'abandoned']);
       expect(doneResult.success).toBe(true);
 
       const data = JSON.parse(doneResult.stdout);
@@ -1251,6 +1527,7 @@ describe('CLI Integration Tests', () => {
     test('rent gate: --sidequest reason passes and lands on the session record', () => {
       const result = runCli([
         'begin', 'Rent sidequest test', '--lifecycle', 'durable',
+        '--identity', `port-daddy:test:rent-sidequest-${Date.now()}`,
         '--sidequest', 'integration test opt-out reason', '--json',
       ], { env: { PD_RENT_EXEMPT: '' } });
       expect(result.success).toBe(true);
@@ -1272,19 +1549,47 @@ describe('CLI Integration Tests', () => {
   describe('Inbox CLI Commands', () => {
     const receiverId = `rec-agent-${Date.now()}`;
     const senderId = `send-agent-${Date.now()}`;
+    // The sender's begin + send share one isolated context slot so the
+    // daemon-minted credential `pd begin` persists is the one pdFetch attaches
+    // on the subsequent `pd inbox send`.
+    const senderSlot = `inbox-sender-${Date.now()}`;
 
     beforeAll(() => {
+      // Receiver: registered for inbox addressability. Receiving/listing/
+      // clearing your own inbox is not identity-gated — only SENDING asserts a
+      // provable sender.
       runCli(['agent', 'register', '--agent', receiverId]);
-      runCli(['agent', 'register', '--agent', senderId]);
+      // Sender: a genuinely credentialed principal. Under the credentialed
+      // inbox gate (lib/inbox-identity.ts), a bare `agent register` mints no
+      // soul, so an asserted `from` is unprovable and correctly rejected. `pd
+      // begin` mints + persists a daemon-minted ADR-0040 credential and opens
+      // an ACTIVE session bound to senderId, which is exactly the daemon-
+      // witnessed display-agentId → soul mapping the gate accepts `from:
+      // senderId` under.
+      const beginRes = runCli(
+        ['begin', '--agent', senderId, '--purpose', 'Inbox send integration', '--lifecycle', 'durable', '--json'],
+        { env: { PORT_DADDY_CONTEXT_SLOT: senderSlot } },
+      );
+      expect(beginRes.success).toBe(true);
     });
 
     afterAll(() => {
       runCli(['inbox', 'clear', '--agent', receiverId]);
+      runCli(['done', '--agent', senderId, '--status', 'abandoned'], {
+        env: { PORT_DADDY_CONTEXT_SLOT: senderSlot },
+      });
+      clearTestCurrentContext(senderSlot);
     });
 
     test('send, list, and show message', () => {
-      // 1. Send message
-      const sendRes = runCli(['inbox', 'send', receiverId, 'Hello Port Daddy!', '--agent', senderId, '--json']);
+      // 1. Send message — from the sender's credentialed context slot, so
+      // pdFetch attaches the credential `pd begin` persisted and the daemon
+      // accepts `from: senderId` (its active session binds that name to this
+      // soul).
+      const sendRes = runCli(
+        ['inbox', 'send', receiverId, 'Hello Port Daddy!', '--agent', senderId, '--json'],
+        { env: { PORT_DADDY_CONTEXT_SLOT: senderSlot } },
+      );
       expect(sendRes.success).toBe(true);
 
       // 2. List inbox to get message ID
@@ -1324,6 +1629,97 @@ describe('CLI Integration Tests', () => {
       const notFoundRes = runCli(['inbox', 'show', '999999', '--agent', receiverId]);
       expect(notFoundRes.success).toBe(false);
       expect(notFoundRes.stderr).toContain('not found');
+    });
+
+    test('pre-credential session context refuses both send aliases before attempting an attributed write', async () => {
+      const legacyAgentId = `legacy-inbox-sender-${Date.now()}`;
+      const legacySlot = `legacy-inbox-sender-${Date.now()}`;
+      const message = `must-not-deliver-${Date.now()}`;
+      const fixtureRoot = mkdtempSync(join(tmpdir(), 'pd-legacy-inbox-'));
+      const legacyWorktree = join(fixtureRoot, 'legacy-sender');
+      let mintedContext;
+
+      try {
+        // The ordinary sender remains active. Give this second principal its
+        // own linked worktree even when CI itself runs from a main checkout.
+        const fixtureGit = (args) => execFileSync('git', [
+          '-c', 'core.hooksPath=/dev/null', '-c', 'commit.gpgsign=false', ...args,
+        ], { cwd: fixtureRoot, stdio: 'ignore' });
+        fixtureGit(['init']);
+        fixtureGit(['-c', 'user.name=PD Test', '-c', 'user.email=pd-test@example.invalid',
+          'commit', '--allow-empty', '-m', 'fixture']);
+        fixtureGit(['worktree', 'add', '--detach', legacyWorktree, 'HEAD']);
+
+        // Establish a real active session, then model an upgraded worktree
+        // whose persisted context predates credential persistence. This is not
+        // a forged principal: the test deliberately removes only the local
+        // bearer from a real daemon-minted context.
+        const beginRes = runCli(
+          ['begin', '--agent', legacyAgentId, '--purpose', 'Pre-credential inbox diagnostic', '--lifecycle', 'durable', '--json'],
+          {
+            cwd: legacyWorktree,
+            env: {
+              PORT_DADDY_CONTEXT_SLOT: legacySlot,
+              PD_ACTOR_CREDENTIAL: '',
+              PORT_DADDY_ACTOR_CREDENTIAL: '',
+            },
+          },
+        );
+        expect({ success: beginRes.success, stderr: beginRes.stderr }).toMatchObject({ success: true });
+
+        const admitted = await requestWithRetry(`/sessions/${JSON.parse(beginRes.stdout).sessionId}`);
+        expect(admitted.ok).toBe(true);
+        expect(admitted.data.session.metadata.worktree).toMatchObject({ root: legacyWorktree, isMain: false });
+
+        const { contextDir } = getDaemonState();
+        mintedContext = JSON.parse(readFileSync(join(contextDir, 'contexts', `${legacySlot}.json`), 'utf8'));
+        expect(mintedContext.credential).toEqual(expect.any(String));
+
+        writeTestCurrentContext({
+          agentId: legacyAgentId,
+          sessionId: mintedContext.sessionId,
+          contextSlot: legacySlot,
+        });
+
+        for (const command of [
+          ['send', receiverId, message, '--agent', legacyAgentId],
+          ['inbox', 'send', receiverId, message, '--agent', legacyAgentId],
+        ]) {
+          const result = runCli(command, {
+            cwd: legacyWorktree,
+            env: {
+              PORT_DADDY_CONTEXT_SLOT: legacySlot,
+              PD_ACTOR_CREDENTIAL: '',
+              PORT_DADDY_ACTOR_CREDENTIAL: '',
+            },
+          });
+          const output = result.stderr + result.stdout;
+
+          expect(result.success).toBe(false);
+          expect(output).toContain(`Persisted session ${mintedContext.sessionId} predates daemon-minted actor credentials`);
+          expect(output).toContain(`pd session takeover ${mintedContext.sessionId}`);
+          expect(output).toContain('No message was sent.');
+          expect(output).not.toContain('was asserted without a daemon-minted credential');
+        }
+
+        const inbox = runCli(['inbox', 'list', '--agent', receiverId, '--json']);
+        expect(inbox.success).toBe(true);
+        expect(JSON.parse(inbox.stdout).messages.some((entry) => entry.content === message)).toBe(false);
+      } finally {
+        if (mintedContext) {
+          writeTestCurrentContext(mintedContext);
+          runCli(['done', '--agent', legacyAgentId, '--status', 'abandoned'], {
+            cwd: legacyWorktree,
+            env: {
+              PORT_DADDY_CONTEXT_SLOT: legacySlot,
+              PD_ACTOR_CREDENTIAL: '',
+              PORT_DADDY_ACTOR_CREDENTIAL: '',
+            },
+          });
+        }
+        clearTestCurrentContext(legacySlot);
+        rmSync(fixtureRoot, { recursive: true, force: true });
+      }
     });
   });
 

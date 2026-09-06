@@ -20,7 +20,7 @@ The roster is open. Three worked examples:
   of Law in drafts), `citation-checker` (validates state-specific
   citations), `plain-language` (Flesch-Kincaid + legalese), and
   `accessibility`.
-- **windags** runs `skill-media` (generates hero illustrations for skill
+- **jury_rig** runs `skill-media` (generates hero illustrations for skill
   dossiers), `mermaid-author` (draws diagrams referenced in copy), and
   `skill-grammar` (lints SKILL.md frontmatter and required sections).
 

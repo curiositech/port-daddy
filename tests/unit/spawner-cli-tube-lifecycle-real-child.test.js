@@ -9,12 +9,14 @@
 
 import { describe, test, expect, beforeEach, afterEach, beforeAll, afterAll, jest } from '@jest/globals';
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 const { spawnViaCliTube } = await import('../../lib/spawner/backends/cli-tube.js');
 
 jest.setTimeout(20_000);
+const REAL_CHILD_DEADLINE_MS = 2_000;
 
 let tempDir;
 let originalAgyBin;
@@ -53,6 +55,25 @@ afterEach(() => {
 });
 
 describe('cli-tube real timeout lifecycle', () => {
+  test('process-tree sampling never delays a child that exits normally', async () => {
+    const previousAgyBin = process.env.PD_CLI_AGY_BIN;
+    process.env.PD_CLI_AGY_BIN = installSlowExitingAgy(tempDir, 150);
+
+    try {
+      const res = await spawnViaCliTube({
+        cli: 'agy',
+        prompt: 'exit normally while liveness is sampled',
+        timeoutMs: 10_000,
+      });
+
+      expect(res.error).toBeNull();
+      expect(res.exitCode).toBe(0);
+      expect(res.durationMs).toBeLessThan(5_000);
+    } finally {
+      restoreEnv('PD_CLI_AGY_BIN', previousAgyBin);
+    }
+  });
+
   test('does not finalize a timed-out run until the CLI parent and inherited-stdio descendant are dead', async () => {
     const parentPidFile = join(tempDir, 'parent.pid');
     const survivorPidFile = join(tempDir, 'survivor.pid');
@@ -60,14 +81,14 @@ describe('cli-tube real timeout lifecycle', () => {
     const res = await spawnViaCliTube({
       cli: 'agy',
       prompt: 'hold open inherited stdout',
-      timeoutMs: 250,
+      timeoutMs: REAL_CHILD_DEADLINE_MS,
       env: {
         PD_PARENT_PID_FILE: parentPidFile,
         PD_SURVIVOR_PID_FILE: survivorPidFile,
       },
     });
 
-    expect(res.error).toContain('agy timed out after 250ms');
+    expect(res.error).toContain(`agy timed out after ${REAL_CHILD_DEADLINE_MS}ms`);
     expect(existsSync(parentPidFile)).toBe(true);
     expect(existsSync(survivorPidFile)).toBe(true);
     const parentPid = Number(readFileSync(parentPidFile, 'utf8'));
@@ -125,7 +146,7 @@ describe('cli-tube real timeout lifecycle', () => {
     const res = await spawnViaCliTube({
       cli: 'agy',
       prompt: 'spawn survivor then exit parent',
-      timeoutMs: 250,
+      timeoutMs: REAL_CHILD_DEADLINE_MS,
       env: {
         PD_PARENT_PID_FILE: parentPidFile,
         PD_LAUNCHER_PID_FILE: launcherPidFile,
@@ -134,7 +155,7 @@ describe('cli-tube real timeout lifecycle', () => {
       },
     });
 
-    expect(res.error).toContain('agy timed out after 250ms');
+    expect(res.error).toContain(`agy timed out after ${REAL_CHILD_DEADLINE_MS}ms`);
     expect(existsSync(parentPidFile)).toBe(true);
     expect(existsSync(launcherPidFile)).toBe(true);
     expect(existsSync(survivorPidFile)).toBe(true);
@@ -219,13 +240,46 @@ setTimeout(() => {
   return file;
 }
 
+/**
+ * Alive means RUNNING, not merely "still has a pid".
+ *
+ * `process.kill(pid, 0)` succeeds for a ZOMBIE — a process that has exited but
+ * whose parent has not reaped it. That distinction decides this file. The kill
+ * path signals the child before its descendants, so a descendant is an orphan
+ * at the instant it dies and reparents to init; whether it disappears from the
+ * process table in 10ms or 2s is then a property of who PID 1 is on the
+ * machine, not of the code under test. Measured reap latency in one container
+ * here: 1016-1900ms across 12 trials, against a poll budget of 20 x 50ms.
+ *
+ * So `kill(pid, 0)` alone made this suite pass or fail on the runner's init
+ * behaviour: prompt under systemd/docker-init, slow under a lazy poller, and
+ * never under a node/npm PID 1 (libuv only waitpid()s its own children).
+ * Reading the state instead asks the question the test actually means.
+ */
 async function isPidAlive(pid) {
   if (!Number.isInteger(pid) || pid <= 0) return false;
   try {
     process.kill(pid, 0);
-    return true;
   } catch {
-    return false;
+    return false; // gone from the table entirely
+  }
+  // Present in the table — but a zombie is dead for our purposes.
+  try {
+    if (process.platform === 'linux') {
+      // /proc/<pid>/stat: "pid (comm) STATE ...". comm can contain spaces and
+      // parens, so split on the LAST ')' rather than parsing fields in order.
+      const stat = readFileSync(`/proc/${pid}/stat`, 'utf8');
+      const afterComm = stat.slice(stat.lastIndexOf(')') + 1).trim();
+      return afterComm[0] !== 'Z';
+    }
+    const out = execFileSync('ps', ['-o', 'state=', '-p', String(pid)], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
+    return out.length > 0 && out[0] !== 'Z';
+  } catch {
+    // No /proc, or ps refused: fall back to the liveness we already proved.
+    return true;
   }
 }
 

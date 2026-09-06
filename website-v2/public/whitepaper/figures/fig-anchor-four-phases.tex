@@ -1,94 +1,46 @@
-% Four-phase Harbor Card progression — inline at top of §2 Architecture.
-% Each phase carries: (1) cryptographic primitive (in header), (2) one-line
-% property (in body), (3) the threat it forecloses (cobalt threat box),
-% and (4) the rationale for the next phase (teal label on the arrow).
-
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D8C7A6}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-
+% Semantic contract: every phase closes one additional threat while retaining
+% every earlier closure. The staircase is the mechanism; color is redundant.
 \begin{figure}[H]
 \centering
-\resizebox{\textwidth}{!}{%
-\begin{tikzpicture}[
-  font=\sffamily\small,
-  phasebody/.style={draw=hhebony,thick,rounded corners=3pt,
-                    inner sep=6pt,minimum width=48mm,minimum height=30mm,
-                    align=left,text width=44mm,anchor=north},
-  phasehdr/.style={draw=hhebony,thick,fill=hhpaper,rounded corners=2pt,
-                   inner sep=3pt,minimum width=48mm,align=center,
-                   font=\sffamily\bfseries\footnotesize,text=hhebony,anchor=south},
-  threat/.style={draw=hhcobalt,thick,fill=hhpaper,rounded corners=2pt,
-                 inner sep=3pt,font=\sffamily\footnotesize,text=hhcobalt,
-                 align=left,text width=44mm,anchor=north,minimum height=18mm},
-  rationale/.style={draw=hhteal,thick,fill=hhpaper,rounded corners=2pt,
-                    inner sep=3pt,font=\sffamily\scriptsize\itshape,
-                    text=hhteal,align=center,text width=22mm,anchor=center},
-  arrowstyle/.style={->,>=Latex,thick,draw=hhcobalt},
-]
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \def\xmin{-4.55}
+  \def\xmax{5.25}
+  \foreach \y/\threat/\close in {
+    2.1/{header-selected\\algorithm}/-3.25,
+    .7/{shared-secret theft}/-1.05,
+    -.7/{downstream\\privilege growth}/1.15,
+    -2.1/{post-issue authority}/3.35} {
+    \node[pd axis label,anchor=east,align=right,text width=31mm] at (\xmin-0.18,\y) {\threat};
+    \draw[pd hairline] (\xmin,\y) -- (\xmax,\y);
+    \draw[draw=hhamber,line width=2.4pt,line cap=round] (\xmin,\y) -- (\close,\y);
+    \draw[draw=hhpaper,line width=1.0pt,line cap=round] (\xmin,\y) -- (\close,\y);
+    \draw[draw=hhteal,line width=2.4pt,line cap=round] (\close,\y) -- (\xmax,\y);
+    \node[pd caution datum,minimum size=4.8pt,inner sep=0pt] at (\close,\y) {};
+  }
 
-% ─── Phase 1: HS256 ───────────────────────────────────────────────────────
-\node[phasebody,fill=hhsand!50] (p1) at (0,0)
-  {{\footnotesize HS256 (HMAC-SHA256). The \texttt{alg} field on the wire is ignored; the verifier uses the algorithm pinned at issuance. Header trust = 0.}};
-\node[phasehdr,fill=hhsand,above=0pt of p1.north]
-  {Phase 1 \,$\cdot$\, HS256 \\ Symmetric Pinning};
-\node[threat,below=5mm of p1.south] (p1t)
-  {\textbf{Forecloses:} \\ \textit{algorithm confusion} (CVE-2015-9235, CVE-2023-48238).};
+  \draw[pd caution rule]
+    (-3.25,2.1) -- (-3.25,.7) -- (-1.05,.7) -- (-1.05,-.7) --
+    (1.15,-.7) -- (1.15,-2.1) -- (3.35,-2.1);
+  \node[pd direct label,text=hhamber,anchor=south west] at (-3.15,2.28)
+    {closure frontier};
 
-% ─── Phase 2: Ed25519 ─────────────────────────────────────────────────────
-\node[phasebody,fill=hhsanddeep!55,right=36mm of p1] (p2)
-  {{\footnotesize Ed25519. Daemon acts as Root CA; each Harbor holds only the public key. Signing key never leaves the issuer; no shared secret to steal.}};
-\node[phasehdr,fill=hhsanddeep,above=0pt of p2.north]
-  {Phase 2 \,$\cdot$\, Ed25519 \\ Asymmetric Identity};
-\node[threat,below=5mm of p2.south] (p2t)
-  {\textbf{Forecloses:} \\ \textit{shared-secret theft}; \textit{cross-harbor key reuse}.};
-
-% ─── Phase 3: Stigmergic Delegation ───────────────────────────────────────
-\node[phasebody,fill=hhamber!30,right=36mm of p2] (p3)
-  {{\footnotesize Biscuit / Macaroon pattern. Multi-hop attenuation: child cap $\subsetneq$ parent cap; fresh nonce and prev/next identity binding at every hop.}};
-\node[phasehdr,fill=hhamber!55,above=0pt of p3.north]
-  {Phase 3 \,$\cdot$\, Macaroon \\ Stigmergic Delegation};
-\node[threat,below=5mm of p3.south] (p3t)
-  {\textbf{Forecloses:} \\ \textit{capability escalation}; \textit{hop splicing}; \textit{chain substitution}.};
-
-% ─── Phase 4: Revocation ──────────────────────────────────────────────────
-\node[phasebody,fill=hhcobalt!18,right=36mm of p3] (p4)
-  {{\footnotesize Cuckoo filter: 8-bit fingerprints, 4 entries/bucket, gossip-synced via version vectors. Global revoke in $\approx 2$\,min for $m{=}10$ daemons.}};
-\node[phasehdr,fill=hhcobalt!35,above=0pt of p4.north]
-  {Phase 4 \,$\cdot$\, Cuckoo \\ Revocation};
-\node[threat,below=5mm of p4.south] (p4t)
-  {\textbf{Forecloses:} \\ \textit{post-issuance compromise}; \textit{stale policy windows} (TTL $>$ MTTR).};
-
-% ─── Progression arrows between phase bodies, mid-height ────────────────
-\draw[arrowstyle] (p1.east) -- (p2.west);
-\draw[arrowstyle] (p2.east) -- (p3.west);
-\draw[arrowstyle] (p3.east) -- (p4.west);
-
-% ─── Rationale labels: small teal pills centered ON the arrows ────────
-%     The arrow span between phases is 36mm; rationale is text width 22mm,
-%     giving 7mm of clear margin on each side.
-\node[rationale] at ($(p1.east)!0.5!(p2.west)$) {needs: \\ remove shared secret};
-\node[rationale] at ($(p2.east)!0.5!(p3.west)$) {needs: \\ offline attenuation};
-\node[rationale] at ($(p3.east)!0.5!(p4.west)$) {needs: \\ early withdrawal};
-
-% ─── Bottom band: ProVerif status (sits well below threat boxes) ────────
-\node[draw=hhebony,thick,fill=hhpaper,rounded corners=3pt,
-      inner sep=5pt,align=center,font=\sffamily\footnotesize,
-      below=8mm of p3t.south,xshift=0mm,
-      text width=290mm]
-  {\textbf{Mechanized status} (ProVerif 2.05, unbounded sessions, Dolev--Yao adversary):\quad
-   Phase 1 \textbf{auth + injective \checkmark}\quad$\cdot$\quad
-   Phase 2 \textbf{alg-pinning safe \checkmark}\quad$\cdot$\quad
-   Phase 3 \textbf{17/17 replay-safe \checkmark}\quad$\cdot$\quad
-   Phase 4 \textbf{runtime-checked} (filter monotonicity; no partial reanimation).};
-
-\end{tikzpicture}%
-}
-\caption{The four phases of the Anchor Protocol. Each phase is a refinement of the previous: the cryptographic primitive changes, the property strengthens, and a specific threat is foreclosed. The teal pill on each arrow records \emph{why} the next phase was forced --- not as historical narrative but as a constructive argument that no earlier phase suffices on its own. Phases 1--3 are mechanized in ProVerif (\S\ref{app:mech}); Phase 4 is enforced at runtime against monotonicity and reanimation invariants (\S\ref{sec:revocation}).}
+  \foreach \x/\n/\name in {
+    -3.25/1/{HS256 pinning},
+    -1.05/2/{Ed25519 identity},
+    1.15/3/{delegation},
+    3.35/4/{revocation}} {
+    \draw[pd tick] (\x,-2.48) -- (\x,-2.65);
+    \node[pd axis label,anchor=north,align=center,text width=28mm] at (\x,-2.72)
+      {\textbf{Phase \n}\\\name};
+  }
+  \draw[pd rule,-{Stealth[length=1.7mm,width=1.05mm]}]
+    (\xmin,-2.55) -- (\xmax,-2.55);
+  \node[pd note,anchor=west] at (-4.5,-3.55)
+    {amber before closure; teal thereafter; no protection reopens};
+\end{tikzpicture}
+\caption{Threat closure is cumulative, not substitutive. Each protocol phase
+moves one attack surface across the closure frontier while every earlier rail
+stays closed. The staircase therefore encodes the architectural invariant: a
+later mechanism adds protection without reopening a hole already closed.}
 \label{fig:anchor-four-phases}
 \end{figure}

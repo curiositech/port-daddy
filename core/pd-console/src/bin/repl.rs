@@ -56,6 +56,9 @@ mod editor_claims;
 #[path = "../editor_commit_gate.rs"]
 mod editor_commit_gate;
 #[allow(dead_code)]
+#[path = "../editor_input.rs"]
+mod editor_input;
+#[allow(dead_code)]
 #[path = "../editor_pane.rs"]
 mod editor_pane;
 #[allow(dead_code)]
@@ -64,6 +67,12 @@ mod editor_sync;
 #[allow(dead_code)]
 #[path = "../editor_wedge.rs"]
 mod editor_wedge;
+#[allow(dead_code)]
+#[path = "../mission_callbacks.rs"]
+mod mission_callbacks;
+#[allow(dead_code)]
+#[path = "../mission_view.rs"]
+mod mission_view;
 #[allow(dead_code)]
 #[path = "../work_plan.rs"]
 mod work_plan;
@@ -85,6 +94,15 @@ mod harbor_pane; // Agent Node roster+detail (ch18 C3)
 mod health_pane;
 #[path = "../inbox_pane.rs"]
 mod inbox_pane;
+// HITL operator interruptions (docs/hitl-interruptions.md §4, surface 2):
+// the poll state machine + view model are gpui-free by design so the whole
+// contract (jitter bounds, 4xx park, breaker) tests on this cheap gate.
+#[allow(dead_code)]
+#[path = "../interruptions.rs"]
+mod interruptions;
+#[allow(dead_code)]
+#[path = "../interruptions_pane.rs"]
+mod interruptions_pane;
 #[path = "../lane_pane.rs"]
 mod lane_pane;
 #[path = "../lineage_pane.rs"]
@@ -108,6 +126,12 @@ mod planner_pane;
 mod prs_pane;
 #[path = "../roadmap_pane.rs"]
 mod roadmap_pane;
+// Data layer only (WS-F cluster P): typed RoadmapProjection mirroring
+// lib/roadmap-projection.ts + the law-13 displayState pure function. No pane
+// wiring — gpui-free, hosted here so the headless test gate runs its suite.
+#[allow(dead_code)]
+#[path = "../roadmap_projection.rs"]
+mod roadmap_projection;
 #[allow(dead_code)] // parse/serve are exercised by tests; the server runs only in the gpui bin
 #[path = "../script.rs"]
 mod script; // control-socket scripting (parse + serve tests)
@@ -125,22 +149,36 @@ mod term;
 mod theme;
 #[path = "../util.rs"]
 mod util;
+// Timeline companion-window launcher (ADR-0112 path 3). The launch shell is
+// GUI-only at runtime, but its pure binary-path resolver + missing-binary
+// message are unit-tested HERE on the cheap non-gpui gate.
+#[allow(dead_code)]
+#[path = "../timeline.rs"]
+mod timeline;
 // Offscreen Block→PNG raster (agent-safe, no display/TCC/gpui). Included here so the
 // headless capture + its PNG-encoder tests run on the cheap non-gpui gate too.
 #[path = "../headless_capture.rs"]
 mod headless_capture;
+// Shared presentation-scale contract used by the zoom-proof capture. Keeping it
+// in the cheap REPL gate catches preference and bound drift without GPUI.
+#[allow(dead_code)]
+#[path = "../presentation.rs"]
+mod presentation;
 
 use active_agents_pane::ActiveAgentsPane;
 use agent::DaemonClient;
 use anyhow::Result;
+use claims_pane::ClaimsPane;
 use dispatch_pane::DispatchQueuePane;
 use fleet_pane::FleetPane;
 use galaxy_pane::GalaxyPane;
 use harbor_pane::HarborPane;
 use lane_pane::LanePane;
 use lineage_pane::LineagePane;
-use pane::{OperatorTurn, PaneRegistry, Subscription, SurfaceAction};
+use pane::{Block, OperatorTurn, Pane, PaneRegistry, Subscription, SurfaceAction};
 use parley_pane::ParleyPane;
+use planner_pane::PlannerPane;
+use sessions_pane::SessionsPane;
 use std::io::{self, Write};
 use std::time::Duration;
 use substrate_pane::SubstratePane;
@@ -166,11 +204,26 @@ fn banner(style: &TermStyle, daemon_url: &str) {
         "{}  {}",
         rail("└"),
         style.paint(
-            ":work <goal> · :roster · :lane · :lane-message <text> · :harbor · :edit <path> · :quit",
+            ":work <goal> · :planner · :roster · :lane · :lane-message <text> · :harbor · :edit <path> · :quit",
             Sem::Muted
         )
     );
     println!();
+}
+
+fn proof_viewport(blocks: Vec<Block>, ledger_row_limit: usize) -> Vec<Block> {
+    let mut seen_rows = 0usize;
+    blocks
+        .into_iter()
+        .filter(|block| {
+            if matches!(block, Block::LedgerRow { .. }) {
+                seen_rows += 1;
+                seen_rows <= ledger_row_limit
+            } else {
+                true
+            }
+        })
+        .collect()
 }
 
 async fn drain_active_subscription(
@@ -204,7 +257,10 @@ async fn drain_active_subscription(
         // coordination lane (region claims → `on_coord_frame`). One `subscribe_channel`
         // per channel is the isolation; a single `window` deadline bounds the drain, and
         // either channel closing ends it — mirroring the Agent arm's `None => break`.
-        Some(Subscription::Editor { channel, coord_channel }) => {
+        Some(Subscription::Editor {
+            channel,
+            coord_channel,
+        }) => {
             let active = reg.active;
             let mut edit_rx = daemon.subscribe_channel(&channel);
             let mut coord_rx = daemon.subscribe_channel(&coord_channel);
@@ -254,6 +310,116 @@ async fn main() -> Result<()> {
             return Ok(());
         }
     };
+
+    // `--capture-claims|planner|agents <path.png>`: refresh the selected pane against
+    // the live daemon and rasterize its Block view to a PNG, then exit. These
+    // are durable, TCC-independent visual-proof recipes for the two ledger
+    // surfaces; the source daemon is real and the Block rasterizer is one of
+    // the console's renderers, so the result is source-labelled rather than a
+    // mock or a claimed GPUI/Metal screenshot.
+    let argv: Vec<String> = std::env::args().collect();
+    let capture_width = if let Some(pos) = argv.iter().position(|a| a == "--capture-width") {
+        let raw = argv
+            .get(pos + 1)
+            .ok_or_else(|| anyhow::anyhow!("--capture-width requires 320..=2400"))?;
+        let width = raw
+            .parse::<usize>()
+            .map_err(|_| anyhow::anyhow!("--capture-width requires 320..=2400"))?;
+        if !(320..=2400).contains(&width) {
+            anyhow::bail!("--capture-width requires 320..=2400");
+        }
+        width
+    } else {
+        1180
+    };
+    let capture_rows = if let Some(pos) = argv.iter().position(|a| a == "--capture-ledger-rows") {
+        argv.get(pos + 1)
+            .ok_or_else(|| anyhow::anyhow!("--capture-ledger-rows requires a positive integer"))?
+            .parse::<usize>()
+            .map_err(|_| anyhow::anyhow!("--capture-ledger-rows requires a positive integer"))?
+            .max(1)
+    } else {
+        usize::MAX
+    };
+    let capture_selection = argv
+        .iter()
+        .position(|a| a == "--capture-select")
+        .map(|pos| {
+            argv.get(pos + 1)
+                .ok_or_else(|| anyhow::anyhow!("--capture-select requires a row index"))?
+                .parse::<usize>()
+                .map_err(|_| anyhow::anyhow!("--capture-select requires a row index"))
+        })
+        .transpose()?;
+    let capture_sort = argv
+        .iter()
+        .position(|a| a == "--capture-sort")
+        .map(|pos| {
+            argv.get(pos + 1)
+                .cloned()
+                .ok_or_else(|| anyhow::anyhow!("--capture-sort requires a stable sort key"))
+        })
+        .transpose()?;
+    if let Some(pos) = argv.iter().position(|a| a == "--capture-claims") {
+        let path = argv
+            .get(pos + 1)
+            .ok_or_else(|| anyhow::anyhow!("--capture-claims requires a <path.png>"))?;
+        let mut pane = ClaimsPane::new();
+        pane.refresh(&daemon).await?;
+        if let Some(key) = capture_sort.clone() {
+            pane.mutate(&daemon, SurfaceAction::Sort { key }).await?;
+        }
+        if let Some(index) = capture_selection {
+            pane.mutate(&daemon, SurfaceAction::SelectRow { index })
+                .await?;
+        }
+        let blocks = proof_viewport(pane.view(), capture_rows);
+        let png = headless_capture::render_blocks(&blocks, &theme::DARK, capture_width).to_png();
+        std::fs::write(path, &png)?;
+        println!("claims capture written: {path}");
+        return Ok(());
+    }
+    if let Some(pos) = argv.iter().position(|a| a == "--capture-planner") {
+        let path = argv
+            .get(pos + 1)
+            .ok_or_else(|| anyhow::anyhow!("--capture-planner requires a <path.png>"))?;
+        let mut pane = PlannerPane::new();
+        pane.refresh(&daemon).await?;
+        if let Some(key) = capture_sort {
+            pane.mutate(&daemon, SurfaceAction::Sort { key }).await?;
+        }
+        if let Some(index) = capture_selection {
+            pane.mutate(&daemon, SurfaceAction::SelectRow { index })
+                .await?;
+        }
+        let blocks = proof_viewport(pane.view(), capture_rows);
+        let png = headless_capture::render_blocks(&blocks, &theme::DARK, capture_width).to_png();
+        std::fs::write(path, &png)?;
+        println!("planner capture written: {path}");
+        return Ok(());
+    }
+    if let Some(pos) = argv.iter().position(|a| a == "--capture-agents") {
+        let path = argv
+            .get(pos + 1)
+            .ok_or_else(|| anyhow::anyhow!("--capture-agents requires a <path.png>"))?;
+        let mut pane = SessionsPane::new();
+        pane.refresh(&daemon).await?;
+        if let Some(key) = capture_sort {
+            pane.mutate(&daemon, SurfaceAction::Sort { key }).await?;
+        }
+        if let Some(index) = capture_selection {
+            pane.mutate(&daemon, SurfaceAction::SelectRow { index })
+                .await?;
+            // Selection changes which owning berth supplies the transcript.
+            pane.refresh(&daemon).await?;
+        }
+        let blocks = proof_viewport(pane.view(), capture_rows);
+        let png = headless_capture::render_blocks(&blocks, &theme::DARK, capture_width).to_png();
+        std::fs::write(path, &png)?;
+        println!("agents capture written: {path}");
+        return Ok(());
+    }
+
     banner(&style, daemon.base());
 
     // Build the pane registry — register all panes once at startup.
@@ -267,6 +433,8 @@ async fn main() -> Result<()> {
     reg.register(Box::new(ActiveAgentsPane::new()));
     reg.register(Box::new(HarborPane::new()));
     reg.register(Box::new(GalaxyPane::new()));
+    reg.register(Box::new(interruptions_pane::InterruptionsPane::new()));
+    reg.register(Box::new(PlannerPane::new()));
 
     let ok = |s: &TermStyle, msg: &str| println!("  {} {msg}", s.paint("✓", Sem::Landed));
     let err = |s: &TermStyle, msg: &str| println!("  {} {msg}", s.paint("✗", Sem::Gated));
@@ -367,7 +535,7 @@ async fn main() -> Result<()> {
                 {
                     Ok(()) => ok(
                         &style,
-                        "interrupt sent — watch the stream for control.interrupt",
+                        "interrupt requested — runtime acknowledgement pending",
                     ),
                     Err(e) => err(&style, &format!("interrupt failed: {e}")),
                 }
@@ -526,6 +694,21 @@ async fn main() -> Result<()> {
             if let Some(p) = reg.active() {
                 print!("{}", term::render_blocks(&p.view(), &style));
             }
+        } else if line == ":planner" || line == ":gantt" || line == ":roadmap" {
+            // The roadmap's critical-path Gantt — the same PlannerPane the GPUI
+            // window leads with, rendered headlessly so Linux CI and operators
+            // without a window can read the schedule (and capture evidence).
+            reg.active = reg
+                .panes
+                .iter()
+                .position(|p| p.id() == "planner")
+                .unwrap_or(0);
+            if let Err(e) = reg.refresh_active(&daemon).await {
+                err(&style, &format!("refresh failed: {e}"));
+            }
+            if let Some(p) = reg.active() {
+                print!("{}", term::render_blocks(&p.view(), &style));
+            }
         } else if line == ":fleet" {
             // Declarative ships from pd-fleet.yml with live lifecycle (GET /fleet):
             // sailing / cooldown / dry-dock / paused / armed, each an ICS flag.
@@ -591,7 +774,7 @@ async fn main() -> Result<()> {
         } else {
             err(
                 &style,
-                "unknown command; use :work <goal>, :roster, :lane, :harbor, or :quit",
+                "unknown command; use :work <goal>, :planner, :roster, :lane, :harbor, or :quit",
             );
         }
     }
@@ -615,5 +798,43 @@ mod repl_migration_tests {
         );
         assert_eq!(retired_repl_command_guidance(":sextant"), None);
         assert_eq!(retired_repl_command_guidance("galaxy"), None);
+    }
+
+    #[test]
+    fn proof_viewport_limits_only_ledger_rows_and_keeps_inspector_blocks() {
+        let blocks = vec![
+            Block::Header("Claims".into()),
+            Block::LedgerRow {
+                surface: "claims".into(),
+                index: 0,
+                selected: true,
+                cells: vec![pane::LedgerCell::wide("Path", "one.rs")],
+                tone: pane::Tone::Accent,
+            },
+            Block::LedgerRow {
+                surface: "claims".into(),
+                index: 1,
+                selected: false,
+                cells: vec![pane::LedgerCell::wide("Path", "two.rs")],
+                tone: pane::Tone::Resting,
+            },
+            Block::WrappedText {
+                text: "full selected claim inspector".into(),
+                tone: pane::Tone::Resting,
+            },
+        ];
+
+        let visible = proof_viewport(blocks, 1);
+        assert_eq!(
+            visible
+                .iter()
+                .filter(|block| matches!(block, Block::LedgerRow { .. }))
+                .count(),
+            1
+        );
+        assert!(visible.iter().any(|block| matches!(
+            block,
+            Block::WrappedText { text, .. } if text == "full selected claim inspector"
+        )));
     }
 }

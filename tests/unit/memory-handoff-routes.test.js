@@ -5,7 +5,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createTestDb } from '../setup-unit.js';
 import { createEpisodicMemory } from '../../lib/episodic-memory.js';
+import { appendEvent } from '../../lib/agent-harbor/event-ledger.js';
 import { HandoffScannerUnavailableError } from '../../lib/handoff-capsule.js';
+import { recordInteractiveContextPressure } from '../../lib/squid/context-pressure.js';
 import { memoryPlugin } from '../../routes/memory.js';
 import { captureWorkspaceIdentity } from '../../lib/workspace-identity.js';
 
@@ -14,6 +16,47 @@ const SUCCESSOR_SESSION_ID = '22222222-2222-4222-8222-222222222222';
 const WORKSPACE_IDENTITY = captureWorkspaceIdentity(process.cwd());
 if (!WORKSPACE_IDENTITY) throw new Error('test workspace identity unavailable');
 const CANONICAL_WORKSPACE = WORKSPACE_IDENTITY.canonicalPath;
+
+function seedVerifiedInteractivePacket(db, sessionId = SOURCE_SESSION_ID) {
+  const event = (sequence, kind, payloadJson = {}) => ({
+    eventId: `evt_memory_packet_${sessionId}_${sequence}`,
+    sessionId,
+    agentNodeId: 'portdaddy-typography-expert',
+    sequence,
+    occurredAt: '2026-08-27T12:00:00.000Z',
+    schemaVersion: 1,
+    kind,
+    visibility: 'operator',
+    payloadJson,
+  });
+  appendEvent(db, { streamType: 'transcript-event', payload: event(1, 'session_started') });
+  appendEvent(db, { streamType: 'transcript-event', payload: event(2, 'operator_message', { content: 'raw predecessor transcript must never enter the successor prompt' }) });
+  appendEvent(db, { streamType: 'transcript-event', payload: event(3, 'tool_call', { toolCallId: 'memory-tool-1' }) });
+  appendEvent(db, { streamType: 'transcript-event', payload: event(4, 'tool_result', { toolCallId: 'memory-tool-1', content: 'private raw tool output' }) });
+  const result = recordInteractiveContextPressure(db, {
+    provider: 'claude',
+    hookTrigger: 'manual',
+    observationId: `memory-projection-${sessionId}`,
+    agentNodeId: 'portdaddy-typography-expert',
+    sessionId,
+    transcriptId: `provider-${sessionId}`,
+    model: 'claude-test',
+    windowTokens: 1_000,
+    daemonUsedTokensEstimate: 850,
+    planCheckpoint: { content: '- [ ] Continue only from the verified packet plan', capturedAt: '2026-08-27T12:00:00.000Z' },
+    toolPairCoverage: {
+      witness: 'daemon-adapter',
+      status: 'complete',
+      provider: 'claude',
+      sessionId,
+      observationId: `memory-projection-${sessionId}`,
+      coveredThroughLedgerSeq: 4,
+      coverageRef: `memory-coverage-${sessionId}`,
+    },
+  });
+  if (result.status !== 'recorded' || !result.continuity.packet) throw new Error('expected verified interactive packet');
+  return result.continuity.packet;
+}
 
 function capsule(overrides = {}) {
   return {
@@ -446,6 +489,84 @@ describe('handoff continuation routes', () => {
     expect(response.statusCode).toBe(201);
     return response.json().episode;
   }
+
+  test('rehydrates an exact verified packet into a cross-backend continuation without raw transcript text', async () => {
+    const state = await buildApp();
+    const packet = seedVerifiedInteractivePacket(state.db);
+    const episode = await createHandoff(state, {
+      capsuleId: packet.packetId,
+      source: {
+        adapter: 'interactive:claude',
+        sessionId: SOURCE_SESSION_ID,
+        agentId: 'portdaddy-typography-expert',
+        workflowId: null,
+        transcriptRef: `agent-harbor:${packet.packetId}`,
+      },
+    });
+    const stored = state.episodicMemory.get(episode.id);
+    state.db.prepare('UPDATE episodic_memory SET metadata = ? WHERE id = ?').run(JSON.stringify({
+      ...stored.metadata,
+      projectionOf: {
+        stream: 'harbor_events',
+        packetId: packet.packetId,
+        transcriptEventId: packet.transcriptEventId,
+        sourceHeadEventId: packet.sourceTranscript.headEventId,
+        sourceHeadHash: packet.sourceTranscript.headHash,
+      },
+    }), episode.id);
+
+    const response = await state.app.inject({
+      method: 'POST',
+      url: `/memory/handoffs/${episode.id}/continue`,
+      payload: {
+        targetBackend: 'cli:codex',
+        prompt: 'Finish the successor safely.',
+        idempotencyKey: 'verified-packet-cross-backend',
+      },
+    });
+    expect(response.statusCode).toBe(201);
+    const [spawnSpec] = state.spawner.spawn.mock.calls[0];
+    expect(spawnSpec.task).toContain('Continue only from the verified packet plan');
+    expect(spawnSpec.task).toContain(packet.nextAction.recommendation);
+    expect(spawnSpec.task).toContain(packet.sourceTranscript.headEventId);
+    expect(spawnSpec.task).not.toContain('raw predecessor transcript must never enter the successor prompt');
+    expect(spawnSpec.task).not.toContain('private raw tool output');
+
+    await state.app.close();
+    state.db.close();
+  });
+
+  test('fails closed before acceptance when a packet projection belongs to another capsule predecessor', async () => {
+    const state = await buildApp();
+    const packet = seedVerifiedInteractivePacket(state.db);
+    const episode = await createHandoff(state, {
+      capsuleId: 'different-capsule-id',
+      source: { ...capsule().source, sessionId: SOURCE_SESSION_ID },
+    });
+    const stored = state.episodicMemory.get(episode.id);
+    state.db.prepare('UPDATE episodic_memory SET metadata = ? WHERE id = ?').run(JSON.stringify({
+      ...stored.metadata,
+      projectionOf: {
+        stream: 'harbor_events',
+        packetId: packet.packetId,
+        transcriptEventId: packet.transcriptEventId,
+        sourceHeadEventId: packet.sourceTranscript.headEventId,
+        sourceHeadHash: packet.sourceTranscript.headHash,
+      },
+    }), episode.id);
+    const response = await state.app.inject({
+      method: 'POST',
+      url: `/memory/handoffs/${episode.id}/continue`,
+      payload: { targetBackend: 'cli:codex', idempotencyKey: 'mismatched-packet-projection' },
+    });
+    expect(response.statusCode).toBe(400);
+    expect(response.json().error).toMatch(/does not match this handoff capsule predecessor/);
+    expect(state.spawner.spawn).not.toHaveBeenCalled();
+    expect(state.db.prepare('SELECT COUNT(*) AS count FROM agent_continuations').get().count).toBe(0);
+
+    await state.app.close();
+    state.db.close();
+  });
 
   test('resumes the exact source session and returns a durable lineage receipt', async () => {
     const state = await buildApp();

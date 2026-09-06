@@ -1,9 +1,9 @@
 /**
  * Tests for lib/dispatch/spawn-adapter.ts
  *
- * All tests use injectable fns (spawnFn, worktreeAddFn, openPrFn) so no real
- * subprocess is spawned, no real worktree is created, and no real GitHub API
- * is called. The tests verify:
+ * Tests use injectable fns (spawnFn, worktreeAddFn, openPrFn), except one
+ * synthetic Node child/grandchild timeout fixture. No provider, real worktree,
+ * or GitHub API is used. The tests verify:
  *
  *   - correct worktree path construction from the queue row
  *   - correct branch + baseRef derivation
@@ -17,12 +17,17 @@
  */
 
 import { jest } from '@jest/globals';
+import { EventEmitter } from 'node:events';
+import { execFile } from 'node:child_process';
+import { isWitnessedBackendFailure, witnessedBackendFailure } from '../../lib/agent-resilience.js';
+import { classifyForFailover } from '../../lib/dispatch/failover.js';
 import { createTestDb } from '../setup-unit.js';
 import { createDispatchQueue } from '../../lib/dispatch/queue.js';
 import {
   createSpawnAdapter,
   gitWorktreeAdd,
   requireCli,
+  runAgentInWorktree,
 } from '../../lib/dispatch/spawn-adapter.js';
 import {
   planRunFor,
@@ -36,6 +41,85 @@ function makeQueue(db) {
   return createDispatchQueue({ db, now: () => Date.now() });
 }
 
+const SOURCE_PROJECT = '/repo';
+
+describe('host child lifecycle failure witnesses', () => {
+  function childFixture() {
+    const child = new EventEmitter();
+    child.stdin = { end: jest.fn() };
+    child.stdout = new EventEmitter();
+    child.stderr = new EventEmitter();
+    child.kill = jest.fn(() => { queueMicrotask(() => child.emit('close', 1)); return true; });
+    return child;
+  }
+  function run(child, timeoutMs = 1000) {
+    return runAgentInWorktree({ command: 'codex', args: [], env: {}, worktreePath: SOURCE_PROJECT, timeoutMs, execFileFn: () => child });
+  }
+  test('actual child error code, not its message, creates the host witness', async () => {
+    const child = childFixture();
+    const pending = run(child);
+    child.emit('error', Object.assign(new Error('401 misleading detail'), { code: 'ENOENT' }));
+    const result = await pending;
+    expect(result.failure.code).toBe('BACKEND_ABSENT');
+    expect(isWitnessedBackendFailure(result.failure)).toBe(true);
+    expect(isWitnessedBackendFailure(JSON.parse(JSON.stringify(result.failure)))).toBe(false);
+  });
+  test('stderr or nonzero exit cannot self-assert a recoverable transport failure', async () => {
+    const child = childFixture();
+    const pending = run(child);
+    child.stderr.emit('data', Buffer.from('{"code":"UNAVAILABLE","status":503} ENOENT 429'));
+    child.emit('close', 1);
+    const result = await pending;
+    expect(result.failure).toBeUndefined();
+    expect(result.error).toContain('ENOENT');
+  });
+  test('local timeout and direct-child close cannot prove owned-tree termination', async () => {
+    const child = childFixture();
+    const result = await run(child, 10);
+    expect(child.kill).toHaveBeenCalledWith('SIGTERM');
+    expect(result.error).toContain('timed out');
+    expect(result.failure).toBeUndefined();
+    expect(isWitnessedBackendFailure(result.failure)).toBe(false);
+  });
+
+  test('a surviving synthetic grandchild cannot earn timeout failover after child close', async () => {
+    let directChild;
+    let grandchildPid;
+    // The grandchild closes inherited pipes, so the direct child's close is
+    // observable while the descendant is still alive. Its own 10s exit is a
+    // final cleanup bound even if this test fails before receiving its PID.
+    const source = `
+      const { spawn } = require('node:child_process');
+      const descendant = spawn(process.execPath, ['-e', 'setTimeout(() => {}, 10000)'], { stdio: 'ignore' });
+      process.stdout.write(String(descendant.pid) + '\\n');
+      setInterval(() => {}, 1000);
+    `;
+    try {
+      const result = await runAgentInWorktree({
+        command: 'codex', args: [], env: {}, worktreePath: process.cwd(), timeoutMs: 1000,
+        execFileFn: (_file, _args, options) => {
+          directChild = execFile(process.execPath, ['-e', source], options);
+          directChild.stdout.on('data', data => {
+            const parsed = Number(data.toString().trim());
+            if (Number.isSafeInteger(parsed) && parsed > 0) grandchildPid = parsed;
+          });
+          return directChild;
+        },
+      });
+      expect(grandchildPid).toBeGreaterThan(0);
+      expect(() => process.kill(grandchildPid, 0)).not.toThrow();
+      expect(directChild.signalCode).toBe('SIGTERM');
+      expect(result.error).toContain('timed out');
+      expect(result.failure).toBeUndefined();
+      expect(classifyForFailover(result.failure)).toMatchObject({ transient: false, backendAbsent: false });
+    } finally {
+      // These exact PIDs came from this fixture, never from a global scan.
+      if (grandchildPid) { try { process.kill(grandchildPid, 'SIGKILL'); } catch {} }
+      if (directChild && directChild.exitCode === null && directChild.signalCode === null) directChild.kill('SIGKILL');
+    }
+  });
+});
+
 /** Build a no-op adapter that records its calls. */
 function makeAdapter(overrides = {}) {
   const calls = {
@@ -44,9 +128,9 @@ function makeAdapter(overrides = {}) {
     openPr: [],
   };
 
-  const worktreeAddFn = jest.fn(async (path, branch, baseRef) => {
-    calls.worktreeAdd.push({ path, branch, baseRef });
-    if (overrides.worktreeAddFn) return overrides.worktreeAddFn(path, branch, baseRef);
+  const worktreeAddFn = jest.fn(async (path, branch, baseRef, options) => {
+    calls.worktreeAdd.push({ path, branch, baseRef, options });
+    if (overrides.worktreeAddFn) return overrides.worktreeAddFn(path, branch, baseRef, options);
   });
 
   const spawnFn = jest.fn(async (params) => {
@@ -118,6 +202,7 @@ describe('requireCli', () => {
 describe('gitWorktreeAdd', () => {
   test('retries bounded repository config-lock contention with jitter', async () => {
     const calls = [];
+    const cwdCalls = [];
     const sleeps = [];
     let addAttempts = 0;
     const configLock = Object.assign(
@@ -130,8 +215,10 @@ describe('gitWorktreeAdd', () => {
     );
 
     await gitWorktreeAdd('/repo/worktree', 'dispatch/test', 'origin/main', {
-      execFileFn: async (_file, args) => {
+      repoWorkdir: SOURCE_PROJECT,
+      execFileFn: async (_file, args, options) => {
         calls.push(args);
+        cwdCalls.push(options?.cwd);
         if (args[0] === 'worktree' && ++addAttempts === 1) throw configLock;
         return { stdout: '', stderr: '' };
       },
@@ -146,6 +233,13 @@ describe('gitWorktreeAdd', () => {
       'worktree', 'add', '/repo/worktree', 'dispatch/test',
     ]);
     expect(sleeps).toEqual([50]);
+    expect(cwdCalls.every((cwd) => cwd === SOURCE_PROJECT)).toBe(true);
+  });
+
+  test('refuses to infer the source repository from daemon cwd', async () => {
+    await expect(gitWorktreeAdd('/repo/worktree', 'dispatch/test', 'main', {
+      repoWorkdir: '',
+    })).rejects.toThrow(/absolute source project binding/);
   });
 
   test('accepts a worktree materialized before Git loses the config-lock race', async () => {
@@ -157,6 +251,7 @@ describe('gitWorktreeAdd', () => {
     );
 
     await gitWorktreeAdd('/repo/worktree', 'dispatch/test', 'main', {
+      repoWorkdir: SOURCE_PROJECT,
       execFileFn: async (_file, args) => {
         if (args[0] === 'worktree') {
           addAttempts += 1;
@@ -175,9 +270,11 @@ describe('gitWorktreeAdd', () => {
     let addAttempts = 0;
 
     await expect(gitWorktreeAdd('/repo/worktree', 'dispatch/test', 'main', {
+      repoWorkdir: SOURCE_PROJECT,
       execFileFn: async (_file, args) => {
         if (args[0] === 'worktree') addAttempts += 1;
-        throw new Error('fatal: invalid reference: main');
+        if (args[0] === 'worktree') throw new Error('fatal: invalid reference: main');
+        return { stdout: '/repo', stderr: '' };
       },
       existsFn: () => false,
       sleepFn: async () => { throw new Error('must not sleep'); },
@@ -198,14 +295,14 @@ describe('createSpawnAdapter — worktree path', () => {
   afterEach(() => { db.close(); });
 
   test('worktreeAddFn receives the correct path derived from the dispatch id', async () => {
-    const dispatch = queue.propose({ goal: 'write a hello-world test' });
+    const dispatch = queue.propose({ goal: 'write a hello-world test', projectDir: SOURCE_PROJECT });
     const plan = planRunFor(dispatch);
     const { adapter, calls } = makeAdapter();
 
     await runNext(queue, { dryRun: false, spawnAdapter: adapter });
 
     expect(calls.worktreeAdd).toHaveLength(1);
-    const { path, branch, baseRef } = calls.worktreeAdd[0];
+    const { path, branch, baseRef, options } = calls.worktreeAdd[0];
     // Path must be under DISPATCH_WORKTREE_ROOT and contain the dispatch prefix.
     expect(path.startsWith(DISPATCH_WORKTREE_ROOT)).toBe(true);
     expect(path).toContain('port-daddy-dispatch-');
@@ -214,10 +311,11 @@ describe('createSpawnAdapter — worktree path', () => {
     // Branch and baseRef must match.
     expect(branch).toBe(plan.branch);
     expect(baseRef).toBe(plan.baseRef);
+    expect(options).toEqual({ repoWorkdir: SOURCE_PROJECT });
   });
 
   test('branch is dispatch/<slug>-<idShort>', async () => {
-    const dispatch = queue.propose({ goal: 'implement feature xyz' });
+    queue.propose({ goal: 'implement feature xyz', projectDir: SOURCE_PROJECT });
     const { adapter, calls } = makeAdapter();
 
     await runNext(queue, { dryRun: false, spawnAdapter: adapter });
@@ -228,7 +326,11 @@ describe('createSpawnAdapter — worktree path', () => {
   });
 
   test('baseRef uses origin/<baseBranch>', async () => {
-    const dispatch = queue.propose({ goal: 'do something', baseBranch: 'release/2026.06' });
+    queue.propose({
+      goal: 'do something',
+      baseBranch: 'release/2026.06',
+      projectDir: SOURCE_PROJECT,
+    });
     const { adapter, calls } = makeAdapter();
 
     await runNext(queue, { dryRun: false, spawnAdapter: adapter });
@@ -247,8 +349,20 @@ describe('createSpawnAdapter — spawn argv', () => {
   });
   afterEach(() => { db.close(); });
 
+  test.each([false, true])('adapter preserves only exact process-local witness (clone=%s)', async clone => {
+    queue.propose({ goal: 'preserve failure facts', projectDir: SOURCE_PROJECT });
+    const witness = witnessedBackendFailure({ kind: 'os', code: 'ENOENT' });
+    const supplied = clone ? JSON.parse(JSON.stringify(witness)) : witness;
+    const { adapter } = makeAdapter({
+      spawnFn: async () => ({ output: '', error: 'ENOENT display', failure: supplied }),
+      openPrFn: async () => { throw new Error('no artifact'); },
+    });
+    const response = await runNext(queue, { dryRun: false, spawnAdapter: adapter });
+    expect(response.result.error).toBe(clone ? undefined : witness);
+  });
+
   test('spawnFn receives the correct command + args for cli:codex (default)', async () => {
-    const dispatch = queue.propose({ goal: 'write unit tests for the spawner' });
+    const dispatch = queue.propose({ goal: 'write unit tests for the spawner', projectDir: SOURCE_PROJECT });
     const plan = planRunFor(dispatch);
     const { adapter, calls } = makeAdapter();
 
@@ -263,7 +377,11 @@ describe('createSpawnAdapter — spawn argv', () => {
   });
 
   test('spawnFn receives the correct command + args for cli:claude-code', async () => {
-    const dispatch = queue.propose({ goal: 'refactor the config module', backend: 'cli:claude-code' });
+    const dispatch = queue.propose({
+      goal: 'refactor the config module',
+      backend: 'cli:claude-code',
+      projectDir: SOURCE_PROJECT,
+    });
     const plan = planRunFor(dispatch);
     const { adapter, calls } = makeAdapter();
 
@@ -278,7 +396,7 @@ describe('createSpawnAdapter — spawn argv', () => {
   });
 
   test('spawnFn env includes PD_DISPATCH_ID from plan.env', async () => {
-    const dispatch = queue.propose({ goal: 'clean up stale tests' });
+    const dispatch = queue.propose({ goal: 'clean up stale tests', projectDir: SOURCE_PROJECT });
     const { adapter, calls } = makeAdapter();
 
     await runNext(queue, { dryRun: false, spawnAdapter: adapter });
@@ -304,6 +422,7 @@ describe('createSpawnAdapter — gh pr create', () => {
     const dispatch = queue.propose({
       goal: 'add integration tests for the dispatch queue',
       baseBranch: 'develop',
+      projectDir: SOURCE_PROJECT,
     });
     const { adapter, calls } = makeAdapter();
 
@@ -319,7 +438,7 @@ describe('createSpawnAdapter — gh pr create', () => {
   });
 
   test('resultArtifact on the queue row is the PR URL returned by openPrFn', async () => {
-    const dispatch = queue.propose({ goal: 'improve error handling' });
+    const dispatch = queue.propose({ goal: 'improve error handling', projectDir: SOURCE_PROJECT });
     const fakePrUrl = 'https://github.com/curiositech/port-daddy/pull/42';
     const { adapter } = makeAdapter({
       openPrFn: async () => fakePrUrl,
@@ -345,7 +464,7 @@ describe('createSpawnAdapter — state machine', () => {
   afterEach(() => { db.close(); });
 
   test('dispatch transitions: proposed → claimed → in_progress → produced → settled', async () => {
-    const dispatch = queue.propose({ goal: 'wire the spawn adapter into the CLI' });
+    const dispatch = queue.propose({ goal: 'wire the spawn adapter into the CLI', projectDir: SOURCE_PROJECT });
     const { adapter } = makeAdapter();
 
     expect(queue.get(dispatch.id).state).toBe('proposed');
@@ -361,7 +480,7 @@ describe('createSpawnAdapter — state machine', () => {
   });
 
   test('adapter returns state=settled when PR opened (adapter lifecycle signal)', async () => {
-    const dispatch = queue.propose({ goal: 'add telemetry to the spawner' });
+    queue.propose({ goal: 'add telemetry to the spawner', projectDir: SOURCE_PROJECT });
     const { adapter } = makeAdapter();
 
     const result = await runNext(queue, { dryRun: false, spawnAdapter: adapter });
@@ -371,7 +490,7 @@ describe('createSpawnAdapter — state machine', () => {
   });
 
   test('worktree error → dispatch settled as failed, no spawn called', async () => {
-    const dispatch = queue.propose({ goal: 'fix the nightly test failure' });
+    const dispatch = queue.propose({ goal: 'fix the nightly test failure', projectDir: SOURCE_PROJECT });
     const { adapter, calls } = makeAdapter({
       worktreeAddFn: async () => { throw new Error('git worktree add failed: branch exists'); },
     });
@@ -384,8 +503,21 @@ describe('createSpawnAdapter — state machine', () => {
     expect(queue.get(dispatch.id).state).toBe('failed');
   });
 
+  test('missing source project binding fails closed before worktree creation', async () => {
+    const dispatch = queue.propose({ goal: 'must not use daemon cwd' });
+    const { adapter, calls } = makeAdapter();
+
+    const result = await runNext(queue, { dryRun: false, spawnAdapter: adapter });
+
+    expect(result.result.state).toBe('failed');
+    expect(result.result.errorMessage).toMatch(/source project binding/);
+    expect(calls.worktreeAdd).toHaveLength(0);
+    expect(calls.spawn).toHaveLength(0);
+    expect(queue.get(dispatch.id).state).toBe('failed');
+  });
+
   test('agent error + PR opened → settled (partial work is still reviewable)', async () => {
-    const dispatch = queue.propose({ goal: 'prototype the new config loader' });
+    const dispatch = queue.propose({ goal: 'prototype the new config loader', projectDir: SOURCE_PROJECT });
     const { adapter } = makeAdapter({
       spawnFn: async () => ({ output: 'partial output', error: 'agent exited with code 1' }),
       openPrFn: async () => 'https://github.com/curiositech/port-daddy/pull/77',
@@ -402,7 +534,7 @@ describe('createSpawnAdapter — state machine', () => {
   });
 
   test('agent error + no PR → dispatch settled as failed', async () => {
-    const dispatch = queue.propose({ goal: 'update the CI config' });
+    const dispatch = queue.propose({ goal: 'update the CI config', projectDir: SOURCE_PROJECT });
     const { adapter } = makeAdapter({
       spawnFn: async () => ({ output: '', error: 'agent failed' }),
       openPrFn: async () => { throw new Error('gh pr create: nothing to push'); },

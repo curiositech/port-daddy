@@ -33,6 +33,13 @@
  * Wrapped CLIs run with `OTEL_SDK_DISABLED=true` and inherit a sanitized
  * env (the spawner's existing dotenv loader handles credential
  * surfacing).
+ *
+ * Confinement (ADR-0050 Coast Guard):
+ *   A cli-tube child is a subprocess with a real shell on the operator's
+ *   box — the same threat shape as the codex/claude-cli/aider/custom
+ *   backends. Every child is therefore routed through the same Coast Guard
+ *   wrap (OS sandbox + secret broker + hard egress cap) BY DEFAULT before
+ *   spawn, and every result carries the honest confinement receipt.
  */
 
 import { spawn as spawnChild, type ChildProcess } from 'node:child_process';
@@ -41,6 +48,12 @@ import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync } from 'node:f
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { cliBinarySearchPath, resolveCliBinary } from '../../cli-bin-dirs.js';
+import type { CoastGuardReceipt } from '../../coast-guard.js';
+import {
+  withCoastGuard,
+  type CoastGuardRun,
+  type CoastGuardRunInput,
+} from '../coast-guard-runner.js';
 import {
   sameWorkspaceIdentity,
   type WorkspaceIdentity,
@@ -67,6 +80,32 @@ export {
 export type { CliTubeProviderSpec, CliTubeTool };
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+
+/**
+ * Receipt metadata and policy controls for the Coast Guard wrap around a CLI
+ * child (ADR-0050).
+ *
+ * Design/why: these options only PARAMETERIZE confinement — they never decide
+ * whether it happens. Every cli-tube child is routed through Coast Guard by
+ * default, exactly like the codex/claude-cli/aider/custom subprocess backends,
+ * so a caller that forgets (or predates) this object still gets a confined
+ * child and an honest receipt. The purpose of keeping the fields optional is
+ * ergonomic defaults, not an escape hatch.
+ */
+export interface CliTubeCoastGuardOptions {
+  /** Durable agent identity recorded in the confinement receipt. */
+  agentId?: string;
+  /** Effective backend recorded in the confinement receipt. */
+  backend?: string;
+  /** Per-spawn Coast Guard controls. Enabled by default when omitted. */
+  spec?: CoastGuardRunInput['spec'];
+  /** Keys sourced from operator dotenv files and scrubbed from the child. */
+  dotenvKeys?: CoastGuardRunInput['dotenvKeys'];
+  /** Scope-derived filesystem write posture. */
+  writePolicy?: CoastGuardRunInput['writePolicy'];
+  /** Injectable policy environment for focused tests. */
+  envSource?: CoastGuardRunInput['envSource'];
+}
 
 export interface CliTubeOptions {
   /** Which local CLI to drive. */
@@ -137,6 +176,17 @@ export interface CliTubeOptions {
   resumeSessionId?: string;
   /** Canonical workspace identity rechecked immediately before child spawn. */
   workspaceIdentity?: WorkspaceIdentity;
+  /** Managed lifecycle cancellation checked immediately before child launch. */
+  signal?: AbortSignal;
+  /** Internal daemon callback; never reconstructed from a public spawn request. */
+  beforeChildLaunch?: () => Promise<void>;
+  /**
+   * Receipt metadata and policy controls for Coast Guard. The wrapper itself is
+   * not optional: every CLI child is routed through Coast Guard, even when this
+   * object is omitted. An explicit `spec.coastGuard:false` is preserved as an
+   * honest operator opt-out and produces an unconfined receipt.
+   */
+  coastGuard?: CliTubeCoastGuardOptions;
 }
 
 export interface CliTubeResult {
@@ -150,6 +200,10 @@ export interface CliTubeResult {
    *  this is the JSONL event stream the caller parses into full-depth
    *  transcript turns; `output` is the extracted final answer. */
   rawStdout: string;
+  /** Honest confinement receipt for an attempted child launch. `null` only on
+   *  paths where no launch was attempted (unknown tool, missing binary,
+   *  blocked native resume, Coast Guard setup failure). */
+  coastGuardReceipt: CoastGuardReceipt | null;
 }
 
 /**
@@ -211,6 +265,21 @@ export function buildArgs(
  * Drive a local CLI tool, optionally publishing the exchange on a tube
  * channel for observers. Returns the captured output.
  *
+ * Design/why (ADR-0050): a CLI child is a subprocess with a real shell on the
+ * operator's box, so — like every other subprocess backend — it is routed
+ * through the Coast Guard wrap (OS sandbox + secret broker + hard egress cap)
+ * BEFORE spawn, by default. The `opts.coastGuard` object only parameterizes
+ * the receipt and policy; it never gates whether the wrap happens, and no
+ * failure message on this path names any way to turn confinement off.
+ *
+ * @param opts invocation spec: which CLI to drive, the prompt, optional
+ *   deadline/model/permission/resume controls, tube observability wiring, and
+ *   Coast Guard receipt/policy parameterization (see `CliTubeOptions`).
+ * @returns a `CliTubeResult` — never a rejection for operational failures:
+ *   captured output, exit code, structured `error` copy, tube channel,
+ *   duration, raw stdout, and the honest `coastGuardReceipt` for any
+ *   attempted launch (`null` only when no launch was attempted).
+ *
  * Failure modes the caller can expect:
  *   - exit code 0 + non-empty output → success
  *   - exit code != 0 with auth-related stderr → wrapped as auth error
@@ -220,6 +289,8 @@ export function buildArgs(
  *   - explicit `timeoutMs` (deadline) reached → SIGTERM then SIGKILL after
  *     5s; `error` reports the deadline miss
  *   - binary not found → ENOENT-style error; no retry
+ *   - Coast Guard setup failure → structured error result, scratch dir
+ *     cleaned up, no child spawned
  */
 export async function spawnViaCliTube(
   opts: CliTubeOptions,
@@ -234,6 +305,7 @@ export async function spawnViaCliTube(
       tube: null,
       durationMs: 0,
       rawStdout: '',
+      coastGuardReceipt: null,
     };
   }
   // Binary override is OPERATOR-scoped: read PD_CLI_*_BIN from process.env
@@ -259,6 +331,7 @@ export async function spawnViaCliTube(
       tube: null,
       durationMs: 0,
       rawStdout: '',
+      coastGuardReceipt: null,
     };
   }
   // Augment PATH with the same per-user install dirs backend-readiness checks.
@@ -309,33 +382,103 @@ export async function spawnViaCliTube(
 
   const startedAt = Date.now();
 
-  if (
-    opts.resumeSessionId
-    && (
-      !opts.workspaceIdentity
-      || !opts.cwd
-      || !sameWorkspaceIdentity(opts.cwd, opts.workspaceIdentity)
-    )
-  ) {
+  const launchError = (): string | null => {
+    if (opts.signal?.aborted) return 'Spawn cancelled before child launch.';
+    if ((opts.resumeSessionId && !opts.workspaceIdentity)
+      || (opts.workspaceIdentity && (!opts.cwd || !sameWorkspaceIdentity(opts.cwd, opts.workspaceIdentity)))) {
+      return `${opts.resumeSessionId ? 'Native resume' : 'Spawn'} blocked: canonical workspace identity changed before child launch.`;
+    }
+    return null;
+  };
+  const initialLaunchError = launchError();
+  if (initialLaunchError) {
     if (tempDir) rmSync(tempDir, { recursive: true, force: true });
     return {
       output: '',
       exitCode: 1,
-      error: 'Native resume blocked: canonical workspace identity changed before child launch.',
+      error: initialLaunchError,
       tube: tubeChannel,
       durationMs: Date.now() - startedAt,
       rawStdout: '',
+      coastGuardReceipt: null,
     };
   }
 
-  const child = spawnChild(binary, args, {
-    cwd: opts.cwd || process.cwd(),
-    env,
-    detached: true,
-    shell: false,
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
-  opts.onChild?.(child);
+  // ADR-0050 Coast Guard: cli-tube children get a real shell on the operator's
+  // box, exactly like the codex/claude-cli/aider/custom subprocess backends —
+  // so they go through the SAME sandbox + secret-broker + egress-cap wrap, by
+  // default, before anything is spawned. `opts.coastGuard` only parameterizes
+  // the receipt and policy; it never gates whether the wrap happens.
+  const cwd = opts.cwd || process.cwd();
+  let cg: CoastGuardRun;
+  try {
+    cg = await withCoastGuard({
+      agentId: opts.coastGuard?.agentId || opts.tubeSender || `cli-tube/${cli}`,
+      backend: opts.coastGuard?.backend || `cli:${cli}`,
+      cmd: binary,
+      args,
+      env,
+      workdir: cwd,
+      spec: opts.coastGuard?.spec,
+      dotenvKeys: opts.coastGuard?.dotenvKeys,
+      writePolicy: opts.coastGuard?.writePolicy,
+      envSource: opts.coastGuard?.envSource,
+    });
+  } catch (err) {
+    // Coast Guard preparation itself failed (e.g. the in-process egress meter
+    // couldn't bind a loopback port, or the workdir tripped the SBPL-injection
+    // guard) before any child was spawned. No handle exists to dispose here —
+    // withCoastGuard is responsible for tearing down its own partial state on
+    // this path — but the codex scratch tempDir is ours and must not leak, and
+    // the caller must still get a structured CliTubeResult, not a rejection.
+    if (tempDir) {
+      try { rmSync(tempDir, { recursive: true, force: true }); } catch { /* best effort */ }
+    }
+    return {
+      output: '',
+      exitCode: 1,
+      error: `Coast Guard confinement setup failed for ${binary}: ${(err as Error).message}`,
+      tube: tubeChannel,
+      durationMs: Date.now() - startedAt,
+      rawStdout: '',
+      coastGuardReceipt: null,
+    };
+  }
+
+  let child: ChildProcess;
+  try {
+    await opts.beforeChildLaunch?.();
+    // Sandbox preparation awaits I/O. Recheck afterwards, with no intervening
+    // await before the actual spawn; a cancelled/replaced target must not run.
+    const finalLaunchError = launchError();
+    if (finalLaunchError) throw new Error(finalLaunchError);
+    child = spawnChild(cg.cmd, cg.args, {
+      cwd,
+      env: cg.env,
+      detached: true,
+      shell: false,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+  } catch (err) {
+    const coastGuardReceipt = cg.receipt();
+    cg.dispose();
+    if (tempDir) {
+      try { rmSync(tempDir, { recursive: true, force: true }); } catch { /* best effort */ }
+    }
+    // Name what was actually attempted: under a sandbox wrap the executable is
+    // the wrapper, not the raw CLI binary — a debugging operator needs both.
+    const attempted = cg.cmd === binary ? cg.cmd : `${cg.cmd} (Coast Guard wrapper for "${binary}")`;
+    return {
+      output: '',
+      exitCode: 1,
+      error: `Failed to spawn ${attempted}: ${(err as Error).message}`,
+      tube: tubeChannel,
+      durationMs: Date.now() - startedAt,
+      rawStdout: '',
+      coastGuardReceipt,
+    };
+  }
+  try { opts.onChild?.(child); } catch { /* observer hooks never own child liveness */ }
 
   const stdoutChunks: string[] = [];
   const stderrChunks: string[] = [];
@@ -379,6 +522,7 @@ export async function spawnViaCliTube(
   child.stderr?.on('data', onStderrData);
 
   let result: CliChildWaitResult;
+  let coastGuardReceipt: CoastGuardReceipt;
   try {
     result = await waitForCliChildProcess(child, {
       deadlineMs,
@@ -388,6 +532,10 @@ export async function spawnViaCliTube(
   } finally {
     child.stdout?.off('data', onStdoutData);
     child.stderr?.off('data', onStderrData);
+    // The receipt folds in the final egress tally, so it is captured after the
+    // child exits and BEFORE dispose tears down the meter.
+    coastGuardReceipt = cg.receipt();
+    cg.dispose();
   }
 
   // Flush any trailing partial line (a final JSONL line without a terminating
@@ -466,6 +614,7 @@ export async function spawnViaCliTube(
     tube: tubeChannel,
     durationMs,
     rawStdout,
+    coastGuardReceipt,
   };
 }
 

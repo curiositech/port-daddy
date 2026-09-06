@@ -728,6 +728,7 @@
         "GET /sitrep",
         "GET /operator/actors",
         "GET /operator/state",
+        "GET /operator/session-directory",
         "GET /operator/coordination-guard",
         "POST /operator/coordination-guard",
         "POST /operator/open-file",
@@ -1031,7 +1032,7 @@
       }
     },
     "tutorial": {
-      "description": "Interactive tutorial \u2014 learn Port Daddy step by step",
+      "description": "Operationally read-only agent orientation; the handler is headless-safe, an interactive terminal may make one bounded GET /health request, and the CLI envelope makes one append-only usage-telemetry attempt",
       "cli": [
         "learn",
         "tutorial"
@@ -1209,6 +1210,22 @@
       "completions": [],
       "docs": {
         "readme": false,
+        "sdk": false
+      }
+    },
+    "editor_recovery": {
+      "description": "Registered, authenticated Harbor Editor recovery scaffolding; not a usable pipeline. P1 Rust operation-receipt production, P1B, canonical Rust Loro recovery, daemon-verified root identity minting, content-bound symbol and file-mutation generation authorities, and the P3 same-database released-claim adapter remain unimplemented, so public routes stay fail-closed with 503. The required future transaction would commit canonical provenance and its append-only outbox atomically; no CLI, MCP, or SDK alias is exposed.",
+      "cli": [],
+      "sdk": [],
+      "routes": [
+        "POST /editor/recovery/request",
+        "POST /editor/recovery/prepare",
+        "POST /editor/recovery/replay",
+        "POST /editor/recovery/finalize"
+      ],
+      "completions": [],
+      "docs": {
+        "readme": true,
         "sdk": false
       }
     },
@@ -1435,6 +1452,8 @@
       ],
       "sdk": [],
       "routes": [
+        "GET /agent-harbor/context-continuity",
+        "POST /agent-harbor/interactive-context-pressure",
         "GET /agent-harbor/surface-gateway/capabilities",
         "POST /agent-harbor/surface-gateway",
         "GET /agent-nodes",
@@ -1756,17 +1775,18 @@
       }
     },
     "skill_graft": {
-      "description": "Native local skill-graft index and operator inspection surface. Fleet ships call lib/skill-graft.ts through lib/fleet-engine.ts; `pd skill-graft` lets agents query, warm, and read guarded references from the same index.",
+      "description": "Jury-rig native skill discovery, checkpointed Tool2Vec catalog reconciliation, and guarded skill-owned reference loading. Fleet ships call lib/skill-graft.ts through lib/fleet-engine.ts; `pd jury-rig` queries, warms, and reads contained references from the same index without requiring an external skill runtime. Setup and daemon callers are restricted to loopback Ollama; remote generation is manual and actor-pinned.",
       "module": "lib/skill-graft.ts",
       "cli": [
-        "skill-graft",
-        "skillgraft"
+        "jury-rig"
       ],
       "sdk": [],
-      "routes": [],
+      "routes": [
+        "GET /jury-rig/status",
+        "POST /jury-rig/reconcile"
+      ],
       "completions": [
-        "skill-graft",
-        "skillgraft"
+        "jury-rig"
       ],
       "docs": {
         "readme": true,
@@ -1851,6 +1871,23 @@
         "readme": true,
         "sdk": false
       }
+    },
+    "coordination": {
+      "description": "Offline-first per-project coordination peer with CRDT-replicated sessions, notes, advisory claims, and logical lock leases (ADR-0092)",
+      "cli": [],
+      "sdk": [],
+      "routes": [
+        "GET /coordination/status"
+      ],
+      "mcp": [
+        "coordination_status"
+      ],
+      "completions": [],
+      "docs": {
+        "readme": true,
+        "sdk": false
+      },
+      "_note": "Optional local/cloud peer status. The Durable Object room is a replica, never the authority; local daemon writes remain available offline."
     },
     "coordination_guard": {
       "description": "Project-local enforcement controls requiring active Port Daddy sessions and matching file claims before commit",
@@ -1955,7 +1992,7 @@
       }
     },
     "seamanship": {
-      "description": "Skill registry surface. `pd seamanship list/search/show/sync/outcomes/index` — backed by lib/skill-sync.ts with BM25+Tool2Vec engine in Phase 3. Aliases: pd skills.",
+      "description": "Skill registry surface. `pd seamanship list/search/show/sync/outcomes/index/visibility` — backed by lib/skill-sync.ts with BM25+Tool2Vec engine in Phase 3. `visibility <skill-id> [private|listed|public]` reads or sets one skill's tier through the shared visibility law (lib/shipwright/skill-visibility.ts); `list --visibility <tier>` filters. Aliases: pd skills.",
       "module": "cli/commands/seamanship.ts",
       "cli": [
         "seamanship",
@@ -2056,7 +2093,7 @@
       }
     },
     "roadmap": {
-      "description": "Tuple-backed roadmap_items DB-of-record + cartographer roadmap projection. `pd roadmap` reads the table; `pd roadmap upsert/touch` leaves actor-attributed receipts; `POST /roadmap/promote` is the atomic feedback\u2192item linkage cartographer (and humans) call instead of editing docs/ROADMAP.md prose by regex",
+      "description": "Tuple-backed roadmap_items DB-of-record + cartographer roadmap projection. `pd roadmap` reads the table; `pd roadmap upsert/touch` leaves actor-attributed receipts; `POST /roadmap/promote` is the atomic feedback\u2192item linkage cartographer (and humans) call instead of editing docs/ROADMAP.md prose by regex. Jira-grade card slice (operator mandate 2026-08-22): durable owner validated against the durable-agent roster, tags (`--tag`/`?tag=`), typed pr/doc/file/media links on graph_edges (`pd roadmap link/unlink/links`), actual/completed_at time tracking, and GET /roadmap/items/:slug as the full card (owner join + links + blocks/blocked-by + parent/children + planned-vs-actual)",
       "cli": [
         "roadmap"
       ],
@@ -2065,13 +2102,22 @@
         "POST /roadmap/items",
         "GET /roadmap/items",
         "GET /roadmap/board",
+      "GET /roadmap/projection",
+        "GET /roadmap/jira",
         "GET /roadmap/items/:slug",
         "DELETE /roadmap/items/:slug",
+        "GET /roadmap/items/:slug/links",
+        "POST /roadmap/items/:slug/links",
+        "DELETE /roadmap/items/:slug/links",
         "POST /roadmap/items/:slug/status",
         "POST /roadmap/items/:slug/touch",
         "POST /roadmap/promote",
         "POST /roadmap/render",
-        "POST /roadmap/import-markdown"
+        "POST /roadmap/chomp",
+        "POST /roadmap/import-markdown",
+        "GET /roadmap/search",
+        "POST /roadmap/reindex-search",
+        "POST /roadmap/items/:slug/export"
       ],
       "completions": [
         "roadmap"
@@ -2084,8 +2130,26 @@
       "mcp": [
         "roadmap_list",
         "roadmap_get",
-        "roadmap_promote"
+        "roadmap_promote",
+        "roadmap_search",
+        "roadmap_export"
       ]
+    },
+    "roadmap_activity": {
+      "description": "Live-work join for the roadmap command center (operator mandate 2026-08-22): GET /roadmap/activity is the board-wide feed (stage counts stacked/executing/review/done + in-flight items) and GET /roadmap/items/:slug/activity joins one item to its active claims, rent-at-claim session links, and planner assignee with honest heartbeat-ladder liveness, cockpit stream/interrupt links, transcript URLs, and held HITL approvals",
+      "module": "lib/roadmap-activity.ts",
+      "cli": [],
+      "sdk": [],
+      "routes": [
+        "GET /roadmap/activity",
+        "GET /roadmap/items/:slug/activity"
+      ],
+      "completions": [],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      },
+      "_note": "Data layer only in this slice — FleetBar/dashboard surfaces consume these routes in a follow-up PR; read-only projection, no CLI/MCP verbs yet"
     },
     "commitments": {
       "description": "Durable commitments + obligation monitor (ADR-0041): the obligation dual of resurrection. Resurrection watches whether an agent is ALIVE; commitments watch whether it KEPT ITS PROMISE. `due_at` is daemon-derived from the commitment scope (Law 1); `close` refuses without an external oracle ref (Law 2); the monitor is a pure runtime SQLite sweep with no Rust-FFI dependency so it cannot silently degrade (Law 4). `pd commit` creates an obligation, `pd obligations [--overdue]` lists/sweeps, `pd commit close <id> --oracle <ref>` closes against an oracle",
@@ -2450,7 +2514,7 @@
       "_note": "Read-only local capability read (computed from lib/coast-guard.ts, no daemon round-trip). Route + MCP follow on the same coastGuardStatus() accessor \u2014 same read-only pattern as operator_periscope."
     },
     "transcripts": {
-      "description": "Fleet ship-run transcript records \u2014 operator-facing surface for inspecting what a spawned worker did, what it cost, and its produced outputs. Read views (list/show/cost/stream) plus a delete for pruning old runs.",
+      "description": "Fleet ship-run transcript records \u2014 operator-facing read-only surface with daemon-stamped producer provenance for inspecting what a spawned worker did, what it cost, and its produced outputs.",
       "cli": [
         "transcripts",
         "transcript"
@@ -2462,12 +2526,7 @@
         "GET /transcripts/emergency",
         "GET /transcripts/cost",
         "GET /transcripts/stream",
-        "GET /transcripts/:id",
-        "POST /transcripts",
-        "POST /transcripts/:id/messages",
-        "POST /transcripts/:id/outputs",
-        "POST /transcripts/archive/backfill",
-        "DELETE /transcripts/:id"
+        "GET /transcripts/:id"
       ],
       "completions": [
         "transcripts",
@@ -2477,7 +2536,7 @@
         "readme": false,
         "sdk": false
       },
-      "_note": "Surfaced by pd transcripts (singular alias: pd transcript). routes/transcripts.ts is the HTTP API the FleetBar/dashboard ship-run views read from."
+      "_note": "Surfaced by pd transcripts (singular alias: pd transcript). The CLI and HTTP plugin are read-only, no delete primitive is exported, and trusted in-process producers own start/append/finalize and complete-snapshot import. Those entry points stamp the reserved producer, INTERNAL tier, and daemon clock; caller-shaped producer fields are ignored and legacy rows remain null. Finalized snapshots publish as private immutable content-addressed JSONL artifacts; durable receipts bind exact snapshot/artifact digest, locator, bytes, format, attempts, and outcome. Terminal state freezes header/messages/outputs, the first finalize()/spawner terminal transition wins, full-entry recordTranscript atomically replaces only a running snapshot, and neither a late archive failure nor a different-digest success can overwrite the first exact success. Static symlink ancestors fail closed; the documented same-UID concurrent pathname race remains until dirfd/openat publication exists. Future destructive or backfill actions require a newly wired one-use broker-redemption boundary with no reusable-credential or caller-receipt downgrade."
     },
     "context_health": {
       "description": "Agent context-window health and per-task token ledger \u2014 swarm-wide budget visibility (ADR-0048 P1/P3)",
