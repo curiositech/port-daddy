@@ -15,10 +15,36 @@ shape as the sitrep dial, default enforce).
 | Codex CLI | `[[hooks.PreToolUse]]` | `apply_patch\|Edit\|Write\|edit\|write\|str_replace_editor` | snake_case hook surface; camelCase `toolName` on the app-server surface |
 | Antigravity | `PreToolUse` | wide (`AGY_TOOL_MATCHER` in `lib/squid/hook-shape.ts`) | camelCase `toolName`/`toolInput` |
 
-Shell tools (`Bash`, `exec_command`, `run_shell_command`, …) are deliberately
+Claude Code's matcher also admits `Bash` and `mcp__port-daddy__.*` (ADR-0132
+phase 3): outside a halt the tentacle exits 0 immediately for a shell or MCP
+call with no file target; during a halt it can refuse the shapes below. Gemini
+and Codex shell tools (`exec_command`, `run_shell_command`, …) stay deliberately
 NOT matched: the gate cannot derive a canonical target from a shell command,
 and matching them only schedules visible no-op hook jobs. A six-tool
-read-only batch must schedule zero Port Daddy tool hooks.
+read-only Codex batch must schedule zero Port Daddy tool hooks; widening those
+matchers needs an operator decision.
+
+## ADR-0132 halt block list (sentinel hoisted only)
+
+Checked before the matrix early-exit, with no daemon probe. Each shell
+segment (split on `;`, `|`, `&`, newlines, backticks) is stripped of leading
+`VAR=value` assignments and launcher wrappers (`sudo`, `env`, `npx`, `node`,
+`bun`, `sh -c`, …); the first word's basename decides:
+
+| Shape | Verdict |
+|---|---|
+| `pd` / `port-daddy` with only `--help`/`-h`/`--version`/`-v` | allow |
+| any other `pd` / `port-daddy` invocation (incl. `./bin/pd`, `node dist/bin/pd.js`, `npx port-daddy`) | block |
+| `launchctl load\|enable\|kickstart\|bootstrap\|start` naming a `portdaddy`/`port-daddy` label | block |
+| `brew services start\|restart\|run` naming `port-daddy` | block |
+| tool name `mcp__port-daddy__*` | block |
+| everything else (`git`, `npm test`, `launchctl print/disable`, `brew services stop`) | allow, plus the notice |
+
+Block reason (stderr, or the deny-JSON reason) opens `SECURITE HALT`, the
+sentinel's own line, then `[PORT DADDY — HALT] BLOCKED <tool>: …`. A block
+also drops a `blocked` marker so `pd-hook-stop` withholds COMPLIED for that
+cycle. Allowed calls under Claude get the notice as PreToolUse
+`additionalContext`; other providers stay byte-silent on stdout.
 
 ## Codex apply_patch path harvesting
 
