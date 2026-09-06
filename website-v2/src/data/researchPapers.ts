@@ -154,8 +154,8 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     resultTags: ['R5', 'R9', 'R10', 'R11'],
     tone: 'accent',
     icon: ShieldCheck,
-    chapterRef: 'anchor-protocol',
-    chapterWhy: 'extends the Anchor Protocol’s capability boundary to what two mutually distrustful daemons can compute together',
+    chapterRef: 'sealed-harbor',
+    chapterWhy: 'is folded directly into its own chapter as the four-pillar assurance argument for mutually confidential computation',
     priorArtDive: {
       verdict: 'NARROW',
       summary:

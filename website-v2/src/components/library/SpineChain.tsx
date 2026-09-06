@@ -19,12 +19,12 @@ interface Link {
 
 const LINKS: Link[] = [
   { word: 'Memory', gloss: 'a durable record that survives the process', chapter: '1' },
-  { word: 'Continuity', gloss: 'the same someone across runs', chapter: '4' },
-  { word: 'A person', gloss: 'not a spawn — a role plus a history', chapter: '4' },
-  { word: 'A record', gloss: 'witnessed outcomes you can point at', chapter: '4' },
-  { word: 'Reputation', gloss: 'the record, scored on several axes', chapter: '4' },
-  { word: 'An asset', gloss: 'a reputation worth renting', chapter: '5' },
-  { word: 'A market', gloss: 'trade between operators who never met', chapter: '5' },
+  { word: 'Continuity', gloss: 'the same someone across runs', chapter: '5' },
+  { word: 'A person', gloss: 'not a spawn — a role plus a history', chapter: '5' },
+  { word: 'A record', gloss: 'witnessed outcomes you can point at', chapter: '5' },
+  { word: 'Reputation', gloss: 'the record, scored on several axes', chapter: '5' },
+  { word: 'An asset', gloss: 'a reputation worth renting', chapter: '6' },
+  { word: 'A market', gloss: 'trade between operators who never met', chapter: '6' },
 ]
 
 export function SpineChain() {

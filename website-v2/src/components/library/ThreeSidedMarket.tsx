@@ -1,6 +1,6 @@
 /**
  * A native, theme-aware rebuild of the Harbor Economy's three-sided-market
- * figure (Chapter 5, `fig-he-three-sided.tex`): three kinds of seller — labor,
+ * figure (Chapter 6, `fig-he-three-sided.tex`): three kinds of seller — labor,
  * rentable capital, licensed IP — all settling on one conserving bond ledger
  * through an escrow that can pay out or refuse, but provably cannot redirect.
  *
@@ -108,7 +108,7 @@ export function ThreeSidedMarket() {
         </svg>
       </div>
       <figcaption className="border-t-2 border-[var(--border-strong)] p-[var(--space-4)] text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
-        From Chapter 5, <span className="font-black text-[var(--text-primary)]">The Harbor Economy</span>.
+        From Chapter 6, <span className="font-black text-[var(--text-primary)]">The Harbor Economy</span>.
         Three kinds of seller — labor, rentable agents, licensed skills — settle
         on one ledger through an escrow whose only two moves are pay-out and
         refund. It is two-sided until reputation ships; three-sided by design.
