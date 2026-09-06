@@ -448,7 +448,7 @@ One section per indexed idea (R1-R17, CR, B6, and every already-folded textbook 
 | Standalone paper | `docs/harbor-research/tex/paper3.tex` | (none) | S7 (sec:signaling), "The discount-factor connection: claim signaling, mechanized" |
 | Chapter 7 (The Bonded Commons) | `website-v2/public/whitepaper/agent-transactions-whitepaper.tex` | prop:claim-signaling-ic | S(sec:claim-signaling-ic), "Claim Signaling Incentive Compatibility", S(sec:economic) "Mechanized claim-signaling" paragraph |
 
-**Mechanization:** `proofs/economics/delta-threshold.z3`, `proofs/economics/claim_signaling.tla`
+**Mechanization:** `proofs/economics/delta-threshold.z3`, `proofs/economics/claim_signaling.tla`, `proofs/economics/claim_signaling_delta30.cfg`, `proofs/economics/claim_signaling_delta30.run.log`
 
 | Number | Value | Tag |
 |---|---|---|

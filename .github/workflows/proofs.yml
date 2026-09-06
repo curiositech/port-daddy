@@ -160,6 +160,48 @@ jobs:
             exit 1
           fi
 
+      - name: "Negative control: delta 0.30 must violate"
+        working-directory: proofs/economics
+        run: |
+          set -euo pipefail
+          # delta = 30/100 = 0.30 is BELOW the closed-form threshold
+          # delta* ~= 0.3425 (delta-threshold.z3), so the IC invariant MUST
+          # fail here. TLC exits nonzero on a violation -- that is the
+          # expected outcome, so `|| true` lets this one run "fail" and the
+          # assertions below judge it (same pattern as the relay
+          # CardRevocation_rollback / WebhookDelivery_vuln negative controls).
+          java -XX:+UseParallelGC -cp "${TLA_TOOLS_JAR}" tlc2.TLC \
+            -config claim_signaling_delta30.cfg claim_signaling.tla \
+            | tee claim_signaling_delta30.tlc.log || true
+
+          if grep -q "No error has been found" claim_signaling_delta30.tlc.log; then
+            echo "FAIL: claim_signaling_delta30 (delta=0.30) was expected to violate NoUnilateralDeviationPositive but TLC reported no error -- the negative control has gone vacuous."
+            exit 1
+          fi
+
+          VIOLATION="Invariant NoUnilateralDeviationPositive is violated."
+          if grep -qF "$VIOLATION" claim_signaling_delta30.tlc.log; then
+            echo "PASS: claim_signaling_delta30 violates NoUnilateralDeviationPositive as designed (negative control)."
+          else
+            echo "FAIL: claim_signaling_delta30 did not report the expected violation string: $VIOLATION"
+            tail -50 claim_signaling_delta30.tlc.log
+            exit 1
+          fi
+
+          # The committed proofs/economics/claim_signaling_delta30.run.log is
+          # the trace cited by the whitepaper's ex:bonded-tla-two-deltas
+          # solution -- if the counterexample shape ever drifts (spec edit,
+          # TLC version bump), this run's trace and the committed one must
+          # still agree on how many states TLC printed.
+          actual_states=$(grep -cE '^State [0-9]+:' claim_signaling_delta30.tlc.log || true)
+          committed_states=$(grep -cE '^State [0-9]+:' claim_signaling_delta30.run.log || true)
+          echo "trace states: this run = ${actual_states}, committed claim_signaling_delta30.run.log = ${committed_states}"
+          if [ "$actual_states" != "$committed_states" ]; then
+            echo "FAIL: counterexample trace length changed (${actual_states} states) vs the committed claim_signaling_delta30.run.log (${committed_states} states) -- re-run TLC locally and update the committed log."
+            exit 1
+          fi
+          echo "PASS: counterexample trace length (${actual_states} states) matches the committed claim_signaling_delta30.run.log."
+
       - name: Run sweep across delta (TLC)
         working-directory: proofs/economics
         env:
@@ -176,6 +218,7 @@ jobs:
           name: claim-signaling-tlc-log
           path: |
             proofs/economics/claim_signaling.tlc.log
+            proofs/economics/claim_signaling_delta30.tlc.log
             proofs/economics/sweep-delta.tlc.log
 
   tla-claim-signaling-apalache:

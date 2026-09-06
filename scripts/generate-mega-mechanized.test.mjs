@@ -276,7 +276,7 @@ test('loadCorpus fails closed with a clear error when the manifest file is missi
 test('the real whitepaper/corpus.json renders end to end without drift', () => {
   const rendered = renderMechanizedClaims(loadCorpus());
   assert.match(rendered, /\\section\{Mechanized claims\}\\label\{app:mechanized\}/);
-  assert.match(rendered, /40 artifacts in total, 35 wired into continuous integration and 5 retired/);
+  assert.match(rendered, /41 artifacts in total, 36 wired into continuous integration and 5 retired/);
   // Every method actually present in the real manifest gets its own table.
   for (const method of ['ProVerif', 'Kani', 'Z3', 'EasyCrypt', 'Monte Carlo']) {
     assert.match(rendered, new RegExp(`\\\\captionof\\{table\\}\\{${method} artifacts`));
