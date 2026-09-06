@@ -895,6 +895,13 @@ Evaluate $f(\delta) = 2\delta^3+2\delta^2+2\delta-1$ at $\delta=0.3425$ by hand,
 \emph{Now you try:} Exercise~\ref{ex:bonded-threshold-hand} asks you to bound the same root between two integer-grid points instead of evaluating it at the algebraic value alone.
 \end{pdexample}
 
+Below the threshold the model checker does not merely report a failure; it hands back the
+deviation. At $\delta=0.30$ the honest score and the deviator's score are printed round by
+round, and the run ends with the deviator ahead.
+
+\input{figures/session-bc-delta30}
+
+
 \pdexercisepointer{\ref{ex:bonded-threshold-hand}}{\ref{ex:bonded-sweep-crossover}}{\pageref{ex:bonded-threshold-hand}}
 
 \begin{pdrecitation}

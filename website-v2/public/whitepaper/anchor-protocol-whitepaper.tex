@@ -1222,6 +1222,14 @@ Q1 to false-with-trace---ProVerif exhibits the read$\to$write escalation---
 confirming the guard is necessary.
 \end{pdclaim}
 
+The property was not always true of the model. The version-6 model let a delegation
+name a capability its parent did not hold, and ProVerif produced the trace; version 7
+adds the per-hop subset check and the same query closes. The two verdicts, from the
+committed results files:
+
+\input{figures/session-anchor-v6-attack}
+
+
 \paragraph{Multi-hop scope.} Property~\ref{thm:attn-sound} is
 single-hop (Daemon $\to A \to$ verifier). Multi-hop delegation has a sharper
 obligation: a verifier that checks the \emph{final} capability against the

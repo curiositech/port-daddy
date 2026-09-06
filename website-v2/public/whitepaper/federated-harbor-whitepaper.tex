@@ -504,6 +504,13 @@ If an operator additionally imposes a partition bound $T_p$ and a delivery servi
 
 \input{figures/fig-fh-revocation-regime}
 
+The finality that ``only-issuer-revokes'' rests on is model-checked with a negative
+control. Under the rollback configuration the relay's revocation set is restored from a
+backup taken before the revocation, and TLC finds the four-step breach; the epoch
+configuration closes it (\S\ref{sec:fh-witness}).
+
+\input{figures/session-fh-rollback}
+
 The distinction determines the exposure bound. A bond can be priced against an operator-declared service-level window, but an unbounded partition creates an unbounded exposure tail. Deployments must therefore combine bond sizing with expiry, fail-closed acceptance, or an explicit partition limit.
 
 \subsection{Conflict resolution across harbors}\label{sec:fh-revocation-conflict}

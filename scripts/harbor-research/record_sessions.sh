@@ -34,6 +34,8 @@ wrap() {  # title, transcript file, out file
 timeout 90 $PD daemon start $PROFILE --port $PORT >/dev/null 2>&1
 eval "$($PD daemon env $PROFILE 2>/dev/null)"
 sleep 2
+# the demo profile persists between runs: release anything a previous recording left
+run alice unlock lib.webhooks.ts >/dev/null 2>&1; run bob unlock lib.webhooks.ts >/dev/null 2>&1
 {
   echo '$ export PORT_DADDY_AGENT_ID=alice'
   echo '$ pd lock lib.webhooks.ts --ttl 600000'
@@ -64,10 +66,47 @@ wrap "two agents, one lock, one holder at a time" "$TMP/s1.txt" "$TMP/session-sw
 } | normalise > "$TMP/s2.txt"
 wrap "the work-unit machine: 536 states, every guard load-bearing" "$TMP/s2.txt" "$TMP/session-swk-workunit-check.tex"
 
+# ---- sessions 3 and 4: model-checker traces, from the committed run logs -----
+# TLC is not re-run here (proofs.yml does that); the session is an excerpt of
+# the checked-in log, so the printed trace is the one CI reproduces and drifts
+# only when the log does. excerpt_trace.py keeps the named states and strips
+# wall-clock stamps.
+{
+  echo '$ java -cp tla2tools.jar tlc2.TLC -config claim_signaling_delta30.cfg claim_signaling.tla'
+  python3 scripts/harbor-research/excerpt_trace.py proofs/economics/claim_signaling_delta30.run.log --keep-states 1,2,3,6
+} | normalise > "$TMP/s3.txt"
+wrap "claim signaling at \\(\\delta = 0.30\\): TLC finds the profitable deviation" "$TMP/s3.txt" "$TMP/session-bc-delta30.tex"
+
+{
+  echo '$ java -cp tla2tools.jar tlc2.TLC -config CardRevocation_rollback.cfg CardRevocation.tla'
+  python3 scripts/harbor-research/excerpt_trace.py proofs/relay/CardRevocation_rollback.run.log
+} | normalise > "$TMP/s4.txt"
+wrap "the rollback configuration fails by design" "$TMP/s4.txt" "$TMP/session-fh-rollback.tex"
+
+# ---- session 5: the ProVerif attack trace and its fix (chapter 2) ------------
+# ProVerif is not re-run here either (proofs.yml diffs the committed results);
+# the session prints the query, the reachable goal and the verdict from the
+# committed results of the version-6 model, then the verdict of version 7.
+{
+  echo '$ proverif analyses/harbor_card_v6_multihop_attack.pv'
+  grep -E "^-- Query not event\(Accepted|^goal reachable" analyses/harbor_card_v6_results.txt | head -2
+  echo
+  echo '  ... derivation, 11 steps, elided; the trace is in analyses/harbor_card_v6_results.txt ...'
+  echo
+  grep -E "^A trace has been found|^RESULT not event\(Accepted" analyses/harbor_card_v6_results.txt | head -2
+  echo
+  echo '$ proverif analyses/harbor_card_v7_multihop_fixed.pv'
+  grep -E "^RESULT not event\(Accepted" analyses/harbor_card_v7_results.txt | head -1
+} | normalise > "$TMP/s5.txt"
+wrap "the multi-hop attack on version 6, and version 7 closing it" "$TMP/s5.txt" "$TMP/session-anchor-v6-attack.tex"
+
 # ---- compare or install ----------------------------------------------------
+# Kernel sessions (session-swk-*) live beside the kernel's figures; every other
+# chapter resolves figures/ under website-v2/public/whitepaper.
 status=0
 for f in "$TMP"/session-*.tex; do
   b=$(basename "$f")
+  case "$b" in session-swk-*) OUT=whitepaper/figures;; *) OUT=website-v2/public/whitepaper/figures;; esac
   if [ "$MODE" = "--check" ]; then
     if ! diff -q "$f" "$OUT/$b" >/dev/null 2>&1; then echo "DRIFT: $OUT/$b"; diff "$OUT/$b" "$f" || true; status=1; fi
   else
