@@ -337,3 +337,66 @@ jobs:
             python3 "$s.py"
             echo "::endgroup::"
           done
+
+  # ── Kani: the harnesses that never ran ───────────────────────────────────────
+  # core/harbor-card-rs carries three #[kani::proof] harnesses (added in
+  # anticipation of this job -- Cargo.toml already allow-lists `cfg(kani)`) but
+  # nothing ever installed kani-verifier or ran `cargo kani`, so they never
+  # executed even once.
+  kani-harbor-card:
+    if: github.event_name != 'merge_group'
+    name: Kani / harbor-card-rs (3 proof harnesses)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: core/harbor-card-rs
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain (stable)
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build artefacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: core/harbor-card-rs
+          key: kani
+
+      - name: Install kani-verifier (pinned)
+        run: |
+          set -euo pipefail
+          # Pinned to 0.67.0 -- the latest stable release per crates.io
+          # metadata as of 2026-09-06 (default_version/max_version/
+          # newest_version/max_stable_version all agree; see
+          # https://crates.io/api/v1/crates/kani-verifier).
+          cargo install --locked kani-verifier --version 0.67.0
+          cargo kani setup
+
+      - name: Run the three #[kani::proof] harnesses
+        run: |
+          set -euo pipefail
+          # -Z stubbing: proof_verify_logic_only replaces the crypto/decode
+          # internals with symbolic-friendly stand-ins via #[kani::stub(...)]
+          # (see the harness's own doc comment); that attribute is gated
+          # behind Kani's unstable stubbing feature.
+          cargo kani -Z stubbing | tee kani.log
+
+      - name: Assert all three harnesses verified successfully
+        run: |
+          set -euo pipefail
+          if grep -q "Complete - 3 successfully verified harnesses, 0 failures, 3 total." kani.log; then
+            echo "PASS: all three Kani harnesses verified."
+          else
+            echo "FAIL: expected all three harnesses to verify cleanly."
+            tail -80 kani.log
+            exit 1
+          fi
+
+      - name: Upload Kani output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kani-harbor-card-log
+          path: core/harbor-card-rs/kani.log
+
