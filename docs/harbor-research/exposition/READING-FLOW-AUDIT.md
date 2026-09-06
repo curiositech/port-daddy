@@ -72,8 +72,8 @@ to each build's report.
 |---|---|---|---|---|
 | F1 | A7, A8 | exercises interrupted the argument in triples after almost every section | moved to chapter-end Exercises sections with margin pointers | done (round 4) |
 | F2 | all | five content kinds signalled by five tinted rectangles; nothing readable at a glance | page grammar by typography and margin; no fills | done (round 4) |
-| F3 | A3, A6 | no page showed the tool running | recorded terminal sessions (`pdsession`), kernel first | in progress |
+| F3 | A3, A6 | no page showed the tool running | recorded terminal sessions (`pdsession`): two `pd` sessions in chapter 1, the ProVerif v6/v7 verdicts in chapter 2, TLC's δ = 0.30 deviation trace in chapter 7, the revocation rollback counterexample in chapter 8; chapters 3–6 still to come | in progress (round 5) |
 | F4 | A1, A4 | figures did not carry a readable fact | triage and redraws (wave 11) | in progress |
-| F5 | A3, A6, A8 | chapter 7 has five body runs of more than four pages with nothing to look at, chapter 8 two | sessions (TLC δ\* trace, CardRevocation rollback), the cycle-vs-cut pair, the δ\* sweep plot; split chapter 8's long proof sections with worked examples | open |
+| F5 | A3, A6, A8 | chapter 7 has five body runs of more than four pages with nothing to look at, chapter 8 two (round 5 added the δ = 0.30 session to chapter 7 and the rollback session and the cycle-versus-cut figure to chapter 8; re-measure on the next build) | sessions (TLC δ\* trace, CardRevocation rollback), the cycle-vs-cut pair, the δ\* sweep plot; split chapter 8's long proof sections with worked examples | open |
 | F6 | all | the chapter 8 opener hyphenates its own title ("The Federated Har-bor") | hyphenation forbidden in the opener title and question boxes | done (round 5) |
 | F7 | A7 | the Solutions and appendices run under the "Chapter 8" running head and have no top-level bookmark, so a reader flipping to the back cannot tell where the book's body ends | back-matter running heads and bookmarks | open |
