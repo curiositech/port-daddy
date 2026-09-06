@@ -19,7 +19,7 @@
       "chapters": [
         {
           "file": "whitepaper/legible-swarm.tex",
-          "chapter": 3,
+          "chapter": 4,
           "prefix": "ls",
           "labels": [
             "thm:lowerbound"
@@ -67,7 +67,7 @@
       "chapters": [
         {
           "file": "whitepaper/legible-swarm.tex",
-          "chapter": 3,
+          "chapter": 4,
           "prefix": "ls",
           "labels": [
             "thm:split-digest",
@@ -117,7 +117,7 @@
       "chapters": [
         {
           "file": "whitepaper/legible-swarm.tex",
-          "chapter": 3,
+          "chapter": 4,
           "prefix": "ls",
           "labels": [
             "def:sdt"
@@ -159,7 +159,7 @@
       "chapters": [
         {
           "file": "whitepaper/legible-swarm.tex",
-          "chapter": 3,
+          "chapter": 4,
           "prefix": "ls",
           "labels": [
             "thm:lowerbound"
@@ -252,7 +252,7 @@
       "chapters": [
         {
           "file": "website-v2/public/whitepaper/federated-harbor-whitepaper.tex",
-          "chapter": 7,
+          "chapter": 8,
           "prefix": "fh",
           "labels": [
             "thm:sheaf-equivocation"
@@ -304,7 +304,7 @@
       "chapters": [
         {
           "file": "website-v2/public/whitepaper/spawn-to-person.tex",
-          "chapter": 4,
+          "chapter": 5,
           "prefix": "stp",
           "labels": [
             "thm:tower-imported"
@@ -488,7 +488,7 @@
       "chapters": [
         {
           "file": "website-v2/public/whitepaper/spawn-to-person.tex",
-          "chapter": 4,
+          "chapter": 5,
           "prefix": "stp",
           "labels": [],
           "sections": [
@@ -533,7 +533,7 @@
       "chapters": [
         {
           "file": "website-v2/public/whitepaper/spawn-to-person.tex",
-          "chapter": 4,
+          "chapter": 5,
           "prefix": "stp",
           "labels": [
             "def:sanction-respecting"
@@ -565,7 +565,7 @@
       "chapters": [
         {
           "file": "whitepaper/legible-swarm.tex",
-          "chapter": 3,
+          "chapter": 4,
           "prefix": "ls",
           "labels": [],
           "sections": [
@@ -597,7 +597,7 @@
       "chapters": [
         {
           "file": "whitepaper/legible-swarm.tex",
-          "chapter": 3,
+          "chapter": 4,
           "prefix": "ls",
           "labels": [
             "thm:specialization"
@@ -629,7 +629,7 @@
       "chapters": [
         {
           "file": "whitepaper/legible-swarm.tex",
-          "chapter": 3,
+          "chapter": 4,
           "prefix": "ls",
           "labels": [
             "thm:paging"
@@ -738,7 +738,7 @@
       "chapters": [
         {
           "file": "website-v2/public/whitepaper/spawn-to-person.tex",
-          "chapter": 4,
+          "chapter": 5,
           "prefix": "stp",
           "labels": [
             "thm:probation-dominance"
@@ -783,7 +783,7 @@
       "chapters": [
         {
           "file": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
-          "chapter": 6,
+          "chapter": 7,
           "prefix": "bonded",
           "labels": [
             "prop:claim-signaling-ic"

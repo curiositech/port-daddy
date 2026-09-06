@@ -139,8 +139,13 @@ The textbook edition orders chapters by what they stand on.
 |---|---|---|---|---|
 | II | 1 | `swk` | The Single-Writer Kernel | `whitepaper/single-writer-kernel.tex` |
 | V | 2 | `anchor` | The Anchor Protocol | `website-v2/public/whitepaper/anchor-protocol-whitepaper.tex` |
-| I | 3 | `ls` | The Legible Swarm | `whitepaper/legible-swarm.tex` |
-| III | 4 | `stp` | From Spawn to Person | `website-v2/public/whitepaper/spawn-to-person.tex` |
-| IV | 5 | `he` | The Harbor Economy | `website-v2/public/whitepaper/harbor-economy.tex` |
-| VI | 6 | `bonded` | The Bonded Commons | `website-v2/public/whitepaper/agent-transactions-whitepaper.tex` |
-| VII | 7 | `fh` | The Federated Harbor | `website-v2/public/whitepaper/federated-harbor-whitepaper.tex` |
+| -- | 3 | `sealed` | The Sealed Harbor | `website-v2/public/whitepaper/sealed-harbor.tex` |
+| I | 4 | `ls` | The Legible Swarm | `whitepaper/legible-swarm.tex` |
+| III | 5 | `stp` | From Spawn to Person | `website-v2/public/whitepaper/spawn-to-person.tex` |
+| IV | 6 | `he` | The Harbor Economy | `website-v2/public/whitepaper/harbor-economy.tex` |
+| VI | 7 | `bonded` | The Bonded Commons | `website-v2/public/whitepaper/agent-transactions-whitepaper.tex` |
+| VII | 8 | `fh` | The Federated Harbor | `website-v2/public/whitepaper/federated-harbor-whitepaper.tex` |
+
+The Sealed Harbor has no first-edition numeral: it did not exist as a chapter in
+the first printing. Its standalone twin is `docs/harbor-research/tex/paper4.tex`
+(R9, R10, R11), added to the Book in Wave 4 of the Textbook Edition.

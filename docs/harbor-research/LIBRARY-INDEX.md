@@ -37,7 +37,7 @@ One section per indexed idea (R1-R17, CR, B6, and every already-folded textbook 
 | Location | File | Labels | Sections |
 |---|---|---|---|
 | Standalone paper | `docs/harbor-research/tex/paper1.tex` | sec:floor | S2 (sec:floor), Theorem 1 |
-| Chapter 3 (The Legible Swarm) | `whitepaper/legible-swarm.tex` | thm:lowerbound | S6 Read-poverty (sec:readpoverty / sec:lowerbound), "Legibility lower bound with a review budget" -- explicitly "Theorem 1 of the companion formal paper" |
+| Chapter 4 (The Legible Swarm) | `whitepaper/legible-swarm.tex` | thm:lowerbound | S6 Read-poverty (sec:readpoverty / sec:lowerbound), "Legibility lower bound with a review budget" -- explicitly "Theorem 1 of the companion formal paper" |
 
 **Figures:** `docs/harbor-research/figures/fig-r1-relation.tex`, `docs/harbor-research/figures/fig-r1-regime.tex`
 
@@ -59,7 +59,7 @@ One section per indexed idea (R1-R17, CR, B6, and every already-folded textbook 
 | Location | File | Labels | Sections |
 |---|---|---|---|
 | Standalone paper | `docs/harbor-research/tex/paper1.tex` | sec:split | S3 (sec:split), Theorem 2 |
-| Chapter 3 (The Legible Swarm) | `whitepaper/legible-swarm.tex` | thm:split-digest, thm:split-ranker | S7.3 Discovery/Relevance (sec:relevance), "No universal monotone identification of the two heads" -- stated as an instance of paper1's comonotone characterization; S8.2 Tokens (sec:tokens-digest), "The Split-Digest Theorem" -- successor-vs-operator compaction heads, explicitly the other instance of the same theorem |
+| Chapter 4 (The Legible Swarm) | `whitepaper/legible-swarm.tex` | thm:split-digest, thm:split-ranker | S7.3 Discovery/Relevance (sec:relevance), "No universal monotone identification of the two heads" -- stated as an instance of paper1's comonotone characterization; S8.2 Tokens (sec:tokens-digest), "The Split-Digest Theorem" -- successor-vs-operator compaction heads, explicitly the other instance of the same theorem |
 
 **Figures:** `docs/harbor-research/figures/fig-r2-relation.tex`, `docs/harbor-research/figures/fig-r2-regime.tex`
 
@@ -81,7 +81,7 @@ One section per indexed idea (R1-R17, CR, B6, and every already-folded textbook 
 | Location | File | Labels | Sections |
 |---|---|---|---|
 | Standalone paper | `docs/harbor-research/tex/paper1.tex` | sec:regret | S4 (sec:regret), Theorem 3 |
-| Chapter 3 (The Legible Swarm) | `whitepaper/legible-swarm.tex` | def:sdt | S5.1 The operator (sec:sdt), "The SDT-spined attention objective"; S7.3 Discovery/Relevance (sec:relevance), "Decision-theoretic derivation of the regret head" -- explicitly a popularization of paper1's "The regret head is derived, not designed" |
+| Chapter 4 (The Legible Swarm) | `whitepaper/legible-swarm.tex` | def:sdt | S5.1 The operator (sec:sdt), "The SDT-spined attention objective"; S7.3 Discovery/Relevance (sec:relevance), "Decision-theoretic derivation of the regret head" -- explicitly a popularization of paper1's "The regret head is derived, not designed" |
 
 **Figures:** `docs/harbor-research/figures/fig-r3-relation.tex`, `docs/harbor-research/figures/fig-r3-regime.tex`
 
@@ -97,7 +97,7 @@ One section per indexed idea (R1-R17, CR, B6, and every already-folded textbook 
 | Location | File | Labels | Sections |
 |---|---|---|---|
 | Standalone paper | `docs/harbor-research/tex/paper1.tex` | sec:frontier, sec:rdf, sec:zoom | S5 (sec:frontier): S5.1 the pinned-joint proposition, S5.2 Theorem 4 (zoom advantage) |
-| Chapter 3 (The Legible Swarm) | `whitepaper/legible-swarm.tex` | thm:lowerbound | S6 Read-poverty (sec:lowerbound), "The other half of the price: zoom is cheap" -- restates the zoom theorem's bound and the F=2500,k=10 worked numbers under the same theorem label used for R1 |
+| Chapter 4 (The Legible Swarm) | `whitepaper/legible-swarm.tex` | thm:lowerbound | S6 Read-poverty (sec:lowerbound), "The other half of the price: zoom is cheap" -- restates the zoom theorem's bound and the F=2500,k=10 worked numbers under the same theorem label used for R1 |
 
 **Figures:** `docs/harbor-research/figures/fig-rdf-relation.tex`, `docs/harbor-research/figures/fig-paper1-rdf-frontier.tex`, `docs/harbor-research/figures/fig-r4-relation.tex`, `docs/harbor-research/figures/fig-r4-regime.tex`
 
@@ -137,7 +137,7 @@ One section per indexed idea (R1-R17, CR, B6, and every already-folded textbook 
 | Location | File | Labels | Sections |
 |---|---|---|---|
 | Standalone paper | `docs/harbor-research/tex/paper7.tex` | (none) | S4 (sec:mechanism), boxed "Theorem 1 (mechanism)"; harness verdict COMMIT in S5 (sec:harness) |
-| Chapter 7 (The Federated Harbor) | `website-v2/public/whitepaper/federated-harbor-whitepaper.tex` | thm:sheaf-equivocation | S(fh-sheaf), "Detection iff the missing edge closes a visible cycle" -- explicit restatement citing "the companion paper on the cohomology of equivocation" |
+| Chapter 8 (The Federated Harbor) | `website-v2/public/whitepaper/federated-harbor-whitepaper.tex` | thm:sheaf-equivocation | S(fh-sheaf), "Detection iff the missing edge closes a visible cycle" -- explicit restatement citing "the companion paper on the cohomology of equivocation" |
 
 **Figures:** `docs/harbor-research/figures/fig-r6-relation.tex`, `docs/harbor-research/figures/fig-paper7-visibility.tex`, `docs/harbor-research/figures/fig-r6-regime.tex`
 
@@ -159,7 +159,7 @@ One section per indexed idea (R1-R17, CR, B6, and every already-folded textbook 
 | Location | File | Labels | Sections |
 |---|---|---|---|
 | Standalone paper | `docs/harbor-research/tex/paper3.tex` | thm:stage, thm:tower, thm:amort | S4 (sec:stage) Theorem (Stage deterrence); S5 (sec:tower) Theorem (Tower contraction); S6 (sec:amort) Theorem (Amortization) |
-| Chapter 4 (From Spawn to Person) | `website-v2/public/whitepaper/spawn-to-person.tex` | thm:tower-imported | S(sec:oracle) The grading oracle's incentive-compatibility, "Tower contraction; imported from the companion paper" -- verbatim restatement of paper3.tex's Theorem tower-contraction |
+| Chapter 5 (From Spawn to Person) | `website-v2/public/whitepaper/spawn-to-person.tex` | thm:tower-imported | S(sec:oracle) The grading oracle's incentive-compatibility, "Tower contraction; imported from the companion paper" -- verbatim restatement of paper3.tex's Theorem tower-contraction |
 
 **Figures:** `docs/harbor-research/figures/fig-r7-relation.tex`, `docs/harbor-research/figures/fig-r7-regime.tex`, `docs/harbor-research/figures/fig-paper3-amortization.tex`
 
@@ -265,7 +265,7 @@ One section per indexed idea (R1-R17, CR, B6, and every already-folded textbook 
 | Location | File | Labels | Sections |
 |---|---|---|---|
 | Standalone paper | `docs/harbor-research/tex/paper5.tex` | (none) | S2 (sec:nomint), boxed "Theorem 1 (no-mint)" |
-| Chapter 4 (From Spawn to Person) | `website-v2/public/whitepaper/spawn-to-person.tex` | (none) | S(sec:continuity) Continuity is a personal-identity problem, "Status" note after Exercise (3) -- "an executed no-mint theorem (research-ledger item A6)", full transfer-semantics restatement with the same 8.2x copy-fork exhibit |
+| Chapter 5 (From Spawn to Person) | `website-v2/public/whitepaper/spawn-to-person.tex` | (none) | S(sec:continuity) Continuity is a personal-identity problem, "Status" note after Exercise (3) -- "an executed no-mint theorem (research-ledger item A6)", full transfer-semantics restatement with the same 8.2x copy-fork exhibit |
 
 **Figures:** `docs/harbor-research/figures/fig-r12-relation.tex`, `docs/harbor-research/figures/fig-paper5-lineage.tex`, `docs/harbor-research/figures/fig-r12-regime.tex`
 
@@ -287,7 +287,7 @@ One section per indexed idea (R1-R17, CR, B6, and every already-folded textbook 
 | Location | File | Labels | Sections |
 |---|---|---|---|
 | Standalone paper | `docs/harbor-research/tex/paper5.tex` | (none) | S3 (sec:engine), boxed "Theorem 2a"/"Theorem 2b (the IC flip)"; S4 (sec:resurrection), boxed "Theorem 3 (resurrection soundness)" and its scope Lemma, which names the migration soundness property "Def. III.6.1" |
-| Chapter 4 (From Spawn to Person) | `website-v2/public/whitepaper/spawn-to-person.tex` | def:sanction-respecting | S(sec:identity) Identity: the root the whole chain hangs from -- "Sanction-respecting reputation", the Def. III.6.1 that paper5.tex's Theorem 3 (resurrection soundness) names by that designation as the property preserved across migration. The chapter does not restate Theorem 3 itself, only the definition it is stated in terms of. |
+| Chapter 5 (From Spawn to Person) | `website-v2/public/whitepaper/spawn-to-person.tex` | def:sanction-respecting | S(sec:identity) Identity: the root the whole chain hangs from -- "Sanction-respecting reputation", the Def. III.6.1 that paper5.tex's Theorem 3 (resurrection soundness) names by that designation as the property preserved across migration. The chapter does not restate Theorem 3 itself, only the definition it is stated in terms of. |
 
 **Figures:** `docs/harbor-research/figures/fig-r13-regime.tex`
 
@@ -305,7 +305,7 @@ One section per indexed idea (R1-R17, CR, B6, and every already-folded textbook 
 | Location | File | Labels | Sections |
 |---|---|---|---|
 | Standalone paper | *(none -- see status)* | | |
-| Chapter 3 (The Legible Swarm) | `whitepaper/legible-swarm.tex` | (none) | S5.4 Human-in-the-loop escalation (sec:escalation) and S7.5 quality gates (sec:gates) -- "crying wolf has a price" costly-signal design, cited inline as "item R14 of the research ledger" |
+| Chapter 4 (The Legible Swarm) | `whitepaper/legible-swarm.tex` | (none) | S5.4 Human-in-the-loop escalation (sec:escalation) and S7.5 quality gates (sec:gates) -- "crying wolf has a price" costly-signal design, cited inline as "item R14 of the research ledger" |
 
 **Scripts:** `skills/harbor-results/scripts/b7_escalation_band.py`
 
@@ -319,7 +319,7 @@ One section per indexed idea (R1-R17, CR, B6, and every already-folded textbook 
 | Location | File | Labels | Sections |
 |---|---|---|---|
 | Standalone paper | `docs/harbor-research/tex/paper6.tex` | (none) | S(sec:thm-boundary / sec:queue), boxed "Theorem 2 (queueing specialization boundary)"; S(sec:succession), boxed "Theorem 3 (price of the succession rule)" |
-| Chapter 3 (The Legible Swarm) | `whitepaper/legible-swarm.tex` | thm:specialization | S4.3 Sole-responsibility roles (sec:sole-roles), "Queueing Specialization Boundary" -- annotated \Verified--corrected, citing "the companion formal paper's Theorem 2" by name, same g(rho,2)=1+2rho-rho^2 closed form |
+| Chapter 4 (The Legible Swarm) | `whitepaper/legible-swarm.tex` | thm:specialization | S4.3 Sole-responsibility roles (sec:sole-roles), "Queueing Specialization Boundary" -- annotated \Verified--corrected, citing "the companion formal paper's Theorem 2" by name, same g(rho,2)=1+2rho-rho^2 closed form |
 
 **Figures:** `docs/harbor-research/figures/fig-paper6-regime.tex`
 
@@ -337,7 +337,7 @@ One section per indexed idea (R1-R17, CR, B6, and every already-folded textbook 
 | Location | File | Labels | Sections |
 |---|---|---|---|
 | Standalone paper | *(none -- see status)* | | |
-| Chapter 3 (The Legible Swarm) | `whitepaper/legible-swarm.tex` | thm:paging | S8.3 Context paging (sec:context-paging), "Context Paging Competitiveness" -- annotated \Verified--upgraded from proposed, with the b9_context_paging.py sweep numbers |
+| Chapter 4 (The Legible Swarm) | `whitepaper/legible-swarm.tex` | thm:paging | S8.3 Context paging (sec:context-paging), "Context Paging Competitiveness" -- annotated \Verified--upgraded from proposed, with the b9_context_paging.py sweep numbers |
 
 **Scripts:** `skills/harbor-results/scripts/b9_context_paging.py`
 
@@ -399,7 +399,7 @@ One section per indexed idea (R1-R17, CR, B6, and every already-folded textbook 
 | Location | File | Labels | Sections |
 |---|---|---|---|
 | Standalone paper | `docs/harbor-research/tex/paper5.tex` | (none) | S5 (sec:cliff), boxed "Theorem 4 (the probation cliff)" |
-| Chapter 4 (From Spawn to Person) | `website-v2/public/whitepaper/spawn-to-person.tex` | thm:probation-dominance | S(sec:identity) Identity: the root the whole chain hangs from, "Front-loaded probation dominance, under a ceiling" -- annotated "the whitepaper statement of the companion paper's probation-cliff theorem", "carried as item B6 of the research ledger" |
+| Chapter 5 (From Spawn to Person) | `website-v2/public/whitepaper/spawn-to-person.tex` | thm:probation-dominance | S(sec:identity) Identity: the root the whole chain hangs from, "Front-loaded probation dominance, under a ceiling" -- annotated "the whitepaper statement of the companion paper's probation-cliff theorem", "carried as item B6 of the research ledger" |
 
 **Figures:** `docs/harbor-research/figures/fig-b6-probation.tex`
 
@@ -421,7 +421,7 @@ One section per indexed idea (R1-R17, CR, B6, and every already-folded textbook 
 | Location | File | Labels | Sections |
 |---|---|---|---|
 | Standalone paper | `docs/harbor-research/tex/paper3.tex` | (none) | S7 (sec:signaling), "The discount-factor connection: claim signaling, mechanized" |
-| Chapter 6 (The Bonded Commons) | `website-v2/public/whitepaper/agent-transactions-whitepaper.tex` | prop:claim-signaling-ic | S(sec:claim-signaling-ic), "Claim Signaling Incentive Compatibility", S(sec:economic) "Mechanized claim-signaling" paragraph |
+| Chapter 7 (The Bonded Commons) | `website-v2/public/whitepaper/agent-transactions-whitepaper.tex` | prop:claim-signaling-ic | S(sec:claim-signaling-ic), "Claim Signaling Incentive Compatibility", S(sec:economic) "Mechanized claim-signaling" paragraph |
 
 **Mechanization:** `proofs/economics/delta-threshold.z3`, `proofs/economics/claim_signaling.tla`
 
