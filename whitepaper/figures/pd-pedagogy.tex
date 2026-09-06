@@ -1,0 +1,253 @@
+% Shared pedagogic apparatus for the Book and every standalone chapter: boxed
+% claims, honest boundaries, worked examples, retrieval prompts, numbered
+% exercises, and their deferred solutions.
+% Twin copy under whitepaper/figures/ (byte-identical; checked by
+% scripts/generate-mega-whitepaper.test.mjs).
+%
+% \input this immediately after figures/pd-textbook-map (so \pdchapterprefix
+% and \pdchapternumber already resolve) and before figures/pd-hyperlinks.
+%
+% mdframed's DEFAULT frame method is used throughout -- never
+% framemethod=tikz. Every environment here is a plain left- or top/bottom-rule
+% box on a flat fill; the default method draws that without needing the tikz
+% picture machinery every chapter already loads for its own figures.
+%
+% Key-value parsing for \pdexercise uses pgfkeys: pgf ships as part of tikz,
+% which every preamble already loads, so this adds no new dependency (keyval
+% would have meant one). The closed kind/rating vocabularies are enforced with
+% the LaTeX kernel's own \in@/\ifin@ comma-list test -- always available,
+% no package of its own -- wrapped in an \edef that expands both sides first:
+% \in@ does not expand its own arguments, so hunting for a *macro* (rather
+% than literal text) requires pre-expanding it, or every kind reads as absent.
+\makeatletter
+\@ifpackageloaded{mdframed}{}{\usepackage{mdframed}}
+\@ifpackageloaded{answers}{}{\usepackage{answers}}
+
+% ---------------------------------------------------------------------------
+% \pdkind, pdclaim
+% ---------------------------------------------------------------------------
+\newcommand{\pd@claim@kinds}{Theorem,Design invariant,Model-checked property,Empirical hypothesis}
+\newcommand{\pdkind}[1]{%
+  \edef\pd@in@test{\noexpand\in@{,#1,}{,\pd@claim@kinds,}}%
+  \pd@in@test
+  \ifin@\else
+    \PackageError{pd-pedagogy}{Unknown pdclaim kind '#1'}%
+      {Use one of: Theorem, Design invariant, Model-checked property, Empirical hypothesis.}%
+  \fi
+  {\scshape\color{pdinkmuted}#1}%
+}
+\newenvironment{pdclaim}[2]{%
+  \par\vspace{8pt}\noindent
+  \begin{mdframed}[linecolor=pdcobalt,linewidth=2pt,leftline=true,topline=false,%
+      rightline=false,bottomline=false,backgroundcolor=pdcreamraised,%
+      innerleftmargin=10pt,innertopmargin=6pt,innerbottommargin=6pt,%
+      skipabove=8pt,skipbelow=8pt]%
+  \pdkind{#1}\par\smallskip
+  \noindent\textbf{#2}\par\smallskip\noindent\ignorespaces
+}{%
+  \end{mdframed}%
+}
+
+% ---------------------------------------------------------------------------
+% pdboundary -- "Where this stops". No optional arguments.
+% ---------------------------------------------------------------------------
+\newenvironment{pdboundary}{%
+  \par\vspace{8pt}\noindent
+  \begin{mdframed}[linecolor=pdink,linewidth=2pt,leftline=true,topline=false,%
+      rightline=false,bottomline=false,backgroundcolor=pdcreamraised,%
+      innerleftmargin=10pt,innertopmargin=6pt,innerbottommargin=6pt,%
+      skipabove=8pt,skipbelow=8pt]%
+  {\scshape\bfseries Where this stops}\par\smallskip\noindent\ignorespaces
+}{%
+  \end{mdframed}%
+}
+
+% ---------------------------------------------------------------------------
+% pdexample -- a worked, numbers-by-hand box. Thin top/bottom rules only (no
+% fill), so it reads as a calculation set off from the surrounding claims and
+% boundaries rather than another one of them.
+% ---------------------------------------------------------------------------
+\newenvironment{pdexample}[1]{%
+  \par\vspace{8pt}\noindent
+  \begin{mdframed}[linecolor=pdinkmuted,linewidth=0.5pt,topline=true,%
+      bottomline=true,leftline=false,rightline=false,%
+      innertopmargin=6pt,innerbottommargin=6pt,skipabove=8pt,skipbelow=8pt]%
+  {\itshape Numbers by hand --- #1}\par\smallskip\noindent\ignorespaces
+}{%
+  \end{mdframed}%
+}
+
+% ---------------------------------------------------------------------------
+% pdrecitation -- retrieval prompts. The body is a bare list of \item's; the
+% environment supplies the itemize around them, so a chapter writes exactly
+% \begin{pdrecitation}\item ...\item ...\end{pdrecitation}.
+% ---------------------------------------------------------------------------
+\newenvironment{pdrecitation}{%
+  \par\vspace{8pt}\noindent
+  \begin{mdframed}[linecolor=pdteal,linewidth=2pt,leftline=true,topline=false,%
+      rightline=false,bottomline=false,backgroundcolor=pdcreamraised,%
+      innerleftmargin=10pt,innertopmargin=6pt,innerbottommargin=6pt,%
+      skipabove=8pt,skipbelow=8pt]%
+  {\scshape\bfseries Recitation}\par\smallskip
+  \begin{itemize}[leftmargin=1.4em,itemsep=2pt,topsep=2pt]
+}{%
+  \end{itemize}%
+  \end{mdframed}%
+}
+
+% ---------------------------------------------------------------------------
+% pdexercise -- numbered "Exercise <chapter>.<n>", kind and star rating via
+% pgfkeys, closing with a live "Solution on page N" line. The environment
+% issues \label{<label>} itself; the exercise's own displayed number
+% (\thepdexercise) is what \ref{<label>} later returns wherever it is cited.
+% ---------------------------------------------------------------------------
+\newcounter{pdexercise}
+\renewcommand{\thepdexercise}{\pdchapternumber.\arabic{pdexercise}}
+% hyperref's own \newcounter patch gives every counter a \theH<counter> PDF
+% anchor name that, left at its default, is just \arabic{pdexercise} -- fine
+% within one document, but pdexercise resets to 0 at every \pdchapter in the
+% Book, so chapter 1's Exercise 1 and chapter 5's Exercise 1 would claim the
+% SAME anchor name. hyperref then silently keeps whichever chapter compiled
+% first and every later chapter's \ref/\pageref to its OWN exercise mislinks
+% there instead (the exercise's own \pageref{sol:...} link is unaffected: it
+% is anchored by \phantomsection, which is already globally unique). Keying
+% off \pdchapterprefix -- unique per chapter in both a standalone chapter and
+% the Book -- keeps every exercise's anchor unique too.
+\renewcommand{\theHpdexercise}{\pdchapterprefix.\arabic{pdexercise}}
+\pgfkeys{
+  /pdexercise/kind/.store in=\pdexercise@kind,
+  /pdexercise/rating/.store in=\pdexercise@rating,
+}
+\newcommand{\pd@exercise@kinds}{Check,Trace,Open}
+\newcommand{\pd@exercise@ratings}{1,2,3}
+\newcommand{\pdexercise@stars}{%
+  \ifcase\pdexercise@rating\relax
+  \or\ensuremath{\star}%
+  \or\ensuremath{\star}\ensuremath{\star}%
+  \or\ensuremath{\star}\ensuremath{\star}\ensuremath{\star}%
+  \fi
+}
+\newenvironment{pdexercise}[2][]{%
+  \def\pdexercise@kind{Check}%
+  \def\pdexercise@rating{1}%
+  \pgfkeys{/pdexercise/.cd,#1}%
+  \edef\pd@in@test{\noexpand\in@{,\pdexercise@kind,}{,\pd@exercise@kinds,}}%
+  \pd@in@test
+  \ifin@\else
+    \PackageError{pd-pedagogy}{Invalid pdexercise kind '\pdexercise@kind'}%
+      {Use kind=Check, kind=Trace, or kind=Open.}%
+  \fi
+  \edef\pd@in@test{\noexpand\in@{,\pdexercise@rating,}{,\pd@exercise@ratings,}}%
+  \pd@in@test
+  \ifin@\else
+    \PackageError{pd-pedagogy}{Invalid pdexercise rating '\pdexercise@rating'}%
+      {Use rating=1, rating=2, or rating=3.}%
+  \fi
+  \refstepcounter{pdexercise}%
+  \label{#2}%
+  \def\pdexercise@label{#2}%
+  \par\vspace{8pt}\noindent
+  \begin{mdframed}[linecolor=pdgold,linewidth=2pt,leftline=true,topline=false,%
+      rightline=false,bottomline=false,backgroundcolor=pdcreamraised,%
+      innerleftmargin=10pt,innertopmargin=6pt,innerbottommargin=6pt,%
+      skipabove=8pt,skipbelow=8pt]%
+  {\scshape\bfseries Exercise~\thepdexercise\ \textperiodcentered\ \pdexercise@kind\ \textperiodcentered\ \pdexercise@stars}%
+  \par\smallskip\noindent\ignorespaces
+}{%
+  \par\noindent\hfill{\small\itshape Solution on page~\pageref{sol:\pdexercise@label}}\par
+  \end{mdframed}%
+}
+
+% ---------------------------------------------------------------------------
+% pdsolution / pdSolution -- the model answer, diverted to the open solution
+% file (via the answers package) and reprinted later by \pdprintsolutions (a
+% standalone chapter) or the Book's own per-chapter \Opensolutionfile in
+% scripts/generate-mega-whitepaper.mjs.
+%
+% pdsolution (writing side, used at the chapter's point of use) takes the same
+% <label> its \pdexercise used. pdSolution (reading side, what the collected
+% file actually contains) is defined FIRST and BY HAND -- not via
+% \Newassociation{pdsolution}{pdSolution}{pdsol} -- for two reasons: (a)
+% \Newassociation's reading-side environment always takes the CURRENT
+% \Currentlabel as its one argument, where pd-pedagogy needs the ORIGINAL
+% exercise's <label> to carry through so \ref{<label>} and \pageref{<label>}
+% resolve inside the solution box; (b) its writing-side signature takes no
+% argument, so a bare \Newassociation could not accept \begin{pdsolution}{X}
+% at all. Defining pdSolution first still lets a later \Newassociation
+% elsewhere find "environment pdSolution already in use" and leave it alone,
+% if this file is ever combined with one -- \newsolution's own guard.
+%
+% \Filesave{pdsol} (verbatim capture) is deferred behind \pd@sol@tmp rather
+% than called directly inside the nested \Ifanswerfiles/\Iffileundefined/
+% \Ifopen branches: called inline, the \else/\fi tokens still queued to close
+% those wrapper conditionals land INSIDE the verbatim scan that follows and
+% get written into the solutions file as if they were solution text.
+% \Newassociation's own generated code defers it the same way (there: \Tmp);
+% \endFilesave has no such side effect, so the closing side calls it inline.
+% ---------------------------------------------------------------------------
+\newenvironment{pdSolution}[1]{%
+  \par\vspace{8pt}\noindent
+  \begin{mdframed}[linecolor=pdhealth,linewidth=2pt,leftline=true,topline=false,%
+      rightline=false,bottomline=false,backgroundcolor=pdcreamraised,%
+      innerleftmargin=10pt,innertopmargin=6pt,innerbottommargin=6pt,%
+      skipabove=8pt,skipbelow=8pt]%
+  \phantomsection\label{sol:#1}%
+  \textbf{Solution to Exercise~\ref{#1}}\par
+  {\small(exercise on page~\pageref{#1})}\par\smallskip\noindent\ignorespaces
+}{%
+  \end{mdframed}%
+}
+\newenvironment{pdsolution}[1]{%
+  \let\pd@sol@tmp\relax
+  \Ifanswerfiles{%
+    \Iffileundefined{pdsol}{}{%
+      \Ifopen{pdsol}{%
+        \immediate\write\pdsol@file{\string\begin{pdSolution}{#1}}%
+        \def\pd@sol@tmp{\Filesave{pdsol}}%
+      }{}%
+    }%
+  }{%
+    \def\pd@sol@tmp{\begin{pdSolution}{#1}}%
+  }%
+  \pd@sol@tmp
+}{%
+  \Ifanswerfiles{%
+    \Iffileundefined{pdsol}{}{%
+      \Ifopen{pdsol}{%
+        \endFilesave
+        \immediate\write\pdsol@file{\string\end{pdSolution}}%
+      }{}%
+    }%
+  }{%
+    \end{pdSolution}%
+  }%
+}
+
+% ---------------------------------------------------------------------------
+% \pdassurance -- the five-word assurance-mode tag (matches the vocabulary in
+% coordination-papers-mega-volume-appendices.tex's implementation boundary).
+% ---------------------------------------------------------------------------
+\newcommand{\pd@assurance@modes}{Observed,Coordinated,Brokered,Confined,Attested}
+\newcommand{\pdassurance}[1]{%
+  \edef\pd@in@test{\noexpand\in@{,#1,}{,\pd@assurance@modes,}}%
+  \pd@in@test
+  \ifin@\else
+    \PackageError{pd-pedagogy}{Unknown pdassurance mode '#1'}%
+      {Use one of: Observed, Coordinated, Brokered, Confined, Attested.}%
+  \fi
+  {\scshape#1}%
+}
+
+% ---------------------------------------------------------------------------
+% \pdopensolutions / \pdprintsolutions -- standalone-chapter chrome only. The
+% Book generator strips both (scripts/generate-mega-whitepaper.mjs,
+% cleanStandaloneChrome) and opens/closes the solution stream itself, once per
+% chapter, under its own book-sol-<prefix> filename.
+% ---------------------------------------------------------------------------
+\newcommand{\pdopensolutions}{\Opensolutionfile{pdsol}[sol-\pdchapterprefix]}
+\newcommand{\pdprintsolutions}{%
+  \Closesolutionfile{pdsol}%
+  \section*{Solutions to the exercises}%
+  \IfFileExists{sol-\pdchapterprefix.tex}{\input{sol-\pdchapterprefix}}{}%
+}
+\makeatother

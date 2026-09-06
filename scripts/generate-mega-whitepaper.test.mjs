@@ -10,11 +10,14 @@ import {
   inlineInputs,
   loadTextbook,
   namespaceLabels,
+  renderChapter,
   renderContents,
+  renderSolutions,
   renderTextbookMap,
   rewriteCitations,
   sharedMapDrift,
   sharedMapTargets,
+  sourceDeclaresExercises,
   stripPaperApparatus,
   validateTextbook,
 } from './generate-mega-whitepaper.mjs';
@@ -79,6 +82,11 @@ test('textbook.json is the single source of record and is internally consistent'
     );
     assert.match(source, /\\input\{figures\/pd-textbook-map\}/);
     assert.match(source, /\\input\{figures\/pd-palette\}/);
+    assert.match(
+      source,
+      /\\input\{figures\/pd-textbook-map\}\s*\n\\input\{figures\/pd-pedagogy\}/,
+      `${chapter.source} must input the pedagogy macros right after the textbook map`,
+    );
     assert.match(source, /\\input\{figures\/pd-hyperlinks\}\s*\n\s*\\begin\{document\}/);
     assert.doesNotMatch(source, /\\usepackage\[hidelinks\]\{hyperref\}/);
     assert.doesNotMatch(
@@ -178,7 +186,7 @@ test('the committed shared textbook map matches textbook.json in both copies', (
 });
 
 test('the shared palette and hyperlink files are byte-identical in both source trees', () => {
-  for (const name of ['pd-palette.tex', 'pd-hyperlinks.tex', 'pd-figure-language.tex']) {
+  for (const name of ['pd-palette.tex', 'pd-hyperlinks.tex', 'pd-figure-language.tex', 'pd-pedagogy.tex']) {
     assert.equal(
       readFileSync(resolve(`whitepaper/figures/${name}`), 'utf8'),
       readFileSync(resolve(`website-v2/public/whitepaper/figures/${name}`), 'utf8'),
@@ -413,6 +421,91 @@ test('one paper cannot map a bibliography key to two references', () => {
     () => collateReferences(prepared),
     /collision\.tex: bibliography key shared maps to two references/,
   );
+});
+
+// --- pd-pedagogy: exercises and their deferred solutions in the Book -------
+
+test('cleanStandaloneChrome strips the standalone solution-file open/print lines', () => {
+  const source = [
+    '\\begin{document}',
+    '\\pdopensolutions',
+    '\\maketitle',
+    '\\section{Kept}',
+    'Body text survives.',
+    '\\pdprintsolutions',
+    '\\begin{thebibliography}{99}',
+  ].join('\n');
+
+  const cleaned = cleanStandaloneChrome(source);
+  assert.doesNotMatch(cleaned, /\\pdopensolutions|\\pdprintsolutions/);
+  assert.match(cleaned, /\\section\{Kept\}/);
+  assert.match(cleaned, /Body text survives\./);
+});
+
+test('renderChapter opens and closes the chapter-owned solution stream around the seams', () => {
+  const paper = { source: 'fixture.tex', number: 3, title: 'The Fixture', prefix: 'fx', color: 'pdgold' };
+  const rendered = renderChapter(paper, 'BODY GOES HERE');
+
+  const openIndex = rendered.indexOf('\\Opensolutionfile{pdsol}[book-sol-fx]');
+  const chapterIndex = rendered.indexOf('\\pdchapter{3}{The Fixture}{fx}{pdgold}');
+  const closeIndex = rendered.lastIndexOf('\\Closesolutionfile{pdsol}');
+  const bodyIndex = rendered.indexOf('BODY GOES HERE');
+
+  assert.ok(chapterIndex >= 0, 'the \\pdchapter line is present');
+  assert.ok(openIndex > chapterIndex, '\\Opensolutionfile follows \\pdchapter{...}');
+  assert.ok(openIndex < bodyIndex, '\\Opensolutionfile precedes the chapter body');
+  assert.ok(closeIndex > bodyIndex, '\\Closesolutionfile follows the chapter body');
+  assert.equal(closeIndex, rendered.length - '\\Closesolutionfile{pdsol}'.length, '\\Closesolutionfile is the very last thing emitted');
+});
+
+test('namespaceLabels rewrites the pdexercise and pdsolution label argument like \\label{...}', () => {
+  const source = [
+    '\\begin{pdexercise}[kind=Check,rating=1]{ex-basics}',
+    'What is the invariant?',
+    '\\end{pdexercise}',
+    '\\begin{pdsolution}{ex-basics}',
+    'The write path is serialized.',
+    '\\end{pdsolution}',
+    '\\begin{pdexercise}{ex-no-optional}',
+    'No key=value group at all.',
+    '\\end{pdexercise}',
+  ].join('\n');
+
+  const namespaced = namespaceLabels(source, 'swk');
+  assert.match(namespaced, /\\begin\{pdexercise\}\[kind=Check,rating=1\]\{swk:ex-basics\}/);
+  assert.match(namespaced, /\\begin\{pdsolution\}\{swk:ex-basics\}/);
+  assert.match(namespaced, /\\begin\{pdexercise\}\{swk:ex-no-optional\}/, 'an absent optional argument is tolerated');
+  // The kind=Check,rating=1 key-value text itself is untouched, commas and all.
+  assert.doesNotMatch(namespaced, /swk:kind|swk:Check|swk:rating/);
+});
+
+test('sourceDeclaresExercises scans for a literal \\begin{pdexercise}', () => {
+  assert.equal(sourceDeclaresExercises('\\begin{pdexercise}[kind=Trace]{ex:x}\n...'), true);
+  assert.equal(sourceDeclaresExercises('no exercises anywhere in this chapter'), false);
+});
+
+test('renderSolutions renders nothing but a comment when no chapter has an exercise', () => {
+  const rendered = renderSolutions([]);
+  assert.match(rendered, /^% .*nothing to print/i);
+  assert.doesNotMatch(rendered, /\\section|\\input|Solutions to the exercises/);
+});
+
+test('renderSolutions lists every chapter with exercises under its own heading, and only those', () => {
+  const rendered = renderSolutions([
+    { number: 1, prefix: 'swk', title: 'The Single-Writer Kernel' },
+    { number: 5, prefix: 'he', title: 'The Harbor Economy' },
+  ]);
+
+  assert.match(rendered, /Solutions to the exercises/);
+  assert.match(rendered, /\\section\*\{Chapter 1: The Single-Writer Kernel\}/);
+  assert.match(rendered, /\\IfFileExists\{book-sol-swk\.tex\}\{\\input\{book-sol-swk\}\}\{\}/);
+  assert.match(rendered, /\\section\*\{Chapter 5: The Harbor Economy\}/);
+  assert.match(rendered, /\\IfFileExists\{book-sol-he\.tex\}\{\\input\{book-sol-he\}\}\{\}/);
+  // Book order, not insertion order: chapter 1's section precedes chapter 5's.
+  assert.ok(rendered.indexOf('Chapter 1:') < rendered.indexOf('Chapter 5:'));
+  // texText escaping runs on the title.
+  const escaped = renderSolutions([{ number: 2, prefix: 'x', title: 'A & B' }]);
+  assert.match(escaped, /Chapter 2: A \\& B/);
 });
 
 // --- ported from PR #7698 suite (features main's copy lacked tests for) ---
