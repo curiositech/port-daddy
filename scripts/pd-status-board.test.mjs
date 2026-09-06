@@ -296,8 +296,8 @@ function fakeGh({ issues = [], labels = [], comments = [], body = '' } = {}) {
 }
 
 const recordedIssueList = [
-  { number: 10101, title: ISSUE_TITLE, state: 'OPEN', url: 'https://github.com/curiositech/port-daddy/issues/10101' },
-  { number: 9000, title: 'Port Daddy: status page redesign', state: 'OPEN', url: 'https://github.com/curiositech/port-daddy/issues/9000' },
+  { number: 10101, title: ISSUE_TITLE, state: 'OPEN', url: 'https://github.com/curiositech/port-daddy/issues/10101', labels: [{ name: LABEL }], isPinned: true },
+  { number: 9000, title: 'Port Daddy: status page redesign', state: 'OPEN', url: 'https://github.com/curiositech/port-daddy/issues/9000', labels: [], isPinned: false },
 ];
 
 describe('gh plumbing', () => {
@@ -309,17 +309,22 @@ describe('gh plumbing', () => {
     assert.equal(findIssue(fakeGh().gh, 'o/r'), null);
   });
 
-  test('initBoard creates once, then finds — a second run mutates nothing but the pin', () => {
+  const mutations = (calls) => calls.filter((c) => c.mutation).map((c) => c.args.slice(0, 2).join(' '));
+
+  test('initBoard creates once, then finds — a second run on a labelled, pinned board writes nothing', () => {
     const f = fakeGh();
     const first = initBoard(f.gh, 'o/r', { log: () => {} });
     assert.deepEqual({ number: first.number, created: first.created }, { number: 10101, created: true });
-    const mutations = (calls) => calls.filter((c) => c.mutation).map((c) => c.args.slice(0, 2).join(' '));
     assert.deepEqual(mutations(f.calls), ['label create', 'issue create', 'issue pin']);
     f.calls.length = 0;
+    // The fake's created issue carries no label/pin metadata, so the second run repairs both…
     const second = initBoard(f.gh, 'o/r', { log: () => {} });
     assert.deepEqual({ number: second.number, created: second.created }, { number: 10101, created: false });
     assert.deepEqual(mutations(f.calls), ['issue edit', 'issue pin'], 'no create, no label create');
-    assert.ok(f.calls.some((c) => c.args[0] === 'issue' && c.args[1] === 'create') === false);
+    // …and once the recorded shape says labelled + pinned, `read` costs zero writes.
+    const steady = fakeGh({ issues: recordedIssueList, labels: [{ name: LABEL }] });
+    initBoard(steady.gh, 'o/r', { log: () => {} });
+    assert.deepEqual(mutations(steady.calls), []);
   });
 
   test('initBoard reopens a closed board instead of creating a twin', () => {
@@ -329,7 +334,7 @@ describe('gh plumbing', () => {
   });
 
   test('a pin failure (three pins already) is logged, not fatal', () => {
-    const f = fakeGh({ issues: recordedIssueList, labels: [{ name: LABEL }] });
+    const f = fakeGh({ issues: [{ ...recordedIssueList[0], isPinned: false }], labels: [{ name: LABEL }] });
     const inner = f.gh;
     const gh = (args, opts) => { if (args[1] === 'pin') { const e = new Error('pin failed'); e.stderr = 'already 3 pinned'; throw e; } return inner(args, opts); };
     const logs = [];
