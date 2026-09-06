@@ -147,6 +147,7 @@ describe('reproducible whitepaper source scoping', () => {
       'website-v2/public/whitepaper/anchor-protocol-whitepaper.pdf',
       'website-v2/public/whitepaper/federated-harbor-whitepaper.pdf',
       'website-v2/public/whitepaper/harbor-economy-whitepaper.pdf',
+      'website-v2/public/whitepaper/sealed-harbor-whitepaper.pdf',
       'website-v2/public/whitepaper/spawn-to-person-whitepaper.pdf',
       'website-v2/public/whitepaper/legible-swarm-whitepaper.pdf',
       'website-v2/public/whitepaper/single-writer-kernel-whitepaper.pdf',

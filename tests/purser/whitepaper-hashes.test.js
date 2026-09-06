@@ -11,6 +11,7 @@ const EXPECTED_PUBLICATIONS = [
   'website-v2/public/whitepaper/coordination-papers-mega-volume.pdf',
   'website-v2/public/whitepaper/single-writer-kernel-whitepaper.pdf',
   'website-v2/public/whitepaper/anchor-protocol-whitepaper.pdf',
+  'website-v2/public/whitepaper/sealed-harbor-whitepaper.pdf',
   'website-v2/public/whitepaper/legible-swarm-whitepaper.pdf',
   'website-v2/public/whitepaper/spawn-to-person-whitepaper.pdf',
   'website-v2/public/whitepaper/harbor-economy-whitepaper.pdf',

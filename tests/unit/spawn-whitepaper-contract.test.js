@@ -31,6 +31,7 @@ const reviewSha256 = {
 const publicationPdfs = [
   'website-v2/public/whitepaper/legible-swarm-whitepaper.pdf',
   'website-v2/public/whitepaper/single-writer-kernel-whitepaper.pdf',
+  'website-v2/public/whitepaper/sealed-harbor-whitepaper.pdf',
   'website-v2/public/whitepaper/spawn-to-person-whitepaper.pdf',
   'website-v2/public/whitepaper/harbor-economy-whitepaper.pdf',
   'website-v2/public/whitepaper/anchor-protocol-whitepaper.pdf',
@@ -224,7 +225,13 @@ describe('Spawn-to-Person publication contract', () => {
     // The manifest records the renders that were reviewed; every publication
     // PDF must have a row there, and the manifest must say where the current
     // digests live now that the PDFs are regenerated per edition.
-    for (const artifact of publicationPdfs) {
+    // The proof manifest is a frozen record of the first-edition review
+    // (August 2026, seven chapters plus the Book); the Sealed Harbor chapter
+    // postdates it and is bound by publication-digests.json alone.
+    const firstEditionPdfs = publicationPdfs.filter(
+      (artifact) => !artifact.endsWith('sealed-harbor-whitepaper.pdf'),
+    );
+    for (const artifact of firstEditionPdfs) {
       expect(proof).toContain(`\`${artifact}\``);
     }
     expect(proof).toContain('publication-digests.json');
