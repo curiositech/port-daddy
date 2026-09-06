@@ -312,8 +312,8 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     pages: 46,
     sizeKb: 890,
     status: 'Version 1.2 (textbook edition)',
-    order: '03',
-    chapter: 3,
+    order: '04',
+    chapter: 4,
     formerNumeral: 'I',
     part: 'operator',
     role: 'builds',
@@ -543,8 +543,8 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     pages: 53,
     sizeKb: 793,
     status: 'Version 1.5 (textbook edition)',
-    order: '04',
-    chapter: 4,
+    order: '05',
+    chapter: 5,
     formerNumeral: 'III',
     part: 'person',
     role: 'builds',
@@ -658,8 +658,8 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     pages: 37,
     sizeKb: 723,
     status: 'Version 1.3 (textbook edition)',
-    order: '05',
-    chapter: 5,
+    order: '06',
+    chapter: 6,
     formerNumeral: 'IV',
     part: 'market',
     role: 'builds',
@@ -889,8 +889,8 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     pages: 52,
     sizeKb: 931,
     status: 'Version 2.8 (textbook edition)',
-    order: '06',
-    chapter: 6,
+    order: '07',
+    chapter: 7,
     formerNumeral: 'VI',
     part: 'market',
     role: 'proves',
@@ -1011,8 +1011,8 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     pages: 32,
     sizeKb: 697,
     status: 'Version 1.1 (textbook edition)',
-    order: '07',
-    chapter: 7,
+    order: '08',
+    chapter: 8,
     formerNumeral: 'VII',
     part: 'market',
     role: 'proves',
@@ -1123,6 +1123,133 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
       },
     ],
   },
+  {
+    id: 'sealed-harbor',
+    slug: 'sealed-harbor',
+    title: 'The Sealed Harbor',
+    subtitle:
+      'Mutually confidential computation with every information release explicit, gated, and bounded — four independently verified pillars, and an honestly priced leakage budget.',
+    thesis:
+      'A data owner and a model owner who will share neither data nor model can still obtain one attributable, policy-bound joint computation. Token-level taint through a generative model is not soundly definable, so the security boundary cannot be the token; it has to be the declassification gate. This chapter builds that clean room — dual-attested key release, two fences, whole-worker taint, two gates — and prices what still gets through as an information-theoretic budget of q times b bits across q jobs, before timing channels, which stay out of model.',
+    summary:
+      'A guided read of the Sealed Harbor chapter: why a confident-sounding "cannot phone home" claim has to be replaced by a narrower, provable one, the four-pillar argument that replaces it (silence except through the slot, the channel as the only enforceable boundary, a conserving budget ledger, and a canary detector with a quotable curve), and the honest list of what none of it promises.',
+    filename: 'sealed-harbor-whitepaper',
+    pdfPath: '/whitepaper/sealed-harbor-whitepaper.pdf',
+    readerHref: '/whitepaper/sealed-harbor',
+    overviewHref: '/whitepaper?paper=sealed-harbor',
+    date: 'September 2026',
+    pages: 17,
+    sizeKb: 154,
+    status: 'Version 1.0 (textbook edition)',
+    order: '03',
+    chapter: 3,
+    formerNumeral: '',
+    part: 'machine',
+    role: 'proves',
+    discharges: 'single-writer-kernel',
+    layer: 'proof — confidential computation',
+    claim:
+      'Gate the channel, not the token: noninterference modulo declassification holds on the finite clean-room model, the channel is the only boundary a hypervisor can enforce at all, the release ledger conserves under concurrent invocation, and a canary detector prices what tries to evade the meter.',
+    maturity: 'mechanically checked · exhaustive and randomized model checks + mutation testing; the unbounded-state lift is a stated open obligation',
+    crossRefs: {
+      proves: [
+        { id: 'single-writer-kernel', why: 'restates the kernel-derived enforceability boundary (gate the channel, never the token) as one of four pillars' },
+      ],
+      assumes: [
+        { id: 'anchor-protocol', why: 'the work order the room executes is itself a scoped, attenuating capability, not ambient trust' },
+      ],
+    },
+    primer:
+      'Derek owns sensitive data. Erin owns a valuable model. Both want one answer computed from both, and neither will hand over the crown jewels — nor will the cloud operator hosting the job get to read either. The tempting pitch is a "silicon-enforced NDA": tag anything the model reads and refuse to let a tainted byte leave. This chapter explains why that sentence must never ship: an LLM taints everything it writes with everything it read, so a token-level tracker is either useless or unsound. The honest fix controls the channel, not the token — a work order signed by both parties, a room sealed by dual-attested key release, two fences around the worker, and exactly two declassification gates. What still crosses those gates is not zero; it is metered, and this chapter prices the meter.',
+    glossary: [
+      {
+        term: 'Clean room',
+        definition:
+          'The confidential-VM job Derek and Erin jointly authorize: an ephemeral key, an attested runtime, semantic-handle-only access for the worker, and exactly three pre-authorized exits (a rich result to Derek, bounded feedback to Erin, a padded receipt to both).',
+      },
+      {
+        term: 'Declassification gate',
+        definition:
+          'The one place a label may be removed from tainted state, under a declared release function each principal agreed to in the work order. The theorem says the gate is the only opening; it does not say the declared function releases too little.',
+      },
+      {
+        term: 'Whole-worker taint',
+        definition:
+          'After the first secret read, the entire worker — not just the bytes it touched — is treated as tainted until job destruction. The sound over-approximation once token-level taint is granted to be undefinable for a generative model.',
+      },
+      {
+        term: 'Leakage budget',
+        definition:
+          'The chapter\'s headline number: a malicious worker that launders its output through an honest gate can move at most b bits per job through a b-bit release channel, or q times b bits across q jobs — an arithmetic ceiling a contract can quote, bond, and police.',
+      },
+      {
+        term: 'Canary',
+        definition:
+          'A planted, secret span that turns "we think nothing leaked" into a quoted detection probability and an expected time-to-alarm, the same way a dye pack turns a bank robbery into a stain.',
+      },
+    ],
+    whatYouGet:
+      'You should leave able to (a) explain why "tag it and drop tainted output" is not a security architecture for a tool-using agent, and what narrower claim replaces it; (b) name the four pillars and which single question each one closes (where can the boundary be, does it hold, what does it cost, what evades it); and (c) read a leakage-budget number off a work order the way you would read an interest rate — q jobs times a b-bit channel, before timing.',
+    forBuilders:
+      'If you are building a service that runs someone else\'s agent against your data, or your model against someone else\'s data, this chapter is the checklist: seal the compute, hand the worker handles instead of plaintext, put exactly one gate on every exit, meter what the gate releases as a conserved budget, and plant canaries so an evasion attempt has a quoted cost instead of an unbounded one.',
+    highlights: [
+      { icon: Lock, label: 'Dual-attested key release, sealed room' },
+      { icon: Shield, label: 'Two fences, two declassification gates' },
+      { icon: Scale, label: 'q·b leakage budget, before timing' },
+      { icon: CheckCircle, label: 'Exhaustive checks + mutation-tested breaks' },
+    ],
+    sections: [
+      {
+        title: 'The problem: Derek and Erin',
+        content:
+          'Two principals want one joint computation and will hand over neither their data nor their model. The chapter\'s first job is retiring the tempting but false claim that token-level taint tracking can guarantee silence; its second is proving the narrower claim that replaces it.',
+      },
+      {
+        title: 'The design: one work order, two fences, two gates',
+        content:
+          'A signed contract fixes the function, tools, budgets, and declassification authorities before any key is released. Dual-attested key release seals the room; semantic handles and an outer gateway fence the worker; whole-worker taint and exactly two gates are the only exits.',
+      },
+      {
+        title: 'Pillar I: silence except through the slot',
+        content:
+          'Run the world twice, identical except for the secret, under every interleaving: the theorem says Erin\'s view is bit-for-bit identical unless the declared release function distinguishes the two secrets — verified exhaustively on the finite clean-room model, with both canonical breaks caught.',
+      },
+      {
+        title: 'Pillar II: the channel, never the token',
+        content:
+          'A supervisory-control theorem fixes which boundary can be enforced at all: a policy is regimentable exactly when it is controllable with respect to the mediation layer\'s alphabet. Gating the model\'s thoughts is unregimentable; gating its egress is not.',
+      },
+      {
+        title: 'Pillar III: the budget is a ledger, and the ledger conserves',
+        content:
+          'Every release atomically appends to an append-only log and adds to a running spend, so the recorded total never silently drifts from the journal — including under concurrent jobs, and including under the composition rule that actually applies to an adaptively spent privacy budget.',
+      },
+      {
+        title: 'Pillar IV: canaries with a power curve and a clock',
+        content:
+          'Planted canaries turn a leak into a quoted detection probability, and a sequential test turns sustained leakage into an expected time-to-alarm — so the exfiltration bond can fund detection and response instead of pretending to cover an unbounded breach.',
+      },
+      {
+        title: 'What cannot honestly be promised',
+        content:
+          'Not zero model leakage under unlimited adaptive queries; not zero data leakage through an uncapped feedback channel; not timing, cache, or physical side channels; not correctness of the answer; not a bound on what a human remembers after reading a release.',
+      },
+    ],
+    takeaways: [
+      {
+        title: 'Negotiate over channel capacity, never over "does this contain a secret"',
+        body: 'Whether an arbitrary string contains a secret is undecidable in practice; how many bits a channel can carry is arithmetic. The chapter\'s design rule follows directly: price the pipe, not the payload.',
+      },
+      {
+        title: 'The four pillars are one pipeline, not four redundant guarantees',
+        body: 'Enforceability says where a boundary can exist; noninterference says that boundary is silent except through its slot; conservation meters what legitimately crosses it over many releases; detection prices what tries to sneak around the meter. Drop one and a concrete gap reopens.',
+      },
+      {
+        title: 'A finite, exhaustive proof is a blueprint, not the destination',
+        body: 'The noninterference theorem is exhaustive over a small finite model. The general claim over unbounded state has a known proof shape — three Rushby-style unwinding conditions — that this chapter names as the next obligation rather than folding a half-finished mechanization into the claim.',
+      },
+    ],
+  },
 ])
 
 /**
@@ -1159,6 +1286,14 @@ export interface LibraryChangelogEntry {
 }
 
 export const LIBRARY_CHANGELOG: LibraryChangelogEntry[] = [
+  {
+    dateIso: '2026-09-06',
+    date: 'September 6, 2026',
+    title: 'The Sealed Harbor arrives as Chapter 3; five chapters renumber',
+    summary:
+      'The eighth chapter, The Sealed Harbor, joins Part I (Ground Truth) right after the Anchor Protocol: a work order runs in a sealed room behind two fences and two gates, and what leaks is priced as a conserving ledger rather than promised away. It proves the single-writer kernel’s enforceability boundary as one of four pillars. whitepaper/textbook.json is the one source of the new order; Legible Swarm, From Spawn to Person, The Harbor Economy, The Bonded Commons, and The Federated Harbor renumber from 3–7 to 4–8 without changing former-edition numerals or ids. This is the skeleton pass: the chapter compiles with its sections transplanted from the standalone research paper and its own bibliography; the chapter’s prose voice, its opening and handoff seams, and the retirement of the appendix material it grew out of are the next wave.',
+    chapters: ['sealed-harbor', 'legible-swarm', 'spawn-to-person', 'harbor-economy', 'bonded-commons', 'federated-harbor'],
+  },
   {
     dateIso: '2026-09-06',
     date: 'September 6, 2026',

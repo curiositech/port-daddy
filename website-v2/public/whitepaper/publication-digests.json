@@ -31,6 +31,11 @@
       "bytes": 921357,
       "sha256": "b7630fd6a42f7d2c8435de86985e4d9eaaa28f38ce9d63d5bef2a399e5e52b9e"
     },
+    "website-v2/public/whitepaper/sealed-harbor-whitepaper.pdf": {
+      "pages": 17,
+      "bytes": 157720,
+      "sha256": "3beac680e5f935f8b3769fead24894262a9afec0ec3b741e0dd01a401e2881eb"
+    },
     "website-v2/public/whitepaper/single-writer-kernel-whitepaper.pdf": {
       "pages": 59,
       "bytes": 906497,

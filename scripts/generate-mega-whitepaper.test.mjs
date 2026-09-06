@@ -66,11 +66,11 @@ test('every chapter in textbook.json has exactly one opening and one handoff sea
 
 test('textbook.json is the single source of record and is internally consistent', () => {
   const textbook = loadTextbook();
-  assert.equal(textbook.chapters.length, 7);
-  assert.deepEqual(textbook.chapters.map((c) => c.number), [1, 2, 3, 4, 5, 6, 7]);
+  assert.equal(textbook.chapters.length, 8);
+  assert.deepEqual(textbook.chapters.map((c) => c.number), [1, 2, 3, 4, 5, 6, 7, 8]);
   assert.deepEqual(
     textbook.chapters.map((c) => c.prefix),
-    ['swk', 'anchor', 'ls', 'stp', 'he', 'bonded', 'fh'],
+    ['swk', 'anchor', 'sealed', 'ls', 'stp', 'he', 'bonded', 'fh'],
   );
   for (const chapter of textbook.chapters) {
     assert.ok(existsSync(resolve(chapter.source)), `${chapter.source} exists`);
@@ -179,9 +179,9 @@ test('the committed shared textbook map matches textbook.json in both copies', (
   const [first, second] = sharedMapTargets.map((target) => readFileSync(resolve(target), 'utf8'));
   assert.equal(first, second);
   const rendered = renderTextbookMap(loadTextbook());
-  assert.match(rendered, /\\providecommand\{\\pdchaptercount\}\{7\}/);
+  assert.match(rendered, /\\providecommand\{\\pdchaptercount\}\{8\}/);
   assert.match(rendered, /pdchapternumberofswk\\endcsname\{1\}/);
-  assert.match(rendered, /pdchapternumberofls\\endcsname\{3\}/);
+  assert.match(rendered, /pdchapternumberofls\\endcsname\{4\}/);
   assert.match(rendered, /\\pdtextbookmap/);
 });
 
@@ -198,9 +198,9 @@ test('the shared palette and hyperlink files are byte-identical in both source t
 test('the front-matter map lists every chapter in order with a first-edition concordance', () => {
   const contents = renderContents(loadTextbook());
   const numbers = [...contents.matchAll(/\\pdcontentschapter\{(\d+)\}/g)].map((m) => Number(m[1]));
-  assert.deepEqual(numbers, [1, 2, 3, 4, 5, 6, 7]);
-  assert.match(contents, /I & 3 & \\pdchapref\{ls\}\{The Legible Swarm\}/);
-  assert.match(contents, /VII & 7 & \\pdchapref\{fh\}\{The Federated Harbor\}/);
+  assert.deepEqual(numbers, [1, 2, 3, 4, 5, 6, 7, 8]);
+  assert.match(contents, /I & 4 & \\pdchapref\{ls\}\{The Legible Swarm\}/);
+  assert.match(contents, /VII & 8 & \\pdchapref\{fh\}\{The Federated Harbor\}/);
   assert.match(contents, /Proves what \\pdchapref\{swk\}/);
 });
 

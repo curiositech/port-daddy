@@ -61,6 +61,7 @@ PAPERS=(
   "$PUB|anchor-protocol-whitepaper.tex|$PUB/anchor-protocol-whitepaper.pdf"
   "$PUB|federated-harbor-whitepaper.tex|$PUB/federated-harbor-whitepaper.pdf"
   "$PUB|harbor-economy.tex|$PUB/harbor-economy-whitepaper.pdf"
+  "$PUB|sealed-harbor.tex|$PUB/sealed-harbor-whitepaper.pdf"
   "$PUB|spawn-to-person.tex|$PUB/spawn-to-person-whitepaper.pdf"
   "whitepaper|legible-swarm.tex|$PUB/legible-swarm-whitepaper.pdf"
   "whitepaper|single-writer-kernel.tex|$PUB/single-writer-kernel-whitepaper.pdf"
@@ -105,6 +106,7 @@ paper_sources() {
     fi
     paper_sources "whitepaper" "single-writer-kernel.tex"
     paper_sources "$PUB" "anchor-protocol-whitepaper.tex"
+    paper_sources "$PUB" "sealed-harbor.tex"
     paper_sources "whitepaper" "legible-swarm.tex"
     paper_sources "$PUB" "spawn-to-person.tex"
     paper_sources "$PUB" "harbor-economy.tex"
