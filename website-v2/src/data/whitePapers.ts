@@ -204,6 +204,23 @@ export interface Textbook {
 
 export const TEXTBOOK = textbookJson as Textbook
 
+/**
+ * A secondary typographic edition of the Book: same chapters, same
+ * generated body/bibliography, a different driver root
+ * (coordination-papers-mega-volume-<id-suffix>.tex sets \pdedition then
+ * \input's the main root). `pages`/`sizeKb` are 0 until the edition's PDF
+ * has actually been built at least once — check-whitepaper-metadata.ts
+ * WARNs (not fails) while the file is missing, and `--fix` fills the real
+ * numbers in from disk the first time it exists. Never hand-fill a guess.
+ */
+export interface CollectedVolumeEdition {
+  id: string
+  title: string
+  pdfPath: string
+  pages: number
+  sizeKb: number
+}
+
 /** The bound edition is the Book itself, not an eighth paper. */
 export interface CollectedVolume {
   id: string
@@ -215,6 +232,8 @@ export interface CollectedVolume {
   pages: number
   sizeKb: number
   references: number
+  /** Alternate-typography editions built from the same sources; see coordination-papers-mega-volume-{swiss,technical}.tex. */
+  editions?: CollectedVolumeEdition[]
 }
 
 export const COLLECTED_VOLUME: CollectedVolume = {
@@ -228,6 +247,22 @@ export const COLLECTED_VOLUME: CollectedVolume = {
   pages: 537,
   sizeKb: 7797,
   references: 221,
+  editions: [
+    {
+      id: 'coordination-papers-mega-volume-swiss',
+      title: 'Swiss edition',
+      pdfPath: '/whitepaper/coordination-papers-mega-volume-swiss.pdf',
+      pages: 0,
+      sizeKb: 0,
+    },
+    {
+      id: 'coordination-papers-mega-volume-technical',
+      title: 'Technical edition',
+      pdfPath: '/whitepaper/coordination-papers-mega-volume-technical.pdf',
+      pages: 0,
+      sizeKb: 0,
+    },
+  ],
 }
 
 /**
