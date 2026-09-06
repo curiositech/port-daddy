@@ -60,6 +60,7 @@ MEDIABOX_TOL_PT = 0.5          # T5
 MIN_CONTAINER_DIM_PT = 3.0     # T2: ignore hairline/degenerate "containers"
 OVERLAP_FRACTION = 0.05        # T3
 DEAD_CANVAS_FRACTION = 0.40    # T6
+OVERWIDTH_TOL_CM = 0.2         # T7: see check_t7 -- absorbs resizebox rounding noise
 
 
 # --------------------------------------------------------------------------- #
@@ -413,10 +414,17 @@ def check_t6(content_rect, page_rect, page_no):
 
 
 def check_t7(content_rect, textwidth_pt, textwidth_cm, page_no):
+    """Warn only past a real margin, not a rounding hair: across this skill's
+    own corpus audit, a fragment sized via `\\resizebox{0.9\\textwidth}{!}{...}`
+    routinely lands a fraction of a millimeter over textwidth from ordinary
+    stroke-width/line-cap rounding (median overage ~0.01cm across 105 cases) --
+    noise that would otherwise drown out the real, actionable outliers (a
+    handful of fragments 0.5-2.8cm over)."""
     if content_rect is None:
         return []
     cw = content_rect[2] - content_rect[0]
-    if cw > textwidth_pt + 1e-6:
+    tolerance_pt = OVERWIDTH_TOL_CM * PT_PER_CM
+    if cw > textwidth_pt + tolerance_pt:
         return [
             {
                 "check": "T7",

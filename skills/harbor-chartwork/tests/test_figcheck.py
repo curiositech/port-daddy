@@ -254,6 +254,27 @@ class TestWideContentWarns(unittest.TestCase):
         self.assertNotIn("T7", figcheck.HARD_CHECKS)
 
 
+class TestNarrowOverwidthIsWithinTolerance(unittest.TestCase):
+    """A resizebox'd figure routinely lands a fraction of a millimeter over
+    textwidth from ordinary rounding -- OVERWIDTH_TOL_CM exists so that alone
+    does not warn (see check_t7's docstring)."""
+
+    def setUp(self):
+        doc = pymupdf.open()
+        # textwidth 16.3cm = 462.05pt; draw content just ~0.05cm over that,
+        # well inside OVERWIDTH_TOL_CM (0.2cm).
+        page = doc.new_page(width=500, height=200)
+        page.draw_line((10, 100), (10 + 462.05 + 0.05 * figcheck.PT_PER_CM, 100), color=(0, 0, 0), width=1)
+        self.path = save_temp_pdf(doc)
+
+    def tearDown(self):
+        Path(self.path).unlink(missing_ok=True)
+
+    def test_t7_does_not_warn_within_tolerance(self):
+        report = figcheck.run_figcheck(self.path, textwidth_cm=16.3)
+        self.assertEqual(report["checks"]["T7"]["status"], "pass", msg=report["checks"]["T7"]["findings"])
+
+
 class TestCLI(unittest.TestCase):
     def setUp(self):
         doc = pymupdf.open()
