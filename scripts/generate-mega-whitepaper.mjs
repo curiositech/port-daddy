@@ -778,10 +778,6 @@ function renderSolutions(chaptersWithExercises) {
     '  {\\color{hhcobalt}\\rule{0.3\\textwidth}{1.5pt}}\\par',
     '  \\vspace{0.4cm}',
     '\\end{center}',
-    // The page-budget lever from the plan: the collected solutions set in
-    // \small (single column, so pinned log lines and displays keep their
-    // width), closed again before the appendices.
-    '\\begingroup\\small',
     '',
   ];
   for (const chapter of chaptersWithExercises) {
@@ -791,7 +787,6 @@ function renderSolutions(chaptersWithExercises) {
       '',
     );
   }
-  lines.push('\\endgroup', '');
   return lines.join('\n');
 }
 

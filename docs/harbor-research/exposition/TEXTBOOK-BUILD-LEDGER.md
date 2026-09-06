@@ -37,13 +37,12 @@ pages with 0 undefined references and 502 links, the Legible Swarm chapter to
 the Sealed Harbor chapter to 21 pages and 123 links with its five figures,
 the Harbor Economy chapter to 54 pages and 437 links, the Bonded Commons to
 63 pages and 482 links, the Federated Harbor to 44 pages and 434 links; the
-Book compiles to 399 pages, 7.5 MB, 3,119 links, 0 undefined references, with
-the collected solutions (46 pages), the appendices (11 pages) and the reference
-list (13 pages) set in small type; the appendices open on the eight
-propositions in the front matter's order and carry the sealed-execution row.
-The chapters run 48 / 29 / 17 / 52 / 45 / 41 / 50 / 32 pages in book order.
-One page under the 400 ceiling; the one lever left unpulled is trimming the
-chapters' related-work sections. Local build recipe: run
+Book compiles to 415 pages, 7.9 MB, 3,141 links, 0 undefined references, at one
+text size throughout (the small-type levers for the old 400-page ceiling were
+reverted when the operator raised the ceiling to 600); the appendices open on
+the eight propositions in the front matter's order and carry the
+sealed-execution row. The chapters run 49 / 29 / 18 / 52 / 46 / 41 / 51 / 33
+pages in book order, the solutions 53, the appendices 28. Local build recipe: run
 the generator into `.cache/whitepaper-build/coordination-papers-mega-volume`
 first (a stale or missing cache fails the Book with "Generated chapter map is
 missing"), then tectonic from `website-v2/public/whitepaper/`.
@@ -161,7 +160,8 @@ is edited by the merger only; workers list the labels to claim in their digest.
 ### Ship condition (stated before wave 1)
 
 1. The Book builds in the pinned CI TeX Live with 0 errors, 0 undefined
-   references or citations, at or under 400 pages.
+   references or citations, at or under 600 pages (the operator raised the
+   ceiling from 400 on 2026-09-06; page count is not a design pressure).
 2. Every one of the eight chapters has: its research paper's results folded as
    claim boxes labeled by kind, each with a proof or proof idea; Numbers by
    hand with `[verified]` or `[internal]` tags reproducible by the named
@@ -224,6 +224,31 @@ textbook map), so B0's renumber is an order edge, not a hard one.
   commit) turns the 161 empty and 514 `IN-WAVE-n` statuses into `DONE`,
   `DECLINED`, or `IN-WAVE-10` with a reason each. Edges: all `order`; the
   ledger JSON is written by the merger only.
+  Round 3 closed the same day: W1 merged (62d27a0ee), W2 merged (0d85a91d0),
+  A landed (ffed06094, f83c171bb), and I2 landed as six Sonnet worksheets
+  (I2a for the 161 empty rows, then waves 3/4, 5, 6, 7/8, 9) applied by one
+  script with the author adjudicating every row the workers could not
+  decide; the 42 small gaps the worksheets exposed were repaired in the
+  chapters (30d249c4c, b81eb4794, fa46c853c) rather than carried, and the
+  ledger reads 561 DONE, 198 DECLINED, no empty or in-wave cell.
+
+### Ship condition, steel-manned at close
+
+1. Build: met at normal type throughout; the small-type levers pulled for
+   the old 400-page ceiling were reverted when the operator raised the
+   ceiling to 600, and the page count in section 1 is the measured one.
+2. Chapter contents: met for claims, numbers, exercises, boundaries. The
+   figure rule (one relation map and one regime figure per folded result)
+   is met for the folds this round drew figures for and was not audited
+   result by result; the chartwork register is the place to close that.
+3. Checkers: green locally on the final tree; CI on the final push is the
+   receipt.
+4. Standalone papers: verified byte-identical except comment lines against
+   `origin/main` for all seven.
+5. Site table of contents: met (eight chapters from `textbook.json`).
+6. Critique ledger: met.
+7. Art: the operator has every opener and the whole-book contact sheets;
+   no art decision is pending unless the operator raises one.
 
 Merge protocol per digest: verify each digest line against its artifact,
 merge the branch, regenerate generated files, apply the label claims to the
