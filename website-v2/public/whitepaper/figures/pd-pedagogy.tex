@@ -116,11 +116,20 @@
 % the Book the prompts sit in the margin under a small-caps "Recall"; in a
 % standalone chapter they are a compact numbered list. No box either way.
 % ---------------------------------------------------------------------------
+\newsavebox{\pd@recallbox}\newlength{\pd@recalloff}
 \NewEnviron{pdrecitation}{%
   \ifpdmargincolumn
-    \marginnote{{\scshape Recall}\par\nobreak\vspace{1pt}%
+    % Measured first, then raised so its last line sits on the line that issues
+    % it: the block shares the section's height instead of hanging below it.
+    % It is never raised above the text already on the page.
+    \sbox{\pd@recallbox}{\begin{minipage}[b]{\marginparwidth}\raggedright
+      {\scshape Recall}\par\nobreak\vspace{1pt}%
       \begin{enumerate}[leftmargin=1.1em,itemsep=1pt,topsep=0pt,parsep=0pt,label=\arabic*.]%
-      \footnotesize\BODY\end{enumerate}}%
+      \footnotesize\BODY\end{enumerate}\end{minipage}}%
+    \setlength{\pd@recalloff}{\dimexpr\baselineskip-\ht\pd@recallbox-\dp\pd@recallbox\relax}%
+    \ifdim\pd@recalloff<-\pagetotal \setlength{\pd@recalloff}{-\pagetotal}\fi
+    \ifdim\pd@recalloff>0pt \setlength{\pd@recalloff}{0pt}\fi
+    \marginnote{\usebox{\pd@recallbox}}[\pd@recalloff]%
   \else
     \par\addvspace{6pt}\noindent{\scshape\bfseries Recall.}\par\nobreak
     \begin{enumerate}[leftmargin=1.6em,itemsep=1pt,topsep=2pt,parsep=0pt,label=\arabic*.]%
@@ -259,14 +268,24 @@
   keepspaces=true,breaklines=true,breakatwhitespace=false,frame=none,
   xleftmargin=0pt,aboveskip=3pt,belowskip=3pt,showstringspaces=false,
   language={},keywordstyle={},commentstyle={},stringstyle={},identifierstyle={}}
+\newlength{\pd@sessionwidth}
 \lstnewenvironment{pdsession}[1][]{%
   \endgraf\addvspace{8pt plus 1pt}%
-  \noindent{\color{pdinkmuted}\rule{\linewidth}{0.4pt}}\endgraf\nobreak\vspace{2pt}%
+  % In the Book a transcript runs across the column and the margin (6 in,
+  % 83 monospace characters), the full-width block of the page grammar.
+  % (through the listing's own width key: a nested environment would change
+  % \@currenvir and make listings look for the wrong end marker)
+  \ifpdmargincolumn
+    \setlength{\pd@sessionwidth}{\dimexpr\linewidth+\marginparsep+\marginparwidth\relax}%
+  \else
+    \setlength{\pd@sessionwidth}{\linewidth}%
+  \fi
+  \noindent{\color{pdinkmuted}\rule{\pd@sessionwidth}{0.4pt}}\endgraf\nobreak\vspace{2pt}%
   \noindent\pd@marginhead{At the terminal}%
   \ifx\relax#1\relax\else{\itshape #1.}\fi\endgraf\nobreak
-  \lstset{style=pdsession}%
+  \lstset{style=pdsession,linewidth=\pd@sessionwidth}%
 }{%
-  \endgraf\nobreak\noindent{\color{pdinkmuted}\rule{\linewidth}{0.4pt}}\endgraf
+  \endgraf\nobreak\noindent{\color{pdinkmuted}\rule{\pd@sessionwidth}{0.4pt}}\endgraf
   \addvspace{8pt plus 1pt}%
 }
 

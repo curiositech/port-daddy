@@ -620,7 +620,10 @@ links severed, also $0$ [verified].
 \begin{pdexample}{the consistency radius, six-cycle vs.\ six-path, and the $1/\sqrt n$ scaling}
 Six harbors in a ring ($C_6$), unit-weight edges, a lie of magnitude $|s|=3$ on one relayed cycle edge. The effective resistance across that edge is $R_{\mathrm{eff}}=(n-1)/n=5/6$, so by hand:
 \[
-r \;=\; |s|\sqrt{1-R_{\mathrm{eff}}} \;=\; 3\sqrt{1-\tfrac56} \;=\; \tfrac{3}{\sqrt6} \;=\; 1.2247 \quad\text{[verified]}.
+\begin{aligned}
+r \;&=\; |s|\sqrt{1-R_{\mathrm{eff}}} \;=\; 3\sqrt{1-\tfrac56}\\
+&=\; \tfrac{3}{\sqrt6} \;=\; 1.2247 \quad\text{[verified]}.
+\end{aligned}
 \]
 Cut the same ring into a six-node path ($P_6$), same edge, same lie: every edge of a path is a bridge, so $R_{\mathrm{eff}}=1$ and $r=|s|\sqrt{1-1}=0$ exactly [verified] --- a tree's coboundary map is already onto the visible data, so the free completion absorbs the whole lie. \texttt{sheaf\_consistency\_radius.py}'s closed-form section (\texttt{[0] CLOSED FORM vs the R6 mechanism numbers}) prints both against its own numerical solve:
 \begin{lstlisting}

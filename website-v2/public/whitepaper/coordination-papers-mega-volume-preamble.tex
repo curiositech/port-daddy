@@ -19,7 +19,25 @@
   \setmonofont{texgyrecursor-regular.otf}[BoldFont=texgyrecursor-bold.otf,
     ItalicFont=texgyrecursor-italic.otf,BoldItalicFont=texgyrecursor-bolditalic.otf,
     Scale=MatchLowercase]
+  % The part openers set their display type in Times (the cover's face). Under
+  % fontspec the legacy \fontfamily{ptm} has no TU italic or small caps, so the
+  % face is declared here, with both.
+  \newfontfamily\pdpartface{texgyretermes-regular.otf}[ItalicFont=texgyretermes-italic.otf,
+    BoldFont=texgyretermes-bold.otf,BoldItalicFont=texgyretermes-bolditalic.otf,Ligatures=TeX]
+  % A 66-character column cannot hold a script path in one piece. Inside
+  % \texttt, XeTeX's inter-character tokens allow a break (no hyphen) after
+  % / _ . - = : and , so paths and flags wrap where a reader expects.
+  \makeatletter
+  \newXeTeXintercharclass\pd@brk
+  \XeTeXcharclass`\/=\pd@brk \XeTeXcharclass`\_=\pd@brk \XeTeXcharclass`\.=\pd@brk
+  \XeTeXcharclass`\-=\pd@brk \XeTeXcharclass`\==\pd@brk \XeTeXcharclass`\:=\pd@brk \XeTeXcharclass`\,=\pd@brk
+  \XeTeXinterchartoks\pd@brk 0={\allowbreak}
+  \XeTeXinterchartoks\pd@brk\pd@brk={\allowbreak}
+  \expandafter\let\expandafter\pd@texttt\csname texttt \endcsname
+  \expandafter\def\csname texttt \endcsname#1{{\XeTeXinterchartokenstate=1 \pd@texttt{#1}}}
+  \makeatother
 \else
+  \newcommand\pdpartface{\fontfamily{ptm}\selectfont}
   % pdfTeX fallback (not the published path; scripts/build-whitepapers.sh
   % compiles the Book with xelatex): the same face through its Type 1 package.
   \usepackage{tgcursor}
@@ -71,10 +89,10 @@
 % Trim 7 x 10 in (Wave 12, L1): one text column of 4.5 in (about 66 characters
 % at 10.5 pt) and a 1.3 in outer margin column that carries sidenotes, margin
 % heads, exercise pointers and margin figures. The standalone chapters keep A4.
-\geometry{paperwidth=7in,paperheight=10in,twoside,inner=0.8in,outer=1.7in,%
+\geometry{paperwidth=7in,paperheight=10in,left=0.8in,right=1.7in,%
   top=0.85in,bottom=0.95in,textwidth=4.5in,marginparsep=0.2in,marginparwidth=1.3in}
 \captionsetup{font=small,labelfont=bf}
-\setlength{\emergencystretch}{2em}
+\setlength{\emergencystretch}{3em}\tolerance=1500
 % Depth 1 (parts, chapters, and top-level sections) is a deliberate choice for
 % a book assembled from independently structured chapters: at depth 2 the
 % front-matter ToC runs to several hundred headings and reads as a text-only
@@ -350,6 +368,7 @@
 % The chapter opener: one page with the title, an epigraph, a plate when the
 % chapter has one, and the question the chapter answers with its one-breath
 % answer. Nothing else. The chapter's first section starts on the next page.
+\newsavebox{\pdqbox}\newlength{\pdplateh}
 \newcommand{\pdchapter}[4]{%
   \clearpage
   \renewcommand{\pdcurrentchapter}{#1}%
@@ -364,29 +383,41 @@
   \vspace{0.25cm}
   \noindent\pdweightrule{\pdchapterpartindex}{\textwidth}{2pt}\par
   \vspace{1.3cm}
-  {\noindent\fontsize{34}{40}\selectfont\bfseries\color{hhink}\hyphenpenalty=10000\exhyphenpenalty=10000\raggedright #2\par}
-  \vspace{1.1cm}
+  {\noindent\fontsize{34}{40}\selectfont\color{hhink}\hyphenpenalty=10000\exhyphenpenalty=10000\raggedright #2\par}
+  \vspace{1.0cm}
   \begin{flushright}
-    \begin{minipage}{0.68\textwidth}\raggedleft
-      {\itshape\large\pdchapterepigraph\par}
-      \vspace{6pt}
-      {\small\scshape\color{hhgray}\pdchapterepigraphsource\par}
+    \begin{minipage}{0.84\textwidth}\raggedleft
+      {\itshape\pdchapterepigraph\par}
+      \vspace{5pt}
+      {\footnotesize\scshape\color{hhgray}\pdchapterepigraphsource\par}
     \end{minipage}
   \end{flushright}
-  \vspace{0.7cm}
-  % The question comes before the plate, in one unbreakable minipage, so it
-  % is always on the opener; the plate takes what is left of the page, capped
-  % at three tenths of it, and sits at the foot.
-  \noindent\begin{minipage}{\textwidth}
-  \noindent{\scshape\footnotesize\color{hhgray}The question this chapter answers}\par
-  \vspace{6pt}
-  {\noindent\fontsize{22}{27}\selectfont\bfseries\color{hhink}\hyphenpenalty=10000\exhyphenpenalty=10000\raggedright\pdchapterquestion\par}
-  \vspace{10pt}
-  {\noindent\small\itshape\pdchapteroneline\par}
-  \end{minipage}\par
-  \vfill
+  % The question block is measured first, then the plate takes what the page
+  % still has above it (capped at 0.42 of the text height), and the question
+  % closes the page as in the first printing. Nothing can spill: the plate is
+  % cut to fit and dropped below 3 cm.
+  \sbox{\pdqbox}{\begin{minipage}{\textwidth}
+    \noindent{\scshape\footnotesize\color{hhgray}The question this chapter answers}\par
+    \vspace{6pt}
+    {\noindent\fontsize{21}{26}\selectfont\color{hhink}\hyphenpenalty=10000\exhyphenpenalty=10000\raggedright\pdchapterquestion\par}
+    \vspace{9pt}
+    {\noindent\small\itshape\pdchapteroneline\par}
+  \end{minipage}}%
+  \par
   \IfFileExists{plates/chapter-#3.jpg}{%
-    \begin{center}\includegraphics[width=\textwidth,height=0.30\textheight,keepaspectratio]{plates/chapter-#3.jpg}\end{center}}{}%
+    \ifdim\pagegoal=\maxdimen
+      \setlength{\pdplateh}{\dimexpr\textheight-\pagetotal\relax}%
+    \else
+      \setlength{\pdplateh}{\dimexpr\pagegoal-\pagetotal\relax}%
+    \fi
+    \addtolength{\pdplateh}{-\ht\pdqbox}\addtolength{\pdplateh}{-\dp\pdqbox}\addtolength{\pdplateh}{-1.6cm}%
+    \ifdim\pdplateh>0.42\textheight \setlength{\pdplateh}{0.42\textheight}\fi
+    \ifdim\pdplateh>3cm
+      \vspace{0.5cm}%
+      \noindent\makebox[\textwidth]{\includegraphics[width=\textwidth,height=\pdplateh,keepaspectratio]{plates/chapter-#3.jpg}}\par
+    \fi}{}%
+  \vfill
+  \noindent\usebox{\pdqbox}\par
   \vspace{0.2cm}
   \clearpage
   \setcounter{section}{0}\setcounter{figure}{0}\setcounter{table}{0}\setcounter{equation}{0}\setcounter{lstlisting}{0}\setcounter{pdexercise}{0}%
@@ -436,16 +467,20 @@
     % keeps the book's four hues; nothing else on the page is colored.
     \pagecolor{hhpaper}\color{hhink}%
     \AddToShipoutPictureBG*{\AtPageLowerLeft{\includegraphics[width=\paperwidth,height=\paperheight]{plates/part-#1.jpg}}}%
+    % The part page has no margin notes, so its type takes the full 6 in
+    % (column and margin) at the proportions of the first printing's A4 page.
+    \begin{adjustwidth}{0pt}{-\dimexpr\marginparsep+\marginparwidth\relax}
     \vspace*{1.1cm}
-    \noindent\pdweightrule{\csname pdpartindexof#1\endcsname}{0.42\textwidth}{2pt}\par
+    \noindent\pdweightrule{\csname pdpartindexof#1\endcsname}{0.42\linewidth}{2pt}\par
     \vspace{0.55cm}
-    \noindent{\fontfamily{ptm}\scshape\large Part #1}\par
+    \noindent{\pdpartface\scshape\large Part #1}\par
     \vspace{0.22cm}
-    \noindent{\fontfamily{ptm}\fontsize{36}{42}\selectfont #2\par}
+    \noindent{\pdpartface\fontsize{34}{40}\selectfont\hyphenpenalty=10000\exhyphenpenalty=10000\raggedright #2\par}
     \vspace{0.65cm}
-    \noindent\begin{minipage}{0.60\textwidth}{\fontfamily{ptm}\itshape\fontsize{12.5}{16.5}\selectfont #4\par}\end{minipage}\par
+    \noindent\begin{minipage}{0.66\linewidth}{\pdpartface\itshape\fontsize{12.5}{16.5}\selectfont\hyphenpenalty=10000\exhyphenpenalty=10000\raggedright #4\par}\end{minipage}\par
     \vspace{0.85cm}
-    {\hypersetup{linkcolor=hhink}\noindent\begin{minipage}{0.70\textwidth}#5\end{minipage}\par}
+    {\hypersetup{linkcolor=hhink}\noindent\begin{minipage}{0.74\linewidth}#5\end{minipage}\par}
+    \end{adjustwidth}
     \vfill
   }{%
     \pagecolor{#3}\color{hhpaper}%
@@ -495,3 +530,42 @@
 
 % Hyperlink and cross-reference discipline (must stay last).
 \input{figures/pd-hyperlinks}
+
+% ---------------------------------------------------------------------------
+% Overflow safety net. A tikzpicture wider than the text column is set over the
+% column and the outer margin (the full-width figure, 6 in); one wider still is
+% scaled to that width and logged. No figure can leave the page. The real fix
+% for a figure this wide is a redraw to the column (scripts/harbor-research/
+% page_overflow.py reports every page that still needs one).
+% ---------------------------------------------------------------------------
+\usepackage{changepage}
+\newlength{\pdfullwidth}\setlength{\pdfullwidth}{\dimexpr\textwidth+\marginparsep+\marginparwidth\relax}
+\makeatletter
+% pgf hands every finished picture (tikzpicture, pgfplots axis, inline \tikz)
+% to \pgfsys@typesetpicturebox with its width known; the hook decides where it
+% goes. Nested pictures pass through untouched (their box is narrower than the
+% line they sit in).
+\newsavebox{\pd@picbox}
+\let\pd@typesetpicturebox\pgfsys@typesetpicturebox
+\def\pgfsys@typesetpicturebox#1{%
+  % the box has no width of its own yet; pgf sets it from the bounding box
+  \@tempdima=\dimexpr\pgf@picmaxx-\pgf@picminx\relax
+  \ifdim\@tempdima>\linewidth
+    \sbox{\pd@picbox}{\pd@typesetpicturebox#1}%
+    \ifdim\linewidth<\dimexpr\textwidth-1pt\relax
+      % inside a minipage, a margin note or a table cell: fit the box we are in
+      \PackageWarning{pd-book}{picture \the\wd\pd@picbox\space wide scaled to a \the\linewidth\space box}%
+      \resizebox{\linewidth}{!}{\usebox{\pd@picbox}}%
+    \else
+      \ifdim\wd\pd@picbox>\pdfullwidth
+        \PackageWarning{pd-book}{picture \the\wd\pd@picbox\space wide scaled to the full width}%
+        \sbox{\pd@picbox}{\resizebox{\pdfullwidth}{!}{\usebox{\pd@picbox}}}%
+      \else
+        \PackageInfo{pd-book}{picture \the\wd\pd@picbox\space wide set full width}%
+      \fi
+      \makebox[\textwidth][l]{\usebox{\pd@picbox}}%
+    \fi
+  \else
+    \pd@typesetpicturebox#1%
+  \fi}
+\makeatother

@@ -267,18 +267,20 @@ Table~\ref{tab:ls-stack-map} shows how they interlock.}
 \centering
 \caption{The system as four strata rather than four products. A mark is a capability the layer provides to the layer above; reading down a column shows where each capability is born. This chapter owns the operator surface (L2) and uses the directory substrate of L1; it assumes ordered kernel state below and supplies accountable identity, reasons and outcomes to reputation and exchange above. [internal]}
 \label{tab:ls-stack-map}
-\small
-\renewcommand{\arraystretch}{1.15}
-\begin{tabularx}{\linewidth}{@{}l l l c c c c c c c@{}}
+\footnotesize
+\renewcommand{\arraystretch}{1.15}\setlength{\tabcolsep}{3.5pt}
+% seven capability columns at the width of a mark; their heads stand at 60 degrees
+\newcommand{\lscaphead}[1]{\rotatebox[origin=l]{60}{\textbf{#1}}}
+\begin{tabular}{@{}l >{\raggedright\arraybackslash}p{8.5em} l *{7}{c}@{}}
 \toprule
-\textbf{Layer} & \textbf{Stratum} & \textbf{For whom} & \textbf{state} & \textbf{order} & \textbf{identity} & \textbf{reason} & \textbf{outcome} & \textbf{reputation} & \textbf{exchange} \\
+\textbf{Layer} & \textbf{Stratum} & \textbf{For whom} & \lscaphead{state} & \lscaphead{order} & \lscaphead{identity} & \lscaphead{reason} & \lscaphead{outcome} & \lscaphead{reputation} & \lscaphead{exchange} \\
 \midrule
 L3 & economy \& federation & the market & & & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ \\
 L2 & legibility \& authority (this chapter) & the operator & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ & & \\
 L1 & coordination protocol & the agents & $\bullet$ & $\bullet$ & $\bullet$ & & & & \\
 L0 & daemon kernel & the machine & $\bullet$ & & & & & & \\
 \bottomrule
-\end{tabularx}
+\end{tabular}
 \end{table}
 
 \newpage
@@ -609,7 +611,10 @@ half centuries ago. We therefore make consent a concrete object.
 A \textbf{consent grant} is an explicit, scoped, revocable authorization the
 operator issues to the daemon, of the form
 \[
-g = \langle\, \textsc{scope},\ \textsc{stakes-ceiling}\ s_{\max},\ \textsc{reversibility-floor}\ v_{\min},\ \textsc{ttl},\ \textsc{revocable}\,\rangle,
+\begin{aligned}
+g = \langle\, &\textsc{scope},\ \textsc{stakes-ceiling}\ s_{\max},\ \textsc{reversibility-floor}\ v_{\min},\\
+&\textsc{ttl},\ \textsc{revocable}\,\rangle,
+\end{aligned}
 \]
 e.g.\ ``the daemon \emph{may} auto-land reversible diffs under stakes threshold
 $s_{\max}$ in the \texttt{tests/} subtree without asking, for 24h.'' A grant is a
@@ -1886,9 +1891,11 @@ passing is exactly $C_{\mathrm{miss}}(x)\,a(x)$, and, among all policies that
 decide inspect-or-pass per item from its evidence alone, the Bayes-optimal policy
 inspects iff
 \begin{equation}\label{eq:bayes-regret}
-C_{\mathrm{miss}}(x)\,a(x)\;\ge\;c_{\mathrm{att}}+C_{\mathrm{fa}}\bigl(1-a(x)\bigr),
-\qquad\text{equivalently}\qquad
-\frac{a(x)}{1-a(x)}\;\ge\;\frac{c_{\mathrm{att}}+C_{\mathrm{fa}}}{C_{\mathrm{miss}}(x)},
+\begin{aligned}
+C_{\mathrm{miss}}(x)\,a(x)&\;\ge\;c_{\mathrm{att}}+C_{\mathrm{fa}}\bigl(1-a(x)\bigr),\\
+\text{equivalently}\qquad
+\frac{a(x)}{1-a(x)}&\;\ge\;\frac{c_{\mathrm{att}}+C_{\mathrm{fa}}}{C_{\mathrm{miss}}(x)},
+\end{aligned}
 \end{equation}
 the classical likelihood-ratio criterion. The product form
 $\mathrm{stakes}\times\mathrm{irrev}\times\mathrm{anomaly}$ of Eq.~\ref{eq:regret}

@@ -591,7 +591,10 @@ This dual---mutable view, immutable substrate---is what lets coordination signal
 
 A critical property: even if an agent's identity is discarded after task completion, the \textbf{delegation chain} traces every action back to the authorizing principal. The chain is:
 \[
-\text{Principal} \xrightarrow{\text{funds}} \text{Float Plan} \xrightarrow{\text{authorizes}} \text{Agent } \alpha \xrightarrow{\text{delegates}} \text{Agent } \beta \xrightarrow{\text{acts}} \text{Evidence Trail}.
+\begin{aligned}
+\text{Principal} &\xrightarrow{\text{funds}} \text{Float Plan} \xrightarrow{\text{authorizes}} \text{Agent } \alpha\\
+&\xrightarrow{\text{delegates}} \text{Agent } \beta \xrightarrow{\text{acts}} \text{Evidence Trail}.
+\end{aligned}
 \]
 The agent is ephemeral. The principal's authorization---signed, escrowed, recorded---is permanent. Anonymous harm to shared state is impossible within the system, because every action chains back to someone who posted collateral; \S\ref{sec:pricing:threats} draws the corresponding line for harm from \emph{disclosure}, which this chain does not cover.
 
