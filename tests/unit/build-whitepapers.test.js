@@ -38,7 +38,7 @@ describe('reproducible whitepaper source scoping', () => {
     ).split('\n');
 
     expect(sources[0]).toBe('website-v2/public/whitepaper/spawn-to-person.tex');
-    expect(sources).toHaveLength(18);
+    expect(sources).toHaveLength(19);
     expect(sources).toContain(
       'website-v2/public/whitepaper/figures/pd-figure-language.tex',
     );
