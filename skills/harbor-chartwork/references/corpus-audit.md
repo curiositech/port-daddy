@@ -6,12 +6,12 @@ Generated in 217s. Compiled PDFs live under `.cache/chartwork/` (gitignored, not
 
 | File | Corpus | Input by | Label | Kind | Caption (first sentence) | Precheck | Compiles | Figcheck |
 |---|---|---|---|---|---|---|---|---|
-| `website-v2/public/whitepaper/figures/appendix-figures-anchor.tex` | website-v2 | *(none found)* | `fig:anchor-delegation-diag` | relation map | Multi-hop delegation walker (Phase~3). | fail: node-wrap×1 | pass | fail: T1×52, T2×1, T3×4, T4×4 |
+| `website-v2/public/whitepaper/figures/appendix-figures-anchor.tex` | website-v2 | *(none found)* | `fig:anchor-delegation-diag` | relation map | Multi-hop delegation walker (Phase~3). | fail: node-wrap×1 | pass | fail: T1×52, T2×1, T3×4, T4×4 | <!-- cite-exempt -->
 | `website-v2/public/whitepaper/figures/appendix-figures.tex` | website-v2 | *(none found)* | `fig:magic-link-diag` | relation map | Magic-link single-use atomicity. | fail: node-wrap×6 | pass | fail: T1×68, T2×2, T3×7, T4×10; warn: T7×1 |
-| `website-v2/public/whitepaper/figures/diag-auction-mechanisms.tex` | website-v2 | *(none found)* | none | relation map | none | fail: color×22, node-wrap×4 | **FAIL** -- ! Undefined control sequence. | n/a |
-| `website-v2/public/whitepaper/figures/diag-cartel-game.tex` | website-v2 | *(none found)* | none | relation map | none | fail: color×18, node-wrap×1 | **FAIL** -- ! Undefined control sequence. | n/a |
-| `website-v2/public/whitepaper/figures/diag-cuckoo-filter.tex` | website-v2 | *(none found)* | none | relation map | none | fail: color×31, node-wrap×2 | pass | fail: T1×14, T2×2, T3×3, T4×4 |
-| `website-v2/public/whitepaper/figures/diag-delegation-chain.tex` | website-v2 | *(none found)* | none | relation map | none | fail: color×15, node-wrap×1 | pass | fail: T1×30, T3×2, T4×3 |
+| `website-v2/public/whitepaper/figures/diag-auction-mechanisms.tex` | website-v2 | *(none found)* | none | relation map | none | fail: color×22, node-wrap×4 | **FAIL** -- ! Undefined control sequence. | n/a | <!-- cite-exempt -->
+| `website-v2/public/whitepaper/figures/diag-cartel-game.tex` | website-v2 | *(none found)* | none | relation map | none | fail: color×18, node-wrap×1 | **FAIL** -- ! Undefined control sequence. | n/a | <!-- cite-exempt -->
+| `website-v2/public/whitepaper/figures/diag-cuckoo-filter.tex` | website-v2 | *(none found)* | none | relation map | none | fail: color×31, node-wrap×2 | pass | fail: T1×14, T2×2, T3×3, T4×4 | <!-- cite-exempt -->
+| `website-v2/public/whitepaper/figures/diag-delegation-chain.tex` | website-v2 | *(none found)* | none | relation map | none | fail: color×15, node-wrap×1 | pass | fail: T1×30, T3×2, T4×3 | <!-- cite-exempt -->
 | `website-v2/public/whitepaper/figures/diag-magic-link.tex` | website-v2 | *(none found)* | none | relation map | none | fail: color×17, node-wrap×9 | **FAIL** -- ! Package pgfkeys Error: I do not know the key '/tikz/ellipse' and I am going t | n/a |
 | `website-v2/public/whitepaper/figures/diag-sybil-attack.tex` | website-v2 | *(none found)* | none | relation map | none | fail: color×22, node-wrap×1 | **FAIL** -- ! Undefined control sequence. | n/a |
 | `website-v2/public/whitepaper/figures/fig-anchor-alg-confusion.tex` | website-v2 | `website-v2/public/whitepaper/anchor-protocol-whitepaper.tex` | `fig:anchor-alg-confusion` | timeline | Algorithm confusion occurs at the rule-selection boundary, not in the token's shape. | pass | pass | fail: T4×4 |
@@ -138,12 +138,12 @@ Generated in 217s. Compiled PDFs live under `.cache/chartwork/` (gitignored, not
 
 Searched against every root document in the fragment's own corpus, then (if that came up empty) every `.tex` file in the repo outside a `figures/` directory. A fragment listed here is not reachable from any compiled chapter or paper today -- it may be superseded, mid-refactor, or simply dead; this table does not judge which.
 
-- `website-v2/public/whitepaper/figures/appendix-figures-anchor.tex`
+- `website-v2/public/whitepaper/figures/appendix-figures-anchor.tex` <!-- cite-exempt -->
 - `website-v2/public/whitepaper/figures/appendix-figures.tex`
-- `website-v2/public/whitepaper/figures/diag-auction-mechanisms.tex`
-- `website-v2/public/whitepaper/figures/diag-cartel-game.tex`
-- `website-v2/public/whitepaper/figures/diag-cuckoo-filter.tex`
-- `website-v2/public/whitepaper/figures/diag-delegation-chain.tex`
+- `website-v2/public/whitepaper/figures/diag-auction-mechanisms.tex` <!-- cite-exempt -->
+- `website-v2/public/whitepaper/figures/diag-cartel-game.tex` <!-- cite-exempt -->
+- `website-v2/public/whitepaper/figures/diag-cuckoo-filter.tex` <!-- cite-exempt -->
+- `website-v2/public/whitepaper/figures/diag-delegation-chain.tex` <!-- cite-exempt -->
 
 Orphan disposition (2026-09-06, critique ledger XS-382 and XS-383): every orphan fragment listed above that no chapter, build script, or site component references was deleted from the tree; the audit rows above are kept as the record of what they were.
 - `website-v2/public/whitepaper/figures/diag-magic-link.tex`
@@ -162,8 +162,8 @@ Orphan disposition (2026-09-06, critique ledger XS-382 and XS-383): every orphan
 
 Fragments that failed to compile standalone:
 
-- `website-v2/public/whitepaper/figures/diag-auction-mechanisms.tex`: ! Undefined control sequence.
-- `website-v2/public/whitepaper/figures/diag-cartel-game.tex`: ! Undefined control sequence.
+- `website-v2/public/whitepaper/figures/diag-auction-mechanisms.tex`: ! Undefined control sequence. <!-- cite-exempt -->
+- `website-v2/public/whitepaper/figures/diag-cartel-game.tex`: ! Undefined control sequence. <!-- cite-exempt -->
 - `website-v2/public/whitepaper/figures/diag-magic-link.tex`: ! Package pgfkeys Error: I do not know the key '/tikz/ellipse' and I am going t
 - `website-v2/public/whitepaper/figures/diag-sybil-attack.tex`: ! Undefined control sequence.
 - `docs/harbor-research/figures/fig-b1-frontier.tex`: ! Package pgfkeys Error: I do not know the key '/tikz/ymode', to which you pass
