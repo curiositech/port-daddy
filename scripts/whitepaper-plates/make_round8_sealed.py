@@ -19,7 +19,7 @@ VARIANT = {'a': " Palette: pale greys, cobalt and violet washes faded almost to 
 for v in ('a', 'b'):
     name = f'ch-sealed-{v}'; out = OUT / f'{name}.png'; prompt = WASH + SCENE + VARIANT[v]
     if out.exists() and out.stat().st_size > 20_000: print('skip', name); continue
-    for attempt in range(3):
+    for _ in range(3):
         t0 = time.time(); r = subprocess.run([sys.executable, str(GEN), '--scene', prompt, '--out', str(out), '--aspect', '3:2'], capture_output=True, text=True)
         (OUT / f'{name}.log').write_text(r.stderr[-3000:])
         if r.returncode == 0 and out.exists():
