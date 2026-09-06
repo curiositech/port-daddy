@@ -236,6 +236,21 @@ export default function LibraryPage() {
                   />
                 </a>
 
+                {COLLECTED_VOLUME.editions && COLLECTED_VOLUME.editions.length > 0 && (
+                  <div className="flex flex-wrap gap-[var(--space-4)] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
+                    {COLLECTED_VOLUME.editions.map((edition) => (
+                      <a
+                        key={edition.id}
+                        href={edition.pdfPath}
+                        download
+                        className="underline decoration-dotted underline-offset-4 transition-colors hover:text-[var(--text-primary)]"
+                      >
+                        {edition.title} (PDF)
+                      </a>
+                    ))}
+                  </div>
+                )}
+
                 <div className="flex flex-wrap gap-[var(--space-3)]">
                   <a
                     href="#the-climb"

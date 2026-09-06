@@ -95,27 +95,35 @@ BUILT=()
 # a dependency: changing fig-stp-* must not retimestamp every other PDF.
 paper_sources() {
   local srcdir="$1" roottex="$2"
-  if [ "$roottex" = "coordination-papers-mega-volume.tex" ]; then
-    # whitepaper/textbook.json is the one source of chapter order, numbering,
-    # parts, and edition metadata; the generator renders the Book from it.
-    printf '%s\n' "$srcdir/$roottex" "$srcdir/coordination-papers-mega-volume-preamble.tex" \
-      "$srcdir/coordination-papers-mega-volume-seams.tex" \
-      "$srcdir/coordination-papers-mega-volume-appendices.tex" \
-      "scripts/generate-mega-whitepaper.mjs" "whitepaper/textbook.json"
-    # Art plates (jacket, part and chapter openers) are Book inputs too.
-    if [ -d "$srcdir/plates" ]; then
-      find "$srcdir/plates" -type f | sort
-    fi
-    paper_sources "whitepaper" "single-writer-kernel.tex"
-    paper_sources "$PUB" "anchor-protocol-whitepaper.tex"
-    paper_sources "$PUB" "sealed-harbor.tex"
-    paper_sources "whitepaper" "legible-swarm.tex"
-    paper_sources "$PUB" "spawn-to-person.tex"
-    paper_sources "$PUB" "harbor-economy.tex"
-    paper_sources "$PUB" "agent-transactions-whitepaper.tex"
-    paper_sources "$PUB" "federated-harbor-whitepaper.tex"
-    return
-  fi
+  case "$roottex" in
+    coordination-papers-mega-volume.tex|coordination-papers-mega-volume-swiss.tex|coordination-papers-mega-volume-technical.tex)
+      # The Swiss and Technical editions are two-line drivers
+      # (\def\pdedition{...} then \input of the main root) that share every
+      # source the main root does, plus their own driver file.
+      if [ "$roottex" != "coordination-papers-mega-volume.tex" ]; then
+        printf '%s\n' "$srcdir/$roottex"
+      fi
+      # whitepaper/textbook.json is the one source of chapter order, numbering,
+      # parts, and edition metadata; the generator renders the Book from it.
+      printf '%s\n' "$srcdir/coordination-papers-mega-volume.tex" "$srcdir/coordination-papers-mega-volume-preamble.tex" \
+        "$srcdir/coordination-papers-mega-volume-seams.tex" \
+        "$srcdir/coordination-papers-mega-volume-appendices.tex" \
+        "scripts/generate-mega-whitepaper.mjs" "whitepaper/textbook.json"
+      # Art plates (jacket, part and chapter openers) are Book inputs too.
+      if [ -d "$srcdir/plates" ]; then
+        find "$srcdir/plates" -type f | sort
+      fi
+      paper_sources "whitepaper" "single-writer-kernel.tex"
+      paper_sources "$PUB" "anchor-protocol-whitepaper.tex"
+      paper_sources "$PUB" "sealed-harbor.tex"
+      paper_sources "whitepaper" "legible-swarm.tex"
+      paper_sources "$PUB" "spawn-to-person.tex"
+      paper_sources "$PUB" "harbor-economy.tex"
+      paper_sources "$PUB" "agent-transactions-whitepaper.tex"
+      paper_sources "$PUB" "federated-harbor-whitepaper.tex"
+      return
+      ;;
+  esac
   local pending=("$roottex")
   local seen="|" rel full ref index=0
 
@@ -173,13 +181,27 @@ build_one() {
   local outdir="$BUILD_DIR/$base"
   mkdir -p "$outdir"
 
-  if [ "$roottex" = "coordination-papers-mega-volume.tex" ]; then
-    command -v node >/dev/null 2>&1 || {
-      echo "::error::Node.js is required to generate the collected-volume body and bibliography" >&2
-      return 1
-    }
-    node scripts/generate-mega-whitepaper.mjs "$outdir" || return 1
-  fi
+  case "$roottex" in
+    coordination-papers-mega-volume.tex|coordination-papers-mega-volume-swiss.tex|coordination-papers-mega-volume-technical.tex)
+      # All three roots \pdgeneratedinput from the SAME fixed path
+      # (.cache/whitepaper-build/coordination-papers-mega-volume/, hardcoded
+      # in the .tex, independent of which root is being built), so the
+      # generator only needs to run once. The main root always regenerates
+      # (it is built first in PAPERS and is the source of truth); the two
+      # drivers reuse that output, regenerating themselves only as a
+      # self-heal when asked to build standalone (e.g. via a FILTER) without
+      # the main root having run first in this invocation.
+      local shared_outdir="$BUILD_DIR/coordination-papers-mega-volume"
+      mkdir -p "$shared_outdir"
+      if [ "$roottex" = "coordination-papers-mega-volume.tex" ] || [ ! -f "$shared_outdir/mega-volume-body.tex" ]; then
+        command -v node >/dev/null 2>&1 || {
+          echo "::error::Node.js is required to generate the collected-volume body and bibliography" >&2
+          return 1
+        }
+        node scripts/generate-mega-whitepaper.mjs "$shared_outdir" || return 1
+      fi
+      ;;
+  esac
 
   local epoch; epoch="$(paper_epoch "$srcdir" "$roottex")"
   echo "::group::build $roottex  (SOURCE_DATE_EPOCH=$epoch)"
