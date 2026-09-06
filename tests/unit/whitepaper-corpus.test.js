@@ -39,7 +39,7 @@ describe('proof-estate corpus manifest', () => {
     }
   });
 
-  test('the three Kani harnesses are registered and wired to kani-harbor-card', () => {
+  test('the three Kani harnesses are registered and wired to a Kani job', () => {
     const kaniEntries = corpus.formalArtifacts.filter((a) => a.method === 'Kani');
     expect(kaniEntries).toHaveLength(3);
     const harnessNames = kaniEntries.map((a) => a.harnessName).sort();
@@ -48,9 +48,16 @@ describe('proof-estate corpus manifest', () => {
       'proof_constant_time_behavior',
       'proof_verify_logic_only',
     ]);
+    // The two fast harnesses run on every PR; the bounded parser harness takes
+    // over an hour under -Z stubbing and runs in the nightly job instead.
+    const expectedJob = {
+      proof_capability_attenuation: 'kani-harbor-card',
+      proof_constant_time_behavior: 'kani-harbor-card',
+      proof_verify_logic_only: 'kani-harbor-card-parser',
+    };
     for (const entry of kaniEntries) {
       expect(entry.paths).toEqual(['core/harbor-card-rs/src/lib.rs']);
-      expect(entry.ci).toEqual({ status: 'wired', job: ['kani-harbor-card'] });
+      expect(entry.ci).toEqual({ status: 'wired', job: [expectedJob[entry.harnessName]] });
     }
   });
 

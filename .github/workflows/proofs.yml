@@ -439,10 +439,10 @@ jobs:
   # purpose. If this becomes a real per-PR tax, consider moving it to a
   # schedule/nightly trigger instead of pull_request/push.
   kani-harbor-card:
-    if: github.event_name != 'merge_group'
-    name: Kani / harbor-card-rs (3 proof harnesses)
+    if: github.event_name != 'merge_group' && github.event_name != 'schedule'
+    name: Kani / harbor-card-rs (comparator and attenuation harnesses)
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 30
     defaults:
       run:
         working-directory: core/harbor-card-rs
@@ -468,22 +468,22 @@ jobs:
           cargo install --locked kani-verifier --version 0.67.0
           cargo kani setup
 
-      - name: Run the three #[kani::proof] harnesses
+      - name: Run the two fast #[kani::proof] harnesses
         run: |
           set -euo pipefail
-          # -Z stubbing: proof_verify_logic_only replaces the crypto/decode
-          # internals with symbolic-friendly stand-ins via #[kani::stub(...)]
-          # (see the harness's own doc comment); that attribute is gated
-          # behind Kani's unstable stubbing feature.
-          cargo kani -Z stubbing | tee kani.log
+          # proof_verify_logic_only is the expensive one (an hour of CPU on the
+          # curve25519 unwinding); it runs nightly in kani-harbor-card-parser
+          # so every pull request still gets the two harnesses that finish in
+          # minutes. -Z stubbing is harmless here and keeps the flags identical.
+          cargo kani -Z stubbing --harness proof_constant_time_behavior --harness proof_capability_attenuation | tee kani.log
 
-      - name: Assert all three harnesses verified successfully
+      - name: Assert both harnesses verified successfully
         run: |
           set -euo pipefail
-          if grep -q "Complete - 3 successfully verified harnesses, 0 failures, 3 total." kani.log; then
-            echo "PASS: all three Kani harnesses verified."
+          if grep -q "Complete - 2 successfully verified harnesses, 0 failures, 2 total." kani.log; then
+            echo "PASS: comparator and attenuation harnesses verified."
           else
-            echo "FAIL: expected all three harnesses to verify cleanly."
+            echo "FAIL: expected both harnesses to verify cleanly."
             tail -80 kani.log
             exit 1
           fi
@@ -494,6 +494,60 @@ jobs:
         with:
           name: kani-harbor-card-log
           path: core/harbor-card-rs/kani.log
+
+  # The parser harness: bit-precise symbolic UTF-8 validation plus concrete
+  # curve25519 arithmetic under #[kani::unwind(128)]. Measured at 50+ CPU-minutes
+  # without concluding in a sandbox, so it runs on the nightly schedule (and on
+  # demand) rather than on every pull request. It is still the proof workflow:
+  # a red nightly is a red estate.
+  kani-harbor-card-parser:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    name: Kani / harbor-card-rs (parser harness, nightly)
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    defaults:
+      run:
+        working-directory: core/harbor-card-rs
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain (stable)
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build artefacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: core/harbor-card-rs
+          key: kani-parser
+
+      - name: Install kani-verifier (pinned)
+        run: |
+          set -euo pipefail
+          cargo install --locked kani-verifier --version 0.67.0
+          cargo kani setup
+
+      - name: Run proof_verify_logic_only
+        run: |
+          set -euo pipefail
+          cargo kani -Z stubbing --harness proof_verify_logic_only | tee kani-parser.log
+
+      - name: Assert the parser harness verified successfully
+        run: |
+          set -euo pipefail
+          if grep -q "Complete - 1 successfully verified harnesses, 0 failures, 1 total." kani-parser.log; then
+            echo "PASS: proof_verify_logic_only verified."
+          else
+            echo "FAIL: proof_verify_logic_only did not verify cleanly."
+            tail -80 kani-parser.log
+            exit 1
+          fi
+
+      - name: Upload Kani output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kani-harbor-card-parser-log
+          path: core/harbor-card-rs/kani-parser.log
 
   # ── Relay TLA+ (TLC): revocation finality and webhook delivery ──────────────
   # proofs/relay/{CardRevocation,WebhookDelivery}.tla and their five .cfg files

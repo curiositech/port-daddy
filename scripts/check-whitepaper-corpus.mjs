@@ -191,7 +191,7 @@ if (declaredButMissingFormalFiles.length > 0) {
 function discoverKaniHarnesses() {
   const rsFiles = execFileSync(
     'grep',
-    ['-rl', '--include=*.rs', 'kani::proof', repoRoot],
+    ['-rl', '--include=*.rs', ...[...EXCLUDED_DIR_NAMES].map((dir) => `--exclude-dir=${dir}`), 'kani::proof', repoRoot],
     { encoding: 'utf8' },
   ).trim().split('\n').filter(Boolean);
 

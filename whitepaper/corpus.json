@@ -587,11 +587,11 @@
       ],
       "method": "Kani",
       "owner": "core/harbor-card-rs",
-      "evidencePolicy": "decode/verify-path robustness under adversarial input, with the crypto internals replaced by #[kani::stub(...)] stand-ins; requires -Z stubbing. Never ran before wave-p1/proof-estate -- its #[kani::unwind(N)] bound had never been empirically validated (see the harness's own comment for the curve25519-dalek pow2k unwind story)",
+      "evidencePolicy": "decode/verify-path robustness under adversarial input, with the crypto internals replaced by #[kani::stub(...)] stand-ins; requires -Z stubbing. Never ran before wave-p1/proof-estate -- its #[kani::unwind(N)] bound had never been empirically validated (see the harness's own comment for the curve25519-dalek pow2k unwind story); runs on the nightly schedule (kani-harbor-card-parser) because it takes about an hour of CPU",
       "ci": {
         "status": "wired",
         "job": [
-          "kani-harbor-card"
+          "kani-harbor-card-parser"
         ]
       },
       "harnessName": "proof_verify_logic_only"
