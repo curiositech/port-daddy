@@ -23,10 +23,10 @@ four failures that are one failure:
    Guard git hook classifies `daemon-unreachable` as a structural emergency and
    escalates ("COORDINATION LAYER DOWN — a human should repair the daemon") even when
    the daemon is unreachable *because the operator turned it off on purpose*
-   (`cli/commands/guard.ts:695`). ADR-0137 names this exact conflation.
+   (`cli/commands/guard.ts:695`). ADR-0139 names this exact conflation.
 4. **Nobody could see who was fixing what.** With coordination gone, agents could not
    discover whether an incident was already owned, so several re-diagnosed the same
-   root causes in parallel — the spend multiplier ADR-0137 describes.
+   root causes in parallel — the spend multiplier ADR-0139 describes.
 
 This is the classic outage shape. Facebook's October 2021 outage: DNS, the internal
 tools, and even the data-center badge readers all depended on the network that was
@@ -193,7 +193,7 @@ be independent of the tiers above it — the whole point.
     and writable with plain `gh`, independent of relay, daemon, and `pd`. No merge
     queue, no CI, no check runs can deadlock it. This is where `TAKING-FLOOR` lives
     for cross-machine incidents — the AWS-status-page-on-Twitter move.
-16. GitHub check-run titles carrying `VERDICT` / `INFRA` / `DEFERRED` (ADR-0137) —
+16. GitHub check-run titles carrying `VERDICT` / `INFRA` / `DEFERRED` (ADR-0139) —
     the fleet's own distress encoding, one per PR.
 17. **A scheduled GitHub Actions workflow as the independent observer.** Every N
     minutes it probes the relay and posts state to the pinned issue. CI runs when
@@ -213,7 +213,7 @@ be independent of the tiers above it — the whole point.
     line. The `~/.claude/CLAUDE.md` halt block is the written form; it stays.
 21. **Physical intervention.** The operator kills processes and disables labels by
     hand — Facebook's "send engineers to the data center." The exact commands are
-    the last-resort runbook in `docs/incidents/2026-09-05-port-daddy-halt.md`; that
+    the last-resort runbook in `docs/incidents/2026-09-05-port-daddy-halt.md` (not yet shipped: the incident record exists only in a local commit until it is pushed); that
     document is the A4 tier and must never assume anything above A0 is working.
 22. **Silence as signal.** No heartbeat for N intervals is presumed distress — the
     EPIRB that activates on immersion. The reaper already does this, but it
@@ -329,7 +329,7 @@ used and a novice would have missed — recorded so the registry encodes them:
 
 | Cue | Novice reading | Expert reading | What the registry does with it |
 |---|---|---|---|
-| A red `Port Daddy Fleet` check | "My PR is wrong." | "Did a ship *decide*, or did the pipeline *die*?" | `INFRA` vs `VERDICT` titles (ADR-0137); `PAN PAN UNVERIFIED`. |
+| A red `Port Daddy Fleet` check | "My PR is wrong." | "Did a ship *decide*, or did the pipeline *die*?" | `INFRA` vs `VERDICT` titles (ADR-0139); `PAN PAN UNVERIFIED`. |
 | `state: MERGED` on a PR | "It shipped." | "Merged into *what*? Check `baseRefName`." | Phantom-merge notice (PR #7186); `COMPLIED` requires the terminal state, not the transitional one. |
 | Six `port-daddy` rows after all-stop | "Six daemons." | "Six *processes named* port-daddy — which are daemons, which are helpers, which supervisor spawned each?" | Distinct process titles; berth lock makes the count provable; sentinel makes relaunch impossible. |
 | Guard says "COORDINATION LAYER DOWN, escalating" | "Something is badly broken." | "Unreachable because *I turned it off*. The guard can't tell." | Guard consults the sentinel; `HALT` routes to the legible `off` state. |
@@ -349,12 +349,12 @@ too?* — A0 and A1 do not need it; that is why they exist.
 
 | Phase | Roadmap slug | Status | Depends on | Description |
 |-------|--------------|--------|------------|-------------|
-| 0 | adr-0138-phase-0-floor | now | — | `lib/distress.ts` + a dependency-free `bin/pd-distress` shell script implementing the registry line format, `O_APPEND` writes to the distress file, and sentinel read/write. Coordination Guard, reaper, and resurrection consult the sentinel and take the legible `off` path. Unit + subprocess tests; no daemon started. |
+| 0 | adr-0138-phase-0-floor | now | — | `lib/distress.ts` (proposed) + a dependency-free `bin/pd-distress` shell script implementing the registry line format, `O_APPEND` writes to the distress file, and sentinel read/write. Coordination Guard, reaper, and resurrection consult the sentinel and take the legible `off` path. Unit + subprocess tests; no daemon started. |
 | 1 | adr-0138-phase-1-berth-singleton | now | — | Per-berth `flock` in a single shared launch entry point that every path (launchd, brew, bosun, `pd start`, `pd dev up`, tests) must use; loser exits 0 quietly. Distinct process titles for helpers. A supervisor registry + `pd all-stop` (also runnable as a plain script) that disables *every* label. Concurrency test: N simultaneous starts → exactly one survivor; dev + prod berths coexist. |
 | 2 | adr-0138-phase-2-status-board | now | 0 | Pinned GitHub status issue + scheduled Actions observer that probes relay/daemon and posts registry-format state. Independent of `pd` entirely. |
 | 3 | adr-0138-phase-3-listening-watch | backlog | 0 | Giant Squid tentacles check sentinel + distress file each turn (agents); daemon and steward run a timer-based watch. `SEEN`/`COMPLIED` emitted automatically. |
 | 4 | adr-0138-phase-4-signed-all-clear | backlog | 0 | `ALL-CLEAR` signed with the operator's harbor key; all listeners verify; forged/unsigned all-clear raised as a violation. |
-| 5 | adr-0138-phase-5-relay-and-fleet | backlog | 0, 2 | `/health` state vocabulary; relay stops enqueueing on `HALT`; fleet check titles per ADR-0137; operator off-machine path not via daemon. |
+| 5 | adr-0138-phase-5-relay-and-fleet | backlog | 0, 2 | `/health` state vocabulary; relay stops enqueueing on `HALT`; fleet check titles per ADR-0139; operator off-machine path not via daemon. |
 | 6 | adr-0138-phase-6-drills | backlog | 1, 3 | Scripted drill: hard-kill daemon, raise `DRILL`, assert every entity's `SEEN`/`COMPLIED`/no-relaunch within interval. Run quarterly and on every supervisor/guard change. |
 
 ## Consequences
@@ -363,11 +363,11 @@ too?* — A0 and A1 do not need it; that is why they exist.
 - A halt becomes a property of the machine (a file, a lock, a signature) instead of a
   request to each agent's good behaviour.
 - "Who is fixing this" is discoverable with no coordination layer, which is the
-  single biggest lever on the spend multiplier ADR-0137 identifies.
+  single biggest lever on the spend multiplier ADR-0139 identifies.
 - The six-processes failure becomes impossible rather than merely detected: the lock
   makes a second instance exit, and the sentinel makes a supervisor not try.
 - The Coordination Guard, the reaper, and resurrection get an honest `off` state,
-  closing the ADR-0137 conflation at three more sites.
+  closing the ADR-0139 conflation at three more sites.
 
 ### Negative
 - Mandatory carriage means every entity — including ones not yet written — owes A0.

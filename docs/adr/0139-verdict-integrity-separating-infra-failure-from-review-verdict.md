@@ -1,4 +1,4 @@
-# 0137. Verdict Integrity — Every Completed Gate Must Prove What It Actually Decided
+# 0139. Verdict Integrity — Every Completed Gate Must Prove What It Actually Decided
 
 ## Status
 
@@ -148,11 +148,11 @@ gap for every call site that comes after this one.
 
 | Phase | Roadmap slug | Status | Depends on | Description |
 |-------|--------------|--------|------------|-------------|
-| 0 | adr-0137-phase-0-classify-existing-sites | now | — | Enumerate every `completeCheckRun` / `postShipComment` / `retargetPrBase` call site in `apps/fleet-executor` and `apps/relay`; tag each VERDICT / INFRA / DEFERRED at the call site. Audit only, no behavior change — and likely to surface more undiscovered instances of this pattern, the same way auditing one golden-snapshot test found three more. |
-| 1 | adr-0137-phase-1-title-convention | now | Phase 0 | Formalize the ad hoc `CHECK_OUTPUT_TITLE_INFRA` (shipped in PR #7186 for the DLQ specifically) into a shared, exported title/prefix convention so INFRA is visually distinct from VERDICT at *every* call site, not only the one that happened to get fixed first. |
-| 2 | adr-0137-phase-2-ci-lint | backlog | Phase 1 | A static check, mirroring `adr-number-collision-guard.mjs`'s fail-closed shape, that flags any `completeCheckRun`/`postShipComment` call passing a `failure`-shaped conclusion without an explicit VERDICT/INFRA/DEFERRED classification attached. |
-| 3 | adr-0137-phase-3-golden-snapshot-linter | backlog | — | A narrow companion check for the sibling incident family: a test asserting exact literal content of a path under `docs/roadmap/` (or any path routinely written by concurrent agents). Not a general test-quality tool — just the specific "this will false-block the next unrelated PR" shape already caught by hand three times (PR #7121, #7184, #9880). |
-| 4 | adr-0137-phase-4-phantom-merge-generalize | backlog | Phase 1 | Generalize the phantom-merge notice (PR #7186) beyond the `purser/*` staging-branch case to any future retarget-based stacking mechanism the fleet grows. |
+| 0 | adr-0139-phase-0-classify-existing-sites | now | — | Enumerate every `completeCheckRun` / `postShipComment` / `retargetPrBase` call site in `apps/fleet-executor` and `apps/relay`; tag each VERDICT / INFRA / DEFERRED at the call site. Audit only, no behavior change — and likely to surface more undiscovered instances of this pattern, the same way auditing one golden-snapshot test found three more. |
+| 1 | adr-0139-phase-1-title-convention | now | Phase 0 | Formalize the ad hoc `CHECK_OUTPUT_TITLE_INFRA` (shipped in PR #7186 for the DLQ specifically) into a shared, exported title/prefix convention so INFRA is visually distinct from VERDICT at *every* call site, not only the one that happened to get fixed first. |
+| 2 | adr-0139-phase-2-ci-lint | backlog | Phase 1 | A static check, mirroring `adr-number-collision-guard.mjs`'s fail-closed shape, that flags any `completeCheckRun`/`postShipComment` call passing a `failure`-shaped conclusion without an explicit VERDICT/INFRA/DEFERRED classification attached. |
+| 3 | adr-0139-phase-3-golden-snapshot-linter | backlog | — | A narrow companion check for the sibling incident family: a test asserting exact literal content of a path under `docs/roadmap/` (or any path routinely written by concurrent agents). Not a general test-quality tool — just the specific "this will false-block the next unrelated PR" shape already caught by hand three times (PR #7121, #7184, #9880). |
+| 4 | adr-0139-phase-4-phantom-merge-generalize | backlog | Phase 1 | Generalize the phantom-merge notice (PR #7186) beyond the `purser/*` staging-branch case to any future retarget-based stacking mechanism the fleet grows. |
 
 ## Consequences
 
