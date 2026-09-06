@@ -718,7 +718,7 @@ simply exclusion at three granularities.
 
 Figure~\ref{fig:swk-claim-lifecycle} states, as a state machine, the four
 properties on which the coordination layer builds typed ownership. The acquire
-path is small enough to state as an algorithm (Algorithm~\ref{alg:acquire}); we
+path is small enough to state as an algorithm (Listing~\ref{alg:acquire}); we
 then give the central property as a theorem.
 
 \begin{figure}[H]
@@ -832,7 +832,7 @@ Why does releasing a lock you do not hold return success rather than an error? W
 A release with no matching (key, holder) row is a successful no-op so that retries are idempotent: this is I3. It must never delete another holder's row. If it raised, a client that timed out on its first release could not distinguish success from failure, and at-least-once handling would break.
 \end{pdsolution}
 \begin{pdexercise}[kind=Trace,rating=2]{ex:swk-acquire-race}
-Two agents call \texttt{acquire} on the same fresh key at the same instant. Walk the uniqueness-constraint insert for both (Algorithm~\ref{alg:acquire}) and show exactly where the loser learns the holder's identity.
+Two agents call \texttt{acquire} on the same fresh key at the same instant. Walk the uniqueness-constraint insert for both (Listing~\ref{alg:acquire}) and show exactly where the loser learns the holder's identity.
 \end{pdexercise}
 \begin{pdsolution}{ex:swk-acquire-race}
 The daemon serializes the two requests. The first \texttt{INSERT}(key, holder) commits. The second hits the unique-key violation, selects the extant row inside the catch path, and returns \texttt{DENIED(holder=first)}: that select is where the loser learns the name. For range and hierarchy claims the trace is safe only after both requests map to the same canonical conflict key or the overlap test runs in one immediate transaction.
@@ -889,6 +889,17 @@ and pruned below a small threshold. The decay is the structural defense against
 ``blackboard rot'': stale coordination signals evaporate on their own. The
 calibration of the decay rate is genuinely open (OP-8): too slow and signals rot,
 too fast and they evaporate before they coordinate.
+
+\begin{pdexample}{The decay arithmetic a calibration will use}
+Take $w_0=1$ and $r=0.9$ per tick, with a prune threshold of $0.05$. Then
+$w(5)=0.9^{5}=0.590$, $w(10)=0.349$, $w(20)=0.122$, and the marker is pruned at
+the first tick where $0.9^{t}<0.05$: $0.9^{28}=0.052$ survives and
+$0.9^{29}=0.047$ does not, so the marker lives 29 ticks [internal]. Moving the
+rate half the distance to one ($r=0.95$) more than doubles that life, to 59
+ticks, because $\ln 0.05/\ln 0.95=58.4$. The calibration question of OP-8 is
+which of these lifetimes matches the time a signal stays true; the arithmetic is
+the same at every answer.
+\end{pdexample}
 
 \subsection{Two delegation chains, one dangerous name}
 
@@ -1471,7 +1482,7 @@ that free-text closure would.}
 The obvious way to widen what a commitment can close against is to widen the
 vocabulary, and there is a concrete design for doing so without re-admitting the
 Goodhart hole. \textbf{State-Machine Assertions} (\Designed) would add two kinds to
-Algorithm~\ref{alg:close}'s finite set: \emph{delta oracles}, which close against a
+Listing~\ref{alg:close}'s finite set: \emph{delta oracles}, which close against a
 machine-checkable before/after measurement (a named benchmark improving past a
 declared threshold), and \emph{AST assertions}, which use a parser such as
 \texttt{tree-sitter} to state a structural property of the resulting code (``no call
@@ -1479,7 +1490,7 @@ site of $f$ remains'') that the daemon can re-evaluate at closure time.
 
 Both kinds satisfy the property that matters --- the daemon can re-check them
 itself, so they are oracles and not testimony. Neither is in the shipped set:
-Algorithm~\ref{alg:close}'s four kinds are the vocabulary the kernel actually
+Listing~\ref{alg:close}'s four kinds are the vocabulary the kernel actually
 enforces, and the listing marks the two proposed additions as exactly that. Two
 questions also stand between the design and the claim, which is why we do not make
 it. A delta oracle inherits the noise of whatever it measures, so ``improved by a
@@ -1496,7 +1507,7 @@ For each monitor rule in Theorem~\ref{thm:schneider}, say whether it \emph{could
 Note-count monotonicity can be regimented by append-only storage or a trigger that rejects deletes and regressive updates. Capability attenuation and lock-owner release can be pre-checked only if authenticated identity, the capability order, and every relevant effect path pass through the mediator. Duplicate keys and boot admission are already pre-effect. Heartbeat freshness cannot be rejected at the heartbeat insert: staleness is an absence observed only after time passes, and under asynchrony a slow actor is indistinguishable from a failed one. Out-of-band filesystem and network effects remain detect-only until mediated.
 \end{pdsolution}
 \begin{pdexercise}[kind=Trace,rating=2]{ex:swk-empty-oracle}
-An agent attempts to close a commitment with an empty oracle reference. Walk the Law-2 gate (Algorithm~\ref{alg:close}) and show exactly where and why the transition is refused.
+An agent attempts to close a commitment with an empty oracle reference. Walk the Law-2 gate (Listing~\ref{alg:close}) and show exactly where and why the transition is refused.
 \end{pdexercise}
 \begin{pdsolution}{ex:swk-empty-oracle}
 \texttt{close(done, oracle\_ref="")} reaches the oracle-reference check, returns \texttt{REFUSED}, leaves the commitment open, and records the denied authority act. It never reaches classification, current-state verification, or the \texttt{DONE} transition: the empty reference fails the finite-vocabulary test before any oracle is consulted.
@@ -2417,7 +2428,7 @@ bound to a particular model and session and is not a portable artifact --- is
 exactly the open question, and no formal result in this series establishes it.
 \item[$\bigstar$ OP-5 --- Oracle completeness.] Status: \Open. State-machine assertions
 (\S\ref{sec:enforcement}, \Designed) would add delta oracles and AST assertions to
-Algorithm~\ref{alg:close}'s four shipped kinds. Two kinds are not a completeness
+Listing~\ref{alg:close}'s four shipped kinds. Two kinds are not a completeness
 result, and neither kind yet survives the Goodhart argument the vocabulary exists to
 win.
 \item[$\bigstar$ OP-6 --- Tamper-evidence on the read path.] Status: \Open. Where should

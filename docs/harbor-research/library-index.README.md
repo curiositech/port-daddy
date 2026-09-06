@@ -120,7 +120,7 @@ checks `2.13` alone, since both texts state that one ratio identically).
    either a typo'd label or a `numbers[]` regex that doesn't tolerate the two files'
    independent LaTeX formatting of the same digits (a thousands-separator `{,}` in
    one file and not the other is the recurring one; write the regex to match both,
-   e.g. `1\{?,?\}?350` for "1350" vs. "1{,}350").
+   e.g. `1(\{,\}|,)?350` matches "1350", "1,350" and "1{,}350").
 5. Run `--write-md` and commit the regenerated `LIBRARY-INDEX.md` alongside the JSON.
 
 ### Twin-location headers

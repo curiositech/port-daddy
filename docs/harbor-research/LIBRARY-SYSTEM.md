@@ -97,7 +97,7 @@ attenuation vectors; the every-hop attenuation property is ProVerif's.
 | Citations | dangling `\cite`, orphaned or duplicate `\bibitem` | `python3 scripts/harbor-research/check_citations.py` | library-checks |
 | Propagated corrections | a correction that landed in one twin and not the other | `python3 scripts/harbor-research/check_propagated_corrections.py` | library-checks |
 | Reference index | missing labels, unclaimed theorems, drifted numbers, missing twin headers, stale index render | `python3 scripts/harbor-research/check_library_index.py --check-md` | library-checks |
-| Critique ledger | Markdown and JSON out of agreement, malformed status cells | `python3 scripts/harbor-research/check_critique_ledger.py` | library-checks (to add) |
+| Critique ledger | Markdown and JSON out of agreement, malformed status cells | `python3 scripts/harbor-research/check_critique_ledger.py` | library-checks |
 | Palette lockstep | a TeX color that disagrees with the light tokens, or unequal twin copies | `npm run test:figure-palette` (website-v2) | whitepaper-metadata, CI |
 | Publication metadata and digests | a committed PDF whose pages, size, or SHA-256 disagree with the catalog or `publication-digests.json` | `npm run test:whitepaper-metadata` (website-v2); `--fix` resyncs | whitepaper-metadata |
 | Doc citations | a repo path cited in a changed doc that does not exist | `node scripts/check-doc-citations.mjs` | doc-citation-guard |

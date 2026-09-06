@@ -134,6 +134,21 @@ means a running slice that does not yet satisfy its full contract;
 finite model checks, repository experiments, and running code remain separate
 kinds of evidence throughout, and none is silently promoted into another.
 
+Evidence is typed as well. When a chapter reports what a harbor observed, it
+names the channel that produced the observation, and each channel has a blind
+spot that no amount of volume removes. A \emph{deterministic verifier} (a test,
+a type checker, a model checker) shows that a stated property holds of the
+artifact it examined, and nothing about properties it did not state. A
+\emph{provenance witness} (a signature, a hash, a Merkle inclusion, an
+append-only log) shows attribution and tamper-evidence relative to a
+commitment, never that every event was logged or that a description is true. A
+\emph{protected meter} (a counter its subject cannot rewrite) shows a quantity,
+not its cause. \emph{Expert judgment} shows an assessment under a named rubric
+and carries the assessor's error rate. \emph{Buyer preference} shows what was
+chosen, not that the choice was right. A \emph{delayed outcome} shows what
+happened, and arrives too late to prevent it. The reader should ask the same
+question of any dashboard: which channel, and what can it not show.
+
 Cross-references are live. Chapter titles, section numbers, theorems, figures,
 tables, exercises, page numbers, and citations are links, and every
 bibliography entry ends with the pages that cite it. The standalone research

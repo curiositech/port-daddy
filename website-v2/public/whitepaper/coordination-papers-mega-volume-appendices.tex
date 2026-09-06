@@ -197,6 +197,11 @@ unresolved.
   bound to an identity that cannot be freely re-picked.
   \item[Oracle] An external or independently checkable reference used to close
   a commitment or adjudicate an outcome. Its trust model must be named.
+  \item[Epoch] Three clocks share the word. In \pdchapref{anchor}{The Anchor
+  Protocol} an epoch is a revocation counter, and a Card's validity window is a
+  TTL; in \pdchapref{sealed}{The Sealed Harbor} an epoch is an attestation
+  freshness counter that detects rollback. None of the three converts into
+  another.
   \item[Round] A model step in a dissemination or protocol analysis, not
   automatically a wall-clock deadline.
   \item[Closed] The exact recorded property has been mechanically discharged.
