@@ -280,12 +280,12 @@
   \else
     \setlength{\pd@sessionwidth}{\linewidth}%
   \fi
-  \noindent{\color{pdinkmuted}\rule{\pd@sessionwidth}{0.4pt}}\endgraf\nobreak\vspace{2pt}%
+  \noindent\makebox[\linewidth][l]{\color{pdinkmuted}\rule{\pd@sessionwidth}{0.4pt}}\endgraf\nobreak\vspace{2pt}%
   \noindent\pd@marginhead{At the terminal}%
   \ifx\relax#1\relax\else{\itshape #1.}\fi\endgraf\nobreak
   \lstset{style=pdsession,linewidth=\pd@sessionwidth}%
 }{%
-  \endgraf\nobreak\noindent{\color{pdinkmuted}\rule{\pd@sessionwidth}{0.4pt}}\endgraf
+  \endgraf\nobreak\noindent\makebox[\linewidth][l]{\color{pdinkmuted}\rule{\pd@sessionwidth}{0.4pt}}\endgraf
   \addvspace{8pt plus 1pt}%
 }
 

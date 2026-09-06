@@ -15,6 +15,7 @@ import fitz  # pymupdf
 
 PAPER_W, PAPER_H = 7 * 72, 10 * 72
 INNER, TEXTW = 0.8 * 72, 4.5 * 72
+FULLW_EXTRA = (0.2 + 1.3) * 72  # marginparsep + marginparwidth: the full-width overhang the Book allows a picture
 
 def column(page, page_no):
     """The text column of this page. The head rule (a hairline the width of
@@ -65,6 +66,7 @@ def main():
             else:
                 into_margin = x0 - r.x0
             if off_page > 0.5 or into_margin > a.slack:
+                kind = kind if into_margin <= FULLW_EXTRA + a.slack and off_page <= 0.5 else kind
                 findings.append({"page": pno, "kind": kind, "off_page_pt": round(off_page, 1),
                                  "past_column_pt": round(max(0, into_margin), 1),
                                  "rect": [round(v, 1) for v in r], "caption": caps[0] if caps else ""})
@@ -83,13 +85,20 @@ def main():
         if f["caption"] and not w["caption"]:
             w["caption"] = f["caption"]
     rows = sorted(worst.values(), key=lambda r: r["page"])
+    # a picture inside the full-width overhang was placed there by the Book's
+    # safety net: legal, but it names a figure that still wants a redraw to the column
+    loss = [r for r in rows if r["off_page_pt"] > 0 or (r["kind"] != "text" and r["past_column_pt"] > FULLW_EXTRA + a.slack)]
+    wide = [r for r in rows if r not in loss and r["kind"] != "text"]
     if a.json:
-        print(json.dumps(rows, indent=1))
+        print(json.dumps({"loss": loss, "full_width": wide}, indent=1))
     else:
-        for r in rows:
+        print(f"-- {len(loss)} page/kind rows with loss (ink past the paper edge or past the full width)")
+        for r in loss:
             print(f"p{r['page']:>3} {r['kind']:<8} off-page {r['off_page_pt']:>6.1f} pt  past column {r['past_column_pt']:>6.1f} pt  {r['caption']}")
-        print(f"{len(rows)} page/kind rows; {sum(1 for r in rows if r['off_page_pt']>0)} with ink past the page edge")
-    sys.exit(1 if any(r["off_page_pt"] > 0 or (r["kind"] != "text" and r["past_column_pt"] > a.slack) for r in rows) else 0)
+        print(f"-- {len(wide)} pictures set past the column by the safety net (redraw to the column):")
+        for r in wide:
+            print(f"p{r['page']:>3} +{r['past_column_pt']:>5.1f} pt  {r['caption'][:70]}")
+    sys.exit(1 if loss else 0)
 
 if __name__ == "__main__":
     main()
