@@ -8,9 +8,7 @@ import { describe, expect, test } from '@jest/globals';
 const paths = {
   catalog: 'website-v2/src/data/whitePapers.ts',
   source: 'website-v2/public/whitepaper/spawn-to-person.tex',
-  honest: 'website-v2/public/whitepaper/figures/fig-stp-honest-state.tex',
-  keystone: 'website-v2/public/whitepaper/figures/fig-stp-keystone-split.tex',
-  organs: 'website-v2/public/whitepaper/figures/fig-stp-three-organs.tex',
+  keystone: 'website-v2/public/whitepaper/figures/tab-keystone-split.tex',
   pdf: 'website-v2/public/whitepaper/spawn-to-person-whitepaper.pdf',
   contact: 'docs/artifacts/whitepaper-figure-semantics/all-volumes/all-seven-volumes-color-contact-sheet.png',
   tour: 'docs/artifacts/whitepaper-figure-semantics/all-volumes/all-seven-volumes-color-tour.gif',
@@ -153,22 +151,23 @@ function parseGif(gif) {
 describe('Spawn-to-Person publication contract', () => {
   test('the maturity plot marks partial only where the runtime has a grounded substrate', () => {
     const source = text(paths.source);
-    const honest = text(paths.honest);
     const keystone = text(paths.keystone);
-    const organs = text(paths.organs);
 
+    // The maturity words are set by macro so no organ can round itself up.
     expect(source).toMatch(/\\newcommand\{\\BUILTWEAK\}.*\\textsc\{partial\}/);
-    expect(honest).toContain('.58/outcome ledger,');
-    expect(honest).toContain('-.92/local non-forgeable identity,');
-    expect(honest).toContain('\\foreach \\y in {1.08,.58,-.92} \\node[pd caution datum]');
-    expect(honest).toContain('commitment closure, not neutral grades');
-    expect(honest).toContain('local root; full write gating owed');
-    expect(keystone).toContain('daemon-minted actor/key');
-    expect(keystone).toContain('accountable principal binding/no cross-operator binding proof');
+    // Checkpoint and outcome ledger are the two organs marked partial; memory is built.
+    expect(source).toContain('Organ 1 --- Memory: the episodic record \\quad\\BUILT}');
+    expect(source).toContain('Organ 2 --- Checkpoint: restorable state \\quad\\BUILTWEAK}');
+    expect(source).toContain('Organ 3 --- Outcome ledger: the witnessed record of delivery \\quad\\BUILTWEAK}');
+    // The continuity-organs table (which replaced the three-organs figure) says
+    // what each partial organ does not carry across a restart.
+    expect(source).toContain('\\label{tab:stp-organs}');
+    expect(source).toContain('recovery restores notes, not execution');
+    expect(source).toContain('an outcome nobody witnessed; a closure no oracle checked');
+    // The keystone split (now a table shared with the economy chapter) keeps
+    // the one row the market rests on and does not yet have.
+    expect(keystone).toContain('no cross-operator binding proof');
     expect(keystone).toContain('a signed, intact history still does not prove who controls the foreign key');
-    expect(organs).toContain('{checkpoint\\\\[-1pt]{\\tiny partial}}');
-    expect(organs).toContain('{outcome ledger\\\\[-1pt]{\\tiny partial}}');
-    expect(organs).toContain('execution state is not restored');
 
     expect(text('lib/actor-souls.ts')).toContain('daemon-minted, non-forgeable actor identity');
     expect(text('tests/unit/actor-souls.test.js')).toContain('forged / self-asserted rejection');

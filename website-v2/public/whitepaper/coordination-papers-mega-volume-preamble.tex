@@ -108,9 +108,8 @@
 \def\pd@tmp{swiss}\ifx\pd@ed\pd@tmp\pdswisstrue\fi
 \def\pd@tmp{technical}\ifx\pd@ed\pd@tmp\pdtechnicaltrue\fi
 \makeatother
-\definecolor{pdtechorange}{HTML}{C8641E}
-\definecolor{pdtechochre}{HTML}{B08A2E}
-\definecolor{pdtecholive}{HTML}{5E6B3A}
+% The technical edition's accents are the brand's own Seventies trio: amber
+% (mustard), rust (brown) and gold (avocado); no colour outside the palette.
 \geometry{paperwidth=7in,paperheight=10in,left=0.8in,right=1.7in,%
   top=0.85in,bottom=0.95in,textwidth=4.5in,marginparsep=0.2in,marginparwidth=1.3in}
 \captionsetup{font=small,labelfont=bf}
@@ -476,7 +475,7 @@
   \noindent{\pdgrotesk\footnotesize Chapter #1 of \pdchaptercount\hfill\pdchapterpartlabel}\par
   \vspace{0.3cm}\noindent{\color{hhink}\rule{\linewidth}{0.5pt}}\par
   \vspace{0.9cm}
-  \noindent{\pdgrotesk\fontsize{96}{96}\selectfont\color{pdtechorange}#1\par}
+  \noindent{\pdgrotesk\fontsize{96}{96}\selectfont\color{pdamber}#1\par}
   \vspace{0.6cm}
   \noindent{\pdgrotesk\fontsize{26}{31}\selectfont\hyphenpenalty=10000\exhyphenpenalty=10000\raggedright #2\par}
   \vspace{0.9cm}
@@ -616,7 +615,7 @@
     \noindent{\pdgrotesk\footnotesize Part #1\hfill\pdeditiontitle}\par
     \vspace{0.3cm}\noindent{\color{hhink}\rule{\linewidth}{0.5pt}}\par
     \vspace{1.4cm}
-    \noindent{\pdgrotesk\fontsize{140}{140}\selectfont\color{pdtechorange}#1\par}
+    \noindent{\pdgrotesk\fontsize{140}{140}\selectfont\color{pdamber}#1\par}
     \vspace{0.9cm}
     \noindent{\pdgrotesk\fontsize{26}{31}\selectfont\hyphenpenalty=10000\raggedright #2\par}
     \vspace{0.7cm}

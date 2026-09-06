@@ -27,7 +27,9 @@ export function subjectAvailable() {
 export function fallbackAvailable() {
   if (!subjectAvailable()) return false;
   const buildScript = resolve(subjectRoot, buildScriptRelative);
-  return existsSync(buildScript) && readFileSync(buildScript, 'utf8').includes('pdflatex fallback pass');
+  // The fallback loop prints "<engine> fallback pass N/4"; the engine is a
+  // literal pdflatex in older scripts and a variable once the Book moved to xelatex.
+  return existsSync(buildScript) && /(pdflatex|\$engine) fallback pass/u.test(readFileSync(buildScript, 'utf8'));
 }
 
 function copyTexTree(from, to) {

@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Attribute every 'Overfull \\hbox' in a TeX log to the source file being read,
 by following the log's file-open parentheses. usage: overfull_attrib.py LOG [--min PT] [--top N]"""
-import re, sys, argparse
+import re, argparse
 ap = argparse.ArgumentParser(); ap.add_argument("log"); ap.add_argument("--min", type=float, default=10.0)
 ap.add_argument("--top", type=int, default=40); a = ap.parse_args()
-log = open(a.log, errors="replace").read()
+with open(a.log, errors="replace") as fh:
+    log = fh.read()
 stack, out, i, n = [], [], 0, len(log)
 rec = re.compile(r"Overfull \\hbox \(([\d.]+)pt too wide\) (?:in paragraph at lines (\d+)--(\d+)|detected at line (\d+))\n(.*?)\n\s*\[\]", re.S)
 opens = re.compile(r"\((\.?/?[\w./\\-]+\.(?:tex|sty|cls|def|cfg|clo|fd|otf|ttf|pfb|map|tfm|enc|dfu|ldf|lua|mkii|mkiv|bbl|aux|toc|out|lof|lot))")
@@ -31,7 +32,9 @@ def srcline(path, ln):
     """the source line itself (for the generated body, the chapter it came from too)"""
     try:
         if path not in cache:
-            cache[path] = open(os.path.join(os.path.dirname(a.log), path) if not os.path.exists(path) else path, errors="replace").read().splitlines()
+            target = path if os.path.exists(path) else os.path.join(os.path.dirname(a.log), path)
+            with open(target, errors="replace") as fh:
+                cache[path] = fh.read().splitlines()
         lines = cache[path]; k = int(ln) - 1
         chap = ""
         if path.endswith("mega-volume-body.tex"):
