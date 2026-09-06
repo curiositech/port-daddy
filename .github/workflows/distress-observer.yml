@@ -1,0 +1,93 @@
+name: Distress Observer
+
+# The independent observer of the Distress Register (ADR "The Distress
+# Register", Area A3 rung 17). Every 15 minutes it probes the relay's public
+# /health route and, ONLY when the picture has changed since its last line,
+# appends one registry-format line to the pinned "Port Daddy: status" issue.
+#
+# Why CI: on 2026-09-05 the operator halted Port Daddy and the only channels
+# for saying "stop" or "I am fixing X" were Port Daddy itself and the relay,
+# which was dead-lettering. CI runs when everything of ours is dead — it does
+# not need the ship's power. This workflow uses nothing but curl, node, and
+# `gh` with the repo's own GITHUB_TOKEN. No daemon, no relay auth, no `pd`.
+#
+# What it does NOT do: probe the daemon. The daemon lives on the operator's
+# machine and is unreachable from the cloud by design; that is expected, not
+# distress. The observer reports relay reachability and echoes any HALT or
+# MAYDAY already on the board so a reader of the latest comment sees the whole
+# state. It never raises MAYDAY on its own.
+#
+# Never spam: the script reads the board first and compares the relay/halt/
+# MAYDAY key of its last line with the fresh probe. Same key → no comment.
+# All decision logic is in scripts/pd-status-board.mjs (pure, exported) and its
+# test file runs here before a single mutation is trusted, mirroring
+# ci-gate-verdict and purser-janitor.
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Probe and decide, but mutate nothing (no issue, no label, no pin, no comment)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  issues: write
+
+# Two observers writing at once could each see "no previous line" and post
+# twice. Serialize; never cancel — a run is cheap and a lost delta is not.
+concurrency:
+  group: distress-observer
+  cancel-in-progress: false
+
+env:
+  # apps/relay/wrangler.deploy.toml PUBLIC_BASE_URL + the /health route in
+  # apps/relay/src/index.ts (handleHealth → {status:"ok", version}).
+  RELAY_HEALTH_URL: https://relay.portdaddy.dev/health
+
+jobs:
+  observe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # The board is the channel every real emergency depends on, so its
+      # parser, state fold and delta rule are tested before it is trusted.
+      - name: Test the board's decision logic
+        run: node --test scripts/pd-status-board.test.mjs
+
+      # Short timeouts: a hung relay must look like "unreachable", not like a
+      # stuck observer. curl writes 000 when it gets no HTTP answer at all;
+      # `|| true` keeps that a data point instead of a failed step.
+      - name: Probe the relay
+        id: probe
+        run: |
+          set -uo pipefail
+          http=$(curl --silent --show-error --max-time 8 --connect-timeout 4 \
+            --output health.json --write-out '%{http_code}' "$RELAY_HEALTH_URL" || true)
+          http="${http:-000}"
+          echo "http=$http" >> "$GITHUB_OUTPUT"
+          echo "relay /health -> HTTP $http"
+
+      - name: Post to the status board only on delta
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          HTTP_CODE: ${{ steps.probe.outputs.http }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          set -euo pipefail
+          args=(observe --http "$HTTP_CODE" --body-file health.json)
+          if [ "${DRY_RUN:-false}" = "true" ]; then
+            args+=(--dry-run)
+          fi
+          node scripts/pd-status-board.mjs "${args[@]}"
