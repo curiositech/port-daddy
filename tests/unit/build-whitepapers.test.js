@@ -38,9 +38,12 @@ describe('reproducible whitepaper source scoping', () => {
     ).split('\n');
 
     expect(sources[0]).toBe('website-v2/public/whitepaper/spawn-to-person.tex');
-    expect(sources).toHaveLength(19);
+    expect(sources).toHaveLength(20);
     expect(sources).toContain(
       'website-v2/public/whitepaper/figures/pd-figure-language.tex',
+    );
+    expect(sources).toContain(
+      'website-v2/public/whitepaper/figures/fig-stp-deterrence-regime.tex',
     );
     expect(sources).toContain(
       'website-v2/public/whitepaper/figures/fig-stp-rate-the-raters.tex',
