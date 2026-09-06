@@ -34,7 +34,23 @@ build in which the page grammar landed (7 × 10, Palatino, exercises at chapter 
 
 | build | pages | kinds/page mean | share ≤ 3 | pages ≥ 5 | longest run with no visual | links | undefined refs |
 |---|---|---|---|---|---|---|---|
-| 2026-09-06 grammar | 538 | — | — | — | — | 3,393 | 0 |
+| 2026-09-06 grammar | 538 | 0.84 (1.0 in chapter bodies) | 99.8 % | 0 | 29 pp (ch. 8, pp. 435–463) | 3,393 | 0 |
+
+The kinds census is `page_kinds.py --chapters-from-bookmarks` on the 7 × 10 build. Its
+chapter 8 span runs to the end of the book, so the whole-book mean includes the back
+matter; the per-chapter means (1.0–1.2 for chapters 1–6, 0.8 for chapter 7, 0.4 for
+chapter 8) are the honest figures. The measure that bites is the last column: runs of
+more than four consecutive body pages with no figure, table, worked example or session.
+By chapter (page numbers are PDF pages): 1: 62–74 (the Limitations section and the
+Exercises); 2: 96–103 (the PID-squatting list and the Kani listing), 109–120 (the
+mechanized-claims table continued, then the exercises); 3: 141–145; 4: 199–206,
+210–214; 5: 262–269 (exercises); 6: 311–316 (exercises); 7: 324–329, 335–341, 356–360,
+368–372, 380–384; 8: 392–396, 398–402, 420–433 (exercises and the chapter appendix).
+The span 435–463 is not chapter 8 at all: it is the Solutions back matter, which the
+census files under chapter 8 because those pages still carry the chapter 8 running head
+and have no top-level bookmark (finding F7). Exercise sections are expected to be
+prose-only; the chapter 7 body runs are not, and they are the *add* rows of the figure
+triage (sessions and plots first).
 
 ## 3. Journeys
 
@@ -58,3 +74,6 @@ to each build's report.
 | F2 | all | five content kinds signalled by five tinted rectangles; nothing readable at a glance | page grammar by typography and margin; no fills | done (round 4) |
 | F3 | A3, A6 | no page showed the tool running | recorded terminal sessions (`pdsession`), kernel first | in progress |
 | F4 | A1, A4 | figures did not carry a readable fact | triage and redraws (wave 11) | in progress |
+| F5 | A3, A6, A8 | chapter 7 has five body runs of more than four pages with nothing to look at, chapter 8 two | sessions (TLC δ\* trace, CardRevocation rollback), the cycle-vs-cut pair, the δ\* sweep plot; split chapter 8's long proof sections with worked examples | open |
+| F6 | all | the chapter 8 opener hyphenates its own title ("The Federated Har-bor") | hyphenation forbidden in the opener title and question boxes | done (round 5) |
+| F7 | A7 | the Solutions and appendices run under the "Chapter 8" running head and have no top-level bookmark, so a reader flipping to the back cannot tell where the book's body ends | back-matter running heads and bookmarks | open |
