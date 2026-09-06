@@ -1,15 +1,21 @@
-name: Proofs (TLA+ / Z3 / Monte Carlo)
+name: Proofs (TLA+ / Z3 / ProVerif / Kani / Monte Carlo)
 
 # Runs the v2.6 mechanization artifacts that close the credibility loan
 # from the game-theory expository page
-# (website-v2/src/pages/whitepaper/HowWeProveGameTheory.tsx).
-#
-# Five artifacts, one workflow:
+# (website-v2/src/pages/whitepaper/HowWeProveGameTheory.tsx), plus the
+# rest of the proof estate wired up in wave-p1/proof-estate:
 #   - proofs/economics/delta-threshold.z3          (Z3 SMT)
 #   - proofs/economics/claim_signaling.tla         (TLA+ via TLC)
 #   - proofs/economics/claim_signaling.tla         (TLA+ via Apalache)
 #   - proofs/bonded/conservation/Conservation.tla  (TLA+ via TLC)
+#   - proofs/relay/CardRevocation.tla              (TLA+ via TLC, 3 configs)
+#   - proofs/relay/WebhookDelivery.tla             (TLA+ via TLC, 2 configs)
 #   - proofs/bonded/pareto/threat-bands.mjs        (Monte Carlo)
+#   - every analyses/**, proofs/**, docs/adr/models/** .pv model (ProVerif)
+#   - the three #[kani::proof] harnesses in core/harbor-card-rs (Kani)
+#   - the 19 skills/harbor-results/scripts/*.py result-checkers (R1-R17)
+#   - scripts/check-whitepaper-corpus.mjs (the estate's own WIRED/RETIRED
+#     manifest, so an unregistered formal artifact fails closed)
 #
 # Failure of any job fails the PR. No untrusted inputs are used.
 
@@ -18,6 +24,15 @@ on:
     branches: [main]
     paths:
       - 'proofs/**'
+      - 'analyses/**'
+      - 'docs/adr/models/**'
+      - 'core/harbor-card-rs/**'
+      - 'scripts/proofs/**'
+      - 'whitepaper/corpus.json'
+      - 'whitepaper/corpus.schema.json'
+      - 'scripts/check-whitepaper-corpus.mjs'
+      - 'tests/unit/whitepaper-corpus.test.js'
+      - 'tests/unit/proverif-runner-comparison.test.mjs'
       - '.github/workflows/proofs.yml'
       - 'website-v2/public/whitepaper/agent-transactions-whitepaper.tex'
       - 'skills/harbor-results/scripts/**'
@@ -25,6 +40,15 @@ on:
     branches: [main]
     paths:
       - 'proofs/**'
+      - 'analyses/**'
+      - 'docs/adr/models/**'
+      - 'core/harbor-card-rs/**'
+      - 'scripts/proofs/**'
+      - 'whitepaper/corpus.json'
+      - 'whitepaper/corpus.schema.json'
+      - 'scripts/check-whitepaper-corpus.mjs'
+      - 'tests/unit/whitepaper-corpus.test.js'
+      - 'tests/unit/proverif-runner-comparison.test.mjs'
       - '.github/workflows/proofs.yml'
       - 'website-v2/public/whitepaper/agent-transactions-whitepaper.tex'
       - 'skills/harbor-results/scripts/**'
@@ -614,3 +638,25 @@ jobs:
             proofs/relay/WebhookDelivery.tlc.log
             proofs/relay/WebhookDelivery_vuln.tlc.log
 
+  # ── Proof-estate manifest: WIRED or RETIRED, no third state ─────────────────
+  # whitepaper/corpus.json is the ledger every formal artifact and R-script
+  # must appear in; scripts/check-whitepaper-corpus.mjs fails the build if an
+  # on-disk formal artifact (or #[kani::proof] harness) is unregistered, or if
+  # a registered path is missing on disk. Node/stdlib-only; no TLA+/Z3/
+  # ProVerif/Kani toolchain needed, so this job is fast.
+  whitepaper-corpus-manifest:
+    name: Proof estate / manifest (WIRED or RETIRED)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Every formal artifact is WIRED to a CI job or explicitly RETIRED
+        run: node scripts/check-whitepaper-corpus.mjs
+
+      - name: ProVerif result-comparison unit tests (offline, no ProVerif needed)
+        run: node --test tests/unit/proverif-runner-comparison.test.mjs

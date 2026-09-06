@@ -1,0 +1,743 @@
+{
+  "$schema": "./corpus.schema.json",
+  "version": 2,
+  "scopeNote": "Rescoped from origin/codex/whitepaper-corpus-defrag (2026-08-31, commit 014d044d3 and follow-ups). That branch's corpus.json also relocated every whitepaper chapter and formal artifact into new co-located `formal/` trees and folded in a whitepaper chapter/collected-volume/research-publication/skill-satellite/atlas registry. wave-p1/proof-estate brings over only the piece it needs -- the formal-artifact and research-program manifest -- rewritten against the CURRENT (unmoved) file layout, with NO relocations. The chapter/mirror machinery is deliberately NOT carried over: whitepaper/textbook.json plus .github/workflows/library-checks.yml already are that registry's current, live source of truth on this branch (see the 'Textbook Edition' work); adding a second, divergent one here would just be a second place for it to drift. Policy: every on-disk formal artifact is WIRED (ci.status=\"wired\", naming the CI job(s) that run it) or explicitly RETIRED (ci.status=\"retired\", with a reason) -- no third state. See scripts/check-whitepaper-corpus.mjs.",
+  "forbiddenLegacyRoots": {
+    "enabled": false,
+    "reason": "The origin/codex/whitepaper-corpus-defrag branch this manifest was recovered from relocated every formal artifact into co-located `formal/` trees and treated analyses/, proofs/, docs/adr/models/, docs/harbor-research, docs/research, and docs/whitepaper-critical-review.md as forbidden legacy roots that must no longer exist. wave-p1/proof-estate deliberately did NOT perform that relocation (out of scope; the author reviews prose/structure moves separately), so every one of those roots still holds the estate's real, current files. Keeping this rule enabled would make the checker fail permanently against the actual current layout. Flip `enabled` to true only alongside an actual relocation PR that empties these paths.",
+    "roots": [
+      "docs/harbor-research",
+      "docs/whitepaper-critical-review.md",
+      "docs/artifacts/whitepaper-figure-semantics",
+      "docs/research"
+    ]
+  },
+  "formalArtifacts": [
+    {
+      "id": "github-ingress-hpke-secrecy-proverif",
+      "kind": "protocol-model",
+      "authority": "product-runtime",
+      "status": "current",
+      "paths": [
+        "analyses/github_ingress_hpke_secrecy.pv"
+      ],
+      "method": "ProVerif",
+      "owner": "apps/github-app",
+      "evidencePolicy": "checked-in transcript regenerated 2026-09-06 against a real, pinned ProVerif 2.05 run (opam install proverif.2.05); RESULT lines verified to match byte-for-byte",
+      "ci": {
+        "status": "wired",
+        "job": [
+          "proverif-estate"
+        ]
+      }
+    },
+    {
+      "id": "github-ingress-hpke-secrecy-vuln-proverif",
+      "kind": "negative-control",
+      "authority": "product-runtime",
+      "status": "current",
+      "paths": [
+        "analyses/github_ingress_hpke_secrecy_vuln.pv"
+      ],
+      "method": "ProVerif",
+      "owner": "apps/github-app",
+      "evidencePolicy": "checked-in transcript regenerated 2026-09-06 against a real, pinned ProVerif 2.05 run (opam install proverif.2.05); RESULT lines verified to match byte-for-byte; negative control asserted to report an 'is false.' RESULT",
+      "ci": {
+        "status": "wired",
+        "job": [
+          "proverif-estate"
+        ]
+      }
+    },
+    {
+      "id": "github-ingress-origin-auth-proverif",
+      "kind": "protocol-model",
+      "authority": "product-runtime",
+      "status": "current",
+      "paths": [
+        "analyses/github_ingress_origin_auth.pv"
+      ],
+      "method": "ProVerif",
+      "owner": "apps/github-app",
+      "evidencePolicy": "checked-in transcript regenerated 2026-09-06 against a real, pinned ProVerif 2.05 run (opam install proverif.2.05); RESULT lines verified to match byte-for-byte",
+      "ci": {
+        "status": "wired",
+        "job": [
+          "proverif-estate"
+        ]
+      }
+    },
+    {
+      "id": "github-ingress-origin-auth-vuln-proverif",
+      "kind": "negative-control",
+      "authority": "product-runtime",
+      "status": "current",
+      "paths": [
+        "analyses/github_ingress_origin_auth_vuln.pv"
+      ],
+      "method": "ProVerif",
+      "owner": "apps/github-app",
+      "evidencePolicy": "checked-in transcript regenerated 2026-09-06 against a real, pinned ProVerif 2.05 run (opam install proverif.2.05); RESULT lines verified to match byte-for-byte; negative control asserted to report an 'is false.' RESULT",
+      "ci": {
+        "status": "wired",
+        "job": [
+          "proverif-estate"
+        ]
+      }
+    },
+    {
+      "id": "github-ingress-tenant-isolation-proverif",
+      "kind": "protocol-model",
+      "authority": "product-runtime",
+      "status": "current",
+      "paths": [
+        "analyses/github_ingress_tenant_isolation.pv"
+      ],
+      "method": "ProVerif",
+      "owner": "apps/github-app",
+      "evidencePolicy": "checked-in transcript regenerated 2026-09-06 against a real, pinned ProVerif 2.05 run (opam install proverif.2.05); RESULT lines verified to match byte-for-byte",
+      "ci": {
+        "status": "wired",
+        "job": [
+          "proverif-estate"
+        ]
+      }
+    },
+    {
+      "id": "github-ingress-tenant-isolation-vuln-proverif",
+      "kind": "negative-control",
+      "authority": "product-runtime",
+      "status": "current",
+      "paths": [
+        "analyses/github_ingress_tenant_isolation_vuln.pv"
+      ],
+      "method": "ProVerif",
+      "owner": "apps/github-app",
+      "evidencePolicy": "checked-in transcript regenerated 2026-09-06 against a real, pinned ProVerif 2.05 run (opam install proverif.2.05); RESULT lines verified to match byte-for-byte; negative control asserted to report an 'is false.' RESULT",
+      "ci": {
+        "status": "wired",
+        "job": [
+          "proverif-estate"
+        ]
+      }
+    },
+    {
+      "id": "harbor-card-v1-hs256-proverif",
+      "kind": "protocol-model",
+      "authority": "product-runtime",
+      "status": "current",
+      "paths": [
+        "analyses/harbor_card_v1.pv"
+      ],
+      "method": "ProVerif",
+      "owner": "core/harbor-card-rs",
+      "evidencePolicy": "checked-in transcript regenerated 2026-09-06 against a real, pinned ProVerif 2.05 run (opam install proverif.2.05); RESULT lines verified to match byte-for-byte -- this run found the committed transcript had drifted from the current .pv source (an earlier hs256/alg-header framing vs. the current generic hmac + Revoker process); the truth value of both queries is unchanged ('true'), only ProVerif's internal fresh-variable numbering shifted as a result. Regenerated to match the current source.",
+      "ci": {
+        "status": "wired",
+        "job": [
+          "proverif-estate"
+        ]
+      }
+    },
+    {
+      "id": "harbor-card-v1-refined-alg-pinning-proverif",
+      "kind": "protocol-model",
+      "authority": "product-runtime",
+      "status": "current",
+      "paths": [
+        "analyses/harbor_card_v1_refined.pv"
+      ],
+      "method": "ProVerif",
+      "owner": "core/harbor-card-rs",
+      "evidencePolicy": "no baseline existed before 2026-09-06; checked-in transcript established 2026-09-06 against a real, pinned ProVerif 2.05 run (opam install proverif.2.05); RESULT lines verified to match byte-for-byte",
+      "ci": {
+        "status": "wired",
+        "job": [
+          "proverif-estate"
+        ]
+      }
+    },
+    {
+      "id": "harbor-card-v2-asymmetric-proverif",
+      "kind": "protocol-model",
+      "authority": "product-runtime",
+      "status": "current",
+      "paths": [
+        "analyses/harbor_card_v2_asymmetric.pv"
+      ],
+      "method": "ProVerif",
+      "owner": "core/harbor-card-rs",
+      "evidencePolicy": "checked-in transcript regenerated 2026-09-06 against a real, pinned ProVerif 2.05 run (opam install proverif.2.05); RESULT lines verified to match byte-for-byte",
+      "ci": {
+        "status": "wired",
+        "job": [
+          "proverif-estate"
+        ]
+      }
+    },
+    {
+      "id": "harbor-card-v3-delegation-proverif",
+      "kind": "protocol-model",
+      "authority": "product-runtime",
+      "status": "current",
+      "paths": [
+        "analyses/harbor_card_v3_delegation.pv"
+      ],
+      "method": "ProVerif",
+      "owner": "core/harbor-card-rs",
+      "evidencePolicy": "checked-in transcript regenerated 2026-09-06 against a real, pinned ProVerif 2.05 run (opam install proverif.2.05); RESULT lines verified to match byte-for-byte; proves ONE-HOP delegation soundness only -- see harbor-card-v6/v7 for the multi-hop finding this model does not cover",
+      "ci": {
+        "status": "wired",
+        "job": [
+          "proverif-estate"
+        ]
+      }
+    },
+    {
+      "id": "harbor-card-v4-escrow-secrecy-proverif",
+      "kind": "protocol-model",
+      "authority": "product-runtime",
+      "status": "current",
+      "paths": [
+        "analyses/harbor_card_v4_escrow_secrecy.pv"
+      ],
+      "method": "ProVerif",
+      "owner": "core/harbor-card-rs",
+      "evidencePolicy": "checked-in transcript regenerated 2026-09-06 against a real, pinned ProVerif 2.05 run (opam install proverif.2.05); RESULT lines verified to match byte-for-byte",
+      "ci": {
+        "status": "wired",
+        "job": [
+          "proverif-estate"
+        ]
+      }
+    },
+    {
+      "id": "harbor-card-v5-attenuation-proverif",
+      "kind": "protocol-model",
+      "authority": "product-runtime",
+      "status": "current",
+      "paths": [
+        "analyses/harbor_card_v5_attenuation.pv"
+      ],
+      "method": "ProVerif",
+      "owner": "core/harbor-card-rs",
+      "evidencePolicy": "checked-in transcript regenerated 2026-09-06 against a real, pinned ProVerif 2.05 run (opam install proverif.2.05); RESULT lines verified to match byte-for-byte",
+      "ci": {
+        "status": "wired",
+        "job": [
+          "proverif-estate"
+        ]
+      }
+    },
+    {
+      "id": "harbor-card-v6-multihop-attack-proverif",
+      "kind": "negative-control",
+      "authority": "product-runtime",
+      "status": "current",
+      "paths": [
+        "analyses/harbor_card_v6_multihop_attack.pv"
+      ],
+      "method": "ProVerif",
+      "owner": "core/harbor-card-rs",
+      "evidencePolicy": "checked-in transcript regenerated 2026-09-06 against a real, pinned ProVerif 2.05 run (opam install proverif.2.05); RESULT lines verified to match byte-for-byte; red-team probe -- proves a naive final<=root verifier ACCEPTS a non-monotonic multi-hop escalation (write->read->write). Refutes the Phase-3 claim in docs/reports/FORMAL_VERIFICATION_ANCHOR_V3.md; superseded by harbor-card-v7",
+      "ci": {
+        "status": "wired",
+        "job": [
+          "proverif-estate"
+        ]
+      }
+    },
+    {
+      "id": "harbor-card-v7-multihop-fixed-proverif",
+      "kind": "protocol-model",
+      "authority": "product-runtime",
+      "status": "current",
+      "paths": [
+        "analyses/harbor_card_v7_multihop_fixed.pv"
+      ],
+      "method": "ProVerif",
+      "owner": "core/harbor-card-rs",
+      "evidencePolicy": "checked-in transcript regenerated 2026-09-06 against a real, pinned ProVerif 2.05 run (opam install proverif.2.05); RESULT lines verified to match byte-for-byte; the fix for harbor-card-v6 -- a per-hop each<=parent verifier rejects the same escalation",
+      "ci": {
+        "status": "wired",
+        "job": [
+          "proverif-estate"
+        ]
+      }
+    },
+    {
+      "id": "macaroon-discharge-v1-proverif",
+      "kind": "protocol-model",
+      "authority": "product-runtime",
+      "status": "current",
+      "paths": [
+        "analyses/macaroon_discharge_v1.pv"
+      ],
+      "method": "ProVerif",
+      "owner": "core/kernel/pd-anchor",
+      "evidencePolicy": "checked-in transcript regenerated 2026-09-06 against a real, pinned ProVerif 2.05 run (opam install proverif.2.05); RESULT lines verified to match byte-for-byte",
+      "ci": {
+        "status": "wired",
+        "job": [
+          "proverif-estate"
+        ]
+      }
+    },
+    {
+      "id": "macaroon-discharge-v2-naive-unsound-proverif",
+      "kind": "negative-control",
+      "authority": "product-runtime",
+      "status": "current",
+      "paths": [
+        "analyses/macaroon_discharge_v2_naive_unsound.pv"
+      ],
+      "method": "ProVerif",
+      "owner": "core/kernel/pd-anchor",
+      "evidencePolicy": "checked-in transcript regenerated 2026-09-06 against a real, pinned ProVerif 2.05 run (opam install proverif.2.05); RESULT lines verified to match byte-for-byte; negative control asserted to report an 'is false.' RESULT",
+      "ci": {
+        "status": "wired",
+        "job": [
+          "proverif-estate"
+        ]
+      }
+    },
+    {
+      "id": "relay-e2e-secrecy-proverif",
+      "kind": "protocol-model",
+      "authority": "product-runtime",
+      "status": "current",
+      "paths": [
+        "analyses/relay_e2e_secrecy.pv"
+      ],
+      "method": "ProVerif",
+      "owner": "apps/relay",
+      "evidencePolicy": "checked-in transcript regenerated 2026-09-06 against a real, pinned ProVerif 2.05 run (opam install proverif.2.05); RESULT lines verified to match byte-for-byte; the injective (replay-free) SubAccepts<=PubSent correspondence is reported false with the weaker non-injective correspondence proved true instead -- this is the committed, expected shape of this model's evidence, not new drift",
+      "ci": {
+        "status": "wired",
+        "job": [
+          "proverif-estate"
+        ]
+      }
+    },
+    {
+      "id": "guidance-envelope-v0-proverif",
+      "kind": "protocol-model",
+      "authority": "design-claim",
+      "status": "current",
+      "paths": [
+        "docs/adr/models/guidance_envelope_v0.pv"
+      ],
+      "method": "ProVerif",
+      "owner": "lib/agent-harbor",
+      "evidencePolicy": "checked-in transcript regenerated 2026-09-06 against a real, pinned ProVerif 2.05 run (opam install proverif.2.05); RESULT lines verified to match byte-for-byte",
+      "ci": {
+        "status": "wired",
+        "job": [
+          "proverif-estate"
+        ]
+      }
+    },
+    {
+      "id": "guidance-envelope-v0-unsigned-vuln-proverif",
+      "kind": "negative-control",
+      "authority": "design-claim",
+      "status": "current",
+      "paths": [
+        "docs/adr/models/guidance_envelope_v0_unsigned_vuln.pv"
+      ],
+      "method": "ProVerif",
+      "owner": "lib/agent-harbor",
+      "evidencePolicy": "checked-in transcript regenerated 2026-09-06 against a real, pinned ProVerif 2.05 run (opam install proverif.2.05); RESULT lines verified to match byte-for-byte; negative control asserted to report an 'is false.' RESULT",
+      "ci": {
+        "status": "wired",
+        "job": [
+          "proverif-estate"
+        ]
+      }
+    },
+    {
+      "id": "anchor-delegation-chain-replay-proverif",
+      "kind": "protocol-model",
+      "authority": "product-runtime",
+      "status": "current",
+      "paths": [
+        "proofs/anchor/delegation/chain-replay.pv"
+      ],
+      "method": "ProVerif",
+      "owner": "core/kernel/pd-anchor",
+      "evidencePolicy": "checked-in transcript regenerated 2026-09-06 against a real, pinned ProVerif 2.05 run (opam install proverif.2.05); RESULT lines verified to match byte-for-byte",
+      "ci": {
+        "status": "wired",
+        "job": [
+          "proverif-estate"
+        ]
+      }
+    },
+    {
+      "id": "anchor-token-verify-algconfusion-proverif",
+      "kind": "protocol-model",
+      "authority": "product-runtime",
+      "status": "current",
+      "paths": [
+        "proofs/anchor/token-verify/algconfusion.pv"
+      ],
+      "method": "ProVerif",
+      "owner": "core/kernel/pd-anchor",
+      "evidencePolicy": "checked-in transcript regenerated 2026-09-06 against a real, pinned ProVerif 2.05 run (opam install proverif.2.05); RESULT lines verified to match byte-for-byte; a single model with two queries -- the alg-pinned verifier authenticates (true) and the naive header-trusting verifier is forgeable (false) -- so it is its own positive/negative control pair without matching the *_vuln*/*naive_unsound* filename glob",
+      "ci": {
+        "status": "wired",
+        "job": [
+          "proverif-estate"
+        ]
+      }
+    },
+    {
+      "id": "bonded-federated-escrow-proverif",
+      "kind": "protocol-model",
+      "authority": "product-runtime",
+      "status": "current",
+      "paths": [
+        "proofs/bonded/federated/federated.pv"
+      ],
+      "method": "ProVerif",
+      "owner": "core/kernel",
+      "evidencePolicy": "checked-in transcript regenerated 2026-09-06 against a real, pinned ProVerif 2.05 run (opam install proverif.2.05); RESULT lines verified to match byte-for-byte",
+      "ci": {
+        "status": "wired",
+        "job": [
+          "proverif-estate"
+        ]
+      }
+    },
+    {
+      "id": "bonded-pairing-passkey-proverif",
+      "kind": "protocol-model",
+      "authority": "product-runtime",
+      "status": "current",
+      "paths": [
+        "proofs/bonded/pairing/passkey-pair.pv"
+      ],
+      "method": "ProVerif",
+      "owner": "core/kernel",
+      "evidencePolicy": "checked-in transcript regenerated 2026-09-06 against a real, pinned ProVerif 2.05 run (opam install proverif.2.05); RESULT lines verified to match byte-for-byte",
+      "ci": {
+        "status": "wired",
+        "job": [
+          "proverif-estate"
+        ]
+      }
+    },
+    {
+      "id": "bonded-recovery-magic-link-proverif",
+      "kind": "protocol-model",
+      "authority": "product-runtime",
+      "status": "current",
+      "paths": [
+        "proofs/bonded/recovery/magic-link.pv"
+      ],
+      "method": "ProVerif",
+      "owner": "core/kernel",
+      "evidencePolicy": "checked-in transcript regenerated 2026-09-06 against a real, pinned ProVerif 2.05 run (opam install proverif.2.05); RESULT lines verified to match byte-for-byte",
+      "ci": {
+        "status": "wired",
+        "job": [
+          "proverif-estate"
+        ]
+      }
+    },
+    {
+      "id": "coordination-isolation-proverif",
+      "kind": "protocol-model",
+      "authority": "product-runtime",
+      "status": "current",
+      "paths": [
+        "proofs/coordination/isolation.pv"
+      ],
+      "method": "ProVerif",
+      "owner": "core/kernel",
+      "evidencePolicy": "checked-in transcript regenerated 2026-09-06 against a real, pinned ProVerif 2.05 run (opam install proverif.2.05); RESULT lines verified to match byte-for-byte",
+      "ci": {
+        "status": "wired",
+        "job": [
+          "proverif-estate"
+        ]
+      }
+    },
+    {
+      "id": "bonded-conservation-tla",
+      "kind": "state-machine-model",
+      "authority": "product-runtime",
+      "status": "current",
+      "paths": [
+        "proofs/bonded/conservation/Conservation.tla",
+        "proofs/bonded/conservation/Conservation.cfg"
+      ],
+      "method": "TLA+/TLC",
+      "owner": ".github/workflows/proofs.yml",
+      "evidencePolicy": "CI artifact per run, plus a checked-in Conservation.run.log snapshot from a prior local run",
+      "ci": {
+        "status": "wired",
+        "job": [
+          "tla-conservation"
+        ]
+      }
+    },
+    {
+      "id": "economics-claim-signaling-tla",
+      "kind": "state-machine-model",
+      "authority": "design-claim",
+      "status": "current",
+      "paths": [
+        "proofs/economics/claim_signaling.tla",
+        "proofs/economics/claim_signaling.cfg"
+      ],
+      "method": "TLA+/TLC + Apalache",
+      "owner": ".github/workflows/proofs.yml",
+      "evidencePolicy": "CI artifacts per run (TLC log and Apalache log, plus delta sweeps)",
+      "ci": {
+        "status": "wired",
+        "job": [
+          "tla-claim-signaling",
+          "tla-claim-signaling-apalache"
+        ]
+      }
+    },
+    {
+      "id": "relay-card-revocation-tla",
+      "kind": "state-machine-model",
+      "authority": "product-runtime",
+      "status": "current",
+      "paths": [
+        "proofs/relay/CardRevocation.tla",
+        "proofs/relay/CardRevocation_baseline.cfg",
+        "proofs/relay/CardRevocation_epoch.cfg",
+        "proofs/relay/CardRevocation_rollback.cfg"
+      ],
+      "method": "TLA+/TLC",
+      "owner": ".github/workflows/proofs.yml",
+      "evidencePolicy": "CI artifact per run (three .tlc.log files); no prior checked-in snapshot -- this model never ran before wave-p1/proof-estate. CardRevocation_rollback.cfg is a negative control asserted to violate RevocationFinal (ADR-0018 Attack Vector 2, backup/restore)",
+      "ci": {
+        "status": "wired",
+        "job": [
+          "tla-relay-card-revocation"
+        ]
+      }
+    },
+    {
+      "id": "relay-webhook-delivery-tla",
+      "kind": "state-machine-model",
+      "authority": "product-runtime",
+      "status": "current",
+      "paths": [
+        "proofs/relay/WebhookDelivery.tla",
+        "proofs/relay/WebhookDelivery.cfg",
+        "proofs/relay/WebhookDelivery_vuln.cfg"
+      ],
+      "method": "TLA+/TLC",
+      "owner": ".github/workflows/proofs.yml",
+      "evidencePolicy": "CI artifact per run (two .tlc.log files); no prior checked-in snapshot -- this model never ran before wave-p1/proof-estate. WebhookDelivery_vuln.cfg (Dedup=FALSE) is a negative control asserted to violate AtMostOnce",
+      "ci": {
+        "status": "wired",
+        "job": [
+          "tla-relay-webhook-delivery"
+        ]
+      }
+    },
+    {
+      "id": "economics-delta-threshold-z3",
+      "kind": "smt-model",
+      "authority": "design-claim",
+      "status": "current",
+      "paths": [
+        "proofs/economics/delta-threshold.z3"
+      ],
+      "method": "Z3",
+      "owner": ".github/workflows/proofs.yml",
+      "evidencePolicy": "expected sat/sat/unsat triple plus CI artifact; delta* interval independently cross-checked in proofs/economics/README.md and proofs/economics/delta-threshold.expected.txt",
+      "ci": {
+        "status": "wired",
+        "job": [
+          "z3-delta-threshold"
+        ]
+      }
+    },
+    {
+      "id": "bonded-merkle-binding-easycrypt",
+      "kind": "proof-skeleton",
+      "authority": "product-runtime",
+      "status": "partial",
+      "paths": [
+        "proofs/bonded/merkle/binding.ec"
+      ],
+      "method": "EasyCrypt",
+      "owner": "core/kernel",
+      "evidencePolicy": "EasyCrypt is not installed anywhere in this estate's CI; 3 `admit.` tactics remain undischarged (see binding.ec around lines 346, 371, 397 -- hashLeafE's algebraic combination). binding.run.log documents a manual proof-sketch review, not a machine-checked result.",
+      "ci": {
+        "status": "retired",
+        "reason": "EasyCrypt toolchain not installed; 3 undischarged `admit.` tactics remain (binding.ec lines ~346/371/397) -- discharging them and adding an EasyCrypt CI job is tracked as future work, not done in wave-p1/proof-estate"
+      }
+    },
+    {
+      "id": "harbor-card-kani-verify-logic-only",
+      "kind": "rust-proof-harness",
+      "authority": "product-runtime",
+      "status": "current",
+      "paths": [
+        "core/harbor-card-rs/src/lib.rs"
+      ],
+      "method": "Kani",
+      "owner": "core/harbor-card-rs",
+      "evidencePolicy": "decode/verify-path robustness under adversarial input, with the crypto internals replaced by #[kani::stub(...)] stand-ins; requires -Z stubbing. Never ran before wave-p1/proof-estate -- its #[kani::unwind(N)] bound had never been empirically validated (see the harness's own comment for the curve25519-dalek pow2k unwind story)",
+      "ci": {
+        "status": "wired",
+        "job": [
+          "kani-harbor-card"
+        ]
+      },
+      "harnessName": "proof_verify_logic_only"
+    },
+    {
+      "id": "harbor-card-kani-constant-time",
+      "kind": "rust-proof-harness",
+      "authority": "product-runtime",
+      "status": "current",
+      "paths": [
+        "core/harbor-card-rs/src/lib.rs"
+      ],
+      "method": "Kani",
+      "owner": "core/harbor-card-rs",
+      "evidencePolicy": "constant_time_compare never panics over arbitrary fixed-size input; never ran before wave-p1/proof-estate",
+      "ci": {
+        "status": "wired",
+        "job": [
+          "kani-harbor-card"
+        ]
+      },
+      "harnessName": "proof_constant_time_behavior"
+    },
+    {
+      "id": "harbor-card-kani-capability-attenuation",
+      "kind": "rust-proof-harness",
+      "authority": "product-runtime",
+      "status": "current",
+      "paths": [
+        "core/harbor-card-rs/src/lib.rs"
+      ],
+      "method": "Kani",
+      "owner": "core/harbor-card-rs",
+      "evidencePolicy": "verify_capability_subset on two hard-coded cases (subset accepted, escalation rejected) -- concrete inputs, not arbitrary ones; never ran before wave-p1/proof-estate",
+      "ci": {
+        "status": "wired",
+        "job": [
+          "kani-harbor-card"
+        ]
+      },
+      "harnessName": "proof_capability_attenuation"
+    },
+    {
+      "id": "pd-relay-zero-trust-skill-template-proverif",
+      "kind": "teaching-template",
+      "authority": "design-claim",
+      "status": "historical",
+      "paths": [
+        "skills/pd-relay-zero-trust/templates/proverif-relay.pv"
+      ],
+      "method": "ProVerif",
+      "owner": "skills/pd-relay-zero-trust",
+      "evidencePolicy": "a skill scaffold with open TODO queries (capability containment, revocation effectiveness, non-equivocation are all unfinished); not a claim about a real Port Daddy protocol and has no committed evidence file",
+      "ci": {
+        "status": "retired",
+        "reason": "skill teaching template, not a protocol claim about this repository; deliberately outside scripts/proofs/run-proverif.py's three scan roots (analyses/, proofs/**, docs/adr/models/) -- see that script's module docstring"
+      }
+    }
+  ],
+  "researchProgramArtifacts": [
+    {
+      "id": "harbor-results-r-scripts",
+      "kind": "deterministic-result-checker-suite",
+      "status": "current",
+      "paths": [
+        "skills/harbor-results/scripts/a3_epsilon_ledger.py",
+        "skills/harbor-results/scripts/a4_canary_sprt.py",
+        "skills/harbor-results/scripts/a6_no_mint.py",
+        "skills/harbor-results/scripts/a7_experiment.py",
+        "skills/harbor-results/scripts/b1_frontier.py",
+        "skills/harbor-results/scripts/b2_tower.py",
+        "skills/harbor-results/scripts/b3_controllability.py",
+        "skills/harbor-results/scripts/b4_deontic_fragment.py",
+        "skills/harbor-results/scripts/b5_engine_substitution.py",
+        "skills/harbor-results/scripts/b6_probation.py",
+        "skills/harbor-results/scripts/b7_escalation_band.py",
+        "skills/harbor-results/scripts/b8_specialization.py",
+        "skills/harbor-results/scripts/b9_context_paging.py",
+        "skills/harbor-results/scripts/c0_workunit.py",
+        "skills/harbor-results/scripts/c1_noninterference.py",
+        "skills/harbor-results/scripts/sheaf_mechanism_proof.py",
+        "skills/harbor-results/scripts/sheaf_harness_v2.py",
+        "skills/harbor-results/scripts/sheaf_consistency_radius.py",
+        "skills/harbor-results/scripts/zoom_bound_check.py"
+      ],
+      "owner": ".github/workflows/proofs.yml",
+      "ci": {
+        "status": "wired",
+        "job": [
+          "harbor-results-estate"
+        ]
+      }
+    },
+    {
+      "id": "pareto-threat-bands-monte-carlo",
+      "kind": "monte-carlo-simulation",
+      "status": "current",
+      "paths": [
+        "proofs/bonded/pareto/threat-bands.mjs"
+      ],
+      "owner": ".github/workflows/proofs.yml",
+      "ci": {
+        "status": "wired",
+        "job": [
+          "monte-carlo-threat-bands"
+        ]
+      }
+    },
+    {
+      "id": "pareto-simulation-baseline-monte-carlo",
+      "kind": "monte-carlo-simulation",
+      "status": "current",
+      "paths": [
+        "proofs/bonded/pareto/simulation.mjs"
+      ],
+      "owner": "proofs/bonded/pareto",
+      "ci": {
+        "status": "retired",
+        "reason": "exploratory Pareto-dominance sweep with a checked-in simulation.run.log from a local run; only threat-bands.mjs is asserted in CI (monte-carlo-threat-bands)"
+      }
+    },
+    {
+      "id": "pareto-simulation-sybil-monte-carlo",
+      "kind": "monte-carlo-simulation",
+      "status": "current",
+      "paths": [
+        "proofs/bonded/pareto/simulation-sybil.mjs"
+      ],
+      "owner": "proofs/bonded/pareto",
+      "ci": {
+        "status": "retired",
+        "reason": "exploratory Sybil-regime extension with a checked-in simulation-sybil.run.log from a local run; only threat-bands.mjs is asserted in CI (monte-carlo-threat-bands)"
+      }
+    },
+    {
+      "id": "pareto-simulation-cartel-monte-carlo",
+      "kind": "monte-carlo-simulation",
+      "status": "current",
+      "paths": [
+        "proofs/bonded/pareto/simulation-cartel.mjs"
+      ],
+      "owner": "proofs/bonded/pareto",
+      "ci": {
+        "status": "retired",
+        "reason": "exploratory repeated-game cartel sweep with a checked-in simulation-cartel.run.log from a local run; only threat-bands.mjs is asserted in CI (monte-carlo-threat-bands)"
+      }
+    }
+  ]
+}
