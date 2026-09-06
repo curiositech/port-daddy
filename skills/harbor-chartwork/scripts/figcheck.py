@@ -82,7 +82,10 @@ LINE_SHRINK_PT = 0.75          # T4: shrink a text bbox by this much before test
                                 #     grazes the exact edge does not count
 MEDIABOX_TOL_PT = 0.5          # T5
 MIN_CONTAINER_DIM_PT = 3.0     # T2: ignore hairline/degenerate "containers"
+MAX_CONTAINER_ITEMS = 5        # T2: a container is one rectangle, not a multi-shape path
 OVERLAP_FRACTION = 0.05        # T3
+T1_TOLERANCE_PT = 0.1          # T1: font-metric rounding slack
+ADJACENT_LINE_VFRAC = 0.4      # T3: stacked lines whose boxes touch this little are neighbours, not a collision
 DEAD_CANVAS_FRACTION = 0.40    # T6
 OVERWIDTH_TOL_CM = 0.2         # T7: see check_t7 -- absorbs resizebox rounding noise
 
@@ -247,7 +250,8 @@ def extract_drawings(page):
                     corners = [(r.x0, r.y0), (r.x1, r.y0), (r.x1, r.y1), (r.x0, r.y1)]
                     for k in range(4):
                         segments.append((corners[k], corners[(k + 1) % 4]))
-        out.append({"rect": tuple(d["rect"]), "type": d["type"], "segments": segments})
+        out.append({"rect": tuple(d["rect"]), "type": d["type"], "segments": segments,
+                    "n_items": len(d["items"])})
     return out
 
 
@@ -258,7 +262,9 @@ def extract_drawings(page):
 def check_t1(spans, min_font_pt, page_no):
     findings = []
     for sp in spans:
-        if sp["size"] < min_font_pt - 1e-6:
+        # A 0.1 pt tolerance absorbs font-metric rounding: a 7 pt subscript
+        # in a Palatino caption reports 6.97 pt.  Anything smaller is real.
+        if sp["size"] < min_font_pt - T1_TOLERANCE_PT:
             findings.append(
                 {
                     "check": "T1",
@@ -280,6 +286,10 @@ def check_t2(lines, drawings, page_no):
         d
         for d in drawings
         if d["type"] in ("f", "fs")
+        # one rectangle (a single 're' item, or four line segments and a close):
+        # a bar series or a multi-cell grid drawn as one path is not a box that
+        # text lives inside, even though its bounding rect encloses labels
+        and d.get("n_items", 0) <= MAX_CONTAINER_ITEMS
         and (d["rect"][2] - d["rect"][0]) >= MIN_CONTAINER_DIM_PT
         and (d["rect"][3] - d["rect"][1]) >= MIN_CONTAINER_DIM_PT
     ]
@@ -305,6 +315,20 @@ def check_t2(lines, drawings, page_no):
     return findings
 
 
+def _adjacent_lines(ra, rb):
+    """Two text boxes stacked as consecutive lines of one paragraph: they share
+    most of their horizontal extent and their vertical overlap is a sliver
+    (ascenders of one line touching descenders of the next).  Math-heavy
+    caption lines do this under every font; it is leading, not a collision."""
+    x_overlap = min(ra[2], rb[2]) - max(ra[0], rb[0])
+    narrower = min(ra[2] - ra[0], rb[2] - rb[0])
+    if narrower <= 0 or x_overlap < 0.5 * narrower:
+        return False
+    y_overlap = min(ra[3], rb[3]) - max(ra[1], rb[1])
+    shorter = min(ra[3] - ra[1], rb[3] - rb[1])
+    return shorter > 0 and 0 < y_overlap < ADJACENT_LINE_VFRAC * shorter
+
+
 def check_t3(lines, page_no):
     findings = []
     n = len(lines)
@@ -325,7 +349,7 @@ def check_t3(lines, page_no):
                 continue
             smaller = min(area_a, area_b)
             frac = overlap / smaller
-            if frac > OVERLAP_FRACTION:
+            if frac > OVERLAP_FRACTION and not _adjacent_lines(a["bbox"], b["bbox"]):
                 findings.append(
                     {
                         "check": "T3",
