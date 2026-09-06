@@ -3,7 +3,7 @@
 $ python3 skills/harbor-results/scripts/c0_workunit.py
 BASELINE (all guards on): 536 reachable states explored, violations: NONE -- all six invariants hold in every state [ok]
 
-MUTATION SUITE — disable each guard; the checker must find a violating trace:
+MUTATION SUITE -- disable each guard; the checker must find a violating trace:
   guard OFF [epoch    ] -> caught I1/I5: effect admitted with stale epoch
       shortest trace (4 steps): propose->authorize -> start_exec -> reassign_role -> admit_effect(STALE)
   guard OFF [idem     ] -> caught I2: idempotency key settled twice
@@ -15,5 +15,5 @@ MUTATION SUITE — disable each guard; the checker must find a violating trace:
   guard OFF [settle   ] -> caught I6: settlement unfunded/unreceipted/wrong principal
       shortest trace (7 steps): propose->authorize -> start_exec -> set_policy -> admit_verifier_receipt -> witness -> verify -> settle(p2!)
 
-Guards restored: 536 states, violations: none ✓
+Guards restored: 536 states, violations: none [ok]
 \end{pdsession}

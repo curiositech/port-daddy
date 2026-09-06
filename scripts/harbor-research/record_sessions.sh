@@ -17,27 +17,7 @@ MODE=${1:-record}
 TMP=$(mktemp -d)
 trap 'timeout 30 $PD daemon stop $PROFILE >/dev/null 2>&1 || true; rm -rf "$TMP"' EXIT
 
-normalise() {
-  python3 - <<'PY_NORM'
-import re, sys
-s = sys.stdin.read()
-rules = [
-    (r'\d{4}-\d{2}-\d{2}T[\d:.]+Z', '<timestamp>'),
-    (r'\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}', '<timestamp>'),
-    (r'\b[0-9A-HJKMNP-TV-Z]{26}\b', '<actor-id>'),
-    (r'\b[0-9A-HJKMNP-TV-Z]{24}\b', '<actor-id>'),
-    (r'PID \d+', 'PID <pid>'),
-    (r'Expires in: \d+s', 'Expires in: <n>s'),
-    (r'(?m)^⚠.*$', ''),
-    (r'✓', '[ok]'), (r'—', '--'), (r'→', '->'), (r'[ \t]+$', ''),
-]
-for pat, rep in rules:
-    s = re.sub(pat, rep, s, flags=re.M)
-s = re.sub(r'\n{3,}', '\n\n', s)
-s = ''.join(ch if ord(ch) < 128 else '?' for ch in s)   # transcripts are ASCII in print
-sys.stdout.write(s)
-PY_NORM
-}
+normalise() { python3 scripts/harbor-research/normalise_session.py; }
 
 run() { local id=$1; shift; env PORT_DADDY_AGENT_ID="$id" timeout 30 $PD "$@" 2>&1 || true; }
 
