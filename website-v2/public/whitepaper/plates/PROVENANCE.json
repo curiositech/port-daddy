@@ -91,6 +91,17 @@
       "note": "chapter anchor wash, sheet edges cropped away, paper balanced to the page stock, borders bled into it",
       "prompt": "A faded watercolor wash landscape reproduced on aged, lightly embossed paper stock: visible paper tooth, salt texture and pigment blooms in the washes, offset print grain, colors muted and slightly bled as in an old lithographed reproduction, no hard outlines, no ink linework, no bright saturated color. Space-opera scale: one colossal, smooth, unearthly presence dominates the picture, rendered as soft masses of pale wash with almost no detail, and one small everyday human-scale thing sits beneath or beside it, tiny and exact. Most of the picture is open pale wash, mist and water. No people's faces, no crews, no lettering of any kind, no border; the wash runs to all four edges.Scene: a procession of immense smooth monoliths floating above a calm sea, each smaller and fainter than the one before, receding into haze; at the front a single rowboat holds one taut rope to the nearest monolith. Palette: pale greys, cobalt and violet washes faded almost to paper, one warm lamp-glow."
     },
+    "chapter-sealed": {
+      "file": "chapter-sealed.jpg",
+      "source_render": "ch-sealed-a.png",
+      "size": [
+        1800,
+        1200
+      ],
+      "bytes": 242096,
+      "note": "chapter sealed wash, sheet edges cropped away, paper balanced to the page stock, borders bled into it",
+      "prompt": "A faded watercolor wash landscape reproduced on aged, lightly embossed paper stock: visible paper tooth, salt texture and pigment blooms in the washes, offset print grain, colors muted and slightly bled as in an old lithographed reproduction, no hard outlines, no ink linework, no bright saturated color. Space-opera scale: one colossal, smooth, unearthly presence dominates the picture, rendered as soft masses of pale wash with almost no detail, and one small everyday human-scale thing sits beneath or beside it, tiny and exact. Most of the picture is open pale wash, mist and water. No people's faces, no crews, no lettering of any kind, no border; the wash runs to all four edges.Scene: a vast smooth windowless vault the size of a headland rests in a pale bay, seamless and featureless except for one hair-thin horizontal slot of warm light near its waterline, and on the flat water before it one small rowboat with a single lantern, waiting; mist over everything else. Palette: pale greys, cobalt and violet washes faded almost to paper, one warm lamp-glow."
+    },
     "chapter-ls": {
       "file": "chapter-ls.jpg",
       "source_render": "ch-ls-a.png",

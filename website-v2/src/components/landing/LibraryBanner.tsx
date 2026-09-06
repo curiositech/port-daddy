@@ -2,16 +2,16 @@ import { Link } from 'react-router-dom'
 import { ArrowRight, FileText, FlaskConical } from 'lucide-react'
 import { PageContainer } from '@/components/site/primitives'
 import { RESEARCH_PAPER_TOTAL_PAGES } from '@/data/researchPapers'
-import { COLLECTED_VOLUME } from '@/data/whitePapers'
+import { COLLECTED_VOLUME, TEXTBOOK } from '@/data/whitePapers'
 
 /**
  * A thin, page-width strip — below the sticky nav, above the hero — that
  * exists for one reason: `/library` and `/library/research` are two
- * distinct seven-part collections that both used to get called "seven
+ * distinct collections that both used to get called "seven
  * papers" (see the 2026-08-26 `/library` naming-collision fix). Same
  * problem shows up a level up, on the home page, where neither collection
  * had ever been named at all. These two labels are the fix: "the Book"
- * (seven chapters, one argument, in dependency order) and the "standalone
+ * (the chapters of the Textbook Edition, one argument, in dependency order) and the "standalone
  * papers" (the same results in submission form) — never "papers" for both,
  * and never "the Proofs" for the research papers, since three of the Book's
  * own chapters are the ones that prove.
@@ -39,7 +39,7 @@ export function LibraryBanner() {
               <span className="font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-primary)] group-hover:text-[var(--brand-primary)]">
                 The Book
               </span>{' '}
-              — 7 chapters, {COLLECTED_VOLUME.pages}pp, the whole argument in order
+              — {TEXTBOOK.chapters.length} chapters, {COLLECTED_VOLUME.pages}pp, the whole argument in order
             </span>
             <ArrowRight
               aria-hidden="true"

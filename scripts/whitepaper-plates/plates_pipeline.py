@@ -82,11 +82,11 @@ PLATES = {
  'frontispiece': dict(src=R3 / 'E2-etch-clerks.png', ratio=0.667, long=2000, q=88, fn=lambda im: feather(paper_balance(inset(im, 0.06)), PAGE, 0.03), note='frontispiece etching, the colossus of clerks, paper balanced to the page stock'),
 }
 CHOICE = {'part-I': 'tall-a', 'part-II': 'tall-a', 'part-III': 'tall-b', 'part-IV': 'tall-a',
-          'ch-swk': 'b', 'ch-anchor': 'a', 'ch-ls': 'a', 'ch-stp': 'a', 'ch-he': 'a', 'ch-bonded': 'a', 'ch-fh': 'a'}
+          'ch-swk': 'b', 'ch-anchor': 'a', 'ch-sealed': 'a', 'ch-ls': 'a', 'ch-stp': 'a', 'ch-he': 'a', 'ch-bonded': 'a', 'ch-fh': 'a'}
 for numeral in ['I', 'II', 'III', 'IV']:
     PLATES[f'part-{numeral}'] = dict(src=R8 / f"part-{numeral}-{CHOICE[f'part-{numeral}']}.png", ratio=0.707, long=2300, q=86,
         fn=lambda im: paper_balance(inset(im, 0.045)), note=f'Part {numeral} wash, full page behind the part type, sheet edges cropped away, paper balanced to the page stock')
-for prefix in ['swk', 'anchor', 'ls', 'stp', 'he', 'bonded', 'fh']:
+for prefix in ['swk', 'anchor', 'sealed', 'ls', 'stp', 'he', 'bonded', 'fh']:
     PLATES[f'chapter-{prefix}'] = dict(src=R8 / f"ch-{prefix}-{CHOICE[f'ch-{prefix}']}.png", ratio=1.5, long=1800, q=85,
         fn=lambda im: feather(paper_balance(inset(im, 0.05)), PAGE, 0.07), note=f'chapter {prefix} wash, sheet edges cropped away, paper balanced to the page stock, borders bled into it')
 
