@@ -12,11 +12,18 @@
 % \texttt or \path down by a line and a half. With glyph metrics off the
 % heights come from the fonts' ascent and descent, which fit the leading, and
 % the interline spacing is uniform. Standalone chapters (pdfTeX) are unaffected.
-\ifdefined\XeTeXuseglyphmetrics\XeTeXuseglyphmetrics=0 \fi
-\usepackage{fontspec}
-\setmonofont{texgyrecursor-regular.otf}[BoldFont=texgyrecursor-bold.otf,
-  ItalicFont=texgyrecursor-italic.otf,BoldItalicFont=texgyrecursor-bolditalic.otf,
-  Scale=MatchLowercase]
+\usepackage{iftex}
+\ifXeTeX
+  \XeTeXuseglyphmetrics=0
+  \usepackage{fontspec}
+  \setmonofont{texgyrecursor-regular.otf}[BoldFont=texgyrecursor-bold.otf,
+    ItalicFont=texgyrecursor-italic.otf,BoldItalicFont=texgyrecursor-bolditalic.otf,
+    Scale=MatchLowercase]
+\else
+  % pdfTeX fallback (not the published path; scripts/build-whitepapers.sh
+  % compiles the Book with xelatex): the same face through its Type 1 package.
+  \usepackage{tgcursor}
+\fi
 \let\openbox\relax
 \usepackage[fontsize=10.5pt]{fontsize}
 \usepackage{microtype}

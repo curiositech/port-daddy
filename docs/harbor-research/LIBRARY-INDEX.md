@@ -205,7 +205,7 @@ One section per indexed idea (R1-R17, CR, B6, and every already-folded textbook 
 ## R9 -- Sealed-room noninterference
 <a id="r9"></a>
 
-**Kind:** theorem  **Status:** standalone-only
+**Kind:** theorem  **Status:** folded
 
 > With declared release g(s) = s mod 2, Erin's observations are identical whenever g(s)=g(s') for every interleaving, and may differ only at explicit gate-release steps otherwise -- noninterference modulo declassification, verified exhaustively to depth 7 on the finite clean-room model.
 
@@ -227,7 +227,7 @@ One section per indexed idea (R1-R17, CR, B6, and every already-folded textbook 
 ## R10 -- Epsilon-conservation of the release ledger
 <a id="r10"></a>
 
-**Kind:** theorem  **Status:** standalone-only
+**Kind:** theorem  **Status:** folded
 
 > The release ledger's only spending transition atomically appends the record and adds the spend, so every reachable state satisfies sigma = sum of the ledger's epsilons and sigma <= epsilon_max, including under concurrent invocation.
 
@@ -249,7 +249,7 @@ One section per indexed idea (R1-R17, CR, B6, and every already-folded textbook 
 ## R11 -- Canary detection power and SPRT latency
 <a id="r11"></a>
 
-**Kind:** result-family  **Status:** standalone-only
+**Kind:** result-family  **Status:** folded
 
 > Independent per-canary misses turn k smuggled canaries into detection probability 1 - beta^k; Wald's sequential probability ratio test against the permutation null turns leak intensity into an expected time-to-detection with realized error rates at or below target.
 

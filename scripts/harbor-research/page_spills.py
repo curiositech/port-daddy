@@ -85,7 +85,6 @@ def main() -> int:
             gap = foot - last
             nxt = per_page[i + 1] if i + 1 < len(per_page) else []
             next_is_opener = any(t.startswith("Chapter ") and " of " in t for t in [l["text"] for l in nxt][:3]) or any("Part " in l["text"] and l["size"] > 20 for l in nxt[:6])
-            ends_chapter = any(l["text"].startswith("Review of the key ideas") for l in lines) is False and next_is_opener
             drawings = [d for d in doc[i].get_drawings() if d["rect"].y1 > last - 5]
             if gap > a.slack and not next_is_opener and not drawings:
                 findings.append({"kind": "W", "page": page_no, "detail": f"{gap:.0f} pt empty above the foot; next page starts with '{(nxt[0]['text'] if nxt else '')[:40]}'"})

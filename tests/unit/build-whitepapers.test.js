@@ -38,7 +38,7 @@ describe('reproducible whitepaper source scoping', () => {
     ).split('\n');
 
     expect(sources[0]).toBe('website-v2/public/whitepaper/spawn-to-person.tex');
-    expect(sources).toHaveLength(16);
+    expect(sources).toHaveLength(17);
     expect(sources).toContain(
       'website-v2/public/whitepaper/figures/pd-figure-language.tex',
     );
@@ -133,8 +133,9 @@ describe('reproducible whitepaper source scoping', () => {
   test('builder fails clearly when neither TeX driver is installed', () => {
     const script = readFileSync(buildScript, 'utf8');
 
-    expect(script).toContain('if ! command -v pdflatex >/dev/null 2>&1; then');
-    expect(script).toContain('error: whitepaper build requires latexmk or pdflatex');
+    expect(script).toContain('if ! command -v "$engine" >/dev/null 2>&1; then');
+    expect(script).toContain('engine=xelatex; latexmk_engine=-xelatex');
+    expect(script).toContain('error: whitepaper build requires latexmk or $engine');
     expect(script).toContain('exit 127');
   });
 

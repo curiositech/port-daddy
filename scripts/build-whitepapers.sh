@@ -21,7 +21,7 @@
 #   scripts/build-whitepapers.sh federated-harbor-whitepaper   # build one (by root basename)
 #   scripts/build-whitepapers.sh --changed-since <git-ref>      # build papers whose imported TeX changed
 #
-# Requires: latexmk + pdflatex (TeX Live). No bibtex/biber — all papers embed
+# Requires: latexmk + pdflatex, plus xelatex for the Book (TeX Live). No bibtex/biber — all papers embed
 # \begin{thebibliography}.
 
 set -uo pipefail
@@ -184,22 +184,29 @@ build_one() {
   (
     cd "$srcdir"
     export SOURCE_DATE_EPOCH="$epoch" FORCE_SOURCE_DATE=1
+    # The Book sets its monospace face through fontspec (a Unicode-engine
+    # package) and turns off XeTeX's glyph-metric line boxes, so it is
+    # compiled with xelatex; the standalone chapters stay on pdfTeX.
+    local engine=pdflatex latexmk_engine=-pdf
+    if [ "$roottex" = "coordination-papers-mega-volume.tex" ]; then
+      engine=xelatex; latexmk_engine=-xelatex
+    fi
     if command -v latexmk >/dev/null 2>&1; then
-      latexmk -pdf -interaction=nonstopmode -halt-on-error -file-line-error \
+      latexmk "$latexmk_engine" -interaction=nonstopmode -halt-on-error -file-line-error \
               -outdir="$outdir" "$roottex"
     else
       # BasicTeX can ship pdfTeX without latexmk. These papers use inline
       # bibliographies, so bounded pdflatex passes are a complete fallback:
       # pass 1 writes labels/TOC, pass 2 resolves them, and two extra passes
       # cover the rare long-TOC case that still reports changed labels.
-      if ! command -v pdflatex >/dev/null 2>&1; then
-        echo "error: whitepaper build requires latexmk or pdflatex" >&2
+      if ! command -v "$engine" >/dev/null 2>&1; then
+        echo "error: whitepaper build requires latexmk or $engine" >&2
         exit 127
       fi
       local pass
       for pass in 1 2 3 4; do
-        echo "pdflatex fallback pass $pass/4"
-        pdflatex -interaction=nonstopmode -halt-on-error -file-line-error \
+        echo "$engine fallback pass $pass/4"
+        "$engine" -interaction=nonstopmode -halt-on-error -file-line-error \
                  -output-directory="$outdir" "$roottex" || exit $?
         if [ "$pass" -ge 2 ] && [ -f "$outdir/$base.log" ] \
           && ! grep -Eq 'Rerun to get cross-references right|Label\(s\) may have changed' "$outdir/$base.log"; then
