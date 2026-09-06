@@ -19,11 +19,16 @@
 # are placed there.
 #
 # Usage:
-#   compile_fragment.sh FRAGMENT.tex [--preamble chapter|research] [--out DIR]
+#   compile_fragment.sh FRAGMENT.tex [--preamble chapter|research|book] [--out DIR]
 #
 #   FRAGMENT.tex        Path to one figure fragment .tex file.
-#   --preamble MODE     Force "chapter" (website-v2/whitepaper corpora) or
-#                        "research" (docs/harbor-research corpus) preamble
+#   --preamble MODE     Force "chapter" (website-v2/whitepaper corpora),
+#                        "research" (docs/harbor-research corpus) or "book"
+#                        (the Textbook Edition's own preamble: Palatino under
+#                        XeTeX, 7 x 10 in, a 4.5 in text column; the way a
+#                        chapter figure is actually printed -- judge Book
+#                        figures ONLY in this mode, and run figcheck on the
+#                        result with --textwidth-cm 11.43)
 #                        selection. Default: auto-detect from the fragment's
 #                        location (a sibling pd-figure-language.tex means
 #                        chapter; a sibling ../tex/preamble.tex means research).
@@ -103,8 +108,8 @@ if [ ! -f "$FRAGMENT" ]; then
   echo "compile_fragment.sh: no such file: $FRAGMENT" >&2
   exit 2
 fi
-if [ -n "$PREAMBLE_MODE" ] && [ "$PREAMBLE_MODE" != "chapter" ] && [ "$PREAMBLE_MODE" != "research" ]; then
-  echo "compile_fragment.sh: --preamble must be 'chapter' or 'research', got: $PREAMBLE_MODE" >&2
+if [ -n "$PREAMBLE_MODE" ] && [ "$PREAMBLE_MODE" != "chapter" ] && [ "$PREAMBLE_MODE" != "research" ] && [ "$PREAMBLE_MODE" != "book" ]; then
+  echo "compile_fragment.sh: --preamble must be 'chapter', 'research' or 'book', got: $PREAMBLE_MODE" >&2
   exit 2
 fi
 
@@ -179,7 +184,32 @@ else
     awk '/\\begin\{document\}/{exit} {print}' "$1"
   }
 
-  if [ "$PREAMBLE_MODE" = "chapter" ]; then
+  if [ "$PREAMBLE_MODE" = "book" ]; then
+    # The Book: its root's preamble section verbatim (the generated-input
+    # guard, the preamble, the seams, the PDF metadata), its figure twins, and
+    # the fragment. The Book's geometry stands, so no \newgeometry; there is
+    # no standalone variant because the column is the point.
+    BOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../website-v2/public/whitepaper" && pwd)"
+    BOOK_ROOT="$BOOK_DIR/coordination-papers-mega-volume.tex"
+    [ -f "$BOOK_ROOT" ] || { echo "compile_fragment.sh: Book root not found at $BOOK_ROOT" >&2; exit 2; }
+    mkdir -p "$BUILD/figures"
+    for shared in "$BOOK_DIR"/figures/pd-*.tex; do
+      [ -f "$shared" ] && cp "$shared" "$BUILD/figures/$(basename "$shared")"
+    done
+    for piece in coordination-papers-mega-volume-preamble.tex coordination-papers-mega-volume-seams.tex; do
+      cp "$BOOK_DIR/$piece" "$BUILD/$piece"
+    done
+    cp "$FRAGMENT_ABS" "$BUILD/figures/$STEM.tex"
+    extract_preamble "$BOOK_ROOT" > "$WRAPPER"
+    {
+      echo '\begin{document}'
+      echo '\pagestyle{empty}'
+      echo "\\input{figures/$STEM}"
+      echo '\end{document}'
+    } >> "$WRAPPER"
+    TEXTWIDTH_CM="11.43"
+
+  elif [ "$PREAMBLE_MODE" = "chapter" ]; then
     # Prefer the ONE real chapter/whitepaper root that actually `\input`s
     # this fragment (its full preamble, not just the shared style import --
     # a fragment can rely on a `\newcommand` or a package that only ITS real
