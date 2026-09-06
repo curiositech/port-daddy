@@ -117,8 +117,14 @@
     "0128": "0128-mandatory-harbors.md",
     "0129": "0129-adr-identity-token-not-number.md",
     "0130": "0130-generated-json-hash-gate.md",
-    "0131": "0131-helmsman-autonomous-roadmap-execution.md",
-    "0132": "0132-merge-authority-reconciliation.md",
+    "0131": [
+      "0131-helmsman-autonomous-roadmap-execution.md",
+      "0131-verdict-integrity-separating-infra-failure-from-review-verdict.md"
+    ],
+    "0132": [
+      "0132-distress-register-emergency-broadcast.md",
+      "0132-merge-authority-reconciliation.md"
+    ],
     "0133": "0133-issue-lifecycle-and-mass-closure.md",
     "0134": "0134-control-command-ingress-and-consent-transport.md",
     "0136": "0136-cross-runtime-execution-envelope.md"
