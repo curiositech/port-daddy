@@ -214,7 +214,7 @@ export function createHaltWatch(options: HaltWatchOptions): HaltWatch {
     checks += 1;
     if (halted) {
       // Absence is not all-clear (ADR-0132 §4). Note it once; stay halted.
-      let stillThere = true;
+      let stillThere: boolean;
       try { stillThere = existsSync(sentinelPath); } catch { stillThere = true; }
       if (!stillThere && !sentinelGoneLogged) {
         sentinelGoneLogged = true;

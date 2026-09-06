@@ -126,7 +126,7 @@ during a halt (their scaffold commands are `pd` invocations), and no tentacle
 touches the daemon or runs `pd`. Per-session dedupe lives under
 `$PD_HOME/squid/halt-watch/`. Override paths: `PD_HALT_FILE`,
 `PD_DISTRESS_FILE`. The sentinel read and append are inline until phase 0's
-`lib/distress.ts` lands.
+`lib/distress.ts` (proposed, not yet shipped) lands.
 
 **POSIX sh only.** `#!/bin/sh`, `set -u`, no bashisms. `jq` is optional with a
 `python3` or `sed` fallback; the tentacles run under dash, BSD sh, and busybox.
