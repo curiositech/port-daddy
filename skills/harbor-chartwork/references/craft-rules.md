@@ -6,6 +6,23 @@ and for every new figure. Mechanics are enforced by `scripts/tikz_precheck.py`
 (source) and `scripts/figcheck.py` (rendered PDF); the judgment rules are applied by
 the author on the rendered page, never on the fragment in isolation.
 
+## 0. Before drawing: the brief and the atlas
+
+No fragment is drawn or redrawn without a six-line brief (from
+`tikz-figure-engineering`, Gate 0): the **reader question**; the **one-sentence claim**
+with its direction explicit; the **evidence** (objects, cardinality, units, source
+script); what the figure **must distinguish**; the **grammar chosen and the grammar
+rejected**, with one sentence on why the rejected one would mislead; and the
+**acceptance test**, what a five-second reader should be able to say. The chapter
+specs under the audit directory carry these fields per figure.
+
+Every canonical figure also has a row in
+`skills/whitepaper-figure-system/references/semantic-figure-atlas.md` (stable id such
+as `II/fig:swk-claim-lifecycle`). Look the row up first. Its prescribed grammar is
+the default; it is overridden only with a written rationale in the triage table, and
+the row is then updated in the same change. A deleted figure loses its row; a new
+figure gains one; `check_atlas_coverage.py` is the drift gate.
+
 ## 1. The five-point legibility rubric
 
 A figure stays in the book only if it passes all five on the page where it sits.
@@ -96,6 +113,18 @@ Further rules the prechecker applies to the source:
 Rendered checks (`figcheck.py`): T1 minimum text 7 pt · T2 text escaping its box ·
 T3 pairwise overlap > 5 % · T4 line through text · T5 ink outside the mediabox ·
 T6 dead canvas · T7 width over `\textwidth` · T8 ink below the picture inside the figure.
+
+### Colour is never the only cue
+
+The house figure hues are ink `#1B1712`, teal `#00564C` and amber `#6B4500`. Run
+through the dataviz palette validator as a categorical set they fail the screen
+checks on purpose: they are dark and low-chroma for print, and teal against amber
+separates by only ΔE 13.3 for normal vision (8.2 protan). So the palette is a scale
+of three *and every distinction it carries is doubled by a second channel*: caution
+is dashed as well as amber; caution marks are diamonds where focus marks are circles;
+regions are edged and labelled, never told apart by tint alone; series in a plot are
+named at their ends. A figure whose meaning survives conversion to grey passes; one
+that does not is redrawn.
 
 ## 5. Caption grammar
 
