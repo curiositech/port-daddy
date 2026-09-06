@@ -1,0 +1,370 @@
+% Shared pedagogic apparatus for the Book and every standalone chapter: boxed
+% claims, honest boundaries, worked examples, retrieval prompts, numbered
+% exercises, and their deferred solutions.
+% Twin copy under whitepaper/figures/ (byte-identical; checked by
+% scripts/generate-mega-whitepaper.test.mjs).
+%
+% \input this immediately after figures/pd-textbook-map (so \pdchapterprefix
+% and \pdchapternumber already resolve) and before figures/pd-hyperlinks.
+%
+% Page grammar (Wave 12): a content kind is signalled by typography and the
+% margin, never by a tinted rectangle. Claims: a hairline above, a small-caps
+% run-in head, a short hairline below. Worked examples: two hairlines and an
+% italic head. Boundaries: a plain ink bar at the left, no fill. Recitation:
+% margin prompts in the Book, a compact list in a standalone chapter.
+% Exercises: a numbered hanging paragraph with kind and stars in small caps,
+% the solution page in the margin. Nothing here paints a background.
+%
+% \ifpdmargincolumn is false by default (standalone A4 chapters have no margin
+% column); the Book's preamble sets \pdmargincolumntrue after its geometry.
+% mdframed is used only for the bars (leftline) and hairlines (top/bottom),
+% with the DEFAULT frame method -- never framemethod=tikz.
+%
+% Key-value parsing for \pdexercise uses pgfkeys: pgf ships as part of tikz,
+% which every preamble already loads, so this adds no new dependency (keyval
+% would have meant one). The closed kind/rating vocabularies are enforced with
+% the LaTeX kernel's own \in@/\ifin@ comma-list test -- always available,
+% no package of its own -- wrapped in an \edef that expands both sides first:
+% \in@ does not expand its own arguments, so hunting for a *macro* (rather
+% than literal text) requires pre-expanding it, or every kind reads as absent.
+\makeatletter
+\@ifpackageloaded{mdframed}{}{\usepackage{mdframed}}
+\@ifpackageloaded{answers}{}{\usepackage{answers}}
+\@ifpackageloaded{marginnote}{}{\usepackage{marginnote}}
+\@ifpackageloaded{environ}{}{\usepackage{environ}}
+\@ifpackageloaded{listings}{}{\usepackage{listings}}
+
+% ---------------------------------------------------------------------------
+% Shared helpers: the margin-column switch, the margin head, the margin glyph.
+% ---------------------------------------------------------------------------
+% The Book defines \pdcurrentchaptercolor (per part) AFTER this file; a
+% standalone chapter never does. Resolve it lazily, falling back to cobalt.
+\newcommand{\pd@chaptercolor}{\ifdefined\pdcurrentchaptercolor\pdcurrentchaptercolor\else pdcobalt\fi}
+\newif\ifpdmargincolumn
+\pdmargincolumnfalse
+\renewcommand*{\marginfont}{\footnotesize\raggedright\color{pdinkmuted}}
+% A small-caps head: set in the margin when the Book has a margin column,
+% otherwise run in at the start of the paragraph.
+\newcommand{\pd@marginhead}[1]{%
+  \ifpdmargincolumn\marginnote{\scshape #1}\else{\scshape\bfseries #1.}\enspace\fi}
+% A small square in the chapter's hue, in the margin, marking a worked example
+% so a reader flipping through finds every one.
+\newcommand{\pd@marginglyph}{%
+  \ifpdmargincolumn\marginnote{\textcolor{\pd@chaptercolor}{\rule[-0.5pt]{4.5pt}{4.5pt}}}\fi}
+
+% ---------------------------------------------------------------------------
+% \pdkind, pdclaim -- a numbered, labelled statement. Hairline above, run-in
+% head "THEOREM 1.3  Title." in small caps and bold, short hairline below.
+% ---------------------------------------------------------------------------
+\newcommand{\pd@claim@kinds}{Theorem,Design invariant,Model-checked property,Empirical hypothesis}
+\newcommand{\pdkind}[1]{%
+  \edef\pd@in@test{\noexpand\in@{,#1,}{,\pd@claim@kinds,}}%
+  \pd@in@test
+  \ifin@\else
+    \PackageError{pd-pedagogy}{Unknown pdclaim kind '#1'}%
+      {Use one of: Theorem, Design invariant, Model-checked property, Empirical hypothesis.}%
+  \fi
+  {\scshape\bfseries #1}%
+}
+\newenvironment{pdclaim}[2]{%
+  \par\addvspace{10pt plus 2pt minus 1pt}%
+  \noindent{\color{pdink}\rule{\linewidth}{0.5pt}}\par\nobreak\vspace{4pt}%
+  \noindent
+  % A claim is a numbered object: it steps the chapter's shared theorem
+  % counter (every chapter and the Book define `theorem` within section), so a
+  % \label placed right after \begin{pdclaim} refers to the claim, prints as
+  % "Theorem 3.1" in prose, and links to this head.
+  \ifcsname c@theorem\endcsname\refstepcounter{theorem}\pdkind{#1}~{\scshape\bfseries\thetheorem}\else\pdkind{#1}\fi
+  \enspace{\bfseries #2.}\enspace\ignorespaces
+}{%
+  \par\nobreak\vspace{3pt}\noindent{\color{pdink}\rule{4em}{0.5pt}}\par
+  \addvspace{8pt plus 2pt minus 1pt}%
+}
+
+% ---------------------------------------------------------------------------
+% pdboundary -- "Where this stops". A 1.2pt ink bar at the left, no fill; the
+% head sits in the margin (Book) or runs in (standalone).
+% ---------------------------------------------------------------------------
+\newenvironment{pdboundary}{%
+  \par\addvspace{8pt plus 1pt}%
+  \begin{mdframed}[linecolor=pdink,linewidth=1.2pt,leftline=true,topline=false,%
+      rightline=false,bottomline=false,backgroundcolor=white,%
+      innerleftmargin=9pt,innerrightmargin=0pt,innertopmargin=1pt,innerbottommargin=1pt,%
+      skipabove=4pt,skipbelow=4pt]%
+  \noindent\pd@marginhead{Where this stops}\ignorespaces
+}{%
+  \end{mdframed}%
+}
+
+% ---------------------------------------------------------------------------
+% pdexample -- a worked, numbers-by-hand passage. Two hairlines, an italic
+% run-in head, and a small square in the margin.
+% ---------------------------------------------------------------------------
+\newenvironment{pdexample}[1]{%
+  \par\addvspace{8pt plus 1pt}%
+  \begin{mdframed}[linecolor=pdinkmuted,linewidth=0.4pt,topline=true,%
+      bottomline=true,leftline=false,rightline=false,backgroundcolor=white,%
+      innerleftmargin=0pt,innerrightmargin=0pt,%
+      innertopmargin=5pt,innerbottommargin=5pt,skipabove=6pt,skipbelow=6pt]%
+  \noindent\pd@marginglyph{\itshape Numbers by hand --- #1.}\enspace\ignorespaces
+}{%
+  \end{mdframed}%
+}
+
+% ---------------------------------------------------------------------------
+% pdrecitation -- retrieval prompts. The body is a bare list of \item's. In
+% the Book the prompts sit in the margin under a small-caps "Recall"; in a
+% standalone chapter they are a compact numbered list. No box either way.
+% ---------------------------------------------------------------------------
+\newsavebox{\pd@recallbox}\newlength{\pd@recalloff}
+\NewEnviron{pdrecitation}{%
+  \ifpdmargincolumn
+    % Measured first, then raised so its last line sits on the line that issues
+    % it: the block shares the section's height instead of hanging below it.
+    % It is never raised above the text already on the page.
+    \sbox{\pd@recallbox}{\begin{minipage}[b]{\marginparwidth}\raggedright
+      {\scshape Recall}\par\nobreak\vspace{1pt}%
+      \begin{enumerate}[leftmargin=1.1em,itemsep=1pt,topsep=0pt,parsep=0pt,label=\arabic*.]%
+      \footnotesize\BODY\end{enumerate}\end{minipage}}%
+    \setlength{\pd@recalloff}{\dimexpr\baselineskip-\ht\pd@recallbox-\dp\pd@recallbox\relax}%
+    \ifdim\pd@recalloff<-\pagetotal \setlength{\pd@recalloff}{-\pagetotal}\fi
+    \ifdim\pd@recalloff>0pt \setlength{\pd@recalloff}{0pt}\fi
+    \marginnote{\usebox{\pd@recallbox}}[\pd@recalloff]%
+  \else
+    \par\addvspace{6pt}\noindent{\scshape\bfseries Recall.}\par\nobreak
+    \begin{enumerate}[leftmargin=1.6em,itemsep=1pt,topsep=2pt,parsep=0pt,label=\arabic*.]%
+    \small\BODY\end{enumerate}\addvspace{6pt}%
+  \fi}
+
+% ---------------------------------------------------------------------------
+% pdexercise -- numbered "1.7  CHECK *" as a hanging paragraph, kind and star
+% rating via pgfkeys, the solution page in the margin (Book) or in a trailing
+% parenthesis (standalone). The environment issues \label{<label>} itself;
+% the exercise's own displayed number (\thepdexercise) is what \ref{<label>}
+% later returns wherever it is cited.
+% ---------------------------------------------------------------------------
+\newcounter{pdexercise}
+\renewcommand{\thepdexercise}{\pdchapternumber.\arabic{pdexercise}}
+% hyperref's own \newcounter patch gives every counter a \theH<counter> PDF
+% anchor name that, left at its default, is just \arabic{pdexercise} -- fine
+% within one document, but pdexercise resets to 0 at every \pdchapter in the
+% Book, so chapter 1's Exercise 1 and chapter 5's Exercise 1 would claim the
+% SAME anchor name. Keying off \pdchapterprefix -- unique per chapter in both
+% a standalone chapter and the Book -- keeps every exercise's anchor unique.
+\renewcommand{\theHpdexercise}{\pdchapterprefix.\arabic{pdexercise}}
+\pgfkeys{
+  /pdexercise/kind/.store in=\pdexercise@kind,
+  /pdexercise/rating/.store in=\pdexercise@rating,
+}
+\newcommand{\pd@exercise@kinds}{Check,Trace,Open}
+\newcommand{\pd@exercise@ratings}{1,2,3}
+\newcommand{\pdexercise@stars}{%
+  \ifcase\pdexercise@rating\relax
+  \or\ensuremath{\star}%
+  \or\ensuremath{\star}\ensuremath{\star}%
+  \or\ensuremath{\star}\ensuremath{\star}\ensuremath{\star}%
+  \fi
+}
+\newenvironment{pdexercise}[2][]{%
+  \def\pdexercise@kind{Check}%
+  \def\pdexercise@rating{1}%
+  \pgfkeys{/pdexercise/.cd,#1}%
+  \edef\pd@in@test{\noexpand\in@{,\pdexercise@kind,}{,\pd@exercise@kinds,}}%
+  \pd@in@test
+  \ifin@\else
+    \PackageError{pd-pedagogy}{Invalid pdexercise kind '\pdexercise@kind'}%
+      {Use kind=Check, kind=Trace, or kind=Open.}%
+  \fi
+  \edef\pd@in@test{\noexpand\in@{,\pdexercise@rating,}{,\pd@exercise@ratings,}}%
+  \pd@in@test
+  \ifin@\else
+    \PackageError{pd-pedagogy}{Invalid pdexercise rating '\pdexercise@rating'}%
+      {Use rating=1, rating=2, or rating=3.}%
+  \fi
+  \refstepcounter{pdexercise}%
+  \label{#2}%
+  \def\pdexercise@label{#2}%
+  \par\addvspace{7pt plus 1pt}\noindent\hangindent=2.4em\hangafter=1
+  \ifpdmargincolumn\marginnote{\itshape Solution p.\,\pageref{sol:#2}}\fi
+  {\bfseries\thepdexercise}\enspace{\footnotesize\scshape\pdexercise@kind}\,{\footnotesize\pdexercise@stars}\enspace\ignorespaces
+}{%
+  \ifpdmargincolumn\par\else\space{\small\itshape(solution on page~\pageref{sol:\pdexercise@label})}\par\fi
+  \addvspace{2pt}%
+}
+
+% ---------------------------------------------------------------------------
+% pdsolution / pdSolution -- the model answer, diverted to the open solution
+% file (via the answers package) and reprinted later by \pdprintsolutions (a
+% standalone chapter) or the Book's own per-chapter \Opensolutionfile in
+% scripts/generate-mega-whitepaper.mjs.
+%
+% pdsolution (writing side, used at the chapter's point of use) takes the same
+% <label> its \pdexercise used. pdSolution (reading side, what the collected
+% file actually contains) is defined FIRST and BY HAND -- not via
+% \Newassociation{pdsolution}{pdSolution}{pdsol} -- for two reasons: (a)
+% \Newassociation's reading-side environment always takes the CURRENT
+% \Currentlabel as its one argument, where pd-pedagogy needs the ORIGINAL
+% exercise's <label> to carry through so \ref{<label>} and \pageref{<label>}
+% resolve inside the solution box; (b) its writing-side signature takes no
+% argument, so a bare \Newassociation could not accept \begin{pdsolution}{X}
+% at all. Defining pdSolution first still lets a later \Newassociation
+% elsewhere find "environment pdSolution already in use" and leave it alone,
+% if this file is ever combined with one -- \newsolution's own guard.
+%
+% \Filesave{pdsol} (verbatim capture) is deferred behind \pd@sol@tmp rather
+% than called directly inside the nested \Ifanswerfiles/\Iffileundefined/
+% \Ifopen branches: called inline, the \else/\fi tokens still queued to close
+% those wrapper conditionals land INSIDE the verbatim scan that follows and
+% get written into the solutions file as if they were solution text.
+% \Newassociation's own generated code defers it the same way (there: \Tmp);
+% \endFilesave has no such side effect, so the closing side calls it inline.
+% ---------------------------------------------------------------------------
+\newenvironment{pdSolution}[1]{%
+  \par\addvspace{7pt plus 1pt}\noindent\hangindent=2.4em\hangafter=1
+  \phantomsection\label{sol:#1}%
+  \ifpdmargincolumn\marginnote{\itshape Exercise p.\,\pageref{#1}}\fi
+  {\bfseries\ref{#1}}\enspace\ifpdmargincolumn\else{\small\itshape(exercise on page~\pageref{#1})}\enspace\fi\ignorespaces
+}{%
+  \par\addvspace{2pt}%
+}
+\newenvironment{pdsolution}[1]{%
+  \let\pd@sol@tmp\relax
+  \Ifanswerfiles{%
+    \Iffileundefined{pdsol}{}{%
+      \Ifopen{pdsol}{%
+        \immediate\write\pdsol@file{\string\begin{pdSolution}{#1}}%
+        \def\pd@sol@tmp{\Filesave{pdsol}}%
+      }{}%
+    }%
+  }{%
+    \def\pd@sol@tmp{\begin{pdSolution}{#1}}%
+  }%
+  \pd@sol@tmp
+}{%
+  \Ifanswerfiles{%
+    \Iffileundefined{pdsol}{}{%
+      \Ifopen{pdsol}{%
+        \endFilesave
+        \immediate\write\pdsol@file{\string\end{pdSolution}}%
+      }{}%
+    }%
+  }{%
+    \end{pdSolution}%
+  }%
+}
+
+% ---------------------------------------------------------------------------
+% pdsession -- "At the terminal": a captured transcript (a pd session, a model
+% checker's output, a proof tool's trace), set in monospace between two
+% hairlines with the head in the margin (Book) or run in (standalone). The
+% optional argument is a short title. Transcripts are recorded by
+% scripts/harbor-research/record_sessions.sh and checked in, never typed.
+%   \begin{pdsession}[two clients, one claim]
+%   $ pd claim src/auth.ts
+%   ...
+%   \end{pdsession}
+% ---------------------------------------------------------------------------
+% The convention of Kernighan's books and every serious manual since: what
+% the reader types is bold (the prompt line), what the program prints is
+% regular; dense monospace, tight leading, no box.
+\lstdefinestyle{pdsession}{basicstyle=\ttfamily\fontsize{8.6}{10.6}\selectfont,columns=fullflexible,numbers=none,backgroundcolor={},
+  keepspaces=true,breaklines=true,breakatwhitespace=false,breakindent=2em,frame=none,
+  postbreak=\mbox{\textcolor{hhgray}{\fontsize{7}{7}\selectfont$\hookrightarrow$}\space},
+  xleftmargin=0pt,aboveskip=4pt,belowskip=2pt,showstringspaces=false,
+  language={},keywordstyle={},commentstyle={},stringstyle={},identifierstyle={},
+  moredelim=[l][\bfseries]{\$\ }}
+\newlength{\pd@sessionwidth}
+\lstnewenvironment{pdsession}[1][]{%
+  \endgraf\addvspace{8pt plus 1pt}%
+  \ifdefined\Needspace\Needspace{7\baselineskip}\fi
+  % In the Book a transcript runs across the column and the margin (6 in,
+  % 83 monospace characters), the full-width block of the page grammar.
+  % (through the listing's own width key: a nested environment would change
+  % \@currenvir and make listings look for the wrong end marker)
+  \ifpdmargincolumn
+    \setlength{\pd@sessionwidth}{\dimexpr\linewidth+\marginparsep+\marginparwidth\relax}%
+  \else
+    \setlength{\pd@sessionwidth}{\linewidth}%
+  \fi
+  \noindent\makebox[\linewidth][l]{\color{pdinkmuted}\rule{\pd@sessionwidth}{0.4pt}}\endgraf\nobreak\vspace{3pt}%
+  \noindent\pd@marginhead{At the terminal}%
+  \ifx\relax#1\relax\else{\itshape #1.}\fi\endgraf\nobreak
+  \lstset{style=pdsession,linewidth=\pd@sessionwidth}%
+}{%
+  \endgraf\nobreak\noindent\makebox[\linewidth][l]{\color{pdinkmuted}\rule{\pd@sessionwidth}{0.4pt}}\endgraf
+  \addvspace{8pt plus 1pt}%
+}
+
+% ---------------------------------------------------------------------------
+% \pdassurance -- the five-word assurance-mode tag (matches the vocabulary in
+% coordination-papers-mega-volume-appendices.tex's implementation boundary).
+% ---------------------------------------------------------------------------
+\newcommand{\pd@assurance@modes}{Observed,Coordinated,Brokered,Confined,Attested}
+\newcommand{\pdassurance}[1]{%
+  \edef\pd@in@test{\noexpand\in@{,#1,}{,\pd@assurance@modes,}}%
+  \pd@in@test
+  \ifin@\else
+    \PackageError{pd-pedagogy}{Unknown pdassurance mode '#1'}%
+      {Use one of: Observed, Coordinated, Brokered, Confined, Attested.}%
+  \fi
+  {\scshape#1}%
+}
+
+% ---------------------------------------------------------------------------
+% \pdopensolutions / \pdprintsolutions -- standalone-chapter chrome only. The
+% Book generator strips both (scripts/generate-mega-whitepaper.mjs,
+% cleanStandaloneChrome) and opens/closes the solution stream itself, once per
+% chapter, under its own book-sol-<prefix> filename.
+% ---------------------------------------------------------------------------
+\newcommand{\pdopensolutions}{\Opensolutionfile{pdsol}[sol-\pdchapterprefix]}
+\newcommand{\pdprintsolutions}{%
+  \Closesolutionfile{pdsol}%
+  \section*{Solutions to the exercises}%
+  \IfFileExists{sol-\pdchapterprefix.tex}{\input{sol-\pdchapterprefix}}{}%
+}
+% ---------------------------------------------------------------------------
+% Chapter-end exercise sections (Wave 12). The body keeps a pointer where a
+% cluster of exercises used to stand; the exercises themselves live in the
+% chapter's closing \section{Exercises}, grouped under \pdexercisesfor heads.
+% Arguments are pre-wrapped in \ref/\pageref by the relocation script so the
+% Book generator's label namespacing sees them.
+%   \pdexercisesfor{\S\ref{sec:x}}{Section title}
+%   \pdexercisepointer{\ref{ex:first}}{\ref{ex:last}}{\pageref{ex:first}}
+%   \pdexercisepointerone{\ref{ex:only}}{\pageref{ex:only}}
+% ---------------------------------------------------------------------------
+\newcommand{\pdexercisesfor}[2]{%
+  \par\vspace{12pt}\noindent{\scshape\bfseries #1\enspace #2}\par\smallskip}
+% In the Book the pointer sits in the margin beside the paragraph it follows;
+% in a standalone chapter it is a small italic line.
+\newcommand{\pdexercisepointer}[3]{%
+  \ifpdmargincolumn
+    \marginnote{\small\itshape Exercises #1--#2, p.~#3.}%
+  \else
+    \par\smallskip\noindent{\small\itshape Exercises #1--#2, page~#3.}\par
+  \fi}
+\newcommand{\pdexercisepointerone}[2]{%
+  \ifpdmargincolumn
+    \marginnote{\small\itshape Exercise #1, p.~#2.}%
+  \else
+    \par\smallskip\noindent{\small\itshape Exercise #1, page~#2.}\par
+  \fi}
+% ---------------------------------------------------------------------------
+% The older tinted-box macros (\keyidea, \pitfall, \scene, \xrefbox,
+% \pullquote) are still defined, as tikz boxes, in every chapter preamble and
+% in the Book's preamble AFTER this file is read. They are re-typeset here at
+% \begin{document} in the same page grammar -- a run-in or margin head and
+% plain prose, no fill -- so no chapter source and no preamble has to change
+% for the boxes to disappear. \long\def so a body may contain \par.
+% ---------------------------------------------------------------------------
+\AtBeginDocument{%
+  \long\def\keyidea#1{\par\addvspace{6pt plus 1pt}\noindent\pd@marginhead{Key idea}#1\par\addvspace{6pt plus 1pt}}%
+  \long\def\pitfall#1{\par\addvspace{6pt plus 1pt}\noindent\pd@marginhead{Pitfall}#1\par\addvspace{6pt plus 1pt}}%
+  \long\def\scene#1#2{\par\addvspace{6pt plus 1pt}\noindent\pd@marginhead{Scene}{\bfseries #1}\enspace{\itshape #2}\par\addvspace{6pt plus 1pt}}%
+  \long\def\xrefbox#1{\par\addvspace{4pt}\noindent\pd@marginhead{See also}{\small #1}\par\addvspace{4pt}}%
+  \long\def\pullquote#1{\par\addvspace{8pt plus 1pt}%
+    \begin{mdframed}[linecolor=\pd@chaptercolor,linewidth=1.5pt,leftline=true,topline=false,%
+        rightline=false,bottomline=false,backgroundcolor=white,innerleftmargin=10pt,innerrightmargin=0pt,%
+        innertopmargin=1pt,innerbottommargin=1pt,skipabove=4pt,skipbelow=4pt]%
+    {\itshape\large #1}\end{mdframed}\addvspace{8pt plus 1pt}}%
+}
+\makeatother

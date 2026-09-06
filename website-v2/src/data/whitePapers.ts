@@ -11,6 +11,7 @@ import {
   Terminal,
   type LucideIcon,
 } from 'lucide-react'
+import textbookJson from './textbook.json'
 
 /**
  * Forbidden version-history phrases. Per project rule: "speak only of the
@@ -107,13 +108,21 @@ export interface WhitePaper {
   pages: number
   sizeKb: number
   /**
-   * Library chapter number as a Roman numeral (I–VII). The seven papers are
-   * co-equal cross-referenced chapters of one book: four that *explain* the
-   * system (I–IV) and three that *prove* it (V–VII).
+   * Chapter number in the Book (1..N), in dependency order: each chapter
+   * stands on the ones before it and each proving chapter follows the
+   * chapter whose promises it discharges. The number lives in
+   * whitepaper/textbook.json (mirrored here as ./textbook.json); this field
+   * must agree with it, and the data test checks that it does.
    */
-  chapter: string
-  /** Which half of the library this chapter belongs to. */
-  group: 'explain' | 'prove'
+  chapter: number
+  /** First-edition numbering (I–VII), kept only for the concordance. */
+  formerNumeral: string
+  /** The part this chapter belongs to (a part id from textbook.json). */
+  part: string
+  /** Whether the chapter builds the argument or proves what an earlier chapter assumed. */
+  role: 'builds' | 'proves'
+  /** For a proving chapter: the id of the chapter whose promises it discharges. */
+  discharges?: string
   /** The stack rung this chapter sits on, in plain words (e.g. "L2 — legibility"). */
   layer: string
   /** A one-line claim: what this chapter argues or proves, in a single sentence. */
@@ -126,14 +135,15 @@ export interface WhitePaper {
   maturity: string
   /**
    * Cross-reference edges that make the seven read as one book. Each is a list
-   * of chapter Roman numerals with a short reason — rendered as
-   * assumes / underwrites / proved-by / proves links on the library page.
+   * of chapter ids with a short reason — rendered as assumes / underwrites /
+   * proved-by / proves links on the library page. Ids, not numbers: the
+   * numbering can change; the chapters do not.
    */
   crossRefs: {
-    assumes?: Array<{ chapter: string; why: string }>
-    underwrites?: Array<{ chapter: string; why: string }>
-    provedBy?: Array<{ chapter: string; why: string }>
-    proves?: Array<{ chapter: string; why: string }>
+    assumes?: Array<{ id: string; why: string }>
+    underwrites?: Array<{ id: string; why: string }>
+    provedBy?: Array<{ id: string; why: string }>
+    proves?: Array<{ id: string; why: string }>
   }
   /**
    * The only field permitted to contain version language ("Version 2.5",
@@ -155,7 +165,63 @@ export interface WhitePaper {
   takeaways: Array<{ title: string; body: string }>
 }
 
-/** The bound edition is a collection of the seven chapters, not an eighth paper. */
+/**
+ * The Book's source of record: edition metadata, parts, and chapter order.
+ * `./textbook.json` is a byte-identical mirror of `whitepaper/textbook.json`,
+ * written by `node scripts/generate-mega-whitepaper.mjs --sync-shared` and
+ * verified by `--check-shared`; the LaTeX generator, the standalone chapters'
+ * locator maps, and this site all read the same numbers.
+ */
+export interface TextbookPart {
+  id: string
+  numeral: string
+  title: string
+  color: string
+  blurb: string
+  chapters: string[]
+}
+
+export interface TextbookChapterRecord {
+  number: number
+  id: string
+  prefix: string
+  title: string
+  source: string
+  pdf: string
+  role: 'builds' | 'proves'
+  discharges?: string
+  formerNumeral: string
+  oneLine: string
+  question: string
+  epigraph: { text: string; source: string }
+}
+
+export interface Textbook {
+  edition: { title: string; subtitle: string; version: string; date: string; pdf: string; claim: string }
+  parts: TextbookPart[]
+  chapters: TextbookChapterRecord[]
+}
+
+export const TEXTBOOK = textbookJson as Textbook
+
+/**
+ * A secondary typographic edition of the Book: same chapters, same
+ * generated body/bibliography, a different driver root
+ * (coordination-papers-mega-volume-<id-suffix>.tex sets \pdedition then
+ * \input's the main root). `pages`/`sizeKb` are 0 until the edition's PDF
+ * has actually been built at least once — check-whitepaper-metadata.ts
+ * WARNs (not fails) while the file is missing, and `--fix` fills the real
+ * numbers in from disk the first time it exists. Never hand-fill a guess.
+ */
+export interface CollectedVolumeEdition {
+  id: string
+  title: string
+  pdfPath: string
+  pages: number
+  sizeKb: number
+}
+
+/** The bound edition is the Book itself, not an eighth paper. */
 export interface CollectedVolume {
   id: string
   title: string
@@ -166,20 +232,37 @@ export interface CollectedVolume {
   pages: number
   sizeKb: number
   references: number
+  /** Alternate-typography editions built from the same sources; see coordination-papers-mega-volume-{swiss,technical}.tex. */
+  editions?: CollectedVolumeEdition[]
 }
 
 export const COLLECTED_VOLUME: CollectedVolume = {
   id: 'coordination-papers-mega-volume',
-  title: 'The Harbor, the Person, and the Economy',
-  subtitle:
-    'Seven papers on accountable autonomous work, unified by one claim: authority, evidence, and consequence must remain coupled at every effect boundary.',
-  pdfPath: '/whitepaper/coordination-papers-mega-volume.pdf',
+  title: TEXTBOOK.edition.title,
+  subtitle: `${TEXTBOOK.edition.subtitle}, unified by one claim: ${TEXTBOOK.edition.claim}`,
+  pdfPath: `/whitepaper/${TEXTBOOK.edition.pdf}`,
   downloadUrl:
     'https://raw.githubusercontent.com/curiositech/port-daddy/main/website-v2/public/whitepaper/coordination-papers-mega-volume.pdf',
-  date: 'August 2026',
-  pages: 270,
-  sizeKb: 2190,
+  date: TEXTBOOK.edition.date,
+  pages: 529,
+  sizeKb: 7732,
   references: 221,
+  editions: [
+    {
+      id: 'coordination-papers-mega-volume-swiss',
+      title: 'Swiss edition',
+      pdfPath: '/whitepaper/coordination-papers-mega-volume-swiss.pdf',
+      pages: 531,
+      sizeKb: 3518,
+    },
+    {
+      id: 'coordination-papers-mega-volume-technical',
+      title: 'Technical edition',
+      pdfPath: '/whitepaper/coordination-papers-mega-volume-technical.pdf',
+      pages: 531,
+      sizeKb: 3538,
+    },
+  ],
 }
 
 /**
@@ -241,7 +324,8 @@ type DeepReadonly<T> = T extends (...args: never[]) => unknown
 function defineWhitePapers<const T extends readonly DeepReadonly<WhitePaper>[]>(
   papers: T & { readonly [I in keyof T]: ValidatePaper<T[I]> },
 ): WhitePaper[] {
-  return papers as unknown as WhitePaper[]
+  // Book order, whatever order the entries below are written in.
+  return [...(papers as unknown as WhitePaper[])].sort((a, b) => a.chapter - b.chapter)
 }
 
 export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
@@ -260,21 +344,23 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     readerHref: '/whitepaper/legible-swarm',
     overviewHref: '/whitepaper?paper=legible-swarm',
     date: 'August 2026',
-    pages: 46,
-    sizeKb: 890,
-    status: 'Version 1.2 (collected-volume edition)',
-    order: '01',
-    chapter: 'I',
-    group: 'explain',
+    pages: 61,
+    sizeKb: 925,
+    status: 'Version 1.2 (textbook edition)',
+    order: '04',
+    chapter: 4,
+    formerNumeral: 'I',
+    part: 'operator',
+    role: 'builds',
     layer: 'L2 — legibility & authority',
     claim:
       'The operator’s real problem is blindness, not collision; the cure is legibility-with-zoom — every summary a lens onto a verifiable artifact, never a wall.',
     maturity: 'the wedge · mostly built',
     crossRefs: {
-      assumes: [{ chapter: 'II', why: 'stands on the single-writer kernel that decides what is true' }],
+      assumes: [{ id: 'single-writer-kernel', why: 'stands on the single-writer kernel that decides what is true' }],
       underwrites: [
-        { chapter: 'III', why: 'hands the identity bridge a legible, checkpointed, outcome-bearing identity' },
-        { chapter: 'IV', why: 'legibility is the precondition for a market between operators' },
+        { id: 'spawn-to-person', why: 'hands the identity bridge a legible, checkpointed, outcome-bearing identity' },
+        { id: 'harbor-economy', why: 'legibility is the precondition for a market between operators' },
       ],
     },
     primer:
@@ -354,7 +440,7 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
       },
       {
         title: 'Hand the next chapter a real identity',
-        body: 'Legibility, checkpoints, and outcome records are the raw material the identity bridge (III) turns into reputation. The flagship’s job is to make that material exist and be trustworthy.',
+        body: 'Legibility, checkpoints, and outcome records are the raw material the identity bridge (From Spawn to Person) turns into reputation. The flagship’s job is to make that material exist and be trustworthy.',
       },
     ],
   },
@@ -373,23 +459,25 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     readerHref: '/whitepaper/single-writer-kernel',
     overviewHref: '/whitepaper?paper=single-writer-kernel',
     date: 'August 2026',
-    pages: 40,
-    sizeKb: 718,
-    status: 'Version 1.2 (collected-volume edition)',
-    order: '02',
-    chapter: 'II',
-    group: 'explain',
+    pages: 54,
+    sizeKb: 814,
+    status: 'Version 1.2 (textbook edition)',
+    order: '01',
+    chapter: 1,
+    formerNumeral: 'II',
+    part: 'machine',
+    role: 'builds',
     layer: 'L0 / L1 — the daemon & the protocol',
     claim:
       'One writer, one machine, one durable file, no consensus: the kernel decides what is true so nothing above it has to guess — and it is honest about where it stops.',
     maturity: 'built (durability split by fault class)',
     crossRefs: {
       underwrites: [
-        { chapter: 'I', why: 'the legibility layer reads truth the kernel decides' },
-        { chapter: 'III', why: 'continuity and checkpoints persist on the kernel’s durable file' },
-        { chapter: 'IV', why: 'the bond ledger settles on the kernel’s transactional substrate' },
+        { id: 'legible-swarm', why: 'the legibility layer reads truth the kernel decides' },
+        { id: 'spawn-to-person', why: 'continuity and checkpoints persist on the kernel’s durable file' },
+        { id: 'harbor-economy', why: 'the bond ledger settles on the kernel’s transactional substrate' },
       ],
-      provedBy: [{ chapter: 'V', why: 'the Anchor Protocol mechanizes the kernel’s identity & capability claims' }],
+      provedBy: [{ id: 'anchor-protocol', why: 'the Anchor Protocol mechanizes the kernel’s identity & capability claims' }],
     },
     primer:
       'Many programs on one laptop want the same scarce things at the same time: a network port, a file on disk, a mutual-exclusion lock, and — most subtly — the record of who did what. The textbook reflex, after a decade of distributed-systems papers, is to replicate the state and run an agreement protocol so the copies never disagree. This chapter argues the opposite and argues it is correct: if there is exactly one writer, there is nothing to agree on. Collapse the whole problem onto a single local SQLite database in write-ahead-log mode and let the operating system’s file lock serialize every mutation. The result is a small, tamper-evident mediator of every security-relevant operation — a reference monitor in the classical sense — realized locally rather than as an abstract security kernel. The chapter’s discipline is to state the kernel’s guarantees as theorems and to be just as precise about where those guarantees end.',
@@ -487,22 +575,24 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     readerHref: '/whitepaper/spawn-to-person',
     overviewHref: '/whitepaper?paper=spawn-to-person',
     date: 'August 2026',
-    pages: 41,
-    sizeKb: 749,
-    status: 'Version 1.4 (collected-volume edition)',
-    order: '03',
-    chapter: 'III',
-    group: 'explain',
+    pages: 50,
+    sizeKb: 801,
+    status: 'Version 1.5 (textbook edition)',
+    order: '05',
+    chapter: 5,
+    formerNumeral: 'III',
+    part: 'person',
+    role: 'builds',
     layer: 'L3 bridge — identity into reputation',
     claim:
       'A role is a job description; a person is a role plus continuity. Reputation is only as real as the non-forgeable identity it keys on — the score is cheap, the substrate is the gate.',
     maturity: 'partial · identity root local; cross-operator keystone unbuilt',
     crossRefs: {
       assumes: [
-        { chapter: 'I', why: 'borrows legibility — outcomes must be visible to be witnessed' },
-        { chapter: 'V', why: 'depends on the Anchor Protocol’s non-forgeable identity as its keystone' },
+        { id: 'legible-swarm', why: 'borrows legibility — outcomes must be visible to be witnessed' },
+        { id: 'anchor-protocol', why: 'depends on the Anchor Protocol’s non-forgeable identity as its keystone' },
       ],
-      underwrites: [{ chapter: 'IV', why: 'reputation is the thing the market prices and trades' }],
+      underwrites: [{ id: 'harbor-economy', why: 'reputation is the thing the market prices and trades' }],
     },
     primer:
       'Spawn a process, let it do good work, and then ask: whose work was that? If the answer is “the process that has since exited,” the work cannot be priced, trusted across time, or built into a track record. This chapter is the hinge of the library because it draws one distinction and makes it carry weight. A role — “cartographer,” “reviewer” — is a bundle of obligations, capabilities, and authority; any spawn can step into it. A person is a role plus continuity: durable memory, a checkpoint you can restore, and a witnessed history of outcomes attached to an identity that cannot be quietly re-picked. Continuity is what turns disposable computation into someone with a reputation. Following Locke’s memory criterion and Parfit’s psychological continuity, identity here is that continuity, not a fixed essence. And the chapter is blunt about the economics: the clever scoring math is cheap; the expensive part is the substrate it scores over.',
@@ -600,22 +690,24 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     readerHref: '/whitepaper/harbor-economy',
     overviewHref: '/whitepaper?paper=harbor-economy',
     date: 'August 2026',
-    pages: 37,
-    sizeKb: 723,
-    status: 'Version 1.3 (collected-volume edition)',
-    order: '04',
-    chapter: 'IV',
-    group: 'explain',
+    pages: 47,
+    sizeKb: 781,
+    status: 'Version 1.3 (textbook edition)',
+    order: '06',
+    chapter: 6,
+    formerNumeral: 'IV',
+    part: 'market',
+    role: 'builds',
     layer: 'L3 — the market',
     claim:
       'Once agents have un-fakeable reputations, you can rent trust between people who never met: a three-sided market on one conserving ledger, where the product is hosted trust, not the payment rail.',
     maturity: 'specified → proposed · cross-operator keystone unbuilt',
     crossRefs: {
-      assumes: [{ chapter: 'III', why: 'the market prices reputation, which the bridge chapter builds' }],
+      assumes: [{ id: 'spawn-to-person', why: 'the market prices reputation, which the bridge chapter builds' }],
       provedBy: [
-        { chapter: 'VI', why: 'the Bonded Commons proves the conservation law of the bond ledger' },
-        { chapter: 'VII', why: 'the Federated Harbor specifies conditional federation, custody, and bucket conservation' },
-        { chapter: 'V', why: 'the Anchor Protocol proves the cross-harbor capability-transfer ceremony' },
+        { id: 'bonded-commons', why: 'the Bonded Commons proves the conservation law of the bond ledger' },
+        { id: 'federated-harbor', why: 'the Federated Harbor specifies conditional federation, custody, and bucket conservation' },
+        { id: 'anchor-protocol', why: 'the Anchor Protocol proves the cross-harbor capability-transfer ceremony' },
       ],
     },
     primer:
@@ -714,20 +806,23 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     readerHref: '/whitepaper/anchor-protocol',
     overviewHref: '/whitepaper?paper=anchor-protocol',
     date: 'August 2026',
-    pages: 28,
-    sizeKb: 697,
-    status: 'Version 1.4 (revised pre-print)',
-    order: '05',
-    chapter: 'V',
-    group: 'prove',
+    pages: 37,
+    sizeKb: 693,
+    status: 'Version 1.5 (textbook edition)',
+    order: '02',
+    chapter: 2,
+    formerNumeral: 'V',
+    part: 'machine',
+    role: 'proves',
+    discharges: 'single-writer-kernel',
     layer: 'proof — identity & capability',
     claim:
       'Signed cards give a verifier machine-checkable identity and authority evidence; the supplied models establish non-injective authentication correspondence and bounded attenuation, with runtime and hardware boundaries stated separately.',
     maturity: 'mechanically analyzed · ProVerif phase models + bounded Kani checks + conformance tests',
     crossRefs: {
       proves: [
-        { chapter: 'II', why: 'mechanizes selected identity and capability claims used by the kernel' },
-        { chapter: 'IV', why: 'supplies the local token substrate extended by the proposed transfer ceremony' },
+        { id: 'single-writer-kernel', why: 'mechanizes selected identity and capability claims used by the kernel' },
+        { id: 'harbor-economy', why: 'supplies the local token substrate extended by the proposed transfer ceremony' },
       ],
     },
     primer:
@@ -826,18 +921,21 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     readerHref: '/whitepaper/bonded-commons',
     overviewHref: '/whitepaper?paper=bonded-commons',
     date: 'August 2026',
-    pages: 52,
-    sizeKb: 908,
-    status: 'Version 2.7 (revised pre-print)',
-    order: '06',
-    chapter: 'VI',
-    group: 'prove',
+    pages: 60,
+    sizeKb: 984,
+    status: 'Version 2.8 (textbook edition)',
+    order: '07',
+    chapter: 7,
+    formerNumeral: 'VI',
+    part: 'market',
+    role: 'proves',
+    discharges: 'harbor-economy',
     layer: 'proof — the coordinator & conservation',
     claim:
       'Why a shared coordinator can reduce negotiation cost, which accounting transitions preserve the bond-ledger invariant, and where Sybil, cartel, oracle, and runtime-interposition assumptions bound the mechanism claims.',
     maturity: 'mixed evidence · bounded TLA⁺/ProVerif models + finite simulations + open runtime obligations',
     crossRefs: {
-      proves: [{ chapter: 'IV', why: 'proves the conservation law of the bond ledger' }],
+      proves: [{ id: 'harbor-economy', why: 'proves the conservation law of the bond ledger' }],
     },
     primer:
       'Picture four roommates sharing a kitchen. Locks on every drawer are costly; unconditional trust is fragile. A chore board, receipts, and a communal repair fund are a third pattern. The paper transplants that pattern into a shared workspace: agents post bonds, announce intended work, and leave evidence. It does not remove judgment — settlement still depends on acceptance criteria, multiple oracles, and sometimes human arbitration — but it makes the evidence and accounting explicit enough to audit.',
@@ -945,20 +1043,23 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     readerHref: '/whitepaper/federated-harbor',
     overviewHref: '/whitepaper?paper=federated-harbor',
     date: 'August 2026',
-    pages: 31,
-    sizeKb: 673,
-    status: 'Version 1.0 (revised pre-print)',
-    order: '07',
-    chapter: 'VII',
-    group: 'prove',
+    pages: 45,
+    sizeKb: 826,
+    status: 'Version 1.1 (textbook edition)',
+    order: '08',
+    chapter: 8,
+    formerNumeral: 'VII',
+    part: 'market',
+    role: 'proves',
+    discharges: 'harbor-economy',
     layer: 'proof — federation across machines',
     claim:
       'A falsifiable federation design: modeled transfer properties, expected revocation dissemination under explicit network assumptions, conditional custody bounds, and finite-state conservation checks — not a deployed or trustless federation claim.',
     maturity: 'partial · ProVerif/TLA⁺ artifacts + conditional analytical bounds; federation runtime unshipped',
     crossRefs: {
       proves: [
-        { chapter: 'IV', why: 'proves the federation of the market' },
-        { chapter: 'III', why: 'names cross-operator attestation as the open keystone' },
+        { id: 'harbor-economy', why: 'proves the federation of the market' },
+        { id: 'spawn-to-person', why: 'names cross-operator attestation as the open keystone' },
       ],
     },
     primer:
@@ -1057,30 +1158,134 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
       },
     ],
   },
+  {
+    id: 'sealed-harbor',
+    slug: 'sealed-harbor',
+    title: 'The Sealed Harbor',
+    subtitle:
+      'Mutually confidential computation with every information release explicit, gated, and bounded — four independently verified pillars, and an honestly priced leakage budget.',
+    thesis:
+      'A data owner and a model owner who will share neither data nor model can still obtain one attributable, policy-bound joint computation. Token-level taint through a generative model is not soundly definable, so the security boundary cannot be the token; it has to be the declassification gate. This chapter builds that clean room — dual-attested key release, two fences, whole-worker taint, two gates — and prices what still gets through as an information-theoretic budget of q times b bits across q jobs, before timing channels, which stay out of model.',
+    summary:
+      'A guided read of the Sealed Harbor chapter: why a confident-sounding "cannot phone home" claim has to be replaced by a narrower, provable one, the four-pillar argument that replaces it (silence except through the slot, the channel as the only enforceable boundary, a conserving budget ledger, and a canary detector with a quotable curve), and the honest list of what none of it promises.',
+    filename: 'sealed-harbor-whitepaper',
+    pdfPath: '/whitepaper/sealed-harbor-whitepaper.pdf',
+    readerHref: '/whitepaper/sealed-harbor',
+    overviewHref: '/whitepaper?paper=sealed-harbor',
+    date: 'September 2026',
+    pages: 20,
+    sizeKb: 549,
+    status: 'Version 1.0 (textbook edition)',
+    order: '03',
+    chapter: 3,
+    formerNumeral: '',
+    part: 'machine',
+    role: 'proves',
+    discharges: 'single-writer-kernel',
+    layer: 'proof — confidential computation',
+    claim:
+      'Gate the channel, not the token: noninterference modulo declassification holds on the finite clean-room model, the channel is the only boundary a hypervisor can enforce at all, the release ledger conserves under concurrent invocation, and a canary detector prices what tries to evade the meter.',
+    maturity: 'mechanically checked · exhaustive and randomized model checks + mutation testing; the unbounded-state lift is a stated open obligation',
+    crossRefs: {
+      proves: [
+        { id: 'single-writer-kernel', why: 'restates the kernel-derived enforceability boundary (gate the channel, never the token) as one of four pillars' },
+      ],
+      assumes: [
+        { id: 'anchor-protocol', why: 'the work order the room executes is itself a scoped, attenuating capability, not ambient trust' },
+      ],
+    },
+    primer:
+      'Derek owns sensitive data. Erin owns a valuable model. Both want one answer computed from both, and neither will hand over the crown jewels — nor will the cloud operator hosting the job get to read either. The tempting pitch is a "silicon-enforced NDA": tag anything the model reads and refuse to let a tainted byte leave. This chapter explains why that sentence must never ship: an LLM taints everything it writes with everything it read, so a token-level tracker is either useless or unsound. The honest fix controls the channel, not the token — a work order signed by both parties, a room sealed by dual-attested key release, two fences around the worker, and exactly two declassification gates. What still crosses those gates is not zero; it is metered, and this chapter prices the meter.',
+    glossary: [
+      {
+        term: 'Clean room',
+        definition:
+          'The confidential-VM job Derek and Erin jointly authorize: an ephemeral key, an attested runtime, semantic-handle-only access for the worker, and exactly three pre-authorized exits (a rich result to Derek, bounded feedback to Erin, a padded receipt to both).',
+      },
+      {
+        term: 'Declassification gate',
+        definition:
+          'The one place a label may be removed from tainted state, under a declared release function each principal agreed to in the work order. The theorem says the gate is the only opening; it does not say the declared function releases too little.',
+      },
+      {
+        term: 'Whole-worker taint',
+        definition:
+          'After the first secret read, the entire worker — not just the bytes it touched — is treated as tainted until job destruction. The sound over-approximation once token-level taint is granted to be undefinable for a generative model.',
+      },
+      {
+        term: 'Leakage budget',
+        definition:
+          'The chapter\'s headline number: a malicious worker that launders its output through an honest gate can move at most b bits per job through a b-bit release channel, or q times b bits across q jobs — an arithmetic ceiling a contract can quote, bond, and police.',
+      },
+      {
+        term: 'Canary',
+        definition:
+          'A planted, secret span that turns "we think nothing leaked" into a quoted detection probability and an expected time-to-alarm, the same way a dye pack turns a bank robbery into a stain.',
+      },
+    ],
+    whatYouGet:
+      'You should leave able to (a) explain why "tag it and drop tainted output" is not a security architecture for a tool-using agent, and what narrower claim replaces it; (b) name the four pillars and which single question each one closes (where can the boundary be, does it hold, what does it cost, what evades it); and (c) read a leakage-budget number off a work order the way you would read an interest rate — q jobs times a b-bit channel, before timing.',
+    forBuilders:
+      'If you are building a service that runs someone else\'s agent against your data, or your model against someone else\'s data, this chapter is the checklist: seal the compute, hand the worker handles instead of plaintext, put exactly one gate on every exit, meter what the gate releases as a conserved budget, and plant canaries so an evasion attempt has a quoted cost instead of an unbounded one.',
+    highlights: [
+      { icon: Lock, label: 'Dual-attested key release, sealed room' },
+      { icon: Shield, label: 'Two fences, two declassification gates' },
+      { icon: Scale, label: 'q·b leakage budget, before timing' },
+      { icon: CheckCircle, label: 'Exhaustive checks + mutation-tested breaks' },
+    ],
+    sections: [
+      {
+        title: 'The problem: Derek and Erin',
+        content:
+          'Two principals want one joint computation and will hand over neither their data nor their model. The chapter\'s first job is retiring the tempting but false claim that token-level taint tracking can guarantee silence; its second is proving the narrower claim that replaces it.',
+      },
+      {
+        title: 'The design: one work order, two fences, two gates',
+        content:
+          'A signed contract fixes the function, tools, budgets, and declassification authorities before any key is released. Dual-attested key release seals the room; semantic handles and an outer gateway fence the worker; whole-worker taint and exactly two gates are the only exits.',
+      },
+      {
+        title: 'Pillar I: silence except through the slot',
+        content:
+          'Run the world twice, identical except for the secret, under every interleaving: the theorem says Erin\'s view is bit-for-bit identical unless the declared release function distinguishes the two secrets — verified exhaustively on the finite clean-room model, with both canonical breaks caught.',
+      },
+      {
+        title: 'Pillar II: the channel, never the token',
+        content:
+          'A supervisory-control theorem fixes which boundary can be enforced at all: a policy is regimentable exactly when it is controllable with respect to the mediation layer\'s alphabet. Gating the model\'s thoughts is unregimentable; gating its egress is not.',
+      },
+      {
+        title: 'Pillar III: the budget is a ledger, and the ledger conserves',
+        content:
+          'Every release atomically appends to an append-only log and adds to a running spend, so the recorded total never silently drifts from the journal — including under concurrent jobs, and including under the composition rule that actually applies to an adaptively spent privacy budget.',
+      },
+      {
+        title: 'Pillar IV: canaries with a power curve and a clock',
+        content:
+          'Planted canaries turn a leak into a quoted detection probability, and a sequential test turns sustained leakage into an expected time-to-alarm — so the exfiltration bond can fund detection and response instead of pretending to cover an unbounded breach.',
+      },
+      {
+        title: 'What cannot honestly be promised',
+        content:
+          'Not zero model leakage under unlimited adaptive queries; not zero data leakage through an uncapped feedback channel; not timing, cache, or physical side channels; not correctness of the answer; not a bound on what a human remembers after reading a release.',
+      },
+    ],
+    takeaways: [
+      {
+        title: 'Negotiate over channel capacity, never over "does this contain a secret"',
+        body: 'Whether an arbitrary string contains a secret is undecidable in practice; how many bits a channel can carry is arithmetic. The chapter\'s design rule follows directly: price the pipe, not the payload.',
+      },
+      {
+        title: 'The four pillars are one pipeline, not four redundant guarantees',
+        body: 'Enforceability says where a boundary can exist; noninterference says that boundary is silent except through its slot; conservation meters what legitimately crosses it over many releases; detection prices what tries to sneak around the meter. Drop one and a concrete gap reopens.',
+      },
+      {
+        title: 'A finite, exhaustive proof is a blueprint, not the destination',
+        body: 'The noninterference theorem is exhaustive over a small finite model. The general claim over unbounded state has a known proof shape — three Rushby-style unwinding conditions — that this chapter names as the next obligation rather than folding a half-finished mechanization into the claim.',
+      },
+    ],
+  },
 ])
-
-export const READING_ORDER = [
-  {
-    step: '01',
-    title: 'Start with the wedge',
-    body: 'Read The Legible Swarm (I) first — it is the chapter a solo developer would pay for today. Its claim is that the operator’s real problem is blindness, not collision, and the cure is legibility-with-zoom: the swarm as one picture you can zoom into, never a wall of diffs.',
-  },
-  {
-    step: '02',
-    title: 'Then the floor it stands on',
-    body: 'Read The Single-Writer Kernel (II). One writer, one machine, one durable file, no consensus — the small stubborn program that decides what is true so nothing above it has to guess. It is honest about exactly where its promises stop. (For the proof, jump to the Anchor Protocol, V.)',
-  },
-  {
-    step: '03',
-    title: 'Then the hinge',
-    body: 'Read From Spawn to Person (III). Continuity — memory, a checkpoint, a witnessed record — turns an anonymous spawn into a person with a track record, and a track record is the raw material of reputation. The score is cheap; the substrate it scores over is the gate.',
-  },
-  {
-    step: '04',
-    title: 'Then the market it was all for',
-    body: 'Read The Harbor Economy (IV). Once agents have un-fakeable reputations, you can rent trust between people who never met — a three-sided market on one conserving ledger. The proofs that hold it up are the Bonded Commons (VI) and the Federated Harbor (VII).',
-  },
-] as const
 
 /**
  * The spine of the whole library, in one sentence. Pull out any link and the
@@ -1090,25 +1295,14 @@ export const LIBRARY_SPINE =
   'Memory makes continuity; continuity makes a person, not a spawn; a person accrues a record; a record is reputation; reputation is a tradeable asset; and tradeable assets make a market.'
 
 /**
- * The reading paths from the introduction — different doors into the same book.
+ * The table of contents: the Book's parts, each with its chapters in order.
+ * This is the one map the site draws; there is no separate reading order,
+ * dependency graph, or nesting diagram, because the order IS the dependency
+ * order (each chapter stands on the ones before it).
  */
-export const READING_PATHS = [
-  {
-    label: '“Just tell me what it is.”',
-    body: 'Read the manifesto, then Chapter I — The Legible Swarm.',
-    chapters: ['I'],
-  },
-  {
-    label: '“Convince the skeptic.”',
-    body: 'Read the four that explain, in order: I → II → III → IV.',
-    chapters: ['I', 'II', 'III', 'IV'],
-  },
-  {
-    label: '“Prove it to the cryptographer / the economist.”',
-    body: 'Jump to the matching proof chapter — V (Anchor Protocol), VI (Bonded Commons), or VII (Federated Harbor).',
-    chapters: ['V', 'VI', 'VII'],
-  },
-] as const
+export interface TableOfContentsPart extends TextbookPart {
+  papers: WhitePaper[]
+}
 
 /**
  * The library changelog: dated release waves across the whole series, newest
@@ -1122,18 +1316,34 @@ export interface LibraryChangelogEntry {
   date: string
   title: string
   summary: string
-  /** Chapter numerals of the papers this wave touched. */
+  /** Ids of the chapters this wave touched (see WHITE_PAPERS / textbook.json). */
   chapters: string[]
 }
 
 export const LIBRARY_CHANGELOG: LibraryChangelogEntry[] = [
+  {
+    dateIso: '2026-09-06',
+    date: 'September 6, 2026',
+    title: 'The Sealed Harbor arrives as Chapter 3; five chapters renumber',
+    summary:
+      'The eighth chapter, The Sealed Harbor, joins Part I (Ground Truth) right after the Anchor Protocol: a work order runs in a sealed room behind two fences and two gates, and what leaks is priced as a conserving ledger rather than promised away. It proves the single-writer kernel’s enforceability boundary as one of four pillars. whitepaper/textbook.json is the one source of the new order; Legible Swarm, From Spawn to Person, The Harbor Economy, The Bonded Commons, and The Federated Harbor renumber from 3–7 to 4–8 without changing former-edition numerals or ids. This is the skeleton pass: the chapter compiles with its sections transplanted from the standalone research paper and its own bibliography; the chapter’s prose voice, its opening and handoff seams, and the retirement of the appendix material it grew out of are the next wave.',
+    chapters: ['sealed-harbor', 'legible-swarm', 'spawn-to-person', 'harbor-economy', 'bonded-commons', 'federated-harbor'],
+  },
+  {
+    dateIso: '2026-09-06',
+    date: 'September 6, 2026',
+    title: 'The Textbook Edition: one book, in the order the argument needs',
+    summary:
+      'The seven chapters become one textbook with Arabic numbering and four parts (Ground Truth, The Cost of Seeing, What Survives the Restart, Trade Between Strangers), ordered by what each chapter stands on, with every proving chapter placed right after the chapter whose promises it keeps. whitepaper/textbook.json is the single source of that order for the PDF, the standalone chapters, and this site. Each chapter opens on a page of its own (title, epigraph, the question it answers) and starts with exposition; live links, three-level bookmarks, and back-references from every citation return to the PDF; the story palette v2 becomes the book\u2019s color system. Versions: 1 Kernel 1.2, 2 Anchor 1.5, 3 Legible Swarm 1.2, 4 Spawn to Person 1.5, 5 Harbor Economy 1.3, 6 Bonded Commons 2.8, 7 Federated Harbor 1.1.',
+    chapters: ['single-writer-kernel', 'anchor-protocol', 'legible-swarm', 'spawn-to-person', 'harbor-economy', 'bonded-commons', 'federated-harbor'],
+  },
   {
     dateIso: '2026-08-05',
     date: 'August 5, 2026',
     title: 'The seven papers publish as one audited collected volume',
     summary:
       'The seven chapters now publish together as a 247-page collected volume with a global introduction, coherent table of contents, implementation ledger, research roadmap, notation concordance, and 202 collated references. The companion-paper rigor pass repairs figure legibility, rechecks mathematical assumptions and cross-paper notation, and records implementation claims against repository evidence. Versions: I 1.2, II 1.2, III 1.4, IV 1.3, V 1.4, VI 2.7, VII 1.0.',
-    chapters: ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'],
+    chapters: ['legible-swarm', 'single-writer-kernel', 'spawn-to-person', 'harbor-economy', 'anchor-protocol', 'bonded-commons', 'federated-harbor'],
   },
   {
     dateIso: '2026-08-05',
@@ -1141,7 +1351,7 @@ export const LIBRARY_CHANGELOG: LibraryChangelogEntry[] = [
     title: 'Spawn-to-Person diagrams and implementation status align',
     summary:
       'Chapter III advances to Version 1.4: three repaired figures distinguish the shipped local actor-soul and commitment substrates from the still-open write-boundary, neutral-grading, reputation, and cross-operator-attestation obligations. The 41-page standalone, contact sheet, animated page tour, and SHA-256 proof manifest are published together.',
-    chapters: ['III'],
+    chapters: ['spawn-to-person'],
   },
   {
     dateIso: '2026-08-04',
@@ -1149,7 +1359,7 @@ export const LIBRARY_CHANGELOG: LibraryChangelogEntry[] = [
     title: 'The seven-paper rigor pass closes diagram, math, and assurance drift',
     summary:
       'All seven chapters adopt one visual and editorial system. The six companion papers receive a full figure and mathematics audit: the cartel threshold is re-derived and synchronized with its simulation, revocation claims become model-conditional expectations rather than deadlines, custody bounds name their non-bypass assumptions, cross-currency accounting becomes explicit, and each mechanized claim is scoped to the model that supports it. Versions: I 1.1, II 1.1, III 1.3, IV 1.2, V 1.4, VI 2.7, VII 1.0.',
-    chapters: ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'],
+    chapters: ['legible-swarm', 'single-writer-kernel', 'spawn-to-person', 'harbor-economy', 'anchor-protocol', 'bonded-commons', 'federated-harbor'],
   },
   {
     dateIso: '2026-07-04',
@@ -1157,7 +1367,7 @@ export const LIBRARY_CHANGELOG: LibraryChangelogEntry[] = [
     title: 'The agentic-commerce stack arrives — every paper places itself against it',
     summary:
       'All five papers with LaTeX sources gain related-work treatment of the 2026 agentic-commerce protocols (UCP, AP2, ACP): the rails standardize the transaction and name agent trust out of scope — the layer this library prices. The reference implementation aligns at the boundary: harbor cards profile onto AP2’s verifiable-credential formats (ADR-0094) and the marketplace adopts UCP’s /.well-known discovery pattern (ADR-0051 Phase 1b). Versions bumped: III 1.0→1.1, IV 1.0→1.1, V 1.2→1.3, VI 2.5→2.6, VII 0.9→0.9.1.',
-    chapters: ['III', 'IV', 'V', 'VI', 'VII'],
+    chapters: ['spawn-to-person', 'harbor-economy', 'anchor-protocol', 'bonded-commons', 'federated-harbor'],
   },
   {
     dateIso: '2026-06-11',
@@ -1165,7 +1375,7 @@ export const LIBRARY_CHANGELOG: LibraryChangelogEntry[] = [
     title: 'Paper VII lands; the PDFs start building themselves',
     summary:
       'The Federated Harbor (VII) publishes as a 0.9 pre-print — cross-machine capability transfer, revocation gossip, bounded escrow — and CI begins rebuilding every PDF from source on each change, so the published papers can no longer drift from their LaTeX.',
-    chapters: ['VII'],
+    chapters: ['federated-harbor'],
   },
   {
     dateIso: '2026-06-10',
@@ -1173,7 +1383,7 @@ export const LIBRARY_CHANGELOG: LibraryChangelogEntry[] = [
     title: 'The Coordination Series: seven papers become one cross-linked book',
     summary:
       'The /library guide ships and the papers are restructured as seven co-equal chapters — four explain, three prove — each declaring what it assumes, what it underwrites, and which proof discharges it. Every figure in the explain quartet is de-cluttered in the same wave.',
-    chapters: ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'],
+    chapters: ['legible-swarm', 'single-writer-kernel', 'spawn-to-person', 'harbor-economy', 'anchor-protocol', 'bonded-commons', 'federated-harbor'],
   },
   {
     dateIso: '2026-06-05',
@@ -1181,7 +1391,7 @@ export const LIBRARY_CHANGELOG: LibraryChangelogEntry[] = [
     title: 'The attenuation proof stops being vacuous',
     summary:
       'The Anchor Protocol’s capability-attenuation proof is closed for real: a sound subset relation plus an explicit escalation adversary in ProVerif 2.05, replacing a model that could not have failed.',
-    chapters: ['V'],
+    chapters: ['anchor-protocol'],
   },
   {
     dateIso: '2026-05-19',
@@ -1189,15 +1399,31 @@ export const LIBRARY_CHANGELOG: LibraryChangelogEntry[] = [
     title: 'Five adversarial review rounds forge Bonded Commons v2.5',
     summary:
       'The Bonded Commons is argued through five review rounds (v2.0 → v2.5) by two AI review teams — one attacking, one defending, neither reading the other’s notes. Every objection, fix, and still-open gap is on the record on the rounds page.',
-    chapters: ['VI'],
+    chapters: ['bonded-commons'],
   },
 ]
 
-export const EXPLAIN_PAPERS = WHITE_PAPERS.filter((paper) => paper.group === 'explain')
-export const PROVE_PAPERS = WHITE_PAPERS.filter((paper) => paper.group === 'prove')
+export const TABLE_OF_CONTENTS: TableOfContentsPart[] = TEXTBOOK.parts.map((part) => ({
+  ...part,
+  papers: part.chapters
+    .map((id) => WHITE_PAPERS.find((paper) => paper.id === id))
+    .filter((paper): paper is WhitePaper => paper !== undefined),
+}))
 
-export function findWhitePaperByChapter(chapter: string) {
+export function findWhitePaperByChapter(chapter: number) {
   return WHITE_PAPERS.find((paper) => paper.chapter === chapter)
+}
+
+/** Resolve a first-edition numeral (I–VII) to its chapter, for the concordance. */
+export function findWhitePaperByFormerNumeral(numeral: string) {
+  return WHITE_PAPERS.find((paper) => paper.formerNumeral === numeral)
+}
+
+/** "Builds" or "Proves ch. N" — the role tag rendered next to a chapter title. */
+export function chapterRoleLabel(paper: WhitePaper) {
+  if (paper.role !== 'proves' || !paper.discharges) return 'Builds'
+  const target = WHITE_PAPERS.find((candidate) => candidate.id === paper.discharges)
+  return target ? `Proves ch. ${target.chapter}` : 'Proves'
 }
 
 export function formatPaperSize(sizeKb: number) {

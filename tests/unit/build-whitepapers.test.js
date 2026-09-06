@@ -38,17 +38,56 @@ describe('reproducible whitepaper source scoping', () => {
     ).split('\n');
 
     expect(sources[0]).toBe('website-v2/public/whitepaper/spawn-to-person.tex');
-    expect(sources).toHaveLength(15);
+    expect(sources).toHaveLength(17);
     expect(sources).toContain(
       'website-v2/public/whitepaper/figures/pd-figure-language.tex',
     );
     expect(sources).toContain(
+      'website-v2/public/whitepaper/figures/fig-stp-deterrence-regime.tex',
+    );
+    expect(sources).toContain(
       'website-v2/public/whitepaper/figures/fig-stp-rate-the-raters.tex',
     );
+    // Every non-root input is either an stp figure, one of the shared
+    // figures/pd-*.tex files (palette, textbook map, hyperlinks, figure
+    // language), or a shared table fragment figures/tab-*.tex that more than
+    // one chapter inputs (the keystone split is drawn once for chapters 5 and 6).
     expect(sources.slice(1).every((source) =>
-      source.includes('/figures/fig-stp-') || source.endsWith('/figures/pd-figure-language.tex')))
+      source.includes('/figures/fig-stp-')
+        || /\/figures\/pd-[a-z-]+\.tex$/.test(source)
+        || /\/figures\/tab-[a-z-]+\.tex$/.test(source)))
       .toBe(true);
     expect(sources.some((source) => source.includes('fig-anchor-'))).toBe(false);
+  });
+
+  test('the Book depends on textbook.json, the one source of chapter order', () => {
+    const sources = bashFunction(
+      'paper_sources',
+      'website-v2/public/whitepaper',
+      'coordination-papers-mega-volume.tex',
+    ).split('\n');
+    expect(sources).toContain('whitepaper/textbook.json');
+    expect(sources).toContain('scripts/generate-mega-whitepaper.mjs');
+  });
+
+  test('the Swiss and Technical editions share the Book\'s dependency set plus their own driver', () => {
+    for (const driver of [
+      'coordination-papers-mega-volume-swiss.tex',
+      'coordination-papers-mega-volume-technical.tex',
+    ]) {
+      const sources = bashFunction(
+        'paper_sources',
+        'website-v2/public/whitepaper',
+        driver,
+      ).split('\n');
+
+      expect(sources).toContain(`website-v2/public/whitepaper/${driver}`);
+      expect(sources).toContain('website-v2/public/whitepaper/coordination-papers-mega-volume.tex');
+      expect(sources).toContain('whitepaper/textbook.json');
+      expect(sources).toContain('scripts/generate-mega-whitepaper.mjs');
+      // Same transitive chapter set as the main root (e.g. Spawn to Person's figures).
+      expect(sources).toContain('website-v2/public/whitepaper/figures/fig-stp-deterrence-regime.tex');
+    }
   });
 
   test('every analytical paper declares the shared figure language as a source', () => {
@@ -78,7 +117,7 @@ describe('reproducible whitepaper source scoping', () => {
     ).split('\n');
 
     expect(sources).toContain(
-      'website-v2/public/whitepaper/figures/fig-anchor-four-phases.tex',
+      'website-v2/public/whitepaper/figures/fig-anchor-capability-attenuation.tex',
     );
     expect(sources.some((source) => source.includes('/figures/fig-stp-'))).toBe(false);
   });
@@ -114,8 +153,9 @@ describe('reproducible whitepaper source scoping', () => {
   test('builder fails clearly when neither TeX driver is installed', () => {
     const script = readFileSync(buildScript, 'utf8');
 
-    expect(script).toContain('if ! command -v pdflatex >/dev/null 2>&1; then');
-    expect(script).toContain('error: whitepaper build requires latexmk or pdflatex');
+    expect(script).toContain('if ! command -v "$engine" >/dev/null 2>&1; then');
+    expect(script).toContain('engine=xelatex; latexmk_engine=-xelatex');
+    expect(script).toContain('error: whitepaper build requires latexmk or $engine');
     expect(script).toContain('exit 127');
   });
 
@@ -135,10 +175,13 @@ describe('reproducible whitepaper source scoping', () => {
       'website-v2/public/whitepaper/anchor-protocol-whitepaper.pdf',
       'website-v2/public/whitepaper/federated-harbor-whitepaper.pdf',
       'website-v2/public/whitepaper/harbor-economy-whitepaper.pdf',
+      'website-v2/public/whitepaper/sealed-harbor-whitepaper.pdf',
       'website-v2/public/whitepaper/spawn-to-person-whitepaper.pdf',
       'website-v2/public/whitepaper/legible-swarm-whitepaper.pdf',
       'website-v2/public/whitepaper/single-writer-kernel-whitepaper.pdf',
       'website-v2/public/whitepaper/coordination-papers-mega-volume.pdf',
+      'website-v2/public/whitepaper/coordination-papers-mega-volume-swiss.pdf',
+      'website-v2/public/whitepaper/coordination-papers-mega-volume-technical.pdf',
     ]);
   });
 

@@ -42,12 +42,14 @@ for the dogfooded coordination vocabulary.
 | `--chart-yellow` | `#cad900` | Highlight tier in diagrams (no brand-slot equivalent) |
 | `--story-health` | `#1f7a4d` | Sage green — L1 ready/coordinated (150°) |
 | `--story-health-on-tint` | `#155534` | Health on tinted wells |
-| `--story-indigo` | `#4b3f9e` | Indigo — L1→L3 protocol/federation (248°) |
-| `--story-indigo-on-tint` | `#352c73` | Indigo on tinted wells |
-| `--story-violet` | `#6f48b5` | Violet — L3 identity/continuity, the "person" (261°) |
-| `--story-violet-on-tint` | `#4f3186` | Violet on tinted wells |
-| `--story-rust` | `#9a4a1e` | Rust — L3 reputation/Elo, trust earned (21°) |
-| `--story-rust-on-tint` | `#6e3414` | Rust on tinted wells |
+| `--story-indigo` | `#353a85` | Indigo — L1→L3 protocol/federation (236°, deep slate blue-violet) |
+| `--story-indigo-on-tint` | `#262a63` | Indigo on tinted wells |
+| `--story-violet` | `#933fa5` | Violet — L3 identity/continuity, the "person" (289°, clear purple) |
+| `--story-violet-on-tint` | `#6b2e79` | Violet on tinted wells |
+| `--story-rust` | `#7a4514` | Rust — L3 reputation/Elo, trust earned (29°) |
+| `--story-rust-on-tint` | `#5a3210` | Rust on tinted wells |
+| `--story-gold` | `#666a00` | Gold — L3 economy/value, the market (62°; not the warning amber) |
+| `--story-gold-on-tint` | `#4d5000` | Gold on tinted wells |
 
 ### Dark theme
 
@@ -70,12 +72,14 @@ for the dogfooded coordination vocabulary.
 | `--status-info` | `#7db4ff` | |
 | `--story-health` | `#5fce97` | Luminous sage — L1 ready |
 | `--story-health-on-tint` | `#adf3c2` | Health on tinted wells |
-| `--story-indigo` | `#9d92e8` | Luminous indigo — federation |
-| `--story-indigo-on-tint` | `#cfc9f6` | Indigo on tinted wells |
-| `--story-violet` | `#b69bec` | Luminous violet — identity/continuity |
-| `--story-violet-on-tint` | `#ddccf8` | Violet on tinted wells |
-| `--story-rust` | `#e09464` | Luminous rust — reputation/Elo |
-| `--story-rust-on-tint` | `#f4c8ac` | Rust on tinted wells |
+| `--story-indigo` | `#8a8af8` | Luminous indigo — federation |
+| `--story-indigo-on-tint` | `#b5b5fb` | Indigo on tinted wells |
+| `--story-violet` | `#e0a5ed` | Luminous violet — identity/continuity |
+| `--story-violet-on-tint` | `#eec9f5` | Violet on tinted wells |
+| `--story-rust` | `#b98e6b` | Luminous rust — reputation/Elo |
+| `--story-rust-on-tint` | `#d6b697` | Rust on tinted wells |
+| `--story-gold` | `#d8dd3c` | Luminous gold — economy/value |
+| `--story-gold-on-tint` | `#f5fa78` | Gold on tinted wells |
 
 ## Voice + signal vocabulary
 
@@ -103,21 +107,27 @@ truth to a market of trusted persons.
 | Hue | Token | Layer | Meaning |
 |---|---|---|---|
 | 0° red | `--status-error` `#bf2f2f` | the Leviathan | breach / mayday — the consented authority says *stop* |
-| 21° rust | `--story-rust` `#9a4a1e` | L3 | reputation / Elo — **trust earned** over a continuous history |
-| 40° amber | `--status-warning` `#a66f00` | L3 | economy / value — the radar-logo accent; the market |
+| 29° rust | `--story-rust` `#7a4514` | L3 | reputation / Elo — **trust earned** over a continuous history |
+| 40° amber | `--status-warning` `#a66f00` | — | warning — stripes, dots and display sizes only; amber *text* uses `--status-warning-on-tint` (3.71:1 on cream fails AA for small text) |
+| 62° gold | `--story-gold` `#666a00` | L3 | economy / value — the radar-logo accent grown up; the market |
 | 64° lime | `--chart-yellow` `#cad900` | — | highlight tier in diagrams (no semantic role) |
 | 150° sage | `--story-health` `#1f7a4d` | L1 | ready / coordinated — agents in good standing, healthy fleet |
 | 173° teal | `--brand-accent` `#006b5f` | L2 | **legibility** — the product itself; the digest-with-zoom |
 | 220° cobalt | `--brand-primary` `#003fb8` | L0 | **truth / kernel** — the SQLite source of truth, the daemon |
-| 248° indigo | `--story-indigo` `#4b3f9e` | L1→L3 | protocol / federation — the rules of the road across harbors |
-| 261° violet | `--story-violet` `#6f48b5` | L3 | **identity / continuity** — memory → checkpoint → a *person* |
+| 236° indigo | `--story-indigo` `#353a85` | L1→L3 | protocol / federation — the rules of the road across harbors |
+| 289° violet | `--story-violet` `#933fa5` | L3 | **identity / continuity** — memory → checkpoint → a *person* |
 
 ### Color-theory rationale
 
 - **Two analogous arcs, one complementary axis.** The warm arc
-  (danger → rust → amber → lime, 0–64°) reads as *alarm → value → economy*. The
-  cool arc (health → teal → cobalt → indigo → violet, 150–261°) reads as
-  *ready → legible → true → federated → continuous*. The two arcs sit roughly
+  (danger → rust → amber → gold → lime, 0–64°) reads as *alarm → value →
+  economy*. The cool arc (health → teal → cobalt → indigo → violet, 150–289°)
+  reads as *ready → legible → true → federated → continuous*. Palette v2
+  (`website-v2/public/design-preview/proposal.html`) re-derived indigo, violet and rust so
+  every semantic pair clears a CIEDE2000 gap of at least 14.6 in both themes,
+  and minted gold so the economy stops borrowing the warning token. The Book's
+  TeX palette (`website-v2/public/whitepaper/figures/pd-palette.tex`) mirrors the light values one-for-one;
+  `website-v2/scripts/check-figure-palette.mjs` fails the build if they drift. The two arcs sit roughly
   **opposite** on the wheel — cobalt (220°) is the near-complement of amber
   (40°), so the kernel (truth) and the economy (value) frame the system from
   both sides. That complementary tension is the brand's core: *local truth*

@@ -167,7 +167,7 @@ describe('public shell contracts', () => {
     expect(whitepaper).toContain('The Port Daddy papers.')
     expect(whitepaper).toContain('Available papers')
     expect(whitepaper).toContain('Argument map')
-    expect(whitepaper).toContain('Reading order')
+    expect(whitepaper).toContain('Table of contents')
     expect(whitepaper).toContain('signed local identity first')
     expect(whitepaper).toContain('useSearchParams')
     expect(whitepaper).toContain('Read guide')

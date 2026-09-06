@@ -1,14 +1,20 @@
-% Figure 6 — corrected specialization regime at c=3. The plot is computed data;
-% the teal boundary is the theorem, the dashed amber curve is the falsified rule.
+% Figure 6 — specialization regime at c=3, restyled to spec [ch4.md restyles].
+% The plot itself (the Erlang-C boundary and the superseded curve) is kept;
+% the hatch is replaced by two solid, edged regions split at the correct
+% boundary: pool wins below it (pd focus fill), sole owner wins above it
+% (pd neutral fill). The superseded curve $\tilde g$ stays overlaid, dashed,
+% for comparison, but no longer defines a shaded "disagreement" zone.
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}[pd figure,x=.98cm,y=.88cm]
+\begin{tikzpicture}[pd figure,x=.83cm,y=.88cm]
   \begin{scope}
     \clip (0,0) rectangle (12,6);
-    \fill[pd hatch]
-      plot[smooth] coordinates {(0.25,.18)(1.5,.86)(3,1.57)(4.5,2.22)(6,2.82)(7.5,3.31)(9,3.69)(10.5,3.94)(11.7,4.00)}
-      -- plot[smooth] coordinates {(11.7,6)(7.2,6)(6,4.00)(4.5,2.57)(3.0,1.71)(1.5,.65)(.25,.10)} -- cycle;
-    \draw[pd guide] (0,4)--(12,4);
+    \fill[pd focus fill]
+      (0,.18) -- plot[smooth] coordinates {(0.25,.18)(1.5,.86)(3,1.57)(4.5,2.22)(6,2.82)(7.5,3.31)(9,3.69)(10.5,3.94)(11.7,4.00)}
+      -- (12,4.03) -- (12,0) -- (0,0) -- cycle;
+    \fill[pd neutral fill]
+      (0,.18) -- plot[smooth] coordinates {(0.25,.18)(1.5,.86)(3,1.57)(4.5,2.22)(6,2.82)(7.5,3.31)(9,3.69)(10.5,3.94)(11.7,4.00)}
+      -- (12,4.03) -- (12,6) -- (0,6) -- cycle;
     \draw[pd caution rule,dashed,line width=.9pt]
       plot[smooth] coordinates {(.25,.10)(1.5,.65)(3.0,1.71)(4.5,2.57)(6,4.00)(7.2,6.0)};
     \draw[pd focus rule,line width=1.2pt]
@@ -26,30 +32,28 @@
     \draw[pd tick] (0,\y)--(-.12,\y);
     \node[pd axis label,anchor=east] at (-.18,\y) {\lab};
   }
-  \node[pd axis label,anchor=north] at (6,-.65)
+  \node[pd axis label,anchor=north,align=center,text width=3.6cm] at (6,-.65)
     {pooled utilization $\rho$};
-  \node[pd axis label,rotate=90,anchor=south] at (-.72,3.1)
+  \node[pd axis label,rotate=90,anchor=south,align=center,text width=3.0cm] at (-.72,3.1)
     {skill premium $r$};
 
-  \node[pd direct label,text=hhteal,anchor=west] at (8.75,4.28)
-    {$g_A(\rho,3)$ \quad Erlang--C};
+  \node[pd direct label,text=hhteal,anchor=west] at (7.15,4.28)
+    {{\normalsize $g_A(\rho,3)$} \quad Erlang--C};
   \node[pd direct label,text=hhamber,anchor=west] at (4.35,5.40)
     {$\tilde g$ \quad proposed, falsified};
-  \node[pd axis label,anchor=west] at (12.10,4.0) {$g_A\to 3$};
   \node[pd panel title,anchor=west] at (.75,5.32) {sole owner wins};
   \node[pd panel title,anchor=west] at (8.45,1.10) {pool wins};
 
   \node[pd direct label,anchor=west,align=left] at (6.92,2.86)
     {$\rho=.556$\\$r=2.5$};
   \draw[pd hairline] (6.78,2.92)--(6.67,3.00);
-  \node[pd note,anchor=west,align=left] at (8.18,5.62)
-    {hatched: rules disagree};
 \end{tikzpicture}
-\caption{The specialization boundary at a three-agent pool. The correct
-Erlang--C boundary $g_A(\rho,3)$ saturates at the pool capacity ratio; the
-superseded threshold $\tilde g$ diverges. The hatched region is not uncertainty:
-it is the decision set on which the rules disagree, first certifying a specialist
-who loses and then rejecting one who wins. The worked instance ($\rho=.556$,
-$r=2.5$) narrowly clears the correct boundary.}
+\caption{The specialization boundary at a three-agent pool. Below the
+Erlang--C boundary {\normalsize $g_A(\rho,3)$} (teal), pooling wins; above it, sole
+ownership wins --- the two regions are now filled and edged, not hatched.
+The superseded threshold $\tilde g$ (dashed) is kept for comparison: it
+diverges rather than saturating at the pool capacity ratio. The worked
+instance ($\rho=.556$, $r=2.5$) narrowly clears the correct boundary into the
+sole-owner region [internal, closed form].}
 \label{fig:specialization}
 \end{figure}

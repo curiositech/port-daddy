@@ -1,3 +1,15 @@
+% ─────────────────────────────────────────────────────────────────────
+% TWIN-LOCATION NOTICE. This file is one of the shared homes for the same
+% results; edit every listed home or the drift checker fails.
+%   Standalone paper : docs/harbor-research/tex/paper2.tex (S5 the theorem)
+%   Chapter          : whitepaper/single-writer-kernel.tex (this file;
+%                       "Synchronous State Decidability -- closing OP-2")
+%   Index ids        : R5
+%   Check            : python3 scripts/harbor-research/check_library_index.py
+%                       python3 scripts/harbor-research/check_propagated_corrections.py
+%                       python3 scripts/harbor-research/check_citations.py
+%   System document  : docs/harbor-research/LIBRARY-SYSTEM.md
+% ─────────────────────────────────────────────────────────────────────
 \documentclass[11pt,a4paper]{article}
 
 % ─── Packages ────────────────────────────────────────────────────────────────
@@ -14,11 +26,13 @@
 \usepackage{graphicx}
 \usepackage{fancyhdr}
 \usepackage{tikz}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
 \usetikzlibrary{arrows.meta,positioning,fit,backgrounds,calc,shapes.geometric,shapes.symbols,decorations.pathmorphing,decorations.pathreplacing}
 \usepackage{float}
 \usepackage{caption}
 \usepackage{enumitem}
-\usepackage[hidelinks]{hyperref}
+\usepackage[backref=page]{hyperref}
 \captionsetup{font=small,labelfont=bf}
 % Algorithms are formatted using lstlisting with custom pseudocode style
 
@@ -37,6 +51,10 @@
 \definecolor{hhteal}{HTML}{00564C}
 \definecolor{hhpaper}{HTML}{FBF7EF}
 \definecolor{hhgray}{HTML}{5C5650}
+\input{figures/pd-palette}
+\newcommand{\pdchapterprefix}{swk}% this chapter's key in whitepaper/textbook.json
+\input{figures/pd-textbook-map}
+\input{figures/pd-pedagogy}
 \input{figures/pd-figure-language}
 
 % Research-maturity scale: a neutral four-point grade for how far each claim sits
@@ -95,16 +113,6 @@
   \end{tikzpicture}\par\vspace{5pt}%
 }
 
-% Exercises block: a quiet boxed list at the end of major sections.
-\newcommand{\exercises}[1]{%
-  \par\vspace{8pt}%
-  \noindent\begin{tikzpicture}
-    \node[draw=hhgray!45,line width=0.4pt,fill=hhsand!12,rounded corners=2pt,
-          inner sep=9pt,text width=\dimexpr\textwidth-26pt\relax,align=left] (e) {%
-      {\scshape\bfseries\textcolor{hhink}{Exercises.}}\par\vspace{3pt}#1%
-    };
-  \end{tikzpicture}\par\vspace{6pt}%
-}
 
 % ─── Listings Setup ──────────────────────────────────────────────────────────
 \lstdefinestyle{proverif}{
@@ -166,14 +174,14 @@
 \fancyhf{}
 \fancyhead[L]{\small\itshape\color{hhgray} The Single-Writer Kernel}
 \fancyhead[R]{\small\color{hhgray}\thepage}
-\fancyfoot[C]{\footnotesize\color{hhgray} Port Daddy Coordination Papers \textperiodcentered\ Chapter II of VII}
+\fancyfoot[C]{\footnotesize\color{hhgray} Port Daddy Coordination Papers \textperiodcentered\ Chapter~\pdchapternumber\ of \pdchaptercount}
 \renewcommand{\headrulewidth}{0.4pt}
 \renewcommand{\footrulewidth}{0pt}
 
 % ─── Title ───────────────────────────────────────────────────────────────────
 \title{
   \vspace{-1cm}
-  {\Large\textsc{Port Daddy Coordination Papers --- Chapter II of VII}}\\[0.5cm]
+  {\Large\textsc{Port Daddy Coordination Papers --- Chapter~\pdchapternumber\ of \pdchaptercount}}\\[0.5cm]
   \rule{\textwidth}{0.5pt}\\[0.3cm]
   {\LARGE\textbf{The Single-Writer Kernel:}}\\[0.2cm]
   {\Large A Local Transactional Reference Monitor\\for Agent Swarms}\\[0.3cm]
@@ -184,10 +192,14 @@
   Curiositech LLC\\[0.2cm]
   \texttt{engineering@portdaddy.dev}
 }
-\date{August 2026\\Version 1.1 (revised pre-print)}
+\date{September 2026\\Version 1.2 (textbook edition)}
 
 % ─── Document ────────────────────────────────────────────────────────────────
+% Hyperlink and cross-reference discipline (must stay last in the preamble).
+\input{figures/pd-hyperlinks}
+
 \begin{document}
+\pdopensolutions
 \setlength{\emergencystretch}{2em}
 
 \maketitle
@@ -237,10 +249,12 @@ commitments, stigmergy, local-first coordination, multi-agent systems
 \vspace{0.4cm}
 \noindent\textit{Reading time: approximately 45 minutes end-to-end; the Reader's
 Map (\S\ref{sec:readersmap}) routes you to a 15-minute path and to single-section
-paths. This is Chapter~II of a seven-chapter collection. \emph{The Legible
-Swarm} is the operator-facing entry point and a natural place to start; \emph{From
-Spawn to Person} builds an identity-and-reputation bridge on top of this kernel;
-\emph{The Harbor Economy} carries the cross-machine market, including
+paths. This is Chapter~\pdchapternumber{} of \pdbooktitle{}, a
+\pdchaptercountword-chapter textbook, and the chapter every later one rests on.
+\pdchapref{ls}{The Legible Swarm} is the operator-facing entry point and a natural
+place to start; \pdchapref{stp}{From Spawn to Person} builds an
+identity-and-reputation bridge on top of this kernel; \pdchapref{he}{The Harbor
+Economy} carries the cross-machine market, including
 cross-machine capability transfer --- which belongs to the cross-machine layer and
 lives there, not here. Any chapter can be read first, but every later layer rests on
 this one.}
@@ -403,8 +417,8 @@ paper and a brochure.}
 \midrule
 short on time (15 min) & \S1 (thesis + stack map), \S\ref{sec:durability} (durability split), \S\ref{sec:enforcement} (the monitor correction) & Figs.~\ref{fig:swk-stack-map}, \ref{fig:swk-durability-faultclass}, \ref{fig:swk-reference-monitor} \\
 a systems engineer & \S\ref{sec:substrate}--\S\ref{sec:invariants} (substrate, single-writer, the theorems) & Thm.~\ref{thm:consistency}; Figs.~\ref{fig:swk-single-writer}, \ref{fig:swk-consistency-model} \\
-a security reviewer & \S\ref{sec:enforcement} (deontic split, the monitor), \S\ref{sec:threatmodel} (threat model) & Figs.~\ref{fig:swk-reference-monitor}, \ref{fig:swk-deontic-split}; Table~\ref{tab:threat-model} \\
-a protocol/agent author & \S\ref{sec:resource} (claims), \S\ref{sec:comm} (the bus), \S\ref{sec:adjacency} (the interface contract) & Figs.~\ref{fig:swk-claim-lifecycle}, \ref{fig:swk-comm-organ}; \S\ref{sec:adjacency} \\
+a security reviewer & \S\ref{sec:enforcement} (deontic split, the monitor), \S\ref{sec:threatmodel} (threat model) & Fig.~\ref{fig:swk-reference-monitor}, Table~\ref{tab:swk-deontic-split}; Table~\ref{tab:threat-model} \\
+a protocol/agent author & \S\ref{sec:resource} (claims), \S\ref{sec:comm} (the bus), \S\ref{sec:adjacency} (the interface contract) & Fig.~\ref{fig:swk-claim-lifecycle}, Table~\ref{tab:swk-comm-organ}; \S\ref{sec:adjacency} \\
 here for the economy & \S\ref{sec:continuity} (continuity organs), then the personhood and market papers & Fig.~\ref{fig:swk-continuity-organs} \\
 an instructor & every \textbf{Exercises} block; the open problems OP-1\,--\,OP-11 and their status table (\S\ref{sec:openproblems}) & the starred exercises; Table~\ref{tab:op-status} \\
 \bottomrule
@@ -422,14 +436,36 @@ foundation is sound, read this one.
 % ═════════════════════════════════════════════════════════════════════════════
 
 We organize the kernel into seven \emph{organs}, each a contract the daemon must
-hold for the layers above to be coherent (Figure~\ref{fig:swk-seven-organs}). The
+hold for the layers above to be coherent (Table~\ref{tab:swk-seven-organs}). The
 temptation is to describe such a kernel as a flat noun-list of features --- ports,
 claims, sessions, a bus, markers, commitments, a monitor, a memory store --- which
 is the symptom of treating the kernel as a database. It is not a database. It is a
 system of record \emph{plus} a mediator, and naming the organs surfaces the
 connective tissue a noun-list hides.
 
-\input{figures/fig-swk-seven-organs}
+\begin{table}[H]
+\centering
+\caption{The seven organs, each the contract the daemon holds for the layer above it,
+with the table that is its home where the chapter names one and its maturity grade.
+All seven are disciplines over one SQLite/WAL file: one commit history, not seven
+stores. The grades come from the chapter's own status table (\S\ref{app:status}).}
+\label{tab:swk-seven-organs}
+\small
+\renewcommand{\arraystretch}{1.15}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.22\textwidth} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{0.19\textwidth}@{}}
+\toprule
+\textbf{Organ} & \textbf{Contract held for the layer above} & \textbf{Maturity} \\
+\midrule
+transactional substrate & one writer, one durable file; every other organ is a table with discipline over the same commit history & \Built \\
+resource / exclusion & at most one compatible holder per conflict domain; leases expire and are swept lazily (home: \texttt{claims}) & \Built \\
+actor continuity & a stable actor identity across sessions, mechanically present but asserted by the actor, not proven & \BuiltWeak\ self-asserted \\
+message carriage & an ordered, cursor-addressable, durable envelope delivered at least once (home: \texttt{messages}) & \Built \\
+obligation \& enforcement & no \emph{done} without a receipt the daemon can re-check; the policy monitor detects and cannot always prevent (home: \texttt{commitments}) & \BuiltWeak\ partial \\
+session memory & notes and events survive process death; execution state does not & \Built\ (memory) \\
+self-attestation & the daemon reports its own coverage as enforced, degraded or stubbed, never silently & \Built \\
+\bottomrule
+\end{tabularx}
+\end{table}
 
 The \textbf{substrate organ} is the floor; the other six are, mechanically,
 tables \emph{with discipline} over the same file. We treat the substrate and the
@@ -437,14 +473,7 @@ two organs that carry the paper's sharpest corrections (resource/exclusion and
 obligation/enforcement) in full, and the rest with the depth their novelty
 warrants.
 
-\exercises{%
-\textbf{(check)} Which of the seven organs would still be meaningful if the
-daemon ran over an in-memory database with no disk at all? Which become vacuous?\par
-\textbf{(trace)} Pick any one organ and name the single SQLite table that is its
-``home'' table. Then name one invariant that organ owes the layer above it.\par
-\textbf{(open, $\bigstar$)} The seven-organ decomposition is a \emph{choice}. Is
-there a more natural cut --- e.g.\ five organs, or nine? Argue for an alternative
-and show what it makes easier to reason about and what it hides.}
+\pdexercisepointer{\ref{ex:swk-organs-inmemory}}{\ref{ex:swk-organs-cut}}{\pageref{ex:swk-organs-inmemory}}
 
 % ═════════════════════════════════════════════════════════════════════════════
 \section{The substrate organ: one writer, one file}
@@ -531,18 +560,7 @@ from a test context --- the analogue of a framework's protected-environment chec
 This is Saltzer and Schroeder's \emph{fail-safe defaults}~\cite{saltzer1975protection}
 applied at the one place a test could corrupt production truth.
 
-\exercises{%
-\textbf{(check)} The schema-by-union design lets any module create its tables in
-any order. Give a concrete two-module example where a lazy column-rename migration
-would be unsafe under this design.\par
-\textbf{(trace)} Follow a single claim request from command line to disk. At how
-many points does the single-writer discipline (Def.~\ref{def:single-writer}) hold
-by \emph{routing} versus by the \emph{file lock}?\par
-\textbf{(open, $\bigstar$ OP-7)} The boot ledger orders migrations, but modules
-still self-initialize, so the order is not yet authoritative. What is the smallest
-change that makes it so --- a \texttt{user\_version} sequencer over \emph{declared}
-migrations --- and can any useful remnant of ``any module, any order'' survive it
-for renames, backfills, and down-migrations?}
+\pdexercisepointer{\ref{ex:swk-schema-rename}}{\ref{ex:swk-op7-sequencer}}{\pageref{ex:swk-schema-rename}}
 
 % ═════════════════════════════════════════════════════════════════════════════
 \section{Durability, split by fault class}
@@ -644,18 +662,7 @@ that refuses to serve when a critical self-check fails (\S\ref{sec:attest}) ---
 but boot-time WAL recovery plus integrity check plus chain verification should be a
 single named invariant, and today it is closer to \BuiltWeak{} than \Built.
 
-\exercises{%
-\textbf{(check)} Classify each fault as I1a-survivable or I1b-exposed:
-(a) a forced kill of the daemon process; (b) a clean operating-system reboot;
-(c) yanking the power cord; (d) an unhandled exception in a request handler.\par
-\textbf{(trace)} A claim commits at $t_0$; the next auto-checkpoint fires at
-$t_0+\delta$. Draw the window during which a power loss reverts the claim, and
-state how a page-count auto-checkpoint threshold bounds $\delta$.\par
-\textbf{(open, $\bigstar$ OP-10)} \S\ref{sec:durability} sketches Selective
-Checkpointing, but nothing in the kernel opts into it. What is the cleanest
-interface that lets a settlement-ledger write demand I1b while keeping claim writes
-fast --- and, harder, what stops a \emph{future} write path from silently
-defaulting into the fast lane when it should have opted in?}
+\pdexercisepointer{\ref{ex:swk-fault-classes}}{\ref{ex:swk-op10-interface}}{\pageref{ex:swk-fault-classes}}
 
 % ═════════════════════════════════════════════════════════════════════════════
 \section{The resource organ: claims, locks, and fair exclusion}
@@ -684,7 +691,7 @@ simply exclusion at three granularities.
 
 Figure~\ref{fig:swk-claim-lifecycle} states, as a state machine, the four
 properties on which the coordination layer builds typed ownership. The acquire
-path is small enough to state as an algorithm (Algorithm~\ref{alg:acquire}); we
+path is small enough to state as an algorithm (Listing~\ref{alg:acquire}); we
 then give the central property as a theorem.
 
 \begin{figure}[H]
@@ -717,7 +724,7 @@ Within a canonical conflict domain (exact normalized key, transactional interval
 \end{theorem}
 
 \begin{proof}[Proof sketch]
-Within an immediate SQLite transaction (\texttt{BEGIN IMMEDIATE}), the daemon evaluates the conflict predicate against all currently unexpired leases. For exact keys, this is enforced by primary-key uniqueness; for intervals and hierarchies, by an indexed range check within the same transaction. Because all writes funnel through the single connection (Def.~\ref{def:single-writer}), predicate evaluation and insert are atomic. Upon grant or reallocation, the daemon increments the resource's fencing epoch $e$. Downstream effect brokers validate that $e$ matches the active lease at execution time, preventing stale or paused holders from producing side effects after lease expiration.\qed
+Within an immediate SQLite transaction (\texttt{BEGIN IMMEDIATE}), the daemon evaluates the conflict predicate against all currently unexpired leases. For exact keys, this is enforced by primary-key uniqueness; for intervals and hierarchies, by an indexed range check within the same transaction. Because all writes funnel through the single connection (Def.~\ref{def:single-writer}), predicate evaluation and insert are atomic. Upon grant or reallocation, the daemon increments the resource's fencing epoch $e$. Downstream effect brokers validate that $e$ matches the active lease at execution time, preventing stale or paused holders from producing side effects after lease expiration.
 \end{proof}
 
 \paragraph{Worked dramatization: Alice and Bob race for one port.}
@@ -747,6 +754,14 @@ begin the transaction in immediate mode. So Theorem~\ref{thm:exclusion} holds
 because all writes route through the one daemon connection
 (Def.~\ref{def:single-writer}), \emph{not} because the expire-then-acquire sequence
 is itself atomic. State which story you mean; do not tell both.}
+
+What the discipline looks like from two terminals: one agent holds a lock on a file,
+a second asks for the same name and is told who holds it and for how long, and only
+after the first releases does the second acquire. Nothing here is advisory --- the
+daemon is the single writer for the \texttt{locks} row, so the second request cannot
+race the first.
+
+\input{figures/session-swk-lock-demo}
 
 \subsection{Fairness without a scheduler: the Stigmergic Ticket-Lock (OP-1)}
 
@@ -791,26 +806,33 @@ So bounded wait would hold for cooperative release and fail on exactly the
 failure path the kernel was built to expect. OP-1 stays \Open{} until the sweep and
 the queue are the same code path, and until the ticket table exists at all.
 
-\exercises{%
-\textbf{(check)} Why does releasing a lock you do not hold return success rather
-than an error? Which property (I2--I4) is this, and what would break if it raised?\par
-\textbf{(trace)} Two agents call \texttt{acquire} on the same fresh key at the
-same instant. Walk the uniqueness-constraint insert for both (Algorithm
-\ref{alg:acquire}) and show exactly where the loser learns the holder's identity.\par
-\textbf{(open, $\bigstar$ OP-1)} The Stigmergic Ticket-Lock above buys bounded wait
-on the cooperative-release path only. Extend it so that a lease reclaimed by the
-lazy TTL sweep also honors the ticket queue, still without a background scheduler
---- or argue that no reactive-only design can, and say what the minimum scheduler
-would be.}
+\pdexercisepointer{\ref{ex:swk-release-idempotent}}{\ref{ex:swk-op1-ticket}}{\pageref{ex:swk-release-idempotent}}
 
 % ═════════════════════════════════════════════════════════════════════════════
 \section{The communication organ: the bus, stigmergy, and two delegation chains}
 \label{sec:comm}
 % ═════════════════════════════════════════════════════════════════════════════
 
-\input{figures/fig-swk-comm-organ}
+\begin{table}[H]
+\centering
+\caption{The communication organ: one durable carrier and two provenance traces that
+must never be merged. The envelope fields are what the bus stores; the two traces
+answer two different questions and are checked by two different mechanisms.}
+\label{tab:swk-comm-organ}
+\small
+\renewcommand{\arraystretch}{1.15}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.24\textwidth} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{0.2\textwidth}@{}}
+\toprule
+\textbf{Piece} & \textbf{What it is} & \textbf{Status} \\
+\midrule
+the bus envelope & version tag, time-to-live, message kind, typed act with its conversation id, actor, reason and event reference; ordered by a durable history cursor & \Built \\
+authorization chain & the cryptographic object: who authorized whom, hop-bound, attenuation-monotonic, anti-replay & \Built\ (ProVerif) \\
+coordination lineage & the coordination object: what work is already in flight, so loops and upward blocks can be detected & \Designed \\
+\bottomrule
+\end{tabularx}
+\end{table}
 
-The communication organ (Figure~\ref{fig:swk-comm-organ}) is where the substrate
+The communication organ (Table~\ref{tab:swk-comm-organ}) is where the substrate
 stops being a lockbox and becomes a medium for conversation. The carrier is
 \Built; the \emph{semantics} that ride on top of it (typed speech acts, protocol
 state machines) belong to the coordination layer. Three pieces matter here.
@@ -848,6 +870,20 @@ and pruned below a small threshold. The decay is the structural defense against
 ``blackboard rot'': stale coordination signals evaporate on their own. The
 calibration of the decay rate is genuinely open (OP-8): too slow and signals rot,
 too fast and they evaporate before they coordinate.
+
+\begin{pdexample}{The decay arithmetic a calibration will use}
+Take $w_0=1$ and $r=0.9$ per tick, with a prune threshold of $0.05$. Then
+$w(5)=0.9^{5}=0.590$, $w(10)=0.349$, $w(20)=0.122$, and the marker is pruned at
+the first tick where $0.9^{t}<0.05$: $0.9^{28}=0.052$ survives and
+$0.9^{29}=0.047$ does not, so the marker lives 29 ticks [internal]. Moving the
+rate half the distance to one ($r=0.95$) more than doubles that life, to 59
+ticks, because $\ln 0.05/\ln 0.95=58.4$. The calibration question of OP-8 is
+which of these lifetimes matches the time a signal stays true; the arithmetic is
+the same at every answer.
+\end{pdexample}
+
+\input{figures/fig-swk-marker-decay}
+
 
 \subsection{Two delegation chains, one dangerous name}
 
@@ -891,16 +927,7 @@ table, backed by owner-only (\texttt{0600}) permissions on the socket file --- a
 trust-boundary caveat, it holds for both transports, and it is unchanged by the
 hardening design of \S\ref{sec:merkle}.
 
-\exercises{%
-\textbf{(check)} Why does read-time marker decay make the system more honest than a
-background tick alone? Give a scenario where tick-only decay would report a stale
-signal as fresh.\par
-\textbf{(trace)} A request speech act is sent over the bus and redelivered once by
-the at-least-once channel. Trace what the operator should see under the
-silent-dedup resolution, and what an envelope idempotency key would change.\par
-\textbf{(open, $\bigstar$ OP-8)} What per-kind marker decay rate keeps stigmergic
-signals neither rotten nor prematurely evaporated? Frame this as an empirical
-measurement, not a constant to guess.}
+\pdexercisepointer{\ref{ex:swk-decay-honest}}{\ref{ex:swk-op8-decay}}{\pageref{ex:swk-decay-honest}}
 
 % ═════════════════════════════════════════════════════════════════════════════
 \section{The obligation \& enforcement organ: the sovereign's two arms}
@@ -913,10 +940,27 @@ Sergot~\cite{jonessergot1993}): \emph{prohibition} (a policy monitor) and
 \emph{obligation} (commitments). Getting the distinction right --- and being honest
 about how strong each arm actually is --- is the security heart of the paper.
 
-Figure~\ref{fig:swk-deontic-split} lays out the three modalities and the mechanism
+Table~\ref{tab:swk-deontic-split} lays out the three modalities and the mechanism
 behind each.
 
-\input{figures/fig-swk-deontic-split}
+\begin{table}[H]
+\centering
+\caption{The deontic split: three modalities, three mechanisms. Capability (what the
+sandbox makes possible) is kept apart from permission (what the deontic layer
+allows) so that ``able but forbidden'' stays expressible.}
+\label{tab:swk-deontic-split}
+\small
+\renewcommand{\arraystretch}{1.18}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.13\textwidth} >{\raggedright\arraybackslash}p{0.17\textwidth} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{0.2\textwidth}@{}}
+\toprule
+\textbf{Modality} & \textbf{Trigger} & \textbf{Mechanism} & \textbf{Holds / fails when} & \textbf{Example} \\
+\midrule
+prohibition & an act the policy forbids is attempted & regimented before commit by a gate when the event is controllable; otherwise detected after commit and compensated & holds when the effect never commits; fails as detect-and-compensate when the gate could not see the trigger & a tool's emergency override flag: the agent is \emph{able} to call it and \emph{forbidden} to \\
+obligation & a commitment is recorded & an oracle-bound commitment: closure only through a receipt the daemon can re-check, before a daemon-set deadline & holds when a typed receipt closes it in time; fails by staying open and escalating, never by free-text assertion & ``release the claim on \texttt{lib/webhooks.ts} within thirty minutes'' \\
+permission & a grant is issued & a recorded capability row, attenuable, never widened downstream & holds while the grant is live; an act without a grant is a prohibition case & ``may read the audit log until the session ends'' \\
+\bottomrule
+\end{tabularx}
+\end{table}
 
 \subsection{The deontic split}
 
@@ -966,7 +1010,7 @@ properties through finite bad prefixes and enforces them by suppressing an actio
 before that prefix enters the target execution. A subscriber invoked after commit
 cannot suppress the committing action. Compensation may establish a different
 eventual or bounded-recovery property, but it does not retroactively remove the bad
-prefix.\qed
+prefix.
 \end{proof}
 
 \paragraph{Worked dramatization: Bob attempts a forbidden action.}
@@ -1004,27 +1048,336 @@ Conversely, any invariant requiring external I/O, asynchronous wall-clock verifi
 \end{theorem}
 
 \begin{proof}[Proof sketch]
-In SQLite WAL mode under single-writer serialization, transaction commits occur synchronously on the database connection thread. A predicate $\phi(S, \Delta)$ computable in bounded CPU steps without yielding the event loop can be embedded directly into SQLite constraints (\texttt{UNIQUE}, \texttt{CHECK}) or transaction guard clauses; any transition yielding $\neg \phi$ rolls back atomically before state mutation. If $\phi$ depends on external network I/O or asynchronous delays, holding the exclusive transaction lock during evaluation starves the single-writer queue; hence evaluation must be deferred post-commit, converting the mechanism from a synchronous gate into an asynchronous event subscriber governed by Theorem~\ref{thm:schneider}. \qed
+In SQLite WAL mode under single-writer serialization, transaction commits occur synchronously on the database connection thread. A predicate $\phi(S, \Delta)$ computable in bounded CPU steps without yielding the event loop can be embedded directly into SQLite constraints (\texttt{UNIQUE}, \texttt{CHECK}) or transaction guard clauses; any transition yielding $\neg \phi$ rolls back atomically before state mutation. If $\phi$ depends on external network I/O or asynchronous delays, holding the exclusive transaction lock during evaluation starves the single-writer queue; hence evaluation must be deferred post-commit, converting the mechanism from a synchronous gate into an asynchronous event subscriber governed by Theorem~\ref{thm:schneider}.
 \end{proof}
 
-Before the formal statement, the picture it formalizes. Think of the daemon as a
-bouncer on the one door of a club. The bouncer can refuse \emph{entry}, because
-entry is mediated by the door he stands at; he cannot refuse a patron's
-\emph{thought}, because nothing the club owns mediates it. So a door policy --- ``no
-entry after 2am'' --- is enforceable by prevention, while a thought policy --- ``no
-ill intent inside'' --- is enforceable only by watching and, if it comes to it,
-walking someone out. Theorem~\ref{thm:decidability} is the special case where the
-only door the bouncer stands at is the database commit. The remark below is the
-general form: swap the one door for every effect a runtime can gate, and the same
-line falls in the same place. Note the analogy also earns a prediction, which
-part~(ii) below confirms: a \emph{compound} rule that mentions thought but gates
-only the door --- ``no entry for anyone who arrived after the fight started'' ---
-is still preventable, because the bouncer need only \emph{observe} the trigger and
-\emph{refuse} the door.
+% ---------------------------------------------------------------------------
+% Wave 2 fold: research paper 2 (R5, "Regimented or Enforced") into the kernel
+% chapter. Replaces the bouncer paragraph and rem:controllability-scope after
+% thm:decidability. Uses the pd-pedagogy environments.
+% ---------------------------------------------------------------------------
+\subsection{The general boundary: regimentation is controllability}
+\label{sec:controllability}
 
-\begin{remark}[Scope: the general boundary is controllability]\label{rem:controllability-scope}
-Theorem~\ref{thm:decidability} is the \emph{operational} form of a more general boundary. In supervisory-control terms~\cite{rw87,rw89}, partition the event alphabet into controllable events $\Sigma_c$ (mediated effects the daemon can refuse pre-effect: writes, egress, tool execution, spawns) and uncontrollable events $\Sigma_u$ (model-internal steps: token emission, in-context reads, plan formation). A safety policy is regimentable iff it is \emph{controllable} with respect to $\Sigma_u$ --- no uncontrollable event enabled after a legal prefix can exit the specification. Theorem~\ref{thm:decidability} is the special case $\Sigma_c = \{\text{synchronous DB commits}\}$. Two consequences the special case obscures: (i) semantic properties of model output (``no confident falsehood in a report'') forbid an \emph{uncontrollable} event and are therefore detect-only \emph{forever}, at any engineering budget; (ii) compound policies that \emph{permit} an uncontrollable trigger while gating its controllable consequence --- ``no egress after reading a secret'' --- \emph{are} regimentable: record the read as taint, refuse the egress. Gate the channel, never the token. A companion formal chapter carries the general theorem --- the supremal controllable sublanguage and the maximally permissive supervisor over the full agent alphabet --- of which Theorem~\ref{thm:decidability} is the commit-only instance; this chapter claims the instance, not the generalization.
-\end{remark}
+\noindent\emph{Express lane: a governance rule can be enforced by prevention exactly when no
+event the runtime cannot refuse can carry a legal history out of the rule; that is
+Ramadge--Wonham controllability with the model's own steps as the uncontrollable alphabet.
+The formal statement is the box below; the machine-checked policy table is
+Table~\ref{tab:policy-classification}.}\footnote{A standalone, submission-form version of this section is \emph{Regimented or Enforced: The Controllability Boundary for Agent Governance} (research paper 2), whose policy table and verdicts regenerate from \texttt{skills/harbor-results/scripts/b3\_controllability.py}.}
+
+\paragraph{The scene.}
+The operations lead reads the governance document aloud. \emph{No force-push to main. No
+network egress from sandboxed jobs. No writes outside the granted scope.} And then: \emph{no
+confident falsehoods in status reports.} She asks the question every practitioner senses the
+answer to: which of these does the runtime \emph{guarantee}, and which does it merely
+\emph{watch for}? The first three feel airtight. The daemon holds the remote credential, so a
+push that never happens needs no forgiveness. The fourth is not airtight and never will be:
+the falsehood is composed inside the model's forward pass, and by the time any mediator sees
+tokens the falsehood already exists. Theorem~\ref{thm:decidability} settled this for one
+door, the database commit. This section settles it for every door a runtime can stand at,
+and the instinct turns out to be an instance of a theorem from 1987.
+
+\paragraph{The idea in one breath.}
+\emph{Split the agent's events into what the runtime can refuse and what it cannot; a safety
+rule is preventable if and only if no unrefusable event can carry a legal history out of the
+rule.}
+
+\paragraph{Intuition: the bouncer at the one door.}
+A club has one door and a bouncer. The bouncer can refuse \emph{entry}: entry is mediated by
+the door he stands at. He cannot refuse a patron's \emph{thought}: nothing the club owns
+mediates it. A door policy (``no entry after two'') is enforceable by prevention; a thought
+policy (``no ill intent inside'') is enforceable only by watching and, if it comes to it,
+walking someone out. The daemon's effect boundary is the door. Writes, egress, tool execution,
+pushes, spawns, and API calls cross it, so each can be refused; token emission, in-context
+reads, plan formation, and hidden activations complete inside the model, so none can. The
+analogy maps relations rather than surface features, which is why it earns a prediction: a
+\emph{compound} rule that mentions thought but gates only the door (``no entry for anyone
+who arrived after the fight started'') should still be preventable, because the bouncer need
+only \emph{observe} the trigger and \emph{refuse} the door. Section~\ref{sec:gate-the-channel}
+confirms exactly this. The predictable misread, preempted: uncontrollable does not mean
+invisible. Tokens are eminently loggable after emission. Uncontrollable means
+\emph{unrefusable before the fact}, not unobservable after it; when an event is also
+unobservable a second, stricter theory applies (\S\ref{sec:partial-observation}).
+
+\paragraph{The vocabulary, at the point of use.}
+Everything below is a statement about strings and sets of strings. An \emph{alphabet}
+$\Sigma$ is the finite set of event types the system can emit: \texttt{fs\_write},
+\texttt{net\_egress}, \texttt{model\_emit\_token}, and the rest. A \emph{string} over $\Sigma$
+is one possible history of an execution. A set of strings $K$ is \emph{prefix-closed} when
+every prefix of a member is a member: if the first ten events of a run are allowed, so are
+the first nine. Prefix-closed languages are exactly Lamport's safety properties: a violation
+has a finite witness, and once you have violated one you can never un-violate it. The
+\emph{plant} $L$ is the set of histories that are physically possible before any policy is
+imposed; we take $L = \Sigma^{*}$, since nothing about the hardware forbids an interleaving.
+A \emph{policy} is a prefix-closed $K \subseteq L$. A \emph{supervisor} is a function from the
+history so far to a set of events to disable next, and the whole theorem turns on its type:
+it may disable members of $\Sigma_c$, the \emph{controllable} events that pass through a
+mediation boundary before taking effect, and nothing else. The \emph{closed loop} is the set
+of histories that occur once the supervisor is attached. A supervisor \emph{regiments} $K$
+when the closed loop equals $K$ exactly: nothing forbidden happens and nothing permitted is
+lost. That second half is half the value. A supervisor that achieves safety by disabling
+everything is not a solution.
+
+\begin{pdclaim}{Theorem}{Regimentation is controllability}\label{thm:regimentation-controllability}
+Let $L \subseteq \Sigma^{*}$ be a prefix-closed plant over $\Sigma = \Sigma_c \uplus \Sigma_u$
+and let $K \subseteq L$ be a nonempty prefix-closed safety policy. There exists a
+regimentation mechanism for $K$, a supervisor disabling only controllable events whose closed
+loop is exactly $\overline{K}$, if and only if $K$ is \emph{controllable} with respect to $L$
+and $\Sigma_u$:
+\[
+  \overline{K}\,\Sigma_u \;\cap\; \overline{L} \;\subseteq\; \overline{K},
+\]
+that is, no uncontrollable event, physically enabled after a legal history, exits the policy.
+When the condition fails, no runtime confined to disabling $\Sigma_c$ can prevent the
+violation; the best achievable enforcement is detect-and-compensate, and the largest
+preventable weakening of the policy is the supremal controllable sublanguage
+$\sup\mathcal{C}(K)$, which exists and is computable for regular $K$ and $L$
+[verified framework: Ramadge and Wonham~\cite{rw87}].
+\end{pdclaim}
+
+\paragraph{Proof idea.}
+If the policy is controllable, build the laziest possible supervisor: after any legal
+history, disable exactly the controllable events that would step outside the policy. It never
+has to disable an uncontrollable event, because controllability says none of those can step
+outside. If the policy is not controllable, there is a legal history after which the plant
+can fire an uncontrollable event that leaves the policy; any mechanism that keeps every legal
+history reachable must let that history happen, and then cannot stop the event.
+
+\begin{proof}
+The proof is structured; each numbered step can be checked on its own.
+\begin{description}[leftmargin=2.6em,style=nextline,itemsep=2pt]
+\item[$\langle 1\rangle 1.$] \textsc{Assume} $K$ controllable. \textsc{Define} the supervisor
+  $f(s) = \{a \in \Sigma_c : sa \in \overline{L} \setminus \overline{K}\}$ for $s \in
+  \overline{K}$. \textsc{Prove} the closed loop equals $\overline{K}$.
+  \begin{description}[leftmargin=2.6em,style=nextline,itemsep=1pt]
+  \item[$\langle 2\rangle 1.$] The closed loop is contained in $\overline{K}$, by induction on
+    history length. The empty history lies in $\overline{K}$ because $K$ is nonempty and
+    prefix-closed. If the current history $s$ lies in $\overline{K}$ and the loop executes
+    $a$, then $sa \in \overline{L}$ and $a \notin f(s)$. If $a \in \Sigma_c$, then
+    $a \notin f(s)$ means $sa \in \overline{K}$ by the definition of $f$. If $a \in \Sigma_u$,
+    then $sa \in \overline{K}\Sigma_u \cap \overline{L} \subseteq \overline{K}$ by
+    controllability.
+  \item[$\langle 2\rangle 2.$] Every $sa \in \overline{K}$ is reachable: an uncontrollable
+    $a$ is never disabled, and a controllable $a$ with $sa \in \overline{K}$ is not in $f(s)$.
+  \item[$\langle 2\rangle 3.$] \textsc{Q.E.D.} Containment both ways is equality, so $f$
+    regiments $K$.
+  \end{description}
+\item[$\langle 1\rangle 2.$] \textsc{Assume} $K$ not controllable: there are $s \in
+  \overline{K}$ and $\sigma \in \Sigma_u$ with $s\sigma \in \overline{L}$ and $s\sigma \notin
+  \overline{K}$. \textsc{Prove} no regimentation mechanism exists.
+  \begin{description}[leftmargin=2.6em,style=nextline,itemsep=1pt]
+  \item[$\langle 2\rangle 1.$] Let $M$ be any regimentation mechanism for $K$. Because $M$
+    realizes exactly $\overline{K}$, the legal history $s$ is reachable under $M$.
+  \item[$\langle 2\rangle 2.$] At $s$ the plant enables $\sigma$, and $M$ cannot disable it:
+    $\sigma \notin \Sigma_c$, so disabling it is outside $M$'s type. Physically, the event
+    completes before the mediation boundary sees it.
+  \item[$\langle 2\rangle 3.$] \textsc{Q.E.D.} The closed loop under $M$ reaches $s\sigma
+    \notin \overline{K}$, contradicting the assumption that $M$'s closed loop is contained in
+    $\overline{K}$. Any enforcement of $K$ must therefore tolerate the reachable violation
+    $s\sigma$ and respond to it afterwards, which is detect-and-compensate by definition.
+  \end{description}
+\item[$\langle 1\rangle 3.$] The existence, uniqueness, and computability of
+  $\sup\mathcal{C}(K)$ are imported from Ramadge and Wonham~\cite{rw87}: controllable
+  sublanguages of $K$ are closed under arbitrary union, so a supremal element exists, and for
+  regular languages a fixpoint iteration on the product automaton computes it.
+\item[$\langle 1\rangle 4.$] \textsc{Q.E.D.}
+\end{description}
+\end{proof}
+
+Two remarks on what the proof used. The forward direction is constructive and \emph{maximally
+permissive}: the supervisor disables nothing except the controllable exits, so regimentation
+costs no legal behavior. The governance rule and the agent's freedom are not in tension when
+the rule is controllable at all. The reverse direction used nothing about the mechanism
+except its type. No cleverness inside the runtime, no better prompt, faster monitor, or
+smarter policy engine, escapes the theorem, because the obstruction is that $\sigma$ finishes
+before any decision point the runtime owns. Theorem~\ref{thm:decidability} is the special
+case $\Sigma_c = \{\text{synchronous database commits}\}$: when the only mediated channel is
+the commit, the regimentable policies are exactly those expressible over committed state.
+The general statement strictly dominates it. The slogan cannot say why a force-push is
+preventable by a runtime that also owns the credential channel, nor why a confident falsehood
+stays unpreventable however much state is committed.
+
+\begin{pdexample}{The policy table, checked by hand}
+The controllability test is decidable by a product-automaton search: walk the synchronous
+product of plant and policy automaton and flag any reachable state where the plant enables an
+uncontrollable event that the policy disables. Run over the reference alphabet, the checker
+returns Table~\ref{tab:policy-classification} [internal, \texttt{b3\_controllability.py};
+deterministic, no seed]. The eight single-event rows also follow by hand, which is the right
+way to first believe the table. Take ``forbid \texttt{git\_push}.'' The policy automaton has
+one state with every event except \texttt{git\_push} self-looping; \texttt{git\_push} lies in
+$\Sigma_c$, so the only event the policy ever disables is controllable, the premise of a
+controllability violation is unsatisfiable, and $K$ is controllable: regimentable. Now take
+``forbid \texttt{internal\_plan}.'' The same one-state automaton disables
+\texttt{internal\_plan}, which lies in $\Sigma_u$; the universal plant enables it at the start
+state, so the empty history and $\sigma = \texttt{internal\_plan}$ witness
+$\overline{K}\Sigma_u \cap \overline{L} \not\subseteq \overline{K}$: detect-only, for any
+runtime with this alphabet split. \emph{Now you try:} classify ``forbid \texttt{api\_call}
+after \texttt{spawn\_child}'' and ``forbid \texttt{internal\_plan} after \texttt{fs\_write}''
+(Exercise~\ref{ex:swk-classify-two}).
+\end{pdexample}
+
+\begin{table}[H]
+\centering
+\caption{Nine governance rules classified by the product-automaton checker. The verdicts are
+the checker's output; the eight single-event rows also follow by hand from
+Theorem~\ref{thm:regimentation-controllability} [internal, \texttt{b3\_controllability.py}].}
+\label{tab:policy-classification}
+\small
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}X lc@{}}
+\toprule
+\textbf{Policy} & \textbf{Event class} & \textbf{Regimentable?} \\
+\midrule
+forbid \texttt{net\_egress} & controllable & yes (regiment) \\
+forbid \texttt{git\_push} (incl.\ force-push) & controllable & yes (regiment) \\
+forbid \texttt{fs\_write} (out-of-scope write) & controllable & yes (regiment) \\
+forbid \texttt{exec\_tool} & controllable & yes (regiment) \\
+forbid \texttt{spawn\_child} & controllable & yes (regiment) \\
+forbid \texttt{model\_emit\_token} & uncontrollable & no (detect only) \\
+forbid \texttt{in\_context\_read} & uncontrollable & no (detect only) \\
+forbid \texttt{internal\_plan} (``confident lie'') & uncontrollable & no (detect only) \\
+\midrule
+compound: no \texttt{net\_egress} after a secret \texttt{in\_context\_read} & mixed & yes (regiment) \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsubsection{The compound case: gate the channel, never the token}
+\label{sec:gate-the-channel}
+
+The last row of Table~\ref{tab:policy-classification} is the one an entire product line
+rests on. The policy \emph{no network egress after an in-context read of a secret} mentions an
+uncontrollable event, so a naive reading of the single-event rows predicts detect-only. The
+checker says otherwise, and the mechanism is visible in the policy automaton: two states,
+\texttt{ok} and \texttt{tainted}. The uncontrollable read is enabled in both. The policy never
+tries to forbid it; it lets the read happen and records the taint transition. What the
+tainted state disables is \texttt{net\_egress} alone, and egress is controllable. Every
+uncontrollable event the plant enables is enabled by the policy in every reachable state, so
+the criterion holds and the constructive direction of the theorem hands us the supervisor:
+track taint, gate the channel. This automaton is Schneider's own Figure~1, a two-state
+security automaton for ``no \texttt{Send} after a \texttt{FileRead}''~\cite{schneider2000},
+with his states relabelled. What the alphabet split adds is not the construction but the
+grading: under complete mediation the figure is one more enforceable safety policy; once
+$\Sigma_u \neq \emptyset$ the same two states become the canonical witness that a policy may
+reference an unrefusable event freely so long as it never tries to refuse it.
+
+Three consequences, in increasing order of consequence.
+\begin{enumerate}[leftmargin=1.6em,itemsep=2pt]
+\item \textbf{The design rule.} A compound trigger-to-effect policy is regimentable if and
+  only if its \emph{effect} events are controllable; the trigger may be as uncontrollable as it
+  likes, provided the policy observes rather than forbids it. Uncontrollable events in the
+  policy's condition are free; uncontrollable events in its prohibition are fatal.
+\item \textbf{The sealed room.} Put an agent alone in a room with a customer's secret and
+  promise that the secret does not leave. It is impossible to prevent the model from
+  \emph{reading} the secret (the read is uncontrollable, and useless to forbid, since reading is
+  the job) and impossible to prevent it from \emph{incorporating} the secret into tokens and
+  plans (uncontrollable again). What is possible, exactly and only, is to gate every
+  controllable egress channel out of the room, with taint recorded from the moment of
+  exposure. Gate the channel, never the token. The companion noninterference result for the
+  sealed room proves from the other direction that the gate suffices; controllability says the
+  gate is the only place a guarantee \emph{can} live. This is why ``all spend is recorded'' in
+  the economy chapters is precisely complete mediation of $\Sigma_c$.
+\item \textbf{The two dials.} Holding the plant fixed, widening $\Sigma_c$ (owning more
+  channels) is the only way to grow the regimentable set; no policy-language cleverness does.
+  The plant is the other dial: $\overline{L}$ sits on the left of the containment, so shrinking
+  it weakens the antecedent and strictly more policies pass. Both detect-only verdicts above
+  turn on ``the universal plant enables \texttt{internal\_plan},'' and are conditional on the
+  modelling choice $L = \Sigma^{*}$. An event that never becomes physically possible needs no
+  supervisor, which is why data minimization and capability removal are governance moves and
+  not merely hygiene: a secret never loaded into the room regiments the compound policy with
+  no gate at all.
+\end{enumerate}
+
+\begin{pdexample}{Synthesis by hand: the sandboxed review job}
+The theorem's constructive direction is the synthesis algorithm the Supremica and TCT tool
+families implement, and it is small enough to run on paper. A sandboxed code-review job
+carries three rules: $P_1$, no \texttt{net\_egress}, ever; $P_2$, no \texttt{git\_push},
+ever; $P_3$, after any \texttt{in\_context\_read} of customer material, no \texttt{fs\_write}.
+$P_1$ and $P_2$ are one-state automata and $P_3$ is the two-state taint automaton, so the
+product specification has $1 \times 1 \times 2 = 2$ states, \texttt{ok} and \texttt{tainted}.
+The controllability check visits both states and tests each of the four uncontrollable events
+in each: all eight (state, event) pairs are enabled by the specification, so there are $0$
+violations and the composite is controllable [verified: eight cases, checkable by eye]. The
+maximally permissive supervisor falls out of the proof as a two-row disablement map:
+in \texttt{ok}, disable $\{\texttt{net\_egress}, \texttt{git\_push}\}$; in \texttt{tainted},
+disable $\{\texttt{net\_egress}, \texttt{git\_push}, \texttt{fs\_write}\}$; one observed
+transition flips \texttt{ok} to \texttt{tainted}. That table is exactly the policy engine a
+competent engineer would have written by hand. The value of synthesis is not surprise; it is
+that the answer arrives with a maximal-permissiveness certificate and a controllability
+certificate, neither of which hand-written engines carry.
+
+Synthesis is equally informative when it fails. Ask for the best preventable approximation
+of ``forbid \texttt{internal\_plan}'': any nonempty controllable sublanguage $K'$ contains the
+empty history, the plant enables \texttt{internal\_plan} there, so controllability forces
+$\texttt{internal\_plan} \in \overline{K'} \subseteq \overline{K}$, contradicting that $K$
+forbids it. Hence $\sup\mathcal{C}(K) = \emptyset$ [verified: three lines]. There is no
+nontrivial preventable weakening of a thought ban, and a governance document that claims to
+``partially enforce'' such a rule by prevention is describing detection with optimistic
+vocabulary. \emph{Now you try:} add $P_4$, ``no \texttt{spawn\_child} after
+\texttt{git\_push},'' to the review job and write the new disablement map
+(Exercise~\ref{ex:swk-synthesis}).
+\end{pdexample}
+
+\subsubsection{Partial observation: the second boundary}
+\label{sec:partial-observation}
+
+Theorem~\ref{thm:regimentation-controllability} assumes the supervisor \emph{observes} every
+event, even the ones it cannot disable: the daemon logs tokens after emission and reads after
+completion. Realistic deployments break this in a second place. Some events are not only
+unrefusable but unobservable: activations never surfaced, state internal to a third-party
+tool, another principal's context. Supervisory control under partial observation is also
+solved territory. Lin and Wonham~\cite{lw88} characterize enforceability as controllability
+\emph{plus observability}: the supervisor's decisions must be constant on
+observation-equivalence classes of histories, so the policy may not demand different gate
+decisions after histories the runtime cannot tell apart. Observability strictly shrinks the
+regimentable set. ``No egress after the model \emph{considered} exfiltration'' has a
+controllable prohibition and an unwitnessed trigger, so no supervisor can implement its gate
+condition. The practical reading: a compound policy is deployable only if its trigger is
+witnessed at the mediation boundary. Taint must be an event the daemon sees, not a state it
+infers. Figure~\ref{fig:swk-controllability-quadrant} puts both boundaries on one grid.
+
+\input{figures/fig-swk-controllability-quadrant}
+
+\paragraph{What it buys.}
+The chapter's own vocabulary. \emph{Regimented} and \emph{enforced}
+(Definition~\ref{def:deontic}) are now the two sides of one inequality rather than two
+adjectives; every row of Table~\ref{tab:invariants} marked ``detected, not regimented'' is a
+row whose prohibition names an uncontrollable event or an unwitnessed trigger. Downstream it
+buys the assurance modes the rest of the book uses to describe what a runtime can see and
+control, the design rule behind the sealed room, and the pricing stance of the market
+chapters: detect-only policies are enforced by audit, reputation, and bond-slashing, which
+must be sized for violations that \emph{will} occur.
+
+\begin{pdboundary}
+(i) The theorem does not say detect-only policies are hopeless. Detection feeding audit,
+reputation, and slashing is real enforcement; the theorem says only that prevention is off
+the table. (ii) It certifies no implementation. Its $\Sigma_c$ is the set of events
+\emph{actually} mediated, and every unenumerated side channel (raw sockets, DNS, inherited
+file descriptors, \texttt{/proc}, credential helpers, package managers, provider callbacks)
+silently moves events from $\Sigma_c$ to $\Sigma_u$ and shrinks the regimentable set behind
+the operator's back. Complete mediation of the claimed alphabet is an architectural
+obligation (Anderson; Rushby) that a red team, not this proof, discharges. (iii) The
+classification is relative to the alphabet split: a runtime that gates model steps changes
+$\Sigma_u$ and re-grades the table. The theorem is a functor from architectures to
+boundaries, not one fixed verdict. (iv) Full observation is load-bearing: policies whose
+triggers are unwitnessed internal state fall to the Lin--Wonham refinement even when their
+prohibitions are controllable. (v) The checker verifies the stated automata over the stated
+alphabet; it is a faithful implementation of the test, not a mechanized proof of the theorem.
+An Isabelle or Coq formalization remains open. (vi) Prevention governs effects, never
+semantics. For ``no confident falsehoods in status reports'' the obstruction is
+observability: a report leaves through emission and then through \texttt{api\_call},
+\texttt{fs\_write}, or \texttt{net\_egress}, all controllable, so the prohibition can be made
+controllable; but ``this report is false'' is not a predicate over the event alphabet, so the
+gate condition is unwitnessed at every alphabet split. The rule falls to (iv), not to the
+box's inequality.
+\end{pdboundary}
+
+\begin{pdrecitation}
+\item Without looking: which two sets does the controllability criterion mention besides
+  the policy, and which of them is a dial the operator can turn?
+\item State the design rule for compound policies in one sentence.
+\item Why does the confident-falsehood rule stay detect-only even for a runtime that gates
+  every effect channel?
+\end{pdrecitation}
 
 The monitor is honest about its own coverage, which is itself a genuine security
 property: it reports each rule as \emph{enforced}, \emph{degraded}, or
@@ -1111,7 +1464,7 @@ that free-text closure would.}
 The obvious way to widen what a commitment can close against is to widen the
 vocabulary, and there is a concrete design for doing so without re-admitting the
 Goodhart hole. \textbf{State-Machine Assertions} (\Designed) would add two kinds to
-Algorithm~\ref{alg:close}'s finite set: \emph{delta oracles}, which close against a
+Listing~\ref{alg:close}'s finite set: \emph{delta oracles}, which close against a
 machine-checkable before/after measurement (a named benchmark improving past a
 declared threshold), and \emph{AST assertions}, which use a parser such as
 \texttt{tree-sitter} to state a structural property of the resulting code (``no call
@@ -1119,7 +1472,7 @@ site of $f$ remains'') that the daemon can re-evaluate at closure time.
 
 Both kinds satisfy the property that matters --- the daemon can re-check them
 itself, so they are oracles and not testimony. Neither is in the shipped set:
-Algorithm~\ref{alg:close}'s four kinds are the vocabulary the kernel actually
+Listing~\ref{alg:close}'s four kinds are the vocabulary the kernel actually
 enforces, and the listing marks the two proposed additions as exactly that. Two
 questions also stand between the design and the claim, which is why we do not make
 it. A delta oracle inherits the noise of whatever it measures, so ``improved by a
@@ -1129,26 +1482,7 @@ been gamed. \emph{Oracle completeness} --- the claim that some finite vocabulary
 captures the ``done'' conditions agents actually need --- is not established by
 adding two kinds, and OP-5 stays \Open{}.
 
-\exercises{%
-\textbf{(check)} For each monitor rule in Theorem~\ref{thm:schneider}, say whether
-it \emph{could in principle} be moved to a pre-commit check (a before-insert
-trigger). Which genuinely cannot, and why? (Hint: heartbeat freshness is a failure
-detector, and Chandra and Toueg~\cite{chandratoueg1996} show failure detection
-cannot be made perfectly synchronous.)\par
-\textbf{(trace)} An agent attempts to close a commitment with an empty oracle
-reference. Walk the Law-2 gate and show exactly where and why the transition is
-refused.\par
-\textbf{(trace, $\bigstar$ OP-2 --- closed)} Theorem~\ref{thm:decidability} already
-settles which monitor rules are regimentable, so trace it rather than re-prove it.
-Classify each of I7--I9's monitor rules (note-monotonicity, capability escalation,
-lock-owner validity) against the predicate: which are pure functions of committed
-local state and the incoming payload, and which cross the boundary? For each one
-that crosses, name the step in the proof sketch that forces it post-commit.\par
-\textbf{(open, $\bigstar$ OP-5)} Extend the Law-2 oracle vocabulary to capture a
-``done'' condition it currently misses, without re-admitting free text. State your
-new oracle and argue it is Goodhart-resistant --- and do it for one of the two
-specified kinds above (delta oracle, AST assertion) before inventing a third, since
-neither yet survives that argument.}
+\pdexercisepointer{\ref{ex:swk-monitor-rules-precommit}}{\ref{ex:swk-op5-oracle}}{\pageref{ex:swk-monitor-rules-precommit}}
 
 % ═════════════════════════════════════════════════════════════════════════════
 \section{The continuity organ: memory, checkpoint, and the foundation of the economy}
@@ -1223,18 +1557,7 @@ pattern of Haber and Stornetta~\cite{haberstornetta1991} that predates blockchai
 itself building on Merkle's hash trees~\cite{merkle1987} --- exists but is
 re-scoped (see \S\ref{sec:merkle}).
 
-\exercises{%
-\textbf{(check)} Why is ``recovery passes notes'' fundamentally weaker than
-``recovery restores work'' for a language-model agent that died mid-edit? Name one
-thing notes preserve and one thing they cannot.\par
-\textbf{(trace)} Follow the note-monotonicity rule from an agent appending a note
-to the monitor detecting a regression. At which point is the violation already
-durable (per Theorem~\ref{thm:schneider})?\par
-\textbf{(open, $\bigstar$ OP-4)} What is the minimal durable artifact that turns
-``recovery passes notes'' into ``recovery restores work''? Is it a content-addressed
-snapshot of \{working-tree diff $+$ open claims $+$ commitment set $+$ the last $N$
-turns of the agent's transcript\}? What is recoverable versus fundamentally lost
-when a language-model agent dies mid-thought?}
+\pdexercisepointer{\ref{ex:swk-notes-vs-work}}{\ref{ex:swk-op4-capsule}}{\pageref{ex:swk-notes-vs-work}}
 
 % ═════════════════════════════════════════════════════════════════════════════
 \section{The self-attestation organ: honest green}
@@ -1303,6 +1626,157 @@ I12 & Non-forgeable identity & actor-soul id + lookup credential & \BuiltWeak{} 
 \end{tabularx}
 \end{table}
 
+% ---------------------------------------------------------------------------
+% Wave 2 fold: R8, the work-unit machine (c0_workunit.py), as the kernel's formal
+% spine. Inserted in sec:invariants after Table tab:invariants and before the
+% consistency-model subsection.
+% ---------------------------------------------------------------------------
+\subsection{The work unit, model-checked}
+\label{sec:workunit}
+
+\noindent\emph{Express lane: the kernel's promises are properties of one object, an
+evidence-bearing work unit; on a two-principal instance every one of its 536 reachable
+states satisfies six invariants, and removing any single guard lets a checker construct the
+crime in at most seven steps. The machine is Figure~\ref{fig:swk-workunit-machine} and the box below; the numbers are
+Table~\ref{tab:workunit-crimes}.}
+
+\paragraph{The scene.}
+An agent dies mid-task. Its successor, possibly a different model from a different vendor,
+picks up the work and later says ``done.'' Who checks the paperwork? Where is the record
+that the port it held was released, that the payment moved once and not twice, that
+``verified'' meant an inspection actually happened rather than a mood? Every organ in this
+chapter answers a piece of that question. The work unit is the object that holds the
+pieces together: a case file that outlives every clerk who touches it.
+
+\paragraph{The idea in one breath.}
+\emph{Make the unit of trust a work unit whose every consequential step passes a guard,
+then prove, by exhausting the machine's reachable states, that its six promises can never
+be broken, and that every guard is load-bearing, because removing any one lets the checker
+construct the crime.}
+
+\paragraph{Intuition: the notarized escrow folder.}
+Nothing enters the folder without the right stamp: an active grant carrying the
+\emph{current} role epoch, so a clerk who was replaced yesterday finds that today's stamp
+rejects him. No payment leaves twice: each external operation carries an idempotency key,
+honored at most once. And ``verified'' is not a feeling: it means the acceptance policy and
+the inspector's receipt are physically in the folder. Then we do something a paper folder
+cannot: enumerate every state the machine can ever reach and check all six promises in each.
+The misread to preempt: a model checker does not prove the daemon correct. It proves the
+\emph{specification} correct at these parameters; the daemon must refine it, and that
+refinement is a separate obligation named in the boundary below.
+
+\input{figures/fig-swk-workunit-machine}
+
+The checker that explores the machine is short enough to run while reading. Its
+output below is the evidence behind the state count and the shortest-crime table:
+with every guard on, no reachable state violates an invariant; with any one guard
+off, the checker finds the violating run and prints it.
+
+\input{figures/session-swk-workunit-check}
+
+\begin{pdclaim}{Model-checked property}{Six invariants of the work-unit machine}
+\label{thm:workunit}
+\textbf{State.} A tuple of the work-unit phase (proposed, authorized, executing, witnessed,
+verified, contested), the acceptance policy and verifier receipt flags, the role epoch with
+its current holder and any stale token retained by a previous holder, the grants with their
+parentage, the effect journal, the idempotency journal, and the settlement record.
+\textbf{Transitions.} Propose, authorize, start, admit-effect (guarded on the current
+epoch), reassign-role (epoch increments; the old holder keeps a stale token), delegate
+(guarded on scope $\subseteq$ parent), external-op (guarded at-most-once per key), witness,
+admit-receipt, verify (guarded on policy $\wedge$ receipt), contest, settle (guarded on
+owner-funded $\wedge$ verified $\wedge$ receipted).
+\textbf{Invariants.}
+I1, every admitted effect carried the current role epoch at admit time;
+I2, each idempotency key settles at most once;
+I3, a verified completion has an acceptance policy and an admitted verifier receipt;
+I4, no delegated grant is more permissive than its immediate parent;
+I5, role reassignment invalidates stale epochs at the effect boundary;
+I6, every settlement is funded by the owning principal and references a receipt.
+\textbf{Result.} On the two-principal instance (one work unit, one exclusive role with
+fencing epochs, a root grant with one delegation, one idempotency key, at most two effects),
+all 536 reachable states satisfy all six invariants; disabling any single guard yields a
+violation, found automatically as a shortest counterexample trace, and restoring the guard
+restores safety [internal, \texttt{c0\_workunit.py}].
+\end{pdclaim}
+
+\paragraph{Proof idea.}
+There is no proof to read; there is a search to rerun. The checker performs a breadth-first
+enumeration of the reachable states from the initial state, evaluates the six predicates in
+each, and stops at the first violation. The mutation suite then disables one guard at a
+time and reports the shortest violating trace it finds. A checker that has never caught a
+seeded bug is an unvalidated checker; the five traces below are the evidence that this one
+has teeth.
+
+\begin{pdexample}{The crimes, and their shortest scripts}
+Table~\ref{tab:workunit-crimes} lists the five guards and the shortest trace the checker
+finds when each is disabled [internal, \texttt{c0\_workunit.py}]. Two of them you can
+reconstruct by hand. \emph{The stale write in four steps:} authorize the work unit; start
+execution; reassign the role, so the epoch becomes~1 and the old holder retains token~0;
+now the old holder admits an effect with token~0. With the epoch guard on, that last
+transition does not exist, so the state is unreachable; with the guard off, the effect
+lands carrying yesterday's epoch and I1 fails. This is exactly the ``paused holder wakes
+after expiry'' scenario the fenced-lease theorem (Theorem~\ref{thm:exclusion}) exists to
+exclude, and it is the shortest possible: no shorter history contains both a reassignment
+and a subsequent effect. \emph{The double settlement in two steps:} run the external
+operation under key $k_1$, then run it again. With the idempotency guard off the second run
+settles the same key twice and I2 fails; no history of length one can settle anything twice.
+\emph{Now you try:} the escalated delegation takes one step. Which transition is it, and
+which invariant does it break? (Exercise~\ref{ex:swk-crimes}.)
+\end{pdexample}
+
+\begin{table}[H]
+\centering
+\caption{Every guard is load-bearing. Disabling one guard at a time, the checker's shortest
+violating trace, in transitions from the initial state [internal, \texttt{c0\_workunit.py}].}
+\label{tab:workunit-crimes}
+\small
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X cl@{}}
+\toprule
+\textbf{Guard disabled} & \textbf{Crime} & \textbf{Steps} & \textbf{Invariant broken} \\
+\midrule
+epoch check at admit-effect & the stale write & 4 & I1, I5 \\
+at-most-once per idempotency key & the double settlement & 2 & I2 \\
+policy $\wedge$ receipt at verify & the hollow ``verified'' & 4 & I3 \\
+scope $\subseteq$ parent at delegate & the escalated delegation & 1 & I4 \\
+owner-funded $\wedge$ verified $\wedge$ receipted at settle & the wrong-principal payout & 7 & I6 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+The seventh row deserves a sentence. To reach the wrong-principal payout the checker had to
+walk the entire legitimate path first: set the policy, admit the receipt, witness, verify,
+and only then settle from the wrong purse. That is exactly how the fraud would look in
+production, which is the point of asking a machine rather than an author to find it.
+
+\paragraph{What it buys.}
+Every earlier theorem in this chapter now has a substrate to be a property \emph{of}.
+Table~\ref{tab:invariants} states the kernel's invariants as claims about organs; the work
+unit is where they meet: I2 and I3 of the machine are the resource organ's fenced leases and
+idempotent re-claim, I4 is the delegation chain's monotone narrowing that the Anchor chapter
+mechanizes across principals, I3 and I6 are the obligation organ's oracle-bound closure
+carried through to settlement. The continuity chapter's checkpoint and the market chapters'
+settlement inherit the same object, which is why the book can name the work unit as its
+primitive in the front matter without a definition per chapter.
+
+\begin{pdboundary}
+Bounded model checking on a small instance proves the specification at these parameters,
+not the deployed daemon: deployment must \emph{refine} this machine, mapping every real code
+path to a transition, and that mapping is a separate obligation. Safety only: liveness
+(``the work eventually settles'') needs fairness assumptions this check does not make. And
+an invariant list is only as good as its coverage; the mutation suite certifies that these
+six have teeth, not that they are complete. The unbounded-parameter version, in TLA\textsuperscript{+}
+with Apalache, is planned and not done.
+\end{pdboundary}
+
+\begin{pdrecitation}
+\item Without looking: name the three journals the work-unit state carries, and say which
+  invariant each one exists to make checkable.
+\item Why is the wrong-principal payout the longest crime?
+\item What does the mutation suite certify, and what does it not certify?
+\end{pdrecitation}
+
+\pdexercisepointer{\ref{ex:swk-crimes}}{\ref{ex:swk-seventh-invariant}}{\pageref{ex:swk-crimes}}
+
 \subsection{The consistency-model theorem}
 
 The strongest words a single-writer design earns are ``serializable'' and
@@ -1331,7 +1805,7 @@ each claim/lock operation is exactly such a point: it is atomic
 daemon's response. Non-overlapping operations respect real-time order because a
 later invocation occurs after the earlier response and therefore after its commit;
 overlapping operations may be ordered by commit. Hence the observable history is
-linearizable. \qed
+linearizable.
 \end{proof}
 
 \keyidea{This is why the kernel needs no agreement protocol inside one fault domain.
@@ -1341,14 +1815,12 @@ One decider, one order, one auditable truth.}
 
 \subsection{The dual-runtime hazard, and what would make I11 a theorem}
 
-\input{figures/fig-swk-dual-runtime}
-
 Invariant I11 (runtime parity) is the one place the formal spine is held together
 by a compatibility shim rather than a proof. In deployment, truth is \emph{computed}
 under the SQLite bindings of one runtime (the compiled single-binary daemon), but in
 the test suite it is \emph{verified} under a different runtime's bindings; a thin
 shim normalizes their pragma and option interfaces
-(Figure~\ref{fig:swk-dual-runtime}). An invariant that is green under test can fail
+. An invariant that is green under test can fail
 in production if the two bindings diverge in lock or pragma semantics --- the
 classic ``green in the test runtime, broken in the deployment runtime'' failure. A
 continuous-integration pipeline must therefore \emph{boot the deployment runtime}
@@ -1366,18 +1838,7 @@ interleaving, a specific pragma set, or a filesystem the fuzzer never exercises 
 pass $10^6$ operations and still be there. I11 accordingly stays \BuiltWeak{} in
 Table~\ref{tab:invariants}, and OP-3 stays \Open{}.
 
-\exercises{%
-\textbf{(check)} List the four assumptions Theorem~\ref{thm:consistency} charges
-for linearizability. Which one fails first if an out-of-band SQLite connection is
-introduced?\par
-\textbf{(trace)} Construct a three-operation claim history and give a valid
-linearization. If two calls overlap, show why more than one linearization may still
-respect real time.\par
-\textbf{(open, $\bigstar$ OP-3)} Specify the minimal differential-test suite that
-would make I11 a theorem: what operation sequences, what observable-state
-assertions, run against both runtimes? Then attack your own answer: name a class of
-binding divergence that a seeded $10^6$-operation hash-equivalence fuzz would
-\emph{not} catch, and say what would.}
+\pdexercisepointer{\ref{ex:swk-linearizability-assumptions}}{\ref{ex:swk-op3-differential}}{\pageref{ex:swk-linearizability-assumptions}}
 
 % ═════════════════════════════════════════════════════════════════════════════
 \section{Cross-organ atomicity: a buildable defect, not a frontier}
@@ -1405,14 +1866,7 @@ Sagas matter when the steps are remote and a single transaction is impossible;
 here, where every step is a local write to one file, the single transaction is
 strictly simpler and strictly stronger.
 
-\exercises{%
-\textbf{(check)} Give a concrete partial-failure: port claimed, session opened,
-then the commitment write fails. What inconsistent state is left, and which agent
-sees it?\par
-\textbf{(open, $\bigstar$ OP-11)} Sketch the interface change that wraps the
-three-organ ``begin'' operation in one local transaction. What is the compensating
-action if you instead chose Sagas~\cite{garciamolina1987}, and why is the
-transaction strictly simpler here?}
+\pdexercisepointer{\ref{ex:swk-partial-failure}}{\ref{ex:swk-op11-begin-work}}{\pageref{ex:swk-partial-failure}}
 
 % ═════════════════════════════════════════════════════════════════════════════
 \section{Threat model and the limits of mediation}
@@ -1589,7 +2043,7 @@ scoping alone does not prevent exfiltration: an agent holding both
 and post it to the second, and no amount of claim discipline notices. The
 containment answer is information-flow control --- taint the read, propagate the
 taint through spawns and shared writes, and gate every release channel behind a
-declassification policy with a leakage budget. Remark~\ref{rem:controllability-scope}
+declassification policy with a leakage budget. Theorem~\ref{thm:regimentation-controllability}
 already gives the substrate-layer form of it in one line: gate the channel, never
 the token.
 
@@ -1601,27 +2055,14 @@ those objects lives above this floor, in the chapter that owns the market betwee
 operators (\emph{The Harbor Economy}), and this chapter's abstract promises it lives
 there rather than here. What the substrate contributes to it is what this chapter
 has already specified: taint is a marker (\S\ref{sec:comm}), egress and file writes
-are controllable events (Remark~\ref{rem:controllability-scope}), the sandbox that
+are controllable events (Theorem~\ref{thm:regimentation-controllability}), the sandbox that
 would make an agent a different-uid process is OP-9's specified hardening
 (\S\ref{sec:merkle}), and the honest statement of what containment buys is the one
 this section keeps repeating: not that exfiltration becomes impossible --- timing,
 ordering, and side channels stay out of model --- but that every flow out passes a
 named gate whose releases are logged, budgeted, and attributable.
 
-\exercises{%
-\textbf{(check)} The hash chain defends against nobody in scope. Name the
-\emph{out-of-scope} adversary it does defend against, and the layer (substrate or
-economy) where that adversary becomes real.\par
-\textbf{(trace)} An agent forges its actor identity to release another agent's
-lock. Walk the lock-owner-validity rule and show exactly where I12's absence lets
-the forgery through.\par
-\textbf{(open, $\bigstar$ OP-9)} What is the minimal hardening that closes the
-same-machine adversary without a hardware trusted-platform-module dependency --- an
-OS keychain for the signing key, sealed memory, the ephemeral-UID sandbox and
-kernel-verified peer credential specified above? Where does each stop? For the
-last one specifically: after the sandbox lands, which row of
-Table~\ref{tab:threat-model} does the adversary move to, and what is still in scope
-in the row it lands in?}
+\pdexercisepointer{\ref{ex:swk-hash-chain-adversary}}{\ref{ex:swk-op9-hardening}}{\pageref{ex:swk-hash-chain-adversary}}
 
 % ═════════════════════════════════════════════════════════════════════════════
 \section{Adjacency contract: what the kernel assumes and provides}
@@ -1700,6 +2141,283 @@ over-assume.
   what \emph{cannot} be done and records what \emph{did} happen --- a regulator, not
   a planner.
 \end{itemize}
+
+% ══════════════════════════════════════════════════════════════════
+\section*{Review of the key ideas}
+\addcontentsline{toc}{section}{Review of the key ideas}
+% ══════════════════════════════════════════════════════════════════
+
+What this chapter leaves coupled, in the order the rest of the book will lean on it:
+
+\begin{enumerate}[leftmargin=1.6em,itemsep=2pt]
+\item One writer, one file. Every mutation reaches the daemon and is committed in one
+  order; the reply follows the commit. Serializability and linearizability are bought
+  by that discipline plus four named assumptions, not by an agreement protocol.
+\item Durability is split by fault class. A process crash loses nothing; a power loss
+  can lose the last commits under the default synchronous setting. The setting is the
+  durability claim.
+\item A claim is a lease with a fencing epoch. At most one compatible holder per
+  conflict domain; expiry is lazy; a stale holder's effects are refused downstream by
+  the epoch, not by the lock.
+\item The bus is at-least-once and says so. Benign redelivery is deduplicated by an
+  idempotency key the coordination layer still owes; only protocol violations are loud.
+\item Two chains, never one name. The authorization chain proves who authorized whom;
+  the coordination lineage says what work is in flight. The second rides inside the
+  first.
+\item Prohibitions, obligations and permissions need three mechanisms. A gate refuses
+  before the effect; a typed oracle closes an obligation after the fact; a grant simply
+  holds.
+\item The monitor is a detector. Prevention exists exactly for events that are
+  controllable and witnessed at the boundary (the controllability theorem); everything
+  else is detect-and-compensate, priced by the market chapters.
+\item Done means re-checkable. A commitment closes only through a reference from the
+  finite oracle vocabulary; free text bounces back to open.
+\item Continuity narrows downstream. Memory survives a crash; checkpoint keeps notes,
+  not execution state; the outcome ledger is partial. Nothing built on top can be more
+  certain than that.
+\item The kernel reports its own coverage. Enforced, degraded or stubbed, per rule, so
+  the layers above never mistake a stub for a guarantee.
+\end{enumerate}
+
+% ═════════════════════════════════════════════════════════════════════════════
+\section{Exercises}
+\label{sec:swk-exercises}
+% ═════════════════════════════════════════════════════════════════════════════
+
+\pdexercisesfor{\S\ref{sec:organs}}{The kernel as seven organs}
+
+\begin{pdexercise}[kind=Check,rating=1]{ex:swk-organs-inmemory}
+Which of the seven organs would still be meaningful if the daemon ran over an in-memory database with no disk at all? Which become vacuous?
+\end{pdexercise}
+\begin{pdsolution}{ex:swk-organs-inmemory}
+In memory the substrate still serializes, so resource exclusion, identity and presence, communication, obligation checks, policy checks, and self-attestation keep their transient meaning while the process lives. Everything the organs promise across a crash becomes vacuous: durable continuity, crash recovery, historical audit, and outcome evidence; durable identity collapses to an ephemeral handle. The decomposition survives; the cross-crash guarantees do not.
+\end{pdsolution}
+\begin{pdexercise}[kind=Trace,rating=2]{ex:swk-organs-home-table}
+Pick any one organ and name the single SQLite table that is its ``home'' table. Then name one invariant that organ owes the layer above it.
+\end{pdexercise}
+\begin{pdsolution}{ex:swk-organs-home-table}
+The communication organ's home table is \texttt{messages}; it owes the layer above an ordered, cursor-addressable, durable envelope with explicit at-least-once semantics. Equally valid: \texttt{claims} for the resource organ (one compatible holder per conflict domain), or \texttt{commitments} for the obligation organ (no \emph{done} without a current structured oracle receipt).
+\end{pdsolution}
+\begin{pdexercise}[kind=Open,rating=3]{ex:swk-organs-cut}
+The seven-organ decomposition is a \emph{choice}. Is there a more natural cut, five organs, or nine? Argue for an alternative and show what it makes easier to reason about and what it hides.
+\end{pdexercise}
+\begin{pdsolution}{ex:swk-organs-cut}
+A defensible nine-way cut: storage and durability; transaction serialization; identity and presence; resources and leases; message transport; stigmergy and projections; policy and capability; commitments and outcomes; attestation and recovery. It separates proof obligations that leak across the seven, above all transport semantics from message semantics and policy prevention from post-commit detection. It hides the simplifying fact that all local state shares one transaction boundary, so any such cut must retain a cross-cutting invariant: one ledger, one effect mediator.
+\end{pdsolution}
+
+\pdexercisesfor{\S\ref{sec:substrate}}{The substrate organ: one writer, one file}
+
+\begin{pdexercise}[kind=Check,rating=1]{ex:swk-schema-rename}
+The schema-by-union design lets any module create its tables in any order. Give a concrete two-module example where a lazy column-rename migration would be unsafe under this design.
+\end{pdexercise}
+\begin{pdsolution}{ex:swk-schema-rename}
+Module A renames \texttt{users.name} to \texttt{display\_name}; module B, loaded later under older code, sees no \texttt{name} column and lazily adds it back. Writes now split between two columns according to module version and load order, and neither backfill is authoritative. Every destructive migration has this shape; only additive tables and columns are safe under any-module-any-order.
+\end{pdsolution}
+\begin{pdexercise}[kind=Trace,rating=2]{ex:swk-claim-routing}
+Follow a single claim request from command line to disk. At how many points does the single-writer discipline (Definition~\ref{def:single-writer}) hold by \emph{routing} versus by the \emph{file lock}?
+\end{pdexercise}
+\begin{pdsolution}{ex:swk-claim-routing}
+Command line, authenticated Unix-socket request, daemon request queue, the sole read/write connection, one transaction, WAL commit. The discipline holds by routing at two points, the client-to-API boundary and the daemon's sole-connection boundary; SQLite's file lock is one backstop at write time. The primary story is routing, not a database rule that forbids other connections.
+\end{pdsolution}
+\begin{pdexercise}[kind=Open,rating=3]{ex:swk-op7-sequencer}
+The boot ledger orders migrations, but modules still self-initialize, so the order is not yet authoritative (OP-7). What is the smallest change that makes it so, a \texttt{user\_version} sequencer over \emph{declared} migrations, and can any useful remnant of ``any module, any order'' survive it for renames, backfills, and down-migrations?
+\end{pdexercise}
+\begin{pdsolution}{ex:swk-op7-sequencer}
+Expand, backfill, dual-read-or-write, contract keeps mixed versions safe for a while, but the contract step and the dependency order are global facts. Store a migration ledger with a schema epoch, each module's compatibility range, its dependencies, and a backfill watermark. Idempotent self-initialization can remain for additive tables and columns; safe rename, backfill, and down-migration cannot preserve unrestricted any-module-any-order. A \texttt{user\_version} sequencer, or an equivalent ordered capability ledger, is unavoidable.
+\end{pdsolution}
+
+\pdexercisesfor{\S\ref{sec:durability}}{Durability, split by fault class}
+
+\begin{pdexercise}[kind=Check,rating=1]{ex:swk-fault-classes}
+Classify each fault as I1a-survivable or I1b-exposed: (a) a forced kill of the daemon process; (b) a clean operating-system reboot; (c) yanking the power cord; (d) an unhandled exception in a request handler.
+\end{pdexercise}
+\begin{pdsolution}{ex:swk-fault-classes}
+(a) I1a-survivable. (b) An orderly shutdown flushes, so a genuinely clean reboot is not the I1b case; an abrupt reset during the reboot is I1b-exposed. (c) I1b-exposed. (d) I1a-survivable after commit. None of the four lets an uncommitted transaction survive.
+\end{pdsolution}
+\begin{pdexercise}[kind=Trace,rating=2]{ex:swk-checkpoint-window}
+A claim commits at $t_0$; the next auto-checkpoint fires at $t_0+\delta$. Draw the window during which a power loss can revert the claim. Does a page-count auto-checkpoint threshold bound $\delta$ in wall-clock time?
+\end{pdexercise}
+\begin{pdsolution}{ex:swk-checkpoint-window}
+The commit is power-loss exposed from $t_0$ until the WAL frames that contain it are synced. A page-count threshold bounds accumulated WAL frames, not elapsed time: at a low or zero write rate it may not fire for arbitrarily long, so it gives no wall-clock bound. Only with an independently guaranteed write-rate floor $w_{\min}$ pages per second and threshold $P$ does $\delta \lesssim P/w_{\min}$ follow, and this chapter assumes no such floor.
+\end{pdsolution}
+\begin{pdexercise}[kind=Open,rating=3]{ex:swk-op10-interface}
+Section~\ref{sec:durability} sketches Selective Checkpointing (OP-10), but nothing in the kernel opts into it. What is the cleanest interface that lets a settlement-ledger write demand I1b while keeping claim writes fast, and, harder, what stops a \emph{future} write path from silently defaulting into the fast lane when it should have opted in?
+\end{pdexercise}
+\begin{pdsolution}{ex:swk-op10-interface}
+Make durability a typed argument of the transaction, \texttt{PROCESS\_CRASH} or \texttt{POWER\_LOSS}, never an adjective in prose. Route \texttt{POWER\_LOSS} operations through a connection configured \texttt{synchronous=FULL} before the transaction opens and verify the commit before returning; if SQLite settings are connection-scoped, a separate fully-synced financial ledger is the cleanest isolation. Ordinary claims stay on \texttt{NORMAL}. Hard-reset fault tests must exercise the stronger path. The guard against silent defaulting is the type: a write path that names no durability class does not compile, and a forced checkpoint bounds recovery and log size but is not the per-write primitive.
+\end{pdsolution}
+
+\pdexercisesfor{\S\ref{sec:resource}}{The resource organ: claims, locks, and fair exclusion}
+
+\begin{pdexercise}[kind=Check,rating=1]{ex:swk-release-idempotent}
+Why does releasing a lock you do not hold return success rather than an error? Which property (I2 to I4) is this, and what would break if it raised?
+\end{pdexercise}
+\begin{pdsolution}{ex:swk-release-idempotent}
+A release with no matching (key, holder) row is a successful no-op so that retries are idempotent: this is I3. It must never delete another holder's row. If it raised, a client that timed out on its first release could not distinguish success from failure, and at-least-once handling would break.
+\end{pdsolution}
+\begin{pdexercise}[kind=Trace,rating=2]{ex:swk-acquire-race}
+Two agents call \texttt{acquire} on the same fresh key at the same instant. Walk the uniqueness-constraint insert for both (Listing~\ref{alg:acquire}) and show exactly where the loser learns the holder's identity.
+\end{pdexercise}
+\begin{pdsolution}{ex:swk-acquire-race}
+The daemon serializes the two requests. The first \texttt{INSERT}\allowbreak(key, holder) commits. The second hits the unique-key violation, selects the extant row inside the catch path, and returns \texttt{DENIED}\allowbreak\texttt{(holder}\allowbreak\texttt{=first)}: that select is where the loser learns the name. For range and hierarchy claims the trace is safe only after both requests map to the same canonical conflict key or the overlap test runs in one immediate transaction.
+\end{pdsolution}
+\begin{pdexercise}[kind=Open,rating=3]{ex:swk-op1-ticket}
+The Stigmergic Ticket-Lock buys bounded wait on the cooperative-release path only (OP-1). Extend it so that a lease reclaimed by the lazy TTL sweep also honors the ticket queue, still without a background scheduler, or argue that no reactive-only design can, and say what the minimum scheduler would be.
+\end{pdexercise}
+\begin{pdsolution}{ex:swk-op1-ticket}
+Add a durable FIFO ticket queue per conflict domain, a maximum lease $L$, a monotonically increasing fencing epoch, and grant-to-head on release, on acquire, and on lazy expiry. No background scheduler is required for safety, but liveness requires some live caller or tick to trigger the transitions. Under daemon availability, eventual requests, and non-renewable bounded leases, a requester with $q$ predecessors waits at most about $(q+1)L$ plus processing delay; without those assumptions no bounded wait exists. Every external effect must validate the fencing epoch, or an expired holder can still act.
+\end{pdsolution}
+
+\pdexercisesfor{\S\ref{sec:comm}}{The communication organ: the bus, stigmergy, and two delegation chains}
+
+\begin{pdexercise}[kind=Check,rating=1]{ex:swk-decay-honest}
+Why does read-time marker decay make the system more honest than a background tick alone? Give a scenario where tick-only decay would report a stale signal as fresh.
+\end{pdexercise}
+\begin{pdsolution}{ex:swk-decay-honest}
+If the evaporation tick stalls for an hour, tick-only storage still reports yesterday's marker weight as today's. Read-time evaluation computes $w\,r^{\Delta t}$ from the persisted timestamp and never presents the stale stored number as current.
+\end{pdsolution}
+\begin{pdexercise}[kind=Trace,rating=2]{ex:swk-redelivery}
+A request speech act is sent over the bus and redelivered once by the at-least-once channel. Trace what the operator should see under the silent-dedup resolution, and what an envelope idempotency key would change.
+\end{pdexercise}
+\begin{pdsolution}{ex:swk-redelivery}
+The transport delivers the request twice. The consumer applies one semantic state transition and recognizes the duplicate as transport nondeterminism; diagnostics may count the redelivery, the operator's view shows one act. An envelope idempotency key plus a unique (consumer, key) receipt lets the consumer store ``effect applied'' atomically with the effect, making retry safety explicit rather than conventional. Exactly-once is still not guaranteed for an unbrokered external effect.
+\end{pdsolution}
+\begin{pdexercise}[kind=Open,rating=3]{ex:swk-op8-decay}
+What per-kind marker decay rate keeps stigmergic signals neither rotten nor prematurely evaporated (OP-8)? Frame this as an empirical measurement, not a constant to guess.
+\end{pdexercise}
+\begin{pdsolution}{ex:swk-op8-decay}
+For each marker kind, log creation, reads, the actions it influenced, its supersession, and the time at which operators label it stale. Fit a survival curve and choose the half-life that minimizes $C_{\text{stale}}\cdot\text{false-live} + C_{\text{lost}}\cdot\text{false-expired}$, validated on held-out projects. Claims and presence should decay far faster than decisions or learned skills. Publish the confidence and re-estimate under drift.
+\end{pdsolution}
+
+\pdexercisesfor{\S\ref{sec:enforcement}}{The obligation \& enforcement organ: the sovereign's two arms}
+
+\begin{pdexercise}[kind=Check,rating=1]{ex:swk-monitor-rules-precommit}
+For each monitor rule in Theorem~\ref{thm:schneider}, say whether it \emph{could in principle} be moved to a pre-commit check (a before-insert trigger). Which genuinely cannot, and why? (Hint: heartbeat freshness is a failure detector, and Chandra and Toueg~\cite{chandratoueg1996} show failure detection cannot be made perfectly synchronous.)
+\end{pdexercise}
+\begin{pdsolution}{ex:swk-monitor-rules-precommit}
+Note-count monotonicity can be regimented by append-only storage or a trigger that rejects deletes and regressive updates. Capability attenuation and lock-owner release can be pre-checked only if authenticated identity, the capability order, and every relevant effect path pass through the mediator. Duplicate keys and boot admission are already pre-effect. Heartbeat freshness cannot be rejected at the heartbeat insert: staleness is an absence observed only after time passes, and under asynchrony a slow actor is indistinguishable from a failed one. Out-of-band filesystem and network effects remain detect-only until mediated.
+\end{pdsolution}
+\begin{pdexercise}[kind=Trace,rating=2]{ex:swk-empty-oracle}
+An agent attempts to close a commitment with an empty oracle reference. Walk the Law-2 gate (Listing~\ref{alg:close}) and show exactly where and why the transition is refused.
+\end{pdexercise}
+\begin{pdsolution}{ex:swk-empty-oracle}
+\texttt{close(done, oracle\_ref="")} reaches the oracle-reference check, returns \texttt{REFUSED}, leaves the commitment open, and records the denied authority act. It never reaches classification, current-state verification, or the \texttt{DONE} transition: the empty reference fails the finite-vocabulary test before any oracle is consulted.
+\end{pdsolution}
+\begin{pdexercise}[kind=Trace,rating=2]{ex:swk-classify-rules}
+Theorem~\ref{thm:regimentation-controllability} settles which monitor rules are regimentable, so classify rather than re-prove. Take I7 to I9's monitor rules (note monotonicity, capability escalation, lock-owner validity) and, for each, say whether its prohibition names a controllable event and whether its trigger is witnessed at the boundary. Which cell of Figure~\ref{fig:swk-controllability-quadrant} does each land in?
+\end{pdexercise}
+\begin{pdsolution}{ex:swk-classify-rules}
+Note monotonicity: the prohibited event is a write the daemon mediates and the trigger (the previous count) is committed state; top-right, regimentable, and append-only storage is the supervisor. Capability escalation: regimentable only if every effect path and the identity behind it pass through the mediator; an escalation exercised through an unmediated channel is an uncontrollable event, which moves the rule to the left column until the channel is owned. Lock-owner validity: the release is mediated and the owner is committed state, top-right, provided the actor identity is authenticated (I12); with a self-asserted identity the trigger is not witnessed and the rule drops to the bottom-right cell.
+\end{pdsolution}
+\begin{pdexercise}[kind=Check,rating=1]{ex:swk-classify-two}
+Classify ``forbid \texttt{api\_call} after \texttt{spawn\_child}'' and ``forbid \texttt{internal\_plan} after \texttt{fs\_write}'' using Theorem~\ref{thm:regimentation-controllability}.
+\end{pdexercise}
+\begin{pdsolution}{ex:swk-classify-two}
+The first gates a controllable event on a controllable trigger: both \texttt{api\_call} and \texttt{spawn\_child} lie in $\Sigma_c$, the policy never disables an uncontrollable event, and it is regimentable. The second must disable \texttt{internal\_plan}, an uncontrollable event, in its post-trigger state, and the plant enables it there; the history \texttt{fs\_write} followed by \texttt{internal\_plan} witnesses the failure of controllability, so the rule is detect-only.
+\end{pdsolution}
+\begin{pdexercise}[kind=Trace,rating=2]{ex:swk-synthesis}
+Add $P_4$, ``no \texttt{spawn\_child} after \texttt{git\_push},'' to the sandboxed review job and write the new disablement map by hand.
+\end{pdexercise}
+\begin{pdsolution}{ex:swk-synthesis}
+$P_4$ is a two-state taint automaton whose trigger is \texttt{git\_push}. In the product with $P_2$ (no \texttt{git\_push}, ever) the trigger is disabled in every reachable state, so $P_4$'s tainted state is unreachable in the closed loop and the disablement map is unchanged: \texttt{ok} disables $\{\texttt{net\_egress}, \texttt{git\_push}\}$ and \texttt{tainted} disables $\{\texttt{net\_egress}, \texttt{git\_push}, \texttt{fs\_write}\}$. Controllability still holds, since no reachable state disables an uncontrollable event. The lesson is the one synthesis is for: $P_4$ is vacuous under $P_2$, and a hand-written engine would have carried the dead rule forever.
+\end{pdsolution}
+\begin{pdexercise}[kind=Open,rating=3]{ex:swk-op5-oracle}
+Extend the Law-2 oracle vocabulary to capture a ``done'' condition it currently misses (OP-5), without re-admitting free text. State your new oracle and argue it is Goodhart-resistant, for one of the two specified kinds (delta oracle, AST assertion) before inventing a third, since neither yet survives that argument.
+\end{pdexercise}
+\begin{pdsolution}{ex:swk-op5-oracle}
+A protected-run receipt: tree hash, a suite hash the principal controls, runner or image hash, command, timestamp and nonce, exit code, and a signed result. Closure verifies every binding and the freshness. This resists free-text and stale-result manipulation; it is not universally Goodhart-proof, because the suite may be incomplete or poisoned. The honest theorem is syntactic provenance and non-replay, not semantic correctness.
+\end{pdsolution}
+
+\pdexercisesfor{\S\ref{sec:continuity}}{The continuity organ: memory, checkpoint, and the foundation of the economy}
+
+\begin{pdexercise}[kind=Check,rating=1]{ex:swk-notes-vs-work}
+Why is ``recovery passes notes'' fundamentally weaker than ``recovery restores work'' for a language-model agent that died mid-edit? Name one thing notes preserve and one thing they cannot.
+\end{pdexercise}
+\begin{pdsolution}{ex:swk-notes-vs-work}
+Notes preserve explicit goals, rationale, observations, and artifact pointers. They cannot preserve unflushed edits, process memory, open handles, provider caches or hidden state, or a latent next action the model never externalized. A successor can understand the story and still be unable to resume the exact computation.
+\end{pdsolution}
+\begin{pdexercise}[kind=Trace,rating=2]{ex:swk-note-monotonicity}
+Follow the note-monotonicity rule from an agent appending a note to the monitor detecting a regression. At which point is the violation already durable (per Theorem~\ref{thm:schneider})?
+\end{pdexercise}
+\begin{pdsolution}{ex:swk-note-monotonicity}
+The append commits. A later delete or regressive count also commits and enters the operation log. Only then does the subscriber observe the count drop and raise or compensate. The violation is durable at the second commit; the monitor proves detection, not prevention.
+\end{pdsolution}
+\begin{pdexercise}[kind=Open,rating=3]{ex:swk-op4-capsule}
+What is the minimal durable artifact that turns ``recovery passes notes'' into ``recovery restores work'' (OP-4)? Is it a content-addressed snapshot of the working-tree diff, the open claims, the commitment set, and the last $N$ turns of the agent's transcript? What is recoverable versus fundamentally lost when a language-model agent dies mid-thought?
+\end{pdexercise}
+\begin{pdsolution}{ex:swk-op4-capsule}
+A content-addressed task capsule sealed at a safe tool or message boundary: base tree and worktree blobs, environment and tool manifests, open claims with epochs, commitments and acceptance criteria, exact tool input and output, pending external operations with their idempotency keys, decisions and hypotheses, a provenance-preserving transcript or compaction, and external references. Flush the ledger and quiesce mediated effects before sealing. This restores observable task state and evidence; it cannot recover hidden activations, unexposed reasoning, provider-internal caches, or unrecorded intent. Arbitrary-provider recovery is semantic continuation, not bit-identical resurrection.
+\end{pdsolution}
+
+\pdexercisesfor{\S\ref{sec:invariants}}{The invariants, stated as theorems}
+
+\begin{pdexercise}[kind=Check,rating=1]{ex:swk-crimes}
+The escalated delegation takes one step (Table~\ref{tab:workunit-crimes}). Which transition is it, and which invariant does it break?
+\end{pdexercise}
+\begin{pdsolution}{ex:swk-crimes}
+\texttt{delegate} from the initial state with a child scope not contained in the root grant's scope $\{a,b\}$, for instance $\{a,b,c\}$: with the attenuation guard off the grant is created and I4 fails immediately. No other guard can be broken in one step, because effects need the executing phase, settlement needs the verified phase, and a double settlement needs two operations.
+\end{pdsolution}
+\begin{pdexercise}[kind=Open,rating=3]{ex:swk-seventh-invariant}
+Propose a seventh invariant that the six of Theorem~\ref{thm:workunit} do not imply, add the guard that enforces it to \texttt{c0\_workunit.py}, and report the shortest crime the checker finds with your guard disabled.
+\end{pdexercise}
+\begin{pdsolution}{ex:swk-seventh-invariant}
+One candidate: a contested work unit never settles (\texttt{settle} is guarded on the verified phase, but the transition from contested back to a settleable phase is unconstrained). Add the guard, rerun the search, and confirm the state count and that the mutation suite finds a trace with the guard off; if the checker finds none, the invariant was already implied and does not earn its row.
+\end{pdsolution}
+
+\begin{pdexercise}[kind=Check,rating=1]{ex:swk-linearizability-assumptions}
+List the four assumptions Theorem~\ref{thm:consistency} charges for linearizability. Which one fails first if an out-of-band SQLite connection is introduced?
+\end{pdexercise}
+\begin{pdsolution}{ex:swk-linearizability-assumptions}
+One daemon connection handles every claim and lock read and write; no \texttt{read\_uncommitted}; respond only after commit; no out-of-band writer. A write-capable external connection violates the first and the fourth at once, the out-of-band-writer assumption most literally. A read-only connection need not break write linearizability, but it observes under different timing and API semantics.
+\end{pdsolution}
+\begin{pdexercise}[kind=Trace,rating=2]{ex:swk-linearization}
+Construct a three-operation claim history and give a valid linearization. If two calls overlap, show why more than one linearization may still respect real time.
+\end{pdexercise}
+\begin{pdsolution}{ex:swk-linearization}
+A invokes \texttt{claim(k)} and commits at $c_1$. B and C overlap; B's denied read commits at $c_2$, A releases at $c_3$, C's acquire commits at $c_4$. One valid order is A-acquire, B-denied, A-release, C-acquire. If B and C overlap around the release, either may linearize first, as long as each result matches the state at its point and non-overlapping operations keep their real-time order.
+\end{pdsolution}
+\begin{pdexercise}[kind=Open,rating=3]{ex:swk-op3-differential}
+Specify the minimal differential-test suite that turns I11 from an assumption into conformance evidence (OP-3): what operation sequences, what observable-state assertions, run against both runtimes? Then attack your own answer: name a class of binding divergence that a seeded $10^6$-operation hash-equivalence fuzz would \emph{not} catch, and say what would.
+\end{pdexercise}
+\begin{pdsolution}{ex:swk-op3-differential}
+Generate identical state-machine traces against both bindings: schema initialization and migrations, acquire, reclaim, release, and expiry, overlapping calls, transactions and rollback, busy and lock behavior, encodings, pragmas, crash and reopen, fault injection. After every step compare returned values, errors, serialized rows, schema, and recovery state, including the deployed binary in CI. A seeded fuzz misses divergences that depend on wall-clock timing, on a pragma the fuzz never sets, or on a crash at a point the fuzz never interrupts; targeted fault injection and pragma sweeps catch those. No finite suite makes I11 a theorem: that needs a formal refinement or equivalence proof, or the same verified binding on both sides. Label the suite conformance evidence.
+\end{pdsolution}
+
+\pdexercisesfor{\S\ref{sec:atomicity}}{Cross-organ atomicity: a buildable defect, not a frontier}
+
+\begin{pdexercise}[kind=Check,rating=1]{ex:swk-partial-failure}
+Give a concrete partial failure: port claimed, session opened, then the commitment write fails. What inconsistent state is left, and which agent sees it?
+\end{pdexercise}
+\begin{pdsolution}{ex:swk-partial-failure}
+The port stays claimed and a live or ghost session row exists, but no commitment says what work owns them. Other agents see a busy port and a presence they cannot reconcile; the failed starter may retry into its own leftovers.
+\end{pdsolution}
+\begin{pdexercise}[kind=Open,rating=3]{ex:swk-op11-begin-work}
+Sketch the interface change that wraps the three-organ ``begin'' operation in one local transaction (OP-11). What is the compensating action if you instead chose Sagas~\cite{garciamolina1987}, and why is the transaction strictly simpler here?
+\end{pdexercise}
+\begin{pdsolution}{ex:swk-op11-begin-work}
+Expose one \texttt{begin\_work} endpoint that opens \texttt{BEGIN IMMEDIATE}, validates every input, inserts the claim, session, commitment, and outbox rows, and commits once; on any error it rolls back all of them. A saga would release the claim and mark or delete the session when the commitment insert failed, and each compensation can itself fail or crash between steps. All three rows live in one SQLite file, so the local transaction is both simpler and stronger.
+\end{pdsolution}
+
+\pdexercisesfor{\S\ref{sec:threatmodel}}{Threat model and the limits of mediation}
+
+\begin{pdexercise}[kind=Check,rating=1]{ex:swk-hash-chain-adversary}
+The hash chain defends against nobody in scope. Name the \emph{out-of-scope} adversary it does defend against, and the layer (substrate or economy) where that adversary becomes real.
+\end{pdexercise}
+\begin{pdsolution}{ex:swk-hash-chain-adversary}
+A later same-user tamperer of the database file, or a remote synchronizer that cannot rewrite an externally anchored root. The same-user process is out of scope at the substrate; the adversary becomes real at the cross-machine economy layer. Without an independent anchor or verifier, the writer can rewrite the log and recompute the chain.
+\end{pdsolution}
+\begin{pdexercise}[kind=Trace,rating=2]{ex:swk-forged-release}
+An agent forges its actor identity to release another agent's lock. Walk the lock-owner-validity rule and show exactly where I12's absence lets the forgery through.
+\end{pdexercise}
+\begin{pdsolution}{ex:swk-forged-release}
+The release path compares the supplied actor identity to the lock owner. If a legacy endpoint accepts a self-asserted identity, the attacker submits the victim's string, the equality check passes, and the owner-scoped delete executes. The lock rule is correct relative to its input; I12 failed to authenticate the input. Complete credential and peer binding must precede every security-relevant write.
+\end{pdsolution}
+\begin{pdexercise}[kind=Open,rating=3]{ex:swk-op9-hardening}
+What is the minimal hardening that closes the same-machine adversary without a hardware trusted-platform-module dependency (OP-9): an OS keychain for the signing key, sealed memory, the ephemeral-UID sandbox and kernel-verified peer credential specified above? Where does each stop? After the sandbox lands, which row of Table~\ref{tab:threat-model} does the adversary move to, and what is still in scope there?
+\end{pdexercise}
+\begin{pdsolution}{ex:swk-op9-hardening}
+The minimum useful wall is a daemon under a separate UID (or a VM), a daemon-owned database and key, a Unix-socket ACL plus kernel peer credentials, and brokered git, filesystem, and network effects. An OS keychain protects a key at rest but not arbitrary signing requests from an equally authorized same-user process; sealed memory does not stop same-UID tracing or injection without an OS isolation policy; external root anchoring detects a later log rewrite but does not prevent it. No trusted platform module is required for strong local separation: separate privilege and complete mediation are. After the sandbox the same-user adversary moves to the mediated-effects row, where side channels the sandbox does not enumerate remain in scope.
+\end{pdsolution}
 
 % ═════════════════════════════════════════════════════════════════════════════
 \section{Related work}
@@ -1822,7 +2540,7 @@ problem, on the scale of Table~\ref{tab:honestkey}.}
 \textbf{\#} & \textbf{Problem} & \textbf{Status} & \textbf{Design in this chapter} \\
 \midrule
 OP-1 & Fair exclusion without a scheduler & \Open & Stigmergic ticket-lock, \Designed{} (\S\ref{sec:resource}) \\
-OP-2 & Regimentation vs.\ enforcement & \Closed & Theorem~\ref{thm:decidability} + Remark~\ref{rem:controllability-scope} \\
+OP-2 & Regimentation vs.\ enforcement & \Closed & Theorem~\ref{thm:decidability} + Theorem~\ref{thm:regimentation-controllability} \\
 OP-3 & Cross-runtime soundness (I11) & \Open & Differential fuzzing, \Designed{} (\S\ref{sec:invariants}) \\
 OP-4 & Checkpoint with teeth & \Open & Event-sourced rehydration, \Designed{} (\S\ref{sec:continuity}) \\
 OP-5 & Oracle completeness & \Open & State-machine assertions, \Designed{} (\S\ref{sec:enforcement}) \\
@@ -1848,7 +2566,7 @@ included?
 Theorem~\ref{thm:decidability}: an invariant is regimentable iff it is a pure,
 deterministic predicate over committed local state and the incoming payload;
 everything else is post-commit detection under Theorem~\ref{thm:schneider}.
-Remark~\ref{rem:controllability-scope} places that result inside Ramadge--Wonham
+Theorem~\ref{thm:regimentation-controllability} places that result inside Ramadge--Wonham
 controllability~\cite{rw87,rw89}, of which it is the commit-only instance, and a
 companion formal chapter carries the general theorem. The remaining work is
 classification, not proof.
@@ -1866,7 +2584,7 @@ bound to a particular model and session and is not a portable artifact --- is
 exactly the open question, and no formal result in this series establishes it.
 \item[$\bigstar$ OP-5 --- Oracle completeness.] Status: \Open. State-machine assertions
 (\S\ref{sec:enforcement}, \Designed) would add delta oracles and AST assertions to
-Algorithm~\ref{alg:close}'s four shipped kinds. Two kinds are not a completeness
+Listing~\ref{alg:close}'s four shipped kinds. Two kinds are not a completeness
 result, and neither kind yet survives the Goodhart argument the vocabulary exists to
 win.
 \item[$\bigstar$ OP-6 --- Tamper-evidence on the read path.] Status: \Open. Where should
@@ -1970,7 +2688,7 @@ pragma set: \texttt{journal\_mode=WAL}, \texttt{synchronous=NORMAL},
 are illustrative of the organization, not a stable public interface.}
 \label{tab:appendix-map}
 \small
-\begin{tabular}{@{}p{52mm}p{52mm}p{42mm}@{}}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
 \toprule
 \textbf{Mechanism (body)} & \textbf{Realizing module(s)} & \textbf{Notes} \\
 \midrule
@@ -1987,7 +2705,7 @@ Enforcement gate (macaroon discharge) & kernel macaroon module & crypto verified
 Runtime-parity shim & runtime-shim module & normalizes binding differences \\
 Identity (actor souls + credentials) & actor-souls, budget-guard modules & bounded gate ships; full write-boundary enforcement absent \\
 \bottomrule
-\end{tabular}
+\end{tabularx}
 \end{table}
 
 \subsection{Status, and the corrections that matter}
@@ -2039,6 +2757,7 @@ labels.
 
 % ═════════════════════════════════════════════════════════════════════════════
 \bibliographystyle{plain}
+\pdprintsolutions
 \begin{thebibliography}{99}
 
 \bibitem{anderson1972}
@@ -2061,6 +2780,11 @@ Jerome H. Saltzer and Michael D. Schroeder.
 Fred B. Schneider.
 \newblock Enforceable Security Policies.
 \newblock \textit{ACM Transactions on Information and System Security}, 3(1):30--50, 2000.
+
+\bibitem{lw88}
+Feng Lin and W. Murray Wonham.
+\newblock On observability of discrete-event systems.
+\newblock \textit{Information Sciences}, 44(3):173--198, 1988.
 
 \bibitem{rw87}
 Peter J. Ramadge and W. Murray Wonham.

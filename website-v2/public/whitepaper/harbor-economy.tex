@@ -1,3 +1,16 @@
+% -----------------------------------------------------------------------
+% TWIN-LOCATION NOTICE. This file is one of the shared homes for the same
+% results; edit every listed home or the drift checker fails.
+%   Standalone paper : docs/harbor-research/tex/paper6.tex (S(lang), S(succession))
+%   Chapter          : website-v2/public/whitepaper/harbor-economy.tex (this
+%                       file; the deontic detection theorem and its frontier in
+%                       sec:three-on-one, the succession price in sec:three-sides)
+%   Index ids        : R15 (succession price), R17
+%   Check            : python3 scripts/harbor-research/check_library_index.py
+%                      python3 scripts/harbor-research/check_propagated_corrections.py
+%                      python3 scripts/harbor-research/check_citations.py
+%   System document  : docs/harbor-research/LIBRARY-SYSTEM.md
+% -----------------------------------------------------------------------
 \documentclass[11pt,a4paper]{article}
 
 % ═══════════════════════════════════════════════════════════════════════════════
@@ -17,6 +30,7 @@
 \usepackage{xcolor}
 \usepackage{booktabs}
 \usepackage{tabularx}
+\usepackage{xltabular}
 \usepackage{array}
 \usepackage{graphicx}
 \usepackage{fancyhdr}
@@ -24,7 +38,7 @@
 \usepackage{float}
 \usepackage{caption}
 \usepackage{enumitem}
-\usepackage[hidelinks]{hyperref}
+\usepackage[backref=page]{hyperref}
 \captionsetup{font=small,labelfont=bf}
 
 \usetikzlibrary{arrows.meta,positioning,fit,backgrounds,calc,shapes.geometric,%
@@ -45,9 +59,13 @@
 \definecolor{hhteal}{HTML}{00564C}
 \definecolor{hhpaper}{HTML}{FBF7EF}
 \definecolor{hhgray}{HTML}{5C5650}
+\input{figures/pd-palette}
+\newcommand{\pdchapterprefix}{he}% this chapter's key in whitepaper/textbook.json
+\input{figures/pd-textbook-map}
+\input{figures/pd-pedagogy}
 \input{figures/pd-figure-language}
 
-% ─── Maturity markers (honest self-grading of every claim) ────────────────────
+% ─── Maturity markers (self-grading of every claim) ────────────────────
 % Muted ink throughout; the four grades differ by WEIGHT and SMALL-CAPS /
 % italic, never by hue (house style: status by weight/small-caps, not a rainbow).
 \newcommand{\Built}{{\textcolor{hhink}{\textsc{\textbf{implemented}}}}}
@@ -106,18 +124,6 @@
   \end{tikzpicture}\vspace{4pt}%
 }
 
-% ─── Exercises environment (the pedagogic block) ──────────────────────────────
-\newenvironment{exercises}{%
-  \par\vspace{8pt}\noindent
-  {\scshape\bfseries\textcolor{hhink}{\textcolor{hhgray!70}{\rule[-1pt]{2.5pt}{11pt}}\enspace Exercises}}
-  \par\nobreak\vspace{2pt}
-  \begin{enumerate}[label=\textbf{E\arabic*.},leftmargin=2.6em,itemsep=2pt,topsep=2pt]
-}{%
-  \end{enumerate}\vspace{6pt}
-}
-% star marker for open-problem exercises
-\newcommand{\openstar}{{\textcolor{hhcobalt}{$\bigstar$}}\;}
-
 % ─── Listings Setup ──────────────────────────────────────────────────────────
 \lstdefinestyle{pseudocode}{
   backgroundcolor=\color{codebg},
@@ -161,14 +167,14 @@
 \fancyhf{}
 \fancyhead[L]{\small\itshape\color{hhgray} The Harbor Economy}
 \fancyhead[R]{\small\color{hhgray}\thepage}
-\fancyfoot[C]{\footnotesize\color{hhgray} Port Daddy Coordination Papers \textperiodcentered\ Chapter IV of VII}
+\fancyfoot[C]{\footnotesize\color{hhgray} Port Daddy Coordination Papers \textperiodcentered\ Chapter~\pdchapternumber\ of \pdchaptercount}
 \renewcommand{\headrulewidth}{0.4pt}
 \renewcommand{\footrulewidth}{0pt}
 
 % ─── Title ────────────────────────────────────────────────────────────────────
 \title{
   \vspace{-1cm}
-  {\Large\textsc{Port Daddy Coordination Papers --- Chapter IV of VII}}\\[0.5cm]
+  {\Large\textsc{Port Daddy Coordination Papers --- Chapter~\pdchapternumber\ of \pdchaptercount}}\\[0.5cm]
   \rule{\textwidth}{0.5pt}\\[0.3cm]
   {\LARGE\textbf{The Harbor Economy:}}\\[0.2cm]
   {\Large A Three-Sided Market for Agent Labor,\\
@@ -180,10 +186,14 @@
   Curiositech LLC\\[0.2cm]
   \texttt{engineering@portdaddy.dev}
 }
-\date{August 2026\\Version 1.2 (revised pre-print)}
+\date{September 2026\\Version 1.3 (textbook edition)}
 
 % ═══════════════════════════════════════════════════════════════════════════════
+% Hyperlink and cross-reference discipline (must stay last in the preamble).
+\input{figures/pd-hyperlinks}
+
 \begin{document}
+\pdopensolutions
 \setlength{\emergencystretch}{2em}
 
 \maketitle
@@ -235,11 +245,11 @@ settlement, applied category theory, federation, Port Daddy
 \vspace{0.4cm}
 \noindent\textit{Reading time: approximately 45 minutes end-to-end; about 12
 minutes for \S\ref{sec:thesis}--\S\ref{sec:three-sides} alone (the market thesis).
-This is Chapter~IV of a seven-chapter collection and is written cold: no prior platform
+This is Chapter~\pdchapternumber{} of \pdbooktitle{}, and it is written cold: no prior platform
 knowledge is assumed. It can be read first, but \S\ref{sec:keystone} leans on
-Chapter~III (\emph{From Spawn to Person}) for the identity substrate, while the
-cryptographic hop-bound authorization chain is analyzed in Chapter~V
-(\emph{The Anchor Protocol}).}
+\pdchapref{stp}{From Spawn to Person} for the identity substrate, while the
+cryptographic hop-bound authorization chain is analyzed in
+\pdchapref{anchor}{The Anchor Protocol}.}
 
 \vspace{0.5cm}
 
@@ -247,7 +257,7 @@ cryptographic hop-bound authorization chain is analyzed in Chapter~V
 \noindent\begin{tikzpicture}
 \node[draw=hhgray!45,line width=0.4pt,fill=hhsand!12,rounded corners=2pt,
       inner sep=8pt,text width=\dimexpr\textwidth-22pt\relax,align=left]{%
-  \small{\scshape\bfseries Maturity key (honest self-grading).}\enspace
+  \small{\scshape\bfseries Maturity key (self-grading of every claim).}\enspace
   Every claim in this paper carries one of four maturity labels, so the reader
   always knows whether a sentence reports running code or a designed target.
   \Built{} --- shipped and exercised by tests in the reference implementation.
@@ -275,11 +285,10 @@ cryptographic hop-bound authorization chain is analyzed in Chapter~V
 \section{Reader's map}\label{sec:readers-map}
 % ═══════════════════════════════════════════════════════════════════════════════
 
-This paper is the top rung of a ladder (Figure~\ref{fig:he-stack-map}). It assumes
+This paper is the top rung of a ladder. It assumes
 the rungs below it and cites the papers that build them. Read it cold if you must,
 but it is the fourth paper for a reason: it depends on everything underneath.
 
-\input{figures/fig-he-stack-map}
 
 \begin{table}[H]
 \centering
@@ -289,7 +298,7 @@ section that answers their question and to the one figure or theorem that would 
 to survive a review from someone in that role --- so nobody has to read the paper
 end to end to get their own answer out of it.}
 \label{tab:readers-map}
-\begin{tabular}{@{}p{3.6cm} p{6.2cm} p{4.6cm}@{}}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.6cm} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
 \toprule
 \textbf{If you are\dots} & \textbf{\dots start here} & \textbf{\dots critical artifact} \\
 \midrule
@@ -298,10 +307,10 @@ A founder asking ``what is the product'' &
   Fig.~\ref{fig:he-three-sided}; the three claims C1--C3 \\
 A mechanism designer &
   \S\ref{sec:three-sides} $\to$ \S\ref{sec:ic} (the formal model) &
-  Thm.~\ref{thm:ms}, Fig.~\ref{fig:he-grading-oracle} \\
+  Thm.~\ref{thm:ms} \\
 A cryptographer / distributed-systems reviewer &
   \S\ref{sec:keystone} (the keystone) $\to$ \S\ref{sec:federation} &
-  Fig.~\ref{fig:he-keystone-split}, Fig.~\ref{fig:fh-xfer} \\
+  Table~\ref{tab:keystone-split}, Fig.~\ref{fig:fh-xfer} \\
 A category theorist &
   \S\ref{sec:conservation} $\to$ \S\ref{sec:sheaf} &
   Fig.~\ref{fig:he-conservation-functor}, Conj.~\ref{conj:sheaf} \\
@@ -309,14 +318,16 @@ An implementer &
   \S\ref{sec:float-plan} (the built floor) $\to$ Appendix~\ref{app:impl} (status) &
   Table~\ref{tab:honest-state} \\
 \bottomrule
-\end{tabular}
+\end{tabularx}
 \end{table}
 
-\noindent\textbf{Reading order within the collection.} Chapter~I (\emph{The Legible
-Swarm}) is the front door; Chapter~II (\emph{The Single-Writer Kernel}) is the local
-transactional floor; Chapter~III (\emph{From Spawn to Person}) supplies continuity
-and reputation. \emph{This} chapter is the market. Chapters~V--VII then deepen the
-cryptographic, economic, and federation arguments.
+\noindent\textbf{Where this chapter sits.} \pdchapref{swk}{The Single-Writer
+Kernel} is the local transactional floor and \pdchapref{anchor}{The Anchor
+Protocol} proves how its authority delegates; \pdchapref{ls}{The Legible Swarm}
+is the operator's front door; \pdchapref{stp}{From Spawn to Person} supplies
+continuity and reputation. \emph{This} chapter is the market.
+\pdchapref{bonded}{The Bonded Commons} and \pdchapref{fh}{The Federated Harbor}
+then prove what the market assumes about settlement and federation.
 
 \xrefbox{\textbf{Dramatis personae.} Every mechanism in this paper is dramatized
 end-to-end with the same cast, so an abstraction is never introduced without a
@@ -327,7 +338,14 @@ Harbor~$C$ and sells a licensed lint-and-type skill. \textbf{Judy} is a human
 grader who arbitrates disputes for a bond. The two harbors do \emph{not} trust each
 other and neither is a root of authority for the other; that distrust is the entire
 reason the rest of the paper exists. We price everything in an abstract unit, the
-\emph{credit} (\textsc{cr}); read it as a stablecoin cent if you like.}
+\emph{credit} (\textsc{cr}); read it as a stablecoin cent if you like. The honest
+defense of an internal unit is older than this program: Sutherland priced computer
+time with a futures market~\cite{sutherland1968}, Miller and Drexler made prices the
+coordination signal of open computation~\cite{millerdrexler1988}, and Simon named
+the scarce resource such prices ration, attention~\cite{simon1971}. A bond forfeited
+to its own issuer conserves trivially, so the credit is an optimization signal
+first; its purchasing power outside the harbor is whatever the settlement rules
+make external.}
 
 % ═══════════════════════════════════════════════════════════════════════════════
 \section{The thesis: a market, not a payment rail}\label{sec:thesis}
@@ -335,7 +353,8 @@ reason the rest of the paper exists. We price everything in an abstract unit, th
 
 A solo operator running a swarm of coding agents needs three things --- legibility,
 accountability, and safety --- and needs \emph{no cryptography at all}, because she
-owns every machine in the harbor. That is the single-player wedge of Chapter~I. The
+owns every machine in the harbor. That is the single-player wedge of
+\pdchapref{ls}{The Legible Swarm}. The
 instant two operators trade, the world changes. Alice's frigates touch your
 repository. You must now price work done by agents you did not spawn, owned by a
 principal you do not trust, using skills you cannot inspect. That is a
@@ -372,34 +391,25 @@ primitive. The harbor comes first; the trade comes when the ships do.}
 
 \subsection{The through-line: why a market needs persons, not spawns}
 
-The whole series climbs one spine (the vertical arrow in
-Figure~\ref{fig:he-stack-map}):
+The whole series climbs one spine:
 \begin{align*}
-\text{memory} &\to \text{checkpoint} \to \text{continuity}
-\to \text{a person, not a spawn} && \text{(Chapter III)}\\
-&\to \text{registered outcomes} \to \text{reputation}
-\to \text{tradeable asset} \to \text{market} && \text{(this chapter).}
+&\text{memory} \to \text{checkpoint} \to \text{continuity} \to \text{a person, not a spawn}\\
+&\qquad\text{\footnotesize(\pdchapref{stp}{From Spawn to Person})}\\
+&\to \text{registered outcomes} \to \text{reputation} \to \text{tradeable asset} \to \text{market}\\
+&\qquad\text{\footnotesize(this chapter).}
 \end{align*}
 Sides 2 and 3 of the market --- renting an \emph{asset}, licensing a \emph{good}
 --- presuppose that there is a \emph{thing} to rent or sell that cannot be
 costlessly cloned. You cannot rent a reputation that any spawn can fork, and you
 cannot license a skill whose track record is unverifiable. The canonical
-cross-layer sentence, repeated in Chapters~III and~IV, states the dependency
+cross-layer sentence, repeated in \pdchapref{stp}{From Spawn to Person} and
+here, states the dependency
 exactly:
 
 \pullquote{The score is cheap; the substrate it scores over --- witnessed outcomes
 on a non-forgeable identity --- is the gate.}
 
-\begin{exercises}
-\item Give a one-sentence reason the market cannot ship before reputation does,
-  using only the word ``clone.''
-\item Side~1 (operator-for-hire) does \emph{not} require durable identity in the
-  same way sides 2 and 3 do. Why? (Hint: who is the counterparty, and who bears
-  the consequence?)
-\item \openstar Construct a market design in which sides 2 and 3 exist
-  \emph{without} a non-forgeable identity. Argue informally why every such design
-  collapses to a Sybil attack (forward-reference \S\ref{sec:keystone}).
-\end{exercises}
+\pdexercisepointer{\ref{ex:he-clone-word}}{\ref{ex:he-no-identity-market}}{\pageref{ex:he-clone-word}}
 
 % ═══════════════════════════════════════════════════════════════════════════════
 \section{What a ``side'' is, and why there are three}\label{sec:three-sides}
@@ -467,7 +477,7 @@ refactor, three different ``who knows what'' structures --- and, as the next sec
 shows, one escrow object underneath all of them.
 
 \begin{center}\small
-\begin{tabular}{@{}l l l@{}}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{4.4cm} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
 \toprule
 \textbf{Side} & \textbf{What Bob pays} & \textbf{Who is exposed} \\
 \midrule
@@ -475,8 +485,109 @@ shows, one escrow object underneath all of them.
 2. Capital (rent $a_2$ directly) & $90$\,\textsc{cr} for the afternoon    & Alice, reputation only \\
 3. IP (license Carol's skill)    & $0.5$\,\textsc{cr}/file, metered       & Carol, unpaid unless green \\
 \bottomrule
-\end{tabular}
+\end{tabularx}
 \end{center}
+
+\paragraph{What one mortal body costs.} Side~2 rents a specialist, and the
+case for a sole specialist over a pool of interchangeable generalists is an
+inequality, not a principle: \pdchapref{ls}{The Legible Swarm} states it as the
+queueing specialization boundary, sole ownership dominating iff the skill
+premium clears $g_A(\rho,c)$. That boundary assumes the specialist never
+disappears. Sole owners disappear: sessions die, containers are reaped,
+providers churn. Model the corner exactly. The specialist dies at rate $\xi$ and
+is succeeded after an $\mathrm{Exp}(\eta)$ spin-up (context transfer, warm-up,
+credential rebinding), work resuming where it stopped and requests queueing
+throughout: an $M/M/1$ queue with breakdowns.
+
+\begin{pdclaim}{Theorem}{The price of the succession rule}
+\label{thm:succession-price}
+With effective rate $\mu_{\mathrm{eff}}=\mu_s\eta/(\xi+\eta)$, the sole owner's
+mean response time is exactly
+\[
+W_{\mathrm{bd}}=\frac{1+\mu_s\xi/(\xi+\eta)^2}{\mu_{\mathrm{eff}}-\lambda}
+=\frac{1}{\mu_{\mathrm{eff}}-\lambda}+\frac{\mu_{\mathrm{eff}}}{\mu_{\mathrm{eff}}-\lambda}\,W_\infty,
+\qquad W_\infty=\frac{\xi}{\eta(\xi+\eta)},
+\]
+decreasing in $\mu_s$ with infimum $W_\infty$, never attained: no amount of
+skill buys back residual downtime. Consequently, with
+$K=A/(w\lambda)+W_{\mathrm{pool}}$ the pool's cost line, pooling dominates at
+every finite skill premium iff the floor has reached that line,
+$W_\infty\ge K$; equivalently, provided $\eta K<1$, iff
+\[
+\frac{\xi}{\eta}\;\ge\;D^\star=\frac{\eta K}{1-\eta K}.
+\]
+When $\eta K\ge1$ the floor never reaches the cost line, there is no cap
+($D^\star=+\infty$) and only the premium test binds; the closed form must not
+be read outside its domain.
+\end{pdclaim}
+\begin{proof}[Proof sketch]
+Between deaths the server works at rate $\mu_s$ and is unavailable a fraction
+$\xi/(\xi+\eta)$ of the time, which gives the effective rate. The mean response
+time of an $M/M/1$ queue with such breakdowns splits into the response time of a
+plain queue at the effective rate and a residual downtime term amplified by the
+queue's own occupancy factor $\mu_{\mathrm{eff}}/(\mu_{\mathrm{eff}}-\lambda)$;
+the amplification is why the naive sum
+$1/(\mu_{\mathrm{eff}}-\lambda)+W_\infty$ is wrong. As $\mu_s\to\infty$ the
+first term vanishes and the factor tends to one, so $W_{\mathrm{bd}}$ decreases
+to $W_\infty$ without reaching it. Setting $W_\infty=K$ and solving for
+$\xi/\eta$ gives $D^\star$, and the non-strict inequality follows from the
+unattained infimum. The closed form was checked against a matrix-geometric
+solution to $2\times10^{-13}$, a truncated chain to $10^{-14}$, and simulation
+with $|z|\le0.8$ [internal, \texttt{b8\_specialization.py}].
+\end{proof}
+
+\noindent\textbf{The wrong turn, reported.} The naive sum predicts $4.17$
+where the truth is $8.17$ at the canary instance $\mu_s=5$, $\xi=0.5$, because
+downtime also builds queue: the residual is amplified by
+$\mu_{\mathrm{eff}}/(\mu_{\mathrm{eff}}-\lambda)=2.5$ there, and
+$1.5+2.5\times2.667=8.17$ checks by hand [verified]. A cost model that forgets
+breakdowns entirely is caught the same way: at $\xi/\eta=2\gg D^\star$ it says
+specialist while simulation says the pool wins decisively, and at low $\xi$ the
+two are indistinguishable, so the canary rather than routine testing is what
+makes the omission visible [internal].
+
+\begin{pdexample}{The succession price, for a rented specialist}
+Side~2 rests on a quiet assumption: that Alice's well-reputed specialist $a_2$ is
+worth being a \emph{sole} specialist for, rather than one interchangeable member
+of a pool. The specialization-boundary result prices exactly that choice. Model
+$a_2$ as a single server subject to breakdowns at rate $\xi$ (it goes offline, or
+its operator exits) with repair --- a successor spinning up --- at rate $\eta$,
+arrivals still queueing through the outage. Compare its expected wait
+$W_{\mathrm{bd}}$ against a $c$-server pool's Erlang-C wait $W_{\mathrm{pool}}$
+plus a per-task hire-and-monitor overhead $A/(w\lambda)$; call the sum $K$. The
+pool wins at \emph{every} skill premium once $\xi/\eta$ clears the
+\textbf{succession price} $D^\star=\eta K/(1-\eta K)$: no amount of $a_2$'s skill
+buys back a mortality-to-succession ratio worse than $D^\star$. At the program's
+own worked instance --- $\lambda=1$, a $c{=}4$-server pool at $\mu_g=1.2$
+($\rho=0.208$), hire/monitor cost $A=0.2$, wait-cost weight $w=1$, succession
+rate $\eta=0.25$ --- $W_{\mathrm{pool}}=0.8362$, so $K=0.2/1+0.8362=1.0362$,
+$\eta K=0.25\times1.0362=0.2591$, and $D^\star=0.2591/(1-0.2591)=0.3496$
+[verified, \texttt{b8\_specialization.py}: \texttt{succession price D* =
+eta*K/(1-eta*K) = 0.3496}]. Read narratively: once $a_2$'s combined rate of
+going offline and needing a successor, relative to how fast Alice can actually
+produce one, clears about $0.35$, renting from the pool beats renting $a_2$
+specifically --- \emph{at any skill level}, including one Alice cannot actually
+reach. The script's own canary makes the other side vivid: at $\xi=0.5$,
+$\eta=0.25$ (so $\xi/\eta=2.0\gg D^\star$), even an infinitely skilled $a_2$
+($\mu_s=10^8$) loses to the pool [verified, \texttt{b8\_specialization.py}:
+\texttt{above D*, even mu\_s=1e8 loses to the pool}]. \emph{Now you try:} hold
+$\lambda,c,\mu_g,w$ fixed and ask how much Alice would have to speed up her own
+succession plan --- raise $\eta$ --- to double $D^\star$ and make sole ownership
+of a slower-succeeding $a_2$ viable again.
+\end{pdexample}
+
+\begin{pdboundary}
+The specialization boundary and the succession price compare mean costs only,
+no tail percentiles or service-level quantiles, under first-come-first-served
+and exponential everything; $A$ and $w$ are policy prices the theorems
+constrain but do not pick. The breakdown model is death at all times with
+preemptive resume; active-only breakdowns would let sufficient skill escape the
+floor, so the model choice is load-bearing and declared. $D^\star$ presupposes
+$\eta K<1$; where the succession plan is fast enough that $K\ge1/\eta$, the
+criterion does not apply rather than being satisfied. Every quantity in both
+tests ($\lambda$, $\mu_s$, $\mu_g$, $\xi$, $\eta$) is daemon-metered, so a harbor
+can re-grade its sole roles from telemetry.
+\end{pdboundary}
 
 \pitfall{Two-sided-market theory's central result is that the \emph{price
 structure} --- who subsidizes whom --- is the lever, not the price level. Mis-count
@@ -489,14 +600,14 @@ formal model of a three-sided agent labor market}), models exactly agents,
 employers, and a reputation system --- confirming that ``reputation system as a
 third side'' is the natural structure once agents compete for paid work.
 
-\subsection{The mandatory honesty rider}
+\subsection{The rider the canonical statement carries}
 
 The canonical statement of the market's shape carries a rider that must never be
 dropped:
 
 \pullquote{The harbor economy is a three-sided market \emph{by design}; two-sided
 until reputation ships. The third side \emph{is} the tradeable-person terminus of
-Chapter~III.}
+\pdchapref{stp}{From Spawn to Person}.}
 
 Today there is no reputation estimator in the reference implementation; it is a
 gated phase on the roadmap. So sides 2 and 3 are \Designed{}, not shipped. What
@@ -513,18 +624,7 @@ subject identifier such as $(\mathit{kind},\mathit{id},\mathit{version})$; other
 non-equivalent reputation subjects collide. The dashed band in
 Figure~\ref{fig:he-three-sided} marks this schema distinction.
 
-\begin{exercises}
-\item State the operational test for ``how many sides'' in one sentence, then apply
-  it to a ride-share platform: how many sides, and why?
-\item Side~3 (skill licensing) keys reputation on a \emph{content hash}, not a
-  person. What breaks when a licensor ships v2 of a skill? (Hint:
-  \S\ref{sec:gaps}, skill versioning.)
-\item \openstar A buyer reads a three-axis reputation vector
-  $(\text{accuracy},\text{aesthetics},\text{efficiency})$. Specify a disclosure
-  rule that lets the buyer weight the axes \emph{without} re-introducing a single
-  Goodhart target. Argue why every fixed scalar collapse re-creates the bandit
-  framing the design rejects.
-\end{exercises}
+\pdexercisepointer{\ref{ex:he-sides-test-rideshare}}{\ref{ex:he-reputation-disclosure}}{\pageref{ex:he-sides-test-rideshare}}
 
 % ═══════════════════════════════════════════════════════════════════════════════
 \section{The float plan: the built floor}\label{sec:float-plan}
@@ -554,8 +654,8 @@ locked \emph{before any work runs}. This is the heart of ``no-spawn-without-bond
 \textbf{Pre:} $R$'s wallet holds at least $\textit{bounty}+\textit{bond}$.
 \begin{enumerate}[leftmargin=2.0em,itemsep=1pt,topsep=2pt]
   \item $R \to D$: $\mathsf{sign}_R(\textit{FloatPlan})$ where
-    $\textit{FloatPlan} = \langle \textit{task}, \textit{criteria},
-    \textit{budget}, \textit{bounty}\rangle$.
+    $\textit{FloatPlan} = \langle \textit{task}, \textit{criteria},$
+    $\textit{budget}, \textit{bounty}\rangle$.
   \item $D$ locally, in one serialized transaction:
     debit $\textit{bounty}+\textit{bond}$ from $R$'s wallet, write an escrow row
     keyed by a fresh \textit{anchor id}, commit. \emph{If the transaction aborts,
@@ -563,7 +663,7 @@ locked \emph{before any work runs}. This is the heart of ``no-spawn-without-bond
   \item $D \to W$: $\mathsf{sign}_D\{\textit{anchor id}, \textit{plan hash}\}$.
     $W$ verifies $D$'s signature, confirming funds are pinned before doing any work.
 \end{enumerate}
-\textbf{Post:} the conservation invariant (Property~\ref{prop:conservation}) holds;
+\textbf{Post:} the conservation invariant (Design Invariant~\ref{prop:conservation}) holds;
 $W$ has a signed proof of locked funds; no process for this task can enter
 \texttt{running} without the escrow row existing.
 \end{protocol}
@@ -578,19 +678,21 @@ debits a project wallet into an escrow row before spawn, refunds on clean exit, 
 slashes on breach, splitting the slash between the wallet and a commons pool. It
 guards two invariants:
 
-\begin{property}[Conservation]\label{prop:conservation}
+\begin{pdclaim}{Design invariant}{Conservation}
+\label{prop:conservation}
 $\text{wallet} + \text{escrow} + \text{commons} = \text{supply}$, always. Every
 debit has a matching credit. In the reference implementation this is verified
 across ten thousand random operation traces by a property test --- a real
 randomized test, not an aspiration. (\Built{}; see Appendix~\ref{app:impl}.)
-\end{property}
+\end{pdclaim}
 
-\begin{property}[No-spawn-without-bond]\label{prop:nospawn}
+\begin{pdclaim}{Design invariant}{No-spawn-without-bond}
+\label{prop:nospawn}
 A process enters the \texttt{running} state only if a bond was escrowed against its
 agent id. (\BuiltWeak{}: the ledger enforces escrow-first, but the runtime
 \texttt{running}-state check is a roadmap item, so today the gate is
 caller-discipline, not runtime-enforced. See Appendix~\ref{app:impl}.)
-\end{property}
+\end{pdclaim}
 
 \keyidea{Conservation is the mathematical glue of a three-sided market. Whatever
 happens --- success, partial credit, slash, lease, license --- no value is created
@@ -614,7 +716,7 @@ free-text ``Result:'' note --- the Goodhart-resistant discipline that the
 commitment layer imposes: \emph{the agent picks the work; the daemon derives the
 grade}.}
 \label{tab:settlement}
-\begin{tabular}{@{}l p{6.6cm} p{4.4cm}@{}}
+\begin{tabularx}{\textwidth}{@{}l >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
 \toprule
 \textbf{State} & \textbf{Flow of funds} & \textbf{Reputation effect} \\
 \midrule
@@ -627,7 +729,7 @@ grade}.}
 \textbf{Dispute}  & escrow $\to$ arbitration hold; 2-of-3 multi-oracle
   (automated / evidence / human) & none until resolved \\
 \bottomrule
-\end{tabular}
+\end{tabularx}
 \end{table}
 
 \paragraph{A settlement, dramatized.} Bob (the requester principal) posts a refactor float plan: bounty $400$\,\textsc{cr}, requiring a provider performance bond of $100$\,\textsc{cr} and acceptance criteria = ``the module's test suite passes and the diff merges.'' Alice (the provider principal) assigns agent $a_2$ and posts the $100$\,\textsc{cr} performance bond into escrow. Bob escrows the $400$\,\textsc{cr} bounty. Before execution, the escrow holds $500$\,\textsc{cr} across two distinct source buckets: $\text{escrow}_{\text{bounty}}(\text{Bob}) = 400$ and $\text{escrow}_{\text{bond}}(\text{Alice}) = 100$.
@@ -639,18 +741,13 @@ Agent $a_2$ completes $40\%$ of the verifiable evidence chain (refactoring two o
 \end{enumerate}
 Conservation check: $\Delta \text{Bob} = -160$, $\Delta \text{Alice} = +160 - 60 = +100$ net, $\Delta \text{commons} = +60$. The ledger sums to $0$ net delta, and the separate escrow buckets $\text{escrow}_{\text{bounty}} \to 0$ and $\text{escrow}_{\text{bond}} \to 0$ clear completely. No value was created or destroyed.
 
-\begin{exercises}
-\item Trace the flow of funds for a \textbf{Partial} settlement where the worker
-  completed 40\% of the evidence chain. Confirm Property~\ref{prop:conservation}
-  holds across the split (the dramatization above is one such trace; redo it for a
-  bond of $250$\,\textsc{cr} and $70\%$ completion).
-\item Why does closure bind to an oracle rather than a self-reported note? Name the
-  attack a free-text ``Result:'' note enables.
-\item \openstar The four states assume the acceptance criteria were \emph{right}.
-  Design a \emph{float-plan amendment} protocol for the common case where the
-  criteria themselves turn out wrong mid-flight (re-sign by both parties, escrow
-  top-up/refund delta), preserving Property~\ref{prop:conservation}. (Gap, \S\ref{sec:gaps}.)
-\end{exercises}
+\pdexercisepointer{\ref{ex:he-partial-settlement-trace}}{\ref{ex:he-floatplan-amendment}}{\pageref{ex:he-partial-settlement-trace}}
+
+\begin{pdrecitation}
+\item Without looking: name the three parties in the float-plan escrow ceremony, and the one thing the daemon does before either bounty or bond can move.
+\item State Design Invariant~\ref{prop:conservation} in one sentence, and say what makes it \Built{} rather than merely \Designed{}.
+\item Why is No-spawn-without-bond graded \BuiltWeak{} even though the ledger already enforces escrow-first?
+\end{pdrecitation}
 
 % ═══════════════════════════════════════════════════════════════════════════════
 \section{Three sides on one escrow}\label{sec:three-on-one}
@@ -681,6 +778,140 @@ makes leasing an agent contractible at all}. Here we must respect the series'
 allocates \emph{capability} (what the leased agent \emph{can} do at runtime). The
 deontic layer separately governs \emph{permission} (what it \emph{may} do).
 ``Able but forbidden'' must stay expressible; the jail bounds ability, not norm.}
+
+\paragraph{The deontic layer's decision procedure.}\footnote{A standalone,
+submission-form version of the results folded into this section and the
+succession price of \S\ref{sec:three-sides} is \emph{What Needs an Authority}
+(research paper~6)~\cite{paper6}; the sweeps cited here are its artifacts,
+regenerated at seed 20260816.} Naming a layer is not the same as being able to
+run it. What decides whether the deontic layer is an algorithm or an office is
+what happens when two accepted norms collide. Cheap detection is a
+language-design choice, not a discovery about deontic logic in general, and the
+commitment fragment $\mathcal{L}_c$ buys it by construction. A policy set in
+$\mathcal{L}_c$ contains facts, definite Horn rules and integrity constraints;
+deontic rules $\mathrm{body}\to\mathsf{M}(\mathrm{act},s,[t_1,t_2])$ with
+$\mathsf{M}\in\{\mathsf{O},\mathsf{F}\}$, which oblige or forbid an action on
+scope $s$ over a ground interval whenever the Horn body holds; exclusive interval
+claims on resources; and difference constraints over deadline variables. A
+conflict is any of four things: a derivable $\bot$, a fired obligation and
+prohibition on the same action with overlapping scope and interval, two
+exclusive claims overlapping on one resource, or a negative cycle in the deadline
+graph. The fragment is deliberately ground: no nested deontic operators, no
+negation as failure, monotone bodies only.
+
+\begin{pdclaim}{Theorem}{In-fragment conflict detection is polynomial and witness-producing}
+\label{thm:deontic-detect}
+For a policy set in $\mathcal{L}_c$ with Horn program size $H$, $T$ fired
+deontic tokens, $X$ exclusive claims and deadline graph $(V,E)$, conflict
+detection is decidable in $O(H+T\log T+X\log X+V\cdot E)$ with a polynomial
+witness per conflict. Unit propagation computes the least Horn model in $O(H)$,
+which by monotonicity equals the intersection of all models, the statuses forced
+in every world~\cite{dg84}; a keyed sweep line over interval endpoints finds
+every obligation-prohibition clash and claim overlap in $O(T\log T+X\log X)$;
+Bellman-Ford returns a negative cycle iff the deadline system is infeasible, in
+$O(V\cdot E)$. The witnesses are, respectively, a derivation chain, the two
+fired rules with their overlap interval, the two claims, and the negative cycle.
+\end{pdclaim}
+
+\begin{pdclaim}{Theorem}{One step outside the fragment is NP-complete}
+\label{thm:deontic-frontier}
+Extend $\mathcal{L}_c$ with disjunctive obligations
+$\mathsf{O}(l_1\vee\dots\vee l_k)$ under discharge-choice semantics (the agent
+picks which disjunct to discharge). Conflict-freedom of a policy set becomes
+NP-complete.
+\end{pdclaim}
+\begin{proof}
+Membership: a discharge selection is a polynomial certificate, checked by
+Theorem~\ref{thm:deontic-detect}. Hardness, from 3-SAT: each variable $x$
+becomes a pair of deontic rules $\mathrm{sel}^{+}_x\to\mathsf{O}(\mathrm{assert}_x)$
+and $\mathrm{sel}^{-}_x\to\mathsf{F}(\mathrm{assert}_x)$ on identical scope and
+interval, each clause becomes a disjunctive obligation over its selector
+literals, and a conflict-free discharge selection exists iff the formula is
+satisfiable. The reduction was checked in both directions on eight satisfiable
+and eight unsatisfiable random instances (16/16), with the satisfying
+assignment extracted from each conflict-free selection [internal,
+\texttt{b4\_deontic\_fragment.py}].
+\end{proof}
+
+Read together, the two theorems are a dichotomy at a designed boundary, in the
+sense Schaefer made standard for satisfiability~\cite{schaefer78}: on one side
+of a single expressive choice the problem is polynomial, on the other
+NP-complete, and the language designer is offered nothing in between. The same
+step is familiar one formalism over, where the simple temporal problem is
+polynomial and admitting disjunctions of difference constraints makes
+consistency NP-complete~\cite{dmp91,sk00}; the claim here is the location of the
+boundary, not the pattern.
+
+\noindent\textbf{Checked.} $3{,}000$ random in-fragment policy sets against a
+brute-force oracle (all $2^5$ Horn models intersected, pairwise overlap checks,
+exhaustive integer search over the deadline potentials): $885$ carried at least
+one conflict, $121$ a derivable $\bot$, $195$ an obligation-prohibition clash,
+$484$ a claim overlap, $213$ a negative temporal cycle (the kinds overlap: $764$
+sets carry one kind, $114$ two, $7$ three, so the four counts sum to $1{,}013$
+rather than $885$); $0$ disagreements with the oracle, and least model equal to
+the intersection of all models on all $3{,}000$. Mutation: $149$ of the $885$
+contain a conflict reachable only through Horn propagation, and in 100 of
+those it is the set's only conflict, so a checker that never propagates flips
+those $100$ verdicts to conflict-free [internal,
+\texttt{b4\_deontic\_fragment.py}, seed 20260816]. The canonical miss is the
+witness worked by hand below.
+
+\begin{pdexample}{A conflict witness for the deontic layer, checked by hand}
+The deontic layer just named needs a decision procedure once two accepted norms
+might disagree. Here is the smallest case that shows why checking by hand does
+not scale, and why it does not have to: three rules over two intervals.
+\emph{Fact:} \texttt{agent\_deployed}. \emph{Horn rule:}
+\texttt{agent\_deployed}~$\to$~\texttt{prod\_access}. \emph{Two deontic rules:}
+$O(\texttt{write\_prod},\{\texttt{env:prod}\},[0,10])$ once \texttt{prod\_access}
+holds, and $F(\texttt{write\_prod},\{\texttt{env:prod}\},[5,15])$ unconditionally.
+Unit-propagate the Horn rule first: \texttt{prod\_access} is derived, so the
+obligation fires. Both deontic rules now govern the same action and the same
+scope, $\{\texttt{env:prod}\}$; their intervals overlap on
+$[\max(0,5),\min(10,15)]=[5,10]$, nonempty --- an agent is simultaneously
+obliged and forbidden to write to production for five hours. That is a conflict
+by definition, and it is \emph{indirect}: \texttt{prod\_access} is nowhere a
+fact, only a consequence of one propagation step, which is exactly the case a
+checker that skips Horn propagation is built to miss [verified,
+\texttt{b4\_deontic\_fragment.py}: \texttt{real checker: conflict=True, O/F
+pairs=[(0, 1)]}; the same script's ablated mutant reports
+\texttt{conflict=False} on this witness, and misses $100$ of $885$ conflicting
+instances in a $3000$-policy sweep]. The tractable-fragment theorem behind this
+checker says this three-engine check --- Horn propagation, an interval sweep,
+and a shortest-path feasibility test --- runs in polynomial time with a witness
+attached, on facts, Horn rules, deontic rules, exclusive resource claims, and
+difference constraints alike; nothing about this chapter's own float-plan
+commitments needs more expressive power than that fragment offers.
+\emph{Now you try:} Exercise~\ref{ex:he-deontic-conflict-checker} asks what
+changes, and what does not, once one of the rules is allowed to be a
+disjunction.
+\end{pdexample}
+
+\paragraph{What it buys.} An authority inventory with prices. In-fragment
+conflict detection needs no authority at all: it is an algorithm with a witness,
+and composed with the kernel's controllability theorem
+(\pdchapref{swk}{The Single-Writer Kernel}) it is a runtime guard, since the
+mediated acceptance write can refuse the commit and attach the witness. The
+authority no theorem removes sits exactly one step outside the fragment:
+choosing a discharge under a disjunctive obligation is a chartered resolver's
+job, an NP-complete check or a judge, and choosing the norms themselves
+(priority, waiver, amendment) is outside every checker. A harbor therefore
+spends judgment only where a theorem certifies that judgment is required, and
+the schema rule that follows is concrete: as long as proposals stay inside
+$\mathcal{L}_c$, the acceptance path needs no reviewer role, and the charter can
+delete the lookout it was about to appoint.
+
+\begin{pdboundary}
+Completeness is relative to least-model semantics: monotone bodies only;
+negation as failure, unification, and symbolic interval endpoints coupled to
+difference variables all leave the fragment. The batch bound is what is proved;
+the incremental amortized form (watched literals, interval trees) is an
+engineering claim, not certified here. The checker certifies the norm
+\emph{system}, never the norms: a harbor whose policies are consistently harmful
+passes every scan, and norm content stays a chartered authority's job. The
+oracle validation is on small instances (five-atom programs), so the sweep
+certifies agreement with the semantics there; the complexity bound, not the
+sweep, covers scale.
+\end{pdboundary}
 
 \paragraph{Skill licensing (IP).} The per-use fee is released to the licensor
 \emph{only on green settlement} (metered $+$ clawback). This is forced by
@@ -715,7 +946,7 @@ $16 \times 0.5 = 8$\,\textsc{cr} releases to Carol and the unused $2$\,\textsc{c
 returns to Bob. Alice's bond is refunded as collateral, not income.
 
 \begin{center}\small
-\begin{tabular}{@{}l r l@{}}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{4.0cm} r >{\raggedright\arraybackslash}X@{}}
 \toprule
 \textbf{Wallet} & \textbf{Net delta} & \textbf{Why} \\
 \midrule
@@ -727,29 +958,20 @@ Commons              & $+0$   & nothing slashed on a Success settlement \\
 \midrule
 \textbf{Sum}         & $\mathbf{0}$ & escrow $560 \to 0$; supply unchanged \\
 \bottomrule
-\end{tabular}
+\end{tabularx}
 \end{center}
 
 \noindent Check it on one line: $-458 + 400 + 50 + 8 + 0 = 0$. Three sides, three
 privately-informed counterparties, three different reputation keys --- and one
 escrow row that opens at $560$\,\textsc{cr} and closes at zero.
-Property~\ref{prop:conservation} is not re-proved per side; it is the \emph{same}
+Design Invariant~\ref{prop:conservation} is not re-proved per side; it is the \emph{same}
 invariant, because the lease and the licence are line items on the one float plan
 rather than trades on ledgers of their own. \emph{Now you try:} settle the same plan
 \textbf{Partial} at $40\%$ and confirm the sum is still zero. (Alice earns $160$ and
 is slashed $60$ of her bond; the commons gains that $60$; the licence still meters at
 $8$ because the files it touched were touched.)
 
-\begin{exercises}
-\item Map each of Grossman--Hart's two parties (residual-control-right holder vs.\
-  reputational-consequence bearer) onto the rental side's roles. Which one is the
-  Arbiter jail?
-\item Show that adding a lease line item and a metered-license line item to a float
-  plan cannot violate Property~\ref{prop:conservation}, no matter the amounts.
-\item \openstar A skill's portfolio proof for v1 says nothing about v2. Specify a
-  \emph{version-binding} for the Merkle portfolio proof so a new version starts
-  with a discounted inherited prior --- the newcomer policy, but for code.
-\end{exercises}
+\pdexercisepointer{\ref{ex:he-grossman-hart-roles}}{\ref{ex:he-deontic-conflict-checker}}{\pageref{ex:he-grossman-hart-roles}}
 
 % ═══════════════════════════════════════════════════════════════════════════════
 \section{The keystone the market rests on --- and does not yet have}\label{sec:keystone}
@@ -760,10 +982,10 @@ the series' single \emph{blocking} reconciliation: the identity primitive the
 whole market leans on covers a threat model that \emph{excludes the cross-operator
 adversary the market is defined by}.
 
-Figure~\ref{fig:he-keystone-split} draws the two stones apart: the local root this
+Table~\ref{tab:keystone-split} sets the two stones apart: the local root this
 paper leans on, and the cross-operator stone it does not yet have.
 
-\input{figures/fig-he-keystone-split}
+\input{figures/tab-keystone-split}
 
 \subsection{Local non-forgeable identity is the keystone --- for one operator}
 
@@ -820,20 +1042,15 @@ bond-farming works by spawning fresh \emph{agents} under one principal
 (\textbf{Douceur}'s Sybil attack~\cite{douceur2002}: \emph{free identities defeat
 any reputation or quorum system}). Defining the principal as a first-class economic
 entity is the cleanest Sybil fix; its cryptographic binding is the identity object
-specified in Chapter~III and consumed here.
+specified in \pdchapref{stp}{From Spawn to Person} and consumed here.
 
-\begin{exercises}
-\item In one sentence, state why a reputation system layered on forgeable
-  pseudonyms is \emph{no mechanism}, not merely a weak one (cite Douceur).
-\item Local non-forgeable identity has a non-goal: ``no defense against a hostile
-  operator.'' Name the exact word in the market's definition
-  (``mutually-distrusting,'' ``boundary neither controls'') that this non-goal
-  contradicts.
-\item \openstar Specify a cryptographic binding tying $N$ agents to one principal
-  such that spawning fresh agents does not reset the bond floor, and that survives
-  into the cross-operator world (where the single-operator ``trusted credential''
-  shortcut is unavailable). This is the hard half of cross-operator attestation.
-\end{exercises}
+\pdexercisepointer{\ref{ex:he-sybil-no-mechanism}}{\ref{ex:he-principal-binding}}{\pageref{ex:he-sybil-no-mechanism}}
+
+\begin{pdrecitation}
+\item Without looking: what is the one word in the market's own definition that local non-forgeable identity's threat model directly contradicts?
+\item State the difference between local non-forgeable identity and cross-operator attestation, one sentence each.
+\item Why can the single-operator trusted root not be reused as the cross-operator market's foundation ``by assertion''?
+\end{pdrecitation}
 
 % ═══════════════════════════════════════════════════════════════════════════════
 \section{Conservation under composition}\label{sec:conservation}
@@ -856,7 +1073,8 @@ have $\Delta=0$; top-ups and withdrawals are explicit boundary flows. This is th
 entire conservation claim. Category language can describe trace composition, but
 it does not add a currency-conversion theorem.
 
-\begin{theorem}[Single-unit conservation composes]\label{thm:functor}
+\begin{pdclaim}{Theorem}{Single-unit conservation composes}
+\label{thm:functor}
 Suppose all harbors use one unit of account and every cross-harbor transfer is a
 matched atomic move from source escrow to either destination settlement or source
 refund, with an explicit in-flight bucket. Then any finite composition of internal
@@ -864,7 +1082,7 @@ and cross-harbor operations has total external balance change equal to the sum o
 its recorded top-ups and withdrawals. In particular, a trace containing only
 internal transfers has $\Delta=0$. (\Designed{}; proof sketch in
 Appendix~\ref{app:proofs}.)
-\end{theorem}
+\end{pdclaim}
 
 \begin{property}[Cross-currency valuation boundary]\label{thm:lax}
 With heterogeneous units, exact conservation is defined per native unit. A scalar
@@ -881,10 +1099,11 @@ bound. ``Lax functor'' is not a substitute for those data.}
 
 \subsection{The Myerson--Satterthwaite corner}\label{sec:ms}
 
-Strict conservation (Property~\ref{prop:conservation}) is exactly \emph{budget
+Strict conservation (Design Invariant~\ref{prop:conservation}) is exactly \emph{budget
 balance}. That is not free.
 
-\begin{theorem}[Conditional bilateral-trade boundary]\label{thm:ms}
+\begin{pdclaim}{Theorem}{Conditional bilateral-trade boundary}
+\label{thm:ms}
 For any bilateral slice of this market satisfying the Myerson--Satterthwaite
 assumptions---independent private buyer and seller values drawn from overlapping
 continuous supports, Bayesian incentive compatibility, interim individual
@@ -892,21 +1111,48 @@ rationality, and budget balance---no mechanism is also ex-post efficient
 everywhere~\cite{myerson1983}. This theorem constrains such a slice; it does not by
 itself prove incentive compatibility of the harbor mechanism or identify the
 desideratum sacrificed by the full three-sided market.
-\end{theorem}
+\end{pdclaim}
+
+\begin{pdexample}{Efficient trade that the mechanism still refuses}
+Theorem~\ref{thm:ms} names the corner the market gives up; here is what giving
+it up costs in the chapter's own numbers. Suppose Bob's value $v$ for renting
+Alice's specialist $a_2$ and Alice's opportunity cost $c$ of foregoing $a_2$ for
+that stretch are each drawn independently and uniformly from $[0,90]$\,\textsc{cr}
+--- the $90$\,\textsc{cr} lease fee of \S\ref{sec:three-sides}'s own running
+example is one realized draw from exactly this pair. Any mechanism satisfying
+Myerson--Satterthwaite's four desiderata on this bilateral slice is, by the
+theorem, not ex-post efficient; the canonical incentive-compatible,
+individually-rational, budget-balanced instance is the
+Chatterjee--Samuelson double auction~\cite{chatterjee1983}, whose linear
+equilibrium on $[0,M]$ has Bob bid
+$\beta(v)=\tfrac{2}{3}v+\tfrac{M}{12}$ and Alice ask
+$\sigma(c)=\tfrac{2}{3}c+\tfrac{M}{4}$, trading iff $\beta(v)\ge\sigma(c) \iff
+v-c\ge M/4$. At $M=90$ that threshold is $22.5$\,\textsc{cr}. Take Bob's value
+at $70$\,\textsc{cr} and Alice's cost at $60$\,\textsc{cr}: trade is efficient
+(a $10$\,\textsc{cr} surplus sits on the table) but $v-c=10<22.5$, so the
+mechanism reports no trade --- the efficient rental simply does not happen.
+Integrating over the whole square, the no-trade-but-efficient region
+$\{0\le v-c<M/4\}$ has probability $\dfrac{a(2M-a)}{2M^2}$ at $a=M/4$, which
+simplifies to $7/32\approx21.9\%$ independent of $M$: better than one trade in
+five that would leave both sides better off is refused by the very mechanism
+built to protect them from lying about $v$ and $c$ [internal; algebra shown].
+This is the concrete shape of Theorem~\ref{thm:ms}'s abstract impossibility, not
+a separate claim: raise the stakes (a bigger $M$) and the threshold and the
+missed trades grow with it, in the same fixed proportion.
+\end{pdexample}
 
 The current design establishes a conservation goal and voluntary entry; it has not
 proved truthfulness. An AGV-style mechanism changes the incentive and participation
 notions and generally offers expected rather than ex-post balance. Comparing those
 alternatives requires a fully specified type and transfer model, which remains open.
 
-\begin{exercises}
-\item State Myerson--Satterthwaite in one sentence and list the assumptions that
-  must be checked before applying it to one harbor trade.
-\item Give a two-currency example in which native-unit conservation holds but the
-  marked-to-market scalar changes because $v_t$ moves.
-\item \openstar Specify an oracle-latency and price-move model that yields a valid
-  $\varphi$ exposure bound for Property~\ref{thm:lax}.
-\end{exercises}
+\pdexercisepointer{\ref{ex:he-ms-assumptions}}{\ref{ex:he-phi-exposure-bound}}{\pageref{ex:he-ms-assumptions}}
+
+\begin{pdrecitation}
+\item Without looking: state the composition law $\Delta(g\circ f)=\,?$, and say which kind of ledger trace always has $\Delta=0$.
+\item What does a scalar cross-currency valuation need that native-unit conservation does not?
+\item Name the four things Myerson--Satterthwaite says a bilateral trade mechanism cannot have all at once.
+\end{pdrecitation}
 
 % ═══════════════════════════════════════════════════════════════════════════════
 \section{The Anchor Protocol proper: cross-harbor capability transfer}\label{sec:anchor}\label{sec:fh-xfer}
@@ -914,7 +1160,8 @@ alternatives requires a fully specified type and transfer model, which remains o
 
 The \emph{cross-harbor capability-transfer ceremony} is the market's identity-level
 hot path: how an authorization minted under Alice's harbor becomes usable, safely,
-inside Bob's. Chapter~V analyzes the cryptographic substrate (a hop-bound
+inside Bob's. \pdchapref{anchor}{The Anchor Protocol} analyzes the cryptographic
+substrate (a hop-bound
 authorization chain checked by protocol models plus a bounded Rust verification
 layer); \emph{this} section is the ceremony that rides that substrate across a
 boundary.
@@ -969,25 +1216,23 @@ attenuated and nowhere wider.
 \keyidea{Capability \emph{attenuation} is the safety property here: a transferred
 card can only \emph{narrow} authority --- $C_B' = \mathrm{att}_B(\mathrm{att}_A(C_A))$
 --- never widen it. This is the cross-boundary form of the attenuation-monotonicity
-that the hop-bound authorization chain checks within one harbor (Chapter~V). It is
+that the hop-bound authorization chain checks within one harbor
+(\pdchapref{anchor}{The Anchor Protocol}). It is
 what makes ``rent my agent for an afternoon'' safe to say to a stranger.}
 
 \pitfall{Do not let the federation theorems borrow the substrate's ``formally
 verified'' halo. The hop-bound authorization chain has bounded symbolic and Rust
-evidence in Chapter~V. The \emph{federation} claims are design arguments plus a
+evidence in \pdchapref{anchor}{The Anchor Protocol}. The \emph{federation} claims are design arguments plus a
 bounded TLA\textsuperscript{+} extension; they are \Designed{}, not deployed. Two different confidence levels,
 never blurred.}
 
-\begin{exercises}
-\item Why is the ceremony four messages and not two? Identify what message (3)
-  buys (Hint: who must counter-sign, and under whose key does $C_B'$ later verify?).
-\item Trace what happens to an in-flight $C_B'$ when Alice rotates her signing key
-  between messages (3) and a later presentation at $B$. (Gap: cross-boundary key
-  rotation, \S\ref{sec:gaps}.)
-\item \openstar Specify replay protection across the boundary: is the
-  \textit{anchor id} a nonce? Does $B$ reject a re-presented message (3)? State the
-  freshness invariant.
-\end{exercises}
+\pdexercisepointer{\ref{ex:he-four-message-why}}{\ref{ex:he-replay-freshness}}{\pageref{ex:he-four-message-why}}
+
+\begin{pdrecitation}
+\item Without looking: after which numbered message does Harbor~$A$'s continued participation stop being required?
+\item State the attenuation-monotonicity property of $C_B'$ in one sentence.
+\item What must $B$ check before accepting an offer if $A$ may have rotated its signing key since it was issued?
+\end{pdrecitation}
 
 % ═══════════════════════════════════════════════════════════════════════════════
 \section{Federation: trading across machines you don't own}\label{sec:federation}\label{sec:fh-admission}\label{sec:fh-authority}
@@ -998,11 +1243,11 @@ federation design \emph{refuses consensus} rather than trying to route around
 Fischer--Lynch--Paterson --- which is the correct reading of the impossibility the
 next box states.
 
-Figure~\ref{fig:fh-topology} draws the topology this section defends: independent
+Table~\ref{tab:fh-topology} lists the four rails of the topology this section defends: independent
 harbors linked only by gossip and a shared witness log, with no global consensus
 step.
 
-\input{figures/fig-fh-federation-topology}
+\input{figures/tab-fh-topology}
 
 \subsection{No consensus, by design}
 
@@ -1028,11 +1273,12 @@ adversarial-commerce baselines it is compared to below.
 
 \input{figures/fig-fh-settlement}
 
-The escrow construction is honest about its trust: it does \emph{not} claim
-trustless settlement. Its loss bound is conditional, and the condition is the whole
+The escrow construction states its trust assumption outright: it does \emph{not}
+claim trustless settlement. Its loss bound is conditional, and the condition is the whole
 content of the claim:
 
-\begin{property}[Bounded custody loss, conditional]\label{thm:fh-escrow-bound}
+\begin{pdclaim}{Design invariant}{Bounded custody loss, conditional}
+\label{thm:fh-escrow-bound}
 \emph{If} the custody ledger is non-bypassable --- exposing only a recipient
 whitelist, a fee cap, and one atomic terminal transition, with no operator path
 around any of the three --- then a counterparty's worst-case loss on a cross-harbor
@@ -1041,7 +1287,7 @@ exactly \textbf{Clear} or \textbf{Refuse}. If that authority boundary \emph{can}
 bypassed, the worst-case loss is instead the full balance in custody.
 (\Designed{}, conditional: no runtime conformance check establishes the hypothesis
 for a deployed system; 2-of-3 threshold signing is one candidate way to arrange it.)
-\end{property}
+\end{pdclaim}
 
 \noindent This is a deliberate departure from the
 hash-timelock baseline (\textbf{Herlihy}~2018~\cite{herlihy2018}, atomic cross-chain
@@ -1101,7 +1347,7 @@ that window, or a well-capitalized Bob could rationally race the gossip.
 \pitfall{The threat is \emph{adversarial}, not stochastic. An attacker who controls
 peer selection or partitions the gossip graph (an \emph{eclipse attack},
 \textbf{Heilman et al.}~2015~\cite{heilman2015}) breaks the expected-time guarantee.
-The honest statement is conditional: a finite service-level bound needs eventual
+The statement is conditional: a finite service-level bound needs eventual
 connectivity and a known post-stabilization delivery bound; epidemic analysis then
 supplies an expectation within that model, not an adversarial deadline.}
 
@@ -1123,17 +1369,13 @@ must price against the connectivity assumptions each band needs.
 
 \input{figures/fig-fh-threat-bands}
 
-\begin{exercises}
-\item State the connectivity, peer-selection, and delivery assumptions needed for
-  expected $\Theta(\Delta\log m)$ dissemination. Explain why none yields a deadline
-  during an unbounded partition.
-\item Trace a revoked capability through Figure~\ref{fig:fh-revocation}: at which
-  harbor, and at what time, can it still be spent? That window is what
-  Conjecture~\ref{conj:eq-bound} must price.
-\item \openstar State and (attempt to) prove the Equivocation Lower Bound for a
-  three-harbor mesh under a fixed gossip period $\Delta$ and a single equivocating
-  witness.
-\end{exercises}
+\pdexercisepointer{\ref{ex:he-gossip-assumptions}}{\ref{ex:he-equivocation-lower-bound}}{\pageref{ex:he-gossip-assumptions}}
+
+\begin{pdrecitation}
+\item Without looking: name the three things federation requires in place of consensus.
+\item State the Bounded Custody Loss property's condition and its two possible outcomes.
+\item Why is ``gossip every $\Delta$'' itself a partial-synchrony assumption rather than a proven guarantee?
+\end{pdrecitation}
 
 % ═══════════════════════════════════════════════════════════════════════════════
 \section{Reputation: monotone, but revocable}\label{sec:reputation}\label{sec:ic}
@@ -1166,13 +1408,14 @@ It is tempting to fix revocation with compensating transactions
 (\textbf{Garcia-Molina \& Salem}~1987, \emph{Sagas}~\cite{sagas1987}), as the bond
 ledger does. But the analogy fails structurally:
 
-\begin{proposition}[Compensation does not erase reliance]\label{prop:no-saga}
+\begin{pdclaim}{Theorem}{Compensation does not erase reliance}
+\label{prop:no-saga}
 A ledger can append a compensating transaction that restores a numerical balance.
 A reputation tombstone cannot undo decisions counterparties already made while
 relying on the invalid outcome. It can only change future evaluations after the
 tombstone is observed. Reputation repair therefore requires dissemination plus an
 explicit remedy for past reliance; it is not equivalent to ledger compensation.
-\end{proposition}
+\end{pdclaim}
 
 This is why Sagas appears in the bond-settlement prior art but \emph{not} in the
 reputation prior art.
@@ -1180,19 +1423,18 @@ reputation prior art.
 \subsection{The grading-oracle keystone}
 
 Every folk-theorem incentive-compatibility claim in the market bottoms out in ``the
-daemon derives the grade.'' But the grade is produced by a capturable evaluator
-(Figure~\ref{fig:he-grading-oracle}).
+daemon derives the grade.'' But the grade is produced by a capturable evaluator.
 
-\input{figures/fig-he-grading-oracle}
 
-\begin{theorem}[The monitoring model must include the evaluator]\label{thm:folk}
+\begin{pdclaim}{Theorem}{The monitoring model must include the evaluator}
+\label{thm:folk}
 An imperfect-public-monitoring equilibrium result requires a specified conditional
 distribution of public signals given modeled actions and strategies. If a strategic
 grader chooses the signal but is omitted from the game, that distribution is not
 fixed by the model and the claimed equilibrium result is unsupported. One must
 either constrain the signal mechanically or include the grader, its information,
 payoffs, and deviations as part of the game~\cite{aps1990}.
-\end{theorem}
+\end{pdclaim}
 
 \noindent\textbf{The two resolutions (both used).}
 \emph{Fix A --- mechanically constrained evidence:} ground settlement in evidence
@@ -1219,16 +1461,13 @@ became exogenous again not because Judy was honest but because lying was bonded 
 the re-audit made it expensive --- and the recursion stops at the second panel,
 whose own evidence is machine-checkable (the same diff, the same tests).
 
-\begin{exercises}
-\item State the signal-model assumption Theorem~\ref{thm:folk} needs and explain
-  why an omitted strategic grader leaves it undefined.
-\item Classify three settlement criteria as machine-checkable (Fix A) or judge-
-  dependent (Fix B): a unit test passing; a merged SHA; ``the refactor is
-  tasteful.''
-\item \openstar Prove the rate-the-raters recursion terminates: define a well-
-  founded order on ``levels of judge,'' grounded at machine-checkable oracles, and
-  show no infinite ascending chain of ``judges judging judges'' is needed.
-\end{exercises}
+\pdexercisepointer{\ref{ex:he-folk-signal-assumption}}{\ref{ex:he-rate-the-raters}}{\pageref{ex:he-folk-signal-assumption}}
+
+\begin{pdrecitation}
+\item Without looking: what CAN a reputation tombstone do, and what can it NOT undo?
+\item State Theorem~\ref{thm:folk} in one sentence: what does an imperfect-public-monitoring result require that an omitted strategic grader leaves undefined?
+\item Name the two resolutions (Fix~A and Fix~B) and the ground-truth base the recursion in Fix~B must terminate at.
+\end{pdrecitation}
 
 % ═══════════════════════════════════════════════════════════════════════════════
 \section{Hosted trust is the product}\label{sec:hosted-trust}
@@ -1283,10 +1522,6 @@ unless you can see what it is a threshold \emph{on}.
 
 \subsection{Static escrow vs.\ competitive underwriting}\label{sec:fh-equilibria}\label{sec:youle:welfare}
 
-Figure~\ref{fig:auction-inline} draws the static-bond and competitive-underwriting
-alternatives side by side.
-
-\input{figures/fig-auction-inline}
 
 Thomas Youle's competitive-insurance proposal --- insurer-agents bid to underwrite
 transactions, replacing a static bond parameter with a market-discovered price --- is
@@ -1335,18 +1570,13 @@ one-shot deviation, which is exactly the inequality the figure's box states, and
 $\delta$ clearing its threshold is exactly what the defenses above are trying to
 prevent.
 
-\begin{exercises}
-\item Which side should Phase~1 subsidize, and why? Apply the ``scarcest cross-side
-  externality'' rule.
-\item Use Figure~\ref{fig:cartel-game-inline} to identify the grim-trigger
-  condition under which the cartel is self-sustaining. What raises the critical
-  discount factor $\delta$ enough to break it?
-\item \openstar ``Price of anarchy when reputation is for sale'' is the wrong tool:
-  once reputation is tradeable, you have changed the game, so PoA (a ratio for a
-  \emph{fixed} game) does not apply. Reframe it as a \emph{signal-existence}
-  question (Spence-signaling with a resale market): does \emph{any} informative
-  separating equilibrium survive reputation resale?
-\end{exercises}
+\pdexercisepointer{\ref{ex:he-phase1-subsidize}}{\ref{ex:he-poa-resale-reframe}}{\pageref{ex:he-phase1-subsidize}}
+
+\begin{pdrecitation}
+\item Without looking: which side does Phase~1 subsidize, and by what rule?
+\item State Proposition~\ref{prop:reserve}'s two horns for what happens once a competitive insurance market prices to expected rather than worst-case loss.
+\item What structural change --- not a price threshold --- is needed to cap the wash-trading payoff regardless of price?
+\end{pdrecitation}
 
 % ═══════════════════════════════════════════════════════════════════════════════
 \section{A gluing analogy for the open federation problem}\label{sec:sheaf}
@@ -1370,21 +1600,20 @@ Fong and Spivak's compositionality program~\cite{fong2019} suggests vocabulary f
 a future formalization. Until the site and coefficient data are defined, the paper
 uses ``gluing'' only to organize engineering questions.
 
-\begin{exercises}
-\item Name the site, cover, restriction maps, and coefficient object a genuine
-  sheaf model of federated ledger views would require.
-\item Explain why two incompatible signed roots are evidence of equivocation but
-  are not, without further definitions, a cohomology class.
-\item \openstar Build a small formal gluing model for a bounded gossip topology and
-  state exactly what consistency result it proves.
-\end{exercises}
+\pdexercisepointer{\ref{ex:he-sheaf-site-cover}}{\ref{ex:he-gluing-model-build}}{\pageref{ex:he-sheaf-site-cover}}
+
+\begin{pdrecitation}
+\item Without looking: name three of the four things Conjecture~\ref{conj:sheaf} says this paper has not specified about the proposed gluing model.
+\item Why are two incompatible signed roots evidence of equivocation but not, by themselves, a cohomology class?
+\item What are the concrete engineering obligations that remain regardless of whether the formalization is ever completed?
+\end{pdrecitation}
 
 % ═══════════════════════════════════════════════════════════════════════════════
 \section{Gaps the design must still close}\label{sec:gaps}
 % ═══════════════════════════════════════════════════════════════════════════════
 
-Honesty requires naming what is unspecified. These are not threats already
-defended; they are holes.
+Naming what is unspecified is part of the specification. These are not threats
+already defended; they are holes.
 
 \begin{enumerate}[leftmargin=1.6em,itemsep=3pt]
   \item \textbf{Multi-dimensional reputation aggregation.} ``Accuracy/aesthetics/
@@ -1444,6 +1673,598 @@ Incentive-compatible arbitration capacity & incentive compatibility &
 \end{tabularx}
 \end{table}
 
+% ═══════════════════════════════════════════════════════════════════════════════
+\section*{Review of the key ideas}
+\addcontentsline{toc}{section}{Review of the key ideas}
+
+What this chapter leaves coupled, in the order the rest of the book will lean on it:
+
+\begin{enumerate}[leftmargin=1.6em,itemsep=2pt]
+\item \textbf{A market, not a payment rail.} The harbor prices work between three sides, an operator-for-hire, a buyer and an insurer, and the escrow row is the one object all three sides read.
+\item \textbf{The succession rule has a price.} Letting a worker be replaced mid-task costs $D^{\ast}=\eta K/(1-\eta K)$ in expectation; below that, the buyer is better off waiting.
+\item \textbf{The float plan is the built floor.} A worker becomes \emph{running} only at the committed transition where the wallet is debited and the escrow row exists; a signed plan alone admits nothing, and abort leaves all three traces unchanged.
+\item \textbf{Conservation is an invariant, not a hope.} In native units $\Delta W+\Delta E+\Delta C=0$ exactly, and no spawn happens without a bond; once amounts are converted, fee, slippage and risk are priced terms and the total is no longer zero by construction.
+\item \textbf{Deontic conflict is decidable inside the fragment and NP-complete one step outside it.} The in-fragment check is polynomial and produces a witness; that is what the daemon runs.
+\item \textbf{The keystone is missing and named.} Cross-operator attestation is what the market rests on and does not yet have; local identity is built.
+\item \textbf{Single-unit conservation composes}; bilateral trade across a boundary is conditional, and the condition is stated.
+\item \textbf{Reputation is monotone but revocable}: compensation does not erase reliance, and the monitoring model must include the evaluator.
+\item \textbf{Hosted trust is the product}: cold start is solved by a supplier price at $\lambda^{\ast}$, not by an auction the market cannot yet clear; the cartel game says which regime detection and loss put an insurer in.
+\end{enumerate}
+
+\section{Exercises}
+\label{sec:he-exercises}
+% ═══════════════════════════════════════════════════════════════════════════════
+
+\pdexercisesfor{\S\ref{sec:thesis}}{The thesis: a market, not a payment rail}
+
+\begin{pdexercise}[kind=Check,rating=1]{ex:he-clone-word}
+Give a one-sentence reason the market cannot ship before reputation does,
+  using only the word ``clone.''
+\end{pdexercise}
+\begin{pdsolution}{ex:he-clone-word}
+If an agent can escape a bad record, or multiply good credit, simply by cloning
+itself, no price or sanction ever attaches to a durable counterparty --- there is
+nothing durable there for a price to attach \emph{to}. The market cannot ship
+before reputation because until cloning is priced out there is no economic
+subject for a reputation score to describe.
+\end{pdsolution}
+\begin{pdexercise}[kind=Check,rating=1]{ex:he-side1-counterparty}
+Side~1 (operator-for-hire) does \emph{not} require durable identity in the
+  same way sides 2 and 3 do. Why? (Hint: who is the counterparty, and who bears
+  the consequence?)
+\end{pdexercise}
+\begin{pdsolution}{ex:he-side1-counterparty}
+The counterparty is the operator/principal, not the individual worker
+process: the operator bears fleet outcomes through aggregate bond and liability,
+and its own worker agents underneath that liability are freely replaceable.
+Side~1 therefore needs durable identity only at the principal level; sides~2 and~3
+need it at the level of the specific asset or artifact being sold, because there
+the continuing thing itself --- not a firm standing behind it --- is the product.
+\end{pdsolution}
+\begin{pdexercise}[kind=Open,rating=3]{ex:he-no-identity-market}
+Construct a market design in which sides 2 and 3 exist
+  \emph{without} a non-forgeable identity. Argue informally why every such design
+  collapses to a Sybil attack (forward-reference \S\ref{sec:keystone}).
+\end{pdexercise}
+\begin{pdsolution}{ex:he-no-identity-market}
+The premise as posed is too strong, and the solution repairs it before
+answering: it is \emph{not} true that every side-2/side-3 design without a
+non-forgeable agent identity collapses to Sybil. Skill licensing can run on a
+content hash, a license contract, and a durable licensor principal without agent
+personhood at all; a rented stateless model artifact is content-addressable and
+warrantable the same way. What genuinely cannot survive cloning is
+identity-weighted reputation, quotas, or unsecured credit extended over freely
+mintable pseudonyms. Any design that claims to avoid non-forgeable identity and
+still support those either is a Sybil attack in progress or has quietly
+reintroduced some other scarce binding --- principal identity, artifact hash plus
+owner liability, a hardware root, a stake, or a sponsor.
+\end{pdsolution}
+
+\pdexercisesfor{\S\ref{sec:three-sides}}{What a ``side'' is, and why there are three}
+
+\begin{pdexercise}[kind=Check,rating=1]{ex:he-sides-test-rideshare}
+State the operational test for ``how many sides'' in one sentence, then apply
+  it to a ride-share platform: how many sides, and why?
+\end{pdexercise}
+\begin{pdsolution}{ex:he-sides-test-rideshare}
+A side is a distinct, privately informed participant class that must be
+separately induced to participate, and whose share of the price allocation moves
+cross-side volume. A plain ride-share platform has exactly two sides --- riders
+and drivers --- because the platform itself is the mechanism, not a third
+participant class; advertisers, fleet owners, or insurers become genuine
+additional sides only once they are recruited separately and carry their own
+network externality.
+\end{pdsolution}
+\begin{pdexercise}[kind=Trace,rating=2]{ex:he-skill-v2-break}
+Side~3 (skill licensing) keys reputation on a \emph{content hash}, not a
+  person. What breaks when a licensor ships v2 of a skill? (Hint:
+  \S\ref{sec:gaps}, skill versioning.)
+\end{pdexercise}
+\begin{pdsolution}{ex:he-skill-v2-break}
+A new version means a new content hash, and v1's settled outcomes say
+nothing evidentiary about v2's behavior. Left unspecified, v2 either inherits
+credit it has not earned or cold-starts as if it had no history at all --- both
+wrong. \S\ref{sec:gaps} traces the fix: version, parent hash, build and
+dependency hashes, and evaluation history as an explicit lineage object; v2
+starts with only a disclosed, discounted prior tied to that lineage, and updates
+on its own settled outcomes from there.
+\end{pdsolution}
+\begin{pdexercise}[kind=Open,rating=3]{ex:he-reputation-disclosure}
+A buyer reads a three-axis reputation vector
+  $(\text{accuracy},\text{aesthetics},\text{efficiency})$. Specify a disclosure
+  rule that lets the buyer weight the axes \emph{without} re-introducing a single
+  Goodhart target. Argue why every fixed scalar collapse re-creates the bandit
+  framing the design rejects.
+\end{pdexercise}
+\begin{pdsolution}{ex:he-reputation-disclosure}
+Disclose the three axes --- accuracy, aesthetics, efficiency --- each with
+its own uncertainty and provenance, and let each buyer apply its own weights and
+hard constraints privately; compute a scenario-specific score only at decision
+time, never publish one fixed public scalar. A single published weighting induces
+one total order and therefore one optimization target: it hides every Pareto
+tradeoff among the axes and recreates exactly the scalar bandit-arm reward the
+disaggregated design was meant to escape.
+\end{pdsolution}
+
+\pdexercisesfor{\S\ref{sec:float-plan}}{The float plan: the built floor}
+
+\begin{pdexercise}[kind=Trace,rating=2]{ex:he-partial-settlement-trace}
+Trace the flow of funds for a \textbf{Partial} settlement where the worker
+  completed 40\% of the evidence chain. Confirm Design Invariant~\ref{prop:conservation}
+  holds across the split (the dramatization above is one such trace; redo it for a
+  bond of $250$\,\textsc{cr} and $70\%$ completion).
+\end{pdexercise}
+\begin{pdsolution}{ex:he-partial-settlement-trace}
+Redo the dramatization's arithmetic at bond $250$\,\textsc{cr} and $70\%$
+completion, using the chapter's own two-bucket rule. Bounty bucket: Alice earns
+$0.7\times400=280$\,\textsc{cr}, the remaining $120$\,\textsc{cr} returns to Bob.
+Bond bucket: Alice recovers $0.7\times250=175$\,\textsc{cr} of her own posted
+collateral, and the remaining $75$\,\textsc{cr} is slashed to the commons. Net
+deltas: $\Delta\text{Bob}=-280$, $\Delta\text{Alice}=+280-75=+205$,
+$\Delta\text{commons}=+75$, summing to zero; both escrow buckets, $400$ and
+$250$, clear to zero exactly as in the worked $40\%$ case.
+\end{pdsolution}
+\begin{pdexercise}[kind=Check,rating=1]{ex:he-oracle-vs-selfreport}
+Why does closure bind to an oracle rather than a self-reported note? Name the
+  attack a free-text ``Result:'' note enables.
+\end{pdexercise}
+\begin{pdsolution}{ex:he-oracle-vs-selfreport}
+A protected oracle (a CI-issued test id, a merged SHA) binds closure to a
+state the worker cannot author. A free-text ``Result:'' note lets the same party
+who did the work also self-report that it succeeded --- inviting a fabricated
+test run, a claimed merge that never happened, or simply the most favorable
+reading of ambiguous acceptance criteria after the fact.
+\end{pdsolution}
+\begin{pdexercise}[kind=Open,rating=3]{ex:he-floatplan-amendment}
+The four states assume the acceptance criteria were \emph{right}.
+  Design a \emph{float-plan amendment} protocol for the common case where the
+  criteria themselves turn out wrong mid-flight (re-sign by both parties, escrow
+  top-up/refund delta), preserving Design Invariant~\ref{prop:conservation}. (Gap, \S\ref{sec:gaps}.)
+\end{pdexercise}
+\begin{pdsolution}{ex:he-floatplan-amendment}
+Pause at a mediated safe point and propose amendment $v{+}1$: it must
+reference plan $v$ by hash, state the changed criteria, budget, and bounty/bond
+deltas, and say how already-produced evidence is treated. Both principals must
+countersign $v{+}1$ before it takes effect; only then does the daemon atomically
+top up or refund each party's own escrow bucket and activate the new plan,
+retaining $v$ and the causal link to it. A timeout on the proposal either
+continues settlement under the original $v$ or cancels under $v$'s own terms ---
+never does one party get to unilaterally rewrite acceptance criteria after seeing
+the work.
+\end{pdsolution}
+
+\pdexercisesfor{\S\ref{sec:three-on-one}}{Three sides on one escrow}
+
+\begin{pdexercise}[kind=Check,rating=1]{ex:he-grossman-hart-roles}
+Map each of Grossman--Hart's two parties (residual-control-right holder vs.\
+  reputational-consequence bearer) onto the rental side's roles. Which one is the
+  Arbiter jail?
+\end{pdexercise}
+\begin{pdsolution}{ex:he-grossman-hart-roles}
+Grossman--Hart's residual-control-right holder is the renter: it operates
+the Arbiter jail and can sandbox, throttle, or revoke the leased agent at
+runtime. The owner is the reputational-consequence bearer: it must honor
+warranties and absorbs the asset's reputation depreciation if the lease goes
+badly. The jail is the mechanism that makes this allocation concrete, not merely
+metaphorical.
+\end{pdsolution}
+\begin{pdexercise}[kind=Trace,rating=2]{ex:he-conservation-lineitems}
+Show that adding a lease line item and a metered-license line item to a float
+  plan cannot violate Design Invariant~\ref{prop:conservation}, no matter the amounts.
+\end{pdexercise}
+\begin{pdsolution}{ex:he-conservation-lineitems}
+Adding a lease line item of amount $\ell$ or a metered-license line item of
+amount $m$ leaves conservation intact for any $\ell,m\ge0$, because each is still
+just a balanced transfer: it debits a pre-funded escrow bucket and credits an
+explicit recipient or refund bucket within the same atomic transaction. The
+wallet--escrow--commons identity never references the size of any one line item,
+only that debits match credits. What amount size \emph{can} break is solvency,
+participation, or collateral adequacy --- conservation holding is a necessary
+bookkeeping property, not evidence the contract is viable.
+\end{pdsolution}
+\begin{pdexercise}[kind=Open,rating=3]{ex:he-portfolio-version-binding}
+A skill's portfolio proof for v1 says nothing about v2. Specify a
+  \emph{version-binding} for the Merkle portfolio proof so a new version starts
+  with a discounted inherited prior --- the newcomer policy, but for code.
+\end{pdexercise}
+\begin{pdsolution}{ex:he-portfolio-version-binding}
+Make each portfolio-tree leaf a tuple $(\text{skill\_id},$ $\text{version},$
+$\text{content\_hash},$ $\text{parent\_hash},$ $\text{build/dependency hashes},$
+$\text{license},$ $\text{evaluation root})$. A v2 proof of membership includes its
+parent's leaf plus v2's own evaluation root. Initialize v2's reputation prior
+with an effective sample size $\gamma\, n_{v1}$, where $\gamma\in[0,1]$ is a
+predeclared compatibility/evaluation discount fixed \emph{before} seeing v2's
+outcomes --- never simply copy v1's settled outcomes onto v2. Lineage proves
+ancestry; it does not, by itself, prove behavioral similarity, which is exactly
+what $\gamma<1$ is there to discount.
+\end{pdsolution}
+\begin{pdexercise}[kind=Trace,rating=2]{ex:he-deontic-conflict-checker}
+The deontic layer named above --- what an agent \emph{may} or \emph{must} do,
+as against the jail's \emph{capability} --- needs a decision procedure once two
+accepted norms might disagree. Take the conflict witness worked by hand above
+(fact \texttt{agent\_deployed}; Horn rule to \texttt{prod\_access}; an obligation
+and a forbiddance on \texttt{write\_prod} overlapping on $[5,10]$), and add one
+\emph{disjunctive} obligation $O(\ell_1\vee\ell_2)$ over two fresh literals
+unrelated to the existing rules.
+Try the three nonempty discharge selections ($\ell_1$ alone, $\ell_2$ alone,
+both) by hand. Does any selection make the \texttt{write\_prod} conflict go
+away? What happens on the selection that asserts both $\ell_1$ and $\ell_2$, and
+why does Theorem~B4.2's reduction from 3-SAT depend on exactly that happening?
+\end{pdexercise}
+\begin{pdsolution}{ex:he-deontic-conflict-checker}
+The witness: fact \texttt{agent\_deployed}; Horn rule
+\texttt{agent\_deployed}~$\to$~\texttt{prod\_access}; deontic rules
+$O(\texttt{write\_prod},\{\texttt{env:prod}\},$ $[0,10])$ once \texttt{prod\_access}
+holds, and $F(\texttt{write\_prod},\{\texttt{env:prod}\},$ $[5,15])$ unconditionally.
+Running the real checker gives \texttt{conflict=True, O/F pairs=[(0, 1)]} on
+$[5,10]$; the same script's Horn-propagation-ablated mutant gives
+\texttt{conflict=False} on this exact witness, and misses $100$ of the $885$
+conflicting instances in the script's $3000$-policy sweep [verified,
+\texttt{b4\_deontic\_fragment.py}]. Adding $O(\ell_1\vee\ell_2)$, compiled per
+Theorem~B4.2's construction as $\ell_1\to O(\texttt{assert\_x0},\{\texttt{x0}\},[0,1])$
+and $\ell_2\to F(\texttt{assert\_x0},\{\texttt{x0}\},[0,1])$: selecting $\ell_1$
+alone or $\ell_2$ alone leaves the checker's report unchanged
+(\texttt{conflict=True, of=[(0, 1)]} in both cases) --- the pre-existing
+\texttt{write\_prod} clash does not depend on the new obligation at all, verified
+by running the checker on both selections. Selecting \emph{both} $\ell_1$ and
+$\ell_2$ adds a second, independent clash, \texttt{of=[(0, 1), (2, 3)]}: the two
+new rules now fire on the identical action, scope, and interval, one obliging
+and one forbidding it, which is exactly why Theorem~B4.2's reduction from 3-SAT
+insists a conflict-free selection can never pick both polarities of one
+variable --- doing so is a clash \emph{by construction}, which is precisely the
+mechanism that turns a satisfying assignment into a conflict-free discharge and
+back. None of this required exponential search: with one disjunctive obligation
+over two literals there are only three nonempty selections to try by eye. The
+NP-complete frontier (Theorem~B4.2) is about what happens as the number of
+disjunctive obligations grows, as the $3$-SAT reduction's one-obligation-per-clause
+construction does, not about any single disjunct bolted onto a two-rule
+witness.
+\end{pdsolution}
+
+\pdexercisesfor{\S\ref{sec:keystone}}{The keystone the market rests on --- and does not yet have}
+
+\begin{pdexercise}[kind=Check,rating=1]{ex:he-sybil-no-mechanism}
+In one sentence, state why a reputation system layered on forgeable
+  pseudonyms is \emph{no mechanism}, not merely a weak one (cite Douceur).
+\end{pdexercise}
+\begin{pdsolution}{ex:he-sybil-no-mechanism}
+Douceur's result says that absent a logically centralized or otherwise
+scarce identity authority, one actor can mint as many pseudonyms as it likes.
+Layered on forgeable identity, a reputation system does not become a
+\emph{weak} mechanism --- it stops being a mechanism at all, because the actor
+being scored also controls the supply of identities the score is computed over:
+reset a bad record, or dominate identity-weighted trust, on demand.
+\end{pdsolution}
+\begin{pdexercise}[kind=Check,rating=1]{ex:he-mutually-distrusting-word}
+Local non-forgeable identity has a non-goal: ``no defense against a hostile
+  operator.'' Name the exact word in the market's definition
+  (``mutually-distrusting,'' ``boundary neither controls'') that this non-goal
+  contradicts.
+\end{pdexercise}
+\begin{pdsolution}{ex:he-mutually-distrusting-word}
+The market's own definition calls the operators \emph{mutually-distrusting}
+and says they trade across ``a boundary neither controls.'' Both phrases
+directly contradict treating a hostile operator as out of scope for local
+non-forgeable identity's threat model: if the boundary is one neither party
+controls, the counterparty's daemon is exactly the adversary that a
+single-operator identity primitive was never built to withstand.
+\end{pdsolution}
+\begin{pdexercise}[kind=Open,rating=3]{ex:he-principal-binding}
+Specify a cryptographic binding tying $N$ agents to one principal
+  such that spawning fresh agents does not reset the bond floor, and that survives
+  into the cross-operator world (where the single-operator ``trusted credential''
+  shortcut is unavailable). This is the hard half of cross-operator attestation.
+\end{pdexercise}
+\begin{pdsolution}{ex:he-principal-binding}
+A workable certificate binds $(\text{principal\_id},$ $\text{agent\_key},$
+$\text{issuer},$ $\text{epoch},$ $\text{policy},$ $\text{expiry})$ and requires the
+agent to prove possession of its key. Bonds, quotas, newcomer state, and
+sanctions all key on \texttt{principal\_id}; agent certificates are children of
+it. Issuance and revocation publish to a transparency log, and the issuer itself
+is cross-signed or attested. None of this makes a real-world principal provable
+by cryptography alone, and none of it stops a hostile operator from minting
+fresh principals under its own root --- the scarce admission mechanism (an
+organizational or KYC credential, hardware-backed membership, a bonded sponsor,
+or an equivalent explicitly priced gate) has to sit outside the cryptography, at
+the point principals are first admitted.
+\end{pdsolution}
+
+\pdexercisesfor{\S\ref{sec:conservation}}{Conservation under composition}
+
+\begin{pdexercise}[kind=Check,rating=1]{ex:he-ms-assumptions}
+State Myerson--Satterthwaite in one sentence and list the assumptions that
+  must be checked before applying it to one harbor trade.
+\end{pdexercise}
+\begin{pdsolution}{ex:he-ms-assumptions}
+Myerson--Satterthwaite: for bilateral trade between a privately informed
+buyer and seller with independent values drawn from overlapping supports, no
+mechanism achieves Bayesian incentive compatibility, interim individual
+rationality, ex-post efficiency, and budget balance all at once. Before invoking
+it on one harbor trade, check that the slice really is bilateral (not
+multi-party), that values/costs are private and independently drawn from a
+common prior, that the supports genuinely overlap, that utility is transferable
+under risk neutrality, and exactly which of the four desiderata is being
+claimed --- the theorem only binds the ones actually asserted together. Applied
+to a harbor: when buyer and seller both price a job off the same grading oracle,
+their values are no longer independent private draws, so the independence item
+fails and the theorem's premise is voided; the harbor is outside the
+impossibility, not rescued from it, and what it owes instead is the oracle's own
+integrity (\pdchapref{stp}{From Spawn to Person}).
+\end{pdsolution}
+\begin{pdexercise}[kind=Trace,rating=2]{ex:he-two-currency-example}
+Give a two-currency example in which native-unit conservation holds but the
+  marked-to-market scalar changes because $v_t$ moves.
+\end{pdexercise}
+\begin{pdsolution}{ex:he-two-currency-example}
+The ledger holds $10$ A-coins and $20$ B-coins throughout. At
+$1\text{A}=\$1$, $1\text{B}=\$2$, the marked value is $10(1)+20(2)=\$50$. Suppose
+B's price rises to $\$3$ with no transfer at all: native balances are unchanged
+at $10$ and $20$, but the marked value is now $10(1)+20(3)=\$70$. Nothing was
+created --- native-unit conservation (Theorem~\ref{thm:functor}) still holds
+exactly --- but the scalar valuation moved because $v_t$ moved, which is
+Property~\ref{thm:lax}'s whole point.
+\end{pdsolution}
+\begin{pdexercise}[kind=Open,rating=3]{ex:he-phi-exposure-bound}
+Specify an oracle-latency and price-move model that yields a valid
+  $\varphi$ exposure bound for Property~\ref{thm:lax}.
+\end{pdexercise}
+\begin{pdsolution}{ex:he-phi-exposure-bound}
+Assume every quote used is at most $L$ seconds stale and that log-price
+moves at a bounded deterministic speed, $|\log(v_t/v_s)|\le\sigma|t-s|$. For
+notional $X$ exposed in the second unit, the worst-case stale-quote error is then
+bounded by $\varphi = X\,(e^{\sigma L}-1)$, plus fees and rounding. A stochastic
+model such as GBM or a historical-volatility estimate instead yields a
+confidence interval or VaR figure, and must state its tail probability
+explicitly --- without some deterministic bound on how fast the price can move,
+no finite worst-case $\varphi$ exists at all, only a probabilistic one.
+\end{pdsolution}
+
+\pdexercisesfor{\S\ref{sec:anchor}}{The Anchor Protocol proper: cross-harbor capability transfer}
+
+\begin{pdexercise}[kind=Check,rating=1]{ex:he-four-message-why}
+Why is the ceremony four messages and not two? Identify what message (3)
+  buys (Hint: who must counter-sign, and under whose key does $C_B'$ later verify?).
+\end{pdexercise}
+\begin{pdsolution}{ex:he-four-message-why}
+Messages (1)--(2) only authenticate the request and $A$'s offer; they commit
+$A$, not $B$. Message (3) is where $B$ actually counter-signs: $B$ verifies $A$
+via the witness log, applies its own attenuation, mints the derivative $C_B'$
+under its own key, and commits its replay state. That is what buys the ceremony
+its liveness property --- $C_B'$ verifies under $B$'s key alone, so every later
+presentation is offline. With only two messages $B$ would never have consented
+to anything, and would hold no object its own effect boundary could verify
+without asking $A$.
+\end{pdsolution}
+\begin{pdexercise}[kind=Trace,rating=2]{ex:he-key-rotation-trace}
+Trace what happens to an in-flight $C_B'$ when Alice rotates her signing key
+  between messages (3) and a later presentation at $B$. (Gap: cross-boundary key
+  rotation, \S\ref{sec:gaps}.)
+\end{pdexercise}
+\begin{pdsolution}{ex:he-key-rotation-trace}
+If Alice rotates her signing key between message~(3) and $B$'s acceptance,
+$B$ must validate the offer against an append-only key-history certificate and
+check the offer's issuance epoch against it, rejecting a stale epoch outright.
+Once $C_B'$ is actually minted, though, its signature verifies under $B$'s own
+key, so Alice's rotation alone does not retroactively erase it --- the
+derivative needs an explicit parent/key-epoch dependency, a bounded TTL, and a
+revocation rule so that a later rotation or revocation can still invalidate
+$C_B'$ once that fresher state reaches $B$'s witness log. The manuscript does not
+yet specify this dependency in full (\S\ref{sec:gaps}).
+\end{pdsolution}
+\begin{pdexercise}[kind=Open,rating=3]{ex:he-replay-freshness}
+Specify replay protection across the boundary: is the
+  \textit{anchor id} a nonce? Does $B$ reject a re-presented message (3)? State the
+  freshness invariant.
+\end{pdexercise}
+\begin{pdsolution}{ex:he-replay-freshness}
+Bind every transfer to a signed tuple: a random transfer id/nonce, the
+source card's JTI, the target audience $B$, the source and target epochs, an
+issue time and expiry, and the plan/card hash. $B$ atomically records
+$(A,\text{transfer\_id})$ as consumed \emph{before} minting the derivative. A
+re-presented message~(3) then either returns the same previously minted $C_B'$
+idempotently, or is rejected outright --- it must never mint a second child
+silently. The freshness invariant this buys: every accepted derivative traces to
+exactly one recorded, unexpired source transfer under the currently permitted
+issuer epoch, and one-shot transfers cause at most one derivative issuance, full
+stop.
+\end{pdsolution}
+
+\pdexercisesfor{\S\ref{sec:federation}}{Federation: trading across machines you don't own}
+
+\begin{pdexercise}[kind=Check,rating=1]{ex:he-gossip-assumptions}
+State the connectivity, peer-selection, and delivery assumptions needed for
+  expected $\Theta(\Delta\log m)$ dissemination. Explain why none yields a deadline
+  during an unbounded partition.
+\end{pdexercise}
+\begin{pdsolution}{ex:he-gossip-assumptions}
+The expected $\Theta(\Delta\log m)$ bound needs a connected (often complete)
+overlay, independently uniform random peer selection each round, reliable
+bounded-duration rounds, and a push/pull epidemic rule with enough independence
+between rounds to drive the usual doubling argument. It is an expectation under
+that model, never a deadline: an unbounded partition, or indefinite message
+loss, is observationally indistinguishable from ordinary delay from inside the
+model, which is exactly why worst-case dissemination time under partition is
+infinite rather than merely large.
+\end{pdsolution}
+\begin{pdexercise}[kind=Trace,rating=2]{ex:he-revocation-window-trace}
+Trace a revoked capability through Figure~\ref{fig:fh-revocation}: at which
+  harbor, and at what time, can it still be spent? That window is what
+  Conjecture~\ref{conj:eq-bound} must price.
+\end{pdexercise}
+\begin{pdsolution}{ex:he-revocation-window-trace}
+Alice revokes at her home harbor at $t=0$; Harbor~$B$, which rented the
+affected agent, has not yet heard, so for $[0,\Delta]$ its filter is stale and
+the card is still spendable there. At $t=\Delta$ gossip reaches $B$ and it stops
+accepting the card; Harbor~$C$, two hops out, remains exposed until $t=2\Delta$.
+The window Conjecture~\ref{conj:eq-bound} must price is per-harbor, running from
+$t_0$ to that harbor's own \emph{enforcement} --- not merely to its first gossip
+receipt, since receiving a filter update and actually enforcing it are two
+different events with their own local latency.
+\end{pdsolution}
+\begin{pdexercise}[kind=Open,rating=3]{ex:he-equivocation-lower-bound}
+State and (attempt to) prove the Equivocation Lower Bound for a
+  three-harbor mesh under a fixed gossip period $\Delta$ and a single equivocating
+  witness.
+\end{pdexercise}
+\begin{pdsolution}{ex:he-equivocation-lower-bound}
+A witness that equivocates sends root $X$ to $B$ and root $Y$ to $C$ for the
+same epoch; nobody can detect this until evidence from both views reaches one
+honest process, and until then each view is individually consistent with
+ordinary delay. On the three-node complete mesh with exchanges every $\Delta$,
+the earliest possible detection is the next $B$--$C$ (or auditor) exchange: at
+least one communication interval, and close to $2\Delta$ if the two roots arrive
+just after a scheduled exchange under discrete rounds. On a path graph the bound
+scales with graph distance times $\Delta$; under an unbounded partition there is
+no finite bound at all. Signatures make the \emph{comparison} $O(1)$ once both
+roots are co-located --- they do nothing to speed up the information reaching
+that one place.
+\end{pdsolution}
+
+\pdexercisesfor{\S\ref{sec:reputation}}{Reputation: monotone, but revocable}
+
+\begin{pdexercise}[kind=Check,rating=1]{ex:he-folk-signal-assumption}
+State the signal-model assumption Theorem~\ref{thm:folk} needs and explain
+  why an omitted strategic grader leaves it undefined.
+\end{pdexercise}
+\begin{pdsolution}{ex:he-folk-signal-assumption}
+Every imperfect-public-monitoring folk-theorem result needs a fixed
+conditional distribution of the public signal given the players' actions and
+types. A grader is itself a strategic player whose reporting policy, private
+information, susceptibility to bribes, and possible deviations all feed into
+that signal. Omit the grader from the game and the distribution the theorem
+needs is neither fixed nor exogenous --- it is endogenous to a player the model
+never included, so the equilibrium claim built on top of it is unsupported until
+the grader is put back in.
+\end{pdsolution}
+\begin{pdexercise}[kind=Check,rating=1]{ex:he-fixa-fixb-classify}
+Classify three settlement criteria as machine-checkable (Fix A) or judge-
+  dependent (Fix B): a unit test passing; a merged SHA; ``the refactor is
+  tasteful.''
+\end{pdexercise}
+\begin{pdsolution}{ex:he-fixa-fixb-classify}
+A protected unit-test receipt is Fix~A, machine-checkable, subject to the
+test suite's own integrity. A protected merged SHA is likewise Fix~A. ``The
+refactor is tasteful'' is Fix~B: no third party can mechanically check taste, so
+it needs a plural or declared human/expert judge whose ruling carries
+contractual finality, backstopped by that judge's own bond.
+\end{pdsolution}
+\begin{pdexercise}[kind=Open,rating=3]{ex:he-rate-the-raters}
+Prove the rate-the-raters recursion terminates: define a well-
+  founded order on ``levels of judge,'' grounded at machine-checkable oracles, and
+  show no infinite ascending chain of ``judges judging judges'' is needed.
+\end{pdexercise}
+\begin{pdsolution}{ex:he-rate-the-raters}
+There is no theorem that subjective judging eventually bottoms out in
+machine-checkable truth, and the premise that one exists needs repairing before
+the question can be answered. What \emph{is} available is a well-founded
+recursion: assign the original grade rank $K$, allow an appeal only to rank
+$K{-}1$, and stop at rank $0$ --- either a protected oracle for an objective
+predicate, or a named final authority or quorum for a matter of preference.
+Because ranks are natural numbers, no infinite ascending chain of ``judges
+judging judges'' is possible. For aesthetic judgments the rank-$0$ base is
+contractual finality, not truth; bonding and re-auditing bound the judges'
+incentives to be honest, but they do not, and cannot, transmute taste into a
+machine-checkable fact.
+\end{pdsolution}
+
+\pdexercisesfor{\S\ref{sec:cold-start}}{Cold start, and the auction question}
+
+\begin{pdexercise}[kind=Check,rating=1]{ex:he-phase1-subsidize}
+Which side should Phase~1 subsidize, and why? Apply the ``scarcest cross-side
+  externality'' rule.
+\end{pdexercise}
+\begin{pdsolution}{ex:he-phase1-subsidize}
+Phase~1 subsidizes \emph{supply} --- the operators and agent owners willing
+to produce real settled work --- because inventory plus witnessed outcomes is
+exactly the reputation data that later attracts demand and skill licensors;
+above-market, platform-posted tasks are the direct form that subsidy takes. This
+is the ``scarcest cross-side externality'' rule: supply is scarcer than demand
+at cold start because nothing exists yet for demand to evaluate, so supply is
+the side worth paying to show up, and the flip to charging demand happens once a
+liquidity threshold is met, not on a calendar date.
+\end{pdsolution}
+\begin{pdexercise}[kind=Trace,rating=2]{ex:he-grim-trigger-delta}
+Use Figure~\ref{fig:cartel-game-inline} to identify the grim-trigger
+  condition under which the cartel is self-sustaining. What raises the critical
+  discount factor $\delta$ enough to break it?
+\end{pdexercise}
+\begin{pdsolution}{ex:he-grim-trigger-delta}
+Under the grim-trigger timing Figure~\ref{fig:cartel-game-inline} draws,
+collusion is self-sustaining exactly when the discounted colluding stream beats
+the one-shot defection payoff: $(\pi_C - p_d L)/(1-\delta(1-p_d)) \ge \pi_D$,
+equivalently $\delta \ge [\pi_D - \pi_C + p_d L]\,/\,[\pi_D(1-p_d)]$. Raising the
+detection probability $p_d$, the penalty $L$, or audit quality, or lowering the
+cartel margin $\pi_C-\pi_D$, all push the right-hand side up --- once it clears
+members' actual $\delta$, no discount factor sustains the cartel and it breaks.
+\end{pdsolution}
+\begin{pdexercise}[kind=Open,rating=3]{ex:he-poa-resale-reframe}
+``Price of anarchy when reputation is for sale'' is the wrong tool:
+  once reputation is tradeable, you have changed the game, so PoA (a ratio for a
+  \emph{fixed} game) does not apply. Reframe it as a \emph{signal-existence}
+  question (Spence-signaling with a resale market): does \emph{any} informative
+  separating equilibrium survive reputation resale?
+\end{pdexercise}
+\begin{pdsolution}{ex:he-poa-resale-reframe}
+Price of anarchy is the wrong tool here because it presupposes a fixed
+game, and letting reputation be resold changes the game itself; the right
+question is whether an informative separating equilibrium survives at all once
+resale is possible. If a high type can simply sell its reputation signal to a
+low type, the signal's cost stops separating types and arbitrage pushes the
+market toward pooling. Separation survives only if the evidence stays
+nontransferably bound to the continuing principal or artifact, a transfer resets
+or visibly discounts the signal, or the seller keeps warranty/bond liability so
+sale remains strictly costlier for a low-quality asset than a high-quality one
+--- absent one of those three, resale does not merely worsen a ratio, it
+destroys the signal outright.
+\end{pdsolution}
+
+\pdexercisesfor{\S\ref{sec:sheaf}}{A gluing analogy for the open federation problem}
+
+\begin{pdexercise}[kind=Check,rating=1]{ex:he-sheaf-site-cover}
+Name the site, cover, restriction maps, and coefficient object a genuine
+  sheaf model of federated ledger views would require.
+\end{pdexercise}
+\begin{pdsolution}{ex:he-sheaf-site-cover}
+A candidate site takes administrative domains (harbors) as objects and
+their signed overlap views as the data over each; morphisms are restrictions to
+shared accounts, events, or epochs; covers are families of domains whose union
+spans the bounded federation under study. A section assigns an event or balance
+view to a domain, and restriction projects that view onto an overlap. Set-valued
+gluing needs no coefficient object at all; a cohomological treatment needs one
+explicitly chosen, such as account-balance deltas valued in the abelian group
+$\mathbb{Z}^{\text{Accounts}}$, with cocycles defined on that group rather than
+merely asserted.
+\end{pdsolution}
+\begin{pdexercise}[kind=Check,rating=1]{ex:he-roots-not-cohomology}
+Explain why two incompatible signed roots are evidence of equivocation but
+  are not, without further definitions, a cohomology class.
+\end{pdexercise}
+\begin{pdsolution}{ex:he-roots-not-cohomology}
+Two different signed roots for the same $(\text{harbor},\text{epoch})$ are
+direct evidence that one key signed two inconsistent commitments --- that much
+is just hash inequality. A cohomology class is a much heavier object: it needs a
+defined cover, a coefficient sheaf, the overlap differences assembled into an
+actual cocycle, and a quotient by coboundaries. Observing that two hashes
+disagree supplies none of that algebra; it is evidence of equivocation, not
+evidence of a nonzero $H^1$.
+\end{pdsolution}
+\begin{pdexercise}[kind=Open,rating=3]{ex:he-gluing-model-build}
+Build a small formal gluing model for a bounded gossip topology and
+  state exactly what consistency result it proves.
+\end{pdexercise}
+\begin{pdsolution}{ex:he-gluing-model-build}
+Fix the three-harbor cover $A$--$B$--$C$. Let each local section be a
+finite map from globally unique event IDs to signed events, with restriction as
+projection onto the shared IDs of an overlap. If every pairwise restriction
+agrees, the sections glue to a unique global map on the union --- an ordinary,
+checkable fact about finite maps agreeing on their overlaps, nothing more. What
+this proves: deterministic gluing of already-delivered, identically-keyed events
+at that one fixed finite topology. What it does not prove: that any event is
+true, that the event set is complete, anything about delivery time, what happens
+to a fork with conflicting IDs, or settlement finality --- the gluing lemma is a
+statement about consistent bookkeeping, not about the world the bookkeeping
+describes.
+\end{pdsolution}
 
 % ═══════════════════════════════════════════════════════════════════════════════
 \section{Related work}\label{sec:related}
@@ -1464,7 +2285,9 @@ model of Chiu, Zhang \& van der Schaar~\cite{chiu2025} as confirmation that
 mechanism in the sense of Myerson~\cite{myerson1981}; the binding constraint is
 Myerson--Satterthwaite~\cite{myerson1983}, which forces the market to surrender
 efficiency to keep budget balance, incentive compatibility, and individual
-rationality. The incentive-compatibility arguments are imperfect-monitoring folk
+rationality; the worked no-trade region in \S\ref{sec:ms} instantiates the
+impossibility on the linear double auction of Chatterjee \&
+Samuelson~\cite{chatterjee1983}. The incentive-compatibility arguments are imperfect-monitoring folk
 theorems (Green--Porter; Abreu--Pearce--Stacchetti~\cite{aps1990}), whose exogenous
 public signal we cannot take for granted --- hence the grading-oracle problem.
 Grossman--Hart~\cite{grossman1986} supplies the residual-control-right argument for
@@ -1529,7 +2352,7 @@ expected forfeiture must match its gain from misreporting.
 \small
 \caption{How the harbor economy sits relative to the nearest prior art on each axis.}
 \label{tab:related}
-\begin{tabular}{@{}p{3.4cm} p{5.0cm} p{6.0cm}@{}}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.4cm} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
 \toprule
 \textbf{Axis} & \textbf{Nearest prior art} & \textbf{What the harbor does differently} \\
 \midrule
@@ -1553,7 +2376,7 @@ Purchased assurance & Delegated computation~\cite{goldwasser2008}; AI-safety
   Prices assurance as $k$ independently bonded test-writers under a Becker-style
   re-audit rate, against a mutation-testing oracle \\
 \bottomrule
-\end{tabular}
+\end{tabularx}
 \end{table}
 
 % ═══════════════════════════════════════════════════════════════════════════════
@@ -1594,7 +2417,8 @@ The panel size $k$ and the detection probability $d$ fix what the panel
 is honest at all. The two questions are independent, so the paper states them
 as two results rather than one bundled claim.
 
-\begin{theorem}[Purchased Assurance Bound]\label{thm:assurance}
+\begin{pdclaim}{Theorem}{Purchased Assurance Bound}
+\label{thm:assurance}
 Let an author-agent submit a float-plan implementation with a proposed diff, and
 let a Becker-enforced panel of size $k$ review it. Then the probability that a
 critical flaw survives undetected across all $k$ reviewers is bounded by
@@ -1604,9 +2428,10 @@ critical flaw survives undetected across all $k$ reviewers is bounded by
 The operator's assurance level $1-(1-d)^k$ is then a purchasable commodity
 priced at $k \cdot (\text{bounty} + \text{bond carry})$, which is what makes
 ``hosted trust as a service'' a quantifiable line item rather than a slogan.
-\end{theorem}
+\end{pdclaim}
 
-\begin{property}[Becker deterrence for the panel]\label{prop:becker-deterrence}
+\begin{pdclaim}{Theorem}{Becker deterrence for the panel}
+\label{prop:becker-deterrence}
 Truthful effort is a dominant strategy for a Becker-enforced panel's test-writers
 exactly when expected punishment at least matches the one-shot gain from
 cheating --- the \textbf{Becker deterrence condition}~\cite{becker1968}:
@@ -1616,9 +2441,9 @@ cheating --- the \textbf{Becker deterrence condition}~\cite{becker1968}:
 equivalently, the platform must commit to a re-audit rate at or above the
 critical rate $\rho^\star = G/(dB)$. (\Designed{}; this half is imported, not
 proved here --- see the paragraph below.)
-\end{property}
+\end{pdclaim}
 
-\noindent The deterrence condition in Property~\ref{prop:becker-deterrence} is
+\noindent The deterrence condition in Theorem~\ref{prop:becker-deterrence} is
 not proved here; it is imported.
 The companion technical paper \emph{Reputation is Amortized
 Verification}~\cite{harbor3} derives $\rho^\star = G/(dB)$ as the stage-game
@@ -1628,6 +2453,14 @@ running parameters: $G=10$, $d=0.8$, $B=50$ give $\rho^\star = 10/(0.8 \cdot 50)
 = 0.25$. Audit one report in four and the cheat payoff is exactly zero. Double the
 bond to $B=100$ and $\rho^\star$ halves to $0.125$: capital and vigilance are
 substitutes along the frontier $\rho d B = G$.
+
+\noindent In the notation of the audit tower of \pdchapref{stp}{From Spawn to
+Person}, this is the single-level case. There the bribe floor is written
+$\beta=\rho dB$, the gain at level $k$ is $G_k$, and level $k{+}1$ audits level
+$k$ across $C$ sealed cliques, so the condition here reads $\beta\ge G_0$ and
+the contraction $G_{k+1}=(1-\rho d)\,G_k$ is what makes a finite stack of
+audited auditors converge. The letter $k$ is overloaded between the two
+chapters: here it counts the panel, there it indexes the level.
 
 \pitfall{Quote the threshold without naming your settlement convention and you will
 be reproducibly wrong by about $17\%$. Equation~\eqref{eq:becker} is the
@@ -1662,12 +2495,22 @@ neither appears in the reference implementation's ledger module. The deterrence
 inequality it leans on is \Designed{}, proved in~\cite{harbor3}. Recorded as such in
 Table~\ref{tab:honest-state}.)
 
+\begin{pdrecitation}
+\item Without looking: state the Purchased Assurance Bound in one line, and name
+  the one word in its hypothesis a real test market breaks first.
+\item What is the difference between the Becker deterrence condition's
+  ``keep-gain'' and ``claw-back'' conventions, and why does it matter which one
+  you quote?
+\item What is the ground-truth oracle for grading the test-writers themselves,
+  and why does it have to be Fix~A rather than Fix~B?
+\end{pdrecitation}
+
 % ═══════════════════════════════════════════════════════════════════════════════
 \section{Conclusion}\label{sec:conclusion}
 % ═══════════════════════════════════════════════════════════════════════════════
 
 The harbor-master makes a swarm legible and accountable for one operator (the
-wedge of Chapter~I). When operators sail out to trade, the \emph{same} ledger that
+wedge of \pdchapref{ls}{The Legible Swarm}). When operators sail out to trade, the \emph{same} ledger that
 kept one operator's swarm honest becomes the market that lets fleets who don't trust
 each other work together: three sides, one bond, hosted trust. We have not papered
 over the cost of that claim. The keystone identity primitive --- local
@@ -1700,19 +2543,23 @@ protocol stack --- but the spine the market trades on (cross-operator identity
 $\to$ outcome ledger $\to$ reputation) is \BuiltWeak{}-to-\Vision{}. Today the harbor
 economy is a two-sided market with a proof-backed roadmap to three.
 
-\begin{table}[p]
-\centering
-\footnotesize
-\renewcommand{\arraystretch}{1.03}
+{\footnotesize\renewcommand{\arraystretch}{1.03}
+\begin{xltabular}{\textwidth}{@{}>{\raggedright\arraybackslash}X l >{\raggedright\arraybackslash}p{0.31\textwidth}@{}}
 \caption{Per-claim maturity, with concrete grounding in the reference
 implementation. ``Module'' names refer to source files in the implementation;
 ``model'' means a mechanized proof artifact; ``property test'' means a randomized
-test exercising the invariant.}
-\label{tab:honest-state}
-\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}X l >{\raggedright\arraybackslash}p{0.31\textwidth}@{}}
+test exercising the invariant.}\label{tab:honest-state}\\
 \toprule
 \textbf{Claim / mechanism} & \textbf{State} & \textbf{Grounding} \\
 \midrule
+\endfirsthead
+\multicolumn{3}{@{}l}{\small\itshape (continued)}\\
+\toprule
+\textbf{Claim / mechanism} & \textbf{State} & \textbf{Grounding} \\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
 Bond ledger: escrow, slash, commons pool & \Built{} & bond-ledger module
   (\texttt{lib/bonds.ts}) \\
 Conservation $\text{wallet}+\text{escrow}+\text{commons}=\text{supply}$ & \Built{} &
@@ -1738,7 +2585,7 @@ Skill licensing (metered $+$ clawback $+$ Merkle proof) & \Designed{} &
 Adversarial test market (Purchased Assurance Bound, Thm.~\ref{thm:assurance}) &
   \Vision{} & no mutation-testing oracle and no bounty-per-killed-mutant contract
   shipped; the deterrence threshold it cites is proved in~\cite{harbor3} \\
-Federation: witness log, capability transfer & \Designed{} & Chapter~VII (\emph{The Federated Harbor}) \\
+Federation: witness log, capability transfer & \Designed{} & \pdchapref{fh}{The Federated Harbor} \\
 Recipient-whitelisted escrow custody & \Designed{} (conditional property) &
   requires non-bypassable authority; no runtime conformance \\
 Cross-harbor conservation & \Designed{} (property) & proof sketch
@@ -1746,14 +2593,12 @@ Cross-harbor conservation & \Designed{} (property) & proof sketch
 Federated revocation dissemination & \Designed{} (conditional expectation) & no finite partition deadline; equivocation delivery \Open{} \\
 Hosted-trust moat / rail separation & \Designed{} (positioning) & not a code artifact \\
 Competitive underwriting (4th side) & \Vision{} & composition unresolved \\
-\bottomrule
-\end{tabularx}
-\end{table}
+\end{xltabular}}
 
 \section{Proof sketches}\label{app:proofs}
 
 We sketch the three central results; full proofs of the conservation results
-appear in Chapter~VII (\emph{The Federated Harbor}).
+appear in \pdchapref{fh}{The Federated Harbor}.
 
 \begin{proof}[Proof sketch of Theorem~\ref{thm:functor}]
 For a valid trace $f:x\to y$, define $\Delta(f)=S(y)-S(x)$. For composable traces
@@ -1786,6 +2631,7 @@ types and transfers and prove its incentive and participation properties. The
 present paper has not done so, hence makes no stronger allocation claim.
 \end{proof}
 % ═══════════════════════════════════════════════════════════════════════════════
+\pdprintsolutions
 \begin{thebibliography}{99}
 % ═══════════════════════════════════════════════════════════════════════════════
 
@@ -1810,6 +2656,11 @@ Operations Research} 6(1):58--73, 1981.
 
 \bibitem{myerson1983} R. Myerson \& M. Satterthwaite. ``Efficient Mechanisms for
 Bilateral Trading.'' \emph{Journal of Economic Theory} 29(2):265--281, 1983.
+
+\bibitem{chatterjee1983} K. Chatterjee \& W. Samuelson. ``Bargaining under
+Incomplete Information.'' \emph{Operations Research} 31(5):835--851, 1983. (The
+linear-equilibrium double auction used in the Myerson--Satterthwaite worked
+example.)
 
 \bibitem{aps1990} D. Abreu, D. Pearce \& E. Stacchetti. ``Toward a Theory of
 Discounted Repeated Games with Imperfect Monitoring.'' \emph{Econometrica}
@@ -1887,7 +2738,7 @@ detached-content merchant authorization, JCS canonicalization), 2026.
 
 \bibitem{datadome2026} DataDome. ``Agent Trust Management and the Universal
 Commerce Protocol,'' 2026.
-\texttt{datadome.co/agent-trust-management/universal-commerce-protocol/}.
+\path{datadome.co/agent-trust-management/universal-commerce-protocol/}.
 
 \bibitem{goldwasser2008} S. Goldwasser, Y. Kalai \& G. Rothblum. ``Delegating
 Computation: Interactive Proofs for Muggles.'' \emph{STOC}, pp.~613--622, 2008.
@@ -1904,6 +2755,37 @@ companion technical paper: proves the bonded-inspection stage-game threshold
 $\rho^\star = G/(dB)$, its confiscation-convention fork
 $\rho^\star_c = G/(d(G{+}B))$, and the audit-tower contraction under sealed
 multi-clique sampling.)
+
+\bibitem{paper6} E. Owens. \emph{What Needs an Authority: Mechanical Detection,
+Chartered Resolution, and the Exact Price of Sole Ownership.} The Harbor Research
+Program, Paper~6, 2026. (Theorems 1a and 1b are the detection theorem and its
+frontier; Theorem~3 is the succession price; the sweeps are
+\texttt{b4\_deontic\_fragment.py} and \texttt{b8\_specialization.py}.)
+
+\bibitem{sutherland1968} I. E. Sutherland. ``A Futures Market in Computer Time.''
+\emph{Communications of the ACM} 11(6):449--451, 1968.
+
+\bibitem{millerdrexler1988} M. S. Miller \& K. E. Drexler. ``Markets and Computation:
+Agoric Open Systems.'' In B. A. Huberman (ed.), \emph{The Ecology of Computation},
+pp.~133--176. North-Holland, 1988.
+
+\bibitem{simon1971} H. A. Simon. ``Designing Organizations for an Information-Rich
+World.'' In M. Greenberger (ed.), \emph{Computers, Communications, and the Public
+Interest}, pp.~37--72. Johns Hopkins Press, 1971.
+
+\bibitem{dg84} W. F. Dowling \& J. H. Gallier. ``Linear-Time Algorithms for Testing
+the Satisfiability of Propositional Horn Formulae.'' \emph{Journal of Logic
+Programming} 1(3):267--284, 1984.
+
+\bibitem{schaefer78} T. J. Schaefer. ``The Complexity of Satisfiability Problems.''
+\emph{STOC}, pp.~216--226, 1978.
+
+\bibitem{dmp91} R. Dechter, I. Meiri \& J. Pearl. ``Temporal Constraint Networks.''
+\emph{Artificial Intelligence} 49(1--3):61--95, 1991.
+
+\bibitem{sk00} K. Stergiou \& M. Koubarakis. ``Backtracking Algorithms for
+Disjunctions of Temporal Constraints.'' \emph{Artificial Intelligence}
+120(1):81--117, 2000.
 
 \end{thebibliography}
 

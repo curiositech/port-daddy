@@ -1,0 +1,24 @@
+% The Book's semantic color system: palette v2, light values. One hue, one meaning.
+% Source of record for every hex: website-v2/src/styles/tokens.semantic.css (light
+% theme); website-v2/scripts/check-figure-palette.mjs fails the build if this file
+% and the tokens disagree. Twin copy under whitepaper/figures/ (byte-identical).
+%
+% Discipline: story colors are accents (rules, fills, marks, display text); body
+% pages stay cream and ink. Amber is stripes, dots, and display only, never small
+% text (3.71:1 on cream). Violet and gold are AA as text; use them at display size
+% or on rules and fills. Line weights: 1px texture, 1.5px linework, 2px enclosure.
+\definecolor{pdcobalt}{HTML}{003FB8}      % kernel / truth            --brand-primary
+\definecolor{pdteal}{HTML}{006B5F}        % legibility                --brand-accent
+\definecolor{pdhealth}{HTML}{1F7A4D}      % ready / coordinated       --story-health
+\definecolor{pdindigo}{HTML}{353A85}      % protocol / federation     --story-indigo
+\definecolor{pdviolet}{HTML}{933FA5}      % identity / continuity     --story-violet
+\definecolor{pdrust}{HTML}{7A4514}        % reputation / trust earned --story-rust
+\definecolor{pdgold}{HTML}{666A00}        % economy / value           --story-gold
+\definecolor{pderror}{HTML}{BF2F2F}       % breach / correction       --status-error
+\definecolor{pdamber}{HTML}{A66F00}       % warning (display only)    --status-warning
+\definecolor{pdlime}{HTML}{CAD900}        % highlight fill, ink text  --chart-yellow
+\definecolor{pdink}{HTML}{121212}         % ink                       --text-primary
+\definecolor{pdinkmuted}{HTML}{403B34}    % links, secondary text     --text-secondary
+\definecolor{pdcream}{HTML}{F2EEE6}       % page ground               --surface-base
+\definecolor{pdcreamraised}{HTML}{F7F3EB} % panels                    --surface-raised
+\definecolor{pdcreamstrong}{HTML}{E9E2D5} % inset wells               --surface-strong

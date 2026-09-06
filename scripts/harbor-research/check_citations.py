@@ -92,7 +92,10 @@ STOPWORDS = {
 
 
 def is_excluded(path: str) -> bool:
-    return WORKTREE_MARKER in path
+    # Match the marker against the path relative to the repo root, so a checkout
+    # that is itself an agent worktree under .claude/worktrees/ still scans its
+    # own corpus instead of excluding everything.
+    return WORKTREE_MARKER in os.path.relpath(path, REPO_ROOT)
 
 
 def discover_corpus_files() -> list[str]:

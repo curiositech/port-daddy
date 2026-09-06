@@ -1009,7 +1009,7 @@ Session notes use AES-256-GCM with per-session keys wrapped by a master key. The
 
 ### Formal verification
 
-ProVerif models cover the Anchor Protocol (agent identity), anchor attenuation, event-relay secrecy, and note escrow; Kani proofs cover Rust kernel invariants. Two white papers ship at `/whitepaper` on the website: **The Anchor Protocol** (formally verified cryptographic identity for agent swarms) and **The Bonded Commons** (pre-transactional trust infrastructure).
+ProVerif models cover the Anchor Protocol (agent identity), anchor attenuation, event-relay secrecy, and note escrow; bounded Kani harnesses cover the Rust card verifier's parsing and comparison paths. Two white papers ship at `/whitepaper` on the website: **The Anchor Protocol** (mechanically analyzed cryptographic identity for agent swarms) and **The Bonded Commons** (pre-transactional trust infrastructure).
 
 ---
 
@@ -1210,7 +1210,7 @@ We maintain an extreme standard of reliability for the control plane:
 - **README freshness gate:** the pre-commit hook runs `scripts/check-readme-freshness.mjs` — staged changes to the CLI verb registry, MCP tool surface, OpenAPI contract, feature manifest, or fleet topology are blocked unless README.md is updated in the same commit (bypass with `PD_README_OK=1` when the change is genuinely internal). `tests/unit/feature-parity.test.js` additionally enforces that every `docs.readme=true` manifest feature stays mentioned here.
 - **Compiled-CLI smoke:** CI hard-fails when the compiled CLI or daemon doesn't actually run.
 - **Surface parity:** new CLI verbs must reach API/MCP parity (`npm run parity`).
-- **Formal verification:** ProVerif protocol models + Kani proofs for Rust kernel invariants.
+- **Formal verification:** ProVerif protocol models + bounded Kani harnesses over the Rust card verifier.
 - **Benchmarking:** `pd bench` measures atomic commit latency.
 
 ### Contributing
