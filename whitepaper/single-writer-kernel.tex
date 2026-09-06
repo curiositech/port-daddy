@@ -26,6 +26,8 @@
 \usepackage{graphicx}
 \usepackage{fancyhdr}
 \usepackage{tikz}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
 \usetikzlibrary{arrows.meta,positioning,fit,backgrounds,calc,shapes.geometric,shapes.symbols,decorations.pathmorphing,decorations.pathreplacing}
 \usepackage{float}
 \usepackage{caption}
@@ -879,6 +881,9 @@ ticks, because $\ln 0.05/\ln 0.95=58.4$. The calibration question of OP-8 is
 which of these lifetimes matches the time a signal stays true; the arithmetic is
 the same at every answer.
 \end{pdexample}
+
+\input{figures/fig-swk-marker-decay}
+
 
 \subsection{Two delegation chains, one dangerous name}
 
@@ -2112,6 +2117,43 @@ over-assume.
   what \emph{cannot} be done and records what \emph{did} happen --- a regulator, not
   a planner.
 \end{itemize}
+
+% ══════════════════════════════════════════════════════════════════
+\section*{Review of the key ideas}
+\addcontentsline{toc}{section}{Review of the key ideas}
+% ══════════════════════════════════════════════════════════════════
+
+What this chapter leaves coupled, in the order the rest of the book will lean on it:
+
+\begin{enumerate}[leftmargin=1.6em,itemsep=2pt]
+\item One writer, one file. Every mutation reaches the daemon and is committed in one
+  order; the reply follows the commit. Serializability and linearizability are bought
+  by that discipline plus four named assumptions, not by an agreement protocol.
+\item Durability is split by fault class. A process crash loses nothing; a power loss
+  can lose the last commits under the default synchronous setting. The setting is the
+  durability claim.
+\item A claim is a lease with a fencing epoch. At most one compatible holder per
+  conflict domain; expiry is lazy; a stale holder's effects are refused downstream by
+  the epoch, not by the lock.
+\item The bus is at-least-once and says so. Benign redelivery is deduplicated by an
+  idempotency key the coordination layer still owes; only protocol violations are loud.
+\item Two chains, never one name. The authorization chain proves who authorized whom;
+  the coordination lineage says what work is in flight. The second rides inside the
+  first.
+\item Prohibitions, obligations and permissions need three mechanisms. A gate refuses
+  before the effect; a typed oracle closes an obligation after the fact; a grant simply
+  holds.
+\item The monitor is a detector. Prevention exists exactly for events that are
+  controllable and witnessed at the boundary (the controllability theorem); everything
+  else is detect-and-compensate, priced by the market chapters.
+\item Done means re-checkable. A commitment closes only through a reference from the
+  finite oracle vocabulary; free text bounces back to open.
+\item Continuity narrows downstream. Memory survives a crash; checkpoint keeps notes,
+  not execution state; the outcome ledger is partial. Nothing built on top can be more
+  certain than that.
+\item The kernel reports its own coverage. Enforced, degraded or stubbed, per rule, so
+  the layers above never mistake a stub for a guarantee.
+\end{enumerate}
 
 % ═════════════════════════════════════════════════════════════════════════════
 \section{Exercises}
