@@ -1,59 +1,83 @@
 % State machine for the work unit (R8) on the two-principal instance checked by
-% skills/harbor-results/scripts/c0_workunit.py: phases, journals, guards, and the crime
-% each guard prevents. Transitions and guards transcribed from the checker's
-% transitions(); crime names and step counts from its mutation suite [internal].
+% c0_workunit.py: the six phases down the center, the four write-targets and the
+% settlement record branching to the right, contested branching to the left. The
+% four load-bearing guards drawn on an edge are numbered g1-g4 on that edge; g5
+% (settle) is already on the center spine. Predicate and crime move to the
+% two-column legend below, transcribed from the checker's transitions() and its
+% mutation suite [internal, c0_workunit.py].
 \begin{figure}[H]
 \centering
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm,
-  lane/.style={pd state,minimum height=0.62cm,minimum width=1.7cm,font=\footnotesize,align=center},
-  journal/.style={pd artifact,minimum height=0.9cm,minimum width=2.6cm,font=\footnotesize,align=center},
-  guard/.style={font=\scriptsize,text=hhink,inner sep=1pt,align=center},
-  trans/.style={font=\scriptsize,text=hhgray,inner sep=1pt,align=left},
-  crime/.style={font=\scriptsize\itshape,text=hhamber!80!black,inner sep=1pt,align=center}]
-  % the work unit: its phases, boxed as one object
-  \draw[pd boundary] (-1.6,0.75) rectangle (4.15,9.65);
-  \node[pd note,anchor=south west] at (-1.55,9.68) {the work unit};
-  \node[lane] (P) at (3.2,9.0) {proposed};
-  \node[lane] (A) at (3.2,7.5) {authorized};
-  \node[lane] (X) at (3.2,6.0) {executing};
-  \node[lane] (W) at (3.2,4.5) {witnessed};
-  \node[lane,pd terminal] (V) at (3.2,3.0) {verified};
-  \node[lane,fill=hhsand!30] (C) at (0.2,4.5) {contested};
-  \node[journal,minimum width=1.6cm,minimum height=0.7cm] (S) at (3.3,1.35) {settlement\\record};
-  \draw[pd arrow] (P) -- (A) node[trans,midway,left=4pt] {authorize};
-  \draw[pd arrow] (A) -- (X) node[trans,midway,left=4pt] {start};
-  \draw[pd arrow] (X) -- (W) node[trans,midway,left=4pt] {witness};
-  \draw[pd arrow] (W) -- (C) node[trans,midway,above=2pt] {contest};
-  % verify and settle: guards to the left of the arrows, crimes beneath the guards
-  \draw[pd arrow] (W) -- (V);
-  \node[guard,anchor=east] at (2.3,3.98) {verify: policy $\wedge$ receipt};
-  \draw[pd caution arrow] ([xshift=-0.3cm]W.south) -- ([xshift=-0.3cm]V.north);
-  \node[crime,anchor=east,align=right] at (2.3,3.5) {guard off: hollow ``verified''\\(4 steps, I3)};
-  \draw[pd arrow] (V.south) -- (S.north);
-  \node[guard,anchor=east,align=right] at (2.3,2.45) {settle: owner-funded\\$\wedge$ verified $\wedge$ receipted};
-  \draw[pd caution arrow] ([xshift=-0.3cm]V.south) -- ([xshift=-0.3cm]S.north);
-  \node[crime,anchor=east,align=right] at (2.3,1.72) {guard off: wrong-principal\\payout (7 steps, I6)};
-  % the journals the work unit writes
-  \node[journal] (EP) at (11.0,7.5) {role epoch\\holder, stale token};
-  \node[journal] (EJ) at (11.0,6.0) {effect journal};
-  \node[journal] (IJ) at (11.0,4.5) {idempotency\\journal};
-  \node[journal] (GR) at (11.0,3.0) {grants with\\parentage};
-  \draw[pd arrow] (EP.west) -- (4.15,7.5);
-  \node[guard,anchor=south,text width=5.0cm] at (6.9,7.56) {reassign-role: epoch $+1$; the old holder keeps a stale token};
-  \draw[pd arrow] (4.15,6.0) -- (EJ.west);
-  \node[guard,anchor=south,text width=5.0cm] at (6.9,6.06) {admit-effect: current epoch only};
-  \draw[pd caution arrow] (4.15,5.62) -- (9.7,5.62);
-  \node[crime,anchor=north,text width=5.0cm] at (6.9,5.56) {guard off: stale write, 4 steps (I1, I5)};
-  \draw[pd arrow] (4.15,4.5) -- (IJ.west);
-  \node[guard,anchor=south,text width=5.0cm] at (6.9,4.56) {external op, any phase: once per key};
-  \draw[pd caution arrow] (4.15,4.12) -- (9.7,4.12);
-  \node[crime,anchor=north,text width=5.0cm] at (6.9,4.06) {guard off: settles twice, 2 steps (I2)};
-  \draw[pd arrow] (4.15,3.0) -- (GR.west);
-  \node[guard,anchor=south,text width=5.0cm] at (6.9,3.06) {delegate, any phase: scope $\subseteq$ parent};
-  \draw[pd caution arrow] (4.15,2.62) -- (9.7,2.62);
-  \node[crime,anchor=north,text width=5.0cm] at (6.9,2.56) {guard off: escalated grant, 1 step (I4)};
-  \node[pd note,anchor=north west,text width=13.9cm] at (-1.6,0.45) {536 reachable states. Every solid path keeps all six invariants; each dashed path is the transition that appears when that one guard is removed, labeled with the shortest crime the checker then finds.};
+  lane/.style={pd state,minimum width=2.5cm,font=\footnotesize},
+  journal/.style={pd artifact,minimum width=2.7cm,font=\footnotesize,align=center},
+  glabel/.style={font=\footnotesize,text=hhink}]
+  % the center spine: the honest path
+  \node[lane] (P) at (2.4,8.2) {proposed};
+  \node[lane] (A) at (2.4,6.7) {authorized};
+  \node[lane] (X) at (2.4,5.2) {executing};
+  \node[lane] (W) at (2.4,3.7) {witnessed};
+  \node[lane] (V) at (2.4,2.2) {verified};
+  \node[journal,minimum height=.85cm] (S) at (2.4,.5) {settlement record};
+
+  \draw[pd arrow] (P)--(A) node[glabel,midway,left=3pt] {authorize};
+  \draw[pd arrow] (A)--(X) node[glabel,midway,left=3pt] {start};
+  \draw[pd arrow] (X)--(W) node[glabel,midway,left=3pt] {witness};
+  \draw[pd arrow] (W)--(V) node[glabel,midway,left=3pt] {g3 verify};
+  \draw[pd arrow] (V)--(S) node[glabel,midway,left=3pt] {g5 settle};
+
+  % contested, branching left off witnessed -- well clear of the witnessed box
+  \node[lane,fill=hhsand!30] (C) at (-1.9,3.7) {contested};
+  \draw[pd arrow] (W)--(C) node[glabel,midway,above] {contest};
+
+  % write-targets, branching right
+  \node[journal] (EP) at (7.1,6.7) {role epoch};
+  \node[journal] (EJ) at (7.1,5.2) {effect journal};
+  \node[journal] (IJ) at (7.1,3.7) {idempotency journal};
+  \node[journal] (GR) at (7.1,2.2) {grants w/ parentage};
+
+  \draw[pd arrow] (A)--(EP) node[glabel,pos=.55,above=7pt] {g2 external-op};
+  \draw[pd arrow] (X)--(EJ) node[glabel,pos=.55,above=7pt] {g1 admit-effect};
+  \draw[pd arrow] (X.south east) -| ($(IJ.west)+(-.6,0)$) -- (IJ.west)
+    node[glabel,pos=.28,below=2pt] {record};
+  \draw[pd arrow] (V.east) to[out=0,in=180]
+    node[glabel,pos=.55,above] {g4 delegate} (GR.west);
+
+  \node[pd note,anchor=north west,text width=9.6cm] at (-1.9,-.55)
+    {reassign-role, external-op, and delegate are available from any phase;
+     each is drawn once, from the phase it is dramatized from below.};
 \end{tikzpicture}
-\caption{The work-unit machine on the two-principal instance: the phases boxed as one object at the left, the journals it writes in the column at the right, the settlement it ends in at the bottom. Solid arrows are the transitions the checker explores, each guard written on the arrow it protects. Dashed arrows are the transitions that appear when that one guard is removed, labeled with the crime the checker then finds and its length in steps [internal, \texttt{c0\_workunit.py}].}
+
+\medskip
+\noindent\footnotesize 536 reachable states on the two-principal instance.
+Every guard below is load-bearing: removing it lets the checker construct
+the named crime.
+
+\smallskip
+\noindent
+\begin{minipage}[t]{0.44\linewidth}
+\raggedright\footnotesize
+\textbf{g1} admit-effect: current epoch only; off: the stale write, 4 steps (I1, I5).
+
+\smallskip
+\textbf{g2} external-op: at most once per key; off: the double settlement, 2 steps (I2).
+
+\smallskip
+\textbf{g3} verify: policy $\wedge$ receipt; off: the hollow ``verified,'' 4 steps (I3).
+\end{minipage}%
+\hfill%
+\begin{minipage}[t]{0.44\linewidth}
+\raggedright\footnotesize
+\textbf{g4} delegate: scope $\subseteq$ parent; off: the escalated delegation, 1 step (I4).
+
+\smallskip
+\textbf{g5} settle: owner-funded $\wedge$ verified $\wedge$ receipted; off: the wrong-principal payout, 7 steps (I6).
+\end{minipage}
+\caption{The work-unit machine: the six phases down the center from proposed
+to a settlement record, contested branching left off witnessed, and the four
+write-targets branching right. Four guards are numbered on the edge they
+guard; g5 (settle) is on the center spine. The legend gives each predicate
+and the shortest crime the checker finds when it is removed. The checker
+explores all 536 reachable states on the two-principal instance [internal,
+\texttt{c0\_workunit.py}].}
 \label{fig:swk-workunit-machine}
 \end{figure}
