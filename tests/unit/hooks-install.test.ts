@@ -106,7 +106,9 @@ afterAll(() => rmSync(SANDBOX, { recursive: true, force: true }));
 
 describe('hook-shape (single source of truth) matches the squid adapter exactly', () => {
   test('tool matchers are the canonical squid values', () => {
-    expect(CLAUDE_TOOL_MATCHER).toBe('Edit|Write|MultiEdit|NotebookEdit');
+    // ADR-0132 phase 3: Claude's matcher also admits Bash + Port Daddy MCP
+    // calls so the halt block list in pd-hook-pre-tool can actually fire.
+    expect(CLAUDE_TOOL_MATCHER).toBe('Edit|Write|MultiEdit|NotebookEdit|Bash|mcp__port-daddy__.*');
     expect(GEMINI_TOOL_MATCHER).toBe('replace|write_file|edit');
     // agy must include multi_replace_file_content (the bit the installer had forked off)
     expect(AGY_TOOL_MATCHER).toBe(
@@ -419,6 +421,56 @@ describe('stageTentacles wires a daemon + per-project gate', () => {
     const stale = new Date(Date.now() - 60_000);
     utimesSync(heartbeat, stale, stale);
     expect(run()).toBe('');
+  });
+
+  test('ADR-0132: the halt sentinel delegates every tentacle even when the daemon is absent, not ready, or stale', () => {
+    // A halt means the daemon is down on purpose. The gate must still fire
+    // the tentacles — the halt check precedes and is independent of every
+    // daemon probe — while the per-project arming check (c) still applies.
+    const pdHome = join(SANDBOX, 'halt-gate-home');
+    const binDir = join(pdHome, 'bin');
+    mkdirSync(join(REPO, '.portdaddy'), { recursive: true });
+    stageTentacles(SRC, binDir);
+    registerSquidProject(REPO, join(pdHome, 'squid', 'projects'));
+    const run = (hook: string, cwd = REPO): string => runWithFixtureStdin(join(binDir, hook), [], {
+      cwd,
+      env: { ...process.env, PD_HOME: pdHome },
+    });
+
+    // No daemon.ready / daemon.pid / heartbeat at all → inert, as before.
+    expect(run('pd-hook-prompt')).toBe('');
+
+    // Hoist the flag: every registered tentacle delegates with no daemon files.
+    writeFileSync(join(pdHome, 'HALT'), '2026-09-05T14:02:11Z operator:erich SECURITE HALT reason=spend-runaway\n');
+    expect(run('pd-hook-prompt')).toContain('pd-hook-prompt');
+    expect(run('pd-hook-pre-tool')).toContain('pd-hook-pre-tool');
+    expect(run('pd-hook-stop')).toContain('pd-hook-stop');
+    // The retired PostToolUse shim stays a zero-work tombstone under a halt too.
+    expect(run('pd-hook-post-tool')).toBe('');
+
+    // A stale heartbeat + mismatched generation would normally skip; the halt wins.
+    const heartbeat = join(pdHome, 'heartbeat');
+    writeFileSync(heartbeat, '{}');
+    const stale = new Date(Date.now() - 600_000);
+    utimesSync(heartbeat, stale, stale);
+    writeFileSync(join(pdHome, 'daemon.pid'), '7002');
+    writeFileSync(join(pdHome, 'daemon.ready'), '7001\n');
+    expect(run('pd-hook-prompt')).toContain('pd-hook-prompt');
+
+    // An explicit remote daemon URL that cannot answer /health would skip; the halt wins there too.
+    expect(runWithFixtureStdin(join(binDir, 'pd-hook-prompt'), [], {
+      cwd: REPO,
+      env: { ...process.env, PD_HOME: pdHome, PD_URL: 'http://127.0.0.1:1' },
+    })).toContain('pd-hook-prompt');
+
+    // Project arming is still respected: an unarmed cwd gets no hook even under a halt.
+    const unarmed = join(SANDBOX, 'halt-unarmed-repo');
+    mkdirSync(join(unarmed, '.portdaddy'), { recursive: true });
+    expect(run('pd-hook-prompt', unarmed)).toBe('');
+
+    // Lowering the flag restores the ordinary daemon gate (still not ready → inert).
+    rmSync(join(pdHome, 'HALT'));
+    expect(run('pd-hook-prompt')).toBe('');
   });
 
   test('finite fixture stdin delivers every payload byte', () => {

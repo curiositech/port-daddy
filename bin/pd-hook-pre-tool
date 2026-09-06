@@ -51,7 +51,209 @@ MATRIX="${PD_MATRIX_FILE:-$PD_HOME/matrix.env}"
 SELF="${PD_ACTOR:-}"
 
 EVENT="$(cat 2>/dev/null || true)"
+
+# ── ADR-0132 listening watch: the halt sentinel is consulted BEFORE anything ─
+# else — before the matrix early-exit below, before any dial, and with no
+# daemon probe. `test -f` on ~/.port-daddy/HALT is the whole detector (Area A0:
+# works when nothing else does). During a halt this tentacle (a) writes one
+# registry-format SEEN line per session into the distress file, (b) BLOCKS any
+# tool call that would spend or coordinate (pd/port-daddy other than
+# --help/--version, mcp__port-daddy__*, launchctl load/enable/kickstart/
+# bootstrap/start of a Port Daddy label, brew services start/restart
+# port-daddy) using the same per-vendor block contracts as the lock gate, and
+# (c) records a blocked call so pd-hook-stop withholds COMPLIED for that cycle.
+# TODO(ADR-0132 phase 0): switch to lib/distress.ts / bin/pd-distress once
+# that lands; until then the sentinel read and the O_APPEND write are inline.
+PD_HALT_SENTINEL="${PD_HALT_FILE:-$PD_HOME/HALT}"
+PD_DISTRESS="${PD_DISTRESS_FILE:-$PD_HOME/DISTRESS}"
+HALT_ACTIVE=0
+HALT_LINE=""
+HALT_REF="sentinel"
+if [ -f "$PD_HALT_SENTINEL" ]; then
+  HALT_ACTIVE=1
+  HALT_LINE="$(head -c 1024 "$PD_HALT_SENTINEL" 2>/dev/null | tr -d '\r' | sed -n '/[^[:space:]]/{p;q;}')"
+  HALT_TOKEN="${HALT_LINE%% *}"
+  case "$HALT_TOKEN" in
+    [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T*) HALT_REF="$HALT_TOKEN" ;;
+  esac
+  [ -n "$HALT_LINE" ] || HALT_LINE="SECURITE HALT (sentinel present, no text)"
+fi
+
+halt_event_field() {
+  # $1 = jq path expression, $2 = raw key regex alternation (jq-less fallback).
+  if command -v jq >/dev/null 2>&1; then
+    V="$(printf '%s' "$EVENT" | jq -r "$1" 2>/dev/null || true)"
+    [ -n "$V" ] && { printf '%s' "$V"; return 0; }
+  fi
+  printf '%s' "$EVENT" \
+    | sed -n -E "s/.*\"($2)\"[[:space:]]*:[[:space:]]*\"([^\"]*)\".*/\2/p" | head -n1
+}
+
+halt_sanitize() { printf '%s' "$1" | tr -c 'A-Za-z0-9._:-' '_' | cut -c1-96; }
+
+if [ "$HALT_ACTIVE" -eq 1 ]; then
+  HALT_SESSION="$(halt_event_field '.session_id // .sessionId // .thread_id // .conversationId // empty' 'session_id|sessionId|thread_id|conversationId')"
+  [ -n "$HALT_SESSION" ] || HALT_SESSION="${PD_ACTOR:-unknown}"
+  HALT_SESSION="$(halt_sanitize "$HALT_SESSION")"
+  HALT_PROVIDER="$(halt_sanitize "${PD_HOOK_PROVIDER:-hook}")"
+  HALT_SELF="agent:${HALT_PROVIDER}:${PD_ACTOR:-$HALT_SESSION}"
+  HALT_SELF="$(halt_sanitize "$HALT_SELF")"
+  HALT_CWD="$(halt_event_field '.cwd // .workspaceRoot // .workspace_root // empty' 'cwd|workspaceRoot|workspace_root')"
+  [ -n "$HALT_CWD" ] || HALT_CWD="$PWD"
+  HALT_REPO_ROOT=""
+  d="$HALT_CWD"
+  while [ -n "$d" ] && [ "$d" != "/" ]; do
+    if [ -d "$d/.portdaddy" ]; then HALT_REPO_ROOT="$d"; break; fi
+    d="$(dirname "$d" 2>/dev/null || true)"
+  done
+  halt_distress_append() {
+    # $1 = CODE, $2 = extra "k=v ..." (optional). One line, O_APPEND, no lock.
+    HALT_TS="$(date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u)"
+    HALT_OUT="${HALT_TS} ${HALT_SELF} control $1 ref=${HALT_REF}${2:+ $2}"
+    mkdir -p "$(dirname "$PD_DISTRESS")" 2>/dev/null || true
+    printf '%s\n' "$HALT_OUT" >> "$PD_DISTRESS" 2>/dev/null || true
+    if [ -n "$HALT_REPO_ROOT" ] && [ -d "$HALT_REPO_ROOT/.portdaddy" ]; then
+      printf '%s\n' "$HALT_OUT" >> "$HALT_REPO_ROOT/.portdaddy/DISTRESS" 2>/dev/null || true
+    fi
+  }
+  HALT_MARKER="$PD_HOME/squid/halt-watch/${HALT_SESSION}.$(halt_sanitize "$HALT_REF")"
+  mkdir -p "$PD_HOME/squid/halt-watch" 2>/dev/null || true
+  # mkdir is the dedupe lock: the first tentacle to win it emits SEEN once.
+  if mkdir "$HALT_MARKER" 2>/dev/null; then
+    halt_distress_append SEEN "hook=pre-tool"
+  fi
+  HALT_NOTICE="SECURITE HALT
+${HALT_LINE}
+[PORT DADDY — HALT, ADR-0132] Port Daddy is halted by operator order. Listening watch only: do not run pd/port-daddy (only --help/--version are permitted), do not call mcp__port-daddy__* tools, do not start/restart/enable/kickstart any com.portdaddy.* or brew port-daddy service, do not spawn subagents, fleets, or sorties. Work solo with git, tests, and files. Only a signed operator ALL-CLEAR lifts this halt; the sentinel's absence is not all-clear."
+fi
+
 [ -n "$EVENT" ] || exit 0          # no event → nothing to gate, allow
+
+# ── ADR-0132 halt block list (only when the sentinel is hoisted) ─────────────
+# Structured command shapes, not free-text classification: the first word of
+# each shell segment (after env assignments and launcher wrappers) is compared
+# by basename against the two binaries the halt order names; launchctl and
+# brew are gated on their subcommand plus a Port Daddy label in the segment.
+halt_command_text() {
+  # Shell command from tool_input.command (string or argv array) / toolInput.
+  if command -v jq >/dev/null 2>&1; then
+    C="$(printf '%s' "$EVENT" | jq -r '
+        ( .tool_input.command // .toolInput.command // .tool_input.cmd // .toolInput.cmd // empty ) as $c
+        | if ($c|type) == "array" then ($c | map(tostring) | join(" "))
+          elif ($c|type) == "string" then $c
+          else empty end' 2>/dev/null || true)"
+    [ -n "$C" ] && { printf '%s' "$C"; return 0; }
+  fi
+  # jq-less: a string command, else a flattened argv array. Degraded but
+  # never silent — the halt gate must not depend on jq being installed.
+  C="$(printf '%s' "$EVENT" | sed -n -E 's/.*"command"[[:space:]]*:[[:space:]]*"((\\.|[^"\\])*)".*/\1/p' | head -n1)"
+  if [ -z "$C" ]; then
+    C="$(printf '%s' "$EVENT" | sed -n -E 's/.*"command"[[:space:]]*:[[:space:]]*\[([^]]*)\].*/\1/p' | head -n1 | tr ',' ' ' | tr -d '"')"
+  fi
+  printf '%s' "$C" | sed -e 's/\\n/ /g' -e 's/\\"/"/g'
+}
+
+halt_forbidden_reason() {
+  # $1 = tool name, $2 = command text. Prints the reason and returns 0 when the
+  # call is forbidden during a halt; prints nothing / returns 1 when allowed.
+  case "$1" in
+    mcp__port-daddy__*|mcp__port_daddy__*)
+      printf '%s' "MCP tool '$1' coordinates through the halted daemon"; return 0 ;;
+  esac
+  [ -n "$2" ] || return 1
+  # Segment on shell separators (; | & and newlines; backticks and $( too), then
+  # strip leading parens/quotes, VAR=value prefixes and launcher wrappers.
+  printf '%s\n' "$2" | tr ';|&`\n' '\n\n\n\n\n' | while IFS= read -r SEG; do
+    SEG="$(printf '%s' "$SEG" | sed -E '
+      s/^[[:space:]("'"'"'$]+//
+      s/^([A-Za-z_][A-Za-z0-9_]*=[^[:space:]]*[[:space:]]+)+//
+      s/^(((sudo|env|command|exec|nohup|caffeinate|builtin|npx|bunx|node|bun|tsx|deno|npm|yarn|pnpm|run|time|sh|bash|zsh|dash)([[:space:]]+-[^[:space:]]+)*|timeout[[:space:]]+[0-9]+[a-z]?)[[:space:]]+)+//
+      s/^[[:space:]("'"'"'$]+//')"
+    [ -n "$SEG" ] || continue
+    FIRST="${SEG%%[[:space:]]*}"
+    REST="${SEG#"$FIRST"}"
+    REST="$(printf '%s' "$REST" | sed -E 's/^[[:space:]]+//; s/[[:space:]"'"'"')]+$//')"
+    BASE="${FIRST##*/}"
+    BASE="$(printf '%s' "$BASE" | sed -E 's/\.(ts|js|mjs|cjs)$//; s/["'"'"']//g')"
+    case "$BASE" in
+      pd|port-daddy)
+        # Only the help/version escape hatches are permitted during a halt.
+        ALLOWED=1
+        for A in $REST; do
+          case "$A" in --help|-h|help|--version|-v|-V|version) ;; *) ALLOWED=0; break ;; esac
+        done
+        [ -n "$REST" ] || ALLOWED=0
+        if [ "$ALLOWED" -eq 0 ]; then
+          printf '%s' "'$BASE ${REST:-}' runs Port Daddy during the halt (only --help/--version are permitted)"
+          exit 0
+        fi
+        ;;
+      launchctl)
+        SUB="${REST%%[[:space:]]*}"
+        case "$SUB" in
+          load|enable|kickstart|bootstrap|start|submit)
+            if printf '%s' "$SEG" | grep -qi 'portdaddy\|port-daddy'; then
+              printf '%s' "'launchctl $SUB' would (re)launch a Port Daddy supervisor label during the halt"
+              exit 0
+            fi ;;
+        esac
+        ;;
+      brew)
+        case "$REST" in
+          services[[:space:]]*start*|services[[:space:]]*restart*|services[[:space:]]*run*)
+            if printf '%s' "$SEG" | grep -qi 'port-daddy\|portdaddy'; then
+              printf '%s' "'brew services' would start the Port Daddy service during the halt"
+              exit 0
+            fi ;;
+        esac
+        ;;
+    esac
+  done | head -n1 | grep .
+}
+
+if [ "$HALT_ACTIVE" -eq 1 ]; then
+  HALT_TOOL="$(halt_event_field '.tool_name // .toolName // .tool // empty' 'tool_name|toolName')"
+  HALT_CMD="$(halt_command_text)"
+  HALT_WHY="$(halt_forbidden_reason "$HALT_TOOL" "$HALT_CMD" || true)"
+  if [ -n "$HALT_WHY" ]; then
+    # A blocked call means this session has NOT yet complied with the halt:
+    # pd-hook-stop consumes this marker and withholds COMPLIED for the cycle.
+    : > "$HALT_MARKER/blocked" 2>/dev/null || true
+    HALT_BLOCK_BODY="[PORT DADDY — HALT] BLOCKED ${HALT_TOOL:-tool}: ${HALT_WHY} (ADR-0132 SECURITE HALT, ref=${HALT_REF}). Listening watch only — work solo with git, tests, and files; only a signed operator ALL-CLEAR lifts the halt."
+    case "$EVENT" in
+      *'"tool_name"'*) HALT_CAMEL=0 ;;
+      *'"toolName"'*) HALT_CAMEL=1 ;;
+      *) HALT_CAMEL=0 ;;
+    esac
+    if [ "$HALT_CAMEL" -eq 1 ]; then
+      # Codex app-server / agy deny-JSON contract (same superset shape as the
+      # lock gate below). Newlines are written as JSON escapes by construction.
+      HALT_ESC_LINE="$(printf '%s' "$HALT_LINE" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g')"
+      HALT_ESC_BODY="$(printf '%s' "$HALT_BLOCK_BODY" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g')"
+      HALT_ESC="SECURITE HALT\\n${HALT_ESC_LINE}\\n${HALT_ESC_BODY}"
+      printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"%s","decision":"block","message":"%s"}}\n' "$HALT_ESC" "$HALT_ESC"
+      exit 0
+    fi
+    # Universal contract (Claude / Gemini / Codex hooks): exit 2 + stderr. The
+    # reason is the model's next prompt, so it opens with the registered A4
+    # signal and carries the halt's own text.
+    printf 'SECURITE HALT\n%s\n%s\n' "$HALT_LINE" "$HALT_BLOCK_BODY" >&2
+    exit 2
+  fi
+  # Allowed call during a halt: Claude Code admits PreToolUse additionalContext,
+  # so the notice can ride along with the call — but only when the prompt
+  # tentacle has not already opened this session's cycle (it carries the
+  # notice every turn), and at most once per cycle, so a long turn of allowed
+  # tool calls does not repeat the same block into context. Other providers
+  # stay silent here (Codex rejects non-JSON stdout).
+  if [ "${PD_HOOK_PROVIDER:-}" = "claude" ] && command -v jq >/dev/null 2>&1 \
+    && [ ! -f "$HALT_MARKER/cycle" ] && [ ! -f "$HALT_MARKER/notified" ]; then
+    : > "$HALT_MARKER/notified" 2>/dev/null || true
+    jq -cn --arg ctx "$HALT_NOTICE" \
+      '{hookSpecificOutput:{hookEventName:"PreToolUse",additionalContext:$ctx}}'
+  fi
+fi
+
 [ -f "$MATRIX" ] || exit 0         # no matrix → no locks, allow
 
 normalize_suggestibility() {
