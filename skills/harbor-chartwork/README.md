@@ -1,24 +1,37 @@
 # Harbor Chartwork
 
-[Brief description of what this skill does]
+Deterministic figure-QA tooling for the three Harbor TikZ figure corpora
+(`website-v2/public/whitepaper/figures/`, `whitepaper/figures/`,
+`docs/harbor-research/figures/`). See `SKILL.md` for the QA loop and script
+CLIs.
 
 ## Structure
 
 ```
 harbor-chartwork/
-├── SKILL.md              # Core instructions (<500 lines)
-├── CHANGELOG.md          # Version history
-├── README.md             # This file
-├── references/           # Deep-dive reference material
-├── scripts/              # Working scripts such as preflight/validation helpers
-├── examples/             # Concrete finished outputs (optional)
-├── templates/            # Reusable output shapes (optional)
-└── agents/               # Forked subagent prompts (optional)
+├── SKILL.md                    # Core instructions, script CLI table, references
+├── CHANGELOG.md                # Version history
+├── README.md                   # This file
+├── references/
+│   ├── corpus-audit.md         # Generated inventory -- see build_corpus_audit.py
+│   ├── taxonomy.md             # Pending (book's author)
+│   ├── craft-rules.md          # Pending (book's author)
+│   └── research-notes.md       # Pending (book's author)
+├── scripts/
+│   ├── compile_fragment.sh     # Wrap + compile one fragment standalone
+│   ├── figcheck.py             # T1-T7 rendered-geometry checks
+│   ├── tikz_precheck.py        # Source-level lint, no TeX needed
+│   ├── contact_sheet.py        # Batch review grid
+│   └── build_corpus_audit.py   # Regenerates references/corpus-audit.md
+└── tests/
+    ├── test_figcheck.py
+    └── test_tikz_precheck.py
 ```
 
-## Quick Start
+## Quick start
 
-1. Review SKILL.md for core process
-2. Check references/ for deep dives
-3. Run the `skill-architect` validator against this directory
-4. Remove scaffold placeholders before shipping the skill
+```bash
+python3 -m unittest discover -s tests -p 'test_*.py' -v
+python3 scripts/build_corpus_audit.py --skip-compile   # fast, lint-only pass
+python3 scripts/build_corpus_audit.py                  # full loop, needs tectonic
+```
