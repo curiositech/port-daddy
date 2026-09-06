@@ -1,5 +1,6 @@
 import { ActivityType } from './activity.js';
 import { normalizeSelfSalvage } from './telos-salvage.js';
+import { haltActive } from './distress.js';
 import type { StaleAgent } from './resurrection.js';
 
 type ExpiredAgent = Pick<StaleAgent, 'id' | 'name' | 'purpose' | 'lastHeartbeat' | 'staleSince' | 'identityProject'>;
@@ -21,6 +22,12 @@ interface HeartbeatDeathDependencies {
     onSessionEnd(sessionId: string): Promise<void>;
     onAgentDead(agentId: string, identityProject: string, capsule?: Record<string, unknown>): Promise<void>;
   } | null;
+  /**
+   * ADR-0132 A0: is a halt hoisted? Defaults to the real sentinel check in
+   * lib/distress.ts; injectable for tests. A heartbeat that stops during a
+   * halt is compliance, not death: nothing is abandoned, queued, or respawned.
+   */
+  haltActive?: () => boolean;
 }
 
 /**
@@ -30,8 +37,21 @@ interface HeartbeatDeathDependencies {
  * @returns A synchronous coordinator that harvests only truly ended sessions.
  */
 export function createHeartbeatDeathHandler(deps: HeartbeatDeathDependencies) {
+  const isHalted = deps.haltActive ?? (() => haltActive());
   return (agent: ExpiredAgent) => {
     const { sessions, harbors, resurrection, messaging, logger, activityLog, custodian } = deps;
+    // ADR-0132 §2 rung 22: silence during a HALT is not a trigger. The agent
+    // went quiet because it was told to; its sessions, harbor seats and
+    // resurrection slot stay exactly as they are until the halt lifts.
+    if (isHalted()) {
+      return {
+        abandonedSessionIds: [] as string[],
+        preservedDurableSessionIds: [] as string[],
+        queuedForReplacement: false,
+        replacementAlreadyAdmitted: false,
+        halted: true,
+      };
+    }
     const preservedDurableSessionIds = sessions.activeDurableSessionIdsByAgent(agent.id);
     const hold = resurrection.holdForDurableSessions(agent.id);
     // Operational harbor membership expires with the process. Its saved work and

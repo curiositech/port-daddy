@@ -10,6 +10,7 @@ import { requireConfirmation, DESTRUCTIVE_EXIT_CODE } from '../utils/destructive
 import { evaluateLeaseRent } from '../../lib/coast-guard/compulsion.js';
 import { gatherCommitsSinceLastNote } from '../../lib/coast-guard/compulsion-facts.js';
 import { resolveRoadmapHarbor } from './roadmap.js';
+import { readHalt, type HaltRecord } from '../../lib/distress.js';
 
 /**
  * Destructive git verbs intercepted by the optional `~/.port-daddy/bin/git`
@@ -84,6 +85,37 @@ export interface GuardViolation {
   owners?: GuardOwner[];
 }
 
+/** The hoisted halt as the guard reports it (serializable subset of `HaltRecord`). */
+export interface GuardHalt {
+  /** Instant of the halt, from the `SECURITE HALT` line or the sentinel's mtime. */
+  at: string;
+  /** Sentinel file that answered; the machine-wide one is authoritative. */
+  path: string;
+  /** Raw sentinel contents. */
+  raw: string;
+  /** `<kind>:<id>` of whoever hoisted it, when the sentinel is well-formed. */
+  by: string | null;
+}
+
+/**
+ * The one calm line the guard prints when it is OFF because of a halt. One
+ * line, stderr, no banner, no notification, exit 0 — a halt is a mode, not an
+ * emergency (ADR-0132 §3, Coordination Guard row).
+ */
+export function formatHaltedGuardNotice(halt: Pick<GuardHalt, 'at' | 'by'>): string {
+  const who = halt.by ?? 'operator';
+  return `${COORDINATION_GUARD_NAME}: OFF — Port Daddy is halted by ${who} (SECURITE HALT ${halt.at}); proceeding without coordination rent.`;
+}
+
+function guardHaltFromRecord(halt: HaltRecord): GuardHalt {
+  return {
+    at: halt.at,
+    path: halt.path,
+    raw: halt.raw,
+    by: halt.record ? `${halt.record.kind}:${halt.record.id}` : null,
+  };
+}
+
 export interface GuardCheckResult {
   success: boolean;
   passed: boolean;
@@ -94,6 +126,13 @@ export interface GuardCheckResult {
   agentId?: string | null;
   sessionId?: string | null;
   violations: GuardViolation[];
+  /**
+   * Set when the ADR-0132 halt sentinel was hoisted at check time. The guard
+   * then took its legible `off` path: `mode` is `'off'`, nothing blocks, and
+   * no structural escalation fires — the daemon is unreachable because the
+   * operator turned it off, not because it broke (ADR-0131's conflation).
+   */
+  halt?: GuardHalt | null;
   /** A read-only audit of an existing commit, never a veto of that commit. */
   postCommitAudit?: {
     commit: string | null;
@@ -501,10 +540,32 @@ export function evaluateGuardFacts(input: {
   /** Read failures and bounded-page omissions are not proof of absence. */
   roadmapReceiptLookupIssue?: GuardRoadmapReceiptLookup['issue'];
   nowMs?: number;
+  /**
+   * The ADR-0132 halt sentinel, when hoisted. A halt is a MODE: it forces the
+   * legible `off` path regardless of config or flags, so an unreachable daemon
+   * during a halt is never mistaken for a structural emergency.
+   */
+  halt?: HaltRecord | null;
 }): GuardCheckResult {
-  const mode = input.mode ?? (input.config.enabled ? input.config.mode : 'off');
   const files = normalizeFiles(input.files ?? []);
   const violations: GuardViolation[] = [];
+
+  if (input.halt) {
+    return {
+      success: true,
+      passed: true,
+      shouldBlock: false,
+      mode: 'off',
+      enabled: false,
+      files,
+      agentId: input.agentId,
+      sessionId: input.sessionId,
+      violations,
+      halt: guardHaltFromRecord(input.halt),
+    };
+  }
+
+  const mode = input.mode ?? (input.config.enabled ? input.config.mode : 'off');
 
   if (mode === 'off') {
     return {
@@ -745,12 +806,17 @@ export interface GuardBlockNotice {
 }
 
 export function describeGuardBlock(
-  result: Pick<GuardCheckResult, 'shouldBlock' | 'violations' | 'postCommitAudit'>,
+  result: Pick<GuardCheckResult, 'shouldBlock' | 'violations' | 'postCommitAudit'> & Partial<Pick<GuardCheckResult, 'halt'>>,
   context: { hook?: boolean; postCommit?: boolean } = {},
 ): GuardBlockNotice | null {
   // Audit findings cannot become a notification that the completed commit
   // failed, even if a caller passes the underlying pre-commit evaluation.
   if (context.postCommit || result.postCommitAudit) return null;
+  // A hoisted halt (ADR-0132) is a mode, not a block: 'daemon-unreachable' and
+  // 'no-active-session' are the EXPECTED state of a halted harbor, never a
+  // "COORDINATION LAYER DOWN" emergency. The structural escalation below stays
+  // for the case where NO sentinel exists — that one is genuine.
+  if (result.halt) return null;
   if (!result.shouldBlock) return null;
   const codes = new Set(result.violations.map((v) => v.code));
   const structural =
@@ -824,6 +890,13 @@ function osaEscape(input: string): string {
 function printCheckResult(result: GuardCheckResult, options: CLIOptions): void {
   if (options.json || options.j) {
     console.log(JSON.stringify(result, null, 2));
+    return;
+  }
+
+  if (result.halt) {
+    // Exactly one calm line, on stderr, and nothing else: the halt is the
+    // whole story. No banner, no operator notification (ADR-0132 §3).
+    console.error(formatHaltedGuardNotice(result.halt));
     return;
   }
 
@@ -1068,7 +1141,13 @@ export function filterClaimsToRepo(paths: string[], repoRoot: string): string[] 
 async function runCheck(positional: string[], options: CLIOptions): Promise<GuardCheckResult> {
   const cwd = resolve(typeof options.dir === 'string' ? options.dir : process.cwd());
   const config = readGuardConfig(cwd);
-  const mode = effectiveMode(config, options);
+  // ADR-0132 A0: consult the halt sentinel BEFORE touching the daemon. A
+  // hoisted halt forces the legible `off` mode — config and flags do not
+  // override an operator halt, and the daemon is not even probed, because
+  // "unreachable" is the expected state and probing it is what produced the
+  // false COORDINATION-LAYER-DOWN escalation during the 2026-09-05 incident.
+  const halt = readHalt({ cwd });
+  const mode = halt ? 'off' : effectiveMode(config, options);
   const postCommit = Boolean(options['post-commit']);
   const gitVerb = typeof options['git-verb'] === 'string' ? String(options['git-verb']).trim() : '';
   const commitRef = typeof options.commit === 'string' && options.commit.length > 0 ? options.commit : 'HEAD';
@@ -1101,7 +1180,9 @@ async function runCheck(positional: string[], options: CLIOptions): Promise<Guar
             ? positional
             : dirtyFiles(cwd),
   );
-  const context = await loadActiveContext(cwd);
+  const context = halt
+    ? { active: false, daemonReachable: false, roadmapLink: null as string | null }
+    : await loadActiveContext(cwd);
   const ownersByFile = mode === 'off' || files.length === 0 ? {} : await loadOwners(files, root);
 
   // Rent is only assessed at commit-time (staged / hook / post-commit), never on
@@ -1146,6 +1227,7 @@ async function runCheck(positional: string[], options: CLIOptions): Promise<Guar
     atCommitTime,
     roadmapReceipts: roadmapLookup?.receipts,
     roadmapReceiptLookupIssue: roadmapLookup?.issue,
+    halt,
   });
   return postCommit ? asPostCommitAudit(result, auditedCommit) : result;
 }
@@ -1194,12 +1276,16 @@ async function handleUninstallShim(options: CLIOptions): Promise<void> {
 function handleStatus(options: CLIOptions): void {
   const cwd = resolve(typeof options.dir === 'string' ? options.dir : process.cwd());
   const config = readGuardConfig(cwd);
-  const mode = config.enabled ? config.mode : 'off';
+  const halt = readHalt({ cwd });
+  const mode = halt ? 'off' : config.enabled ? config.mode : 'off';
   const data = {
     success: true,
     name: COORDINATION_GUARD_NAME,
     enabled: config.enabled,
     mode,
+    /** Configured mode, kept visible so the operator sees what resumes after the halt lifts. */
+    configuredMode: config.enabled ? config.mode : 'off',
+    halt: halt ? guardHaltFromRecord(halt) : null,
     requireSession: config.requireSession,
     requireClaims: config.requireClaims,
     requireRoadmapForCoordinationChanges: config.requireRoadmapForCoordinationChanges,
@@ -1211,6 +1297,12 @@ function handleStatus(options: CLIOptions): void {
     return;
   }
 
+  if (data.halt) {
+    console.log(formatHaltedGuardNotice(data.halt));
+    console.log(`  configured mode (resumes when the halt lifts): ${data.configuredMode}`);
+    console.log(`  sentinel: ${data.halt.path}`);
+    return;
+  }
   console.log(`${COORDINATION_GUARD_NAME}: ${mode}`);
   console.log(`  config: ${data.configPath}`);
   console.log(

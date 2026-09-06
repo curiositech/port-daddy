@@ -14,6 +14,7 @@ import {
   extractClaimPaths,
   filterClaimsToRepo,
   fileNeedsRoadmapReceipt,
+  formatHaltedGuardNotice,
   localGuardConfigPath,
   mergePostCommitHook,
   mergePreCommitHook,
@@ -669,6 +670,70 @@ describe('describeGuardBlock — HITL escalation policy', () => {
   });
 });
 
+describe('ADR-0132: a hoisted halt is a legible OFF state, not a structural emergency', () => {
+  const enforce = { ...DEFAULT_GUARD_CONFIG, enabled: true, mode: 'enforce' };
+  const halt = {
+    path: '/home/op/.port-daddy/HALT', scope: 'machine',
+    raw: '2026-09-05T14:02:11Z operator:erich SECURITE HALT reason=spend-runaway',
+    at: '2026-09-05T14:02:11Z',
+    record: { at: '2026-09-05T14:02:11Z', kind: 'operator', id: 'erich', cls: 'SECURITE', code: 'HALT', fields: { reason: 'spend-runaway' } },
+  };
+
+  test('sentinel present + daemon unreachable + no session → mode off, no block, no violations', () => {
+    const result = evaluateGuardFacts({ config: enforce, mode: 'enforce', active: false, daemonReachable: false, files: ['src/a.ts'], halt });
+    expect(result).toMatchObject({ mode: 'off', enabled: false, shouldBlock: false, passed: true, success: true, violations: [] });
+    expect(result.halt).toEqual({ at: '2026-09-05T14:02:11Z', path: halt.path, raw: halt.raw, by: 'operator:erich' });
+    // The classifier must not produce a notice at all — nothing structural, nothing to escalate.
+    expect(describeGuardBlock(result, { hook: true })).toBeNull();
+    expect(describeGuardBlock(result, { hook: false })).toBeNull();
+  });
+
+  test('the halt overrides an explicit enforce flag and rent debt alike', () => {
+    const result = evaluateGuardFacts({
+      config: enforce, mode: 'enforce', active: true, agentId: 'a', sessionId: 's', files: ['src/a.ts'],
+      ownersByFile: { 'src/a.ts': [] }, commitsSinceLastNote: 3, atCommitTime: true, rentUnverifiable: true, halt,
+    });
+    expect(result.shouldBlock).toBe(false);
+    expect(result.mode).toBe('off');
+    expect(result.violations).toEqual([]);
+  });
+
+  test('a hand-made sentinel with no parseable line still halts; the notice names the operator generically', () => {
+    const bare = { ...halt, raw: 'stopped by hand', record: null };
+    const result = evaluateGuardFacts({ config: enforce, active: false, daemonReachable: false, files: ['src/a.ts'], halt: bare });
+    expect(result.halt.by).toBeNull();
+    expect(formatHaltedGuardNotice(result.halt)).toBe(
+      'Coordination Guard: OFF — Port Daddy is halted by operator (SECURITE HALT 2026-09-05T14:02:11Z); proceeding without coordination rent.',
+    );
+  });
+
+  test('even a hand-built blocking result is silenced by the classifier when a halt is attached', () => {
+    const result = {
+      shouldBlock: true,
+      violations: [{ code: 'daemon-unreachable', severity: 'critical', message: 'unreachable' }],
+      halt: { at: halt.at, path: halt.path, raw: halt.raw, by: 'operator:erich' },
+    };
+    expect(describeGuardBlock(result, { hook: true })).toBeNull();
+  });
+
+  test('NO sentinel: the same facts remain a structural emergency that escalates (the genuine case)', () => {
+    const result = evaluateGuardFacts({ config: enforce, mode: 'enforce', active: false, daemonReachable: false, files: ['src/a.ts'], halt: null });
+    expect(result.shouldBlock).toBe(true);
+    expect(result.halt).toBeUndefined();
+    expect(result.violations.map((v) => v.code)).toEqual(['daemon-unreachable', 'no-active-session']);
+    const notice = describeGuardBlock(result, { hook: false });
+    expect(notice.severity).toBe('structural');
+    expect(notice.notifyOperator).toBe(true);
+    expect(notice.title).toMatch(/COORDINATION LAYER DOWN/);
+  });
+
+  test('the calm line is exactly one sentence with the ISO instant and who hoisted it', () => {
+    expect(formatHaltedGuardNotice({ at: '2026-09-05T14:02:11Z', by: 'operator:erich' })).toBe(
+      'Coordination Guard: OFF — Port Daddy is halted by operator:erich (SECURITE HALT 2026-09-05T14:02:11Z); proceeding without coordination rent.',
+    );
+  });
+});
+
 describe('post-commit audit — real Git commits and executable CLI handler', () => {
   const require = createRequire(import.meta.url);
   const tsxLoader = require.resolve('tsx/esm');
@@ -690,10 +755,11 @@ describe('post-commit audit — real Git commits and executable CLI handler', ()
     return result.stdout.trim();
   }
 
-  async function check(options = {}, positional = ['check']) {
+  async function check(options = {}, positional = ['check'], extraEnv = {}) {
     // Invoke the actual handler in a separate process: output and process.exit
     // are part of the contract, not just the pure evaluator's return values.
     const env = {
+      ...extraEnv,
       PATH: `${join(repo, 'fixture-bin')}:${process.env.PATH}`,
       TMPDIR: tmpdir(),
       PORT_DADDY_URL: daemonUrl,
@@ -779,6 +845,40 @@ describe('post-commit audit — real Git commits and executable CLI handler', ()
   afterEach(async () => {
     if (server?.listening) await new Promise(resolve => server.close(resolve));
     if (repo) rmSync(repo, { recursive: true, force: true });
+  });
+
+  test('ADR-0132: with the sentinel hoisted and the daemon dead, the hook prints one calm stderr line and exits 0', async () => {
+    // The daemon is gone — exactly the 2026-09-05 shape — and the sentinel says why.
+    await new Promise(resolve => server.close(resolve));
+    const pdHome = join(repo, 'pd-home');
+    mkdirSync(pdHome, { recursive: true });
+    writeFileSync(join(pdHome, 'HALT'), '2026-09-05T14:02:11Z operator:erich SECURITE HALT reason=spend-runaway\n');
+    writeFileSync(join(repo, 'fixture.txt'), 'halted change\n');
+    git(['add', 'fixture.txt']);
+
+    const report = await check({ staged: true, hook: true }, ['check'], { PD_HOME: pdHome });
+    expect(report.code).toBe(0);
+    expect(report.stdout).toBe('');
+    expect(report.stderr).toBe(
+      'Coordination Guard: OFF — Port Daddy is halted by operator:erich (SECURITE HALT 2026-09-05T14:02:11Z); proceeding without coordination rent.\n',
+    );
+    expect(existsSync(join(repo, 'notification'))).toBe(false); // no osascript escalation
+    expect(requests).toEqual([]); // the daemon was never probed
+
+    const json = JSON.parse((await check({ staged: true, json: true }, ['check'], { PD_HOME: pdHome })).stdout);
+    expect(json).toMatchObject({ mode: 'off', shouldBlock: false, violations: [], halt: { at: '2026-09-05T14:02:11Z', by: 'operator:erich' } });
+  });
+
+  test('ADR-0132: with NO sentinel and the daemon dead, the hook still escalates as structural and blocks', async () => {
+    await new Promise(resolve => server.close(resolve));
+    writeFileSync(join(repo, 'fixture.txt'), 'unhalted change\n');
+    git(['add', 'fixture.txt']);
+
+    const report = await check({ staged: true, hook: true }, ['check'], { PD_HOME: join(repo, 'pd-home-empty') });
+    expect(report.code).toBe(1);
+    expect(report.stderr).toMatch(/COORDINATION LAYER DOWN/);
+    expect(report.stderr).toMatch(/Escalating to the operator/);
+    expect(existsSync(join(repo, 'notification'))).toBe(true);
   });
 
   test('a just-created commit remains successful; debt blocks only the next pre-commit until a note', async () => {

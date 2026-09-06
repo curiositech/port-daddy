@@ -1,0 +1,188 @@
+#!/bin/sh
+# pd-distress — the Distress Register from plain POSIX sh (ADR-0132, Area A0)
+# =============================================================================
+# This is the EPIRB. It must work when Node is broken, the daemon is dead, git
+# is wedged and the relay is dead-lettering. It therefore uses NOTHING but
+# POSIX sh, printf, date, test, mkdir, dirname, hostname, cat, wc and tr. Do not add a dependency.
+#
+#   pd-distress raise [-e <kind>:<id>] <CLASS> <CODE> [k=v ...] [-- free text]
+#   pd-distress read [machine|repo]
+#   pd-distress halt-active            exit 0 when a halt is hoisted, else 1
+#   pd-distress show-halt              print the sentinel, exit 1 when absent
+#
+# Files (same locations as lib/distress.ts, which is the Node twin):
+#   $PD_HOME/DISTRESS            machine-wide, append-only
+#   <repo>/.portdaddy/DISTRESS   repo-scoped, append-only (when inside a repo)
+#   $PD_HOME/HALT                the halt sentinel; existence is the signal
+#   <repo>/.portdaddy/HALT       repo-scoped sentinel (machine-wide authoritative)
+#
+# Wire format (one line, append-only, no multi-line records):
+#   <iso8601-utc> <kind>:<id> <CLASS> <CODE> [k=v ...] [-- free text]
+#
+# Appends are a single printf into a `>>` (O_APPEND) redirection, so the
+# kernel assigns each line its own offset and concurrent writers never tear.
+# Lines are capped at 4096 bytes (one page) for that reason; see the
+# atomicity note at the top of lib/distress.ts.
+#
+# Entity defaults to $PD_DISTRESS_ENTITY, else shell:<user>@<host>.
+
+set -u
+
+PD_HOME="${PD_HOME:-$HOME/.port-daddy}"
+MAX_LINE_BYTES=4096
+
+die() {
+  printf 'pd-distress: %s\n' "$1" >&2
+  exit "${2:-2}"
+}
+
+usage() {
+  cat >&2 <<'EOF_USAGE'
+usage:
+  pd-distress raise [-e <kind>:<id>] <CLASS> <CODE> [k=v ...] [-- free text]
+  pd-distress read [machine|repo]
+  pd-distress halt-active            exit 0 when a halt is hoisted, else 1
+  pd-distress show-halt              print the sentinel, exit 1 when absent
+classes: MAYDAY, PAN PAN, SECURITE, ROUTINE, control   (codes per ADR-0132 registry)
+EOF_USAGE
+  exit 2
+}
+
+# The registry (ADR-0132 §1). Extend only through the ADR, never here ad hoc.
+class_of_code() {
+  case "$1" in
+    HALT|ALL-CLEAR|DRILL) printf 'SECURITE' ;;
+    SPLIT-BRAIN|SPEND-RUNAWAY|CORRUPT|CANNOT-STOP) printf 'MAYDAY' ;;
+    UNREACHABLE|HALF-ALIVE|UNVERIFIED) printf 'PAN PAN' ;;
+    TAKING-FLOOR|STANDING-DOWN|SEEN|COMPLIED) printf 'control' ;;
+    LISTENING) printf 'ROUTINE' ;;
+    *) return 1 ;;
+  esac
+}
+
+# Nearest ancestor holding a .git directory or file (linked worktree). No git spawned.
+repo_root() {
+  dir=$(pwd -P)
+  while :; do
+    if [ -e "$dir/.git" ]; then printf '%s' "$dir"; return 0; fi
+    case "$dir" in /|"") return 1 ;; esac
+    dir=$(dirname "$dir")
+  done
+}
+
+default_entity() {
+  if [ -n "${PD_DISTRESS_ENTITY:-}" ]; then
+    printf '%s' "$PD_DISTRESS_ENTITY"
+  else
+    printf 'shell:%s@%s' "${USER:-unknown}" "$(hostname -s 2>/dev/null || hostname 2>/dev/null || printf 'localhost')"
+  fi
+}
+
+append_line() {
+  # $1 = path, $2 = line. One printf, one O_APPEND write.
+  mkdir -p "$(dirname "$1")" || die "cannot create $(dirname "$1")" 1
+  printf '%s\n' "$2" >> "$1" || die "cannot append to $1" 1
+}
+
+cmd_raise() {
+  entity=$(default_entity)
+  if [ "${1:-}" = "-e" ]; then
+    [ $# -ge 2 ] || usage
+    entity=$2
+    shift 2
+  fi
+  [ $# -ge 2 ] || usage
+
+  case "$entity" in
+    *' '*|*'	'*|:*|*:) die "entity must be <kind>:<id> without whitespace, got '$entity'" ;;
+    *:*) ;;
+    *) die "entity must be <kind>:<id>, got '$entity'" ;;
+  esac
+
+  # Class: PAN PAN may arrive as one quoted argument or as two words.
+  cls=$1; shift
+  if [ "$cls" = "PAN" ] && [ "${1:-}" = "PAN" ]; then cls='PAN PAN'; shift; fi
+  case "$cls" in
+    MAYDAY|'PAN PAN'|SECURITE|ROUTINE|control) ;;
+    *) die "unknown class '$cls' (MAYDAY, PAN PAN, SECURITE, ROUTINE, control)" ;;
+  esac
+
+  [ $# -ge 1 ] || usage
+  code=$1; shift
+  registered=$(class_of_code "$code") || die "unregistered code '$code' — extend the registry through ADR-0132, never ad hoc"
+  [ "$registered" = "$cls" ] || die "code $code belongs to class $registered, not $cls"
+
+  ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+  line="$ts $entity $cls $code"
+  while [ $# -gt 0 ]; do
+    if [ "$1" = "--" ]; then
+      shift
+      [ $# -gt 0 ] || die '"--" must be followed by free text'
+      text="$*"
+      case "$text" in *'
+'*) die 'free text must be a single line' ;; esac
+      line="$line -- $text"
+      break
+    fi
+    case "$1" in
+      *' '*|*'	'*|*'
+'*) die "field '$1' must not contain whitespace; put prose after --" ;;
+      [A-Za-z]*=*) ;;
+      *) die "expected k=v field, got '$1'" ;;
+    esac
+    key=${1%%=*}
+    case "$key" in
+      *[!A-Za-z0-9_.-]*) die "bad field key '$key'" ;;
+    esac
+    line="$line $1"
+    shift
+  done
+
+  bytes=$(printf '%s\n' "$line" | wc -c | tr -d ' ')
+  [ "$bytes" -le "$MAX_LINE_BYTES" ] || die "line is $bytes bytes; the atomic-append bound is $MAX_LINE_BYTES"
+
+  append_line "$PD_HOME/DISTRESS" "$line"
+  if root=$(repo_root); then
+    append_line "$root/.portdaddy/DISTRESS" "$line"
+  fi
+  printf '%s\n' "$line"
+}
+
+cmd_read() {
+  case "${1:-machine}" in
+    machine) file="$PD_HOME/DISTRESS" ;;
+    repo)
+      root=$(repo_root) || die 'not inside a repository' 1
+      file="$root/.portdaddy/DISTRESS"
+      ;;
+    *) usage ;;
+  esac
+  [ -f "$file" ] || exit 0
+  cat "$file"
+}
+
+halt_file() {
+  if [ -f "$PD_HOME/HALT" ]; then printf '%s' "$PD_HOME/HALT"; return 0; fi
+  if root=$(repo_root) && [ -f "$root/.portdaddy/HALT" ]; then printf '%s' "$root/.portdaddy/HALT"; return 0; fi
+  return 1
+}
+
+cmd_halt_active() {
+  halt_file >/dev/null
+}
+
+cmd_show_halt() {
+  file=$(halt_file) || { printf 'pd-distress: no halt hoisted (this is not an all-clear)\n' >&2; exit 1; }
+  cat "$file"
+}
+
+[ $# -ge 1 ] || usage
+sub=$1; shift
+case "$sub" in
+  raise) cmd_raise "$@" ;;
+  read) cmd_read "$@" ;;
+  halt-active) cmd_halt_active ;;
+  show-halt) cmd_show_halt ;;
+  -h|--help|help) usage ;;
+  *) die "unknown subcommand '$sub'" ;;
+esac
