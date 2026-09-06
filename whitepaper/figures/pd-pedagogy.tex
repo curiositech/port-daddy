@@ -116,11 +116,20 @@
 % the Book the prompts sit in the margin under a small-caps "Recall"; in a
 % standalone chapter they are a compact numbered list. No box either way.
 % ---------------------------------------------------------------------------
+\newsavebox{\pd@recallbox}\newlength{\pd@recalloff}
 \NewEnviron{pdrecitation}{%
   \ifpdmargincolumn
-    \marginnote{{\scshape Recall}\par\nobreak\vspace{1pt}%
+    % Measured first, then raised so its last line sits on the line that issues
+    % it: the block shares the section's height instead of hanging below it.
+    % It is never raised above the text already on the page.
+    \sbox{\pd@recallbox}{\begin{minipage}[b]{\marginparwidth}\raggedright
+      {\scshape Recall}\par\nobreak\vspace{1pt}%
       \begin{enumerate}[leftmargin=1.1em,itemsep=1pt,topsep=0pt,parsep=0pt,label=\arabic*.]%
-      \footnotesize\BODY\end{enumerate}}%
+      \footnotesize\BODY\end{enumerate}\end{minipage}}%
+    \setlength{\pd@recalloff}{\dimexpr\baselineskip-\ht\pd@recallbox-\dp\pd@recallbox\relax}%
+    \ifdim\pd@recalloff<-\pagetotal \setlength{\pd@recalloff}{-\pagetotal}\fi
+    \ifdim\pd@recalloff>0pt \setlength{\pd@recalloff}{0pt}\fi
+    \marginnote{\usebox{\pd@recallbox}}[\pd@recalloff]%
   \else
     \par\addvspace{6pt}\noindent{\scshape\bfseries Recall.}\par\nobreak
     \begin{enumerate}[leftmargin=1.6em,itemsep=1pt,topsep=2pt,parsep=0pt,label=\arabic*.]%

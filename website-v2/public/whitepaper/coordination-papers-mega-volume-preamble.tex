@@ -4,6 +4,32 @@
 % standalone chapters keep Latin Modern until their own layout pass.
 \usepackage{newpxtext}
 \usepackage{newpxmath}
+% Monospace: TeX Gyre Cursor, the same family as Pagella, scaled to the
+% text's lowercase.
+% XeTeX computes a native word's height from glyph outlines by default; in
+% this document that measurement comes back at about 2.4 em for many
+% monospace words (whatever the font), which pushed every line carrying
+% \texttt or \path down by a line and a half. With glyph metrics off the
+% heights come from the fonts' ascent and descent, which fit the leading, and
+% the interline spacing is uniform. Standalone chapters (pdfTeX) are unaffected.
+\usepackage{iftex}
+\ifXeTeX
+  \XeTeXuseglyphmetrics=0
+  \usepackage{fontspec}
+  \setmonofont{texgyrecursor-regular.otf}[BoldFont=texgyrecursor-bold.otf,
+    ItalicFont=texgyrecursor-italic.otf,BoldItalicFont=texgyrecursor-bolditalic.otf,
+    Scale=MatchLowercase]
+  % The part openers set their display type in Times (the cover's face). Under
+  % fontspec the legacy \fontfamily{ptm} has no TU italic or small caps, so the
+  % face is declared here, with both.
+  \newfontfamily\pdpartface{texgyretermes-regular.otf}[ItalicFont=texgyretermes-italic.otf,
+    BoldFont=texgyretermes-bold.otf,BoldItalicFont=texgyretermes-bolditalic.otf,Ligatures=TeX]
+\else
+  \newcommand\pdpartface{\fontfamily{ptm}\selectfont}
+  % pdfTeX fallback (not the published path; scripts/build-whitepapers.sh
+  % compiles the Book with xelatex): the same face through its Type 1 package.
+  \usepackage{tgcursor}
+\fi
 \let\openbox\relax
 \usepackage[fontsize=10.5pt]{fontsize}
 \usepackage{microtype}
@@ -19,6 +45,23 @@
 \usepackage{fancyhdr}
 \usepackage{tikz}
 \usepackage{float}
+% Page discipline for the Book. Every figure and table in the chapter sources
+% asks for [H]; at a 7 x 10 trim that strands a third of a page whenever the
+% next exhibit does not fit. In the Book an [H] becomes [!htbp]: the exhibit
+% is still set here when it fits and otherwise floats to the top of the next
+% page while the text flows on, and a FloatBarrier at every section keeps it
+% inside its section. Headings need room for three lines beneath them.
+\usepackage[section]{placeins}
+\makeatletter
+\let\pd@orig@xfloat\@xfloat
+\def\@xfloat#1[#2]{\edef\@tempa{#2}\def\@tempb{H}%
+  \ifx\@tempa\@tempb\pd@orig@xfloat#1[!htbp]\else\pd@orig@xfloat#1[#2]\fi}
+\makeatother
+\usepackage{needspace}
+\usepackage{etoolbox}
+\pretocmd{\section}{\Needspace*{6\baselineskip}}{}{}
+\pretocmd{\subsection}{\Needspace*{5\baselineskip}}{}{}
+\pretocmd{\subsubsection}{\Needspace*{5\baselineskip}}{}{}
 \usepackage{caption}
 \usepackage{enumitem}
 \usepackage{refcount}
@@ -313,6 +356,7 @@
 % The chapter opener: one page with the title, an epigraph, a plate when the
 % chapter has one, and the question the chapter answers with its one-breath
 % answer. Nothing else. The chapter's first section starts on the next page.
+\newsavebox{\pdqbox}\newlength{\pdplateh}
 \newcommand{\pdchapter}[4]{%
   \clearpage
   \renewcommand{\pdcurrentchapter}{#1}%
@@ -327,24 +371,41 @@
   \vspace{0.25cm}
   \noindent\pdweightrule{\pdchapterpartindex}{\textwidth}{2pt}\par
   \vspace{1.3cm}
-  {\noindent\fontsize{34}{40}\selectfont\bfseries\color{hhink}\hyphenpenalty=10000\exhyphenpenalty=10000\raggedright #2\par}
-  \vspace{1.1cm}
+  {\noindent\fontsize{34}{40}\selectfont\color{hhink}\hyphenpenalty=10000\exhyphenpenalty=10000\raggedright #2\par}
+  \vspace{1.0cm}
   \begin{flushright}
-    \begin{minipage}{0.68\textwidth}\raggedleft
-      {\itshape\large\pdchapterepigraph\par}
-      \vspace{6pt}
-      {\small\scshape\color{hhgray}\pdchapterepigraphsource\par}
+    \begin{minipage}{0.84\textwidth}\raggedleft
+      {\itshape\pdchapterepigraph\par}
+      \vspace{5pt}
+      {\footnotesize\scshape\color{hhgray}\pdchapterepigraphsource\par}
     \end{minipage}
   \end{flushright}
-  \vspace{0.5cm}
+  % The question block is measured first, then the plate takes what the page
+  % still has above it (capped at 0.42 of the text height), and the question
+  % closes the page as in the first printing. Nothing can spill: the plate is
+  % cut to fit and dropped below 3 cm.
+  \sbox{\pdqbox}{\begin{minipage}{\textwidth}
+    \noindent{\scshape\footnotesize\color{hhgray}The question this chapter answers}\par
+    \vspace{6pt}
+    {\noindent\fontsize{21}{26}\selectfont\color{hhink}\hyphenpenalty=10000\exhyphenpenalty=10000\raggedright\pdchapterquestion\par}
+    \vspace{9pt}
+    {\noindent\small\itshape\pdchapteroneline\par}
+  \end{minipage}}%
+  \par
   \IfFileExists{plates/chapter-#3.jpg}{%
-    \begin{center}\includegraphics[width=\textwidth,height=0.40\textheight,keepaspectratio]{plates/chapter-#3.jpg}\end{center}}{}%
+    \ifdim\pagegoal=\maxdimen
+      \setlength{\pdplateh}{\dimexpr\textheight-\pagetotal\relax}%
+    \else
+      \setlength{\pdplateh}{\dimexpr\pagegoal-\pagetotal\relax}%
+    \fi
+    \addtolength{\pdplateh}{-\ht\pdqbox}\addtolength{\pdplateh}{-\dp\pdqbox}\addtolength{\pdplateh}{-1.6cm}%
+    \ifdim\pdplateh>0.42\textheight \setlength{\pdplateh}{0.42\textheight}\fi
+    \ifdim\pdplateh>3cm
+      \vspace{0.5cm}%
+      \noindent\makebox[\textwidth]{\includegraphics[width=\textwidth,height=\pdplateh,keepaspectratio]{plates/chapter-#3.jpg}}\par
+    \fi}{}%
   \vfill
-  \noindent{\scshape\footnotesize\color{hhgray}The question this chapter answers}\par
-  \vspace{6pt}
-  {\noindent\fontsize{22}{27}\selectfont\bfseries\color{hhink}\hyphenpenalty=10000\exhyphenpenalty=10000\raggedright\pdchapterquestion\par}
-  \vspace{10pt}
-  {\noindent\small\itshape\pdchapteroneline\par}
+  \noindent\usebox{\pdqbox}\par
   \vspace{0.2cm}
   \clearpage
   \setcounter{section}{0}\setcounter{figure}{0}\setcounter{table}{0}\setcounter{equation}{0}\setcounter{lstlisting}{0}\setcounter{pdexercise}{0}%
@@ -397,13 +458,13 @@
     \vspace*{1.1cm}
     \noindent\pdweightrule{\csname pdpartindexof#1\endcsname}{0.42\textwidth}{2pt}\par
     \vspace{0.55cm}
-    \noindent{\fontfamily{ptm}\scshape\large Part #1}\par
+    \noindent{\pdpartface\scshape\large Part #1}\par
     \vspace{0.22cm}
-    \noindent{\fontfamily{ptm}\fontsize{36}{42}\selectfont #2\par}
+    \noindent{\pdpartface\fontsize{36}{42}\selectfont #2\par}
     \vspace{0.65cm}
-    \noindent\begin{minipage}{0.60\textwidth}{\fontfamily{ptm}\itshape\fontsize{12.5}{16.5}\selectfont #4\par}\end{minipage}\par
+    \noindent\begin{minipage}{0.86\textwidth}{\pdpartface\itshape\fontsize{12.5}{16.5}\selectfont\hyphenpenalty=10000\exhyphenpenalty=10000\raggedright #4\par}\end{minipage}\par
     \vspace{0.85cm}
-    {\hypersetup{linkcolor=hhink}\noindent\begin{minipage}{0.70\textwidth}#5\end{minipage}\par}
+    {\hypersetup{linkcolor=hhink}\noindent\begin{minipage}{0.96\textwidth}#5\end{minipage}\par}
     \vfill
   }{%
     \pagecolor{#3}\color{hhpaper}%
@@ -453,3 +514,45 @@
 
 % Hyperlink and cross-reference discipline (must stay last).
 \input{figures/pd-hyperlinks}
+
+% ---------------------------------------------------------------------------
+% Overflow safety net. A tikzpicture wider than the text column is set over the
+% column and the outer margin (the full-width figure, 6 in); one wider still is
+% scaled to that width and logged. No figure can leave the page. The real fix
+% for a figure this wide is a redraw to the column (scripts/harbor-research/
+% page_overflow.py reports every page that still needs one).
+% ---------------------------------------------------------------------------
+\usepackage{changepage}\strictpagecheck
+\newlength{\pdfullwidth}\setlength{\pdfullwidth}{\dimexpr\textwidth+\marginparsep+\marginparwidth\relax}
+\makeatletter
+% pgf hands every finished picture (tikzpicture, pgfplots axis, inline \tikz)
+% to \pgfsys@typesetpicturebox with its width known; the hook decides where it
+% goes. Nested pictures pass through untouched (their box is narrower than the
+% line they sit in).
+\newsavebox{\pd@picbox}
+\let\pd@typesetpicturebox\pgfsys@typesetpicturebox
+\def\pgfsys@typesetpicturebox#1{%
+  \ifdim\wd#1>\linewidth
+    \sbox{\pd@picbox}{\pd@typesetpicturebox#1}%
+    \ifdim\linewidth<\dimexpr\textwidth-1pt\relax
+      % inside a minipage, a margin note or a table cell: fit the box we are in
+      \PackageWarning{pd-book}{picture \the\wd\pd@picbox\space wide scaled to a \the\linewidth\space box}%
+      \resizebox{\linewidth}{!}{\usebox{\pd@picbox}}%
+    \else
+      \ifdim\wd\pd@picbox>\pdfullwidth
+        \PackageWarning{pd-book}{picture \the\wd\pd@picbox\space wide scaled to the full width}%
+        \sbox{\pd@picbox}{\resizebox{\pdfullwidth}{!}{\usebox{\pd@picbox}}}%
+      \else
+        \PackageInfo{pd-book}{picture \the\wd\pd@picbox\space wide set full width}%
+      \fi
+      \checkoddpage
+      \ifoddpage
+        \makebox[\textwidth][l]{\usebox{\pd@picbox}}%
+      \else
+        \makebox[\textwidth][r]{\usebox{\pd@picbox}}%
+      \fi
+    \fi
+  \else
+    \pd@typesetpicturebox#1%
+  \fi}
+\makeatother
