@@ -429,11 +429,20 @@ jobs:
   # anticipation of this job -- Cargo.toml already allow-lists `cfg(kani)`) but
   # nothing ever installed kani-verifier or ran `cargo kani`, so they never
   # executed even once.
+  #
+  # proof_verify_logic_only is genuinely expensive: even with its crypto/decode
+  # internals stubbed, CBMC still bit-blasts a fully symbolic 32-byte
+  # core::str::from_utf8 validation plus the stub's own concrete-input call
+  # into curve25519-dalek's field arithmetic. Verified locally to run for
+  # 40+ CPU-minutes at 99%+ CPU before this comment was written (still running
+  # when this job was authored) -- timeout-minutes below is generous on
+  # purpose. If this becomes a real per-PR tax, consider moving it to a
+  # schedule/nightly trigger instead of pull_request/push.
   kani-harbor-card:
     if: github.event_name != 'merge_group'
     name: Kani / harbor-card-rs (3 proof harnesses)
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 90
     defaults:
       run:
         working-directory: core/harbor-card-rs
