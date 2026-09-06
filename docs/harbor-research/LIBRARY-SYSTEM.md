@@ -81,11 +81,16 @@ What runs in continuous integration today (`.github/workflows/proofs.yml`):
 | R1 to R17, CR, B6 headline numbers | Python result scripts, seeded | `skills/harbor-results/scripts/` | Harbor results / R-scripts (seed 20260816) |
 
 The ProVerif models under `analyses/`, `proofs/**`, and `docs/adr/models/`, the three Kani
-harnesses in `core/harbor-card-rs/src/lib.rs`, and the relay TLA+ configurations are
-evidenced today by committed run logs, not by a CI job; wiring them, together with a
-single manifest that marks every formal artifact WIRED or RETIRED, is the proof-estate
-wave (`whitepaper/corpus.json` and its checker, in progress on this branch). Until that
-lands, prose about those artifacts states the bounded truth: the Kani harnesses are
+harnesses in `core/harbor-card-rs/src/lib.rs`, and the relay TLA+ configurations run in
+continuous integration: `proofs.yml` runs every ProVerif model against its committed
+results (`scripts/proofs/run-proverif.py`, with the negative controls asserted to fail),
+the fast Kani harnesses on every pull request and the parser harness nightly, the relay
+TLA+ specifications with their attack configurations, and the claim-signaling game with
+its delta 0.30 counterexample as a negative control. `whitepaper/corpus.json` (schema
+`whitepaper/corpus.schema.json`, checker `scripts/check-whitepaper-corpus.mjs`) is the
+one manifest: every formal artifact is WIRED or RETIRED, an on-disk artifact missing
+from it fails the check, and the Book's Mechanized-claims appendix is generated from
+it. Prose about those artifacts states the bounded truth: the Kani harnesses are
 no-panic checks on bounded inputs with the cryptography stubbed plus two concrete
 attenuation vectors; the every-hop attenuation property is ProVerif's.
 
