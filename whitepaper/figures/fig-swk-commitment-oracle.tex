@@ -2,37 +2,36 @@
 \begin{figure}[H]
 \centering
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
-  \node[pd state] (open) at (.9,3.0) {OPEN};
-  \draw[pd focus arrow] (1.8,3.0)--(5.0,3.0);
-  \node[pd direct label,anchor=south] at (3.4,3.15) {attempt closure};
+  \node[pd state] (open) at (.9,1.0) {OPEN};
+  \draw[pd focus rule,line width=1.6pt] (5.6,.4)--(5.6,7.6);
 
-  \draw[pd focus rule,line width=1.6pt] (5.3,2.1)--(5.3,3.9);
-  \node[pd direct label,anchor=south west,text=hhteal] at (5.85,3.15) {typed oracle};
+  \draw[pd focus arrow] (1.8,1.0)--(5.35,1.0);
+  \node[pd direct label,anchor=south] at (3.55,1.15) {attempt closure};
+  \draw[pd focus arrow] (5.85,1.0)--(7.9,1.0);
+  \node[pd terminal] (done) at (8.65,1.0) {DONE};
+  \node[pd direct label,anchor=west,text=hhteal] at (5.85,4.0) {typed oracle};
 
-  \draw[pd focus arrow] (5.55,3.0)--(8.0,3.0);
-  \node[pd terminal] (done) at (8.75,3.0) {DONE};
+  \node[pd direct label,anchor=east,text width=2.7cm,align=right] at (3.1,7.6) {released claim};
+  \draw[pd focus arrow] (3.35,7.6)--(5.55,7.3);
+  \node[pd direct label,anchor=east,text width=2.7cm,align=right] at (3.1,6.6) {merged commit};
+  \draw[pd focus arrow] (3.35,6.6)--(5.55,6.6);
+  \node[pd direct label,anchor=east,text width=2.7cm,align=right] at (3.1,5.6) {passing test id};
+  \draw[pd focus arrow] (3.35,5.6)--(5.55,5.9);
+  \node[pd direct label,anchor=east,text width=2.7cm,align=right] at (3.1,4.6) {policy sub-check};
+  \draw[pd focus arrow] (3.35,4.6)--(5.55,5.2);
 
-  \node[pd direct label,anchor=east,text width=2.7cm,align=right] at (2.7,6.3) {released claim};
-  \draw[pd focus arrow] (2.95,6.3)--(5.15,3.55);
-  \node[pd direct label,anchor=east,text width=2.7cm,align=right] at (2.7,4.7) {merged commit};
-  \draw[pd focus arrow] (2.95,4.7)--(5.15,3.2);
-  \node[pd direct label,anchor=east,text width=2.7cm,align=right] at (2.7,1.3) {passing test id};
-  \draw[pd focus arrow] (2.95,1.3)--(5.15,2.8);
-  \node[pd direct label,anchor=east,text width=2.7cm,align=right] at (2.7,-.3) {policy sub-check};
-  \draw[pd focus arrow] (2.95,-.3)--(5.15,2.45);
-
-  \node[pd direct label,anchor=west,text=hhamber,text width=2.6cm] at (7.6,6.0)
+  \node[pd direct label,anchor=west,text=hhamber,text width=2.6cm] at (7.3,-.6)
     {free-text assertion};
-  \draw[pd caution arrow] (7.45,5.75)--(5.6,4.25);
-  \draw[pd caution rule,line width=1.3pt] (5.38,4.03)--(5.72,4.37);
-  \draw[pd caution rule,line width=1.3pt] (5.38,4.37)--(5.72,4.03);
+  \draw[pd caution arrow] (7.1,-.3)--(5.85,.6);
+  \draw[pd caution rule,line width=1.3pt] (5.62,.42)--(5.96,.76);
+  \draw[pd caution rule,line width=1.3pt] (5.62,.76)--(5.96,.42);
 
   \draw[pd caution arrow,dashed]
-    (5.45,4.45) to[out=150,in=-20] (3.0,-1.7) to[out=160,in=-70] (.75,2.35);
-  \node[pd direct label,anchor=north,text=hhamber,text width=3.6cm,align=center]
-    at (3.0,-1.85) {refused; remains open};
+    (5.6,.4)--(5.6,-1.5)--(.5,-1.5)--(.5,.7);
+  \node[pd direct label,anchor=north,text=hhamber,text width=4.0cm,align=center]
+    at (3.05,-1.65) {refused; remains open};
 
-  \node[pd note,anchor=north,text width=3.4cm,align=center] at (.9,-2.45)
+  \node[pd note,anchor=north west,text width=3.3cm] at (1.15,.55)
     {deadline set by the daemon, not the agent};
 \end{tikzpicture}
 \caption{Typed evidence passes through a narrow closure aperture. A

@@ -1,7 +1,7 @@
 % Figure 3 — concurrent arrival intervals collapse into one commit order.
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}[pd figure,x=.76cm,y=.76cm]
+\begin{tikzpicture}[pd figure,x=.72cm,y=.72cm]
   % row hairlines and labels
   \foreach \y/\lbl in {7.4/{CLI},6.4/{tool bridge},5.4/{binary IPC},4.4/{worker}} {
     \node[pd row label] at (-.25,\y) {\lbl};
@@ -27,7 +27,7 @@
 
   % replies: one short arrow from each commit back into its caller's row
   \draw[pd arrow] (4.2,2.32)--(4.35,7.2);
-  \node[pd note,anchor=west,text width=2.5cm] at (4.55,7.4) {reply after commit};
+  \node[pd note,anchor=south west,text width=4.4cm,align=left] at (4.55,7.65) {reply after commit};
   \draw[pd arrow] (6.0,2.32)--(6.15,6.2);
   \draw[pd arrow] (7.4,2.32)--(7.55,5.2);
   \draw[pd arrow] (8.4,2.32)--(8.55,4.2);
@@ -37,8 +37,8 @@
   \node[pd axis label,anchor=west] at (9.1,1.0) {time};
 
   % model boundary
-  \draw[pd boundary] (9.3,3.05) rectangle (11.45,6.35);
-  \node[pd note,align=center,text width=1.85cm] at (10.375,4.7)
+  \draw[pd boundary] (9.3,2.85) rectangle (12.85,6.55);
+  \node[pd note,align=center,text width=2.6cm] at (11.075,4.7)
     {second daemon on the same file: outside this model};
 \end{tikzpicture}
 \caption{Four concurrent callers and one writer. Each band is a request in

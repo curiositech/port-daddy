@@ -1,8 +1,9 @@
 % State machine for the work unit (R8) on the two-principal instance checked by
 % c0_workunit.py: the six phases down the center, the four write-targets and the
 % settlement record branching to the right, contested branching to the left. The
-% five guarded transitions are numbered g1-g5 on their edges; predicate and crime
-% move to the legend below, transcribed from the checker's transitions() and its
+% four load-bearing guards drawn on an edge are numbered g1-g4 on that edge; g5
+% (settle) is already on the center spine. Predicate and crime move to the
+% two-column legend below, transcribed from the checker's transitions() and its
 % mutation suite [internal, c0_workunit.py].
 \begin{figure}[H]
 \centering
@@ -24,8 +25,8 @@
   \draw[pd arrow] (W)--(V) node[glabel,midway,left=3pt] {g3 verify};
   \draw[pd arrow] (V)--(S) node[glabel,midway,left=3pt] {g5 settle};
 
-  % contested, branching left off witnessed
-  \node[lane,fill=hhsand!30] (C) at (-1.1,3.7) {contested};
+  % contested, branching left off witnessed -- well clear of the witnessed box
+  \node[lane,fill=hhsand!30] (C) at (-1.9,3.7) {contested};
   \draw[pd arrow] (W)--(C) node[glabel,midway,above] {contest};
 
   % write-targets, branching right
@@ -34,42 +35,49 @@
   \node[journal] (IJ) at (7.1,3.7) {idempotency journal};
   \node[journal] (GR) at (7.1,2.2) {grants w/ parentage};
 
-  \draw[pd arrow] (A)--(EP) node[glabel,midway,above] {reassign-role};
-  \draw[pd arrow] (X)--(EJ) node[glabel,midway,above] {g1 admit-effect};
-  \draw[pd arrow] (X.east) to[out=0,in=180] (IJ.west);
-  \node[glabel,anchor=south west,text width=3.2cm] at (3.75,5.85) {g2 external-op};
-  \draw[pd arrow] (V.east) to[out=0,in=180] (GR.west);
-  \node[glabel,anchor=north west,text width=3.0cm] at (3.75,1.55) {g4 delegate};
+  \draw[pd arrow] (A)--(EP) node[glabel,pos=.55,above=7pt] {g2 external-op};
+  \draw[pd arrow] (X)--(EJ) node[glabel,pos=.55,above=7pt] {g1 admit-effect};
+  \draw[pd arrow] (X.south east) -| ($(IJ.west)+(-.6,0)$) -- (IJ.west)
+    node[glabel,pos=.28,below=2pt] {record};
+  \draw[pd arrow] (V.east) to[out=0,in=180]
+    node[glabel,pos=.55,above] {g4 delegate} (GR.west);
 
-  \node[pd note,anchor=north west,text width=9.6cm] at (-1.5,-.55)
+  \node[pd note,anchor=north west,text width=9.6cm] at (-1.9,-.55)
     {reassign-role, external-op, and delegate are available from any phase;
      each is drawn once, from the phase it is dramatized from below.};
-
-  % legend: the five guards, two columns
-  \node[pd note,anchor=north west,text width=9.6cm] at (-1.5,-1.95)
-    {536 reachable states on the two-principal instance. Every guard below is
-     load-bearing: removing it lets the checker construct the named crime.};
-  \node[glabel,anchor=north west,text width=4.85cm,align=left] at (-1.5,-3.35)
-    {\textbf{g1} admit-effect: current epoch only\\
-     \textit{off: the stale write, 4 steps (I1, I5)}};
-  \node[glabel,anchor=north west,text width=4.85cm,align=left] at (-1.5,-5.0)
-    {\textbf{g2} external-op: at most once per key\\
-     \textit{off: the double settlement, 2 steps (I2)}};
-  \node[glabel,anchor=north west,text width=4.85cm,align=left] at (-1.5,-6.65)
-    {\textbf{g3} verify: policy $\wedge$ receipt\\
-     \textit{off: the hollow ``verified'', 4 steps (I3)}};
-  \node[glabel,anchor=north west,text width=4.85cm,align=left] at (3.3,-3.35)
-    {\textbf{g4} delegate: scope $\subseteq$ parent\\
-     \textit{off: the escalated delegation, 1 step (I4)}};
-  \node[glabel,anchor=north west,text width=4.85cm,align=left] at (3.3,-5.0)
-    {\textbf{g5} settle: owner-funded $\wedge$ verified $\wedge$ receipted\\
-     \textit{off: the wrong-principal payout, 7 steps (I6)}};
 \end{tikzpicture}
+
+\medskip
+\noindent\footnotesize 536 reachable states on the two-principal instance.
+Every guard below is load-bearing: removing it lets the checker construct
+the named crime.
+
+\smallskip
+\noindent
+\begin{minipage}[t]{0.44\linewidth}
+\raggedright\footnotesize
+\textbf{g1} admit-effect: current epoch only; off: the stale write, 4 steps (I1, I5).
+
+\smallskip
+\textbf{g2} external-op: at most once per key; off: the double settlement, 2 steps (I2).
+
+\smallskip
+\textbf{g3} verify: policy $\wedge$ receipt; off: the hollow ``verified,'' 4 steps (I3).
+\end{minipage}%
+\hfill%
+\begin{minipage}[t]{0.44\linewidth}
+\raggedright\footnotesize
+\textbf{g4} delegate: scope $\subseteq$ parent; off: the escalated delegation, 1 step (I4).
+
+\smallskip
+\textbf{g5} settle: owner-funded $\wedge$ verified $\wedge$ receipted; off: the wrong-principal payout, 7 steps (I6).
+\end{minipage}
 \caption{The work-unit machine: the six phases down the center from proposed
 to a settlement record, contested branching left off witnessed, and the four
-write-targets branching right. The five load-bearing guards are numbered on
-their edges; the legend gives each predicate and the shortest crime the
-checker finds when it is removed. The checker explores all 536 reachable
-states on the two-principal instance [internal, \texttt{c0\_workunit.py}].}
+write-targets branching right. Four guards are numbered on the edge they
+guard; g5 (settle) is on the center spine. The legend gives each predicate
+and the shortest crime the checker finds when it is removed. The checker
+explores all 536 reachable states on the two-principal instance [internal,
+\texttt{c0\_workunit.py}].}
 \label{fig:swk-workunit-machine}
 \end{figure}

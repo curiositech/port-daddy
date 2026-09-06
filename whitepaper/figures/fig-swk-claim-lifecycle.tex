@@ -6,27 +6,29 @@
   \node[pd state,draw=hhteal,line width=1pt] (held) at (5.4,2.6) {HELD by $a$};
   \node[pd state] (expired) at (9.8,2.6) {EXPIRED};
 
-  \draw[pd focus arrow] (free)--(held) node[midway,above,pd direct label] {acquire};
+  \draw[pd focus arrow] (free)--(held);
+  \node[pd direct label,anchor=south,align=center,text width=3.6cm] at (3.2,2.8)
+    {acquire\\{\itshape loser is told the current holder}};
+
   \draw[pd arrow] (held)--(expired) node[midway,above,pd direct label] {TTL elapses};
-  \draw[pd arrow] (held.south) to[out=-115,in=-65,looseness=1.6] node[midway,below,pd direct label] {release} (free.south);
+
   \draw[pd focus arrow] (held.north) to[out=120,in=60,looseness=6] (held.north);
-  \node[pd direct label,anchor=south,text width=2.6cm,align=center] at (5.4,3.85) {re-claim,\\idempotent};
-  \draw[pd caution arrow,dashed] (expired.south) to[out=-90,in=-90,looseness=.4] node[midway,below,pd direct label,text width=3.4cm,align=center] {lazy sweep on next read} (free.south);
+  \node[pd direct label,anchor=south,text width=2.6cm,align=center] at (5.4,3.85)
+    {re-claim,\\idempotent};
 
-  \node[pd caution datum] at (2.35,2.6) {};
-  \node[pd note,anchor=south west,text width=3.6cm] at (1.75,3.15)
-    {loser receives current holder};
+  \draw[pd arrow] (held.south) to[out=-100,in=-80,looseness=1.25] (free.south);
+  \node[pd direct label,anchor=north] at (3.2,1.55) {release};
 
-  \draw[pd caution rule,densely dashed] (2.9,-1.6)--(4.1,-1.6);
-  \draw[pd caution rule,densely dashed] (6.7,-1.6)--(7.9,-1.6);
-  \node[pd caution datum] at (5.4,-1.6) {};
-  \node[pd note,anchor=north,text=hhamber,text width=4.4cm,align=center] at (5.4,-1.75)
-    {no queue / no bounded wait};
+  \draw[pd caution arrow,dashed,rounded corners=10pt]
+    (expired.south) -- ++(0,-1.75) -- ($(free.south)+(0,-1.75)$) -- (free.south);
+  \node[pd direct label,anchor=north,text width=4.2cm,align=center] at (5.4,.72)
+    {lazy sweep on next read};
 \end{tikzpicture}
 \caption{The guarded claim lifecycle. Acquire is one atomic uniqueness
-decision; re-claim and release are idempotent; expiry is removed lazily on
-the next read. The interrupted amber rail is intentional negative space: the
-kernel has no queued state and therefore no fairness or bounded-wait
-guarantee. [internal]}
+decision that also tells a losing caller who currently holds the claim;
+re-claim and release are idempotent; expiry is removed lazily, on the next
+read, not by a background sweep. The kernel has no queued state and
+therefore no fairness or bounded-wait guarantee: a losing caller must
+retry, and nothing schedules it a turn. [internal]}
 \label{fig:swk-claim-lifecycle}
 \end{figure}

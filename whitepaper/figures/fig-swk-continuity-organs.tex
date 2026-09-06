@@ -1,33 +1,38 @@
 % Figure 10 — what the next link can inherit steps down twice.
-% Drawn as a hand-built step (const) plot: the chapter's own preamble does not
-% load pgfplots, so this reproduces a pgfplots const-plot reading in plain TikZ.
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}[pd figure,x=1.28cm,y=1.0cm]
-  % y axis: ordinal ticks
-  \draw[pd rule] (0,0)--(0,3.3);
-  \foreach \y/\lbl in {0/{none},1/{partial},2/{notes only},3/{full}}
-    \node[pd axis label,anchor=east] at (-.15,\y) {\lbl};
-  \node[pd axis label,rotate=90,anchor=south,text width=3.9cm,align=center]
-    at (-1.5,1.65) {evidence the next link can inherit};
-
-  % x axis categories
-  \draw[pd rule] (0,0)--(5,0);
-  \foreach \x/\lbl in {0/{memory},1/{checkpoint},2/{continuity},3/{outcome ledger},
-                       4/{identity},5/{market}}
-    \node[pd axis label,anchor=north,text width=1.55cm,align=center] at (\x,-.2) {\lbl};
-
-  % const (step) plot: full, notes only, notes only, partial, partial, partial
-  \draw[pd focus rule,line width=1.3pt]
-    (0,3)--(.5,3)--(.5,2)--(1.5,2)--(1.5,2)--(2.5,2)--
-    (2.5,1)--(3.5,1)--(3.5,1)--(4.5,1)--(4.5,1)--(5.5,1);
-  \foreach \x/\y in {0/3,1/2,2/2,3/1,4/1,5/1}
-    \node[pd focus datum] at (\x,\y) {};
-
-  \node[pd direct label,anchor=north west,text=hhamber,text width=2.0cm,align=left,
-    inner ysep=3.5pt] at (.62,1.9) {recovery restores notes, not execution state};
-  \node[pd direct label,anchor=north west,text=hhamber,text width=2.9cm,align=left]
-    at (2.6,.85) {outcomes witnessed only in part};
+\begin{tikzpicture}[pd figure]
+\begin{axis}[
+  width=\linewidth,
+  height=5.4cm,
+  axis lines=left,
+  axis line style={draw=hhink},
+  tick style={draw=hhgray},
+  symbolic x coords={memory,checkpoint,continuity,outcome,identity,market},
+  xtick=data,
+  xticklabels={memory,check-\\point,continuity,outcome\\ledger,identity,market},
+  xticklabel style={align=center,text width=1.6cm,font=\footnotesize},
+  ytick={0,1,2,3},
+  yticklabels={none,partial,{notes only},full},
+  yticklabel style={font=\footnotesize},
+  ymin=-.3,ymax=3.6,
+  enlarge x limits=0.09,
+  ylabel={evidence the next link can inherit},
+  ylabel style={font=\footnotesize,align=center},
+  clip=false,
+]
+\addplot[const plot,color=hhteal,line width=1.3pt,mark=*,
+  mark options={fill=hhteal,draw=hhpaper,line width=.5pt}] coordinates
+  {(memory,3) (checkpoint,2) (continuity,2) (outcome,1) (identity,1) (market,1)};
+\coordinate (cp) at (axis cs:checkpoint,2);
+\coordinate (oc) at (axis cs:outcome,1);
+\end{axis}
+\draw[pd guide] (cp) -- ++(0,.85cm);
+\node[anchor=south,font=\footnotesize\itshape,text=hhamber,text width=2.9cm,align=center]
+  at ($(cp)+(0,.95cm)$) {recovery restores notes, not execution state};
+\draw[pd guide] (oc) -- ++(0,.85cm);
+\node[anchor=south,font=\footnotesize\itshape,text=hhamber,text width=2.9cm,align=center]
+  at ($(oc)+(0,.95cm)$) {outcomes witnessed only in part};
 \end{tikzpicture}
 \caption{The continuity chain as an evidence-support profile. What checkpoint
 inherits from memory already drops from full to notes only; what the outcome
