@@ -1339,3 +1339,278 @@ Stated neutrally, without resolving them — that is the lead's call.
    craft advice (e.g. `fillbetween` in note 1.9a) to this book's figures
    still has to pass through the book's own, stricter falsification-first
    gate before it is safe to use.
+
+
+---
+
+# Legibility and print sources (gathered 2026-09-06)
+
+Quotations with URLs, gathered for the five-point legibility rubric in `craft-rules.md` and the kind table in `taxonomy.md`. Section numbers below are the gatherer's.
+
+
+**Methodology note on access.** The sandbox's network egress proxy blocks direct `WebFetch` to several of the required domains outright (`clauswilke.com`, `mermaid.js.org` / `mermaid.ai`, `edwardtufte.com`, `perceptualedge.com`, `www.cs.ubc.ca`, `pdfs.semanticscholar.org`, `nature.com`, `arxiv.org`, `ux.stackexchange.com` — all returned `EGRESS_BLOCKED` or a fetch refusal). For every such domain I instead used the Firecrawl search tool, which returned full page text indexed directly from the cited URL (the URL shown below is the page the quoted text actually came from, per the search tool's own result metadata — not a URL I rendered myself with a browser). Where I could not get the exact URL's own text this way, I say so and cite the closest reachable secondary reproduction instead, per instructions. Dates fetched are all 2026-09-06 unless noted.
+
+---
+
+## 1. Claus Wilke, *Fundamentals of Data Visualization* (clauswilke.com/dataviz)
+
+All URLs below are on `clauswilke.com`; content retrieved via Firecrawl search index (direct WebFetch blocked by egress proxy) on 2026-09-06.
+
+**Directory of visualizations** — https://clauswilke.com/dataviz/directory-of-visualizations.html (§5, "Amounts")
+> "The most common approach to visualizing amounts (i.e., numerical values shown for some set of categories) is using bars, either vertically or horizontally arranged"
+
+Same page, §5.3 "Proportions":
+> "Proportions can be visualized as pie charts, side-by-side bars, or stacked bars ... and as in the case for amounts, bars can be arranged either vertically or horizontally."
+
+Same page, §5.6 "Uncertainty":
+> "Error bars are meant to indicate the range of likely values for some estimate or measurement."
+
+**Ugly, bad, and wrong figures** — https://clauswilke.com/dataviz/introduction.html (Ch. 1, "Ugly, bad, and wrong figures")
+> "ugly—A figure that has aesthetic problems but otherwise is clear and informative."
+> "bad—A figure that has problems related to perception; it may be unclear, confusing, overly complicated, or deceiving."
+> "wrong—A figure that has problems related to mathematics; it is objectively incorrect."
+
+**Redundant coding** — https://clauswilke.com/dataviz/redundant-coding.html (Ch. 20)
+> "The general solution in all these scenarios is to use color to enhance the visual appearance of the figure without relying entirely on color to convey key information."
+> "I refer to this design principle as redundant coding, because it prompts us to encode data redundantly, using multiple different aesthetic dimensions."
+
+**Direct labeling** — same page, §20.2 "Designing figures without legends"
+> "The general strategy we can employ is called direct labeling, whereby we place appropriate text labels or other visual elements that serve as guideposts to the rest of the figure."
+
+**Multi-panel figures** — https://clauswilke.com/dataviz/multi-panel-figures.html (Ch. 21, §21.2 "Compound figures")
+> "Sometimes we simply want to combine several independent panels into a combined figure that conveys one overarching point."
+
+Same page, on labeling compound-figure panels:
+> "The labels should not be the first thing you see when you look at a compound figure. In fact, they don't need to stand out at all."
+
+**Avoid line drawings** — https://clauswilke.com/dataviz/avoid-line-drawings.html (Ch. 25)
+> "Whenever possible, visualize your data with solid, colored shapes rather than with lines that outline those shapes."
+
+**Don't go 3D** — https://clauswilke.com/dataviz/no-3d.html (Ch. 26, §26.1)
+> "3D is used simply to decorate and adorn the plot. I consider this use of 3D as gratuitous. It is unequivocally bad and should be erased from the visual vocabulary of data scientists."
+
+**Balance the data and the context** — https://clauswilke.com/dataviz/balance-data-context.html (Ch. 23, §23.1 "Providing the appropriate amount of context") — page snippet only, truncated by the indexer:
+> "The idea that distinguishing between data and non-data ink may be useful was popularized by Edward Tufte in ..."
+(Could not retrieve the rest of this sentence past the ellipsis; the full chapter text was not returned by the search index and direct fetch is blocked. Best alternative: the same idea is covered fully under Tufte, item 5 below.)
+
+**Use larger axis labels** — https://clauswilke.com/dataviz/small-axis-labels.html (Ch. 24) — also truncated by the indexer, corroborated by a secondary reproduction (academia.edu, "Praise for Fundamentals of Data Visualization" preview):
+> "If you take away only one single lesson from this book, make it this one: pay attention to your axis labels, axis tick labels, and ..."
+A further passage from the same chapter, reached via a full-text mirror (dokumen.pub, "Citation preview" of the O'Reilly edition), 2026-09-06:
+> "Importantly, we can overdo it and make the labels too big ... The text elements are fairly large, and their size may be appropriate if the figure is meant to be reproduced at a very small scale."
+
+**Color pitfalls** — https://clauswilke.com/dataviz/color-pitfalls.html (Ch. 19, §19.1)
+> "One common mistake is trying to give color a job that is too big for it to handle, by encoding too many different items in different colors."
+> "Use direct labeling instead of colors when you need to distinguish between more than about eight categorical items."
+
+**Visualizing proportions** (why pie is limited) — via dokumen.pub full-text mirror of the O'Reilly edition (Ch. 10 / Ch. 17 "The principle of proportional ink"), corroborating https://clauswilke.com/dataviz/proportional-ink.html:
+> "Even though technically the data values are mapped onto angles ... in practice we are typically not judging the angles of a pie chart."
+> "Because the area of each pie wedge is proportional to its angle ... pie charts satisfy the principle of proportional ink. However, we perceive the area in a pie chart differently from the same area in a bar plot."
+And from the Directory of visualizations page directly:
+> "When visualizing multiple sets of proportions or changes in proportions across conditions, pie charts tend to be space-inefficient and often obscure relationships."
+
+**Visualizing uncertainty** — https://clauswilke.com/dataviz/visualizing-uncertainty.html (Ch. 16)
+> "Whenever you visualize uncertainty with error bars, you must specify what quantity and/or confidence level the error bars represent."
+> "Statistics textbooks and online tutorials sometimes publish rules of thumb of how to judge significance from the extent to which error bars do or don't overlap. However, these rules of thumb are not reliable and should be avoided."
+
+---
+
+## 2. Cleveland & McGill (1984), "Graphical Perception: Theory, Experimentation, and Application to the Development of Graphical Methods"
+
+Primary text (author-uploaded full text), fetched via ResearchGate, 2026-09-06 — https://www.researchgate.net/publication/6062457_Graphical_Perception_and_Graphical_Methods_for_Analyzing_Scientific_Data
+> "judgment of position along a common scale is stipulated to be more accurate than judgment of position along identical, non-aligned scales."
+
+Same page, the paper's own ranking table (reproduced verbatim as tabulated in the source text):
+> "Rank Aspect judged / 1 Position along a common scale / 2 Position on identical but nonaligned scales / 3 Length / 4 Angle – Slope (with θ not too close to 0, π/2, or π radians) / 5 Area / 6 Volume – Density – Color saturation / 7 Color hue"
+
+Scholarly summary quoting the same ranking, JSTOR record page, fetched 2026-09-06 — https://www.jstor.org/stable/43094719 ("Guidelines for Evaluating Graphical Designs: A Framework...")
+> "the following list shows the Cleveland and McGill ordering of the elementary perceptual tasks from most to least accurate: 1. Position along a common scale. 2 ..."
+
+---
+
+## 3. Bertin's visual variables (selective / ordered / quantitative)
+
+Axis Maps cartography guide, fetched 2026-09-06 — https://www.axismaps.com/guide/visual-variables
+> "Jacques Bertin proposed an original set of "retinal variables" in Semiology of Graphics (1967): Position, Size, Shape, Value (lightness), Color hue, Orientation, Texture"
+> "A selective variable allows us to immediately isolate a group of signs based on a change in the variable."
+> "Shape is the only one of Bertin's variables that he thought is never selective, along with orientation when used for area representation"
+> "Size and value, for example, have an immediately perceptible order ... Color hue is an example of a non-ordered variable: there is no clear ordering of, say, red, green, and blue."
+> "Besides position, where we can guess the measurable distance between symbols, Bertin considered only size variation to be quantitative."
+
+International Encyclopedia of Geography entry ("Visual Variables," Robert E. Roth, Wiley 2017), fetched via ResearchGate-hosted PDF, 2026-09-06 — https://www.researchgate.net/publication/317266613_Visual_Variables
+> "Bertin (1967/1983) originally identified seven visual variables that can be manipulated to encode information."
+> "Bertin believed location, size, color value, and texture to be ordered visual variables ... Bertin believed quantitative perception to be restricted to location and size only."
+
+---
+
+## 4. Tamara Munzner, *Visualization Analysis and Design* — marks/channels effectiveness ranking
+
+Munzner's own course slide PDF, hosted at UBC, fetched via Firecrawl search index 2026-09-06 (direct WebFetch to cs.ubc.ca blocked) — https://www.cs.ubc.ca/~tmm/talks/vad/436V-22-4x4.pdf ("Visualization Analysis & Design," Ch. 1/5 slides)
+> "Channels: Rankings — Magnitude Channels: Ordered Attributes / Identity Channels: Categorical Attributes — Position on common scale, Position on unaligned scale, Length (1D size), Area (2D size)"
+
+Book text (same ranking, fuller list), reached via a full-text mirror of the CRC Press edition, dokumen.pub, 2026-09-06 — https://dokumen.pub/visualization-analysis-and-design-9781466508934-1466508930.html
+> "Position on common scale / Position on unaligned scale / Length (1D size) / Area (2D size) / Depth (3D position) / Color luminance / Color saturation / Curvature / Volume (3D size)"
+> "Ordered data should be shown with the magnitude channels, and categorical data with the identity channels."
+> "Cleveland and McGill's experiments on the magnitude channels [Cleveland and McGill 84a] showed that aligned position against a common scale is most accurately perceived, followed by unaligned position against an identical scale, followed by length, followed by angle."
+
+---
+
+## 5. Tufte — data-ink ratio, chartjunk, small multiples, "smallest effective difference"
+
+`edwardtufte.com` itself is blocked by the egress proxy and did not surface the relevant notebook pages via the search index either, so all quotations below are Tufte's own words as reproduced by secondary/course sources; I disclose this rather than presenting edwardtufte.com as fetched.
+
+Chartjunk — course reading page quoting *The Visual Display of Quantitative Information*, fetched 2026-09-06 — https://mikem-radicalresearch.quarto.pub/environmental-data-visualization/chartJunk.html
+> "The interior decoration of graphics generates a lot of ink that does not tell the viewer anything new."
+
+Data-ink ratio — "The Gospel According to Tufte," course PDF quoting Tufte directly, fetched 2026-09-06 — https://www-personal.umich.edu/~jpboyd/eng403_chap2_tuftegospel.pdf
+> ""Above all else show the data" — Edward Tufte (1983)"
+> "data-ink ratio = total ink used to print the graphic = the proportion of a graphic's ink devoted to the non-redundant display of data-information"
+> "Above all else show the data. ... Erase non-data-ink."
+
+Data-ink definition — InfoVis:Wiki, fetched 2026-09-06 — https://infovis-wiki.net/wiki/Data-Ink_Ratio
+> "Data-ink is the non-erasable core of a graphic, the non-redundant ink arranged in response to variation in the numbers represented."
+
+Smallest effective difference — secondary summary (Visual Cinnamon book-review page), fetched 2026-09-06 — https://www.visualcinnamon.com/resources/learning-data-visualization/books/, quoting *Visual Explanations*:
+> "make all visual distinctions as subtle as possible, but still clear and effective"
+
+Small multiples — **not reached as an exact Tufte quotation.** `edwardtufte.com` is blocked and the search index did not return the *Envisioning Information* small-multiples passage verbatim; the closest reachable material was a secondary paraphrase (a GitHub-hosted style guide summarizing, not quoting, the chapter), which I am not presenting as a Tufte quotation per the no-paraphrase instruction. Flagging as a gap rather than fabricating a quote.
+
+---
+
+## 6. Stephen Few (perceptualedge.com) — table vs. graph
+
+`perceptualedge.com`'s PDFs are blocked for direct WebFetch, but Firecrawl's search index returned full text from one PDF on that domain directly:
+
+Fetched 2026-09-06 — https://www.perceptualedge.com/articles/visual_business_intelligence/save_the_pies_for_dessert.pdf ("Save the Pies for Dessert," Visual Business Intelligence Newsletter, Aug 2007)
+> "Of all the graphs that play major roles in the lexicon of quantitative communication, however, the pie chart is by far the least effective."
+> "Pie charts only make it easy to judge the magnitude of a slice when it is close to 0%, 25%, 50%, 75%, or 100%."
+> "Graphs are useful when a picture of the data makes meaningful relationships visible (patterns, trends, and exceptions) that could not be easily discerned from a table of the same data."
+
+The table-vs-graph rule specifically, from "Designing Effective Tables and Graphs" (perceptualedge.com/images/Effective_Chart_Design.pdf) — that exact URL did not return text through the index, so quoted here from a direct reproduction of the same PDF, Perceptual Edge's own document as re-hosted on Yumpu, fetched 2026-09-06 — https://www.yumpu.com/en/document/view/28778259/designing-effective-tables-and-graphs-perceptual-edge
+> "A table works best when: It is used to look up individual values [and] the values must be expressed precisely."
+> "A graph works best when [ ] the message is contained in the shape of the data (patterns, trends ..."
+
+---
+
+## 7. Mermaid diagram catalogue
+
+`mermaid.js.org` now redirects its docs to `mermaid.ai/open-source/...`; direct WebFetch to both hosts is blocked by the egress proxy, so all entries below were retrieved via the Firecrawl search index, which returned the indexed page text from the specific `mermaid.ai/open-source/syntax/*.html` URL cited (current canonical location of the docs formerly at mermaid.js.org). Fetched 2026-09-06.
+
+| Diagram type | Docs say it shows | URL |
+|---|---|---|
+| Flowchart | "Flowcharts are composed of nodes (geometric shapes) and edges (arrows or lines)." | https://mermaid.ai/open-source/syntax/flowchart.html |
+| Sequence diagram | "A Sequence diagram is an interaction diagram that shows how processes operate with one another and in what order." | https://mermaid.ai/open-source/syntax/sequenceDiagram.html |
+| Class diagram | Docs page itself is styling-only prose; a secondary guide states: "Mermaid class diagrams model the static structure of a codebase using UML notation." (macmdviewer.com) | https://mermaid.ai/open-source/syntax/classDiagram.html |
+| State diagram | ""A state diagram is a type of diagram used in computer science and related fields to describe the behavior of systems ... composed of a finite number of states" [Wikipedia, quoted in-page]" | https://mermaid.ai/open-source/syntax/stateDiagram.html |
+| Entity Relationship diagram | "An entity–relationship model (or ER model) describes interrelated things of interest in a specific domain of knowledge ... specifies relationships that can exist between entities" | https://mermaid.ai/open-source/syntax/entityRelationshipDiagram.html |
+| User Journey diagram | "User journeys describe at a high level of detail exactly what steps different users take to complete a specific task within a system, application or website." | https://mermaid.ai/open-source/syntax/userJourney.html |
+| Gantt chart | "Gantt Charts will record each scheduled task as one continuous bar that extends from the left to the right." | https://mermaid.ai/open-source/syntax/gantt.html |
+| Pie chart | "A pie chart (or a circle chart) is a circular statistical graphic, which is divided into slices to illustrate numerical proportion." | https://mermaid.ai/open-source/syntax/pie.html |
+| Quadrant Chart | Docs are syntax-only; no "what it shows" prose sentence was returned — the closest is the mechanical description: "quadrant-[1,2,3,4] determine what text would be displayed inside the quadrants." | https://mermaid.ai/open-source/syntax/quadrantChart.html |
+| Requirement diagram | "A Requirement diagram provides a visualization for requirements and their connections, to each other and other documented elements." | https://mermaid.ai/open-source/syntax/requirementDiagram.html |
+| GitGraph (Git) diagram | "Mermaid syntax for a gitgraph is very straight-forward and simple ... Each gitgraph[sic], is initialized with main branch." | https://mermaid.ai/open-source/syntax/gitgraph.html |
+| C4 diagram | "C4 Diagram: This is an experimental diagram for now ... 5 types of C4 charts are supported." | https://mermaid.ai/open-source/syntax/c4.html |
+| Mindmap | "The syntax for creating Mindmaps is simple and relies on indentation for setting the levels in the hierarchy ... a text outline to generate a hierarchical mindmap." | https://mermaid.ai/open-source/syntax/mindmap.html |
+| Timeline | ""A timeline is a type of diagram used to illustrate a chronology of events, dates, or periods of time. A basic timeline presents a list of events in chronological order"" | https://mermaid.ai/open-source/syntax/timeline.html |
+| ZenUML | "Mermaid can render sequence diagrams with ZenUML. Note that ZenUML uses a different syntax than the original Sequence Diagram in mermaid." | https://mermaid.ai/open-source/syntax/zenuml.html |
+| Sankey diagram | "A sankey diagram is a visualization used to depict a flow from one set of values to another." | https://mermaid.ai/open-source/syntax/sankey.html |
+| XY chart | Docs are example-only; no definitional sentence returned by the index (v11.17.0+ legend example shown instead). | https://mermaid.ai/open-source/syntax/xyChart.html |
+| Block diagram | Section heading only: "Introduction to Block Diagrams ... In Mermaid, these blocks are easily created using simple text labels." | https://mermaid.ai/open-source/syntax/block.html |
+| Packet diagram | "A packet diagram is a visual representation used to illustrate the structure and contents of a network packet." | https://mermaid.ai/open-source/syntax/packet.html |
+| Kanban | "A Kanban diagram in Mermaid starts with the kanban keyword, followed by the definition of columns (stages) and tasks within those columns." | https://mermaid.ai/open-source/syntax/kanban.html |
+| Architecture diagram | Docs page is syntax/config only (grid-layout examples); no definitional sentence returned by the index. | https://mermaid.ai/open-source/syntax/architecture.html |
+| Radar diagram | Docs page is syntax-only (axis/curve keyword reference); no definitional sentence returned by the index. | https://mermaid.ai/open-source/syntax/radar.html |
+| Treemap | "A treemap diagram displays hierarchical data as a set of nested rectangles. Each branch of the tree is represented by a rectangle, which is then tiled with..." | https://mermaid.ai/open-source/syntax/treemap.html |
+
+Full current inventory (for cross-check against the list above), from the syntax-reference index page and a third-party diagram-notation comparison, both fetched 2026-09-06:
+> "Block Diagram · Packet · Kanban · Architecture · Radar · Event Modeling · Treemap · Venn · Ishikawa · Wardley ..." (https://mermaid.ai/open-source/intro/syntax-reference.html)
+> "The supported types now include flowchart, sequence, class, state, entity-relationship, Gantt, pie, gitGraph, requirement, user journey, timeline, mindmap, Sankey, C4 (experimental), quadrant chart, ZenUML, block, packet, kanban, architecture, radar, treemap, venn, ishikawa, and tree-view diagrams." (https://hidekazu-konishi.com/entry/diagramming_c4_plantuml_mermaid_selection_guide.html)
+
+---
+
+## 8. LaTeX/TikZ idioms
+
+All fetched 2026-09-06.
+
+**pgfgantt** (Gantt) — https://texdoc.org/serve/pgfgantt/0
+> "The pgfgantt package provides the ganttchart environment, which draws a Gantt chart within a TikZ picture."
+
+**pgf-umlsd** (sequence diagrams) — https://ctan.org/pkg/pgf-umlsd
+> "PGF-umlsd – Draw UML Sequence Diagrams — LaTeX macros to draw UML diagrams using pgf"
+
+**tikz-uml** (sequence/class/state diagrams, alternative) — https://tikzuml.pages.math.cnrs.fr/userguide.html
+> "the package contains definitions of complete class diagrams, use case diagrams, sequence diagrams, state diagrams, and object diagrams."
+(Related standalone package on CTAN, `UML`, fetched via https://ctan.org/pkg/UML : "Draw UML diagrams in LaTeX for writing UML (Unified Modelling Language) diagrams in LaTeX. Currently, it implements a subset of class...")
+
+**TikZ automata library** (state machines) — https://tikz.dev/library-automata (web mirror of the official pgfmanual)
+> "This package[sic] provides shapes and styles for drawing finite state automata and Turing machines. For each state of the automaton, there should be one node with ..."
+
+**sankey** (CTAN package literally named `sankey`) — https://ctan.org/pkg/sankey?lang=en
+> "This package provides macros and an environment for creating Sankey diagrams, i.e. flow diagrams in which the width of the arrows is proportional to the flow ..."
+
+**pgfplots** (xy, bar, quadrant-style plots) — https://ctan.org/pkg/pgfplots?lang=en
+> "PGFPlots draws high-quality function plots in normal or logarithmic scaling with a user-friendly interface directly in TeX."
+
+**tikz-cd** (commutative diagrams) — https://ctan.org/pkg/tikz-cd?lang=en
+> "The general-purpose drawing package TikZ can be used to typeset commutative diagrams and other kinds of mathematical pictures, generating high-quality results."
+
+**forest** (trees) — https://ctan.org/pkg/forest?lang=en
+> "The package provides a PGF/TikZ-based mechanism for drawing linguistic (and other kinds of) trees."
+
+**smartdiagram** — https://ctan.org/pkg/smartdiagram?lang=en
+> "The package will create smart diagrams from lists of items, for simple documents and for presentations."
+
+**pgf-pie** — https://ctan.org/pkg/pgf-pie?lang=en
+> "The package provides the means to draw pie (and variant) charts, using PGF/TikZ."
+
+**TikZ `matrix` for tables-as-figures** — **not reached.** Searches for the pgfmanual's own prose on the `matrix` library (used for grid/table-like figures) either returned no definitional sentence or were blocked; the only material surfaced was a code example (`\matrix[matrix of nodes, ...]`) on a Hugging Face dataset page (https://huggingface.co/datasets/nllg/datikz), which is example code, not a documentation quotation about what the feature is for. Flagging as a gap rather than fabricating a quote.
+
+---
+
+## 9. Print legibility numbers
+
+All fetched 2026-09-06.
+
+**Minimum type size, figure labels/captions:**
+
+Nature-family journals (Communications Materials / Communications Physics formatting guidelines) — https://www.nature.com/commsmat/submit/formatting-guidelines
+> "All lines should be at least 0.1 mm (0.3 pt) wide."
+(Same page also states, per the search index's description snippet: "Do not use faint lines and/or lettering and check that all lines and lettering within the figures are legible at final size.")
+
+Science/AAAS submission instructions — https://www.science.org/content/page/instructions-preparing-initial-manuscript ("Preparation of figures," General guidelines)
+> "Size symbols so that they will be distinguishable when the figure is reduced (6 point minimum). Line widths should be legible upon reduction (minimum of 0.5 point at the final reduced size)."
+
+IEEE paper-preparation template, reproduced on arXiv (direct arxiv.org WebFetch blocked; text retrieved via search index) — https://arxiv.org/html/2412.20320v2 ("Preparation of Papers for IEEE TRANSACTIONS and JOURNALS")
+> "Figure labels should be legible, approximately 8 to 10 point type."
+> "Labels should appear centered below each subfigure in 8 point Times New Roman font"
+
+**Minimum line weight for print:**
+
+University of Michigan prepress/print specification PDF — https://record.umich.edu/sites/default/files/mwp_four_color_specifications.pdf
+(directly addresses tint, see below; for line weight the best reached source is a secondary practitioner summary rather than a publisher's own page)
+Secondary summary, fetched 2026-09-06 — https://graphicdesign.stackexchange.com/questions/24768/what-should-be-considered-when-using-very-thin-lines-on-a-print-piece
+> "In most cases, a minimum line weight for commercial printing is .25pt."
+Amazon KDP's own line-thickness guidance was not returned in fetchable form directly; a community forum thread paraphrasing it was the closest reached: "According to the submission guidelines, minimum line thickness should be 0.75 point/0.01"/0.3 mm." (https://www.kdpcommunity.com/s/question/0D52T00005QrAbtSAF/minimum-line-thickness) — flagging this one as a paraphrase-of-a-guideline rather than the guideline's own text, since KDP's own help page text was not retrieved.
+
+**Minimum tint percentage (offset):**
+
+University of Michigan print specifications PDF, fetched 2026-09-06 — https://record.umich.edu/sites/default/files/mwp_four_color_specifications.pdf
+> "Recommended screen tint minimum 10%-20% and maximum 70%-80%. A 75% screen tint will print solid. The combined screen tints not to exceed 260%."
+
+---
+
+## 10. Textbook typography measure
+
+**Bringhurst, characters per line** — full-text scan of *The Elements of Typographic Style*, fetched 2026-09-06 — https://readings.design/PDF/the_elements_of_typographic_style.pdf (§2.1.2, "Choose a comfortable measure")
+> "Anything from 45 to 75 characters is widely regarded as a satisfactory length of line for a single-column page set in a serifed text face in a text size."
+> "The 66-character line (counting both letters and spaces) is widely regarded as ideal."
+Same source, on copyfitting:
+> "A typical lowercase alphabet length for a 10 pt text font is 128 pt, and the copyfitting table tells us that such a font set to a 25-pica measure will yield roughly 65 characters per line."
+
+**Standard textbook trim sizes:**
+
+Amazon KDP (a working book-publishing platform's own specification page), fetched 2026-09-06 — https://kdp.amazon.com/help/topic/GVBQ3CMEQW3W2VL6
+> "The most common trim size for books in the US is 6" x 9" (152.4 x 228.6 mm), but you have several other options."
+Same page lists 7" x 10" and 8" x 10" as available standard trim sizes alongside 6"x9", 8.5"x8.5", and 8.5"x11".
+
+Blurb.com book-dimensions guide, fetched 2026-09-06 — https://www.blurb.com/book-dimensions
+> "Textbooks and academic books: Sizes typically range from 6 x 9 in up to 8.5 x 11 in."

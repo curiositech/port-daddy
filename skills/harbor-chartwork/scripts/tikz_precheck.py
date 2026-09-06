@@ -7,7 +7,6 @@ geometry instead.
 
 Checks (hard, fail the build unless noted):
   - missing provenance comment: line 1 is not a substantive `%` comment.
-  - `\tiny` anywhere in the fragment.
   - a color name outside the corpus's house palette (see PALETTES below).
   - multi-word `\node{...}` text with no wrapping (`text width=`/`align=`, on
     the node itself OR via a named style -- local to the fragment, or one of
@@ -15,7 +14,22 @@ Checks (hard, fail the build unless noted):
   - `R\d+`, `CR-\d+`, or `B6` inside a caption's leading `\textbf{...}` (the
     caption's bolded lead sentence) or inside a title-styled node/pgfplots
     axis title (heuristic, not a full parse -- see find_title_texts()).
-  - `\resizebox` anywhere (WARN only -- does not fail the build).
+
+  Numbered rules (P10-P14), evaluated against the fragment with LaTeX
+  comments stripped (an unescaped `%` to end of line) so a `\tiny` or
+  `\resizebox` mentioned only in a comment never fires:
+  - P10 tiny        (FAIL) any `\tiny` in the fragment.
+  - P11 scriptsize  (FAIL) any `\scriptsize` in the fragment -- the shared
+                     styles own the small sizes; a fragment may not set them.
+  - P12 resizebox   (WARN) `\resizebox{F\textwidth}`/`{F\linewidth}` with
+                     F < 0.85, or any `\resizebox` whose first argument is
+                     not a simple `F\textwidth`/`F\linewidth` fraction.
+  - P13 bare-fill   (FAIL) a `\fill[...]`/`\path[fill...]` that names a
+                     colour at alpha < 20 (`!NN` with NN < 20) with no
+                     `draw=` of its own -- the `pd ... fill` house styles are
+                     exempt (they draw their own edge).
+  - P14 row-labels  (WARN) a `\node[...anchor=east...,font=\scriptsize|\tiny]`
+                     whose text is one bare word -- suggests `pd row label`.
 
 Usage:
   tikz_precheck.py FRAGMENT.tex [FRAGMENT.tex ...]
@@ -23,7 +37,8 @@ Usage:
       [--style-defs FILE ...] [--allow-color NAME ...]
 
 Exit status:
-  0  no hard findings in any given fragment (resizebox warnings do not count)
+  0  no hard findings in any given fragment (warn-only checks, including
+     P12/P14, do not count)
   1  at least one hard finding in at least one fragment
   2  usage error (a given path does not exist, etc.)
 """
@@ -103,6 +118,39 @@ TEXTCOLOR_RE = re.compile(r"\\(?:textcolor|colorbox)\{([^{}]*)\}")
 COLOR_CMD_RE = re.compile(r"\\color\{([^{}]*)\}")
 
 STYLE_DEF_RE = re.compile(r"([A-Za-z][A-Za-z0-9 _-]*?)/\.style\s*=\s*\{")
+
+# Numbered rule ids introduced alongside the original, unnumbered checks
+# above. Kept in one place so the summary/"counts per id" machinery and the
+# markdown report can iterate them without hardcoding the list twice.
+RULE_IDS = ["P10", "P11", "P12", "P13", "P14"]
+
+
+def strip_comments(text):
+    """Return TEXT with every unescaped LaTeX comment (`%` to end of line)
+    blanked out to spaces, preserving every other character's offset (and
+    therefore line numbers) exactly. `\\%` is a literal percent, not a
+    comment start; walking char-by-char and always consuming a backslash
+    together with whatever follows it (its escaped character, even another
+    backslash) keeps that distinction correct without a lookbehind regex."""
+    out = []
+    i = 0
+    n = len(text)
+    while i < n:
+        c = text[i]
+        if c == "\\" and i + 1 < n:
+            out.append(text[i : i + 2])
+            i += 2
+            continue
+        if c == "%":
+            j = i
+            while j < n and text[j] != "\n":
+                j += 1
+            out.append(" " * (j - i))
+            i = j
+            continue
+        out.append(c)
+        i += 1
+    return "".join(out)
 
 
 def find_braced(text, open_brace_index):
@@ -307,21 +355,168 @@ def check_provenance(text):
 
 
 def check_tiny(text):
+    """P10: `\\tiny` is banned in a fragment outright (comments stripped
+    first, so a `\\tiny` mentioned only in a comment does not trip this)."""
     findings = []
-    for m in re.finditer(r"\\tiny\b", text):
-        line = text.count("\n", 0, m.start()) + 1
+    stripped = strip_comments(text)
+    for m in re.finditer(r"\\tiny\b", stripped):
+        line = stripped.count("\n", 0, m.start()) + 1
         findings.append(
-            {"check": "tiny", "severity": "fail", "line": line, "message": "\\tiny used"}
+            {
+                "check": "tiny",
+                "id": "P10",
+                "severity": "fail",
+                "line": line,
+                "message": "\\tiny used -- the shared styles own font sizing, not the fragment",
+            }
         )
     return findings
 
 
-def check_resizebox(text):
+def check_scriptsize(text):
+    """P11: `\\scriptsize` is likewise banned -- the shared house styles own
+    the small sizes, a fragment may not set them directly."""
     findings = []
-    for m in re.finditer(r"\\resizebox\b", text):
-        line = text.count("\n", 0, m.start()) + 1
+    stripped = strip_comments(text)
+    for m in re.finditer(r"\\scriptsize\b", stripped):
+        line = stripped.count("\n", 0, m.start()) + 1
         findings.append(
-            {"check": "resizebox", "severity": "warn", "line": line, "message": "\\resizebox used"}
+            {
+                "check": "scriptsize",
+                "id": "P11",
+                "severity": "fail",
+                "line": line,
+                "message": "\\scriptsize used -- the shared styles own font sizing, not the fragment",
+            }
+        )
+    return findings
+
+
+RESIZEBOX_FRACTION_RE = re.compile(
+    r"^\s*([0-9]*\.[0-9]+|[0-9]+)\s*\\(textwidth|linewidth)\s*$"
+)
+RESIZEBOX_MIN_FRACTION = 0.85
+
+
+def check_resizebox(text):
+    """P12: warn if `\\resizebox`'s first argument is a `F\\textwidth`/
+    `F\\linewidth` fraction shrunk below RESIZEBOX_MIN_FRACTION, or is not a
+    simple fraction of the page width at all (a fixed length, `\\linewidth`
+    with no coefficient, two-dimension resize, etc.) -- both are the shapes
+    that tend to fight the chapter's own layout rather than sit inside it."""
+    findings = []
+    stripped = strip_comments(text)
+    for m in re.finditer(r"\\resizebox\b", stripped):
+        line = stripped.count("\n", 0, m.start()) + 1
+        brace_idx = stripped.find("{", m.end())
+        if brace_idx == -1:
+            continue
+        arg1, _ = find_braced(stripped, brace_idx)
+        fm = RESIZEBOX_FRACTION_RE.match(arg1)
+        if fm:
+            frac = float(fm.group(1))
+            if frac < RESIZEBOX_MIN_FRACTION:
+                findings.append(
+                    {
+                        "check": "resizebox",
+                        "id": "P12",
+                        "severity": "warn",
+                        "line": line,
+                        "message": f"\\resizebox first argument {arg1.strip()!r} is only "
+                        f"{frac:g}x the page width, below the {RESIZEBOX_MIN_FRACTION:g}x floor",
+                    }
+                )
+        else:
+            findings.append(
+                {
+                    "check": "resizebox",
+                    "id": "P12",
+                    "severity": "warn",
+                    "line": line,
+                    "message": f"\\resizebox first argument {arg1.strip()!r} is not a plain "
+                    f"F\\textwidth/F\\linewidth fraction",
+                }
+            )
+    return findings
+
+
+PD_FILL_STYLE_RE = re.compile(r"^pd(\s+[A-Za-z]+)*\s+fill$")
+BARE_FILL_MIN_ALPHA = 20
+
+
+def check_bare_fill(text):
+    """P13: a `\\fill[...]` or `\\path[...fill...]` that names a colour at an
+    explicit alpha below BARE_FILL_MIN_ALPHA with no `draw=` of its own reads
+    as a near-invisible wash with no crisp edge once printed. The house
+    `pd ... fill` styles (`pd focus fill`, `pd caution fill`, `pd neutral
+    fill`, ...) are exempt: they already draw their own edge."""
+    findings = []
+    stripped = strip_comments(text)
+    for m in re.finditer(r"\\(fill|path)\b", stripped):
+        cmd = m.group(1)
+        i = m.end()
+        while i < len(stripped) and stripped[i].isspace():
+            i += 1
+        if i >= len(stripped) or stripped[i] != "[":
+            continue
+        opts, _ = find_braced_bracket(stripped, i)
+        if cmd == "path" and not re.search(r"\bfill\b", opts):
+            continue  # a \path[...] with no fill option is not a fill at all
+        if re.search(r"\bdraw\s*=", opts):
+            continue  # exempt: draws its own edge
+        line = stripped.count("\n", 0, m.start()) + 1
+        for tok in split_top_level(opts):
+            val = tok.split("=", 1)[1].strip() if "=" in tok else tok.strip()
+            base = val.split("!", 1)[0].strip()
+            if PD_FILL_STYLE_RE.match(base):
+                continue  # a house "pd ... fill" style reference, exempt
+            am = re.search(r"!(\d+)", val)
+            if am and int(am.group(1)) < BARE_FILL_MIN_ALPHA:
+                findings.append(
+                    {
+                        "check": "bare-fill",
+                        "id": "P13",
+                        "severity": "fail",
+                        "line": line,
+                        "message": f"\\{cmd}[...] fills {val!r} at alpha {am.group(1)} "
+                        f"(below {BARE_FILL_MIN_ALPHA}) with no draw= edge",
+                    }
+                )
+                break
+    return findings
+
+
+ANCHOR_EAST_RE = re.compile(r"\banchor\s*=\s*east\b")
+ROW_LABEL_FONT_RE = re.compile(r"\bfont\s*=\s*\\(scriptsize|tiny)\b")
+BARE_WORD_RE = re.compile(r"^[A-Za-z][A-Za-z0-9]*$")
+
+
+def check_row_labels(text):
+    """P14: an `anchor=east` node set in `font=\\scriptsize`/`\\tiny` whose
+    text is a single bare word is almost always a row label in a disguised
+    table -- `pd row label` exists for exactly this and keeps the size out
+    of the fragment's own hands (see P10/P11)."""
+    findings = []
+    stripped = strip_comments(text)
+    for style_text, content, offset in find_node_calls(stripped):
+        if not ANCHOR_EAST_RE.search(style_text):
+            continue
+        fm = ROW_LABEL_FONT_RE.search(style_text)
+        if not fm:
+            continue
+        word = content.strip()
+        if not BARE_WORD_RE.match(word):
+            continue
+        line = stripped.count("\n", 0, offset) + 1
+        findings.append(
+            {
+                "check": "row-labels",
+                "id": "P14",
+                "severity": "warn",
+                "line": line,
+                "message": f"node[anchor=east, font=\\{fm.group(1)}] {{{word}}} looks like a "
+                f"row label; consider the 'pd row label' style",
+            }
         )
     return findings
 
@@ -443,7 +638,10 @@ def run_precheck(path, corpus="auto", extra_style_defs=None, extra_colors=None):
     findings = []
     findings += check_provenance(text)
     findings += check_tiny(text)
+    findings += check_scriptsize(text)
     findings += check_resizebox(text)
+    findings += check_bare_fill(text)
+    findings += check_row_labels(text)
     findings += check_colors(text, base_colors, known_names)
     findings += check_node_wrapping(text, safe_styles)
     findings += check_title_numbers(text)
@@ -453,6 +651,10 @@ def run_precheck(path, corpus="auto", extra_style_defs=None, extra_colors=None):
     by_check = {}
     for f in findings:
         by_check.setdefault(f["check"], []).append(f)
+    by_id = {rid: 0 for rid in RULE_IDS}
+    for f in findings:
+        if f.get("id") in by_id:
+            by_id[f["id"]] += 1
 
     return {
         "file": str(path),
@@ -463,8 +665,17 @@ def run_precheck(path, corpus="auto", extra_style_defs=None, extra_colors=None):
             "result": "fail" if hard else ("warn" if warn else "pass"),
             "hard_count": len(hard),
             "warn_count": len(warn),
+            "by_id": by_id,
         },
     }
+
+
+def aggregate_by_id(reports):
+    totals = {rid: 0 for rid in RULE_IDS}
+    for r in reports:
+        for rid, n in r["summary"].get("by_id", {}).items():
+            totals[rid] = totals.get(rid, 0) + n
+    return totals
 
 
 def render_markdown(reports):
@@ -483,8 +694,14 @@ def render_markdown(reports):
         lines.append(f"## `{Path(r['file']).name}`")
         for f in r["findings"]:
             loc = f" (line {f['line']})" if "line" in f else ""
-            lines.append(f"- [{f['severity']}] {f['check']}{loc}: {f['message']}")
+            rid = f" [{f['id']}]" if "id" in f else ""
+            lines.append(f"- [{f['severity']}]{rid} {f['check']}{loc}: {f['message']}")
         lines.append("")
+    totals = aggregate_by_id(reports)
+    lines.append("## Rule ID counts")
+    lines.append("")
+    lines.append(", ".join(f"{rid}={totals[rid]}" for rid in RULE_IDS))
+    lines.append("")
     return "\n".join(lines)
 
 
@@ -516,6 +733,14 @@ def main(argv=None):
         Path(args.md).write_text(render_markdown(reports))
     if not args.json and not args.md:
         print(json.dumps(reports, indent=2, default=str))
+
+    # Summary line, always on stderr so it never corrupts a stdout JSON dump.
+    totals = aggregate_by_id(reports)
+    print(
+        "tikz_precheck summary: "
+        + ", ".join(f"{rid}={totals[rid]}" for rid in RULE_IDS),
+        file=sys.stderr,
+    )
 
     return 1 if any(r["summary"]["result"] == "fail" for r in reports) else 0
 

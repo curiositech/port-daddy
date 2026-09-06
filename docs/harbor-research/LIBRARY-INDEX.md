@@ -132,7 +132,7 @@ One section per indexed idea (R1-R17, CR, B6, and every already-folded textbook 
 | Standalone paper | `docs/harbor-research/tex/paper2.tex` | (none) | S5 (sec:theorem), boxed "Theorem (Regimentation = controllability)"; restated as Theorem 2 in paper4.tex S4 (sec:p2) as Pillar II of the Sealed Harbor, and in the Sealed Harbor chapter (sec:sealed-enforceability) by reference to the kernel chapter |
 | Chapter 1 (The Single-Writer Kernel) | `whitepaper/single-writer-kernel.tex` | thm:decidability, thm:regimentation-controllability, tab:policy-classification | "Synchronous State Decidability -- closing OP-2" (thm:decidability) is the special case Sigma_c={DB writes}; the general theorem is folded as "The general boundary: regimentation is controllability" (sec:controllability, thm:regimentation-controllability) with the nine-policy table (tab:policy-classification), the gate-the-channel case, partial observation, and exercises ex:swk-classify-two, ex:swk-synthesis |
 
-**Figures:** `docs/harbor-research/figures/fig-r5-quadrant.tex`, `docs/harbor-research/figures/fig-r5-regime.tex`, `docs/harbor-research/figures/fig-r5-relation.tex`, `whitepaper/figures/fig-swk-controllability-quadrant.tex`, `whitepaper/figures/fig-swk-controllability-relation.tex`
+**Figures:** `docs/harbor-research/figures/fig-r5-quadrant.tex`, `docs/harbor-research/figures/fig-r5-regime.tex`, `docs/harbor-research/figures/fig-r5-relation.tex`, `whitepaper/figures/fig-swk-controllability-quadrant.tex`
 
 **Scripts:** `skills/harbor-results/scripts/b3_controllability.py`
 

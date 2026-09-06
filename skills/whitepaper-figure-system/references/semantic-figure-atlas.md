@@ -116,25 +116,26 @@ Canonical root: `whitepaper/legible-swarm.tex` (14 figures).
 
 ## Volume II: The Single-Writer Kernel
 
-Canonical root: `whitepaper/single-writer-kernel.tex` (12 graphical figures and 2 algorithm
-exhibits).
+Canonical root: `whitepaper/single-writer-kernel.tex` (9 graphical figures, 2 recorded terminal
+sessions set as listings, and 2 algorithm exhibits). The seven-organs, communication-organ and
+deontic-split exhibits are tables in the chapter (round 4, 2026-09-06); the bouncer sketch and the
+dual-runtime mirror were cut with a written rationale in the figure triage.
 
 | Atlas ID | Reader question / claim | First-choice grammar | Must encode | Reject |
 |---|---|---|---|---|
 | `II/fig:swk-stack-map` | Which L0--L3 layers does the kernel own, and what machine floor does it assume? | four-rung coordination stack plus machine-floor band using the shared stack contract | L0--L3; machine floor; II highlighted on all L0 and the implemented carrier half of L1; layer API direction; chapter numbers are not layer numbers | seven-paper layers; ornamental tower; perspective architecture |
-| `II/fig:swk-seven-organs` | What seven contracts compose the kernel? | aligned contract matrix around a shared state spine | seven distinct contracts; state each reads/writes; common transactional substrate | radial organs; seven equal bubbles; prose wheel |
 | `II/fig:swk-single-writer` | How do many callers become one serial commit history? | converging request queue into one commit spine | concurrent callers; queue order; exactly one active writer; durable outcomes | many arrows into a database icon; unlabeled central box |
 | `II/fig:swk-durability-faultclass` | Which persistence guarantee answers which fault class? | fault-class-by-guarantee matrix | process, machine, storage, and recovery fault classes; guarantee boundary; unsupported cells | ladder without axes; decorative shields |
 | `II/fig:swk-claim-lifecycle` | Which states can an exclusive claim enter, and how does it leave? | compact state machine | admissible states; acquisition guard; expiry/release/revoke transitions; terminal outcomes | generic flowchart; lifecycle circle with no guards |
+| `II/fig:swk-controllability-quadrant` | Which events can a runtime prevent rather than merely detect? | two-by-two regime plane: controllable × witnessed-at-the-boundary, one concrete event per cell, the preventable cell marked | the two axes as clauses; the single preventable cell; that the other three are detect-only | a bouncer illustration; a 2×2 with empty cells; prose in the cells |
 | `II/alg:acquire` | Which atomic decision selects the single winner? | annotated pseudocode with a short transaction sequence | unique-key insert; competing callers; commit/constraint outcome; no race gap | node graph; source code shrunk below print size |
-| `II/fig:swk-comm-organ` | How are carrier, speech act, and provenance kept distinct? | layered message envelope with provenance rail | transport envelope; typed act; actor/reason; durable cursor; verification boundary | speech bubbles; one box labeled communication |
-| `II/fig:swk-deontic-split` | Why are prohibition, obligation, and permission different mechanisms? | three-column formal taxonomy | trigger; enforcement mode; success/failure condition; example for each category | Venn diagram; three unlabeled icons; traffic-light colors only |
 | `II/fig:swk-reference-monitor` | Does every effect pass through a small complete mediator? | effect path through one narrow mediation gate | all request origins; reference monitor; allowed/denied branches; audited effect | broad hub; firewall clip art; hidden bypass paths |
 | `II/fig:swk-commitment-oracle` | What evidence permits a commitment to close? | state machine with oracle-gated terminal transition | open state; candidate evidence; typed oracle; close/refuse outcomes; freshness | sequence of prose boxes; magic checkmark |
 | `II/alg:close` | How does a finite oracle vocabulary decide closure? | annotated pseudocode plus decision table | allowed oracle types; validation order; terminal result; failure behavior | node graph; untyped decision diamond chain |
 | `II/fig:swk-continuity-organs` | How do memory, checkpoint, identity, continuity, and reputation depend on one another? | layered dependency spine | dependency direction; durable artifacts; identity anchor; computed reputation | organic anatomy; equal boxes with crossing arrows |
 | `II/fig:swk-consistency-model` | How do interleaved operations map to a serial history? | swimlane sequence with serialization points | actors; operation intervals; linearization/commit points; resulting total order | set diagram; before/after node clouds |
-| `II/fig:swk-dual-runtime` | How do two implementations satisfy the same contract? | mirrored conformance diagram with one shared test/interface rail | shared interface; two runtimes; identical invariants/tests; allowed implementation differences | two unrelated architecture boxes; logo comparison |
+| `II/fig:swk-workunit-machine` | Which states can an evidence-bearing work unit pass through, and which guard protects each transition? | state machine at full measure with numbered guards keyed to a legend under the picture | the phases; the journals each writes; every guard as a named edge; the state count from the checker | a flowchart of boxes; guards as tiny italics on edges; a machine without the checker's count |
+| `II/fig:swk-marker-decay` | How long does a stigmergic marker live under exponential decay before the prune threshold removes it? | measured-quantity plot: weight against ticks for two decay rates with the threshold as a rule and the two lifetimes marked | the two rates; the prune threshold; the tick at which each curve crosses it (29 and 59) | unlabeled decay sketch; a curve without the threshold; a table of two numbers pretending to be a figure |
 
 ## Volume III: From Spawn to Person
 
@@ -155,6 +156,7 @@ Canonical root: `website-v2/public/whitepaper/spawn-to-person.tex` (13 figures).
 | `III/fig:judge-market` | How is a neutral judge selected, informed, and paid? | actor swimlane sequence | parties; judge selection; evidence reveal; decision; payment/slash; audit trail | marketplace network graph; central judge circle |
 | `III/fig:rate-raters` | Why does recursive evaluator audit terminate, and what assumption remains open? | recursive contraction tower with a theorem/conditions panel | work, judge, re-auditor, and next level; per-level deterrence rho d B >= G_k; contraction lambda = 1-rho d; logarithmic finite depth; sealed sampling premise; missing exogenously honest root and telemetry caveat | two-tier loop; infinite spiral; self-looping bubbles; termination asserted without inequality |
 | `III/fig:tombstone` | How does revoking an ancestor invalidate descendants? | provenance tree with struck ancestor branch | delegation ancestry; revocation point; affected descendants; unaffected siblings; time/order | cemetery/tombstone art; flat list of revoked IDs |
+| `III/fig:stp-deterrence-regime` | For which bond sizes and re-audit probabilities does deterrence hold? | threshold plot: the frontier ρ d B = G with the deterrence region tinted and edged and the worked point marked | the frontier; the region where capture pays; the worked point (ρ = 0.25 at B = 50) | a sketched curve without axes; a table of two numbers; a region distinguished by tint alone |
 
 ## Volume IV: The Harbor Economy
 
@@ -222,7 +224,21 @@ Canonical root: `website-v2/public/whitepaper/federated-harbor-whitepaper.tex` (
 | `VII/fig:fh-threat-bands` | Which threat bands require which assurance mechanisms? | same semantic contract as `IV/fig:fh-threat-bands` | identical threat vocabulary and status semantics | inconsistent local palette; decorative bands |
 | `VII/fig:fh-xfer` | Which four messages transfer capability without transferring root authority? | same semantic contract as `IV/fig:fh-xfer` | identical actor order, message names, and signature semantics | curved-arrow topology; protocol prose boxes |
 | `VII/fig:fh-revocation` | How does revocation spread over epochs and become auditable? | same semantic contract as `IV/fig:fh-revocation` | aligned epochs; A/B/C states; gossip steps; witness publication; convergence assumption | the overlapping epoch diagram; labels on arrows; clipped lower states |
+| `VII/fig:fh-revocation-regime` | Which bound binds a stale card after revocation: partition bound, delivery level, or time to live? | regime plane in rounds: partition bound against delivery service level, the TTL line as the boundary, both regions labelled in words | the two operational bounds; the TTL line; which region each bound governs | a timeline; a Venn diagram; unlabeled regions |
 | `VII/fig:fh-settlement` | How do bond, claim, verification, and clear/refuse outcomes compose? | same semantic contract as `IV/fig:fh-settlement` | identical custody assumption, actors, evidence, and outcomes | oversized note box; ambiguous three-column flow |
+
+## Volume VIII: The Sealed Harbor
+
+Canonical root: `website-v2/public/whitepaper/sealed-harbor.tex` (5 graphical figures; drawn in
+wave 4 under figcheck, the reference set for the legibility rubric).
+
+| Stable ID | Reader question | Prescribed grammar | Must distinguish | Rejected grammar |
+|---|---|---|---|---|
+| `VIII/fig:sealed-pillar-pipeline` | Which fences and gates does one work order pass, and which script checks each property? | boxed pipeline: two fences, two gates, the four properties as terminals, each with its checker script named | fences from gates; produces from is-checked-by; the four scripts | a cloud-and-lock illustration; an unlabeled flowchart |
+| `VIII/fig:sealed-two-worlds` | Do two runs that differ only in the secret look identical to the observer? | two-run lockstep: two rows step by step with equivalence marks, the one permitted difference boxed | the steps; the ≡ marks; the slot; the mutation that breaks it | a Venn of worlds; prose lists |
+| `VIII/fig:sealed-mutant-grid` | Which mutant breaks which invariant, and how fast? | mutant × invariant grid with caught/step counts in the cells | the two mutants; the two invariants; the step count | a bar chart; a checklist |
+| `VIII/fig:sealed-composition-crossover` | When does the advanced composition bound start to pay? | measured-quantity plot: both bounds against releases k with the crossover marked (k = 32) | the two curves; the crossover; the parameters | a schematic curve pair; a table of two rows |
+| `VIII/fig:sealed-operating-curve` | How fast does detection power climb with canaries carried, and how long does the sequential test run? | two-panel measured plot: power against k with the anchor marked; expected run length under null and leak as a bar pair | the anchor (k = 3, 0.992); the two run lengths | a single unlabeled curve; a pie of outcomes |
 
 ## Cross-volume reuse contracts
 

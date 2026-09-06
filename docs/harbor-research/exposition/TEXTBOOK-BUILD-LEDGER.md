@@ -47,12 +47,15 @@ the generator into `.cache/whitepaper-build/coordination-papers-mega-volume`
 first (a stale or missing cache fails the Book with "Generated chapter map is
 missing"), then tectonic from `website-v2/public/whitepaper/`.
 
-Open: the Wave 10 remainder. W1 (the delta 0.30 negative control), W2 (the
-jacket in the banner), I2 (critique-ledger adjudication from the per-wave
-worksheets), the PR body, and the final link audit after the last merge.
-Art: the operator has every chapter opener, the front matter, and the
-whole-book contact sheets (pages 1 to 399, 2026-09-06); no art decision is
-pending unless the operator raises one.
+Open (2026-09-06, after round 4): the figure redraws for chapters 2–8 and the 18
+additions from the triage; the overfull-line pass; the worked-example floor beyond the
+anchor and sealed chapters; the reading-flow audit; marginalia with licence sidecars;
+the standalone chapters’ own layout pass; the remaining critique-ledger rows; the
+ProVerif v1 model’s revocation branch (its sender emits a bare identifier where the
+receiver expects a pair, so that branch is unexercised in v1 — flagged by review on
+2026-09-06; the chapter cites v6/v7, not v1, so this is a retire-or-repair item for the
+proof-estate wave). W1, W2 and
+the I2 adjudication closed in round 3 (see §7).
 
 ## 2. Context budgets for the remaining waves
 
@@ -254,3 +257,11 @@ Merge protocol per digest: verify each digest line against its artifact,
 merge the branch, regenerate generated files, apply the label claims to the
 index, run the checkers, update section 1 of this ledger in the same commit.
 
+### Round 4 (2026-09-06, waves 11–12): figures judged on the page; the book takes a textbook layout
+
+- **Audit.** All 126 figure sites in the eight chapters rendered and measured (`$SP/figaudit`, contact sheets per chapter): 79 distinct figures, 46 with fills under 20 % alpha, 66 with at least one mechanical flag. Verdict per figure in the triage table (`$SP/figaudit/triage.md`, to be committed under `docs/harbor-research/exposition/FIGURE-TRIAGE.md` (proposed; lands when the redraw wave closes)): keep 14 · restyle 17 · redraw 22 · table 15 · delete 11 · add 18 (8 plots, 8 terminal sessions, 2 diagrams). Default verdict is *fails*; chapter 3 (drawn under figcheck in wave 4) is the only chapter whose figures all pass.
+- **Rules.** `skills/harbor-chartwork/references/craft-rules.md` now carries the five-point legibility rubric (one readable fact; concrete instance; anchored geometry; print contrast at 100 %; no collisions), the page-role test, and the caption grammar; `taxonomy.md` maps idea shapes to kinds and TikZ idioms; `research-notes.md` holds the gathered sources (Cleveland–McGill, Munzner, Bertin, Wilke, Few, Science/IEEE figure rules, Bringhurst). `pd-figure-language.tex` raises every base style: fills 24–40 % with edges, hairlines 0.5 pt, datum marks 2.1–2.5 pt, labels `\footnotesize`, a `pd row label` style.
+- **Layout (Wave 12).** The Book moves to 7 × 10 in, twoside, 4.5 in measure with a 1.3 in outer margin column, 10.5 pt Palatino (font A, chosen by the author from three specimens). Page grammar without tinted boxes: claims with hairlines and a small-caps run-in head; boundaries as a plain ink bar; worked examples with two hairlines and a margin marker; recall prompts in the margin (Book) or a compact list (standalone); the older key-idea / pitfall / scene / pull-quote boxes re-typeset in the same grammar at begin-document; a `pdsession` environment for captured transcripts. All 203 exercises moved to chapter-end Exercises sections grouped by source section (`scripts/harbor-research/relocate_exercises.py`), with a live pointer where each cluster stood. The four chapter status tables and the generated mechanized-claims tables are `xltabular` so they break across pages.
+- **Measured.** Book: 538 pp at 7 × 10 (399 pp at A4 before), 0 undefined references, 3,393 links, 0 marginpar overflows, 1 overfull vbox left, 249 overfull hboxes (wide fixed tables and long code tokens at the narrower measure; a pass is queued). The page ceiling is retired for this stage at the author's instruction; quality first.
+- **Kernel.** Seven-organs score and communication cross-section became tables; the bouncer sketch and the dual-runtime zig-zag were cut; eleven redraws/restyles are in flight from written specs (`$SP/figaudit/specs/ch1.md`).
+- **Open.** Redraws for chapters 2–8; the 18 additions (plots from the R-scripts, terminal sessions recorded by script, two diagrams); worked-example floor for the anchor and sealed chapters; the overfull-line pass; the reading-flow audit per archetype; marginalia with licence sidecars; the standalone chapters' own layout pass.

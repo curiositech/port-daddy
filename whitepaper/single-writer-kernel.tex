@@ -26,6 +26,8 @@
 \usepackage{graphicx}
 \usepackage{fancyhdr}
 \usepackage{tikz}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
 \usetikzlibrary{arrows.meta,positioning,fit,backgrounds,calc,shapes.geometric,shapes.symbols,decorations.pathmorphing,decorations.pathreplacing}
 \usepackage{float}
 \usepackage{caption}
@@ -415,8 +417,8 @@ paper and a brochure.}
 \midrule
 short on time (15 min) & \S1 (thesis + stack map), \S\ref{sec:durability} (durability split), \S\ref{sec:enforcement} (the monitor correction) & Figs.~\ref{fig:swk-stack-map}, \ref{fig:swk-durability-faultclass}, \ref{fig:swk-reference-monitor} \\
 a systems engineer & \S\ref{sec:substrate}--\S\ref{sec:invariants} (substrate, single-writer, the theorems) & Thm.~\ref{thm:consistency}; Figs.~\ref{fig:swk-single-writer}, \ref{fig:swk-consistency-model} \\
-a security reviewer & \S\ref{sec:enforcement} (deontic split, the monitor), \S\ref{sec:threatmodel} (threat model) & Figs.~\ref{fig:swk-reference-monitor}, \ref{fig:swk-deontic-split}; Table~\ref{tab:threat-model} \\
-a protocol/agent author & \S\ref{sec:resource} (claims), \S\ref{sec:comm} (the bus), \S\ref{sec:adjacency} (the interface contract) & Figs.~\ref{fig:swk-claim-lifecycle}, \ref{fig:swk-comm-organ}; \S\ref{sec:adjacency} \\
+a security reviewer & \S\ref{sec:enforcement} (deontic split, the monitor), \S\ref{sec:threatmodel} (threat model) & Fig.~\ref{fig:swk-reference-monitor}, Table~\ref{tab:swk-deontic-split}; Table~\ref{tab:threat-model} \\
+a protocol/agent author & \S\ref{sec:resource} (claims), \S\ref{sec:comm} (the bus), \S\ref{sec:adjacency} (the interface contract) & Fig.~\ref{fig:swk-claim-lifecycle}, Table~\ref{tab:swk-comm-organ}; \S\ref{sec:adjacency} \\
 here for the economy & \S\ref{sec:continuity} (continuity organs), then the personhood and market papers & Fig.~\ref{fig:swk-continuity-organs} \\
 an instructor & every \textbf{Exercises} block; the open problems OP-1\,--\,OP-11 and their status table (\S\ref{sec:openproblems}) & the starred exercises; Table~\ref{tab:op-status} \\
 \bottomrule
@@ -434,14 +436,36 @@ foundation is sound, read this one.
 % ═════════════════════════════════════════════════════════════════════════════
 
 We organize the kernel into seven \emph{organs}, each a contract the daemon must
-hold for the layers above to be coherent (Figure~\ref{fig:swk-seven-organs}). The
+hold for the layers above to be coherent (Table~\ref{tab:swk-seven-organs}). The
 temptation is to describe such a kernel as a flat noun-list of features --- ports,
 claims, sessions, a bus, markers, commitments, a monitor, a memory store --- which
 is the symptom of treating the kernel as a database. It is not a database. It is a
 system of record \emph{plus} a mediator, and naming the organs surfaces the
 connective tissue a noun-list hides.
 
-\input{figures/fig-swk-seven-organs}
+\begin{table}[H]
+\centering
+\caption{The seven organs, each the contract the daemon holds for the layer above it,
+with the table that is its home where the chapter names one and its maturity grade.
+All seven are disciplines over one SQLite/WAL file: one commit history, not seven
+stores. The grades come from the chapter's own status table (\S\ref{app:status}).}
+\label{tab:swk-seven-organs}
+\small
+\renewcommand{\arraystretch}{1.15}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.22\textwidth} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{0.19\textwidth}@{}}
+\toprule
+\textbf{Organ} & \textbf{Contract held for the layer above} & \textbf{Maturity} \\
+\midrule
+transactional substrate & one writer, one durable file; every other organ is a table with discipline over the same commit history & \Built \\
+resource / exclusion & at most one compatible holder per conflict domain; leases expire and are swept lazily (home: \texttt{claims}) & \Built \\
+actor continuity & a stable actor identity across sessions, mechanically present but asserted by the actor, not proven & \BuiltWeak\ self-asserted \\
+message carriage & an ordered, cursor-addressable, durable envelope delivered at least once (home: \texttt{messages}) & \Built \\
+obligation \& enforcement & no \emph{done} without a receipt the daemon can re-check; the policy monitor detects and cannot always prevent (home: \texttt{commitments}) & \BuiltWeak\ partial \\
+session memory & notes and events survive process death; execution state does not & \Built\ (memory) \\
+self-attestation & the daemon reports its own coverage as enforced, degraded or stubbed, never silently & \Built \\
+\bottomrule
+\end{tabularx}
+\end{table}
 
 The \textbf{substrate organ} is the floor; the other six are, mechanically,
 tables \emph{with discipline} over the same file. We treat the substrate and the
@@ -700,7 +724,7 @@ Within a canonical conflict domain (exact normalized key, transactional interval
 \end{theorem}
 
 \begin{proof}[Proof sketch]
-Within an immediate SQLite transaction (\texttt{BEGIN IMMEDIATE}), the daemon evaluates the conflict predicate against all currently unexpired leases. For exact keys, this is enforced by primary-key uniqueness; for intervals and hierarchies, by an indexed range check within the same transaction. Because all writes funnel through the single connection (Def.~\ref{def:single-writer}), predicate evaluation and insert are atomic. Upon grant or reallocation, the daemon increments the resource's fencing epoch $e$. Downstream effect brokers validate that $e$ matches the active lease at execution time, preventing stale or paused holders from producing side effects after lease expiration.\qed
+Within an immediate SQLite transaction (\texttt{BEGIN IMMEDIATE}), the daemon evaluates the conflict predicate against all currently unexpired leases. For exact keys, this is enforced by primary-key uniqueness; for intervals and hierarchies, by an indexed range check within the same transaction. Because all writes funnel through the single connection (Def.~\ref{def:single-writer}), predicate evaluation and insert are atomic. Upon grant or reallocation, the daemon increments the resource's fencing epoch $e$. Downstream effect brokers validate that $e$ matches the active lease at execution time, preventing stale or paused holders from producing side effects after lease expiration.
 \end{proof}
 
 \paragraph{Worked dramatization: Alice and Bob race for one port.}
@@ -730,6 +754,14 @@ begin the transaction in immediate mode. So Theorem~\ref{thm:exclusion} holds
 because all writes route through the one daemon connection
 (Def.~\ref{def:single-writer}), \emph{not} because the expire-then-acquire sequence
 is itself atomic. State which story you mean; do not tell both.}
+
+What the discipline looks like from two terminals: one agent holds a lock on a file,
+a second asks for the same name and is told who holds it and for how long, and only
+after the first releases does the second acquire. Nothing here is advisory --- the
+daemon is the single writer for the \texttt{locks} row, so the second request cannot
+race the first.
+
+\input{figures/session-swk-lock-demo}
 
 \subsection{Fairness without a scheduler: the Stigmergic Ticket-Lock (OP-1)}
 
@@ -781,9 +813,26 @@ the queue are the same code path, and until the ticket table exists at all.
 \label{sec:comm}
 % ═════════════════════════════════════════════════════════════════════════════
 
-\input{figures/fig-swk-comm-organ}
+\begin{table}[H]
+\centering
+\caption{The communication organ: one durable carrier and two provenance traces that
+must never be merged. The envelope fields are what the bus stores; the two traces
+answer two different questions and are checked by two different mechanisms.}
+\label{tab:swk-comm-organ}
+\small
+\renewcommand{\arraystretch}{1.15}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.24\textwidth} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{0.2\textwidth}@{}}
+\toprule
+\textbf{Piece} & \textbf{What it is} & \textbf{Status} \\
+\midrule
+the bus envelope & version tag, time-to-live, message kind, typed act with its conversation id, actor, reason and event reference; ordered by a durable history cursor & \Built \\
+authorization chain & the cryptographic object: who authorized whom, hop-bound, attenuation-monotonic, anti-replay & \Built\ (ProVerif) \\
+coordination lineage & the coordination object: what work is already in flight, so loops and upward blocks can be detected & \Designed \\
+\bottomrule
+\end{tabularx}
+\end{table}
 
-The communication organ (Figure~\ref{fig:swk-comm-organ}) is where the substrate
+The communication organ (Table~\ref{tab:swk-comm-organ}) is where the substrate
 stops being a lockbox and becomes a medium for conversation. The carrier is
 \Built; the \emph{semantics} that ride on top of it (typed speech acts, protocol
 state machines) belong to the coordination layer. Three pieces matter here.
@@ -832,6 +881,9 @@ ticks, because $\ln 0.05/\ln 0.95=58.4$. The calibration question of OP-8 is
 which of these lifetimes matches the time a signal stays true; the arithmetic is
 the same at every answer.
 \end{pdexample}
+
+\input{figures/fig-swk-marker-decay}
+
 
 \subsection{Two delegation chains, one dangerous name}
 
@@ -888,10 +940,27 @@ Sergot~\cite{jonessergot1993}): \emph{prohibition} (a policy monitor) and
 \emph{obligation} (commitments). Getting the distinction right --- and being honest
 about how strong each arm actually is --- is the security heart of the paper.
 
-Figure~\ref{fig:swk-deontic-split} lays out the three modalities and the mechanism
+Table~\ref{tab:swk-deontic-split} lays out the three modalities and the mechanism
 behind each.
 
-\input{figures/fig-swk-deontic-split}
+\begin{table}[H]
+\centering
+\caption{The deontic split: three modalities, three mechanisms. Capability (what the
+sandbox makes possible) is kept apart from permission (what the deontic layer
+allows) so that ``able but forbidden'' stays expressible.}
+\label{tab:swk-deontic-split}
+\small
+\renewcommand{\arraystretch}{1.18}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.13\textwidth} >{\raggedright\arraybackslash}p{0.17\textwidth} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{0.2\textwidth}@{}}
+\toprule
+\textbf{Modality} & \textbf{Trigger} & \textbf{Mechanism} & \textbf{Holds / fails when} & \textbf{Example} \\
+\midrule
+prohibition & an act the policy forbids is attempted & regimented before commit by a gate when the event is controllable; otherwise detected after commit and compensated & holds when the effect never commits; fails as detect-and-compensate when the gate could not see the trigger & a tool's emergency override flag: the agent is \emph{able} to call it and \emph{forbidden} to \\
+obligation & a commitment is recorded & an oracle-bound commitment: closure only through a receipt the daemon can re-check, before a daemon-set deadline & holds when a typed receipt closes it in time; fails by staying open and escalating, never by free-text assertion & ``release the claim on \texttt{lib/webhooks.ts} within thirty minutes'' \\
+permission & a grant is issued & a recorded capability row, attenuable, never widened downstream & holds while the grant is live; an act without a grant is a prohibition case & ``may read the audit log until the session ends'' \\
+\bottomrule
+\end{tabularx}
+\end{table}
 
 \subsection{The deontic split}
 
@@ -941,7 +1010,7 @@ properties through finite bad prefixes and enforces them by suppressing an actio
 before that prefix enters the target execution. A subscriber invoked after commit
 cannot suppress the committing action. Compensation may establish a different
 eventual or bounded-recovery property, but it does not retroactively remove the bad
-prefix.\qed
+prefix.
 \end{proof}
 
 \paragraph{Worked dramatization: Bob attempts a forbidden action.}
@@ -979,7 +1048,7 @@ Conversely, any invariant requiring external I/O, asynchronous wall-clock verifi
 \end{theorem}
 
 \begin{proof}[Proof sketch]
-In SQLite WAL mode under single-writer serialization, transaction commits occur synchronously on the database connection thread. A predicate $\phi(S, \Delta)$ computable in bounded CPU steps without yielding the event loop can be embedded directly into SQLite constraints (\texttt{UNIQUE}, \texttt{CHECK}) or transaction guard clauses; any transition yielding $\neg \phi$ rolls back atomically before state mutation. If $\phi$ depends on external network I/O or asynchronous delays, holding the exclusive transaction lock during evaluation starves the single-writer queue; hence evaluation must be deferred post-commit, converting the mechanism from a synchronous gate into an asynchronous event subscriber governed by Theorem~\ref{thm:schneider}. \qed
+In SQLite WAL mode under single-writer serialization, transaction commits occur synchronously on the database connection thread. A predicate $\phi(S, \Delta)$ computable in bounded CPU steps without yielding the event loop can be embedded directly into SQLite constraints (\texttt{UNIQUE}, \texttt{CHECK}) or transaction guard clauses; any transition yielding $\neg \phi$ rolls back atomically before state mutation. If $\phi$ depends on external network I/O or asynchronous delays, holding the exclusive transaction lock during evaluation starves the single-writer queue; hence evaluation must be deferred post-commit, converting the mechanism from a synchronous gate into an asynchronous event subscriber governed by Theorem~\ref{thm:schneider}.
 \end{proof}
 
 % ---------------------------------------------------------------------------
@@ -1029,8 +1098,6 @@ confirms exactly this. The predictable misread, preempted: uncontrollable does n
 invisible. Tokens are eminently loggable after emission. Uncontrollable means
 \emph{unrefusable before the fact}, not unobservable after it; when an event is also
 unobservable a second, stricter theory applies (\S\ref{sec:partial-observation}).
-
-\input{figures/fig-swk-controllability-relation}
 
 \paragraph{The vocabulary, at the point of use.}
 Everything below is a statement about strings and sets of strings. An \emph{alphabet}
@@ -1600,6 +1667,13 @@ refinement is a separate obligation named in the boundary below.
 
 \input{figures/fig-swk-workunit-machine}
 
+The checker that explores the machine is short enough to run while reading. Its
+output below is the evidence behind the state count and the shortest-crime table:
+with every guard on, no reachable state violates an invariant; with any one guard
+off, the checker finds the violating run and prints it.
+
+\input{figures/session-swk-workunit-check}
+
 \begin{pdclaim}{Model-checked property}{Six invariants of the work-unit machine}
 \label{thm:workunit}
 \textbf{State.} A tuple of the work-unit phase (proposed, authorized, executing, witnessed,
@@ -1731,7 +1805,7 @@ each claim/lock operation is exactly such a point: it is atomic
 daemon's response. Non-overlapping operations respect real-time order because a
 later invocation occurs after the earlier response and therefore after its commit;
 overlapping operations may be ordered by commit. Hence the observable history is
-linearizable. \qed
+linearizable.
 \end{proof}
 
 \keyidea{This is why the kernel needs no agreement protocol inside one fault domain.
@@ -1741,14 +1815,12 @@ One decider, one order, one auditable truth.}
 
 \subsection{The dual-runtime hazard, and what would make I11 a theorem}
 
-\input{figures/fig-swk-dual-runtime}
-
 Invariant I11 (runtime parity) is the one place the formal spine is held together
 by a compatibility shim rather than a proof. In deployment, truth is \emph{computed}
 under the SQLite bindings of one runtime (the compiled single-binary daemon), but in
 the test suite it is \emph{verified} under a different runtime's bindings; a thin
 shim normalizes their pragma and option interfaces
-(Figure~\ref{fig:swk-dual-runtime}). An invariant that is green under test can fail
+. An invariant that is green under test can fail
 in production if the two bindings diverge in lock or pragma semantics --- the
 classic ``green in the test runtime, broken in the deployment runtime'' failure. A
 continuous-integration pipeline must therefore \emph{boot the deployment runtime}
@@ -2069,6 +2141,43 @@ over-assume.
   what \emph{cannot} be done and records what \emph{did} happen --- a regulator, not
   a planner.
 \end{itemize}
+
+% ══════════════════════════════════════════════════════════════════
+\section*{Review of the key ideas}
+\addcontentsline{toc}{section}{Review of the key ideas}
+% ══════════════════════════════════════════════════════════════════
+
+What this chapter leaves coupled, in the order the rest of the book will lean on it:
+
+\begin{enumerate}[leftmargin=1.6em,itemsep=2pt]
+\item One writer, one file. Every mutation reaches the daemon and is committed in one
+  order; the reply follows the commit. Serializability and linearizability are bought
+  by that discipline plus four named assumptions, not by an agreement protocol.
+\item Durability is split by fault class. A process crash loses nothing; a power loss
+  can lose the last commits under the default synchronous setting. The setting is the
+  durability claim.
+\item A claim is a lease with a fencing epoch. At most one compatible holder per
+  conflict domain; expiry is lazy; a stale holder's effects are refused downstream by
+  the epoch, not by the lock.
+\item The bus is at-least-once and says so. Benign redelivery is deduplicated by an
+  idempotency key the coordination layer still owes; only protocol violations are loud.
+\item Two chains, never one name. The authorization chain proves who authorized whom;
+  the coordination lineage says what work is in flight. The second rides inside the
+  first.
+\item Prohibitions, obligations and permissions need three mechanisms. A gate refuses
+  before the effect; a typed oracle closes an obligation after the fact; a grant simply
+  holds.
+\item The monitor is a detector. Prevention exists exactly for events that are
+  controllable and witnessed at the boundary (the controllability theorem); everything
+  else is detect-and-compensate, priced by the market chapters.
+\item Done means re-checkable. A commitment closes only through a reference from the
+  finite oracle vocabulary; free text bounces back to open.
+\item Continuity narrows downstream. Memory survives a crash; checkpoint keeps notes,
+  not execution state; the outcome ledger is partial. Nothing built on top can be more
+  certain than that.
+\item The kernel reports its own coverage. Enforced, degraded or stubbed, per rule, so
+  the layers above never mistake a stub for a guarantee.
+\end{enumerate}
 
 % ═════════════════════════════════════════════════════════════════════════════
 \section{Exercises}

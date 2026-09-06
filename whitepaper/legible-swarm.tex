@@ -474,39 +474,7 @@ sets exactly when she is forced to look before an irreversible act
 (\S\ref{sec:operator}), and how, at fifty agents instead of six, a directory keeps
 her from drowning (\S\ref{sec:readpoverty}).
 
-\begin{pdexercise}[kind=Check,rating=1]{ex:ls-taxonomy-five-failures}
-State, in one sentence each, the five state-of-nature failures of
-Table~\ref{tab:taxonomy} and name the class of primitive that addresses each.
-\end{pdexercise}
-\begin{pdsolution}{ex:ls-taxonomy-five-failures}
-Resource conflict (two agents touch the same resource and clobber one another) is answered by conflict-aware claims plus actual exclusion at the effect boundary. Illegibility (work cannot be understood in bounded time) is answered by a digest whose every material claim zooms to independent evidence. Confident wrongness (an agent asserts completion without checking) is answered by typed attestation and oracle-bound completion. Footguns (a stale premise drives an irreversible act) are answered by reversibility/stakes gates, scoped authority, and pre-effect mediation. Illegible authority (the coordinator rules without an inspectable reason) is answered by an append-only, named, zoomable decision record, including denials and omissions.
-\end{pdsolution}
-\begin{pdexercise}[kind=Check,rating=1]{ex:ls-cooperative-clobber}
-Hobbes says the actors ``need not be malicious.'' Give a concrete two-agent
-scenario in which both agents are perfectly cooperative and the swarm still
-deadlocks or clobbers state.
-\end{pdexercise}
-\begin{pdsolution}{ex:ls-cooperative-clobber}
-Alice and Bob are both asked to improve \texttt{auth.ts}. Each reads the same base revision, makes a locally correct edit, and commits; without a claim or merge serialization, Bob's whole-file rewrite erases Alice's change, and no malice is required. A deadlock variant: two cooperative agents take claims on files $X$ and $Y$ in opposite order and each waits indefinitely for the other's claim.
-\end{pdsolution}
-\begin{pdexercise}[kind=Trace,rating=2]{ex:ls-deliberate-vs-emergent}
-Dai et al.~\cite{dai2024} observe LLM societies \emph{spontaneously} reaching
-a consented sovereign. If the attractor is emergent, why build one deliberately? Give
-two reasons grounded in \S\ref{sec:local} (hint: \emph{which} sovereign, and
-\emph{legible to whom}).
-\end{pdexercise}
-\begin{pdsolution}{ex:ls-deliberate-vs-emergent}
-Deliberate construction chooses the authority rather than accepting whatever coalition happens to win, and makes that authority legible to the operator. An emergent stable order may instead be an oligarchy: stable, but controlled by a few agents, unrevocable, and opaque. The local daemon of \S\ref{sec:local} supplies what an emergent attractor does not guarantee: one fault domain, one policy root, and an unconditional operator exit.
-\end{pdsolution}
-\begin{pdexercise}[kind=Open,rating=3]{ex:ls-sovereign-vs-oligarchy-experiment}
-The Dai et al.\ result is a single controlled study. Design an
-experiment over a real coding-agent fleet that would distinguish ``the swarm reaches
-a consented sovereign'' from ``the swarm reaches a stable but \emph{illegible}
-oligarchy.'' What is the observable that separates the two?
-\end{pdexercise}
-\begin{pdsolution}{ex:ls-sovereign-vs-oligarchy-experiment}
-Randomize comparable real repository tasks to (a) an ungoverned fleet and (b) a fleet with only a transport but no prescribed governance; record all messages, effects, blocking decisions, and operator interventions. Pre-register two observable classes: \emph{sovereign} characteristics (a publicly known rule, general applicability, explicit consent or adoption, stable appeal/override, reasons attached to authority acts, equal audit access) against \emph{oligarchy} characteristics (authority concentrated in a small coalition, private channels or rules, selective enforcement, no effective exit, outcomes outsiders cannot reconstruct). Measure concentration of blocking/merging power, the fraction of authority acts with reconstructable reasons, rule consistency across agents, override success, artifact-linked claim accuracy, and operator reconstruction accuracy. Stability alone does not separate the hypotheses; publicly inspectable and revocable rule-governed authority does.
-\end{pdsolution}
+\pdexercisepointer{\ref{ex:ls-taxonomy-five-failures}}{\ref{ex:ls-sovereign-vs-oligarchy-experiment}}{\pageref{ex:ls-taxonomy-five-failures}}
 
 % ═════════════════════════════════════════════════════════════════════════════
 \section{Consent to the Leviathan (the normative claim)}\label{sec:authority}
@@ -685,39 +653,7 @@ queue) and the override supplies the missing \emph{exit}. Exit is the discipline
 voice honest; an operator who cannot cheaply withdraw a grant has no real leverage
 over the sovereign.
 
-\begin{pdexercise}[kind=Check,rating=1]{ex:ls-express-vs-tacit-consent}
-Distinguish \emph{express} from \emph{tacit} consent and explain why
-Def.~\ref{def:consent} is the former.
-\end{pdexercise}
-\begin{pdsolution}{ex:ls-express-vs-tacit-consent}
-Tacit consent is inferred from remaining in or using a system. Express consent is a discrete act over named terms. Def.~\ref{def:consent} is express because the operator affirmatively issues a grant with scope, stakes ceiling, reversibility floor, TTL, and revocation semantics --- none of which a mere pattern of continued use supplies.
-\end{pdsolution}
-\begin{pdexercise}[kind=Check,rating=1]{ex:ls-override-unsuppressable}
-Why must the operator-override
-(Prop.~\ref{prop:override}) be un-suppressable by \emph{any} autonomy level? What
-attack does a suppressible override enable?
-\end{pdexercise}
-\begin{pdsolution}{ex:ls-override-unsuppressable}
-If an autonomy level could suppress the override, it could make its own authority irrevocable: keep executing, hide the stop channel, or race destructive effects after consent is withdrawn. The override must be out-of-band, higher priority than agent work, and coupled to effect revocation, not merely a UI flag.
-\end{pdsolution}
-\begin{pdexercise}[kind=Trace,rating=2]{ex:ls-consent-lifecycle}
-Walk a single consent grant through its lifecycle: issuance, an action the
-daemon takes under it, the audit record produced, and revocation. At which step does
-the legible-sovereign rule (Prop.~\ref{prop:legible-sovereign}) bind?
-\end{pdexercise}
-\begin{pdsolution}{ex:ls-consent-lifecycle}
-The operator signs grant $g$; the daemon validates and records it; an eligible low-stakes action cites $g$; the daemon mediates the effect; the receipt records action, reason, artifact, and grant version; expiry or revocation removes $g$ from the active set and fences later effects. The legible-sovereign rule binds at every authority transition, especially issue/revoke and admit/deny --- the explicit witness record is where reconstructability is discharged.
-\end{pdsolution}
-\begin{pdexercise}[kind=Open,rating=3]{ex:ls-ranker-counter-surface}
-Prop.~\ref{prop:legible-sovereign} has a regress: the ranker that
-decides what the operator sees is itself an opaque exercise of authority. Specify
-the ``what did the queue suppress, and why'' counter-surface concretely. What is its
-own staleness/decay discipline (forward-reference \S\ref{sec:staleness}), and does
-\emph{it} need a counter-surface, ad infinitum?
-\end{pdexercise}
-\begin{pdsolution}{ex:ls-ranker-counter-surface}
-Use one complete append-only decision ledger, not a second ranked dashboard. For every candidate item, store candidate ID, source/evidence pointers, policy and model version, input features, score components, threshold/lane, surfaced-or-suppressed verdict, reason codes, expiry, and a counterfactual such as ``would surface if anomaly were 0.08 higher.'' The operator can query suppressed items since a cursor, sort by any raw field, and sample items uniformly rather than through the production ranker. Decisions are immutable; their current relevance expires by signal-specific TTL (\S\ref{sec:staleness}) and is recomputed from raw state. Run independent random omission audits and expose raw event-log access. The regress terminates at completeness plus direct sampling: the base ledger records every candidate and every ranking decision, and the counter-surface is a deterministic query over it, so no further ranker is needed to rank the ranker's omissions. The remaining trust assumption is the complete event-capture boundary; that assumption should be tested and externally anchored, not hidden behind another summary. (Same construction answers Exercise~\ref{ex:ls-ranker-political-organ}.)
-\end{pdsolution}
+\pdexercisepointer{\ref{ex:ls-express-vs-tacit-consent}}{\ref{ex:ls-ranker-counter-surface}}{\pageref{ex:ls-express-vs-tacit-consent}}
 
 % ═════════════════════════════════════════════════════════════════════════════
 \section{The mechanism: legibility-with-zoom}\label{sec:zoom}
@@ -879,39 +815,7 @@ the verbatim test log open side by side. The diff deletes a migration test. The
 digest did not paraphrase that away --- it linked her straight to it, and the lie is
 caught in ten seconds instead of slipping through. This is the one law doing its job.}
 
-\begin{pdexercise}[kind=Check,rating=1]{ex:ls-flatten-or-preserve}
-Classify each as \emph{flatten} or \emph{preserve verbatim}: a port number;
-the stderr of a failed test; ``the auth refactor felt risky so I split it''; a
-\texttt{commitment} status enum; a 600-line diff.
-\end{pdexercise}
-\begin{pdsolution}{ex:ls-flatten-or-preserve}
-Port number: flatten, as structured administrative state. Failed-test stderr: preserve verbatim or by a content-addressed pointer. ``The auth refactor felt risky so I split it'': preserve verbatim and label it self-narration, not fact. Commitment-status enum: flatten. The 600-line diff: do not paraphrase away --- retain the immutable diff or a verified pointer and summarize only administrative metadata.
-\end{pdsolution}
-\begin{pdexercise}[kind=Check,rating=1]{ex:ls-two-llms-not-independent}
-Why is ``two LLMs agreeing''
-not two checks (Prop.~\ref{prop:verifiable-zoom})?
-\end{pdexercise}
-\begin{pdsolution}{ex:ls-two-llms-not-independent}
-Two models may share training biases, prompts, sources, and failure modes. Agreement over the same narration is correlated testimony, not independent evidence. A second check must derive from an independent channel --- repository state, a protected test runner, or a separately controlled reviewer.
-\end{pdsolution}
-\begin{pdexercise}[kind=Trace,rating=2]{ex:ls-four-questions-dashboard}
-Take a read-surface you use (a CI dashboard, a PR summary) and run the four
-questions of \S\ref{sec:four-questions} against it. Where does it fail Def.~\ref{def:zoom}?
-\end{pdexercise}
-\begin{pdsolution}{ex:ls-four-questions-dashboard}
-A typical CI dashboard usually fails as follows: deploy is irreversible but the green tile does not force a log/diff view; administrative state and diagnostic detail are flattened together; the summary is generated from job narration rather than independently from receipts; and a skipped/cancelled check carries no named authority reason. It therefore violates Def.~\ref{def:zoom} wherever a material green claim has no total zoom path to the exact tree, suite, runner, and output that produced it.
-\end{pdsolution}
-\begin{pdexercise}[kind=Open,rating=3]{ex:ls-adversarial-legibility}
-\emph{Adversarial legibility.} An agent that \emph{knows} it
-is being made legible can optimize its narration to look good while the diff lies.
-Verifiable-zoom is a partial answer. Can L2 \emph{alone} --- without L1's jail and
-L3's reputation --- detect a deterministic narration$\leftrightarrow$artifact
-divergence before reputation exists? Sketch the consistency check and the class of
-divergence it cannot catch.
-\end{pdexercise}
-\begin{pdsolution}{ex:ls-adversarial-legibility}
-L2 can compare structured narration claims against independently derived artifacts: claimed changed files versus the tree diff, ``tests passed'' versus a protected runner receipt, ``no deletion'' versus Git objects, and claimed command results versus brokered tool logs. Emit a contradiction event on mismatch. This catches deterministic report/artifact divergence, deleted tests, fabricated execution, and omitted changed paths. It cannot establish semantic correctness, detect a poisoned acceptance suite, observe effects that bypass logging, or distinguish two artifacts that are syntactically consistent but jointly wrong --- those require effect confinement, independent evaluation, or later outcome evidence.
-\end{pdsolution}
+\pdexercisepointer{\ref{ex:ls-flatten-or-preserve}}{\ref{ex:ls-adversarial-legibility}}{\pageref{ex:ls-flatten-or-preserve}}
 
 % ═════════════════════════════════════════════════════════════════════════════
 \section{The Leviathan rules, it does not just watch (the authority half)}\label{sec:authority-rules}
@@ -1192,67 +1096,7 @@ validator breaks the separating threshold (item R14 of the research ledger,
 At $\delta=0.05,w=1$: $u^\star=\delta w/(1+\delta w)=0.05/1.05=0.0476$ [verified, closed form] --- the fraction of the validation signal $u$ above which escalating clears its cost, one of twelve $(\delta,w)$ points the script confirms against bisection to machine precision. Under the R3 constants ($C_{\mathrm{miss}}=100,c_{\mathrm{att}}=1,C_{\mathrm{fa}}=5$, so $u_{\mathrm{crit}}=6/105\approx0.057$), the feasible debit interval is $[\delta_{\min},\delta_{\max}]=[0.0350,0.0720]$ at attention budget $A=3.3$, and it is \emph{empty} at $A=2.0$ (there $\delta_{\min}=0.396$ exceeds $\delta_{\max}=0.072$, so no debit satisfies both walls at once) [verified closed forms, grid-confirmed]. An empty band is not a bug to tune away: it is the honest signal that the fix is capacity or evidence quality, not a better $\delta$. \emph{Now you try:} run the script and confirm both bands (Exercise~\ref{ex:ls-b7-escalation-run}).
 \end{pdexample}
 
-\begin{pdexercise}[kind=Check,rating=1]{ex:ls-adversarial-review-corollary}
-Why is adversarial review (\S\ref{sec:review}) a corollary of
-Prop.~\ref{prop:verifiable-zoom} rather than an independent design choice?
-\end{pdexercise}
-\begin{pdsolution}{ex:ls-adversarial-review-corollary}
-Verifiable zoom says narration is not ground truth. A reviewer with no independent evidence would merely add another narration. Adversarial review follows because a consequential claim needs an evidence channel controlled independently of the actor whose work is judged --- exactly what Prop.~\ref{prop:verifiable-zoom} already demands of any zoom target.
-\end{pdsolution}
-\begin{pdexercise}[kind=Check,rating=1]{ex:ls-regiment-vs-detect}
-State Prop.~\ref{prop:regiment} in your own words and give one example each of a
-\emph{regimented} and a \emph{detected-and-compensated} rule.
-\end{pdexercise}
-\begin{pdsolution}{ex:ls-regiment-vs-detect}
-Read Prop.~\ref{prop:regiment} as: prevent a prohibited state when every decisive effect can be intercepted before it occurs; otherwise detect, contain, and compensate without pretending prevention. A uniqueness constraint regimenting ``one holder per exact key'' is a regimented rule. A post-commit monitor that detects an out-of-scope edit and triggers rollback/salvage is detected-and-compensated --- the bad prefix already happened.
-\end{pdsolution}
-\begin{pdexercise}[kind=Trace,rating=2]{ex:ls-completion-migration-vs-ergonomic}
-An agent claims completion on a task whose acceptance criterion is ``the
-migration applies cleanly.'' Trace Def.~\ref{def:completionist}: what is the
-verifier, what gates, and what happens if the criterion were instead ``the API feels
-ergonomic''?
-\end{pdexercise}
-\begin{pdsolution}{ex:ls-completion-migration-vs-ergonomic}
-For ``the migration applies cleanly,'' the verifier is an isolated migration run against a declared base schema/database, with exact migration hash, runner image, exit status, and resulting-schema check; \emph{done} and any merge/settlement are gated on that receipt. ``The API feels ergonomic'' has no mechanical truth predicate: it must go to a declared human/expert or plural judge with preserved evidence and uncertainty, and absent that authority, completion remains provisional or fails loudly.
-\end{pdsolution}
-\begin{pdexercise}[kind=Open,rating=3]{ex:ls-honest-fallback-ladder}
-\emph{Completionist verification of the unverifiable.} Some
-acceptance criteria are not mechanically checkable. Characterize the honest fallback
-ladder (forced human-in-the-loop gate $\to$ neutral judge with declared low
-confidence $\to$ fail-loud). When is ``I cannot verify this'' the \emph{correct}
-answer rather than a cop-out?
-\end{pdexercise}
-\begin{pdsolution}{ex:ls-honest-fallback-ladder}
-The honest ladder: (1) use a deterministic verifier where the property is decidable; (2) require an independent bounded evaluator or human for a declared subjective criterion; (3) record a provisional result, confidence, appeal window, and residual risk; (4) return unresolved/fail-loud when no authorized evaluator can support the claim. ``I cannot verify this'' is correct when the available evidence cannot distinguish success from failure under the contract; it is a cop-out only when an affordable, authorized verifier was specified and simply not run.
-\end{pdsolution}
-\begin{pdexercise}[kind=Open,rating=3]{ex:ls-succession-corner}
-\emph{The succession corner of
-Thm.~\ref{thm:specialization}.} Eq.~\ref{eq:specboundary} prices a specialist who
-never fails. Extend it to an $M/M/1$ queue \emph{with breakdowns} and a succession
-protocol, and find the repair rate at which sole ownership stops paying regardless of
-skill premium --- then check whether that rate is above or below the one an operator
-can actually promise.
-\end{pdexercise}
-\begin{pdsolution}{ex:ls-succession-corner}
-Let the specialist die at rate $\xi$ and a successor take over after $\mathrm{Exp}(\eta)$: the exact breakdown-corrected wait is $W_{\mathrm{bd}}=(1+\mu_{\mathrm{spec}}\xi/(\xi+\eta)^2)/(\mu_{\mathrm{eff}}-\lambda)$, with infimum $W_\infty=\xi/(\eta(\xi+\eta))$ as $\mu_{\mathrm{spec}}\to\infty$ --- skill cannot buy back downtime past that floor. Writing $K=A/(w\lambda)+W_{\mathrm{pool}}$, pooling dominates at \emph{every} skill premium once $\xi/\eta > D^\star = \eta K/(1-\eta K)$: this is the succession-rate threshold the question asks for, and it is a closed-form price on the succession protocol, not on the specialist's skill. Whether that threshold sits above or below what an operator can actually promise is an empirical question about the concrete repair process (on-call depth, handoff quality, documentation): if the promised $\eta$ implies $\xi/\eta>D^\star$, no amount of hiring a better specialist recovers sole ownership, and the honest fix is a succession plan, not a stronger specialist. (Exercise~\ref{ex:ls-b8-specialization-run} runs the closed form numerically.)
-\end{pdsolution}
-\begin{pdexercise}[kind=Trace,rating=2]{ex:ls-b8-specialization-run}
-Run \texttt{python3 skills/harbor-results/scripts/b8\_specialization.py} and read off
-(a) the table entry for $g(\rho{=}0.5,c{=}2)$ and (b) the $\rho$ at which the exact
-boundary $g$ and the superseded $\tilde g$ cross. Reproduce both by hand from
-Eq.~\ref{eq:specboundary0} before checking the script's line.
-\end{pdexercise}
-\begin{pdsolution}{ex:ls-b8-specialization-run}
-By hand: $g(\rho,2)=1+2\rho-\rho^2$, so $g(0.5,2)=1+1-0.25=1.75$ [verified, closed form]. The crossing solves $g(\rho,2)=\tilde g(\rho,2)=1+\rho/(1-\rho)$; clearing denominators gives $\rho(\rho^2-3\rho+1)=0$, and the root in $(0,1)$ is $\rho=(3-\sqrt5)/2\approx0.382$ [verified, closed form]. The script's output line is exactly this: \texttt{[PASS] c=2 crossing of g\textasciitilde{} and g at rho=(3-sqrt5)/2\ \ rho=0.38197, g=g\textasciitilde{}=1.61803}, and its charted table reports \texttt{rho=0.5\ \ c=2:\ \ 1.750\ [2.000]} for the exact and superseded values side by side [internal, \texttt{b8\_specialization.py}]. The two values disagree by design: the superseded $\tilde g$ over-prices the boundary here, which is why it sent the roadmap-owner example of Eq.~\ref{eq:specboundary0} to the wrong answer.
-\end{pdsolution}
-\begin{pdexercise}[kind=Trace,rating=2]{ex:ls-b7-escalation-run}
-Run \texttt{python3 skills/harbor-results/scripts/b7\_escalation\_band.py} and read
-off the feasible debit band $[\delta_{\min},\delta_{\max}]$ at $A=3.3$ and at
-$A=2.0$. Confirm $u^\star(0.05)$ by hand first.
-\end{pdexercise}
-\begin{pdsolution}{ex:ls-b7-escalation-run}
-By hand, at $\delta=0.05,w=1$: $u^\star=\delta w/(1+\delta w)=0.05/1.05=0.0476$ [verified, closed form]. The script confirms this is one of twelve exactly-matching $(\delta,w)$ points (\texttt{[verified] uniform-linear u* = delta*w/(1+delta*w) matches bisection (12 pts)}) and then reports the tuning band under the R3 constants $C_{\mathrm{miss}}=100,c_{\mathrm{att}}=1,C_{\mathrm{fa}}=5$: \texttt{A = 3.3: delta\_min = 0.034993, delta\_max = 0.071975 -> band NONEMPTY} and \texttt{A = 2.0: delta\_min = 0.395644, delta\_max = 0.071975 -> band EMPTY} [internal, \texttt{b7\_escalation\_band.py}], i.e.\ $[0.0350,0.0720]$ at $A=3.3$ against an empty feasible set at $A=2.0$ because $\delta_{\min}>\delta_{\max}$ there. The honest reading: when the band is empty the fix is capacity or evidence quality (raise $A$ or lower $C_{\mathrm{miss}}$), never forcing a $\delta$ that does not exist.
-\end{pdsolution}
+\pdexercisepointer{\ref{ex:ls-adversarial-review-corollary}}{\ref{ex:ls-b7-escalation-run}}{\pageref{ex:ls-adversarial-review-corollary}}
 
 \begin{pdrecitation}
 \item Without looking: what is the exact condition under which sole ownership weakly dominates the pool, and what does Eq.~\ref{eq:specboundary} reduce to when $A=0$?
@@ -1450,46 +1294,7 @@ To continuously measure and maintain operator situation awareness without synthe
 
 This transforms supervisory vigilance from a punitive chore into a closed verification loop that rigorously measures human situation awareness --- with the operator's informed consent, on ground truth the system already knows, and with provenance every probe carries so post-hoc audit can distinguish canaries from live items in one lookup.
 
-\begin{pdexercise}[kind=Check,rating=1]{ex:ls-sdt-limits}
-In Eq.~\ref{eq:sdt}, what happens to the optimal forced-zoom rate $p(r,s,v)$ as
-$C_{\text{miss}}/C_{\text{fa}}\to\infty$? As agent reputation $r\to 1$?
-\end{pdexercise}
-\begin{pdsolution}{ex:ls-sdt-limits}
-As $C_{\mathrm{miss}}/C_{\mathrm{fa}}\to\infty$, the optimal criterion moves toward forced review wherever a miss remains possible; the forced-zoom probability approaches one on the ambiguous region. If reputation $r\to1$, nothing follows from Eq.~\ref{eq:sdt} alone, since $r$ does not appear in it directly: zoom should decline only under a calibrated model in which high $r$ shifts the class-conditional danger probability downward for this agent, action class, and current version. High reputation must never defeat hard stakes or irreversibility gates.
-\end{pdsolution}
-\begin{pdexercise}[kind=Check,rating=1]{ex:ls-global-trust-knob}
-Give a
-concrete scenario where a \emph{global} trust knob (\S\ref{sec:calibration})
-mis-serves an operator who is, in fact, perfectly calibrated.
-\end{pdexercise}
-\begin{pdsolution}{ex:ls-global-trust-knob}
-An operator may be correctly confident in one agent's formatting/test-only changes and correctly skeptical of that same agent's schema migrations. A global trust knob averages those two histories, forcing needless review of safe formatting while under-reviewing migrations. Calibration belongs to (principal, agent/build, action class, environment), with its own uncertainty and freshness, not to one scalar per agent.
-\end{pdsolution}
-\begin{pdexercise}[kind=Trace,rating=2]{ex:ls-canary-campbell}
-Walk the canary-defect loop and mark every point where Campbell's Law could
-distort it. Propose one change that reduces the distortion without removing the
-governor.
-\end{pdexercise}
-\begin{pdsolution}{ex:ls-canary-campbell}
-Campbell pressure appears when canaries are selected (recognizable templates), exposed (agents/operators learn signatures), scored (catch rate substitutes for real defect discovery), and acted on (friction creates an incentive to optimize the metric). Time-on-task and breaks also confound the score. Reduce the distortion with a blinded, continuously refreshed holdout drawn from real failure transformations; separate the party generating canaries from the operator; correct for exposure time and base rate; and treat catch rate as one diagnostic among several, never the sole gate.
-\end{pdsolution}
-\begin{pdexercise}[kind=Open,rating=3]{ex:ls-pareto-digest}
-Formalize the operator-attention objective (Eq.~\ref{eq:sdt})
-against swarm token-COGS (\S\ref{sec:tokens}): is there a digest that is
-Pareto-optimal in both operator-seconds and token cost, or does a cheaper digest
-always cost more operator seconds?
-\end{pdexercise}
-\begin{pdsolution}{ex:ls-pareto-digest}
-Model each digest policy $d$ by (token cost $T(d)$, human time $H(d)$, expected decision loss $L(d)$) and compare nondominated policies. A Pareto frontier exists for a finite policy set, but there is no universal inverse relation: removing redundant context can lower both token cost and operator time; beyond that free-compression frontier, preserving evidence often trades tokens for review effort or a higher error rate. Optimize under a loss or safety constraint, e.g.\ $\min \alpha T+\beta H+L$ subject to zero omission of hard obligations, and report the frontier empirically rather than claiming one universal digest optimum.
-\end{pdsolution}
-\begin{pdexercise}[kind=Open,rating=3]{ex:ls-freeze-probe-study}
-Does a skill-retention tax
-\emph{measurably} preserve SA, or merely annoy until disabled? Design the
-freeze-probe study (\S\ref{sec:sa}) that would tell.
-\end{pdexercise}
-\begin{pdsolution}{ex:ls-freeze-probe-study}
-Randomize operators or time blocks among manual-tax, automation-only, projection/freeze-probe, and adaptive-tax conditions, on matched repositories with fixed surprise events. Probe without warning: next-three-effect prediction, takeover completion time, false-belief rate, Brier score, post-interruption recovery, defect catch rate, NASA-TLX, and retention weeks later. Measure disablement/avoidance as an outcome in its own right. A useful tax improves later projection/takeover after controlling for interruption cost; mere annoyance raises workload and disablement without those gains.
-\end{pdsolution}
+\pdexercisepointer{\ref{ex:ls-sdt-limits}}{\ref{ex:ls-freeze-probe-study}}{\pageref{ex:ls-sdt-limits}}
 
 \begin{pdrecitation}
 \item Without looking: what three quantities multiply to give the derived regret head, and what does calibration require of the anomaly term for that product to equal expected unrecoverable loss?
@@ -1822,53 +1627,7 @@ only for $f\ge 12(p-\delta)$, so at $p{=}0.05$ they are not jointly instantiated
 the flag budgets the frontier tabulates.
 \end{pdboundary}
 
-\begin{pdexercise}[kind=Check,rating=1]{ex:ls-readpoverty-binding}
-Why is read-poverty (Def.~\ref{def:readpoverty}) the \emph{binding} constraint
-rather than write-contention? Name the write-side fixes that make the
-write side not binding.
-\end{pdexercise}
-\begin{pdsolution}{ex:ls-readpoverty-binding}
-Writes can be serialized through one daemon, rejected by uniqueness constraints, and reconciled through version control. Read demand grows with agents, artifacts, histories, and possible collaborators; without indices every query becomes an $O(n)$ scan and the operator is the fixed-rate server. Discovery and relevance, not raw write throughput, are therefore the scale bottleneck.
-\end{pdsolution}
-\begin{pdexercise}[kind=Check,rating=1]{ex:ls-directory-database-analogy}
-State the database analogy precisely: what is the
-write-time cost a directory pays, and what read-time speed does it buy?
-\end{pdexercise}
-\begin{pdsolution}{ex:ls-directory-database-analogy}
-A directory pays at write time to normalize metadata and update indices: typically $O(\log n)$ per indexed insert (or expected $O(1)$ for a hash index), plus storage. It buys selective reads in $O(\log n+k)$ for $k$ results rather than $O(n)$ roster scanning, along with a queryable provenance trail.
-\end{pdsolution}
-\begin{pdexercise}[kind=Trace,rating=2]{ex:ls-value-curve-n1}
-At $n{=}1$, name three legibility surfaces that already pay off
-(\S\ref{sec:value-curve}), and explain why none of them are discovery-ranking.
-\end{pdexercise}
-\begin{pdsolution}{ex:ls-value-curve-n1}
-At $n{=}1$, briefing, honest self-attestation, footgun gating, completion receipts, and resurrection handoff already reduce uncertainty. None of them asks ``which collaborator fits?''; each projects or verifies one actor's own state, so none is discovery ranking.
-\end{pdsolution}
-\begin{pdexercise}[kind=Trace,rating=2]{ex:ls-floor-limits}
-In Thm.~\ref{thm:lowerbound}, what happens to the bit floor as $k\to 0$ (almost
-nothing is critical) and as $k\to N/2$? Relate the answer to why a swarm doing
-mostly-safe work is cheap to digest and a swarm doing mostly-dangerous work is not.
-\end{pdexercise}
-\begin{pdsolution}{ex:ls-floor-limits}
-At $k=0$ there is only one critical subset (the empty one) and the floor is zero. For small positive $k$ the cost is roughly $k\log_2(N/m)$ when $k\ll m,N$. At $k=N/2$, exact identification ($m=k$) costs about $N$ bits, while opening almost everything drives the floor toward zero as $m\to N$. The danger fraction alone is not enough; the review budget $m$ matters just as much: mostly-safe work is cheap to digest only when the system can reliably identify that sparsity, and mostly-dangerous work forces $m$ up toward $N$, where the floor stops paying for itself.
-\end{pdsolution}
-\begin{pdexercise}[kind=Open,rating=3]{ex:ls-adversarial-critical-set}
-Thm.~\ref{thm:lowerbound} assumes the critical subset is
-fixed and known to an oracle. In practice it is itself estimated, and the estimator
-can be gamed. Does the bound survive an adversary who controls which artifacts
-\emph{appear} critical? Connect to adversarial legibility (Exercise~\ref{ex:ls-adversarial-legibility}).
-\end{pdexercise}
-\begin{pdsolution}{ex:ls-adversarial-critical-set}
-The theorem is conditional on an encoder that knows the true critical set. If an adversary controls apparent criticality and can make a critical artifact observationally indistinguishable from inert artifacts, any policy that opens fewer than all $N$ can be forced to miss one --- the same narration-versus-artifact gap Exercise~\ref{ex:ls-adversarial-legibility} probes at L2. Zero miss then requires inspecting all $N$, a trusted independent signal that restricts the adversary, or a randomized guarantee stated probabilistically. The combinatorial bound still applies once a true set is fixed; it does not by itself solve adversarial set identification. Against an adaptive adversary the floor becomes $\log_2\binom{N}{k'}$ with $k'$ the size of the indistinguishability class the adversary can manufacture: an inflation attack pushes $k'$ toward $N$ (a legibility denial of service), a mimicry attack makes a critical item look routine, and both are priced by the Becker condition of \pdchapref{he}{The Harbor Economy}: the attack pays only while its expected gain exceeds the audit probability times the sanction.
-\end{pdsolution}
-\begin{pdexercise}[kind=Trace,rating=2]{ex:ls-b1-frontier-run}
-Run \texttt{python3 skills/harbor-results/scripts/b1\_frontier.py} and read off the
-zoom-advantage row at $F{=}1000,k{=}20$. Compute $k\log_2(F/k)$ by hand first and
-compare it to the row's flat-opens count.
-\end{pdexercise}
-\begin{pdsolution}{ex:ls-b1-frontier-run}
-By hand: $k\log_2(F/k)=20\log_2(50)=20\times5.64=112.9$ [verified, closed form]. The script's row at $F{=}1000,k{=}20$ reports flat opens $=1000$, adaptive opens $=232.9$, ratio $=4.3\times$ [internal, \texttt{b1\_frontier.py}]. The ratio is far below the $F{=}2500,k{=}10$ point's $15.3\times$ because this row is in the \emph{dense}-flag regime ($k/F=0.02$ here versus $0.004$ there): the zoom-advantage theorem requires a sparse flagged set, and this row is the chapter's own example of where the advantage shrinks rather than disappears.
-\end{pdsolution}
+\pdexercisepointer{\ref{ex:ls-readpoverty-binding}}{\ref{ex:ls-b1-frontier-run}}{\pageref{ex:ls-readpoverty-binding}}
 
 \begin{pdrecitation}
 \item Without looking: what two terms does the legibility lower bound subtract to get the bit floor, and what happens to it as the review budget $m$ grows to $N$?
@@ -2201,51 +1960,7 @@ feature pops out pre-attentively in $\sim$200--500\,ms in a non-cluttered field,
 degrades toward serial search as distractor heterogeneity rises} --- so a busy console
 defeats the pop-out a dense, single-color distress lane depends on).
 
-\begin{pdexercise}[kind=Check,rating=1]{ex:ls-split-ranker-statement}
-State Thm.~\ref{thm:split-ranker} in one sentence and give the loss function
-each head optimizes.
-\end{pdexercise}
-\begin{pdsolution}{ex:ls-split-ranker-statement}
-No monotone scalar transform can identify collaborator fit and operator regret on a domain containing both high-fit/low-risk and low-fit/high-risk items, so one ranker cannot serve both jobs. Discovery minimizes routing loss (or maximizes capability fit); the attention head minimizes expected loss from \emph{not} inspecting, and its rank is the ratio of expected loss avoided by inspecting to the operator-seconds inspection costs, with Theorem~\ref{thm:regret-head} fixing the numerator per item; raw stakes times anomaly is not that quantity.
-\end{pdsolution}
-\begin{pdexercise}[kind=Check,rating=1]{ex:ls-goodhart-exposure}
-Why is the attention queue more Goodhart-exposed than the
-discovery ranker (\S\ref{sec:gates})?
-\end{pdexercise}
-\begin{pdsolution}{ex:ls-goodhart-exposure}
-The attention queue allocates a scarce human interrupt channel, so agents benefit directly from inflating its score and a buried item can cause irreversible loss. Discovery gaming usually yields only a bad routing recommendation, correctable before any effect. Both are Goodhart-exposed, but the attention queue carries the stronger incentive and the larger consequence.
-\end{pdsolution}
-\begin{pdexercise}[kind=Trace,rating=2]{ex:ls-dead-claim-replay}
-Replay the dead-claim case (\S\ref{sec:staleness}) twice: once without
-Prop.~\ref{prop:decay} and once with it. Show exactly where the live agent unblocks.
-\end{pdexercise}
-\begin{pdsolution}{ex:ls-dead-claim-replay}
-Without expiry, the dead holder's row remains authoritative and the live agent is denied forever. With a lease, heartbeat-based expiry, and a new fencing epoch (Prop.~\ref{prop:decay}), the stale lease becomes ineligible; a lazy sweep on the next acquire removes it; the live agent receives a higher epoch and proceeds. Merely decaying a display score is insufficient: ownership must actually expire, and every effect boundary must reject the stale epoch.
-\end{pdsolution}
-\begin{pdexercise}[kind=Trace,rating=2]{ex:ls-costly-signal-debit}
-An agent fires an escalation; the operator dismisses it. Trace the costly-signal
-debit and explain how it deters crying wolf without silencing genuine distress.
-\end{pdexercise}
-\begin{pdsolution}{ex:ls-costly-signal-debit}
-The escalation cites evidence and posts a small stake or reputation exposure. The operator's dismissal is itself reasoned and appealable; only a confirmed low-value/false escalation debits the signaler. Repeated unsupported alarms raise future cost or lower priority, while verified hazards return the stake and improve calibration. The debit must never fire solely because an operator clicked dismiss --- that would silence minority warnings and make authority error self-validating.
-\end{pdsolution}
-\begin{pdexercise}[kind=Open,rating=3]{ex:ls-implicit-feedback-goodhart}
-Calibrating the discovery-ranker weights with \emph{no} ground
-truth: can the operator's accept/reject of routing suggestions serve as implicit
-relevance feedback --- and does that loop Goodhart itself?
-\end{pdexercise}
-\begin{pdsolution}{ex:ls-implicit-feedback-goodhart}
-Accept/reject is useful implicit relevance feedback but is confounded by position, exposure, workload, and the incumbent policy. Learn with logged propensities, small randomized exploration, counterfactual evaluation, and a held-out labeled sample; preserve refusals and downstream task outcomes. If acceptance directly trains what is shown, the loop can entrench its own choices, so it cannot be the sole ground truth.
-\end{pdsolution}
-\begin{pdexercise}[kind=Open,rating=3]{ex:ls-decay-vs-summary}
-The
-decay-vs-summary boundary: a theory of \emph{which} compaction for \emph{which}
-signal (decay for coordination traces, summary for decisions,
-eviction-plus-pointer for reconstructable artifacts).
-\end{pdexercise}
-\begin{pdsolution}{ex:ls-decay-vs-summary}
-Use hard expiry for leases and presence; state transition or supersession for commitments; summary plus source provenance for decisions and rationale; immutable storage for evidence; and eviction plus a content-addressed pointer for reconstructable diffs and logs. Hints may decay continuously. Never decay a still-open obligation, and never recursively summarize prior summaries.
-\end{pdsolution}
+\pdexercisepointer{\ref{ex:ls-split-ranker-statement}}{\ref{ex:ls-decay-vs-summary}}{\pageref{ex:ls-split-ranker-statement}}
 
 % ═════════════════════════════════════════════════════════════════════════════
 \section{Tokens: the swarm's COGS \emph{and} its legibility engine}\label{sec:tokens}
@@ -2476,67 +2191,7 @@ or reputation-score a swarm of disposable spawns, because Sybils dodge every
 per-agent mechanism. Context economics therefore \emph{demands} the identity layer it
 appears to precede.
 
-\begin{pdexercise}[kind=Check,rating=1]{ex:ls-digest-is-compaction}
-Why is ``the digest IS the compaction'' (\S\ref{sec:tokens-digest}) more than a
-slogan --- what concrete consequence does it have for how the operator's digest is
-produced?
-\end{pdexercise}
-\begin{pdsolution}{ex:ls-digest-is-compaction}
-The operator digest and the context compaction must be the same provenance-preserving projection from durable sources. If a separate model instead summarizes the already-compacted agent story, cost control and truth control diverge and recursive-summary error compounds --- exactly the failure Thm.~\ref{thm:split-digest} names two heads to avoid conflating.
-\end{pdsolution}
-\begin{pdexercise}[kind=Check,rating=1]{ex:ls-effective-context-budget}
-Explain why budgeting to effective context is simultaneously a cost
-and a quality optimization (\S\ref{sec:cogs}).
-\end{pdexercise}
-\begin{pdsolution}{ex:ls-effective-context-budget}
-Context past the model's effective window costs tokens while degrading retrieval and reasoning. Removing redundant or inert material and edge-placing hard facts can therefore reduce spend and improve accuracy simultaneously, provided obligations and source pointers survive the cut.
-\end{pdsolution}
-\begin{pdexercise}[kind=Trace,rating=2]{ex:ls-five-compaction-primitives}
-For each of the five compaction primitives (Figure~\ref{fig:read-surfaces}),
-name the reader, what it drops, and what it keeps.
-\end{pdexercise}
-\begin{pdsolution}{ex:ls-five-compaction-primitives}
-Briefing: reader is an arriving agent; drops old conversational detail; keeps current roles, work, constraints, decisions, and source links. Attention queue: reader is agent/operator now; drops low-value candidates from the immediate view; keeps highest value-of-inspection items plus the suppression ledger. Episodic memory: reader is a future incarnation; drops transient chatter; keeps typed incidents, decisions, outcomes, and retrieval features. Pheromone: reader is the swarm; continuously drops stale coordination weight; keeps fresh shared traces. Resurrection handoff: reader is a successor; drops nonessential transcript detail; keeps the task capsule, artifacts, obligations, pending operations, and provenance.
-\end{pdsolution}
-\begin{pdexercise}[kind=Trace,rating=2]{ex:ls-cascade-cures}
-Walk the four-rung cascade
-(\S\ref{sec:cascade}) and name the single cure that breaks each rung.
-\end{pdexercise}
-\begin{pdsolution}{ex:ls-cascade-cures}
-Context rot $\to$ compact earlier to an effective-window budget. Lost-in-the-middle $\to$ shorten and edge-place mandatory facts. Recursive-summary collapse $\to$ re-derive every compaction from raw durable artifacts. Over-flattening $\to$ require a total zoom path from every material claim. The third cure is the one that matters most: it prevents model noise from becoming the next round's source of truth.
-\end{pdsolution}
-\begin{pdexercise}[kind=Open,rating=3]{ex:ls-replay-metric-soundness}
-The compaction-quality scalar: is \emph{successor-replay-success-
-from-digest-alone} a sound, gaming-resistant metric, and can it be made a cheap
-attestation invariant (the replay smoke-test is itself token-expensive)?
-\end{pdexercise}
-\begin{pdsolution}{ex:ls-replay-metric-soundness}
-``Replay from digest alone'' is neither sound nor gaming-resistant on its own: a digest can overfit the smoke task or omit facts the sampled successor never needed. Give a successor the digest plus authorized content-addressed source links, then measure next-step success, false beliefs, obligation recall, time, and tokens on hidden continuation tasks. Add a cheap structural invariant that does not require replay: every open claim, decision, commitment, risk, and pending external effect has exactly one valid digest entry or pointer. Run the expensive full replay only on a random sample.
-\end{pdsolution}
-\begin{pdexercise}[kind=Open,rating=3]{ex:ls-dag-token-budget}
-Optimal token-budget allocation across a DAG of orchestrator/worker/
-reviewer agents under a total budget.
-\end{pdexercise}
-\begin{pdsolution}{ex:ls-dag-token-budget}
-Budget allocation over a precedence DAG is a knapsack/resource-allocation problem and is NP-hard in general. First reserve a minimum viable budget for each mandatory node and any predecessor needed to make its output exist. Allocate the remainder by estimated marginal outcome value per token while respecting precedence, and recompute after each result. For a monotone submodular value function under a cardinality budget, greedy earns the standard $(1-1/e)$ approximation; for arbitrary complementarities there is no such bound. Dynamic programming is pseudo-polynomial for small integer budgets or trees. A reviewer's tokens have near-zero value until the worker artifact it reviews exists.
-\end{pdsolution}
-\begin{pdexercise}[kind=Trace,rating=2]{ex:ls-a7-split-floor-run}
-Run \texttt{python3 skills/harbor-results/scripts/a7\_experiment.py} and read off the
-floor at $N{=}60,k{=}2,m{=}8$, the disjoint-readers floor at $2k{=}4$, and the
-falsification count. Reproduce the two floors by hand from Thm.~\ref{thm:lowerbound}
-first.
-\end{pdexercise}
-\begin{pdsolution}{ex:ls-a7-split-floor-run}
-By hand: $\log_2\binom{60}{2}-\log_2\binom{8}{2}=10.79-4.81=5.98$ bits, and $\log_2\binom{60}{4}-\log_2\binom{8}{4}=18.90-6.13=12.77$ bits [verified, closed form]; ratio $12.77/5.98=2.13$. The script's own lines: \texttt{Regime N=60, k=2, m=8:\ \ B* = 5.98 bits}, \texttt{violations: 0/16 -> floor HOLDS}, \texttt{floor disjoint readers (2k=4): 12.77 bits}, \texttt{split penalty (disjoint - single): 6.78 bits}, \texttt{ratio:\ \ 2.13x} [internal, \texttt{a7\_experiment.py}]. The falsification sweep (oracle, noisy, and random encoders across sixteen configurations, zero violations) is the part hand arithmetic cannot check --- it is evidence that no cleverer encoding beats the closed-form floor, not a recomputation of it.
-\end{pdsolution}
-\begin{pdexercise}[kind=Check,rating=1]{ex:ls-paging-ratio-hand}
-Compute the Landlord competitiveness ratio $k/(k-h+1)$ at $k=8,h=8$ and at
-$k=8,h=1$. Which end of the range recovers the classical, unaugmented
-Sleator--Tarjan bound?
-\end{pdexercise}
-\begin{pdsolution}{ex:ls-paging-ratio-hand}
-At $h=k=8$: $k/(k-h+1)=8/1=8.0$, recovering the classical unaugmented result that a cache of size $k$ is $k$-competitive against an offline optimum given the very same cache size --- the hardest comparator, no resource augmentation. At $h=1$: $k/(k-h+1)=8/8=1.0$, the fully resource-augmented regime, where online's cache $k$ so outsizes the comparator's $h=1$ that the ratio collapses to $1$. The chapter's own $k=8,h=4$ instance, at $1.6$, sits at the midpoint, pricing a comparator with half of online's verified capacity.
-\end{pdsolution}
+\pdexercisepointer{\ref{ex:ls-digest-is-compaction}}{\ref{ex:ls-paging-ratio-hand}}{\pageref{ex:ls-digest-is-compaction}}
 
 \begin{pdrecitation}
 \item Without looking: what is the one reason the digest and the compaction must be authored by the same provenance-preserving projection, rather than a separate summarizer reading the already-compacted story?
@@ -2611,6 +2266,392 @@ lives, do not flatten them for legibility's sake. The skill-retention tax
 (\S\ref{sec:abdication}) is the design's gesture at exactly this, and it is the
 hardest mechanism in the paper to realize, because preserving the illegible is, by
 definition, the thing legibility cannot do for you.
+
+\pdexercisepointer{\ref{ex:ls-hobbes-mapping}}{\ref{ex:ls-ranker-political-organ}}{\pageref{ex:ls-hobbes-mapping}}
+
+% ═════════════════════════════════════════════════════════════════════════════
+\section{Exercises}
+\label{sec:ls-exercises}
+% ═════════════════════════════════════════════════════════════════════════════
+
+\pdexercisesfor{\S\ref{sec:intro}}{Introduction: the swarm is a state of nature}
+
+\begin{pdexercise}[kind=Check,rating=1]{ex:ls-taxonomy-five-failures}
+State, in one sentence each, the five state-of-nature failures of
+Table~\ref{tab:taxonomy} and name the class of primitive that addresses each.
+\end{pdexercise}
+\begin{pdsolution}{ex:ls-taxonomy-five-failures}
+Resource conflict (two agents touch the same resource and clobber one another) is answered by conflict-aware claims plus actual exclusion at the effect boundary. Illegibility (work cannot be understood in bounded time) is answered by a digest whose every material claim zooms to independent evidence. Confident wrongness (an agent asserts completion without checking) is answered by typed attestation and oracle-bound completion. Footguns (a stale premise drives an irreversible act) are answered by reversibility/stakes gates, scoped authority, and pre-effect mediation. Illegible authority (the coordinator rules without an inspectable reason) is answered by an append-only, named, zoomable decision record, including denials and omissions.
+\end{pdsolution}
+\begin{pdexercise}[kind=Check,rating=1]{ex:ls-cooperative-clobber}
+Hobbes says the actors ``need not be malicious.'' Give a concrete two-agent
+scenario in which both agents are perfectly cooperative and the swarm still
+deadlocks or clobbers state.
+\end{pdexercise}
+\begin{pdsolution}{ex:ls-cooperative-clobber}
+Alice and Bob are both asked to improve \texttt{auth.ts}. Each reads the same base revision, makes a locally correct edit, and commits; without a claim or merge serialization, Bob's whole-file rewrite erases Alice's change, and no malice is required. A deadlock variant: two cooperative agents take claims on files $X$ and $Y$ in opposite order and each waits indefinitely for the other's claim.
+\end{pdsolution}
+\begin{pdexercise}[kind=Trace,rating=2]{ex:ls-deliberate-vs-emergent}
+Dai et al.~\cite{dai2024} observe LLM societies \emph{spontaneously} reaching
+a consented sovereign. If the attractor is emergent, why build one deliberately? Give
+two reasons grounded in \S\ref{sec:local} (hint: \emph{which} sovereign, and
+\emph{legible to whom}).
+\end{pdexercise}
+\begin{pdsolution}{ex:ls-deliberate-vs-emergent}
+Deliberate construction chooses the authority rather than accepting whatever coalition happens to win, and makes that authority legible to the operator. An emergent stable order may instead be an oligarchy: stable, but controlled by a few agents, unrevocable, and opaque. The local daemon of \S\ref{sec:local} supplies what an emergent attractor does not guarantee: one fault domain, one policy root, and an unconditional operator exit.
+\end{pdsolution}
+\begin{pdexercise}[kind=Open,rating=3]{ex:ls-sovereign-vs-oligarchy-experiment}
+The Dai et al.\ result is a single controlled study. Design an
+experiment over a real coding-agent fleet that would distinguish ``the swarm reaches
+a consented sovereign'' from ``the swarm reaches a stable but \emph{illegible}
+oligarchy.'' What is the observable that separates the two?
+\end{pdexercise}
+\begin{pdsolution}{ex:ls-sovereign-vs-oligarchy-experiment}
+Randomize comparable real repository tasks to (a) an ungoverned fleet and (b) a fleet with only a transport but no prescribed governance; record all messages, effects, blocking decisions, and operator interventions. Pre-register two observable classes: \emph{sovereign} characteristics (a publicly known rule, general applicability, explicit consent or adoption, stable appeal/override, reasons attached to authority acts, equal audit access) against \emph{oligarchy} characteristics (authority concentrated in a small coalition, private channels or rules, selective enforcement, no effective exit, outcomes outsiders cannot reconstruct). Measure concentration of blocking/merging power, the fraction of authority acts with reconstructable reasons, rule consistency across agents, override success, artifact-linked claim accuracy, and operator reconstruction accuracy. Stability alone does not separate the hypotheses; publicly inspectable and revocable rule-governed authority does.
+\end{pdsolution}
+
+\pdexercisesfor{\S\ref{sec:authority}}{Consent to the Leviathan (the normative claim)}
+
+\begin{pdexercise}[kind=Check,rating=1]{ex:ls-express-vs-tacit-consent}
+Distinguish \emph{express} from \emph{tacit} consent and explain why
+Def.~\ref{def:consent} is the former.
+\end{pdexercise}
+\begin{pdsolution}{ex:ls-express-vs-tacit-consent}
+Tacit consent is inferred from remaining in or using a system. Express consent is a discrete act over named terms. Def.~\ref{def:consent} is express because the operator affirmatively issues a grant with scope, stakes ceiling, reversibility floor, TTL, and revocation semantics --- none of which a mere pattern of continued use supplies.
+\end{pdsolution}
+\begin{pdexercise}[kind=Check,rating=1]{ex:ls-override-unsuppressable}
+Why must the operator-override
+(Prop.~\ref{prop:override}) be un-suppressable by \emph{any} autonomy level? What
+attack does a suppressible override enable?
+\end{pdexercise}
+\begin{pdsolution}{ex:ls-override-unsuppressable}
+If an autonomy level could suppress the override, it could make its own authority irrevocable: keep executing, hide the stop channel, or race destructive effects after consent is withdrawn. The override must be out-of-band, higher priority than agent work, and coupled to effect revocation, not merely a UI flag.
+\end{pdsolution}
+\begin{pdexercise}[kind=Trace,rating=2]{ex:ls-consent-lifecycle}
+Walk a single consent grant through its lifecycle: issuance, an action the
+daemon takes under it, the audit record produced, and revocation. At which step does
+the legible-sovereign rule (Prop.~\ref{prop:legible-sovereign}) bind?
+\end{pdexercise}
+\begin{pdsolution}{ex:ls-consent-lifecycle}
+The operator signs grant $g$; the daemon validates and records it; an eligible low-stakes action cites $g$; the daemon mediates the effect; the receipt records action, reason, artifact, and grant version; expiry or revocation removes $g$ from the active set and fences later effects. The legible-sovereign rule binds at every authority transition, especially issue/revoke and admit/deny --- the explicit witness record is where reconstructability is discharged.
+\end{pdsolution}
+\begin{pdexercise}[kind=Open,rating=3]{ex:ls-ranker-counter-surface}
+Prop.~\ref{prop:legible-sovereign} has a regress: the ranker that
+decides what the operator sees is itself an opaque exercise of authority. Specify
+the ``what did the queue suppress, and why'' counter-surface concretely. What is its
+own staleness/decay discipline (forward-reference \S\ref{sec:staleness}), and does
+\emph{it} need a counter-surface, ad infinitum?
+\end{pdexercise}
+\begin{pdsolution}{ex:ls-ranker-counter-surface}
+Use one complete append-only decision ledger, not a second ranked dashboard. For every candidate item, store candidate ID, source/evidence pointers, policy and model version, input features, score components, threshold/lane, surfaced-or-suppressed verdict, reason codes, expiry, and a counterfactual such as ``would surface if anomaly were 0.08 higher.'' The operator can query suppressed items since a cursor, sort by any raw field, and sample items uniformly rather than through the production ranker. Decisions are immutable; their current relevance expires by signal-specific TTL (\S\ref{sec:staleness}) and is recomputed from raw state. Run independent random omission audits and expose raw event-log access. The regress terminates at completeness plus direct sampling: the base ledger records every candidate and every ranking decision, and the counter-surface is a deterministic query over it, so no further ranker is needed to rank the ranker's omissions. The remaining trust assumption is the complete event-capture boundary; that assumption should be tested and externally anchored, not hidden behind another summary. (Same construction answers Exercise~\ref{ex:ls-ranker-political-organ}.)
+\end{pdsolution}
+
+\pdexercisesfor{\S\ref{sec:zoom}}{The mechanism: legibility-with-zoom}
+
+\begin{pdexercise}[kind=Check,rating=1]{ex:ls-flatten-or-preserve}
+Classify each as \emph{flatten} or \emph{preserve verbatim}: a port number;
+the stderr of a failed test; ``the auth refactor felt risky so I split it''; a
+\texttt{commitment} status enum; a 600-line diff.
+\end{pdexercise}
+\begin{pdsolution}{ex:ls-flatten-or-preserve}
+Port number: flatten, as structured administrative state. Failed-test stderr: preserve verbatim or by a content-addressed pointer. ``The auth refactor felt risky so I split it'': preserve verbatim and label it self-narration, not fact. Commitment-status enum: flatten. The 600-line diff: do not paraphrase away --- retain the immutable diff or a verified pointer and summarize only administrative metadata.
+\end{pdsolution}
+\begin{pdexercise}[kind=Check,rating=1]{ex:ls-two-llms-not-independent}
+Why is ``two LLMs agreeing''
+not two checks (Prop.~\ref{prop:verifiable-zoom})?
+\end{pdexercise}
+\begin{pdsolution}{ex:ls-two-llms-not-independent}
+Two models may share training biases, prompts, sources, and failure modes. Agreement over the same narration is correlated testimony, not independent evidence. A second check must derive from an independent channel --- repository state, a protected test runner, or a separately controlled reviewer.
+\end{pdsolution}
+\begin{pdexercise}[kind=Trace,rating=2]{ex:ls-four-questions-dashboard}
+Take a read-surface you use (a CI dashboard, a PR summary) and run the four
+questions of \S\ref{sec:four-questions} against it. Where does it fail Def.~\ref{def:zoom}?
+\end{pdexercise}
+\begin{pdsolution}{ex:ls-four-questions-dashboard}
+A typical CI dashboard usually fails as follows: deploy is irreversible but the green tile does not force a log/diff view; administrative state and diagnostic detail are flattened together; the summary is generated from job narration rather than independently from receipts; and a skipped/cancelled check carries no named authority reason. It therefore violates Def.~\ref{def:zoom} wherever a material green claim has no total zoom path to the exact tree, suite, runner, and output that produced it.
+\end{pdsolution}
+\begin{pdexercise}[kind=Open,rating=3]{ex:ls-adversarial-legibility}
+\emph{Adversarial legibility.} An agent that \emph{knows} it
+is being made legible can optimize its narration to look good while the diff lies.
+Verifiable-zoom is a partial answer. Can L2 \emph{alone} --- without L1's jail and
+L3's reputation --- detect a deterministic narration$\leftrightarrow$artifact
+divergence before reputation exists? Sketch the consistency check and the class of
+divergence it cannot catch.
+\end{pdexercise}
+\begin{pdsolution}{ex:ls-adversarial-legibility}
+L2 can compare structured narration claims against independently derived artifacts: claimed changed files versus the tree diff, ``tests passed'' versus a protected runner receipt, ``no deletion'' versus Git objects, and claimed command results versus brokered tool logs. Emit a contradiction event on mismatch. This catches deterministic report/artifact divergence, deleted tests, fabricated execution, and omitted changed paths. It cannot establish semantic correctness, detect a poisoned acceptance suite, observe effects that bypass logging, or distinguish two artifacts that are syntactically consistent but jointly wrong --- those require effect confinement, independent evaluation, or later outcome evidence.
+\end{pdsolution}
+
+\pdexercisesfor{\S\ref{sec:authority-rules}}{The Leviathan rules, it does not just watch (the authority half)}
+
+\begin{pdexercise}[kind=Check,rating=1]{ex:ls-adversarial-review-corollary}
+Why is adversarial review (\S\ref{sec:review}) a corollary of
+Prop.~\ref{prop:verifiable-zoom} rather than an independent design choice?
+\end{pdexercise}
+\begin{pdsolution}{ex:ls-adversarial-review-corollary}
+Verifiable zoom says narration is not ground truth. A reviewer with no independent evidence would merely add another narration. Adversarial review follows because a consequential claim needs an evidence channel controlled independently of the actor whose work is judged --- exactly what Prop.~\ref{prop:verifiable-zoom} already demands of any zoom target.
+\end{pdsolution}
+\begin{pdexercise}[kind=Check,rating=1]{ex:ls-regiment-vs-detect}
+State Prop.~\ref{prop:regiment} in your own words and give one example each of a
+\emph{regimented} and a \emph{detected-and-compensated} rule.
+\end{pdexercise}
+\begin{pdsolution}{ex:ls-regiment-vs-detect}
+Read Prop.~\ref{prop:regiment} as: prevent a prohibited state when every decisive effect can be intercepted before it occurs; otherwise detect, contain, and compensate without pretending prevention. A uniqueness constraint regimenting ``one holder per exact key'' is a regimented rule. A post-commit monitor that detects an out-of-scope edit and triggers rollback/salvage is detected-and-compensated --- the bad prefix already happened.
+\end{pdsolution}
+\begin{pdexercise}[kind=Trace,rating=2]{ex:ls-completion-migration-vs-ergonomic}
+An agent claims completion on a task whose acceptance criterion is ``the
+migration applies cleanly.'' Trace Def.~\ref{def:completionist}: what is the
+verifier, what gates, and what happens if the criterion were instead ``the API feels
+ergonomic''?
+\end{pdexercise}
+\begin{pdsolution}{ex:ls-completion-migration-vs-ergonomic}
+For ``the migration applies cleanly,'' the verifier is an isolated migration run against a declared base schema/database, with exact migration hash, runner image, exit status, and resulting-schema check; \emph{done} and any merge/settlement are gated on that receipt. ``The API feels ergonomic'' has no mechanical truth predicate: it must go to a declared human/expert or plural judge with preserved evidence and uncertainty, and absent that authority, completion remains provisional or fails loudly.
+\end{pdsolution}
+\begin{pdexercise}[kind=Open,rating=3]{ex:ls-honest-fallback-ladder}
+\emph{Completionist verification of the unverifiable.} Some
+acceptance criteria are not mechanically checkable. Characterize the honest fallback
+ladder (forced human-in-the-loop gate $\to$ neutral judge with declared low
+confidence $\to$ fail-loud). When is ``I cannot verify this'' the \emph{correct}
+answer rather than a cop-out?
+\end{pdexercise}
+\begin{pdsolution}{ex:ls-honest-fallback-ladder}
+The honest ladder: (1) use a deterministic verifier where the property is decidable; (2) require an independent bounded evaluator or human for a declared subjective criterion; (3) record a provisional result, confidence, appeal window, and residual risk; (4) return unresolved/fail-loud when no authorized evaluator can support the claim. ``I cannot verify this'' is correct when the available evidence cannot distinguish success from failure under the contract; it is a cop-out only when an affordable, authorized verifier was specified and simply not run.
+\end{pdsolution}
+\begin{pdexercise}[kind=Open,rating=3]{ex:ls-succession-corner}
+\emph{The succession corner of
+Thm.~\ref{thm:specialization}.} Eq.~\ref{eq:specboundary} prices a specialist who
+never fails. Extend it to an $M/M/1$ queue \emph{with breakdowns} and a succession
+protocol, and find the repair rate at which sole ownership stops paying regardless of
+skill premium --- then check whether that rate is above or below the one an operator
+can actually promise.
+\end{pdexercise}
+\begin{pdsolution}{ex:ls-succession-corner}
+Let the specialist die at rate $\xi$ and a successor take over after $\mathrm{Exp}(\eta)$: the exact breakdown-corrected wait is $W_{\mathrm{bd}}=(1+\mu_{\mathrm{spec}}\xi/(\xi+\eta)^2)/(\mu_{\mathrm{eff}}-\lambda)$, with infimum $W_\infty=\xi/(\eta(\xi+\eta))$ as $\mu_{\mathrm{spec}}\to\infty$ --- skill cannot buy back downtime past that floor. Writing $K=A/(w\lambda)+W_{\mathrm{pool}}$, pooling dominates at \emph{every} skill premium once $\xi/\eta > D^\star = \eta K/(1-\eta K)$: this is the succession-rate threshold the question asks for, and it is a closed-form price on the succession protocol, not on the specialist's skill. Whether that threshold sits above or below what an operator can actually promise is an empirical question about the concrete repair process (on-call depth, handoff quality, documentation): if the promised $\eta$ implies $\xi/\eta>D^\star$, no amount of hiring a better specialist recovers sole ownership, and the honest fix is a succession plan, not a stronger specialist. (Exercise~\ref{ex:ls-b8-specialization-run} runs the closed form numerically.)
+\end{pdsolution}
+\begin{pdexercise}[kind=Trace,rating=2]{ex:ls-b8-specialization-run}
+Run \texttt{python3 skills/harbor-results/scripts/b8\_specialization.py} and read off
+(a) the table entry for $g(\rho{=}0.5,c{=}2)$ and (b) the $\rho$ at which the exact
+boundary $g$ and the superseded $\tilde g$ cross. Reproduce both by hand from
+Eq.~\ref{eq:specboundary0} before checking the script's line.
+\end{pdexercise}
+\begin{pdsolution}{ex:ls-b8-specialization-run}
+By hand: $g(\rho,2)=1+2\rho-\rho^2$, so $g(0.5,2)=1+1-0.25=1.75$ [verified, closed form]. The crossing solves $g(\rho,2)=\tilde g(\rho,2)=1+\rho/(1-\rho)$; clearing denominators gives $\rho(\rho^2-3\rho+1)=0$, and the root in $(0,1)$ is $\rho=(3-\sqrt5)/2\approx0.382$ [verified, closed form]. The script's output line is exactly this: \texttt{[PASS] c=2 crossing of g\textasciitilde{} and g at rho=(3-sqrt5)/2\ \ rho=0.38197, g=g\textasciitilde{}=1.61803}, and its charted table reports \texttt{rho=0.5\ \ c=2:\ \ 1.750\ [2.000]} for the exact and superseded values side by side [internal, \texttt{b8\_specialization.py}]. The two values disagree by design: the superseded $\tilde g$ over-prices the boundary here, which is why it sent the roadmap-owner example of Eq.~\ref{eq:specboundary0} to the wrong answer.
+\end{pdsolution}
+\begin{pdexercise}[kind=Trace,rating=2]{ex:ls-b7-escalation-run}
+Run \texttt{python3 skills/harbor-results/scripts/b7\_escalation\_band.py} and read
+off the feasible debit band $[\delta_{\min},\delta_{\max}]$ at $A=3.3$ and at
+$A=2.0$. Confirm $u^\star(0.05)$ by hand first.
+\end{pdexercise}
+\begin{pdsolution}{ex:ls-b7-escalation-run}
+By hand, at $\delta=0.05,w=1$: $u^\star=\delta w/(1+\delta w)=0.05/1.05=0.0476$ [verified, closed form]. The script confirms this is one of twelve exactly-matching $(\delta,w)$ points (\texttt{[verified] uniform-linear u* = delta*w/(1+delta*w) matches bisection (12 pts)}) and then reports the tuning band under the R3 constants $C_{\mathrm{miss}}=100,c_{\mathrm{att}}=1,C_{\mathrm{fa}}=5$: \texttt{A = 3.3: delta\_min = 0.034993, delta\_max = 0.071975 -> band NONEMPTY} and \texttt{A = 2.0: delta\_min = 0.395644, delta\_max = 0.071975 -> band EMPTY} [internal, \texttt{b7\_escalation\_band.py}], i.e.\ $[0.0350,0.0720]$ at $A=3.3$ against an empty feasible set at $A=2.0$ because $\delta_{\min}>\delta_{\max}$ there. The honest reading: when the band is empty the fix is capacity or evidence quality (raise $A$ or lower $C_{\mathrm{miss}}$), never forcing a $\delta$ that does not exist.
+\end{pdsolution}
+
+\pdexercisesfor{\S\ref{sec:operator}}{The operator as a modeled entity}
+
+\begin{pdexercise}[kind=Check,rating=1]{ex:ls-sdt-limits}
+In Eq.~\ref{eq:sdt}, what happens to the optimal forced-zoom rate $p(r,s,v)$ as
+$C_{\text{miss}}/C_{\text{fa}}\to\infty$? As agent reputation $r\to 1$?
+\end{pdexercise}
+\begin{pdsolution}{ex:ls-sdt-limits}
+As $C_{\mathrm{miss}}/C_{\mathrm{fa}}\to\infty$, the optimal criterion moves toward forced review wherever a miss remains possible; the forced-zoom probability approaches one on the ambiguous region. If reputation $r\to1$, nothing follows from Eq.~\ref{eq:sdt} alone, since $r$ does not appear in it directly: zoom should decline only under a calibrated model in which high $r$ shifts the class-conditional danger probability downward for this agent, action class, and current version. High reputation must never defeat hard stakes or irreversibility gates.
+\end{pdsolution}
+\begin{pdexercise}[kind=Check,rating=1]{ex:ls-global-trust-knob}
+Give a
+concrete scenario where a \emph{global} trust knob (\S\ref{sec:calibration})
+mis-serves an operator who is, in fact, perfectly calibrated.
+\end{pdexercise}
+\begin{pdsolution}{ex:ls-global-trust-knob}
+An operator may be correctly confident in one agent's formatting/test-only changes and correctly skeptical of that same agent's schema migrations. A global trust knob averages those two histories, forcing needless review of safe formatting while under-reviewing migrations. Calibration belongs to (principal, agent/build, action class, environment), with its own uncertainty and freshness, not to one scalar per agent.
+\end{pdsolution}
+\begin{pdexercise}[kind=Trace,rating=2]{ex:ls-canary-campbell}
+Walk the canary-defect loop and mark every point where Campbell's Law could
+distort it. Propose one change that reduces the distortion without removing the
+governor.
+\end{pdexercise}
+\begin{pdsolution}{ex:ls-canary-campbell}
+Campbell pressure appears when canaries are selected (recognizable templates), exposed (agents/operators learn signatures), scored (catch rate substitutes for real defect discovery), and acted on (friction creates an incentive to optimize the metric). Time-on-task and breaks also confound the score. Reduce the distortion with a blinded, continuously refreshed holdout drawn from real failure transformations; separate the party generating canaries from the operator; correct for exposure time and base rate; and treat catch rate as one diagnostic among several, never the sole gate.
+\end{pdsolution}
+\begin{pdexercise}[kind=Open,rating=3]{ex:ls-pareto-digest}
+Formalize the operator-attention objective (Eq.~\ref{eq:sdt})
+against swarm token-COGS (\S\ref{sec:tokens}): is there a digest that is
+Pareto-optimal in both operator-seconds and token cost, or does a cheaper digest
+always cost more operator seconds?
+\end{pdexercise}
+\begin{pdsolution}{ex:ls-pareto-digest}
+Model each digest policy $d$ by (token cost $T(d)$, human time $H(d)$, expected decision loss $L(d)$) and compare nondominated policies. A Pareto frontier exists for a finite policy set, but there is no universal inverse relation: removing redundant context can lower both token cost and operator time; beyond that free-compression frontier, preserving evidence often trades tokens for review effort or a higher error rate. Optimize under a loss or safety constraint, e.g.\ $\min \alpha T+\beta H+L$ subject to zero omission of hard obligations, and report the frontier empirically rather than claiming one universal digest optimum.
+\end{pdsolution}
+\begin{pdexercise}[kind=Open,rating=3]{ex:ls-freeze-probe-study}
+Does a skill-retention tax
+\emph{measurably} preserve SA, or merely annoy until disabled? Design the
+freeze-probe study (\S\ref{sec:sa}) that would tell.
+\end{pdexercise}
+\begin{pdsolution}{ex:ls-freeze-probe-study}
+Randomize operators or time blocks among manual-tax, automation-only, projection/freeze-probe, and adaptive-tax conditions, on matched repositories with fixed surprise events. Probe without warning: next-three-effect prediction, takeover completion time, false-belief rate, Brier score, post-interruption recovery, defect catch rate, NASA-TLX, and retention weeks later. Measure disablement/avoidance as an outcome in its own right. A useful tax improves later projection/takeover after controlling for interruption cost; mere annoyance raises workload and disablement without those gains.
+\end{pdsolution}
+
+\pdexercisesfor{\S\ref{sec:readpoverty}}{Read-poverty: the binding constraint at scale}
+
+\begin{pdexercise}[kind=Check,rating=1]{ex:ls-readpoverty-binding}
+Why is read-poverty (Def.~\ref{def:readpoverty}) the \emph{binding} constraint
+rather than write-contention? Name the write-side fixes that make the
+write side not binding.
+\end{pdexercise}
+\begin{pdsolution}{ex:ls-readpoverty-binding}
+Writes can be serialized through one daemon, rejected by uniqueness constraints, and reconciled through version control. Read demand grows with agents, artifacts, histories, and possible collaborators; without indices every query becomes an $O(n)$ scan and the operator is the fixed-rate server. Discovery and relevance, not raw write throughput, are therefore the scale bottleneck.
+\end{pdsolution}
+\begin{pdexercise}[kind=Check,rating=1]{ex:ls-directory-database-analogy}
+State the database analogy precisely: what is the
+write-time cost a directory pays, and what read-time speed does it buy?
+\end{pdexercise}
+\begin{pdsolution}{ex:ls-directory-database-analogy}
+A directory pays at write time to normalize metadata and update indices: typically $O(\log n)$ per indexed insert (or expected $O(1)$ for a hash index), plus storage. It buys selective reads in $O(\log n+k)$ for $k$ results rather than $O(n)$ roster scanning, along with a queryable provenance trail.
+\end{pdsolution}
+\begin{pdexercise}[kind=Trace,rating=2]{ex:ls-value-curve-n1}
+At $n{=}1$, name three legibility surfaces that already pay off
+(\S\ref{sec:value-curve}), and explain why none of them are discovery-ranking.
+\end{pdexercise}
+\begin{pdsolution}{ex:ls-value-curve-n1}
+At $n{=}1$, briefing, honest self-attestation, footgun gating, completion receipts, and resurrection handoff already reduce uncertainty. None of them asks ``which collaborator fits?''; each projects or verifies one actor's own state, so none is discovery ranking.
+\end{pdsolution}
+\begin{pdexercise}[kind=Trace,rating=2]{ex:ls-floor-limits}
+In Thm.~\ref{thm:lowerbound}, what happens to the bit floor as $k\to 0$ (almost
+nothing is critical) and as $k\to N/2$? Relate the answer to why a swarm doing
+mostly-safe work is cheap to digest and a swarm doing mostly-dangerous work is not.
+\end{pdexercise}
+\begin{pdsolution}{ex:ls-floor-limits}
+At $k=0$ there is only one critical subset (the empty one) and the floor is zero. For small positive $k$ the cost is roughly $k\log_2(N/m)$ when $k\ll m,N$. At $k=N/2$, exact identification ($m=k$) costs about $N$ bits, while opening almost everything drives the floor toward zero as $m\to N$. The danger fraction alone is not enough; the review budget $m$ matters just as much: mostly-safe work is cheap to digest only when the system can reliably identify that sparsity, and mostly-dangerous work forces $m$ up toward $N$, where the floor stops paying for itself.
+\end{pdsolution}
+\begin{pdexercise}[kind=Open,rating=3]{ex:ls-adversarial-critical-set}
+Thm.~\ref{thm:lowerbound} assumes the critical subset is
+fixed and known to an oracle. In practice it is itself estimated, and the estimator
+can be gamed. Does the bound survive an adversary who controls which artifacts
+\emph{appear} critical? Connect to adversarial legibility (Exercise~\ref{ex:ls-adversarial-legibility}).
+\end{pdexercise}
+\begin{pdsolution}{ex:ls-adversarial-critical-set}
+The theorem is conditional on an encoder that knows the true critical set. If an adversary controls apparent criticality and can make a critical artifact observationally indistinguishable from inert artifacts, any policy that opens fewer than all $N$ can be forced to miss one --- the same narration-versus-artifact gap Exercise~\ref{ex:ls-adversarial-legibility} probes at L2. Zero miss then requires inspecting all $N$, a trusted independent signal that restricts the adversary, or a randomized guarantee stated probabilistically. The combinatorial bound still applies once a true set is fixed; it does not by itself solve adversarial set identification. Against an adaptive adversary the floor becomes $\log_2\binom{N}{k'}$ with $k'$ the size of the indistinguishability class the adversary can manufacture: an inflation attack pushes $k'$ toward $N$ (a legibility denial of service), a mimicry attack makes a critical item look routine, and both are priced by the Becker condition of \pdchapref{he}{The Harbor Economy}: the attack pays only while its expected gain exceeds the audit probability times the sanction.
+\end{pdsolution}
+\begin{pdexercise}[kind=Trace,rating=2]{ex:ls-b1-frontier-run}
+Run \texttt{python3 skills/harbor-results/scripts/b1\_frontier.py} and read off the
+zoom-advantage row at $F{=}1000,k{=}20$. Compute $k\log_2(F/k)$ by hand first and
+compare it to the row's flat-opens count.
+\end{pdexercise}
+\begin{pdsolution}{ex:ls-b1-frontier-run}
+By hand: $k\log_2(F/k)=20\log_2(50)=20\times5.64=112.9$ [verified, closed form]. The script's row at $F{=}1000,k{=}20$ reports flat opens $=1000$, adaptive opens $=232.9$, ratio $=4.3\times$ [internal, \texttt{b1\_frontier.py}]. The ratio is far below the $F{=}2500,k{=}10$ point's $15.3\times$ because this row is in the \emph{dense}-flag regime ($k/F=0.02$ here versus $0.004$ there): the zoom-advantage theorem requires a sparse flagged set, and this row is the chapter's own example of where the advantage shrinks rather than disappears.
+\end{pdsolution}
+
+\pdexercisesfor{\S\ref{sec:discovery}}{Discovery: the directory substrate and the split ranker}
+
+\begin{pdexercise}[kind=Check,rating=1]{ex:ls-split-ranker-statement}
+State Thm.~\ref{thm:split-ranker} in one sentence and give the loss function
+each head optimizes.
+\end{pdexercise}
+\begin{pdsolution}{ex:ls-split-ranker-statement}
+No monotone scalar transform can identify collaborator fit and operator regret on a domain containing both high-fit/low-risk and low-fit/high-risk items, so one ranker cannot serve both jobs. Discovery minimizes routing loss (or maximizes capability fit); the attention head minimizes expected loss from \emph{not} inspecting, and its rank is the ratio of expected loss avoided by inspecting to the operator-seconds inspection costs, with Theorem~\ref{thm:regret-head} fixing the numerator per item; raw stakes times anomaly is not that quantity.
+\end{pdsolution}
+\begin{pdexercise}[kind=Check,rating=1]{ex:ls-goodhart-exposure}
+Why is the attention queue more Goodhart-exposed than the
+discovery ranker (\S\ref{sec:gates})?
+\end{pdexercise}
+\begin{pdsolution}{ex:ls-goodhart-exposure}
+The attention queue allocates a scarce human interrupt channel, so agents benefit directly from inflating its score and a buried item can cause irreversible loss. Discovery gaming usually yields only a bad routing recommendation, correctable before any effect. Both are Goodhart-exposed, but the attention queue carries the stronger incentive and the larger consequence.
+\end{pdsolution}
+\begin{pdexercise}[kind=Trace,rating=2]{ex:ls-dead-claim-replay}
+Replay the dead-claim case (\S\ref{sec:staleness}) twice: once without
+Prop.~\ref{prop:decay} and once with it. Show exactly where the live agent unblocks.
+\end{pdexercise}
+\begin{pdsolution}{ex:ls-dead-claim-replay}
+Without expiry, the dead holder's row remains authoritative and the live agent is denied forever. With a lease, heartbeat-based expiry, and a new fencing epoch (Prop.~\ref{prop:decay}), the stale lease becomes ineligible; a lazy sweep on the next acquire removes it; the live agent receives a higher epoch and proceeds. Merely decaying a display score is insufficient: ownership must actually expire, and every effect boundary must reject the stale epoch.
+\end{pdsolution}
+\begin{pdexercise}[kind=Trace,rating=2]{ex:ls-costly-signal-debit}
+An agent fires an escalation; the operator dismisses it. Trace the costly-signal
+debit and explain how it deters crying wolf without silencing genuine distress.
+\end{pdexercise}
+\begin{pdsolution}{ex:ls-costly-signal-debit}
+The escalation cites evidence and posts a small stake or reputation exposure. The operator's dismissal is itself reasoned and appealable; only a confirmed low-value/false escalation debits the signaler. Repeated unsupported alarms raise future cost or lower priority, while verified hazards return the stake and improve calibration. The debit must never fire solely because an operator clicked dismiss --- that would silence minority warnings and make authority error self-validating.
+\end{pdsolution}
+\begin{pdexercise}[kind=Open,rating=3]{ex:ls-implicit-feedback-goodhart}
+Calibrating the discovery-ranker weights with \emph{no} ground
+truth: can the operator's accept/reject of routing suggestions serve as implicit
+relevance feedback --- and does that loop Goodhart itself?
+\end{pdexercise}
+\begin{pdsolution}{ex:ls-implicit-feedback-goodhart}
+Accept/reject is useful implicit relevance feedback but is confounded by position, exposure, workload, and the incumbent policy. Learn with logged propensities, small randomized exploration, counterfactual evaluation, and a held-out labeled sample; preserve refusals and downstream task outcomes. If acceptance directly trains what is shown, the loop can entrench its own choices, so it cannot be the sole ground truth.
+\end{pdsolution}
+\begin{pdexercise}[kind=Open,rating=3]{ex:ls-decay-vs-summary}
+The
+decay-vs-summary boundary: a theory of \emph{which} compaction for \emph{which}
+signal (decay for coordination traces, summary for decisions,
+eviction-plus-pointer for reconstructable artifacts).
+\end{pdexercise}
+\begin{pdsolution}{ex:ls-decay-vs-summary}
+Use hard expiry for leases and presence; state transition or supersession for commitments; summary plus source provenance for decisions and rationale; immutable storage for evidence; and eviction plus a content-addressed pointer for reconstructable diffs and logs. Hints may decay continuously. Never decay a still-open obligation, and never recursively summarize prior summaries.
+\end{pdsolution}
+
+\pdexercisesfor{\S\ref{sec:tokens}}{Tokens: the swarm's COGS \emph{and} its legibility engine}
+
+\begin{pdexercise}[kind=Check,rating=1]{ex:ls-digest-is-compaction}
+Why is ``the digest IS the compaction'' (\S\ref{sec:tokens-digest}) more than a
+slogan --- what concrete consequence does it have for how the operator's digest is
+produced?
+\end{pdexercise}
+\begin{pdsolution}{ex:ls-digest-is-compaction}
+The operator digest and the context compaction must be the same provenance-preserving projection from durable sources. If a separate model instead summarizes the already-compacted agent story, cost control and truth control diverge and recursive-summary error compounds --- exactly the failure Thm.~\ref{thm:split-digest} names two heads to avoid conflating.
+\end{pdsolution}
+\begin{pdexercise}[kind=Check,rating=1]{ex:ls-effective-context-budget}
+Explain why budgeting to effective context is simultaneously a cost
+and a quality optimization (\S\ref{sec:cogs}).
+\end{pdexercise}
+\begin{pdsolution}{ex:ls-effective-context-budget}
+Context past the model's effective window costs tokens while degrading retrieval and reasoning. Removing redundant or inert material and edge-placing hard facts can therefore reduce spend and improve accuracy simultaneously, provided obligations and source pointers survive the cut.
+\end{pdsolution}
+\begin{pdexercise}[kind=Trace,rating=2]{ex:ls-five-compaction-primitives}
+For each of the five compaction primitives (Figure~\ref{fig:read-surfaces}),
+name the reader, what it drops, and what it keeps.
+\end{pdexercise}
+\begin{pdsolution}{ex:ls-five-compaction-primitives}
+Briefing: reader is an arriving agent; drops old conversational detail; keeps current roles, work, constraints, decisions, and source links. Attention queue: reader is agent/operator now; drops low-value candidates from the immediate view; keeps highest value-of-inspection items plus the suppression ledger. Episodic memory: reader is a future incarnation; drops transient chatter; keeps typed incidents, decisions, outcomes, and retrieval features. Pheromone: reader is the swarm; continuously drops stale coordination weight; keeps fresh shared traces. Resurrection handoff: reader is a successor; drops nonessential transcript detail; keeps the task capsule, artifacts, obligations, pending operations, and provenance.
+\end{pdsolution}
+\begin{pdexercise}[kind=Trace,rating=2]{ex:ls-cascade-cures}
+Walk the four-rung cascade
+(\S\ref{sec:cascade}) and name the single cure that breaks each rung.
+\end{pdexercise}
+\begin{pdsolution}{ex:ls-cascade-cures}
+Context rot $\to$ compact earlier to an effective-window budget. Lost-in-the-middle $\to$ shorten and edge-place mandatory facts. Recursive-summary collapse $\to$ re-derive every compaction from raw durable artifacts. Over-flattening $\to$ require a total zoom path from every material claim. The third cure is the one that matters most: it prevents model noise from becoming the next round's source of truth.
+\end{pdsolution}
+\begin{pdexercise}[kind=Open,rating=3]{ex:ls-replay-metric-soundness}
+The compaction-quality scalar: is \emph{successor-replay-success-
+from-digest-alone} a sound, gaming-resistant metric, and can it be made a cheap
+attestation invariant (the replay smoke-test is itself token-expensive)?
+\end{pdexercise}
+\begin{pdsolution}{ex:ls-replay-metric-soundness}
+``Replay from digest alone'' is neither sound nor gaming-resistant on its own: a digest can overfit the smoke task or omit facts the sampled successor never needed. Give a successor the digest plus authorized content-addressed source links, then measure next-step success, false beliefs, obligation recall, time, and tokens on hidden continuation tasks. Add a cheap structural invariant that does not require replay: every open claim, decision, commitment, risk, and pending external effect has exactly one valid digest entry or pointer. Run the expensive full replay only on a random sample.
+\end{pdsolution}
+\begin{pdexercise}[kind=Open,rating=3]{ex:ls-dag-token-budget}
+Optimal token-budget allocation across a DAG of orchestrator/worker/
+reviewer agents under a total budget.
+\end{pdexercise}
+\begin{pdsolution}{ex:ls-dag-token-budget}
+Budget allocation over a precedence DAG is a knapsack/resource-allocation problem and is NP-hard in general. First reserve a minimum viable budget for each mandatory node and any predecessor needed to make its output exist. Allocate the remainder by estimated marginal outcome value per token while respecting precedence, and recompute after each result. For a monotone submodular value function under a cardinality budget, greedy earns the standard $(1-1/e)$ approximation; for arbitrary complementarities there is no such bound. Dynamic programming is pseudo-polynomial for small integer budgets or trees. A reviewer's tokens have near-zero value until the worker artifact it reviews exists.
+\end{pdsolution}
+\begin{pdexercise}[kind=Trace,rating=2]{ex:ls-a7-split-floor-run}
+Run \texttt{python3 skills/harbor-results/scripts/a7\_experiment.py} and read off the
+floor at $N{=}60,k{=}2,m{=}8$, the disjoint-readers floor at $2k{=}4$, and the
+falsification count. Reproduce the two floors by hand from Thm.~\ref{thm:lowerbound}
+first.
+\end{pdexercise}
+\begin{pdsolution}{ex:ls-a7-split-floor-run}
+By hand: $\log_2\binom{60}{2}-\log_2\binom{8}{2}=10.79-4.81=5.98$ bits, and $\log_2\binom{60}{4}-\log_2\binom{8}{4}=18.90-6.13=12.77$ bits [verified, closed form]; ratio $12.77/5.98=2.13$. The script's own lines: \texttt{Regime N=60, k=2, m=8:\ \ B* = 5.98 bits}, \texttt{violations: 0/16 -> floor HOLDS}, \texttt{floor disjoint readers (2k=4): 12.77 bits}, \texttt{split penalty (disjoint - single): 6.78 bits}, \texttt{ratio:\ \ 2.13x} [internal, \texttt{a7\_experiment.py}]. The falsification sweep (oracle, noisy, and random encoders across sixteen configurations, zero violations) is the part hand arithmetic cannot check --- it is evidence that no cleverer encoding beats the closed-form floor, not a recomputation of it.
+\end{pdsolution}
+\begin{pdexercise}[kind=Check,rating=1]{ex:ls-paging-ratio-hand}
+Compute the Landlord competitiveness ratio $k/(k-h+1)$ at $k=8,h=8$ and at
+$k=8,h=1$. Which end of the range recovers the classical, unaugmented
+Sleator--Tarjan bound?
+\end{pdexercise}
+\begin{pdsolution}{ex:ls-paging-ratio-hand}
+At $h=k=8$: $k/(k-h+1)=8/1=8.0$, recovering the classical unaugmented result that a cache of size $k$ is $k$-competitive against an offline optimum given the very same cache size --- the hardest comparator, no resource augmentation. At $h=1$: $k/(k-h+1)=8/8=1.0$, the fully resource-augmented regime, where online's cache $k$ so outsizes the comparator's $h=1$ that the ratio collapses to $1$. The chapter's own $k=8,h=4$ instance, at $1.6$, sits at the midpoint, pricing a comparator with half of online's verified capacity.
+\end{pdsolution}
+
+\pdexercisesfor{\S\ref{sec:consent-canon}}{Reconciling the canon: roles, consent, and local knowledge}
 
 \begin{pdexercise}[kind=Check,rating=1]{ex:ls-hobbes-mapping}
 Map each of {agents, daemon, operator} onto Hobbes' {multitude, sovereign-actor,

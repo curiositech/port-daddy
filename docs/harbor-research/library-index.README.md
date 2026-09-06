@@ -144,7 +144,7 @@ before `\documentclass`, naming each other:
 % -----------------------------------------------------------------------
 ```
 
-Rules the checker enforces (`check_twin_headers`, check (d)):
+Rules the checker enforces (`check_twin_headers`, which is check (d) of `check_library_index.py`, the twin-header check listed under drift detection in `LIBRARY-SYSTEM.md`):
 - The block must contain the literal string `TWIN-LOCATION NOTICE` somewhere before
   `\documentclass`.
 - Every partner file this entry's fold requires must be named -- by full repo-relative

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-r"""Fail when the seven whitepaper TeX sources and semantic atlas drift.
+r"""Fail when the eight whitepaper TeX sources and semantic atlas drift.
 
 The checker deliberately uses source labels rather than printed figure numbers. It follows
 \input and \include directives recursively, extracts every figure/figure* environment, and
@@ -43,7 +43,7 @@ REUSE_MEMBERS_CELL_RE = re.compile(
     r"`[IVX]+/(?:fig|alg):[^`]+`"
     r"(?:\s*,\s*`[IVX]+/(?:fig|alg):[^`]+`)*"
 )
-EXPECTED_VOLUMES = {"I", "II", "III", "IV", "V", "VI", "VII"}
+EXPECTED_VOLUMES = {"I", "II", "III", "IV", "V", "VI", "VII", "VIII"}
 ENVIRONMENT_RE = re.compile(r"\\begin\s*\{([^{}]+)\}")
 UNSUPPORTED_INCLUDE_RE = re.compile(
     r"\\(subfile|import|subimport|inputfrom|subinputfrom|includefrom|subincludefrom)"
@@ -52,10 +52,7 @@ UNSUPPORTED_INCLUDE_RE = re.compile(
 BUILD_PAPER_RE = re.compile(
     r'^\s*"(?P<src>[^"|]+)\|(?P<root>[^"|]+\.tex)\|[^\"]+"\s*$', re.MULTILINE
 )
-MEGA_PAPER_RE = re.compile(
-    r"\{\s*roman:\s*'(?P<roman>[IVX]+)'[^{}\n]*"
-    r"source:\s*'(?P<source>[^']+\.tex)'[^{}\n]*\}"
-)
+FORMER_NUMERAL_RE = re.compile(r"^[IVX]+$")
 
 
 @dataclass(frozen=True)
@@ -142,6 +139,11 @@ def walk_tex(root: Path) -> list[tuple[Path, str]]:
         if resolved in visited:
             return
         if not resolved.is_file():
+            if "\\" in str(path):
+                # An \input whose path is built from a macro (the generated
+                # per-chapter solutions file, sol-\pdchapterprefix) resolves
+                # only at TeX time; it carries no figure environments.
+                return
             raise FileNotFoundError(f"included TeX source does not exist: {resolved}")
         visited.add(resolved)
         text = strip_tex_comments(resolved.read_text(encoding="utf-8"))
@@ -216,7 +218,7 @@ def extract_atlas_ids(atlas: Path) -> list[str]:
 
 
 def extract_atlas_volume_roots(atlas: Path) -> dict[str, str]:
-    """Read the seven canonical TeX roots from the human-facing atlas."""
+    """Read the eight canonical TeX roots from the human-facing atlas."""
 
     text = atlas.read_text(encoding="utf-8")
     matches = list(ATLAS_VOLUME_ROOT_RE.finditer(text))
@@ -227,12 +229,12 @@ def extract_atlas_volume_roots(atlas: Path) -> dict[str, str]:
     volumes = [match.group("roman") for match in matches]
     root_paths = [match.group("root") for match in matches]
     if (
-        len(matches) != 7
+        len(matches) != len(EXPECTED_VOLUMES)
         or set(volumes) != EXPECTED_VOLUMES
         or len(set(volumes)) != len(volumes)
         or len(set(root_paths)) != len(root_paths)
     ):
-        raise ValueError("atlas must declare exactly one canonical root per volume I--VII")
+        raise ValueError("atlas must declare exactly one canonical root per volume I--VIII")
     return roots
 
 
@@ -339,14 +341,51 @@ def canonical_roots_from_build_script(repo_root: Path) -> set[str]:
     return roots
 
 
-def canonical_roots_from_mega_generator(repo_root: Path) -> dict[str, str]:
-    text = (repo_root / "scripts/generate-mega-whitepaper.mjs").read_text(
-        encoding="utf-8"
-    )
-    return {
-        match.group("roman"): match.group("source")
-        for match in MEGA_PAPER_RE.finditer(text)
-    }
+def canonical_roots_from_textbook(repo_root: Path) -> dict[str, str]:
+    """Read the eight chapter roots from the book's one source of chapter truth.
+
+    ``scripts/generate-mega-whitepaper.mjs`` no longer carries its own
+    roman-numeral-to-source table; it renders the Book straight from
+    ``whitepaper/textbook.json``. Atlas volume numerals map to textbook
+    chapters by ``formerNumeral`` (the pre-textbook volume numbering); the
+    Sealed Harbor chapter has no former numeral and is the fixed Volume VIII.
+    """
+
+    path = repo_root / "whitepaper/textbook.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+    chapters = data.get("chapters")
+    if not isinstance(chapters, list) or not chapters:
+        raise ValueError(f"{path}: chapters must be a non-empty array")
+
+    roots: dict[str, str] = {}
+    sealed_harbor_source: str | None = None
+    for chapter in chapters:
+        chapter_id = chapter.get("id")
+        source = chapter.get("source")
+        if not isinstance(source, str) or not source:
+            raise ValueError(f"{path}: chapter {chapter_id!r} is missing a source")
+        if chapter_id == "sealed-harbor":
+            sealed_harbor_source = source
+        former = chapter.get("formerNumeral") or ""
+        if not former:
+            continue
+        if not FORMER_NUMERAL_RE.match(former):
+            raise ValueError(
+                f"{path}: chapter {chapter_id!r} has an invalid formerNumeral {former!r}"
+            )
+        if former in roots:
+            raise ValueError(f"{path}: duplicate formerNumeral {former!r}")
+        roots[former] = source
+
+    if sealed_harbor_source is None:
+        raise ValueError(f"{path}: missing the sealed-harbor chapter")
+    if "VIII" in roots:
+        raise ValueError(
+            f"{path}: unexpected formerNumeral VIII already assigned to "
+            f"{roots['VIII']!r}"
+        )
+    roots["VIII"] = sealed_harbor_source
+    return roots
 
 
 def canonical_root_drift(
@@ -362,10 +401,10 @@ def canonical_root_drift(
     if build_extra:
         failures.append(f"build-whitepapers:extra={','.join(build_extra)}")
 
-    mega_mapping = canonical_roots_from_mega_generator(repo_root)
-    for volume in sorted(set(expected_roots) | set(mega_mapping)):
+    textbook_mapping = canonical_roots_from_textbook(repo_root)
+    for volume in sorted(set(expected_roots) | set(textbook_mapping)):
         expected_source = expected_roots.get(volume)
-        observed_source = mega_mapping.get(volume)
+        observed_source = textbook_mapping.get(volume)
         if expected_source != observed_source:
             failures.append(
                 f"mega-generator:{volume}:expected={expected_source}:"
