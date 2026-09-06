@@ -416,7 +416,7 @@ paper and a brochure.}
 short on time (15 min) & \S1 (thesis + stack map), \S\ref{sec:durability} (durability split), \S\ref{sec:enforcement} (the monitor correction) & Figs.~\ref{fig:swk-stack-map}, \ref{fig:swk-durability-faultclass}, \ref{fig:swk-reference-monitor} \\
 a systems engineer & \S\ref{sec:substrate}--\S\ref{sec:invariants} (substrate, single-writer, the theorems) & Thm.~\ref{thm:consistency}; Figs.~\ref{fig:swk-single-writer}, \ref{fig:swk-consistency-model} \\
 a security reviewer & \S\ref{sec:enforcement} (deontic split, the monitor), \S\ref{sec:threatmodel} (threat model) & Figs.~\ref{fig:swk-reference-monitor}, \ref{fig:swk-deontic-split}; Table~\ref{tab:threat-model} \\
-a protocol/agent author & \S\ref{sec:resource} (claims), \S\ref{sec:comm} (the bus), \S\ref{sec:adjacency} (the interface contract) & Figs.~\ref{fig:swk-claim-lifecycle}, \ref{fig:swk-comm-organ}; \S\ref{sec:adjacency} \\
+a protocol/agent author & \S\ref{sec:resource} (claims), \S\ref{sec:comm} (the bus), \S\ref{sec:adjacency} (the interface contract) & Fig.~\ref{fig:swk-claim-lifecycle}, Table~\ref{tab:swk-comm-organ}; \S\ref{sec:adjacency} \\
 here for the economy & \S\ref{sec:continuity} (continuity organs), then the personhood and market papers & Fig.~\ref{fig:swk-continuity-organs} \\
 an instructor & every \textbf{Exercises} block; the open problems OP-1\,--\,OP-11 and their status table (\S\ref{sec:openproblems}) & the starred exercises; Table~\ref{tab:op-status} \\
 \bottomrule
@@ -434,14 +434,36 @@ foundation is sound, read this one.
 % ═════════════════════════════════════════════════════════════════════════════
 
 We organize the kernel into seven \emph{organs}, each a contract the daemon must
-hold for the layers above to be coherent (Figure~\ref{fig:swk-seven-organs}). The
+hold for the layers above to be coherent (Table~\ref{tab:swk-seven-organs}). The
 temptation is to describe such a kernel as a flat noun-list of features --- ports,
 claims, sessions, a bus, markers, commitments, a monitor, a memory store --- which
 is the symptom of treating the kernel as a database. It is not a database. It is a
 system of record \emph{plus} a mediator, and naming the organs surfaces the
 connective tissue a noun-list hides.
 
-\input{figures/fig-swk-seven-organs}
+\begin{table}[H]
+\centering
+\caption{The seven organs, each the contract the daemon holds for the layer above it,
+with the table that is its home where the chapter names one and its maturity grade.
+All seven are disciplines over one SQLite/WAL file: one commit history, not seven
+stores. The grades come from the chapter's own status table (\S\ref{app:status}).}
+\label{tab:swk-seven-organs}
+\small
+\renewcommand{\arraystretch}{1.15}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.22\textwidth} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{0.19\textwidth}@{}}
+\toprule
+\textbf{Organ} & \textbf{Contract held for the layer above} & \textbf{Maturity} \\
+\midrule
+transactional substrate & one writer, one durable file; every other organ is a table with discipline over the same commit history & \Built \\
+resource / exclusion & at most one compatible holder per conflict domain; leases expire and are swept lazily (home: \texttt{claims}) & \Built \\
+actor continuity & a stable actor identity across sessions, mechanically present but asserted by the actor, not proven & \BuiltWeak\ self-asserted \\
+message carriage & an ordered, cursor-addressable, durable envelope delivered at least once (home: \texttt{messages}) & \Built \\
+obligation \& enforcement & no \emph{done} without a receipt the daemon can re-check; the policy monitor detects and cannot always prevent (home: \texttt{commitments}) & \BuiltWeak\ partial \\
+session memory & notes and events survive process death; execution state does not & \Built\ (memory) \\
+self-attestation & the daemon reports its own coverage as enforced, degraded or stubbed, never silently & \Built \\
+\bottomrule
+\end{tabularx}
+\end{table}
 
 The \textbf{substrate organ} is the floor; the other six are, mechanically,
 tables \emph{with discipline} over the same file. We treat the substrate and the
@@ -781,9 +803,26 @@ the queue are the same code path, and until the ticket table exists at all.
 \label{sec:comm}
 % ═════════════════════════════════════════════════════════════════════════════
 
-\input{figures/fig-swk-comm-organ}
+\begin{table}[H]
+\centering
+\caption{The communication organ: one durable carrier and two provenance traces that
+must never be merged. The envelope fields are what the bus stores; the two traces
+answer two different questions and are checked by two different mechanisms.}
+\label{tab:swk-comm-organ}
+\small
+\renewcommand{\arraystretch}{1.15}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.24\textwidth} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{0.2\textwidth}@{}}
+\toprule
+\textbf{Piece} & \textbf{What it is} & \textbf{Status} \\
+\midrule
+the bus envelope & version tag, time-to-live, message kind, typed act with its conversation id, actor, reason and event reference; ordered by a durable history cursor & \Built \\
+authorization chain & the cryptographic object: who authorized whom, hop-bound, attenuation-monotonic, anti-replay & \Built\ (ProVerif) \\
+coordination lineage & the coordination object: what work is already in flight, so loops and upward blocks can be detected & \Designed \\
+\bottomrule
+\end{tabularx}
+\end{table}
 
-The communication organ (Figure~\ref{fig:swk-comm-organ}) is where the substrate
+The communication organ (Table~\ref{tab:swk-comm-organ}) is where the substrate
 stops being a lockbox and becomes a medium for conversation. The carrier is
 \Built; the \emph{semantics} that ride on top of it (typed speech acts, protocol
 state machines) belong to the coordination layer. Three pieces matter here.
@@ -1029,8 +1068,6 @@ confirms exactly this. The predictable misread, preempted: uncontrollable does n
 invisible. Tokens are eminently loggable after emission. Uncontrollable means
 \emph{unrefusable before the fact}, not unobservable after it; when an event is also
 unobservable a second, stricter theory applies (\S\ref{sec:partial-observation}).
-
-\input{figures/fig-swk-controllability-relation}
 
 \paragraph{The vocabulary, at the point of use.}
 Everything below is a statement about strings and sets of strings. An \emph{alphabet}
@@ -1741,14 +1778,12 @@ One decider, one order, one auditable truth.}
 
 \subsection{The dual-runtime hazard, and what would make I11 a theorem}
 
-\input{figures/fig-swk-dual-runtime}
-
 Invariant I11 (runtime parity) is the one place the formal spine is held together
 by a compatibility shim rather than a proof. In deployment, truth is \emph{computed}
 under the SQLite bindings of one runtime (the compiled single-binary daemon), but in
 the test suite it is \emph{verified} under a different runtime's bindings; a thin
 shim normalizes their pragma and option interfaces
-(Figure~\ref{fig:swk-dual-runtime}). An invariant that is green under test can fail
+. An invariant that is green under test can fail
 in production if the two bindings diverge in lock or pragma semantics --- the
 classic ``green in the test runtime, broken in the deployment runtime'' failure. A
 continuous-integration pipeline must therefore \emph{boot the deployment runtime}

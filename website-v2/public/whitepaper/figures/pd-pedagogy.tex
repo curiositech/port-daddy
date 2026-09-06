@@ -32,6 +32,7 @@
 \@ifpackageloaded{answers}{}{\usepackage{answers}}
 \@ifpackageloaded{marginnote}{}{\usepackage{marginnote}}
 \@ifpackageloaded{environ}{}{\usepackage{environ}}
+\@ifpackageloaded{listings}{}{\usepackage{listings}}
 
 % ---------------------------------------------------------------------------
 % Shared helpers: the margin-column switch, the margin head, the margin glyph.
@@ -241,6 +242,32 @@
   }{%
     \end{pdSolution}%
   }%
+}
+
+% ---------------------------------------------------------------------------
+% pdsession -- "At the terminal": a captured transcript (a pd session, a model
+% checker's output, a proof tool's trace), set in monospace between two
+% hairlines with the head in the margin (Book) or run in (standalone). The
+% optional argument is a short title. Transcripts are recorded by
+% scripts/harbor-research/record_sessions.sh and checked in, never typed.
+%   \begin{pdsession}[two clients, one claim]
+%   $ pd claim src/auth.ts
+%   ...
+%   \end{pdsession}
+% ---------------------------------------------------------------------------
+\lstdefinestyle{pdsession}{basicstyle=\ttfamily\footnotesize,columns=fullflexible,
+  keepspaces=true,breaklines=true,breakatwhitespace=false,frame=none,
+  xleftmargin=0pt,aboveskip=3pt,belowskip=3pt,showstringspaces=false,
+  language={},keywordstyle={},commentstyle={},stringstyle={},identifierstyle={}}
+\lstnewenvironment{pdsession}[1][]{%
+  \endgraf\addvspace{8pt plus 1pt}%
+  \noindent{\color{pdinkmuted}\rule{\linewidth}{0.4pt}}\endgraf\nobreak\vspace{2pt}%
+  \noindent\pd@marginhead{At the terminal}%
+  \ifx\relax#1\relax\else{\itshape #1.}\fi\endgraf\nobreak
+  \lstset{style=pdsession}%
+}{%
+  \endgraf\nobreak\noindent{\color{pdinkmuted}\rule{\linewidth}{0.4pt}}\endgraf
+  \addvspace{8pt plus 1pt}%
 }
 
 % ---------------------------------------------------------------------------
