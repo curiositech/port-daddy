@@ -17,6 +17,7 @@ disagree, the ledger and `git log` win.
 | P1 Proof estate | merge `73485725e`, split `82d450b2c` | `.github/workflows/proofs.yml`, `whitepaper/corpus.json`, `scripts/check-whitepaper-corpus.mjs`, `scripts/proofs/run-proverif.py` |
 | Pedagogy macros | merge `0dadfc517` | `whitepaper/figures/pd-pedagogy.tex`, `scripts/generate-mega-whitepaper.test.mjs` |
 | 2 Kernel fold | `ae0e3c17f` | `whitepaper/single-writer-kernel.tex` (sections `sec:controllability`, `sec:workunit`; 34 `pdexercise` pairs), `whitepaper/figures/fig-swk-controllability-relation.tex`, `whitepaper/figures/fig-swk-controllability-quadrant.tex` |
+| 3 Anchor pedagogy (A1) | merge of `wave-3/anchor-pedagogy` (e3a0e2368) | `website-v2/public/whitepaper/anchor-protocol-whitepaper.tex`: 9 `pdexercise` pairs with pinned ProVerif verdicts, 3 recitations; the creative pass A2 (composition paragraph, claim kinds, the single-hop citation in the algorithms section, boundaries) is next |
 | Art system (round 8) | `3ca392f28` | `website-v2/public/whitepaper/plates/README.md`, `website-v2/public/whitepaper/plates/PROVENANCE.json`, `scripts/whitepaper-plates/plates_pipeline.py` |
 | CI hygiene | `0dc109b62`, `bf7278c01` | `skills/federated-harbor-whitehat/references/mechanization-targets.md`, `website-v2/public/whitepaper/publication-digests.json` |
 
