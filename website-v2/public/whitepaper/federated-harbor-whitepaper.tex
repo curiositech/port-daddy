@@ -1103,6 +1103,22 @@ A federation paper with six named open questions is doing its job. The point of 
 \pdexercisepointer{\ref{ex:fh-correlated-equilibrium}}{\ref{ex:fh-synthesis}}{\pageref{ex:fh-correlated-equilibrium}}
 
 % ═══════════════════════════════════════════════════════════════════════════════
+\section*{Review of the key ideas}
+\addcontentsline{toc}{section}{Review of the key ideas}
+
+What this chapter leaves coupled, in the order the rest of the book will lean on it:
+
+\begin{enumerate}[leftmargin=1.6em,itemsep=2pt]
+\item \textbf{Two machines, no shared daemon.} A federated authority admits a foreign act only through a witness log each side can check; admissibility is a design invariant of the log, not a property of the peer.
+\item \textbf{Capability transfer shrinks at every hop}: the set printed at Harbor A contains the set acknowledged at Harbor B, and B verifies locally at delivery without reaching back to A. Attenuation monotonicity across the boundary is the theorem.
+\item \textbf{Revocation crosses the boundary as an epoch}: dissemination is conditional on connectivity, the stale window is bounded in a connected federation, and a partition has no finite deadline.
+\item \textbf{Inconsistency is detected exactly when the missing edge closes a visible cycle.} On six nodes the cycle $C_6$ has consistency radius $1.2247$ and the path $P_6$ has $0$: the same disagreement, visible on one and invisible on the other.
+\item \textbf{The completion residual is sound and achievable}, it localizes the fault, and its cost is stated; two liars on one cycle can cancel, and that is the boundary.
+\item \textbf{Settlement across harbors is bucketed.} Escrow extraction is bounded conditional on the custody ledger, and cross-harbor buckets partition, so one harbor's failure is confined to its bucket.
+\item \textbf{Admission is a ceremony with a record}: a harbor joins a federation by exchanging epoch roots, and the record is what a later dispute reads.
+\item \textbf{The rollback configuration fails by design.} The card-revocation model checked against a rollback of the epoch root produces a counterexample, which is the property, not a bug in the checker.
+\end{enumerate}
+
 \section{Exercises}
 \label{sec:fh-exercises}
 % ═══════════════════════════════════════════════════════════════════════════════

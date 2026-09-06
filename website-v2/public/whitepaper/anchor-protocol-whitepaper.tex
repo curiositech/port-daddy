@@ -1303,6 +1303,21 @@ Capability-based security dates back to Dennis and Van Horn's seminal 1966 paper
 JSON Web Tokens have been the subject of extensive security analysis. Algorithm confusion attacks were first systematically studied by McLean~\cite{mclean2015critical}, with subsequent vulnerabilities documented in CVE-2015-9235~\cite{cve20159235} (HS256/RS256 confusion), CVE-2018-1000531~\cite{cve20181000531} (``none'' algorithm), and CVE-2023-48238~\cite{cve202348238} (generic algorithm confusion). Our protocol implements the defense recommended by the IETF JWT Best Current Practices~\cite{ietf2024jwtbcp}: strict algorithm whitelisting and key separation.
 
 % ═════════════════════════════════════════════════════════════════════════════
+\section*{Review of the key ideas}
+\addcontentsline{toc}{section}{Review of the key ideas}
+What this chapter leaves coupled, in the order the rest of the book will lean on it:
+
+\begin{enumerate}[leftmargin=1.6em,itemsep=2pt]
+\item A \textbf{harbor card} is a short-lived signed statement of exactly what one agent may do; the daemon checks the card, not the process, and a process with no card can do nothing the harbor mediates.
+\item \textbf{Attenuation is monotone}: a child card is a subset of its parent in scope and in lifetime, at every hop, and the chain's task hash is the same at every hop. This is the property ProVerif checks on the multi-hop model, and it is the one the version 6 model was found to lack.
+\item \textbf{Algorithmic pinning}: the verifier chooses the signature algorithm from policy, never from the token's header. The same bytes that a header-selected verifier accepts, a policy-pinned verifier refuses.
+\item \textbf{Revocation is an epoch, not a message}: a revoked card leaves the admissible set only when the filter for its epoch reaches the daemon, so there is a stale window of at most two gossip intervals in a connected fleet and no finite bound under partition.
+\item \textbf{Filters do not merge; logs do.} Two daemons cannot union their cuckoo filters, so the append-only revocation log is the shared object and each daemon rebuilds its own filter from it.
+\item \textbf{Correction is a new card}, with a new identifier and a fresh authority; the old card's history is untouched, and nothing is reanimated in part.
+\item The proofs are \textbf{bounded and named}: authentication correspondence for the modeled phase, attenuation soundness on the multi-hop model, memory safety within the harness bound with the cryptography stubbed, and branch-freedom at source level. Each is a statement about a model, and the chapter says which.
+\item What the adversary can still do is stated as scope: a process that holds a valid card can spend it in full within its lifetime; the protocol bounds what a card grants, not what a grantee wants.
+\end{enumerate}
+
 \section{Exercises}
 \label{sec:anchor-exercises}
 % ═════════════════════════════════════════════════════════════════════════════

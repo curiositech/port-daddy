@@ -1518,6 +1518,23 @@ What we deliberately do \emph{not} do: require passwords, use TOTP as a primary 
 \paragraph{Bond pricing is unsolved.} We identify the pricing function $\pi$ as the critical open problem. Without an adequate $\pi$, bonds are either too low (cheap sabotage) or too high (priced-out legitimate agents). This is a mechanism design problem, not a systems problem, and requires expertise we explicitly flag as needed.
 
 % ═══════════════════════════════════════════════════════════════════════════════
+\section*{Review of the key ideas}
+\addcontentsline{toc}{section}{Review of the key ideas}
+
+What this chapter leaves coupled, in the order the rest of the book will lean on it:
+
+\begin{enumerate}[leftmargin=1.6em,itemsep=2pt]
+\item \textbf{Three layers, each doing what the layer below cannot.} Structural prevention bounds scope before the act; immutable attribution makes every act answerable after it; economic alignment prices what neither can forbid.
+\item \textbf{Structural scope limitation is a theorem}, not a policy: a process cannot touch what its card does not name, so the first layer costs nothing at runtime.
+\item \textbf{The trail is a Merkle forest.} Trail integrity, proof soundness, binding, attribution, rollback safety and conservation are the six properties of the ledger; conservation and no-overdraft under concurrent escrow are model-checked.
+\item \textbf{Decisive allocation has limits.} There is a Pareto-inferior locking instance, so advisory conflict detection is complete where decisive locking is not, and an appeal is sound when it can only widen the record.
+\item \textbf{A crash is a social event.} Recovery is continuation of the record by whoever next holds the role, not resurrection of the process.
+\item \textbf{Intent is irrelevant to settlement}; the bond pays on the evidence, whatever the agent meant.
+\item \textbf{Claim signaling is incentive-compatible above $\delta^{\ast}\approx0.3425$}, the root of $2\delta^{3}+2\delta^{2}+2\delta-1=0$; TLC agrees on the integer grid, at $0.35$ holding and at $0.33$ producing the deviation trace.
+\item \textbf{Cleanup has a lower bound}: no bond schedule makes abandoning work free, and the bound says how much.
+\item \textbf{Disputes escalate only when the cheaper exit fails}: released, then expired by TTL, then preempted by bond, then ruled by a human, every terminal state writing to one evidence rail; a magic link is redeemed by one row update and refused by the second reader.
+\end{enumerate}
+
 \section{Exercises}
 \label{sec:bonded-exercises}
 % ═══════════════════════════════════════════════════════════════════════════════

@@ -1682,6 +1682,23 @@ Incentive-compatible arbitration capacity & incentive compatibility &
 \end{table}
 
 % ═══════════════════════════════════════════════════════════════════════════════
+\section*{Review of the key ideas}
+\addcontentsline{toc}{section}{Review of the key ideas}
+
+What this chapter leaves coupled, in the order the rest of the book will lean on it:
+
+\begin{enumerate}[leftmargin=1.6em,itemsep=2pt]
+\item \textbf{A market, not a payment rail.} The harbor prices work between three sides, an operator-for-hire, a buyer and an insurer, and the escrow row is the one object all three sides read.
+\item \textbf{The succession rule has a price.} Letting a worker be replaced mid-task costs $D^{\ast}=\eta K/(1-\eta K)$ in expectation; below that, the buyer is better off waiting.
+\item \textbf{The float plan is the built floor.} A worker becomes \emph{running} only at the committed transition where the wallet is debited and the escrow row exists; a signed plan alone admits nothing, and abort leaves all three traces unchanged.
+\item \textbf{Conservation is an invariant, not a hope.} In native units $\Delta W+\Delta E+\Delta C=0$ exactly, and no spawn happens without a bond; once amounts are converted, fee, slippage and risk are priced terms and the total is no longer zero by construction.
+\item \textbf{Deontic conflict is decidable inside the fragment and NP-complete one step outside it.} The in-fragment check is polynomial and produces a witness; that is what the daemon runs.
+\item \textbf{The keystone is missing and named.} Cross-operator attestation is what the market rests on and does not yet have; local identity is built.
+\item \textbf{Single-unit conservation composes}; bilateral trade across a boundary is conditional, and the condition is stated.
+\item \textbf{Reputation is monotone but revocable}: compensation does not erase reliance, and the monitoring model must include the evaluator.
+\item \textbf{Hosted trust is the product}: cold start is solved by a supplier price at $\lambda^{\ast}$, not by an auction the market cannot yet clear; the cartel game says which regime detection and loss put an insurer in.
+\end{enumerate}
+
 \section{Exercises}
 \label{sec:he-exercises}
 % ═══════════════════════════════════════════════════════════════════════════════

@@ -27,6 +27,7 @@
 \usepackage{fancyhdr}
 \usepackage{tikz}
 \usetikzlibrary{arrows.meta,positioning,fit,backgrounds,calc,shapes.geometric,shapes.symbols,decorations.pathmorphing,decorations.pathreplacing}
+\usepackage{pgfplots}\pgfplotsset{compat=1.18}
 \usepackage{float}
 \usepackage{caption}
 \usepackage{enumitem}
@@ -1133,6 +1134,9 @@ qualifications bind and are part of the statement, not footnotes to it:
   an escrow), not a different schedule.
 \end{enumerate}
 \end{pdclaim}
+
+\input{figures/fig-stp-probation-cliff}
+
 
 \begin{proof}[Proof sketch]
 Minimize $H(g)=\sum_t \delta_h^t g_t$ subject to $\sum_t \delta_f^t g_t\ge G_{\max}$
@@ -2249,6 +2253,23 @@ the same thing that makes the single-player tool good. The bridge is not a detou
 it is the load path.}
 
 % ═════════════════════════════════════════════════════════════════════════════
+\section*{Review of the key ideas}
+\addcontentsline{toc}{section}{Review of the key ideas}
+
+What this chapter leaves coupled, in the order the rest of the book will lean on it:
+
+\begin{enumerate}[leftmargin=1.6em,itemsep=2pt]
+\item \textbf{A role is replaced; a person accumulates.} The role rail names whoever fills it this week; the person rail is the set of witnessed outcomes that survive every respawn.
+\item \textbf{Continuity is a ledger position, not a metaphysics.} Three organs carry it: episodic memory survives process death, the checkpoint keeps a summary and worktree lineage but not execution state, and the outcome ledger keeps commitments and closures in part.
+\item \textbf{Identity must be non-forgeable} or nothing above it holds: a respawn under a fresh label would shed every penalty and inflate every quorum. Principal-bound identity keeps the penalty flat across respawns and one principal at one weight.
+\item \textbf{Whitewashing has a price}, $\rho^{\ast}=G/(dB)=0.25$ in the worked case, and the penalty a fresh identity can escape decays as $0.8^{k}$; the probation cliff is the cheapest deterrent for the honest newcomer.
+\item \textbf{Adverse selection lives inside one identity} until a price can depend on an attested quantity; the attested flip is the whole gain from attestation ($0.5$ against $0.2$ in the example).
+\item \textbf{Resurrection is sound only through the mint}: a lineage that forks cannot mint twice, and the checker refuses the copy-fork.
+\item \textbf{Reputation is a substrate, not a score}: multi-dimensional, buyer-weighted, and never a bandit problem, because the arms are strategic.
+\item \textbf{A grade is evidence only if the grader is at risk.} Eligibility is decided before the grade, the draw is public, the grade is blind, and a rate-the-raters tower contracts toward an honest root that must exist outside the tower.
+\item \textbf{Revocation is bounded}: a tombstone removes an outcome's contribution within a propagation window $\tau$, and memory stays bounded.
+\end{enumerate}
+
 \section{Exercises}
 \label{sec:stp-exercises}
 % ═════════════════════════════════════════════════════════════════════════════

@@ -920,6 +920,21 @@ per deployment, not proved.
 
 \pdexercisepointer{\ref{ex:sealed-pairs}}{\ref{ex:sealed-budget}}{\pageref{ex:sealed-pairs}}
 
+\section*{Review of the key ideas}
+\addcontentsline{toc}{section}{Review of the key ideas}
+What this chapter leaves coupled, in the order the rest of the book will lean on it:
+
+\begin{enumerate}[leftmargin=1.6em,itemsep=2pt]
+\item A \textbf{sealed room} lets an agent compute on data it may not export: the data owner and the model owner each get their guarantee from a fence they can inspect, not from trust in the other.
+\item \textbf{Taint does not survive a language model.} Token-level information flow through the model is not soundly definable, so the room does not try; it fences the room and gates the slot.
+\item \textbf{Two fences, two gates}: the work order fixes what may enter, the slot fixes what may leave, and the model in between is treated as an opaque function of both.
+\item \textbf{Noninterference is checked by running the world twice}: identical except for the secret, the two runs must agree on everything that leaves through the slot, modulo the declassification the gate performs. The finite clean-room model passes this check to depth seven.
+\item The gate sits on the \textbf{only enforceable boundary}: a policy over the agent's behavior is enforceable exactly when its trigger is witnessed at the slot; anything decided inside the room is detect-only.
+\item \textbf{The privacy budget is a ledger that conserves}: every release debits $\varepsilon$, the ledger's total never exceeds $\varepsilon_{\max}$, and a torn write is caught by the invariant within three steps on the two-client instance.
+\item \textbf{Canaries have a power curve and a clock}: with per-canary miss probability $\beta$ and $k$ independent canaries, the chance a smuggled item passes is $\beta^{k}$ ($0.008$ at $\beta=0.2$, $k=3$), and Wald's sequential test bounds how long detection takes.
+\item The whole channel is priced before timing: \textbf{$q \cdot b$ bits} may leave through $q$ queries of $b$ bits each, and the room's guarantee is that budget, not silence.
+\end{enumerate}
+
 \section{Exercises}
 \label{sec:sealed-exercises}
 
