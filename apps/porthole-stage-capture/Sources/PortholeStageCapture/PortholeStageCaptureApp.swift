@@ -36,7 +36,9 @@ private final class StageApplicationDelegate: NSObject, NSApplicationDelegate {
     private let proofConfiguration: ProofConfiguration?
     private let controller: StageCaptureController?
     private let syntheticProofOutput: URL?
+    private let automationSocketURL: URL?
     private var cursorReader: LocalCursorReader?
+    private var automationRuntime: PortholeAutomationRuntime?
     private var window: NSWindow?
     private var terminationPending = false
 
@@ -52,10 +54,19 @@ private final class StageApplicationDelegate: NSObject, NSApplicationDelegate {
             // controller, Keychain, cursor reader, or operator window access.
             proofConfiguration = nil
             controller = nil
+            automationSocketURL = nil
         } else {
             let configuration = PortholeStageCaptureApp.proofConfiguration()
             proofConfiguration = configuration
             controller = StageCaptureController(proofConfiguration: configuration)
+            do {
+                automationSocketURL = try PortholeAutomationSocketPath.parse(
+                    arguments: CommandLine.arguments
+                )
+            } catch {
+                fputs("Porthole control configuration failed: \(error.localizedDescription)\n", stderr)
+                exit(EX_USAGE)
+            }
         }
         super.init()
     }
@@ -93,6 +104,24 @@ private final class StageApplicationDelegate: NSObject, NSApplicationDelegate {
         NSApplication.shared.activate(ignoringOtherApps: true)
         self.window = window
 
+        do {
+            let runtime = PortholeAutomationRuntime(
+                controller: controller,
+                socketURL: automationSocketURL ?? PortholeAutomationSocketPath.defaultURL()
+            )
+            try runtime.start()
+            automationRuntime = runtime
+            print("Porthole control ready: \(runtime.socketURL.path)")
+        } catch {
+            let alert = NSAlert()
+            alert.alertStyle = .critical
+            alert.messageText = "Porthole control could not start"
+            alert.informativeText = error.localizedDescription
+            alert.runModal()
+            NSApplication.shared.terminate(nil)
+            return
+        }
+
         let cursorReader = LocalCursorReader()
         self.cursorReader = cursorReader
         cursorReader.start { [weak controller] event in
@@ -102,12 +131,14 @@ private final class StageApplicationDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        automationRuntime?.stop()
         cursorReader?.stop()
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         guard !terminationPending else { return .terminateLater }
         terminationPending = true
+        automationRuntime?.stop()
         cursorReader?.stop()
         Task {
             await controller?.stopCapture()

@@ -232,7 +232,52 @@ public enum SourceCapabilityAction: String, Equatable, Sendable {
     case persistRecording = "persist-recording"
 }
 
+public struct PersistenceCapabilityPresentation: Equatable, Sendable {
+    public let label: String
+    public let reason: String
+    public let allowed: Bool
+
+    public static func evaluate(approval: SourceApproval, activeGate: PersistenceGate?) -> Self {
+        guard approval.capabilities.persistRecording else {
+            return Self(label: "Persist off", reason: "Persistence was not granted.", allowed: false)
+        }
+        guard SourceApprovalPolicy.permits(.persistRecording, approval: approval) else {
+            return Self(label: "Persist blocked", reason: "Persistence requires a valid exact-window approval.", allowed: false)
+        }
+        guard let activeGate, activeGate.allowed else {
+            return Self(label: "Persist blocked", reason: activeGate?.reason ?? "Persistence is not active.", allowed: false)
+        }
+        return Self(label: "Persist ready", reason: activeGate.reason, allowed: true)
+    }
+}
+
 public enum SourceApprovalPolicy {
+    /// The persisted ledger grant is exactly the reviewed scope and capability set.
+    public static func reviewedApproval(
+        review: ApprovalReview, scope: SourceApprovalScopeKind, capabilities: SourceCapabilities,
+        approvalID: String, createdAtMonotonicNanos: UInt64
+    ) throws -> SourceApproval {
+        guard review.supportedScopes.contains(scope), supports(scope: scope, capabilities: capabilities) else {
+            throw SourceApprovalError.invalidScopeBinding
+        }
+        let approval = SourceApproval(
+            approvalID: approvalID, scope: scope,
+            sourceKind: scope == .exactWindow ? .window : review.sourceKind,
+            displayTitle: scope == .exactWindow ? review.displayTitle : review.programDisplayTitle,
+            capabilities: capabilities, program: review.program,
+            runningInstance: scope == .signedProgram ? nil : review.runningInstance,
+            exactWindow: scope == .exactWindow ? review.exactWindow : nil,
+            createdAtMonotonicNanos: createdAtMonotonicNanos)
+        try validate(approval)
+        return approval
+    }
+
+    /// All approval surfaces share this boundary; never silently reduce a reviewed grant.
+    public static func supports(scope: SourceApprovalScopeKind, capabilities: SourceCapabilities) -> Bool {
+        (!capabilities.persistRecording || scope == .exactWindow)
+            && (capabilities.preview || capabilities.liveShare || capabilities.persistRecording)
+    }
+
     public static func validate(_ approval: SourceApproval) throws {
         guard !approval.approvalID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             throw SourceApprovalError.emptyApprovalID
@@ -250,6 +295,9 @@ public enum SourceApprovalPolicy {
                 || approval.capabilities.liveShare
                 || approval.capabilities.persistRecording
         else { throw SourceApprovalError.noCapabilities }
+        guard supports(scope: approval.scope, capabilities: approval.capabilities) else {
+            throw SourceApprovalError.invalidScopeBinding
+        }
 
         switch approval.scope {
         case .signedProgram:
@@ -360,6 +408,22 @@ public struct SourceRuntimeObservation: Equatable, Sendable {
 }
 
 public enum SourceApprovalValidity {
+    /// Bind the retained picker source to the observed signed launch. A different
+    /// picker window cannot stand in for the window that the operator reviewed.
+    public static func pickerBindingIsCurrent(
+        _ approval: SourceApproval, sourceWindowID: UInt32, sourceOwnerPID: Int32,
+        boundIdentity: RunningApplicationIdentity, observation: SourceRuntimeObservation?
+    ) -> Bool {
+        guard let observation,
+              sourceOwnerPID == boundIdentity.processID,
+              observation.program == boundIdentity.program,
+              observation.processID == boundIdentity.processID,
+              observation.launchIdentity == boundIdentity.launchIdentity,
+              remainsValid(approval, observation: observation)
+        else { return false }
+        return approval.scope != .exactWindow || approval.exactWindow?.windowID == sourceWindowID
+    }
+
     public static func remainsValid(
         _ approval: SourceApproval,
         observation: SourceRuntimeObservation?
