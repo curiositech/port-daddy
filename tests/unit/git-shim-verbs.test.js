@@ -13,15 +13,19 @@
  * is invisible until it has already happened.
  */
 import { describe, expect, test } from '@jest/globals';
+import { spawnSync } from 'node:child_process';
+import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { GIT_SHIM_CONTENT, SHIM_VERSION } from '../../cli/utils/git-shim.js';
 
-describe('git shim v4 destructive-verb coverage', () => {
-  test('SHIM_VERSION is bumped to 4', () => {
-    expect(SHIM_VERSION).toBe('4');
+describe('git shim v5 destructive-verb coverage', () => {
+  test('SHIM_VERSION is bumped to 5', () => {
+    expect(SHIM_VERSION).toBe('5');
   });
 
-  test('shim header documents v4', () => {
-    expect(GIT_SHIM_CONTENT).toContain('Port Daddy git shim v4');
+  test('shim header documents v5', () => {
+    expect(GIT_SHIM_CONTENT).toContain('Port Daddy git shim v5');
   });
 
   test('shim intercepts the original v1 verbs', () => {
@@ -140,4 +144,66 @@ describe('git shim v4 destructive-verb coverage', () => {
     expect(GIT_SHIM_CONTENT).toContain('.port-daddy/destructive-ops.log');
     expect(GIT_SHIM_CONTENT).toContain('PD_SHIM_OFF=1');
   });
+});
+
+// ---------------------------------------------------------------------------
+// v5 — the shim must never block on a file descriptor it alone reads.
+//
+// bash 5.3 implements `<<<` and `<<` as a pipe the shell writes and then
+// reads itself. macOS creates every pipe with a 512-byte buffer and refuses
+// to grow it once the kernel's fixed 16 MB pipe budget is spent (xnu
+// sys_pipe.c, maxpipekva); bash cannot see that because macOS has no
+// F_GETPIPE_SZ. On 2026-09-05 four installed shims sat in heredoc_write →
+// write(2) for 20h–4.5d under Claude, Codex and ChatGPT with ~1 KB PATHs,
+// holding each app's git call open. The kernel budget cannot be exhausted
+// from a unit test, so the guard is structural: no here-string or heredoc in
+// the shim at all, plus a real spawn proving the replacement PATH walk works
+// on a PATH longer than the 512-byte buffer that triggered the hang.
+// ---------------------------------------------------------------------------
+describe('git shim v5: PATH walk cannot deadlock on a self-read pipe', () => {
+  test('shim contains no here-string or heredoc', () => {
+    expect(GIT_SHIM_CONTENT).not.toContain('<<<');
+    expect(GIT_SHIM_CONTENT).not.toMatch(/<<-?\s*['"]?[A-Za-z_]/);
+  });
+
+  const bashAvailable = spawnSync('bash', ['-c', 'true']).status === 0;
+  (bashAvailable ? test : test.skip)(
+    'parameter-expansion PATH walk finds the real git behind a >512-byte PATH',
+    () => {
+      const dir = mkdtempSync(join(tmpdir(), 'pd-shim-path-'));
+      try {
+        const shimDir = join(dir, 'shim');
+        // A directory name with a space: `read -ra` handled it, so must we.
+        const realDir = join(dir, 'real bin');
+        mkdirSync(shimDir);
+        mkdirSync(realDir);
+        const shim = join(shimDir, 'git');
+        writeFileSync(shim, GIT_SHIM_CONTENT);
+        chmodSync(shim, 0o755);
+        const real = join(realDir, 'git');
+        writeFileSync(real, '#!/bin/sh\nprintf "REAL_GIT %s\\n" "$*"\n');
+        chmodSync(real, 0o755);
+
+        // Shim dir first (must be skipped as SELF), an empty entry, enough
+        // nonexistent dirs to pass 512 bytes, the real git, then the system
+        // dirs the shim's dirname/basename/cd need.
+        const junk = Array.from({ length: 40 }, (_, i) => join(dir, `nowhere-${i}`));
+        const PATH = [shimDir, '', ...junk, realDir, '/usr/bin', '/bin'].join(':');
+        expect(Buffer.byteLength(PATH)).toBeGreaterThan(512);
+
+        const res = spawnSync('bash', [shim, '--version'], {
+          env: { ...process.env, PATH, PD_SHIM_OFF: '' },
+          encoding: 'utf8',
+          timeout: 10_000,
+        });
+        // A hang surfaces here as ETIMEDOUT, not as a silent pass.
+        expect(res.error).toBeUndefined();
+        expect(res.stderr).toBe('');
+        expect(res.status).toBe(0);
+        expect(res.stdout.trim()).toBe('REAL_GIT --version');
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    },
+  );
 });
