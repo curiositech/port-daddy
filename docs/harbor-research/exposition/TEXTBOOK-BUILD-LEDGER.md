@@ -125,3 +125,70 @@ listed above came from an agent past its 250th turn.
    undefined-reference count with section 1 before touching a chapter.
 3. Take the next open wave from section 1. Delegate by the table in section 2.
    Update this ledger in the same commit as the wave.
+
+## 7. Hypertree outline for the remaining waves
+
+Structure phase, fixed before any content work. The root is the objective:
+the Textbook Edition through Wave 10, shipped when the condition below holds.
+Top-level branches are context clusters cut on file disjointness; the unit of
+sharing is the file. Generated files (`LIBRARY-INDEX.md`, the textbook-map
+twins, the site's `textbook.json` mirror, `publication-digests.json`) are
+regenerated at merge, never merged. `docs/harbor-research/library-index.json`
+is edited by the merger only; workers list the labels to claim in their digest.
+
+### Ship condition (stated before wave 1)
+
+1. The Book builds in the pinned CI TeX Live with 0 errors, 0 undefined
+   references or citations, at or under 400 pages.
+2. Every one of the eight chapters has: its research paper's results folded as
+   claim boxes labeled by kind, each with a proof or proof idea; Numbers by
+   hand with `[verified]` or `[internal]` tags reproducible by the named
+   script; at least the memo key's exercises as `pdexercise`/`pdsolution`
+   pairs; a Limitations and Boundaries section; one relation map and one
+   regime figure per folded result, passing `tikz_precheck.py` and
+   `figcheck.py`.
+3. Every checker in `library-checks.yml` and `proofs.yml` is green, plus the
+   palette, doc-citation, skill-hygiene, metadata and corpus checks; PR CI is
+   green after the bot regeneration lands.
+4. The seven standalone research papers are byte-identical except for their
+   twin headers.
+5. The site's table of contents reads eight chapters from `textbook.json`.
+6. The critique ledger has no empty Status cell.
+7. The operator has seen every chapter opener, the front matter, and a
+   whole-book contact sheet, and no art decision is pending.
+
+### Clusters
+
+| Cluster | Scope (files) | Worker | Edges |
+|---|---|---|---|
+| B0 sealed-harbor-skeleton | `whitepaper/textbook.json` and its mirrors (via `--sync-shared`), new `website-v2/public/whitepaper/sealed-harbor.tex`, `scripts/build-whitepapers.sh`, `website-v2/src/data/researchPapers.ts`, `website-v2/src/data/whitePapers.ts`, `website-v2/src/data/LIBRARY_CHANGELOG.ts`, `docs/harbor-research/tex/paper4.tex` twin header, library-index chapter numbers, `LIBRARY-SYSTEM.md` §8, generator and site tests that pin seven chapters | Sonnet | hard → B1 (chapter prose), hard → K1 (site TOC); order → every chapter cluster (land first) |
+| B1 sealed-harbor-prose | `sealed-harbor.tex`, its figures, the `app:clean-room` retirement in the appendices | Fable, in thread | hard from B0 |
+| H1 mechanized-claims | `scripts/generate-mega-whitepaper.mjs` (new emitter from `whitepaper/corpus.json`), one input line in `coordination-papers-mega-volume-appendices.tex`, a new generator test file, its workflow line | Sonnet | order → H2 |
+| H2 front-matter-and-solutions | `coordination-papers-mega-volume.tex`, the appendices, the preamble, the link audit, the page budget | Fable + Sonnet | hard from every chapter cluster |
+| I1 critique-statuses | `docs/harbor-research/CRITIQUE-LEDGER.md`, `docs/harbor-research/critique-ledger.json` | Sonnet, then Fable for the contested rows | hard from chapter clusters for the rows they resolve (I2) |
+| A1 anchor-pedagogy | `website-v2/public/whitepaper/anchor-protocol-whitepaper.tex`, `website-v2/public/whitepaper/figures/fig-anchor-*.tex` | Sonnet | hard → A2 (Fable: composition paragraph, claim kinds, boundaries) |
+| C1 legible-swarm-pedagogy | `whitepaper/legible-swarm.tex`, `whitepaper/figures/*ls*`, `whitepaper/figures/legible-swarm-*` | Sonnet | hard → C2 (Fable: Paper 1 fold) |
+| D1 spawn-to-person-pedagogy | `website-v2/public/whitepaper/spawn-to-person.tex`, `website-v2/public/whitepaper/figures/fig-stp-*.tex` | Sonnet | hard → D2 (Fable: Papers 5 and 3 fold, overclaim correction) |
+| E1 harbor-economy-pedagogy | `website-v2/public/whitepaper/harbor-economy.tex`, `website-v2/public/whitepaper/figures/fig-he-*.tex` | Sonnet | hard → E2; order after B0 (the condominium appendix retirement shares the appendices file with B1) |
+| F1 bonded-commons-pedagogy | `website-v2/public/whitepaper/agent-transactions-whitepaper.tex`, its figures | Sonnet | hard → F2 |
+| G1 federated-harbor-pedagogy | `website-v2/public/whitepaper/federated-harbor-whitepaper.tex`, its figures | Sonnet | hard → G2 |
+| K1 site | `website-v2/src/components/library/*` (jacket reuse in the banner, the proofs page from the manifest) | Sonnet | hard from B0 |
+| X2..X9 chapter creative passes | one chapter file each | Fable, in thread, sequential | hard from the matching X1; hard → H2, I2 |
+
+Causal closure: no hard edge crosses a cut without a merge in between. The
+chapter files do not carry their chapter number (it comes from the generated
+textbook map), so B0's renumber is an order edge, not a hard one.
+
+### Rounds
+
+- Round 1 (K = 6): B0, H1, I1, A1, C1, D1. All pairwise file-disjoint.
+- Round 2, gated on round-1 merges and on the author's consumption rate: E1,
+  F1, G1, K1, and chartwork figure-drafting agents for the chapters whose
+  creative pass has fixed the figure needs.
+- The creative passes run in the orchestrator thread as each X1 lands, in
+  book order; H2 and I2 last.
+
+Merge protocol per digest: verify each digest line against its artifact,
+merge the branch, regenerate generated files, apply the label claims to the
+index, run the checkers, update section 1 of this ledger in the same commit.
+
