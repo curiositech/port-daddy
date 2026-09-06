@@ -41,7 +41,7 @@ function runDrill(shell: string, home: string, extraArgs: string[] = []) {
     // The drill sets PD_HOME itself; make sure nothing inherited points it at
     // the operator's real home or a real halt.
     env: { ...process.env, PD_HOME: '', PD_HALT_FILE: '', PD_DISTRESS_FILE: '' },
-    timeout: 170_000,
+    timeout: 290_000,
   });
 }
 
@@ -58,7 +58,8 @@ describe('ADR-0132 §5 drill (scripts/pd-distress-drill.sh)', () => {
     const home = join(SCRATCH_BASE, `distress-drill-jest-${shell}-${process.pid}`);
     const r = runDrill(shell, home);
     const out = `${r.stdout}\n--- stderr ---\n${r.stderr}`;
-    expect(r.status).toBe(0);
+    // On failure, surface the drill's own transcript: the exit code alone says nothing.
+    if (r.status !== 0) throw new Error(`drill exited ${r.status} under ${shell}:\n${out}`);
     const s = summary(r.stdout);
     expect(s.failed).toBe(0);
     expect(s.passed).toBeGreaterThanOrEqual(40);
@@ -88,14 +89,15 @@ describe('ADR-0132 §5 drill (scripts/pd-distress-drill.sh)', () => {
     }
     // Scratch is cleaned up unless --keep was passed.
     expect(existsSync(home)).toBe(false);
-  }, 180_000);
+  }, 300_000);
 
   test('the drill FAILS when a lift is unsigned (rogue all-clear + sentinel deleted): a drill that cannot fail is a wish', () => {
     const home = join(SCRATCH_BASE, `distress-drill-jest-rogue-${process.pid}`);
     // A "lift" that any agent could perform: append an unsigned ALL-CLEAR and
     // remove the sentinel. The drill must refuse to call that a lift.
     const rogue = `sh -c 'printf "%s agent:rogue SECURITE ALL-CLEAR ref=%s\\n" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$1" >> "$PD_HOME/DISTRESS"; rm -f "$PD_HOME/HALT"' rogue`;
-    const r = runDrill('sh', home, ['--all-clear-cmd', rogue]);
+    // A rogue lift never verifies, so the verifier waits are expected to time out; keep them short.
+    const r = runDrill('sh', home, ['--all-clear-cmd', rogue, '--verify-wait', '6']);
     expect(r.status).not.toBe(0);
     const s = summary(r.stdout);
     expect(s.failed).toBeGreaterThanOrEqual(3);
@@ -104,7 +106,7 @@ describe('ADR-0132 §5 drill (scripts/pd-distress-drill.sh)', () => {
     // Everything before the lift still passed: the halt itself held.
     expect(r.stdout).toContain('ok   daemon stays halted with the sentinel gone');
     expect(existsSync(home)).toBe(false);
-  }, 180_000);
+  }, 300_000);
 
   test('the drill refuses a /tmp home and a home that could be the real ~/.port-daddy', () => {
     const tmp = spawnSync('sh', [DRILL, '--home', '/tmp/distress-drill-x'], { cwd: REPO, encoding: 'utf8' });

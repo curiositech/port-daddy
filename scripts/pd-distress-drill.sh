@@ -54,6 +54,8 @@
 #                  TTY). The jest driver passes a test-only helper here.
 #   --verify-cmd   command the dummies use to verify an ALL-CLEAR line
 #                  (default: `scripts/pd-distress-allclear.ts verify`)
+#   --verify-wait  wall-clock seconds to allow for verifier-dependent steps
+#                  (default 45; the verifier is a tsx boot per candidate line)
 #   --keep         keep the scratch directory for inspection
 #
 # The script re-invokes itself as `__entity <role> <name>` for each dummy.
@@ -243,6 +245,7 @@ fi
 
 HOME_DIR=""
 INTERVAL=0.5
+VERIFY_WAIT=45
 OPERATOR=erich
 KEYGEN_CMD=""
 ALL_CLEAR_CMD=""
@@ -252,6 +255,7 @@ while [ $# -gt 0 ]; do
   case "$1" in
     --home) HOME_DIR=$2; shift 2 ;;
     --interval) INTERVAL=$2; shift 2 ;;
+    --verify-wait) VERIFY_WAIT=$2; shift 2 ;;
     --operator) OPERATOR=$2; shift 2 ;;
     --keygen-cmd) KEYGEN_CMD=$2; shift 2 ;;
     --all-clear-cmd) ALL_CLEAR_CMD=$2; shift 2 ;;
@@ -306,6 +310,18 @@ trap teardown EXIT
 wait_for() {
   budget=$(awk -v n="$1" -v i="$INTERVAL" 'BEGIN { printf "%d", (n * i + 1.0) * 10 }')
   k=0
+  while [ "$k" -lt "$budget" ]; do
+    if sh -c "$2" >/dev/null 2>&1; then return 0; fi
+    sleep 0.1
+    k=$((k + 1))
+  done
+  return 1
+}
+# wait_secs <seconds> <sh -c expr>: wall-clock budget for steps that wait on the
+# verifier subprocess (a tsx boot per candidate line per entity; slow on a
+# loaded CI runner), independent of the listening interval.
+wait_secs() {
+  k=0; budget=$(( $1 * 10 ))
   while [ "$k" -lt "$budget" ]; do
     if sh -c "$2" >/dev/null 2>&1; then return 0; fi
     sleep 0.1
@@ -401,9 +417,9 @@ skipped "daemon GET /health state:halted — requires live daemon — post-halt 
 step "8. an unsigned ALL-CLEAR does nothing; a garbage-signed one does nothing"
 printf '%s agent:rogue SECURITE ALL-CLEAR ref=%s\n' "$(now_iso)" "$HALT_TS" >> "$PD_HOME/DISTRESS"
 printf '%s operator:%s SECURITE ALL-CLEAR ref=%s sig=%s\n' "$(now_iso)" "$OPERATOR" "$HALT_TS" "$(awk 'BEGIN{for(i=0;i<86;i++)printf "A"; print "=="}')" >> "$PD_HOME/DISTRESS"
-wait_for 12 "[ \$(grep -c 'REJECTED all-clear' '$WORK/prod.log' 2>/dev/null || echo 0) -ge 2 ]" && ok "daemon rejected both bad all-clears as protocol violations" || ko "daemon did not reject both bad all-clears: $(grep -c REJECTED "$WORK/prod.log")"
-wait_for 12 "[ \$(grep -c 'REJECTED all-clear' '$WORK/launchd.log' 2>/dev/null || echo 0) -ge 2 ]" && ok "supervisor rejected both bad all-clears" || ko "supervisor did not reject both"
-wait_for 12 "[ \$(grep -c 'REJECTED all-clear' '$WORK/claude-code.log' 2>/dev/null || echo 0) -ge 2 ]" && ok "agent rejected both bad all-clears" || ko "agent did not reject both"
+wait_secs "$VERIFY_WAIT" "[ \$(grep -c 'REJECTED all-clear' '$WORK/prod.log' 2>/dev/null || echo 0) -ge 2 ]" && ok "daemon rejected both bad all-clears as protocol violations" || ko "daemon did not reject both bad all-clears: $(grep -c REJECTED "$WORK/prod.log")"
+wait_secs "$VERIFY_WAIT" "[ \$(grep -c 'REJECTED all-clear' '$WORK/launchd.log' 2>/dev/null || echo 0) -ge 2 ]" && ok "supervisor rejected both bad all-clears" || ko "supervisor did not reject both"
+wait_secs "$VERIFY_WAIT" "[ \$(grep -c 'REJECTED all-clear' '$WORK/claude-code.log' 2>/dev/null || echo 0) -ge 2 ]" && ok "agent rejected both bad all-clears" || ko "agent did not reject both"
 [ "$(count_lines "$WORK/prod.ticks")" -eq "$t0" ] && ok "daemon still frozen after bad all-clears" || ko "daemon RESUMED on a bad all-clear"
 [ "$(cat "$WORK/launchd.launches")" -eq "$launches_before" ] && ok "supervisor still not relaunching" || ko "supervisor RESUMED on a bad all-clear"
 [ "$(count_lines "$WORK/claude-code.pd-calls")" -eq "$c0" ] && ok "agent still silent" || ko "agent RESUMED on a bad all-clear"
@@ -430,9 +446,9 @@ fi
 last_ac=$(grep " SECURITE ALL-CLEAR ref=$HALT_TS" "$PD_HOME/DISTRESS" 2>/dev/null | tail -n 1)
 if [ -n "$last_ac" ] && $VERIFY_CMD "$last_ac" >/dev/null 2>&1; then ok "the last ALL-CLEAR on the register VERIFIES against the pinned operator key"; else ko "no VERIFIED ALL-CLEAR on the register (last: ${last_ac:-none})"; fi
 [ ! -f "$PD_HOME/HALT" ] && ok "verifier path removed the sentinel" || ko "sentinel still present after a verified lift"
-wait_for 12 "[ \$(wc -l < '$WORK/prod.ticks') -gt $t0 ]" && ok "daemon resumed ticking" || ko "daemon did not resume after the signed ALL-CLEAR"
-wait_for 12 "[ \$(cat '$WORK/launchd.launches') -gt $launches_before ]" && ok "supervisor relaunched its child" || ko "supervisor did not relaunch after the signed ALL-CLEAR"
-wait_for 12 "[ \$(wc -l < '$WORK/claude-code.pd-calls') -gt $c0 ]" && ok "agent resumed" || ko "agent did not resume after the signed ALL-CLEAR"
+wait_secs "$VERIFY_WAIT" "[ \$(wc -l < '$WORK/prod.ticks') -gt $t0 ]" && ok "daemon resumed ticking" || ko "daemon did not resume after the signed ALL-CLEAR"
+wait_secs "$VERIFY_WAIT" "[ \$(cat '$WORK/launchd.launches') -gt $launches_before ]" && ok "supervisor relaunched its child" || ko "supervisor did not relaunch after the signed ALL-CLEAR"
+wait_secs "$VERIFY_WAIT" "[ \$(wc -l < '$WORK/claude-code.pd-calls') -gt $c0 ]" && ok "agent resumed" || ko "agent did not resume after the signed ALL-CLEAR"
 for n in prod launchd claude-code; do grep -q 'verified ALL-CLEAR; resuming' "$WORK/$n.log" && ok "$n logged the verified lift" || ko "$n did not log a verified lift"; done
 sh "$SELF_PATH" __guard 2>"$WORK/guard.lifted" && ko "guard still OFF after the lift (it should escalate a genuinely dead daemon again)" || ok "guard is back to its ordinary self after the lift"
 skipped "daemon halt-watch resume — requires live daemon — post-halt (phase 3 stays halted until restart by design; drill this with the operator's restart runbook)"
