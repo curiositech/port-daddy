@@ -1074,6 +1074,7 @@ function renderMechanizedClaims(raw, { source = 'whitepaper/corpus.json' } = {})
     // an unbreakable full-width minipage removes that break point while the
     // remaining chunks keep their own.
     lines.push(
+      '\\medskip',
       '\\noindent\\begin{minipage}{\\textwidth}',
       `\\captionof{table}{${texText(method)} artifacts (${methodWired} wired, ${methodRetired} retired).}`,
       `\\label{tab:mechanized-${slug}}`,
