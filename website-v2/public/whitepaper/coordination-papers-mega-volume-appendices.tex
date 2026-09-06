@@ -25,6 +25,9 @@
 \renewcommand{\theHlstlisting}{volume.appendix.\arabic{lstlisting}}
 \fancyhead[L]{\small\itshape\color{hhgray} Appendices}
 \fancyfoot[C]{\footnotesize\color{hhgray} \pdeditiontitle\ \textperiodcentered\ Appendices}
+% The appendices and the reference list are set in \small, as the solutions
+% are: back matter that is consulted, not read through.
+\begingroup\small
 
 \section{Implementation boundary}\label{app:volume-status}
 
@@ -78,6 +81,16 @@ stubbed, no panic in the comparator, and two concrete vectors for the subset
 check. Runtime callers still owe conformance: the verified primitive must be the
 primitive that every protected effect actually checks.
 
+\paragraph{Sealed execution --- \Designed.}
+The sealed room of \pdchapref{sealed}{The Sealed Harbor} is a design with
+model-checked properties. Noninterference modulo declassification and the
+release ledger's invariants are exhaustive on their finite models;
+$\varepsilon$-conservation, canary power, and Wald latency are theorems over
+the stated models. No shipping harbor yet runs a work order inside two fences
+with a metered slot: the attestation, the gate, and the ledger remain
+\Designed{}, and the \emph{Confined} mode they would supply is not yet
+available to any caller.
+
 \paragraph{Escrow and settlement --- mixed.}
 Ledger and conservation slices are \BuiltWeak{}. Cross-authority custody,
 adjudication, and 2-of-3 settlement remain \Designed{} and conditional on a
@@ -98,7 +111,7 @@ failed formulations. The durable unit is therefore a result, not a PDF. Each
 result below has a stable identifier, assumptions, a boundary, a chapter home,
 and a named verification artifact in the companion manifest.
 
-\subsection{The seven propositions and their evidence}
+\subsection{The eight propositions and their evidence}
 
 \paragraph{1. Prevention begins at the effect boundary (R5, R8) --- \pdchapref{swk}{The Single-Writer Kernel}.}
 Controllability separates rules that a pre-commit gate can enforce from failures
@@ -111,7 +124,16 @@ Every hop must authenticate the issuer and reject a capability that expands
 scope or lifetime. The cryptographic models close the stated monotonicity
 property; the engineering obligation is universal use at protected channels.
 
-\paragraph{3. Supervision has an information cost (R1--R4, R14, R16) --- \pdchapref{ls}{The Legible Swarm}.}
+\paragraph{3. Confinement is a property of the room, not of the tenant (R9, R10, R11) --- \pdchapref{sealed}{The Sealed Harbor}.}
+Two owners who distrust each other compute one answer inside two fences with a
+single metered slot. Noninterference modulo declassification holds on the
+finite room model; the release ledger conserves its $\varepsilon$ budget and
+refuses the torn write; canaries detect exfiltration with a stated power curve
+and a Wald clock. What the slot may leak is priced as $q\cdot b$ bits before
+timing, and timing, cache, and physical channels are declared out of model
+rather than closed.
+
+\paragraph{4. Supervision has an information cost (R1--R4, R14, R16) --- \pdchapref{ls}{The Legible Swarm}.}
 The information floor prices guaranteed recall; the dual-reader result shows why
 one ordering cannot generally serve both successor selection and operator
 attention; the regret rule derives intervention from asymmetric error cost;
@@ -119,27 +141,32 @@ adaptive zoom and context paging describe when attention can be spent later
 rather than summarized away now. The bounds price guarantees under their stated
 event and flag models. They do not certify an arbitrary dashboard.
 
-\paragraph{4. Accountability outlives the process (R12, R13, B6) --- \pdchapref{stp}{From Spawn to Person}.}
-No-mint transfer semantics prevent skill or identity replacement from creating
+\paragraph{5. Accountability outlives the process (R7, R12, R13, B6) --- \pdchapref{stp}{From Spawn to Person}.}
+The inspection tower prices reputation as amortized verification. No-mint transfer semantics prevent skill or identity replacement from creating
 new authority. Budget-pooling and exposure arguments make reset laundering a
 property of the principal's case file, not the process name. The research killed
 the stronger closure-weight formulation before restating the result correctly.
 
-\paragraph{5. Exchange separates payment, collateral, evidence, and closure
-(R7, R13--R15) --- \pdchapref{he}{The Harbor Economy}.}
-Conservation supplies the accounting invariant; audit sampling and probation
-results give conditions under which dishonesty is more expensive than honest
-performance. These are conditional economic statements. Detection probability,
-one-shot gain, collateral, judge independence, and custody must be measured or
-contracted rather than implied.
+\paragraph{6. Exchange separates payment, collateral, evidence, and closure
+(R15, R17) --- \pdchapref{he}{The Harbor Economy}.}
+Conservation supplies the accounting invariant; the tractable deontic fragment
+decides which rule sets can conflict and names the frontier past which that
+decision turns NP-complete; the succession rule has a price, because a sole
+owner's response time never falls below its residual-downtime floor, so
+pooling dominates past a computable threshold. These are conditional economic
+statements. Detection probability, one-shot gain, collateral, judge
+independence, and custody must be measured or contracted rather than implied.
 
-\paragraph{6. Uncertainty needs an institution (R7, R8, R10, R11, R15, R17) --- \pdchapref{bonded}{The Bonded Commons}.}
-Atomic ledgers preserve conservation and privacy budgets; canary and sequential
-tests price detection power and delay; randomized, diverse adjudication reduces
-predictable collusion only under the named sampling assumptions. Evidence may
-support a remedy without becoming mechanical truth.
+\paragraph{7. Uncertainty needs an institution (the $\delta^{*}$ claim-signaling
+game, the conservation model; R11 as instrument) --- \pdchapref{bonded}{The Bonded Commons}.}
+Atomic ledgers preserve conservation; truthful claim signaling is
+incentive-compatible above the mechanized discount threshold $\delta^{*}$;
+audit sampling and canaries borrow their power curve from the sealed room's
+detector; randomized, diverse adjudication reduces predictable collusion only
+under the named sampling assumptions. Evidence may support a remedy without
+becoming mechanical truth.
 
-\paragraph{7. Federation relays evidence, not sovereignty (R6, R6-CR,
+\paragraph{8. Federation relays evidence, not sovereignty (R6, R6-CR,
 RELAY-V0) --- \pdchapref{fh}{The Federated Harbor}.}
 Signed roots and redundant comparison paths can expose equivocation across a
 specified topology. The counterexample R6-CR rejects the tempting claim that a
@@ -179,3 +206,4 @@ unresolved.
 \clearpage
 \addcontentsline{toc}{section}{References}
 \pdgeneratedinput{../../../.cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-bibliography.tex}{bibliography}
+\endgroup

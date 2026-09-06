@@ -37,21 +37,23 @@ pages with 0 undefined references and 502 links, the Legible Swarm chapter to
 the Sealed Harbor chapter to 21 pages and 123 links with its five figures,
 the Harbor Economy chapter to 54 pages and 437 links, the Bonded Commons to
 63 pages and 482 links, the Federated Harbor to 44 pages and 434 links; the
-Book compiles to 402 pages, 7.0 MB, 3,116 links, 0 undefined references, with
-the collected solutions set in small type (46 pages; 53 before the lever).
-The chapters run 48 / 29 / 17 / 52 / 45 / 41 / 50 / 32 pages in book order,
-the appendices 27. Two pages over the 400 ceiling: the remaining levers are
-small type for the appendices and trimming the chapters' related-work
-sections, both Wave 10 decisions. Local build recipe: run
+Book compiles to 399 pages, 7.5 MB, 3,119 links, 0 undefined references, with
+the collected solutions (46 pages), the appendices (11 pages) and the reference
+list (13 pages) set in small type; the appendices open on the eight
+propositions in the front matter's order and carry the sealed-execution row.
+The chapters run 48 / 29 / 17 / 52 / 45 / 41 / 50 / 32 pages in book order.
+One page under the 400 ceiling; the one lever left unpulled is trimming the
+chapters' related-work sections. Local build recipe: run
 the generator into `.cache/whitepaper-build/coordination-papers-mega-volume`
 first (a stale or missing cache fails the Book with "Generated chapter map is
 missing"), then tectonic from `website-v2/public/whitepaper/`.
 
-Open, in order: Wave 3 (Anchor), Wave 4 (Sealed Harbor, new chapter), Waves
-5 to 9, Wave 10 (front matter, solutions appendix, mechanized-claims appendix,
-link audit, page budget), critique-ledger adjudication. Art: the operator has
-seen the round-8 option sheets; any slot can be swapped by name in
-`scripts/whitepaper-plates/plates_pipeline.py` (`CHOICE`).
+Open: the Wave 10 remainder. W1 (the delta 0.30 negative control), W2 (the
+jacket in the banner), I2 (critique-ledger adjudication from the per-wave
+worksheets), the PR body, and the final link audit after the last merge.
+Art: the operator has every chapter opener, the front matter, and the
+whole-book contact sheets (pages 1 to 399, 2026-09-06); no art decision is
+pending unless the operator raises one.
 
 ## 2. Context budgets for the remaining waves
 
@@ -207,6 +209,21 @@ textbook map), so B0's renumber is an order edge, not a hard one.
   creative pass has fixed the figure needs.
 - The creative passes run in the orchestrator thread as each X1 lands, in
   book order; H2 and I2 last.
+- Round 3 (Wave 10, 2026-09-06, K held at 6): every chapter pass has
+  landed, so the remaining clusters are file-disjoint by construction.
+  `W1 tlc-delta30` (Sonnet; `proofs/economics/*`, the claim-signaling job in
+  `proofs.yml`, `whitepaper/corpus.json`, one sentence in the chapter 7
+  solution) closes F1's open item with a committed counterexample that CI
+  asserts. `W2 jacket-banner` (Sonnet; `LibraryBanner.tsx`, the library page)
+  is the K1 remnant. `A appendices-and-front-matter` (Fable, in thread;
+  `coordination-papers-mega-volume.tex`, `-appendices.tex`) sets the back
+  matter in `\small`, adds the sealed room to the reader's questions and to
+  the result atlas as the third of eight propositions, and adds the sealed
+  execution row to the implementation boundary. `I2` (Sonnet worksheets per
+  wave, read-only; Fable applies them to `critique-ledger.json` in one
+  commit) turns the 161 empty and 514 `IN-WAVE-n` statuses into `DONE`,
+  `DECLINED`, or `IN-WAVE-10` with a reason each. Edges: all `order`; the
+  ledger JSON is written by the merger only.
 
 Merge protocol per digest: verify each digest line against its artifact,
 merge the branch, regenerate generated files, apply the label claims to the
