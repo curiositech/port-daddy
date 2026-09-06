@@ -14,7 +14,7 @@
  */
 import { describe, expect, test } from '@jest/globals';
 import { spawnSync } from 'node:child_process';
-import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { GIT_SHIM_CONTENT, SHIM_VERSION } from '../../cli/utils/git-shim.js';
@@ -166,7 +166,34 @@ describe('git shim v5: PATH walk cannot deadlock on a self-read pipe', () => {
     expect(GIT_SHIM_CONTENT).not.toMatch(/<<-?\s*['"]?[A-Za-z_]/);
   });
 
-  const bashAvailable = spawnSync('bash', ['-c', 'true']).status === 0;
+  const BASH = spawnSync('/bin/sh', ['-c', 'command -v bash'], { encoding: 'utf8' }).stdout.trim();
+  const bashAvailable = BASH !== '' && spawnSync(BASH, ['-c', 'true']).status === 0;
+
+  /**
+   * Install the generated shim and a fake real git under a fresh temp dir and
+   * run `git --version` through the shim with the given PATH builder.
+   * Returns the spawn result plus the paths so a case can assert on them.
+   */
+  function runShim(buildPath, argv = ['--version']) {
+    const dir = mkdtempSync(join(tmpdir(), 'pd-shim-case-'));
+    const shimDir = join(dir, 'shim');
+    const realDir = join(dir, 'real bin');
+    mkdirSync(shimDir);
+    mkdirSync(realDir);
+    const shim = join(shimDir, 'git');
+    writeFileSync(shim, GIT_SHIM_CONTENT);
+    chmodSync(shim, 0o755);
+    writeFileSync(join(realDir, 'git'), '#!/bin/sh\nprintf "REAL_GIT %s\\n" "$*"\n');
+    chmodSync(join(realDir, 'git'), 0o755);
+    const PATH = buildPath({ dir, shimDir, realDir });
+    const res = spawnSync(BASH, [shim, ...argv], {
+      env: { ...process.env, PATH, PD_SHIM_OFF: '' },
+      encoding: 'utf8',
+      timeout: 10_000,
+    });
+    rmSync(dir, { recursive: true, force: true });
+    return { ...res, dir, shimDir, realDir };
+  }
   (bashAvailable ? test : test.skip)(
     'parameter-expansion PATH walk finds the real git behind a >512-byte PATH',
     () => {
@@ -217,20 +244,12 @@ describe('git shim v5: PATH walk cannot deadlock on a self-read pipe', () => {
         const shim = join(shimDir, 'git');
         writeFileSync(shim, GIT_SHIM_CONTENT);
         chmodSync(shim, 0o755);
-        // Only the shim's own directory carries a `git`. The shim needs
-        // dirname/basename, so a tools dir forwards just those two to
-        // /usr/bin; neither /usr/bin nor /bin is on PATH, so no system git
-        // can be found. bash itself is spawned by absolute path because
-        // spawnSync resolves the command through this same PATH.
-        const tools = join(dir, 'tools');
-        mkdirSync(tools);
-        for (const t of ['dirname', 'basename']) {
-          writeFileSync(join(tools, t), `#!/bin/sh\nexec /usr/bin/${t} "$@"\n`);
-          chmodSync(join(tools, t), 0o755);
-        }
-        const PATH = [shimDir, '', join(dir, 'nowhere'), tools].join(':');
-        const bash = spawnSync('/bin/sh', ['-c', 'command -v bash'], { encoding: 'utf8' }).stdout.trim();
-        const res = spawnSync(bash, [shim, '--version'], {
+        // Only the shim's own directory carries a `git`; neither /usr/bin nor
+        // /bin is on PATH, so no system git can be found. The shim uses only
+        // builtins to locate itself, so it needs nothing else. bash is spawned
+        // by absolute path because spawnSync resolves through this same PATH.
+        const PATH = [shimDir, '', join(dir, 'nowhere')].join(':');
+        const res = spawnSync(BASH, [shim, '--version'], {
           env: { ...process.env, PATH, PD_SHIM_OFF: '' },
           encoding: 'utf8',
           timeout: 10_000,
@@ -244,4 +263,48 @@ describe('git shim v5: PATH walk cannot deadlock on a self-read pipe', () => {
       }
     },
   );
+
+  // PATH shapes the old `read -ra` handled and the new walk must handle the
+  // same way. The first six are the cases purser's #10062 wrote against a
+  // JavaScript helper the module does not export; here they run against the
+  // shell that actually does the work. The last is pd-qa's trailing colon.
+  const found = [
+    ['leading empty component', ({ realDir }) => `:${realDir}`],
+    ['trailing empty component', ({ realDir }) => `${realDir}:`],
+    ['multiple empty components', ({ realDir }) => `::${realDir}`],
+    ['nonexistent component before the valid one', ({ dir, realDir }) => `${join(dir, 'nowhere')}:${realDir}`],
+    ['shim dir first, trailing colon', ({ shimDir, realDir }) => `${shimDir}:${realDir}:`],
+    ['only empty components then the real dir', ({ realDir }) => `::::${realDir}`],
+  ];
+  for (const [name, build] of found) {
+    (bashAvailable ? test : test.skip)(`finds the real git with ${name}`, () => {
+      const res = runShim(build);
+      expect(res.error).toBeUndefined();
+      expect(res.stderr).toBe('');
+      expect(res.status).toBe(0);
+      expect(res.stdout.trim()).toBe('REAL_GIT --version');
+    });
+  }
+
+  (bashAvailable ? test : test.skip)('an empty PATH exits 127 with the shim message, not a set -e abort', () => {
+    const res = runShim(() => '');
+    expect(res.error).toBeUndefined();
+    expect(res.status).toBe(127);
+    expect(res.stderr).toContain('pd-shim: cannot find a real git binary on PATH');
+    expect(res.stderr).not.toContain('command not found');
+  });
+
+  (bashAvailable ? test : test.skip)('a PATH entry carrying a $(...) payload is never evaluated', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'pd-shim-inject-'));
+    const evil = join(dir, 'evil-payload.txt');
+    try {
+      const res = runShim(({ realDir }) => `$(touch ${evil}):\`touch ${evil}\`:${realDir}`);
+      expect(res.error).toBeUndefined();
+      expect(res.status).toBe(0);
+      expect(res.stdout.trim()).toBe('REAL_GIT --version');
+      expect(existsSync(evil)).toBe(false);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
 });

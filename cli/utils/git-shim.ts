@@ -68,8 +68,17 @@ set -euo pipefail
 # ChatGPT, each stuck in heredoc_write with PATHs of 998–1270 bytes, holding
 # the calling app's git operation open. Parameter expansion needs no file
 # descriptor at all, so it cannot deadlock.
+# Only builtins below (cd, pwd, parameter expansion): with an empty or
+# broken PATH there is no dirname/basename to find, and the shim must still
+# reach its own "cannot find a real git" exit instead of dying on set -e.
+# CDPATH is cleared so \`cd "$p"\` resolves $p itself, not a CDPATH match.
+unset CDPATH
 SELF="\${BASH_SOURCE[0]:-$0}"
-SELF_REAL=$(cd "$(dirname "$SELF")" && pwd)/$(basename "$SELF")
+case "$SELF" in
+  */*) self_dir="\${SELF%/*}" ;;
+  *)   self_dir="." ;;
+esac
+SELF_REAL=$(cd "$self_dir" && pwd)/"\${SELF##*/}"
 real_git=""
 rest="\${PATH:-}"
 while [ -n "$rest" ]; do
@@ -80,7 +89,7 @@ while [ -n "$rest" ]; do
   if [ -z "$p" ]; then continue; fi
   candidate="$p/git"
   if [ -x "$candidate" ]; then
-    candidate_real=$(cd "$(dirname "$candidate")" && pwd)/$(basename "$candidate")
+    candidate_real=$(cd "$p" && pwd)/git
     if [ "$candidate_real" != "$SELF_REAL" ]; then
       real_git="$candidate"
       break
