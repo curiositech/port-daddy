@@ -225,8 +225,8 @@ export const COLLECTED_VOLUME: CollectedVolume = {
   downloadUrl:
     'https://raw.githubusercontent.com/curiositech/port-daddy/main/website-v2/public/whitepaper/coordination-papers-mega-volume.pdf',
   date: TEXTBOOK.edition.date,
-  pages: 309,
-  sizeKb: 7624,
+  pages: 337,
+  sizeKb: 7720,
   references: 221,
 }
 
@@ -309,8 +309,8 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     readerHref: '/whitepaper/legible-swarm',
     overviewHref: '/whitepaper?paper=legible-swarm',
     date: 'August 2026',
-    pages: 46,
-    sizeKb: 890,
+    pages: 63,
+    sizeKb: 969,
     status: 'Version 1.2 (textbook edition)',
     order: '04',
     chapter: 4,
@@ -540,8 +540,8 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     readerHref: '/whitepaper/spawn-to-person',
     overviewHref: '/whitepaper?paper=spawn-to-person',
     date: 'August 2026',
-    pages: 53,
-    sizeKb: 793,
+    pages: 57,
+    sizeKb: 848,
     status: 'Version 1.5 (textbook edition)',
     order: '05',
     chapter: 5,
