@@ -214,7 +214,7 @@ One section per indexed idea (R1-R17, CR, B6, and every already-folded textbook 
 | Standalone paper | `docs/harbor-research/tex/paper4.tex` | (none) | S3 (sec:p1), boxed "Theorem 1 (noninterference modulo declassification; finite model, exhaustive)", Pillar I |
 | Chapter 3 (The Sealed Harbor) | `website-v2/public/whitepaper/sealed-harbor.tex` | thm:sealed-noninterference | sec:sealed-noninterference "Silence except through the slot": Theorem 1 as the labeled Model-checked property thm:sealed-noninterference (finite clean-room model, exhaustive; mutants m1-m3), with the equal-parity pair count worked by hand and the boundary box; the taint hypothesis hyp:sealed-taint sits in sec:sealed-problem |
 
-**Figures:** `docs/harbor-research/figures/fig-paper4-pillars.tex`, `docs/harbor-research/figures/fig-r9-relation.tex`, `docs/harbor-research/figures/fig-r9-regime.tex`
+**Figures:** `docs/harbor-research/figures/fig-paper4-pillars.tex`, `docs/harbor-research/figures/fig-r9-regime.tex`, `docs/harbor-research/figures/fig-r9-relation.tex`, `website-v2/public/whitepaper/figures/fig-sealed-pillar-pipeline.tex`, `website-v2/public/whitepaper/figures/fig-sealed-two-worlds.tex`
 
 **Scripts:** `skills/harbor-results/scripts/c1_noninterference.py`
 
@@ -236,7 +236,7 @@ One section per indexed idea (R1-R17, CR, B6, and every already-folded textbook 
 | Standalone paper | `docs/harbor-research/tex/paper4.tex` | (none) | S5 (sec:p3), boxed "Theorem 3 (epsilon-conservation)", Pillar III |
 | Chapter 3 (The Sealed Harbor) | `website-v2/public/whitepaper/sealed-harbor.tex` | thm:sealed-conservation, prop:sealed-ledger-checked | sec:sealed-conservation "The budget is a ledger, and the ledger conserves": Theorem 3 as thm:sealed-conservation (Theorem) plus the two-client instance check prop:sealed-ledger-checked (Model-checked property), the torn-write mutant and the composition crossover k=32 worked by hand |
 
-**Figures:** `docs/harbor-research/figures/fig-r10-regime.tex`
+**Figures:** `docs/harbor-research/figures/fig-r10-regime.tex`, `website-v2/public/whitepaper/figures/fig-sealed-composition-crossover.tex`, `website-v2/public/whitepaper/figures/fig-sealed-mutant-grid.tex`
 
 **Scripts:** `skills/harbor-results/scripts/a3_epsilon_ledger.py`
 
@@ -258,7 +258,7 @@ One section per indexed idea (R1-R17, CR, B6, and every already-folded textbook 
 | Standalone paper | `docs/harbor-research/tex/paper4.tex` | (none) | S6 (sec:p4), boxed "Theorem 4a (power)" and "Theorem 4b (latency, Wald)", Pillar IV |
 | Chapter 3 (The Sealed Harbor) | `website-v2/public/whitepaper/sealed-harbor.tex` | thm:sealed-power, thm:sealed-latency | sec:sealed-detection "Canaries with a power curve and a clock": Theorems 4a/4b as thm:sealed-power and thm:sealed-latency (Theorem), the 1-beta^k and m=100 numbers, the SPRT run lengths 297 vs 359 |
 
-**Figures:** `docs/harbor-research/figures/fig-r11-regime.tex`
+**Figures:** `docs/harbor-research/figures/fig-r11-regime.tex`, `website-v2/public/whitepaper/figures/fig-sealed-operating-curve.tex`
 
 **Scripts:** `skills/harbor-results/scripts/a4_canary_sprt.py`
 

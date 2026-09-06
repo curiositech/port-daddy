@@ -456,8 +456,10 @@
       ],
       "figures": [
         "docs/harbor-research/figures/fig-paper4-pillars.tex",
+        "docs/harbor-research/figures/fig-r9-regime.tex",
         "docs/harbor-research/figures/fig-r9-relation.tex",
-        "docs/harbor-research/figures/fig-r9-regime.tex"
+        "website-v2/public/whitepaper/figures/fig-sealed-pillar-pipeline.tex",
+        "website-v2/public/whitepaper/figures/fig-sealed-two-worlds.tex"
       ],
       "scripts": [
         "skills/harbor-results/scripts/c1_noninterference.py"
@@ -503,7 +505,9 @@
         }
       ],
       "figures": [
-        "docs/harbor-research/figures/fig-r10-regime.tex"
+        "docs/harbor-research/figures/fig-r10-regime.tex",
+        "website-v2/public/whitepaper/figures/fig-sealed-composition-crossover.tex",
+        "website-v2/public/whitepaper/figures/fig-sealed-mutant-grid.tex"
       ],
       "scripts": [
         "skills/harbor-results/scripts/a3_epsilon_ledger.py"
@@ -549,7 +553,8 @@
         }
       ],
       "figures": [
-        "docs/harbor-research/figures/fig-r11-regime.tex"
+        "docs/harbor-research/figures/fig-r11-regime.tex",
+        "website-v2/public/whitepaper/figures/fig-sealed-operating-curve.tex"
       ],
       "scripts": [
         "skills/harbor-results/scripts/a4_canary_sprt.py"
