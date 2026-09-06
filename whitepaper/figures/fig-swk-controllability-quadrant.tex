@@ -1,0 +1,53 @@
+% Regime diagram for the two boundaries: controllability separates the columns, Lin–Wonham
+% observability separates the rows. Cell membership: the eight single-event verdicts and the
+% compound case from the checker [internal, b3_controllability.py]; row membership by inspection
+% of each trigger. The bottom-left entry is a constructed illustration.
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \fill[pd focus fill] (6.4,3.4) rectangle (12.8,6.8);
+  \draw[pd rule] (0,0) rectangle (12.8,6.8);
+  \draw[pd rule] (6.4,0) -- (6.4,6.8);
+  \draw[pd rule] (0,3.4) -- (12.8,3.4);
+  % axis titles and ticks
+  \node[pd axis label,align=center] at (6.4,-0.55) {Is the event the policy \emph{prohibits} controllable?};
+  \node[pd axis label] at (3.2,7.1) {no};
+  \node[pd axis label] at (9.6,7.1) {yes};
+  \node[pd axis label,rotate=90,align=center] at (-0.55,3.4) {Is the policy's \emph{trigger} witnessed at the boundary?};
+  \node[pd axis label,rotate=90] at (-0.2,5.1) {yes};
+  \node[pd axis label,rotate=90] at (-0.2,1.7) {no};
+  % cells
+  \node[align=center,text width=5.8cm,font=\scriptsize] at (3.2,5.1)
+    {\textbf{detect-only, forever}\\[3pt]
+     forbid \texttt{internal\_plan}\\ forbid \texttt{model\_emit\_token}\\ forbid \texttt{in\_context\_read}\\[3pt]
+     \textit{the gate condition is trivial; there is nothing to refuse}};
+  \node[align=center,text width=5.8cm,font=\scriptsize] at (9.6,5.1)
+    {\textbf{regimentable}\\[3pt]
+     forbid \texttt{git\_push} $\cdot$ \texttt{net\_egress} $\cdot$ \texttt{fs\_write} $\cdot$ \texttt{exec\_tool} $\cdot$ \texttt{spawn\_child}\\[2pt]
+     $\bigstar$ no \texttt{net\_egress} after a secret \texttt{in\_context\_read}\\[3pt]
+     \textit{a refusable prohibition keyed on an event the daemon sees}};
+  \node[align=center,text width=5.8cm,font=\scriptsize] at (3.2,1.7)
+    {\textbf{detect-only, forever}\\[3pt]
+     no \texttt{internal\_plan} after the model \emph{formed} an intent\\[3pt]
+     \textit{both obstructions at once (a constructed case)}};
+  \node[align=center,text width=5.8cm,font=\scriptsize] at (9.6,1.7)
+    {\textbf{detect-only}\\[3pt]
+     no \texttt{net\_egress} after the model \emph{considered} exfiltration\\
+     no confident falsehood in a status report\\[3pt]
+     \textit{refusable, but the condition is inferred and never witnessed}};
+  % the two moves
+  \draw[pd focus arrow] (2.2,-1.15) -- (10.6,-1.15);
+  \node[pd note,anchor=north] at (6.4,-1.25) {widening $\Sigma_c$ (owning a channel) carries a policy rightward};
+  \draw[pd focus arrow] (13.3,1.2) -- (13.3,5.6);
+  \node[pd note,rotate=90,anchor=south] at (13.45,3.4) {witnessing the trigger carries a policy upward};
+\end{tikzpicture}
+\caption{Controllability is half the boundary. A policy is preventable exactly when its prohibition is
+refusable \emph{and} its trigger is witnessed at the mediation boundary: the shaded cell, and nothing
+else. Theorem~\ref{thm:regimentation-controllability} separates the columns; Lin--Wonham
+observability separates the rows. The compound rule ($\bigstar$) is the worked case whose naive
+reading puts it in the left column and whose correct grading puts it top-right; ``no confident
+falsehood in a status report'' is the case stuck one cell below, whatever the runtime owns. Column
+membership reproduces from the checker [internal, \texttt{b3\_controllability.py}]; row membership is
+by inspection of each trigger.}
+\label{fig:swk-controllability-quadrant}
+\end{figure}

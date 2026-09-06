@@ -50,7 +50,6 @@ import json
 import os
 import re
 import sys
-from dataclasses import dataclass, field
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 if _HERE not in sys.path:

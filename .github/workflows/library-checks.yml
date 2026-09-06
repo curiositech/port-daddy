@@ -83,3 +83,6 @@ jobs:
 
       - name: LIBRARY-INDEX.md is a fresh render of library-index.json
         run: python3 scripts/harbor-research/check_library_index.py --check-md
+
+      - name: Critique ledger Markdown and JSON agree and every Status cell is well-formed
+        run: python3 scripts/harbor-research/check_critique_ledger.py

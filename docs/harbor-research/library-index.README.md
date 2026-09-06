@@ -60,7 +60,7 @@ this file only covers the judgment calls the schema can't encode.
 
 - **folded** -- lives in a `standalone` paper *and* at least one chapter.
 - **standalone-only** -- a paper has it; no chapter (yet) restates it.
-- **chapter-only** -- a chapter has it; no `docs/harbor-research/tex/paperN.tex` file
+- **chapter-only** -- a chapter has it; no a research paper under `docs/harbor-research/tex/` file
   does. This is real, not a placeholder: R14 and R16 are tagged `paperNumbers: ['1']`
   on the public research-library page (`website-v2/src/data/researchPapers.ts`) as
   "Paper 1's orbit", but `paper1.tex` itself contains no R14/R16 content today (grep
@@ -88,7 +88,7 @@ proposition -- same discount-factor threshold, same `proofs/economics/*` mechani
 two files). Don't invent an entry for a chapter-native theorem that has no twin
 anywhere else; list it in `unindexed_allow` instead (see below) -- most of the ~90
 labels in the seven textbook chapters are exactly that: real theorems, with no
-`docs/harbor-research/tex/paperN.tex` counterpart, out of scope for this index.
+a research paper under `docs/harbor-research/tex/` counterpart, out of scope for this index.
 
 ### `numbers[]` is optional, and it's fine to leave it empty
 
@@ -104,7 +104,7 @@ checks `2.13` alone, since both texts state that one ratio identically).
 
 ## How to add an entry
 
-1. Read the result's statement in its `docs/harbor-research/tex/paperN.tex` home (or
+1. Read the result's statement in its a research paper under `docs/harbor-research/tex/` home (or
    confirm it has none, for a `chapter-only` id) and, if folded, in the chapter that
    restates it. Look for the chapter naming its source explicitly -- `\cite{paper1}`,
    `\cite{harborpaper5}`, "item R14 of the research ledger", "Def. III.6.1" -- that is
