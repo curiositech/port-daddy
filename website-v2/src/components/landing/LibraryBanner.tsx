@@ -25,47 +25,58 @@ export function LibraryBanner() {
   return (
     <div className="border-b-2 border-[var(--border-strong)] bg-[var(--surface-raised)]">
       <PageContainer width="wide">
-        <div className="grid gap-x-[var(--space-5)] gap-y-[var(--space-2)] py-[var(--space-3)] sm:grid-cols-2 sm:items-center sm:py-[var(--space-2)]">
-          <Link
-            to="/library"
-            className="group flex items-center gap-[var(--space-3)] border-r-0 sm:border-r-2 sm:border-[var(--border-default)] sm:pr-[var(--space-5)]"
-          >
-            <FileText
-              aria-hidden="true"
-              size={18}
-              className="shrink-0 text-[var(--brand-primary)]"
-            />
-            <span className="min-w-0 font-sans text-[length:var(--type-meta-size)] leading-tight text-[var(--text-secondary)]">
-              <span className="font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-primary)] group-hover:text-[var(--brand-primary)]">
-                The Book
-              </span>{' '}
-              — {TEXTBOOK.chapters.length} chapters, {COLLECTED_VOLUME.pages}pp, the whole argument in order
-            </span>
-            <ArrowRight
-              aria-hidden="true"
-              size={14}
-              className="ml-auto hidden shrink-0 text-[var(--text-muted)] transition-transform group-hover:translate-x-1 group-hover:text-[var(--brand-primary)] sm:block"
-            />
-          </Link>
+        <div className="flex items-center gap-[var(--space-4)]">
+          <img
+            src="/whitepaper/plates/jacket.jpg"
+            width={1627}
+            height={2300}
+            loading="lazy"
+            decoding="async"
+            alt="Jacket of The Harbor, the Person, and the Economy"
+            className="block h-auto w-[96px] shrink-0 rounded-[var(--radius-sm)] border border-[var(--border-strong)] sm:w-[168px]"
+          />
+          <div className="grid min-w-0 flex-1 gap-x-[var(--space-5)] gap-y-[var(--space-2)] py-[var(--space-3)] sm:grid-cols-2 sm:items-center sm:py-[var(--space-2)]">
+            <Link
+              to="/library"
+              className="group flex items-center gap-[var(--space-3)] border-r-0 sm:border-r-2 sm:border-[var(--border-default)] sm:pr-[var(--space-5)]"
+            >
+              <FileText
+                aria-hidden="true"
+                size={18}
+                className="shrink-0 text-[var(--brand-primary)]"
+              />
+              <span className="min-w-0 font-sans text-[length:var(--type-meta-size)] leading-tight text-[var(--text-secondary)]">
+                <span className="font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-primary)] group-hover:text-[var(--brand-primary)]">
+                  The Book
+                </span>{' '}
+                — {TEXTBOOK.chapters.length} chapters, {COLLECTED_VOLUME.pages}pp, the whole argument in order
+              </span>
+              <ArrowRight
+                aria-hidden="true"
+                size={14}
+                className="ml-auto hidden shrink-0 text-[var(--text-muted)] transition-transform group-hover:translate-x-1 group-hover:text-[var(--brand-primary)] sm:block"
+              />
+            </Link>
 
-          <Link to="/library/research" className="group flex items-center gap-[var(--space-3)]">
-            <FlaskConical
-              aria-hidden="true"
-              size={18}
-              className="shrink-0 text-[var(--story-indigo)]"
-            />
-            <span className="min-w-0 font-sans text-[length:var(--type-meta-size)] leading-tight text-[var(--text-secondary)]">
-              <span className="font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-primary)] group-hover:text-[var(--story-indigo)]">
-                Standalone papers
-              </span>{' '}
-              — 7 submission-form papers, {RESEARCH_PAPER_TOTAL_PAGES}pp, the same results in conference form
-            </span>
-            <ArrowRight
-              aria-hidden="true"
-              size={14}
-              className="ml-auto hidden shrink-0 text-[var(--text-muted)] transition-transform group-hover:translate-x-1 group-hover:text-[var(--story-indigo)] sm:block"
-            />
-          </Link>
+            <Link to="/library/research" className="group flex items-center gap-[var(--space-3)]">
+              <FlaskConical
+                aria-hidden="true"
+                size={18}
+                className="shrink-0 text-[var(--story-indigo)]"
+              />
+              <span className="min-w-0 font-sans text-[length:var(--type-meta-size)] leading-tight text-[var(--text-secondary)]">
+                <span className="font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-primary)] group-hover:text-[var(--story-indigo)]">
+                  Standalone papers
+                </span>{' '}
+                — 7 submission-form papers, {RESEARCH_PAPER_TOTAL_PAGES}pp, the same results in conference form
+              </span>
+              <ArrowRight
+                aria-hidden="true"
+                size={14}
+                className="ml-auto hidden shrink-0 text-[var(--text-muted)] transition-transform group-hover:translate-x-1 group-hover:text-[var(--story-indigo)] sm:block"
+              />
+            </Link>
+          </div>
         </div>
       </PageContainer>
     </div>
