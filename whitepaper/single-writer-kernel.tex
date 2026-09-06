@@ -1193,7 +1193,7 @@ the checker's output; the eight single-event rows also follow by hand from
 Theorem~\ref{thm:regimentation-controllability} [internal, \texttt{b3\_controllability.py}].}
 \label{tab:policy-classification}
 \small
-\begin{tabular}{@{}llc@{}}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}X lc@{}}
 \toprule
 \textbf{Policy} & \textbf{Event class} & \textbf{Regimentable?} \\
 \midrule
@@ -1208,7 +1208,7 @@ forbid \texttt{internal\_plan} (``confident lie'') & uncontrollable & no (detect
 \midrule
 compound: no \texttt{net\_egress} after a secret \texttt{in\_context\_read} & mixed & yes (regiment) \\
 \bottomrule
-\end{tabular}
+\end{tabularx}
 \end{table}
 
 \subsubsection{The compound case: gate the channel, never the token}
@@ -1693,7 +1693,7 @@ which invariant does it break? (Exercise~\ref{ex:swk-crimes}.)
 violating trace, in transitions from the initial state [internal, \texttt{c0\_workunit.py}].}
 \label{tab:workunit-crimes}
 \small
-\begin{tabular}{@{}llcl@{}}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X cl@{}}
 \toprule
 \textbf{Guard disabled} & \textbf{Crime} & \textbf{Steps} & \textbf{Invariant broken} \\
 \midrule
@@ -1703,7 +1703,7 @@ policy $\wedge$ receipt at verify & the hollow ``verified'' & 4 & I3 \\
 scope $\subseteq$ parent at delegate & the escalated delegation & 1 & I4 \\
 owner-funded $\wedge$ verified $\wedge$ receipted at settle & the wrong-principal payout & 7 & I6 \\
 \bottomrule
-\end{tabular}
+\end{tabularx}
 \end{table}
 
 The seventh row deserves a sentence. To reach the wrong-principal payout the checker had to
@@ -2185,7 +2185,7 @@ A release with no matching (key, holder) row is a successful no-op so that retri
 Two agents call \texttt{acquire} on the same fresh key at the same instant. Walk the uniqueness-constraint insert for both (Listing~\ref{alg:acquire}) and show exactly where the loser learns the holder's identity.
 \end{pdexercise}
 \begin{pdsolution}{ex:swk-acquire-race}
-The daemon serializes the two requests. The first \texttt{INSERT}(key, holder) commits. The second hits the unique-key violation, selects the extant row inside the catch path, and returns \texttt{DENIED(holder=first)}: that select is where the loser learns the name. For range and hierarchy claims the trace is safe only after both requests map to the same canonical conflict key or the overlap test runs in one immediate transaction.
+The daemon serializes the two requests. The first \texttt{INSERT}\allowbreak(key, holder) commits. The second hits the unique-key violation, selects the extant row inside the catch path, and returns \texttt{DENIED}\allowbreak\texttt{(holder}\allowbreak\texttt{=first)}: that select is where the loser learns the name. For range and hierarchy claims the trace is safe only after both requests map to the same canonical conflict key or the overlap test runs in one immediate transaction.
 \end{pdsolution}
 \begin{pdexercise}[kind=Open,rating=3]{ex:swk-op1-ticket}
 The Stigmergic Ticket-Lock buys bounded wait on the cooperative-release path only (OP-1). Extend it so that a lease reclaimed by the lazy TTL sweep also honors the ticket queue, still without a background scheduler, or argue that no reactive-only design can, and say what the minimum scheduler would be.
@@ -2614,7 +2614,7 @@ pragma set: \texttt{journal\_mode=WAL}, \texttt{synchronous=NORMAL},
 are illustrative of the organization, not a stable public interface.}
 \label{tab:appendix-map}
 \small
-\begin{tabular}{@{}p{52mm}p{52mm}p{42mm}@{}}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
 \toprule
 \textbf{Mechanism (body)} & \textbf{Realizing module(s)} & \textbf{Notes} \\
 \midrule
@@ -2631,7 +2631,7 @@ Enforcement gate (macaroon discharge) & kernel macaroon module & crypto verified
 Runtime-parity shim & runtime-shim module & normalizes binding differences \\
 Identity (actor souls + credentials) & actor-souls, budget-guard modules & bounded gate ships; full write-boundary enforcement absent \\
 \bottomrule
-\end{tabular}
+\end{tabularx}
 \end{table}
 
 \subsection{Status, and the corrections that matter}

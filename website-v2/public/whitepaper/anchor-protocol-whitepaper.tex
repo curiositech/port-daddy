@@ -641,7 +641,7 @@ fn proof_capability_attenuation() {
 }
 \end{lstlisting}
 
-The stubbing strategy deserves explanation: \texttt{proof\_verify\_logic\_only} stubs out Ed25519 signature verification and base64 decoding (which involve curve arithmetic that Kani cannot symbolically execute within practical bounds) and explores the \emph{parsing and control flow logic}---the split-on-dots, payload extraction, expiry comparison, and error handling paths---for every 32-byte token the harness admits. Within that bound the logic surrounding the cryptographic primitives never panics and never accesses memory out of bounds, whichever outcome the stubbed cryptographic layer returns. The bound is a harness choice, and it has a consequence worth stating: a 32-byte input cannot hold a real three-part card, so what is exercised is the parser's rejection of malformed input, not its acceptance path. The third harness, \texttt{proof\_capability\_attenuation}, checks two concrete vectors and is a unit test in a proof's clothing; the every-hop attenuation property is established by the ProVerif model of \S\ref{sec:attn-soundness}, not by Kani.
+The stubbing strategy deserves explanation: \texttt{proof\allowbreak\_verify\allowbreak\_logic\allowbreak\_only} stubs out Ed25519 signature verification and base64 decoding (which involve curve arithmetic that Kani cannot symbolically execute within practical bounds) and explores the \emph{parsing and control flow logic}---the split-on-dots, payload extraction, expiry comparison, and error handling paths---for every 32-byte token the harness admits. Within that bound the logic surrounding the cryptographic primitives never panics and never accesses memory out of bounds, whichever outcome the stubbed cryptographic layer returns. The bound is a harness choice, and it has a consequence worth stating: a 32-byte input cannot hold a real three-part card, so what is exercised is the parser's rejection of malformed input, not its acceptance path. The third harness, \texttt{proof\_capability\_attenuation}, checks two concrete vectors and is a unit test in a proof's clothing; the every-hop attenuation property is established by the ProVerif model of \S\ref{sec:attn-soundness}, not by Kani.
 
 The three harnesses run under \texttt{cargo kani} in the repository's proof workflow; the run log, not a local build directory, is the evidence that they pass.
 
@@ -675,7 +675,7 @@ Table~\ref{tab:threat-closure} closes the loop on the three failure modes of \S\
 \textbf{Threat (\S\ref{sec:problem})} & \textbf{Closed where} & \textbf{By what mechanism} & \textbf{Residual risk} \\
 \midrule
 Port squatting (``Ghost in the Harbor'') &
-\S\ref{sec:correct}, Arbiter invariant \texttt{PID\_SQUATTING} &
+\S\ref{sec:correct}, Arbiter invariant \texttt{PID\allowbreak\_SQUATTING} &
 Cards bind to the connecting process via the daemon's socket-credential check; the Arbiter flags a port claimed by a PID other than its holder &
 Detection is post-commit, and the binding is an OS check outside the ProVerif model. See \S\ref{sec:limitations}, ``A program is not a person'' \\
 \addlinespace
@@ -698,7 +698,7 @@ Mechanized at depth~3 and single-hop for the enriched order; depth is a spawn-ti
 \centering
 \caption{The four ProVerif properties hold of the protocol design, not, by themselves, of the shipped code. The three Kani rows are bounded harnesses over the deployed crate: a no-panic check of the parser on 32-byte inputs with the cryptography stubbed, a no-panic check of the comparator on 16-byte pairs, and two concrete vectors for the subset check. ``Deployed'' indicates the Rust code is called by the production daemon via FFI from the Arbiter module into the \texttt{harbor-card-rs} crate.}
 \label{tab:properties}
-\begin{tabular}{@{}lllll@{}}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}X lll l@{}}
 \toprule
 \textbf{Property} & \textbf{Verified} & \textbf{Tool} & \textbf{Deployed} & \textbf{Reference} \\
 \midrule
@@ -710,7 +710,7 @@ No-panic parsing (bounded) & Bounded & Kani & Yes (FFI) & \cite{aws2022kani} \\
 Secret-independent source branching & By inspection & --- & Yes (FFI) & \cite{brumley2011remote} \\
 Capability subset check & Two vectors & Kani & Yes (FFI) & \cite{birgisson2014macaroons} \\
 \bottomrule
-\end{tabular}
+\end{tabularx}
 \end{table}
 
 \subsection{Where this stops}\label{sec:limitations}
@@ -920,11 +920,11 @@ Agent Payments Protocol (AP2): Mandates.
 \bottomrule
 \endlastfoot
 Authentication correspondence in the listed phase models (\S\ref{sec:algorithms}) & ProVerif 2.05 & \Closed\ non-injective correspondence queries TRUE & \path{harbor_card_v*.pv} \\
-Algorithm-confusion immunity & ProVerif pinned vs.\ naive & \Closed\ pinned TRUE; counter-trace witnessed & \texttt{algconfusion.pv} \\
-Delegation chain replay (\S\ref{sec:delegation}) & ProVerif at depth 3 & \Closed\ chain authenticity TRUE; 17-case runtime conformance & \texttt{chain-replay.pv} \\
+Algorithm-confusion immunity & ProVerif pinned vs.\ naive & \Closed\ pinned TRUE; counter-trace witnessed & \path{algconfusion.pv} \\
+Delegation chain replay (\S\ref{sec:delegation}) & ProVerif at depth 3 & \Closed\ chain authenticity TRUE; 17-case runtime conformance & \path{chain-replay.pv} \\
 Cuckoo-filter pollution resistance (\S\ref{sec:revocation}) & 5-invariant property test & \Closed\ FP rate within $2B/2^f$ at load $0.95$ & cuckoo property tests \\
 GitHub-App webhook origin authentication & ProVerif (Dolev-Yao relay) & \Closed\ origin auth TRUE; daemon re-verifies GitHub HMAC (runtime conformance) & \path{ingress_origin_auth.pv} \\
-Multi-tenant relay namespace isolation & ProVerif + runtime & \Closed\ member of $A$ cannot publish into $B$; \texttt{HARBOR\_MISMATCH} conformance & \path{ingress_tenant_isolation.pv} \\
+Multi-tenant relay namespace isolation & ProVerif + runtime & \Closed\ member of $A$ cannot publish into $B$; \texttt{HARBOR\allowbreak\_MISMATCH} conformance & \path{ingress_tenant_isolation.pv} \\
 \midrule
 Cuckoo-filter revocation soundness & inspection + empirical & \Partial\ gate narrows acceptance; dissemination remains assumption-bound & runtime test \\
 Constant-time signature comparison & audited \path{subtle::ConstantTimeEq} library & \Partial\ no side-channel proof; library trust documented & --- \\
@@ -1311,7 +1311,7 @@ For each of the three Kani harnesses above, state exactly what is proved and nam
 
 \texttt{proof\_capability\_attenuation} asserts two concrete, hard-coded vectors, one subset accepted and one escalation rejected; it is a unit test wearing a Kani harness, not a universal statement over arbitrary capability structures. The actual every-hop attenuation property is what \S\ref{sec:attn-soundness}'s ProVerif model establishes, not this harness --- a reader should not treat the two vectors as covering the property Property~\ref{thm:attn-sound} states.
 
-The bound in each case is recorded, not just asserted here: \path{whitepaper/corpus.json} carries an \texttt{evidencePolicy} field for \texttt{harbor-card-kani-verify-logic-only}, \texttt{harbor-card-kani-constant-time}, and \texttt{harbor-card-kani-capability-attenuation} stating exactly these limits, so a claim that drifted past this chapter's wording would be visible against the manifest rather than only against memory.
+The bound in each case is recorded, not just asserted here: \path{whitepaper/corpus.json} carries an \texttt{evidencePolicy} field for \texttt{harbor-card-kani-}\allowbreak\texttt{verify-logic-only}, \texttt{harbor-card-kani-}\allowbreak\texttt{constant-time}, and \texttt{harbor-card-kani-}\allowbreak\texttt{capability-attenuation} stating exactly these limits, so a claim that drifted past this chapter's wording would be visible against the manifest rather than only against memory.
 \end{pdsolution}
 \begin{pdexercise}[kind=Open,rating=3]{ex:anchor-model-vs-code}
 None of this chapter's ProVerif models, and none of its three Kani harnesses, says anything about most of what the running daemon does at a socket. Using only what this chapter already states about the Kani harnesses' scope, write the one-paragraph boundary a reader must hold before trusting ``verified'' as a description of the deployed binary. Then say what a stronger harness would need to add.
@@ -1363,7 +1363,7 @@ ProVerif does not merely report the query false; it exhibits the concrete trace 
 \path{analyses/harbor_card_v7_multihop_fixed.pv} is identical to v6 except for the verifier. Name the one modeling change that closes the attack, and what the RESULT line becomes.
 \end{pdexercise}
 \begin{pdsolution}{ex:anchor-multihop-fix}
-The only change is in the verifier: v6's single check \texttt{is\_subset(final\_cap, root\_cap)} becomes two checks in sequence, \texttt{is\_subset(mid\_cap, root\_cap)} for hop~1 ($A \to B$ against the root) \emph{and} \texttt{is\_subset(final\_cap, mid\_cap)} for hop~2 ($B \to C$ against what $B$ actually held). Same malicious $B$, same forged \texttt{cap\_write} delegation, same query --- only the verifier's comparison target moves from ``root'' to ``immediate parent.''
+The only change is in the verifier: v6's single check \texttt{is\allowbreak\_subset(final\allowbreak\_cap,} \texttt{root\allowbreak\_cap)} becomes two checks in sequence, \texttt{is\allowbreak\_subset(mid\allowbreak\_cap,} \texttt{root\allowbreak\_cap)} for hop~1 ($A \to B$ against the root) \emph{and} \texttt{is\allowbreak\_subset(final\allowbreak\_cap,} \texttt{mid\allowbreak\_cap)} for hop~2 ($B \to C$ against what $B$ actually held). Same malicious $B$, same forged \texttt{cap\_write} delegation, same query --- only the verifier's comparison target moves from ``root'' to ``immediate parent.''
 
 Pinned output (\path{analyses/harbor_card_v7_results.txt}):
 \begin{lstlisting}

@@ -187,7 +187,9 @@
   rulecolor=\color{codeframe},basicstyle=\ttfamily\small,
   keywordstyle=\color{hhink}\bfseries,commentstyle=\color{hhgray}\itshape,
   stringstyle=\color{hhgray},numbers=left,numberstyle=\tiny\color{gray},
-  numbersep=8pt,breaklines=true,showstringspaces=false,tabsize=2,
+  numbersep=8pt,breaklines=true,breakatwhitespace=false,
+  postbreak=\mbox{\textcolor{gray}{$\hookrightarrow$}\space},
+  showstringspaces=false,tabsize=2,
   xleftmargin=15pt,xrightmargin=5pt,framexleftmargin=15pt,captionpos=b}
 \lstdefinestyle{pseudocode}{style=pdcode,
   morekeywords={function,return,if,then,else,for,while,do,begin,end,atomic,transaction,reject,commit,assert,raise}}
