@@ -417,7 +417,7 @@ paper and a brochure.}
 \midrule
 short on time (15 min) & \S1 (thesis + stack map), \S\ref{sec:durability} (durability split), \S\ref{sec:enforcement} (the monitor correction) & Figs.~\ref{fig:swk-stack-map}, \ref{fig:swk-durability-faultclass}, \ref{fig:swk-reference-monitor} \\
 a systems engineer & \S\ref{sec:substrate}--\S\ref{sec:invariants} (substrate, single-writer, the theorems) & Thm.~\ref{thm:consistency}; Figs.~\ref{fig:swk-single-writer}, \ref{fig:swk-consistency-model} \\
-a security reviewer & \S\ref{sec:enforcement} (deontic split, the monitor), \S\ref{sec:threatmodel} (threat model) & Figs.~\ref{fig:swk-reference-monitor}, \ref{fig:swk-deontic-split}; Table~\ref{tab:threat-model} \\
+a security reviewer & \S\ref{sec:enforcement} (deontic split, the monitor), \S\ref{sec:threatmodel} (threat model) & Fig.~\ref{fig:swk-reference-monitor}, Table~\ref{tab:swk-deontic-split}; Table~\ref{tab:threat-model} \\
 a protocol/agent author & \S\ref{sec:resource} (claims), \S\ref{sec:comm} (the bus), \S\ref{sec:adjacency} (the interface contract) & Fig.~\ref{fig:swk-claim-lifecycle}, Table~\ref{tab:swk-comm-organ}; \S\ref{sec:adjacency} \\
 here for the economy & \S\ref{sec:continuity} (continuity organs), then the personhood and market papers & Fig.~\ref{fig:swk-continuity-organs} \\
 an instructor & every \textbf{Exercises} block; the open problems OP-1\,--\,OP-11 and their status table (\S\ref{sec:openproblems}) & the starred exercises; Table~\ref{tab:op-status} \\
@@ -940,10 +940,27 @@ Sergot~\cite{jonessergot1993}): \emph{prohibition} (a policy monitor) and
 \emph{obligation} (commitments). Getting the distinction right --- and being honest
 about how strong each arm actually is --- is the security heart of the paper.
 
-Figure~\ref{fig:swk-deontic-split} lays out the three modalities and the mechanism
+Table~\ref{tab:swk-deontic-split} lays out the three modalities and the mechanism
 behind each.
 
-\input{figures/fig-swk-deontic-split}
+\begin{table}[H]
+\centering
+\caption{The deontic split: three modalities, three mechanisms. Capability (what the
+sandbox makes possible) is kept apart from permission (what the deontic layer
+allows) so that ``able but forbidden'' stays expressible.}
+\label{tab:swk-deontic-split}
+\small
+\renewcommand{\arraystretch}{1.18}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.13\textwidth} >{\raggedright\arraybackslash}p{0.17\textwidth} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{0.2\textwidth}@{}}
+\toprule
+\textbf{Modality} & \textbf{Trigger} & \textbf{Mechanism} & \textbf{Holds / fails when} & \textbf{Example} \\
+\midrule
+prohibition & an act the policy forbids is attempted & regimented before commit by a gate when the event is controllable; otherwise detected after commit and compensated & holds when the effect never commits; fails as detect-and-compensate when the gate could not see the trigger & a tool's emergency override flag: the agent is \emph{able} to call it and \emph{forbidden} to \\
+obligation & a commitment is recorded & an oracle-bound commitment: closure only through a receipt the daemon can re-check, before a daemon-set deadline & holds when a typed receipt closes it in time; fails by staying open and escalating, never by free-text assertion & ``release the claim on \texttt{lib/webhooks.ts} within thirty minutes'' \\
+permission & a grant is issued & a recorded capability row, attenuable, never widened downstream & holds while the grant is live; an act without a grant is a prohibition case & ``may read the audit log until the session ends'' \\
+\bottomrule
+\end{tabularx}
+\end{table}
 
 \subsection{The deontic split}
 
