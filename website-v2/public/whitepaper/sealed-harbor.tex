@@ -28,6 +28,8 @@
 \usepackage{fancyhdr}
 \usepackage{tikz}
 \usetikzlibrary{arrows.meta,positioning,fit,backgrounds,calc,shapes.geometric,shapes.symbols,decorations.pathmorphing,decorations.pathreplacing}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
 \usepackage{float}
 \usepackage{caption}
 \usepackage{enumitem}
@@ -320,6 +322,11 @@ Detection & power curve and alarm clock & analytic against simulation & \texttt{
 \end{tabular}
 \end{center}
 
+Figure~\ref{fig:sealed-pillar-pipeline} draws this pipeline: one work order,
+two fences, two gates, and which of the four claims each part produces.
+
+\input{figures/fig-sealed-pillar-pipeline}
+
 \begin{pdrecitation}
 \item Without looking: name the three parties who must not see each other's
   plaintext, and the one mechanism that seals the room from all three sides at
@@ -397,7 +404,11 @@ non-release step is a counterexample; a difference at a release step is a
 counterexample exactly when $g$ agreed on the two secrets. The mutation suite
 then shows the search has teeth: with the honest gate replaced by one that
 releases the raw secret, the first difference appears four steps in, on a pair
-the honest gate provably keeps identical.
+the honest gate provably keeps identical. Figure~\ref{fig:sealed-two-worlds}
+draws the two worlds side by side, tied step by step, with the release step
+boxed as the one place a difference could ever show.
+
+\input{figures/fig-sealed-two-worlds}
 
 \paragraph{Numbers by hand.}
 Four secrets give $\binom{4}{2}=6$ unordered pairs; two of them, $(0,2)$ and
@@ -605,6 +616,11 @@ is what makes the budget promise auditable. Reverting the mutations restores
 both invariants and the 15 states [internal, \texttt{a3\_epsilon\_ledger.py}].
 \end{pdclaim}
 
+Figure~\ref{fig:sealed-mutant-grid} grids both mutants against both
+invariants, with the step count each is caught in.
+
+\input{figures/fig-sealed-mutant-grid}
+
 \paragraph{Numbers by hand.}
 At $\delta'=10^{-6}$: for $k=32$ releases at $\varepsilon=0.1$, basic
 composition gives $32\times 0.1=3.20$ while the advanced bound gives $3.31$, so
@@ -615,6 +631,10 @@ engagement length: below it, the exact, $\delta$-free sequential bound; above
 it, the $\sqrt{k}$-scaled advanced bound. \emph{Now you try:} at $k=8$,
 $\varepsilon=0.5$, which bound is smaller, and at $\varepsilon=0.1$, at which
 $k$ does the advanced bound first pay? (Exercise~\ref{ex:sealed-crossover}.)
+Figure~\ref{fig:sealed-composition-crossover} plots both bounds against $k$
+and marks this exact crossing.
+
+\input{figures/fig-sealed-composition-crossover}
 
 \paragraph{What it buys.}
 The contract's budget line becomes an auditable invariant with the same proof
@@ -709,6 +729,10 @@ approximation, against $0.554$ exact [internal]. \emph{Now you try:} at the
 same $\beta$, what does a five-canary leak survive with, and can you recover
 Wald's $296.9$ from the formula with a pocket calculator?
 (Exercises~\ref{ex:sealed-power} and \ref{ex:sealed-sprt}.)
+Figure~\ref{fig:sealed-operating-curve} plots the power curve and both
+expected run lengths.
+
+\input{figures/fig-sealed-operating-curve}
 
 \paragraph{What it buys.}
 The contract can \emph{quote} $\Pr(\text{detect})$ as a function of leak size
