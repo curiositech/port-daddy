@@ -14,10 +14,11 @@
       "numeral": "I",
       "title": "Ground Truth",
       "color": "pdcobalt",
-      "blurb": "One writer decides what is real, and every request that reaches it arrives with authority that can only have narrowed. Two chapters build the machine that the rest of the book holds to account.",
+      "blurb": "One writer decides what is real, every request that reaches it arrives with authority that can only have narrowed, and what runs on its behalf runs in a sealed room. Three chapters build the machine that the rest of the book holds to account.",
       "chapters": [
         "single-writer-kernel",
-        "anchor-protocol"
+        "anchor-protocol",
+        "sealed-harbor"
       ]
     },
     {
@@ -89,6 +90,23 @@
     },
     {
       "number": 3,
+      "id": "sealed-harbor",
+      "prefix": "sealed",
+      "title": "The Sealed Harbor",
+      "source": "website-v2/public/whitepaper/sealed-harbor.tex",
+      "pdf": "sealed-harbor-whitepaper.pdf",
+      "role": "proves",
+      "discharges": "single-writer-kernel",
+      "formerNumeral": "",
+      "oneLine": "A work order runs in a room with two fences and two gates, the only thing that leaves is what the slot lets out, and the budget of what can leak is a ledger that conserves.",
+      "question": "What can a sealed agent leak, and how would we know?",
+      "epigraph": {
+        "text": "Whereof one cannot speak, thereof one must be silent.",
+        "source": "Ludwig Wittgenstein, Tractatus Logico-Philosophicus, proposition 7, 1921 (Ogden translation, 1922)"
+      }
+    },
+    {
+      "number": 4,
       "id": "legible-swarm",
       "prefix": "ls",
       "title": "The Legible Swarm",
@@ -104,7 +122,7 @@
       }
     },
     {
-      "number": 4,
+      "number": 5,
       "id": "spawn-to-person",
       "prefix": "stp",
       "title": "From Spawn to Person",
@@ -120,7 +138,7 @@
       }
     },
     {
-      "number": 5,
+      "number": 6,
       "id": "harbor-economy",
       "prefix": "he",
       "title": "The Harbor Economy",
@@ -136,7 +154,7 @@
       }
     },
     {
-      "number": 6,
+      "number": 7,
       "id": "bonded-commons",
       "prefix": "bonded",
       "title": "The Bonded Commons",
@@ -153,7 +171,7 @@
       }
     },
     {
-      "number": 7,
+      "number": 8,
       "id": "federated-harbor",
       "prefix": "fh",
       "title": "The Federated Harbor",

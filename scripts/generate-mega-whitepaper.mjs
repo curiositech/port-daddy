@@ -79,9 +79,13 @@ function validateTextbook(raw, source = 'whitepaper/textbook.json') {
   const prefixes = new Set();
   sorted.forEach((chapter, index) => {
     const where = `chapter ${chapter?.id ?? `#${index + 1}`}`;
-    for (const key of ['id', 'prefix', 'title', 'source', 'pdf', 'role', 'formerNumeral', 'oneLine', 'question']) {
+    for (const key of ['id', 'prefix', 'title', 'source', 'pdf', 'role', 'oneLine', 'question']) {
       requireString(chapter, key, where, fail);
     }
+    // formerNumeral is a string field but, uniquely, '' is a legal value (a
+    // chapter added after the first edition has no first-edition numeral to
+    // report); it is checked separately below instead of via requireString.
+    if (typeof chapter.formerNumeral !== 'string') fail(`${where}: formerNumeral must be a string`);
     requireString(chapter.epigraph, 'text', `${where}: epigraph`, fail);
     requireString(chapter.epigraph, 'source', `${where}: epigraph`, fail);
     if ('color' in chapter) fail(`${where}: color is not a chapter field; the part carries the hue and chapters inherit it`);
@@ -90,7 +94,13 @@ function validateTextbook(raw, source = 'whitepaper/textbook.json') {
     }
     if (!/^[a-z]+$/.test(chapter.prefix)) fail(`${where}: prefix must be lowercase letters (it becomes part of TeX macro names)`);
     if (!['builds', 'proves'].includes(chapter.role)) fail(`${where}: role must be builds or proves`);
-    if (!(chapter.formerNumeral in ROMAN)) fail(`${where}: formerNumeral must be a Roman numeral`);
+    // A chapter added after the first edition carries no first-edition numeral
+    // at all (there is nothing to concord it with) -- the empty string is the
+    // one non-Roman value accepted here, and it is skipped from the rendered
+    // concordance below rather than sorted into it.
+    if (chapter.formerNumeral !== '' && !(chapter.formerNumeral in ROMAN)) {
+      fail(`${where}: formerNumeral must be a Roman numeral, or the empty string for a chapter with no first-edition numeral`);
+    }
     if (ids.has(chapter.id)) fail(`duplicate chapter id ${chapter.id}`);
     if (prefixes.has(chapter.prefix)) fail(`duplicate chapter prefix ${chapter.prefix}`);
     ids.add(chapter.id);
@@ -301,7 +311,11 @@ function renderContents(textbook) {
     }
     lines.push('\\pdcontentspartend');
   }
-  const concordance = [...chapters].sort((a, b) => ROMAN[a.formerNumeral] - ROMAN[b.formerNumeral]);
+  // A chapter with no first-edition numeral (formerNumeral === '') has no row
+  // in the first-edition concordance; it did not exist to be numbered.
+  const concordance = chapters
+    .filter((chapter) => chapter.formerNumeral !== '')
+    .sort((a, b) => ROMAN[a.formerNumeral] - ROMAN[b.formerNumeral]);
   lines.push(
     '',
     '\\paragraph{First-edition numbering.} The standalone research papers and',
