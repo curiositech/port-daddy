@@ -117,6 +117,8 @@ the authority for bytes.
 
 ## 7. Editing playbook
 
+The running state of the Textbook Edition build (what has landed, the context budgets for the remaining waves, the token meter, and how to resume) is kept in `docs/harbor-research/exposition/TEXTBOOK-BUILD-LEDGER.md`; update it in the same commit as any wave.
+
 1. Change a result where it lives. If it is folded, change both twins in one commit and
    update the key numbers in `library-index.json`.
 2. Run the five library checks in section 5 before pushing; run the chartwork lint and
