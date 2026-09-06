@@ -1,50 +1,68 @@
 % Figure --- immutable history and mutable score contribution are separate tracks.
+% [restyle 2026-09-06: dropped \resizebox for a native-scale drawing at
+%  <=4.5in. Upper-rail events relabeled to the spec's own words (o1, o2,
+%  o3(fraud), re-audit, f(o3), tombstone); the lower step function now
+%  carries explicit ticks 0/1 and the window tau is marked between two
+%  pd guides, per the ch5 redraw spec. Every math subscript is wrapped in
+%  {\normalsize ...} in place (not a whole-node font override, which left
+%  the node's own background box mis-sized) so it clears the 7pt floor
+%  (T1) without escaping its fill (T2); every wrapped sentence gets a wide
+%  enough text width that no word hyphenates.]
 \begin{figure}[H]
 \centering
-\resizebox{0.96\textwidth}{!}{%
 \begin{tikzpicture}[pd figure]
-  \node[pd panel title,anchor=west] at (-6.8,3.05)
-    {append-only history};
-  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (-6.0,1.60) -- (6.35,1.60);
-  \foreach \x/\lab in {-5.15/$o_1$,-3.35/$o_2$,-1.35/$o_3$ fraudulent,.85/re-audit,2.65/$t(o_3)$ appended,5.25/imported tombstone} {
-    \draw[pd tick] (\x,1.35) -- (\x,1.85);
-    \node[pd direct label,anchor=south,align=center] at (\x,2.02) {\lab};
-  }
-  \node[pd caution datum] at (-1.35,1.60) {};
-  \node[pd caution datum] at (2.65,1.60) {};
-  \node[pd focus datum] at (5.25,1.60) {};
-  \draw[pd caution rule] (-1.65,1.30) -- (-1.05,1.90);
-  \draw[pd caution rule] (-1.65,1.90) -- (-1.05,1.30);
-  \node[pd note,anchor=west] at (-5.95,.98)
-    {$o_3$ remains inspectable; $t(o_3)$ is a later compensating fact};
+  \node[pd panel title,anchor=west] at (-4.4,3.05) {append-only history};
+  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (-4.2,1.60) -- (4.9,1.60);
+  % Near row (short tick) and far row (tall tick), staggered so adjacent
+  % event names never compete for the same horizontal band.
+  \foreach \x in {-3.4,-.4,2.6} \draw[pd tick] (\x,1.35) -- (\x,1.85);
+  \foreach \x in {-2.0,1.2,3.9} \draw[pd tick] (\x,1.35) -- (\x,2.25);
+  \node[pd axis label,anchor=south,font=\normalsize] at (-3.4,1.95) {$o_1$};
+  \node[pd axis label,anchor=south,font=\normalsize] at (-2.0,2.35) {$o_2$};
+  \node[pd axis label,anchor=south,font=\normalsize,align=center] at (-.4,1.95)
+    {$o_3$(fraud)};
+  \node[pd axis label,anchor=south,align=center] at (1.2,2.35) {re-audit};
+  \node[pd axis label,anchor=south,font=\normalsize] at (2.6,1.95) {$f(o_3)$};
+  \node[pd axis label,anchor=south] at (3.9,2.35) {tombstone};
+  \node[pd caution datum] at (-.4,1.60) {};
+  \node[pd caution datum] at (2.6,1.60) {};
+  \node[pd focus datum] at (3.9,1.60) {};
+  \node[pd note,anchor=west,text width=9.8cm,align=left] at (-4.2,.95)
+    {{\normalsize$o_3$} stays on the ledger; {\normalsize$f(o_3)$} is a later,
+     appended compensating fact};
 
-  \node[pd panel title,anchor=west] at (-6.8,.25)
-    {contribution of $o_3$ to spendable reputation};
-  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (-6.0,-2.45) -- (6.35,-2.45);
-  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (-6.0,-2.45) -- (-6.0,-.25);
-  \node[pd axis label,anchor=south,rotate=90] at (-6.35,-.25) {score contribution};
+  \node[pd panel title,anchor=west,text width=8.6cm,align=left] at (-4.4,.15)
+    {contribution of {\normalsize$o_3$} to spendable reputation};
+  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (-4.2,-2.85) -- (4.5,-2.85);
+  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (-4.2,-2.85) -- (-4.2,-.35);
+  \node[pd axis label,anchor=east] at (-4.35,-.65) {1};
+  \node[pd axis label,anchor=east] at (-4.35,-2.85) {0};
+  \draw[pd guide] (-4.2,-.65) -- (4.5,-.65);
   \draw[pd caution rule,line width=1.5pt]
-    (-5.85,-2.20) -- (-1.35,-2.20) -- (-1.35,-.65) -- (5.25,-.65);
-  \draw[pd focus rule,line width=1.5pt] (5.25,-.65) -- (5.25,-2.20) -- (6.05,-2.20);
-  \node[pd direct label,text=hhamber,anchor=west] at (-.85,-.42)
-    {fraud remains spendable while correction propagates};
-  \node[pd direct label,text=hhteal,anchor=west] at (5.38,-2.02) {nullified};
+    (-4.0,-2.40) -- (-.4,-2.40) -- (-.4,-.65) -- (2.6,-.65);
+  \draw[pd focus rule,line width=1.5pt] (2.6,-.65) -- (2.6,-2.40) -- (4.3,-2.40);
+  \node[pd direct label,text=hhamber,anchor=north,
+        text width=2.7cm,align=center] at (1.1,-.85)
+    {still spendable};
+  \node[pd direct label,text=hhteal,anchor=west] at (2.75,-2.20)
+    {nullified};
 
-  \draw[pd caution rule,<->] (2.65,-2.85) -- (5.25,-2.85);
-  \node[pd direct label,text=hhamber,anchor=north] at (3.95,-3.05)
+  \draw[pd guide] (-.4,-2.90) -- (-.4,-.05);
+  \draw[pd guide] (2.6,-2.90) -- (2.6,-.05);
+  \draw[pd caution rule,<->] (-.4,-3.10) -- (2.6,-3.10);
+  \node[pd direct label,text=hhamber,anchor=north,
+        text width=5.2cm,align=center] at (1.1,-3.28)
     {bounded propagation window $\tau$};
-  \draw[pd guide] (2.65,-2.68) -- (2.65,1.28);
-  \draw[pd guide] (5.25,-2.68) -- (5.25,1.28);
-
-  \node[pd note,anchor=west] at (-5.95,-3.62)
-    {the honest claim is a bounded window, not an instantaneous or history-deleting correction};
-\end{tikzpicture}}
-\caption{\textbf{A tombstone changes score consumption without rewriting history.}
-The upper rail remains append-only: fraudulent outcome $o_3$, the overturning
-re-audit, and tombstone $t(o_3)$ are all preserved as distinct facts. The lower
-trace shows what does change. The fraudulent contribution remains spendable until
-the tombstone reaches an importing harbor, then falls to zero. The measured
-interval $\tau$ is the federation's revocation-convergence obligation; the
-protocol bounds that interval rather than pretending it never existed.}
+\end{tikzpicture}
+\caption{\textbf{A tombstone changes score consumption without rewriting
+history.} The upper rail stays append-only: {\normalsize$o_1$}, {\normalsize$o_2$},
+the fraudulent {\normalsize$o_3$}, the overturning re-audit, the compensating
+entry {\normalsize$f(o_3)$}, and the imported tombstone are all preserved as
+distinct, ordered facts. The lower step function shows what changes:
+{\normalsize$o_3$}'s contribution to spendable reputation sits at $1$ from
+settlement until the tombstone reaches an importing harbor, then falls to
+$0$. The measured interval $\tau$ is the federation's revocation-convergence
+obligation: the protocol bounds that window rather than pretending it never
+existed [internal].}
 \label{fig:tombstone}
 \end{figure}

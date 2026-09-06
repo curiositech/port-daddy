@@ -1,50 +1,65 @@
 % Figure --- adjacent evidence overlap yields transitive continuity.
+% [restyle 2026-09-06: dropped \resizebox for a native-scale drawing at
+%  <=4.5in; overlap boxes now use the pd focus fill style (edged and filled)
+%  and the counterexample is a dashed pd caution arrow carrying the spec's
+%  exact words, per the ch5 redraw spec. Incarnation labels sit above each
+%  bar's midpoint (away from the overlap boxes at the bar ends) and every
+%  evidence mark sits away from any label's own footprint, so no stroke or
+%  label runs under another glyph (T3/T4); every math subscript is set at
+%  \normalsize so it clears the 7pt floor (T1), in the picture and caption.]
 \begin{figure}[H]
 \centering
-\resizebox{0.94\textwidth}{!}{%
 \begin{tikzpicture}[pd figure]
-  \node[pd panel title,anchor=west] at (-6.7,2.75)
+  \node[pd panel title,anchor=west] at (-4.3,2.75)
     {direct connectedness is local; continuity is the transitive closure};
 
-  % Incarnation intervals.
-  \draw[pd hairline,line width=5.5pt] (-5.7,1.55) -- (-.9,1.55);
-  \draw[pd hairline,line width=5.5pt] (-1.8,.35) -- (3.0,.35);
-  \draw[pd hairline,line width=5.5pt] (2.1,-.85) -- (6.1,-.85);
-  \node[pd direct label,anchor=east] at (-5.95,1.55) {incarnation 1};
-  \node[pd direct label,anchor=east] at (-2.05,.35) {incarnation 2};
-  \node[pd direct label,anchor=east] at (1.85,-.85) {incarnation 3};
+  % Incarnation bars.
+  \draw[pd hairline,line width=5.5pt] (-3.9,1.55) -- (-.3,1.55);
+  \draw[pd hairline,line width=5.5pt] (-1.1,.35) -- (2.5,.35);
+  \draw[pd hairline,line width=5.5pt] (1.9,-.85) -- (4.5,-.85);
+  \node[pd direct label,anchor=south] at (-2.1,1.90) {incarnation 1};
+  \node[pd direct label,anchor=south] at (.7,.70) {incarnation 2};
+  \node[pd direct label,anchor=south] at (3.85,-.50) {incarnation 3};
 
-  % Evidence marks, with shared outcomes aligned vertically.
-  \foreach \x/\y/\lab in {-4.75/1.55/$o_1$,-1.35/1.55/$o_2$,-1.35/.35/$o_2$,2.55/.35/$o_3$,2.55/-.85/$o_3$,5.25/-.85/$o_4$} {
-    \node[pd datum] at (\x,\y) {};
-    \node[pd axis label,anchor=south] at (\x,\y+.18) {\lab};
-  }
-  \fill[hhteal!9] (-1.72,-.08) rectangle (-.98,1.98);
-  \draw[pd focus rule] (-1.35,.35) -- (-1.35,1.55);
-  \fill[hhteal!9] (2.18,-1.28) rectangle (2.92,.78);
-  \draw[pd focus rule] (2.55,-.85) -- (2.55,.35);
-  \node[pd direct label,text=hhteal,anchor=west] at (-.82,1.02) {shared witness $o_2$};
-  \node[pd direct label,text=hhteal,anchor=west] at (2.72,-.22) {shared witness $o_3$};
+  % Overlap boxes: edged and filled (pd focus fill), with a connector
+  % between the two incarnations' copies of the shared witness.
+  \draw[pd focus fill] (-1.10,0.00) rectangle (-.30,1.90);
+  \draw[pd focus fill] (1.90,-1.20) rectangle (2.50,0.70);
+  \draw[pd focus rule] (-.70,1.55) -- (-.70,.35);
+  \draw[pd focus rule] (2.20,.35) -- (2.20,-.85);
+
+  \node[pd datum] at (-3.5,1.55) {};
+  \node[pd axis label,anchor=south,font=\normalsize] at (-3.5,1.85) {$o_1$};
+  \node[pd datum] at (-.70,1.55) {};
+  \node[pd datum] at (-.70,.35) {};
+  \node[pd datum] at (2.20,.35) {};
+  \node[pd datum] at (2.20,-.85) {};
+  \node[pd datum] at (4.15,-.85) {};
+  \node[pd axis label,anchor=north,font=\normalsize] at (4.15,-1.15) {$o_4$};
+
+  \node[pd direct label,text=hhteal,anchor=west,font=\normalsize] at (-.15,1.55)
+    {shared witness $o_2$};
+  \node[pd direct label,text=hhteal,anchor=west,font=\normalsize] at (2.65,.55)
+    {shared witness $o_3$};
 
   % Derived accountable chain.
-  \draw[pd focus rule,line width=1.4pt] (-5.7,-2.05) -- (6.1,-2.05);
-  \foreach \x in {-4.75,-1.35,2.55,5.25} \node[pd focus datum] at (\x,-2.05) {};
-  \node[pd direct label,text=hhteal,anchor=north] at (.2,-2.30)
-    {transitive ledger rail: $o_1\leadsto o_2\leadsto o_3\leadsto o_4$};
+  \draw[pd focus rule,line width=1.4pt] (-3.9,-2.05) -- (4.5,-2.05);
+  \foreach \x in {-3.5,-.70,2.20,4.15} \node[pd focus datum] at (\x,-2.05) {};
+  \node[pd direct label,text=hhteal,anchor=north,font=\normalsize] at (.3,-2.28)
+    {transitive ledger rail: $o_1{\to}o_2{\to}o_3{\to}o_4$};
 
   % Counterexample: a repeated name without an overlapping witness.
-  \draw[pd caution rule,dashed] (-5.7,-3.18) -- (-2.95,-3.18);
-  \draw[pd caution rule,dashed] (-2.15,-3.18) -- (.55,-3.18);
-  \node[pd direct label,text=hhamber,anchor=west] at (.85,-3.18)
-    {same label, no shared witness $\Rightarrow$ no inherited continuity};
-  \draw[pd caution rule] (-2.80,-3.48) -- (-2.30,-2.88);
-  \draw[pd caution rule] (-2.80,-2.88) -- (-2.30,-3.48);
-\end{tikzpicture}}
+  \draw[pd caution arrow] (-3.9,-3.15) -- (2.5,-3.15);
+  \node[pd direct label,text=hhamber,anchor=west,text width=4.9cm,align=left]
+    at (-3.7,-3.55) {same label, no shared witness: no inherited continuity};
+\end{tikzpicture}
 \caption{\textbf{Parfitian continuity is an overlap chain, not permanent
-connectedness.} Incarnation 1 shares witnessed outcome $o_2$ with incarnation 2;
-incarnation 2 shares $o_3$ with incarnation 3. No later body must directly
-remember $o_1$: the overlapping evidence establishes the transitive ledger rail
-$o_1\leadsto o_2\leadsto o_3\leadsto o_4$. The dashed counterexample repeats a
-label without a shared witness and therefore inherits nothing.}
+connectedness.} Incarnation 1 shares witnessed outcome {\normalsize$o_2$} with
+incarnation 2; incarnation 2 shares {\normalsize$o_3$} with incarnation 3. No
+later body must directly remember {\normalsize$o_1$}: the overlapping evidence
+(the two edged, filled boxes) still establishes the transitive ledger rail
+{\normalsize$o_1{\to}o_2{\to}o_3{\to}o_4$}. The dashed amber arrow marks the
+counterexample: a repeated label with no shared witness inherits nothing
+[internal].}
 \label{fig:parfit}
 \end{figure}

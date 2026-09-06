@@ -1,49 +1,58 @@
 % Figure --- roles persist as slots; persons persist as accountable threads.
+% [restyle 2026-09-06: dropped \resizebox for a native-scale drawing at
+%  <=4.5in; three dated fillers on the role rail and four witnessed outcomes
+%  on the person rail, per the ch5 redraw spec. Rail segments stop short of
+%  every filler/mark so no stroke runs under a text glyph (T4), and every
+%  subscripted label is set at \normalsize so the subscript still clears the
+%  7pt floor (T1).]
 \begin{figure}[H]
 \centering
-\resizebox{0.96\textwidth}{!}{%
 \begin{tikzpicture}[pd figure]
-  \node[pd panel title,anchor=west] at (-6.8,2.75) {ROLE: one slot, replaceable fillers};
-  \node[pd panel title,anchor=west] at (-6.8,-.05) {PERSON: one identity, changing roles};
+  \node[pd panel title,anchor=west] at (-5.0,2.75) {role: one slot, replaceable fillers};
+  \node[pd panel title,anchor=west] at (-5.0,-.15) {person: one identity, changing roles};
 
   % Role track: the specification is stable while fillers are unrelated.
-  \draw[pd hairline,line width=2.4pt] (-5.6,1.45) -- (6.4,1.45);
-  \node[pd direct label,anchor=east] at (-5.85,1.45)
-    {reviewer role\\[-1pt]{\tiny obligation + capability + authority}};
-  \foreach \x/\body in {-4.25/A,-1.35/B,1.55/C,4.45/D} {
-    \draw[pd rule] (\x,1.08) -- (\x,1.82);
-    \node[pd actor,circle,minimum size=7.5mm,inner sep=0pt] at (\x,1.45) {\body};
+  % Drawn as four short segments so no stroke passes under a filler circle.
+  \draw[pd hairline,line width=2.4pt] (-4.2,1.55) -- (-3.5,1.55);
+  \draw[pd hairline,line width=2.4pt] (-2.5,1.55) -- (-.5,1.55);
+  \draw[pd hairline,line width=2.4pt] (.5,1.55) -- (2.5,1.55);
+  \draw[pd hairline,line width=2.4pt] (3.5,1.55) -- (4.2,1.55);
+  \node[pd direct label,anchor=east] at (-4.4,1.55) {reviewer role};
+  \foreach \x/\body/\date in {-3.0/A/spawned Mar 3,0/B/spawned Mar 17,3.0/C/spawned Apr 8} {
+    \node[pd actor,circle,minimum size=7mm,inner sep=0pt] at (\x,1.55) {\body};
+    \node[pd axis label,anchor=north,align=center] at (\x,.95) {\date};
   }
-  \node[pd note,anchor=west] at (-4.75,.72)
-    {the slot survives; no outcome history moves between fillers};
+  \node[pd note,anchor=west] at (-4.2,.20)
+    {each filler's record stays with that filler};
 
   % Person track: one identity crosses role boundaries and accumulates witnesses.
-  \draw[pd focus rule,line width=2.0pt] (-5.6,-1.25) -- (6.4,-1.25);
-  \node[pd direct label,anchor=east,text=hhteal] at (-5.85,-1.25)
-    {$\kappa_7$\\[-1pt]{\tiny non-forgeable identity}};
-  \foreach \xa/\xb/\role in {-5.6/-2.7/navigator,-2.7/.25/cartographer,.25/3.25/reviewer,3.25/6.4/lookout} {
-    \draw[pd guide] (\xa,-1.82) -- (\xa,-.68);
-    \node[pd direct label,anchor=south] at ({(\xa+\xb)/2},-.68) {\role};
+  \draw[pd focus rule,line width=2.0pt] (-4.2,-1.35) -- (4.2,-1.35);
+  \node[pd direct label,anchor=east,text=hhteal,font=\normalsize] at (-4.4,-1.35)
+    {identity $\kappa_7$};
+  \foreach \xa/\xb/\role in {-4.2/-1.4/navigator,-1.4/1.5/cartographer,1.5/4.2/reviewer} {
+    \draw[pd guide] (\xa,-1.85) -- (\xa,-.83);
+    \node[pd direct label,anchor=south,align=center] at ({(\xa+\xb)/2},-.83) {\role};
   }
-  \draw[pd guide] (6.4,-1.82) -- (6.4,-.68);
+  \draw[pd guide] (4.2,-1.85) -- (4.2,-.83);
 
-  \foreach \x/\mark in {-4.75/$o_1$,-3.45/$o_2$,-1.65/$o_3$,-.45/$o_4$,1.05/$o_5$,2.25/$o_6$,4.25/$o_7$,5.55/$o_8$} {
-    \draw[pd focus rule] (\x,-1.25) -- (\x,-1.72);
-    \node[pd axis label,anchor=north] at (\x,-1.77) {\mark};
+  \foreach \x/\mark in {-3.55/$o_1$,-2.15/$o_2$,.65/$o_3$,3.5/$o_4$} {
+    \draw[pd focus rule] (\x,-1.35) -- (\x,-1.78);
+    \node[pd axis label,anchor=north,font=\normalsize] at (\x,-1.88) {\mark};
   }
-  \node[pd note,anchor=west,text=hhteal] at (-4.75,-2.38)
-    {witnessed outcomes accumulate on the identity across every role change};
+  \node[pd note,anchor=west,text=hhteal] at (-4.2,-2.55)
+    {each outcome accumulates on {\normalsize$\kappa_7$}, never on a role filler};
 
-  \node[pd axis label,anchor=west] at (-6.8,-2.95) {earlier};
-  \node[pd axis label,anchor=east] at (6.8,-2.95) {later};
-  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (-5.9,-2.90) -- (5.9,-2.90);
-\end{tikzpicture}}
+  \node[pd axis label,anchor=east] at (-3.75,-3.05) {earlier};
+  \node[pd axis label,anchor=west] at (3.75,-3.05) {later};
+  \draw[pd rule,-{Stealth[length=1.7mm,width=1.0mm]}] (-3.55,-3.05) -- (3.55,-3.05);
+\end{tikzpicture}
 \caption{\textbf{A role is a slot; a person is a longitudinal record.} The upper
-track holds one reviewer role constant while unrelated bodies fill it in sequence:
-the slot has obligations, capability, and authority, but no reputation of its own.
-The lower track follows one identity $\kappa_7$ through four role intervals while
-witnessed outcomes $o_1\ldots o_8$ accumulate on the same thread. A respawn may
-replace the body, and a reassignment may replace the role, without replacing the
-accountable person.}
+rail holds one reviewer role fixed while three unrelated bodies $A$, $B$, $C$ fill
+it in turn, one per spawn date: the slot carries obligation, capability, and
+authority, but no history of its own, so each filler's record dies with it. The
+lower rail follows one non-forgeable identity {\normalsize$\kappa_7$} through
+three role intervals while four witnessed outcomes
+{\normalsize$o_1,\ldots,o_4$} accumulate on that same thread. The readable fact is the contrast in kind: the role rail \emph{replaces}
+at every date, the person rail \emph{accumulates} at every outcome [internal].}
 \label{fig:role-person}
 \end{figure}

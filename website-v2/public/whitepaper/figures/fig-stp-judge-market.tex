@@ -1,63 +1,64 @@
-% Figure --- neutrality is a filter; accountability is an exposure interval.
+% Figure --- eligibility is decided before the grade; every step is inspectable.
+% [redraw 2026-09-06: proper state machine (pd state boxes, labeled edges),
+%  replacing the earlier candidate-pool/funnel drawing, per the ch5 redraw
+%  spec and the taxonomy's own state-machine idiom for this figure. Wrapped
+%  boustrophedon-style over two rows (submit-filter-select left to right,
+%  then blind grade-ledger-re-audit right to left under it) so the row
+%  transition is one short vertical drop, not a diagonal crossing the whole
+%  picture -- a single row of six states plus labels did not fit the 4.5in
+%  budget. Three labeled exclusions drop from "filter" into the gap between
+%  rows, ending in pd caution datum marks; the slash-if-overturned back edge
+%  is dashed. Dropped \resizebox for a native-scale drawing at <=4.5in.]
 \begin{figure}[H]
 \centering
-\resizebox{0.96\textwidth}{!}{%
 \begin{tikzpicture}[pd figure]
-  \node[pd panel title,anchor=west] at (-6.8,3.05)
-    {eligibility is established before the grade};
+  % Row 1 (left to right): eligibility and selection.
+  \node[pd state] (submit) at (0,1.7) {submit};
+  \node[pd state] (filter) at (2.85,1.7) {filter};
+  \node[pd state] (select) at (5.7,1.7) {select};
+  \draw[pd arrow] (submit) -- (filter) node[midway,above,pd axis label] {pools};
+  \draw[pd arrow] (filter) -- (select) node[midway,above,pd axis label] {excludes};
 
-  % Candidate pool and explicit exclusions.
-  \foreach \x/\lab in {-5.9/$J_1$,-4.75/$J_2$,-3.6/$J_3$,-2.45/$J_4$,-1.3/$J_5$,-.15/$J_6$} {
-    \node[pd actor,circle,minimum size=7.5mm,inner sep=0pt] (\lab) at (\x,1.90) {\lab};
-  }
-  \draw[pd caution rule] (-6.25,1.55) -- (-5.55,2.25);
-  \draw[pd caution rule] (-6.25,2.25) -- (-5.55,1.55);
-  \draw[pd caution rule] (-3.95,1.55) -- (-3.25,2.25);
-  \draw[pd caution rule] (-3.95,2.25) -- (-3.25,1.55);
-  \draw[pd caution rule] (-.50,1.55) -- (.20,2.25);
-  \draw[pd caution rule] (-.50,2.25) -- (.20,1.55);
-  \node[pd direct label,text=hhamber,anchor=west] at (.55,2.18)
-    {principal link / stake / model-family conflict};
+  % Row 2 (right to left, under row 1): grading, settlement, and audit.
+  \node[pd state] (grade) at (5.7,-2.15) {blind grade};
+  \node[pd state] (ledger) at (2.85,-2.15) {ledger};
+  \node[pd state] (audit) at (0,-2.15) {re-audit};
+  \draw[pd arrow] (grade) -- (ledger) node[midway,above,pd axis label] {settles};
+  \draw[pd arrow] (ledger) -- (audit) node[midway,above,pd axis label] {samples};
 
-  % Funnel remaining candidates to a public selection point.
-  \foreach \x in {-4.75,-2.45,-1.3}
-    \draw[pd hairline] (\x,1.48) -- (0,.55);
-  \node[pd focus datum] (draw) at (0,.55) {};
-  \node[pd direct label,text=hhteal,anchor=west] at (.28,.55)
-    {public draw from eligible pool};
+  % The wrap: select feeds blind grade directly below it.
+  \draw[pd arrow] (select.south) -- (grade.north)
+    node[midway,right=2pt,pd axis label,text width=1.3cm,align=left] {draws};
 
-  % Ceremony rail.
-  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (-6.05,-.65) -- (6.25,-.65);
-  \foreach \x/\lab in {-5.35/submit,-2.65/filter,0/select,2.45/blind grade,4.75/ledger,6.0/re-audit} {
-    \draw[pd tick] (\x,-.87) -- (\x,-.43);
-    \node[pd direct label,anchor=north,align=center] at (\x,-1.02) {\lab};
-  }
-  \node[pd focus datum] at (-2.65,-.65) {};
-  \node[pd focus datum] at (0,-.65) {};
-  \node[pd focus datum] at (2.45,-.65) {};
-  \node[pd focus datum] at (4.75,-.65) {};
-  \node[pd caution datum] at (6.0,-.65) {};
+  % Exposure: a re-audit that overturns the grade slashes it on the ledger.
+  \draw[pd caution arrow] (audit.south) .. controls (0,-4.1) and (2.85,-4.1) .. (ledger.south)
+    node[midway,pd direct label,text=hhamber,anchor=north] {slashes if overturned};
 
-  % Bond exposure is an interval, not a one-time label.
-  \draw[pd caution rule,line width=1.45pt] (0,-2.35) -- (6.0,-2.35);
-  \node[pd caution datum] at (0,-2.35) {};
-  \node[pd caution datum] at (6.0,-2.35) {};
-  \node[pd direct label,text=hhamber,anchor=north] at (3.0,-2.55)
-    {judge bond remains exposed through the dispute window};
-  \draw[pd caution arrow] (6.0,-.90) -- (6.0,-2.05);
-  \node[pd direct label,text=hhamber,anchor=east] at (5.72,-1.55)
-    {slash if overturned};
+  % Eligibility filter: three named rejections, dropped into the gap
+  % between the rows, each ending in a caution mark.
+  \draw[pd caution arrow] (filter.south) -- ++(-1.9,-.4) node[pd caution datum,anchor=north] {};
+  \node[pd direct label,text=hhamber,anchor=north,text width=1.7cm,align=center]
+    at ($(filter.south)+(-1.9,-1.15)$) {principal link};
+  \draw[pd caution arrow] (filter.south) -- ++(0,-.8) node[pd caution datum,anchor=north] {};
+  \node[pd direct label,text=hhamber,anchor=north,text width=1.0cm,align=center]
+    at ($(filter.south)+(0,-1.60)$) {stake};
+  \draw[pd caution arrow] (filter.south) -- ++(1.9,-.4) node[pd caution datum,anchor=north] {};
+  \node[pd direct label,text=hhamber,anchor=north,text width=2.0cm,align=center]
+    at ($(filter.south)+(1.9,-1.15)$) {model-family\\conflict};
 
-  \draw[pd focus rule] (-5.35,-3.25) -- (4.75,-3.25);
-  \node[font=\scriptsize\bfseries,text=hhteal,anchor=north] at (-.3,-3.25)
-    {receipt, exclusions, selection, grade, and audit remain one inspectable history};
-\end{tikzpicture}}
-\caption{\textbf{The judge market has two different proof moments.} Neutrality is
-earned before selection: candidates sharing a principal, stake, or model family
-with the graded party are visibly removed, then a public draw selects from what
-remains. Accountability persists after selection: the judge posts a bond, grades
-blind, and remains exposed until a later re-audit. The ledger records the receipt,
-exclusions, draw, grade, bond, and audit, so ``neutral'' is a checkable history
-rather than a title attached to the chosen judge.}
+  \node[pd note,anchor=west,text width=7.9cm,align=left] at (0,-4.85)
+    {every step above -- exclusion, draw, grade, settlement, audit -- lands
+     in the same inspectable outcome ledger};
+\end{tikzpicture}
+\caption{\textbf{Eligibility is decided before the grade, and every step
+leaves a record.} A judge market moves through six states, wrapped over two
+rows: \emph{submit}, \emph{filter} (three named exclusions -- a shared
+principal link, a shared stake, or a model-family conflict -- each ending in
+a rejection mark), \emph{select} (a public draw from what remains),
+\emph{blind grade}, \emph{ledger}, and \emph{re-audit}. The dashed back edge
+is the exposure step: a re-audit that overturns the grade slashes the judge's
+bond on the ledger entry, not merely on paper. Neutrality is therefore a
+checkable history, not a title attached to whichever judge was drawn
+[internal].}
 \label{fig:judge-market}
 \end{figure}
