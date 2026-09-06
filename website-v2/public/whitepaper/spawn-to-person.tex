@@ -130,20 +130,6 @@
     \draw[hhgray!60,line width=1pt] (p.north west) -- (p.south west);
   \end{tikzpicture}\par\vspace{6pt}%
 }
-% \exercises{}: end-of-section exercise block, quiet sand-framed.
-\newenvironment{exercises}{%
-  \par\vspace{8pt}\noindent
-  \begin{tikzpicture}
-  \node[draw=hhgray!45,line width=0.4pt,fill=hhsand!12,rounded corners=2pt,
-        inner sep=10pt,text width=\dimexpr\textwidth-26pt\relax,align=left]
-        \bgroup\begin{minipage}{\dimexpr\textwidth-46pt\relax}
-  {\scshape\bfseries\color{hhink}\large Exercises}\par\vspace{3pt}
-  \small
-}{%
-  \end{minipage}\egroup;
-  \end{tikzpicture}\par\vspace{8pt}
-}
-
 % ─── Listings Setup ──────────────────────────────────────────────────────────
 \lstdefinestyle{pdcode}{
   language=C,
@@ -449,17 +435,48 @@ We do \textbf{not} claim the reference system's restart organ is real checkpoint
 identity root reaches across operators --- it does not, and \S\ref{sec:keystone}
 hands that unsolved problem to the market paper by name.
 
-\begin{exercises}
-\textit{Check.} (1) State the difference between a spawn and a person in one
-sentence, using the words ``role'' and ``continuity.'' \\
-\textit{Trace.} (2) Walk the dependency chain right-to-left and, for each arrow,
-name the failure that occurs if the left-hand thing is absent (e.g.\ ``no
-non-forgeable identity $\Rightarrow$ \underline{\hspace{3cm}}''). \\
-$\star$ \textit{Open.} (3) The chain treats the operator (the human who owns a
-fleet) as outside it. Is the operator a ``person'' in this paper's sense? What
-breaks if a single operator can mint arbitrarily many agent-persons?
-(This is the principal-layer gap; see \S\ref{sec:identity} and the market paper.)
-\end{exercises}
+\begin{pdexercise}[kind=Check,rating=1]{ex:stp-spawn-vs-person}
+State the difference between a spawn and a person in one sentence, using the
+words ``role'' and ``continuity.''
+\end{pdexercise}
+\begin{pdsolution}{ex:stp-spawn-vs-person}
+A spawn is a temporary process filling a role; a person is a role-holder whose
+accountable continuity survives replacement of that process.
+\end{pdsolution}
+\begin{pdexercise}[kind=Trace,rating=2]{ex:stp-dependency-chain}
+Walk the dependency chain right-to-left and, for each arrow, name the failure
+that occurs if the left-hand thing is absent (e.g.\ ``no non-forgeable
+identity $\Rightarrow$ \underline{\hspace{3cm}}'').
+\end{pdexercise}
+\begin{pdsolution}{ex:stp-dependency-chain}
+Read right-to-left. No reputation $\Rightarrow$ a buyer cannot price
+differentiated trust, so the alleged tradeable asset is adverse-selection
+noise. No durable accountable person/outcome identity $\Rightarrow$ reputation
+attaches to a disposable incarnation and can be reset or duplicated. No
+continuity $\Rightarrow$ successive role-holders cannot be shown to belong to
+one lineage; history does not follow replacement. No memory/checkpoint/evidence
+$\Rightarrow$ a successor lacks both resumable state and a witnessed chain from
+old work to new work. The chain is not literally linear: non-forgeable identity
+and witnessed outcomes are parallel prerequisites for accountable continuity;
+checkpointing helps resumption but is not logically necessary for every
+reputation system.
+\end{pdsolution}
+\begin{pdexercise}[kind=Open,rating=3]{ex:stp-operator-as-person}
+The chain treats the operator (the human who owns a fleet) as outside it. Is
+the operator a ``person'' in this paper's sense? What breaks if a single
+operator can mint arbitrarily many agent-persons? (This is the principal-layer
+gap; see \S\ref{sec:identity} and the market paper.)
+\end{pdexercise}
+\begin{pdsolution}{ex:stp-operator-as-person}
+The human operator is a moral/legal person but should be represented
+economically as the \emph{principal} above agent identities
+(Def.~\ref{def:principal}). If one principal can mint unlimited apparently
+independent agent-persons, it can whitewash sanctions, forge quorums, reuse
+aggregate collateral, and farm reputation through self-trade. Bind every agent
+lineage to a principal credential, cap principal-wide exposure and newcomer
+credit, and disclose shared control: the actor may change; the economic
+liability root must not.
+\end{pdsolution}
 
 % ═════════════════════════════════════════════════════════════════════════════
 \section{Prior art, and where this paper departs from it}\label{sec:priorart}
@@ -680,18 +697,45 @@ deontic ``may.'' When this paper says an attenuated capability can only
 shrinks; whether the recipient is \emph{permitted} to use even that is a separate,
 normative question.}
 
-\begin{exercises}
-\textit{Check.} (1) Give a concrete example of a state that is
-\emph{capable-and-permitted}, one that is \emph{capable-but-forbidden}, and one
-that is \emph{permitted-but-incapable}. \\
-\textit{Trace.} (2) In Definition~\ref{def:person}, which of $\{O,C,A\}$ does
-reputation attach to --- the role's, or the person's? Justify using the
-spawn-that-cannot-be-paid argument of \S\ref{sec:intro}. \\
-$\star$ \textit{Open.} (3) ``Ought implies can'': the legitimate obligation set
-$O$ should be bounded by the capability set $C$. But \emph{capable-but-forbidden}
-must remain representable. Sketch a representation of a role that keeps both true
-without collapsing permission into capability.
-\end{exercises}
+\begin{pdexercise}[kind=Check,rating=1]{ex:stp-capability-states}
+Give a concrete example of a state that is \emph{capable-and-permitted}, one
+that is \emph{capable-but-forbidden}, and one that is
+\emph{permitted-but-incapable}.
+\end{pdexercise}
+\begin{pdsolution}{ex:stp-capability-states}
+Capable-and-permitted: an agent has a test-runner tool and authority to run
+the suite. Capable-but-forbidden: the process can invoke raw
+\texttt{git push --force}, but policy forbids it. Permitted-but-incapable: the
+role is authorized to deploy, but the incumbent has no deploy
+credential/network route.
+\end{pdsolution}
+\begin{pdexercise}[kind=Trace,rating=2]{ex:stp-reputation-attachment}
+In Definition~\ref{def:person}, which of $\{O,C,A\}$ does reputation attach to
+--- the role's, or the person's? Justify using the spawn-that-cannot-be-paid
+argument of \S\ref{sec:intro}.
+\end{pdexercise}
+\begin{pdsolution}{ex:stp-reputation-attachment}
+Reputation attaches to the person's continuity witness and witnessed outcomes,
+not to the abstract role's $O$, $C$, or $A$. A role is fillable and
+history-free; otherwise a fresh spawn could inherit the prior holder's credit
+merely by taking the same job title, exactly the attribution Alice loses in
+\S\ref{sec:intro}.
+\end{pdsolution}
+\begin{pdexercise}[kind=Open,rating=3]{ex:stp-ought-implies-can}
+``Ought implies can'': the legitimate obligation set $O$ should be bounded by
+the capability set $C$. But \emph{capable-but-forbidden} must remain
+representable. Sketch a representation of a role that keeps both true without
+collapsing permission into capability.
+\end{pdexercise}
+\begin{pdsolution}{ex:stp-ought-implies-can}
+Keep a role template $(O_{\text{required}}, A_{\text{role}})$ separate from an
+incumbent capability set $C_{\text{subject}}$. At assignment require each
+current obligation to satisfy
+$O_{\text{active}} \subseteq A_{\text{role}} \cap C_{\text{subject}}$. Keep
+$C_{\text{subject}} \setminus A_{\text{role}}$ as capable-but-forbidden and
+$A_{\text{role}} \setminus C_{\text{subject}}$ as authorized-but-unavailable,
+which triggers provisioning or reassignment. Never equate $C$ with $A$.
+\end{pdsolution}
 
 % ═════════════════════════════════════════════════════════════════════════════
 \section{Continuity is a personal-identity problem}\label{sec:continuity}
@@ -751,34 +795,95 @@ its past''). Parfit shows the identity-bearing organ is the \emph{transitive
 chain of witnessed outcomes}, not the memory stream. Build the ledger, not just
 the memory.}
 
-\begin{exercises}
-\textit{Check.} (1) Define \emph{connectedness} and \emph{continuity} and give an
-agent-systems example where an agent is connected but not continuous. \\
-\textit{Trace.} (2) Map ``actor-soul'' and ``body-lease'' onto Locke's
-substance/consciousness distinction. Which one does a respawn replace? \\
-$\star$ \textit{Open} (Open Problem~\ref{op:branching}, \S\ref{sec:open}). (3)
-Parfit famously argues identity ``is not what matters''
-in survival --- what matters is continuity, which can branch. If an agent's
-checkpoint is forked into two live incarnations, which one (if either) inherits the
-reputation? Sketch a rule and the attack it invites.
-\end{exercises}
+\begin{pdexercise}[kind=Check,rating=1]{ex:stp-connected-vs-continuous}
+Define \emph{connectedness} and \emph{continuity} and give an agent-systems
+example where an agent is connected but not continuous.
+\end{pdexercise}
+\begin{pdsolution}{ex:stp-connected-vs-continuous}
+Connectedness is a direct memory/intention link between two incarnations;
+continuity is the transitive, provenance-bearing chain across arbitrarily many
+links. A successor may read its predecessor's handoff and be psychologically
+connected while using a new outcome-ledger key, so the accountable chain is
+broken: connected, not economically continuous.
+\end{pdsolution}
+\begin{pdexercise}[kind=Trace,rating=2]{ex:stp-actor-soul-body-lease}
+Map ``actor-soul'' and ``body-lease'' onto Locke's substance/consciousness
+distinction. Which one does a respawn replace?
+\end{pdexercise}
+\begin{pdsolution}{ex:stp-actor-soul-body-lease}
+In the manuscript's analogy, the body-lease is the replaceable live
+substance/process; the actor-soul is the durable identity/mailbox/history that
+carries consciousness-like continuity. Respawn replaces the body-lease and
+should retain the actor-soul only under a valid succession event.
+\end{pdsolution}
+\begin{pdexercise}[kind=Open,rating=3]{ex:stp-fork-inheritance}
+Parfit famously argues identity ``is not what matters'' in survival --- what
+matters is continuity, which can branch. If an agent's checkpoint is forked
+into two live incarnations, which one (if either) inherits the reputation?
+Sketch a rule and the attack it invites. (Open Problem~\ref{op:branching},
+\S\ref{sec:open}.)
+\end{pdexercise}
+\begin{pdsolution}{ex:stp-fork-inheritance}
+Represent a fork as a lineage DAG, never as two copies of one linear identity.
+Both children may display the ancestor's evidence with an explicit
+inherited/discounted prior, but neither duplicates the ancestor's outstanding
+authority, collateral, or spendable reputation. Allocate a fresh branch ID,
+split or revoke exclusive capabilities, and aggregate risk at the common
+principal/ancestor. Copying full reputation to both invites credit
+duplication, quorum multiplication, and double-spending of grants; giving it
+to only the first child creates a fork-race attack. This sketch is now a
+proved theorem --- see the Numbers by hand box below.
+\end{pdsolution}
 
-\noindent\emph{Status: the branching rule of Exercise (3) now carries an executed
-no-mint theorem (research-ledger item A6). Inheritance as \textbf{transfer}, not
-copy: a derivation grants each child a discounted share $\gamma\,w_p$ of each
-source $p$'s live reputation and \emph{debits the source} the undiscounted share
-$w_p$, whence total live creditable reputation never exceeds total witnessed value
-and is nonincreasing except at witness steps (a supermartingale under derivation);
-a randomized sweep of 4{,}000 fork DAGs (chains, diamonds, multi-parent merges,
-re-derivation cycles) shows 0 violations, while the copy-full mutant --- forks
-inherit the undebited record --- mints in a 2-operation shortest crime and an
-8-way copy-fork multiplies one witnessed episode into $8.2\times$ its quorum
-weight (\texttt{a6\_no\_mint.py}, seed 20260816). One wrong turn on record: the
-budget-only phrasing (per-outcome grant budgets $\sum w \le 1$, no debiting) was
-swept before proving and \emph{refuted} --- a full-weight chain at $\gamma=0.9$ is
-budget-legal at every hop yet its closure sums to $0.9+0.81+0.729=2.44>1$, so
-budgets without debiting conserve nothing for $\gamma>\tfrac12$; the transfer
-restatement is the theorem.}
+\begin{pdexample}{No-mint inheritance: the closure-sum refutation and the copy-fork mint}
+The branching rule of Exercise~\ref{ex:stp-fork-inheritance} now carries an
+executed no-mint theorem (research-ledger item A6). Inheritance as
+\textbf{transfer}, not copy: a derivation grants each child a discounted share
+$\gamma\,w_p$ of each source $p$'s live reputation and \emph{debits the
+source} the undiscounted share $w_p$, whence total live creditable reputation
+never exceeds total witnessed value and is nonincreasing except at witness
+steps (a supermartingale under derivation); a randomized sweep of $4{,}000$
+fork DAGs (chains, diamonds, multi-parent merges, re-derivation cycles) shows
+$0$ violations [internal, \texttt{a6\_no\_mint.py}, seed 20260816], while the
+copy-full mutant --- forks inherit the undebited record --- mints in a
+2-operation shortest crime and an 8-way copy-fork multiplies one witnessed
+episode into $8.2\times$ its quorum weight. One wrong turn on record: the
+budget-only phrasing (per-outcome grant budgets $\sum w \le 1$, no debiting)
+was swept before proving and \emph{refuted} --- a full-weight chain at
+$\gamma=0.9$ is budget-legal at every hop yet its closure sums to
+$0.9+0.81+0.729=2.439>1$ [verified: three terms of a geometric series, checkable
+by hand], so budgets without debiting conserve nothing for $\gamma>\tfrac12$;
+the transfer restatement is the theorem. \emph{Now you try:} check by hand
+that under transfer semantics the same chain's live total is
+$0.9\cdot 1=0.9\le 1$, not $2.439$ (Exercise~\ref{ex:stp-nomint-sweep}).
+\end{pdexample}
+
+\begin{pdexercise}[kind=Trace,rating=2]{ex:stp-nomint-sweep}
+Run \texttt{skills/harbor-results/scripts/a6\_no\_mint.py} (seed $20260816$
+fixed inside). It prints a closure-sum counterexample, a randomized DAG sweep,
+and a copy-full mutation. What is the exact violation count in the sweep, and
+what should you check by hand on the featured chain $e\to a_1\to a_2\to a_3$
+at $\gamma=0.9$?
+\end{pdexercise}
+\begin{pdsolution}{ex:stp-nomint-sweep}
+The script prints: ``\texttt{sum of inherited priors over the closure = 0.900
++ 0.810 + 0.729 = 2.439 > q = 1.0}'' for the budget-only counterexample, then
+``\texttt{4000 random DAGs \dots{} 0 violations; max live/witnessed ratio
+observed = 0.999995}'' for the transfer-semantics sweep, then ``\texttt{an
+8-way copy-fork of one outcome yields 8.2x its witnessed value}'' for the
+copy-full mutation. By hand: $0.9+0.9^2+0.9^3=0.9+0.81+0.729=2.439$, three
+terms of a geometric series, confirming the closure-sum counterexample without
+running anything; under transfer semantics the same chain instead \emph{debits}
+each hop, so the live total telescopes to $0.9^3=0.729\le 1$, which is what
+the sweep's $0$ violations certifies at scale.
+\end{pdsolution}
+
+\begin{pdrecitation}
+\item Without looking: what is the difference between connectedness and
+continuity, and which one does reputation require?
+\item State in one sentence why ``copy, not transfer'' mints reputation.
+\item What does the no-mint theorem conserve, and what is it silent about?
+\end{pdrecitation}
 
 % ═════════════════════════════════════════════════════════════════════════════
 \section{The three organs of continuity}\label{sec:organs}
@@ -897,17 +1002,49 @@ reader should consult first.
 % --- FIGURE 5: honest-state table-as-figure ---
 \input{figures/fig-stp-honest-state}
 
-\begin{exercises}
-\textit{Check.} (1) Which organ is \BUILTWEAK, and what exactly is weak about it? \\
-\textit{Trace.} (2) An agent claims a file, makes a commit, and dies. Walk the
-three organs: what does each retain, and what is \emph{lost} that a strong
-checkpoint would have kept? \\
-$\star$ \textit{Open} (Open Problem~\ref{op:death}, \S\ref{sec:open}). (3) When an
-LLM agent dies mid-thought, what is recoverable and what is fundamentally lost?
-Propose a taxonomy of agent-death by what survives (record / claims / execution
-state / latent ``intent''). This is the hard half of the checkpoint-with-teeth
-problem.
-\end{exercises}
+\begin{pdexercise}[kind=Check,rating=1]{ex:stp-weak-organ}
+Which organ is \BUILTWEAK, and what exactly is weak about it?
+\end{pdexercise}
+\begin{pdsolution}{ex:stp-weak-organ}
+The checkpoint organ is the specifically weak one: it forwards notes rather
+than execution state. The outcome-ledger organ is also only partial in the
+implementation: commitments and oracle closure exist, but neutral graded
+outcomes and reputation binding do not.
+\end{pdsolution}
+\begin{pdexercise}[kind=Trace,rating=2]{ex:stp-three-organs-trace}
+An agent claims a file, makes a commit, and dies. Walk the three organs: what
+does each retain, and what is \emph{lost} that a strong checkpoint would have
+kept?
+\end{pdexercise}
+\begin{pdsolution}{ex:stp-three-organs-trace}
+Memory retains the session, notes, and explicit decisions. The current
+checkpoint may retain a handoff and perhaps a committed diff, but not working
+process state, tool handles, pending effects, or hidden provider state. The
+outcome ledger retains the commit only if it is bound to a work unit and
+independently witnessed; a naked Git commit is an artifact, not proof of
+accepted delivery. A strong checkpoint would also preserve the worktree,
+environment, open claims/epochs, acceptance state, tool receipts, and the
+idempotency journal.
+\end{pdsolution}
+\begin{pdexercise}[kind=Open,rating=3]{ex:stp-death-taxonomy}
+When an LLM agent dies mid-thought, what is recoverable and what is
+fundamentally lost? Propose a taxonomy of agent-death by what survives
+(record / claims / execution state / latent ``intent''). This is the hard
+half of the checkpoint-with-teeth problem. (Open Problem~\ref{op:death},
+\S\ref{sec:open}.)
+\end{pdexercise}
+\begin{pdsolution}{ex:stp-death-taxonomy}
+A useful death taxonomy, in increasing order of what survives: (1)
+\emph{record survival} --- logs/notes only, reconstruction is manual; (2)
+\emph{artifact survival} --- a content-addressed worktree and outputs survive,
+computation is rerun; (3) \emph{semantic task capsule} --- artifacts plus
+obligations, decisions, transcript/projection, tools, and a pending-effect
+journal, so a new provider can continue observably; (4) \emph{execution
+snapshot} --- process memory/runtime state survives under a controlled
+runtime, rarely portable; (5) \emph{latent state} --- unexposed activations,
+KV cache, or ``intent'' dies, fundamentally unrecoverable from an arbitrary
+provider. Checkpoint guarantees should state which tier they provide.
+\end{pdsolution}
 
 % ═════════════════════════════════════════════════════════════════════════════
 \section{Identity: the root the whole chain hangs from}\label{sec:identity}
@@ -922,7 +1059,9 @@ it is the governing impossibility result the rest of the paper leans on: no
 amount of estimator cleverness can rescue a reputation built on a re-pickable
 identity.
 
-\begin{definition}[Sanction-respecting reputation]\label{def:sanction-respecting}
+\begin{definition}[Sanction-respecting reputation]\label{def:sanction-respecting}\footnote{In
+the first edition this was Definition III.6.1; the standalone research paper on
+reputation inheritance cites it under that number.}
 Fix a reputation mechanism $M$ that maps each identity $i$ to a score $r(i)$ used
 to gate economic access. Call $M$ \textbf{sanction-respecting} if there exists a
 penalty $\Delta > 0$ such that whenever an actor produces a \emph{dishonest}
@@ -1229,24 +1368,35 @@ uncapped optimum. \emph{Now you try:} at $L=8$, is the schedule feasible at all?
 infinite horizon held at the cap forever; any $L<8$ makes this fraud gain
 undeterrable by probation alone, and you need a bond instead.)
 
-\noindent\emph{Status: this is the whitepaper statement of the companion paper's
-probation-cliff theorem~\cite{harborpaper5}, carrying its amended ceiling
-hypothesis. Exchange argument verified numerically across randomized
-$(\delta_f<\delta_h,\,G_{\max})$ instances (0 dominating schedules in 4{,}000 draws
---- the number regenerates from \texttt{b6\_probation.py} at seed 20260816: 76{,}000
-candidate schedules tested with the deterrence constraint held tight, and the
-exchange step's cost ratio $(\delta_h/\delta_f)^t$ verified strictly monotone in
-$t$); the polished LP write-up is carried as item B6 of the research ledger.
-\textbf{Honest boundary on the evidence:} that sweep was generated \emph{without}
-the per-period cap, so it certifies the uncapped statement and the exchange step,
-not the bang-bang shape under a binding $L$; re-running it with $g_t\le L$ is an
-open verification debt. \emph{One citation is owed and unresolved:} the foil above is
-stated as the deferred-compensation folklore one might import from Lazear, not as a
-confirmed reversal of his result --- we have not been able to obtain his article, and
-if his contract front-loads the honest worker's implicit bond in the same direction,
-the cliff agrees with him rather than correcting him. Here the re-payable hurdle is
-itself the punishment a whitewasher faces on every reset, so front-loading taxes
-resets, not tenure --- but that framing stays folklore until the citation is checked.}
+\begin{pdexample}{The probation cliff: falsifying the schedule shape}
+This is the whitepaper statement of the companion paper's probation-cliff
+theorem~\cite{harborpaper5}, carrying its amended ceiling hypothesis. Exchange
+argument verified numerically across randomized
+$(\delta_f<\delta_h,\,G_{\max})$ instances: $0$ dominating schedules in
+$4{,}000$ draws --- the number regenerates from \texttt{b6\_probation.py} at
+seed 20260816, testing $76{,}000$ candidate schedules with the deterrence
+constraint held tight, and the exchange step's cost ratio
+$(\delta_h/\delta_f)^t$ verified strictly monotone in $t$ [internal,
+\texttt{b6\_probation.py}, seed 20260816]; the polished LP write-up is
+carried as item B6 of the research ledger. The winning shape is a
+\textbf{cliff}: harshness held at the ceiling $L$ from $t=0$, dropping to $0$
+the moment accumulated deterrence clears $G_{\max}$, never eased in gradually
+--- any schedule that defers mass to a later period is strictly dominated, so
+the corner solution is the whole answer, not an approximation to one.
+\textbf{Honest boundary on the evidence:} that sweep was generated
+\emph{without} the per-period cap, so it certifies the uncapped statement and
+the exchange step, not the bang-bang shape under a binding $L$; re-running it
+with $g_t\le L$ is an open verification debt. \emph{One citation is owed and
+unresolved:} the foil above is stated as the deferred-compensation folklore
+one might import from Lazear, not as a confirmed reversal of his result --- we
+have not been able to obtain his article, and if his contract front-loads the
+honest worker's implicit bond in the same direction, the cliff agrees with him
+rather than correcting him. Here the re-payable hurdle is itself the
+punishment a whitewasher faces on every reset, so front-loading taxes resets,
+not tenure --- but that framing stays folklore until the citation is checked.
+\emph{Now you try:} run the script yourself and check the instance count
+against the $76{,}000$ figure above (Exercise~\ref{ex:stp-probation-cliff-sweep}).
+\end{pdexample}
 
 % --- FIGURE 6: Sybil/whitewashing and the non-forgeable root ---
 Figure~\ref{fig:sybil} draws the two attacks a free identity enables --- whitewashing
@@ -1280,19 +1430,96 @@ reputational consequence of its agents' witnessed outcomes. Each agent's
 non-forgeable identity is bound to exactly one principal at mint time.
 \end{definition}
 
-\begin{exercises}
-\textit{Check.} (1) State Property~\ref{prop:reality} in your own words and give
-the two-attack proof sketch. \\
-\textit{Trace.} (2) Why is a ``newcomer policy as a shape'' (full work, reduced
-ceiling) strictly better than ``newcomers are distrusted'' (reduced work)?
-Consider the cost to an honest newcomer vs.\ a whitewasher. \\
-$\star$ \textit{Open} (Open Problem~\ref{op:bondfarm}, \S\ref{sec:open}). (3)
-Bond-farming: a single principal spawns 1000 agents,
-has them trade trivial tasks among themselves to mint reputation, then sells the
-``experienced'' agents. Which of \{principal binding, listing fee, sampled
-adversarial re-audit of high-velocity counterparty pairs\} defeats this, and at
-what false-positive cost to honest high-volume pairs?
-\end{exercises}
+\begin{pdexercise}[kind=Check,rating=1]{ex:stp-property-reality}
+State Property~\ref{prop:reality} in your own words and give the two-attack
+proof sketch.
+\end{pdexercise}
+\begin{pdsolution}{ex:stp-property-reality}
+Correctly scoped, Property~\ref{prop:reality} says reputation has economic
+force only to the extent that the accountable principal cannot cheaply
+discard or multiply the liability-bearing identity. Whitewashing escapes a
+negative record when newcomer access is better; a Sybil attack multiplies
+votes/credit when the mechanism counts identities. Non-forgeability is
+necessary for those mechanisms under those access rules, but it is not
+sufficient by itself.
+\end{pdsolution}
+\begin{pdexercise}[kind=Trace,rating=2]{ex:stp-newcomer-shape}
+Why is a ``newcomer policy as a shape'' (full work, reduced ceiling) strictly
+better than ``newcomers are distrusted'' (reduced work)? Consider the cost to
+an honest newcomer vs.\ a whitewasher.
+\end{pdexercise}
+\begin{pdsolution}{ex:stp-newcomer-shape}
+Full work with a reduced economic ceiling lets an honest newcomer demonstrate
+competence without being denied livelihood, while limiting the maximum
+one-shot gain from abandoning a mature sanctioned identity. ``Reduced work''
+slows evidence accumulation and taxes all honest entrants; ``reduced
+exposure'' targets the externality instead. The ceiling schedule must be
+chosen so the maturation opportunity cost exceeds plausible evasion gain.
+\end{pdsolution}
+\begin{pdexercise}[kind=Open,rating=3]{ex:stp-bond-farming}
+Bond-farming: a single principal spawns $1000$ agents, has them trade trivial
+tasks among themselves to mint reputation, then sells the ``experienced''
+agents. Which of \{principal binding, listing fee, sampled adversarial
+re-audit of high-velocity counterparty pairs\} defeats this, and at what
+false-positive cost to honest high-volume pairs? (Open
+Problem~\ref{op:bondfarm}, \S\ref{sec:open}.)
+\end{pdexercise}
+\begin{pdsolution}{ex:stp-bond-farming}
+Principal binding is the load-bearing defense: aggregate reputation,
+exposure, counterparties, and sanctions across the $1{,}000$ agents, so
+self-trades add little or no independent evidence. A listing fee raises
+attack cost but only deters while total fees exceed the minted value. Sampled
+adversarial re-audit detects fabricated work, with false-positive burden
+approximately the sampling rate times the honest high-volume population and
+the adjudication error. Add sharply diminishing credit per principal pair,
+independent payer stake, and principal-wide reserve limits.
+\end{pdsolution}
+\begin{pdexercise}[kind=Trace,rating=2]{ex:stp-probation-cliff-sweep}
+Run \texttt{skills/harbor-results/scripts/b6\_probation.py} (seed $20260816$).
+It falsifies dominance by random search over $4{,}000$ instances. What exact
+counts does it print, and what closed-form check does the exchange step
+verify by hand?
+\end{pdexercise}
+\begin{pdsolution}{ex:stp-probation-cliff-sweep}
+The script prints ``\texttt{schedules tested = 76000}'', ``\texttt{dominating
+schedules = 0/4000 instances (expected 0)}'', and
+``\texttt{min (H(g) - H(cliff)) = +2.817e-02 (>= 0 means undominated)}''; the
+exchange step's table shows $H$ at an all-mass-at-$t$ schedule growing as
+$G_{\max}(\delta_h/\delta_f)^t$ and reports ``\texttt{strictly increasing in
+t: yes}''. By hand: with $\delta_h>\delta_f$, $(\delta_h/\delta_f)>1$, so its
+powers strictly increase in $t$ --- deterrence bought later always costs the
+honest newcomer more, which is the whole exchange argument in one inequality.
+\end{pdsolution}
+\begin{pdexercise}[kind=Trace,rating=2]{ex:stp-resurrection-soundness}
+Run \texttt{skills/harbor-results/scripts/b5\_engine\_substitution.py} (seed
+$20260816$). Its Part~3 checks that provider migration preserves
+Def.~\ref{def:sanction-respecting} (this paper's Def.~III.6.1). What exact
+reachable-state count and mutant shortest-crime lengths does it print, and
+which single clause's omission is caught in one step with \emph{no}
+migration at all?
+\end{pdexercise}
+\begin{pdsolution}{ex:stp-resurrection-soundness}
+The script prints ``\texttt{reachable states to depth 7: 747 (467
+post-migration, 693 with an open sanction window)}'' and ``\texttt{ok
+intact: ZERO Def-III.6.1 violations over all reachable states [internal]}'';
+the four mutants (drop scope, drop clause (i), drop clause (ii), drop clause
+(iii)) are each caught with shortest counterexamples $1, 2, 2, 2$ steps. The
+one-step break is the scope mutant \texttt{m0}: keying sanctions by
+\emph{(identity, engine)} instead of by identity alone lets a single dishonest
+outcome escape through a sibling engine key inside the \emph{same} identity
+--- no migration needed at all. By hand: this is why the intact protocol
+sanctions per \emph{principal} while pricing per \emph{(principal, engine)};
+collapsing that distinction is the shortest way to violate Def.~III.6.1.
+\end{pdsolution}
+
+\begin{pdrecitation}
+\item Without looking: what does a non-forgeable identity make necessary, and
+what does it \emph{not}, by itself, certify?
+\item Is the whitewashing-cost bound's design lever the size of the penalty
+or the shape of the ceiling schedule?
+\item Why must a resurrection/migration protocol sanction by principal rather
+than by (identity, engine)?
+\end{pdrecitation}
 
 % ═════════════════════════════════════════════════════════════════════════════
 \section{The keystone split: local identity vs.\ cross-operator attestation}\label{sec:keystone}
@@ -1376,19 +1603,46 @@ problem --- exercise~(3)'s ``shared root of trust'' in its 2026 industrial form.
 Cross-operator attestation remains \VISION{}; it is now \VISION{} with a
 standardized serialization, which is progress of the unglamorous kind.
 
-\begin{exercises}
-\textit{Check.} (1) In one sentence each, state what a local non-forgeable identity
-provides and what cross-operator attestation would have to add. \\
-\textit{Trace.} (2) Take any claim in the market paper of the form ``Alice's harbor
-and Bob's harbor settle across a boundary neither controls.'' Which stone does it
+\begin{pdexercise}[kind=Check,rating=1]{ex:stp-local-vs-cross-operator}
+In one sentence each, state what a local non-forgeable identity provides and
+what cross-operator attestation would have to add.
+\end{pdexercise}
+\begin{pdsolution}{ex:stp-local-vs-cross-operator}
+Local non-forgeable identity proves that, inside one trusted daemon, an actor
+cannot freely impersonate or re-pick its daemon-issued handle. Cross-operator
+attestation must additionally bind a key to a durable principal across a
+hostile operator boundary, establish proof of possession/freshness, aggregate
+related agents, and support revocation and audit.
+\end{pdsolution}
+\begin{pdexercise}[kind=Trace,rating=2]{ex:stp-boundary-neither-controls}
+Take any claim in the market paper of the form ``Alice's harbor and Bob's
+harbor settle across a boundary neither controls.'' Which stone does it
 secretly assume? What is the actual security guarantee if only the local
-non-forgeable identity exists? \\
-$\star$ \textit{Open} (Open Problem~\ref{op:attest}, \S\ref{sec:open}). (3) Can a
-federated witness log ever substitute for
-identity-binding? Argue why log-integrity $\ne$ key-binding, then sketch the
-minimal additional assumption (a shared root of trust? a sponsor chain? a
-transparency log) that would close the gap, and the cost each imposes.
-\end{exercises}
+non-forgeable identity exists?
+\end{pdexercise}
+\begin{pdsolution}{ex:stp-boundary-neither-controls}
+That sentence secretly assumes the cross-operator stone. With only local
+identity, Bob learns at most ``Alice's daemon asserts this actor/key.'' A
+hostile Alice can mint arbitrary local actors, rewrite local history, or
+misstate principal separation.
+\end{pdsolution}
+\begin{pdexercise}[kind=Open,rating=3]{ex:stp-witness-log-substitute}
+Can a federated witness log ever substitute for identity-binding? Argue why
+log-integrity $\ne$ key-binding, then sketch the minimal additional assumption
+(a shared root of trust? a sponsor chain? a transparency log) that would
+close the gap, and the cost each imposes. (Open Problem~\ref{op:attest},
+\S\ref{sec:open}.)
+\end{pdexercise}
+\begin{pdsolution}{ex:stp-witness-log-substitute}
+A witness log proves publication order and exposes equivocation; it does not
+prove who controls a key or that two keys are distinct principals. Close the
+gap with a scarce external root: hardware/remote attestation, an
+organizational/KYC issuer, a bonded sponsor chain, or a combination. A
+transparency log makes bindings and rotations auditable but not true; a
+sponsor creates economic accountability but can cartelize; a shared identity
+issuer centralizes and leaks privacy; hardware roots attest devices/code, not
+unique humans. State the chosen trust and Sybil assumptions.
+\end{pdsolution}
 
 % ═════════════════════════════════════════════════════════════════════════════
 \section{Reputation as a substrate, not a score}\label{sec:substrate}
@@ -1457,17 +1711,41 @@ settlements''). The instant the score itself becomes the gate, it becomes a
 Goodhart target~\cite{strathern1997}: ``when a measure becomes a target it ceases
 to be a good measure.''}
 
-\begin{exercises}
-\textit{Check.} (1) Why is a full-history harbor in the Bradley--Terry regime rather
-than the streaming-Elo regime? \\
-\textit{Trace.} (2) You have one task with a clear binary acceptance test, and
-another judged only by a human's aesthetic preference. Which estimator fits each,
-and why does EigenTrust fit neither directly? \\
-$\star$ \textit{Open.} (3) The substrate-vs-score sentence says the estimator is
-``cheap and last.'' Construct a scenario where a \emph{better estimator} still
-buys nothing because the substrate is rotten (e.g.\ forgeable identity or an
+\begin{pdexercise}[kind=Check,rating=1]{ex:stp-bt-vs-elo-regime}
+Why is a full-history harbor in the Bradley--Terry regime rather than the
+streaming-Elo regime?
+\end{pdexercise}
+\begin{pdsolution}{ex:stp-bt-vs-elo-regime}
+With a complete, mostly stable paired-comparison history, batch
+Bradley--Terry uses all observations and is more appropriate than
+order-sensitive streaming Elo. If abilities drift, use a time-varying/dynamic
+model rather than pretending full-history stationarity.
+\end{pdsolution}
+\begin{pdexercise}[kind=Trace,rating=2]{ex:stp-estimator-fit}
+You have one task with a clear binary acceptance test, and another judged
+only by a human's aesthetic preference. Which estimator fits each, and why
+does EigenTrust fit neither directly?
+\end{pdexercise}
+\begin{pdsolution}{ex:stp-estimator-fit}
+A binary protected acceptance test can update a beta-Bernoulli reliability
+estimate (or a calibrated per-task success model). Human aesthetic preference
+is naturally pairwise and may use Bradley--Terry/TrueSkill with judge
+effects. EigenTrust expects a who-trusts-whom graph and therefore fits
+neither raw task-outcome signal directly.
+\end{pdsolution}
+\begin{pdexercise}[kind=Open,rating=3]{ex:stp-rotten-substrate}
+The substrate-vs-score sentence says the estimator is ``cheap and last.''
+Construct a scenario where a \emph{better estimator} still buys nothing
+because the substrate is rotten (e.g.\ forgeable identity or an
 agent-authored oracle). Generalize the lesson.
-\end{exercises}
+\end{pdexercise}
+\begin{pdsolution}{ex:stp-rotten-substrate}
+If identities are self-chosen, an exact Bayesian estimator simply produces
+precise scores for disposable names. If the agent authors the ``oracle,'' a
+sophisticated estimator precisely learns manipulated labels. Better
+statistics cannot repair missing provenance, adversarial labels, or
+liability binding; secure the event-generation substrate first.
+\end{pdsolution}
 
 % ═════════════════════════════════════════════════════════════════════════════
 \section{Why reputation is \emph{not} a bandit problem}\label{sec:not-bandit}
@@ -1545,18 +1823,41 @@ trusted reward (no judge-capture), a scalar reward (no aesthetics-vs-efficiency
 tension), a non-strategic environment (no Goodhart, no wash-trading), and
 stationarity (no model upgrades). All four are false in a market.}
 
-\begin{exercises}
-\textit{Check.} (1) Name the four bandit assumptions and the market reality that
-breaks each. \\
-\textit{Trace.} (2) Identify the \emph{one} place a bandit \emph{is} the right
-tool in this paper, and explain why it survives the four objections there. \\
-$\star$ \textit{Open} (Open Problem~\ref{op:armsrace}, \S\ref{sec:open}). (3)
-Chiu--Zhang--van der Schaar~\cite{chiu2025strategic}
-show competitive agents over-invest in self-improvement, burning surplus despite
-individual rationality. Does capping the reputation signal's marginal return
-restore efficiency, or merely relocate the waste? This is the self-improvement
-arms-race open problem.
-\end{exercises}
+\begin{pdexercise}[kind=Check,rating=1]{ex:stp-four-broken-assumptions}
+Name the four bandit assumptions and the market reality that breaks each.
+\end{pdexercise}
+\begin{pdsolution}{ex:stp-four-broken-assumptions}
+Stationary arm rewards versus model/skill/version drift; one scalar reward
+versus buyer-weighted quality vectors; a non-strategic environment versus
+Goodhart, collusion, and whitewashing; and an observed/trusted reward versus
+a capturable grader.
+\end{pdsolution}
+\begin{pdexercise}[kind=Trace,rating=2]{ex:stp-bandit-survives-where}
+Identify the \emph{one} place a bandit \emph{is} the right tool in this
+paper, and explain why it survives the four objections there.
+\end{pdexercise}
+\begin{pdsolution}{ex:stp-bandit-survives-where}
+A contextual bandit is appropriate for one principal privately routing its
+own tasks among candidate agents, with a fixed local objective, controlled
+feedback, an exploration budget, and no public asset being minted. The
+result is a routing policy, not public reputation.
+\end{pdsolution}
+\begin{pdexercise}[kind=Open,rating=3]{ex:stp-arms-race}
+Chiu--Zhang--van der Schaar~\cite{chiu2025strategic} show competitive agents
+over-invest in self-improvement, burning surplus despite individual
+rationality. Does capping the reputation signal's marginal return restore
+efficiency, or merely relocate the waste? (Open Problem~\ref{op:armsrace},
+\S\ref{sec:open}.)
+\end{pdexercise}
+\begin{pdsolution}{ex:stp-arms-race}
+Capping the marginal reputation return can reduce direct improvement races,
+but agents may redirect spending into unmeasured signaling, judge capture,
+identity proliferation, or lobbying for task mix. Efficiency requires the
+full game: improvement cost, social value of quality, transferability, and
+alternative signals. Candidate controls are concave credit, buyer-local
+vectors, nontransferable evidence, and taxes/bonds on negative externalities.
+No cap is generically efficient without those payoff assumptions.
+\end{pdsolution}
 
 % ═════════════════════════════════════════════════════════════════════════════
 \section{The multi-dimensional reputation protocol}\label{sec:adr0049}
@@ -1746,21 +2047,60 @@ and is still observational. Sell it as \emph{helpfulness evidence}, not \emph{pr
 of value}, and gate licensing clawbacks on the witnessed green/red settlement, not
 on the helpfulness estimate alone.}
 
-\begin{exercises}
-\textit{Check.} (1) For each of accuracy / aesthetics / efficiency, name a
-competent judge and an \emph{incompetent} one. \\
-\textit{Trace.} (2) Walk a judging task through the judge-hiring ceremony
-(Protocol~\ref{proto:judge}): who plans it, who posts the bond, where does the
-grade land, and what slashes the judge? \\
-\textit{Trace.} (3) Design the witnessed event for skill-helpfulness. What fields
-does it need so that a buyer can verify ``this skill helped'' without trusting the
-skill's author? \\
-$\star$ \textit{Open} (Open Problem~\ref{op:disclosure}, \S\ref{sec:open}). (4) If
-you publish the 3-vector and buyers weight it, do
-agents Goodhart the most-weighted axis? If you publish a scalar, you have recreated
-the bandit framing the substrate argument rejects. What is the right disclosure
-form for vector reputation?
-\end{exercises}
+\begin{pdexercise}[kind=Check,rating=1]{ex:stp-judge-competence}
+For each of accuracy / aesthetics / efficiency, name a competent judge and an
+\emph{incompetent} one.
+\end{pdexercise}
+\begin{pdsolution}{ex:stp-judge-competence}
+Accuracy: competent, a protected test/spec oracle; incompetent, a
+self-reporting worker. Aesthetics: competent, a conflict-free expert reviewer
+for that domain; incompetent, a token-cost meter or a same-family unblinded
+model. Efficiency: competent, a protected resource meter normalized for the
+task; incompetent, a style reviewer guessing from prose.
+\end{pdsolution}
+\begin{pdexercise}[kind=Trace,rating=2]{ex:stp-judge-ceremony-walk}
+Walk a judging task through the judge-hiring ceremony
+(Protocol~\ref{proto:judge}): who plans it, who posts the bond, where does
+the grade land, and what slashes the judge?
+\end{pdexercise}
+\begin{pdsolution}{ex:stp-judge-ceremony-walk}
+The requesting principal/daemon defines the judging work and eligible pool;
+the selected judge posts its own bond; the grade lands as a signed witnessed
+event in the subject's outcome ledger with judge/provenance; a conflict-free
+re-audit or appeal that overturns it slashes the judge under the
+predeclared rule and tombstones/revises the grade.
+\end{pdsolution}
+\begin{pdexercise}[kind=Trace,rating=2]{ex:stp-skill-helpfulness-schema}
+Design the witnessed event for skill-helpfulness. What fields does it need so
+that a buyer can verify ``this skill helped'' without trusting the skill's
+author?
+\end{pdexercise}
+\begin{pdsolution}{ex:stp-skill-helpfulness-schema}
+Record skill ID/version/content hash, agent/build/principal, task and
+stratum descriptors, randomized assignment or selection propensity, exact
+context-graft receipt, model/environment/tool versions, outcome/evidence
+references, quality vector, costs, and evaluator identities. These fields
+verify exposure and outcome association. ``This skill helped'' is causal and
+cannot be verified from a graft-success pair alone; estimate it with
+randomized skill-on/off assignment on held-out comparable tasks (or label an
+observational matched estimate honestly), reporting effect size and
+uncertainty.
+\end{pdsolution}
+\begin{pdexercise}[kind=Open,rating=3]{ex:stp-vector-disclosure}
+If you publish the 3-vector and buyers weight it, do agents Goodhart the
+most-weighted axis? If you publish a scalar, you have recreated the bandit
+framing the substrate argument rejects. What is the right disclosure form for
+vector reputation? (Open Problem~\ref{op:disclosure}, \S\ref{sec:open}.)
+\end{pdexercise}
+\begin{pdsolution}{ex:stp-vector-disclosure}
+Publish the vector, per-axis uncertainty, sample sizes, cohort/task
+distribution, freshness, judge/evidence provenance, and known correlations.
+Let each buyer apply a local, preferably non-public weighting and hard
+minimums; do not mint a canonical platform scalar. Agents can still optimize
+market-demanded axes, so rotate held-out tests and audit cross-axis
+regressions. Plural preference does not eliminate Goodhart, but it prevents
+one universal target from becoming the asset itself.
+\end{pdsolution}
 
 % ═════════════════════════════════════════════════════════════════════════════
 \section{The grading oracle's incentive-compatibility}\label{sec:oracle}
@@ -1883,6 +2223,29 @@ $53\times 50 = \$2{,}650$. \emph{Now you try:} at $C=2$, where does the linear
 phase stop? (Bleed $C\beta = 20$ per level until $G_k \le CB = 100$, i.e.\ $15$
 levels, then $21$ geometric ones --- $36$ levels, $\$1{,}800$.)
 
+\begin{pdexample}{The audit tower: amortized verification spend}
+As a judge accumulates verified history its reputation-at-stake $vt$ grows,
+and the audit rate needed for deterrence can fall with it. Flat auditing
+holds $\rho=\rho^\star=0.25$ forever, so cumulative spend grows linearly: at
+$T=200$ periods it totals $a\sum_t\rho^\star=50.00$ [internal,
+\texttt{b2\_tower.py}, seed 20260816] --- $\Theta(T)$. Two honest
+amortization models do better. Model A lets the audit rate fall as the stake
+grows, $\rho_t=G/(d(B+vt))$: at $T=200$ the running spend is $25.58$,
+matching the closed form $\frac{aG}{dv}\ln(1+vT/B)=25.50$ --- $\Theta(\log
+T)$, roughly half the flat bill for the same deterrence. Model B
+additionally lets a fraction of cheats surface later on their own,
+$\rho_t=\max(0,(G-rvt)/(dB))$, which hits exactly $0$ once the accumulated
+stake alone deters, at $t^\star=G/(rv)=333$ periods; at $T=200$ (short of
+$t^\star$) the running spend is $35.08$, converging to the closed-form total
+$aG^2/(2dBrv)=41.67$ once the audit rate reaches zero --- $O(1)$, a bounded
+lifetime bill rather than a growing one. Both models are pointwise
+incentive-compatible: the script's IC check reports a maximum deviation
+value of $+1.78\times10^{-15}$ for each, zero to floating-point precision.
+\emph{Now you try:} check by hand that $\rho^\star\times a\times
+200=0.25\times 1\times 200=50$, the flat baseline both amortization models
+beat (Exercise~\ref{ex:stp-tower-amortization}).
+\end{pdexample}
+
 \noindent\textbf{What heterogeneity actually buys --- and three riders.} The honest
 reading of those two numbers is a factor of two in certified depth and capital, not
 the difference between a tower that converges and one that does not: raising $C$
@@ -1908,23 +2271,89 @@ a ``certain'' slash --- slashing stays probabilistic by construction --- but a
 contraction needs. What remains open is the root and the telemetry, not the
 recursion.}
 
-\begin{exercises}
-\textit{Check.} (1) State Property~\ref{prop:hole} and explain why ``the daemon
-derives the grade'' does not, by itself, close it. \\
-\textit{Trace.} (2) Walk Option~A: a judge grades disformally, a re-audit
-overturns it. Follow the bond flow and the reputation update for the judge. \\
-\textit{Derive.} (3) Re-derive the critical audit rate in
-Theorem~\ref{thm:tower-imported} from scratch: a judge cheats for gain $G$, is
-sampled with probability $\rho$, is caught given sampling with probability $d$, and
-forfeits bond $B$ when caught. Write the cheat payoff, set it to zero, and recover
-$\rho^\star = G/(dB)$. Then check the two worked towers: at $G_0=400$, $d=0.8$,
-$B=50$, $\rho=0.25$, confirm $27$ levels at $C=8$ and $53$ at $C=1$. \\
-$\star$ \textit{Open} (Open Problem~\ref{op:arbitration}, \S\ref{sec:open}). (4)
-Arbitration capacity: the contraction theorem prices the depth to an exogenously
-honest root but does not supply the root, and human oracles are scarce. Design a
-market for bonded, rated, slashable arbiters and argue whether it converges to
-honest rulings or to rubber-stamping under load.
-\end{exercises}
+\begin{pdexercise}[kind=Check,rating=1]{ex:stp-grading-oracle-hole}
+State Property~\ref{prop:hole} and explain why ``the daemon derives the
+grade'' does not, by itself, close it.
+\end{pdexercise}
+\begin{pdsolution}{ex:stp-grading-oracle-hole}
+Settlement incentives are conditional on the signal distribution. ``The
+daemon derives the grade'' only identifies the messenger; if a strategic
+judge chooses the input, the distribution depends on omitted actions/payoffs
+and the equilibrium proof assumes its own conclusion.
+\end{pdsolution}
+\begin{pdexercise}[kind=Trace,rating=2]{ex:stp-bond-flow-reaudit}
+Walk Option~A: a judge grades dishonestly, a re-audit overturns it. Follow
+the bond flow and the reputation update for the judge.
+\end{pdexercise}
+\begin{pdsolution}{ex:stp-bond-flow-reaudit}
+Judge $J$ posts bond $B$; its grade and the bond lock are recorded; an
+independently selected re-auditor overturns the dishonest grade against
+preserved evidence; the system appends a correction/tombstone, recomputes any
+explicitly appealable settlement, slashes $B$ to the harmed/commons bucket,
+and lowers $J$'s judging reputation. It must not silently rewrite the
+original event.
+\end{pdsolution}
+\begin{pdexercise}[kind=Trace,rating=2]{ex:stp-rho-star-derive}
+Re-derive the critical audit rate in Theorem~\ref{thm:tower-imported} from
+scratch: a judge cheats for gain $G$, is sampled with probability $\rho$, is
+caught given sampling with probability $d$, and forfeits bond $B$ when
+caught. Write the cheat payoff, set it to zero, and recover
+$\rho^\star = G/(dB)$. Then check the two worked towers: at $G_0=400$,
+$d=0.8$, $B=50$, $\rho=0.25$, confirm $27$ levels at $C=8$ and $53$ at $C=1$.
+\end{pdexercise}
+\begin{pdsolution}{ex:stp-rho-star-derive}
+With one-shot corrupt gain at most $G$, re-audit probability $\rho$,
+conditional detection probability $d$, and slashable bond $B$, local
+deterrence requires $\rho d B > G$, i.e.\ $\rho^\star=G/(dB)$. At
+$G_0=400,d=0.8,B=50,\rho=0.25$: $\rho d=0.2$, so $\lambda=1-\rho d=0.8$; with
+$C=8$ the threshold $G_k>CB=400$ is unmet at level $0$, giving
+$\lceil\log 400/\log 1.25\rceil=27$ levels; with $C=1$ the threshold is only
+$G_k>50$, so bribery bleeds linearly for $35$ levels before $18$ more
+geometric ones close it, $53$ total.
+\end{pdsolution}
+\begin{pdexercise}[kind=Open,rating=3]{ex:stp-arbitration-capacity}
+Arbitration capacity: the contraction theorem prices the depth to an
+exogenously honest root but does not supply the root, and human oracles are
+scarce. Design a market for bonded, rated, slashable arbiters and argue
+whether it converges to honest rulings or to rubber-stamping under load.
+(Open Problem~\ref{op:arbitration}, \S\ref{sec:open}.)
+\end{pdexercise}
+\begin{pdsolution}{ex:stp-arbitration-capacity}
+Admit arbiters by domain competence and conflict graph; assign cases
+randomly/blindly; require bonds and service-level commitments; preserve
+evidence; pay for timely completed work rather than agreement; sample
+re-audits and publish calibration/overturn rates; use plural panels on high
+stakes. Price queue capacity and cap workload so rubber-stamping is not the
+profitable response to overload. Honest convergence still needs a protected
+mechanical outcome, a delayed real-world outcome, or a final human/contractual
+authority --- a market alone does not manufacture truth.
+\end{pdsolution}
+\begin{pdexercise}[kind=Trace,rating=2]{ex:stp-tower-amortization}
+Run \texttt{skills/harbor-results/scripts/b2\_tower.py} (seed $20260816$).
+Its part~(3) compares flat auditing to two amortization models. What are the
+exact cumulative-spend numbers it prints at $T=200$, and what should you
+check by hand about the flat baseline?
+\end{pdexercise}
+\begin{pdsolution}{ex:stp-tower-amortization}
+The script prints ``\texttt{flat: 50.00 (Theta(T))}'', ``\texttt{model A:
+25.58 (Theta(log T); a*G/(d v)*ln(1+vT/B) = 25.50)}'', and ``\texttt{model B:
+35.08 (O(1); closed form aG\textasciicircum2/(2dBrv) = 41.67; hits 0 at
+t*=333)}''. By hand: the flat baseline is a constant audit rate $\rho^\star$
+times a constant per-audit cost $a$ summed over $T$ periods, so
+$\rho^\star\cdot a\cdot T=0.25\times 1\times 200=50$, exactly the printed
+$50.00$ --- the two amortization models are cheaper only because they let
+$\rho_t$ fall below $\rho^\star$ as accumulated stake or surfaced history
+does part of the deterring.
+\end{pdsolution}
+
+\begin{pdrecitation}
+\item Without looking: what is Becker's condition for local deterrence, and
+why does dropping the detector term $d$ under-quote the required audit rate?
+\item State the tower's contraction factor and what raising the clique count
+$C$ changes about it.
+\item Name one thing the tower theorem prices and one thing it explicitly
+does not supply.
+\end{pdrecitation}
 
 % ═════════════════════════════════════════════════════════════════════════════
 \section{Revocation, tombstones, and bounded memory}\label{sec:revoke}
@@ -2034,18 +2463,46 @@ tombstone --- a saga compensation, not in-place mutation; (2) bounded memory is 
 \emph{design parameter} (Liu--Skrzypacz reputation bubbles), not an anti-feature to
 assert away.}
 
-\begin{exercises}
-\textit{Check.} (1) Why must revocation be a tombstone (append) rather than a
-delete (mutate) on the outcome ledger? \\
-\textit{Trace.} (2) A judge is later found to have colluded on five settled
-outcomes. Walk the tombstone for one of them: what is appended, what propagates,
-and what bounds the window the poisoned reputation was spendable? \\
-$\star$ \textit{Open} (Open Problem~\ref{op:revoke}, \S\ref{sec:open}). (3)
-Reputation-claim revocation with an append-only,
-bounded-memory ledger across $N$ harbors: how do you prove the correction
-converged and bound the spendable window, without violating append-only? This is
-the cross-harbor analogue of capability revocation (\pdchapref{he}{The Harbor Economy}).
-\end{exercises}
+\begin{pdexercise}[kind=Check,rating=1]{ex:stp-tombstone-vs-delete}
+Why must revocation be a tombstone (append) rather than a delete (mutate) on
+the outcome ledger?
+\end{pdexercise}
+\begin{pdsolution}{ex:stp-tombstone-vs-delete}
+An append-only tombstone preserves the original claim, the later correction,
+their authors, timing, and the reliance window. Delete destroys evidence,
+permits history rewriting, and makes replicas unable to distinguish
+retraction from omission.
+\end{pdsolution}
+\begin{pdexercise}[kind=Trace,rating=2]{ex:stp-tombstone-walk}
+A judge is later found to have colluded on five settled outcomes. Walk the
+tombstone for one of them: what is appended, what propagates, and what
+bounds the window the poisoned reputation was spendable?
+\end{pdexercise}
+\begin{pdsolution}{ex:stp-tombstone-walk}
+Append a signed tombstone containing the target outcome ID/hash,
+reason/evidence, authority, revision, and effective time. Propagate it and
+recompute reputation as a projection that excludes/nullifies that outcome.
+It was spendable from original publication until each relying harbor
+received and enforced the tombstone or failed closed; under an unbounded
+partition that window is unbounded.
+\end{pdsolution}
+\begin{pdexercise}[kind=Open,rating=3]{ex:stp-revocation-convergence}
+Reputation-claim revocation with an append-only, bounded-memory ledger across
+$N$ harbors: how do you prove the correction converged and bound the
+spendable window, without violating append-only? This is the cross-harbor
+analogue of capability revocation (\pdchapref{he}{The Harbor Economy}). (Open
+Problem~\ref{op:revoke}, \S\ref{sec:open}.)
+\end{pdexercise}
+\begin{pdsolution}{ex:stp-revocation-convergence}
+Use a signed revision DAG, per-harbor import receipts/watermarks, periodic
+accumulator/Merkle roots for active outcomes and tombstones, and a freshness
+rule that refuses high-risk use from stale replicas. Under connected
+eventual delivery, convergence is shown when every member acknowledges a
+root containing the tombstone; sampling can audit inclusion. Bounded local
+memory may retain compact accumulators and content-addressed archive
+pointers, not erase correction commitments. No finite convergence/spend
+bound exists during an unbounded partition.
+\end{pdsolution}
 
 % ═════════════════════════════════════════════════════════════════════════════
 \section{What this chapter hands the market}\label{sec:handoff}
