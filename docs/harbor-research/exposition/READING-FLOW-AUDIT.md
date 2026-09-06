@@ -35,6 +35,14 @@ build in which the page grammar landed (7 × 10, Palatino, exercises at chapter 
 | build | pages | kinds/page mean | share ≤ 3 | pages ≥ 5 | longest run with no visual | links | undefined refs |
 |---|---|---|---|---|---|---|---|
 | 2026-09-06 grammar | 538 | 0.84 (1.0 in chapter bodies) | 99.8 % | 0 | 29 pp (ch. 8, pp. 435–463) | 3,393 | 0 |
+| 2026-09-06 even leading, floats flow | 534 | — | — | — | re-measure | 3,404 | 0 |
+
+The second row is the build after the leading defect (325 monospace lines sitting a line
+and a half low) and the opener spills were fixed and `[H]` exhibits were allowed to
+float within their section; `scripts/harbor-research/page_spills.py` reports 0 opener
+spills, 6 stranded headings and 27 short pages on it (7, 8 and 55 before), and
+`scripts/harbor-research/leading_scan.py` reports 14 low monospace lines (325 before),
+all of them paragraph starts or list items.
 
 The kinds census is `page_kinds.py --chapters-from-bookmarks` on the 7 × 10 build. Its
 chapter 8 span runs to the end of the book, so the whole-book mean includes the back
