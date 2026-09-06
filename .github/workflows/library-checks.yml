@@ -64,7 +64,7 @@ jobs:
         run: node scripts/generate-mega-whitepaper.mjs --check-shared
 
       - name: Book generator contract (namespacing, apparatus stripping, seams, shared files)
-        run: node --test scripts/generate-mega-whitepaper.test.mjs
+        run: node --test scripts/generate-mega-whitepaper.test.mjs scripts/generate-mega-mechanized.test.mjs
 
       - name: Book body generates from the chapter sources (fails closed on drift)
         run: node scripts/generate-mega-whitepaper.mjs .cache/library-checks/mega-volume

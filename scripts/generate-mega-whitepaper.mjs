@@ -776,6 +776,343 @@ function renderSolutions(chaptersWithExercises) {
   return lines.join('\n');
 }
 
+// ---------------------------------------------------------------------------
+// Mechanized claims appendix (cluster H1) — from whitepaper/corpus.json,
+// checked by scripts/check-whitepaper-corpus.mjs. This emitter only renders
+// what the manifest says; it never decides whether an artifact belongs in
+// CI, so the appendix cannot drift from what actually runs.
+// ---------------------------------------------------------------------------
+
+const corpusPath = resolve(repoRoot, 'whitepaper/corpus.json');
+
+// researchProgramArtifacts carry no `method` field in corpus.schema.json
+// (only formalArtifacts do) — grouped here by `kind` instead. A `kind` this
+// map does not know still gets its own table via humanizeKind, so a future
+// kind is a new table, never a crash.
+const RESEARCH_KIND_METHOD_LABELS = {
+  'monte-carlo-simulation': 'Monte Carlo',
+  'deterministic-result-checker-suite': 'Python / R scripts',
+};
+
+function humanizeKind(kind) {
+  return kind
+    .split(/[-_]+/)
+    .filter(Boolean)
+    .map((word) => word[0].toUpperCase() + word.slice(1))
+    .join(' ');
+}
+
+function deriveMethod(artifact) {
+  if (typeof artifact.method === 'string' && artifact.method.trim()) return artifact.method;
+  return RESEARCH_KIND_METHOD_LABELS[artifact.kind] ?? humanizeKind(String(artifact.kind));
+}
+
+function requireNonEmptyStringArray(object, key, where, fail) {
+  const value = object?.[key];
+  if (
+    !Array.isArray(value)
+    || value.length === 0
+    || value.some((item) => typeof item !== 'string' || !item.trim())
+  ) {
+    fail(`${where}: ${key} must be a non-empty array of non-empty strings`);
+  }
+}
+
+function validateCi(ci, where, fail) {
+  if (!ci || typeof ci !== 'object') { fail(`${where}: ci must be an object`); return; }
+  if (ci.status === 'wired') requireNonEmptyStringArray(ci, 'job', `${where}: ci`, fail);
+  else if (ci.status === 'retired') requireString(ci, 'reason', `${where}: ci`, fail);
+  else fail(`${where}: ci.status must be "wired" or "retired", got ${JSON.stringify(ci.status)}`);
+}
+
+/**
+ * Validate one artifact against the shape corpus.schema.json requires for its
+ * kind — formalArtifacts additionally carry method/authority/evidencePolicy,
+ * which the leaner researchProgramArtifacts do not — and return it tagged
+ * with `origin` and a resolved `method` label for table grouping. Fails
+ * closed: a missing required field throws immediately, naming the artifact
+ * (by id, or by array position when even `id` is missing) and the field.
+ */
+function validateCorpusArtifact(artifact, origin, index, source, fail) {
+  const where = `${source}: ${origin}Artifacts[${index}]${artifact?.id ? ` (${artifact.id})` : ''}`;
+  requireString(artifact, 'id', where, fail);
+  requireString(artifact, 'kind', where, fail);
+  requireString(artifact, 'status', where, fail);
+  requireString(artifact, 'owner', where, fail);
+  requireNonEmptyStringArray(artifact, 'paths', where, fail);
+  validateCi(artifact?.ci, where, fail);
+  if (origin === 'formal') {
+    requireString(artifact, 'authority', where, fail);
+    requireString(artifact, 'method', where, fail);
+    requireString(artifact, 'evidencePolicy', where, fail);
+  }
+  return {
+    origin,
+    id: artifact.id,
+    paths: artifact.paths,
+    status: artifact.status,
+    ci: artifact.ci,
+    method: deriveMethod(artifact),
+    evidencePolicy: origin === 'formal' ? artifact.evidencePolicy : null,
+    harnessName: typeof artifact.harnessName === 'string' && artifact.harnessName.trim()
+      ? artifact.harnessName
+      : null,
+  };
+}
+
+/**
+ * Validate whitepaper/corpus.json's top-level shape and every artifact in it,
+ * returning one flat, annotated list (formal artifacts, then
+ * research-program artifacts, in manifest order — renderMechanizedClaims
+ * sorts and groups it). Fails closed on a missing manifest section, a
+ * missing required field, or a duplicate id, so the generated appendix can
+ * never silently drop, misattribute, or misrender an artifact.
+ */
+function validateCorpus(raw, source = 'whitepaper/corpus.json') {
+  const fail = (message) => {
+    throw new Error(`${source}: ${message}`);
+  };
+  if (!raw || typeof raw !== 'object') fail('must be a JSON object');
+  if (!Array.isArray(raw.formalArtifacts) || raw.formalArtifacts.length === 0) {
+    fail('formalArtifacts must be a non-empty array');
+  }
+  if (!Array.isArray(raw.researchProgramArtifacts) || raw.researchProgramArtifacts.length === 0) {
+    fail('researchProgramArtifacts must be a non-empty array');
+  }
+  const artifacts = [
+    ...raw.formalArtifacts.map((artifact, index) => validateCorpusArtifact(artifact, 'formal', index, source, fail)),
+    ...raw.researchProgramArtifacts.map((artifact, index) => validateCorpusArtifact(artifact, 'research', index, source, fail)),
+  ];
+  const seen = new Set();
+  for (const artifact of artifacts) {
+    if (seen.has(artifact.id)) fail(`duplicate artifact id across the manifest: ${artifact.id}`);
+    seen.add(artifact.id);
+  }
+  return artifacts;
+}
+
+// url.sty's \path (loaded transitively via hyperref) prints its argument
+// close to verbatim — see the existing \path{harbor_card_v*.pv} usage in
+// anchor-protocol-whitepaper.tex — so a repo-relative path goes in raw, never
+// through texText. But that verbatim scanning also means \path{} offers NO
+// usable break point of its own for a long, directory-nested repo path (empirically: a
+// bare \path{skills/harbor-results/scripts/sheaf_consistency_radius.py} is a
+// single unbreakable box, far wider than any reasonable table column — a real
+// overfull \hbox this emitter hit and fixed here). A command inserted INSIDE
+// \path{}'s argument would print as literal text, not execute, so the fix
+// lives OUTSIDE: split the path at each separator, keeping the separator on
+// the preceding piece, and wrap each piece in its own \path{...}, joined by
+// \allowbreak. Rendered with nothing to wrap, this looks identical to one
+// \path{}; wrapped, the line can now break after any /, -, _, or . in it.
+function texPathBreakable(path) {
+  const segments = path.split(/(?<=[/_.-])/).filter(Boolean);
+  return segments.map((segment) => `\\path{${segment}}`).join('\\allowbreak ');
+}
+
+// The longest prefix paths[0..] share, trimmed back to the last complete
+// directory segment (never split mid-name). '' when there are fewer than
+// two paths or they share no directory.
+function commonDirectoryPrefix(paths) {
+  if (paths.length < 2) return '';
+  let prefix = paths[0];
+  for (const path of paths.slice(1)) {
+    let i = 0;
+    while (i < prefix.length && i < path.length && prefix[i] === path[i]) i += 1;
+    prefix = prefix.slice(0, i);
+    if (!prefix) return '';
+  }
+  const lastSlash = prefix.lastIndexOf('/');
+  return lastSlash >= 0 ? prefix.slice(0, lastSlash + 1) : '';
+}
+
+// Multiple paths (a TLA+ entry's .tla plus its .cfg siblings; one manifest
+// entry names 18 research scripts under one directory) are stacked one per
+// line with \newline rather than run together with comma-and-space: a
+// forced break is unambiguous, where relying on wrapping to find a good
+// break among that many already-split \path{} runs left a residual overfull
+// \hbox. Printing the shared directory ONCE rather than in every one of the
+// 18 lines is not just tidier — repeating a ~30-character prefix on every
+// line was the actual remaining cause of that overfull box (one basename,
+// after its shared prefix was still counted 18 times over, no longer fit
+// even the wider column this row's estimate assumed).
+function texPaths(paths) {
+  if (paths.length < 2) return texPathBreakable(paths[0]);
+  const prefix = commonDirectoryPrefix(paths);
+  if (!prefix) return paths.map((path) => texPathBreakable(path)).join('\\newline{}');
+  const suffixes = paths.map((path) => path.slice(prefix.length));
+  return [
+    `${texPathBreakable(prefix)}\\ \\textit{(${paths.length} files)}`,
+    ...suffixes.map((suffix) => texPathBreakable(suffix)),
+  ].join('\\newline{}');
+}
+
+// Escaped text (NOT \path{}'s verbatim scan) with a defensive \allowbreak
+// after every hyphen, escaped underscore, or slash. Needed not only for
+// \texttt{} identifiers (manifest ids, CI job names, Kani harness names) but
+// for plain evidence-policy PROSE too: one row's evidencePolicy names a file
+// inline ("...the Phase-3 claim in docs/reports/FORMAL_VERIFICATION_ANCHOR_
+// V3.md; superseded...") that is not in its structured `paths` array, so
+// texPathBreakable never sees it — its escaped underscores, with no break
+// point of their own, were the actual (if modest) overfull \hbox this
+// emitter hit and fixed.
+function texEscapeBreakable(text) {
+  return texText(text).replace(/(-|\\_|\/)/g, '$1\\allowbreak ');
+}
+
+function texCode(text) {
+  return `\\texttt{${texEscapeBreakable(text)}}`;
+}
+
+// Un-floated tabularx cannot paginate on its own (confirmed empirically: one
+// long tabularx block overflowed a page's height outright rather than
+// breaking), and the fix that actually solves that — longtable — cannot be
+// loaded from here: \input{longtable.sty} after \begin{document} throws
+// "Can be used only in preamble", and this emitter must not touch the Book's
+// preamble file. So a method's rows are instead split into several shorter
+// tabularx blocks (each repeating the header), giving LaTeX real page-break
+// points between them. Chunked by an estimate of wrapped line count, not a
+// fixed row count, since one row's evidence policy runs to a few hundred
+// characters and the next one's is a bare "---".
+const CHUNK_CHARS_PER_LINE_ESTIMATE = 55; // the wide (~0.42\textwidth) evidence-policy column
+const CHUNK_PATH_CHARS_PER_LINE_ESTIMATE = 18; // the narrower (~0.21\textwidth) artifact column
+const CHUNK_LINE_BUDGET = 24;
+
+function chunkRowsForPagination(rows) {
+  const chunks = [];
+  let current = [];
+  let weight = 0;
+  for (const row of rows) {
+    const evidenceLength = (row.evidencePolicy ?? row.ci.reason ?? '---').length;
+    // texPaths (see above) now prints every path on its own \newline, so a
+    // multi-path row's height is at least one line PER PATH, not one line
+    // per ~30 combined characters — undercounting this by using the joined
+    // length here is exactly what left one row (18 paths) taller than
+    // estimated and still part of an overfull page in an earlier version of
+    // this function.
+    const pathsLines = row.paths.reduce(
+      (sum, path) => sum + Math.max(1, Math.ceil(path.length / CHUNK_PATH_CHARS_PER_LINE_ESTIMATE)),
+      0,
+    );
+    const rowWeight = Math.max(2, Math.ceil(evidenceLength / CHUNK_CHARS_PER_LINE_ESTIMATE), pathsLines);
+    if (current.length > 0 && weight + rowWeight > CHUNK_LINE_BUDGET) {
+      chunks.push(current);
+      current = [];
+      weight = 0;
+    }
+    current.push(row);
+    weight += rowWeight;
+  }
+  if (current.length > 0) chunks.push(current);
+  return chunks;
+}
+
+// Status is one word ("current"/"partial"/"historical") in \textsc, which
+// rendered slightly wider than a plain 0.08\textwidth column at this point
+// size — 0.10 clears it. Claim and CI give up the difference; the X
+// (evidence-policy) column is unaffected since these four still sum to 0.58.
+const TABLE_COLUMN_SPEC = '@{}>{\\raggedright\\arraybackslash}p{0.15\\textwidth} '
+  + '>{\\raggedright\\arraybackslash}p{0.21\\textwidth} >{\\raggedright\\arraybackslash}p{0.12\\textwidth} '
+  + '>{\\raggedright\\arraybackslash}p{0.10\\textwidth} >{\\raggedright\\arraybackslash}X@{}';
+const TABLE_HEADER_ROW = '\\textbf{Claim} & \\textbf{Artifact} & \\textbf{CI} & \\textbf{Status} & \\textbf{Evidence policy} \\\\';
+
+function renderRow(row) {
+  const claim = texCode(row.id);
+  const harness = row.harnessName ? `\\ (${texCode(row.harnessName)})` : '';
+  const artifact = `${texPaths(row.paths)}${harness}`;
+  const ci = row.ci.status === 'wired' ? row.ci.job.map((job) => texCode(job)).join(', ') : 'retired';
+  const status = `\\textsc{${texText(row.status)}}`;
+  const evidence = row.evidencePolicy
+    ? texEscapeBreakable(row.evidencePolicy)
+    : row.ci.status === 'retired' ? texEscapeBreakable(row.ci.reason) : '---';
+  return `${claim} & ${artifact} & ${ci} & ${status} & ${evidence} \\\\`;
+}
+
+/**
+ * mega-volume-mechanized.tex — the Book's "Mechanized claims" appendix,
+ * generated from whitepaper/corpus.json so it can never drift from what CI
+ * actually runs (scripts/check-whitepaper-corpus.mjs is the manifest's own
+ * checker). One \small, booktabs-style tabularx table per verification
+ * method — chunked into several shorter blocks so it can break across pages
+ * (see chunkRowsForPagination) — sorted by id within each table, with the
+ * method tables themselves in alphabetical order. Takes the parsed manifest
+ * object directly (not a path) so a test can hand it a synthetic manifest.
+ */
+function renderMechanizedClaims(raw, { source = 'whitepaper/corpus.json' } = {}) {
+  const artifacts = validateCorpus(raw, source);
+  const wired = artifacts.filter((artifact) => artifact.ci.status === 'wired').length;
+  const retired = artifacts.length - wired;
+
+  const byMethod = new Map();
+  for (const artifact of artifacts) {
+    if (!byMethod.has(artifact.method)) byMethod.set(artifact.method, []);
+    byMethod.get(artifact.method).push(artifact);
+  }
+  const methods = [...byMethod.keys()].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+
+  const lines = [
+    '% GENERATED by scripts/generate-mega-whitepaper.mjs from whitepaper/corpus.json. Do not edit by hand.',
+    '\\section{Mechanized claims}\\label{app:mechanized}',
+    '',
+    `This appendix is generated from the proof-estate manifest at \\path{${source}}: `
+      + `${artifacts.length} artifacts in total, ${wired} wired into continuous `
+      + `integration and ${retired} retired with a recorded reason --- no third, `
+      + 'silent state. One table follows per verification method; every row names '
+      + "the artifact, its CI job (or its retirement), the manifest's own status "
+      + 'for it, and the evidence policy behind it.',
+    '',
+  ];
+
+  for (const method of methods) {
+    const rows = [...byMethod.get(method)].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+    const methodWired = rows.filter((row) => row.ci.status === 'wired').length;
+    const methodRetired = rows.length - methodWired;
+    const slug = method.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    lines.push(
+      `\\captionof{table}{${texText(method)} artifacts (${methodWired} wired, ${methodRetired} retired).}`,
+      `\\label{tab:mechanized-${slug}}`,
+      '\\small',
+    );
+    // Each chunk is its own top-level paragraph, separated from its
+    // neighbors by a genuine blank line (not just a source newline). A
+    // non-floating tabularx placed in vertical mode opens an implicit
+    // paragraph for its own hbox but never closes it with \par; without a
+    // real paragraph break here, one chunk's \end{tabularx} and the next
+    // chunk's \begin{tabularx} stayed inside the SAME paragraph, so TeX had
+    // no legal page-break point between them and, empirically, shipped
+    // several chunks onto one page as a single massively overfull \vbox.
+    const chunks = chunkRowsForPagination(rows);
+    chunks.forEach((chunk, chunkIndex) => {
+      if (chunkIndex > 0) lines.push('', '\\noindent{\\small\\itshape (continued)}', '');
+      lines.push(
+        `\\begin{tabularx}{\\textwidth}{${TABLE_COLUMN_SPEC}}`,
+        '\\toprule',
+        TABLE_HEADER_ROW,
+        '\\midrule',
+        ...chunk.map(renderRow),
+        '\\bottomrule',
+        '\\end{tabularx}',
+        '',
+      );
+    });
+    lines.push('');
+  }
+  return lines.join('\n');
+}
+
+function loadCorpus(path = corpusPath) {
+  let text;
+  try {
+    text = readUtf8(path);
+  } catch (error) {
+    throw new Error(`cannot read the proof-estate manifest at ${relative(repoRoot, path) || path}: ${error.message}`);
+  }
+  try {
+    return JSON.parse(text);
+  } catch (error) {
+    throw new Error(`${relative(repoRoot, path) || path}: invalid JSON (${error.message})`);
+  }
+}
+
 function generate({ textbook = loadTextbook(), out = resolve(repoRoot, defaultOutDir) } = {}) {
   const prepared = textbook.chapters.map((paper) => {
     const sourcePath = resolve(repoRoot, paper.source);
@@ -832,6 +1169,7 @@ function generate({ textbook = loadTextbook(), out = resolve(repoRoot, defaultOu
   writeFileSync(resolve(out, 'mega-volume-contents.tex'), renderContents(textbook), 'utf8');
   writeFileSync(resolve(out, 'mega-volume-map.tex'), renderTextbookMap(textbook), 'utf8');
   writeFileSync(resolve(out, 'mega-volume-solutions.tex'), renderSolutions(chaptersWithExercises), 'utf8');
+  writeFileSync(resolve(out, 'mega-volume-mechanized.tex'), renderMechanizedClaims(loadCorpus()), 'utf8');
   writeFileSync(
     resolve(out, 'mega-volume-generation.json'),
     `${JSON.stringify({
@@ -879,10 +1217,12 @@ export {
   compareNormalizedReferences,
   generate,
   inlineInputs,
+  loadCorpus,
   loadTextbook,
   namespaceLabels,
   renderChapter,
   renderContents,
+  renderMechanizedClaims,
   renderSolutions,
   renderTextbookMap,
   rewriteCitations,
@@ -892,5 +1232,6 @@ export {
   sourceDeclaresExercises,
   syncSharedMap,
   texText,
+  validateCorpus,
   validateTextbook,
 };
