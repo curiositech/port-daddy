@@ -1,34 +1,32 @@
 % Figure 5 — guarded claim lifecycle; absent fairness is made visible.
 \begin{figure}[H]
 \centering
-\resizebox{0.88\textwidth}{!}{%
 \begin{tikzpicture}[pd figure,x=1cm,y=1cm]
-  \node[pd state] (free) at (1.4,3.4) {FREE};
-  \node[pd state,draw=hhteal,line width=1pt] (held) at (6.55,3.4) {HELD by $a$};
-  \node[pd state] (expired) at (11.75,3.4) {EXPIRED};
-  \draw[pd focus arrow] (free)--node[pd direct label,above]{atomic acquire} (held);
-  \draw[pd arrow] (held)--node[pd direct label,above]{TTL elapses} (expired);
-  \draw[pd arrow] (expired.south) to[out=-90,in=-90,looseness=.55] (free.south);
-  \draw[pd focus arrow] (held.north) to[out=120,in=60,looseness=5.5] (held.north);
-  \node[pd direct label,anchor=south] at (6.55,4.66) {idempotent re-claim};
-  \draw[pd arrow] (held.south) to[out=-120,in=-60,looseness=1.7] (free.south);
-  \node[pd direct label] at (3.65,1.95) {idempotent release};
-  \draw[pd caution rule,densely dashed] (3.85,-.18)--(5.08,-.18);
-  \draw[pd caution rule,densely dashed] (7.98,-.18)--(9.2,-.18);
-  \node[pd caution datum] at (6.53,-.18) {};
-  \node[pd direct label,anchor=south,text=hhamber] at (6.53,.04)
-    {no queue \; / \; no bounded wait};
-  \node[pd direct label] at (9.25,.70) {lazy sweep on next read};
-  \node[pd caution datum] at (3.22,3.4) {};
-  \node[pd note,anchor=south west] at (2.55,4.12)
+  \node[pd state] (free) at (1.0,2.6) {FREE};
+  \node[pd state,draw=hhteal,line width=1pt] (held) at (5.4,2.6) {HELD by $a$};
+  \node[pd state] (expired) at (9.8,2.6) {EXPIRED};
+
+  \draw[pd focus arrow] (free)--(held) node[midway,above,pd direct label] {acquire};
+  \draw[pd arrow] (held)--(expired) node[midway,above,pd direct label] {TTL elapses};
+  \draw[pd arrow] (held.south) to[out=-115,in=-65,looseness=1.6] node[midway,below,pd direct label] {release} (free.south);
+  \draw[pd focus arrow] (held.north) to[out=120,in=60,looseness=6] (held.north);
+  \node[pd direct label,anchor=south,text width=2.6cm,align=center] at (5.4,3.85) {re-claim,\\idempotent};
+  \draw[pd caution arrow,dashed] (expired.south) to[out=-90,in=-90,looseness=.4] node[midway,below,pd direct label,text width=3.4cm,align=center] {lazy sweep on next read} (free.south);
+
+  \node[pd caution datum] at (2.35,2.6) {};
+  \node[pd note,anchor=south west,text width=3.6cm] at (1.75,3.15)
     {loser receives current holder};
-\end{tikzpicture}%
-}
-\caption{The guarded claim lifecycle. Acquire is one atomic uniqueness decision;
-re-claim and release are idempotent; expiry is removed lazily on the next read.
-The interrupted amber rail is intentional negative space: the kernel has no
-queued state and therefore no fairness or bounded-wait guarantee. A reactive
-ticket mechanism may later occupy that gap for cooperatively released claims, but
-lazy expiry would still bypass it, so starvation remains an open problem.}
+
+  \draw[pd caution rule,densely dashed] (2.9,-1.6)--(4.1,-1.6);
+  \draw[pd caution rule,densely dashed] (6.7,-1.6)--(7.9,-1.6);
+  \node[pd caution datum] at (5.4,-1.6) {};
+  \node[pd note,anchor=north,text=hhamber,text width=4.4cm,align=center] at (5.4,-1.75)
+    {no queue / no bounded wait};
+\end{tikzpicture}
+\caption{The guarded claim lifecycle. Acquire is one atomic uniqueness
+decision; re-claim and release are idempotent; expiry is removed lazily on
+the next read. The interrupted amber rail is intentional negative space: the
+kernel has no queued state and therefore no fairness or bounded-wait
+guarantee. [internal]}
 \label{fig:swk-claim-lifecycle}
 \end{figure}
