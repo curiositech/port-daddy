@@ -19,6 +19,11 @@
 \usepackage{eso-pic}   % full-bleed jacket plate behind the title page
 \usepackage[backref=page]{hyperref}
 \usetikzlibrary{arrows.meta,positioning,fit,backgrounds,calc,shapes.geometric,shapes.symbols,decorations.pathmorphing,decorations.pathreplacing}
+% Regime figures in the chapters (the sealed room's composition crossover and
+% operating curve, and any later pgfplots fragment) need the axis environment
+% in the Book as well as in the standalones.
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
 
 \geometry{margin=2.35cm}
 \captionsetup{font=small,labelfont=bf}

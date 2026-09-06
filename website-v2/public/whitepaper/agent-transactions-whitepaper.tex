@@ -434,14 +434,15 @@ The guarantee below is what security engineers mean by a \emph{wall} rather than
 An agent transaction $\mathcal{T}_\alpha$ is capability-bounded by token $\tau_\alpha$ if every operation $o$ executed during $\mathcal{T}_\alpha$ satisfies $o \in C(\tau_\alpha)$, where $C(\tau)$ extracts the capability set from a Harbor Card. The commons authority rejects any operation $o \notin C(\tau_\alpha)$ at the verification step, before the operation can affect shared state.
 \end{definition}
 
-\begin{theorem}[Structural Scope Limitation]\label{thm:scope}
+\begin{pdclaim}{Theorem}{Structural Scope Limitation}
+\label{thm:scope}
 For any delegation chain $\tau_0 \rightarrow \tau_1 \rightarrow \cdots \rightarrow \tau_k$, where $\tau_0$ is issued by the commons authority and each $\tau_{i+1}$ is attenuated from $\tau_i$:
 \[
 C(\tau_k) \subseteq C(\tau_{k-1}) \subseteq \cdots \subseteq C(\tau_0).
 \]
 Within an execution that routes every relevant operation through the verifier, no
 accepted operation can lie outside the scope originally granted by the authority.
-\end{theorem}
+\end{pdclaim}
 
 \begin{proof}
 The Anchor model establishes a non-injective authentication correspondence for accepted modeled tokens and separately checks attenuation at the modeled chain depth~\cite{owens2026anchor}. Given those model assumptions and the theorem's premise that every operation passes through the verifier, each accepted hop satisfies the subset relation; transitivity yields the displayed chain. The correspondence alone does not prove replay freedom, arbitrary-depth delegation, or complete runtime interception, which are separate obligations.
@@ -507,9 +508,10 @@ An evidence trail $N = \langle n_1, n_2, \ldots, n_k \rangle$ is an ordered sequ
 \end{enumerate}
 \end{definition}
 
-\begin{lemma}[Trail Integrity]\label{lem:integrity}
+\begin{pdclaim}{Theorem}{Trail Integrity}
+\label{lem:integrity}
 The evidence trail is immutable by construction. No \texttt{UPDATE} or targeted \texttt{DELETE} operation exists in the system's API surface. Notes are destroyed only by explicit administrative deletion of the parent session (CASCADE), which is an auditable action distinct from normal transaction lifecycle operations.
-\end{lemma}
+\end{pdclaim}
 
 \begin{proof}
 By code inspection of the session module: the note insertion API performs only \texttt{INSERT INTO session\_notes}. The only deletion path is \texttt{DELETE FROM sessions WHERE id = ?}, which triggers \texttt{ON DELETE CASCADE}. Since transaction completion (commit or abort) updates the session's \emph{status} field but does not delete the session row, notes survive all normal lifecycle transitions.
@@ -533,13 +535,15 @@ The collection $\{R_{\text{harbor},\ell}\}_{\ell}$ is the \emph{Merkle forest}: 
 
 \paragraph{Witness to an abstract KMS.} Each $R_{\text{harbor},\ell}$ is uploaded as a \textbf{witness} to a Key Management Service satisfying the properties enumerated in \S\ref{sec:federated-sovereign}. The KMS enforces append-only monotonicity and periodically publishes a signed tree head, in the Certificate Transparency pattern~\cite{laurie2013ct}. Equivocation---publishing different roots for the same epoch to different parties---is detectable by auditors performing consistency proofs across tree heads.
 
-\begin{property}[Proof Soundness]\label{prop:proof-sound}
+\begin{pdclaim}{Design invariant}{Proof Soundness}
+\label{prop:proof-sound}
 If \textsc{verify-note-inclusion}$(n,s,h,\ell,\pi)$ returns \texttt{true} for some proof $\pi$, then either (a) $n$ was included in session $s$ at epoch $\ell$, or (b) the daemon's signing key has been compromised, or (c) SHA-256 has been broken. Under standard assumptions, (b) and (c) are computationally infeasible.
-\end{property}
+\end{pdclaim}
 
-\begin{property}[Binding]\label{prop:forest-bind}
+\begin{pdclaim}{Design invariant}{Binding}
+\label{prop:forest-bind}
 Once a daemon publishes $R_{\text{harbor},\ell}$, it cannot produce a different valid root for the same $(\textit{harbor},\ell)$ without contradicting its earlier signature (detectable via the KMS witness) or forking its identity.
-\end{property}
+\end{pdclaim}
 
 \paragraph{Cost.} Each settlement adds an $O(1)$ amortized append to the epoch accumulator. Epoch rollover is $O(N)$ hashes plus one signature: at 100 sessions/hour, $\approx 10$ms. Negligible.
 
@@ -555,17 +559,20 @@ Stigmergic coordination originated in biology, where pheromones are accumulate-o
 \]
 where $S$ is the last spray strength on $k$ at time $t_0$ and $\mathrm{decay}$ is a geometric decay defined per-channel. \textbf{Revocation} is itself an event; \textbf{rename} is a rewrite-pointer event; \textbf{fork} creates a new key namespace whose provenance is traceable through the event chain.
 
-\begin{property}[Attribution Invariant]\label{prop:pheromone-attribution}
+\begin{pdclaim}{Design invariant}{Attribution Invariant}
+\label{prop:pheromone-attribution}
 Every $\sigma_t(e,k)$ value has a deterministic provenance chain back to one signing principal, traceable via the event chain.
-\end{property}
+\end{pdclaim}
 
-\begin{property}[Rollback Safety]\label{prop:pheromone-rollback}
+\begin{pdclaim}{Design invariant}{Rollback Safety}
+\label{prop:pheromone-rollback}
 A consumer that reads $\sigma$ at time $t$ and later discovers a revocation event timestamped $t' < t$ can compute the correct counterfactual view by replaying events.
-\end{property}
+\end{pdclaim}
 
-\begin{property}[Conservation]\label{prop:pheromone-conservation}
+\begin{pdclaim}{Design invariant}{Conservation}
+\label{prop:pheromone-conservation}
 Revocation does not erase. The event ledger is monotone: the cardinality of the event set only grows.
-\end{property}
+\end{pdclaim}
 
 \paragraph{Integration with the forest.} Pheromone events are included in the session tree of \S\ref{sec:merkle-forest}: each session's root summarizes the events the session produced, harbor roots summarize session roots, and revocations are therefore transparent to witnesses without erasing any prior state. The mutable surface is the \emph{view}; the underlying ledger is immutable.
 
@@ -600,14 +607,15 @@ The analogy to file coordination is:
   \item \textbf{Minimal liberalism} $=$ each agent has decisive control over its claimed files (enforced locking).
 \end{itemize}
 
-\begin{property}[A Pareto-Inferior Locking Instance]\label{prop:sen}
+\begin{pdclaim}{Theorem}{A Pareto-Inferior Locking Instance}
+\label{prop:sen}
 Consider agents $\alpha$ and $\beta$ with tasks $T_\alpha$ and $T_\beta$. Agent $\alpha$ claims file $f$ because it \emph{might} need to modify it. Agent $\beta$ discovers mid-task that it \emph{actually} needs $f$. Under enforced claims:
 \begin{itemize}[nosep]
   \item $\alpha$'s claim is decisive (minimal liberalism): $\beta$ is blocked.
   \item The team-level outcome ($T_\alpha$ and $T_\beta$ both completed) is blocked by $\alpha$'s precautionary claim.
   \item A Pareto-superior outcome exists (both tasks completed) but is unreachable because $\alpha$'s liberal right vetoes it.
 \end{itemize}
-\end{property}
+\end{pdclaim}
 
 This property is a counterexample to the universal claim that exclusive locks always improve team welfare; it is not a derivation of Sen's theorem. Sen's result requires an unrestricted preference domain and a social-choice rule with decisive personal pairs. A production lock manager may restrict preferences, negotiate releases, or time out claims. The usable lesson is narrower: do not grant an agent an unconditional veto over a shared resource when the team may possess Pareto-relevant information the allocator lacks.
 
@@ -633,9 +641,10 @@ Under advisory claims, file claims form a conflict graph $G = (V, E)$ where vert
 The commons authority guarantees that every edge in $G$ is reported to both endpoints. No agent has a decisive ``personal domain'' over any file. Instead, agents receive complete information about the conflict graph and self-coordinate.
 \end{definition}
 
-\begin{theorem}[Advisory Conflict Completeness]\label{thm:advisory}
+\begin{pdclaim}{Theorem}{Advisory Conflict Completeness}
+\label{thm:advisory}
 Under advisory claims, for any two concurrent sessions $S_1$, $S_2$ with overlapping file claims $f$, the commons authority reports $\text{conflict}(f)$ to $S_2$ at claim time. No false negatives exist.
-\end{theorem}
+\end{pdclaim}
 
 \begin{proof}
 The overlap detection query scans all active (unreleased) claims from other active sessions. A whole-file claim ($R = \bot$) overlaps with any range on the same path. Two ranged claims $[a,b]$ and $[c,d]$ overlap iff $a \leq d \land c \leq b$. Since the query evaluates this predicate exhaustively over all active claims with the requesting session excluded, every overlap is detected. False positives may occur (an agent claims a file it does not modify); false negatives cannot.
@@ -678,9 +687,10 @@ Upon \texttt{release()}, an atomic FIFO lock-assignment transition grants the lo
 
 \paragraph{Appeals.} Settlement events (\S\ref{sec:economic}) are not unilaterally final. Any settled session can be challenged within an appeal window (default: 24~hours of semantic cadence, \S\ref{sec:vibe}) by any agent with standing---defined as either a counterparty to the settlement or a holder of an overlapping claim. An appeal opens a re-examination of the evidence chain: the appellant posts an \emph{appeal bond} (a fixed fraction of the disputed settlement amount), and the daemon recomputes the settlement against the evidence and any new evidence the appellant produces. If the appeal succeeds, the original settlement is reversed and the appeal bond is returned with the original counterparty's slash. If it fails, the appeal bond is forfeit.
 
-\begin{property}[Appeal Soundness]\label{prop:appeal-sound}
+\begin{pdclaim}{Design invariant}{Appeal Soundness}
+\label{prop:appeal-sound}
 The appeals path does not weaken the immutability of the evidence chain (\S\ref{sec:attribution}): no record is rewritten. Reversal appends a counter-record signed by the daemon, with a Merkle-Forest proof of the original settlement's position and the appellant's evidence. The chain grows monotonically.
-\end{property}
+\end{pdclaim}
 
 \paragraph{What the daemon does \emph{not} do.} The daemon does not judge the merits of an appeal in the sense a human court would---it evaluates whether the evidence supports the original settlement under the published rules. Substantive judgments (``was the agent's reasoning sound''; ``was the principal acting in good faith'') remain with humans, escalated through the \texttt{request} channel. The daemon's role is to ensure that all parties have access to the same evidence and that any human decision is recorded with the same finality as any agent decision.
 
@@ -692,7 +702,7 @@ Define ``advisory claim'' and explain, in two sentences, why an advisory regime 
 \begin{pdsolution}{ex:bonded-advisory-claims}
 An advisory claim is a durable declaration that an agent intends to use a resource; it informs coordination (Definition~\ref{def:advisory}'s conflict graph) but does not make conflicting effects impossible. Every trace an enforced-lock regime allows, an advisory regime also allows---the lock regime is a special case that additionally forbids the conflicting trace---so advisory claims are strictly more permissive, never less.
 
-That extra permissiveness is the feature Property~\ref{prop:sen} names: Sen's theorem shows that granting an agent a decisive personal domain (an enforced lock) can block a Pareto-superior team outcome the allocator cannot see coming. An advisory regime never grants that veto, so it never forecloses the outcome a lock would have blocked---at the cost of also admitting traces where two agents genuinely do collide. \S\ref{sec:governance}'s appeals and preemption path is exactly the mechanism that prices the cost of that added permissiveness rather than eliminating it.
+That extra permissiveness is the feature Theorem~\ref{prop:sen} names: Sen's theorem shows that granting an agent a decisive personal domain (an enforced lock) can block a Pareto-superior team outcome the allocator cannot see coming. An advisory regime never grants that veto, so it never forecloses the outcome a lock would have blocked---at the cost of also admitting traces where two agents genuinely do collide. \S\ref{sec:governance}'s appeals and preemption path is exactly the mechanism that prices the cost of that added permissiveness rather than eliminating it.
 \end{pdsolution}
 
 \begin{pdrecitation}
@@ -792,9 +802,10 @@ When a Float Plan's session reaches a terminal state, the Multisig Clearinghouse
 \end{description}
 \end{definition}
 
-\begin{property}[Intent Irrelevance]\label{prop:intent}
+\begin{pdclaim}{Design invariant}{Intent Irrelevance}
+\label{prop:intent}
 Settlement does not evaluate agent intent. It evaluates \emph{outcome against manifest}. A well-intentioned agent that fails to meet acceptance criteria forfeits escrow. A malicious agent that coincidentally produces correct output receives payment. The system optimizes for outcomes, not character.
-\end{property}
+\end{pdclaim}
 
 This is how performance bonds work in construction. This is how futures markets settle. The contractor's moral character is irrelevant. The building either meets code or it doesn't. The bond either covers the damage or it doesn't.
 
@@ -876,9 +887,10 @@ The general sustainability condition under a $k$-round graduated trigger with st
 \]
 Substituting $d - c = 1,\; c - p = 2$ and $k = 3$ gives $1 < 2\delta(1 + \delta + \delta^2)$, which solves numerically to $\delta > \delta^\star_{k=3} \approx 0.342$. Under grim trigger ($k \to \infty$) the bound is the closed-form $\delta > 1/3 \approx 0.333$, recovering the standard folk-theorem threshold. The graduated bound is therefore only marginally above grim---the three-round window adds barely $0.009$ to the threshold---which is the right result: graduated trigger pays almost nothing for the crash tolerance it buys.
 
-\begin{proposition}[Claim Signaling Incentive Compatibility]\label{prop:claim-signaling-ic}
+\begin{pdclaim}{Theorem}{Claim Signaling Incentive Compatibility}
+\label{prop:claim-signaling-ic}
 Under the observable-history regime of \S\ref{sec:attribution} and the Sybil-resistant identity regime of the Anchor Protocol~\cite{owens2026anchor}, truthful file-claim signaling is a Nash equilibrium of the repeated coordination game with stage-game payoffs as in Table~\ref{tab:claim-stage-game} for any discount factor $\delta > \delta^\star_{k=3} \approx 0.342$, when both players adopt the three-round graduated-trigger strategy described above. Under grim trigger, the critical bound is $\delta \ge 1/3$.
-\end{proposition}
+\end{pdclaim}
 
 \paragraph{What each condition buys, and what breaks when it is removed.}
 The proposition is conditional, and the conditions matter. Naming what each one is doing makes the dependency on the rest of the architecture explicit rather than implicit.
@@ -937,7 +949,7 @@ sat
 )
 unsat
 \end{lstlisting}
-Reading the three lines against the three questions: \texttt{sat} (a root exists, printed in Z3's algebraic \texttt{root-obj} form rather than a decimal); \texttt{sat} again with the identical model (that same root also satisfies the tighter bound, so it lies in $[0.34,0.35]$); \texttt{unsat} (no second, distinct $\delta_2$ in $[0,1]$ satisfies the cubic, so the root is unique). All three together are exactly Proposition~\ref{prop:claim-signaling-ic}'s threshold, existence-and-uniqueness, mechanized.
+Reading the three lines against the three questions: \texttt{sat} (a root exists, printed in Z3's algebraic \texttt{root-obj} form rather than a decimal); \texttt{sat} again with the identical model (that same root also satisfies the tighter bound, so it lies in $[0.34,0.35]$); \texttt{unsat} (no second, distinct $\delta_2$ in $[0,1]$ satisfies the cubic, so the root is unique). All three together are exactly Theorem~\ref{prop:claim-signaling-ic}'s threshold, existence-and-uniqueness, mechanized.
 \end{pdsolution}
 
 \begin{pdexercise}[kind=Trace,rating=2]{ex:bonded-tla-two-deltas}
@@ -985,9 +997,10 @@ We do not close this problem. We tighten the lower bound, propose a scope multip
 
 Let $c$ be the project's \emph{cleanup cost per breach event}---the human-plus-compute cost to detect, assess, and recover from a budget breach. This is observable from the audit log.
 
-\begin{theorem}[Cleanup Lower Bound]\label{thm:cleanup-bound}
+\begin{pdclaim}{Theorem}{Cleanup Lower Bound}
+\label{thm:cleanup-bound}
 For any Float Plan $\mathcal{F}$, $\pi(\mathcal{F}) \geq c$.
-\end{theorem}
+\end{pdclaim}
 
 \begin{proof}[Rationale]
 If $\pi(\mathcal{F}) < c$, breach is cheap: the bond is forfeit for less than the cleanup cost. If the commons pool funds cleanup, $\pi < c$ drains the commons per breach---the system bankrupts itself through enforcement. \qed
@@ -1451,14 +1464,15 @@ The TLA$^{+}$ escrow invariant states the property abstractly; the daemon's bond
 For project $P$, the accounting state is the triple $(W_P, E_P, C_P) \in \mathbb{R}_{\geq 0}^{3}$, where $W_P$ is wallet balance, $E_P$ is the sum of bond amounts in states $\{\textit{escrowed},\, \textit{running},\, \textit{exiting}\}$, and $C_P$ is the commons pool balance. The \emph{monetary supply} is $S_P := W_P + E_P + C_P$.
 \end{definition}
 
-\begin{theorem}[Conservation]\label{thm:conservation}
+\begin{pdclaim}{Theorem}{Conservation}
+\label{thm:conservation}
 For any sequence of operations
 \[
 \sigma \in \bigl\{\mathrm{topUp},\mathrm{escrow},\mathrm{markRunning},
 \mathrm{refund},\mathrm{slash}\bigr\}^{*}
 \]
 applied to an initial state $(W_P^{0}, 0, 0)$, the supply $S_P$ changes only on $\mathrm{topUp}$. All other operations redistribute among the three buckets.
-\end{theorem}
+\end{pdclaim}
 
 \begin{proof}[Proof sketch]
 Each operation commits in a single SQLite transaction (\texttt{db.transaction}). The individual effects:
@@ -1474,9 +1488,10 @@ By induction on $|\sigma|$, $S_P$ equals $S_P^{0}$ plus the sum of $\mathrm{topU
 
 \paragraph{Property verification.} The conservation invariant is asserted after every operation in the bonds test suite. Across 200 random traces, $|W_P + E_P + C_P - S_P^{\text{expected}}| < 10^{-6}$ holds deterministically; the $10^{-6}$ tolerance is IEEE-754 floating-point slack, not logical slack.
 
-\begin{lemma}[No Overdraft Under Concurrent Escrow]\label{lem:no-overdraft}
+\begin{pdclaim}{Theorem}{No Overdraft Under Concurrent Escrow}
+\label{lem:no-overdraft}
 Given two concurrent invocations $\mathrm{escrow}(b_1)$ and $\mathrm{escrow}(b_2)$ on the same project with $b_i \leq W_P^{\text{pre}}$ but $b_1 + b_2 > W_P^{\text{pre}}$, at most one invocation succeeds.
-\end{lemma}
+\end{pdclaim}
 
 \paragraph{Implementation: Atomic RETURNING Clauses.}
 To enforce overdraft prevention atomically and avoid Node.js/TypeScript event-loop async yield vulnerabilities, the escrow state transition is written as a single SQLite statement with a \texttt{RETURNING} clause. This guarantees that balance checks and deductions occur within a synchronous, uninterruptible database step, preventing race conditions from interleaved async microtasks.
@@ -1503,7 +1518,7 @@ Model checking completed. No error has been found.
 26818 states generated, 1716 distinct states found, 0 states left on queue.
 The depth of the complete state graph search is 9.
 \end{lstlisting}
-These are two different numbers, and the difference is the exercise. TLC \emph{generates} a state every time it evaluates a transition, including transitions that land back on a state it has already seen by a different path---$26{,}818$ counts every such evaluation. The \emph{reachable} state count is the number of \textbf{distinct} states TLC actually found, $1{,}716$: every other generated state was a re-visit, not a new point in the state space. (The chapter's own Table~\ref{tab:verification-status} cites the ``$26{,}818$'' figure for this row; that is the generated count, not the reachable one---both numbers are pinned from the same committed log, and neither is wrong, but only $1{,}716$ answers ``how many reachable states are there.'')
+These are two different numbers, and the difference is the exercise. TLC \emph{generates} a state every time it evaluates a transition, including transitions that land back on a state it has already seen by a different path---$26{,}818$ counts every such evaluation. The \emph{reachable} state count is the number of \textbf{distinct} states TLC actually found, $1{,}716$: every other generated state was a re-visit, not a new point in the state space. (Table~\ref{tab:verification-status} now carries both figures for this row; both are pinned from the same committed log, and only $1{,}716$ answers ``how many reachable states are there.'')
 
 The invariant named in \texttt{Conservation.cfg}'s \texttt{INVARIANTS} block that gives the module its name is \texttt{Conservation}, defined as \texttt{TotalFree + TotalEscrow + burned = minted}---the free-form statement of Theorem~\ref{thm:conservation} at the granularity of individual mint/stake/slash/refund/payout operations rather than the three-bucket accounting state. The same run also checks \texttt{NoNegative} (no balance ever goes negative) and \texttt{Safety} (their conjunction); the log's ``No error has been found'' covers all three across every one of the $1{,}716$ reachable states, to search depth $9$.
 \end{pdsolution}
@@ -1578,7 +1593,7 @@ The implementation choice (a particular cloud platform, an on-prem HSM, a self-h
 $\mathrm{TB} = \mathit{daemon} \cup \mathcal{K} \cup \mathit{user{\text{-}}email} \cup \mathit{user{\text{-}}passphrase}$.
 Each element is necessary for its role; no element is sufficient alone. The daemon enforces bonds and publishes roots but never sees the unwrapped user master. The KMS stores encrypted blobs and can deny service but cannot decrypt. Email is the recovery root---and is documented as the weakest link, since an adversary with email control can trigger magic-link recovery. The passphrase wraps the user's master with Argon2id, making offline brute force expensive.
 
-Four parties, five KMS properties, and four ``the attacker cannot'' clauses are more than a reader should be asked to hold in their head at once, so Figure~\ref{fig:bonded-key-custody} draws them: who holds which key, and which single compromise---or, for one clause only, which \emph{pair} of compromises---breaks which guarantee of Theorem~\ref{thm:federated-security} below.
+Four parties, five KMS properties, and four ``the attacker cannot'' clauses are more than a reader should be asked to hold in their head at once, so Figure~\ref{fig:bonded-key-custody} draws them: who holds which key, and which single compromise---or, for one clause only, which \emph{pair} of compromises---breaks which guarantee of Design Invariant~\ref{thm:federated-security} below.
 
 \input{figures/fig-bonded-key-custody}
 
@@ -1586,13 +1601,14 @@ Four parties, five KMS properties, and four ``the attacker cannot'' clauses are 
 
 \input{figures/fig-magic-link-inline}
 
-\begin{theorem}[Federated Security, informal]\label{thm:federated-security}
+\begin{pdclaim}{Design invariant}{Federated Security, informal}
+\label{thm:federated-security}
 Assuming Ed25519 and SHA-256 are secure, Argon2id parameters meet the 2026 security floor, and the user's email and passphrase are not simultaneously compromised, an adversary with read access to $\mathcal{K}$'s storage, the daemon's SQLite database, and mesh gossip traffic, but \emph{without} same-user code execution on the daemon's host, cannot:
 (i) forge a Harbor Card without the daemon's private key,
 (ii) read plaintext evidence without the harbor's session key,
 (iii) impersonate the user without both email access and passphrase,
 (iv) roll back a harbor's Merkle forest without $\mathcal{K}$'s complicity.
-\end{theorem}
+\end{pdclaim}
 
 The theorem deliberately excludes the same-user adversary (an unsandboxed agent, a malicious postinstall, a compromised editor extension). Such an adversary reads any file the user can read, which absent OS-mediated key custody includes the daemon's keys and database. The \texttt{macOS Keychain} integration ships now; native keyring and hardware-backed keystore extend the theorem's reach to the same-user case.
 
@@ -1879,7 +1895,7 @@ DataDome.
 Coordination channel isolation (\S\ref{sec:merkle-forest}) & ProVerif (Dolev-Yao) & \Closed\ 3 properties TRUE & \texttt{isolation.pv} \\
 Passkey device pairing & ProVerif & \Closed\ 3 properties TRUE & \texttt{passkey-pair.pv} \\
 Federated security (\S\ref{sec:federated-sovereign}) & ProVerif, 3-of-4 compromise & \Closed\ no attacker reach & \texttt{federated.pv} \\
-Conservation Theorem (\S\ref{sec:conservation}) & TLA+ bounded TLC & \Closed\ 26{,}818 states, invariant holds & \texttt{Conservation.tla} \\
+Conservation Theorem (\S\ref{sec:conservation}) & TLA+ bounded TLC & \Closed\ 1{,}716 reachable states (26{,}818 generated), invariant holds & \texttt{Conservation.tla} \\
 No-overdraft lemma (\S\ref{sec:economic}) & fast-check property test & \Closed\ 4 invariants, randomized ops & bonds-property tests \\
 Algorithm-confusion immunity & ProVerif (pinned vs.\ naive) & \Closed\ pinned TRUE; counter-trace produced & \texttt{algconfusion.pv} \\
 Delegation chain replay & ProVerif at depth 3 & \Closed\ chain authenticity TRUE & \texttt{chain-replay.pv} \\

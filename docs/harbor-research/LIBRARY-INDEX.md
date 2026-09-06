@@ -148,7 +148,7 @@ One section per indexed idea (R1-R17, CR, B6, and every already-folded textbook 
 | Location | File | Labels | Sections |
 |---|---|---|---|
 | Standalone paper | `docs/harbor-research/tex/paper7.tex` | (none) | S4 (sec:mechanism), boxed "Theorem 1 (mechanism)"; harness verdict COMMIT in S5 (sec:harness) |
-| Chapter 8 (The Federated Harbor) | `website-v2/public/whitepaper/federated-harbor-whitepaper.tex` | thm:sheaf-equivocation | S(fh-sheaf), "Detection iff the missing edge closes a visible cycle" -- explicit restatement citing "the companion paper on the cohomology of equivocation" |
+| Chapter 8 (The Federated Harbor) | `website-v2/public/whitepaper/federated-harbor-whitepaper.tex` | thm:sheaf-equivocation | sec:fh-sheaf: Theorem 1 as the labeled claim thm:sheaf-equivocation (Theorem), the pre-registered harness paragraph (verdict COMMIT, 200/200, 0/200, 113/200 with the 79+8 dark trials), the cochain worked by hand on the four-ring, and the consistency-radius example |
 
 **Figures:** `docs/harbor-research/figures/fig-r6-relation.tex`, `docs/harbor-research/figures/fig-paper7-visibility.tex`, `docs/harbor-research/figures/fig-r6-regime.tex`
 
@@ -402,7 +402,7 @@ One section per indexed idea (R1-R17, CR, B6, and every already-folded textbook 
 | Location | File | Labels | Sections |
 |---|---|---|---|
 | Standalone paper | `docs/harbor-research/tex/paper7.tex` | (none) | S6 (sec:radius), boxed "Theorem CR-1 (soundness and achievability)", "Theorem CR-2 (localization)", "Theorem CR-3 (complexity)" |
-| Chapters | *(not yet folded)* | | |
+| Chapter 8 (The Federated Harbor) | `website-v2/public/whitepaper/federated-harbor-whitepaper.tex` | thm:radius-soundness, thm:radius-localization, thm:radius-cost | sec:fh-sheaf (inside sec:fh-revocation), paragraph "The residual as a certificate": CR-1 as thm:radius-soundness (Theorem, proof sketch via the distance to the coboundary image and the effective-resistance identity), CR-2 as thm:radius-localization, CR-3 as thm:radius-cost, the Checked paragraph with the 0/600 and 600/600 sweeps, what it buys, and the four-clause boundary box |
 
 **Figures:** `docs/harbor-research/figures/fig-paper7-radius.tex`
 
