@@ -693,6 +693,11 @@ for prog in port-daddy pd
     complete -c $prog -n "__pd_using_command session" -x -a 'done' -d 'End a session (alias for end)'
     complete -c $prog -n "__pd_using_command session" -x -a 'abandon' -d 'Abandon a session'
     complete -c $prog -n "__pd_using_command session" -x -a 'takeover' -d 'Create successor session; preserve notes'
+    complete -c $prog -n "__pd_using_command session" -x -a 'find' -d 'Recover my session by begin key or identity'
+    complete -c $prog -n "__pd_using_command session" -l key -d 'Begin idempotency key to recover' -x
+    complete -c $prog -n "__pd_using_command session" -l identity -d 'Identity to search (project:stack:context)' -x
+    complete -c $prog -n "__pd_using_command session" -l all-worktrees -d 'Search every worktree'
+    complete -c $prog -n "__pd_using_command session" -l no-adopt -d 'Do not write the recovered context locally'
     complete -c $prog -n "__pd_using_command session" -x -a 'rm' -d 'Archive a session; preserve notes'
     complete -c $prog -n "__pd_using_command session" -x -a 'files' -d 'Manage file claims for a session'
     complete -c $prog -n "__pd_using_command session" -x -a 'phase' -d 'Set session phase'

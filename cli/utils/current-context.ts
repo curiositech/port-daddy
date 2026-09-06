@@ -34,6 +34,28 @@ export interface CurrentContext {
    * context store alongside the session it authenticates.
    */
   credential?: string | null;
+  /**
+   * The begin idempotency key this context was created under (lib/
+   * begin-idempotency.ts). `pd session find --key` re-derives the session and
+   * its credential from it when this file is the only local state that
+   * survived; a retry of the same `pd begin` sends it so the daemon replays
+   * instead of minting a second session.
+   */
+  idempotencyKey?: string | null;
+}
+
+/**
+ * A `pd begin` that has been SENT but whose response has not been
+ * persisted yet. Written before the request goes on the wire so a crash or
+ * lost response leaves the key on disk; `pd session find` (no arguments)
+ * reads it back and recovers the session the daemon may have committed.
+ */
+export interface BeginAttempt {
+  idempotencyKey: string;
+  purpose?: string;
+  identity?: string | null;
+  startedAt: number;
+  contextSlot?: string;
 }
 
 export interface CurrentContextProvenance {
@@ -225,7 +247,7 @@ function unlinkContextFile(path: string, cwd: string, storeScoped: boolean): boo
   }
 }
 
-function writeJson(path: string, value: CurrentContext): void {
+function writeJson(path: string, value: CurrentContext | BeginAttempt): void {
   const temporaryPath = `${path}.tmp-${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
   let fd: number | null = null;
   try {
@@ -372,6 +394,98 @@ export function writeCurrentContext(context: CurrentContext, cwd: string = proce
   return record;
 }
 
+// =============================================================================
+// Begin attempts — the idempotency key outlives a lost response
+// =============================================================================
+
+export function getBeginAttemptsDir(cwd: string = process.cwd()): string {
+  return join(getContextDir(cwd), 'begin-attempts');
+}
+
+export function getBeginAttemptPathForSlot(slot: string, cwd: string = process.cwd()): string {
+  return join(getBeginAttemptsDir(cwd), `${sanitizeSlot(slot)}.json`);
+}
+
+function readBeginAttemptFile(path: string): BeginAttempt | null {
+  let fd: number | null = null;
+  try {
+    if (!existsSync(path)) return null;
+    const link = lstatSync(path);
+    const uid = process.getuid?.();
+    if (link.isSymbolicLink() || !link.isFile() || link.nlink !== 1 || (uid !== undefined && link.uid !== uid)) return null;
+    fd = openSync(path, fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW);
+    const opened = fstatSync(fd);
+    if (!opened.isFile() || opened.nlink !== 1 || opened.ino !== link.ino || opened.dev !== link.dev
+      || (uid !== undefined && opened.uid !== uid)) return null;
+    if ((opened.mode & 0o777) !== 0o600) fchmodSync(fd, 0o600);
+    const parsed = JSON.parse(readFileSync(fd, 'utf8')) as BeginAttempt | null;
+    if (!parsed || typeof parsed !== 'object') return null;
+    if (typeof parsed.idempotencyKey !== 'string' || !parsed.idempotencyKey) return null;
+    if (typeof parsed.startedAt !== 'number') return null;
+    return parsed;
+  } catch {
+    return null;
+  } finally {
+    if (fd !== null) try { closeSync(fd); } catch {}
+  }
+}
+
+/**
+ * Persist a begin attempt BEFORE its request goes on the wire. The key is
+ * the only thing that lets a crashed or disconnected agent recover the
+ * session the daemon committed; writing it after the response would lose it
+ * with the response.
+ *
+ * @param attempt - The key plus what the begin was for (for the human hint).
+ * @param cwd - Worktree whose `.portdaddy` store receives the file.
+ * @returns The stored record, slot-stamped.
+ */
+export function writeBeginAttempt(attempt: BeginAttempt, cwd: string = process.cwd()): BeginAttempt {
+  const slot = sanitizeSlot(attempt.contextSlot || resolveContextSlot());
+  const record: BeginAttempt = { ...attempt, contextSlot: slot };
+  ensureContextDirs(cwd);
+  repairPrivateDirectory(getBeginAttemptsDir(cwd), true);
+  writeJson(getBeginAttemptPathForSlot(slot, cwd), record);
+  return record;
+}
+
+/**
+ * Read the pending begin attempt for this shell's slot.
+ *
+ * @param cwd - Worktree whose `.portdaddy` store is read.
+ * @returns The attempt, or null when none is pending (or the file is unsafe).
+ */
+export function readBeginAttempt(cwd: string = process.cwd()): BeginAttempt | null {
+  if (!contextDirectoryTreeIsSafeForMutation(cwd)) return null;
+  const dir = getBeginAttemptsDir(cwd);
+  try {
+    if (!existsSync(dir) || !repairPrivateDirectory(dir, false)) return null;
+  } catch {
+    return null;
+  }
+  return readBeginAttemptFile(getBeginAttemptPathForSlot(resolveContextSlot(), cwd));
+}
+
+/**
+ * Drop the pending begin attempt once its outcome is persisted (the context
+ * file now carries the key) or the attempt is abandoned.
+ *
+ * @param cwd - Worktree whose `.portdaddy` store is cleaned.
+ */
+export function clearBeginAttempt(cwd: string = process.cwd()): void {
+  if (!contextDirectoryTreeIsSafeForMutation(cwd)) return;
+  const dir = getBeginAttemptsDir(cwd);
+  try {
+    if (!existsSync(dir) || !repairPrivateDirectory(dir, false)) return;
+    const path = getBeginAttemptPathForSlot(resolveContextSlot(), cwd);
+    const entry = lstatSync(path);
+    if (entry.isSymbolicLink() || !entry.isFile()) return;
+    unlinkSync(path);
+  } catch {
+    // Nothing pending, or the store is unsafe to touch: both are "cleared".
+  }
+}
+
 export function readCurrentContext(cwd: string = process.cwd()): CurrentContext | null {
   const resolution = resolveCurrentContext(cwd);
   return resolution.success ? resolution.context : null;
@@ -430,6 +544,9 @@ export function removeAllContextFiles(cwd: string = process.cwd()): void {
   if (!contextDirectoryTreeIsSafeForMutation(cwd)) return;
   try {
     rmSync(getContextStoreDir(cwd), { recursive: true, force: true });
+  } catch {}
+  try {
+    rmSync(getBeginAttemptsDir(cwd), { recursive: true, force: true });
   } catch {}
   unlinkContextFile(getLegacyContextPath(cwd), cwd, false);
 }
