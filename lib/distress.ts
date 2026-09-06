@@ -3,7 +3,10 @@
  *
  * This module is the EPIRB: it must work when nothing else does. It therefore
  * depends on nothing but the Node standard library — no daemon, no socket, no
- * database, no git, no other `lib/` module. Keep it that way.
+ * database, no git. The only `lib/` modules it touches are the two that share
+ * that constraint: `lib/distress-allclear.ts` (the ADR-0132 §4 halt state
+ * machine, phase 4) and `lib/forensics-archive.ts` (the ADR-0089 JSONL
+ * journal). Both are `node:*`-only. Keep it that way.
  *
  * Two files carry the whole tier:
  *
@@ -38,16 +41,30 @@
  * `tests/unit/distress.test.ts` verifies the claim empirically with fifty
  * concurrent subprocesses.
  *
- * Lifting a halt is NOT provided here on purpose: per ADR-0132 §4 only a
- * signed `ALL-CLEAR` (phase 4) lifts a halt, and until that ships the operator
- * removes the sentinel by hand per the A4 runbook in
- * `docs/incidents/2026-09-05-port-daddy-halt.md`. A runaway agent must not be
- * able to end its own halt by calling a function.
+ * ── Absence is not all-clear ────────────────────────────────────────────────
+ * `haltActive()` / `readHalt()` are THE halt predicate for the guard, the
+ * reaper, resurrection, the death handler, the custodian and the listening
+ * watch. They answer "halted" when ANY of these holds, in this order:
+ *
+ *   1. the machine-wide sentinel exists (whatever its contents — `test -f`);
+ *   2. the machine-wide register carries a `SECURITE HALT` with no verified
+ *      `ALL-CLEAR` naming it (ADR-0132 §4): deleting the sentinel does not end
+ *      a halt, and the deletion is journaled as `HALT_SENTINEL_MISSING`;
+ *   3. the repo-scoped sentinel exists;
+ *   4. the home directory cannot be read at all — fail closed.
+ *
+ * The register rule is `lib/distress-allclear.ts#readHaltState`; this module
+ * delegates to it rather than forking a weaker predicate. Lifting a halt is
+ * NOT provided here on purpose: only a signed `ALL-CLEAR` (`liftHalt` in that
+ * module, operator TTY only) lifts one. A runaway agent must not be able to
+ * end its own halt by calling a function or by deleting a file.
  */
 
 import { appendFileSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
+import { defaultDistressPaths, readHaltState, type HaltEvaluation } from './distress-allclear.js';
+import { createJsonlForensicsArchive } from './forensics-archive.js';
 
 // ─── Registry ────────────────────────────────────────────────────────────────
 
@@ -415,10 +432,23 @@ export function readDistress(options: ReadOptions = {}): DistressRecord[] {
 // ─── The halt sentinel ───────────────────────────────────────────────────────
 
 export interface HaltRecord {
-  /** Which sentinel answered: the machine-wide one is authoritative. */
+  /**
+   * File that answered. For `source: 'sentinel'` the sentinel itself; for
+   * `source: 'register'` the machine-wide distress file that still carries
+   * the unlifted `SECURITE HALT`; for `source: 'unreadable'` the sentinel path
+   * that could not be checked.
+   */
   path: string;
   scope: 'machine' | 'repo';
-  /** Raw sentinel contents (trimmed). */
+  /**
+   * Where the halt was found. `sentinel`: the HALT file exists (existence is
+   * the signal; contents optional). `register`: the sentinel is gone but the
+   * register carries a `SECURITE HALT` with no verified `ALL-CLEAR` —
+   * ADR-0132 §4, absence is not all-clear. `unreadable`: the home could not
+   * be read, so the predicate failed closed.
+   */
+  source: 'sentinel' | 'register' | 'unreadable';
+  /** Raw sentinel contents (trimmed), or the register's HALT line. */
   raw: string;
   /** The parsed `SECURITE HALT` line, when the contents are well-formed. */
   record: DistressRecord | null;
@@ -427,49 +457,96 @@ export interface HaltRecord {
 }
 
 /**
- * Is a halt hoisted? `test -f` semantics: the machine-wide sentinel or, when
- * inside a repo, the repo-scoped one. Never throws; an unreadable home
- * directory reads as "no halt hoisted" — which, per ADR-0132, is NOT all-clear.
+ * Run the ADR-0132 §4 state machine over the machine-wide sentinel and
+ * register under `distressHome()`. `PD_HOME` is honoured per call (the
+ * phase-4 module resolves it once at import, so the paths are passed in).
+ * Violations — a deleted sentinel, a forged all-clear — are journaled under
+ * `<home>/forensics/`. This is a READ: it never unlinks the sentinel. Only
+ * the operator's verifier path (`applyAllClear` / `liftHalt`) removes it, so
+ * a sentinel that exists is halted even when the register says lifted — a
+ * flag hoisted by hand after a lift is a new halt, not a stale file for the
+ * reaper to tidy away.
  */
-export function haltActive(options: ScopeOptions = {}): boolean {
+function evaluateHaltRegister(): HaltEvaluation {
+  const home = distressHome();
+  return readHaltState({
+    paths: defaultDistressPaths({ home }),
+    forensics: createJsonlForensicsArchive({ dir: join(home, 'forensics') }),
+    removeSentinelOnLift: false,
+  });
+}
+
+function readSentinel(path: string, scope: 'machine' | 'repo'): HaltRecord | null {
+  if (!existsSync(path)) return null;
+  let raw = '';
+  let mtime = new Date();
   try {
-    const paths = haltPaths(options);
-    return existsSync(paths.machine) || (paths.repo !== null && existsSync(paths.repo));
+    raw = readFileSync(path, 'utf8').trim();
+    mtime = statSync(path).mtime;
   } catch {
-    return false;
+    // Existence is the signal; unreadable contents still mean "halted".
+  }
+  const firstLine = raw.split('\n')[0] ?? '';
+  const parsed = firstLine ? parseDistressLine(firstLine) : null;
+  const record = parsed && parsed.ok && parsed.record.code === 'HALT' ? parsed.record : null;
+  return { path, scope, source: 'sentinel', raw, record, at: record?.at ?? distressNow(mtime) };
+}
+
+function unreadableHalt(path: string): HaltRecord {
+  return { path, scope: 'machine', source: 'unreadable', raw: '', record: null, at: distressNow() };
+}
+
+/**
+ * Read the halt in force. Machine-wide sentinel first (authoritative), then
+ * the machine-wide register (an unlifted `SECURITE HALT` keeps the halt in
+ * force after the sentinel is deleted), then the repo-scoped sentinel.
+ * Returns `null` only when none of them says "halted". Never throws: a home
+ * that cannot be read answers with a `source: 'unreadable'` record, because
+ * "I cannot tell" must not become "carry on".
+ */
+export function readHalt(options: ScopeOptions = {}): HaltRecord | null {
+  let paths: { machine: string; repo: string | null };
+  try {
+    paths = haltPaths(options);
+  } catch {
+    return unreadableHalt(join(distressHome(), HALT_FILE_NAME));
+  }
+  try {
+    const evaluation = evaluateHaltRegister();
+    const machine = readSentinel(paths.machine, 'machine');
+    if (machine) return machine;
+    if (evaluation.status.state === 'hoisted') {
+      const halt = evaluation.status.halt;
+      const parsed = parseDistressLine(halt.raw);
+      const record = parsed.ok && parsed.record.code === 'HALT' ? parsed.record : null;
+      return {
+        path: join(distressHome(), DISTRESS_FILE_NAME),
+        scope: 'machine',
+        source: 'register',
+        raw: halt.raw,
+        record,
+        at: record?.at ?? halt.ts,
+      };
+    }
+    if (paths.repo) return readSentinel(paths.repo, 'repo');
+    return null;
+  } catch {
+    return unreadableHalt(paths.machine);
   }
 }
 
 /**
- * Read the hoisted halt, machine-wide first (authoritative), then repo-scoped.
- * Returns `null` when no sentinel exists.
+ * Is a halt in force? The one predicate every organ consults (see the module
+ * header): sentinel present, OR an unlifted `SECURITE HALT` in the register,
+ * OR the repo-scoped sentinel, OR an unreadable home (fail closed). Never
+ * throws.
  */
-export function readHalt(options: ScopeOptions = {}): HaltRecord | null {
-  const paths = haltPaths(options);
-  const candidates: Array<{ path: string; scope: 'machine' | 'repo' }> = [{ path: paths.machine, scope: 'machine' }];
-  if (paths.repo) candidates.push({ path: paths.repo, scope: 'repo' });
-  for (const candidate of candidates) {
-    if (!existsSync(candidate.path)) continue;
-    let raw = '';
-    let mtime = new Date();
-    try {
-      raw = readFileSync(candidate.path, 'utf8').trim();
-      mtime = statSync(candidate.path).mtime;
-    } catch {
-      // Existence is the signal; unreadable contents still mean "halted".
-    }
-    const firstLine = raw.split('\n')[0] ?? '';
-    const parsed = firstLine ? parseDistressLine(firstLine) : null;
-    const record = parsed && parsed.ok && parsed.record.code === 'HALT' ? parsed.record : null;
-    return {
-      path: candidate.path,
-      scope: candidate.scope,
-      raw,
-      record,
-      at: record?.at ?? distressNow(mtime),
-    };
+export function haltActive(options: ScopeOptions = {}): boolean {
+  try {
+    return readHalt(options) !== null;
+  } catch {
+    return true;
   }
-  return null;
 }
 
 export interface WriteHaltInput {

@@ -12,10 +12,12 @@
  */
 
 import { afterEach, beforeEach, describe, expect, test } from '@jest/globals';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { generateKeyPairSync } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawn } from 'node:child_process';
+import { applyAllClear, defaultDistressPaths, signAllClear } from '../../lib/distress-allclear.js';
 import { once } from 'node:events';
 import { createRequire } from 'node:module';
 import {
@@ -400,7 +402,7 @@ describe('halt sentinel', () => {
     expect(haltActive({ cwd: scratch })).toBe(true);
     const halt = readHalt({ cwd: repo });
     expect(halt).toEqual({
-      path: join(home, 'HALT'), scope: 'machine', raw: ADR_EXAMPLES[0], at: '2026-09-05T14:02:11Z',
+      path: join(home, 'HALT'), scope: 'machine', source: 'sentinel', raw: ADR_EXAMPLES[0], at: '2026-09-05T14:02:11Z',
       record: expect.objectContaining({ kind: 'operator', id: 'erich', code: 'HALT' }),
     });
     expect(describeHalt(halt!)).toBe('Port Daddy is halted by operator:erich (SECURITE HALT 2026-09-05T14:02:11Z)');
@@ -445,6 +447,64 @@ describe('halt sentinel', () => {
     mkdirSync(home, { recursive: true });
     writeFileSync(join(home, 'HALT'), `${ADR_EXAMPLES[1]}\n`);
     expect(readHalt({ cwd: scratch })).toMatchObject({ record: null, raw: ADR_EXAMPLES[1] });
+  });
+
+  // ─── ADR-0132 §4: absence is not all-clear ─────────────────────────────────
+
+  test('deleting the sentinel does not lift a halt the register still carries; the deletion is journaled', () => {
+    writeHalt({ operator: 'erich', at: '2026-09-05T14:02:11Z', cwd: repo });
+    rmSync(join(home, 'HALT'));
+    expect(existsSync(join(home, 'HALT'))).toBe(false);
+
+    expect(haltActive({ cwd: repo })).toBe(true);
+    expect(haltActive({ cwd: scratch })).toBe(true);
+    const halt = readHalt({ cwd: scratch });
+    expect(halt).toMatchObject({
+      path: join(home, 'DISTRESS'), scope: 'machine', source: 'register', at: '2026-09-05T14:02:11Z',
+      record: expect.objectContaining({ kind: 'operator', id: 'erich', code: 'HALT' }),
+    });
+    expect(describeHalt(halt!)).toBe('Port Daddy is halted by operator:erich (SECURITE HALT 2026-09-05T14:02:11Z)');
+    // HALT_SENTINEL_MISSING lands in the register's own forensics dir under PD_HOME, never the operator's real home.
+    const forensics = join(home, 'forensics');
+    expect(existsSync(forensics)).toBe(true);
+    const journal = readdirSync(forensics).map((f) => readFileSync(join(forensics, f), 'utf8')).join('');
+    expect(journal).toMatch(/HALT_SENTINEL_MISSING/);
+  });
+
+  test('an unsigned or non-operator ALL-CLEAR leaves the halt in force; a verified operator ALL-CLEAR lifts it and removes a stale sentinel', () => {
+    writeHalt({ operator: 'erich', at: '2026-09-05T14:02:11Z', cwd: repo });
+    const { privateKey, publicKey } = generateKeyPairSync('ed25519');
+    writeFileSync(join(home, 'operator-allclear.pub'), publicKey.export({ format: 'pem', type: 'spki' }).toString());
+
+    appendFileSync(join(home, 'DISTRESS'), '2026-09-05T15:00:00Z agent:rogue SECURITE ALL-CLEAR ref=2026-09-05T14:02:11Z\n');
+    expect(haltActive({ cwd: repo })).toBe(true);
+    appendFileSync(join(home, 'DISTRESS'), '2026-09-05T15:00:01Z operator:erich SECURITE ALL-CLEAR ref=2026-09-05T14:02:11Z\n');
+    expect(haltActive({ cwd: repo })).toBe(true);
+    const forged = signAllClear({ haltTs: '2026-09-05T14:02:11Z', operatorId: 'erich', privateKey: generateKeyPairSync('ed25519').privateKey, ts: '2026-09-05T15:00:02Z' });
+    appendFileSync(join(home, 'DISTRESS'), `${forged.line}\n`);
+    expect(haltActive({ cwd: repo })).toBe(true);
+    expect(existsSync(join(home, 'HALT'))).toBe(true);
+
+    const signed = signAllClear({ haltTs: '2026-09-05T14:02:11Z', operatorId: 'erich', privateKey, ts: '2026-09-05T16:00:00Z' });
+    // The operator's verifier path appends the line AND removes the sentinel; the
+    // predicate itself is a read and never unlinks anything.
+    const applied = applyAllClear(signed.line, { paths: defaultDistressPaths({ home }), publicKey, forensics: null });
+    expect(applied.lifted).toBe(true);
+    expect(existsSync(join(home, 'HALT'))).toBe(false);
+    expect(haltActive({ cwd: repo })).toBe(false);
+    expect(readHalt({ cwd: repo })).toBeNull();
+    // A sentinel hoisted again by hand after the lift is a new halt, and the
+    // predicate leaves it exactly where the operator put it.
+    writeFileSync(join(home, 'HALT'), '');
+    expect(readHalt({ cwd: repo })).toMatchObject({ source: 'sentinel', record: null });
+    expect(haltActive({ cwd: repo })).toBe(true);
+    expect(existsSync(join(home, 'HALT'))).toBe(true);
+  });
+
+  test('an unreadable register fails closed: "I cannot tell" is halted, never all-clear', () => {
+    mkdirSync(join(home, 'DISTRESS'), { recursive: true }); // EISDIR on read
+    expect(haltActive({ cwd: repo })).toBe(true);
+    expect(readHalt({ cwd: repo })).toMatchObject({ source: 'unreadable', scope: 'machine', record: null });
   });
 
   test('there is deliberately no way to lower the halt from this module', async () => {

@@ -89,9 +89,16 @@ export interface GuardViolation {
 export interface GuardHalt {
   /** Instant of the halt, from the `SECURITE HALT` line or the sentinel's mtime. */
   at: string;
-  /** Sentinel file that answered; the machine-wide one is authoritative. */
+  /** File that answered: the sentinel, or the register when the sentinel is gone. */
   path: string;
-  /** Raw sentinel contents. */
+  /**
+   * `sentinel`: the HALT file exists. `register`: the sentinel was deleted but
+   * the register still carries an unlifted `SECURITE HALT` (ADR-0132 §4:
+   * absence is not all-clear). `unreadable`: the home could not be read; the
+   * guard fails closed into OFF rather than escalating.
+   */
+  source: HaltRecord['source'];
+  /** Raw sentinel contents, or the register's HALT line. */
   raw: string;
   /** `<kind>:<id>` of whoever hoisted it, when the sentinel is well-formed. */
   by: string | null;
@@ -111,6 +118,7 @@ function guardHaltFromRecord(halt: HaltRecord): GuardHalt {
   return {
     at: halt.at,
     path: halt.path,
+    source: halt.source,
     raw: halt.raw,
     by: halt.record ? `${halt.record.kind}:${halt.record.id}` : null,
   };
@@ -449,10 +457,29 @@ function dirtyFiles(cwd = process.cwd()): string[] {
   return normalizeFiles(files);
 }
 
+/**
+ * The A0 rung of the hook (ADR-0132 §2 rung 2): a hoisted halt sentinel turns
+ * the guard OFF with nothing but `test -f` — no Node, no `pd` binary, no
+ * daemon. The pre-commit hook must stay honest when the very tool it calls is
+ * the thing the operator halted. Same `$PD_HOME` override as `lib/distress.ts`
+ * and `bin/pd-distress`. Absence of the sentinel is NOT all-clear: the `pd`
+ * branch that follows still consults the register (`readHalt`) and turns OFF
+ * when an unlifted `SECURITE HALT` is on record with the sentinel deleted.
+ */
+export const GUARD_HOOK_HALT_TEST = '[ -f "${PD_HOME:-$HOME/.port-daddy}/HALT" ]';
+
+function guardHookHaltLines(): string[] {
+  return [
+    `if ${GUARD_HOOK_HALT_TEST}; then`,
+    `  echo "${COORDINATION_GUARD_NAME}: OFF — Port Daddy is halted (SECURITE HALT sentinel \${PD_HOME:-$HOME/.port-daddy}/HALT); proceeding without coordination rent." >&2`,
+  ];
+}
+
 function guardHookBlock(): string {
   return [
     HOOK_START,
-    'if command -v pd >/dev/null 2>&1; then',
+    ...guardHookHaltLines(),
+    'elif command -v pd >/dev/null 2>&1; then',
     '  pd guard check --staged --hook || exit $?',
     'elif command -v port-daddy >/dev/null 2>&1; then',
     '  port-daddy guard check --staged --hook || exit $?',
@@ -474,7 +501,8 @@ function guardHookBlock(): string {
 function guardPostCommitBlock(): string {
   return [
     HOOK_START,
-    'if command -v pd >/dev/null 2>&1; then',
+    ...guardHookHaltLines(),
+    'elif command -v pd >/dev/null 2>&1; then',
     '  pd guard check --post-commit --hook || true',
     'elif command -v port-daddy >/dev/null 2>&1; then',
     '  port-daddy guard check --post-commit --hook || true',

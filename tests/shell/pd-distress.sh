@@ -96,7 +96,28 @@ printf '%s\n' '2026-09-05T14:02:11Z operator:erich SECURITE HALT reason=spend-ru
 assert_eq "$("$BIN" show-halt)" '2026-09-05T14:02:11Z operator:erich SECURITE HALT reason=spend-runaway' 'machine-wide sentinel wins when both exist'
 ( cd "$SCRATCH" && "$BIN" halt-active ); assert_rc $? 0 'machine-wide sentinel is visible outside any repo'
 rm -f "$PD_HOME/HALT" "$REPO/.portdaddy/HALT"
-"$BIN" halt-active; assert_rc $? 1 'removing both sentinels lowers the flag'
+
+# ── ADR-0132 §4: absence is not all-clear ───────────────────────────────────
+# The register still carries the SECURITE HALT raised above (agent:claude-code:…),
+# and nothing has lifted it, so deleting both sentinels changes nothing.
+"$BIN" halt-active; assert_rc $? 0 'removing both sentinels does not lift a halt the register still carries'
+out=$("$BIN" show-halt 2>/dev/null); rc=$?; assert_rc $rc 0 'show-halt exits 0 from the register alone'
+assert_eq "$out" "$line" 'show-halt falls back to the standing register HALT'
+err=$("$BIN" show-halt 2>&1 >/dev/null); assert_match "$err" 'absence is not all-clear' 'show-halt explains the sentinel is gone but the halt stands'
+halt_ts=${line%% *}
+"$BIN" raise -e agent:rogue SECURITE ALL-CLEAR "ref=$halt_ts" sig=abc >/dev/null
+"$BIN" halt-active; assert_rc $? 0 'an agent ALL-CLEAR does not lift the halt'
+"$BIN" raise -e operator:erich SECURITE ALL-CLEAR "ref=$halt_ts" >/dev/null
+"$BIN" halt-active; assert_rc $? 0 'an unsigned operator ALL-CLEAR does not lift the halt'
+"$BIN" raise -e operator:erich SECURITE ALL-CLEAR ref=2020-01-01T00:00:00Z sig=abc >/dev/null
+"$BIN" halt-active; assert_rc $? 0 'an ALL-CLEAR naming a different halt does not lift it'
+"$BIN" raise -e operator:erich SECURITE ALL-CLEAR "ref=$halt_ts" sig=abc >/dev/null
+"$BIN" halt-active; assert_rc $? 1 'an operator ALL-CLEAR naming this halt with a signature lifts it (the Node twin verifies the signature)'
+"$BIN" show-halt >/dev/null 2>&1; assert_rc $? 1 'show-halt exits 1 once the halt is lifted'
+"$BIN" raise -e operator:erich SECURITE HALT reason=again >/dev/null
+"$BIN" halt-active; assert_rc $? 0 'a HALT raised after the lift stands again'
+"$BIN" raise -e operator:erich SECURITE ALL-CLEAR "ref=$(tail -n 1 "$PD_HOME/DISTRESS" | cut -d' ' -f1)" sig=def >/dev/null
+"$BIN" halt-active; assert_rc $? 1 'and is lifted by its own ALL-CLEAR'
 
 # ── line bound ──────────────────────────────────────────────────────────────
 big=$(awk 'BEGIN { s=""; for (i = 0; i < 4200; i++) s = s "x"; print s }')

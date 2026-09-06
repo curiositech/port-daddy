@@ -7,8 +7,12 @@
 #
 #   pd-distress raise [-e <kind>:<id>] <CLASS> <CODE> [k=v ...] [-- free text]
 #   pd-distress read [machine|repo]
-#   pd-distress halt-active            exit 0 when a halt is hoisted, else 1
-#   pd-distress show-halt              print the sentinel, exit 1 when absent
+#   pd-distress halt-active            exit 0 when a halt is in force, else 1
+#   pd-distress show-halt              print the halt, exit 1 when none is in force
+#
+# A halt is in force when the sentinel exists OR (ADR-0132 §4) the register
+# carries a SECURITE HALT no operator ALL-CLEAR has lifted — deleting the
+# sentinel does not end a halt. See register_halt below for the limits.
 #
 # Files (same locations as lib/distress.ts, which is the Node twin):
 #   $PD_HOME/DISTRESS            machine-wide, append-only
@@ -167,13 +171,60 @@ halt_file() {
   return 1
 }
 
+# ADR-0132 §4: the sentinel's absence is not all-clear. With no sentinel the
+# machine-wide register still decides: the last SECURITE HALT on record stands
+# until an operator SECURITE ALL-CLEAR carrying ref=<that halt's timestamp>
+# and a sig= field follows it. Plain sh cannot verify an Ed25519 signature
+# (no tool is allowed here); the Node twin, lib/distress.ts, does verify and
+# is authoritative. Accepting a well-formed, signed-looking operator line
+# here is still strictly stricter than the old rule, which accepted `rm`.
+# Prints the standing HALT line and returns 0, or returns 1 when none stands.
+register_halt() {
+  file="$PD_HOME/DISTRESS"
+  [ -f "$file" ] || return 1
+  halt_ts=""
+  halt_line=""
+  set -f  # no globbing while free text is word-split below
+  while IFS= read -r l || [ -n "$l" ]; do
+    # shellcheck disable=SC2086
+    set -- $l
+    ts=${1:-}; entity=${2:-}; cls=${3:-}; code=${4:-}
+    case "$cls $code" in
+      'SECURITE HALT') halt_ts=$ts; halt_line=$l ;;
+      'SECURITE ALL-CLEAR')
+        [ -n "$halt_ts" ] || continue
+        case "$entity" in operator:*) ;; *) continue ;; esac
+        has_ref=0; has_sig=0
+        shift 4
+        for f in "$@"; do
+          case "$f" in
+            "ref=$halt_ts") has_ref=1 ;;
+            sig=?*) has_sig=1 ;;
+          esac
+        done
+        if [ "$has_ref" -eq 1 ] && [ "$has_sig" -eq 1 ]; then halt_ts=""; halt_line=""; fi
+        ;;
+    esac
+  done < "$file"
+  set +f
+  [ -n "$halt_line" ] || return 1
+  printf '%s\n' "$halt_line"
+}
+
 cmd_halt_active() {
-  halt_file >/dev/null
+  halt_file >/dev/null && return 0
+  register_halt >/dev/null
 }
 
 cmd_show_halt() {
-  file=$(halt_file) || { printf 'pd-distress: no halt hoisted (this is not an all-clear)\n' >&2; exit 1; }
-  cat "$file"
+  if file=$(halt_file); then cat "$file"; return 0; fi
+  if line=$(register_halt); then
+    printf 'pd-distress: sentinel absent but the register still carries this HALT with no ALL-CLEAR (absence is not all-clear)\n' >&2
+    printf '%s\n' "$line"
+    return 0
+  fi
+  printf 'pd-distress: no halt hoisted (this is not an all-clear)\n' >&2
+  exit 1
 }
 
 [ $# -ge 1 ] || usage

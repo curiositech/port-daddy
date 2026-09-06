@@ -23,6 +23,7 @@ import {
   distressFilePath,
   formatDistressLine,
   haltSentinelPath,
+  readHaltFromRegister,
   readHaltSentinel,
 } from '../../lib/halt-watch.js';
 
@@ -207,6 +208,41 @@ describe('halt-watch: the listening watch', () => {
     writeFileSync(SENTINEL, `${HALT_LINE}\n`);
     tick(HALT_WATCH_INTERVAL_MS);
     expect(readFileSync(DISTRESS, 'utf8').trim().split('\n')).toHaveLength(2);
+  });
+
+  test('default reader (no sentinelPath): a deleted sentinel with an unlifted HALT on the register is still halted at boot', () => {
+    const savedHome = process.env.PD_HOME;
+    process.env.PD_HOME = HOME;
+    try {
+      mkdirSync(HOME, { recursive: true });
+      // The halt was hoisted properly (sentinel + register) and then an agent removed the sentinel.
+      writeFileSync(DISTRESS, `${HALT_LINE}\n`);
+      expect(existsSync(SENTINEL)).toBe(false);
+      const { watch, onHalt, sink } = makeWatch({ sentinelPath: undefined });
+      watch.start();
+      expect(watch.state()).toBe('halted');
+      expect(onHalt).toHaveBeenCalledTimes(1);
+      expect(watch.halt()).toMatchObject({ line: HALT_LINE, ref: '2026-09-05T14:02:11Z' });
+      expect(sink.events.some((e) => e.event === 'halt_sentinel_seen')).toBe(true);
+      const lines = readFileSync(DISTRESS, 'utf8').trim().split('\n');
+      expect(lines[1]).toMatch(/ daemon:prod control SEEN ref=2026-09-05T14:02:11Z$/);
+      expect(lines[2]).toMatch(/ daemon:prod control COMPLIED ref=2026-09-05T14:02:11Z$/);
+    } finally {
+      if (savedHome === undefined) delete process.env.PD_HOME; else process.env.PD_HOME = savedHome;
+    }
+  });
+
+  test('default reader: an empty home is nominal, and a bare sentinel is a halt with ref=sentinel', () => {
+    const savedHome = process.env.PD_HOME;
+    process.env.PD_HOME = HOME;
+    try {
+      expect(readHaltFromRegister(() => 7)).toBeNull();
+      mkdirSync(HOME, { recursive: true });
+      writeFileSync(SENTINEL, '');
+      expect(readHaltFromRegister(() => 7)).toEqual({ line: 'SECURITE HALT (sentinel present, no text)', ref: 'sentinel', detectedAt: 7, complied: false });
+    } finally {
+      if (savedHome === undefined) delete process.env.PD_HOME; else process.env.PD_HOME = savedHome;
+    }
   });
 
   test('ROUTINE listening check-ins go to the log, never the distress file', () => {

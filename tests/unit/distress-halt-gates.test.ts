@@ -10,15 +10,19 @@
  *   - the custodian    (lib/knowledge-custodian.ts)       — no auto-resurrect, no approval ask
  *
  * Each organ takes an injectable `haltActive` (tested both ways) and defaults
- * to the real sentinel in lib/distress.ts — the last block proves that
- * default wiring against a real sentinel file under a scratch PD_HOME. No
- * daemon is started.
+ * to the real predicate in lib/distress.ts — the last block proves that
+ * default wiring against real files under a scratch PD_HOME, including the
+ * ADR-0132 §4 rule that deleting the sentinel does not lift a halt the
+ * register still carries; only a signed ALL-CLEAR does. No daemon is started.
  */
 
 import { afterEach, beforeEach, describe, expect, jest, test } from '@jest/globals';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { generateKeyPairSync } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { readHalt } from '../../lib/distress.js';
+import { signAllClear } from '../../lib/distress-allclear.js';
 import { createTestDb } from '../setup-unit.js';
 import { createAgents, DEAD_THRESHOLDS } from '../../lib/agents.js';
 import { createLocks } from '../../lib/locks.js';
@@ -224,21 +228,71 @@ describe('default wiring reads the real sentinel under PD_HOME', () => {
     rmSync(scratch, { recursive: true, force: true });
   });
 
-  test('with no HALT file every organ acts; after `touch $PD_HOME/HALT` every organ stands down', () => {
+  const HALT_TS = '2026-09-05T14:02:11Z';
+  const HALT_LINE = `${HALT_TS} operator:erich SECURITE HALT reason=spend-runaway`;
+  const dead = () => ({ id: 'quiet-one', name: 'q', lastHeartbeat: Date.now() - DEAD_AGO });
+
+  test('with no HALT anywhere every organ acts; after `touch $PD_HOME/HALT` every organ stands down', () => {
     const agents = createAgents(db);
     const resurrection = createResurrection(db);
     agents.register('quiet-one');
     agePastDeath(db, 'quiet-one');
+    expect(resurrection.check(dead())).toEqual({ status: 'dead', queued: true });
+    expect(agents.cleanup()).toMatchObject({ cleaned: 1, halted: false });
 
+    agents.register('quiet-one');
+    agePastDeath(db, 'quiet-one');
     // Hoist by hand, exactly as the A0 runbook does: existence is the signal.
-    writeFileSync(join(process.env.PD_HOME!, 'HALT'), '2026-09-05T14:02:11Z operator:erich SECURITE HALT reason=spend-runaway\n');
+    writeFileSync(join(process.env.PD_HOME!, 'HALT'), `${HALT_LINE}\n`);
     expect(agents.cleanup().halted).toBe(true);
     expect(agents.get('quiet-one').success).toBe(true);
-    expect(resurrection.check({ id: 'quiet-one', name: 'q', lastHeartbeat: Date.now() - DEAD_AGO })).toMatchObject({ halted: true });
-    expect(resurrection.pending().count).toBe(0);
+    expect(resurrection.check(dead())).toMatchObject({ halted: true });
+    expect(resurrection.claim('quiet-one')).toMatchObject({ success: false, halted: true });
+  });
 
+  test('ADR-0132 §4: `rm $PD_HOME/HALT` does NOT resume the ladder while the register carries an unlifted HALT; a signed ALL-CLEAR does', () => {
+    const agents = createAgents(db);
+    const resurrection = createResurrection(db);
+    const handler = createHeartbeatDeathHandler({
+      sessions: { abandonByAgent: () => ['s1'], activeDurableSessionIdsByAgent: () => [] },
+      harbors: { leaveAll: () => 1 },
+      resurrection: { holdForDurableSessions: () => ({ held: false, changed: false, replacementAlreadyAdmitted: false }), getSalvageCapsule: () => undefined },
+      messaging: { publish() {} },
+      logger: { warn() {} },
+      activityLog: { log() {} },
+      custodian: null,
+    });
+    agents.register('quiet-one');
+    agePastDeath(db, 'quiet-one');
+
+    // Hoist properly: sentinel AND register line, as writeHalt / pd-distress do.
+    writeFileSync(join(process.env.PD_HOME!, 'HALT'), `${HALT_LINE}\n`);
+    writeFileSync(join(process.env.PD_HOME!, 'DISTRESS'), `${HALT_LINE}\n`, { flag: 'a' });
+    expect(agents.cleanup().halted).toBe(true);
+
+    // An agent deletes the sentinel. Absence is not all-clear.
     rmSync(join(process.env.PD_HOME!, 'HALT'));
-    expect(resurrection.check({ id: 'quiet-one', name: 'q', lastHeartbeat: Date.now() - DEAD_AGO })).toEqual({ status: 'dead', queued: true });
+    expect(readHalt()).toMatchObject({ source: 'register', at: HALT_TS });
+    expect(agents.cleanup()).toMatchObject({ cleaned: 0, halted: true });
+    expect(agents.get('quiet-one').success).toBe(true);
+    expect(resurrection.check(dead())).toMatchObject({ status: 'halted', halted: true });
+    expect(resurrection.pending().count).toBe(0);
+    expect(resurrection.claim('quiet-one')).toMatchObject({ success: false, halted: true });
+    expect(handler({ id: 'quiet-one', name: 'q', purpose: null, lastHeartbeat: 0, staleSince: 1, identityProject: 'acme' })).toMatchObject({ halted: true, abandonedSessionIds: [] });
+    // The deletion is journaled under the register's own forensics dir, not obeyed.
+    expect(existsSync(join(process.env.PD_HOME!, 'forensics'))).toBe(true);
+
+    // An unsigned "all-clear" appended by the same agent changes nothing.
+    writeFileSync(join(process.env.PD_HOME!, 'DISTRESS'), `2026-09-05T15:00:00Z agent:rogue SECURITE ALL-CLEAR ref=${HALT_TS}\n`, { flag: 'a' });
+    expect(agents.cleanup()).toMatchObject({ cleaned: 0, halted: true });
+
+    // Only the operator's signed ALL-CLEAR lifts it; then the ladder resumes with the same facts.
+    const { privateKey, publicKey } = generateKeyPairSync('ed25519');
+    writeFileSync(join(process.env.PD_HOME!, 'operator-allclear.pub'), publicKey.export({ format: 'pem', type: 'spki' }).toString());
+    const { line } = signAllClear({ haltTs: HALT_TS, operatorId: 'erich', privateKey, ts: '2026-09-05T16:00:00Z' });
+    writeFileSync(join(process.env.PD_HOME!, 'DISTRESS'), `${line}\n`, { flag: 'a' });
+    expect(readHalt()).toBeNull();
+    expect(resurrection.check(dead())).toEqual({ status: 'dead', queued: true });
     expect(agents.cleanup()).toMatchObject({ cleaned: 1, halted: false });
   });
 });
