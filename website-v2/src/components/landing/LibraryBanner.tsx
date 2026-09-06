@@ -10,9 +10,11 @@ import { COLLECTED_VOLUME } from '@/data/whitePapers'
  * distinct seven-part collections that both used to get called "seven
  * papers" (see the 2026-08-26 `/library` naming-collision fix). Same
  * problem shows up a level up, on the home page, where neither collection
- * had ever been named at all. These two labels are the fix: "the Volume"
- * (seven chapters, one prose case) and "the Proofs" (seven papers, the
- * math underneath it) — never "papers" for both again.
+ * had ever been named at all. These two labels are the fix: "the Book"
+ * (seven chapters, one argument, in dependency order) and the "standalone
+ * papers" (the same results in submission form) — never "papers" for both,
+ * and never "the Proofs" for the research papers, since three of the Book's
+ * own chapters are the ones that prove.
  *
  * Intentionally NOT a <section>: this is chrome-weight signage, not page
  * content, so it carries no PanelEyebrow/PanelTitle and stays out of the
@@ -35,9 +37,9 @@ export function LibraryBanner() {
             />
             <span className="min-w-0 font-sans text-[length:var(--type-meta-size)] leading-tight text-[var(--text-secondary)]">
               <span className="font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-primary)] group-hover:text-[var(--brand-primary)]">
-                The Volume
+                The Book
               </span>{' '}
-              — VII chapters, {COLLECTED_VOLUME.pages}pp, the architecture case in prose
+              — 7 chapters, {COLLECTED_VOLUME.pages}pp, the whole argument in order
             </span>
             <ArrowRight
               aria-hidden="true"
@@ -54,9 +56,9 @@ export function LibraryBanner() {
             />
             <span className="min-w-0 font-sans text-[length:var(--type-meta-size)] leading-tight text-[var(--text-secondary)]">
               <span className="font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-primary)] group-hover:text-[var(--story-indigo)]">
-                The Proofs
+                Standalone papers
               </span>{' '}
-              — 7 papers, {RESEARCH_PAPER_TOTAL_PAGES}pp, the math adversarially reviewed
+              — 7 submission-form papers, {RESEARCH_PAPER_TOTAL_PAGES}pp, the same results in conference form
             </span>
             <ArrowRight
               aria-hidden="true"

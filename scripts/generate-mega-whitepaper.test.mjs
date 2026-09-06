@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import test from 'node:test';
 
@@ -8,8 +8,15 @@ import {
   collateReferences,
   compareNormalizedReferences,
   inlineInputs,
+  loadTextbook,
   namespaceLabels,
+  renderContents,
+  renderTextbookMap,
   rewriteCitations,
+  sharedMapDrift,
+  sharedMapTargets,
+  stripPaperApparatus,
+  validateTextbook,
 } from './generate-mega-whitepaper.mjs';
 
 const generatorSource = readFileSync(
@@ -25,29 +32,196 @@ const seamsSource = readFileSync(
   'utf8',
 );
 
-test('the collected-volume generator inserts prose seams and no editorial plates', () => {
-  assert.match(generatorSource, /pdchapteropening\$\{paper\.roman\}/);
-  assert.match(generatorSource, /pdchapterhandoff\$\{paper\.roman\}/);
+test('the Book generator inserts prefix-keyed prose seams and no editorial plates', () => {
+  assert.match(generatorSource, /pdchapteropening\$\{paper\.prefix\}/);
+  assert.match(generatorSource, /pdchapterhandoff\$\{paper\.prefix\}/);
+  assert.doesNotMatch(generatorSource, /paper\.roman/);
   assert.doesNotMatch(generatorSource, /pdchapterplate|paper\.plate|editorial plate/i);
 });
 
-test('every generated chapter seam is defined by the collected-volume preamble', () => {
+test('every chapter in textbook.json has exactly one opening and one handoff seam', () => {
   assert.match(
     collectedVolumeSource,
     /\\input\{coordination-papers-mega-volume-seams\.tex\}/,
-    'the collected volume must load the seam definitions before the generated body',
+    'the Book must load the seam definitions before the generated body',
   );
-
-  for (const roman of ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII']) {
+  const textbook = loadTextbook();
+  for (const chapter of textbook.chapters) {
     for (const kind of ['opening', 'handoff']) {
-      const command = `\\newcommand{\\pdchapter${kind}${roman}}`;
+      const command = `\\newcommand{\\pdchapter${kind}${chapter.prefix}}`;
       assert.equal(
         seamsSource.split(command).length - 1,
         1,
-        `expected exactly one definition of \\pdchapter${kind}${roman}`,
+        `expected exactly one definition of \\pdchapter${kind}${chapter.prefix}`,
       );
     }
   }
+  // No seam is keyed by a Roman numeral any more: reordering the book must
+  // move a chapter's rails with it.
+  assert.doesNotMatch(seamsSource, /\\pdchapter(?:opening|handoff)(?:I|V|X)+\b/);
+});
+
+test('textbook.json is the single source of record and is internally consistent', () => {
+  const textbook = loadTextbook();
+  assert.equal(textbook.chapters.length, 7);
+  assert.deepEqual(textbook.chapters.map((c) => c.number), [1, 2, 3, 4, 5, 6, 7]);
+  assert.deepEqual(
+    textbook.chapters.map((c) => c.prefix),
+    ['swk', 'anchor', 'ls', 'stp', 'he', 'bonded', 'fh'],
+  );
+  for (const chapter of textbook.chapters) {
+    assert.ok(existsSync(resolve(chapter.source)), `${chapter.source} exists`);
+    const source = readFileSync(resolve(chapter.source), 'utf8');
+    assert.match(
+      source,
+      new RegExp(`\\\\newcommand\\{\\\\pdchapterprefix\\}\\{${chapter.prefix}\\}`),
+      `${chapter.source} declares its own prefix so the shared map can number it`,
+    );
+    assert.match(source, /\\input\{figures\/pd-textbook-map\}/);
+    assert.match(source, /\\input\{figures\/pd-palette\}/);
+    assert.match(source, /\\input\{figures\/pd-hyperlinks\}\s*\n\s*\\begin\{document\}/);
+    assert.doesNotMatch(source, /\\usepackage\[hidelinks\]\{hyperref\}/);
+    assert.doesNotMatch(
+      source.replace(/^\s*%.*$/gm, ''),
+      /Chapters?[~ ]+\(?(?:I|II|III|IV|V|VI|VII)\b/,
+      `${chapter.source} must not refer to chapters by first-edition numeral`,
+    );
+  }
+});
+
+test('textbook.json validation fails closed on structural drift', () => {
+  const base = JSON.parse(readFileSync(resolve('whitepaper/textbook.json'), 'utf8'));
+  const clone = () => JSON.parse(JSON.stringify(base));
+
+  const gap = clone();
+  gap.chapters[6].number = 9;
+  assert.throws(() => validateTextbook(gap, 't.json'), /contiguous/);
+
+  const early = clone();
+  early.chapters.find((c) => c.id === 'anchor-protocol').discharges = 'legible-swarm';
+  assert.throws(() => validateTextbook(early, 't.json'), /must come after the chapter it discharges/);
+
+  const orphan = clone();
+  orphan.parts[3].chapters = orphan.parts[3].chapters.filter((id) => id !== 'federated-harbor');
+  assert.throws(() => validateTextbook(orphan, 't.json'), /belongs to no part/);
+
+  const badPrefix = clone();
+  badPrefix.chapters[0].prefix = 'swk-1';
+  assert.throws(() => validateTextbook(badPrefix, 't.json'), /lowercase letters/);
+});
+
+test('every chapter opens on a question and an attributed epigraph', () => {
+  for (const chapter of loadTextbook().chapters) {
+    assert.match(chapter.question, /\?$/, `${chapter.id}: the question ends with a question mark`);
+    assert.ok(chapter.epigraph.text.length > 10, `${chapter.id}: epigraph text`);
+    assert.match(chapter.epigraph.source, /\d{4}/, `${chapter.id}: epigraph source names a year`);
+    assert.match(chapter.color, /^pd[a-z]+$/, `${chapter.id}: inherits its part's hue`);
+  }
+  const rendered = renderTextbookMap(loadTextbook());
+  assert.match(rendered, /pdchapterquestionofswk\\endcsname\{Where can a rule be made real\?\}/);
+  assert.match(rendered, /pdchapterepigraphsourceofstp\\endcsname\{John Locke/);
+  // chapters inherit their part's hue: both Part I chapters are cobalt
+  assert.match(rendered, /pdchaptercolorofswk\\endcsname\{pdcobalt\}/);
+  assert.match(rendered, /pdchaptercolorofanchor\\endcsname\{pdcobalt\}/);
+  assert.match(rendered, /\\pdweightsegment\{IV\}\{pdgold\}\{book:appendices\}\{3\}/);
+});
+
+test('Book chapters shed their paper apparatus and open on their first section', () => {
+  const body = [
+    '\\begin{abstract}\\noindent',
+    'An abstract.',
+    '\\end{abstract}',
+    '',
+    '\\noindent\\textbf{Keywords:} one, two,',
+    'three',
+    '',
+    '\\noindent\\textit{Reading time: about 40 minutes (\\S\\ref{sec:a}--\\ref{sec:b}). Read this first.}',
+    '',
+    '\\vspace{0.6cm}',
+    '% --- Series locator box ---',
+    '\\begin{center}',
+    '\\begin{tikzpicture}\\node{locator};\\end{tikzpicture}',
+    '\\end{center}',
+    '\\newpage',
+    "\\section*{Reader's Map}\\label{sec:readers-map}",
+    'A table of routes.',
+    '',
+    '\\noindent\\textbf{Volume Context.} Written for the old collection.',
+    '',
+    '\\newpage',
+    '\\section{Introduction}\\label{sec:a}',
+    'Exposition. See \\ref{sec:readers-map}.',
+    '\\begin{center}\\begin{tikzpicture}\\node{a real figure};\\end{tikzpicture}\\end{center}',
+    '\\begin{tikzpicture}\\node{\\textbf{\\scshape Volume Context.} old};\\end{tikzpicture}',
+    '\\section{Second}\\label{sec:b}',
+  ].join('\n');
+  const { body: stripped, stripped: kinds } = stripPaperApparatus(body);
+  assert.deepEqual(
+    [...new Set(kinds)].sort(),
+    ['abstract', 'keywords', 'locator-box', 'page-furniture', 'readers-map', 'reading-time', 'volume-context'],
+  );
+  assert.match(stripped, /^\s*(?:\\phantomsection\\label\{sec:readers-map\}\n)?\\section\{Introduction\}/, 'the first thing left is the first section');
+  assert.match(stripped, /\\phantomsection\\label\{sec:readers-map\}/, 'a referenced label from the removed map survives as a stub');
+  assert.match(stripped, /a real figure/, 'figures after the first section are untouched');
+  assert.doesNotMatch(stripped, /Volume Context|Keywords|Reading time|locator|An abstract/);
+});
+
+test('the committed shared textbook map matches textbook.json in both copies', () => {
+  assert.deepEqual(sharedMapDrift(), []);
+  const [first, second] = sharedMapTargets.map((target) => readFileSync(resolve(target), 'utf8'));
+  assert.equal(first, second);
+  const rendered = renderTextbookMap(loadTextbook());
+  assert.match(rendered, /\\providecommand\{\\pdchaptercount\}\{7\}/);
+  assert.match(rendered, /pdchapternumberofswk\\endcsname\{1\}/);
+  assert.match(rendered, /pdchapternumberofls\\endcsname\{3\}/);
+  assert.match(rendered, /\\pdtextbookmap/);
+});
+
+test('the shared palette and hyperlink files are byte-identical in both source trees', () => {
+  for (const name of ['pd-palette.tex', 'pd-hyperlinks.tex', 'pd-figure-language.tex']) {
+    assert.equal(
+      readFileSync(resolve(`whitepaper/figures/${name}`), 'utf8'),
+      readFileSync(resolve(`website-v2/public/whitepaper/figures/${name}`), 'utf8'),
+      `${name} drifted between whitepaper/figures and website-v2/public/whitepaper/figures`,
+    );
+  }
+});
+
+test('the front-matter map lists every chapter in order with a first-edition concordance', () => {
+  const contents = renderContents(loadTextbook());
+  const numbers = [...contents.matchAll(/\\pdcontentschapter\{(\d+)\}/g)].map((m) => Number(m[1]));
+  assert.deepEqual(numbers, [1, 2, 3, 4, 5, 6, 7]);
+  assert.match(contents, /I & 3 & \\pdchapref\{ls\}\{The Legible Swarm\}/);
+  assert.match(contents, /VII & 7 & \\pdchapref\{fh\}\{The Federated Harbor\}/);
+  assert.match(contents, /Proves what \\pdchapref\{swk\}/);
+});
+
+test('every cross-reference macro is namespaced, comma lists split, book anchors kept', () => {
+  const source = [
+    '\\cref{thm:a,lem:b}',
+    '\\Cref{sec:x}',
+    '\\cpageref{fig:y}',
+    '\\cref*{eq:z}',
+    '\\crefrange{ex:1}{ex:9}',
+    '\\hyperref[sec:contract]{the contract}',
+    '\\hyperref[chap:he]{the market}',
+    '\\pageref{chap:swk}',
+    '\\labelcref{def:w}',
+  ].join('\n');
+  assert.equal(
+    namespaceLabels(source, 'stp'),
+    [
+      '\\cref{stp:thm:a,stp:lem:b}',
+      '\\Cref{stp:sec:x}',
+      '\\cpageref{stp:fig:y}',
+      '\\cref*{stp:eq:z}',
+      '\\crefrange{stp:ex:1}{stp:ex:9}',
+      '\\hyperref[stp:sec:contract]{the contract}',
+      '\\hyperref[chap:he]{the market}',
+      '\\pageref{chap:swk}',
+      '\\labelcref{stp:def:w}',
+    ].join('\n'),
+  );
 });
 
 test('missing local citations fail closed', () => {

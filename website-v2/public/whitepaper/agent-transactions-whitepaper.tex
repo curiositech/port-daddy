@@ -18,7 +18,7 @@
 \usepackage{float}
 \usepackage{caption}
 \usepackage{enumitem}
-\usepackage[hidelinks]{hyperref}
+\usepackage[backref=page]{hyperref}
 \captionsetup{font=small,labelfont=bf}
 
 \usetikzlibrary{arrows.meta,positioning,shapes.geometric,calc,fit}
@@ -41,6 +41,9 @@
 \definecolor{hhteal}{HTML}{00564C}
 \definecolor{hhpaper}{HTML}{FBF7EF}
 \definecolor{hhgray}{HTML}{5C5650}
+\input{figures/pd-palette}
+\newcommand{\pdchapterprefix}{bonded}% this chapter's key in whitepaper/textbook.json
+\input{figures/pd-textbook-map}
 \input{figures/pd-figure-language}
 
 % Verification-status markers for the Appendix A status table.
@@ -146,14 +149,14 @@
 \fancyhf{}
 \fancyhead[L]{\small\textit{The Bonded Commons}}
 \fancyhead[R]{\small\thepage}
-\fancyfoot[C]{\footnotesize\color{hhgray} Port Daddy Coordination Papers \textperiodcentered\ Chapter VI of VII}
+\fancyfoot[C]{\footnotesize\color{hhgray} Port Daddy Coordination Papers \textperiodcentered\ Chapter~\pdchapternumber\ of \pdchaptercount}
 \renewcommand{\headrulewidth}{0.4pt}
 \renewcommand{\footrulewidth}{0pt}
 
 % ─── Title ───────────────────────────────────────────────────────────────────
 \title{
   \vspace{-1cm}
-  {\Large\textsc{Port Daddy Coordination Papers --- Chapter VI of VII}}\\[0.5cm]
+  {\Large\textsc{Port Daddy Coordination Papers --- Chapter~\pdchapternumber\ of \pdchaptercount}}\\[0.5cm]
   \rule{\textwidth}{0.5pt}\\[0.3cm]
   {\LARGE\textbf{The Bonded Commons:}}\\[0.2cm]
   {\Large Pre-Transactional Trust Infrastructure\\for Multi-Agent Systems}\\[0.3cm]
@@ -168,9 +171,12 @@
   Business Economics \& Public Policy\\[0.1cm]
   Indiana University
 }
-\date{August 2026\\Version 2.7 (revised pre-print)}
+\date{September 2026\\Version 2.8 (textbook edition)}
 
 % ─── Document ────────────────────────────────────────────────────────────────
+% Hyperlink and cross-reference discipline (must stay last in the preamble).
+\input{figures/pd-hyperlinks}
+
 \begin{document}
 \setlength{\emergencystretch}{2em}
 
@@ -196,13 +202,11 @@ Two autonomous agents working on the same project corrupt each other's state, do
 \begin{tikzpicture}
 \node[draw=hhebony,line width=0.8pt,rounded corners=5pt,fill=hhsand!22,
       inner sep=11pt,text width=15.1cm,align=left,font=\small] {%
-  {\sffamily\bfseries\footnotesize\textcolor{hhebony}{PORT DADDY COORDINATION PAPERS\hfill CHAPTER~VI~OF~VII}}\\[5pt]
+  {\sffamily\bfseries\footnotesize\textcolor{hhebony}{PORT DADDY COORDINATION PAPERS\hfill CHAPTER~\pdchapternumber~OF~\pdchaptercount}}\\[5pt]
   {\color{hhebony!35}\rule{\linewidth}{0.4pt}}\\[6pt]
-  \textbf{V.~The Anchor Protocol.}~Authentication, delegation, attenuation, and revocation inside one harbor.\\[4pt]
-  {\color{hhcobalt}\textbf{VI.~The Bonded Commons \textnormal{(this chapter)}.}}~Evidence, bonding, advisory claims, and the incentive conditions for cooperation.\\[4pt]
-  \textbf{VII.~The Federated Harbor.}~Identity, revocation, and settlement across mutually sovereign machines.\\[6pt]
+  \pdtextbookmap\\[6pt]
   {\color{hhebony!35}\rule{\linewidth}{0.4pt}}\\[5pt]
-  {\footnotesize Chapters I--IV form the product arc; Chapters V--VII provide the protocol, economic, and federation deep dives. Every chapter is independently readable.}
+  {\footnotesize \pdbooktitle{} reads in this order: each chapter stands on the ones before it, and each proof chapter follows the chapter whose promises it keeps. Every chapter is independently readable.}
 };
 \end{tikzpicture}
 \end{center}
@@ -221,7 +225,7 @@ The paper builds in four layers; each layer carries a critical formal claim or e
 \toprule
 \textbf{Layer} & \textbf{Critical artifact} & \textbf{Lives at} \\
 \midrule
-\textbf{(1) Structural prevention} & Capability-attenuated tokens; ProVerif proofs of algorithm-confusion immunity and delegation replay resistance & \S\ref{sec:structural}--\S\ref{sec:isolation}; Chapter~V (\emph{The Anchor Protocol}) \\
+\textbf{(1) Structural prevention} & Capability-attenuated tokens; ProVerif proofs of algorithm-confusion immunity and delegation replay resistance & \S\ref{sec:structural}--\S\ref{sec:isolation}; \pdchapref{anchor}{The Anchor Protocol} \\
 \textbf{(2) Immutable attribution} & Merkle Forest with cross-daemon inclusion proofs; EasyCrypt binding mechanization (\texttt{binding.ec}) & \S\ref{sec:merkle-forest}; Appendix~\ref{app:mech} \\
 \textbf{(3) Economic alignment} & Competitive-insurance auction; conditional Monte Carlo comparison & \S\ref{sec:youle}; \S\ref{sec:youle:welfare} \\
 \textbf{(4) Governance} & Sen-inspired design warning; advisory-conflict completeness & \S\ref{sec:sen}--\S\ref{sec:advisory} \\
@@ -235,12 +239,12 @@ The paper builds in four layers; each layer carries a critical formal claim or e
 \item \textbf{Engineering manager evaluating multi-agent infrastructure} --- abstract, \S\ref{sec:why-consent} (``Why Agents Consent''), \S\ref{sec:economic} (bond pricing), \S\ref{sec:youle:welfare} (welfare results), then Appendix~\ref{app:worked} (one \$5 task traced end to end). The Appendix~\ref{app:mech} status registry tells you what is production-ready and what is research.
 \item \textbf{Cryptoeconomic protocol designer} --- abstract, then \S\ref{sec:youle} (auction mechanism), \S\ref{sec:youle:welfare} (welfare theorem with inline Pareto Monte Carlo), \S\ref{sec:youle:a5} (A5 Sybil-deterrence is coverage-bounded --- a surprising negative result).
 \item \textbf{AI safety researcher} --- \S\ref{sec:morality} (``What Morality Means When Death Is Cheap''), \S\ref{sec:sen} (Sen's theorem), \S\ref{sec:economic} (collateralized work contracts). Skim Appendix~\ref{app:mech} for the proof posture.
-\item \textbf{Distributed systems engineer} --- \S\ref{sec:structural}--\S\ref{sec:merkle-forest} (primitives), then Chapter~V (\emph{The Anchor Protocol}) for the cryptographic-token protocol detail.
+\item \textbf{Distributed systems engineer} --- \S\ref{sec:structural}--\S\ref{sec:merkle-forest} (primitives), then \pdchapref{anchor}{The Anchor Protocol} for the cryptographic-token protocol detail.
 \item \textbf{Policy / governance analyst} --- abstract, \S\ref{sec:sen}--\S\ref{sec:advisory} (the Sen's-theorem argument for advisory rather than enforced claims), \S\ref{sec:federated-sovereign} (federated sovereign).
 \end{itemize}
 
 \vspace{0.5cm}
-\noindent\textbf{Volume Context.} Chapter~V supplies the ProVerif-verified cryptographic-token foundation this chapter assumes throughout---Harbor Card phases, cuckoo-filter revocation, bounded multi-hop delegation; this chapter supplies the economic and governance argument built on top of it.
+\noindent\textbf{Volume Context.} \pdchapref{anchor}{The Anchor Protocol} supplies the ProVerif-verified cryptographic-token foundation this chapter assumes throughout---Harbor Card phases, cuckoo-filter revocation, bounded multi-hop delegation; this chapter supplies the economic and governance argument built on top of it.
 
 \newpage
 \tableofcontents
@@ -371,7 +375,7 @@ The reframe therefore yields an audit obligation, not an automatic guarantee. No
 No price-of-anarchy bound follows from this interpretation alone. The simulations of \S\ref{sec:youle:welfare} compare one auction model with one static baseline; an analytical worst-equilibrium bound for the coordination game remains open.
 
 \paragraph{Formal-backing status of the game-theoretic core.}
-One disclosure belongs here, at the point the game theory enters, rather than buried in the appendix: in the maturity vocabulary of Appendix~\ref{app:mech}, this chapter's game theory is \SpecOnly\ \emph{at the level of the research program}, whatever each individual artifact's status in Table~\ref{tab:verification-status}. This chapter's game-theoretic core---the correlating-device reading above, the Sen-inspired design warning (\S\ref{sec:sen}), the claim-signaling incentive-compatibility argument (\S\ref{sec:claim-signaling-ic}), the competitive-insurance mechanism and its welfare comparison (\S\ref{sec:youle}), and the cartel folk-theorem analysis (\S\ref{sec:youle:a6})---has \emph{no companion formal paper}. The structural and cryptographic half of this chapter is backed by Chapter~V~\cite{owens2026anchor}, which carries the ProVerif models and the attenuation proofs; the economic half is argued here, from scratch, and exists nowhere else in the program. What supports it is exactly what Table~\ref{tab:verification-status} lists---mechanized checks and Monte Carlo sweeps over supplied models, several of them \Partial\ by that table's own grading---and not a peer-reviewable formal derivation a reader can be pointed to. Read this material at that maturity level.
+One disclosure belongs here, at the point the game theory enters, rather than buried in the appendix: in the maturity vocabulary of Appendix~\ref{app:mech}, this chapter's game theory is \SpecOnly\ \emph{at the level of the research program}, whatever each individual artifact's status in Table~\ref{tab:verification-status}. This chapter's game-theoretic core---the correlating-device reading above, the Sen-inspired design warning (\S\ref{sec:sen}), the claim-signaling incentive-compatibility argument (\S\ref{sec:claim-signaling-ic}), the competitive-insurance mechanism and its welfare comparison (\S\ref{sec:youle}), and the cartel folk-theorem analysis (\S\ref{sec:youle:a6})---has \emph{no companion formal paper}. The structural and cryptographic half of this chapter is backed by \pdchapref{anchor}{The Anchor Protocol}~\cite{owens2026anchor}, which carries the ProVerif models and the attenuation proofs; the economic half is argued here, from scratch, and exists nowhere else in the program. What supports it is exactly what Table~\ref{tab:verification-status} lists---mechanized checks and Monte Carlo sweeps over supplied models, several of them \Partial\ by that table's own grading---and not a peer-reviewable formal derivation a reader can be pointed to. Read this material at that maturity level.
 
 \subsection{Why Agents Consent}\label{sec:why-consent}
 

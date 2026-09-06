@@ -93,15 +93,21 @@ BUILT=()
 paper_sources() {
   local srcdir="$1" roottex="$2"
   if [ "$roottex" = "coordination-papers-mega-volume.tex" ]; then
+    # whitepaper/textbook.json is the one source of chapter order, numbering,
+    # parts, and edition metadata; the generator renders the Book from it.
     printf '%s\n' "$srcdir/$roottex" "$srcdir/coordination-papers-mega-volume-preamble.tex" \
       "$srcdir/coordination-papers-mega-volume-seams.tex" \
       "$srcdir/coordination-papers-mega-volume-appendices.tex" \
-      "scripts/generate-mega-whitepaper.mjs"
-    paper_sources "whitepaper" "legible-swarm.tex"
+      "scripts/generate-mega-whitepaper.mjs" "whitepaper/textbook.json"
+    # Art plates (jacket, part and chapter openers) are Book inputs too.
+    if [ -d "$srcdir/plates" ]; then
+      find "$srcdir/plates" -type f | sort
+    fi
     paper_sources "whitepaper" "single-writer-kernel.tex"
+    paper_sources "$PUB" "anchor-protocol-whitepaper.tex"
+    paper_sources "whitepaper" "legible-swarm.tex"
     paper_sources "$PUB" "spawn-to-person.tex"
     paper_sources "$PUB" "harbor-economy.tex"
-    paper_sources "$PUB" "anchor-protocol-whitepaper.tex"
     paper_sources "$PUB" "agent-transactions-whitepaper.tex"
     paper_sources "$PUB" "federated-harbor-whitepaper.tex"
     return

@@ -18,7 +18,7 @@
 \usepackage{float}
 \usepackage{caption}
 \usepackage{enumitem}
-\usepackage[hidelinks]{hyperref}
+\usepackage[backref=page]{hyperref}
 \captionsetup{font=small,labelfont=bf}
 % Algorithms are formatted using lstlisting with custom pseudocode style
 
@@ -40,6 +40,9 @@
 \definecolor{hhteal}{HTML}{00564C}
 \definecolor{hhpaper}{HTML}{FBF7EF}
 \definecolor{hhgray}{HTML}{5C5650}
+\input{figures/pd-palette}
+\newcommand{\pdchapterprefix}{anchor}% this chapter's key in whitepaper/textbook.json
+\input{figures/pd-textbook-map}
 \input{figures/pd-figure-language}
 
 % Verification-status markers for the Appendix A status table.
@@ -117,14 +120,14 @@
 \fancyhf{}
 \fancyhead[L]{\small\textit{The Anchor Protocol}}
 \fancyhead[R]{\small\thepage}
-\fancyfoot[C]{\footnotesize\color{hhgray} Port Daddy Coordination Papers \textperiodcentered\ Chapter V of VII}
+\fancyfoot[C]{\footnotesize\color{hhgray} Port Daddy Coordination Papers \textperiodcentered\ Chapter~\pdchapternumber\ of \pdchaptercount}
 \renewcommand{\headrulewidth}{0.4pt}
 \renewcommand{\footrulewidth}{0pt}
 
 % ─── Title ───────────────────────────────────────────────────────────────────
 \title{
   \vspace{-1cm}
-  {\Large\textsc{Port Daddy Coordination Papers --- Chapter V of VII}}\\[0.5cm]
+  {\Large\textsc{Port Daddy Coordination Papers --- Chapter~\pdchapternumber\ of \pdchaptercount}}\\[0.5cm]
   \rule{\textwidth}{0.5pt}\\[0.3cm]
   {\LARGE\textbf{The Anchor Protocol:}}\\[0.2cm]
   {\Large A Mechanically Analyzed Control Plane\\for Local Agent Swarms}\\[0.3cm]
@@ -135,9 +138,12 @@
   Curiositech LLC\\[0.2cm]
   \texttt{engineering@portdaddy.dev}
 }
-\date{August 2026\\Version 1.4 (revised pre-print)}
+\date{September 2026\\Version 1.5 (textbook edition)}
 
 % ─── Document ────────────────────────────────────────────────────────────────
+% Hyperlink and cross-reference discipline (must stay last in the preamble).
+\input{figures/pd-hyperlinks}
+
 \begin{document}
 \setlength{\emergencystretch}{2em}
 
@@ -159,7 +165,7 @@ This paper introduces the \textbf{Anchor Protocol}, a cryptographic and semantic
 \noindent\textbf{Keywords:} distributed systems security, formal verification, capability-based security, multi-agent coordination, symbolic protocol analysis, ProVerif, JWT security, Ed25519
 
 \vspace{0.4cm}
-\noindent\textit{Reading time: approximately 30 minutes end-to-end. Chapter~VI, \emph{The Bonded Commons: Pre-Transactional Trust Infrastructure for Multi-Agent Systems} (Owens 2026), carries the economic and governance argument; either paper can be read first.}
+\noindent\textit{Reading time: approximately 30 minutes end-to-end. \pdchapref{bonded}{The Bonded Commons: Pre-Transactional Trust Infrastructure for Multi-Agent Systems} (Owens 2026) carries the economic and governance argument; either paper can be read first.}
 
 \vspace{0.6cm}
 
@@ -168,13 +174,11 @@ This paper introduces the \textbf{Anchor Protocol}, a cryptographic and semantic
 \begin{tikzpicture}
 \node[draw=hhebony,line width=0.8pt,rounded corners=5pt,fill=hhsand!22,
       inner sep=11pt,text width=15.1cm,align=left,font=\small] {%
-  {\scshape\bfseries\footnotesize\textcolor{hhebony}{Port Daddy Coordination Papers\hfill Chapter~V~of~VII}}\\[5pt]
+  {\scshape\bfseries\footnotesize\textcolor{hhebony}{Port Daddy Coordination Papers\hfill Chapter~\pdchapternumber~of~\pdchaptercount}}\\[5pt]
   {\color{hhebony!35}\rule{\linewidth}{0.4pt}}\\[6pt]
-  {\color{hhcobalt}\textbf{V.~The Anchor Protocol \textnormal{(this chapter)}.}}~Authentication, delegation, attenuation, and revocation inside one harbor.\\[4pt]
-  \textbf{VI.~The Bonded Commons.}~Evidence, bonding, advisory claims, and the incentive conditions for cooperation.\\[4pt]
-  \textbf{VII.~The Federated Harbor.}~Identity, revocation, and settlement across mutually sovereign machines.\\[6pt]
+  \pdtextbookmap\\[6pt]
   {\color{hhebony!35}\rule{\linewidth}{0.4pt}}\\[5pt]
-  {\footnotesize Chapters I--IV form the product arc; Chapters V--VII provide the protocol, economic, and federation deep dives. Every chapter is independently readable.}
+  {\footnotesize \pdbooktitle{} reads in this order: each chapter stands on the ones before it, and each proof chapter follows the chapter whose promises it keeps. Every chapter is independently readable.}
 };
 \end{tikzpicture}
 \end{center}
@@ -211,7 +215,7 @@ To make it enforceable, Port Daddy introduces the concept of a \textbf{Harbor}--
 \node[draw=hhebony,thick,fill=hhsand!30,rounded corners=2pt,
       inner sep=8pt,text width=\dimexpr\textwidth-22pt\relax,
       align=left] (cbox) {%
-  \small\textbf{\scshape Volume Context.}\enspace This chapter provides the cryptographic substrate. Chapter~VI (\emph{The Bonded Commons: Pre-Transactional Trust Infrastructure for Multi-Agent Systems}) builds the economic and game-theoretic layer on top: bonded participation, conditional auctions, mechanism analysis, and Sen-inspired advisory conflict resolution. The Anchor Protocol is a self-contained subset consumed as the trust kernel for the wider mechanism design. Read this chapter for ``how does the daemon authenticate an agent?''; read Chapter~VI for ``why should there be a daemon at all?''
+  \small\textbf{\scshape Volume Context.}\enspace This chapter provides the cryptographic substrate. \pdchapref{bonded}{The Bonded Commons} builds the economic and game-theoretic layer on top: bonded participation, conditional auctions, mechanism analysis, and Sen-inspired advisory conflict resolution. The Anchor Protocol is a self-contained subset consumed as the trust kernel for the wider mechanism design. Read this chapter for ``how does the daemon authenticate an agent?''; read \pdchapref{bonded}{The Bonded Commons} for ``why should there be a daemon at all?''
 };
 \end{tikzpicture}
 \vspace{4pt}
@@ -860,7 +864,7 @@ Agent Payments Protocol (AP2): Mandates.
 
 \section{Formal Verification Status}\label{app:anchor-mech}
 
-\paragraph{Artifact availability.} Every artifact named in Table~\ref{tab:anchor-status} is bundled at \url{https://portdaddy.dev/whitepaper/artifacts/}. The verified Rust core is the open-source \texttt{harbor-card-rs} crate; runtime components are deployed inside the Port Daddy daemon binary. Chapter~VI, \emph{The Bonded Commons}, carries the cross-paper status table; this appendix lists only the items that pertain specifically to the Anchor Protocol.
+\paragraph{Artifact availability.} Every artifact named in Table~\ref{tab:anchor-status} is bundled at \url{https://portdaddy.dev/whitepaper/artifacts/}. The verified Rust core is the open-source \texttt{harbor-card-rs} crate; runtime components are deployed inside the Port Daddy daemon binary. \pdchapref{bonded}{The Bonded Commons} carries the cross-paper status table; this appendix lists only the items that pertain specifically to the Anchor Protocol.
 
 \renewcommand{\arraystretch}{1.15}
 \begin{table}[H]

@@ -38,17 +38,29 @@ describe('reproducible whitepaper source scoping', () => {
     ).split('\n');
 
     expect(sources[0]).toBe('website-v2/public/whitepaper/spawn-to-person.tex');
-    expect(sources).toHaveLength(15);
+    expect(sources).toHaveLength(18);
     expect(sources).toContain(
       'website-v2/public/whitepaper/figures/pd-figure-language.tex',
     );
     expect(sources).toContain(
       'website-v2/public/whitepaper/figures/fig-stp-rate-the-raters.tex',
     );
+    // Every non-root input is either an stp figure or one of the shared
+    // figures/pd-*.tex files (palette, textbook map, hyperlinks, figure language).
     expect(sources.slice(1).every((source) =>
-      source.includes('/figures/fig-stp-') || source.endsWith('/figures/pd-figure-language.tex')))
+      source.includes('/figures/fig-stp-') || /\/figures\/pd-[a-z-]+\.tex$/.test(source)))
       .toBe(true);
     expect(sources.some((source) => source.includes('fig-anchor-'))).toBe(false);
+  });
+
+  test('the Book depends on textbook.json, the one source of chapter order', () => {
+    const sources = bashFunction(
+      'paper_sources',
+      'website-v2/public/whitepaper',
+      'coordination-papers-mega-volume.tex',
+    ).split('\n');
+    expect(sources).toContain('whitepaper/textbook.json');
+    expect(sources).toContain('scripts/generate-mega-whitepaper.mjs');
   });
 
   test('every analytical paper declares the shared figure language as a source', () => {

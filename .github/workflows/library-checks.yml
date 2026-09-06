@@ -1,0 +1,79 @@
+name: Library Checks
+
+# The Harbor library's drift guards, in one place: the Book's single source of
+# record (whitepaper/textbook.json) against its generated mirrors, the LaTeX
+# palette against the design tokens, every \cite against a \bibitem across the
+# three TeX corpora, and every reviewer correction against the sites that echo
+# it. Each check is stdlib-only (Python) or dependency-free (Node), so the job
+# is fast and never needs TeX. The PDFs themselves are built by
+# whitepaper-build.yml and harbor-research-build.yml.
+#
+# Born from the PR #9911 review: check_citations.py and
+# check_propagated_corrections.py existed but nothing ran them.
+
+on:
+  pull_request:
+    paths:
+      - 'whitepaper/**'
+      - 'website-v2/public/whitepaper/**'
+      - 'website-v2/src/data/textbook.json'
+      - 'website-v2/src/styles/tokens.semantic.css'
+      - 'website-v2/scripts/check-figure-palette.mjs'
+      - 'docs/harbor-research/**'
+      - 'scripts/harbor-research/**'
+      - 'scripts/generate-mega-whitepaper.mjs'
+      - 'scripts/generate-mega-whitepaper.test.mjs'
+      - '.github/workflows/library-checks.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'whitepaper/**'
+      - 'website-v2/public/whitepaper/**'
+      - 'website-v2/src/data/textbook.json'
+      - 'website-v2/src/styles/tokens.semantic.css'
+      - 'website-v2/scripts/check-figure-palette.mjs'
+      - 'docs/harbor-research/**'
+      - 'scripts/harbor-research/**'
+      - 'scripts/generate-mega-whitepaper.mjs'
+      - 'scripts/generate-mega-whitepaper.test.mjs'
+      - '.github/workflows/library-checks.yml'
+  # Merge queue: run unconditionally so a required check context always
+  # appears (a path-filtered workflow that does not match would hang the
+  # queue). Every check here is seconds long and passes when nothing drifted.
+  merge_group:
+
+permissions:
+  contents: read
+
+jobs:
+  library-checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: textbook.json is the one source of chapter order (generated mirrors match)
+        run: node scripts/generate-mega-whitepaper.mjs --check-shared
+
+      - name: Book generator contract (namespacing, apparatus stripping, seams, shared files)
+        run: node --test scripts/generate-mega-whitepaper.test.mjs
+
+      - name: Book body generates from the chapter sources (fails closed on drift)
+        run: node scripts/generate-mega-whitepaper.mjs .cache/library-checks/mega-volume
+
+      - name: LaTeX palette matches the design tokens (pd-palette.tex lockstep)
+        run: node website-v2/scripts/check-figure-palette.mjs
+
+      - name: Every \cite has a \bibitem across the three TeX corpora
+        run: python3 scripts/harbor-research/check_citations.py
+
+      - name: Reviewer corrections reached every site that echoes them
+        run: python3 scripts/harbor-research/check_propagated_corrections.py

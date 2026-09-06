@@ -18,7 +18,7 @@
 \usepackage{float}
 \usepackage{caption}
 \usepackage{enumitem}
-\usepackage[hidelinks]{hyperref}
+\usepackage[backref=page]{hyperref}
 \captionsetup{font=small,labelfont=bf}
 
 % ─── Geometry ────────────────────────────────────────────────────────────────
@@ -36,6 +36,9 @@
 \definecolor{hhteal}{HTML}{00564C}
 \definecolor{hhpaper}{HTML}{FBF7EF}
 \definecolor{hhgray}{HTML}{5C5650}
+\input{figures/pd-palette}
+\newcommand{\pdchapterprefix}{ls}% this chapter's key in whitepaper/textbook.json
+\input{figures/pd-textbook-map}
 \input{figures/pd-figure-language}
 
 % Honest-label markers (ADR-0045 discipline; one key for the whole volume).
@@ -173,14 +176,14 @@
 \fancyhf{}
 \fancyhead[L]{\small\itshape\color{hhgray} The Legible Swarm}
 \fancyhead[R]{\small\color{hhgray}\thepage}
-\fancyfoot[C]{\footnotesize\color{hhgray} Port Daddy Coordination Papers \textperiodcentered\ Chapter I of VII}
+\fancyfoot[C]{\footnotesize\color{hhgray} Port Daddy Coordination Papers \textperiodcentered\ Chapter~\pdchapternumber\ of \pdchaptercount}
 \renewcommand{\headrulewidth}{0.4pt}
 \renewcommand{\footrulewidth}{0pt}
 
 % ─── Title ───────────────────────────────────────────────────────────────────
 \title{
   \vspace{-1cm}
-  {\Large\textsc{Port Daddy Coordination Papers --- Chapter I of VII}}\\[0.5cm]
+  {\Large\textsc{Port Daddy Coordination Papers --- Chapter~\pdchapternumber\ of \pdchaptercount}}\\[0.5cm]
   \rule{\textwidth}{0.5pt}\\[0.3cm]
   {\LARGE\textbf{The Legible Swarm:}}\\[0.2cm]
   {\Large A Consented Local Leviathan, Legibility-with-Zoom,\\and the Read-Poverty Bottleneck of Agent Swarms}\\[0.3cm]
@@ -191,9 +194,12 @@
   Curiositech LLC\\[0.2cm]
   \texttt{engineering@portdaddy.dev}
 }
-\date{August 2026\\Version 1.1 (revised pre-print)}
+\date{September 2026\\Version 1.2 (textbook edition)}
 
 % ─── Document ────────────────────────────────────────────────────────────────
+% Hyperlink and cross-reference discipline (must stay last in the preamble).
+\input{figures/pd-hyperlinks}
+
 \begin{document}
 \setlength{\emergencystretch}{2em}
 
@@ -241,10 +247,13 @@ attention, Hobbes, Scott
 \vspace{0.4cm}
 \noindent\textit{Reading time: approximately 45 minutes end-to-end; about 12
 minutes for the wedge argument (\S\ref{sec:intro}--\ref{sec:zoom}) alone. This is
-Chapter~I of a seven-chapter collection. \emph{The Single-Writer Kernel}
-(Chapter~II), \emph{From Spawn to Person} (Chapter~III), and \emph{The Harbor
-Economy} (Chapter~IV) form the core product arc; Chapters~V--VII deepen the
-protocol, economic, and federation arguments. Any chapter can be read first;
+Chapter~\pdchapternumber{} of \pdbooktitle{}, a \pdchaptercountword-chapter textbook.
+\pdchapref{swk}{The Single-Writer Kernel} and \pdchapref{anchor}{The Anchor
+Protocol} build the machine beneath this chapter; \pdchapref{stp}{From Spawn to
+Person} and \pdchapref{he}{The Harbor Economy} carry its legible work into a
+person and a market; \pdchapref{bonded}{The Bonded Commons} and
+\pdchapref{fh}{The Federated Harbor} prove what the market may assume. Any
+chapter can be read first;
 Figure~\ref{fig:stack-map} shows how they interlock.}
 
 \vspace{0.3cm}
@@ -409,8 +418,8 @@ backed by a write-ahead-logged embedded database, that every agent and every
 command talks to and that holds coordination state no agent can edit} --- is the
 kernel and the realm: your machine, your swarm, no network, no cryptography
 required. Cryptography enters only when another operator's fleet touches your
-repository, the cross-operator setting Chapter~IV (\emph{The Harbor
-Economy}) takes up. The single-operator Leviathan is the \emph{wedge} --- the thing
+repository, the cross-operator setting \pdchapref{he}{The Harbor
+Economy} takes up. The single-operator Leviathan is the \emph{wedge} --- the thing
 a solo developer pays for today --- and the federation of Leviathans is the
 platform, deferred behind the wedge by design. This paper is entirely about the
 wedge.
@@ -610,7 +619,7 @@ Consent so defined gives the design something Hume's critique cannot reach: a
 discrete authorization event, a bounded scope, and an exit. It also hands the
 accompanying chapters a concrete object. A grant is precisely what a \emph{hosted-trust}
 offering transfers --- ``we make this fleet legible to you, under this scope'' is
-the sale of a consent grant to a third party, which Chapter~IV (\emph{The Harbor Economy})
+the sale of a consent grant to a third party, which \pdchapref{he}{The Harbor Economy}
 prices --- which is why \S\ref{sec:bridge} lists consent among the things this layer
 provides upward.
 
@@ -888,7 +897,7 @@ By Prop.~\ref{prop:verifiable-zoom}, a swarm reviewing its own work is two langu
 models agreeing --- one error twice. The quality organ must therefore be
 \emph{adversarial and conflict-free}: a reviewer with no stake in the work, running a
 bounded critique--refine protocol. This is the wedge's local analog of the
-\emph{neutral evaluators} --- the independent rating agencies --- that Chapters~III and~IV
+\emph{neutral evaluators} --- the independent rating agencies --- that \pdchapref{stp}{From Spawn to Person} and \pdchapref{he}{The Harbor Economy}
 federate across operators: the same conflict-free-judge discipline, scoped
 first to one operator and then opened to a market.
 
@@ -2621,7 +2630,7 @@ used) has to stay expressible, or the system cannot reason about a capability it
 possesses but is not permitted to exercise.
 \item \textbf{Two distinct delegation objects.} The \emph{authorization chain} is a
 cryptographic, hop-bound, attenuation-monotonic delegation chain (a security object,
-developed in Chapter~V). The \emph{delegation trace} is the
+developed in \pdchapref{anchor}{The Anchor Protocol}). The \emph{delegation trace} is the
 coordination object over which loop-detection runs (a liveness object, in this paper's
 protocol layer). They are different artifacts with different invariants; ``delegation
 chain'' unqualified conflates a security claim with a coordination claim and must be

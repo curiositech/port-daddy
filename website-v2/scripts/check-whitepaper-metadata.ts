@@ -36,15 +36,20 @@ import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { Project, SyntaxKind, type ObjectLiteralExpression } from 'ts-morph'
 import { COLLECTED_VOLUME, WHITE_PAPERS } from '../src/data/whitePapers'
+import { RESEARCH_PAPERS } from '../src/data/researchPapers'
 
-// The collected volume is a publication artifact, not an eighth chapter, but
-// its page and byte metadata must obey the same drift guard.
+// The Book is a publication artifact, not an eighth chapter, but its page and
+// byte metadata must obey the same drift guard as the chapters.
 const PUBLISHED_WHITEPAPER_PDFS = [COLLECTED_VOLUME, ...WHITE_PAPERS]
+// The standalone research papers (public/research/paperN.pdf) declare pages and
+// sizeKb in researchPapers.ts and drift the same way; they had no guard before.
+const PUBLISHED_RESEARCH_PDFS = RESEARCH_PAPERS
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const websiteRoot = resolve(__dirname, '..')
 const publicDir = resolve(websiteRoot, 'public')
 const whitePapersSrc = resolve(websiteRoot, 'src/data/whitePapers.ts')
+const researchPapersSrc = resolve(websiteRoot, 'src/data/researchPapers.ts')
 
 /**
  * sizeKb drift tolerance is `max(SIZE_TOLERANCE_PCT * expected, SIZE_FLOOR_KB)`.
@@ -187,6 +192,9 @@ export function rewriteMetadata(
     if (remaining.size === 0) break
     const idValue = readStringProperty(obj, 'id')
     if (idValue === undefined) continue
+    // Cross-reference edges ({ id: '<chapter>', why }) and other small records
+    // reuse chapter ids; only the paper record itself carries `pages`.
+    if (!obj.getProperty('pages')) continue
     const next = remaining.get(idValue)
     if (!next) continue
 
@@ -271,17 +279,20 @@ function main(argv: string[]): number {
     return 0
   }
 
-  let reports: DriftReport[]
+  let chapterReports: DriftReport[]
+  let researchReports: DriftReport[]
   try {
-    reports = detectDrift(PUBLISHED_WHITEPAPER_PDFS)
+    chapterReports = detectDrift(PUBLISHED_WHITEPAPER_PDFS)
+    researchReports = detectDrift(PUBLISHED_RESEARCH_PDFS)
   } catch (err) {
     console.error(`Whitepaper metadata check failed: ${(err as Error).message}`)
     return 1
   }
+  const reports = [...chapterReports, ...researchReports]
 
   if (reports.length === 0) {
     console.log(
-      `Whitepaper metadata in sync (${WHITE_PAPERS.length} chapters + 1 collected volume checked).`,
+      `Whitepaper metadata in sync (${WHITE_PAPERS.length} chapters + the Book + ${RESEARCH_PAPERS.length} research papers checked).`,
     )
     return 0
   }
@@ -290,21 +301,27 @@ function main(argv: string[]): number {
 
   if (!fix) return 1
 
-  const updates = new Map<string, { pages: number; sizeKb: number }>()
-  for (const r of reports) {
-    updates.set(r.id, { pages: r.actual.pages, sizeKb: r.actual.sizeKb })
+  // Each registry is rewritten from its own drift list; an id never appears in both.
+  const targets: Array<[string, DriftReport[]]> = [
+    [whitePapersSrc, chapterReports],
+    [researchPapersSrc, researchReports],
+  ]
+  let rewrote = 0
+  for (const [src, list] of targets) {
+    if (list.length === 0) continue
+    const updates = new Map<string, { pages: number; sizeKb: number }>()
+    for (const r of list) updates.set(r.id, { pages: r.actual.pages, sizeKb: r.actual.sizeKb })
+    const original = readFileSync(src, 'utf8')
+    const next = rewriteMetadata(original, updates)
+    if (next === original) {
+      console.error(`--fix requested, but rewriteMetadata produced no change in ${src}. Inspect manually.`)
+      return 1
+    }
+    writeFileSync(src, next, 'utf8')
+    console.log(`Rewrote ${src} with corrected pages/sizeKb for ${updates.size} paper(s).`)
+    rewrote += updates.size
   }
-  const original = readFileSync(whitePapersSrc, 'utf8')
-  const next = rewriteMetadata(original, updates)
-  if (next === original) {
-    console.error('--fix requested, but rewriteMetadata produced no change. Inspect manually.')
-    return 1
-  }
-  writeFileSync(whitePapersSrc, next, 'utf8')
-  console.log(
-    `Rewrote ${whitePapersSrc} with corrected pages/sizeKb for ${updates.size} paper(s).`,
-  )
-  return 0
+  return rewrote > 0 ? 0 : 1
 }
 
 // Run when invoked directly (tsx / node), but not when imported by tests.

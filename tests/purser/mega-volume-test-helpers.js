@@ -35,7 +35,7 @@ function copyTexTree(from, to) {
     recursive: true,
     filter(path) {
       if (!existsSync(path)) return false;
-      return !path.includes('/.cache/') && (!path.includes('.') || path.endsWith('.tex'));
+      return !path.includes('/.cache/') && (!path.includes('.') || path.endsWith('.tex') || path.endsWith('.json'));
     },
   });
 }

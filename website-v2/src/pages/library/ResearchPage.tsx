@@ -19,7 +19,7 @@ import {
   type ResearchPaper,
   type ResearchTone,
 } from '@/data/researchPapers'
-import { findWhitePaperByChapter } from '@/data/whitePapers'
+import { findWhitePaperById } from '@/data/whitePapers'
 
 /**
  * Literal Tailwind class pairs per `ResearchTone`. Kept as complete literal
@@ -80,7 +80,7 @@ const DIVE_VERDICT_GLOSS: Record<DiveVerdict, string> = {
 function ResearchPaperCard({ paper }: { paper: ResearchPaper }) {
   const tone = RESEARCH_TONE_CLASSES[paper.tone]
   const Icon = paper.icon
-  const chapter = findWhitePaperByChapter(paper.chapterRef)
+  const chapter = findWhitePaperById(paper.chapterRef)
 
   return (
     <article
@@ -130,7 +130,7 @@ function ResearchPaperCard({ paper }: { paper: ResearchPaper }) {
               to={`/whitepaper/${chapter.slug}`}
               className="font-black text-[var(--text-primary)] underline underline-offset-4 hover:text-[var(--brand-primary)] hover:no-underline"
             >
-              {paper.chapterRef} · {chapter.title}
+              Chapter {chapter.chapter} · {chapter.title}
             </Link>
             <p className="mt-[var(--space-1)] text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
               — {paper.chapterWhy}

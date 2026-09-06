@@ -17,7 +17,7 @@
 \usepackage{float}
 \usepackage{caption}
 \usepackage{enumitem}
-\usepackage[hidelinks]{hyperref}
+\usepackage[backref=page]{hyperref}
 \captionsetup{font=small,labelfont=bf}
 
 % ─── Geometry ────────────────────────────────────────────────────────────────
@@ -35,6 +35,9 @@
 \definecolor{hhteal}{HTML}{00564C}
 \definecolor{hhpaper}{HTML}{FBF7EF}
 \definecolor{hhgray}{HTML}{5C5650}
+\input{figures/pd-palette}
+\newcommand{\pdchapterprefix}{stp}% this chapter's key in whitepaper/textbook.json
+\input{figures/pd-textbook-map}
 \input{figures/pd-figure-language}
 
 % Shared figure craft: one serif, one subtle fill, one accent, one arrow family.
@@ -183,14 +186,14 @@
 \fancyhead[R]{\small\color{hhgray}\thepage}
 % Footer is quiet chrome: small, single muted ink, no colored maturity key.
 % The maturity scale lives in the appendix status table, not the running chrome.
-\fancyfoot[C]{\footnotesize\color{hhgray} Port Daddy Coordination Papers \textperiodcentered\ Chapter III of VII}
+\fancyfoot[C]{\footnotesize\color{hhgray} Port Daddy Coordination Papers \textperiodcentered\ Chapter~\pdchapternumber\ of \pdchaptercount}
 \renewcommand{\headrulewidth}{0.4pt}
 \renewcommand{\footrulewidth}{0pt}
 
 % ─── Title ───────────────────────────────────────────────────────────────────
 \title{
   \vspace{-1cm}
-  {\Large\textsc{Port Daddy Coordination Papers --- Chapter III of VII}}\\[0.5cm]
+  {\Large\textsc{Port Daddy Coordination Papers --- Chapter~\pdchapternumber\ of \pdchaptercount}}\\[0.5cm]
   \rule{\textwidth}{0.5pt}\\[0.3cm]
   {\LARGE\textbf{From Spawn to Person:}}\\[0.2cm]
   {\Large Identity, Continuity, and the Substrate\\of Agentic Reputation}\\[0.3cm]
@@ -201,9 +204,12 @@
   Curiositech LLC\\[0.2cm]
   \texttt{engineering@portdaddy.dev}
 }
-\date{August 2026\\Version 1.4 (collected-volume edition)}
+\date{September 2026\\Version 1.5 (textbook edition)}
 
 % ─── Document ────────────────────────────────────────────────────────────────
+% Hyperlink and cross-reference discipline (must stay last in the preamble).
+\input{figures/pd-hyperlinks}
+
 \begin{document}
 
 \maketitle
@@ -214,10 +220,12 @@
 \begin{abstract}\noindent
 A coding-agent swarm produces work, but until that work can be attributed to
 something that survives the process that did it, none of it can be priced. This
-paper is Chapter~III of the Port Daddy Coordination Papers: it carries the through-line
+paper is Chapter~\pdchapternumber{} of \pdbooktitle{}: it carries the through-line
 \emph{memory $\to$ checkpoint $\to$ continuity $\to$ a person, not a spawn $\to$
 witnessed outcomes $\to$ reputation $\to$ a tradeable asset} from the legible
-single-operator tool (Chapters~I--II) to the cross-operator market (Chapter~IV). We
+single-operator tool (\pdchapref{swk}{The Single-Writer Kernel} through
+\pdchapref{ls}{The Legible Swarm}) to the cross-operator market
+(\pdchapref{he}{The Harbor Economy}). We
 make a single distinction carry the argument: a \textbf{role} is a bundle of
 $\{\text{obligation}, \text{capability}, \text{authority}\}$ --- an org-chart
 entry any spawn can fill --- while a \textbf{person} is a role instance
@@ -238,7 +246,7 @@ We argue at length why reputation is \emph{not} a bandit problem
 oracle's own incentive-compatibility), and we treat the grading-oracle hole in
 the core economic theorem head-on. We are disciplined about the keystone: this
 paper depends only on a \textbf{local non-forgeable identity} (an identity root
-that holds within a single trusted operator) and hands Chapter~IV (\emph{The Harbor Economy})
+that holds within a single trusted operator) and hands \pdchapref{he}{The Harbor Economy}
 the unbuilt \textbf{cross-operator attestation} (binding identities across
 operators who do not trust each other) as a named dependency rather than
 assuming it. We prove that a non-forgeable identity is \emph{necessary} for any
@@ -254,10 +262,10 @@ compatibility, witnessed outcomes
 
 \vspace{0.4cm}
 \noindent\textit{Reading time: approximately 40 minutes end-to-end; the
-Reader's Map below offers shorter routes. \emph{The Legible Swarm}
-(Chapter~I) and \emph{The Single-Writer Kernel} (Chapter~II) supply the legibility
-and transactional substrate; \emph{The Anchor Protocol} (Chapter~V) deepens the
-cryptographic identity ceremony; and \emph{The Harbor Economy} (Chapter~IV)
+Reader's Map below offers shorter routes. \pdchapref{ls}{The Legible Swarm}
+and \pdchapref{swk}{The Single-Writer Kernel} supply the legibility and
+transactional substrate; \pdchapref{anchor}{The Anchor Protocol} deepens the
+cryptographic identity ceremony; and \pdchapref{he}{The Harbor Economy}
 consumes this paper's reputation substrate. Any chapter can be opened first;
 this one is the hinge.}
 
@@ -267,7 +275,8 @@ this one is the hinge.}
       inner sep=8pt,text width=\dimexpr\textwidth-22pt\relax,
       align=left] (cbox) {%
   \small{\scshape\bfseries Where this paper sits.}\enspace This is the
-  \emph{bridge} of the core product arc. Chapters~I--II build a tool one developer runs alone:
+  \emph{bridge} of the core product arc. The machine chapters and \pdchapref{ls}{The
+  Legible Swarm} build a tool one developer runs alone:
   a daemon that makes a swarm legible and an agent that can prove who it is. This
   paper asks what has to be true before that legible agent's track record can be
   \emph{sold}. The answer is the substrate, not the score --- and most of the
@@ -316,10 +325,11 @@ A distributed-systems / crypto reader &
 The keystone-split figure (Fig.~\ref{fig:keystone}) \\
 \bottomrule
 \end{tabular}
-\caption{Reader's Map. The core product arc is Chapter~I (the wedge) $\to$
-Chapter~II (the transactional floor) $\to$ \textbf{Chapter~III (this bridge)}
-$\to$ Chapter~IV (the market). This chapter can be read directly after Chapter~I
-for the ``why a person can be priced'' argument.}
+\caption{Reader's Map. The core product arc is \pdchapref{swk}{The Single-Writer
+Kernel} (the transactional floor) $\to$ \pdchapref{ls}{The Legible Swarm} (the
+wedge) $\to$ \textbf{this chapter (the bridge)} $\to$ \pdchapref{he}{The Harbor
+Economy} (the market). This chapter can be read directly after \pdchapref{ls}{The
+Legible Swarm} for the ``why a person can be priced'' argument.}
 \label{tab:readers-map}
 \end{table}
 
@@ -358,10 +368,10 @@ Markets price \emph{reputations}, and a reputation is a claim about a thing that
 contractor can shed its history by re-incorporating under a new name every Monday,
 the claim is worthless and so is the market. The agent labor market this
 series describes --- operators renting each other's fleets, skills licensed
-across machines, work settled against bonds (Chapter~IV) --- is impossible until a
+across machines, work settled against bonds (\pdchapref{he}{The Harbor Economy}) --- is impossible until a
 spawn can become a \textbf{person}: a thing with a track record that survives the
 process that built it and the operator who first ran it. Throughout this paper we
-follow two operators by name --- \textbf{Alice} and \textbf{Bob}, the same pair Chapter~IV
+follow two operators by name --- \textbf{Alice} and \textbf{Bob}, the same pair \pdchapref{he}{The Harbor Economy}
 uses --- so that every abstract mechanism has a concrete
 scene to land in. Alice wants to eventually \emph{rent Heron out} to Bob; Bob will
 only pay if Heron's track record means something he can check.
@@ -406,7 +416,7 @@ Daddy's reality stops along it:
   \node[pd direct label,anchor=north,align=center] at (3.25,-.42)
     {reputation\\[-1pt]{\tiny specified}};
   \node[pd direct label,anchor=south,align=center] at (6.4,.42)
-    {tradeable asset\\[-1pt]{\tiny Chapter IV / proposed}};
+    {tradeable asset\\[-1pt]{\tiny market chapter / proposed}};
 
   \draw[pd caution rule,line width=1.25pt] (-3.25,1.02) -- (3.25,1.02);
   \node[pd note,text=hhamber,anchor=south] at (0,1.11)
@@ -803,7 +813,7 @@ violate the system's own \textbf{honest-attestation} discipline: \emph{only repo
 ``all good'' when you have actually verified it --- absence of error is not
 attestation}. Strong continuity --- the kind that lets a successor \emph{resume}
 rather than \emph{inherit a summary} --- has a specified candidate mechanism,
-\textbf{Event-Sourced Neural Rehydration} (OP-4, shared with Chapter~II): restore
+\textbf{Event-Sourced Neural Rehydration} (OP-4, shared with \pdchapref{swk}{The Single-Writer Kernel}): restore
 the Git SHA, truncate the durable message log to the exact crash point, and replay
 it under prompt-prefix caching. It is \DESIGNED, not \BUILT, and its
 \emph{completeness has not been formally established}. What replay demonstrably
@@ -823,8 +833,8 @@ whether that has changed.}
 
 \paragraph{Co-ownership note (with the formal-core paper).}
 The \emph{kernel mechanism} of a checkpoint-with-teeth --- the content-addressed
-execution snapshot --- is owned by the formal-core chapter (Chapter~II),
-which treats it as a low-level primitive. \emph{This} paper owns the argument for
+execution snapshot --- is owned by the formal-core chapter, \pdchapref{swk}{The
+Single-Writer Kernel}, which treats it as a low-level primitive. \emph{This} paper owns the argument for
 \emph{why it is the foundation of personhood and reputation}. The two papers state
 the same canonical sentence (next).
 
@@ -1286,7 +1296,8 @@ intra-fleet and single-operator; it is \emph{not} a public-key infrastructure an
 offers no defense against a hostile \emph{operator}. The reference implementation's
 daemon-minted actor-soul and credential satisfy a bounded slice of this definition;
 full write-boundary enforcement and migration of legacy identity paths remain.
-This is exactly what the single-operator layers---Chapters~I--III---need and assume.
+This is exactly what the single-operator layers---every chapter up to and
+including this one---need and assume.
 \BUILTWEAK.
 \end{definition}
 
@@ -1404,8 +1415,8 @@ We catalog the estimators not because they are hard but because choosing the
   computes a global trust vector as the principal eigenvector of the
   local-trust matrix --- the reputation-systems analogue of PageRank, and the
   canonical answer to ``aggregate peer opinions while resisting collusive
-  cliques.'' It is the right tool for the \emph{federated} reputation Chapter~IV
-  needs (trust that travels across harbors), and it is \emph{not} a bandit.
+  cliques.'' It is the right tool for the \emph{federated} reputation \pdchapref{he}{The
+  Harbor Economy} needs (trust that travels across harbors), and it is \emph{not} a bandit.
   \item \textbf{Marketplace feedback signal $\to$ feedback systems.}
   Resnick--Zeckhauser~\cite{resnick2006value} measured a ${\sim}8\%$ reputation
   price premium on eBay; Tadelis~\cite{tadelis2016} frames feedback systems as the
@@ -2018,15 +2029,15 @@ $\star$ \textit{Open} (Open Problem~\ref{op:revoke}, \S\ref{sec:open}). (3)
 Reputation-claim revocation with an append-only,
 bounded-memory ledger across $N$ harbors: how do you prove the correction
 converged and bound the spendable window, without violating append-only? This is
-the cross-harbor analogue of capability revocation (Chapter~IV).
+the cross-harbor analogue of capability revocation (\pdchapref{he}{The Harbor Economy}).
 \end{exercises}
 
 % ═════════════════════════════════════════════════════════════════════════════
-\section{What this chapter hands the market (Chapter IV)}\label{sec:handoff}
+\section{What this chapter hands the market}\label{sec:handoff}
 % ═════════════════════════════════════════════════════════════════════════════
 
-This paper is the bridge; its output is a precise hand-off to \emph{The Harbor
-Economy} (Chapter~IV). We summarize what is delivered, what is borrowed, and what is
+This paper is the bridge; its output is a precise hand-off to \pdchapref{he}{The
+Harbor Economy}. We summarize what is delivered, what is borrowed, and what is
 explicitly owed.
 
 \begin{table}[H]
@@ -2082,7 +2093,8 @@ wants the research frontier rather than the pedagogy. Every starred exercise in 
 body cross-references this list \emph{by name}, not by a hand-typed numeral, so the
 two cannot drift apart. Note that the ``OP-$n$'' identifiers used in the body for
 kernel-layer problems (e.g.\ OP-4, checkpoint with teeth) belong to a \emph{shared}
-namespace owned by Chapter~II and are deliberately not renumbered here; this list is
+namespace owned by \pdchapref{swk}{The Single-Writer Kernel} and are deliberately
+not renumbered here; this list is
 this chapter's own.
 
 \begin{enumerate}[leftmargin=1.6em]
@@ -2211,7 +2223,7 @@ Skill grafting is observable; the witnessed-event schema is specified. \\
 Tombstone revocation (Proto.~\ref{proto:tombstone}) & \DESIGNED &
 Append-only ledger semantics are designed; cross-harbor propagation is \VISION. \\
 Cross-operator attestation & \VISION &
-The unbuilt keystone for the market; owed to Chapter~IV (\emph{The Harbor Economy}). \\
+The unbuilt keystone for the market; owed to \pdchapref{he}{The Harbor Economy}. \\
 \bottomrule
 \end{tabular}
 \caption{Maturity of each paper concept against a reference coordination daemon.

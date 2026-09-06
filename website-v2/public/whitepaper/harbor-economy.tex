@@ -24,7 +24,7 @@
 \usepackage{float}
 \usepackage{caption}
 \usepackage{enumitem}
-\usepackage[hidelinks]{hyperref}
+\usepackage[backref=page]{hyperref}
 \captionsetup{font=small,labelfont=bf}
 
 \usetikzlibrary{arrows.meta,positioning,fit,backgrounds,calc,shapes.geometric,%
@@ -45,6 +45,9 @@
 \definecolor{hhteal}{HTML}{00564C}
 \definecolor{hhpaper}{HTML}{FBF7EF}
 \definecolor{hhgray}{HTML}{5C5650}
+\input{figures/pd-palette}
+\newcommand{\pdchapterprefix}{he}% this chapter's key in whitepaper/textbook.json
+\input{figures/pd-textbook-map}
 \input{figures/pd-figure-language}
 
 % ─── Maturity markers (honest self-grading of every claim) ────────────────────
@@ -161,14 +164,14 @@
 \fancyhf{}
 \fancyhead[L]{\small\itshape\color{hhgray} The Harbor Economy}
 \fancyhead[R]{\small\color{hhgray}\thepage}
-\fancyfoot[C]{\footnotesize\color{hhgray} Port Daddy Coordination Papers \textperiodcentered\ Chapter IV of VII}
+\fancyfoot[C]{\footnotesize\color{hhgray} Port Daddy Coordination Papers \textperiodcentered\ Chapter~\pdchapternumber\ of \pdchaptercount}
 \renewcommand{\headrulewidth}{0.4pt}
 \renewcommand{\footrulewidth}{0pt}
 
 % ─── Title ────────────────────────────────────────────────────────────────────
 \title{
   \vspace{-1cm}
-  {\Large\textsc{Port Daddy Coordination Papers --- Chapter IV of VII}}\\[0.5cm]
+  {\Large\textsc{Port Daddy Coordination Papers --- Chapter~\pdchapternumber\ of \pdchaptercount}}\\[0.5cm]
   \rule{\textwidth}{0.5pt}\\[0.3cm]
   {\LARGE\textbf{The Harbor Economy:}}\\[0.2cm]
   {\Large A Three-Sided Market for Agent Labor,\\
@@ -180,9 +183,12 @@
   Curiositech LLC\\[0.2cm]
   \texttt{engineering@portdaddy.dev}
 }
-\date{August 2026\\Version 1.2 (revised pre-print)}
+\date{September 2026\\Version 1.3 (textbook edition)}
 
 % ═══════════════════════════════════════════════════════════════════════════════
+% Hyperlink and cross-reference discipline (must stay last in the preamble).
+\input{figures/pd-hyperlinks}
+
 \begin{document}
 \setlength{\emergencystretch}{2em}
 
@@ -235,11 +241,11 @@ settlement, applied category theory, federation, Port Daddy
 \vspace{0.4cm}
 \noindent\textit{Reading time: approximately 45 minutes end-to-end; about 12
 minutes for \S\ref{sec:thesis}--\S\ref{sec:three-sides} alone (the market thesis).
-This is Chapter~IV of a seven-chapter collection and is written cold: no prior platform
+This is Chapter~\pdchapternumber{} of \pdbooktitle{}, and it is written cold: no prior platform
 knowledge is assumed. It can be read first, but \S\ref{sec:keystone} leans on
-Chapter~III (\emph{From Spawn to Person}) for the identity substrate, while the
-cryptographic hop-bound authorization chain is analyzed in Chapter~V
-(\emph{The Anchor Protocol}).}
+\pdchapref{stp}{From Spawn to Person} for the identity substrate, while the
+cryptographic hop-bound authorization chain is analyzed in
+\pdchapref{anchor}{The Anchor Protocol}.}
 
 \vspace{0.5cm}
 
@@ -312,11 +318,13 @@ An implementer &
 \end{tabular}
 \end{table}
 
-\noindent\textbf{Reading order within the collection.} Chapter~I (\emph{The Legible
-Swarm}) is the front door; Chapter~II (\emph{The Single-Writer Kernel}) is the local
-transactional floor; Chapter~III (\emph{From Spawn to Person}) supplies continuity
-and reputation. \emph{This} chapter is the market. Chapters~V--VII then deepen the
-cryptographic, economic, and federation arguments.
+\noindent\textbf{Where this chapter sits.} \pdchapref{swk}{The Single-Writer
+Kernel} is the local transactional floor and \pdchapref{anchor}{The Anchor
+Protocol} proves how its authority delegates; \pdchapref{ls}{The Legible Swarm}
+is the operator's front door; \pdchapref{stp}{From Spawn to Person} supplies
+continuity and reputation. \emph{This} chapter is the market.
+\pdchapref{bonded}{The Bonded Commons} and \pdchapref{fh}{The Federated Harbor}
+then prove what the market assumes about settlement and federation.
 
 \xrefbox{\textbf{Dramatis personae.} Every mechanism in this paper is dramatized
 end-to-end with the same cast, so an abstraction is never introduced without a
@@ -335,7 +343,8 @@ reason the rest of the paper exists. We price everything in an abstract unit, th
 
 A solo operator running a swarm of coding agents needs three things --- legibility,
 accountability, and safety --- and needs \emph{no cryptography at all}, because she
-owns every machine in the harbor. That is the single-player wedge of Chapter~I. The
+owns every machine in the harbor. That is the single-player wedge of
+\pdchapref{ls}{The Legible Swarm}. The
 instant two operators trade, the world changes. Alice's frigates touch your
 repository. You must now price work done by agents you did not spawn, owned by a
 principal you do not trust, using skills you cannot inspect. That is a
@@ -376,15 +385,16 @@ The whole series climbs one spine (the vertical arrow in
 Figure~\ref{fig:he-stack-map}):
 \begin{align*}
 \text{memory} &\to \text{checkpoint} \to \text{continuity}
-\to \text{a person, not a spawn} && \text{(Chapter III)}\\
+\to \text{a person, not a spawn} && \text{\footnotesize(\pdchapref{stp}{From Spawn to Person})}\\
 &\to \text{registered outcomes} \to \text{reputation}
-\to \text{tradeable asset} \to \text{market} && \text{(this chapter).}
+\to \text{tradeable asset} \to \text{market} && \text{\footnotesize(this chapter).}
 \end{align*}
 Sides 2 and 3 of the market --- renting an \emph{asset}, licensing a \emph{good}
 --- presuppose that there is a \emph{thing} to rent or sell that cannot be
 costlessly cloned. You cannot rent a reputation that any spawn can fork, and you
 cannot license a skill whose track record is unverifiable. The canonical
-cross-layer sentence, repeated in Chapters~III and~IV, states the dependency
+cross-layer sentence, repeated in \pdchapref{stp}{From Spawn to Person} and
+here, states the dependency
 exactly:
 
 \pullquote{The score is cheap; the substrate it scores over --- witnessed outcomes
@@ -496,7 +506,7 @@ dropped:
 
 \pullquote{The harbor economy is a three-sided market \emph{by design}; two-sided
 until reputation ships. The third side \emph{is} the tradeable-person terminus of
-Chapter~III.}
+\pdchapref{stp}{From Spawn to Person}.}
 
 Today there is no reputation estimator in the reference implementation; it is a
 gated phase on the roadmap. So sides 2 and 3 are \Designed{}, not shipped. What
@@ -820,7 +830,7 @@ bond-farming works by spawning fresh \emph{agents} under one principal
 (\textbf{Douceur}'s Sybil attack~\cite{douceur2002}: \emph{free identities defeat
 any reputation or quorum system}). Defining the principal as a first-class economic
 entity is the cleanest Sybil fix; its cryptographic binding is the identity object
-specified in Chapter~III and consumed here.
+specified in \pdchapref{stp}{From Spawn to Person} and consumed here.
 
 \begin{exercises}
 \item In one sentence, state why a reputation system layered on forgeable
@@ -914,7 +924,8 @@ alternatives requires a fully specified type and transfer model, which remains o
 
 The \emph{cross-harbor capability-transfer ceremony} is the market's identity-level
 hot path: how an authorization minted under Alice's harbor becomes usable, safely,
-inside Bob's. Chapter~V analyzes the cryptographic substrate (a hop-bound
+inside Bob's. \pdchapref{anchor}{The Anchor Protocol} analyzes the cryptographic
+substrate (a hop-bound
 authorization chain checked by protocol models plus a bounded Rust verification
 layer); \emph{this} section is the ceremony that rides that substrate across a
 boundary.
@@ -969,12 +980,13 @@ attenuated and nowhere wider.
 \keyidea{Capability \emph{attenuation} is the safety property here: a transferred
 card can only \emph{narrow} authority --- $C_B' = \mathrm{att}_B(\mathrm{att}_A(C_A))$
 --- never widen it. This is the cross-boundary form of the attenuation-monotonicity
-that the hop-bound authorization chain checks within one harbor (Chapter~V). It is
+that the hop-bound authorization chain checks within one harbor
+(\pdchapref{anchor}{The Anchor Protocol}). It is
 what makes ``rent my agent for an afternoon'' safe to say to a stranger.}
 
 \pitfall{Do not let the federation theorems borrow the substrate's ``formally
 verified'' halo. The hop-bound authorization chain has bounded symbolic and Rust
-evidence in Chapter~V. The \emph{federation} claims are design arguments plus a
+evidence in \pdchapref{anchor}{The Anchor Protocol}. The \emph{federation} claims are design arguments plus a
 bounded TLA\textsuperscript{+} extension; they are \Designed{}, not deployed. Two different confidence levels,
 never blurred.}
 
@@ -1667,7 +1679,7 @@ Table~\ref{tab:honest-state}.)
 % ═══════════════════════════════════════════════════════════════════════════════
 
 The harbor-master makes a swarm legible and accountable for one operator (the
-wedge of Chapter~I). When operators sail out to trade, the \emph{same} ledger that
+wedge of \pdchapref{ls}{The Legible Swarm}). When operators sail out to trade, the \emph{same} ledger that
 kept one operator's swarm honest becomes the market that lets fleets who don't trust
 each other work together: three sides, one bond, hosted trust. We have not papered
 over the cost of that claim. The keystone identity primitive --- local
@@ -1738,7 +1750,7 @@ Skill licensing (metered $+$ clawback $+$ Merkle proof) & \Designed{} &
 Adversarial test market (Purchased Assurance Bound, Thm.~\ref{thm:assurance}) &
   \Vision{} & no mutation-testing oracle and no bounty-per-killed-mutant contract
   shipped; the deterrence threshold it cites is proved in~\cite{harbor3} \\
-Federation: witness log, capability transfer & \Designed{} & Chapter~VII (\emph{The Federated Harbor}) \\
+Federation: witness log, capability transfer & \Designed{} & \pdchapref{fh}{The Federated Harbor} \\
 Recipient-whitelisted escrow custody & \Designed{} (conditional property) &
   requires non-bypassable authority; no runtime conformance \\
 Cross-harbor conservation & \Designed{} (property) & proof sketch
@@ -1753,7 +1765,7 @@ Competitive underwriting (4th side) & \Vision{} & composition unresolved \\
 \section{Proof sketches}\label{app:proofs}
 
 We sketch the three central results; full proofs of the conservation results
-appear in Chapter~VII (\emph{The Federated Harbor}).
+appear in \pdchapref{fh}{The Federated Harbor}.
 
 \begin{proof}[Proof sketch of Theorem~\ref{thm:functor}]
 For a valid trace $f:x\to y$, define $\Delta(f)=S(y)-S(x)$. For composable traces

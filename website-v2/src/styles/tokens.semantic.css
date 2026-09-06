@@ -59,33 +59,43 @@
   /* ── Story palette (ADR-0048 stack made visible) ───────────────────────────
      The expanded brand hues map 1:1 onto the L0→L3 layers so color *tells the
      product's story*. Each rounds out the wheel into a harmonious set anchored
-     on cobalt #003fb8 (kernel/truth), teal #006b5f (legibility), amber #a66f00
-     (economy), and danger #bf2f2f (breach). See docs/design/BRAND.md.
+     on cobalt #003fb8 (kernel/truth), teal #006b5f (legibility), and danger
+     #bf2f2f (breach). See docs/design/BRAND.md. Palette v2 (design-preview/
+     proposal.html): indigo, violet and rust re-derived so every semantic pair
+     is CIEDE2000-separated (indigo↔violet 19.1 light / 19.3 dark), and gold
+     minted so the economy stops borrowing the warning token.
 
        cobalt   L0  kernel / truth        (existing --brand-primary)
        teal     L2  legibility            (existing --brand-accent)
-       health   L1  ready / coordinated   (new — sage green, 150°)
-       indigo   L1→L3  protocol / federation (new — 248°)
-       violet   L3  identity / continuity (new — 261°, the "person")
-       rust     L3  reputation / Elo earned (new — 21°)
-       amber    L3  economy / value       (existing --status-warning)
+       health   L1  ready / coordinated   (sage green, 150°)
+       indigo   L1→L3  protocol / federation (deep slate blue-violet, 236°)
+       violet   L3  identity / continuity (clear purple, 289°, the "person")
+       rust     L3  reputation / Elo earned (29°)
+       gold     L3  economy / value       (62° — NOT the warning amber)
+       amber    —   warning only          (--status-warning; stripes, dots and
+                                           display sizes — never small text)
 
-     Hues sit at 21°/150°/248°/261° — filling the green & violet gaps between
-     the existing anchors so the wheel reads as one analogous-warm arc
-     (danger→rust→amber→lime) and one analogous-cool arc (health→teal→cobalt→
-     indigo→violet). All AA+ on cream (≥4.5) and as white-text fills (≥4.98). */
+     One analogous-warm arc (danger→rust→amber→gold→lime) and one analogous-cool
+     arc (health→teal→cobalt→indigo→violet). Light values are AA+ on cream as
+     text (indigo 8.66, rust 6.75, violet 5.19, gold 5.00 on --surface-base) and
+     as cream-text fills (≥5.42); the *-on-tint cuts are ≥6.6 on tinted wells.
+     The Book's TeX palette (figures/pd-palette.tex) mirrors these light values;
+     website-v2/scripts/check-figure-palette.mjs keeps the two in lockstep. */
   --story-health: #1f7a4d;          /* L1 ready/healthy — sage green */
   --story-health-on-tint: #155534;  /* on tinted wells (≥6.8) */
   --story-health-foreground: #fbf7ef;
-  --story-indigo: #4b3f9e;          /* L1→L3 protocol/federation */
-  --story-indigo-on-tint: #352c73;
+  --story-indigo: #353a85;          /* L1→L3 protocol/federation */
+  --story-indigo-on-tint: #262a63;
   --story-indigo-foreground: #fbf7ef;
-  --story-violet: #6f48b5;          /* L3 identity/continuity — the person */
-  --story-violet-on-tint: #4f3186;
+  --story-violet: #933fa5;          /* L3 identity/continuity — the person */
+  --story-violet-on-tint: #6b2e79;
   --story-violet-foreground: #fbf7ef;
-  --story-rust: #9a4a1e;            /* L3 reputation/Elo — trust earned */
-  --story-rust-on-tint: #6e3414;
+  --story-rust: #7a4514;            /* L3 reputation/Elo — trust earned */
+  --story-rust-on-tint: #5a3210;
   --story-rust-foreground: #fbf7ef;
+  --story-gold: #666a00;            /* L3 economy/value — the market */
+  --story-gold-on-tint: #4d5000;
+  --story-gold-foreground: #fbf7ef;
 
   --signal-charlie: var(--status-success);
   --signal-november: var(--status-error);
@@ -102,17 +112,19 @@
   /* Layer vocabulary — paint ADR-0048 stack diagrams, the layer badges in
      docs, and the "what Port Daddy is" stack table by semantic layer, not by
      re-picking hexes. L0 kernel = cobalt (truth), L1 = health (coordinated
-     ready), L2 = teal (legible), L3 = amber (economy/value — the market).
-     The L3 *concepts* keep their own hues via the concept aliases below:
-     federation = indigo, reputation = rust; identity/continuity accents use
-     --story-violet directly. */
+     ready), L2 = teal (legible), L3 = gold (economy/value — the market; a
+     token of its own since palette v2, so "economy" and "warning" no longer
+     share a color). The L3 *concepts* keep their own hues via the concept
+     aliases below: federation = indigo, reputation = rust; identity/continuity
+     accents use --story-violet directly. Amber text always goes through
+     --status-warning-on-tint; raw amber is for stripes, dots and display. */
   --layer-l0-kernel: var(--brand-primary);
   --layer-l1-protocol: var(--story-health);
   --layer-l2-legibility: var(--brand-accent);
-  --layer-l3-economy: var(--status-warning);
+  --layer-l3-economy: var(--story-gold);
   --layer-federation: var(--story-indigo);
   --layer-reputation: var(--story-rust);
-  --layer-value: var(--status-warning);
+  --layer-value: var(--story-gold);
 
   --voice-mayday: var(--status-error);
   --voice-pan-pan: var(--status-warning);
@@ -236,23 +248,26 @@
   --story-health: #5fce97;
   --story-health-on-tint: #adf3c2;
   --story-health-foreground: #121212;
-  --story-indigo: #9d92e8;
-  --story-indigo-on-tint: #cfc9f6;
+  --story-indigo: #8a8af8;
+  --story-indigo-on-tint: #b5b5fb;
   --story-indigo-foreground: #121212;
-  --story-violet: #b69bec;
-  --story-violet-on-tint: #ddccf8;
+  --story-violet: #e0a5ed;
+  --story-violet-on-tint: #eec9f5;
   --story-violet-foreground: #121212;
-  --story-rust: #e09464;
-  --story-rust-on-tint: #f4c8ac;
+  --story-rust: #b98e6b;
+  --story-rust-on-tint: #d6b697;
   --story-rust-foreground: #121212;
+  --story-gold: #d8dd3c;
+  --story-gold-on-tint: #f5fa78;
+  --story-gold-foreground: #121212;
 
   --layer-l0-kernel: var(--brand-primary);
   --layer-l1-protocol: var(--story-health);
   --layer-l2-legibility: var(--brand-accent);
-  --layer-l3-economy: var(--status-warning);
+  --layer-l3-economy: var(--story-gold);
   --layer-federation: var(--story-indigo);
   --layer-reputation: var(--story-rust);
-  --layer-value: var(--status-warning);
+  --layer-value: var(--story-gold);
 
   --shadow-raised: none;
   --shadow-inset: none;

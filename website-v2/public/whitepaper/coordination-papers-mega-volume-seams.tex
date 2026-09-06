@@ -1,17 +1,65 @@
-% Book-owned openings and handoffs. The seven chapter sources remain
-% independently buildable; these rails exist only in the collected volume.
+% Book-owned openings and handoffs. The chapter sources remain independently
+% buildable; these rails exist only in the Book. They are keyed by chapter
+% prefix (see whitepaper/textbook.json), never by position, so reordering the
+% book moves a chapter's rails with it. The handoff text, however, is written
+% for the order the book is in: it names the chapter that comes next.
+%
+% An opening rail sits at the top of a chapter's first body page. Its heading
+% is the chapter's question (from textbook.json, the same line the opener page
+% set large); its body is the lede: the scene, in two or three sentences,
+% before the chapter's own first section begins.
 
 \newcommand{\pdbookrail}[2]{%
   \par\vspace{0.5cm}%
-  \noindent{\color{hhcobalt}\rule{2.5em}{0.8pt}}\par
+  \noindent{\color{\pdcurrentchaptercolor}\rule{2.5em}{1.5pt}}\par
   \vspace{0.12cm}%
-  \noindent{\small\scshape\bfseries\color{hhcobalt}#1}\enspace
+  \noindent{\small\scshape\bfseries\color{\pdcurrentchaptercolor}#1}\enspace
   {\small #2}\par
   \vspace{0.45cm}%
 }
 
-\newcommand{\pdchapteropeningI}{%
-  \pdbookrail{Question I: what must remain visible?}{%
+% ---- Part I: The Machine -------------------------------------------------
+
+\newcommand{\pdchapteropeningswk}{%
+  \pdbookrail{\pdchapterquestion}{%
+    Six agents may agree about a file and still overwrite one another. A log can
+    report the collision after the fact; only a mediated writer can refuse the
+    second effect before it lands. This chapter identifies that local writer,
+    separates preventable rules from detect-only claims, and states the work-unit
+    invariants that every later institution assumes. R5 and R8 set the boundary.}%
+}
+
+\newcommand{\pdchapterhandoffswk}{%
+  \pdbookrail{What \pdchapref{anchor}{The Anchor Protocol} receives}{%
+    Local effects now have one serial history, one fencing epoch, and one place
+    to attach receipts. The writer decides what becomes real; it does not yet say
+    who may ask it to. The next chapter turns authority into a key-bound,
+    attenuating, revocable object, so that every request the kernel admits
+    arrives with a checked pedigree.}%
+}
+
+\newcommand{\pdchapteropeninganchor}{%
+  \pdbookrail{\pdchapterquestion}{%
+    Identity answers who signed; it does not answer what the signer may do.
+    Anchor therefore checks every delegation edge, binds the grant to a key and
+    audience, narrows scope and lifetime, and preserves revocation ancestry.
+    The formal claim concerns the checked protocol and Rust paths, while R5
+    explains which surrounding policy promises can become admission gates.}%
+}
+
+\newcommand{\pdchapterhandoffanchor}{%
+  \pdbookrail{What \pdchapref{ls}{The Legible Swarm} receives}{%
+    A request now arrives with authenticated, narrowing authority, and the kernel
+    that admits it keeps one durable history. Together they form a machine that
+    can be held to account. The next chapter asks the human question: with many
+    such machines running at once, what must remain visible to the operator, and
+    at what cost?}%
+}
+
+% ---- Part II: The Operator -----------------------------------------------
+
+\newcommand{\pdchapteropeningls}{%
+  \pdbookrail{\pdchapterquestion}{%
     A swarm can produce more events than its operator can read. The resulting
     scarcity is not cured by a smoother summary: some summaries make the
     decisive artifact unreachable. This chapter establishes the cost of a
@@ -20,33 +68,19 @@
     strongest claims are governed by R1--R4, R14, and R16.}%
 }
 
-\newcommand{\pdchapterhandoffI}{%
-  \pdbookrail{What Chapter II receives}{%
+\newcommand{\pdchapterhandoffls}{%
+  \pdbookrail{What \pdchapref{stp}{From Spawn to Person} receives}{%
     The operator now has a disciplined read surface: claims remain linked to
-    artifacts, attention is priced, and uncertainty is visible. None of that
-    can stop a write. The next chapter moves from what can be seen to the single
-    local boundary where a proposed action can become a durable effect.}%
+    artifacts, attention is priced, and uncertainty is visible. A process can
+    still die, restart under a new model, or shed its local memory. The next
+    chapter asks what must persist so yesterday's act can still be attributed
+    tomorrow.}%
 }
 
-\newcommand{\pdchapteropeningII}{%
-  \pdbookrail{Question II: where can a rule be made real?}{%
-    Six agents may agree about a file and still overwrite one another. A log can
-    report the collision after the fact; only a mediated writer can refuse the
-    second effect before it lands. This chapter identifies that local writer,
-    separates preventable rules from detect-only claims, and states the work-unit
-    invariants that every later institution assumes. R5 and R8 set the boundary.}%
-}
+% ---- Part III: The Person ------------------------------------------------
 
-\newcommand{\pdchapterhandoffII}{%
-  \pdbookrail{What Chapter III receives}{%
-    Local effects now have one serial history, one fencing epoch, and one place
-    to attach receipts. The writer does not solve continuity: a process can die,
-    restart under a new model, or shed its local memory. The next chapter asks
-    what must persist so yesterday's act can still be attributed tomorrow.}%
-}
-
-\newcommand{\pdchapteropeningIII}{%
-  \pdbookrail{Question III: what remains long enough to owe anything?}{%
+\newcommand{\pdchapteropeningstp}{%
+  \pdbookrail{\pdchapterquestion}{%
     Accountability cannot attach to a disposable process name. It needs a
     durable identity, a named principal, an outcome history, and rules for
     migration that do not erase sanctions or mint reputation. This chapter
@@ -54,8 +88,8 @@
     R13, and B6 govern its economic and protocol claims.}%
 }
 
-\newcommand{\pdchapterhandoffIII}{%
-  \pdbookrail{What Chapter IV receives}{%
+\newcommand{\pdchapterhandoffstp}{%
+  \pdbookrail{What \pdchapref{he}{The Harbor Economy} receives}{%
     A successor can now inherit a bounded history without inheriting imaginary
     credit or escaping old obligations. Continuity by itself creates no market:
     it neither prices risk nor says whose funds may move. The next chapter turns
@@ -63,8 +97,10 @@
     and settlement.}%
 }
 
-\newcommand{\pdchapteropeningIV}{%
-  \pdbookrail{Question IV: what makes cooperation rational without making loss unbounded?}{%
+% ---- Part IV: The Market -------------------------------------------------
+
+\newcommand{\pdchapteropeninghe}{%
+  \pdbookrail{\pdchapterquestion}{%
     A payment rail moves money; a market must also identify the parties, state
     what performance means, reserve the right funds, and decide what happens
     when evidence disagrees. This chapter constructs that market from four
@@ -72,34 +108,16 @@
     audit, substitution, escalation, and specialization claims.}%
 }
 
-\newcommand{\pdchapterhandoffIV}{%
-  \pdbookrail{What Chapter V receives}{%
+\newcommand{\pdchapterhandoffhe}{%
+  \pdbookrail{What \pdchapref{bonded}{The Bonded Commons} receives}{%
     Work can now be proposed, bonded, graded, and settled against a named
-    principal. The missing question is prior to price: why may this actor invoke
-    this effect at all, and what stops delegated authority from growing at the
-    next hop? The next chapter turns authority into a key-bound, attenuating,
-    revocable object.}%
+    principal. The market's contracts rest on promises this chapter states but
+    does not prove: that evidence is admissible, that settlement conserves value,
+    that remedy stays bounded. The next chapter proves them.}%
 }
 
-\newcommand{\pdchapteropeningV}{%
-  \pdbookrail{Question V: how may authority travel without silently growing?}{%
-    Identity answers who signed; it does not answer what the signer may do.
-    Anchor therefore checks every delegation edge, binds the grant to a key and
-    audience, narrows scope and lifetime, and preserves revocation ancestry.
-    The formal claim concerns the checked protocol and Rust paths, while R5
-    explains which surrounding policy promises can become admission gates.}%
-}
-
-\newcommand{\pdchapterhandoffV}{%
-  \pdbookrail{What Chapter VI receives}{%
-    A request now arrives with authenticated, narrowing authority. That still
-    does not make its result true, its evidence sufficient, or its remedy fair.
-    The next chapter composes grants with witnessed history, conflict checks,
-    audit, appeals, and one bounded settlement.}%
-}
-
-\newcommand{\pdchapteropeningVI}{%
-  \pdbookrail{Question VI: who may decide, on what evidence, with what consequence?}{%
+\newcommand{\pdchapteropeningbonded}{%
+  \pdbookrail{\pdchapterquestion}{%
     Attribution without consequence is only a diary; consequence without
     admissible evidence is arbitrary. This chapter turns the local writer into
     an institution by joining capability bounds, witnessed records, audits,
@@ -107,16 +125,16 @@
     state exactly what has been proved, checked, or left conditional.}%
 }
 
-\newcommand{\pdchapterhandoffVI}{%
-  \pdbookrail{What Chapter VII receives}{%
+\newcommand{\pdchapterhandoffbonded}{%
+  \pdbookrail{What \pdchapref{fh}{The Federated Harbor} receives}{%
     One machine can now authorize, observe, adjudicate, and settle its own work.
     A second machine introduces a different operator and a different source of
     truth. The final chapter asks which capabilities and records may cross that
     boundary without pretending that either local authority has become global.}%
 }
 
-\newcommand{\pdchapteropeningVII}{%
-  \pdbookrail{Question VII: what can cross a trust boundary without moving the authority itself?}{%
+\newcommand{\pdchapteropeningfh}{%
+  \pdbookrail{\pdchapterquestion}{%
     The current Relay federates harbor-scoped events over outbound HTTPS and
     SSE; it does not replicate daemon state or create consensus between
     operators. Local admission remains local. The research result is narrower
@@ -124,12 +142,13 @@
     cycle can expose an inconsistency that a missing pairwise check cannot.}%
 }
 
-\newcommand{\pdchapterhandoffVII}{%
+\newcommand{\pdchapterhandofffh}{%
   \pdbookrail{The conclusion of the book}{%
-    The seven answers now form one discipline. Preserve enough evidence for a
-    human to challenge the system; mediate every effect that must be prevented;
-    attach actions to a durable principal and work unit; let delegated authority
-    narrow; make settlement conserve value; and cross organizational boundaries
-    by exchanging verifiable records rather than by exporting sovereignty.
-    Better models help inside this discipline. They do not replace it.}%
+    The seven answers now form one discipline. Mediate every effect that must be
+    prevented; let delegated authority only narrow; preserve enough evidence for
+    a human to challenge the system; attach actions to a durable principal and
+    work unit; make settlement conserve value; and cross organizational
+    boundaries by exchanging verifiable records rather than by exporting
+    sovereignty. Better models help inside this discipline. They do not replace
+    it.}%
 }

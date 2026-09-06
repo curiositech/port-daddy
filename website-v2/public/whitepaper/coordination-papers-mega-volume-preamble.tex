@@ -15,21 +15,37 @@
 \usepackage{float}
 \usepackage{caption}
 \usepackage{enumitem}
-\usepackage[hidelinks]{hyperref}
+\usepackage{refcount}
+\usepackage[backref=page]{hyperref}
 \usetikzlibrary{arrows.meta,positioning,fit,backgrounds,calc,shapes.geometric,shapes.symbols,decorations.pathmorphing,decorations.pathreplacing}
 
 \geometry{margin=2.35cm}
 \captionsetup{font=small,labelfont=bf}
 \setlength{\emergencystretch}{2em}
-% Depth 1 (chapters + top-level sections only) is a deliberate choice for a
-% 264pp reference volume assembled from seven independently-structured
-% papers: at depth 2 the collected front-matter ToC runs to ~370 section AND
-% subsection headings, which reads as a text-only index rather than a map.
-% Each chapter's own reader's map / abstract is the fine-grained entry point;
-% this ToC's job is only to show the seven-chapter spine plus the volume
-% appendices.
+% Depth 1 (parts, chapters, and top-level sections) is a deliberate choice for
+% a book assembled from independently structured chapters: at depth 2 the
+% front-matter ToC runs to several hundred headings and reads as a text-only
+% index rather than a map. Each chapter's own reader's map / abstract is the
+% fine-grained entry point; this ToC's job is to show the four parts, the
+% chapter spine, and the appendices. The PDF bookmarks go three levels deep.
 \setcounter{tocdepth}{1}
 \makeatletter
+% article.cls has no chapter level; the Book adds one between part and section.
+\providecommand*{\toclevel@chapter}{0}
+\newcommand*\l@chapter[2]{%
+  \ifnum \c@tocdepth >-1\relax
+    \addpenalty\@secpenalty
+    \addvspace{0.7em \@plus\p@}%
+    \begingroup
+      \parindent \z@ \rightskip \@pnumwidth
+      \parfillskip -\@pnumwidth
+      \leavevmode \bfseries\color{hhink}%
+      \setlength\@tempdima{2.0em}%
+      \advance\leftskip\@tempdima \hskip -\leftskip
+      #1\nobreak\hfil \nobreak\hb@xt@\@pnumwidth{\hss #2}\par
+      \nobreak\vspace{0.15em}%
+    \endgroup
+  \fi}
 \renewcommand*\l@part[2]{%
   \ifnum \c@tocdepth >-2\relax
     \addpenalty\@secpenalty
@@ -64,6 +80,8 @@
 \definecolor{hhteal}{HTML}{00564C}
 \definecolor{hhpaper}{HTML}{FBF7EF}
 \definecolor{hhgray}{HTML}{5C5650}
+\input{figures/pd-palette}
+\input{figures/pd-textbook-map}
 \input{figures/pd-figure-language}
 
 % One maturity vocabulary for the collected volume. Uppercase aliases preserve
@@ -210,28 +228,105 @@
 
 \pagestyle{fancy}
 \fancyhf{}
-\fancyhead[L]{\small\itshape\color{hhgray} Port Daddy Coordination Papers}
+\fancyhead[L]{\small\itshape\color{hhgray} \pdeditiontitle}
 \fancyhead[R]{\small\color{hhgray}\thepage}
-\fancyfoot[C]{\footnotesize\color{hhgray} The Collected Volume \textperiodcentered\ August 2026}
+\fancyfoot[C]{\footnotesize\color{hhgray} Textbook Edition \textperiodcentered\ \pdeditiondate}
 \renewcommand{\headrulewidth}{0.4pt}
 \renewcommand{\footrulewidth}{0pt}
 
-\newcommand{\pdcurrentchapter}{I}
-\newcommand{\pdchapter}[2]{%
+% ---- Chapters, parts, and the front-matter map ----------------------------
+% Chapter numbers are Arabic and come from whitepaper/textbook.json via the
+% generator: \pdchapter{number}{title}{prefix}{hue}. The prefix selects the
+% chapter's seam rails and its entry in figures/pd-textbook-map.tex (question,
+% epigraph, one-breath answer, part label); the hue is the PART's, inherited by
+% every chapter in it, so each part owns one color and nothing dilutes it.
+\newcounter{pdchapter}
+\renewcommand{\thepdchapter}{\arabic{pdchapter}}
+\makeatletter
+\@namedef{theHpdchapter}{chap.\arabic{pdchapter}}
+\makeatother
+\newcommand{\pdcurrentchapter}{0}
+\newcommand{\pdcurrentchaptercolor}{pdcobalt}
+% A live link to a chapter, by prefix. figures/pd-hyperlinks.tex provides the
+% plain-text fallback for standalone chapters; the Book defines the real thing.
+\DeclareRobustCommand{\pdchaplink}[2]{\hyperref[chap:#1]{#2}}
+
+% The weighted four-hue rule. One segment per part, its length proportional to
+% the part's share of the book's pages (from the page references once they
+% exist; chapter counts on the first pass). Segments up to the current part are
+% solid, the rest outlined, so the same rule reads as a progress mark on part
+% and chapter openers and as the whole book on the title page.
+%   \pdweightrule[color]{current part index or 0 for all}{total width}{height}
+\newdimen\pdweightx
+\newdimen\pdweightw
+\newcount\pdweighti
+\makeatletter
+\newcommand{\pdweightrule}[4][]{%
+  \begingroup
+  \edef\pd@tot{\the\numexpr\getpagerefnumber{book:appendices}-\getpagerefnumber{part:\pdfirstpartnumeral}\relax}%
+  \ifnum\pd@tot<1 \def\pd@tot{0}\fi
+  \pdweightx=0pt \pdweighti=0
+  \def\pdweightsegment##1##2##3##4{%
+    \advance\pdweighti by 1
+    \ifnum\pd@tot>0
+      \edef\pd@seg{\the\numexpr\getpagerefnumber{##3}-\getpagerefnumber{part:##1}\relax}%
+      \ifnum\pd@seg<1 \edef\pd@seg{##4}\edef\pd@den{\pdchaptercount}\else\edef\pd@den{\pd@tot}\fi
+    \else
+      \edef\pd@seg{##4}\edef\pd@den{\pdchaptercount}%
+    \fi
+    \pdweightw=\dimexpr(#3-3pt*(\pdpartcount-1))*\pd@seg/\pd@den\relax
+    \if\relax\detokenize{#1}\relax\def\pd@col{##2}\else\def\pd@col{#1}\fi
+    \ifnum#2=0 \def\pd@solid{1}\else\ifnum\pdweighti>#2 \def\pd@solid{0}\else\def\pd@solid{1}\fi\fi
+    \if1\pd@solid
+      \fill[color=\pd@col] (\the\pdweightx,0pt) rectangle ++(\the\pdweightw,#4);
+    \else
+      \draw[color=\pd@col,line width=0.5pt] (\the\dimexpr\pdweightx+0.25pt\relax,0.25pt) rectangle ++(\the\dimexpr\pdweightw-0.5pt\relax,\the\dimexpr#4-0.5pt\relax);
+    \fi
+    \advance\pdweightx by \pdweightw \advance\pdweightx by 3pt
+  }%
+  \begin{tikzpicture}[baseline=0pt]
+    \pdweightsegmentslist
+  \end{tikzpicture}%
+  \endgroup}
+\makeatother
+
+% The chapter opener: one page with the title, an epigraph, a plate when the
+% chapter has one, and the question the chapter answers with its one-breath
+% answer. Nothing else. The chapter's first section starts on the next page.
+\newcommand{\pdchapter}[4]{%
   \clearpage
   \renewcommand{\pdcurrentchapter}{#1}%
-  \refstepcounter{part}%
-  \phantomsection
-  \addcontentsline{toc}{part}{\textbf{\scshape Chapter #1}\quad #2}%
-  \begin{center}
-    \vspace*{0.4cm}
-    {\scshape\footnotesize\color{hhgray} PORT DADDY COORDINATION PAPERS \textperiodcentered\ CHAPTER #1 OF VII}\par
-    \vspace{0.2cm}
-    {\color{hhcobalt}\rule{0.35\textwidth}{1.5pt}}\par
-    \vspace{0.4cm}
-    {\Huge\bfseries #2\par}
-    \vspace{0.3cm}
-  \end{center}
+  \renewcommand{\pdchapterprefix}{#3}%
+  \renewcommand{\pdcurrentchaptercolor}{#4}%
+  \setcounter{pdchapter}{#1}\addtocounter{pdchapter}{-1}\refstepcounter{pdchapter}%
+  \label{chap:#3}%
+  \addcontentsline{toc}{chapter}{\protect\numberline{#1}#2}%
+  \thispagestyle{empty}%
+  \vspace*{0.1cm}
+  \noindent{\scshape\footnotesize\color{#4}Chapter #1 of \pdchaptercount\hfill\pdchapterpartlabel}\par
+  \vspace{0.25cm}
+  \noindent\pdweightrule{\pdchapterpartindex}{\textwidth}{2pt}\par
+  \vspace{1.3cm}
+  {\noindent\fontsize{34}{40}\selectfont\bfseries\color{hhink}#2\par}
+  \vspace{1.1cm}
+  \begin{flushright}
+    \begin{minipage}{0.68\textwidth}\raggedleft
+      {\itshape\large\pdchapterepigraph\par}
+      \vspace{6pt}
+      {\small\scshape\color{hhgray}\pdchapterepigraphsource\par}
+    \end{minipage}
+  \end{flushright}
+  \vspace{0.5cm}
+  \IfFileExists{plates/chapter-#3.jpg}{%
+    \begin{center}\includegraphics[width=\textwidth,height=0.36\textheight,keepaspectratio]{plates/chapter-#3.jpg}\end{center}}{}%
+  \vfill
+  \noindent{\scshape\footnotesize\color{hhgray}The question this chapter answers}\par
+  \vspace{6pt}
+  {\noindent\fontsize{22}{27}\selectfont\bfseries\color{#4}\pdchapterquestion\par}
+  \vspace{10pt}
+  {\noindent\small\itshape\pdchapteroneline\par}
+  \vspace{0.2cm}
+  \clearpage
   \setcounter{section}{0}\setcounter{figure}{0}\setcounter{table}{0}\setcounter{equation}{0}\setcounter{lstlisting}{0}%
   \renewcommand{\thesection}{#1.\arabic{section}}%
   \renewcommand{\thefigure}{#1.\arabic{figure}}%
@@ -246,7 +341,7 @@
   \renewcommand{\theHequation}{#1.\arabic{equation}}%
   \renewcommand{\theHlstlisting}{#1.\arabic{lstlisting}}%
   \fancyhead[L]{\small\itshape\color{hhgray} Chapter #1. #2}%
-  \fancyfoot[C]{\footnotesize\color{hhgray} Port Daddy Coordination Papers \textperiodcentered\ Chapter #1 of VII}%
+  \fancyfoot[C]{\footnotesize\color{hhgray} \pdeditiontitle\ \textperiodcentered\ Chapter #1 of \pdchaptercount}%
 }
 \newcommand{\pdchapterappendix}{%
   \clearpage\setcounter{section}{0}%
@@ -260,3 +355,64 @@
   \renewcommand{\theHlstlisting}{\pdcurrentchapter.appendix.\arabic{lstlisting}}%
   \section*{Chapter Appendices}%
   \addcontentsline{toc}{section}{\pdcurrentchapter.\quad Chapter Appendices}}
+
+% Part opener: one full-bleed page in the part's hue, cream text, the part's
+% claim, its chapters, and a plate when the part has one.
+% \pdpart{numeral}{title}{hue}{blurb}{chapter list}.
+\newcommand{\pdpartchapter}[4]{%
+  \par\noindent\pdchaplink{#2}{{\Large\bfseries #1}\quad{\large\bfseries #3}}\par
+  \vspace{2pt}\noindent\hspace*{2.4em}\begin{minipage}{0.82\textwidth}\small #4\end{minipage}\par
+  \vspace{9pt}}
+\newcommand{\pdpart}[5]{%
+  \clearpage
+  \pagecolor{#3}\color{hhpaper}%
+  \thispagestyle{empty}%
+  \refstepcounter{part}\label{part:#1}%
+  \addcontentsline{toc}{part}{\textbf{\scshape Part #1}\quad #2}%
+  \vspace*{1.6cm}
+  \noindent\pdweightrule[hhpaper]{\csname pdpartindexof#1\endcsname}{0.5\textwidth}{2pt}\par
+  \vspace{0.6cm}
+  \noindent{\scshape\Large Part #1}\par
+  \vspace{0.3cm}
+  \noindent{\fontsize{40}{46}\selectfont\bfseries #2\par}
+  \vspace{0.9cm}
+  \noindent\begin{minipage}{0.80\textwidth}{\large #4\par}\end{minipage}\par
+  \vspace{1.1cm}
+  {\hypersetup{linkcolor=hhpaper}\noindent\begin{minipage}{0.92\textwidth}#5\end{minipage}\par}
+  \vfill
+  \IfFileExists{plates/part-#1.jpg}{%
+    \noindent\begin{center}\fcolorbox{hhpaper}{hhpaper}{\includegraphics[width=\dimexpr\textwidth-2\fboxsep-2\fboxrule\relax,height=0.38\textheight,keepaspectratio]{plates/part-#1.jpg}}\end{center}}{}%
+  \clearpage
+  \nopagecolor\color{hhink}%
+}
+
+% Front-matter map ("The argument, chapter by chapter"), generated from the
+% JSON. A chrome page: its links take each part's hue; \pdcontentsend restores
+% the quiet body link color afterwards.
+% Each part is one tinted band in its hue (a 9% wash over the cream) with a
+% solid rule of the same hue on its left edge; the chapters sit inside the band.
+% The band is captured in a save box between \pdcontentspart and
+% \pdcontentspartend (the generator emits both), then set in one \colorbox.
+\newsavebox{\pdbandbox}
+\newlength{\pdbandwidth}
+\newcommand{\pdbandcolor}{pdcobalt}
+\newcommand{\pdcontentspart}[3]{%
+  \hypersetup{linkcolor=#3}%
+  \renewcommand{\pdbandcolor}{#3}%
+  \setlength{\pdbandwidth}{\dimexpr\textwidth-3pt-22pt\relax}%
+  \begin{lrbox}{\pdbandbox}\begin{minipage}[t]{\pdbandwidth}%
+    \vspace{9pt}%
+    {\noindent\scshape\bfseries\color{#3}Part #1\enspace\textperiodcentered\enspace #2}\par\vspace{5pt}}
+\newcommand{\pdcontentschapter}[5]{%
+  \par\noindent\begin{minipage}[t]{1.6em}\raggedleft\bfseries\pdchaplink{#2}{#1}\end{minipage}\hspace{0.7em}%
+  \begin{minipage}[t]{\dimexpr\pdbandwidth-2.3em\relax}\raggedright
+    \pdchaplink{#2}{\bfseries #3}\ifx\relax#5\relax\else\enspace{\footnotesize\itshape\color{hhgray}#5}\fi\par
+    {\small #4\par}\end{minipage}\par\vspace{5pt}}
+\newcommand{\pdcontentspartend}{%
+  \vspace{4pt}\end{minipage}\end{lrbox}%
+  \par\vspace{7pt}\noindent{\setlength{\fboxsep}{0pt}%
+    \colorbox{\pdbandcolor}{\rule{3pt}{0pt}}\colorbox{\pdbandcolor!9}{\hspace{10pt}\usebox{\pdbandbox}\hspace{12pt}}}\par}
+\newcommand{\pdcontentsend}{\hypersetup{linkcolor=pdinkmuted}}
+
+% Hyperlink and cross-reference discipline (must stay last).
+\input{figures/pd-hyperlinks}

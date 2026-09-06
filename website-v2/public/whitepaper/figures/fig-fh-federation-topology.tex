@@ -38,7 +38,9 @@
   \node[pd caution datum] at (-3.55,-1.72) {};
   \node[pd caution datum] at (3.55,-1.72) {};
   \node[pd direct label,text=hhamber] at (0,-1.42)
-    {bond at A $\cdot$ measured damage at B $\cdot$ bounded custody only if gate holds};
+    {bond at A $\cdot$ measured damage at B};
+  \node[pd note,text=hhamber] at (0,-2.12)
+    {Custody bounded \emph{only if} the settlement gate holds; a conditional property, not an invariant};
   \draw[pd caution arrow] (-3.55,-.15)--(-3.55,-1.50);
   \draw[pd caution arrow] (3.55,-.15)--(3.55,-1.50);
 

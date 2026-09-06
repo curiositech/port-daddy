@@ -18,7 +18,7 @@
 \usepackage{float}
 \usepackage{caption}
 \usepackage{enumitem}
-\usepackage[hidelinks]{hyperref}
+\usepackage[backref=page]{hyperref}
 \captionsetup{font=small,labelfont=bf}
 % Algorithms are formatted using lstlisting with custom pseudocode style
 
@@ -37,6 +37,9 @@
 \definecolor{hhteal}{HTML}{00564C}
 \definecolor{hhpaper}{HTML}{FBF7EF}
 \definecolor{hhgray}{HTML}{5C5650}
+\input{figures/pd-palette}
+\newcommand{\pdchapterprefix}{swk}% this chapter's key in whitepaper/textbook.json
+\input{figures/pd-textbook-map}
 \input{figures/pd-figure-language}
 
 % Research-maturity scale: a neutral four-point grade for how far each claim sits
@@ -166,14 +169,14 @@
 \fancyhf{}
 \fancyhead[L]{\small\itshape\color{hhgray} The Single-Writer Kernel}
 \fancyhead[R]{\small\color{hhgray}\thepage}
-\fancyfoot[C]{\footnotesize\color{hhgray} Port Daddy Coordination Papers \textperiodcentered\ Chapter II of VII}
+\fancyfoot[C]{\footnotesize\color{hhgray} Port Daddy Coordination Papers \textperiodcentered\ Chapter~\pdchapternumber\ of \pdchaptercount}
 \renewcommand{\headrulewidth}{0.4pt}
 \renewcommand{\footrulewidth}{0pt}
 
 % ─── Title ───────────────────────────────────────────────────────────────────
 \title{
   \vspace{-1cm}
-  {\Large\textsc{Port Daddy Coordination Papers --- Chapter II of VII}}\\[0.5cm]
+  {\Large\textsc{Port Daddy Coordination Papers --- Chapter~\pdchapternumber\ of \pdchaptercount}}\\[0.5cm]
   \rule{\textwidth}{0.5pt}\\[0.3cm]
   {\LARGE\textbf{The Single-Writer Kernel:}}\\[0.2cm]
   {\Large A Local Transactional Reference Monitor\\for Agent Swarms}\\[0.3cm]
@@ -184,9 +187,12 @@
   Curiositech LLC\\[0.2cm]
   \texttt{engineering@portdaddy.dev}
 }
-\date{August 2026\\Version 1.1 (revised pre-print)}
+\date{September 2026\\Version 1.2 (textbook edition)}
 
 % ─── Document ────────────────────────────────────────────────────────────────
+% Hyperlink and cross-reference discipline (must stay last in the preamble).
+\input{figures/pd-hyperlinks}
+
 \begin{document}
 \setlength{\emergencystretch}{2em}
 
@@ -237,10 +243,12 @@ commitments, stigmergy, local-first coordination, multi-agent systems
 \vspace{0.4cm}
 \noindent\textit{Reading time: approximately 45 minutes end-to-end; the Reader's
 Map (\S\ref{sec:readersmap}) routes you to a 15-minute path and to single-section
-paths. This is Chapter~II of a seven-chapter collection. \emph{The Legible
-Swarm} is the operator-facing entry point and a natural place to start; \emph{From
-Spawn to Person} builds an identity-and-reputation bridge on top of this kernel;
-\emph{The Harbor Economy} carries the cross-machine market, including
+paths. This is Chapter~\pdchapternumber{} of \pdbooktitle{}, a
+\pdchaptercountword-chapter textbook, and the chapter every later one rests on.
+\pdchapref{ls}{The Legible Swarm} is the operator-facing entry point and a natural
+place to start; \pdchapref{stp}{From Spawn to Person} builds an
+identity-and-reputation bridge on top of this kernel; \pdchapref{he}{The Harbor
+Economy} carries the cross-machine market, including
 cross-machine capability transfer --- which belongs to the cross-machine layer and
 lives there, not here. Any chapter can be read first, but every later layer rests on
 this one.}

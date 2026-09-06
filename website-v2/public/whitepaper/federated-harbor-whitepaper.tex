@@ -18,7 +18,7 @@
 \usepackage{float}
 \usepackage{caption}
 \usepackage{enumitem}
-\usepackage[hidelinks]{hyperref}
+\usepackage[backref=page]{hyperref}
 \captionsetup{font=small,labelfont=bf}
 
 % ─── Geometry ────────────────────────────────────────────────────────────────
@@ -39,6 +39,9 @@
 \definecolor{hhteal}{HTML}{00564C}
 \definecolor{hhpaper}{HTML}{FBF7EF}
 \definecolor{hhgray}{HTML}{5C5650}
+\input{figures/pd-palette}
+\newcommand{\pdchapterprefix}{fh}% this chapter's key in whitepaper/textbook.json
+\input{figures/pd-textbook-map}
 \input{figures/pd-figure-language}
 
 % Verification-status markers, matching the Anchor / Bonded conventions.
@@ -121,14 +124,14 @@
 \fancyhf{}
 \fancyhead[L]{\small\textit{The Federated Harbor}}
 \fancyhead[R]{\small\thepage}
-\fancyfoot[C]{\footnotesize\color{hhgray} Port Daddy Coordination Papers \textperiodcentered\ Chapter VII of VII}
+\fancyfoot[C]{\footnotesize\color{hhgray} Port Daddy Coordination Papers \textperiodcentered\ Chapter~\pdchapternumber\ of \pdchaptercount}
 \renewcommand{\headrulewidth}{0.4pt}
 \renewcommand{\footrulewidth}{0pt}
 
 % ─── Title ───────────────────────────────────────────────────────────────────
 \title{
   \vspace{-1cm}
-  {\Large\textsc{Port Daddy Coordination Papers --- Chapter VII of VII}}\\[0.5cm]
+  {\Large\textsc{Port Daddy Coordination Papers --- Chapter~\pdchapternumber\ of \pdchaptercount}}\\[0.5cm]
   \rule{\textwidth}{0.5pt}\\[0.3cm]
   {\LARGE\textbf{The Federated Harbor:}}\\[0.2cm]
   {\Large Identity, Coordination, and Settlement\\Across Administrative Domains}\\[0.3cm]
@@ -139,9 +142,12 @@
   Curiositech LLC\\[0.2cm]
   \texttt{engineering@portdaddy.dev}
 }
-\date{August 2026\\Version 1.0 (revised pre-print)}
+\date{September 2026\\Version 1.1 (textbook edition)}
 
 % ─── Document ────────────────────────────────────────────────────────────────
+% Hyperlink and cross-reference discipline (must stay last in the preamble).
+\input{figures/pd-hyperlinks}
+
 \begin{document}
 \setlength{\emergencystretch}{2em}
 
@@ -158,7 +164,7 @@ A demonstration is scheduled for 4pm. Alice runs the back end on her laptop; Bob
 \noindent\textbf{Keywords:} federated identity, capability delegation, cross-realm authorization, mechanism design, distributed trust, certificate transparency, atomic settlement, mutual suspicion.
 
 \vspace{0.4cm}
-\noindent\textit{Reading time: approximately 45 minutes end-to-end. Chapters~V and~VI, \emph{The Anchor Protocol} (Owens 2026) and \emph{The Bonded Commons} (Owens 2026), supply the cryptographic and economic primitives this paper extends. Either of those can be read first or in parallel; this paper is the federation half. The Reader's Map below provides shorter routes for specific audiences.}
+\noindent\textit{Reading time: approximately 45 minutes end-to-end. \pdchapref{anchor}{The Anchor Protocol} and \pdchapref{bonded}{The Bonded Commons} (Owens 2026) supply the cryptographic and economic primitives this paper extends. Either of those can be read first or in parallel; this paper is the federation half. The Reader's Map below provides shorter routes for specific audiences.}
 
 \vspace{0.6cm}
 
@@ -167,13 +173,11 @@ A demonstration is scheduled for 4pm. Alice runs the back end on her laptop; Bob
 \begin{tikzpicture}
 \node[draw=hhebony,line width=0.8pt,rounded corners=5pt,fill=hhsand!22,
       inner sep=11pt,text width=15.1cm,align=left,font=\small] {%
-  {\sffamily\bfseries\footnotesize\textcolor{hhebony}{PORT DADDY COORDINATION PAPERS\hfill CHAPTER~VII~OF~VII}}\\[5pt]
+  {\sffamily\bfseries\footnotesize\textcolor{hhebony}{PORT DADDY COORDINATION PAPERS\hfill CHAPTER~\pdchapternumber~OF~\pdchaptercount}}\\[5pt]
   {\color{hhebony!35}\rule{\linewidth}{0.4pt}}\\[6pt]
-  \textbf{V.~The Anchor Protocol.}~Authentication, delegation, attenuation, and revocation inside one harbor.\\[4pt]
-  \textbf{VI.~The Bonded Commons.}~Evidence, bonding, advisory claims, and the incentive conditions for cooperation.\\[4pt]
-  {\color{hhcobalt}\textbf{VII.~The Federated Harbor \textnormal{(this chapter)}.}}~Identity, revocation, and settlement across mutually sovereign machines.\\[6pt]
+  \pdtextbookmap\\[6pt]
   {\color{hhebony!35}\rule{\linewidth}{0.4pt}}\\[5pt]
-  {\footnotesize Chapters I--IV form the product arc; Chapters V--VII provide the protocol, economic, and federation deep dives. Every chapter is independently readable.}
+  {\footnotesize \pdbooktitle{} reads in this order: each chapter stands on the ones before it, and each proof chapter follows the chapter whose promises it keeps. Every chapter is independently readable.}
 };
 \end{tikzpicture}
 \end{center}
@@ -204,14 +208,14 @@ The paper has a topology: it opens with the gestalt (\S\ref{sec:fh-intro}--\S\re
 \noindent\textbf{Suggested reading paths by reader type:}
 \begin{itemize}[nosep,leftmargin=*,topsep=2pt]
 \item \textbf{Beginner / new to the series.} Read \S\ref{sec:fh-intro} (the two-machine problem) and \S\ref{sec:fh-worked-example} (Alice and Bob, end-to-end). The worked example is written to be read cold. Look at the five figures in order. Skip the proofs on the first pass.
-\item \textbf{Distributed-systems engineer.} \S\ref{sec:fh-authority} (the topology), \S\ref{sec:fh-xfer} (transfer ceremony), \S\ref{sec:fh-revocation} (gossip and equivocation). Chapter~V (\emph{The Anchor Protocol}) for the cryptographic substrate. Then \S\ref{sec:fh-limitations} for the honest open questions.
+\item \textbf{Distributed-systems engineer.} \S\ref{sec:fh-authority} (the topology), \S\ref{sec:fh-xfer} (transfer ceremony), \S\ref{sec:fh-revocation} (gossip and equivocation). \pdchapref{anchor}{The Anchor Protocol} for the cryptographic substrate. Then \S\ref{sec:fh-limitations} for the honest open questions.
 \item \textbf{Formal-methods reviewer.} Jump to \S\ref{sec:fh-formal} (the TLA+ and ProVerif extensions) and Appendix~\ref{app:fh-mech} (the verification status table). Threat bands in Figure~\ref{fig:fh-threat-bands} are the most concentrated signal of what is and is not mechanized.
 \item \textbf{Cryptoeconomic / mechanism-design reader.} \S\ref{sec:fh-settlement} (bounded escrow) and \S\ref{sec:fh-admission} (cold-start admission via bonded sponsorship). The proposal's equilibrium contributions are stated here as open work; that is honest, not coy.
 \item \textbf{Security-engineering reviewer.} \S\ref{sec:fh-threat-model} (threat model) first, then the three primitive sections in order. \S\ref{sec:fh-failure-modes} for the operationally interesting cases the protocols do not close.
 \end{itemize}
 
 \vspace{0.5cm}
-\noindent\textbf{Volume Context.} Chapter~V (\emph{The Anchor Protocol}) formalizes process identity on a single machine. Chapter~VI (\emph{The Bonded Commons}) establishes pre-transactional commons authority and collateralized incentive alignment. This chapter extends both into the cross-machine, cross-organization regime. Specific primitives are cited directly (e.g., Chapter~V \S2.4, Chapter~VI \S2) rather than re-derived.
+\noindent\textbf{Volume Context.} \pdchapref{anchor}{The Anchor Protocol} formalizes process identity on a single machine. \pdchapref{bonded}{The Bonded Commons} establishes pre-transactional commons authority and collateralized incentive alignment. This chapter extends both into the cross-machine, cross-organization regime. Specific primitives are cited directly (e.g., Anchor \S2.4, Bonded \S2) rather than re-derived.
 
 \newpage
 \tableofcontents
@@ -241,7 +245,7 @@ This paper extends the Anchor Protocol, the Bonded Commons, and the daemon-as-co
 
 \subsection{What this paper is and is not}\label{sec:fh-scope}
 
-This chapter closes the V--VII deep-dive arc. The Anchor Protocol supplies the cryptographic-token substrate; the Bonded Commons supplies the economic and governance model; this chapter specifies the federation boundary. The dependencies are concrete: \S\ref{sec:fh-xfer} extends Anchor's delegation chain across a trust boundary; \S\ref{sec:fh-revocation} extends its revocation mesh; \S\ref{sec:fh-settlement} extends Bonded's Conservation invariant.
+This chapter closes the book. \pdchapref{anchor}{The Anchor Protocol} supplies the cryptographic-token substrate; \pdchapref{bonded}{The Bonded Commons} supplies the economic and governance model; this chapter specifies the federation boundary. The dependencies are concrete: \S\ref{sec:fh-xfer} extends Anchor's delegation chain across a trust boundary; \S\ref{sec:fh-revocation} extends its revocation mesh; \S\ref{sec:fh-settlement} extends Bonded's Conservation invariant.
 
 What this paper is \emph{not}: it is not a permissionless-blockchain redesign. Port Daddy daemons do not run consensus. The Federated Harbor explicitly rejects the assumption common to most modern federation proposals~\cite{tobin2017inevitable, schindler2019ethdkg} that a shared ledger is the right substrate. The cost of that simplification is that we cannot lean on a chain for ordering, equivocation detection, or settlement; we must construct each of those primitives from peer gossip plus a federated witness log. The advantage is that the design composes cleanly with the local-first, single-operator-machine architecture of the prior two papers.
 
@@ -306,7 +310,7 @@ Most operations are \emph{intra-harbor}: minting, verifying, attenuating, and re
 
 \subsection{The witness log}\label{sec:fh-witness}
 
-The witness log is the device that makes the federation auditable without making any harbor sovereign over the others. It plays the same role that the Merkle Forest plays inside a single machine in Bonded (Chapter~VI, \S4.1): a tamper-evident accumulator that any third party can verify without needing to trust the publisher.
+The witness log is the device that makes the federation auditable without making any harbor sovereign over the others. It plays the same role that the Merkle Forest plays inside a single machine in \pdchapref{bonded}{The Bonded Commons} (\S4.1): a tamper-evident accumulator that any third party can verify without needing to trust the publisher.
 
 \begin{property}[Witness-Log Admissibility]\label{prop:fh-witness}
 A witness log $W$ is admissible for the Federated Harbor if it provides:
@@ -319,7 +323,7 @@ A witness log $W$ is admissible for the Federated Harbor if it provides:
 \end{enumerate}
 \end{property}
 
-This list is intentionally close in shape to the five properties of the Admissible KMS in Bonded (Chapter~VI, ``Federated Sovereign''). The Bonded paper used the same posture --- characterizing the property surface, then exhibiting a concrete construction that satisfied it --- and we follow that pattern. Section~\ref{sec:fh-formal} sketches one concrete instantiation built on Certificate Transparency-style append-only logs~\cite{laurie2013ct} cross-witnessed in the Sigstore/Rekor pattern~\cite{newman2022sigstore}; the substrate need not be unique.
+This list is intentionally close in shape to the five properties of the Admissible KMS in \pdchapref{bonded}{The Bonded Commons} (``Federated Sovereign''). The Bonded paper used the same posture --- characterizing the property surface, then exhibiting a concrete construction that satisfied it --- and we follow that pattern. Section~\ref{sec:fh-formal} sketches one concrete instantiation built on Certificate Transparency-style append-only logs~\cite{laurie2013ct} cross-witnessed in the Sigstore/Rekor pattern~\cite{newman2022sigstore}; the substrate need not be unique.
 
 \subsection{What the federation is not}\label{sec:fh-not}
 
@@ -593,7 +597,7 @@ The designed transition is atomic in the bucket-partition sense: a bond moves on
 
 \subsection{Fee structure and economic discipline}\label{sec:fh-econ}
 
-The escrow's fee $\phi$ is bounded but non-zero. In the competitive-insurance market sense of Bonded (the Youle contribution in Chapter~VI), $\phi$ is a market clearing price for the service of holding the bond and verifying the inclusion proof. We do not solve the market here; the Youle contribution from Bonded gives the mechanism, and we conjecture (open) that it extends cleanly to the cross-harbor case when the escrow population is large enough.
+The escrow's fee $\phi$ is bounded but non-zero. In the competitive-insurance market sense of \pdchapref{bonded}{The Bonded Commons} (the Youle contribution), $\phi$ is a market clearing price for the service of holding the bond and verifying the inclusion proof. We do not solve the market here; the Youle contribution from Bonded gives the mechanism, and we conjecture (open) that it extends cleanly to the cross-harbor case when the escrow population is large enough.
 
 We are explicit that for small federations (two or three harbors), $\phi$ is likely set by a posted price rather than auctioned. The mechanism design here is identical in shape to Bonded's, just lifted to the federation layer.
 
@@ -614,7 +618,7 @@ A new harbor $N$ with no prior reputation cannot price its own bond fairly under
 \item At the end of probation, $N$'s own reputation is sufficient to price its own bond, and the sponsor bond is released.
 \end{enumerate}
 
-This is the federation-layer analogue of competitive insurance from Bonded (the Youle contribution in Chapter~VI): instead of an authority picking who joins, the sponsor market discovers it. The cost of being a sponsor is real --- forfeit risk during probation --- and the benefit is the network effect of having $N$ in the federation. We expect (open) that for federations with many candidate sponsors and clear-eyed risk pricing, the equilibrium is reasonably efficient. We do not prove it.
+This is the federation-layer analogue of competitive insurance from \pdchapref{bonded}{The Bonded Commons} (the Youle contribution): instead of an authority picking who joins, the sponsor market discovers it. The cost of being a sponsor is real --- forfeit risk during probation --- and the benefit is the network effect of having $N$ in the federation. We expect (open) that for federations with many candidate sponsors and clear-eyed risk pricing, the equilibrium is reasonably efficient. We do not prove it.
 
 \subsection{Cold-start failure modes}\label{sec:fh-cold-start}
 

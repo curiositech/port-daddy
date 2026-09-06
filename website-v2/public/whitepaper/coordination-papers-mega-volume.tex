@@ -1,12 +1,8 @@
 \documentclass[11pt,a4paper]{article}
-\input{coordination-papers-mega-volume-preamble.tex}
-\input{coordination-papers-mega-volume-seams.tex}
-\hypersetup{
-  pdftitle={The Harbor, the Person, and the Economy: The Collected Coordination Papers},
-  pdfauthor={Erich Owens},
-  pdfsubject={A seven-part argument for accountable autonomous work},
-  pdfkeywords={Port Daddy, multi-agent systems, capability security, coordination, accountability, federation}
-}
+% The Book: the textbook edition of the coordination papers. Chapter order,
+% numbering, parts, and edition metadata come from whitepaper/textbook.json;
+% scripts/generate-mega-whitepaper.mjs renders the body, the front-matter map,
+% the shared figures/pd-textbook-map.tex, and the single bibliography.
 \newcommand{\pdgeneratedinput}[2]{%
   \IfFileExists{#1}{\input{#1}}{%
     \PackageError{coordination-papers-mega-volume}{Generated #2 is missing}{%
@@ -14,39 +10,49 @@
       .cache/whitepaper-build/coordination-papers-mega-volume}%
   }%
 }
+\input{coordination-papers-mega-volume-preamble.tex}
+\input{coordination-papers-mega-volume-seams.tex}
+\hypersetup{
+  pdftitle={\pdeditiontitle: \pdeditionsubtitle},
+  pdfauthor={Erich Owens},
+  pdfsubject={Seven chapters, in dependency order, on accountable autonomous work},
+  pdfkeywords={Port Daddy, multi-agent systems, capability security, coordination, accountability, federation}
+}
 
 \begin{document}
 \hypersetup{pageanchor=false}
 \begin{titlepage}
 \pagecolor{hhpaper}\color{hhink}
 \vspace*{-0.8cm}
-\noindent{\scshape\bfseries\large Port Daddy Coordination Papers \hfill Collected Treatise \textperiodcentered\ August 2026}\par
+\noindent{\scshape\bfseries\large Port Daddy Coordination Papers \hfill Textbook Edition \textperiodcentered\ \pdeditiondate}\par
 \vspace{0.25cm}
-\noindent{\color{hhcobalt}\rule{\textwidth}{2.2pt}}\par
+% Four parts, four hues, each segment as long as the part's share of the book.
+\noindent\pdweightrule{0}{\textwidth}{2.6pt}\par
 \vspace{0.6cm}
 
 \begin{center}
 {\fontsize{31}{37}\selectfont\bfseries The Harbor, the Person,\\[0.15cm]and the Economy}\par
 \vspace{0.45cm}
-{\Large Seven papers on accountable autonomous work}\par
+{\Large \pdeditionsubtitle}\par
 \vspace{0.8cm}
 \begin{minipage}{0.76\textwidth}
 \centering
-{\large\bfseries Autonomy scales only when authority, evidence, and consequence
-remain coupled at every effect boundary.\par}
+{\large\bfseries \pdeditionclaim\par}
 \vspace{0.35cm}
-{\small\color{hhgray} This book follows that claim from one operator and one
-machine to work shared across principals, economic interests, and mutually
-distrustful systems.\par}
+{\small\color{hhgray} This book follows that claim from one machine and one
+operator to work shared across principals, economic interests, and mutually
+distrustful systems. Its \pdchaptercountword{} chapters are ordered by what
+they stand on; each proof chapter follows the chapter whose promises it keeps.\par}
 \end{minipage}
-\vspace{0.8cm}
 \end{center}
-
-\vspace{0.4cm}
-\noindent{\color{hhcobalt}\rule{\textwidth}{0.8pt}}\par
+\vfill
+\IfFileExists{plates/jacket.jpg}{%
+  \begin{center}\includegraphics[width=\textwidth,height=0.40\textheight,keepaspectratio]{plates/jacket.jpg}\end{center}}{}%
+\vfill
+\noindent{\color{hhink}\rule{\textwidth}{0.8pt}}\par
 \vspace{0.25cm}
 \noindent\begin{tabularx}{\textwidth}{@{}Xr@{}}
-\textbf{Erich Owens} \textperiodcentered\ Curiositech LLC & \textbf{August 2026} \textperiodcentered\ Version 3.1 (Research Edition)\\
+\textbf{Erich Owens} \textperiodcentered\ Curiositech LLC & \textbf{\pdeditiondate} \textperiodcentered\ Version \pdeditionversion\\
 \texttt{engineering@portdaddy.dev} & \url{https://portdaddy.dev/whitepaper}\\
 \end{tabularx}
 \end{titlepage}
@@ -61,26 +67,39 @@ ways for a confident report to outrun what actually happened. Better models do
 not remove this institutional problem.
 
 This book makes one claim: \emph{autonomy scales only when authority, evidence,
-and consequence remain coupled at every effect boundary}. Seven independently
-readable papers establish that claim in stages. They derive the information cost
-of legible supervision; place one serial authority at the local write boundary;
+and consequence remain coupled at every effect boundary}. Seven chapters
+establish that claim in the order the argument requires. They place one serial
+authority at the local write boundary; prove that delegated capability only
+narrows on its way there; derive the information cost of legible supervision;
 bind work to a durable principal and outcome history; separate payment,
-collateral, evidence, and settlement; prove that delegated capability only
-narrows; connect witnessed acts to audit and bounded remedy; and state what may
-cross between mutually distrustful machines without moving either machine's
-sovereignty. The result is not a plea to trust agents. It is a design for making
-trust unnecessary where structure can suffice, measurable where uncertainty
-remains, and contestable everywhere else.
+collateral, evidence, and settlement; connect witnessed acts to audit and
+bounded remedy; and state what may cross between mutually distrustful machines
+without moving either machine's sovereignty. The result is not a plea to trust
+agents. It is a design for making trust unnecessary where structure can
+suffice, measurable where uncertainty remains, and contestable everywhere else.
 \end{abstract}
 
-\section*{How to use this volume}
-\addcontentsline{toc}{section}{How to use this volume}
-Read the book in order for the argument, or enter at the question you need:
-visibility (I), local effect control (II), continuity (III), exchange (IV),
-delegation (V), local institutions (VI), or federation (VII). Every chapter
-retains its standalone abstract and reader map. The short book-owned opening and
-handoff around it explain what the chapter proves for the whole and what the next
-chapter may assume.
+\section*{How to use this textbook}
+\addcontentsline{toc}{section}{How to use this textbook}
+Read the book in order for the argument: every chapter stands on the ones
+before it, and each proof chapter follows the chapter whose promises it
+discharges. Or enter at the question you need: where a rule can be made real
+(\pdchapref{swk}{The Single-Writer Kernel}); how authority travels without
+growing (\pdchapref{anchor}{The Anchor Protocol}); what an operator must be
+able to see (\pdchapref{ls}{The Legible Swarm}); what remains long enough to
+owe anything (\pdchapref{stp}{From Spawn to Person}); what makes exchange
+rational (\pdchapref{he}{The Harbor Economy}); who may decide, on what
+evidence (\pdchapref{bonded}{The Bonded Commons}); and what may cross a trust
+boundary (\pdchapref{fh}{The Federated Harbor}). Every chapter retains its
+standalone abstract and reader map. The short book-owned opening and handoff
+around it say what the chapter proves for the whole and what the next chapter
+may assume.
+
+Cross-references are live. Chapter titles, section numbers, theorems, figures,
+tables, page numbers, and citations are links, and every bibliography entry
+ends with the pages that cite it. The standalone research papers and earlier
+printings cite chapters by first-edition numerals; the concordance on the next
+page translates.
 
 The status vocabulary is strict. \Built{} means running code exercised by tests;
 \BuiltWeak{} means a running slice that does not yet satisfy its full contract;
@@ -89,6 +108,10 @@ is a research direction. Mathematical proofs, imported frameworks, finite model
 checks, repository experiments, and running code remain separate kinds of
 evidence throughout. None is silently promoted into another.
 
+\clearpage
+\pdgeneratedinput{../../../.cache/whitepaper-build/coordination-papers-mega-volume/mega-volume-contents.tex}{chapter map}
+
+\clearpage
 \begingroup\small\sloppy\tableofcontents\endgroup\clearpage
 
 \section{Introduction: the unit of account is the work}
@@ -99,18 +122,24 @@ disappear, rename itself, summarize its mistakes, or hand work off. The durable
 object must be the work: its authorization, permitted effects, evidence, open
 obligations, and liability for the outcome.
 
-This book develops that claim in seven propositions.
+This book develops that claim in seven propositions, one per chapter, in the
+order the book is read.
 
 \begin{enumerate}[leftmargin=2.1em,itemsep=2pt,topsep=4pt]
-  \item \textbf{Supervision has an information cost.} A digest cannot guarantee
-  that a human will notice any one of many relevant events unless it spends
-  enough bits, attention, or artifact openings to distinguish them. A summary
-  is therefore an index into evidence, not a substitute for it.
-
   \item \textbf{Prevention begins at the effect boundary.} Rules can be enforced
   before an act only when the system controls the channel through which the act
   occurs. Local effects therefore pass through one serial authority; semantic
   failures that no gate can decide remain matters of detection and remedy.
+
+  \item \textbf{Delegation only narrows.} Every child capability is a strict
+  subset of its parent's authority and lifetime. Authentication says who signed;
+  attenuation says what the signature may authorize. Both are needed at every
+  hop.
+
+  \item \textbf{Supervision has an information cost.} A digest cannot guarantee
+  that a human will notice any one of many relevant events unless it spends
+  enough bits, attention, or artifact openings to distinguish them. A summary
+  is therefore an index into evidence, not a substitute for it.
 
   \item \textbf{Accountability must outlive the process.} A task acquires a
   durable principal, capability history, evidence record, obligations, and
@@ -121,11 +150,6 @@ This book develops that claim in seven propositions.
   requested work. Collateral prices a bounded failure. Evidence supports a
   claim. Settlement closes it exactly once. Combining those functions in one
   score or token makes each of them less trustworthy.
-
-  \item \textbf{Delegation only narrows.} Every child capability is a strict
-  subset of its parent's authority and lifetime. Authentication says who signed;
-  attenuation says what the signature may authorize. Both are needed at every
-  hop.
 
   \item \textbf{Uncertainty needs an institution.} Some harms cannot be
   prevented and some outcomes cannot be judged mechanically. Witnesses,
@@ -139,11 +163,12 @@ This book develops that claim in seven propositions.
   permitted to do with it.
 \end{enumerate}
 
-Together they form one causal chain. Legibility states what a human must recover;
-the kernel marks where effects become real; continuity gives the record a durable
-subject; the economy and protocol bound consequence and authority; the commons
-connects evidence to remedy; federation carries those objects without pretending
-that transport creates consensus.
+Together they form one causal chain. The kernel marks where effects become
+real; the protocol keeps delegated authority from growing on its way there;
+legibility states what a human must recover; continuity gives the record a
+durable subject; the economy bounds consequence and prices it; the commons
+connects evidence to remedy; federation carries those objects without
+pretending that transport creates consensus.
 
 \subsection{What counts as knowing}
 Every consequential statement has a status and a boundary. Derivations establish
@@ -153,8 +178,8 @@ repository tests exercise named paths; running code proves availability, not
 universal mediation. Counterexamples remain in the record because they mark
 claims the research killed rather than conclusions it merely failed to prove.
 
-Appendix~\ref{app:volume-status} gives the implementation boundary; Appendix
-~\ref{app:result-atlas} records the results and their limits. The companion
+\Cref{app:volume-status} gives the implementation boundary;
+\cref{app:result-atlas} records the results and their limits. The companion
 \path{docs/harbor-research/mega-volume-epistemic-manifest.yaml} preserves each
 result's source, status, conditions, boundary, chapter home, and verification
 artifact. The chapters stand alone; the book's claim is the chain they make.
