@@ -4,6 +4,19 @@
 % standalone chapters keep Latin Modern until their own layout pass.
 \usepackage{newpxtext}
 \usepackage{newpxmath}
+% Monospace: TeX Gyre Cursor, the same family as Pagella, scaled to the
+% text's lowercase.
+% XeTeX computes a native word's height from glyph outlines by default; in
+% this document that measurement comes back at about 2.4 em for many
+% monospace words (whatever the font), which pushed every line carrying
+% \texttt or \path down by a line and a half. With glyph metrics off the
+% heights come from the fonts' ascent and descent, which fit the leading, and
+% the interline spacing is uniform. Standalone chapters (pdfTeX) are unaffected.
+\ifdefined\XeTeXuseglyphmetrics\XeTeXuseglyphmetrics=0 \fi
+\usepackage{fontspec}
+\setmonofont{texgyrecursor-regular.otf}[BoldFont=texgyrecursor-bold.otf,
+  ItalicFont=texgyrecursor-italic.otf,BoldItalicFont=texgyrecursor-bolditalic.otf,
+  Scale=MatchLowercase]
 \let\openbox\relax
 \usepackage[fontsize=10.5pt]{fontsize}
 \usepackage{microtype}
@@ -19,6 +32,23 @@
 \usepackage{fancyhdr}
 \usepackage{tikz}
 \usepackage{float}
+% Page discipline for the Book. Every figure and table in the chapter sources
+% asks for [H]; at a 7 x 10 trim that strands a third of a page whenever the
+% next exhibit does not fit. In the Book an [H] becomes [!htbp]: the exhibit
+% is still set here when it fits and otherwise floats to the top of the next
+% page while the text flows on, and a FloatBarrier at every section keeps it
+% inside its section. Headings need room for three lines beneath them.
+\usepackage[section]{placeins}
+\makeatletter
+\let\pd@orig@xfloat\@xfloat
+\def\@xfloat#1[#2]{\edef\@tempa{#2}\def\@tempb{H}%
+  \ifx\@tempa\@tempb\pd@orig@xfloat#1[!htbp]\else\pd@orig@xfloat#1[#2]\fi}
+\makeatother
+\usepackage{needspace}
+\usepackage{etoolbox}
+\pretocmd{\section}{\Needspace*{6\baselineskip}}{}{}
+\pretocmd{\subsection}{\Needspace*{5\baselineskip}}{}{}
+\pretocmd{\subsubsection}{\Needspace*{5\baselineskip}}{}{}
 \usepackage{caption}
 \usepackage{enumitem}
 \usepackage{refcount}
@@ -336,14 +366,10 @@
       {\small\scshape\color{hhgray}\pdchapterepigraphsource\par}
     \end{minipage}
   \end{flushright}
-  \vspace{0.5cm}
-  % The plate is capped at a third of the page so that the question block
-  % below it always fits on the opener; the block itself is one unbreakable
-  % minipage, so the label can never be stranded at the foot of the page with
-  % the question on the next one.
-  \IfFileExists{plates/chapter-#3.jpg}{%
-    \begin{center}\includegraphics[width=\textwidth,height=0.33\textheight,keepaspectratio]{plates/chapter-#3.jpg}\end{center}}{}%
-  \vfill
+  \vspace{0.7cm}
+  % The question comes before the plate, in one unbreakable minipage, so it
+  % is always on the opener; the plate takes what is left of the page, capped
+  % at three tenths of it, and sits at the foot.
   \noindent\begin{minipage}{\textwidth}
   \noindent{\scshape\footnotesize\color{hhgray}The question this chapter answers}\par
   \vspace{6pt}
@@ -351,6 +377,9 @@
   \vspace{10pt}
   {\noindent\small\itshape\pdchapteroneline\par}
   \end{minipage}\par
+  \vfill
+  \IfFileExists{plates/chapter-#3.jpg}{%
+    \begin{center}\includegraphics[width=\textwidth,height=0.30\textheight,keepaspectratio]{plates/chapter-#3.jpg}\end{center}}{}%
   \vspace{0.2cm}
   \clearpage
   \setcounter{section}{0}\setcounter{figure}{0}\setcounter{table}{0}\setcounter{equation}{0}\setcounter{lstlisting}{0}\setcounter{pdexercise}{0}%
