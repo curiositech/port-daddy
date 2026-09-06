@@ -258,10 +258,26 @@ Person} and \pdchapref{he}{The Harbor Economy} carry its legible work into a
 person and a market; \pdchapref{bonded}{The Bonded Commons} and
 \pdchapref{fh}{The Federated Harbor} prove what the market may assume. Any
 chapter can be read first;
-Figure~\ref{fig:stack-map} shows how they interlock.}
+Table~\ref{tab:ls-stack-map} shows how they interlock.}
 
 \vspace{0.3cm}
-\input{figures/legible-swarm-stack-map}
+\begin{table}[H]
+\centering
+\caption{The system as four strata rather than four products. A mark is a capability the layer provides to the layer above; reading down a column shows where each capability is born. This chapter owns the operator surface (L2) and uses the directory substrate of L1; it assumes ordered kernel state below and supplies accountable identity, reasons and outcomes to reputation and exchange above. [internal]}
+\label{tab:ls-stack-map}
+\small
+\renewcommand{\arraystretch}{1.15}
+\begin{tabularx}{\linewidth}{@{}l l l c c c c c c c@{}}
+\toprule
+\textbf{Layer} & \textbf{Stratum} & \textbf{For whom} & \textbf{state} & \textbf{order} & \textbf{identity} & \textbf{reason} & \textbf{outcome} & \textbf{reputation} & \textbf{exchange} \\
+\midrule
+L3 & economy \& federation & the market & & & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ \\
+L2 & legibility \& authority (this chapter) & the operator & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ & & \\
+L1 & coordination protocol & the agents & $\bullet$ & $\bullet$ & $\bullet$ & & & & \\
+L0 & daemon kernel & the machine & $\bullet$ & & & & & & \\
+\bottomrule
+\end{tabularx}
+\end{table}
 
 \newpage
 \tableofcontents
@@ -769,7 +785,7 @@ in \S\ref{sec:authority-rules}.
 \subsection{The four design questions (a decision procedure)}\label{sec:four-questions}
 
 For any read-surface --- Attention Queue, briefing, resurrection digest, TUI pane ---
-ask, in order (Figure~\ref{fig:four-questions}):
+ask, in order (Table~\ref{tab:ls-four-questions}):
 
 \begin{enumerate}[leftmargin=1.6em]
 \item \textbf{Will the operator act irreversibly on this?} If yes
@@ -785,7 +801,23 @@ its zoom at the artifact (\S\ref{sec:verifiable}).
 carries a named reason (Prop.~\ref{prop:legible-sovereign}).
 \end{enumerate}
 
-\input{figures/legible-swarm-four-questions}
+\begin{table}[H]
+\centering
+\caption{A read-surface earns release through four independent proofs, in order. The rail is conjunctive: one missing proof holds the surface. [internal]}
+\label{tab:ls-four-questions}
+\small
+\renewcommand{\arraystretch}{1.15}
+\begin{tabularx}{\linewidth}{@{}l >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
+\toprule
+& \textbf{Question} & \textbf{What release requires} & \textbf{What the reader can check} \\
+\midrule
+1 & is the action irreversible? & the artifact is one key away & the artifact link resolves \\
+2 & is this state or m\^etis? & administrative state is flattened; the verbatim trace is linked, not summarized & the trace link resolves \\
+3 & could the claim lie? & the claim resolves beyond the author's self-report & the independent evidence resolves \\
+4 & is the authority legible? & every coordinator act returns a named reason & the reason field is present and specific \\
+\bottomrule
+\end{tabularx}
+\end{table}
 
 \begin{protocol}{Render a digest line under the one law}
 Given a candidate summary line $\sigma$ over a unit of swarm work:
@@ -825,10 +857,28 @@ The title is \emph{Legibility \& Authority}. A read-only legibility layer is a
 glorified dashboard; the whole point of Hobbes is that the sovereign does not just
 \emph{see} --- it \emph{rules}. This section specifies the authority half: the
 mechanisms by which the consented daemon actually decides, blocks, lands, and
-gates. Figure~\ref{fig:authority-organs} maps the organs; the engineering status of
+gates. Table~\ref{tab:ls-authority-organs} lists the organs; the engineering status of
 each is in Appendix~\ref{app:honest}.
 
-\input{figures/legible-swarm-authority-organs}
+\begin{table}[H]
+\centering
+\caption{Six authority mechanisms as distinct instruments crossing one consent boundary. Their inputs and outcomes differ; what they share is the recorded grant $g$: scope, named reason, audit identity, override, and an addressable return artifact. The engineering status of each is in Appendix~\ref{app:honest}. [internal]}
+\label{tab:ls-authority-organs}
+\small
+\renewcommand{\arraystretch}{1.15}
+\begin{tabularx}{\linewidth}{@{}l >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
+\toprule
+\textbf{Mechanism} & \textbf{Input} & \textbf{Outcome} & \textbf{What the grant records} \\
+\midrule
+roadmap & evidence & a priority & the evidence weighed and the ordering it produced \\
+review & rival claims & a gate & which claim was admitted and why the others were not \\
+completion & a predicate & done, or not & the predicate and the artifact that satisfied it \\
+landing & conflicts & an order & the conflict set and the serialization chosen \\
+guard & a proposed act & a block, or passage & the act, the rule that fired and the named reason \\
+escalation & an interrupt & an operator decision & the question raised and the decision returned \\
+\bottomrule
+\end{tabularx}
+\end{table}
 
 \subsection{The roadmap as a versioned statement of intent}\label{sec:roadmap}
 
@@ -1275,9 +1325,8 @@ intervene at exactly the moment intervention is needed}) and Scott are the
 digest erases the \emph{operator's} m\^etis. As the supervising automation gains
 autonomy --- executing longer plans end-to-end --- the operator's role slides
 $\text{doer}\to\text{approver}\to\text{rubber-stamp}\to\text{absent}$ --- the
-\emph{abdication gradient} (Figure~\ref{fig:abdication}). The design's primary active defense is the \textbf{Inception Canary} (a \emph{consented, blinded} vigilance probe), moving beyond static ``skill-retention taxes'' (such as arbitrary manual busywork, which causes attention residue and degrades focus~\cite{leroy2009}).
+\emph{abdication gradient}, stated here as a hypothesis, not a measurement. The design's primary active defense is the \textbf{Inception Canary} (a \emph{consented, blinded} vigilance probe), moving beyond static ``skill-retention taxes'' (such as arbitrary manual busywork, which causes attention residue and degrades focus~\cite{leroy2009}).
 
-\input{figures/legible-swarm-abdication}
 
 \begin{protocol}{The Inception Canary protocol}\label{prot:canary}
 To continuously measure and maintain operator situation awareness without synthetic busywork. Operators enroll knowingly: the program's existence, rate $\rho_{\text{canary}}$, and stakes are disclosed at onboarding; only the \emph{which} and \emph{when} are blinded:
@@ -1706,7 +1755,7 @@ cost.}
 \noindent The design deliberately blends \emph{push} signals (declared capability
 --- gameable and prone to staleness) with \emph{pull} signals (demonstrated
 capability: what the agent actually \emph{did}, in which there is no self-report to
-lie in); Figure~\ref{fig:pushpull} draws the split and the reason pull signals carry
+lie in); Table~\ref{tab:ls-pushpull} sets out the split and the reason pull signals carry
 more weight. One discipline is
 non-negotiable: \textbf{never classify free text by keyword lists.} Keyword matching
 has catastrophic recall, because the category's vocabulary cannot be enumerated in
@@ -1714,7 +1763,27 @@ advance; the only exact-string match permitted is over \emph{structured identifi
 the operator controls} (file paths, enum tags). Every free-text signal uses a
 ranked-retrieval scorer (BM25, character-bigram TF--IDF, or learned embeddings).
 
-\input{figures/legible-swarm-pushpull}
+\begin{table}[H]
+\centering
+\caption{Push and pull evidence for the same capability claim. $\circ$ is a self-declaration, $\bullet$ is residue produced while doing work for another purpose, $\times$ is a declared item that does not resolve, and a dash is nothing on record. A and B make the same identity and skill claims; only B leaves the complete file, note, episode and current-load trail, so the ranker, following independently addressable evidence rather than confidence in self-report, ranks B first. [internal]}
+\label{tab:ls-pushpull}
+\small
+\renewcommand{\arraystretch}{1.15}
+\begin{tabularx}{\linewidth}{@{}l l c c >{\raggedright\arraybackslash}X@{}}
+\toprule
+\textbf{Evidence} & \textbf{Kind} & \textbf{A} & \textbf{B} & \textbf{What it would take to fake} \\
+\midrule
+identity & push: declared & $\circ$ & $\circ$ & nothing; it is asserted \\
+skill & push: declared & $\circ$ & $\circ$ & nothing; it is asserted \\
+file & pull: residue & $\bullet$ & $\bullet$ & a forged diff under a real commit \\
+note & pull: residue & --- & $\bullet$ & a note with a ledger address and a timestamp \\
+episode & pull: residue & $\times$ & $\bullet$ & a whole prior episode with its outcomes \\
+current load & pull: residue & --- & $\bullet$ & the daemon's own claim table \\
+\midrule
+\textbf{verdict} & & small verified weight & ranks first & \\
+\bottomrule
+\end{tabularx}
+\end{table}
 
 It is tempting to claim that this discovery ranker and the operator-facing
 \emph{attention queue} are \emph{the same function} with different weights. The claim
@@ -2018,7 +2087,7 @@ the first six's scrollback; a crashed agent's successor reads a handoff, not the
 agent's context. Each is a summary of dropped tokens produced for a specific reader.
 So compaction is the legibility mechanism of the \emph{entire swarm}: the same act
 that keeps the bill down produces the very digest a human or successor agent reads
-(Figure~\ref{fig:read-surfaces}).
+(Table~\ref{tab:ls-read-surfaces}).
 
 \begin{pdclaim}{Theorem}{The Split-Digest Theorem}
 \label{thm:split-digest}
@@ -2080,7 +2149,24 @@ once the audit probability times the sanction exceeds $G$.
 \noindent No sidecar exists in the reference implementation today, and no design
 document specifies one; the row is carried in Appendix~\ref{app:honest} with the rest.
 
-\input{figures/legible-swarm-read-surfaces}
+\begin{table}[H]
+\centering
+\caption{Five reader-specific projections over one durable event spine. Compaction changes the selection mask, not the addressability of the underlying claims, notes, diffs, episodes and events: every selected mark keeps its ledger address. [internal]}
+\label{tab:ls-read-surfaces}
+\small
+\renewcommand{\arraystretch}{1.15}
+\begin{tabularx}{\linewidth}{@{}l l >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
+\toprule
+\textbf{Surface} & \textbf{Reader} & \textbf{What it selects} & \textbf{What it drops} \\
+\midrule
+briefing & the arriving agent & the recent tail of the spine & everything older, by address still reachable \\
+attention & the operator & sparse hazardous events & the routine majority \\
+episodic memory & the future self & one prior episode, whole & the episodes around it \\
+pheromone & peer agents & a decaying live trace & marks below the prune threshold \\
+resurrection & the successor & an ordered continuation chain & the branches the chain did not take \\
+\bottomrule
+\end{tabularx}
+\end{table}
 
 \subsection{Context paging: virtual memory for the context window}\label{sec:context-paging}
 
@@ -2134,7 +2220,7 @@ Prop.~\ref{prop:decay} generalizes to every read-surface.
 \subsection{The context-degradation cascade (the shared failure surface)}\label{sec:cascade}
 
 Cost and legibility share one failure surface: when compaction goes wrong, the bill
-\emph{and} the truth degrade together (Figure~\ref{fig:cascade}). \textbf{(1)
+\emph{and} the truth degrade together, in four named steps. \textbf{(1)
 Lost-in-the-middle:} a critical fact buried mid-window is paid-for-and-ignored ---
 edge-place facts, shorten the window. \textbf{(2) Context rot:} quality decays as the
 window grows even with nothing dropped --- compact earlier (the cost cure and the
@@ -2151,7 +2237,6 @@ legibility-with-zoom enforced by construction. A spartan, text-only operator con
 enforces this almost for free, because a terminal grid \emph{cannot} over-render: the
 medium itself forbids the flattening.
 
-\input{figures/legible-swarm-cascade}
 
 \begin{table}[H]
 \centering
@@ -2621,7 +2706,7 @@ and a quality optimization (\S\ref{sec:cogs}).
 Context past the model's effective window costs tokens while degrading retrieval and reasoning. Removing redundant or inert material and edge-placing hard facts can therefore reduce spend and improve accuracy simultaneously, provided obligations and source pointers survive the cut.
 \end{pdsolution}
 \begin{pdexercise}[kind=Trace,rating=2]{ex:ls-five-compaction-primitives}
-For each of the five compaction primitives (Figure~\ref{fig:read-surfaces}),
+For each of the five compaction primitives (Table~\ref{tab:ls-read-surfaces}),
 name the reader, what it drops, and what it keeps.
 \end{pdexercise}
 \begin{pdsolution}{ex:ls-five-compaction-primitives}
