@@ -206,4 +206,42 @@ describe('git shim v5: PATH walk cannot deadlock on a self-read pipe', () => {
       }
     },
   );
+
+  (bashAvailable ? test : test.skip)(
+    'with no real git anywhere on PATH the shim exits 127 with a clear message, never execs itself',
+    () => {
+      const dir = mkdtempSync(join(tmpdir(), 'pd-shim-nogit-'));
+      try {
+        const shimDir = join(dir, 'shim');
+        mkdirSync(shimDir);
+        const shim = join(shimDir, 'git');
+        writeFileSync(shim, GIT_SHIM_CONTENT);
+        chmodSync(shim, 0o755);
+        // Only the shim's own directory carries a `git`. The shim needs
+        // dirname/basename, so a tools dir forwards just those two to
+        // /usr/bin; neither /usr/bin nor /bin is on PATH, so no system git
+        // can be found. bash itself is spawned by absolute path because
+        // spawnSync resolves the command through this same PATH.
+        const tools = join(dir, 'tools');
+        mkdirSync(tools);
+        for (const t of ['dirname', 'basename']) {
+          writeFileSync(join(tools, t), `#!/bin/sh\nexec /usr/bin/${t} "$@"\n`);
+          chmodSync(join(tools, t), 0o755);
+        }
+        const PATH = [shimDir, '', join(dir, 'nowhere'), tools].join(':');
+        const bash = spawnSync('/bin/sh', ['-c', 'command -v bash'], { encoding: 'utf8' }).stdout.trim();
+        const res = spawnSync(bash, [shim, '--version'], {
+          env: { ...process.env, PATH, PD_SHIM_OFF: '' },
+          encoding: 'utf8',
+          timeout: 10_000,
+        });
+        expect(res.error).toBeUndefined();
+        expect(res.status).toBe(127);
+        expect(res.stderr).toContain('pd-shim: cannot find a real git binary on PATH');
+        expect(res.stdout).toBe('');
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    },
+  );
 });
