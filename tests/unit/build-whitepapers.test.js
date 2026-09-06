@@ -38,7 +38,7 @@ describe('reproducible whitepaper source scoping', () => {
     ).split('\n');
 
     expect(sources[0]).toBe('website-v2/public/whitepaper/spawn-to-person.tex');
-    expect(sources).toHaveLength(20);
+    expect(sources).toHaveLength(21);
     expect(sources).toContain(
       'website-v2/public/whitepaper/figures/pd-figure-language.tex',
     );
@@ -93,7 +93,7 @@ describe('reproducible whitepaper source scoping', () => {
     ).split('\n');
 
     expect(sources).toContain(
-      'website-v2/public/whitepaper/figures/fig-anchor-four-phases.tex',
+      'website-v2/public/whitepaper/figures/fig-anchor-capability-attenuation.tex',
     );
     expect(sources.some((source) => source.includes('/figures/fig-stp-'))).toBe(false);
   });

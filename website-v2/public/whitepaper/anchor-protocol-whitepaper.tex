@@ -211,7 +211,7 @@ That is the local swarm problem. In a multi-agent development environment, agent
 
 To make it enforceable, Port Daddy introduces the concept of a \textbf{Harbor}---a zero-trust, namespace-isolated execution environment where agents must prove their identity and capabilities. Our approach builds upon foundational work in capability-based security by Dennis and Van Horn~\cite{dennis1966programming} and the principle of least privilege articulated by Saltzer and Schroeder~\cite{saltzer1975protection}. This protocol sits in a specific lineage --- Macaroons for delegation, ProVerif and Tamarin for symbolic verification, the JWT algorithm-confusion literature for the Phase~1 hardening, and the emerging agentic-commerce credential profiles for the envelope --- traced in full in Appendix~\ref{app:related}, which a reader following the argument rather than the citations can skip entirely.
 
-\paragraph{How to read this chapter.} \S\ref{sec:architecture} is the protocol: four phases, each closing a hole the previous one left open. \S\ref{sec:correct} is the evidence: three verification layers, what each one proves, and what it hands the next. \S\ref{sec:adversary} is the accounting: the adversary we assume, the properties that survive it, and where the guarantees stop. Figure~\ref{fig:anchor-verification-stack} is the map for \S\ref{sec:correct}; Table~\ref{tab:threat-closure} closes the loop on the three failure modes just listed.
+\paragraph{How to read this chapter.} \S\ref{sec:architecture} is the protocol: four phases, each closing a hole the previous one left open. \S\ref{sec:correct} is the evidence: three verification layers, what each one proves, and what it hands the next. \S\ref{sec:adversary} is the accounting: the adversary we assume, the properties that survive it, and where the guarantees stop. Table~\ref{tab:anchor-verification-stack} is the map for \S\ref{sec:correct}; Table~\ref{tab:threat-closure} closes the loop on the three failure modes just listed.
 
 \vspace{4pt}
 \noindent\begin{tikzpicture}
@@ -227,9 +227,28 @@ To make it enforceable, Port Daddy introduces the concept of a \textbf{Harbor}--
 \section{The Anchor Protocol Architecture}\label{sec:architecture}
 % ═════════════════════════════════════════════════════════════════════════════
 
-The Anchor Protocol defines how agents authenticate to a Harbor and to each other. It issues \textbf{Harbor Cards} (highly constrained JSON Web Tokens) and evolves them across four phases, each adding a capability that closes a specific attack surface from the previous phase (Figure~\ref{fig:anchor-four-phases}).
+The Anchor Protocol defines how agents authenticate to a Harbor and to each other. It issues \textbf{Harbor Cards} (highly constrained JSON Web Tokens) and evolves them across four phases, each adding a capability that closes a specific attack surface from the previous phase (Table~\ref{tab:anchor-four-phases}).
 
-\input{figures/fig-anchor-four-phases}
+\begin{table}[H]
+\centering
+\caption{Threat closure is cumulative, not substitutive. Each phase closes one attack
+surface, and the last column is why no later phase reopens it: every phase adds a check
+that a later phase changes the key or the chain of, never the party that performs it.
+[internal]}
+\label{tab:anchor-four-phases}
+\small
+\renewcommand{\arraystretch}{1.15}
+\begin{tabularx}{\linewidth}{@{}l>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X@{}}
+\toprule
+\textbf{Phase} & \textbf{Mechanism} & \textbf{Attack surface closed} & \textbf{Stays closed because} \\
+\midrule
+1 & HS256 pinning: the verifier takes the algorithm from policy & header-selected algorithm (algorithm confusion) & the algorithm is never read from the token; later phases change the key type, not who chooses \\
+2 & Ed25519 identity: the daemon signs with a private key, verifiers hold only the public key & shared-secret theft & no verifier holds a secret that could mint a card; a stolen public key mints nothing \\
+3 & delegation: a child card carries its parent chain, checked as a subset at every hop & downstream privilege growth & the subset check is per hop and monotone, so no later hop widens scope or lifetime \\
+4 & revocation: epoch filters gossiped between daemons and consulted at every acceptance & post-issue authority (a leaked card that should die before its TTL) & acceptance requires the current epoch, so every daemon that holds the epoch refuses the revoked card \\
+\bottomrule
+\end{tabularx}
+\end{table}
 
 A common thread across all phases is \emph{capability attenuation}: a delegated token never carries more authority than its parent, and TTL only shrinks. Temporal attenuation is the same rule applied to the clock: a child's expiry is the earlier of its parent's expiry and the lifetime requested, so a twenty-minute child requested under a parent with ten minutes left is refused, and the acceptable narrower card is the one that inherits the parent's ten; in the capability lattice, lifetime is one more coordinate that moves down or stays. Figure~\ref{fig:anchor-capability-attenuation} shows the nested-cap structure that the verifier enforces on every chain.
 
@@ -366,11 +385,30 @@ the overlay staying connected, which is the sentence the theorem ends with.
 \section{How we know it is correct}\label{sec:correct}
 % ═════════════════════════════════════════════════════════════════════════════
 
-Following the industry standard set by AWS (s2n-tls~\cite{aws2022s2n}) and Microsoft (Project Everest~\cite{bhargavan2017everest}), we decoupled the verification of the \textit{protocol design} from the verification of the \textit{implementation}. The full stack has three layers (Figure~\ref{fig:anchor-verification-stack}): symbolic protocol analysis at the top, bounded model checking on the Rust source in the middle, and runtime conformance tests against the deployed binary at the bottom. Each layer's obligations flow downward; each layer's evidence flows back up. The stack is sound only if every bridge --- symbolic-to-source and source-to-deployed --- holds.
+Following the industry standard set by AWS (s2n-tls~\cite{aws2022s2n}) and Microsoft (Project Everest~\cite{bhargavan2017everest}), we decoupled the verification of the \textit{protocol design} from the verification of the \textit{implementation}. The full stack has three layers (Table~\ref{tab:anchor-verification-stack}): symbolic protocol analysis at the top, bounded model checking on the Rust source in the middle, and runtime conformance tests against the deployed binary at the bottom. Each layer's obligations flow downward; each layer's evidence flows back up. The stack is sound only if every bridge --- symbolic-to-source and source-to-deployed --- holds.
 
-\input{figures/fig-anchor-verification-stack}
+\begin{table}[H]
+\centering
+\caption{The assurance case, layer by layer. Obligations descend the rows: each layer
+hands the next a claim it cannot discharge itself. Evidence ascends them: each tool's
+output narrows what the layer above must assume. The last column names the two gaps
+that no tool closes; only a human asserts that the modeled protocol is this source, and
+that the inspected source is this running binary. [internal]}
+\label{tab:anchor-verification-stack}
+\small
+\renewcommand{\arraystretch}{1.15}
+\begin{tabularx}{\linewidth}{@{}l l >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
+\toprule
+\textbf{Layer} & \textbf{Tool} & \textbf{What it shows} & \textbf{What it cannot show} \\
+\midrule
+protocol model & ProVerif & secrecy, authentication correspondence in the modeled phase, attenuation soundness on the multi-hop model & that the modeled protocol is this source (the specification gap; a human asserts it) \\
+Rust source & Kani and tests & the subset logic on two concrete vectors, bounded absence of panic with the cryptography stubbed, branch-freedom at source level & that the inspected source is this running binary (the deployment gap; a human asserts it) \\
+running binary & conformance suite & the selected attacks are refused at the FFI boundary & any attack the suite does not contain \\
+\bottomrule
+\end{tabularx}
+\end{table}
 
-\paragraph{Figure~\ref{fig:anchor-verification-stack} is this section's map.} Read the forward rail for what each layer hands the next as an obligation it cannot discharge itself; read the teal return rail for what has actually been checked about the running code. The two dashed boundaries are the only places in the whole assurance case where a human, not a tool, asserts that one layer's claim carries over to the next --- which is exactly why they are drawn as assumption gaps rather than as inference lines.
+\paragraph{Table~\ref{tab:anchor-verification-stack} is this section's map.} Read down the rows for what each layer hands the next as an obligation it cannot discharge itself; read the third column for what has actually been checked about the running code. The last column holds the only two places in the whole assurance case where a human, not a tool, asserts that one layer's claim carries over to the next --- which is exactly why they are listed as assumption gaps rather than as inferences.
 
 \subsection{Symbolic Analysis with ProVerif}
 
@@ -549,7 +587,7 @@ function Harbor.VerifyChain(chain, pk_root):
 \textbf{Security property.} Monotonic per-hop attenuation ($\text{cap}_i \subseteq \text{cap}_{i-1}$) prevents capability expansion across transitive delegations, including the \texttt{write} $\to$ \texttt{read} $\to$ \texttt{write} re-escalation. Property~\ref{thm:attn-sound} (\S\ref{sec:attn-soundness}) mechanizes the single hop, where the subset guard is necessary and sufficient. Depth beyond one is the per-hop discipline chained by transitivity of $\subseteq$; its mechanized confirmation at depth two is the attack-and-fix pair in the same section, which checks each hop against its immediate parent rather than against the root.
 
 \begin{pdrecitation}
-\item Without looking: name the three layers of Figure~\ref{fig:anchor-verification-stack}, and which of the two directions between them is asserted by a human rather than a tool.
+\item Without looking: name the three layers of Table~\ref{tab:anchor-verification-stack}, and the two gaps between them that are asserted by a human rather than a tool.
 \item What can the Arbiter's post-commit invariants do that ProVerif cannot, and what can they never do that a pre-commit guard could?
 \item Which Kani harness does this chapter itself call ``a unit test in a proof's clothing,'' and what property actually rests on the ProVerif model instead?
 \end{pdrecitation}
@@ -1376,7 +1414,7 @@ The bound in each case is recorded, not just asserted here: \path{whitepaper/cor
 None of this chapter's ProVerif models, and none of its three Kani harnesses, says anything about most of what the running daemon does at a socket. Using only what this chapter already states about the Kani harnesses' scope, write the one-paragraph boundary a reader must hold before trusting ``verified'' as a description of the deployed binary. Then say what a stronger harness would need to add.
 \end{pdexercise}
 \begin{pdsolution}{ex:anchor-model-vs-code}
-As this chapter states it, not more: the Kani harnesses give bounded absence-of-panic for the token parser on 32-byte inputs with signature verification and base64 decoding stubbed out entirely, a source-level argument that the comparator's branches do not depend on secret bytes, and two concrete, hard-coded vectors for the capability-subset check. None of the three is a proof about the real cryptography (stubbed away in the first, untouched by the other two), about inputs larger than the harness's own bound, about the compiled binary's timing behavior, about the FFI boundary itself, or about any code path outside \texttt{harbor-card-rs}. The ProVerif models are symbolic proofs about the \emph{protocol} under a Dolev-Yao adversary, not about this Rust source at all --- the bridge between ``the model'' and ``this source'' is exactly the assumption gap Figure~\ref{fig:anchor-verification-stack} draws as a dashed band, asserted by a human, not discharged by either tool.
+As this chapter states it, not more: the Kani harnesses give bounded absence-of-panic for the token parser on 32-byte inputs with signature verification and base64 decoding stubbed out entirely, a source-level argument that the comparator's branches do not depend on secret bytes, and two concrete, hard-coded vectors for the capability-subset check. None of the three is a proof about the real cryptography (stubbed away in the first, untouched by the other two), about inputs larger than the harness's own bound, about the compiled binary's timing behavior, about the FFI boundary itself, or about any code path outside \texttt{harbor-card-rs}. The ProVerif models are symbolic proofs about the \emph{protocol} under a Dolev-Yao adversary, not about this Rust source at all --- the bridge between ``the model'' and ``this source'' is exactly the assumption gap Table~\ref{tab:anchor-verification-stack} lists in its last column, asserted by a human, not discharged by either tool.
 
 A stronger harness would replace the two hard-coded attenuation vectors with an arbitrary capability structure under an asserted partial-order property, so the check is over the order rather than two fixed cases, with a negative control that fails when the \texttt{is\_subset} guard is removed --- the same discipline the ProVerif attenuation model already applies for Property~\ref{thm:attn-sound}. It would also need to state parser refinement (that the stubbed primitives match their real implementations) as a separate, currently absent, obligation. None of that exists yet, and this chapter does not claim it does: \path{whitepaper/corpus.json} pins the three harnesses' present bounds in their own \texttt{evidencePolicy} fields, and \texttt{scripts/proofs/run-proverif.py} (CI job ``ProVerif~/~model estate'') re-runs every ProVerif model named in this chapter's exercises against its committed source on every change --- the freshness guarantee behind every pinned line quoted above, not a claim about the harnesses it does not mechanize.
 \end{pdsolution}

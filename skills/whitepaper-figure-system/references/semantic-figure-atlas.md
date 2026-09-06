@@ -157,6 +157,7 @@ Canonical root: `website-v2/public/whitepaper/spawn-to-person.tex` (13 figures).
 | `III/fig:rate-raters` | Why does recursive evaluator audit terminate, and what assumption remains open? | recursive contraction tower with a theorem/conditions panel | work, judge, re-auditor, and next level; per-level deterrence rho d B >= G_k; contraction lambda = 1-rho d; logarithmic finite depth; sealed sampling premise; missing exogenously honest root and telemetry caveat | two-tier loop; infinite spiral; self-looping bubbles; termination asserted without inequality |
 | `III/fig:tombstone` | How does revoking an ancestor invalidate descendants? | provenance tree with struck ancestor branch | delegation ancestry; revocation point; affected descendants; unaffected siblings; time/order | cemetery/tombstone art; flat list of revoked IDs |
 | `III/fig:stp-deterrence-regime` | For which bond sizes and re-audit probabilities does deterrence hold? | threshold plot: the frontier ρ d B = G with the deterrence region tinted and edged and the worked point marked | the frontier; the region where capture pays; the worked point (ρ = 0.25 at B = 50) | a sketched curve without axes; a table of two numbers; a region distinguished by tint alone |
+| `III/fig:stp-probation-cliff` | Why is the front-loaded probation schedule the cheapest deterrent for an honest newcomer? | bar plot: the honest burden of one unit of deterrence by the period it is placed in, each bar labelled with its multiple | the cliff at t = 0 as the unit; the geometric growth (δ_h/δ_f)^t; the two discount rates in the caption; the script and seed | a schematic ramp with no axis; a curve without the discount rates; a plot of the random search's 4,000 instances instead of the exchange step |
 
 ## Volume IV: The Harbor Economy
 
@@ -186,14 +187,12 @@ Canonical root: `website-v2/public/whitepaper/anchor-protocol-whitepaper.tex` (8
 
 | Atlas ID | Reader question / claim | First-choice grammar | Must encode | Reject |
 |---|---|---|---|---|
-| `V/fig:anchor-four-phases` | Which attack surface does each cumulative protocol phase close? | staircase or cumulative barrier matrix | four phases; preserved prior checks; newly closed threat; remaining exposure | diagonal floating boxes; tall blue barriers with stray labels |
 | `V/fig:anchor-capability-attenuation` | How do rights and TTL strictly shrink across delegation? | nested sets paired with a rights/TTL table | root and child capabilities; strict subset relations; TTL decrease; attempted re-grant rejection | unexplained concentric circles; blue outline as sole meaning |
 | `V/fig:anchor-alg-confusion` | Why does issuer-pinned verification reject a token that attacker-selected verification accepts? | aligned paired security trace or comparison table | identical token bytes; control authority; algorithm source; verification trace; accept/reject outcome | two prose flows; giant arrows; colour-only safe/unsafe distinction |
 | `V/fig:anchor-delegation-inline` | What evidence travels with a multi-hop delegated capability? | linear provenance/sequence chain | issuer and delegates; signed tuple; attenuation at each hop; freshness/TTL; verifier checks | looping chain; decorative keys; unreadable token blob |
 | `V/fig:anchor-cuckoo-inline` | How do two candidate buckets bound load and failure? | bucket schematic plus load-threshold plot | two candidate locations; occupancy; relocation or failure; measured load ceiling; probability/assumption | bird metaphor; boxes without capacity scale |
 | `V/fig:anchor-revocation-gossip` | How quickly does a revocation reach all participants under stated assumptions? | epoch timeline or small-multiple spread map | initial revoked node; rounds; informed count/state; network assumptions; convergence bound | dense node hairball; overlapping labels; decorative epidemic arrows |
 | `V/fig:anchor-card-lifecycle` | What are the only valid exits from an active card? | small state machine | issued/active states; expiry; revoke; invalid/rejected terminal state; guards | circular lifecycle infographic; ambiguous return arrows |
-| `V/fig:anchor-verification-stack` | Which proof layers are mechanized, and where do human bridges remain? | layered assurance stack with explicit bridge gaps | three proof layers; machine checks; human judgment points; trust assumptions; evidence flow | all-green stack; tiny prose callouts; decorative lock tower |
 
 ## Volume VI: The Bonded Commons
 
