@@ -42,6 +42,18 @@
           "value": "5.98",
           "tag": "verified",
           "regex": "5\\.98"
+        },
+        {
+          "name": "falsification_violations",
+          "value": "0/16",
+          "tag": "internal",
+          "regex": "0/16"
+        },
+        {
+          "name": "wrong_turn_spurious_violations",
+          "value": "8/14",
+          "tag": "internal",
+          "regex": "8/14"
         }
       ],
       "mechanization": [],
@@ -71,7 +83,9 @@
           "prefix": "ls",
           "labels": [
             "thm:split-digest",
-            "thm:split-ranker"
+            "thm:split-ranker",
+            "thm:comonotone",
+            "thm:split-penalty"
           ],
           "sections": [
             "S7.3 Discovery/Relevance (sec:relevance), \"No universal monotone identification of the two heads\" -- stated as an instance of paper1's comonotone characterization",
@@ -92,6 +106,12 @@
           "value": "2.13x",
           "tag": "verified",
           "regex": "2\\.13"
+        },
+        {
+          "name": "super_additivity_k2",
+          "value": "1.067",
+          "tag": "verified",
+          "regex": "1\\.067"
         }
       ],
       "mechanization": [],
@@ -120,7 +140,9 @@
           "chapter": 3,
           "prefix": "ls",
           "labels": [
-            "def:sdt"
+            "def:sdt",
+            "thm:regret-head",
+            "thm:reputation-posterior"
           ],
           "sections": [
             "S5.1 The operator (sec:sdt), \"The SDT-spined attention objective\"",
@@ -133,7 +155,20 @@
         "docs/harbor-research/figures/fig-r3-regime.tex"
       ],
       "scripts": [],
-      "numbers": [],
+      "numbers": [
+        {
+          "name": "inspection_bar",
+          "value": "6/105 ~ 0.057",
+          "tag": "verified",
+          "regex": "6/105"
+        },
+        {
+          "name": "false_alarm_knob",
+          "value": "21/120 = 0.175",
+          "tag": "verified",
+          "regex": "21/120"
+        }
+      ],
       "mechanization": [],
       "site": [
         "/research/paper1.pdf"
@@ -162,7 +197,9 @@
           "chapter": 3,
           "prefix": "ls",
           "labels": [
-            "thm:lowerbound"
+            "thm:lowerbound",
+            "thm:pinned-joint",
+            "thm:zoom-advantage"
           ],
           "sections": [
             "S6 Read-poverty (sec:lowerbound), \"The other half of the price: zoom is cheap\" -- restates the zoom theorem's bound and the F=2500,k=10 worked numbers under the same theorem label used for R1"
@@ -185,6 +222,24 @@
           "value": "15.3x",
           "tag": "internal",
           "regex": "15\\.3"
+        },
+        {
+          "name": "zoom_bound_at_2500_10",
+          "value": "200 opens (12.5x guaranteed)",
+          "tag": "verified",
+          "regex": "12\\.5\\\\times"
+        },
+        {
+          "name": "composition_window",
+          "value": "f >= 12(p - delta)",
+          "tag": "verified",
+          "regex": "f\\\\ge ?12\\(p-\\\\delta\\)"
+        },
+        {
+          "name": "tightness_instance",
+          "value": "511 at F=4096,k=32",
+          "tag": "internal",
+          "regex": "511"
         }
       ],
       "mechanization": [],
@@ -602,7 +657,9 @@
           "file": "whitepaper/legible-swarm.tex",
           "chapter": 3,
           "prefix": "ls",
-          "labels": [],
+          "labels": [
+            "thm:escalation-threshold"
+          ],
           "sections": [
             "S5.4 Human-in-the-loop escalation (sec:escalation) and S7.5 quality gates (sec:gates) -- \"crying wolf has a price\" costly-signal design, cited inline as \"item R14 of the research ledger\""
           ]

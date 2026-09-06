@@ -48,6 +48,8 @@ One section per indexed idea (R1-R17, CR, B6, and every already-folded textbook 
 | Number | Value | Tag |
 |---|---|---|
 | floor_B_star_bits | 5.98 | verified |
+| falsification_violations | 0/16 | internal |
+| wrong_turn_spurious_violations | 8/14 | internal |
 
 ## R2 -- Split-digest theorem (comonotone characterization)
 <a id="r2"></a>
@@ -59,7 +61,7 @@ One section per indexed idea (R1-R17, CR, B6, and every already-folded textbook 
 | Location | File | Labels | Sections |
 |---|---|---|---|
 | Standalone paper | `docs/harbor-research/tex/paper1.tex` | sec:split | S3 (sec:split), Theorem 2 |
-| Chapter 3 (The Legible Swarm) | `whitepaper/legible-swarm.tex` | thm:split-digest, thm:split-ranker | S7.3 Discovery/Relevance (sec:relevance), "No universal monotone identification of the two heads" -- stated as an instance of paper1's comonotone characterization; S8.2 Tokens (sec:tokens-digest), "The Split-Digest Theorem" -- successor-vs-operator compaction heads, explicitly the other instance of the same theorem |
+| Chapter 3 (The Legible Swarm) | `whitepaper/legible-swarm.tex` | thm:split-digest, thm:split-ranker, thm:comonotone, thm:split-penalty | S7.3 Discovery/Relevance (sec:relevance), "No universal monotone identification of the two heads" -- stated as an instance of paper1's comonotone characterization; S8.2 Tokens (sec:tokens-digest), "The Split-Digest Theorem" -- successor-vs-operator compaction heads, explicitly the other instance of the same theorem |
 
 **Figures:** `docs/harbor-research/figures/fig-r2-relation.tex`, `docs/harbor-research/figures/fig-r2-regime.tex`
 
@@ -70,6 +72,7 @@ One section per indexed idea (R1-R17, CR, B6, and every already-folded textbook 
 | Number | Value | Tag |
 |---|---|---|
 | joint_floor_ratio | 2.13x | verified |
+| super_additivity_k2 | 1.067 | verified |
 
 ## R3 -- The derived regret head
 <a id="r3"></a>
@@ -81,11 +84,16 @@ One section per indexed idea (R1-R17, CR, B6, and every already-folded textbook 
 | Location | File | Labels | Sections |
 |---|---|---|---|
 | Standalone paper | `docs/harbor-research/tex/paper1.tex` | sec:regret | S4 (sec:regret), Theorem 3 |
-| Chapter 3 (The Legible Swarm) | `whitepaper/legible-swarm.tex` | def:sdt | S5.1 The operator (sec:sdt), "The SDT-spined attention objective"; S7.3 Discovery/Relevance (sec:relevance), "Decision-theoretic derivation of the regret head" -- explicitly a popularization of paper1's "The regret head is derived, not designed" |
+| Chapter 3 (The Legible Swarm) | `whitepaper/legible-swarm.tex` | def:sdt, thm:regret-head, thm:reputation-posterior | S5.1 The operator (sec:sdt), "The SDT-spined attention objective"; S7.3 Discovery/Relevance (sec:relevance), "Decision-theoretic derivation of the regret head" -- explicitly a popularization of paper1's "The regret head is derived, not designed" |
 
 **Figures:** `docs/harbor-research/figures/fig-r3-relation.tex`, `docs/harbor-research/figures/fig-r3-regime.tex`
 
 **Site:** `/research/paper1.pdf`
+
+| Number | Value | Tag |
+|---|---|---|
+| inspection_bar | 6/105 ~ 0.057 | verified |
+| false_alarm_knob | 21/120 = 0.175 | verified |
 
 ## R4 -- Digest-zoom Pareto frontier and the zoom-advantage theorem
 <a id="r4"></a>
@@ -97,7 +105,7 @@ One section per indexed idea (R1-R17, CR, B6, and every already-folded textbook 
 | Location | File | Labels | Sections |
 |---|---|---|---|
 | Standalone paper | `docs/harbor-research/tex/paper1.tex` | sec:frontier, sec:rdf, sec:zoom | S5 (sec:frontier): S5.1 the pinned-joint proposition, S5.2 Theorem 4 (zoom advantage) |
-| Chapter 3 (The Legible Swarm) | `whitepaper/legible-swarm.tex` | thm:lowerbound | S6 Read-poverty (sec:lowerbound), "The other half of the price: zoom is cheap" -- restates the zoom theorem's bound and the F=2500,k=10 worked numbers under the same theorem label used for R1 |
+| Chapter 3 (The Legible Swarm) | `whitepaper/legible-swarm.tex` | thm:lowerbound, thm:pinned-joint, thm:zoom-advantage | S6 Read-poverty (sec:lowerbound), "The other half of the price: zoom is cheap" -- restates the zoom theorem's bound and the F=2500,k=10 worked numbers under the same theorem label used for R1 |
 
 **Figures:** `docs/harbor-research/figures/fig-rdf-relation.tex`, `docs/harbor-research/figures/fig-paper1-rdf-frontier.tex`, `docs/harbor-research/figures/fig-r4-relation.tex`, `docs/harbor-research/figures/fig-r4-regime.tex`
 
@@ -108,6 +116,9 @@ One section per indexed idea (R1-R17, CR, B6, and every already-folded textbook 
 | Number | Value | Tag |
 |---|---|---|
 | zoom_measured_advantage | 15.3x | internal |
+| zoom_bound_at_2500_10 | 200 opens (12.5x guaranteed) | verified |
+| composition_window | f >= 12(p - delta) | verified |
+| tightness_instance | 511 at F=4096,k=32 | internal |
 
 ## R5 -- Hypervisor enforceability = supervisory control
 <a id="r5"></a>
@@ -315,7 +326,7 @@ One section per indexed idea (R1-R17, CR, B6, and every already-folded textbook 
 | Location | File | Labels | Sections |
 |---|---|---|---|
 | Standalone paper | *(none -- see status)* | | |
-| Chapter 3 (The Legible Swarm) | `whitepaper/legible-swarm.tex` | (none) | S5.4 Human-in-the-loop escalation (sec:escalation) and S7.5 quality gates (sec:gates) -- "crying wolf has a price" costly-signal design, cited inline as "item R14 of the research ledger" |
+| Chapter 3 (The Legible Swarm) | `whitepaper/legible-swarm.tex` | thm:escalation-threshold | S5.4 Human-in-the-loop escalation (sec:escalation) and S7.5 quality gates (sec:gates) -- "crying wolf has a price" costly-signal design, cited inline as "item R14 of the research ledger" |
 
 **Scripts:** `skills/harbor-results/scripts/b7_escalation_band.py`
 
