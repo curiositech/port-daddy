@@ -53,8 +53,14 @@ jobs:
 
       - name: Install Z3
         run: |
+          set -euo pipefail
           sudo apt-get update
-          sudo apt-get install -y z3
+          # Pinned to the Ubuntu 24.04 (noble) universe archive build,
+          # queried 2026-09-06 via Launchpad
+          # (getPublishedBinaries for z3/noble/amd64). If ubuntu-latest
+          # migrates to a newer Ubuntu release and this build string 404s,
+          # re-pin with: apt-cache madison z3
+          sudo apt-get install -y z3=4.8.12-3.1build1
           z3 --version
 
       - name: Run delta-threshold.z3
@@ -320,8 +326,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Install numeric deps
-        run: pip install numpy scipy matplotlib networkx
+      - name: Install numeric deps (pinned)
+        run: pip install -r skills/harbor-results/scripts/requirements.txt
       - name: Run the executed-results scripts
         run: |
           set -euo pipefail
