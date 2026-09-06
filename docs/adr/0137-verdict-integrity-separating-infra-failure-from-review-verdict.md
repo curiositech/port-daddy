@@ -6,7 +6,7 @@ Proposed
 
 ## Context
 
-On 2026-08-26 the operator halted Port Daddy repo-wide after a spend spike, with
+On 2026-09-05 the operator halted Port Daddy repo-wide (docs/incidents/2026-09-05-port-daddy-halt.md) after a spend spike, with
 an explicit order to work solo, without coordination, until the underlying
 cause is understood. This ADR is that understanding, written up before any
 further fleet work resumes.
