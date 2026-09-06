@@ -166,7 +166,27 @@ it can promise. The systems literature answered a narrower version first: Ryoan
 a data owner and a code owner who distrust each other both keep their secrets.
 Ryoan buys its confinement with a module that sees its input once and keeps no
 state. A looping, tool-calling agent cannot pay that price, which is why this
-chapter needs a budget and a detector where Ryoan needed neither.
+chapter needs a budget and a detector where Ryoan needed neither. Table~\ref{tab:sealed-ryoan} is the whole difference in one place.
+
+\begin{table}[H]\centering\footnotesize
+\caption{How the sealed room differs from Ryoan. Ryoan confines a stateless
+module that sees its input once; the sealed room confines a looping agent, so it
+needs a priced exit and a detector where Ryoan needed neither.}
+\label{tab:sealed-ryoan}
+\begin{tabular}{@{}p{2.6cm} p{4.6cm} p{5.2cm}@{}}
+\toprule
+ & Ryoan & The sealed room \\
+\midrule
+Workload shape & a request-oriented module, input seen once, no persistent state & a looping, tool-calling agent with state across steps \\
+How leakage is bounded & confinement in the enclave plus fixed-size outputs & explicit gated releases, priced by an $\varepsilon$-ledger and a $q\cdot b$ bit budget \\
+Taint granularity & the whole module & the slot: every release is a declassification event \\
+Model access & the module's code is sealed; no query interface & the model runs inside the domain and is observed only through the contracted query and output interface \\
+Multi-job accounting & none; each request stands alone & the ledger sums spend across jobs and refuses the overdraw \\
+Evasion & prevented by construction for its workload & caught by canaries with a power curve and a Wald clock \\
+Timing & out of scope & declared out of model; padded and scheduled, not closed \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \paragraph{The pitch that must never ship.}
 The tempting design, and the one an early product review of this program
@@ -220,12 +240,13 @@ C=\bigl\langle\, & H(\text{data manifest}),\,H(\text{agent bundle}),\,H(\text{ru
 & \text{recipients},\,\text{output schemas},\,\text{budgets},\,\text{retention},\,\text{validators},\,\text{payment},\,\text{liability}\,\bigr\rangle.
 \end{aligned}
 \]}
-The order names the measured runtime and agent bundle, the encrypted data
-inputs, the allowed tools and external providers, the result and telemetry
-schemas, the output-bit, query, and timing budgets, the declassification
-authorities, retention and key destruction, success evidence, dispute
-procedure, and guarantee. Any change makes a new hash and requires both
-signatures. It is a work unit in the sense of \pdchapref{swk}{The Single-Writer
+Read the tuple in order. The four hashes pin the data manifest, the agent
+bundle, the measured runtime, and the policy; function and tools fix what may
+run and what it may call; recipients and output schemas fix who may receive a
+result and in what shape; budgets bound output bits, queries, and time;
+retention fixes key destruction; validators name the success evidence and the
+dispute procedure; payment and liability are the guarantee. Any change makes a
+new hash and requires both signatures. It is a work unit in the sense of \pdchapref{swk}{The Single-Writer
 Kernel}: the case file that outlives every process that touches it.
 
 \paragraph{Dual-attested key release.}
@@ -307,9 +328,15 @@ portfolio-sound one. Detection polices for what tries to cross without going
 through the meter at all: a compromised worker, a bug, an adversary who found
 an unmediated path. Drop any one link and a concrete gap reopens; the composed
 result, a bounded leakage account rather than an eliminated one, is
-Section~\ref{sec:sealed-budget}.
+Section~\ref{sec:sealed-budget}. Table~\ref{tab:sealed-four-links} is the
+evidence schedule: each link names its claim, how the claim was verified, and
+the script that regenerates the verification.
 
-\begin{center}\footnotesize
+\begin{table}[H]\centering\footnotesize
+\caption{The four links of the sealed room and the evidence behind each. The
+four-pillar claim is an evidence schedule, not a slogan: every row names a
+regenerable check.}
+\label{tab:sealed-four-links}
 \begin{tabular}{@{}l p{3.4cm} p{4.4cm} l@{}}
 \toprule
 Link & Claim & Verification & Script \\
@@ -320,10 +347,10 @@ Conservation & the ledger conserves & exhaustive and 2000 random instances; both
 Detection & power curve and alarm clock & analytic against simulation & \texttt{a4\_canary\_sprt.py} \\
 \bottomrule
 \end{tabular}
-\end{center}
+\end{table}
 
 Figure~\ref{fig:sealed-pillar-pipeline} draws this pipeline: one work order,
-two fences, two gates, and which of the four claims each part produces.
+two fences, two gates, and which of the four claims each part produces. The figure orders the links as they compose at run time, enforceability first; the sections that follow take noninterference first because it is the promise the other three exist to keep.
 
 \input{figures/fig-sealed-pillar-pipeline}
 
@@ -477,6 +504,25 @@ controllable egress [internal, \texttt{b3\_controllability.py}]. Gating the
 uncontrollable trigger, the model reading, thinking, or emitting, would be
 unregimentable; gating the controllable effect is not.\par}
 
+\begin{table}[H]\centering\footnotesize
+\caption{Five policies over the room's alphabet, classified by the
+controllability theorem. A policy is regimentable exactly when the events it
+forbids are events the mediation layer can veto; the compound clean-room rule
+is regimentable because it forbids only the egress.}
+\label{tab:sealed-policy-classification}
+\begin{tabular}{@{}p{4.6cm} p{2.6cm} p{2.4cm} p{2.6cm}@{}}
+\toprule
+Policy & Constrains & Alphabet & Verdict \\
+\midrule
+no \texttt{fs\_write} outside the workroom & \texttt{fs\_write} & controllable & regimentable \\
+no \texttt{net\_egress} except through the slot & \texttt{net\_egress} & controllable & regimentable \\
+never plan an exfiltration & \texttt{internal\_plan} & uncontrollable & detect-only \\
+never emit a token that names a secret & \texttt{model\_emit\_token} & uncontrollable & detect-only \\
+\textbf{no \texttt{net\_egress} after \texttt{in\_context\_read} of a secret} & \textbf{read (trigger), egress (gate)} & \textbf{mixed} & \textbf{regimentable: taint, then gate} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
 That verdict is the whole sealed-room design in one line, and it is the
 computational vindication of the correction in
 Section~\ref{sec:sealed-problem}. Whole-worker taint is exactly what the
@@ -538,6 +584,18 @@ misread to preempt: conservation governs \emph{recorded} spend. That all spend
 is recorded is the complete-mediation invariant of
 Section~\ref{sec:sealed-design}, which is why the enforceability link comes
 first.
+
+\paragraph{Differential privacy in one paragraph.}
+A release is $\varepsilon$-private when swapping any one record of $D$ changes
+the probability of every possible output by at most a factor $e^{\varepsilon}$;
+$\varepsilon$ is the price of the release, in a currency that adds. Two releases
+cost $\varepsilon_1+\varepsilon_2$ (sequential composition); $k$ releases of
+$\varepsilon$ each cost at most
+$\varepsilon\sqrt{2k\ln(1/\delta')}+k\varepsilon(e^{\varepsilon}-1)$ except with
+probability $\delta'$ (advanced composition); and a privacy filter is the
+bookkeeper that refuses the release which would overdraw the budget. The ledger
+of this section is that bookkeeper made explicit, the way double-entry
+accounting makes a balance explicit.
 
 \begin{pdclaim}{Theorem}{$\varepsilon$-conservation}
 \label{thm:sealed-conservation}
@@ -709,7 +767,9 @@ boundary value divided by the drift; overshoot past the boundary is what the
 identity ignores.
 
 \paragraph{Verification.}
-At $n=10^4$, $c=100$ (density one percent), $\beta=0.2$: a 100-span leak is
+For Derek's corpus of $n=10^4$ records seeded with $c=100$ canaries (density
+one percent), against a channel through which each smuggled canary evades the
+detector with probability $\beta=0.2$: a 100-span leak is
 caught with probability $0.554$, an 800-span leak at $0.999$; exact
 hypergeometric, binomial approximation, and simulation agree to Monte-Carlo
 precision across the curve, and the $1-\beta^k$ line is confirmed at

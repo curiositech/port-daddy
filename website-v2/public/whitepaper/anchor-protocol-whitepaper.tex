@@ -230,7 +230,7 @@ The Anchor Protocol defines how agents authenticate to a Harbor and to each othe
 
 \input{figures/fig-anchor-four-phases}
 
-A common thread across all phases is \emph{capability attenuation}: a delegated token never carries more authority than its parent, and TTL only shrinks. Figure~\ref{fig:anchor-capability-attenuation} shows the nested-cap structure that the verifier enforces on every chain.
+A common thread across all phases is \emph{capability attenuation}: a delegated token never carries more authority than its parent, and TTL only shrinks. Temporal attenuation is the same rule applied to the clock: a child's expiry is the earlier of its parent's expiry and the lifetime requested, so a twenty-minute child requested under a parent with ten minutes left is refused, and the acceptable narrower card is the one that inherits the parent's ten; in the capability lattice, lifetime is one more coordinate that moves down or stays. Figure~\ref{fig:anchor-capability-attenuation} shows the nested-cap structure that the verifier enforces on every chain.
 
 \input{figures/fig-anchor-capability-attenuation}
 
@@ -295,6 +295,8 @@ Let $R_t$ denote the authoritative Append-Only Event Log of revoked Harbor Card 
 \paragraph{Gossip-based synchronization.} Daemons in a mesh synchronize revocation deltas by anti-entropy gossip~\cite{demers1987epidemic}. Under a connected complete-overlay model with independent uniform peer selection and reliable rounds, epidemic dissemination is expected $\Theta(\log m)$ rounds. This is an expectation, not a deadline; partitions, message loss, topology, and scheduling change the constant or prevent global convergence until the partition heals. Security-critical revocations can additionally trigger best-effort immediate push. Figure~\ref{fig:anchor-revocation-gossip} illustrates propagation across five daemons; it is a trace, not a timing proof.
 
 \input{figures/fig-anchor-revocation-gossip}
+
+\paragraph{Pollution as denial of revocation.} The load ceiling keeps the false-positive bound honest; it does not by itself defeat an attacker who submits many authenticated-looking revocation identifiers to push the filter out of its bound-holding regime, which turns the revocation path into a denial of service. The design requires three things of the daemon: a per-issuer insertion quota, an overflow record for every refused insertion, and lookups that consult the authoritative event log while a flooded filter rebuilds, so that flooding degrades revocation checks to slower, never to missed.
 
 \begin{pdclaim}{Design invariant}{Filter monotonicity over a TTL epoch}
 \label{prop:filter-mono}

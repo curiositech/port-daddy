@@ -144,6 +144,8 @@ Searched against every root document in the fragment's own corpus, then (if that
 - `website-v2/public/whitepaper/figures/diag-cartel-game.tex`
 - `website-v2/public/whitepaper/figures/diag-cuckoo-filter.tex`
 - `website-v2/public/whitepaper/figures/diag-delegation-chain.tex`
+
+Orphan disposition (2026-09-06, critique ledger XS-382 and XS-383): every orphan fragment listed above that no chapter, build script, or site component references was deleted from the tree; the audit rows above are kept as the record of what they were.
 - `website-v2/public/whitepaper/figures/diag-magic-link.tex`
 - `website-v2/public/whitepaper/figures/diag-sybil-attack.tex`
 - `website-v2/public/whitepaper/figures/fig-anchor-phases.tex`
