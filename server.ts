@@ -115,6 +115,7 @@ import { createMetricsRegistry } from './lib/metrics-registry.js';
 import { createBonds } from './lib/bonds.js';
 import { createBudgetGuard } from './lib/budget-guard.js';
 import { createActorSouls } from './lib/actor-souls.js';
+import { createBeginIdempotency } from './lib/begin-idempotency.js';
 import { authorizeSessionOwner, resolveWriteIdentity, stampIdentityMetadata } from './lib/identity-write-boundary.js';
 import { migrateActorSouls } from './scripts/migrate-actor-souls.js';
 import { homedir } from 'node:os';
@@ -805,6 +806,10 @@ const bonds = createBonds(db, {
 // lane makes the SQLite write-boundary real (a same-UID agent can otherwise
 // write a ledger/pool row directly). This is ADR-0040's explicit non-goal.
 const actorSouls = createActorSouls(db);
+// Begin idempotency (lib/begin-idempotency.ts): a `pd begin` retried after a
+// lost response replays the ORIGINAL session and its once-returned credential
+// instead of minting a second soul + session. Owns its own additive DDL.
+const beginIdempotency = createBeginIdempotency(db);
 // Grandfather EXISTING agents (from budget_ledger/bond_escrow/agents) into
 // trusted souls before budgetGuard starts routing spend through the souls
 // choke below -- otherwise every already-running agent looks like a brand
@@ -1818,7 +1823,7 @@ await registerAllRoutes(
     roadmapActivity,
     commitments, obligationMonitor, suggestions, whois,
     contextBootstrapLookup,
-    bonds, budgetGuard, budgetPause, actorSouls,
+    bonds, budgetGuard, budgetPause, actorSouls, beginIdempotency,
     arbiter, bosunHeartbeat,
     VERSION, CODE_HASH, STARTED_AT, __dirname, repoRoot: REPO_ROOT,
     runningBinarySnapshot: RUNNING_BINARY_SNAPSHOT,

@@ -830,6 +830,9 @@ Commands:
   session abandon [note]     End active session (abandoned)
   session takeover <id> [note]  Create successor; preserve predecessor notes
   takeover <id> [note]       Alias for "session takeover"
+  session find [--key K | --identity ID]
+                             Recover "my session" after a lost begin response
+                             or crash (restores context + credential by key)
   session rm <id>            Archive a session; preserve notes
   session files add <paths>  Claim files in active session
   session files rm <paths>   Release files from active session
@@ -1143,6 +1146,8 @@ Commands:
                            Writes context to .portdaddy/current.json
     --lifecycle <mode>     Required: durable for work contexts, ephemeral for heartbeat-bound process sessions
     --allow-main-worktree  Explicitly allow an integration session in the main worktree
+    --idempotency-key <k>  Reuse one key across retries of the SAME begin (default: fresh UUID);
+                           a re-send after a lost response replays the original session
 
   done "summary"           End session + unregister agent atomically
                            Cleans up .portdaddy/current.json
