@@ -56,8 +56,11 @@ mod buffer;
 #[path = "../src/editor_sync.rs"]
 mod editor_sync;
 
-use buffer::{peer_id_for_identity, HarborBuffer, PeerId};
-use editor_sync::{channel_for_path, decode_oplog_note, encode_oplog_note, OpLog};
+use buffer::{peer_id_for_identity, HarborBuffer, HistoryAction, PeerId};
+use editor_sync::{
+    apply_frame, channel_for_path, decode_frame, decode_oplog_note, encode_frame,
+    encode_oplog_note, OpLog,
+};
 use loro::{ExportMode, LoroDoc, VersionVector};
 use proptest::prelude::*;
 
@@ -129,7 +132,12 @@ impl Replica {
         // Same discipline as HarborBuffer::empty — peer id set before any op.
         doc.set_peer_id(peer).expect("set_peer_id on a fresh doc");
         let last_export_vv = doc.oplog_vv();
-        Self { doc, peer, last_export_vv, chunks: Vec::new() }
+        Self {
+            doc,
+            peer,
+            last_export_vv,
+            chunks: Vec::new(),
+        }
     }
 
     /// Apply one scripted edit, commit, and record its incremental delta chunk.
@@ -148,7 +156,8 @@ impl Replica {
                 let pos = pos_seed % len;
                 let max_del = len - pos; // >= 1 because pos < len
                 let dlen = 1 + len_seed % max_del;
-                text.delete(pos, dlen).expect("scripted delete is in-bounds");
+                text.delete(pos, dlen)
+                    .expect("scripted delete is in-bounds");
             }
         }
         self.doc.commit();
@@ -173,13 +182,17 @@ impl Replica {
     /// Wholesale op-log — mirrors `HarborBuffer::export_ops`.
     fn export_all_updates(&self) -> Vec<u8> {
         self.doc.commit();
-        self.doc.export(ExportMode::all_updates()).expect("export all updates")
+        self.doc
+            .export(ExportMode::all_updates())
+            .expect("export all updates")
     }
 
     /// Compacted snapshot — mirrors `HarborBuffer::export_snapshot`.
     fn export_snapshot(&self) -> Vec<u8> {
         self.doc.commit();
-        self.doc.export(ExportMode::snapshot()).expect("export snapshot")
+        self.doc
+            .export(ExportMode::snapshot())
+            .expect("export snapshot")
     }
 
     /// Import — mirrors `HarborBuffer::apply_remote_ops`.
@@ -209,6 +222,159 @@ fn fork(seed: &[EditOp], a_script: &[EditOp], b_script: &[EditOp]) -> (Replica, 
     a.apply_script(a_script); // A's final ops before it dies
     b.apply_script(b_script); // B advances AFTER A's death
     (a, b)
+}
+
+#[test]
+fn peer_local_undo_redo_frames_preserve_intervening_peer_edits_and_replay_idempotently() {
+    let a = HarborBuffer::empty("port-daddy:console:foreground-A");
+    a.replace_authored(0..0, "core");
+    let b = HarborBuffer::empty("port-daddy:editor:peer-B");
+    b.apply_remote_ops(&a.export_ops())
+        .expect("B joins seeded A");
+
+    let a_edit = a.replace_authored(0..0, "A-");
+    let a_frame = encode_frame(a.local_peer(), &a_edit.delta);
+    apply_frame(&b, &decode_frame(&a_frame).expect("A edit frame")).expect("B imports A edit");
+
+    let b_end = b.to_string().chars().count();
+    let b_edit = b.replace_authored(b_end..b_end, "-B");
+    let b_frame = encode_frame(b.local_peer(), &b_edit.delta);
+    apply_frame(&a, &decode_frame(&b_frame).expect("B edit frame")).expect("A imports B edit");
+    assert_eq!(a.to_string(), "A-core-B");
+
+    let undo = a
+        .apply_history_governed(HistoryAction::Undo, |_, _| Ok(()))
+        .expect("A undo succeeds")
+        .expect("A has a local edit to undo");
+    assert_eq!(a.to_string(), "core-B", "A undo preserves B's suffix");
+    let undo_frame = encode_frame(a.local_peer(), &undo.delta);
+    let decoded_undo = decode_frame(&undo_frame).expect("undo is an ordinary update frame");
+    apply_frame(&b, &decoded_undo).expect("B imports A undo");
+    assert_eq!(b.to_string(), a.to_string(), "undo frame converges");
+
+    let stamp_after_undo = b.change_stamp();
+    apply_frame(&b, &decoded_undo).expect("undo frame can be replayed");
+    assert_eq!(
+        b.change_stamp(),
+        stamp_after_undo,
+        "undo replay is idempotent"
+    );
+
+    let later_end = b.to_string().chars().count();
+    let later_b = b.replace_authored(later_end..later_end, "-later");
+    apply_frame(
+        &a,
+        &decode_frame(&encode_frame(b.local_peer(), &later_b.delta)).expect("later B frame"),
+    )
+    .expect("A imports intervening B edit");
+    assert!(a.can_redo(), "peer imports do not clear A's redo stack");
+
+    let redo = a
+        .apply_history_governed(HistoryAction::Redo, |_, _| Ok(()))
+        .expect("A redo succeeds")
+        .expect("A still has redo history");
+    assert!(a.to_string().contains("A-"), "redo restores A's edit");
+    assert!(
+        a.to_string().contains("-B-later"),
+        "redo preserves both B edits"
+    );
+    let redo_frame = encode_frame(a.local_peer(), &redo.delta);
+    let decoded_redo = decode_frame(&redo_frame).expect("redo is an ordinary update frame");
+    apply_frame(&b, &decoded_redo).expect("B imports A redo");
+    assert_eq!(b.to_string(), a.to_string(), "redo frame converges");
+
+    let stamp_after_redo = b.change_stamp();
+    apply_frame(&b, &decoded_redo).expect("redo frame can be replayed");
+    assert_eq!(
+        b.change_stamp(),
+        stamp_after_redo,
+        "redo replay is idempotent"
+    );
+}
+
+#[test]
+fn history_frames_preserve_remote_replacement_inside_local_span_across_repeated_cycles() {
+    let a = HarborBuffer::empty("port-daddy:console:interior-frame-A");
+    a.replace_authored(0..0, "ABC\n");
+    let b = HarborBuffer::empty("port-daddy:editor:interior-frame-B");
+    b.apply_remote_ops(&a.export_ops()).expect("B joins A");
+
+    let remote = b.replace_authored(1..2, "X");
+    let remote_frame = encode_frame(b.local_peer(), &remote.delta);
+    apply_frame(
+        &a,
+        &decode_frame(&remote_frame).expect("remote interior frame"),
+    )
+    .expect("A imports B replacement");
+    assert_eq!(a.to_string(), "AXC\n");
+
+    for cycle in 0..3 {
+        let undo = a
+            .apply_history_governed(HistoryAction::Undo, |_, _| Ok(()))
+            .expect("governed interior undo")
+            .expect("effective interior undo");
+        assert_eq!(a.to_string(), "X", "undo cycle {cycle} preserves B");
+        let undo_frame = encode_frame(a.local_peer(), &undo.delta);
+        let decoded_undo = decode_frame(&undo_frame).expect("ordinary undo frame");
+        apply_frame(&b, &decoded_undo).expect("B imports interior undo");
+        assert_eq!(b.to_string(), a.to_string());
+        let stamp = b.change_stamp();
+        apply_frame(&b, &decoded_undo).expect("undo frame reimport");
+        assert_eq!(b.change_stamp(), stamp, "undo cycle {cycle} is idempotent");
+
+        let redo = a
+            .apply_history_governed(HistoryAction::Redo, |_, _| Ok(()))
+            .expect("governed interior redo")
+            .expect("effective interior redo");
+        assert_eq!(a.to_string(), "AXC\n", "redo cycle {cycle} preserves B");
+        let redo_frame = encode_frame(a.local_peer(), &redo.delta);
+        let decoded_redo = decode_frame(&redo_frame).expect("ordinary redo frame");
+        apply_frame(&b, &decoded_redo).expect("B imports interior redo");
+        assert_eq!(b.to_string(), a.to_string());
+        let stamp = b.change_stamp();
+        apply_frame(&b, &decoded_redo).expect("redo frame reimport");
+        assert_eq!(b.change_stamp(), stamp, "redo cycle {cycle} is idempotent");
+    }
+}
+
+#[test]
+fn multi_pop_history_frame_contains_the_one_effective_loro_update() {
+    let a = HarborBuffer::empty("port-daddy:console:multi-pop-frame-A");
+    a.replace_authored(0..0, "OLD-");
+    a.replace_authored(4..4, "TOP-");
+    let b = HarborBuffer::empty("port-daddy:editor:multi-pop-frame-B");
+    b.apply_remote_ops(&a.export_ops()).expect("B joins A");
+
+    let neutralize_top = b.replace_authored(4..8, "");
+    a.apply_remote_ops(&neutralize_top.delta)
+        .expect("A imports neutralizing remote deletion");
+    assert_eq!(a.to_string(), "OLD-");
+
+    let undo = a
+        .apply_history_governed(HistoryAction::Undo, |_, _| Ok(()))
+        .expect("multi-pop undo succeeds")
+        .expect("older item is effective");
+    assert_eq!((a.undo_count(), a.redo_count()), (0, 1));
+    assert_eq!(a.to_string(), "");
+    let frame = encode_frame(a.local_peer(), &undo.delta);
+    let decoded = decode_frame(&frame).expect("multi-pop undo is an ordinary frame");
+    apply_frame(&b, &decoded).expect("B imports the effective undo update");
+    assert_eq!(b.to_string(), a.to_string());
+    let stamp = b.change_stamp();
+    apply_frame(&b, &decoded).expect("multi-pop undo frame reimports");
+    assert_eq!(b.change_stamp(), stamp);
+
+    let redo = a
+        .apply_history_governed(HistoryAction::Redo, |_, _| Ok(()))
+        .expect("reconciled redo succeeds")
+        .expect("older redo is effective");
+    let frame = encode_frame(a.local_peer(), &redo.delta);
+    apply_frame(
+        &b,
+        &decode_frame(&frame).expect("ordinary reconciled redo frame"),
+    )
+    .expect("B imports reconciled redo");
+    assert_eq!(b.to_string(), a.to_string());
 }
 
 // ── The four salvage properties ───────────────────────────────────────────────
