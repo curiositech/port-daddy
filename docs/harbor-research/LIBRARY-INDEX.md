@@ -341,6 +341,7 @@ One section per indexed idea (R1-R17, CR, B6, and every already-folded textbook 
 |---|---|---|---|
 | Standalone paper | `docs/harbor-research/tex/paper6.tex` | (none) | S(sec:thm-boundary / sec:queue), boxed "Theorem 2 (queueing specialization boundary)"; S(sec:succession), boxed "Theorem 3 (price of the succession rule)" |
 | Chapter 4 (The Legible Swarm) | `whitepaper/legible-swarm.tex` | thm:specialization | S4.3 Sole-responsibility roles (sec:sole-roles), "Queueing Specialization Boundary" -- annotated \Verified--corrected, citing "the companion formal paper's Theorem 2" by name, same g(rho,2)=1+2rho-rho^2 closed form |
+| Chapter 6 (The Harbor Economy) | `website-v2/public/whitepaper/harbor-economy.tex` | thm:succession-price | sec:three-sides, paragraph "What one mortal body costs": Theorem 3 as thm:succession-price (Theorem, proof sketch), the wrong turn 4.17 versus 8.17, the breakdown-forgetting canary, the worked D* instance, and a boundary box shared with the specialization boundary |
 
 **Figures:** `docs/harbor-research/figures/fig-paper6-regime.tex`
 
@@ -376,7 +377,7 @@ One section per indexed idea (R1-R17, CR, B6, and every already-folded textbook 
 | Location | File | Labels | Sections |
 |---|---|---|---|
 | Standalone paper | `docs/harbor-research/tex/paper6.tex` | (none) | S(sec:lang / sec:thm-detect), boxed "Theorem 1a (membership)" and "Theorem 1b (frontier: one step outside is NP-complete)" |
-| Chapters | *(not yet folded)* | | |
+| Chapter 6 (The Harbor Economy) | `website-v2/public/whitepaper/harbor-economy.tex` | thm:deontic-detect, thm:deontic-frontier | sec:three-on-one, paragraph "The deontic layer's decision procedure": Theorem 1a as thm:deontic-detect and Theorem 1b as thm:deontic-frontier (both Theorem kind, the reduction as proof), the dichotomy reading, the 3000-set oracle sweep and the propagation mutant, the worked witness, the authority inventory as what it buys, and a boundary box |
 
 **Figures:** `docs/harbor-research/figures/fig-paper6-relation.tex`, `docs/harbor-research/figures/fig-paper6-dichotomy.tex`, `docs/harbor-research/figures/fig-paper6-witness.tex`
 
@@ -387,6 +388,9 @@ One section per indexed idea (R1-R17, CR, B6, and every already-folded textbook 
 | Number | Value | Tag |
 |---|---|---|
 | conflicts_in_3000_sweep | 885 | internal |
+| conflicting_policy_sets | 885 of 3000 | internal |
+| reduction_instances | 16/16 | internal |
+| propagation_only_misses | 100 of 149 | internal |
 
 ## CR -- Consistency radius of the completion residual (CR-1/2/3)
 <a id="cr"></a>

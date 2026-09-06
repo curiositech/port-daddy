@@ -740,6 +740,17 @@
           "sections": [
             "S4.3 Sole-responsibility roles (sec:sole-roles), \"Queueing Specialization Boundary\" -- annotated \\Verified--corrected, citing \"the companion formal paper's Theorem 2\" by name, same g(rho,2)=1+2rho-rho^2 closed form"
           ]
+        },
+        {
+          "file": "website-v2/public/whitepaper/harbor-economy.tex",
+          "chapter": 6,
+          "prefix": "he",
+          "labels": [
+            "thm:succession-price"
+          ],
+          "sections": [
+            "sec:three-sides, paragraph \"What one mortal body costs\": Theorem 3 as thm:succession-price (Theorem, proof sketch), the wrong turn 4.17 versus 8.17, the breakdown-forgetting canary, the worked D* instance, and a boundary box shared with the specialization boundary"
+          ]
         }
       ],
       "figures": [
@@ -802,7 +813,20 @@
           "S(sec:lang / sec:thm-detect), boxed \"Theorem 1a (membership)\" and \"Theorem 1b (frontier: one step outside is NP-complete)\""
         ]
       },
-      "chapters": [],
+      "chapters": [
+        {
+          "file": "website-v2/public/whitepaper/harbor-economy.tex",
+          "chapter": 6,
+          "prefix": "he",
+          "labels": [
+            "thm:deontic-detect",
+            "thm:deontic-frontier"
+          ],
+          "sections": [
+            "sec:three-on-one, paragraph \"The deontic layer's decision procedure\": Theorem 1a as thm:deontic-detect and Theorem 1b as thm:deontic-frontier (both Theorem kind, the reduction as proof), the dichotomy reading, the 3000-set oracle sweep and the propagation mutant, the worked witness, the authority inventory as what it buys, and a boundary box"
+          ]
+        }
+      ],
       "figures": [
         "docs/harbor-research/figures/fig-paper6-relation.tex",
         "docs/harbor-research/figures/fig-paper6-dichotomy.tex",
@@ -817,6 +841,24 @@
           "value": "885",
           "tag": "internal",
           "regex": "\\b885\\b"
+        },
+        {
+          "name": "conflicting_policy_sets",
+          "value": "885 of 3000",
+          "tag": "internal",
+          "regex": "885"
+        },
+        {
+          "name": "reduction_instances",
+          "value": "16/16",
+          "tag": "internal",
+          "regex": "16/16"
+        },
+        {
+          "name": "propagation_only_misses",
+          "value": "100 of 149",
+          "tag": "internal",
+          "regex": "100 of\\s"
         }
       ],
       "mechanization": [],
