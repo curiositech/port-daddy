@@ -74,11 +74,19 @@ describe('proof-estate corpus manifest', () => {
   });
 
   test('every ProVerif model under analyses/, proofs/**, docs/adr/models/ is wired to proverif-estate', () => {
-    const proverifEntries = corpus.formalArtifacts.filter((a) => a.method === 'ProVerif');
-    expect(proverifEntries).toHaveLength(25);
-    for (const entry of proverifEntries) {
+    const wiredProverifEntries = corpus.formalArtifacts.filter(
+      (a) => a.method === 'ProVerif' && a.ci.status === 'wired',
+    );
+    expect(wiredProverifEntries).toHaveLength(25);
+    for (const entry of wiredProverifEntries) {
       expect(entry.ci).toEqual({ status: 'wired', job: ['proverif-estate'] });
     }
+    // The one ProVerif-method entry that is NOT wired is the skill teaching
+    // template, covered by its own dedicated test below.
+    const retiredProverifEntries = corpus.formalArtifacts.filter(
+      (a) => a.method === 'ProVerif' && a.ci.status === 'retired',
+    );
+    expect(retiredProverifEntries).toHaveLength(1);
   });
 
   test('the skill teaching template is explicitly RETIRED, not silently unregistered', () => {
