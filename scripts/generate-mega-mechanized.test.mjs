@@ -282,3 +282,16 @@ test('the real whitepaper/corpus.json renders end to end without drift', () => {
     assert.match(rendered, new RegExp(`\\\\captionof\\{table\\}\\{${method} artifacts`));
   }
 });
+
+test('renderMechanizedClaims keeps every caption on the page of its first table chunk', () => {
+  const rendered = renderMechanizedClaims(fixtureManifest());
+  const captionCount = [...rendered.matchAll(/\\captionof\{table\}/g)].length;
+  // Each caption opens inside an unbreakable full-width minipage ...
+  const opened = [...rendered.matchAll(/\\noindent\\begin\{minipage\}\{\\textwidth\}\n\\captionof\{table\}/g)].length;
+  assert.equal(opened, captionCount, 'every caption is preceded by the minipage opener');
+  // ... and that minipage closes right after the FIRST chunk's \end{tabularx},
+  // so later chunks (marked "(continued)") keep their own page-break points.
+  const closed = [...rendered.matchAll(/\\end\{tabularx\}\n\\end\{minipage\}/g)].length;
+  assert.equal(closed, captionCount, 'exactly one minipage close per table, after its first chunk');
+  assert.doesNotMatch(rendered, /\(continued\)\}\n\n\\begin\{tabularx\}[^]*?\\end\{tabularx\}\n\\end\{minipage\}/, 'a continuation chunk is never inside the minipage');
+});

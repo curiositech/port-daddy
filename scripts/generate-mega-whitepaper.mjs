@@ -1067,7 +1067,14 @@ function renderMechanizedClaims(raw, { source = 'whitepaper/corpus.json' } = {})
     const methodWired = rows.filter((row) => row.ci.status === 'wired').length;
     const methodRetired = rows.length - methodWired;
     const slug = method.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    // The caption and the first chunk travel together: \captionof leaves a
+    // legal break point between itself and the table, and with several
+    // paragraph-separated chunks per method TeX took it, stranding a caption
+    // at the foot of one page with its table on the next. Wrapping the two in
+    // an unbreakable full-width minipage removes that break point while the
+    // remaining chunks keep their own.
     lines.push(
+      '\\noindent\\begin{minipage}{\\textwidth}',
       `\\captionof{table}{${texText(method)} artifacts (${methodWired} wired, ${methodRetired} retired).}`,
       `\\label{tab:mechanized-${slug}}`,
       '\\small',
@@ -1091,8 +1098,9 @@ function renderMechanizedClaims(raw, { source = 'whitepaper/corpus.json' } = {})
         ...chunk.map(renderRow),
         '\\bottomrule',
         '\\end{tabularx}',
-        '',
       );
+      if (chunkIndex === 0) lines.push('\\end{minipage}');
+      lines.push('');
     });
     lines.push('');
   }
