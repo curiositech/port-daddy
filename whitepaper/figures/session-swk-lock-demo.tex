@@ -2,8 +2,9 @@
 \begin{pdsession}[two agents, one lock, one holder at a time]
 $ export PORT_DADDY_AGENT_ID=alice
 $ pd lock lib.webhooks.ts --ttl 600000
-SUCCESS: Acquired lock: lib.webhooks.ts
-  TTL: 600s
+Lock 'lib.webhooks.ts' is held by <actor-id>
+  Held since: <timestamp>
+  Expires in: <n>s
 
 $ export PORT_DADDY_AGENT_ID=bob
 $ pd lock lib.webhooks.ts --wait --timeout 2000

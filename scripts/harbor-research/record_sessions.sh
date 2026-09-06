@@ -18,15 +18,25 @@ TMP=$(mktemp -d)
 trap 'timeout 30 $PD daemon stop $PROFILE >/dev/null 2>&1 || true; rm -rf "$TMP"' EXIT
 
 normalise() {
-  sed -E \
-    -e 's/[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9:.]+Z/<timestamp>/g' \
-    -e 's/[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}/<timestamp>/g' \
-    -e 's/\b[0-9A-HJKMNP-TV-Z]{26}\b/<actor-id>/g' \
-    -e 's/\b[0-9A-HJKMNP-TV-Z]{24}\b/<actor-id>/g' \
-    -e 's/PID [0-9]+/PID <pid>/g' \
-    -e 's/Expires in: [0-9]+s/Expires in: <n>s/g' \
-    -e 's/^⚠.*$//' \
-    -e '/^$/N;/^\n$/D'
+  python3 - <<'PY_NORM'
+import re, sys
+s = sys.stdin.read()
+rules = [
+    (r'\d{4}-\d{2}-\d{2}T[\d:.]+Z', '<timestamp>'),
+    (r'\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}', '<timestamp>'),
+    (r'\b[0-9A-HJKMNP-TV-Z]{26}\b', '<actor-id>'),
+    (r'\b[0-9A-HJKMNP-TV-Z]{24}\b', '<actor-id>'),
+    (r'PID \d+', 'PID <pid>'),
+    (r'Expires in: \d+s', 'Expires in: <n>s'),
+    (r'(?m)^⚠.*$', ''),
+    (r'✓', '[ok]'), (r'—', '--'), (r'→', '->'), (r'[ \t]+$', ''),
+]
+for pat, rep in rules:
+    s = re.sub(pat, rep, s, flags=re.M)
+s = re.sub(r'\n{3,}', '\n\n', s)
+s = ''.join(ch if ord(ch) < 128 else '?' for ch in s)   # transcripts are ASCII in print
+sys.stdout.write(s)
+PY_NORM
 }
 
 run() { local id=$1; shift; env PORT_DADDY_AGENT_ID="$id" timeout 30 $PD "$@" 2>&1 || true; }
@@ -65,6 +75,14 @@ sleep 2
   run bob lock lib.webhooks.ts
 } | normalise > "$TMP/s1.txt"
 wrap "two agents, one lock, one holder at a time" "$TMP/s1.txt" "$TMP/session-swk-lock-demo.tex"
+
+# ---- session 2: the work-unit checker and its mutation suite (chapter 1) ----
+{
+  echo '$ python3 skills/harbor-results/scripts/c0_workunit.py'
+  timeout 300 python3 skills/harbor-results/scripts/c0_workunit.py 2>&1 \
+    | sed -n '/^BASELINE/,/^Guards restored/p' | sed -E 's/ +$//'
+} | normalise > "$TMP/s2.txt"
+wrap "the work-unit machine: 536 states, every guard load-bearing" "$TMP/s2.txt" "$TMP/session-swk-workunit-check.tex"
 
 # ---- compare or install ----------------------------------------------------
 status=0

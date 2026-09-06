@@ -1650,6 +1650,13 @@ refinement is a separate obligation named in the boundary below.
 
 \input{figures/fig-swk-workunit-machine}
 
+The checker that explores the machine is short enough to run while reading. Its
+output below is the evidence behind the state count and the shortest-crime table:
+with every guard on, no reachable state violates an invariant; with any one guard
+off, the checker finds the violating run and prints it.
+
+\input{figures/session-swk-workunit-check}
+
 \begin{pdclaim}{Model-checked property}{Six invariants of the work-unit machine}
 \label{thm:workunit}
 \textbf{State.} A tuple of the work-unit phase (proposed, authorized, executing, witnessed,
