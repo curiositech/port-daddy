@@ -31,10 +31,12 @@ disagree, the ledger and `git log` win.
 Measured on the current head: the kernel chapter compiles standalone to 59
 pages with 0 undefined references and 502 links, the Legible Swarm chapter to
 63 pages and 712 links, the Spawn-to-Person chapter to 57 pages and 484 links;
-the Book compiles to 338 pages, 6.9 MB, 2,644 links, 0 undefined references
-(the mechanized-claims appendix and the four chapters' collected solutions
-account for the growth from 289; the 400-page ceiling is tracked in the
-outline's page-budget item). Local build recipe: run
+the Sealed Harbor chapter to 17 pages and 118 links, the Harbor Economy
+chapter to 51 pages and 424 links; the Book compiles to 380 pages, 6.9 MB,
+2,927 links, 0 undefined references (eight chapters, the mechanized-claims
+appendix and six chapters' collected solutions account for the growth from
+289; the 400-page ceiling is now 20 pages away and the page-budget levers in
+the outline apply in Wave 10). Local build recipe: run
 the generator into `.cache/whitepaper-build/coordination-papers-mega-volume`
 first (a stale or missing cache fails the Book with "Generated chapter map is
 missing"), then tectonic from `website-v2/public/whitepaper/`.
