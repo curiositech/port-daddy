@@ -19,7 +19,8 @@ def main() -> int:
     ap.add_argument("--keep-states", default="", help="comma-separated state numbers to print; default all")
     a = ap.parse_args()
     keep = {int(x) for x in a.keep_states.split(",") if x.strip()}
-    lines = open(a.log, encoding="utf-8", errors="replace").read().splitlines()
+    with open(a.log, encoding="utf-8", errors="replace") as fh:
+        lines = fh.read().splitlines()
     start = next((i for i, l in enumerate(lines) if l.startswith("Error: Invariant")), None)
     if start is None:
         print("no invariant violation in log", file=sys.stderr)

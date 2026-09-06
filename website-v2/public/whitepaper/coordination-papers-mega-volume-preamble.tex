@@ -337,14 +337,20 @@
     \end{minipage}
   \end{flushright}
   \vspace{0.5cm}
+  % The plate is capped at a third of the page so that the question block
+  % below it always fits on the opener; the block itself is one unbreakable
+  % minipage, so the label can never be stranded at the foot of the page with
+  % the question on the next one.
   \IfFileExists{plates/chapter-#3.jpg}{%
-    \begin{center}\includegraphics[width=\textwidth,height=0.40\textheight,keepaspectratio]{plates/chapter-#3.jpg}\end{center}}{}%
+    \begin{center}\includegraphics[width=\textwidth,height=0.33\textheight,keepaspectratio]{plates/chapter-#3.jpg}\end{center}}{}%
   \vfill
+  \noindent\begin{minipage}{\textwidth}
   \noindent{\scshape\footnotesize\color{hhgray}The question this chapter answers}\par
   \vspace{6pt}
   {\noindent\fontsize{22}{27}\selectfont\bfseries\color{hhink}\hyphenpenalty=10000\exhyphenpenalty=10000\raggedright\pdchapterquestion\par}
   \vspace{10pt}
   {\noindent\small\itshape\pdchapteroneline\par}
+  \end{minipage}\par
   \vspace{0.2cm}
   \clearpage
   \setcounter{section}{0}\setcounter{figure}{0}\setcounter{table}{0}\setcounter{equation}{0}\setcounter{lstlisting}{0}\setcounter{pdexercise}{0}%
