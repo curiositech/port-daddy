@@ -334,9 +334,24 @@ Cryptoeconomic mechanism design & Priced deterrence; market-discovered parameter
 \end{tabularx}
 \end{table}
 
-\paragraph{What is novel.} The synthesis: bonded participation $+$ capability attenuation $+$ advisory (not enforced) coordination $+$ immutable attribution, packaged as localhost infrastructure rather than a global protocol. We are not aware of a prior system that combines all four in this form; each component has precedent, while the composition targets auditable coordination and attribution that survives identity disposal. Its welfare effects remain conditional on the explicit payoff and monitoring models developed below. Figure~\ref{fig:bonded-three-layer} shows the composition.
+\paragraph{What is novel.} The synthesis: bonded participation $+$ capability attenuation $+$ advisory (not enforced) coordination $+$ immutable attribution, packaged as localhost infrastructure rather than a global protocol. We are not aware of a prior system that combines all four in this form; each component has precedent, while the composition targets auditable coordination and attribution that survives identity disposal. Its welfare effects remain conditional on the explicit payoff and monitoring models developed below. Table~\ref{tab:bonded-three-layer} shows the composition.
 
-\input{figures/fig-bonded-three-layer.tex}
+\begin{table}[H]
+\centering
+\caption{Three layers answer three different questions about the same attempted act. An out-of-grant act ends at Layer 1 before shared state changes; every admitted act crosses Layer 2 and acquires durable attribution, so admission creates an attribution duty; a harmful admitted act reaches Layer 3, where only bound evidence can reach settlement. [internal]}
+\label{tab:bonded-three-layer}
+\small
+\renewcommand{\arraystretch}{1.15}
+\begin{tabularx}{\linewidth}{@{}l l >{\raggedright\arraybackslash}X l@{}}
+\toprule
+\textbf{Layer} & \textbf{Question} & \textbf{What it does to the act} & \textbf{Terminal outcome} \\
+\midrule
+1 scope & can this act exist? & terminates an out-of-grant trajectory before shared state changes & refused \\
+2 evidence & who did what? & binds every admitted act to a durable, addressable attribution & complete and recorded \\
+3 collateral & who carries the loss? & prices a harmful admitted act against posted collateral; only bound evidence can reach settlement & priced settlement \\
+\bottomrule
+\end{tabularx}
+\end{table}
 
 % ═══════════════════════════════════════════════════════════════════════════════
 \section{The Commons Authority}\label{sec:commons}
@@ -619,9 +634,8 @@ This is not a contrived scenario. AI agents are \emph{inherently uncertain} abou
   \item \textbf{Under-claim} (request locks only on files they're certain about) $\rightarrow$ produces undetected conflicts, defeating the purpose.
 \end{enumerate}
 
-The lesson has a boundary, and it is worth drawing rather than asserting. Advisory claims are not better than locks everywhere; they are better in a region, and Figure~\ref{fig:bonded-sen-regime} marks it. Where an agent's file needs are knowable up front, an exclusive lock allocates exactly as an advisory claim would and adds determinism at no cost---in that regime the design choice of this section would simply be wrong. Where negotiating a release is prohibitively expensive, neither regime converges, which is the case the hard-lock fallback of \S\ref{sec:governance} exists to absorb. The advisory default is justified by where LLM coding agents actually sit, not by a universal claim.
+The lesson has a boundary, and it is worth drawing rather than asserting. Advisory claims are not better than locks everywhere; they are better in a region, and the region has a boundary. Where an agent's file needs are knowable up front, an exclusive lock allocates exactly as an advisory claim would and adds determinism at no cost---in that regime the design choice of this section would simply be wrong. Where negotiating a release is prohibitively expensive, neither regime converges, which is the case the hard-lock fallback of \S\ref{sec:governance} exists to absorb. The advisory default is justified by where LLM coding agents actually sit, not by a universal claim.
 
-\input{figures/fig-bonded-sen-regime}
 
 \subsection{Advisory Claims as Resolution}\label{sec:advisory}
 
@@ -1075,9 +1089,8 @@ To avoid the classic lemons problem, the mechanism requires:
 \end{itemize}
 
 \paragraph{Welfare comparison (model-conditional).}\label{sec:youle:welfare}
-Under the simulation's full-information, competitive-entry assumptions and its chosen static baseline, the market-discovered premium can weakly improve the modeled principal and insurer payoffs while preserving coverage $B_T=\mu(1+s)$. This is not a claim against \emph{every} static parameter: a static price equal to the competitive price is outcome-equivalent, and transfers outside the modeled parties can change the Pareto ordering. Figure~\ref{fig:auction-inline} isolates the financing difference.
+Under the simulation's full-information, competitive-entry assumptions and its chosen static baseline, the market-discovered premium can weakly improve the modeled principal and insurer payoffs while preserving coverage $B_T=\mu(1+s)$. This is not a claim against \emph{every} static parameter: a static price equal to the competitive price is outcome-equivalent, and transfers outside the modeled parties can change the Pareto ordering.
 
-\input{figures/fig-auction-inline}
 
 An independent model specification and a Monte Carlo sweep over 36 parameter configurations accompany this paper as a downloadable artifact (Appendix~\ref{app:mech}). Figure~\ref{fig:pareto-mc-inline} reports three results of that implementation: (i) the no-cartel baseline remains favorable across the tested noise sweep, whereas the three-colluder case loses the comparison beyond roughly $\sigma_r=0.1$; (ii) the tested full-cartel case defeats the mechanism at the fixed detection setting; and (iii) the tested objective peaks at $n=3$ insurers. These are finite-sample properties of the supplied code and parameter grid, not general theorems about Vickrey auctions or winner's curse.
 

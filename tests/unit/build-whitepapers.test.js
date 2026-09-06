@@ -38,7 +38,7 @@ describe('reproducible whitepaper source scoping', () => {
     ).split('\n');
 
     expect(sources[0]).toBe('website-v2/public/whitepaper/spawn-to-person.tex');
-    expect(sources).toHaveLength(21);
+    expect(sources).toHaveLength(16);
     expect(sources).toContain(
       'website-v2/public/whitepaper/figures/pd-figure-language.tex',
     );
@@ -48,10 +48,14 @@ describe('reproducible whitepaper source scoping', () => {
     expect(sources).toContain(
       'website-v2/public/whitepaper/figures/fig-stp-rate-the-raters.tex',
     );
-    // Every non-root input is either an stp figure or one of the shared
-    // figures/pd-*.tex files (palette, textbook map, hyperlinks, figure language).
+    // Every non-root input is either an stp figure, one of the shared
+    // figures/pd-*.tex files (palette, textbook map, hyperlinks, figure
+    // language), or a shared table fragment figures/tab-*.tex that more than
+    // one chapter inputs (the keystone split is drawn once for chapters 5 and 6).
     expect(sources.slice(1).every((source) =>
-      source.includes('/figures/fig-stp-') || /\/figures\/pd-[a-z-]+\.tex$/.test(source)))
+      source.includes('/figures/fig-stp-')
+        || /\/figures\/pd-[a-z-]+\.tex$/.test(source)
+        || /\/figures\/tab-[a-z-]+\.tex$/.test(source)))
       .toBe(true);
     expect(sources.some((source) => source.includes('fig-anchor-'))).toBe(false);
   });

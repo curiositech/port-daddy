@@ -309,10 +309,20 @@
 % ---------------------------------------------------------------------------
 \newcommand{\pdexercisesfor}[2]{%
   \par\vspace{12pt}\noindent{\scshape\bfseries #1\enspace #2}\par\smallskip}
+% In the Book the pointer sits in the margin beside the paragraph it follows;
+% in a standalone chapter it is a small italic line.
 \newcommand{\pdexercisepointer}[3]{%
-  \par\smallskip\noindent{\small\itshape Exercises #1--#2, page~#3.}\par}
+  \ifpdmargincolumn
+    \marginnote{\small\itshape Exercises #1--#2, p.~#3.}%
+  \else
+    \par\smallskip\noindent{\small\itshape Exercises #1--#2, page~#3.}\par
+  \fi}
 \newcommand{\pdexercisepointerone}[2]{%
-  \par\smallskip\noindent{\small\itshape Exercise #1, page~#2.}\par}
+  \ifpdmargincolumn
+    \marginnote{\small\itshape Exercise #1, p.~#2.}%
+  \else
+    \par\smallskip\noindent{\small\itshape Exercise #1, page~#2.}\par
+  \fi}
 % ---------------------------------------------------------------------------
 % The older tinted-box macros (\keyidea, \pitfall, \scene, \xrefbox,
 % \pullquote) are still defined, as tikz boxes, in every chapter preamble and

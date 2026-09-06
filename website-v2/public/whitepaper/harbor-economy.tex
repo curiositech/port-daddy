@@ -285,11 +285,10 @@ cryptographic hop-bound authorization chain is analyzed in
 \section{Reader's map}\label{sec:readers-map}
 % ═══════════════════════════════════════════════════════════════════════════════
 
-This paper is the top rung of a ladder (Figure~\ref{fig:he-stack-map}). It assumes
+This paper is the top rung of a ladder. It assumes
 the rungs below it and cites the papers that build them. Read it cold if you must,
 but it is the fourth paper for a reason: it depends on everything underneath.
 
-\input{figures/fig-he-stack-map}
 
 \begin{table}[H]
 \centering
@@ -308,10 +307,10 @@ A founder asking ``what is the product'' &
   Fig.~\ref{fig:he-three-sided}; the three claims C1--C3 \\
 A mechanism designer &
   \S\ref{sec:three-sides} $\to$ \S\ref{sec:ic} (the formal model) &
-  Thm.~\ref{thm:ms}, Fig.~\ref{fig:he-grading-oracle} \\
+  Thm.~\ref{thm:ms} \\
 A cryptographer / distributed-systems reviewer &
   \S\ref{sec:keystone} (the keystone) $\to$ \S\ref{sec:federation} &
-  Fig.~\ref{fig:he-keystone-split}, Fig.~\ref{fig:fh-xfer} \\
+  Table~\ref{tab:keystone-split}, Fig.~\ref{fig:fh-xfer} \\
 A category theorist &
   \S\ref{sec:conservation} $\to$ \S\ref{sec:sheaf} &
   Fig.~\ref{fig:he-conservation-functor}, Conj.~\ref{conj:sheaf} \\
@@ -392,8 +391,7 @@ primitive. The harbor comes first; the trade comes when the ships do.}
 
 \subsection{The through-line: why a market needs persons, not spawns}
 
-The whole series climbs one spine (the vertical arrow in
-Figure~\ref{fig:he-stack-map}):
+The whole series climbs one spine:
 \begin{align*}
 \text{memory} &\to \text{checkpoint} \to \text{continuity}
 \to \text{a person, not a spawn} && \text{\footnotesize(\pdchapref{stp}{From Spawn to Person})}\\
@@ -984,10 +982,10 @@ the series' single \emph{blocking} reconciliation: the identity primitive the
 whole market leans on covers a threat model that \emph{excludes the cross-operator
 adversary the market is defined by}.
 
-Figure~\ref{fig:he-keystone-split} draws the two stones apart: the local root this
+Table~\ref{tab:keystone-split} sets the two stones apart: the local root this
 paper leans on, and the cross-operator stone it does not yet have.
 
-\input{figures/fig-he-keystone-split}
+\input{figures/tab-keystone-split}
 
 \subsection{Local non-forgeable identity is the keystone --- for one operator}
 
@@ -1245,11 +1243,11 @@ federation design \emph{refuses consensus} rather than trying to route around
 Fischer--Lynch--Paterson --- which is the correct reading of the impossibility the
 next box states.
 
-Figure~\ref{fig:fh-topology} draws the topology this section defends: independent
+Table~\ref{tab:fh-topology} lists the four rails of the topology this section defends: independent
 harbors linked only by gossip and a shared witness log, with no global consensus
 step.
 
-\input{figures/fig-fh-federation-topology}
+\input{figures/tab-fh-topology}
 
 \subsection{No consensus, by design}
 
@@ -1425,10 +1423,8 @@ reputation prior art.
 \subsection{The grading-oracle keystone}
 
 Every folk-theorem incentive-compatibility claim in the market bottoms out in ``the
-daemon derives the grade.'' But the grade is produced by a capturable evaluator
-(Figure~\ref{fig:he-grading-oracle}).
+daemon derives the grade.'' But the grade is produced by a capturable evaluator.
 
-\input{figures/fig-he-grading-oracle}
 
 \begin{pdclaim}{Theorem}{The monitoring model must include the evaluator}
 \label{thm:folk}
@@ -1526,10 +1522,6 @@ unless you can see what it is a threshold \emph{on}.
 
 \subsection{Static escrow vs.\ competitive underwriting}\label{sec:fh-equilibria}\label{sec:youle:welfare}
 
-Figure~\ref{fig:auction-inline} draws the static-bond and competitive-underwriting
-alternatives side by side.
-
-\input{figures/fig-auction-inline}
 
 Thomas Youle's competitive-insurance proposal --- insurer-agents bid to underwrite
 transactions, replacing a static bond parameter with a market-discovered price --- is

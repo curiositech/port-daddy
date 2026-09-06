@@ -310,11 +310,11 @@ turns on.
 A developer who runs one fleet &
 \S\ref{sec:intro} (the spawn problem), \S\ref{sec:role-person} (role vs.\ person),
 \S\ref{sec:organs} (what is built today). Skip the proofs. &
-The honest-state table (Fig.~\ref{fig:honest-state}) \\
+The maturity ledger (Table~\ref{tab:app-status}) \\
 A philosopher / cognitive scientist &
 \S\ref{sec:continuity} (Locke, Parfit, and why the \emph{ledger} not the
 \emph{memory} is the identity organ), \S\ref{sec:organs}. &
-The continuity-organs figure (Fig.~\ref{fig:organs}) \\
+The continuity-organs table (Table~\ref{tab:stp-organs}) \\
 A mechanism-design / reputation-systems reader &
 \S\ref{sec:substrate} (substrate vs.\ score), \S\ref{sec:not-bandit} (why
 \emph{not} a bandit), \S\ref{sec:adr0049} (the reputation protocol),
@@ -324,7 +324,7 @@ A distributed-systems / crypto reader &
 \S\ref{sec:identity} (the non-forgeable root), \S\ref{sec:keystone}
 (the local-identity / cross-operator split), \S\ref{sec:revoke} (revocation
 \& tombstones). &
-The keystone-split figure (Fig.~\ref{fig:keystone}) \\
+The keystone-split table (Table~\ref{tab:keystone-split}) \\
 \bottomrule
 \end{tabular}
 \caption{Reader's Map. The core product arc is \pdchapref{swk}{The Single-Writer
@@ -382,7 +382,7 @@ only pay if Heron's track record means something he can check.
 economy is not to compute a score --- it is to manufacture a self that the score
 can be \emph{about}.}
 
-\noindent The series' stack-map (Fig.~\ref{fig:stack}) places this chapter. The
+\noindent The book's chapter map places this chapter. The
 daemon (L0) and the protocol (L1) give an agent a way to \emph{act} and to
 \emph{prove who it is to one machine}. Legibility (L2) lets one operator
 \emph{see} the swarm. None of that yet makes a tradeable person. The bridge from
@@ -390,7 +390,6 @@ the wedge to the market is the thing this paper builds: \textbf{continuity}, and
 the reputation it makes possible.
 
 % --- FIGURE 1: the L0->L3 stack map, placing Chapter III ---
-\input{figures/fig-stp-stack-map}
 
 \subsection{What this paper claims, and what it refuses to claim}
 
@@ -766,7 +765,22 @@ We use the neutral maturity scale throughout (\BUILT~/
 \BUILTWEAK~/ \DESIGNED~/ \VISION) and round nothing up.
 
 % --- FIGURE 4: the three continuity organs ---
-\input{figures/fig-stp-three-organs}
+\begin{table}[H]
+\centering
+\caption{The three continuity organs have different survival depths. A successor inherits what each organ stores, and each stores less than the live body had: episodic memory keeps the notes whole, the checkpoint keeps a summary and the worktree lineage but not execution state, and the outcome ledger keeps commitments and closures only as far as they were witnessed. [internal]}
+\label{tab:stp-organs}
+\small
+\renewcommand{\arraystretch}{1.15}
+\begin{tabularx}{\linewidth}{@{}l >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
+\toprule
+\textbf{Organ} & \textbf{What the successor inherits} & \textbf{What it does not} \\
+\midrule
+episodic memory & the notes, whole, with their ledger addresses & the execution state that produced them \\
+checkpoint & a summary and the worktree lineage & the process's execution state; recovery restores notes, not execution \\
+outcome ledger & the commitments $c_1, c_2$ and the witnessed outcomes $o_1, o_2, o_3$ & an outcome nobody witnessed; a closure no oracle checked \\
+\bottomrule
+\end{tabularx}
+\end{table}
 
 \subsection{Organ 1 --- Memory: the episodic record \quad\BUILT}
 
@@ -818,7 +832,7 @@ formal-core result on the same seam says only that ``the ledger followed the rig
 body'' --- it makes no claim that the checkpoint restored the agent's experience,
 and neither do we. Until the mechanism ships and is measured, the restart organ
 still forwards a summary, and this chapter's own maturity ledger
-(Fig.~\ref{fig:honest-state}, Table~\ref{tab:app-status}) is where to check
+(Table~\ref{tab:app-status}) is where to check
 whether that has changed.}
 
 \paragraph{Co-ownership note (with the formal-core paper).}
@@ -865,12 +879,11 @@ weakest continuity link and
 ``checkpoint with teeth'' (a real execution-state checkpoint) is the literal
 foundation of L3.}}
 
-\noindent Figure~\ref{fig:honest-state} is the honest-state ledger for this paper:
+\noindent Table~\ref{tab:app-status} is the honest-state ledger for this paper:
 every major claim with its label and its grounding. It is the artifact a skeptical
 reader should consult first.
 
 % --- FIGURE 5: honest-state table-as-figure ---
-\input{figures/fig-stp-honest-state}
 
 \pdexercisepointer{\ref{ex:stp-weak-organ}}{\ref{ex:stp-death-taxonomy}}{\pageref{ex:stp-weak-organ}}
 
@@ -1530,7 +1543,7 @@ attestation; until that exists, it is resting on a single trusted root, and we
 say so.}
 
 % --- FIGURE 7: keystone split ---
-\input{figures/fig-stp-keystone-split}
+\input{figures/tab-keystone-split}
 
 \keyidea{The keystone that holds up \emph{this} paper (identity inside one
 trusted daemon) is \emph{not} the keystone that holds up the cross-operator market.
@@ -1616,9 +1629,6 @@ We catalog the estimators not because they are hard but because choosing the
   agents being rated and the buyers reading the rating.
 \end{itemize}
 
-% --- FIGURE 8: estimator family by signal type ---
-Figure~\ref{fig:estimators} maps each signal type to its matching estimator.
-\input{figures/fig-stp-estimator-family}
 
 \subsection{Score as telemetry; gate on predicates}
 
@@ -1657,9 +1667,25 @@ not. Modeling reputation as a bandit imports four assumptions that are all false
 a market.}
 
 % --- FIGURE 9: bandit assumptions vs reputation reality ---
-Figure~\ref{fig:not-bandit} lines the four bandit assumptions up against the market
+Table~\ref{tab:stp-not-bandit} lines the four bandit assumptions up against the market
 reality that breaks each.
-\input{figures/fig-stp-not-bandit}
+\begin{table}[H]
+\centering
+\caption{Why public reputation is not a bandit problem. Each row is an assumption the bandit model needs, the market fact that breaks it, and what a reputation substrate keeps instead. [internal]}
+\label{tab:stp-not-bandit}
+\small
+\renewcommand{\arraystretch}{1.15}
+\begin{tabularx}{\linewidth}{@{}l >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
+\toprule
+& \textbf{Bandit assumption} & \textbf{What breaks it} & \textbf{What survives} \\
+\midrule
+1 & stationarity: a fixed arm & model and skill versions drift under the same label & a time-indexed record, read with its dates \\
+2 & one scalar reward $r$ & buyers weight accuracy, aesthetics and efficiency differently: a vector $\mathbf q$ & the vector, weighted by the buyer at read time \\
+3 & passive arms & a published metric invites adaptation: Goodhart, collusion, whitewash & grading whose incentives are checked, not assumed \\
+4 & the reward is observed & the observation is a judge $J$'s grade, and the judge can be captured & a grade counts only when the grader is at risk \\
+\bottomrule
+\end{tabularx}
+\end{table}
 
 \subsection{The four broken assumptions}
 
