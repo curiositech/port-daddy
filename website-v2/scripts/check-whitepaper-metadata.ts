@@ -36,19 +36,48 @@ import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { Project, SyntaxKind, type ObjectLiteralExpression } from 'ts-morph'
-import { COLLECTED_VOLUME, WHITE_PAPERS } from '../src/data/whitePapers'
+import { COLLECTED_VOLUME, WHITE_PAPERS, type CollectedVolumeEdition } from '../src/data/whitePapers'
 import { RESEARCH_PAPERS } from '../src/data/researchPapers'
-
-// The Book is a publication artifact, not an eighth chapter, but its page and
-// byte metadata must obey the same drift guard as the chapters.
-const PUBLISHED_WHITEPAPER_PDFS = [COLLECTED_VOLUME, ...WHITE_PAPERS]
-// The standalone research papers (public/research/paperN.pdf) declare pages and
-// sizeKb in researchPapers.ts and drift the same way; they had no guard before.
-const PUBLISHED_RESEARCH_PDFS = RESEARCH_PAPERS
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const websiteRoot = resolve(__dirname, '..')
 const publicDir = resolve(websiteRoot, 'public')
+
+/**
+ * Splits the Book's alternate-typography editions (Swiss, Technical) into
+ * PDFs that exist on disk and PDFs that don't yet. Every other entry this
+ * script checks is expected to already be published; these two are a
+ * deliberate exception until CI's first regeneration lands (they are new
+ * driver roots — see scripts/build-whitepapers.sh — with no committed PDF
+ * yet in a fresh worktree). A missing edition PDF is reported as a WARN and
+ * excluded from drift/digest checking; it is never treated as a failure and
+ * never gets a fabricated entry in publication-digests.json.
+ */
+function partitionEditions(
+  editions: CollectedVolumeEdition[],
+): { present: CollectedVolumeEdition[]; missing: CollectedVolumeEdition[] } {
+  const present: CollectedVolumeEdition[] = []
+  const missing: CollectedVolumeEdition[] = []
+  for (const edition of editions) {
+    if (existsSync(resolvePdfPath(edition.pdfPath))) {
+      present.push(edition)
+    } else {
+      missing.push(edition)
+    }
+  }
+  return { present, missing }
+}
+
+const { present: presentEditions, missing: missingEditions } = partitionEditions(COLLECTED_VOLUME.editions ?? [])
+
+// The Book is a publication artifact, not an eighth chapter, but its page and
+// byte metadata must obey the same drift guard as the chapters. Its
+// alternate-typography editions are checked the same way once their PDF
+// exists (see partitionEditions above).
+const PUBLISHED_WHITEPAPER_PDFS = [COLLECTED_VOLUME, ...WHITE_PAPERS, ...presentEditions]
+// The standalone research papers (public/research/paperN.pdf) declare pages and
+// sizeKb in researchPapers.ts and drift the same way; they had no guard before.
+const PUBLISHED_RESEARCH_PDFS = RESEARCH_PAPERS
 const whitePapersSrc = resolve(websiteRoot, 'src/data/whitePapers.ts')
 const researchPapersSrc = resolve(websiteRoot, 'src/data/researchPapers.ts')
 const repoRoot = resolve(websiteRoot, '..')
@@ -364,6 +393,13 @@ function formatReport(reports: DriftReport[]): string {
 function main(argv: string[]): number {
   const fix = argv.includes('--fix')
 
+  for (const edition of missingEditions) {
+    console.warn(
+      `WARN: edition PDF not yet built: ${edition.pdfPath} (id=${edition.id}) — skipping metadata check ` +
+        'until scripts/build-whitepapers.sh regenerates it (see coordination-papers-mega-volume-*.tex).',
+    )
+  }
+
   if (!pdfinfoAvailable()) {
     const inCI = process.env.CI === 'true'
     const lines = [
@@ -397,8 +433,10 @@ function main(argv: string[]): number {
   const reports = [...chapterReports, ...researchReports]
 
   if (reports.length === 0 && digests.drifts.length === 0) {
+    const editionsNote =
+      presentEditions.length > 0 ? ` + ${presentEditions.length} Book edition(s)` : ''
     console.log(
-      `Whitepaper metadata in sync (${WHITE_PAPERS.length} chapters + the Book + ${RESEARCH_PAPERS.length} research papers checked; publication digests match).`,
+      `Whitepaper metadata in sync (${WHITE_PAPERS.length} chapters + the Book${editionsNote} + ${RESEARCH_PAPERS.length} research papers checked; publication digests match).`,
     )
     return 0
   }

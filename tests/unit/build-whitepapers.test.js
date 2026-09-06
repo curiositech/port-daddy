@@ -70,6 +70,26 @@ describe('reproducible whitepaper source scoping', () => {
     expect(sources).toContain('scripts/generate-mega-whitepaper.mjs');
   });
 
+  test('the Swiss and Technical editions share the Book\'s dependency set plus their own driver', () => {
+    for (const driver of [
+      'coordination-papers-mega-volume-swiss.tex',
+      'coordination-papers-mega-volume-technical.tex',
+    ]) {
+      const sources = bashFunction(
+        'paper_sources',
+        'website-v2/public/whitepaper',
+        driver,
+      ).split('\n');
+
+      expect(sources).toContain(`website-v2/public/whitepaper/${driver}`);
+      expect(sources).toContain('website-v2/public/whitepaper/coordination-papers-mega-volume.tex');
+      expect(sources).toContain('whitepaper/textbook.json');
+      expect(sources).toContain('scripts/generate-mega-whitepaper.mjs');
+      // Same transitive chapter set as the main root (e.g. Spawn to Person's figures).
+      expect(sources).toContain('website-v2/public/whitepaper/figures/fig-stp-deterrence-regime.tex');
+    }
+  });
+
   test('every analytical paper declares the shared figure language as a source', () => {
     const papers = [
       ['website-v2/public/whitepaper', 'agent-transactions-whitepaper.tex'],
@@ -160,6 +180,8 @@ describe('reproducible whitepaper source scoping', () => {
       'website-v2/public/whitepaper/legible-swarm-whitepaper.pdf',
       'website-v2/public/whitepaper/single-writer-kernel-whitepaper.pdf',
       'website-v2/public/whitepaper/coordination-papers-mega-volume.pdf',
+      'website-v2/public/whitepaper/coordination-papers-mega-volume-swiss.pdf',
+      'website-v2/public/whitepaper/coordination-papers-mega-volume-technical.pdf',
     ]);
   });
 
