@@ -1696,7 +1696,7 @@ I12 & Non-forgeable identity & actor-soul id + lookup credential & \BuiltWeak{} 
 \noindent\emph{Express lane: the kernel's promises are properties of one object, an
 evidence-bearing work unit; on a two-principal instance every one of its 536 reachable
 states satisfies six invariants, and removing any single guard lets a checker construct the
-crime in at most seven steps. The machine is the box below; the numbers are
+crime in at most seven steps. The machine is Figure~\ref{fig:swk-workunit-machine} and the box below; the numbers are
 Table~\ref{tab:workunit-crimes}.}
 
 \paragraph{The scene.}
@@ -1723,6 +1723,8 @@ cannot: enumerate every state the machine can ever reach and check all six promi
 The misread to preempt: a model checker does not prove the daemon correct. It proves the
 \emph{specification} correct at these parameters; the daemon must refine it, and that
 refinement is a separate obligation named in the boundary below.
+
+\input{figures/fig-swk-workunit-machine}
 
 \begin{pdclaim}{Model-checked property}{Six invariants of the work-unit machine}
 \label{thm:workunit}

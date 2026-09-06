@@ -348,15 +348,17 @@
           "chapter": 1,
           "prefix": "swk",
           "labels": [
-            "thm:workunit",
-            "tab:workunit-crimes"
+            "tab:workunit-crimes",
+            "thm:workunit"
           ],
           "sections": [
             "\"The work unit, model-checked\" (sec:workunit): the six invariants as a Model-checked property (thm:workunit), the shortest-crime table (tab:workunit-crimes), exercises ex:swk-crimes and ex:swk-seventh-invariant"
           ]
         }
       ],
-      "figures": [],
+      "figures": [
+        "whitepaper/figures/fig-swk-workunit-machine.tex"
+      ],
       "scripts": [
         "skills/harbor-results/scripts/c0_workunit.py"
       ],

@@ -1,0 +1,59 @@
+% State machine for the work unit (R8) on the two-principal instance checked by
+% skills/harbor-results/scripts/c0_workunit.py: phases, journals, guards, and the crime
+% each guard prevents. Transitions and guards transcribed from the checker's
+% transitions(); crime names and step counts from its mutation suite [internal].
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm,
+  lane/.style={pd state,minimum height=0.62cm,minimum width=1.7cm,font=\footnotesize,align=center},
+  journal/.style={pd artifact,minimum height=0.9cm,minimum width=2.6cm,font=\footnotesize,align=center},
+  guard/.style={font=\scriptsize,text=hhink,inner sep=1pt,align=center},
+  trans/.style={font=\scriptsize,text=hhgray,inner sep=1pt,align=left},
+  crime/.style={font=\scriptsize\itshape,text=hhamber!80!black,inner sep=1pt,align=center}]
+  % the work unit: its phases, boxed as one object
+  \draw[pd boundary] (-1.6,0.75) rectangle (4.15,9.65);
+  \node[pd note,anchor=south west] at (-1.55,9.68) {the work unit};
+  \node[lane] (P) at (3.2,9.0) {proposed};
+  \node[lane] (A) at (3.2,7.5) {authorized};
+  \node[lane] (X) at (3.2,6.0) {executing};
+  \node[lane] (W) at (3.2,4.5) {witnessed};
+  \node[lane,pd terminal] (V) at (3.2,3.0) {verified};
+  \node[lane,fill=hhsand!30] (C) at (0.2,4.5) {contested};
+  \node[journal,minimum width=1.6cm,minimum height=0.7cm] (S) at (3.3,1.35) {settlement\\record};
+  \draw[pd arrow] (P) -- (A) node[trans,midway,left=4pt] {authorize};
+  \draw[pd arrow] (A) -- (X) node[trans,midway,left=4pt] {start};
+  \draw[pd arrow] (X) -- (W) node[trans,midway,left=4pt] {witness};
+  \draw[pd arrow] (W) -- (C) node[trans,midway,above=2pt] {contest};
+  % verify and settle: guards to the left of the arrows, crimes beneath the guards
+  \draw[pd arrow] (W) -- (V);
+  \node[guard,anchor=east] at (2.3,3.98) {verify: policy $\wedge$ receipt};
+  \draw[pd caution arrow] ([xshift=-0.3cm]W.south) -- ([xshift=-0.3cm]V.north);
+  \node[crime,anchor=east,align=right] at (2.3,3.5) {guard off: hollow ``verified''\\(4 steps, I3)};
+  \draw[pd arrow] (V.south) -- (S.north);
+  \node[guard,anchor=east,align=right] at (2.3,2.45) {settle: owner-funded\\$\wedge$ verified $\wedge$ receipted};
+  \draw[pd caution arrow] ([xshift=-0.3cm]V.south) -- ([xshift=-0.3cm]S.north);
+  \node[crime,anchor=east,align=right] at (2.3,1.72) {guard off: wrong-principal\\payout (7 steps, I6)};
+  % the journals the work unit writes
+  \node[journal] (EP) at (11.0,7.5) {role epoch\\holder, stale token};
+  \node[journal] (EJ) at (11.0,6.0) {effect journal};
+  \node[journal] (IJ) at (11.0,4.5) {idempotency\\journal};
+  \node[journal] (GR) at (11.0,3.0) {grants with\\parentage};
+  \draw[pd arrow] (EP.west) -- (4.15,7.5);
+  \node[guard,anchor=south,text width=5.0cm] at (6.9,7.56) {reassign-role: epoch $+1$; the old holder keeps a stale token};
+  \draw[pd arrow] (4.15,6.0) -- (EJ.west);
+  \node[guard,anchor=south,text width=5.0cm] at (6.9,6.06) {admit-effect: current epoch only};
+  \draw[pd caution arrow] (4.15,5.62) -- (9.7,5.62);
+  \node[crime,anchor=north,text width=5.0cm] at (6.9,5.56) {guard off: stale write, 4 steps (I1, I5)};
+  \draw[pd arrow] (4.15,4.5) -- (IJ.west);
+  \node[guard,anchor=south,text width=5.0cm] at (6.9,4.56) {external op, any phase: once per key};
+  \draw[pd caution arrow] (4.15,4.12) -- (9.7,4.12);
+  \node[crime,anchor=north,text width=5.0cm] at (6.9,4.06) {guard off: settles twice, 2 steps (I2)};
+  \draw[pd arrow] (4.15,3.0) -- (GR.west);
+  \node[guard,anchor=south,text width=5.0cm] at (6.9,3.06) {delegate, any phase: scope $\subseteq$ parent};
+  \draw[pd caution arrow] (4.15,2.62) -- (9.7,2.62);
+  \node[crime,anchor=north,text width=5.0cm] at (6.9,2.56) {guard off: escalated grant, 1 step (I4)};
+  \node[pd note,anchor=north west,text width=13.9cm] at (-1.6,0.45) {536 reachable states. Every solid path keeps all six invariants; each dashed path is the transition that appears when that one guard is removed, labeled with the shortest crime the checker then finds.};
+\end{tikzpicture}
+\caption{The work-unit machine on the two-principal instance: the phases boxed as one object at the left, the journals it writes in the column at the right, the settlement it ends in at the bottom. Solid arrows are the transitions the checker explores, each guard written on the arrow it protects. Dashed arrows are the transitions that appear when that one guard is removed, labeled with the crime the checker then finds and its length in steps [internal, \texttt{c0\_workunit.py}].}
+\label{fig:swk-workunit-machine}
+\end{figure}

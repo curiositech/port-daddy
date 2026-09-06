@@ -196,8 +196,12 @@ else
     done
 
     mkdir -p "$BUILD/figures"
-    cp "$FRAG_DIR/pd-figure-language.tex" "$BUILD/figures/pd-figure-language.tex"
-    [ -f "$FRAG_DIR/pd-palette.tex" ] && cp "$FRAG_DIR/pd-palette.tex" "$BUILD/figures/pd-palette.tex"
+    # Every shared pd-*.tex sibling the chapter preamble may \input (figure
+    # language, palette, textbook map, hyperlinks, pedagogy), never just two of
+    # them: the preamble is copied verbatim below, so its inputs must resolve.
+    for shared in "$FRAG_DIR"/pd-*.tex; do
+      [ -f "$shared" ] && cp "$shared" "$BUILD/figures/$(basename "$shared")"
+    done
     cp "$FRAGMENT_ABS" "$BUILD/figures/$STEM.tex"
 
     if [ -n "$REF_ROOT" ]; then

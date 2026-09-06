@@ -181,7 +181,9 @@ One section per indexed idea (R1-R17, CR, B6, and every already-folded textbook 
 | Location | File | Labels | Sections |
 |---|---|---|---|
 | Standalone paper | *(none -- see status)* | | |
-| Chapter 1 (The Single-Writer Kernel) | `whitepaper/single-writer-kernel.tex` | thm:workunit, tab:workunit-crimes | "The work unit, model-checked" (sec:workunit): the six invariants as a Model-checked property (thm:workunit), the shortest-crime table (tab:workunit-crimes), exercises ex:swk-crimes and ex:swk-seventh-invariant |
+| Chapter 1 (The Single-Writer Kernel) | `whitepaper/single-writer-kernel.tex` | tab:workunit-crimes, thm:workunit | "The work unit, model-checked" (sec:workunit): the six invariants as a Model-checked property (thm:workunit), the shortest-crime table (tab:workunit-crimes), exercises ex:swk-crimes and ex:swk-seventh-invariant |
+
+**Figures:** `whitepaper/figures/fig-swk-workunit-machine.tex`
 
 **Scripts:** `skills/harbor-results/scripts/c0_workunit.py`
 
