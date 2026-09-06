@@ -338,6 +338,68 @@ jobs:
             echo "::endgroup::"
           done
 
+  # ── ProVerif (2.05): the model estate that never ran ────────────────────────
+  # 25 .pv models under analyses/, proofs/**, and docs/adr/models/ previously
+  # had zero CI coverage -- evidenced only by committed *_results.txt/.run.log
+  # transcripts a human ran locally at some point. scripts/proofs/run-proverif.py
+  # re-runs every one of them and fails on any RESULT-line drift from its
+  # committed evidence, and separately asserts every negative control
+  # (*_vuln*.pv, *naive_unsound*.pv) genuinely fails its query (so the checker
+  # itself can't go vacuous). skills/pd-relay-zero-trust/templates/proverif-relay.pv
+  # is a skill teaching template, not a claim about this repo's protocol, and is
+  # deliberately out of the runner's three scan roots (see whitepaper/corpus.json).
+  proverif-estate:
+    if: github.event_name != 'merge_group'
+    name: ProVerif / model estate (2.05)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install ProVerif 2.05 (opam, pinned)
+        run: |
+          set -euo pipefail
+          export DEBIAN_FRONTEND=noninteractive
+          export OPAMYES=1
+          sudo apt-get update
+          # opam itself pinned to the Ubuntu 24.04 (noble) archive version;
+          # pkg-config/libgtk2.0-dev/m4 satisfy proverif's opam dependency on
+          # conf-gtk2 (its bundled graph viewer links against GTK2 even
+          # though this job only needs the `proverif` CLI).
+          sudo apt-get install -y opam=2.1.5-1 pkg-config libgtk2.0-dev m4
+          opam init --bare --disable-sandboxing -y
+          # Pinned OCaml compiler. proverif.2.05 itself only requires
+          # ocaml >= 4.03; 4.14.2 is just a concrete, reproducible choice
+          # confirmed to build proverif.2.05 + its lablgtk dependency cleanly.
+          opam switch create default 4.14.2
+          eval "$(opam env)"
+          # Pinned to 2.05 -- see https://bblanche.gitlabpages.inria.fr/proverif/
+          # ("Install with OPAM: opam install proverif"; no Linux prebuilt
+          # binary is offered, only a Windows one, so opam is the
+          # reproducible route on ubuntu-latest).
+          opam install -y proverif.2.05
+          eval "$(opam env)"
+          echo "$(opam var bin)" >> "$GITHUB_PATH"
+
+      - name: Verify ProVerif install
+        run: proverif -help | head -3
+
+      - name: Run the ProVerif estate checker
+        run: |
+          set -euo pipefail
+          python3 scripts/proofs/run-proverif.py --check | tee proverif-estate-summary.md
+
+      - name: Upload check summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: proverif-estate-summary
+          path: proverif-estate-summary.md
+
   # ── Kani: the harnesses that never ran ───────────────────────────────────────
   # core/harbor-card-rs carries three #[kani::proof] harnesses (added in
   # anticipation of this job -- Cargo.toml already allow-lists `cfg(kani)`) but
