@@ -344,7 +344,7 @@ work becomes a \emph{reputation} worth trading on.}
 \section{Introduction: the spawn that cannot be paid}\label{sec:intro}
 % ═════════════════════════════════════════════════════════════════════════════
 
-\paragraph{S1 --- the spawn that cannot be paid.}
+\subsection{S1 --- the spawn that cannot be paid}
 At 9pm an operator, \textbf{Alice}, points a swarm of five coding agents at a real
 repository with one task: make the failing checkout-flow integration test pass.
 She names them for her own sanity --- \emph{Drake}, \emph{Wren}, \emph{Pike},
@@ -683,8 +683,8 @@ safety-critical swarm are exactly the ones where they disagree:
 straight to the production branch. The runtime makes it \emph{possible} to invoke;
 that is a capability. But no agent should ever be \emph{permitted} to use it: it is
 the canonical capable-but-forbidden state, an available action a guardrail exists
-specifically to forbid. (A ``delete the production database'' command is the same
-shape.) If you define permission as capability, that state becomes inexpressible,
+specifically to forbid. A ``delete the production database'' command is the same
+shape. If you define permission as capability, that state becomes inexpressible,
 and the guardrail vanishes from your model along with it. A robust system keeps the
 capability present --- so the action can be audited, rate-limited, and refused at
 the boundary --- while withholding the permission.
@@ -944,6 +944,10 @@ restore is the model's actual inference state: a KV cache, sampling state, and
 hidden activations are bound to a live inference session and are not exported
 artifacts, so across providers (or across a model version bump) the right
 description is \emph{task continuity with actor succession}, not resumption. The
+measurable form of that claim is a \emph{fidelity rate}: the fraction of replayed
+runs that resume every pending obligation with no duplicated effect and no false
+belief, graded per provider and model version; until the mechanism ships it is an
+empirical hypothesis with a stated measurement, not a property. The
 formal-core result on the same seam says only that ``the ledger followed the right
 body'' --- it makes no claim that the checkpoint restored the agent's experience,
 and neither do we. Until the mechanism ships and is measured, the restart organ
@@ -1053,6 +1057,10 @@ provider. Checkpoint guarantees should state which tier they provide.
 Before any organ of continuity matters, the identity it attaches to must be one
 the agent cannot freely re-pick. This is the most under-appreciated claim in the
 paper.
+
+\medskip\noindent\textbf{In one breath.} A reputation is worth exactly what it
+costs to walk away from; an identity that can be re-picked for free carries
+none, however long its record.
 
 We first state the central claim of the section as a theorem and prove it, because
 it is the governing impossibility result the rest of the paper leans on: no
@@ -1475,10 +1483,13 @@ $p$ for a witnessed outcome.
 \item \emph{Unattested.} If the engine is unobserved, the one-period gain
 from swapping, $(p-c_L)-(p-c_H)=\Delta c>0$, is independent of $p$: no price
 supports pooling on $\theta_H$, and no costless signal inside the identity
-separates the types. Committed $\theta_H$ sellers stay in the market iff the
-pooled price clears their cost, $\mu\theta_H+(1-\mu)\theta_L\ge c_H$, that is
-iff the committed share satisfies
-$\mu\ge\mu^\star=(c_H-\theta_L)/\Delta\theta$; below $\mu^\star$ the spiral
+separates the types. Committed $\theta_H$ sellers stay in the market exactly
+when the pooled price clears their cost, $\mu\theta_H+(1-\mu)\theta_L\ge c_H$
+(the model's participation condition, not a theorem), that is when the
+committed share satisfies $\mu\ge\mu^\star=(c_H-\theta_L)/\Delta\theta$; such a
+share exists only if $c_H\le\theta_H$, since $c_H>\theta_H$ gives $\mu^\star>1$
+and no committed share supports the strong engine at any price. Below
+$\mu^\star$ the spiral
 runs inside one identity down to $\theta_L$. Deterring the swap without
 attestation needs an audited bond with $qB\ge\Delta c$ (audit probability
 $q$, slashable bond $B$).
@@ -1668,8 +1679,11 @@ self-trades add little or no independent evidence. A listing fee raises
 attack cost but only deters while total fees exceed the minted value. Sampled
 adversarial re-audit detects fabricated work, with false-positive burden
 approximately the sampling rate times the honest high-volume population and
-the adjudication error. Add sharply diminishing credit per principal pair,
-independent payer stake, and principal-wide reserve limits.
+the adjudication error. Add counterparty-diversity weighting (sharply diminishing
+credit per principal pair and per correlated pair), independent payer stake, and
+principal-wide reserve limits; the sampled re-audit rate that makes farming
+unprofitable is the $\rho^\star=G/(dB)$ of \S\ref{sec:oracle}, with $G$ the
+value a farmed record can mint.
 \end{pdsolution}
 \begin{pdexercise}[kind=Trace,rating=2]{ex:stp-probation-cliff-sweep}
 Run \texttt{skills/harbor-results/scripts/b6\_probation.py} (seed $20260816$).
@@ -1786,10 +1800,10 @@ not.} While this series was being written, the agentic-payments industry shipped
 the credential dialect the second stone will be carved in: the Agent Payments
 Protocol~\cite{ap2mandates2026}, adopted by the Universal Commerce
 Protocol~\cite{ucp2026} (Google/Shopify, 2026), expresses principal authorization
-as W3C Verifiable Credentials in SD-JWT form --- SD-JWT+kb with hardware-bindable
-ES256 keys for the principal, JWS detached-content signatures over
-JCS-canonicalized payloads for the counterparty, keys published as JWK sets under
-a \texttt{/.well-known} profile. The reference implementation adopts this
+as W3C Verifiable Credentials in SD-JWT form.\footnote{SD-JWT+kb with
+hardware-bindable ES256 keys for the principal, JWS detached-content signatures
+over JCS-canonicalized payloads for the counterparty, and keys published as JWK
+sets under a \texttt{/.well-known} profile.} The reference implementation adopts this
 envelope at the harbor boundary (ADR-0094), and the honesty rider matters here
 more than anywhere: \emph{a standard format shrinks the problem; it does not
 solve it}. What the profile buys is that a principal mandate verifies with
@@ -2190,8 +2204,10 @@ competence:
   cheap and fast.
 \end{itemize}
 The quality vector $\mathbf{q}=(1.0,\,0.7,\,0.9)$ lands in Heron's outcome ledger.
-Bob, who weights aesthetics heavily for security-critical code, reads the
-\emph{vector} (not a collapsed scalar), sees the $0.7$, and decides to keep Heron
+Bob weights aesthetics heavily for security-critical code, $(0.2,\,0.6,\,0.2)$
+over accuracy, aesthetics, efficiency, so his own score is
+$0.2\cdot1.0+0.6\cdot0.7+0.2\cdot0.9=0.78$ [internal]. He reads the
+\emph{vector} rather than that scalar, sees the $0.7$, and decides to keep Heron
 but require a second reviewer on auth work --- a decision the scalar would have
 hidden. Two weeks later a routine re-audit re-grades a sample of Mara's recent
 jobs and finds she rubber-stamped a different agent's insecure change as
@@ -2310,6 +2326,10 @@ Every folk-theorem incentive-compatibility result in the L3 economy bottoms out 
 \emph{capturable evaluator}. This is not a side-gap. It is a hole in the
 \emph{core theorem}, and we treat it head-on rather than assuming it away.
 
+\medskip\noindent\textbf{In one breath.} A grade is evidence only if the grader
+can be graded: randomized, heterogeneous, bonded re-audit at rate
+$\rho^\star=G/(dB)$ makes capturing the oracle cost more than a sold grade earns.
+
 \begin{property}[The grading-oracle hole]\label{prop:hole}
 Let an outcome's settlement (and thus the bond flow and the reputation update)
 depend on a grade $g$ produced by an evaluator $J$. If $J$ can be captured ---
@@ -2356,7 +2376,9 @@ quorum of re-auditors must prove they represent distinct architectural weights
 cryptographic provenance, so that a single-model alignment flaw cannot
 rubber-stamp malicious grades. In the theorem's language, heterogeneity is what
 supplies the $C$ \emph{disjoint cliques} the audit pool is sampled from: a corrupt
-agreement inside one clique does not reach the others.
+agreement inside one clique does not reach the others. (The word is
+graph-theoretic here, a set of judges who would agree with one another; it is the
+defensive mirror of the collusive cliques EigenTrust resists.)
 
 Second, the system injects \textbf{honeypot tasks} selected by a
 \textbf{verifiable random function} (VRF)~\cite{mrv1999}: deterministic, pre-graded
@@ -2445,6 +2467,8 @@ value of $+1.78\times10^{-15}$ for each, zero to floating-point precision.
 200=0.25\times 1\times 200=50$, the flat baseline both amortization models
 beat (Exercise~\ref{ex:stp-tower-amortization}).
 \end{pdexample}
+
+\input{figures/fig-stp-deterrence-regime}
 
 \noindent\textbf{What heterogeneity actually buys --- and three riders.} The honest
 reading of those two numbers is a factor of two in certified depth and capital, not

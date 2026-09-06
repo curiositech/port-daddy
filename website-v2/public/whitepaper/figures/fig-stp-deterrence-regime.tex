@@ -1,0 +1,37 @@
+% Figure --- the deterrence frontier: re-audit probability against bond size.
+% Provenance: sec:oracle, rho* = G/(dB); worked point G=10, d=0.8, B=50 => rho*=0.25.
+% Drawn by hand in TikZ (no data file); the frontier is the curve B = G/(d rho).
+\begin{figure}[H]
+\centering
+\resizebox{0.88\textwidth}{!}{%
+\begin{tikzpicture}[pd figure,x=10cm,y=0.05cm]
+  \node[pd panel title,anchor=west] at (0,114) {where deterrence holds: re-audit probability against bond size};
+  \fill[pd focus fill] plot[domain=0.125:1,samples=80] (\x,{12.5/\x}) -- (1,100) -- (0.125,100) -- cycle;
+  \draw[hhteal,line width=1.2pt] plot[domain=0.125:1,samples=80] (\x,{12.5/\x});
+  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (0,0) -- (1.04,0);
+  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (0,0) -- (0,106);
+  \foreach \t/\l in {0.25/0.25,0.5/0.5,0.75/0.75,1/1.0} {
+    \draw[pd rule] (\t,0) -- (\t,-2);
+    \node[pd axis label,anchor=north] at (\t,-3) {\l};
+  }
+  \foreach \b in {25,50,75,100} {
+    \draw[pd rule] (0,\b) -- (-0.01,\b);
+    \node[pd axis label,anchor=east] at (-0.015,\b) {\b};
+  }
+  \node[pd axis label,anchor=north,text width=4.2cm,align=center] at (0.5,-13) {re-audit probability $\rho$};
+  \node[pd axis label,anchor=south,rotate=90,text width=2.4cm,align=center] at (-0.085,50) {bond size $B$};
+  \node[pd axis label,text=hhteal,text width=5.2cm,align=left,anchor=west] at (0.47,90)
+    {deterrence holds: the expected slash, $\rho$ times $d$ times $B$, exceeds the gain $G$};
+  \node[pd axis label,text=hhamber,text width=2.2cm,align=left,anchor=west] at (0.14,19) {capture pays};
+  \fill[hhink] (0.25,50) circle (1.5pt);
+  \node[pd axis label,anchor=south west,text width=7.0cm,align=left] at (0.265,53)
+    {worked point: $\rho=0.25$ at $B=50$ ($G=10$, $d=0.8$)};
+\end{tikzpicture}}
+\caption{The deterrence frontier of the re-audit tower. A grader is deterred from
+selling a grade when the expected slash, re-audit probability $\rho$ times
+detection rate $d$ times bond $B$, exceeds the one-shot gain $G$; the frontier
+is $\rho B=G/d$, drawn for $G=10$ and $d=0.8$. The worked point of this section,
+$B=50$, sits on the frontier at the threshold $\rho=0.25$: any lower audit rate at that
+bond, or any smaller bond at that rate, lies where capture pays.}
+\label{fig:stp-deterrence-regime}
+\end{figure}
