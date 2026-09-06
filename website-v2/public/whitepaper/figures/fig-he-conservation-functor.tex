@@ -1,57 +1,71 @@
-% Figure IV.5 --- accounting quantities, not architecture boxes.
+% Figure IV.5 --- accounting quantities, not architecture boxes. Panel A: the
+% escrow-commit step of the three-sided settlement (S:one-settlement), CR 560
+% moves wallet -> escrow with zero net. Panel B: the two-currency exercise
+% (ex:he-two-currency-example), 10 A-coin @ $1 and 20 B-coin whose price moves
+% $2 -> $3 with no transfer at all -- native balances stay flat, the marked
+% total does not. \usepackage{pgfplots}+groupplots added to this chapter's
+% preamble for this figure [deviation, see commit message].
 \begin{figure}[H]
 \centering
-\resizebox{0.95\textwidth}{!}{%
 \begin{tikzpicture}[pd figure]
-  \node[pd panel title,anchor=west] at (-6.9,3.0) {A. native unit closes exactly};
-  \node[pd panel title,anchor=west] at (.65,3.0) {B. conversion introduces priced terms};
+  \begin{groupplot}[
+      group style={group size=2 by 1,horizontal sep=1.7cm},
+      width=4.55cm,height=4.05cm,
+      ybar,
+      x tick label style={font=\footnotesize,text=hhink,align=center},
+      y tick label style={font=\footnotesize,text=hhink,xshift=-2pt},
+      ylabel style={font=\footnotesize,text=hhink,xshift=-3pt},
+      title style={font=\footnotesize\bfseries,text=hhink,align=left,
+        text width=4.6cm},
+      nodes near coords,nodes near coords align={vertical},
+      every node near coord/.style={font=\footnotesize,text=hhink},
+      axis line style={draw=hhink},tick style={draw=hhink},
+      major tick length=1.2pt,
+      enlarge x limits=0.22,
+    ]
+    \nextgroupplot[
+      bar width=7pt,
+      symbolic x coords={$\Delta W$,$\Delta E$,$\Delta C$,net},
+      xtick={$\Delta W$,$\Delta E$,$\Delta C$,net},
+      ylabel={CR},ymin=-900,ymax=900,ytick={-500,0,500},
+      title={A. native unit\\closes exactly},
+    ]
+    \addplot[pd caution fill]
+      coordinates {($\Delta W$,-560)};
+    \addplot[pd focus fill]
+      coordinates {($\Delta E$,560)};
+    \addplot[pd neutral fill,nodes near coords style={yshift=6pt}]
+      coordinates {($\Delta C$,0)};
+    \addplot[pd focus fill,nodes near coords style={yshift=6pt}]
+      coordinates {(net,0)};
 
-  \draw[pd rule,-{Stealth[length=1.7mm,width=1mm]}] (-6.35,-1.65)--(-.30,-1.65);
-  \draw[pd rule,-{Stealth[length=1.7mm,width=1mm]}] (-6.35,-1.65)--(-6.35,2.25);
-  \draw[pd caution rule,line width=8pt] (-5.45,0)--(-5.45,-1.10);
-  \draw[pd focus rule,line width=8pt] (-3.95,-1.10)--(-3.95,.15);
-  \draw[pd focus rule,line width=8pt] (-2.45,.15)--(-2.45,.55);
-  \draw[pd rule,line width=8pt] (-.95,.55)--(-.95,0);
-  \draw[pd guide] (-5.45,-1.10)--(-3.95,-1.10);
-  \draw[pd guide] (-3.95,.15)--(-2.45,.15);
-  \draw[pd guide] (-2.45,.55)--(-.95,.55);
-  \node[pd axis label,anchor=north] at (-5.45,-1.82) {$\Delta W$};
-  \node[pd axis label,anchor=north] at (-3.95,-1.82) {$\Delta E$};
-  \node[pd axis label,anchor=north] at (-2.45,-1.82) {$\Delta C$};
-  \node[pd axis label,anchor=north] at (-.95,-1.82) {net};
-  \node[pd direct label,text=hhteal,anchor=south] at (-.95,.18) {$0$};
-  \node[pd note] at (-3.65,2.00) {$\Delta W+\Delta E+\Delta C=0$};
-
-  \draw[pd rule,-{Stealth[length=1.7mm,width=1mm]}] (1.15,-1.65)--(7.05,-1.65);
-  \draw[pd rule,-{Stealth[length=1.7mm,width=1mm]}] (1.15,-1.65)--(1.15,2.25);
-  \draw[pd caution rule,line width=8pt] (2.00,0)--(2.00,-1.10);
-  \draw[pd focus rule,line width=8pt] (3.35,-1.10)--(3.35,.35);
-  \draw[pd caution rule,line width=8pt] (4.70,.35)--(4.70,.05);
-  \draw[pd caution rule,line width=8pt] (5.75,.05)--(5.75,-.15);
-  \draw[pd caution rule,dashed,line width=2pt] (6.60,-.15)--(6.60,.75);
-  \draw[pd guide] (2.00,-1.10)--(3.35,-1.10);
-  \draw[pd guide] (3.35,.35)--(4.70,.35);
-  \draw[pd guide] (4.70,.05)--(5.75,.05);
-  \node[pd axis label,anchor=north] at (2.00,-1.82) {$-a u_1$};
-  \node[pd axis label,anchor=north] at (3.35,-1.82) {$v_t(a)u_2$};
-  \node[pd axis label,anchor=north] at (4.70,-1.82) {fee};
-  \node[pd axis label,anchor=north] at (5.75,-1.82) {slip.};
-  \node[pd axis label,anchor=north] at (6.60,-1.82) {risk};
-  \node[pd direct label,text=hhamber,anchor=west,align=left] at (5.05,1.35)
-    {valuation passport\\$v_t$, source, instant};
-  \draw[pd caution arrow] (5.22,1.15)--(3.55,.55);
-
-  \draw[pd focus rule] (-6.15,-2.60)--(-.55,-2.60);
-  \node[pd note,text=hhteal] at (-3.35,-2.86) {conserved by construction};
-  \draw[pd caution rule] (1.35,-2.60)--(6.85,-2.60);
-  \node[pd note,text=hhamber] at (4.10,-2.86)
-    {conserved per unit; portfolio value is assumed and time-indexed};
-\end{tikzpicture}}
-\caption{\textbf{Conservation closes inside a native unit; conversion requires a
-named valuation boundary.} Panel A is an accounting waterfall: wallet, escrow,
-and commons deltas return exactly to zero. Panel B cannot close by adding unlike
-units. It must record the valuation function and instant, plus fee, slippage, and
-open exposure. Composition preserves native-unit balances; notation does not
-manufacture a unit-free portfolio total.}
+    \nextgroupplot[
+      bar width=7pt,
+      symbolic x coords={$\Delta$A,$\Delta$B,price move,net},
+      xtick={$\Delta$A,$\Delta$B,price move,net},
+      xticklabels={$\Delta$A,$\Delta$B,price\\move,net},
+      ylabel={USD, marked},ymin=-4,ymax=30,ytick={0,10,20,30},
+      enlarge x limits=0.2,
+      title={B. conversion\\adds a priced term},
+    ]
+    \addplot[pd neutral fill,nodes near coords style={yshift=6pt}]
+      coordinates {($\Delta$A,0)};
+    \addplot[pd neutral fill,nodes near coords style={yshift=6pt}]
+      coordinates {($\Delta$B,0)};
+    \addplot[pd caution fill]
+      coordinates {(price move,20)};
+    \addplot[pd caution fill]
+      coordinates {(net,20)};
+  \end{groupplot}
+\end{tikzpicture}
+\caption{\textbf{Conservation closes inside a native unit exactly; conversion adds a
+named, priced valuation term that a native sum does not carry.} Panel A is the escrow-commit step: wallet and escrow move
+by $560$\,\textsc{cr} in opposite directions and the three-way sum is exactly
+$0$ (Design Invariant~\ref{prop:conservation}). Panel B is the two-currency
+exercise: native holdings of $10$ A-coin and $20$ B-coin do not move at all, yet
+B's price moving \$2 to \$3 marks the portfolio up \$20 with zero transfer ---
+a valuation term, not a ledger leak (Property~\ref{thm:lax}). Native-unit
+conservation is exact; a cross-unit scalar total is a valuation choice
+[internal].}
 \label{fig:he-conservation-functor}
 \end{figure}

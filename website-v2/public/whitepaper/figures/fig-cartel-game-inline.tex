@@ -1,46 +1,68 @@
-% Figure IV.14 --- cartel stability is a two-lever phase diagram.
+% Figure IV.14 / VII.6 --- cartel stability is a two-lever region, not a
+% one-line formula. Boundary computed from S:youle:a6's own worked model at
+% delta=0.95: p_d^star(L) = (pi_C-(1-delta)pi_D)/(L+delta pi_D), normalized
+% units pi_C=1/3, pi_D=1 [internal, hand-evaluated from the chapter's formula].
 \begin{figure}[H]
 \centering
-\resizebox{0.88\textwidth}{!}{%
-\begin{tikzpicture}[pd figure]
-  \node[pd panel title,anchor=west] at (-5.9,3.25)
-    {detection probability and sampled loss jointly set the cartel boundary};
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \node[pd panel title,anchor=west,align=left] at (-.3,9.55)
+    {detection probability and per-round loss jointly set the cartel\\boundary
+     (worked at $\delta=0.95$)};
 
-  \fill[hhamber!11]
-    (-5.0,-1.55)--(5.3,-1.55)--(5.3,-.65)--(3.9,-.35)--(2.4,.15)--(.5,.95)--(-2.2,2.10)--(-4.55,2.75)--(-5.0,2.90)--cycle;
-  \fill[hhteal!7]
-    (-5.0,2.90)--(-4.55,2.75)--(-2.2,2.10)--(.5,.95)--(2.4,.15)--(3.9,-.35)--(5.3,-.65)--(5.3,2.95)--(-5.0,2.95)--cycle;
-  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (-5.0,-1.55)--(5.65,-1.55);
-  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (-5.0,-1.55)--(-5.0,3.05);
-  \node[pd axis label,anchor=west] at (5.75,-1.55) {sampled detection $p_d$};
-  \node[pd axis label,rotate=90,anchor=south] at (-5.35,.65) {loss if detected $L$};
+  % Boundary curve p_d^star(L) = 0.2833/(L+0.95), L in [0,8], p_d in [0,.3].
+  % Axes: x = p_d in [0,8.4] plot units (scale 28 per unit of p_d), y = L
+  % directly in [0,8].
+  \def\pdscale{28}
+  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (0,0)--(8.7,0);
+  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (0,0)--(0,8.6);
+  \node[pd axis label,anchor=north,text width=3.2cm,align=center] at (4.2,-.55)
+    {sampled detection {\normalsize$p_d$}};
+  \node[pd axis label,rotate=90,anchor=south,text width=3.0cm,align=center]
+    at (-.75,4.3) {loss if detected $L$};
+  \foreach \p in {0,.1,.2,.3}
+    {\draw[pd tick] ({\p*\pdscale},-.08)--({\p*\pdscale},.08);
+     \node[pd axis label,anchor=north] at ({\p*\pdscale},-.12) {\p};}
+  \foreach \l in {0,2,4,6,8}
+    {\draw[pd tick] (-.08,\l)--(.08,\l);
+     \node[pd axis label,anchor=east] at (-.12,\l) {\l};}
 
-  \draw[pd caution rule,line width=1.4pt,smooth]
-    plot coordinates {(-4.55,2.75)(-2.2,2.10)(.5,.95)(2.4,.15)(3.9,-.35)(5.3,-.65)};
-  \node[pd direct label,text=hhamber,anchor=west] at (.65,1.18)
-    {$V_C=\pi_D$};
+  % Region fills, each with its own drawn edge (not a bare tint). Amber =
+  % collusion persists (risk); teal = deviation dominates (cartel breaks).
+  \path[pd caution fill]
+    (0,0) -- ({.298*\pdscale},0) -- ({.1453*\pdscale},1) -- ({.096*\pdscale},2)
+    -- ({.0717*\pdscale},3) -- ({.0572*\pdscale},4) -- ({.0476*\pdscale},5)
+    -- ({.0408*\pdscale},6) -- ({.0356*\pdscale},7) -- ({.0317*\pdscale},8)
+    -- (0,8) -- cycle;
+  \path[pd focus fill]
+    (8.7,0) -- ({.298*\pdscale},0) -- ({.1453*\pdscale},1) -- ({.096*\pdscale},2)
+    -- ({.0717*\pdscale},3) -- ({.0572*\pdscale},4) -- ({.0476*\pdscale},5)
+    -- ({.0408*\pdscale},6) -- ({.0356*\pdscale},7) -- ({.0317*\pdscale},8)
+    -- (8.7,8) -- cycle;
+  \draw[pd caution rule,line width=1.4pt]
+    ({.298*\pdscale},0) -- ({.1453*\pdscale},1) -- ({.096*\pdscale},2)
+    -- ({.0717*\pdscale},3) -- ({.0572*\pdscale},4) -- ({.0476*\pdscale},5)
+    -- ({.0408*\pdscale},6) -- ({.0356*\pdscale},7) -- ({.0317*\pdscale},8);
 
-  \node[pd direct label,text=hhteal,align=center] at (2.35,2.25)
-    {DEVIATION DOMINATES\\cartel unsustainable};
-  \node[pd direct label,text=hhamber,align=center] at (1.65,-.85)
-    {COLLUSION PERSISTS\\discounted stream still wins};
+  \node[pd direct label,text=hhteal,align=center] at (6.3,7.2)
+    {DEVIATION DOMINATES};
+  \node[pd direct label,text=hhamber,anchor=south,align=center,text width=2.9cm]
+    at (4.3,0.05) {COLLUSION PERSISTS};
 
-  \node[pd caution datum] at (-2.2,2.10) {};
-  \node[pd caution datum] at (3.9,-.35) {};
-  \draw[pd guide] (-2.2,-1.55)--(-2.2,2.10);
-  \draw[pd guide] (3.9,-1.55)--(3.9,-.35);
-  \node[pd note,anchor=north] at (-2.2,-1.72) {rare / severe};
-  \node[pd note,anchor=north] at (3.9,-1.72) {frequent / smaller};
-
-  \node[pd note,anchor=west] at (-4.85,-2.30)
-    {$V_C=(\pi_C-p_dL)/(1-\delta(1-p_d))$; monitoring frequency alone is not the mechanism};
-\end{tikzpicture}}
-\caption{\textbf{Cartel sustainability is a two-policy phase diagram.} The
-boundary is the repeated-game equality $V_C=\pi_D$. Below it, the discounted
-collusive stream still dominates a one-shot deviation. Above it, deviation wins
-and the cartel is unstable. A rarer severe sampled loss and a more frequent
-smaller loss can lie on the same deterrence boundary. Detection frequency by
-itself is therefore not the mechanism; the product enters through the full
-discounted payoff expression.}
+  \node[pd caution datum] at ({.0476*\pdscale},5) {};
+  \node[pd note,text=hhamber,anchor=west,text width=4.6cm,align=left]
+    at ({.0476*\pdscale+.25},5.35)
+    {{\normalsize$\delta=0.95$}: {\normalsize$p_d^\star$}$\approx0.048$ at
+     $L=5$};
+\end{tikzpicture}
+\caption{\textbf{Cartel sustainability is a two-lever region, not a one-line
+formula.} Sampled detection probability $p_d$ and the per-round loss $L$
+jointly set the boundary $p_d^\star(L)=(\pi_C-(1-\delta)\pi_D)/(L+\delta\pi_D)$,
+evaluated at the chapter's worked $\delta=0.95$. Below the curve, the
+discounted collusive stream still beats a one-shot deviation and the cartel
+persists; above it, deviation dominates. At the chapter's own point,
+$L=5(q_{\mathrm{floor}}-\mu)$ gives $p_d^\star\approx0.048$, matching the
+simulated grid's first ``fragile'' classification at $p_d=0.05$. Detection
+frequency by itself is therefore not the mechanism; $L$, $\delta$, and $p_d$
+enter jointly through the discounted payoff [internal].}
 \label{fig:cartel-game-inline}
 \end{figure}

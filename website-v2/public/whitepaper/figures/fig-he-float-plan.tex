@@ -1,41 +1,62 @@
-% Figure IV.3 --- atomicity shown as synchronized state traces.
+% Figure IV.3 --- atomicity shown as synchronized state traces across three rows
+% (Protocol~\ref{prot:escrow}: signed plan, debit+escrow-row commit, clearance).
 \begin{figure}[H]
 \centering
-\resizebox{0.94\textwidth}{!}{%
-\begin{tikzpicture}[pd figure]
-  \node[pd panel title,anchor=west] at (-6.7,3.0)
-    {execution becomes admissible at one committed transition};
-  \foreach \x/\lab in {-5.4/signed plan,-1.8/transaction begins,1.3/commit,5.2/clearance}
-    {\draw[pd guide] (\x,-2.2)--(\x,2.25);
-     \node[pd axis label,anchor=north] at (\x,-2.35) {\lab};}
-  \node[pd axis label,anchor=east] at (-6.05,1.65) {wallet};
-  \node[pd axis label,anchor=east] at (-6.05,.15) {escrow row};
-  \node[pd axis label,anchor=east] at (-6.05,-1.35) {worker state};
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \node[pd panel title,anchor=west] at (-2.2,4.55)
+    {a worker becomes \texttt{running} only at the one committed transition};
 
-  \draw[pd rule,line width=1.2pt] (-5.75,2.00)--(1.30,2.00)--(1.30,1.35)--(5.75,1.35);
-  \draw[pd focus rule,line width=1.4pt] (-5.75,-.15)--(1.30,-.15)--(1.30,.55)--(5.75,.55);
-  \node[pd direct label,anchor=west] at (3.05,1.62) {debited};
-  \node[pd direct label,text=hhteal,anchor=west] at (3.05,.82) {row exists};
+  % Row labels.
+  \node[pd row label] at (-.4,3.0) {wallet};
+  \node[pd row label,text width=1.8cm,align=right] at (-.4,1.6) {escrow row};
+  \node[pd row label,text width=1.8cm,align=right] at (-.4,.2) {worker state};
 
-  \draw[pd rule,line width=1.2pt] (-5.75,-1.05)--(2.25,-1.05)--(2.25,-1.72)--(5.75,-1.72);
-  \node[pd direct label,anchor=north west] at (-4.95,-1.18) {no process};
-  \node[pd direct label,text=hhteal,anchor=west] at (3.05,-1.45) {running};
-  \draw[pd focus arrow] (1.42,.50) to[out=-30,in=150] (2.15,-1.62);
-  \node[pd note,text=hhteal,anchor=west] at (1.75,-.35) {signed row check};
+  % Time axis ticks.
+  \foreach \x/\lab in {0/signed plan,2.3/transaction begins,7.2/clearance}
+    {\draw[pd guide] (\x,-.65)--(\x,3.9);
+     \node[pd axis label,anchor=north,align=center,text width=2.0cm]
+       at (\x,-1.45) {\lab};}
+  \node[pd axis label,anchor=north,align=center,text width=2.0cm]
+    at (4.5,-1.45) {commit};
 
-  \draw[pd caution rule,dashed] (-1.80,-.58)--(.55,-.58);
-  \node[pd caution datum] at (.55,-.58) {};
-  \node[pd note,text=hhamber,anchor=north] at (-.60,-.69)
-    {abort: all three traces unchanged};
-  \draw[pd caution rule,line width=1pt] (1.30,-2.05)--(1.30,2.35);
-  \node[pd direct label,text=hhamber,anchor=south] at (1.30,2.48)
-    {atomic commit boundary};
-\end{tikzpicture}}
-\caption{\textbf{No-spawn-without-bond is a synchronized state transition.}
-The wallet debit and escrow-row creation occur at the same commit. Only after the
-committed row is observable does the worker move from nonexistent to running. A
-signed plan or an attempted debit is insufficient: the dashed abort branch leaves
-all three traces in their prior state. The figure therefore locates the invariant
-at a transition, not at a component or message label.}
+  % The commit: one focus rule crossing all three rows.
+  \draw[pd focus rule,line width=1.6pt] (4.5,-.65)--(4.5,3.9);
+  \node[pd direct label,text=hhteal,anchor=south] at (4.5,4.0)
+    {committed transition};
+
+  % wallet: funded, step at commit, debited
+  \draw[pd rule,line width=1.2pt] (-.3,3.0)--(4.5,3.0)--(4.5,3.5);
+  \draw[pd rule,line width=1.2pt] (4.5,3.5)--(7.9,3.5);
+  \node[pd direct label,inner sep=2.6pt,anchor=south] at (1.0,3.08) {funded};
+  \node[pd direct label,inner sep=2.6pt,anchor=south] at (6.0,3.58) {debited};
+
+  % escrow row: no row, step at commit, row exists
+  \draw[pd rule,dashed,line width=1.0pt] (-.3,1.6)--(4.5,1.6)--(4.5,2.1);
+  \draw[pd focus rule,line width=1.4pt] (4.5,2.1)--(7.9,2.1);
+  \node[pd direct label,inner sep=2.6pt,anchor=south] at (1.0,1.68) {no row};
+  \node[pd direct label,inner sep=2.6pt,text=hhteal,anchor=south] at (6.0,2.18) {row exists};
+
+  % worker state: no process, step at commit, running
+  \draw[pd rule,dashed,line width=1.0pt] (-.3,.2)--(4.5,.2)--(4.5,.7);
+  \draw[pd focus rule,line width=1.4pt] (4.5,.7)--(7.9,.7);
+  \node[pd direct label,inner sep=2.6pt,anchor=south] at (1.0,.28) {no process};
+  \node[pd direct label,inner sep=2.6pt,text=hhteal,anchor=south] at (6.0,.78) {running};
+
+  % Abort path: dashed caution arrow from inside the attempted transaction back
+  % to the start, in its own band below the rows; all three traces are
+  % unchanged along it.
+  \node[pd caution datum] at (3.4,.2) {};
+  \draw[pd caution arrow] (3.4,.2) -- (3.4,-.55) -- (0,-.55) -- (0,.2);
+  \node[pd note,text=hhamber,anchor=north,align=center,text width=5.6cm]
+    at (1.7,-.75) {abort: all three traces unchanged};
+\end{tikzpicture}
+\caption{\textbf{Execution is admissible only at one committed transition.} The
+three rows are the wallet, the escrow row, and the worker's process state over
+Protocol~\ref{prot:escrow}'s float-plan ceremony. Before the commit they read
+funded / no row / no process; the wallet debit and escrow-row creation happen at
+the same commit, and only after it does the worker move to \texttt{running}. A
+signed plan alone, or an attempted debit that never commits, is insufficient: the
+dashed abort path returns to the start with all three traces unchanged
+[internal].}
 \label{fig:he-float-plan}
 \end{figure}

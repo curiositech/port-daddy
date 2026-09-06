@@ -1,62 +1,68 @@
-% Exactly-once redemption shown as a race waveform around one atomic state edge.
+% Figure --- single-use magic-link redemption as a sequence diagram: one
+% atomic SQL step decides between two racing consumers (S:federated-sovereign,
+% the WHERE consumed_at IS NULL RETURNING clause).
 \begin{figure}[H]
 \centering
-\resizebox{0.94\textwidth}{!}{%
-\begin{tikzpicture}[pd figure]
-  \node[pd panel title,anchor=west] at (-.20,3.62)
-    {two overlapping requests; one durable state edge};
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+  \node[pd panel title,anchor=west,align=left] at (-1.3,7.3)
+    {two consumers race one token; the atomic update decides};
 
-  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (.20,-2.05)--(12.05,-2.05);
-  \node[pd axis label,anchor=west] at (12.15,-2.05) {time};
-  \foreach \x/\lab in {1.0/$t_0$,5.65/$t_1$,6.35/$t_2$,10.8/$t_3$} {
-    \draw[pd tick] (\x,-2.12)--(\x,-1.98);
-    \node[pd axis label,anchor=north] at (\x,-2.18) {\lab};
-  }
+  \node[pd row label,anchor=south,text width=2.0cm,align=center] at (0,6.7)
+    {consumer A};
+  \node[pd row label,anchor=south,text width=2.0cm,align=center] at (2.8,6.7)
+    {consumer B};
+  \node[pd row label,anchor=south,text width=2.1cm,align=center] at (5.9,6.7)
+    {token row};
+  \node[pd row label,anchor=south,text width=2.0cm,align=center] at (8.7,6.7)
+    {audit row};
+  % Lifelines stop above the closing note -- that note is commentary, not a
+  % message, and must not cross any of the four verticals.
+  \draw[pd rule] (0,6.4)--(0,1.4);
+  \draw[pd rule] (2.8,6.4)--(2.8,1.4);
+  \draw[pd rule] (5.9,6.4)--(5.9,1.4);
+  \draw[pd rule] (8.7,6.4)--(8.7,1.4);
 
-  \node[pd panel title,anchor=east] at (-.05,2.18) {consumer A};
-  \node[pd panel title,anchor=east] at (-.05,1.02) {consumer B};
-  \node[pd panel title,anchor=east] at (-.05,-.12) {token row};
-  \node[pd panel title,anchor=east] at (-.05,-1.26) {audit row};
-  \foreach \y in {2.18,1.02,-.12,-1.26}
-    \draw[pd hairline] (.20,\y)--(11.65,\y);
+  % 1-2: both consumers present the same token, overlapping in time.
+  \draw[pd arrow] (0,5.9)--(5.87,5.9);
+  \node[pd direct label,anchor=south,text width=2.6cm,align=center] at (1.4,6.0)
+    {1 present $tk$};
+  \draw[pd arrow] (2.8,5.15)--(5.87,5.15);
+  \node[pd direct label,anchor=south,text width=2.6cm,align=center] at (4.35,5.25)
+    {2 present $tk$};
+  \node[pd note,anchor=north,text width=2.6cm,align=center] at (1.4,5.75)
+    {overlap in time};
 
-  % Concurrent requests reach one explicitly marked serialization interval.
-  \draw[pd rule,line width=1.05pt] (1.0,2.18)--(5.68,2.18);
-  \draw[pd rule,line width=1.05pt] (1.45,1.02)--(5.68,1.02);
-  \node[pd direct label,anchor=south] at (2.55,2.18) {present $tk$};
-  \node[pd direct label,anchor=south] at (3.10,1.02) {present the same $tk$};
-  \node[pd note,anchor=south] at (4.55,2.47) {request intervals overlap};
+  % 3: the shared atomic step, drawn on the token row's own lifeline. Full
+  % clause given verbatim in the caption; the diagram carries the recognizable
+  % head of it.
+  \draw[pd caution rule,line width=5pt] (5.9,4.65)--(5.9,3.85);
+  \node[pd direct label,anchor=east,text width=2.6cm,align=right,inner sep=2.6pt] at (5.7,4.25)
+    {3 \texttt{UPDATE ...}\\\texttt{RETURNING}\\(atomic)};
 
-  \fill[hhamber!9] (5.68,2.70) rectangle (6.38,-1.62);
-  \draw[pd caution rule] (5.68,2.70)--(5.68,-1.62);
-  \draw[pd caution rule] (6.38,2.70)--(6.38,-1.62);
-  \node[pd panel title,text=hhamber,rotate=90] at (6.03,.55) {ATOMIC DRAIN};
-  \node[pd direct label,text=hhamber,anchor=south,align=center] at (6.03,2.82)
-    {\texttt{UPDATE ... WHERE consumed\_at IS NULL RETURNING}};
+  % 4-5: exactly one falling edge; one winner, one silent loser.
+  \draw[pd focus arrow] (5.9,3.35)--(0.03,3.35);
+  \node[pd direct label,text=hhteal,anchor=south,inner sep=2.6pt] at (1.4,3.58)
+    {4 \textsc{success}};
+  \draw[pd caution arrow] (5.9,2.55)--(2.83,2.55);
+  \node[pd direct label,text=hhamber,anchor=south,inner sep=2.6pt] at (4.35,2.68)
+    {5 \textsc{reject}};
 
-  % Exactly one request continues as a success; the other terminates visibly.
-  \draw[pd focus arrow] (6.38,2.18)--(10.45,2.18);
-  \node[pd focus datum] at (10.55,2.18) {};
-  \node[pd direct label,text=hhteal,anchor=west,font=\scriptsize\bfseries]
-    at (10.80,2.18) {SUCCESS};
-  \draw[pd caution arrow] (6.38,1.02)--(10.45,1.02);
-  \draw[pd caution rule,line width=1.2pt] (10.47,.88)--(10.67,1.16);
-  \draw[pd caution rule,line width=1.2pt] (10.47,1.16)--(10.67,.88);
-  \node[pd direct label,text=hhamber,anchor=west,font=\scriptsize\bfseries]
-    at (10.80,1.02) {REJECT};
+  % 6: one audit entry, naming the winner only.
+  \draw[pd focus arrow] (5.9,1.7)--(8.67,1.7);
+  \node[pd direct label,text=hhteal,anchor=south,text width=2.6cm,align=center]
+    at (7.3,1.8) {6 receipt $tk\mapsto A$};
 
-  % The database state has one falling edge and never rises again.
-  \draw[pd rule,line width=1.15pt] (.65,.20)--(5.68,.20)--(5.68,-.45);
-  \draw[pd focus rule,line width=1.55pt] (6.38,-.45)--(11.25,-.45);
-  \node[pd direct label,anchor=south] at (2.75,.20) {available: \texttt{NULL}};
-  \node[pd direct label,text=hhteal,anchor=north] at (8.55,-.45) {consumed by A};
-
-  \draw[pd focus rule,line width=1.15pt] (6.38,-1.26)--(10.25,-1.26);
-  \node[pd focus datum] at (10.25,-1.26) {};
-  \node[pd direct label,text=hhteal,anchor=west] at (10.48,-1.26) {receipt $tk\mapsto A$};
-  \node[pd note,anchor=west] at (.65,-1.62) {the rejected consumer creates no second state transition};
-\end{tikzpicture}%
-}
-\caption{Single-use redemption is a concurrency property, not a two-arrow icon. Two consumers present the same account-bound token during one overlap window. Both requests reach the same serialized SQL update, but the token row has only one falling edge: the first transaction changes \texttt{consumed\_at} from \texttt{NULL} and returns a row; the second observes the durable state and returns none. The audit rail records the winning consumer without creating another success path.}
+  \node[pd note,anchor=west,text width=10.6cm,align=left] at (0,.8)
+    {the losing consumer's request returns zero rows; it creates no second
+     state transition};
+\end{tikzpicture}
+\caption{\linespread{1.08}\selectfont\textbf{Single-use redemption is a
+concurrency property, one atomic step decides it.} Consumers A and B present
+the same token in an overlapping window; both reach the shared step
+\texttt{UPDATE ... WHERE consumed\_at IS NULL RETURNING}. SQLite's writer
+serialization drains the token under the first transaction: it returns
+\textsc{success} to A and zero rows, hence \textsc{reject}, to B. The audit
+row records exactly one entry, the winning consumer, never a second success
+path [verified, \texttt{magic-link.pv}].}
 \label{fig:magic-link-inline}
 \end{figure}
