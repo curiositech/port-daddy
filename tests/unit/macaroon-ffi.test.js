@@ -12,7 +12,10 @@ import { randomBytes } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { mintPushGrant, dischargeRentPaid } from '../../lib/macaroon/discharge.js';
+import {
+  mintActorBoundPushGrant,
+  dischargeRentPaid,
+} from '../../lib/macaroon/discharge.js';
 import { prepareForRequest } from '../../lib/macaroon/macaroon.js';
 import {
   verifyPushGrantPreferKernel,
@@ -22,6 +25,7 @@ import {
 
 const here = dirname(fileURLToPath(import.meta.url));
 const T = 1_700_000_000_000;
+const ACTOR = '01K3YR6M1WPZB8Q6V1J8K7D4MC';
 
 const paidFacts = () => ({
   commitsSinceLastNote: 0,
@@ -38,10 +42,11 @@ function makeArgs(branch = 'feat/dom-daddy-x') {
   const rootKey = randomBytes(32);
   const caveatKey = randomBytes(32);
   const session = 'session-ffi-test';
-  const { macaroon, rentCaveatId, record } = mintPushGrant({
+  const { macaroon, rentCaveatId, record } = mintActorBoundPushGrant({
     rootKey,
     grantId: 'grant-ffi-test',
     repoId: 'curiositech/port-daddy',
+    actor: ACTOR,
     session,
     expiresMs: T + 60 * 60 * 1000,
     caveatKey,
@@ -51,6 +56,7 @@ function makeArgs(branch = 'feat/dom-daddy-x') {
   const bound = prepareForRequest(macaroon, d.discharge);
   return {
     grant: macaroon,
+    actor: ACTOR,
     rootKeyHex: rootKey.toString('hex'),
     discharges: [bound],
     ctx: { op: 'push', repo: 'curiositech/port-daddy', branch, session, nowMs: T + 5 * 60 * 1000 },
