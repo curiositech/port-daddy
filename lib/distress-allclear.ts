@@ -51,15 +51,38 @@
  *     passphrase, which lives only in the operator's head and is read only from
  *     a TTY by the operator CLI — never from an env var or a flag. A documented
  *     bypass is not a control (ADR-0119).
- *   - public half: SPKI PEM at `~/.port-daddy/operator-allclear.pub`. Every
- *     listener verifies with it. It is not secret.
+ *   - public half: SPKI PEM at `~/.port-daddy/operator-allclear.pub`. It is
+ *     not secret, and it is NOT the trust root.
  *
- * Honest boundary: the public-key file is same-user-writable, like every file
- * under `~/.port-daddy`. An adversary who can rewrite it can pin their own key.
- * The passphrase is the real boundary; the pinned public key's fingerprint is
- * printed by `status` so the operator can eyeball a swap. This is the
- * "correct failure direction" ADR-0132 accepts: key loss is a halt that needs
- * the A4 runbook, never a halt an agent can lift.
+ * ── The trust root is committed, not on disk ─────────────────────────────────
+ *
+ * Every file under `~/.port-daddy` is writable by the operator's user, which
+ * is the user every agent runs as. An on-disk `.pub` alone therefore proves
+ * nothing: an agent can mint a keypair, overwrite the `.pub`, and sign a lift
+ * with the matching private key — no TTY, no passphrase, using only this
+ * module's exports. So the verifying key must match a fingerprint compiled
+ * into the build from `lib/distress-allclear-pins.ts` (a git-tracked source
+ * file; a swap there is a reviewed commit, not a `writeFileSync`).
+ *
+ *   - `.pub` present and its fingerprint is pinned      → trusted.
+ *   - `.pub` absent but the pin carries the SPKI PEM   → trusted (fresh clone,
+ *                                                         CI, the observer).
+ *   - `.pub` present and NOT pinned                     → INERT: no all-clear
+ *     verifies, the halt stays in force, and `KEY_ROTATED` is journaled to the
+ *     ADR-0089 archive as critical. Overwriting the file is what this
+ *     looks like, and it is not a lift.
+ *   - no pin at all (the state of a fresh repo)         → inert, by design.
+ *
+ * `status` prints the on-disk fingerprint and whether it is pinned; the
+ * runbook step after keygen is to commit the printed pin entry and echo the
+ * fingerprint on the pinned status issue. `chflags uchg` on the `.pub` is a
+ * speed bump the same user can clear; the pin is the boundary. This is the
+ * "correct failure direction" ADR-0132 accepts: key loss (or an unpinned key)
+ * is a halt that needs the A4 runbook, never a halt an agent can lift.
+ *
+ * Tests and the phase-6 drill pass `trustedKeys` explicitly to trust a
+ * throwaway key in a scratch home; there is no env var or flag for it (a
+ * documented bypass is not a control, ADR-0119).
  *
  * ── Interface contract ───────────────────────────────────────────────────────
  *
@@ -94,6 +117,9 @@ import {
   type ForensicsEvent,
   type ForensicsSink,
 } from './forensics-archive.js';
+import { OPERATOR_ALLCLEAR_PINNED_KEYS, type PinnedOperatorKey } from './distress-allclear-pins.js';
+
+export type { PinnedOperatorKey } from './distress-allclear-pins.js';
 
 // ─── Registry wire format ────────────────────────────────────────────────────
 
@@ -296,11 +322,16 @@ export function generateOperatorKey(passphrase: string): { privatePem: string; p
   };
 }
 
-/** Write a fresh keypair to `paths`. Refuses to overwrite: rotation is an explicit operator act. */
+/**
+ * Write a fresh keypair to `paths`. Refuses to overwrite: rotation is an
+ * explicit operator act. The returned `pin` is the entry to commit to
+ * `lib/distress-allclear-pins.ts`; until that lands the key is inert.
+ */
 export function writeOperatorKeyFiles(
   paths: DistressPaths,
   passphrase: string,
-): { fingerprint: string } {
+  opts: { holder?: string; now?: Date } = {},
+): { fingerprint: string; publicPem: string; pin: PinnedOperatorKey } {
   if (existsSync(paths.privateKeyFile) || existsSync(paths.publicKeyFile)) {
     throw new Error(
       `refusing to overwrite existing ALL-CLEAR key material (${paths.privateKeyFile} / ${paths.publicKeyFile}); remove them deliberately to rotate`,
@@ -310,13 +341,102 @@ export function writeOperatorKeyFiles(
   mkdirSync(dirname(paths.privateKeyFile), { recursive: true });
   writeFileSync(paths.privateKeyFile, privatePem, { mode: 0o600, flag: 'wx' });
   writeFileSync(paths.publicKeyFile, publicPem, { mode: 0o644, flag: 'wx' });
-  return { fingerprint: publicKeyFingerprint(publicPem) };
+  const fingerprint = publicKeyFingerprint(publicPem);
+  const pin: PinnedOperatorKey = {
+    fingerprint,
+    publicKeyPem: publicPem,
+    holder: opts.holder ?? 'operator',
+    pinnedOn: (opts.now ?? new Date()).toISOString().slice(0, 10),
+  };
+  return { fingerprint, publicPem, pin };
 }
 
-/** The pinned operator public key, or null when none has been generated. */
-export function loadOperatorPublicKey(paths: DistressPaths): KeyObject | null {
-  if (!existsSync(paths.publicKeyFile)) return null;
-  return toPublicKey(readFileSync(paths.publicKeyFile, 'utf8'));
+/** Render a pin entry as the TypeScript literal to paste into `OPERATOR_ALLCLEAR_PINNED_KEYS`. */
+export function formatPinEntry(pin: PinnedOperatorKey): string {
+  const pem = pin.publicKeyPem ? `\n    publicKeyPem: ${JSON.stringify(pin.publicKeyPem)},` : '';
+  return `  {\n    fingerprint: '${pin.fingerprint}',${pem}\n    holder: '${pin.holder}',\n    pinnedOn: '${pin.pinnedOn}',\n  },`;
+}
+
+export interface TrustedKeyOptions {
+  /**
+   * The pin set to trust. Defaults to the committed
+   * `OPERATOR_ALLCLEAR_PINNED_KEYS`. Tests and the phase-6 drill pass a
+   * throwaway key's fingerprint here; production callers never do.
+   */
+  trustedKeys?: readonly PinnedOperatorKey[];
+}
+
+export type OperatorKeyStatus =
+  /** No `.pub` on disk and no pin carries a PEM. Nothing can verify. */
+  | 'absent'
+  /** `.pub` on disk and its fingerprint is pinned. */
+  | 'pinned'
+  /** No `.pub` on disk; verifying with the PEM committed in the pin set. */
+  | 'committed'
+  /** `.pub` on disk but its fingerprint is NOT pinned: swapped, planted, or not yet committed. Inert. */
+  | 'unpinned';
+
+export interface OperatorKeyResolution {
+  /** The key to verify with, or null when nothing is trusted. */
+  key: KeyObject | null;
+  status: OperatorKeyStatus;
+  /** Fingerprint of the `.pub` on disk, when there is one (pinned or not). */
+  onDiskFingerprint?: string;
+  /** Fingerprint of the key actually being trusted, when there is one. */
+  trustedFingerprint?: string;
+}
+
+function pinsWithPem(pins: readonly PinnedOperatorKey[]): PinnedOperatorKey[] {
+  return pins.filter((p) => typeof p.publicKeyPem === 'string' && p.publicKeyPem.length > 0);
+}
+
+/**
+ * Resolve the operator public key against the committed pin set. The on-disk
+ * `.pub` is consulted first and must match a pin; with no file, a pin that
+ * carries the PEM is used directly. An on-disk key that matches no pin is
+ * reported as `unpinned` and NOT returned — same-user-writable disk is never
+ * the trust root.
+ */
+export function resolveOperatorPublicKey(
+  paths: DistressPaths,
+  opts: TrustedKeyOptions = {},
+): OperatorKeyResolution {
+  const pins = opts.trustedKeys ?? OPERATOR_ALLCLEAR_PINNED_KEYS;
+  if (existsSync(paths.publicKeyFile)) {
+    let onDisk: KeyObject;
+    try {
+      onDisk = toPublicKey(readFileSync(paths.publicKeyFile, 'utf8'));
+    } catch {
+      // A garbled file is indistinguishable from a tampered one: inert.
+      return { key: null, status: 'unpinned' };
+    }
+    const onDiskFingerprint = publicKeyFingerprint(onDisk);
+    if (pins.some((p) => p.fingerprint === onDiskFingerprint)) {
+      return { key: onDisk, status: 'pinned', onDiskFingerprint, trustedFingerprint: onDiskFingerprint };
+    }
+    return { key: null, status: 'unpinned', onDiskFingerprint };
+  }
+  for (const pin of pinsWithPem(pins)) {
+    let key: KeyObject;
+    try {
+      key = toPublicKey(pin.publicKeyPem!);
+    } catch {
+      continue;
+    }
+    // A pin whose PEM does not hash to its own fingerprint is a corrupt pin; skip it.
+    if (publicKeyFingerprint(key) !== pin.fingerprint) continue;
+    return { key, status: 'committed', trustedFingerprint: pin.fingerprint };
+  }
+  return { key: null, status: 'absent' };
+}
+
+/**
+ * The trusted operator public key, or null when none is trusted — because no
+ * key exists, or because the on-disk key's fingerprint is not in the committed
+ * pin set. Callers that need to know which, use `resolveOperatorPublicKey`.
+ */
+export function loadOperatorPublicKey(paths: DistressPaths, opts: TrustedKeyOptions = {}): KeyObject | null {
+  return resolveOperatorPublicKey(paths, opts).key;
 }
 
 /** Decrypt the operator private key. Throws on a wrong passphrase — never returns a guess. */
@@ -434,14 +554,31 @@ export type ViolationRule =
   | 'ALLCLEAR_WRONG_REF'
   | 'ALLCLEAR_REPLAYED'
   | 'ALLCLEAR_WITHOUT_HALT'
-  | 'HALT_SENTINEL_MISSING';
+  | 'HALT_SENTINEL_MISSING'
+  /** The on-disk `.pub` does not match any committed pin: swapped, planted, or never committed. */
+  | 'KEY_ROTATED';
 
 export interface HaltViolation {
   rule: ViolationRule;
-  reason: AllClearRejection | 'sentinel-missing' | 'no-halt-hoisted';
+  reason: AllClearRejection | 'sentinel-missing' | 'no-halt-hoisted' | 'key-not-pinned';
   line: string;
   haltTs?: string;
   ref?: string;
+}
+
+/** The `KEY_ROTATED` violation for an on-disk key the build does not trust. */
+export function keyRotatedViolation(
+  resolution: OperatorKeyResolution,
+  paths: DistressPaths,
+  haltTs?: string,
+): HaltViolation {
+  const fp = resolution.onDiskFingerprint ?? 'unreadable';
+  return {
+    rule: 'KEY_ROTATED',
+    reason: 'key-not-pinned',
+    line: `${paths.publicKeyFile} fingerprint=${fp} is not in the committed pin set`,
+    ...(haltTs ? { haltTs } : {}),
+  };
 }
 
 export type HaltState =
@@ -619,9 +756,9 @@ export function resetViolationJournalDedupe(): void {
 
 // ─── fs wrappers: what readers and the operator call ─────────────────────────
 
-export interface ReadHaltStateOptions {
+export interface ReadHaltStateOptions extends TrustedKeyOptions {
   paths?: DistressPaths;
-  /** Overrides the pinned public-key file. */
+  /** Overrides key resolution entirely (tests, listeners that pin their own copy). */
   publicKey?: KeyObject | string | null;
   /** Durable journal; defaults to the ADR-0089 archive. Pass `null` to skip journaling. */
   forensics?: ForensicsSink | null;
@@ -639,13 +776,20 @@ export interface ReadHaltStateOptions {
  */
 export function readHaltState(opts: ReadHaltStateOptions = {}): HaltEvaluation {
   const paths = opts.paths ?? defaultDistressPaths();
-  const publicKey = opts.publicKey !== undefined ? opts.publicKey : loadOperatorPublicKey(paths);
+  const resolution = opts.publicKey !== undefined ? null : resolveOperatorPublicKey(paths, opts);
+  const publicKey = opts.publicKey !== undefined ? opts.publicKey : resolution!.key;
   const now = opts.now ?? Date.now;
   const evaluation = evaluateHaltState({
     sentinelLine: readSentinelLine(paths.haltFile),
     registerLines: readLines(paths.distressFile),
     publicKey,
   });
+  if (resolution?.status === 'unpinned') {
+    // An untrusted key on disk is a violation on every read: it is what a
+    // swap or a planted key looks like, and `status` must show it. The
+    // per-process dedupe keeps a listening watch from re-journaling it.
+    evaluation.violations.push(keyRotatedViolation(resolution, paths, evaluation.status.halt?.ts));
+  }
 
   const sink = opts.forensics === undefined ? createJsonlForensicsArchive({ now }) : opts.forensics;
   if (sink && evaluation.violations.length > 0) journalViolations(sink, evaluation.violations, now);
@@ -689,11 +833,13 @@ export type ApplyAllClearResult =
  */
 export function applyAllClear(line: string, opts: ApplyAllClearOptions = {}): ApplyAllClearResult {
   const paths = opts.paths ?? defaultDistressPaths({ repoRoot: opts.repoRoot });
-  const publicKey = opts.publicKey !== undefined ? opts.publicKey : loadOperatorPublicKey(paths);
+  const publicKey = opts.publicKey !== undefined ? opts.publicKey : loadOperatorPublicKey(paths, opts);
   const now = opts.now ?? Date.now;
   const sink = opts.forensics === undefined ? createJsonlForensicsArchive({ now }) : opts.forensics;
 
-  const before = readHaltState({ ...opts, paths, publicKey, forensics: sink, now });
+  // Let readHaltState resolve the key itself (unless the caller overrode it) so
+  // an unpinned .pub is journaled as KEY_ROTATED on this path too.
+  const before = readHaltState({ ...opts, paths, forensics: sink, now });
   if (before.status.state !== 'hoisted') return { lifted: false, reason: 'no-halt-hoisted' };
   if (publicKey === null) return { lifted: false, reason: 'no-public-key' };
 
@@ -709,7 +855,7 @@ export function applyAllClear(line: string, opts: ApplyAllClearOptions = {}): Ap
 
   appendLine(paths.distressFile, verdict.record.raw);
   if (paths.repoDistressFile) appendLine(paths.repoDistressFile, verdict.record.raw);
-  const after = readHaltState({ ...opts, paths, publicKey, forensics: sink, now, removeSentinelOnLift: true });
+  const after = readHaltState({ ...opts, paths, forensics: sink, now, removeSentinelOnLift: true });
   if (after.status.state !== 'lifted') {
     // Cannot happen if the append succeeded; surface it rather than claim a lift.
     return { lifted: false, reason: 'bad-signature' };
@@ -729,10 +875,15 @@ export function liftHalt(params: {
   forensics?: ForensicsSink | null;
   now?: () => number;
   ts?: string;
-}): ApplyAllClearResult & { line?: string } {
+} & TrustedKeyOptions): ApplyAllClearResult & { line?: string } {
   const paths = params.paths ?? defaultDistressPaths({ repoRoot: params.repoRoot });
-  const publicKey = loadOperatorPublicKey(paths);
-  if (!publicKey) return { lifted: false, reason: 'no-public-key' };
+  const resolution = resolveOperatorPublicKey(paths, params);
+  const publicKey = resolution.key;
+  if (!publicKey) {
+    // Surface the swap before refusing: an unpinned key next to a hoisted halt is the attack.
+    const state = readHaltState({ paths, forensics: params.forensics, now: params.now, trustedKeys: params.trustedKeys, removeSentinelOnLift: false });
+    return { lifted: false, reason: 'no-public-key', ...(state.violations.length ? { violation: state.violations[state.violations.length - 1] } : {}) };
+  }
   const state = readHaltState({ paths, publicKey, forensics: params.forensics, now: params.now });
   if (state.status.state !== 'hoisted') return { lifted: false, reason: 'no-halt-hoisted' };
   const privateKey = loadOperatorPrivateKey(paths, params.passphrase);
