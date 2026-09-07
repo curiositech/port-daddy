@@ -45,6 +45,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
 PROGRAM = REPO / "docs/harbor-research/program.json"
+SCHEMA = REPO / "docs/harbor-research/program.schema.json"
 MIRROR = REPO / "website-v2/src/data/harborResearchProgram.json"
 LIBRARY_INDEX = REPO / "docs/harbor-research/library-index.json"
 CORPUS = REPO / "whitepaper/corpus.json"
@@ -59,6 +60,8 @@ SILENCES_HEADING = "## The silences, which are the book's next work"
 
 DERIVED_KEYS = ("results", "estate", "critiqueLedger")
 HAND_KEYS = ("papers", "deepDives", "wrongTurns", "studies", "plannedLifts", "openProblems")
+
+STANDALONE_FILE_RE = re.compile(r"paper(\d+)\.tex$")
 
 
 def load(path: Path):
@@ -82,7 +85,7 @@ def derive_results() -> list[dict]:
     for entry in index["entries"]:
         standalone = entry.get("standalone") or {}
         paper = None
-        match = re.search(r"paper(\d+)\.tex$", standalone.get("file") or "")
+        match = STANDALONE_FILE_RE.search(standalone.get("file") or "")
         if match:
             paper = int(match.group(1))
         rows.append(
@@ -161,6 +164,107 @@ def derive_all() -> dict:
 
 
 # ---------------------------------------------------------------------------
+# JSON Schema validation (stdlib only)
+# ---------------------------------------------------------------------------
+#
+# A small draft-07 subset: exactly the keywords program.schema.json uses, and
+# nothing more. If the schema is ever extended with a keyword this validator
+# does not implement, that must not pass silently -- SchemaKeywordNotSupported
+# is raised so the gap is caught, not swallowed.
+
+SCHEMA_ANNOTATION_KEYWORDS = {"$schema", "$id", "title", "description"}
+SCHEMA_CONSTRAINT_KEYWORDS = {
+    "type",
+    "const",
+    "enum",
+    "required",
+    "properties",
+    "additionalProperties",
+    "items",
+    "minLength",
+    "minimum",
+    "pattern",
+}
+
+JSON_SCHEMA_TYPES: dict[str, tuple[type, ...]] = {
+    "object": (dict,),
+    "array": (list,),
+    "string": (str,),
+    # bool is a subclass of int in Python; JSON Schema treats them as distinct.
+    "integer": (int,),
+    "number": (int, float),
+    "boolean": (bool,),
+    "null": (type(None),),
+}
+
+
+class SchemaKeywordNotSupported(Exception):
+    """Raised when program.schema.json uses a keyword this validator does not
+    implement, so an expanded schema can never pass unchecked."""
+
+
+def _matches_type(instance, type_name: str) -> bool:
+    types = JSON_SCHEMA_TYPES[type_name]
+    if isinstance(instance, bool) and bool not in types:
+        return False
+    return isinstance(instance, types)
+
+
+def validate_schema(instance, schema: dict, pointer: str = "") -> list[str]:
+    """Validate `instance` against a draft-07 JSON Schema `schema`, returning
+    a list of violations, each naming a JSON-pointer-like `pointer` to the
+    offending value. Raises SchemaKeywordNotSupported for any keyword this
+    validator does not implement."""
+    unknown = set(schema) - SCHEMA_ANNOTATION_KEYWORDS - SCHEMA_CONSTRAINT_KEYWORDS
+    if unknown:
+        raise SchemaKeywordNotSupported(
+            f"program.schema.json uses keyword(s) {sorted(unknown)} at "
+            f"{pointer or '/'}, which check_research_program.py's validator does not implement"
+        )
+
+    here = pointer or "/"
+    problems: list[str] = []
+
+    if "const" in schema and instance != schema["const"]:
+        problems.append(f"{here}: expected constant {schema['const']!r}, got {instance!r}")
+
+    if "enum" in schema and instance not in schema["enum"]:
+        problems.append(f"{here}: {instance!r} is not one of {schema['enum']}")
+
+    if "type" in schema and not _matches_type(instance, schema["type"]):
+        problems.append(f"{here}: expected type {schema['type']!r}, got {type(instance).__name__}")
+        return problems  # further keywords assume the right shape; skip them
+
+    if "minLength" in schema and isinstance(instance, str) and len(instance) < schema["minLength"]:
+        problems.append(f"{here}: length {len(instance)} is below minLength {schema['minLength']}")
+
+    if "minimum" in schema and isinstance(instance, (int, float)) and instance < schema["minimum"]:
+        problems.append(f"{here}: {instance} is below minimum {schema['minimum']}")
+
+    if "pattern" in schema and isinstance(instance, str) and not re.search(schema["pattern"], instance):
+        problems.append(f"{here}: {instance!r} does not match pattern {schema['pattern']!r}")
+
+    if isinstance(instance, dict):
+        for key in schema.get("required", []):
+            if key not in instance:
+                problems.append(f"{here}: missing required property {key!r}")
+        properties = schema.get("properties", {})
+        for key, subschema in properties.items():
+            if key in instance:
+                problems.extend(validate_schema(instance[key], subschema, f"{pointer}/{key}"))
+        if schema.get("additionalProperties") is False:
+            extra = sorted(set(instance) - set(properties))
+            if extra:
+                problems.append(f"{here}: unexpected propert{'y' if len(extra) == 1 else 'ies'} {extra}")
+
+    if isinstance(instance, list) and "items" in schema:
+        for i, item in enumerate(instance):
+            problems.extend(validate_schema(item, schema["items"], f"{pointer}/{i}"))
+
+    return problems
+
+
+# ---------------------------------------------------------------------------
 # Inventory checks
 # ---------------------------------------------------------------------------
 
@@ -191,6 +295,14 @@ def check(program: dict) -> list[str]:
             problems.append(
                 f"'{key}' is stale against its source of record; run check_research_program.py --sync"
             )
+
+    # 1b. every standalone file cited by the library index is one derive_results
+    # can actually attribute to a paper; a file that matches no paper silently
+    # drops that attribution, so surface it instead of losing it quietly.
+    for entry in load(LIBRARY_INDEX)["entries"]:
+        file = (entry.get("standalone") or {}).get("file")
+        if file and not STANDALONE_FILE_RE.search(file):
+            problems.append(f"results: {entry['id']} standalone file {file!r} does not match any paper")
 
     # 2. inventories match the tree
     tex_papers = sorted(int(m.group(1)) for p in PAPER_TEX_DIR.glob("paper*.tex") if (m := re.match(r"paper(\d+)\.tex$", p.name)))
@@ -251,7 +363,13 @@ def check(program: dict) -> list[str]:
                 if ch not in chapters:
                     problems.append(f"{key}: {item.get('id')} cites chapter {ch}, not in whitepaper/textbook.json")
 
-    # 5. the mirror is identical
+    # 5. the program matches its own JSON Schema
+    schema = load(SCHEMA)
+    for problem in validate_schema(program, schema):
+        problems.append(f"schema {problem}")
+
+    # 6. the mirror is identical (byte-for-byte; its schema conformance
+    # follows from being identical to the already-validated source).
     if not MIRROR.exists():
         problems.append(f"{rel(MIRROR)} is missing; run --sync")
     elif MIRROR.read_bytes() != PROGRAM.read_bytes():
@@ -276,7 +394,11 @@ def main(argv: list[str]) -> int:
     args = parser.parse_args(argv)
     if args.sync:
         sync()
-    problems = check(load(PROGRAM))
+    try:
+        problems = check(load(PROGRAM))
+    except SchemaKeywordNotSupported as exc:
+        print(f"research program checker cannot validate the schema: {exc}", file=sys.stderr)
+        return 1
     if problems:
         print("research program drift:", file=sys.stderr)
         for p in problems:
