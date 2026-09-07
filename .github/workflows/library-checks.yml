@@ -96,3 +96,12 @@ jobs:
 
       - name: Semantic figure atlas covers every canonical figure (no drift from textbook.json)
         run: python3 skills/whitepaper-figure-system/scripts/check_atlas_coverage.py
+
+      - name: Figure register and triage are well-formed (enums, ids, chapters, fragment paths)
+        run: python3 scripts/harbor-research/check_figure_register.py
+
+      - name: FIGURE-AUDIT-DIGEST.md and FIGURE-AUDIT-FAILURES.md are a fresh render of figcheck/*.json
+        run: python3 scripts/harbor-research/render_figure_audit.py --check
+
+      - name: No unwaived (or expired-waiver) mechanical figure blocker
+        run: python3 scripts/harbor-research/check_figure_blockers.py --verbose
