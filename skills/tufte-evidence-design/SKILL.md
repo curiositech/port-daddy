@@ -107,8 +107,9 @@ table with a sparkline column; a small-multiples grid where each panel is itself
 - [ ] The idea, not just the name, is load-bearing in the sentence before you add a `\pdmarginfigure`.
 - [ ] At most one portrait per section (checked against `docs/harbor-research/exposition/MARGINALIA-PLACEMENT.md`).
 - [ ] The plate is cleared (no `.NOT-CLEARED.json` sidecar) before writing the macro call.
-- [ ] You are NOT calling `\pdgloss` — it does not exist yet in this repo. Use `\pd@marginhead{Term}` + body text (the
-      pattern behind `\keyidea`/`\pitfall`) for a short margin gloss today.
+- [ ] A defined term gets `\pdgloss{Term}{one-line definition}` at most once per chapter, at its first load-bearing
+      use, not `\pd@marginhead{Term}` by hand and not a repeat gloss for the same term (`scripts/margin_lint.py` checks
+      both).
 - [ ] A "wall of text" finding (no figure/table/session for 4+ pages) is fixed with `pdsession`/`pdexample`/a redrawn
       figure, not a margin portrait — those are different failure modes.
 
@@ -153,15 +154,15 @@ be plotted, or the correlation stays invisible even though the data was "shown."
 `examples/challenger-style-redesign.md`.
 **Detection**: A report argues "X causes Y" but the accompanying table/chart is sorted by date or by an ID, not by X.
 
-### Anti-Pattern: Reaching for `\pdgloss`
+### Anti-Pattern: Reaching for `\pdgloss` a second time in the same chapter
 
-**Novice**: "I'll add a `\pdgloss{term}{definition}` margin note for this jargon word, like `\pdmarginfigure`."
-**Expert**: `\pdgloss` is planned but not implemented in this repository (`docs/harbor-research/exposition/HANDOFF-TEXTBOOK.md`
-lists it as a to-do). The build will fail on an undefined command. Use `\pd@marginhead{Term}` followed by the
-definition text — the same primitive `\keyidea`/`\pitfall`/`\xrefbox` already use — until `\pdgloss` is actually added.
-**Timeline**: As of this pass (2026-09), `pdmarginfigure` exists in `figures/pd-pedagogy.tex`; `pdgloss` does not.
-Re-check `HANDOFF-TEXTBOOK.md` before relying on this note if significant time has passed.
-**Detection**: `grep -n 'pdgloss' figures/pd-pedagogy.tex` returns nothing — the macro isn't defined.
+**Novice**: "This term of art comes up three times in the chapter, so I'll `\pdgloss` it at each occurrence to make
+sure the reader always has the definition handy."
+**Expert**: `\pdgloss` is now implemented (`figures/pd-pedagogy.tex`), but it is a first-use device, not a recurring
+one — a margin note repeated at every mention crowds the column and stops meaning anything special the second time.
+Gloss the term once, at its first load-bearing use in the chapter; every later mention relies on the reader having
+read that one note, the same way a paper defines a term once and uses it freely afterward.
+**Detection**: `scripts/margin_lint.py` flags a term glossed more than once in one chapter.
 
 ## References
 

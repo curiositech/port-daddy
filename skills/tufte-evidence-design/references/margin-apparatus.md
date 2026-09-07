@@ -87,15 +87,26 @@ ways):
   outside the margin column (standalone chapters) it does nothing — **there is
   no fallback inline image**, so a standalone-chapter build simply loses the
   portrait, which is why `MARGINALIA-PLACEMENT.md` calls itself "Book only."
-- **`\pdgloss` does not exist yet.** `docs/harbor-research/exposition/HANDOFF-TEXTBOOK.md`
-  lists it as planned ("`pdmarginfigure` and `pdgloss` to be added to the
-  pedagogy twins"). Do not write `\pdgloss{...}` into a chapter and expect it to
-  compile. If a caller needs a short margin gloss/definition note today, the
-  working substitute already in the file is `\marginnote{...}` (from the
-  `marginnote` package, loaded at the top of `pd-pedagogy.tex`) for a bare note,
-  or `\pd@marginhead{Term}` pattern (see `\keyidea`, `\pitfall`, `\xrefbox` at
-  the bottom of the file) for a short labeled aside — both already degrade
-  correctly to a run-in form outside the margin column.
+- **`\pdgloss{Term}{one-line definition}` is now implemented** (read directly
+  this pass, added alongside `\pd@marginglyph` in the "Shared helpers"
+  section). It sets `Term` bold at its point of definition in the running
+  text — the Book's convention for a term of art — and carries the definition
+  itself as a margin note: in the Book, one combined `\marginnote` holding a
+  small-caps repeat of `Term` above the definition, at the same
+  `\marginfont` (`\footnotesize`) sidenote size every other margin note in
+  the file uses; outside the margin column (a standalone chapter build) the
+  definition folds back into the sentence as an italic parenthetical, so no
+  content is lost either way. It deliberately does not call
+  `\pd@marginhead` and a separate `\marginnote` back to back — two
+  independent margin boxes issued at the same source line would risk
+  colliding, exactly what `\pdmarginfigure` avoids by building one combined
+  box for its image and caption — so `\pdgloss` reuses `\pd@marginhead`'s
+  small-caps head convention inline inside a single `\marginnote` call
+  instead. No box, no rule. Call it as `\pdgloss{Stigmergy}{coordination
+  through traces left in a shared environment rather than direct messages.}`
+  at the term's first, load-bearing use in a chapter; do not call it a second
+  time for the same term in the same chapter (see `scripts/margin_lint.py`,
+  which checks this).
 - **`\pd@marginhead{label}`** — the shared primitive behind `\keyidea`,
   `\pitfall`, `\scene`, `\xrefbox`: a small-caps label in the margin (Book) or a
   bold run-in head (standalone). This is the closest existing thing to a
@@ -121,7 +132,7 @@ ways):
 | Margin table | `margintable` env | not implemented |
 | Full width | `fullwidth` env / `figure*` | `\pdfullwidth` length + automatic TikZ promotion hook; `\pdsession` computes its own full width |
 | Measure | 26pc text / 12pc margin (~46%) | 4.5in text / 1.3in margin (~29%) |
-| Short gloss/definition | none built in | **planned, not implemented**: `\pdgloss` |
+| Short gloss/definition | none built in | `\pdgloss{Term}{one-line definition}` — bold term in text, definition in the margin (Book) or a parenthetical (standalone) |
 
 ## 3. Where each Book chapter should carry marginalia — reading the current state
 
@@ -155,12 +166,13 @@ placement. As of this pass:
   transcript or a redrawn figure), not a portrait. Don't reach for
   `\pdmarginfigure` to fix a "wall of text" finding; that's what `pdboundary`,
   `pdexample`, and `pdsession` are for.
-- **Where a gloss/definition margin note (once `\pdgloss` exists) would help
-  most**: chapters that introduce a term of art mid-paragraph and never define
-  it in the margin today — this is a real gap, not filled by any current macro,
-  and matches the planned-but-unbuilt state noted in `HANDOFF-TEXTBOOK.md`. Until
-  `\pdgloss` lands, use `\pd@marginhead{Term}` inline (see `\keyidea` for the
-  exact pattern) rather than inventing a new macro name.
+- **Where a gloss/definition margin note (`\pdgloss`, now implemented) would
+  help most**: chapters that introduce a term of art mid-paragraph and never
+  define it in the margin today — this is a real, still-open gap; `\pdgloss`
+  now exists to fill it, but adding a call to any given chapter is an
+  editorial decision for the lead, not a mechanical one, since it means
+  picking the term's one load-bearing first use the way `MARGINALIA-PLACEMENT.md`
+  picked each portrait's home.
 
 ## 4. Practical checklist for adding marginalia to a chapter
 
@@ -173,8 +185,10 @@ placement. As of this pass:
 4. Write the caption as one sentence that states why the idea matters *here*,
    not a biography — match the register of the existing captions in
    `MARGINALIA-PLACEMENT.md`.
-5. For a defined term rather than a person, do not invent `\pdgloss` — it isn't
-   built. Use `\pd@marginhead{Term}` + body text, matching `\keyidea`'s pattern.
+5. For a defined term rather than a person, use `\pdgloss{Term}{one-line
+   definition}` at the term's first, load-bearing use — not `\pd@marginhead{Term}`
+   by hand, and not a second `\pdgloss` for a term already glossed once in the
+   same chapter (`scripts/margin_lint.py` checks both).
 6. If the finding is "too much text, no visual" rather than "an uncredited
    idea," reach for `\pdsession`, `\pdexample`, or a redrawn figure — see
    `references/web-application.md` and `skills/harbor-chartwork`, not this file.
