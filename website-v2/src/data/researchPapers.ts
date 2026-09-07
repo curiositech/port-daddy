@@ -84,7 +84,7 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     claim:
       'Reading digests instead of transcripts has an exact bit-price, not a rule of thumb — and the floor survived a pre-registered attempt to break it.',
     pullQuote:
-      'log₂C(N,k) − log₂C(m,k) bits, minimum, to guarantee catching all k load-bearing artifacts among N while opening only m — 0/16 falsification attempts survived it, including an oracle encoder.',
+      'log₂C(N,k) − log₂C(m,k) bits, minimum, to guarantee catching all k critical artifacts among N while opening only m — 0/16 falsification attempts survived it, including an oracle encoder.',
     resultTags: ['R1', 'R2', 'R3', 'R4', 'R14', 'R16'],
     tone: 'primary',
     icon: Binary,

@@ -23,26 +23,25 @@ import {
   COLLECTED_VOLUME,
   LIBRARY_CHANGELOG,
   LIBRARY_SPINE,
-  TABLE_OF_CONTENTS,
   TEXTBOOK,
-  chapterRoleLabel,
   findWhitePaperById,
-  type WhitePaper,
 } from '@/data/whitePapers'
 import { harborEvolutionFigure } from '@/data/manifestoContent'
 import { ThemedImage } from '@/components/site/ThemedImage'
 import { RESEARCH_PAPERS, RESEARCH_PAPER_TOTAL_PAGES } from '@/data/researchPapers'
 
 /**
- * /library — the page about the manuscript. It says what the book argues,
- * which questions it asks and in what order, how the argument is held to
- * account by proofs and experiments, and where the seven conference-form
- * papers fit. It sells one download, the Book, and points at chapters rather
- * than at detached per-chapter files.
+ * /library — the page about the book. It sells one thing, the Book, shows
+ * its outline (four parts, eight chapters, one question each), says what it
+ * argues and how it is kept honest, lists the seven conference-form papers,
+ * and carries the library changelog. It never points at a chapter as a
+ * separate document: the chapters are listed, not linked, because the book
+ * is one PDF and that is what you download.
  *
- * Every piece of type on this page comes from the site primitives (eyebrow,
- * title, body, button); the page adds layout, never a font role of its own.
- * Every number comes from whitepaper/textbook.json and the registry.
+ * Art: the Book's own plates (cover, frontispiece, part plates, chapter
+ * washes under public/whitepaper/plates/) plus two pieces painted for this
+ * page in the same register (public/img/library/). Type comes from the site
+ * primitives only.
  */
 
 const REPO = 'https://github.com/curiositech/port-daddy'
@@ -53,15 +52,8 @@ function megabytes(sizeKb: number): string {
   return `${(sizeKb / 1024).toFixed(1)} MB`
 }
 
-const CROSS_REF_KINDS = [
-  { key: 'assumes', label: 'Assumes' },
-  { key: 'underwrites', label: 'Underwrites' },
-  { key: 'provedBy', label: 'Proved by' },
-  { key: 'proves', label: 'Proves' },
-] as const
-
-/** How the manuscript and the repository push on each other: one loop per card, with where to see it run. */
-const ACCOUNTABILITY_LOOPS: Array<{ title: string; body: React.ReactNode; href: string; hrefLabel: string }> = [
+/** The four loops between the manuscript and the repository, with where each one runs. */
+const HONESTY_LOOPS: Array<{ title: string; body: React.ReactNode; href: string; hrefLabel: string }> = [
   {
     title: 'Every proof the book cites runs on every pull request.',
     body: (
@@ -145,97 +137,25 @@ const LINEAGE: Array<[string, string]> = [
   ['Formal verification', 'Symbolic analysis and model checking: ProVerif and Tamarin (TLS 1.3, Signal), TLA⁺ (AWS; Newcombe et al., CACM 2015). The proving chapters use ProVerif, TLA⁺, Z3, and the Kani model checker.'],
 ]
 
-function chapterLabel(id: string): string {
-  const paper = findWhitePaperById(id)
-  return paper ? `${paper.chapter} · ${paper.title}` : id
+const PART_PLATE: Record<string, string> = {
+  machine: '/whitepaper/plates/part-I.jpg',
+  operator: '/whitepaper/plates/part-II.jpg',
+  person: '/whitepaper/plates/part-III.jpg',
+  market: '/whitepaper/plates/part-IV.jpg',
 }
 
-function chapterRecord(id: string) {
-  return TEXTBOOK.chapters.find((chapter) => chapter.id === id)
+function chapterPlate(prefix: string) {
+  return `/whitepaper/plates/chapter-${prefix}.jpg`
 }
 
-function CrossRefRow({ label, edges }: { label: string; edges: Array<{ id: string; why: string }> }) {
-  return (
-    <div className="grid gap-[var(--space-2)] border-t-2 border-[var(--border-default)] pt-[var(--space-3)] first:border-t-0 first:pt-0 sm:grid-cols-[minmax(7rem,auto),1fr] sm:gap-[var(--space-4)]">
-      <PanelEyebrow>{label}</PanelEyebrow>
-      <ul className="grid gap-[var(--space-2)]">
-        {edges.map((edge) => (
-          <li key={`${label}-${edge.id}`}>
-            <PanelBody as="span" size="compact" className="max-w-none">
-              <Link
-                to={`/whitepaper/${findWhitePaperById(edge.id)?.slug ?? ''}`}
-                className="text-[var(--text-primary)] underline underline-offset-4 hover:text-[var(--brand-primary)] hover:no-underline"
-              >
-                {chapterLabel(edge.id)}
-              </Link>
-              {' '}&mdash; {edge.why}
-            </PanelBody>
-          </li>
-        ))}
-      </ul>
-    </div>
-  )
-}
-
-function ChapterCard({ paper }: { paper: WhitePaper }) {
-  const record = chapterRecord(paper.id)
-  const refRows = CROSS_REF_KINDS.map((kind) => {
-    const edges = paper.crossRefs[kind.key]
-    if (!edges || edges.length === 0) return null
-    return <CrossRefRow key={kind.key} label={kind.label} edges={edges} />
-  }).filter(Boolean)
-
-  return (
-    <SurfacePanel className="grid gap-[var(--panel-gap)]" padding="default">
-      <article id={`chapter-${paper.id}`} className="grid gap-[var(--panel-gap)]">
-        <header className="grid grid-cols-[var(--space-7),1fr] gap-[var(--space-4)]">
-          <span aria-hidden="true">
-            <PanelTitle as="span" size="display">
-              {paper.chapter}
-            </PanelTitle>
-          </span>
-          <div className="min-w-0 space-y-[var(--space-2)]">
-            <div className="flex flex-wrap items-center gap-[var(--space-2)]">
-              <BracketLabel>{chapterRoleLabel(paper)}</BracketLabel>
-              <PanelEyebrow>{paper.layer}</PanelEyebrow>
-            </div>
-            <PanelTitle as="h3" size="card">
-              {paper.title}
-            </PanelTitle>
-            {record ? (
-              <PanelBody size="compact" className="max-w-none italic text-[var(--text-primary)]">
-                {record.question}
-              </PanelBody>
-            ) : null}
-          </div>
-        </header>
-
-        <PanelBody className="max-w-none">{paper.claim}</PanelBody>
-
-        <div className="space-y-[var(--space-1)]">
-          <PanelEyebrow>Maturity, in the book&rsquo;s own grade</PanelEyebrow>
-          <PanelBody size="compact" className="max-w-none">
-            {paper.maturity}
-          </PanelBody>
-        </div>
-
-        {refRows.length > 0 ? (
-          <SurfacePanel elevation="quiet" padding="compact" className="grid gap-[var(--space-3)]">
-            {refRows}
-          </SurfacePanel>
-        ) : null}
-
-        <div>
-          <Button asChild variant="primary" size="md">
-            <Link to={paper.readerHref}>
-              Read the chapter
-              <ArrowRight aria-hidden="true" size={14} />
-            </Link>
-          </Button>
-        </div>
-      </article>
-    </SurfacePanel>
-  )
+function roleLine(chapterId: string): string | null {
+  const record = TEXTBOOK.chapters.find((chapter) => chapter.id === chapterId)
+  if (!record) return null
+  if (record.role === 'proves' && record.discharges) {
+    const target = TEXTBOOK.chapters.find((chapter) => chapter.id === record.discharges)
+    return target ? `proves chapter ${target.number}` : 'proves'
+  }
+  return 'builds'
 }
 
 export default function LibraryPage() {
@@ -255,7 +175,7 @@ export default function LibraryPage() {
           <div className="grid gap-[var(--space-7)] lg:grid-cols-12 lg:items-start">
             <div className="space-y-[var(--space-6)] lg:col-span-7">
               <SectionIntro
-                eyebrow="The Harbor Library"
+                eyebrow="The whitepaper"
                 titleAs="h1"
                 titleSize="hero"
                 titleClassName="max-w-[15ch]"
@@ -266,7 +186,7 @@ export default function LibraryPage() {
                     agents on the repo &mdash; two of them edited the same file (the second
                     erased the first), and a third made the tests pass by deleting them.
                     Nothing inside any one of those agents caused that. The failure lives
-                    <em>between</em> them, in the place where nobody was keeping the record,
+                    <em> between</em> them, in the place where nobody was keeping the record,
                     and this book is the long argument for keeping it &mdash; and for what
                     becomes possible once you do.
                   </>
@@ -283,20 +203,20 @@ export default function LibraryPage() {
               <LandingStatsStrip
                 stats={[
                   { value: String(partCount), label: 'parts', tone: 'paper' },
-                  { value: String(chapterCount), label: 'chapters, in dependency order', tone: 'paper' },
+                  { value: String(chapterCount), label: 'chapters, in the order the argument needs', tone: 'paper' },
                   { value: String(COLLECTED_VOLUME.pages), label: `pages, ${TEXTBOOK.edition.version}`, tone: 'paper' },
                 ]}
               />
 
               <div className="flex flex-wrap gap-[var(--space-3)]">
                 <Button asChild variant="primary" size="lg">
-                  <a href="#the-questions">
-                    Start with the questions
+                  <a href="#outline">
+                    The outline
                     <ArrowRight aria-hidden="true" size={14} />
                   </a>
                 </Button>
                 <Button asChild variant="secondary" size="lg">
-                  <a href="#the-loop">How it is held to account</a>
+                  <a href="#kept-honest">How the book is kept honest</a>
                 </Button>
               </div>
             </div>
@@ -361,38 +281,69 @@ export default function LibraryPage() {
           </div>
         </LandingSection>
 
-        {/* ── The eight questions, in the order they have to be asked ── */}
+        {/* ── The outline: four parts, eight chapters, one question each ── */}
         <LandingSection>
-          <div id="the-questions" className="scroll-mt-[var(--space-8)] space-y-[var(--space-6)]">
+          <div id="outline" className="scroll-mt-[var(--space-8)] space-y-[var(--space-7)]">
             <LandingSectionIntro
-              eyebrow="The questions"
-              title="Eight questions, in the order they have to be asked."
-              description="Every chapter opens on a single question and won't do anything else until it has answered it. The order isn't editorial; it's structural &mdash; each chapter stands on the ones before it, and each proving chapter sits right after the chapter whose promises it has to keep. If you only read the eight questions, you'll still have the shape of the argument."
+              eyebrow="The outline"
+              title="Four parts, eight chapters, one question each."
+              description="Every chapter opens on a single question and won't do anything else until it has answered it. The order isn't editorial; it's structural — each chapter stands on the ones before it, and each proving chapter sits right after the chapter whose promises it has to keep. Read the eight questions on their own and you'll have the shape of the argument."
             />
-            <ol className="grid gap-[var(--space-4)] sm:grid-cols-2 lg:grid-cols-4">
-              {TEXTBOOK.chapters.map((chapter) => (
-                <li key={chapter.id} className="min-w-0">
-                  <SurfacePanel className="flex h-full flex-col gap-[var(--space-3)]" padding="compact">
-                    <span aria-hidden="true">
-                      <PanelTitle as="span" size="display">
-                        {chapter.number}
-                      </PanelTitle>
-                    </span>
-                    <PanelTitle as="p" size="nav">
-                      {chapter.question}
+
+            <ol className="grid gap-[var(--space-7)]">
+              {TEXTBOOK.parts.map((part) => (
+                <li key={part.id} className="grid gap-[var(--space-5)] border-t-2 border-[var(--border-strong)] pt-[var(--space-6)] lg:grid-cols-12">
+                  <div className="lg:col-span-4">
+                    <img
+                      src={PART_PLATE[part.id]}
+                      alt={`Part ${part.numeral} plate: ${part.title}`}
+                      className="mb-[var(--space-4)] block aspect-[7/10] w-full max-w-[22rem] border-2 border-[var(--border-strong)] object-cover"
+                      loading="lazy"
+                    />
+                    <PanelEyebrow>Part {part.numeral}</PanelEyebrow>
+                    <PanelTitle as="h3" size="section" className="mt-[var(--space-1)]">
+                      {part.title}
                     </PanelTitle>
-                    <PanelBody size="compact" className="max-w-none">
-                      {chapter.oneLine}
+                    <PanelBody size="compact" className="mt-[var(--space-2)] max-w-none">
+                      {part.blurb}
                     </PanelBody>
-                    <div className="mt-auto">
-                      <Button asChild variant="ghost" size="sm" className="whitespace-normal text-left">
-                        <Link to={findWhitePaperById(chapter.id)?.readerHref ?? '/library'}>
-                          {chapter.title}
-                          <ArrowRight aria-hidden="true" size={14} />
-                        </Link>
-                      </Button>
-                    </div>
-                  </SurfacePanel>
+                  </div>
+                  <ol className="grid gap-[var(--space-4)] lg:col-span-8">
+                    {part.chapters.map((chapterId) => {
+                      const chapter = TEXTBOOK.chapters.find((candidate) => candidate.id === chapterId)
+                      if (!chapter) return null
+                      const role = roleLine(chapter.id)
+                      return (
+                        <li
+                          key={chapter.id}
+                          className="grid grid-cols-[minmax(4.5rem,7rem),1fr] gap-[var(--space-4)] border-t-2 border-[var(--border-default)] pt-[var(--space-4)] first:border-t-0 first:pt-0"
+                        >
+                          <img
+                            src={chapterPlate(chapter.prefix)}
+                            alt=""
+                            aria-hidden="true"
+                            className="block aspect-[3/4] w-full border-2 border-[var(--border-default)] object-cover"
+                            loading="lazy"
+                          />
+                          <div className="min-w-0 space-y-[var(--space-1)]">
+                            <div className="flex flex-wrap items-center gap-[var(--space-2)]">
+                              <PanelEyebrow>Chapter {chapter.number}</PanelEyebrow>
+                              {role ? <BracketLabel>{role}</BracketLabel> : null}
+                            </div>
+                            <PanelTitle as="h4" size="card">
+                              {chapter.title}
+                            </PanelTitle>
+                            <PanelBody size="compact" className="max-w-none italic text-[var(--text-primary)]">
+                              {chapter.question}
+                            </PanelBody>
+                            <PanelBody size="compact" className="max-w-none">
+                              {chapter.oneLine}
+                            </PanelBody>
+                          </div>
+                        </li>
+                      )
+                    })}
+                  </ol>
                 </li>
               ))}
             </ol>
@@ -401,39 +352,24 @@ export default function LibraryPage() {
 
         {/* ── What the manuscript argues ── */}
         <LandingSection>
-          <div className="space-y-[var(--space-6)]">
-            <LandingSectionIntro
-              eyebrow="What it argues"
-              title="From the machine, up to the market."
-              description="One sentence holds the whole book together (it's below). Pull any link out of it and everything above that link comes down, which is why the harbor has to come before the economy, and why the foundation turns out to be memory rather than cryptography &mdash; a surprise the first time you see it, and obvious afterward."
-            />
-            <SurfacePanel elevation="quiet" className="space-y-[var(--space-2)]">
-              <PanelEyebrow>The spine</PanelEyebrow>
-              <PanelTitle as="p" size="card">
-                {LIBRARY_SPINE}
-              </PanelTitle>
-            </SurfacePanel>
-
-            <div className="grid gap-[var(--space-4)] sm:grid-cols-2 lg:grid-cols-4">
-              {TEXTBOOK.parts.map((part) => (
-                <SurfacePanel key={part.id} padding="compact" className="space-y-[var(--space-2)]">
-                  <PanelEyebrow>Part {part.numeral}</PanelEyebrow>
-                  <PanelTitle as="h3" size="nav">
-                    {part.title}
-                  </PanelTitle>
-                  <PanelBody size="compact" className="max-w-none">
-                    {part.blurb}
-                  </PanelBody>
-                </SurfacePanel>
-              ))}
-            </div>
-
-            <div className="grid gap-[var(--space-4)] lg:grid-cols-2">
-              <SurfacePanel className="space-y-[var(--space-3)]">
+          <div className="grid gap-[var(--space-7)] lg:grid-cols-12 lg:items-start">
+            <div className="space-y-[var(--space-6)] lg:col-span-7">
+              <LandingSectionIntro
+                eyebrow="What it argues"
+                title="From the machine, up to the market."
+                description="One sentence holds the whole book together (it's just below). Pull any link out of it and everything above that link comes down, which is why the harbor has to come before the economy, and why the foundation turns out to be memory rather than cryptography — a surprise the first time you see it, and obvious afterward."
+              />
+              <SurfacePanel elevation="quiet" className="space-y-[var(--space-2)]">
+                <PanelEyebrow>The spine</PanelEyebrow>
+                <PanelTitle as="p" size="card">
+                  {LIBRARY_SPINE}
+                </PanelTitle>
+              </SurfacePanel>
+              <div className="space-y-[var(--space-2)]">
                 <PanelEyebrow>How every claim is labelled</PanelEyebrow>
                 <PanelBody className="max-w-none">
                   Every important sentence in the book wears one of four labels, and they
-                  don't get promoted into one another. A <strong>theorem</strong> follows
+                  don&rsquo;t get promoted into one another. A <strong>theorem</strong> follows
                   from a stated model; a <strong>design invariant</strong> is something the
                   system is built to keep, backed by code and tests rather than a proof; a{' '}
                   <strong>model-checked property</strong> holds for a bounded model that a
@@ -443,8 +379,8 @@ export default function LibraryPage() {
                   Brokered, Confined, or Attested, in increasing order of how much the harbor
                   itself enforces &mdash; so you can always tell a promise from a property.
                 </PanelBody>
-              </SurfacePanel>
-              <SurfacePanel className="space-y-[var(--space-3)]">
+              </div>
+              <div className="space-y-[var(--space-2)]">
                 <PanelEyebrow>What page one admits</PanelEyebrow>
                 <PanelBody className="max-w-none">
                   The book is ahead of the product and says so on its first page rather
@@ -460,67 +396,89 @@ export default function LibraryPage() {
                   the book wants an enforcement point <em>below</em> the agent, and it
                   doesn&rsquo;t pretend a hook is one.
                 </PanelBody>
-              </SurfacePanel>
+              </div>
             </div>
-
-            <SurfacePanel padding="compact" className="p-0">
-              <figure>
-                <ThemedImage
-                  src={harborEvolutionFigure.src}
-                  alt={harborEvolutionFigure.alt}
-                  className="block w-full border-b-2 border-[var(--border-strong)] object-cover"
-                  loading="lazy"
-                />
-                <div className="grid gap-px border-b-2 border-[var(--border-strong)] bg-[var(--border-strong)] sm:grid-cols-3">
-                  {harborEvolutionFigure.stages.map((stage) => (
-                    <div key={stage.numeral} className="space-y-[var(--space-2)] bg-[var(--surface-base)] p-[var(--space-4)]">
-                      <PanelTitle as="p" size="card">
-                        {stage.numeral}
-                      </PanelTitle>
-                      <PanelBody size="compact" className="max-w-none">
-                        {stage.label}
-                      </PanelBody>
-                    </div>
-                  ))}
-                </div>
-                <figcaption className="p-[var(--space-4)]">
-                  <PanelBody size="compact" className="max-w-none">
-                    {harborEvolutionFigure.caption}
-                  </PanelBody>
-                </figcaption>
-              </figure>
-            </SurfacePanel>
+            <figure className="lg:col-span-5">
+              <img
+                src="/whitepaper/plates/frontispiece.jpg"
+                alt="The book’s frontispiece etching."
+                className="block w-full border-2 border-[var(--border-strong)] object-cover"
+                loading="lazy"
+              />
+              <figcaption className="mt-[var(--space-2)]">
+                <PanelBody size="compact" className="max-w-none">
+                  The frontispiece. The book&rsquo;s plates were painted in one register: one
+                  colossal, unearthly presence over one small, everyday thing.
+                </PanelBody>
+              </figcaption>
+            </figure>
           </div>
+          <SurfacePanel padding="compact" className="mt-[var(--space-7)] p-0">
+            <figure>
+              <ThemedImage
+                src={harborEvolutionFigure.src}
+                alt={harborEvolutionFigure.alt}
+                className="block w-full border-b-2 border-[var(--border-strong)] object-cover"
+                loading="lazy"
+              />
+              <div className="grid gap-px border-b-2 border-[var(--border-strong)] bg-[var(--border-strong)] sm:grid-cols-3">
+                {harborEvolutionFigure.stages.map((stage) => (
+                  <div key={stage.numeral} className="space-y-[var(--space-2)] bg-[var(--surface-base)] p-[var(--space-4)]">
+                    <PanelTitle as="p" size="card">
+                      {stage.numeral}
+                    </PanelTitle>
+                    <PanelBody size="compact" className="max-w-none">
+                      {stage.label}
+                    </PanelBody>
+                  </div>
+                ))}
+              </div>
+              <figcaption className="p-[var(--space-4)]">
+                <PanelBody size="compact" className="max-w-none">
+                  {harborEvolutionFigure.caption}
+                </PanelBody>
+              </figcaption>
+            </figure>
+          </SurfacePanel>
         </LandingSection>
 
-        {/* ── The loop: how the book and the code push on each other ── */}
+        {/* ── How the book is kept honest ── */}
         <LandingSection>
-          <div id="the-loop" className="scroll-mt-[var(--space-8)] space-y-[var(--space-6)]">
-            <LandingSectionIntro
-              eyebrow="Held to account"
-              title="The book and the code push on each other."
-              description="A manuscript about accountable work had better be accountable itself, so four loops run between these chapters and the repository, and you can watch each of them turn. Whatever a chapter proves, CI re-checks on every pull request. Whatever a chapter measures, a script regenerates from a fixed seed. Whatever a chapter can't settle from its own results gets written up as an experiment (hypotheses first, code second). And whatever the product learns from running comes back around as the next revision of the text."
+          <div id="kept-honest" className="scroll-mt-[var(--space-8)] space-y-[var(--space-6)]">
+            <img
+              src="/img/library/library-honest.jpg"
+              alt="A lighthouse keeper’s logbook open on a scarred table beside a small brass balance weighing a feather against a pebble; through the window an immense pale planet fills the sky. Faded watercolour."
+              className="block aspect-[16/9] w-full border-2 border-[var(--border-strong)] object-cover"
+              loading="lazy"
             />
-            <ol className="grid gap-[var(--space-4)] lg:grid-cols-2">
-              {ACCOUNTABILITY_LOOPS.map((loop, index) => (
-                <li key={loop.title} className="min-w-0">
-                  <SurfacePanel className="flex h-full flex-col gap-[var(--space-3)]">
+            <LandingSectionIntro
+              eyebrow="How the book is kept honest"
+              title="The book and the code push on each other."
+              description="A manuscript about accountable work had better be honest about itself, so four loops run between these chapters and the repository, and you can watch each of them turn. Whatever a chapter proves, CI re-checks on every pull request. Whatever a chapter measures, a script regenerates from a fixed seed. Whatever a chapter can't settle from its own results gets written up as an experiment (hypotheses first, code second). And whatever the product learns from running comes back around as the next revision of the text."
+            />
+            <ol className="grid gap-[var(--space-5)]">
+              {HONESTY_LOOPS.map((loop, index) => (
+                <li
+                  key={loop.title}
+                  className="grid gap-[var(--space-3)] border-t-2 border-[var(--border-default)] pt-[var(--space-4)] lg:grid-cols-12"
+                >
+                  <div className="lg:col-span-4">
                     <PanelEyebrow>{String(index + 1).padStart(2, '0')}</PanelEyebrow>
-                    <PanelTitle as="h3" size="nav">
+                    <PanelTitle as="h3" size="nav" className="mt-[var(--space-1)]">
                       {loop.title}
                     </PanelTitle>
+                  </div>
+                  <div className="space-y-[var(--space-3)] lg:col-span-8">
                     <PanelBody size="compact" className="max-w-none">
                       {loop.body}
                     </PanelBody>
-                    <div className="mt-auto">
-                      <Button asChild variant="ghost" size="sm" className="whitespace-normal text-left">
-                        <a href={loop.href}>
-                          {loop.hrefLabel}
-                          <ArrowUpRight aria-hidden="true" size={14} />
-                        </a>
-                      </Button>
-                    </div>
-                  </SurfacePanel>
+                    <Button asChild variant="ghost" size="sm" className="whitespace-normal text-left">
+                      <a href={loop.href}>
+                        {loop.hrefLabel}
+                        <ArrowUpRight aria-hidden="true" size={14} />
+                      </a>
+                    </Button>
+                  </div>
                 </li>
               ))}
             </ol>
@@ -566,35 +524,36 @@ export default function LibraryPage() {
                 </>
               }
             />
-            <ol className="grid gap-[var(--space-4)] sm:grid-cols-2 lg:grid-cols-3">
+            <ol className="grid gap-[var(--space-3)]">
               {RESEARCH_PAPERS.map((paper) => {
                 const home = findWhitePaperById(paper.chapterRef)
                 return (
-                  <li key={paper.id} className="min-w-0">
-                    <SurfacePanel className="flex h-full flex-col gap-[var(--space-3)]" padding="compact">
-                      <PanelEyebrow>Paper {paper.number} · {paper.subtitle}</PanelEyebrow>
+                  <li
+                    key={paper.id}
+                    className="grid gap-[var(--space-3)] border-t-2 border-[var(--border-default)] pt-[var(--space-3)] sm:grid-cols-[minmax(3rem,4rem),1fr,auto] sm:gap-[var(--space-4)]"
+                  >
+                    <span aria-hidden="true">
+                      <PanelTitle as="span" size="card">
+                        {paper.number}
+                      </PanelTitle>
+                    </span>
+                    <div className="min-w-0 space-y-[var(--space-1)]">
                       <PanelTitle as="h3" size="nav">
                         {paper.title}
                       </PanelTitle>
+                      <PanelEyebrow>{paper.subtitle}</PanelEyebrow>
                       <PanelBody size="compact" className="max-w-none">
                         {paper.claim}
+                        {home ? ` Folded into chapter ${home.chapter}, ${home.title}.` : ''}
                       </PanelBody>
-                      {home ? (
-                        <PanelBody size="compact" className="max-w-none">
-                          Folded into chapter {home.chapter}, {home.title}: {paper.chapterWhy}.
-                        </PanelBody>
-                      ) : null}
-                      <div className="mt-auto flex flex-wrap gap-[var(--space-2)]">
-                        <Button asChild variant="secondary" size="sm">
-                          <Link to={`/research#paper-${paper.number}`}>About the paper</Link>
-                        </Button>
-                        <Button asChild variant="ghost" size="sm" className="whitespace-normal text-left">
-                          <a href={paper.pdfPath}>
-                            PDF · {paper.pages} pp · {megabytes(paper.sizeKb)}
-                          </a>
-                        </Button>
-                      </div>
-                    </SurfacePanel>
+                    </div>
+                    <div className="flex items-start">
+                      <Button asChild variant="ghost" size="sm" className="whitespace-normal text-left">
+                        <a href={paper.pdfPath}>
+                          PDF · {paper.pages} pp · {megabytes(paper.sizeKb)}
+                        </a>
+                      </Button>
+                    </div>
                   </li>
                 )
               })}
@@ -607,27 +566,6 @@ export default function LibraryPage() {
                 </Link>
               </Button>
             </div>
-          </div>
-        </LandingSection>
-
-        {/* ── The chapters, part by part, in the order the argument needs ── */}
-        <LandingSection>
-          <div id="the-chapters" className="scroll-mt-[var(--space-8)] space-y-[var(--space-7)]">
-            <LandingSectionIntro
-              eyebrow="The chapters"
-              title="Each card says what it stands on."
-              description="Every chapter names what it assumes from the chapters below it, what it underwrites above, and which chapter is responsible for proving it. The maturity line on each card is the book grading its own work &mdash; built, built weakly, designed, or still a research direction &mdash; and it is deliberately unflattering where it should be."
-            />
-            {TABLE_OF_CONTENTS.map((part) => (
-              <div key={part.id} className="space-y-[var(--space-5)]">
-                <SectionIntro eyebrow={`Part ${part.numeral}`} title={part.title} description={part.blurb} titleSize="section" />
-                <div className="grid gap-[var(--space-5)] lg:grid-cols-2">
-                  {part.papers.map((paper) => (
-                    <ChapterCard key={paper.id} paper={paper} />
-                  ))}
-                </div>
-              </div>
-            ))}
           </div>
         </LandingSection>
 
@@ -648,12 +586,18 @@ export default function LibraryPage() {
 
         {/* ── Install ── */}
         <LandingSection>
+          <img
+            src="/img/library/library-harbor.jpg"
+            alt="A small fishing boat entering a harbour mouth between two tiny lights at dusk; above the clouds, the faint colossal hull of something far larger passes over. Faded watercolour."
+            className="mb-[var(--space-6)] block aspect-[21/9] w-full border-2 border-[var(--border-strong)] object-cover"
+            loading="lazy"
+          />
           <div className="grid gap-[var(--space-6)] lg:grid-cols-12 lg:items-center">
             <div className="lg:col-span-7">
               <LandingSectionIntro
                 eyebrow="Working software and the finished argument"
                 title="You need none of the theory for the first benefit."
-                description="The harbor runs now; the economy is the thing it was always for. One command and two agents that used to collide start taking turns &mdash; that's the whole first benefit, and it needs none of the theory. The book is for the evening you want to know why that was the right first move, and what has to come after it."
+                description="The harbor runs now; the economy is the thing it was always for. One command and two agents that used to collide start taking turns — that's the whole first benefit, and it needs none of the theory. The book is for the evening you want to know why that was the right first move, and what has to come after it."
               />
             </div>
             <SurfacePanel className="space-y-[var(--space-3)] lg:col-span-5">
@@ -692,28 +636,26 @@ export default function LibraryPage() {
                 }
               />
             </div>
-            <div className="grid gap-[var(--space-4)] lg:col-span-8">
+            <ol className="grid gap-[var(--space-4)] lg:col-span-8">
               {LIBRARY_CHANGELOG.map((entry) => (
-                <SurfacePanel key={`${entry.date}-${entry.title}`} className="grid gap-[var(--space-3)]">
-                  <article className="grid gap-[var(--space-3)]">
-                    <div className="flex flex-wrap items-baseline justify-between gap-[var(--space-2)]">
-                      <PanelEyebrow>
-                        <time dateTime={entry.dateIso}>{entry.date}</time>
-                      </PanelEyebrow>
-                      <PanelEyebrow>
-                        Chapters {entry.chapters.map((id) => findWhitePaperById(id)?.chapter ?? id).join(' · ')}
-                      </PanelEyebrow>
-                    </div>
-                    <PanelTitle as="h3" size="nav">
-                      {entry.title}
-                    </PanelTitle>
-                    <PanelBody size="compact" className="max-w-none">
-                      {entry.summary}
-                    </PanelBody>
-                  </article>
-                </SurfacePanel>
+                <li key={`${entry.date}-${entry.title}`} className="grid gap-[var(--space-2)] border-t-2 border-[var(--border-default)] pt-[var(--space-4)]">
+                  <div className="flex flex-wrap items-baseline justify-between gap-[var(--space-2)]">
+                    <PanelEyebrow>
+                      <time dateTime={entry.dateIso}>{entry.date}</time>
+                    </PanelEyebrow>
+                    <PanelEyebrow>
+                      Chapters {entry.chapters.map((id) => findWhitePaperById(id)?.chapter ?? id).join(' · ')}
+                    </PanelEyebrow>
+                  </div>
+                  <PanelTitle as="h3" size="nav">
+                    {entry.title}
+                  </PanelTitle>
+                  <PanelBody size="compact" className="max-w-none">
+                    {entry.summary}
+                  </PanelBody>
+                </li>
               ))}
-            </div>
+            </ol>
           </div>
         </LandingSection>
 

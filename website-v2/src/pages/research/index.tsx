@@ -44,17 +44,11 @@ function chapterTitle(number: number) {
   return TEXTBOOK.chapters.find((chapter) => chapter.number === number)?.title ?? `Chapter ${number}`
 }
 
-function chapterHref(number: number) {
-  const chapter = TEXTBOOK.chapters.find((c) => c.number === number)
-  const paper = chapter ? findWhitePaperById(chapter.id) : undefined
-  return paper?.readerHref ?? '/library'
-}
-
 function ChapterLink({ number }: { number: number }) {
   return (
-    <Link to={chapterHref(number)} className="underline underline-offset-4 hover:no-underline">
+    <span className="text-[var(--text-primary)]">
       {number} · {chapterTitle(number)}
-    </Link>
+    </span>
   )
 }
 
@@ -108,10 +102,7 @@ function PaperCard({ paper }: { paper: ResearchPaper }) {
         <div className="space-y-[var(--space-1)] border-t-2 border-[var(--border-default)] pt-[var(--space-3)]">
           <PanelEyebrow>Folded into the book</PanelEyebrow>
           <PanelBody size="compact" className="max-w-none">
-            <Link to={chapter.readerHref} className="text-[var(--text-primary)] underline underline-offset-4 hover:no-underline">
-              Chapter {chapter.chapter} · {chapter.title}
-            </Link>
-            . It {paper.chapterWhy}.
+            Chapter {chapter.chapter}, {chapter.title}. It {paper.chapterWhy}.
           </PanelBody>
         </div>
       ) : null}
@@ -145,14 +136,6 @@ function PaperCard({ paper }: { paper: ResearchPaper }) {
             PDF · {paper.pages} pp · {megabytes(paper.sizeKb)}
           </a>
         </Button>
-        {chapter ? (
-          <Button asChild variant="ghost" size="sm" className={LINK_BUTTON}>
-            <Link to={chapter.readerHref}>
-              Read chapter {chapter.chapter}
-              <ArrowRight aria-hidden="true" size={14} />
-            </Link>
-          </Button>
-        ) : null}
       </div>
     </SurfacePanel>
   )
@@ -177,6 +160,12 @@ export default function ResearchProgramPage() {
       <main id="main-content">
         {/* ── Hero ── */}
         <LandingSection>
+          <img
+            src="/img/library/research-hero.jpg"
+            alt="A faded watercolour: an enormous pale astrolabe dissolving into fog above a small writing desk on a quay, an open ledger and a lamp on the desk."
+            className="mb-[var(--space-6)] block aspect-[16/9] w-full border-2 border-[var(--border-strong)] object-cover"
+            loading="eager"
+          />
           <div className="grid gap-[var(--space-7)] lg:grid-cols-[minmax(0,1.1fr)_minmax(18rem,0.7fr)] lg:items-start">
             <div className="space-y-[var(--space-5)]">
               <SectionIntro
@@ -347,6 +336,12 @@ export default function ResearchProgramPage() {
               title="Seven papers, one result each, written for a program committee."
               description="Each is a standalone pre-print in the shape a program committee expects, and each card names the results it discharges, quotes the headline theorem verbatim, and points at the chapter of the book that folds it in. None of them depends on reading the others first."
             />
+            <img
+              src="/img/library/research-papers.jpg"
+              alt="Seven small folded-paper boats in a loose line on still grey water, a vast faint moon behind them; faded watercolour."
+              className="block aspect-[16/9] w-full border-2 border-[var(--border-strong)] object-cover"
+              loading="lazy"
+            />
             <ol className="grid gap-[var(--space-5)] lg:grid-cols-2">
               {RESEARCH_PAPERS.map((paper) => (
                 <li key={paper.id} className="min-w-0">
@@ -440,6 +435,12 @@ export default function ResearchProgramPage() {
               title="One manifest, every proof, and only two states it can be in"
               description="A mechanized artifact is either wired into CI or marked retired with the reason, and a retired model can't be cited as evidence anywhere in the book. We used to have a third state (a proof that existed on disk and that everyone assumed still ran), and it's the reason this manifest exists. The book's appendix of mechanized claims is generated from it."
             />
+            <img
+              src="/img/library/research-estate.jpg"
+              alt="A colossal brass padlock dissolving into cloud above a tiny key on a wooden table at the water\u2019s edge; faded watercolour."
+              className="block aspect-[16/9] w-full border-2 border-[var(--border-strong)] object-cover"
+              loading="lazy"
+            />
             <div className="grid gap-[var(--space-5)] lg:grid-cols-[minmax(0,0.5fr)_minmax(0,0.5fr)]">
               <SurfacePanel className="space-y-[var(--space-4)]">
                 <PanelEyebrow>By tool</PanelEyebrow>
@@ -509,6 +510,12 @@ export default function ResearchProgramPage() {
               eyebrow="Under way"
               title="What the book couldn't settle, it's now measuring"
               description="A study starts as a question the book's own results can't answer, and it becomes a protocol before it becomes code: hypotheses, metrics, a kill criterion, and a rule for what the book does with each possible outcome (including the embarrassing one)."
+            />
+            <img
+              src="/img/library/research-studies.jpg"
+              alt="One small rowboat holding a measuring pole upright in a vast pale harbour, ripples spreading, an immense faint shape beneath the water; faded watercolour."
+              className="block aspect-[16/9] w-full border-2 border-[var(--border-strong)] object-cover"
+              loading="lazy"
             />
             {studies.map((study) => (
               <SurfacePanel key={study.id} className="space-y-[var(--space-5)]">
@@ -631,6 +638,12 @@ export default function ResearchProgramPage() {
               title="What the book names as its own next work"
               description="Each of these is a specific silence that a product decision ran into, or a boundary a theorem draws around itself, with a link to the document that named it and the chapter that owes it. A problem leaves this list when a section, a proof, or a study closes it, and not before."
             />
+            <img
+              src="/img/library/research-open.jpg"
+              alt="An unfinished sea chart on a desk with a pencil across it, most of the sheet blank, a colossal unpainted coastline suggested above; faded watercolour."
+              className="block aspect-[16/9] w-full border-2 border-[var(--border-strong)] object-cover"
+              loading="lazy"
+            />
             <ol className="grid gap-[var(--space-4)] lg:grid-cols-2">
               {openProblems.map((problem, index) => (
                 <li key={problem.id} className="min-w-0">
@@ -645,18 +658,13 @@ export default function ResearchProgramPage() {
                     <PanelBody size="compact" className="max-w-none">
                       {problem.statement}
                     </PanelBody>
-                    <div className="mt-auto flex flex-wrap gap-[var(--space-2)]">
+                    <div className="mt-auto">
                       <Button asChild variant="ghost" size="sm" className={LINK_BUTTON}>
                         <a href={blob(problem.source)}>
                           Where it is named
                           <ArrowUpRight aria-hidden="true" size={14} />
                         </a>
                       </Button>
-                      {problem.chapters.map((chapter) => (
-                        <Button key={chapter} asChild variant="ghost" size="sm" className={LINK_BUTTON}>
-                          <Link to={chapterHref(chapter)}>Chapter {chapter}</Link>
-                        </Button>
-                      ))}
                     </div>
                   </SurfacePanel>
                 </li>
@@ -672,6 +680,12 @@ export default function ResearchProgramPage() {
               eyebrow="Wrong turns, kept"
               title="The experiments that gave the wrong answer stay in the repository"
               description="Each one sits next to its corrected version with the lesson it taught, on the theory that the next person about to make the same mistake should find it already made, annotated, and a little embarrassing."
+            />
+            <img
+              src="/img/library/research-wrong-turns.jpg"
+              alt="A single tilted channel buoy adrift with faint circles of old wake, a great pale wave frozen above it; faded watercolour."
+              className="block aspect-[16/9] w-full border-2 border-[var(--border-strong)] object-cover"
+              loading="lazy"
             />
             <ol className="grid gap-[var(--space-3)]">
               {wrongTurns.map((turn) => (
