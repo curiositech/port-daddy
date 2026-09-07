@@ -1,124 +1,43 @@
-% Swiss edition plates: constructive abstractions drawn to the brief in
-% docs/harbor-research/exposition/SWISS-BRIEF.md (§C cover A, §D plates).
-% Every plate is a field of 24 units across (16 deep for parts, 12 for
-% chapters); every edge is horizontal, vertical or 45 degrees; fills are flat;
-% the number series that generates each drawing is stated in its comment.
-% Colours: the Swiss inks defined in the preamble's edition block
-% (pdswissblue, pdswissviolet, pdswissred) and the part hues; tints are the
-% part ink screened at 62 and 38 per cent on the paper.
-% \pdswissplate{<name>}{<width>} draws on paper; \pdswisspartplate{<numeral>}{<width>}
-% draws the part plate inverted onto the part's own ink (paper and ink elements
-% on a coloured ground, so it sits on the solid part page).
+% Swiss edition plates: painted Nano Banana Pro renders in a Swiss-modern
+% register (flat colour blocking, hard edges, no gradients, no outlines, no
+% type), replacing the earlier TikZ-drawn plates. Art direction is
+% docs/harbor-research/exposition/SWISS-BRIEF.md; the thirteen renders, their
+% prompts, and their post-processing are recorded in
+% website-v2/public/whitepaper/plates/swiss/PROVENANCE.json. The cover render
+% was generated first and then attached as the STYLE TEMPLATE reference to
+% every other plate so the thirteen hold together as one set.
+%
+% \pdswisscoverart draws nothing itself: it makes the cover render the page's
+% full-bleed background, leaving the reserved top-left paper for the type the
+% TeX sets over it (the cover's title sits at fixed overlay coordinates, so a
+% full-bleed image behind it is always safe). \pdswisspartplate{<numeral>}{<width>}
+% and \pdswissplate{<prefix>}{<width>}{<hue>} both stay real inline content
+% placed after the flowing title/blurb/question text, each at the given
+% width and the old TikZ drawing's own aspect (part: 3:2, 24x16 units;
+% chapter: 2:1, 24x12 units) — a full-bleed background for the part render
+% was tried and rejected: the part's blurb varies in length and collided
+% with it. If a render is ever missing, each macro falls back to the flat
+% ink it replaced.
 \makeatletter
-\newlength{\pd@su}
-\newcommand{\pd@setunit}[1]{\setlength{\pd@su}{\dimexpr#1/24\relax}}
-% tint helpers: #1 hue, #2 percent
-\newcommand{\pdtint}[2]{#1!#2!hhpaper}
-% ---- part plates, inverted: ground is the part ink, elements paper and ink -----
+\newcommand{\pdswisscoverart}{%
+  \IfFileExists{plates/swiss/cover.jpg}{%
+    \AddToShipoutPictureBG*{\AtPageLowerLeft{\includegraphics[width=\paperwidth,height=\paperheight]{plates/swiss/cover.jpg}}}}{}}
 \newcommand{\pdswisspartplate}[2]{% #1 numeral I..IV, #2 width
   \pd@setunit{#2}%
-  \begin{tikzpicture}[x=\pd@su,y=-\pd@su,line cap=butt,line join=miter]
-    \useasboundingbox (0,0) rectangle (24,16);
-    \csname pd@swisspart@#1\endcsname
-  \end{tikzpicture}}
-% Part I, Ground Truth: a datum, and what rests on it. Bar 1.5 deep at y=10;
-% square 5x5 resting on it at x=4; five hairlines beneath at 0.75 pitch.
-\def\pd@swisspart@I{%
-  \fill[hhink] (0,10) rectangle (24,11.5);
-  \fill[hhpaper] (4,5) rectangle (9,10);
-  \foreach \y in {12,12.75,13.5,14.25,15} {\fill[hhpaper] (0,\y) rectangle (24,\y+0.2);}}
-% Part II, The Cost of Seeing: a lattice whose density halves zone by zone,
-% every cell / every second / every fourth / every eighth, rightmost densest.
-\def\pd@swisspart@II{%
-  \foreach \i in {0,...,35} {\foreach \j in {4,...,31} {%
-    \pgfmathtruncatemacro{\zone}{int(\i/9)}% 0..3 across x 6..24 (36 cells)
-    \pgfmathtruncatemacro{\step}{int(2^(3-\zone))}%
-    \pgfmathtruncatemacro{\cell}{\i*100+\j}%
-    \pgfmathtruncatemacro{\ok}{(mod(\i,\step)==0) && (mod(\j,\step)==0)}%
-    \ifnum\ok=1 \fill[hhpaper] ({6+\i*0.5},{\j*0.5}) rectangle ++(0.35,0.35);\fi}}}
-% Part III, What Survives the Restart: seventeen bars on a 1.4 pitch across a
-% band y=4..12; a paper gap x=13..16 erases what it crosses; one bar at 14.2 survives.
-\def\pd@swisspart@III{%
-  \foreach \i in {0,...,16} {\pgfmathsetmacro{\x}{0.5+1.4*\i}%
-    \pgfmathtruncatemacro{\ingap}{(\x>12.2) && (\x<16)}%
-    \ifnum\ingap=0 \fill[hhpaper] (\x,4) rectangle ++(0.8,8);\fi}
-  \fill[hhpaper] (14.2,4) rectangle ++(0.8,8);}
-% Part IV, Trade Between Strangers: three rectangles of equal area (12) and
-% different proportion, three rules meeting at one point, one rule through it.
-\def\pd@swisspart@IV{%
-  \fill[hhpaper] (3,3) rectangle ++(6,2); \fill[hhpaper] (17,4) rectangle ++(4,3); \fill[hhpaper] (9,11) rectangle ++(3,4);
-  \draw[hhink,line width=0.3\pd@su] (9,4) -- (12,7) (17,5.5) -- (12,7) (10.5,11) -- (12,7);
-  \fill[hhink] (0,6.6) rectangle (24,7.4);}
-% ---- chapter plates on paper: #1 name, #2 width, #3 hue (the part ink) -----
-\newcommand{\pdswissplate}[3]{%
+  \IfFileExists{plates/swiss/part-#1.jpg}{%
+    \includegraphics[width=#2]{plates/swiss/part-#1.jpg}}{%
+    \begin{tikzpicture}[x=\pd@su,y=-\pd@su]
+      \useasboundingbox (0,0) rectangle (24,16);
+      \fill[hhpaper] (0,0) rectangle (24,16);
+    \end{tikzpicture}}}
+\newcommand{\pdswissplate}[3]{% #1 chapter prefix, #2 width, #3 hue (fallback only)
   \pd@setunit{#2}%
-  \colorlet{pd@h}{#3}\colorlet{pd@hb}{\pdtint{#3}{62}}\colorlet{pd@hc}{\pdtint{#3}{38}}%
-  \begin{tikzpicture}[x=\pd@su,y=-\pd@su,line cap=butt,line join=miter]
-    \useasboundingbox (0,0) rectangle (24,12);
-    \csname pd@swisschap@#1\endcsname
-  \end{tikzpicture}}
-% Chapter 1: one writer, one appended log; segments 1,1.5,...,4 with 0.15 gaps.
-\def\pd@swisschap@swk{%
-  \fill[pd@h] (2,4) rectangle (5,7);
-  % segment starts follow from lengths 1,1.5,...,4 and 0.15 gaps
-  \foreach \xs/\len in {5.15/1,6.30/1.5,7.95/2,10.10/2.5,12.75/3,15.90/3.5,19.55/4} {\fill[pd@h] (\xs,5) rectangle ++(\len,1);}}
-% Chapter 2: four nested rectangles sharing one corner, smaller in both dimensions.
-\def\pd@swisschap@anchor{%
-  \fill[pd@hc] (3,2) rectangle ++(18,8); \fill[pd@hb] (3,2) rectangle ++(13,6);
-  \fill[pd@h] (3,2) rectangle ++(9,4); \fill[hhink] (3,2) rectangle ++(5,2.5);}
-% Chapter 3: two rings, two gaps 90 degrees apart, one square, one red line
-% that stops at the inner face of the outer ring.
-\def\pd@swisschap@sealed{%
-  \fill[hhink] (3,1.5) rectangle (21,10.5); \fill[hhpaper] (3.5,2) rectangle (20.5,10);
-  \fill[hhpaper] (20.4,5.25) rectangle (21.1,6.75); % outer gap, right edge
-  \fill[hhink] (6,3.25) rectangle (18,8.75); \fill[hhpaper] (6.5,3.75) rectangle (17.5,8.25);
-  \fill[hhpaper] (11.25,3.15) rectangle (12.75,3.85); % inner gap, top edge
-  \fill[pd@hc] (10.5,4.5) rectangle (13.5,7.5);
-  \fill[pdswissred] (11.9,2.0) rectangle (12.1,4.5);}
-% Chapter 4: forty machines on one lattice, one line of sight beneath.
-\def\pd@swisschap@ls{%
-  \foreach \i/\j in {0/0,1/0,3/0,4/0,6/0,7/0,9/0,12/0,14/0,15/0,0/1,2/1,5/1,6/1,8/1,10/1,11/1,13/1,15/1,1/2,3/2,4/2,7/2,9/2,10/2,12/2,14/2,0/3,2/3,5/3,6/3,8/3,11/3,13/3,15/3,1/4,4/4,7/4,10/4,14/4}
-    {\fill[pd@hc] ({0.6+1.5*\i},{1+1.5*\j}) rectangle ++(0.7,0.7);}
-  \fill[pd@h] (0,9.5) rectangle (24,10.7);}
-% Chapter 5: twelve squares, a strict tint progression, a baseline that
-% thickens at the ninth.
-\def\pd@swisschap@stp{%
-  \foreach \i/\t in {0/8,1/17,2/25,3/33,4/42,5/50,6/58,7/67,8/75,9/83,10/92,11/100}
-    {\fill[pd@h!\t!hhpaper] ({2+1.8*\i},6.6) rectangle ++(1.4,1.4);}
-  \fill[hhink] (2,8) rectangle (16.4,8.15); \fill[hhink] (16.4,8) rectangle (24,9);}
-% Chapter 6: three sides that stop short of every corner; one rule through the centroid.
-\def\pd@swisschap@he{%
-  \begin{scope}[shift={(12,6.9)}]
-    \foreach \a/\c in {0/pd@h,120/pd@hb,240/pd@hc}
-      {\fill[\c,rotate=\a] (-4.5,3.175) rectangle (4.5,4.075);}
-  \end{scope}
-  \fill[hhink] (0,5.5) rectangle (24,6.1);}
-% Chapter 7: eight bonds, three forfeited by a counted series, one appeal outside.
-\def\pd@swisschap@bonded{%
-  \foreach \i/\cut in {0/0,1/3,2/0,3/0,4/6,5/9,6/0,7/0}
-    {\fill[pd@hb] (3,{1.5+1.3*\i}) rectangle ({20-\cut},{2.4+1.3*\i});}
-  \fill[pdswissred] (21.5,8.0) rectangle ++(0.9,0.9);}
-% Chapter 8: two lattices, provably different coordinate systems; three rules
-% that cross the gutter and stop at the first square they meet.
-\def\pd@swisschap@fh{%
-  \foreach \i in {0,...,4} {\foreach \j in {0,...,4}
-    {\fill[pd@hb] ({2.3+1.6*\i},{2.8+1.6*\j}) rectangle ++(0.6,0.6);
-     \fill[pd@hc] ({15.1+0.8+1.6*\i},{2.8+0.8+1.6*\j}) rectangle ++(0.6,0.6);}}
-  \fill[hhink] (2.9,4.55) rectangle (15.9,4.85); \fill[hhink] (8.5,7.75) rectangle (17.5,8.05); \fill[hhink] (5.3,10.95) rectangle (15.9,11.25);}
-% ---- cover A, "The Origin and the Arcs" (brief §C): full page, mm units -----
-% Grid: 14 mm side margins, 16 head, 20 foot; 6 x 9 fields; image block rows
-% 5-9. Arcs from the block's bottom-left corner; band widths 16:8:4:2:1 with
-% 1-unit (2 mm) gaps: radii 12-44, 46-62, 64-72, 74-78, 80-82 mm. A 6 mm red
-% square at the origin.
-\newcommand{\pdswisscoverart}{%
-  \begin{tikzpicture}[remember picture,overlay,x=1mm,y=1mm,shift={(current page.south west)}]
-    % block: x 14..163.8, y 20..139.3 from the foot; arc centre at its bottom-left corner
-    \begin{scope}
-      \clip (14,20) rectangle (163.8,139.3);
-      % radii at 1.85 x the brief's series so the outer bands run off the block
-      \foreach \ri/\ro in {22/81,85/115,118/133,137/144,148/152}
-        {\fill[pdswissblue] (14,20) ++(\ri,0) arc[start angle=0,end angle=90,radius=\ri] -- ++(0,\ro-\ri) arc[start angle=90,end angle=0,radius=\ro] -- cycle;}
-    \end{scope}
-    \fill[pdswissred] (14,20) rectangle (20,26);
-  \end{tikzpicture}}
+  \IfFileExists{plates/swiss/chapter-#1.jpg}{%
+    \includegraphics[width=#2]{plates/swiss/chapter-#1.jpg}}{%
+    \begin{tikzpicture}[x=\pd@su,y=-\pd@su]
+      \useasboundingbox (0,0) rectangle (24,12);
+      \fill[#3] (0,0) rectangle (24,12);
+    \end{tikzpicture}}}
+\newlength{\pd@su}
+\newcommand{\pd@setunit}[1]{\setlength{\pd@su}{\dimexpr#1/24\relax}}
 \makeatother

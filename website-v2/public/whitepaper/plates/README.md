@@ -60,9 +60,13 @@ Budget: all plates together must stay under 8 MB so the Book PDF stays under
   paper), recovered from the art-system commit `175f3e753`, plus a Sealed Harbor
   chapter plate and a cover generated in the same register with an existing
   plate as the style reference. `technical/PROVENANCE.json` carries every prompt.
-  The Swiss edition has no raster plates: its cover and plates are TikZ
-  (`../coordination-papers-mega-volume-swiss-plates.tex`) drawn from
-  `docs/harbor-research/exposition/SWISS-BRIEF.md`.
+- `swiss/` — the Swiss edition's plates: flat, hard-edged Swiss-modern colour
+  blocking (the Müller-Brockmann / Armin Hofmann register) painted by Nano
+  Banana Pro from `docs/harbor-research/exposition/SWISS-BRIEF.md`, replacing
+  the edition's earlier TikZ-drawn cover and plates —
+  `../coordination-papers-mega-volume-swiss-plates.tex` now wires all thirteen
+  in with `\includegraphics`. `swiss/PROVENANCE.json` carries every prompt,
+  aspect, and post-processing step; no TikZ plates remain for this edition.
 - `marginalia/` — duotone portraits and title pages for the margin column, one
   JSON sidecar per image (Commons file page, sha1, artist, licence, retrieval
   date); `scripts/harbor-research/check_marginalia_sidecars.py` fails the build
