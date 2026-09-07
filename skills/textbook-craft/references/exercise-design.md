@@ -66,7 +66,7 @@ violation, not a style note.
 
 **Two-tier split** (CLRS): short section-grain exercises test the immediate
 idea; longer chapter-end "problems" may introduce new material the section
-itself did not cover. Do not silently promote a load-bearing new mechanism
+itself did not cover. Do not silently promote a new mechanism the chapter depends on
 into a starred exercise — a Coordination Review finding already named this
 failure directly: a threat model "belongs in Chapter II's threat model as a
 named section, not in a starred exercise."
