@@ -111,6 +111,42 @@ agents. It is a design for making trust unnecessary where structure can
 suffice, measurable where uncertainty remains, and contestable everywhere else.
 \end{abstract}
 
+\section*{What is built, what is modelled, what is proposed}
+\addcontentsline{toc}{section}{What is built, what is modelled, what is proposed}
+This book is ahead of the product, and says so here rather than in a
+footnote. What runs today is a local daemon: a single-writer SQLite/WAL path
+for sessions, claims, messages, commitments, and coordination state; operator
+projections derived from those records, with routes back to the artifacts;
+durable work and obligation records that outlive one process; a Rust card
+verifier whose harnesses are bounded proofs, not full ones; and a relay that
+carries authenticated events outbound. Those parts are built and
+regression-tested, and each is graded \emph{built, weakly} in
+\hyperref[app:volume-status]{the implementation boundary} because filesystem
+and network effects outside the mediated paths lie outside the transaction.
+What is modelled and machine-checked but not running is most of the rest: the
+sealed room's noninterference and its release ledger, attenuation at every
+hop, the incentive to signal claims truthfully, conservation of the bond
+ledger, and the seventeen executed results whose numbers the chapters work by
+hand. What is proposed, and neither built nor modelled, is the confined mode
+itself: an enforcement point below the agent, a per-agent machine with
+brokered system calls and metered egress; cross-authority custody and
+settlement; and the federation's witness log.
+
+Two consequences follow for how to read the chapters. First, the kernel
+chapter's supervisory-control result says that an interceptor at the tool
+level can observe but not regiment; the git shim and the coordination guard
+that ship today are such interceptors, and the book treats them as interim.
+The confinement the book prescribes requires the enforcement point below the
+agent. Second, whether the single-writer rail is the right \emph{collaboration}
+model, and not only the right confinement model, is an open empirical
+question; a pre-registered study separate from the product
+(\texttt{studies/substrate-study} in the repository) is testing it against
+per-agent worktrees with a merge queue, and until it reports, the rail is a
+design invariant, not a theorem about collaboration. Every important
+statement in the chapters is labelled by kind, theorem, design invariant,
+model-checked property, or empirical hypothesis, and every runtime claim names
+its assurance mode; the appendix keeps the ledger.
+
 \section*{How to use this textbook}
 \addcontentsline{toc}{section}{How to use this textbook}
 The unit of account in this book is the work, not the agent. A work unit is a

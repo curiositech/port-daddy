@@ -672,17 +672,27 @@
     \noindent{\pdgrotesk\fontsize{30}{34}\selectfont\bfseries\hyphenpenalty=10000\raggedright #2\par}
     \vspace{0.5cm}
     \noindent\begin{minipage}{0.75\linewidth}{\pdgrotesk\fontsize{11}{15}\selectfont\hyphenpenalty=10000\raggedright #4\par}\end{minipage}\par
-    \vspace{0.5cm}
-    {\pdcompactpartlisttrue\hypersetup{linkcolor=hhpaper}\noindent\begin{minipage}{0.8\linewidth}\pdgrotesk #5\end{minipage}\par}
     \par
-    % the Konkrete plate takes the room left at the foot, 24 x 16 units, capped
+    % The plate gets the page (the author's decision, 2026-09-07): the Konkrete
+    % plate takes all the room left at the foot, 24 x 16 units, never wider than
+    % the line; the chapter list moves to the facing page below.
     \ifdim\pagegoal=\maxdimen\setlength{\pdplateh}{\dimexpr\textheight-\pagetotal\relax}\else\setlength{\pdplateh}{\dimexpr\pagegoal-\pagetotal\relax}\fi
     \addtolength{\pdplateh}{-1.0cm}%
-    \ifdim\pdplateh>2.8in \setlength{\pdplateh}{2.8in}\fi
+    \ifdim\dimexpr1.5\pdplateh\relax>\linewidth \setlength{\pdplateh}{\dimexpr\linewidth/3*2\relax}\fi
     \vfill
     \ifdim\pdplateh>2cm
       \noindent\pdswisspartplate{#1}{\dimexpr1.5\pdplateh\relax}\par
     \fi
+    \clearpage
+    \thispagestyle{empty}%
+    % The facing page, still in the part's ink: the chapters of the part with
+    % their one-line claims, set full size now that they have the page.
+    \vspace*{0.3cm}
+    \noindent{\pdgrotesk\fontsize{9.5}{12}\selectfont\bfseries Part #1\quad #2}\hfill{\pdgrotesk\fontsize{9.5}{12}\selectfont The chapters}\par
+    \vspace{0.3cm}\noindent{\color{hhpaper}\rule{\linewidth}{1.4pt}}\par
+    \vspace{0.8cm}
+    {\hypersetup{linkcolor=hhpaper}\noindent\begin{minipage}{0.86\linewidth}\pdgrotesk #5\end{minipage}\par}
+    \vfill
     \end{adjustwidth}}
 % technical: a drawing sheet with the part's numeral in the one warm accent
 \def\pd@part@technical#1#2#3#4#5{%
