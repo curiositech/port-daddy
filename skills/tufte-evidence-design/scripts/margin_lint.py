@@ -9,11 +9,39 @@ advisory, on the record, in the same run.
 
 Rules, and why each is enforced or advisory:
 
-  one-portrait-per-section   ENFORCED. margin-apparatus.md section 3 records
-                              the "at most one per section" rule from
-                              HANDOFF-TEXTBOOK.md section 4; a second
-                              \\pdmarginfigure in one \\section is a plain
-                              count, no judgment required.
+  one-portrait-per-section   ENFORCED, portraits only. margin-apparatus.md
+                              section 3 records the "at most one per
+                              section" rule from HANDOFF-TEXTBOOK.md section
+                              4 -- but that rule is about the PORTRAIT
+                              devices (a duotone portrait or title page
+                              under plates/marginalia/), not every
+                              \\pdmarginfigure call: the Book also uses
+                              \\pdmarginfigure for small multiples,
+                              sparklines, and regime strips in the margin,
+                              and those are unlimited per section. This
+                              check therefore only counts a \\pdmarginfigure
+                              call whose slug resolves to an actual file
+                              under plates/marginalia/<slug>.jpg (checked
+                              with the same scripts/harbor-research/
+                              check_marginalia_sidecars.py path logic
+                              marginalia-has-sidecar reuses) -- a call whose
+                              slug does not resolve there is, by
+                              construction, not a portrait, and is exempt
+                              from this quota entirely.
+
+  margin-figures-may-collide ADVISORY. Any number of non-portrait margin
+                              figures is fine, but two \\pdmarginfigure
+                              calls (portrait or not, any combination)
+                              placed within 12 source lines of each other
+                              are likely to land close enough on the printed
+                              page to collide -- this is a coarse, source-
+                              only proxy, not a page-layout measurement.
+                              The actual gate for a real collision is the
+                              Book build log's "Marginpar on page" count,
+                              which this checker does not touch and which
+                              stays the authority; this rule exists only to
+                              flag the smell early, in source, before a
+                              build is even run.
 
   marginalia-has-sidecar     ENFORCED. margin-apparatus.md's practical
                               checklist (section 4, item 3): "Confirm the
@@ -24,15 +52,41 @@ Rules, and why each is enforced or advisory:
                               exactly what a script can check; it reuses
                               scripts/harbor-research/check_marginalia_sidecars.py
                               rather than re-deriving its path or field rules.
+                              (A \\pdmarginfigure whose slug is not a portrait
+                              at all -- see one-portrait-per-section above --
+                              has no sidecar to check and is skipped here.)
 
-  gloss-once-per-chapter     ENFORCED. margin-apparatus.md section 4, item 5
-                              (as updated for \\pdgloss): a term should be
-                              glossed once, at its first load-bearing use;
-                              SKILL.md's anti-pattern section states the same
-                              rule against re-glossing a term already
-                              introduced. Counting repeated \\pdgloss{Term}
-                              calls with the same term in one file needs no
-                              judgment.
+  gloss-not-repeated         ENFORCED. The Book's programme is a gloss at
+                              the FIRST use of every house term, so a
+                              chapter may (and should) carry many distinct
+                              \\pdgloss calls -- "at most one per chapter" is
+                              a defect only when it is the SAME term twice.
+                              This check compares each \\pdgloss's term
+                              argument case-insensitively after stripping
+                              TeX markup (control words and braces), so
+                              `\\pdgloss{Stigmergy}` and
+                              `\\pdgloss{\\emph{Stigmergy}}` count as the same
+                              term. SKILL.md's anti-pattern section states
+                              the same rule against re-glossing a term
+                              already introduced. Counting a repeated,
+                              normalized term needs no judgment.
+
+  gloss-term-in-prior-prose  ENFORCED, as a proxy. A gloss is supposed to be
+                              the term's first USE, not a definition
+                              parachuted in with no connection to the
+                              chapter's actual prose. This checks that the
+                              term (markup-stripped, case-insensitive)
+                              appears somewhere in the chapter's text from
+                              the start of the file through the end of the
+                              gloss's own paragraph, once the gloss call's
+                              own argument text is excluded from that
+                              search -- i.e., the term must also occur as
+                              plain running prose, not solely inside the
+                              \\pdgloss macro's own arguments. A script
+                              cannot judge whether the surrounding sentence
+                              is truly load-bearing, but it can check that
+                              the term is not a complete stranger to the
+                              prose around it.
 
   gloss-in-running-prose     ENFORCED, as a proxy. margin-apparatus.md
                               requires a margin device to sit in a
@@ -105,13 +159,43 @@ PARAGRAPH_BOUNDARY_RE = re.compile(
 MIN_PROSE_CHARS = 20  # gloss-in-running-prose: non-whitespace chars required
                        # in the paragraph besides the \pdgloss call itself.
 
+COLLISION_LINE_WINDOW = 12  # margin-figures-may-collide: source-line distance
+                             # within which two \pdmarginfigure calls are
+                             # flagged as likely to land close on the page.
+
+# TeX markup stripped before comparing a \pdgloss term or searching for it in
+# prose: a control word (\emph, \textbf, ...) and the braces around its
+# argument, so `\pdgloss{Stigmergy}` and `\pdgloss{\emph{Stigmergy}}` (or a
+# prose mention wrapped the same way) compare equal.
+TEX_CONTROL_WORD_RE = re.compile(r'\\[a-zA-Z@]+\*?')
+
 RULES = {
     "one-portrait-per-section": "enforced",
+    "margin-figures-may-collide": "advisory",
     "marginalia-has-sidecar": "enforced",
-    "gloss-once-per-chapter": "enforced",
+    "gloss-not-repeated": "enforced",
+    "gloss-term-in-prior-prose": "enforced",
     "gloss-in-running-prose": "enforced",
     "no-footnote-in-body": "advisory",
 }
+
+
+def strip_tex_markup(s: str) -> str:
+    """Drop control words and braces, collapse whitespace -- used to compare
+    a \\pdgloss term for repeats and to search for it in surrounding prose,
+    so a term wrapped in \\emph{} or similar still matches its plain text
+    elsewhere in the chapter. Braces are replaced with a SPACE, not deleted
+    outright: deleting them would glue two adjacent tokens together (e.g. a
+    macro's two back-to-back {arg1}{arg2} pair becoming "arg1arg2" with no
+    boundary between them), which would silently break word-boundary
+    matching against the result."""
+    s = TEX_CONTROL_WORD_RE.sub(' ', s)
+    s = s.replace('{', ' ').replace('}', ' ')
+    return re.sub(r'\s+', ' ', s).strip()
+
+
+def normalize_term(s: str) -> str:
+    return strip_tex_markup(s).casefold()
 
 
 def _load_marginalia_checker():
@@ -204,13 +288,23 @@ def owning_section_index(section_starts, call_start: int) -> int:
     return idx
 
 
-def check_one_portrait_per_section(path: str, text: str, findings: list):
+def _is_portrait(slug: str, plates_dir: str) -> bool:
+    """A \\pdmarginfigure call is a PORTRAIT only if its slug resolves to a
+    real file under plates/marginalia/<slug>.jpg -- any other call (a small
+    multiple, a sparkline, a regime strip) is exempt from the one-per-section
+    portrait quota, per the coordinator's clarification that only the
+    marginalia/ plates are portraits and title pages."""
+    return os.path.exists(os.path.join(plates_dir, f"{slug}.jpg"))
+
+
+def check_one_portrait_per_section(path: str, text: str, findings: list, plates_dir: str):
     calls = find_macro_calls(text, "pdmarginfigure", 2)
-    if not calls:
+    portrait_calls = [c for c in calls if _is_portrait(c["args"][0].strip(), plates_dir)]
+    if len(portrait_calls) <= 1:
         return
     sections = section_titles_before(text)
     by_section: dict[int, list] = {}
-    for call in calls:
+    for call in portrait_calls:
         sec = owning_section_index(sections, call["start"])
         by_section.setdefault(sec, []).append(call)
     for sec, calls_in_section in by_section.items():
@@ -224,39 +318,49 @@ def check_one_portrait_per_section(path: str, text: str, findings: list):
                 "rule": "one-portrait-per-section",
                 "severity": "enforced",
                 "message": (
-                    f"a second \\pdmarginfigure ({extra['args'][0]!r}) appears in the same "
-                    f"section as the one at line {first['line']} ({first['args'][0]!r}) -- "
-                    "margin-apparatus.md section 3's \"at most one per section\" rule"
+                    f"a second portrait \\pdmarginfigure ({extra['args'][0]!r}) appears in the "
+                    f"same section as the one at line {first['line']} ({first['args'][0]!r}) -- "
+                    "margin-apparatus.md section 3's \"at most one PORTRAIT per section\" rule "
+                    "(non-portrait margin figures -- small multiples, sparklines, regime strips "
+                    "-- are unlimited)"
                 ),
             })
 
 
-def check_marginalia_sidecars(path: str, text: str, findings: list, sidecar_mod, repo_root: str):
+def check_margin_figures_may_collide(path: str, text: str, findings: list):
+    """Advisory only: two \\pdmarginfigure calls close together in the source
+    are likely to collide on the printed page. The real gate for an actual
+    collision is the Book build log's "Marginpar on page" count, not this
+    source-only proxy."""
     calls = find_macro_calls(text, "pdmarginfigure", 2)
-    if not calls:
-        return
-    dir_path = sidecar_mod.plates_dir(repo_root)
+    calls = sorted(calls, key=lambda c: c["line"])
+    for a, b in zip(calls, calls[1:]):
+        if b["line"] - a["line"] <= COLLISION_LINE_WINDOW:
+            findings.append({
+                "file": path,
+                "line": b["line"],
+                "rule": "margin-figures-may-collide",
+                "severity": "advisory",
+                "message": (
+                    f"\\pdmarginfigure{{{b['args'][0]}}} sits only {b['line'] - a['line']} "
+                    f"source line(s) after \\pdmarginfigure{{{a['args'][0]}}} at line "
+                    f"{a['line']} -- they may collide on the printed page; the actual gate is "
+                    "the Book build log's \"Marginpar on page\" count, not this source-only proxy"
+                ),
+            })
+
+
+def check_marginalia_sidecars(path: str, text: str, findings: list, sidecar_mod, plates_dir: str):
+    calls = find_macro_calls(text, "pdmarginfigure", 2)
     seen_slugs = set()
     for call in calls:
         slug = call["args"][0].strip()
+        if not _is_portrait(slug, plates_dir):
+            continue  # not a portrait at all -- nothing under marginalia/ to check
         if slug in seen_slugs:
             continue
         seen_slugs.add(slug)
-        jpg_path = os.path.join(dir_path, f"{slug}.jpg")
-        if not os.path.exists(jpg_path):
-            findings.append({
-                "file": path,
-                "line": call["line"],
-                "rule": "marginalia-has-sidecar",
-                "severity": "enforced",
-                "message": (
-                    f"\\pdmarginfigure{{{slug}}} has no plate at "
-                    f"website-v2/public/whitepaper/plates/marginalia/{slug}.jpg -- "
-                    "margin-apparatus.md section 4, item 3"
-                ),
-            })
-            continue
-        sidecar_path = os.path.join(dir_path, f"{slug}.json")
+        sidecar_path = os.path.join(plates_dir, f"{slug}.json")
         failures = sidecar_mod.check_sidecar(slug, sidecar_path)
         for failure in failures:
             findings.append({
@@ -271,26 +375,86 @@ def check_marginalia_sidecars(path: str, text: str, findings: list, sidecar_mod,
             })
 
 
-def check_gloss_once_per_chapter(path: str, text: str, findings: list):
+def check_gloss_not_repeated(path: str, text: str, findings: list):
+    """A chapter may carry many \\pdgloss calls (one per house term, at its
+    first use) -- the defect is the SAME term glossed twice, compared
+    case-insensitively after stripping TeX markup so `\\pdgloss{Term}` and
+    `\\pdgloss{\\emph{Term}}` are recognized as the same term."""
     calls = find_macro_calls(text, "pdgloss", 2)
     seen: dict[str, dict] = {}
     for call in calls:
         term = call["args"][0].strip()
-        key = term.casefold()
+        key = normalize_term(term)
         if key in seen:
             findings.append({
                 "file": path,
                 "line": call["line"],
-                "rule": "gloss-once-per-chapter",
+                "rule": "gloss-not-repeated",
                 "severity": "enforced",
                 "message": (
                     f"\\pdgloss{{{term}}} repeats a term already glossed at line "
-                    f"{seen[key]['line']} in this chapter -- margin-apparatus.md section 4, "
-                    "item 5 and SKILL.md's \"reaching for \\pdgloss a second time\" anti-pattern"
+                    f"{seen[key]['line']} in this chapter -- a chapter may carry many glosses, "
+                    "one per term, but not the same term twice (margin-apparatus.md section 4, "
+                    "item 5 and SKILL.md's \"reaching for \\pdgloss a second time\" anti-pattern)"
                 ),
             })
         else:
             seen[key] = call
+
+
+def check_gloss_term_in_prior_prose(path: str, text: str, findings: list):
+    """A gloss is supposed to be a term's first USE, not a definition
+    parachuted in with no connection anywhere to the chapter's own text.
+    This checks that the term (markup-stripped, case-insensitive, whole-word)
+    appears somewhere in the chapter's running prose from the start of the
+    file through the end of this gloss's own paragraph -- which the gloss
+    call's own printed term always satisfies for a normal, well-formed call
+    (the term IS running prose at that point, once rendered), so in practice
+    this fires only on a genuinely malformed call: an empty term, or a
+    \\pdgloss whose own argument spans past the paragraph boundary computed
+    for it (e.g. a stray blank line or \\section inside the argument itself),
+    which leaves the term's own occurrence outside the window this check
+    looks at."""
+    calls = find_macro_calls(text, "pdgloss", 2)
+    if not calls:
+        return
+    lines = text.split('\n')
+    for call in calls:
+        term_norm = normalize_term(call["args"][0])
+        if not term_norm:
+            findings.append({
+                "file": path,
+                "line": call["line"],
+                "rule": "gloss-term-in-prior-prose",
+                "severity": "enforced",
+                "message": (
+                    f"\\pdgloss's term argument {call['args'][0]!r} is empty once TeX markup is "
+                    "stripped -- a gloss should be the term's first USE, not a blank label"
+                ),
+            })
+            continue
+        call_line_idx = call["line"] - 1
+        bottom = call_line_idx
+        while bottom + 1 < len(lines) and lines[bottom + 1].strip() != '' and not PARAGRAPH_BOUNDARY_RE.match(lines[bottom + 1]):
+            bottom += 1
+        paragraph_end = sum(len(ln) + 1 for ln in lines[:bottom + 1])
+        # Everything from the start of the chapter through the end of this
+        # gloss's own paragraph -- the gloss call's own printed term
+        # satisfies "at the gloss" for a well-formed call.
+        haystack_norm = normalize_term(text[:paragraph_end])
+        term_pattern = re.compile(r'\b' + re.escape(term_norm) + r'\b')
+        if not term_pattern.search(haystack_norm):
+            findings.append({
+                "file": path,
+                "line": call["line"],
+                "rule": "gloss-term-in-prior-prose",
+                "severity": "enforced",
+                "message": (
+                    f"\\pdgloss{{{call['args'][0]}}}'s term does not appear anywhere in the "
+                    "chapter's running prose before or at this gloss -- a gloss should be the "
+                    "term's first USE, not a definition dropped in with no connection to the text"
+                ),
+            })
 
 
 def check_gloss_in_running_prose(path: str, text: str, findings: list):
@@ -352,9 +516,12 @@ def lint_file(path: str, repo_root: str, sidecar_mod) -> list:
     raw = Path(path).read_text(encoding="utf-8")
     text = strip_comments(raw)
     findings: list = []
-    check_one_portrait_per_section(path, text, findings)
-    check_marginalia_sidecars(path, text, findings, sidecar_mod, repo_root)
-    check_gloss_once_per_chapter(path, text, findings)
+    plates_dir = sidecar_mod.plates_dir(repo_root)
+    check_one_portrait_per_section(path, text, findings, plates_dir)
+    check_margin_figures_may_collide(path, text, findings)
+    check_marginalia_sidecars(path, text, findings, sidecar_mod, plates_dir)
+    check_gloss_not_repeated(path, text, findings)
+    check_gloss_term_in_prior_prose(path, text, findings)
     check_gloss_in_running_prose(path, text, findings)
     check_no_footnote_in_body(path, text, findings)
     findings.sort(key=lambda f: (f["line"], f["rule"]))

@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
 """Fixture-based tests for skills/tufte-evidence-design/scripts/tufte.py.
 
-stdlib-only (unittest, tempfile, subprocess). Runs the real CLI as a
-subprocess against small fixtures under a tempdir, the same pattern as
-test_margin_lint.py and test_check_marginalia_sidecars.py.
+stdlib-only (unittest, tempfile, subprocess, zlib, struct -- no pymupdf, no
+Pillow). Runs the real CLI as a subprocess against small fixtures under a
+tempdir, the same pattern as test_margin_lint.py and
+test_check_marginalia_sidecars.py. The library-checks CI job that runs this
+directory's tests has no pymupdf installed (only the figures job does), so
+this file writes its own synthetic PNGs with a tiny stdlib encoder rather
+than reaching for PyMuPDF or Pillow.
 
 Run:
     python3 -m unittest discover -s tests/harbor-research
@@ -12,9 +16,11 @@ Run:
 from __future__ import annotations
 
 import json
+import struct
 import subprocess
 import sys
 import unittest
+import zlib
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -26,32 +32,45 @@ def run_cli(args: list[str]) -> subprocess.CompletedProcess:
     return subprocess.run([sys.executable, str(CLI), *args], capture_output=True, text=True)
 
 
+def _png_chunk(tag: bytes, data: bytes) -> bytes:
+    return struct.pack(">I", len(data)) + tag + data + struct.pack(">I", zlib.crc32(tag + data) & 0xFFFFFFFF)
+
+
+def write_rgb_png(path: Path, width: int, height: int, pixel_fn) -> None:
+    """A minimal, dependency-free 8-bit truecolor (non-interlaced, filter-none)
+    PNG encoder -- ink_audit.py already carries the matching stdlib decoder,
+    this is just its write-side counterpart for test fixtures."""
+    sig = b"\x89PNG\r\n\x1a\n"
+    ihdr = struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0)
+    raw = bytearray()
+    for y in range(height):
+        raw.append(0)  # filter type 0 (None) for every scanline
+        for x in range(width):
+            r, g, b = pixel_fn(x, y)
+            raw += bytes((r, g, b))
+    idat = zlib.compress(bytes(raw), 9)
+    png = sig + _png_chunk(b"IHDR", ihdr) + _png_chunk(b"IDAT", idat) + _png_chunk(b"IEND", b"")
+    Path(path).write_bytes(png)
+
+
 def write_all_ink_png(path: Path) -> None:
     """A synthetic PNG with no single dominant color (many equal-sized
-    stripes), so ink_audit's auto-detected background is a small minority
-    and ink_fraction reads high -- the same construction figcheck's own
-    ink-metrics test uses, built directly with PyMuPDF to avoid a Pillow
-    dependency in this test."""
-    import pymupdf
-    doc = pymupdf.open()
-    page = doc.new_page(width=200, height=200)
+    vertical stripes, each a distinct color), so ink_audit's auto-detected
+    background is a small minority and ink_fraction reads high -- the same
+    construction figcheck's own ink-metrics test uses, built here with the
+    stdlib PNG encoder above instead of PyMuPDF."""
     n = 25
-    w = 200 / n
-    for i in range(n):
-        color = (((i * 37) % 256) / 255.0, ((i * 91) % 256) / 255.0, ((i * 151) % 256) / 255.0)
-        page.draw_rect(pymupdf.Rect(i * w, 0, (i + 1) * w, 200), color=color, fill=color, width=0)
-    pix = page.get_pixmap()
-    pix.save(str(path))
-    doc.close()
+    width = 200
+
+    def pixel_fn(x, y):
+        i = min(x * n // width, n - 1)
+        return ((i * 37) % 256, (i * 91) % 256, (i * 151) % 256)
+
+    write_rgb_png(path, width, 200, pixel_fn)
 
 
 def write_blank_png(path: Path) -> None:
-    import pymupdf
-    doc = pymupdf.open()
-    page = doc.new_page(width=200, height=200)
-    pix = page.get_pixmap()
-    pix.save(str(path))
-    doc.close()
+    write_rgb_png(path, 200, 200, lambda x, y: (255, 255, 255))
 
 
 class TestAuditSubcommand(unittest.TestCase):

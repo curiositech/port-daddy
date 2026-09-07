@@ -107,11 +107,16 @@ rule, so the rule is applied with its known objection already in view rather tha
 ### Margin apparatus (Book chapters — see `references/margin-apparatus.md` for the full state)
 
 - [ ] The idea, not just the name, is load-bearing in the sentence before you add a `\pdmarginfigure`.
-- [ ] At most one portrait per section (checked against `docs/harbor-research/exposition/MARGINALIA-PLACEMENT.md`).
-- [ ] The plate is cleared (no `.NOT-CLEARED.json` sidecar) before writing the macro call.
-- [ ] A defined term gets `\pdgloss{Term}{one-line definition}` at most once per chapter, at its first load-bearing
-      use, not `\pd@marginhead{Term}` by hand and not a repeat gloss for the same term (`scripts/margin_lint.py` checks
-      both).
+- [ ] At most one PORTRAIT per section (a `\pdmarginfigure` slug that resolves under `plates/marginalia/`, checked
+      against `docs/harbor-research/exposition/MARGINALIA-PLACEMENT.md`) — a small multiple, sparkline, or regime
+      strip in the margin faces no such quota; the Book's margin column is meant to be used generously.
+- [ ] The plate is cleared (no `.NOT-CLEARED.json` sidecar) before writing a portrait's macro call.
+- [ ] Two margin figures of any kind are not placed within about a dozen source lines of each other, or they will
+      likely collide on the printed page (`scripts/margin_lint.py` warns advisory; the real gate is the build log's
+      "Marginpar on page" count).
+- [ ] Every house term gets its own `\pdgloss{Term}{one-line definition}` at its first use — a chapter may (and
+      should) carry many glosses, one per term — not `\pd@marginhead{Term}` by hand, and never the SAME term glossed
+      twice (`scripts/margin_lint.py` checks both this and that the term actually appears in the chapter's own prose).
 - [ ] A "wall of text" finding (no figure/table/session for 4+ pages) is fixed with `pdsession`/`pdexample`/a redrawn
       figure, not a margin portrait — those are different failure modes.
 
@@ -180,7 +185,7 @@ Consult these for depth — none is loaded automatically:
 | `examples/dashboard-to-sparkline-table.md` | Working a stat-card-dashboard redesign end to end. |
 | `examples/challenger-style-redesign.md` | Working a chronological-to-causal chart redesign end to end. |
 | `scripts/ink_audit.py` | Getting a heuristic second opinion (ink fraction, distinct colors, edge density) on a rendered PNG figure — `python3 scripts/ink_audit.py figure.png`. Degrades to a pure-stdlib PNG decoder if Pillow isn't installed. |
-| `scripts/margin_lint.py` | Mechanically checking a Book chapter's margin apparatus — one `\pdmarginfigure` per section, every slug's plate and sidecar present, `\pdgloss` used once per term per chapter inside real prose — over the eight chapters by default; `\footnote` findings are reported but advisory (see the script's own docstring for why). |
+| `scripts/margin_lint.py` | Mechanically checking a Book chapter's margin apparatus — one PORTRAIT `\pdmarginfigure` per section (non-portrait margin figures are unlimited, advisory-warned only if two sit close together in source), every portrait slug's plate and sidecar present, no `\pdgloss` term repeated in a chapter and every glossed term present in its own running prose — over the eight chapters by default; `\footnote` findings are reported but advisory (see the script's own docstring for why). |
 | `scripts/tufte.py` | The single entry point for this skill's scripts: `tufte.py audit <png...>` (ink_audit.py, `--strict` to fail on flags), `tufte.py margin-lint [tex...]` (margin_lint.py), `tufte.py checklist <kind>` (one checklist from SKILL.md, kinds read from the file), `tufte.py decision-tree` (this section's flowchart as text). |
 
 <!-- BEGIN BUNDLE INDEX (auto: index_references.py) -->

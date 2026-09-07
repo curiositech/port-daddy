@@ -87,6 +87,12 @@ ways):
   outside the margin column (standalone chapters) it does nothing — **there is
   no fallback inline image**, so a standalone-chapter build simply loses the
   portrait, which is why `MARGINALIA-PLACEMENT.md` calls itself "Book only."
+  Only a slug that resolves to a real file under `plates/marginalia/` is a
+  PORTRAIT in the sense the "one per section" rule below means — the Book's
+  margin column is meant to be used generously, not sparingly, and the same
+  macro also carries small multiples, sparklines, and regime strips in the
+  margin, which face no such quota; only the person/idea portraits and title
+  pages under `plates/marginalia/` are rationed one per section.
 - **`\pdgloss{Term}{one-line definition}` is now implemented** (read directly
   this pass, added alongside `\pd@marginglyph` in the "Shared helpers"
   section). It sets `Term` bold at its point of definition in the running
@@ -104,9 +110,12 @@ ways):
   small-caps head convention inline inside a single `\marginnote` call
   instead. No box, no rule. Call it as `\pdgloss{Stigmergy}{coordination
   through traces left in a shared environment rather than direct messages.}`
-  at the term's first, load-bearing use in a chapter; do not call it a second
-  time for the same term in the same chapter (see `scripts/margin_lint.py`,
-  which checks this).
+  at each house term's first use in a chapter — the programme is a gloss at
+  the first use of EVERY term of art, so one chapter is expected to carry
+  many `\pdgloss` calls, one per term; the defect is glossing the SAME term
+  twice, not glossing more than one term (see `scripts/margin_lint.py`,
+  which checks this and also checks that a glossed term is not a stranger
+  to the chapter's own running prose).
 - **`\pd@marginhead{label}`** — the shared primitive behind `\keyidea`,
   `\pitfall`, `\scene`, `\xrefbox`: a small-caps label in the margin (Book) or a
   bold run-in head (standalone). This is the closest existing thing to a
@@ -128,7 +137,7 @@ ways):
 |---|---|---|
 | Sidenote (numbered, inline) | `\sidenote` | not implemented — `\pd@marginhead` + `\marginnote` covers the labeled-aside case; no numbered-footnote-in-margin equivalent |
 | Unnumbered margin note | `\marginnote` | `\marginnote` (same package, used directly and via `\pd@marginhead`) |
-| Margin figure | `marginfigure` env | `\pdmarginfigure{slug}{caption}` (portrait-specific, keyed to a plates directory) |
+| Margin figure | `marginfigure` env | `\pdmarginfigure{slug}{caption}` — a portrait/plate when the slug is keyed to `plates/marginalia/`, otherwise a small multiple, sparkline, or regime strip; only the former is rationed one per section |
 | Margin table | `margintable` env | not implemented |
 | Full width | `fullwidth` env / `figure*` | `\pdfullwidth` length + automatic TikZ promotion hook; `\pdsession` computes its own full width |
 | Measure | 26pc text / 12pc margin (~46%) | 4.5in text / 1.3in margin (~29%) |
@@ -140,8 +149,11 @@ ways):
 pass) is the standing, lead-approved-pending proposal for `\pdmarginfigure`
 placement. As of this pass:
 
-- **Placed/proposed** (one portrait per section, per the "at most one per
-  section" rule in `HANDOFF-TEXTBOOK.md` §4): Lampson and Wonham in *The
+- **Placed/proposed** (one portrait per section, per the "at most one PORTRAIT
+  per section" rule in `HANDOFF-TEXTBOOK.md` §4 — the quota is on the person/
+  idea plates under `plates/marginalia/`, not on `\pdmarginfigure` calls in
+  general; small multiples, sparklines, and regime strips in the margin are
+  unlimited): Lampson and Wonham in *The
   Single-Writer Kernel* (two different subsections of the same section — flagged
   as a soft conflict the lead should resolve); Lamport (anchored to a weaker but
   still genuine citation to avoid doubling up with Wonham); Ostrom and Aumann in
@@ -178,17 +190,27 @@ placement. As of this pass:
 
 1. Find the load-bearing sentence (not just a name-drop) — search the chapter
    `.tex` for the surname or term, as `MARGINALIA-PLACEMENT.md` did.
-2. Check the "at most one per section" rule before adding a second portrait to
-   a section that already has one.
+2. Check the "at most one PORTRAIT per section" rule before adding a second
+   portrait (a `\pdmarginfigure` slug that resolves under `plates/marginalia/`)
+   to a section that already has one — this quota does not apply to a small
+   multiple, sparkline, or regime strip in the margin, which the Book is free
+   to use as often as the material calls for. Even so, two margin figures of
+   any kind placed within about a dozen source lines of each other are likely
+   to collide on the printed page; `scripts/margin_lint.py` flags this as
+   advisory, but the actual gate is the Book build log's "Marginpar on page"
+   count.
 3. Confirm the plate is cleared (`plates/marginalia/<slug>.jpg` exists, no
-   `.NOT-CLEARED.json` sidecar) before writing `\pdmarginfigure{slug}{...}`.
+   `.NOT-CLEARED.json` sidecar) before writing `\pdmarginfigure{slug}{...}`
+   for a portrait.
 4. Write the caption as one sentence that states why the idea matters *here*,
    not a biography — match the register of the existing captions in
    `MARGINALIA-PLACEMENT.md`.
 5. For a defined term rather than a person, use `\pdgloss{Term}{one-line
-   definition}` at the term's first, load-bearing use — not `\pd@marginhead{Term}`
-   by hand, and not a second `\pdgloss` for a term already glossed once in the
-   same chapter (`scripts/margin_lint.py` checks both).
+   definition}` at the term's first use — not `\pd@marginhead{Term}` by hand.
+   A chapter may carry many `\pdgloss` calls, one per term; the rule
+   `scripts/margin_lint.py` enforces is not glossing the SAME term twice, and
+   that a glossed term actually appears in the chapter's own running prose,
+   not only inside the gloss call itself.
 6. If the finding is "too much text, no visual" rather than "an uncredited
    idea," reach for `\pdsession`, `\pdexample`, or a redrawn figure — see
    `references/web-application.md` and `skills/harbor-chartwork`, not this file.

@@ -98,8 +98,78 @@ class TestOnePortraitPerSection(unittest.TestCase):
             self.assertIn("one-portrait-per-section", result.stdout)
 
 
+class TestNonPortraitMarginFiguresUnlimited(unittest.TestCase):
+    """Only a \\pdmarginfigure whose slug resolves under plates/marginalia/
+    counts as a portrait; any number of other margin figures (small
+    multiples, sparklines, regime strips) is fine in one section -- they
+    only ever get the advisory line-distance warning, never a hard failure,
+    since no plate exists to check either."""
+
+    def test_two_non_portraits_in_one_section_passes_with_advisory(self) -> None:
+        with TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            # No plates/marginalia/*.jpg written for these slugs at all --
+            # they cannot resolve as portraits.
+            chapter = write_chapter(repo, "ch.tex", (
+                "\\section{Intro}\n"
+                "A first regime strip appears here.\n"
+                "\\pdmarginfigure{regime-strip-a}{A small regime strip.}%\n"
+                "A second one appears close by.\n"
+                "\\pdmarginfigure{regime-strip-b}{Another small regime strip.}%\n"
+            ))
+            result = run_checker(repo, [chapter])
+            self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
+            self.assertNotIn("one-portrait-per-section", result.stdout)
+            self.assertIn("margin-figures-may-collide", result.stdout)
+            self.assertIn("ADVISORY", result.stdout)
+
+    def test_far_apart_non_portraits_pass_with_no_findings(self) -> None:
+        with TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            filler = "\n".join(f"Filler prose line {i}." for i in range(20))
+            chapter = write_chapter(repo, "ch.tex", (
+                "\\section{Intro}\n"
+                "\\pdmarginfigure{regime-strip-a}{A small regime strip.}%\n"
+                f"{filler}\n"
+                "\\pdmarginfigure{regime-strip-b}{Another small regime strip, far away.}%\n"
+            ))
+            result = run_checker(repo, [chapter])
+            self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
+            self.assertIn("no findings", result.stdout)
+
+
+class TestMarginFiguresMayCollide(unittest.TestCase):
+    def test_two_portraits_close_together_get_both_findings(self) -> None:
+        with TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            write_plate(repo, "lampson", VALID_SIDECAR)
+            write_plate(repo, "wonham", VALID_SIDECAR)
+            chapter = write_chapter(repo, "ch.tex", (
+                "\\section{Intro}\n"
+                "This idea is Lampson's access matrix, load-bearing here.\n"
+                "\\pdmarginfigure{lampson}{Lampson's access matrix.}%\n"
+                "This idea is Wonham's supervisory control theory, load-bearing here too.\n"
+                "\\pdmarginfigure{wonham}{Wonham's supervisory control.}%\n"
+            ))
+            result = run_checker(repo, [chapter], extra=["--json"])
+            findings = json.loads(result.stdout)
+            rules = {f["rule"] for f in findings}
+            self.assertIn("one-portrait-per-section", rules)
+            self.assertIn("margin-figures-may-collide", rules)
+
+
 class TestMarginaliaSidecar(unittest.TestCase):
-    def test_missing_plate_fails(self) -> None:
+    def test_slug_with_no_plate_is_treated_as_non_portrait_not_flagged(self) -> None:
+        """A \\pdmarginfigure whose slug has no plate at all cannot be told
+        apart, mechanically, from an intentional non-portrait margin figure
+        (a small multiple, sparkline, or regime strip) that was never meant
+        to resolve under plates/marginalia/ in the first place -- the
+        coordinator's own definition of "portrait" IS "resolves under
+        plates/marginalia/". This matches the real \\pdmarginfigure macro's
+        own behavior too: it silently no-ops when the file doesn't exist,
+        rather than erroring. The trade-off (a genuinely mistyped or
+        forgotten portrait slug goes uncaught) is accepted and documented in
+        margin_lint.py's own docstring."""
         with TemporaryDirectory() as tmp:
             repo = Path(tmp)
             chapter = write_chapter(repo, "ch.tex", (
@@ -108,9 +178,8 @@ class TestMarginaliaSidecar(unittest.TestCase):
                 "\\pdmarginfigure{lampson}{Lampson's access matrix.}%\n"
             ))
             result = run_checker(repo, [chapter])
-            self.assertEqual(result.returncode, 1)
-            self.assertIn("marginalia-has-sidecar", result.stdout)
-            self.assertIn("has no plate", result.stdout)
+            self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
+            self.assertNotIn("marginalia-has-sidecar", result.stdout)
 
     def test_plate_with_broken_sidecar_fails(self) -> None:
         with TemporaryDirectory() as tmp:
@@ -141,7 +210,11 @@ class TestMarginaliaSidecar(unittest.TestCase):
             self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
 
 
-class TestGlossOncePerChapter(unittest.TestCase):
+class TestGlossNotRepeated(unittest.TestCase):
+    """The programme is a gloss at the FIRST use of every house term, so a
+    chapter may carry many distinct glosses; the defect is the SAME term
+    glossed twice."""
+
     def test_single_gloss_passes(self) -> None:
         with TemporaryDirectory() as tmp:
             repo = Path(tmp)
@@ -153,6 +226,22 @@ class TestGlossOncePerChapter(unittest.TestCase):
             result = run_checker(repo, [chapter])
             self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
 
+    def test_three_distinct_glosses_pass(self) -> None:
+        with TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            chapter = write_chapter(repo, "ch.tex", (
+                "\\section{Intro}\n"
+                "The swarm uses \\pdgloss{Stigmergy}{coordination through traces left in the "
+                "environment.} to coordinate.\n\n"
+                "Later it relies on \\pdgloss{Digest}{a compressed summary of shared state.} "
+                "for compaction.\n\n"
+                "Finally the operator watches for \\pdgloss{Read-poverty}{the binding "
+                "information constraint at scale.} directly.\n"
+            ))
+            result = run_checker(repo, [chapter])
+            self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
+            self.assertNotIn("gloss-not-repeated", result.stdout)
+
     def test_repeated_gloss_fails(self) -> None:
         with TemporaryDirectory() as tmp:
             repo = Path(tmp)
@@ -161,11 +250,11 @@ class TestGlossOncePerChapter(unittest.TestCase):
                 "The swarm uses \\pdgloss{Stigmergy}{coordination through traces left in the "
                 "environment.} inline, in a real sentence about the mechanism.\n\n"
                 "Later the chapter repeats itself and calls \\pdgloss{Stigmergy}{a second, "
-                "redundant definition of the same term.} again in running prose.\n"
+                "redundant definition of the same term.} again about stigmergy.\n"
             ))
             result = run_checker(repo, [chapter])
             self.assertEqual(result.returncode, 1)
-            self.assertIn("gloss-once-per-chapter", result.stdout)
+            self.assertIn("gloss-not-repeated", result.stdout)
 
     def test_case_insensitive_repeat_fails(self) -> None:
         with TemporaryDirectory() as tmp:
@@ -175,11 +264,51 @@ class TestGlossOncePerChapter(unittest.TestCase):
                 "The swarm uses \\pdgloss{Stigmergy}{coordination through traces left in the "
                 "environment.} inline, in a real sentence about the mechanism.\n\n"
                 "Later the chapter uses \\pdgloss{stigmergy}{a second, lowercase repeat of the "
-                "same term.} again in running prose.\n"
+                "same term.} again about stigmergy.\n"
             ))
             result = run_checker(repo, [chapter])
             self.assertEqual(result.returncode, 1)
-            self.assertIn("gloss-once-per-chapter", result.stdout)
+            self.assertIn("gloss-not-repeated", result.stdout)
+
+    def test_markup_stripped_repeat_fails(self) -> None:
+        with TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            chapter = write_chapter(repo, "ch.tex", (
+                "\\section{Intro}\n"
+                "The swarm uses \\pdgloss{Stigmergy}{coordination through traces left in the "
+                "environment.} inline, in a real sentence about the mechanism.\n\n"
+                "Later the chapter uses \\pdgloss{\\emph{Stigmergy}}{a second definition wrapped "
+                "in emphasis markup.} again about stigmergy.\n"
+            ))
+            result = run_checker(repo, [chapter])
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("gloss-not-repeated", result.stdout)
+
+
+class TestGlossTermInPriorProse(unittest.TestCase):
+    def test_normal_gloss_call_passes(self) -> None:
+        with TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            chapter = write_chapter(repo, "ch.tex", (
+                "\\section{Intro}\n"
+                "The swarm uses \\pdgloss{Stigmergy}{coordination through traces left in the "
+                "environment.} to coordinate its markers.\n"
+            ))
+            result = run_checker(repo, [chapter])
+            self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
+            self.assertNotIn("gloss-term-in-prior-prose", result.stdout)
+
+    def test_empty_term_fails(self) -> None:
+        with TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            chapter = write_chapter(repo, "ch.tex", (
+                "\\section{Intro}\n"
+                "This sentence carries a blank gloss label \\pdgloss{}{a definition with no "
+                "term attached to it at all.} for no reason.\n"
+            ))
+            result = run_checker(repo, [chapter])
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("gloss-term-in-prior-prose", result.stdout)
 
 
 class TestGlossInRunningProse(unittest.TestCase):
