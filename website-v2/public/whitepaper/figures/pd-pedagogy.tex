@@ -155,12 +155,17 @@
 % renders as a margin note "script \textperiodcentered\ seed \textperiodcentered\ TAG"; in a
 % standalone chapter it folds back to exactly the bracket form the inline
 % tag it replaces already used -- "[tag]" -- so no chapter's rendered prose
-% changes outside the Book.
+% changes outside the Book. Call sites drop the space that used to precede
+% the inline "[tag]" (\pdprov attaches directly to the preceding word or
+% math, e.g. "did\pdprov{...}{...}{verified}."), since the Book's margin
+% note is not part of the running line and would otherwise leave a bare
+% "did ." behind; the standalone branch below restores that one space
+% itself (\ [#3]) so a standalone chapter still reads "did [verified]."
 \newcommand{\pdprov}[3]{%
   \ifpdmargincolumn
     \marginnote{\texttt{\small #1} \textperiodcentered\ #2 \textperiodcentered\ \textsc{#3}}%
   \else
-    [#3]%
+    \ [#3]%
   \fi}
 
 % \pdprovedonentry{promise label}{target label}{section|page} -- one row of

@@ -1382,16 +1382,16 @@ price) $1{,}975$ times [internal].
 
 \begin{pdexample}{The swap gain and the attested flip}
 Take $\theta_H=1$, $\theta_L=0.4$, $c_H=0.5$, $c_L=0.2$. Unattested, the swap
-gain is $c_H-c_L=0.3$ at every price \pdprov{b5\_engine\_substitution.py}{20260816}{verified}. The pool clears $c_H$ when
+gain is $c_H-c_L=0.3$ at every price\pdprov{b5\_engine\_substitution.py}{20260816}{verified}. The pool clears $c_H$ when
 $\mu\cdot 1+(1-\mu)\cdot 0.4\ge 0.5$, that is $0.6\mu\ge 0.1$, so
-$\mu^\star=1/6\approx 0.167$ \pdprov{b5\_engine\_substitution.py}{20260816}{verified}; the deterrence bond at audit rate
-$q=0.6$ is $B^\star=\Delta c/q=0.5$ \pdprov{b5\_engine\_substitution.py}{20260816}{verified}. Attested, keeping the strong
+$\mu^\star=1/6\approx 0.167$\pdprov{b5\_engine\_substitution.py}{20260816}{verified}; the deterrence bond at audit rate
+$q=0.6$ is $B^\star=\Delta c/q=0.5$\pdprov{b5\_engine\_substitution.py}{20260816}{verified}. Attested, keeping the strong
 engine earns $\theta_H-c_H=0.50$ and swapping earns $\theta_L-c_L=0.20$, so
 the flip is $\Delta c-\Delta\theta=0.3-0.6=-0.3$ and the required audit stake
 is $0$ [verified; the sweep reproduces every line, internal]. \emph{Now you
 try:} raise the strong engine's cost to $c_H=0.7$. What committed share keeps
 the unattested pool alive? ($\mu^\star=(0.7-0.4)/0.6=0.5$: half the market
-must be committed before quality can break even \pdprov{b5\_engine\_substitution.py}{20260816}{verified}.) Then run the
+must be committed before quality can break even\pdprov{b5\_engine\_substitution.py}{20260816}{verified}.) Then run the
 script's Part~3 (Exercise~\ref{ex:stp-resurrection-soundness}).
 \end{pdexample}
 
