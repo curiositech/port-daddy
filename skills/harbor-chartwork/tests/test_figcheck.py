@@ -354,3 +354,34 @@ class TestCLI(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class InkAuditLoaderTests(unittest.TestCase):
+    """The ink metrics are advisory: when the Tufte skill's ink_audit.py is
+    absent (the skill moved, a partial checkout), figcheck must degrade to
+    "no ink data" rather than fail."""
+
+    def test_loader_returns_none_when_the_module_file_is_missing(self):
+        real_path = figcheck.INK_AUDIT_PATH
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                figcheck.INK_AUDIT_PATH = Path(tmp) / "does-not-exist" / "ink_audit.py"
+                self.assertIsNone(figcheck._load_ink_audit())
+        finally:
+            figcheck.INK_AUDIT_PATH = real_path
+
+    def test_loader_returns_none_when_the_module_does_not_import(self):
+        real_path = figcheck.INK_AUDIT_PATH
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                broken = Path(tmp) / "ink_audit.py"
+                broken.write_text("raise RuntimeError('deliberately broken')\n", encoding="utf-8")
+                figcheck.INK_AUDIT_PATH = broken
+                self.assertIsNone(figcheck._load_ink_audit())
+        finally:
+            figcheck.INK_AUDIT_PATH = real_path
+
+    def test_loader_finds_the_committed_module(self):
+        module = figcheck._load_ink_audit()
+        self.assertIsNotNone(module)
+        self.assertTrue(hasattr(module, "load_image"))
