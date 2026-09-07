@@ -1,0 +1,38 @@
+chapter_lint: whitepaper/single-writer-kernel.tex  (2194 lines, 18 sections, 41 subsections)
+  imports figures/pd-pedagogy: False
+
+Floors:
+  [FAIL] worked_example_per_section
+         18/18 top-level sections have zero worked examples (pdexample/example): Where this paper sits, and what it promises; Reader's Map; The kernel as seven organs; The substrate organ: one writer, one file; Durability, split by fault class; The resource organ: claims, locks, and fair exclusion; The communication organ: the bus, stigmergy, and two delegation chains; The obligation \& enforcement organ: the sovereign's two arms ...
+  [FAIL] exercises_at_chapter_end
+         10/10 exercise clusters sit mid-body, outside a section titled 'Exercises' (Wave 12 finding F1: this is the exact defect the chapter-end apparatus was built to fix). Lines: 440, 534, 647, 794, 894, 1132, 1226, 1369, 1408, 1611
+  [FAIL] claims_carry_epistemic_kind
+         9/10 claim-like environments (theorem/lemma/definition/property/corollary) carry no nearby epistemic-kind tag (pdclaim kind, or a \Built/\Designed/\pdassurance-style maturity marker) -- the honesty ledger requires every claim state its own kind where it is made. Lines: 471 (definition), 715 (theorem), 923 (definition), 955 (theorem), 1000 (theorem), 1046 (property), 1054 (property), 1252 (property), 1317 (theorem)
+  [FAIL] no_tinted_box_macros
+         4 legacy tinted-box macro(s) defined with a fill= node, and this chapter does NOT \input{figures/pd-pedagogy} to neutralize them -- they render as tinted rectangles (page grammar requires typography + margin, never a fill): \keyidea (line 77), \pitfall (line 87), \exercises (line 99), \pullquote (line 63)
+  [PASS] at_most_one_interlude
+         0 interludes
+  [FAIL] chapter_close_apparatus
+         missing: review
+
+Claims: 10 total, 1 tagged, 9 untagged.
+    property: 4
+    theorem: 4
+    definition: 2
+
+Worked examples: 0 total (pdexample/example), 0 pdsession transcript(s).
+
+Exercise clusters: 10 found.
+    line   440  \exercises           [MID-BODY]  in "The kernel as seven organs"
+    line   534  \exercises           [MID-BODY]  in "The substrate organ: one writer, one file"
+    line   647  \exercises           [MID-BODY]  in "Durability, split by fault class"
+    line   794  \exercises           [MID-BODY]  in "The resource organ: claims, locks, and fair exclusion"
+    line   894  \exercises           [MID-BODY]  in "The communication organ: the bus, stigmergy, and two delegation chains"
+    line  1132  \exercises           [MID-BODY]  in "The obligation \& enforcement organ: the sovereign's two arms"
+    line  1226  \exercises           [MID-BODY]  in "The continuity organ: memory, checkpoint, and the foundation of the economy"
+    line  1369  \exercises           [MID-BODY]  in "The invariants, stated as theorems"
+    line  1408  \exercises           [MID-BODY]  in "Cross-organ atomicity: a buildable defect, not a frontier"
+    line  1611  \exercises           [MID-BODY]  in "Threat model and the limits of mediation"
+
+Interludes: 0
+Tinted-box macros: 4: \keyidea, \pitfall, \exercises, \pullquote
