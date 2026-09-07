@@ -101,10 +101,11 @@
   \fi}
 
 % ---------------------------------------------------------------------------
-% Margin citations (Wave 16): \pdcite emits the normal \cite plus, in the
-% Book, a margin note with a short form per key. The short-form table is
-% GENERATED (scripts/harbor-research/build_cite_shortforms.py) and \input
-% immediately below, before any chapter body can call \pdcite.
+% Margin citations and provenance sidenotes (Wave 16): \pdcite emits the
+% normal \cite plus, in the Book, a margin note with a short form per key;
+% \pdprov renders a run's script/seed/tag provenance in the margin instead of
+% inline. The citation short-form table is GENERATED and \input immediately
+% below, before any chapter body can call \pdcite.
 %
 %   figures/pd-cite-shortforms.tex   -- scripts/harbor-research/build_cite_shortforms.py
 %
@@ -140,6 +141,22 @@
     \marginnote{\pd@citefirsttrue\@for\pd@citekey:=#1\do{%
       \ifpd@citefirst\pd@citefirstfalse\else; \fi
       \pd@citeshort@one{\pd@citekey}}}%
+  \fi}
+
+% \pdprov{script}{seed}{tag} -- a run's provenance at the point where its
+% number appears in prose. tag is verified or internal, in the Book set in
+% small caps to match the existing \Built/\Designed/\Vision tag convention
+% (coordination-papers-mega-volume-preamble.tex and every chapter preamble
+% define those the same way: \textsc for the tag word). In the Book this
+% renders as a margin note "script \textperiodcentered\ seed \textperiodcentered\ TAG"; in a
+% standalone chapter it folds back to exactly the bracket form the inline
+% tag it replaces already used -- "[tag]" -- so no chapter's rendered prose
+% changes outside the Book.
+\newcommand{\pdprov}[3]{%
+  \ifpdmargincolumn
+    \marginnote{\texttt{\small #1} \textperiodcentered\ #2 \textperiodcentered\ \textsc{#3}}%
+  \else
+    [#3]%
   \fi}
 
 
