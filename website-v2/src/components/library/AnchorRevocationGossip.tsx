@@ -1,5 +1,5 @@
 /**
- * Gossip-synchronized revocation (Chapter V, `fig-anchor-revocation-gossip.tex`),
+ * Gossip-synchronized revocation (Chapter 2, `fig-anchor-revocation-gossip.tex`),
  * drawn as five time panels of a five-daemon mesh. At t=0 daemon A revokes a Harbor
  * Card locally; anti-entropy gossip ships the revocation delta to two random peers
  * every 30 s, so the "filter contains revoked card" state spreads epidemically:
@@ -182,7 +182,7 @@ export function AnchorRevocationGossip() {
         </svg>
       </div>
       <figcaption className="border-t-2 border-[var(--border-strong)] p-[var(--space-4)] text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
-        From Chapter V, <span className="font-black text-[var(--text-primary)]">The Anchor Protocol</span>.
+        From Chapter 2, <span className="font-black text-[var(--text-primary)]">The Anchor Protocol</span>.
         Each daemon keeps a cuckoo filter and a version vector over its peers; every
         30 s it picks a random peer and ships the deltas. A single revocation reaches
         all <span className="font-black text-[var(--text-primary)]">m</span> daemons in
