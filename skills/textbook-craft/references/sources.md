@@ -43,9 +43,9 @@ are checked mechanically.
   (quoted in `references/exercise-design.md` and in `SKILL.md`'s honesty
   ledger): repair a false premise instead of answering it as asked, and give
   open problems a defensible obligation rather than a fictional closed form.
-- `whitepaper/figures/pd-pedagogy.tex` (read at
-  `wave-16/figure-gates:whitepaper/figures/pd-pedagogy.tex`; not yet merged to
-  `main` as of this skill's authoring commit) — the actual macro vocabulary
+- `whitepaper/figures/pd-pedagogy.tex` (on `main` since the Book landed; it was
+  read from `wave-16/figure-gates` when this skill was first written) — the
+  actual macro vocabulary
   this skill's page-grammar section and `chapter_lint.py`'s claim/example/
   exercise detection are built against: `pdclaim` (kinds `Theorem`, `Design
   invariant`, `Model-checked property`, `Empirical hypothesis`), `pdboundary`
