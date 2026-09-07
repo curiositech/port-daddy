@@ -2215,14 +2215,14 @@ bite. The split also has a price, not only a prohibition.
 \label{thm:split-penalty}
 Let $\mathrm{Floor}(N,k,m)=\log_2\binom{N}{k}-\log_2\binom{m}{k}$ from
 Theorem~\ref{thm:lowerbound}. A joint zero-miss digest serving two readers with
-disjoint load-bearing $k$-sets must catch their union and so needs
+disjoint critical $k$-sets must catch their union and so needs
 $\mathrm{Floor}(N,2k,m)$ bits, and
 \[
 \frac{\mathrm{Floor}(N,2k,m)}{2\,\mathrm{Floor}(N,k,m)}\;>\;1
 \quad\text{for every } N,k,m \text{ with } 2k\le m<N,
 \]
 because $\log_2\binom{N}{2k}$ grows faster than $2\log_2\binom{N}{k}$. The penalty
-is not a fixed band: it is smallest where the load-bearing sets are smallest and
+is not a fixed band: it is smallest where the critical sets are smallest and
 grows without bound in $k$. At $N{=}60$, $m{=}8$ it runs $1.029$ ($k{=}1$), $1.067$
 ($k{=}2$), $1.122$ ($k{=}3$), $1.224$ ($k{=}4$); at $N{=}60$, $m{=}20$ it reaches
 $1.392$ by $k{=}10$ [verified].
