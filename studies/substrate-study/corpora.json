@@ -1,0 +1,32 @@
+{
+  "_comment": "Pinned per PROTOCOL.md S2.1. Pinned at first fetch on 2026-09-07; never changed. Ranges are first-parent chains on the default branch: start_sha is the oldest of the 600 commits kept, end_sha is the newest (HEAD at pin time). corpus.py enumerates commits via `git rev-list --first-parent --reverse <start_sha>^..<end_sha>`, which yields exactly 600 commits before merge/binary/oversize drops are applied.",
+  "corpora": {
+    "ts-service": {
+      "role": "mid-size TypeScript service (product's own shape)",
+      "repo_url": "https://github.com/nestjs/nest.git",
+      "default_branch": "master",
+      "start_sha": "5cbf5500a4db141a2f971ca59e84248eb40389a3",
+      "end_sha": "39fbddae51281ca56bf2fed9123d98e61509066c",
+      "pinned_at": "2026-09-07",
+      "nominal_commit_count": 600
+    },
+    "py-library": {
+      "role": "Python library with a wide contributor base (high file-overlap regime)",
+      "repo_url": "https://github.com/psf/requests.git",
+      "default_branch": "main",
+      "start_sha": "f4818b2010ce0846e9ddc85f439b80303a395494",
+      "end_sha": "dae7ef63b4df6eded86637f251fc4e3a06c3b479",
+      "pinned_at": "2026-09-07",
+      "nominal_commit_count": 600
+    },
+    "docs-heavy": {
+      "role": "documentation-heavy repository (low overlap, many small files)",
+      "repo_url": "https://github.com/rust-lang/book.git",
+      "default_branch": "main",
+      "start_sha": "c032e945406dd8ef2ce2062aa1f9d65dbf9020d6",
+      "end_sha": "1500248d8f230566e4ec9f27fcbb8fe9e2898ab1",
+      "pinned_at": "2026-09-07",
+      "nominal_commit_count": 600
+    }
+  }
+}

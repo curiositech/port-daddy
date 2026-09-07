@@ -1,0 +1,573 @@
+time,event,agent_id,task_id,note
+0.0,start,0,0,
+0.0,start,1,1,
+522.234,land,0,0,
+522.234,start,0,2,
+661.226,torn,0,0,task 2's last-writer-wins overwrite of docs/_templates/sidebarintro.html silently discarded task 0's landed edit
+661.226,land,0,2,
+661.226,start,0,3,
+666.344,land,0,3,
+666.344,start,0,4,
+808.46,torn,1,3,task 1's last-writer-wins overwrite of docs/_templates/hacks.html silently discarded task 3's landed edit
+808.46,torn,1,2,task 1's last-writer-wins overwrite of docs/_templates/sidebarintro.html silently discarded task 2's landed edit
+808.46,land,1,1,
+808.46,start,1,5,
+846.278,land,1,5,
+846.278,start,1,6,
+995.44,torn,0,5,task 4's last-writer-wins overwrite of README.md silently discarded task 5's landed edit
+995.44,land,0,4,
+995.44,start,0,7,
+1023.598,land,0,7,
+1023.598,start,0,8,
+1028.135,land,0,8,
+1028.135,start,0,9,
+1219.385,land,1,6,
+1219.385,start,1,10,
+4474.078,land,0,9,
+4474.078,start,0,11,
+4479.836,torn,0,8,task 11's last-writer-wins overwrite of MANIFEST.in silently discarded task 8's landed edit
+4479.836,land,0,11,
+4479.836,start,0,12,
+4490.253,torn,0,1,task 12's last-writer-wins overwrite of docs/index.rst silently discarded task 1's landed edit
+4490.253,land,0,12,
+4490.253,start,0,13,
+4494.46,torn,0,12,task 13's last-writer-wins overwrite of docs/index.rst silently discarded task 12's landed edit
+4494.46,land,0,13,
+4494.46,start,0,14,
+4500.264,torn,0,13,task 14's last-writer-wins overwrite of docs/index.rst silently discarded task 13's landed edit
+4500.264,land,0,14,
+4500.264,start,0,15,
+4507.061,torn,0,14,task 15's last-writer-wins overwrite of docs/index.rst silently discarded task 14's landed edit
+4507.061,land,0,15,
+4507.061,start,0,16,
+4517.108,torn,0,15,task 16's last-writer-wins overwrite of docs/index.rst silently discarded task 15's landed edit
+4517.108,land,0,16,
+4517.108,start,0,17,
+4524.711,land,0,17,
+4524.711,start,0,18,
+4532.156,land,0,18,
+4532.156,start,0,19,
+4560.172,land,0,19,
+4560.172,start,0,20,
+4585.922,land,0,20,
+4585.922,start,0,21,
+4622.816,torn,0,9,task 21's last-writer-wins overwrite of HISTORY.md silently discarded task 9's landed edit
+4622.816,land,0,21,
+4622.816,start,0,22,
+4717.578,land,0,22,
+4717.578,start,0,23,
+4737.081,land,0,23,
+4737.081,start,0,24,
+4841.656,land,0,24,
+4841.656,start,0,25,
+5496.552,land,0,25,
+5496.552,start,0,26,
+5550.359,torn,0,22,task 26's last-writer-wins overwrite of .vscode/settings.json silently discarded task 22's landed edit
+5550.359,land,0,26,
+5550.359,start,0,27,
+5732.79,land,0,27,
+5732.79,start,0,28,
+5738.566,torn,0,7,task 28's last-writer-wins overwrite of setup.py silently discarded task 7's landed edit
+5738.566,land,0,28,
+5738.566,start,0,29,
+5750.536,torn,0,16,task 29's last-writer-wins overwrite of docs/index.rst silently discarded task 16's landed edit
+5750.536,land,0,29,
+5750.536,start,0,30,
+5758.094,land,0,30,
+5758.094,start,0,31,
+6286.362,land,0,31,
+6286.362,start,0,32,
+6288.856,land,0,32,
+6288.856,start,0,33,
+6291.783,torn,0,17,task 33's last-writer-wins overwrite of docs/_templates/sidebarlogo.html silently discarded task 17's landed edit
+6291.783,land,0,33,
+6291.783,start,0,34,
+6299.648,torn,0,29,task 34's last-writer-wins overwrite of docs/index.rst silently discarded task 29's landed edit
+6299.648,land,0,34,
+6299.648,start,0,35,
+6303.925,torn,0,34,task 35's last-writer-wins overwrite of docs/index.rst silently discarded task 34's landed edit
+6303.925,land,0,35,
+6303.925,start,0,36,
+6311.141,torn,0,35,task 36's last-writer-wins overwrite of docs/index.rst silently discarded task 35's landed edit
+6311.141,land,0,36,
+6311.141,start,0,37,
+6317.344,torn,0,36,task 37's last-writer-wins overwrite of docs/index.rst silently discarded task 36's landed edit
+6317.344,land,0,37,
+6317.344,start,0,38,
+6323.856,torn,0,4,task 38's last-writer-wins overwrite of README.md silently discarded task 4's landed edit
+6323.856,land,0,38,
+6323.856,start,0,39,
+6333.595,torn,0,37,task 39's last-writer-wins overwrite of docs/index.rst silently discarded task 37's landed edit
+6333.595,land,0,39,
+6333.595,start,0,40,
+6341.368,land,0,40,
+6341.368,start,0,41,
+6370.551,torn,0,38,task 41's last-writer-wins overwrite of README.md silently discarded task 38's landed edit
+6370.551,land,0,41,
+6370.551,start,0,42,
+6375.186,torn,0,41,task 42's last-writer-wins overwrite of README.md silently discarded task 41's landed edit
+6375.186,land,0,42,
+6375.186,start,0,43,
+6385.982,torn,0,42,task 43's last-writer-wins overwrite of README.md silently discarded task 42's landed edit
+6385.982,land,0,43,
+6385.982,start,0,44,
+6392.779,torn,0,43,task 44's last-writer-wins overwrite of README.md silently discarded task 43's landed edit
+6392.779,land,0,44,
+6392.779,start,0,45,
+6531.365,torn,0,39,task 45's last-writer-wins overwrite of docs/index.rst silently discarded task 39's landed edit
+6531.365,land,0,45,
+6531.365,start,0,46,
+6538.936,torn,0,45,task 46's last-writer-wins overwrite of docs/index.rst silently discarded task 45's landed edit
+6538.936,land,0,46,
+6538.936,start,0,47,
+6544.656,torn,0,46,task 47's last-writer-wins overwrite of docs/index.rst silently discarded task 46's landed edit
+6544.656,land,0,47,
+6544.656,start,0,48,
+6555.438,torn,0,32,task 48's last-writer-wins overwrite of docs/_templates/sidebarintro.html silently discarded task 32's landed edit
+6555.438,land,0,48,
+6555.438,start,0,49,
+6621.569,torn,0,48,task 49's last-writer-wins overwrite of docs/_templates/sidebarintro.html silently discarded task 48's landed edit
+6621.569,land,0,49,
+6621.569,start,0,50,
+6687.72,torn,0,33,task 50's last-writer-wins overwrite of docs/_templates/sidebarlogo.html silently discarded task 33's landed edit
+6687.72,land,0,50,
+6687.72,start,0,51,
+6694.036,torn,0,47,task 51's last-writer-wins overwrite of docs/index.rst silently discarded task 47's landed edit
+6694.036,land,0,51,
+6694.036,start,0,52,
+6708.79,torn,0,51,task 52's last-writer-wins overwrite of docs/index.rst silently discarded task 51's landed edit
+6708.79,land,0,52,
+6708.79,start,0,53,
+6889.07,land,1,10,
+6889.07,start,1,54,
+6898.099,torn,1,44,task 54's last-writer-wins overwrite of README.md silently discarded task 44's landed edit
+6898.099,land,1,54,
+6898.099,start,1,55,
+6907.579,torn,1,54,task 55's last-writer-wins overwrite of README.md silently discarded task 54's landed edit
+6907.579,land,1,55,
+6907.579,start,1,56,
+6909.741,torn,1,55,task 56's last-writer-wins overwrite of README.md silently discarded task 55's landed edit
+6909.741,land,1,56,
+6909.741,start,1,57,
+6937.648,torn,1,52,task 57's last-writer-wins overwrite of docs/index.rst silently discarded task 52's landed edit
+6937.648,land,1,57,
+6937.648,start,1,58,
+6941.183,torn,1,28,task 58's last-writer-wins overwrite of setup.py silently discarded task 28's landed edit
+6941.183,land,1,58,
+6941.183,start,1,59,
+6946.875,torn,1,56,task 59's last-writer-wins overwrite of README.md silently discarded task 56's landed edit
+6946.875,land,1,59,
+6946.875,start,1,60,
+6951.697,torn,1,50,task 60's last-writer-wins overwrite of docs/_templates/sidebarlogo.html silently discarded task 50's landed edit
+6951.697,land,1,60,
+6951.697,start,1,61,
+6957.873,torn,1,49,task 61's last-writer-wins overwrite of docs/_templates/sidebarintro.html silently discarded task 49's landed edit
+6957.873,land,1,61,
+6957.873,start,1,62,
+6964.604,torn,1,57,task 62's last-writer-wins overwrite of docs/index.rst silently discarded task 57's landed edit
+6964.604,land,1,62,
+6964.604,start,1,63,
+6967.918,land,1,63,
+6967.918,start,1,64,
+7056.613,land,0,53,
+7056.613,start,0,65,
+7059.503,land,0,65,
+7059.503,start,0,66,
+7234.267,land,1,64,
+7234.267,start,1,67,
+7241.269,torn,1,59,task 67's last-writer-wins overwrite of README.md silently discarded task 59's landed edit
+7241.269,land,1,67,
+7241.269,start,1,68,
+7247.345,torn,1,67,task 68's last-writer-wins overwrite of README.md silently discarded task 67's landed edit
+7247.345,land,1,68,
+7247.345,start,1,69,
+7289.462,torn,1,68,task 69's last-writer-wins overwrite of README.md silently discarded task 68's landed edit
+7289.462,land,1,69,
+7289.462,start,1,70,
+7295.425,torn,1,69,task 70's last-writer-wins overwrite of README.md silently discarded task 69's landed edit
+7295.425,land,1,70,
+7295.425,start,1,71,
+7304.038,torn,1,70,task 71's last-writer-wins overwrite of README.md silently discarded task 70's landed edit
+7304.038,land,1,71,
+7304.038,start,1,72,
+7308.395,torn,1,71,task 72's last-writer-wins overwrite of README.md silently discarded task 71's landed edit
+7308.395,land,1,72,
+7308.395,start,1,73,
+7315.127,torn,1,72,task 73's last-writer-wins overwrite of README.md silently discarded task 72's landed edit
+7315.127,land,1,73,
+7315.127,start,1,74,
+7322.866,torn,1,73,task 74's last-writer-wins overwrite of README.md silently discarded task 73's landed edit
+7322.866,land,1,74,
+7322.866,start,1,75,
+7332.37,torn,1,74,task 75's last-writer-wins overwrite of README.md silently discarded task 74's landed edit
+7332.37,land,1,75,
+7332.37,start,1,76,
+7349.221,torn,1,75,task 76's last-writer-wins overwrite of README.md silently discarded task 75's landed edit
+7349.221,land,1,76,
+7349.221,start,1,77,
+7354.034,torn,1,76,task 77's last-writer-wins overwrite of README.md silently discarded task 76's landed edit
+7354.034,land,1,77,
+7354.034,start,1,78,
+7357.038,torn,1,77,task 78's last-writer-wins overwrite of README.md silently discarded task 77's landed edit
+7357.038,land,1,78,
+7357.038,start,1,79,
+7399.583,torn,1,78,task 79's last-writer-wins overwrite of README.md silently discarded task 78's landed edit
+7399.583,land,1,79,
+7399.583,start,1,80,
+7410.044,torn,1,79,task 80's last-writer-wins overwrite of README.md silently discarded task 79's landed edit
+7410.044,land,1,80,
+7410.044,start,1,81,
+7419.258,torn,1,80,task 81's last-writer-wins overwrite of README.md silently discarded task 80's landed edit
+7419.258,land,1,81,
+7419.258,start,1,82,
+7433.852,torn,1,81,task 82's last-writer-wins overwrite of README.md silently discarded task 81's landed edit
+7433.852,land,1,82,
+7433.852,start,1,83,
+7438.888,torn,1,82,task 83's last-writer-wins overwrite of README.md silently discarded task 82's landed edit
+7438.888,land,1,83,
+7438.888,start,1,84,
+7444.937,torn,1,83,task 84's last-writer-wins overwrite of README.md silently discarded task 83's landed edit
+7444.937,land,1,84,
+7444.937,start,1,85,
+7460.195,torn,1,84,task 85's last-writer-wins overwrite of README.md silently discarded task 84's landed edit
+7460.195,land,1,85,
+7460.195,start,1,86,
+7475.895,torn,1,85,task 86's last-writer-wins overwrite of README.md silently discarded task 85's landed edit
+7475.895,land,1,86,
+7475.895,start,1,87,
+7484.674,torn,1,86,task 87's last-writer-wins overwrite of README.md silently discarded task 86's landed edit
+7484.674,land,1,87,
+7484.674,start,1,88,
+7489.844,torn,1,87,task 88's last-writer-wins overwrite of README.md silently discarded task 87's landed edit
+7489.844,land,1,88,
+7489.844,start,1,89,
+7499.103,torn,1,88,task 89's last-writer-wins overwrite of README.md silently discarded task 88's landed edit
+7499.103,land,1,89,
+7499.103,start,1,90,
+7502.926,torn,1,89,task 90's last-writer-wins overwrite of README.md silently discarded task 89's landed edit
+7502.926,land,1,90,
+7502.926,start,1,91,
+7540.911,torn,1,90,task 91's last-writer-wins overwrite of README.md silently discarded task 90's landed edit
+7540.911,land,1,91,
+7540.911,start,1,92,
+7547.932,torn,1,91,task 92's last-writer-wins overwrite of README.md silently discarded task 91's landed edit
+7547.932,land,1,92,
+7547.932,start,1,93,
+7558.663,torn,1,92,task 93's last-writer-wins overwrite of README.md silently discarded task 92's landed edit
+7558.663,land,1,93,
+7558.663,start,1,94,
+7577.138,torn,1,93,task 94's last-writer-wins overwrite of README.md silently discarded task 93's landed edit
+7577.138,land,1,94,
+7577.138,start,1,95,
+7601.169,torn,1,94,task 95's last-writer-wins overwrite of README.md silently discarded task 94's landed edit
+7601.169,land,1,95,
+7601.169,start,1,96,
+7626.064,torn,1,95,task 96's last-writer-wins overwrite of README.md silently discarded task 95's landed edit
+7626.064,land,1,96,
+7626.064,start,1,97,
+7635.165,torn,1,96,task 97's last-writer-wins overwrite of README.md silently discarded task 96's landed edit
+7635.165,land,1,97,
+7635.165,start,1,98,
+7641.385,torn,1,97,task 98's last-writer-wins overwrite of README.md silently discarded task 97's landed edit
+7641.385,land,1,98,
+7641.385,start,1,99,
+7647.119,torn,1,98,task 99's last-writer-wins overwrite of README.md silently discarded task 98's landed edit
+7647.119,land,1,99,
+7647.119,start,1,100,
+7666.929,land,1,100,
+7666.929,start,1,101,
+7670.595,land,1,101,
+7670.595,start,1,102,
+7676.847,torn,1,58,task 102's last-writer-wins overwrite of setup.py silently discarded task 58's landed edit
+7676.847,land,1,102,
+7676.847,start,1,103,
+8012.296,land,0,66,
+8012.296,start,0,104,
+8015.304,torn,0,24,task 104's last-writer-wins overwrite of .travis.yml silently discarded task 24's landed edit
+8015.304,land,0,104,
+8015.304,start,0,105,
+8027.196,torn,0,104,task 105's last-writer-wins overwrite of .travis.yml silently discarded task 104's landed edit
+8027.196,land,0,105,
+8027.196,start,0,106,
+8031.045,torn,1,66,task 103's last-writer-wins overwrite of Pipfile silently discarded task 66's landed edit
+8031.045,land,1,103,
+8031.045,start,1,107,
+8103.978,torn,0,61,task 106's last-writer-wins overwrite of docs/_templates/sidebarintro.html silently discarded task 61's landed edit
+8103.978,torn,0,60,task 106's last-writer-wins overwrite of docs/_templates/sidebarlogo.html silently discarded task 60's landed edit
+8103.978,land,0,106,
+8103.978,start,0,108,
+8110.116,torn,0,99,task 108's last-writer-wins overwrite of README.md silently discarded task 99's landed edit
+8110.116,land,0,108,
+8110.116,start,0,109,
+8118.179,torn,1,21,task 107's last-writer-wins overwrite of HISTORY.md silently discarded task 21's landed edit
+8118.179,torn,1,108,task 107's last-writer-wins overwrite of README.md silently discarded task 108's landed edit
+8118.179,torn,1,106,task 107's last-writer-wins overwrite of docs/_templates/sidebarintro.html silently discarded task 106's landed edit
+8118.179,torn,1,31,task 107's last-writer-wins overwrite of docs/conf.py silently discarded task 31's landed edit
+8118.179,torn,1,102,task 107's last-writer-wins overwrite of setup.py silently discarded task 102's landed edit
+8118.179,land,1,107,
+8118.179,start,1,110,
+8148.784,torn,0,107,task 109's last-writer-wins overwrite of docs/community/faq.rst silently discarded task 107's landed edit
+8148.784,land,0,109,
+8148.784,start,0,111,
+8153.406,land,1,110,
+8153.406,start,1,112,
+8162.007,land,1,112,
+8162.007,start,1,113,
+8166.332,torn,0,105,task 111's last-writer-wins overwrite of .travis.yml silently discarded task 105's landed edit
+8166.332,land,0,111,
+8166.332,start,0,114,
+8171.17,torn,0,100,task 114's last-writer-wins overwrite of requests/sessions.py silently discarded task 100's landed edit
+8171.17,land,0,114,
+8171.17,start,0,115,
+8177.087,land,1,113,
+8177.087,start,1,116,
+8376.052,torn,0,101,task 115's last-writer-wins overwrite of AUTHORS.rst silently discarded task 101's landed edit
+8376.052,land,0,115,
+8376.052,start,0,117,
+8436.224,land,1,116,
+8436.224,start,1,118,
+8496.316,torn,0,115,task 117's last-writer-wins overwrite of requests/models.py silently discarded task 115's landed edit
+8496.316,land,0,117,
+8496.316,start,0,119,
+8513.989,land,1,118,
+8513.989,start,1,120,
+8528.442,land,0,119,
+8528.442,start,0,121,
+8546.518,land,0,121,
+8546.518,start,0,122,
+8579.634,torn,0,19,task 122's last-writer-wins overwrite of docs/community/vulnerabilities.rst silently discarded task 19's landed edit
+8579.634,land,0,122,
+8579.634,start,0,123,
+8615.631,land,0,123,
+8615.631,start,0,124,
+8688.053,torn,0,62,task 124's last-writer-wins overwrite of docs/index.rst silently discarded task 62's landed edit
+8688.053,torn,0,112,task 124's last-writer-wins overwrite of docs/user/advanced.rst silently discarded task 112's landed edit
+8688.053,torn,0,30,task 124's last-writer-wins overwrite of docs/user/quickstart.rst silently discarded task 30's landed edit
+8688.053,land,0,124,
+8688.053,start,0,125,
+8692.305,torn,0,124,task 125's last-writer-wins overwrite of README.md silently discarded task 124's landed edit
+8692.305,land,0,125,
+8692.305,start,0,126,
+8706.145,torn,0,122,task 126's last-writer-wins overwrite of docs/community/vulnerabilities.rst silently discarded task 122's landed edit
+8706.145,land,0,126,
+8706.145,start,0,127,
+9180.298,torn,0,103,task 127's last-writer-wins overwrite of Pipfile.lock silently discarded task 103's landed edit
+9180.298,land,0,127,
+9180.298,start,0,128,
+9226.239,land,0,128,
+9226.239,start,0,129,
+9255.261,torn,0,118,task 129's last-writer-wins overwrite of HISTORY.md silently discarded task 118's landed edit
+9255.261,land,0,129,
+9255.261,start,0,130,
+9271.581,land,0,130,
+9271.581,start,0,131,
+9276.031,torn,0,117,task 131's last-writer-wins overwrite of requests/models.py silently discarded task 117's landed edit
+9276.031,land,0,131,
+9276.031,start,0,132,
+9280.806,torn,0,125,task 132's last-writer-wins overwrite of README.md silently discarded task 125's landed edit
+9280.806,land,0,132,
+9280.806,start,0,133,
+9286.904,torn,0,132,task 133's last-writer-wins overwrite of README.md silently discarded task 132's landed edit
+9286.904,land,0,133,
+9286.904,start,0,134,
+9296.515,torn,0,133,task 134's last-writer-wins overwrite of README.md silently discarded task 133's landed edit
+9296.515,land,0,134,
+9296.515,start,0,135,
+9332.792,torn,0,129,task 135's last-writer-wins overwrite of HISTORY.md silently discarded task 129's landed edit
+9332.792,land,0,135,
+9332.792,start,0,136,
+9346.316,land,0,136,
+9346.316,start,0,137,
+9352.153,land,0,137,
+9352.153,start,0,138,
+9354.832,torn,0,137,task 138's last-writer-wins overwrite of docs/user/advanced.rst silently discarded task 137's landed edit
+9354.832,land,0,138,
+9354.832,start,0,139,
+9413.888,torn,0,138,task 139's last-writer-wins overwrite of docs/user/advanced.rst silently discarded task 138's landed edit
+9413.888,torn,0,114,task 139's last-writer-wins overwrite of requests/sessions.py silently discarded task 114's landed edit
+9413.888,land,0,139,
+9413.888,start,0,140,
+9573.634,torn,1,127,task 120's last-writer-wins overwrite of Pipfile.lock silently discarded task 127's landed edit
+9573.634,land,1,120,
+9573.634,start,1,141,
+9666.708,torn,0,134,task 140's last-writer-wins overwrite of README.md silently discarded task 134's landed edit
+9666.708,land,0,140,
+9666.708,start,0,142,
+9741.007,torn,0,20,task 142's last-writer-wins overwrite of docs/community/support.rst silently discarded task 20's landed edit
+9741.007,torn,0,18,task 142's last-writer-wins overwrite of docs/community/updates.rst silently discarded task 18's landed edit
+9741.007,land,0,142,
+9741.007,start,0,143,
+9814.161,land,0,143,
+9814.161,start,0,144,
+9830.232,torn,0,140,task 144's last-writer-wins overwrite of README.md silently discarded task 140's landed edit
+9830.232,torn,0,109,task 144's last-writer-wins overwrite of docs/community/faq.rst silently discarded task 109's landed edit
+9830.232,torn,0,142,task 144's last-writer-wins overwrite of docs/index.rst silently discarded task 142's landed edit
+9830.232,land,0,144,
+9830.232,start,0,145,
+9837.671,torn,0,144,task 145's last-writer-wins overwrite of docs/index.rst silently discarded task 144's landed edit
+9837.671,land,0,145,
+9837.671,start,0,146,
+9843.707,torn,0,121,task 146's last-writer-wins overwrite of AUTHORS.rst silently discarded task 121's landed edit
+9843.707,land,0,146,
+9843.707,start,0,147,
+9848.66,torn,0,113,task 147's last-writer-wins overwrite of setup.py silently discarded task 113's landed edit
+9848.66,land,0,147,
+9848.66,start,0,148,
+10163.548,torn,1,136,task 141's last-writer-wins overwrite of docs/dev/todo.rst silently discarded task 136's landed edit
+10163.548,torn,1,145,task 141's last-writer-wins overwrite of docs/index.rst silently discarded task 145's landed edit
+10163.548,torn,1,139,task 141's last-writer-wins overwrite of docs/user/advanced.rst silently discarded task 139's landed edit
+10163.548,land,1,141,
+10163.548,start,1,149,
+11022.642,torn,0,111,task 148's last-writer-wins overwrite of .travis.yml silently discarded task 111's landed edit
+11022.642,torn,0,25,task 148's last-writer-wins overwrite of _appveyor/install.ps1 silently discarded task 25's landed edit
+11022.642,land,0,148,
+11022.642,start,0,150,
+11088.903,torn,0,135,task 150's last-writer-wins overwrite of HISTORY.md silently discarded task 135's landed edit
+11088.903,torn,0,128,task 150's last-writer-wins overwrite of requests/__init__.py silently discarded task 128's landed edit
+11088.903,torn,0,147,task 150's last-writer-wins overwrite of setup.py silently discarded task 147's landed edit
+11088.903,land,0,150,
+11088.903,start,0,151,
+11093.168,land,0,151,
+11093.168,start,0,152,
+11097.895,torn,0,63,task 152's last-writer-wins overwrite of .github/FUNDING.yml silently discarded task 63's landed edit
+11097.895,land,0,152,
+11097.895,start,0,153,
+11111.471,land,0,153,
+11111.471,start,0,154,
+11147.297,torn,0,150,task 154's last-writer-wins overwrite of HISTORY.md silently discarded task 150's landed edit
+11147.297,land,0,154,
+11147.297,start,0,155,
+11154.033,torn,0,141,task 155's last-writer-wins overwrite of docs/user/advanced.rst silently discarded task 141's landed edit
+11154.033,land,0,155,
+11154.033,start,0,156,
+11160.675,torn,0,155,task 156's last-writer-wins overwrite of docs/user/advanced.rst silently discarded task 155's landed edit
+11160.675,land,0,156,
+11160.675,start,0,157,
+11166.836,torn,0,40,task 157's last-writer-wins overwrite of requests/api.py silently discarded task 40's landed edit
+11166.836,land,0,157,
+11166.836,start,0,158,
+11169.333,land,0,158,
+11169.333,start,0,159,
+11177.045,land,0,159,
+11177.045,start,0,160,
+11247.766,torn,0,119,task 160's last-writer-wins overwrite of requests/exceptions.py silently discarded task 119's landed edit
+11247.766,torn,0,131,task 160's last-writer-wins overwrite of requests/models.py silently discarded task 131's landed edit
+11247.766,torn,0,130,task 160's last-writer-wins overwrite of tests/test_requests.py silently discarded task 130's landed edit
+11247.766,land,0,160,
+11247.766,start,0,161,
+11275.035,land,0,161,
+11275.035,start,0,162,
+11290.046,torn,0,156,task 162's last-writer-wins overwrite of docs/user/advanced.rst silently discarded task 156's landed edit
+11290.046,land,0,162,
+11290.046,start,0,163,
+11293.313,torn,0,148,task 163's last-writer-wins overwrite of requirements-dev.txt silently discarded task 148's landed edit
+11293.313,land,0,163,
+11293.313,start,0,164,
+11703.692,torn,0,154,task 164's last-writer-wins overwrite of HISTORY.md silently discarded task 154's landed edit
+11703.692,torn,0,162,task 164's last-writer-wins overwrite of docs/user/advanced.rst silently discarded task 162's landed edit
+11703.692,torn,0,160,task 164's last-writer-wins overwrite of requests/models.py silently discarded task 160's landed edit
+11703.692,torn,0,158,task 164's last-writer-wins overwrite of setup.py silently discarded task 158's landed edit
+11703.692,land,0,164,
+11703.692,start,0,165,
+11769.559,land,0,165,
+11769.559,start,0,166,
+11812.411,torn,0,164,task 166's last-writer-wins overwrite of HISTORY.md silently discarded task 164's landed edit
+11812.411,torn,0,165,task 166's last-writer-wins overwrite of requests/utils.py silently discarded task 165's landed edit
+11812.411,land,0,166,
+11812.411,start,0,167,
+11822.118,land,0,167,
+11822.118,start,0,168,
+11870.646,torn,0,166,task 168's last-writer-wins overwrite of HISTORY.md silently discarded task 166's landed edit
+11870.646,torn,0,159,task 168's last-writer-wins overwrite of README.md silently discarded task 159's landed edit
+11870.646,torn,0,167,task 168's last-writer-wins overwrite of setup.py silently discarded task 167's landed edit
+11870.646,land,0,168,
+11870.646,start,0,169,
+11984.058,torn,0,163,task 169's last-writer-wins overwrite of requirements-dev.txt silently discarded task 163's landed edit
+11984.058,land,0,169,
+11984.058,start,0,170,
+12103.167,torn,0,168,task 170's last-writer-wins overwrite of HISTORY.md silently discarded task 168's landed edit
+12103.167,land,0,170,
+12103.167,start,0,171,
+12117.871,land,0,171,
+12117.871,start,0,172,
+12123.174,land,0,172,
+12123.174,start,0,173,
+12130.465,torn,0,126,task 173's last-writer-wins overwrite of docs/community/vulnerabilities.rst silently discarded task 126's landed edit
+12130.465,land,0,173,
+12130.465,start,0,174,
+12303.277,torn,0,170,task 174's last-writer-wins overwrite of HISTORY.md silently discarded task 170's landed edit
+12303.277,torn,0,169,task 174's last-writer-wins overwrite of tests/test_requests.py silently discarded task 169's landed edit
+12303.277,land,0,174,
+12303.277,start,0,175,
+12318.44,land,0,175,
+12318.44,start,0,176,
+12345.951,land,0,176,
+12345.951,start,0,177,
+12351.65,torn,0,172,task 177's last-writer-wins overwrite of docs/user/advanced.rst silently discarded task 172's landed edit
+12351.65,land,0,177,
+12351.65,start,0,178,
+12407.843,land,0,178,
+12407.843,start,0,179,
+12416.304,torn,0,174,task 179's last-writer-wins overwrite of docs/user/quickstart.rst silently discarded task 174's landed edit
+12416.304,land,0,179,
+12416.304,start,0,180,
+12471.529,land,0,180,
+12471.529,start,0,181,
+12475.866,torn,0,180,task 181's last-writer-wins overwrite of .github/workflows/lock-issues.yml silently discarded task 180's landed edit
+12475.866,land,0,181,
+12475.866,start,0,182,
+12493.741,torn,0,181,task 182's last-writer-wins overwrite of .github/workflows/lock-issues.yml silently discarded task 181's landed edit
+12493.741,land,0,182,
+12493.741,start,0,183,
+12509.068,land,0,183,
+12509.068,start,0,184,
+12605.99,torn,0,116,task 184's last-writer-wins overwrite of requests/adapters.py silently discarded task 116's landed edit
+12605.99,torn,0,178,task 184's last-writer-wins overwrite of tests/test_lowlevel.py silently discarded task 178's landed edit
+12605.99,land,0,184,
+12605.99,start,0,185,
+12610.808,land,0,185,
+12610.808,start,0,186,
+12629.118,torn,0,185,task 186's last-writer-wins overwrite of .github/workflows/run-tests.yml silently discarded task 185's landed edit
+12629.118,land,0,186,
+12629.118,start,0,187,
+12636.823,torn,0,182,task 187's last-writer-wins overwrite of .github/workflows/lock-issues.yml silently discarded task 182's landed edit
+12636.823,land,0,187,
+12636.823,start,0,188,
+12670.496,torn,0,177,task 188's last-writer-wins overwrite of docs/user/advanced.rst silently discarded task 177's landed edit
+12670.496,torn,0,176,task 188's last-writer-wins overwrite of requests/utils.py silently discarded task 176's landed edit
+12670.496,land,0,188,
+12670.496,start,0,189,
+12685.575,land,0,189,
+12685.575,start,0,190,
+12693.916,land,0,190,
+12693.916,start,0,191,
+12737.508,land,0,191,
+12737.508,start,0,192,
+12893.141,torn,0,153,task 192's last-writer-wins overwrite of requests/sessions.py silently discarded task 153's landed edit
+12893.141,torn,0,188,task 192's last-writer-wins overwrite of requests/utils.py silently discarded task 188's landed edit
+12893.141,land,0,192,
+12893.141,start,0,193,
+12975.978,torn,0,192,task 193's last-writer-wins overwrite of requests/utils.py silently discarded task 192's landed edit
+12975.978,land,0,193,
+12975.978,start,0,194,
+12981.737,land,0,194,
+12981.737,start,0,195,
+13006.231,torn,0,179,task 195's last-writer-wins overwrite of docs/user/quickstart.rst silently discarded task 179's landed edit
+13006.231,land,0,195,
+13006.231,start,0,196,
+13012.944,torn,1,11,task 149's last-writer-wins overwrite of MANIFEST.in silently discarded task 11's landed edit
+13012.944,torn,1,120,task 149's last-writer-wins overwrite of Pipfile.lock silently discarded task 120's landed edit
+13012.944,land,1,149,
+13012.944,start,1,197,
+13019.542,torn,1,189,task 197's last-writer-wins overwrite of docs/community/faq.rst silently discarded task 189's landed edit
+13019.542,land,1,197,
+13019.542,start,1,198,
+13061.142,torn,0,194,task 196's last-writer-wins overwrite of README.md silently discarded task 194's landed edit
+13061.142,torn,0,197,task 196's last-writer-wins overwrite of docs/community/faq.rst silently discarded task 197's landed edit
+13061.142,torn,0,186,task 196's last-writer-wins overwrite of setup.py silently discarded task 186's landed edit
+13061.142,land,0,196,
+13061.142,start,0,199,
+13097.138,torn,0,193,task 199's last-writer-wins overwrite of HISTORY.md silently discarded task 193's landed edit
+13097.138,land,0,199,
+13166.986,torn,1,199,task 198's last-writer-wins overwrite of HISTORY.md silently discarded task 199's landed edit
+13166.986,land,1,198,

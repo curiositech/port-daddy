@@ -1,0 +1,2 @@
+corpus,substrate,agents,temperament,seed,tasks_requested,tasks_landed,tasks_abandoned,sim_seconds,throughput_per_hour,wasted_lines,conflict_incidents,time_to_land_median_s,evidence_completeness,torn_tree_incidents,drop_merges,drop_binary,drop_oversize
+py-library,U,8,impatient,3,200,200,0,6151.202,117.050294,4039,171,0.000,0.000000,171,188,17,1
