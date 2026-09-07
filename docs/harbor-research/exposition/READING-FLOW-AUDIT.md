@@ -1,0 +1,87 @@
+# Reading-flow audit
+
+How the Textbook Edition reads for each kind of reader it claims to serve, measured
+on the rendered pages, with the fixes each finding maps to. Method: the
+`ux-friction-analyzer` journey simulation (time to first checkable fact, chunks per
+step, context preserved, progress shown) plus three measures the book adds for
+itself: **kinds per page** (distinct content kinds a page shows; target ≤ 3 on 95 % of
+body pages, measured by `scripts/harbor-research/page_kinds.py`), **back-references
+per page** (cross-references a reader must chase to follow the argument; target ≤ 2),
+and **time to first checkable fact** in a chapter (target: the first spread).
+
+## 1. Archetypes
+
+Merged from the chapters' reader's maps, the whitepaper critical review's nine
+personas (`docs/whitepaper-critical-review.md` Part 1) and the site's three UX
+personas (`docs/UX_FRICTION_ANALYSIS.md`). Eight journeys, each with the question the
+reader carries and the page they bounce on if it is not answered.
+
+| # | archetype | carries the question | first stop | bounces when |
+|---|---|---|---|---|
+| A1 | formal-methods reviewer | are the theorems stated as theorems, and what checked them? | front matter's four statement kinds; chapter 1 §invariants; appendix "Mechanized claims" | a claim reads as philosophy before it reads as a statement with a kind |
+| A2 | protocol / cryptoeconomic designer | where is the mechanism, and what attack does it survive? | chapter 2 ceremony; chapter 7 δ\* game; chapter 6 succession price | the headline mechanism is more than three jumps from the chapter opening |
+| A3 | distributed-systems engineer | would I build this, and what does it cost at runtime? | chapter 1 single-writer discipline; the terminal sessions; chapter 2 primitives | too much frame, not enough algorithm; no run shown |
+| A4 | engineering manager evaluating deployment | what is implemented, what is partial, what would it cost me? | each chapter's Limitations table; the assurance modes; chapter 6 deployment economics | maturity is not visible at a glance |
+| A5 | AI-safety or philosophy-first reader | how does accountability follow from the economics rather than from alignment? | chapter 4 legibility budget; chapter 5 personhood interlude; chapter 6 | plumbing (filters, Merkle) arrives before the argument |
+| A6 | operator or agent author (the practitioner) | what do I type, and what will I see? | chapter 1 resource organ session; chapter 4 operator surface; chapter 2 cards | nothing on the page looks like the tool |
+| A7 | instructor or completionist | can I teach from this, and can I check my answers? | the exercises sections, solutions, review of key ideas | exercises are scattered or unmarked; no solutions page |
+| A8 | short-on-time skeptic (fifteen minutes) | what is the one claim, and is it honest about what it is not? | front matter one-breath claims; each chapter's first two pages; boundaries | the first spread has no checkable fact |
+
+## 2. Measures (whole book)
+
+Filled from `page_kinds.py` and the link audit on each interim build. First row is the
+build in which the page grammar landed (7 × 10, Palatino, exercises at chapter end).
+
+| build | pages | kinds/page mean | share ≤ 3 | pages ≥ 5 | longest run with no visual | links | undefined refs |
+|---|---|---|---|---|---|---|---|
+| 2026-09-06 grammar | 538 | 0.84 (1.0 in chapter bodies) | 99.8 % | 0 | 29 pp (ch. 8, pp. 435–463) | 3,393 | 0 |
+| 2026-09-06 even leading, floats flow | 534 | — | — | — | re-measure | 3,404 | 0 |
+
+The second row is the build after the leading defect (325 monospace lines sitting a line
+and a half low) and the opener spills were fixed and `[H]` exhibits were allowed to
+float within their section; `scripts/harbor-research/page_spills.py` reports 0 opener
+spills, 6 stranded headings and 27 short pages on it (7, 8 and 55 before), and
+`scripts/harbor-research/leading_scan.py` reports 14 low monospace lines (325 before),
+all of them paragraph starts or list items.
+
+The kinds census is `page_kinds.py --chapters-from-bookmarks` on the 7 × 10 build. Its
+chapter 8 span runs to the end of the book, so the whole-book mean includes the back
+matter; the per-chapter means (1.0–1.2 for chapters 1–6, 0.8 for chapter 7, 0.4 for
+chapter 8) are the honest figures. The measure that bites is the last column: runs of
+more than four consecutive body pages with no figure, table, worked example or session.
+By chapter (page numbers are PDF pages): 1: 62–74 (the Limitations section and the
+Exercises); 2: 96–103 (the PID-squatting list and the Kani listing), 109–120 (the
+mechanized-claims table continued, then the exercises); 3: 141–145; 4: 199–206,
+210–214; 5: 262–269 (exercises); 6: 311–316 (exercises); 7: 324–329, 335–341, 356–360,
+368–372, 380–384; 8: 392–396, 398–402, 420–433 (exercises and the chapter appendix).
+The span 435–463 is not chapter 8 at all: it is the Solutions back matter, which the
+census files under chapter 8 because those pages still carry the chapter 8 running head
+and have no top-level bookmark (finding F7). Exercise sections are expected to be
+prose-only; the chapter 7 body runs are not, and they are the *add* rows of the figure
+triage (sessions and plots first).
+
+## 3. Journeys
+
+One table per archetype per interim build; steps are the pages actually turned. To be
+filled as chapters land in the new grammar; the kernel first.
+
+## 4. Product appeal (the bookstore test)
+
+Cover, spine sentence, table of contents, three random spreads: each must answer "what
+is this and is it for me" in under ten seconds. Table stakes: readable type at arm's
+length, findable exercises, a real index, solutions. Differentiators: mechanized proofs
+cited by artifact, recorded terminal sessions, live links, plates. Honest signal: would
+the archetype keep reading past the first spread. Judged on the three spreads attached
+to each build's report.
+
+## 5. Findings and fixes
+
+| # | archetype(s) | finding | fix | status |
+|---|---|---|---|---|
+| F1 | A7, A8 | exercises interrupted the argument in triples after almost every section | moved to chapter-end Exercises sections with margin pointers | done (round 4) |
+| F2 | all | five content kinds signalled by five tinted rectangles; nothing readable at a glance | page grammar by typography and margin; no fills | done (round 4) |
+| F3 | A3, A6 | no page showed the tool running | recorded terminal sessions (`pdsession`): two `pd` sessions in chapter 1, the ProVerif v6/v7 verdicts in chapter 2, TLC's δ = 0.30 deviation trace in chapter 7, the revocation rollback counterexample in chapter 8; chapters 3–6 still to come | in progress (round 5) |
+| F4 | A1, A4 | figures did not carry a readable fact | triage and redraws (wave 11) | in progress |
+| F5 | A3, A6, A8 | chapter 7 has five body runs of more than four pages with nothing to look at, chapter 8 two (round 5 added the δ = 0.30 session to chapter 7 and the rollback session and the cycle-versus-cut figure to chapter 8; re-measure on the next build) | sessions (TLC δ\* trace, CardRevocation rollback), the cycle-vs-cut pair, the δ\* sweep plot; split chapter 8's long proof sections with worked examples | open |
+| F6 | all | the chapter 8 opener hyphenates its own title ("The Federated Har-bor") | hyphenation forbidden in the opener title and question boxes | done (round 5) |
+| F7 | A7 | the Solutions and appendices ran under the "Chapter 8" running head and had no top-level bookmark, so a reader flipping to the back could not tell where the book's body ends | back-matter running heads, footers and top-level bookmarks (Solutions p. 438, Appendices p. 492 in the even-leading build) | done (round 5) |

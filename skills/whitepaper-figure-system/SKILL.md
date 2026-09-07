@@ -22,9 +22,9 @@ relationship faster to understand than the surrounding prose. It is not a paragr
 an atmospheric image with labels, or a small chapter cover.
 
 For the Port Daddy corpus, read `references/semantic-figure-atlas.md` before redesigning a
-specific figure. The atlas covers every canonical `figure` environment in Volumes I--VII and
-gives each one a stable, source-derived identifier, reader question, first-choice grammar,
-required evidence, and rejected forms.
+specific figure. The atlas covers every canonical `figure` environment in Volumes I--VIII (the
+book's eight chapters) and gives each one a stable, source-derived identifier, reader question,
+first-choice grammar, required evidence, and rejected forms.
 
 After selecting the semantic form, use the `tikz-figure-engineering` skill for implementation,
 final-size rendering, page-fit checks, and contact sheets. This skill decides *what the figure
