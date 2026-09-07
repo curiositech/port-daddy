@@ -14,6 +14,11 @@ const publicDir = resolve(dirname(fileURLToPath(import.meta.url)), '../../../pub
  * image; this test turns that into a build failure instead.
  */
 describe('library outline plates', () => {
+  test('plate paths are derived from the numeral and the chapter prefix alone', () => {
+    expect(partPlate('II')).toBe('/whitepaper/plates/part-II.jpg')
+    expect(chapterPlate(TEXTBOOK.chapters[0].prefix)).toBe(`/whitepaper/plates/chapter-${TEXTBOOK.chapters[0].prefix}.jpg`)
+  })
+
   test('every part in textbook.json has a plate file', () => {
     for (const part of TEXTBOOK.parts) {
       expect(existsSync(resolve(publicDir, `.${partPlate(part.numeral)}`)), `part ${part.numeral}`).toBe(true)
