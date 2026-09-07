@@ -13,18 +13,18 @@
     },
     "website-v2/public/whitepaper/coordination-papers-mega-volume-swiss.pdf": {
       "pages": 542,
-      "bytes": 3443377,
-      "sha256": "015eaeec1bb4b6f44726cc5e9d4d7df4e1ddf97aa1b846e3a64f87218897c7a0"
+      "bytes": 3443987,
+      "sha256": "9a6fbc3cf0311d0d77c7de1fc633dab54a2df19dddda8b2498d9a70c4d2cdd00"
     },
     "website-v2/public/whitepaper/coordination-papers-mega-volume-technical.pdf": {
       "pages": 538,
-      "bytes": 7966441,
-      "sha256": "bb420efdba4d7f14697bcf29fab4df68435684da53823f8c85fc8d21dc342fd6"
+      "bytes": 7966922,
+      "sha256": "867851b907c5f3091b55ec009ec5193658350d2d8b3a07de1ebd17e0911320d6"
     },
     "website-v2/public/whitepaper/coordination-papers-mega-volume.pdf": {
       "pages": 538,
-      "bytes": 8258877,
-      "sha256": "fa4356179cb270e958a053dbf1ed3569dee129518c60089e71707afe0f71458e"
+      "bytes": 8259325,
+      "sha256": "427421ee667f7c3ff03e616beeb1915be4423f6f982d8786ae30eca9e8272869"
     },
     "website-v2/public/whitepaper/federated-harbor-whitepaper.pdf": {
       "pages": 45,
@@ -38,8 +38,8 @@
     },
     "website-v2/public/whitepaper/legible-swarm-whitepaper.pdf": {
       "pages": 62,
-      "bytes": 954355,
-      "sha256": "ea1c18c7fccbce8fa891be54e25a157b0ce01883e542a49908cb2421847a38f9"
+      "bytes": 954484,
+      "sha256": "405450cb58cfdbc109ffef76320d1bfc46dcb0bc32ee742257f6438c094ede3c"
     },
     "website-v2/public/whitepaper/sealed-harbor-whitepaper.pdf": {
       "pages": 20,
@@ -48,8 +48,8 @@
     },
     "website-v2/public/whitepaper/single-writer-kernel-whitepaper.pdf": {
       "pages": 56,
-      "bytes": 847235,
-      "sha256": "6f7c559c60d51826cc2525c7bacb02ae30b291b169e88a645133b2512434448f"
+      "bytes": 847428,
+      "sha256": "3c55d6458faf9a1f3046fe9b99fe28dd9fae36678dc3677351df3262bc56c99c"
     },
     "website-v2/public/whitepaper/spawn-to-person-whitepaper.pdf": {
       "pages": 50,
