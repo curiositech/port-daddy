@@ -84,7 +84,7 @@ O(W) gossip rounds.
 witness pattern, called out by name in the paper (per SKILL.md
 "Pre-emptive analogies"). The Federated Harbor *adds bonds on
 witness honesty*; CT does not bond witnesses. The differentiator is
-load-bearing.
+central.
 
 **Scope hedge.** Defense assumes ≥W/2+1 witnesses are honest. The
 paper states this assumption explicitly; the bond pool prices the

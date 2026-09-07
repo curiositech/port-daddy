@@ -144,7 +144,7 @@ The Linda-style tuple-space is being used as an **event log**, not as the coordi
 
 ## What this audit unblocks
 
-1. **Honest consolidation proposal.** 14 surfaces → ~5 load-bearing. See below.
+1. **Honest consolidation proposal.** 14 surfaces → ~5 pivotal. See below.
 2. **Counter-coverage plan.** 22 keys → ~40 needed to cover coordination primitives.
 3. **The case for fixing AST claims.** Schema ready, infra partial. Mostly a wiring + UX problem.
 4. **Killing or shipping the ghosts.** Either delete doctrine references or build the tables.
@@ -153,7 +153,7 @@ The Linda-style tuple-space is being used as an **event log**, not as the coordi
 
 ## Proposed consolidation (first cut, for discussion)
 
-### Keep as load-bearing
+### Keep as central
 - **`messages`** — pub/sub firehose. Genuinely used by fleet plumbing; don't fight it.
 - **`tuples`** — stigmergy primitive. Has the substrate, just needs *coordination* tuple kinds beyond fleet events.
 - **`session_files`** — file claims. Needs the AST surface wired through.

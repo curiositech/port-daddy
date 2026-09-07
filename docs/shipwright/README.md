@@ -59,7 +59,7 @@ the code lands per the staging order in `SHIPWRIGHT-DESIGN.md §15`.
 2. `AGENT-MODEL.md` — the Plane. Why every agent, not just Shipwright,
    lives here.
 3. `SHIP-GRAMMAR.md` — what ships look like + how they're built.
-4. `FLEETCONTROL-HARDENING.md` — the load-bearing work that lands first.
+4. `FLEETCONTROL-HARDENING.md` — the essential work that lands first.
 5. `SHIPWRIGHT-DAEMON.md` — the archetype, with the runtime moved to AGENT-MODEL.
 6. `COMPONENT-BRIEF.md` — once the above is agreed.
 7. `INTEGRATION-PLAN.md` — how the component contracts enter Fleet Control Center.

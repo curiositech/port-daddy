@@ -141,7 +141,7 @@ and it is the heart of the proposed **talent phonebook**.
 **`pd whois <query>`** (**ADR-0030**, `docs/adr/0030-talent-phonebook-coordination-router.md`
 — *a coordination router that ranks live agents, sessions, actors, and skills by
 relevance to a free-text query and returns scored matches with a one-line rationale and
-a pre-filled DM command* **[PROPOSED]**) is Port Daddy's L2. Its design is the load-bearing
+a pre-filled DM command* **[PROPOSED]**) is Port Daddy's L2. Its design is the decisive
 artifact for this paper, so it is worth stating its mechanism precisely (§3). The
 crucial architectural decision: it is a **hybrid** of push and pull signals.
 

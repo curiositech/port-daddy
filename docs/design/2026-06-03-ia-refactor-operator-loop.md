@@ -298,7 +298,7 @@ These are independently shippable *now* and de-risk the refactor:
 1. Land the **three bug fixes** as standalone PRs (scroll, guard drift,
    `POST /agents/:id/backend` + minimal Intervene rail). Proves the frame.
 2. Write the **ADR** that promotes this from design to decision (archetype
-   profile schema is the load-bearing part).
+   profile schema is the critical part).
 3. Prototype the **Found** wizard + `pd found` against one archetype
    (enterprise) end-to-end — that *is* the first tutorial.
 4. Re-layout `/fleet-ui/` into the 6 zones behind a flag; demote (do not

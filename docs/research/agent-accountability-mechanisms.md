@@ -136,7 +136,7 @@ obligations wearing a prohibition's clothes.
 
 Every surviving hardening reduces to five rules. A mechanism that violates any one is theater.
 
-1. **The load-bearing fact must be outside agent control.**
+1. **The structural fact must be outside agent control.**
    The agent picks the *work*; the daemon picks the *clock* and *deadline*. Derive `due_at`
    daemon-side from a policy/SLA keyed on commitment type and claimed scope — never let the agent
    author the number that grades it. (Resurrection escapes Goodhart *only* because heartbeats are
@@ -219,7 +219,7 @@ refusal paths now point only to the correct action; the bypass stays in `--help`
 
 The accountability research and that one-line bug are the *same defect at two scales*. A
 guardrail that names its escape hatch, and an obligation an agent can self-author and self-close,
-both fail for the identical reason: **the load-bearing fact was left inside the controlled
+both fail for the identical reason: **the foundational fact was left inside the controlled
 party's reach.** Move it out, bind closure to reality, anchor identity, fail closed, stake the
 sanction — and "responsibility" stops being a sentence in a prompt and becomes a property of the
 substrate.

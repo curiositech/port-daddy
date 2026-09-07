@@ -364,7 +364,7 @@ so the redteam can find them.
 ## Dependency formalization (cross-paper)
 
 The Federated Harbor rests on Anchor and Bonded results. Every
-load-bearing dependency must be cited and tested:
+critical dependency must be cited and tested:
 
 - **Anchor dependencies.** Cross-harbor capability tokens depend
   on Anchor's signature scheme (Anchor §[ANCHOR-§-SIGS]) and
@@ -504,7 +504,7 @@ A defender's counter has these markers:
   authority. A counter that introduces a trusted root is a tell
   that the doctrine has slipped.
 - **"The paper does *not* claim operator diversity."** Operator
-  Sybil counters open with this disclaimer. It is the load-bearing
+  Sybil counters open with this disclaimer. It is the pivotal
   honesty in the defense surface.
 - **"Refute the cap, not the strategy."** Cold-start counters
   invite the redteam to find a strategy that breaks the cap, not a
