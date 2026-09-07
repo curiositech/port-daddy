@@ -253,7 +253,7 @@ surfaces "scout edited these files 1h ago → pd inbox send scout …". It is ad
 TTY-only, 3-second-timeout, and silenced by `PD_NO_SUGGEST=1`. *Discovery never gates
 the action; it informs it.*
 
-A note on honesty: `lib/router.ts` and `routes/router.ts` **do not exist on disk yet**.
+A note on honesty: `lib/router.ts` and `routes/router.ts` **do not exist on disk yet** (not built yet).
 ADR-0030 is Proposed. What exists is every signal source it composes (the agents table,
 file claims, the skill index, episodic memory) and the backend resolver. The mechanism
 is designed and grounded; it is not shipped.
@@ -279,7 +279,7 @@ agent's topic matches old episodic memory or an ADR, it surfaces the prior art.
 
 The relationship is clean: **discovery is the engine; suggestibility is the trigger.**
 ADR-0039 explicitly lists the skill index, episodic memory, the cartographer surface
-finder (named `lib/spider.ts` in **ADR-0031**, `docs/adr/0031-spider-surface-finder.md`
+finder (named `lib/spider.ts` (not built yet) in **ADR-0031**, `docs/adr/0031-spider-surface-finder.md`
 **[PROPOSED]** — not yet on disk), and file claims as the sources it runs inference over — the same L1 substrate this paper's directories index. The
 read-poor disease is precisely "nobody runs the query"; suggestibility runs it for you.
 

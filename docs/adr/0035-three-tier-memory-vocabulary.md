@@ -124,7 +124,7 @@ Three designs were considered.
 
 1. **Rename the tables to match the tiers.** Rejected: it forces a schema
    touch, breaks every existing tool, and forces the Wave 4 agents working
-   on `lib/sessions.ts`, `lib/blob.ts`, `lib/notes.ts`, and `lib/spawner.ts`
+   on `lib/sessions.ts`, `lib/blob.ts`, `lib/notes.ts` (not built yet), and `lib/spawner.ts`
    to merge against a moving target. The whole point is *vocabulary* — the
    storage is already correct.
 

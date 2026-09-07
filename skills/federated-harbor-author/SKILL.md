@@ -179,7 +179,7 @@ Does the prose state a theorem?
 Figures follow the property's blueprint style: cream surface
 `#f2eee6`, cobalt `#003fb8`, sage/teal `#006b5f`, ink `#1f1f1f`,
 crisp linework, hand-lettered italic labels. Reference image at
-`public/img/generated/_brand-reference/style-ref-blueprint.png`.
+`public/img/generated/_brand-reference/style-ref-blueprint.png` (not built yet).
 Match it. Do not regress to painterly or cinematic.
 
 ### When to inline a definition vs push to appendix
@@ -411,5 +411,5 @@ The skill begins as a single SKILL.md. As the paper grows:
   Federated Harbor claims that depend on Anchor or Bonded results.
 - `agents/` — drafting personas (per-chapter authors), once the
   paper grows beyond what one drafter can hold.
-- `scripts/check-section.sh` — runs the cardinal-sins grep, the
+- `scripts/voice-check.sh` — runs the cardinal-sins grep, the
   voice tells, and the page-bound check.

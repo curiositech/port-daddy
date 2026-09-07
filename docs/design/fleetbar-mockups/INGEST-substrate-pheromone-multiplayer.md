@@ -320,7 +320,7 @@ not show a grey blob when I zoom into a quiet directory."
 
 ## What to graft into VISION / ADR-0046 — punch list
 
-A tight, concrete list for whoever writes `docs/adr/0046-tui-fleetbar.md` (it does
+A tight, concrete list for whoever writes `docs/adr/0046-operator-tui.md` (it does
 not exist yet — it's deliverable #1 in [`AGENT-HANDOFF.md`](./AGENT-HANDOFF.md)).
 
 1. **Adopt the 5 viz modes as the TUI's filetree feature spec.** Mode A = rolled-up

@@ -70,7 +70,7 @@ So we have the *infrastructure* for telemetry (the table, the buckets, the API) 
 
 | Surface | Where doctrine mentions it | Reality |
 |---|---|---|
-| `pheromones` | MEMORY.md, V4-DAG, stigmergy ADRs | No table. No `lib/pheromones.ts`. Pure vapor. |
+| `pheromones` | MEMORY.md, V4-DAG, stigmergy ADRs | No table. No `lib/pheromones.ts` (not built yet). Pure vapor. |
 | `signals` | Integration ADRs | No table. May be folded into `messages` or `tuples` as `signal` envelopes — needs verification. |
 | `coordination_inconsistencies` | User's coordination feedback channel rule | No table. Likely a `messages` channel pattern. |
 | `briefing` | `pd briefing` command | File-only (`.portdaddy/briefing.md`). Not coordination-readable by other agents. |

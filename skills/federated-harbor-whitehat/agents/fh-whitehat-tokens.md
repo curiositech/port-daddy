@@ -48,7 +48,7 @@ prices:         <historical root retention | witness service>
   field.
 
 **Mechanization.** ProVerif at
-`proofs/federated/tokens/cross-harbor-issuance.pv` (placeholder)
+`proofs/federated/tokens/cross-harbor-issuance.pv` (planned, not yet written; not built yet)
 with three queries, each independently:
 
 ```
@@ -75,7 +75,7 @@ equivocating publisher produces two heads, only one of which clears
 quorum (honest witnesses refuse to sign the second).
 
 **Mechanization.** ProVerif at
-`proofs/federated/equivocation/witness-cross-check.pv` (placeholder).
+`proofs/federated/equivocation/witness-cross-check.pv` (planned, not yet written; not built yet).
 Authenticity: any two observers' accepted tree-heads at epoch e are
 equal *or* the trace contains a `Disagreement` event observable in
 O(W) gossip rounds.

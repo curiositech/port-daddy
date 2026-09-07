@@ -190,11 +190,11 @@ scalar reputation score wired to gates until 1–3 exist** — that is the theat
    word?). A monotonic-clock, sleep-aware, per-commitment-deduped sweep that fires
    `OBLIGATION_OVERDUE` and closes only against an oracle (Law 2). Runtime rule, not
    enforcer-required, so it cannot degrade to a stub (Law 4).
-4. **Graduated sanction ladder** — `lib/sanction-ladder.ts` composing existing bonds.slash +
+4. **Graduated sanction ladder** — `lib/sanction-ladder.ts` (not built yet) composing existing bonds.slash +
    budget-guard + inbox + an actor-quarantine flag, keyed on the **bound principal** with
    *decay, not a rolling window* (so paced violations still accumulate) and *auto-downgrading*
    quarantine (Law 5).
-5. **Accountability ledger** — `lib/accountability-ledger.ts`: append-only, **daemon-witnessed
+5. **Accountability ledger** — `lib/accountability-ledger.ts` (not built yet): append-only, **daemon-witnessed
    only** (`ref` is a FK to a real bond/commitment row, never free text), gating on *concrete
    recent predicates* ("≥2 daemon-witnessed slashes in the last N spawns") rather than a single
    blended score. Expose the scalar as human telemetry (`pd standing`), never as a control input.
