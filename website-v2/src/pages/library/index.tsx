@@ -272,7 +272,7 @@ export default function LibraryPage() {
                   account.
                 </PanelBody>
 
-                <blockquote className="border-l-4 border-[var(--brand-primary)] pl-[var(--space-5)]">
+                <blockquote className="!mt-[var(--space-6)] border-l-4 border-[var(--brand-primary)] pl-[var(--space-5)]">
                   <p className="font-display text-[length:var(--text-xl)] font-black leading-[var(--leading-display-tight)] text-[var(--text-primary)]">
                     {TEXTBOOK.edition.claim}
                   </p>
@@ -285,7 +285,7 @@ export default function LibraryPage() {
                   {[
                     { value: String(partCount).padStart(2, '0'), label: 'parts' },
                     { value: String(chapterCount).padStart(2, '0'), label: 'chapters, in dependency order' },
-                    { value: String(COLLECTED_VOLUME.pages), label: `pages · ${TEXTBOOK.edition.version}` },
+                    { value: String(COLLECTED_VOLUME.pages), label: `pages, version ${TEXTBOOK.edition.version.replace(/\s*\(.*\)$/, '')}` },
                   ].map((stat) => (
                     <div key={stat.label} className="space-y-[var(--space-1)]">
                       <div className="font-mono text-[length:var(--text-2xl)] font-black leading-none text-[var(--text-primary)]">
