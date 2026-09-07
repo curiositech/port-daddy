@@ -94,5 +94,8 @@ jobs:
       - name: Every marginalia plate has a licence sidecar in the allow-list
         run: python3 scripts/harbor-research/check_marginalia_sidecars.py && python3 -m unittest discover -s tests/harbor-research -p 'test_*.py'
 
+      - name: Every rendered plate has honest provenance and every TeX plate path resolves
+        run: python3 scripts/harbor-research/check_plate_provenance.py
+
       - name: Semantic figure atlas covers every canonical figure (no drift from textbook.json)
         run: python3 skills/whitepaper-figure-system/scripts/check_atlas_coverage.py

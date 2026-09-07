@@ -52,7 +52,7 @@
       "recovered_from": "175f3e753 (the art-system commit, engraving round)"
     },
     "chapter-1": {
-      "file": "chapter-swk.jpg",
+      "file": "chapter-1.jpg",
       "source_render": "ch-swk.png",
       "size": [
         1800,
@@ -64,7 +64,7 @@
       "recovered_from": "175f3e753 (the art-system commit, engraving round)"
     },
     "chapter-2": {
-      "file": "chapter-anchor.jpg",
+      "file": "chapter-2.jpg",
       "source_render": "ch-anchor.png",
       "size": [
         1800,
@@ -76,7 +76,7 @@
       "recovered_from": "175f3e753 (the art-system commit, engraving round)"
     },
     "chapter-4": {
-      "file": "chapter-ls.jpg",
+      "file": "chapter-4.jpg",
       "source_render": "ch-ls-v2.png",
       "size": [
         1800,
@@ -88,7 +88,7 @@
       "recovered_from": "175f3e753 (the art-system commit, engraving round)"
     },
     "chapter-5": {
-      "file": "chapter-stp.jpg",
+      "file": "chapter-5.jpg",
       "source_render": "ch-stp.png",
       "size": [
         1800,
@@ -100,7 +100,7 @@
       "recovered_from": "175f3e753 (the art-system commit, engraving round)"
     },
     "chapter-6": {
-      "file": "chapter-he.jpg",
+      "file": "chapter-6.jpg",
       "source_render": "ch-he.png",
       "size": [
         1800,
@@ -112,7 +112,7 @@
       "recovered_from": "175f3e753 (the art-system commit, engraving round)"
     },
     "chapter-7": {
-      "file": "chapter-bonded.jpg",
+      "file": "chapter-7.jpg",
       "source_render": "ch-bonded-v2.png",
       "size": [
         1800,
@@ -124,7 +124,7 @@
       "recovered_from": "175f3e753 (the art-system commit, engraving round)"
     },
     "chapter-8": {
-      "file": "chapter-fh.jpg",
+      "file": "chapter-8.jpg",
       "source_render": "ch-fh.png",
       "size": [
         1800,
