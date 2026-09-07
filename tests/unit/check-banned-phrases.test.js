@@ -68,6 +68,12 @@ describe('check-banned-phrases config and glob matching', () => {
       'whitepaper/single-writer-kernel.tex',
       'website-v2/public/whitepaper/single-writer-kernel.tex',
       'docs/harbor-research/tex/paper1.tex',
+      // JSON whose string values render into prose a reader sees.
+      'docs/harbor-research/library-index.json',
+      'whitepaper/textbook.json',
+      'whitepaper/figures/figure-register.json',
+      'docs/harbor-research/exposition/figures/figcheck/fig-anchor-card-lifecycle.json',
+      'docs/harbor-research/exposition/marginalia-candidates.json',
     ];
     for (const p of inScope) {
       expect(matchesAny(p, config.paths)).toBe(true);
@@ -114,6 +120,13 @@ describe('check-banned-phrases findHits (case-insensitivity)', () => {
     const text = readFileSync(fixture('clean-doc.md'), 'utf8');
     expect(findHits(text, config.phrases)).toEqual([]);
   });
+
+  test('a banned phrase inside a JSON string value is caught (the file is scanned as text)', () => {
+    const config = loadConfig();
+    const text = readFileSync(fixture('dirty-data.json'), 'utf8');
+    const hits = findHits(text, config.phrases);
+    expect(hits).toEqual([{ line: 2, phrase: 'load-bearing' }]);
+  });
 });
 
 describe('check-banned-phrases resolveTargets (exclusion behaviour)', () => {
@@ -135,6 +148,19 @@ describe('check-banned-phrases CLI (end-to-end)', () => {
     expect(code).toBe(1);
     expect(stderr).toMatch(/dirty\.md:2:load-bearing/i);
     expect(stderr).toMatch(/dirty\.md:2:held to account/i);
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  test('a JSON file with the phrase in a string value fails the gate', () => {
+    tmpDir = mkdtempSync(join(tmpdir(), 'banned-phrases-test-'));
+    const target = join(tmpDir, 'library-index.json');
+    writeFileSync(
+      target,
+      JSON.stringify({ one_breath: 'The whole argument is load-bearing here.' }, null, 2),
+    );
+    const { code, stderr } = run(target);
+    expect(code).toBe(1);
+    expect(stderr).toMatch(/library-index\.json:\d+:load-bearing/i);
     rmSync(tmpDir, { recursive: true, force: true });
   });
 

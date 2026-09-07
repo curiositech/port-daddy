@@ -15,7 +15,12 @@
  * model's own vocabulary, is not the prose this rule is policing. Everything
  * else the phrase list's "paths" glob reaches — skills, docs, top-level
  * READMEs, the PR template, the website's content modules, and the whitepaper
- * corpora — is in scope, unconditionally.
+ * corpora — is in scope, unconditionally. That reach includes a few JSON
+ * files whose string values render into prose a reader sees (the harbor
+ * research library index, the Book's chapter-order table, the figure
+ * register, and the exposition corpus's figure-check sidecars): the scanner
+ * treats them as plain text like everything else, so a phrase sitting inside
+ * a JSON string value is caught exactly like one sitting inside a paragraph.
  *
  *   node scripts/lint/check-banned-phrases.mjs                  # full scoped sweep
  *   node scripts/lint/check-banned-phrases.mjs docs/adr/0054.md  # explicit files

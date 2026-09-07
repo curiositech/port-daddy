@@ -19,7 +19,11 @@
     "website-v2/public/**/*.html",
     "whitepaper/**/*.tex",
     "website-v2/public/whitepaper/**/*.tex",
-    "docs/harbor-research/**/*.tex"
+    "docs/harbor-research/**/*.tex",
+    "docs/harbor-research/library-index.json",
+    "whitepaper/textbook.json",
+    "whitepaper/figures/figure-register.json",
+    "docs/harbor-research/exposition/**/*.json"
   ],
   "exclude": [
     "**/CHANGELOG*.md",
