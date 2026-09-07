@@ -27,7 +27,7 @@ Three things recur across all four reviews. The chapters carry real related-work
 
 ## One factual correction found
 
-Part III: the Book cites Liu and Skrzypacz (2014) as *Review of Economic Studies*; the confirmed venue is *Journal of Economic Theory* 151.
+Part III: an earlier edition's bibliography cited Liu and Skrzypacz (2014) as *Review of Economic Studies*; the confirmed venue is *Journal of Economic Theory* 151, and the current chapters already carry it (ledger row LR-312 verified this rather than re-applying it).
 
 ## What happens next
 
