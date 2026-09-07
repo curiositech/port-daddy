@@ -14,30 +14,19 @@
 % and \pdswissplate{<prefix>}{<width>}{<hue>} both stay real inline content
 % placed after the flowing title/blurb/question text, each at the given
 % width and the old TikZ drawing's own aspect (part: 3:2, 24x16 units;
-% chapter: 2:1, 24x12 units) — a full-bleed background for the part render
-% was tried and rejected: the part's blurb varies in length and collided
-% with it. If a render is ever missing, each macro falls back to the flat
-% ink it replaced.
+% chapter: 2:1, 24x12 units). There is no drawn fallback: a missing render
+% stops the build with a \PackageError naming the missing path.
 \makeatletter
 \newcommand{\pdswisscoverart}{%
   \IfFileExists{plates/swiss/cover.jpg}{%
-    \AddToShipoutPictureBG*{\AtPageLowerLeft{\includegraphics[width=\paperwidth,height=\paperheight]{plates/swiss/cover.jpg}}}}{}}
+    \AddToShipoutPictureBG*{\AtPageLowerLeft{\includegraphics[width=\paperwidth,height=\paperheight]{plates/swiss/cover.jpg}}}}{%
+    \PackageError{pd-swiss-plates}{Missing plate render plates/swiss/cover.jpg}{Generate the Swiss cover render and place it at plates/swiss/cover.jpg before building.}}}
 \newcommand{\pdswisspartplate}[2]{% #1 numeral I..IV, #2 width
-  \pd@setunit{#2}%
   \IfFileExists{plates/swiss/part-#1.jpg}{%
     \includegraphics[width=#2]{plates/swiss/part-#1.jpg}}{%
-    \begin{tikzpicture}[x=\pd@su,y=-\pd@su]
-      \useasboundingbox (0,0) rectangle (24,16);
-      \fill[hhpaper] (0,0) rectangle (24,16);
-    \end{tikzpicture}}}
-\newcommand{\pdswissplate}[3]{% #1 chapter prefix, #2 width, #3 hue (fallback only)
-  \pd@setunit{#2}%
+    \PackageError{pd-swiss-plates}{Missing plate render plates/swiss/part-#1.jpg}{Generate the Swiss part plate render and place it at plates/swiss/part-#1.jpg before building.}}}
+\newcommand{\pdswissplate}[3]{% #1 chapter prefix, #2 width, #3 hue (unused)
   \IfFileExists{plates/swiss/chapter-#1.jpg}{%
     \includegraphics[width=#2]{plates/swiss/chapter-#1.jpg}}{%
-    \begin{tikzpicture}[x=\pd@su,y=-\pd@su]
-      \useasboundingbox (0,0) rectangle (24,12);
-      \fill[#3] (0,0) rectangle (24,12);
-    \end{tikzpicture}}}
-\newlength{\pd@su}
-\newcommand{\pd@setunit}[1]{\setlength{\pd@su}{\dimexpr#1/24\relax}}
+    \PackageError{pd-swiss-plates}{Missing plate render plates/swiss/chapter-#1.jpg}{Generate the Swiss chapter plate render and place it at plates/swiss/chapter-#1.jpg before building.}}}
 \makeatother

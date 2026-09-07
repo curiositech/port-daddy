@@ -67,6 +67,8 @@ Budget: all plates together must stay under 8 MB so the Book PDF stays under
   `../coordination-papers-mega-volume-swiss-plates.tex` now wires all thirteen
   in with `\includegraphics`. `swiss/PROVENANCE.json` carries every prompt,
   aspect, and post-processing step; no TikZ plates remain for this edition.
+  Swiss plates are image renders with provenance in `swiss/PROVENANCE.json` —
+  there is no drawn fallback, and a missing plate fails the build.
 - `marginalia/` — duotone portraits and title pages for the margin column, one
   JSON sidecar per image (Commons file page, sha1, artist, licence, retrieval
   date); `scripts/harbor-research/check_marginalia_sidecars.py` fails the build
