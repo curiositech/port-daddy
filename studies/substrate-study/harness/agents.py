@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import random
-from dataclasses import dataclass, field
 
 COOPERATIVE = "cooperative"
 IMPATIENT = "impatient"
@@ -29,11 +28,3 @@ def rolls_bypass(rng: random.Random, p: float) -> bool:
     if p <= 0.0:
         return False
     return rng.random() < p
-
-
-@dataclass
-class Agent:
-    agent_id: int
-    temperament: str
-    idle: bool = True
-    retries_used: int = 0

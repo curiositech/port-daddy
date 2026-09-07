@@ -106,6 +106,26 @@ on cleanup; this does not change how this harness's own deliverable commits
 to `wave-14/substrate-harness` are made — those go through the normal,
 signed commit path untouched.
 
+## 2026-09-07 — pilot cut from 3 seeds to 2
+
+The task's own pilot spec (not PROTOCOL.md, which does not name a pilot)
+calls for 3 seeds. After the pilot had been running for roughly 10 minutes
+and completed only ~20 of 126 cells — because py-library (psf/requests) has
+a real hot file (`README.md` alone is touched by 57 of the pinned 200
+commits) and cooperative agents retry a refused claim indefinitely, low-N
+cooperative cells on this corpus generate very large numbers of retry
+events (one observed cell: `B0, N=2, cooperative, seed=2` reached
+~1.15M simulated seconds and 21k conflict incidents before its 200 tasks
+resolved) — the remaining 106 cells projected to well over an hour of
+wall-clock time. Per instruction, the pilot was cut to seeds 1-2 (84 cells)
+rather than let it run further past that budget. `run.sh --pilot`'s
+`PILOT_SEEDS` was changed from `(1 2 3)` to `(1 2)`; the six seed-3 result
+files already produced for substrate U were deleted so the delivered
+`results/py-library/` reflects exactly 2 seeds throughout, matching
+PILOT.md. This is a pilot-scope reduction only — it does not touch
+PROTOCOL.md's pre-registered 20-seed design for the real S2.4 run, which
+`run.sh` (no arguments) still runs unchanged.
+
 ## Deferred, not a deviation
 
 `REPORT.md` (PROTOCOL.md S2.6/S4) is not produced by this delivery. It is

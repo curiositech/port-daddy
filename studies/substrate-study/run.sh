@@ -87,7 +87,7 @@ case "${1:-}" in
   --pilot)
     PILOT_CORPUS=py-library
     PILOT_NS=(2 4 8)
-    PILOT_SEEDS=(1 2 3)
+    PILOT_SEEDS=(1 2)   # cut from 3 to 2 seeds; see CHANGELOG.md
     PILOT_TASKS=200
     for substrate in "${SUBSTRATES[@]}"; do
       for agents in "${PILOT_NS[@]}"; do

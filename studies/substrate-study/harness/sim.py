@@ -8,11 +8,9 @@ from __future__ import annotations
 
 import heapq
 import itertools
-import os
 import random
-import tempfile
 from collections import deque
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from . import agents as A
 from .substrates import GitWorkspace, FileClaimTable, RangeClaimTable, claim_ranges_for_task
@@ -71,13 +69,11 @@ def run_cell(base_dir: str, tasks: list, substrate: str, n_agents: int,
         range_claims = RangeClaimTable() if substrate == "CR" else None
 
         pending = deque(range(n_tasks))
-        agent_states = [A.Agent(i, temperament) for i in range(n_agents)]
         in_flight: dict[int, InFlight] = {}
         landed: list = []
         landed_set: set = set()
         abandoned: set = set()
         landed_with_record: set = set()
-        wasted_lines = 0
         refusal_count = 0
         merge_conflict_count = 0
         torn_count = 0
@@ -210,7 +206,6 @@ def run_cell(base_dir: str, tasks: list, substrate: str, n_agents: int,
             retry_counts.pop(task_id, None)
             schedule(t, "dequeue", agent_id)
 
-        _torn_waste_counted: set = set()
         _wasted_total = [0]
 
         def wasted_lines_add(n):
@@ -341,13 +336,18 @@ def run_cell(base_dir: str, tasks: list, substrate: str, n_agents: int,
                         land(t, agent_id, fl, task, had_record=True)
                     else:
                         d_conflict(t, agent_id, fl, task)
-            if not heap and pending:
-                # queue non-empty but no scheduled events: only possible if all
-                # agents ended up idle with an empty in_flight and a stalled
-                # queue, which cannot happen with this scheduler; guard anyway.
-                for i in range(n_agents):
-                    if i not in in_flight:
-                        schedule(t, "dequeue", i)
+
+        # Every path that leaves an agent idle while `pending` is non-empty
+        # schedules a fresh event for it before returning: try_dequeue always
+        # either starts work (schedules work_done) or refuses into
+        # handle_refusal, which itself always schedules retry_start or
+        # abandon()'s immediate re-dequeue. So the heap cannot run dry while
+        # tasks are still waiting; assert that invariant rather than silently
+        # patching around a violation of it.
+        assert not pending, (
+            f"{len(pending)} task(s) still queued after the event heap drained "
+            f"— a code path left an agent idle without rescheduling it"
+        )
 
         final_time = max((e["time"] for e in events), default=0.0)
         return CellResult(

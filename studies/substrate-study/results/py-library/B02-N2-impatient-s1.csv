@@ -1,2 +1,2 @@
 corpus,substrate,agents,temperament,seed,tasks_requested,tasks_landed,tasks_abandoned,sim_seconds,throughput_per_hour,wasted_lines,conflict_incidents,time_to_land_median_s,evidence_completeness,torn_tree_incidents,drop_merges,drop_binary,drop_oversize
-py-library,U,2,cooperative,3,200,200,0,13609.650,52.903638,6688,172,0.000,0.000000,172,188,17,1
+py-library,B02,2,impatient,1,200,135,65,12703.783,38.256321,3758,93,0.000,0.703704,28,188,17,1
