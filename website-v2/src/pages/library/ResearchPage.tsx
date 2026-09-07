@@ -19,7 +19,7 @@ import {
   type ResearchPaper,
   type ResearchTone,
 } from '@/data/researchPapers'
-import { findWhitePaperByChapter } from '@/data/whitePapers'
+import { findWhitePaperById } from '@/data/whitePapers'
 
 /**
  * Literal Tailwind class pairs per `ResearchTone`. Kept as complete literal
@@ -80,7 +80,7 @@ const DIVE_VERDICT_GLOSS: Record<DiveVerdict, string> = {
 function ResearchPaperCard({ paper }: { paper: ResearchPaper }) {
   const tone = RESEARCH_TONE_CLASSES[paper.tone]
   const Icon = paper.icon
-  const chapter = findWhitePaperByChapter(paper.chapterRef)
+  const chapter = findWhitePaperById(paper.chapterRef)
 
   return (
     <article
@@ -130,7 +130,7 @@ function ResearchPaperCard({ paper }: { paper: ResearchPaper }) {
               to={`/whitepaper/${chapter.slug}`}
               className="font-black text-[var(--text-primary)] underline underline-offset-4 hover:text-[var(--brand-primary)] hover:no-underline"
             >
-              {paper.chapterRef} · {chapter.title}
+              Chapter {chapter.chapter} · {chapter.title}
             </Link>
             <p className="mt-[var(--space-1)] text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
               — {paper.chapterWhy}
@@ -205,7 +205,7 @@ export default function ResearchLibraryPage() {
                   The whitepapers made the claims. This is where they get proved.
                 </PanelTitle>
                 <PanelBody size="default" className="max-w-[68ch] text-[length:var(--text-lg)]">
-                  Seven library chapters argue the harbor works. Underneath four of
+                  Eight library chapters argue the harbor works. Underneath four of
                   them sit theorems the prose alone can&rsquo;t carry — a digest
                   floor measured in bits, a controllability boundary between what
                   a runtime can prevent and what it can only notice, a
@@ -300,7 +300,7 @@ export default function ResearchLibraryPage() {
                 <div className="space-y-[var(--space-3)]">
                   <PanelEyebrow>The papers</PanelEyebrow>
                   <PanelTitle as="h2" size="display" className="max-w-[16ch]">
-                    Seven proofs, in reading order.
+                    Seven papers, in reading order.
                   </PanelTitle>
                 </div>
                 <PanelBody className="max-w-[60ch] text-[length:var(--text-lg)]">

@@ -36,7 +36,7 @@ recording lives at `website-v2/docs/design/story-palette-spec.mp4`.
   *read* by color, not just by label. Cobalt/health/teal/violet down the column.
 
 ### 3. Library map & agent ecosystem viz
-- **Files:** `src/components/site/LibraryMap.tsx`,
+- **Files:** `src/components/site/LibraryMap.tsx` (retired 2026-09-06 with the rest of the reading-order apparatus; the table of contents in `src/components/library/TableOfContents.tsx` is the one map now),
   `src/components/landing/AgentEcosystem.tsx`,
   `src/components/viz/AgentNodeMark.tsx`
 - **Do:** where these encode role/state with ad-hoc color, switch to story

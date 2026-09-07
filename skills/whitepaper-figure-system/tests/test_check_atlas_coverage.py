@@ -117,7 +117,8 @@ class AtlasCoverageTests(unittest.TestCase):
 
     def test_canonical_root_sets_match_build_and_mega_inputs(self) -> None:
         repo_root = Path(__file__).resolve().parents[3]
-        roots = coverage.extract_atlas_volume_roots(self.live_atlas(repo_root))
+        roots = coverage.canonical_roots_from_textbook(repo_root)
+        self.assertEqual(len(roots), 8)
         self.assertEqual(coverage.canonical_root_drift(repo_root, roots), [])
 
     def test_canonical_root_parity_rejects_swapped_volume_mapping(self) -> None:
@@ -251,9 +252,9 @@ class AtlasCoverageTests(unittest.TestCase):
                 contracts, atlas_ids, source_ids
             ),
         )
-        self.assertEqual(report["source_count"], 81)
-        self.assertEqual(report["atlas_count"], 81)
-        self.assertEqual(len(contracts), 8)
+        self.assertEqual(report["source_count"], 66)
+        self.assertEqual(report["atlas_count"], 66)
+        self.assertEqual(len(contracts), 5)
         self.assertTrue(coverage.is_clean(report), report)
 
         for removed in atlas_ids:

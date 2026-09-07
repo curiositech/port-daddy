@@ -60,6 +60,7 @@ export interface ResearchPaper {
   tone: ResearchTone
   icon: LucideIcon
   /** The library chapter (Roman numeral) this paper's proof is closest to. */
+  /** Id of the Book chapter this paper's results are folded into (a WHITE_PAPERS id, never a number). */
   chapterRef: string
   /** One line on why that chapter needed this proof. */
   chapterWhy: string
@@ -87,7 +88,7 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     resultTags: ['R1', 'R2', 'R3', 'R4', 'R14', 'R16'],
     tone: 'primary',
     icon: Binary,
-    chapterRef: 'I',
+    chapterRef: 'legible-swarm',
     chapterWhy: 'prices the digest-with-zoom loop the flagship chapter only argues for in prose',
   },
   {
@@ -96,8 +97,8 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     title: 'Regimented or Enforced',
     subtitle: 'The Controllability Boundary for Agent Governance',
     pdfPath: '/research/paper2.pdf',
-    pages: 13,
-    sizeKb: 362,
+    pages: 14,
+    sizeKb: 363,
     claim:
       'Whether a governance rule can be prevented before it happens or only caught after is decided by one theorem, not by how hard the runtime tries.',
     pullQuote:
@@ -105,7 +106,7 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     resultTags: ['R5'],
     tone: 'health',
     icon: Workflow,
-    chapterRef: 'II',
+    chapterRef: 'single-writer-kernel',
     chapterWhy: 'mechanizes the kernel chapter’s own "detector vs. regimenter" distinction as a theorem',
     priorArtDive: {
       verdict: 'NARROW',
@@ -129,7 +130,7 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     resultTags: ['R7'],
     tone: 'rust',
     icon: Layers3,
-    chapterRef: 'III',
+    chapterRef: 'spawn-to-person',
     chapterWhy: 'prices the neutral judges the bridge chapter’s multi-axis reputation depends on',
     priorArtDive: {
       verdict: 'CLEAR',
@@ -153,8 +154,8 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     resultTags: ['R5', 'R9', 'R10', 'R11'],
     tone: 'accent',
     icon: ShieldCheck,
-    chapterRef: 'V',
-    chapterWhy: 'extends the Anchor Protocol’s capability boundary to what two mutually distrustful daemons can compute together',
+    chapterRef: 'sealed-harbor',
+    chapterWhy: 'is folded directly into its own chapter as the four-pillar assurance argument for mutually confidential computation',
     priorArtDive: {
       verdict: 'NARROW',
       summary:
@@ -177,7 +178,7 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     resultTags: ['R12', 'R13'],
     tone: 'violet',
     icon: Fingerprint,
-    chapterRef: 'III',
+    chapterRef: 'spawn-to-person',
     chapterWhy: 'gives the role-vs-person distinction its conservation proof: reputation survives a fork without minting itself',
     priorArtDive: {
       verdict: 'NARROW',
@@ -201,7 +202,7 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     resultTags: ['R15', 'R17'],
     tone: 'warm',
     icon: SplitSquareVertical,
-    chapterRef: 'IV',
+    chapterRef: 'harbor-economy',
     chapterWhy: 'corrects the market chapter’s sole-owner-vs-pooled-swarm threshold with the actual Erlang-C crossing point',
     priorArtDive: {
       verdict: 'NARROW',
@@ -225,7 +226,7 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
     resultTags: ['R6'],
     tone: 'indigo',
     icon: Radar,
-    chapterRef: 'VII',
+    chapterRef: 'federated-harbor',
     chapterWhy: 'gives the federation chapter’s witness-log gossip a detector for lies on links nobody directly compared',
     priorArtDive: {
       verdict: 'CLEAR',
