@@ -520,6 +520,12 @@ export default function LibraryPage() {
                 a section in a later revision, and each is tracked in the open with the
                 decision that asked for it.
               </PanelBody>
+              <Button asChild variant="ghost" size="sm" className="whitespace-normal text-left">
+                <Link to="/research#open-problems">
+                  The open problems, with the studies and proofs behind the book
+                  <ArrowRight aria-hidden="true" size={14} />
+                </Link>
+              </Button>
             </SurfacePanel>
           </div>
         </LandingSection>
@@ -560,7 +566,7 @@ export default function LibraryPage() {
                       ) : null}
                       <div className="mt-auto flex flex-wrap gap-[var(--space-2)]">
                         <Button asChild variant="secondary" size="sm">
-                          <Link to={`/library/research#paper-${paper.number}`}>About the paper</Link>
+                          <Link to={`/research#paper-${paper.number}`}>About the paper</Link>
                         </Button>
                         <Button asChild variant="ghost" size="sm" className="whitespace-normal text-left">
                           <a href={paper.pdfPath}>
@@ -575,8 +581,8 @@ export default function LibraryPage() {
             </ol>
             <div>
               <Button asChild variant="primary" size="lg" className="whitespace-normal text-center">
-                <Link to="/library/research">
-                  Browse the research library
+                <Link to="/research">
+                  The research program: results, studies, open problems
                   <ArrowRight aria-hidden="true" size={16} />
                 </Link>
               </Button>
