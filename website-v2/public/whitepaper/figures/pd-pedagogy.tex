@@ -52,6 +52,24 @@
 \newcommand{\pd@marginglyph}{%
   \ifpdmargincolumn\marginnote{\textcolor{\pd@chaptercolor}{\rule[-0.5pt]{4.5pt}{4.5pt}}}\fi}
 
+% Marginalia (Wave 12, 12.2): a duotone portrait or title page in the margin
+% column at the point where the person's idea is load-bearing, with a
+% one-sentence caption. Book only: the standalone chapters have no margin
+% column and cannot see the plates; each plate has a licence sidecar and is
+% listed on the Image credits page. \pdmarginfigure{slug}{caption}
+\newsavebox{\pd@mfbox}
+\newcommand{\pdmarginfigure}[2]{%
+  \ifpdmargincolumn
+    \IfFileExists{plates/marginalia/#1.jpg}{%
+      \sbox{\pd@mfbox}{\begin{minipage}{\marginparwidth}
+        \noindent\includegraphics[width=\marginparwidth]{plates/marginalia/#1.jpg}\par
+        \vspace{3pt}{\raggedright\scriptsize\itshape #2\par}\end{minipage}}%
+      % \marginpar is placed by the page builder and moved up when it would run
+      % off the foot; it cannot be used inside a box, where marginnote stands in.
+      \ifinner\marginnote{\usebox{\pd@mfbox}}\else\marginpar{\usebox{\pd@mfbox}}\fi
+    }{}%
+  \fi}
+
 % ---------------------------------------------------------------------------
 % \pdkind, pdclaim -- a numbered, labelled statement. Hairline above, run-in
 % head "THEOREM 1.3  Title." in small caps and bold, short hairline below.

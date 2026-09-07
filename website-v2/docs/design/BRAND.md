@@ -50,6 +50,9 @@ for the dogfooded coordination vocabulary.
 | `--story-rust-on-tint` | `#5a3210` | Rust on tinted wells |
 | `--story-gold` | `#666a00` | Gold — L3 economy/value, the market (62°; not the warning amber) |
 | `--story-gold-on-tint` | `#4d5000` | Gold on tinted wells |
+| `--print-swiss-blue` | `#001489` | Reflex Blue — the Book's Swiss edition, Part I ink (print only; nearest Pantone Reflex Blue C) |
+| `--print-swiss-violet` | `#582c83` | Konkret Violet — the Book's Swiss edition, Part III ink (print only; nearest Pantone 268 C) |
+| `--print-swiss-red` | `#da291c` | Signal red — the Book's Swiss edition, one reserved mark (print only; Pantone 485 C) |
 
 ### Dark theme
 

@@ -96,6 +96,12 @@
   --story-gold: #666a00;            /* L3 economy/value — the market */
   --story-gold-on-tint: #4d5000;
   --story-gold-foreground: #fbf7ef;
+  /* Print inks for the Book's Swiss edition (docs/harbor-research/exposition/
+     SWISS-BRIEF.md, B): a press blue and a violet with ink weight, and one
+     reserved red. Print only; they take no web role. */
+  --print-swiss-blue: #001489;
+  --print-swiss-violet: #582c83;
+  --print-swiss-red: #da291c;
 
   --signal-charlie: var(--status-success);
   --signal-november: var(--status-error);

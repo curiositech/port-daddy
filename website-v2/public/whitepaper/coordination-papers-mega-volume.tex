@@ -23,6 +23,28 @@
 \hypersetup{pageanchor=false}
 \begin{titlepage}
 \pagecolor{hhpaper}\color{hhink}
+\ifpdswiss
+  % Swiss cover A (SWISS-BRIEF, C): the arcs block on the lower 56 per cent,
+  % three type sizes on one left datum at 14 mm, the imprint in the foot.
+  \pdswisscoverart
+  \begin{tikzpicture}[remember picture,overlay,shift={(current page.north west)},x=1mm,y=-1mm]
+    \node[anchor=north west,inner sep=0pt,text width=140mm,align=left,font=\pdgrotesk\fontsize{34}{38}\selectfont\bfseries,text=hhink] at (14,18) {The Harbor,\\the Person,\\and the Economy};
+    \node[anchor=north west,inner sep=0pt,text width=125mm,align=left,font=\pdgrotesk\fontsize{13}{17}\selectfont,text=hhink] at (14,70) {\pdeditionsubtitle};
+    \node[anchor=north west,inner sep=0pt,font=\pdgrotesk\fontsize{9}{11}\selectfont,text=hhink] at (14,100) {Erich Owens};
+    \node[anchor=south west,inner sep=0pt,font=\pdgrotesk\fontsize{9}{11}\selectfont,text=hhink] at (14,246) {Curiositech\quad\textperiodcentered\quad Textbook Edition};
+  \end{tikzpicture}
+\else\ifpdtechnical
+  % Technical cover: the engraving in the lower two thirds of the sheet, the
+  % type in the paper above it, the sheet's frame and title block over all.
+  \pdtechsheetplain{\pdeditiontitle}{Cover}%
+  \begin{tikzpicture}[remember picture,overlay,shift={(current page.south west)},x=1in,y=1in]
+    \IfFileExists{plates/technical/cover.jpg}{%
+      \node[anchor=south,inner sep=0pt] at (3.5,1.55) {\includegraphics[height=4.55in]{plates/technical/cover.jpg}};}{}
+    \node[anchor=north west,inner sep=0pt,text width=5.2in,align=left,font=\pdgrotesk\fontsize{30}{34}\selectfont,text=hhink] at (0.9,9.15) {The Harbor, the Person, and the Economy};
+    \node[anchor=north west,inner sep=0pt,text width=5.2in,align=left,font=\pdgrotesk\fontsize{11}{14}\selectfont,text=hhink] at (0.9,7.8) {\pdeditionsubtitle};
+    \node[anchor=north west,inner sep=0pt,font=\pdgrotesk\fontsize{9}{11}\selectfont,text=hhink] at (0.9,7.35) {Erich Owens\quad\textperiodcentered\quad Curiositech\quad\textperiodcentered\quad Textbook Edition};
+  \end{tikzpicture}
+\else
 % Cover: the wash plate bleeds over the whole page; the type stays minimal and set in Times.
 \IfFileExists{plates/jacket.jpg}{%
   \AddToShipoutPictureBG*{\AtPageLowerLeft{\includegraphics[width=\paperwidth,height=\paperheight]{plates/jacket.jpg}}}}{}%
@@ -35,8 +57,9 @@
 {\pdpartface\itshape\fontsize{14.5}{19}\selectfont \pdeditionsubtitle\par}
 \end{minipage}
 \vfill
-\noindent{\pdpartface\scshape\small Erich Owens\par\vspace{3pt}Mundus Press\ \textperiodcentered\ Textbook Edition\par}
+\noindent{\pdpartface\scshape\small Erich Owens\par\vspace{3pt}Curiositech\ \textperiodcentered\ Textbook Edition\par}
 \vspace*{0.4cm}
+\fi\fi
 \end{titlepage}
 % Imprint page: the claim, the ordering rule, and the publication data that the cover no longer carries.
 \clearpage\thispagestyle{empty}\pagecolor{hhpaper}\color{hhink}
@@ -52,7 +75,7 @@ across principals, economic interests, and mutually distrustful systems. Its \pd
 chapters are ordered by what they stand on; each proof chapter follows the chapter whose promises it
 keeps.}\par\vspace{12pt}
 Erich Owens \textperiodcentered\ Curiositech LLC \textperiodcentered\ \texttt{engineering@portdaddy.dev}\par
-Mundus Press \textperiodcentered\ Version \pdeditionversion\ \textperiodcentered\ \pdeditiondate\ \textperiodcentered\ \url{https://portdaddy.dev/whitepaper}\par
+Curiositech \textperiodcentered\ Version \pdeditionversion\ \textperiodcentered\ \pdeditiondate\ \textperiodcentered\ \url{https://portdaddy.dev/whitepaper}\par
 \end{minipage}
 \vspace*{1.0cm}
 \clearpage

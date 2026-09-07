@@ -316,6 +316,7 @@ everything else is convenience.
 
 \subsection{Why ``reference monitor,'' and why \emph{not} consensus}
 
+\pdmarginfigure{lampson}{Lampson's 1971 \emph{Protection} gave operating systems the access-matrix model this kernel still enforces, one gate at a time.}%
 The right mental model is the \textbf{reference monitor} of Anderson and
 Lampson~\cite{anderson1972,lampson1974}: a mediator that is \emph{always invoked}
 (complete mediation), \emph{tamper-evident}, and \emph{small enough to verify}.
@@ -1060,6 +1061,7 @@ In SQLite WAL mode under single-writer serialization, transaction commits occur 
 \label{sec:controllability}
 
 \noindent\emph{Express lane: a governance rule can be enforced by prevention exactly when no
+\pdmarginfigure{wonham}{Wonham's supervisory-control theory, built for factory floors, is why a software policy can be proved enforceable rather than hoped.}%
 event the runtime cannot refuse can carry a legal history out of the rule; that is
 Ramadge--Wonham controllability with the model's own steps as the uncontrollable alphabet.
 The formal statement is the box below; the machine-checked policy table is
@@ -2081,6 +2083,7 @@ over-assume.
   advisory locks, and a broken lock lets two writers both win --- destroying mutual
   exclusion, not just performance.
   \item A local wall clock. Single-machine, so no shared-clock assumption is needed
+\pdmarginfigure{lamport}{Lamport showed that happened-before, not a shared clock, is the ordering a distributed system can trust; the daemon's wall clock does not give it for free.}%
   --- but note that a wall clock is \emph{not monotonic} (it steps when the clock is
   adjusted, e.g.\ by network time synchronization), an intra-node hazard for every
   expiry sweep that the inter-node ordering of Lamport~\cite{lamport1978} does not

@@ -759,7 +759,7 @@ $\gamma$ because $\beta$ is already the per-canary miss rate and $b$ is the
 release-channel width of Section~\ref{sec:sealed-budget}.
 \end{pdclaim}
 
-\paragraph{Proof idea.}
+\paragraph{Proof idea.}\pdmarginfigure{wald}{Wald's sequential probability ratio test, made for wartime quality control, is still the fastest way to decide that a canary has tripped at a guaranteed error rate.}%
 Power is independence and counting: a leak is missed only if every carried
 canary is missed, and the number carried under uniform planting is the
 hypergeometric draw of $m$ spans from $n$ with $c$ marked. Latency is Wald's

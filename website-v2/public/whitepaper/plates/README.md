@@ -51,3 +51,20 @@ The pipeline and the render drivers live in `scripts/whitepaper-plates/`
 
 Budget: all plates together must stay under 8 MB so the Book PDF stays under
 12 MB. Current total is in `PROVENANCE.json` (sum of `bytes`).
+
+## Editions and marginalia
+
+- `technical/` — the technical edition's plates: the engraving system (1960s
+  engineering-report plates, exploded and cutaway drawings with empty callout
+  boxes; part plates composited white on the part's ink, chapter plates on
+  paper), recovered from the art-system commit `175f3e753`, plus a Sealed Harbor
+  chapter plate and a cover generated in the same register with an existing
+  plate as the style reference. `technical/PROVENANCE.json` carries every prompt.
+  The Swiss edition has no raster plates: its cover and plates are TikZ
+  (`../coordination-papers-mega-volume-swiss-plates.tex`) drawn from
+  `docs/harbor-research/exposition/SWISS-BRIEF.md`.
+- `marginalia/` — duotone portraits and title pages for the margin column, one
+  JSON sidecar per image (Commons file page, sha1, artist, licence, retrieval
+  date); `scripts/harbor-research/check_marginalia_sidecars.py` fails the build
+  on an image without a cleared licence; the credits page is
+  `../figures/pd-marginalia-credits.tex`.
