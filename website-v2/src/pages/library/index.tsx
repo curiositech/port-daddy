@@ -3,9 +3,8 @@ import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import { ArrowDownRight, ArrowRight, ArrowUpRight, BadgeCheck, Compass, FileText, FlaskConical } from 'lucide-react'
 import { Footer } from '@/components/layout/Footer'
-import { NestingDiagram } from '@/components/library/NestingDiagram'
-import { ReadingDag } from '@/components/library/ReadingDag'
 import { SpineChain } from '@/components/library/SpineChain'
+import { TableOfContents } from '@/components/library/TableOfContents'
 import { ThreeSidedMarket } from '@/components/library/ThreeSidedMarket'
 import {
   BracketLabel,
@@ -16,12 +15,12 @@ import {
 } from '@/components/site/primitives'
 import {
   COLLECTED_VOLUME,
-  EXPLAIN_PAPERS,
   LIBRARY_CHANGELOG,
   LIBRARY_SPINE,
-  PROVE_PAPERS,
-  READING_PATHS,
-  findWhitePaperByChapter,
+  TABLE_OF_CONTENTS,
+  TEXTBOOK,
+  chapterRoleLabel,
+  findWhitePaperById,
   type WhitePaper,
 } from '@/data/whitePapers'
 import { harborEvolutionFigure } from '@/data/manifestoContent'
@@ -40,8 +39,9 @@ const CROSS_REF_KINDS = [
   { key: 'proves', label: 'Proves', Icon: BadgeCheck },
 ] as const
 
-function chapterTitle(chapter: string): string {
-  return findWhitePaperByChapter(chapter)?.title ?? chapter
+function chapterLabel(id: string): string {
+  const paper = findWhitePaperById(id)
+  return paper ? `${paper.chapter} · ${paper.title}` : id
 }
 
 function CrossRefRow({
@@ -51,7 +51,7 @@ function CrossRefRow({
 }: {
   label: string
   Icon: typeof ArrowRight
-  edges: Array<{ chapter: string; why: string }>
+  edges: Array<{ id: string; why: string }>
 }) {
   return (
     <div className="grid grid-cols-[auto,1fr] gap-[var(--space-3)] border-t-2 border-[var(--border-default)] pt-[var(--space-3)] first:border-t-0 first:pt-0">
@@ -61,12 +61,12 @@ function CrossRefRow({
       </span>
       <ul className="grid gap-[var(--space-2)]">
         {edges.map((edge) => (
-          <li key={`${label}-${edge.chapter}`} className="text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
+          <li key={`${label}-${edge.id}`} className="text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
             <Link
-              to={`/whitepaper/${findWhitePaperByChapter(edge.chapter)?.slug ?? ''}`}
+              to={`/whitepaper/${findWhitePaperById(edge.id)?.slug ?? ''}`}
               className="font-black text-[var(--text-primary)] underline underline-offset-4 hover:text-[var(--brand-primary)] hover:no-underline"
             >
-              {edge.chapter} · {chapterTitle(edge.chapter)}
+              {chapterLabel(edge.id)}
             </Link>{' '}
             — {edge.why}
           </li>
@@ -85,7 +85,7 @@ function ChapterCard({ paper }: { paper: WhitePaper }) {
 
   return (
     <article
-      id={`chapter-${paper.chapter}`}
+      id={`chapter-${paper.id}`}
       className="grid min-w-0 border-2 border-[var(--border-strong)] bg-[var(--surface-base)] shadow-[var(--shadow-brutal)]"
     >
       <header className="grid grid-cols-[auto,1fr] items-start gap-[var(--space-4)] border-b-2 border-[var(--border-strong)] p-[var(--space-5)]">
@@ -97,7 +97,7 @@ function ChapterCard({ paper }: { paper: WhitePaper }) {
         </span>
         <div className="min-w-0 space-y-[var(--space-2)]">
           <div className="flex flex-wrap items-center gap-[var(--space-2)]">
-            <BracketLabel>{paper.group === 'prove' ? 'Proves' : 'Explains'}</BracketLabel>
+            <BracketLabel>{chapterRoleLabel(paper)}</BracketLabel>
             <span className="font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
               {paper.layer}
             </span>
@@ -178,7 +178,7 @@ export default function LibraryPage() {
               <div className="space-y-[var(--space-5)]">
                 <PanelEyebrow>The Harbor Library — read it as one book</PanelEyebrow>
                 <PanelTitle as="h1" size="hero" className="max-w-[15ch]">
-                  Seven chapters. Four explain the system. Three prove it.
+                  Seven chapters, in the order the argument needs.
                 </PanelTitle>
                 <PanelBody size="default" className="max-w-[62ch] text-[length:var(--text-lg)]">
                   You can now hand a goal to a program and walk away. One coding
@@ -195,8 +195,8 @@ export default function LibraryPage() {
 
                 <div className="grid gap-[var(--space-3)] border-y-2 border-[var(--border-strong)] py-[var(--space-4)] sm:grid-cols-3">
                   {[
-                    { value: '04', label: 'chapters explain' },
-                    { value: '03', label: 'chapters prove' },
+                    { value: String(TEXTBOOK.parts.length).padStart(2, '0'), label: 'parts' },
+                    { value: String(TEXTBOOK.chapters.length).padStart(2, '0'), label: 'chapters, in dependency order' },
                     { value: String(COLLECTED_VOLUME.pages), label: 'pages, collected PDF' },
                   ].map((stat) => (
                     <div key={stat.label} className="space-y-[var(--space-1)]">
@@ -236,6 +236,21 @@ export default function LibraryPage() {
                   />
                 </a>
 
+                {COLLECTED_VOLUME.editions && COLLECTED_VOLUME.editions.length > 0 && (
+                  <div className="flex flex-wrap gap-[var(--space-4)] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
+                    {COLLECTED_VOLUME.editions.map((edition) => (
+                      <a
+                        key={edition.id}
+                        href={edition.pdfPath}
+                        download
+                        className="underline decoration-dotted underline-offset-4 transition-colors hover:text-[var(--text-primary)]"
+                      >
+                        {edition.title} (PDF)
+                      </a>
+                    ))}
+                  </div>
+                )}
+
                 <div className="flex flex-wrap gap-[var(--space-3)]">
                   <a
                     href="#the-climb"
@@ -262,9 +277,10 @@ export default function LibraryPage() {
                   loading="eager"
                 />
                 <figcaption className="border-t-2 border-[var(--border-strong)] p-[var(--space-4)] text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
-                  Four plates explain the harbor; three, wax-sealed, prove it. The
-                  same wall, drawn once — and the argument this page walks you
-                  through.
+                  Seven plates on one drafting wall: four build the harbor and
+                  three, wax-sealed, prove what the builders had to assume. Drawn
+                  once, before the book was put in dependency order; the argument
+                  is the same.
                 </figcaption>
               </figure>
             </div>
@@ -350,23 +366,24 @@ export default function LibraryPage() {
           </PageContainer>
         </section>
 
-        {/* ── The climb: explain (I–IV) then prove (V–VII) ── */}
+        {/* ── The climb: four parts, seven chapters, in dependency order ── */}
         <section id="the-climb" className="scroll-mt-[var(--space-8)] py-[var(--space-7)] lg:py-[var(--space-8)]">
           <PageContainer width="wide">
             <div className="space-y-[var(--space-7)]">
               <div className="grid gap-[var(--space-5)] lg:grid-cols-[minmax(0,0.4fr)_minmax(0,0.6fr)] lg:items-end">
                 <div className="space-y-[var(--space-3)]">
-                  <PanelEyebrow>The L0 → L3 climb</PanelEyebrow>
+                  <PanelEyebrow>The climb</PanelEyebrow>
                   <PanelTitle as="h2" size="display" className="max-w-[14ch]">
                     From the machine, up to the market.
                   </PanelTitle>
                 </div>
                 <PanelBody className="max-w-[60ch] text-[length:var(--text-lg)]">
-                  The library climbs a four-layer stack — from the kernel that
-                  decides what is true, through the legibility an operator pays
-                  for and the bridge that turns a spawn into a person, up to the
-                  market between operators — and then proves the load-bearing
-                  parts with machine-checked mathematics. Each card names what it{' '}
+                  The book climbs from the machine to the market: one writer
+                  decides what is real, delegated authority only narrows, the
+                  operator&rsquo;s view is priced in bits, a spawn becomes someone
+                  with a record, and a market rents trust between strangers. Each
+                  proving chapter follows the chapter whose promises it keeps.
+                  Each card names what it{' '}
                   <strong className="font-black text-[var(--text-primary)]">assumes</strong>{' '}
                   from below, what it{' '}
                   <strong className="font-black text-[var(--text-primary)]">underwrites</strong>{' '}
@@ -403,33 +420,19 @@ export default function LibraryPage() {
                 </figcaption>
               </figure>
 
-              {/* The four that explain */}
-              <div className="space-y-[var(--space-5)]">
-                <GroupHeading
-                  eyebrow="Chapters I–IV"
-                  title="The four that explain"
-                  description="Self-contained and pedagogic, climbing one ladder. Read them in order to be convinced; stop after the first and you still have a useful mental model."
-                />
-                <div className="grid gap-[var(--space-5)] lg:grid-cols-2">
-                  {EXPLAIN_PAPERS.map((paper) => (
-                    <ChapterCard key={paper.id} paper={paper} />
-                  ))}
-                </div>
-              </div>
+              {/* The table of contents, then every chapter card, part by part */}
+              <TableOfContents />
 
-              {/* The three that prove */}
-              <div className="space-y-[var(--space-5)]">
-                <GroupHeading
-                  eyebrow="Chapters V–VII"
-                  title="The three that prove"
-                  description="Not appendices — chapters, where the prose stops and the proof-checkers start. Each discharges a promise the explaining chapters make, mechanized in ProVerif, Kani, and TLA⁺."
-                />
-                <div className="grid gap-[var(--space-5)] lg:grid-cols-2">
-                  {PROVE_PAPERS.map((paper) => (
-                    <ChapterCard key={paper.id} paper={paper} />
-                  ))}
+              {TABLE_OF_CONTENTS.map((part) => (
+                <div key={part.id} className="space-y-[var(--space-5)]">
+                  <GroupHeading eyebrow={`Part ${part.numeral}`} title={part.title} description={part.blurb} />
+                  <div className="grid gap-[var(--space-5)] lg:grid-cols-2">
+                    {part.papers.map((paper) => (
+                      <ChapterCard key={paper.id} paper={paper} />
+                    ))}
+                  </div>
                 </div>
-              </div>
+              ))}
             </div>
           </PageContainer>
         </section>
@@ -443,70 +446,17 @@ export default function LibraryPage() {
             <div className="space-y-[var(--space-3)]">
               <PanelEyebrow>The architecture, drawn</PanelEyebrow>
               <PanelTitle as="h2" size="section" className="max-w-[18ch]">
-                Four layers, seven chapters, one bond ledger.
+                The spine and the market, drawn.
               </PanelTitle>
               <PanelBody className="max-w-[52ch] text-[length:var(--type-panel-body-size)]">
-                The same shape from four angles &mdash; the nested layers
-                (L0&ndash;L3), the spine that threads the seven chapters, the
-                reading order as a dependency graph, and Chapter IV&rsquo;s
-                three-sided market settling onto one conserving bond ledger.
+                Two figures the book keeps returning to: the spine that threads
+                the seven chapters, and the three-sided market of chapter 5
+                settling onto one conserving bond ledger.
               </PanelBody>
             </div>
             <div className="mt-[var(--space-5)] grid gap-[var(--space-6)]">
-              <NestingDiagram />
               <SpineChain />
-              <ReadingDag />
               <ThreeSidedMarket />
-            </div>
-          </PageContainer>
-        </section>
-
-        {/* ── Reading paths ── */}
-        <section className="border-t-2 border-[var(--border-strong)] bg-[var(--surface-raised)] py-[var(--space-7)] lg:py-[var(--space-8)]">
-          <PageContainer width="wide">
-            <div className="grid gap-[var(--space-6)] lg:grid-cols-[minmax(0,0.34fr)_minmax(0,0.66fr)]">
-              <div className="space-y-[var(--space-3)]">
-                <PanelEyebrow>How to read it</PanelEyebrow>
-                <PanelTitle as="h2" size="section" className="max-w-[14ch]">
-                  Different doors into the same book.
-                </PanelTitle>
-                <PanelBody className="max-w-[44ch] text-[length:var(--text-lg)]">
-                  This is the map. You can enter any chapter from here, and every
-                  chapter tells you which others it leans on. Pick the door that
-                  matches who you are talking to.
-                </PanelBody>
-              </div>
-
-              <div className="grid gap-[var(--space-4)]">
-                {READING_PATHS.map((path) => (
-                  <div
-                    key={path.label}
-                    className="grid gap-[var(--space-3)] border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-5)]"
-                  >
-                    <p className="font-display text-[length:var(--text-xl)] font-black leading-[var(--leading-nav)] text-[var(--text-primary)]">
-                      {path.label}
-                    </p>
-                    <p className="text-[length:var(--type-panel-body-size)] leading-[var(--leading-body)] text-[var(--text-secondary)]">
-                      {path.body}
-                    </p>
-                    <div className="flex flex-wrap gap-[var(--space-2)] pt-[var(--space-1)]">
-                      {path.chapters.map((chapter) => {
-                        const target = findWhitePaperByChapter(chapter)
-                        if (!target) return null
-                        return (
-                          <Link
-                            key={chapter}
-                            to={`#chapter-${chapter}`}
-                            className="inline-flex items-center gap-[var(--space-2)] border-2 border-[var(--border-default)] bg-[var(--surface-raised)] px-[var(--space-3)] py-[var(--space-1)] font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-secondary)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text-primary)] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)]"
-                          >
-                            {chapter} · {target.title}
-                          </Link>
-                        )
-                      })}
-                    </div>
-                  </div>
-                ))}
-              </div>
             </div>
           </PageContainer>
         </section>
@@ -583,7 +533,7 @@ export default function LibraryPage() {
                         {entry.date}
                       </time>
                       <span className="font-mono text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
-                        {entry.chapters.join(' · ')}
+                        {entry.chapters.map((id) => findWhitePaperById(id)?.chapter ?? id).join(' · ')}
                       </span>
                     </div>
                     <h3 className="font-display text-[length:var(--text-xl)] font-black leading-[var(--leading-nav)] text-[var(--text-primary)]">
@@ -611,7 +561,7 @@ export default function LibraryPage() {
                 ['Parfit', 'Derek Parfit, Reasons and Persons (1984) — identity as psychological continuity rather than a fixed essence.'],
                 ['Reputation', 'Elo (1960s) for chess; Bradley–Terry (1952) for paired comparisons; EigenTrust (Kamvar et al., 2003) for networked reputation. On bounded memory: Liu & Skrzypacz (2014).'],
                 ['Mechanism design', 'Hurwicz, Maskin, Myerson — Nobel 2007 — rules whose honest outcome survives self-interested play. Myerson–Satterthwaite (1983): no bilateral-trade mechanism is simultaneously efficient, individually rational, and budget-balanced.'],
-                ['Formal verification', 'Symbolic analysis and model checking — ProVerif/Tamarin (TLS 1.3, Signal), TLA⁺ (AWS; Newcombe et al., CACM 2015). Chapters V–VII use ProVerif and the Kani model checker.'],
+                ['Formal verification', 'Symbolic analysis and model checking — ProVerif/Tamarin (TLS 1.3, Signal), TLA⁺ (AWS; Newcombe et al., CACM 2015). The proving chapters use ProVerif and the Kani model checker.'],
               ].map(([term, body]) => (
                 <li key={term} className="grid grid-cols-[auto,1fr] gap-[var(--space-3)] border-t-2 border-[var(--border-default)] pt-[var(--space-3)]">
                   <span className="font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary)]">

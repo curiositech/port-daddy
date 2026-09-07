@@ -1,36 +1,50 @@
 % Figure 3 — concurrent arrival intervals collapse into one commit order.
 \begin{figure}[H]
 \centering
-\resizebox{0.91\textwidth}{!}{%
-\begin{tikzpicture}[pd figure,x=1cm,y=.72cm]
-  \pdfigaxis{1.65}{.3}{14.0}{time}
-  \foreach \y/\actor in {5.8/{CLI},4.75/{tool bridge},3.7/{binary IPC},2.65/{worker}} {
-    \node[anchor=east,font=\scriptsize\bfseries] at (1.35,\y) {\actor};
-    \draw[pd hairline] (1.55,\y)--(13.65,\y);
+\begin{tikzpicture}[pd figure,x=.72cm,y=.72cm]
+  % row hairlines and labels
+  \foreach \y/\lbl in {7.4/{CLI},6.4/{tool bridge},5.4/{binary IPC},4.4/{worker}} {
+    \node[pd row label] at (-.25,\y) {\lbl};
+    \draw[pd hairline] (0,\y)--(9.4,\y);
   }
-  \fill[hhsand!28] (2.0,5.52) rectangle (6.25,6.08);
-  \fill[hhteal!11] (3.15,4.47) rectangle (8.3,5.03);
-  \fill[hhsand!28] (4.2,3.42) rectangle (9.85,3.98);
-  \fill[hhsand!28] (5.55,2.37) rectangle (11.0,2.93);
-  \foreach \x/\n in {6.25/1,8.3/2,9.85/3,11.0/4} {
-    \draw[pd guide] (\x,1.0)--(\x,6.25);
-    \node[pd focus datum] at (\x,1.35) {};
-    \node[pd axis label,anchor=north] at (\x,1.08) {\n};
+  \node[pd row label,text width=1.7cm,align=right] at (-.25,2.2) {one writer};
+
+  % bands: same neutral fill for every caller, no special tint for the commit
+  \fill[pd neutral fill] (.5,7.2) rectangle (4.2,7.6);
+  \fill[pd neutral fill] (1.4,6.2) rectangle (6.0,6.6);
+  \fill[pd neutral fill] (2.4,5.2) rectangle (7.4,5.6);
+  \fill[pd neutral fill] (3.6,4.2) rectangle (8.4,4.6);
+
+  % rail
+  \draw[pd focus rule,line width=1.3pt] (.5,2.2)--(9.0,2.2);
+
+  % guides down to the rail, commit marks, order numbers
+  \foreach \x/\rowtop/\n in {4.2/7.2/1,6.0/6.2/2,7.4/5.2/3,8.4/4.2/4} {
+    \draw[pd guide] (\x,\rowtop)--(\x,2.2);
+    \node[pd focus datum] at (\x,2.2) {};
+    \node[pd axis label,anchor=north] at (\x,1.82) {\n};
   }
-  \draw[pd focus arrow,line width=1.45pt] (2.0,1.35)--(12.05,1.35);
-  \node[pd panel title,anchor=east,align=right] at (1.35,1.35) {one writer\\commit order};
-  \node[pd note,anchor=west] at (12.1,1.35) {reply follows commit};
-  \draw[pd caution rule] (12.45,2.15)--(12.45,6.1);
-  \node[pd caution datum] at (12.45,4.12) {};
-  \node[pd direct label,anchor=west,text=hhamber] at (12.72,4.12)
-    {second writer\\outside the model};
-\end{tikzpicture}%
-}
-\caption{Concurrent request intervals become one commit order. Each pale band is
-live work in a different caller; its right edge meets exactly one position on the
-teal writer rail. The daemon replies only after that commit, so successful
-mutations share one observable history without an agreement protocol inside the
-machine. The separate amber mark is the model boundary: a second daemon sharing
-the file is a cross-machine problem, not another lane in this schedule.}
+
+  % replies: one short arrow from each commit back into its caller's row
+  \draw[pd arrow] (4.2,2.32)--(4.35,7.2);
+  \node[pd note,anchor=south west,text width=4.4cm,align=left] at (4.55,7.65) {reply after commit};
+  \draw[pd arrow] (6.0,2.32)--(6.15,6.2);
+  \draw[pd arrow] (7.4,2.32)--(7.55,5.2);
+  \draw[pd arrow] (8.4,2.32)--(8.55,4.2);
+
+  % time axis, hairline
+  \draw[pd hairline,-{Stealth[length=1.65mm,width=1.05mm]}] (.3,1.0)--(9.05,1.0);
+  \node[pd axis label,anchor=west] at (9.1,1.0) {time};
+
+  % model boundary
+  \draw[pd boundary] (9.3,2.85) rectangle (12.85,6.55);
+  \node[pd note,align=center,text width=2.6cm] at (11.075,4.7)
+    {second daemon on the same file: outside this model};
+\end{tikzpicture}
+\caption{Four concurrent callers and one writer. Each band is a request in
+flight; its right edge is where the daemon commits it, and the rail shows
+the resulting order 1--4. A reply is sent only after the commit. A second
+daemon opening the same file is outside the model, not another lane.
+[internal]}
 \label{fig:swk-single-writer}
 \end{figure}
