@@ -31,6 +31,8 @@ on:
       - 'whitepaper/**/*.tex'
       - 'scripts/build-whitepapers.sh'
       - 'scripts/generate-mega-whitepaper.mjs'
+      - 'whitepaper/textbook.json'
+      - 'website-v2/public/whitepaper/plates/**'
       - '.github/workflows/whitepaper-build.yml'
   pull_request:
     paths:
@@ -38,6 +40,8 @@ on:
       - 'whitepaper/**/*.tex'
       - 'scripts/build-whitepapers.sh'
       - 'scripts/generate-mega-whitepaper.mjs'
+      - 'whitepaper/textbook.json'
+      - 'website-v2/public/whitepaper/plates/**'
       - '.github/workflows/whitepaper-build.yml'
   # Merge queue: trigger so this workflow reports a check context on the queued
   # group. The `build` job is SKIPPED on merge_group (see its `if:`), and a
@@ -86,8 +90,9 @@ jobs:
           ref: ${{ github.head_ref || github.ref_name }}
           fetch-depth: 0
 
-      # The TeX container has no JavaScript runtime; generate the collected
-      # body and bibliography from the seven canonical sources first.
+      # The TeX container has no JavaScript runtime; generate the Book's body,
+      # front-matter map, and bibliography from the canonical chapter sources
+      # and whitepaper/textbook.json first.
       - uses: actions/setup-node@v4
         with:
           node-version: 22

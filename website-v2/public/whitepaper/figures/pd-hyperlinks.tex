@@ -1,0 +1,76 @@
+% Shared hyperlink and cross-reference discipline for the Book and its chapters.
+% Load this LAST in every preamble: cleveref must follow hyperref and amsthm.
+% hyperref itself is loaded earlier with [backref=page] (a load-time option).
+% Twin copy under whitepaper/figures/ (byte-identical; checked by
+% scripts/generate-mega-whitepaper.test.mjs).
+%
+% What a reader gets: live links on chapter titles, section numbers, theorems,
+% figures, tables, equations, page numbers, and citations; PDF bookmarks three
+% levels deep; and, at the end of every bibliography entry, the pages that cite it.
+% Links are quiet: a warm dark ink one step lighter than body text, so the
+% four part hues keep their meaning and an inline chapter title never competes
+% with the part it sits in. Chrome pages (the front-matter map, part openers)
+% recolor their own links locally.
+\hypersetup{
+  colorlinks=true,
+  linkcolor=pdinkmuted,
+  citecolor=pdinkmuted,
+  urlcolor=pdinkmuted,
+  filecolor=pdinkmuted,
+  anchorcolor=pdink,
+  bookmarksnumbered=true,
+  bookmarksdepth=3,
+  bookmarksopen=true,
+  bookmarksopenlevel=1,
+  breaklinks=true,
+  linktoc=all,
+  pdfauthor={Erich Owens},
+  pdftitle={\pdchaptertitle},
+  pdfsubject={\pdeditiontitle: \pdeditionsubtitle},
+}
+
+% Title-based chapter references. \pdchaplink{prefix}{text} is a live link to
+% the chapter inside the Book (the Book's preamble defines it before loading this
+% file); in a standalone chapter it is plain text. Prose uses \pdchapref, which
+% sets the title in italics; the locator map uses \pdchaplink directly.
+\providecommand{\pdchaplink}[2]{#2}
+\DeclareRobustCommand{\pdchapref}[2]{\pdchaplink{#1}{\emph{#2}}}
+
+% cleveref: "Theorem 3.1", "Figure 2.4", "Section 1.3", capitalised, never
+% abbreviated, with the whole phrase clickable. Names are declared explicitly
+% because the theorem environments are created before this file is loaded.
+\usepackage[nameinlink,capitalise,noabbrev]{cleveref}
+\crefname{pdchapter}{Chapter}{Chapters}
+\crefname{part}{Part}{Parts}
+\crefname{appendix}{Appendix}{Appendices}
+\crefname{definition}{Definition}{Definitions}
+\crefname{theorem}{Theorem}{Theorems}
+\crefname{lemma}{Lemma}{Lemmas}
+\crefname{proposition}{Proposition}{Propositions}
+\crefname{corollary}{Corollary}{Corollaries}
+\crefname{conjecture}{Conjecture}{Conjectures}
+\crefname{property}{Property}{Properties}
+\crefname{protocol}{Protocol}{Protocols}
+\crefname{lsprotocol}{Protocol}{Protocols}
+\crefname{stpprotocol}{Protocol}{Protocols}
+\crefname{heprotocol}{Protocol}{Protocols}
+\crefname{remark}{Remark}{Remarks}
+\crefname{lstlisting}{Listing}{Listings}
+\crefname{exercise}{Exercise}{Exercises}
+\crefname{solution}{Solution}{Solutions}
+\Crefname{pdchapter}{Chapter}{Chapters}
+\Crefname{lstlisting}{Listing}{Listings}
+\Crefname{exercise}{Exercise}{Exercises}
+\Crefname{solution}{Solution}{Solutions}
+
+% Back-references: "Cited on pages 12, 40, and 87." after every bibliography
+% entry, each page number a link. Distinct pages only (#3/#4), small and gray.
+\renewcommand*{\backref}[1]{}
+\renewcommand*{\backrefalt}[4]{%
+  \ifcase #3\relax
+  \or {\footnotesize\color{hhgray}Cited on page~#4.}%
+  \else {\footnotesize\color{hhgray}Cited on pages~#4.}%
+  \fi}
+\renewcommand*{\backrefsep}{, }
+\renewcommand*{\backreftwosep}{ and }
+\renewcommand*{\backreflastsep}{, and }

@@ -5,7 +5,7 @@
 **Version:** 1.0 (Reflecting Port Daddy v3.8.0 / v4 Architecture)
 
 ## Abstract
-As AI agents transition from isolated copilots to collaborative, autonomous swarms, local development environments face a crisis of coordination and trust. Existing tools designed for human-driven, static infrastructures (e.g., Docker Compose, PM2) lack the primitives required to prevent dynamic agents from corrupting shared state or squatting on ephemeral ports. This paper introduces the **Anchor Protocol**, a cryptographic and semantic identity framework built into the Port Daddy daemon. We detail the protocol's evolution from symmetric MACs to asymmetric Ed25519 signatures and multi-hop delegation chains (inspired by Macaroons). Furthermore, we present the formal verification of the protocol's design using the **ProVerif** symbolic analyzer and the mathematical proof of its Rust-based implementation using the **Kani** model checker, demonstrating immunity to algorithm confusion, impersonation, and timing side-channels.
+As AI agents transition from isolated copilots to collaborative, autonomous swarms, local development environments face a crisis of coordination and trust. Existing tools designed for human-driven, static infrastructures (e.g., Docker Compose, PM2) lack the primitives required to prevent dynamic agents from corrupting shared state or squatting on ephemeral ports. This paper introduces the **Anchor Protocol**, a cryptographic and semantic identity framework built into the Port Daddy daemon. We detail the protocol's evolution from symmetric MACs to asymmetric Ed25519 signatures and multi-hop delegation chains (inspired by Macaroons). Furthermore, we present the formal verification of the protocol's design using the **ProVerif** symbolic analyzer and bounded model checking of its Rust-based verifier with the **Kani** model checker. The symbolic analysis excludes algorithm confusion and impersonation within the model; the Kani harnesses show that the parser and the comparator cannot panic on bounded inputs, which is evidence about the code's control flow, not a proof of immunity to timing side-channels.
 
 ---
 
@@ -50,8 +50,8 @@ To prove the protocol's logical soundness against a Dolev-Yao adversary (an atta
 
 ### 3.2 Implementation Verification with Kani (Rust)
 A secure protocol is useless if the implementation contains buffer overflows or timing leaks. We extracted the critical JWT parsing and cryptographic comparison logic into a **Rust core**.
-* **Memory Safety:** Using the **Kani Rust Verifier** (developed by AWS), we performed bounded model checking to prove that our parsing logic never panics or accesses out-of-bounds memory, regardless of the input payload.
-* **Side-Channel Resistance:** To prevent timing attacks where an adversary guesses signatures byte-by-byte, we implemented a custom constant-time byte comparator. Kani formally verified that this comparator is branch-free regarding the contents of the secret arrays.
+* **Memory Safety:** Using the **Kani Rust Verifier** (developed by AWS), we bounded-model-check the parsing logic with the cryptographic primitives stubbed: for 32-byte inputs and up to ten loop iterations it never panics or accesses out-of-bounds memory. Longer inputs and the real primitives are outside the bound.
+* **Side-Channel Resistance:** To blunt timing attacks where an adversary guesses signatures byte-by-byte, we implemented a byte comparator that XORs every byte pair into one accumulator and branches only on the final result, so its source has no secret-dependent branch. That is established by inspection; Kani checks that the comparator cannot panic on any pair of 16-byte inputs. Neither is a hardware constant-time proof.
 
 ## 4. Runtime Enforcement: The Arbiter
 Formal proofs guarantee behavior *if* the software acts according to the model. To ensure reality matches the model, Port Daddy utilizes an **Arbiter Agent**.
@@ -59,7 +59,7 @@ Formal proofs guarantee behavior *if* the software acts according to the model. 
 * **Enforcement:** The Arbiter subscribes to all `ActivityLog` events. If an agent attempts to claim a port that belongs to a different PID (violating the Anti-Squatting rule), or attempts to lock a resource without the verified capability subset, the Arbiter immediately revokes the agent's Harbor Card and triggers a "Man Overboard" system halt.
 
 ## 5. Conclusion
-The Anchor Protocol elevates local multi-agent development from a state of "hope-based security" to "math-based security." By combining symbolic protocol proofs (ProVerif), memory-safe implementation proofs (Kani), and runtime ambient enforcement (The Arbiter), Port Daddy provides a formally verified control plane capable of safely orchestrating the next generation of autonomous AI swarms.
+The Anchor Protocol elevates local multi-agent development from a state of "hope-based security" to "math-based security." By combining symbolic protocol proofs (ProVerif), bounded implementation checks (Kani), and runtime ambient enforcement (The Arbiter), Port Daddy provides a mechanically analyzed control plane capable of safely orchestrating the next generation of autonomous AI swarms.
 
 ## References
 1. Blanchet, B. (2016). *ProVerif: Cryptographic Protocol Verifier*. INRIA.
