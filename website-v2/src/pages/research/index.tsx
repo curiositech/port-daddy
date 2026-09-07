@@ -493,7 +493,7 @@ export default function ResearchProgramPage() {
                         </span>
                       </div>
                       <PanelBody size="compact" className="max-w-none">
-                        {artifact.method}. {artifact.note.split(/(?<=\.)\s/)[0]}
+                        {artifact.method}. {artifact.note.match(/^.*?\.(?=\s|$)/)?.[0] ?? artifact.note}
                       </PanelBody>
                     </li>
                   ))}
