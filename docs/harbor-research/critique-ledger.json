@@ -7596,7 +7596,7 @@
     "Item": "The fencing epoch is Kleppmann's fencing token, and Chubby (Burrows, OSDI 2006) shipped the identical reject-below-current-epoch mechanism first; both uncited.",
     "Targets": "The Single-Writer Kernel",
     "Prior adjudication": "",
-    "Status": "DONE wave-16/credit-the-canon",
+    "Status": "DONE e62037ada",
     "Notes": "Added \\cite{kleppmann2016locking,burrows2006chubby} at thm:exclusion's proof, naming the fencing token first and Chubby's identical protocol shape; bibitems added. Not part of paper2's folded R5 scope (the Ramadge-Wonham controllability theorem only), so chapter-only per the twin rule."
   },
   {
@@ -7606,7 +7606,7 @@
     "Item": "I2/I3's at-most-once settlement is Helland's (CIDR 2007) effectively-once processing discipline, uncited.",
     "Targets": "The Single-Writer Kernel",
     "Prior adjudication": "",
-    "Status": "DONE wave-16/credit-the-canon",
+    "Status": "DONE e62037ada",
     "Notes": "Added \\cite{helland2007distributed} at I2's definition in sec:workunit, naming effectively-once processing; bibitem added. Not part of paper2's folded R5 scope, chapter-only."
   },
   {
@@ -7626,7 +7626,7 @@
     "Item": "The chapter's own same-machine-adversary open problem (OP-9) is exactly the problem seL4 (Klein et al., SOSP 2009) and Firecracker (Agache et al., NSDI 2020) exist to close; neither cited.",
     "Targets": "The Single-Writer Kernel",
     "Prior adjudication": "",
-    "Status": "DONE wave-16/credit-the-canon",
+    "Status": "DONE e62037ada",
     "Notes": "Added \\cite{klein2009sel4,agache2020firecracker} at the reference-monitor related-work section, beside the OP-9 same-machine-adversary discussion; bibitems added. Not part of paper2's folded scope, chapter-only."
   },
   {
@@ -7636,7 +7636,7 @@
     "Item": "SPKI/SDSI's certificate-chain reduction and Miller's object-capability thesis compute the same only-ever-narrows property the offline-attenuation check establishes; both uncited (Chapter 2 has no twin paper).",
     "Targets": "The Anchor Protocol",
     "Prior adjudication": "",
-    "Status": "DONE wave-16/credit-the-canon",
+    "Status": "DONE e62037ada",
     "Notes": "Added \\cite{spkicert1999,rivestlampson1996sdsi,miller2006robustcomposition} at Def. Offline Attenuation, naming SPKI/SDSI's reduction calculus and Miller's discipline as the two closest peers; bibitems added."
   },
   {
@@ -7646,7 +7646,7 @@
     "Item": "The chapter neither claims nor disclaims protection against alg:none/algorithm-confusion attacks (RFC 8725) on the JWT encoding; the boundary was unstated.",
     "Targets": "The Anchor Protocol",
     "Prior adjudication": "",
-    "Status": "DONE wave-16/credit-the-canon",
+    "Status": "DONE e62037ada",
     "Notes": "Added a sentence to \\S 'Where this stops' stating this is ruled out by the fixed-algorithm encoding, not by a ProVerif query; reused the existing \\cite{ietf2024jwtbcp} bibitem (RFC 8725, already present under that key) rather than adding a duplicate."
   },
   {
@@ -7656,7 +7656,7 @@
     "Item": "Sabelfeld and Sands' (2009) later four-axis taxonomy is the standard organizing reference for any delimited-release design; missing from the chapter (paper4.tex already cites it).",
     "Targets": "The Sealed Harbor; research paper 4",
     "Prior adjudication": "",
-    "Status": "DONE wave-16/credit-the-canon",
+    "Status": "DONE e62037ada",
     "Notes": "Added \\cite{ss09} and the what/who/where/when framing to sealed-harbor.tex's declassification discussion, matching paper4.tex's own already-correct citation and four-axis analysis -- this closes a twin-drift gap rather than a wholly new citation."
   },
   {
@@ -7666,7 +7666,7 @@
     "Item": "'Run the world twice' is self-composition (Barthe, D'Argenio & Rezk, CSFW 2004), uncited in both the chapter and its research-paper twin.",
     "Targets": "The Sealed Harbor; research paper 4",
     "Prior adjudication": "",
-    "Status": "DONE wave-16/credit-the-canon",
+    "Status": "DONE e62037ada",
     "Notes": "Added \\cite{bdr04} naming self-composition at the noninterference proof-idea paragraph in sealed-harbor.tex and at Theorem 1's verification paragraph in paper4.tex; bibitem added to both."
   },
   {
@@ -7676,7 +7676,7 @@
     "Item": "The review names the release ledger a 'privacy odometer' (Rogers, Roth, Ullman & Vadhan); the ledger's fixed epsilon_max and refuse-on-overdraw behavior is precisely RRUV's 'privacy filter,' a different member of the same paper's pay-as-you-go pair.",
     "Targets": "The Sealed Harbor; research paper 4",
     "Prior adjudication": "",
-    "Status": "DONE wave-16/credit-the-canon",
+    "Status": "DONE e62037ada",
     "Notes": "Named both RRUV terms at the ledger's first use in sealed-harbor.tex (Sec. 'The budget is a ledger'), crediting the paper's own coinage while stating precisely which of the two applies here (filter, since epsilon_max is fixed in advance) so the naming is accurate as well as attributed. paper4.tex's existing Corollary already correctly calls it a 'privacy filter' citing rruv16; left unchanged rather than overwritten with 'odometer,' which would have been the less accurate term for that mechanism."
   },
   {
@@ -7686,7 +7686,7 @@
     "Item": "Jung, Paxson, Berger & Balakrishnan's (IEEE S&P 2004) Threshold Random Walk is the closest applied-security precedent for using Wald's SPRT to decide, at a guaranteed error rate, that a security event occurred; uncited in both the chapter and its twin.",
     "Targets": "The Sealed Harbor; research paper 4",
     "Prior adjudication": "",
-    "Status": "DONE wave-16/credit-the-canon",
+    "Status": "DONE e62037ada",
     "Notes": "Added \\cite{jpbb04} at the Latency (Wald) theorem in sealed-harbor.tex and at Theorem 4b in paper4.tex; bibitem added to both. The chapter's existing \\bibitem{wald} already correctly points to the 1945 Annals of Mathematical Statistics paper (not the 1947 monograph), so no year correction was needed in either file."
   },
   {
@@ -7696,7 +7696,7 @@
     "Item": "The five-rung assurance ladder is a novel taxonomy built from citable pieces but not checked against Sheridan's levels of automation or the Common Criteria's evaluation assurance levels, both public gradings of a related-but-different variable.",
     "Targets": "The Single-Writer Kernel; The Sealed Harbor; front matter (coordination-papers-mega-volume-appendices.tex)",
     "Prior adjudication": "",
-    "Status": "DONE wave-16/credit-the-canon",
+    "Status": "DONE e62037ada",
     "Notes": "Added a one-sentence comparison (graded by evidence, not automation degree or verification effort) at each of the ladder's three introduction points: single-writer-kernel.tex (\\cite{parasuraman2000,cciso15408}, reusing the parasuraman2000 key already used in whitepaper/legible-swarm.tex), sealed-harbor.tex (same two keys, new local bibitems), and the front-matter 'Five assurance modes' appendix, which carries no reachable bibliography of its own (its body is \\input directly into the assembly document, and the mega-volume's single bibliography is collated only from the eight chapter files by generate-mega-whitepaper.mjs) -- there the comparison is stated in the front matter's own established citation-free prose style rather than with a \\cite that would dangle."
   },
   {
@@ -7706,7 +7706,7 @@
     "Item": "The chapter's honest caveat about SQLite's normal sync mode losing durability under power loss lacks the empirical backdrop of Pillai et al.'s (OSDI 2014) crash-consistency study, which catalogs exactly this class of gap across real filesystems.",
     "Targets": "The Single-Writer Kernel",
     "Prior adjudication": "",
-    "Status": "DONE wave-16/credit-the-canon",
+    "Status": "DONE e62037ada",
     "Notes": "Added \\cite{pillai2014allfilesystems} at the WAL durability caveat in 'Durable storage and transaction processing'; bibitem added. Not part of paper2's folded scope, chapter-only."
   },
   {
