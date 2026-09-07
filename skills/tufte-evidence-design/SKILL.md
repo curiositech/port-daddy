@@ -13,7 +13,7 @@ allowed-tools: Read,Write,Edit,Bash,Grep,Glob
 metadata:
   category: Writing & Communication
   tags: [tufte, data-visualization, chartjunk, data-ink, small-multiples, sparklines, graphical-integrity, margin-apparatus, tikz-latex]
-  version: 1.0.0
+  version: 1.1.0
   pairs-with:
     - skill: harbor-chartwork
       reason: Chartwork compiles and QA's the TikZ figures this skill decides the semantic form for
@@ -51,21 +51,23 @@ statistical analysis or modeling that produces the numbers (this skill starts on
 flowchart TD
   A[What claim must the reader\nwalk away with?] --> B{Reader needs to\nlook up an EXACT value?}
   B -->|Yes, and ≤ ~20 numbers| C[Table\ndoctrine 15]
-  B -->|Yes, plus a trend| D[Table + sparkline column\ndoctrines 4, 15]
+  B -->|Yes, plus a trend| D["Table + sparkline column\ndoctrines 4, 15\nlimit: critiques-and-limits.md §Accessibility (tiny sparklines fail low vision)"]
   B -->|No, needs pattern/trend| E{How many series\nor entities?}
-  E -->|One series, one view| F[Single annotated chart\ndirect-labeled, doctrines 1,2,8]
-  E -->|Many entities, same metric shape| G[Small multiples\nsame scale, same frame\ndoctrine 3]
+  E -->|One series, one view| F["Single annotated chart\ndirect-labeled, doctrines 1,2,8\nlimit: critiques-and-limits.md §Stephen Few (don't over-erase reading aids)"]
+  E -->|Many entities, same metric shape| G["Small multiples\nsame scale, same frame, doctrine 3\nlimit: critiques-and-limits.md §Tamara Munzner (static only; the gap may be interactive)"]
   E -->|Space AND time both matter\nto the causal story| H[Narrative-of-space-and-time figure\nMinard pattern, doctrine 7,10]
   A --> I{Is the claim a single\nnumber or short fact\ninside a sentence?}
   I -->|Yes| J[Say it as a sentence\ndoctrine 13, or inline sparkline\ndoctrine 4]
   A --> K{Does the point need a\nname/idea credited in passing?}
   K -->|Yes, in the Book| L[Margin figure/gloss\nsee references/margin-apparatus.md]
   A --> M{Is this a causal argument\nordered by the wrong variable?}
-  M -->|Yes — reorder by the\ncausal variable| N[Redesign as a scatter/plot\non the causal axis\nChallenger pattern, doctrine 12]
+  M -->|Yes — reorder by the\ncausal variable| N["Redesign as a scatter/plot\non the causal axis, Challenger pattern, doctrine 12\nlimit: critiques-and-limits.md §Alberto Cairo (truthful is necessary, not sufficient — the Lie Factor alone doesn't make a graphic read)"]
 ```
 
 Walk the tree top to bottom for the dominant need; a single piece of evidence often needs two branches together (a
-table with a sparkline column; a small-multiples grid where each panel is itself direct-labeled).
+table with a sparkline column; a small-multiples grid where each panel is itself direct-labeled). The four "limit"
+lines are not detours — read the named section of `references/critiques-and-limits.md` before applying that branch's
+rule, so the rule is applied with its known objection already in view rather than discovered later in review.
 
 ## Checklists
 
@@ -178,6 +180,8 @@ Consult these for depth — none is loaded automatically:
 | `examples/dashboard-to-sparkline-table.md` | Working a stat-card-dashboard redesign end to end. |
 | `examples/challenger-style-redesign.md` | Working a chronological-to-causal chart redesign end to end. |
 | `scripts/ink_audit.py` | Getting a heuristic second opinion (ink fraction, distinct colors, edge density) on a rendered PNG figure — `python3 scripts/ink_audit.py figure.png`. Degrades to a pure-stdlib PNG decoder if Pillow isn't installed. |
+| `scripts/margin_lint.py` | Mechanically checking a Book chapter's margin apparatus — one `\pdmarginfigure` per section, every slug's plate and sidecar present, `\pdgloss` used once per term per chapter inside real prose — over the eight chapters by default; `\footnote` findings are reported but advisory (see the script's own docstring for why). |
+| `scripts/tufte.py` | The single entry point for this skill's scripts: `tufte.py audit <png...>` (ink_audit.py, `--strict` to fail on flags), `tufte.py margin-lint [tex...]` (margin_lint.py), `tufte.py checklist <kind>` (one checklist from SKILL.md, kinds read from the file), `tufte.py decision-tree` (this section's flowchart as text). |
 
 <!-- BEGIN BUNDLE INDEX (auto: index_references.py) -->
 
@@ -202,5 +206,7 @@ Consult these for depth — none is loaded automatically:
 
 **`scripts/`**
 - [`scripts/ink_audit.py`](scripts/ink_audit.py) — ink_audit.py — heuristic data-ink / chartjunk audit for a rendered PNG figure.
+- [`scripts/margin_lint.py`](scripts/margin_lint.py) — !/usr/bin/env python3
+- [`scripts/tufte.py`](scripts/tufte.py) — tufte.py -- one entry point for this skill's scripts and reference lookups.
 
 <!-- END BUNDLE INDEX -->

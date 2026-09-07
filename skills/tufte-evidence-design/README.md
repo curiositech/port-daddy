@@ -21,7 +21,9 @@ tufte-evidence-design/
 │   ├── critiques-and-limits.md       # Few, Cairo, Munzner, Wilke, Kosara, accessibility
 │   └── sources.md                    # Citation + verification status for every claim
 ├── scripts/
-│   └── ink_audit.py                  # Heuristic ink-fraction / chartjunk-proxy audit for a PNG
+│   ├── ink_audit.py                  # Heuristic ink-fraction / chartjunk-proxy audit for a PNG
+│   ├── margin_lint.py                # Mechanical checks on a Book chapter's margin apparatus
+│   └── tufte.py                      # One CLI: audit / margin-lint / checklist / decision-tree
 └── examples/
     ├── dashboard-to-sparkline-table.md
     └── challenger-style-redesign.md
@@ -30,20 +32,27 @@ tufte-evidence-design/
 ## Quick Start
 
 1. Read SKILL.md's decision tree to pick the evidence form (table, sparkline,
-   small multiples, annotated chart, margin figure, or a plain sentence).
+   small multiples, annotated chart, margin figure, or a plain sentence), or
+   run `python3 scripts/tufte.py decision-tree` to print it.
 2. Run the matching checklist in SKILL.md before shipping a chart, table, or
-   Book chapter's margin apparatus.
+   Book chapter's margin apparatus, or print one directly:
+   `python3 scripts/tufte.py checklist sparklines`.
 3. For a rendered PNG figure, get a second opinion:
-   `python3 scripts/ink_audit.py path/to/figure.png`
+   `python3 scripts/tufte.py audit path/to/figure.png` (add `--strict` to
+   fail the command on any heuristic flag).
 4. When in doubt about whether to deviate from a Tufte rule, read
    `references/critiques-and-limits.md` before overriding the checklist.
-5. Adding marginalia to a Book chapter? Read `references/margin-apparatus.md`
-   first — it names exactly what's implemented (`\pdmarginfigure`) and what
-   isn't yet (`\pdgloss`).
+5. Adding marginalia or a `\pdgloss` to a Book chapter? Read
+   `references/margin-apparatus.md` first, then check the chapter with
+   `python3 scripts/tufte.py margin-lint path/to/chapter.tex` (or with no
+   arguments, to check all eight Book chapters at once).
 
 ## Validation
 
 ```
 python3 /root/.claude/skills/skill-architect/scripts/validate_skill.py skills/tufte-evidence-design
 python3 /root/.claude/skills/skill-architect/scripts/check_self_contained.py skills/tufte-evidence-design
+python3 skills/tufte-evidence-design/scripts/margin_lint.py
+python3 -m unittest discover -s tests/harbor-research -p 'test_margin_lint.py'
+python3 -m unittest discover -s tests/harbor-research -p 'test_tufte_cli.py'
 ```
