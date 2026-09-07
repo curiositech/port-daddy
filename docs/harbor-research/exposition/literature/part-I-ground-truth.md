@@ -420,10 +420,14 @@ original formulation) and **delimited information release** or **declassificatio
 (Sabelfeld–Myers). The specific discipline that "no variable used in a
 declassification is updated before it" is checked is close to the **localized
 delimited release** condition from the same Sabelfeld–Myers lineage. Privacy
-engineering: a **release ledger** that debits a running budget is exactly a
-**privacy odometer**, the term Rogers, Roth, Ullman, and Vadhan coined for
-tracking cumulative differential-privacy expenditure across adaptively chosen
-queries.
+engineering: a **release ledger** that debits a running budget belongs to the
+**privacy odometer / privacy filter** pair Rogers, Roth, Ullman, and Vadhan
+coined for tracking cumulative differential-privacy expenditure across
+adaptively chosen queries; because the Book's ledger fixes ε_max in advance and
+refuses any release that would exceed it, it is precisely their **filter** (the
+odometer is the same running total with no ceiling). The first draft of this
+review said "odometer"; the correction is recorded as LR-109 in the critique
+ledger and the chapter now names both terms at the ledger's first use.
 
 **Prior work.** J. A. Goguen and J. Meseguer, "Security Policies and Security
 Models," *IEEE S&P* 1982, and "Unwinding and Inference Control," *IEEE S&P* 1984
@@ -785,9 +789,9 @@ cited).
   organizing phrase.
 - **"Run the world twice"** — **self-composition**, Barthe, D'Argenio & Rezk's
   term for reducing a 2-safety hyperproperty to an ordinary reachability check.
-- **The ε-ledger** — a **privacy odometer**, Rogers–Roth–Ullman–Vadhan's term,
-  already cited for the composition arithmetic but not for the odometer framing
-  itself.
+- **The ε-ledger** — a **privacy filter** (Rogers–Roth–Ullman–Vadhan's term for
+  the fixed-budget member of their odometer/filter pair), already cited for the
+  composition arithmetic but not, until LR-109, for the framing itself.
 - **The assurance ladder (Observed/Coordinated/Brokered/Confined/Attested)** — no
   single public name covers the whole ladder; its pieces are **levels of
   automation** (Sheridan), **Evaluation Assurance Levels** (Common Criteria), and
