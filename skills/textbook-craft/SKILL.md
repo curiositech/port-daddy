@@ -79,7 +79,7 @@ flowchart TD
   B -->|Testing the reader's grasp| J{Check, Trace, or Open?}
   J --> K[pdexercise, chapter end only,\ngrouped under pdexercisesfor]
   B -->|A philosophical/historical aside| L{Load-bearing for the argument?}
-  L -->|Yes| M[Cut it, or make it the argument\n-- never a load-bearing footnote]
+  L -->|Yes| M[Cut it, or make it the argument\n-- never a footnote the argument depends on]
   L -->|No, but worth keeping| N[One Interlude, named, skippable\nat most one per chapter]
   B -->|A retrieval prompt| O[pdrecitation: 'Recall'\nsection end, answer available not adjacent]
 ```
