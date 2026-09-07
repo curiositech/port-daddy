@@ -101,16 +101,20 @@
   \fi}
 
 % ---------------------------------------------------------------------------
-% Margin citations and provenance sidenotes (Wave 16): \pdcite emits the
-% normal \cite plus, in the Book, a margin note with a short form per key;
-% \pdprov renders a run's script/seed/tag provenance in the margin instead of
-% inline. The citation short-form table is GENERATED and \input immediately
-% below, before any chapter body can call \pdcite.
+% Marginalia (Wave 16): citations, provenance, and proved-on pointers at the
+% point of use. Three GENERATED data tables carry the per-chapter content
+% these three macros look up; the macros themselves are hand-written, here,
+% once. \input immediately: \pdcite and \pdprovedon need their tables loaded
+% before any chapter body calls them, and no chapter calls them before this
+% file returns.
 %
 %   figures/pd-cite-shortforms.tex   -- scripts/harbor-research/build_cite_shortforms.py
+%   figures/pd-discharges.tex        -- scripts/harbor-research/build_discharge_pointers.py
 %
-% Generated, committed, twinned the same way this file is; do not hand-edit.
+% Both are generated, committed, twinned the same way this file is; do not
+% hand-edit either.
 % ---------------------------------------------------------------------------
+
 % \pdciteshort{key}{short form} -- one row of the citation short-form table,
 % stored in a \csname so a chapter's own \bibitem keys (hyphens, digits, and
 % all) are safe control-sequence-name fragments. \pd@citeshort@one looks a
@@ -159,6 +163,41 @@
     [#3]%
   \fi}
 
+% \pdprovedonentry{promise label}{target label}{section|page} -- one row of
+% the discharge-pointer table: `promise label` is the label already on a
+% theorem/lemma/proposition in Chapter 1 or Chapter 6's own source (the
+% argument \pdprovedon below is called with); `target label` is the ALREADY
+% namespaced label of whatever proves it in the discharging chapter, exactly
+% as it will read once scripts/generate-mega-whitepaper.mjs's namespaceLabels
+% has run on that chapter (i.e. "<chapter prefix>:<local label>") -- computed
+% once, at generation time, by
+% scripts/harbor-research/build_discharge_pointers.py, which knows every
+% chapter's prefix from whitepaper/textbook.json. `\pdprovedon` itself is
+% called with the PROMISE's own (un-namespaced) label -- the same string
+% already sitting at its \label{...} call -- because namespaceLabels only
+% rewrites the LABEL_COMMANDS it knows about, and \pdprovedon is not one of
+% them, so the promise label reaching this macro is never rewritten and
+% always matches the table's own key.
+\newcommand{\pdprovedonentry}[3]{%
+  \expandafter\gdef\csname pd@provedon@target@#1\endcsname{#2}%
+  \expandafter\gdef\csname pd@provedon@kind@#1\endcsname{#3}}
+% Plain \def, not \newcommand: \newcommand's \long prefix would make its
+% \meaning differ from the plain (non-\long) macro \edef produces below for
+% comparison, so \ifx would never see them as equal even with identical text.
+\def\pd@provedon@sectionkind{section}
+\input{figures/pd-discharges}
+\newcommand{\pdprovedon}[1]{%
+  \ifpdmargincolumn
+    \ifcsname pd@provedon@target@#1\endcsname
+      \edef\pd@provedon@kind{\csname pd@provedon@kind@#1\endcsname}%
+      \edef\pd@provedon@target{\csname pd@provedon@target@#1\endcsname}%
+      \ifx\pd@provedon@kind\pd@provedon@sectionkind
+        \marginnote{\itshape Proved in \S\ref{\pd@provedon@target}.}%
+      \else
+        \marginnote{\itshape Proved on p.~\pageref{\pd@provedon@target}.}%
+      \fi
+    \fi
+  \fi}
 
 % ---------------------------------------------------------------------------
 % \pdkind, pdclaim -- a numbered, labelled statement. Hairline above, run-in

@@ -679,7 +679,7 @@ slashes on breach, splitting the slash between the wallet and a commons pool. It
 guards two invariants:
 
 \begin{pdclaim}{Design invariant}{Conservation}
-\label{prop:conservation}
+\label{prop:conservation}\pdprovedon{prop:conservation}
 $\text{wallet} + \text{escrow} + \text{commons} = \text{supply}$, always. Every
 debit has a matching credit. In the reference implementation this is verified
 across ten thousand random operation traces by a property test --- a real
@@ -1278,7 +1278,7 @@ claim trustless settlement. Its loss bound is conditional, and the condition is 
 content of the claim:
 
 \begin{pdclaim}{Design invariant}{Bounded custody loss, conditional}
-\label{thm:fh-escrow-bound}
+\label{thm:fh-escrow-bound}\pdprovedon{thm:fh-escrow-bound}
 \emph{If} the custody ledger is non-bypassable --- exposing only a recipient
 whitelist, a fee cap, and one atomic terminal transition, with no operator path
 around any of the three --- then a counterparty's worst-case loss on a cross-harbor
