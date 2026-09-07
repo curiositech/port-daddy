@@ -625,7 +625,14 @@ its active grants.
 \end{definition}
 
 Consent so defined gives the design something Hume's critique cannot reach: a
-discrete authorization event, a bounded scope, and an exit. It also hands the
+discrete authorization event, a bounded scope, and an exit. Supervisory-control
+research calls a per-action-class autonomy scoping like this a \textbf{level of
+automation}: Sheridan's ten-point scale and its four-stage
+acquisition/analysis/decision/action refinement give the scope/stakes-ceiling/
+reversibility-floor/TTL tuple above its formal
+home~\cite{sheridan1992,parasuraman2000}; this section builds the same selector
+from a Hobbesian covenant instead, and the two routes reach compatible
+conclusions. It also hands the
 accompanying chapters a concrete object. A grant is precisely what a \emph{hosted-trust}
 offering transfers --- ``we make this fleet legible to you, under this scope'' is
 the sale of a consent grant to a third party, which \pdchapref{he}{The Harbor Economy}
@@ -668,6 +675,12 @@ that \emph{no autonomy level can suppress}. If the system reserves a highest-pri
 dual --- the operator-to-daemon channel --- and it is a \emph{right}, not a feature:
 it preempts every grant, every in-flight landing, every coordinator decision.
 \end{property}
+
+Computer security has an independently-arrived-at, near-exact structural analog to the
+consent grant: a \textbf{capability with contextual caveats that can only narrow, never
+widen, as it delegates}~\cite{macaroons2014}, unforgeable and revocable by
+construction --- the security literature's route to the same object this section
+builds from a Hobbesian covenant.
 
 This pairs with \textbf{Hirschman}'s \emph{Exit, Voice, and Loyalty}
 (1970~\cite{hirschman1970} --- \emph{the choice between leaving (exit) and
@@ -760,7 +773,10 @@ are cursed. A read-path to the diff is more legibility, not m\^etis. The honest
 admission --- which couples Scott to Bainbridge (\S\ref{sec:operator}) --- is that
 \emph{some of the most valuable operator knowledge is exactly what the system cannot
 make legible, and the more the supervising automation takes over, the faster that
-m\^etis atrophies}. The skill-retention tax (\S\ref{sec:abdication}) is the design's
+m\^etis atrophies}. What organizational-knowledge theory calls the problem of
+converting \textbf{tacit knowledge} into explicit, transferable form --- ``we know
+more than we can tell''~\cite{polanyi1966} --- is the thirty-year literature this
+pitfall leaves open rather than solves. The skill-retention tax (\S\ref{sec:abdication}) is the design's
 only defense, and it is frankly the hardest part of the design to engineer.}
 
 \subsection{The zoom target must be verifiable, not self-reported}\label{sec:verifiable}
@@ -1143,8 +1159,9 @@ one direction; the miss-loss wall bounds the suppressed mass and is monotone in 
 other; the feasible set is the intersection of two half-lines, an interval, possibly
 empty.
 \end{proof}
-This is the Spence mold: the dismissal debit is money only a genuine signal is
-worth risking. The free parameter $\delta$ is fit from measured validation rates
+This is the Spence mold, job-market signaling's separating equilibrium
+transplanted to an escalation lane~\cite{spence1973}: the dismissal debit is money
+only a genuine signal is worth risking. The free parameter $\delta$ is fit from measured validation rates
 (\texttt{instrumentation.md}), and an empty band is a finding, not a tuning problem:
 a tight attention budget with high miss costs admits no good debit, and the fix is
 capacity or evidence quality. Monotone $V$ is required throughout; a non-monotone
@@ -1222,6 +1239,12 @@ Equation~\ref{eq:sdt} is a decision objective, not by itself a fitted detector.
 \end{definition}
 
 \input{figures/legible-swarm-sdt}
+
+This is a normative claim (a Bayesian SDT decision-maker is the target to calibrate
+toward), not a descriptive one: naturalistic decision-making research argues skilled
+operators under time pressure pattern-match against recognized cases rather than
+compute a likelihood-ratio threshold~\cite{klein1998}, a live rival account of what
+the operator's instrument actually measures that this objective does not adjudicate.
 
 Figure~\ref{fig:sdt} lays the same decision out visually: the operator's criterion
 $\beta$ trading misses against false alarms. The miss-cost term prevents the
@@ -1937,7 +1960,9 @@ item, and the theorem says exactly when that holds.
 \label{thm:comonotone}
 A scalar head $h:X\to\mathbb R$ \emph{serves} a reader with loss $L_r$ if ranking by
 $h$ realizes $r$'s optimal selection at every budget. A single head serves two
-readers iff their induced preference orders are comonotone (they agree on every
+readers iff their induced preference orders are \textbf{comonotone} --- the property
+decision theory names for acts that ``move together,'' admitting no
+hedge~\cite{schmeidler1989,yaari1987} (they agree on every
 pair). The successor and operator orders are not comonotone: a routine-but-essential
 working state (high continuation value, negligible regret) and an anomalously
 abandoned dead end with irreversible side effects (zero continuation value, maximal
@@ -2011,7 +2036,13 @@ Note the direction the inequality runs: raising the miss-to-false-alarm cost rat
 \emph{lowers} the bar to inspect, the formal version of ``when a mistake is
 unrecoverable, look at more things,'' and it is the direction an earlier draft of
 this program's signal-detection figure had reversed. The likelihood-ratio
-statement leaves no room for the error.
+statement leaves no room for the error. The theorem is single-shot
+(Neyman--Pearson); operator oversight is a stream of items, and the natural
+sequential extension --- optimal expected sample size under fixed error-rate
+constraints, time-varying thresholds included --- is Wald's Sequential
+Probability Ratio Test~\cite{wald1947}, which the Inception Canary and escalation
+designs (\S\ref{sec:escalation}) already resemble structurally without invoking
+it by name.
 
 \begin{pdexample}{The inspection bar, at the chapter's running costs}
 $C_{\mathrm{miss}}{=}100$, $c_{\mathrm{att}}{=}1$, $C_{\mathrm{fa}}{=}5$: inspect when
@@ -2305,7 +2336,13 @@ instances, not a closed proof for every adversary class; a stronger-than-greedy
 adaptive adversary remains untested, and unit cost density is assumed (general
 refetch costs need $c_{\mathrm{refetch}}\ge$ max-density $\times$ max-size). The
 classical and weighted bounds themselves are Sleator--Tarjan and Young, imported
-unchanged.
+unchanged. What field calls a classical competitive algorithm consulting an
+untrusted external oracle and degrading gracefully as its error grows
+\textbf{online algorithms with (untrusted) predictions}: Lykouris and
+Vassilvitskii's competitive-caching-with-machine-learned-advice line
+gives the closest published shape to this additive corruption
+term~\cite{lykouris2018}, arrived at here independently and without that
+literature's consistency/robustness vocabulary.
 \end{pdboundary}
 
 \begin{pdexample}{The Landlord ratio, at a size an operator can hold in one head}
@@ -3380,6 +3417,56 @@ Erich Owens.
 \newblock The Harbor Research Program, Paper~6, 2026. Its Theorem~2 is the Erlang-C
 specialization boundary, together with the sweep that falsified this paper's earlier
 proposed threshold.
+
+\bibitem{spence1973}
+Michael Spence.
+\newblock Job Market Signaling.
+\newblock \textit{Quarterly Journal of Economics}, 87(3):355--374, 1973.
+
+\bibitem{schmeidler1989}
+David Schmeidler.
+\newblock Subjective Probability and Expected Utility without Additivity.
+\newblock \textit{Econometrica}, 57(3):571--587, 1989.
+
+\bibitem{yaari1987}
+Menahem E.\ Yaari.
+\newblock The Dual Theory of Choice under Risk.
+\newblock \textit{Econometrica}, 55(1):95--115, 1987.
+
+\bibitem{lykouris2018}
+Thodoris Lykouris and Sergei Vassilvitskii.
+\newblock Competitive Caching with Machine Learned Advice.
+\newblock In \textit{ICML}, 2018. arXiv:1802.05399; \textit{Journal of the ACM}, 2021.
+
+\bibitem{sheridan1992}
+Thomas B.\ Sheridan.
+\newblock \textit{Telerobotics, Automation, and Human Supervisory Control}.
+\newblock MIT Press, 1992.
+
+\bibitem{parasuraman2000}
+Raja Parasuraman, Thomas B.\ Sheridan, and Christopher D.\ Wickens.
+\newblock A Model for Types and Levels of Human Interaction with Automation.
+\newblock \textit{IEEE Transactions on Systems, Man, and Cybernetics -- Part A}, 30(3):286--297, 2000.
+
+\bibitem{klein1998}
+Gary Klein.
+\newblock \textit{Sources of Power: How People Make Decisions}.
+\newblock MIT Press, 1998.
+
+\bibitem{polanyi1966}
+Michael Polanyi.
+\newblock \textit{The Tacit Dimension}.
+\newblock Doubleday, 1966.
+
+\bibitem{wald1947}
+Abraham Wald.
+\newblock \textit{Sequential Analysis}.
+\newblock Wiley, 1947.
+
+\bibitem{macaroons2014}
+Arnar Birgisson, Joe Gibbs Politz, \'Ulfar Erlingsson, Ankur Taly, Michael Vrable, and Mark Lentczner.
+\newblock Macaroons: Cookies with Contextual Caveats for Decentralized Authorization in the Cloud.
+\newblock In \textit{NDSS}, 2014.
 
 \end{thebibliography}
 
