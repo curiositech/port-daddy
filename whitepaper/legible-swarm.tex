@@ -1564,7 +1564,7 @@ a premium [internal, \texttt{a7\_experiment.py}].
 \paragraph{A wrong turn, reported.} A first implementation handed the oracle a
 perfect per-item score vector and charged $B$ bits only for resolving rank ties:
 $8/14$ apparent violations. That was not a refutation but an unpriced side channel.
-The identity of the load-bearing set leaked outside the metered message. Rebuilding
+The identity of the critical set leaked outside the metered message. Rebuilding
 the model so that $B$ is a literal message length gating an encoder and decoder pair
 restored agreement. The transferable rule: a simulation that appears to beat an
 information bound is leaking through an unpriced channel; audit the meter before
@@ -1595,7 +1595,7 @@ $F$. It says nothing about the second stage, which is where Def.~\ref{def:zoom}
 sends the operator. Two results complete the account. The first prices the digest
 once misses are tolerated; the second prices the zoom.
 
-Model each artifact's load-bearing status as i.i.d.\ $X\sim\mathrm{Bern}(p)$, let
+Model each artifact's critical status as i.i.d.\ $X\sim\mathrm{Bern}(p)$, let
 the digest emit a per-item flag $\hat X\in\{0,1\}$, and price the two failure modes
 separately:
 \[
@@ -1645,7 +1645,7 @@ $F$. The adaptive second stage plays twenty questions with group queries: open a
 \emph{group} of flagged items at once (an aggregate check cheap at group level, a
 combined diff scan or a batched test run), learn whether the group contains any
 critical, and split only the groups that do. The analogy transfers because its
-load-bearing relation transfers: halving a set costs one question and eliminates
+defining relation transfers: halving a set costs one question and eliminates
 half the candidates only when positives are rare in the set. The misread to
 preempt: twenty questions finds \emph{one} answer in $\log_2 F$ queries; with $k$
 answers the tree forks, and the accounting below is precisely the price of the
@@ -1766,7 +1766,7 @@ average-case. The falsification result $0/16$ tests the encoder and decoder
 formalization at one swept regime ($N{=}60$, $k{=}2$, $m{=}8$); the noisy-encoder
 curve in that experiment barely beats random at unit signal-to-noise ratio and is
 not evidence that noisy digests are near-optimal. The frontier $R(\delta,f)$ is an
-i.i.d.\ Bernoulli model of load-bearing status, a modeling commitment rather than a
+i.i.d.\ Bernoulli model of critical status, a modeling commitment rather than a
 law, and its pinned closed form holds only while $f<1-\delta/p$; an earlier plot
 that evaluated the formula past that line showed a spurious uptick near
 $\delta/p\to1$, a domain-of-validity error and not a feature of the frontier.

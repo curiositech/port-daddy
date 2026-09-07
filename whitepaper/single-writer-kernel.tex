@@ -1420,9 +1420,9 @@ the operator's back. Complete mediation of the claimed alphabet is an architectu
 obligation (Anderson; Rushby) that a red team, not this proof, discharges. (iii) The
 classification is relative to the alphabet split: a runtime that gates model steps changes
 $\Sigma_u$ and re-grades the table. The theorem is a functor from architectures to
-boundaries, not one fixed verdict. (iv) Full observation is load-bearing: policies whose
-triggers are unwitnessed internal state fall to the Lin--Wonham refinement even when their
-prohibitions are controllable. (v) The checker verifies the stated automata over the stated
+boundaries, not one fixed verdict. (iv) Full observation is the assumption this
+classification rests on: policies whose triggers are unwitnessed internal state fall to
+the Lin--Wonham refinement even when their prohibitions are controllable. (v) The checker verifies the stated automata over the stated
 alphabet; it is a faithful implementation of the test, not a mechanized proof of the theorem.
 An Isabelle or Coq formalization remains open. (vi) Prevention governs effects, never
 semantics. For ``no confident falsehoods in status reports'' the obstruction is
@@ -1713,7 +1713,7 @@ pieces together: a case file that outlives every clerk who touches it.
 \paragraph{The idea in one breath.}
 \emph{Make the unit of trust a work unit whose every consequential step passes a guard,
 then prove, by exhausting the machine's reachable states, that its six promises can never
-be broken, and that every guard is load-bearing, because removing any one lets the checker
+be broken, and that every guard is essential, because removing any one lets the checker
 construct the crime.}
 
 \paragraph{Intuition: the notarized escrow folder.}
@@ -1788,7 +1788,7 @@ which invariant does it break? (Exercise~\ref{ex:swk-crimes}.)
 
 \begin{table}[H]
 \centering
-\caption{Every guard is load-bearing. Disabling one guard at a time, the checker's shortest
+\caption{Every guard is essential. Disabling one guard at a time, the checker's shortest
 violating trace, in transitions from the initial state [internal, \texttt{c0\_workunit.py}].}
 \label{tab:workunit-crimes}
 \small
