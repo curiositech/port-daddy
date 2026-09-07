@@ -133,7 +133,7 @@ function PaperCard({ paper }: { paper: ResearchPaper }) {
         <div className="space-y-[var(--space-1)] border-t-2 border-[var(--border-default)] pt-[var(--space-3)]">
           <PanelEyebrow>Prior-art dive</PanelEyebrow>
           <PanelBody size="compact" className="max-w-none">
-            None has run against this paper yet. Its own falsification sweep is in the paper.
+            None has run against this paper yet; the falsification sweep it reports is its own.
           </PanelBody>
         </div>
       )}
@@ -181,10 +181,10 @@ export default function ResearchProgramPage() {
             <div className="space-y-[var(--space-5)]">
               <SectionIntro
                 eyebrow="The Harbor research program"
-                title="What the whitepaper proves, what it measures, and what it does not know yet."
+                title="What the whitepaper proves, what it measures, and what it doesn't know yet."
                 titleAs="h1"
                 titleSize="hero"
-                description="The book argues that autonomy scales only when authority, evidence, and consequence stay coupled. An argument is not enough. Seven papers carry the theorems the chapters lean on; every executed result is indexed to the chapter that holds it; every mechanized proof runs in CI; the questions the book cannot settle from its own results become pre-registered studies; and every objection a reviewer raised is on a ledger with what was done about it."
+                description="The book argues that autonomy only scales when authority, evidence, and consequence stay coupled at every effect boundary. That's an argument, and an argument alone wouldn't be worth much from a project that also sells the software, so this is where the receipts live: seven papers carrying the theorems the chapters lean on, an index that pins every executed result to the chapter holding it, a proof estate that runs in CI, pre-registered studies for the questions the book can't settle from its own results, and a ledger of every objection a reviewer raised with what we did about it."
               />
               <LandingStatsStrip
                 stats={[
@@ -227,8 +227,8 @@ export default function ResearchProgramPage() {
                 </span>
               </Link>
               <PanelBody size="compact" className="max-w-none">
-                Each paper below names the chapter that folds it in, and each chapter's status table names the
-                paper it stands on. Read either side and the other is one link away.
+                Each paper below names the chapter that folds it in, and each chapter&rsquo;s status table names the
+                paper it stands on, so whichever side you start from, the other is one link away.
               </PanelBody>
               <Button asChild variant="secondary" size="sm" className={LINK_BUTTON}>
                 <Link to="/library">
@@ -245,20 +245,21 @@ export default function ResearchProgramPage() {
           <div className="space-y-[var(--space-6)]">
             <LandingSectionIntro
               eyebrow="How a claim earns its place"
-              title="Four disciplines, each with a number you can check."
-              description="A result reaches a chapter only after it has survived all four. The counts below are read from the repository's own records, not typed."
+              title="How a result earns its way into a chapter"
+              description="Four disciplines, and a result has to survive all of them before it's allowed near the prose. Every count below is read out of the repository's own records at build time (which is the reason a few of them are odd numbers)."
             />
             <ol className="grid gap-[var(--space-4)] md:grid-cols-2 lg:grid-cols-4">
               <li className="min-w-0">
                 <SurfacePanel className="flex h-full flex-col gap-[var(--space-3)]">
                   <PanelEyebrow>01 · Pre-registered</PanelEyebrow>
                   <PanelTitle as="h3" size="nav">
-                    Hypotheses are written before the code.
+                    The hypotheses get written before the code does.
                   </PanelTitle>
                   <PanelBody size="compact" className="max-w-none">
-                    {studies.length === 1 ? 'One study' : `${studies.length} studies`} under way, each with its
-                    hypotheses, metrics, and kill criterion committed before the first run. The report is written
-                    whatever the outcome, and a failed hypothesis amends the book in the same pull request.
+                    {studies.length === 1 ? 'One study is' : `${studies.length} studies are`} under way right now,
+                    with hypotheses, metrics, and a kill criterion committed before the first run &mdash; so we
+                    can&rsquo;t quietly move the goalposts afterward. The report gets written whatever the outcome,
+                    and if a hypothesis fails, the chapter that depended on it is amended in the same pull request.
                   </PanelBody>
                   <div className="mt-auto">
                     <Button asChild variant="ghost" size="sm" className={LINK_BUTTON}>
@@ -271,15 +272,15 @@ export default function ResearchProgramPage() {
                 <SurfacePanel className="flex h-full flex-col gap-[var(--space-3)]">
                   <PanelEyebrow>02 · Falsified first</PanelEyebrow>
                   <PanelTitle as="h3" size="nav">
-                    Prior art is read against the paper, not the abstract.
+                    Prior art gets read against the paper itself.
                   </PanelTitle>
                   <PanelBody size="compact" className="max-w-none">
-                    {deepDives.length} prior-art dives run to completion:{' '}
-                    {Object.entries(verdicts)
+                    {deepDives.length} prior-art dives have run to completion so far ({Object.entries(verdicts)
                       .map(([verdict, count]) => `${count} ${verdict.toLowerCase()}`)
                       .join(', ')}
-                    . Every dive fixed something in the paper it audited. {wrongTurns.length} wrong turns are kept in the
-                    repository with the lesson each one taught.
+                    ), and every single one of them found something to fix in the paper it was auditing &mdash; which
+                    is the point of running them. The {wrongTurns.length} experiments that gave a wrong answer along
+                    the way are still in the repository, next to the lesson each one taught.
                   </PanelBody>
                   <div className="mt-auto">
                     <Button asChild variant="ghost" size="sm" className={LINK_BUTTON}>
@@ -292,13 +293,14 @@ export default function ResearchProgramPage() {
                 <SurfacePanel className="flex h-full flex-col gap-[var(--space-3)]">
                   <PanelEyebrow>03 · Mechanized</PanelEyebrow>
                   <PanelTitle as="h3" size="nav">
-                    What a machine can check, a machine checks on every pull request.
+                    Whatever a machine can check, a machine checks on every pull request.
                   </PanelTitle>
                   <PanelBody size="compact" className="max-w-none">
-                    {estate.formalArtifacts} formal artifacts across {methods.length} tools, {estate.ci.wired} wired into
-                    CI with negative controls beside them. {verifiedNumbers} hand-worked numbers in the chapters carry
-                    the verified tag because a script regenerates them; {internalNumbers} carry internal because only the
-                    chapter's own derivation does.
+                    {estate.formalArtifacts} formal artifacts across {methods.length} tools, {estate.ci.wired} of them
+                    wired into CI with negative controls beside them. Of the numbers the chapters work out by hand,{' '}
+                    {verifiedNumbers} carry the verified tag because a script regenerates them and {internalNumbers} carry
+                    internal because the chapter&rsquo;s own derivation is the only check &mdash; we&rsquo;d rather you
+                    knew which is which.
                   </PanelBody>
                   <div className="mt-auto">
                     <Button asChild variant="ghost" size="sm" className={LINK_BUTTON}>
@@ -311,12 +313,14 @@ export default function ResearchProgramPage() {
                 <SurfacePanel className="flex h-full flex-col gap-[var(--space-3)]">
                   <PanelEyebrow>04 · Reviewed on the record</PanelEyebrow>
                   <PanelTitle as="h3" size="nav">
-                    Every objection has a row.
+                    Every objection anyone raised has a row.
                   </PanelTitle>
                   <PanelBody size="compact" className="max-w-none">
-                    {critiqueLedger.total} review items from the adversarial rounds and the long-form critiques:{' '}
-                    {critiqueLedger.done} done with the landing commit, {critiqueLedger.declined} declined with the reason
-                    {critiqueLedger.inWave > 0 ? `, ${critiqueLedger.inWave} in progress` : ''}. No empty cells.
+                    {critiqueLedger.total} review items from the adversarial rounds and the long-form critiques, and
+                    each has a status cell that says what happened to it: {critiqueLedger.done} were done (with the
+                    commit that landed them) and {critiqueLedger.declined} were declined, with the reason written down
+                    {critiqueLedger.inWave > 0 ? `; ${critiqueLedger.inWave} are still in progress` : ''}. Declining
+                    is allowed. Leaving the cell blank isn&rsquo;t.
                   </PanelBody>
                   <div className="mt-auto flex flex-wrap gap-[var(--space-2)]">
                     <Button asChild variant="ghost" size="sm" className={LINK_BUTTON}>
@@ -341,7 +345,7 @@ export default function ResearchProgramPage() {
             <LandingSectionIntro
               eyebrow="The papers"
               title="Seven papers, one result each, written for a program committee."
-              description="Each is a standalone pre-print in submission form. Each names the results it discharges, quotes its headline theorem, and says which chapter of the book folds it in. Read any one on its own."
+              description="Each is a standalone pre-print in the shape a program committee expects, and each card names the results it discharges, quotes the headline theorem verbatim, and points at the chapter of the book that folds it in. None of them depends on reading the others first."
             />
             <ol className="grid gap-[var(--space-5)] lg:grid-cols-2">
               {RESEARCH_PAPERS.map((paper) => (
@@ -358,8 +362,8 @@ export default function ResearchProgramPage() {
           <div id="the-results" className="scroll-mt-[var(--space-8)] space-y-[var(--space-6)]">
             <LandingSectionIntro
               eyebrow="The result ledger"
-              title="Every executed result, and where it lives."
-              description="The library index is the source of record: one row per result, the chapter that holds it, the paper that carries it, and how many of its numbers a script regenerates. A result with no paper is proved in its chapter; a result with no chapter twin is cited from its paper."
+              title="Every executed result, and where it lives"
+              description="One row per result, straight from the library index: the chapter that holds it, the paper that carries it, and how many of its numbers a script regenerates. A result with no paper listed is proved inside its chapter; a result with no chapter twin is cited from its paper, and the placement column says which."
             />
             <div className="overflow-x-auto border-2 border-[var(--border-strong)] bg-[var(--surface-base)]">
               <table className="w-full min-w-[52rem] border-collapse">
@@ -418,12 +422,12 @@ export default function ResearchProgramPage() {
               </table>
             </div>
             <PanelBody size="compact" className="max-w-none">
-              Verified means a named script at a fixed seed regenerates the number in CI. Internal means the chapter's own
-              derivation is the only check. The index itself is{' '}
+              Verified means a named script at a fixed seed regenerates the number in CI; internal means the chapter&rsquo;s
+              own derivation is the only check we have. The index itself is{' '}
               <a href={blob('docs/harbor-research/library-index.json')} className="text-[var(--text-primary)] underline underline-offset-4 hover:no-underline">
                 library-index.json
               </a>
-              , and a checker fails the build when a theorem in any corpus is not claimed by a row.
+              , and a checker fails the build if a theorem turns up in any of the three corpora without a row claiming it.
             </PanelBody>
           </div>
         </LandingSection>
@@ -433,8 +437,8 @@ export default function ResearchProgramPage() {
           <div id="the-estate" className="scroll-mt-[var(--space-8)] space-y-[var(--space-6)]">
             <LandingSectionIntro
               eyebrow="The mechanized estate"
-              title="One manifest names every proof, and every proof is wired or retired."
-              description="There is no third state. A model that is not run in CI is marked retired, with the reason, and cannot be cited as evidence. The appendix of mechanized claims in the book is generated from the same manifest."
+              title="One manifest, every proof, and only two states it can be in"
+              description="A mechanized artifact is either wired into CI or marked retired with the reason, and a retired model can't be cited as evidence anywhere in the book. We used to have a third state (a proof that existed on disk and that everyone assumed still ran), and it's the reason this manifest exists. The book's appendix of mechanized claims is generated from it."
             />
             <div className="grid gap-[var(--space-5)] lg:grid-cols-[minmax(0,0.5fr)_minmax(0,0.5fr)]">
               <SurfacePanel className="space-y-[var(--space-4)]">
@@ -452,10 +456,11 @@ export default function ResearchProgramPage() {
                   ))}
                 </ul>
                 <PanelBody size="compact" className="max-w-none">
-                  {estate.formalArtifacts} formal artifacts and {estate.researchProgramArtifacts} result suites and
-                  simulations. {estate.ci.wired} run in CI; {estate.ci.retired} are retired and say why. Among the
-                  formal artifacts, {estate.byKind['negative-control'] ?? 0} are negative controls: models that must
-                  fail, so a checker that stopped finding anything would go red rather than green.
+                  {estate.formalArtifacts} formal artifacts plus {estate.researchProgramArtifacts} result suites and
+                  simulations; {estate.ci.wired} run in CI and {estate.ci.retired} are retired and say why. Among the
+                  formal artifacts, {estate.byKind['negative-control'] ?? 0} are negative controls &mdash; models that
+                  are <em>supposed</em> to fail &mdash; so a checker that had quietly stopped finding anything would
+                  go red rather than green.
                 </PanelBody>
                 <div className="flex flex-wrap gap-[var(--space-2)]">
                   <Button asChild variant="ghost" size="sm" className={LINK_BUTTON}>
@@ -502,8 +507,8 @@ export default function ResearchProgramPage() {
           <div id="studies" className="scroll-mt-[var(--space-8)] space-y-[var(--space-6)]">
             <LandingSectionIntro
               eyebrow="Under way"
-              title="What the book could not settle, it is now measuring."
-              description="A study is a question the book's own results cannot answer, turned into a protocol before any code: hypotheses, metrics, a kill criterion, and a rule for what the book does with each outcome."
+              title="What the book couldn't settle, it's now measuring"
+              description="A study starts as a question the book's own results can't answer, and it becomes a protocol before it becomes code: hypotheses, metrics, a kill criterion, and a rule for what the book does with each possible outcome (including the embarrassing one)."
             />
             {studies.map((study) => (
               <SurfacePanel key={study.id} className="space-y-[var(--space-5)]">
@@ -580,7 +585,7 @@ export default function ResearchProgramPage() {
             <div className="space-y-[var(--space-4)]">
               <SectionIntro
                 eyebrow="Planned lifts"
-                title="Proofs that exist in one form and are owed in a stronger one."
+                title="Proofs we have in one form and owe in a stronger one"
                 titleSize="section"
               />
               <ol className="grid gap-[var(--space-4)] md:grid-cols-2">
@@ -623,8 +628,8 @@ export default function ResearchProgramPage() {
           <div id="open-problems" className="scroll-mt-[var(--space-8)] space-y-[var(--space-6)]">
             <LandingSectionIntro
               eyebrow="Open problems"
-              title="What the book names as its own next work."
-              description="These are not vague futures. Each is a specific silence a decision ran into, or a boundary a theorem states for itself, with the document that named it and the chapter that owes it. A problem leaves this list when a section, a proof, or a study closes it."
+              title="What the book names as its own next work"
+              description="Each of these is a specific silence that a product decision ran into, or a boundary a theorem draws around itself, with a link to the document that named it and the chapter that owes it. A problem leaves this list when a section, a proof, or a study closes it, and not before."
             />
             <ol className="grid gap-[var(--space-4)] lg:grid-cols-2">
               {openProblems.map((problem, index) => (
@@ -665,8 +670,8 @@ export default function ResearchProgramPage() {
           <div id="wrong-turns" className="scroll-mt-[var(--space-8)] space-y-[var(--space-6)]">
             <LandingSectionIntro
               eyebrow="Wrong turns, kept"
-              title="The experiments that gave the wrong answer stay in the repository."
-              description="Each one is kept beside the corrected version with the lesson it taught, because the next person to make the same mistake should find it already made."
+              title="The experiments that gave the wrong answer stay in the repository"
+              description="Each one sits next to its corrected version with the lesson it taught, on the theory that the next person about to make the same mistake should find it already made, annotated, and a little embarrassing."
             />
             <ol className="grid gap-[var(--space-3)]">
               {wrongTurns.map((turn) => (
@@ -694,9 +699,9 @@ export default function ResearchProgramPage() {
           <div className="grid gap-[var(--space-5)] lg:grid-cols-[minmax(0,0.55fr)_minmax(0,0.45fr)] lg:items-start">
             <SectionIntro
               eyebrow="Keep reading"
-              title="The argument is in the book. The proofs are here. The record is in the repository."
+              title="The argument is in the book; the proofs are here; the record is in the repository"
               titleSize="section"
-              description={`This page is rendered from one file, docs/harbor-research/program.json, which is checked on every pull request against the results index, the proof manifest, the review ledger, and the studies on disk. When the program moves, this page has to move with it. Last synced ${program.updated}.`}
+              description={`This whole page is rendered from one file, docs/harbor-research/program.json, and that file is checked on every pull request against the results index, the proof manifest, the review ledger, and whatever studies are on disk — so when the program moves, this page is forced to move with it, and we can't forget to update it. Last synced ${program.updated}.`}
             />
             <SurfacePanel elevation="quiet" className="grid gap-[var(--space-2)]">
               <Button asChild variant="secondary" size="md" className="justify-between whitespace-normal text-left">

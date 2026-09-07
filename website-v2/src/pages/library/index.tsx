@@ -66,13 +66,14 @@ const ACCOUNTABILITY_LOOPS: Array<{ title: string; body: React.ReactNode; href: 
     title: 'Every proof the book cites runs on every pull request.',
     body: (
       <>
-        The Kani harnesses over the Rust card verifier, every ProVerif model checked
-        against its committed result, the relay&rsquo;s TLA<sup>+</sup> specifications
-        with their attack configurations, and the Z3 cubic behind the claim-signaling
-        threshold all run in CI. A negative control runs beside each one, so a checker
-        that stopped finding anything would fail loudly rather than pass quietly. The
-        book&rsquo;s appendix of mechanized claims is generated from that manifest,
-        never typed.
+        The Kani harnesses over the Rust card verifier, every ProVerif model (each
+        checked against the result it committed), the relay&rsquo;s TLA<sup>+</sup>{' '}
+        specifications with their attack configurations, and the Z3 cubic behind the
+        claim-signaling threshold all run in CI. Each one has a negative control
+        sitting next to it &mdash; a model that is <em>supposed</em> to fail &mdash; so a
+        checker that quietly stopped finding anything would go red instead of green.
+        The book&rsquo;s appendix of mechanized claims is generated straight from that
+        manifest; nobody types it.
       </>
     ),
     href: `${REPO}/tree/main/proofs`,
@@ -83,11 +84,12 @@ const ACCOUNTABILITY_LOOPS: Array<{ title: string; body: React.ReactNode; href: 
     body: (
       <>
         Seventeen executed results sit behind the chapters, each with a script and a
-        fixed seed. When a chapter walks a number by hand it tags it{' '}
-        <code>[verified]</code> only if that script regenerates it in CI, and{' '}
-        <code>[internal]</code> when only the chapter&rsquo;s own derivation does. The
-        page also says which claims are theorems, which are design invariants, which
-        are model-checked, and which are still hypotheses awaiting measurement.
+        fixed seed. When a chapter walks a number out by hand, it gets the{' '}
+        <code>[verified]</code> tag only if that script regenerates it in CI; if the
+        only check is the chapter&rsquo;s own derivation, the tag says{' '}
+        <code>[internal]</code>, and you should read it that way. The same page tells
+        you which of its claims are theorems, which are design invariants, which have
+        been model-checked, and which are hypotheses still waiting for a measurement.
       </>
     ),
     href: `${REPO}/tree/main/scripts/harbor-results`,
@@ -97,13 +99,15 @@ const ACCOUNTABILITY_LOOPS: Array<{ title: string; body: React.ReactNode; href: 
     title: 'What the book cannot settle becomes a pre-registered experiment.',
     body: (
       <>
-        The book argues that confinement needs an enforcement point below the agent.
-        It does not know whether its single-writer rail is also the right way for
-        several agents to share one repository, against a worktree per agent with a
-        merge queue. So that question left the prose and became a study with its
-        hypotheses, metrics, and kill criterion written down before any code: real
-        commit histories replayed through six coordination substrates. Until it
-        reports, the rail is a design invariant, not a theorem about collaboration.
+        The book argues, from a theorem, that confinement needs an enforcement point
+        below the agent. What it honestly doesn&rsquo;t know is whether its
+        single-writer rail is also the right way for several agents to share one
+        repository, compared with the thing the rest of the industry does (a worktree
+        per agent and a merge queue). So that question was taken out of the prose and
+        turned into a study &mdash; hypotheses, metrics, and a kill criterion written
+        down before any code existed &mdash; that replays real commit histories through
+        six coordination substrates. Until it reports, the rail stays a design
+        invariant; the book won&rsquo;t call it a theorem about collaboration.
       </>
     ),
     href: `${REPO}/tree/main/studies/substrate-study`,
@@ -113,13 +117,16 @@ const ACCOUNTABILITY_LOOPS: Array<{ title: string; body: React.ReactNode; href: 
     title: 'Claims about the harness itself are graded the same way.',
     body: (
       <>
-        A reproducible world plus a schedule of failures is a Genesis. One run of it
-        is a Voyage. The behaviour it leaves is the Wake, the structured record the
-        Logbook, and the claims we are willing to assert afterwards the Receipt. A
-        harness claim is not established because a feature executed; it is
-        established when a controlled Genesis produces a Voyage whose consequential
-        transitions are backed by durable evidence and an adjudication receipt. The
-        front matter adopts that vocabulary and the repository keeps the documents.
+        A reproducible world plus a schedule of failures is a <em>Genesis</em>; one
+        run through it is a <em>Voyage</em>; the behaviour it leaves behind is the{' '}
+        <em>Wake</em>, the structured record of that behaviour is the <em>Logbook</em>,
+        and the claims we&rsquo;re still willing to make afterward are the{' '}
+        <em>Receipt</em>. The point of the vocabulary is a discipline: a claim about
+        the harness doesn&rsquo;t count because a feature ran once and looked fine. It
+        counts when a controlled Genesis produces a Voyage whose consequential
+        transitions have durable evidence and an adjudication receipt behind them.
+        The book&rsquo;s front matter adopts the words; the repository keeps the
+        documents they came from.
       </>
     ),
     href: `${REPO}/blob/main/docs/harbor-research/exposition/HARNESS-LIFECYCLE-PROOF.md`,
@@ -255,12 +262,13 @@ export default function LibraryPage() {
                 title="One book about what happens after you walk away."
                 description={
                   <>
-                    You can hand a goal to a program and leave the room. Come back and ten
-                    agents are on the repo. Two edited the same file, and the second erased
-                    the first. One made the tests pass by deleting them. Nothing inside any
-                    one agent caused that. The failure lives between them, in the place where
-                    nobody keeps the record. This book is the argument for keeping it, and
-                    for what follows once you do.
+                    You hand a goal to a program, leave the room, and come back to find ten
+                    agents on the repo &mdash; two of them edited the same file (the second
+                    erased the first), and a third made the tests pass by deleting them.
+                    Nothing inside any one of those agents caused that. The failure lives
+                    <em>between</em> them, in the place where nobody was keeping the record,
+                    and this book is the long argument for keeping it &mdash; and for what
+                    becomes possible once you do.
                   </>
                 }
               />
@@ -359,7 +367,7 @@ export default function LibraryPage() {
             <LandingSectionIntro
               eyebrow="The questions"
               title="Eight questions, in the order they have to be asked."
-              description="Each chapter opens on one question and answers it before it does anything else. The order is the dependency order: a chapter stands on the ones before it, and each proving chapter follows the chapter whose promises it keeps. Read the questions alone and you have the argument."
+              description="Every chapter opens on a single question and won't do anything else until it has answered it. The order isn't editorial; it's structural &mdash; each chapter stands on the ones before it, and each proving chapter sits right after the chapter whose promises it has to keep. If you only read the eight questions, you'll still have the shape of the argument."
             />
             <ol className="grid gap-[var(--space-4)] sm:grid-cols-2 lg:grid-cols-4">
               {TEXTBOOK.chapters.map((chapter) => (
@@ -397,7 +405,7 @@ export default function LibraryPage() {
             <LandingSectionIntro
               eyebrow="What it argues"
               title="From the machine, up to the market."
-              description="One sentence holds the whole book together. Pull out any link and the chain above it falls, which is why the harbor comes before the economy and why memory, not cryptography, is the foundation."
+              description="One sentence holds the whole book together (it's below). Pull any link out of it and everything above that link comes down, which is why the harbor has to come before the economy, and why the foundation turns out to be memory rather than cryptography &mdash; a surprise the first time you see it, and obvious afterward."
             />
             <SurfacePanel elevation="quiet" className="space-y-[var(--space-2)]">
               <PanelEyebrow>The spine</PanelEyebrow>
@@ -424,26 +432,33 @@ export default function LibraryPage() {
               <SurfacePanel className="space-y-[var(--space-3)]">
                 <PanelEyebrow>How every claim is labelled</PanelEyebrow>
                 <PanelBody className="max-w-none">
-                  A <strong>theorem</strong> follows from a stated model. A{' '}
-                  <strong>design invariant</strong> is meant to hold and is backed by code
-                  and tests. A <strong>model-checked property</strong> holds for a bounded
-                  model a checker exhausted. An <strong>empirical hypothesis</strong> is
-                  waiting to be measured. Runtime claims name one of five assurance modes,
-                  Observed, Coordinated, Brokered, Confined, Attested, in increasing order
-                  of what the harbor itself enforces. None is promoted into another.
+                  Every important sentence in the book wears one of four labels, and they
+                  don't get promoted into one another. A <strong>theorem</strong> follows
+                  from a stated model; a <strong>design invariant</strong> is something the
+                  system is built to keep, backed by code and tests rather than a proof; a{' '}
+                  <strong>model-checked property</strong> holds for a bounded model that a
+                  checker actually exhausted; and an <strong>empirical hypothesis</strong> is
+                  a claim still waiting on a measurement. Anything said about the running
+                  system also names its assurance mode &mdash; Observed, Coordinated,
+                  Brokered, Confined, or Attested, in increasing order of how much the harbor
+                  itself enforces &mdash; so you can always tell a promise from a property.
                 </PanelBody>
               </SurfacePanel>
               <SurfacePanel className="space-y-[var(--space-3)]">
                 <PanelEyebrow>What page one admits</PanelEyebrow>
                 <PanelBody className="max-w-none">
-                  The daemon, its single-writer record, the operator projections, the durable
-                  work records, a bounded-verified card checker, and the relay run today. The
-                  sealed room, attenuation at every hop, the claim-signaling incentive, and
-                  the bond ledger&rsquo;s conservation are modelled and machine-checked but
-                  not running. The confined mode itself, cross-authority settlement, and the
-                  federation&rsquo;s witness log are proposed. The book prescribes an
-                  enforcement point below the agent and treats today&rsquo;s tool-level
-                  interceptors as interim.
+                  The book is ahead of the product and says so on its first page rather
+                  than in a footnote. Running today: the daemon and its single-writer record,
+                  the operator&rsquo;s projections of it, durable work records, a card
+                  checker whose proofs are bounded (not full), and the relay. Modelled and
+                  machine-checked but not yet running: the sealed room, attenuation at every
+                  hop, the incentive to signal claims truthfully, and the bond ledger&rsquo;s
+                  conservation law. Proposed, and neither built nor modelled: the confined
+                  mode itself, settlement across authorities, and the federation&rsquo;s
+                  witness log. The honest consequence is that the git shim and the
+                  coordination guard you can install today are interim instruments &mdash;
+                  the book wants an enforcement point <em>below</em> the agent, and it
+                  doesn&rsquo;t pretend a hook is one.
                 </PanelBody>
               </SurfacePanel>
             </div>
@@ -484,7 +499,7 @@ export default function LibraryPage() {
             <LandingSectionIntro
               eyebrow="Held to account"
               title="The book and the code push on each other."
-              description="A manuscript about accountable work has to be accountable itself. Four loops run between these chapters and the repository, and each one is visible: what a chapter proves, CI checks; what a chapter measures, a script regenerates; what a chapter cannot settle becomes an experiment with its hypotheses written down first; and what the product learns comes back as the next revision."
+              description="A manuscript about accountable work had better be accountable itself, so four loops run between these chapters and the repository, and you can watch each of them turn. Whatever a chapter proves, CI re-checks on every pull request. Whatever a chapter measures, a script regenerates from a fixed seed. Whatever a chapter can't settle from its own results gets written up as an experiment (hypotheses first, code second). And whatever the product learns from running comes back around as the next revision of the text."
             />
             <ol className="grid gap-[var(--space-4)] lg:grid-cols-2">
               {ACCOUNTABILITY_LOOPS.map((loop, index) => (
@@ -512,12 +527,14 @@ export default function LibraryPage() {
             <SurfacePanel elevation="quiet" className="space-y-[var(--space-2)]">
               <PanelEyebrow>What the book still owes</PanelEyebrow>
               <PanelBody className="max-w-none">
-                The manuscript names its own gaps rather than papering them: a procedure for
-                moving write authority between harbors, the release ledger run in the
-                provider&rsquo;s direction, the arithmetic of disputes and partial work, a
-                constitution for who may suspend a publisher, and one table joining the
-                evidence labels the product uses with the claim kinds the book uses. Each is
-                a section in a later revision, and each is tracked in the open with the
+                The manuscript names its own gaps instead of papering over them. There is
+                no procedure yet for moving write authority from one harbor to another; the
+                release ledger has only been written in the customer&rsquo;s direction, not
+                the provider&rsquo;s; nobody has done the arithmetic of disputes and partial
+                work; there&rsquo;s no constitution for who may suspend a publisher; and the
+                evidence labels the product uses and the claim kinds the book uses still
+                live in two tables when they should be one. Each of those is a section owed
+                to a later revision, and each is tracked in the open next to the product
                 decision that asked for it.
               </PanelBody>
               <Button asChild variant="ghost" size="sm" className="whitespace-normal text-left">
@@ -538,11 +555,14 @@ export default function LibraryPage() {
               title="Seven papers, one result each, written for a program committee."
               description={
                 <>
-                  The chapters fold these results in as labelled claims with their proofs.
-                  The papers keep the form a reviewer expects: abstract, related work, the
-                  theorem, the experiment, {RESEARCH_PAPER_TOTAL_PAGES} pages across{' '}
-                  {RESEARCH_PAPERS.length} of them, each adversarially reviewed. Read one when
-                  you want a single result without the book around it.
+                  The chapters fold every one of these results in as a labelled claim with
+                  its proof, so you don&rsquo;t need the papers to read the book. They exist
+                  because a program committee wants a different shape than a reader does
+                  &mdash; abstract, related work, the theorem, the experiment, and nothing
+                  else &mdash; and {RESEARCH_PAPER_TOTAL_PAGES} pages across{' '}
+                  {RESEARCH_PAPERS.length} of them is what that shape costs. Each has been
+                  adversarially reviewed. Pick one up when you want a single result without
+                  the book around it.
                 </>
               }
             />
@@ -596,7 +616,7 @@ export default function LibraryPage() {
             <LandingSectionIntro
               eyebrow="The chapters"
               title="Each card says what it stands on."
-              description="Every chapter names what it assumes from the chapters below it, what it underwrites above, and which chapter proves it. The maturity line on each card is the book's own grade, not a promise: built, built weakly, designed, or a research direction."
+              description="Every chapter names what it assumes from the chapters below it, what it underwrites above, and which chapter is responsible for proving it. The maturity line on each card is the book grading its own work &mdash; built, built weakly, designed, or still a research direction &mdash; and it is deliberately unflattering where it should be."
             />
             {TABLE_OF_CONTENTS.map((part) => (
               <div key={part.id} className="space-y-[var(--space-5)]">
@@ -617,7 +637,7 @@ export default function LibraryPage() {
             <LandingSectionIntro
               eyebrow="Drawn once"
               title="The spine and the market."
-              description="Two figures the book keeps returning to: the spine that threads the chapters, and the three-sided market of the economy chapter settling onto one conserving bond ledger."
+              description="Two figures the book keeps coming back to: the spine that threads the chapters together, and the economy chapter's three-sided market settling onto one bond ledger that conserves."
             />
             <div className="grid gap-[var(--space-6)]">
               <SpineChain />
@@ -633,14 +653,14 @@ export default function LibraryPage() {
               <LandingSectionIntro
                 eyebrow="Working software and the finished argument"
                 title="You need none of the theory for the first benefit."
-                description="The harbor runs now. The economy is the thing it was always for. One command, and two agents that used to collide take turns instead; the book is what you read when you want to know why that is the right first move and what has to come after it."
+                description="The harbor runs now; the economy is the thing it was always for. One command and two agents that used to collide start taking turns &mdash; that's the whole first benefit, and it needs none of the theory. The book is for the evening you want to know why that was the right first move, and what has to come after it."
               />
             </div>
             <SurfacePanel className="space-y-[var(--space-3)] lg:col-span-5">
               <PanelEyebrow>Open the harbor</PanelEyebrow>
               <CommandBlock command="brew install curiositech/tap/port-daddy && pd setup" title="install" />
               <PanelBody size="compact" className="max-w-none">
-                <code>pd claim</code> is the single-writer kernel&rsquo;s first sentence; the{' '}
+                <code>pd claim</code> is the single-writer kernel&rsquo;s first sentence, spoken out loud; the{' '}
                 <Link to="/docs/quickstart" className="text-[var(--text-primary)] underline underline-offset-4 hover:text-[var(--brand-primary)] hover:no-underline">
                   quickstart
                 </Link>{' '}
@@ -660,9 +680,10 @@ export default function LibraryPage() {
                 titleSize="section"
                 description={
                   <>
-                    The manuscript is revised in the open: argued with, proven against, and
-                    corrected where a proof or an experiment said so. One entry per wave,
-                    newest first. The per-objection history of the adversarial reviews is on{' '}
+                    The manuscript is revised in the open &mdash; argued with, proven against,
+                    and corrected wherever a proof or an experiment said it had to be. One
+                    entry per wave, newest first. If you want the objection-by-objection
+                    history of the adversarial reviews, that lives on{' '}
                     <Link to="/whitepaper/rounds" className="text-[var(--text-primary)] underline underline-offset-4 hover:text-[var(--brand-primary)] hover:no-underline">
                       the review rounds
                     </Link>
