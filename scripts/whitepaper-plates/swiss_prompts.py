@@ -156,7 +156,7 @@ PLATES = {
             "the datum bar than a tenth of it — clearly subordinate strata. Nothing else is drawn; the "
             "right half of the frame below the datum stays open blue field."
         ),
-        chosen="a", rationale="",
+        chosen="a", rationale="square rests flush, cleaner proportion",
     ),
     "part-II": dict(
         aspect="3:2", image_size="4K", style="cover",
@@ -192,12 +192,48 @@ PLATES = {
             "neighbor to the left, a doubling series a viewer could count and state out loud, stepping "
             "cleanly rather than blending. Nothing else is drawn anywhere in the frame."
         ),
-        chosen="a", rationale="",
+        chosen="a", rationale="four zones read at a glance",
     ),
     "part-III": dict(
         aspect="3:2", image_size="4K", style="cover",
         mechanism="one thing crosses the gap",
+        # v1 (below, kept for the record) rendered the gap as fully empty in
+        # both candidates on first generation -- the survivor bar the whole
+        # mechanism depends on was missing. v2 names the sixteen context bars
+        # as two explicit groups and the seventeenth as "the single most
+        # important shape... omitting it is a critical error", which fixed it
+        # in both v2 candidates; v2-a is what shipped (v2-b's paper bands did
+        # not reach the frame edge, reading as a mounted card).
         a=_p(
+            "Horizontal 3:2 composition, full bleed edge to edge, the entire ground a single unbroken flat "
+            "field of deep violet #582C83. Broad bare paper #FBF7EF bands run the full width along the top "
+            "and bottom edges, each about a fifth of the frame's height, both completely empty. Across the "
+            "middle band, draw sixteen identical narrow vertical bars of solid flat paper #FBF7EF, evenly "
+            "spaced side by side, all the same height, arranged in two groups of eight: eight bars on the "
+            "left side of the frame, then a gap, then eight more bars on the right side of the frame, with "
+            "the gap itself roughly as wide as three of the bars put together. Inside that gap, exactly "
+            "centered between the two groups and touching neither of them, stands one more single vertical "
+            "bar — the seventeenth — identical in width, height, and solid paper-white color to all the "
+            "others, standing completely alone, surrounded on its left and right by nothing but bare violet "
+            "ground. This seventeenth bar is the entire point of the image: it must be rendered, clearly "
+            "visible, the same brightness and height as every other bar, sitting by itself in the middle of "
+            "the empty gap — omitting it is a critical error. Nothing else appears anywhere in the frame."
+        ),
+        b=_p(
+            "Horizontal 3:2 composition, full bleed edge to edge, the entire ground a single unbroken flat "
+            "field of deep violet #582C83. Broad bare paper #FBF7EF bands run the full width along the top "
+            "and bottom edges, each about a fifth of the frame's height, both completely empty. Across the "
+            "middle band, draw sixteen identical narrow vertical bars of solid flat paper #FBF7EF, evenly "
+            "spaced side by side, all the same height, arranged with ten bars grouped toward the left "
+            "two-thirds of the frame, a wide bare-violet gap, then a single lone survivor bar positioned "
+            "just left of center inside that gap, then more bare violet gap, then a final group of six bars "
+            "toward the right edge. The lone survivor bar in the middle is drawn exactly like every other "
+            "bar — same width, same height, same solid paper-white fill — and is the single most "
+            "important shape in the image: it stands with generous bare violet space visible on both sides "
+            "of it, clearly separated from both groups, unmistakably present, never merged into the "
+            "surrounding violet and never omitted. Nothing else appears anywhere in the frame."
+        ),
+        v1_a=_p(
             "Horizontal 3:2 composition, full bleed edge to edge, the entire ground a single unbroken flat "
             "field of deep violet #582C83. Broad bare paper #FBF7EF bands run the full width along the top "
             "and bottom edges, each about a fifth of the frame's height, both completely empty. Across the "
@@ -209,7 +245,7 @@ PLATES = {
             "near the gap's right edge, conspicuously alone in the emptiness — one small, exact, "
             "unmistakable mark standing where sixteen others were erased. Nothing else appears."
         ),
-        b=_p(
+        v1_b=_p(
             "Horizontal 3:2 composition, full bleed edge to edge, ground a single flat field of deep violet "
             "#582C83. Wide bare paper #FBF7EF bands, each roughly a fifth of the height, run the full width "
             "at the very top and very bottom, left entirely empty. In the band between them, seventeen equal, "
@@ -220,7 +256,7 @@ PLATES = {
             "paper brightness, sitting near the gap's right side, isolated and unmistakable against the bare "
             "violet around it. No other marks appear anywhere."
         ),
-        chosen="a", rationale="",
+        chosen="a", rationale="v2: only candidate with visible survivor",
     ),
     "part-IV": dict(
         aspect="3:2", image_size="4K", style="cover",
@@ -250,7 +286,7 @@ PLATES = {
             "runs perfectly horizontal through that same point and spans the full width of the frame edge to "
             "edge. Nothing else is drawn."
         ),
-        chosen="a", rationale="",
+        chosen="a", rationale="one clean rule, not a doubled line",
     ),
     "chapter-swk": dict(
         aspect="16:9", image_size="2K", style="cover",
@@ -277,7 +313,7 @@ PLATES = {
             "right fragment both visible on either side. No shape floats free of the bar. No outlines, no "
             "shading, no gradient."
         ),
-        chosen="a", rationale="",
+        chosen="a", rationale="calmer grid, less cluttered pairing",
     ),
     "chapter-anchor": dict(
         aspect="16:9", image_size="2K", style="cover",
@@ -304,7 +340,7 @@ PLATES = {
             "#001489, near-black ink #121212, each one flat and sharp-edged with no gradient or shading "
             "anywhere."
         ),
-        chosen="a", rationale="",
+        chosen="b", rationale="a's grey mockup border missed edge-bleed",
     ),
     "chapter-sealed": dict(
         aspect="16:9", image_size="2K", style="cover",
@@ -339,7 +375,7 @@ PLATES = {
             "lying on top of it, never reaching the notch or the paper beyond. The black ring's continuity is "
             "never interrupted by the red at any point. No other marks, no shading, no gradient."
         ),
-        chosen="a", rationale="",
+        chosen="a", rationale="red stops clean, not inside the slot",
     ),
     "chapter-ls": dict(
         aspect="16:9", image_size="2K", style="cover",
@@ -365,7 +401,7 @@ PLATES = {
             "knot of the small squares under it, one big legible form standing in for the scatter. No "
             "connecting lines, no outlines, no shading anywhere."
         ),
-        chosen="a", rationale="",
+        chosen="a", rationale="pale squares still visible under circle",
     ),
     "chapter-stp": dict(
         aspect="16:9", image_size="2K", style="cover",
@@ -403,7 +439,7 @@ PLATES = {
             "faint hairline circle makes plain it is one single unbroken path underneath. Nothing else "
             "appears."
         ),
-        chosen="a", rationale="",
+        chosen="a", rationale="one circle continues; b drew two",
     ),
     "chapter-he": dict(
         aspect="16:9", image_size="2K", style="cover",
@@ -431,7 +467,7 @@ PLATES = {
             "shared base point where the three bars meet. No shading, no transparency, no overlap between "
             "bars anywhere."
         ),
-        chosen="a", rationale="",
+        chosen="a", rationale="more negative space, calmer grid",
     ),
     "chapter-bonded": dict(
         aspect="16:9", image_size="2K", style="cover",
@@ -458,7 +494,7 @@ PLATES = {
             "#DA291C sits alone — the single smallest and only warm shape in the frame. No outlines, no "
             "shading anywhere."
         ),
-        chosen="a", rationale="",
+        chosen="a", rationale="upright square, not a rotated diamond",
     ),
     "chapter-fh": dict(
         aspect="16:9", image_size="2K", style="cover",
@@ -485,7 +521,7 @@ PLATES = {
             "meets the first small square there, never crossing further. No outlines, no shading, nothing "
             "else joins the two blocks."
         ),
-        chosen="a", rationale="",
+        chosen="a", rationale="clean gutter; b's blocks touched",
     ),
 }
 

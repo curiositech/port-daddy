@@ -11,7 +11,7 @@
 % full-bleed background, leaving the reserved top-left paper for the type the
 % TeX sets over it (the cover's title sits at fixed overlay coordinates, so a
 % full-bleed image behind it is always safe). \pdswisspartplate{<numeral>}{<width>}
-% and \pdswissplate{<prefix>}{<width>}{<hue>} both stay real inline content
+% and \pdswissplate{<prefix>}{<width>} both stay real inline content
 % placed after the flowing title/blurb/question text, each at the given
 % width and the old TikZ drawing's own aspect (part: 3:2, 24x16 units;
 % chapter: 2:1, 24x12 units). There is no drawn fallback: a missing render
@@ -25,7 +25,7 @@
   \IfFileExists{plates/swiss/part-#1.jpg}{%
     \includegraphics[width=#2]{plates/swiss/part-#1.jpg}}{%
     \PackageError{pd-swiss-plates}{Missing plate render plates/swiss/part-#1.jpg}{Generate the Swiss part plate render and place it at plates/swiss/part-#1.jpg before building.}}}
-\newcommand{\pdswissplate}[3]{% #1 chapter prefix, #2 width, #3 hue (unused)
+\newcommand{\pdswissplate}[2]{% #1 chapter prefix, #2 width
   \IfFileExists{plates/swiss/chapter-#1.jpg}{%
     \includegraphics[width=#2]{plates/swiss/chapter-#1.jpg}}{%
     \PackageError{pd-swiss-plates}{Missing plate render plates/swiss/chapter-#1.jpg}{Generate the Swiss chapter plate render and place it at plates/swiss/chapter-#1.jpg before building.}}}
