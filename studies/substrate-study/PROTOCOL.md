@@ -72,6 +72,10 @@ Not runnable in the build container (no KVM, no unprivileged user namespaces). S
 - **Measures**: cold start, wall-clock overhead per phase, memory, and, for each of the kernel chapter's ten obstruction paths, whether the effect became *controllable* (the broker can refuse it) or stayed *observable only*. The controllability table is the result; the overhead numbers say what it costs.
 - **Decision rule**: the book prescribes the cheapest candidate that makes every write-path obstruction controllable with under 30% overhead on the test-suite phase. If no candidate does, the book says what remains observable-only under the best one.
 
-## 4. Deliverables
+## 4. Vocabulary
+
+The study speaks the harness-experimentalism vocabulary recorded in `docs/harbor-research/exposition/HARNESS-LIFECYCLE-PROOF.md`, so that the book, the product, and the experiments use one set of words. A **Genesis** is a reproducible initial world-state plus perturbation schedule: here, a pinned corpus, a substrate, N agents, a temperament, and a seed. A **Voyage** is one execution of a Genesis. The **Wake** is the event log the Voyage leaves. The **Logbook** is the per-run CSV. The **Receipt** is `REPORT.md`, the adjudicated claims we are willing to assert afterwards. This harness is a Dream Rig: it creates the world and gives the substrate no special favours. The invariant the study inherits: a claim about a substrate is not established because a mechanism executed; it is established when a controlled Genesis produces a Voyage whose consequential transitions are supported by durable evidence and an adjudication that follows the pre-registered rules above.
+
+## 5. Deliverables
 
 `harness/` (Python 3.11, standard library plus `git`), `corpora.json`, `run.sh`, `results/` (CSV per cell, never hand-edited), `REPORT.md`, `CHANGELOG.md`. A `make check` target runs a two-agent, ten-task smoke of every substrate and asserts H1's self-check.
