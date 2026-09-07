@@ -7596,7 +7596,7 @@
     "Item": "Information floor (Thm 6.1) restates the classical group-testing/covering counting bound (Dorfman 1943, Hwang 1972).",
     "Targets": "The Legible Swarm; research paper 1",
     "Prior adjudication": "",
-    "Status": "DONE wave-16/credit-the-canon",
+    "Status": "DONE 0ac32d8b2",
     "Notes": "Already \\cite'd in both homes (l.1715-1719 chapter; l.217/237 paper1); no edit needed, verified already satisfied."
   },
   {
@@ -7606,7 +7606,7 @@
     "Item": "Split-digest theorem (Thm 8.1 chapter / Theorem 2 paper1) is Schmeidler (1989) and Yaari (1987)'s decision-theoretic comonotonicity, uncited.",
     "Targets": "The Legible Swarm; research paper 1",
     "Prior adjudication": "",
-    "Status": "DONE wave-16/credit-the-canon",
+    "Status": "DONE 0ac32d8b2",
     "Notes": "Added \\cite{schmeidler1989,yaari1987} at the comonotone definition in both homes plus a Related Work sentence in paper1; bibitems added to both."
   },
   {
@@ -7626,7 +7626,7 @@
     "Item": "Derived regret head is a single-shot Neyman-Pearson likelihood-ratio test; the natural sequential extension is Wald's Sequential Probability Ratio Test (1947), uncited.",
     "Targets": "The Legible Swarm; research paper 1",
     "Prior adjudication": "",
-    "Status": "DONE wave-16/credit-the-canon",
+    "Status": "DONE 0ac32d8b2",
     "Notes": "Added \\cite{wald1947} at thm:regret-head (chapter) and Theorem 3's related-work sentence (paper1); bibitem added to both."
   },
   {
@@ -7646,7 +7646,7 @@
     "Item": "The escalation threshold is named in prose as 'the Spence mold' but Spence (1973)'s job-market-signaling paper was never cited.",
     "Targets": "The Legible Swarm (research-ledger item R14, chapter-only)",
     "Prior adjudication": "",
-    "Status": "DONE wave-16/credit-the-canon",
+    "Status": "DONE 0ac32d8b2",
     "Notes": "Added \\cite{spence1973} at the 'Spence mold' sentence and a bibitem; R14 has no standalone twin (library-index.json: standalone null), so no paper1 edit is required by the twin rule."
   },
   {
@@ -7666,7 +7666,7 @@
     "Item": "The additive corruption term is structurally close to Lykouris & Vassilvitskii's (2018) 'algorithms with predictions' line, uncited.",
     "Targets": "The Legible Swarm (research-ledger item R16, chapter-only)",
     "Prior adjudication": "",
-    "Status": "DONE wave-16/credit-the-canon",
+    "Status": "DONE 0ac32d8b2",
     "Notes": "Added \\cite{lykouris2018} and a boundary-box sentence naming the field, plus a bibitem; R16 has no standalone twin (library-index.json: standalone null)."
   },
   {
@@ -7676,7 +7676,7 @@
     "Item": "The pitfall box on metis-atrophy leaves the tacit-to-explicit-knowledge problem unengaged; Polanyi's Tacit Dimension (1966) is the literature that names it, uncited (Nonaka & Takeuchi's SECI model is a further reading-list item the review names but this wave does not add).",
     "Targets": "The Legible Swarm",
     "Prior adjudication": "",
-    "Status": "DONE wave-16/credit-the-canon",
+    "Status": "DONE 0ac32d8b2",
     "Notes": "Added \\cite{polanyi1966} and a sentence naming 'tacit knowledge' at the metis pitfall box, plus a bibitem. Nonaka & Takeuchi (1995) left uncited -- narrower must-have list names only Polanyi; flagged for a future wave if the SECI model is wanted by name."
   },
   {
@@ -7686,7 +7686,7 @@
     "Item": "The consent-grant mechanism is a levels-of-automation selector in Sheridan's and Parasuraman-Sheridan-Wickens's (2000) exact sense, and the SDT operator model never engages Klein's naturalistic decision-making counter-tradition; both uncited.",
     "Targets": "The Legible Swarm",
     "Prior adjudication": "",
-    "Status": "DONE wave-16/credit-the-canon",
+    "Status": "DONE 0ac32d8b2",
     "Notes": "Added \\cite{sheridan1992,parasuraman2000} at Def. consent grant, naming 'level of automation' as the public term before the Book's own 'auto-land grant,' and \\cite{klein1998} as a rival-tradition sentence at the SDT-spined objective (def:sdt); bibitems added."
   },
   {
@@ -7696,7 +7696,7 @@
     "Item": "The consent-grant object is a near-exact structural analog to a capability with contextual caveats (macaroons, Birgisson et al. 2014), uncited.",
     "Targets": "The Legible Swarm",
     "Prior adjudication": "",
-    "Status": "DONE wave-16/credit-the-canon",
+    "Status": "DONE 0ac32d8b2",
     "Notes": "Added \\cite{macaroons2014} as a sentence after the override property, naming the security-literature analog; bibitem added."
   },
   {
@@ -7706,7 +7706,7 @@
     "Item": "The Parfit's-move-not-thesis argument never engages Williams's (1970) body-swap intuition-flip or Olson's (2007) animalism, its two strongest rivals; Dartmouth College v. Woodward (1819) is the closest legal-personhood analogue to Def. person, also uncited.",
     "Targets": "From Spawn to Person; research paper 5",
     "Prior adjudication": "",
-    "Status": "DONE wave-16/credit-the-canon",
+    "Status": "DONE 0ac32d8b2",
     "Notes": "Added \\cite{williams1970,olson2007} at the Parfit-repair section (chapter) and the Parfit's-move paragraph (paper5 sec:related); added \\cite{dartmouth1819} at Def. person (chapter only -- paper5 has no matching legal-doctrine discussion). Bibitems added to both files."
   },
   {
@@ -7716,7 +7716,7 @@
     "Item": "Checkpoint-of-record vs. checkpoint-of-execution restates the fifty-year OS/distributed-systems distinction (Condor 1997, Orleans virtual actors), uncited.",
     "Targets": "From Spawn to Person",
     "Prior adjudication": "",
-    "Status": "DONE wave-16/credit-the-canon",
+    "Status": "DONE 0ac32d8b2",
     "Notes": "Added \\cite{litzkow1997condor,bernstein2014orleans} at the restart-organ paragraph in sec:organs; bibitems added. Not part of the paper3/paper5 twin's folded sections (R7/R12/R13/B6 scope), so chapter-only per the twin rule."
   },
   {
@@ -7726,7 +7726,7 @@
     "Item": "The necessity theorem is a special case of Cheng & Friedman's (2005) tighter, formally closer Sybil-impossibility result for symmetric reputation functions, uncited (only the informal Douceur/Friedman-Resnick statements were cited).",
     "Targets": "From Spawn to Person",
     "Prior adjudication": "",
-    "Status": "DONE wave-16/credit-the-canon",
+    "Status": "DONE 0ac32d8b2",
     "Notes": "Added \\cite{chengfriedman2005} and a sentence at thm:necessity's 'classic attacks' list; bibitem added."
   },
   {
@@ -7736,7 +7736,7 @@
     "Item": "Levien's Advogato attack-resistant (flow-conserving) trust metric is an uncited, twenty-five-year-old cousin of the no-mint conservation law.",
     "Targets": "From Spawn to Person; research paper 5",
     "Prior adjudication": "",
-    "Status": "DONE wave-16/credit-the-canon",
+    "Status": "DONE 0ac32d8b2",
     "Notes": "Added \\cite{levien-advogato} and a sentence distinguishing the two conservation directions (trust flowing outward vs. value extracted upward) at Theorem 1's no-mint pdexample (chapter) and in paper5's related-work section; bibitems added to both."
   },
   {
@@ -7776,7 +7776,7 @@
     "Item": "The tower does not cite Kofman & Lawarree (1993) or Tirole (1986), the two canonical hierarchical-collusion papers, nor the cryptoeconomic verifier's-dilemma line (TrueBit, Arbitrum) that converged on the same shape.",
     "Targets": "From Spawn to Person; research paper 3",
     "Prior adjudication": "",
-    "Status": "DONE wave-16/credit-the-canon",
+    "Status": "DONE 0ac32d8b2",
     "Notes": "Added \\cite{kofmanlawarree1993,tirole1986,truebit2017,arbitrum-fraud-proofs} and a sentence naming both literatures, in paper3's Related Work and in spawn-to-person.tex's rate-the-raters section (the tower's chapter twin); bibitems added to both."
   },
   {
@@ -7796,7 +7796,7 @@
     "Item": "Liu & Skrzypacz (2014) is cited in the review as needing a venue correction (Journal of Economic Theory 151, not Review of Economic Studies); Teacy et al. (2008) AAMAS is prior art for the multi-dimensional/vector reputation claim.",
     "Targets": "From Spawn to Person",
     "Prior adjudication": "",
-    "Status": "DONE wave-16/credit-the-canon",
+    "Status": "DONE 0ac32d8b2",
     "Notes": "Venue check: the bibitem already reads 'Journal of Economic Theory, 151:2-29, 2014' correctly in spawn-to-person.tex -- the error the review flagged does not exist in the current text, so no correction was needed. Teacy et al. (2008) is not added this wave (not in the item-4 must-have list); left as a further reading-list item."
   },
   {
@@ -7816,7 +7816,7 @@
     "Item": "Liu and Skrzypacz (2014) belongs to the Journal of Economic Theory 151, not the Review of Economic Studies; the task asked to fix every bibitem and prose mention.",
     "Targets": "From Spawn to Person; The Harbor Economy",
     "Prior adjudication": "",
-    "Status": "DONE wave-16/credit-the-canon",
+    "Status": "DONE 0ac32d8b2",
     "Notes": "Audited every \\bibitem and prose mention across spawn-to-person.tex and harbor-economy.tex: both already read 'Journal of Economic Theory, 151:2-29, 2014' and no 'Review of Economic Studies' mis-citation of this paper exists anywhere in the corpus (grepped repo-wide). The correction was already applied in an earlier wave; verified, not re-applied."
   },
   {
@@ -7896,7 +7896,7 @@
     "Item": "Colombo Tosatto, Governatori and van Beest prove a closely-shaped tractable/coNP-complete dichotomy for regulatory-compliance checking, uncited; the review recommends reframing the fragment against their dichotomy in one sentence.",
     "Targets": "research paper 6; The Harbor Economy",
     "Prior adjudication": "",
-    "Status": "DONE wave-16/credit-the-canon",
+    "Status": "DONE 0ac32d8b2",
     "Notes": "Added \\cite{ctgvb2020,ctgvb2021} and the one-sentence reframing ('a second, independent instance of that dichotomy pattern in a different formal object, not its discovery') in both paper6.tex sec:related (and its honest-boundary item xi) and harbor-economy.tex's deontic-layer decision-procedure paragraph; bibitems added to both."
   },
   {
@@ -7966,7 +7966,7 @@
     "Item": "The federation chapter's Related Work cites OpenID Federation, UCAN, and Macaroons but never ActivityPub, Matrix, or SPKI/SDSI, the three production federations closest to its own design.",
     "Targets": "The Federated Harbor",
     "Prior adjudication": "",
-    "Status": "DONE wave-16/credit-the-canon",
+    "Status": "DONE 0ac32d8b2",
     "Notes": "Added a new Related Work paragraph citing \\cite{activitypub2018,matrixspec,spkisdsi1999} with one sentence each distinguishing them from the chapter's design; bibitems added. Not part of the paper7 twin's folded R6 section, so chapter-only per the twin rule (LIBRARY-SYSTEM.md sec.2/7)."
   }
 ]
