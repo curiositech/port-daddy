@@ -137,14 +137,17 @@ const LINEAGE: Array<[string, string]> = [
   ['Formal verification', 'Symbolic analysis and model checking: ProVerif and Tamarin (TLS 1.3, Signal), TLA⁺ (AWS; Newcombe et al., CACM 2015). The proving chapters use ProVerif, TLA⁺, Z3, and the Kani model checker.'],
 ]
 
-const PART_PLATE: Record<string, string> = {
-  machine: '/whitepaper/plates/part-I.jpg',
-  operator: '/whitepaper/plates/part-II.jpg',
-  person: '/whitepaper/plates/part-III.jpg',
-  market: '/whitepaper/plates/part-IV.jpg',
+/**
+ * The Book's own plates, named by the part's numeral and the chapter's
+ * prefix, so a part or chapter added to textbook.json picks up its plate
+ * without a table to keep in step. `libraryPlates.test.ts` asserts every
+ * file exists.
+ */
+export function partPlate(numeral: string) {
+  return `/whitepaper/plates/part-${numeral}.jpg`
 }
 
-function chapterPlate(prefix: string) {
+export function chapterPlate(prefix: string) {
   return `/whitepaper/plates/chapter-${prefix}.jpg`
 }
 
@@ -295,7 +298,7 @@ export default function LibraryPage() {
                 <li key={part.id} className="grid gap-[var(--space-5)] border-t-2 border-[var(--border-strong)] pt-[var(--space-6)] lg:grid-cols-12">
                   <div className="lg:col-span-4">
                     <img
-                      src={PART_PLATE[part.id]}
+                      src={partPlate(part.numeral)}
                       alt={`Part ${part.numeral} plate: ${part.title}`}
                       className="mb-[var(--space-4)] block aspect-[7/10] w-full max-w-[22rem] border-2 border-[var(--border-strong)] object-cover"
                       loading="lazy"
