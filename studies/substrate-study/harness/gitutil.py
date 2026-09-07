@@ -30,6 +30,8 @@ def run(cwd: str, args: list[str], check: bool = True, input_text: str | None = 
         cwd=cwd,
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="surrogateescape",
         input=input_text,
         timeout=timeout,
     )

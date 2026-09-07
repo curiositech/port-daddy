@@ -60,12 +60,30 @@ def format_row(corpus_name, substrate, agents, temperament, seed, m, drops) -> d
 
 
 def write_csv(path: str, fieldnames: list, rows: list) -> None:
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "w", newline="", encoding="utf-8") as f:
-        w = csv.DictWriter(f, fieldnames=fieldnames, lineterminator="\n")
-        w.writeheader()
-        for row in rows:
-            w.writerow(row)
+    """Atomic, all-or-nothing write: a reader (or an interrupted process)
+    never observes a partially written file. Writes to a temp file in the
+    SAME directory (so the final os.replace is an atomic rename on the same
+    filesystem), fsyncs before closing, then renames over the destination.
+    csv's lineterminator="\\n" already ends every row — header and last data
+    row alike — with a newline, so a fully written file always ends in one;
+    what atomicity buys is that a file is either that, in full, or it does
+    not exist yet at `path` at all."""
+    directory = os.path.dirname(path) or "."
+    os.makedirs(directory, exist_ok=True)
+    fd, tmp_path = tempfile.mkstemp(prefix=".tmp-", dir=directory)
+    try:
+        with os.fdopen(fd, "w", newline="", encoding="utf-8") as f:
+            w = csv.DictWriter(f, fieldnames=fieldnames, lineterminator="\n")
+            w.writeheader()
+            for row in rows:
+                w.writerow(row)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp_path, path)
+    except BaseException:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
+        raise
 
 
 def run_one(base_dir: str, corpus_name: str, substrate: str, agents: int,

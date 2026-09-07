@@ -126,6 +126,137 @@ PILOT.md. This is a pilot-scope reduction only — it does not touch
 PROTOCOL.md's pre-registered 20-seed design for the real S2.4 run, which
 `run.sh` (no arguments) still runs unchanged.
 
+## 2026-09-07 — corpus task chain had gaps from dropped commits; pilot re-run
+
+Discovered while sanity-checking the pilot's D numbers: `D` was landing
+exactly 4 of 200 tasks in every cell, regardless of N or temperament — a
+suspiciously invariant number that turned out not to be a substrate
+finding at all. `build_tasks` was computing each kept task's patch against
+the commit's own real git parent. When a commit between two kept commits
+is dropped (a merge, almost always — nestjs/nest's history is 88%
+merges, psf/requests' is ~31%, rust-lang/book's ~22% in their respective
+600-commit windows), the next kept task's real parent is that dropped
+commit, whose changes our simulated tree — which only ever lands kept
+tasks — never received. Landing that task's literal historical diff then
+requires content that was never applied, which is not concurrent-agent
+tearing but a corpus-preparation artifact; it happened to hit C, D, and CR
+hardest because their diff-based landing is exact where U's and B(p)'s
+last-writer-wins overwrite (`git show <sha>:<path>`, not a diff) papered
+over it by construction.
+
+Fixed in `harness/corpus.py`: the keep/drop decision for a commit still
+uses that commit's own diff against its own real parent (PROTOCOL.md
+S2.1's literal per-commit criteria: merge, binary-touching, or
+>2000 changed lines), but a **kept** task's recorded patch, files, and
+lines_changed are now the *bridging* diff from the previous kept task's
+sha (or the window's base, for the first kept task) to this one — folding
+any dropped commits' changes into the next kept task, so the simulated
+tree is always self-consistent no matter which commits were dropped. In
+the common case where no commit was dropped between two kept commits, the
+bridging diff is identical to the commit's own diff, so this only changes
+behavior exactly where a gap existed.
+
+This also surfaced a second, related problem: with a plain 600-raw-commit
+window, only 88/600 (nestjs/nest), 394/600 (psf/requests), and 513/600
+(rust-lang/book) commits survive filtering — none of the three corpora
+actually contained the 600 *tasks* S2.4's per-cell design calls for and
+S2.1's table implies, only 600 raw commits pre-filter. All three corpora's
+`start_sha` in `corpora.json` were re-pinned further back (window widened
+to 950/6500/850 raw commits respectively) so each yields comfortably more
+than 600 kept tasks (634/722/608); `end_sha` (today's HEAD) and the
+per-commit drop criteria are unchanged. `corpora.json` records both
+`raw_window_commits` (the pre-filter window) and `kept_task_count` now.
+
+Because this changes which diffs are recorded for py-library, the entire
+pilot (previously run against the broken chain) was discarded and re-run
+from scratch against the corrected corpus. The `make check` smoke and the
+validation sweep across corpora/substrates/seeds (used to confirm H1
+before committing to the full pilot) were both re-run after the fix and
+both pass; the D anomaly (landed=4 invariant across every N and
+temperament) is gone in the corrected data.
+
+## 2026-09-07 — D still lands exactly 4/200 in every cell; a different bug from the one above
+
+The previous entry's fix (bridging diffs) was necessary but did not remove
+the invariant-4-landed symptom for substrate `D`: every `D` cell in the
+completed pilot (`N` in {2,4,8}, both temperaments, both seeds) lands
+exactly 4 of 200 tasks. This is not the corpus-gap bug — it is a separate
+harness limitation in `D`'s landing mechanics, confirmed by direct
+reproduction against `harness/substrates.py` outside the simulation:
+
+`GitWorkspace.d_try_land` prepares each agent's local commit by checking
+out the task's *real* historical parent commit (`task.parent_sha`, an
+actual sha in the corpus repository) and applying the task's bridging
+patch there, then rebases that one-commit branch onto `queue_head_sha`.
+This is correct when tasks land in the same order their bridging diffs
+assume. But the discrete-event scheduler dispatches work in task-id order
+while *completion* (and therefore landing) order depends on each task's
+randomly-jittered work duration — a task can finish, and attempt to land,
+before an earlier task it is chained after. Reproduced directly: landing
+task 0, then task 2 (before task 1), then task 1, then task 4 lands task 1
+as a **silent no-op** — `git rebase` recognizes task 1's real diff as
+already effectively present (task 1 and task 0 touch the identical two
+files in py-library's first two real commits) and drops it without a
+conflict, advancing no further than task 2's tree. By the time task 3 (or
+5) is attempted, the tree no longer matches what their bridging patch
+expects, and the rebase genuinely conflicts; `D_MAX_RETRIES=3` exhausts
+against a queue head that never changes in between (nothing else can land
+either, since every later task's patch is chained the same way), so
+everything after the first handful of tasks abandons. This reproduces
+identically (`python3 -c` against `harness.substrates.GitWorkspace`
+directly, bypassing `sim.py` entirely) and is deterministic given a fixed
+landing order, so it is a structural property of `D`'s current
+implementation on this corpus, not run-to-run noise.
+
+Two consequences worth flagging rather than silently patching under this
+delivery's time budget:
+
+1. This is arguably a second, milder form of "torn tree" that the
+   mechanical self-check does not catch: `files_contain_conflict_markers`
+   only looks for unresolved `<<<<<<<`/`>>>>>>>` markers, and a rebase that
+   *silently drops* an out-of-order patch as a no-op leaves no such marker.
+   `torn_tree_incidents` reads 0 for every `D` cell in this pilot, and by
+   the self-check's own literal definition that is correct — but it does
+   not mean every landed task's content is actually present in the final
+   tree the way U/B(p)'s explicit last-writer-wins tracking would flag.
+   PROTOCOL.md's mechanical definition ("the tree must apply the next
+   task's base diff cleanly") is unaffected by this — the *next* task's
+   patch failing to apply is exactly the conflict this causes — but a
+   reader should not treat `D`'s `evidence_completeness=1.0` /
+   `torn_tree_incidents=0` pair as proof every landed task's real diff
+   survived intact.
+2. **`D`'s pilot numbers (landed=4/200 in every cell) are not a fair
+   substrate comparison and should not be read as "the merge-queue model
+   fails at high overlap"** in the H2 sense PROTOCOL.md means. They are
+   evidence that this harness's landing-order guarantees for `D` need
+   strengthening (e.g., only allowing a `D` landing attempt once every
+   task it is bridging-chained after has already landed or been
+   irrecoverably abandoned) before `D` vs `C` throughput/wasted-work
+   comparisons on a high-overlap corpus are meaningful. That change is not
+   made here — it touches `d_try_land`'s scheduling contract, which is
+   larger than a bug fix for a failing `make check`, and this delivery's
+   `make check` (a 10-task smoke) does not happen to exercise two
+   back-to-back real commits touching the same files, so it passes
+   unaffected. Filed here rather than fixed silently so the full S2.4 run
+   is not launched against the same defect at `N` up to 16 without a
+   decision first.
+
+The same defect makes `D` progressively more expensive to run, not just
+wrong: once the queue head stops advancing, every further landing attempt
+computes `git format-patch`/`git am` over a range that keeps growing
+(measured directly: `D-N8-cooperative-s1` was killed after 4 minutes of
+wall clock with `user`+`sys` time roughly matching, i.e. genuinely CPU-bound
+in git subprocesses, not hung, and had still not produced a result). `D`
+at `N` in {2, 4} completed (8 cells, all landing exactly 4/200, confirming
+the pattern holds across `N`); the four `D`-`N8` cells (both temperaments,
+both seeds) were not run for this pilot because of this cost, not because
+of a decision to exclude them; `results/py-library/` is short those four
+cells and PILOT.md's completeness section says so. `CR` does not touch
+`d_try_land` at all (it is `C`'s file-claim mechanism generalized to line
+ranges, landing via `git apply --3way` on the shared tree like `C`), so it
+is not suspected of the same defect and its cells were run directly rather
+than through `D`'s slow path.
+
 ## Deferred, not a deviation
 
 `REPORT.md` (PROTOCOL.md S2.6/S4) is not produced by this delivery. It is

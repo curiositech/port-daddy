@@ -137,6 +137,27 @@ def build_tasks(base_dir: str, name: str, corpus_def: dict, changelog_note) -> t
 
     counts = CorpusDropCounts()
     tasks: list[Task] = []
+    # `chain_base_sha` is the tree a kept task's patch is computed against.
+    # It starts at the window's true base (start_sha^) and advances to each
+    # kept task's own sha as tasks are kept. A dropped commit (merge,
+    # binary, oversize) does NOT advance it: PROTOCOL.md drops that commit
+    # from the task sequence, but the *next kept* task's real git parent is
+    # still that dropped commit (or further back, through a run of drops) —
+    # a simulated tree that only ever lands kept tasks never receives the
+    # dropped commit's changes. Computing each kept task's patch against the
+    # commit's own git parent would then require content our tree never
+    # has, which is not concurrent-agent tearing but a corpus-preparation
+    # artifact, and it was caught exactly that way: every substrate
+    # including the enforced rail (C) started failing to land tasks whose
+    # real parent had been dropped. Bridging — diffing straight from the
+    # last KEPT sha (or the window base) to this kept sha — folds any
+    # dropped commits' changes into the next kept task's patch, so the
+    # simulated tree is always self-consistent. The keep/drop decision
+    # itself still uses each commit's own diff against its own real parent,
+    # matching PROTOCOL.md S2.1's literal per-commit criteria; only what a
+    # *kept* task's recorded patch/files/lines_changed represent changes.
+    chain_base_sha = gitutil.run(repo, ["rev-parse", f"{corpus_def['start_sha']}^"]).stdout.strip()
+
     for sha in shas:
         counts.considered += 1
         parents = gitutil.run(repo, ["rev-list", "--parents", "-1", sha]).stdout.split()
@@ -144,16 +165,44 @@ def build_tasks(base_dir: str, name: str, corpus_def: dict, changelog_note) -> t
         if len(parents) > 2:
             counts.merges += 1
             continue
-        parent_sha = parents[1] if len(parents) > 1 else ""
-        if not parent_sha:
+        own_parent_sha = parents[1] if len(parents) > 1 else ""
+        if not own_parent_sha:
             # root commit (should not occur inside a 600-commit window, but be safe)
             counts.merges += 1
             continue
 
-        numstat = gitutil.run(repo, ["diff", "--numstat", parent_sha, sha]).stdout
+        own_numstat = gitutil.run(repo, ["diff", "--numstat", own_parent_sha, sha]).stdout
+        own_is_binary = any(
+            line.split("\t")[0] in ("-",) for line in own_numstat.splitlines() if line.strip()
+        )
+        own_lines_changed = 0
+        if not own_is_binary:
+            for line in own_numstat.splitlines():
+                if not line.strip():
+                    continue
+                parts = line.split("\t")
+                if len(parts) < 3:
+                    continue
+                own_lines_changed += int(parts[0]) + int(parts[1])
+
+        if own_is_binary:
+            counts.binary += 1
+            continue
+        if own_lines_changed > MAX_CHANGED_LINES:
+            counts.oversize += 1
+            continue
+        if own_lines_changed == 0:
+            # nothing text-visible changed (e.g. mode-only change); drop as a
+            # binary/no-op edge case rather than invent a metric for it.
+            counts.binary += 1
+            continue
+
+        # Kept: compute the recorded task from the bridging diff, not the
+        # commit's own diff, so the simulated tree stays self-consistent.
+        patch = gitutil.run(repo, ["diff", chain_base_sha, sha], timeout=60).stdout
+        numstat = gitutil.run(repo, ["diff", "--numstat", chain_base_sha, sha]).stdout
         files = []
         lines_changed = 0
-        is_binary = False
         for line in numstat.splitlines():
             if not line.strip():
                 continue
@@ -161,35 +210,27 @@ def build_tasks(base_dir: str, name: str, corpus_def: dict, changelog_note) -> t
             if len(parts) < 3:
                 continue
             added, deleted, path = parts[0], parts[1], parts[2]
-            if added == "-" or deleted == "-":
-                is_binary = True
-                break
             files.append(path)
-            lines_changed += int(added) + int(deleted)
-        if is_binary:
-            counts.binary += 1
-            continue
-        if lines_changed > MAX_CHANGED_LINES:
-            counts.oversize += 1
-            continue
-        if lines_changed == 0 or not files:
-            # nothing text-visible changed (e.g. mode-only change); drop as a
-            # binary/no-op edge case rather than invent a metric for it.
-            counts.binary += 1
+            if added != "-" and deleted != "-":
+                lines_changed += int(added) + int(deleted)
+        if not files:
+            # the bridging diff collapsed to nothing (e.g. a revert of a
+            # dropped commit); nothing to land, so don't record a task.
+            chain_base_sha = sha
             continue
 
-        patch = gitutil.run(repo, ["diff", parent_sha, sha], timeout=60).stdout
         file_ranges = _parse_new_side_ranges(patch)
 
         tasks.append(Task(
             task_id=len(tasks),
             sha=sha,
-            parent_sha=parent_sha,
+            parent_sha=chain_base_sha,
             files=files,
             lines_changed=lines_changed,
             patch=patch,
             file_ranges=file_ranges,
         ))
+        chain_base_sha = sha
     counts.kept = len(tasks)
 
     with open(cache_file, "w", encoding="utf-8") as f:

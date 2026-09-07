@@ -27,7 +27,13 @@ _SIM_ENV_EXTRA = {
 def _run(cwd, args, check=True, timeout=60):
     import subprocess
     env = dict(**_env_base(), **_SIM_ENV_EXTRA)
+    # A bridging diff (see corpus.py) can sweep a binary file's content into
+    # `git show`/`git diff` output (e.g. overwrite_files reading a binary
+    # blob via `git show sha:path`); decode leniently so that never crashes
+    # the harness instead of being handled as ordinary (if not human
+    # readable) file content.
     proc = subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True,
+                           encoding="utf-8", errors="surrogateescape",
                            env=env, timeout=timeout)
     if check and proc.returncode != 0:
         raise gitutil.GitError(args, proc.returncode, proc.stdout, proc.stderr)

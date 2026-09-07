@@ -47,8 +47,8 @@ Usage:
   run.sh                 Run the full S2.4 design (resumable; skips cells
                           whose CSV already exists under results/).
   run.sh --pilot         Run the pilot: py-library, all substrates,
-                          N in {2,4,8}, both temperaments, seeds 1-3,
-                          200 tasks.
+                          N in {2,4,8}, both temperaments, seeds 1-2,
+                          200 tasks. (Cut from 3 seeds to 2; see CHANGELOG.md.)
   run.sh --replicate C   Regenerate exactly one cell. C is either a path
                           under results/ (e.g.
                           results/py-library/C-N4-cooperative-s3.csv) or the
