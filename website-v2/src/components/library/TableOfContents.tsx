@@ -1,5 +1,7 @@
 import { Link } from 'react-router-dom'
 import { ArrowRight } from 'lucide-react'
+import { Button } from '@/components/ui/Button'
+import { PanelBody, PanelEyebrow, PanelTitle, SurfacePanel } from '@/components/site/primitives'
 import { TABLE_OF_CONTENTS, TEXTBOOK, chapterRoleLabel, type WhitePaper } from '@/data/whitePapers'
 
 /**
@@ -14,13 +16,9 @@ import { TABLE_OF_CONTENTS, TEXTBOOK, chapterRoleLabel, type WhitePaper } from '
  * rather than a page count or a per-chapter PDF: the Book is one document, and
  * the site points at the chapter, not at a detached file.
  *
- * Each part row carries the part's hue as a rule; the hue is the part's, not
- * the chapter's, so a chapter never competes with the part it sits in.
+ * Typography comes from the site primitives only (eyebrow, title, body), so
+ * the contents read in the same three roles as every other public surface.
  */
-
-function chapterQuestion(id: string): string | undefined {
-  return TEXTBOOK.chapters.find((chapter) => chapter.id === id)?.question
-}
 
 const PART_RULE: Record<string, string> = {
   pdcobalt: 'bg-[var(--brand-primary)]',
@@ -29,52 +27,50 @@ const PART_RULE: Record<string, string> = {
   pdgold: 'bg-[var(--story-gold)]',
 }
 
+function chapterQuestion(id: string): string | undefined {
+  return TEXTBOOK.chapters.find((chapter) => chapter.id === id)?.question
+}
+
 function ChapterRow({ paper, onSelect }: { paper: WhitePaper; onSelect?: (id: string) => void }) {
-  const title = onSelect ? (
-    <button
-      type="button"
-      onClick={() => onSelect(paper.id)}
-      className="text-left font-display text-[length:var(--text-lg)] font-black leading-[var(--leading-nav)] text-[var(--text-primary)] underline-offset-4 hover:text-[var(--brand-primary)] hover:underline focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)]"
-    >
-      {paper.title}
-    </button>
-  ) : (
-    <Link
-      to={paper.readerHref}
-      className="font-display text-[length:var(--text-lg)] font-black leading-[var(--leading-nav)] text-[var(--text-primary)] underline-offset-4 hover:text-[var(--brand-primary)] hover:underline"
-    >
-      {paper.title}
-    </Link>
-  )
+  const question = chapterQuestion(paper.id)
   return (
-    <li className="grid grid-cols-[2.75rem,1fr] gap-[var(--space-3)] border-t-2 border-[var(--border-default)] py-[var(--space-3)] first:border-t-0">
-      <span className="font-mono text-[length:var(--text-xl)] font-black leading-none text-[var(--text-primary)]">
-        {paper.chapter}
+    <li className="grid grid-cols-[var(--space-7),1fr] gap-[var(--space-4)] border-t-2 border-[var(--border-default)] py-[var(--space-4)] first:border-t-0">
+      <span aria-hidden="true">
+        <PanelTitle as="span" size="card">
+          {paper.chapter}
+        </PanelTitle>
       </span>
-      <div className="min-w-0 space-y-[var(--space-1)]">
-        <div className="flex flex-wrap items-baseline gap-x-[var(--space-3)] gap-y-[var(--space-1)]">
-          {title}
-          <span className="font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
-            {chapterRoleLabel(paper)}
-          </span>
-        </div>
-        {chapterQuestion(paper.id) ? (
-          <p className="font-display text-[length:var(--type-panel-body-size)] italic leading-[var(--leading-body-compact)] text-[var(--text-primary)]">
-            {chapterQuestion(paper.id)}
-          </p>
+      <div className="min-w-0 space-y-[var(--space-2)]">
+        <PanelEyebrow>{chapterRoleLabel(paper)}</PanelEyebrow>
+        <PanelTitle as="h4" size="nav">
+          {onSelect ? (
+            <button
+              type="button"
+              onClick={() => onSelect(paper.id)}
+              className="text-left underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)]"
+            >
+              {paper.title}
+            </button>
+          ) : (
+            <Link to={paper.readerHref} className="underline-offset-4 hover:underline">
+              {paper.title}
+            </Link>
+          )}
+        </PanelTitle>
+        {question ? (
+          <PanelBody size="compact" className="max-w-none italic text-[var(--text-primary)]">
+            {question}
+          </PanelBody>
         ) : null}
-        <p className="text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
+        <PanelBody size="compact" className="max-w-none">
           {paper.claim}
-        </p>
-        <div className="flex flex-wrap gap-[var(--space-3)] pt-[var(--space-1)] font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)]">
-          <Link
-            to={paper.readerHref}
-            className="inline-flex items-center gap-[var(--space-1)] text-[var(--text-primary)] underline underline-offset-4 hover:text-[var(--brand-primary)] hover:no-underline"
-          >
+        </PanelBody>
+        <Button asChild variant="ghost" size="sm" className="whitespace-normal text-left">
+          <Link to={paper.readerHref}>
             Read the chapter
-            <ArrowRight aria-hidden="true" size={12} />
+            <ArrowRight aria-hidden="true" size={14} />
           </Link>
-        </div>
+        </Button>
       </div>
     </li>
   )
@@ -84,32 +80,23 @@ export function TableOfContents({ onSelect }: { onSelect?: (id: string) => void 
   return (
     <nav aria-label="Table of contents" className="grid gap-[var(--space-5)]">
       {TABLE_OF_CONTENTS.map((part) => (
-        <section
-          key={part.id}
-          aria-labelledby={`toc-part-${part.id}`}
-          className="border-2 border-[var(--border-strong)] bg-[var(--surface-base)] shadow-[var(--shadow-brutal)]"
-        >
-          <div className={`h-[6px] w-full ${PART_RULE[part.color] ?? 'bg-[var(--brand-primary)]'}`} aria-hidden="true" />
-          <header className="grid gap-[var(--space-2)] border-b-2 border-[var(--border-strong)] p-[var(--space-5)]">
-            <span className="font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
-              Part {part.numeral}
-            </span>
-            <h3
-              id={`toc-part-${part.id}`}
-              className="font-display text-[length:var(--text-2xl)] font-black leading-[var(--leading-display-tight)] text-[var(--text-primary)]"
-            >
-              {part.title}
-            </h3>
-            <p className="max-w-[64ch] text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
-              {part.blurb}
-            </p>
-          </header>
-          <ol className="px-[var(--space-5)]">
-            {part.papers.map((paper) => (
-              <ChapterRow key={paper.id} paper={paper} onSelect={onSelect} />
-            ))}
-          </ol>
-        </section>
+        <SurfacePanel key={part.id} padding="compact" className="p-0">
+          <section aria-labelledby={`toc-part-${part.id}`}>
+            <div className={`h-[6px] w-full ${PART_RULE[part.color] ?? 'bg-[var(--brand-primary)]'}`} aria-hidden="true" />
+            <header className="space-y-[var(--space-2)] border-b-2 border-[var(--border-strong)] p-[var(--panel-padding)]">
+              <PanelEyebrow>Part {part.numeral}</PanelEyebrow>
+              <PanelTitle as="h3" size="card" id={`toc-part-${part.id}`}>
+                {part.title}
+              </PanelTitle>
+              <PanelBody size="compact">{part.blurb}</PanelBody>
+            </header>
+            <ol className="px-[var(--panel-padding)]">
+              {part.papers.map((paper) => (
+                <ChapterRow key={paper.id} paper={paper} onSelect={onSelect} />
+              ))}
+            </ol>
+          </section>
+        </SurfacePanel>
       ))}
     </nav>
   )
