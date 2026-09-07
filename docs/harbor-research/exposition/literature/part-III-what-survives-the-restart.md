@@ -122,7 +122,7 @@ Where it is exposed is not in the theorems but in three places outside them. Fir
 
 ## 6. Resurrection soundness, and the cross-operator attestation gap
 
-**What the book claims.** Theorem 3 (paper5.tex §4 / `thm:resurrection-soundness`): sanction-respecting reputation survives provider migration under three clauses — (i) lineage verification, (ii) engine attestation on all successor outcomes, (iii) open commitments closed or escrowed before cutover — each individually load-bearing (a 2-step attack exists if any is dropped, verified by a 747-state bounded model check). Separately, `sec:keystone` names *cross-operator attestation* (binding identity keys across mutually distrusting operators) as an explicitly unsolved, VISION-graded problem handed to the next chapter.
+**What the book claims.** Theorem 3 (paper5.tex §4 / `thm:resurrection-soundness`): sanction-respecting reputation survives provider migration under three clauses — (i) lineage verification, (ii) engine attestation on all successor outcomes, (iii) open commitments closed or escrowed before cutover — each individually necessary (a 2-step attack exists if any is dropped, verified by a 747-state bounded model check). Separately, `sec:keystone` names *cross-operator attestation* (binding identity keys across mutually distrusting operators) as an explicitly unsolved, VISION-graded problem handed to the next chapter.
 
 **Other names for it.** Cryptography/identity: *key rotation* and *social recovery* for self-sovereign identity. Standards: W3C Decentralized Identifiers (DIDs) and Verifiable Credentials. Systems: cross-domain *migration soundness* (the same shape as the checkpoint/restore problem in §2, plus an authentication layer).
 
