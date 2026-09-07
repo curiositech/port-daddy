@@ -561,6 +561,66 @@ from a test context --- the analogue of a framework's protected-environment chec
 This is Saltzer and Schroeder's \emph{fail-safe defaults}~\cite{saltzer1975protection}
 applied at the one place a test could corrupt production truth.
 
+\subsection{The second writer: institutional truth above the local harbor}
+\label{sec:second-writer}
+
+A team runs several harbors and wants one plan across them: which objectives
+are authorized, who owns what, which transitions were accepted. The product
+calls that surface \textbf{Chartroom}, under the umbrella name Grand Harbor,
+and its design record (ADR-0137, Proposed, 2026-09-01) is the first place this
+chapter's invariant meets a second writer. The record exists on an unmerged
+branch; no Chartroom code is on the main line, and the book grades it
+\Designed{} throughout this section.
+
+The design rule is short enough to state before the mechanism. \emph{A second
+writer above the local harbor is either a projection of the local record or
+the writer of it, never both, and the switch between the two is an epoch.} A
+projection may be copied, searched, and rendered anywhere; it carries no
+authority, and a client that writes to it has written nothing. The writer is
+the one process whose accepted transitions define the record, and there is
+one per record per epoch. The design record draws this line itself: the
+harbor's own signing key is the sole signer of Chartroom intents, the relay
+verifies and applies an intent but never authors one, and the record rejects
+reusing the existing roadmap-snapshot route precisely because that route is a
+full-replace mirror whose contract keeps the daemon authoritative. That is a
+projection, and the record declines to let a projection masquerade as a
+writer. This is a \emph{design invariant}: intended to hold, backed by the
+single-writer implementation for the local case, and not yet exercised across
+harbors by any code.
+
+Moving the writer is the part no product yet does, and it is a procedure, not
+a setting. (1) Freeze: the local harbor stops accepting writes and records the
+freeze as its last transition. (2) Export: the ledger and its root hash leave
+the harbor as one artifact. (3) Verified import: the receiving authority
+imports the artifact and proves, against the root, that what it holds is what
+left. (4) Check: projections and permissions are re-derived on the new side
+and compared with the old. (5) Epoch: the new writer's epoch is signed and
+published, and every client refuses a write under any older epoch from that
+moment. (6) Rollback only by another epoch: there is no return to the old
+writer except by running the same procedure in reverse, so the record never
+has two writers, even for the duration of a mistake. The reason the switch
+must be an epoch and not a flag is the same reason revocation must be an
+epoch in \pdchapref{anchor}{The Anchor Protocol}: the model-checked attack
+there restores a backup taken before a revocation and thereby resurrects a
+dead credential, and it is refuted only when state carries the epoch it was
+valid under. A restored harbor database that predates the cutover is the same
+attack against authority, and the same defence closes it. That transfer is a
+\emph{model-checked property} for credentials and a \emph{design invariant}
+for writers; nothing in the repository yet checks the writer case.
+
+\begin{pdboundary}
+The alternative the procedure exists to forbid is dual writing with
+reconciliation: both authorities accept writes for a while and receipts
+reconcile them afterwards. That is two truths, the condition every result in
+this chapter assumes away, and no receipt repairs it after the fact, because
+the receipt itself would need a writer. The design record's own deployment
+plan is consistent with this section: a staged migration, a fixture receipt,
+a rollback probe, and a root-authorized production write, with no import of
+existing plans or documents in the first step. Until that plan runs, a remote
+Grand Harbor is a projection over local authorities, which is exactly what
+the relay is today.
+\end{pdboundary}
+
 \pdexercisepointer{\ref{ex:swk-schema-rename}}{\ref{ex:swk-op7-sequencer}}{\pageref{ex:swk-schema-rename}}
 
 % ═════════════════════════════════════════════════════════════════════════════
@@ -1950,6 +2010,25 @@ from inside that same process.} The cryptographic version of the same limit is
 ADR-0050's concession --- \emph{a secret a process can use, it can copy} --- and it
 applies to enforcement verbs no less than to keys: a guard a process can decline to
 invoke is advisory.
+
+The third instrument of the same kind is the \textbf{hook harness}
+(ADR-0108, which absorbed the earlier ADR-0091; both still marked Proposed). It
+rides the lifecycle events a vendor's agent loop already exposes, the prompt
+submission, the moment before and after a tool call, the compaction, and the
+stop, under whichever names the vendor gives them, and at each event it may do
+one of three things: inject a bounded advisory text into the model's context,
+block the act, or charge it against a budget. Two dials set how hard it
+leans, from advisory through warn to enforce, with a deadline of one second
+per hook and a breaker that stands the harness down when hooks fail. It is
+the most useful of the three instruments, because it is the one that
+\emph{shapes} the cooperative case, and the ADR grades it with the same
+sentence this chapter would: blast-radius reduction for the cooperative case,
+not a vault; a same-user agent that means to can disable the hook or reach
+the effect directly. Guard, shim, and harness are therefore one thing seen
+three times, the instruments of the \pdassurance{Observed} and
+\pdassurance{Coordinated} modes, valuable for the transcript they leave and
+for the cooperative agents they steer, and silent about the agent that
+declines them.
 
 Closing this gap is a layered program, and only the top layer is a real wall. A
 server-side branch-protection-plus-push-broker layer (\Designed) removes the most

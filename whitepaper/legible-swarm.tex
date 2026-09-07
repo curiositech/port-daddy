@@ -1352,6 +1352,98 @@ To continuously measure and maintain operator situation awareness without synthe
 
 This transforms supervisory vigilance from a punitive chore into a closed verification loop that rigorously measures human situation awareness --- with the operator's informed consent, on ground truth the system already knows, and with provenance every probe carries so post-hoc audit can distinguish canaries from live items in one lookup.
 
+\subsection{The operator's instrument}\label{sec:operator-instrument}
+
+The operator of this chapter looks at something. In the product that
+something is the operator console, a GPU-native application that opens on
+one full-window conversation, the \emph{Mission} view, and opens inspectors
+from it: fleet, cockpit, claims, parley, lineage, the cost ledger, the active
+harnesses, the interruptions awaiting a human, and some two dozen more, each
+pane fetching one route from the daemon and rendering the records that route
+returns. Two facts about it follow from this chapter, and neither is a
+compliment or a complaint.
+
+First, every pane is a projection, and the information floor applies to each
+one separately. A pane is a channel with a coverage, an omission rate, and a
+review latency, and the front matter's question, which channel and what can
+it not show, has a per-pane answer. The claims pane shows what cooperating
+clients registered, not what a non-cooperating process wrote; the lineage
+pane shows the witnessed record, not the unrecorded fork; the cost ledger
+shows a protected meter's count, not its cause. A console that draws all of
+them beautifully on one screen has not lowered the floor; it has made the
+floor easier to forget. The design rule this chapter derives, that every
+digest line must carry a route back to its artifact, is the rule the panes
+are held to, and it is what distinguishes an instrument from a dashboard.
+
+Second, the console is not only a viewer. It issues commands: claim and
+release, begin and done, a note, a lane message, a dispatch rejection, an
+interruption of an agent, a kill, a steer. Each of those passes through the
+daemon and lands in the same single-writer record the agents write to, so the
+console is an authority surface in the \pdassurance{Coordinated} mode, with
+the same ceiling as any other cooperating client, and its commands are the
+operator's own work units, receipted like anyone else's. The rendering stack
+behind the window (a native shell with vector surfaces for the bespoke
+charts) is a separate decision record and carries no claim in this book. What
+carries a claim is the grade: the default build and the continuous
+integration gate compile and test the console's model on every platform; the
+window itself builds only on one platform, behind a feature flag, in one
+dedicated job. Built, weakly, and the weakness is exactly that the instrument
+most readers will picture is the part least often exercised by the tests.
+
+\subsection{Modes of cooperation}\label{sec:cooperation-modes}
+
+The chapter has spoken of one operator and many agents. The product's own
+design binder names five ways people and agents actually share a repository,
+and each is a supervision regime in this chapter's sense: it fixes who holds
+write authority, what the person must be able to see, and how a conflict is
+settled. The binder's names for the two kinds of agent are worth keeping:
+\emph{Voyagers} do the work, and \emph{Longshoremen} watch it, keeping the
+continuous-integration state, the memory, the claims, and the transcripts in
+view.
+
+\begin{description}[leftmargin=2.2cm,style=nextline,itemsep=3pt]
+  \item[Solo with staff] One person writes. Longshoremen observe and suggest;
+  they hold no write authority. The person must see the staff's suggestions
+  as suggestions, and the legibility cost is the smallest of the five:
+  nothing changes that the person did not type.
+  \item[Pair with agent] One person and one Voyager. The agent may suggest,
+  patch, test, and respond to guidance; the person directs. Authority is
+  shared turn by turn, and the person must see every patch before it lands,
+  which is the regime the forced-zoom diff of the canary protocol above was
+  designed for.
+  \item[Ensemble] Several Voyagers, partitioned by context, with a
+  Longshoreman tracking the dependencies between partitions and the parleys
+  that resolve them. Write authority is distributed by the partition, so the
+  cost of seeing is paid per partition and the tracking Longshoreman is the
+  digest this chapter prices.
+  \item[Nightshift] Agents work unattended under strict budgets, tests, and
+  pull-request rules, then present artifacts and transcripts for review. The
+  agent writes within its budget; the person sees the artifacts, not the
+  acts. The binder's rule is the one to remember: a Nightshift agent may open
+  a pull request under budget, but merging requires explicit rules and green
+  gates. This is the regime with the largest gap between what happened and
+  what the person saw, and therefore the one the information floor bites
+  hardest.
+  \item[Harbor co-edit] People and agents as co-equal peers in one governed
+  editor buffer, with claims, semantic conflicts, and salvage. Write
+  authority is co-equal and conflicts are settled by the claim machinery of
+  \pdchapref{swk}{The Single-Writer Kernel}: a same-symbol write is blocked or
+  forced into a parley, a dependency conflict warns, a low-confidence overlap
+  is advisory, and a rename or a delete draws the stronger review.
+\end{description}
+
+Three governance rules cut across the modes and are the chapter's normative
+claim made operational: the operator controls the harbor's policy while the
+agents' souls control their commitments within it; a Longshoreman must not
+silently perform a consequential action outside its mandate; and any action
+that requires a human in the loop must be shown as such in the instrument, not
+inferred from its absence. Read as regimes, the five modes are five points on
+this chapter's boundary diagram, ordered by how much of the write authority
+has left the person and, in the same order, by how many bits of digest the
+person must read to remain the operator rather than the audience. The modes
+are a design invariant; the costs per mode are an empirical hypothesis, and
+the study named in the front matter is where they will be measured.
+
 \pdexercisepointer{\ref{ex:ls-sdt-limits}}{\ref{ex:ls-freeze-probe-study}}{\pageref{ex:ls-sdt-limits}}
 
 \begin{pdrecitation}
@@ -2245,9 +2337,10 @@ are durable and addressable is unusually well-placed here, because each compacti
 re-derives from source instead of recursing on prose. \textbf{(4) Over-flattening
 (the Scott failure):} the digest reads clean but the real situation is unreachable
 from it --- detection rule: any digest line with no deep-link to its artifact; cure:
-legibility-with-zoom enforced by construction. A spartan, text-only operator console
-enforces this almost for free, because a terminal grid \emph{cannot} over-render: the
-medium itself forbids the flattening.
+legibility-with-zoom enforced by construction. A text-only console enforces
+this almost for free, because a terminal grid \emph{cannot} over-render; the
+product's console (\S\ref{sec:operator-instrument}) renders richly, so it
+must enforce the rule deliberately, pane by pane.
 
 
 \begin{table}[H]
@@ -3338,7 +3431,7 @@ L & Episodic memory; pheromone decay; skill index & \Built & \path{lib/episodic-
 L & Anomaly monitor (detect-and-compensate, post-commit) & \BuiltWeak & \texttt{lib/arbiter.ts:328} is a log subscriber (Prop.~\ref{prop:regiment}) \\
 L & Operator attention queue (regret-ranked lanes) & \Designed & ADR-0046; not yet ranked into lanes \\
 L & Discovery router (relevance ranking) & \Designed & ADR-0030; \texttt{lib/router.ts} not yet on disk \\
-L & Text-only operator console & \Designed & ADR-0046; \texttt{core/pd-tui} not yet on disk \\
+L & Operator console (native shell; Mission view and inspectors, \S\ref{sec:operator-instrument}) & \BuiltWeak & ADR-0046, ADR-0112; \path{core/pd-console}; the window builds on one platform behind a feature flag \\
 L & Task-continuation head (successor-facing compaction) & \Designed & Thm.~\ref{thm:split-digest}; \texttt{lib/resurrection.ts} is the partial form \\
 L & Oversight head / SLM sidecar (air-gapped digest authoring) & \Vision & Thm.~\ref{thm:split-digest} corollary; no design doc yet \\
 A & Roadmap as versioned intent (authority accountable to it) & \BuiltWeak & rows/matrices exist; accountability \Designed \\
