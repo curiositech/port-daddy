@@ -20,6 +20,31 @@
   % in a session; sized to Palatino's lowercase.
   \setmonofont{SourceCodePro-Regular.otf}[BoldFont=SourceCodePro-Bold.otf,
     Scale=MatchLowercase]
+  % Sans: TeX Gyre Heros, the grotesk the Swiss and technical editions already
+  % use for display; without it \textsf falls to Latin Modern Sans.
+  \setsansfont{texgyreheros-regular.otf}[ItalicFont=texgyreheros-italic.otf,
+    BoldFont=texgyreheros-bold.otf,BoldItalicFont=texgyreheros-bolditalic.otf,
+    Scale=MatchLowercase]
+  % newpxmath declared its operators font and the \mathrm/\mathsf/\mathtt
+  % alphabets before fontspec had set the faces, so every digit, \log, \max
+  % and text subscript in math, and every pgfplots tick numeral, was set in
+  % Latin Modern while the words around it were Palatino. The faces are
+  % declared here under fixed NFSS family names and the math alphabets bound
+  % to those names (the \rmdefault indirection resolved to Latin Modern).
+  \newfontfamily\pdmathtextface{TeXGyrePagellaX-Regular.otf}[BoldFont=TeXGyrePagellaX-Bold.otf,
+    ItalicFont=TeXGyrePagellaX-Italic.otf,BoldItalicFont=TeXGyrePagellaX-BoldItalic.otf,
+    NFSSFamily=pdpag]
+  \newfontfamily\pdmathsansface{texgyreheros-regular.otf}[BoldFont=texgyreheros-bold.otf,
+    Scale=MatchLowercase,NFSSFamily=pdher]
+  \newfontfamily\pdmathmonoface{SourceCodePro-Regular.otf}[BoldFont=SourceCodePro-Bold.otf,
+    Scale=MatchLowercase,NFSSFamily=pdscp]
+  \SetSymbolFont{operators}{normal}{TU}{pdpag}{m}{n}
+  \SetSymbolFont{operators}{bold}{TU}{pdpag}{b}{n}
+  \SetMathAlphabet{\mathrm}{normal}{TU}{pdpag}{m}{n}
+  \SetMathAlphabet{\mathbf}{normal}{TU}{pdpag}{b}{n}
+  \SetMathAlphabet{\mathit}{normal}{TU}{pdpag}{m}{it}
+  \SetMathAlphabet{\mathsf}{normal}{TU}{pdher}{m}{n}
+  \SetMathAlphabet{\mathtt}{normal}{TU}{pdscp}{m}{n}
   % The part openers set their display type in Times (the cover's face). Under
   % fontspec the legacy \fontfamily{ptm} has no TU italic or small caps, so the
   % face is declared here, with both.
@@ -543,15 +568,29 @@
 % Part opener: one full-bleed page in the part's hue, cream text, the part's
 % claim, its chapters, and a plate when the part has one.
 % \pdpart{numeral}{title}{hue}{blurb}{chapter list}.
+% The Swiss and technical part pages spend their height on the numeral, so
+% their chapter list is set compact; otherwise a three-chapter part spills the
+% list onto a second page that carries the body's running head.
+\newif\ifpdcompactpartlist
 \newcommand{\pdpartchapter}[4]{%
-  \par\noindent\pdchaplink{#2}{{\Large\bfseries #1}\quad{\large\bfseries #3}}\par
-  \vspace{2pt}\noindent\hspace*{2.4em}\begin{minipage}{0.82\textwidth}\small #4\end{minipage}\par
-  \vspace{9pt}}
+  \ifpdcompactpartlist
+    \par\noindent\pdchaplink{#2}{{\large\bfseries #1}\quad{\bfseries #3}}\par
+    \vspace{1pt}\noindent\hspace*{2.0em}\begin{minipage}{0.86\linewidth}\footnotesize #4\end{minipage}\par
+    \vspace{5pt}%
+  \else
+    \par\noindent\pdchaplink{#2}{{\Large\bfseries #1}\quad{\large\bfseries #3}}\par
+    \vspace{2pt}\noindent\hspace*{2.4em}\begin{minipage}{0.82\textwidth}\small #4\end{minipage}\par
+    \vspace{9pt}%
+  \fi}
 \makeatletter
 % The drawing sheet of the technical edition: frame, inch ticks, faint grid,
 % title block bottom right. #1 title, #2 sheet name.
 \def\pd@techsheet#1#2{%
   \AddToShipoutPictureBG*{\AtPageLowerLeft{\begin{tikzpicture}[x=1in,y=1in]
+    % The picture is placed by its bounding box, so without this the sheet's
+    % (0.5,0.5) corner landed on the page corner and the whole frame sat half
+    % an inch low and left, cutting through the running head and epigraphs.
+    \useasboundingbox (0,0) rectangle (\paperwidth,\paperheight);
     \draw[hhgray!18,line width=.3pt,step=0.5] (0.5,0.5) grid (6.5,9.5);
     \draw[hhink,line width=.7pt] (0.5,0.5) rectangle (6.5,9.5);
     \foreach \x in {1,...,6} \draw[hhink,line width=.5pt] (\x,0.5)--(\x,0.6) (\x,9.4)--(\x,9.5);
@@ -596,14 +635,14 @@
     \vspace*{0.3cm}
     \noindent{\pdgrotesk\fontsize{9.5}{12}\selectfont\bfseries Part #1}\hfill{\pdgrotesk\fontsize{9.5}{12}\selectfont\pdeditiontitle}\par
     \vspace{0.3cm}\noindent{\color{hhpaper}\rule{\linewidth}{1.4pt}}\par
-    \vspace{1.4cm}
-    \noindent{\pdgrotesk\fontsize{150}{150}\selectfont\bfseries #1\par}
     \vspace{0.9cm}
+    \noindent{\pdgrotesk\fontsize{120}{120}\selectfont\bfseries #1\par}
+    \vspace{0.7cm}
     \noindent{\pdgrotesk\fontsize{30}{34}\selectfont\bfseries\hyphenpenalty=10000\raggedright #2\par}
-    \vspace{0.9cm}
+    \vspace{0.7cm}
     \noindent\begin{minipage}{0.62\linewidth}{\pdgrotesk\fontsize{11}{15}\selectfont\hyphenpenalty=10000\raggedright #4\par}\end{minipage}\par
     \vfill
-    {\hypersetup{linkcolor=hhpaper}\noindent\begin{minipage}{0.74\linewidth}\pdgrotesk #5\end{minipage}\par}
+    {\pdcompactpartlisttrue\hypersetup{linkcolor=hhpaper}\noindent\begin{minipage}{0.74\linewidth}\pdgrotesk #5\end{minipage}\par}
     \vspace{0.5cm}
     \end{adjustwidth}}
 % technical: a drawing sheet with the part's numeral in the one warm accent
@@ -614,14 +653,14 @@
     \vspace*{0.9cm}
     \noindent{\pdgrotesk\footnotesize Part #1\hfill\pdeditiontitle}\par
     \vspace{0.3cm}\noindent{\color{hhink}\rule{\linewidth}{0.5pt}}\par
-    \vspace{1.4cm}
-    \noindent{\pdgrotesk\fontsize{140}{140}\selectfont\color{pdamber}#1\par}
     \vspace{0.9cm}
-    \noindent{\pdgrotesk\fontsize{26}{31}\selectfont\hyphenpenalty=10000\raggedright #2\par}
+    \noindent{\pdgrotesk\fontsize{120}{120}\selectfont\color{pdamber}#1\par}
     \vspace{0.7cm}
+    \noindent{\pdgrotesk\fontsize{26}{31}\selectfont\hyphenpenalty=10000\raggedright #2\par}
+    \vspace{0.6cm}
     \noindent\begin{minipage}{0.62\linewidth}{\itshape\hyphenpenalty=10000\raggedright #4\par}\end{minipage}\par
     \vfill
-    {\hypersetup{linkcolor=hhink}\noindent\begin{minipage}{0.74\linewidth}#5\end{minipage}\par}
+    {\pdcompactpartlisttrue\hypersetup{linkcolor=hhink}\noindent\begin{minipage}{0.74\linewidth}#5\end{minipage}\par}
     \vspace{2.4cm}
     \end{adjustwidth}}
 \newcommand{\pdpart}[5]{%
