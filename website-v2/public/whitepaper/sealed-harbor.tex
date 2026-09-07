@@ -162,7 +162,7 @@ receive neither. Every week some enterprise negotiates this standoff with
 lawyers and air-gapped laptops. The question this chapter answers is whether a
 \emph{computational} contract can replace the lawyers' one, and what, precisely,
 it can promise. The systems literature answered a narrower version first: Ryoan
-\cite{ryoan16} confines a proprietary module inside an attested enclave so that
+\pdcite{ryoan16} confines a proprietary module inside an attested enclave so that
 a data owner and a code owner who distrust each other both keep their secrets.
 Ryoan buys its confinement with a module that sees its input once and keeps no
 state. A looping, tool-calling agent cannot pay that price, which is why this
@@ -205,9 +205,9 @@ with everything it read. This is a design rationale, not a theorem, and it is
 the one load-bearing statement in this chapter that carries no proof and no
 script. It rests on the well-known static-analysis result beneath it, that
 certifying implicit flows soundly forces exactly this dichotomy: the label
-creep of the Denning certification lattice \cite{denning77} and the extra
+creep of the Denning certification lattice \pdcite{denning77} and the extra
 restrictiveness a sound purely dynamic monitor must accept relative to a static
-one \cite{rs10}. No sound token-granularity flow analysis for a generative model
+one \pdcite{rs10}. No sound token-granularity flow analysis for a generative model
 is known; the burden of exhibiting one falls on any design that assumes it.
 \end{pdclaim}
 
@@ -257,7 +257,7 @@ key, nonce, and epoch. Derek and Erin \emph{independently} verify the
 attestation; Derek's key broker releases the data key only to the approved
 measurement, and Erin's key broker releases the model and skill key under the
 same condition, the attester, verifier, and relying-party pattern of IETF RATS
-\cite{rats}. The job then runs with no ambient network or credentials. Neither
+\pdcite{rats}. The job then runs with no ambient network or credentials. Neither
 principal, and not the cloud operator, can read the other's plaintext: the room
 is sealed from three sides at once.
 
@@ -282,7 +282,7 @@ inference endpoint would be a third principal the contract never admitted.
 \paragraph{Whole-worker taint and two gates.}
 After the first secret read the entire worker state, and every later emission,
 is tainted until job destruction: decentralized labels in the Myers--Liskov
-style \cite{myers-liskov}, owned by mutually distrustful principals, under
+style \pdcite{myers-liskov}, owned by mutually distrustful principals, under
 which ordinary computation can only \emph{add} restrictions. This is the same
 shape as capability attenuation in \pdchapref{anchor}{The Anchor Protocol},
 where a delegated token never carries more authority than its parent:
@@ -384,7 +384,7 @@ voting booth: the turnstile clicks once per voter and the tally board shows only
 party totals; a poll-watcher outside learns exactly the declared aggregate and
 nothing about any ballot, no matter how long she watches or in what order
 voters arrive. That is noninterference \emph{modulo declassification} in the
-Goguen--Meseguer lineage \cite{goguen-meseguer-82,goguen-meseguer-84}: silence
+Goguen--Meseguer lineage \pdcite{goguen-meseguer-82,goguen-meseguer-84}: silence
 except through the slot, and through the slot, only what the contract says. The
 misread to preempt: the theorem does not say the slot is safe. It says the slot
 is the \emph{only} opening; whether the declared function $g$ releases too much
@@ -407,7 +407,7 @@ pairs: zero distinguishing observations in the honest model. The schedule
 itself is secret-independent, checked separately, since an enabledness
 difference would itself be a channel. Rushby's unwinding condition of local
 respect, that Derek-side actions never touch Erin-observable state, holds
-mechanically \cite{rushby}. \textbf{Mutations.} A gate that leaks the raw
+mechanically \pdcite{rushby}. \textbf{Mutations.} A gate that leaks the raw
 secret is caught distinguishing the equal-parity pair $(0,2)$ with the witness
 trace $\mathtt{load}\to\mathtt{read}\to\mathtt{submit}\to\mathtt{release}$,
 after which Erin sees \texttt{(gate,0)} in one world and \texttt{(gate,2)} in
@@ -417,7 +417,7 @@ Reverting either mutation restores the property [internal,
 \end{pdclaim}
 
 The clause about committed input is a hypothesis, not a modelling convenience.
-It makes the property an instance of \emph{delimited release} \cite{sm03} in
+It makes the property an instance of \emph{delimited release} \pdcite{sm03} in
 the degenerate case where delimited release collapses to noninterference;
 their own condition is that no variable used in a declassification is updated
 before it. What the hypothesis costs is stated in the boundary below and paid
@@ -471,7 +471,7 @@ quantifies over action sequences of a model whose gate applies $g$ to committed
 input. It does not cover a worker that launders: computing $t=f(s)$ and
 submitting $t$ so that the gate honestly releases $g(t)$. That is the classical
 escape-hatch laundering attack, which the delimited-release literature names
-and rules out by enforcement \cite{sm03}. Enforcement is unavailable here,
+and rules out by enforcement \pdcite{sm03}. Enforcement is unavailable here,
 because a language model's release candidate is arbitrary output rather than a
 syntactically identifiable expression a checker can quantify over. The
 residual is therefore priced in Section~\ref{sec:sealed-budget}, which is the
@@ -553,7 +553,7 @@ process can decline to invoke gates nothing.
 
 \begin{pdboundary}
 Controllability is relative to the mediated alphabet: partial observation
-shrinks the regimentable set (Lin--Wonham \cite{lin-wonham}), and policies that
+shrinks the regimentable set (Lin--Wonham \pdcite{lin-wonham}), and policies that
 reference unmediated \emph{state} need that extension, which the kernel chapter
 states. Detect-only is not hopeless; it is a different business, post-hoc
 audit and slashing, which \pdchapref{bonded}{The Bonded Commons} treats. And
@@ -616,7 +616,7 @@ $\sigma\le\varepsilon_{\max}$, including under concurrent invocation, because
 the kernel's single-writer serialization makes any concurrent execution
 observationally equal to some sequential interleaving.
 \textbf{Corollary.} The ledger is a \emph{privacy filter} in the sense of
-Rogers, Roth, Ullman and Vadhan \cite{rruv16}: a stopping rule that halts
+Rogers, Roth, Ullman and Vadhan \pdcite{rruv16}: a stopping rule that halts
 before a pre-specified budget is exceeded. What licenses
 $\sigma\le\varepsilon_{\max}\Rightarrow(\varepsilon_{\max},0)$-differential
 privacy under adaptive, heterogeneous spend is their filter theorem, that
@@ -640,10 +640,10 @@ such a filter is \emph{not} valid: the heuristic ``run the advanced bound on
 whatever the ledger actually spent'' breaks when the parameters or the stopping
 point are adaptively chosen. This chapter therefore quotes the advanced bound
 $\bigl(\sqrt{2k\ln(1/\delta')}\,\varepsilon+k\varepsilon(e^\varepsilon-1),\,\delta'\bigr)$
-\cite{drv} only for engagements in which $k$ and the per-release
+\pdcite{drv} only for engagements in which $k$ and the per-release
 $\varepsilon$ are fixed in the work order, where the schedule is non-adaptive
 and the bound applies directly, and uses the adaptively valid filter of
-Whitehouse et al.\ \cite{wrrw23}, which recovers the advanced-composition rate
+Whitehouse et al.\ \pdcite{wrrw23}, which recovers the advanced-composition rate
 at worse constants, otherwise. Getting this wrong is not conservative: it
 certifies a smaller $\varepsilon$ than the run is entitled to.
 
@@ -659,10 +659,10 @@ Section~\ref{sec:sealed-budget}, not the ledger, is the operative bound. The
 two accounts are for two different adversaries and the chapter owns both.
 Systems that schedule privacy budgets across concurrent jobs make the
 corresponding assumption explicit, that the analyst is trusted to implement
-the mechanism correctly \cite{pkube21}; this chapter declines that assumption
+the mechanism correctly \pdcite{pkube21}; this chapter declines that assumption
 about Erin's worker, which is precisely why it cannot lean on the ledger alone.
 Stating the two accounts in one currency needs the correspondence between
-$\varepsilon$ and min-entropy of Alvim et al.\ \cite{aacp11}, which is not
+$\varepsilon$ and min-entropy of Alvim et al.\ \pdcite{aacp11}, which is not
 discharged here.
 
 \begin{pdclaim}{Model-checked property}{The ledger's invariants on the two-client instance}
@@ -759,7 +759,7 @@ ratio test with false-alarm target $\alpha$ and miss target $\gamma$ stops,
 under leak, after expected
 $\mathbb{E}_1[N]=\bigl[(1-\gamma)\ln\tfrac{1-\gamma}{\alpha}+\gamma\ln\tfrac{\gamma}{1-\alpha}\bigr]/\mathrm{KL}(p_1\Vert p_0)$
 outputs, analogously $\mathbb{E}_0[N]$ under the null, and is optimal in the
-Wald--Wolfowitz sense \cite{wald,wald-wolfowitz}. The miss target is written
+Wald--Wolfowitz sense \pdcite{wald,wald-wolfowitz}. The miss target is written
 $\gamma$ because $\beta$ is already the per-canary miss rate and $b$ is the
 release-channel width of Section~\ref{sec:sealed-budget}.
 \end{pdclaim}
@@ -838,7 +838,7 @@ exfiltrate up to $b$ bits through it: the noninterference property guarantees
 only that those bits pass through the declared gate, not that they are
 innocent. Across $q$ jobs the raw capacity is $q\cdot b$ bits; choosing among
 $s$ timing slots adds up to $\log_2 s$ bits per event, which is why timing sits
-outside the possibilistic model. In Smith's vocabulary \cite{smith-qif}, the
+outside the possibilistic model. In Smith's vocabulary \pdcite{smith-qif}, the
 design does not drive min-entropy leakage to zero; it makes leakage a
 \emph{declared, metered} quantity. Fixed schemas, padding, coarse statuses,
 query limits, and scheduled release turn an unlimited covert channel into a
@@ -890,7 +890,7 @@ overclaims.
 \paragraph{The lift.}
 Theorem~\ref{thm:sealed-noninterference} is exhaustive on a finite model; the
 general claim over unbounded state is a proof obligation with a known shape.
-Rushby's channel-control formulation \cite{rushby} reduces noninterference for
+Rushby's channel-control formulation \pdcite{rushby} reduces noninterference for
 a transition system to three local \emph{unwinding conditions}, output
 consistency, step consistency, and local respect, each a per-transition lemma
 amenable to mechanization, and the Isabelle Archive of Formal Proofs already
@@ -903,7 +903,7 @@ depths and all secrets. One precision the lift must get right from the start:
 Rushby's soundness result for these conditions is with respect to intransitive
 purge, but van der Meyden shows the conditions are sound \emph{and complete}
 for the strictly stronger TA-security property, which additionally preserves
-the \emph{order} of permitted transmissions \cite{vdm07}. Discharging the
+the \emph{order} of permitted transmissions \pdcite{vdm07}. Discharging the
 three lemmas therefore certifies TA-security, and the lift should state that
 target explicitly. Two extensions of the finite model are open alongside the
 lift: a \texttt{submit} that carries a payload, so the mutation suite can
