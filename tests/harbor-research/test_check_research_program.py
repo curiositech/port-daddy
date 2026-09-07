@@ -9,8 +9,8 @@ import json
 import sys
 import tempfile
 import unittest
+import unittest.mock
 from pathlib import Path
-from unittest import mock
 
 REPO = Path(__file__).resolve().parents[2]
 SCRIPT = REPO / "scripts/harbor-research/check_research_program.py"
@@ -92,7 +92,7 @@ class DriftIsCaught(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             tmp_index = Path(tmp) / "library-index.json"
             tmp_index.write_text(json.dumps(index), encoding="utf-8")
-            with mock.patch.object(mod, "LIBRARY_INDEX", tmp_index):
+            with unittest.mock.patch.object(mod, "LIBRARY_INDEX", tmp_index):
                 problems = mod.check(self.program)
         self.assertTrue(
             any(result_id in p and "not-a-paper.tex" in p for p in problems),
@@ -120,7 +120,7 @@ class EstateDerivationTracksStatus(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             tmp_corpus = Path(tmp) / "corpus.json"
             tmp_corpus.write_text(json.dumps(corpus), encoding="utf-8")
-            with mock.patch.object(mod, "CORPUS", tmp_corpus):
+            with unittest.mock.patch.object(mod, "CORPUS", tmp_corpus):
                 flipped = mod.derive_estate()
                 check_problems = mod.check(mod.load(mod.PROGRAM))
 
