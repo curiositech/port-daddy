@@ -1,18 +1,26 @@
 import { Link } from 'react-router-dom'
-import { ArrowRight, FileText } from 'lucide-react'
-import { TABLE_OF_CONTENTS, chapterRoleLabel, type WhitePaper } from '@/data/whitePapers'
+import { ArrowRight } from 'lucide-react'
+import { TABLE_OF_CONTENTS, TEXTBOOK, chapterRoleLabel, type WhitePaper } from '@/data/whitePapers'
 
 /**
- * The Book's table of contents: four parts, seven chapters, in the order the
+ * The Book's table of contents: four parts, eight chapters, in the order the
  * argument needs. It is the ONLY ordering the site draws. There is no
  * separate reading order, dependency DAG, or nesting diagram any more: the
  * order is the dependency order (each chapter stands on the ones before it,
  * and each proving chapter follows the chapter whose promises it keeps), and
  * every number here comes from whitepaper/textbook.json via ./textbook.json.
  *
+ * Each row carries the chapter's question (the sentence its opening page asks)
+ * rather than a page count or a per-chapter PDF: the Book is one document, and
+ * the site points at the chapter, not at a detached file.
+ *
  * Each part row carries the part's hue as a rule; the hue is the part's, not
  * the chapter's, so a chapter never competes with the part it sits in.
  */
+
+function chapterQuestion(id: string): string | undefined {
+  return TEXTBOOK.chapters.find((chapter) => chapter.id === id)?.question
+}
 
 const PART_RULE: Record<string, string> = {
   pdcobalt: 'bg-[var(--brand-primary)]',
@@ -47,9 +55,14 @@ function ChapterRow({ paper, onSelect }: { paper: WhitePaper; onSelect?: (id: st
         <div className="flex flex-wrap items-baseline gap-x-[var(--space-3)] gap-y-[var(--space-1)]">
           {title}
           <span className="font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
-            {chapterRoleLabel(paper)} · {paper.pages} pp
+            {chapterRoleLabel(paper)}
           </span>
         </div>
+        {chapterQuestion(paper.id) ? (
+          <p className="font-display text-[length:var(--type-panel-body-size)] italic leading-[var(--leading-body-compact)] text-[var(--text-primary)]">
+            {chapterQuestion(paper.id)}
+          </p>
+        ) : null}
         <p className="text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
           {paper.claim}
         </p>
@@ -58,16 +71,9 @@ function ChapterRow({ paper, onSelect }: { paper: WhitePaper; onSelect?: (id: st
             to={paper.readerHref}
             className="inline-flex items-center gap-[var(--space-1)] text-[var(--text-primary)] underline underline-offset-4 hover:text-[var(--brand-primary)] hover:no-underline"
           >
-            Read
+            Read the chapter
             <ArrowRight aria-hidden="true" size={12} />
           </Link>
-          <a
-            href={paper.pdfPath}
-            className="inline-flex items-center gap-[var(--space-1)] text-[var(--text-secondary)] underline underline-offset-4 hover:text-[var(--brand-primary)] hover:no-underline"
-          >
-            <FileText aria-hidden="true" size={12} />
-            PDF
-          </a>
         </div>
       </div>
     </li>
