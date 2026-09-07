@@ -66,7 +66,11 @@
         \vspace{3pt}{\raggedright\scriptsize\itshape #2\par}\end{minipage}}%
       % \marginpar is placed by the page builder and moved up when it would run
       % off the foot; it cannot be used inside a box, where marginnote stands in.
-      \ifinner\marginnote{\usebox{\pd@mfbox}}\else\marginpar{\usebox{\pd@mfbox}}\fi
+      % \marginpar aligns a box's reference point with the line; the box is
+      % raised so its top sits at the line's top and its height is declared,
+      % so the page builder measures it and moves it up only when it must.
+      \ifinner\marginnote{\usebox{\pd@mfbox}}\else
+        \marginpar{\raisebox{\dimexpr\ht\strutbox-\ht\pd@mfbox\relax}[\ht\strutbox][\dimexpr\ht\pd@mfbox+\dp\pd@mfbox-\ht\strutbox\relax]{\usebox{\pd@mfbox}}}\fi
     }{}%
   \fi}
 

@@ -316,7 +316,6 @@ everything else is convenience.
 
 \subsection{Why ``reference monitor,'' and why \emph{not} consensus}
 
-\pdmarginfigure{lampson}{Lampson's 1971 \emph{Protection} gave operating systems the access-matrix model this kernel still enforces, one gate at a time.}%
 The right mental model is the \textbf{reference monitor} of Anderson and
 Lampson~\cite{anderson1972,lampson1974}: a mediator that is \emph{always invoked}
 (complete mediation), \emph{tamper-evident}, and \emph{small enough to verify}.
@@ -340,6 +339,7 @@ out-of-band enforcement problem we scope to the threat model
 (\S\ref{sec:threatmodel}) and credit, when it lands, to a separate-user kernel
 boundary that does not yet exist (\S\ref{sec:enforcement-gap}).
 
+\pdmarginfigure{lampson}{Lampson's 1971 \emph{Protection} gave operating systems the access-matrix model this kernel still enforces, one gate at a time.}%
 \keyidea{The swarm \emph{looks} like a distributed-systems problem --- many
 agents, contention, failover --- so the trained reflex is Raft, Paxos, CRDTs. The
 kernel's defining move is to refuse that problem. One writer, one machine, one

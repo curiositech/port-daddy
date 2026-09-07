@@ -692,14 +692,14 @@
     \IfFileExists{plates/technical/part-#1.jpg}{%
       \pagecolor{#3}\color{hhpaper}%
       % the engraving (composited on this ink) fills the lower half of the page
-      \AddToShipoutPictureBG*{\AtPageLowerLeft{\makebox[\paperwidth][c]{\includegraphics[width=0.74\paperwidth]{plates/technical/part-#1.jpg}}}}%
+      \AddToShipoutPictureBG*{\AtPageLowerLeft{\makebox[\paperwidth][c]{\includegraphics[width=0.62\paperwidth]{plates/technical/part-#1.jpg}}}}%
       \begin{adjustwidth}{0pt}{-\dimexpr\marginparsep+\marginparwidth\relax}
       \vspace*{0.3cm}
       \noindent{\pdgrotesk\fontsize{9.5}{12}\selectfont Part #1}\hfill{\pdgrotesk\fontsize{9.5}{12}\selectfont\pdeditiontitle}\par
       \vspace{0.3cm}\noindent{\color{hhpaper}\rule{\linewidth}{0.5pt}}\par
       \vspace{0.7cm}
-      \noindent{\pdgrotesk\fontsize{72}{72}\selectfont\color{hhpaper}#1\par}
-      \vspace{0.4cm}
+      \noindent{\pdgrotesk\fontsize{64}{64}\selectfont\color{hhpaper}#1\par}
+      \vspace{0.3cm}
       \noindent{\pdgrotesk\fontsize{28}{32}\selectfont\hyphenpenalty=10000\raggedright #2\par}
       \vspace{0.45cm}
       \noindent\begin{minipage}{0.78\linewidth}{\pdgrotesk\fontsize{10.5}{14}\selectfont\hyphenpenalty=10000\raggedright #4\par}\end{minipage}\par
