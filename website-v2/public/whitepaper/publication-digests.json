@@ -12,19 +12,19 @@
       "sha256": "283436bc511173dd5b6a63f4c8197440bf0908c4055b0115ee4fe8532b193c79"
     },
     "website-v2/public/whitepaper/coordination-papers-mega-volume-swiss.pdf": {
-      "pages": 537,
-      "bytes": 3424798,
-      "sha256": "91843171e6430d81de742c318de484c240e934cde239206c702e1b7ba24c1463"
+      "pages": 542,
+      "bytes": 3443377,
+      "sha256": "015eaeec1bb4b6f44726cc5e9d4d7df4e1ddf97aa1b846e3a64f87218897c7a0"
     },
     "website-v2/public/whitepaper/coordination-papers-mega-volume-technical.pdf": {
-      "pages": 533,
-      "bytes": 7948343,
-      "sha256": "e1db78403c20b82eb44fc2abb92369f76e9069485cd23ef7cccae2c6522f42d3"
+      "pages": 538,
+      "bytes": 7966441,
+      "sha256": "bb420efdba4d7f14697bcf29fab4df68435684da53823f8c85fc8d21dc342fd6"
     },
     "website-v2/public/whitepaper/coordination-papers-mega-volume.pdf": {
-      "pages": 533,
-      "bytes": 8240814,
-      "sha256": "8ed7fdd686faa7f30cd2b1bc735dd94406c8c4151d9a8f09835d1ae857741a00"
+      "pages": 538,
+      "bytes": 8258877,
+      "sha256": "fa4356179cb270e958a053dbf1ed3569dee129518c60089e71707afe0f71458e"
     },
     "website-v2/public/whitepaper/federated-harbor-whitepaper.pdf": {
       "pages": 45,
@@ -37,24 +37,24 @@
       "sha256": "8ea38614e2477eae46d30cd20e28247c67a98f17812f55807de87784165239e5"
     },
     "website-v2/public/whitepaper/legible-swarm-whitepaper.pdf": {
-      "pages": 61,
-      "bytes": 948014,
-      "sha256": "c09924762516f91aeb4c7999ef5482d7c87f3d708350f57e89dad961c293899c"
+      "pages": 62,
+      "bytes": 954355,
+      "sha256": "ea1c18c7fccbce8fa891be54e25a157b0ce01883e542a49908cb2421847a38f9"
     },
     "website-v2/public/whitepaper/sealed-harbor-whitepaper.pdf": {
       "pages": 20,
-      "bytes": 562276,
-      "sha256": "b5773929c07bd655019284339f4d996081876acecc9dffe7e204d80000520504"
+      "bytes": 562528,
+      "sha256": "a15ebc89de38485f931ea81df2c7c25a774099244317ef1c0352ef2462c5cf41"
     },
     "website-v2/public/whitepaper/single-writer-kernel-whitepaper.pdf": {
-      "pages": 55,
-      "bytes": 841763,
-      "sha256": "5b2d483599ff1cd68ef5ebafd779ac26f9796bb68f255de240aa2358a4e2549b"
+      "pages": 56,
+      "bytes": 847235,
+      "sha256": "6f7c559c60d51826cc2525c7bacb02ae30b291b169e88a645133b2512434448f"
     },
     "website-v2/public/whitepaper/spawn-to-person-whitepaper.pdf": {
       "pages": 50,
-      "bytes": 819941,
-      "sha256": "3f5b49e00abcee5878332ba50fe7e5c69a887ad2de4a3cc1ce3df496a43342d3"
+      "bytes": 820838,
+      "sha256": "704a7350c74764d061ef34edce82e70257c9a7815978a122e8d0fd7526656bae"
     }
   }
 }
