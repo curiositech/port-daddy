@@ -32,6 +32,13 @@ PALETTE = {
         "III": {"name": "Konkret Violet", "100": "#582C83", "62": "#8B6BAA", "38": "#B9A0CE"},
         "IV": {"name": "Ledger Olive", "100": "#666A00", "62": "#9FA05B", "38": "#C2C194"},
     },
+    # chapter-he's three-column redo asked for 100/60/35% tints specifically
+    # (not the book's 100/62/38 ladder) -- olive mixed toward paper at those
+    # exact fractions, kept here rather than only inline in the prompt text.
+    "custom_tints": {
+        "IV_60": "#A2A260",
+        "IV_35": "#C7C69B",
+    },
 }
 
 # ---------------------------------------------------------- shared clauses -
@@ -261,7 +268,40 @@ PLATES = {
     "part-IV": dict(
         aspect="3:2", image_size="4K", style="cover",
         mechanism="three parties, one book of record",
+        # v1's three converging rules to a vanishing point read as a
+        # perspective sketch, not Swiss (review note). v2 drops the
+        # convergence entirely: three rectangles, one flat horizontal rail
+        # crossing all three at the same height, no diagonals but the
+        # standard construction-grid hairlines.
         a=_p(
+            "Horizontal 3:2 composition, full bleed edge to edge, the entire ground a single unbroken flat "
+            "field of olive #666A00. A 3-unit-tall bare paper #FBF7EF band spans the full width along the "
+            "very top edge, completely empty. Below it, draw exactly three solid rectangles of paper "
+            "#FBF7EF — three shapes total, no more and no fewer — all equal in area but each a "
+            "different proportion: one wide and short, one nearly square, one narrow and tall. The three "
+            "sit apart from one another at different heights across the frame, never touching, weighted "
+            "toward different corners so the arrangement reads as deliberately asymmetric rather than "
+            "centered. One single solid horizontal bar of near-black ink #121212, noticeably thick, spans "
+            "the entire width of the frame edge to edge at one fixed height, passing directly through all "
+            "three rectangles at that same height and visibly crossing over each one — a single rail the "
+            "three unequal shapes all cross at once. No diagonal lines of any kind connect the rectangles; "
+            "no converging rules; no vanishing point; nothing radiates from a point. The only marks in the "
+            "picture besides the three rectangles are that one flat horizontal bar and the construction "
+            "hairlines described below. Nothing else appears."
+        ),
+        b=_p(
+            "Horizontal 3:2 composition, full bleed edge to edge, ground a single flat field of olive "
+            "#666A00. The top edge carries a bare paper #FBF7EF band, full width, completely empty. In the "
+            "field below, three solid paper #FBF7EF rectangles of exactly equal area but visibly different "
+            "proportion — one long and low, one squarish, one tall and narrow — sit scattered at "
+            "unequal heights, deliberately off-balance, none touching another. One thick, flat, perfectly "
+            "straight horizontal bar of near-black ink #121212 runs the full width of the frame at a single "
+            "constant height and passes directly across all three rectangles at that same height, "
+            "overlapping each of them once. This horizontal bar is the only line in the composition apart "
+            "from the construction hairlines described below — there are no diagonal rules, no rules "
+            "converging on a point, no perspective lines of any kind. Nothing else is drawn."
+        ),
+        v1_a=_p(
             "Horizontal 3:2 composition, full bleed edge to edge, the entire ground a single unbroken flat "
             "field of olive #666A00. A 3-unit-tall bare paper #FBF7EF band spans the full width along the "
             "very top edge, completely empty. Below it, draw exactly three solid rectangles of paper "
@@ -275,7 +315,7 @@ PLATES = {
             "same convergence point and spans the entire width of the frame edge to edge — one ledger "
             "line running under three unequal parties. Nothing else appears."
         ),
-        b=_p(
+        v1_b=_p(
             "Horizontal 3:2 composition, full bleed edge to edge, ground a single flat field of olive "
             "#666A00. The top edge carries a bare paper #FBF7EF band, full width, completely empty. In the "
             "field below, three solid paper #FBF7EF rectangles of exactly equal area but visibly different "
@@ -286,7 +326,7 @@ PLATES = {
             "runs perfectly horizontal through that same point and spans the full width of the frame edge to "
             "edge. Nothing else is drawn."
         ),
-        chosen="a", rationale="one clean rule, not a doubled line",
+        chosen="a", rationale="v2: one clean rail, no vanishing point",
     ),
     "chapter-swk": dict(
         aspect="16:9", image_size="2K", style="cover",
@@ -380,7 +420,40 @@ PLATES = {
     "chapter-ls": dict(
         aspect="16:9", image_size="2K", style="cover",
         mechanism="many small marks resolved by one circle",
+        # v1's field squares were the chapter hue's 38% tint (#9CC2B8) --
+        # too pale to print on uncoated stock (review note). v2 raises the
+        # field to a >=40% tint (#5FA093) and inverts the mechanism inside
+        # the circle: squares caught under the full-hue circle flip to
+        # paper-white cutouts, so the circle still reads as a full-hue lens.
         a=_p(
+            "Horizontal 16:9 landscape composition on flat paper #FBF7EF; a broad band of bare paper, "
+            "especially the bottom band and the outer edges, is left completely empty. Within a middle zone, "
+            "forty or more small identical solid squares of medium teal #5FA093 — a strong, clearly "
+            "visible, medium-dark tint, not a pale wash — are scattered in an irregular but grid-aligned "
+            "pattern across that zone, none touching, none rotated, each one small against the field but "
+            "unmistakably printed, dark enough to read clearly on the paper from across a room. Among them, "
+            "one single large solid flat circle of full deep teal #006B5F, dramatically bigger than any of "
+            "the small squares, sits over a cluster of them near the frame's center. Wherever a small "
+            "square would fall directly inside the area covered by that large circle, it is rendered instead "
+            "as a small solid paper-white #FBF7EF square sitting on top of the dark circle — the circle's "
+            "own dark fill shows everywhere else inside it, but each square caught inside the circle flips to "
+            "paper-white, as though the circle inverts every mark it gathers. Squares outside the circle stay "
+            "solid #5FA093 on the paper ground exactly as described. No lines connect anything, no "
+            "outlines, no shading."
+        ),
+        b=_p(
+            "Horizontal 16:9 landscape composition on flat paper #FBF7EF, the bottom third and the frame's "
+            "outer margins left as unbroken bare paper. Scattered across the remaining middle field, forty or "
+            "more small identical flat squares of medium teal #5FA093 — clearly dark and legible, well "
+            "above a pale wash — sit on an invisible regular lattice, irregular in placement but never "
+            "off-grid, never touching, never rotated. One large, solid, flat circle of full deep teal "
+            "#006B5F, far larger than any single square, sits among the cluster near the center. Every "
+            "small square that falls inside the footprint of that circle is rendered as solid paper-white "
+            "#FBF7EF instead of teal, so the circle reads as a lens that turns the marks it gathers into "
+            "bright cutouts against its own dark fill; every square outside the circle stays solid #5FA093 "
+            "on the paper ground. No connecting lines, no outlines, no shading anywhere."
+        ),
+        v1_a=_p(
             "Horizontal 16:9 landscape composition on flat paper #FBF7EF; a broad majority of the sheet, "
             "especially the bottom band and the outer edges, is bare paper left completely empty. Within a "
             "middle zone, forty or more small identical solid squares of pale teal #9CC2B8 are scattered in "
@@ -391,7 +464,7 @@ PLATES = {
             "center, as though it resolves the scattered marks into one legible whole. No lines connect "
             "anything, no outlines, no shading."
         ),
-        b=_p(
+        v1_b=_p(
             "Horizontal 16:9 landscape composition on flat paper #FBF7EF, the bottom third and the frame's "
             "outer margins left as unbroken bare paper. Scattered across the remaining middle field, forty "
             "or more tiny identical flat squares of pale teal #9CC2B8 sit on an invisible regular lattice, "
@@ -401,7 +474,7 @@ PLATES = {
             "knot of the small squares under it, one big legible form standing in for the scatter. No "
             "connecting lines, no outlines, no shading anywhere."
         ),
-        chosen="a", rationale="pale squares still visible under circle",
+        chosen="b", rationale="v2: denser inverted cluster, hue >=40%",
     ),
     "chapter-stp": dict(
         aspect="16:9", image_size="2K", style="cover",
@@ -444,7 +517,41 @@ PLATES = {
     "chapter-he": dict(
         aspect="16:9", image_size="2K", style="cover",
         mechanism="three bars on one base",
+        # v1's fan of three angled, converging bars read as a logo fragment,
+        # not Swiss (review note). v2 replaces the fan with three square-
+        # cornered flat columns on one baseline, stepping up in height, and
+        # one thin red rule at the tallest column's height -- "the price the
+        # last unit clears at" -- with custom tints (100/60/35%) mixed for
+        # this composition specifically (not the book's 100/62/38 ladder).
         a=_p(
+            "Horizontal 16:9 landscape composition on flat paper #FBF7EF; well over three-quarters of the "
+            "frame, especially top and left, is bare paper left completely empty. Three solid flat "
+            "rectangles stand side by side on one common baseline near the bottom of the frame, all the "
+            "same width, each with sharp square corners and completely flat fill — no diagonal edge, no "
+            "angled top, every edge purely horizontal or vertical. Reading left to right the three step up "
+            "in height, each one taller than the last, like three ascending bar-chart columns: the "
+            "shortest, leftmost column is solid flat #C7C69B; the middle column, taller, is solid flat "
+            "#A2A260; the tallest, rightmost column is solid flat #666A00, the densest and darkest of the "
+            "three. The columns never touch each other — a narrow gap of bare paper separates each pair. "
+            "One thin, perfectly straight horizontal rule of signal red #DA291C spans the entire width of "
+            "the frame edge to edge, at the exact height of the top of the tallest (rightmost) column — "
+            "the red line grazes only the top of that one tall column and passes as bare paper above the "
+            "shorter two. There are no diagonal lines, no fan of angled bars, no lines converging on a "
+            "point anywhere in the picture. Nothing else appears."
+        ),
+        b=_p(
+            "Horizontal 16:9 landscape composition on flat paper #FBF7EF, the frame left mostly bare, "
+            "especially the top half and the left third. Near the bottom, three solid flat rectangular "
+            "columns of equal width sit on one shared baseline, separated by small bare-paper gaps, every "
+            "edge strictly horizontal or vertical, no diagonals anywhere on any column. The columns "
+            "increase in height from left to right in three clear steps: #C7C69B for the shortest on the "
+            "left, #A2A260 for the middle column, and full solid #666A00 for the tallest column on the "
+            "right. A single thin dead-straight signal red #DA291C rule crosses the entire width of the "
+            "frame at the height of the tallest column's top edge, floating clear above the two shorter "
+            "columns. No other lines, no fan, no rays, no vanishing point, no diagonal of any kind. "
+            "Nothing else is drawn."
+        ),
+        v1_a=_p(
             "Horizontal 16:9 landscape composition on flat paper #FBF7EF; well over three-quarters of the "
             "frame, especially top, bottom, and left, is bare paper left completely empty. In the remaining "
             "space, draw three separate solid flat rectangular bars, spaced well apart with clear bare paper "
@@ -457,7 +564,7 @@ PLATES = {
             "the entire width of the frame horizontally, passing exactly through that shared base point. No "
             "outlines, no shading, no transparency, no overlap."
         ),
-        b=_p(
+        v1_b=_p(
             "Horizontal 16:9 landscape composition on flat paper #FBF7EF, the frame left mostly bare, "
             "especially along the top and the left side. Three flat, solid, non-overlapping rectangular bars "
             "fan upward from one shared point near the bottom of the frame like splayed fingers, each at a "
@@ -467,7 +574,7 @@ PLATES = {
             "shared base point where the three bars meet. No shading, no transparency, no overlap between "
             "bars anywhere."
         ),
-        chosen="a", rationale="more negative space, calmer grid",
+        chosen="a", rationale="v2: single red rule, not doubled",
     ),
     "chapter-bonded": dict(
         aspect="16:9", image_size="2K", style="cover",
