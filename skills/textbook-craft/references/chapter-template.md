@@ -109,7 +109,7 @@ series color for part openers — never a rainbow of content-kind fills.
 
 One philosophical or historical frame per chapter may survive as an
 explicitly-labelled **Interlude** (the *Gödel, Escher, Bach* dialogue slot,
-not the argument's premise) — never load-bearing, never silently woven into
+not the argument's premise) — never something the argument rests on, never silently woven into
 the argument's own prose. `HANDOFF-TEXTBOOK.md` §6 names live candidates for
 this treatment (the Parfit interlude; Hobbes, Sen, Krakoa) as open author
 decisions, not settled placements — this skill does not decide those for the

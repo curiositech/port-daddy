@@ -143,7 +143,7 @@ beside the rating. Gives away the free PDF. **Steal, directly**: printing the
 solution's page number beside the exercise rather than making the reader hunt
 for it — this is `pd-pedagogy.tex`'s `\pdexercise` margin note
 (`\itshape Solution p.\,\pageref{sol:#2}`) and the model exercise-ladder
-citation this skill treats as load-bearing, not decorative.
+citation this skill treats as essential, not decorative.
 
 ## Rudin, *Principles of Mathematical Analysis* (Tier C `[unverified]`; cited
 as the counter-example, not the model)
