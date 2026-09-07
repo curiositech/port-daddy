@@ -275,6 +275,25 @@ class TestTexReferenceToMissingPlate(unittest.TestCase):
             self.assertEqual(result.returncode, 1, msg=result.stdout + result.stderr)
             self.assertIn("references missing plate: plates/swiss/chapter-bb.jpg", result.stdout)
 
+    def test_commented_out_plate_reference_is_ignored(self) -> None:
+        """A % comment naming a plate that does not exist, and a stray brace
+        inside a comment within a macro body, must not fail the check or
+        break macro extraction."""
+        with TemporaryDirectory() as tmp:
+            repo = build_clean_fixture(Path(tmp))
+            tex = repo / WHITEPAPER_REL / "coordination-papers-mega-volume-swiss-plates.tex"
+            body = tex.read_text(encoding="utf-8")
+            body = body.replace(
+                "\\IfFileExists{plates/swiss/cover.jpg}{%",
+                "\\IfFileExists{plates/swiss/cover.jpg}{% } stray brace in a comment\n",
+                1,
+            )
+            body += "\n% \\includegraphics{plates/swiss/ghost-plate.jpg}\n"
+            tex.write_text(body, encoding="utf-8")
+            result = run_checker(repo)
+            self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
+            self.assertNotIn("ghost-plate", result.stdout)
+
     def test_missing_technical_part_plate_fails(self) -> None:
         with TemporaryDirectory() as tmp:
             repo = build_clean_fixture(Path(tmp))

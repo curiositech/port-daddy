@@ -368,6 +368,17 @@ _INCLUDEGRAPHICS_RE = re.compile(r"\\includegraphics(?:\[[^\]]*\])?\{([^}]+)\}")
 _IFFILEEXISTS_RE = re.compile(r"\\IfFileExists\{([^}]+)\}")
 
 
+_TEX_COMMENT_RE = re.compile(r"(?<!\\)%.*$", re.MULTILINE)
+
+
+def _strip_tex_comments(text: str) -> str:
+    """Drop TeX comments (an unescaped % to end of line) before any macro or
+    path extraction, so a commented-out \\includegraphics, a stray brace in a
+    comment, or a path mentioned in prose after a % can never be read as a
+    real reference or unbalance the brace count."""
+    return _TEX_COMMENT_RE.sub("", text)
+
+
 def _find_macro_body(text: str, macro_name: str) -> str | None:
     """Extract the brace-balanced body of \\newcommand{\\NAME}[n]{...} or
     \\def\\NAME#1...#n{...}. Does not handle escaped braces (none of the
@@ -444,7 +455,7 @@ def collect_expected_tex_paths(repo_root: str) -> tuple[list[tuple[str, str]], l
             path = os.path.join(repo_root, WHITEPAPER_SUBDIR, filename)
             try:
                 with open(path, "r", encoding="utf-8") as f:
-                    tex_cache[filename] = f.read()
+                    tex_cache[filename] = _strip_tex_comments(f.read())
             except OSError as e:
                 tex_cache[filename] = None
                 problems.append(f"could not read {path}: {e}")
@@ -489,7 +500,7 @@ def collect_expected_tex_paths(repo_root: str) -> tuple[list[tuple[str, str]], l
     for tex_glob in TEX_GLOBS:
         for tex_path in sorted(glob.glob(os.path.join(repo_root, tex_glob))):
             with open(tex_path, "r", encoding="utf-8") as f:
-                text = f.read()
+                text = _strip_tex_comments(f.read())
             rel_tex = os.path.relpath(tex_path, os.path.join(repo_root, WHITEPAPER_SUBDIR))
             for rx in (_INCLUDEGRAPHICS_RE, _IFFILEEXISTS_RE):
                 for m in rx.finditer(text):
