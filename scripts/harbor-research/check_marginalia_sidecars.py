@@ -70,6 +70,16 @@ REQUIRED_FIELDS = [
 NULLABLE_FIELDS = {"licence_url"}
 BOOLEAN_FIELDS = {"attribution_required"}
 
+def plates_dir(repo_root: str) -> str:
+    """The one place the marginalia plates and their sidecars live, relative
+    to a repository root. Factored out so other checkers (margin_lint.py,
+    the tufte-evidence-design skill's mechanical margin-apparatus checks) can
+    reuse this exact path instead of re-deriving it and risking drift."""
+    return os.path.join(
+        repo_root, "website-v2", "public", "whitepaper", "plates", "marginalia"
+    )
+
+
 SHA1_RE = re.compile(r"^[0-9a-f]{40}$")
 
 # Allow-list: public domain / CC0 / PD-old / CC BY or CC BY-SA 2.0-4.0 in any
@@ -165,20 +175,18 @@ def main() -> int:
     args = parser.parse_args()
     repo_root = os.path.abspath(args.repo_root)
 
-    plates_dir = os.path.join(
-        repo_root, "website-v2", "public", "whitepaper", "plates", "marginalia"
-    )
-    jpg_paths = sorted(glob.glob(os.path.join(plates_dir, "*.jpg")))
+    dir_path = plates_dir(repo_root)
+    jpg_paths = sorted(glob.glob(os.path.join(dir_path, "*.jpg")))
 
     if not jpg_paths:
-        print(f"no plates found under {plates_dir} -- nothing to check")
+        print(f"no plates found under {dir_path} -- nothing to check")
         return 0
 
     all_failures: list[str] = []
     checked = 0
     for jpg_path in jpg_paths:
         slug = os.path.splitext(os.path.basename(jpg_path))[0]
-        sidecar_path = os.path.join(plates_dir, f"{slug}.json")
+        sidecar_path = os.path.join(dir_path, f"{slug}.json")
         failures = check_sidecar(slug, sidecar_path)
         all_failures.extend(failures)
         checked += 1
