@@ -13,18 +13,18 @@
     },
     "website-v2/public/whitepaper/coordination-papers-mega-volume-swiss.pdf": {
       "pages": 542,
-      "bytes": 5159735,
-      "sha256": "ae6d1294447004cd4070f142a7f301cc27546d331f1a5357581be8d8560a6af9"
+      "bytes": 5159736,
+      "sha256": "86228a7715f9997adcf276bca37f35509edbd4c6051d0e57669d65a2788c598c"
     },
     "website-v2/public/whitepaper/coordination-papers-mega-volume-technical.pdf": {
       "pages": 538,
       "bytes": 7966441,
-      "sha256": "10d04331a7e589779d48c683a784e3c563d30659a46a8f080cb01ca607fc1900"
+      "sha256": "6d5e65c0028b4a80c258b0f95760fcd8fa169c06ab68a18793fb8f5ff5cd5e79"
     },
     "website-v2/public/whitepaper/coordination-papers-mega-volume.pdf": {
       "pages": 538,
       "bytes": 8258879,
-      "sha256": "52334d1ab67819c819e02a75129e70121d8ebf8777c6a696763350ee71fa848f"
+      "sha256": "0541743b51d9f8604d644bbe1634409141d3d4731a39b2fb18faacf7df3ba0f5"
     },
     "website-v2/public/whitepaper/federated-harbor-whitepaper.pdf": {
       "pages": 45,
