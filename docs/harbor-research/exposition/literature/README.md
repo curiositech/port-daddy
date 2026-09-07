@@ -9,6 +9,8 @@ Four outside reviews of the Book, one per part, fifty ideas in all, each written
 | III, What Survives the Restart (ch. 5) | `part-III-what-survives-the-restart.md` | 11 | Firm; the theorems are correct and honestly bounded; the exposure is in the inspection tower's missing canon and the philosophy's unengaged rivals |
 | IV, Trade Between Strangers (ch. 6–8) | `part-IV-trade-between-strangers.md` | 14 | Unusually firm; the sheaf result is the most original thing in the Book; the deontic frontier is contested by a prior dichotomy the paper admits it never searched |
 
+Reviews of new material start from `TEMPLATE.md`.
+
 ## The short answer
 
 The Book is on firm ground where it matters most, and the reviewers were surprised by how much of the literature review the chapters had already done themselves: Bainbridge, Endsley, Green and Swets, Dorfman, Sleator–Tarjan, Locke, Parfit, Akerlof, Douceur, Friedman–Resnick, Myerson–Satterthwaite, Rochet–Tirole, Ostrom, FLP, Dechter–Meiri–Pearl, Herlihy–Kozlov–Rajsbaum, Hansen–Ghrist, PeerReview, and Certificate Transparency are all cited, all real, and all applied correctly. No theorem was found to be wrong as stated. What the reviews found instead falls into three bins, and the bins are the work list.
