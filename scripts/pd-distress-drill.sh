@@ -375,7 +375,10 @@ for ent in daemon:prod supervisor:launchd agent:claude-code; do
     ko "$ent: no COMPLIED within two intervals ($(grep "$ent" "$PD_HOME/DISTRESS" 2>/dev/null | tr '\n' '|'))"
   fi
 done
-cmp -s "$PD_HOME/DISTRESS" "$DRILL_REPO/.portdaddy/DISTRESS" && ok "repo-scoped register mirrors the machine-wide one" || ko "repo-scoped register diverged from machine-wide"
+# append_distress does two separate O_APPEND writes per line (machine-wide,
+# then repo-scoped) that are not atomic across files; the mirror is only
+# eventually equal, so wait one listening interval rather than sampling once.
+wait_for 1 "cmp -s '$PD_HOME/DISTRESS' '$DRILL_REPO/.portdaddy/DISTRESS'" && ok "repo-scoped register mirrors the machine-wide one" || ko "repo-scoped register diverged from machine-wide"
 
 # ── 4. nothing spends ───────────────────────────────────────────────────────
 step "4. SEELONCE: nothing spends after COMPLIED"
