@@ -139,13 +139,15 @@
       "prompt": "A technical illustration plate from a 1960s engineering research report: a copper-plate style line drawing in one dark ink on plain white paper, printed by letterpress; crisp hatching and stipple for shading; an exploded or cutaway view; numbered-callout leader lines pointing to parts, each ending in a small empty rectangular label box, with no words or numerals anywhere; the drawing centered with generous white margin on every side; no border, no title block, no background surface, no paper edges, no color. Subject: a sealed test chamber in cutaway: one small work-order craft inside, two concentric fences around it each with a single gated slot, one narrow metered outlet pipe with a ledger counter on it, the two gates exploded outward to show their latches.",
       "style_reference": "chapter-1 (chapter-swk)",
       "model": "gemini-3-pro-image-preview",
-      "post": "centre crop 3:2, paper balance to #FBF7EF, 1800x1200 JPEG q85"
+      "post": "centre crop 3:2, paper balance to #FBF7EF, 1800x1200 JPEG q85",
+      "file": "chapter-3.jpg"
     },
     "cover": {
       "prompt": "A technical illustration plate from a 1960s engineering research report: a copper-plate style line drawing in one dark ink on plain white paper, printed by letterpress; crisp hatching and stipple for shading; an exploded or cutaway view; numbered-callout leader lines pointing to parts, each ending in a small empty rectangular label box, with no words or numerals anywhere; the drawing centered with generous white margin on every side; no border, no title block, no background surface, no paper edges, no color. Subject: a whole harbor as one exploded mechanism, tall format: at the bottom a single lock-gate with its ratchet writer; above it a lighthouse with its lens; above that a ledger desk and a set of nested keys; at the top a balance with three pans; small identical craft moving between the levels; the upper third of the sheet left as empty white paper.",
       "style_reference": "chapter-2 (chapter-anchor)",
       "model": "gemini-3-pro-image-preview",
-      "post": "centre crop 7:10, paper balance to #FBF7EF, 1400x2000 JPEG q85"
+      "post": "centre crop 7:10, paper balance to #FBF7EF, 1400x2000 JPEG q85",
+      "file": "cover.jpg"
     }
   }
 }
