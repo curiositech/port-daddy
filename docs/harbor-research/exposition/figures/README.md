@@ -1,0 +1,7 @@
+# Figures: the register, the triage, and the audit records
+
+- `FIGURE-REGISTER.md` is the work list: every idea in the eight chapters that earns a visual, whether or not a figure exists yet, with the form it wants and the priority it carries. The author renders from it.
+- `FIGURE-TRIAGE.md` is the Wave 11 per-page judgement of every figure that existed on 2026-09-06: page role and disposition (keep, redraw, table, delete, add).
+- `FIGURE-AUDIT-DIGEST.md`, `FIGURE-AUDIT-FAILURES.md`, and `figcheck/*.json` are the mechanical audit's records from the same day: per-fragment results of the seven figcheck tests (T1 minimum size, T2 text escaping its box, T3 text overlap, T4 line through text, T5 outside the media box, T6 dead canvas, T7 wider than the text) and the fragments that did not compile.
+
+Policy for the audit records: they are evidence, not gates. Many of them record failures on purpose, because the triage's default verdict was "fails" and the register was built from those findings. No CI job reads these JSON files, none is expected to pass, and they are not regenerated on merge; the live gate is `figcheck.py` run against a fragment at the time it is redrawn. When a fragment is redrawn or deleted, its record here stays as the before-state and the new result is reported in the pull request that changes it. A future pass may move the records under a dated subdirectory; nothing should ever depend on their contents being green.
