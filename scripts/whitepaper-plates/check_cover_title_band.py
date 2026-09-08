@@ -1,27 +1,37 @@
 #!/usr/bin/env python3
-"""Fail if a full-bleed cover plate has no room for the title typeset over it.
+"""Fail if a full-bleed cover's type would print over its artwork.
 
 The Swiss and technical covers are full-bleed images with the title set at fixed
-overlay coordinates on top. That works only while the plate leaves the top of
-the page as bare paper. Round 4a's cover looked like it did -- in a contact
-sheet at 430px the upper band reads as empty -- and it did not: substantial ink
-started 2% down, and the built cover printed "and the Economy" and the whole
-subtitle over a photograph of a container port.
+overlay coordinates on top. That works only while the plate leaves room. It has
+now failed three ways in one evening, each of which a person looking at a
+thumbnail called fine:
 
-A thumbnail cannot answer this and neither can an eye. This measures it.
+  * the plate's photograph started 22% down and the subtitle ran into it;
+  * the replacement plate *looked* like it reserved 40% and started at 2.0%;
+  * the type, moved up to make room, put the subtitle on top of the title's
+    own last line, and left the imprint over a halftone photograph that is 37%
+    lighter than luminance 140 -- neither black nor reversed white reads there.
 
-Method: take the plate's own paper tone as the median of a thin strip across the
-top (its own off-white, not the brand hex -- these are aged-paper renders), then
-walk down the rows and find the first one where more than 2% of pixels are far
-from that tone. Hairline grid rules stay under the threshold, which is right:
-the title sits over them by design. A photograph or a flat colour plane does
-not.
+So this checks two things, and the second is the one that actually decides.
+
+PLATE CHECK (runs without a build): take the plate's own paper tone -- these are
+aged-paper renders, so the brand hex is the wrong reference -- and walk down the
+rows for the first where more than 2% of pixels are far from it. Hairline grid
+rules stay under that threshold, which is right: the title sits over them by
+design. A photograph or a flat colour plane does not.
+
+PAGE CHECK (runs when the built PDF is there): read every text bounding box on
+page one and the plate's inked region, and fail on any overlap. This is the
+honest test, because it uses where the type actually landed rather than an
+arithmetic guess about leading and descenders.
 
 Run:
     python3 scripts/whitepaper-plates/check_cover_title_band.py
+    python3 scripts/whitepaper-plates/check_cover_title_band.py --pdf DIR
 """
 from __future__ import annotations
 
+import argparse
 import os
 import sys
 
@@ -30,16 +40,17 @@ from PIL import Image
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 PLATES = os.path.join(REPO, "website-v2", "public", "whitepaper", "plates")
+PUB = os.path.join(REPO, "website-v2", "public", "whitepaper")
 
-# plate -> (required clean fraction, what occupies that band)
+# edition -> (plate, built pdf, required clean fraction)
 #
-# The Swiss cover sets a three-line title at 34pt from 16mm down and the
-# subtitle at 60mm, on a 254mm page: the type block ends at about 28.3%. The
-# floor is 30%, which is that plus a two-point gap so the last line of the
-# subtitle is not sitting on the edge of a photograph.
+# The floor is what the type block needs plus a little air. The page check
+# supersedes it whenever a build is available; the floor is what stops a plate
+# being committed in the first place.
 COVERS = {
-    os.path.join(PLATES, "swiss", "cover.jpg"): (
-        0.30, "the three-line title (34pt from 16mm) and the subtitle (13pt at 60mm)"),
+    "swiss": (os.path.join(PLATES, "swiss", "cover.jpg"),
+              os.path.join(PUB, "coordination-papers-mega-volume-swiss.pdf"),
+              0.30),
 }
 
 INK_THRESHOLD = 60      # channel distance from paper that counts as real ink
@@ -48,41 +59,78 @@ ROW_FRACTION = 0.02     # share of a row that must be inked for the row to count
 
 def clean_band(path: str) -> float:
     """Fraction of the plate's height that is bare paper, top down."""
-    image = Image.open(path).convert("RGB")
-    pixels = np.asarray(image).astype(int)
+    pixels = np.asarray(Image.open(path).convert("RGB")).astype(int)
     height, width, _ = pixels.shape
     strip = pixels[int(height * 0.005):int(height * 0.03),
                    int(width * 0.2):int(width * 0.8)].reshape(-1, 3)
     paper = np.median(strip, axis=0)
     inked = (np.abs(pixels - paper).max(axis=2) > INK_THRESHOLD)
-    per_row = inked.mean(axis=1)
-    hits = np.flatnonzero(per_row > ROW_FRACTION)
+    hits = np.flatnonzero(inked.mean(axis=1) > ROW_FRACTION)
     return float(hits[0]) / height if hits.size else 1.0
 
 
+def type_over_art(pdf_path: str, band: float) -> list[str]:
+    """Text on page one that reaches below the plate's clean band."""
+    try:
+        import pymupdf
+    except ImportError:                                   # pragma: no cover
+        return []
+    document = pymupdf.open(pdf_path)
+    page = document[0]
+    height = page.rect.height
+    limit = band * height
+    offenders = []
+    for block in page.get_text("dict")["blocks"]:
+        for line in block.get("lines", []):
+            text = "".join(span["text"] for span in line["spans"]).strip()
+            if not text:
+                continue
+            bottom = line["bbox"][3]
+            if bottom > limit:
+                offenders.append(
+                    f"{text[:48]!r} reaches {bottom / height * 100:.1f}% down, "
+                    f"past the plate's clean band at {band * 100:.1f}%")
+    return offenders
+
+
 def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--pdf-dir", help="directory holding a locally built PDF "
+                                          "to check instead of the committed one")
+    args = parser.parse_args()
+
     failures = []
-    for path, (required, what) in COVERS.items():
-        rel = os.path.relpath(path, REPO)
-        if not os.path.exists(path):
+    for edition, (plate, pdf, required) in COVERS.items():
+        rel = os.path.relpath(plate, REPO)
+        if not os.path.exists(plate):
             failures.append(f"{rel}: missing")
             continue
-        band = clean_band(path)
-        verdict = "ok" if band >= required else "TOO SHALLOW"
-        print(f"{rel}: clean band {band * 100:.1f}% of the page "
-              f"(needs {required * 100:.0f}% for {what}) -- {verdict}")
+        band = clean_band(plate)
+        print(f"{edition}: plate's clean band is {band * 100:.1f}% of the page "
+              f"(floor {required * 100:.0f}%)")
         if band < required:
             failures.append(
-                f"{rel}: the plate's clean band is {band * 100:.1f}% of the page but "
-                f"{what} needs {required * 100:.0f}%. The title will print over the "
-                f"artwork. Re-render the cover with a deeper reserved band, or move "
-                f"the type.")
+                f"{rel}: clean band {band * 100:.1f}% is under the {required * 100:.0f}% "
+                f"floor; the title will print over the artwork")
+
+        if args.pdf_dir:
+            pdf = os.path.join(args.pdf_dir, os.path.basename(pdf))
+        if os.path.exists(pdf):
+            offenders = type_over_art(pdf, band)
+            if offenders:
+                for line in offenders:
+                    failures.append(f"{edition} cover: {line}")
+            else:
+                print(f"{edition}: every line of cover type sits inside the band")
+        else:
+            print(f"{edition}: no built PDF to check ({os.path.relpath(pdf, REPO)})")
+
     if failures:
         print("\ncover title band: FAIL", file=sys.stderr)
         for failure in failures:
             print(f"  - {failure}", file=sys.stderr)
         return 1
-    print("cover title band: every full-bleed cover leaves room for its title")
+    print("cover title band: every full-bleed cover leaves room for its type")
     return 0
 
 
