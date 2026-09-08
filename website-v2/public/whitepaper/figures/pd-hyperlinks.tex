@@ -52,8 +52,6 @@
 % which is how \pdinbook produced "runaway argument" on the first attempt.
 % \ifpdbook skips the untaken branch at the TeX level instead.
 %
-% Guarded, because the Book's preamble declares and sets it before loading this
-% file; an unguarded \newif here would reset it to false.
 % Declared unconditionally and defaulting FALSE, which is the standalone
 % answer. The Book's preamble sets \pdbooktrue immediately after loading
 % this file. A guard here would have to mention \ifpdbook or \newif inside a
