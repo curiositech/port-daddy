@@ -531,7 +531,7 @@ no \texttt{fs\_write} outside the workroom & \texttt{fs\_write} & controllable &
 no \texttt{net\_egress} except through the slot & \texttt{net\_egress} & controllable & regimentable \\
 never plan an exfiltration & \texttt{internal\_plan} & uncontrollable & detect-only \\
 never emit a token that names a secret & \texttt{model\_emit\_token} & uncontrollable & detect-only \\
-\textbf{no \texttt{net\_egress} after \texttt{in\_\allowbreak context\_\allowbreak read} of a secret} & \textbf{read (trigger), egress (gate)} & \textbf{mixed} & \textbf{regimentable: taint, then gate} \\
+\textbf{no \texttt{net\_\allowbreak egress} after \texttt{in\_\allowbreak context\_\allowbreak read} of a secret} & \textbf{read (trigger), egress (gate)} & \textbf{mixed} & \textbf{regimentable: taint, then gate} \\
 \bottomrule
 \end{tabularx}
 \end{table}

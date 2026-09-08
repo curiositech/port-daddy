@@ -63,7 +63,10 @@
 % These commands are defined locally because this file is a standalone paper;
 % in particular, \BuiltWeak is not inherited from a shared preamble.
 \newcommand{\Built}{{\textcolor{hhink}{\textsc{\textbf{built}}}}}
-\newcommand{\BuiltWeak}{{\textcolor{hhink}{\textsc{built\,\textit{(weak)}}}}}
+% A normal space, not \, -- the thin space has no stretch and no break
+% point, so "built (weak)" in small caps never wrapped in a narrow Status
+% column and sat 2.7-5.5pt over the measure on every row that used it.
+\newcommand{\BuiltWeak}{{\textcolor{hhink}{\textsc{built \textit{(weak)}}}}}
 \newcommand{\Designed}{{\textcolor{hhgray}{\textsc{designed}}}}
 \newcommand{\Vision}{{\textcolor{hhgray}{\textit{vision}}}}
 
@@ -583,6 +586,7 @@ that does not exist, but the artifact the mechanism would have to produce.
 \centering
 \small
 \renewcommand{\arraystretch}{1.25}
+\setlength{\tabcolsep}{4pt}
 \begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}X >{\centering\arraybackslash}p{0.08\textwidth} >{\raggedright\arraybackslash}p{0.28\textwidth} >{\raggedright\arraybackslash}p{0.23\textwidth}@{}}
 \toprule
 \textbf{Suppressed item} & \textbf{Regret} & \textbf{Why it was not shown} & \textbf{Re-surface trigger} \\
@@ -1271,8 +1275,9 @@ through it at $C_{\text{fa}}=1$ and $c_{\mathrm{att}}=0.2$ attention-seconds.
 \small
 \renewcommand{\arraystretch}{1.25}
 % Six columns, five gaps: the default 6pt \tabcolsep alone was 60pt of the
-% measure, and the table came in 5.6pt over it.
-\setlength{\tabcolsep}{4pt}
+% measure, and the table came in 5.6pt over it. 4pt cut that to 0.8pt; 2pt
+% clears it with room.
+\setlength{\tabcolsep}{2pt}
 \begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}X >{\centering\arraybackslash}p{0.05\textwidth} >{\centering\arraybackslash}p{0.09\textwidth} >{\centering\arraybackslash}p{0.11\textwidth} >{\centering\arraybackslash}p{0.11\textwidth} >{\raggedright\arraybackslash}p{0.12\textwidth}@{}}
 \toprule
 \textbf{Action class} & $\pi$ & $C_{\text{miss}}$ & \textbf{Never zoom} & \textbf{Always zoom} & \textbf{Verdict} \\
