@@ -38,6 +38,7 @@ import {
   type ReleaseRegionArgs,
 } from '../lib/editor-claims-mcp.js';
 import { serializeSwarmDigest, serializeLegacySwarmSnapshot } from '../lib/swarm-awareness-digest.js';
+import { beginRequestFingerprint, generateBeginIdempotencyKey } from '../lib/begin-idempotency.js';
 import { governToolOutput } from '../lib/mcp-output-governor.js';
 import { setActiveSession, clearActiveSession, resolveSessionId, resolveAgentId, resolveActorCredential } from '../lib/mcp-session-cache.js';
 
@@ -3472,6 +3473,26 @@ const DAEMON_RECOVERY_HINT =
 // Tool handler
 // ---------------------------------------------------------------------------
 
+/**
+ * Begin idempotency keys, per logical begin, for the life of this MCP
+ * process. A harness that re-issues the SAME `begin_session` call (a tool
+ * retry after a lost or timed-out result) maps to the same key by request
+ * fingerprint, so the daemon replays the session it already committed rather
+ * than minting a second one. Scoped to this process on purpose: keys derived
+ * from public arguments alone would let any caller replay another agent's
+ * begin (and receive its credential).
+ */
+const beginIdempotencyKeysByFingerprint = new Map<string, string>();
+
+function beginIdempotencyKeyFor(body: Record<string, unknown>): string {
+  const fingerprint = beginRequestFingerprint(body);
+  const existing = beginIdempotencyKeysByFingerprint.get(fingerprint);
+  if (existing) return existing;
+  const key = generateBeginIdempotencyKey();
+  beginIdempotencyKeysByFingerprint.set(fingerprint, key);
+  return key;
+}
+
 async function handleTool(
   name: string,
   args: Record<string, unknown>
@@ -3517,6 +3538,7 @@ async function handleTool(
           }, null, 2);
         }
       }
+      body.idempotencyKey = beginIdempotencyKeyFor(body);
       res = await POST('/sugar/begin', body);
 
       // Attach salvage context — check if any dead agents share this project
