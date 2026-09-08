@@ -2,7 +2,7 @@
 
 **Scope:** every daemon HTTP write route that accepts an agent identifier from
 the caller, classified by whether it verifies the daemon-minted ADR-0040
-credential (`lib/actor-souls.ts`, `<actor_id>.<secret>`) or accepts a
+credential (`lib/actor-souls.ts`, `pdab1.<actor_id>.<body_id>.<secret>`) or accepts a
 caller-supplied string as attribution.
 
 **Context:** issue #8877 — write paths accepted self-asserted identity
@@ -19,10 +19,12 @@ downgrade or "flagged legacy" middle state. Legacy self-asserted acceptance
 was **DELETED**, not deprecated. The verdict at every attributed write
 boundary is exactly one of:
 
-- **VERIFIED** — the caller presented a daemon-minted credential
+- **VERIFIED** — the caller presented a daemon-minted actor-root or bounded
+  session-body credential
   (`x-actor-credential` header or body `credential`) and it checked out
-  (`actorSouls.verifyCredential`). The durable record is stamped with the
-  minted `actorId`.
+  (`actorSouls.verifyCredentialUse`). The durable record is stamped with the
+  minted `actorId`; session bodies must also match their exact successor
+  session, agent, project, canonical worktree, branch, action, and expiry.
 - **ANONYMOUS** — no identity claim at all, ONLY on routes that legitimately
   accept unattributed writes (an anonymous quick note / scratch session).
   Nothing to attribute means nothing to forge.
@@ -35,9 +37,14 @@ boundary is exactly one of:
   - credential presented while the souls store is unavailable → **503
     `IDENTITY_VERIFIER_UNAVAILABLE`**.
 
-Credentials come from the two mint doors: `POST /actors/register` (ADR-0040)
-and `POST /sugar/begin` (mints for uncredentialed callers whose asserted
-names are unowned, returns the credential once).
+Actor-root credentials come from the two mint doors: `POST /actors/register`
+(ADR-0040) and `POST /sugar/begin` (mints for uncredentialed callers whose
+asserted names are unowned, returns the credential once). A daemon restart
+does not authorize another mint. When an existing durable actor has lost its
+body, FleetBar can approve one exact recovery intent with LocalAuthentication;
+the daemon verifies signed-app provenance, atomically binds a successor and
+claim dispositions, issues a short-lived session body, and installs it into
+one owner-only context slot. No grant or plaintext body crosses HTTP.
 
 ## Inventory — attributed write boundaries
 
@@ -59,7 +66,9 @@ names are unowned, returns the credential once).
 | `/salvage\|resurrection/abandon/:agentId`, DELETE `/salvage\|resurrection/:agentId` | POST/DELETE | — | Credential REQUIRED (always-attributed mutation of salvage state) | **ENFORCED (strict)** |
 | `/commitments` | POST | body `ownerActorId` | Credential REQUIRED; `ownerActorId` must resolve to the credential's OWN soul (403 otherwise — no forging obligations onto a victim) | **ENFORCED (strict)** |
 | `/commitments/:id/close` | POST | commitment's stored owner | Credential REQUIRED; only the owning soul closes its obligation (403 otherwise) | **ENFORCED (strict)** |
-| `/actors/register` | POST | body `credential` / `operatorToken` / `alias` | The ADR-0040 mint itself; forged credential 401, uncredentialed mints a pooled newcomer | **ENFORCED (mint door, ADR-0040)** |
+| `/actors/register` | POST | body `credential` / `alias` | The ADR-0040 mint itself; forged credential 401, uncredentialed mints a pooled newcomer. There is no operator-token elevation or recovery fallback | **ENFORCED (mint door, ADR-0040)** |
+| `/operator-recovery/challenges` | POST | exact actor/session/worktree/branch/context-slot intent and exhaustive claim dispositions | Creates bounded intent only. The daemon launches the signed FleetBar helper, pins its device key through native process-trust verification, and returns only canonical signing bytes and digests | **ENFORCED (operator presence)** |
+| `/operator-recovery/:id/decision` | POST | FleetBar P-256 signature over daemon canonical bytes | Approval is verified natively and synchronously consumes a daemon-internal one-shot grant; session bind, claim transfer/release, body issuance, and append-only authority events share one transaction. The response contains typed non-secret binding/body/custody receipts, never a bearer grant | **ENFORCED (operator presence)** |
 | `/agents/:id/inbox` | POST | body `from` | Credential REQUIRED; `from` must be a name the credential's soul owns — a bound alias, or the agentId of an ACTIVE session stamped with that soul. Anything else, INCLUDING a never-minted string, is 403 `INBOX_FROM_MISMATCH`. Omitting `from` attributes the message to the minted actorId. The verdict is persisted on the row (`from_actor_id`, `from_soul_class`), which the caller cannot pre-fill | **ENFORCED (strict)** |
 | `/actors/:id/message` | POST | body `from` | Identical gate, shared verbatim via `lib/inbox-identity.ts` — this is the second door into the same `agent_inbox` table with the same `wake` → `hailAgent` path, so credentialing only `/agents/:id/inbox` would be bypassable | **ENFORCED (strict)** |
 
@@ -85,8 +94,9 @@ They are listed so the boundary of this enforcement is explicit, not implied.
 parallel credential scheme):
 
 1. Credential carriers: `x-actor-credential` header or body `credential`,
-   the exact `<actor_id>.<secret>` token minted by `POST /actors/register`
-   or `POST /sugar/begin`.
+   the exact `pdab1.<actor_id>.<body_id>.<secret>` token minted by
+   `POST /actors/register` or `POST /sugar/begin`, or installed by the
+   operator-presence recovery service as a bounded `session-body-v1` body.
 2. `resolveWriteIdentity()` — the single verdict function every enforced
    route calls; two success states (verified / anonymous) and the typed
    401/403/503 rejections above. Routes whose writes are always attributed
@@ -114,6 +124,19 @@ parallel credential scheme):
    deliberately binds no alias (shared display strings like
    `proj:node:dev` would lock out every other legitimate agent), so without
    it a commitments-shaped check would 403 every real `pd inbox send`.
+6. `lib/operator-recovery.ts` + `lib/context-slot-lock.ts` — the restart-safe
+   recovery boundary. Challenges bind the action hash, actor, project,
+   canonical worktree, branch, predecessor, session intent, daemon generation,
+   nonce, expiry, context slot, prior-slot digest, and every claim disposition.
+   `harbor_events` is the append-only authority; projections are disposable.
+   Pending/approved authority expires on a daemon-generation change, while an
+   already-bound sealed custody handoff can finish after restart. Exact-slot
+   publication is inode-safe, boot-aware, mode 0600, and rejects occupant drift.
+7. Historical display principals are never silently promoted. The former
+   startup migration that minted `operatorTrusted` roots and wrote plaintext
+   files under `~/.port-daddy/actor-credentials` is deleted. The only retained
+   database migration converts an existing soul's legacy hash/salt into the
+   canonical body table in place; it creates no new actor or external secret.
 
 ### The inbox is not a display plane
 
@@ -151,6 +174,11 @@ on every instruction. It is not authentication of the local host.
 - **Tests** — `tests/helpers/actor-credentials.js` is the one shared mint
   utility (direct souls-store mint for unit suites, `POST /actors/register`
   for integration fixtures).
+- **FleetBar operator recovery** — the native app decodes every signed scope
+  coordinate and frozen claim disposition, performs LocalAuthentication,
+  signs only daemon canonical bytes with its Secure Enclave key, and requires
+  a terminal binding plus owner-only custody receipt. It never models or
+  renders raw credentials, signatures, JTI values, or recovery grants.
 
 ## Test evidence
 

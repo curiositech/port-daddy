@@ -300,7 +300,7 @@ describe('Defect C door 2 — /actors/register cannot bind a reserved alias to l
   });
 
   // Positive control for the guard's ALLOW branch: the reservation is not an
-  // absolute ban — the RIGHTFUL owner (an operator-trusted registration) may
+  // absolute ban — the RIGHTFUL owner (daemon-provisioned operator soul) may
   // bind a reserved authority alias, and a self-service caller that already
   // owns it may re-present it. Without this, the allow branch
   // (`isOperator || alreadyOwns`) could silently regress into either a total
@@ -310,11 +310,9 @@ describe('Defect C door 2 — /actors/register cannot bind a reserved alias to l
     const opDb = createTestDb();
     const opSouls = createTestActorSouls(opDb, { operatorSecret: 'op-secret-123' });
     try {
-      // Operator-token registration binding the reserved authority name.
-      const minted = opSouls.register({ operatorToken: 'op-secret-123', alias: 'system' });
-      expect(minted.ok).toBe(true);
-      expect(minted.status).toBe('minted');
-      expect(minted.soulClass).toBe('operator');
+      // Only the daemon's trusted provisioning API can bind an authority name.
+      const minted = opSouls.mint({ alias: 'system', operatorTrusted: true });
+      expect(opSouls.classify(minted.actorId)).toBe('operator');
       // The reserved alias now resolves to the operator soul (not 'unknown').
       const resolved = opSouls.resolveActor('system');
       expect(resolved.actorId).toBe(minted.actorId);

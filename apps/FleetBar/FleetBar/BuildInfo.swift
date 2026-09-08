@@ -146,28 +146,39 @@ enum FleetVersion {
     /// checksum + verification steps.
     static let downloadPageURL = URL(string: "https://portdaddy.dev/#download")!
 
-    /// True when the running app carries a real certificate-backed code
-    /// signature (the Developer-ID-signed release that
-    /// `scripts/package-fleetbar.sh` produces when `PORT_DADDY_SIGN_IDENTITY`
-    /// is set). Ad-hoc and unsigned builds — local `swift run`, forks without
-    /// the cert secret — fail the requirement because they have no certificate
-    /// chain, and any Security API hiccup also lands on `false`: we would
-    /// rather show a stale checksum caveat than falsely claim a signed build.
-    ///
-    /// Used by the update banner: a signed build implies the release pipeline
-    /// signs + notarizes, so the "verify the checksum" caveat is dropped and
-    /// the download Just Works under Gatekeeper.
-    static let isSignedBuild: Bool = {
+    static let productionBundleID = "ai.portdaddy.FleetBar"
+    static let productionTeamID = "P5H9P59X2M"
+
+    /// Exact production designated requirement used by security-sensitive
+    /// FleetBar surfaces. A generic Apple anchor is not identity: it would
+    /// accept any unrelated Developer-ID or App Store application.
+    static let productionDesignatedRequirement =
+        "anchor apple generic and identifier \"\(productionBundleID)\" " +
+        "and certificate leaf[subject.OU] = \"\(productionTeamID)\" " +
+        "and certificate 1[field.1.2.840.113635.100.6.2.6] exists " +
+        "and certificate leaf[field.1.2.840.113635.100.6.1.13] exists"
+
+    /// True only for the Developer-ID-signed production FleetBar identity.
+    /// Local, ad-hoc, differently bundled, and differently signed builds fail
+    /// closed. Notarization is separately verified by the daemon's native
+    /// enrollment bootstrap before an operator key can become authoritative.
+    static let isExactProductionBuild: Bool = {
         var code: SecCode?
         guard SecCodeCopySelf(SecCSFlags(), &code) == errSecSuccess, let code else { return false }
         var staticCode: SecStaticCode?
         guard SecCodeCopyStaticCode(code, SecCSFlags(), &staticCode) == errSecSuccess,
               let staticCode else { return false }
         var requirement: SecRequirement?
-        // "anchor apple generic" matches any Apple-issued signing chain
-        // (Developer ID, App Store) and rejects ad-hoc signatures.
-        guard SecRequirementCreateWithString("anchor apple generic" as CFString, SecCSFlags(), &requirement) == errSecSuccess,
+        guard SecRequirementCreateWithString(
+            productionDesignatedRequirement as CFString,
+            SecCSFlags(),
+            &requirement
+        ) == errSecSuccess,
               let requirement else { return false }
         return SecStaticCodeCheckValidity(staticCode, SecCSFlags(), requirement) == errSecSuccess
     }()
+
+    /// Existing update-banner name retained, but strengthened to the exact
+    /// production identity. There is intentionally no generic-signature mode.
+    static let isSignedBuild = isExactProductionBuild
 }

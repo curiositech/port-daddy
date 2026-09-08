@@ -39,10 +39,8 @@ interface RegisterActorBody {
   harbor?: string;
   /** Display alias ('project:stack:context'). Display-only; never a principal. */
   alias?: string;
-  /** '<actor_id>.<secret>' lookup token from a prior mint. Re-presents a soul. */
+  /** `pdab1.<actor_id>.<body_id>.<secret>` from a prior mint. Re-presents a soul. */
   credential?: string;
-  /** Operator escape hatch (advisory-above-floor; see ADR-0040 §2.4). */
-  operatorToken?: string;
   /** Project the newcomer will spend against — bounds the admit rate-limit. */
   project?: string;
 }
@@ -157,7 +155,8 @@ export const actorsPlugin: FastifyPluginAsync<{ deps?: ActorsRouteDeps }> = asyn
 
   // ADR-0040 keystone: the ONLY path to a daemon-minted, non-forgeable
   // principal. A minted actor_id is bound to a lookup-token credential
-  // ("<actor_id>.<secret>"); re-presenting a valid credential returns the SAME
+  // (`pdab1.<actor_id>.<body_id>.<secret>`); re-presenting a valid actor-root
+  // credential returns the SAME
   // id (idempotent), a forged/mismatched one is rejected 401 (never mints), and
   // an uncredentialed registration mints a fresh NEWCOMER that draws from the
   // shared per-project pool — so minting fresh ids buys no new budget.
@@ -183,7 +182,6 @@ export const actorsPlugin: FastifyPluginAsync<{ deps?: ActorsRouteDeps }> = asyn
       harbor: typeof body.harbor === 'string' ? body.harbor : undefined,
       alias: typeof body.alias === 'string' ? body.alias : undefined,
       credential: typeof body.credential === 'string' ? body.credential : undefined,
-      operatorToken: typeof body.operatorToken === 'string' ? body.operatorToken : undefined,
       project: typeof body.project === 'string' ? body.project : undefined,
     });
 
@@ -195,15 +193,16 @@ export const actorsPlugin: FastifyPluginAsync<{ deps?: ActorsRouteDeps }> = asyn
           : outcome.code === 'NEWCOMER_ADMIT_LIMIT'
             ? 'newcomer admission limit reached for this project today'
             : outcome.code === 'RESERVED_ALIAS'
-              ? 'that alias is a reserved authority name; a self-service soul may not bind it (only an operator-token registration can)'
+              ? 'that alias is a reserved authority name; self-service registration may not bind it'
               : 'identity store unavailable',
         code: outcome.code,
       });
     }
 
     // The plaintext credential is returned ONCE (only on a fresh mint). The
-    // caller MUST persist it to re-authenticate the same soul; there is no
-    // recovery path (a lost credential means a new newcomer next time).
+    // caller MUST persist it to re-authenticate the same soul. Durable session
+    // recovery is a separate, provenance-bound FleetBar flow; this public mint
+    // door never upgrades or reconstructs an existing actor.
     if (outcome.status === 'minted') {
       return reply.code(201).send({
         success: true,

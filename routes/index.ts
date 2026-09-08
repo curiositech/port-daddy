@@ -96,6 +96,7 @@ import { contextRoutes as contextPlugin } from './context.js';
 import { harvestPlugin } from './harvest.js';
 import { custodianPlugin } from './custodian.js';
 import { skillGraftPlugin } from './skill-graft.js';
+import { operatorRecoveryPlugin } from './operator-recovery.js';
 
 type AnyDeps = Record<string, unknown>;
 
@@ -213,6 +214,7 @@ export async function registerAllRoutes(
     },
   });
   await fastify.register(operatorPlugin, { deps } as any);
+  await fastify.register(operatorRecoveryPlugin, { deps } as any);
 
   // These have different option shapes
   await fastify.register(arbiterPlugin, { arbiter } as any);

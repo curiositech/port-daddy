@@ -40,6 +40,12 @@ interface SessionsModule {
   start(purpose: string, options?: Record<string, unknown>): Record<string, unknown>;
   end(id: string, options?: Record<string, unknown>): Record<string, unknown>;
   list(options?: Record<string, unknown>): Record<string, unknown>;
+  /** Exhaustive project+worktree predecessor read; unlike list(), never UI-capped. */
+  listIdentityCandidates?(options: {
+    project: string;
+    status?: string;
+    worktreeId?: string | null;
+  }): Record<string, unknown>;
   get(id: string): Record<string, unknown>;
   getNotes(id?: string | null, options?: Record<string, unknown>): Record<string, unknown>;
   claimFiles(sessionId: string, filePaths: string[], options?: Record<string, unknown>): Record<string, unknown>;
@@ -314,6 +320,14 @@ interface BeginOptions {
    * interactive collision check; humans opting in explicitly still do.
    */
   bypassCrowdedGate?: boolean;
+  /**
+   * Daemon-verified actor selected by the Sugar route. This is deliberately
+   * not populated from the request body: it is the narrow authority witness
+   * that permits an implicit resume/takeover to touch an existing session.
+   * Fresh begins remain available without a predecessor, but an existing
+   * display identity is never treated as proof of session ownership.
+   */
+  verifiedActorId?: string;
 }
 
 interface DoneOptions {
@@ -395,6 +409,35 @@ function lifecycleForSession(session: Record<string, unknown>): 'durable' | 'eph
     : 'ephemeral';
 }
 
+function sessionMetadata(session: Record<string, unknown>): Record<string, unknown> | null {
+  if (session.metadata && typeof session.metadata === 'object' && !Array.isArray(session.metadata)) {
+    return session.metadata as Record<string, unknown>;
+  }
+  if (typeof session.metadata !== 'string') return null;
+  try {
+    const parsed = JSON.parse(session.metadata);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? parsed as Record<string, unknown>
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function sessionDisplayIdentity(session: Record<string, unknown>): string | null {
+  const value = sessionMetadata(session)?.identityString;
+  return typeof value === 'string' && value.trim() ? value : null;
+}
+
+function sessionVerifiedActorId(session: Record<string, unknown>): string | null {
+  const identity = sessionMetadata(session)?.identity;
+  if (!identity || typeof identity !== 'object' || Array.isArray(identity)) return null;
+  const stamp = identity as Record<string, unknown>;
+  return stamp.verified === true && typeof stamp.actorId === 'string' && stamp.actorId.trim()
+    ? stamp.actorId
+    : null;
+}
+
 // =============================================================================
 // Module factory
 // =============================================================================
@@ -402,6 +445,27 @@ function lifecycleForSession(session: Record<string, unknown>): 'durable' | 'eph
 export function createSugar(deps: SugarDeps) {
   const { agents, sessions, activityLog } = deps;
   const gitOriginChecker: GitOriginChecker = deps.gitOriginChecker || createGitOriginChecker();
+
+  function identityCandidates(
+    project: string,
+    worktreeId: string | undefined,
+    status?: 'active',
+  ): Array<Record<string, unknown>> {
+    const result = sessions.listIdentityCandidates
+      ? sessions.listIdentityCandidates({ project, worktreeId, ...(status ? { status } : {}) })
+      : sessions.list({
+          project,
+          allWorktrees: false,
+          ...(worktreeId ? { worktreeId } : {}),
+          ...(status ? { status } : {}),
+          // Compatibility for injected lightweight test doubles only. The
+          // production sessions module always supplies the uncapped seam.
+          limit: Number.MAX_SAFE_INTEGER,
+        });
+    return result && Array.isArray((result as { sessions?: unknown[] }).sessions)
+      ? (result as { sessions: Array<Record<string, unknown>> }).sessions
+      : [];
+  }
 
   function sessionTarget(identityProject: string | null | undefined, sessionId: string): string {
     return identityProject ? `${identityProject}:session:${sessionId}` : sessionId;
@@ -441,6 +505,79 @@ export function createSugar(deps: SugarDeps) {
       roadmapLink: typeof sessionMeta?.roadmapLink === 'string' ? sessionMeta.roadmapLink : null,
       sidequestReason: typeof sessionMeta?.sidequestReason === 'string' ? sessionMeta.sidequestReason : null,
     };
+  }
+
+  /**
+   * Read-only mint-door preflight for an uncredentialed `/sugar/begin`.
+   *
+   * The route invokes this synchronously before drawing from the newcomer
+   * pool. If the ordinary implicit-resume selector can see an existing exact
+   * display identity, the caller must prove that predecessor's actor (or use
+   * the explicit fresh-session controls) instead of minting an orphan soul
+   * that `begin()` will immediately refuse. No session id or actor id is
+   * exposed in the refusal.
+   */
+  function preflightBegin(options: BeginOptions):
+    | { status: 'none' }
+    | { status: 'blocked'; httpStatus: 401 | 409; code: 'IDENTITY_CREDENTIAL_REQUIRED' | 'SESSION_REBIND_REQUIRED'; error: string }
+    | { status: 'invalid'; httpStatus: 400; code: string; error: string; hint?: string } {
+    const identity = typeof options.identity === 'string' ? options.identity.trim() : '';
+    const parsed = identity ? parseIdentity(identity) : null;
+    if (options.force || options.agentId || !parsed?.valid) return { status: 'none' };
+
+    const worktreePolicy = evaluateSessionWorktreePolicy({
+      worktree: options.worktree,
+      requireLinkedWorktree: options.requireLinkedWorktree,
+      allowMainWorktree: options.allowMainWorktree,
+    });
+    if (!worktreePolicy.success) {
+      return {
+        status: 'invalid',
+        httpStatus: 400,
+        code: worktreePolicy.code ?? 'WORKTREE_POLICY_REJECTED',
+        error: worktreePolicy.error ?? 'the requested session worktree is not permitted',
+        hint: worktreePolicy.hint,
+      };
+    }
+
+    const worktreeId = worktreePolicy.worktree?.id;
+    const activeRows = identityCandidates(parsed.project, worktreeId, 'active');
+    const allRows = identityCandidates(parsed.project, worktreeId);
+    const candidates = [
+      ...activeRows,
+      ...allRows.filter((session) => session?.status !== 'active'),
+    ];
+    for (const session of candidates) {
+      if (
+        !session
+        || session.identityProject !== parsed.project
+        || typeof session.agentId !== 'string'
+      ) {
+        continue;
+      }
+      const agent = agents.get(session.agentId) as { agent?: { identity?: unknown } };
+      if (
+        sessionDisplayIdentity(session) !== identity
+        && agent?.agent?.identity !== identity
+      ) {
+        continue;
+      }
+      if (!sessionVerifiedActorId(session)) {
+        return {
+          status: 'blocked',
+          httpStatus: 409,
+          code: 'SESSION_REBIND_REQUIRED',
+          error: 'the matching Sugar session has no verified actor binding; use operator recovery to rebind it',
+        };
+      }
+      return {
+        status: 'blocked',
+        httpStatus: 401,
+        code: 'IDENTITY_CREDENTIAL_REQUIRED',
+        error: 'an existing Sugar session matches this display identity; present its actor credential or explicitly start separate work',
+      };
+    }
+    return { status: 'none' };
   }
 
   /**
@@ -616,101 +753,90 @@ export function createSugar(deps: SugarDeps) {
       // Scope to the current worktree. When the policy resolved a worktree use
       // its id; otherwise let list() auto-detect via getWorktreeId() (same
       // default sessions.start() uses), so create + lookup agree.
-      const listOpts: Record<string, unknown> = { status: 'active', allWorktrees: false, limit: 50 };
-      if (worktreePolicy.worktree) listOpts.worktreeId = worktreePolicy.worktree.id;
-      const active = sessions.list(listOpts);
-      const activeRows: Array<Record<string, unknown>> =
-        active && typeof active === 'object' && Array.isArray((active as { sessions?: unknown[] }).sessions)
-          ? ((active as { sessions: Array<Record<string, unknown>> }).sessions)
-          : [];
-      // Match on the EXACT full identity, not just the project: two identities
-      // that share a project but differ by stack/context (demo:test:alpha vs
-      // demo:test:beta) must NOT collapse. identityProject is a cheap pre-filter;
-      // the agent's full identity is the real key.
+      const activeRows = identityCandidates(resumeProject, worktreePolicy.worktree?.id, 'active');
+      // Match on BOTH coordinates: the exact display identity finds a likely
+      // predecessor, while the daemon-verified actor id proves ownership of
+      // it. Display identity alone is deliberately non-authoritative because
+      // multiple legitimate agents may use the same project:stack:context.
       let match: Record<string, unknown> | undefined;
       let matchAgent: { identity?: unknown; timeSinceHeartbeat?: unknown } | undefined;
-      for (const s of activeRows) {
-        if (!s || s.identityProject !== resumeProject || typeof s.agentId !== 'string') continue;
-        
-        // `identityString`, not `identity`: the latter is the daemon's
-        // reserved identity-verdict slot (lib/identity-write-boundary.ts).
-        let storedIdentity: string | null = null;
-        if (s.metadata && typeof s.metadata === 'object') {
-          const metaObj = s.metadata as Record<string, unknown>;
-          if (typeof metaObj.identityString === 'string') {
-            storedIdentity = metaObj.identityString;
-          }
-        } else if (s.metadata && typeof s.metadata === 'string') {
-          try {
-            const parsed = JSON.parse(s.metadata);
-            if (parsed && typeof parsed.identityString === 'string') {
-              storedIdentity = parsed.identityString;
-            }
-          } catch (e) {}
-        }
-
-        if (storedIdentity === identity) {
-          match = s;
-          const agentResult = agents.get(s.agentId) as { agent?: { identity?: unknown; timeSinceHeartbeat?: unknown } };
-          if (agentResult && agentResult.agent) matchAgent = agentResult.agent;
-          break;
-        }
-
-        // Fallback to agent roster
-        const agentResult = agents.get(s.agentId) as { agent?: { identity?: unknown; timeSinceHeartbeat?: unknown } };
-        if (agentResult && agentResult.agent && agentResult.agent.identity === identity) {
-          match = s;
-          matchAgent = agentResult.agent;
-          break;
-        }
-      }
-
-      if (!match) {
-        // Fall back to recently closed (completed or abandoned) sessions of the same identity in the same worktree
-        const listOptsClosed: Record<string, unknown> = { allWorktrees: false, limit: 50 };
-        if (worktreePolicy.worktree) listOptsClosed.worktreeId = worktreePolicy.worktree.id;
-        const allSessions = sessions.list(listOptsClosed);
-        const allRows: Array<Record<string, unknown>> =
-          allSessions && typeof allSessions === 'object' && Array.isArray((allSessions as { sessions?: unknown[] }).sessions)
-            ? ((allSessions as { sessions: Array<Record<string, unknown>> }).sessions)
-            : [];
-        for (const s of allRows) {
-          if (!s || s.status === 'active' || s.identityProject !== resumeProject || typeof s.agentId !== 'string') {
+      const verifiedActorId = typeof options.verifiedActorId === 'string' && options.verifiedActorId.trim()
+        ? options.verifiedActorId.trim()
+        : null;
+      let sawActorMismatch = false;
+      let sawUnstampedPredecessor = false;
+      const findOwnedMatch = (rows: Array<Record<string, unknown>>, includeActive: boolean) => {
+        for (const s of rows) {
+          if (
+            !s
+            || (includeActive ? s.status !== 'active' : s.status === 'active')
+            || s.identityProject !== resumeProject
+            || typeof s.agentId !== 'string'
+          ) {
             continue;
           }
 
           // `identityString`, not `identity`: the latter is the daemon's
           // reserved identity-verdict slot (lib/identity-write-boundary.ts).
-          let storedIdentity: string | null = null;
-          if (s.metadata && typeof s.metadata === 'object') {
-            const metaObj = s.metadata as Record<string, unknown>;
-            if (typeof metaObj.identityString === 'string') {
-              storedIdentity = metaObj.identityString;
-            }
-          } else if (s.metadata && typeof s.metadata === 'string') {
-            try {
-              const parsed = JSON.parse(s.metadata);
-              if (parsed && typeof parsed.identityString === 'string') {
-                storedIdentity = parsed.identityString;
-              }
-            } catch (e) {}
-          }
-
-          if (storedIdentity === identity) {
-            match = s;
-            const agentResult = agents.get(s.agentId) as { agent?: { identity?: unknown; timeSinceHeartbeat?: unknown } };
-            if (agentResult && agentResult.agent) matchAgent = agentResult.agent;
-            break;
-          }
-
-          // Fallback to agent roster
           const agentResult = agents.get(s.agentId) as { agent?: { identity?: unknown; timeSinceHeartbeat?: unknown } };
-          if (agentResult && agentResult.agent && agentResult.agent.identity === identity) {
-            match = s;
-            matchAgent = agentResult.agent;
-            break;
+          const displayMatches = sessionDisplayIdentity(s) === identity
+            || agentResult?.agent?.identity === identity;
+          if (!displayMatches) continue;
+
+          // Only the public Sugar route supplies verifiedActorId, after the
+          // canonical credential verifier succeeds. Once supplied, every
+          // low-level takeover/claim below is unreachable unless the stored
+          // predecessor stamp names that exact actor.
+          if (verifiedActorId) {
+            const predecessorActorId = sessionVerifiedActorId(s);
+            if (!predecessorActorId) {
+              sawUnstampedPredecessor = true;
+              continue;
+            }
+            if (predecessorActorId !== verifiedActorId) {
+              sawActorMismatch = true;
+              continue;
+            }
           }
+
+          return { session: s, agent: agentResult?.agent };
         }
+        return null;
+      };
+
+      const activeMatch = findOwnedMatch(activeRows, true);
+      if (activeMatch) {
+        match = activeMatch.session;
+        matchAgent = activeMatch.agent;
+      }
+
+      if (!match) {
+        // Fall back to recently closed (completed or abandoned) sessions of the same identity in the same worktree
+        const allRows = identityCandidates(resumeProject, worktreePolicy.worktree?.id);
+        const closedMatch = findOwnedMatch(allRows, false);
+        if (closedMatch) {
+          match = closedMatch.session;
+          matchAgent = closedMatch.agent;
+        }
+      }
+
+      // A matching display identity is an attempted resume, not permission to
+      // create a replacement actor over the same work. Missing and different
+      // actor stamps fail before takeover, claims, rent edits, notes, activity,
+      // agent registration, or session creation can run. `force` and an
+      // explicit agentId remain the deliberate fresh-session controls.
+      if (!match && verifiedActorId && (sawActorMismatch || sawUnstampedPredecessor)) {
+        return sawActorMismatch
+          ? {
+              success: false,
+              error: 'the presented actor does not own the matching Sugar session',
+              code: 'SESSION_ACTOR_MISMATCH',
+            }
+          : {
+              success: false,
+              error: 'the matching Sugar session has no verified actor binding; use operator recovery to rebind it',
+              code: 'SESSION_REBIND_REQUIRED',
+            };
       }
 
       if (match && typeof match.id === 'string' && typeof match.agentId === 'string') {
@@ -725,6 +851,7 @@ export function createSugar(deps: SugarDeps) {
             durable: durable,
             claimFiles: true,
             metadata: {
+              ...(options.metadata && typeof options.metadata === 'object' ? options.metadata : {}),
               ...rentMetadata,
               takeoverReason: 'Idempotent resumption of recently closed session',
             }
@@ -1748,5 +1875,5 @@ export function createSugar(deps: SugarDeps) {
     };
   }
 
-  return { begin, done, whoami, relink, getWelcomeBriefing };
+  return { begin, preflightBegin, done, whoami, relink, getWelcomeBriefing };
 }

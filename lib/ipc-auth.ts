@@ -15,6 +15,7 @@
 
 import type { IpcConnection } from './ipc-server.js';
 import type { PeerCredentials } from './ipc-types.js';
+import { IpcAction } from './ipc-types.js';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -124,8 +125,38 @@ const REQUIRES_REGISTRATION = new Set([
 ]);
 
 /**
+ * Identity-bound mutations that the current IPC envelope cannot authorize.
+ *
+ * The Unix socket proves only a same-OS-user peer and carries a self-reported
+ * display alias; it does not carry the daemon-minted actor credential that
+ * the canonical HTTP write boundary verifies. These actions must therefore
+ * fall back to their credentialed HTTP routes until IPC has equivalent
+ * credential transport and one shared authorizer.
+ */
+const REQUIRES_CREDENTIALED_TRANSPORT = new Set<string>([
+  IpcAction.BEGIN,
+  IpcAction.DONE,
+  IpcAction.SESSION_START,
+  IpcAction.SESSION_END,
+  IpcAction.SESSION_REMOVE,
+  IpcAction.SESSION_TAKEOVER,
+  IpcAction.NOTE,
+  IpcAction.FILES_CLAIM,
+  IpcAction.FILES_RELEASE,
+  IpcAction.LOCK_ACQUIRE,
+  IpcAction.LOCK_EXTEND,
+  IpcAction.LOCK_RELEASE,
+  IpcAction.SALVAGE_CLAIM,
+]);
+
+/**
  * Check whether an IPC frame's action requires registration.
  */
 export function actionRequiresRegistration(action: string | undefined): boolean {
   return action ? REQUIRES_REGISTRATION.has(action) : false;
+}
+
+/** Return true when an action must use the canonical credentialed transport. */
+export function actionRequiresCredentialedTransport(action: string | undefined): boolean {
+  return action ? REQUIRES_CREDENTIALED_TRANSPORT.has(action) : false;
 }

@@ -66,6 +66,7 @@ export const STREAM_TYPES = [
   'work-receipt',
   'agent-node',
   'agent-run',
+  'operator-recovery-event',
 ] as const;
 
 export type StreamType = (typeof STREAM_TYPES)[number];
@@ -80,6 +81,7 @@ const SCHEMA_CONST: Record<Exclude<StreamType, 'transcript-event'>, string> = {
   'work-receipt': 'pd.agent-harbor.work-receipt.v0',
   'agent-node': 'pd.agent-harbor.agent-node.v0',
   'agent-run': 'pd.agent-harbor.agent-run.v0',
+  'operator-recovery-event': 'pd.agent-harbor.operator-recovery-event.v0',
 };
 
 /** Required fields per stream type — mirrors the frozen schemas' `required` arrays. */
@@ -93,6 +95,12 @@ const REQUIRED_FIELDS: Record<StreamType, string[]> = {
   'work-receipt': ['schema', 'receiptId', 'agentNodeId', 'sessionId', 'identity', 'intent', 'risks', 'validation', 'actions', 'contextUsed', 'rollback', 'spend', 'provenance', 'createdAt'],
   'agent-node': ['schema', 'agentNodeId', 'identity', 'class', 'authority', 'complianceLevel', 'status', 'createdAt'],
   'agent-run': ['schema', 'runId', 'agentNodeId', 'sessionId', 'body', 'status', 'startedAt'],
+  'operator-recovery-event': [
+    'schema', 'eventId', 'recoveryId', 'kind', 'actionHash', 'harbor', 'project',
+    'worktree', 'branch', 'predecessorSessionId', 'sessionIntent', 'actorId',
+    'intendedAgentId', 'daemonGeneration', 'nonce', 'expiresAt', 'bodyExpiresAt', 'jtiDigest',
+    'contextSlot', 'claims', 'occurredAt', 'predecessorEventIds',
+  ],
 };
 
 export type HarborPayload = Record<string, unknown>;
@@ -279,6 +287,51 @@ function validateRequired(streamType: StreamType, payload: HarborPayload): void 
       `(contract: schemas/agent-harbor/v0/${streamType === 'agent-node' ? 'agent-node' : streamType === 'agent-run' ? 'agent-run' : streamType}.schema.json)`,
     );
   }
+  if (
+    streamType === 'operator-recovery-event' &&
+    !['challenge-created', 'expired', 'drift-refused', 'replay-refused'].includes(String(payload.kind))
+  ) {
+    const missingEnrollment = [
+      'deviceKeyId',
+      'enrollmentEventId',
+      'enrollmentActivationEventId',
+    ]
+      .filter((field) => payload[field] === undefined || payload[field] === null);
+    if (missingEnrollment.length > 0) {
+      throw new LedgerValidationError(
+        `operator-recovery-event payload missing required field(s): ${missingEnrollment.join(', ')} `
+        + '(required after challenge-created)',
+      );
+    }
+  }
+  if (streamType === 'operator-recovery-event' && !Object.hasOwn(payload, 'priorContextDigest')) {
+    throw new LedgerValidationError(
+      'operator-recovery-event payload missing required field(s): priorContextDigest '
+      + '(null is the explicit empty-slot value)',
+    );
+  }
+  if (streamType === 'operator-recovery-event') {
+    const forbidden = new Set([
+      'jti', 'macaroonidentifier', 'identifier', 'signature', 'signaturederbase64',
+      'credential', 'grant', 'rootkey',
+    ]);
+    const inspect = (value: unknown, path: string): void => {
+      if (typeof value === 'string' && value.includes('pdab1.')) {
+        throw new LedgerValidationError(`operator-recovery-event contains credential material at ${path}`);
+      }
+      if (Array.isArray(value)) {
+        value.forEach((entry, index) => inspect(entry, `${path}[${index}]`));
+      } else if (value && typeof value === 'object') {
+        for (const [field, nested] of Object.entries(value as Record<string, unknown>)) {
+          if (forbidden.has(field.toLowerCase())) {
+            throw new LedgerValidationError(`operator-recovery-event contains forbidden field ${path}.${field}`);
+          }
+          inspect(nested, `${path}.${field}`);
+        }
+      }
+    };
+    inspect(payload, 'payload');
+  }
   if (streamType === 'transcript-event') {
     if (payload.schemaVersion !== 1) {
       throw new LedgerValidationError(
@@ -423,6 +476,18 @@ function extractFields(streamType: StreamType, payload: HarborPayload): Extracte
         schemaId: payload.schema as string,
       };
     }
+    case 'operator-recovery-event':
+      return {
+        eventId: payload.eventId as string,
+        agentNodeId: str(payload.actorId),
+        sessionId: str(payload.successorSessionId) ?? str(payload.predecessorSessionId),
+        runId: null,
+        sequence: null,
+        kind: str(payload.kind),
+        occurredAt: str(payload.occurredAt),
+        idempotencyKey: str(payload.idempotencyKey),
+        schemaId: payload.schema as string,
+      };
   }
 }
 

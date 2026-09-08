@@ -18,11 +18,17 @@ ed25519-dalek.workspace = true
 getrandom.workspace = true
 hex.workspace = true
 hmac.workspace = true
+libc.workspace = true
 pd-core = { path = "../pd-core" }
+ring = "0.17"
 serde.workspace = true
 serde_json.workspace = true
 sha2.workspace = true
 thiserror.workspace = true
+
+[target.'cfg(target_os = "macos")'.dependencies]
+core-foundation = "0.10"
+security-framework-sys = "2.17"
 
 [dev-dependencies]
 # Property-based fuzzing of the FFI boundary (adversarial redteam suite): feed

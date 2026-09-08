@@ -10,13 +10,13 @@ import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
+import Database from 'better-sqlite3';
 import { registerTestActorVia } from '../helpers/actor-credentials.js';
 import {
   clearTestCurrentContext,
   getDaemonState,
   request,
   runCli,
-  runCliViaIpc,
   writeTestCurrentContext,
 } from '../helpers/integration-setup.js';
 
@@ -108,12 +108,9 @@ describe('CLI Integration Tests', () => {
 
   describe('Lock Commands', () => {
     const testLock = `test-lock-${Date.now()}`;
-    const ipcFilepathLock = `/tmp/test-lock-ipc-${Date.now()}.ts`;
 
     afterAll(() => {
       runCli(['unlock', testLock, '--force']);
-      runCliViaIpc(['unlock', ipcFilepathLock, '--owner', 'ipc-owner-a', '--force']);
-      runCliViaIpc(['unlock', ipcFilepathLock, '--owner', 'ipc-owner-b', '--force']);
     });
 
     test('lock acquires successfully', () => {
@@ -199,26 +196,6 @@ describe('CLI Integration Tests', () => {
       }
     });
 
-    test('IPC lock keeps filepath locks held across command invocations', () => {
-      const first = runCliViaIpc(['lock', ipcFilepathLock, '--owner', 'ipc-owner-a', '--json']);
-      expect(first.success).toBe(true);
-      expect(JSON.parse(first.stdout)).toMatchObject({
-        success: true,
-        name: ipcFilepathLock,
-        owner: 'ipc-owner-a'
-      });
-
-      const second = runCliViaIpc(['lock', ipcFilepathLock, '--owner', 'ipc-owner-b', '--json']);
-      expect(second.success).toBe(false);
-      expect(second.stderr).toContain('held by ipc-owner-a');
-
-      const unlock = runCliViaIpc(['unlock', ipcFilepathLock, '--owner', 'ipc-owner-a', '--json']);
-      expect(unlock.success).toBe(true);
-      expect(JSON.parse(unlock.stdout)).toMatchObject({
-        success: true,
-        released: true
-      });
-    });
   });
 
   describe('Pub/Sub Commands', () => {
@@ -265,7 +242,7 @@ describe('CLI Integration Tests', () => {
   });
 
   describe('Sugar Recovery Commands', () => {
-    test('done succeeds over IPC when the session is active but the agent registry entry is gone', async () => {
+    test('done uses durable actor continuity when the ephemeral agent registry entry is gone', async () => {
       const slot = `stale-done-${Date.now()}`;
       const agentId = `stale-done-agent-${Date.now()}`;
 
@@ -282,6 +259,7 @@ describe('CLI Integration Tests', () => {
 
         const sessionId = begin.data.sessionId;
         expect(sessionId).toBeTruthy();
+        expect(begin.data.credential).toBeTruthy();
 
         writeTestCurrentContext({
           agentId,
@@ -289,6 +267,7 @@ describe('CLI Integration Tests', () => {
           purpose: 'CLI stale-session recovery',
           identity: 'port-daddy',
           contextSlot: slot,
+          credential: begin.data.credential,
         });
 
         const unregister = await requestWithRetry(`/agents/${encodeURIComponent(agentId)}`, { method: 'DELETE' });
@@ -297,7 +276,7 @@ describe('CLI Integration Tests', () => {
         // pd-done origin rule (substrate fix 2026-05-20): bypass via the
         // documented escape hatch for this integration test, which has no
         // intent to push or open a PR.
-        const result = runCliViaIpc(
+        const result = runCli(
           ['done', 'Recovered after agent registry loss', '--json',
            '--skip-origin-check', '--reason', 'cli ipc recovery integration test'],
           { env: { PORT_DADDY_CONTEXT_SLOT: slot } },
@@ -1339,6 +1318,54 @@ describe('CLI Integration Tests', () => {
       const doneData = JSON.parse(doneResult.stdout);
       expect(doneData.success).toBe(true);
       expect(doneData.sessionId).toBe(takeoverData.successorId);
+    });
+
+    test('pd session takeover refuses missing actor continuity without minting or requesting takeover', () => {
+      const slot = `missing-takeover-credential-${Date.now()}`;
+      const agentId = `existing-actor-with-lost-body-${Date.now()}`;
+      const missingSessionId = `session-continuity-probe-${Date.now()}`;
+      const { dbPath } = getDaemonState();
+      const db = new Database(dbPath, { readonly: true });
+
+      try {
+        writeTestCurrentContext({
+          agentId,
+          sessionId: missingSessionId,
+          purpose: 'Prove takeover never remints after restart',
+          identity: 'port-daddy:test:missing-takeover-continuity',
+          contextSlot: slot,
+          credential: null,
+        });
+
+        const beforeSouls = db.prepare('SELECT COUNT(*) AS count FROM actor_souls').get().count;
+        const beforeAlias = db.prepare('SELECT COUNT(*) AS count FROM actor_alias WHERE alias = ?').get(agentId).count;
+
+        const result = runCli(
+          ['session', 'takeover', missingSessionId, 'must not mint actor B', '--json'],
+          {
+            env: {
+              PORT_DADDY_CONTEXT_SLOT: slot,
+              PD_ACTOR_CREDENTIAL: '',
+              PORT_DADDY_ACTOR_CREDENTIAL: '',
+            },
+          },
+        );
+
+        expect(result.success).toBe(false);
+        expect(result.stderr).toBe('');
+        expect(JSON.parse(result.stdout)).toEqual({
+          success: false,
+          code: 'ACTOR_CONTINUITY_REQUIRED',
+          error: expect.stringContaining('No new actor was minted'),
+          sessionId: missingSessionId,
+        });
+        expect(db.prepare('SELECT COUNT(*) AS count FROM actor_souls').get().count).toBe(beforeSouls);
+        expect(db.prepare('SELECT COUNT(*) AS count FROM actor_alias WHERE alias = ?').get(agentId).count).toBe(beforeAlias);
+        expect(db.prepare('SELECT COUNT(*) AS count FROM sessions WHERE id = ?').get(missingSessionId).count).toBe(0);
+      } finally {
+        db.close();
+        clearTestCurrentContext(slot);
+      }
     });
 
     test('pd session files add uses stored session context across worktree drift', async () => {

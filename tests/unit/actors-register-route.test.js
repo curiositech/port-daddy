@@ -16,7 +16,7 @@ describe('POST /actors/register', () => {
   let db, app;
   beforeEach(async () => {
     db = createTestDb();
-    const souls = createActorSouls(db, { operatorSecret: 'op-secret' });
+    const souls = createActorSouls(db);
     app = buildApp(souls);
     await app.ready();
   });
@@ -33,7 +33,7 @@ describe('POST /actors/register', () => {
     expect(body.status).toBe('minted');
     expect(body.soulClass).toBe('newcomer');
     expect(typeof body.credential).toBe('string');
-    expect(body.credential.startsWith(`${body.actorId}.`)).toBe(true);
+    expect(body.credential.startsWith(`pdab1.${body.actorId}.`)).toBe(true);
   });
 
   test('re-presenting a valid credential resolves to the same id (200, no new credential)', async () => {
@@ -58,12 +58,12 @@ describe('POST /actors/register', () => {
     expect(res.json().code).toBe('CREDENTIAL_INVALID');
   });
 
-  test('operatorToken mints an operator-trusted soul', async () => {
+  test('an operatorToken field has no authority and remains an ordinary metered newcomer', async () => {
     const res = await app.inject({
       method: 'POST', url: '/actors/register', payload: { operatorToken: 'op-secret', alias: 'op:one' },
     });
     expect(res.statusCode).toBe(201);
-    expect(res.json().soulClass).toBe('operator');
+    expect(res.json().soulClass).toBe('newcomer');
   });
 
   test('returns 501 when the souls store is not wired', async () => {

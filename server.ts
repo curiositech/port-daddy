@@ -110,8 +110,16 @@ import { createUsageTelemetry } from './lib/usage-telemetry.js';
 import { createMetricsRegistry } from './lib/metrics-registry.js';
 import { createBonds } from './lib/bonds.js';
 import { createBudgetGuard } from './lib/budget-guard.js';
-import { createActorSouls } from './lib/actor-souls.js';
-import { migrateActorSouls } from './scripts/migrate-actor-souls.js';
+import {
+  createActorSouls,
+  retireLegacyActorCredentialFiles,
+} from './lib/actor-souls.js';
+import {
+  createOperatorRecovery,
+  installOperatorRecoveryContext,
+} from './lib/operator-recovery.js';
+import { verifyOperatorPresenceSignature } from './lib/operator-presence-ffi.js';
+import { randomBytes } from 'node:crypto';
 import { homedir } from 'node:os';
 import { createBudgetPause } from './lib/budget-pause.js';
 import { createQuorum } from './lib/quorum.js';
@@ -230,6 +238,9 @@ function calculateCodeHash(): string {
 
 const CODE_HASH: string = calculateCodeHash();
 const STARTED_AT: number = Date.now();
+// Per-process authority generation. Durable actors live in SQLite and survive
+// this value changing; only pending recovery challenges/body bindings expire.
+const DAEMON_GENERATION: string = `daemon-${STARTED_AT}-${randomBytes(12).toString('hex')}`;
 
 // Snapshot the running binary once at boot. We hash process.execPath BEFORE
 // any `brew upgrade` (or other in-place swap) can land a newer binary at the
@@ -810,17 +821,52 @@ const actorSouls = createActorSouls(db, {
     ? { newcomerAdmitMax: newcomerAdmitMaxEnv }
     : {}),
 });
-// Grandfather EXISTING agents (from budget_ledger/bond_escrow/agents) into
-// trusted souls before budgetGuard starts routing spend through the souls
-// choke below -- otherwise every already-running agent looks like a brand
-// new "unknown" soul on this boot and gets capped at the newcomer pool floor
-// instead of its real budget. Idempotent (see scripts/migrate-actor-souls.ts);
-// safe to run on every boot, not just the first one after this lands.
 try {
-  migrateActorSouls(db, { apply: true, credentialsDir: join(homedir(), '.port-daddy', 'actor-credentials') });
-} catch (err) {
-  console.error('[actor-souls] grandfather migration failed (spend routing may throttle pre-existing agents until this is fixed):', err);
+  const retired = retireLegacyActorCredentialFiles(dirname(DB_PATH));
+  if (retired.removedFiles > 0) {
+    logger.info('legacy_actor_credential_files_retired', {
+      removedFiles: retired.removedFiles,
+      stateRoot: dirname(DB_PATH),
+    });
+  }
+} catch {
+  // The database selectors were already retired transactionally above, so a
+  // filesystem anomaly cannot restore authority. Keep the harbor available,
+  // report only a non-secret repair signal, and retry exact cleanup next boot.
+  logger.warn('legacy_actor_credential_file_retirement_incomplete', {
+    stateRoot: dirname(DB_PATH),
+  });
 }
+const fleetBarRecoveryExecutable = [
+  '/Applications/FleetBar.app/Contents/MacOS/FleetBar',
+  join(homedir(), 'Applications', 'Port Daddy', 'FleetBar.app', 'Contents', 'MacOS', 'FleetBar'),
+  join(homedir(), 'Applications', 'FleetBar.app', 'Contents', 'MacOS', 'FleetBar'),
+].find((candidate) => existsSync(candidate)) ?? null;
+
+// The HTTP caller creates only a bounded intent. First use launches the exact
+// installed FleetBar executable through the private helper protocol; pd-anchor
+// verifies its live PID before and after the exchange. Decision signatures are
+// also verified by pd-anchor with no TypeScript crypto fallback.
+const operatorRecovery = createOperatorRecovery({
+  db,
+  actorSouls,
+  sessions,
+  daemonGeneration: DAEMON_GENERATION,
+  fleetBarExecutablePath: fleetBarRecoveryExecutable,
+  signatureVerifier: {
+    verify(input) {
+      const verdict = verifyOperatorPresenceSignature({
+        publicKeyX963: Buffer.from(input.publicKeyX963Base64, 'base64'),
+        signatureDer: Buffer.from(input.signatureDerBase64, 'base64'),
+        challenge: input.canonicalPayload,
+      });
+      return verdict.ok
+        ? { ok: true as const }
+        : { ok: false as const, code: verdict.code, reason: verdict.reason };
+    },
+  },
+  installRecoveredContext: installOperatorRecoveryContext,
+});
 const budgetGuard = createBudgetGuard(db, {}, {
   broadcast: (channel, event) => messaging.publish(channel, event),
   souls: actorSouls,
@@ -1443,7 +1489,6 @@ const app: FastifyInstance = Fastify({
 if (process.env.DEBUG_TESTS) {
   app.addHook('preHandler', async (request: FastifyRequest) => {
     console.error(`[DEBUG] INCOMING: ${request.method} ${request.url}`);
-    if (request.body) console.error(`[DEBUG] BODY: ${JSON.stringify(request.body)}`);
   });
 }
 
@@ -1694,7 +1739,7 @@ await registerAllRoutes(
     roadmapActivity,
     commitments, obligationMonitor, suggestions, whois,
     contextBootstrapLookup,
-    bonds, budgetGuard, budgetPause, actorSouls,
+    bonds, budgetGuard, budgetPause, actorSouls, operatorRecovery,
     arbiter, bosunHeartbeat,
     VERSION, CODE_HASH, STARTED_AT, __dirname, repoRoot: REPO_ROOT,
     runningBinarySnapshot: RUNNING_BINARY_SNAPSHOT,

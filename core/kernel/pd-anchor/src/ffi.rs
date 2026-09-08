@@ -13,6 +13,8 @@ use crate::keystore;
 use crate::macaroon::{
     check_caveat, verify, Macaroon, RentVerdict, RequestContext, DISCHARGE_TTL_MS,
 };
+use crate::operator_presence::verify_operator_presence_signature;
+use crate::process_trust::{verify_fleetbar_process, FleetBarProcessTrust};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::collections::HashMap;
@@ -122,6 +124,216 @@ pub unsafe extern "C" fn pd_macaroon_verify_json(req: *const c_char, len: usize)
         respond(out.ok, out.reason)
     });
     result.unwrap_or_else(|_| respond(false, "internal error"))
+}
+
+// ─── Operator-presence signature verification ─────────────────────────────
+
+#[derive(Deserialize)]
+struct FfiOperatorPresenceRequest {
+    public_key_x963_hex: String,
+    signature_der_hex: String,
+    challenge_hex: String,
+}
+
+#[derive(Serialize)]
+struct FfiOperatorPresenceResponse {
+    ok: bool,
+    code: String,
+    reason: String,
+}
+
+fn operator_presence_response(
+    ok: bool,
+    code: impl Into<String>,
+    reason: impl Into<String>,
+) -> *mut c_char {
+    respond_json(&FfiOperatorPresenceResponse {
+        ok,
+        code: code.into(),
+        reason: reason.into(),
+    })
+}
+
+/// Verify a FleetBar Secure Enclave P-256 signature. Input JSON contains only
+/// byte encodings: `{ public_key_x963_hex, signature_der_hex, challenge_hex }`.
+/// The challenge is decoded and verified byte-for-byte; this boundary never
+/// parses or reconstructs the signed coordination object.
+///
+/// Output is `{ ok, code, reason }`. Malformed, oversized, wrong-key, and
+/// wrong-message inputs all return a non-null fail-closed JSON response.
+///
+/// # Safety
+/// `req` must be null or point to `len` readable bytes. The boundary validates
+/// null, size, UTF-8, JSON, and hex before invoking the verifier, and catches
+/// every panic so nothing unwinds across C ABI.
+#[no_mangle]
+pub unsafe extern "C" fn pd_operator_presence_verify_json(
+    req: *const c_char,
+    len: usize,
+) -> *mut c_char {
+    let result = catch_unwind(|| {
+        let request = match read_request(req, len) {
+            Ok(request) => request,
+            Err(response) => return response,
+        };
+        let parsed: FfiOperatorPresenceRequest = match serde_json::from_str(&request) {
+            Ok(parsed) => parsed,
+            Err(error) => {
+                return operator_presence_response(
+                    false,
+                    "MALFORMED_REQUEST",
+                    format!("request parse error: {error}"),
+                )
+            }
+        };
+        let public_key = match hex::decode(parsed.public_key_x963_hex) {
+            Ok(bytes) => bytes,
+            Err(_) => {
+                return operator_presence_response(
+                    false,
+                    "MALFORMED_PUBLIC_KEY",
+                    "public_key_x963_hex is not valid hex",
+                )
+            }
+        };
+        let signature = match hex::decode(parsed.signature_der_hex) {
+            Ok(bytes) => bytes,
+            Err(_) => {
+                return operator_presence_response(
+                    false,
+                    "MALFORMED_SIGNATURE",
+                    "signature_der_hex is not valid hex",
+                )
+            }
+        };
+        let challenge = match hex::decode(parsed.challenge_hex) {
+            Ok(bytes) => bytes,
+            Err(_) => {
+                return operator_presence_response(
+                    false,
+                    "MALFORMED_CHALLENGE",
+                    "challenge_hex is not valid hex",
+                )
+            }
+        };
+
+        match verify_operator_presence_signature(&public_key, &signature, &challenge) {
+            Ok(()) => operator_presence_response(true, "VERIFIED", "operator presence verified"),
+            Err(error) => operator_presence_response(false, error.code(), error.to_string()),
+        }
+    });
+    result.unwrap_or_else(|_| {
+        operator_presence_response(
+            false,
+            "INTERNAL_ERROR",
+            "operator presence verifier panicked",
+        )
+    })
+}
+
+// ─── FleetBar live-process trust verification ─────────────────────────────
+
+#[derive(Serialize)]
+struct FfiFleetBarProcessTrustResponse {
+    ok: bool,
+    code: String,
+    reason: String,
+    trust: Option<FleetBarProcessTrust>,
+}
+
+/// Verify one live FleetBar enrollment-helper process by PID. The production
+/// designated requirement and all hardening policy are compiled into pd-anchor;
+/// no caller-controlled requirement, path, team ID, or entitlement policy
+/// crosses this ABI.
+///
+/// Output is `{ ok, code, reason, trust? }`. Non-macOS builds return the typed
+/// `UNSUPPORTED_PLATFORM` refusal. A vanished or recycled PID fails closed.
+#[no_mangle]
+pub extern "C" fn pd_fleetbar_process_trust_json(pid: i32) -> *mut c_char {
+    let result = catch_unwind(|| match verify_fleetbar_process(pid) {
+        Ok(trust) => respond_json(&FfiFleetBarProcessTrustResponse {
+            ok: true,
+            code: "VERIFIED".to_string(),
+            reason: "live FleetBar helper satisfies the compiled-in trust policy".to_string(),
+            trust: Some(trust),
+        }),
+        Err(error) => respond_json(&FfiFleetBarProcessTrustResponse {
+            ok: false,
+            code: error.code().to_string(),
+            reason: error.to_string(),
+            trust: None,
+        }),
+    });
+    result.unwrap_or_else(|_| {
+        respond_json(&FfiFleetBarProcessTrustResponse {
+            ok: false,
+            code: "INTERNAL_ERROR".to_string(),
+            reason: "FleetBar process trust verifier panicked".to_string(),
+            trust: None,
+        })
+    })
+}
+
+// ─── Context-slot kernel lease ─────────────────────────────────────────────
+
+/// Acquire an exclusive, non-blocking kernel lease on an already-open context
+/// lock file. The caller must keep `fd` open for the entire critical section.
+///
+/// Return contract: `0` acquired, `1` busy, `-1` OS failure, `-2` invalid or
+/// unsupported descriptor. Unlike the former PID/boot lockfile protocol, the
+/// kernel releases this lease on process exit and no pathname is ever unlinked.
+#[no_mangle]
+pub extern "C" fn pd_context_slot_try_lock(fd: i32) -> i32 {
+    if fd < 0 {
+        return -2;
+    }
+    #[cfg(unix)]
+    loop {
+        // SAFETY: `flock` only observes the numeric descriptor. The caller owns
+        // the open descriptor and receives a status code for every failure.
+        let result = unsafe { libc::flock(fd, libc::LOCK_EX | libc::LOCK_NB) };
+        if result == 0 {
+            return 0;
+        }
+        let errno = std::io::Error::last_os_error().raw_os_error();
+        if errno == Some(libc::EINTR) {
+            continue;
+        }
+        if errno == Some(libc::EWOULDBLOCK) || errno == Some(libc::EAGAIN) {
+            return 1;
+        }
+        return -1;
+    }
+    #[cfg(not(unix))]
+    {
+        -2
+    }
+}
+
+/// Release a context-slot kernel lease. Closing the descriptor also releases
+/// it, but the explicit operation makes failures observable before close.
+/// Return contract: `0` released, `-1` OS failure, `-2` invalid/unsupported.
+#[no_mangle]
+pub extern "C" fn pd_context_slot_unlock(fd: i32) -> i32 {
+    if fd < 0 {
+        return -2;
+    }
+    #[cfg(unix)]
+    loop {
+        // SAFETY: same descriptor contract as `pd_context_slot_try_lock`.
+        let result = unsafe { libc::flock(fd, libc::LOCK_UN) };
+        if result == 0 {
+            return 0;
+        }
+        if std::io::Error::last_os_error().raw_os_error() == Some(libc::EINTR) {
+            continue;
+        }
+        return -1;
+    }
+    #[cfg(not(unix))]
+    {
+        -2
+    }
 }
 
 // ─── Planner scheduler (ADR-0086) ────────────────────────────────────────────

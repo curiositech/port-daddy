@@ -1792,23 +1792,6 @@ class PortDaddy {
    * Acquire a distributed lock.
    */
   async lock(name: string, options: LockOptions = {}): Promise<LockResponse> {
-    const ipcResult = await this._requestViaIpc<LockResponse & { error?: string; code?: string }>(
-      IpcAction.LOCK_ACQUIRE,
-      {
-        name,
-        owner: options.owner || this.agentId,
-        ttl: options.ttl,
-        metadata: options.metadata,
-      },
-    );
-    if (ipcResult) {
-      if (ipcResult.success === false) {
-        const status = ipcResult.code === 'INVALID_TTL' ? 400 : 409;
-        this._throwIpcParityError(ipcResult, 'Failed to acquire lock', status);
-      }
-      return ipcResult;
-    }
-
     return this._request('POST', `/locks/${encodeURIComponent(name)}`, {
       owner: options.owner || this.agentId,
       ttl: options.ttl,
@@ -1820,21 +1803,6 @@ class PortDaddy {
    * Release a distributed lock.
    */
   async unlock(name: string, options: UnlockOptions = {}): Promise<UnlockResponse> {
-    const ipcResult = await this._requestViaIpc<UnlockResponse & { error?: string }>(
-      IpcAction.LOCK_RELEASE,
-      {
-        name,
-        owner: options.owner || this.agentId,
-        force: options.force,
-      },
-    );
-    if (ipcResult) {
-      if (ipcResult.success === false) {
-        this._throwIpcParityError(ipcResult, 'Failed to release lock', 403);
-      }
-      return ipcResult;
-    }
-
     return this._request('DELETE', `/locks/${encodeURIComponent(name)}`, {
       owner: options.owner || this.agentId,
       force: options.force,
@@ -1864,21 +1832,6 @@ class PortDaddy {
    * Extend a lock's TTL.
    */
   async extendLock(name: string, options: LockOptions = {}): Promise<ExtendLockResponse> {
-    const ipcResult = await this._requestViaIpc<ExtendLockResponse & { error?: string; code?: string }>(
-      IpcAction.LOCK_EXTEND,
-      {
-        name,
-        owner: options.owner || this.agentId,
-        ttl: options.ttl,
-      },
-    );
-    if (ipcResult) {
-      if (ipcResult.success === false) {
-        this._throwIpcParityError(ipcResult, 'Failed to extend lock', 400);
-      }
-      return ipcResult;
-    }
-
     return this._request('PUT', `/locks/${encodeURIComponent(name)}`, {
       owner: options.owner || this.agentId,
       ttl: options.ttl,
@@ -2310,22 +2263,6 @@ class PortDaddy {
     if (options.lifecycle !== undefined && options.lifecycle !== 'durable' && options.lifecycle !== 'ephemeral') {
       throw new Error('startSession lifecycle must be "durable" or "ephemeral" when provided');
     }
-    let ipcOptions: Record<string, unknown> = options;
-    if (options.lifecycle) {
-      const { lifecycle, ...rest } = options;
-      ipcOptions = { ...rest, durable: lifecycle === 'durable' };
-    }
-    const ipcResult = await this._requestViaIpc<SessionResponse>(
-      IpcAction.SESSION_START,
-      ipcOptions,
-    );
-    if (ipcResult) {
-      if (ipcResult.success === false) {
-        const status = ipcResult.code === 'FILE_CONFLICT' ? 409 : 400;
-        this._throwIpcParityError(ipcResult, 'Failed to start session', status);
-      }
-      return ipcResult;
-    }
     return this._request('POST', '/sessions', options) as Promise<SessionResponse>;
   }
 
@@ -2343,20 +2280,6 @@ class PortDaddy {
     const note = isSessionId ? options?.note : sessionIdOrNote;
 
     if (sessionId) {
-      const ipcResult = await this._requestViaIpc<SessionResponse>(
-        IpcAction.SESSION_END,
-        {
-          sessionId,
-          status: options?.status || 'completed',
-          note,
-        },
-      );
-      if (ipcResult) {
-        if (ipcResult.success === false) {
-          this._throwIpcParityError(ipcResult, 'Failed to end session', 404);
-        }
-        return ipcResult;
-      }
       return this._request('PUT', `/sessions/${sessionId}`, {
         status: options?.status || 'completed',
         note,
@@ -2390,16 +2313,6 @@ class PortDaddy {
    * Delete a session entirely.
    */
   async removeSession(sessionId: string): Promise<{ success: boolean }> {
-    const ipcResult = await this._requestViaIpc<{ success: boolean; error?: string }>(
-      IpcAction.SESSION_REMOVE,
-      { sessionId },
-    );
-    if (ipcResult) {
-      if (ipcResult.success === false) {
-        this._throwIpcParityError(ipcResult, 'Failed to remove session', 404);
-      }
-      return ipcResult;
-    }
     return this._request('DELETE', `/sessions/${sessionId}`) as Promise<{ success: boolean }>;
   }
 
@@ -2419,6 +2332,16 @@ class PortDaddy {
     lifecycle?: 'durable' | 'ephemeral';
     claimFiles?: boolean;
   }): Promise<SessionTakeoverResponse> {
+    if (!this.credential) {
+      const failure = {
+        success: false,
+        code: 'ACTOR_CONTINUITY_REQUIRED',
+        error: 'Session takeover requires the existing actor credential; rebind that actor before continuing. No new actor was minted.',
+        sessionId,
+      };
+      throw new PortDaddyError(failure.error, 401, failure);
+    }
+
     const body: Record<string, unknown> = {
       ...(options || {}),
       agentId: options?.agentId || this.agentId,
@@ -2426,20 +2349,6 @@ class PortDaddy {
     if (options?.lifecycle) {
       body.durable = options.lifecycle === 'durable';
       delete body.lifecycle;
-    }
-
-    const ipcResult = await this._requestViaIpc<SessionTakeoverResponse>(
-      IpcAction.SESSION_TAKEOVER,
-      {
-        sessionId,
-        ...body,
-      },
-    );
-    if (ipcResult) {
-      if (ipcResult.success === false) {
-        this._throwIpcParityError(ipcResult, 'Failed to take over session', ipcResult.code === 'VALIDATION_ERROR' ? 400 : 404);
-      }
-      return ipcResult;
     }
     return this._request('POST', `/sessions/${sessionId}/takeover`, body) as Promise<SessionTakeoverResponse>;
   }
@@ -2452,18 +2361,6 @@ class PortDaddy {
     agentId?: string;
     sessionId?: string;
   }): Promise<NoteResponse> {
-    const ipcResult = await this._requestViaIpc<NoteResponse>(
-      IpcAction.NOTE,
-      {
-        sessionId: options?.sessionId,
-        agentId: options?.agentId,
-        content,
-        type: options?.type,
-      },
-      { agentId: options?.agentId },
-    );
-    if (ipcResult) return ipcResult;
-
     return this._request('POST', '/notes', {
       content,
       sessionId: options?.sessionId,
@@ -2568,13 +2465,6 @@ class PortDaddy {
       agentId = options.agentId;
     }
     const callerAgentId = agentId ?? this.agentId;
-    const ipcResult = await this._requestViaIpc<FileClaimResponse>(
-      IpcAction.FILES_CLAIM,
-      { sessionId, paths: files, regions, force, agentId: callerAgentId },
-      { agentId: callerAgentId || undefined },
-    );
-    if (ipcResult) return ipcResult;
-
     return this._request('POST', `/sessions/${sessionId}/files`, { files, regions, force, agentId: callerAgentId }) as Promise<FileClaimResponse>;
   }
 
@@ -2587,13 +2477,6 @@ class PortDaddy {
     options?: { regions?: FileRegion[]; agentId?: string | null }
   ): Promise<FileReleaseResponse> {
     const callerAgentId = options?.agentId ?? this.agentId;
-    const ipcResult = await this._requestViaIpc<FileReleaseResponse>(
-      IpcAction.FILES_RELEASE,
-      { sessionId, paths: files, regions: options?.regions, agentId: callerAgentId },
-      { agentId: callerAgentId || undefined },
-    );
-    if (ipcResult) return ipcResult;
-
     return this._request('DELETE', `/sessions/${sessionId}/files`, { files, regions: options?.regions, agentId: callerAgentId }) as Promise<FileReleaseResponse>;
   }
 
@@ -2821,10 +2704,7 @@ class PortDaddy {
     if (options.forceIncomplete) body.forceIncomplete = true;
     if (options.forceIncompleteReason) body.forceIncompleteReason = options.forceIncompleteReason;
 
-    const ipcResult = await this._requestViaIpc<DoneSugarResponse>(IpcAction.DONE, body, {
-      agentId: options.agentId || this.agentId,
-    });
-    const result = ipcResult ?? await this._request('POST', '/sugar/done', body) as DoneSugarResponse;
+    const result = await this._request('POST', '/sugar/done', body) as DoneSugarResponse;
 
     // Clear agentId since we just unregistered
     if (result.agentUnregistered) {

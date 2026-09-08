@@ -47,10 +47,12 @@ function readStoredCliActor(): StoredCliActor | null {
 /**
  * Resolve the actor credential this CLI invocation should present.
  *
- * Precedence: explicit env (PD_ACTOR_CREDENTIAL, then
- * PORT_DADDY_ACTOR_CREDENTIAL), then the context-file credential — but the
- * context credential is returned ONLY when `expectedAgentId` is absent or
- * matches the context's agentId. Why: presenting soul A's credential while
+ * Precedence: a live operator-recovered exact-slot body, explicit env
+ * (PD_ACTOR_CREDENTIAL, then PORT_DADDY_ACTOR_CREDENTIAL), then an ordinary
+ * context-file credential. The recovered body comes first because inherited
+ * predecessor env cannot be rewritten by a daemon after restart. A context
+ * credential is returned ONLY when `expectedAgentId` is absent or matches
+ * the context's agentId. Why: presenting soul A's credential while
  * asserting agent B's name is exactly the laundering the daemon rejects
  * (403 IDENTITY_ALIAS_MISMATCH); withholding the mismatched credential
  * yields the clearer 401 IDENTITY_CREDENTIAL_REQUIRED instead.
@@ -67,13 +69,31 @@ function readStoredCliActor(): StoredCliActor | null {
  *          reject attributed writes 401 — fail-closed by design).
  */
 export function resolveCliActorCredential(expectedAgentId?: string): string | undefined {
+  let context: ReturnType<typeof readCurrentContext> = null;
+  try {
+    context = readCurrentContext();
+    if (
+      context
+      && typeof context.recoveryId === 'string'
+      && context.recoveryId.length > 0
+      && typeof context.credentialExpiresAt === 'number'
+      && context.credentialExpiresAt > Date.now()
+      && typeof context.credential === 'string'
+      && context.credential.trim()
+      && (!expectedAgentId || context.agentId === expectedAgentId)
+    ) {
+      return context.credential.trim();
+    }
+  } catch {
+    // Fall through to explicit env and ordinary context lookup.
+  }
   const envCredential = process.env.PD_ACTOR_CREDENTIAL?.trim()
     || process.env.PORT_DADDY_ACTOR_CREDENTIAL?.trim();
   if (envCredential) return envCredential;
   try {
-    const context = readCurrentContext();
     if (
       context &&
+      !(typeof context.recoveryId === 'string' && context.recoveryId.length > 0) &&
       typeof context.credential === 'string' &&
       context.credential.trim() &&
       (!expectedAgentId || context.agentId === expectedAgentId)

@@ -8,6 +8,8 @@ use thiserror::Error;
 pub mod ffi;
 pub mod keystore;
 pub mod macaroon;
+pub mod operator_presence;
+pub mod process_trust;
 pub mod schedule;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

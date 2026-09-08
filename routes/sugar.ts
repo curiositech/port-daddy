@@ -10,6 +10,7 @@
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import type { ActorSouls } from '../lib/actor-souls.js';
 import {
+  deriveSessionCredentialUseContext,
   extractActorCredential,
   resolveWriteIdentity,
   stampIdentityMetadata,
@@ -24,11 +25,17 @@ import { isReservedIdentityName } from '../lib/reserved-identity-names.js';
  * credential once, so `register` is required here in addition to the verify /
  * resolve pair the shared boundary uses.
  */
-type SugarActorSouls = Pick<ActorSouls, 'verifyCredential' | 'resolveActor' | 'register'>;
+type SugarActorSouls = Pick<
+  ActorSouls,
+  'verifyCredentialUse' | 'resolveActor' | 'register' | 'withMintDoorTransaction'
+>;
 
 interface SugarRouteDeps {
   sugar: {
     begin(options: Record<string, unknown>): Record<string, unknown>;
+    preflightBegin?(options: Record<string, unknown>):
+      | { status: 'none' }
+      | { status: 'blocked' | 'invalid'; httpStatus: number; code: string; error: string; hint?: string };
     done(options: Record<string, unknown>): Record<string, unknown>;
     whoami(options: Record<string, unknown>): Record<string, unknown>;
     relink(options: Record<string, unknown>): Record<string, unknown>;
@@ -46,9 +53,29 @@ interface SugarRouteDeps {
    * requires; `/sugar/done` and `/sugar/relink` reject without one.
    */
   actorSouls?: SugarActorSouls | null;
+  /** Canonical session read model used only to derive scoped-body resources. */
+  sessions?: {
+    get(sessionId: string): {
+      success?: boolean;
+      session?: {
+        id?: unknown;
+        agentId?: unknown;
+        identityProject?: unknown;
+        status?: unknown;
+        metadata?: { worktree?: unknown };
+      };
+    };
+  };
 }
 
 type BeginLifecycle = 'durable' | 'ephemeral';
+
+class SugarBeginRollback extends Error {
+  constructor(readonly result: Record<string, unknown>) {
+    super('sugar begin did not commit its newcomer admission');
+    this.name = 'SugarBeginRollback';
+  }
+}
 
 function parseBeginLifecycle(value: unknown): BeginLifecycle | null {
   if (typeof value !== 'string') return null;
@@ -62,7 +89,7 @@ function parseBeginLifecycle(value: unknown): BeginLifecycle | null {
 // =============================================================================
 export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (fastify, opts) => {
   const { deps } = opts;
-  const { sugar, metrics, logger, actorSouls } = deps;
+  const { sugar, metrics, logger, actorSouls, sessions } = deps;
 
   /**
    * Resolve the identity for `/sugar/begin` — the fleet's mint door.
@@ -253,19 +280,45 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
         },
       };
     }
+    if (outcome.status !== 'minted') {
+      logger.error('identity_write_rejected', {
+        route: 'POST /sugar/begin',
+        code: 'IDENTITY_MINT_INCONSISTENT',
+      });
+      return {
+        success: false,
+        httpStatus: 503,
+        result: {
+          success: false,
+          error: 'the identity store did not return a fresh body credential for newcomer admission',
+          code: 'IDENTITY_VERIFIER_UNAVAILABLE',
+        },
+      };
+    }
     const actorId = outcome.actorId as string;
     const soulClass = outcome.soulClass;
+    const intendedAgentId = agentId ?? identity ?? actorId;
     return {
       success: true,
       verdict: {
         ok: true,
         kind: 'verified',
         actorId,
-        agentId: agentId ?? identity ?? actorId,
+        agentId: intendedAgentId,
         soulClass,
-        identity: { verified: true, actorId, soulClass },
+        bodyCredentialId: outcome.bodyCredentialId,
+        credentialProfile: outcome.credentialProfile,
+        intendedAgentId,
+        identity: {
+          verified: true,
+          actorId,
+          soulClass,
+          bodyCredentialId: outcome.bodyCredentialId,
+          credentialProfile: outcome.credentialProfile,
+          intendedAgentId,
+        },
       },
-      mintedCredential: outcome.status === 'minted' ? outcome.credential : null,
+      mintedCredential: outcome.credential,
     };
   };
 
@@ -287,8 +340,10 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
     request: FastifyRequest,
     bodyAgentId: unknown,
     route: string,
+    sessionId: unknown,
+    action: 'session.done' | 'session.relink',
   ):
-    | { success: true; verdict: Extract<IdentityWriteVerdict, { ok: true }> }
+    | { success: true; verdict: Extract<IdentityWriteVerdict, { ok: true; kind: 'verified' }> }
     | { success: false; httpStatus: number; result: Record<string, unknown> } => {
     const verdict = resolveWriteIdentity({
       souls: actorSouls,
@@ -296,6 +351,9 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
       assertedAgentId: typeof bodyAgentId === 'string' ? bodyAgentId : null,
       route,
       logger,
+      credentialUseContext: typeof sessionId === 'string' && sessionId.trim() && sessions
+        ? deriveSessionCredentialUseContext(sessionId, action, (id) => sessions.get(id))
+        : null,
       requireIdentity: true,
     });
     if (!verdict.ok) {
@@ -303,6 +361,17 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
         success: false,
         httpStatus: verdict.httpStatus,
         result: { success: false, error: verdict.error, code: verdict.code },
+      };
+    }
+    if (verdict.kind !== 'verified') {
+      return {
+        success: false,
+        httpStatus: 401,
+        result: {
+          success: false,
+          error: 'a verified actor credential is required',
+          code: 'IDENTITY_CREDENTIAL_REQUIRED',
+        },
       };
     }
     return { success: true, verdict };
@@ -367,13 +436,109 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
         };
       }
 
-      // #8877 / ADR-0122: begin is the mint door. Verify a presented
-      // credential (401/403 on forgery or laundering), or mint a fresh soul
-      // for an uncredentialed caller whose asserted names are unowned — and
-      // return that credential ONCE so every later attributed write can
-      // present it.
-      const beginIdentity = resolveBeginIdentity(request, { agentId, identity });
-      if (!beginIdentity.success) {
+      // Do not burn newcomer quota or mint an orphan actor for a request that
+      // the canonical implicit-resume selector will refuse. The real Sugar
+      // service supplies this synchronous, read-only preflight; simple test
+      // doubles may omit it because they have no session store to inspect.
+      const presentedCredential = extractActorCredential(
+        request.headers as Record<string, unknown>,
+        request.body,
+      );
+      if (!presentedCredential && sugar.preflightBegin) {
+        const preflight = sugar.preflightBegin({
+          identity,
+          agentId,
+          force,
+          worktree,
+          requireLinkedWorktree,
+          allowMainWorktree,
+        });
+        if (preflight.status !== 'none') {
+          logger.warn('sugar_begin_rejected', {
+            code: preflight.code,
+            error: preflight.error,
+            identity,
+            lifecycle,
+            purpose,
+            fileCount: Array.isArray(files) ? files.length : 0,
+            hasSidequestReason: typeof sidequestReason === 'string' && sidequestReason.length > 0,
+          });
+          reply.code(preflight.httpStatus);
+          return {
+            success: false,
+            error: preflight.error,
+            code: preflight.code,
+            ...(preflight.hint ? { hint: preflight.hint } : {}),
+          };
+        }
+      }
+
+      const performBegin = () => {
+        // #8877 / ADR-0122: begin is the mint door. Verify a presented
+        // credential (401/403 on forgery or laundering), or mint a fresh soul
+        // for an uncredentialed caller whose asserted names are unowned.
+        const beginIdentity = resolveBeginIdentity(request, { agentId, identity });
+        if (!beginIdentity.success) {
+          // register() preserves its public typed 503 surface by converting a
+          // storage exception to STORE_UNAVAILABLE. Inside this outer mint-door
+          // transaction that result must become a throw, otherwise an exception
+          // after the newcomer-pool debit could be caught and accidentally
+          // committed as a partial admission.
+          if (!presentedCredential && beginIdentity.result.code === 'STORE_UNAVAILABLE') {
+            throw new SugarBeginRollback(beginIdentity.result);
+          }
+          return { kind: 'identity-refused' as const, beginIdentity };
+        }
+        const result = sugar.begin({
+          purpose,
+          identity,
+          agentId,
+          // Internal-only authority witness. It comes from the daemon verifier
+          // above, never the request body, and gates every implicit
+          // resume/takeover/claim in lib/sugar.ts.
+          verifiedActorId: beginIdentity.verdict.actorId,
+          name,
+          type,
+          files,
+          force,
+          // The session row is a durable attributed record: stamp the daemon's
+          // identity verdict into its metadata (the caller-supplied `identity`
+          // metadata key can never pre-fill the daemon's verdict slot).
+          metadata: stampIdentityMetadata(
+            metadata && typeof metadata === 'object' && !Array.isArray(metadata) ? metadata : null,
+            beginIdentity.verdict,
+          ),
+          worktree,
+          requireLinkedWorktree,
+          allowMainWorktree,
+          bypassCrowdedGate,
+          lifecycle,
+          roadmapLink,
+          sidequestReason,
+          roadmapNewTitle,
+        });
+        if (!result.success && !presentedCredential) {
+          throw new SugarBeginRollback(result);
+        }
+        return { kind: 'completed' as const, beginIdentity, result };
+      };
+
+      // The first uncredentialed begin is one authority transaction. Any
+      // downstream refusal rolls back the newcomer-pool debit, actor root,
+      // agent/session rows, claims, and notes together. Credentialed resumes
+      // perform no mint and retain the ordinary Sugar transaction boundary.
+      let outcome: ReturnType<typeof performBegin> | { kind: 'begin-refused'; result: Record<string, unknown> };
+      try {
+        outcome = !presentedCredential && actorSouls
+          ? actorSouls.withMintDoorTransaction(performBegin)
+          : performBegin();
+      } catch (error) {
+        if (!(error instanceof SugarBeginRollback)) throw error;
+        outcome = { kind: 'begin-refused', result: error.result };
+      }
+
+      if (outcome.kind === 'identity-refused') {
+        const { beginIdentity } = outcome;
         logger.warn('sugar_begin_rejected', {
           code: beginIdentity.result.code,
           error: beginIdentity.result.error,
@@ -387,30 +552,42 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
         return beginIdentity.result;
       }
 
-      const result = sugar.begin({
-        purpose,
-        identity,
-        agentId,
-        name,
-        type,
-        files,
-        force,
-        // The session row is a durable attributed record: stamp the daemon's
-        // identity verdict into its metadata (the caller-supplied `identity`
-        // metadata key can never pre-fill the daemon's verdict slot).
-        metadata: stampIdentityMetadata(
-          metadata && typeof metadata === 'object' && !Array.isArray(metadata) ? metadata : null,
-          beginIdentity.verdict,
-        ),
-        worktree,
-        requireLinkedWorktree,
-        allowMainWorktree,
-        bypassCrowdedGate,
-        lifecycle,
-        roadmapLink,
-        sidequestReason,
-        roadmapNewTitle,
-      });
+      if (outcome.kind === 'begin-refused') {
+        const { result } = outcome;
+        const status = result.code === 'STORE_UNAVAILABLE'
+          ? 503
+          : result.code === 'AGENT_REGISTRATION_FAILED'
+          || result.code === 'WORKTREE_REQUIRED'
+          || result.code === 'MAIN_WORKTREE_SESSION_FORBIDDEN'
+          || result.code === 'MAIN_WORKTREE_CROWDED'
+          || result.code === 'ROADMAP_RENT_CONFLICT'
+          || result.code === 'ROADMAP_SLUG_UNKNOWN'
+          || result.code === 'ROADMAP_TITLE_REQUIRED'
+          || result.code === 'SIDEQUEST_REASON_TOO_SHORT'
+          || result.code === 'ROADMAP_ITEMS_UNAVAILABLE'
+          ? 400
+          : result.code === 'SESSION_ACTOR_MISMATCH'
+            ? 403
+            : result.code === 'SESSION_REBIND_REQUIRED'
+              ? 409
+          : 500;
+        logger.warn('sugar_begin_rejected', {
+          code: result.code,
+          error: result.error,
+          identity,
+          lifecycle,
+          purpose,
+          fileCount: Array.isArray(files) ? files.length : 0,
+          hasSidequestReason: typeof sidequestReason === 'string' && sidequestReason.length > 0,
+        });
+        reply.code(status);
+        return result;
+      }
+
+      const { beginIdentity, result } = outcome;
+      if (!beginIdentity.success) {
+        throw new Error('completed Sugar begin lost its verified identity');
+      }
 
       if (!result.success) {
         const status = result.code === 'AGENT_REGISTRATION_FAILED'
@@ -423,6 +600,10 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
           || result.code === 'SIDEQUEST_REASON_TOO_SHORT'
           || result.code === 'ROADMAP_ITEMS_UNAVAILABLE'
           ? 400
+          : result.code === 'SESSION_ACTOR_MISMATCH'
+            ? 403
+            : result.code === 'SESSION_REBIND_REQUIRED'
+              ? 409
           : 500;
         logger.warn('sugar_begin_rejected', {
           code: result.code,
@@ -441,9 +622,10 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
       // response is already the project:stack:context display string); when
       // this begin MINTED, return the plaintext credential exactly once — the
       // caller must persist it and present it (x-actor-credential header or
-      // body `credential`) on every subsequent attributed write. There is no
-      // recovery path for a lost credential (a fresh begin mints a fresh
-      // newcomer soul).
+      // body `credential`) on every subsequent attributed write. A first-use
+      // caller receives a fresh root once; an existing stranded session is
+      // recoverable only through the FleetBar's provenance-bound exact-scope
+      // operator recovery flow, never by minting an unrelated newcomer.
       result.actorIdentity = beginIdentity.verdict.identity;
       result.actorId = beginIdentity.verdict.actorId;
       if (beginIdentity.mintedCredential) {
@@ -498,14 +680,20 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
       // #8877: ending a session mutates an attributed durable record — the
       // daemon-minted credential from /sugar/begin is REQUIRED, forged is
       // 401, another soul's agentId is 403. No anonymous path.
-      const doneIdentity = requireSugarIdentity(request, agentId, 'POST /sugar/done');
+      const doneIdentity = requireSugarIdentity(
+        request,
+        agentId,
+        'POST /sugar/done',
+        sessionId,
+        'session.done',
+      );
       if (!doneIdentity.success) {
         reply.code(doneIdentity.httpStatus);
         return doneIdentity.result;
       }
 
       const result = sugar.done({
-        agentId,
+        agentId: doneIdentity.verdict.agentId,
         sessionId,
         note,
         status,
@@ -555,13 +743,24 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
 
       // #8877: relink rewrites an attributed session's rent-at-claim links —
       // same always-attributed boundary as /sugar/done.
-      const relinkIdentity = requireSugarIdentity(request, agentId, 'POST /sugar/relink');
+      const relinkIdentity = requireSugarIdentity(
+        request,
+        agentId,
+        'POST /sugar/relink',
+        sessionId,
+        'session.relink',
+      );
       if (!relinkIdentity.success) {
         reply.code(relinkIdentity.httpStatus);
         return relinkIdentity.result;
       }
 
-      const result = sugar.relink({ agentId, sessionId, roadmapLink, sidequestReason });
+      const result = sugar.relink({
+        agentId: relinkIdentity.verdict.agentId,
+        sessionId,
+        roadmapLink,
+        sidequestReason,
+      });
 
       if (!result.success) {
         const status = result.code === 'NO_ACTIVE_SESSION'

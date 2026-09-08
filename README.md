@@ -256,6 +256,19 @@ pd takeover <old-session-id>       # successor session with recorded lineage
 
 `pd session takeover` creates a successor session, records the lineage in append-only notes, releases stale predecessor claims, and reclaims those files when there is no live conflict. `pd session rm` is archival: it releases active claims and writes a tombstone, but never deletes the session, notes, or claim history.
 
+Ordinary takeover requires the same actor's valid credential; a daemon restart
+is never permission to mint a look-alike actor. If a durable actor's body is no
+longer available, FleetBar presents the exact predecessor, project, canonical
+worktree, branch, successor intent, context slot, and every claim disposition.
+After Touch ID, the daemon verifies the signed FleetBar process and Secure
+Enclave signature, atomically binds one successor, and installs a short-lived
+session body into that exact owner-only context slot. A lost response is safe to
+retry: the same non-secret binding and custody receipt is reconstructed from the
+append-only ledger. Pending approvals terminate when the daemon generation
+changes; an already-bound sealed custody handoff may finish after restart. There
+is no CLI token, loopback approval, broad claim release, or plaintext credential
+directory fallback.
+
 ### Say / Look — the consolidated verbs
 
 When you return from a break, or want to tell every other session about a finding:

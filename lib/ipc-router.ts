@@ -17,7 +17,11 @@ import { Performative, IpcAction, FIRE_AND_FORGET } from './ipc-types.js';
 import type { IpcFrame } from './ipc-types.js';
 import { encodeFrame } from './ipc-frame.js';
 import type { IpcConnection } from './ipc-server.js';
-import { verifyAgent, actionRequiresRegistration } from './ipc-auth.js';
+import {
+  verifyAgent,
+  actionRequiresRegistration,
+  actionRequiresCredentialedTransport,
+} from './ipc-auth.js';
 import type { AgentVerifier } from './ipc-auth.js';
 import type { Tuple } from './tuples.js';
 
@@ -93,11 +97,6 @@ function asStringArray(val: unknown): string[] | null {
   return val;
 }
 
-function recoverableSessionAction(action: string): boolean {
-  return action === IpcAction.DONE ||
-    action === IpcAction.NOTE;
-}
-
 // ─── Route Handler Type ─────────────────────────────────────────────────────
 
 type RouteHandler = (
@@ -112,31 +111,6 @@ export function createIpcRouter(deps: IpcRouterDeps) {
   const verifier: AgentVerifier | null = deps.agents.isRegistered
     ? { isRegistered: (id: string) => deps.agents.isRegistered!(id) }
     : null;
-
-  function resolveRecoverableSessionAgentId(
-    action: string,
-    payload: Record<string, unknown>,
-    requestedAgentId: string | null,
-  ): string | null {
-    if (!recoverableSessionAction(action) || !deps.sessions.get) return null;
-
-    const sessionId = typeof payload.sessionId === 'string' ? payload.sessionId.trim() : '';
-    if (!sessionId) return null;
-
-    const sessionInfo = deps.sessions.get(sessionId) as
-      | { success?: boolean; session?: Record<string, unknown> | null }
-      | null
-      | undefined;
-    if (!sessionInfo?.success || !sessionInfo.session || typeof sessionInfo.session !== 'object') return null;
-
-    const sessionAgentId = typeof sessionInfo.session.agentId === 'string'
-      ? sessionInfo.session.agentId
-      : null;
-    if (!sessionAgentId) return null;
-
-    if (requestedAgentId && requestedAgentId !== sessionAgentId) return null;
-    return sessionAgentId;
-  }
 
   // ── Action → Handler map ──────────────────────────────────────────────
 
@@ -472,6 +446,20 @@ export function createIpcRouter(deps: IpcRouterDeps) {
     reply: (response: IpcFrame) => void,
   ): void {
     const action = String(frame.payload.action ?? '');
+    if (actionRequiresCredentialedTransport(action)) {
+      reply({
+        type: Performative.REFUSE,
+        convId: frame.convId,
+        payload: {
+          error: 'IDENTITY_TRANSPORT_REQUIRED',
+          code: 'IDENTITY_TRANSPORT_REQUIRED',
+          action,
+          message: `Action '${action}' requires the canonical credentialed HTTP transport`,
+        },
+      });
+      return;
+    }
+
     const payloadAgentId = typeof frame.payload.agentId === 'string' && frame.payload.agentId.trim()
       ? frame.payload.agentId.trim()
       : null;
@@ -494,23 +482,16 @@ export function createIpcRouter(deps: IpcRouterDeps) {
     if (actionRequiresRegistration(action)) {
       const auth = verifyAgent(agentId, verifier, true);
       if (!auth.allowed) {
-        const recoveredAgentId = resolveRecoverableSessionAgentId(action, frame.payload, requestedAgentId);
-        if (recoveredAgentId) {
-          agentId = recoveredAgentId;
-          if (!frame.payload.agentId) frame.payload.agentId = recoveredAgentId;
-          if (!conn.agentId) conn.agentId = recoveredAgentId;
-        } else {
-          reply({
-            type: Performative.REFUSE,
-            convId: frame.convId,
-            payload: {
-              error: auth.reason ?? 'unauthorized',
-              action,
-              message: `Action '${action}' requires a registered agent`,
-            },
-          });
-          return;
-        }
+        reply({
+          type: Performative.REFUSE,
+          convId: frame.convId,
+          payload: {
+            error: auth.reason ?? 'unauthorized',
+            action,
+            message: `Action '${action}' requires a registered agent`,
+          },
+        });
+        return;
       }
     }
 

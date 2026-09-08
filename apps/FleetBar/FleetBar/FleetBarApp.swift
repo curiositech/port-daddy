@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import Darwin
 
 enum FleetBarAppChrome {
     private static let controlCenterWindowIdentifier = "fleet-control-center"
@@ -41,7 +42,20 @@ final class FleetBarAppDelegate: NSObject, NSApplicationDelegate {
     }
 }
 
+/// Dispatches the private enrollment helper before SwiftUI, AppKit, menu-bar,
+/// or single-instance initialization. The helper has only inherited private
+/// pipes and never opens the ordinary FleetBar UI or HTTP client surfaces.
 @main
+enum FleetBarEntryPoint {
+    static func main() {
+        if CommandLine.arguments.count == 2,
+           CommandLine.arguments[1] == OperatorEnrollmentHelper.argument {
+            Darwin.exit(OperatorEnrollmentHelper.run())
+        }
+        FleetBarApp.main()
+    }
+}
+
 struct FleetBarApp: App {
     private static let controlCenterWindowID = "fleet-control-center"
     @NSApplicationDelegateAdaptor(FleetBarAppDelegate.self) private var appDelegate
