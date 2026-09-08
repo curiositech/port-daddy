@@ -185,7 +185,7 @@ Notes:
   staleness matters far less than for a vendored-data server, but it is not actively developed.
 - **The whole category is young.** Every server here is a small project (most under 100★, several
   one-author). Treat them as convenience tooling, pin versions, and don't build critical workflow on
-  any single one. Serena is the only heavyweight, and it's the one doing the load-bearing work.
+  any single one. Serena is the only heavyweight, and it's the one doing the decisive work.
 - **No MCP targets `gpui`/Metal/`wgpu`/Naga directly** — confirmed by registry + GitHub search. That
   remains a manual / Serena-navigation + crate-docs problem.
 
