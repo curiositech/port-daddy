@@ -23,6 +23,36 @@ LOCKDIR="${MATRIX}.lock"
 SELF="${PD_ACTOR:-unknown}"
 
 EVENT="$(cat 2>/dev/null || true)"
+
+# ── ADR-0132 listening watch: every tentacle carries the A0 floor ───────────
+# This tentacle is retired from lifecycles but still staged; if a stale
+# install fires it during a halt it must still answer SEEN once per session.
+# Filesystem only. The pheromone append below is file-local and continues.
+# TODO(ADR-0132 phase 0): switch to lib/distress.ts / bin/pd-distress.
+PD_HALT_SENTINEL="${PD_HALT_FILE:-$PD_HOME/HALT}"
+PD_DISTRESS="${PD_DISTRESS_FILE:-$PD_HOME/DISTRESS}"
+if [ -f "$PD_HALT_SENTINEL" ]; then
+  HALT_LINE="$(head -c 1024 "$PD_HALT_SENTINEL" 2>/dev/null | tr -d '\r' | sed -n '/[^[:space:]]/{p;q;}')"
+  HALT_REF="sentinel"
+  HALT_TOKEN="${HALT_LINE%% *}"
+  case "$HALT_TOKEN" in
+    [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T*) HALT_REF="$HALT_TOKEN" ;;
+  esac
+  halt_sanitize() { printf '%s' "$1" | tr -c 'A-Za-z0-9._:-' '_' | cut -c1-96; }
+  HALT_SESSION="$(printf '%s' "$EVENT" \
+    | sed -n -E 's/.*"(session_id|sessionId|thread_id|conversationId)"[[:space:]]*:[[:space:]]*"([^"]*)".*/\2/p' | head -n1)"
+  [ -n "$HALT_SESSION" ] || HALT_SESSION="${PD_ACTOR:-unknown}"
+  HALT_SESSION="$(halt_sanitize "$HALT_SESSION")"
+  HALT_SELF="$(halt_sanitize "agent:${PD_HOOK_PROVIDER:-hook}:${PD_ACTOR:-$HALT_SESSION}")"
+  HALT_MARKER="$PD_HOME/squid/halt-watch/${HALT_SESSION}.$(halt_sanitize "$HALT_REF")"
+  mkdir -p "$PD_HOME/squid/halt-watch" 2>/dev/null || true
+  if mkdir "$HALT_MARKER" 2>/dev/null; then
+    HALT_TS="$(date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u)"
+    mkdir -p "$(dirname "$PD_DISTRESS")" 2>/dev/null || true
+    printf '%s\n' "${HALT_TS} ${HALT_SELF} control SEEN ref=${HALT_REF} hook=post-tool" >> "$PD_DISTRESS" 2>/dev/null || true
+  fi
+fi
+
 [ -n "$EVENT" ] || exit 0
 
 # ── Extract tool + file target + success signal (multi-vendor) ──────────────

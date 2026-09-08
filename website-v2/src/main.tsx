@@ -24,7 +24,7 @@ const TutorialsPage = lazyNamed(() => import('@/pages/TutorialsPage'), 'Tutorial
 const ExamplesPage = lazyNamed(() => import('@/pages/ExamplesPage'), 'ExamplesPage')
 const ExampleDetailPage = lazyNamed(() => import('@/pages/ExampleDetailPage'), 'ExampleDetailPage')
 const LibraryPage = lazy(() => import('@/pages/library'))
-const ResearchLibraryPage = lazy(() => import('@/pages/library/ResearchPage'))
+const ResearchPage = lazy(() => import('@/pages/research'))
 const SecurityPage = lazy(() => import('@/pages/SecurityPage'))
 const HarnessPage = lazy(() => import('@/pages/HarnessPage'))
 const CliBackendPage = lazy(() => import('@/pages/cli-backend'))
@@ -256,7 +256,10 @@ createRoot(document.getElementById('root')!).render(
               <Route path="/squid-codex" element={<SquidCodexPage />} />
               <Route path="/cryptography" element={<Navigate to="/security" replace />} />
               <Route path="/library" element={<LibraryPage />} />
-              <Route path="/library/research" element={<ResearchLibraryPage />} />
+              <Route path="/research" element={<ResearchPage />} />
+              {/* The research program moved from under the library to its own
+                  top-level page; the old URL was linked externally. */}
+              <Route path="/library/research" element={<Navigate to="/research" replace />} />
               {/* /whitepaper now forwards to the Library (the canonical home for
                   the papers). The URL is preserved as a forwarding link because
                   it was shared externally. Deep links to individual papers below

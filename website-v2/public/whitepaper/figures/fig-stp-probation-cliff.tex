@@ -1,0 +1,40 @@
+% The probation cliff: the honest newcomer's burden of one unit of deterrence,
+% placed at period t, grows as (delta_h/delta_f)^t. Numbers from the exchange-step
+% spot check in skills/harbor-results/scripts/b6_probation.py (seed 20260816).
+% [internal; b6_probation.py]
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[pd figure]
+\begin{axis}[
+  width=\linewidth, height=0.58\linewidth,
+  ybar, bar width=9pt,
+  xlabel={period $t$ at which the whole deterrence requirement is placed},
+  ylabel={honest burden $H$, as a multiple of the cliff's},
+  xmin=-0.6, xmax=9.6, ymin=0, ymax=80,
+  xtick={0,1,2,3,4,5,6,7,8,9},
+  ytick={1,10,20,30,40,50,60,70}, yticklabels={1,10,20,30,40,50,60,70},
+  axis lines=left, axis line style={pd hairline},
+  tick label style={font=\footnotesize,text=hhink!80!hhgray},
+  label style={font=\footnotesize,text=hhink},
+  nodes near coords, every node near coord/.append style={font=\footnotesize,text=hhink},
+  point meta=explicit symbolic,
+  clip=false,
+]
+\addplot[fill=hhteal!24,draw=hhteal,line width=0.6pt] coordinates {(0,1) [1.00]};
+\addplot[fill=hhsand!38,draw=hhink,line width=0.6pt] coordinates {
+  (1,1.5833) [1.58] (2,2.5069) [2.51] (3,3.9693) [3.97] (4,6.2848) [6.28]
+  (5,9.9509) [9.95] (6,15.756) [15.8] (7,24.946) [24.9] (8,39.498) [39.5] (9,62.539) [62.5]};
+\node[pd note,anchor=south west,align=left] at (axis cs:1.2,44) {the cliff: the whole requirement at $t=0$\\costs the honest newcomer $1\times$, no more};
+\node[pd note,anchor=south east,align=right] at (axis cs:8.6,60) {each period of delay multiplies\\the burden by $0.95/0.60 = 1.58$};
+\end{axis}
+\end{tikzpicture}
+\caption{The honest newcomer's burden of one unit of deterrence, by the period in which
+it is placed, at $\delta_h=0.95$, $\delta_f=0.60$. Deterrence against a whitewasher
+discounts at $\delta_f$ while the honest newcomer discounts at $\delta_h$, so a
+restriction placed at period $t$ costs the honest party $(\delta_h/\delta_f)^{t}$ times
+what the same deterrence costs at $t=0$: $1.58\times$ after one period, $62.5\times$
+after nine. The front-loaded schedule, the cliff, is undominated; the random search over
+$4{,}000$ instances found no schedule below it. [internal; \texttt{b6\_probation.py},
+seed 20260816]}
+\label{fig:stp-probation-cliff}
+\end{figure}

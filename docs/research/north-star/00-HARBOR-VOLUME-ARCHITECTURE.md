@@ -106,7 +106,7 @@ swarm's COGS *and* its legibility mechanism — the digest *is* compaction.
 strongest formal artifact — ProVerif + Kani verified), reframed with a stack map.
 **Thesis:** how a single agent proves identity and capability to the daemon
 without a trusted third party. The cryptographic spine everything else stands on.
-**Why second:** it is the load-bearing proof; the rest of the volume cites it.
+**Why second:** it is the critical proof; the rest of the volume cites it.
 
 ### Paper 3 — **From Spawn to Person** *(L3 bridge — identity → reputation)*
 **Absorbs:** `identity-reputation` + the new **ADR-0049** (local reputation +
@@ -145,7 +145,7 @@ The North-Star index flagged real seams. Resolutions, to be applied uniformly:
 | 1 | `[DESIGNED]` / `[PROPOSED]` / `[BUILT-WEAK]` / `[BUILT, weak]` used inconsistently | **One three-mark key (canonical in `00-HARBOR-EDIFICE.md`):** `▰ built` · `▱ designed` · `· open`. There is no fourth label: degrees of "built" — `BUILT-WEAK`, `partial`, `proof stubbed`, `v0.9`, `PROPOSED` — are carried as plain verifier text *after* the glyph (e.g. `▰ built · ProVerif`, `▰ built · proof stubbed`), never as a separate tag. Matches the honest-label discipline applied via `pd attest` (ADR-0045 governs invariant attestation; these status labels are a parallel convention applied to paper headers for the same reason). |
 | 2 | reputation = "cheap and last" (P3) vs. "the moat" (P4) | State it once, cross-linked: **the score is cheap; the substrate it scores over (witnessed outcomes on a non-forgeable id) is the gate.** Both papers point at this sentence. |
 | 3 | "three-sided market" (headline) vs. "two-sided today" (honesty note) | Canonical: **"a three-sided market by design; two-sided until reputation ships (ADR-0049/0040)."** The third side *is* the tradeable-person terminus of Paper 3. |
-| 4 | ADR-0040 (non-forgeable identity) load-bearing but unbuilt | Name it once as **the highest-leverage unbuilt keystone**; every L3 claim that depends on it says so in one clause. |
+| 4 | ADR-0040 (non-forgeable identity) pivotal but unbuilt | Name it once as **the highest-leverage unbuilt keystone**; every L3 claim that depends on it says so in one clause. |
 | 5 | "trilogy" (manifesto) vs. five North-Star papers | The "trilogy" *framing* is retired; the three trilogy papers are **not** — they are chapters V–VII (the proofs), co-equal with the four that explain. There is **one library of seven cross-referenced chapters: four explain, three prove**, plus a manifesto front-matter. `docs/manifesto-why-agent-economies.md` already matches ("four explain the system; three more prove it"). |
 
 ---
@@ -322,7 +322,7 @@ stitch-check → revisions. Findings logged, not silently applied.
 
 ## 8. Before the papers: layer avatars (brainstorm → expand → debate → stitch)
 
-> **Operator correction (load-bearing):** *"My brief ideas weren't meant to be a
+> **Operator correction (central):** *"My brief ideas weren't meant to be a
 > spanning tree — I wager you need brainstorming and expansion and debate on
 > these layers. Push each layer avatar to be completionist and consistent."*
 
@@ -376,7 +376,7 @@ add the teaching layer:
   reserved for **arrows**, and **no multi-colored or multi-weight bolds** in one
   box. Restraint reads as authority; a rainbow of bolds reads as a ransom note.
 - **Reading guide** — the Reader's-Map table at the top (by reader type → the
-  section + load-bearing artifact), plus an explicit reading order within the
+  section + decisive artifact), plus an explicit reading order within the
   volume.
 - **Exercises** — an `Exercises` block per major section: a mix of *check-your-
   understanding*, *trace-the-mechanism*, and *open-problem* prompts (the §2.5

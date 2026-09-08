@@ -92,7 +92,7 @@ each liar alone `min r = 0.3540 = |s|/√8`; the coalition `max r = 5.96e-15`. S
 §6's one-breath (L271–272) says "with the single-equivocator condition proved to be the honest scope";
 §8 clause 1 (L376–380) states it as a boundary; §7 (L364–365) claims it as contribution (4). The defect is
 that the *box* — which the paper's own express-lane promise ("a reader in a hurry needs nothing else",
-L34–35) makes load-bearing as a standalone object — carries no hypothesis at all.
+L34–35) makes critical as a standalone object — carries no hypothesis at all.
 
 **(3) `G_c` vs `K_c` — CONFIRMED on the substance; the review's witness REFUTED.**
 

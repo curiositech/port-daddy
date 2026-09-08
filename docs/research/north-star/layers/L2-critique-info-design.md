@@ -33,7 +33,7 @@ Third, and most defensibly: the **digest-as-lens-not-verdict** rule (every summa
 
 ## Verdict
 
-**Not yet complete; largely consistent within its own frame but with two load-bearing claims that don't survive contact with my field's canon.**
+**Not yet complete; largely consistent within its own frame but with two structural claims that don't survive contact with my field's canon.**
 
 The dossier is honest (the BUILT/DESIGNED/VISION labels check out and the self-deprecation about Shneiderman is exactly right) and its structural instinct — discovery and legibility are one read-side indexing problem — is correct and valuable. But it is **paper-ready only after three fixes:**
 
