@@ -14,3 +14,7 @@ tested against the current codebase.
 
 Neither has been checked against the current `core`/`lib` code for API drift;
 treat as reference material, not drop-in code.
+
+`maritime-actors.test.js` is the source branch's own test for `maritime-actors.ts`,
+kept alongside it so a reviewer can see the intended behavior — it is **not** under
+`tests/` and is not picked up by this repo's jest config, so it does not run in CI.

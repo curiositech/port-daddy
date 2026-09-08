@@ -19,3 +19,7 @@ review rather than inserted directly:
   UI (serde-portable `PredictedDag`/`PredictedWave`/`PredictedNode` types).
   Likely an early seed of what's now the `gpui-rust-console` skill/prototype
   on `main` — check for overlap before reusing.
+
+`cli-codex-transcript.test.js` is the source branch's own test for
+`cli-codex-transcript.ts`, kept alongside it for reference — it is **not** under
+`tests/` and is not picked up by this repo's jest config, so it does not run in CI.

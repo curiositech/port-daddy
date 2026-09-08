@@ -6,8 +6,8 @@
 ## Files you own (and ONLY these)
 
 - `website-v2/.storybook/**`
-- `website-v2/src/components/site/primitives.stories.tsx` *(create
-  if missing)* <!-- cite-exempt -->
+- `website-v2/src/components/site/primitives.stories.tsx` <!-- cite-exempt --> *(create
+  if missing)*
 - `website-v2/src/components/landing/*.stories.tsx` *(create stories
   for components missing them — audit flagged 57 missing stories
   total)*

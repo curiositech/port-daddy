@@ -145,14 +145,19 @@ editorial pass **deliberately cut** (turned into tables, or removed as decorativ
 build ledger's Round 4/5 entries — their absence from main is a decision already made, not
 an oversight. Don't resurrect these without checking with whoever made that cut.
 
-## 6. Not treasure, just cache — leave alone
+## 6. Not treasure, just cache — pulled in anyway on explicit instruction
 
 `.scratch/figaudit/` and `.scratch/audit/` in `recover/wt-paper-figures-love` and
 `recover/wt-papers-cohesion-overhaul` are rendered screenshots from a figure-review pass,
-not authored work — useful only as a before/after reference if someone specifically wants
-to compare old figure renders, not worth carrying forward as "research." (Correction: the
-original scan estimated 924 and 1105 files; the real counts, pulled into this PR at
-`whitepaper-foundlings/figaudit-and-audit-screenshots/`, are 113 and 292 — 405 total, ~141 MB.)
+not authored work. My original recommendation here was to leave them alone — useful only
+as a before/after reference, not worth carrying forward as "research." **The author
+overrode that recommendation** and asked for them explicitly ("bring into that folder
+./scratch/figaudit/ and audit/ ... I want to review all of this visually"), so they are
+pulled into this PR at `whitepaper-foundlings/figaudit-and-audit-screenshots/`. The
+"not treasure" verdict above stands as the reason this bucket is a low salvage priority,
+not as a description of what actually shipped in this diff. (Also corrected here: the
+original scan estimated 924 and 1105 files; the real counts are 113 and 292 — 405 total,
+~141 MB.)
 
 ## 7. Recommended next step
 

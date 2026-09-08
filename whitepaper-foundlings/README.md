@@ -59,7 +59,7 @@ branch-scan report):
 | `adr-0060-forensics-journal/` | ADR for an append-only, fsync'd security-violation journal independent of the 7-day activity-log prune |
 | `soma-windags-source-audit/` | a line-cited audit separating shipped/scaffolded/aspirational claims in two external codebases |
 | `convoy-platform-requirements/` | the RFC from Port Daddy's first real external consumer (expungement.guide) |
-| `empirical-closure-and-voice-rules/` | 3 research memos (circuit breakers, a SMART feature roadmap, a critical-path plan) plus a complete, testable voice-enforcement CI gate (`.voice-rules.yml` + checker + workflow + test) |
+| `empirical-closure-and-voice-rules/` | 3 research memos (circuit breakers, a SMART feature roadmap, a critical-path plan) plus a self-contained voice-enforcement CI gate design (`.voice-rules.yml` + checker + workflow + test) — **not wired into this repo's CI**, none of these four files are under a path this repo's workflows or jest config scan; it's a working reference bundle to evaluate, not an active gate |
 | `redteam-dialogue-v25-v26/` | a structured 5-finding red-team review of the whitepaper draft (severity-scored, some findings may still be live) |
 | `figaudit-and-audit-screenshots/` | 405 rendered-page screenshots from two prior figure-review passes (not authored research — a visual cache, kept for before/after reference) |
 
