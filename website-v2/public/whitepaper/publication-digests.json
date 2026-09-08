@@ -4,57 +4,57 @@
     "website-v2/public/whitepaper/agent-transactions-whitepaper.pdf": {
       "pages": 60,
       "bytes": 992630,
-      "sha256": "ea845640bad75259cd43b8d59a64023003d457328c05886f339918e1dc49e9cf"
+      "sha256": "0af4c475f9bd6edc9bcd5dc15867cc5457e6837636214869420216bee390ea83"
     },
     "website-v2/public/whitepaper/anchor-protocol-whitepaper.pdf": {
       "pages": 38,
       "bytes": 705313,
-      "sha256": "9b4bbe67f0be826db29c6464e128f017897ee7670ea17b01cfef6dd93b4de91f"
+      "sha256": "2e99a560154331d862387000a7e46d3ddb1dcb2b578503ae4b0908fd801885d3"
     },
     "website-v2/public/whitepaper/coordination-papers-mega-volume-swiss.pdf": {
       "pages": 548,
-      "bytes": 9730743,
-      "sha256": "f603c71647c23b705b96e716fec7c2cdfe6ef03454cb10a6cd875029e5ff73db"
+      "bytes": 9729949,
+      "sha256": "6de0d0126eb0ae54442b293e9ea148e1279ce5bab81ef2c990c38bbcd3558add"
     },
     "website-v2/public/whitepaper/coordination-papers-mega-volume-technical.pdf": {
       "pages": 544,
-      "bytes": 7647063,
-      "sha256": "58de07eaa5da360348a9eeaf9499f3c358a5cabaed0906dbe82f98068da8178a"
+      "bytes": 7646276,
+      "sha256": "cf989b64f265a720f976e09632e58d066f77c29351effc85fe5a4596bb6833b9"
     },
     "website-v2/public/whitepaper/coordination-papers-mega-volume.pdf": {
       "pages": 543,
-      "bytes": 7975462,
-      "sha256": "8b0c9dd070091fe7d120270fc0ef7ba8400e4bcbb6aa557b4867cb92b326d621"
+      "bytes": 7974680,
+      "sha256": "7f921a4d7d0a5eb2d3b532184c46e58d9e604542b78d8ea2c4385ebcd3defd4b"
     },
     "website-v2/public/whitepaper/federated-harbor-whitepaper.pdf": {
       "pages": 45,
       "bytes": 832093,
-      "sha256": "5cfc3feb12cd62bc9ea47d013d624128236340447067a4f325a6ce22b03e1633"
+      "sha256": "aff1f806be1fbf4b7c512b70947c749fdf31fd9245eb1c6eaa004f017ced36eb"
     },
     "website-v2/public/whitepaper/harbor-economy-whitepaper.pdf": {
       "pages": 47,
       "bytes": 778020,
-      "sha256": "608a7540d59ca1f6883377285df7c9521503de889b9a65ae510360135bd2e434"
+      "sha256": "a932f322dd9fafab509cdc40d2f4ac4fec3867d1a9192b12c76a784ad6a61109"
     },
     "website-v2/public/whitepaper/legible-swarm-whitepaper.pdf": {
       "pages": 64,
       "bytes": 946214,
-      "sha256": "b73ba30210537f3b74703850fda6faeba2afa29cd9aa0623116601b7a1d452a4"
+      "sha256": "5838c4494c2f88e0b7ee35ebd916b5eabad7acc85566cf604ec07cad35f73d41"
     },
     "website-v2/public/whitepaper/sealed-harbor-whitepaper.pdf": {
       "pages": 21,
       "bytes": 568577,
-      "sha256": "ca788a64061cb3afbbbe332006778760fdaf6fa6e6d8be510ee9c4af2bdd2566"
+      "sha256": "6eab6e8cb61c816c440b6bd5c4751ac8e42fb03d2ed059729b39af9227dcaf7f"
     },
     "website-v2/public/whitepaper/single-writer-kernel-whitepaper.pdf": {
       "pages": 57,
       "bytes": 809180,
-      "sha256": "edef1b99b70610488bd79a30ab1c14dc4c5a7ebb17e7b1d434ce4475c89ed682"
+      "sha256": "5681c014ff498049684adb5b4c54409a74efd5d46484c7cc77e028bb30aaff9b"
     },
     "website-v2/public/whitepaper/spawn-to-person-whitepaper.pdf": {
       "pages": 53,
       "bytes": 812597,
-      "sha256": "96b66fffdd90b069a45c73687914f4b38cfd8b69bfc87369063f6956a51f41aa"
+      "sha256": "59da036c9d5078b53d70342e34d90e44a33509ef7fcdc46186dce5e298badfed"
     }
   }
 }
