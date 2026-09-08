@@ -1,214 +1,214 @@
 {
-  "pdf": "/tmp/claude-0/-home-user-port-daddy/f533555d-4b5c-552b-a885-0b01f8d66dea/scratchpad/figaudit/pdf/legible-swarm-stack-map/legible-swarm-stack-map.pdf",
-  "page_count": 1,
-  "params": {
-    "min_font_pt": 7.0,
-    "textwidth_cm": 16.3
+ "figure": "legible-swarm-stack-map",
+ "page_count": 1,
+ "params": {
+  "min_font_pt": 7.0,
+  "textwidth_cm": 16.3
+ },
+ "checks": {
+  "T1": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
   },
-  "checks": {
-    "T1": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
-    },
-    "T2": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
-    },
-    "T3": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
-    },
-    "T4": {
-      "status": "fail",
-      "count": 7,
-      "findings": [
-        {
-          "check": "T4",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            229.94639587402344,
-            159.7056427001953,
-            249.1944580078125,
-            176.51109313964844
-          ],
-          "text": "state",
-          "line_segment": [
-            [
-              94.12472534179688,
-              161.09945678710938
-            ],
-            [
-              512.2401123046875,
-              161.09945678710938
-            ]
-          ],
-          "message": "a drawn line crosses through the interior of text 'state'"
-        },
-        {
-          "check": "T4",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            273.66656494140625,
-            159.80531311035156,
-            294.0440673828125,
-            177.40162658691406
-          ],
-          "text": "order",
-          "line_segment": [
-            [
-              94.12472534179688,
-              161.09945678710938
-            ],
-            [
-              512.2401123046875,
-              161.09945678710938
-            ]
-          ],
-          "message": "a drawn line crosses through the interior of text 'order'"
-        },
-        {
-          "check": "T4",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            313.852294921875,
-            157.17982482910156,
-            341.73126220703125,
-            180.02877807617188
-          ],
-          "text": "identity",
-          "line_segment": [
-            [
-              94.12472534179688,
-              161.09945678710938
-            ],
-            [
-              512.2401123046875,
-              161.09945678710938
-            ]
-          ],
-          "message": "a drawn line crosses through the interior of text 'identity'"
-        },
-        {
-          "check": "T4",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            358.6097717285156,
-            156.89442443847656,
-            382.4866638183594,
-            176.9410400390625
-          ],
-          "text": "reason",
-          "line_segment": [
-            [
-              94.12472534179688,
-              161.09945678710938
-            ],
-            [
-              512.2401123046875,
-              161.09945678710938
-            ]
-          ],
-          "message": "a drawn line crosses through the interior of text 'reason'"
-        },
-        {
-          "check": "T4",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            400.3204040527344,
-            155.9453887939453,
-            430.314697265625,
-            180.2755126953125
-          ],
-          "text": "outcome",
-          "line_segment": [
-            [
-              94.12472534179688,
-              161.09945678710938
-            ],
-            [
-              512.2401123046875,
-              161.09945678710938
-            ]
-          ],
-          "message": "a drawn line crosses through the interior of text 'outcome'"
-        },
-        {
-          "check": "T4",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            441.31585693359375,
-            153.99136352539062,
-            477.47979736328125,
-            182.64154052734375
-          ],
-          "text": "reputation",
-          "line_segment": [
-            [
-              94.12472534179688,
-              161.09945678710938
-            ],
-            [
-              512.2401123046875,
-              161.09945678710938
-            ]
-          ],
-          "message": "a drawn line crosses through the interior of text 'reputation'"
-        },
-        {
-          "check": "T4",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            487.5791015625,
-            155.76222229003906,
-            519.505859375,
-            181.4455108642578
-          ],
-          "text": "exchange",
-          "line_segment": [
-            [
-              94.12472534179688,
-              161.09945678710938
-            ],
-            [
-              512.2401123046875,
-              161.09945678710938
-            ]
-          ],
-          "message": "a drawn line crosses through the interior of text 'exchange'"
-        }
+  "T2": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T3": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T4": {
+   "status": "fail",
+   "count": 7,
+   "findings": [
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      229.94639587402344,
+      159.7056427001953,
+      249.1944580078125,
+      176.51109313964844
+     ],
+     "text": "state",
+     "line_segment": [
+      [
+       94.12472534179688,
+       161.09945678710938
+      ],
+      [
+       512.2401123046875,
+       161.09945678710938
       ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'state'"
     },
-    "T5": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      273.66656494140625,
+      159.80531311035156,
+      294.0440673828125,
+      177.40162658691406
+     ],
+     "text": "order",
+     "line_segment": [
+      [
+       94.12472534179688,
+       161.09945678710938
+      ],
+      [
+       512.2401123046875,
+       161.09945678710938
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'order'"
     },
-    "T6": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      313.852294921875,
+      157.17982482910156,
+      341.73126220703125,
+      180.02877807617188
+     ],
+     "text": "identity",
+     "line_segment": [
+      [
+       94.12472534179688,
+       161.09945678710938
+      ],
+      [
+       512.2401123046875,
+       161.09945678710938
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'identity'"
     },
-    "T7": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      358.6097717285156,
+      156.89442443847656,
+      382.4866638183594,
+      176.9410400390625
+     ],
+     "text": "reason",
+     "line_segment": [
+      [
+       94.12472534179688,
+       161.09945678710938
+      ],
+      [
+       512.2401123046875,
+       161.09945678710938
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'reason'"
+    },
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      400.3204040527344,
+      155.9453887939453,
+      430.314697265625,
+      180.2755126953125
+     ],
+     "text": "outcome",
+     "line_segment": [
+      [
+       94.12472534179688,
+       161.09945678710938
+      ],
+      [
+       512.2401123046875,
+       161.09945678710938
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'outcome'"
+    },
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      441.31585693359375,
+      153.99136352539062,
+      477.47979736328125,
+      182.64154052734375
+     ],
+     "text": "reputation",
+     "line_segment": [
+      [
+       94.12472534179688,
+       161.09945678710938
+      ],
+      [
+       512.2401123046875,
+       161.09945678710938
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'reputation'"
+    },
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      487.5791015625,
+      155.76222229003906,
+      519.505859375,
+      181.4455108642578
+     ],
+     "text": "exchange",
+     "line_segment": [
+      [
+       94.12472534179688,
+       161.09945678710938
+      ],
+      [
+       512.2401123046875,
+       161.09945678710938
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'exchange'"
     }
+   ]
   },
-  "summary": {
-    "result": "fail",
-    "failed_checks": [
-      "T4"
-    ],
-    "warned_checks": []
+  "T5": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T6": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T7": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
   }
+ },
+ "summary": {
+  "result": "fail",
+  "failed_checks": [
+   "T4"
+  ],
+  "warned_checks": []
+ }
 }
