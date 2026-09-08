@@ -343,7 +343,7 @@ pd watch alerts \
 
 ## 5. FAN-OUT/FAN-IN — partitioned parallel work with a gather step
 
-**What it is.** Star, but the gather step is explicit and load-bearing. The
+**What it is.** Star, but the gather step is explicit and central. The
 coordinator partitions input, dispatches in parallel, then blocks on
 aggregation before doing anything with the results. Map-reduce, parallel
 search, redundant-execution-with-vote.
@@ -570,7 +570,7 @@ pd spawn --backend gemini --identity gemini:judge-auth \
 - Arguments-as-evidence: `pd note --type argument` on each advocate session so
   the chain is Merkle-attestable.
 - Verdict: `pd note --type verdict --session <moderator>`; this is the
-  load-bearing artifact and lives in the durable note chain.
+  decisive artifact and lives in the durable note chain.
 
 **When to use.** The decision is genuinely contested, single-model bias is a
 known risk, and you can afford 3-5x the tokens of a single CoT pass.

@@ -69,7 +69,7 @@ const GAME_PAYOFF_CHART = `flowchart TB
 // ────────────────────────────────────────────────────────────────────────────
 // Authored, runnable code samples. Z3 SMT script is verbatim from the shipped
 // artifact `proofs/economics/delta-threshold.z3`. TLA+ snippet is the
-// load-bearing fragment of `proofs/economics/claim_signaling.tla` (full file
+// the decisive fragment of `proofs/economics/claim_signaling.tla` (full file
 // is ~250 lines including type annotations and comments).
 // ────────────────────────────────────────────────────────────────────────────
 
@@ -677,7 +677,7 @@ export default function HowWeProveGameTheoryPage() {
                   </Sidenote>
 
                   <p>
-                    Below is the load-bearing fragment of{' '}
+                    Below is the decisive fragment of{' '}
                     <code>proofs/economics/claim_signaling.tla</code>, the
                     artifact that closes the game-theoretic side of the paper.
                     Full file is ~250 lines including the recommendation
@@ -1184,7 +1184,7 @@ z3 cubic-root.smt2
                   },
                   {
                     title: 'Koutsoupias, Papadimitriou (1999). Worst-case Equilibria.',
-                    body: 'The price-of-anarchy paper. Short, technical, and quietly load-bearing for half of mechanism design after it.',
+                    body: 'The price-of-anarchy paper. Short, technical, and quietly carrying half of mechanism design after it.',
                   },
                   {
                     title: 'The companion paper: The Anchor Protocol.',

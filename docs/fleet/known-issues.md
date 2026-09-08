@@ -68,7 +68,7 @@ trust that; otherwise treat any state file as stale.
 
 ## 4. `pd fleet status` shows runtime defaults as "(unset)" even when agents pin them
 
-Cosmetic, not load-bearing — but every agent in our `pd-fleet.yml` pins
+Cosmetic, not central — but every agent in our `pd-fleet.yml` pins
 `backend: cloudflare` + an explicit `model:`, yet the "Fleet runtime defaults"
 line prints `backend: (unset) / model: (unset)`. That's technically correct
 (no fleet-wide default is declared) but visually suggests the fleet is

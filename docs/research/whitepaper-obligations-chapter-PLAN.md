@@ -183,7 +183,7 @@ keep that lifecycle from collapsing into a number the agent can fake.
 
 A guided read of how Port Daddy moves *responsibility* out of the prompt and into the substrate: why
 an obligation is fundamentally different from the prohibitions the Arbiter already enforces, the
-six-slot tuple that gives an obligation a beginning and an end, and the five laws — load-bearing fact
+six-slot tuple that gives an obligation a beginning and an end, and the five laws — structural fact
 outside the agent's reach, closure bound to an oracle, non-forgeable identity, fail closed, graduated
 staked sanctions — that an audit of 29 candidate mechanisms reduced everything down to.
 
@@ -284,7 +284,7 @@ existing chapters' density).
    unhardened — the regimentation/enforcement distinction of §2, which is a distinction, not a feature.
 
 5. **Five laws of agent accountability.** *(content)* Every surviving hardening reduces to five rules;
-   violating any one makes the mechanism theater. (1) **The load-bearing fact must be outside agent
+   violating any one makes the mechanism theater. (1) **The foundational fact must be outside agent
    control** — the agent picks the work, the daemon picks the clock and deadline; **resurrection**
    (`lib/resurrection.ts` — *a heartbeat-staleness detector that flags dead agents for salvage*) resists
    Goodhart only because heartbeats come from the runtime, not the agent. (2) **Closure must bind to an
@@ -309,8 +309,8 @@ existing chapters' density).
    not yet built) — auto-enrolled so claiming *creates* the obligation. Then `lib/obligation-monitor.ts`
    — the dual of resurrection, watching promises not heartbeats, on a **monotonic clock** (POSIX
    `CLOCK_MONOTONIC` — *a clock that never runs backward and ignores wall-clock adjustments*) to close
-   the sleep-skew hole. Then `lib/sanction-ladder.ts` (graduated, keyed on the bound principal, decay
-   not window). Then `lib/accountability-ledger.ts` (append-only, daemon-witnessed, scalar score exposed
+   the sleep-skew hole. Then `lib/sanction-ladder.ts` (not built yet; graduated, keyed on the bound principal, decay
+   not window). Then `lib/accountability-ledger.ts` (not built yet; append-only, daemon-witnessed, scalar score exposed
    as telemetry only). The whole thing is one **MAPE-K loop** (Kephart & Chess 2003 — *Monitor → Analyze
    → Plan → Execute over shared Knowledge; an autonomic loop whose sole job is keeping a goal true*) with
    the **Coordination Guard** (`lib/coordination-route-guard.ts` + `cli/commands/guard.ts` — *a
@@ -330,7 +330,7 @@ Each block is one `{title, body}` entry.
    lacks the deadline and the bond.
 
 2. **Every "accountability" feature an agent can author is theater.** *(body)* If the agent sets the
-   deadline, flips its own row to done, or re-mints its identity to shed a penalty, the load-bearing
+   deadline, flips its own row to done, or re-mints its identity to shed a penalty, the critical
    fact is inside the controlled party's reach and the mechanism measures nothing. The five laws are
    one rule said five ways: move the fact out, bind closure to an oracle, anchor identity, fail closed,
    stake the sanction.

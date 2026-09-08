@@ -130,7 +130,7 @@ describe('a gated refusal names only the correct action, never a bypass (HARD RU
       expect(msg).toContain(action); // every forward move is offered
     }
     for (const tok of BYPASS_TOKENS) {
-      expect(lower).not.toContain(tok); // the load-bearing invariant: no bypass advertised
+      expect(lower).not.toContain(tok); // the invariant that matters: no bypass advertised
     }
     // It names the owner and the symbol so the contender knows whom to negotiate with.
     expect(msg).toContain('agent-owner');

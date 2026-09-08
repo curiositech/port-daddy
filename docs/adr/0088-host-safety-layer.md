@@ -69,7 +69,7 @@ verbs off to authorities the agent's own UID must not hold.**
 
 ## The trust boundary, stated first (the cardinal honesty rule)
 
-This is the load-bearing constraint and it gates every claim in this document.
+This is the core constraint and it gates every claim in this document.
 
 > **Any tool Port Daddy runs as the operator's own UID, a malicious same-UID agent can
 > also disable, unset, kill, or read around.** A same-UID agent can `unset HTTPS_PROXY`

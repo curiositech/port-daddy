@@ -1017,6 +1017,7 @@
         "POST /sugar/done",
         "POST /sugar/relink",
         "GET /sugar/whoami",
+        "GET /sugar/find",
         "GET /sugar/welcome"
       ],
       "completions": [
