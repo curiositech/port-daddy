@@ -3,9 +3,8 @@
  * so it runs inside a Cloudflare Worker.
  *
  * Used by the purser ship (src/purser.ts) to publish adversarial test files on
- * a branch cut from a PR's BASE sha, open a test PR for that branch, and then
- * retarget the reviewed PR onto the test branch so the reviewed PR is STACKED
- * on top of the tests and must satisfy them to merge.
+ * a branch cut from the reviewed HEAD sha, then open a test PR targeting the
+ * implementation branch. The original PR's base is never changed.
  *
  * Every write is IDEMPOTENT by construction:
  *   - {@link createOrUpdateBranch} force-updates the ref when the branch
@@ -139,8 +138,9 @@ export type GitHubMutationGuard = (boundary: string) => Promise<void>;
 /**
  * Create (or force-update) `branchName` to a single commit on top of `fromSha`
  * containing exactly `files`, via blobs → tree → commit → ref. If the ref
- * already exists the update is FORCED, so a retried delivery converges on the
- * same state instead of failing — the branch is executor-owned, never a human's.
+ * already exists, the caller's explicit preservation policy takes precedence:
+ * Purser uses `preserve` because a test branch can contain human edits. Other
+ * existing stack callers retain their replacement behavior.
  *
  * Throws {@link GitHubApiError} on any GitHub failure (403 ⇒ the App lacks
  * `contents: write`; callers degrade honestly).
@@ -154,6 +154,7 @@ export async function createOrUpdateBranch(
   message: string,
   token: string,
   mutationGuard: GitHubMutationGuard = async () => {},
+  existingRefPolicy: 'replace' | 'preserve' = 'replace',
 ): Promise<BranchCommitResult> {
   const v = validateStackedFiles(files);
   if (!v.ok) throw new Error(`createOrUpdateBranch refused: ${v.reason}`);
@@ -209,6 +210,12 @@ export async function createOrUpdateBranch(
   if (createRes.ok) return { commitSha: commit.sha, created: true };
 
   if (createRes.status === 422) {
+    if (existingRefPolicy === 'preserve') {
+      throw new GitHubApiError(
+        `test branch ${branchName} already exists; refusing to overwrite possible human edits without a branch-ownership receipt`,
+        409,
+      );
+    }
     // "Reference already exists" — force-move it to the fresh commit.
     await mutationGuard(`before force-update ref ${branchName}`);
     await ghJson(
@@ -264,13 +271,12 @@ export async function openStackedPr(
   // Defensive client-side filter: never trust the server applied the head filter.
   const match = existing.find(p => p.head?.ref === head);
   if (match) {
-    // Refresh title/body in place; best-effort (staleness is not worth a throw).
+    // Base and receipts are part of the stack contract, not best-effort prose.
+    // Refresh an old test PR onto the implementation branch or fail closed.
     await mutationGuard(`before refresh stacked PR #${match.number}`);
-    await fetch(`${apiBase}/pulls/${match.number}`, {
-      method: 'PATCH',
-      headers: ghHeaders(token),
-      body: JSON.stringify({ title, body }),
-    }).catch(() => undefined);
+    await ghJson(`${apiBase}/pulls/${match.number}`, {
+      method: 'PATCH', body: JSON.stringify({ title, body, base }),
+    }, token, `refresh stacked PR #${match.number}`);
     return { number: match.number, url: match.html_url, existed: true };
   }
 
@@ -292,29 +298,6 @@ export async function openStackedPr(
   }
 
   return { number: created.number, url: created.html_url, existed: false };
-}
-
-/**
- * Retarget an existing PR's base branch (the STACK move: pointing the reviewed
- * PR at the purser's test branch so it must merge through the tests). Throws
- * {@link GitHubApiError} on failure — callers decide whether that degrades the
- * run or is merely reported.
- */
-export async function retargetPrBase(
-  owner: string,
-  repo: string,
-  prNumber: number,
-  newBase: string,
-  token: string,
-  mutationGuard: GitHubMutationGuard = async () => {},
-): Promise<void> {
-  await mutationGuard(`before retarget PR #${prNumber} base`);
-  await ghJson(
-    `https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}`,
-    { method: 'PATCH', body: JSON.stringify({ base: newBase }) },
-    token,
-    `retarget PR #${prNumber} base`,
-  );
 }
 
 // ---------------------------------------------------------------------------

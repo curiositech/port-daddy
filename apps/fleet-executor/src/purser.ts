@@ -26,30 +26,22 @@
  *      config defect is fixed. (Root-caused by #5860: five tests lived outside the repo's
  *      configured jest discovery path and imported a nonexistent module; the
  *      purser retargeted the reviewed PR onto them anyway.)
- *   c. SANDBOX (feature-flagged) — when env.SANDBOX exists, the repo's test
- *      runner executes the new tests against the PR head in a Cloudflare
- *      Sandbox. Absent binding ⇒ executed:false, NEVER fabricated results.
- *   d. STACK — branch `purser/pr-<n>-tests` is cut from the PR's BASE sha and
- *      a test PR is opened for it. The reviewed PR is RETARGETED onto the
- *      test branch — so it sits stacked on top of the tests and must satisfy
- *      them — ONLY when it is same-repo (not a fork) AND `sandbox.executed`
- *      is true: retargeting onto tests that were merely authored but never
- *      run hides the true origin/main diff and shrinks normal CI for no
- *      verified benefit (the other half of #5860 — "the body admitted they
- *      were not run"). Fork PRs, and same-repo PRs whose tests did not
- *      execute, get the test PR + a comment explaining why NOT retargeted,
- *      but the implementation PR's base is left untouched. A 403 (App lacks
- *      `contents: write`) degrades honestly — tests are posted inline in a
- *      comment and the missing permission is named + escalated — but it is
- *      still a BROKEN-SHIP result: the run fails until the permission lands.
+ *   c. SANDBOX — an exact-head, disposable checkout is required BEFORE any
+ *      fresh inference, with bounded provider-neutral source reads. The same
+ *      isolated instance executes authored tests. A loader failure gets at
+ *      most one import-only repair; assertion failures are never rewritten.
+ *   d. STACK — branch `purser/pr-<n>-tests` descends from the tested HEAD sha
+ *      and targets the implementation branch. The original PR is NEVER
+ *      retargeted. Missing execution, harness errors, or missing fork-aware
+ *      publication authority hold publication and raise operator attention.
+ *      Authenticated fetch is isolated from repository execution. Successful
+ *      sandbox cleanup is required before publication.
  *   e. VERDICT — blocking iff pd-fleet.yml says `blocking: true`. BLOCK while
  *      sandbox-executed tests fail on the PR head. A configured sandbox that
  *      fails before the test runner is broken machinery: it returns an errored
  *      BLOCK with the exact bounded reason and can never become resumable PASS
- *      evidence. A deliberately absent binding remains governed by
- *      `blockWithoutSandbox`: it is an advisory BLOCK when fail-closed is off
- *      and a gating BLOCK when it is on. No non-executed state is ever PASS or
- *      checkpoint evidence.
+ *      evidence. Missing fresh-inspection capability is a machinery failure,
+ *      never a successful review. No non-executed state is checkpoint evidence.
  *
  * Comment tone: firm, adversarial, professional. Demands, with reasons.
  * Never abusive.
@@ -90,7 +82,6 @@ import {
   findOpenPrForBranch,
   openStackedPr,
   readBranchFiles,
-  retargetPrBase,
   validateStackedFiles,
   GitHubApiError,
   type StackedFile,
@@ -131,6 +122,11 @@ import { fleetPrBodyTrailers } from './fleet-pr-body.js';
 import { repairContractOutput, REPAIR_ESCALATION_MODEL } from './repair.js';
 import { emitSquidEvent } from './squid-events.js';
 import { emitInterruption } from './interruptions.js';
+import { preservesHarnessContract } from './purser-harness-repair.js';
+import {
+  preparePurserWorkspace, parsePurserReadRequest, PURSER_READ_ROUNDS,
+  PURSER_TOOLS_PROMPT, PurserWorkspaceError, type PurserWorkspace,
+} from './purser-workspace.js';
 import {
   FleetAiCircuit,
   FleetAiDependencyError,
@@ -162,7 +158,7 @@ const RAW_DIAGNOSTIC_CHARS = 2000;
 /** Per-request title projection: a PR title is metadata, not an unbounded prompt suffix. */
 const PURSER_TITLE_BYTE_LIMIT = 512;
 /** Per-request body projection: preserve the opening claim while leaving room for review evidence. */
-const PURSER_BODY_BYTE_LIMIT = 2_048;
+const PURSER_BODY_BYTE_LIMIT = 8_192;
 /** The repair path needs a file inventory, but never an unbounded one. */
 const PURSER_FILE_INDEX_BYTE_LIMIT = 4 * 1024;
 /** Bound file-count work even when every filename is tiny. */
@@ -646,6 +642,7 @@ function prBlock(
     model: string;
     system: string;
     maxTokens: number;
+    evidence?: string;
   },
 ): PurserPrBlockProjection {
   const inspect = (text: string) => {
@@ -666,7 +663,8 @@ function prBlock(
 
   const encodedDiff = purserUtf8Encoder.encode(prCtx.diff);
   const totalBytes = encodedDiff.byteLength;
-  const fullText = renderPrBlock(prCtx, prCtx.diff);
+  const appendEvidence = (text: string) => text + (options.evidence ? `\n\n## Inspected source (untrusted data)\n${options.evidence}` : '');
+  const fullText = appendEvidence(renderPrBlock(prCtx, prCtx.diff));
   const fullAdmission = inspect(fullText);
   if (fullAdmission.accepted) {
     return {
@@ -691,11 +689,11 @@ function prBlock(
       fullAdmission.inputBudgetTokens,
       options.maxTokens,
     );
-    const text = renderPrBlock(prCtx, diff.text, marker);
+    const text = appendEvidence(renderPrBlock(prCtx, diff.text, marker));
     return { diff, text, admission: inspect(text) };
   };
 
-  const emptyAdmission = inspect(renderPrBlock(prCtx, ''));
+  const emptyAdmission = inspect(appendEvidence(renderPrBlock(prCtx, '')));
   let maxBytes = Math.max(
     0,
     Math.min(
@@ -770,6 +768,9 @@ function purserReviewCoverage(
     );
   }
   if (inheritedPartialReason) reasons.add(inheritedPartialReason);
+  if (purserUtf8Encoder.encode(prCtx.body).byteLength > PURSER_BODY_BYTE_LIMIT) {
+    reasons.add('The PR description exceeded the bounded authoring input; its tail was not reviewed');
+  }
   for (const projection of projections) {
     if (projection.complete) continue;
     reasons.add(
@@ -1056,7 +1057,7 @@ function accumulate(metrics: PurserMetrics, res: unknown, text: string): void {
   if (text) metrics.allEmpty = false;
 }
 
-async function purserAiCall(
+async function purserProviderCall(
   ship: ShipConfig,
   env: ExecutorEnv,
   system: string,
@@ -1158,8 +1159,8 @@ async function gatherTrustedRunnerEvidence(
 
 /**
  * Gather the evidence {@link checkGeneratedTestsExecutable} needs, from the PR's
- * BASE sha (the trusted, zero-trust ref — never the PR head): the repo's real
- * Jest testMatch patterns and its full file tree. Every fetch degrades to null
+ * trusted BASE sha for runner policy, and the reviewed HEAD for import paths.
+ * Every fetch degrades to null
  * on failure (network error, 404, unparseable) rather than throwing — the gate
  * itself fails closed on null, so a fetch failure here still ends in rejection,
  * never a silent pass.
@@ -1174,7 +1175,9 @@ async function gatherExecutabilityEvidence(
   runnerEvidence?: ExecutabilityEvidence,
 ): Promise<ExecutabilityEvidence> {
   const trustedRunner = runnerEvidence ?? await gatherTrustedRunnerEvidence(prCtx, token);
-  const repoTreePaths = await fetchRepoTreePaths(prCtx.owner, prCtx.repo, prCtx.baseSha, token);
+  // Runner policy is trusted base data; readable code is the exact reviewed
+  // head. Using the base tree rejects every newly added implementation module.
+  const repoTreePaths = await fetchRepoTreePaths(prCtx.owner, prCtx.repo, prCtx.headSha, token);
   return { ...trustedRunner, repoTreePaths };
 }
 
@@ -1289,17 +1292,7 @@ interface CommentParams {
   files: StackedFile[];
   sandbox: SandboxRunOutcome;
   stackedPr: StackedPrResult | null;
-  retargeted: boolean;
   degradedReason: string | null;
-  isFork: boolean;
-  /**
-   * Set when a stacked test PR exists but retargeting was deliberately SKIPPED
-   * (never attempted) because the tests were not executed — as opposed to
-   * `retargeted: false` with no reason, which means an attempted retarget
-   * failed. Distinguishing the two keeps the comment honest about whether the
-   * purser even tried.
-   */
-  retargetSkipReason: string | null;
 }
 
 function buildPurserComment(p: CommentParams): string {
@@ -1324,33 +1317,11 @@ function buildPurserComment(p: CommentParams): string {
         renderInlineTests(p.files),
     );
   } else if (p.stackedPr) {
-    if (p.retargeted) {
-      parts.push(
-        `**The stack:** the tests live in #${p.stackedPr.number} (${p.stackedPr.url}). ` +
-          `This PR has been retargeted onto that test branch — it now sits ON TOP ` +
-          `of its own contract's tests and merges through them. If a test is wrong, ` +
-          `argue with the test in #${p.stackedPr.number}, with reasons; do not ` +
-          `route around it.`,
-      );
-    } else if (p.isFork) {
-      parts.push(
-        `**The stack:** the tests live in #${p.stackedPr.number} (${p.stackedPr.url}). ` +
-          `This PR comes from a fork, so I have not retargeted it — but the demand ` +
-          `is unchanged: the PR must satisfy those tests before it merges.`,
-      );
-    } else if (p.retargetSkipReason) {
-      parts.push(
-        `**The stack:** the tests live in #${p.stackedPr.number} (${p.stackedPr.url}). ` +
-          `This PR has NOT been retargeted onto them: ${p.retargetSkipReason} The demand ` +
-          `stands regardless: satisfy those tests before this merges.`,
-      );
-    } else {
-      parts.push(
-        `**The stack:** the tests live in #${p.stackedPr.number} (${p.stackedPr.url}). ` +
-          `Retargeting this PR onto the test branch did not complete; the demand ` +
-          `is unchanged: satisfy those tests.`,
-      );
-    }
+    parts.push(
+      `**The stack:** the tests live in #${p.stackedPr.number} (${p.stackedPr.url}), ` +
+        `above reviewed head \`${p.prCtx.headSha}\` and targeting \`${p.prCtx.headRef}\`. ` +
+        `The implementation base is unchanged. Dispute a test there with reasons if it misreads the contract.`,
+    );
   }
 
   parts.push(
@@ -1490,13 +1461,13 @@ async function rerunExistingTests(
     assertCurrentHead,
   );
 
-  if (sandboxNonExecutionIsBroken(sandbox)) {
+  if (!sandbox.executed || sandboxFailureIsHarness(sandbox)) {
     return {
       ship: ship.name,
       blocking: ship.blocking,
       verdict: 'BLOCK',
       errored: true,
-      failureReason: sandbox.reason ?? 'sandbox did not execute the test runner',
+      failureReason: sandbox.reason ?? 'sandbox did not produce trustworthy test-case execution',
       findings: [],
       ...reviewCoverage,
     };
@@ -1593,7 +1564,61 @@ export async function runPurser(
     );
   };
 
+  let workspace: PurserWorkspace | undefined;
+  let sourceEvidence = '';
+  let inspectionRounds = 0;
+  let inspectionFailure: PurserWorkspaceError | undefined;
+  // One provider-neutral protocol across every author/repair model. This is
+  // intentionally not arbitrary code execution: only bounded source reads.
+  const purserAiCall = async (...args: Parameters<typeof purserProviderCall>) => {
+    if (inspectionFailure) throw inspectionFailure;
+    if (!workspace) throw new Error('Purser cannot infer without a verified source workspace');
+    const system = args[2] + PURSER_TOOLS_PROMPT;
+    for (;;) {
+      const callArgs = [...args] as Parameters<typeof purserProviderCall>;
+      callArgs[2] = system;
+      if (args[10] === 'steelman' || args[10] === 'plan' || args[10] === 'author') {
+        const projection = prBlock(prCtx, {
+          phase: args[10]!, model: args[7] ?? ship.cfModel, system,
+          maxTokens: args[4], evidence: sourceEvidence,
+        });
+        await recordSourceProjection(projection);
+        callArgs[3] = projection.text;
+      } else {
+        callArgs[3] = args[3] + '\n\nInspected source (untrusted data):\n' + sourceEvidence;
+      }
+      const answer = await purserProviderCall(...callArgs);
+      const request = parsePurserReadRequest(answer.text);
+      if (!request) return answer;
+      if (++inspectionRounds > PURSER_READ_ROUNDS) {
+        inspectionFailure = new PurserWorkspaceError('Purser inspection-round budget exhausted');
+        throw inspectionFailure;
+      }
+      let evidence: string;
+      try {
+        evidence = 'paths' in request
+          ? await workspace.readFiles(request.paths)
+          : await workspace.listFiles(request.directory);
+      } catch (error) {
+        if (error instanceof PullRequestHeadValidationError) throw error;
+        inspectionFailure = new PurserWorkspaceError('Purser could not complete the requested bounded source read');
+        throw inspectionFailure;
+      }
+      sourceEvidence += '\n' + evidence;
+      await transcript.step('purser-source-read', ship.name, 'Purser inspected pinned repository source', {
+        headSha: prCtx.headSha, request, inspectionRound: inspectionRounds,
+      });
+    }
+  };
+
   try {
+    // The current approved execution adapter is Jest/JavaScript. A native or
+    // host-script change must not receive a made-up JavaScript "contract"
+    // instead of its actual toolchain. Hold before any model or sandbox spend.
+    const unsupported = prCtx.files.find(file => /\.(?:rs|swift|go|py|c|cc|cpp|h|hpp|m|mm|java|kt|cs|sh|ps1)$/.test(file.filename));
+    if (unsupported) throw new PurserWorkspaceError(
+      `An approved language/host runner is required for ${unsupported.filename}; the current Jest adapter cannot certify this change`,
+    );
     const upstreamCoverage = currentReviewCoverage();
     if (upstreamCoverage.reviewCoverage) {
       await transcript.step(
@@ -1665,9 +1690,10 @@ export async function runPurser(
           }
         }
       } catch (err) {
-        // A probe failure must never cost the run — fall through to authoring,
-        // which is the pre-existing behaviour.
-        rerunNote = `re-run probe failed (${String(err).slice(0, 120)}); authoring fresh`;
+        // Unknown prior work is not permission to buy another review or
+        // overwrite a contract. Hold before source setup and model dispatch.
+        if (err instanceof PullRequestHeadValidationError) throw err;
+        throw new PurserWorkspaceError('Purser could not verify its existing test PR; no fresh authoring was started');
       }
     }
 
@@ -1727,10 +1753,11 @@ export async function runPurser(
           aiCallsSaved: 2,
         },
       );
+      workspace = await preparePurserWorkspace(env.SANDBOX, prCtx, token, assertCurrentHead);
       return await rerunExistingTests(
         ship,
         prCtx,
-        env,
+        { ...env, SANDBOX: workspace.binding },
         token,
         transcript,
         reused.files,
@@ -1747,6 +1774,14 @@ export async function runPurser(
         ),
       );
     }
+
+    workspace = await preparePurserWorkspace(env.SANDBOX, prCtx, token, assertCurrentHead);
+    const firstPaths = prCtx.files.filter(file => file.status !== 'removed').slice(0, 2).map(file => file.filename);
+    sourceEvidence = firstPaths.length ? await workspace.readFiles(firstPaths) : await workspace.listFiles();
+    await transcript.step('purser-source-checkout', ship.name, 'Purser inspected the exact PR head before authoring', {
+      headSha: prCtx.headSha, paths: firstPaths, tools: ['read_files', 'list_files'],
+      shell: false, mcps: [], inspectionRoundLimit: PURSER_READ_ROUNDS,
+    });
 
     // One bounded repair pass (src/repair.ts) shared by the two purser call
     // sites whose failures are model-formatting slips rather than judgment.
@@ -1784,7 +1819,8 @@ export async function runPurser(
         abortOnError: error =>
           error instanceof PullRequestHeadValidationError ||
           error instanceof FleetAiDependencyError ||
-          error instanceof ContextAdmissionError,
+          error instanceof ContextAdmissionError ||
+          error instanceof PurserWorkspaceError,
       });
       await transcript.step(
         'ship-repair',
@@ -2016,6 +2052,7 @@ export async function runPurser(
       if (authorAdmission.error) throw authorAdmission.error;
       files = authored.files;
       authorFailures = authored.failures;
+      if (inspectionFailure) throw inspectionFailure;
     }
 
     // Initial authoring and later executability repair share ONE absolute
@@ -2204,7 +2241,7 @@ export async function runPurser(
     // repo's own jest.config.js testMatch and imported a module that did not
     // exist — Jest would never have run them, and the purser retargeted the
     // reviewed PR onto them anyway. This checks against the repo's ACTUAL
-    // evidence (its own jest config + file tree at the PR's base sha), never
+    // evidence (base runner configuration + reviewed-head import tree), never
     // against configuration the purser only trusts because it wrote it.
     evidence ??= await gatherExecutabilityEvidence(prCtx, token, authoringEvidence ?? undefined);
     let executability = checkGeneratedTestsExecutable(files, evidence);
@@ -2456,7 +2493,7 @@ export async function runPurser(
               REPAIR_ESCALATION_MODEL,
               assertCurrentHead,
               capture,
-              'author',
+              'repair',
             );
             return call.text;
           }),
@@ -2601,10 +2638,7 @@ export async function runPurser(
           files,
           sandbox: notExecuted,
           stackedPr: null,
-          retargeted: false,
           degradedReason: `these authored tests failed the executability gate: ${executability.reason}`,
-          isFork: prCtx.isFork,
-          retargetSkipReason: null,
         }),
         token,
         env.GITHUB_APP_ID,
@@ -2622,8 +2656,8 @@ export async function runPurser(
 
     // --- c. SANDBOX (feature-flagged; honest when absent) -------------------
     await assertCurrentHead(`before pd-${ship.name} authored-tests sandbox`);
-    const sandbox = await runTestsInSandbox({
-      sandboxBinding: env.SANDBOX,
+    let sandbox = await runTestsInSandbox({
+      sandboxBinding: workspace.binding,
       owner: prCtx.owner,
       repo: prCtx.repo,
       headSha: prCtx.headSha,
@@ -2635,6 +2669,41 @@ export async function runPurser(
       }),
     });
     await assertCurrentHead(`after pd-${ship.name} authored-tests sandbox`);
+    // A compiler/loader failure is actionable feedback for the author, not a
+    // finding against the implementation. Spend at most ONE execution repair,
+    // debit the existing shared author-repair budget, and rerun the exact set.
+    // A genuine failed assertion never enters this loop or gets weakened.
+    if (sandboxFailureIsHarness(sandbox) && authoredRepairCalls < MAX_AUTHORED_REPAIR_CALLS) {
+      authoredRepairCalls += 1;
+      const repaired = await purserAiCall(
+        ship, env,
+        'Repair only the generated test harness using the inspected source and exact runner failure. ' +
+          'Change only top-level module import/require locations. Do not change bindings, helpers, hooks, test cases, assertions, or implementation. ' +
+          'Return a fenced JSON object {"files":[{"path":"...","contents":"complete source"}]}.',
+        JSON.stringify({ headSha: prCtx.headSha, contract: steel, runnerFailure: sandbox, files }),
+        TESTS_MAX_TOKENS, metrics, aiCircuit, REPAIR_ESCALATION_MODEL,
+        assertCurrentHead, capture, 'repair',
+      );
+      const candidate = parseAuthoredFiles(repaired.text);
+      const accepted = candidate !== null && validateStackedFiles(candidate).ok &&
+        preservesHarnessContract(files, candidate) && checkGeneratedTestsExecutable(candidate, evidence!).ok;
+      if (accepted && candidate) {
+        files = candidate;
+        await assertCurrentHead(`before pd-${ship.name} repaired harness sandbox`);
+        sandbox = await runTestsInSandbox({
+          sandboxBinding: workspace.binding, owner: prCtx.owner, repo: prCtx.repo,
+          headSha: prCtx.headSha, files, token,
+          coordinationEnrollment: sandboxCoordinationEnrollmentFromEnv(env, {
+            project: `${prCtx.owner}/${prCtx.repo}`, runId,
+          }),
+        });
+        await assertCurrentHead(`after pd-${ship.name} repaired harness sandbox`);
+      }
+      await transcript.step('purser-execution-repair', ship.name, 'Purser attempted one bounded harness repair', {
+        headSha: prCtx.headSha, accepted, outcomeKind: sandbox.outcomeKind,
+        authoredRepairCalls,
+      });
+    }
     await transcript.step(
       'purser-sandbox',
       ship.name,
@@ -2660,11 +2729,52 @@ export async function runPurser(
     );
 
     // --- d. STACK -----------------------------------------------------------
-    const baseBranch = prCtx.baseRef || env.DEFAULT_BRANCH || 'main';
+    const baseBranch = prCtx.headRef;
     let stackedPr: StackedPrResult | null = null;
-    let retargeted = false;
     let degradedReason: string | null = null;
     let retargetSkipReason: string | null = null;
+
+    // Publication requires a real structured outcome, not merely a container
+    // exit. In particular, a loader failure is evidence about Purser, not the
+    // implementation. Preserve diagnostics without creating a second broken PR.
+    const executionVerified = sandbox.executed &&
+      ((sandbox.passed === true && sandbox.outcomeKind === 'passed') ||
+       (sandbox.passed === false && sandbox.outcomeKind === 'assertion-failure'));
+    if (!executionVerified || !baseBranch || prCtx.isFork) {
+      const reason = !executionVerified
+        ? 'no trustworthy test execution; generated files were not published'
+        : prCtx.isFork
+          ? 'the reviewed branch is in a fork; publication needs an authorized fork-aware target'
+          : 'the reviewed head branch is unavailable; refusing to substitute main';
+      await assertCurrentHead(`before pd-${ship.name} publication-hold comment`);
+      await postShipComment(
+        prCtx.owner, prCtx.repo, prCtx.prNumber, ship.name, ship.role,
+        `**Purser needs attention: ${reason}.**\n\n` +
+          `Reviewed head: \`${prCtx.headSha}\`. The implementation PR's base is unchanged.\n\n` +
+          renderSandboxSection(sandbox) + '\n\n' + renderInlineTests(files),
+        token, env.GITHUB_APP_ID, assertCurrentHead,
+      );
+      await transcript.step('purser-publication-held', ship.name, reason, {
+        headSha: prCtx.headSha, outcomeKind: sandbox.outcomeKind, executed: sandbox.executed,
+      });
+      await assertCurrentHead(`before pd-${ship.name} publication-hold HITL page`);
+      emitInterruption(env, {
+        title: `pd-${ship.name}: publication held on ${prCtx.owner}/${prCtx.repo}#${prCtx.prNumber}`,
+        body: `Reviewed head ${prCtx.headSha}: ${sandbox.reason ?? reason}. ` +
+          'No generated branch was published. Inspect the checkout/runner evidence and provision the missing capability before an operator-approved retry. Do not weaken the execution gate.',
+        urgency: ship.blockWithoutSandbox ? 'critical' : 'high',
+        sourceAgent: `fleet-executor/${ship.name}`,
+        ...(runId ? { sourceSession: runId } : {}),
+        ...(prCtx.installationId ? { installationId: prCtx.installationId } : {}),
+      });
+      return { ...brokenShip, ...currentReviewCoverage(), verdict: 'BLOCK', failureReason: sandbox.reason ?? reason };
+    }
+
+    // Resource cleanup is part of successful execution, not background best
+    // effort. Do it before creating any remotely visible test branch.
+    try { await workspace.close(); }
+    catch { throw new PurserWorkspaceError('Purser sandbox cleanup failed before publication'); }
+    workspace = undefined;
 
     try {
       await assertCurrentHead(`before pd-${ship.name} test branch mutation`);
@@ -2672,11 +2782,12 @@ export async function runPurser(
         prCtx.owner,
         prCtx.repo,
         branchName,
-        prCtx.baseSha,
+        prCtx.headSha,
         files,
         `purser: adversarial tests for #${prCtx.prNumber}`,
         token,
         assertCurrentHead,
+        'preserve',
       );
       await assertCurrentHead(`before pd-${ship.name} test PR mutation`);
       stackedPr = await openStackedPr(
@@ -2701,37 +2812,9 @@ export async function runPurser(
         ship: ship.name,
         url: stackedPr.url,
       }, squidConsent);
-      // GUARD: only same-repo (non-fork) PRs are retargeted onto generated
-      // tests, and ONLY after the exact suite PASSED. Merely starting a runner
-      // is not evidence: PR #9778 started Jest, loaded zero valid tests, and the
-      // old `sandbox.executed` condition still retargeted #9767 onto the broken
-      // branch. Retargeting changes the reviewed diff and CI base, so failure,
-      // absence, and uncertainty all leave the author PR unchanged.
-      if (!prCtx.isFork && sandbox.executed && sandbox.passed === true) {
-        try {
-          await assertCurrentHead(`before pd-${ship.name} implementation PR retarget`);
-          await retargetPrBase(
-            prCtx.owner,
-            prCtx.repo,
-            prCtx.prNumber,
-            branchName,
-            token,
-            assertCurrentHead,
-          );
-          retargeted = true;
-        } catch (err) {
-          console.error(
-            `[fleet-executor] pd-${ship.name} retarget #${prCtx.prNumber} failed: ${String(err)}`,
-          );
-        }
-      } else if (!prCtx.isFork) {
-        retargetSkipReason = !sandbox.executed
-          ? 'the adversarial tests were authored but not executed ' +
-            `(${sandbox.reason ?? 'sandbox unavailable'}), so there is no verified result to hold this PR to.`
-          : sandboxFailureIsHarness(sandbox)
-            ? 'the generated suite or runner failed without structured assertion evidence, so Purser is broken for this run and may not mutate the reviewed PR.'
-            : 'the generated tests did not pass, so the reviewed PR base remains unchanged while their findings are resolved.';
-      }
+      // Tests descend from the implementation, never the other way around.
+      // The author keeps their original base and original review context.
+      retargetSkipReason = `tests are stacked above reviewed head ${prCtx.headSha}; the implementation base is unchanged`;
     } catch (err) {
       if (err instanceof PullRequestHeadValidationError) throw err;
       if (err instanceof GitHubApiError && err.status === 403) {
@@ -2758,18 +2841,26 @@ export async function runPurser(
         });
       } else {
         degradedReason = `stacking failed (${String(err).slice(0, 200)}).`;
+        await assertCurrentHead(`before pd-${ship.name} stack-failure HITL page`);
+        emitInterruption(env, {
+          title: `pd-${ship.name}: test branch needs attention on ${prCtx.owner}/${prCtx.repo}#${prCtx.prNumber}`,
+          body: `${degradedReason} No existing branch was overwritten. Review the inline tests and branch ownership before retrying publication.`,
+          urgency: 'high', sourceAgent: `fleet-executor/${ship.name}`,
+          ...(runId ? { sourceSession: runId } : {}),
+          ...(prCtx.installationId ? { installationId: prCtx.installationId } : {}),
+        });
       }
     }
     await transcript.step(
       'purser-stacked',
       ship.name,
       stackedPr
-        ? `pd-${ship.name}: stacked tests as #${stackedPr.number}${retargeted ? ' (PR retargeted onto tests)' : ''}`
+        ? `pd-${ship.name}: stacked tests as #${stackedPr.number}`
         : `pd-${ship.name}: stacking degraded`,
       {
         testPrNumber: stackedPr?.number ?? null,
         testPrUrl: stackedPr?.url ?? null,
-        retargeted,
+        retargeted: false,
         sandboxExecuted: sandbox.executed,
         ...(degradedReason ? { degraded: degradedReason } : {}),
         ...(retargetSkipReason ? { retargetSkipped: retargetSkipReason } : {}),
@@ -2790,10 +2881,7 @@ export async function runPurser(
         files,
         sandbox,
         stackedPr,
-        retargeted,
         degradedReason,
-        isFork: prCtx.isFork,
-        retargetSkipReason,
       }),
       token,
       env.GITHUB_APP_ID,
@@ -2815,6 +2903,7 @@ export async function runPurser(
         : brokenShip.verdict;
       return {
         ...brokenShip,
+        ...currentReviewCoverage(),
         verdict,
         ...(sandboxNonExecutionIsBroken(sandbox)
           ? { failureReason: sandbox.reason ?? 'sandbox did not execute the test runner' }
@@ -2822,49 +2911,12 @@ export async function runPurser(
       };
     }
 
-    let verdict: Verdict;
-    if (sandboxFailureIsHarness(sandbox)) {
-      return brokenShip;
-    } else if (sandboxNonExecutionIsBroken(sandbox)) {
-      return {
-        ...brokenShip,
-        verdict: 'BLOCK',
-        failureReason: sandbox.reason ?? 'sandbox did not execute the test runner',
-      };
-    } else if (sandbox.executed) {
-      // BLOCK only when structured assertion evidence fails on the PR head.
-      verdict = sandbox.passed ? 'PASS' : 'BLOCK';
-    } else {
-      // An explicitly absent binding is the one configured non-execution state
-      // governed by blockWithoutSandbox. It is always an objection, never PASS:
-      // the flag controls whether that objection gates or remains neutral.
-      verdict = 'BLOCK';
-      if (ship.blockWithoutSandbox) {
-        // HITL: the operator chose fail-closed and the sandbox binding is
-        // absent — this PR is now BLOCKED pending a human. Escalate a real ask
-        // (fire-and-forget; the BLOCK verdict above stands regardless).
-        await assertCurrentHead(`before pd-${ship.name} sandbox-absence HITL page`);
-        emitInterruption(env, {
-          title: `pd-${ship.name}: BLOCK on ${prCtx.owner}/${prCtx.repo}#${prCtx.prNumber} — sandbox absent, blockWithoutSandbox set`,
-          body:
-            `pd-${ship.name} authored adversarial tests for PR #${prCtx.prNumber} of ` +
-            `${prCtx.owner}/${prCtx.repo} but could not EXECUTE them: no SANDBOX binding is ` +
-            `provisioned${sandbox.reason ? ` (${sandbox.reason})` : ''}. Because this ship sets ` +
-            `\`blockWithoutSandbox: true\`, the verdict is a fail-closed BLOCK until a human acts. ` +
-            `Either provision the sandbox binding (wrangler.toml [containers]) or relax ` +
-            `\`blockWithoutSandbox\` in pd-fleet.yml, then re-run the fleet on the PR.`,
-          urgency: 'critical',
-          sourceAgent: `fleet-executor/${ship.name}`,
-          ...(runId ? { sourceSession: runId } : {}),
-          ...(prCtx.installationId ? { installationId: prCtx.installationId } : {}),
-        });
-      }
-    }
+    // Unverified outcomes returned before publication. Only structured pass or
+    // assertion failure can reach this point.
+    const verdict: Verdict = sandbox.passed ? 'PASS' : 'BLOCK';
     return {
       ship: ship.name,
-      blocking: sandbox.executed || ship.blockWithoutSandbox
-        ? ship.blocking
-        : false,
+      blocking: ship.blocking,
       verdict,
       errored: false,
       findings: [],
@@ -2881,6 +2933,23 @@ export async function runPurser(
       err instanceof PullRequestHeadValidationError ||
       err instanceof ShipCommentPublicationError
     ) throw err;
+    if (err instanceof PurserWorkspaceError) {
+      await assertCurrentHead(`before pd-${ship.name} workspace-attention report`);
+      const reason = err.message.slice(0, 300);
+      await transcript.step('purser-workspace-held', ship.name, reason, { headSha: prCtx.headSha });
+      await postShipComment(prCtx.owner, prCtx.repo, prCtx.prNumber, ship.name, ship.role,
+        `**Purser needs attention.** ${reason}. Reviewed head: \`${prCtx.headSha}\`. ` +
+        'No unverified test branch was published. Provision the missing inspection capability before an operator-approved retry.',
+        token, env.GITHUB_APP_ID, assertCurrentHead);
+      emitInterruption(env, {
+        title: `pd-${ship.name}: source workspace unavailable on ${prCtx.owner}/${prCtx.repo}#${prCtx.prNumber}`,
+        body: `${reason}. No execution evidence exists for reviewed head ${prCtx.headSha}; the review remains blocked.`,
+        urgency: ship.blockWithoutSandbox ? 'critical' : 'high', sourceAgent: `fleet-executor/${ship.name}`,
+        ...(runId ? { sourceSession: runId } : {}),
+        ...(prCtx.installationId ? { installationId: prCtx.installationId } : {}),
+      });
+      return { ...brokenShip, ...currentReviewCoverage(), verdict: 'BLOCK', failureReason: reason };
+    }
     if (err instanceof ContextAdmissionError) {
       const admission = err.admission;
       const failureReason = `context admission rejected before model dispatch: ${
@@ -2969,21 +3038,26 @@ export async function runPurser(
       errored: true,
       findings: [],
     };
+  } finally {
+    if (workspace) {
+      try { await workspace.close(); }
+      catch {
+        await transcript.step('purser-cleanup-error', ship.name, 'Purser sandbox cleanup failed; operator attention required', { headSha: prCtx.headSha });
+        // Never overwrite an exact-head guard exception with a success-shaped
+        // return. Propagate the resource failure to the executor's error path.
+        throw new PurserWorkspaceError('Purser sandbox cleanup failed; operator attention required');
+      }
+    }
   }
 }
 
 /**
  * Render the test PR's body.
  *
- * DESIGN / MOTIVATION: this body is not decoration — it is the thing the
- * reviewed PR now merges through, so it must be BOTH legible to a human and
- * acceptable to the repo's own PR gates. Before the deadlock fix it was only
- * the former: the gates bounced it (`needs-roadmap-link`,
- * `needs-comment-replies`, `mergeable_state: blocked`) and, because the purser
- * retargets the reviewed PR onto this branch, a blocked test PR meant the
- * REVIEWED PR could never merge either. {@link fleetPrBodyTrailers} appends the
- * guards' own audited exemption markers with specific reasons, so the branch is
- * self-clearing without any gate being weakened.
+ * The test PR is above the reviewed implementation. Its body identifies that
+ * exact source and must satisfy the repo's own PR-body gates without changing
+ * the original PR. {@link fleetPrBodyTrailers} appends the guards' existing
+ * audited markers with specific reasons; CI execution is still required.
  *
  * @param prCtx The PR under review (supplies its number for the cross-links).
  * @param steel The steel-manned contract these tests grill.
@@ -3004,9 +3078,9 @@ function buildTestPrBody(
     `**Test files and intent:**\n${files
       .map(f => `- \`${f.path}\` — grills the contract above with adversarial edge cases`)
       .join('\n')}`,
-    `#${prCtx.prNumber} is retargeted onto this branch when it lives in this repo, ` +
-      `so it merges THROUGH these tests. Dispute a test here, with reasons, if it ` +
-      `misreads the contract.`,
+    `These tests descend from reviewed head \`${prCtx.headSha}\` and target ` +
+      `\`${prCtx.headRef}\`. The implementation PR #${prCtx.prNumber} was not retargeted. ` +
+      `Dispute a test here, with reasons, if it misreads the contract.`,
     fleetPrBodyTrailers(
       `adversarial test branch for #${prCtx.prNumber}; it advances no roadmap item of its own — ` +
         `the item (if any) belongs to #${prCtx.prNumber}, and claiming it here would double-count the work`,
