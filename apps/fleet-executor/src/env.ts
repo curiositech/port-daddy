@@ -128,13 +128,13 @@ export interface ExecutorEnv extends PortDaddyTelemetryEnv {
    * OPTIONAL HITL escalation sink (src/interruptions.ts): the relay's
    * POST /v1/interruptions endpoint. When a ship hits a BLOCKING degradation
    * (403 on `contents: write`, blockWithoutSandbox with no SANDBOX binding) it
-   * fire-and-forgets an operator interruption there. BOTH this and
-   * INTERRUPTIONS_TOKEN must be set or the feature is silently disabled — no
-   * fetch is ever attempted. Escalations never block or change a run.
+   * obtains an exact, short-lived create capability from COORDINATION_GRANTS
+   * and awaits a durable receipt. Missing configuration, transport ambiguity,
+   * or malformed grant/receipt fields fail loudly.
    */
   INTERRUPTIONS_URL?: string;
-  /** pdu_ operator token sent as the Bearer on every interruption POST. Secret. */
-  INTERRUPTIONS_TOKEN?: string;
+  /** Non-secret GitHub id resolved by Relay to exactly one operator tenant. */
+  INTERRUPTIONS_OPERATOR_GITHUB_USER_ID?: string;
   /**
    * Shared relay D1 database (`port-daddy-relay`). The executor writes the
    * fleet_runs audit header + retry-replaceable fleet_run_steps telemetry here.

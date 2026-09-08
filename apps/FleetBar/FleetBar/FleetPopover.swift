@@ -110,7 +110,11 @@ struct FleetPopover: View {
             budgetStore.start()
             approvalStore.start()
             coastGuardReceiptStore.start()
-            Task { await interruptionsStore.refresh() }
+            Task {
+                async let authorization: Void = interruptionsStore.refreshNotificationAuthorization()
+                async let queue: Void = interruptionsStore.refresh()
+                _ = await (authorization, queue)
+            }
         }
         .onDisappear {
             budgetStore.stop()

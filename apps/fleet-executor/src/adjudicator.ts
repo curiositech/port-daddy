@@ -247,7 +247,7 @@ export async function adjudicateBrokenShips(
     if (newlyDeclared) {
       // First declaration of THIS epidemic ⇒ one page, not one per run.
       await opts.assertCurrentHead?.(`before pd-${r.ship} broken-ship HITL page`);
-      emitInterruption(opts.env, {
+      const interruption = await emitInterruption(opts.env, {
         title: `Fleet epidemic: pd-${r.ship} broken across PRs on ${repoFullName}`,
         body:
           `pd-${r.ship} has produced broken output (${reason}) on ${otherPrs} other PR(s) in the last ` +
@@ -260,6 +260,12 @@ export async function adjudicateBrokenShips(
         ...(opts.runId ? { sourceSession: opts.runId } : {}),
         ...(opts.installationId ? { installationId: opts.installationId } : {}),
       });
+      await opts.transcript.step(
+        'operator-interruption-delivered',
+        r.ship,
+        `pd-${r.ship}: operator interruption delivered as ${interruption.interruptionId}`,
+        interruption,
+      );
     }
   }
 
