@@ -7,6 +7,13 @@ from a summary of a summary. Every line below points at something you can open:
 a commit, a file, a page number, a check. When this ledger and a chat summary
 disagree, the ledger and `git log` win.
 
+This is the record of what landed. It is not the plan. The forward plan —
+what is next, in what order, with what status — lives in one place,
+[`docs/roadmap/whitepaper-research-program.md`](../../roadmap/whitepaper-research-program.md),
+and a row there moves in the same commit that lands the work. The hypertree
+outline in §7 below is the history of how the waves were cut, kept for the
+record; where it and the plan disagree, the plan wins.
+
 ## 1. State of the build
 
 | Wave | Landed as | What to open |

@@ -1,7 +1,7 @@
 {
   "$schema": "./program.schema.json",
   "version": 1,
-  "updated": "2026-09-07",
+  "updated": "2026-09-08",
   "statement": "The Harbor research program is the part of the whitepaper that has to be proved, measured, or openly admitted unsolved rather than argued for. Seven conference-form papers carry the theorems; a results index says where each executed result lives in the book; a manifest names every mechanized artifact and whether it still runs in CI; pre-registered studies take on the questions the book can't settle from its own results; and a ledger keeps every review objection alongside what was done about it. This file is what the website renders, and it is checked against the index, the manifest, the ledger, and the repository on every pull request — so the page can't drift from the program without the build going red.",
   "checker": "scripts/harbor-research/check_research_program.py",
   "mirror": "website-v2/src/data/harborResearchProgram.json",
@@ -265,6 +265,17 @@
       ],
       "statement": "Conflict-freedom inside the tractable fragment is decided in polynomial time, with a witness, from scratch every time. An amortized checker that updates the witness as a single policy changes is stated in the paper and hasn't been built.",
       "source": "docs/harbor-research/library-index.json"
+    },
+    {
+      "id": "unowned-work",
+      "title": "Origination of unowned work",
+      "chapters": [
+        7,
+        1,
+        5
+      ],
+      "statement": "Every mechanism the book has -- receipts, bonds, escrow, reputation as a ledger position, the deterrence and discount thresholds -- binds an agent to something it agreed to do. A dead daemon or a red test has no counterparty and no price, and nothing in the institution assigns a defect nobody chartered; Ostrom's monitoring and graduated sanctions presuppose a promise to monitor against. Four parts: what mechanism makes an unowned defect somebody's and prices it (a bounty on the commons' own invariants, a rotation, an obligation attached to proximity, a market in noticing); how variable agent lifetimes change the answer, since a worker alive only for one pull request values nothing after it and the reviewers who check it face the same question one level up; who remembers old plans and old ideas, and whether memory induction into standing orders is measurable; and whether this is solved by a market in which agents that do the thing better win the work, or requires evaluators who give feedback immediately and in aggregate, or both, with the boundary between them unwritten.",
+      "source": "docs/roadmap/whitepaper-research-program.md#7-open-problem-9-origination-of-unowned-work"
     }
   ],
   "results": [
