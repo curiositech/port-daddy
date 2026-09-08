@@ -67,8 +67,21 @@ def main() -> int:
         texts = [l["text"] for l in lines]
         # O: opener spill
         if any(LABEL.lower() == t.lower() for t in texts):
-            big = [l for l in lines if l["size"] >= 20 and l["y0"] > 0]
-            label_y = next(l["y0"] for l in lines if l["text"].lower() == LABEL.lower())
+            # "Much larger than the label", not an absolute point size. The
+            # question is declared \fontsize{20}{25} in every edition, but what
+            # a PDF reports is the rendered size, which is font-dependent: the
+            # maritime edition's Palatino-family face comes out at 20.92 and
+            # the technical edition's TeX Gyre Heros at 19.93. An absolute
+            # `>= 20` therefore passed one edition and failed the other by
+            # seven hundredths of a point, reporting a stranded question on all
+            # eight technical openers where the question sits 23 pt under its
+            # own label. Measuring against the label the check has already
+            # found makes the test say what it means and stop depending on
+            # which typeface the edition chose.
+            label_line = next(l for l in lines if l["text"].lower() == LABEL.lower())
+            label_y = label_line["y0"]
+            floor = 1.5 * label_line["size"]
+            big = [l for l in lines if l["size"] >= floor and l["y0"] > 0]
             if not any(l["y0"] > label_y for l in big):
                 findings.append({"kind": "O", "page": page_no, "detail": "opener label present, question not on the same page"})
         # H: stranded heading

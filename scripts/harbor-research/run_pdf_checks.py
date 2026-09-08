@@ -45,6 +45,13 @@ REPO_ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
 # not as a new step in whitepaper-build.yml.
 PER_PDF_CHECKS = [
     (os.path.join(REPO_ROOT, "scripts", "harbor-research", "page_overflow.py"), []),
+    # Joined 2026-09-08, which is what the docstring below was waiting for: the
+    # two stranded headings are fixed at the source (a \needspace before each,
+    # not a loosened threshold), and the eight "O" findings that stood in the
+    # way turned out to be the check's own defect -- an absolute font-size test
+    # that one edition's typeface missed by 0.07 pt. All three editions now
+    # report 0 O and 0 H. W findings stay advisory and do not fail the run.
+    (os.path.join(REPO_ROOT, "scripts", "harbor-research", "page_spills.py"), []),
 ]
 
 # Every check that takes the whole directory of freshly built editions at

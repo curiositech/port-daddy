@@ -34,7 +34,12 @@ registers:
     document: ux/README.md
 # The kinds a record may declare. Without this the checker had nothing to check
 # a kind against, so a misspelling would have entered the ledger as a new kind.
+# Every kind a register may declare. This list was written from the kinds the
+# records themselves used and missed four the registers below actually carry:
+# question, tension, archive and ux. Declaring a vocabulary that the documents
+# already exceed is worse than declaring none, because it reads as checked.
 record_kinds:
+  - archive
   - contract
   - decision
   - experience
@@ -42,6 +47,9 @@ record_kinds:
   - invariant
   - program_cut
   - proof
+  - question
+  - tension
+  - ux
 relation_vocabulary:
   - EXTENDS
   - REFINES

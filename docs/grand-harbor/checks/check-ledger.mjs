@@ -91,8 +91,20 @@ const declaredKinds = new Set(
 if (declaredKinds.size === 0) {
   failures.push('ledger.yaml declares no record_kinds vocabulary, so any kind would pass');
 } else {
-  for (const match of ledgerText.matchAll(/^\s+kind:\s+(\S+)\s*$/gm)) {
-    if (!declaredKinds.has(match[1]) && !['question', 'tension', 'hypothesis', 'proof', 'archive', 'ux'].includes(match[1])) {
+  // No allowlist. There was one -- ['question','tension','hypothesis','proof',
+  // 'archive','ux'] -- and it exempted precisely the kinds record_kinds had
+  // failed to declare, so the check reported a vocabulary as enforced while
+  // four of the registers below used kinds outside it. A gate carrying a
+  // hardcoded pass for its own subject is not a gate. The vocabulary is
+  // complete now; anything new has to be declared like everything else.
+  // "- kind: question" as well as "  kind: question". The registers spell it
+  // the first way and the old pattern required whitespace immediately before
+  // "kind:", so it matched 39 lines elsewhere in the file and not one of the
+  // six registers -- the check validated a set that was never in question
+  // while the set that was went unread. That is why the allowlist above went
+  // unnoticed: nothing it exempted was ever being tested.
+  for (const match of ledgerText.matchAll(/^\s*(?:-\s+)?kind:\s+(\S+)\s*$/gm)) {
+    if (!declaredKinds.has(match[1])) {
       failures.push(`ledger.yaml record kind '${match[1]}' is not in record_kinds`);
     }
   }
