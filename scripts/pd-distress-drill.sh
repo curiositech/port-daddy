@@ -375,10 +375,17 @@ for ent in daemon:prod supervisor:launchd agent:claude-code; do
     ko "$ent: no COMPLIED within two intervals ($(grep "$ent" "$PD_HOME/DISTRESS" 2>/dev/null | tr '\n' '|'))"
   fi
 done
-# append_distress does two separate O_APPEND writes per line (machine-wide,
-# then repo-scoped) that are not atomic across files; the mirror is only
-# eventually equal, so wait one listening interval rather than sampling once.
-wait_for 1 "cmp -s '$PD_HOME/DISTRESS' '$DRILL_REPO/.portdaddy/DISTRESS'" && ok "repo-scoped register mirrors the machine-wide one" || ko "repo-scoped register diverged from machine-wide"
+# The two registers must hold the SAME LINES, not the same byte sequence.
+# append_distress writes each line twice -- machine-wide, then the repo copy --
+# and the entities append concurrently, so two entities can interleave as
+# A>machine, B>machine, B>repo, A>repo and leave the files permanently ordered
+# differently. Each file is internally ordered by its own append sequence (that
+# is what seen_then_complied checks, on the machine-wide file); across files
+# only the content is contracted. Compare as multisets, and wait a listening
+# interval for the second write of an in-flight line to land.
+wait_for 2 "sort '$PD_HOME/DISTRESS' > '$WORK/reg.machine' && sort '$DRILL_REPO/.portdaddy/DISTRESS' > '$WORK/reg.repo' && cmp -s '$WORK/reg.machine' '$WORK/reg.repo'" \
+  && ok "repo-scoped register carries the same lines as the machine-wide one" \
+  || ko "repo-scoped register diverged from machine-wide: $(diff "$WORK/reg.machine" "$WORK/reg.repo" 2>/dev/null | tr '\n' '|' | head -c 400)"
 
 # ── 4. nothing spends ───────────────────────────────────────────────────────
 step "4. SEELONCE: nothing spends after COMPLIED"
