@@ -47,32 +47,41 @@ import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 /**
- * Generate a simple image (PNG) of the given dimensions using Pillow.
- * The image is written to `outPath`. The function throws if Pillow fails.
+ * Write a structurally valid baseline JPEG of the given declared dimensions:
+ * SOI, one SOF0 segment carrying the real width and height, EOI. No entropy
+ * data, no pixels.
+ *
+ * The unit under test is `read_image_size`, which reads the container's own
+ * size fields out of the SOF0 segment and decodes nothing at all -- so a
+ * header is the whole fixture, and writing one by hand is the more faithful
+ * test as well as the portable one. The version this replaces shelled out to
+ * Pillow, which is not installed on the CI runners: every assertion in this
+ * file died on "Pillow image generation failed (status 1)" before reaching
+ * the checker, on ubuntu and macos alike. The repository's own
+ * tests/harbor-research/test_check_plate_provenance.py has always built its
+ * fixtures this way; this is the same bytes in TypeScript.
  */
-function generatePillowImage(
+function writeImageHeader(
   width: number,
   height: number,
   outPath: string,
 ): void {
-  const pythonCode = `
-import sys
-from pathlib import Path
-from PIL import Image
-
-w = int(sys.argv[1])
-h = int(sys.argv[2])
-p = Path(sys.argv[3])
-p.parent.mkdir(parents=True, exist_ok=True)
-Image.new("RGB", (w, h), color="white").save(p)
-`;
-  const result = spawnSync('python3', ['-c', pythonCode, `${width}`, `${height}`, outPath], {
-    stdio: 'ignore',
-    encoding: 'utf-8',
-  });
-  if (result.status !== 0) {
-    throw new Error(`Pillow image generation failed (status ${result.status})`);
-  }
+  mkdirSync(dirname(outPath), { recursive: true });
+  const sofPayload = Buffer.alloc(15);
+  sofPayload[0] = 8; // sample precision
+  sofPayload.writeUInt16BE(height, 1);
+  sofPayload.writeUInt16BE(width, 3);
+  sofPayload[5] = 3; // three components
+  Buffer.from([0x01, 0x11, 0x00, 0x02, 0x11, 0x00, 0x03, 0x11, 0x00]).copy(sofPayload, 6);
+  const segmentLength = Buffer.alloc(2);
+  segmentLength.writeUInt16BE(sofPayload.length + 2, 0);
+  writeFileSync(outPath, Buffer.concat([
+    Buffer.from([0xff, 0xd8]),        // SOI
+    Buffer.from([0xff, 0xc0]),        // SOF0
+    segmentLength,
+    sofPayload,
+    Buffer.from([0xff, 0xd9]),        // EOI
+  ]));
 }
 
 const CHECKER_PATH = resolve(
@@ -183,7 +192,7 @@ describe('check_plate_provenance – read_image_size and 2 % aspect‑ratio tole
 
   test('read_image_size returns correct dimensions', () => {
     const imgPath = join(tempRoot, 'sample.jpg');
-    generatePillowImage(200, 100, imgPath);
+    writeImageHeader(200, 100, imgPath);
     const { width, height } = readImageSizeViaPython(imgPath);
     expect(width).toBe(200);
     expect(height).toBe(100);
@@ -194,7 +203,7 @@ describe('check_plate_provenance – read_image_size and 2 % aspect‑ratio tole
     const imgName = 'match.jpg';
     const imgPath = join(dir, imgName);
     // 150 × 100 → aspect = 1.5 = 3:2
-    generatePillowImage(150, 100, imgPath);
+    writeImageHeader(150, 100, imgPath);
     writeProvenance(dir, {
       match: {
         prompt: 'a test plate',
@@ -213,7 +222,7 @@ describe('check_plate_provenance – read_image_size and 2 % aspect‑ratio tole
     const imgName = 'off.jpg';
     const imgPath = join(dir, imgName);
     // 150 × 100 → aspect = 1.5
-    generatePillowImage(150, 100, imgPath);
+    writeImageHeader(150, 100, imgPath);
     // Declare a wildly different aspect (2:1) → >2 % error
     writeProvenance(dir, {
       off: {
@@ -237,7 +246,7 @@ describe('check_plate_provenance – read_image_size and 2 % aspect‑ratio tole
     // is present. Write one legitimate plate, then point its own entry's
     // "file" field at a filename that was never written.
     const imgName = 'plate.jpg';
-    generatePillowImage(150, 100, join(dir, imgName));
+    writeImageHeader(150, 100, join(dir, imgName));
     writeProvenance(dir, {
       plate: {
         file: 'does-not-exist.jpg',
@@ -256,7 +265,7 @@ describe('check_plate_provenance – read_image_size and 2 % aspect‑ratio tole
     const dir = swissPlateDir();
     const imgName = 'lonely.jpg';
     const imgPath = join(dir, imgName);
-    generatePillowImage(120, 80, imgPath);
+    writeImageHeader(120, 80, imgPath);
     // Empty plates dict → the image is unaccounted for.
     writeProvenance(dir, {});
 
