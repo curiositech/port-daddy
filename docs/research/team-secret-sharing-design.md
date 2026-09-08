@@ -164,7 +164,7 @@ recorded against that principal and (b) any grant implied by harbor membership
 (see §3.3). Maximum, not minimum, because grants are additive capabilities — but
 see the revocation note in §3.4 for why removal must clear *both* sources.
 
-### 3.2 `use` is the load-bearing primitive — "use without see"
+### 3.2 `use` is the decisive primitive — "use without see"
 
 `use` is the strongest least-privilege capability in this design and the reason
 the model is worth building. The pattern: an agent on a teammate's machine needs
@@ -503,7 +503,7 @@ an audit trail without any network or new trust assumption. Each later phase is
 additive and gated on a relay/account capability that the cited ADRs already
 sequence. A team that stops at P1 has same-account multi-device sharing with no
 relay-visible cross-account metadata; a team that stops at P2 has the
-load-bearing "use without see" capability. Nothing forces a solo user past P0.
+core "use without see" capability. Nothing forces a solo user past P0.
 
 ### Reversibility
 

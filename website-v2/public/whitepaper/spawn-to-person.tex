@@ -614,7 +614,12 @@ on a non-forgeable identity (\S\ref{sec:identity}). A person is a role
 \noindent Figure~\ref{fig:role-person} draws the distinction. The org-chart on the
 left is roles: stable, fillable, reputation-free. The thread on the right is a
 person: one identity, walking through a sequence of role-instances and
-accumulating a witnessed history as it goes.
+accumulating a witnessed history as it goes. Law has its own name for a status
+conferred and separable from any particular natural substrate: \emph{juristic}
+or \emph{artificial personhood}, founded for the corporate case by
+\emph{Dartmouth College v.\ Woodward}, 17 U.S.\ 518 (1819)~\cite{dartmouth1819}
+--- the closest doctrinal analogue to Definition~\ref{def:person}'s claim that a
+person is a role plus a continuity witness, not a substance.
 
 % --- FIGURE 2: role vs person ---
 \input{figures/fig-stp-role-vs-person}
@@ -718,6 +723,17 @@ its past''). Parfit shows the identity-bearing organ is the \emph{transitive
 chain of witnessed outcomes}, not the memory stream. Build the ledger, not just
 the memory.}
 
+Two of Parfit's strongest rivals go unanswered here, and should be named rather
+than left silent. Williams's body-swap thought experiments show that the
+\emph{same} facts, narrated first-personally versus third-personally, flip
+readers' intuitions between the bodily and the psychological
+criterion~\cite{williams1970} --- a live worry for a chapter that is, after all,
+choosing which continuity criterion the ledger encodes. And Olson's
+\emph{animalism} holds we are essentially biological organisms, for whom
+psychological continuity is neither necessary nor sufficient for
+persistence~\cite{olson2007}. Neither is refuted; the ledger criterion is simply
+not defended against them.
+
 \pdexercisepointer{\ref{ex:stp-connected-vs-continuous}}{\ref{ex:stp-fork-inheritance}}{\pageref{ex:stp-connected-vs-continuous}}
 
 \begin{pdexample}{No-mint inheritance: the closure-sum refutation and the copy-fork mint}
@@ -741,6 +757,15 @@ by hand], so budgets without debiting conserve nothing for $\gamma>\tfrac12$;
 the transfer restatement is the theorem. \emph{Now you try:} check by hand
 that under transfer semantics the same chain's live total is
 $0.9\cdot 1=0.9\le 1$, not $2.439$ (Exercise~\ref{ex:stp-nomint-sweep}).
+This conservation discipline has an uncited, twenty-five-year-old cousin in
+peer-to-peer trust systems: Levien's Advogato attack-resistant trust metric
+computes certified trust as \emph{maximum flow} from a small seed set of
+trusted nodes through a capacity-bounded graph, so that no set of newly
+created accounts can manufacture trust beyond what genuinely flows from the
+seed~\cite{levien-advogato}. The two conserve in different directions ---
+Advogato bounds trust flowing \emph{outward} from a root; the theorem above
+bounds value extracted \emph{upward} through derivation --- which is a reason
+to state the distinction, not a reason to leave Advogato unread.
 \end{pdexample}
 
 \input{figures/fig-stp-nomint-lineage}
@@ -811,7 +836,14 @@ checkpoint-\emph{of-record}, not checkpoint-\emph{of-execution}. The successor
 inherits a note about what the predecessor was doing, not the live belief state it
 was doing it with. The goal is sometimes called a ``checkpoint with teeth''
 (the same phrase this paper uses everywhere else for it, \S\ref{sec:open},
-Appendix~\ref{app:status}); the current organ has gums.
+Appendix~\ref{app:status}); the current organ has gums. Operating systems have
+named this exact distinction for fifty years as \textbf{checkpoint/restore}
+versus live execution state --- Condor's process checkpoint-and-migrate
+system~\cite{litzkow1997condor} freezes and serializes full process state for
+resumption elsewhere, and Orleans's \emph{virtual actor} abstraction keeps an
+actor's durable identity distinct from its transient in-memory
+activation~\cite{bernstein2014orleans}, which the restart organ's
+identity/state split above is the LLM-agent instance of.
 
 \pitfall{Selling a summary-forwarding restart organ as real checkpointing would
 violate the system's own \textbf{honest-attestation} discipline: \emph{only report
@@ -1040,6 +1072,13 @@ is worth. We make that ``costs more'' precise in Theorem~\ref{thm:whitewash-cost
   reputation or quorum mechanism by replication. The defense is a daemon-minted id
   whose creation is rate-limited and, in the economy, \emph{bonded}.
 \end{itemize}
+
+Theorem~\ref{thm:necessity} is a special case of a tighter, formally closer
+result: Cheng and Friedman prove that no \emph{symmetric} reputation function
+can be Sybil-proof, and that only asymmetric, flow-based functions with stated
+conditions can be~\cite{chengfriedman2005}. That paper, not just Douceur's
+informal statement of the problem, is the impossibility family
+Theorem~\ref{thm:necessity} instantiates.
 
 \noindent Theorem~\ref{thm:necessity} says abandonment must cost \emph{something};
 the design question is \emph{how much}. The newcomer policy answers it as a
@@ -1992,7 +2031,16 @@ Amortized Verification}~\cite{harborpaper3} proves it as a parameterized theorem
 (Theorem~\ref{thm:tower-imported} below), and the two mechanisms this section
 mandates --- model heterogeneity and VRF-selected honeypots --- are exactly the two
 hypotheses that theorem needs. Figure~\ref{fig:rate-raters} draws the recursion and
-where the two mechanisms arrest it.
+where the two mechanisms arrest it. ``Who audits the auditor'' is a named question
+in two literatures this section does not otherwise engage: economics has
+Kofman and Lawarrée's collusion-in-hierarchical-agency
+model~\cite{kofmanlawarree1993} and Tirole's three-tier
+principal/supervisor/agent analysis~\cite{tirole1986}, and applied
+cryptoeconomics converged on the same shape independently --- TrueBit's
+forced-error verifier's-dilemma solution~\cite{truebit2017} and Arbitrum's
+recursive bisection dispute game~\cite{arbitrum-fraud-proofs} are both bonded,
+recursive answers to the identical incentive problem the tower theorem solves
+with sealed clique sampling instead.
 
 % --- FIGURE 12: rate-the-raters recursion ---
 \input{figures/fig-stp-rate-the-raters}
@@ -2549,7 +2597,7 @@ false-positive cost to honest high-volume pairs? (Open
 Problem~\ref{op:bondfarm}, \S\ref{sec:open}.)
 \end{pdexercise}
 \begin{pdsolution}{ex:stp-bond-farming}
-Principal binding is the load-bearing defense: aggregate reputation,
+Principal binding is the decisive defense: aggregate reputation,
 exposure, counterparties, and sanctions across the $1{,}000$ agents, so
 self-trades add little or no independent evidence. A listing fee raises
 attack cost but only deters while total fees exceed the minted value. Sampled
@@ -3217,6 +3265,60 @@ Universal Commerce Protocol.
 Agent Payments Protocol (AP2): Mandates.
 \newblock Verifiable-credential authorization chain: SD-JWT+kb, JWS detached content, JCS canonicalization, 2026.
 \newblock \texttt{https://ap2-protocol.org}.
+
+\bibitem{williams1970}
+Bernard Williams.
+\newblock The Self and the Future.
+\newblock \textit{The Philosophical Review}, 79(2):161--180, 1970.
+
+\bibitem{olson2007}
+Eric T.\ Olson.
+\newblock \textit{What Are We? A Study in Personal Ontology}.
+\newblock Oxford University Press, 2007.
+
+\bibitem{levien-advogato}
+Raph Levien.
+\newblock Attack-Resistant Trust Metrics.
+\newblock Ph.D.\ thesis; deployed at Advogato.org, c.\ 1999--2000.
+
+\bibitem{kofmanlawarree1993}
+Fred Kofman and Jacques Lawarrée.
+\newblock Collusion in Hierarchical Agency.
+\newblock \textit{Econometrica}, 61(3):629--656, 1993.
+
+\bibitem{tirole1986}
+Jean Tirole.
+\newblock Hierarchies and Bureaucracies: On the Role of Collusion in Organizations.
+\newblock \textit{Journal of Law, Economics, \& Organization}, 2(2):181--214, 1986.
+
+\bibitem{truebit2017}
+Jason Teutsch and Christian Reitwiessner.
+\newblock A Scalable Verification Solution for Blockchains.
+\newblock arXiv:1908.04756, 2017.
+
+\bibitem{arbitrum-fraud-proofs}
+Offchain Labs.
+\newblock Interactive Fraud Proofs (Arbitrum bisection dispute protocol).
+\newblock Technical documentation, ongoing.
+
+\bibitem{dartmouth1819}
+\textit{Trustees of Dartmouth College v.\ Woodward}, 17 U.S.\ (4 Wheat.) 518 (1819).
+\newblock U.S.\ Supreme Court. Founding case for corporate legal personhood as a status distinct from the natural persons who compose or run the entity.
+
+\bibitem{chengfriedman2005}
+Alice Cheng and Eric Friedman.
+\newblock Sybilproof Reputation Mechanisms.
+\newblock In \textit{Proc.\ ACM SIGCOMM Workshop on Economics of Peer-to-Peer Systems (P2PECON)}, 2005.
+
+\bibitem{litzkow1997condor}
+Michael Litzkow, Todd Tannenbaum, Jim Basney, and Miron Livny.
+\newblock Checkpoint and Migration of UNIX Processes in the Condor Distributed Processing System.
+\newblock University of Wisconsin--Madison Computer Sciences Technical Report \#1346, 1997.
+
+\bibitem{bernstein2014orleans}
+Philip A.\ Bernstein, Sergey Bykov, Alan Geller, Gabriel Kliot, and Jorgen Thelin.
+\newblock Orleans: Distributed Virtual Actors for Programmability and Scalability.
+\newblock Microsoft Research Technical Report MSR-TR-2014-41, 2014.
 
 \end{thebibliography}
 

@@ -165,7 +165,7 @@ placement. As of this pass:
   caption even if it were).
 - **What kind of marginalia belongs where, going forward**: a `\pdmarginfigure`
   is textually justified only where the person's *idea*, not just their name, is
-  load-bearing in the surrounding paragraph — a bibliography-adjacent mention
+  doing real work in the surrounding paragraph — a bibliography-adjacent mention
   (Ostrom's stray citation in `harbor-economy.tex` line 2315) is explicitly
   rejected as a home. When adding a new chapter's marginalia, search the chapter
   source for the surname first (as this proposal did), confirm the sentence
@@ -183,12 +183,12 @@ placement. As of this pass:
   define it in the margin today — this is a real, still-open gap; `\pdgloss`
   now exists to fill it, but adding a call to any given chapter is an
   editorial decision for the lead, not a mechanical one, since it means
-  picking the term's one load-bearing first use the way `MARGINALIA-PLACEMENT.md`
+  picking the one first use where the term carries the argument the way `MARGINALIA-PLACEMENT.md`
   picked each portrait's home.
 
 ## 4. Practical checklist for adding marginalia to a chapter
 
-1. Find the load-bearing sentence (not just a name-drop) — search the chapter
+1. Find the sentence the term carries (not just a name-drop) — search the chapter
    `.tex` for the surname or term, as `MARGINALIA-PLACEMENT.md` did.
 2. Check the "at most one PORTRAIT per section" rule before adding a second
    portrait (a `\pdmarginfigure` slug that resolves under `plates/marginalia/`)

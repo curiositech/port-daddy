@@ -684,6 +684,9 @@ function incompletePrSourceCoverageReason(prCtx: PRContext): string | null {
   if (prCtx.diffTruncated) {
     reasons.push(`GitHub stopped the raw diff read at ${prCtx.diffBytes} bytes`);
   }
+  if (prCtx.diffSource === 'reconstructed-from-files') {
+    reasons.push('GitHub refused the raw diff (406, over its own size limit); reviewed a diff rebuilt from the changed-file patches instead');
+  }
   return reasons.length > 0 ? reasons.join('; ') : null;
 }
 
@@ -1692,6 +1695,7 @@ export async function executeFleet(
         diffBytes: 0,
         diffTruncated: false,
         filesTruncated: false,
+        diffSource: 'raw',
       };
       await recordRunStart(env, runId, job, stubPrCtx, prNumber, []);
       await recordRunEnd(env, runId, 'neutral', startMs);
@@ -2254,7 +2258,7 @@ export async function executeFleet(
   // from a dashboard round-trip.
   console.log(
     `[fleet-executor] pr-context repo=${prCtx.owner}/${prCtx.repo} pr=${prCtx.prNumber} ` +
-      `diffBytes=${prCtx.diffBytes} diffTruncated=${prCtx.diffTruncated} ` +
+      `diffBytes=${prCtx.diffBytes} diffTruncated=${prCtx.diffTruncated} diffSource=${prCtx.diffSource} ` +
       `files=${prCtx.files.length} filesTruncated=${prCtx.filesTruncated}`,
   );
 

@@ -25,7 +25,7 @@ status:    <fully mechanized | partially mechanized | hand proof only |
 artifact:  <path to the .pv / .tla / .v / .smt / Kani harness if exists,
            else "missing">
 gap:      <what would close it>
-priority: <high if cited as load-bearing, low if a remark>
+priority: <high if cited as foundational, low if a remark>
 ```
 
 ## Things to chase

@@ -439,7 +439,7 @@ Check (1). Correctly scoped, Property III.6.1 says reputation has economic force
 
 Trace (2). Full work with a reduced economic ceiling lets an honest newcomer demonstrate competence without being denied livelihood, while limiting the maximum one-shot gain from abandoning a mature sanctioned identity. "Reduced work" slows evidence accumulation and taxes all honest entrants; "reduced exposure" targets the externality. The ceiling schedule must be chosen so the maturation opportunity cost exceeds plausible evasion gain.
 
-Open (3). Principal binding is the load-bearing defense: aggregate reputation, exposure, counterparties, and sanctions across the 1,000 agents, so self-trades add little or no independent evidence. A listing fee raises attack cost but only deters while total fees exceed the minted value. Sampled adversarial re-audit detects fabricated work, with false-positive burden approximately the sampling rate times the honest high-volume population and adjudication error. Add sharply diminishing credit per principal pair, independent payer stake, and principal-wide reserve limits.
+Open (3). Principal binding is the critical defense: aggregate reputation, exposure, counterparties, and sanctions across the 1,000 agents, so self-trades add little or no independent evidence. A listing fee raises attack cost but only deters while total fees exceed the minted value. Sampled adversarial re-audit detects fabricated work, with false-positive burden approximately the sampling rate times the honest high-volume population and adjudication error. Add sharply diminishing credit per principal pair, independent payer stake, and principal-wide reserve limits.
 
 **Premise correction flagged:** "Correction to Theorem III.6.1. Free fresh identities do not by themselves imply that every sanction disappears. Counterexample: a mature identity has score 10, is sanctioned to 8, and a fresh identity starts at 0; with free minting the actor's best accessible score remains 8, a real reduction from 10. The proof's equality max(r(i)-Delta, r0)=r0 holds only when r(i)-Delta < r0, and the conclusion also needs fresh identities to receive equivalent economic access. The valid theorem is conditional: if an actor can costlessly obtain a fresh identity whose accessible utility is at least its sanctioned utility (or can replicate identities to defeat a quorum), identity-local sanctions/weights are evadable."
 
@@ -697,7 +697,7 @@ E3. For a fixed three-harbor cover A-B-C, define each local section as a finite 
 
 **Chapter V -- The Anchor Protocol (now Chapter 2, prefix `anchor`)**
 
-Memo page 30, verbatim, precedes the chapter's entries: "Chapter V prints no exercise block. The following audit key covers the chapter's load-bearing check, trace, and open obligations, including the contradiction between Algorithm V.4 and Appendix V.D.1."
+Memo page 30, verbatim, precedes the chapter's entries: "Chapter V prints no exercise block. The following audit key covers the chapter's critical check, trace, and open obligations, including the contradiction between Algorithm V.4 and Appendix V.D.1."
 
 ### V.5.3/V.D.1 → Chapter 2 (anchor) -- Multi-hop attenuation
 

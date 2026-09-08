@@ -788,6 +788,16 @@ Within a canonical conflict domain (exact normalized key, transactional interval
 Within an immediate SQLite transaction (\texttt{BEGIN IMMEDIATE}), the daemon evaluates the conflict predicate against all currently unexpired leases. For exact keys, this is enforced by primary-key uniqueness; for intervals and hierarchies, by an indexed range check within the same transaction. Because all writes funnel through the single connection (Def.~\ref{def:single-writer}), predicate evaluation and insert are atomic. Upon grant or reallocation, the daemon increments the resource's fencing epoch $e$. Downstream effect brokers validate that $e$ matches the active lease at execution time, preventing stale or paused holders from producing side effects after lease expiration.
 \end{proof}
 
+The fencing epoch is the \textbf{fencing token}: ``a number that increases every
+time a client acquires the lock,'' rejected by the resource itself if a paused or
+stale holder tries to act after a newer epoch has issued~\cite{kleppmann2016locking}
+--- the exact mechanism Chubby shipped first, where a sequence number lets a
+storage server tell a current handle from a stale predecessor's and reject the
+latter~\cite{burrows2006chubby}. The setting differs (Chubby and Raft's leader term
+fence across machines that cannot otherwise agree on liveness; this rail fences a
+single process's own async handlers against each other), but the reject-below-current-epoch
+rule is the identical protocol shape.
+
 \paragraph{Worked dramatization: Alice and Bob race for one port.}
 Alice and Bob are two agents, started a millisecond apart, that both want to bind a
 development server to port~7421. Each issues \texttt{acquire(7421)} (Algorithm
@@ -1407,7 +1417,14 @@ row whose prohibition names an uncontrollable event or an unwitnessed trigger. D
 buys the assurance modes the rest of the book uses to describe what a runtime can see and
 control, the design rule behind the sealed room, and the pricing stance of the market
 chapters: detect-only policies are enforced by audit, reputation, and bond-slashing, which
-must be sized for violations that \emph{will} occur.
+must be sized for violations that \emph{will} occur. The ladder these modes form sits beside
+two public gradings of a different variable: Sheridan and
+Parasuraman--Sheridan--Wickens's levels of automation grade a system by how much
+of a task it performs unassisted~\cite{parasuraman2000}, and the Common
+Criteria's evaluation assurance levels grade a security claim by how much
+independent verification backs it~\cite{cciso15408}; this ladder grades a
+runtime claim by the evidence a mechanism itself produces, a third axis next to
+those two.
 
 \begin{pdboundary}
 (i) The theorem does not say detect-only policies are hopeless. Detection feeding audit,
@@ -1420,9 +1437,9 @@ the operator's back. Complete mediation of the claimed alphabet is an architectu
 obligation (Anderson; Rushby) that a red team, not this proof, discharges. (iii) The
 classification is relative to the alphabet split: a runtime that gates model steps changes
 $\Sigma_u$ and re-grades the table. The theorem is a functor from architectures to
-boundaries, not one fixed verdict. (iv) Full observation is load-bearing: policies whose
-triggers are unwitnessed internal state fall to the Lin--Wonham refinement even when their
-prohibitions are controllable. (v) The checker verifies the stated automata over the stated
+boundaries, not one fixed verdict. (iv) Full observation is the assumption this
+classification rests on: policies whose triggers are unwitnessed internal state fall to
+the Lin--Wonham refinement even when their prohibitions are controllable. (v) The checker verifies the stated automata over the stated
 alphabet; it is a faithful implementation of the test, not a mechanized proof of the theorem.
 An Isabelle or Coq formalization remains open. (vi) Prevention governs effects, never
 semantics. For ``no confident falsehoods in status reports'' the obstruction is
@@ -1713,7 +1730,7 @@ pieces together: a case file that outlives every clerk who touches it.
 \paragraph{The idea in one breath.}
 \emph{Make the unit of trust a work unit whose every consequential step passes a guard,
 then prove, by exhausting the machine's reachable states, that its six promises can never
-be broken, and that every guard is load-bearing, because removing any one lets the checker
+be broken, and that every guard is essential, because removing any one lets the checker
 construct the crime.}
 
 \paragraph{Intuition: the notarized escrow folder.}
@@ -1761,6 +1778,11 @@ violation, found automatically as a shortest counterexample trace, and restoring
 restores safety [internal, \texttt{c0\_workunit.py}].
 \end{pdclaim}
 
+I2's guarantee is what the literature calls \textbf{effectively-once} processing: a
+deduplication discipline enforced at the boundary (an idempotency key plus a unique
+receipt row), not a promise the network itself keeps, since true exactly-once delivery
+across an unreliable channel is impossible~\cite{helland2007distributed}.
+
 \paragraph{Proof idea.}
 There is no proof to read; there is a search to rerun. The checker performs a breadth-first
 enumeration of the reachable states from the initial state, evaluates the six predicates in
@@ -1788,7 +1810,7 @@ which invariant does it break? (Exercise~\ref{ex:swk-crimes}.)
 
 \begin{table}[H]
 \centering
-\caption{Every guard is load-bearing. Disabling one guard at a time, the checker's shortest
+\caption{Every guard is essential. Disabling one guard at a time, the checker's shortest
 violating trace, in transitions from the initial state [internal, \texttt{c0\_workunit.py}].}
 \label{tab:workunit-crimes}
 \small
@@ -2538,7 +2560,15 @@ theory of enforceable security policies via execution monitors~\cite{schneider20
 supplies the boundary that the central correction of this paper rests on
 (Theorem~\ref{thm:schneider}): an execution monitor can enforce only the safety
 properties it can prevent by truncating execution, which a post-commit observer
-cannot do.
+cannot do. This is a narrower, cheaper problem than general operating-system
+confinement, and the same-machine adversary this chapter's own OP-9 leaves
+\Open{} (\S\ref{sec:merkle}) is exactly the problem the field's two current
+answers exist to close: seL4's machine-checked proof of functional correctness
+from specification to binary~\cite{klein2009sel4}, and Firecracker's
+production microVM isolation for untrusted multi-tenant
+workloads~\cite{agache2020firecracker}. Either would give this kernel a
+stronger trusted computing base than an ephemeral-UID process boundary; neither
+is adopted here, and the gap is named rather than closed.
 
 \subsection{Durable storage and transaction processing}
 
@@ -2548,7 +2578,11 @@ durability --- the distinction the I1a/I1b split makes operational. The
 write-ahead-logging discipline descends from ARIES~\cite{mohan1992aries}; the
 specific crash semantics we inherit are SQLite's WAL~\cite{sqlitewal}, whose own
 documentation states that the \emph{normal} synchronization level may lose
-durability under power loss while preserving consistency. Our architectural posture
+durability under power loss while preserving consistency. That caveat has an
+empirical backdrop: Pillai et al.'s crash-consistency study found persistence
+guarantees vary widely across popular Linux filesystems, and that many
+application update protocols carry crash vulnerabilities their own APIs do not
+disclose~\cite{pillai2014allfilesystems}. Our architectural posture
 --- a single writer rather than a replicated state machine --- follows the
 single-leader default that Kleppmann argues for~\cite{kleppmann2017}: reach for
 consensus only when the problem genuinely forces it. We make that argument formal
@@ -3005,6 +3039,46 @@ Arnar Birgisson, Joe Gibbs Politz, \'Ulfar Erlingsson, Ankur Taly, Michael Vrabl
 \newblock Macaroons: Cookies with Contextual Caveats for Decentralized Authorization in the Cloud.
 \newblock In \textit{Network and Distributed System Security Symposium (NDSS)}, 2014.
 \newblock (Attenuation-only bearer credentials with third-party caveats --- the enforcement-gate construction.)
+
+\bibitem{kleppmann2016locking}
+Martin Kleppmann.
+\newblock How to do distributed locking.
+\newblock \textit{martin.kleppmann.com}, February 2016; folded into \textit{Designing Data-Intensive Applications}, O'Reilly, 2017.
+
+\bibitem{burrows2006chubby}
+Mike Burrows.
+\newblock The Chubby Lock Service for Loosely-Coupled Distributed Systems.
+\newblock In \textit{Symposium on Operating Systems Design and Implementation (OSDI)}, 2006.
+
+\bibitem{helland2007distributed}
+Pat Helland.
+\newblock Life beyond Distributed Transactions: an Apostate's Opinion.
+\newblock In \textit{Conference on Innovative Data Systems Research (CIDR)}, 2007.
+
+\bibitem{klein2009sel4}
+Gerwin Klein, Kevin Elphinstone, Gernot Heiser, June Andronick, David Cock, Philip Derrin, Dhammika Elkaduwe, Kai Engelhardt, Rafal Kolanski, Michael Norrish, Thomas Sewell, Harvey Tuch, and Simon Winwood.
+\newblock seL4: Formal Verification of an OS Kernel.
+\newblock In \textit{ACM Symposium on Operating Systems Principles (SOSP)}, pages 207--220, 2009.
+
+\bibitem{agache2020firecracker}
+Alexandru Agache, Marc Brooker, Alexandra Iordache, Anthony Liguori, Rolf Neugebauer, Phil Piwonka, and Diana-Maria Popa.
+\newblock Firecracker: Lightweight Virtualization for Serverless Applications.
+\newblock In \textit{USENIX Symposium on Networked Systems Design and Implementation (NSDI)}, 2020.
+
+\bibitem{pillai2014allfilesystems}
+Thanumalayan Sankaranarayana Pillai, Vijay Chidambaram, Ramnatthan Alagappan, Samer Al-Kiswany, Andrea C. Arpaci-Dusseau, and Remzi H. Arpaci-Dusseau.
+\newblock All File Systems Are Not Created Equal: On the Complexity of Crafting Crash-Consistent Applications.
+\newblock In \textit{Symposium on Operating Systems Design and Implementation (OSDI)}, pages 433--448, 2014.
+
+\bibitem{parasuraman2000}
+Raja Parasuraman, Thomas B. Sheridan, and Christopher D. Wickens.
+\newblock A Model for Types and Levels of Human Interaction with Automation.
+\newblock \textit{IEEE Transactions on Systems, Man, and Cybernetics -- Part A}, 30(3):286--297, 2000.
+
+\bibitem{cciso15408}
+ISO/IEC 15408.
+\newblock \textit{Common Criteria for Information Technology Security Evaluation}.
+\newblock International Organization for Standardization, current edition.
 
 \end{thebibliography}
 

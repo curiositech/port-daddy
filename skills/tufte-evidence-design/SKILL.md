@@ -106,7 +106,7 @@ rule, so the rule is applied with its known objection already in view rather tha
 
 ### Margin apparatus (Book chapters — see `references/margin-apparatus.md` for the full state)
 
-- [ ] The idea, not just the name, is load-bearing in the sentence before you add a `\pdmarginfigure`.
+- [ ] The idea, not just the name, carries the sentence before you add a `\pdmarginfigure`.
 - [ ] At most one PORTRAIT per section (a `\pdmarginfigure` slug that resolves under `plates/marginalia/`, checked
       against `docs/harbor-research/exposition/MARGINALIA-PLACEMENT.md`) — a small multiple, sparkline, or regime
       strip in the margin faces no such quota; the Book's margin column is meant to be used generously.
@@ -167,7 +167,7 @@ be plotted, or the correlation stays invisible even though the data was "shown."
 sure the reader always has the definition handy."
 **Expert**: `\pdgloss` is now implemented (`figures/pd-pedagogy.tex`), but it is a first-use device, not a recurring
 one — a margin note repeated at every mention crowds the column and stops meaning anything special the second time.
-Gloss the term once, at its first load-bearing use in the chapter; every later mention relies on the reader having
+Gloss the term once, at the first use in the chapter where it does real work; every later mention relies on the reader having
 read that one note, the same way a paper defines a term once and uses it freely afterward.
 **Detection**: `scripts/margin_lint.py` flags a term glossed more than once in one chapter.
 
