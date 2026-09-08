@@ -115,16 +115,21 @@ def call_gemini(
     prompt: str,
     refs: list[Path],
     aspect: str,
+    image_size: str | None = None,
     timeout: int = 240,
 ) -> bytes:
     parts: list[dict] = [encode_image(p) for p in refs]
     parts.append({"text": prompt})
 
+    image_config: dict = {"aspectRatio": aspect}
+    if image_size:
+        image_config["imageSize"] = image_size
+
     body = {
         "contents": [{"parts": parts}],
         "generationConfig": {
             "responseModalities": ["IMAGE"],
-            "imageConfig": {"aspectRatio": aspect},
+            "imageConfig": image_config,
         },
     }
 
@@ -164,6 +169,8 @@ def main() -> int:
     ap.add_argument("--char", type=Path, help="Character-reference image (role labeled as CHARACTER SHEET)")
     ap.add_argument("--style", type=Path, help="Style-reference image (role labeled as STYLE TEMPLATE)")
     ap.add_argument("--aspect", default="16:9", help=f"Aspect ratio. Supported: {sorted(VALID_ASPECTS)}")
+    ap.add_argument("--image-size", choices=["1K", "2K", "4K"], default=None,
+                     help="Output resolution (imageConfig.imageSize). Default: unset (model default, ~1K).")
     ap.add_argument("--model", default=DEFAULT_MODEL, help=f"Model id (default: {DEFAULT_MODEL})")
     ap.add_argument("--no-fallback", action="store_true", help="Disable fallback to 2.5-flash-image on Pro failure")
     ap.add_argument("--keep-text", action="store_true", help="Don't add the text-suppression clause")
@@ -202,8 +209,8 @@ def main() -> int:
     last_err: Exception | None = None
     for model in models_to_try:
         try:
-            sys.stderr.write(f"[call] model={model} aspect={args.aspect} refs={len(refs)}\n")
-            img = call_gemini(api_key=api_key, model=model, prompt=prompt, refs=refs, aspect=args.aspect)
+            sys.stderr.write(f"[call] model={model} aspect={args.aspect} image_size={args.image_size} refs={len(refs)}\n")
+            img = call_gemini(api_key=api_key, model=model, prompt=prompt, refs=refs, aspect=args.aspect, image_size=args.image_size)
             args.out.write_bytes(img)
             sys.stderr.write(f"[ok] wrote {args.out} ({args.out.stat().st_size // 1024}KB) via {model}\n")
             return 0

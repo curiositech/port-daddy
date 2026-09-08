@@ -1,4 +1,22 @@
 #!/usr/bin/env zsh
+PD_HOOK_HOME="${PD_HOME:-$HOME/.port-daddy}"
+[ -e "$PD_HOOK_HOME/hooks.disabled" ] && exit 0
+PD_HOOK_ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
+PD_HOOK_COMMON=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null) || exit 0
+[[ -f "$PD_HOOK_ROOT/.portdaddy/coordination-guard.json" || -f "$PD_HOOK_COMMON/port-daddy/coordination-guard.json" ]] || exit 0
+PD_HOOK_READY="${PORT_DADDY_READY_FILE:-$PD_HOOK_HOME/daemon.ready}"
+PD_HOOK_PID="${PORT_DADDY_PID_FILE:-$PD_HOOK_HOME/daemon.pid}"
+PD_HOOK_HEARTBEAT="${PORT_DADDY_HEARTBEAT_FILE:-$PD_HOOK_HOME/heartbeat}"
+[[ -f "$PD_HOOK_READY" && ! -L "$PD_HOOK_READY" && -f "$PD_HOOK_PID" && ! -L "$PD_HOOK_PID" && -f "$PD_HOOK_HEARTBEAT" && ! -L "$PD_HOOK_HEARTBEAT" ]] || exit 0
+PD_HOOK_READY_PID="$(tr -d '[:space:]' < "$PD_HOOK_READY" 2>/dev/null)"
+PD_HOOK_DAEMON_PID="$(tr -d '[:space:]' < "$PD_HOOK_PID" 2>/dev/null)"
+[[ -n "$PD_HOOK_READY_PID" && "$PD_HOOK_READY_PID" = "$PD_HOOK_DAEMON_PID" ]] || exit 0
+PD_HOOK_HEARTBEAT_MTIME="$(stat -f %m "$PD_HOOK_HEARTBEAT" 2>/dev/null || stat -c %Y "$PD_HOOK_HEARTBEAT" 2>/dev/null)" || exit 0
+PD_HOOK_NOW="$(date +%s 2>/dev/null)" || exit 0
+[[ "$PD_HOOK_HEARTBEAT_MTIME" = <-> && "$PD_HOOK_NOW" = <-> ]] || exit 0
+PD_HOOK_AGE=$((PD_HOOK_NOW - PD_HOOK_HEARTBEAT_MTIME))
+(( PD_HOOK_AGE >= -30 && PD_HOOK_AGE <= 30 )) || exit 0
+
 # =============================================================================
 # Port Daddy Post-Commit Hook
 # =============================================================================

@@ -2,11 +2,13 @@
 % dissemination is an expectation, not a wall-clock deadline.
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+\begin{tikzpicture}[pd figure,x=.6cm,y=1cm]
   \def\xzero{-4.5}
   \def\xend{5.4}
+  \path[pd caution fill] (-4.5,-2.05) rectangle (2,2.55);
+
   \foreach \y/\peer/\wake in {2.4/A/-4.5,1.35/B/-1.4,.3/C/2.0,-.75/D/-.6,-1.8/E/2.0} {
-    \node[pd axis label,anchor=east] at (\xzero-.32,\y) {daemon \peer};
+    \node[pd row label,anchor=east] at (\xzero-.32,\y) {daemon \peer};
     \draw[draw=hhamber,line width=2.6pt,line cap=round] (\xzero,\y) -- (\wake,\y);
     \draw[draw=hhpaper,line width=1pt,line cap=round] (\xzero,\y) -- (\wake,\y);
     \draw[draw=hhteal,line width=2.6pt,line cap=round] (\wake,\y) -- (\xend,\y);
@@ -26,12 +28,13 @@
     \node[pd axis label,anchor=north] at (\x,-2.48) {\lab};
   }
   \node[pd axis label,anchor=west] at (\xend,-2.32) {time};
-  \node[pd direct label,text=hhamber,anchor=north west] at (-4.5,-2.98)
-    {amber interval: verifier may still admit the card};
+  \node[pd direct label,text=hhamber,align=left,text width=5.3cm,anchor=north west]
+    at (\xzero,-3.0) {stale window: a revoked card may still be admitted};
 
   \draw[pd caution rule,dashed] (4.05,-2.9) -- (4.05,2.85);
   \draw[pd caution arrow] (4.05,-2.78) -- (5.2,-2.78);
-  \node[pd direct label,text=hhamber,anchor=west] at (5.25,-2.78) {partition $\Rightarrow$ no finite deadline};
+  \node[pd direct label,text=hhamber,align=left,text width=2.9cm,anchor=north west]
+    at (5.25,-2.9) {partition: no finite deadline};
 \end{tikzpicture}
 \caption{A revocation advances as an observation frontier, leaving a distinct
 stale-exposure interval on every verifier lane. This execution converges after

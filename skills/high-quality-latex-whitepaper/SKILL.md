@@ -60,7 +60,7 @@ If a figure has any of these, it is a defect, not a style choice.
 
 ---
 
-## The house style (the load-bearing rules)
+## The house style (the pivotal rules)
 
 The full canonical preamble — packages, palette, theorem envs, `fancyhdr`, the
 `\keyidea`/`\pitfall`/`exercises`/`\pullquote` commands, and the shared TikZ

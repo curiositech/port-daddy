@@ -301,7 +301,7 @@ Each phase ships on its own. After W1 you have something genuinely new — a ver
 - Privacy default is "receipts public" which is opinionated and will surprise people.
 
 ### Neutral
-- The relay (ADR-0027) becomes load-bearing for fleet steering + tunnel. Investing in relay resilience is now a product requirement.
+- The relay (ADR-0027) becomes pivotal for fleet steering + tunnel. Investing in relay resilience is now a product requirement.
 - The transparency-log path (ADR-0029 v2) becomes the "trust no one, not even me" backstop. Real cost, real value.
 
 ---
