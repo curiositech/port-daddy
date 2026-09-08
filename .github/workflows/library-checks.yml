@@ -10,6 +10,13 @@ name: Library Checks
 #
 # Born from the PR #9911 review: check_citations.py and
 # check_propagated_corrections.py existed but nothing ran them.
+#
+# The banned-phrases prose gate (scripts/lint/check-banned-phrases.mjs) rides
+# along here too: it is dependency-free like everything else in this job, and
+# its scope (skills/, docs/, top-level READMEs, the PR template, the website's
+# content modules, and the whitepaper corpora) is exactly this job's "prose
+# that ships to a reader" footprint, so the path filters below are widened to
+# match its scope rather than standing up a second workflow for one script.
 
 on:
   pull_request:
@@ -25,8 +32,14 @@ on:
       - 'scripts/generate-mega-whitepaper.test.mjs'
       - 'scripts/build-whitepapers.sh'
       - 'skills/whitepaper-figure-system/**'
-      - 'skills/tufte-evidence-design/**'
-      - 'skills/textbook-craft/**'
+      - 'skills/**'
+      - 'docs/**/*.md'
+      - '*.md'
+      - '.github/PULL_REQUEST_TEMPLATE.md'
+      - '.github/**/*.md'
+      - 'website-v2/src/**'
+      - 'website-v2/public/**'
+      - 'scripts/lint/**'
       - '.github/workflows/library-checks.yml'
   push:
     branches: [main]
@@ -42,8 +55,14 @@ on:
       - 'scripts/generate-mega-whitepaper.test.mjs'
       - 'scripts/build-whitepapers.sh'
       - 'skills/whitepaper-figure-system/**'
-      - 'skills/tufte-evidence-design/**'
-      - 'skills/textbook-craft/**'
+      - 'skills/**'
+      - 'docs/**/*.md'
+      - '*.md'
+      - '.github/PULL_REQUEST_TEMPLATE.md'
+      - '.github/**/*.md'
+      - 'website-v2/src/**'
+      - 'website-v2/public/**'
+      - 'scripts/lint/**'
       - '.github/workflows/library-checks.yml'
   # Merge queue: run unconditionally so a required check context always
   # appears (a path-filtered workflow that does not match would hang the
@@ -103,6 +122,9 @@ jobs:
 
       - name: Semantic figure atlas covers every canonical figure (no drift from textbook.json)
         run: python3 skills/whitepaper-figure-system/scripts/check_atlas_coverage.py
+
+      - name: Banned phrases ("held to account", "load-bearing") never appear in prose
+        run: node scripts/lint/check-banned-phrases.mjs
 
       - name: textbook-craft chapter_lint unit tests
         run: python3 -m unittest discover -s skills/textbook-craft/tests -p 'test_*.py' -v

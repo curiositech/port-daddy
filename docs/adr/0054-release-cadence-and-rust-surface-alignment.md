@@ -94,8 +94,8 @@ them together (verified: no `Cargo.toml` at repo root or under `core/`):
 So the Rust surface is four crates at four different maturities: one standalone TUI
 binary, one stub shadowed by working TypeScript, one FFI library whose binary is not
 built so its TypeScript fallback is the real enforcer, and one native shell that is
-not merged. **None of them is a "kernel," and none of them is the load-bearing
-runtime.** The load-bearing runtime is the **Bun/TypeScript daemon** (*`server.ts`
+not merged. **None of them is a "kernel," and none of them is the structural
+runtime.** The structural runtime is the **Bun/TypeScript daemon** (*`server.ts`
 plus `lib/*.ts`, compiled to a standalone binary by `scripts/build-single-binary.mjs`*).
 That is what `pd` *is* when you `brew install` it.
 
@@ -112,7 +112,7 @@ and #318 are that work, unlanded. ADR-0049/0050 (relay, Coast Guard) added more
 TypeScript surface. The operator is now holding a mental model — "the Rust kernel" —
 that the repository does not contain and does not document. That gap is the actual
 risk: a future session reading `core/` finds three stub-ish crates and cannot tell
-whether they are the future, dead ends, or load-bearing. This ADR removes that
+whether they are the future, dead ends, or structural. This ADR removes that
 ambiguity.
 
 ## Decision Drivers
@@ -138,7 +138,7 @@ Keep the auto-deploy on merge to `main`. It is correct: the website should be wh
 last landed. The discipline is the **bug-catch + hotfix path**, because continuous
 deploy means a bad merge is live in minutes:
 
-1. The workflow's **empty-root safety net** is load-bearing — do not remove it. CF
+1. The workflow's **empty-root safety net** is structural — do not remove it. CF
    Pages' own git integration may fire first and ship an empty-body deploy; our
    workflow runs after and overwrites it with snapped HTML (last-writer-wins). The
    "Assert snap landed real content" step hard-fails if `dist/index.html` still has
@@ -232,7 +232,7 @@ Port Daddy follows SemVer (`CHANGELOG.md` already declares this). The bump rule:
 ### Part 2 — Rust-surface alignment
 
 **Decision: the `core/*` crates are intentionally separate, bounded crates — NOT a
-single kernel today — and the TypeScript daemon remains the load-bearing runtime.**
+single kernel today — and the TypeScript daemon remains the structural runtime.**
 This is stated loudly so the answer to "does everyone know about the rust kernel?" is
 answered by this document: **there is no single Rust kernel. There are four bounded
 Rust surfaces, each a satellite of the TypeScript daemon, at four maturities.** Read
@@ -240,7 +240,7 @@ the table in Context for the per-crate truth.
 
 The migration target — **aspirational, not shipped** — is:
 
-1. **`harbor-card-rs` becomes real first.** It is the only crate with a load-bearing
+1. **`harbor-card-rs` becomes real first.** It is the only crate with a structural
    reason to be Rust: it is the capability/identity enforcer, and a memory-safe,
    FFI-callable enforcer is a security upgrade over the TS fallback that
    `cap-attenuation-monitor.ts` runs today. **ETA: next minor after the FFI build is

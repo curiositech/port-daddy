@@ -105,7 +105,7 @@ Akerlof dynamic needs the cost heterogeneity only the script has.
 $\Delta c-(p_H-p_L)$; the paper writes $\Delta c-\Delta\theta$, which requires
 $p_H-p_L=\Delta\theta$ **exactly** — attested prices must capture quality at full
 social value. Under Bertrand on attested keys the gain is 0. That conjunct is the
-theorem's load-bearing hypothesis and appears nowhere.
+theorem's critical hypothesis and appears nowhere.
 
 **D7 — "no signal exists" is now empirically contestable.** Cai et al. 2025 show
 software detection is query-intensive and unreliable, not impossible. Restate as

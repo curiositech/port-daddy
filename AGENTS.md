@@ -32,7 +32,7 @@ Agents read this file. Operators do not. If an agent's instructions push a CLI c
 
 ## Skill maintenance is part of every slice
 
-The two Port Daddy skills are the operating instructions for *all* future agents working in port-daddy-protected projects. Treat them as load-bearing code:
+The two Port Daddy skills are the operating instructions for *all* future agents working in port-daddy-protected projects. Treat them as pivotal code:
 
 - **`skills/port-daddy-agent-skill/SKILL.md`** — the public skill. Edit when the lesson would help any agent on any project (new verb, deprecated flag, anti-pattern, decision-table gap, inefficient worked example, stale or wrong content).
 - **`skills/port-daddy-internal-dev/SKILL.md`** — the contributor-only skill. Edit when the lesson is specific to editing *this* repo (release ceremony, internal actor embodiments, drift protocol, worked contributor examples).
@@ -429,7 +429,7 @@ means one of:
 
 What does **not** count: resolving a thread with no reply, a one-word "done" with
 no evidence, closing the PR to dodge the comment, or letting a bot finding scroll
-off the page. "Seriously" is load-bearing — engage the substance.
+off the page. "Seriously" is central — engage the substance.
 
 **Auto-pilot (operator directive, 2026-07-07).** When you are subscribed to a
 PR, work the review comments *autonomously* — do not ask permission each round.

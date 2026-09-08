@@ -50,7 +50,7 @@ lay any **institutions** under it, or whether we let the agent economy relive th
 entire 19th century — the bucket shops, the wildcat banks, the runs — at machine
 speed.
 
-That is what Port Daddy is. Not a feature. An institution. The boring, load-bearing,
+That is what Port Daddy is. Not a feature. An institution. The boring, core,
 *deeply unsexy* kind: a permit office and a bonded commons for software agents. And the
 reason I wrote three formal papers about something this unglamorous is that
 institutions only work if their guarantees are not a matter of opinion.
@@ -132,7 +132,7 @@ MONEY.
 Okay. Deep breath. Because if I stopped there, I would be doing the exact thing this
 manifesto exists to refuse.
 
-## The honest caveat is the entire load-bearing beam
+## The honest caveat is the entire essential beam
 
 Here is the sentence that separates this from every breathless thread you have scrolled
 past:
@@ -208,7 +208,7 @@ true to *earn* the sentence instead of merely shouting it:
    and expensive to fake.** *(The bond and the receipt.)*
 3. And we have to be ruthlessly honest that the scarce, valuable, market-making thing is
    not the solution and not the marketplace — it is the **verified functor**, and those
-   are hard-won. *(The caveat, kept in the load-bearing position where it belongs.)*
+   are hard-won. *(The caveat, kept in the structural position where it belongs.)*
 
 Get those three and the fantasy stops being a fantasy and starts being plumbing. Elinor
 Ostrom spent a career showing that commons don't need a tyrant *or* a tragedy — they

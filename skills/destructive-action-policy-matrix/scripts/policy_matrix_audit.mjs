@@ -152,7 +152,7 @@ export function auditPolicyMatrix(spec) {
     }
 
     // Block-tier actions must prove they never took effect when denied. This
-    // is the load-bearing invariant: a "blocker" that still ran the command
+    // is the critical invariant: a "blocker" that still ran the command
     // is not a blocker.
     if (tier === 'block' && action.sideEffectFreeOnBlockFixture !== true) {
       pushFinding(

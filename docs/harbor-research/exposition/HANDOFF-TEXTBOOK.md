@@ -101,7 +101,7 @@ Read the runs on the author's commits. After a bot regen: fast-forward, then
   (licence, artist and sha1 in a sidecar per image; Coase not cleared, Ramadge
   has no free portrait), converted to duotone at 1.3 in, ten placed with
   `\pdmarginfigure{slug}{caption}` at the point where the person's idea is
-  load-bearing, an Image credits page in the appendices, and a sidecar check in
+  critical, an Image credits page in the appendices, and a sidecar check in
   the library-checks workflow. Lovelace is cleared but unplaced.
 - Editions: maritime keeps the watercolour; the technical edition carries the
   engraving system (exploded drawings with empty callouts, white on the part's
