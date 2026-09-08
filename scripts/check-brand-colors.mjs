@@ -74,8 +74,12 @@ const EXT = /\.(ts|tsx|js|jsx|mjs|cjs|css|scss|html|svg|md|mdx|sh|json|swift|rs|
 // old HTML/CSS design passes and figure drafts that predate the retired palette,
 // kept verbatim as historical record. Same exemption principle as
 // neobrutalism-pro-files/: reference material, not live tokens a contributor
-// could reintroduce by copy-paste into a current surface.
-const SKIP_DIR = /(^|\/)(node_modules|dist|build|port-daddy-stable|\.git|neobrutalism-pro-files|scratch|whitepaper-foundlings|skill_candidates)(\/|$)|(^|\/)whitepaper\/|(^|\/)docs\/design\//
+// could reintroduce by copy-paste into a current surface. Anchored to `^` (repo
+// root) rather than `(^|\/)`: unlike the pre-existing entries below (which can
+// legitimately recur nested, e.g. a vendored node_modules), these three names
+// are archival-holding-area conventions specific to this repo's root and must
+// not silently exempt some future nested `core/pd-console/anything/scratch/`.
+const SKIP_DIR = /(^|\/)(node_modules|dist|build|port-daddy-stable|\.git|neobrutalism-pro-files)(\/|$)|(^|\/)whitepaper\/|(^|\/)docs\/design\/|^(scratch|whitepaper-foundlings|skill_candidates)\//
 // The guard scripts themselves NAME the forbidden hexes as detection patterns —
 // they must not trip on their own definitions.
 const SKIP_FILE = /(check-brand-colors|check-figure-palette)\.mjs$/
