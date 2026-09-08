@@ -86,6 +86,14 @@ flowchart TD
 - `references/l3-tacit-lessons.md` — Load BEFORE extending or re-implementing anything here, or designing a related experiment: the hard-won lessons (bugs hit, boundaries found, conventions that change answers) with transferable rules.
 
 ## Scripts (regenerate every [internal] number)
+
+`b4_deontic_fragment.py` is also importable: imports define the pure checker
+without running experiments; direct execution or `run_experiments()` runs the
+original seeded sweep. The reference interval loop enumerates all active pairs,
+including non-clashing pairs, and is worst-case quadratic. Do not describe the
+theoretical optimized detector bound as this script's measured scaling. Bound
+inputs and audit complexity before using it on larger product corpora.
+
 Self-contained; deps: numpy, scipy, matplotlib, networkx, pinned in `scripts/requirements.txt` (the same pins the proofs workflow installs: `pip install -r scripts/requirements.txt`); seed 20260816 fixed inside each. Run from the skill root when re-verifying a number before citing it, or after modifying any claim these underwrite.
 - `python3 scripts/a7_experiment.py` — R1 floor falsification: expect "0/16 violations", split-floor numbers (5.98 / 12.77 bits); writes a7_figure.png.
 - `python3 scripts/b1_frontier.py` — R4: analytic R(δ,f) table (0.286 corner) + zoom-advantage table (15.3× at F=2500,k=10) with the dense-regime boundary.
