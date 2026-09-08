@@ -159,25 +159,54 @@ describe('public shell contracts', () => {
     expect(docsSidebar).toContain('to="/whitepaper"')
   })
 
-  test('whitepaper page uses the current editorial layout instead of the old ceremonial hero', () => {
+  test('the library routes are one deck on one screen, not two long pages', () => {
+    // This contract used to pin an editorial layout that no longer existed —
+    // it still expected "The Port Daddy papers." and "Research dossier" after
+    // the Textbook Edition rewrite replaced both, and it had been red without
+    // anyone noticing because CI runs only `test:porthole` for this package,
+    // never the vitest suite. Pinning the shape rather than the copy is what
+    // stops that recurring: strings move, structure is the promise.
     const whitepaper = read('./pages/whitepaper/index.tsx')
-    const paperData = read('./data/whitePapers.ts')
+    const research = read('./pages/research/index.tsx')
+    const deck = read('./components/library/DeckShell.tsx')
+    const main = read('./main.tsx')
 
-    expect(whitepaper).toContain('Research dossier')
-    expect(whitepaper).toContain('The Port Daddy papers.')
-    expect(whitepaper).toContain('Available papers')
-    expect(whitepaper).toContain('Argument map')
-    expect(whitepaper).toContain('Table of contents')
-    expect(whitepaper).toContain('signed local identity first')
-    expect(whitepaper).toContain('useSearchParams')
-    expect(whitepaper).toContain('Read guide')
-    expect(paperData.indexOf("id: 'anchor-protocol'")).toBeLessThan(paperData.indexOf("id: 'bonded-commons'"))
-    expect(whitepaper).not.toContain('White Papers')
-    expect(whitepaper).not.toContain('Formal Foundations')
-    expect(whitepaper).not.toContain('How the Papers Relate')
+    // One book, one page. /library forwards; /whitepaper renders.
+    expect(main).toContain('<Route path="/whitepaper" element={<WhitepaperPage />} />')
+    expect(main).toContain('<Route path="/library" element={<Navigate to="/whitepaper" replace />} />')
+
+    // Both library routes stand on the same shell, so the deck's guarantees
+    // are guarantees for both of them.
+    for (const page of [whitepaper, research]) {
+      expect(page).toContain('DeckShell')
+      expect(page).toContain('useSearchParams') // a panel is linkable
+      expect(page).toContain('routeLabel=')
+      expect(page).toContain('hoist={[') // the route, spelled in signal flags
+    }
+
+    // One viewport: the deck sizes itself from where it actually starts rather
+    // than assuming it owns the whole screen, which is what made it overflow
+    // by exactly the header's height the first time it was measured.
+    expect(deck).toContain('--deck-h')
+    expect(deck).toContain('overflow-hidden')
+    expect(deck).toContain("role=\"tablist\"")
+    expect(deck).toContain('useReducedMotion')
+
+    // A flag on this site means what Pub. 102 says it means, so every signal
+    // carries its meaning rather than being picked for its letter.
+    expect(whitepaper).toContain('Papa — about to proceed to sea')
+    expect(whitepaper).toContain('Uniform — you are running into danger')
+    expect(research).toContain('Kilo — I wish to communicate with you')
+
+    // The chapters are an outline with a teaser each, never a grid of cards
+    // linking off to eight separate documents — there are not eight documents.
+    expect(whitepaper).toContain('record.question')
+    expect(whitepaper).toContain('record.teaser')
+
+    // The ceremonial hero and the old two-page split stay gone.
+    expect(whitepaper).not.toContain('Research dossier')
     expect(whitepaper).not.toContain('rounded-[28px]')
-    expect(whitepaper).not.toContain('shadow-inset')
-    expect(whitepaper).not.toContain('Anchor size')
+    expect(whitepaper).not.toContain('Formal Foundations')
   })
 
   test('homepage keeps both public papers visible from the landing CTA', () => {

@@ -32,8 +32,12 @@ consistency with the established set. The flag mast flies two of the nine
 Papa/Delta-family signal flags verified against Pub. 102 that same session
 (`international-code-of-signals` skill, `icos_lookup.py code P` / `code D`) —
 Papa (blue field, cream/white center rectangle) over Delta (three horizontal
-bands) — the same authentic pair used as the "P·D" call-sign motif in the
-Swiss-Modern-Maritime design pass (`docs/design/design-passes/swiss-maritime-tokens.css`).
+bands) — read as the "P·D" call-sign motif. This line used to name a
+swiss-maritime-tokens stylesheet under a design-passes directory as the pair's
+other home; no such file has ever existed in this repository, and the
+doc-citation guard caught it the first time anything touched this file. What
+survives is the half that can be checked: the flags are Pub. 102's, verified
+with `icos_lookup.py`, not copied off a decorative flag chart.
 Themed to Scout (the spyglass = "capture where your eyes already are"), and
 fills a real gap: the W2 image-overhaul plan (ch20 §"Image overhaul plan")
 named Scout as a route needing hero art with none yet produced.

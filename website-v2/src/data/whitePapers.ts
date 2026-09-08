@@ -193,6 +193,12 @@ export interface TextbookChapterRecord {
   formerNumeral: string
   oneLine: string
   question: string
+  /**
+   * Why a reader would want this chapter, in the author's voice. Distinct from
+   * `question` (what the chapter answers) and from `oneLine` (what it claims):
+   * the outline shows all three, and the teaser is the one doing the selling.
+   */
+  teaser: string
   epigraph: { text: string; source: string }
 }
 
@@ -1417,6 +1423,16 @@ export const TABLE_OF_CONTENTS: TableOfContentsPart[] = TEXTBOOK.parts.map((part
     .map((id) => WHITE_PAPERS.find((paper) => paper.id === id))
     .filter((paper): paper is WhitePaper => paper !== undefined),
 }))
+
+/**
+ * The chapter's editorial record — question, teaser, epigraph, one-line
+ * claim. These live in textbook.json rather than on WhitePaper because the
+ * Book's own front matter and the site read the same strings; duplicating
+ * them into the paper record would give two places for them to drift.
+ */
+export function chapterRecordFor(paperId: string) {
+  return TEXTBOOK.chapters.find((chapter) => chapter.id === paperId)
+}
 
 export function findWhitePaperByChapter(chapter: number) {
   return WHITE_PAPERS.find((paper) => paper.chapter === chapter)
