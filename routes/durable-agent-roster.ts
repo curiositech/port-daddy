@@ -270,7 +270,31 @@ export const durableAgentRosterPlugin: FastifyPluginAsync<{ deps: DurableAgentRo
   fastify.post('/durable-agents/:id/retire', { preHandler: guard }, async (request, reply) => {
     try {
       const { id } = request.params as { id: string };
-      const result = await deps.durableAgentRoster.retire(id);
+      const body = (request.body ?? {}) as Record<string, unknown>;
+      const result = await deps.durableAgentRoster.retire(id, {
+        by: stringValue(body.by),
+        reason: stringValue(body.reason),
+      });
+      return { success: true, ...result };
+    } catch (error) {
+      return routeError(error, reply, deps);
+    }
+  });
+
+  // The audited way back from retirement. PATCH cannot reactivate a retired
+  // agent (409 DURABLE_AGENT_RETIRED, and the ledger trigger backs that up);
+  // this door appends a receipted fact and journals it (ADR-0089).
+  fastify.post('/durable-agents/:id/resurrect', { preHandler: guard }, async (request, reply) => {
+    try {
+      const { id } = request.params as { id: string };
+      const body = (request.body ?? {}) as Record<string, unknown>;
+      const by = stringValue(body.by);
+      const reason = stringValue(body.reason);
+      if (!by || !reason) {
+        throw new DurableAgentRosterError('resurrect requires `by` and `reason`', 'INVALID_REQUEST', 400);
+      }
+      const result = await deps.durableAgentRoster.resurrect(id, { by, reason });
+      deps.logger.info('durable_agent_resurrected', { agentNodeId: id, by, receipt: result.receipt });
       return { success: true, ...result };
     } catch (error) {
       return routeError(error, reply, deps);

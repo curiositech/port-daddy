@@ -132,7 +132,7 @@ realization; **proposed** means an open research direction.
 ## Exit criteria
 
 The program is not “done” when the prose is persuasive. It is done when every
-load-bearing claim is one of: (a) proved under named assumptions and linked to a
+foundational claim is one of: (a) proved under named assumptions and linked to a
 conforming implementation; (b) empirically supported with reproducible evidence;
 or (c) explicitly narrowed or rejected. The production library must publish the
 same edition and implementation grades that the repository builds.

@@ -57,7 +57,7 @@ export const proofPanels: ProofPanel[] = [
     id: '01',
     tool: 'ProVerif',
     subtitle: 'Protocol analysis',
-    command: 'proverif analyses/harbor_card_v3_delegation.pv',
+    command: 'proverif analyses/harbor_card_v7_multihop_fixed.pv',
     output: [
       'Unbounded-session symbolic analysis',
       'Injective agreement checked',
@@ -78,7 +78,7 @@ export const proofPanels: ProofPanel[] = [
     command: 'cargo kani --harness proof_verify_logic_only',
     output: [
       'Adversarial token parsing explored',
-      'Memory-safety properties checked',
+      'No-panic properties checked within the harness bound',
       'Malformed input paths bounded',
       'Constant-time comparison harnesses included',
     ],

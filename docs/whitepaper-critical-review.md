@@ -16,7 +16,7 @@ Three high-leverage edits, in priority order:
 
 1. **Add a "Reader's Map" front matter to The Bonded Commons.** A
    one-page graphical TOC that shows the 4 layers (structural →
-   attribution → economic → governance), names the load-bearing
+   attribution → economic → governance), names the foundational
    theorem or artifact for each, and tells different reader types
    ("if you are X, start at §Y"). Reduces bounce risk on the
    31-page brick.
@@ -50,7 +50,7 @@ friction surface, and a different "moment they bounce."
   rather than math. They want to see "Property X" / "Lemma Y" /
   "Theorem Z" early.
 - *Hook to add:* on page 1 or 2, a "Claims and status" callout
-  that lists the four load-bearing theorems and their
+  that lists the four critical theorems and their
   mechanization state. Lets them flip to §A immediately.
 
 **P2. Cryptoeconomic protocol designer**
@@ -176,7 +176,7 @@ friction surface, and a different "moment they bounce."
    in the paper but takes 14 pages to reach. **Fix**: add a
    "Where this paper is going" preview after the abstract that
    names the four layers and lands a one-paragraph version of
-   each load-bearing claim.
+   each pivotal claim.
 
 2. **The auction diagram is 6 sections away from the
    auction discussion.** Reader sees the welfare claim, has to

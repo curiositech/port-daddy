@@ -168,7 +168,7 @@ write X in Rust."
   gate. Anyone starting this work: wasm32 target on `harbor-card-rs` only
   (never crates with `rusqlite`), `getrandom` with the `js`/workers feature,
   `[[rules]] CompiledWasm` in wrangler.
-- **Full TS→Rust rewrite.** Rejected. The load-bearing runtime is the Bun/TS
+- **Full TS→Rust rewrite.** Rejected. The core runtime is the Bun/TS
   daemon plus two TS Workers; the TCB is deliberately small; rewriting
   untrusted planes buys nothing (ADR-0087) and the Workers can't run native
   code anyway. This ADR is the standing answer; a future proposal must

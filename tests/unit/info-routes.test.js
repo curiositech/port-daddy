@@ -522,3 +522,49 @@ describe('daemon berth self-identity (ADR-0084)', () => {
     await app.close();
   });
 });
+
+describe('info routes — ADR-0132 halt state on /health', () => {
+  test('GET /health reports state:halted plus the halt detail while the listening watch has seen the sentinel', async () => {
+    const app = Fastify();
+    const halt = {
+      line: '2026-09-05T14:02:11Z operator:erich SECURITE HALT reason=spend-runaway',
+      ref: '2026-09-05T14:02:11Z',
+      detectedAt: Date.UTC(2026, 8, 5, 14, 2, 40),
+      complied: true,
+    };
+    await app.register(infoPlugin, {
+      deps: buildDeps({ haltWatch: { state: () => 'halted', halt: () => halt } }),
+    });
+    const res = await app.inject({ method: 'GET', url: '/health' });
+    const body = res.json();
+    expect(res.statusCode).toBe(200);
+    expect(body.state).toBe('halted');
+    expect(body.halt).toEqual({
+      ref: '2026-09-05T14:02:11Z',
+      line: halt.line,
+      since: '2026-09-05T14:02:40.000Z',
+      complied: true,
+    });
+    // A halt is a mode, not a fault: liveness stays whatever the routes say.
+    expect(body.status).toBe('ok');
+    await app.close();
+  });
+
+  test('GET /health mirrors runtime.state as the top-level state when the watch is nominal or unwired', async () => {
+    const wired = Fastify();
+    await wired.register(infoPlugin, {
+      deps: buildDeps({ haltWatch: { state: () => 'nominal', halt: () => null } }),
+    });
+    const wiredBody = (await wired.inject({ method: 'GET', url: '/health' })).json();
+    expect(wiredBody.state).toBe(wiredBody.runtime.state);
+    expect(wiredBody.halt).toBeUndefined();
+    await wired.close();
+
+    const unwired = Fastify();
+    await unwired.register(infoPlugin, { deps: buildDeps() });
+    const unwiredBody = (await unwired.inject({ method: 'GET', url: '/health' })).json();
+    expect(['nominal', 'degraded']).toContain(unwiredBody.state);
+    expect(unwiredBody.halt).toBeUndefined();
+    await unwired.close();
+  });
+});
