@@ -965,7 +965,11 @@ export async function handleRegisterApi(request: Request, env: Env): Promise<Res
 
   const auth = await authorize(request, env, repoFullName);
   if (!auth.ok) return auth.response;
-  const { userId, ghToken, agentDefault } = auth;
+  // No `userId` here: the board is keyed on the repository, so once authorize()
+  // has decided this caller may see it, which account they are stops mattering
+  // to every path below. It was still being destructured after the key moved --
+  // a leftover that read as though the handler scoped something by account.
+  const { ghToken, agentDefault } = auth;
 
   if (request.method === 'GET') {
     const meta = dateCacheMeta(await readCacheMeta(env, repoFullName));

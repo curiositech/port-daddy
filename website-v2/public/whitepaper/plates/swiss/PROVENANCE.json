@@ -325,6 +325,21 @@
       "pipeline_version": "4.0.0",
       "source_render": "chapter-fh-6.png",
       "candidates": 6
+    },
+    "frontispiece": {
+      "file": "frontispiece.jpg",
+      "source_render": "frontispiece-swiss-c.png",
+      "size": [
+        1342,
+        2000
+      ],
+      "bytes": 206559,
+      "note": "Swiss frontispiece: the Leviathan rebuilt as International Typographic Style. Variants a and b read as a friendly toy robot -- small in its field, rounded, primary-coloured -- and were rejected; c is monumental and cropped by the frame, near monochrome, with the searchlight as one hard ochre diagonal and a single red square.",
+      "chosen": "c",
+      "candidates": 4,
+      "model": "gemini-3-pro-image-preview",
+      "generation_aspect": "2:3",
+      "prompt": "scripts/whitepaper-plates/frontispiece_prompts.py"
     }
   },
   "candidates_per_plate": 6
