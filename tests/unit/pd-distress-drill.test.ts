@@ -15,7 +15,7 @@
 
 import { describe, expect, test } from '@jest/globals';
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const REPO = process.cwd();
@@ -127,5 +127,57 @@ describe('ADR-0132 §5 drill (scripts/pd-distress-drill.sh)', () => {
     });
     expect(r.status).toBe(3);
     expect(r.stderr).toMatch(/refusing: PD_HOME must be a distress-drill scratch home/);
+  });
+});
+
+/**
+ * The drill's step 3 asserts that the repo-scoped register mirrors the
+ * machine-wide one. The two files are written by separate appends per line
+ * and the entities append concurrently, so the mirror can legitimately end up
+ * ordered differently; only its CONTENT is contracted. These cover the
+ * `__registers-match` subcommand that encodes that rule, including the cases
+ * that must still FAIL — a comparison that cannot fail is not a check.
+ */
+describe('__registers-match (the step-3 register comparison)', () => {
+  const scratch = join(SCRATCH_BASE, 'registers-match');
+
+  function match(a: string, b: string) {
+    return spawnSync('sh', [DRILL, '__registers-match', a, b], { cwd: REPO, encoding: 'utf8' }).status;
+  }
+
+  function write(name: string, lines: string[]) {
+    mkdirSync(scratch, { recursive: true });
+    const p = join(scratch, name);
+    writeFileSync(p, lines.length ? lines.join('\n') + '\n' : '');
+    return p;
+  }
+
+  test('the same lines in a different order match: interleaved writes are not a divergence', () => {
+    const machine = write('m-order', ['t1 daemon:prod control SEEN', 't2 agent:cc control SEEN', 't3 daemon:prod control COMPLIED']);
+    const repo = write('r-order', ['t2 agent:cc control SEEN', 't3 daemon:prod control COMPLIED', 't1 daemon:prod control SEEN']);
+    expect(match(machine, repo)).toBe(0);
+  });
+
+  test('a line missing from the mirror is a divergence', () => {
+    const machine = write('m-missing', ['t1 daemon:prod control SEEN', 't2 agent:cc control SEEN']);
+    const repo = write('r-missing', ['t1 daemon:prod control SEEN']);
+    expect(match(machine, repo)).not.toBe(0);
+  });
+
+  test('an extra line in the mirror is a divergence', () => {
+    const machine = write('m-extra', ['t1 daemon:prod control SEEN']);
+    const repo = write('r-extra', ['t1 daemon:prod control SEEN', 't9 rogue:entity control COMPLIED']);
+    expect(match(machine, repo)).not.toBe(0);
+  });
+
+  test('a duplicated line is a divergence: the comparison is on multisets, not sets', () => {
+    const machine = write('m-dup', ['t1 daemon:prod control SEEN', 't1 daemon:prod control SEEN']);
+    const repo = write('r-dup', ['t1 daemon:prod control SEEN']);
+    expect(match(machine, repo)).not.toBe(0);
+  });
+
+  test('a missing register file is a divergence, never a silent pass', () => {
+    const machine = write('m-absent', ['t1 daemon:prod control SEEN']);
+    expect(match(machine, join(scratch, 'does-not-exist'))).not.toBe(0);
   });
 });

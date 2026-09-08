@@ -121,3 +121,17 @@ jobs:
       - name: Chapter template floors hold across every Book chapter (advisory)
         continue-on-error: true
         run: python3 skills/textbook-craft/scripts/chapter_lint.py --strict
+
+      - name: Figure register and triage are well-formed (enums, ids, chapters, fragment paths)
+        run: python3 scripts/harbor-research/check_figure_register.py
+
+      - name: FIGURE-AUDIT-DIGEST.md and FIGURE-AUDIT-FAILURES.md are a fresh render of figcheck/*.json
+        run: python3 scripts/harbor-research/render_figure_audit.py --check
+
+      # Advisory until the redraw wave clears the 38 fragments that fail T1-T5
+      # today; the report is the release blocker's ledger, and the step turns
+      # required (drop continue-on-error) once blockers.json has no unwaived
+      # rows. Making it required now would freeze the book branch.
+      - name: No unwaived (or expired-waiver) mechanical figure blocker (advisory)
+        continue-on-error: true
+        run: python3 scripts/harbor-research/check_figure_blockers.py --verbose
