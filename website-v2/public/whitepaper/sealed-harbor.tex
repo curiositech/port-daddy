@@ -523,7 +523,10 @@ controllability theorem. A policy is regimentable exactly when the events it
 forbids are events the mediation layer can veto; the compound clean-room rule
 is regimentable because it forbids only the egress.}
 \label{tab:sealed-policy-classification}
-\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{2.3cm} >{\raggedright\arraybackslash}p{1.7cm} >{\raggedright\arraybackslash}p{2.3cm}@{}}
+% Alphabet column widened 1.7cm -> 2.3cm: "uncontrollable" (14 letters, no
+% hyphen of its own) hyphenated at its one legal point and was still 7.9pt
+% over even split -- the column was too narrow for the word outright.
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{2.1cm} >{\raggedright\arraybackslash}p{2.3cm} >{\raggedright\arraybackslash}p{2.1cm}@{}}
 \toprule
 Policy & Constrains & Alphabet & Verdict \\
 \midrule

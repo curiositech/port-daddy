@@ -323,7 +323,9 @@ Table~\ref{tab:related-borrow} compresses the four paragraphs above into what is
 \label{tab:related-borrow}
 \small
 \setlength{\tabcolsep}{2pt}
-\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.19\textwidth} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
+% Lineage column widened 0.19 -> 0.22\textwidth: "Cryptoeconomic" (14
+% letters, no hyphen point TeX would take) was still 8.5pt over at 0.19.
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.22\textwidth} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
 \toprule
 \textbf{Lineage} & \textbf{What we borrow} & \textbf{What we depart from} & \textbf{Why} \\
 \midrule
@@ -988,7 +990,9 @@ Table~\ref{tab:threat-bonds} gives starting bands. These are not parameters, the
 \caption{Threat-class bond sizing. Percentages are bond as a fraction of expected task value. Bands are starting points for calibration, not protocol constants.}
 \label{tab:threat-bonds}
 \setlength{\tabcolsep}{3pt}
-\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.3cm}>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}p{1.4cm}>{\raggedright\arraybackslash}X@{}}
+% Threat column widened 2.3cm -> 2.6cm: "Abandonment" (11 letters)
+% hyphenated and was still 1.8pt over even split.
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.6cm}>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}p{1.4cm}>{\raggedright\arraybackslash}X@{}}
 \toprule
 \textbf{Threat} & \textbf{Description} & \textbf{Bond \%} & \textbf{Rationale} \\
 \midrule

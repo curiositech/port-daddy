@@ -587,7 +587,9 @@ that does not exist, but the artifact the mechanism would have to produce.
 \small
 \renewcommand{\arraystretch}{1.25}
 \setlength{\tabcolsep}{4pt}
-\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}X >{\centering\arraybackslash}p{0.08\textwidth} >{\raggedright\arraybackslash}p{0.28\textwidth} >{\raggedright\arraybackslash}p{0.23\textwidth}@{}}
+% Regret column widened 0.08 -> 0.10\textwidth: its own bold header,
+% "Regret", was 2.8pt wider than the column at this size.
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}X >{\centering\arraybackslash}p{0.10\textwidth} >{\raggedright\arraybackslash}p{0.27\textwidth} >{\raggedright\arraybackslash}p{0.22\textwidth}@{}}
 \toprule
 \textbf{Suppressed item} & \textbf{Regret} & \textbf{Why it was not shown} & \textbf{Re-surface trigger} \\
 \midrule
@@ -1278,7 +1280,9 @@ through it at $C_{\text{fa}}=1$ and $c_{\mathrm{att}}=0.2$ attention-seconds.
 % measure, and the table came in 5.6pt over it. 4pt cut that to 0.8pt; 2pt
 % clears it with room.
 \setlength{\tabcolsep}{2pt}
-\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}X >{\centering\arraybackslash}p{0.05\textwidth} >{\centering\arraybackslash}p{0.09\textwidth} >{\centering\arraybackslash}p{0.11\textwidth} >{\centering\arraybackslash}p{0.11\textwidth} >{\raggedright\arraybackslash}p{0.12\textwidth}@{}}
+% C_{\text{miss}} column widened 0.09 -> 0.11\textwidth: its own header,
+% set in math, was still overfull after the tabcolsep cut above.
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}X >{\centering\arraybackslash}p{0.05\textwidth} >{\centering\arraybackslash}p{0.11\textwidth} >{\centering\arraybackslash}p{0.10\textwidth} >{\centering\arraybackslash}p{0.10\textwidth} >{\raggedright\arraybackslash}p{0.12\textwidth}@{}}
 \toprule
 \textbf{Action class} & $\pi$ & $C_{\text{miss}}$ & \textbf{Never zoom} & \textbf{Always zoom} & \textbf{Verdict} \\
 \midrule
@@ -3533,7 +3537,11 @@ purpose --- a \Verified\ result about a \Vision\ mechanism is a perfectly ordina
 state of affairs, and conflating them is the failure this appendix exists to prevent.
 
 {\footnotesize\renewcommand{\arraystretch}{1.05}\setlength{\tabcolsep}{4pt}
-\begin{xltabular}{\textwidth}{@{}p{0.04\textwidth} >{\raggedright\arraybackslash}X p{0.15\textwidth} >{\raggedright\arraybackslash}p{0.25\textwidth}@{}}
+% Status column widened 0.15 -> 0.18\textwidth: apparatus stripping drops
+% this chapter's own local \Built ("built") when it merges into the Book,
+% leaving the shared preamble's \Built ("implemented", 11 letters bold
+% small caps) in effect -- narrower than that word even hyphenated.
+\begin{xltabular}{\textwidth}{@{}p{0.04\textwidth} >{\raggedright\arraybackslash}X p{0.18\textwidth} >{\raggedright\arraybackslash}p{0.22\textwidth}@{}}
 \caption{Implementation and status of every mechanism named in this paper.
 \textbf{L} = legibility half, \textbf{A} = authority half, \textbf{O} =
 operator-model. The legibility read-surfaces are largely built; the digest layer that
