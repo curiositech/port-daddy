@@ -1,0 +1,173 @@
+name: Library Checks
+
+# The Harbor library's drift guards, in one place: the Book's single source of
+# record (whitepaper/textbook.json) against its generated mirrors, the LaTeX
+# palette against the design tokens, every \cite against a \bibitem across the
+# three TeX corpora, and every reviewer correction against the sites that echo
+# it. Each check is stdlib-only (Python) or dependency-free (Node), so the job
+# is fast and never needs TeX. The PDFs themselves are built by
+# whitepaper-build.yml and harbor-research-build.yml.
+#
+# Born from the PR #9911 review: check_citations.py and
+# check_propagated_corrections.py existed but nothing ran them.
+#
+# The banned-phrases prose gate (scripts/lint/check-banned-phrases.mjs) rides
+# along here too: it is dependency-free like everything else in this job, and
+# its scope (skills/, docs/, top-level READMEs, the PR template, the website's
+# content modules, and the whitepaper corpora) is exactly this job's "prose
+# that ships to a reader" footprint, so the path filters below are widened to
+# match its scope rather than standing up a second workflow for one script.
+
+on:
+  pull_request:
+    paths:
+      - 'whitepaper/**'
+      - 'website-v2/public/whitepaper/**'
+      - 'website-v2/src/data/textbook.json'
+      - 'website-v2/src/styles/tokens.semantic.css'
+      - 'website-v2/scripts/check-figure-palette.mjs'
+      - 'docs/harbor-research/**'
+      - 'studies/**'
+      - 'whitepaper/corpus.json'
+      - 'website-v2/src/data/harborResearchProgram.json'
+      - 'website-v2/src/data/researchPapers.ts'
+      - 'scripts/harbor-research/**'
+      - 'scripts/generate-mega-whitepaper.mjs'
+      - 'scripts/generate-mega-whitepaper.test.mjs'
+      - 'scripts/build-whitepapers.sh'
+      - 'skills/whitepaper-figure-system/**'
+      - 'skills/**'
+      - 'docs/**/*.md'
+      - '*.md'
+      - '.github/PULL_REQUEST_TEMPLATE.md'
+      - '.github/**/*.md'
+      - 'website-v2/src/**'
+      - 'website-v2/public/**'
+      - 'scripts/lint/**'
+      - '.github/workflows/library-checks.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'whitepaper/**'
+      - 'website-v2/public/whitepaper/**'
+      - 'website-v2/src/data/textbook.json'
+      - 'website-v2/src/styles/tokens.semantic.css'
+      - 'website-v2/scripts/check-figure-palette.mjs'
+      - 'docs/harbor-research/**'
+      - 'studies/**'
+      - 'whitepaper/corpus.json'
+      - 'website-v2/src/data/harborResearchProgram.json'
+      - 'website-v2/src/data/researchPapers.ts'
+      - 'scripts/harbor-research/**'
+      - 'scripts/generate-mega-whitepaper.mjs'
+      - 'scripts/generate-mega-whitepaper.test.mjs'
+      - 'scripts/build-whitepapers.sh'
+      - 'skills/whitepaper-figure-system/**'
+      - 'skills/**'
+      - 'docs/**/*.md'
+      - '*.md'
+      - '.github/PULL_REQUEST_TEMPLATE.md'
+      - '.github/**/*.md'
+      - 'website-v2/src/**'
+      - 'website-v2/public/**'
+      - 'scripts/lint/**'
+      - '.github/workflows/library-checks.yml'
+  # Merge queue: run unconditionally so a required check context always
+  # appears (a path-filtered workflow that does not match would hang the
+  # queue). Every check here is seconds long and passes when nothing drifted.
+  merge_group:
+
+permissions:
+  contents: read
+
+jobs:
+  library-checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: textbook.json is the one source of chapter order (generated mirrors match)
+        run: node scripts/generate-mega-whitepaper.mjs --check-shared
+
+      - name: Book generator contract (namespacing, apparatus stripping, seams, shared files)
+        run: node --test scripts/generate-mega-whitepaper.test.mjs scripts/generate-mega-mechanized.test.mjs
+
+      - name: Book body generates from the chapter sources (fails closed on drift)
+        run: node scripts/generate-mega-whitepaper.mjs .cache/library-checks/mega-volume
+
+      - name: LaTeX palette matches the design tokens (pd-palette.tex lockstep)
+        run: node website-v2/scripts/check-figure-palette.mjs
+
+      - name: Every \cite has a \bibitem across the three TeX corpora
+        run: python3 scripts/harbor-research/check_citations.py
+
+      - name: Reviewer corrections reached every site that echoes them
+        run: python3 scripts/harbor-research/check_propagated_corrections.py
+
+      - name: Library index matches the corpora it claims to index
+        run: python3 scripts/harbor-research/check_library_index.py
+
+      - name: LIBRARY-INDEX.md is a fresh render of library-index.json
+        run: python3 scripts/harbor-research/check_library_index.py --check-md
+
+      - name: Critique ledger Markdown and JSON agree and every Status cell is well-formed
+        run: python3 scripts/harbor-research/check_critique_ledger.py
+
+      - name: The research program the website renders is current (index, manifest, ledger, studies, dives, silences, site mirror)
+        run: python3 scripts/harbor-research/check_research_program.py
+
+      - name: Every marginalia plate has a licence sidecar in the allow-list
+        run: python3 scripts/harbor-research/check_marginalia_sidecars.py && python3 -m unittest discover -s tests/harbor-research -p 'test_*.py'
+
+      - name: Every rendered plate has honest provenance and every TeX plate path resolves
+        run: python3 scripts/harbor-research/check_plate_provenance.py
+
+      - name: Margin apparatus rules hold in every chapter
+        run: python3 skills/tufte-evidence-design/scripts/margin_lint.py
+
+      - name: Semantic figure atlas covers every canonical figure (no drift from textbook.json)
+        run: python3 skills/whitepaper-figure-system/scripts/check_atlas_coverage.py
+
+      - name: Banned phrases ("held to account", "load-bearing") never appear in prose
+        run: node scripts/lint/check-banned-phrases.mjs
+
+      - name: textbook-craft chapter_lint unit tests
+        run: python3 -m unittest discover -s skills/textbook-craft/tests -p 'test_*.py' -v
+
+      # Advisory (continue-on-error) for the same reason 7c2c5e16f made the
+      # figure-blocker check advisory: two of chapter_lint's BLOCKING floors
+      # (worked_example_per_section, claims_carry_epistemic_kind) already
+      # fail on 6 of the 8 Book chapters today, pre-dating this check --
+      # making the step required now would freeze every PR that merely
+      # touches a whitepaper path (this job also runs unconditionally on
+      # merge_group, so a required failure here would freeze the whole
+      # queue). Drop continue-on-error once those two floors are clean
+      # chapter-by-chapter; the floors made advisory in the linter itself
+      # (exercises_at_chapter_end, chapter_opener_and_claim_labeling) stay
+      # advisory here too -- --strict only fails on a BLOCKING floor.
+      - name: Chapter template floors hold across every Book chapter (advisory)
+        continue-on-error: true
+        run: python3 skills/textbook-craft/scripts/chapter_lint.py --strict
+
+      - name: Figure register and triage are well-formed (enums, ids, chapters, fragment paths)
+        run: python3 scripts/harbor-research/check_figure_register.py
+
+      - name: FIGURE-AUDIT-DIGEST.md and FIGURE-AUDIT-FAILURES.md are a fresh render of figcheck/*.json
+        run: python3 scripts/harbor-research/render_figure_audit.py --check
+
+      # Advisory until the redraw wave clears the 38 fragments that fail T1-T5
+      # today; the report is the release blocker's ledger, and the step turns
+      # required (drop continue-on-error) once blockers.json has no unwaived
+      # rows. Making it required now would freeze the book branch.
+      - name: No unwaived (or expired-waiver) mechanical figure blocker (advisory)
+        continue-on-error: true
+        run: python3 scripts/harbor-research/check_figure_blockers.py --verbose

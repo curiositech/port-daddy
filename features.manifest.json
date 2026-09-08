@@ -227,7 +227,8 @@
         "POST /durable-agents/promote",
         "PATCH /durable-agents/:id",
         "POST /durable-agents/:id/handoffs",
-        "POST /durable-agents/:id/retire"
+        "POST /durable-agents/:id/retire",
+        "POST /durable-agents/:id/resurrect"
       ],
       "completions": [
         "roster"
@@ -272,7 +273,9 @@
         "GET /actors/:param/inbox/stats",
         "PUT /actors/:param/inbox/read-all",
         "POST /actors/:param/message",
-        "POST /actors/register"
+        "POST /actors/register",
+        "POST /actors/souls/:param/retire",
+        "POST /actors/souls/:param/resurrect"
       ],
       "completions": [
         "actor",

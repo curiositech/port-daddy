@@ -1,0 +1,161 @@
+{
+  "generated": "2026-09-06",
+  "model": "gemini-3-pro-image-preview (Nano Banana) via nano-banana-image-gen/scripts/generate.py",
+  "post": "crop inside the painted sheet edges, paper-tone balance to #FBF7EF (percentile white), border feather into the page stock on chapter plates, Lanczos resize, JPEG",
+  "plates": {
+    "jacket": {
+      "file": "jacket.jpg",
+      "source_render": "G2-wash-machine.png",
+      "size": [
+        1627,
+        2300
+      ],
+      "bytes": 502092,
+      "note": "cover wash (the beached moon), sheet edges cropped away, full bleed at A4",
+      "prompt": "A faded watercolor wash landscape reproduced on aged, lightly embossed cover stock: visible paper tooth, salt texture and pigment blooms in the washes, offset print grain, the paper slightly yellowed at the edges. No lettering of any kind. Scene: a very pale watercolor of a vast machine intelligence resting in a harbor like a beached moon, its concentric rings barely there in faded violet and cobalt, a lighthouse tiny beside it; most of the page is open pale wash with pigment blooms."
+    },
+    "frontispiece": {
+      "file": "frontispiece.jpg",
+      "source_render": "E2-etch-clerks.png",
+      "size": [
+        1334,
+        2000
+      ],
+      "bytes": 766959,
+      "note": "frontispiece etching, the colossus of clerks, paper balanced to the page stock",
+      "prompt": "A seventeenth-century copper-plate etching in the manner of a baroque book frontispiece, printed in dark brown-black ink on aged laid paper with a visible plate mark, chain lines, and foxing; dense cross-hatching, fine stipple skies, a landscape below and an allegorical colossus above; an ornate empty cartouche at the bottom left blank. No lettering. Scene: a colossal figure rises out of the sea behind a lighthouse, its torso a lattice of tiny identical clerks at desks each holding a ledger; its face is calm and machine-like, made of concentric rings; below, a harbor with two facing quays and a small ferry between them."
+    },
+    "part-I": {
+      "file": "part-I.jpg",
+      "source_render": "part-I-tall-a.png",
+      "size": [
+        1627,
+        2300
+      ],
+      "bytes": 483914,
+      "note": "Part I wash, full page behind the part type, sheet edges cropped away, paper balanced to the page stock",
+      "prompt": "A faded watercolor wash landscape reproduced on aged, lightly embossed paper stock: visible paper tooth, salt texture and pigment blooms in the washes, offset print grain, colors muted and slightly bled as in an old lithographed reproduction, no hard outlines, no ink linework, no bright saturated color. Palette: pale greys, cobalt and violet washes faded almost to paper, one warm lamp-glow. Space-opera scale: one colossal, smooth, unearthly presence dominates the picture, rendered as soft masses of pale wash with almost no detail, and one small everyday human-scale thing sits beneath it, tiny and exact. Tall vertical picture: the upper third is open, nearly empty pale wash (sky and mist), the colossal presence occupies the middle, the small thing sits low. No people's faces, no crews, no lettering, no border; the wash runs to all four edges. Scene: a sphere the size of a small moon descending through cloud over a flat grey sea, its underside smooth and featureless, and far below it one small sailing vessel with a single lamp lit, its sail the only crisp shape in the picture."
+    },
+    "part-II": {
+      "file": "part-II.jpg",
+      "source_render": "part-II-tall-a.png",
+      "size": [
+        1627,
+        2300
+      ],
+      "bytes": 468226,
+      "note": "Part II wash, full page behind the part type, sheet edges cropped away, paper balanced to the page stock",
+      "prompt": "A faded watercolor wash landscape reproduced on aged, lightly embossed paper stock: visible paper tooth, salt texture and pigment blooms in the washes, offset print grain, colors muted and slightly bled as in an old lithographed reproduction, no hard outlines, no ink linework, no bright saturated color. Palette: pale greys, cobalt and violet washes faded almost to paper, one warm lamp-glow. Space-opera scale: one colossal, smooth, unearthly presence dominates the picture, rendered as soft masses of pale wash with almost no detail, and one small everyday human-scale thing sits beneath it, tiny and exact. Tall vertical picture: the upper third is open, nearly empty pale wash (sky and mist), the colossal presence occupies the middle, the small thing sits low. No people's faces, no crews, no lettering, no border; the wash runs to all four edges. Scene: an immense ring, kilometers wide, hanging on edge in a hazy sky, its top cut off by the frame, over a low headland where one small stone watchtower stands; a single thin beam from the tower touches the ring; everything else is mist."
+    },
+    "part-III": {
+      "file": "part-III.jpg",
+      "source_render": "part-III-tall-b.png",
+      "size": [
+        1627,
+        2300
+      ],
+      "bytes": 527528,
+      "note": "Part III wash, full page behind the part type, sheet edges cropped away, paper balanced to the page stock",
+      "prompt": "A faded watercolor wash landscape reproduced on aged, lightly embossed paper stock: visible paper tooth, salt texture and pigment blooms in the washes, offset print grain, colors muted and slightly bled as in an old lithographed reproduction, no hard outlines, no ink linework, no bright saturated color. Palette: pale greys, cobalt and violet washes faded almost to paper, one warm lamp-glow. Space-opera scale: one colossal, smooth, unearthly presence dominates the picture, rendered as soft masses of pale wash with almost no detail, and one small everyday human-scale thing sits beneath it, tiny and exact. Tall vertical picture: the upper third is open, nearly empty pale wash (sky and mist), the colossal presence occupies the middle, the small thing sits low. No people's faces, no crews, no lettering, no border; the wash runs to all four edges. Scene: the hull of a derelict machine the size of a mountain range half-buried in a tidal flat under a pale dawn, its top lost in mist, and leaving its shadow, one small boat with a lit cabin window, trailing a wake. Even sparser: more mist, the colossal presence fainter and larger, the small thing smaller."
+    },
+    "part-IV": {
+      "file": "part-IV.jpg",
+      "source_render": "part-IV-tall-a.png",
+      "size": [
+        1627,
+        2300
+      ],
+      "bytes": 535826,
+      "note": "Part IV wash, full page behind the part type, sheet edges cropped away, paper balanced to the page stock",
+      "prompt": "A faded watercolor wash landscape reproduced on aged, lightly embossed paper stock: visible paper tooth, salt texture and pigment blooms in the washes, offset print grain, colors muted and slightly bled as in an old lithographed reproduction, no hard outlines, no ink linework, no bright saturated color. Palette: pale greys, cobalt and violet washes faded almost to paper, one warm lamp-glow. Space-opera scale: one colossal, smooth, unearthly presence dominates the picture, rendered as soft masses of pale wash with almost no detail, and one small everyday human-scale thing sits beneath it, tiny and exact. Tall vertical picture: the upper third is open, nearly empty pale wash (sky and mist), the colossal presence occupies the middle, the small thing sits low. No people's faces, no crews, no lettering, no border; the wash runs to all four edges. Scene: two colossal smooth masses, one dark and one pale, facing each other across a narrow strait in evening haze, their tops lost in cloud, and between them, low in the picture, one tiny sail crossing under a single hair-thin line of light strung from one to the other."
+    },
+    "chapter-swk": {
+      "file": "chapter-swk.jpg",
+      "source_render": "ch-swk-b.png",
+      "size": [
+        1800,
+        1200
+      ],
+      "bytes": 247822,
+      "note": "chapter swk wash, sheet edges cropped away, paper balanced to the page stock, borders bled into it",
+      "prompt": "A faded watercolor wash landscape reproduced on aged, lightly embossed paper stock: visible paper tooth, salt texture and pigment blooms in the washes, offset print grain, colors muted and slightly bled as in an old lithographed reproduction, no hard outlines, no ink linework, no bright saturated color. Space-opera scale: one colossal, smooth, unearthly presence dominates the picture, rendered as soft masses of pale wash with almost no detail, and one small everyday human-scale thing sits beneath or beside it, tiny and exact. Most of the picture is open pale wash, mist and water. No people's faces, no crews, no lettering of any kind, no border; the wash runs to all four edges.Scene: a small stone lighthouse at the end of a mole, its lamp lit at dusk, and behind it, filling the whole sky, the smooth curved flank of a descended sphere so vast its edge cannot be seen; the harbor water flat and pale. Palette: pale ochre and sea-green washes faded almost to paper, mist everywhere, one warm lamp-glow. Composition even sparser: the small thing in a lower corner, the colossal thing cut off by the frame."
+    },
+    "chapter-anchor": {
+      "file": "chapter-anchor.jpg",
+      "source_render": "ch-anchor-a.png",
+      "size": [
+        1800,
+        1200
+      ],
+      "bytes": 229464,
+      "note": "chapter anchor wash, sheet edges cropped away, paper balanced to the page stock, borders bled into it",
+      "prompt": "A faded watercolor wash landscape reproduced on aged, lightly embossed paper stock: visible paper tooth, salt texture and pigment blooms in the washes, offset print grain, colors muted and slightly bled as in an old lithographed reproduction, no hard outlines, no ink linework, no bright saturated color. Space-opera scale: one colossal, smooth, unearthly presence dominates the picture, rendered as soft masses of pale wash with almost no detail, and one small everyday human-scale thing sits beneath or beside it, tiny and exact. Most of the picture is open pale wash, mist and water. No people's faces, no crews, no lettering of any kind, no border; the wash runs to all four edges.Scene: a procession of immense smooth monoliths floating above a calm sea, each smaller and fainter than the one before, receding into haze; at the front a single rowboat holds one taut rope to the nearest monolith. Palette: pale greys, cobalt and violet washes faded almost to paper, one warm lamp-glow."
+    },
+    "chapter-sealed": {
+      "file": "chapter-sealed.jpg",
+      "source_render": "ch-sealed-a.png",
+      "size": [
+        1800,
+        1200
+      ],
+      "bytes": 242096,
+      "note": "chapter sealed wash, sheet edges cropped away, paper balanced to the page stock, borders bled into it",
+      "prompt": "A faded watercolor wash landscape reproduced on aged, lightly embossed paper stock: visible paper tooth, salt texture and pigment blooms in the washes, offset print grain, colors muted and slightly bled as in an old lithographed reproduction, no hard outlines, no ink linework, no bright saturated color. Space-opera scale: one colossal, smooth, unearthly presence dominates the picture, rendered as soft masses of pale wash with almost no detail, and one small everyday human-scale thing sits beneath or beside it, tiny and exact. Most of the picture is open pale wash, mist and water. No people's faces, no crews, no lettering of any kind, no border; the wash runs to all four edges.Scene: a vast smooth windowless vault the size of a headland rests in a pale bay, seamless and featureless except for one hair-thin horizontal slot of warm light near its waterline, and on the flat water before it one small rowboat with a single lantern, waiting; mist over everything else. Palette: pale greys, cobalt and violet washes faded almost to paper, one warm lamp-glow."
+    },
+    "chapter-ls": {
+      "file": "chapter-ls.jpg",
+      "source_render": "ch-ls-a.png",
+      "size": [
+        1800,
+        1200
+      ],
+      "bytes": 300920,
+      "note": "chapter ls wash, sheet edges cropped away, paper balanced to the page stock, borders bled into it",
+      "prompt": "A faded watercolor wash landscape reproduced on aged, lightly embossed paper stock: visible paper tooth, salt texture and pigment blooms in the washes, offset print grain, colors muted and slightly bled as in an old lithographed reproduction, no hard outlines, no ink linework, no bright saturated color. Space-opera scale: one colossal, smooth, unearthly presence dominates the picture, rendered as soft masses of pale wash with almost no detail, and one small everyday human-scale thing sits beneath or beside it, tiny and exact. Most of the picture is open pale wash, mist and water. No people's faces, no crews, no lettering of any kind, no border; the wash runs to all four edges.Scene: a small wooden pier with one hanging lantern at night, its light a small warm circle on the water, and beneath the whole bay, dimly through the water, a single vast pale shape the size of the town, only its curve visible. Palette: pale greys, cobalt and violet washes faded almost to paper, one warm lamp-glow."
+    },
+    "chapter-stp": {
+      "file": "chapter-stp.jpg",
+      "source_render": "ch-stp-a.png",
+      "size": [
+        1800,
+        1200
+      ],
+      "bytes": 290183,
+      "note": "chapter stp wash, sheet edges cropped away, paper balanced to the page stock, borders bled into it",
+      "prompt": "A faded watercolor wash landscape reproduced on aged, lightly embossed paper stock: visible paper tooth, salt texture and pigment blooms in the washes, offset print grain, colors muted and slightly bled as in an old lithographed reproduction, no hard outlines, no ink linework, no bright saturated color. Space-opera scale: one colossal, smooth, unearthly presence dominates the picture, rendered as soft masses of pale wash with almost no detail, and one small everyday human-scale thing sits beneath or beside it, tiny and exact. Most of the picture is open pale wash, mist and water. No people's faces, no crews, no lettering of any kind, no border; the wash runs to all four edges.Scene: the ribs of an immense wrecked machine rising from a mist-covered estuary like a range of hills, and in the foreground one small sailboat at anchor with a lit cabin, its laundry on a line, the morning continuing. Palette: pale greys, cobalt and violet washes faded almost to paper, one warm lamp-glow."
+    },
+    "chapter-he": {
+      "file": "chapter-he.jpg",
+      "source_render": "ch-he-a.png",
+      "size": [
+        1800,
+        1200
+      ],
+      "bytes": 327165,
+      "note": "chapter he wash, sheet edges cropped away, paper balanced to the page stock, borders bled into it",
+      "prompt": "A faded watercolor wash landscape reproduced on aged, lightly embossed paper stock: visible paper tooth, salt texture and pigment blooms in the washes, offset print grain, colors muted and slightly bled as in an old lithographed reproduction, no hard outlines, no ink linework, no bright saturated color. Space-opera scale: one colossal, smooth, unearthly presence dominates the picture, rendered as soft masses of pale wash with almost no detail, and one small everyday human-scale thing sits beneath or beside it, tiny and exact. Most of the picture is open pale wash, mist and water. No people's faces, no crews, no lettering of any kind, no border; the wash runs to all four edges.Scene: a vast smooth platform hangs low over a fishing harbor at dawn, casting a soft shadow over the quay, and on the quay one small table with two chairs and a lamp, set for a meeting, nothing else moving. Palette: pale greys, cobalt and violet washes faded almost to paper, one warm lamp-glow."
+    },
+    "chapter-bonded": {
+      "file": "chapter-bonded.jpg",
+      "source_render": "ch-bonded-a.png",
+      "size": [
+        1800,
+        1200
+      ],
+      "bytes": 347162,
+      "note": "chapter bonded wash, sheet edges cropped away, paper balanced to the page stock, borders bled into it",
+      "prompt": "A faded watercolor wash landscape reproduced on aged, lightly embossed paper stock: visible paper tooth, salt texture and pigment blooms in the washes, offset print grain, colors muted and slightly bled as in an old lithographed reproduction, no hard outlines, no ink linework, no bright saturated color. Space-opera scale: one colossal, smooth, unearthly presence dominates the picture, rendered as soft masses of pale wash with almost no detail, and one small everyday human-scale thing sits beneath or beside it, tiny and exact. Most of the picture is open pale wash, mist and water. No people's faces, no crews, no lettering of any kind, no border; the wash runs to all four edges.Scene: a single colossal pillar of pale light stands from a night sea into cloud, and on the near shore a small village of a dozen roofs, every window dark but one; the pillar's reflection crosses the water to that window. Palette: pale greys, cobalt and violet washes faded almost to paper, one warm lamp-glow."
+    },
+    "chapter-fh": {
+      "file": "chapter-fh.jpg",
+      "source_render": "ch-fh-a.png",
+      "size": [
+        1800,
+        1200
+      ],
+      "bytes": 323217,
+      "note": "chapter fh wash, sheet edges cropped away, paper balanced to the page stock, borders bled into it",
+      "prompt": "A faded watercolor wash landscape reproduced on aged, lightly embossed paper stock: visible paper tooth, salt texture and pigment blooms in the washes, offset print grain, colors muted and slightly bled as in an old lithographed reproduction, no hard outlines, no ink linework, no bright saturated color. Space-opera scale: one colossal, smooth, unearthly presence dominates the picture, rendered as soft masses of pale wash with almost no detail, and one small everyday human-scale thing sits beneath or beside it, tiny and exact. Most of the picture is open pale wash, mist and water. No people's faces, no crews, no lettering of any kind, no border; the wash runs to all four edges.Scene: two vast spheres, one on each horizon, in morning haze over a small harbor town going about its day, a few boats out; a single thin line of light passes from sphere to sphere high above the roofs. Palette: pale greys, cobalt and violet washes faded almost to paper, one warm lamp-glow."
+    }
+  }
+}

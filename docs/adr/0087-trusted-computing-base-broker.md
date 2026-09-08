@@ -146,7 +146,7 @@ Cartographer-owned; each phase promotes to a `roadmap_items` row
 ## Consequences
 
 - **Positive:** one coherent TCB instead of scattered, individually-bypassable checks; the
-  macaroon work (PR #496) becomes load-bearing instead of advisory once the credential is
+  macaroon work (PR #496) becomes pivotal instead of advisory once the credential is
   brokered; the canon (0053/0050/0054/0057) composes into a single object rather than four
   partially-overlapping layer lists; the trust boundary is finally an OS fact, not a
   convention.

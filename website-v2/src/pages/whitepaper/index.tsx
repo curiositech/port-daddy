@@ -10,11 +10,12 @@ import {
   PanelEyebrow,
   PanelTitle,
 } from '@/components/site/primitives'
+import { TableOfContents } from '@/components/library/TableOfContents'
 import {
+  chapterRoleLabel,
   findWhitePaperById,
   LIBRARY_CHANGELOG,
   paperPdfUrl,
-  READING_ORDER,
   WHITE_PAPERS,
 } from '@/data/whitePapers'
 
@@ -62,20 +63,21 @@ export default function WhitepaperPage() {
           <PageContainer width="wide">
             <div className="grid gap-[var(--space-7)] lg:grid-cols-[minmax(0,0.88fr)_minmax(22rem,0.42fr)] lg:items-start">
               <div className="space-y-[var(--space-6)]">
-                <PanelEyebrow>Seven papers, one volume — four explain, three prove</PanelEyebrow>
+                <PanelEyebrow>Seven chapters, one book, in the order the argument needs</PanelEyebrow>
                 <PanelTitle as="h1" size="hero" className="max-w-[16ch]">
                   The Harbor Library: how a swarm of agents becomes a market you can trust.
                 </PanelTitle>
                 <PanelBody size="default" className="max-w-[60ch] text-[length:var(--text-lg)]">
-                  Seven co-equal chapters of one book. Four{' '}
-                  <strong className="font-black text-[var(--text-primary)]">explain</strong>{' '}
-                  the system, climbing a single ladder from the machine up to the
-                  market: legibility, the single-writer kernel, the bridge from
-                  spawn to person, and the harbor economy. Three{' '}
-                  <strong className="font-black text-[var(--text-primary)]">prove</strong>{' '}
-                  it — the chapters where the prose stops and the proof-checkers
-                  start. Each chapter names what it assumes, what it underwrites,
-                  and which proof discharges it, so the seven read as one library,
+                  Seven chapters of one book, numbered in the order the argument
+                  needs: each stands on the ones before it, and each{' '}
+                  <strong className="font-black text-[var(--text-primary)]">proving</strong>{' '}
+                  chapter follows the chapter whose promises it keeps. Four parts
+                  carry the climb: the machine that decides what is real, the
+                  operator who has to see it, the person a spawn becomes, and the
+                  market that rents trust between strangers. Each chapter names
+                  what it assumes, what it underwrites, and which chapter{' '}
+                  <strong className="font-black text-[var(--text-primary)]">proves</strong>{' '}
+                  it, so the seven read as one book,
                   not a pile. New here?{' '}
                   <Link to="/library" className="font-black text-[var(--brand-primary)] underline underline-offset-4 hover:no-underline">
                     Start with the guided Library
@@ -85,7 +87,7 @@ export default function WhitepaperPage() {
 
                 <div className="grid gap-[var(--space-3)] border-y-2 border-[var(--border-strong)] py-[var(--space-4)] sm:grid-cols-3">
                   {[
-                    { value: String(WHITE_PAPERS.length).padStart(2, '0'), label: 'papers to read' },
+                    { value: String(WHITE_PAPERS.length).padStart(2, '0'), label: 'chapters, in order' },
                     { value: String(totalPages).padStart(2, '0'), label: 'pages, total' },
                     { value: 'Free', label: 'PDFs, no signup' },
                   ].map((stat) => (
@@ -228,7 +230,7 @@ export default function WhitepaperPage() {
                               selected ? 'text-[color:var(--brand-primary-foreground-subtle)]' : 'text-[var(--text-muted)]',
                             ].join(' ')}
                           >
-                            {candidate.group === 'prove' ? 'Proves' : 'Explains'} / {candidate.layer} / {candidate.pages} pages
+                            {chapterRoleLabel(candidate)} / {candidate.layer} / {candidate.pages} pages
                           </span>
                         </span>
                       </button>
@@ -357,14 +359,15 @@ export default function WhitepaperPage() {
           <PageContainer width="wide">
             <div className="grid gap-[var(--space-6)] lg:grid-cols-[minmax(0,0.35fr)_minmax(0,0.65fr)]">
               <div className="space-y-[var(--space-4)]">
-                <PanelEyebrow>How to read these</PanelEyebrow>
+                <PanelEyebrow>Table of contents</PanelEyebrow>
                 <PanelTitle as="h2" size="section" className="max-w-[14ch]">
-                  The wedge first. The kernel under it. Then the bridge, then the market.
+                  Read it in order. The order is the argument.
                 </PanelTitle>
                 <PanelBody className="max-w-[44ch]">
-                  Read the four that explain in ladder order — you can stop after the first
-                  and have a useful mental model. Reach for a proof chapter (V, VI, or VII)
-                  when you want the matching claim machine-checked. The{' '}
+                  Each chapter stands on the ones before it, and each proving
+                  chapter follows the chapter whose promises it keeps, so the
+                  table of contents is the only reading order you need. Pick a
+                  chapter here to open it above. The{' '}
                   <Link to="/library" className="font-black text-[var(--brand-primary)] underline underline-offset-4 hover:no-underline">
                     Library guide
                   </Link>{' '}
@@ -372,26 +375,7 @@ export default function WhitepaperPage() {
                 </PanelBody>
               </div>
 
-              <div className="grid gap-[var(--space-3)]">
-                {READING_ORDER.map((item) => (
-                  <div
-                    key={item.step}
-                    className="grid gap-[var(--space-4)] border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-4)] sm:grid-cols-[4rem,1fr]"
-                  >
-                    <div className="font-mono text-[length:var(--text-xl)] font-black leading-none text-[var(--brand-primary)]">
-                      {item.step}
-                    </div>
-                    <div className="space-y-[var(--space-1)]">
-                      <h3 className="font-display text-[length:var(--type-panel-title-nav-size)] font-black leading-[var(--leading-nav)] tracking-[var(--tracking-display-nav)] text-[var(--text-primary)]">
-                        {item.title}
-                      </h3>
-                      <p className="text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
-                        {item.body}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <TableOfContents onSelect={selectPaper} />
             </div>
           </PageContainer>
         </section>
@@ -427,7 +411,7 @@ export default function WhitepaperPage() {
                         {entry.date}
                       </span>
                       <span className="font-mono text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
-                        {entry.chapters.join(' · ')}
+                        {entry.chapters.map((id) => findWhitePaperById(id)?.chapter ?? id).join(' · ')}
                       </span>
                     </div>
                     <h3 className="font-display text-[length:var(--type-panel-title-nav-size)] font-black leading-[var(--leading-nav)] tracking-[var(--tracking-display-nav)] text-[var(--text-primary)]">

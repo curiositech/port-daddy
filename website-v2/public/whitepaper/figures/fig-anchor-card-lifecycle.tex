@@ -2,49 +2,59 @@
 % and expiry are absorbing for that ID; correction starts a new lane.
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
+\begin{tikzpicture}[pd figure,x=.66cm,y=1cm]
   \def\xmin{-4.7}
   \def\xmax{5.2}
-  \foreach \y/\lanename in {2.0/{card $k_{17}$: revoked},.55/{card $k_{17}$: natural expiry},-1.35/{correction card $k_{18}$}} {
-    \node[pd axis label,anchor=east,align=right,text width=31mm] at (\xmin-.25,\y) {\lanename};
+  \foreach \y/\lanename in {2.0/{card k17: revoked},.55/{card k17: expiry},-1.35/{correction card k18}} {
+    \node[pd axis label,anchor=east,align=right,text width=31mm] at (\xmin-.25,\y)
+      {\hyphenpenalty=10000\exhyphenpenalty=10000 \lanename};
     \draw[pd hairline] (\xmin,\y) -- (\xmax,\y);
   }
 
-  \draw[draw=hhteal,line width=3pt,line cap=round] (\xmin,2.0) -- (-.9,2.0);
+  \draw[pd focus rule,line width=1.6pt,line cap=round] (\xmin,2.0) -- (-.9,2.0);
   \node[pd caution datum] at (-.9,2.0) {};
   \draw[draw=hhink,line width=3pt,line cap=round,double=hhpaper,double distance=.75pt]
     (-.9,2.0) -- (3.8,2.0);
-  \node[pd direct label,text=hhamber,anchor=south] at (-.9,2.22) {revoked at $t_r$};
+  \node[pd direct label,text=hhamber,anchor=south,inner sep=3pt] at (-.9,2.22) {revoked at \texttt{tr}};
   \node[pd direct label,anchor=south] at (3.8,2.22) {expires};
   \draw[pd tick] (3.8,1.78) -- (3.8,2.22);
 
-  \draw[draw=hhteal,line width=3pt,line cap=round] (\xmin,.55) -- (3.8,.55);
+  \draw[pd focus rule,line width=1.6pt,line cap=round] (\xmin,.55) -- (3.8,.55);
   \node[circle,draw=hhink,line width=.8pt,fill=hhpaper,minimum size=5.8mm,inner sep=0pt] at (3.8,.55) {};
   \draw[draw=hhink,line width=.8pt] (3.6,.35) -- (4.0,.75);
   \draw[draw=hhink,line width=.8pt] (3.6,.75) -- (4.0,.35);
-  \node[pd direct label,anchor=west] at (4.18,.55) {$t_0+\tau$};
+  \node[pd direct label,anchor=north,inner sep=3pt] at (3.8,.13) {\texttt{t0+tau}};
 
   \draw[pd caution arrow] (-.9,1.72) to[out=-80,in=160] (.7,-1.35);
-  \node[pd direct label,text=hhamber,anchor=east] at (.35,-.82) {mistake corrected};
+  \node[pd direct label,text=hhamber,align=left,text width=3.2cm,anchor=south east]
+    at (.35,-.7) {mistake corrected};
   \node[pd focus datum] at (.7,-1.35) {};
-  \draw[draw=hhteal,line width=3pt,line cap=round] (.7,-1.35) -- (\xmax,-1.35);
-  \node[pd direct label,text=hhteal,anchor=north west] at (.72,-1.58)
-    {new issuance; distinct ID};
+  \draw[pd focus rule,line width=1.6pt,line cap=round] (.7,-1.35) -- (\xmax,-1.35);
+  \node[pd direct label,text=hhteal,align=left,text width=4.7cm,anchor=south west]
+    at (.72,-1.05)
+    {new id k18: new authority, old history untouched};
 
   \draw[pd caution arrow] (2.65,2.0) to[out=-70,in=70] (2.65,1.15);
   \node[circle,draw=hhamber,line width=.9pt,fill=hhpaper,minimum size=6.2mm,inner sep=0pt] at (2.65,1.55) {};
   \draw[draw=hhamber,line width=.9pt] (2.43,1.33) -- (2.87,1.77);
   \draw[draw=hhamber,line width=.9pt] (2.43,1.77) -- (2.87,1.33);
-  \node[pd direct label,text=hhamber,anchor=north] at (2.65,1.18)
-    {$k_{17}$ never returns};
+  \node[pd direct label,text=hhamber,anchor=north,align=center,text width=3.6cm,
+    inner sep=3pt] at (2.65,1.16) {\texttt{k17} never returns};
 
   \draw[pd rule,-{Stealth[length=1.7mm,width=1.05mm]}] (\xmin,-2.08) -- (\xmax,-2.08);
   \node[pd axis label,anchor=west] at (\xmax,-2.08) {time};
+  \draw[pd tick] (-.9,-1.99) -- (-.9,-2.17);
+  \node[pd axis label,align=center,text width=2.1cm,anchor=north] at (-.9,-2.23)
+    {revoked\\ at \texttt{tr}};
+  \draw[pd tick] (3.8,-1.99) -- (3.8,-2.17);
+  \node[pd axis label,align=center,text width=2.6cm,anchor=north] at (3.8,-2.23)
+    {natural expiry\\ \texttt{t0+tau}};
 \end{tikzpicture}
-\caption{Acceptance is a one-way interval attached to one card ID. Card
-$k_{17}$ stops being admissible either at explicit revocation or at natural
-expiry and never re-enters the valid set. If revocation was a mistake, the
-operator issues $k_{18}$ on a new lane; correction creates new authority rather
-than mutating rejected history.}
+\caption{Acceptance is a one-way interval attached to one card ID. Card k17
+stops being admissible either at explicit revocation (tick \texttt{tr}) or at
+natural expiry (tick \texttt{t0+tau}) and never re-enters the valid set. If
+revocation was a mistake, the operator issues k18 on a new lane: new
+authority on a new ID, with the rejected history on k17 left untouched
+rather than mutated. [internal]}
 \label{fig:anchor-card-lifecycle}
 \end{figure}

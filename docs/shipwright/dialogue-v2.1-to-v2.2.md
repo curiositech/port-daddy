@@ -56,7 +56,7 @@ secret — the binding to a fresh nonce holds.
 ### Proof gap #04 — Conservation Theorem (Bonded §7.x)
 
 **Class:** mechanism
-**Severity:** load-bearing (asserted in §7 prose without a model)
+**Severity:** critical (asserted in §7 prose without a model)
 **Carried from:** v2.1
 
 **Counter:** TLA+ specification

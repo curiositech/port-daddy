@@ -1,38 +1,31 @@
 % Figure 4 — durability is a fault-reach boundary, not a storage checklist.
 \begin{figure}[H]
 \centering
-\resizebox{0.88\textwidth}{!}{%
-\begin{tikzpicture}[pd figure,x=1cm,y=1cm]
-  \pdfigaxis{1.2}{.65}{13.5}{fault reaches farther}
-  \foreach \x/\lbl in {3.1/{process},6.15/{OS + cache},9.25/{power},12.25/{storage device}} {
-    \draw[pd tick] (\x,.5)--(\x,.8);
-    \node[pd axis label,anchor=north] at (\x,.43) {\lbl};
-  }
-  \fill[hhteal!12] (1.45,2.0) rectangle (5.95,2.82);
-  \draw[pd focus rule,line width=1.35pt] (1.45,2.41)--(5.95,2.41);
-  \draw[pd focus rule] (5.95,1.72)--(5.95,3.1);
-  \node[pd panel title,anchor=east] at (1.2,2.41) {default};
-  \node[pd direct label,anchor=west,text=hhteal] at (2.05,2.41)
-    {returned success survives process crash};
-  \fill[hhsand!22] (1.45,3.55) rectangle (9.05,4.37);
-  \draw[pd rule,line width=1.25pt] (1.45,3.96)--(9.05,3.96);
-  \draw[pd caution rule] (9.05,3.25)--(9.05,4.65);
-  \node[pd panel title,anchor=east] at (1.2,3.96) {full sync};
-  \node[pd direct label,anchor=west] at (2.05,3.96)
-    {commit waits beyond volatile cache};
-  \fill[pd hatch] (6.0,1.55) rectangle (13.0,4.75);
-  \node[pd direct label,anchor=south west,text=hhamber] at (6.18,4.86)
-    {not guaranteed by the default contract};
-  \node[pd caution datum] at (5.95,2.41) {};
-  \node[pd caution datum] at (9.05,3.96) {};
-\end{tikzpicture}%
-}
-\caption{Durability as a boundary in fault reach. Under normal WAL
-synchronization, a returned write crosses the process-crash boundary because the
-operating system and its cache remain live; the contract ends before OS crash or
-power loss. Full synchronization can move that boundary outward by waiting beyond
-volatile cache, but neither band claims immunity to arbitrary media failure. The
-figure therefore separates crash consistency from power-loss durability instead
-of presenting a universal ``saved'' state.}
+\begin{tikzpicture}[pd figure,x=1cm,y=1cm,
+  cell/.style={pd state,minimum width=2.5cm,minimum height=1.0cm,text width=2.3cm,
+    font=\footnotesize,align=center}]
+  % column heads
+  \foreach \x/\lbl in {2.1/{process crash},4.75/{OS crash},7.4/{power loss}}
+    \node[pd row label,anchor=south,text width=2.3cm,align=center] at (\x,4.4) {\lbl};
+  % row labels
+  \node[pd row label,anchor=east,text width=2.95cm,align=right] at (-.1,3.15) {synchronous = NORMAL};
+  \node[pd row label,anchor=east,text width=2.95cm,align=right] at (-.1,1.55) {synchronous = FULL};
+  % row 1: NORMAL
+  \node[cell,pd focus fill] at (2.1,3.15) {durable};
+  \node[cell,pd caution fill] at (4.75,3.15) {may lose\\last commits};
+  \node[cell,pd caution fill] at (7.4,3.15) {may lose\\last commits};
+  % row 2: FULL
+  \node[cell,pd focus fill] at (2.1,1.55) {durable};
+  \node[cell,pd focus fill] at (4.75,1.55) {durable};
+  \node[cell,pd focus fill] at (7.4,1.55) {durable};
+  % note
+  \node[pd note,align=center,text width=8.0cm] at (4.75,-.05)
+    {the default trades the power-loss cell for one fsync per commit};
+\end{tikzpicture}
+\caption{Durability by fault class under the two synchronization levels. The
+reference implementation ships \texttt{synchronous=NORMAL}: a process crash
+never loses a returned write, but an OS crash or power loss can roll back the
+most recent commits. \texttt{synchronous=FULL} buys the power-loss cell too,
+at the cost of an fsync on every commit. [internal]}
 \label{fig:swk-durability-faultclass}
 \end{figure}
