@@ -20,6 +20,10 @@ on:
       - 'website-v2/src/styles/tokens.semantic.css'
       - 'website-v2/scripts/check-figure-palette.mjs'
       - 'docs/harbor-research/**'
+      - 'studies/**'
+      - 'whitepaper/corpus.json'
+      - 'website-v2/src/data/harborResearchProgram.json'
+      - 'website-v2/src/data/researchPapers.ts'
       - 'scripts/harbor-research/**'
       - 'scripts/generate-mega-whitepaper.mjs'
       - 'scripts/generate-mega-whitepaper.test.mjs'
@@ -36,6 +40,10 @@ on:
       - 'website-v2/src/styles/tokens.semantic.css'
       - 'website-v2/scripts/check-figure-palette.mjs'
       - 'docs/harbor-research/**'
+      - 'studies/**'
+      - 'whitepaper/corpus.json'
+      - 'website-v2/src/data/harborResearchProgram.json'
+      - 'website-v2/src/data/researchPapers.ts'
       - 'scripts/harbor-research/**'
       - 'scripts/generate-mega-whitepaper.mjs'
       - 'scripts/generate-mega-whitepaper.test.mjs'
@@ -92,6 +100,9 @@ jobs:
 
       - name: Critique ledger Markdown and JSON agree and every Status cell is well-formed
         run: python3 scripts/harbor-research/check_critique_ledger.py
+
+      - name: The research program the website renders is current (index, manifest, ledger, studies, dives, silences, site mirror)
+        run: python3 scripts/harbor-research/check_research_program.py
 
       - name: Every marginalia plate has a licence sidecar in the allow-list
         run: python3 scripts/harbor-research/check_marginalia_sidecars.py && python3 -m unittest discover -s tests/harbor-research -p 'test_*.py'
