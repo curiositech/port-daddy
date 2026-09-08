@@ -107,7 +107,8 @@ impl MissionViewModel {
             "produced" | "review_pending" | "accepted" => ("Reviewing", Tone::Engaged),
             "settled" if self.artifact.is_some() => ("PR ready", Tone::Landed),
             "settled" => ("Finished", Tone::Landed),
-            "failed" | "salvage" | "rejected" => ("Needs attention", Tone::Gated),
+            "failed" | "error" | "killed" | "aborted" | "over_budget" | "timed_out" | "timeout"
+            | "salvage" | "rejected" => ("Needs attention", Tone::Gated),
             "starting" => ("Starting", Tone::Engaged),
             _ if self.intent_id.is_some() => ("Accepted", Tone::Engaged),
             _ => ("Ready", Tone::Resting),
@@ -554,6 +555,16 @@ mod tests {
         assert!(rendered.iter().any(
             |block| matches!(block, Block::TranscriptLine { text, .. } if text == "running tests")
         ));
+    }
+
+    #[test]
+    fn killed_runtime_is_gated_instead_of_looking_accepted_or_working() {
+        let model = MissionViewModel {
+            intent_id: Some("intent-killed".into()),
+            state: "killed".into(),
+            ..MissionViewModel::empty()
+        };
+        assert_eq!(model.stage(), ("Needs attention", Tone::Gated));
     }
 
     #[test]
