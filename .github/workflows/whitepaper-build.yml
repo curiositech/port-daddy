@@ -395,9 +395,43 @@ jobs:
           # from the preamble rather than listed here, so an apparatus file
           # added later stops being mistaken for a drawing without anyone
           # remembering to come back and edit this.
+          #
+          # TRANSITIVELY, which the first version of this was not. Apparatus
+          # \inputs apparatus: pd-pedagogy pulls in pd-cite-shortforms and
+          # pd-discharges, both GENERATED, so regenerating a citation map --
+          # an ordinary consequence of editing a bibliography -- put a table of
+          # \newcommands into the figure gate, where it compiled to "No pages
+          # of output" and failed the build. Reading only the preamble's own
+          # \inputs sees the first level and misses the second. Follow the
+          # edges to a fixed point instead; five rounds is far more than the
+          # two the tree has, and the loop exits as soon as nothing is added.
           apparatus="$(grep -oE '\\input\{figures/[a-z0-9-]+\}' \
             website-v2/public/whitepaper/coordination-papers-mega-volume-preamble.tex \
             | sed 's|.*figures/||; s|}||' | sort -u)"
+          # `if`, not `[ -f ... ] && grep`, and `|| true` on the grep: this step
+          # runs under `set -euo pipefail`, where a test that fails on the last
+          # iteration, or a grep that matches nothing, takes the whole step down
+          # with it. That is the same errexit trap that swallowed a test-count
+          # floor's output earlier today -- worth writing out rather than
+          # rediscovering a third time.
+          for _ in 1 2 3 4 5; do
+            more="$(for f in $apparatus; do
+              for d in website-v2/public/whitepaper/figures whitepaper/figures; do
+                if [ -f "$d/$f.tex" ]; then
+                  grep -oE '\\input\{figures/[a-z0-9-]+\}' "$d/$f.tex" \
+                    | sed 's|.*figures/||; s|}||' || true
+                fi
+              done
+            done | sort -u)"
+            # `|| true` because an all-empty list makes grep exit 1, which
+            # pipefail turns into a failed assignment and errexit into a dead
+            # step -- swallowing the explicit "refusing to guess" error below,
+            # which is the message that actually tells you what went wrong.
+            next="$(printf '%s\n%s\n' "$apparatus" "$more" | grep -v '^$' | sort -u || true)"
+            [ "$next" = "$apparatus" ] && break
+            apparatus="$next"
+          done
+          echo "apparatus (not drawings): $(printf '%s ' $apparatus)"
           if [ -n "$apparatus" ]; then
             changed="$(printf '%s\n' "$changed" | grep -vxF "$apparatus" || true)"
           else
