@@ -28,7 +28,15 @@ from concurrent.futures import ThreadPoolExecutor
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import swiss_prompts_v4 as v4  # noqa: E402
 
-GENERATE = os.path.expanduser("~/.claude/skills/nano-banana-image-gen/scripts/generate.py")
+# The image generator lives outside this repository, in the skill library, so
+# its path cannot be a repo-relative one. It is not hard-coded either: set
+# PD_NANO_BANANA to point at another checkout, and the default is the standard
+# install location rather than one machine's. A reviewer was right that a bare
+# ~/.claude path made this script unrunnable by anyone whose skills live
+# elsewhere.
+GENERATE = os.path.expanduser(
+    os.environ.get("PD_NANO_BANANA",
+                   "~/.claude/skills/nano-banana-image-gen/scripts/generate.py"))
 
 
 def render(job: tuple[str, dict, int, str, str | None]) -> tuple[str, bool, str]:
@@ -37,6 +45,13 @@ def render(job: tuple[str, dict, int, str, str | None]) -> tuple[str, bool, str]
     out = os.path.join(out_dir, f"{stem}.png")
     if os.path.exists(out) and os.path.getsize(out) > 0:
         return stem, True, "already present"
+    if not os.path.isfile(GENERATE):
+        # Say which path was tried and how to change it, rather than failing
+        # later inside the subprocess with a bare "No such file or directory".
+        raise SystemExit(
+            f"image generator not found at {GENERATE}\n"
+            f"Set PD_NANO_BANANA to the path of nano-banana-image-gen's "
+            f"scripts/generate.py in your own skill library.")
     cmd = [sys.executable, GENERATE,
            "--scene", v4.prompt(name),
            "--out", out,
