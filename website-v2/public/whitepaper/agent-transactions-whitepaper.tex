@@ -322,6 +322,7 @@ Table~\ref{tab:related-borrow} compresses the four paragraphs above into what is
 \caption{Every borrowed result is re-used at a smaller scale than its origin assumed: the adversary is co-located rather than networked, the bonded act is coordination rather than validation, and the record is evidence rather than law. Nothing in the four lineages is discarded --- each is narrowed by one assumption, and the narrowing is what makes the composition deployable on one machine.}
 \label{tab:related-borrow}
 \small
+\setlength{\tabcolsep}{4pt}
 \begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.19\textwidth} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
 \toprule
 \textbf{Lineage} & \textbf{What we borrow} & \textbf{What we depart from} & \textbf{Why} \\
@@ -986,6 +987,7 @@ Table~\ref{tab:threat-bonds} gives starting bands. These are not parameters, the
 \centering
 \caption{Threat-class bond sizing. Percentages are bond as a fraction of expected task value. Bands are starting points for calibration, not protocol constants.}
 \label{tab:threat-bonds}
+\setlength{\tabcolsep}{4pt}
 \begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.3cm}>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}p{1.4cm}>{\raggedright\arraybackslash}X@{}}
 \toprule
 \textbf{Threat} & \textbf{Description} & \textbf{Bond \%} & \textbf{Rationale} \\
@@ -1825,7 +1827,7 @@ Joon~Sung Park, Joseph~C. O'Brien, Carrie~J. Cai, Meredith~Ringel Morris, Percy 
 \bibitem{owens2026anchor}
 Erich Owens.
 \newblock The Anchor Protocol: A Mechanically Analyzed Control Plane for Local Agent Swarms.
-\newblock Technical White Paper, Curiositech LLC, May 2026.
+\newblock Curiositech LLC Technical White Paper, May 2026.
 
 \bibitem{lamport2002specifying}
 Leslie Lamport.
@@ -1848,9 +1850,10 @@ Jack~B. Dennis and Earl~C. Van~Horn.
 \newblock \textit{Communications of the ACM}, 9(3):143--155, 1966.
 
 \bibitem{birgisson2014macaroons}
-Arnar Birgisson, Joe~Gibbs Politz, \'{U}lfar Erlingsson, Ankur Taly, Michael Vrable, and Mark Lentczner.
+Arnar Birgisson, Joe Gibbs Politz, Úlfar Erlingsson, Ankur Taly, Michael Vrable, and Mark Lentczner.
 \newblock Macaroons: Cookies with Contextual Caveats for Decentralized Authorization in the Cloud.
 \newblock In \textit{Network and Distributed System Security Symposium (NDSS)}, 2014.
+\newblock \url{https://doi.org/10.14722/ndss.2014.23212}
 
 \bibitem{vickrey1961counterspeculation}
 William Vickrey.
@@ -1890,7 +1893,7 @@ Guy Theraulaz and Eric Bonabeau.
 \bibitem{laurie2013ct}
 Ben Laurie, Adam Langley, and Emilia Kasper.
 \newblock Certificate Transparency.
-\newblock RFC 6962, IETF, 2013.
+\newblock IETF RFC 6962, June 2013.
 
 \bibitem{fan2014cuckoo}
 Bin Fan, David~G. Andersen, Michael Kaminsky, and Michael~D. Mitzenmacher.
@@ -1898,9 +1901,9 @@ Bin Fan, David~G. Andersen, Michael Kaminsky, and Michael~D. Mitzenmacher.
 \newblock In \textit{ACM CoNEXT}, 2014.
 
 \bibitem{demers1987epidemic}
-Alan Demers et al.
+Alan Demers, Dan Greene, Carl Hauser, Wes Irish, John Larson, Scott Shenker, Howard Sturgis, Dan Swinehart, and Doug Terry.
 \newblock Epidemic Algorithms for Replicated Database Maintenance.
-\newblock In \textit{ACM PODC}, 1987.
+\newblock In \textit{ACM Symposium on Principles of Distributed Computing (PODC)}, 1987.
 
 \bibitem{shamir1979share}
 Adi Shamir.
@@ -1933,9 +1936,9 @@ Mark S.\ Miller.
 \newblock Ph.D.\ dissertation, Johns Hopkins University, 2006.
 
 \bibitem{ellison1999spki}
-Carl Ellison, Bill Frantz, Butler Lampson, Ron Rivest, Brian Thomas, and Tatu Ylonen.
+Carl M. Ellison, Bill Frantz, Butler Lampson, Ron Rivest, Brian M. Thomas, and Tatu Ylonen.
 \newblock SPKI Certificate Theory.
-\newblock RFC~2693, 1999.
+\newblock IETF RFC 2693, 1999.
 
 \bibitem{werbach2018blockchain}
 Kevin Werbach.
@@ -2005,7 +2008,7 @@ Merkle-Forest binding (\S\ref{sec:merkle-forest}) & EasyCrypt + fast-check & \Pa
 Auction/static comparison (\S\ref{sec:youle:welfare}) & Monte Carlo, 36 configs $\times$ 2k trials & \Partial\ finite-grid result; not a universal Pareto theorem & \texttt{simulation.mjs} \\
 Sybil A5 (\S\ref{sec:youle:a5}) & Monte Carlo over $K$ Sybils & \Partial\ coverage-bounded ceiling at $B_T$ & \path{simulation-sybil.mjs} \\
 Cartel repeated-game A6 & Monte Carlo + expected-value recurrence & \Partial\ $p_d^\star{\approx}0.0478$ at $\delta{=}0.95$ in supplied model & \path{simulation-cartel.mjs} \\
-Claim-signaling IC (\S\ref{sec:economic}) & TLA+ (TLC) + Z3 SMT & \Closed\ unique root $\delta^\star{\approx}0.3425$; IC invariant fails at $\delta = 0.30$, holds at $\delta = 0.35$ & \path{claim_signaling.tla}, \path{delta-threshold.z3} \\
+Claim-signaling IC (\S\ref{sec:economic}) & TLA+ (TLC) + Z3 SMT & \Closed\ unique root $\delta^\star{\approx}0.3425$; IC invariant fails at $\delta = 0.30$, holds at $\delta = 0.35$ & \path{claim_signaling.tla},\newline{}\path{delta-}\allowbreak\path{threshold.z3} \\
 Threat-band defensibility (\S\ref{sec:pricing}) & Monte Carlo, $7{\times}3$ grid & \Closed\ matched bands absorb target class within $1.10\times$ upper bound & \texttt{threat-bands.mjs} \\
 \midrule
 Passkey pairing runtime & --- & \SpecOnly\ model exists; no runtime & \texttt{passkey-pair.pv} \\

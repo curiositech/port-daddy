@@ -1110,15 +1110,35 @@ function commonDirectoryPrefix(paths) {
 // line was the actual remaining cause of that overfull box (one basename,
 // after its shared prefix was still counted 18 times over, no longer fit
 // even the wider column this row's estimate assumed).
+// Above this many stacked lines, the row itself becomes the tallest thing on
+// its page -- the one entry that hits this (19 R-script files) made a row
+// tall enough that xltabular's own row-height estimate for it landed 2.96pt
+// short of an actual page break, an Overfull \vbox from the output routine
+// with no paragraph and no line of type to point at (row 1.10). A row this
+// tall was always going to be a bad page-break neighbour eventually; the
+// fix is not the break, it is the row -- one size smaller for its stacked
+// filenames shortens it enough that no page-break estimate this close to
+// the edge is left to get wrong.
+const MANY_PATHS_THRESHOLD = 8;
+
 function texPaths(paths) {
   if (paths.length < 2) return texPathBreakable(paths[0]);
   const prefix = commonDirectoryPrefix(paths);
-  if (!prefix) return paths.map((path) => texPathBreakable(path)).join('\\newline{}');
+  const small = paths.length > MANY_PATHS_THRESHOLD;
+  const open = small ? '{\\footnotesize ' : '';
+  const close = small ? '}' : '';
+  if (!prefix) {
+    return open + paths.map((path) => texPathBreakable(path)).join('\\newline{}') + close;
+  }
   const suffixes = paths.map((path) => path.slice(prefix.length));
-  return [
-    `${texPathBreakable(prefix)}\\ \\textit{(${paths.length} files)}`,
-    ...suffixes.map((suffix) => texPathBreakable(suffix)),
-  ].join('\\newline{}');
+  return (
+    open
+    + [
+      `${texPathBreakable(prefix)}\\ \\textit{(${paths.length} files)}`,
+      ...suffixes.map((suffix) => texPathBreakable(suffix)),
+    ].join('\\newline{}')
+    + close
+  );
 }
 
 // Escaped text (NOT \path{}'s verbatim scan) with a defensive \allowbreak
@@ -1130,21 +1150,56 @@ function texPaths(paths) {
 // texPathBreakable never sees it — its escaped underscores, with no break
 // point of their own, were the actual (if modest) overfull \hbox this
 // emitter hit and fixed.
+// A break after every hyphen, underscore, or slash is not fine-grained
+// enough on its own: the mechanized-claims table's Claim column is
+// 0.15\textwidth (about 49pt), and a single unhyphenated segment between
+// two of those breaks -- "capability", "attenuation", "verification" --
+// can be wider than that on its own, so the segment itself overflows even
+// though the identifier as a whole has plenty of break points. This was a
+// real Overfull \hbox (up to 15.7pt) at several rows, not a hypothetical
+// one. chunkLongRuns re-splits any run of 6+ letters that survived the
+// hyphen/underscore/slash pass, so no unbroken run is ever wider than the
+// narrowest column this text is ever set in; \allowbreak is inert where the
+// line already fits, so this changes nothing for text that was never the
+// problem.
+//
+// It has to run on texText's OUTPUT, not its input: texText itself injects
+// multi-letter control words (\textbackslash{}, \textasciitilde{}), and
+// chunking the raw source first would leave those words intact only for
+// texText to inject NEW ones afterward, unprotected. And it has to leave
+// those control words themselves alone -- splitting \split(/(\\[A-Za-z]+)/)
+// keeps each one as one atomic token at an odd index, so only the plain-text
+// pieces between them ever reach the chunker. (The first cut of this ran
+// the chunker AFTER the hyphen/underscore pass instead, on text that by then
+// already contained the literal word "allowbreak" from that pass's own
+// \allowbreak commands -- which the chunker then matched into, corrupting
+// its own output. Order this way, that word never exists yet when the
+// chunker runs.)
+const WORD_CHUNK = /([A-Za-z]{6})(?=[A-Za-z])/g;
+function chunkLongRuns(text) {
+  return text
+    .split(/(\\[A-Za-z]+)/)
+    .map((piece, i) => (i % 2 === 1 ? piece : piece.replace(WORD_CHUNK, '$1\\allowbreak ')))
+    .join('');
+}
+
 function texEscapeBreakable(text) {
-  return texText(text).replace(/(-|\\_|\/)/g, '$1\\allowbreak ');
+  return chunkLongRuns(texText(text)).replace(/(-|\\_|\/)/g, '$1\\allowbreak ');
 }
 
 function texCode(text) {
   return `\\texttt{${texEscapeBreakable(text)}}`;
 }
 
-// Status is one word ("current"/"partial"/"historical") in \textsc, which
-// rendered slightly wider than a plain 0.08\textwidth column at this point
-// size — 0.10 clears it. Claim and CI give up the difference; the X
-// (evidence-policy) column is unaffected since these four still sum to 0.58.
+// Status is one word ("current"/"partial"/"historical") in \textsc. 0.10
+// cleared "current" and "partial" but not "historical" -- ten small-caps
+// letters with no space to break at, hyphenated by LaTeX's own last resort
+// and still overfull by 12.8pt even on the hyphenated remainder: the column
+// was too narrow for it outright, not just tight. 0.13 clears all three; the
+// X (evidence-policy) column gives up the difference, which it can afford.
 const TABLE_COLUMN_SPEC = '@{}>{\\raggedright\\arraybackslash}p{0.15\\textwidth} '
   + '>{\\raggedright\\arraybackslash}p{0.21\\textwidth} >{\\raggedright\\arraybackslash}p{0.12\\textwidth} '
-  + '>{\\raggedright\\arraybackslash}p{0.10\\textwidth} >{\\raggedright\\arraybackslash}X@{}';
+  + '>{\\raggedright\\arraybackslash}p{0.13\\textwidth} >{\\raggedright\\arraybackslash}X@{}';
 const TABLE_HEADER_ROW = '\\textbf{Claim} & \\textbf{Artifact} & \\textbf{CI} & \\textbf{Status} & \\textbf{Evidence policy} \\\\';
 
 function renderRow(row) {

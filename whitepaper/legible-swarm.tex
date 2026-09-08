@@ -269,7 +269,11 @@ Table~\ref{tab:ls-stack-map} shows how they interlock.}
 \caption{The system as four strata rather than four products. A mark is a capability the layer provides to the layer above; reading down a column shows where each capability is born. This chapter owns the operator surface (L2) and uses the directory substrate of L1; it assumes ordered kernel state below and supplies accountable identity, reasons and outcomes to reputation and exchange above. [internal]}
 \label{tab:ls-stack-map}
 \footnotesize
-\renewcommand{\arraystretch}{1.15}\setlength{\tabcolsep}{3.5pt}
+% 2pt, not the table's earlier 3.5pt: the seven rotated capability headers
+% (60 degrees each) plus nine column gaps at 3.5pt still overflowed the
+% measure by 14.7pt even after the Stratum column below became tabularx's
+% X -- the intercolumn padding, not the prose column, was the rest of it.
+\renewcommand{\arraystretch}{1.15}\setlength{\tabcolsep}{1.6pt}
 % seven capability columns at the width of a mark; their heads stand at 60 degrees
 \newcommand{\lscaphead}[1]{\rotatebox[origin=l]{60}{\textbf{#1}}}
 \begin{tabularx}{\linewidth}{@{}l >{\raggedright\arraybackslash}X l *{7}{c}@{}}
@@ -584,7 +588,7 @@ that does not exist, but the artifact the mechanism would have to produce.
 \textbf{Suppressed item} & \textbf{Regret} & \textbf{Why it was not shown} & \textbf{Re-surface trigger} \\
 \midrule
 \texttt{agent-7} escalation: ``migration ordering unclear'' & $0.31$ & below the distress threshold $(0.45)$ for this action class & threshold drops, or the item is restated \\
-\texttt{agent-3} note on \path{auth/session.ts} & $0.12$ & aged out; recency weight decayed past the floor & any new claim on the same file \\
+\texttt{agent-3} note on \path{auth/}\allowbreak\path{session.ts} & $0.12$ & aged out; recency weight decayed past the floor & any new claim on the same file \\
 Third retry of the same failing test & $0.58$ & de-duplicated into the first occurrence & a fourth retry, or a different failure mode \\
 \bottomrule
 \end{tabularx}
@@ -1266,6 +1270,9 @@ through it at $C_{\text{fa}}=1$ and $c_{\mathrm{att}}=0.2$ attention-seconds.
 \centering
 \small
 \renewcommand{\arraystretch}{1.25}
+% Six columns, five gaps: the default 6pt \tabcolsep alone was 60pt of the
+% measure, and the table came in 5.6pt over it.
+\setlength{\tabcolsep}{4pt}
 \begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}X >{\centering\arraybackslash}p{0.05\textwidth} >{\centering\arraybackslash}p{0.09\textwidth} >{\centering\arraybackslash}p{0.11\textwidth} >{\centering\arraybackslash}p{0.11\textwidth} >{\raggedright\arraybackslash}p{0.12\textwidth}@{}}
 \toprule
 \textbf{Action class} & $\pi$ & $C_{\text{miss}}$ & \textbf{Never zoom} & \textbf{Always zoom} & \textbf{Verdict} \\
@@ -1428,7 +1435,14 @@ settled. The binder's names for the two kinds of agent are worth keeping:
 continuous-integration state, the memory, the claims, and the transcripts in
 view.
 
-\begin{description}[leftmargin=2.2cm,style=nextline,itemsep=3pt]
+% Recut from leftmargin=2.2cm,style=nextline (a hanging indent a fifth of
+% the measure, set for the book's earlier A4 trim, plus a label-on-its-own-
+% line style that left "weird indentation" on pp. 161-162 in the author's
+% own screenshot) to a run-in head: a bold term on the SAME line as its
+% text, with a small hanging indent in em -- the unit the correct sites in
+% single-writer-kernel.tex already use -- not the 2.2cm this list was set to
+% under a wider column.
+\begin{description}[leftmargin=1.4em,itemsep=3pt]
   \item[Solo with staff] One person writes. Longshoremen observe and suggest;
   they hold no write authority. The person must see the staff's suggestions
   as suggestions, and the legibility cost is the smallest of the five:
@@ -1898,7 +1912,14 @@ ranked-retrieval scorer (BM25, character-bigram TF--IDF, or learned embeddings).
 \label{tab:ls-pushpull}
 \small
 \renewcommand{\arraystretch}{1.15}
-\begin{tabularx}{\linewidth}{@{}l l c c >{\raggedright\arraybackslash}X@{}}
+% Table 4.8 ("What it would take to fake"): A and B were plain c columns,
+% which never wrap -- fine for every row but the verdict row, whose "small
+% verified weight" and "ranks first" are prose, not a glyph, and so sized
+% the WHOLE column to that one unwrapped line, pushing the table over the
+% measure. Narrow, fixed p{} columns keep the glyph rows exactly as they
+% were and let the verdict row's prose wrap inside the same width instead of
+% forcing it.
+\begin{tabularx}{\linewidth}{@{}l l >{\centering\arraybackslash}p{1.7cm} >{\centering\arraybackslash}p{1.7cm} >{\raggedright\arraybackslash}X@{}}
 \toprule
 \textbf{Evidence} & \textbf{Kind} & \textbf{A} & \textbf{B} & \textbf{What it would take to fake} \\
 \midrule
@@ -3160,7 +3181,8 @@ the ships do.}
 
 \bibitem{hobbes1651}
 Thomas Hobbes.
-\newblock \textit{Leviathan, or The Matter, Forme and Power of a Common-Wealth Ecclesiasticall and Civill}. 1651.
+\newblock \textit{Leviathan, or The Matter, Forme and Power of a Common-Wealth Ecclesiasticall and Civill}.
+\newblock Andrew Crooke, London, 1651.
 
 \bibitem{sep-hobbes}
 \textit{Hobbes's Moral and Political Philosophy}. Stanford Encyclopedia of Philosophy.
@@ -3185,9 +3207,9 @@ Gordon Dai, Weijia Zhang, Jinhan Li, Siqi Yang, Chidera Onochie Ibe, Srihas Rao,
 \newblock arXiv:2406.14373, 2024. \url{https://arxiv.org/abs/2406.14373}
 
 \bibitem{park2023}
-Joon Sung Park, Joseph C.\ O'Brien, Carrie J.\ Cai, Meredith Ringel Morris, Percy Liang, and Michael S.\ Bernstein.
+Joon Sung Park, Joseph C. O'Brien, Carrie J. Cai, Meredith Ringel Morris, Percy Liang, and Michael S. Bernstein.
 \newblock Generative Agents: Interactive Simulacra of Human Behavior.
-\newblock In \textit{UIST}, 2023. arXiv:2304.03442.
+\newblock In \textit{ACM Symposium on User Interface Software and Technology (UIST)}, 2023.
 
 \bibitem{hume1748}
 David Hume.
@@ -3211,8 +3233,8 @@ Friedrich A.\ Hayek.
 
 \bibitem{raft2014}
 Diego Ongaro and John Ousterhout.
-\newblock In Search of an Understandable Consensus Algorithm (Raft).
-\newblock In \textit{USENIX ATC}, 2014.
+\newblock In Search of an Understandable Consensus Algorithm.
+\newblock In \textit{USENIX Annual Technical Conference (ATC)}, pages 305--320, 2014.
 
 \bibitem{schneider2000}
 Fred B.\ Schneider.
@@ -3324,8 +3346,8 @@ Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan N
 
 \bibitem{grasse1959}
 Pierre-Paul Grass\'e.
-\newblock La reconstruction du nid et les coordinations interindividuelles\ldots La th\'eorie de la stigmergie.
-\newblock \textit{Insectes Sociaux}, 6:41--80, 1959.
+\newblock La reconstruction du nid et les coordinations interindividuelles\ldots: la th\'eorie de la stigmergie.
+\newblock \textit{Insectes Sociaux}, 6(1):41--80, 1959.
 
 \bibitem{fipa00023}
 Foundation for Intelligent Physical Agents.
@@ -3338,9 +3360,9 @@ V.\ Ren et al.
 \newblock arXiv:2505.10609, 2025.
 
 \bibitem{kamvar2003}
-Sepandar D.\ Kamvar, Mario T.\ Schlosser, and Hector Garcia-Molina.
+Sepandar D. Kamvar, Mario T. Schlosser, and Hector Garcia-Molina.
 \newblock The EigenTrust Algorithm for Reputation Management in P2P Networks.
-\newblock In \textit{WWW}, 2003.
+\newblock In \textit{International World Wide Web Conference (WWW)}, 2003.
 
 \bibitem{strathern1997}
 Marilyn Strathern.
@@ -3468,9 +3490,10 @@ Abraham Wald.
 \newblock Wiley, 1947.
 
 \bibitem{macaroons2014}
-Arnar Birgisson, Joe Gibbs Politz, \'Ulfar Erlingsson, Ankur Taly, Michael Vrable, and Mark Lentczner.
+Arnar Birgisson, Joe Gibbs Politz, Úlfar Erlingsson, Ankur Taly, Michael Vrable, and Mark Lentczner.
 \newblock Macaroons: Cookies with Contextual Caveats for Decentralized Authorization in the Cloud.
-\newblock In \textit{NDSS}, 2014.
+\newblock In \textit{Network and Distributed System Security Symposium (NDSS)}, 2014.
+\newblock \url{https://doi.org/10.14722/ndss.2014.23212}
 
 \end{thebibliography}
 
@@ -3504,7 +3527,7 @@ target whose proof is not carried in this paper. The two keys are orthogonal on
 purpose --- a \Verified\ result about a \Vision\ mechanism is a perfectly ordinary
 state of affairs, and conflating them is the failure this appendix exists to prevent.
 
-{\footnotesize\renewcommand{\arraystretch}{1.05}
+{\footnotesize\renewcommand{\arraystretch}{1.05}\setlength{\tabcolsep}{4pt}
 \begin{xltabular}{\textwidth}{@{}p{0.04\textwidth} >{\raggedright\arraybackslash}X p{0.15\textwidth} >{\raggedright\arraybackslash}p{0.25\textwidth}@{}}
 \caption{Implementation and status of every mechanism named in this paper.
 \textbf{L} = legibility half, \textbf{A} = authority half, \textbf{O} =

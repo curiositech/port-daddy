@@ -440,7 +440,7 @@ $\neg\;\text{attacker}(\mathit{master\_key})$ & v1 (HS256) & \texttt{v1\_refined
 $\text{Accepted} \implies \text{Issued}$ & v1 (HS256) & \texttt{v1\_refined.pv} & \textbf{TRUE} \\
 $\neg\;\text{attacker}(\mathit{harbor\_sk})$ & v2 (Ed25519) & \texttt{v2\_asymmetric.pv} & \textbf{TRUE} \\
 $\text{Accepted} \implies \text{Issued}$ & v2 (Ed25519) & \texttt{v2\_asymmetric.pv} & \textbf{TRUE} \\
-\shortstack[l]{$\text{Accepted}(b) \implies \text{IssuedRoot}(a)$\\$\land\ \text{Delegated}(a,b)$} & v3 (Delegation) & \texttt{v3\_delegation.pv} & \textbf{TRUE} \\
+$\text{Accepted}(b) \implies \text{IssuedRoot}(a)$\newline $\land\ \text{Delegated}(a,b)$ & v3 (Delegation) & \texttt{v3\_delegation.pv} & \textbf{TRUE} \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -983,7 +983,7 @@ Mark S. Miller.
 
 \bibitem{ap2mandates2026}
 Agent Payments Protocol (AP2): Mandates.
-\newblock Verifiable-credential authorization chain: SD-JWT+kb, JWS detached content, JCS canonicalization, 2026.
+\newblock Verifiable-credential authorization chain: SD-JWT+kb checkout mandate, JWS detached-content merchant authorization, JCS canonicalization, 2026.
 \newblock \texttt{https://ap2-protocol.org}.
 
 \end{thebibliography}
