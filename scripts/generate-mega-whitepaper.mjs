@@ -498,20 +498,98 @@ function normalizedReference(body) {
     .replace(/\\[a-zA-Z]+\*?(?:\[[^\]]*\])?\{([^{}]*)\}/g, '$1')
     .replace(/[{}~]/g, ' ')
     .replace(/\\[&%_$#]/g, ' ')
+    // Bare control words (\newblock above all) carry no content. Stripping the
+    // backslash alone left "newblock" behind as a word, so an entry broken over
+    // two \newblocks sorted and fingerprinted differently from the same entry
+    // broken over one -- which is where several of the duplicate rows came from.
+    .replace(/\\[a-zA-Z]+\*?/g, ' ')
     .replace(/[^a-zA-Z0-9./:-]+/g, ' ')
     .trim()
     .toLowerCase();
 }
 
+// A \bibitem body is "authors. \newblock \textit{Title}. Publisher, year." --
+// except where a work has no author, and then it opens with the title. Split
+// it there: everything before the first \newblock (or, failing that, before
+// the first italicised or quoted run) is the author field, and the rest is
+// the work.
+function referenceParts(body) {
+  const flat = body
+    .replace(/(^|\n)\s*%.*(?=\n|$)/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const cut = flat.search(/\\newblock|\\(?:textit|emph|textbf)\{|``|“/);
+  const authorField = cut > 0 ? flat.slice(0, cut) : '';
+  const work = cut > 0 ? flat.slice(cut) : flat;
+  return { authorField, work };
+}
+
+// Surname of the first author, which is what a reader looks a reference up by
+// and therefore what the list has to sort on. "E. Owens", "Erich Owens" and
+// "Owens, Erich" all reduce to "owens"; "F. Lin and W. M. Wonham" and "Feng
+// Lin and W. Murray Wonham" both reduce to "lin", which is also what collapses
+// them into one entry.
+function firstAuthorSurname(authorField) {
+  const plain = authorField
+    .replace(/\\[a-zA-Z]+\*?(?:\[[^\]]*\])?\{([^{}]*)\}/g, '$1')
+    .replace(/\\([&%_$#])/g, '$1')          // \& is an ampersand, not a macro
+    .replace(/\\[a-zA-Z]+\\?\s?/g, ' ')     // \ and other spacing macros
+    .replace(/[{}~]/g, ' ')
+    .trim();
+  if (!plain) return '';
+  // An author list separates names with commas as well as "and", so the first
+  // author ends at whichever comes first. The exception is the surname-first
+  // form: in "Owens, Erich" the comma is inside one name, and the giveaway is
+  // that only one word precedes it -- "Rico Sennrich, Barry Haddow" has two.
+  const upToAnd = plain.split(/\s+(?:and|&)\s+/i)[0];
+  const beforeComma = upToAnd.split(',')[0];
+  const wordsBeforeComma = beforeComma.match(/[A-Za-z][A-Za-z'’-]+/g) ?? [];
+  const surnameFirst = upToAnd.includes(',') && wordsBeforeComma.length === 1;
+  const firstAuthor = surnameFirst ? beforeComma : (upToAnd.includes(',') ? beforeComma : upToAnd);
+  const words = firstAuthor.match(/[A-Za-z][A-Za-z'’-]+/g) ?? [];
+  // Drop trailing corporate/edition noise but keep real one-word bodies
+  // ("Foundation for Intelligent Physical Agents" sorts under "foundation").
+  const surname = words.length > 1 ? words[words.length - 1] : words[0];
+  return (surname ?? '').toLowerCase();
+}
+
+function referenceYear(body) {
+  const years = normalizedReference(body).match(/\b(1[5-9]\d{2}|20\d{2})\b/g);
+  return years ? years[years.length - 1] : '';
+}
+
+// Two chapters citing the same work in different house styles used to produce
+// two entries, because the fingerprint was the whole rendered string: hence
+// the Lin/Wonham pair, the two Ostroms and the two Anchor Protocol rows. The
+// identity of a reference is its author, its year and its title -- not how a
+// given chapter chose to abbreviate the first name or order the publisher.
 function referenceFingerprint(body) {
   const normalized = normalizedReference(body);
   const doi = normalized.match(/10\.\d{4,9}\/[-._;()/:a-z0-9]+/i)?.[0];
-  return doi ? `doi:${doi.replace(/[.,;]+$/, '')}` : `text:${normalized}`;
+  if (doi) return `doi:${doi.replace(/[.,;]+$/, '')}`;
+  const { authorField, work } = referenceParts(body);
+  const surname = firstAuthorSurname(authorField);
+  const title = normalizedReference(work)
+    .replace(/\bhttps?:[^\s]*/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 90);
+  if (!surname && !title) return `text:${normalized}`;
+  return `awt:${surname}|${referenceYear(body)}|${title}`;
+}
+
+// Author-year-title order, the way a reader expects to find a name.
+function referenceSortKey(entry) {
+  const { authorField, work } = referenceParts(entry.body);
+  const surname = firstAuthorSurname(authorField);
+  const title = normalizedReference(work);
+  // An anonymous work files under its title, interleaved with the names.
+  return [surname || title, referenceYear(entry.body), title].join(' ');
 }
 
 function compareNormalizedReferences(a, b) {
-  const left = normalizedReference(a.body);
-  const right = normalizedReference(b.body);
+  const left = referenceSortKey(a);
+  const right = referenceSortKey(b);
   return left < right ? -1 : left > right ? 1 : 0;
 }
 
@@ -1120,6 +1198,34 @@ function generate({ textbook = loadTextbook(), out = resolve(repoRoot, defaultOu
   }
 
   canonicalReferences.sort(compareNormalizedReferences);
+
+  // Exact-text dedup cannot collapse the same work cited in two house styles
+  // ("Sagas." with and without a page range; Insectes Sociaux 6(1) and 6), and
+  // guessing harder would eventually merge two genuinely different papers. So
+  // the near-duplicates are reported rather than silently printed twice: same
+  // first-author surname, same year, and a title that is a prefix of the other.
+  // The real cure is one record per work in a .bib -- see LIBRARY-SYSTEM.md.
+  const nearDuplicates = [];
+  for (let i = 1; i < canonicalReferences.length; i += 1) {
+    const previous = canonicalReferences[i - 1];
+    const current = canonicalReferences[i];
+    const surname = firstAuthorSurname(referenceParts(current.body).authorField);
+    if (!surname) continue;
+    if (surname !== firstAuthorSurname(referenceParts(previous.body).authorField)) continue;
+    if (referenceYear(current.body) !== referenceYear(previous.body)) continue;
+    const titles = [previous, current]
+      .map((ref) => normalizedReference(referenceParts(ref.body).work).replace(/[^a-z0-9 ]/g, ''));
+    const [shorter, longer] = titles.sort((x, y) => x.length - y.length);
+    if (shorter.length >= 12 && longer.startsWith(shorter.slice(0, 24))) {
+      nearDuplicates.push(`${previous.key} (${previous.source}) / ${current.key} (${current.source}): ${shorter.slice(0, 60)}`);
+    }
+  }
+  if (nearDuplicates.length) {
+    console.warn(`\n${nearDuplicates.length} reference(s) look like the same work cited two ways:`);
+    for (const line of nearDuplicates) console.warn(`  ${line}`);
+    console.warn('Give each work one wording in every chapter that cites it.\n');
+  }
+
   const bibliography = [
     '\\begin{thebibliography}{999}',
     ...canonicalReferences.flatMap((ref) => [
