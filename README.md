@@ -20,6 +20,14 @@
 
 ## Overview
 
+**Repository ship controls:** the Relay account surface provides **Ship controls**
+for repository admins, with per-ship On/Off permissions and a repository-wide Off
+control. Decisions are saved immediately and checked before cloud ship work and
+queued retries. Turning On does not launch an agent; Off is not an in-flight kill.
+The [control contract and deployment order](docs/operations/repo-ship-controls.md)
+describe the cloud-only scope and required schema-first release. A source merge
+does not by itself update `relay.portdaddy.dev`.
+
 **Port Daddy** is a daemon that gives every AI agent its own port, coordinates file access, sandboxes what agents spawn, meters what they spend, and recovers their work when they crash. One install, zero config.
 
 While individual agents are brilliant, **coordination** is the bottleneck. Port Daddy provides the missing primitives: atomic port assignment, sessions with append-only notes, advisory file/symbol claims, distributed locks, pub/sub messaging, budget-bonded spawning, and automatic salvage.

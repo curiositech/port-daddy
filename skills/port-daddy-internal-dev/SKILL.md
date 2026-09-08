@@ -625,6 +625,16 @@ formula update protocol).
 
 ## Fleet Model Tiers (never choose from memory)
 
+Repository-wide cloud ship permissions are spending authority, not personal
+preferences. Preserve admin Off across account/settings removal; require a fresh
+repository-admin witness and revisioned writes. Re-read the shared D1 control
+before ship/checkpoint admission and optional XO work; unknown storage stops
+execution, and skipped reviews are not passing reviews. Keep the page's scope
+explicit: this does not control local agents or the separate Steward service.
+Follow `docs/operations/repo-ship-controls.md` for schema-first release ordering.
+Browser form proof must exercise real Origin and redirect behavior, not only
+synthetic Request objects.
+
 Every Workers AI model decision — a ship's tier, a purser step model, a new
 admission — is made against `references/cloudflare-model-roster.md` (the
 verified catalog + pricing snapshot, the admission contract, and the standing
