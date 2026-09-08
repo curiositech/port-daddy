@@ -331,8 +331,9 @@ export function syncAgentSkills(options: SyncAgentSkillsOptions): SyncAgentSkill
  * The audit below walks skills × targets, which by construction can only ever
  * see links the catalog still expects. A skill deleted from `skills/` leaves
  * its fan-out behind in every runtime directory, and nothing in this file was
- * looking there -- ten `windags-*` links outlived their skills that way,
- * dangling in ~/.claude/skills, invisible to a sync that reported zero drift.
+ * looking there -- ten links from one retired skill family outlived the
+ * skills themselves that way, dangling in ~/.claude/skills, invisible to a
+ * sync that reported zero drift.
  *
  * `orphaned` is the reapable half: the link points INTO a catalog source root
  * (so this tool made it) and resolves to nothing (so its skill is gone).

@@ -68,8 +68,9 @@ through the one that already exists.**
 8,897 is not a number anyone fixes by hand, and a sweep that lands in one PR is
 a sweep nobody can review. The mechanism is a **ratchet**:
 
-1. Land `scripts/check-design-drift.mjs` wrapping the audit, with a committed
-   baseline file recording the current count per directory.
+1. Land `scripts/check-design-drift.mjs` (proposed — it does not exist yet)
+   wrapping the audit, with a committed baseline file recording the current
+   count per directory.
 2. CI fails if any count **rises**. It does not fail on the existing debt.
 3. Every wave lowers the baseline and commits the new number.
 

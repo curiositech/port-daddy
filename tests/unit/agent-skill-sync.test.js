@@ -246,9 +246,10 @@ describe('cross-tool agent skill sync', () => {
 
   test('a deleted skill leaves a link behind, and the sync reaps it', () => {
     // The audit walks skills x targets, so it can only ever see links the
-    // catalog still expects. Ten windags-* links outlived their skills in
-    // ~/.claude/skills exactly this way: dangling, invisible, reported as no
-    // drift at all. This is that shape, in a sandbox.
+    // catalog still expects. Ten links from one retired skill family
+    // outlived their skills in ~/.claude/skills exactly this way: dangling,
+    // invisible, reported as no drift at all. This is that shape, in a
+    // sandbox.
     const source = join(tmpRoot, 'skills');
     writeSkill(source, 'kept-skill', 'kept-skill');
     const deleted = writeSkill(source, 'deleted-skill', 'deleted-skill');
