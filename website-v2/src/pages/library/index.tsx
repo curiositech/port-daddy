@@ -404,14 +404,17 @@ export default function LibraryPage() {
             <figure className="lg:col-span-5">
               <img
                 src="/whitepaper/plates/frontispiece.jpg"
-                alt="The book’s frontispiece etching."
+                alt="The book’s frontispiece: an engraved colossus standing waist-deep in a harbour, its torso an open clockwork movement worked over with circuit tracery and picked out in gold, a blank banner above it and ten small framed vignettes below."
                 className="block w-full border-2 border-[var(--border-strong)] object-cover"
                 loading="lazy"
               />
               <figcaption className="mt-[var(--space-2)]">
                 <PanelBody size="compact" className="max-w-none">
-                  The frontispiece. The book&rsquo;s plates were painted in one register: one
-                  colossal, unearthly presence over one small, everyday thing.
+                  The frontispiece, engraved after Hobbes: a colossus in a harbour, and ten
+                  small compartments of the ordinary things it is made of. Its body used to
+                  be a grid of clerks at desks &mdash; it is a movement now, gears and circuit
+                  tracery with gold in the trim, which is closer to what the book actually
+                  argues.
                 </PanelBody>
               </figcaption>
             </figure>
