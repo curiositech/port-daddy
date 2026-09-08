@@ -5,11 +5,10 @@
  * WHY THIS IS NOT A SECOND ROADMAP, stated first because the distinction is
  * the design and it is the one this repository keeps losing:
  *
- *   The REGISTRY says what work EXISTS. That is `roadmap_items` in the daemon,
- *   projected append-only to `docs/roadmap/roadmap.snapshot.json`. This Worker
- *   never writes it. It reads it — through the signed-in operator's own GitHub
- *   token, from the repo, at the default branch — and caches what it read with
- *   the ref and the moment stamped on it.
+ *   The REGISTRY says what work EXISTS. That is `roadmap_items` in the daemon.
+ *   This Worker never writes it. It READS a replica of it: `roadmap_mirror_*`,
+ *   which the daemon pushes here itself with `pd roadmap push`, carrying the
+ *   daemon's own clock so a reader can always tell how old the list is.
  *
  *   The REGISTER says who HOLDS it. That is `work_claims` and `work_notes`,
  *   and nothing else. A row here is a claim over a slug; it is not the slug's
@@ -18,10 +17,12 @@
  *   becoming a fourth constitution.
  *
  * The practical payoff: with the daemon halted, the registry cannot be written
- * and the register still works. Agents coordinate over work already recorded,
- * and a slug an agent proposes that has no row is stored as `proposed` —
- * visibly second-class, and the same queue `docs/roadmap/unregistered.json`
- * counts in the tree, kept here so the count survives the halt.
+ * and the register still works, because what it reads is a replica already
+ * sitting in D1 rather than a live call to anything. Agents coordinate over
+ * work already recorded, and a slug an agent proposes that has no row is stored
+ * as `proposed` — visibly second-class, and the same queue
+ * `docs/roadmap/unregistered.json` counts in the tree, kept here so the count
+ * survives the halt.
  *
  * HONESTY (repo law: no Potemkin). The ENFORCEMENT point is cooperative. This
  * Worker refuses a second claim on a held slug and says who holds it; it
@@ -31,21 +32,19 @@
  * implying the register reaches into anybody's checkout.
  *
  * Auth: the page is session + GitHub repo ACL (you may read a board only for a
- * repository your GitHub identity can read). The JSON paths additionally
- * accept a `pdu_` device bearer, which is how an agent authenticates without
- * carrying a GitHub credential of its own — and why the registry projection is
- * cached rather than fetched per request.
+ * repository your GitHub identity can read). The JSON paths additionally accept
+ * a `pdu_` device bearer, which is how an agent authenticates without carrying a
+ * GitHub credential of its own — and the reason this Worker reads a replica
+ * rather than the repository: an agent holding only a device token has no
+ * GitHub credential to read a file with, so a registry that needed one was a
+ * registry agents could not see.
  */
 
 import type { Env } from './types.js';
 import type { UserRow } from './db.js';
 import { resolveSession, userCanReadRepo } from './auth-github.js';
 import { resolveUserFromRequest } from './device-flow.js';
-import { fetchRepoFile } from './github-app.js';
 import { HEAD, TOKENS } from './account-page.js';
-
-/** Where the committed registry projection lives in a repository. */
-export const SNAPSHOT_PATH = 'docs/roadmap/roadmap.snapshot.json';
 
 /**
  * How long a claim may go without a heartbeat before the next agent to ask is
@@ -59,9 +58,9 @@ export const CLAIM_STALE_AFTER_SECONDS = 45 * 60;
 /**
  * How old the registry projection may be before the board says so out loud.
  *
- * Six hours, not forty-five minutes: unlike a claim, the snapshot has no
- * heartbeat and no agent behind it, and it goes out of date only when somebody
- * merges to main. A shorter clock would cry stale on a quiet afternoon and
+ * Six hours, not forty-five minutes: unlike a claim, the mirrored roadmap has
+ * no heartbeat and no agent behind it, and it goes out of date only when
+ * somebody records work. A shorter clock would cry stale on a quiet afternoon and
  * teach every reader to ignore the word, which is the failure that matters
  * here — a warning nobody reads is worse than no warning, because it looks
  * like one.
@@ -102,30 +101,43 @@ export interface RegistryRow {
   summary: string;
 }
 
-/** What the cache knows about its own freshness. Never hidden from a reader. */
-export interface CacheMeta {
-  ref: string;
-  path: string;
-  read_at: number;
+/**
+ * What the registry replica knows about its own freshness. Never hidden.
+ *
+ * Both clocks, because they answer different questions and one of them used to
+ * be the only one available. `generated_at` is the DAEMON's clock in unix ms —
+ * when this roadmap was true. `received_at` is the RELAY's, in unix seconds —
+ * when it arrived here. The first is the one staleness is measured against; a
+ * push that arrived a minute ago carrying a two-week-old export is two weeks
+ * stale, and reporting the arrival time would call it fresh.
+ */
+export interface RegistryMeta {
+  harbor: string;
+  /** Daemon clock, unix ms. */
+  generated_at: number;
+  /** Relay clock, unix seconds. */
+  received_at: number;
   item_count: number;
-  /** Which account's GitHub token produced this read. '' on pre-existing rows. */
-  refreshed_by?: string;
+  /** Which daemon pushed, display only. Null when the push did not say. */
+  daemon_label: string | null;
 }
 
 /**
- * The registry projection with its own age attached, which is the only form
- * any caller should ever see it in.
+ * The registry replica with its own age attached, which is the only form any
+ * caller should ever see it in.
  *
- * `read_at` was returned from the first version and nothing looked at it, so a
- * week-old item list rendered exactly like a fresh one. An age nobody reads is
- * not provenance; it is a number in a response. So the age is computed here,
- * once, and every surface — the JSON, the page, an agent's decision about
+ * A raw timestamp was returned from the first version and nothing looked at it,
+ * so a week-old item list rendered exactly like a fresh one. An age nobody
+ * reads is not provenance; it is a number in a response. So the age is computed
+ * here, once, and every surface — the JSON, the page, an agent's decision about
  * whether to trust the list — reads the same words.
  */
-export interface DatedCacheMeta extends CacheMeta {
+export interface DatedRegistryMeta extends RegistryMeta {
   age_seconds: number;
   age: string;
   stale: boolean;
+  /** Lag between the daemon making this snapshot and the relay receiving it. */
+  transit_seconds: number;
 }
 
 /** A board row: the registry's view of a slug joined to who holds it. */
@@ -305,19 +317,31 @@ export function describeAge(seconds: number): string {
 }
 
 /**
- * Attach the projection's age to it. Null in, null out: a board with no cache
- * row at all is a different condition from one with an old cache row, and
- * flattening the two would tell an agent the registry is merely stale when in
- * fact nobody has ever read it.
+ * Attach the replica's age to it. Null in, null out: a board with no mirror at
+ * all is a different condition from one with an old mirror, and flattening the
+ * two would tell an agent the registry is merely stale when in fact nobody has
+ * ever pushed one.
+ *
+ * Age is measured from `generated_at` — the daemon's clock — and NOT from
+ * `received_at`. A push that landed a minute ago carrying a fortnight-old export
+ * is a fortnight stale, and measuring arrival would report it as a minute old,
+ * which is the exact failure the mirror's two-clock design exists to prevent.
+ * `transit_seconds` keeps the other subtraction visible for anyone debugging a
+ * pusher, without letting it stand in for freshness.
  */
-export function dateCacheMeta(meta: CacheMeta | null, at: number = now()): DatedCacheMeta | null {
+export function dateRegistryMeta(
+  meta: RegistryMeta | null, at: number = now(),
+): DatedRegistryMeta | null {
   if (!meta) return null;
-  const age = Math.max(0, at - meta.read_at);
+  // generated_at is unix MS (daemon), everything else here is unix seconds.
+  const generatedSeconds = Math.floor(meta.generated_at / 1000);
+  const age = Math.max(0, at - generatedSeconds);
   return {
     ...meta,
     age_seconds: age,
     age: describeAge(age),
     stale: age > REGISTRY_STALE_AFTER_SECONDS,
+    transit_seconds: Math.max(0, meta.received_at - generatedSeconds),
   };
 }
 
@@ -348,95 +372,88 @@ export function isSlug(value: unknown): value is string {
   return typeof value === 'string' && /^[a-z0-9][a-z0-9-]{3,}$/.test(value);
 }
 
-// ── the registry projection, read from the repo and cached ─────────────────
+// ── the registry replica: the relay's own roadmap mirror ───────────────────
 
 /**
- * Parse the committed snapshot. It has been written two ways over its life (a
- * bare array, and an object with an `items` key), so both are accepted; a
- * shape that yields no slugs is an error rather than an empty board, because
- * an empty registry would make every slug look unregistered — a loud wrong
- * answer, but still a wrong answer.
+ * The roadmap items this account has mirrored for this repository.
+ *
+ * WHY THE MIRROR AND NOT GITHUB. This read used to fetch
+ * `docs/roadmap/roadmap.snapshot.json` from the repository through the
+ * signed-in operator's own GitHub token and keep the result in a
+ * `work_registry_cache` table of its own. That worked, and it was a second
+ * copy of something the relay already stores: `roadmap_mirror_items`, pushed
+ * straight from the daemon by `pd roadmap push` (ADR path: the mirror shipped
+ * 2026-08-22 with no producer; the producer is `lib/roadmap-mirror-push.ts`).
+ *
+ * Three things the mirror does better, none of them cosmetic:
+ *
+ *   * No GitHub credential. An agent holding only a `pdu_` device token could
+ *     never populate the cache, so a board nobody had opened in a browser was
+ *     empty and every slug looked unregistered. The mirror is already here.
+ *   * The daemon's clock. The snapshot only knew when the RELAY read it; the
+ *     mirror knows when the DAEMON made it, which is the number staleness
+ *     actually means.
+ *   * It sees uncommitted work. The snapshot showed main; the daemon's roadmap
+ *     is current.
+ *
+ * ACCOUNT SCOPE, STATED PLAINLY. The mirror is keyed by account — that is its
+ * own tenancy invariant and this read does not reach around it. So each
+ * operator's board shows the registry THEY pushed, while claims stay shared
+ * across the repository. For one operator running many agents (every agent
+ * authenticating with that operator's device token) these are the same thing.
+ * For two operators on one repository they are not: both see the same claims
+ * and each sees their own item list, and a slug one has pushed will read as
+ * `proposed` to the other until they push too. That is a real limit, recorded
+ * here rather than papered over with a cross-account read the mirror
+ * deliberately refuses.
+ *
+ * @param env - Worker bindings.
+ * @param userId - The account whose mirror to read.
+ * @param repoFullName - `owner/name`.
+ * @returns The registry rows, tombstones excluded — a deleted item is not work
+ *   anyone should be offered, though the mirror keeps it queryable.
  */
-export function parseSnapshot(text: string): RegistryRow[] {
-  const data = JSON.parse(text) as unknown;
-  const items = Array.isArray(data)
-    ? data
-    : ((data as { items?: unknown[]; roadmap_items?: unknown[] })?.items ??
-       (data as { roadmap_items?: unknown[] })?.roadmap_items ??
-       []);
-  if (!Array.isArray(items)) throw new Error('snapshot has no item array');
-  const rows: RegistryRow[] = [];
-  for (const raw of items) {
-    const item = raw as Record<string, unknown>;
-    const slug = String(item.slug ?? item.id ?? '').trim();
-    if (!slug) continue;
-    rows.push({
-      slug,
-      status: String(item.status ?? ''),
-      kind: String(item.kind ?? ''),
-      priority: typeof item.priority === 'number' ? item.priority : null,
-      summary: String(item.summary_md ?? item.summary ?? item.title ?? ''),
-    });
-  }
-  if (rows.length === 0) throw new Error('snapshot parsed to zero items');
-  return rows;
-}
-
-/**
- * Read the snapshot from the repo through the operator's own token and replace
- * the cache with what it says. Replace, not merge: the projection is
- * append-only upstream but a slug removed from it must not survive here as a
- * ghost the board still offers.
- */
-export async function refreshRegistryCache(
+export async function readRegistryRows(
   env: Env,
+  userId: string,
   repoFullName: string,
-  ghToken: string,
-  refreshedBy = '',
-  ref = 'main',
-): Promise<CacheMeta> {
-  const parts = splitRepo(repoFullName);
-  if (!parts) throw new Error('repo must be owner/name');
-  const text = await fetchRepoFile(parts.owner, parts.repo, SNAPSHOT_PATH, ref, ghToken);
-  if (text === null) throw new Error(`${SNAPSHOT_PATH} not readable at ${ref}`);
-  const rows = parseSnapshot(text);
-  const at = now();
-
-  const statements = [
-    env.DB.prepare(
-      'DELETE FROM work_registry_cache WHERE repo_full_name = ?',
-    ).bind(repoFullName),
-    ...rows.map((r) =>
-      env.DB.prepare(
-        `INSERT INTO work_registry_cache
-           (repo_full_name, slug, status, kind, priority, summary)
-         VALUES (?, ?, ?, ?, ?, ?)`,
-      ).bind(repoFullName, r.slug, r.status, r.kind, r.priority, r.summary),
-    ),
-    env.DB.prepare(
-      `INSERT INTO work_registry_cache_meta
-         (repo_full_name, ref, path, read_at, item_count, refreshed_by)
-       VALUES (?, ?, ?, ?, ?, ?)
-       ON CONFLICT(repo_full_name) DO UPDATE SET
-         ref = excluded.ref, path = excluded.path,
-         read_at = excluded.read_at, item_count = excluded.item_count,
-         refreshed_by = excluded.refreshed_by`,
-    ).bind(repoFullName, ref, SNAPSHOT_PATH, at, rows.length, refreshedBy),
-  ];
-  await env.DB.batch(statements);
-  return { ref, path: SNAPSHOT_PATH, read_at: at, item_count: rows.length, refreshed_by: refreshedBy };
-}
-
-export async function readCacheMeta(
-  env: Env,
-  repoFullName: string,
-): Promise<CacheMeta | null> {
-  const row = await env.DB.prepare(
-    `SELECT ref, path, read_at, item_count, refreshed_by FROM work_registry_cache_meta
-      WHERE repo_full_name = ?`,
+): Promise<RegistryRow[]> {
+  const { results } = await env.DB.prepare(
+    `SELECT slug, status, kind, priority, summary_md AS summary
+       FROM roadmap_mirror_items
+      WHERE user_id = ? AND repo_full_name = ? AND deleted_at IS NULL`,
   )
-    .bind(repoFullName)
-    .first<CacheMeta>();
+    .bind(userId, repoFullName)
+    .all<RegistryRow>();
+  return results ?? [];
+}
+
+/**
+ * The mirror's own header for this account and repository, or null when this
+ * account has never pushed one.
+ *
+ * Null is a distinct answer from an empty item list: "no push has happened" is
+ * the operator's cue to run `pd roadmap push`, and "a push happened and it was
+ * empty" is a daemon with no roadmap. Collapsing them would send an operator
+ * looking for the wrong fault.
+ *
+ * @param env - Worker bindings.
+ * @param userId - The account whose mirror to read.
+ * @param repoFullName - `owner/name`.
+ * @returns The header with both clocks, or null.
+ */
+export async function readRegistryMeta(
+  env: Env,
+  userId: string,
+  repoFullName: string,
+): Promise<RegistryMeta | null> {
+  const row = await env.DB.prepare(
+    `SELECT harbor, generated_at, received_at, item_count, daemon_label
+       FROM roadmap_mirrors
+      WHERE user_id = ? AND repo_full_name = ?`,
+  )
+    .bind(userId, repoFullName)
+    .first<RegistryMeta>();
   return row ?? null;
 }
 
@@ -478,12 +495,21 @@ export async function isMember(
 // ── the board ──────────────────────────────────────────────────────────────
 
 /**
- * Every slug the registry cache carries, left-joined to its claim, plus every
- * claim whose slug the cache does not carry (the proposed queue). One query
- * each rather than one per slug: the board is read on every agent turn.
+ * Every slug this account's mirror carries, left-joined to its claim, plus
+ * every claim whose slug the mirror does not carry (the proposed queue). One
+ * query rather than one per slug: the board is read on every agent turn.
+ *
+ * Tombstones drop out of the registry half: a slug the daemon deleted is not
+ * work to offer anyone. A claim still HELD on such a slug does not vanish with
+ * it — it comes through the union half instead, so the holder stays visible
+ * rather than being silently dropped from the board mid-flight. Its
+ * `provenance` is the one stored on the claim (`registered`, if that is how it
+ * was taken), which is why it does not masquerade as something never
+ * registered: it was registered, and then the roadmap moved.
  */
 export async function readBoard(
   env: Env,
+  userId: string,
   repoFullName: string,
 ): Promise<BoardRow[]> {
   const { results } = await env.DB.prepare(
@@ -491,7 +517,7 @@ export async function readBoard(
             r.status      AS status,
             r.kind        AS kind,
             r.priority    AS priority,
-            r.summary     AS summary,
+            r.summary_md  AS summary,
             c.provenance  AS c_provenance,
             c.state       AS c_state,
             c.agent       AS c_agent,
@@ -504,10 +530,10 @@ export async function readBoard(
             c.heartbeat_at AS c_heartbeat_at,
             c.finished_at AS c_finished_at,
             c.updated_at  AS c_updated_at
-       FROM work_registry_cache r
+       FROM roadmap_mirror_items r
        LEFT JOIN work_claims c
          ON c.repo_full_name = r.repo_full_name AND c.slug = r.slug
-      WHERE r.repo_full_name = ?
+      WHERE r.user_id = ? AND r.repo_full_name = ? AND r.deleted_at IS NULL
       UNION ALL
      SELECT c.slug, NULL, NULL, NULL, NULL,
             c.provenance, c.state, c.agent, c.agent_kind, c.owner, c.headline, c.branch,
@@ -515,10 +541,11 @@ export async function readBoard(
        FROM work_claims c
       WHERE c.repo_full_name = ?
         AND NOT EXISTS (
-          SELECT 1 FROM work_registry_cache r
-           WHERE r.repo_full_name = c.repo_full_name AND r.slug = c.slug)`,
+          SELECT 1 FROM roadmap_mirror_items r
+           WHERE r.user_id = ? AND r.repo_full_name = c.repo_full_name
+             AND r.slug = c.slug AND r.deleted_at IS NULL)`,
   )
-    .bind(repoFullName, repoFullName)
+    .bind(userId, repoFullName, repoFullName, userId)
     .all<Record<string, unknown>>();
 
   const at = now();
@@ -864,7 +891,7 @@ async function authorize(
   env: Env,
   repoFullName: string,
 ): Promise<
-  | { ok: true; userId: string; ghToken: string | null; agentDefault: string }
+  | { ok: true; userId: string; agentDefault: string }
   | { ok: false; response: Response }
 > {
   const parts = splitRepo(repoFullName);
@@ -878,7 +905,6 @@ async function authorize(
     return {
       ok: true,
       userId: session.user.id,
-      ghToken: session.ghToken ?? null,
       agentDefault: session.user.login ? `@${session.user.login}` : 'operator',
     };
   }
@@ -908,7 +934,7 @@ async function authorize(
       ),
     };
   }
-  return { ok: true, userId: user.id, ghToken: null, agentDefault: 'agent' };
+  return { ok: true, userId: user.id, agentDefault: 'agent' };
 }
 
 /**
@@ -917,22 +943,23 @@ async function authorize(
  * still the best list there is, and refusing to serve it would strand every
  * agent whenever a refresh is overdue.
  */
-export function registryWarning(meta: DatedCacheMeta | null): string | null {
+export function registryWarning(meta: DatedRegistryMeta | null): string | null {
   if (!meta) {
-    return 'No registry projection has been read for this repository yet, so every slug an agent names will land in the proposed queue. An operator signs in and refreshes once.';
+    return 'No roadmap has been mirrored for this repository yet, so every slug an agent names will land in the proposed queue. An operator runs `pd roadmap push` once.';
   }
   if (!meta.stale) return null;
-  return `The registry projection was last read ${meta.age} (${meta.ref}, ${meta.item_count} items). Work merged since then is not on this board. An operator refreshes it, or an agent treats a missing slug as unknown rather than as absent.`;
+  return `The mirrored roadmap was made by the daemon ${meta.age} (${meta.item_count} items${meta.daemon_label ? `, from ${meta.daemon_label}` : ''}). Work recorded since then is not on this board. An operator runs \`pd roadmap push\`, or an agent treats a missing slug as unknown rather than as absent.`;
 }
 
 /** Is this slug one the registry admitted? Decides `registered` vs `proposed`. */
 async function isRegistered(
-  env: Env, repoFullName: string, slug: string,
+  env: Env, userId: string, repoFullName: string, slug: string,
 ): Promise<boolean> {
   const row = await env.DB.prepare(
-    'SELECT 1 AS ok FROM work_registry_cache WHERE repo_full_name = ? AND slug = ?',
+    `SELECT 1 AS ok FROM roadmap_mirror_items
+      WHERE user_id = ? AND repo_full_name = ? AND slug = ? AND deleted_at IS NULL`,
   )
-    .bind(repoFullName, slug)
+    .bind(userId, repoFullName, slug)
     .first<{ ok: number }>();
   return Boolean(row);
 }
@@ -965,18 +992,19 @@ export async function handleRegisterApi(request: Request, env: Env): Promise<Res
 
   const auth = await authorize(request, env, repoFullName);
   if (!auth.ok) return auth.response;
-  // No `userId` here: the board is keyed on the repository, so once authorize()
-  // has decided this caller may see it, which account they are stops mattering
-  // to every path below. It was still being destructured after the key moved --
-  // a leftover that read as though the handler scoped something by account.
-  const { ghToken, agentDefault } = auth;
+  // `userId` is back, and for a reason worth stating: the CLAIMS are keyed on
+  // the repository (one shared board for everyone working it), but the REGISTRY
+  // half now comes from this account's own roadmap mirror, which is
+  // account-scoped by the mirror's own tenancy rule. So the two halves of a
+  // board row have different scopes on purpose, and the handler needs both keys.
+  const { userId, agentDefault } = auth;
 
   if (request.method === 'GET') {
-    const meta = dateCacheMeta(await readCacheMeta(env, repoFullName));
+    const meta = dateRegistryMeta(await readRegistryMeta(env, userId, repoFullName));
     if (action === 'board' || action === 'available') {
       const q = parseBoardQuery(url.searchParams);
       if ('error' in q) return json({ error: q.error }, 400);
-      const rows = await readBoard(env, repoFullName);
+      const rows = await readBoard(env, userId, repoFullName);
       const links = await readAllLinks(env, repoFullName);
       for (const r of rows) {
         const l = links.get(r.slug);
@@ -1029,13 +1057,21 @@ export async function handleRegisterApi(request: Request, env: Env): Promise<Res
   }
 
   if (action === 'refresh') {
-    if (!ghToken) return json({ error: 'refreshing the registry needs a signed-in session' }, 403);
-    try {
-      const meta = await refreshRegistryCache(env, repoFullName, ghToken);
-      return json({ repo: repoFullName, registry: meta });
-    } catch (err) {
-      return json({ error: `could not read the registry projection: ${(err as Error).message}` }, 502);
-    }
+    // Kept as a route so an old client gets a sentence instead of a 404 that
+    // reads like an outage. There is nothing for the relay to refresh: the
+    // registry arrives by push, and pulling is the operator's side of it.
+    return json(
+      {
+        error: 'the registry is pushed, not pulled',
+        detail:
+          'This board reads the roadmap mirror the daemon pushes to the relay. The relay ' +
+          'cannot refresh it on its own, and no longer reads the committed snapshot from ' +
+          'GitHub to try.',
+        operator_step: 'run `pd roadmap push` on the machine with the daemon',
+        repo: repoFullName,
+      },
+      410,
+    );
   }
 
   const slug = String(body.slug ?? '');
@@ -1045,7 +1081,7 @@ export async function handleRegisterApi(request: Request, env: Env): Promise<Res
 
   switch (action) {
     case 'claim': {
-      const registered = await isRegistered(env, repoFullName, slug);
+      const registered = await isRegistered(env, userId, repoFullName, slug);
       const kindRaw = String(body.agent_kind ?? 'session');
       const outcome = await claimSlug(env, repoFullName, slug, agent, {
         agentKind: AGENT_KINDS.includes(kindRaw as AgentKind) ? (kindRaw as AgentKind) : 'session',
@@ -1220,19 +1256,8 @@ export async function handleRegisterPage(request: Request, env: Env): Promise<Re
   // through the door.
   await recordMembership(env, repoFullName, session.user.id);
 
-  let refreshError = '';
-  if (session.ghToken) {
-    try {
-      await refreshRegistryCache(
-        env, repoFullName, session.ghToken,
-        session.user.login ? `@${session.user.login}` : session.user.id,
-      );
-    } catch (err) {
-      refreshError = (err as Error).message;
-    }
-  }
-  const meta = dateCacheMeta(await readCacheMeta(env, repoFullName));
-  const rows = await readBoard(env, repoFullName);
+  const meta = dateRegistryMeta(await readRegistryMeta(env, session.user.id, repoFullName));
+  const rows = await readBoard(env, session.user.id, repoFullName);
   const links = await readAllLinks(env, repoFullName);
   for (const r of rows) {
     const l = links.get(r.slug);
@@ -1284,8 +1309,7 @@ export async function handleRegisterPage(request: Request, env: Env): Promise<Re
       <p class="lede">Who is on what, in <code>${esc(repoFullName)}</code>, right now. The registry says what work
       exists; this board says who holds it. A claim refused is the coordination working.</p>
       <p class="meta">${rows.length} slug(s) · ${held} held · ${proposed} proposed ·
-      registry read ${meta ? `${esc(meta.age)} from <code>${esc(meta.path)}</code> at <code>${esc(meta.ref)}</code> (${meta.item_count} rows${meta.refreshed_by ? `, by ${esc(meta.refreshed_by)}` : ''})` : 'never'}
-      ${refreshError ? `· <span class="stale">refresh failed: ${esc(refreshError)}</span>` : ''}</p>
+      roadmap made by the daemon ${meta ? `${esc(meta.age)} (${meta.item_count} rows in <code>${esc(meta.harbor)}</code>${meta.daemon_label ? `, from ${esc(meta.daemon_label)}` : ''}${meta.transit_seconds > 60 ? `, pushed here ${Math.round(meta.transit_seconds / 60)} min after that` : ''})` : 'never — nothing has been pushed'}</p>
     </header>
     ${warning ? `<div class="warn">${esc(warning)}</div>` : ''}
     <div class="note"><b>This board is cooperative.</b> It refuses a second claim on a held slug and tells you who

@@ -22,7 +22,7 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { makeDb, migration, type TestDb } from './helpers/d1-sqlite.js';
+import { makeDb, applyAllMigrations, type TestDb } from './helpers/d1-sqlite.js';
 import { handleRegisterApi } from '../src/work-register.js';
 import { hashHex } from '../src/crypto.js';
 import type { Env } from '../src/types.js';
@@ -34,17 +34,6 @@ const REPO = 'curiositech/port-daddy';
 // would have tested the 401 path in every case and looked like a passing suite.
 const TOKEN = `pdu_${'a1b2c3d4'.repeat(8)}`;
 
-/** Only what the register's paths touch, so the fixture stays readable. */
-const IDENTITY_SCHEMA = `
-CREATE TABLE users (
-  id TEXT PRIMARY KEY, login TEXT, display_name TEXT, primary_email TEXT,
-  email_verified INTEGER DEFAULT 0, deleted_at INTEGER
-);
-CREATE TABLE user_tokens (
-  token_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL, label TEXT NOT NULL,
-  created_at INTEGER NOT NULL, last_used_at INTEGER, expires_at INTEGER, revoked_at INTEGER
-);`;
-
 let db: TestDb;
 let env: Env;
 
@@ -55,13 +44,18 @@ const asAgent = (path: string, init: RequestInit = {}) =>
   });
 
 beforeEach(() => {
-  db = makeDb(
-    IDENTITY_SCHEMA,
-    migration('2026-09-08-work-register.sql', { dropForeignKeys: true }),
-  );
+  // The whole committed chain, not one migration: the register's registry half
+  // now reads `roadmap_mirror_items`, which another migration owns, and a test
+  // that loaded only its own file would be testing a schema that has never
+  // existed on any deploy.
+  db = makeDb(applyAllMigrations());
+  // github_user_id and created_at are NOT NULL in the real schema. The
+  // hand-written fixture this replaced omitted both and passed, which is the
+  // second thing the full chain buys: the test now inserts a row production
+  // would accept.
   db.raw
-    .prepare('INSERT INTO users (id, login) VALUES (?, ?)')
-    .run('u_erich', 'erich-owens');
+    .prepare('INSERT INTO users (id, github_user_id, login, created_at) VALUES (?, ?, ?, ?)')
+    .run('u_erich', 1, 'erich-owens', 1);
   db.raw
     .prepare('INSERT INTO user_tokens (token_hash, user_id, label, created_at) VALUES (?, ?, ?, ?)')
     .run(hashHex(TOKEN), 'u_erich', 'agent under test', 1);
@@ -129,6 +123,13 @@ describe('once an operator has opened the board', () => {
   });
 
   it("another account's membership does not admit this account's token", async () => {
+    // The other account has to actually exist: work_board_members.user_id is a
+    // real foreign key, and the fixture used to invent an id the users table
+    // had never heard of. That passed only because the old hand-written schema
+    // had no constraint to break.
+    db.raw
+      .prepare('INSERT INTO users (id, github_user_id, login, created_at) VALUES (?, ?, ?, ?)')
+      .run('u_someone_else', 2, 'someone-else', 1);
     open('u_someone_else');
     const res = await handleRegisterApi(asAgent(`/v1/register/board?repo=${REPO}`), env);
     expect(res.status).toBe(403);
@@ -141,13 +142,72 @@ describe('once an operator has opened the board', () => {
     expect(res.status).toBe(401);
   });
 
-  it('says the registry has never been read, so a slug is unknown rather than absent', async () => {
+  it('says no roadmap has been mirrored, so a slug is unknown rather than absent', async () => {
     open();
     const res = await handleRegisterApi(asAgent(`/v1/register/available?repo=${REPO}`), env);
     const body = (await res.json()) as { registry: unknown; warning: string };
     expect(body.registry).toBeNull();
-    expect(body.warning).toMatch(/no registry projection/i);
+    expect(body.warning).toMatch(/no roadmap has been mirrored/i);
     expect(body.warning).toMatch(/proposed queue/i);
+    // The agent cannot fix this itself, so the sentence has to carry the
+    // operator's command rather than only the diagnosis.
+    expect(body.warning).toContain('pd roadmap push');
+  });
+
+  it('reads the roadmap this account mirrored, and nobody else\'s', async () => {
+    open();
+    const mirror = (userId: string, slug: string) => {
+      db.raw
+        .prepare(
+          `INSERT OR IGNORE INTO roadmap_mirrors
+             (user_id, repo_full_name, harbor, generated_at, received_at, item_count, edge_count)
+           VALUES (?, ?, 'port-daddy', ?, ?, 1, 0)`,
+        )
+        .run(userId, REPO, Date.now(), Math.floor(Date.now() / 1000));
+      db.raw
+        .prepare(
+          `INSERT INTO roadmap_mirror_items
+             (user_id, repo_full_name, slug, harbor, status, summary_md, last_touched_at, created_at)
+           VALUES (?, ?, ?, 'port-daddy', 'now', 'the work', 1, 1)`,
+        )
+        .run(userId, REPO, slug);
+    };
+    db.raw
+      .prepare('INSERT INTO users (id, github_user_id, login, created_at) VALUES (?, ?, ?, ?)')
+      .run('u_other', 3, 'other', 1);
+    mirror('u_erich', 'mine-to-see');
+    mirror('u_other', 'not-mine-to-see');
+
+    const res = await handleRegisterApi(asAgent(`/v1/register/board?repo=${REPO}`), env);
+    const body = (await res.json()) as { items: { slug: string }[]; registry: { item_count: number } };
+    const slugs = body.items.map((i) => i.slug);
+    expect(slugs).toContain('mine-to-see');
+    // The mirror is account-scoped and this read does not reach around that.
+    expect(slugs).not.toContain('not-mine-to-see');
+    expect(body.registry).not.toBeNull();
+  });
+
+  it('a tombstoned item leaves the board rather than being offered as work', async () => {
+    open();
+    db.raw
+      .prepare(
+        `INSERT INTO roadmap_mirrors
+           (user_id, repo_full_name, harbor, generated_at, received_at, item_count, edge_count)
+         VALUES (?, ?, 'port-daddy', ?, ?, 2, 0)`,
+      )
+      .run('u_erich', REPO, Date.now(), Math.floor(Date.now() / 1000));
+    const ins = db.raw.prepare(
+      `INSERT INTO roadmap_mirror_items
+         (user_id, repo_full_name, slug, harbor, status, summary_md, last_touched_at, created_at, deleted_at)
+       VALUES (?, ?, ?, 'port-daddy', 'now', '', 1, 1, ?)`,
+    );
+    ins.run('u_erich', REPO, 'still-here-slug', null);
+    ins.run('u_erich', REPO, 'deleted-slug-here', 999);
+
+    const res = await handleRegisterApi(asAgent(`/v1/register/board?repo=${REPO}`), env);
+    const slugs = ((await res.json()) as { items: { slug: string }[] }).items.map((i) => i.slug);
+    expect(slugs).toContain('still-here-slug');
+    expect(slugs).not.toContain('deleted-slug-here');
   });
 });
 

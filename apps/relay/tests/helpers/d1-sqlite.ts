@@ -15,11 +15,23 @@
  * what `changes` comes back — and not enough for anything about latency,
  * concurrency across isolates, or D1's own limits. Tests that care about those
  * belong on the staging deploy, and should say so rather than reaching here.
+ *
+ * ONE ADAPTER, NOT TWO. roadmap-mirror.test.ts grew its own `makeRealDb` first
+ * and this file was written second, in ignorance of it — two adapters over the
+ * same engine, which is the sort of duplication that ends with the two
+ * disagreeing about `batch()` and one suite passing on a semantic the other
+ * would have caught. They are folded here, and the version kept is the older
+ * one's: `applyAllMigrations()` loads the WHOLE committed chain in filename
+ * order, exactly as `check-migrations.mjs` does, so a test cannot pass against
+ * a schema fragment that production never sees.
  */
 
 import { DatabaseSync } from 'node:sqlite';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+const MIGRATIONS_DIR = fileURLToPath(new URL('../../migrations', import.meta.url));
 
 type Row = Record<string, unknown>;
 
@@ -64,15 +76,45 @@ export interface TestDb {
   exec(sql: string): void;
 }
 
-/** Load a committed migration, minus FKs to tables the test did not create. */
+/** Load one committed migration, minus FKs to tables the test did not create. */
 export function migration(name: string, opts: { dropForeignKeys?: boolean } = {}): string {
-  const path = fileURLToPath(new URL(`../../migrations/${name}`, import.meta.url));
-  const sql = readFileSync(path, 'utf8');
+  const sql = readFileSync(join(MIGRATIONS_DIR, name), 'utf8');
   return opts.dropForeignKeys ? sql.replace(/\s+REFERENCES \w+\([^)]*\)/g, '') : sql;
 }
 
+/**
+ * Every committed migration, in filename order — the same order
+ * `check-migrations.mjs` and the deploy use.
+ *
+ * Prefer this over naming one migration. A test that loads a single file is
+ * testing against a schema that has never existed anywhere: the table it wants
+ * may be there, but the foreign keys pointing at the rest of the database are
+ * not, so a constraint that would bite in production cannot bite in the test.
+ * Reach for `migration()` alone only when a test is specifically about one
+ * file's contents.
+ *
+ * @returns The concatenated chain, ready to hand to `makeDb`.
+ */
+export function applyAllMigrations(): string {
+  return readdirSync(MIGRATIONS_DIR)
+    .filter((f) => f.endsWith('.sql'))
+    .sort()
+    .map((name) => readFileSync(join(MIGRATIONS_DIR, name), 'utf8'))
+    .join('\n');
+}
+
+/**
+ * A database with the given schemas applied, and foreign keys ON.
+ *
+ * Foreign keys are enforced because the migrations declare them and a test that
+ * silently ignored them would let a row exist that production would refuse.
+ *
+ * @param schemas - SQL to apply in order, typically `applyAllMigrations()`.
+ * @returns The D1-shaped handle, the engine under it, and a raw `exec`.
+ */
 export function makeDb(...schemas: string[]): TestDb {
   const raw = new DatabaseSync(':memory:');
+  raw.exec('PRAGMA foreign_keys = ON');
   for (const s of schemas) raw.exec(s);
   const DB = {
     prepare: (sql: string) => new Stmt(raw, sql),

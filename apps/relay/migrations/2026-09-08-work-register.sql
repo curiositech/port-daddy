@@ -154,33 +154,29 @@ CREATE TABLE IF NOT EXISTS work_links (
 CREATE INDEX IF NOT EXISTS idx_work_links_slug
   ON work_links(repo_full_name, slug, at DESC);
 
--- The registry projection, cached so an agent holding only a device token can
--- ask what work exists without carrying a GitHub credential of its own.
+-- NO REGISTRY TABLE HERE, and that is the point.
 --
--- This is a CACHE and the page says the word: the authority is the committed
--- snapshot in the repo, read through a signed-in operator's own GitHub token,
--- and every read here is stamped with the ref it came from and the moment it
--- was taken. A stale cache is shown as stale rather than served as current --
--- the failure this whole design exists to avoid is a projection that reads as
--- truth after its source moved.
-CREATE TABLE IF NOT EXISTS work_registry_cache (
-  repo_full_name TEXT    NOT NULL,
-  slug           TEXT    NOT NULL,
-  status         TEXT    NOT NULL DEFAULT '',
-  kind           TEXT    NOT NULL DEFAULT '',
-  priority       INTEGER,
-  summary        TEXT    NOT NULL DEFAULT '',
-  PRIMARY KEY (repo_full_name, slug)
-);
-
-CREATE TABLE IF NOT EXISTS work_registry_cache_meta (
-  repo_full_name TEXT    NOT NULL PRIMARY KEY,
-  ref            TEXT    NOT NULL,          -- the branch the snapshot was read at
-  path           TEXT    NOT NULL,          -- where in the repo it was read from
-  read_at        INTEGER NOT NULL,          -- relay clock, unix seconds
-  item_count     INTEGER NOT NULL,
-  -- Which account's GitHub token was used for the read that produced this row.
-  -- Kept because "the cache is this old" is only half an answer; the other half
-  -- is whose view of the repository it is.
-  refreshed_by   TEXT    NOT NULL DEFAULT ''
-);
+-- The first draft of this migration carried `work_registry_cache` and
+-- `work_registry_cache_meta`: a copy of the repository's roadmap, read out of
+-- `docs/roadmap/roadmap.snapshot.json` through a signed-in operator's GitHub
+-- token. It was a second copy of something this database already stores.
+-- `2026-08-22-roadmap-mirror.sql` (applied) holds `roadmap_mirrors` and
+-- `roadmap_mirror_items`, which the daemon pushes to directly.
+--
+-- Reading that instead is better on three counts, and the migration is the
+-- honest place to record them because the tables that are ABSENT here are the
+-- decision:
+--
+--   * an agent holding only a `pdu_` device token has no GitHub credential, so
+--     it could never fill the cache; the mirror is already populated by the
+--     time an agent asks;
+--   * the mirror carries the DAEMON's clock beside the relay's, so staleness is
+--     measured against when the roadmap was true rather than when this Worker
+--     happened to read a file;
+--   * the mirror sees what the daemon has recorded, not only what has reached
+--     the default branch.
+--
+-- The cost is stated rather than hidden: the mirror is account-scoped, so each
+-- operator's board shows the roadmap THEY pushed while the claims above stay
+-- shared across the repository. For one operator running many agents these are
+-- the same set. For two operators they are not.

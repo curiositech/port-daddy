@@ -29,12 +29,10 @@ import {
   isStale,
   isSlug,
   splitRepo,
-  parseSnapshot,
   handleRegisterApi,
   CLAIM_STALE_AFTER_SECONDS,
-  SNAPSHOT_PATH,
   REGISTRY_STALE_AFTER_SECONDS,
-  dateCacheMeta,
+  dateRegistryMeta,
   describeAge,
   registryWarning,
   parseBoardQuery,
@@ -121,49 +119,6 @@ describe('splitRepo', () => {
   });
 });
 
-describe('parseSnapshot — the projection has worn two shapes', () => {
-  it('reads a bare array', () => {
-    const rows = parseSnapshot(JSON.stringify([{ slug: 'one-thing', status: 'now' }]));
-    expect(rows).toEqual([{ slug: 'one-thing', status: 'now', kind: '', priority: null, summary: '' }]);
-  });
-
-  it('reads the object form, under either key', () => {
-    expect(parseSnapshot('{"items":[{"slug":"one-thing"}]}')[0].slug).toBe('one-thing');
-    expect(parseSnapshot('{"roadmap_items":[{"slug":"one-thing"}]}')[0].slug).toBe('one-thing');
-  });
-
-  it('accepts id where slug is absent, and carries the fields the board shows', () => {
-    const rows = parseSnapshot(
-      '{"items":[{"id":"legacy-item","status":"backlog","kind":"task","priority":2,"summary_md":"do the thing"}]}',
-    );
-    expect(rows[0]).toEqual({
-      slug: 'legacy-item', status: 'backlog', kind: 'task', priority: 2, summary: 'do the thing',
-    });
-  });
-
-  it('skips entries with no identifier instead of inventing one', () => {
-    expect(parseSnapshot('[{"slug":"real"},{"status":"now"},{"slug":"  "}]')).toHaveLength(1);
-  });
-
-  it('throws on an empty projection rather than reporting every slug unregistered', () => {
-    // A quiet empty board would mark all real work "proposed" — a wrong answer
-    // that looks like a finding. Failing loudly is the lesser harm.
-    expect(() => parseSnapshot('[]')).toThrow(/zero items/);
-    expect(() => parseSnapshot('{"items":[]}')).toThrow(/zero items/);
-    expect(() => parseSnapshot('{"nope":1}')).toThrow(/zero items/);
-  });
-
-  it('throws on a non-array item field', () => {
-    expect(() => parseSnapshot('{"items":"lots"}')).toThrow(/no item array/);
-  });
-});
-
-describe('the snapshot path is the committed projection, not a second store', () => {
-  it('reads the file the roadmap authority writes', () => {
-    expect(SNAPSHOT_PATH).toBe('docs/roadmap/roadmap.snapshot.json');
-  });
-});
-
 describe('handleRegisterApi guards that need no database', () => {
   // Env is never reached on these paths: each guard returns before any query.
   const env = {} as Env;
@@ -193,37 +148,59 @@ describe('handleRegisterApi guards that need no database', () => {
   });
 });
 
-describe('the registry projection knows how old it is', () => {
-  // S4: read_at was returned from the first version and nothing looked at it,
-  // so a week-old item list rendered exactly like a fresh one. These are the
-  // boundary and the wording, because a warning is only as good as the moment
-  // it starts appearing and the sentence it appears as.
-  const meta = (read_at: number) => ({
-    ref: 'main', path: SNAPSHOT_PATH, read_at, item_count: 318, refreshed_by: '@erich-owens',
+describe('the mirrored roadmap knows how old it is', () => {
+  // S4: a raw timestamp was returned from the first version and nothing looked
+  // at it, so a week-old item list rendered exactly like a fresh one. These are
+  // the boundary and the wording, because a warning is only as good as the
+  // moment it starts appearing and the sentence it appears as.
+  //
+  // generated_at is the DAEMON's clock in unix MILLISECONDS; every other time
+  // here is unix seconds. The mixed units are the mirror's own contract, not a
+  // slip, so the fixture states them.
+  const meta = (generatedSeconds: number, receivedSeconds = generatedSeconds) => ({
+    harbor: 'port-daddy',
+    generated_at: generatedSeconds * 1000,
+    received_at: receivedSeconds,
+    item_count: 318,
+    daemon_label: 'port-daddy-daemon',
   });
 
-  it('a projection read a minute ago is not stale', () => {
-    expect(dateCacheMeta(meta(at - 60), at)?.stale).toBe(false);
+  it('a roadmap made a minute ago is not stale', () => {
+    expect(dateRegistryMeta(meta(at - 60), at)?.stale).toBe(false);
   });
 
   it('one second inside the threshold is still fresh', () => {
-    expect(dateCacheMeta(meta(at - REGISTRY_STALE_AFTER_SECONDS), at)?.stale).toBe(false);
+    expect(dateRegistryMeta(meta(at - REGISTRY_STALE_AFTER_SECONDS), at)?.stale).toBe(false);
   });
 
   it('one second past it is stale', () => {
-    expect(dateCacheMeta(meta(at - REGISTRY_STALE_AFTER_SECONDS - 1), at)?.stale).toBe(true);
+    expect(dateRegistryMeta(meta(at - REGISTRY_STALE_AFTER_SECONDS - 1), at)?.stale).toBe(true);
+  });
+
+  it('measures age from the DAEMON clock, not from when the relay received it', () => {
+    // The failure this prevents: a push that landed a second ago carrying a
+    // two-day-old export. Measuring arrival would call that board fresh, which
+    // is the one thing the mirror's two clocks exist to stop.
+    const twoDaysOldPushedJustNow = meta(at - 2 * 86_400, at - 1);
+    const dated = dateRegistryMeta(twoDaysOldPushedJustNow, at);
+    expect(dated?.stale).toBe(true);
+    expect(dated?.age).toBe('2 days ago');
+    // ... and the arrival lag is still reported, just not as freshness.
+    expect(dated?.transit_seconds).toBe(2 * 86_400 - 1);
   });
 
   it('a clock that ran backwards reads as "just now", never as a negative age', () => {
-    // The relay's clock and the row's can disagree by a second across a
-    // deploy. Reporting "-1 seconds ago" would make a correct board look broken.
-    const dated = dateCacheMeta(meta(at + 30), at);
+    // The relay's clock and the daemon's can disagree by a second. Reporting
+    // "-1 seconds ago" would make a correct board look broken, and a negative
+    // transit would make a correct pusher look like a time traveller.
+    const dated = dateRegistryMeta(meta(at + 30, at + 10), at);
     expect(dated?.age_seconds).toBe(0);
     expect(dated?.age).toBe('just now');
+    expect(dated?.transit_seconds).toBe(0);
   });
 
-  it('no cache row at all is not the same condition as an old one', () => {
-    expect(dateCacheMeta(null, at)).toBeNull();
+  it('no mirror at all is not the same condition as an old one', () => {
+    expect(dateRegistryMeta(null, at)).toBeNull();
   });
 
   it('describes an age in the units a reader would use', () => {
@@ -236,24 +213,32 @@ describe('the registry projection knows how old it is', () => {
 });
 
 describe('registryWarning — the sentence the page and the JSON share', () => {
-  it('says nothing when there is nothing to say', () => {
-    expect(registryWarning(dateCacheMeta({
-      ref: 'main', path: SNAPSHOT_PATH, read_at: at - 60, item_count: 318,
-    }, at))).toBeNull();
+  const meta = (generatedSeconds: number) => ({
+    harbor: 'port-daddy',
+    generated_at: generatedSeconds * 1000,
+    received_at: generatedSeconds,
+    item_count: 318,
+    daemon_label: 'port-daddy-daemon',
   });
 
-  it('a never-read registry warns that slugs will queue as proposed', () => {
+  it('says nothing when there is nothing to say', () => {
+    expect(registryWarning(dateRegistryMeta(meta(at - 60), at))).toBeNull();
+  });
+
+  it('a repository nobody has pushed warns that slugs will queue as proposed', () => {
     const w = registryWarning(null);
     expect(w).toMatch(/proposed queue/i);
+    // and names the command, because an agent reading this cannot run it and
+    // needs to be able to put the operator's next step in its own note.
+    expect(w).toContain('pd roadmap push');
   });
 
-  it('a stale one names the age, the ref and the count, and what to do', () => {
-    const w = registryWarning(dateCacheMeta({
-      ref: 'main', path: SNAPSHOT_PATH, read_at: at - 86_400, item_count: 318,
-    }, at));
+  it('a stale one names the age, the count, the daemon and what to do', () => {
+    const w = registryWarning(dateRegistryMeta(meta(at - 86_400), at));
     expect(w).toContain('1 day ago');
-    expect(w).toContain('main');
     expect(w).toContain('318');
+    expect(w).toContain('port-daddy-daemon');
+    expect(w).toContain('pd roadmap push');
     expect(w).toMatch(/unknown rather than as absent/);
   });
 });
