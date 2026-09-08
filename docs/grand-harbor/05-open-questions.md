@@ -60,3 +60,7 @@ Open questions are protected from accidental answer-by-mock. A decision closes a
 - **GH-Q-037:** What evidence settles confidential remote work without revealing protected buyer state or skill implementation?
 - **GH-Q-038:** Is Apple Virtualization the first containment tier, an optional embodiment, or outside the first proof?
 
+## The ledger's own claims about the repository
+
+- **GH-Q-039:** What checks the ledger's claims about live repository state? `07-research-provenance.md` records which pull requests are open, draft or merged, and the README's central caveat -- that PR #9989 is still a draft and excludes production deployment -- is one of those claims. Nothing verifies any of them against the repository, so the day one merges, the ledger says something false with no mechanism to notice. The candidates are a check that queries each cited pull request and fails on a mismatch, a generated section that cannot be hand-written, or a rule that the ledger cites commits rather than pull-request states. Recorded 2026-09-08 from a review of the import; deliberately not answered by picking one.
+

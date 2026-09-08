@@ -18,7 +18,7 @@ projections:
 registers:
   - kind: question
     document: 05-open-questions.md
-    ids: [GH-Q-001, GH-Q-002, GH-Q-003, GH-Q-004, GH-Q-005, GH-Q-006, GH-Q-007, GH-Q-008, GH-Q-009, GH-Q-010, GH-Q-011, GH-Q-012, GH-Q-013, GH-Q-014, GH-Q-015, GH-Q-016, GH-Q-017, GH-Q-018, GH-Q-019, GH-Q-020, GH-Q-021, GH-Q-022, GH-Q-023, GH-Q-024, GH-Q-025, GH-Q-026, GH-Q-027, GH-Q-028, GH-Q-029, GH-Q-030, GH-Q-031, GH-Q-032, GH-Q-033, GH-Q-034, GH-Q-035, GH-Q-036, GH-Q-037, GH-Q-038]
+    ids: [GH-Q-001, GH-Q-002, GH-Q-003, GH-Q-004, GH-Q-005, GH-Q-006, GH-Q-007, GH-Q-008, GH-Q-009, GH-Q-010, GH-Q-011, GH-Q-012, GH-Q-013, GH-Q-014, GH-Q-015, GH-Q-016, GH-Q-017, GH-Q-018, GH-Q-019, GH-Q-020, GH-Q-021, GH-Q-022, GH-Q-023, GH-Q-024, GH-Q-025, GH-Q-026, GH-Q-027, GH-Q-028, GH-Q-029, GH-Q-030, GH-Q-031, GH-Q-032, GH-Q-033, GH-Q-034, GH-Q-035, GH-Q-036, GH-Q-037, GH-Q-038, GH-Q-039]
   - kind: tension
     document: 06-tensions.md
     ids: [GH-T-001, GH-T-002, GH-T-003, GH-T-004, GH-T-005, GH-T-006, GH-T-007, GH-T-008, GH-T-009, GH-T-010, GH-T-011, GH-T-012]
@@ -38,8 +38,10 @@ record_kinds:
   - contract
   - decision
   - experience
+  - hypothesis
   - invariant
   - program_cut
+  - proof
 relation_vocabulary:
   - EXTENDS
   - REFINES
