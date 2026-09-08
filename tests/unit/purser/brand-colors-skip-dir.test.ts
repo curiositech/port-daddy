@@ -1,7 +1,6 @@
 // tests/unit/purser/brand-colors-skip-dir.test.ts
 import { describe, expect, test, beforeAll } from '@jest/globals';
 import * as fs from 'node:fs';
-import * as url from 'node:url';
 
 let SKIP_DIR: RegExp;
 
