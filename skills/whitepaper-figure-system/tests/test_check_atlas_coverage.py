@@ -286,20 +286,28 @@ class AtlasCoverageTests(unittest.TestCase):
                 contracts, atlas_ids, source_ids
             ),
         )
-        # 61, not 66. Five volume-IV rows left the atlas on 2026-09-08 when
-        # chapter 6 stopped re-inputting drawings chapters 7 and 8 develop --
-        # the Book was printing each of them twice under two figure numbers.
-        # A pinned count is the right shape for this assertion; it just has to
-        # move when the corpus does, and this is the move.
-        self.assertEqual(report["source_count"], 61)
-        self.assertEqual(report["atlas_count"], 61)
-        # Zero, and correctly so: the five contracts all described one Book
-        # printing the same drawing twice, and they went when that did. This
-        # assertion is kept rather than deleted because it is the thing that
-        # will notice when a contract legitimately reappears -- a standalone
-        # paper carrying its own copy of a chapter's figure is exactly that --
-        # and uncovered_reuse() is what fails if one is needed and missing.
-        self.assertEqual(len(contracts), 0)
+        # 66 again, and the round trip is the lesson. It was 66, then 61 on
+        # 2026-09-08 when five volume-IV rows left the atlas because chapter 6
+        # had stopped re-inputting drawings chapters 7 and 8 develop -- the Book
+        # was printing each of them twice under two figure numbers -- and 66
+        # once more the same day, because deleting them was half a fix.
+        # harbor-economy.tex is also the source of a standalone submission
+        # paper, and rewriting its prose to point at chapters removed five
+        # figures from a PDF whose reader has no other chapters to be pointed
+        # at. The whole fix is \ifpdbook: the Book takes the cross-reference,
+        # the paper keeps its copy, and the SOURCE therefore still carries all
+        # 66. A pinned count is the right shape for this assertion; it just has
+        # to move when the corpus does, and it has now moved twice.
+        self.assertEqual(report["source_count"], 66)
+        self.assertEqual(report["atlas_count"], 66)
+        # Five, and the previous revision of this comment is why the assertion
+        # was kept at zero rather than deleted: it said it would "notice when a
+        # contract legitimately reappears -- a standalone paper carrying its own
+        # copy of a chapter's figure is exactly that". That is what happened,
+        # inside a day. uncovered_reuse() is what fails if one is needed and
+        # missing, and it is the invariant doing the real work here; this count
+        # only pins today's corpus.
+        self.assertEqual(len(contracts), 5)
         self.assertTrue(coverage.is_clean(report), report)
 
         for removed in atlas_ids:
@@ -310,10 +318,6 @@ class AtlasCoverageTests(unittest.TestCase):
                 )
                 self.assertFalse(coverage.is_clean(missing_one))
                 self.assertEqual(missing_one["missing_from_atlas"], [removed])
-
-
-if __name__ == "__main__":
-    unittest.main()
 
 
 class TestUncoveredReuse(unittest.TestCase):
@@ -362,3 +366,12 @@ class TestUncoveredReuse(unittest.TestCase):
         self.assertEqual(
             coverage.uncovered_reuse(["IV/fig:one", "IV/fig:one"], []), []
         )
+
+
+# The entry point belongs at the END of the file. It sat above TestUncoveredReuse,
+# which meant `python3 test_check_atlas_coverage.py` ran the suite before that
+# class was even defined and reported a pass over tests it had never seen.
+# `unittest discover` imports the module and finds everything, so CI was fine and
+# only a person running the file directly got the silent partial pass.
+if __name__ == "__main__":
+    unittest.main()
