@@ -1,5 +1,12 @@
 # Cost and Complexity Envelope
 
+Current rule (2026-09-08): solo local work only. All agent launches, daemon
+coordination and paid research experiments are suspended by operator order.
+The historical dollar amounts below are requested budgets, not demonstrated
+spend enforcement. Actual provider spend for these runs was not established.
+Any row marked running describes the September 5 observation only; there is
+no live-status claim and no post-halt status query.
+
 The budget is expressed as bounded reasoning work, not a fabricated dollar total. Provider and model costs are not assumed without a current price source and an actual configured backend.
 
 | Phase | Maximum work | Parallelism | Stop condition |
@@ -34,3 +41,6 @@ The budget is expressed as bounded reasoning work, not a fabricated dollar total
 | surface inventory | `gpt-5.4-mini` through `pd spawn` | $0.75 ceiling; actual unavailable | incomplete; process exited without terminal receipt |
 | independent Field Guide review attempt | `gpt-5.4-mini` through `pd spawn` | $0; refused before execution | closed; no duplicate retry after delegated review arrived |
 | independent Field Guide review, source task | separately commissioned delegated reviewer | actual cost unavailable to this session | complete; result adopted without a duplicate retry |
+| Phase 1 A privacy/authority | `gpt-5.6-luna` through `pd spawn` | $0.60 ceiling; actual pending | running, frozen head `e8426c635` |
+| Phase 1 B provenance/formal | `gpt-5.6-luna` through `pd spawn` | $0.60 ceiling; actual pending | running, frozen head `e8426c635` |
+| Phase 1 C distributed/durability | `gpt-5.6-luna` through `pd spawn` | $0.60 ceiling; actual pending | running, frozen head `e8426c635` |
