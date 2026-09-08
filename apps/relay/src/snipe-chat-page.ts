@@ -46,7 +46,7 @@
 import type { Env } from './types.js';
 import { resolveSession } from './auth-github.js';
 import { randomHex } from './crypto.js';
-import { HEAD, TOKENS } from './account-page.js';
+import { HEAD, TOKENS } from './account-theme.js';
 import { dailyCaps } from './chat-spend.js';
 import { MAX_MESSAGE_CHARS } from './chat-engine.js';
 import type { UserRow } from './db.js';

@@ -70,6 +70,9 @@ PUBLIC_BASE_URL = "https://relay.portdaddy.dev"
 # Durable GitHub numeric id for the initial account-backed Cloud Fleet operator.
 # Public identity metadata; authorization still requires a live pdu_ token.
 RELAY_OPERATOR_GITHUB_USER_ID = "2093678"
+# Separate global Fleet administration allowlist, checked on every request.
+# Immutable GitHub ID for erichowens; no user_roles or break-glass fallback.
+FLEET_ADMIN_GITHUB_IDS = "2093678"
 # Workers AI model for the Shipwright chat (src/shipwright.ts). A plain var so
 # operators can retarget without a code deploy; unknown ids fail the AI call
 # with an honest AI_ERROR, they never remap silently. Unset, the default is
@@ -235,6 +238,7 @@ name = "relay-latest"
 routes = []
 
 [env.latest.vars]
+FLEET_ADMIN_GITHUB_IDS = "2093678"
 RELAY_VERSION = "0.1.0"
 EVENT_RETENTION_DAYS = "7"
 SESSION_TTL_SECONDS = "3600"

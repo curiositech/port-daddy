@@ -37,6 +37,7 @@ compatibility_date = "2026-06-01"
 compatibility_flags = ["nodejs_compat"]
 
 [vars]
+FLEET_ADMIN_GITHUB_IDS = "" # Cloudflare-owned comma-separated GitHub numeric IDs; empty denies everyone.
 RELAY_VERSION = "0.1.0"
 EVENT_RETENTION_DAYS = "7"
 SESSION_TTL_SECONDS = "3600"

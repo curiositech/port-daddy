@@ -26,6 +26,7 @@
  */
 
 import type { ExecutorEnv, FleetRunJob } from './env.js';
+import { fleetMayRun, assertFleetMayRun, FleetStoppedError } from '../../../shared/fleet-controls.js';
 import { executeFleet } from './execute.js';
 import { CheckRunCompletionError } from './github.js';
 import {
@@ -107,6 +108,11 @@ export default {
 
     if (batch.queue === DLQ_QUEUE_NAME) {
       for (const message of batch.messages) {
+        if (!(await fleetMayRun(env.DB, message.body?.installationId))) {
+          await markFleetIntentTerminal(env, message.body?.deliveryId, 'cancelled', 'Cloud Fleet is off or controls unavailable');
+          message.ack();
+          continue;
+        }
         console.log(
           `[fleet-executor] dlq delivery=${message.body?.deliveryId} repo=${message.body?.repoFullName} pr=${message.body?.prNumber}`,
         );
@@ -117,6 +123,11 @@ export default {
     }
 
     for (const message of batch.messages) {
+      if (!(await fleetMayRun(env.DB, message.body?.installationId))) {
+        await markFleetIntentTerminal(env, message.body?.deliveryId, 'cancelled', 'Cloud Fleet is off or controls unavailable');
+        message.ack();
+        continue;
+      }
       const reportedAttempt = (message as unknown as { attempts?: number }).attempts;
       const attempt = Number.isInteger(reportedAttempt) && (reportedAttempt ?? 0) > 0
         ? reportedAttempt as number
@@ -164,6 +175,7 @@ export default {
                 `cannot repair missing continuation ${recordedSequence}: producer binding unavailable`,
               );
             }
+            await assertFleetMayRun(env.DB, message.body.installationId);
             await env.FLEET_CONTINUATIONS.send(
               { ...message.body, continuationSequence: recordedSequence },
               { delaySeconds: 1 },
@@ -253,6 +265,7 @@ export default {
                 `checkpoint continuation count unavailable after pd-${disposition.completedShip}`,
               );
             }
+            await assertFleetMayRun(env.DB, message.body.installationId);
             await env.FLEET_CONTINUATIONS.send(
               { ...message.body, continuationSequence: nextSequence },
               { delaySeconds: 1 },
@@ -326,6 +339,11 @@ export default {
         }
         message.ack();
       } catch (err) {
+        if (err instanceof FleetStoppedError) {
+          await markFleetIntentTerminal(env, message.body.deliveryId, 'cancelled', 'Cloud Fleet stopped at an action boundary');
+          message.ack();
+          continue;
+        }
         const providerError = err instanceof FleetAiDependencyError ? err : null;
         const recordedContinuations = explicitContinuation == null
           ? await countDeliveryContinuations(

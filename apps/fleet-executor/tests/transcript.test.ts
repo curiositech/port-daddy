@@ -1,5 +1,5 @@
 /**
- * Phase C observability: the executor's KILL SWITCH (KV `fleet:paused`) and the
+ * Phase C observability: the executor's primary-D1 stop controls and the
  * best-effort transcript/audit writes (fleet_runs + fleet_run_steps in the
  * shared relay D1).
  *
@@ -12,6 +12,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { controlDb } from '../../relay/tests/support/fleet-controls.js';
 import handler from '../src/index.js';
 import { TRANSCRIPT_EMERGENCY_EVENT } from '../../../lib/transcript-emergency-constants.js';
 import { executeFleet, mapChunkCharLimit } from '../src/execute.js';
@@ -76,200 +77,27 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe('kill switch (KV fleet:paused)', () => {
-  it('paused (boolean "true") ⇒ no AI calls, no review posts, but STILL posts a neutral check', async () => {
-    // Regression test for the 2026-07-16 incident: an out-of-band
-    // `fleet:paused=true` left "Port Daddy Fleet" (a REQUIRED merge-queue
-    // check) silently ABSENT on every PR for 4 days because the old
-    // behavior was to return before ever creating a check run. Paused must
-    // still post something — a neutral check — so the required-check gate
-    // can never hang on total silence.
-    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
-    const kv = memoryKV();
-    seedToken(kv, 42);
-    await kv.put('fleet:paused', 'true');
-
-    const ai = aiStub({ perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' } });
-    const d1 = memoryD1();
-
+describe('D1 Cloud Fleet stop', () => {
+  it('off acknowledges queued work without AI, tokens, checks, comments or retries', async () => {
+    const ai = aiStub({ perShip: {} });
+    const db = memoryD1();
+    const stopped = controlDb();
+    db.db.withSession = stopped.withSession;
     const msg = fakeMessage(makeJob());
-    await handler.queue!(
-      fakeBatch([msg]),
-      makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: kv, AI: ai.ai, DB: d1.db }),
-      {} as ExecutionContext,
-    );
-
-    // Acked without retry — the job is consumed.
-    expect(msg.ack).toHaveBeenCalledTimes(1);
+    await handler.queue!(fakeBatch([msg]), makeEnv({ DB: db.db, AI: ai.ai }), {} as ExecutionContext);
+    expect(msg.ack).toHaveBeenCalledOnce();
     expect(msg.retry).not.toHaveBeenCalled();
-    // Zero AI spend, zero review/comment posts — but the required check WAS
-    // created and completed neutral, never left silently absent.
     expect(ai.calls).toHaveLength(0);
-    expect(state.commentPosts).toBe(0);
-    expect(state.reviews).toHaveLength(0);
-    expect(state.checkRunsCreated).toBe(1);
-    expect(state.completed).toHaveLength(1);
-    expect(state.completed[0].conclusion).toBe('neutral');
-    expect(state.completed[0].summary).toContain('Fleet paused by operator');
-    expect(d1.runs).toHaveLength(1);
-    expect(d1.runs[0].conclusion).toBe('neutral');
-    // The consumer stamps a delivery-attempt marker on EVERY delivery — paused
-    // ones included (#7743: an attempt's existence must be provable even when
-    // the run itself does nothing). The pause still spends nothing beyond it.
-    expect(d1.steps.map(s => s.kind)).toEqual(['delivery-attempt', 'check-completed']);
-  });
-
-  it('paused ⇒ creates a distinct gate for a distinct webhook delivery on the same head', async () => {
-    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
-    const kv = memoryKV();
-    seedToken(kv, 42);
-    await kv.put('fleet:paused', 'true');
-    const ai = aiStub({ perShip: {} });
-
-    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: kv, AI: ai.ai, DB: memoryD1().db }));
-    expect(state.checkRunsCreated).toBe(1);
-
-    // A different webhook delivery is a new generation even on the same head;
-    // only a queue retry with the exact same delivery/run may reuse a check.
-    await executeFleet(
-      makeJob({ deliveryId: 'delivery-retry' }),
-      makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: kv, AI: ai.ai, DB: memoryD1().db }),
-    );
-    expect(state.checkRunsCreated).toBe(2);
-    expect(state.completed).toHaveLength(2);
-    expect(state.completed.every(c => c.conclusion === 'neutral')).toBe(true);
-  });
-
-  it('paused with no head sha in the payload ⇒ cannot post a check, still acks (no throw)', async () => {
-    const kv = memoryKV();
-    seedToken(kv, 42);
-    await kv.put('fleet:paused', 'true');
-    const ai = aiStub({ perShip: {} });
-
-    const job = makeJob({ payloadMinimal: { pull_request: { number: 7 } } });
-    await expect(
-      executeFleet(job, makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: kv, AI: ai.ai, DB: memoryD1().db })),
-    ).resolves.toBeUndefined();
+    expect(state.tokenMints).toBe(0);
     expect(state.checkRunsCreated).toBe(0);
-    expect(ai.calls).toHaveLength(0);
-  });
-
-  it('paused (JSON {paused:true}) ⇒ skips AI + review, posts neutral check; {paused:false} runs normally', async () => {
-    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
-    const kv = memoryKV();
-    seedToken(kv, 42);
-    await kv.put('fleet:paused', JSON.stringify({ paused: true, pausedAt: 1 }));
-
-    const ai = aiStub({ perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' } });
-    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: kv, AI: ai.ai, DB: memoryD1().db }));
-    expect(ai.calls).toHaveLength(0);
-    expect(state.completed).toHaveLength(1);
-    expect(state.completed[0].conclusion).toBe('neutral');
-
-    // Flip to resumed: the same job (new delivery id) now runs to completion.
-    await kv.put('fleet:paused', JSON.stringify({ paused: false, pausedAt: 2 }));
-    const ai2 = aiStub({ perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' } });
-    await executeFleet(
-      makeJob({ deliveryId: 'delivery-resumed' }),
-      makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: kv, AI: ai2.ai, DB: memoryD1().db }),
-    );
-    expect(ai2.calls.length).toBeGreaterThan(0);
-    expect(state.completed).toHaveLength(2);
-    expect(state.completed[1].conclusion).toBe('success');
-  });
-
-  it('absent / corrupt flag ⇒ NOT paused (fail-safe keeps the gate running)', async () => {
-    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
-    const kv = memoryKV();
-    seedToken(kv, 42);
-    await kv.put('fleet:paused', 'garbage-not-json');
-
-    const ai = aiStub({ perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' } });
-    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: kv, AI: ai.ai, DB: memoryD1().db }));
-
-    expect(ai.calls.length).toBeGreaterThan(0);
-    expect(state.completed).toHaveLength(1);
-  });
-
-  it('missing CONTROL_KV binding ⇒ NOT paused (fail-safe keeps the gate running)', async () => {
-    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
-    const kv = memoryKV();
-    seedToken(kv, 42);
-
-    const ai = aiStub({ perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' } });
-    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: undefined, AI: ai.ai, DB: memoryD1().db }));
-
-    expect(ai.calls.length).toBeGreaterThan(0);
-    expect(state.completed).toHaveLength(1);
-    expect(state.completed[0].conclusion).toBe('success');
-  });
-
-  it('CONTROL_KV read failures and malformed objects ⇒ NOT paused', async () => {
-    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
-    const kv = memoryKV();
-    seedToken(kv, 42);
-    const throwingControlKv = {
-      get: vi.fn(async () => {
-        throw new Error('kv read failed');
-      }),
-    } as unknown as KVNamespace;
-
-    const ai = aiStub({ perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' } });
-    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: throwingControlKv, AI: ai.ai, DB: memoryD1().db }));
-    expect(ai.calls.length).toBeGreaterThan(0);
-    expect(state.completed).toHaveLength(1);
-
-    // A DIFFERENT head SHA, because this is a second commit being reviewed --
-    // not a redelivery of the first. Same-SHA redelivery after a decided check
-    // is now skipped on purpose (it would re-spend to change nothing), so
-    // reusing the SHA here would test the skip rather than the pause config.
-    // Model a SECOND COMMIT, not a redelivery of the first. The executor now
-    // skips a redelivery whose check already reached a verdict (it would
-    // re-spend to change nothing), so reusing the first commit's decided check
-    // here would silently test that skip instead of the pause config this case
-    // is about.
-    state.existingCheckRuns = [];
-    const malformedKv = memoryKV();
-    await malformedKv.put('fleet:paused', JSON.stringify({ paused: 'true' }));
-    const ai2 = aiStub({ perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' } });
-    await executeFleet(makeJob({ deliveryId: 'delivery-def' }), makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: malformedKv, AI: ai2.ai, DB: memoryD1().db }));
-    expect(ai2.calls.length).toBeGreaterThan(0);
-    expect(state.completed).toHaveLength(2);
-  });
-
-  it('pause flipped after check creation stops before AI spend and completes neutral', async () => {
-    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
-    const kv = memoryKV();
-    seedToken(kv, 42);
-    const originalGet = kv.get.bind(kv);
-    let pauseReads = 0;
-    kv.get = (async (key: string) => {
-      if (key === 'fleet:paused') {
-        pauseReads += 1;
-        return pauseReads >= 2 ? 'true' : null;
-      }
-      return originalGet(key);
-    }) as KVNamespace['get'];
-
-    const ai = aiStub({ perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' } });
-    const d1 = memoryD1();
-
-    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: kv, AI: ai.ai, DB: d1.db }));
-
-    expect(pauseReads).toBe(2);
-    expect(ai.calls).toHaveLength(0);
     expect(state.commentPosts).toBe(0);
-    expect(state.reviews).toHaveLength(0);
-    expect(state.checkRunsCreated).toBe(1);
-    expect(state.completed).toHaveLength(1);
-    expect(state.completed[0].conclusion).toBe('neutral');
-    expect(state.completed[0].summary).toContain('Fleet paused before pd-code-reviewer');
-    expect(d1.runs[0].conclusion).toBe('neutral');
-    // Ship configs are recorded once, right after the gating check is
-    // established — before the per-ship loop's own (second) pause check, so
-    // this run's pause-before-first-ship still carries that one config row.
-    expect(d1.steps.map(s => s.kind)).toEqual(['fleet-ship-config', 'check-completed']);
-    expect(d1.steps.find(s => s.kind === 'check-completed')?.detail).toContain('"pausedBeforeShip":"code-reviewer"');
+  });
+
+  it('direct execution refuses absent controls even when legacy KV allows', async () => {
+    const env = makeEnv({ DB: controlDb() });
+    await env.CONTROL_KV!.put('fleet:paused', 'false');
+    await expect(executeFleet(makeJob(), env)).rejects.toThrow('FLEET_STOPPED');
+    expect(state.records).toHaveLength(0);
   });
 });
 

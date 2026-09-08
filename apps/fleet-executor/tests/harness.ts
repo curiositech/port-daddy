@@ -6,6 +6,7 @@
  */
 
 import { vi } from 'vitest';
+import { controlDb } from '../../relay/tests/support/fleet-controls.js';
 import type { ExecutorEnv, FleetRunJob } from '../src/env.js';
 
 export interface FetchRecord {
@@ -701,9 +702,12 @@ export function memoryD1(): D1Capture {
           // result, while ensureRunRow remains a true no-op on an existing row.
           const isIgnore = /INSERT OR IGNORE/i.test(sql);
           const isLogicalRunUpsert = /ON CONFLICT\s*\(id\)/i.test(sql);
+          const isTerminalUpsert = /conclusion = excluded.conclusion/i.test(sql);
           const existing = runsById.get(String(args[0]));
           if (isIgnore && runsById.has(String(args[0]))) {
             // no-op, matching real D1
+          } else if (isTerminalUpsert && existing) {
+            existing.conclusion = String(args[6]);
           } else if (isLogicalRunUpsert && existing) {
             if (existing.conclusion === 'pending') {
               existing.deliveryId = args[1];
@@ -721,9 +725,9 @@ export function memoryD1(): D1Capture {
               prNumber: args[3],
               prUrl: args[4],
               headSha: args[5],
-              shipsCsv: args[6],
-              createdAt: args[7],
-              conclusion: 'pending',
+              shipsCsv: args[isTerminalUpsert ? 7 : 6],
+              createdAt: args[isTerminalUpsert ? 8 : 7],
+              conclusion: isTerminalUpsert ? String(args[6]) : 'pending',
               ms: 0,
             });
           }
@@ -763,6 +767,10 @@ export function memoryD1(): D1Capture {
         // Run-deadline read-back (getRunStartedAtSec): the logical run's TRUE
         // first-attempt created_at, surviving every continuation/retry —
         // served from the same runsById map the INSERT path above maintains.
+        if (/SELECT conclusion FROM fleet_runs WHERE id = \?/i.test(sql)) {
+          const row = runsById.get(String(args[0]));
+          return row ? { conclusion: row.conclusion } : null;
+        }
         if (/SELECT created_at FROM fleet_runs WHERE id = \?/i.test(sql)) {
           if (cap.failAll) throw new Error('D1 unavailable');
           const row = runsById.get(String(args[0]));
@@ -965,6 +973,11 @@ export function makeEnv(over: Partial<ExecutorEnv> = {}): ExecutorEnv {
     CONTROL_KV: memoryKV(),
     AI: aiStub({ perShip: {} }).ai,
     ...over,
+    // Existing execution fixtures explicitly authorize installation 42. Control
+    // tests supply their own primary session (including missing/broken state).
+    DB: over.DB?.withSession ? over.DB : Object.assign({}, over.DB ?? memoryD1().db, {
+      withSession: controlDb([42]).withSession,
+    }) as D1Database,
   };
 }
 

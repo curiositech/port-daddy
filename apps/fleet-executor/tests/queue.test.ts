@@ -12,6 +12,16 @@ import {
   type GitHubState,
 } from './harness.js';
 import type { FleetRunJob } from '../src/env.js';
+const SINGLE_REVIEWER_YAML = `fleet:
+  agents:
+    code-reviewer:
+      trigger: pull_request:opened
+      blocking: true
+      fallbacks:
+        - backend: cloudflare
+          model: '@cf/qwen/qwen3-30b-a3b-fp8'
+      prompt: 'code-reviewer ship: review the diff.'
+`;
 import {
   DELIVERY_CONTINUATION_KIND,
   countDeliveryContinuations,
@@ -414,7 +424,7 @@ describe('queue consumer', () => {
   });
 
   it('acks a message on successful run', async () => {
-    state.files.set('main:pd-fleet.yml', 'fleet:\n');
+    state.files.set('main:pd-fleet.yml', SINGLE_REVIEWER_YAML);
     const kv = memoryKV();
     seedToken(kv, 42);
     const ai = aiStub({
@@ -627,7 +637,7 @@ describe('queue consumer', () => {
 
   it('retries instead of acking when the required check cannot be completed', async () => {
     vi.useFakeTimers();
-    state.files.set('main:pd-fleet.yml', 'fleet:\n');
+    state.files.set('main:pd-fleet.yml', SINGLE_REVIEWER_YAML);
     const kv = memoryKV();
     seedToken(kv, 42);
     const ai = aiStub({
@@ -680,7 +690,7 @@ describe('queue consumer', () => {
   });
 
   it('carries a long provider Retry-After into the Cloudflare redelivery delay', async () => {
-    state.files.set('main:pd-fleet.yml', 'fleet:\n');
+    state.files.set('main:pd-fleet.yml', SINGLE_REVIEWER_YAML);
     const kv = memoryKV();
     seedToken(kv, 42);
     const ai = aiStub({

@@ -1,0 +1,114 @@
+[
+  {
+    "fixture": "account",
+    "theme": "light",
+    "width": 1280,
+    "textScale": 2,
+    "horizontalOverflow": false
+  },
+  {
+    "fixture": "admin",
+    "theme": "light",
+    "width": 1280,
+    "textScale": 2,
+    "horizontalOverflow": false
+  },
+  {
+    "fixture": "stopped",
+    "theme": "light",
+    "width": 1280,
+    "textScale": 2,
+    "horizontalOverflow": false
+  },
+  {
+    "fixture": "unavailable",
+    "theme": "light",
+    "width": 1280,
+    "textScale": 2,
+    "horizontalOverflow": false
+  },
+  {
+    "fixture": "account",
+    "theme": "light",
+    "width": 390,
+    "textScale": 2,
+    "horizontalOverflow": false
+  },
+  {
+    "fixture": "admin",
+    "theme": "light",
+    "width": 390,
+    "textScale": 2,
+    "horizontalOverflow": false
+  },
+  {
+    "fixture": "stopped",
+    "theme": "light",
+    "width": 390,
+    "textScale": 2,
+    "horizontalOverflow": false
+  },
+  {
+    "fixture": "unavailable",
+    "theme": "light",
+    "width": 390,
+    "textScale": 2,
+    "horizontalOverflow": false
+  },
+  {
+    "fixture": "account",
+    "theme": "dark",
+    "width": 1280,
+    "textScale": 2,
+    "horizontalOverflow": false
+  },
+  {
+    "fixture": "admin",
+    "theme": "dark",
+    "width": 1280,
+    "textScale": 2,
+    "horizontalOverflow": false
+  },
+  {
+    "fixture": "stopped",
+    "theme": "dark",
+    "width": 1280,
+    "textScale": 2,
+    "horizontalOverflow": false
+  },
+  {
+    "fixture": "unavailable",
+    "theme": "dark",
+    "width": 1280,
+    "textScale": 2,
+    "horizontalOverflow": false
+  },
+  {
+    "fixture": "account",
+    "theme": "dark",
+    "width": 390,
+    "textScale": 2,
+    "horizontalOverflow": false
+  },
+  {
+    "fixture": "admin",
+    "theme": "dark",
+    "width": 390,
+    "textScale": 2,
+    "horizontalOverflow": false
+  },
+  {
+    "fixture": "stopped",
+    "theme": "dark",
+    "width": 390,
+    "textScale": 2,
+    "horizontalOverflow": false
+  },
+  {
+    "fixture": "unavailable",
+    "theme": "dark",
+    "width": 390,
+    "textScale": 2,
+    "horizontalOverflow": false
+  }
+]

@@ -74,7 +74,7 @@ import {
   MEDIATOR_ID,
 } from './parleys.js';
 import { renderGateVerdict, type GateVerdictOutcome } from './mediator-body.js';
-import { HEAD, TOKENS } from './account-page.js';
+import { HEAD, TOKENS } from './account-theme.js';
 
 /** How many parleys one rendered list shows (newest first). */
 export const PARLEY_LIST_LIMIT = 25;
@@ -1141,7 +1141,7 @@ export async function handleParleyDetailPage(
     summonses = [];
   }
   try {
-    fleetPaused = await getFleetPaused(env.KV);
+    fleetPaused = await getFleetPaused(env.DB);
     mediatorKilled = await getMediatorKilled(env.KV);
   } catch {
     // Unknown flag state ⇒ treat as BLOCKED, not as clear: rendering live

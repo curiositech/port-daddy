@@ -24,6 +24,7 @@ import {
 } from '../src/github-webhook.js';
 import { tryDecodeTransitEnvelope } from '../src/envelope.js';
 import type { Env } from '../src/types.js';
+import { controlDb } from './support/fleet-controls.js';
 
 const SECRET = 'super-secret-webhook-key';
 
@@ -73,6 +74,7 @@ function makeMockD1(cap: Captured): D1Database {
     return stmt as unknown as D1PreparedStatement;
   };
   return {
+    withSession: controlDb([42, 777]).withSession,
     prepare: stmtFor,
     batch: async () => [],
     exec: async () => ({ count: 0, duration: 0 }),
@@ -148,6 +150,7 @@ function webhookReq(opts: {
 
 const PR_BODY = JSON.stringify({
   action: 'opened',
+  installation: { id: 42 },
   repository: { full_name: 'curiositech/port-daddy', id: 42 },
   sender: { login: 'octocat', id: 1 },
 });
@@ -389,6 +392,19 @@ describe('handleGithubWebhook — ambient-noise event filter', () => {
 // check green with `Port Daddy Fleet` simply absent.
 
 describe('fleet enqueue — merge_group (the merge-queue deadlock)', () => {
+  it('does not enqueue reviews or merge groups when controls are missing or unreadable', async () => {
+    for (const unavailable of [false, true]) {
+      for (const [event, body] of [['pull_request', PR_BODY], ['merge_group', MERGE_GROUP_BODY]]) {
+        const reviews: unknown[] = [], gates: unknown[] = [];
+        const { env } = envWithQueues(reviews, gates);
+        env.DB.withSession = unavailable ? (() => { throw new Error('offline'); }) : controlDb().withSession;
+        const res = await handleGithubWebhook(webhookReq({ body, signature: sign(SECRET, body), event, delivery: 'stopped-fixture' }), env);
+        expect(res.status).toBe(204);
+        expect(reviews).toHaveLength(0);
+        expect(gates).toHaveLength(0);
+      }
+    }
+  });
   function envWithQueues(reviewSent: unknown[], gateSent?: unknown[]) {
     const cap: Captured = { events: [], audits: [] };
     const env = makeEnv(cap, []) as unknown as Record<string, unknown>;

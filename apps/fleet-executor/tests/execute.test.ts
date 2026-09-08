@@ -3137,6 +3137,7 @@ describe('attempt checkpoints — retries resume, never re-spend', () => {
 
   it('no D1 binding makes checkpoint load/save harmless no-ops', async () => {
     const env = makeEnv({});
+    env.DB = undefined;
     await expect(saveShipCheckpoint(
       env,
       'run:delivery-abc',

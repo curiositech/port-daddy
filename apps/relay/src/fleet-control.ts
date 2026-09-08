@@ -35,6 +35,7 @@ import {
   createPr,
 } from './github-app.js';
 import type { Env } from './types.js';
+import { readFleetControl } from '../../../shared/fleet-controls.js';
 
 // ── Envelope helpers ──────────────────────────────────────────────────────────
 
@@ -183,6 +184,7 @@ export async function handleFleetSmokeTest(request: Request, env: Env): Promise<
   const start = Date.now();
 
   try {
+    if (!(await readFleetControl(env.DB, 'global')).enabled) return fleetErr('FLEET_STOPPED', 'Cloud Fleet is off or controls unavailable', 409);
     const res = (await env.AI.run(ship.cfModel as Parameters<typeof env.AI.run>[0], {
       messages: [
         { role: 'system', content: ship.role },
@@ -244,6 +246,7 @@ export async function handleFleetOptimizePrompt(request: Request, env: Env): Pro
     'RATIONALE:\n<one-line explanation of what changed and why>';
 
   try {
+    if (!(await readFleetControl(env.DB, 'global')).enabled) return fleetErr('FLEET_STOPPED', 'Cloud Fleet is off or controls unavailable', 409);
     const res = (await env.AI.run(OPTIMIZE_MODEL as Parameters<typeof env.AI.run>[0], {
       messages: [
         { role: 'system', content: system },

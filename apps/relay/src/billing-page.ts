@@ -43,7 +43,7 @@ import {
   CREDIT_PACKS,
   type LedgerHistoryView,
 } from './billing.js';
-import { HEAD, TOKENS } from './account-page.js';
+import { HEAD, TOKENS } from './account-theme.js';
 
 /** Cap on per-installation D1 balance lookups per page view. */
 export const MAX_INSTALLATIONS = 20;

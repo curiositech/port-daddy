@@ -41,6 +41,7 @@ import {
 } from './envelope.js';
 import type { RelayReadableEnvelope } from './envelope.js';
 import { maybeWakeSteward } from './steward-wake.js';
+import { fleetMayRun } from '../../../shared/fleet-controls.js';
 import {
   getLastEventSeq,
   insertEvent,
@@ -364,6 +365,12 @@ async function maybeEnqueueFleetRun(
     payload.installation && typeof payload.installation === 'object'
       ? (payload.installation as Record<string, unknown>)
       : null;
+  const installationId = installation && typeof installation.id === 'number' ? installation.id : null;
+  if (!(await fleetMayRun(env.DB, installationId))) {
+    await appendAudit(env.DB, { action: 'fleet_admission_stopped', target: repoFullName ?? '',
+      detail: `delivery=${deliveryId} controls=off-or-unavailable` }).catch(() => {});
+    return;
+  }
   const pull =
     payload.pull_request && typeof payload.pull_request === 'object'
       ? (payload.pull_request as Record<string, unknown>)
@@ -432,6 +439,10 @@ async function maybeEnqueueFleetRun(
     },
   };
   try {
+    if (!(await fleetMayRun(env.DB, installationId))) {
+      if (reservation) await markFleetRunIntentEnqueueFailed(env.DB, deliveryId, 'Cloud Fleet stopped before enqueue', Math.floor(Date.now() / 1000));
+      return;
+    }
     await queue.send(job);
   } catch (queueError) {
     console.error(

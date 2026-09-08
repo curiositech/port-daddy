@@ -67,6 +67,8 @@ export interface Env {
   // matching account is materialized into user_roles on first authorized read;
   // this is a public identifier, not an authentication secret.
   RELAY_OPERATOR_GITHUB_USER_ID?: string;
+  /** Cloudflare-owned exact GitHub IDs allowed to administer GLOBAL Fleet. No role/token fallback. */
+  FLEET_ADMIN_GITHUB_IDS?: string;
   // GitHub App credentials — fleet control-plane config read + save (PR) path.
   // GITHUB_APP_PRIVATE_KEY is a secret (PEM); the rest may be vars.
   GITHUB_APP_ID?: string;

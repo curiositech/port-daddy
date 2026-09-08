@@ -27,7 +27,7 @@ import {
   type FleetRunProjection,
 } from './fleet-run-intents.js';
 import { resolveSession, userCanReadRepo, type ResolvedSession } from './auth-github.js';
-import { HEAD, TOKENS } from './account-page.js';
+import { HEAD, TOKENS } from './account-theme.js';
 
 /** How many recent runs to pull from D1 (newest first). */
 const RUNS_LIMIT = 100;

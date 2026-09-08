@@ -22,6 +22,7 @@ import {
   handleFleetSave,
 } from '../src/fleet-control.js';
 import type { Env } from '../src/types.js';
+import { controlDb } from './support/fleet-controls.js';
 
 // >= 32 chars: operatorOnly() fail-closes (500 MISCONFIGURED) below the minimum.
 const OPERATOR = 'super-secret-operator-token-32bytes-min';
@@ -51,7 +52,7 @@ interface EnvOverrides {
 function makeEnv(o: EnvOverrides = {}): Env {
   const prepare = o.dbPrepare ?? vi.fn(() => { throw new Error('D1 must not be touched by fleet control-plane'); });
   return {
-    DB: { prepare } as unknown as D1Database,
+    DB: { prepare, withSession: controlDb([42]).withSession } as unknown as D1Database,
     HARBOR_CHANNEL: {} as unknown as DurableObjectNamespace,
     KV: o.kv ?? makeKV(),
     AI: o.ai as unknown as Ai,
@@ -281,6 +282,15 @@ describe('handleFleetSmokeTest', () => {
 // ── optimize-prompt ─────────────────────────────────────────────────────────────
 
 describe('handleFleetOptimizePrompt', () => {
+  it('does not spend on manual Fleet model tooling while globally stopped', async () => {
+    const ai = makeAI('unused');
+    const env = makeEnv({ ai });
+    env.DB = controlDb();
+    const result = await handleFleetOptimizePrompt(req('/v1/fleet/optimize-prompt', 'POST', OPERATOR, { currentPrompt: 'synthetic' }), env);
+    expect(result.status).toBe(409);
+    expect(await result.json()).toMatchObject({ code: 'FLEET_STOPPED' });
+    expect(ai.run).not.toHaveBeenCalled();
+  });
   it('parses IMPROVED:/RATIONALE: into the two fields', async () => {
     const ai = makeAI(
       'IMPROVED:\nYou are a precise code reviewer. Output severity-ranked findings.\nRATIONALE:\nRestructured into a numbered output contract.',
