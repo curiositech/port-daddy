@@ -757,24 +757,33 @@ const RANGE_COMMANDS = ['crefrange', 'Crefrange', 'cpagerefrange', 'Cpagerefrang
 
 // Labels the Book itself owns (chapter and part anchors emitted by the
 // generator) are never namespaced: a chapter may point at another chapter.
-function namespaceOne(label, prefix) {
+// Nor is a label that already names a chapter by its prefix -- `fh:thm:x`
+// written inside chapter `he` -- because that is one chapter pointing at
+// another chapter's theorem, the only way a Book-only \ifpdbook branch can
+// cross-reference a statement it declines to print a second time, and
+// prefixing it again would produce `he:fh:thm:x`, which nothing defines. The
+// chapter prefixes come from textbook.json via the caller; with none given,
+// every label is local, which is what the standalone-shaped tests assume.
+function namespaceOne(label, prefix, chapterPrefixes = []) {
   const trimmed = label.trim();
-  return /^(chap|part):/.test(trimmed) ? trimmed : `${prefix}:${trimmed}`;
+  const head = trimmed.split(':', 1)[0];
+  if (head === 'chap' || head === 'part' || chapterPrefixes.includes(head)) return trimmed;
+  return `${prefix}:${trimmed}`;
 }
 
-function namespaceList(labels, prefix) {
-  return labels.split(',').map((label) => namespaceOne(label, prefix)).join(',');
+function namespaceList(labels, prefix, chapterPrefixes = []) {
+  return labels.split(',').map((label) => namespaceOne(label, prefix, chapterPrefixes)).join(',');
 }
 
-function namespaceLabels(body, prefix) {
+function namespaceLabels(body, prefix, chapterPrefixes = []) {
   const single = new RegExp(`\\\\(${LABEL_COMMANDS.join('|')})(\\*?)\\{([^}]+)\\}`, 'g');
   const range = new RegExp(`\\\\(${RANGE_COMMANDS.join('|')})(\\*?)\\{([^}]+)\\}\\{([^}]+)\\}`, 'g');
   return body
     .replace(range, (_whole, command, star, from, to) =>
-      `\\${command}${star}{${namespaceOne(from, prefix)}}{${namespaceOne(to, prefix)}}`)
+      `\\${command}${star}{${namespaceOne(from, prefix, chapterPrefixes)}}{${namespaceOne(to, prefix, chapterPrefixes)}}`)
     .replace(single, (_whole, command, star, labels) =>
-      `\\${command}${star}{${namespaceList(labels, prefix)}}`)
-    .replace(/\\hyperref\[([^\]]+)\]/g, (_whole, label) => `\\hyperref[${namespaceOne(label, prefix)}]`)
+      `\\${command}${star}{${namespaceList(labels, prefix, chapterPrefixes)}}`)
+    .replace(/\\hyperref\[([^\]]+)\]/g, (_whole, label) => `\\hyperref[${namespaceOne(label, prefix, chapterPrefixes)}]`)
     // The chapter listings use alg:* key-value labels rather than \label{...}.
     // Keep this deliberately narrow: TikZ also has a visual `label={...}` key.
     .replace(/label=\{(alg:[^}]+)\}/g, (_whole, label) => `label={${prefix}:${label.trim()}}`)
@@ -1327,7 +1336,7 @@ function generate({ textbook = loadTextbook(), out = resolve(repoRoot, defaultOu
       body = apparatus.body;
       paper.stripped = apparatus.stripped;
       body = namespaceChapterSyntax(body, paper);
-      body = namespaceLabels(body, paper.prefix);
+      body = namespaceLabels(body, paper.prefix, textbook.chapters.map((c) => c.prefix));
       body = rewriteCitations(body, paper.citationMap, paper.source);
       generatedBodies.push(renderChapter(paper, body));
     }

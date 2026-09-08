@@ -250,6 +250,22 @@ jobs:
       - name: No drawing is rendered twice in the Book
         run: python3 scripts/harbor-research/check_duplicate_figures.py
 
+      # A theorem two chapters share has no \input line for the step above to
+      # see. The generator namespaces every label per chapter so two chapters
+      # can reuse a name without the Book failing to compile -- which is also
+      # what let chapters 6 and 8 each print the conditional escrow bound
+      # under their own number, with different titles, until someone read
+      # both. The label is the signal, so the check keys on it. The two
+      # definitions allowed here are restated on purpose in different words
+      # (the cross-operator attestation problem in chapters 5 and 6, the float
+      # plan in chapters 6 and 7); each is a known duplicate still waiting for
+      # an owner, and the allow is the record of that, not a verdict that a
+      # reader should meet either twice.
+      - name: No theorem is stated twice in the Book
+        run: >-
+          python3 scripts/harbor-research/check_duplicate_theorems.py
+          --allow def:0040b --allow def:float-plan
+
       - name: Margin citation short-forms are a fresh render of the bibliographies
         run: python3 scripts/harbor-research/build_cite_shortforms.py --check
 

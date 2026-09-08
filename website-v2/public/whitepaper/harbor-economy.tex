@@ -1305,12 +1305,27 @@ adversarial-commerce baselines it is compared to below.
 \input{figures/fig-fh-settlement}
 \fi
 
+\ifpdbook
+The escrow construction states its trust assumption outright: it does \emph{not}
+claim trustless settlement. Its loss bound is conditional, and the condition is the
+whole content of the claim --- which is why the claim is stated once, as Design
+Invariant~\ref{fh:thm:fh-escrow-bound} in \pdchapref{fh}{The Federated Harbor}, the
+chapter that proves it by case analysis over the custody ledger's two terminal
+transitions, and is not printed again here under a second number. What it says, in
+one breath: \emph{if} the custody ledger is non-bypassable --- a recipient
+whitelist, a fee cap, one atomic terminal transition, and no operator path around
+any of the three --- then a counterparty's worst-case loss on a cross-harbor
+settlement is the pre-agreed fee $\varphi$ and the outcome is exactly
+\textbf{Clear} or \textbf{Refuse}; if that boundary \emph{can} be bypassed, the
+worst-case loss is the whole balance in custody. What this section adds is where
+that construction sits.
+\else
 The escrow construction states its trust assumption outright: it does \emph{not}
 claim trustless settlement. Its loss bound is conditional, and the condition is the whole
 content of the claim:
 
 \begin{pdclaim}{Design invariant}{Bounded custody loss, conditional}
-\label{thm:fh-escrow-bound}\pdprovedon{thm:fh-escrow-bound}
+\label{thm:fh-escrow-bound}
 \emph{If} the custody ledger is non-bypassable --- exposing only a recipient
 whitelist, a fee cap, and one atomic terminal transition, with no operator path
 around any of the three --- then a counterparty's worst-case loss on a cross-harbor
@@ -1320,6 +1335,7 @@ bypassed, the worst-case loss is instead the full balance in custody.
 (\Designed{}, conditional: no runtime conformance check establishes the hypothesis
 for a deployed system; 2-of-3 threshold signing is one candidate way to arrange it.)
 \end{pdclaim}
+\fi
 
 \noindent This is a deliberate departure from the
 hash-timelock baseline (\textbf{Herlihy}~2018~\pdcite{herlihy2018}, atomic cross-chain
