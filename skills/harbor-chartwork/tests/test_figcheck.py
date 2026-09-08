@@ -275,6 +275,58 @@ class TestNarrowOverwidthIsWithinTolerance(unittest.TestCase):
         self.assertEqual(report["checks"]["T7"]["status"], "pass", msg=report["checks"]["T7"]["findings"])
 
 
+class TestInkMetrics(unittest.TestCase):
+    """The ink block is advisory (borrowed from tufte-evidence-design's
+    ink_audit.py) and must never move figcheck's own pass/fail result."""
+
+    def test_all_ink_image_reports_high_ink_fraction(self):
+        # Ink_audit's ink_fraction is "share of pixels that differ from the
+        # single most common (auto-detected) color" -- a page painted with
+        # many distinct, similarly-sized color stripes has no single
+        # majority color, so almost every pixel counts as "ink" versus
+        # whichever stripe's color happens to be modal.
+        doc = pymupdf.open()
+        page = doc.new_page(width=200, height=200)
+        n = 25
+        w = 200 / n
+        for i in range(n):
+            color = (((i * 37) % 256) / 255.0, ((i * 91) % 256) / 255.0, ((i * 151) % 256) / 255.0)
+            page.draw_rect(pymupdf.Rect(i * w, 0, (i + 1) * w, 200), color=color, fill=color, width=0)
+        path = save_temp_pdf(doc)
+        try:
+            report = figcheck.run_figcheck(path)
+            ink = report["ink"][0]
+            self.assertGreater(ink["ink_fraction"], 0.9, msg=ink)
+            # advisory: a high ink_fraction must not fail the build
+            self.assertEqual(report["summary"]["result"], "pass")
+        finally:
+            Path(path).unlink(missing_ok=True)
+
+    def test_blank_page_reports_near_zero_ink_fraction(self):
+        doc = pymupdf.open()
+        doc.new_page(width=200, height=200)  # nothing drawn at all
+        path = save_temp_pdf(doc)
+        try:
+            report = figcheck.run_figcheck(path)
+            ink = report["ink"][0]
+            self.assertLess(ink["ink_fraction"], 0.05, msg=ink)
+            self.assertEqual(report["summary"]["result"], "pass")
+        finally:
+            Path(path).unlink(missing_ok=True)
+
+    def test_markdown_report_carries_the_ink_line(self):
+        doc = pymupdf.open()
+        page = doc.new_page(width=200, height=200)
+        page.insert_text((50, 100), "fine", fontsize=10, fontname="helv")
+        path = save_temp_pdf(doc)
+        try:
+            report = figcheck.run_figcheck(path)
+            md = figcheck.render_markdown(report)
+            self.assertIn("Ink (page 0):", md)
+        finally:
+            Path(path).unlink(missing_ok=True)
+
+
 class TestCLI(unittest.TestCase):
     def setUp(self):
         doc = pymupdf.open()
@@ -302,3 +354,34 @@ class TestCLI(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class InkAuditLoaderTests(unittest.TestCase):
+    """The ink metrics are advisory: when the Tufte skill's ink_audit.py is
+    absent (the skill moved, a partial checkout), figcheck must degrade to
+    "no ink data" rather than fail."""
+
+    def test_loader_returns_none_when_the_module_file_is_missing(self):
+        real_path = figcheck.INK_AUDIT_PATH
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                figcheck.INK_AUDIT_PATH = Path(tmp) / "does-not-exist" / "ink_audit.py"
+                self.assertIsNone(figcheck._load_ink_audit())
+        finally:
+            figcheck.INK_AUDIT_PATH = real_path
+
+    def test_loader_returns_none_when_the_module_does_not_import(self):
+        real_path = figcheck.INK_AUDIT_PATH
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                broken = Path(tmp) / "ink_audit.py"
+                broken.write_text("raise RuntimeError('deliberately broken')\n", encoding="utf-8")
+                figcheck.INK_AUDIT_PATH = broken
+                self.assertIsNone(figcheck._load_ink_audit())
+        finally:
+            figcheck.INK_AUDIT_PATH = real_path
+
+    def test_loader_finds_the_committed_module(self):
+        module = figcheck._load_ink_audit()
+        self.assertIsNotNone(module)
+        self.assertTrue(hasattr(module, "load_image"))
