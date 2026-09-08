@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-
-- Project Epistemology research/design package with a proposed reconciliation constitution, practitioner guide, architecture, dissent and experimental gates. A self-contained offline skill audits structured declarations, and a static three-case preview shows proposed consequences. Neither activates a service, verifies real authorization, establishes research benefit or releases the operator halt.
-
 ## [3.30.6] - 2026-08-31
 
 ### Added

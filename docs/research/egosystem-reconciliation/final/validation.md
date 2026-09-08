@@ -1,9 +1,12 @@
 # Validation and limits
 
-Executed September 8, 2026, on local synthetic artifacts. No Port Daddy CLI,
-MCP, daemon, application, agent launch, external publication or review workflow
-was used during this continuation. Earlier activity is retained as history in
-the [process log](../meta/process-log.md) and [cost record](../meta/cost-tracking.md).
+Executed September 8, 2026, on local synthetic artifacts during the offline
+validation phase recorded here. No Port Daddy CLI, MCP, daemon, application,
+agent launch, external publication or review workflow was used in that phase.
+Subsequent publication authority is recorded separately in the
+[publication packet](publication-packet.md); it does not change what these
+checks establish. Earlier activity is retained as history in the
+[process log](../meta/process-log.md) and [cost record](../meta/cost-tracking.md).
 
 ## Executed evidence
 
@@ -61,7 +64,7 @@ recorded in the interaction report. Its local load measurement is not a hosted
 - No real event replay, formal contradiction proof, live corpus retrieval,
   revocation race, distributed reservation or provider cost containment test.
 - No independently authored Phase 1/3/5 reviews were produced during this
-  continuation. Sequential lenses do not establish epistemic independence.
+  validation phase. Sequential lenses do not establish epistemic independence.
 - No H1–H4 evaluation, statistically powered benefit claim, systematic novelty
   review, actual-device, screen-reader, forced-colors or human task study.
 
