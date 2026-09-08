@@ -75,6 +75,10 @@ describe('snapshotBrokenReason', () => {
   test('a populated snapshot is fine', () => {
     expect(snapshotBrokenReason(FRESH)).toBeNull();
   });
+  test.each([null, {}, { slug: '' }])('malformed entry fails existing-link validation without throwing: %j', item => {
+    const malformed = { generatedAt: NOW, items: [item] } as unknown as RoadmapSnapshot;
+    expect(classify('Roadmap-Item: anything', malformed, { now: NOW }).reason).toBe('snapshot-missing');
+  });
 });
 
 describe('classify', () => {
@@ -138,13 +142,13 @@ describe('classify', () => {
     expect(r.reason).toBe('unknown-slug');
   });
 
-  test('self-spawn against a STALE snapshot still shouts instead of passing', () => {
+  test('self-spawn survives a frozen snapshot with an independent warning', () => {
     const body = ['Roadmap-Item: brand-new', 'Roadmap-Spawns: brand-new'].join('\n');
     const r = classify(body, snap(FRESH.items, 40), { now: NOW, staleAfterDays: 21 });
-    expect(r.verdict).toBe('needs-approval');
-    expect(r.reason).toBe('snapshot-stale');
-    expect(r.loud).toBe(true);
-    expect(r.requiresHumanApproval).toBe(true);
+    expect(r.verdict).toBe('pass');
+    expect(r.reason).toBe('self-spawned');
+    expect(r.snapshotWarning).toContain('freshness is unverified');
+    expect(r.requiresHumanApproval).toBe(false);
   });
 
   test('a slug the snapshot already KNOWS stays reason=linked even when also spawned', () => {
@@ -168,20 +172,46 @@ describe('classify', () => {
     expect(r.loud).toBe(true);
   });
 
-  test('stale snapshot is loud even for an otherwise-valid link', () => {
+  test('historical membership passes without claiming snapshot freshness or live status', () => {
     const r = classify('Roadmap-Item: roadmap-link-gate', snap(FRESH.items, 30), {
       now: NOW,
       staleAfterDays: 21,
     });
-    expect(r.reason).toBe('snapshot-stale');
-    expect(r.loud).toBe(true);
-    expect(r.requiresHumanApproval).toBe(true);
+    expect(r.reason).toBe('linked');
+    expect(r.verdict).toBe('pass');
+    expect(r.snapshotWarning).toContain('not current daemon status');
+    expect(r.headline).not.toContain('(now)');
+    expect(r.requiresHumanApproval).toBe(false);
+    expect(r.labelShouldBePresent).toBe(false);
   });
 
   test('unknown slug against a stale snapshot is treated as broken (might already exist)', () => {
     const r = classify('Roadmap-Item: maybe-new', snap(FRESH.items, 40), { now: NOW });
     expect(r.verdict).toBe('broken');
     expect(r.loud).toBe(true);
+  });
+
+  test.each([null, snap([]), snap(FRESH.items, 365)])(
+    'independent PR declarations do not depend on a running daemon: %j',
+    (snapshot) => {
+      const before = JSON.stringify(snapshot);
+      for (const body of [
+        'Roadmap-Item: none — halt-safe CI maintenance',
+        'Roadmap-Item: new-offline-work\nRoadmap-Spawns: new-offline-work',
+      ]) {
+        const result = classify(body, snapshot, { now: NOW });
+        expect(result.verdict).toBe('pass');
+        expect(result.snapshotWarning).toBeDefined();
+      }
+      // The gate must never rejuvenate a daemon export to manufacture freshness.
+      expect(JSON.stringify(snapshot)).toBe(before);
+    },
+  );
+
+  test.each([NaN, NOW + DAY])('invalid/future export time warns instead of claiming freshness: %s', (generatedAt) => {
+    const result = classify('Roadmap-Item: roadmap-link-gate', { ...FRESH, generatedAt }, { now: NOW });
+    expect(result.reason).toBe('linked');
+    expect(result.snapshotWarning).toBeDefined();
   });
 });
 

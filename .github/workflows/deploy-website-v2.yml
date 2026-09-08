@@ -40,6 +40,8 @@ concurrency:
 
 jobs:
   build-and-deploy:
+    # Approval is required before this job receives publication credentials.
+    environment: production
     runs-on: ubuntu-latest
     timeout-minutes: 25
 

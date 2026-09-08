@@ -8,8 +8,8 @@
  *     Roadmap-Item: none — <reason>    # explicit opt-out (chore/docs/hotfix)
  *
  * This module is the *decision* layer: given a PR body and a committed roadmap
- * snapshot, it decides whether the PR passes, needs a human to approve the land,
- * or whether the roadmap itself is broken/stale (which must be surfaced LOUDLY).
+ * snapshot, it decides whether the declaration is valid. Snapshot freshness is
+ * reported separately: a frozen daemon must not make valid PR metadata expire.
  *
  * It is deliberately I/O-free so it is trivially unit-testable. The CI script
  * (`scripts/check-roadmap-link.ts`) wraps it with GitHub plumbing (event JSON,
@@ -41,7 +41,7 @@ export interface RoadmapSnapshot {
 export type Verdict = 'pass' | 'needs-approval' | 'broken';
 
 export interface ClassifyOptions {
-  /** Snapshots older than this read as broken/stale and shout. Default 21 days. */
+  /** Snapshots older than this carry a freshness warning. Default 21 days. */
   staleAfterDays?: number;
   /** "now" injectable for tests. Default Date.now(). */
   now?: number;
@@ -72,6 +72,8 @@ export interface LinkResult {
   labelShouldBePresent: boolean;
   /** One-line human summary. */
   headline: string;
+  /** Independent evidence warning; a passing link is never a runtime-health claim. */
+  snapshotWarning?: string;
 }
 
 const TRAILER_KEYS = ['roadmap-item', 'roadmap'];
@@ -250,6 +252,9 @@ export function snapshotBrokenReason(
     return 'snapshot-missing';
   }
   if (snapshot.items.length === 0) return 'snapshot-empty';
+  if (snapshot.items.some((item) => !item || typeof item.slug !== 'string' || !item.slug.trim())) {
+    return 'snapshot-missing';
+  }
   return null;
 }
 
@@ -265,9 +270,35 @@ export function classify(
   const now = opts.now ?? Date.now();
   const staleAfterDays = opts.staleAfterDays ?? 21;
   const { slug, optOutReason } = parseRoadmapTrailer(body);
-
-  // 1. Roadmap broken — can't validate anything. Loud + human approval.
   const broken = snapshotBrokenReason(snapshot);
+  const ageDays = snapshot ? (now - snapshot.generatedAt) / DAY_MS : NaN;
+  const stale = !Number.isFinite(ageDays) || ageDays < 0 || ageDays > staleAfterDays;
+  const snapshotWarning = broken
+    ? 'Snapshot unavailable or empty; daemon state is unknown. Keep an operator-halted daemon stopped.'
+    : stale
+      ? 'Snapshot freshness is unverified; links establish recorded intent, not current daemon status. Do not restart a halted daemon to refresh it.'
+      : undefined;
+
+  // These declarations have their own evidence in the reviewed PR body and do
+  // not require a daemon snapshot. No fake export timestamp or runtime write.
+  if (optOutReason) {
+    return {
+      verdict: 'pass', reason: 'opt-out', slug: null, optOutReason,
+      requiresHumanApproval: false, loud: false, labelShouldBePresent: false,
+      headline: `Opt-out accepted: ${optOutReason}`, snapshotWarning,
+    };
+  }
+  const item = !broken ? snapshot?.items.find((i) => i.slug === slug) : undefined;
+  if (slug && !item && parseSpawns(body).slugs.includes(slug)) {
+    return {
+      verdict: 'pass', reason: 'self-spawned', slug, optOutReason: null,
+      requiresHumanApproval: false, loud: false, labelShouldBePresent: false,
+      headline: `Linked to \`${slug}\`, introduced by this PR's Roadmap-Spawns declaration; no daemon item creation is implied.`,
+      snapshotWarning,
+    };
+  }
+
+  // Existing-item links still fail closed when their evidence is unavailable.
   if (broken) {
     return {
       verdict: 'broken',
@@ -281,27 +312,6 @@ export function classify(
         broken === 'snapshot-missing'
           ? 'Roadmap snapshot is missing or unreadable — the gate cannot verify links.'
           : 'Roadmap snapshot has zero items — the roadmap export is broken.',
-    };
-  }
-
-  // Snapshot present: is it stale? (overlay — still validates the link below)
-  const ageDays = (now - (snapshot as RoadmapSnapshot).generatedAt) / DAY_MS;
-  const stale = ageDays > staleAfterDays;
-  const items = (snapshot as RoadmapSnapshot).items;
-
-  // 2. Explicit opt-out always passes (but a stale snapshot still shouts).
-  if (optOutReason) {
-    return {
-      verdict: stale ? 'needs-approval' : 'pass',
-      reason: stale ? 'snapshot-stale' : 'opt-out',
-      slug: null,
-      optOutReason,
-      requiresHumanApproval: stale,
-      loud: stale,
-      labelShouldBePresent: stale,
-      headline: stale
-        ? `Roadmap snapshot is ${Math.round(ageDays)}d stale — regenerate before landing.`
-        : `Opt-out accepted: ${optOutReason}`,
     };
   }
 
@@ -320,30 +330,7 @@ export function classify(
   }
 
   // 4. Trailer present — does the slug exist?
-  const item = items.find((i) => i.slug === slug);
   if (!item) {
-    // 4b. Self-spawned: the slug is declared by THIS PR's own `Roadmap-Spawns:`
-    // trailer. A PR that introduces a program (a plan, an ADR) is necessarily
-    // the first user of the items it creates — demanding the slug pre-exist in
-    // the snapshot made such PRs un-landable without a side-channel daemon
-    // write (the 2026-08-19 THE_FULL_WHEEL chicken-and-egg). The spawn trailer
-    // is the auditable declaration of intent; the daemon stays the only
-    // writer, and the snapshot catches up at the next export. A stale snapshot
-    // still shouts, same as the opt-out branch.
-    if (parseSpawns(body).slugs.includes(slug)) {
-      return {
-        verdict: stale ? 'needs-approval' : 'pass',
-        reason: stale ? 'snapshot-stale' : 'self-spawned',
-        slug,
-        optOutReason: null,
-        requiresHumanApproval: stale,
-        loud: stale,
-        labelShouldBePresent: stale,
-        headline: stale
-          ? `Roadmap snapshot is ${Math.round(ageDays)}d stale — regenerate before landing.`
-          : `Linked to \`${slug}\`, declared by this PR's own Roadmap-Spawns — the snapshot catches up at the next export.`,
-      };
-    }
     return {
       verdict: stale ? 'broken' : 'needs-approval',
       reason: stale ? 'snapshot-stale' : 'unknown-slug',
@@ -352,23 +339,23 @@ export function classify(
       requiresHumanApproval: true,
       loud: stale,
       labelShouldBePresent: true,
+      snapshotWarning,
       headline: stale
-        ? `Slug "${slug}" not in a ${Math.round(ageDays)}d-stale snapshot — regenerate, it may already exist.`
-        : `Slug "${slug}" is not a known roadmap item — create it or fix the typo.`,
+        ? `Slug "${slug}" is absent from the frozen snapshot. Correct the link, or declare genuinely new work with Roadmap-Spawns.`
+        : `Slug "${slug}" is not a known roadmap item — declare new work or fix the typo.`,
     };
   }
 
-  // 5. Linked to a real item. Pass (a stale snapshot still nudges).
+  // Recorded membership survives a halt. Do not present the old status as live.
   return {
-    verdict: stale ? 'needs-approval' : 'pass',
-    reason: stale ? 'snapshot-stale' : 'linked',
+    verdict: 'pass',
+    reason: 'linked',
     slug,
     optOutReason: null,
-    requiresHumanApproval: stale,
-    loud: stale,
-    labelShouldBePresent: stale,
-    headline: stale
-      ? `Linked to "${slug}" but snapshot is ${Math.round(ageDays)}d stale — regenerate.`
-      : `Linked to roadmap item "${slug}" (${item.status}).`,
+    requiresHumanApproval: false,
+    loud: false,
+    labelShouldBePresent: false,
+    headline: `Linked to recorded roadmap item "${slug}"; this check does not attest runtime state.`,
+    snapshotWarning,
   };
 }

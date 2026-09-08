@@ -1394,6 +1394,7 @@ jobs:
       - skill-hygiene
       - steward-tests
       - unit-tests
+      - unit-tests-macos
       - version-drift-guard
       - website-terminal-recordings
     steps:

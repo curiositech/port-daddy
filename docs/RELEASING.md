@@ -1,5 +1,11 @@
 # Releasing Port Daddy
 
+An operator shutdown overrides every runtime, agent, and publication recipe in
+this document. Release/deployment jobs reference the protected `production`
+environment, but adding that reference does not enable disabled workflows or
+authorize a restart. See [CI safety and approvals](operations/ci-safety-and-approvals.md)
+for the approval boundary and offline maintenance path.
+
 Three workflows live here. They share the same coordination shape — Port Daddy session, file claims, scoped notes — and diverge on how far the bits travel.
 
 1. **[Public release](#1-public-release)** — `v3.14.0` → users on `brew upgrade port-daddy`.

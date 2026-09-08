@@ -32,9 +32,6 @@ const GATE = 'ci-gate';
 const NOT_GATED = {
   'detect-changes':
     'path-filter producer; its outputs drive the `if:` of gated jobs, it has no verdict of its own',
-  'unit-tests-macos':
-    'was a required context under the 18-context ruleset and lost enforcement when the ruleset ' +
-    'trimmed to ci-gate; wiring it in is a separate decision about macOS runner flakiness',
   'unit-tests-compat':
     'push-only (`if: github.event_name == push`), so it never runs on a PR or merge-queue event',
   'pd-ios-screenshots':
@@ -93,5 +90,13 @@ describe('ci-gate needs contract', () => {
       expect(jobs[name].if).toBeUndefined();
       expect(needsOf(jobs[GATE])).toContain(name);
     }
+  });
+
+  test('macOS unit failures block the aggregate on PR and merge-queue heads', () => {
+    expect(jobs['unit-tests-macos'].if).toBeUndefined();
+    expect(jobs['unit-tests-macos']['continue-on-error']).not.toBe(true);
+    expect(needsOf(jobs[GATE])).toContain('unit-tests-macos');
+    expect(workflow.on).toHaveProperty('pull_request');
+    expect(workflow.on).toHaveProperty('merge_group');
   });
 });

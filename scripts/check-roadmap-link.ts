@@ -1,14 +1,15 @@
 /**
- * Roadmap-link gate — CI entry point (BLOCKING; required in branch protection).
+ * Roadmap-link gate — CI entry point (fail-closed declaration validation).
  *
  *   npx tsx scripts/check-roadmap-link.ts            # CI: reads $GITHUB_EVENT_PATH
  *   npx tsx scripts/check-roadmap-link.ts 512        # local: inspect PR #512 via gh
  *   npx tsx scripts/check-roadmap-link.ts 512 --dry-run   # classify, mutate nothing
+ *   npx tsx scripts/check-roadmap-link.ts --body-file pr.md --files-from changed.txt
+ *       # fully offline: no GitHub or daemon access, no labels or comments
  *
  * Decides whether a PR declares the roadmap item it advances. On a pull_request
- * event this is a REQUIRED, fail-closed status check (the operator promoted it,
- * 2026-06): any non-pass verdict exits non-zero and BLOCKS the merge — that is
- * the bounce-back. It also marks `needs-roadmap-link` so the land flow holds it
+ * event any non-pass verdict exits non-zero. The GitHub ruleset determines
+ * whether that blocks a merge. It also marks `needs-roadmap-link` so the land flow holds it
  * for a human, and posts a loud comment + step summary when the roadmap itself
  * is broken. The workflow makes `merge_group` heads a pass-through (a rebase in
  * the queue can't change a roadmap declaration), so this script gates only at
@@ -18,7 +19,7 @@
  * GitHub mutations go through the `gh` CLI so this needs no extra deps and runs
  * the same locally as in Actions.
  */
-import { readFileSync } from 'node:fs';
+import { appendFileSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import {
@@ -33,7 +34,16 @@ const LABEL = 'needs-roadmap-link';
 const SPAWN_LABEL = 'needs-roadmap-spawn';
 const COMMENT_MARKER = '<!-- roadmap-link-gate -->';
 const SNAPSHOT_PATH = resolve('docs/roadmap/roadmap.snapshot.json');
-const DRY_RUN = process.argv.includes('--dry-run');
+const BODY_FILE = argument('--body-file');
+const DRY_RUN = Boolean(BODY_FILE) || process.argv.includes('--dry-run');
+
+function argument(flag: string): string | undefined {
+  const index = process.argv.indexOf(flag);
+  if (index < 0) return undefined;
+  const value = process.argv[index + 1];
+  if (!value || value.startsWith('--')) throw new Error(`${flag} requires a file path`);
+  return value;
+}
 
 interface PrInfo {
   number: number;
@@ -48,6 +58,16 @@ function gh(args: string[]): string {
 
 /** Resolve the PR under test: from a CLI arg (+gh) or from the Actions event JSON. */
 function resolvePr(): PrInfo | null {
+  if (BODY_FILE) {
+    const filesPath = argument('--files-from');
+    if (!filesPath) throw new Error('Offline validation requires --files-from so planning-document checks cannot be skipped.');
+    return {
+      number: 0,
+      body: readFileSync(BODY_FILE, 'utf8'),
+      labels: [],
+      files: readFileSync(filesPath, 'utf8').split(/\r?\n/).filter(Boolean),
+    };
+  }
   const argNum = process.argv.find((a) => /^\d+$/.test(a));
   if (argNum) {
     const json = JSON.parse(gh(['pr', 'view', argNum, '--json', 'number,body,labels,files']));
@@ -70,7 +90,7 @@ function resolvePr(): PrInfo | null {
       .split('\n')
       .filter(Boolean);
   } catch {
-    /* file-derived rules just won't fire */
+    throw new Error('Cannot read PR files; refusing to skip planning-document validation.');
   }
   return {
     number: pr.number,
@@ -90,23 +110,17 @@ function loadSnapshot(): RoadmapSnapshot | null {
 
 function buildComment(r: LinkResult): string {
   const lines: string[] = [COMMENT_MARKER, '### 🗺️ Roadmap link gate', ''];
-  const linkCmd = (slug?: string) =>
-    [
-      '```bash',
-      `# create the item if needed, then stamp the PR (run locally, daemon required):`,
-      `npx tsx scripts/roadmap-link.ts ${r.slug ?? slug ?? '<pr-number>'}`,
-      '```',
-    ].join('\n');
+  const offlineHelp = 'Use a slug in `docs/roadmap/roadmap.snapshot.json`. For genuinely new work, add matching `Roadmap-Item:` and `Roadmap-Spawns:` trailers and describe the work in this PR. This records intent only; it does not create or dispatch a daemon item. Keep an operator-halted daemon stopped.';
 
   switch (r.reason) {
     case 'linked':
-      lines.push(`✅ Linked to roadmap item **\`${r.slug}\`**. Good to land.`);
+      lines.push(`✅ Linked to recorded roadmap item **\`${r.slug}\`**. This validates the link, not overall readiness to land.`);
       break;
     case 'self-spawned':
       lines.push(
         `✅ Linked to **\`${r.slug}\`**, declared by this PR's own \`Roadmap-Spawns:\` trailer.`,
       );
-      lines.push('', 'The item is introduced by this PR; the snapshot catches up at the next `export-roadmap-snapshot` run.');
+      lines.push('', 'The PR records the new work declaration. No daemon write or dispatch is implied.');
       break;
     case 'opt-out':
       lines.push(`✅ Explicit opt-out accepted — _${r.optOutReason}_.`);
@@ -116,31 +130,30 @@ function buildComment(r: LinkResult): string {
       lines.push('⚠️ **This PR does not link a roadmap item.**', '');
       lines.push('Add one of these to the PR description:', '');
       lines.push('```', 'Roadmap-Item: <slug>', '# or, for a chore/docs/hotfix:', 'Roadmap-Item: none — <reason>', '```');
-      lines.push('', "Don't know the slug? Create the item and stamp the PR in one step:", '', linkCmd());
+      lines.push('', offlineHelp);
       lines.push('', `Until then this PR carries \`${LABEL}\` and **needs a human to approve the land.**`);
       break;
     case 'unknown-slug':
       lines.push(`⚠️ **\`${r.slug}\` is not a known roadmap item.**`, '');
-      lines.push('Either fix the typo, or create it (and re-stamp) with:', '', linkCmd());
+      lines.push(offlineHelp);
       lines.push('', `This PR carries \`${LABEL}\` and **needs a human to approve the land.**`);
       break;
     case 'snapshot-missing':
       lines.push('🔴 **THE ROADMAP SNAPSHOT IS MISSING OR UNREADABLE.**', '');
-      lines.push('`docs/roadmap/roadmap.snapshot.json` did not parse. The gate cannot verify any link.');
-      lines.push('', 'Regenerate it from the daemon and commit:', '', '```bash', 'npx tsx scripts/export-roadmap-snapshot.ts', '```');
+      lines.push('`docs/roadmap/roadmap.snapshot.json` did not parse. The gate cannot verify existing-item links.');
+      lines.push('', 'Restore the committed snapshot from a reviewed Git revision. Do not restart a halted daemon.', '', offlineHelp);
       break;
     case 'snapshot-empty':
       lines.push('🔴 **THE ROADMAP SNAPSHOT HAS ZERO ITEMS.**', '');
-      lines.push('The export is broken — every PR would fail this gate. Regenerate and commit:', '');
-      lines.push('```bash', 'npx tsx scripts/export-roadmap-snapshot.ts', '```');
+      lines.push('Restore a reviewed, populated snapshot from Git. Do not invent items or refresh its export timestamp.', '', offlineHelp);
       break;
     case 'snapshot-stale':
       lines.push('🔴 **THE ROADMAP SNAPSHOT IS STALE.**', '');
-      lines.push(r.headline, '', 'Regenerate it so links validate against current truth:', '');
-      lines.push('```bash', 'npx tsx scripts/export-roadmap-snapshot.ts', '```');
+      lines.push(r.headline, '', offlineHelp);
       break;
   }
-  lines.push('', '---', `<sub>Non-blocking check. Land truth lives in the daemon; this reads the committed mirror. · \`${r.reason}\`</sub>`);
+  if (r.snapshotWarning) lines.push('', `Snapshot warning: ${r.snapshotWarning}`);
+  lines.push('', '---', `<sub>Declaration validation only; required status is controlled by the GitHub ruleset. Not a daemon-health attestation. · \`${r.reason}\`</sub>`);
   return lines.join('\n');
 }
 
@@ -181,9 +194,10 @@ function writeStepSummary(r: LinkResult, pr: PrInfo): void {
     `| roadmap broken/stale | ${r.loud ? '**yes — fix it**' : 'no'} |`,
     '',
     r.headline,
+    ...(r.snapshotWarning ? ['', `Snapshot warning: ${r.snapshotWarning}`] : []),
   ].join('\n');
   try {
-    execFileSync('bash', ['-c', `cat >> "${summaryFile}"`], { input: `${rows}\n` });
+    appendFileSync(summaryFile, `${rows}\n`);
   } catch {
     /* summary is best-effort */
   }
@@ -252,6 +266,7 @@ function main(): void {
   const spawn = classifyPlanningSpawn(pr.body, pr.files);
 
   console.log(`PR #${pr.number}: link=${result.verdict}(${result.reason}) spawn=${spawn.reason} — ${result.headline}`);
+  if (result.snapshotWarning) console.warn(`Snapshot warning: ${result.snapshotWarning}`);
   writeStepSummary(result, pr);
 
   const linkPass = result.verdict === 'pass';
@@ -266,14 +281,9 @@ function main(): void {
   syncLabel(pr, LABEL, result.labelShouldBePresent);
   syncLabel(pr, SPAWN_LABEL, spawn.labelShouldBePresent);
 
-  // Required + fail-closed: `roadmap-link` is in branch protection's required
-  // checks, so a non-zero exit here blocks the merge. Any non-pass blocks —
-  // an author-fixable miss (no/typo'd `Roadmap-Item:`, a planning doc with no
-  // spawns) OR a broken/stale snapshot. The operator chose fail-closed so a
-  // stale mirror can never read as "all clear"; keep it fresh with
-  // `npx tsx scripts/export-roadmap-snapshot.ts`. The label + comment still fire
-  // so the fix is obvious. (merge_group is a workflow pass-through, so this only
-  // gates at pull_request time.)
+  // Missing/unknown declarations and missing planning spawns fail closed.
+  // Snapshot freshness is a separate warning, never an instruction to restart
+  // an operator-halted daemon. A ruleset decides whether this check is required.
   process.exit(passed ? 0 : 1);
 }
 

@@ -15,6 +15,8 @@ permissions:
 
 jobs:
   publish:
+    # Approval is required before this job receives publication credentials.
+    environment: production
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

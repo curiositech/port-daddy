@@ -59,6 +59,8 @@ concurrency:
 
 jobs:
   deploy:
+    # Approval is required before this job receives publication credentials.
+    environment: production
     runs-on: ubuntu-latest
     # Never run from a fork; the secrets only exist on the canonical repo.
     if: github.repository == 'curiositech/port-daddy'
