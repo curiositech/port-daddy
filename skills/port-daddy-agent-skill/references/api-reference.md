@@ -637,6 +637,20 @@ Trigger the reaper to move dead agents (stale heartbeats) into the salvage queue
 
 *Note: `/resurrection/*` routes are deprecated aliases for `/salvage/*`.*
 
+## Harbor Editor Recovery
+
+### POST /editor/recovery/request
+### POST /editor/recovery/prepare
+### POST /editor/recovery/replay
+### POST /editor/recovery/finalize
+
+Registered authenticated scaffolding for future abandoned-session recovery. No
+recovery can complete today: the typed sequence-zero receipt producer, sealed
+abandonment high-water, canonical Rust Loro validator, verified scope/symbol/file
+authorities, and atomic P3 released-claim transfer remain unimplemented. Every
+public phase therefore returns 503 before token, preparation, replay, claim, or
+provenance state is written. There is deliberately no CLI, MCP, or SDK alias.
+
 ### CLI: `pd salvage triage`
 Local CLI synthesis over `/salvage/pending` by default, or `/salvage` with `--all`.
 Clusters entries into `resume-now`, `verify-dismiss`, `test-noise`,
@@ -1242,14 +1256,14 @@ Summarize graph edges for a project.
 
 ---
 
-## Skill Graft
+## Jury-rig
 
-### GET /skill-graft/status
+### GET /jury-rig/status
 Read current-hash Tool2Vec catalog coverage, active lease state, and the latest
 reconciliation outcome. This endpoint is strictly observational: it does not
 generate centroids or call an LLM.
 
-### POST /skill-graft/reconcile
+### POST /jury-rig/reconcile
 Start one bounded reconciliation batch. This mutation accepts only loopback
 transport peers and returns `200` when it acquires the builder lease or `202`
 when another reconciler already owns it.

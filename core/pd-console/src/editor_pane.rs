@@ -224,7 +224,8 @@ impl EditorPane {
 
     /// Construct a pane whose local Loro replica is keyed to `identity` (the
     /// operator's PD identity, e.g. from `pd whoami`). This is the identity↔replica
-    /// binding the battle-plan requires for correct authorship and salvage.
+    /// binding the battle-plan requires for correct authorship across reconnects.
+    /// It is not authority for a successor to impersonate a dead actor.
     pub fn new_with_identity(
         path: impl Into<String>,
         region: Option<(u32, u32)>,
@@ -424,9 +425,8 @@ impl EditorPane {
         self.buffer.as_ref().map(|b| b.export_snapshot())
     }
 
-    /// Hydrate this pane's buffer from a snapshot blob fetched from `/blob` — the
-    /// reconnect / salvage path (the "a buffer that survives reconnect" case slice 1
-    /// deferred). Imports the snapshot into the live buffer (or opens a fresh replica
+    /// Hydrate this pane's buffer from a snapshot blob fetched from `/blob` — the P2
+    /// checkpoint/reconnect path. Imports the snapshot into the live buffer (or opens a fresh replica
     /// under this pane's identity if none is loaded), merging CRDT-clean with
     /// authorship intact. Returns whether the snapshot applied. Idempotent: importing
     /// a snapshot the buffer already contains is a no-op.
@@ -1813,7 +1813,7 @@ mod tests {
 
     /// THE PANE-LEVEL SLICE-3 DURABILITY PROOF: a pane exports its buffer as a
     /// snapshot blob (the bytes that would land in `/blob`); a COLD pane — a
-    /// reconnecting/salvaging replica that never saw the live op stream — hydrates
+    /// reconnecting replica that never saw the live op stream — hydrates
     /// from ONLY that blob and renders the same content, with authorship intact.
     #[test]
     fn cold_pane_hydrates_from_a_snapshot_blob() {
@@ -1858,10 +1858,10 @@ mod tests {
         assert_eq!(
             r[1].author_tag.as_deref(),
             Some(agent_tag.as_str()),
-            "the agent's line keeps the agent's author tag after salvage"
+            "the agent's line keeps the agent's author tag after checkpoint restore"
         );
 
-        // Hydrating the same snapshot again is idempotent (double-consume safety).
+        // Hydrating the same snapshot again is idempotent (duplicate-delivery safety).
         assert!(cold.hydrate_from_snapshot(&snapshot));
         let after = cold.view();
         assert_eq!(

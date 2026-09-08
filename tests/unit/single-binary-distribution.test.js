@@ -10,6 +10,7 @@ describe('single binary distribution path', () => {
     const script = readFileSync(join(process.cwd(), 'scripts', 'build-single-binary.mjs'), 'utf8');
     expect(script).toContain("bin/port-daddy-bundle.ts");
     expect(script).toContain('writeEmbeddedAssetsModule');
+    expect(script).toContain('writeEmbeddedAgentHarborSchemasModule');
     expect(script).toContain('writeEmbeddedNativeCoreModule');
     expect(script).toContain('stageSquidReleaseAssets');
     expect(script).toContain("scripts/smoke-squid-release.mjs");
@@ -31,6 +32,7 @@ describe('single binary distribution path', () => {
 
     expect(bundle).toContain("process.env.PORT_DADDY_CAN_SELF_DAEMON = '1'");
     expect(bundle).toContain('embedded-native-core.generated.js');
+    expect(bundle).toContain('embedded-agent-harbor-schemas.generated.js');
     expect(bundle).toContain("await import('koffi')");
     expect(bundle).toContain('__PORT_DADDY_KOFFI_LOAD_ERROR__');
     expect(bundle).toContain("process.argv[2] === '__daemon'");
@@ -109,7 +111,12 @@ describe('single binary distribution path', () => {
     expect(buildScript).toContain('self-hosted via hidden __daemon entrypoint');
     expect(buildScript).toContain('embedded in the executable through a generated asset table');
     expect(buildScript).toContain('embeddedNativeCore');
+    expect(buildScript).toContain('embeddedAgentHarborSchemas');
     expect(buildScript).toContain('smokeSelfHostedDaemon');
+    expect(buildScript).toContain('smokeSurfaceGatewaySchemas');
+    expect(buildScript).toContain('work-intent.capture');
+    expect(buildScript).toContain('work-intent.list');
+    expect(buildScript).toContain('cwd: resourceDir');
     expect(buildScript).toContain('writePdLauncher');
     expect(buildScript).toContain('launcherSource');
     expect(buildScript).toContain('prepareOnnxRuntimeNativeBinding');
@@ -192,6 +199,12 @@ describe('single binary distribution path', () => {
     expect(localPackager).toContain('OUT_DIR_INPUT=');
     expect(localPackager).toContain('OUT_DIR="$ROOT_DIR/$OUT_DIR_INPUT"');
     expect(previewPackager).toContain('PORT_DADDY_ENTITLEMENTS="$REPO_ROOT/scripts/entitlements/port-daddy.plist"');
+    expect(localPackager).toContain('find_nested_macho_files()');
+    expect(localPackager).toContain('sign_nested_macho_files "$APP_BUNDLE"');
+    expect(localPackager).toContain('codesign_macho "$nested"');
+    expect(localPackager).toContain('codesign --verify --deep --strict --verbose=2 "$APP_BUNDLE"');
+    expect(localPackager).toContain('submit_notarization "$APP_BUNDLE"');
+    expect(localPackager).toContain('print_profile_notary_log "$NOTARY_REQUEST_ID"');
     expect(previewPackager).toContain('Signing bundled Port Daddy payload with Developer ID');
     expect(previewPackager).toContain('--entitlements "$PORT_DADDY_ENTITLEMENTS" --sign "$SIGNING_IDENTITY" "$PORT_DADDY_PAYLOAD_DIR/port-daddy"');
     expect(previewPackager).toContain('Signing bundled Port Daddy payload with ad-hoc identity.');
@@ -204,5 +217,45 @@ describe('single binary distribution path', () => {
     expect(workflow).toContain('scripts/package-fleetbar.sh dist/fleetbar');
     expect(workflow).toContain('dist/fleetbar/PortDaddy-FleetBar-macOS-*.zip');
     expect(workflow).not.toContain('PortDaddy-FleetBar-macOS-*-dev.zip');
+  });
+
+  test('essential FleetBar release truth fails closed before Homebrew promotion', () => {
+    const workflow = readFileSync(join(process.cwd(), '.github', 'workflows', 'release.yml'), 'utf8');
+    const fleetbarJob = workflow.slice(
+      workflow.indexOf('  build-fleetbar-preview:'),
+      workflow.indexOf('  build-pd-console-app:'),
+    );
+    const feedJob = workflow.slice(
+      workflow.indexOf('  build-latest-json:'),
+      workflow.indexOf('  # publish-npm'),
+    );
+    const homebrewJob = workflow.slice(workflow.indexOf('  update-homebrew:'));
+
+    for (const secret of [
+      'APPLE_CERT_P12_BASE64',
+      'APPLE_CERT_PASSWORD',
+      'APPLE_NOTARY_KEY_P8_BASE64',
+      'APPLE_NOTARY_KEY_ID',
+      'APPLE_NOTARY_KEY_ISSUER',
+    ]) {
+      expect(fleetbarJob).toContain(`\${${secret}:?FleetBar release requires ${secret}}`);
+    }
+
+    expect(fleetbarJob).toContain('xcrun notarytool store-credentials pd-notary');
+    expect(fleetbarJob).not.toContain('if xcrun notarytool store-credentials');
+    expect(fleetbarJob).toContain('unset PORT_DADDY_SKIP_NOTARIZE');
+    expect(fleetbarJob).not.toContain('export PORT_DADDY_SKIP_NOTARIZE');
+    expect(fleetbarJob).not.toContain('ships unsigned');
+    expect(fleetbarJob).toContain('manifest.unsigned !== false || manifest.notarized !== true');
+    expect(fleetbarJob).toContain('codesign --verify --deep --strict');
+
+    expect(feedJob).toContain("--pattern 'fleetbar-preview-manifest.json'");
+    expect(feedJob).not.toContain('APPLE_CERT_P12_BASE64');
+    expect(feedJob).not.toContain('SIGNED_FLAG');
+    expect(feedJob).toContain('node scripts/build-latest-json.mjs');
+
+    expect(homebrewJob).toContain('needs: [build-binaries, build-fleetbar-preview, build-latest-json]');
+    expect(homebrewJob).toContain("needs.build-fleetbar-preview.result == 'success'");
+    expect(homebrewJob).toContain("needs.build-latest-json.result == 'success'");
   });
 });

@@ -1,0 +1,59 @@
+% Figure 6 — specialization regime at c=3, restyled to spec [ch4.md restyles].
+% The plot itself (the Erlang-C boundary and the superseded curve) is kept;
+% the hatch is replaced by two solid, edged regions split at the correct
+% boundary: pool wins below it (pd focus fill), sole owner wins above it
+% (pd neutral fill). The superseded curve $\tilde g$ stays overlaid, dashed,
+% for comparison, but no longer defines a shaded "disagreement" zone.
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[pd figure,x=.83cm,y=.88cm]
+  \begin{scope}
+    \clip (0,0) rectangle (12,6);
+    \fill[pd focus fill]
+      (0,.18) -- plot[smooth] coordinates {(0.25,.18)(1.5,.86)(3,1.57)(4.5,2.22)(6,2.82)(7.5,3.31)(9,3.69)(10.5,3.94)(11.7,4.00)}
+      -- (12,4.03) -- (12,0) -- (0,0) -- cycle;
+    \fill[pd neutral fill]
+      (0,.18) -- plot[smooth] coordinates {(0.25,.18)(1.5,.86)(3,1.57)(4.5,2.22)(6,2.82)(7.5,3.31)(9,3.69)(10.5,3.94)(11.7,4.00)}
+      -- (12,4.03) -- (12,6) -- (0,6) -- cycle;
+    \draw[pd caution rule,dashed,line width=.9pt]
+      plot[smooth] coordinates {(.25,.10)(1.5,.65)(3.0,1.71)(4.5,2.57)(6,4.00)(7.2,6.0)};
+    \draw[pd focus rule,line width=1.2pt]
+      plot[smooth] coordinates {(.25,.18)(1.5,.86)(3,1.57)(4.5,2.22)(6,2.82)(7.5,3.31)(9,3.69)(10.5,3.94)(11.7,4.00)};
+    \node[pd focus datum] at (6.67,3.00) {};
+  \end{scope}
+
+  \draw[pd arrow] (0,0)--(12.35,0);
+  \draw[pd arrow] (0,0)--(0,6.35);
+  \foreach \x/\lab in {0/0,3/.25,6/.50,9/.75,12/1}{
+    \draw[pd tick] (\x,0)--(\x,-.12);
+    \node[pd axis label,anchor=north] at (\x,-.18) {\lab};
+  }
+  \foreach \y/\lab in {0/1,2/2,4/3,6/4}{
+    \draw[pd tick] (0,\y)--(-.12,\y);
+    \node[pd axis label,anchor=east] at (-.18,\y) {\lab};
+  }
+  \node[pd axis label,anchor=north,align=center,text width=3.6cm] at (6,-.65)
+    {pooled utilization $\rho$};
+  \node[pd axis label,rotate=90,anchor=south,align=center,text width=3.0cm] at (-.72,3.1)
+    {skill premium $r$};
+
+  \node[pd direct label,text=hhteal,anchor=west] at (7.15,4.28)
+    {{\normalsize $g_A(\rho,3)$} \quad Erlang--C};
+  \node[pd direct label,text=hhamber,anchor=west] at (4.35,5.40)
+    {$\tilde g$ \quad proposed, falsified};
+  \node[pd panel title,anchor=west] at (.75,5.32) {sole owner wins};
+  \node[pd panel title,anchor=west] at (8.45,1.10) {pool wins};
+
+  \node[pd direct label,anchor=west,align=left] at (6.92,2.86)
+    {$\rho=.556$\\$r=2.5$};
+  \draw[pd hairline] (6.78,2.92)--(6.67,3.00);
+\end{tikzpicture}
+\caption{The specialization boundary at a three-agent pool. Below the
+Erlang--C boundary {\normalsize $g_A(\rho,3)$} (teal), pooling wins; above it, sole
+ownership wins --- the two regions are now filled and edged, not hatched.
+The superseded threshold $\tilde g$ (dashed) is kept for comparison: it
+diverges rather than saturating at the pool capacity ratio. The worked
+instance ($\rho=.556$, $r=2.5$) narrowly clears the correct boundary into the
+sole-owner region [internal, closed form].}
+\label{fig:specialization}
+\end{figure}

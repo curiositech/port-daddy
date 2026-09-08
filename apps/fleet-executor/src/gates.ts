@@ -29,7 +29,7 @@ const CODE_PATH_RE = /\.(ts|tsx|js|jsx|mjs|cjs|rs|swift|go|py|rb|java|kt|c|h|cpp
  * gate enumerated in red-team's prompt.
  */
 const SECURITY_SURFACE_RE =
-  /(lib\/(auth|capabilities|secret-env|bonds|cost-tracker|arbiter|file-claims|salvage|note-encryption))|(routes\/(auth|bonds))|(crypto|sign|verify|hash|token|secret|auth|capabilit)/i;
+  /(lib\/(auth|capabilities|secret-env|bonds|cost-tracker|arbiter|file-claims|salvage|note-encryption))|(routes\/(auth|bonds))|(crypto|sign|verify|hash|token|secret|auth|capabilit|key|vault|wrap|hpke)/i;
 
 /** Test-file surface for tautology-sniffer / test-author. */
 const TEST_FILE_RE = /(\.(test|spec)\.[tj]sx?$)|((^|\/)tests?\/)|(_test\.go$)|((^|\/)test_[^/]*\.py$)/i;
@@ -85,6 +85,11 @@ const UNREVIEWABLE_PATH_RE = new RegExp(
     '(^|/)(package-lock\\.json|pnpm-lock\\.yaml|yarn\\.lock|Cargo\\.lock|poetry\\.lock|go\\.sum|Gemfile\\.lock)$',
     // generated / derived artifacts
     '(^|/)(dist|build|out|coverage|vendor|node_modules|target)/',
+    '(^|/)docs/artifacts/',
+    // Terminal recordings are evidence, not authored program source. Their
+    // semantic checks live beside the recorder; feeding raw ANSI streams to a
+    // reviewer both wastes the context window and makes its view less useful.
+    '\\.cast$',
     '\\.(min\\.(js|css)|map|snap)$',
     '(^|/)__snapshots__/',
     '\\.snapshot\\.json$',

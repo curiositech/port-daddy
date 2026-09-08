@@ -96,7 +96,7 @@ Mobile devices frequently lose connectivity (out of coverage, airplane mode, bat
 - Messages destined for the agent are queued at back-end
 - When front-end reconnects, queued messages are delivered
 
-**For WinDAGs**: If a skill executor is running on an unreliable device (Lambda function, edge device), use split execution:
+**For Jury-rig**: If a skill executor is running on an unreliable device (Lambda function, edge device), use split execution:
 - **Front-end**: Stateless executor (receives tasks, returns results)
 - **Back-end**: Stateful coordinator (tracks task history, handles retries)
 - **Mediator**: Task registry (front-ends discover which back-end to connect to)
@@ -126,7 +126,7 @@ Mobile Device ────────────► Mediator ◄────�
                             (Port 1099)             (No inbound port)
 ```
 
-**For WinDAGs**: If deploying across environments (cloud + on-prem, public + private):
+**For Jury-rig**: If deploying across environments (cloud + on-prem, public + private):
 - Deploy mediator in DMZ (one public IP, one port)
 - Deploy skill executors behind firewall
 - Executors connect outbound to mediator
@@ -148,7 +148,7 @@ The book reveals a non-obvious implementation detail:
 
 **Lesson**: Don't assume uniform platform capabilities. Provide **pluggable transport adapters** that abstract device constraints.
 
-**For WinDAGs**: If skills run on heterogeneous hardware (ARM, x86, GPU, TPU):
+**For Jury-rig**: If skills run on heterogeneous hardware (ARM, x86, GPU, TPU):
 - Define abstract transport interface (send/receive)
 - Implement device-specific transports (gRPC, HTTP/2, custom binary protocol)
 - Let skills declare required transport ("I need full-duplex bidirectional streaming")
@@ -211,7 +211,7 @@ MicroRuntime.setConnectionListener(new ConnectionListener() {
 - Applications **decide** recovery strategy (retry, degrade, abort)
 - Users are **informed** (not left in the dark when operations fail)
 
-**For WinDAGs**: Expose similar events for skill execution:
+**For Jury-rig**: Expose similar events for skill execution:
 
 ```python
 orchestrator.on_event(SKILL_UNAVAILABLE, lambda event:
@@ -254,7 +254,7 @@ public void onReconnected() {
   - Persist to disk if RAM exhausted
   - Alert user if critical messages can't be sent
 
-**For WinDAGs**: Implement **persistent task queues** for orchestrator-to-skill communication:
+**For Jury-rig**: Implement **persistent task queues** for orchestrator-to-skill communication:
 - Use Kafka, RabbitMQ, or SQS with durable queues
 - If skill is unavailable, messages wait in queue
 - When skill comes online, process backlog
@@ -284,7 +284,7 @@ The minimizer:
 
 **Result**: 600KB JADE JAR → 150KB minimized JAR for MIDP.
 
-**For WinDAGs**: If deploying to constrained environments (edge devices, serverless with size limits):
+**For Jury-rig**: If deploying to constrained environments (edge devices, serverless with size limits):
 - Use **dead code elimination** (tree-shaking in JavaScript, ProGuard for Java, PyInstaller for Python)
 - **Lazy loading**: Don't bundle all 180 skills in every deployment; load dynamically
 - **Modular packaging**: Each skill is a separate artifact (Docker layer, Lambda function)

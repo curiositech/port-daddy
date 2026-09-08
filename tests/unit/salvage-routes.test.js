@@ -53,6 +53,46 @@ function createMockDeps() {
   };
 }
 
+function readyContextLookup(sourceSessionId) {
+  const packet = {
+    schema: 'pd.agent-harbor.compaction-packet.v0',
+    packetId: 'cpk_salvage_fixture',
+    agentNodeId: 'agent_salvage_fixture',
+    sessionId: sourceSessionId,
+    createdAt: '2026-08-27T00:00:00.000Z',
+    createdBy: { kind: 'daemon' },
+    trigger: { kind: 'context-threshold', contextEnvelopeRef: 'ctx_salvage_fixture' },
+    identity: { task: 'Use only the verified salvage plan' },
+    obligations: [],
+    factualClaims: [],
+    transcriptExcerpts: [{ citation: { kind: 'transcript-event', transcriptEventId: 'evt_raw' }, excerpt: 'SALVAGE_RAW_TRANSCRIPT_MUST_NOT_ESCAPE' }],
+    nextAction: { recommendation: 'Read the cited checkpoint.' },
+    sourceTranscript: { headEventId: 'evt_salvage_head', headHash: 'salvage_hash' },
+    validator: { passed: true, uncitedClaimCount: 0, missingObligationWarnings: [] },
+    transcriptEventId: 'evt_salvage_packet',
+  };
+  return {
+    status: 'ready',
+    sourceSessionId,
+    packet,
+    bootstrap: {
+      packet,
+      sessionId: sourceSessionId,
+      agentNodeId: 'agent_salvage_fixture',
+      planCheckpoint: {
+        transcriptEventId: 'evt_salvage_plan',
+        content: '- [ ] Resume the bounded salvage plan',
+        capturedAt: '2026-08-27T00:00:00.000Z',
+      },
+      transcriptPrefix: [{ transcriptEventId: 'evt_raw', sequence: 8, kind: 'tool_result', ledgerSeq: 10 }],
+      transcriptPrefixTruncated: true,
+      contextRef: { kind: 'compaction-packet', ref: 'packet:cpk_salvage_fixture', droppable: false },
+      revalidation: { passed: true, uncitedClaimCount: 0, missingObligationWarnings: [] },
+    },
+    envelope: { schema: 'pd.agent-harbor.context-envelope.v0' },
+  };
+}
+
 describe('Salvage Route Aliasing', () => {
   let deps;
   let app;
@@ -115,6 +155,79 @@ describe('Salvage Route Aliasing', () => {
       expect(res.statusCode).toBe(200);
       const body = res.json();
       expect(body.success).toBe(true);
+    });
+
+    it('POST /salvage/claim/:agentId attaches only a verified matching-session continuation after auth', async () => {
+      const lookups = [];
+      const localDeps = createMockDeps();
+      const localDb = createTestDb();
+      const localSouls = createTestActorSouls(localDb);
+      const localClaimer = mintTestActor(localSouls, 'test-new');
+      localDeps.actorSouls = localSouls;
+      localDeps.resurrection.claim = jest.fn(() => ({
+        success: true,
+        agent: { id: 'dead-agent', name: 'dead-agent', status: 'dead', sessionId: 'session_salvage_source' },
+        context: { sessionId: 'session_salvage_source', notes: ['existing salvage note'] },
+      }));
+      localDeps.contextBootstrapLookup = (sourceSessionId) => {
+        lookups.push(sourceSessionId);
+        return readyContextLookup(sourceSessionId);
+      };
+      const localApp = Fastify();
+      await localApp.register(resurrectionPlugin, { deps: localDeps });
+      await localApp.ready();
+
+      const res = await localApp.inject({
+        method: 'POST',
+        url: '/salvage/claim/dead-agent',
+        payload: { newAgentId: 'test-new' },
+        headers: localClaimer.headers,
+      });
+
+      expect(res.statusCode).toBe(200);
+      const body = res.json();
+      expect(lookups).toEqual(['session_salvage_source']);
+      expect(body.contextContinuation).toEqual(expect.objectContaining({
+        status: 'ready',
+        sourceSessionId: 'session_salvage_source',
+        packet: expect.objectContaining({ packetId: 'cpk_salvage_fixture' }),
+        planCheckpoint: expect.objectContaining({ content: '- [ ] Resume the bounded salvage plan' }),
+      }));
+      expect(body.contextContinuation).not.toHaveProperty('transcriptPrefix');
+      expect(JSON.stringify(body.contextContinuation)).not.toContain('SALVAGE_RAW_TRANSCRIPT_MUST_NOT_ESCAPE');
+      await localApp.close();
+      localDb.close();
+    });
+
+    it('POST /salvage/claim/:agentId with mismatched durable source ids remains none', async () => {
+      const lookup = jest.fn(() => readyContextLookup('session_untrusted'));
+      const localDeps = createMockDeps();
+      const localDb = createTestDb();
+      const localSouls = createTestActorSouls(localDb);
+      const localClaimer = mintTestActor(localSouls, 'test-new');
+      localDeps.actorSouls = localSouls;
+      localDeps.resurrection.claim = jest.fn(() => ({
+        success: true,
+        agent: { id: 'dead-agent', name: 'dead-agent', status: 'dead', sessionId: 'session_agent' },
+        context: { sessionId: 'session_context', notes: ['untrusted mismatch'] },
+      }));
+      localDeps.contextBootstrapLookup = lookup;
+      const localApp = Fastify();
+      await localApp.register(resurrectionPlugin, { deps: localDeps });
+      await localApp.ready();
+
+      const res = await localApp.inject({
+        method: 'POST',
+        url: '/salvage/claim/dead-agent',
+        payload: { newAgentId: 'test-new' },
+        headers: localClaimer.headers,
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json().contextContinuation).toEqual({ status: 'none' });
+      expect(lookup).not.toHaveBeenCalled();
+      await localApp.close();
+      localDb.close();
     });
   });
 

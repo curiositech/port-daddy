@@ -460,11 +460,26 @@ export class VT {
  *  list. v2 timestamps are already absolute; v3's are deltas from the
  *  previous event — this is where that difference is normalized away so
  *  every downstream consumer (player, gate) only ever sees one shape. */
+export interface CastJumpCut {
+  /** Real asciicast clock immediately before/after the quiet interval. */
+  sourceFrom: number;
+  sourceTo: number;
+  /** Compressed player-clock interval occupied by the broken axis. */
+  displayFrom: number;
+  displayTo: number;
+  skippedSeconds: number;
+}
+
 export interface ParsedCast {
   cols: number;
   rows: number;
+  /** Player-clock events. Long periods with no terminal output are
+   *  compressed, never deleted: `jumpCuts` preserves the exact real span. */
   events: Array<[time: number, data: string]>;
   duration: number;
+  /** Duration on the original recording clock, before jump-cut compression. */
+  sourceDuration: number;
+  jumpCuts: CastJumpCut[];
   /** Raw asciicast header, kept for provenance display (recorded date,
    *  version, terminal theme) — see `agent-visual-evidence-manifest`. */
   head: Record<string, unknown>;
@@ -490,15 +505,68 @@ export function parseCast(text: string): ParsedCast {
   const v3 = head.version === 3;
   const cols = head.width || head.term?.cols || 100;
   const rows = head.height || head.term?.rows || 28;
-  const events: Array<[number, string]> = [];
+  const sourceEvents: Array<[number, string]> = [];
   let clock = 0;
   for (let i = 1; i < lines.length; i++) {
     const [t, kind, data] = JSON.parse(lines[i]) as [number, string, string];
-    if (kind !== "o") continue;
+    // v3 deltas advance on EVERY event, including input/marker events that
+    // Porthole intentionally does not replay. Advancing only for output
+    // events subtly falsifies the wall clock whenever a recorder emitted a
+    // marker between writes.
     clock = v3 ? clock + t : t;
-    events.push([clock, data]);
+    if (kind !== "o") continue;
+    sourceEvents.push([clock, data]);
   }
-  return { cols, rows, events, duration: events.length ? events[events.length - 1][0] : 0, head };
+
+  // A Porthole recording is evidence, not surveillance footage. Real waits
+  // belong in the evidence clock, but forcing a viewer to sit through two
+  // silent minutes adds no proof. Compress only genuinely long quiet spans
+  // and expose each one as an explicit broken axis in the player.
+  const QUIET_GAP_SECONDS = 15;
+  const CUT_DISPLAY_SECONDS = 0.85;
+  const events: Array<[number, string]> = [];
+  const jumpCuts: CastJumpCut[] = [];
+  let removed = 0;
+  let previousSource = 0;
+  for (const [sourceTime, data] of sourceEvents) {
+    const gap = sourceTime - previousSource;
+    if (gap > QUIET_GAP_SECONDS) {
+      const displayFrom = previousSource - removed;
+      const skippedSeconds = gap - CUT_DISPLAY_SECONDS;
+      jumpCuts.push({
+        sourceFrom: previousSource,
+        sourceTo: sourceTime,
+        displayFrom,
+        displayTo: displayFrom + CUT_DISPLAY_SECONDS,
+        skippedSeconds,
+      });
+      removed += skippedSeconds;
+    }
+    events.push([sourceTime - removed, data]);
+    previousSource = sourceTime;
+  }
+  const sourceDuration = sourceEvents.length ? sourceEvents[sourceEvents.length - 1][0] : 0;
+  const duration = events.length ? events[events.length - 1][0] : 0;
+  return { cols, rows, events, duration, sourceDuration, jumpCuts, head };
+}
+
+/** Translate a point on Porthole's compact display clock back onto the
+ * original recording clock. Inside a cut the value advances across the
+ * real quiet span, which lets the UI show truthful timestamps while the
+ * broken-axis animation remains short. */
+export function sourceTimeAtDisplayTime(cast: ParsedCast, displayTime: number): number {
+  let priorDisplay = 0;
+  let priorSource = 0;
+  for (const cut of cast.jumpCuts) {
+    if (displayTime < cut.displayFrom) return priorSource + (displayTime - priorDisplay);
+    if (displayTime <= cut.displayTo) {
+      const ratio = (displayTime - cut.displayFrom) / Math.max(0.001, cut.displayTo - cut.displayFrom);
+      return cut.sourceFrom + ratio * (cut.sourceTo - cut.sourceFrom);
+    }
+    priorDisplay = cut.displayTo;
+    priorSource = cut.sourceTo;
+  }
+  return priorSource + (displayTime - priorDisplay);
 }
 
 /**

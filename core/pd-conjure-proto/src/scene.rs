@@ -52,7 +52,7 @@ const INK: Color = Color::rgb8(0xf5, 0xf5, 0xf0); // primary text
 const INK_DIM: Color = Color::rgb8(0xa6, 0xa0, 0x98); // secondary text
 const HAIRLINE: Color = Color::rgb8(0x46, 0x40, 0x3a); // faint divider
 
-/// Stroke + glow color for a commitment level (matches windags' own semantics:
+/// Stroke + glow color for a commitment level (matches jury_rig' own semantics:
 /// COMMITTED is the strongest signal, EXPLORATORY the faintest).
 fn commitment_color(c: Commitment) -> Color {
     match c {

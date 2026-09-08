@@ -32,6 +32,7 @@ import { configPlugin } from './config.js';
 import { projectsPlugin } from './projects.js';
 import { sessionsPlugin } from './sessions.js';
 import { resurrectionPlugin } from './resurrection.js';
+import { editorRecoveryPlugin } from './editor-recovery.js';
 import { changelogPlugin } from './changelog.js';
 import { tunnelPlugin } from './tunnel.js';
 import { dnsPlugin } from './dns.js';
@@ -180,6 +181,7 @@ export async function registerAllRoutes(
   await fastify.register(projectsPlugin, { deps } as any);
   await fastify.register(sessionsPlugin, { deps } as any);
   await fastify.register(resurrectionPlugin, { deps } as any);
+  await fastify.register(editorRecoveryPlugin, { deps } as any);
   await fastify.register(changelogPlugin, { deps } as any);
   await fastify.register(tunnelPlugin, { deps } as any);
   await fastify.register(dnsPlugin, { deps } as any);

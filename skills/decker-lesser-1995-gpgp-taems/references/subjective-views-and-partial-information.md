@@ -84,7 +84,7 @@ This is an inherent risk of coordination under uncertainty. The paper's approach
 
 ## Implications for Agent System Design
 
-For orchestration systems like WinDAGs, this analysis suggests several design imperatives:
+For orchestration systems like Jury-rig, this analysis suggests several design imperatives:
 
 **Represent Uncertainty Explicitly**: Don't pretend agents have complete information. The system should explicitly track what each agent knows, what it believes, and the uncertainty in those beliefs.
 

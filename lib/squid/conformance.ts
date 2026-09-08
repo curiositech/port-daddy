@@ -13,7 +13,7 @@ import { join, resolve } from 'node:path';
 import { PD_HOME } from '../../shared/paths.js';
 import { resolveCliBinary } from '../cli-bin-dirs.js';
 import { readDaemonReadyPid } from '../daemon-ready.js';
-import { PD_HOOK_MARKER, REGISTERED_TENTACLES, TENTACLES } from './hook-shape.js';
+import { PD_HOOK_MARKER, registeredTentaclesForProvider, TENTACLES } from './hook-shape.js';
 import {
   SLASH_COMMAND_FILENAME,
   SQUID_DAEMON_HEARTBEAT_STALE_MS,
@@ -145,7 +145,7 @@ function providerStatus(
   commandExists: (binary: string) => boolean,
 ): SquidProviderConformance {
   const config = readText(configPath);
-  const missingTentacles = REGISTERED_TENTACLES.filter((tentacle) => !config.includes(tentacle));
+  const missingTentacles = registeredTentaclesForProvider(slug).filter((tentacle) => !config.includes(tentacle));
   return {
     name,
     slug,

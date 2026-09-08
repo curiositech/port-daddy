@@ -20,7 +20,7 @@ This manifests in agent systems as:
 
 The boundary condition: Blind commitment is appropriate only when (a) the environment is highly stable, (b) deliberation is extraordinarily expensive, and (c) plan execution is much faster than environmental change. Violating these conditions invites catastrophe.
 
-**For WinDAGs**: A DAG orchestrator that never reconsiders its execution plan—regardless of skill failures, resource exhaustion, or deadline pressure—will complete obsolete computations while ignoring the need to adapt. The result: wasted resources on irrelevant work while actual objectives go unmet.
+**For Jury-rig**: A DAG orchestrator that never reconsiders its execution plan—regardless of skill failures, resource exhaustion, or deadline pressure—will complete obsolete computations while ignoring the need to adapt. The result: wasted resources on irrelevant work while actual objectives go unmet.
 
 ## Failure Mode 2: Continuous Reconsideration (The Hamlet Agent Problem)
 
@@ -42,7 +42,7 @@ This manifests as:
 
 The authors' solution—commitment strategies that reconsider only on "potentially significant changes"—is designed precisely to avoid this failure mode. But determining what qualifies as "significant" is non-trivial and domain-dependent.
 
-**For WinDAGs**: An orchestrator that recomputes the execution plan after every minor event (skill completes slightly faster than expected, resource utilization ticks up 1%) will spend more time rescheduling than executing. The overhead of plan recomputation becomes the bottleneck.
+**For Jury-rig**: An orchestrator that recomputes the execution plan after every minor event (skill completes slightly faster than expected, resource utilization ticks up 1%) will spend more time rescheduling than executing. The overhead of plan recomputation becomes the bottleneck.
 
 ## Failure Mode 3: Mismatched Abstraction Levels (The Granularity Problem)
 
@@ -64,7 +64,7 @@ This manifests as:
 
 The authors' hierarchical plan structure (plans invoking subgoals) is designed to manage this: different levels of the hierarchy operate at different granularities. But choosing these levels correctly is critical.
 
-**For WinDAGs**: Skills must be granular enough for meaningful feedback (detecting completion/failure) but coarse enough for efficient scheduling. A skill that takes milliseconds is too fine (scheduling overhead dominates). A skill that takes hours is too coarse (can't react to problems mid-execution).
+**For Jury-rig**: Skills must be granular enough for meaningful feedback (detecting completion/failure) but coarse enough for efficient scheduling. A skill that takes milliseconds is too fine (scheduling overhead dominates). A skill that takes hours is too coarse (can't react to problems mid-execution).
 
 ## Failure Mode 4: Plan Library Incompleteness (The Brittleness Problem)
 
@@ -90,7 +90,7 @@ The authors acknowledge this limitation implicitly by restricting their claims: 
 
 The qualifier "if we know" is crucial. For truly open-ended domains, we don't know all possible situations, and plan libraries become inadequate.
 
-**For WinDAGs**: The skill library must cover all capabilities needed for likely problems. Missing skills create "capability gaps"—situations where the system has objectives but no means to achieve them. Unlike a general planner that might synthesize novel solutions, a skill-library-based system simply fails.
+**For Jury-rig**: The skill library must cover all capabilities needed for likely problems. Missing skills create "capability gaps"—situations where the system has objectives but no means to achieve them. Unlike a general planner that might synthesize novel solutions, a skill-library-based system simply fails.
 
 ## Failure Mode 5: Inconsistent Beliefs (The Synchronization Problem)
 
@@ -114,7 +114,7 @@ The authors note that beliefs are distinguished from knowledge: "We distinguish 
 
 But "likely" presupposes some representation of uncertainty, which ground literals don't provide. In practice, implementations must handle belief conflicts through precedence rules, confidence values, or source tracking—extensions beyond the base formalism.
 
-**For WinDAGs**: Multiple agents (or multiple components of a distributed orchestrator) may have inconsistent views of system state: which skills have completed, which resources are available, which objectives remain. Without explicit synchronization, these inconsistencies cause coordination failures.
+**For Jury-rig**: Multiple agents (or multiple components of a distributed orchestrator) may have inconsistent views of system state: which skills have completed, which resources are available, which objectives remain. Without explicit synchronization, these inconsistencies cause coordination failures.
 
 ## Failure Mode 6: Desire Conflicts (The Inconsistent Objectives Problem)
 
@@ -138,7 +138,7 @@ This manifests as:
 
 The authors' framework allows for priorities on desires (from the decision-theoretic roots with utility functions), but the practical implementation "reduces probabilities and payoffs to dichotomous (0-1) values." This eliminates fine-grained preference representation, pushing conflict resolution into the deliberation function implementation.
 
-**For WinDAGs**: Optimization objectives often conflict (minimize latency vs. cost vs. resource usage). The orchestrator must have clear policies for resolving tradeoffs. Without explicit priority weighting or utility functions, the system's behavior under conflict becomes unpredictable.
+**For Jury-rig**: Optimization objectives often conflict (minimize latency vs. cost vs. resource usage). The orchestrator must have clear policies for resolving tradeoffs. Without explicit priority weighting or utility functions, the system's behavior under conflict becomes unpredictable.
 
 ## Failure Mode 7: Plan Interaction (The Unanticipated Side Effects Problem)
 
@@ -162,7 +162,7 @@ This manifests as:
 
 The plan library approach doesn't naturally express constraints like "plans A and B must not execute concurrently" or "plan A requires plan B's effects to persist." Such coordination requires additional mechanisms: explicit locks, plan synchronization primitives, or higher-level coordination agents.
 
-**For WinDAGs**: Skills executing concurrently may conflict: both writing to the same output, both consuming limited resources, one invalidating assumptions made by another. The DAG structure captures some dependencies (sequential edges), but concurrent branches can still have hidden interactions.
+**For Jury-rig**: Skills executing concurrently may conflict: both writing to the same output, both consuming limited resources, one invalidating assumptions made by another. The DAG structure captures some dependencies (sequential edges), but concurrent branches can still have hidden interactions.
 
 ## Failure Mode 8: Incomplete State Representation (The Hidden State Problem)
 
@@ -192,7 +192,7 @@ This manifests as:
 
 The authors justify this restriction as practical: "This simplifying assumptions and sacrificing some of the expressive power of the theoretical framework" enable real-time performance. But the cost is reduced robustness.
 
-**For WinDAGs**: Execution state represented only as "skill S completed/failed, output O available" loses potentially valuable information: how long S took, what quality O achieved, what intermediate states occurred. This limits adaptability—the system can't learn from execution patterns or detect degrading performance trends.
+**For Jury-rig**: Execution state represented only as "skill S completed/failed, output O available" loses potentially valuable information: how long S took, what quality O achieved, what intermediate states occurred. This limits adaptability—the system can't learn from execution patterns or detect degrading performance trends.
 
 ## System-Level Insight: Failures Emerge from Approximations
 

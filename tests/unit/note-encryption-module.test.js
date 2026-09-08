@@ -4,16 +4,49 @@
  * Tests the NoteEncryption module directly (as opposed to note-encryption.test.js
  * which only tests the raw crypto primitives).
  *
- * The module loads/creates a master key from ~/.port-daddy/master.key on init.
- * This is acceptable in tests since the key directory is a standard user config path.
+ * Actual module initialization uses a private fixture PD_HOME with Keychain
+ * disabled. Tests must never consult or create the operator's real master key.
  */
 
-import { describe, test, expect } from '@jest/globals';
-import { createNoteEncryption } from '../../lib/note-encryption.js';
+import { afterAll, beforeAll, describe, test, expect, jest } from '@jest/globals';
 import { randomBytes } from 'node:crypto';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
 
-// Create one instance shared across tests — this avoids repeated key file I/O
-const enc = createNoteEncryption();
+const scratch = join(homedir(), 'coding', 'tmp');
+mkdirSync(scratch, { recursive: true });
+const fixture = mkdtempSync(join(scratch, 'note-encryption-module-fixture-'));
+let enc;
+let selectedHome;
+
+beforeAll(async () => {
+  const previous = { PD_HOME: process.env.PD_HOME, PORT_DADDY_DISABLE_KEYCHAIN: process.env.PORT_DADDY_DISABLE_KEYCHAIN };
+  process.env.PD_HOME = fixture;
+  process.env.PORT_DADDY_DISABLE_KEYCHAIN = '1';
+  try {
+    await jest.isolateModulesAsync(async () => {
+      const { createNoteEncryption } = await import('../../lib/note-encryption.js');
+      selectedHome = (await import('../../shared/paths.js')).PD_HOME;
+      enc = createNoteEncryption({ requireMasterKey: true });
+    });
+  } finally {
+    for (const [name, value] of Object.entries(previous)) {
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
+  }
+});
+
+afterAll(() => rmSync(fixture, { recursive: true, force: true }));
+
+test('initializes the real module with its own private file key', () => {
+  expect(selectedHome).toBe(fixture);
+  expect(selectedHome).not.toBe(join(homedir(), '.port-daddy'));
+  expect(readFileSync(join(fixture, 'master.key'))).toHaveLength(32);
+  expect(statSync(fixture).mode & 0o777).toBe(0o700);
+  expect(statSync(join(fixture, 'master.key')).mode & 0o777).toBe(0o600);
+});
 
 // ─── isEnabled() ─────────────────────────────────────────────────────────────
 

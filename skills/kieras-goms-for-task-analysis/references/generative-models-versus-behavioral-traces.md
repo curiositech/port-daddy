@@ -215,6 +215,6 @@ The transformation: every constant becomes a task property reference. The method
 
 Kieras's insistence on generative models isn't pedantic formalism—it's the requirement that models capture actual understanding rather than superficial behavior. A system that can only execute memorized traces hasn't learned anything transferable.
 
-For WinDAGs and similar agent systems: **generativity should be a quality gate for skill definitions**. If a skill can't be expressed with parameters and general logic that works across instances, it doesn't belong in a reusable skill library. It might be useful as a one-off solution, but it's not a building block for intelligence.
+For Jury-rig and similar agent systems: **generativity should be a quality gate for skill definitions**. If a skill can't be expressed with parameters and general logic that works across instances, it doesn't belong in a reusable skill library. It might be useful as a one-off solution, but it's not a building block for intelligence.
 
 The test is simple: Can you change the task parameters and have the skill still work? If not, you've memorized a trace, not modeled a capability.

@@ -144,7 +144,7 @@ For agent systems operating in genuinely novel domains (new problem types, unusu
 
 ## Practical Template: Capability Development Interview Guide
 
-For any WinDAGs skill development, the knowledge elicitation interview should follow this structure:
+For any Jury-rig skill development, the knowledge elicitation interview should follow this structure:
 
 **Pre-interview**:
 - Send the expert the scenario specification in advance

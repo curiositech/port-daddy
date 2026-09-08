@@ -51,7 +51,7 @@ The paper's Algorithm 1 shows this explicitly: after each subtask execution (lin
 
 In static systems, errors have **task-wide scope**—any failure potentially invalidates the entire plan. Dynamic decomposition creates **subtask-scoped errors** with contained blast radius. The system asks: "Given what actually happened in steps 1-3, what should step 4 become?" not "Does step 4 match the original plan?"
 
-For WinDAGs or similar orchestration systems, this suggests:
+For Jury-rig or similar orchestration systems, this suggests:
 - **Don't**: Generate complete task graphs upfront with fixed edges
 - **Do**: Generate next-subtask proposals after each subtask completes, consuming actual execution traces
 
@@ -99,7 +99,7 @@ Travel planning violates all three:
 - Ticket availability is stochastic
 - If train X is unavailable, no amount of retrying helps; you need a *different plan*
 
-**For WinDAGs skill design**: Classify problems along these dimensions. Use static decomposition for deterministic, loosely-coupled tasks (e.g., "analyze these 10 files" where file order doesn't matter). Reserve dynamic decomposition for tightly-coupled, stochastic workflows (e.g., "debug this system" where each finding changes what to investigate next).
+**For Jury-rig skill design**: Classify problems along these dimensions. Use static decomposition for deterministic, loosely-coupled tasks (e.g., "analyze these 10 files" where file order doesn't matter). Reserve dynamic decomposition for tightly-coupled, stochastic workflows (e.g., "debug this system" where each finding changes what to investigate next).
 
 ## Implementation Pattern: The Update Mechanism
 
@@ -168,7 +168,7 @@ Systems score 60 points for Level 1, 20 for Level 2, 20 for Level 3, with higher
 
 ## Connection to DAG Orchestration
 
-WinDAGs likely represents tasks as directed acyclic graphs where nodes are skills and edges are data dependencies. The TDAG paper suggests:
+Jury-rig likely represents tasks as directed acyclic graphs where nodes are skills and edges are data dependencies. The TDAG paper suggests:
 
 **Don't**: Build the entire DAG upfront
 **Do**: Build a meta-DAG where:

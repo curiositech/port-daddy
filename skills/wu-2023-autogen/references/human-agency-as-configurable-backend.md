@@ -245,6 +245,6 @@ These patterns exist in the wild (customer service systems, collaborative editin
 
 The benefit is **flexibility** - the same system architecture supports fully autonomous operation, human-in-the-loop, human oversight, and human-human collaboration. The cost is **complexity of context management** - presenting conversation state to humans effectively is harder than passing message history to LLMs.
 
-For WinDAGs specifically: Design skills as conversable agents that can accept either AI or human backends. For high-stakes skills (deploying code, modifying production, making business decisions), default to human oversight by setting termination conditions that require human approval. For routine skills, enable autonomous operation with optional human intervention when stuck. Make it trivial to switch between these modes via configuration rather than code changes.
+For Jury-rig specifically: Design skills as conversable agents that can accept either AI or human backends. For high-stakes skills (deploying code, modifying production, making business decisions), default to human oversight by setting termination conditions that require human approval. For routine skills, enable autonomous operation with optional human intervention when stuck. Make it trivial to switch between these modes via configuration rather than code changes.
 
 The question isn't whether humans should be involved, but **how to make human involvement architecturally natural** so it can be configured flexibly based on task requirements, risk levels, and human availability.

@@ -1,66 +1,41 @@
-% The float-plan / escrow ceremony: three-step signed handshake.
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D8C7A6}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhcobalt}{HTML}{003FB8}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-
-% ─── The Float-Plan Escrow Ceremony: Three-Step Signed Handshake ──────────────
+% Figure IV.3 --- atomicity shown as synchronized state traces.
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}[
-  lane/.style={draw=hhink, line width=0.65pt, fill=hhsand!25, rounded corners=2pt, inner sep=6pt, minimum width=34mm, align=center},
-  msgarr/.style={-{Stealth[length=2.0mm,width=1.3mm]}, draw=hhcobalt, line width=0.75pt},
-  flowarr/.style={-{Stealth[length=2.0mm,width=1.3mm]}, draw=hhink, line width=0.55pt},
-  stepbox/.style={draw=hhink, line width=0.5pt, fill=hhpaper, rounded corners=2pt, inner sep=5pt, font=\scriptsize, text width=48mm, align=left},
-  txnbox/.style={draw=hhcobalt, line width=0.75pt, fill=hhcobalt!7, rounded corners=2pt, inner sep=4pt, font=\scriptsize, text width=38mm, align=center},
-  lbl/.style={font=\scriptsize\itshape, fill=hhpaper, inner sep=1.5pt}
-]
+\resizebox{0.94\textwidth}{!}{%
+\begin{tikzpicture}[pd figure]
+  \node[pd panel title,anchor=west] at (-6.7,3.0)
+    {execution becomes admissible at one committed transition};
+  \foreach \x/\lab in {-5.4/signed plan,-1.8/transaction begins,1.3/commit,5.2/clearance}
+    {\draw[pd guide] (\x,-2.2)--(\x,2.25);
+     \node[pd axis label,anchor=north] at (\x,-2.35) {\lab};}
+  \node[pd axis label,anchor=east] at (-6.05,1.65) {wallet};
+  \node[pd axis label,anchor=east] at (-6.05,.15) {escrow row};
+  \node[pd axis label,anchor=east] at (-6.05,-1.35) {worker state};
 
-  % ─── Lifeline Headers (Top) ─────────────────────────────────────────────────
-  \node[lane] (R) at (-4.2, 0) {\textbf{\scshape Requester $R$}\\[1pt]{\scriptsize Bounty Holder}};
-  \node[lane] (D) at (0.0, 0) {\textbf{\scshape Daemon $D$}\\[1pt]{\scriptsize Escrow Arbiter}};
-  \node[lane] (W) at (4.2, 0) {\textbf{\scshape Worker $W$}\\[1pt]{\scriptsize Claim Holder}};
+  \draw[pd rule,line width=1.2pt] (-5.75,2.00)--(1.30,2.00)--(1.30,1.35)--(5.75,1.35);
+  \draw[pd focus rule,line width=1.4pt] (-5.75,-.15)--(1.30,-.15)--(1.30,.55)--(5.75,.55);
+  \node[pd direct label,anchor=west] at (3.05,1.62) {debited};
+  \node[pd direct label,text=hhteal,anchor=west] at (3.05,.82) {row exists};
 
-  % Lifeline dashed tracks
-  \draw[hhgray!40, line width=0.4pt, dashed] (R.south) -- ++(0, -5.2);
-  \draw[hhgray!40, line width=0.4pt, dashed] (D.south) -- ++(0, -5.2);
-  \draw[hhgray!40, line width=0.4pt, dashed] (W.south) -- ++(0, -5.2);
+  \draw[pd rule,line width=1.2pt] (-5.75,-1.05)--(2.25,-1.05)--(2.25,-1.72)--(5.75,-1.72);
+  \node[pd direct label,anchor=north west] at (-4.95,-1.18) {no process};
+  \node[pd direct label,text=hhteal,anchor=west] at (3.05,-1.45) {running};
+  \draw[pd focus arrow] (1.42,.50) to[out=-30,in=150] (2.15,-1.62);
+  \node[pd note,text=hhteal,anchor=west] at (1.75,-.35) {signed row check};
 
-  % ─── Step 1: Requester submits signed FloatPlan ─────────────────────────────
-  \draw[msgarr] (-4.2, -1.0) -- node[lbl, above] {$\mathsf{sign}_{R}(\mathit{FloatPlan})$} (0.0, -1.0);
-  \node[stepbox] at (6.8, -1.0) {
-    \textbf{Step 1: Float-Plan Submission}\\
-    $R$ signs task manifest, oracle acceptance criteria, and escrowed bounty.
-  };
-
-  % ─── Step 2: Atomic serialized balance debit ────────────────────────────────
-  \node[txnbox] at (0.0, -2.5) {
-    \textbf{Step 2: Atomic Escrow}\\[1pt]
-    \texttt{BEGIN EXCLUSIVE}\\[1pt]
-    Debit Wallet $\to$ Lock Escrow\\[1pt]
-    \texttt{COMMIT}
-  };
-
-  % ─── Step 3: Daemon signs proof-of-escrow to worker ─────────────────────────
-  \draw[msgarr] (0.0, -4.0) -- node[lbl, above] {$\mathsf{sign}_{D}\{\textit{anchor},\,\textit{plan hash}\}$} (4.2, -4.0);
-  \node[stepbox] at (6.8, -4.0) {
-    \textbf{Step 3: Execution Clearance}\\
-    $D$ presents signed proof of locked funds to $W$ (\textit{no-spawn-without-bond}).
-  };
-
-\end{tikzpicture}
-\caption{The float-plan escrow ceremony --- the atom every side of the market
-settles on. A three-step signed handshake over a standard digital-signature scheme:
-the requester signs a FloatPlan (task, machine-checkable acceptance criteria,
-budget, bounty); the daemon debits and escrows the value inside one serialized
-database transaction; the daemon then signs $\{\textit{anchor id},\,\textit{plan
-hash}\}$, proving to the worker that funds are pinned before any work begins. The
-conservation invariant ($\text{wallet}+\text{escrow}+\text{commons}=\text{supply}$,
-verified over 10k random operation traces by a property test) holds at every step
-and is the \emph{implemented} floor the whole economy stands on --- the one claim
-this paper can make at the highest maturity.}
+  \draw[pd caution rule,dashed] (-1.80,-.58)--(.55,-.58);
+  \node[pd caution datum] at (.55,-.58) {};
+  \node[pd note,text=hhamber,anchor=north] at (-.60,-.69)
+    {abort: all three traces unchanged};
+  \draw[pd caution rule,line width=1pt] (1.30,-2.05)--(1.30,2.35);
+  \node[pd direct label,text=hhamber,anchor=south] at (1.30,2.48)
+    {atomic commit boundary};
+\end{tikzpicture}}
+\caption{\textbf{No-spawn-without-bond is a synchronized state transition.}
+The wallet debit and escrow-row creation occur at the same commit. Only after the
+committed row is observable does the worker move from nonexistent to running. A
+signed plan or an attempted debit is insufficient: the dashed abort branch leaves
+all three traces in their prior state. The figure therefore locates the invariant
+at a transition, not at a component or message label.}
 \label{fig:he-float-plan}
 \end{figure}

@@ -28,12 +28,10 @@ tool-local skills before package-local skills.
 catalog, not only this Port Daddy skill. The source priority is:
 
 1. `PORT_DADDY_SKILL_SOURCE_ROOTS`, when set.
-2. `WINDAGS_HOME/skills` or `/opt/homebrew/opt/windags/libexec/skills`.
-3. `~/coding/workgroup-ai/skills`.
-4. Port Daddy's checked-in `skills/` and project Claude mirror.
-5. `~/coding/some_claude_skills/.claude/skills`.
-6. `~/.claude/skills`.
-7. `~/.agents/skills`.
+2. Port Daddy's checked-in `skills/` and project Claude mirror.
+3. `~/coding/some_claude_skills/.claude/skills`.
+4. `~/.claude/skills`.
+5. `~/.agents/skills`.
 
 Port Daddy first-party skill ids (`port-daddy*`) are kept from a real
 `port-daddy/skills` source even when a workgroup mirror appears earlier in the
@@ -44,7 +42,7 @@ The union links each discovered `SKILL.md` bundle into user-level runtime
 registries for Codex, Claude, Gemini, AGENTS-aware tools, Cursor, Continue,
 Windsurf, Cline, Roo, OpenCode, Trae, Qoder, CodeBuddy, Agent, and Kiro. This
 keeps Codex and Gemini aligned with the skills Claude sees while still letting
-Homebrew or workgroup skill updates flow through by following symlinks.
+updates to those configured local catalogs flow through by following symlinks.
 
 Use `pd setup --status` to audit the source and target set without writing
 links. Use `pd setup --dry-run --no-daemon --no-mcp --no-fleetbar --no-init`

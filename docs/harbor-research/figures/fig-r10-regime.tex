@@ -1,4 +1,4 @@
-% R10 regime: basic vs. advanced DP composition, delta'=1e-6, epsilon=0.1.
+% Pillar III (Conservation) regime: basic vs. advanced DP composition, delta'=1e-6, epsilon=0.1.
 % Curve coordinates recomputed directly from the closed forms in
 % figures/src/r10_figures.py (basic_composition = k*epsilon; advanced_composition
 % = sqrt(2*k*ln(1/delta'))*epsilon + k*epsilon*(exp(epsilon)-1)); crossover
@@ -15,7 +15,7 @@
   xmode=log,
   xlabel={number of releases $k$ (log scale)},
   ylabel={certified total $\varepsilon$},
-  title={\textbf{R10 regime} --- which DP accounting to quote at which engagement length ($\delta'=10^{-6}$)},
+  title={\textbf{Pillar III (Conservation)} --- which DP accounting to quote at which engagement length ($\delta'=10^{-6}$)},
   xmin=4,xmax=256,ymin=0,ymax=30,
   % south east put the legend directly on top of the k=128 measured-point
   % annotation node (both live in the lower-right of the plot) -- moved to

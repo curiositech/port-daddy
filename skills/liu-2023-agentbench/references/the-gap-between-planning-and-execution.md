@@ -311,7 +311,7 @@ This is an open research problem. AgentBench shows the pain points but doesn't p
 
 The planning-execution gap is one of the fundamental challenges in LLM agents. Models can articulate what they should do but struggle to reliably do it. This creates brittleness—agents fail not from cognitive limitations but from operational inconsistencies.
 
-**For agent orchestration systems like WinDAGs**:
+**For agent orchestration systems like Jury-rig**:
 
 1. **Don't trust thoughts alone**—monitor actual actions
 2. **Make plans explicit structures**, not just text

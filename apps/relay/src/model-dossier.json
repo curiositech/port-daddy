@@ -11,7 +11,12 @@
       "outputUsdPerM": 0.4,
       "contextTokens": 131072,
       "note": "The repo mechanic of the 30B class: 59.2% SWE-bench vs qwen3-30b's 22% at the same price. Default pick for reviewer-style ships.",
-      "assignments": ["qa", "lookout", "purser PLAN", "code-reviewer MAP"]
+      "assignments": [
+        "qa",
+        "lookout",
+        "purser PLAN",
+        "code-reviewer MAP"
+      ]
     },
     {
       "id": "@cf/qwen/qwen3-30b-a3b-fp8",
@@ -22,7 +27,12 @@
       "outputUsdPerM": 0.335,
       "contextTokens": 32768,
       "note": "Cheapest tokens on the board; strong reasoning, weak agentic coding (22% SWE-bench). Good for ideation ships.",
-      "assignments": ["spark", "spider", "snipe", "fleet default"]
+      "assignments": [
+        "spark",
+        "spider",
+        "snipe",
+        "fleet default"
+      ]
     },
     {
       "id": "@cf/google/gemma-4-26b-a4b-it",
@@ -33,7 +43,9 @@
       "outputUsdPerM": 0.3,
       "contextTokens": 256000,
       "note": "Best speed/reliability balance in its class; cheapest output rate on the board. Third cheap-class family for A/B diversity.",
-      "assignments": ["tautology-sniffer"]
+      "assignments": [
+        "tautology-sniffer"
+      ]
     },
     {
       "id": "@cf/deepseek-ai/deepseek-v4-flash-0731",
@@ -44,7 +56,9 @@
       "outputUsdPerM": 1.32,
       "contextTokens": 1048576,
       "note": "Strongest independent agentic-coding record in class (Terminal-Bench 2.1 82.7; beats its own Pro on nine agent benches). 1M context.",
-      "assignments": ["purser AUTHOR"]
+      "assignments": [
+        "purser AUTHOR"
+      ]
     },
     {
       "id": "@cf/openai/gpt-oss-120b",
@@ -55,7 +69,10 @@
       "outputUsdPerM": 0.75,
       "contextTokens": 128000,
       "note": "Proven tool-caller and the fleet's repair workhorse; independent code-domain record is mixed, so no longer an authoring default.",
-      "assignments": ["contract/author repair escalation", "*reviewer role default"]
+      "assignments": [
+        "contract/author repair escalation",
+        "*reviewer role default"
+      ]
     },
     {
       "id": "@cf/deepseek-ai/deepseek-v4-pro-0813",
@@ -66,7 +83,9 @@
       "outputUsdPerM": 3.96,
       "contextTokens": 1048576,
       "note": "80.6% SWE-bench Verified, 1M context — whole-PR attack surfaces in one window. Cheap at low call volume.",
-      "assignments": ["red-team"]
+      "assignments": [
+        "red-team"
+      ]
     },
     {
       "id": "@cf/zai-org/glm-5.2",
@@ -77,7 +96,9 @@
       "outputUsdPerM": 4.4,
       "contextTokens": 262144,
       "note": "Strongest open coding model with independent validation (62.1 SWE-bench Pro — beats GPT-5.5). Worth frontier rates only where one judgment is the product.",
-      "assignments": ["code-reviewer REDUCE"]
+      "assignments": [
+        "code-reviewer REDUCE"
+      ]
     },
     {
       "id": "@cf/openai/gpt-oss-20b",
@@ -154,7 +175,9 @@
       "outputUsdPerM": 4.881,
       "contextTokens": 80000,
       "note": "The XO synthesis default; $4.88/M output argues against widening it.",
-      "assignments": ["XO synthesis"]
+      "assignments": [
+        "XO synthesis"
+      ]
     },
     {
       "id": "@cf/meta/llama-4-scout-17b-16e-instruct",
@@ -234,17 +257,6 @@
       "assignments": []
     },
     {
-      "id": "@cf/meta/llama-3.2-11b-vision-instruct",
-      "name": "Llama 3.2 11B Vision",
-      "tier": "small",
-      "verdict": "bench",
-      "inputUsdPerM": 0.049,
-      "outputUsdPerM": 0.676,
-      "contextTokens": 128000,
-      "note": "The cheap vision option — screenshots and UI evidence, not code review.",
-      "assignments": []
-    },
-    {
       "id": "@cf/ibm-granite/granite-4.0-h-micro",
       "name": "Granite 4.0 H Micro",
       "tier": "small",
@@ -257,10 +269,29 @@
     }
   ],
   "excluded": [
-    { "id": "catalog Deprecated tier", "reason": "Cloudflare can retire deprecated ids at any time — the silent-blank failure mode the honored set exists to prevent." },
-    { "id": "@cf/meta/llama-3.1-8b-instruct-fast", "reason": "No published price — an honored-but-unmeterable model rides invisibly." },
-    { "id": "@cf/meta/llama-guard-3-8b", "reason": "A content-safety classifier, not a generator; cannot review code." },
-    { "id": "@cf/moonshotai/kimi-k2.6", "reason": "The #654 phantom-id tombstone; needs one witnessed live call before admission. K2.7-Code covers the family." },
-    { "id": "LoRA-base variants", "reason": "Adapter scaffolds, not standalone reviewers." }
+    {
+      "id": "catalog Deprecated tier",
+      "reason": "Cloudflare can retire deprecated ids at any time — the silent-blank failure mode the honored set exists to prevent."
+    },
+    {
+      "id": "@cf/meta/llama-3.1-8b-instruct-fast",
+      "reason": "No published price — an honored-but-unmeterable model rides invisibly."
+    },
+    {
+      "id": "@cf/meta/llama-guard-3-8b",
+      "reason": "A content-safety classifier, not a generator; cannot review code."
+    },
+    {
+      "id": "@cf/moonshotai/kimi-k2.6",
+      "reason": "The #654 phantom-id tombstone; needs one witnessed live call before admission. K2.7-Code covers the family."
+    },
+    {
+      "id": "LoRA-base variants",
+      "reason": "Adapter scaffolds, not standalone reviewers."
+    },
+    {
+      "id": "@cf/meta/llama-3.2-11b-vision-instruct",
+      "reason": "Live-probed 2026-08-23: HTTP 403 — Cloudflare requires a per-account Model Agreement ('you must submit the prompt agree') plus an EU-domicile representation before this id will serve. A licensing gate, not a transient error and not something a failover hop clears, so a ship pinned here fails every time. Catalogued as [vision] rather than [text-generation] so admission cannot pick it up again."
+    }
   ]
 }

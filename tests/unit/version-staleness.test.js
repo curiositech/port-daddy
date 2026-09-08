@@ -242,6 +242,8 @@ describe('staleness-nudge: gating', () => {
       expect(shouldNudgeStaleness('upgrade', false)).toBe(false); // the explicit upgrade command
       expect(shouldNudgeStaleness('completion', false)).toBe(false);
       expect(shouldNudgeStaleness('mcp', false)).toBe(false);
+      expect(shouldNudgeStaleness('learn', false)).toBe(false);
+      expect(shouldNudgeStaleness('tutorial', false)).toBe(false);
       expect(shouldNudgeStaleness('--version', false)).toBe(false);
       expect(shouldNudgeStaleness('claim', true)).toBe(false); // quiet
 

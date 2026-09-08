@@ -2,7 +2,7 @@
  * Purser contract for #8908, obligations 4 + 7 — the flagged skill
  * (xie-et-al-2025-survey-llm-task-planning) is imported INTACT: directory,
  * SKILL.md, and its bundled references/diagrams all present, unmodified from
- * windags — while its content mismatch stays documented for curation.
+ * jury_rig — while its content mismatch stays documented for curation.
  *
  * REPAIRED IN PLACE (argue-with-the-test protocol): the authored draft
  * asserted a `content-mismatch` flag inside `metadata/audit-report.json` —
@@ -13,7 +13,7 @@
  * of the draft is dropped WITH REASONS rather than satisfied by inventing a
  * new report format the repo doesn't have. The executable half — obligation
  * 7's import-integrity claim — is kept and made real: the skill's full
- * bundled tree must exist exactly as windags shipped it.
+ * bundled tree must exist exactly as jury_rig shipped it.
  */
 import { existsSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';

@@ -1,0 +1,23 @@
+% Semantic contract: independent detection lowers residual risk geometrically.
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[font=\small]
+  \draw[->,hhink,line width=.65pt] (0,0) -- (5.4,0)
+    node[right,font=\footnotesize] {independent reviewers $k$};
+  \draw[->,hhink,line width=.65pt] (0,0) -- (0,3.5)
+    node[above,font=\footnotesize] {remaining defect mass};
+  \path[fill=hhamber!12] (0,0) -- (0,3.05) -- (1,2.22) -- (2,1.62)
+    -- (3,1.18) -- (4,.86) -- (5,.63) -- (5,0) -- cycle;
+  \draw[hhamber,line width=1.05pt,smooth] plot coordinates
+    {(0,3.05) (1,2.22) (2,1.62) (3,1.18) (4,.86) (5,.63)};
+  \foreach \x/\y/\lab in {0/3.05/$1$,1/2.22/$(1-d)$,2/1.62/$(1-d)^2$,3/1.18/$(1-d)^3$}
+    \fill[hhink] (\x,\y) circle (1.1pt) node[above right,font=\scriptsize] {\lab};
+  \node[font=\scriptsize,align=center,text=hhgray] at (3.25,2.9)
+    {assurance $1-(1-d)^k$ requires\\independent detection};
+\end{tikzpicture}
+\caption{Each independent test writer removes fraction $d$ of the defects that
+remain, producing geometric risk decay. Reusing one model family does not justify
+the independence assumption and therefore does not buy the displayed assurance.}
+\label{fig:he-assurance-sieve}
+\end{figure}
+

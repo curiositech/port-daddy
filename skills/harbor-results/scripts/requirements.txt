@@ -1,0 +1,16 @@
+# Pinned Python numeric stack for the harbor-results-estate CI job
+# (.github/workflows/proofs.yml). Versions are the latest stable releases on
+# PyPI as of 2026-09-06 (queried via `pypi.org/pypi/<pkg>/json`); floating
+# `pip install numpy scipy matplotlib networkx` was the prior, unpinned
+# state.
+#
+# numpy and matplotlib are imported directly by most of the 19 scripts;
+# networkx is imported (with a friendly error if missing) by
+# sheaf_consistency_radius.py and sheaf_harness_v2.py. scipy is not imported
+# by any of the 19 scripts as of this writing -- kept pinned rather than
+# dropped since removing a dependency wasn't in scope here, but it looks
+# like dead weight worth a follow-up prune.
+numpy==2.5.2
+scipy==1.18.1
+matplotlib==3.11.1
+networkx==3.6.1

@@ -160,12 +160,16 @@ queue = "fleet-runs"
 
 [[queues.consumers]]
 queue = "fleet-runs"
-# Fleet reviews can consume the full Worker wall-clock budget and each run has
-# its own bounded model fan-out. Keep one delivery per invocation AND one active
-# invocation so obsolete/current heads cannot multiply that fan-out, exhaust
-# model capacity, or race the stale-head check before either run finishes.
+# Fleet reviews consume the full Worker wall-clock budget and each run has its
+# own bounded model fan-out. One active invocation globally made every
+# checkpointed one-ship slice rejoin the back of the same FIFO: five live PRs
+# turned a sub-minute ship into a many-minute wait and left required checks
+# pending for hours. Permit a deliberately small, global three-run drain.
+# The durable intent fence admits only one sequence per delivery, while the
+# executor rechecks the PR head before each ship, so this increases throughput
+# without allowing duplicate work for a delivery or an unbounded spend burst.
 max_batch_size = 1
-max_concurrency = 1
+max_concurrency = 3
 max_batch_timeout = 30
 # The consumer intentionally completes at most one new provider-heavy ship per
 # invocation, checkpoints it, enqueues the next cumulative slice, and
@@ -209,10 +213,14 @@ DEFAULT_BRANCH = "main"
 PORT_DADDY_COORDINATION_URL = "https://relay.portdaddy.dev"
 # XO synthesis officer model (src/xo.ts): the idea editor pass + the advisory
 # "XO's orders" triage, active only for tenants with `xo: true` in pd-fleet.yml.
-# Workers AI ONLY — must be a `@cf/` id; any other value is ignored and the
-# executor falls back to this default (resolveXoModel). The deepseek-r1 distill
-# emits <think> reasoning spans; the executor strips them before parsing.
-XO_MODEL = "@cf/deepseek-ai/deepseek-r1-distill-qwen-32b"
+# Workers AI ONLY — an override must be a `@cf/` id; any other value is ignored
+# and the executor falls back to its committed default (resolveXoModel).
+#
+# NO DEFAULT IS PINNED HERE (supplant, 2026-08-23). The default is the
+# `synthesisOfficer` cloud-plane role in config/models.yaml, reached through the
+# generated shared registry. Restating it here made this file a second place the
+# id had to be right, and the relay's copy of the same pattern had already gone
+# stale on a retired model. Set XO_MODEL only to override.
 
 # ---------------------------------------------------------------------------
 # Secrets (documented; set via `wrangler secret put`, never committed):

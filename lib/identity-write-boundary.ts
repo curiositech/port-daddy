@@ -113,6 +113,29 @@ export interface ResolveWriteIdentityParams {
   requireIdentity?: boolean;
 }
 
+/** Minimal durable session fields needed to prove mutation ownership. */
+export interface SessionOwnerRecord {
+  id?: unknown;
+  agentId?: unknown;
+  metadata?: unknown;
+}
+
+export type SessionOwnerAuthorization =
+  | {
+      ok: true;
+      /** Stored display/runtime agent id; never copied from the request. */
+      ownerAgentId: string;
+      /** Canonical daemon-minted actor id that owns the session. */
+      ownerActorId: string;
+      source: 'identity-stamp';
+    }
+  | {
+      ok: false;
+      httpStatus: 403;
+      code: 'SESSION_OWNERSHIP_MISMATCH' | 'SESSION_OWNER_UNVERIFIABLE';
+      error: string;
+    };
+
 /**
  * Extract an actor credential from a request, checking the dedicated header
  * first and then the body's `credential` field.
@@ -243,6 +266,85 @@ export function resolveWriteIdentity(params: ResolveWriteIdentityParams): Identi
   }
 
   return { ok: true, kind: 'anonymous', agentId: null, identity: null };
+}
+
+/**
+ * Bind a verified credential actor to the actor recorded on a durable session.
+ *
+ * Purpose: a valid credential proves only who the caller is; it does not prove
+ * that the caller owns an arbitrary `sessionId`. New sessions carry the
+ * daemon-stamped `metadata.identity.actorId`, which is authoritative. Legacy
+ * rows fail closed: a public actor can bind a previously-unused display alias
+ * after the row was created, so a present-day alias mapping cannot testify to
+ * historical ownership. The request's `agentId` is deliberately absent from
+ * this API so it can never become ownership proof.
+ *
+ * @param session - Stored session returned by the daemon's session store.
+ * @param verdict - Verified identity verdict for the current request.
+ * @param _souls - Reserved for the canonical resolver; never used to infer
+ *        ownership of an unstamped historical row.
+ * @returns Canonical stored owner binding, or a structured 403 rejection.
+ */
+export function authorizeSessionOwner(
+  session: SessionOwnerRecord,
+  verdict: Extract<IdentityWriteVerdict, { ok: true; kind: 'verified' }>,
+  _souls?: IdentityVerifier | null,
+): SessionOwnerAuthorization {
+  const sessionId = typeof session.id === 'string' && session.id.trim()
+    ? session.id.trim()
+    : '<unknown>';
+  const ownerAgentId = typeof session.agentId === 'string' && session.agentId.trim()
+    ? session.agentId.trim()
+    : null;
+  if (!ownerAgentId) {
+    return {
+      ok: false,
+      httpStatus: 403,
+      code: 'SESSION_OWNER_UNVERIFIABLE',
+      error: `session "${sessionId}" has no attributable owner; refusing credentialed mutation`,
+    };
+  }
+
+  const metadata = session.metadata && typeof session.metadata === 'object' && !Array.isArray(session.metadata)
+    ? session.metadata as Record<string, unknown>
+    : null;
+  const rawStamp = metadata?.identity;
+  const stamp = rawStamp && typeof rawStamp === 'object' && !Array.isArray(rawStamp)
+    ? rawStamp as Record<string, unknown>
+    : null;
+
+  let ownerActorId: string | null = null;
+  if (stamp?.verified === true) {
+    ownerActorId = typeof stamp.actorId === 'string' && stamp.actorId.trim()
+      ? stamp.actorId.trim()
+      : null;
+    if (!ownerActorId) {
+      return {
+        ok: false,
+        httpStatus: 403,
+        code: 'SESSION_OWNER_UNVERIFIABLE',
+        error: `session "${sessionId}" has a malformed verified owner stamp; refusing mutation`,
+      };
+    }
+  } else {
+    return {
+      ok: false,
+      httpStatus: 403,
+      code: 'SESSION_OWNER_UNVERIFIABLE',
+      error: `session "${sessionId}" predates daemon-stamped actor ownership; refusing mutation until an operator-witnessed migration stamps it`,
+    };
+  }
+
+  if (ownerActorId !== verdict.actorId) {
+    return {
+      ok: false,
+      httpStatus: 403,
+      code: 'SESSION_OWNERSHIP_MISMATCH',
+      error: `the presented credential does not own session "${sessionId}"`,
+    };
+  }
+
+  return { ok: true, ownerAgentId, ownerActorId, source: 'identity-stamp' };
 }
 
 /**

@@ -39,6 +39,10 @@ import {
   sameWorkspaceIdentity,
   type WorkspaceIdentity,
 } from '../lib/workspace-identity.js';
+import {
+  loadVerifiedContextBootstrapFromProjection,
+  type VerifiedContextBootstrapLookup,
+} from '../lib/agent-harbor/context-continuity.js';
 
 interface MemoryRouteDeps {
   episodicMemory: EpisodicMemory;
@@ -139,6 +143,40 @@ function continuationErrorMessage(error: unknown, gitleaksRunner?: GitleaksRunne
 
 function sourceAdapterFamily(adapter: string): string {
   return getBackendCatalogEntry(adapter)?.adapter.family ?? adapter;
+}
+
+/**
+ * A cross-backend successor receives the durable plan and packet's compact
+ * operational contract, never packet excerpts or a transcript prefix. The
+ * ledger handles are deliberately identifiers only: a capable operator can
+ * inspect them through the normal evidence route without inflating a prompt.
+ */
+function verifiedPacketContinuationContext(lookup: VerifiedContextBootstrapLookup): string {
+  if (lookup.status !== 'ready') return '';
+  const citations = Array.from(new Set([
+    lookup.packet.transcriptEventId,
+    lookup.packet.sourceTranscript.headEventId,
+    lookup.bootstrap.planCheckpoint?.transcriptEventId,
+    ...(lookup.packet.transcriptExcerpts ?? []).map((excerpt) => excerpt.citation?.transcriptEventId),
+    ...(lookup.packet.obligations ?? []).flatMap((obligation) =>
+      (obligation.citations ?? []).map((citation) => citation.transcriptEventId),
+    ),
+    ...(lookup.packet.decisions ?? []).flatMap((decision) =>
+      (decision.citations ?? []).map((citation) => citation.transcriptEventId),
+    ),
+  ].filter((value): value is string => typeof value === 'string' && Boolean(value.trim())))).slice(0, 32);
+  const plan = lookup.bootstrap.planCheckpoint?.content ?? '(no plan checkpoint is available)';
+  return [
+    '[Verified Port Daddy continuation boundary]',
+    `Packet: ${lookup.packet.packetId}`,
+    `Source session: ${lookup.sourceSessionId}`,
+    'Last durable pd plan:',
+    plan,
+    `Next action: ${lookup.packet.nextAction.recommendation}`,
+    ...(lookup.packet.nextAction.safetyConstraints ?? []).map((constraint) => `Safety constraint: ${constraint}`),
+    `Cited ledger handles: ${citations.join(', ') || '(none)'}`,
+    'Do not reconstruct or request a raw predecessor transcript. Revalidate this packet before any further successor action.',
+  ].join('\n');
 }
 
 function requestedContinuationMode(value: unknown): RequestedContinuationMode {
@@ -333,6 +371,30 @@ export const memoryPlugin: FastifyPluginAsync<{ deps: MemoryRouteDeps }> = async
       const capsule = sanitizeHandoffCapsule(storedCapsule, {
         gitleaksRunner: opts.deps.gitleaksRunner,
       });
+      const projection = episode.metadata?.projectionOf;
+      let packetContinuationContext = '';
+      if (projection !== undefined) {
+        if (!opts.deps.db) {
+          throw new HandoffValidationError('verified context packet projection requires durable ledger access');
+        }
+        const lookup = loadVerifiedContextBootstrapFromProjection(opts.deps.db, projection);
+        if (lookup.status !== 'ready') {
+          throw new HandoffValidationError(
+            `verified context packet is withheld: ${lookup.status === 'withheld' ? lookup.reason : 'no durable packet'}`,
+          );
+        }
+        // A packet projection is not an alternate source of authority for an
+        // arbitrary handoff episode. The generated capsule and immutable
+        // packet must describe the same predecessor before native witness or
+        // successor idempotency state can be consulted.
+        if (
+          lookup.sourceSessionId !== capsule.source.sessionId
+          || lookup.packet.packetId !== capsule.capsuleId
+        ) {
+          throw new HandoffValidationError('verified context packet does not match this handoff capsule predecessor');
+        }
+        packetContinuationContext = verifiedPacketContinuationContext(lookup);
+      }
       const body = (request.body as ContinuationRequestBody | undefined) ?? {};
       const requestedBackend = continuationIdentifier(body.targetBackend, 'targetBackend', 128);
       const requestedEntry = getBackendCatalogEntry(requestedBackend);
@@ -355,7 +417,10 @@ export const memoryPlugin: FastifyPluginAsync<{ deps: MemoryRouteDeps }> = async
         timeout = body.timeoutMs;
       }
 
-      const continuationRequest = sanitizeHandoffText(body.prompt ?? capsule.telos, {
+      const continuationRequest = sanitizeHandoffText([
+        body.prompt ?? capsule.telos,
+        packetContinuationContext,
+      ].filter(Boolean).join('\n\n'), {
         gitleaksRunner: opts.deps.gitleaksRunner,
       });
       const requestedMode = requestedContinuationMode(body.mode);

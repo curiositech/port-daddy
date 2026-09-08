@@ -14,7 +14,7 @@ The seeds cover three regions well — the identity→reputation chain, the thre
 - **Primitives:** daemon-minted opaque `actor_id` (ULID) bound to a non-re-pickable credential (per-actor signing key or actor-soul body-lease, ADR-0040); the self-asserted `project:stack:context` string demoted to a display alias (`lib/actor-roster.ts`); the **principal** above the actor (the human/org that owns a fleet) — the delegation chain's terminus.
 - **Mechanisms:** newcomer policy as a *shape* not a scalar (full work ability, reduced economic ceiling) (Friedman–Resnick); credential rotation without identity reset; the actor-soul / body-lease split (ADR-0022) as the Locke "substance vs. consciousness" line.
 - **Obligations:** identity churn must cost more than a clean record is worth; a sanction must survive a respawn.
-- **Claims:** *a reputation system is exactly as real as the identity it keys on.* (Load-bearing, and the seed states it well.)
+- **Claims:** *a reputation system is exactly as real as the identity it keys on.* (Core, and the seed states it well.)
 
 ### 1.B — Continuity (the three organs)
 - **Primitives:** memory (`lib/episodic-memory.ts`, BUILT); checkpoint (resurrection, `lib/resurrection.ts`, BUILT-WEAK — passes notes not state); **the outcome ledger** (durable commitments, ADR-0041, DESIGNED) — the transitive Parfitian chain made concrete.
@@ -67,7 +67,7 @@ Concrete mechanisms/edge-cases a completionist L3 requires that are absent or un
 
 6. **The fourth side: underwriting (Youle's competitive insurance).** The agent-economy-anchor seed *flags* Youle's insurer-agent proposal as an open "fourth potential side" but punts on whether it composes. The trilogy actually *works the cartel/IC math* for insurer pricing (agent-transactions §youle:a6, grim-trigger folk theorem). A completionist treatment must **resolve** whether competitive underwriting is a genuine fourth side or collapses into asset-rental — and the LaTeX already has the machinery to decide it. The seeds leave money (literally a side of the market) on the table.
 
-7. **Multi-homing across harbors.** Rochet–Tirole's single- vs. multi-homing result governs equilibrium, and the seed *names* it as a corollary but never develops it: can an agent/skill list on *multiple* harbors simultaneously? If yes, reputation must be portable (federation paper) *and* you get cross-harbor cartel risk (federated-harbor §lim-cartel flags it). The interaction between multi-homing and reputation portability is the load-bearing federation economics question and it's undeveloped.
+7. **Multi-homing across harbors.** Rochet–Tirole's single- vs. multi-homing result governs equilibrium, and the seed *names* it as a corollary but never develops it: can an agent/skill list on *multiple* harbors simultaneously? If yes, reputation must be portable (federation paper) *and* you get cross-harbor cartel risk (federated-harbor §lim-cartel flags it). The interaction between multi-homing and reputation portability is the essential federation economics question and it's undeveloped.
 
 8. **Settlement currency / unit-of-account.** The bond ledger conserves an abstract `supply`. But across harbors, *whose* credit? The seed says the rail is swappable (x402 etc.) but never specifies the **unit of account** for cross-harbor settlement (fixed peg? floating exchange between harbor credits? a clearing unit?). Cross-harbor conservation (federated-harbor §cross-conservation) is proven *in one unit*; multi-currency settlement breaks the clean invariant. Missing entirely.
 

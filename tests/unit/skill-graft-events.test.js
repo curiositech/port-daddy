@@ -235,7 +235,7 @@ describe('fleet-engine skill-graft event recording', () => {
   test('a successful craft-and-splice records one skill_graft_recorded event through the existing emit() sink', async () => {
     const craft = jest.fn().mockResolvedValue(makeGraftResult());
     const onEvent = jest.fn();
-    const config = makeConfig({ skillGraft: true });
+    const config = makeConfig({ juryRig: true });
     const runner = createFleetRunner(config, '/tmp/proj', { skillGraft: { craft }, onEvent });
 
     await runner.hailAgent('test-agent', { source: 'manual' });
@@ -275,7 +275,7 @@ describe('fleet-engine skill-graft event recording', () => {
   test('no event is recorded when craft() shortlists but splices nothing (top empty)', async () => {
     const craft = jest.fn().mockResolvedValue(makeGraftResult({ top: [] }));
     const onEvent = jest.fn();
-    const config = makeConfig({ skillGraft: true });
+    const config = makeConfig({ juryRig: true });
     const runner = createFleetRunner(config, '/tmp/proj', { skillGraft: { craft }, onEvent });
 
     await runner.hailAgent('test-agent', { source: 'manual' });
@@ -292,7 +292,7 @@ describe('fleet-engine skill-graft event recording', () => {
     const onEvent = jest.fn((event) => {
       if (event.type === 'skill_graft_recorded') throw new Error('recorder exploded');
     });
-    const config = makeConfig({ skillGraft: true });
+    const config = makeConfig({ juryRig: true });
     const runner = createFleetRunner(config, '/tmp/proj', { skillGraft: { craft }, onEvent });
     const errSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 

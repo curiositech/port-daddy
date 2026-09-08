@@ -6,11 +6,18 @@ import type { RoadmapProgress, FeedbackEntry, RoadmapFeedbackStatus } from '../.
 import type { RoadmapClaim, RoadmapEntry, RoadmapPopKind } from '../../lib/roadmap-pop.js';
 import type { RoadmapItem, RoadmapStatus } from '../../lib/roadmap-items.js';
 import type { ImportMarkdownResult, ChompRoadmapResult, ChompItemReport } from '../../lib/roadmap-chomp.js';
-import { buildRoadmapSnapshot, writeRoadmapSnapshot } from '../../lib/roadmap-snapshot.js';
+import {
+  buildRoadmapSnapshot,
+  writeRoadmapSnapshot,
+  readPreviousSnapshot,
+  type RoadmapSnapshot,
+} from '../../lib/roadmap-snapshot.js';
+import type { RoadmapSearchHit } from '../../lib/roadmap-search.js';
 import { getWorktreeInfo } from '../../lib/worktree.js';
 import { CLIOptions, isJson, isQuiet } from '../types.js';
 import { pdFetch, PORT_DADDY_URL } from '../utils/fetch.js';
-import { readCurrentContext } from '../utils/current-context.js';
+import { readCurrentContext, resolveCurrentContext } from '../utils/current-context.js';
+import { resolveCliActorCredential } from '../utils/actor-credential.js';
 import { handleBegin } from './sugar.js';
 import * as ui from '../utils/ui.js';
 
@@ -34,6 +41,11 @@ type RoadmapItemResponse =
   | { success: true; item: RoadmapItem }
   | { success: false; error?: string };
 
+/**
+ * Read the currently-committed snapshot to reconcile against, if one exists
+ * on disk. Never throws — a missing/unparseable file just means there is
+ * nothing to reconcile against (first-ever export), not an error.
+ */
 function readOption(options: CLIOptions, ...keys: string[]): string | undefined {
   for (const key of keys) {
     const value = options[key];
@@ -196,6 +208,21 @@ export async function handleRoadmap(argsOrOptions: string[] | CLIOptions, maybeO
 
   if (sub === 'import-markdown' || sub === 'import') {
     await handleRoadmapImportMarkdown(args.slice(1), options);
+    return;
+  }
+
+  if (sub === 'search') {
+    await handleRoadmapSearch(args.slice(1), options);
+    return;
+  }
+
+  if (sub === 'reindex') {
+    await handleRoadmapReindex(args.slice(1), options);
+    return;
+  }
+
+  if (sub === 'export') {
+    await handleRoadmapExport(args.slice(1), options);
     return;
   }
 
@@ -649,13 +676,18 @@ async function deleteRoadmapItem(slug: string, harbor?: string): Promise<Roadmap
  * `pd roadmap upsert` silently forked receipts off the project board (which
  * lives in the `<project>` harbor). Resolving the project here keeps writes on
  * the same board the operator reads.
+ * The design also lets readers pass their selected target directory, so Guard
+ * checks invoked with --dir cannot infer a different caller repository's scope.
+ * @param options - Explicit harbor selection, ahead of environment defaults.
+ * @param cwd - Target directory for canonical project and basename inference.
+ * @returns The intended harbor, or undefined when no scope can be inferred.
  */
-export function resolveRoadmapHarbor(options: CLIOptions): string | undefined {
+export function resolveRoadmapHarbor(options: CLIOptions, cwd = process.cwd()): string | undefined {
   const explicit = readOption(options, 'harbor');
   if (explicit) return explicit;
   const env = process.env.PD_HARBOR?.trim();
   if (env) return env;
-  const worktree = getWorktreeInfo(process.cwd());
+  const worktree = getWorktreeInfo(cwd);
   if (worktree) {
     const commonDir = resolve(worktree.root, worktree.commonDir);
     const canonicalRoot = basename(commonDir) === '.git'
@@ -664,7 +696,7 @@ export function resolveRoadmapHarbor(options: CLIOptions): string | undefined {
     const projectName = basename(canonicalRoot);
     if (projectName) return projectName;
   }
-  const cwdBase = basename(process.cwd());
+  const cwdBase = basename(cwd);
   return cwdBase || undefined;
 }
 
@@ -928,39 +960,208 @@ async function handleRoadmapDelete(args: string[], options: CLIOptions): Promise
 }
 
 async function handleRoadmapTouch(args: string[], options: CLIOptions): Promise<void> {
+  const fail: (message: string) => never = (message) => { ui.error(message); process.exit(1); };
   const slug = readRoadmapSlug(args, options);
-  if (!slug) {
-    ui.error('Usage: pd roadmap touch <slug> [--note <receipt>] [--as <agentId>]');
+  if (!slug) fail('Usage: pd roadmap touch <slug> [--harbor <harbor>] [--note <receipt>]');
+  const resolution = resolveCurrentContext();
+  if (!resolution.success) fail('CONTEXT_CONFLICT: select the intended existing caller context; no identity was substituted.');
+  const caller = resolution.context;
+  if (!caller?.agentId || !caller.sessionId) fail('CALLER_CONTEXT_REQUIRED: select an existing active session before appending a roadmap receipt.');
+  const asserted = readOption(options, 'as', 'agent', 'by', 'promotedBy');
+  if (asserted && asserted !== caller.agentId) fail('CALLER_OVERRIDE_REJECTED: attribution comes from the verified session, not --as or another display name.');
+  const credential = resolveCliActorCredential(caller.agentId);
+  if (!credential) fail('IDENTITY_CREDENTIAL_REQUIRED: no credential is available for the selected caller; no other context was substituted.');
+  const harbor = resolveRoadmapHarbor(options)?.trim();
+  if (!harbor) fail('HARBOR_REQUIRED: select the exact roadmap harbor before appending a receipt.');
+  const note = { at: Date.now(), text: readOption(options, 'note', 'receipt')?.trim() || 'roadmap touched for active work slice' };
+  const body = JSON.stringify({ sessionId: caller.sessionId, note });
+  if (Buffer.byteLength(note.text, 'utf8') > 4096 || Buffer.byteLength(body, 'utf8') > 8192) {
+    fail('VALIDATION_ERROR: a receipt must fit 4096 UTF-8 bytes and its complete request 8192 bytes; split the evidence into concise separate notes.');
+  }
+  // No GET/full-row resend: newer summaries, owners, history and links stay
+  // server-owned. A selected Unix socket must not replay an accepted append
+  // against TCP, even when its reply is lost or a response never completes.
+  let response;
+  try {
+    response = await pdFetch(`${PORT_DADDY_URL}/roadmap/items/${encodeURIComponent(slug)}/touch?${new URLSearchParams({ harbor })}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'x-actor-credential': credential },
+      body, retry: false, socketFallback: false, signal: AbortSignal.timeout(10_000),
+    });
+  } catch {
+    fail('Roadmap touch transport failed. The append outcome is unknown; inspect the exact item on the selected daemon before retrying.');
+  }
+  let result: Record<string, unknown> | undefined;
+  try {
+    const parsed = await response.json();
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) result = parsed;
+  } catch { /* Never print arbitrary remote bodies or nested transport errors. */ }
+  const hints: Record<string, string> = {
+    IDENTITY_CREDENTIAL_REQUIRED: 'The selected caller credential is required.',
+    IDENTITY_CREDENTIAL_INVALID: 'The selected caller credential did not verify.',
+    IDENTITY_VERIFIER_UNAVAILABLE: 'The daemon cannot verify caller identity.',
+    SESSION_VERIFIER_UNAVAILABLE: 'The daemon cannot verify session ownership.',
+    SESSION_NOT_FOUND: 'The exact session was not found.',
+    SESSION_NOT_ACTIVE: 'The exact session is not active; no automatic resume was attempted.',
+    SESSION_OWNERSHIP_MISMATCH: 'The selected caller does not own this session.',
+    SESSION_OWNER_UNVERIFIABLE: 'The stored session has no verified owner stamp.',
+    ROADMAP_ITEM_NOT_FOUND: 'No live item exists at this exact slug and harbor.',
+    ROADMAP_HISTORY_INVALID: 'Malformed stored history was preserved; no note was appended.',
+    ROADMAP_NOTE_CLOCK_INVALID: 'The receipt timestamp is invalid or ahead of the daemon clock. No timestamp was regenerated or retry attempted.',
+    VALIDATION_ERROR: 'The daemon rejected the receipt shape or size.',
+  };
+  if (!response.ok || result?.success === false) {
+    const code = typeof result?.code === 'string' && Object.hasOwn(hints, result.code) ? result.code : null;
+    fail(`Roadmap touch failed (HTTP ${response.status}${code ? `, ${code}` : ''}). ${code ? hints[code] : 'The append outcome is unconfirmed; inspect the exact item before retrying.'}`);
+  }
+  const item = result?.item as RoadmapItem | undefined;
+  const receipt = result?.receipt as { sessionId?: unknown; actorId?: unknown; note?: { at?: unknown; by?: unknown; text?: unknown } } | undefined;
+  const written = receipt?.note;
+  if (result?.success !== true || item?.slug !== slug || item.harbor !== harbor
+    || receipt?.sessionId !== caller.sessionId || receipt.actorId !== credential.split('.')[0]
+    || written?.at !== note.at || written.text !== note.text || typeof written.by !== 'string' || !written.by
+    || !Array.isArray(item.notes) || !item.notes.some((entry) => entry?.at === note.at && entry.text === note.text && entry.by === written.by)) {
+    fail('Roadmap touch receipt is missing, malformed, or targets another source. The daemon may lack verified append support; inspect the exact item before retrying.');
+  }
+  if (isJson(options)) console.log(JSON.stringify(result, null, 2));
+  else {
+    ui.success(`Roadmap item '${item.slug}' touched`);
+    console.log(`  receipt: ${note.text}`);
+    console.log(`  by:      ${written.by}`);
+  }
+}
+
+/**
+ * `pd roadmap search <free text>` — rank roadmap items against free text via
+ * the daemon's GET /roadmap/search (lib/roadmap-search.ts). Standalone
+ * lookup; `pd begin` calls the same endpoint automatically when no
+ * --roadmap slug is given (see handleBegin in sugar.ts).
+ */
+async function handleRoadmapSearch(args: string[], options: CLIOptions): Promise<void> {
+  const query = args.join(' ').trim() || readOption(options, 'q', 'query');
+  if (!query) {
+    ui.error('Usage: pd roadmap search <free text> [--harbor <h>] [--limit <n>]');
     process.exit(1);
   }
 
+  const params = new URLSearchParams({ q: query });
   const harbor = readOption(options, 'harbor');
-  const actor = currentRoadmapActor(options);
-  try {
-    const existing = await getRoadmapItem(slug, harbor);
-    const note = roadmapNote(actor, readOption(options, 'note', 'receipt'));
-    const item = await postRoadmapItem({
-      slug: existing.slug,
-      summaryMd: existing.summaryMd,
-      status: existing.status,
-      promotedFromFeedbackId: existing.promotedFromFeedbackId ?? undefined,
-      promotedByAgentId: actor,
-      promotedAt: existing.promotedAt ?? Date.now(),
-      dependencies: existing.dependencies,
-      notes: [...(existing.notes ?? []), note],
-      harbor: existing.harbor,
-    });
-    if (isJson(options)) {
-      console.log(JSON.stringify({ success: true, item }, null, 2));
-      return;
-    }
-    ui.success(`Roadmap item '${item.slug}' touched`);
-    console.log(`  receipt: ${note.text}`);
-    console.log(`  by:      ${actor}`);
-  } catch (error) {
-    ui.error(error instanceof Error ? error.message : 'roadmap touch failed');
+  if (harbor) params.set('harbor', harbor);
+  const limit = parseLimit(options.limit, 5);
+  params.set('limit', String(limit));
+
+  const res = await pdFetch(`${PORT_DADDY_URL}/roadmap/search?${params.toString()}`);
+  const data = (await res.json().catch(() => ({}))) as {
+    success?: boolean;
+    hits?: RoadmapSearchHit[];
+    degraded?: string;
+    error?: string;
+  };
+  if (!res.ok || data.success === false) {
+    ui.error(data.error || `roadmap search failed (status ${res.status})`);
     process.exit(1);
   }
+
+  const hits = data.hits ?? [];
+  if (isJson(options)) {
+    console.log(JSON.stringify({ success: true, hits, count: hits.length }, null, 2));
+    return;
+  }
+  if (data.degraded) {
+    ui.warn(`search index unavailable — run \`pd roadmap reindex\` on a daemon with the semantic resolver wired`);
+    return;
+  }
+  if (hits.length === 0) {
+    ui.info(`No roadmap items matched "${query}". Use --roadmap-new to draft one.`);
+    return;
+  }
+  ui.step(`Roadmap items matching "${query}":`);
+  for (const hit of hits) {
+    console.log(`  ${hit.slug}  [${hit.status}]  (${hit.stage}, score ${hit.score.toFixed(3)})`);
+    console.log(`    ${hit.summaryMd}`);
+  }
+}
+
+/**
+ * `pd roadmap reindex` — backfill/refresh the search embedding index
+ * (POST /roadmap/reindex-search). Run once after this feature ships
+ * (existing rows predate the index) and safe to re-run any time.
+ */
+async function handleRoadmapReindex(_args: string[], options: CLIOptions): Promise<void> {
+  const harbor = readOption(options, 'harbor');
+  const res = await pdFetch(`${PORT_DADDY_URL}/roadmap/reindex-search`, {
+    method: 'POST',
+    body: JSON.stringify(harbor ? { harbor } : {}),
+  });
+  const data = (await res.json().catch(() => ({}))) as {
+    success?: boolean;
+    indexed?: number;
+    skipped?: number;
+    total?: number;
+    error?: string;
+  };
+  if (!res.ok || data.success === false) {
+    ui.error(data.error || `roadmap reindex failed (status ${res.status})`);
+    process.exit(1);
+  }
+  if (isJson(options)) {
+    console.log(JSON.stringify(data, null, 2));
+    return;
+  }
+  ui.success(`Reindexed ${data.indexed ?? 0}/${data.total ?? 0} item(s) (${data.skipped ?? 0} unchanged, skipped)`);
+}
+
+/**
+ * `pd roadmap export <slug> --to github|linear|jira [target-specific flags]`
+ * — push one roadmap item to an external tracker (POST
+ * /roadmap/items/:slug/export -> lib/roadmap-export.ts). Credentials are
+ * server-side env vars only (PD_GITHUB_TOKEN, PD_LINEAR_TOKEN,
+ * PD_JIRA_EMAIL/PD_JIRA_API_TOKEN) — this command never accepts a token flag.
+ */
+async function handleRoadmapExport(args: string[], options: CLIOptions): Promise<void> {
+  const slug = args[0] && !args[0].startsWith('--') ? args[0] : readOption(options, 'slug');
+  const target = readOption(options, 'to', 'target');
+  if (!slug || !target) {
+    ui.error(
+      'Usage: pd roadmap export <slug> --to github --repo owner/repo\n' +
+      '       pd roadmap export <slug> --to linear --team-id <id>\n' +
+      '       pd roadmap export <slug> --to jira --base-url <url> --project-key <KEY> [--issue-type <type>]',
+    );
+    process.exit(1);
+  }
+  if (!['github', 'linear', 'jira'].includes(target)) {
+    ui.error(`--to must be one of: github, linear, jira (got "${target}")`);
+    process.exit(1);
+  }
+
+  const body = { target };
+  if (target === 'github') Object.assign(body, { repo: readOption(options, 'repo') });
+  if (target === 'linear') Object.assign(body, { teamId: readOption(options, 'team-id', 'teamId') });
+  if (target === 'jira') {
+    Object.assign(body, {
+      baseUrl: readOption(options, 'base-url', 'baseUrl'),
+      projectKey: readOption(options, 'project-key', 'projectKey'),
+      issueType: readOption(options, 'issue-type', 'issueType'),
+    });
+  }
+
+  const res = await pdFetch(`${PORT_DADDY_URL}/roadmap/items/${encodeURIComponent(slug)}/export`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+  const data = (await res.json().catch(() => ({}))) as {
+    success?: boolean;
+    export?: { externalId: string; externalUrl: string };
+    error?: string;
+  };
+  if (!res.ok || data.success === false) {
+    ui.error(data.error || `roadmap export failed (status ${res.status})`);
+    process.exit(1);
+  }
+  if (isJson(options)) {
+    console.log(JSON.stringify(data, null, 2));
+    return;
+  }
+  ui.success(`Exported '${slug}' to ${target}: ${data.export?.externalUrl}`);
 }
 
 async function handleRoadmapPromote(args: string[], options: CLIOptions): Promise<void> {
@@ -1347,6 +1548,8 @@ async function emitChompPrPlan(
       baseUrl: PORT_DADDY_URL,
       harbor,
       fetchImpl: pdFetch,
+      previousSnapshot: readPreviousSnapshot(join(ctx.rootDir, 'docs/roadmap/roadmap.snapshot.json')),
+      allowShrink: Boolean(ctx.options['allow-shrink'] ?? ctx.options.allowShrink),
     });
     writeRoadmapSnapshot(join(dir, 'roadmap.snapshot.json'), snapshot);
     snapshotNote = `${snapshot.count} item(s), harbor ${harbor}`;

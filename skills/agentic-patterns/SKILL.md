@@ -2,7 +2,7 @@
 license: Apache-2.0
 name: agentic-patterns
 description: |
-  Fundamental patterns for effective agentic behavior. Teaches decomposition, tool orchestration, error recovery, context management, quality self-assessment, and knowing when to stop. Model-agnostic principles that make any agent more effective regardless of domain. Activate on: "how should I structure this agent", "agentic workflow", "agent patterns", "multi-step task", "tool orchestration", "/agentic-patterns", "decompose this", "agent best practices", "chain of actions", "when should the agent stop", "agent loop design". NOT for: creating agent infrastructure (use agent-creator), building DAGs (use windags-architect), specific tool implementation.
+  Fundamental patterns for effective agentic behavior. Teaches decomposition, tool orchestration, error recovery, context management, quality self-assessment, and knowing when to stop. Model-agnostic principles that make any agent more effective regardless of domain. Activate on: "how should I structure this agent", "agentic workflow", "agent patterns", "multi-step task", "tool orchestration", "/agentic-patterns", "decompose this", "agent best practices", "chain of actions", "when should the agent stop", "agent loop design". NOT for: creating agent infrastructure (use agent-creator), building DAGs (use jury_rig-architect), specific tool implementation.
 category: Agent & Orchestration
 tags:
   - agents
@@ -25,7 +25,7 @@ user-invocable: true
 pairs-with:
   - skill: next-move
     reason: Decomposition and planning feed into agent execution
-  - skill: windagszip
+  - skill: jury_rigzip
     reason: Compress skills that agents consume to save context budget
   - skill: task-decomposer
     reason: Breaks high-level tasks into agent-executable subtasks
@@ -51,7 +51,7 @@ You are teaching effective agentic patterns. These are model-agnostic principles
 
 **NOT for:**
 - Building agent infrastructure or frameworks (use agent-creator)
-- Designing DAG topologies (use windags-architect)
+- Designing DAG topologies (use jury_rig-architect)
 - Implementing specific tools (use the domain-specific skill)
 - Prompt optimization (use prompt-engineer)
 

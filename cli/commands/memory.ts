@@ -135,6 +135,20 @@ function recallTiersWindowMs(): number {
 
 function buildCountFetchers(): Record<string, CountFetcher> {
   const recallWindowMs = recallTiersWindowMs();
+  const since = Math.max(0, Date.now() - recallWindowMs);
+  let notePartition: Promise<{ recent: number; archived: number }> | undefined;
+  const readNotePartition = () => notePartition ??= (async () => {
+    // Share one bounded request and one server read snapshot between both rows.
+    // An old or malformed daemon response is unavailable, never a page count.
+    const response = await pdFetch(`/notes?since=${since}&limit=1`);
+    const data: any = await response.json();
+    if (!response.ok) throw new Error(`note counts unavailable (HTTP ${response.status})`);
+    if (data?.success !== true || !Number.isSafeInteger(data.total) || data.total < 0
+      || !Number.isSafeInteger(data.beforeSinceTotal) || data.beforeSinceTotal < 0) {
+      throw new Error('note count metadata is unavailable');
+    }
+    return { recent: data.total, archived: data.beforeSinceTotal };
+  })();
 
   return {
     'active-sessions': async () => {
@@ -154,36 +168,8 @@ function buildCountFetchers(): Record<string, CountFetcher> {
       return arr.length;
     },
 
-    'active-notes': async () => {
-      const since = Date.now() - recallWindowMs;
-      const res: PdFetchResponse = await pdFetch(`/notes?since=${since}&limit=10000`);
-      const data: any = await res.json();
-      if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
-      const arr = Array.isArray(data) ? data : (data.notes || []);
-      return arr.length;
-    },
-
-    'archived-notes': async () => {
-      // Partition invariant: archival = total - recall. We compute total then
-      // subtract the recall slice, so `recall + archival = total` by construction.
-      // The previous implementation read all notes into "archived", which
-      // double-counted with active-notes — see PR #114 review finding 3.
-      const totalRes: PdFetchResponse = await pdFetch('/notes?limit=100000');
-      const totalData: any = await totalRes.json();
-      if (!totalRes.ok) throw new Error(totalData?.error || `HTTP ${totalRes.status}`);
-      const total = typeof totalData?.total === 'number'
-        ? totalData.total
-        : (Array.isArray(totalData) ? totalData : (totalData.notes || [])).length;
-
-      const since = Date.now() - recallWindowMs;
-      const recentRes: PdFetchResponse = await pdFetch(`/notes?since=${since}&limit=100000`);
-      const recentData: any = await recentRes.json();
-      if (!recentRes.ok) throw new Error(recentData?.error || `HTTP ${recentRes.status}`);
-      const recentArr = Array.isArray(recentData) ? recentData : (recentData.notes || []);
-      const recall = recentArr.length;
-
-      return Math.max(0, total - recall);
-    },
+    'active-notes': async () => (await readNotePartition()).recent,
+    'archived-notes': async () => (await readNotePartition()).archived,
 
     blobs: async () => {
       const res: PdFetchResponse = await pdFetch('/blob?limit=10000');

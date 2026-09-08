@@ -211,7 +211,7 @@
       setStatus('Posting to <b>ui:clicks</b>…');
       pulse();
       const id = await publish(humanText, 'web-page');
-      card('click', 'web page', id, `Asked the agent to <code>${escapeHtml(label)}</code>`);
+      card('click', 'web page', id, `Asked the agent to <code>${label}</code>`);
       await sleep(300);
       $('agentNode').classList.add('awake');
       setStatus('<span class="live">● agent awake</span> — working…');

@@ -855,22 +855,7 @@ struct FleetPopover: View {
             EmptyView()
 
         case let .appBehindDaemon(app, daemon):
-            versionSkewCard(
-                icon: "arrow.down.circle.fill",
-                tint: Fleet.Color.warning,
-                title: "FleetBar is out of date",
-                detail: "This app is \(app); the daemon is already \(daemon). Download the latest FleetBar to match.",
-                versionLine: "app \(app)  →  daemon \(daemon)",
-                primaryLabel: "Download FleetBar \(daemon)",
-                primaryAction: { NSWorkspace.shared.open(FleetVersion.downloadPageURL) },
-                // A Developer-ID-signed build means the release pipeline signs +
-                // notarizes every artifact, so the download needs no manual
-                // checksum ritual — Gatekeeper verifies it. Only unsigned/ad-hoc
-                // builds keep the caveat.
-                footnote: FleetVersion.isSignedBuild
-                    ? "Signed & notarized — Gatekeeper verifies the download automatically."
-                    : "Unsigned build — the download page lists the checksum to verify."
-            )
+            FleetBarUpdateCard(appVersion: app, daemonVersion: daemon)
 
         case let .daemonBehindApp(app, daemon):
             // FleetBar can't run `brew` or kill a live daemon itself, so we hand

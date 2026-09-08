@@ -1018,4 +1018,4 @@ Markets compute OR (threshold function) but not XOR (non-threshold).
 
 ---
 
-This synthesis preserves the book's technical precision while organizing material around *transferable lessons* for intelligent systems design. Each reference document is 800-4000 words, maintaining depth while crossing chapter boundaries to show how ideas interconnect. The evidence (exact quotes, numerical examples, proof sketches) remains intact, making these references authoritative teaching materials for building multi-agent systems like WinDAGs.
+This synthesis preserves the book's technical precision while organizing material around *transferable lessons* for intelligent systems design. Each reference document is 800-4000 words, maintaining depth while crossing chapter boundaries to show how ideas interconnect. The evidence (exact quotes, numerical examples, proof sketches) remains intact, making these references authoritative teaching materials for building multi-agent systems like Jury-rig.

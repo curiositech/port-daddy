@@ -10,7 +10,10 @@
   {Paper 6 --- the authority inventory: where the algorithm ends, the charter begins};
 
 % Base domain (left): a working port
-\draw[draw=harborblue,thick,fill=harborblue,fill opacity=0.12] (0.2,0.7) rectangle (3.8,9.4);
+% Dashed border (target stays solid): at fill opacity 0.12 the harborblue and
+% seagreen plates render as near-identical light greys, so the two domains
+% separate by line style rather than by hue alone -- greyscale/colour-blind safe.
+\draw[draw=harborblue,thick,dashed,fill=harborblue,fill opacity=0.12] (0.2,0.7) rectangle (3.8,9.4);
 \node[align=center,font=\small\bfseries] at (2.0,9.05) {Base: a working port};
 
 % Target domain (right): the harbor daemon
@@ -29,7 +32,11 @@
 \node[align=center,font=\tiny,text width=2.7cm] at (2.0,7.31) {Collision course:\\constant bearing,\\decreasing range ---\\geometry any watch\\officer computes};
 \node[align=center,font=\tiny,text width=2.7cm] at (10.0,7.31) {In-fragment\\conflict scan:\\Horn propagation +\\sweep-line +\\Bellman--Ford,\\polynomial witness\\(no judgment consumed)};
 \draw[<->,>=Stealth,thick,shipred] (3.9,7.25) -- (8.1,7.25);
-\node[align=center,font=\scriptsize\bfseries,text=shipred,text width=3.0cm] at (6.0,7.83) {mechanical\\DETECTION\\no authority needed};
+% Arrow labels carry the RELATION, not a noun: the row must read as a sentence
+% base -- label -- target. Row 1 previously read "collision course / mechanical
+% DETECTION no authority needed / in-fragment conflict scan", which names the row
+% rather than stating what maps to what.
+\node[align=center,font=\scriptsize\bfseries,text=shipred,text width=3.0cm] at (6.0,7.83) {is computed identically\\by everyone, so\\consumes no authority};
 
 % Row 2
 \node[align=center,font=\tiny,text width=2.7cm] at (2.0,4.72) {Give-way beyond the\\rulebook: harbor\\traffic control\\decides\\who yields};
@@ -39,7 +46,7 @@
 
 % Row 3
 \node[align=center,font=\tiny,text width=2.7cm] at (2.0,2.02) {One licensed pilot\\vs a pool of\\tug crews;\\ports license a\\second pilot};
-\node[align=center,font=\tiny,text width=2.7cm] at (10.0,2.02) {Sole role owner iff\\skill premium clears $g(\rho,c)$;\\no succession plan:\\viable only below $D^\star$};
+\node[align=center,font=\tiny,text width=2.7cm] at (10.0,2.02) {Sole role owner iff\\skill premium clears $g_A(\rho,c)$;\\no succession plan:\\viable only below $D^\star$};
 \draw[<->,>=Stealth,thick,shipred] (3.9,1.75) -- (8.1,1.75);
 \node[align=center,font=\scriptsize\bfseries,text=shipred,text width=3.0cm] at (6.0,2.33) {sole\\OWNERSHIP\\is priced,\\not presumed};
 

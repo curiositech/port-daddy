@@ -47,7 +47,7 @@ The key insight: **"intentions are commitments to act towards the fulfilment of 
 
 When an agent forms an intention, it's not just deciding what to do—it's deciding what *not to reconsider*. If a multi-agent orchestration system forms the intention "retrieve user data from database," it shouldn't continuously re-evaluate whether database access is still the right approach. The intention creates a boundary: within this intention's scope, certain questions are settled.
 
-For WinDAGs-like systems, this suggests:
+For Jury-rig-like systems, this suggests:
 - **Intention scopes should be explicit**: Each intention should clearly define what remains open for deliberation and what is now fixed
 - **Intention revision should be costly**: Breaking an intention should require clear evidence, not just marginal doubt
 - **Sub-intentions inherit commitment**: When an intention spawns sub-tasks, those inherit the commitment context
@@ -105,7 +105,7 @@ Systems that don't maintain intention consistency will pursue contradictory goal
 
 ## Implications for Hierarchical Agent Systems
 
-In systems where multiple agents coordinate (like WinDAGs), intention-as-commitment has profound implications:
+In systems where multiple agents coordinate (like Jury-rig), intention-as-commitment has profound implications:
 
 ### Higher-Level Intentions Constrain Lower-Level Deliberation
 If a coordinating agent forms the intention "deliver security audit by end of day," subordinate agents inherit a time constraint that limits their deliberation. A code analysis agent can't spend three hours optimizing its scanning approach—the parent intention has bounded its reasoning time.
@@ -440,7 +440,7 @@ This is fundamentally different from desire aggregation (voting, averaging, pref
 
 In traditional multi-agent systems, coordination happens between agents with fixed, pre-programmed goals. Agent A wants X, Agent B wants Y, they negotiate based on utilities. But real systems often need to **discover what their goals should be** through interaction.
 
-Consider a WinDAGs-style orchestration system tasked with "improve system reliability." The individual agents (monitoring, debugging, testing, deployment) don't have pre-existing desires about HOW to improve reliability. Instead:
+Consider a Jury-rig-style orchestration system tasked with "improve system reliability." The individual agents (monitoring, debugging, testing, deployment) don't have pre-existing desires about HOW to improve reliability. Instead:
 
 1. **Monitoring agent shares observations**: "High error rates in authentication service"
 2. **Debugging agent shares hypothesis**: "Likely race condition under load"
@@ -1105,7 +1105,7 @@ Some conflicts reflect such fundamental value differences that no accommodation 
 
 Jenkins and Jarvis don't fully develop the accommodation concept—it's inherited from Checkland's POM and adapted to BDI. But they identify it as crucial: organizations function not through consensus but through accommodations.
 
-For WinDAGs-style orchestration systems, this suggests:
+For Jury-rig-style orchestration systems, this suggests:
 
 **Short Term**:
 - Add explicit accommodation representation to agent coordination protocols

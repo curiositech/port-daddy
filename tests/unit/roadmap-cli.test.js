@@ -259,69 +259,31 @@ describe('pd roadmap', () => {
     }
   });
 
-  test('touch preserves the existing summary and appends a roadmap receipt note', async () => {
-    pdFetch
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: async () => ({
-          success: true,
-          item: {
-            id: 'r4',
-            slug: 'swarm-coordination',
-            summaryMd: 'Existing summary.',
-            status: 'now',
-            promotedFromFeedbackId: null,
-            promotedByAgentId: 'agent-old',
-            promotedAt: 1,
-            lastTouchedAt: 2,
-            dependencies: ['parley'],
-            notes: [{ at: 1, by: 'agent-old', text: 'old' }],
-            harbor: 'fleet',
-          },
-        }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 201,
-        json: async () => ({
-          success: true,
-          item: {
-            id: 'r4',
-            slug: 'swarm-coordination',
-            summaryMd: 'Existing summary.',
-            status: 'now',
-            promotedFromFeedbackId: null,
-            promotedByAgentId: 'agent-1',
-            promotedAt: 1,
-            lastTouchedAt: 3,
-            dependencies: ['parley'],
-            notes: [],
-            harbor: 'fleet',
-          },
-        }),
+  test('touch posts one receipt, never a fetched item or historical notes', async () => {
+    const { writeCurrentContext } = await import('../../cli/utils/current-context.js');
+    const keys = ['PORT_DADDY_CONTEXT_DIR', 'PORT_DADDY_CONTEXT_SLOT', 'PD_AGENT_ID', 'PD_SESSION_ID', 'PD_ACTOR_CREDENTIAL', 'PORT_DADDY_ACTOR_CREDENTIAL'];
+    const saved = Object.fromEntries(keys.map(key => [key, process.env[key]]));
+    const directory = mkdtempSync(join(process.env.HOME, 'coding', 'tmp', 'roadmap-touch-contract-'));
+    try {
+      for (const key of keys) delete process.env[key];
+      process.env.PORT_DADDY_CONTEXT_DIR = directory;
+      process.env.PORT_DADDY_CONTEXT_SLOT = 'synthetic-touch';
+      writeCurrentContext({ sessionId: 'session-one', agentId: 'agent-1', credential: 'actor-one.synthetic-only' });
+      pdFetch.mockImplementation(async (_url, init) => {
+        const body = JSON.parse(init.body);
+        const note = { ...body.note, by: 'agent-1' };
+        return { ok: true, status: 200, json: async () => ({ success: true,
+          item: { slug: 'swarm-coordination', harbor: 'fleet', notes: [note] },
+          receipt: { sessionId: body.sessionId, actorId: 'actor-one', note } }) };
       });
-
-    await handleRoadmap(['touch', 'swarm-coordination'], {
-      as: 'agent-1',
-      note: 'guard receipt',
-      json: true,
-    });
-
-    expect(pdFetch.mock.calls[0][0]).toBe('/roadmap/items/swarm-coordination');
-    expect(pdFetch.mock.calls[1][0]).toBe('/roadmap/items');
-    const body = JSON.parse(pdFetch.mock.calls[1][1].body);
-    expect(body).toMatchObject({
-      slug: 'swarm-coordination',
-      summaryMd: 'Existing summary.',
-      status: 'now',
-      dependencies: ['parley'],
-      promotedByAgentId: 'agent-1',
-    });
-    expect(body.notes).toEqual(expect.arrayContaining([
-      expect.objectContaining({ by: 'agent-old', text: 'old' }),
-      expect.objectContaining({ by: 'agent-1', text: 'guard receipt' }),
-    ]));
+      await handleRoadmap(['touch', 'swarm-coordination'], { harbor: 'fleet', note: 'guard receipt', json: true });
+      expect(pdFetch).toHaveBeenCalledTimes(1);
+      expect(pdFetch.mock.calls[0][0]).toBe('http://127.0.0.1:9876/roadmap/items/swarm-coordination/touch?harbor=fleet');
+      expect(JSON.parse(pdFetch.mock.calls[0][1].body)).toEqual({ sessionId: 'session-one', note: { at: expect.any(Number), text: 'guard receipt' } });
+    } finally {
+      for (const key of keys) { if (saved[key] === undefined) delete process.env[key]; else process.env[key] = saved[key]; }
+      rmSync(directory, { recursive: true });
+    }
   });
 
   test('ack harvests live feedback from the roadmap surface', async () => {
@@ -503,5 +465,53 @@ describe('pd roadmap chomp', () => {
     expect(body).toContain('visual-exempt:');
     expect(body).toContain('Roadmap-Item: none —');
     expect(body).toContain('Roadmap-Spawns: v4-plan, phase-1');
+  });
+});
+
+describe('pd roadmap search', () => {
+  test('builds the query, harbor, and limit params and requests GET /roadmap/search', async () => {
+    pdFetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ success: true, hits: [] }),
+    });
+
+    await handleRoadmap(['search', 'fix', 'the', 'login', 'bug'], { harbor: 'port-daddy', limit: 3, json: true });
+
+    expect(pdFetch).toHaveBeenCalledTimes(1);
+    const url = new URL(pdFetch.mock.calls[0][0], 'http://x');
+    expect(url.pathname).toBe('/roadmap/search');
+    expect(url.searchParams.get('q')).toBe('fix the login bug');
+    expect(url.searchParams.get('harbor')).toBe('port-daddy');
+    expect(url.searchParams.get('limit')).toBe('3');
+  });
+
+  test('--json prints the hits as structured JSON', async () => {
+    const hits = [{ slug: 'fix-login-bug', status: 'now', summaryMd: 'Fix the login bug', stage: 'bm25', score: 0.9 }];
+    pdFetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ success: true, hits }),
+    });
+
+    await handleRoadmap(['search', 'login', 'bug'], { json: true });
+
+    const printed = JSON.parse(logSpy.mock.calls[0][0]);
+    expect(printed).toEqual({ success: true, hits, count: 1 });
+  });
+
+  test('requires a query — usage error and no request when neither positional nor --q is given', async () => {
+    await expect(handleRoadmap(['search'], {})).rejects.toThrow('process.exit(1)');
+    expect(pdFetch).not.toHaveBeenCalled();
+  });
+
+  test('a non-ok response exits 1 rather than printing partial results', async () => {
+    pdFetch.mockResolvedValue({
+      ok: false,
+      status: 503,
+      json: async () => ({ error: 'search index unavailable' }),
+    });
+
+    await expect(handleRoadmap(['search', 'anything'], {})).rejects.toThrow('process.exit(1)');
   });
 });

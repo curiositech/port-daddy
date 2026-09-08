@@ -41,7 +41,7 @@ const DEMOS = [
   {
     id: 'recovery',
     title: 'Nothing Lost',
-    description: 'A warning sent before you logged off is waiting when you log on — even offline, never missed',
+    description: 'A durable note and claimed seam survive a real successor takeover — no missing context, no invented crash story',
     cast: '/casts/porthole/recovery.cast',
   },
   {

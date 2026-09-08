@@ -1,14 +1,30 @@
-% R12 regime: budget-only (copy) semantics vs transfer semantics -- total
+% Theorem 1 regime: budget-only (copy) semantics vs transfer semantics -- total
 % inherited credit from one unit-value episode along a depth-3 full-weight
 % chain, as a function of the discount gamma. Curve recomputed directly
 % from make_regime_figure() in figures/src/r12_figures.py: copy_vals =
 % gamma + gamma^2 + gamma^3 (closed form, sampled at 13 points over
 % [0,1]); transfer_vals is the constant 1 (the debit invariant); the
-% counterexample point at gamma=0.9 evaluates to 2.439, matching the
-% 2.44 cited from a6_no_mint.py. NOTE: the script's make_regime_figure()
-% has no Monte Carlo / DAG-sweep panel -- it is a pure 2-curve closed-form
-% plot; see report for this discrepancy against the task brief.
+% counterexample point at gamma=0.9 evaluates to 2.439 (printed as 2.439,
+% not the rounded 2.44 this fragment used to display).
+% NOTE: the script's make_regime_figure() has no Monte Carlo / DAG-sweep
+% panel -- it is a pure 2-curve closed-form plot; see report for this
+% discrepancy against the task brief.
 % [verified: script r12_figures.py]
+%
+% TWO FIXES applied to this fragment, both from the paper5 verification pass:
+% (1) the transfer curve and the "mint line" were plotted at IDENTICAL
+%     coordinates {(0,1) (1,1)} in two different styles, so the dashed blue
+%     overprinted the solid green: one visible line, two legend entries, and
+%     no way to match either -- unrecoverable in greyscale. They are the same
+%     line (transfer holds the live total at exactly the witnessed value), so
+%     they are now drawn once, with a merged legend entry and a right-edge
+%     label naming it.
+% (2) the shaded region ran the full gamma range at y in [1,3] and was
+%     labelled "minting", implying minting at every gamma. The regime boundary
+%     is on the GAMMA axis: this depth-3 chain crosses 1 at the root of
+%     gamma+gamma^2+gamma^3=1, gamma ~= 0.5436890 (bracketed by the plotted
+%     points (0.5,0.875) and (0.5833,1.1221)). The band and the dotted rule
+%     now sit at that crossing.
 \begin{figure}[htbp]
 \centering
 \begin{tikzpicture}
@@ -18,36 +34,49 @@
   xlabel={discount $\gamma$},
   ylabel={total inherited credit\\{\scriptsize(one unit-value episode, depth-3 chain)}},
   ylabel style={align=center},
-  title={R12 regime --- budgets alone mint; transfer conserves},
+  title={Theorem 1 regime --- budgets alone mint; transfer conserves},
   xmin=0,xmax=1,ymin=0,ymax=3,
+  % 0.5 is dropped from the tick list in favour of the actual crossing at
+  % 0.5437: the two labels are 0.04 apart on the axis and would overprint.
+  xtick={0,0.25,0.5437,0.75,1},
+  xticklabels={$0$,$0.25$,$0.5437$,$0.75$,$1$},
   legend pos=north west,
 ]
-\fill[shipred,opacity=0.08] (axis cs:0,1) rectangle (axis cs:1,3);
-% Moved off (0.5,2.3): that spot sits directly against the north-west
-% legend's third line ("witnessed value -- the mint line"), running the
-% region label straight into the legend text with no gap -- a real
-% collision the shared opaque legend plate can't fix, since this is a
-% separate node beside the legend box, not inside it. (0.28,1.5) is clear
-% shaded space: below the legend, above the copy-semantics curve there.
-\node[shipred,opacity=0.6,font=\bfseries\small] at (axis cs:0.28,1.5) {minting};
+% Regime band on the gamma axis, not a full-width strip above y=1.
+\fill[shipred,opacity=0.08] (axis cs:0.5437,0) rectangle (axis cs:1,3);
+\draw[black,dotted,thick] (axis cs:0.5437,0) -- (axis cs:0.5437,3);
+% Label sits inside the band, well below the copy curve there (the curve is
+% at 1.244 at gamma=0.62) and clear of both the north-west legend and the
+% counterexample callout in the upper right.
+\node[shipred,opacity=0.75,font=\bfseries\small,align=center,anchor=north] at (axis cs:0.72,0.62)
+  {budget-only mints\\ for $\gamma>0.5437$ at this depth};
 \addplot[shipred,thick] coordinates {
   (0,0) (0.0833,0.0909) (0.1667,0.1991) (0.25,0.3281) (0.3333,0.4815)
   (0.4167,0.6626) (0.5,0.875) (0.5833,1.1221) (0.6667,1.4074) (0.75,1.7344)
   (0.8333,2.1065) (0.9167,2.5272) (1,3)
 };
 \addlegendentry{copy semantics: $\sum \gamma^d$}
-\addplot[seagreen,thick] coordinates {(0,1) (1,1)};
-\addlegendentry{transfer semantics (debits)}
-\addplot[harborblue,dashed,thick] coordinates {(0,1) (1,1)};
-\addlegendentry{witnessed value --- the mint line}
+% One line, one entry: transfer semantics holds the live total at exactly the
+% witnessed value, so the transfer curve IS the mint line.
+\addplot[seagreen,very thick] coordinates {(0,1) (1,1)};
+\addlegendentry{transfer semantics $=$ witnessed value $=$ the mint line}
+% Kept INSIDE the axis box (anchor=south east at x=0.99): a right-edge node at
+% axis cs:1.01 would need clip=false and, at 0.85\textwidth centred, has only
+% ~1.2cm of page margin to sit in -- narrower than the label itself. The strip
+% just above y=1 near gamma=1 is empty (the copy curve is at 2.94 there).
+\node[seagreen,anchor=south east,font=\scriptsize] at (axis cs:0.99,1.03) {mint line};
 \addplot[shipred,only marks,mark=*,mark size=2.2pt,forget plot] coordinates {(0.9,2.439)};
 \node[text=shipred,font=\scriptsize,align=left,anchor=south east] at (axis cs:0.9,2.55)
-  {$\gamma=0.9$: copy $=2.44$\\ refutes budget-only\\ {[internal, \texttt{a6\_no\_mint.py}]}};
+  {$\gamma=0.9$: copy $=2.439$\\ refutes budget-only\\ {[internal, \texttt{a6\_no\_mint.py}]}};
 \end{axis}
 \end{tikzpicture}
 \caption{Regime diagram for Theorem 1: total inherited credit from one unit-value episode along a depth-3 full-weight chain, as a
-function of the discount $\gamma$. Budget-only (copy) semantics crosses the mint line at $\gamma=1/2$ and reaches $2.44$ at
-$\gamma=0.9$ --- the refuting counterexample [internal, \texttt{a6\_no\_mint.py}]; transfer semantics holds the live total at the
-witnessed value for every $\gamma$.}
+function of the discount $\gamma$. Two thresholds, kept apart. \emph{This depth-3 chain} crosses the mint line at
+$\gamma\approx0.5437$, the root of $\gamma+\gamma^2+\gamma^3=1$ --- the dotted rule, bracketed by the plotted points
+$(0.5,0.875)$ and $(0.5833,1.1221)$ --- and reaches $2.439$ at $\gamma=0.9$, the refuting counterexample [internal,
+\texttt{a6\_no\_mint.py}]. The familiar $\gamma=\tfrac12$ is the threshold for the budget-only \emph{scheme}, not for this chain:
+it is where the depth-limit bound $\sum_{d\ge1}\gamma^d=\gamma/(1-\gamma)$ first exceeds $1$, so above it some chain of sufficient
+depth mints, with the required depth growing as $\gamma$ falls. Transfer semantics holds the live total at the witnessed value for
+every $\gamma$, which is why one line carries both labels.}
 \label{fig:r12reg}
 \end{figure}

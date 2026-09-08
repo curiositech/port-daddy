@@ -1,15 +1,28 @@
 % R2 regime diagram: super-additivity of the split-digest floor, recomputed
 % directly from Floor(N,k,m) = log2 C(N,k) - log2 C(m,k) in
 % create_regime_diagram() of figures/src/r2_figures.py.
-% Panel (a): N=60,m=8, naive 2x-Floor(k) vs true joint Floor(2k), k=1..4.
+% Panel (a): N=60,m=8, the split PENALTY in bits, Floor(2k) - 2*Floor(k),
+%   k=1..4 -- values 0.168, 0.802, 2.260, 5.720.
 % Panel (b): the ratio Floor(2k)/(2 Floor(k)) vs k, for m=8 (k=1..4) and
-% m=20 (k=1..10).
-% CROSS-CHECK NOTE: the caption below (kept verbatim from paper1.tex) states
-% "super-additivity 1.05--1.08 across the swept regimes" -- the script's own
-% swept data does NOT support that range: panel (a)/(b)'s m=8 curve alone
-% already reaches 1.122 at k=3 and 1.224 at k=4, and the m=20 curve reaches
-% 1.392 at k=10. Only the single k=2 point sits at 1.067, inside the stated
-% band. Flagged, not silently corrected -- see the figure-conversion report.
+%   m=20 (k=1..10).
+%
+% PANEL (a) REPLOTTED (not transcribed): the script plots the joint floor and
+% the naive 2x curve as two lines on a 0-35 bit axis. The quantity the paper
+% claims is the GAP between them, which at the reference point k=2 is 0.80
+% bits on a 35-bit axis -- under one line width, and encoded as a difference
+% of positions (and as a shaded area) rather than on position itself. The
+% same data is replotted here as the difference directly, so the claimed
+% quantity is the quantity on the axis. No number changed; both curves'
+% values are recoverable from panel (b)'s ratio and this panel's difference.
+%
+% CROSS-CHECK RESOLVED: an earlier version of this fragment carried a note
+% that the caption's "super-additivity 1.05--1.08 across the swept regimes"
+% was contradicted by the fragment's own plotted data (m=8 reaches 1.122 at
+% k=3 and 1.224 at k=4; m=20 reaches 1.392 at k=10; only three of the 14
+% plotted points fall inside the stated band). The claim has now been
+% corrected in paper1.tex and in the caption below to the fact the data
+% actually supports -- the ratio exceeds 1 everywhere and grows without
+% bound in k -- so the flag is retired rather than carried forward.
 % [verified: script r2_figures.py]
 \begin{figure}[t]
 \centering
@@ -19,30 +32,23 @@
 \begin{tikzpicture}
 \begin{axis}[
   harbor curve,
+  ybar,bar width=11pt,
   xlabel={items scored per reader ($k$)},
-  ylabel={joint zero-miss floor (bits)},
-  title={(a) $N{=}60$, $m{=}8$: joint floor beats naive doubling},
-  xmin=0.7,xmax=4.3,ymin=0,ymax=39.07,
+  ylabel={split penalty (bits)},
+  title={(a) $N{=}60$, $m{=}8$: the penalty, in bits},
+  xmin=0.4,xmax=4.6,ymin=0,ymax=6.6,
   xtick={1,2,3,4},
   legend pos=north west,
+  nodes near coords,
+  nodes near coords style={font=\tiny,text=harborblue,/pgf/number format/fixed,/pgf/number format/fixed zerofill,/pgf/number format/precision=2},
 ]
-\addplot[seagreen,dashed,mark=o,mark size=1.8pt,thick] coordinates {
-  (1,5.8138) (2,11.9644) (3,18.5104) (4,25.5323)
+\addplot[draw=harborblue,fill=harborblue,fill opacity=0.55] coordinates {
+  (1,0.1684) (2,0.8018) (3,2.2595) (4,5.7204)
 };
-\addlegendentry{naive $2\times$}
-\addplot[harborblue,mark=square*,mark size=1.8pt,thick] coordinates {
-  (1,5.9822) (2,12.7662) (3,20.7699) (4,31.2527)
-};
-\addlegendentry{joint floor}
-\addplot[draw=none,fill=shipred,fill opacity=0.10] coordinates {
-  (1,5.8138) (2,11.9644) (3,18.5104) (4,25.5323)
-  (4,31.2527) (3,20.7699) (2,12.7662) (1,5.9822)
-} \closedcycle;
-\addlegendentry{penalty}
-\addplot[only marks,mark=*,mark size=2.4pt,shipred,forget plot] coordinates {(2,12.7662)};
-\node[regimebox,fill=white,draw=shipred,font=\scriptsize,text width=2.3cm,inner sep=3pt] at (axis cs:3.6,6.5)
-  {$k{=}2$\\ratio $=1.067$};
-\draw[->,shipred,thick] (axis cs:2.9,9.0) -- (axis cs:2.08,12.3);
+\addlegendentry{bits the naive $2\times$ budget misses}
+\node[regimebox,fill=white,draw=shipred,font=\scriptsize,text width=2.9cm,inner sep=3pt,anchor=west] at (axis cs:1.45,4.6)
+  {$k{=}2$: $12.766-11.964$\\$=0.802$ bits short};
+\draw[->,shipred,thick] (axis cs:1.9,4.1) -- (axis cs:2.0,1.0);
 \end{axis}
 \end{tikzpicture}
 \end{minipage}%
@@ -54,11 +60,12 @@
   harbor curve,
   xlabel={items scored per reader ($k$)},
   ylabel={Floor($2k$) / ($2\cdot$Floor($k$))},
-  title={(b) the penalty grows with $k$ across regimes},
+  title={(b) the penalty exceeds $1$ everywhere\\and grows without bound in $k$},
   xmin=0.5,xmax=10.5,ymin=0.98,ymax=1.45,
   legend pos=north west,
 ]
 \addplot[gray,dotted,thick,mark=none] coordinates {(0.5,1.0) (10.5,1.0)};
+\addlegendentry{parity ($2\times$ would be enough)}
 \addplot[harborblue,mark=square*,mark size=1.8pt,thick] coordinates {
   (1,1.0290) (2,1.0670) (3,1.1221) (4,1.2240)
 };
@@ -69,9 +76,10 @@
 };
 \addlegendentry{$m=20$}
 \addplot[only marks,mark=*,mark size=2.4pt,shipred,forget plot] coordinates {(2,1.0670)};
+\node[font=\tiny,text=shipred,anchor=north west] at (axis cs:2.15,1.062) {$k{=}2$: $1.067$};
 \end{axis}
 \end{tikzpicture}
 \end{minipage}
-\caption{Regime diagram for the split penalty: joint zero-miss floor against the number of items caught. The joint ($2k$) floor sits above \emph{twice} the single-reader floor --- super-additivity $1.05$--$1.08$ across the swept regimes [verified] --- so budgeting ``two summaries'' by doubling one summary's budget still under-provisions.}
+\caption{Regime diagram for the split penalty. Panel (a): the bits a ``two summaries $=$ two $\times$ one summary'' budget is short, at $N{=}60,m{=}8$ --- $0.80$ bits at the reference $k{=}2$, $5.72$ bits by $k{=}4$. Panel (b): the same penalty as a ratio over double. The finding is not a band: $\mathrm{Floor}(2k)/(2\,\mathrm{Floor}(k))$ exceeds $1$ at every regime and grows without bound in $k$ --- $1.067$ at the reference regime, $1.224$ at $k{=}4$ ($m{=}8$), $1.392$ by $k{=}10$ ($m{=}20$) [verified]. Budgeting ``two summaries'' by doubling one summary's budget under-provisions, and under-provisions worse the more each reader must catch.}
 \label{fig:r2reg}
 \end{figure}

@@ -1,7 +1,8 @@
 # Harbor Editor / Beat Zed Current State
 
-Verified on 2026-08-23 against `origin/main` at `43ca9b49b`, live GitHub PR
-state, the roadmap DB, and the active `harbor-editor-local-text-input` branch.
+Refreshed on 2026-08-27 against `origin/main` at `bd77d787b`, live GitHub PR
+state, and the current-main #9816 authority-truth successor. The successor is
+proposed source, not shipped runtime or a claim about the remote PR's old head.
 This is implementation truth, not a competitor pitch. External claims in the
 older battle plan remain historical until independently refreshed and cited.
 
@@ -11,9 +12,9 @@ older battle plan remain historical until independently refreshed and cited.
 | --- | --- | --- |
 | P0 - editor surface | #563: `SurfaceKind::Editor`, FileTree/open wiring, GPUI and TUI faces. | Complete. |
 | P1 - Loro buffer | `HarborBuffer`, stable PD identity -> `PeerId`, authored spans, merge/snapshot/delta primitives, and author gutter. | This branch adds the missing GPUI platform-input/IME bridge, grapheme-safe selection and deletion, caret/selection paint, guarded local replacements, and incremental op broadcast. Undo-map and incremental tree-sitter reparse remain. |
-| P2 - multiplayer substrate | #727: edit/presence frames, snapshot/op-log codecs, `/blob`, isolated edit/coordination channels. #729: live producer subscriptions and visible folding. | Follow-mode and full two-window/operator proof remain product work. |
+| P2 - multiplayer substrate | #727: edit/presence frames, snapshot/op-log codecs, `/blob`, isolated edit/coordination channels. #729: live producer subscriptions and visible folding. These are checkpoint/reconnect primitives only. | Follow-mode and full two-window/operator proof remain product work. |
 | P3 - claims and wedge | #728: claims, conflict prediction, commit gate, and MCP region tools. #729: those signals reach the running editor. | Human claim/release/handoff controls and daemon-side 409 enforcement still need a complete operator proof. |
-| P3.5 - salvage | Snapshot/op-log replay primitives and #1539 property-test foundation exist. | The end-to-end kill/recover/inherit-claim demo remains the headline missing wedge. |
+| P3.5 - editor recovery | Current main has no registered editor-recovery route. | This successor proposes authenticated 503-only route scaffolding. The typed sequence-zero operation-receipt producer, sealed abandonment high-water, canonical Rust Loro validator, and atomic P3 released-claim transfer/provenance transaction are unimplemented required authorities. P2 snapshots, `/blob`, notes, and in-process replay do not satisfy this phase. |
 | Code surface | #896: persistent editor state, `CodeBuffer`, syntax runs, `uniform_list` virtualization, headless raster parity. | Incremental tree-sitter reparse and viewport-scoped cache updates remain. |
 | P4 / P5 | Capability cards, relay, and harbor primitives exist elsewhere in Port Daddy. | Editor capability dry-run/enforcement, shared-harbor join, and remote-harbor polish are not built. |
 
@@ -66,12 +67,17 @@ follow-up slices.
 - Show release and handoff/parley actions; never expose a force/bypass action.
 - Keep conflict prediction on claim-acquire/region-enter edges, never per key.
 
-### C. Salvage Replay And Claim Inheritance
+### C. Authoritative Editor Recovery And Claim Inheritance
 
 - Kill a real agent with dirty editor ops.
-- Consume recovery once, replay onto an advanced document, inherit the region
-  claim, and render recovered provenance.
-- Persist the snapshot/op-log receipt and immutable note evidence.
+- Produce and seal a daemon-owned, typed, sequence-zero-to-terminal operation
+  ledger for the exact abandoned actor and project/harbor/worktree/path scope.
+- Have the still-unimplemented canonical Rust Loro authority validate those exact
+  operation bytes and terminal state against an advanced document.
+- In one transaction, transfer exactly one released P3 claim, consume one
+  purpose-scoped token, and persist provenance. Notes may project provenance but
+  are never operation evidence; `/blob`, generic salvage, and
+  `apply_remote_ops` remain P2 checkpoint/reconnect machinery.
 
 ### D. Capability Enforcement Then Shared/Remote Harbor
 

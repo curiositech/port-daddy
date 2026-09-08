@@ -642,6 +642,15 @@ export interface InitDbOptions {
   integrityProof?: DbIntegrityProof;
 }
 
+/** Decide whether this process still owes a full SQLite integrity scan. */
+export function shouldRunInProcessIntegrityCheck(
+  dbPath: string,
+  options: Pick<InitDbOptions, 'inMemory' | 'integrityProof'> = {},
+): boolean {
+  return options.inMemory !== true
+    && !isCurrentDbIntegrityProof(dbPath, options.integrityProof);
+}
+
 /**
  * Open (or create) the SQLite database with WAL mode and full schema.
  *
@@ -674,8 +683,8 @@ export function initDatabase(options: InitDbOptions = {}): DatabaseInstance {
     mkdirSync(dirname(path), { recursive: true });
   }
 
-  const integrityPreverified = !options.inMemory
-    && isCurrentDbIntegrityProof(path, options.integrityProof);
+  const runIntegrityCheck = shouldRunInProcessIntegrityCheck(path, options);
+  const integrityPreverified = !options.inMemory && !runIntegrityCheck;
   const db = new Database(path);
 
   // Tighten filesystem permissions so OTHER UNIX USERS cannot read the DB.
@@ -692,7 +701,7 @@ export function initDatabase(options: InitDbOptions = {}): DatabaseInstance {
   // narrows to the owner. Does NOT protect against same-user process
   // adversaries; see docs/shipwright/SECURITY-ASSESSMENT.md for the full
   // threat model and follow-up items.
-  if (!options.inMemory && !integrityPreverified) {
+  if (!options.inMemory) {
     try {
       chmodSync(path, 0o600);
     } catch (err) {
@@ -742,8 +751,11 @@ export function initDatabase(options: InitDbOptions = {}): DatabaseInstance {
   // Foreign key enforcement (needed for CASCADE deletes on sessions)
   db.pragma('foreign_keys = ON');
 
-  // Integrity check on real databases (skip in-memory test DBs)
-  if (!options.inMemory) {
+  // Integrity check on real databases unless the packaged startup helper
+  // already verified this exact DB/WAL generation. Re-running the full scan
+  // here makes canonical startup scale with the registry twice and has caused
+  // Bun to crash before the daemon could bind its control surfaces.
+  if (!options.inMemory && !integrityPreverified) {
     try {
       const integrityResult = db.pragma('integrity_check', { simple: true }) as string;
       if (integrityResult !== 'ok') {

@@ -78,7 +78,7 @@ The paper notes VR is "similar in many ways" but has "additional mechanism" for 
 
 ### The Specification Gap in AI Orchestration
 
-When designing WinDAGs or similar agent orchestration systems, there's a temptation to specify only the "interesting" parts:
+When designing Jury-rig or similar agent orchestration systems, there's a temptation to specify only the "interesting" parts:
 - How tasks are decomposed
 - How skills are selected
 - How dependencies are resolved

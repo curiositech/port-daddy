@@ -177,7 +177,7 @@ AgentBench uses 1-shot examples in most tasks. This isn't just for task demonstr
 
 **Why this helps**: Few-shot examples prime the generation process with a high-probability trajectory that already embeds the format constraint. The model is more likely to continue an existing pattern than to generate a new one.
 
-**Design principle for WinDAGs skills**: When invoking LLMs, include not just task instructions but complete examples showing correct format adherence in realistic scenarios. The example serves as an execution trace the model can pattern-match against.
+**Design principle for Jury-rig skills**: When invoking LLMs, include not just task instructions but complete examples showing correct format adherence in realistic scenarios. The example serves as an execution trace the model can pattern-match against.
 
 ## The Code Training Effect: A Special Case
 
@@ -198,7 +198,7 @@ This teaching applies to **structured, protocol-driven agent tasks**. It's less 
 - **Single-turn completions**: Less cognitive load, format easier to maintain
 - **Human-in-the-loop**: Humans can interpret and repair malformed outputs
 
-The instruction following problem is most acute in **autonomous, multi-turn, structured interaction**—exactly what agent orchestration systems like WinDAGs require.
+The instruction following problem is most acute in **autonomous, multi-turn, structured interaction**—exactly what agent orchestration systems like Jury-rig require.
 
 ## Summary: Executive Function as a First-Class Capability
 

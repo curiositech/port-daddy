@@ -1,21 +1,29 @@
 % R7 relation map: Base (single audited inspector, the stage game of
 % Theorem~\ref{thm:stage}) vs. Target (the sealed-sampling inspection
 % tower of Theorem~\ref{thm:tower}). Structural diagram -- no numeric
-% axes. Box positions, row text, and connective labels transcribed
+% axes. Box positions, row text, and connective endpoints transcribed
 % directly from the script's own layout calls (Rectangle geometry,
 % ax.text rows, FancyArrowPatch endpoints) -- see
 % docs/harbor-research/figures/src/r7_figures.py, lines 31-88.
 % [internal, script r7_figures.py]
 %
-% NOTE: the caption below is copied verbatim from paper3.tex and
-% describes a *different* relation map (Left: traffic enforcement /
-% Right: agent honesty, with "expected fine <=> expected slash, patrol
-% budget <=> audit rate"). The only script that generates r7_relation.png
-% draws Base: one audited inspector vs. Target: the inspection tower
-% (single stage game -> C-clique sealed tower), not a traffic-ticket
-% analogy. This fragment reproduces what the script actually draws;
-% the mismatch with the caption is flagged in the conversion report,
-% not silently patched.
+% REBUILD NOTE (exposition review B1). Three defects fixed here, none of
+% them layout:
+%   (1) the caption used to describe a *different* relation map (traffic
+%       enforcement vs. agent honesty) than the one drawn. The drawing is
+%       the faithful artefact -- it is what the script renders and what
+%       Sec.~\ref{sec:tower} actually needs -- so the caption was rewritten
+%       to describe the drawing, rather than the drawing replaced to chase
+%       the caption. The traffic-enforcement analogy stays where it works,
+%       in the prose of Sec.~\ref{sec:intro}.
+%   (2) the row-2 arrow label read "bribe floor climbs $\times C$ per
+%       level", which is false: the bribe floor is $\beta=\rho dB$ per
+%       auditor and does not climb. What costs $C\beta$ is buying all $C$
+%       cliques at ONE level. Relabelled to the true relation.
+%   (3) the row-2 label and the footer both asserted "unbounded depth" /
+%       "certifies unbounded levels", the overclaim corrected in the body
+%       and in Theorem~\ref{thm:tower}. Both now state the corrected,
+%       C-dependent finite-depth result.
 \begin{figure}[htbp]\centering
 \resizebox{0.95\textwidth}{!}{%
 \begin{tikzpicture}
@@ -42,11 +50,11 @@
 \node[align=center,font=\scriptsize] at (2.0,4.93)
   {Bribe the one inspector,\\ pocket $G$, done ---\\ no notion of ``depth''};
 \node[align=center,font=\scriptsize] at (10.0,4.93)
-  {Bribe floor $\beta=\rho dB$/level;\\ pays only if $G_k > C\cdot B$,\\ else $G_{k+1}=(1-\rho d)G_k$};
+  {Bribe floor $\beta=\rho dB$/auditor;\\ pays only if $G_k > C\cdot B$,\\ else $G_{k+1}=(1-\rho d)G_k$};
 \draw[shipred,thick,{Stealth[length=2.5mm]}-{Stealth[length=2.5mm]},bend left=6]
   (3.9,4.45) to (8.1,4.45);
 \node[align=center,font=\scriptsize\bfseries,color=shipred] at (6.0,5.60)
-  {one bribe $\Leftrightarrow$\\ bribe floor climbs\\ $\times C$ per level\\ (finite bond,\\ unbounded depth)};
+  {one bribe $\Leftrightarrow$\\ $C\beta$ per level,\\ payable at every level\\ the briber wants protected};
 
 % -- Row 3 (script row y=1.9) --
 \node[align=center,font=\scriptsize] at (2.0,2.23)
@@ -59,9 +67,9 @@
   {flat patrol\\ $\Leftrightarrow$ amortized\\ ladder\\ $\Theta(\log T) / O(1)$\\ (pre-saturation\\ caveat applies)};
 
 \node[align=center,font=\scriptsize\itshape,text width=10.5cm] at (6.0,0.25)
-  {The tower prices depth, not detection: a finite bond, sealed against the draw, certifies unbounded levels.};
+  {The tower prices depth, not detection: finite bond, sealed against the draw, certifies a depth logarithmic in the corrupt value --- $27$ levels at $C{=}8$, $53$ at $C{=}1$.};
 \end{tikzpicture}%
 }
-\caption{The relation map for the stage game. Left: traffic enforcement --- a driver obeys when expected fine $F\cdot p$ beats the time saved $T$, and the city need not catch every car. Right: agent honesty --- a judge is honest when $\rho\, d\, B \ge G$, giving the critical audit rate $\rho^\star = G/(dB)$. The arrows carry the load: expected fine $\Leftrightarrow$ expected slash, patrol budget $\Leftrightarrow$ audit rate. The analogy maps \emph{relations}, not surface features: both systems price deterrence, neither buys omniscience.}
+\caption{The relation map: the stage game (left) and the tower (right) are the same deterrence arithmetic, applied once and applied recursively. The arrows carry the load --- a single committed audit maps to a \emph{sealed} draw from $C$ benches; one bribe maps to a bribe bill of $C\beta$ that must be paid \emph{at every level} the briber wants protected; and a flat patrol budget maps to a history-indexed schedule. The relation preserved across all three rows is \emph{expected forfeiture $\ge$ corrupt gain}; what changes is only who pays it and over what horizon. What $C$ buys is depth and capital ($53$ levels and $2650$ at $C{=}1$ against $27$ and $1350$ at $C{=}8$), not the difference between a tower that terminates and one that does not.}
 \label{fig:relation}
 \end{figure}

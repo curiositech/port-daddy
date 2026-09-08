@@ -125,7 +125,7 @@ Open questions for agent system design:
 
 ## Practical Takeaway
 
-For WinDAGs orchestration: **Don't assume agents can cleanly evaluate "what if I did X instead of Y?" when X and Y involve the agent's own future reasoning.** This affects:
+For Jury-rig orchestration: **Don't assume agents can cleanly evaluate "what if I did X instead of Y?" when X and Y involve the agent's own future reasoning.** This affects:
 - Planning skills that involve searching over agent strategies
 - Self-modification or self-improvement capabilities
 - Any "reflection" tasks where agents reason about their own decision-making
@@ -222,7 +222,7 @@ Modern ML systems are trained on data distributions. The realizability problem s
 **Design principle**: Don't rely on "the model will learn it" if "it" requires the model to capture the full complexity of the environment. Be explicit about what you're approximating and why the approximation is good enough.
 
 ### For Hierarchical Decomposition
-When WinDAGs decomposes a complex task, each sub-agent works with a partial world-model. The realizability problem says: **These partial models can't capture everything, so they'll be wrong in systematic ways.**
+When Jury-rig decomposes a complex task, each sub-agent works with a partial world-model. The realizability problem says: **These partial models can't capture everything, so they'll be wrong in systematic ways.**
 
 **Orchestration principle**: 
 - Sub-agents should know the boundaries of their models (where approximations break)
@@ -279,7 +279,7 @@ The paper identifies the problem but doesn't solve it. Open questions:
 3. What does "learning" mean when convergence to truth is impossible?
 4. How do you design systems that gracefully handle their own incompleteness?
 
-## Practical Takeaway for WinDAGs
+## Practical Takeaway for Jury-rig
 
 **Core principle**: Don't design orchestration strategies that assume sub-agents have complete world-models, even implicitly.
 
@@ -418,7 +418,7 @@ Goodhart's law is particularly pernicious for embedded agents because:
 3. **Embedded agents create subsystems**: Which face their own Goodhart problems with their own proxies
 4. **Embedded agents can't step outside**: A dualistic agent's programmer can observe Goodhart failures from outside and fix them. Embedded agents must detect and correct their own proxy failures from inside.
 
-## Implications for WinDAGs
+## Implications for Jury-rig
 
 ### For Skill Composition
 
@@ -616,7 +616,7 @@ For embedded agents, this is critical because:
 
 4. **Limited scope**: Restrict subsystem capabilities so they **cannot** effectively pursue misaligned objectives, even if they wanted to. This trades off against subsystem usefulness.
 
-### For Orchestration in WinDAGs
+### For Orchestration in Jury-rig
 
 When decomposing a task across multiple skills/agents:
 
@@ -711,7 +711,7 @@ But the paper argues this isn't possible for embedded agents:
 
 The question isn't "how do we avoid subsystem alignment problems?" It's "how do we build systems where misaligned subsystems fail gracefully rather than catastrophically?"
 
-## Practical Takeaway for WinDAGs
+## Practical Takeaway for Jury-rig
 
 **Core principle**: Every time you decompose a task, you're creating subsystems with their own effective objectives. These will not perfectly align with your overall objective.
 
@@ -928,7 +928,7 @@ The paper identifies this as an unsolved area. Key open questions:
 
 5. **Logical correlation**: If I'm uncertain about two logical facts, how should I model correlation between them?
 
-## Practical Takeaway for WinDAGs
+## Practical Takeaway for Jury-rig
 
 **Core insight**: When agents reason about what skills will accomplish, they're reasoning about logical consequences of skill code + inputs. They're **logically uncertain** about these consequences.
 
@@ -1182,7 +1182,7 @@ Learning over time is delegating to future self:
 - Your decision-making changes as capabilities improve
 - Need to ensure learning preserves goal-directedness
 
-**For WinDAGs**:
+**For Jury-rig**:
 - **Don't assume skills stay aligned as they learn**: Monitor for drift
 - **Value preservation in updates**: When updating models/policies, check alignment not just performance
 - **Bounded learning**: Limit how much a skill can self-modify before oversight
@@ -1529,7 +1529,7 @@ The paper is advocating for a shift in how we think about intelligence:
 
 This is conceptually harder—which is why we gravitate toward dualistic frameworks. But for building truly capable embedded agents (which includes any sufficiently advanced AI), we need to confront these complications.
 
-## Practical Takeaway for WinDAGs
+## Practical Takeaway for Jury-rig
 
 **Core principle**: Most orchestration patterns implicitly assume dualism. Be aware when embedded complications matter.
 

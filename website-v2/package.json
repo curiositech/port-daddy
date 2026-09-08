@@ -7,7 +7,7 @@
     "dev": "vite",
     "prebuild": "npm run generate:seo && npm run generate:skill-audit",
     "build": "tsc -b && vite build",
-    "postbuild": "tsx scripts/inject-route-html.mjs",
+    "postbuild": "tsx scripts/inject-route-html.mjs && node scripts/prune-pages-assets.mjs",
     "snap:routes": "tsx scripts/snap-routes.mjs",
     "build:full": "npm run build && npm run snap:routes",
     "lint": "eslint .",

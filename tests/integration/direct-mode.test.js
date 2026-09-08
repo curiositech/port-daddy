@@ -114,64 +114,55 @@ describe('Direct-Mode Integration Tests', () => {
   });
 
   describe('Sessions & Notes (--direct flag)', () => {
-    test('session start works', () => {
-      const result = runDirect(['session', 'start', 'Direct mode session test', '--lifecycle', 'durable', '-q']);
-      expect(result.success).toBe(true);
-      expect(result.stdout).toMatch(/session-/);
-    });
-
-    test('note fails closed without explicit session scope', () => {
-      const result = runDirect(['note', 'direct note test']);
+    test.each([
+      ['start', ['session', 'start', 'Direct mode session test', '--lifecycle', 'durable']],
+      ['done', ['session', 'done', 'Test complete']],
+      ['abandon', ['session', 'abandon', 'Test cleanup']],
+      ['takeover', ['session', 'takeover', 'session-victim']],
+      ['rm', ['session', 'rm', 'session-victim']],
+      ['files', ['session', 'files', 'add', 'README.md']],
+      ['phase', ['session', 'phase', 'session-victim', 'testing']],
+      ['relink', ['session', 'relink', '--roadmap', 'victim-roadmap']],
+    ])('session %s refuses the direct identity bypass', (_operation, args) => {
+      const result = runDirect(args);
       expect(result.success).toBe(false);
-      expect(result.stderr).toContain('no active session found');
+      expect(result.stderr).toContain('"session" requires the running daemon');
     });
 
-    test('notes lists recent notes after explicit session-targeted note', () => {
-      const started = runDirect(['session', 'start', 'list-test-session', '--lifecycle', 'durable', '-q']);
-      expect(started.success).toBe(true);
-      const sessionId = started.stdout.trim();
+    test('note refuses the direct identity bypass', () => {
+      const result = runDirect(['note', 'direct note test', '--session', 'session-victim']);
+      expect(result.success).toBe(false);
+      expect(result.stderr).toContain('"note" requires the running daemon');
+    });
 
-      const note = runDirect(['note', 'list test note', '--session', sessionId]);
-      expect(note.success).toBe(true);
+    test('session and note reads remain available in direct recovery mode', () => {
+      const sessions = runDirect(['sessions', '--json']);
+      expect(sessions.success).toBe(true);
+      expect(JSON.parse(sessions.stdout).sessions).toEqual([]);
 
       const result = runDirect(['notes', '--json']);
       expect(result.success).toBe(true);
       const data = JSON.parse(result.stdout);
       expect(data.notes).toBeDefined();
-      expect(data.notes.length).toBeGreaterThan(0);
-    });
-
-    test('session done works', () => {
-      runDirect(['session', 'start', 'done-test', '--lifecycle', 'durable', '-q']);
-      const result = runDirect(['session', 'done', 'Test complete']);
-      expect(result.success).toBe(true);
-      expect(result.stdout).toContain('Ended session');
+      expect(data.notes).toEqual([]);
     });
   });
 
   describe('Locks (--direct flag)', () => {
-    test('lock acquire and release', () => {
-      const acquire = runDirect(['lock', 'direct-lock-test']);
-      expect(acquire.success).toBe(true);
-      expect(acquire.stdout).toContain('Acquired lock');
-
-      const release = runDirect(['unlock', 'direct-lock-test']);
-      expect(release.success).toBe(true);
-      expect(release.stdout).toContain('Released lock');
+    test.each([
+      ['acquire', ['lock', 'direct-lock-test']],
+      ['extend', ['lock', 'extend', 'direct-lock-test', '--ttl', '60000']],
+      ['release', ['unlock', 'direct-lock-test']],
+    ])('lock %s refuses the direct identity bypass', (_operation, args) => {
+      const result = runDirect(args);
+      expect(result.success).toBe(false);
+      expect(result.stderr).toMatch(/requires the running daemon/);
     });
 
-    test('lock contention is detected', () => {
-      // Acquire a lock in this process first
-      const acquire = runDirect(['lock', 'contention-test']);
-      expect(acquire.success).toBe(true);
-
-      // Second acquisition should fail
-      const contender = runDirect(['lock', 'contention-test']);
-      expect(contender.success).toBe(false);
-      expect(contender.stderr).toMatch(/held|contention|already/i);
-
-      // Clean up
-      runDirect(['unlock', 'contention-test']);
+    test('lock reads remain available in direct recovery mode', () => {
+      const result = runDirect(['locks', '--json']);
+      expect(result.success).toBe(true);
+      expect(JSON.parse(result.stdout).locks).toEqual([]);
     });
   });
 

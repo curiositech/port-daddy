@@ -1,6 +1,23 @@
 % R1 relation-map: structural diagram (no numeric axes), transcribed from
 % create_relation_map() in figures/src/r1_figures.py -- same three rows, same
 % base/target domain layout, same coordinates (scaled by a fixed unit length).
+%
+% ROW 1 REDRAWN (not transcribed): the script's row 1 was two blocks of prose
+% stating the covering fact in words. Nothing was encoded on any visual
+% channel, so the row conveyed strictly less than its own caption. It is
+% replaced here by a complete worked instance at N=6, k=1, m=2 -- six dots,
+% three drawn codewords, each shading the two placements it covers -- which
+% is the entire counting argument of Theorem 1 at a size that fits in a
+% corner. Numbers on it are closed-form: log2 C(6,1) - log2 C(2,1)
+% = log2 6 - log2 2 = 1.585 bits, so 2 bits (4 codewords) suffice and 3 are
+% used. Rows 2 and 3 are unchanged transcriptions.
+%
+% TAG CORRECTED (not silently): row 3 tagged the 0/16 falsification count
+% [verified], contradicting both this fragment's own header tag and
+% paper1.tex's three text sites, all of which say [internal]. The 0/16 count
+% is a seeded Monte-Carlo sweep (16 budget points, 4000 placements each, an
+% explicit 0.04 MC slack in the comparison), so it is [internal] by the
+% paper's own stated definition. Corrected below.
 % [internal, script r1_figures.py]
 \begin{figure}[t]
 \centering
@@ -16,9 +33,25 @@
 \draw[draw=seagreen,thick,fill=seagreen,fill opacity=0.12] (8.2,0.7) rectangle (11.8,10.6);
 \node[align=center,font=\small\bfseries] at (10.0,11.4) {Target: the digest that must\\name where to look};
 
-% Row 1
-\node[align=center,font=\scriptsize] at (2.0,8.20) {$N$ artifacts total,\\$k$ of them load-bearing:\\$\binom{N}{k}$ ways to place\\the $k$ criticals among $N$};
-\node[align=center,font=\scriptsize] at (10.0,8.20) {Shared codebook:\\every flagged $m$-subset\\covers only $\binom{m}{k}$ of\\those $\binom{N}{k}$ placements};
+% Row 1 --- drawn worked instance at N=6, k=1, m=2 (see header note).
+\node[align=center,font=\scriptsize,text width=2.5cm] at (2.0,9.60) {$N{=}6$ artifacts;\\$k{=}1$ is critical};
+\foreach \i/\x in {1/0.75,2/1.25,3/1.75,4/2.25,5/2.75,6/3.25}{
+  \fill[harborblue] (\x,8.55) circle (0.09);
+  \node[font=\tiny,text=black!70] at (\x,8.15) {\i};
+}
+\node[align=center,font=\scriptsize,text width=2.5cm] at (2.0,7.45) {$\binom{6}{1}=6$ placements};
+% Target: the codebook, three m=2 codewords, each shading what it covers.
+\node[align=center,font=\scriptsize,text width=2.6cm] at (10.0,9.60) {$2$ bits $\Rightarrow$ $4$ codewords,\\each an $m{=}2$ subset};
+\foreach \y/\c in {8.80/00, 8.30/01, 7.80/10}{
+  \node[font=\tiny\ttfamily,text=black!70] at (8.42,\y) {\c};
+  \foreach \x in {8.85,9.35,9.85,10.35,10.85,11.35}{
+    \fill[black!25] (\x,\y) circle (0.075);
+  }
+}
+\draw[seagreen,thick,rounded corners=2pt,fill=seagreen,fill opacity=0.28] (8.70,8.66) rectangle (9.50,8.94);
+\draw[seagreen,thick,rounded corners=2pt,fill=seagreen,fill opacity=0.28] (9.70,8.16) rectangle (10.50,8.44);
+\draw[seagreen,thick,rounded corners=2pt,fill=seagreen,fill opacity=0.28] (10.70,7.66) rectangle (11.50,7.94);
+\node[align=center,font=\scriptsize,text width=2.6cm] at (10.0,6.85) {each covers $\binom{2}{1}{=}2$ of the $6$; $3$ tile all $6$, the $4$th is slack};
 \draw[<->,>=Stealth,thick,shipred] (3.9,7.93) -- (8.1,7.93);
 \node[align=center,font=\small\bfseries,text=shipred] at (6.0,9.75) {one digest selects\\ONE covering};
 
@@ -30,12 +63,12 @@
 
 % Row 3
 \node[align=center,font=\scriptsize] at (2.0,1.80) {Boundary instance:\\$N{=}60$, $k{=}2$ --- oracle /\\noisy / random encoders\\run against the bound};
-\node[align=center,font=\scriptsize] at (10.0,1.80) {$m{=}8$ opened $\Rightarrow$\\$B^\star = 5.98$ bits;\\$0/16$ floor violations\\{[verified, \texttt{a7\_experiment.py}]}};
+\node[align=center,font=\scriptsize] at (10.0,1.80) {$m{=}8$ opened $\Rightarrow$\\$B^\star = 5.98$ bits [verified];\\$0/16$ floor violations\\{[internal, \texttt{a7\_experiment.py}]}};
 \draw[<->,>=Stealth,thick,shipred] (3.9,1.53) -- (8.1,1.53);
 \node[align=center,font=\small\bfseries,text=shipred] at (6.0,3.35) {the floor holds\\exactly};
 
 \node[align=center,font=\scriptsize,text width=10cm] at (6.0,0.25)
-  {\itshape The map carries a combinatorial fact, not scenery: each flagged $m$-set can only ever cover $\binom{m}{k}$ of the $\binom{N}{k}$ ways $k$ criticals could sit among $N$.};
+  {\itshape The map carries a combinatorial fact, not scenery: each flagged $m$-set can only ever cover $\binom{m}{k}$ of the $\binom{N}{k}$ ways $k$ criticals could sit among $N$. Row 1 is the whole theorem in one instance --- $\log_2 6-\log_2 2=1.585$ bits, so $2$ bits and $3$ of the $4$ available codewords cover every placement [verified].};
 \end{tikzpicture}
 \caption{The relation-map for Theorem 1. A digest is a $B$-bit message selecting one of the decoder's covering $m$-subsets (base domain: a shared codebook); each covering accounts for $\binom{m}{k}$ of $\binom{N}{k}$ placements, which is the whole proof. The map is of \emph{relations}, not surface features: from it the reader can re-derive the floor without the text.}
 \label{fig:r1rel}

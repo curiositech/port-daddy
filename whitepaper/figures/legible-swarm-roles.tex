@@ -1,56 +1,44 @@
-% Figure 11 — role assignment in Hobbes' author/actor frame.
-% operator = author, daemon = sovereign-actor, agents = multitude.
-% Design: each role is a name + one line; each relation gets its own arrow
-% (down-arrows on the left, up-arrows on the right), one label per arrow.
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhink}{HTML}{1B1712}
-\providecolor{hhcobalt}{HTML}{003FB8}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-
+% Figure 14 — sequence diagram, redrawn to spec [ch4.md 4.14]. Three
+% lifelines, four messages top to bottom, no crossing: operator grants once,
+% agents act under the grant, the daemon gates or escalates every act, and
+% the override is the one edge running straight from operator to daemon.
 \begin{figure}[H]
 \centering
-\resizebox{0.72\textwidth}{!}{%
-\begin{tikzpicture}[
-  font=\small,
-  role/.style={draw=hhebony,very thick,rounded corners=4pt,align=center,inner sep=7pt,
-               font=\footnotesize,text width=52mm},
-  e/.style={-{Latex[length=2.4mm]},very thick},
-]
-\node[role,fill=hhsand!30] (author) at (0,3.2)
-  {\textbf{Operator = AUTHOR}\\\emph{owns the authority; holds the inalienable override}};
-\node[role,fill=hhsand!30] (actor) at (0,0.2)
-  {\textbf{Daemon = SOVEREIGN (actor)}\\\emph{exercises the authority --- and is the \textbf{most} legible actor}};
-\node[role,fill=hhsand!30] (mult) at (0,-2.8)
-  {\textbf{Agents = MULTITUDE}\\\emph{covenant each-with-all (L1), enforced by the daemon}};
+\begin{tikzpicture}[pd figure,x=0.82cm,y=1cm]
+  \node[pd actor] (op) at (0,8.0) {\textbf{operator}\\[1pt]\footnotesize author};
+  \node[pd actor] (dm) at (5.0,8.0) {\textbf{daemon}\\[1pt]\footnotesize actor};
+  \node[pd actor] (ag) at (10.0,8.0) {\textbf{agents}\\[1pt]\footnotesize multitude};
 
-% one arrow per relation: down on the left, up on the right
-\draw[e,hhamber] ([xshift=-9mm]author.south) -- ([xshift=-9mm]actor.north)
-  node[midway,left=1mm,font=\scriptsize,text=hhink]{authorizes (scoped grant)};
-\draw[e,hhamber] ([xshift=9mm]actor.north) -- ([xshift=9mm]author.south)
-  node[midway,right=1mm,font=\scriptsize,text=hhink]{revoked by override};
-\draw[e,hhink] ([xshift=-9mm]actor.south) -- ([xshift=-9mm]mult.north)
-  node[midway,left=1mm,font=\scriptsize,text=hhink]{rules over};
-\draw[e,hhink] ([xshift=9mm]mult.north) -- ([xshift=9mm]actor.south)
-  node[midway,right=1mm,font=\scriptsize,text=hhink]{legible to};
+  \draw[pd guide] (0,7.35) -- (0,0.3);
+  \draw[pd guide] (5.0,7.35) -- (5.0,0.3);
+  \draw[pd guide] (10.0,7.35) -- (10.0,0.3);
 
-% the covenant loop on the multitude
-\draw[e,hhteal] ([xshift=-3mm]mult.south west) to[bend right=40]
-  node[below=1mm,font=\scriptsize,text=hhink]{covenant among subjects}
-  ([xshift=3mm]mult.south east);
-\end{tikzpicture}%
-}
-\caption{Role assignment (\S\ref{sec:roles}) in Hobbes' author/actor distinction
-(\emph{Leviathan} ch.~16). The \emph{agents} are the multitude who covenant
-each-with-all; the \emph{daemon} is the sovereign-as-actor that exercises the
-instituted authority --- blocking, landing, escalating --- but, by the
-legible-sovereign amendment (Prop.~\ref{prop:legible-sovereign}), is the most
-legible actor, not the least; the \emph{operator} is the \emph{author} who owns the
-authority, issues scoped consent grants (Def.~\ref{def:consent}), and holds the
-inalienable override (Prop.~\ref{prop:override}). Naming the operator ``the
-sovereign'' would break the covenant; the author slot is the one Hobbes leaves for
-the one who authorizes without personally acting.}
+  % 1. operator grants the daemon a scoped grant g
+  \draw[pd focus arrow] (0,6.1) -- (5.0,6.1);
+  \node[pd direct label,text=hhteal,anchor=south] at (2.5,6.2) {scoped grant g};
+
+  % 2. an agent's act arrives at the daemon under g
+  \draw[pd arrow] (10.0,4.6) -- (5.0,4.6);
+  \node[pd direct label,anchor=south] at (7.5,4.7) {act a1 under g};
+
+  % 3. the daemon gates or escalates that act
+  \draw[pd arrow] (5.0,3.1) -- (10.0,3.1);
+  \node[pd direct label,anchor=south] at (7.5,3.2) {gate / escalate};
+
+  % 4. the override: the one edge from operator to daemon
+  \draw[pd caution arrow] (0,1.6) -- (5.0,1.6);
+  \node[pd direct label,text=hhamber,anchor=south] at (2.5,1.7) {override: revoke g};
+
+  \node[pd note,anchor=north,align=center,text width=7.6cm] at (5.0,-0.1)
+    {\hyphenpenalty=10000\exhyphenpenalty=10000
+     one grant; the daemon gates every act;\\only the operator overrides};
+\end{tikzpicture}
+\caption{The grant-and-gate sequence, three lifelines and four messages, no
+crossing. The operator grants once (message 1: scoped grant g). Agents act
+under that grant (message 2), and the daemon gates or escalates every such
+act (message 3) rather than granting again. The override (message 4) is the
+one edge running straight from operator to daemon, bypassing the agents
+entirely. Idealized to one representative act; a live fleet repeats messages
+2--3 per act, not per grant [internal].}
 \label{fig:roles}
 \end{figure}

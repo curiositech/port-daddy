@@ -30,7 +30,7 @@ This grammar is executable. It is not a philosophical description; it is a machi
 
 ## Why This Matters for Agent System Design
 
-In WinDAGs and similar orchestration systems, agents frequently need to coordinate around *shared understanding* — but this shared understanding is rarely formally specified. Agents produce outputs, other agents consume them, and the question of "does agent B know that agent A has established X?" is answered implicitly, by convention, or by hoping the message-passing worked.
+In Jury-rig and similar orchestration systems, agents frequently need to coordinate around *shared understanding* — but this shared understanding is rarely formally specified. Agents produce outputs, other agents consume them, and the question of "does agent B know that agent A has established X?" is answered implicitly, by convention, or by hoping the message-passing worked.
 
 The Big Brother Logic approach offers a different architecture:
 
@@ -38,7 +38,7 @@ The Big Brother Logic approach offers a different architecture:
 Before building the coordination protocol, ask: what does each agent need to *know*, and what does it need to know about other agents' knowledge? Write this as a formula. For example: "The routing agent knows that the validation agent has confirmed the data integrity" — or in higher-order form — "The orchestrator knows that all worker agents know the current task deadline."
 
 **Step 2: Model the knowledge state.**
-Construct (explicitly or implicitly) the Kripke model — the space of possible worlds consistent with each agent's perceptual access. For a WinDAGs agent, this might mean: given the messages agent A has received, what states of the world does A consider possible?
+Construct (explicitly or implicitly) the Kripke model — the space of possible worlds consistent with each agent's perceptual access. For a Jury-rig agent, this might mean: given the messages agent A has received, what states of the world does A consider possible?
 
 **Step 3: Verify or reconfigure.**
 Run model checking to verify whether the epistemic property holds. If not, either communicate (public announcement) or restructure agent behavior (satisfiability solving) until it does.
@@ -57,7 +57,7 @@ These require different fixes. Failure Mode 1 is solved by providing information
 
 The paper introduces "distributed knowledge" as a specific epistemic concept: "distributed knowledge about a1 and a2 that camera a3 sees the intruder b" means that *together*, a1 and a2 know this — even if neither individually does. If a1 knows half the relevant facts and a2 knows the other half, their distributed knowledge may include facts that neither possesses alone.
 
-This is a formal model of *emergent collective intelligence* — and it has a direct analogue in agent system design. A WinDAGs system where Agent A has done one type of analysis and Agent B has done another may collectively "know" the answer to a query that neither can answer individually. The orchestration layer can exploit distributed knowledge by combining agent outputs — but only if it has a model of what each agent knows.
+This is a formal model of *emergent collective intelligence* — and it has a direct analogue in agent system design. A Jury-rig system where Agent A has done one type of analysis and Agent B has done another may collectively "know" the answer to a query that neither can answer individually. The orchestration layer can exploit distributed knowledge by combining agent outputs — but only if it has a model of what each agent knows.
 
 ## Boundary Conditions and Caveats
 

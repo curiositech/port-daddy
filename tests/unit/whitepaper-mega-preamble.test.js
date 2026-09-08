@@ -101,7 +101,7 @@ Appendix numbering and hyperlink anchors remain defined.
           `-output-directory=${buildDir}`,
           fixturePath,
         ],
-        { cwd: repoRoot, encoding: 'utf8' },
+        { cwd: dirname(preamblePath), encoding: 'utf8' },
       );
       if (result.status !== 0) {
         throw new Error(`${result.stdout}\n${result.stderr}`);

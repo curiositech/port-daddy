@@ -256,6 +256,31 @@ describe('runXoEditorPass', () => {
     expect((ai.run as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(0);
     void out;
   });
+
+  it('fails open without dispatching an over-budget editor request', async () => {
+    // Titles and rationales are bounded by the editor projection, but callers
+    // can still hand it an arbitrarily large proposal batch/evidence list.
+    // The final request gate must preserve every proposal rather than making a
+    // doomed Workers AI call or silently slicing the input.
+    const oversized = Array.from({ length: 80 }, (_, index) =>
+      proposal({
+        title: `Proposal ${index}`,
+        evidence: ['e'.repeat(1_024), 'e'.repeat(1_024), 'e'.repeat(1_024)],
+      }),
+    );
+    const ai = fakeAi(() => ({ response: '[]' }));
+
+    const out = await runXoEditorPass({
+      ai,
+      model: '@cf/qwen/qwen3-30b-a3b-fp8',
+      proposals: oversized,
+      recentIdeas: [],
+    });
+
+    expect(out).toMatchObject({ applied: false, proposals: oversized });
+    expect(out.reason).toMatch(/context admission rejected/i);
+    expect((ai.run as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(0);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -403,6 +428,19 @@ describe('xoOrdersSection (fail-open contract)', () => {
   it('returns "" with zero advisories, spending no AI', async () => {
     const ai = fakeAi(() => ({ response: '{"orders":[]}' }));
     expect(await xoOrdersSection({ ai, model: DEFAULT_XO_MODEL, advisories: [], changedPaths: [] })).toBe('');
+    expect((ai.run as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(0);
+  });
+
+  it('fails open without dispatching an over-budget triage request', async () => {
+    const ai = fakeAi(() => ({ response: '{"orders":[]}' }));
+    const result = await xoOrdersSection({
+      ai,
+      model: '@cf/qwen/qwen3-30b-a3b-fp8',
+      advisories,
+      changedPaths: ['src/' + 'x'.repeat(40_000) + '.ts'],
+    });
+
+    expect(result).toBe('');
     expect((ai.run as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(0);
   });
 });
@@ -633,8 +671,11 @@ describe('XO integration — advisory triage', () => {
     expect(state.reviews).toHaveLength(1);
     const body = state.reviews[0].body;
     expect(body).not.toContain("XO's orders");
-    // The body is byte-identical to the check summary — today's behavior.
-    expect(body).toBe(state.completed[0].summary);
+    // The human review body remains unchanged; only the bot-owned check output
+    // gains the machine-readable generation receipt on its first line.
+    expect(state.completed[0].summary).toBe(
+      `${state.completed[0].summary.split('\n')[0]}\n${body}`,
+    );
     expect(state.completed[0].conclusion).toBe('success');
   });
 

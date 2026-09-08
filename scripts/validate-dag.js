@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 
 /**
- * WinDAGs V3 DAG Validator
+ * Jury-rig V3 DAG Validator
  *
- * Validates a .dag.yaml file against the WinDAGs V3 DAGDefinition spec.
+ * Validates a .dag.yaml file against the Jury-rig V3 DAGDefinition spec.
  * Checks structural integrity, dependency graph acyclicity, edge consistency,
- * sub-DAG correctness, and WinDAGs-specific invariants.
+ * sub-DAG correctness, and Jury-rig-specific invariants.
  *
  * Usage:
  *   node scripts/validate-dag.js <path-to-dag.yaml>
@@ -17,8 +17,8 @@
  *   1 — errors found (invalid DAG)
  *   2 — usage error
  *
- * Gift from the Port Daddy project to WinDAGs.
- * Spec reference: WinDAGs V3 Practitioner's Guide, Parts 1–3.
+ * Gift from the Port Daddy project to Jury-rig.
+ * Spec reference: Jury-rig V3 Practitioner's Guide, Parts 1–3.
  */
 
 import { readFileSync } from 'node:fs';
@@ -40,7 +40,7 @@ try {
   process.exit(2);
 }
 
-// ─── Constants from WinDAGs V3 spec ──────────────────────────
+// ─── Constants from Jury-rig V3 spec ──────────────────────────
 
 const VALID_NODE_TYPES = ['concrete', 'vague', 'human-gate'];
 const VALID_COMMITMENT_LEVELS = ['COMMITTED', 'TENTATIVE', 'EXPLORATORY'];
@@ -51,7 +51,7 @@ const VALID_CHECKPOINT_STRATEGIES = ['per-node', 'per-batch', 'per-wave'];
 const VALID_EXECUTION_MODES = ['sequential', 'async', 'multiprocess'];
 const VALID_TERMINATION_GUARANTEES = ['guaranteed', 'probabilistic', 'none'];
 
-// Required top-level fields per WinDAGs DAGDefinition interface
+// Required top-level fields per Jury-rig DAGDefinition interface
 const REQUIRED_TOP_LEVEL = ['id', 'name', 'description', 'nodes'];
 // Optional but recommended
 const RECOMMENDED_TOP_LEVEL = ['default_model', 'edges', 'execution', 'coordination_model'];
@@ -779,7 +779,7 @@ function main() {
 
   if (positional.length === 0 || flags.includes('--help')) {
     console.log(`
-WinDAGs V3 DAG Validator
+Jury-rig V3 DAG Validator
 
 Usage: node scripts/validate-dag.js <path-to-dag.yaml> [options]
 
@@ -864,7 +864,7 @@ function printResult(result, quiet) {
 
   // Header
   console.log('');
-  console.log(`WinDAGs V3 DAG Validation Report`);
+  console.log(`Jury-rig V3 DAG Validation Report`);
   console.log('═'.repeat(50));
 
   // Stats

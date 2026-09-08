@@ -57,7 +57,7 @@ This grammar is executable. It is not a philosophical description; it is a machi
 
 ## Why This Matters for Agent System Design
 
-In WinDAGs and similar orchestration systems, agents frequently need to coordinate around *shared understanding* — but this shared understanding is rarely formally specified. Agents produce outputs, other agents consume them, and the question of "does agent B know that agent A has established X?" is answered implicitly, by convention, or by hoping the message-passing worked.
+In Jury-rig and similar orchestration systems, agents frequently need to coordinate around *shared understanding* — but this shared understanding is rarely formally specified. Agents produce outputs, other agents consume them, and the question of "does agent B know that agent A has established X?" is answered implicitly, by convention, or by hoping the message-passing worked.
 
 The Big Brother Logic approach offers a different architecture:
 
@@ -65,7 +65,7 @@ The Big Brother Logic approach offers a different architecture:
 Before building the coordination protocol, ask: what does each agent need to *know*, and what does it need to know about other agents' knowledge? Write this as a formula. For example: "The routing agent knows that the validation agent has confirmed the data integrity" — or in higher-order form — "The orchestrator knows that all worker agents know the current task deadline."
 
 **Step 2: Model the knowledge state.**
-Construct (explicitly or implicitly) the Kripke model — the space of possible worlds consistent with each agent's perceptual access. For a WinDAGs agent, this might mean: given the messages agent A has received, what states of the world does A consider possible?
+Construct (explicitly or implicitly) the Kripke model — the space of possible worlds consistent with each agent's perceptual access. For a Jury-rig agent, this might mean: given the messages agent A has received, what states of the world does A consider possible?
 
 **Step 3: Verify or reconfigure.**
 Run model checking to verify whether the epistemic property holds. If not, either communicate (public announcement) or restructure agent behavior (satisfiability solving) until it does.
@@ -84,7 +84,7 @@ These require different fixes. Failure Mode 1 is solved by providing information
 
 The paper introduces "distributed knowledge" as a specific epistemic concept: "distributed knowledge about a1 and a2 that camera a3 sees the intruder b" means that *together*, a1 and a2 know this — even if neither individually does. If a1 knows half the relevant facts and a2 knows the other half, their distributed knowledge may include facts that neither possesses alone.
 
-This is a formal model of *emergent collective intelligence* — and it has a direct analogue in agent system design. A WinDAGs system where Agent A has done one type of analysis and Agent B has done another may collectively "know" the answer to a query that neither can answer individually. The orchestration layer can exploit distributed knowledge by combining agent outputs — but only if it has a model of what each agent knows.
+This is a formal model of *emergent collective intelligence* — and it has a direct analogue in agent system design. A Jury-rig system where Agent A has done one type of analysis and Agent B has done another may collectively "know" the answer to a query that neither can answer individually. The orchestration layer can exploit distributed knowledge by combining agent outputs — but only if it has a model of what each agent knows.
 
 ## Boundary Conditions and Caveats
 
@@ -152,7 +152,7 @@ This means:
 
 This is a much stronger condition. An agent can receive a message saying φ is true but not *know* it (if the agent cannot verify the source, or if there are worlds consistent with its observations in which the message is false). Conversely, an agent may know something without having been explicitly told — by ruling out all worlds in which it is false through its own observations.
 
-For WinDAGs agents: an agent that has received a confirmation message does not necessarily *know* the confirmed fact. It depends on whether the agent's model of the world has been updated to exclude all worlds in which the fact is false. This is the difference between **receiving information** and **achieving knowledge**.
+For Jury-rig agents: an agent that has received a confirmation message does not necessarily *know* the confirmed fact. It depends on whether the agent's model of the world has been updated to exclude all worlds in which the fact is false. This is the difference between **receiving information** and **achieving knowledge**.
 
 ## Higher-Order Knowledge: What Agents Know About Agent Knowledge
 
@@ -192,7 +192,7 @@ The Big Brother Logic framework shows what the ideal looks like. Agent system en
 
 ## Conclusion
 
-The Kripke model is not just a logical formalism — it is a design philosophy. It insists that uncertainty is structured, that knowledge is a function of what can be ruled out, and that higher-order reasoning about what other agents know is essential for correct coordination. For WinDAGs agents, internalizing this framework means asking, for every coordination design: "What is the Kripke model here? What do agents know, and what do they know about each other's knowledge? And how does the protocol produce the epistemic state required for correct collective behavior?"
+The Kripke model is not just a logical formalism — it is a design philosophy. It insists that uncertainty is structured, that knowledge is a function of what can be ruled out, and that higher-order reasoning about what other agents know is essential for correct coordination. For Jury-rig agents, internalizing this framework means asking, for every coordination design: "What is the Kripke model here? What do agents know, and what do they know about each other's knowledge? And how does the protocol produce the epistemic state required for correct collective behavior?"
 ```
 
 ---
@@ -274,7 +274,7 @@ The paper divides interaction into two phases:
 
 This distinction is architecturally important. In the initialization phase, changing the world changes what is *observable*, which changes what is *knowable*. In the communication phase, the world is fixed but knowledge evolves through communication.
 
-For WinDAGs systems, this maps to:
+For Jury-rig systems, this maps to:
 - **Ontic phase**: Setting up tasks, deploying agents, ingesting data, running computations that produce new facts
 - **Epistemic phase**: Sharing results, confirming task completion, broadcasting state updates, coordinating handoffs
 
@@ -355,7 +355,7 @@ For satisfiability (reconfiguration), the formula cannot contain propositions ab
 
 This restriction reveals a general principle for satisfiability-based planning: **the satisfiability language must distinguish between controllable and uncontrollable propositions.** Controllable propositions can be targeted by the satisfiability solver. Uncontrollable ones are inputs — they constrain the search space but are not variables the solver can change.
 
-For WinDAGs agent systems, this maps to:
+For Jury-rig agent systems, this maps to:
 - **Controllable**: which agents to invoke, what parameters to pass, which skills to activate, what order to sequence tasks
 - **Uncontrollable**: external API responses, user inputs, environment state, time constraints
 
@@ -401,7 +401,7 @@ Epistemic formula → satisfiability solver → optimal angle assignments → mo
 
 Note that the satisfiability architecture *doesn't* use webcams as input. It computes from the formula alone — the cameras' visual feedback is not needed because the solver works from the formal model, not from direct observation. The cameras are *actuated* based on the solution, not *sensed* to drive the solution.
 
-This bidirectional capability — verify what is, then reconfigure to what should be — is extremely powerful. For WinDAGs:
+This bidirectional capability — verify what is, then reconfigure to what should be — is extremely powerful. For Jury-rig:
 - **Verification mode**: Given the current agent configuration and task state, does the epistemic condition for proceeding hold? (Model check)
 - **Reconfiguration mode**: Given that the epistemic condition doesn't hold, what changes to the agent configuration will make it hold? (Satisfiability solve)
 
@@ -417,7 +417,7 @@ For practical agent systems, this means:
 
 ## Design Prescription: Goal-Driven Agent Configuration
 
-For WinDAGs and similar systems, the satisfiability approach suggests the following design pattern:
+For Jury-rig and similar systems, the satisfiability approach suggests the following design pattern:
 
 **Step 1: Specify the task outcome as an epistemic/state formula.**
 Don't just say "run agents A, B, C." Say "achieve a state where the synthesis agent has all necessary validated inputs, the validation agent knows the synthesis is waiting for it, and the orchestrator knows both know their role."
@@ -480,9 +480,9 @@ Disadvantages:
 - Does not scale to truly autonomous, distributed agents
 - The "knowledge" computed may not match what a physically separate agent could actually know
 
-## The WinDAGs Analogue
+## The Jury-rig Analogue
 
-This tension appears in every multi-agent orchestration system. Consider a WinDAGs deployment:
+This tension appears in every multi-agent orchestration system. Consider a Jury-rig deployment:
 
 **Centralized (orchestrator-knows-all):**
 The orchestrator tracks every agent's state, every task's progress, every output's location. Agents report to the orchestrator; the orchestrator computes what each agent knows and routes accordingly. This is easy to build and reason about, but the orchestrator becomes a bottleneck and a single point of failure.
@@ -500,7 +500,7 @@ The paper makes a subtle but important point about true distributed architecture
 
 This is what real distributed epistemic computation would look like: agent a1 observes agent a2, and from that observation, *infers* a2's internal state (its orientation). This inference is based on perceptual data, not on privileged access to a2's internal registers.
 
-In WinDAGs terms: a truly distributed agent should be able to infer another agent's state from observable outputs and behaviors, without direct access to that agent's internal state. This is harder but more robust — and it reflects the actual epistemic situation of autonomous agents that don't share memory.
+In Jury-rig terms: a truly distributed agent should be able to infer another agent's state from observable outputs and behaviors, without direct access to that agent's internal state. This is harder but more robust — and it reflects the actual epistemic situation of autonomous agents that don't share memory.
 
 The inference gap matters for agent design:
 - What can agent A observe about agent B's behavior?
@@ -545,7 +545,7 @@ The paper ends by noting that handling *mobile agents* — agents whose position
 
 Mobile agents introduce temporal dynamics into the epistemic model. As agents move, their vision sets change, the worlds they can distinguish change, and their knowledge states evolve. This requires temporal epistemic logic — reasoning about what agents know at what times, and how knowledge evolves as agents act and move.
 
-For WinDAGs: agents are in a sense "mobile" — their information access changes as tasks are assigned and completed, as they receive new inputs, as they invoke sub-skills. The temporal dynamics of knowledge are just as important as the spatial dynamics in the camera system. Building systems that track how agent knowledge evolves over time, and that can reason about what agents will know after future events, is an open but important research direction.
+For Jury-rig: agents are in a sense "mobile" — their information access changes as tasks are assigned and completed, as they receive new inputs, as they invoke sub-skills. The temporal dynamics of knowledge are just as important as the spatial dynamics in the camera system. Building systems that track how agent knowledge evolves over time, and that can reason about what agents will know after future events, is an open but important research direction.
 
 ## The Lesson: Be Honest About Your Epistemic Architecture
 
@@ -649,7 +649,7 @@ The deepest contribution of the Big Brother Logic framework is the recognition t
 
 This reframing changes what designers look for when coordination fails. The question is not "did the messages get through?" but "did the agents achieve the required epistemic state?" — a subtler and more demanding standard.
 
-For WinDAGs: when a complex multi-agent workflow fails, the first diagnostic question should be: "What did each agent know, and what did it need to know, at the point of failure?" Answering this question — with the rigor of epistemic modal logic as a guide, even if not as a formal implementation — will often reveal the root cause more directly than tracing message logs or inspecting code paths.
+For Jury-rig: when a complex multi-agent workflow fails, the first diagnostic question should be: "What did each agent know, and what did it need to know, at the point of failure?" Answering this question — with the rigor of epistemic modal logic as a guide, even if not as a formal implementation — will often reveal the root cause more directly than tracing message logs or inspecting code paths.
 ```
 
 ---
@@ -706,7 +706,7 @@ In the Big Brother Logic system, the epistemic formula being checked is an *inva
 
 This is the pattern of **assertion-based programming**, extended to epistemic properties. Just as a software function asserts pre- and post-conditions to catch logical errors, an agent system can assert epistemic pre- and post-conditions to catch coordination failures.
 
-For WinDAGs:
+For Jury-rig:
 - **Pre-condition checks**: Before agent A hands a result to agent B, verify that agent B knows the result is coming, knows the format, and knows the context needed to process it.
 - **Post-condition checks**: After a coordinated action completes, verify that all involved agents are in the correct epistemic state (they know the action completed, they know its outcome, they know the next step).
 - **Invariant checks**: Throughout a long-running workflow, periodically verify that all agents have consistent world models — that no agent has a stale or incorrect belief about shared state.
@@ -733,7 +733,7 @@ The Big Brother Logic system addresses this by:
 2. Computing on-the-fly (lazy model construction)
 3. Restricting to discrete, finite angle assignments
 
-For WinDAGs with 180+ skills and potentially many simultaneous agents, full epistemic model checking at runtime would be computationally expensive. Practical approximations:
+For Jury-rig with 180+ skills and potentially many simultaneous agents, full epistemic model checking at runtime would be computationally expensive. Practical approximations:
 - **Lightweight epistemic checks**: Replace full model checking with structured assertions that check specific, pre-identified properties rather than arbitrary formulas
 - **Bounded depth checks**: Only verify K(φ) and K(K(φ)), not deeper nesting
 - **Probabilistic verification**: Use sampling-based methods to check with high confidence rather than certainty
@@ -783,7 +783,7 @@ The design of what each agent can perceive determines what each agent can know, 
 
 ## Designing Agent Perceptual Boundaries in Software Systems
 
-In software-based agent systems (as distinct from physical camera robots), "perception" is defined by what information each agent receives as input. The perceptual boundary of a WinDAGs agent is determined by:
+In software-based agent systems (as distinct from physical camera robots), "perception" is defined by what information each agent receives as input. The perceptual boundary of a Jury-rig agent is determined by:
 
 - What task parameters are passed to it
 - What prior task outputs it has access to
@@ -812,7 +812,7 @@ This principle generalizes: an agent can learn about another agent's state by:
 - Observing what the other agent does and doesn't respond to
 - Observing signals that the other agent emits about its internal state
 
-For WinDAGs: Agent A can infer aspects of Agent B's state from:
+For Jury-rig: Agent A can infer aspects of Agent B's state from:
 - The format and content of B's outputs
 - The latency of B's responses (indicating computational load or uncertainty)
 - The confidence scores or uncertainty flags B attaches to its outputs
@@ -843,7 +843,7 @@ For agent systems: heterogeneous perceptual access is the basis for the division
 
 The Big Brother Logic framework provides a formal tool for analyzing whether coverage is complete: check whether the union of all agents' vision sets covers all relevant parts of the world. If some fact can be in no agent's vision set, no agent can directly observe it, and the system has a structural epistemic blind spot.
 
-For WinDAGs: build a formal or semi-formal analysis of information coverage. For each piece of information required to solve the overall task, ensure that at least one agent has access to that information — and that there is a protocol for that agent to share it with agents that need it.
+For Jury-rig: build a formal or semi-formal analysis of information coverage. For each piece of information required to solve the overall task, ensure that at least one agent has access to that information — and that there is a protocol for that agent to share it with agents that need it.
 
 ## The Moving Agent Challenge
 
@@ -853,7 +853,7 @@ The paper notes that mobile agents are a future research direction:
 
 Mobile agents are interesting because their perceptual access changes over time. As the camera rotates, its vision set changes — facts that were invisible become visible, and vice versa. This temporal dynamics of perceptual access creates temporal dynamics of knowledge.
 
-In WinDAGs, agents are effectively mobile in an abstract sense: as tasks proceed, agents receive new information (their "view" expands), and as context shifts, some previously relevant information may no longer be accessible (their "view" contracts). Building systems that track how agents' perceptual access (and therefore knowledge) evolves over the course of a task is an important open problem — and one that the Big Brother Logic framework's temporal extensions (combining epistemic and temporal logic) could address.
+In Jury-rig, agents are effectively mobile in an abstract sense: as tasks proceed, agents receive new information (their "view" expands), and as context shifts, some previously relevant information may no longer be accessible (their "view" contracts). Building systems that track how agents' perceptual access (and therefore knowledge) evolves over the course of a task is an important open problem — and one that the Big Brother Logic framework's temporal extensions (combining epistemic and temporal logic) could address.
 
 ## Summary: Perceptual Architecture Is Knowledge Architecture
 

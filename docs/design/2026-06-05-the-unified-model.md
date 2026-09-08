@@ -64,7 +64,7 @@ It is not politeness; it is the rent.
 **The Coast Guard hands every voyage a sandboxed worktree. You keep it only if you
 pay coordination rent:**
 - **Every commit must publish a note.** No note, no commit (the guard already
-  blocks; now it's load-bearing, not advisory).
+  blocks; now it's essential, not advisory).
 - **Stay rebased** onto the live branch, or the sandbox goes stale and is reclaimed.
 - **Feed the suggestibility layer** — leave the inputs cartographer needs (scope,
   result, remaining-risk) — or your lane is judged idle and revoked.

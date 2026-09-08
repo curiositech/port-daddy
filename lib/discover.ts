@@ -39,8 +39,13 @@ interface NameSuggestion {
   full: string;
 }
 
-interface SuggestNamesOptions {
+export interface SuggestNamesOptions {
   useBranch?: boolean;
+  /**
+   * Explicit project identity from `.portdaddyrc`. Package and directory
+   * metadata are discovery fallbacks, not competing semantic authorities.
+   */
+  project?: string;
 }
 
 // =============================================================================
@@ -223,7 +228,12 @@ export function suggestNames(
   options: SuggestNamesOptions = {}
 ): Record<string, NameSuggestion> {
   const pkg = readJson(join(dir, 'package.json')) as Record<string, unknown> | null;
-  const project = ((pkg?.name as string) || basename(resolve(dir)))
+  const inferredProject = (pkg?.name as string) || basename(resolve(dir));
+  // `.portdaddyrc` is runtime JSON, so the optional TypeScript annotation is
+  // not enough to trust this field. Only a nonblank string may override the
+  // project inferred from package/directory metadata.
+  const configuredProject = typeof options.project === 'string' ? options.project.trim() : '';
+  const project = (configuredProject || inferredProject)
     .replace(/^@[^/]+\//, '')
     .replace(/[^a-z0-9-]/gi, '-')
     .toLowerCase();

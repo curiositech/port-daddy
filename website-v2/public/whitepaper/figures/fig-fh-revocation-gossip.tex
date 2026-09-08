@@ -1,87 +1,51 @@
-% Federated revocation gossip — three harbors, an issuer revoke event,
-% propagation timeline with the cross-witness audit hook.
-
-\providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D8C7A6}
-\providecolor{hhebony}{HTML}{121212}
-\providecolor{hhcobalt}{HTML}{003FB8}
-\providecolor{hhamber}{HTML}{6B4500}
-\providecolor{hhteal}{HTML}{00564C}
-\providecolor{hhpaper}{HTML}{FBF7EF}
-
-% ─── Federated Revocation Gossip Timeline ─────────────────────────────────────
+% Figure IV.9 --- staleness is an area in time-by-authority space.
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}[
-  harbor/.style={draw=hhink, line width=0.65pt, fill=hhsand!25, rounded corners=2pt, inner sep=4pt, minimum width=24mm, minimum height=11mm, align=center},
-  harborrev/.style={harbor, draw=hhcobalt, fill=hhcobalt!10},
-  filter/.style={draw=hhink, line width=0.5pt, fill=hhpaper, rounded corners=1.5pt, inner sep=2pt, minimum width=24mm, minimum height=6mm, align=center, font=\scriptsize},
-  filterrev/.style={filter, draw=hhcobalt, fill=hhcobalt!6, text=hhcobalt},
-  witnesslog/.style={draw=hhink, line width=0.65pt, fill=hhpaper, rounded corners=2pt, inner sep=5pt, minimum width=130mm, minimum height=12mm, align=center},
-  gossiparr/.style={-{Stealth[length=2.0mm,width=1.3mm]}, draw=hhcobalt, line width=0.75pt, dashed},
-  publisharr/.style={-{Stealth[length=2.0mm,width=1.3mm]}, draw=hhink, line width=0.55pt},
-  lbl/.style={font=\scriptsize\itshape, fill=hhpaper, inner sep=1.5pt},
-  tlabel/.style={font=\small\scshape}
-]
+\resizebox{0.93\textwidth}{!}{%
+\begin{tikzpicture}[pd figure]
+  \node[pd panel title,anchor=west] at (-6.4,3.0)
+    {the spendable revocation window is the amber area};
+  \node[pd axis label,anchor=east] at (-5.15,1.45) {Harbor A};
+  \node[pd axis label,anchor=east] at (-5.15,.20) {Harbor B};
+  \node[pd axis label,anchor=east] at (-5.15,-1.05) {Harbor C};
 
-  % ─── Timeline Column Headers ────────────────────────────────────────────────
-  \node[tlabel] at (-4.5, 3.4) {Epoch $t = 0$};
-  \node[tlabel] at (0.0, 3.4) {Epoch $t = \Delta$};
-  \node[tlabel] at (4.5, 3.4) {Epoch $t = 2\Delta$};
+  % Stale-to-synchronized state bands.
+  \fill[hhteal!13] (-4.80,1.00) rectangle (6.00,1.90);
+  \fill[hhamber!16] (-4.80,-.25) rectangle (-1.20,.65);
+  \fill[hhteal!13] (-1.20,-.25) rectangle (6.00,.65);
+  \fill[hhamber!16] (-4.80,-1.50) rectangle (1.95,-.60);
+  \fill[hhteal!13] (1.95,-1.50) rectangle (6.00,-.60);
+  \foreach \y in {1.00,1.90,-.25,.65,-1.50,-.60}
+    \draw[pd hairline] (-4.80,\y)--(6.00,\y);
 
-  % ─── Witness Log (Top Band) ─────────────────────────────────────────────────
-  \node[witnesslog] (W) at (0.0, 2.2) {
-    \textbf{\scshape Federated Witness Log} \quad {\footnotesize (Per-Epoch Boundary Publication)}\\[1pt]
-    {\scriptsize Epoch Roots $R_A^{(e)}, R_B^{(e)}, R_C^{(e)}$ \textperiodcentered\ Cross-Witness Signatures \textperiodcentered\ Equivocation Audit}
-  };
+  \draw[pd focus rule,line width=1.4pt]
+    (-4.80,1.00)--(-4.80,.65)--(-1.20,.65)--(-1.20,-.60)--(1.95,-.60)--(1.95,-1.50);
+  \node[pd direct label,text=hhteal,anchor=west] at (2.20,-1.05) {refuse locally};
+  \node[pd direct label,text=hhamber,anchor=west] at (-4.45,-1.05) {stale verifier};
 
-  % ─── Row A: Issuer (Revokes at t = 0) ───────────────────────────────────────
-  \node[harborrev] (A0) at (-4.5, 0.6) {\textbf{\scshape Harbor $A$}};
-  \node[filterrev, below=1.5pt of A0] (FA0) {$c \in F_A$ (Revoked)};
+  \foreach \x/\lab in {-4.80/$0$,-1.20/$\Delta$,1.95/$2\Delta$,5.20/$3\Delta$}
+    {\draw[pd guide] (\x,-1.72)--(\x,2.15);
+     \node[pd axis label,anchor=north] at (\x,-1.88) {\lab};}
+  \draw[pd rule,-{Stealth[length=1.8mm,width=1.1mm]}] (-4.90,-1.72)--(6.20,-1.72);
+  \node[pd axis label,anchor=west] at (6.30,-1.72) {time};
 
-  \node[harborrev] (A1) at (0.0, 0.6) {\textbf{\scshape Harbor $A$}};
-  \node[filterrev, below=1.5pt of A1] (FA1) {$c \in F_A$ (Revoked)};
-
-  \node[harborrev] (A2) at (4.5, 0.6) {\textbf{\scshape Harbor $A$}};
-  \node[filterrev, below=1.5pt of A2] (FA2) {$c \in F_A$ (Revoked)};
-
-  % ─── Row B: Propagates at t = Δ ─────────────────────────────────────────────
-  \node[harbor] (B0) at (-4.5, -1.3) {\textbf{\scshape Harbor $B$}};
-  \node[filter, below=1.5pt of B0] (FB0) {$c \notin F_B$ (\textit{Stale})};
-
-  \node[harborrev] (B1) at (0.0, -1.3) {\textbf{\scshape Harbor $B$}};
-  \node[filterrev, below=1.5pt of B1] (FB1) {$c \in F_B$ (Synchronized)};
-
-  \node[harborrev] (B2) at (4.5, -1.3) {\textbf{\scshape Harbor $B$}};
-  \node[filterrev, below=1.5pt of B2] (FB2) {$c \in F_B$ (Synchronized)};
-
-  % ─── Row C: Propagates at t = 2Δ ────────────────────────────────────────────
-  \node[harbor] (C0) at (-4.5, -3.2) {\textbf{\scshape Harbor $C$}};
-  \node[filter, below=1.5pt of C0] (FC0) {$c \notin F_C$ (\textit{Stale})};
-
-  \node[harbor] (C1) at (0.0, -3.2) {\textbf{\scshape Harbor $C$}};
-  \node[filter, below=1.5pt of C1] (FC1) {$c \notin F_C$ (\textit{Stale})};
-
-  \node[harborrev] (C2) at (4.5, -3.2) {\textbf{\scshape Harbor $C$}};
-  \node[filterrev, below=1.5pt of C2] (FC2) {$c \in F_C$ (Synchronized)};
-
-  % ─── Gossip Hops ────────────────────────────────────────────────────────────
-  \draw[gossiparr] (A0.south east) to[out=-30, in=150] node[lbl, midway] {Anti-Entropy Gossip} (B1.north west);
-  \draw[gossiparr] (B1.south east) to[out=-30, in=150] node[lbl, midway] {Anti-Entropy Gossip} (C2.north west);
-
-  % ─── Witness Log Publication Arrows ─────────────────────────────────────────
-  \draw[publisharr] (A0.north) -- node[lbl, left] {$R_A^{(e+1)}$} (A0.north |- W.south);
-  \draw[publisharr] (B1.north) -- node[lbl, right] {$R_B^{(e+1)}$} (B1.north |- W.south);
-  \draw[publisharr] (C2.north) -- node[lbl, right] {$R_C^{(e+1)}$} (C2.north |- W.south);
-
-  % ─── Convergence Note Box (Bottom) ──────────────────────────────────────────
-  \node[draw=hhink, line width=0.5pt, fill=hhpaper, rounded corners=2pt, inner sep=6pt, text width=128mm, align=left, font=\scriptsize]
-    at (0.0, -4.8) {
-    \textbf{\scshape Epidemic Convergence Invariant:}
-    In a connected reliable overlay with randomized gossip fan-out, revocation propagates in expected $\Theta(\log m)$ rounds. The witness log enables immediate offline equivocation checks once signed epoch roots reach an auditor.
-  };
-
-\end{tikzpicture}
-\caption{Federated revocation propagation across three harbors. The append-only revocation log ensures that revocation events propagate epidemically ($\Delta$-spaced rounds). Per-epoch roots $R_X^{(e)}$ published to the shared witness log provide transparent, non-repudiable audit trails that generalize Certificate Transparency.}
+  \node[pd focus datum] at (-4.80,2.35) {};
+  \node[pd focus datum] at (-1.20,2.35) {};
+  \node[pd focus datum] at (1.95,2.35) {};
+  \draw[pd focus rule] (-4.80,2.35)--(1.95,2.35);
+  \node[pd note,text=hhteal,anchor=west] at (2.20,2.35)
+    {signed epoch roots make the illustrated history auditable};
+  \draw[pd caution rule,<->] (-4.65,-2.45)--(1.80,-2.45);
+  \node[pd note,text=hhamber] at (-1.42,-2.72)
+    {exposure lasts until the local authority receives the revocation};
+\end{tikzpicture}}
+\caption{\textbf{Revocation propagation is a moving staleness frontier.}
+Alice refuses immediately; B remains stale until $\Delta$ and C until
+$2\Delta$ in this illustrated execution. The amber area is precisely where a
+revoked capability can still be admitted by the named local authority. The teal
+staircase marks synchronization, not a global clock. Expected
+$\Theta(\log m)$ dissemination requires connected reliable rounds; a partition
+can extend the amber area without bound and therefore destroys any finite
+deadline.}
 \label{fig:fh-revocation}
 \end{figure}

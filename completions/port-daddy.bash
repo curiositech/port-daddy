@@ -144,7 +144,7 @@ _port_daddy() {
     # Tuple space
     tuple
     # Semantic graph + episodic memory
-    graph memory ideas skill-graft skillgraft
+    graph memory ideas jury-rig
     # Artifact harvest provenance (slice S4a)
     booty
     # Shared local embedder (ADR-0061)
@@ -768,7 +768,7 @@ _port_daddy() {
     # session  <subcommand> [args]
     # -----------------------------------------------------------------------
     session)
-      local session_subcommands='start end done abandon takeover rm files phase'
+      local session_subcommands='start end done abandon takeover find rm files phase'
       # Find which subcommand (if any) has been typed after "session".
       local subcmd=""
       for (( i = 1; i < cword; i++ )); do
@@ -805,6 +805,9 @@ _port_daddy() {
           ;;
         takeover)
           _pd_opts '--purpose -P --note -n --lifecycle --no-files --no-claims'
+          ;;
+        find)
+          _pd_opts '--key --identity --all-worktrees --all --no-adopt'
           ;;
         files)
           # files has sub-subcommands: add, rm
@@ -1393,11 +1396,11 @@ _port_daddy() {
       ;;
 
     # -----------------------------------------------------------------------
-    # done  ["note"] [--agent ID] [--session ID] [--status STATUS] [--force-incomplete] [--reason REASON]
+    # done  ["note"] [--agent ID] [--session ID] [--status STATUS]
     # -----------------------------------------------------------------------
     done)
       case "$prev" in
-        --agent|--session|--reason)
+        --agent|--session)
           COMPREPLY=()  # Free-form
           ;;
         --status)
@@ -1405,7 +1408,7 @@ _port_daddy() {
           COMPREPLY=( $(compgen -W "completed abandoned" -- "$cur") )
           ;;
         *)
-          _pd_opts '--note -n --agent -a --session --status -s --force-incomplete --reason'
+          _pd_opts '--note -n --agent -a --session --status -s'
           ;;
       esac
       ;;
@@ -1504,7 +1507,7 @@ _port_daddy() {
 
     # -----------------------------------------------------------------------
     # -----------------------------------------------------------------------
-    # learn / tutorial (interactive tutorial)
+    # learn / tutorial (operationally read-only agent orientation)
     # -----------------------------------------------------------------------
     learn|tutorial)
       _pd_opts ""
@@ -1952,9 +1955,9 @@ _port_daddy() {
       ;;
 
     # -----------------------------------------------------------------------
-    # skill-graft  query|warm|reference  [options]
+    # jury-rig  query|warm|reference  [options]
     # -----------------------------------------------------------------------
-    skill-graft|skillgraft)
+    jury-rig)
       local subcmd="${words[2]:-}"
       case "$subcmd" in
         '')

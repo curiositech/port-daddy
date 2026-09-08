@@ -45,6 +45,7 @@ const originalPath = process.env.PATH;
 const originalCliBinDirs = process.env.PD_CLI_BIN_DIRS;
 const realSetImmediate = setImmediate;
 let fakeHome;
+let mockProcessKill;
 
 jest.unstable_mockModule('node:child_process', () => ({
   spawn: mockSpawn,
@@ -97,6 +98,10 @@ async function waitForAsyncProcessDiscovery(predicate, label, turns = 256) {
 }
 
 beforeEach(() => {
+  // This suite creates fake ChildProcess objects with synthetic PIDs. Never
+  // let lifecycle cleanup turn one of those numbers into a real OS signal:
+  // CI has assigned Jest PID 4242 before, colliding with fakeChild's default.
+  mockProcessKill = jest.spyOn(process, 'kill').mockImplementation(() => true);
   mockSpawn.mockReset();
   mockExecFile.mockReset();
   mockExecFile.mockImplementation((_cmd, _args, _opts, callback) => {
@@ -130,6 +135,7 @@ beforeEach(() => {
 
 afterEach(() => {
   try { rmSync(fakeHome, { recursive: true, force: true }); } catch { /* noop */ }
+  mockProcessKill.mockRestore();
 });
 
 afterAll(() => {
@@ -338,6 +344,57 @@ describe('CLI tube provider registry contract', () => {
 });
 
 describe('spawnViaCliTube — provider policy behavior', () => {
+  test.each(CLI_TUBE_TOOLS)('%s refuses an ordinary replaced workspace before sandbox setup', async (cli) => {
+    const workspace = join(fakeHome, 'workspace');
+    mkdirSync(workspace);
+    const workspaceIdentity = captureWorkspaceIdentity(workspace);
+    renameSync(workspace, workspace + '-old');
+    mkdirSync(workspace);
+    const result = await spawnViaCliTube({ cli, prompt: 'must not run', cwd: workspace, workspaceIdentity });
+    expect(result.error).toMatch(/workspace identity changed/);
+    expect(mockWithCoastGuard).not.toHaveBeenCalled();
+    expect(mockSpawn).not.toHaveBeenCalled();
+  });
+
+  test.each(CLI_TUBE_TOOLS)('%s rechecks ordinary workspace after sandbox preparation and cleans up', async (cli) => {
+    const workspace = join(fakeHome, 'workspace');
+    mkdirSync(workspace);
+    const workspaceIdentity = captureWorkspaceIdentity(workspace);
+    mockWithCoastGuard.mockImplementationOnce(async (input) => {
+      await Promise.resolve();
+      renameSync(workspace, workspace + '-old');
+      mkdirSync(workspace);
+      return { cmd: input.cmd, args: input.args, env: input.env, receipt: () => mockCoastGuardReceipt, dispose: mockCoastGuardDispose };
+    });
+    const result = await spawnViaCliTube({ cli, prompt: 'must not run', cwd: workspace, workspaceIdentity });
+    expect(result.error).toMatch(/workspace identity changed/);
+    expect(result.coastGuardReceipt).toEqual(mockCoastGuardReceipt);
+    expect(mockSpawn).not.toHaveBeenCalled();
+    expect(mockCoastGuardDispose).toHaveBeenCalledTimes(1);
+    const scratch = join(fakeHome, '.port-daddy', 'cli-tube-scratch');
+    expect(existsSync(scratch) ? readdirSync(scratch) : []).toEqual([]);
+  });
+
+  test.each(CLI_TUBE_TOOLS)('%s does not launch after cancellation during sandbox preparation', async (cli) => {
+    const controller = new AbortController();
+    mockWithCoastGuard.mockImplementationOnce(async (input) => {
+      await Promise.resolve();
+      controller.abort();
+      return { cmd: input.cmd, args: input.args, env: input.env, receipt: () => mockCoastGuardReceipt, dispose: mockCoastGuardDispose };
+    });
+    const result = await spawnViaCliTube({ cli, prompt: 'must not run', signal: controller.signal });
+    expect(result.error).toMatch(/cancelled before child launch/);
+    expect(mockSpawn).not.toHaveBeenCalled();
+    expect(mockCoastGuardDispose).toHaveBeenCalledTimes(1);
+  });
+
+  test.each(['claude-code', 'codex'])('%s still requires the native-resume witness', async (cli) => {
+    const result = await spawnViaCliTube({ cli, prompt: 'must not run', cwd: fakeHome, resumeSessionId: '11111111-1111-4111-8111-111111111111' });
+    expect(result.error).toMatch(/Native resume blocked/);
+    expect(mockWithCoastGuard).not.toHaveBeenCalled();
+    expect(mockSpawn).not.toHaveBeenCalled();
+  });
+
   test('rechecks native-resume workspace identity at the CLI child boundary', async () => {
     const workspace = join(fakeHome, 'workspace');
     const movedWorkspace = join(fakeHome, 'moved-workspace');
@@ -983,6 +1040,33 @@ describe('spawnViaCliTube — failure paths', () => {
     }
   });
 
+  test('timeout never lets a fake child PID collision escape as a real OS signal', async () => {
+    jest.useFakeTimers();
+    try {
+      // Fail before scheduling the timeout if suite-level signal isolation is
+      // ever removed. Using the live Jest PID makes the historical macOS CI
+      // collision exact without putting this process (or its group) at risk.
+      expect(jest.isMockFunction(process.kill)).toBe(true);
+      const child = fakeChild({ neverClose: true, pid: process.pid });
+      mockSpawn.mockReturnValue(child);
+
+      const resultPromise = spawnViaCliTube({ cli: 'agy', prompt: 'hi', timeoutMs: 10 });
+      await jest.advanceTimersByTimeAsync(10);
+
+      expect(mockProcessKill).toHaveBeenCalledWith(-process.pid, 'SIGTERM');
+      expect(mockProcessKill).toHaveBeenCalledWith(process.pid, 'SIGTERM');
+      expect(child.kill).toHaveBeenCalledWith('SIGTERM');
+
+      child.emit('close', -1);
+      await expect(resultPromise).resolves.toEqual(expect.objectContaining({
+        exitCode: -1,
+        error: expect.stringContaining('agy timed out after 10ms'),
+      }));
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   test('process-tree liveness sampling is asynchronous and serialized', async () => {
     jest.useFakeTimers();
     try {
@@ -1129,7 +1213,7 @@ describe('spawnViaCliTube — failure paths', () => {
 
   test('timeout root-pid fallback is explicit when process tree collection fails', async () => {
     jest.useFakeTimers();
-    const processKill = jest.spyOn(process, 'kill').mockImplementation(() => true);
+    const processKill = mockProcessKill;
     try {
       mockExecFile.mockImplementation((_cmd, _args, _opts, callback) => {
         queueMicrotask(() => callback(new Error('ps unavailable'), '', ''));
@@ -1177,7 +1261,6 @@ describe('spawnViaCliTube — failure paths', () => {
       expect(stdoutDestroy).not.toHaveBeenCalled();
       expect(stderrDestroy).not.toHaveBeenCalled();
     } finally {
-      processKill.mockRestore();
       jest.useRealTimers();
     }
   });
@@ -1210,7 +1293,7 @@ describe('spawnViaCliTube — failure paths', () => {
 
   test('timeout discovers inherited stdio holders through known lsof paths when PATH omits lsof', async () => {
     jest.useFakeTimers();
-    const processKill = jest.spyOn(process, 'kill').mockImplementation(() => true);
+    const processKill = mockProcessKill;
     try {
       const childPid = 51515151;
       const holderPid = 6161;
@@ -1283,7 +1366,6 @@ describe('spawnViaCliTube — failure paths', () => {
       child.emit('close', -1);
       await resultPromise;
     } finally {
-      processKill.mockRestore();
       jest.useRealTimers();
     }
   });

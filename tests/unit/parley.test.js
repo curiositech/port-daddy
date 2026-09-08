@@ -513,20 +513,51 @@ test('manual call, turn, and receipt paths never write tuple authority', () => {
   `).get()).toEqual({ count: 0 });
 });
 
-test('production Parley authority has no tuple dependency or tuple event vocabulary', () => {
-  const authoritySources = [
+test('production Parley authority keeps legacy tuple vocabulary inside the bounded one-way importer', () => {
+  const [parleySource, triggerSource, storeSource] = [
     new URL('../../lib/parley.ts', import.meta.url),
     new URL('../../lib/parley-auto-trigger.ts', import.meta.url),
     new URL('../../lib/parley-store.ts', import.meta.url),
   ].map((url) => readFileSync(url, 'utf8'));
   const serverSource = readFileSync(new URL('../../server.ts', import.meta.url), 'utf8');
+  const tupleVocabulary = /parley:(?:opened|summons|turn|outcome|seen|auto)/;
 
-  for (const source of authoritySources) {
+  for (const source of [parleySource, triggerSource, storeSource]) {
     expect(source).not.toMatch(/from ['"][^'"]*tuples(?:\.js)?['"]/);
     expect(source).not.toMatch(/\b(?:outOnce|getByIdempotencyKey|takeByIdempotencyKey)\s*\(/);
-    expect(source).not.toMatch(/parley:(?:opened|summons|turn|outcome|seen|auto)/);
   }
-  expect(serverSource).toMatch(/createParley\(\{\s*db,\s*tenantId:/);
+
+  expect(parleySource).not.toMatch(tupleVocabulary);
+  expect(triggerSource).not.toMatch(tupleVocabulary);
+  const begin = '/* LEGACY_PARLEY_TUPLE_IMPORTER_BEGIN */';
+  const end = '/* LEGACY_PARLEY_TUPLE_IMPORTER_END */';
+  const importerSections = [];
+  let cursor = 0;
+  let storeOutsideImporter = '';
+  while (cursor < storeSource.length) {
+    const start = storeSource.indexOf(begin, cursor);
+    if (start === -1) {
+      storeOutsideImporter += storeSource.slice(cursor);
+      break;
+    }
+    storeOutsideImporter += storeSource.slice(cursor, start);
+    const finish = storeSource.indexOf(end, start + begin.length);
+    expect(finish).toBeGreaterThanOrEqual(0);
+    importerSections.push(storeSource.slice(start, finish + end.length));
+    cursor = finish + end.length;
+  }
+  expect(importerSections).toHaveLength(2);
+  const importerSource = importerSections.join('\n');
+  expect(importerSource).toMatch(tupleVocabulary);
+  expect(importerSource).not.toMatch(/\b(?:INSERT\s+INTO|UPDATE|DELETE\s+FROM|ALTER\s+TABLE|DROP\s+TABLE)\s+tuples\b/i);
+  // This negative assertion rejects a new tuple read/write or fallback path
+  // outside the explicitly bounded, receipt-gated importer.
+  expect(storeOutsideImporter).not.toMatch(tupleVocabulary);
+
+  expect(serverSource).toMatch(/const parleyStore = createParleyStore\(\{ db, tenantId: 'local-daemon' \}\);/);
+  expect(serverSource).toMatch(/createParley\(\{\s*store: parleyStore,/);
+  expect((serverSource.match(/createParleyStore\(/g) ?? [])).toHaveLength(1);
+  expect(serverSource).not.toMatch(/createParley\(\{\s*db,/);
   expect(serverSource).not.toMatch(/createParley\(\{[^}]*\btuples\b/s);
 
 });

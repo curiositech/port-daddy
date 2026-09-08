@@ -93,7 +93,7 @@ This representation captures the fundamental tradeoff in real-time systems: qual
 
 ## Application to Modern Agent Systems
 
-For systems like WinDAGs, this representation suggests several design principles:
+For systems like Jury-rig, this representation suggests several design principles:
 
 **Explicit Relationship Typing**: Don't treat all dependencies as the same. Distinguish between hard dependencies (must be satisfied), soft dependencies (valuable to satisfy), and anti-dependencies (should avoid). Each type requires different coordination.
 

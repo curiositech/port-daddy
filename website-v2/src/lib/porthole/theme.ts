@@ -17,30 +17,40 @@
  * bytes the CLI already colored on purpose. `[data-theme]` does the rest:
  * these are CSS custom property REFERENCES, not resolved colors, so a
  * Porthole embed re-themes for free whenever the page around it does.
+ *
+ * Background/foreground slots (0, 2, 4, 7, 8, 12, 15) route through `--ph-*`,
+ * NOT `--code-*`: `--code-*` is deliberately dark-in-both-themes (the static
+ * code-block convention), which is exactly why a Porthole embed used to stay
+ * dark when the page went light. `--ph-*` (tokens.semantic.css) is real light
+ * values in light mode, and aliases straight back to `--code-*` in dark mode
+ * — so light mode actually looks like the site, dark mode is unchanged.
+ * Signal-carrying slots (1/3/5/6/9/10/11/13/14 — error/warning/identity/info)
+ * already route through `--status-*`/`--story-violet`/`--brand-accent`, which
+ * were already correctly light/dark differentiated, so those are untouched.
  */
 export const PORTHOLE_ANSI_THEME: readonly string[] = [
   // 0-7: standard intensity
-  "var(--code-bg)", // 0 black — background-adjacent, rare as foreground
+  "var(--ph-bg)", // 0 black — background-adjacent, rare as foreground
   "var(--status-error)", // 1 red — November: failures, errors
-  "var(--code-prompt)", // 2 green — Charlie: affirmative, success, the `$` prompt itself
+  "var(--ph-prompt)", // 2 green — Charlie: affirmative, success, the `$` prompt itself
   "var(--status-warning)", // 3 yellow — Uniform: warnings, danger-ahead
-  "var(--code-flag)", // 4 blue — flags/options, and the cobalt "kernel" hue
+  "var(--ph-flag)", // 4 blue — flags/options, and the cobalt "kernel" hue
   "var(--story-violet)", // 5 magenta — identity/continuity (ADR-0048 L3)
   "var(--status-info)", // 6 cyan — Securite: safety/informational signal
-  "var(--code-text)", // 7 white — default foreground
+  "var(--ph-text)", // 7 white — default foreground
   // 8-15: bright intensity
-  "var(--code-line-number)", // 8 bright black — dim/muted secondary text
+  "var(--ph-line-number)", // 8 bright black — dim/muted secondary text
   "var(--status-error)", // 9 bright red
   "var(--status-success)", // 10 bright green
   "var(--status-warning)", // 11 bright yellow
-  "var(--code-channel-scope)", // 12 bright blue — matches the `project:` segment color
+  "var(--ph-channel-scope)", // 12 bright blue — matches the `project:` segment color
   "var(--story-violet)", // 13 bright magenta
   "var(--brand-accent)", // 14 bright cyan — teal, "legibility" layer
-  "var(--code-command)", // 15 bright white — the brightest foreground, for command text
+  "var(--ph-command)", // 15 bright white — the brightest foreground, for command text
 ];
 
 /** Default terminal foreground/background when SGR resets to "no color"
  *  (`\x1b[39m`/`\x1b[49m` or a bare `\x1b[0m`). Kept as tokens, not literals,
  *  for the same re-theme-for-free reason as the palette above. */
-export const PORTHOLE_DEFAULT_FG = "var(--code-text)";
+export const PORTHOLE_DEFAULT_FG = "var(--ph-text)";
 export const PORTHOLE_DEFAULT_BG: string | null = null;

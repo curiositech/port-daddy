@@ -6,11 +6,9 @@
  *
  *   a. STEEL-MAN — one AI call over the PR title/body/diff produces the
  *      best-interpretation contract: purpose + testable obligations[] +
- *      testTargets[]. The parsed contract is then UPSERTED INTO THE REVIEWED
- *      PR'S BODY (operator mandate, 2026-08-19: the steel-man argument and its
- *      obligations are the best chronology of what a PR should be, and the PR
- *      summary is where that chronology lives — maintained by this agent,
- *      edit-in-place between HTML markers). Malformed output ⇒ transcript
+ *      testTargets[]. The parsed contract is published in an attributable,
+ *      checked Fleet-owned issue comment; the human-owned PR description is
+ *      never rewritten. Malformed output ⇒ transcript
  *      error and a BROKEN-SHIP result (`errored: true`, which fails the run —
  *      see the doctrine note below); the purser never bluffs a contract.
  *   b. AUTHOR TESTS — a second AI call authors adversarial unit + integration
@@ -45,11 +43,13 @@
  *      comment and the missing permission is named + escalated — but it is
  *      still a BROKEN-SHIP result: the run fails until the permission lands.
  *   e. VERDICT — blocking iff pd-fleet.yml says `blocking: true`. BLOCK while
- *      sandbox-executed tests fail on the PR head. Sandbox unavailable ⇒ the
- *      `blockWithoutSandbox` flag decides (default false ⇒ advisory): the
- *      purser never blocks on tests that were never run unless the operator
- *      explicitly opted into fail-closed. (This governs the ship's PASS/BLOCK
- *      merge-gate verdict; RETARGETING is a separate, stricter action — see d.)
+ *      sandbox-executed tests fail on the PR head. A configured sandbox that
+ *      fails before the test runner is broken machinery: it returns an errored
+ *      BLOCK with the exact bounded reason and can never become resumable PASS
+ *      evidence. A deliberately absent binding remains governed by
+ *      `blockWithoutSandbox`: it is an advisory BLOCK when fail-closed is off
+ *      and a gating BLOCK when it is on. No non-executed state is ever PASS or
+ *      checkpoint evidence.
  *
  * Comment tone: firm, adversarial, professional. Demands, with reasons.
  * Never abusive.
@@ -63,10 +63,10 @@
  * never discover, stacked nothing, and the run stayed green. That is a broken
  * ship sailing past the gate it exists to keep. Machinery failures now return
  * `errored: true` under the ship's REAL blocking flag, which fails the run —
- * the breakage gets fixed in the diff that surfaced it. The ONE deliberate
- * exception is sandbox ABSENCE on well-formed, executable, stacked tests:
- * that is a configured deployment state (`blockWithoutSandbox` decides it),
- * not a breakage.
+ * the breakage gets fixed in the diff that surfaced it. The one deliberate
+ * exception remains an absent SANDBOX binding on well-formed tests, because
+ * that is an explicit deployment state governed by `blockWithoutSandbox`.
+ * Setup/checkout/transport failures are not that state and fail closed.
  */
 
 import type { ExecutorEnv } from './env.js';
@@ -74,8 +74,8 @@ import type { ShipConfig } from './fleet.js';
 import type { ShipResult, Verdict } from './verdict.js';
 import {
   postShipComment,
-  upsertPrBodySection,
   PullRequestHeadValidationError,
+  ShipCommentPublicationError,
   type PRContext,
   type PullRequestHeadGuard,
 } from './github.js';
@@ -136,6 +136,11 @@ import {
   FleetAiDependencyError,
   PROVIDER_MAX_DELIVERY_ATTEMPTS,
 } from './ai-resilience.js';
+import {
+  ContextAdmissionError,
+  requireContextAdmission,
+  utf8ByteLength,
+} from './context-admission.js';
 
 // ---------------------------------------------------------------------------
 
@@ -154,10 +159,109 @@ const TESTS_MAX_TOKENS = 4096;
 const PLAN_MAX_TOKENS = 1024;
 /** Head of a malformed response recorded for diagnosis. See {@link runPurser}. */
 const RAW_DIAGNOSTIC_CHARS = 2000;
-/** Diff budget for the purser's prompts (chars). */
-const PURSER_DIFF_CHAR_LIMIT = 24_000;
+/** Per-request title projection: a PR title is metadata, not an unbounded prompt suffix. */
+const PURSER_TITLE_BYTE_LIMIT = 512;
+/** Per-request body projection: preserve the opening claim while leaving room for review evidence. */
+const PURSER_BODY_BYTE_LIMIT = 2_048;
+/** The repair path needs a file inventory, but never an unbounded one. */
+const PURSER_FILE_INDEX_BYTE_LIMIT = 4 * 1024;
+/** Bound file-count work even when every filename is tiny. */
+const PURSER_FILE_INDEX_MAX_FILES = 64;
+/** A pathological filename must not consume the whole changed-file projection. */
+const PURSER_FILE_PATH_BYTE_LIMIT = 512;
 /** Transcript cap for the sandbox failure tail. */
 const FAILURE_TAIL_BYTES = 1024;
+/**
+ * One escalation rewrite is not enough when the first repair response is
+ * itself truncated or malformed. Production #9789 witnesses on #9897 and
+ * #9893 both failed this way with more than twenty minutes of run budget left.
+ * Permit one final retry for the same file, while keeping total repair spend
+ * bounded to the original one-call-per-file ceiling plus one retry.
+ */
+const MAX_AUTHORED_REPAIR_ATTEMPTS_PER_FILE = 2;
+const MAX_AUTHORED_REPAIR_CALLS = MAX_PLANNED_FILES + 1;
+const REJECTED_DRAFT_CHAR_LIMIT = 16_000;
+
+async function currentPurserSandboxReceipt(
+  runId: string,
+  providerAttempt: number,
+  files: StackedFile[],
+  sandbox: SandboxRunOutcome,
+): Promise<ShipResult['checkpointExecutionReceipt']> {
+  if (!sandbox.executed || typeof sandbox.passed !== 'boolean') return undefined;
+  const outcomeKind = sandbox.passed ? 'passed' : 'assertion-failure';
+  if (sandbox.outcomeKind !== outcomeKind) return undefined;
+  const serializedTests = files
+    .map(file => ({ path: file.path, contents: file.contents }))
+    .sort((left, right) => left.path.localeCompare(right.path));
+  const digest = await crypto.subtle.digest(
+    'SHA-256',
+    new TextEncoder().encode(JSON.stringify(serializedTests)),
+  );
+  return {
+    kind: 'purser-sandbox-v1',
+    executed: true,
+    passed: sandbox.passed,
+    outcomeKind,
+    attemptId: `${runId}:attempt:${providerAttempt}`,
+    testDigest: `sha256:${Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('')}`,
+  };
+}
+
+const JEST_GLOBAL_BINDINGS = new Set([
+  'afterAll',
+  'afterEach',
+  'beforeAll',
+  'beforeEach',
+  'describe',
+  'expect',
+  'it',
+  'test',
+]);
+
+/**
+ * Remove a redundant Vitest named import only when trusted discovery has
+ * already established that the file runs under Jest and every imported name
+ * is a Jest global. This is deliberately narrower than a source translator:
+ * aliases, `vi`, fixtures, and every other Vitest-only binding stay rejected
+ * by the normal bounded repair path.
+ */
+function repairRedundantVitestGlobalsImport(
+  files: StackedFile[],
+  failure: ExecutabilityResult,
+): { files: StackedFile[]; path: string; bindings: string[] } | null {
+  if (
+    failure.ok ||
+    failure.kind !== 'incompatible-runner' ||
+    failure.specifier !== 'vitest' ||
+    !failure.path
+  ) {
+    return null;
+  }
+
+  const index = files.findIndex(file => file.path === failure.path);
+  if (index < 0) return null;
+  const source = files[index].contents;
+  const importPattern = /^[ \t]*import\s*\{\s*([^}]+?)\s*\}\s*from\s*['"]vitest['"]\s*;?[ \t]*(?:\r?\n|$)/gm;
+  const matches = [...source.matchAll(importPattern)];
+  if (matches.length !== 1) return null;
+
+  const bindings = matches[0][1].split(',').map(binding => binding.trim());
+  if (
+    bindings.length === 0 ||
+    bindings.some(binding =>
+      !/^[A-Za-z_$][\w$]*$/.test(binding) || !JEST_GLOBAL_BINDINGS.has(binding)
+    )
+  ) {
+    return null;
+  }
+
+  const contents = source.replace(importPattern, '');
+  if (contents === source) return null;
+  const repaired = [...files];
+  repaired[index] = { ...files[index], contents };
+  return { files: repaired, path: failure.path, bindings };
+}
 
 /** Structural twin of execute.ts's ShipMetrics (accumulated per AI call). */
 export interface PurserMetrics {
@@ -312,17 +416,372 @@ export function parseAuthoredFiles(output: string): StackedFile[] | null {
 // ---------------------------------------------------------------------------
 // Prompts
 
-function truncatedDiff(diff: string): string {
-  if (diff.length <= PURSER_DIFF_CHAR_LIMIT) return diff;
-  return `${diff.slice(0, PURSER_DIFF_CHAR_LIMIT)}\n… (diff truncated at ${PURSER_DIFF_CHAR_LIMIT} chars)`;
+interface TextProjection {
+  text: string;
+  displayedBytes: number;
+  totalBytes: number;
+  truncated: boolean;
 }
 
-function prBlock(prCtx: PRContext): string {
+const purserUtf8Encoder = new TextEncoder();
+const purserUtf8Decoder = new TextDecoder();
+
+/**
+ * Project a text field at a UTF-8 boundary instead of a UTF-16 index.
+ *
+ * The purpose is to bound model-facing text without producing malformed
+ * surrogate pairs. Callers projecting diff/code evidence must also emit an
+ * omission marker and carry partial coverage into the durable result.
+ *
+ * @param value Unbounded metadata from the GitHub PR payload.
+ * @param maxBytes Maximum UTF-8 bytes this model-facing projection may keep.
+ * @returns The intact UTF-8 prefix and exact omission accounting.
+ */
+function projectUtf8Prefix(
+  value: string,
+  maxBytes: number,
+  encodedValue = purserUtf8Encoder.encode(value),
+): TextProjection {
+  const totalBytes = encodedValue.byteLength;
+  if (totalBytes <= maxBytes) {
+    return { text: value, displayedBytes: totalBytes, totalBytes, truncated: false };
+  }
+
+  let displayedBytes = Math.max(0, Math.min(Math.floor(maxBytes), totalBytes));
+  while (displayedBytes > 0 && (encodedValue[displayedBytes] & 0xc0) === 0x80) {
+    displayedBytes -= 1;
+  }
+  const text = purserUtf8Decoder.decode(encodedValue.subarray(0, displayedBytes));
+  return { text, displayedBytes, totalBytes, truncated: true };
+}
+
+/**
+ * Render a truthful marker whenever a metadata field has been projected.
+ *
+ * The marker is part of the model-facing prompt so it cannot mistake a bounded
+ * view for the whole author claim. It names byte counts only, never repeats
+ * omitted content into a second unbounded channel.
+ *
+ * @param label Human-readable field name for the prompt.
+ * @param projection The bounded field returned by {@link projectUtf8Prefix}.
+ * @returns A one-line omission marker, or an empty string when complete.
+ */
+function projectionMarker(label: string, projection: TextProjection): string {
+  if (!projection.truncated) return '';
   return (
-    `# PR #${prCtx.prNumber}: ${prCtx.title}\n\n` +
-    `## PR description\n${prCtx.body || '(none)'}\n\n` +
-    `## Diff\n\`\`\`diff\n${truncatedDiff(prCtx.diff)}\n\`\`\``
+    `[${label} projection: showing first ${projection.displayedBytes} of ` +
+    `${projection.totalBytes} UTF-8 bytes; the remainder is omitted from this model request.]`
   );
+}
+
+/**
+ * Render bounded prose with an explicit omission marker on its own line.
+ *
+ * @param label Human-readable field name for the model prompt.
+ * @param value Raw PR metadata text.
+ * @param maxBytes Maximum UTF-8 bytes to retain before the marker.
+ * @returns Either the complete text or a bounded, visibly-projected version.
+ */
+function projectedProse(label: string, value: string, maxBytes: number): string {
+  const projection = projectUtf8Prefix(value, maxBytes);
+  const marker = projectionMarker(label, projection);
+  return marker ? `${projection.text}\n\n${marker}` : projection.text;
+}
+
+/**
+ * Render title/path metadata inline so headings and list rows stay legible.
+ *
+ * @param label Human-readable field name for the model prompt.
+ * @param value Raw title or path text.
+ * @param maxBytes Maximum UTF-8 bytes to retain before the marker.
+ * @returns The complete inline field or its explicit bounded projection.
+ */
+function projectedInline(label: string, value: string, maxBytes: number): string {
+  const projection = projectUtf8Prefix(value, maxBytes);
+  const marker = projectionMarker(label, projection);
+  return marker ? `${projection.text} ${marker}` : projection.text;
+}
+
+/**
+ * Build a bounded changed-file inventory for repair prompts.
+ *
+ * Repair needs path context to resolve imports, but an unbounded GitHub file
+ * array can crowd out the rejected source and turn a repair into another
+ * context failure. The marker names the partial projection so the model never
+ * claims it saw every file.
+ *
+ * @param files Changed files from the reviewed PR.
+ * @returns A complete inventory when small, otherwise a bounded marked view.
+ */
+function projectedChangedFiles(files: PRContext['files']): string {
+  if (files.length === 0) return '- (none)';
+
+  const rows: string[] = [];
+  let displayedBytes = 0;
+  let omitted = 0;
+  for (let index = 0; index < files.length; index += 1) {
+    if (rows.length >= PURSER_FILE_INDEX_MAX_FILES) {
+      omitted = files.length - index;
+      break;
+    }
+    const path = projectedInline('file path', files[index].filename, PURSER_FILE_PATH_BYTE_LIMIT);
+    const row = `- ${path}`;
+    const rowBytes = utf8ByteLength(row) + (rows.length > 0 ? 1 : 0);
+    if (displayedBytes + rowBytes > PURSER_FILE_INDEX_BYTE_LIMIT) {
+      omitted = files.length - index;
+      break;
+    }
+    rows.push(row);
+    displayedBytes += rowBytes;
+  }
+
+  if (omitted === 0) return rows.join('\n');
+  return (
+    `${rows.join('\n')}\n` +
+    `[Changed-file projection: showing ${rows.length} of ${files.length} changed files ` +
+    `within ${displayedBytes} UTF-8 bytes; ${omitted} file(s) omitted from this model request.]`
+  );
+}
+
+interface PurserPrBlockProjection {
+  text: string;
+  phase: string;
+  model: string;
+  displayedBytes: number;
+  totalBytes: number;
+  omittedBytes: number;
+  complete: boolean;
+  inputBudgetTokens: number;
+  estimatedInputTokens: number;
+  requestedOutputTokens: number;
+}
+
+const PURSER_SOURCE_COVERAGE_MARKER = 'purser-source-coverage';
+
+interface PurserSourceCoverageReceipt {
+  version: 1;
+  status: 'complete' | 'partial';
+}
+
+/** Bind a reusable authored suite to whether every source-bearing request was complete. */
+function encodeSourceCoverageReceipt(
+  coverage: Pick<ShipResult, 'reviewCoverage'>,
+): string {
+  const receipt: PurserSourceCoverageReceipt = {
+    version: 1,
+    status: coverage.reviewCoverage === 'partial' ? 'partial' : 'complete',
+  };
+  return `<!-- ${PURSER_SOURCE_COVERAGE_MARKER}: ${JSON.stringify(receipt)} -->`;
+}
+
+/** Read a coverage receipt; missing/malformed evidence is never treated as complete. */
+function decodeSourceCoverageReceipt(
+  body: string | null | undefined,
+): PurserSourceCoverageReceipt | null {
+  if (!body) return null;
+  const markerStart = `<!--\\s*${PURSER_SOURCE_COVERAGE_MARKER}:`;
+  if ([...body.matchAll(new RegExp(markerStart, 'g'))].length !== 1) return null;
+  const match = new RegExp(`${markerStart}\\s*(\\{[^}]*\\})\\s*-->`).exec(body);
+  if (!match) return null;
+  try {
+    const parsed = JSON.parse(match[1]) as Record<string, unknown>;
+    if (parsed.version !== 1 || (parsed.status !== 'complete' && parsed.status !== 'partial')) {
+      return null;
+    }
+    return parsed as unknown as PurserSourceCoverageReceipt;
+  } catch {
+    return null;
+  }
+}
+
+/** Render one PR block around an already-decided diff projection. */
+function renderPrBlock(prCtx: PRContext, diff: string, diffMarker = ''): string {
+  return (
+    `# PR #${prCtx.prNumber}: ${projectedInline('PR title', prCtx.title, PURSER_TITLE_BYTE_LIMIT)}\n\n` +
+    `## PR description\n${projectedProse('PR description', prCtx.body || '(none)', PURSER_BODY_BYTE_LIMIT)}\n\n` +
+    `## Diff\n\`\`\`diff\n${diff}${diffMarker ? `\n${diffMarker}` : ''}\n\`\`\``
+  );
+}
+
+/**
+ * Explain a bounded diff inside the model-facing request itself.
+ *
+ * Byte counts are exact and the reason names the complete request budget, so
+ * a model can never mistake a source prefix for the whole reviewed patch.
+ */
+function diffProjectionMarker(
+  phase: string,
+  projection: TextProjection,
+  inputBudgetTokens: number,
+  requestedOutputTokens: number,
+): string {
+  if (!projection.truncated) return '';
+  const omittedBytes = projection.totalBytes - projection.displayedBytes;
+  return (
+    `[Diff projection for ${phase}: showing first ${projection.displayedBytes} of ` +
+    `${projection.totalBytes} UTF-8 bytes; ${omittedBytes} byte(s) omitted from this ` +
+    `model request while budgeting the complete request against its ${inputBudgetTokens}-token ` +
+    `input limit after reserving ${requestedOutputTokens} output tokens and protocol framing.]`
+  );
+}
+
+/**
+ * Build a deterministic bounded source projection for the exact request. Full
+ * source wins whenever it fits. Otherwise a capped UTF-8-safe correction loop
+ * accounts for system/graft bytes, title/body projection, both message
+ * envelopes, requested output, and the protocol reserve through the same
+ * fail-closed admission function used immediately before provider dispatch.
+ * The selected prefix is admitted and repeatable; it is not claimed to consume
+ * every last byte of capacity.
+ *
+ * If even the marker-only request cannot fit (for example, an indivisible
+ * system contract is too large), this returns that minimal request and leaves
+ * the final {@link requireContextAdmission} call to reject it. No provider call
+ * can occur on that path.
+ */
+function prBlock(
+  prCtx: PRContext,
+  options: {
+    phase: string;
+    model: string;
+    system: string;
+    maxTokens: number;
+  },
+): PurserPrBlockProjection {
+  const inspect = (text: string) => {
+    try {
+      return requireContextAdmission(
+        options.model,
+        [
+          { role: 'system', content: options.system },
+          { role: 'user', content: text },
+        ],
+        options.maxTokens,
+      );
+    } catch (error) {
+      if (error instanceof ContextAdmissionError) return error.admission;
+      throw error;
+    }
+  };
+
+  const encodedDiff = purserUtf8Encoder.encode(prCtx.diff);
+  const totalBytes = encodedDiff.byteLength;
+  const fullText = renderPrBlock(prCtx, prCtx.diff);
+  const fullAdmission = inspect(fullText);
+  if (fullAdmission.accepted) {
+    return {
+      text: fullText,
+      phase: options.phase,
+      model: options.model,
+      displayedBytes: totalBytes,
+      totalBytes,
+      omittedBytes: 0,
+      complete: true,
+      inputBudgetTokens: fullAdmission.inputBudgetTokens,
+      estimatedInputTokens: fullAdmission.estimatedInputTokens,
+      requestedOutputTokens: options.maxTokens,
+    };
+  }
+
+  const candidate = (maxBytes: number) => {
+    const diff = projectUtf8Prefix(prCtx.diff, maxBytes, encodedDiff);
+    const marker = diffProjectionMarker(
+      options.phase,
+      diff,
+      fullAdmission.inputBudgetTokens,
+      options.maxTokens,
+    );
+    const text = renderPrBlock(prCtx, diff.text, marker);
+    return { diff, text, admission: inspect(text) };
+  };
+
+  const emptyAdmission = inspect(renderPrBlock(prCtx, ''));
+  let maxBytes = Math.max(
+    0,
+    Math.min(
+      Math.max(0, totalBytes - 1),
+      fullAdmission.inputBudgetTokens - emptyAdmission.estimatedInputTokens,
+    ),
+  );
+  let best: ReturnType<typeof candidate> | null = null;
+  const tried = new Set<number>();
+  // The first guess reserves the fixed request bytes. One correction accounts
+  // for the omission marker; another may consume a few bytes released when its
+  // decimal counts shrink. Keep a hard cap so pathological model metadata can
+  // never turn projection into an unbounded pre-dispatch loop.
+  for (let attempt = 0; attempt < 8 && !tried.has(maxBytes); attempt += 1) {
+    tried.add(maxBytes);
+    const current = candidate(maxBytes);
+    if (current.admission.accepted) {
+      if (!best || current.diff.displayedBytes > best.diff.displayedBytes) best = current;
+      if (current.admission.remainingInputTokens === 0) break;
+      maxBytes = Math.min(
+        Math.max(0, totalBytes - 1),
+        maxBytes + Math.max(1, current.admission.remainingInputTokens),
+      );
+    } else {
+      const overage = Math.max(
+        1,
+        current.admission.estimatedInputTokens - current.admission.inputBudgetTokens,
+      );
+      maxBytes = Math.max(0, maxBytes - overage);
+    }
+  }
+
+  // Unknown model capacity or an indivisible system overflow can make even a
+  // zero-byte diff inadmissible. Preserve a truthful minimal prompt and let the
+  // unchanged final admission boundary fail visibly before env.AI.run.
+  const selected = best ?? candidate(0);
+  return {
+    text: selected.text,
+    phase: options.phase,
+    model: options.model,
+    displayedBytes: selected.diff.displayedBytes,
+    totalBytes: selected.diff.totalBytes,
+    omittedBytes: selected.diff.totalBytes - selected.diff.displayedBytes,
+    complete: !selected.diff.truncated,
+    inputBudgetTokens: selected.admission.inputBudgetTokens,
+    estimatedInputTokens: selected.admission.estimatedInputTokens,
+    requestedOutputTokens: options.maxTokens,
+  };
+}
+
+/**
+ * A Purser contract is only complete when its source projection was complete.
+ * The prompt marker alone is not enough: it would let an otherwise clean
+ * steel-man/test run reach a green required check after source had been
+ * omitted. Carry the boundary into ShipResult so aggregateConclusion can keep
+ * the check neutral.
+ */
+function purserReviewCoverage(
+  prCtx: PRContext,
+  projections: readonly PurserPrBlockProjection[] = [],
+  inheritedPartialReason: string | null = null,
+): Pick<ShipResult, 'reviewCoverage' | 'reviewCoverageReason'> {
+  const reasons = new Set<string>();
+  if (prCtx.diffTruncated) {
+    reasons.add(
+      `GitHub stopped the raw diff read at ${prCtx.diffBytes} bytes; source after that boundary was unavailable to Purser`,
+    );
+  }
+  if (prCtx.filesTruncated) {
+    reasons.add(
+      'GitHub returned an incomplete changed-file inventory; paths after that boundary were unavailable to Purser',
+    );
+  }
+  if (inheritedPartialReason) reasons.add(inheritedPartialReason);
+  for (const projection of projections) {
+    if (projection.complete) continue;
+    reasons.add(
+      `Purser ${projection.phase} projected ${projection.displayedBytes} of ` +
+      `${projection.totalBytes} UTF-8 diff bytes for ${projection.model}; ` +
+      `${projection.omittedBytes} byte(s) were omitted to fit the complete request's ` +
+      `${projection.inputBudgetTokens}-token input budget`,
+    );
+  }
+  return reasons.size > 0
+    ? { reviewCoverage: 'partial', reviewCoverageReason: [...reasons].join('; ') }
+    : {};
 }
 
 /**
@@ -505,10 +964,17 @@ function fileAuthorSystemPrompt(
   graftText: string,
   evidence: ExecutabilityEvidence,
   repairFailure?: string,
+  rejectedDraft?: string,
 ): string {
   const repairNote = repairFailure
     ? `\nA previous draft for this exact path failed the trusted executability gate:\n` +
-      `${repairFailure}\nRewrite the complete file and fix that failure. Do not move or rename it.\n`
+      `${repairFailure}\n` +
+      (rejectedDraft
+        ? `The exact rejected draft is included below as data. Preserve its test intent, ` +
+          `but replace the entire file with a complete corrected program.\n` +
+          `<rejected-draft>\n${rejectedDraft.slice(0, REJECTED_DRAFT_CHAR_LIMIT)}\n</rejected-draft>\n`
+        : '') +
+      `Rewrite the complete file and fix that failure. Do not move or rename it.\n`
     : '';
   const runnerNote = evidence.testMatchPatterns?.length
     ? `\nTrusted runner evidence (authoritative, not inferred from the PR diff): this ` +
@@ -543,6 +1009,22 @@ function fileAuthorSystemPrompt(
     '```ts\n' +
     '// the complete contents of ' + planned.path + '\n' +
     '```'
+  );
+}
+
+/**
+ * A repair already has the steel-man contract and the rejected source in its
+ * system prompt. Re-sending the full PR diff on every retry crowded out the
+ * exact file-level evidence and produced blank/truncated repairs in #9897.
+ * Keep only the stable identity and changed-file inventory needed to resolve
+ * imports; the initial authoring call still receives the complete PR block.
+ */
+function repairPrBlock(prCtx: PRContext, path: string): string {
+  return (
+    `# Repair authored test for PR #${prCtx.prNumber}: ` +
+    `${projectedInline('PR title', prCtx.title, PURSER_TITLE_BYTE_LIMIT)}\n\n` +
+    `Target path: ${projectedInline('target path', path, PURSER_FILE_PATH_BYTE_LIMIT)}\n` +
+    `Changed repository files:\n${projectedChangedFiles(prCtx.files)}\n`
   );
 }
 
@@ -594,6 +1076,7 @@ async function purserAiCall(
   /** Which pipeline stage this call serves, for the transcript's phase chip. */
   phase: TranscriptPhase = 'purser',
 ): Promise<{ text: string; res: unknown }> {
+  const model = stepModel ?? ship.cfModel;
   const request = {
     messages: [
       { role: 'system', content: system },
@@ -603,7 +1086,11 @@ async function purserAiCall(
     ...(ship.temperature === null ? {} : { temperature: ship.temperature }),
   };
   await assertCurrentHead(`before pd-${ship.name} Purser model call`);
-  const model = stepModel ?? ship.cfModel;
+  // This is intentionally the final synchronous operation before the capture
+  // wrapper/provider boundary. Every Purser step (steel-man, plan, author, and
+  // contract repair) flows through this helper, so no caller can accidentally
+  // budget only its user text and then append an over-window system prompt.
+  requireContextAdmission(model, request.messages, maxTokens);
   const res = await runCaptured(capture, { phase, model }, request, () =>
     aiCircuit.runForShip(ship.name, () =>
       env.AI.run(
@@ -617,6 +1104,32 @@ async function purserAiCall(
   const { text } = extractAiText(res);
   accumulate(metrics, res, text);
   return { text, res };
+}
+
+/**
+ * Preserve an admission failure across {@link authorTestFiles}' intentional
+ * per-file error collection.
+ *
+ * Authoring normally continues after one malformed model response so healthy
+ * sibling tests survive. A context admission failure is different: it is a
+ * local, permanent refusal before provider dispatch, and must escape as the
+ * run's visible broken-ship cause while preventing later sibling dispatches.
+ *
+ * @param state Mutable capture shared by one bounded authoring batch.
+ * @param call The one-file model call to perform when no admission failed.
+ * @returns The model response when admission succeeds.
+ */
+async function contextAdmissionAwareAuthorCall(
+  state: { error: ContextAdmissionError | null },
+  call: () => Promise<string>,
+): Promise<string> {
+  if (state.error) throw state.error;
+  try {
+    return await call();
+  } catch (error) {
+    if (error instanceof ContextAdmissionError) state.error = error;
+    throw error;
+  }
 }
 
 /** Cheap runner evidence used before authoring; deliberately omits the tree. */
@@ -670,39 +1183,6 @@ async function gatherExecutabilityEvidence(
 
 function renderObligations(steel: SteelManContract): string {
   return steel.obligations.map((o, i) => `${i + 1}. ${o}`).join('\n');
-}
-
-/**
- * HTML markers bounding the purser's contract section in the reviewed PR's
- * body. Exported so tests (and any future renderer) locate the section by the
- * same strings the writer uses — the two can never drift apart.
- */
-export const PURSER_CONTRACT_START = '<!-- pd-purser:contract:start -->';
-export const PURSER_CONTRACT_END = '<!-- pd-purser:contract:end -->';
-
-/**
- * Render the steel-manned contract as the PR-summary section the purser
- * maintains between {@link PURSER_CONTRACT_START} and
- * {@link PURSER_CONTRACT_END}.
- *
- * WHY THE PR BODY AND NOT ONLY A COMMENT (operator mandate, 2026-08-19): the
- * PR summary is the durable chronology of what a PR should be — it is what a
- * future reader, a bisect, or a release note reads first. The steel-man
- * argument and its obligations ARE that chronology, so an agent maintains
- * them there, edit-in-place, on every fresh steel-man.
- *
- * @param steel The parsed steel-man contract (purpose + obligations).
- * @returns Markdown for the section body (markers are added by the caller).
- */
-export function buildContractBodySection(steel: SteelManContract): string {
-  return [
-    '---',
-    '## Contract (steel-manned by pd-purser)',
-    `**Purpose:** ${steel.purpose}`,
-    `**Obligations — the interpretation this PR is held to:**\n${renderObligations(steel)}`,
-    '_Maintained by pd-purser, edit-in-place on each fresh steel-man. Dispute an ' +
-      'obligation on the purser’s review thread, with reasons — do not delete this section._',
-  ].join('\n\n');
 }
 
 function renderSandboxSection(sandbox: SandboxRunOutcome): string {
@@ -776,6 +1256,17 @@ function sandboxFailureIsAssertion(sandbox: SandboxRunOutcome): boolean {
   // sandbox runs always set the field and only structured Jest failed-test
   // counts enter the assertion path.
   return sandbox.outcomeKind === undefined || sandbox.outcomeKind === 'assertion-failure';
+}
+
+/**
+ * Only the explicit no-binding deployment state is optional. Once a binding
+ * exists, every failure to reach the test runner is broken Purser machinery.
+ * Keeping this distinction exact prevents an npm/setup/transport failure from
+ * hiding behind the older advisory no-sandbox policy.
+ */
+function sandboxNonExecutionIsBroken(sandbox: SandboxRunOutcome): boolean {
+  return !sandbox.executed &&
+    !sandbox.reason?.startsWith('SANDBOX binding absent');
 }
 
 function renderTestList(files: StackedFile[]): string {
@@ -897,8 +1388,10 @@ async function rerunExistingTests(
   testPr: { number: number; url: string },
   reason: string,
   runId: string,
+  providerAttempt: number,
   verifiedExecutability?: ExecutabilityResult,
   assertCurrentHead: PullRequestHeadGuard = async () => {},
+  reviewCoverage: Pick<ShipResult, 'reviewCoverage' | 'reviewCoverageReason'> = {},
 ): Promise<ShipResult> {
   const executability = verifiedExecutability ?? checkGeneratedTestsExecutable(
     files,
@@ -925,8 +1418,9 @@ async function rerunExistingTests(
       `**Re-run stopped — the existing Purser tests are not executable by this repository's trusted runner.**\n\n` +
         `The tests in #${testPr.number} (${testPr.url}) were not run and are not evidence that this PR violates its contract. ` +
         `Purser machinery failed closed before the sandbox: ${executability.reason}\n\n` +
-        `Repair or close the test PR, then re-run Fleet. The implementation PR must not be blamed for a contract file the runner cannot load.`,
+      `Repair or close the test PR, then re-run Fleet. The implementation PR must not be blamed for a contract file the runner cannot load.`,
       token,
+      env.GITHUB_APP_ID,
       assertCurrentHead,
     );
     return {
@@ -964,6 +1458,7 @@ async function rerunExistingTests(
       executed: sandbox.executed,
       passed: sandbox.passed,
       failures: sandbox.failures,
+      ...(sandbox.outcomeKind ? { outcomeKind: sandbox.outcomeKind } : {}),
       ...(sandbox.reason ? { reason: sandbox.reason } : {}),
     },
   );
@@ -991,16 +1486,39 @@ async function rerunExistingTests(
     ship.role,
     body,
     token,
+    env.GITHUB_APP_ID,
     assertCurrentHead,
   );
 
-  let verdict: Verdict;
-  if (sandbox.executed) {
-    verdict = sandbox.passed ? 'PASS' : 'BLOCK';
-  } else {
-    verdict = ship.blockWithoutSandbox ? 'BLOCK' : 'PASS';
+  if (sandboxNonExecutionIsBroken(sandbox)) {
+    return {
+      ship: ship.name,
+      blocking: ship.blocking,
+      verdict: 'BLOCK',
+      errored: true,
+      failureReason: sandbox.reason ?? 'sandbox did not execute the test runner',
+      findings: [],
+      ...reviewCoverage,
+    };
   }
-  return { ship: ship.name, blocking: ship.blocking, verdict, errored: false, findings: [] };
+  const verdict: Verdict = sandbox.executed && sandbox.passed ? 'PASS' : 'BLOCK';
+  const blocking = sandbox.executed || ship.blockWithoutSandbox
+    ? ship.blocking
+    : false;
+  return {
+    ship: ship.name,
+    blocking,
+    verdict,
+    errored: false,
+    findings: [],
+    ...reviewCoverage,
+    checkpointExecutionReceipt: await currentPurserSandboxReceipt(
+      runId,
+      providerAttempt,
+      files,
+      sandbox,
+    ),
+  };
 }
 
 /**
@@ -1053,41 +1571,104 @@ export async function runPurser(
   // and write another.
   const branchName = `purser/pr-${prCtx.prNumber}-tests`;
   const fingerprint = fingerprintDiff(prCtx.diff ?? '');
+  const sourceProjections: PurserPrBlockProjection[] = [];
+  const currentReviewCoverage = () => purserReviewCoverage(prCtx, sourceProjections);
+  const recordSourceProjection = async (projection: PurserPrBlockProjection) => {
+    sourceProjections.push(projection);
+    if (projection.complete) return;
+    await transcript.step(
+      'purser-context-partial',
+      ship.name,
+      `pd-${ship.name}: ${projection.phase} source projection is partial — required check cannot report a complete review`,
+      {
+        phase: projection.phase,
+        model: projection.model,
+        displayedBytes: projection.displayedBytes,
+        totalBytes: projection.totalBytes,
+        omittedBytes: projection.omittedBytes,
+        inputBudgetTokens: projection.inputBudgetTokens,
+        estimatedInputTokens: projection.estimatedInputTokens,
+        requestedOutputTokens: projection.requestedOutputTokens,
+      },
+    );
+  };
 
   try {
+    const upstreamCoverage = currentReviewCoverage();
+    if (upstreamCoverage.reviewCoverage) {
+      await transcript.step(
+        'purser-context-partial',
+        ship.name,
+        `pd-${ship.name}: source projection is partial — required check cannot report a complete review`,
+        { reason: upstreamCoverage.reviewCoverageReason },
+      );
+    }
+    const steelSystem = steelManSystemPrompt(ship, graftText);
+    const steelModel = ship.cfPlanModel ?? ship.cfModel;
+    const steelProjection = prBlock(prCtx, {
+      phase: 'STEEL-MAN',
+      model: steelModel,
+      system: steelSystem,
+      maxTokens: STEELMAN_MAX_TOKENS,
+    });
     // --- 0. RE-RUN PROBE ----------------------------------------------------
     // Before spending a single token, ask whether this PR already HAS a
     // contract. Tests are authored once and then re-executed; see
     // src/purser-rerun.ts for why re-authoring on every push is actively
     // harmful rather than merely wasteful.
-    let reused: { files: StackedFile[]; testPr: { number: number; url: string } } | null = null;
+    let reused: {
+      files: StackedFile[];
+      testPr: { number: number; url: string };
+      sourceCoverage: PurserSourceCoverageReceipt | null;
+    } | null = null;
     let rerunNote: string | null = null;
-    try {
-      const existingPr = await findOpenPrForBranch(prCtx.owner, prCtx.repo, branchName, token);
-      if (existingPr) {
-        const prior = decodeFingerprint(existingPr.body);
-        // Read ONLY the paths recorded at author time. The branch tree is the
-        // whole repository (base_tree), so there is nothing to discover here —
-        // see readBranchFiles. No recorded paths ⇒ no read at all ⇒ author.
-        const priorFiles = prior?.tests.length
-          ? await readBranchFiles(prCtx.owner, prCtx.repo, branchName, prior.tests, token)
-          : null;
-        const decision = decideRerun(
-          prior,
-          fingerprint,
-          Boolean(priorFiles && priorFiles.length),
-        );
-        if (decision.action === 'reuse' && priorFiles) {
-          reused = { files: priorFiles, testPr: { number: existingPr.number, url: existingPr.url } };
-          rerunNote = decision.reason;
-        } else {
-          rerunNote = `re-authoring: ${decision.reason}`;
+    if (prCtx.diffTruncated) {
+      // A prefix hash cannot prove the omitted tail is unchanged. Reusing a
+      // prior test suite here would turn an incomplete GitHub response into a
+      // false exact-match proof, so author fresh (still marked partial above).
+      rerunNote = 're-authoring: GitHub truncated the diff, so the prior full-diff fingerprint is not trustworthy';
+    } else {
+      try {
+        const existingPr = await findOpenPrForBranch(prCtx.owner, prCtx.repo, branchName, token);
+        if (existingPr) {
+          const prior = decodeFingerprint(existingPr.body);
+          const priorCoverage = decodeSourceCoverageReceipt(existingPr.body);
+          const missingCoverageReceipt = prior !== null && priorCoverage === null;
+          const partialSourceCanNowBeComplete =
+            priorCoverage?.status === 'partial' && steelProjection.complete;
+          if (missingCoverageReceipt || partialSourceCanNowBeComplete) {
+            rerunNote = missingCoverageReceipt
+              ? 're-authoring: the existing contract has no valid v1 source-coverage receipt'
+              : 're-authoring: the existing contract records partial source, while the current exact STEEL-MAN request admits the complete diff';
+          } else {
+            // Read ONLY the paths recorded at author time. The branch tree is
+            // the whole repository (base_tree), so there is nothing to discover here —
+            // see readBranchFiles. No recorded paths ⇒ no read at all ⇒ author.
+            const priorFiles = prior?.tests.length
+              ? await readBranchFiles(prCtx.owner, prCtx.repo, branchName, prior.tests, token)
+              : null;
+            const decision = decideRerun(
+              prior,
+              fingerprint,
+              Boolean(priorFiles && priorFiles.length),
+            );
+            if (decision.action === 'reuse' && priorFiles) {
+              reused = {
+                files: priorFiles,
+                testPr: { number: existingPr.number, url: existingPr.url },
+                sourceCoverage: priorCoverage,
+              };
+              rerunNote = decision.reason;
+            } else {
+              rerunNote = `re-authoring: ${decision.reason}`;
+            }
+          }
         }
+      } catch (err) {
+        // A probe failure must never cost the run — fall through to authoring,
+        // which is the pre-existing behaviour.
+        rerunNote = `re-run probe failed (${String(err).slice(0, 120)}); authoring fresh`;
       }
-    } catch (err) {
-      // A probe failure must never cost the run — fall through to authoring,
-      // which is the pre-existing behaviour.
-      rerunNote = `re-run probe failed (${String(err).slice(0, 120)}); authoring fresh`;
     }
 
     let verifiedReuse: ExecutabilityResult | undefined;
@@ -1123,6 +1704,18 @@ export async function runPurser(
     }
 
     if (reused) {
+      const inheritedPartialReason =
+        reused.sourceCoverage?.status === 'partial'
+          ? 'The reused Purser contract records partial source coverage; no new model review ran'
+          : null;
+      if (inheritedPartialReason) {
+        await transcript.step(
+          'purser-context-partial',
+          ship.name,
+          `pd-${ship.name}: reused contract source coverage is partial — required check cannot report a complete review`,
+          { reason: inheritedPartialReason, source: 'reused-contract-receipt' },
+        );
+      }
       await transcript.step(
         'purser-rerun',
         ship.name,
@@ -1144,8 +1737,14 @@ export async function runPurser(
         reused.testPr,
         rerunNote ?? '',
         runId,
+        providerAttempt,
         verifiedReuse,
         assertCurrentHead,
+        purserReviewCoverage(
+          prCtx,
+          [],
+          inheritedPartialReason,
+        ),
       );
     }
 
@@ -1184,7 +1783,8 @@ export async function runPurser(
         validate,
         abortOnError: error =>
           error instanceof PullRequestHeadValidationError ||
-          error instanceof FleetAiDependencyError,
+          error instanceof FleetAiDependencyError ||
+          error instanceof ContextAdmissionError,
       });
       await transcript.step(
         'ship-repair',
@@ -1198,15 +1798,18 @@ export async function runPurser(
     };
 
     // --- a. STEEL-MAN -------------------------------------------------------
+    // The projection above was hypothetical while probing reuse. It becomes
+    // run evidence only now that fresh authoring has actually been selected.
+    await recordSourceProjection(steelProjection);
     const steelCall = await purserAiCall(
       ship,
       env,
-      steelManSystemPrompt(ship, graftText),
-      prBlock(prCtx),
+      steelSystem,
+      steelProjection.text,
       STEELMAN_MAX_TOKENS,
       metrics,
       aiCircuit,
-      undefined,
+      ship.cfPlanModel,
       assertCurrentHead,
       capture,
       'steelman',
@@ -1242,49 +1845,30 @@ export async function runPurser(
         purpose: steel.purpose,
         obligationCount: steel.obligations.length,
         // The full obligations text, not just its count — this is the actual
-        // contract the PR is held to (posted verbatim into the PR body by
-        // upsertPrBodySection below); the run page renders it so the operator
-        // never has to open the PR to read what "steel-manned" concluded.
+        // contract the PR is held to. The run page and Purser's bot-owned
+        // review comment render it without mutating the human-owned PR body.
         obligations: steel.obligations,
         testTargets: steel.testTargets,
       },
     );
 
-    // --- a.5 THE CONTRACT GOES INTO THE PR SUMMARY --------------------------
-    // Operator mandate (2026-08-19): the steel-man argument and its obligations
-    // are the best chronology of what a PR should be, and that chronology
-    // belongs in the PR's own body — the summary every reader and every gate
-    // reads first — not only in a comment that scrolls away. Edit-in-place
-    // between HTML markers; the author's own prose is never touched. The
-    // outcome is recorded either way so a missed write is loud, not silent.
-    await assertCurrentHead(`before pd-${ship.name} PR contract summary mutation`);
-    const summaryPosted = await upsertPrBodySection(
-      prCtx.owner,
-      prCtx.repo,
-      prCtx.prNumber,
-      PURSER_CONTRACT_START,
-      PURSER_CONTRACT_END,
-      buildContractBodySection(steel),
-      token,
-      assertCurrentHead,
-    );
-    await transcript.step(
-      'purser-contract-posted',
-      ship.name,
-      summaryPosted
-        ? `pd-${ship.name}: steel-man contract (${steel.obligations.length} obligation(s)) written into the PR summary`
-        : `pd-${ship.name}: FAILED to write the steel-man contract into the PR summary`,
-      { posted: summaryPosted, obligationCount: steel.obligations.length },
-    );
-
     // --- b. PLAN TESTS ------------------------------------------------------
     // One small-JSON call names the files; the contents come one call each,
     // below. See purser-authoring.ts for why this is split.
+    const planSystem = testPlanSystemPrompt(ship, steel, graftText);
+    const planModel = ship.cfPlanModel ?? ship.cfModel;
+    const planProjection = prBlock(prCtx, {
+      phase: 'PLAN',
+      model: planModel,
+      system: planSystem,
+      maxTokens: PLAN_MAX_TOKENS,
+    });
+    await recordSourceProjection(planProjection);
     const planCall = await purserAiCall(
       ship,
       env,
-      testPlanSystemPrompt(ship, steel, graftText),
-      prBlock(prCtx),
+      planSystem,
+      planProjection.text,
       PLAN_MAX_TOKENS,
       metrics,
       aiCircuit,
@@ -1395,24 +1979,139 @@ export async function runPurser(
       // it forward so authoring sees the actual Jest contract even when a
       // release/version diff contains no test-runner clues of its own.
       authoringEvidence = evidence ?? await gatherTrustedRunnerEvidence(prCtx, token);
-      const authored = await authorTestFiles(plan, async (path, intent) => {
-        const call = await purserAiCall(
-          ship,
-          env,
-          fileAuthorSystemPrompt(ship, steel, { path, intent }, graftText, authoringEvidence!),
-          prBlock(prCtx),
-          TESTS_MAX_TOKENS,
-          metrics,
-          aiCircuit,
-          ship.cfAuthorModel,
-          assertCurrentHead,
-          capture,
-          'author',
-        );
-        return call.text;
-      });
+      const authorAdmission = { error: null as ContextAdmissionError | null };
+      const authored = await authorTestFiles(plan, (path, intent) =>
+        contextAdmissionAwareAuthorCall(authorAdmission, async () => {
+          const authorSystem = fileAuthorSystemPrompt(
+            ship,
+            steel,
+            { path, intent },
+            graftText,
+            authoringEvidence!,
+          );
+          const authorModel = ship.cfAuthorModel ?? ship.cfModel;
+          const authorProjection = prBlock(prCtx, {
+            phase: 'AUTHOR',
+            model: authorModel,
+            system: authorSystem,
+            maxTokens: TESTS_MAX_TOKENS,
+          });
+          await recordSourceProjection(authorProjection);
+          const call = await purserAiCall(
+            ship,
+            env,
+            authorSystem,
+            authorProjection.text,
+            TESTS_MAX_TOKENS,
+            metrics,
+            aiCircuit,
+            ship.cfAuthorModel,
+            assertCurrentHead,
+            capture,
+            'author',
+          );
+          return call.text;
+        }),
+      );
+      if (authorAdmission.error) throw authorAdmission.error;
       files = authored.files;
       authorFailures = authored.failures;
+    }
+
+    // Initial authoring and later executability repair share ONE absolute
+    // rewrite budget. A blank/refusal response used to be terminal before the
+    // escalation tier was ever tried, even though malformed source authored a
+    // few lines later was allowed the full bounded repair path. That asymmetry
+    // caused #9892 generation 13 to fail after its sole planned file returned
+    // no usable content.
+    //
+    // Give each failed planned file the same escalation opportunity, but debit
+    // it from the existing MAX_AUTHORED_REPAIR_CALLS / per-file caps. No retry
+    // or deadline constant grows, and a sole file that still authors nothing
+    // remains a hard failure.
+    const authoredRepairAttempts = new Map<string, number>();
+    let authoredRepairCalls = 0;
+    for (const initialFailure of [...authorFailures]) {
+      const planned = plan.find(item => item.path === initialFailure.path);
+      if (!planned) continue;
+      while (
+        authoredRepairCalls < MAX_AUTHORED_REPAIR_CALLS &&
+        (authoredRepairAttempts.get(planned.path) ?? 0) <
+          MAX_AUTHORED_REPAIR_ATTEMPTS_PER_FILE
+      ) {
+        const repairAttempt = (authoredRepairAttempts.get(planned.path) ?? 0) + 1;
+        authoredRepairAttempts.set(planned.path, repairAttempt);
+        authoredRepairCalls += 1;
+        const rescueAdmission = { error: null as ContextAdmissionError | null };
+        const rescued = await authorTestFiles(
+          [planned],
+          (path, intent) =>
+            contextAdmissionAwareAuthorCall(rescueAdmission, async () => {
+              const rescueSystem = fileAuthorSystemPrompt(
+                ship,
+                steel,
+                { path, intent },
+                graftText,
+                authoringEvidence ?? evidence!,
+                initialFailure.reason,
+              );
+              const rescueProjection = prBlock(prCtx, {
+                phase: 'AUTHOR-REPAIR',
+                model: REPAIR_ESCALATION_MODEL,
+                system: rescueSystem,
+                maxTokens: TESTS_MAX_TOKENS,
+              });
+              await recordSourceProjection(rescueProjection);
+              const call = await purserAiCall(
+                ship,
+                env,
+                rescueSystem,
+                rescueProjection.text,
+                TESTS_MAX_TOKENS,
+                metrics,
+                aiCircuit,
+                REPAIR_ESCALATION_MODEL,
+                assertCurrentHead,
+                capture,
+                'author',
+              );
+              return call.text;
+            }),
+        );
+        if (rescueAdmission.error) throw rescueAdmission.error;
+        if (rescued.files.length === 1) {
+          files.push(rescued.files[0]);
+          authorFailures = authorFailures.filter(failure => failure.path !== planned.path);
+          await transcript.step(
+            'purser-author-repair',
+            ship.name,
+            `pd-${ship.name}: empty authored file HEALED ${planned.path}`,
+            {
+              path: planned.path,
+              strategy: 'bounded-empty-author-escalation',
+              attempts: repairAttempt,
+              repairNumber: authoredRepairCalls,
+            },
+          );
+          break;
+        }
+        const reason = rescued.failures[0]?.reason ?? 'repair emitted no usable file';
+        authorFailures = authorFailures.map(failure =>
+          failure.path === planned.path ? { path: planned.path, reason } : failure,
+        );
+        await transcript.step(
+          'purser-author-repair',
+          ship.name,
+          `pd-${ship.name}: empty authored file repair FAILED ${planned.path}`,
+          {
+            path: planned.path,
+            strategy: 'bounded-empty-author-escalation',
+            result: reason,
+            attempts: repairAttempt,
+            repairNumber: authoredRepairCalls,
+          },
+        );
+      }
     }
 
     if (files.length === 0) {
@@ -1515,6 +2214,7 @@ export async function runPurser(
       toSpecifier: string;
       matchedTreePath: string;
     }> = [];
+    let droppedExhaustedSibling = false;
     while (
       !executability.ok &&
       executability.kind === 'unresolved-import' &&
@@ -1524,6 +2224,7 @@ export async function runPurser(
         files,
         executability,
         evidence.repoTreePaths,
+        new Set(prCtx.files.map(file => file.filename)),
       );
       if (!repair) break;
       const candidateSafety = validateStackedFiles(repair.files);
@@ -1554,65 +2255,213 @@ export async function runPurser(
         },
       );
     }
-    const authoredRepairPaths = new Set<string>();
+    let runnerImportRepairs = 0;
+    while (
+      !executability.ok &&
+      executability.kind === 'incompatible-runner' &&
+      runnerImportRepairs < MAX_PLANNED_FILES
+    ) {
+      const repair = repairRedundantVitestGlobalsImport(files, executability);
+      if (!repair) break;
+      const candidateSafety = validateStackedFiles(repair.files);
+      if (!candidateSafety.ok) break;
+      files = repair.files;
+      runnerImportRepairs += 1;
+      executability = checkGeneratedTestsExecutable(files, evidence);
+      await transcript.step(
+        'purser-author-repair',
+        ship.name,
+        executability.ok
+          ? `pd-${ship.name}: authored-file repair HEALED ${repair.path}`
+          : `pd-${ship.name}: authored-file deterministic repair PARTIAL`,
+        {
+          strategy: 'trusted-jest-global-import-removal',
+          attempts: 0,
+          path: repair.path,
+          removedBindings: repair.bindings,
+          result: executability.ok
+            ? 'trusted executability gate passed after deterministic rewrite'
+            : executability.reason,
+        },
+      );
+    }
     while (
       !executability.ok &&
       (executability.kind === 'syntax-error' ||
         executability.kind === 'unresolved-import' ||
-        executability.kind === 'incompatible-runner') &&
-      executability.path &&
-      authoredRepairPaths.size < MAX_PLANNED_FILES &&
-      !authoredRepairPaths.has(executability.path)
+        executability.kind === 'incompatible-runner' ||
+        executability.kind === 'missing-test-registration') &&
+      executability.path
     ) {
+      // A prior exhausted sibling may have hidden a later failure that is
+      // already repairable from trusted local evidence. Re-run the zero-model
+      // healers before consulting the shared AI-repair budget. Otherwise an
+      // exhausted global budget makes us drop a provably repairable survivor
+      // without ever trying the same deterministic gates used above.
+      if (executability.kind === 'unresolved-import') {
+        const deterministicRepair = repairMisrootedRelativeImport(
+          files,
+          executability,
+          evidence.repoTreePaths,
+          new Set(prCtx.files.map(file => file.filename)),
+        );
+        if (deterministicRepair) {
+          const deterministicSafety = validateStackedFiles(deterministicRepair.files);
+          if (deterministicSafety.ok) {
+            files = deterministicRepair.files;
+            deterministicRepairs.push({
+              path: deterministicRepair.path,
+              fromSpecifier: deterministicRepair.fromSpecifier,
+              toSpecifier: deterministicRepair.toSpecifier,
+              matchedTreePath: deterministicRepair.matchedTreePath,
+            });
+            executability = checkGeneratedTestsExecutable(files, evidence);
+            await transcript.step(
+              'purser-author-repair',
+              ship.name,
+              executability.ok
+                ? `pd-${ship.name}: authored-file repair HEALED ${deterministicRepair.path}`
+                : `pd-${ship.name}: authored-file deterministic repair PARTIAL`,
+              {
+                strategy: 'trusted-tree-relative-import-after-sibling-drop',
+                attempts: 0,
+                path: deterministicRepair.path,
+                fromSpecifier: deterministicRepair.fromSpecifier,
+                toSpecifier: deterministicRepair.toSpecifier,
+                matchedTreePath: deterministicRepair.matchedTreePath,
+                result: executability.ok
+                  ? 'trusted executability gate passed after deterministic rewrite'
+                  : executability.reason,
+              },
+            );
+            continue;
+          }
+        }
+      }
+      if (executability.kind === 'incompatible-runner') {
+        const deterministicRepair = repairRedundantVitestGlobalsImport(files, executability);
+        if (deterministicRepair) {
+          const deterministicSafety = validateStackedFiles(deterministicRepair.files);
+          if (deterministicSafety.ok) {
+            files = deterministicRepair.files;
+            executability = checkGeneratedTestsExecutable(files, evidence);
+            await transcript.step(
+              'purser-author-repair',
+              ship.name,
+              executability.ok
+                ? `pd-${ship.name}: authored-file repair HEALED ${deterministicRepair.path}`
+                : `pd-${ship.name}: authored-file deterministic repair PARTIAL`,
+              {
+                strategy: 'trusted-jest-global-import-removal-after-sibling-drop',
+                attempts: 0,
+                path: deterministicRepair.path,
+                removedBindings: deterministicRepair.bindings,
+                result: executability.ok
+                  ? 'trusted executability gate passed after deterministic rewrite'
+                  : executability.reason,
+              },
+            );
+            continue;
+          }
+        }
+      }
+      const exhaustedPath = executability.path;
+      const exhaustedAttempts = authoredRepairAttempts.get(exhaustedPath) ?? 0;
+      const canUseResidualBudgetForSoleSurvivor =
+        droppedExhaustedSibling &&
+        files.length === 1 &&
+        authoredRepairCalls < MAX_AUTHORED_REPAIR_CALLS;
+      if (
+        authoredRepairCalls >= MAX_AUTHORED_REPAIR_CALLS ||
+        (exhaustedAttempts >= MAX_AUTHORED_REPAIR_ATTEMPTS_PER_FILE &&
+          !canUseResidualBudgetForSoleSurvivor)
+      ) {
+        // Preserve partial evidence without allowing one exhausted generated
+        // file to strand a later sibling that still has repair budget. Drop
+        // only the exhausted file, re-run the trusted gate, then continue this
+        // same bounded loop against the next diagnosis. A sole survivor may
+        // consume any residual shared call budget before remaining a hard
+        // failure; the shared absolute cap never grows.
+        if (files.length <= 1) break;
+        const droppedReason = executability.reason;
+        files = files.filter(file => file.path !== exhaustedPath);
+        droppedExhaustedSibling = true;
+        authorFailures.push({ path: exhaustedPath, reason: droppedReason });
+        executability = checkGeneratedTestsExecutable(files, evidence);
+        await transcript.step(
+          'purser-author-repair',
+          ship.name,
+          `pd-${ship.name}: exhausted malformed file DROPPED ${exhaustedPath}`,
+          {
+            path: exhaustedPath,
+            strategy: 'bounded-partial-executability',
+            attempts: exhaustedAttempts,
+            repairCalls: authoredRepairCalls,
+            reason: droppedReason,
+            survivors: files.map(file => file.path),
+            result: executability.ok
+              ? 'trusted executability gate passed on survivors'
+              : executability.reason,
+          },
+        );
+        continue;
+      }
       // #8313: discovery-aware planning healed the filenames, then an authored
       // file nested at tests/unit/purser imported ../../scripts/... as though
       // it lived one directory higher. The trusted gate caught it, but throwing
       // away every authored file made the fleet-wide outage permanent. Give
       // Each distinct offending file gets one bounded rewrite with the exact
-      // gate error. Siblings keep their original bytes, and the same safety +
-      // executability validators remain the sole judges of whether healing
-      // occurred. This matters when two independently-authored siblings both
-      // guessed the same foreign runner: healing the first merely reveals the
-      // second failure.
+      // gate error. When that rewrite is itself malformed, the same file gets
+      // one final escalation retry; this is the #9789 production shape. Total
+      // repair calls remain capped at one per planned file plus one, so a bad
+      // model cannot turn the Purser into an unbounded spend loop. Siblings keep
+      // their original bytes, and the same safety + executability validators
+      // remain the sole judges of whether healing occurred.
       const repairPath = executability.path;
-      // Set size is the 1-based repair ordinal recorded in the transcript.
-      authoredRepairPaths.add(repairPath);
+      const repairAttempt = (authoredRepairAttempts.get(repairPath) ?? 0) + 1;
+      authoredRepairAttempts.set(repairPath, repairAttempt);
+      authoredRepairCalls += 1;
       const repairIntent = plan.find(item => item.path === repairPath)?.intent ??
         'preserve the authored test intent while fixing its executability failure';
       const repairError = executability.reason;
+      const rejectedDraft = files.find(file => file.path === repairPath)?.contents ?? '';
+      const rewriteAdmission = { error: null as ContextAdmissionError | null };
       const repaired = await authorTestFiles(
         [{ path: repairPath, intent: repairIntent }],
-        async (path, intent) => {
-          const call = await purserAiCall(
-            ship,
-            env,
-            fileAuthorSystemPrompt(
+        (path, intent) =>
+          contextAdmissionAwareAuthorCall(rewriteAdmission, async () => {
+            const call = await purserAiCall(
               ship,
-              steel,
-              { path, intent },
-              graftText,
-              evidence,
-              repairError,
-            ),
-            prBlock(prCtx),
-            TESTS_MAX_TOKENS,
-            metrics,
-            aiCircuit,
-            // The rewrite runs on the ESCALATION tier, never the author tier:
-            // a model that just authored a non-executable file is the worst
-            // candidate to fix it (14-day D1 record: 83 of 110 same-model
-            // rewrites FAILED). Same posture as repairContractOutput's second
-            // attempt — when the author tier already IS the escalation model
-            // this is a no-op, but an operator opt-down pin no longer drags
-            // the repair down with it.
-            REPAIR_ESCALATION_MODEL,
-            assertCurrentHead,
-            capture,
-            'author',
-          );
-          return call.text;
-        },
+              env,
+              fileAuthorSystemPrompt(
+                ship,
+                steel,
+                { path, intent },
+                graftText,
+                evidence,
+                repairError,
+                rejectedDraft,
+              ),
+              repairPrBlock(prCtx, repairPath),
+              TESTS_MAX_TOKENS,
+              metrics,
+              aiCircuit,
+              // The rewrite runs on the ESCALATION tier, never the author tier:
+              // a model that just authored a non-executable file is the worst
+              // candidate to fix it (14-day D1 record: 83 of 110 same-model
+              // rewrites FAILED). Same posture as repairContractOutput's second
+              // attempt — when the author tier already IS the escalation model
+              // this is a no-op, but an operator opt-down pin no longer drags
+              // the repair down with it.
+              REPAIR_ESCALATION_MODEL,
+              assertCurrentHead,
+              capture,
+              'author',
+            );
+            return call.text;
+          }),
       );
+      if (rewriteAdmission.error) throw rewriteAdmission.error;
 
       let repairReason = repaired.failures[0]?.reason ?? 'repair emitted no usable file';
       let healed = false;
@@ -1624,13 +2473,79 @@ export async function runPurser(
         if (!candidateSafety.ok) {
           repairReason = candidateSafety.reason;
         } else {
-          const candidateExecutability = checkGeneratedTestsExecutable(candidate, evidence);
+          let candidateExecutability = checkGeneratedTestsExecutable(candidate, evidence);
+          let installedDeterministicCandidate = false;
+          // A model rewrite can legitimately evolve one trusted failure into
+          // another. In #9893 the first bounded rewrite added a real Jest test
+          // (healing missing registration) but rooted its import as though the
+          // generated file lived one directory higher. The deterministic
+          // trusted-tree healer had already run before that rewrite, so the old
+          // loop spent its final AI call rewriting a path we can prove locally
+          // and received malformed source back.
+          //
+          // Re-run the same fail-closed deterministic repair after a safe model
+          // rewrite. This consumes no model call, does not widen the retry or
+          // deadline budget, and still requires one unambiguous repository-tree
+          // match corroborated by the PR's exact changed-file list.
+          if (!candidateExecutability.ok && candidateExecutability.kind === 'unresolved-import') {
+            const deterministicRepair = repairMisrootedRelativeImport(
+              candidate,
+              candidateExecutability,
+              evidence.repoTreePaths,
+              new Set(prCtx.files.map(file => file.filename)),
+            );
+            if (deterministicRepair) {
+              const deterministicSafety = validateStackedFiles(deterministicRepair.files);
+              if (deterministicSafety.ok) {
+                files = deterministicRepair.files;
+                installedDeterministicCandidate = true;
+                deterministicRepairs.push({
+                  path: deterministicRepair.path,
+                  fromSpecifier: deterministicRepair.fromSpecifier,
+                  toSpecifier: deterministicRepair.toSpecifier,
+                  matchedTreePath: deterministicRepair.matchedTreePath,
+                });
+                candidateExecutability = checkGeneratedTestsExecutable(files, evidence);
+                await transcript.step(
+                  'purser-author-repair',
+                  ship.name,
+                  candidateExecutability.ok
+                    ? `pd-${ship.name}: authored-file repair HEALED ${deterministicRepair.path}`
+                    : `pd-${ship.name}: authored-file deterministic repair PARTIAL`,
+                  {
+                    strategy: 'trusted-tree-relative-import-after-model-rewrite',
+                    attempts: 0,
+                    path: deterministicRepair.path,
+                    fromSpecifier: deterministicRepair.fromSpecifier,
+                    toSpecifier: deterministicRepair.toSpecifier,
+                    matchedTreePath: deterministicRepair.matchedTreePath,
+                    result: candidateExecutability.ok
+                      ? 'trusted executability gate passed after deterministic rewrite'
+                      : candidateExecutability.reason,
+                  },
+                );
+              }
+            }
+          }
+          // Keep a safe rewrite even when it has not fully healed yet. The
+          // first #9789 production retry changed a syntax error into a precise
+          // unresolved-import error, but the old branch discarded both the
+          // rewritten bytes and that evolved diagnosis. The final retry then
+          // saw the stale source and stale error. Advancing the candidate here
+          // lets the next bounded attempt target the current failure while the
+          // same trusted gate still decides whether the file may execute.
+          if (installedDeterministicCandidate) {
+            // A post-model deterministic repair already installed the healed
+            // candidate above. Preserve it rather than restoring the shallow
+            // model-authored import.
+          } else {
+            files = candidate;
+          }
+          executability = candidateExecutability;
           if (
             candidateExecutability.ok ||
             (!candidateExecutability.ok && candidateExecutability.path !== repairPath)
           ) {
-            files = candidate;
-            executability = candidateExecutability;
             healed = true;
             repairReason = candidateExecutability.ok
               ? 'trusted executability gate passed after one rewrite'
@@ -1650,8 +2565,8 @@ export async function runPurser(
           path: repairPath,
           originalError: repairError,
           result: repairReason,
-          attempts: 1,
-          repairNumber: authoredRepairPaths.size,
+          attempts: repairAttempt,
+          repairNumber: authoredRepairCalls,
         },
       );
     }
@@ -1665,6 +2580,7 @@ export async function runPurser(
         passed: null,
         outputTail: '',
         failures: [],
+        outcomeKind: 'not-executed',
         reason: `not executed: ${executability.reason}`,
       };
       // Preserve the contract + authored tests as ADVISORY EVIDENCE (same
@@ -1691,6 +2607,7 @@ export async function runPurser(
           retargetSkipReason: null,
         }),
         token,
+        env.GITHUB_APP_ID,
         assertCurrentHead,
       );
       // Never fabricate a sandbox result for tests that structurally could not
@@ -1769,7 +2686,8 @@ export async function runPurser(
         baseBranch,
         `purser: adversarial tests for #${prCtx.prNumber}`,
         `${buildTestPrBody(prCtx, steel, files)}\n\n` +
-          `${encodeFingerprint(withAuthoredTests(fingerprint, files.map(f => f.path)))}`,
+          `${encodeFingerprint(withAuthoredTests(fingerprint, files.map(f => f.path)))}\n` +
+          `${encodeSourceCoverageReceipt(currentReviewCoverage())}`,
         ['purser', 'adversarial-tests'],
         token,
         assertCurrentHead,
@@ -1878,6 +2796,7 @@ export async function runPurser(
         retargetSkipReason,
       }),
       token,
+      env.GITHUB_APP_ID,
       assertCurrentHead,
     );
 
@@ -1891,22 +2810,35 @@ export async function runPurser(
     // as BLOCK. A runner/harness failure is broken machinery, never product
     // evidence.
     if (degradedReason && !stackedPr) {
-      const verdict: Verdict = sandboxFailureIsAssertion(sandbox)
+      const verdict: Verdict = sandboxFailureIsAssertion(sandbox) || sandboxNonExecutionIsBroken(sandbox)
         ? 'BLOCK'
         : brokenShip.verdict;
-      return { ...brokenShip, verdict };
+      return {
+        ...brokenShip,
+        verdict,
+        ...(sandboxNonExecutionIsBroken(sandbox)
+          ? { failureReason: sandbox.reason ?? 'sandbox did not execute the test runner' }
+          : {}),
+      };
     }
 
     let verdict: Verdict;
     if (sandboxFailureIsHarness(sandbox)) {
       return brokenShip;
+    } else if (sandboxNonExecutionIsBroken(sandbox)) {
+      return {
+        ...brokenShip,
+        verdict: 'BLOCK',
+        failureReason: sandbox.reason ?? 'sandbox did not execute the test runner',
+      };
     } else if (sandbox.executed) {
       // BLOCK only when structured assertion evidence fails on the PR head.
       verdict = sandbox.passed ? 'PASS' : 'BLOCK';
     } else {
-      // Never block on tests that were never run — unless the operator
-      // explicitly opted into fail-closed via blockWithoutSandbox.
-      verdict = ship.blockWithoutSandbox ? 'BLOCK' : 'PASS';
+      // An explicitly absent binding is the one configured non-execution state
+      // governed by blockWithoutSandbox. It is always an objection, never PASS:
+      // the flag controls whether that objection gates or remains neutral.
+      verdict = 'BLOCK';
       if (ship.blockWithoutSandbox) {
         // HITL: the operator chose fail-closed and the sandbox binding is
         // absent — this PR is now BLOCKED pending a human. Escalate a real ask
@@ -1928,9 +2860,53 @@ export async function runPurser(
         });
       }
     }
-    return { ship: ship.name, blocking: ship.blocking, verdict, errored: false, findings: [] };
+    return {
+      ship: ship.name,
+      blocking: sandbox.executed || ship.blockWithoutSandbox
+        ? ship.blocking
+        : false,
+      verdict,
+      errored: false,
+      findings: [],
+      ...currentReviewCoverage(),
+      checkpointExecutionReceipt: await currentPurserSandboxReceipt(
+        runId,
+        providerAttempt,
+        files,
+        sandbox,
+      ),
+    };
   } catch (err) {
-    if (err instanceof PullRequestHeadValidationError) throw err;
+    if (
+      err instanceof PullRequestHeadValidationError ||
+      err instanceof ShipCommentPublicationError
+    ) throw err;
+    if (err instanceof ContextAdmissionError) {
+      const admission = err.admission;
+      const failureReason = `context admission rejected before model dispatch: ${
+        admission.reason ?? 'unknown request-budget failure'
+      }`;
+      await transcript.step(
+        'ship-error',
+        ship.name,
+        `pd-${ship.name}: ERROR — ${failureReason}`,
+        {
+          error: failureReason,
+          model: admission.model,
+          contextWindowTokens: admission.contextWindowTokens,
+          requestedOutputTokens: admission.requestedOutputTokens,
+          inputBudgetTokens: admission.inputBudgetTokens,
+          estimatedInputTokens: admission.estimatedInputTokens,
+        },
+      );
+      await transcript.step(
+        'ship-verdict',
+        ship.name,
+        `pd-${ship.name}: ${ship.blocking ? 'BLOCK' : 'PASS'} (errored — context admission)`,
+        { errored: true, contextAdmission: true },
+      );
+      return { ...brokenShip, failureReason };
+    }
     if (err instanceof FleetAiDependencyError) {
       const failure = err.failure;
       await transcript.step(

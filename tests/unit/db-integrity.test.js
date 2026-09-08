@@ -1,5 +1,5 @@
-import { afterEach, describe, expect, test } from '@jest/globals';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { afterEach, describe, expect, jest, test } from '@jest/globals';
+import { chmodSync, mkdtempSync, rmSync, statSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import Database from 'better-sqlite3';
@@ -9,6 +9,7 @@ import {
   dbFileFamilyStamp,
   isCurrentDbIntegrityProof,
 } from '../../lib/db-integrity.js';
+import { initDatabase, shouldRunInProcessIntegrityCheck } from '../../lib/db.js';
 
 const roots = [];
 
@@ -51,6 +52,62 @@ describe('database integrity proof', () => {
     db.close();
 
     expect(isCurrentDbIntegrityProof(path, proof)).toBe(false);
+  });
+
+  test('skips the in-process scan only for a current out-of-process proof', () => {
+    const path = makeDb();
+    const proof = createDbIntegrityProof(path);
+
+    expect(shouldRunInProcessIntegrityCheck(path, { integrityProof: proof })).toBe(false);
+    expect(shouldRunInProcessIntegrityCheck(path, {})).toBe(true);
+
+    const db = new Database(path);
+    db.prepare('INSERT INTO proof_test (value) VALUES (?)').run('proof-is-now-stale');
+    db.pragma('wal_checkpoint(TRUNCATE)');
+    db.close();
+
+    expect(shouldRunInProcessIntegrityCheck(path, { integrityProof: proof })).toBe(true);
+    expect(shouldRunInProcessIntegrityCheck(':memory:', { inMemory: true })).toBe(false);
+  });
+
+  test('initDatabase honors a current proof instead of issuing a duplicate full scan', () => {
+    const verifiedPath = makeDb();
+    const unverifiedPath = makeDb();
+    const proof = createDbIntegrityProof(verifiedPath);
+    const pragmaSpy = jest.spyOn(Database.prototype, 'pragma');
+
+    const verifiedDb = initDatabase({ dbPath: verifiedPath, integrityProof: proof });
+    try {
+      expect(
+        pragmaSpy.mock.calls.filter(([source]) => source === 'integrity_check'),
+      ).toHaveLength(0);
+    } finally {
+      verifiedDb.close();
+    }
+
+    pragmaSpy.mockClear();
+    const unverifiedDb = initDatabase({ dbPath: unverifiedPath });
+    try {
+      expect(
+        pragmaSpy.mock.calls.filter(([source]) => source === 'integrity_check'),
+      ).toHaveLength(1);
+    } finally {
+      unverifiedDb.close();
+      pragmaSpy.mockRestore();
+    }
+  });
+
+  test('a current proof still restores owner-only database permissions', () => {
+    const path = makeDb();
+    const proof = createDbIntegrityProof(path);
+    chmodSync(path, 0o644);
+
+    const db = initDatabase({ dbPath: path, integrityProof: proof });
+    try {
+      expect(statSync(path).mode & 0o777).toBe(0o600);
+    } finally {
+      db.close();
+    }
   });
 
   test('source-mode runtimes leave the full check to initDatabase', async () => {
