@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Find ink that leaves the Book's text column: drawings, images or text past
+# The docstring names \marginnote, and "\m" is not an escape sequence, so a
+# plain string makes Python 3.12 print a SyntaxWarning on every CI run --
+# noise in a log whose whole job is to be read. Raw string, no warning.
+r"""Find ink that leaves the Book's text column: drawings, images or text past
 the page edge, or drawings/images that run into the margin column.
 
 The Book's geometry (coordination-papers-mega-volume-preamble.tex) is 7 x 10 in,
