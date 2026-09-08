@@ -62,7 +62,11 @@ from `LIB` so the two read as the same family.
 PROGRAM is the hero for the `/research` route. It splits the frame in two
 because the route's claim is two-sided: submission-form papers on the left,
 machine-checked evidence on the right. The mast flies the same Papa-over-Delta
-pair as Scout.
+pair as Scout. Its prompt asks for seven manuscripts and the plate that
+shipped fans six — a difference between the brief and the take, recorded in
+the note after the block rather than quietly reconciled. The prompts here are
+the ask; the notes are what came back, and where they disagree the notes are
+the truth about the file on disk.
 
 ```bash
 BOOK="Scene: one substantial cut-paper book standing upright and closed on a small paper reading stand at center, seen three-quarters on. Its spine is built from four stacked horizontal colour bands, bottom to top: deep cobalt blue, deep teal, clear purple, deep olive gold. Eight slim paper ribbon markers of varying lengths fan out from the block of pages, each a plain strip of one palette colour. A tiny cut-paper tugboat on a wheeled paper stand sits at the book's foot, looking up at it. A small paper anchor emblem leans against the stand's base. Generous cream negative space around the single hero object."
