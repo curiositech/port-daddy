@@ -492,7 +492,7 @@
   \vspace{9pt}
   {\noindent\small\itshape\pdchapteroneline\par}
   \vspace{0.9cm}
-  \noindent\pdswissplate{#3}{0.7\linewidth}{#4}\par
+  \noindent\pdswissplate{#3}{0.7\linewidth}\par
   \vfill
   \begin{flushright}
     \begin{minipage}{0.84\linewidth}\raggedleft
@@ -673,9 +673,10 @@
     \vspace{0.5cm}
     \noindent\begin{minipage}{0.75\linewidth}{\pdgrotesk\fontsize{11}{15}\selectfont\hyphenpenalty=10000\raggedright #4\par}\end{minipage}\par
     \par
-    % The plate gets the page (the author's decision, 2026-09-07): the Konkrete
-    % plate takes all the room left at the foot, 24 x 16 units, never wider than
-    % the line; the chapter list moves to the facing page below.
+    % The plate gets the page (the author's decision, 2026-09-07): the painted
+    % Nano Banana render (plates/swiss/part-#1.jpg) takes all the room left at
+    % the foot, 24 x 16 units like the TikZ drawing it replaced, never wider
+    % than the line; the chapter list moves to the facing page below.
     \ifdim\pagegoal=\maxdimen\setlength{\pdplateh}{\dimexpr\textheight-\pagetotal\relax}\else\setlength{\pdplateh}{\dimexpr\pagegoal-\pagetotal\relax}\fi
     \addtolength{\pdplateh}{-1.0cm}%
     \ifdim\dimexpr1.5\pdplateh\relax>\linewidth \setlength{\pdplateh}{\dimexpr\linewidth/3*2\relax}\fi

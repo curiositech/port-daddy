@@ -5,13 +5,20 @@ Frontispiece: the colossus-of-clerks etching, paper balanced to the page stock.
 Chapters: round-8 faded watercolor washes, paper balanced to the page stock and feathered into it (bled).
 Parts: round-8 tall washes, full page behind the part's type, paper balanced to the page stock.
 CHOICE names the render picked per slot; every option stays in the scratchpad renders directory.
-Usage: SP=... python3 plates_pipeline.py <repo>"""
+
+Two entry points:
+  Maritime edition (unchanged): SP=... python3 plates_pipeline.py <repo>
+  Swiss edition (hard-edged, no paper-tone balancing): reads its prompts,
+  palette and per-plate choice from the committed swiss_prompts.py (never
+  from shell history) --
+    python3 plates_pipeline.py --swiss <repo> <renders_dir>
+  where <renders_dir> holds "<plate>-a.png" / "<plate>-b.png" raw renders
+  for every key in swiss_prompts.PLATES.
+"""
 import json, os, sys, datetime
 from pathlib import Path
 import numpy as np
 from PIL import Image, ImageOps
-SP = Path(os.environ['SP']); REPO = Path(sys.argv[1]); PL = REPO / 'website-v2/public/whitepaper/plates'; PL.mkdir(exist_ok=True)
-R3, R8 = SP / 'covers/out', SP / 'covers/r8'
 PAGE = (0xFB, 0xF7, 0xEF)            # hhpaper
 HUE = {'I': (0x00, 0x3F, 0xB8), 'II': (0x00, 0x6B, 0x5F), 'III': (0x93, 0x3F, 0xA5), 'IV': (0x66, 0x6A, 0x00)}  # pdcobalt, pdteal, pdviolet, pdgold
 
@@ -77,29 +84,104 @@ def cream_on_hue(im, hue, ink=PAGE):
     out = hue_a * (1 - cov) + ink_a * cov
     return Image.fromarray(out.astype(np.uint8))
 
-PLATES = {
- 'jacket':       dict(src=R3 / 'G2-wash-machine.png', ratio=0.707, long=2300, q=88, fn=lambda im: inset(im, 0.055), note='cover wash (the beached moon), sheet edges cropped away, full bleed at A4'),
- 'frontispiece': dict(src=R3 / 'E2-etch-clerks.png', ratio=0.667, long=2000, q=88, fn=lambda im: feather(paper_balance(inset(im, 0.06)), PAGE, 0.03), note='frontispiece etching, the colossus of clerks, paper balanced to the page stock'),
-}
-CHOICE = {'part-I': 'tall-a', 'part-II': 'tall-a', 'part-III': 'tall-b', 'part-IV': 'tall-a',
-          'ch-swk': 'b', 'ch-anchor': 'a', 'ch-sealed': 'a', 'ch-ls': 'a', 'ch-stp': 'a', 'ch-he': 'a', 'ch-bonded': 'a', 'ch-fh': 'a'}
-for numeral in ['I', 'II', 'III', 'IV']:
-    PLATES[f'part-{numeral}'] = dict(src=R8 / f"part-{numeral}-{CHOICE[f'part-{numeral}']}.png", ratio=0.707, long=2300, q=86,
-        fn=lambda im: paper_balance(inset(im, 0.045)), note=f'Part {numeral} wash, full page behind the part type, sheet edges cropped away, paper balanced to the page stock')
-for prefix in ['swk', 'anchor', 'sealed', 'ls', 'stp', 'he', 'bonded', 'fh']:
-    PLATES[f'chapter-{prefix}'] = dict(src=R8 / f"ch-{prefix}-{CHOICE[f'ch-{prefix}']}.png", ratio=1.5, long=1800, q=85,
-        fn=lambda im: feather(paper_balance(inset(im, 0.05)), PAGE, 0.07), note=f'chapter {prefix} wash, sheet edges cropped away, paper balanced to the page stock, borders bled into it')
+def build_maritime(repo):
+    SP = Path(os.environ['SP']); PL = repo / 'website-v2/public/whitepaper/plates'; PL.mkdir(exist_ok=True)
+    R3, R8 = SP / 'covers/out', SP / 'covers/r8'
+    PLATES = {
+     'jacket':       dict(src=R3 / 'G2-wash-machine.png', ratio=0.707, long=2300, q=88, fn=lambda im: inset(im, 0.055), note='cover wash (the beached moon), sheet edges cropped away, full bleed at A4'),
+     'frontispiece': dict(src=R3 / 'E2-etch-clerks.png', ratio=0.667, long=2000, q=88, fn=lambda im: feather(paper_balance(inset(im, 0.06)), PAGE, 0.03), note='frontispiece etching, the colossus of clerks, paper balanced to the page stock'),
+    }
+    CHOICE = {'part-I': 'tall-a', 'part-II': 'tall-a', 'part-III': 'tall-b', 'part-IV': 'tall-a',
+              'ch-swk': 'b', 'ch-anchor': 'a', 'ch-sealed': 'a', 'ch-ls': 'a', 'ch-stp': 'a', 'ch-he': 'a', 'ch-bonded': 'a', 'ch-fh': 'a'}
+    for numeral in ['I', 'II', 'III', 'IV']:
+        PLATES[f'part-{numeral}'] = dict(src=R8 / f"part-{numeral}-{CHOICE[f'part-{numeral}']}.png", ratio=0.707, long=2300, q=86,
+            fn=lambda im: paper_balance(inset(im, 0.045)), note=f'Part {numeral} wash, full page behind the part type, sheet edges cropped away, paper balanced to the page stock')
+    for prefix in ['swk', 'anchor', 'sealed', 'ls', 'stp', 'he', 'bonded', 'fh']:
+        PLATES[f'chapter-{prefix}'] = dict(src=R8 / f"ch-{prefix}-{CHOICE[f'ch-{prefix}']}.png", ratio=1.5, long=1800, q=85,
+            fn=lambda im: feather(paper_balance(inset(im, 0.05)), PAGE, 0.07), note=f'chapter {prefix} wash, sheet edges cropped away, paper balanced to the page stock, borders bled into it')
 
-prov = {'generated': datetime.date.today().isoformat(), 'model': 'gemini-3-pro-image-preview (Nano Banana) via nano-banana-image-gen/scripts/generate.py',
-        'post': 'crop inside the painted sheet edges, paper-tone balance to #FBF7EF (percentile white), border feather into the page stock on chapter plates, Lanczos resize, JPEG', 'plates': {}}
-total = 0
-for name, spec in PLATES.items():
-    src = spec['src']
-    if not src.exists(): print('MISSING', name, src); continue
-    im = spec['fn'](Image.open(src).convert('RGB')); im = fit(im, spec['ratio'], spec['long'])
-    out = PL / f'{name}.jpg'; im.save(out, 'JPEG', quality=spec['q'], optimize=True, progressive=True)
-    side = src.with_suffix('.json'); prompt = json.loads(side.read_text())['prompt'] if side.exists() else None
-    prov['plates'][name] = {'file': out.name, 'source_render': src.name, 'size': im.size, 'bytes': out.stat().st_size, 'note': spec['note'], 'prompt': prompt}
-    total += out.stat().st_size; print(f'{name:16s} {im.size} {out.stat().st_size // 1024:4d} KB  <- {src.name}')
-(PL / 'PROVENANCE.json').write_text(json.dumps(prov, indent=2) + '\n')
-print('total KB', total // 1024)
+    prov = {'generated': datetime.date.today().isoformat(), 'model': 'gemini-3-pro-image-preview (Nano Banana) via nano-banana-image-gen/scripts/generate.py',
+            'post': 'crop inside the painted sheet edges, paper-tone balance to #FBF7EF (percentile white), border feather into the page stock on chapter plates, Lanczos resize, JPEG', 'plates': {}}
+    total = 0
+    for name, spec in PLATES.items():
+        src = spec['src']
+        if not src.exists(): print('MISSING', name, src); continue
+        im = spec['fn'](Image.open(src).convert('RGB')); im = fit(im, spec['ratio'], spec['long'])
+        out = PL / f'{name}.jpg'; im.save(out, 'JPEG', quality=spec['q'], optimize=True, progressive=True)
+        side = src.with_suffix('.json'); prompt = json.loads(side.read_text())['prompt'] if side.exists() else None
+        prov['plates'][name] = {'file': out.name, 'source_render': src.name, 'size': im.size, 'bytes': out.stat().st_size, 'note': spec['note'], 'prompt': prompt}
+        total += out.stat().st_size; print(f'{name:16s} {im.size} {out.stat().st_size // 1024:4d} KB  <- {src.name}')
+    (PL / 'PROVENANCE.json').write_text(json.dumps(prov, indent=2) + '\n')
+    print('total KB', total // 1024)
+
+
+def _final_aspect_label(ratio):
+    if abs(ratio - 2 / 3) < 1e-6: return '2:3'
+    if abs(ratio - 1.5) < 1e-6: return '3:2'
+    if abs(ratio - 2.0) < 1e-6: return '2:1'
+    return f'{ratio:.4f}:1'
+
+
+def build_swiss(repo, renders_dir):
+    """Post-process the Swiss edition's thirteen hard-edged plates. Reads
+    every prompt, the palette, and which candidate (a/b) was chosen from the
+    committed scripts/whitepaper-plates/swiss_prompts.py -- nothing here is
+    reconstructed from shell history. Crop-to-ratio + Lanczos + JPEG only:
+    no paper-tone balancing, no border feathering (this register is
+    hard-edged by design, unlike the maritime wash plates above)."""
+    sys.path.insert(0, str(Path(__file__).parent))
+    import swiss_prompts as SW
+
+    PL = repo / 'website-v2/public/whitepaper/plates/swiss'
+    PL.mkdir(parents=True, exist_ok=True)
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec='seconds')
+
+    prov = {
+        'generated': datetime.date.today().isoformat(),
+        'pipeline_version': SW.PIPELINE_VERSION,
+        'model': 'gemini-3-pro-image-preview (Nano Banana Pro) via nano-banana-image-gen/scripts/generate.py --no-fallback',
+        'post': 'inset 2% to remove the render edge, center-crop-fit to the exact target aspect ratio (ImageOps.fit, centered), Lanczos resize to the stated long edge, JPEG encode at quality ~88 progressive; no paper-tone balancing and no border feathering (the Swiss register is hard-edged, unlike the maritime plates)',
+        'style_reference': 'cover.jpg (generated first) attached as the STYLE TEMPLATE reference to every other plate',
+        'palette': SW.PALETTE,
+        'plates': {},
+    }
+    total = 0
+    for name, spec in SW.PLATES.items():
+        chosen = spec['chosen']
+        src = renders_dir / f'{name}-{chosen}.png'
+        if not src.exists():
+            print('MISSING', name, src); continue
+        ratio, long_edge = SW.FINAL[name]
+        im = Image.open(src).convert('RGB')
+        raw_size = im.size
+        im = inset(im, 0.02)
+        im = fit(im, ratio, long_edge)
+        out = PL / f'{name}.jpg'
+        im.save(out, 'JPEG', quality=88, optimize=True, progressive=True)
+        prov['plates'][name] = {
+            'file': out.name,
+            'mechanism': spec['mechanism'],
+            'generation_aspect': spec['aspect'],
+            'final_aspect': _final_aspect_label(ratio),
+            'image_size': spec['image_size'],
+            'raw_size': list(raw_size),
+            'size': list(im.size),
+            'bytes': out.stat().st_size,
+            'chosen': chosen,
+            'chosen_rationale': spec.get('rationale', ''),
+            'prompt': spec[chosen],
+            'prompt_other': spec['b' if chosen == 'a' else 'a'],
+            'generated_at': now,
+            'pipeline_version': SW.PIPELINE_VERSION,
+        }
+        total += out.stat().st_size
+        print(f'{name:16s} {im.size} {out.stat().st_size // 1024:4d} KB  <- {src.name} (raw {raw_size})')
+    (PL / 'PROVENANCE.json').write_text(json.dumps(prov, indent=2) + '\n')
+    print('total KB', total // 1024)
+
+
+if __name__ == '__main__':
+    if len(sys.argv) >= 4 and sys.argv[1] == '--swiss':
+        build_swiss(Path(sys.argv[2]), Path(sys.argv[3]))
+    else:
+        build_maritime(Path(sys.argv[1]))
