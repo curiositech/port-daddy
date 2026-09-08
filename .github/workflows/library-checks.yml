@@ -232,6 +232,17 @@ jobs:
       # Without them: rename a \label, add a \bibitem, or edit a chapter's
       # citations, and the generated tables go quietly stale while the macros
       # fall back to a blank margin note or a bare key.
+      # First, because it is the cheapest and the one whose absence was most
+      # expensive. On 2026-09-08 one table opened \begin{tabularx} and closed
+      # \end{xltabular} -- half a conversion -- and the Book stopped compiling
+      # in every edition. TeX reported it as a brace error at a generated line
+      # four hundred lines away, so three more commits landed on top before
+      # anyone noticed, each marked "unbuilt" in its own subject. A compile
+      # takes five to eight minutes; this takes under a second and refuses the
+      # first of those commits.
+      - name: Every \begin has its \end, and every source file balances
+        run: python3 scripts/harbor-research/check_tex_environments.py
+
       - name: Margin citation short-forms are a fresh render of the bibliographies
         run: python3 scripts/harbor-research/build_cite_shortforms.py --check
 
