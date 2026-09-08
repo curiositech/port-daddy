@@ -286,9 +286,20 @@ class AtlasCoverageTests(unittest.TestCase):
                 contracts, atlas_ids, source_ids
             ),
         )
-        self.assertEqual(report["source_count"], 66)
-        self.assertEqual(report["atlas_count"], 66)
-        self.assertEqual(len(contracts), 5)
+        # 61, not 66. Five volume-IV rows left the atlas on 2026-09-08 when
+        # chapter 6 stopped re-inputting drawings chapters 7 and 8 develop --
+        # the Book was printing each of them twice under two figure numbers.
+        # A pinned count is the right shape for this assertion; it just has to
+        # move when the corpus does, and this is the move.
+        self.assertEqual(report["source_count"], 61)
+        self.assertEqual(report["atlas_count"], 61)
+        # Zero, and correctly so: the five contracts all described one Book
+        # printing the same drawing twice, and they went when that did. This
+        # assertion is kept rather than deleted because it is the thing that
+        # will notice when a contract legitimately reappears -- a standalone
+        # paper carrying its own copy of a chapter's figure is exactly that --
+        # and uncovered_reuse() is what fails if one is needed and missing.
+        self.assertEqual(len(contracts), 0)
         self.assertTrue(coverage.is_clean(report), report)
 
         for removed in atlas_ids:
@@ -303,3 +314,51 @@ class AtlasCoverageTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestUncoveredReuse(unittest.TestCase):
+    """The invariant that replaced "the atlas must declare at least one contract".
+
+    That assertion was true of the corpus when it was written and stopped being
+    true on 2026-09-08, when the Book stopped printing five drawings twice and
+    the five contracts describing that duplication went with them. Zero is the
+    right answer when nothing is shared. What was never checked, and is what
+    the table exists for, is the converse: a figure under two volume roots with
+    no contract is two drawings free to drift apart in silence.
+    """
+
+    def test_shared_figure_without_a_contract_is_reported(self):
+        issues = coverage.uncovered_reuse(
+            ["IV/fig:threat-bands", "VII/fig:threat-bands", "I/fig:alone"], []
+        )
+        self.assertEqual(
+            issues, ["fig:threat-bands:shared-by-IV,VII-without-a-contract"]
+        )
+
+    def test_a_contract_covering_it_clears_the_finding(self):
+        contract = coverage.ReuseContract(
+            name="Threat bands",
+            members=("IV/fig:threat-bands", "VII/fig:threat-bands"),
+            requirement="same rows and status vocabulary",
+        )
+        self.assertEqual(
+            coverage.uncovered_reuse(
+                ["IV/fig:threat-bands", "VII/fig:threat-bands"], [contract]
+            ),
+            [],
+        )
+
+    def test_nothing_shared_means_nothing_to_report(self):
+        # The state the atlas is actually in now: an empty contract table is
+        # correct here, and must not be reported as a defect.
+        self.assertEqual(
+            coverage.uncovered_reuse(
+                ["IV/fig:one", "VI/fig:two", "VII/fig:three"], []
+            ),
+            [],
+        )
+
+    def test_the_same_figure_twice_in_one_volume_is_not_cross_volume_reuse(self):
+        self.assertEqual(
+            coverage.uncovered_reuse(["IV/fig:one", "IV/fig:one"], []), []
+        )

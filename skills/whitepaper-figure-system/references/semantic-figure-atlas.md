@@ -156,12 +156,7 @@ Canonical root: `website-v2/public/whitepaper/harbor-economy.tex` (15 figures).
 | `IV/fig:he-three-sided` | How do labor, capital, and licensed IP enter and leave one conserving escrow? | typed accounting-flow junction | three distinct exposure records; serialized escrow turn; release/refund/bounded slash; conservation equation | three circles around escrow; overly blue Sankey; overlapping band labels |
 | `IV/fig:he-float-plan` | What ceremony creates an executable, funded plan? | three-step actor swimlane | request/terms; atomic ledger turn; signed execution; point before which no execution state exists | boxes with an unexplained blue rectangle; generic horizontal flow |
 | `IV/fig:he-conservation-functor` | What is conserved within a unit, and where does cross-currency exposure enter? | paired accounting panels with aligned equations | same transaction in both domains; conservation terms; exchange/exposure mapping; nonconserved risk | abstract commutative diagram without accounting labels; ornamental currencies |
-| `IV/fig:fh-xfer` | Which four messages transfer capability without transferring root authority? | four-message swimlane sequence | equal harbors; offer/request/attestation/receipt order; signatures; retained roots | symmetric node graph; curved arrow tangle |
-| `IV/fig:fh-settlement` | How do bond, claim, verification, and clear/refuse outcomes compose? | settlement swimlane plus outcome partition | principals; escrow; evidence/oracle; custody assumption; clear/refuse terminal outcomes | top-down boxes with unclear ownership; note box larger than protocol |
-| `IV/fig:fh-revocation` | How does revocation spread over epochs and become auditable? | aligned epoch columns with state cells and a witness rail | t=0, delta, 2-delta; A/B/C state; gossip steps; root publication; convergence assumption | labels on arrows; overlapping state boxes; generic network animation still |
-| `IV/fig:fh-threat-bands` | Which threat bands require which assurance mechanisms? | assurance matrix or banded ledger | threat class; local/federated boundary; mechanism; residual risk; established/proposed status | decorative shield bands; undifferentiated checklist |
 | `IV/fig:he-cold-start` | When should subsidies end without triggering an empty-market trap? | threshold/regime plot | measured liquidity axis; adoption/supply response; threshold; subsidized and priced regimes; transition assumption | calendar timeline; unlabeled rising curve; prose at plot edge |
-| `IV/fig:cartel-game-inline` | Under which parameters is collusion sustainable? | payoff inequality plus phase/regime plot | collusive stream; detection probability; loss; discounting; deviation payoff; sustainable boundary | decorative seesaw; five blue ticks with no scale; equation floating alone |
 | `IV/fig:he-assurance` | How does independent review reduce residual risk while cost grows? | paired residual-risk and cumulative-cost curves | reviewer count; geometric risk decay; linear cost; independence assumption; chosen operating region | unlabeled shrinking rectangles; blue arrows; assurance slogan box |
 
 ## Volume V: The Anchor Protocol
@@ -226,11 +221,29 @@ merely stylistic:
 
 | Contract | Members | Requirement |
 |---|---|---|
-| Threat bands | `IV/fig:fh-threat-bands`, `VII/fig:fh-threat-bands` | same rows, columns, status vocabulary, and residual-risk encoding |
-| Capability transfer | `IV/fig:fh-xfer`, `VII/fig:fh-xfer` | same four-message order and signature semantics |
-| Revocation propagation | `IV/fig:fh-revocation`, `VII/fig:fh-revocation` | same epoch/state grammar and convergence assumptions |
-| Federated settlement | `IV/fig:fh-settlement`, `VII/fig:fh-settlement` | same principals, custody boundary, evidence path, and terminal partition |
-| Cartel condition | `IV/fig:cartel-game-inline`, `VI/fig:cartel-game-inline` | same symbols, inequality orientation, and phase boundary |
+
+**Why this table is empty, 2026-09-08.** It held five contracts, each pairing a
+volume IV figure with its twin in VI or VII. Every one of those pairs was a
+drawing the assembled Book printed TWICE, under two figure numbers with two
+captions — invisible in either chapter's source and in either standalone PDF,
+visible only in the Book. An outside reader noticed two of them; checking
+mechanically found seven.
+
+The author's decision was that the chapter which DEVELOPS an idea owns its
+drawing and the other points at it: volume VII (chapter 8) keeps the federation
+figures, VI (chapter 7) the cartel game, and IV (chapter 6) cross-references
+both with `\pdchapref`. So the five IV rows are gone, and with one member each
+the contracts they anchored are not contracts.
+
+This table should fill again the moment a figure legitimately appears in two
+volumes — a standalone paper carrying its own copy is exactly that case, and the
+requirement column is the right place to say what must stay identical. What it
+must not do is record a duplication inside one Book as though it were
+deliberate reuse, which is what it was doing.
+
+`scripts/harbor-research/check_duplicate_figures.py` now fails the build on a
+fragment two chapters `\input`, so the state this table used to describe cannot
+return unnoticed.
 
 If a shared figure changes, inspect every member of its contract in the same contact sheet. A
 local redraw that subtly reverses direction, changes the scale, or drops an assumption is a

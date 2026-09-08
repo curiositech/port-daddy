@@ -295,9 +295,46 @@ def extract_reuse_contracts(atlas: Path) -> list[ReuseContract]:
                 requirement=requirement,
             )
         )
-    if not contracts:
-        raise ValueError("atlas declares no cross-volume reuse contracts")
+    # No "at least one contract" assertion. That was true of the corpus when
+    # this was written -- five contracts existed -- but it is not an invariant:
+    # zero contracts is the correct state when no figure appears under two
+    # volume roots, which is where the atlas landed on 2026-09-08 once the
+    # Book stopped printing five drawings twice.
+    #
+    # The guarantee worth keeping is the converse, and it was never checked:
+    # a figure SHARED across volumes must have a contract saying what stays
+    # identical. That is uncovered_reuse() below, so an empty table now passes
+    # only while nothing is shared, and fails the moment something is.
     return contracts
+
+
+def uncovered_reuse(
+    atlas_ids: Iterable[str],
+    contracts: Iterable[ReuseContract],
+) -> list[str]:
+    """Figure ids under two or more volume roots with no contract covering them.
+
+    The direction that matters. A declared contract over figures nobody shares
+    is harmless; a shared figure with no contract is two drawings free to drift
+    apart while the atlas says nothing.
+    """
+    by_figure: dict[str, set[str]] = {}
+    for full in atlas_ids:
+        volume, _, figure = full.partition("/")
+        if not figure:
+            continue
+        by_figure.setdefault(figure, set()).add(volume)
+    covered = {
+        member.split("/", 1)[1]
+        for contract in contracts
+        for member in contract.members
+        if "/" in member
+    }
+    return sorted(
+        f"{figure}:shared-by-{','.join(sorted(volumes))}-without-a-contract"
+        for figure, volumes in by_figure.items()
+        if len(volumes) > 1 and figure not in covered
+    )
 
 
 def reuse_contract_issues(
@@ -516,7 +553,8 @@ def main(argv: list[str] | None = None) -> int:
             atlas_ids,
             atlas_row_issues=incomplete_atlas_rows(atlas_rows),
             root_drift=canonical_root_drift(repo_root, canonical_roots),
-            reuse_issues=reuse_contract_issues(contracts, atlas_ids, source_ids),
+            reuse_issues=reuse_contract_issues(contracts, atlas_ids, source_ids)
+            + uncovered_reuse(atlas_ids, contracts),
         )
     except (FileNotFoundError, OSError, ValueError) as error:
         if args.as_json:
