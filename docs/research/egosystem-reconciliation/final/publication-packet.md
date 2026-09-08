@@ -1,9 +1,18 @@
-# Local publication packet
+# Publication packet
 
-Status: prepared for later authorized publication. **Not submitted, pushed,
-opened as a PR, sent to a GitHub App, deployed or enrolled in a review queue.**
-The operator halt remains in force. The publishing route and any downstream
-paid review/workflow effects need explicit authority before use.
+Checkpoint: prepared locally before publication. No publication receipt is
+claimed by this document; the resulting PR and its exact head must be read back
+from GitHub before publication can be reported as complete.
+
+On 2026-09-08 the operator explicitly approved a one-PR exception to the
+App-only publisher rule for this package, using the connected personal account.
+This is not standing publication authority, authority for another PR, or a
+release of the Port Daddy halt. No reviewer requests, merge, deployment,
+workflow enablement or Port Daddy runtime operation are included.
+
+The scoped publication is a draft. A draft is not proof that all downstream
+automation is free or disabled; no zero-cost claim is made. The separate
+actuator design must address downstream effects explicitly.
 
 ## Suggested title
 
