@@ -6,7 +6,7 @@
 ## Files you own (and ONLY these)
 
 - `website-v2/src/pages/AgentsPage.tsx`
-- `website-v2/src/pages/MCPPage.tsx`
+- `website-v2/src/pages/MCPPage.tsx` <!-- cite-exempt -->
 - `website-v2/src/pages/integrations/**` (entire integrations subtree)
 - `website-v2/src/docs-content/referenceArchitectures.ts` *(102 raw-color
   literals to fix — chart palette)*

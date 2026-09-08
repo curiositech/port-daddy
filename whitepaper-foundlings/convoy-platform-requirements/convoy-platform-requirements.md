@@ -9,7 +9,7 @@ expungement.guide) · **Audience:** the Port-Daddy building agents · **Filed:**
 > codebase. **Don't build it from my head — read this, push back, and tell me what you'll commit to.**
 
 > **Program placement.** Convoy is the first application and release slice inside the larger **Grand Harbor**
-> program (anchored by the [Agent Harbor Binder PRD/test plan](../architecture/agent-harbor-technical-binder/00-prd-roadmap-and-test-plan.md)),
+> program (anchored by the [Agent Harbor Binder PRD/test plan](../architecture/agent-harbor-technical-binder/00-prd-roadmap-and-test-plan.md) <!-- cite-exempt -->),
 > not a parallel product program or a second roadmap. **Chartroom / Oracle**
 > (`apps/relay/src/chartroom.ts`, proposed in [PR #9989](https://github.com/curiositech/port-daddy/pull/9989) and not
 > yet shipped on this branch) is intended to become the single program authority. Until that authority is writable
@@ -168,9 +168,9 @@ unsafe artifact is not sufficient proof.
 
 Once Chartroom is writable, the Agent Harbor Binder, the Grand Harbor plan, the provider-neutral runtime proposal in
 [PR #9991](https://github.com/curiositech/port-daddy/pull/9991),
-[`THE_FULL_WHEEL.md`](../plans/THE_FULL_WHEEL.md), the Binder's
-[Chapter 20](../architecture/agent-harbor-technical-binder/20-design-system-story-linework.md), the
-[iOS authority ADR](../adr/0125-ios-operator-surface.md), Porthole lifecycle proof, and this RFC must be imported and
+[`THE_FULL_WHEEL.md`](../plans/THE_FULL_WHEEL.md) <!-- cite-exempt -->, the Binder's
+[Chapter 20](../architecture/agent-harbor-technical-binder/20-design-system-story-linework.md) <!-- cite-exempt -->, the
+[iOS authority ADR](../adr/0125-ios-operator-surface.md) <!-- cite-exempt -->, Porthole lifecycle proof, and this RFC must be imported and
 reconciled into one hypertree. Each imported node needs its exact source revision, owner and authority boundary,
 implementation truth, prerequisites and dependents, contradiction/disposition record, proof gate, evidence links,
 and Now / First Vertical Proof / Later placement.
@@ -189,10 +189,10 @@ The surrounding work remains part of that one program:
 | Apple [Virtualization framework](https://developer.apple.com/documentation/virtualization) containment | **Later optional Coast Guard tier for high-risk evaluation and proof, not default runtime or authority.** |
 
 The Binder remains the product and test constitution, not merely background documentation. Its
-[PRD/test plan](../architecture/agent-harbor-technical-binder/00-prd-roadmap-and-test-plan.md),
-[runtime review](../architecture/agent-harbor-technical-binder/13-platform-plays-and-runtime-surface-review.md),
-[launch board](../architecture/agent-harbor-technical-binder/18-build-prescription-agent-launch-board.md), and
-[operator-surface contract](../architecture/agent-harbor-technical-binder/19-operator-surface-triad.md) must become
+[PRD/test plan](../architecture/agent-harbor-technical-binder/00-prd-roadmap-and-test-plan.md) <!-- cite-exempt -->,
+[runtime review](../architecture/agent-harbor-technical-binder/13-platform-plays-and-runtime-surface-review.md) <!-- cite-exempt -->,
+[launch board](../architecture/agent-harbor-technical-binder/18-build-prescription-agent-launch-board.md) <!-- cite-exempt -->, and
+[operator-surface contract](../architecture/agent-harbor-technical-binder/19-operator-surface-triad.md) <!-- cite-exempt --> must become
 attributed requirements and proof cards, with contradictions resolved explicitly instead of silently choosing a
 favorite source.
 
@@ -403,7 +403,7 @@ the full event ledger.
 
 #### R4.2 Trusted boundary, research basis, and performance targets
 
-The single-implementation constraint comes from [ADR-0120](../adr/0120-rust-kernel-boundary.md): the adjudication
+The single-implementation constraint comes from [ADR-0120](../adr/0120-rust-kernel-boundary.md) <!-- cite-exempt -->: the adjudication
 security primitive belongs once in the Rust trusted core, while TypeScript, Swift, web, Fleet, Convoy SDK, MCP, CLI,
 and hosted-provider surfaces consume one FFI/RPC contract rather than reimplementing authorization. The exact runtime
 placement and transport remain unresolved in §5.

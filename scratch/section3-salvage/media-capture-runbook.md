@@ -3,7 +3,7 @@
 This runbook exists because a Linux build agent cannot open a GPUI/Metal
 window (`core/pd-console --features gpui`) or a macOS menu-bar app
 (`apps/FleetBar`). Everything in this file must be run on a real Mac, by the
-operator, following the [visual-evidence doctrine](../skills/port-daddy-agent-skill/references/visual-evidence.md)
+operator, following the [visual-evidence doctrine](../../skills/port-daddy-agent-skill/references/visual-evidence.md)
 — since the operator is capturing their **own** deliberately-launched dev-lane
 bundle, clicking through the app to reach a pane is fine (the doctrine's
 "don't steal focus" rule is about *agents* touching the operator's live prod

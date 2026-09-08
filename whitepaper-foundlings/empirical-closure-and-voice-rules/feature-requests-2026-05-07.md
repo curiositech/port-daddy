@@ -26,7 +26,7 @@ This is the answer. Twelve items, three tiers, each one written as a SMART goal 
 
 **Problem.** The Conservation Theorem is *proven* in TLA+ in *The Bonded Commons* §\\ref{sec:conservation}. Nothing measures it in production. The single cleanest empirical claim the paper can make is "we proved it formally; we measured it continuously; it held."
 
-- **Specific.** New `lib/conservation-checker.ts` + `routes/conservation.ts`. Endpoint `GET /conservation/status?window=60m` returns `{holds, owed_total, settled_total, delta, window_ms, last_violation}`. CLI `pd conservation [--window 60m] [--watch]`. Daemon emits `conservation.checked` and `conservation.violation` events.
+- **Specific.** New `lib/conservation-checker.ts` + `routes/conservation.ts` <!-- cite-exempt -->. Endpoint `GET /conservation/status?window=60m` returns `{holds, owed_total, settled_total, delta, window_ms, last_violation}`. CLI `pd conservation [--window 60m] [--watch]`. Daemon emits `conservation.checked` and `conservation.violation` events.
 - **Measurable.** Endpoint returns a real number for `delta` against a populated cost ledger; equals zero on a synthetic clean run. New unit suite covers (a) clean window, (b) injected violation, (c) telemetry-loss vs real-violation distinction. Dashboard tile turns red on violation within one tick.
 - **Achievable.** ~150 LOC + 30 LOC tests. Strictly depends on H4 (telemetry pipeline trustworthy across backends). Strict no-scope-creep: no auto-remediation, no historical replay; just measure-and-report.
 - **Relevant.** Paper § *Empirical Validation of Conservation Theorem* lands cleanly; one chart, one number, one claim. Product: continuous-integrity dashboard tile + a real reason to trust the bond economics in front of a customer.

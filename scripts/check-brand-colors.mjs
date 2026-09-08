@@ -69,7 +69,13 @@ const EXT = /\.(ts|tsx|js|jsx|mjs|cjs|css|scss|html|svg|md|mdx|sh|json|swift|rs|
 // neobrutalism-pro-files/ documents an EXTERNAL design system whose brand token is
 // #FFDB33 — reference material, not our tokens (same principle as the cinnabar
 // ban-list exemption above).
-const SKIP_DIR = /(^|\/)(node_modules|dist|build|port-daddy-stable|\.git|neobrutalism-pro-files)(\/|$)|(^|\/)whitepaper\/|(^|\/)docs\/design\//
+// scratch/, whitepaper-foundlings/ and skill_candidates/ hold archival material
+// harvested from stranded branches for human review before deletion (PR #10105) —
+// old HTML/CSS design passes and figure drafts that predate the retired palette,
+// kept verbatim as historical record. Same exemption principle as
+// neobrutalism-pro-files/: reference material, not live tokens a contributor
+// could reintroduce by copy-paste into a current surface.
+const SKIP_DIR = /(^|\/)(node_modules|dist|build|port-daddy-stable|\.git|neobrutalism-pro-files|scratch|whitepaper-foundlings|skill_candidates)(\/|$)|(^|\/)whitepaper\/|(^|\/)docs\/design\//
 // The guard scripts themselves NAME the forbidden hexes as detection patterns —
 // they must not trip on their own definitions.
 const SKIP_FILE = /(check-brand-colors|check-figure-palette)\.mjs$/

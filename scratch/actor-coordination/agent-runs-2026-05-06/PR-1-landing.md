@@ -5,7 +5,7 @@
 
 ## Files you own (and ONLY these)
 
-- `website-v2/src/pages/HomePage.tsx` *(if it exists; the landing route)*
+- `website-v2/src/pages/HomePage.tsx` *(if it exists; the landing route)* <!-- cite-exempt -->
 - `website-v2/src/components/landing/Hero.tsx`
 - `website-v2/src/components/landing/AboveFoldTeasers.tsx`
 - `website-v2/src/components/landing/Features.tsx`
@@ -42,7 +42,7 @@
 
 5. **Sentry** — add a one-line Sentry init to the website's main entry
    point. We don't have a DSN yet; gate on `import.meta.env.VITE_SENTRY_DSN`
-   and document the env var in `website-v2/.env.example`. Do not break
+   and document the env var in `website-v2/.env.example` <!-- cite-exempt -->. Do not break
    builds when DSN is unset.
 
 ## Validation gates

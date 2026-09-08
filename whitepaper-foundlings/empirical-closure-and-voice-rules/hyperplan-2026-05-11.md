@@ -266,4 +266,4 @@ Drafted by Claude (Opus 4.7) on 2026-05-11 for:
 **Erich Owens**
 *Curiositech LLC*
 
-Source: `docs/research/feature-requests-2026-05-07.md`. Pending Wave-0 greenlight.
+Source: `docs/research/feature-requests-2026-05-07.md` <!-- cite-exempt -->. Pending Wave-0 greenlight.

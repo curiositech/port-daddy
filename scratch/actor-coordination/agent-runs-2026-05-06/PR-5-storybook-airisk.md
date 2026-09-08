@@ -7,11 +7,11 @@
 
 - `website-v2/.storybook/**`
 - `website-v2/src/components/site/primitives.stories.tsx` *(create
-  if missing)*
+  if missing)* <!-- cite-exempt -->
 - `website-v2/src/components/landing/*.stories.tsx` *(create stories
   for components missing them — audit flagged 57 missing stories
   total)*
-- `docs/security/ai-risk-register.md` *(new file)*
+- `docs/security/ai-risk-register.md` *(new file)* <!-- cite-exempt -->
 - `package.json` only if you need to add `@storybook/*` deps
 
 ## What to do
@@ -24,7 +24,7 @@
    - all `size` variants
    - light + dark theme
    - long-content overflow case
-2. **AI risk register** — write `docs/security/ai-risk-register.md`.
+2. **AI risk register** — write `docs/security/ai-risk-register.md` <!-- cite-exempt -->.
    Cover the OWASP LLM Top 10 categories that apply to Port Daddy and
    its agents: prompt injection, insecure output handling, training
    data poisoning (n/a — we don't train), model denial of service,

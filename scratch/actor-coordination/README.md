@@ -1,8 +1,8 @@
 # Actor-coordination salvage (isolated, not wired into lib/)
 
-Per instruction: `lib/maritime-actors.ts` is kept here rather than dropped into
-the live TypeScript library, since it was never reviewed or tested against the
-current codebase.
+Per instruction: `maritime-actors.ts` is kept here rather than dropped into the
+live TypeScript library's `lib/` directory, since it was never reviewed or
+tested against the current codebase.
 
 - `maritime-actors.ts` (+ its test file) — a typed actor-coordination model for
   fleet agents (gardener, qa, documentarian, spark, spider, ...) with explicit
