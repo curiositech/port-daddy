@@ -38,7 +38,20 @@ describe('reproducible whitepaper source scoping', () => {
     ).split('\n');
 
     expect(sources[0]).toBe('website-v2/public/whitepaper/spawn-to-person.tex');
-    expect(sources).toHaveLength(17);
+    // 19, not the 17 this pinned when it was written. The two additions are
+    // generated apparatus that pd-pedagogy pulls in -- pd-cite-shortforms.tex
+    // and pd-discharges.tex -- which arrived with the margin citations and the
+    // discharge pointers. The chapter did not grow a figure; its apparatus grew
+    // a dependency, and paper_sources is right to follow it transitively.
+    expect(sources).toHaveLength(19);
+    for (const generated of [
+      'website-v2/public/whitepaper/figures/pd-cite-shortforms.tex',
+      'website-v2/public/whitepaper/figures/pd-discharges.tex',
+    ]) {
+      // Named rather than left to the count, so the next person who moves this
+      // number can see which files it is made of.
+      expect(sources).toContain(generated);
+    }
     expect(sources).toContain(
       'website-v2/public/whitepaper/figures/pd-figure-language.tex',
     );
