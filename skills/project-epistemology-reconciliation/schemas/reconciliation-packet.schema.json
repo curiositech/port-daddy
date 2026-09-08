@@ -20,9 +20,9 @@
       "type": "object", "additionalProperties": false,
       "required": ["id", "sourceHead", "revision"],
       "properties": {
-        "id": { "type": "string", "minLength": 1 },
-        "sourceHead": { "type": "string", "minLength": 1 },
-        "revision": { "type": "integer", "minimum": 0 }
+        "id": { "type": "string", "minLength": 1, "pattern": "\\S" },
+        "sourceHead": { "type": "string", "minLength": 1, "pattern": "\\S" },
+        "revision": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
       }
     },
     "decision": {
@@ -30,9 +30,9 @@
       "required": ["status", "steward", "owner", "proposalDigest", "requestedExecution", "halted", "authorityVerified"],
       "properties": {
         "status": { "enum": ["draft", "ready"] },
-        "steward": { "type": "string", "minLength": 1 },
-        "owner": { "type": "string", "minLength": 1 },
-        "proposalDigest": { "type": "string", "minLength": 1 },
+        "steward": { "type": "string", "minLength": 1, "pattern": "\\S" },
+        "owner": { "type": "string", "minLength": 1, "pattern": "\\S" },
+        "proposalDigest": { "type": "string", "minLength": 1, "pattern": "\\S" },
         "requestedExecution": { "type": "boolean" },
         "halted": { "type": "boolean" },
         "authorityVerified": { "type": "boolean" }
@@ -54,8 +54,8 @@
         "type": "object", "additionalProperties": false,
         "required": ["id", "scopeId", "authorized", "warrant"],
         "properties": {
-          "id": { "type": "string", "minLength": 1 },
-          "scopeId": { "type": "string", "minLength": 1 },
+          "id": { "type": "string", "minLength": 1, "pattern": "\\S" },
+          "scopeId": { "type": "string", "minLength": 1, "pattern": "\\S" },
           "authorized": { "type": "boolean" },
           "warrant": { "enum": ["source", "observation", "inference", "missing"] }
         }
@@ -67,10 +67,10 @@
         "type": "object", "additionalProperties": false,
         "required": ["id", "warrant", "status", "evidenceIds", "disposition", "blocking"],
         "properties": {
-          "id": { "type": "string", "minLength": 1 },
+          "id": { "type": "string", "minLength": 1, "pattern": "\\S" },
           "warrant": { "enum": ["hypothesis", "verified_observation", "policy_norm", "value_preference", "blocking_gate"] },
           "status": { "enum": ["allegation", "verified"] },
-          "evidenceIds": { "type": "array", "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
+          "evidenceIds": { "type": "array", "uniqueItems": true, "items": { "type": "string", "minLength": 1, "pattern": "\\S" } },
           "disposition": { "enum": ["open", "accept", "reject", "defer", "escalate"] },
           "blocking": { "type": "boolean" }
         }
@@ -82,9 +82,9 @@
         "type": "object", "additionalProperties": false,
         "required": ["findingId", "rationale", "reopenWhen"],
         "properties": {
-          "findingId": { "type": "string", "minLength": 1 },
-          "rationale": { "type": "string", "minLength": 1 },
-          "reopenWhen": { "type": "string", "minLength": 1 }
+          "findingId": { "type": "string", "minLength": 1, "pattern": "\\S" },
+          "rationale": { "type": "string", "minLength": 1, "pattern": "\\S" },
+          "reopenWhen": { "type": "string", "minLength": 1, "pattern": "\\S" }
         }
       }
     },
@@ -93,10 +93,10 @@
       "required": ["available", "proposalDigest", "sourceHead", "stateRevision", "affectedOutcomes"],
       "properties": {
         "available": { "type": "boolean" },
-        "proposalDigest": { "type": "string", "minLength": 1 },
-        "sourceHead": { "type": "string", "minLength": 1 },
-        "stateRevision": { "type": "integer", "minimum": 0 },
-        "affectedOutcomes": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } }
+        "proposalDigest": { "type": "string", "minLength": 1, "pattern": "\\S" },
+        "sourceHead": { "type": "string", "minLength": 1, "pattern": "\\S" },
+        "stateRevision": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+        "affectedOutcomes": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "minLength": 1, "pattern": "\\S" } }
       }
     }
   }

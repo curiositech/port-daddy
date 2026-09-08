@@ -1,14 +1,15 @@
 ---
 name: project-epistemology-reconciliation
 description: >-
-  Reconcile conflicting project claims into a scoped decision packet with evidence,
-  authority, dissent and an impact preview. Use when a stale policy, cross-artifact
+  Audit consistency of structured declarations, not actual authorization or evidence
+  truth. Prepare a scoped decision packet with evidence, authority, dissent and an
+  impact preview. Use when a stale policy, cross-artifact
   consequence or multi-reviewer disagreement needs accountable synthesis.
   NOT for generic summarization, runtime administration, majority voting,
   authorization verification or automatically publishing a decision.
 license: MIT
 metadata:
-  version: 0.1.0
+  version: 0.1.1
   author: Port Daddy contributors
   tags: [governance, evidence, reconciliation, offline-audit]
 ---
@@ -130,6 +131,11 @@ ready-state findings or rejected findings without a dissent record.
 
 The sample is a synthetic passing example, not an accepted project decision.
 Tests include schema-valid failures, malformed packets and CLI exit behavior.
+The repository-only [schema parity suite](tests/schema-parity.test.mjs) uses
+Ajv from the repository dependency installation to compare every string and
+revision boundary. Run it with `node --test tests/schema-parity.test.mjs` when
+repository dependencies are available. It is not a dependency of the standalone
+auditor or its dependency-free test suite.
 The auditor uses structured fields only: no lexical matching of unstructured
 claims, embeddings, inference provider, identity lookup or network call.
 It does not prove logical consistency, optimal policy, empirical benefit,
@@ -148,6 +154,7 @@ not measured activation accuracy.
 | [Passing fixture](examples/sample-input.json) | Starting a synthetic or properly attributed local case |
 | [Activation examples](examples/activation.md) | Testing whether this skill should be selected |
 | [Changelog](CHANGELOG.md) | Reviewing changes to this contract |
+| [Schema parity tests](tests/schema-parity.test.mjs) | Repository conformance against an independent JSON Schema validator |
 
 ## Maintenance
 

@@ -5,6 +5,12 @@ authorization envelope, event-store export or complete logical proposition
 language. Unknown properties are rejected so misspelled safety fields cannot
 quietly disappear. All properties in the schema are required.
 
+Every string has at least one Unicode code point and contains a non-whitespace
+character (`pattern: "\\S"`). Revision integers are in `[0, 9007199254740991]`.
+These are declared schema restrictions, not undocumented JavaScript limits.
+Repository tests compare these boundaries against Ajv; semantic references and
+policy findings remain additional checks, not JSON Schema guarantees.
+
 - `schemaVersion`: exactly `1`.
 - `method`: solo or independent; claims of independence require independent
   mode, sealed first positions and the same frozen input. These are declarations,

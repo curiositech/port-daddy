@@ -53,6 +53,12 @@ as visible. An explicit closed-state `display: none` makes its hidden content
 unambiguous to the checker and preserves native disclosure behavior. The final
 checks cover both that initial state and expanded dissent in every case/path.
 
+The follow-through pins `script-src` to the SHA-256 of the exact inline script,
+replacing `unsafe-inline` without changing the preview's pixels or interactions.
+The dependency-free `harness/test_preview.mjs` test in the research package
+checks the digest and a tampered-script negative. This is CSP binding evidence,
+not a claim that every possible injection has been excluded.
+
 Run the repository's web-design-expert auditor against `design-plan.json` to
 reproduce its conditional score. That scorer returns a `pass` field but does
 not make its process exit status fail for a negative score; inspect the JSON.
