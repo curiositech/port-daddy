@@ -91,3 +91,32 @@ class TestOpenerRule(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestIsHeadingText(unittest.TestCase):
+    """The H rule's guard against bold prose reported as a stranded heading.
+
+    CI reported eight H findings on the maritime edition where a local build
+    reported none, and two of the eight were not headings at all: "heading
+    'ilance decrement is real'" -- the tail of "vigilance", split mid-word --
+    and "heading 'is not here'". The Book sets defined terms and claim run-in
+    heads in bold inside running prose, and bold-and-large alone cannot tell
+    those from a section title.
+    """
+
+    def test_rejects_the_two_CI_reported_false_positives(self):
+        # These exact strings came out of the CI log, not out of imagination.
+        self.assertFalse(page_spills.is_heading_text("ilance decrement is real"))
+        self.assertFalse(page_spills.is_heading_text("is not here"))
+
+    def test_keeps_every_real_heading_CI_reported(self):
+        for real in ("6.14", "Gaps the design must still close", "7.7.5",
+                     "Pricing the Bond", "5.5", "The three organs of continuity"):
+            self.assertTrue(page_spills.is_heading_text(real), real)
+
+    def test_ignores_leading_whitespace_rather_than_reading_it_as_prose(self):
+        self.assertTrue(page_spills.is_heading_text("   Pricing the Bond"))
+
+    def test_an_empty_line_is_not_a_heading(self):
+        self.assertFalse(page_spills.is_heading_text(""))
+        self.assertFalse(page_spills.is_heading_text("   "))
