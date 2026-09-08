@@ -4,7 +4,7 @@
 **Date:** 2026-06-03
 **Author:** cartographer sub-agent of the architect (parent: port-daddy:architecture:cartographer-evolution)
 **Scope:** docs only. No `routes/cartographer.ts` or `lib/cartographer*` changes. No CLI, schema, or daemon behavior changes in this PR.
-**Forcing function:** the operator's vision (memory `project_single_approver_agent`, `project_pd_talent_phonebook`) — make cartography load-bearing roadmap truth and have one agent that **surfaces unresolved decisions upward** instead of letting them rot in markdown.
+**Forcing function:** the operator's vision (memory `project_single_approver_agent`, `project_pd_talent_phonebook`) — make cartography central roadmap truth and have one agent that **surfaces unresolved decisions upward** instead of letting them rot in markdown.
 
 ---
 

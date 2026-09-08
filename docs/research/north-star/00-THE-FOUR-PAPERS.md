@@ -26,7 +26,7 @@ Paper 4 (many operators). **The partition is a theorem.** This sentence opens
 the volume.
 
 The four papers are one rising argument — the **trust radius widens** one ring
-at a time, and each ring is load-bearing only because a proof underneath it
+at a time, and each ring is structural only because a proof underneath it
 holds. The proofs do not live in a separate section; each sits inline, directly
 under the claim it earns.
 

@@ -1,0 +1,3 @@
+type: security
+
+- **A halt can only be lifted by the operator's signed ALL-CLEAR (ADR-0132 §4).** The distress register stays writable by any entity for raising distress, but `lib/distress-allclear.ts` now lifts a `SECURITE HALT` only on a verified Ed25519 `ALL-CLEAR` line whose `ref=` names that halt; unsigned, forged, wrong-ref and replayed all-clears leave the halt in force and are written to the ADR-0089 forensics journal as critical/high. The sentinel's absence means "no halt hoisted", never all-clear. `scripts/pd-distress-allclear.ts` gives the operator `keygen`, `status`, `all-clear`, `verify` and `apply`, with the key passphrase read from a TTY only.

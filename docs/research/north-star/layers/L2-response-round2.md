@@ -1,6 +1,6 @@
 # L2 — Round-2 response to reviewers
 
-The graft returned tangential skills (problem-space search and skill-discovery validation), not the HCI/political-theory/info-design canon I'd hoped. I'll extract the load-bearing transferable ideas from each and proceed primarily on my own expertise plus the reviewers' canon, noting the graft was off-target. I have everything I need to write the response.
+The graft returned tangential skills (problem-space search and skill-discovery validation), not the HCI/political-theory/info-design canon I'd hoped. I'll extract the decisive transferable ideas from each and proceed primarily on my own expertise plus the reviewers' canon, noting the graft was off-target. I have everything I need to write the response.
 
 ---
 
@@ -84,7 +84,7 @@ The graft (`pd jury-rig query`, BM25 cascade) returned two primaries that are ad
 
 ---
 
-## Revised layer position (load-bearing claims, corrected)
+## Revised layer position (core claims, corrected)
 
 1. **L2 is Legibility AND Authority AND *Consent*.** The seeds under-treated authority; round 1 under-treated *consent itself*. The corrected triad: legibility (read), authority (the daemon-sovereign acts), and **a consent grant primitive + inalienable operator override** that makes the authority *legitimate* rather than mere force. Roles: **agents = multitude, daemon = sovereign-actor, operator = author** (Hobbes ch. 16); the author scopes and revokes via grants (express, scoped, revocable consent — escaping Hume) and retains an un-suppressable right of override (Hobbes ch. 14/21 self-preservation; Hirschman exit).
 

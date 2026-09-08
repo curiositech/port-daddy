@@ -16,7 +16,9 @@ on:
     branches: [main]
     paths:
       - 'website-v2/public/whitepaper/**'
+      - 'website-v2/public/research/**'
       - 'website-v2/src/data/whitePapers.ts'
+      - 'website-v2/src/data/researchPapers.ts'
       - 'website-v2/src/data/whitePapers.test.ts'
       - 'website-v2/scripts/check-whitepaper-metadata.ts'
       - 'website-v2/package.json'
@@ -25,7 +27,9 @@ on:
     branches: [main]
     paths:
       - 'website-v2/public/whitepaper/**'
+      - 'website-v2/public/research/**'
       - 'website-v2/src/data/whitePapers.ts'
+      - 'website-v2/src/data/researchPapers.ts'
       - 'website-v2/src/data/whitePapers.test.ts'
       - 'website-v2/scripts/check-whitepaper-metadata.ts'
       - 'website-v2/package.json'

@@ -309,7 +309,7 @@ composition 6 above is the canonical case — the right proposal is a
 new 300-line SKILL.md. Two disciplines carry over from Snipe's existing
 telos: dedup against NOT-for boundaries (never propose an edge between
 skills whose descriptions explicitly exclude each other's domain — that
-boundary is load-bearing, per §3's co-product reading), and the
+boundary is foundational, per §3's co-product reading), and the
 one-considered-shot rule. The `pd seamanship outcomes` table
 (`cli/commands/seamanship.ts`) is where accepted edge proposals would earn
 or lose their keep.

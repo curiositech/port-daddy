@@ -2,7 +2,7 @@
 
 ## Primary
 
-**`game-theoretic-agent-incentives`** — the load-bearing one. Its equilibrium-
+**`game-theoretic-agent-incentives`** — the critical one. Its equilibrium-
 proof quality gate is exactly the standard this dive holds both papers to:
 
 > An equilibrium proof is complete ONLY when it specifies: (1) the strategy

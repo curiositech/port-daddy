@@ -10,7 +10,7 @@ I now have thorough, code-grounded knowledge of the L0 kernel. I'm ready to writ
 
 ## 0. Framing: what "the kernel" actually means here
 
-The North Star (ADR-0048) calls L0 "the daemon … the machine's layer." That is correct but undersells the *load-bearing* claim. L0 is not "the database." L0 is the **reference monitor + system of record** for a swarm: the one process that mediates contended resources, the one file that survives every agent's death, and the one place where "true" is decided rather than asserted. Everything L1 (protocol), L2 (legibility), and L3 (economy) say is only as trustworthy as L0's promise that *a write that returned success is durable, and a state the Arbiter forbids cannot exist.* Those two promises are the kernel's entire job. The rest is convenience.
+The North Star (ADR-0048) calls L0 "the daemon … the machine's layer." That is correct but undersells the *critical* claim. L0 is not "the database." L0 is the **reference monitor + system of record** for a swarm: the one process that mediates contended resources, the one file that survives every agent's death, and the one place where "true" is decided rather than asserted. Everything L1 (protocol), L2 (legibility), and L3 (economy) say is only as trustworthy as L0's promise that *a write that returned success is durable, and a state the Arbiter forbids cannot exist.* Those two promises are the kernel's entire job. The rest is convenience.
 
 The right mental model is **a single-writer transactional reference monitor**, in the Lampson/Anderson sense (a small, always-invoked, tamper-evident mediator of every security-relevant operation), realized as a local daemon over SQLite-in-WAL. It is deliberately *not* a distributed consensus system at L0 — there is one writer, one machine, one file. (Distribution is an L3 concern: harbors, gossip, revocation. Pushing Raft/CRDTs down into L0 would be the wrong layer and is explicitly out of scope here.)
 
@@ -94,7 +94,7 @@ This table *is* the formal core of the L0/Anchor paper. The honest-label column 
 
 The seed framing was a flat noun-list. A complete L0 treatment must add:
 
-1. **The single-writer assumption is unstated and load-bearing.** The seeds never say *why* L0 needs no consensus. The answer — one machine, one writer, SQLite file-lock serialization — is the cleanest thing about the layer and the sharpest contrast with L3. It must be stated as a first-class design decision (and its boundary: the instant a *second* daemon touches the same truth, you are at L3 and the assumption breaks).
+1. **The single-writer assumption is unstated and pivotal.** The seeds never say *why* L0 needs no consensus. The answer — one machine, one writer, SQLite file-lock serialization — is the cleanest thing about the layer and the sharpest contrast with L3. It must be stated as a first-class design decision (and its boundary: the instant a *second* daemon touches the same truth, you are at L3 and the assumption breaks).
 
 2. **The dual-runtime substrate is a real kernel property, not an impl detail.** "Truth is computed under bun:sqlite in prod but verified under better-sqlite3 in test" is a genuine soundness hazard with a shipped mitigation (the shim) and a shipped failure history (green-in-jest, 500-in-bun). A paper that omits this is dishonest about how the kernel is actually built.
 

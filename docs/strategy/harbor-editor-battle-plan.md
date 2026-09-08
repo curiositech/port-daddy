@@ -15,7 +15,7 @@ Zed proved humans and agents can be co-present in one CRDT buffer, then stopped 
 **Where Zed is genuinely strong — do not fight here:**
 - **Editor core and latency.** Native Rust + GPUI, ~2ms input, 120fps, CRDT in its DNA since 2022, mature rope/multibuffer/tree-sitter/LSP. We will **not** out-edit Zed on typing latency or LSP depth. Borrow editor primitives; win elsewhere.
 - **ACP gravity.** 60+ agent registry, JetBrains on board. ACP is becoming the LSP-for-agents. We **adopt it as an integration seam**, not a competitor (graft from Design B).
-- **Multiplayer-as-shared-infra.** Same CRDT bus for humans and agents. Real, load-bearing. Our answer is the *durable, governed* counterpart, not a better sync.
+- **Multiplayer-as-shared-infra.** Same CRDT bus for humans and agents. Real, core. Our answer is the *durable, governed* counterpart, not a better sync.
 
 **Where Zed's single-driver assumption breaks** (these are the seams):
 - CRDT auto-merge hides **logical conflict**: "merges cleanly" ≠ "merges correctly." No claim, lock, or intent primitive exists in Zed.

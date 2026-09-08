@@ -62,7 +62,7 @@ caveat, ADR-0050 §honesty).
 Two adversarial passes were run against (a) Phase-1 as-merged and (b) this
 design. Findings drove both the code in this PR and the mitigation table in §7.
 
-### 2.1 The load-bearing distinction
+### 2.1 The critical distinction
 
 > **Transport authentication ≠ content trust.** An HMAC-verified webhook proves
 > the *relay* is genuine. It says nothing about the *author* of the payload the
@@ -313,7 +313,7 @@ No single artifact proves safety; assurance is layered:
 - **Negative / cost:** external-triggered ships must now declare an explicit
   `allowedTools` or be refused; an approval queue adds operator load (mitigated by
   grouping + rate-limited UI); macaroon extension needs formal work before it's
-  load-bearing.
+  pivotal.
 - **Follow-ups:** wire trust gate into the engine; file-trigger guard; consent at
   the bridge; signed outbox; approval UI; macaroon tool caveat + ProVerif.
 ```
