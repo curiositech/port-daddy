@@ -265,6 +265,48 @@ pub fn render_blocks(blocks: &[Block], style: &TermStyle) -> String {
                 ));
                 i += 1;
             }
+            Block::Subhead(text) => {
+                out.push_str(&format!(
+                    "\n  {}\n",
+                    style.bold_paint(&text.to_uppercase(), Sem::Accent),
+                ));
+                i += 1;
+            }
+            Block::Stats(stats) => {
+                let cells: Vec<String> = stats
+                    .iter()
+                    .map(|st| {
+                        format!(
+                            "{} {}",
+                            style.bold_paint(&st.value, st.tone.sem()),
+                            style.paint(&st.label, Sem::Muted),
+                        )
+                    })
+                    .collect();
+                out.push_str(&format!("  {}\n", cells.join(&style.paint("   ·   ", Sem::Resting))));
+                i += 1;
+            }
+            Block::Card { accent, flag, title, subtitle, meta } => {
+                // Leading signal: ICS flag letter when we have a state, else dot.
+                let dot = match flag {
+                    Some(state) => {
+                        let letter = crate::maritime::flag_for_state(state).letter();
+                        style.bold_paint(&format!("{letter}"), accent.sem())
+                    }
+                    None => style.paint(accent.symbol(), accent.sem()),
+                };
+                let name = style.bold_paint(title, Sem::Ink);
+                let metas: String = meta
+                    .iter()
+                    .map(|m| style.paint(&format!("[{}]", m.text), m.tone.sem()))
+                    .collect::<Vec<_>>()
+                    .join(" ");
+                out.push_str(&format!("  {dot} {name}   {metas}\n"));
+                if !subtitle.is_empty() {
+                    out.push_str(&format!("      {}\n", style.paint(subtitle, Sem::Ink2)));
+                }
+                i += 1;
+            }
             Block::Gap => {
                 out.push('\n');
                 i += 1;

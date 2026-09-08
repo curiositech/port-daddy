@@ -19,8 +19,9 @@
 #[path = "../claims_pane.rs"]    mod claims_pane;
 #[path = "../cockpit_pane.rs"]   mod cockpit_pane;
 #[path = "../dispatch_pane.rs"]  mod dispatch_pane;
-// fleet_pane and maritime are excluded — they pull in GPUI derive macros
-// (#[derive(IntoElement)]) which overflow the rustc stack in this non-GPUI binary.
+// fleet_pane is excluded (it's GUI-roster specific). maritime is pure now and
+// included so term.rs can map agent states to ICS flag letters.
+#[path = "../maritime.rs"]       mod maritime;
 #[path = "../health_pane.rs"]    mod health_pane;
 #[path = "../inbox_pane.rs"]     mod inbox_pane;
 #[path = "../notes_pane.rs"]     mod notes_pane;

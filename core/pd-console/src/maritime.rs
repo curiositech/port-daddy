@@ -1,11 +1,9 @@
-//! ICS maritime flag rendering for GPUI.
+//! ICS maritime flags — the pure semantic core (no GPUI).
 //!
-//! Each flag is a small colored rectangle with a centered letter.
-//! Hover tooltip shows the full International Code of Signals meaning.
-//! Colors are pre-computed from OKLCH (no runtime conversion needed in GPUI).
-
-use gpui::prelude::*;
-use gpui::*;
+//! Maps an agent state to an International Code of Signals letter, meaning, and
+//! background color. The GPUI `FlagBadge` widget (in app.rs) and the terminal
+//! renderer both consume this; keeping it gpui-free lets the non-GPUI repl
+//! binary link it without tripping the proc-macro stack overflow.
 
 /// One ICS single-letter flag with its Port Daddy semantic mapping.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -147,15 +145,17 @@ pub fn flag_for_state(state: &str) -> Flag {
         "pivoting"                           => Flag::Echo,
         "awaiting-human" | "hitl" | "gated"  => Flag::Foxtrot,
         "needs-orchestrator"                 => Flag::Golf,
-        "claim-active" | "engaged"           => Flag::Hotel,
+        "claim-active" | "engaged" | "active" | "running" | "working"
+                                             => Flag::Hotel,
         "mayday" | "crisis" | "runaway"      => Flag::Juliett,
         "messaging" | "request"              => Flag::Kilo,
         "guard-blocked" | "commit-blocked"   => Flag::Lima,
         "idle" | "resting"                   => Flag::Mike,
         "error" | "failed" | "refused"       => Flag::November,
         "crashed" | "dead"                   => Flag::Oscar,
-        "healthy" | "fleet-healthy"          => Flag::Papa,
-        "new" | "newcomer"                   => Flag::Quebec,
+        "healthy" | "fleet-healthy" | "ready" | "available"
+                                             => Flag::Papa,
+        "new" | "newcomer" | "registered"    => Flag::Quebec,
         "completed" | "landed" | "done"      => Flag::Romeo,
         "rolling-back"                       => Flag::Sierra,
         "coordinated" | "pair"               => Flag::Tango,
@@ -165,46 +165,6 @@ pub fn flag_for_state(state: &str) -> Flag {
         "guard-intercept"                    => Flag::Xray,
         "claim-stale" | "stale"              => Flag::Yankee,
         _                                    => Flag::Mike,
-    }
-}
-
-/// Rendered ICS flag badge — 32×20px colored block with letter, tooltip on hover.
-#[derive(IntoElement)]
-pub struct FlagBadge {
-    flag: Flag,
-}
-
-impl FlagBadge {
-    pub fn new(flag: Flag) -> Self {
-        Self { flag }
-    }
-
-    pub fn for_state(state: &str) -> Self {
-        Self::new(flag_for_state(state))
-    }
-}
-
-impl RenderOnce for FlagBadge {
-    fn render(self, _window: &mut Window, _cx: &mut App) -> impl IntoElement {
-        let flag = self.flag;
-        let bg = rgb(flag.bg_rgb());
-        let letter = flag.letter().to_string();
-        div()
-            .w(px(32.0))
-            .h(px(20.0))
-            .rounded(px(3.0))
-            .bg(bg)
-            .flex()
-            .items_center()
-            .justify_center()
-            .cursor_default()
-            .child(
-                div()
-                    .text_color(rgb(0xf9fafb))
-                    .text_size(px(12.0))
-                    .font_weight(FontWeight::BOLD)
-                    .child(letter)
-            )
     }
 }
 

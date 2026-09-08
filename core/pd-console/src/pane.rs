@@ -37,15 +37,58 @@ impl Tone {
     }
 }
 
+/// A single headline statistic — rendered as a tile in a `Stats` strip.
+#[derive(Debug, Clone)]
+pub struct Stat {
+    pub value: String,
+    pub label: String,
+    pub tone: Tone,
+}
+
+/// A small right-aligned metadata pill on a `Card`.
+#[derive(Debug, Clone)]
+pub struct Meta {
+    pub text: String,
+    pub tone: Tone,
+}
+
 /// The render-agnostic primitives a pane emits. Both renderers paint these.
 #[derive(Debug, Clone)]
 pub enum Block {
+    /// Big section title for a pane.
     Header(String),
+    /// Smaller muted section label inside a pane.
+    Subhead(String),
     KeyVal(String, String),
     Row(Vec<String>),
     Chip { label: String, tone: Tone },
     Spark(Vec<f32>),
+    /// A horizontal strip of headline-stat tiles.
+    Stats(Vec<Stat>),
+    /// A rich entity card: status accent + dot/flag, title, wrapping subtitle,
+    /// right-aligned metadata pills. The hero primitive for rosters/lists.
+    /// `flag` carries a canonical agent-state string; when present the renderer
+    /// draws the ICS maritime flag badge for that state instead of a plain dot.
+    Card {
+        accent: Tone,
+        flag: Option<String>,
+        title: String,
+        subtitle: String,
+        meta: Vec<Meta>,
+    },
     Gap,
+}
+
+impl Stat {
+    pub fn new(value: impl Into<String>, label: impl Into<String>, tone: Tone) -> Self {
+        Self { value: value.into(), label: label.into(), tone }
+    }
+}
+
+impl Meta {
+    pub fn new(text: impl Into<String>, tone: Tone) -> Self {
+        Self { text: text.into(), tone }
+    }
 }
 
 /// What every pane implements. Object-safe (the registry holds `Box<dyn Pane>`):

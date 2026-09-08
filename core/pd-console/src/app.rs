@@ -18,7 +18,7 @@
 use gpui::prelude::*;
 use gpui::*;
 
-use crate::pane::{Block, Tone};
+use crate::pane::{Block, Meta, Stat, Tone};
 
 // ── Nav items ────────────────────────────────────────────────────────────────
 
@@ -75,27 +75,265 @@ fn tone_rgb(tone: &Tone) -> u32 {
     }
 }
 
+/// The hover "translation" of a flag — a themed popover showing the signal's
+/// Port Daddy meaning and its real International Code of Signals meaning.
+struct FlagTooltip {
+    title: String,
+    pd_meaning: String,
+    ics_meaning: String,
+}
+
+impl Render for FlagTooltip {
+    fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
+        div()
+            .bg(rgb(C_RAISED))
+            .border_1()
+            .border_color(rgb(C_BORDER))
+            .rounded(px(7.0))
+            .px(px(12.0))
+            .py(px(9.0))
+            .max_w(px(280.0))
+            .flex()
+            .flex_col()
+            .gap(px(5.0))
+            .child(
+                div()
+                    .text_color(rgb(C_ACCENT))
+                    .text_size(px(13.0))
+                    .font_weight(FontWeight::BOLD)
+                    .child(self.title.clone()),
+            )
+            .child(
+                div()
+                    .text_color(rgb(C_INK))
+                    .text_size(px(14.0))
+                    .child(self.pd_meaning.clone()),
+            )
+            .child(
+                div()
+                    .text_color(rgb(C_MUTED))
+                    .text_size(px(13.0))
+                    .child(format!("ICS: {}", self.ics_meaning)),
+            )
+    }
+}
+
+/// Rendered ICS flag badge — 34×22px colored block with the signal letter.
+/// Color encodes the agent-state class (green=healthy, amber=request/idle,
+/// red=blocked/emergency, blue=course-change). Hovering shows the flag's
+/// translation (its Port Daddy + ICS meaning). The maritime semantic lives in
+/// `maritime.rs`; this is just its GPUI face.
+#[derive(IntoElement)]
+struct FlagBadge {
+    flag: crate::maritime::Flag,
+    seed: SharedString,
+}
+
+impl FlagBadge {
+    fn for_state(state: &str, seed: impl Into<SharedString>) -> Self {
+        Self { flag: crate::maritime::flag_for_state(state), seed: seed.into() }
+    }
+}
+
+impl RenderOnce for FlagBadge {
+    fn render(self, _window: &mut Window, _cx: &mut App) -> impl IntoElement {
+        let flag = self.flag;
+        let bg = rgb(flag.bg_rgb());
+        let letter = flag.letter().to_string();
+        let title = format!("{} · {:?}", letter, flag);
+        let pd_meaning = flag.pd_meaning().to_string();
+        let ics_meaning = flag.ics_meaning().to_string();
+        div()
+            .id(SharedString::from(format!("flag-{}", self.seed)))
+            .w(px(34.0))
+            .h(px(22.0))
+            .rounded(px(4.0))
+            .bg(bg)
+            .flex_shrink_0()
+            .flex()
+            .items_center()
+            .justify_center()
+            // hover feedback: lift toward the row + subtle ring
+            .hover(|s| s.mt(px(-1.0)).mb(px(1.0)))
+            .tooltip(move |_window, cx| {
+                cx.new(|_cx| FlagTooltip {
+                    title: title.clone(),
+                    pd_meaning: pd_meaning.clone(),
+                    ics_meaning: ics_meaning.clone(),
+                })
+                .into()
+            })
+            .child(
+                div()
+                    .text_color(rgb(0xf9fafb))
+                    .text_size(px(13.0))
+                    .font_weight(FontWeight::BOLD)
+                    .child(letter),
+            )
+    }
+}
+
+// A status dot tinted by tone — the consistent state glyph across cards.
+fn status_dot(tone: &Tone) -> impl IntoElement {
+    div()
+        .w(px(8.0))
+        .h(px(8.0))
+        .rounded_full()
+        .bg(rgb(tone_rgb(tone)))
+        .flex_shrink_0()
+}
+
+// A small metadata pill: toned text on a faint raised chip.
+fn meta_pill(m: Meta) -> impl IntoElement {
+    let color = tone_rgb(&m.tone);
+    div()
+        .px(px(8.0))
+        .py(px(2.0))
+        .rounded(px(5.0))
+        .bg(rgb(C_RAISED))
+        .text_color(rgb(color))
+        .text_size(px(13.0))
+        .font_family("IBM Plex Mono")
+        .flex_shrink_0()
+        .child(m.text)
+}
+
+// One headline-stat tile.
+fn stat_tile(s: Stat) -> impl IntoElement {
+    div()
+        .flex_1()
+        .flex()
+        .flex_col()
+        .gap(px(3.0))
+        .px(px(14.0))
+        .py(px(10.0))
+        .rounded(px(8.0))
+        .bg(rgb(C_PANEL))
+        .border_1()
+        .border_color(rgb(C_BORDER))
+        .child(
+            div()
+                .text_color(rgb(tone_rgb(&s.tone)))
+                .text_size(px(24.0))
+                .font_weight(FontWeight::BOLD)
+                .child(s.value),
+        )
+        .child(
+            div()
+                .text_color(rgb(C_MUTED))
+                .text_size(px(13.0))
+                .child(s.label),
+        )
+}
+
 // ── Block renderer ───────────────────────────────────────────────────────────
 
 fn render_block(block: Block) -> impl IntoElement {
     match block {
         Block::Header(text) => {
             div()
-                .px(px(16.0))
-                .pt(px(12.0))
-                .pb(px(6.0))
-                .text_color(rgb(C_ACCENT))
-                .text_size(px(15.0))
-                .font_weight(FontWeight::SEMIBOLD)
+                .px(px(20.0))
+                .pt(px(16.0))
+                .pb(px(8.0))
+                .text_color(rgb(C_INK))
+                .text_size(px(18.0))
+                .font_weight(FontWeight::BOLD)
                 .child(text)
+                .into_any_element()
+        }
+        Block::Subhead(text) => {
+            div()
+                .px(px(20.0))
+                .pt(px(14.0))
+                .pb(px(4.0))
+                .text_color(rgb(C_ACCENT))
+                .text_size(px(13.0))
+                .font_weight(FontWeight::SEMIBOLD)
+                .child(text.to_uppercase())
+                .into_any_element()
+        }
+        Block::Stats(stats) => {
+            div()
+                .flex()
+                .gap(px(10.0))
+                .px(px(20.0))
+                .py(px(8.0))
+                .children(stats.into_iter().map(stat_tile))
+                .into_any_element()
+        }
+        Block::Card { accent, flag, title, subtitle, meta } => {
+            let bar = rgb(tone_rgb(&accent));
+            // Leading signal: the ICS maritime flag badge when we have a state,
+            // otherwise a plain toned status dot.
+            let lead = match &flag {
+                Some(state) => FlagBadge::for_state(state, title.clone()).into_any_element(),
+                None => status_dot(&accent).into_any_element(),
+            };
+            div()
+                .mx(px(20.0))
+                .my(px(4.0))
+                .flex()
+                .rounded(px(8.0))
+                .bg(rgb(C_PANEL))
+                .border_1()
+                .border_color(rgb(C_BORDER))
+                .overflow_hidden()
+                .hover(|s| s.bg(rgb(C_RAISED)).border_color(bar))
+                // accent bar
+                .child(div().w(px(3.0)).bg(bar).flex_shrink_0())
+                // body
+                .child(
+                    div()
+                        .flex_1()
+                        .flex()
+                        .items_center()
+                        .gap(px(12.0))
+                        .px(px(14.0))
+                        .py(px(11.0))
+                        .child(lead)
+                        // title + subtitle column (flex_1 → subtitle wraps)
+                        .child(
+                            div()
+                                .flex_1()
+                                .flex()
+                                .flex_col()
+                                .gap(px(3.0))
+                                .child(
+                                    div()
+                                        .text_color(rgb(C_INK))
+                                        .text_size(px(15.0))
+                                        .font_weight(FontWeight::SEMIBOLD)
+                                        .child(title),
+                                )
+                                .when(!subtitle.is_empty(), |d| {
+                                    d.child(
+                                        div()
+                                            .text_color(rgb(C_INK2))
+                                            .text_size(px(14.0))
+                                            .child(subtitle),
+                                    )
+                                }),
+                        )
+                        // right-aligned meta pills
+                        .when(!meta.is_empty(), |d| {
+                            d.child(
+                                div()
+                                    .flex()
+                                    .gap(px(6.0))
+                                    .items_center()
+                                    .flex_shrink_0()
+                                    .children(meta.into_iter().map(meta_pill)),
+                            )
+                        }),
+                )
                 .into_any_element()
         }
         Block::KeyVal(key, val) => {
             div()
                 .flex()
                 .gap(px(8.0))
-                .px(px(16.0))
-                .py(px(3.0))
+                .px(px(20.0))
+                .py(px(4.0))
                 .child(
                     div()
                         .text_color(rgb(C_MUTED))
@@ -117,8 +355,10 @@ fn render_block(block: Block) -> impl IntoElement {
             div()
                 .flex()
                 .gap(px(16.0))
-                .px(px(16.0))
-                .py(px(4.0))
+                .mx(px(20.0))
+                .px(px(8.0))
+                .py(px(5.0))
+                .rounded(px(6.0))
                 .hover(|s| s.bg(rgb(C_RAISED)))
                 .children(
                     cells.into_iter().enumerate().map(|(i, cell)| {
@@ -135,11 +375,11 @@ fn render_block(block: Block) -> impl IntoElement {
         Block::Chip { label, tone } => {
             let color = rgb(tone_rgb(&tone));
             div()
-                .mx(px(16.0))
-                .mt(px(4.0))
+                .mx(px(20.0))
+                .mt(px(6.0))
                 .mb(px(8.0))
-                .px(px(10.0))
-                .py(px(3.0))
+                .px(px(12.0))
+                .py(px(4.0))
                 .rounded_full()
                 .border_1()
                 .border_color(color)
@@ -150,7 +390,7 @@ fn render_block(block: Block) -> impl IntoElement {
         }
         Block::Spark(_) => {
             div()
-                .px(px(16.0))
+                .px(px(20.0))
                 .py(px(4.0))
                 .text_color(rgb(C_MUTED))
                 .text_size(px(13.0))
@@ -306,15 +546,21 @@ impl Render for ConsoleView {
                                             .text_color(rgb(C_ACCENT))
                                     )
                             )
-                            // Nav items — no closures; key handler above drives nav
+                            // Nav items — clickable (mouse) AND keyboard (1-9,s,m,…).
                             .children(
                                 NAV.iter().enumerate().map(|(i, item)| {
-                                    SidebarItem {
-                                        icon: item.icon,
-                                        label: item.label,
-                                        index: i,
-                                        active: i == active,
-                                    }
+                                    div()
+                                        .id(("nav", i))
+                                        .on_click(cx.listener(move |this, _ev: &ClickEvent, _window, cx| {
+                                            this.active_nav = i;
+                                            cx.notify();
+                                        }))
+                                        .child(SidebarItem {
+                                            icon: item.icon,
+                                            label: item.label,
+                                            index: i,
+                                            active: i == active,
+                                        })
                                 })
                             )
                     )
@@ -359,6 +605,8 @@ impl Render for ConsoleView {
                                     .overflow_hidden()
                                     .flex()
                                     .flex_col()
+                                    .pt(px(4.0))
+                                    .pb(px(20.0))
                                     .children(blocks.into_iter().map(render_block))
                             )
                     )
@@ -386,7 +634,7 @@ impl Render for ConsoleView {
                         div()
                             .text_color(rgb(C_MUTED))
                             .text_size(px(13.0))
-                            .child("pd-console v0.2.0")
+                            .child("pd-console v0.3.0")
                     )
             )
     }

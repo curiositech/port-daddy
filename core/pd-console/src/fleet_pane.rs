@@ -5,8 +5,7 @@
 //!    status, worktreeId, lastHeartbeat, ... }] }` — many fields nullable.
 
 use crate::agent::DaemonClient;
-use crate::maritime::flag_for_state;
-use crate::pane::{Block, Pane, Tone};
+use crate::pane::{Block, Meta, Pane, Stat, Tone};
 use crate::util::{age_short, arr, b, n, s, trunc};
 use anyhow::Result;
 use serde_json::Value;
@@ -75,44 +74,76 @@ impl Pane for FleetPane {
         let mut blocks = vec![Block::Header("Fleet Roster".into())];
 
         if let Some(err) = &self.last_error {
-            blocks.push(Block::KeyVal("error".into(), err.clone()));
+            blocks.push(Block::Card {
+                accent: Tone::Gated,
+                flag: None,
+                title: "daemon unreachable".into(),
+                subtitle: err.clone(),
+                meta: vec![],
+            });
             return blocks;
         }
 
         if self.agents.is_empty() {
-            blocks.push(Block::KeyVal("status".into(), "no agents registered — pd spawn to launch one".into()));
-        } else {
-            let active = self.agents.iter().filter(|a| a.active).count();
-            blocks.push(Block::KeyVal("total".into(), self.agents.len().to_string()));
-            blocks.push(Block::KeyVal("active".into(), active.to_string()));
-            blocks.push(Block::Gap);
-            for a in &self.agents {
-                let flag = flag_for_state(&a.state);
-                let callsign = if a.identity.is_empty() {
-                    trunc(&a.id, 12)
-                } else {
-                    trunc(&a.identity, 24)
-                };
-                blocks.push(Block::Row(vec![
-                    format!("[{}]", flag.letter()),
-                    callsign,
-                    a.backend.clone(),
-                    a.state.clone(),
-                    age_short(a.last_heartbeat_ms),
-                ]));
-                if !a.purpose.is_empty() {
-                    blocks.push(Block::KeyVal("purpose".into(), trunc(&a.purpose, 60)));
-                }
-            }
+            blocks.push(Block::Card {
+                accent: Tone::Resting,
+                flag: None,
+                title: "No agents registered".into(),
+                subtitle: "Run `pd spawn` (or pd-console-repl :new) to launch one onto the bus.".into(),
+                meta: vec![],
+            });
+            return blocks;
         }
 
-        let engaged = self.agents.iter().filter(|a| a.active).count();
-        let tone = if engaged > 0 { Tone::Engaged } else { Tone::Resting };
-        blocks.push(Block::Gap);
-        blocks.push(Block::Chip {
-            label: format!("{} active / {} total", engaged, self.agents.len()),
-            tone,
-        });
+        let total = self.agents.len();
+        let active = self.agents.iter().filter(|a| a.active).count();
+        let backends = self
+            .agents
+            .iter()
+            .map(|a| a.backend.as_str())
+            .filter(|b| !b.is_empty())
+            .collect::<std::collections::BTreeSet<_>>()
+            .len();
+
+        // Headline stat strip.
+        blocks.push(Block::Stats(vec![
+            Stat::new(total.to_string(), "agents", Tone::Accent),
+            Stat::new(
+                active.to_string(),
+                "active",
+                if active > 0 { Tone::Engaged } else { Tone::Resting },
+            ),
+            Stat::new(backends.to_string(), "backends", Tone::Default),
+        ]));
+        blocks.push(Block::Subhead("Roster".into()));
+
+        // One card per agent — purpose wraps in full, no truncation.
+        for a in &self.agents {
+            let title = if a.identity.is_empty() {
+                trunc(&a.id, 40)
+            } else {
+                trunc(&a.identity, 40)
+            };
+            let accent = if a.active { Tone::Engaged } else { Tone::Resting };
+
+            let mut meta = vec![];
+            if !a.backend.is_empty() {
+                meta.push(Meta::new(a.backend.clone(), Tone::Default));
+            }
+            if !a.state.is_empty() {
+                meta.push(Meta::new(a.state.clone(), accent));
+            }
+            meta.push(Meta::new(age_short(a.last_heartbeat_ms), Tone::Resting));
+
+            blocks.push(Block::Card {
+                accent,
+                flag: Some(a.state.clone()),
+                title,
+                subtitle: a.purpose.clone(),
+                meta,
+            });
+        }
+
         blocks
     }
 
@@ -179,6 +210,6 @@ mod tests {
             last_heartbeat_ms: 0,
         }];
         let blocks = p.view();
-        assert!(blocks.iter().any(|b| matches!(b, Block::Row(_))));
+        assert!(blocks.iter().any(|b| matches!(b, Block::Card { .. })));
     }
 }
