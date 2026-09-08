@@ -1,6 +1,7 @@
 # Project Epistemology
 
-Status: reviewable design and offline demonstration, September 8, 2026.
+Status: reviewable design, offline demonstration and synthetic D1a harness,
+September 8, 2026. No runtime integration or empirical research result.
 Roadmap association: `chartroom-grand-harbor-authority-cutover` (historical
 association preserved; no live roadmap access or mutation during the halt).
 
@@ -20,6 +21,12 @@ uses three invented cases. It performs no network calls, launches no agents,
 and changes no accepted plan. The [audit skill](../../../skills/project-epistemology-reconciliation/SKILL.md)
 checks a structured review packet locally. Its tests establish validation
 behavior, not the truth of a supplied claim or authorization receipt.
+
+The [offline temporal/consequence laboratory](harness/README.md) replays scoped
+exceptions, actor assertions, commitments and evidence invalidation, then calls
+the existing Harbor R17 checker. The [Harbor integration contract](final/harbor-integration-contract.md)
+maps this work onto the existing cooperative editor, tenant boundaries,
+participant protocol, separate human/agent views and recovery gates.
 
 ## What is and is not established
 

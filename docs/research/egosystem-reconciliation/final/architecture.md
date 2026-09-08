@@ -24,11 +24,15 @@ flowchart LR
     D --> H[Authorized decision]
     H --> W
     W --> X[Existing actuator and action receipt]
-    P --> U[Read-only impact preview]
+    P --> U[Scoped operator impact view]
+    P --> A[Scoped agent continuation view]
 ```
 
-The diagram is a proposed dependency graph. Only local packet validation and
-the static preview are implemented by this slice.
+The diagram is a proposed dependency graph. Local packet validation, the static
+preview and the synthetic D1a replay/R17 harness are implemented. The harness
+does not implement this production envelope or activate any diagrammed service.
+See [the Harbor integration contract](harbor-integration-contract.md) for existing
+editor placement, participant state, split views, recovery and owner/gate mapping.
 
 ## Object model
 
@@ -189,6 +193,14 @@ reconciled. Manual preparation can proceed from `Gathering` to `Deliberating`
 with a solo-method label, without an invented sealing ceremony.
 
 ## Detector design
+
+Reuse [Harbor R17](../../../../skills/harbor-results/scripts/b4_deontic_fragment.py)
+as the bounded formal baseline, not a new contradiction engine. The
+[offline adapter](../harness/README.md) currently uses its Horn integrity and
+O/F engines at a query tick; its original sweep also tests claims and difference
+constraints. Natural-language extraction and measured real-project utility are
+not implemented. The reference pair loop is quadratic in the worst case, so
+theoretical detector bounds are not production scaling evidence.
 
 1. Check corpus policy, grants, freshness, execution halt and remaining budget.
 2. Apply exact structural candidates: shared resource ids, declared dependencies,

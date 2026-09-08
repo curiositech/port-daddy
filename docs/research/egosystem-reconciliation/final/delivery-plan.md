@@ -8,9 +8,10 @@ agent launch, publication, deployment or workflow trigger.
 
 ```mermaid
 flowchart TD
-  D0["D0: design, fixtures, offline packet audit"] --> D1["D1: pure temporal projection test harness"]
-  D1 --> D2["D2: H1 matched longitudinal benchmark"]
-  D1 --> D3["D3: H2 bounded consequence benchmark"]
+  D0["D0: design, fixtures, offline packet audit"] --> D1A["D1a: synthetic replay + R17 adapter"]
+  D1A --> D1B["D1b: canonical contract conformance"]
+  D1B --> D2["D2: H1 matched longitudinal benchmark"]
+  D1A --> D3["D3: H2 bounded consequence benchmark"]
   D2 --> G["Independent review, measured benefit, operator authority"]
   D3 --> G
   G --> D4["D4: H3 / H4 controlled studies"]
@@ -19,14 +20,16 @@ flowchart TD
   D5 --> D6
 ```
 
-The arrows are dependencies, not a runtime orchestration topology. D0 is this
-package; every later node is deferred. Completion evidence is in
+The arrows are dependencies, not a runtime orchestration topology. D0 and the
+bounded D1a [offline harness](../harness/README.md) are source-present and locally
+tested. D1b and all empirical/runtime nodes remain deferred. Completion evidence is in
 [validation](validation.md), not inferred from this diagram.
 
 | Node | Bounded deliverable | Acceptance gate | Explicit exclusions |
 | --- | --- | --- | --- |
 | D0 | Constitution, guide, architecture, dissent, three-case preview, structured packet auditor | Local tests, responsive checks, link checks; honest method and limitation labels | No production authorization, proof engine or event store |
-| D1 | Pure event-folding module against synthetic fixtures | Deterministic replay; bitemporal queries; gap/unknown-schema rejection; supersession and exception tests | No daemon; no remote corpus; no canonical writes |
+| D1a | Pure event-folding and existing R17 adapter against synthetic fixtures | Deterministic replay; bitemporal queries; gap/schema rejection; scoped exceptions; actor continuity; tenant and lineage tests | No daemon, canonical writes, production admission or empirical utility claim |
+| D1b | Conformance to existing Harbor/commitment/effect contracts | Epoch handoff, append preconditions, uncertain effects, aggregate reservations and deletion-receipt fixtures | D1a's synthetic envelope is not a new production schema |
 | D2 | H1 evaluation with frozen chronological splits and matched retrieval | Preregistered temporal correctness and stale-policy error results, paired uncertainty, attention and cost accounting | No invented performance claim; no hindsight leakage |
 | D3 | H2 evaluation of latent cross-artifact collisions | Held-out human-labeled outcomes; false-alarm and proof-premise validity results; bounded expansion | No open-ended inquiry or semantic ranking over unauthorized data |
 | D4 | H3 independent/shared/controlled-synthesis and H4 provenance ablations | Independent review inputs actually isolated; contamination audit; equal budgets; retention consent | No personas passed off as independent reviewers |
@@ -82,6 +85,11 @@ utility. Include false-positive adjudication and delayed harm in sensitivity
 analysis. Prefer paired net-benefit comparisons over optimizing a ratio alone.
 
 ## Ownership and integration boundaries
+
+[The Harbor integration contract](harbor-integration-contract.md) assigns
+accountable roles, implementation status, concrete evidence gates and recovery
+paths for D0–D6. It connects the existing editor and R17 research to the plan;
+it does not spawn those roles or mutate the canonical roadmap.
 
 Associate the work with the existing `chartroom-grand-harbor-authority-cutover`
 roadmap item. This is a historical association, not a current assignment or a

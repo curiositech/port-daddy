@@ -37,6 +37,12 @@ Neither a model, a signed statement, a successful test nor a synthesis confers
 decision authority. Concurrent proposals use preconditions and serialization;
 stale proposals return for revision.
 
+A decision record documents the exercise of existing authority; it does not
+create a jurisdiction or appoint its writer. This package's plans, diagrams and
+review checklists are proposals and projections, not a second canonical policy,
+identity or roadmap registry. Their accepted implementation must use the
+existing writers identified in the [Harbor integration contract](harbor-integration-contract.md).
+
 A narrower decision cannot silently amend a broader rule. Conflicting
 jurisdictions stop the affected action until the authorized owners resolve
 their relationship. An emergency procedure may act only within a previously
