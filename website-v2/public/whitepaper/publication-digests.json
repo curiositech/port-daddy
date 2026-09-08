@@ -4,7 +4,7 @@
     "website-v2/public/whitepaper/agent-transactions-whitepaper.pdf": {
       "pages": 60,
       "bytes": 992737,
-      "sha256": "1673e49c2ed9f230d9456975a7e9798844a977468604220fa7d884ff065e370a"
+      "sha256": "d0c0885c582e6baeed89f6fddd52544bfde6d56b62fdd082a2d7ff34066a2517"
     },
     "website-v2/public/whitepaper/anchor-protocol-whitepaper.pdf": {
       "pages": 38,
@@ -13,18 +13,18 @@
     },
     "website-v2/public/whitepaper/coordination-papers-mega-volume-swiss.pdf": {
       "pages": 544,
-      "bytes": 9715475,
-      "sha256": "085a9121f360044648fad9955132747d3b269f6455020bcccaf5d7cb66e3b6c9"
+      "bytes": 9715424,
+      "sha256": "26023bb97544980f5913ddfd17ef0be60ded19fc1a4981303a7d60a85d5b5e72"
     },
     "website-v2/public/whitepaper/coordination-papers-mega-volume-technical.pdf": {
       "pages": 540,
-      "bytes": 7631810,
-      "sha256": "055105fec60ffbbc38955eacee884ef0b987fb1e0e1285239cbd4125011ef282"
+      "bytes": 7631766,
+      "sha256": "ac710197dfee9a760866ca9b9d0f8d4ca2d23cc2484daff428edef5dfd627537"
     },
     "website-v2/public/whitepaper/coordination-papers-mega-volume.pdf": {
       "pages": 540,
-      "bytes": 7960873,
-      "sha256": "0b0846e749c651ab127fb2ed4b1457f34214cd6e9183ae2b24742f976ee72263"
+      "bytes": 7960820,
+      "sha256": "8dfae546049bdc6bff32a8df5f59962f6098d96717b493b17d639123d9e6c161"
     },
     "website-v2/public/whitepaper/federated-harbor-whitepaper.pdf": {
       "pages": 45,
@@ -33,8 +33,8 @@
     },
     "website-v2/public/whitepaper/harbor-economy-whitepaper.pdf": {
       "pages": 47,
-      "bytes": 777939,
-      "sha256": "6561ef3462e42dc5ae1d6ddc2913650a4f6021bc7ff473191ec153fe02623e93"
+      "bytes": 777856,
+      "sha256": "dd3b66db120fc13b1dda056ea9fc87a7c59aab1eb0bc75fdf0452ca553503f9a"
     },
     "website-v2/public/whitepaper/legible-swarm-whitepaper.pdf": {
       "pages": 63,
@@ -54,7 +54,7 @@
     "website-v2/public/whitepaper/spawn-to-person-whitepaper.pdf": {
       "pages": 52,
       "bytes": 808165,
-      "sha256": "914faf87e9660449c1a5039ef09da0bee82a6a7ae62401df6537209fcf9e82b2"
+      "sha256": "128cedc1b19c12589f5a358b94cd0f2faf719ef586b3c80f1bec47cf6de0f7d0"
     }
   }
 }

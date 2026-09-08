@@ -1,137 +1,137 @@
 {
-  "pdf": "/tmp/claude-0/-home-user-port-daddy/f533555d-4b5c-552b-a885-0b01f8d66dea/scratchpad/figaudit/pdf/fig-anchor-four-phases/fig-anchor-four-phases.pdf",
-  "page_count": 1,
-  "params": {
-    "min_font_pt": 7.0,
-    "textwidth_cm": 16.3
+ "figure": "fig-anchor-four-phases",
+ "page_count": 1,
+ "params": {
+  "min_font_pt": 7.0,
+  "textwidth_cm": 16.3
+ },
+ "checks": {
+  "T1": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
   },
-  "checks": {
-    "T1": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
+  "T2": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T3": {
+   "status": "fail",
+   "count": 4,
+   "findings": [
+    {
+     "check": "T3",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      218.04977416992188,
+      191.41282653808594,
+      272.3580627441406,
+      199.3829345703125
+     ],
+     "other_bbox": [
+      213.61712646484375,
+      198.02574157714844,
+      431.3682861328125,
+      205.995849609375
+     ],
+     "text": "HS256 pinning",
+     "other_text": "amber before closure; teal thereafter; no protection reopens",
+     "overlap_fraction": 0.17,
+     "message": "text 'HS256 pinning' overlaps 'amber before closure; teal thereafter; no protection reopens' by 17.0% of the smaller bbox"
     },
-    "T2": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
+    {
+     "check": "T3",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      276.1177978515625,
+      191.41282653808594,
+      339.0258483886719,
+      199.3829345703125
+     ],
+     "other_bbox": [
+      213.61712646484375,
+      198.02574157714844,
+      431.3682861328125,
+      205.995849609375
+     ],
+     "text": "Ed25519 identity",
+     "other_text": "amber before closure; teal thereafter; no protection reopens",
+     "overlap_fraction": 0.17,
+     "message": "text 'Ed25519 identity' overlaps 'amber before closure; teal thereafter; no protection reopens' by 17.0% of the smaller bbox"
     },
-    "T3": {
-      "status": "fail",
-      "count": 4,
-      "findings": [
-        {
-          "check": "T3",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            218.04977416992188,
-            191.41282653808594,
-            272.3580627441406,
-            199.3829345703125
-          ],
-          "other_bbox": [
-            213.61712646484375,
-            198.02574157714844,
-            431.3682861328125,
-            205.995849609375
-          ],
-          "text": "HS256 pinning",
-          "other_text": "amber before closure; teal thereafter; no protection reopens",
-          "overlap_fraction": 0.17,
-          "message": "text 'HS256 pinning' overlaps 'amber before closure; teal thereafter; no protection reopens' by 17.0% of the smaller bbox"
-        },
-        {
-          "check": "T3",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            276.1177978515625,
-            191.41282653808594,
-            339.0258483886719,
-            199.3829345703125
-          ],
-          "other_bbox": [
-            213.61712646484375,
-            198.02574157714844,
-            431.3682861328125,
-            205.995849609375
-          ],
-          "text": "Ed25519 identity",
-          "other_text": "amber before closure; teal thereafter; no protection reopens",
-          "overlap_fraction": 0.17,
-          "message": "text 'Ed25519 identity' overlaps 'amber before closure; teal thereafter; no protection reopens' by 17.0% of the smaller bbox"
-        },
-        {
-          "check": "T3",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            351.1219177246094,
-            191.41282653808594,
-            388.7408447265625,
-            199.3829345703125
-          ],
-          "other_bbox": [
-            213.61712646484375,
-            198.02574157714844,
-            431.3682861328125,
-            205.995849609375
-          ],
-          "text": "delegation",
-          "other_text": "amber before closure; teal thereafter; no protection reopens",
-          "overlap_fraction": 0.17,
-          "message": "text 'delegation' overlaps 'amber before closure; teal thereafter; no protection reopens' by 17.0% of the smaller bbox"
-        },
-        {
-          "check": "T3",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            413.12908935546875,
-            191.41282653808594,
-            451.4573059082031,
-            199.3829345703125
-          ],
-          "other_bbox": [
-            213.61712646484375,
-            198.02574157714844,
-            431.3682861328125,
-            205.995849609375
-          ],
-          "text": "revocation",
-          "other_text": "amber before closure; teal thereafter; no protection reopens",
-          "overlap_fraction": 0.081,
-          "message": "text 'revocation' overlaps 'amber before closure; teal thereafter; no protection reopens' by 8.1% of the smaller bbox"
-        }
-      ]
+    {
+     "check": "T3",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      351.1219177246094,
+      191.41282653808594,
+      388.7408447265625,
+      199.3829345703125
+     ],
+     "other_bbox": [
+      213.61712646484375,
+      198.02574157714844,
+      431.3682861328125,
+      205.995849609375
+     ],
+     "text": "delegation",
+     "other_text": "amber before closure; teal thereafter; no protection reopens",
+     "overlap_fraction": 0.17,
+     "message": "text 'delegation' overlaps 'amber before closure; teal thereafter; no protection reopens' by 17.0% of the smaller bbox"
     },
-    "T4": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
-    },
-    "T5": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
-    },
-    "T6": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
-    },
-    "T7": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
+    {
+     "check": "T3",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      413.12908935546875,
+      191.41282653808594,
+      451.4573059082031,
+      199.3829345703125
+     ],
+     "other_bbox": [
+      213.61712646484375,
+      198.02574157714844,
+      431.3682861328125,
+      205.995849609375
+     ],
+     "text": "revocation",
+     "other_text": "amber before closure; teal thereafter; no protection reopens",
+     "overlap_fraction": 0.081,
+     "message": "text 'revocation' overlaps 'amber before closure; teal thereafter; no protection reopens' by 8.1% of the smaller bbox"
     }
+   ]
   },
-  "summary": {
-    "result": "fail",
-    "failed_checks": [
-      "T3"
-    ],
-    "warned_checks": []
+  "T4": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T5": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T6": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T7": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
   }
+ },
+ "summary": {
+  "result": "fail",
+  "failed_checks": [
+   "T3"
+  ],
+  "warned_checks": []
+ }
 }

@@ -1,176 +1,176 @@
 {
-  "pdf": "/tmp/claude-0/-home-user-port-daddy/f533555d-4b5c-552b-a885-0b01f8d66dea/scratchpad/figaudit/pdf/fig-anchor-delegation-inline/fig-anchor-delegation-inline.pdf",
-  "page_count": 1,
-  "params": {
-    "min_font_pt": 7.0,
-    "textwidth_cm": 16.3
-  },
-  "checks": {
-    "T1": {
-      "status": "fail",
-      "count": 7,
-      "findings": [
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            204.192626953125,
-            89.4451904296875,
-            207.8449249267578,
-            95.42277526855469
-          ],
-          "text": "1",
-          "size_pt": 5.98,
-          "message": "text '1' renders at 5.98pt, below the 7.00pt floor"
-        },
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            214.20086669921875,
-            141.77670288085938,
-            217.85316467285156,
-            147.75428771972656
-          ],
-          "text": "1",
-          "size_pt": 5.98,
-          "message": "text '1' renders at 5.98pt, below the 7.00pt floor"
-        },
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            300.57159423828125,
-            89.4451904296875,
-            304.2239074707031,
-            95.42277526855469
-          ],
-          "text": "2",
-          "size_pt": 5.98,
-          "message": "text '2' renders at 5.98pt, below the 7.00pt floor"
-        },
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            310.57977294921875,
-            141.77670288085938,
-            314.2320861816406,
-            147.75428771972656
-          ],
-          "text": "2",
-          "size_pt": 5.98,
-          "message": "text '2' renders at 5.98pt, below the 7.00pt floor"
-        },
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            396.9505615234375,
-            89.4451904296875,
-            400.6028747558594,
-            95.42277526855469
-          ],
-          "text": "3",
-          "size_pt": 5.98,
-          "message": "text '3' renders at 5.98pt, below the 7.00pt floor"
-        },
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            406.95880126953125,
-            141.77670288085938,
-            410.6111145019531,
-            147.75428771972656
-          ],
-          "text": "3",
-          "size_pt": 5.98,
-          "message": "text '3' renders at 5.98pt, below the 7.00pt floor"
-        },
-        {
-          "check": "T1",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            369.3451232910156,
-            66.3249282836914,
-            372.9974365234375,
-            72.3025131225586
-          ],
-          "text": "3",
-          "size_pt": 5.98,
-          "message": "text '3' renders at 5.98pt, below the 7.00pt floor"
-        }
-      ]
+ "figure": "fig-anchor-delegation-inline",
+ "page_count": 1,
+ "params": {
+  "min_font_pt": 7.0,
+  "textwidth_cm": 16.3
+ },
+ "checks": {
+  "T1": {
+   "status": "fail",
+   "count": 7,
+   "findings": [
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      204.192626953125,
+      89.4451904296875,
+      207.8449249267578,
+      95.42277526855469
+     ],
+     "text": "1",
+     "size_pt": 5.98,
+     "message": "text '1' renders at 5.98pt, below the 7.00pt floor"
     },
-    "T2": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      214.20086669921875,
+      141.77670288085938,
+      217.85316467285156,
+      147.75428771972656
+     ],
+     "text": "1",
+     "size_pt": 5.98,
+     "message": "text '1' renders at 5.98pt, below the 7.00pt floor"
     },
-    "T3": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      300.57159423828125,
+      89.4451904296875,
+      304.2239074707031,
+      95.42277526855469
+     ],
+     "text": "2",
+     "size_pt": 5.98,
+     "message": "text '2' renders at 5.98pt, below the 7.00pt floor"
     },
-    "T4": {
-      "status": "fail",
-      "count": 1,
-      "findings": [
-        {
-          "check": "T4",
-          "severity": "fail",
-          "page": 0,
-          "bbox": [
-            142.00660705566406,
-            180.14984130859375,
-            226.9580535888672,
-            188.1199493408203
-          ],
-          "text": "chain-wide task hash h",
-          "line_segment": [
-            [
-              153.0689239501953,
-              119.62176513671875
-            ],
-            [
-              153.0689239501953,
-              184.25242614746094
-            ]
-          ],
-          "message": "a drawn line crosses through the interior of text 'chain-wide task hash h'"
-        }
-      ]
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      310.57977294921875,
+      141.77670288085938,
+      314.2320861816406,
+      147.75428771972656
+     ],
+     "text": "2",
+     "size_pt": 5.98,
+     "message": "text '2' renders at 5.98pt, below the 7.00pt floor"
     },
-    "T5": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      396.9505615234375,
+      89.4451904296875,
+      400.6028747558594,
+      95.42277526855469
+     ],
+     "text": "3",
+     "size_pt": 5.98,
+     "message": "text '3' renders at 5.98pt, below the 7.00pt floor"
     },
-    "T6": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      406.95880126953125,
+      141.77670288085938,
+      410.6111145019531,
+      147.75428771972656
+     ],
+     "text": "3",
+     "size_pt": 5.98,
+     "message": "text '3' renders at 5.98pt, below the 7.00pt floor"
     },
-    "T7": {
-      "status": "pass",
-      "count": 0,
-      "findings": []
+    {
+     "check": "T1",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      369.3451232910156,
+      66.3249282836914,
+      372.9974365234375,
+      72.3025131225586
+     ],
+     "text": "3",
+     "size_pt": 5.98,
+     "message": "text '3' renders at 5.98pt, below the 7.00pt floor"
     }
+   ]
   },
-  "summary": {
-    "result": "fail",
-    "failed_checks": [
-      "T1",
-      "T4"
-    ],
-    "warned_checks": []
+  "T2": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T3": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T4": {
+   "status": "fail",
+   "count": 1,
+   "findings": [
+    {
+     "check": "T4",
+     "severity": "fail",
+     "page": 0,
+     "bbox": [
+      142.00660705566406,
+      180.14984130859375,
+      226.9580535888672,
+      188.1199493408203
+     ],
+     "text": "chain-wide task hash h",
+     "line_segment": [
+      [
+       153.0689239501953,
+       119.62176513671875
+      ],
+      [
+       153.0689239501953,
+       184.25242614746094
+      ]
+     ],
+     "message": "a drawn line crosses through the interior of text 'chain-wide task hash h'"
+    }
+   ]
+  },
+  "T5": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T6": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
+  },
+  "T7": {
+   "status": "pass",
+   "count": 0,
+   "findings": []
   }
+ },
+ "summary": {
+  "result": "fail",
+  "failed_checks": [
+   "T1",
+   "T4"
+  ],
+  "warned_checks": []
+ }
 }

@@ -46,7 +46,11 @@ def record(result: str, failed: list[str] | None = None, warned: list[str] | Non
             ),
         }
     return {
-        "pdf": "/tmp/does-not-matter.pdf",
+        # The fixture used to carry "pdf": "/tmp/does-not-matter.pdf" -- a name
+        # that told the truth. Nothing read it, and figcheck was writing the real
+        # absolute path of a throwaway PDF into every committed report. It now
+        # writes the fragment name, so the fixture models that instead.
+        "figure": "fig-example",
         "page_count": 1,
         "params": {"min_font_pt": 7.0, "textwidth_cm": 11.43},
         "checks": checks,
