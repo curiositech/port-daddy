@@ -203,6 +203,25 @@ if [ "${1:-}" = "__entity" ]; then
   exit 0
 fi
 
+# ─── register comparison, invoked on demand and by the drill's step 3 ────────
+#
+# The machine-wide register and the repo-scoped mirror must hold the SAME
+# LINES. They need not hold them in the same ORDER: append_distress writes
+# each line to the two files in sequence, and the entities append
+# concurrently, so an A>machine, B>machine, B>repo, A>repo interleaving
+# leaves both files complete but ordered differently. Each file is internally
+# ordered by its own append sequence -- that is the property
+# seen_then_complied checks, on the machine-wide file. Across the two, only
+# the content is contracted, so compare as multisets. Exit 0 when they match,
+# 1 when they do not (a line in one and not the other, or a differing count).
+if [ "${1:-}" = "__registers-match" ]; then
+  [ -f "$2" ] && [ -f "$3" ] || exit 1
+  sort "$2" > "$2.sorted" 2>/dev/null || exit 1
+  sort "$3" > "$3.sorted" 2>/dev/null || exit 1
+  cmp -s "$2.sorted" "$3.sorted"
+  exit $?
+fi
+
 # ─── the guard, invoked on demand ────────────────────────────────────────────
 # Halt in force ⇔ sentinel present, OR the register carries a HALT with no
 # verified ALL-CLEAR for it. Prints the one calm OFF line and exits 0 while
@@ -383,9 +402,9 @@ done
 # is what seen_then_complied checks, on the machine-wide file); across files
 # only the content is contracted. Compare as multisets, and wait a listening
 # interval for the second write of an in-flight line to land.
-wait_for 2 "sort '$PD_HOME/DISTRESS' > '$WORK/reg.machine' && sort '$DRILL_REPO/.portdaddy/DISTRESS' > '$WORK/reg.repo' && cmp -s '$WORK/reg.machine' '$WORK/reg.repo'" \
+wait_for 2 "sh '$SELF_PATH' __registers-match '$PD_HOME/DISTRESS' '$DRILL_REPO/.portdaddy/DISTRESS'" \
   && ok "repo-scoped register carries the same lines as the machine-wide one" \
-  || ko "repo-scoped register diverged from machine-wide: $(diff "$WORK/reg.machine" "$WORK/reg.repo" 2>/dev/null | tr '\n' '|' | head -c 400)"
+  || ko "repo-scoped register diverged from machine-wide: $(diff "$PD_HOME/DISTRESS.sorted" "$DRILL_REPO/.portdaddy/DISTRESS.sorted" 2>/dev/null | tr '\n' '|' | head -c 400)"
 
 # ── 4. nothing spends ───────────────────────────────────────────────────────
 step "4. SEELONCE: nothing spends after COMPLIED"
