@@ -23,6 +23,11 @@
 \usepackage{listings}
 \usepackage{xcolor}
 \usepackage{booktabs}
+% For \needspace at the two subsections that were landing in the last
+% two lines of a page. The Book's own preamble already loads it; the
+% generator strips this block, so adding it here only reaches the
+% standalone twin, which would otherwise fail on an undefined command.
+\usepackage{needspace}
 \usepackage{tabularx}
 \usepackage{xltabular}
 \usepackage{graphicx}
@@ -1299,6 +1304,11 @@ a sanction and Sybil-multiplying a quorum --- and the non-forgeable root that cl
 both.
 \input{figures/fig-stp-sybil-whitewash}
 
+% Stranded at the foot of p. 246, its body opening on p. 247. The heading
+% follows a figure, so the room has to be asked for after the float is placed
+% rather than by moving prose around. Six baselines: the head plus the first
+% two lines, which are where "principal" is defined.
+\needspace{6\baselineskip}
 \subsection{The principal above the actor}
 
 The economic counterparty in every trade is not the agent but the

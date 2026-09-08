@@ -1001,13 +1001,16 @@ Agent Payments Protocol (AP2): Mandates.
 \paragraph{Artifact availability.} Every artifact named in Table~\ref{tab:anchor-status} is bundled at \url{https://portdaddy.dev/whitepaper/artifacts/}. The verified Rust core is the open-source \texttt{harbor-card-rs} crate; runtime components are deployed inside the Port Daddy daemon binary. \pdchapref{bonded}{The Bonded Commons} carries the cross-paper status table; this appendix lists only the items that pertain specifically to the Anchor Protocol.
 
 \renewcommand{\arraystretch}{1.15}
-{\small
+% \footnotesize, not \small: widening the Result column at the other
+% three's expense (tried first) only moved the overflow INTO those three
+% at their own longest unwrapped content -- the inline math this column
+% carries ($2B/2^f$, $A$, $B$, the pinned/naive verifier phrases) is
+% simply too dense for \small at any column split this table's four
+% fields admit. Shrinking every column by shrinking the type clears it
+% instead of trading it around.
+{\footnotesize
 \setlength{\tabcolsep}{4pt}
-% Claim/Phase/Artifact columns given up 0.07\textwidth total: the Result
-% column (X) carries inline math ($2B/2^f$, $A$, $B$) with less room to
-% wrap around than a plain word has, and the other three still had spare
-% width at their own longest unwrapped line.
-\begin{xltabular}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.26\textwidth} >{\raggedright\arraybackslash}p{0.17\textwidth} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{0.18\textwidth}@{}}
+\begin{xltabular}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.28\textwidth} >{\raggedright\arraybackslash}p{0.18\textwidth} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{0.19\textwidth}@{}}
 \caption{Six of the twelve listed claims close at both the model and runtime level; five remain partial and one open. \Closed: model verified \emph{and} runtime conformance test passes. \Partial: design verified, runtime empirically tested rather than proved. \Open: known unmechanized.}\label{tab:anchor-status}\\
 \toprule
 \textbf{Claim} & \textbf{Method} & \textbf{Result} & \textbf{Artifact} \\

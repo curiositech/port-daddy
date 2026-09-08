@@ -22,6 +22,11 @@
 \usepackage{listings}
 \usepackage{xcolor}
 \usepackage{booktabs}
+% For \needspace at the two subsections that were landing in the last
+% two lines of a page. The Book's own preamble already loads it; the
+% generator strips this block, so adding it here only reaches the
+% standalone twin, which would otherwise fail on an undefined command.
+\usepackage{needspace}
 \usepackage{tabularx}
 \usepackage{xltabular}
 \usepackage{graphicx}
@@ -818,6 +823,12 @@ reviews its own work is two LLMs agreeing, which by Prop.~\ref{prop:verifiable-z
 is one error twice. We return to adversarial review as the authority's quality organ
 in \S\ref{sec:authority-rules}.
 
+% This heading and its lead-in sentence were landing in the last two lines of
+% p. 165, with the enumerate they introduce beginning on p. 166 -- a decision
+% procedure whose first question is on the other side of a page turn. Six
+% baselines is the head, the one-sentence lead-in, and the first item: enough
+% that the reader sees what is being decided before turning.
+\needspace{6\baselineskip}
 \subsection{The four design questions (a decision procedure)}\label{sec:four-questions}
 
 For any read-surface --- Attention Queue, briefing, resurrection digest, TUI pane ---
@@ -1280,9 +1291,12 @@ through it at $C_{\text{fa}}=1$ and $c_{\mathrm{att}}=0.2$ attention-seconds.
 % measure, and the table came in 5.6pt over it. 4pt cut that to 0.8pt; 2pt
 % clears it with room.
 \setlength{\tabcolsep}{2pt}
-% C_{\text{miss}} column widened 0.09 -> 0.14\textwidth: its own header,
-% set in math, was still overfull at 0.11.
-\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}X >{\centering\arraybackslash}p{0.05\textwidth} >{\centering\arraybackslash}p{0.14\textwidth} >{\centering\arraybackslash}p{0.09\textwidth} >{\centering\arraybackslash}p{0.09\textwidth} >{\raggedright\arraybackslash}p{0.11\textwidth}@{}}
+% C_{\text{miss}} column widened 0.09 -> 0.14\textwidth (its own header,
+% set in math, was still overfull at 0.11); "Never zoom"/"Always zoom"
+% widened 0.09 -> 0.115 each for their own bold headers, shrunk by the
+% previous round's fix -- taken from the X column, which has the most
+% slack of the six.
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}X >{\centering\arraybackslash}p{0.05\textwidth} >{\centering\arraybackslash}p{0.14\textwidth} >{\centering\arraybackslash}p{0.115\textwidth} >{\centering\arraybackslash}p{0.115\textwidth} >{\raggedright\arraybackslash}p{0.11\textwidth}@{}}
 \toprule
 \textbf{Action class} & $\pi$ & $C_{\text{miss}}$ & \textbf{Never zoom} & \textbf{Always zoom} & \textbf{Verdict} \\
 \midrule
@@ -3580,7 +3594,7 @@ A & Adversarial / conflict-free review organ & \Designed & ADR-0047 Phase 1 \\
 A & Sole-responsibility roles (assigned against the boundary) & \Vision & Thm.~\ref{thm:specialization} is \Verified; no role-assignment mechanism in code \\
 A & Completionist completion (verifier-gated) & \Vision & Def.~\ref{def:completionist}; no design doc yet \\
 A & Escalation (typed prioritized interrupt) & \Designed & ADR-0047 $\to$ ADR-0046 distress lane; predicate unspecified \\
-A & Thoughtful landing / merge ordering & \BuiltWeak & \texttt{lib/merge-queue.ts} present, not wired \\
+A & Thoughtful landing / merge ordering & \BuiltWeak & \path{lib/}\allowbreak\path{merge-}\allowbreak\path{queue.ts} present, not wired \\
 O & Operator-attention objective (SDT-spined) & \Vision & Def.~\ref{def:sdt}; unmodeled in code \\
 O & Trust calibration via canary + catch-rate & \Vision & no implementation \\
 O & Consent grant + inalienable override & \Vision & Def.~\ref{def:consent}, Prop.~\ref{prop:override} \\
