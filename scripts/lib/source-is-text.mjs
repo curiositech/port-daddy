@@ -202,10 +202,18 @@ export function declaredExtensions(repoRoot) {
   for (const raw of readFileSync(resolve(repoRoot, '.gitattributes'), 'utf8').split('\n')) {
     const line = raw.trim();
     if (!line || line.startsWith('#')) continue;
-    const pattern = line.split(/\s+/)[0];
+    const [pattern, ...attrs] = line.split(/\s+/);
     const simple = /^\*\.([A-Za-z0-9]+)$/.exec(pattern);
-    if (simple) declared.add(simple[1]);
-    else if (!ALLOWED_NON_TEXT_PATTERNS.has(pattern)) unparsed.push(pattern);
+    if (simple) {
+      declared.add(simple[1]);
+      continue;
+    }
+    // The allowlist exempts a pattern only while its line still actually
+    // declares `-text` — matching the pattern string alone would let a
+    // later edit repurpose the same glob for a positive `text` declaration
+    // and keep sailing through unnoticed, exactly what this list must not do.
+    if (ALLOWED_NON_TEXT_PATTERNS.has(pattern) && attrs.includes('-text')) continue;
+    unparsed.push(pattern);
   }
   return { declared, unparsed };
 }
