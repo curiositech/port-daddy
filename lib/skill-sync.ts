@@ -387,7 +387,10 @@ export function findUnclaimedSkillLinks(
         source: '',
         current,
       };
-      const resolved = resolve(dirname(target), current);
+      // Both sides through the same resolver, or the comparison is not one:
+      // managedRoots are realpath'd above, so a raw lexical destination never
+      // matches a root reached through a symlink.
+      const resolved = realpathExistingPrefix(resolve(dirname(target), current));
       const insideManagedRoot = managedRoots.some((root) => (resolved + sep).startsWith(root));
       // Every match is kept: this list is the removal set, not a sample. The
       // audit trims its own copy for display.
@@ -645,6 +648,33 @@ function safeRealpath(path: string): string | null {
     return realpathSync(path);
   } catch {
     return null;
+  }
+}
+
+/**
+ * realpath for a path whose leaf may not exist -- resolve the deepest ancestor
+ * that does, then put the missing tail back.
+ *
+ * An orphaned link points at a skill that has been DELETED, so its destination
+ * cannot be realpath'd: the whole reason we are looking at it is that nothing
+ * is there. Comparing that raw destination against realpath'd roots is an
+ * apples-to-oranges test, and it fails wherever a root is reached through a
+ * symlink -- which on macOS is the ordinary case, since the temp and work
+ * trees sit under /var, itself a link to /private/var. The reaper then read
+ * every real orphan as "unmanaged", counted it, named it, and declined to
+ * remove it: the exact fail-open this reaper exists to close, on one platform
+ * only, which is why Linux was green and macOS was not.
+ */
+function realpathExistingPrefix(path: string): string {
+  let head = resolve(path);
+  const tail: string[] = [];
+  for (;;) {
+    const real = safeRealpath(head);
+    if (real) return tail.length ? join(real, ...tail.reverse()) : real;
+    const parent = dirname(head);
+    if (parent === head) return resolve(path); // hit the root without finding one
+    tail.push(head.slice(parent.length + 1));
+    head = parent;
   }
 }
 

@@ -290,8 +290,17 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install the cover-check dependencies (Pillow, NumPy, PyMuPDF)
-        run: pip install --quiet pillow numpy pymupdf
+      # Pinned to the same versions library-checks pins, and for the same
+      # reason it wrote down: every page measurement the Book makes comes out
+      # of these readers, so a patch release that changes text extraction
+      # changes what the checks mean, and a green check whose meaning moved
+      # under it is worse than a red one. This job runs page_overflow.py, whose
+      # foot threshold sits at 8.0 pt because that is the empty gap measured
+      # between ordinary last lines (0-3 pt) and a longtable row falling off
+      # the block (50-70) -- measured with THIS PyMuPDF. It was unpinned here
+      # while pinned there, which is the same reader gated two different ways.
+      - name: Install the cover-check dependencies, pinned to library-checks
+        run: pip install --quiet 'pillow==12.3.0' 'numpy==2.4.6' 'pymupdf==1.28.2'
 
       # No continue-on-error here, and no quiet exit below when the directory
       # is empty. Both were in place, and together they meant a build that
@@ -346,8 +355,10 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install figure-QA Python dependencies (PyMuPDF, Pillow)
-        run: pip install --quiet pymupdf pillow
+      # Same pin, same reason: figcheck's T1-T8 findings are geometry read out
+      # of PyMuPDF, so the reader is part of the gate's definition.
+      - name: Install figure-QA Python dependencies, pinned to library-checks
+        run: pip install --quiet 'pymupdf==1.28.2' 'pillow==12.3.0'
 
       - name: Determine whether this PR touches figure-gates scope
         id: scope

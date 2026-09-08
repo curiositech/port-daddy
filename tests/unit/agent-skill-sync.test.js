@@ -278,6 +278,42 @@ describe('cross-tool agent skill sync', () => {
     expect(lstatSync(join(targets[0].path, 'kept-skill')).isSymbolicLink()).toBe(true);
   });
 
+  test('an orphan is still an orphan when the catalog root is reached through a symlink', () => {
+    // The same reap, with one symlink between the caller's path to the catalog
+    // and the catalog itself -- which is not an exotic setup, it is macOS.
+    // There /var is a link to /private/var, so every temp and work tree is
+    // reached through one, and the test above failed on macOS while passing on
+    // Linux for as long as it existed. The cause was an asymmetric comparison:
+    // the managed roots were realpath'd and the link's destination was not, so
+    // "is this orphan inside a root we own?" answered no for every orphan on
+    // that platform. The reaper counted them, named them in the audit, and
+    // removed none -- a fail-open in the tool written to close one, visible
+    // only where the paths disagree. Linux can be made to disagree on purpose,
+    // which is what this does.
+    const realSource = join(tmpRoot, 'real-skills');
+    writeSkill(realSource, 'kept-skill', 'kept-skill');
+    const deleted = writeSkill(realSource, 'deleted-skill', 'deleted-skill');
+    const linkedSource = join(tmpRoot, 'skills-via-link');
+    symlinkSync(realSource, linkedSource, 'dir');
+
+    const baseDir = join(tmpRoot, 'home-symlinked');
+    const roots = [{ label: 'test', path: linkedSource }];
+    const targets = [{ label: 'Claude', path: join(baseDir, '.claude', 'skills') }];
+
+    expect(syncAgentSkills({ baseDir, projectRoot: tmpRoot, scope: 'user', sourceRoots: roots, targets }).created).toBe(2);
+    rmSync(deleted, { recursive: true, force: true });
+
+    const status = syncAgentSkills({ baseDir, projectRoot: tmpRoot, scope: 'user', sourceRoots: roots, targets, statusOnly: true });
+    expect(status.audit.orphanedLinks).toBe(1);
+    expect(status.audit.unmanagedLinks).toBe(0); // NOT filed away as somebody else's
+    expect(status.audit.examples.orphaned[0].skill).toBe('deleted-skill');
+
+    const second = syncAgentSkills({ baseDir, projectRoot: tmpRoot, scope: 'user', sourceRoots: roots, targets });
+    expect(second.removed).toBe(1);
+    expect(existsSync(join(targets[0].path, 'deleted-skill'))).toBe(false);
+    expect(lstatSync(join(targets[0].path, 'kept-skill')).isSymbolicLink()).toBe(true);
+  });
+
   test('the reap takes only links it could have made, never an operator\'s own', () => {
     const source = writeSkill(join(tmpRoot, 'skills'), 'real-skill', 'real-skill') && join(tmpRoot, 'skills');
     const elsewhere = join(tmpRoot, 'elsewhere');
