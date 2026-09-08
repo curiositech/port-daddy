@@ -181,6 +181,18 @@ jobs:
             fi
           fi
 
+      # The cover's type is set at fixed coordinates over a full-bleed plate, so
+      # whether it collides with the artwork is a property of the built page and
+      # of nothing else. Checked here, against the PDFs this job just made,
+      # rather than in library-checks, where the only PDF available is the
+      # committed one -- which lags its own source by exactly this job.
+      - name: Cover type does not print over the cover art
+        run: |
+          set -euo pipefail
+          pip install --quiet pillow numpy pymupdf
+          python3 scripts/whitepaper-plates/check_cover_title_band.py \
+            --pdf-dir website-v2/public/whitepaper
+
       - name: Commit rebuilt PDFs (same-repo branch)
         # Heal configured feature-branch pushes and same-repository PR heads.
         # Fork PRs retain a read-only token and stay advisory; main is protected

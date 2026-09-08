@@ -113,8 +113,15 @@ def main() -> int:
                 f"{rel}: clean band {band * 100:.1f}% is under the {required * 100:.0f}% "
                 f"floor; the title will print over the artwork")
 
-        if args.pdf_dir:
-            pdf = os.path.join(args.pdf_dir, os.path.basename(pdf))
+        # The page check needs a FRESH build. The committed PDF lags its own
+        # source -- CI regenerates and commits it after a push -- so running
+        # this against the checked-in file would fail on a defect the working
+        # tree has already fixed. Point it at a build directory instead; the
+        # whitepaper-build workflow does exactly that once it has compiled.
+        if not args.pdf_dir:
+            print(f"{edition}: page check skipped (needs --pdf-dir with a fresh build)")
+            continue
+        pdf = os.path.join(args.pdf_dir, os.path.basename(pdf))
         if os.path.exists(pdf):
             offenders = type_over_art(pdf, band)
             if offenders:

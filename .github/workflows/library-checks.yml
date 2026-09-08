@@ -32,6 +32,7 @@ on:
       - 'website-v2/src/data/harborResearchProgram.json'
       - 'website-v2/src/data/researchPapers.ts'
       - 'scripts/harbor-research/**'
+      - 'scripts/whitepaper-plates/**'
       - 'scripts/generate-mega-whitepaper.mjs'
       - 'scripts/generate-mega-whitepaper.test.mjs'
       - 'scripts/build-whitepapers.sh'
@@ -59,6 +60,7 @@ on:
       - 'website-v2/src/data/harborResearchProgram.json'
       - 'website-v2/src/data/researchPapers.ts'
       - 'scripts/harbor-research/**'
+      - 'scripts/whitepaper-plates/**'
       - 'scripts/generate-mega-whitepaper.mjs'
       - 'scripts/generate-mega-whitepaper.test.mjs'
       - 'scripts/build-whitepapers.sh'
@@ -130,6 +132,16 @@ jobs:
 
       - name: Every rendered plate has honest provenance and every TeX plate path resolves
         run: python3 scripts/harbor-research/check_plate_provenance.py
+
+      # The only step here that is not stdlib-only. It has to decode the plate's
+      # pixels to find where its artwork starts, and read the built PDF's text
+      # boxes to see where the type actually landed -- the two things that
+      # cannot be answered from the source. Wheels, so it costs seconds.
+      - name: Install the image and PDF readers the cover check needs
+        run: pip install --quiet pillow numpy pymupdf
+
+      - name: Full-bleed covers leave room for the type set over them
+        run: python3 scripts/whitepaper-plates/check_cover_title_band.py
 
       - name: Margin apparatus rules hold in every chapter
         run: python3 skills/tufte-evidence-design/scripts/margin_lint.py

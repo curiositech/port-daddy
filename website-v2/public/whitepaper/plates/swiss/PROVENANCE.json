@@ -237,12 +237,18 @@
       ],
       "bytes": 594986,
       "chosen": "1",
-      "chosen_rationale": "after three rounds of precision language, the plate where the broken arc and its continuation plainly lie on the same circle at the same band width, with the gap over the weld",
+      "chosen_rationale": "Best of twelve by measurement, not by eye. A reviewer said the two arcs on the shipped plate do not share a centre, and measurement agreed with the reviewer and not with the rationale that used to sit here. scripts/whitepaper-plates/score_broken_arc.py fits a circle to each arc's outer boundary: this candidate's halves are 6.3% of a radius from concentric with radii 11.5% apart, where the other eleven are 92% to 637% from concentric -- they are two unrelated shapes, not one interrupted ring. So this is the plate that comes closest to the brief, and it is close rather than exact: at page size the eye reads one broken band, and a caliper would not.",
       "prompt": "A Swiss International Typographic Style plate in the manner of Josef Muller-Brockmann and Herbert Matter: built on a hard modular grid whose thin rules are visible as structure, with flat planes of opaque colour, high-contrast black-and-white halftone photography montaged against those planes and cropped square to the grid, axonometric construction where the subject allows, asymmetric balance and active negative space. Printed flat on warm off-white paper #FBF7EF. The photographic elements are genuinely photographic -- real tonal halftone with visible screen, not illustration -- and they are the life of the composition. Dominant colour: flat #582C83 konkret violet, with the signal red #DA291C used once and small as the single accent, and charcoal #121212 for reversed-out planes. Subject: a riveted steel hull plate with one clean welded seam running across it, photographed raking, as a halftone photograph band across the lower half. Above it one broad flat colour arc is interrupted and then resumes, both parts plainly the same band on the same circle, the gap sitting directly over the weld.  Absolutely no lettering, numerals, words, letterforms, captions, labels, logos or symbols resembling writing anywhere in the image. Where the composition calls for a type area, leave a clean empty plane of flat colour; the lettering is typeset afterwards.",
       "generated_at": "2026-09-07T23:31:18+00:00",
       "pipeline_version": "2.0.0",
       "source_render": "chapter-stp-1.png",
-      "candidates": 6
+      "candidates": 12,
+      "measurement": {
+        "script": "scripts/whitepaper-plates/score_broken_arc.py",
+        "centre_offset_share_of_radius": 0.063,
+        "radius_difference_share_of_radius": 0.115,
+        "candidates_measured": 12
+      }
     },
     "chapter-he": {
       "file": "chapter-he.jpg",
