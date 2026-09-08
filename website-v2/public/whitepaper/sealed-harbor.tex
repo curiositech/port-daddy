@@ -423,7 +423,7 @@ their own condition is that no variable used in a declassification is updated
 before it. What the hypothesis costs is stated in the boundary below and paid
 in Section~\ref{sec:sealed-budget}. The release ledger of
 \S\ref{sec:sealed-budget} answers, in Sabelfeld and Sands' later organizing
-taxonomy \cite{ss09}, \emph{what} is released (the $\varepsilon$-priced
+taxonomy \pdcite{ss09}, \emph{what} is released (the $\varepsilon$-priced
 artifact), \emph{who} performs the release (the declassifier), and
 \emph{where} it happens (the gate); \emph{when} it happens is the
 release-ledger's own open question, since a room can only price the release
@@ -433,7 +433,7 @@ it observes, not the frequency an adversary chooses to request it.
 There is no proof to read; there is a search to rerun. The checker builds the
 two worlds side by side, one per secret, and drives them through every
 interleaving of the same action sequence to depth 7 --- \textbf{self-composition}
-\cite{bdr04}, the standard technique for reducing a 2-safety hyperproperty
+\pdcite{bdr04}, the standard technique for reducing a 2-safety hyperproperty
 like noninterference (a claim that quantifies over pairs of runs) to an
 ordinary safety check by composing two copies of the system and asserting an
 invariant relating their states, applied here concretely rather than through a
@@ -563,10 +563,10 @@ and the room replaces them rather than extending them, because a hook a
 process can decline to invoke gates nothing. This ladder grades a runtime
 claim by the evidence a mechanism itself produces, a different variable from
 Sheridan and Parasuraman--Sheridan--Wickens's levels of automation, which
-grade how much of a task a system performs unassisted \cite{parasuraman2000}, and
+grade how much of a task a system performs unassisted \pdcite{parasuraman2000}, and
 from the Common Criteria's evaluation assurance levels, which grade a
 security claim by how much independent verification backs it
-\cite{cciso15408}.
+\pdcite{cciso15408}.
 
 \begin{pdboundary}
 Controllability is relative to the mediated alphabet: partial observation
@@ -591,7 +591,7 @@ property of the workroom, not a theorem.
 
 \noindent Rogers, Roth, Ullman and Vadhan coined two names for a ledger like
 this one, tracking cumulative differential-privacy expenditure across
-adaptively chosen queries \cite{rruv16}: a \textbf{privacy odometer} reads the
+adaptively chosen queries \pdcite{rruv16}: a \textbf{privacy odometer} reads the
 running total with no pre-specified ceiling, and a \textbf{privacy filter}
 halts before a pre-specified budget is exceeded. Because $\varepsilon_{\max}$
 below is fixed in advance and every over-budget release is refused, this
@@ -794,7 +794,7 @@ This is textbook sequential analysis applied to a live security detector, and
 the closest prior instance of exactly that move is Jung, Paxson, Berger and
 Balakrishnan's Threshold Random Walk, which models portscan detection as the
 same benign-versus-malicious random walk and derives a guaranteed
-false-positive/latency trade-off from Wald's SPRT \cite{jpbb04}.
+false-positive/latency trade-off from Wald's SPRT \pdcite{jpbb04}.
 
 \paragraph{Proof idea.}\pdmarginfigure{wald}{Wald's sequential probability ratio test, made for wartime quality control, is still the fastest way to decide that a canary has tripped at a guaranteed error rate.}%
 Power is independence and counting: a leak is missed only if every carried

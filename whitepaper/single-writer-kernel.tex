@@ -790,10 +790,10 @@ Within an immediate SQLite transaction (\texttt{BEGIN IMMEDIATE}), the daemon ev
 
 The fencing epoch is the \textbf{fencing token}: ``a number that increases every
 time a client acquires the lock,'' rejected by the resource itself if a paused or
-stale holder tries to act after a newer epoch has issued~\cite{kleppmann2016locking}
+stale holder tries to act after a newer epoch has issued~\pdcite{kleppmann2016locking}
 --- the exact mechanism Chubby shipped first, where a sequence number lets a
 storage server tell a current handle from a stale predecessor's and reject the
-latter~\cite{burrows2006chubby}. The setting differs (Chubby and Raft's leader term
+latter~\pdcite{burrows2006chubby}. The setting differs (Chubby and Raft's leader term
 fence across machines that cannot otherwise agree on liveness; this rail fences a
 single process's own async handlers against each other), but the reject-below-current-epoch
 rule is the identical protocol shape.
@@ -1420,9 +1420,9 @@ chapters: detect-only policies are enforced by audit, reputation, and bond-slash
 must be sized for violations that \emph{will} occur. The ladder these modes form sits beside
 two public gradings of a different variable: Sheridan and
 Parasuraman--Sheridan--Wickens's levels of automation grade a system by how much
-of a task it performs unassisted~\cite{parasuraman2000}, and the Common
+of a task it performs unassisted~\pdcite{parasuraman2000}, and the Common
 Criteria's evaluation assurance levels grade a security claim by how much
-independent verification backs it~\cite{cciso15408}; this ladder grades a
+independent verification backs it~\pdcite{cciso15408}; this ladder grades a
 runtime claim by the evidence a mechanism itself produces, a third axis next to
 those two.
 
@@ -1781,7 +1781,7 @@ restores safety [internal, \texttt{c0\_workunit.py}].
 I2's guarantee is what the literature calls \textbf{effectively-once} processing: a
 deduplication discipline enforced at the boundary (an idempotency key plus a unique
 receipt row), not a promise the network itself keeps, since true exactly-once delivery
-across an unreliable channel is impossible~\cite{helland2007distributed}.
+across an unreliable channel is impossible~\pdcite{helland2007distributed}.
 
 \paragraph{Proof idea.}
 There is no proof to read; there is a search to rerun. The checker performs a breadth-first
@@ -2564,9 +2564,9 @@ cannot do. This is a narrower, cheaper problem than general operating-system
 confinement, and the same-machine adversary this chapter's own OP-9 leaves
 \Open{} (\S\ref{sec:merkle}) is exactly the problem the field's two current
 answers exist to close: seL4's machine-checked proof of functional correctness
-from specification to binary~\cite{klein2009sel4}, and Firecracker's
+from specification to binary~\pdcite{klein2009sel4}, and Firecracker's
 production microVM isolation for untrusted multi-tenant
-workloads~\cite{agache2020firecracker}. Either would give this kernel a
+workloads~\pdcite{agache2020firecracker}. Either would give this kernel a
 stronger trusted computing base than an ephemeral-UID process boundary; neither
 is adopted here, and the gap is named rather than closed.
 
@@ -2582,7 +2582,7 @@ durability under power loss while preserving consistency. That caveat has an
 empirical backdrop: Pillai et al.'s crash-consistency study found persistence
 guarantees vary widely across popular Linux filesystems, and that many
 application update protocols carry crash vulnerabilities their own APIs do not
-disclose~\cite{pillai2014allfilesystems}. Our architectural posture
+disclose~\pdcite{pillai2014allfilesystems}. Our architectural posture
 --- a single writer rather than a replicated state machine --- follows the
 single-leader default that Kleppmann argues for~\pdcite{kleppmann2017}: reach for
 consensus only when the problem genuinely forces it. We make that argument formal

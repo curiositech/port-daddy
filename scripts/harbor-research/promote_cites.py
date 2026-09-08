@@ -80,14 +80,27 @@ def balanced_group_end(text: str, open_brace: int) -> int:
     return n
 
 
-def protected_spans(text: str) -> list[tuple[int, int]]:
+class UnterminatedBibliography(Exception):
+    """A chapter opened a bibliography it never closed."""
+
+
+def protected_spans(text: str, label: str = "<source>") -> list[tuple[int, int]]:
     """Every (start, end) span \\cite must not be promoted inside."""
     spans: list[tuple[int, int]] = []
 
     for m in re.finditer(r"\\begin\{thebibliography\}", text):
         end_m = re.search(r"\\end\{thebibliography\}", text[m.start():])
-        end = m.start() + end_m.end() if end_m else len(text)
-        spans.append((m.start(), end))
+        # An unterminated bibliography used to protect everything after it,
+        # which meant a chapter with a typo'd \end silently promoted nothing
+        # from that point to its last line and still reported success. The
+        # file is not valid TeX in that state, so say so rather than quietly
+        # skipping most of the chapter.
+        if end_m is None:
+            line = text.count("\n", 0, m.start()) + 1
+            raise UnterminatedBibliography(
+                f"{label}:{line}: \\begin{{thebibliography}} is never closed; "
+                f"fix the source before promoting citations")
+        spans.append((m.start(), m.start() + end_m.end()))
 
     for name in ("caption", "footnote", *HEADING_COMMANDS):
         for m in re.finditer(r"\\" + name + r"\*?\s*(\[[^\]]*\])?\{", text):
@@ -120,10 +133,10 @@ def in_any_span(pos: int, spans: list[tuple[int, int]]) -> bool:
     return False
 
 
-def promote(text: str) -> tuple[str, int, int, int]:
+def promote(text: str, label: str = "<source>") -> tuple[str, int, int, int]:
     """Returns (new_text, promoted_count, skipped_protected_count,
     skipped_optional_arg_count)."""
-    spans = protected_spans(text)
+    spans = protected_spans(text, label)
     out = []
     last = 0
     promoted = 0
@@ -159,7 +172,11 @@ def main() -> int:
         path = os.path.join(REPO_ROOT, chapter["source"])
         with open(path, encoding="utf-8") as fh:
             text = fh.read()
-        new_text, promoted, skipped_protected, skipped_optional = promote(text)
+        try:
+            new_text, promoted, skipped_protected, skipped_optional = promote(text, chapter["source"])
+        except UnterminatedBibliography as err:
+            print(f"ERROR {err}", file=sys.stderr)
+            return 1
         total_promoted += promoted
         total_protected += skipped_protected
         total_optional += skipped_optional
