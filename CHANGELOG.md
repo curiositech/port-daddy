@@ -7,19 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-
-- Cloud Fleet account settings and a Cloudflare-allowlisted global administrator
-  page, with primary-D1 fail-closed enforcement, revision-bound writes and
-  atomic audit records. Requires the control migration plus Relay and executor
-  deployment; this change does not restart local Port Daddy or enable Fleet.
-
-### Changed
-
-- Global Fleet pause no longer accepts a break-glass secret or a broad operator
-  role. The API requires an allowlisted account and the current control revision;
-  the old KV flag is no longer read or imported as an allow.
-
 ## [3.30.6] - 2026-08-31
 
 ### Added
