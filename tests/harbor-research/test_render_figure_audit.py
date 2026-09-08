@@ -193,25 +193,36 @@ class TestRenderFigureAudit(unittest.TestCase):
             for stem, seen in by_id.items():
                 self.assertRegex(seen, r"^\d{4}-\d{2}-\d{2}$", msg=stem)
 
-    def test_waiver_seeded_only_for_delete_or_table_disposition(self) -> None:
+    def test_which_disposition_earns_which_waiver(self) -> None:
+        """Three outcomes, and the distinction between them is the policy.
+        A figure being deleted or tabled is leaving the Book, so its defect
+        will never be fixed and is retired. A figure marked redraw, restyle,
+        or keep-with-a-parenthetical is staying and its defect is scheduled
+        work, so it is a dated backlog. A bare keep -- the triage saying the
+        figure is finished -- earns nothing: a figure claimed clean that the
+        machine fails is a contradiction, and it should be looked at rather
+        than waved through. That last case is the negative control."""
         with TemporaryDirectory() as tmp:
             root = Path(tmp)
-            write_json(root / FIGCHECK_REL / "fig-anchor-gone.json", record("fail", failed=["T1"]))
-            write_json(root / FIGCHECK_REL / "fig-anchor-active.json", record("fail", failed=["T4"]))
+            for stem in ("gone", "active", "noted", "clean"):
+                write_json(root / FIGCHECK_REL / f"fig-anchor-{stem}.json", record("fail", failed=["T1"]))
             (root / TRIAGE_REL).parent.mkdir(parents=True, exist_ok=True)
             (root / TRIAGE_REL).write_text(
                 "# triage\n\n## Chapter 2 — Anchor\n\n"
                 "| # | fragment | idea | drawn | role | disposition | spec |\n"
                 "|---|---|---|---|---|---|---|\n"
                 "| 2.1 | fig-anchor-gone | idea | drawn | carries | delete | spec |\n"
-                "| 2.2 | fig-anchor-active | idea | drawn | carries | restyle | spec |\n",
+                "| 2.2 | fig-anchor-active | idea | drawn | carries | restyle | spec |\n"
+                "| 2.3 | fig-anchor-noted | idea | drawn | carries | **keep** (labels bigger) | spec |\n"
+                "| 2.4 | fig-anchor-clean | idea | drawn | carries | keep | spec |\n",
                 encoding="utf-8",
             )
             self.assertEqual(run(root, "--write").returncode, 0)
             blockers = {b["id"]: b for b in json.loads((root / BLOCKERS_REL).read_text(encoding="utf-8"))}
-            self.assertIsNotNone(blockers["fig-anchor-gone"]["waiver"])
             self.assertEqual(blockers["fig-anchor-gone"]["waiver"]["reason"], "retired by triage")
-            self.assertIsNone(blockers["fig-anchor-active"]["waiver"])
+            self.assertIn("condemned", blockers["fig-anchor-active"]["waiver"]["reason"])
+            self.assertIn("condemned", blockers["fig-anchor-noted"]["waiver"]["reason"])
+            self.assertIsNone(blockers["fig-anchor-clean"]["waiver"])
 
 
 if __name__ == "__main__":

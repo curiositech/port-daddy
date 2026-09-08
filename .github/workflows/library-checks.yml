@@ -165,8 +165,17 @@ jobs:
           # run still says "Ran N tests" -- which is how 11 page-measurement
           # tests went missing while the line above looked like it had run
           # them. Count what actually ran.
-          out=$(python3 -m unittest discover -s tests/harbor-research -p 'test_*.py' 2>&1)
+          # `|| true`, because errexit kills the step at a failing command
+          # substitution before the echo runs -- which is how a genuinely
+          # failing suite produced a red step with no output at all, the same
+          # silence this counter was added to end. The exit status is taken
+          # from the captured status, not from the substitution.
+          out=$(python3 -m unittest discover -s tests/harbor-research -p 'test_*.py' 2>&1) || suite_failed=1
           echo "$out"
+          if [ "${suite_failed:-0}" = "1" ]; then
+            echo "::error::the harbor-research suite failed; its output is above"
+            exit 1
+          fi
           ran=$(printf '%s' "$out" | sed -n 's/^Ran \([0-9]*\) tests.*/\1/p')
           if [ "${ran:-0}" -lt 212 ]; then
             echo "::error::the harbor-research suite ran ${ran:-0} tests, fewer than the 212 it has; a module failed to import"
