@@ -382,6 +382,38 @@ pub fn render_blocks_width(blocks: &[Block], style: &TermStyle, cols: Option<usi
                 ));
                 i += 1;
             }
+            Block::AgentRow { letter, label, detail, tone, .. } => {
+                let sem = tone.sem();
+                out.push_str(&format!(
+                    "  {} {}  {}\n",
+                    style.paint(&format!("⚑{letter}"), sem),
+                    style.paint(label, sem),
+                    style.paint(detail, Sem::Muted),
+                ));
+                i += 1;
+            }
+            Block::TranscriptBubble { speaker, text, tone, mine } => {
+                let sem = tone.sem();
+                let prefix = if *mine { "you" } else { speaker };
+                out.push_str(&format!(
+                    "  {} {}\n",
+                    style.paint(&format!("{prefix}>"), sem),
+                    style.paint(text, Sem::Ink),
+                ));
+                i += 1;
+            }
+            Block::HitlCard { request_id, title, detail, tone, .. } => {
+                let sem = tone.sem();
+                out.push_str(&format!(
+                    "  {} {}\n  {} {}\n  {}\n",
+                    style.paint("DECISION", sem),
+                    style.paint(request_id, Sem::Muted),
+                    style.bold_paint(title, sem),
+                    style.paint(detail, Sem::Ink),
+                    style.paint("[approve] [adjust] [deny]", sem),
+                ));
+                i += 1;
+            }
             Block::Spark(values) => {
                 out.push_str(&format!(
                     "  {}\n",

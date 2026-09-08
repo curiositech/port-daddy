@@ -342,6 +342,20 @@ fn main() {
                         // Every arm captures the daemon's outcome and, on failure,
                         // pushes a full-detail Alert up the bus. No `let _ =` swallow.
                         match msg {
+                            app::ControlMsg::WatchAgent { agent_id } => {
+                                lane.watch_agent(agent_id);
+                            }
+                            app::ControlMsg::AgentTurn { agent_id, text } => {
+                                let channel = format!("agent:{agent_id}");
+                                if let Err(e) = client.tube_send(&channel, &text, "operator").await {
+                                    let _ = alert_tx.send(pane::Alert::error("agent send failed", e.to_string()));
+                                } else {
+                                    let _ = alert_tx.send(pane::Alert::info(
+                                        format!("sent turn to {agent_id}"),
+                                        format!("published on {channel}"),
+                                    ));
+                                }
+                            }
                             app::ControlMsg::InterruptLane => {
                                 if let Err(e) = lane
                                     .mutate(&client, SurfaceAction::Interrupt { reason: Some("operator stop".into()) })
@@ -378,9 +392,11 @@ fn main() {
                                                     err,
                                                 ));
                                             } else {
-                                                let _ = alert_tx.send(pane::Alert::info(
-                                                    format!("spawned {backend} agent {}", outcome.id),
+                                                let agent_id = outcome.id;
+                                                let _ = alert_tx.send(pane::Alert::spawned(
+                                                    format!("spawned {backend} agent {agent_id}"),
                                                     outcome.status,
+                                                    agent_id,
                                                 ));
                                             }
                                         }

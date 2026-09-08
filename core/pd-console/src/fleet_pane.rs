@@ -13,7 +13,7 @@
 use crate::agent::DaemonClient;
 use crate::maritime::flag_for_state;
 use crate::pane::{Block, Pane, Tone};
-use crate::util::{arr, n, s, trunc};
+use crate::util::{age_short, arr, n, s, trunc};
 use anyhow::Result;
 use serde_json::Value;
 
@@ -71,6 +71,56 @@ impl ShipEntry {
     }
 }
 
+/// Active Port Daddy session used as the Fleet pane's honest fallback when the
+/// declarative ship fleet is stopped. This keeps the first operator viewport
+/// dataful without pretending sessions are fleet ships.
+#[derive(Debug, Clone)]
+struct ActiveSessionEntry {
+    id: String,
+    purpose: String,
+    agent_id: String,
+    project: String,
+    worktree: String,
+    created_at_ms: i64,
+    file_count: i64,
+    note_count: i64,
+}
+
+impl ActiveSessionEntry {
+    fn from_value(v: &Value) -> Self {
+        Self {
+            id: s(v, "id"),
+            purpose: s(v, "purpose"),
+            agent_id: s(v, "agentId"),
+            project: s(v, "identityProject"),
+            worktree: s(v, "worktreeId"),
+            created_at_ms: n(v, "createdAt"),
+            file_count: n(v, "fileCount"),
+            note_count: n(v, "noteCount"),
+        }
+    }
+
+    fn label(&self) -> String {
+        if self.purpose.is_empty() {
+            trunc(&self.id, 44)
+        } else {
+            trunc(&self.purpose, 54)
+        }
+    }
+
+    fn detail(&self) -> String {
+        let project = if self.project.is_empty() { "project: —" } else { &self.project };
+        format!(
+            "{} · {} · wt {} · {} files · {} notes",
+            age_short(self.created_at_ms),
+            trunc(project, 16),
+            trunc(&self.worktree, 8),
+            self.file_count,
+            self.note_count
+        )
+    }
+}
+
 /// Map a lifecycle string to a display tone (color resolves at paint time).
 fn lifecycle_tone(lifecycle: &str) -> Tone {
     match lifecycle {
@@ -83,13 +133,15 @@ fn lifecycle_tone(lifecycle: &str) -> Tone {
 
 pub struct FleetPane {
     pub ships: Vec<ShipEntry>,
+    active_sessions: Vec<ActiveSessionEntry>,
     fleets_running: usize,
     last_error: Option<String>,
+    session_error: Option<String>,
 }
 
 impl Default for FleetPane {
     fn default() -> Self {
-        Self { ships: Vec::new(), fleets_running: 0, last_error: None }
+        Self { ships: Vec::new(), active_sessions: Vec::new(), fleets_running: 0, last_error: None, session_error: None }
     }
 }
 
@@ -124,11 +176,52 @@ impl Pane for FleetPane {
             blocks.push(Block::KeyVal(
                 "status".into(),
                 if self.fleets_running == 0 {
-                    "no fleet running — `pd fleet up` to launch ships".into()
+                    "no declarative fleet running — showing active sessions below".into()
                 } else {
                     "fleet running, but pd-fleet.yml declares no ships".into()
                 },
             ));
+            if let Some(err) = &self.session_error {
+                blocks.push(Block::KeyVal("sessions".into(), err.clone()));
+                return blocks;
+            }
+            if self.active_sessions.is_empty() {
+                blocks.push(Block::KeyVal(
+                    "sessions".into(),
+                    "no active sessions from /sessions?status=active&all=true".into(),
+                ));
+                return blocks;
+            }
+            blocks.push(Block::Gap);
+            blocks.push(Block::Header("Active Sessions — Fleet Fallback".into()));
+            for sess in self.active_sessions.iter().take(10) {
+                if sess.agent_id.is_empty() {
+                    blocks.push(Block::Row(vec![
+                        age_short(sess.created_at_ms),
+                        trunc(&sess.project, 14),
+                        "no-agent".into(),
+                        sess.label(),
+                    ]));
+                    blocks.push(Block::KeyVal("  detail".into(), sess.detail()));
+                } else {
+                    blocks.push(Block::AgentRow {
+                        agent_id: sess.agent_id.clone(),
+                        letter: 'A',
+                        label: sess.label(),
+                        detail: format!("{} · {}", short_agent(&sess.agent_id), sess.detail()),
+                        tone: Tone::Engaged,
+                    });
+                }
+            }
+            blocks.push(Block::Gap);
+            blocks.push(Block::Chip {
+                label: format!(
+                    "{} active session{} · 0 fleet ships",
+                    self.active_sessions.len(),
+                    if self.active_sessions.len() == 1 { "" } else { "s" }
+                ),
+                tone: Tone::Engaged,
+            });
             return blocks;
         }
 
@@ -203,6 +296,7 @@ impl Pane for FleetPane {
                     self.last_error = Some(format!("daemon unreachable: {e}"));
                     self.ships.clear();
                     self.fleets_running = 0;
+                    self.active_sessions.clear();
                 }
                 Ok(resp) => {
                     let status = resp.status();
@@ -211,6 +305,7 @@ impl Pane for FleetPane {
                             Some(format!("GET /fleet → {status} (daemon may predate ship lifecycle)"));
                         self.ships.clear();
                         self.fleets_running = 0;
+                        self.active_sessions.clear();
                         return Ok(());
                     }
                     match resp.json::<Value>().await {
@@ -231,8 +326,44 @@ impl Pane for FleetPane {
                     }
                 }
             }
+            let sessions_url = format!("{}/sessions?status=active&all=true&limit=20", daemon.base());
+            match daemon.http_client().get(&sessions_url).send().await {
+                Err(e) => {
+                    self.session_error = Some(format!("session roster unavailable: {e}"));
+                    self.active_sessions.clear();
+                }
+                Ok(resp) => {
+                    let status = resp.status();
+                    if !status.is_success() {
+                        self.session_error = Some(format!("GET /sessions → {status}"));
+                        self.active_sessions.clear();
+                    } else {
+                        match resp.json::<Value>().await {
+                            Err(e) => {
+                                self.session_error = Some(format!("bad session response: {e}"));
+                                self.active_sessions.clear();
+                            }
+                            Ok(data) => {
+                                self.session_error = None;
+                                self.active_sessions = arr(&data, "sessions")
+                                    .iter()
+                                    .map(ActiveSessionEntry::from_value)
+                                    .collect();
+                            }
+                        }
+                    }
+                }
+            }
             Ok(())
         })
+    }
+}
+
+fn short_agent(id: &str) -> String {
+    if id.len() <= 22 {
+        id.to_string()
+    } else {
+        format!("{}…{}", &id[..12], &id[id.len() - 7..])
     }
 }
 
@@ -293,9 +424,53 @@ mod tests {
         let p = FleetPane::default();
         let blocks = p.view();
         assert!(matches!(&blocks[0], Block::Header(h) if h == "Fleet — Ship Lifecycle"));
-        // Empty + no fleet running → actionable guidance, not a blank pane.
+        // Empty + no fleet running is honest about the fleet state.
         assert!(blocks.iter().any(|b| matches!(
-            b, Block::KeyVal(_, v) if v.contains("pd fleet up")
+            b, Block::KeyVal(_, v) if v.contains("showing active sessions")
+        )));
+    }
+
+    #[test]
+    fn view_empty_fleet_shows_active_sessions_as_fallback_roster() {
+        let mut p = FleetPane::default();
+        p.active_sessions = vec![
+            ActiveSessionEntry {
+                id: "session-1".into(),
+                purpose: "Fix pd-console panes".into(),
+                agent_id: "agent-fix-console-dataful".into(),
+                project: "port-daddy".into(),
+                worktree: "b04c06a1".into(),
+                created_at_ms: 0,
+                file_count: 5,
+                note_count: 2,
+            },
+            ActiveSessionEntry {
+                id: "session-2".into(),
+                purpose: "Operator note sync".into(),
+                agent_id: "".into(),
+                project: "port-daddy".into(),
+                worktree: "b04c06a1".into(),
+                created_at_ms: 0,
+                file_count: 0,
+                note_count: 213,
+            },
+        ];
+        let blocks = p.view();
+        assert!(blocks.iter().any(|b| matches!(
+            b,
+            Block::Header(h) if h == "Active Sessions — Fleet Fallback"
+        )));
+        assert!(blocks.iter().any(|b| matches!(
+            b,
+            Block::AgentRow { agent_id, label, detail, tone, .. }
+            if agent_id == "agent-fix-console-dataful"
+                && label.contains("Fix pd-console panes")
+                && detail.contains("5 files")
+                && matches!(tone, Tone::Engaged)
+        )));
+        assert!(blocks.iter().any(|b| matches!(
+            b,
+            Block::Row(cols) if cols.iter().any(|c| c == "no-agent")
         )));
     }
 

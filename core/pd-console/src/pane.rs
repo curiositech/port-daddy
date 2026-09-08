@@ -48,6 +48,34 @@ pub enum Block {
     /// followed by a label (e.g. the agent identity + state). The console paints
     /// the square in the flag's semantic tone — a real flag, not `[A]` text.
     Flag { letter: char, label: String, tone: Tone },
+    /// A fleet roster row that can join a specific agent's live transcript.
+    /// Renderers may display it like a flag row, but the semantic target is the
+    /// stable `agent_id`, not a parsed string in the label.
+    AgentRow {
+        agent_id: String,
+        letter: char,
+        label: String,
+        detail: String,
+        tone: Tone,
+    },
+    /// A role-aware transcript bubble inside a joined live agent chat. `mine`
+    /// lets renderers bias the operator's own turns without parsing the text.
+    TranscriptBubble {
+        speaker: String,
+        text: String,
+        tone: Tone,
+        mine: bool,
+    },
+    /// A human-in-the-loop request carried inline with the same transcript stream.
+    /// The card knows the target agent so approve/deny/adjust can answer over the
+    /// agent's tube instead of routing the operator to a separate queue first.
+    HitlCard {
+        agent_id: String,
+        request_id: String,
+        title: String,
+        detail: String,
+        tone: Tone,
+    },
     Spark(Vec<f32>),
     Gap,
     /// Full, wrapped, never-truncated text — for alert/HITL detail the operator
@@ -92,6 +120,9 @@ pub struct Alert {
     pub level: AlertLevel,
     pub title: String,
     pub detail: String,
+    /// A successful spawn can ask the foreground to bind the live transcript to
+    /// the exact new agent id. Generic alerts leave this empty.
+    pub join_agent_id: Option<String>,
     /// epoch-ms; the bg thread stamps it. 0 in tests that don't care.
     pub ts: i64,
 }
@@ -102,13 +133,18 @@ impl Alert {
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_millis() as i64)
             .unwrap_or(0);
-        Self { level, title: title.into(), detail: detail.into(), ts }
+        Self { level, title: title.into(), detail: detail.into(), join_agent_id: None, ts }
     }
     pub fn error(title: impl Into<String>, detail: impl Into<String>) -> Self {
         Self::new(AlertLevel::Error, title, detail)
     }
     pub fn info(title: impl Into<String>, detail: impl Into<String>) -> Self {
         Self::new(AlertLevel::Info, title, detail)
+    }
+    pub fn spawned(title: impl Into<String>, detail: impl Into<String>, agent_id: impl Into<String>) -> Self {
+        let mut alert = Self::info(title, detail);
+        alert.join_agent_id = Some(agent_id.into());
+        alert
     }
 }
 
@@ -269,6 +305,7 @@ mod tests {
     fn alert_carries_full_detail_and_maps_to_tone() {
         let a = Alert::error("spawn rejected (claude-cli)", "login cannot be verified non-interactively");
         assert_eq!(a.level, AlertLevel::Error);
+        assert!(a.join_agent_id.is_none());
         // Detail is preserved in full — never truncated at the source.
         assert!(a.detail.contains("non-interactively"));
         assert!(a.ts > 0, "error() stamps a real timestamp");
@@ -277,6 +314,10 @@ mod tests {
         assert_eq!(AlertLevel::Info.tone(), Tone::Landed);
         assert_eq!(AlertLevel::Warn.tone(), Tone::Gated);
         assert_eq!(Alert::info("ok", "").level, AlertLevel::Info);
+        assert_eq!(
+            Alert::spawned("spawned", "running", "agent-1").join_agent_id.as_deref(),
+            Some("agent-1")
+        );
     }
 
     #[test]

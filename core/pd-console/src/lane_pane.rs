@@ -24,6 +24,7 @@ use crate::agent::{DaemonClient, StreamEnvelope, StreamKind};
 use crate::pane::{Block, Pane, Subscription, SurfaceAction, Tone};
 use crate::util;
 use anyhow::Result;
+use serde_json::Value;
 
 /// How many transcript/tube lines to retain in the scrollback. Older lines drop
 /// off the top — the Lane is a live tail, not an archive.
@@ -56,12 +57,65 @@ impl ToolState {
 /// A line in the live scrollback, tagged by origin so the renderer can tone it.
 #[derive(Debug, Clone)]
 enum LaneLine {
-    Transcript(String),
-    Tube(String),
+    Transcript { role: ChatRole, text: String },
+    Tube { sender: String, text: String },
+    Hitl {
+        agent_id: String,
+        request_id: String,
+        title: String,
+        detail: String,
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ChatRole {
+    Operator,
+    Agent,
+    Tool,
+    System,
+}
+
+impl ChatRole {
+    fn from_body(body: &Value) -> Self {
+        let raw = string_field(body, &["role", "speaker", "sender", "author", "source"])
+            .unwrap_or_default()
+            .to_lowercase();
+        match raw.as_str() {
+            "operator" | "user" | "human" | "you" => ChatRole::Operator,
+            "tool" | "tool-call" | "tool_call" | "function" => ChatRole::Tool,
+            "system" | "status" | "daemon" => ChatRole::System,
+            _ => ChatRole::Agent,
+        }
+    }
+
+    fn label(self) -> &'static str {
+        match self {
+            ChatRole::Operator => "you",
+            ChatRole::Agent => "agent",
+            ChatRole::Tool => "tool",
+            ChatRole::System => "system",
+        }
+    }
+
+    fn tone(self) -> Tone {
+        match self {
+            ChatRole::Operator => Tone::Accent,
+            ChatRole::Agent => Tone::Default,
+            ChatRole::Tool => Tone::Engaged,
+            ChatRole::System => Tone::Resting,
+        }
+    }
+
+    fn mine(self) -> bool {
+        self == ChatRole::Operator
+    }
 }
 
 /// The live agent LANE surface.
 pub struct LanePane {
+    /// Operator-selected target from the Fleet roster. `None` means the lane
+    /// auto-follows the newest active agent on each refresh.
+    pinned_agent_id: Option<String>,
     /// The agent we're watching (chosen on refresh). `None` until one is found.
     agent_id: Option<String>,
     /// Last known lifecycle status from `agent.status` frames.
@@ -79,6 +133,7 @@ pub struct LanePane {
 impl LanePane {
     pub fn new() -> Self {
         Self {
+            pinned_agent_id: None,
             agent_id: None,
             status: "—".into(),
             streamed: false,
@@ -86,6 +141,22 @@ impl LanePane {
             tools: Vec::new(),
             error: None,
         }
+    }
+
+    pub fn watch_agent(&mut self, agent_id: Option<String>) {
+        self.pinned_agent_id = agent_id.clone();
+        self.set_agent(agent_id);
+    }
+
+    fn set_agent(&mut self, agent_id: Option<String>) {
+        if self.agent_id == agent_id {
+            return;
+        }
+        self.agent_id = agent_id;
+        self.streamed = false;
+        self.lines.clear();
+        self.tools.clear();
+        self.status = "—".into();
     }
 
     /// Choose the agent to watch from a `GET /agents` body. `PD_LANE_AGENT` wins
@@ -123,7 +194,12 @@ impl LanePane {
     ///   { text } | { delta } | { content }      → transcript text
     ///   { tool: { name, status } }               → tool-call chip
     ///   { tool, status }                         → tool-call chip (flat)
-    fn fold_transcript(&mut self, body: &serde_json::Value) {
+    fn fold_transcript(&mut self, agent_id: &str, body: &Value) {
+        if let Some(card) = hitl_card_from_body(agent_id, self.agent_id.as_deref(), body, self.lines.len()) {
+            self.push_line(card);
+            return;
+        }
+
         // Tool-call delta (nested or flat).
         let tool_obj = body.get("tool");
         let tool_name = tool_obj
@@ -153,7 +229,10 @@ impl LanePane {
             .and_then(|t| t.as_str())
             .unwrap_or_default();
         if !text.is_empty() {
-            self.push_line(LaneLine::Transcript(text.to_string()));
+            self.push_line(LaneLine::Transcript {
+                role: ChatRole::from_body(body),
+                text: text.to_string(),
+            });
         }
     }
 
@@ -239,8 +318,37 @@ impl Pane for LanePane {
             let start = self.lines.len().saturating_sub(24);
             for line in &self.lines[start..] {
                 match line {
-                    LaneLine::Transcript(t) => out.push(Block::Row(vec![util::trunc(t, 96)])),
-                    LaneLine::Tube(t) => out.push(Block::Row(vec![format!("⤳ {}", util::trunc(t, 92))])),
+                    LaneLine::Transcript { role, text } => out.push(Block::TranscriptBubble {
+                        speaker: role.label().into(),
+                        text: text.clone(),
+                        tone: role.tone(),
+                        mine: role.mine(),
+                    }),
+                    LaneLine::Tube { sender, text } => {
+                        let role = if sender.eq_ignore_ascii_case("operator")
+                            || text.starts_with("control.")
+                            || text.starts_with("hitl.")
+                        {
+                            ChatRole::Operator
+                        } else {
+                            ChatRole::System
+                        };
+                        out.push(Block::TranscriptBubble {
+                            speaker: if sender.is_empty() { role.label().into() } else { sender.clone() },
+                            text: text.clone(),
+                            tone: role.tone(),
+                            mine: role.mine(),
+                        })
+                    }
+                    LaneLine::Hitl { agent_id, request_id, title, detail } => {
+                        out.push(Block::HitlCard {
+                            agent_id: agent_id.clone(),
+                            request_id: request_id.clone(),
+                            title: title.clone(),
+                            detail: detail.clone(),
+                            tone: Tone::Gated,
+                        })
+                    }
                 }
             }
         }
@@ -260,15 +368,13 @@ impl Pane for LanePane {
                 Ok(resp) => match resp.json::<serde_json::Value>().await {
                     Ok(v) => {
                         self.error = None;
-                        if let Some(id) = Self::pick_agent(&v) {
+                        let target = self
+                            .pinned_agent_id
+                            .clone()
+                            .or_else(|| Self::pick_agent(&v));
+                        if let Some(id) = target {
                             // If the target changed, reset the live view for the new agent.
-                            if self.agent_id.as_deref() != Some(id.as_str()) {
-                                self.agent_id = Some(id);
-                                self.streamed = false;
-                                self.lines.clear();
-                                self.tools.clear();
-                                self.status = "—".into();
-                            }
+                            self.set_agent(Some(id));
                         }
                     }
                     Err(e) => self.error = Some(format!("decode /agents: {e}")),
@@ -318,16 +424,70 @@ impl Pane for LanePane {
                     self.status = s;
                 }
             }
-            StreamKind::Transcript => self.fold_transcript(&env.body),
+            StreamKind::Transcript => self.fold_transcript(&env.agent_id, &env.body),
             StreamKind::Tube => {
                 let text = crate::agent::body_text(&env.body);
                 if !text.is_empty() {
-                    self.push_line(LaneLine::Tube(text));
+                    let sender = string_field(&env.body, &["sender", "from", "role"]).unwrap_or_default();
+                    self.push_line(LaneLine::Tube { sender, text });
                 }
             }
             StreamKind::Other(_) => { /* preserve forward-compat: ignore unknown kinds */ }
         }
     }
+}
+
+fn string_field(body: &Value, names: &[&str]) -> Option<String> {
+    for name in names {
+        if let Some(s) = body.get(*name).and_then(|v| v.as_str()) {
+            if !s.trim().is_empty() {
+                return Some(s.trim().to_string());
+            }
+        }
+    }
+    None
+}
+
+fn bool_field(body: &Value, names: &[&str]) -> bool {
+    names.iter().any(|name| body.get(*name).and_then(|v| v.as_bool()).unwrap_or(false))
+}
+
+fn nested_hitl(body: &Value) -> Option<&Value> {
+    body.get("hitl")
+        .or_else(|| body.get("humanInput"))
+        .or_else(|| body.get("approval"))
+        .or_else(|| body.get("decision"))
+}
+
+fn hitl_card_from_body(agent_id: &str, fallback_agent: Option<&str>, body: &Value, ordinal: usize) -> Option<LaneLine> {
+    let nested = nested_hitl(body);
+    let marker = string_field(body, &["type", "kind", "event"]).unwrap_or_default().to_lowercase();
+    let flagged = marker.contains("hitl")
+        || marker.contains("approval")
+        || marker.contains("human")
+        || bool_field(body, &["requiresApproval", "approvalRequired", "askUserBeforeProceeding", "needsHuman"])
+        || nested.is_some();
+    if !flagged {
+        return None;
+    }
+
+    let source = nested.unwrap_or(body);
+    let request_id = string_field(source, &["id", "requestId", "request_id", "gateId", "decisionId"])
+        .or_else(|| string_field(body, &["id", "requestId", "request_id", "gateId", "decisionId"]))
+        .unwrap_or_else(|| format!("hitl-{}", ordinal + 1));
+    let title = string_field(source, &["title", "question", "prompt", "summary"])
+        .or_else(|| string_field(body, &["title", "question", "prompt", "summary"]))
+        .unwrap_or_else(|| "Operator decision needed".into());
+    let detail = string_field(source, &["detail", "details", "context", "text", "message", "reason"])
+        .or_else(|| string_field(body, &["detail", "details", "context", "text", "message", "reason"]))
+        .unwrap_or_else(|| "Approve, adjust, or deny before this agent continues.".into());
+    let target = if !agent_id.is_empty() {
+        agent_id.to_string()
+    } else {
+        fallback_agent.unwrap_or_default().to_string()
+    };
+
+    Some(LaneLine::Hitl { agent_id: target, request_id, title, detail })
 }
 
 #[cfg(test)]
@@ -359,6 +519,26 @@ mod tests {
     }
 
     #[test]
+    fn watch_agent_pins_and_clears_the_target() {
+        let mut lane = LanePane::new();
+
+        lane.watch_agent(Some("agent-fixed".into()));
+        assert_eq!(lane.pinned_agent_id.as_deref(), Some("agent-fixed"));
+        match lane.subscription() {
+            Some(Subscription::Agent { agent_id }) => assert_eq!(agent_id, "agent-fixed"),
+            other => panic!("expected pinned subscription, got {other:?}"),
+        }
+
+        lane.on_stream(&env("agent.transcript", json!({"text": "old line"})));
+        assert_eq!(lane.lines.len(), 1);
+
+        lane.watch_agent(None);
+        assert!(lane.pinned_agent_id.is_none());
+        assert!(lane.subscription().is_none());
+        assert!(lane.lines.is_empty(), "changing targets clears stale transcript");
+    }
+
+    #[test]
     fn folds_status_transcript_and_tube() {
         let mut lane = LanePane::new();
         lane.agent_id = Some("a".into());
@@ -375,6 +555,59 @@ mod tests {
         // The view renders without panicking and includes the live indicator.
         let blocks = lane.view();
         assert!(!blocks.is_empty());
+    }
+
+    #[test]
+    fn transcript_roles_render_as_bubbles() {
+        let mut lane = LanePane::new();
+        lane.agent_id = Some("a".into());
+
+        lane.on_stream(&env("agent.transcript", json!({"role": "operator", "text": "please check CI"})));
+        lane.on_stream(&env("agent.tube", json!({"sender": "agent", "text": "working on it"})));
+
+        let blocks = lane.view();
+        assert!(
+            blocks.iter().any(|b| matches!(
+                b,
+                Block::TranscriptBubble { speaker, mine: true, text, .. }
+                    if speaker == "you" && text == "please check CI"
+            )),
+            "operator transcript frames become right-role bubbles",
+        );
+        assert!(
+            blocks.iter().any(|b| matches!(
+                b,
+                Block::TranscriptBubble { speaker, mine: false, text, .. }
+                    if speaker == "agent" && text == "working on it"
+            )),
+            "tube sender frames keep their speaker label",
+        );
+    }
+
+    #[test]
+    fn hitl_frames_render_inline_decision_cards() {
+        let mut lane = LanePane::new();
+        lane.agent_id = Some("agent-a".into());
+
+        lane.on_stream(&env("agent.transcript", json!({
+            "type": "hitl",
+            "requestId": "gate-1",
+            "question": "Ship this patch?",
+            "context": "cargo test is green"
+        })));
+
+        let blocks = lane.view();
+        assert!(
+            blocks.iter().any(|b| matches!(
+                b,
+                Block::HitlCard { agent_id, request_id, title, detail, .. }
+                    if agent_id == "a"
+                    && request_id == "gate-1"
+                    && title == "Ship this patch?"
+                    && detail == "cargo test is green"
+            )),
+            "HITL stream frames become inline decision cards",
+        );
     }
 
     #[test]

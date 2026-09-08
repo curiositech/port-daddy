@@ -66,6 +66,9 @@ async fn subscribe_agent_streams_typed_envelopes_over_a_socket() {
 
     let mut rx = client.subscribe_agent("a");
 
+    // Collect the representative envelope sequence. `subscribe_agent` is a
+    // self-healing stream that reconnects after EOF, so the correct completion
+    // condition is "saw the expected frames", not "the channel closed".
     let mut kinds = Vec::new();
     let mut saw_control = false;
     while kinds.len() < 4 {

@@ -36,6 +36,13 @@ use std::time::Duration;
 /// mutation. Keeps the foreground thread free of async/tokio.
 #[derive(Debug, Clone)]
 pub enum ControlMsg {
+    /// Bind the live Lane to an exact agent from the Fleet roster. `None`
+    /// returns the Lane to its automatic newest-active-agent behavior.
+    WatchAgent { agent_id: Option<String> },
+    /// Send an operator turn into one joined agent's steering tube
+    /// (`agent:<id>`), which reappears on the live transcript stream as
+    /// `agent.tube`.
+    AgentTurn { agent_id: String, text: String },
     /// Grab the wheel: interrupt the agent the Lane is watching.
     InterruptLane,
     /// Kick off a new top-level agent: `POST /spawn` with a backend + prompt +
@@ -435,15 +442,6 @@ struct DragState {
     dir: Dir,
 }
 
-/// An in-flight pane-divider drag (grab-the-rope resize): which split (by tree
-/// path from the root), which boundary (the left child's index), and the axis.
-#[derive(Debug, Clone)]
-struct DragState {
-    path: Vec<usize>,
-    left: usize,
-    dir: Dir,
-}
-
 /// One named tab — an independent pane tree, plus an optional zoomed (maximized)
 /// pane that fills the tab while set.
 #[derive(Debug, Clone)]
@@ -810,7 +808,12 @@ impl RenderOnce for WavingFlag {
     }
 }
 
-fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement {
+fn render_block(
+    block: Block,
+    motion: FlagMotion,
+    selected: bool,
+    cx: &mut Context<ConsoleView>,
+) -> AnyElement {
     let t = current_theme();
     match block {
         Block::Header(text) => {
@@ -946,6 +949,151 @@ fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement {
                 )
                 .into_any_element()
         }
+        Block::AgentRow { agent_id, letter, label, detail, tone } => {
+            let color = rgb(tone_rgb(&tone));
+            let target = agent_id.clone();
+            div()
+                .id(SharedString::from(format!("fleet-agent-{agent_id}")))
+                .flex()
+                .items_center()
+                .gap(px(10.0))
+                .mx(px(8.0))
+                .px(px(8.0))
+                .py(px(6.0))
+                .rounded(px(6.0))
+                .border_1()
+                .border_color(rgb(if selected { current_theme().accent_ink } else { current_theme().line }))
+                .bg(rgb(if selected { current_theme().raised } else { current_theme().panel }))
+                .cursor_pointer()
+                .hover(|s| {
+                    s.bg(rgb(current_theme().raised))
+                        .border_color(rgb(current_theme().accent))
+                        .shadow(motion::glow(current_theme().accent, 0.18, 8.0, 0.0))
+                })
+                .child(
+                    div()
+                        .w(px(22.0))
+                        .h(px(22.0))
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .rounded(px(3.0))
+                        .border_2()
+                        .border_color(color)
+                        .bg(rgb(current_theme().raised))
+                        .text_color(color)
+                        .text_size(px(13.0))
+                        .font_weight(FontWeight::BOLD)
+                        .child(letter.to_string()),
+                )
+                .child(
+                    div()
+                        .flex()
+                        .flex_col()
+                        .gap(px(2.0))
+                        .min_w(px(0.0))
+                        .child(
+                            div()
+                                .text_color(rgb(current_theme().ink))
+                                .text_size(px(14.0))
+                                .font_weight(if selected { FontWeight::SEMIBOLD } else { FontWeight::MEDIUM })
+                                .child(label),
+                        )
+                        .child(
+                            div()
+                                .text_color(rgb(current_theme().muted))
+                                .text_size(px(13.0))
+                                .font_family("IBM Plex Mono")
+                                .child(detail),
+                        ),
+                )
+                .child(div().flex_1())
+                .child(
+                    div()
+                        .text_color(rgb(if selected { current_theme().accent_ink } else { current_theme().muted }))
+                        .text_size(px(13.0))
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .child(if selected { "Enter" } else { "Join" }),
+                )
+                .on_click(cx.listener(move |this, _ev, _window, cx| {
+                    this.join_agent(target.clone());
+                    cx.notify();
+                }))
+                .into_any_element()
+        }
+        Block::TranscriptBubble { speaker, text, tone, mine } => {
+            let color = rgb(tone_rgb(&tone));
+            div()
+                .mx(px(12.0))
+                .my(px(4.0))
+                .px(px(10.0))
+                .py(px(8.0))
+                .rounded(px(8.0))
+                .border_1()
+                .border_color(color)
+                .bg(rgb(if mine { current_theme().raised } else { current_theme().panel }))
+                .child(
+                    div()
+                        .text_color(color)
+                        .text_size(px(12.0))
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .child(speaker),
+                )
+                .child(
+                    div()
+                        .mt(px(3.0))
+                        .text_color(rgb(current_theme().ink))
+                        .text_size(px(14.0))
+                        .font_family("IBM Plex Mono")
+                        .child(text),
+                )
+                .into_any_element()
+        }
+        Block::HitlCard { agent_id, request_id, title, detail, tone } => {
+            let color = rgb(tone_rgb(&tone));
+            div()
+                .mx(px(12.0))
+                .my(px(6.0))
+                .px(px(12.0))
+                .py(px(10.0))
+                .rounded(px(8.0))
+                .border_1()
+                .border_color(color)
+                .bg(rgb(current_theme().raised))
+                .child(
+                    div()
+                        .text_color(color)
+                        .text_size(px(12.0))
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .child(format!("Decision · {request_id}")),
+                )
+                .child(
+                    div()
+                        .mt(px(4.0))
+                        .text_color(rgb(current_theme().ink))
+                        .text_size(px(14.0))
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .child(title),
+                )
+                .child(
+                    div()
+                        .mt(px(3.0))
+                        .text_color(rgb(current_theme().ink2))
+                        .text_size(px(13.0))
+                        .font_family("IBM Plex Mono")
+                        .child(detail),
+                )
+                .child(
+                    div()
+                        .mt(px(8.0))
+                        .flex()
+                        .gap(px(8.0))
+                        .child(hitl_btn("approve", "Approve", current_theme().landed, agent_id.clone(), request_id.clone(), cx))
+                        .child(hitl_btn("adjust", "Adjust…", current_theme().gated, agent_id.clone(), request_id.clone(), cx))
+                        .child(hitl_btn("deny", "Deny", current_theme().conflict, agent_id, request_id, cx)),
+                )
+                .into_any_element()
+        }
         Block::Spark(_) => {
             div()
                 .mx(px(tokens::SPACE_3))
@@ -1070,6 +1218,12 @@ pub struct ConsoleView {
     alerts: Vec<Alert>,
     /// Head-of-queue dispatch the review gate acts on (from the background refresh).
     dispatch_head: Option<DispatchHead>,
+    /// Selected Fleet roster row for ↑/↓ then Enter-to-join. The row data itself
+    /// still comes from the background-refreshed Fleet pane.
+    fleet_selected: usize,
+    /// Foreground compose buffer for the focused joined transcript. The actual
+    /// send happens on the background worker via `ControlMsg::AgentTurn`.
+    agent_compose: String,
     /// Dispatch id pending a reject reason (set when the operator opens the reject line).
     reject_target: Option<String>,
     /// In-flight pane-divider drag (grab-the-rope resize); `None` when idle.
@@ -1169,6 +1323,8 @@ impl ConsoleView {
             control_flash: None,
             alerts: Vec::new(),
             dispatch_head: None,
+            fleet_selected: 0,
+            agent_compose: String::new(),
             reject_target: None,
             dragging: None,
             split_bounds: Rc::new(RefCell::new(HashMap::new())),
@@ -1191,14 +1347,16 @@ impl ConsoleView {
         }
     }
 
-    /// The opening layout: a fleet overview beside a stacked agent-lane /
-    /// roadmap column — proof of multiplex on first launch. `initial` (if a
-    /// known nav id) becomes the focused pane's surface.
+    /// The opening layout: a dataful fleet/session overview beside live activity
+    /// and roadmap state — proof of multiplex on first launch. A stopped
+    /// declarative fleet must not make the console look empty when sessions and
+    /// activity exist. `initial` (if a known nav id) becomes the focused pane's
+    /// surface.
     fn default_workspace(initial: Option<&str>) -> Workspace {
         let mut ws = Workspace::new(SurfaceKind::Fleet);
-        ws.split(Dir::Row, SurfaceKind::AgentTranscript { agent_id: None }); // fleet | lane
-        ws.split(Dir::Col, SurfaceKind::Roadmap); // lane / roadmap
-        ws.focus(1); // start on the fleet pane (first leaf id)
+        ws.split(Dir::Row, SurfaceKind::Panel { nav: "activity".into() }); // fleet | activity
+        ws.split(Dir::Col, SurfaceKind::Roadmap); // activity / roadmap
+        ws.focus(1); // start on the fleet/session overview (first leaf id)
         // Resolve `--pane <id>` through the full surface resolver (NAV ids AND
         // non-NAV surfaces like `conjure`/`plan`/`chat`/`files`), so screenshot
         // tooling and deep-links can open any surface, not just NAV-rail panes.
@@ -1371,6 +1529,119 @@ impl ConsoleView {
         rows
     }
 
+    fn fleet_agent_ids(&self) -> Vec<String> {
+        self.pane_blocks
+            .get(0)
+            .into_iter()
+            .flat_map(|blocks| blocks.iter())
+            .filter_map(|block| match block {
+                Block::AgentRow { agent_id, .. } => Some(agent_id.clone()),
+                _ => None,
+            })
+            .collect()
+    }
+
+    fn clamp_fleet_selection(&mut self) {
+        let count = self.fleet_agent_ids().len();
+        if count == 0 {
+            self.fleet_selected = 0;
+        } else if self.fleet_selected >= count {
+            self.fleet_selected = count - 1;
+        }
+    }
+
+    fn join_agent(&mut self, agent_id: String) {
+        if let Some(tx) = &self.control_tx {
+            let _ = tx.send(ControlMsg::WatchAgent { agent_id: Some(agent_id.clone()) });
+        }
+        self.agent_compose.clear();
+        self.ws_mut().swap_surface(SurfaceKind::AgentTranscript { agent_id: Some(agent_id.clone()) });
+        self.control_flash = Some(format!("joined {} — streaming live transcript", short_agent(&agent_id)));
+    }
+
+    fn leave_agent_detail(&mut self) {
+        if let Some(tx) = &self.control_tx {
+            let _ = tx.send(ControlMsg::WatchAgent { agent_id: None });
+        }
+        self.agent_compose.clear();
+        self.ws_mut().swap_surface(SurfaceKind::Fleet);
+        self.control_flash = Some("back to Fleet roster".into());
+    }
+
+    fn send_agent_turn(&mut self, agent_id: String) -> bool {
+        let text = self.agent_compose.trim().to_string();
+        if text.is_empty() {
+            return false;
+        }
+        if let Some(tx) = &self.control_tx {
+            let _ = tx.send(ControlMsg::AgentTurn { agent_id: agent_id.clone(), text });
+        }
+        self.agent_compose.clear();
+        self.control_flash = Some(format!("sent to {}", short_agent(&agent_id)));
+        true
+    }
+
+    fn handle_surface_key(&mut self, key: &str, typed: Option<&str>, ctrl: bool) -> bool {
+        if ctrl {
+            return false;
+        }
+        match self.ws().focused_surface().clone() {
+            SurfaceKind::Fleet => {
+                let ids = self.fleet_agent_ids();
+                if ids.is_empty() {
+                    return false;
+                }
+                match key {
+                    "up" | "arrowup" => {
+                        self.fleet_selected = self.fleet_selected.saturating_sub(1);
+                        true
+                    }
+                    "down" | "arrowdown" => {
+                        self.fleet_selected = (self.fleet_selected + 1).min(ids.len() - 1);
+                        true
+                    }
+                    "enter" => {
+                        let idx = self.fleet_selected.min(ids.len() - 1);
+                        self.join_agent(ids[idx].clone());
+                        true
+                    }
+                    _ => false,
+                }
+            }
+            SurfaceKind::AgentTranscript { agent_id: Some(agent_id) } => match key {
+                "escape" | "left" | "arrowleft" => {
+                    self.leave_agent_detail();
+                    true
+                }
+                "enter" => self.send_agent_turn(agent_id),
+                "backspace" => {
+                    self.agent_compose.pop();
+                    true
+                }
+                "space" => {
+                    self.agent_compose.push(' ');
+                    true
+                }
+                _ => {
+                    if let Some(ch) = typed {
+                        self.agent_compose.push_str(ch);
+                        true
+                    } else {
+                        false
+                    }
+                }
+            },
+            SurfaceKind::AgentTranscript { agent_id: None } => match key {
+                "escape" | "left" | "arrowleft" => {
+                    self.ws_mut().swap_surface(SurfaceKind::Fleet);
+                    true
+                }
+                _ => false,
+            },
+            _ => false,
+        }
+    }
+
     /// Handle one multiplexer command after the leader key. Disarming is done
     /// by the caller.
     fn leader_command(&mut self, key: &str, ctrl: bool, cx: &mut Context<Self>) {
@@ -1414,6 +1685,11 @@ impl ConsoleView {
             // Any launcher key swaps the focused pane's surface — "hop context".
             other => {
                 if let Some(item) = launcher_items().into_iter().find(|n| n.key == other) {
+                    if item.id == "lane" {
+                        if let Some(tx) = &self.control_tx {
+                            let _ = tx.send(ControlMsg::WatchAgent { agent_id: None });
+                        }
+                    }
                     self.ws_mut().swap_surface(surface_for_launcher_id(item.id));
                 }
             }
@@ -1642,6 +1918,7 @@ impl ConsoleView {
                     prompt,
                     model,
                 });
+                let _ = tx.send(ControlMsg::WatchAgent { agent_id: None });
                 self.control_flash =
                     Some(format!("spawning a {label} agent — streaming live below"));
                 // Immediately surface the live agent lane so the operator SEES the
@@ -1653,6 +1930,7 @@ impl ConsoleView {
             }
             CmdKind::Cartographer => {
                 let _ = tx.send(ControlMsg::Cartographer { text });
+                let _ = tx.send(ControlMsg::WatchAgent { agent_id: None });
                 self.control_flash = Some("sent to cartographer — streaming the reply below".into());
                 // Same loop for the cartographer: jump to the lane to watch the
                 // reply stream rather than leaving the operator guessing where it went.
@@ -1977,6 +2255,7 @@ impl ConsoleView {
     /// replacement for the old optimistic "spawning…" lie) and accumulate it in
     /// the bounded HITL log, newest first.
     pub fn push_alert(&mut self, alert: Alert) {
+        let join_agent_id = alert.join_agent_id.clone();
         // Immediate feedback: a short head; the full detail lives in the log /
         // HITL surface (never truncated at the source).
         let head: String = alert.detail.lines().next().unwrap_or(&alert.detail).chars().take(120).collect();
@@ -1990,6 +2269,14 @@ impl ConsoleView {
         const ALERT_CAP: usize = 100;
         if self.alerts.len() > ALERT_CAP {
             self.alerts.truncate(ALERT_CAP);
+        }
+        if let Some(agent_id) = join_agent_id {
+            let flash = self.control_flash.clone();
+            self.join_agent(agent_id.clone());
+            self.control_flash = Some(match flash {
+                Some(f) => format!("{f} — joined {}", short_agent(&agent_id)),
+                None => format!("joined {}", short_agent(&agent_id)),
+            });
         }
     }
 
@@ -2036,6 +2323,7 @@ impl ConsoleView {
             }
         }
         self.dispatch_head = dispatch_head;
+        self.clamp_fleet_selection();
     }
 
     /// The launch splash — a centered brand lockup (mark + "PORT DADDY") shown
@@ -2147,7 +2435,13 @@ impl ConsoleView {
         let label = surface.label();
         let blocks = self.blocks_for_surface(surface);
         let motion = self.flag_motion; // Copy snapshot for this frame's flags.
+        let is_fleet = matches!(surface, SurfaceKind::Fleet);
         let is_agent = matches!(surface, SurfaceKind::AgentTranscript { .. });
+        let bound_agent_id = match surface {
+            SurfaceKind::AgentTranscript { agent_id: Some(agent_id) } => Some(agent_id.clone()),
+            _ => None,
+        };
+        let agent_compose = self.agent_compose.clone();
         // The dispatch surface (focused) gets the interactive review GATE.
         // The Daemons surface renders interactive picker buttons instead of plain
         // text blocks (built here so the on_click listeners can borrow cx).
@@ -2186,6 +2480,20 @@ impl ConsoleView {
         let title_color = if is_focused { current_theme().accent_ink } else { current_theme().muted };
         let control_flash = self.control_flash.clone();
         let (category_label, category_color) = surface_category(surface, &current_theme());
+        let mut agent_row_index = 0usize;
+        let rendered_blocks: Vec<AnyElement> = blocks
+            .into_iter()
+            .map(|block| {
+                let selected = if is_fleet && matches!(block, Block::AgentRow { .. }) {
+                    let selected = is_focused && agent_row_index == self.fleet_selected;
+                    agent_row_index += 1;
+                    selected
+                } else {
+                    false
+                };
+                render_block(block, motion, selected, cx)
+            })
+            .collect();
 
         div()
             .id(SharedString::from(format!("pane-{id}")))
@@ -2339,11 +2647,13 @@ impl ConsoleView {
                     }
                     None if is_daemons => body.children(daemon_rows),
                     // Every other surface: the generic read-agnostic Block renderer.
-                    None => body.children(blocks.into_iter().map(move |b| render_block(b, motion))),
+                    None => body.children(rendered_blocks),
                 }
             })
             // Steering bar — only the focused agent transcript grabs the wheel.
             .when(is_agent && is_focused, |content| {
+                let send_target = bound_agent_id.clone();
+                let compose_text = agent_compose.clone();
                 content.child(
                     div()
                         .px(px(10.0))
@@ -2376,6 +2686,55 @@ impl ConsoleView {
                                     }
                                 })),
                         )
+                        .when_some(send_target.clone(), |bar, agent_id| {
+                            let typed = compose_text.clone();
+                            bar.child(
+                                div()
+                                    .id(SharedString::from(format!("compose-{id}")))
+                                    .flex_1()
+                                    .min_w(px(120.0))
+                                    .px(px(10.0))
+                                    .py(px(5.0))
+                                    .rounded(px(6.0))
+                                    .border_1()
+                                    .border_color(rgb(current_theme().line))
+                                    .bg(rgb(current_theme().bg))
+                                    .text_size(px(14.0))
+                                    .font_family("IBM Plex Mono")
+                                    .text_color(rgb(if typed.is_empty() {
+                                        current_theme().muted
+                                    } else {
+                                        current_theme().ink
+                                    }))
+                                    .child(if typed.is_empty() {
+                                        "type a message…".to_string()
+                                    } else {
+                                        format!("› {typed}▏")
+                                    }),
+                            )
+                            .child(
+                                div()
+                                    .id(SharedString::from(format!("send-{id}")))
+                                    .px(px(12.0))
+                                    .py(px(5.0))
+                                    .rounded(px(6.0))
+                                    .border_1()
+                                    .border_color(rgb(current_theme().accent))
+                                    .text_color(rgb(current_theme().accent_ink))
+                                    .text_size(px(14.0))
+                                    .font_weight(FontWeight::SEMIBOLD)
+                                    .cursor_pointer()
+                                    .hover(|s| {
+                                        s.bg(rgb(current_theme().raised))
+                                            .shadow(motion::glow(current_theme().accent, 0.22, 8.0, 0.0))
+                                    })
+                                    .child("Send")
+                                    .on_click(cx.listener(move |this, _ev, _window, cx| {
+                                        this.send_agent_turn(agent_id.clone());
+                                        cx.notify();
+                                    })),
+                            )
+                        })
                         .when_some(control_flash, |bar, flash| {
                             bar.child(
                                 div()
@@ -3516,8 +3875,51 @@ fn dispatch_gate_btn(
     })
 }
 
-/// One Conductor fleet-control button (ADR-0060): halt/pause/resume the whole
-/// fleet (global scope) — the operator's emergency wheel.
+/// Inline HITL answer button for a joined agent transcript. Approve/deny send a
+/// structured turn over the agent tube; adjust pre-fills the compose bar so the
+/// operator can write the modification before sending.
+fn hitl_btn(
+    action: &'static str,
+    label: &'static str,
+    color: u32,
+    agent_id: String,
+    request_id: String,
+    cx: &mut Context<ConsoleView>,
+) -> impl IntoElement {
+    div()
+        .id(SharedString::from(format!("hitl-{action}-{request_id}")))
+        .px(px(10.0))
+        .py(px(4.0))
+        .rounded(px(6.0))
+        .border_1()
+        .border_color(rgb(color))
+        .text_color(rgb(color))
+        .text_size(px(13.0))
+        .font_weight(FontWeight::SEMIBOLD)
+        .cursor_pointer()
+        .hover(move |s| s.bg(rgb(current_theme().panel)).shadow(motion::glow(color, 0.20, 8.0, 0.0)))
+        .child(label)
+        .on_click(cx.listener(move |this, _ev, _window, cx| {
+            match action {
+                "approve" | "deny" => {
+                    let text = format!("hitl.{action} {request_id}");
+                    if let Some(tx) = &this.control_tx {
+                        let _ = tx.send(ControlMsg::AgentTurn { agent_id: agent_id.clone(), text });
+                    }
+                    this.control_flash = Some(format!("HITL {action} sent to {}", short_agent(&agent_id)));
+                }
+                "adjust" => {
+                    this.agent_compose = format!("hitl.adjust {request_id}: ");
+                    this.control_flash = Some(format!("adjusting {}", short_agent(&agent_id)));
+                }
+                _ => {}
+            }
+            cx.notify();
+        }))
+}
+
+/// One conductor fleet-control button (ADR-0060). Fires the verb immediately
+/// against the whole fleet (global scope) — the operator's emergency wheel.
 fn conductor_gate_btn(
     action: &'static str,
     label: &'static str,
@@ -3558,6 +3960,15 @@ fn split_backend(text: &str) -> (String, String) {
         }
     }
     ("claude-cli".to_string(), text.to_string())
+}
+
+fn short_agent(agent_id: &str) -> String {
+    let short: String = agent_id.chars().take(18).collect();
+    if agent_id.chars().count() > 18 {
+        format!("{short}…")
+    } else {
+        short
+    }
 }
 
 /// One macOS-style pane control (split / zoom / close). Targets a specific pane
@@ -3798,6 +4209,11 @@ fn render_nav_rail(active: Option<&str>, cx: &mut Context<ConsoleView>) -> impl 
                 })
                 .child(item.label)
                 .on_click(cx.listener(move |this, _ev, _window, cx| {
+                    if nav_id == "lane" {
+                        if let Some(tx) = &this.control_tx {
+                            let _ = tx.send(ControlMsg::WatchAgent { agent_id: None });
+                        }
+                    }
                     this.ws_mut().swap_surface(surface_for_nav_id(nav_id));
                     cx.notify();
                 }))
@@ -3925,6 +4341,8 @@ impl Render for ConsoleView {
                 } else if this.leader_armed {
                     this.leader_armed = false;
                     this.leader_command(key.as_str(), ctrl, cx);
+                } else if this.handle_surface_key(key.as_str(), key_char.as_deref(), ctrl) {
+                    cx.notify();
                 } else if ctrl && key == "a" {
                     this.leader_armed = true;
                     cx.notify();
