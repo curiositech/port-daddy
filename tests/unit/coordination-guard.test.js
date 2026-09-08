@@ -391,6 +391,49 @@ describe('Coordination Guard', () => {
     );
   });
 
+  test('the heartbeat mtime is read in this machine\'s stat dialect, whichever it is', () => {
+    // The guard stood down on every Linux commit for as long as this block has
+    // existed, and silently: `stat -f %m FILE` on GNU coreutils reads %m as a
+    // second FILE, prints a filesystem report to stdout and exits 1, so the old
+    // `-f || -c` chain captured the report AND the timestamp, failed the digit
+    // check, and decided the daemon was not fresh. The test below exercises the
+    // whole hook, which is the real proof, but it can only ever say "the guard
+    // did not fire" -- it cannot say why. This one names the reason, so a
+    // regression reads as "the mtime came back as <garbage>" instead of as a
+    // guard that mysteriously went quiet again.
+    const scratchRoot = join(process.cwd(), '.scratch');
+    mkdirSync(scratchRoot, { recursive: true });
+    const sandbox = mkdtempSync(join(scratchRoot, 'pd-stat-dialect-'));
+    const heartbeat = join(sandbox, 'heartbeat');
+    writeFileSync(heartbeat, '{}');
+
+    // The availability function's mtime lines, lifted verbatim out of the block
+    // the CLI merges into user hooks, so this cannot drift away from shipped.
+    const block = mergePreCommitHook('');
+    const mtimeLines = block
+      .split('\n')
+      .filter((line) => line.includes('pd_guard_heartbeat_mtime='))
+      // (?!_) or the substitution eats the prefix of $pd_guard_heartbeat_mtime
+      // and leaves "<path>_mtime", which is never digits, so the BSD branch
+      // fires unconditionally -- which is how this test first "passed" a
+      // filesystem report off as a timestamp.
+      .map((line) => line.trim().replace(/\$pd_guard_heartbeat(?!_)/g, `"${heartbeat}"`));
+    expect(mtimeLines.length).toBeGreaterThanOrEqual(2); // one per dialect, not a chain
+
+    const script = [
+      'set -u',
+      ...mtimeLines,
+      'printf %s "$pd_guard_heartbeat_mtime"',
+    ].join('\n');
+    const result = spawnSync('/bin/sh', ['-c', script], { encoding: 'utf8' });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toMatch(/^[0-9]+$/);
+    expect(Number(result.stdout)).toBeGreaterThan(0);
+
+    rmSync(sandbox, { recursive: true, force: true });
+  });
+
   test('managed commit guard invokes pd only for a configured repo with a ready daemon', () => {
     const scratchRoot = join(process.cwd(), '.scratch');
     mkdirSync(scratchRoot, { recursive: true });
