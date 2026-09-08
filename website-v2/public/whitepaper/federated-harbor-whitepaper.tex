@@ -1048,6 +1048,24 @@ The Federated Harbor sits at the intersection of four bodies of work. We are con
 
 \paragraph{Capability-based federation.} Macaroons~\cite{birgisson2014macaroons} are the foundational capability-with-attenuation construction; our transfer ceremony extends Macaroon-style third-party-caveat chains across an administrative boundary. UCAN~\cite{ucan2024} is the current production-deployed answer to ``Macaroons with public-key principals,'' and we treat it as the operationally most relevant existing system; the Federated Harbor differs in keeping the daemon as a structural commons authority rather than going fully peer-to-peer, and in pricing delegation through insurance-priced bonds rather than pure capability constraints. The object-capability lineage~\cite{miller2006robust, dennis1966programming} continues to be relevant: cross-realm operations are exactly a mutual-suspicion scenario in Miller's vocabulary, and his defensive-consistency framework is the right lens.
 
+\paragraph{Production federation protocols.} Three deployed federations solve a
+version of the same trust-boundary problem and are not otherwise engaged here.
+ActivityPub~\cite{activitypub2018}, the W3C-standardized protocol behind
+Mastodon and the fediverse, lets independent servers relay signed activity
+without a shared database or a global ruler --- exactly the property this
+chapter states as its own goal. Matrix~\cite{matrixspec}, an open,
+currently-deployed specification, has homeservers replicate room state with
+eventual consistency across administrative boundaries and no single point of
+control, arguably the closest production analogue running today to the
+``no consensus, gossip-bounded, detectable equivocation'' model of
+\S\ref{sec:fh-not}. And SPKI/SDSI~\cite{spkisdsi1999}, the mid-1990s
+local-names, decentralized-authorization design, is the conceptual ancestor
+both Macaroons and UCAN descend from, and so sits one layer beneath the
+capability-based federation discussed next. None of the three overturns a
+theorem in this chapter; each is a closer production point of comparison for
+the federation's design than the identity- and capability-federation
+literature cited above.
+
 \paragraph{Transparency logs.} Certificate Transparency~\cite{laurie2013ct} is the model; the federated witness log of \S\ref{sec:fh-witness} is CT applied to capability tokens. Sigstore~\cite{newman2022sigstore} and Rekor are the production instantiation we rhyme with most heavily; in-toto~\cite{torres2019intoto} and SLSA~\cite{slsa2023} are the supply-chain analogues that compose with the Federated Harbor for the ``poisoned plugin under a bonded principal'' case but do not close it. The Crosby--Wallach history-tree~\cite{crosby2009tamper} is the formal substrate of every modern transparency log including ours.
 
 \paragraph{Cross-domain settlement.} Herlihy's atomic cross-chain swap~\cite{herlihy2018atomic} is a comparison point; the cross-harbor settlement protocol of \S\ref{sec:fh-settlement} instead handles non-fungible reputation-priced bonds through conditionally restricted custody. It is not trustless in Herlihy's sense. Whether trustless settlement is achievable in our setting is open (\S\ref{sec:fh-limitations}). The IBC protocol~\cite{goes2020ibc} supplies another connection/channel comparison; unlike IBC, this design does not assume a consensus-backed state machine underneath.
@@ -1359,6 +1377,21 @@ John R. Douceur.
 Eve Maler and Drummond Reed.
 \newblock The Venn of Identity: Options and Issues in Federated Identity Management.
 \newblock \textit{IEEE Security \& Privacy}, 6(2):16--23, 2008.
+
+\bibitem{activitypub2018}
+Christine Lemmer-Webber, Jessica Tallon, Erin Shepherd, Amy Guy, and Evan Prodromou (eds.).
+\newblock ActivityPub.
+\newblock W3C Recommendation, 2018.
+
+\bibitem{matrixspec}
+The Matrix.org Foundation.
+\newblock The Matrix Specification.
+\newblock \texttt{https://spec.matrix.org}.
+
+\bibitem{spkisdsi1999}
+Carl M. Ellison, Bill Frantz, Butler Lampson, Ron Rivest, Brian M. Thomas, and Tatu Ylonen.
+\newblock SPKI Certificate Theory.
+\newblock IETF RFC 2693, 1999.
 
 \bibitem{zimmermann1995pgp}
 Philip R. Zimmermann.
