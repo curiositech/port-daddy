@@ -202,7 +202,7 @@ A taint tracker over a generative model faces a binary choice: mark every
 output token as tainted by everything the model read, which is useless, or
 miss semantic flows, which is unsound. The model taints everything it writes
 with everything it read. This is a design rationale, not a theorem, and it is
-the one load-bearing statement in this chapter that carries no proof and no
+the one decisive statement in this chapter that carries no proof and no
 script. It rests on the well-known static-analysis result beneath it, that
 certifying implicit flows soundly forces exactly this dichotomy: the label
 creep of the Denning certification lattice \pdcite{denning77} and the extra
@@ -421,12 +421,23 @@ It makes the property an instance of \emph{delimited release} \pdcite{sm03} in
 the degenerate case where delimited release collapses to noninterference;
 their own condition is that no variable used in a declassification is updated
 before it. What the hypothesis costs is stated in the boundary below and paid
-in Section~\ref{sec:sealed-budget}.
+in Section~\ref{sec:sealed-budget}. The release ledger of
+\S\ref{sec:sealed-budget} answers, in Sabelfeld and Sands' later organizing
+taxonomy \cite{ss09}, \emph{what} is released (the $\varepsilon$-priced
+artifact), \emph{who} performs the release (the declassifier), and
+\emph{where} it happens (the gate); \emph{when} it happens is the
+release-ledger's own open question, since a room can only price the release
+it observes, not the frequency an adversary chooses to request it.
 
 \paragraph{Proof idea.}
 There is no proof to read; there is a search to rerun. The checker builds the
 two worlds side by side, one per secret, and drives them through every
-interleaving of the same action sequence to depth 7. At each step it projects
+interleaving of the same action sequence to depth 7 --- \textbf{self-composition}
+\cite{bdr04}, the standard technique for reducing a 2-safety hyperproperty
+like noninterference (a claim that quantifies over pairs of runs) to an
+ordinary safety check by composing two copies of the system and asserting an
+invariant relating their states, applied here concretely rather than through a
+general program logic. At each step it projects
 both states onto what Erin can observe and compares. A difference at a
 non-release step is a counterexample; a difference at a release step is a
 counterexample exactly when $g$ agreed on the two secrets. The mutation suite
@@ -549,7 +560,13 @@ tool-level instruments of \pdchapref{swk}{The Single-Writer Kernel}, the
 guard, the shim, and the hook harness that rides inside a vendor's agent
 loop, sit below even that rung: they are the Observed and Coordinated modes,
 and the room replaces them rather than extending them, because a hook a
-process can decline to invoke gates nothing.
+process can decline to invoke gates nothing. This ladder grades a runtime
+claim by the evidence a mechanism itself produces, a different variable from
+Sheridan and Parasuraman--Sheridan--Wickens's levels of automation, which
+grade how much of a task a system performs unassisted \cite{parasuraman2000}, and
+from the Common Criteria's evaluation assurance levels, which grade a
+security claim by how much independent verification backs it
+\cite{cciso15408}.
 
 \begin{pdboundary}
 Controllability is relative to the mediated alphabet: partial observation
@@ -571,6 +588,15 @@ property of the workroom, not a theorem.
 % ---------------------------------------------------------------------------
 
 \section{The budget is a ledger, and the ledger conserves}\label{sec:sealed-conservation}
+
+\noindent Rogers, Roth, Ullman and Vadhan coined two names for a ledger like
+this one, tracking cumulative differential-privacy expenditure across
+adaptively chosen queries \cite{rruv16}: a \textbf{privacy odometer} reads the
+running total with no pre-specified ceiling, and a \textbf{privacy filter}
+halts before a pre-specified budget is exceeded. Because $\varepsilon_{\max}$
+below is fixed in advance and every over-budget release is refused, this
+ledger is their filter; the odometer is the same conservation discipline
+without that ceiling.
 
 \noindent\emph{Express lane: make the privacy budget a ledger, so that one
 atomic transition appends the record and adds the spend, and conservation of
@@ -764,6 +790,12 @@ $\gamma$ because $\beta$ is already the per-canary miss rate and $b$ is the
 release-channel width of Section~\ref{sec:sealed-budget}.
 \end{pdclaim}
 
+This is textbook sequential analysis applied to a live security detector, and
+the closest prior instance of exactly that move is Jung, Paxson, Berger and
+Balakrishnan's Threshold Random Walk, which models portscan detection as the
+same benign-versus-malicious random walk and derives a guaranteed
+false-positive/latency trade-off from Wald's SPRT \cite{jpbb04}.
+
 \paragraph{Proof idea.}\pdmarginfigure{wald}{Wald's sequential probability ratio test, made for wartime quality control, is still the fastest way to decide that a canary has tripped at a guaranteed error rate.}%
 Power is independence and counting: a leak is missed only if every carried
 canary is missed, and the number carried under uniform planting is the
@@ -811,7 +843,7 @@ detection and response, rather than pretending to cover unbounded breach
 damage.
 
 \begin{pdboundary}
-Independence and \emph{secrecy} of planting are load-bearing: an adversary who
+Independence and \emph{secrecy} of planting are decisive: an adversary who
 obtains the canary list with probability $0.3$ and strips all of them drops
 measured power from $0.9997$ to $0.698$ at $k=5$ [internal,
 \texttt{a4\_canary\_sprt.py}]; canary secrecy is part of the security
@@ -1201,6 +1233,24 @@ Design and Implementation (OSDI)}, pages 533--549, 2016.
 
 \bibitem{rats} H.~Birkholz, D.~Thaler, M.~Richardson, N.~Smith, and W.~Pan. Remote ATtestation
 procedureS (RATS) architecture. RFC 9334, IETF, January 2023.
+
+\bibitem{bdr04} G.~Barthe, P.~R. D'Argenio, and T.~Rezk. Secure information flow by
+self-composition. In \emph{Proc.\ 17th IEEE Computer Security Foundations Workshop (CSFW)},
+p.~100, 2004.
+
+\bibitem{ss09} A.~Sabelfeld and D.~Sands. Declassification: dimensions and principles.
+\emph{Journal of Computer Security}, 17(5):517--548, 2009.
+
+\bibitem{jpbb04} J.~Jung, V.~Paxson, A.~W. Berger, and H.~Balakrishnan. Fast portscan detection
+using sequential hypothesis testing. In \emph{Proc.\ IEEE Symposium on Security and Privacy},
+2004.
+
+\bibitem{parasuraman2000} R.~Parasuraman, T.~B. Sheridan, and C.~D. Wickens. A model for types
+and levels of human interaction with automation. \emph{IEEE Transactions on Systems, Man, and
+Cybernetics -- Part A}, 30(3):286--297, 2000.
+
+\bibitem{cciso15408} ISO/IEC 15408. \emph{Common Criteria for Information Technology Security
+Evaluation}. International Organization for Standardization, current edition.
 
 \end{thebibliography}
 

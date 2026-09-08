@@ -68,7 +68,7 @@ saying that way.
 Mechanical pass over all eight. Report any mismatch in title, venue, volume,
 pages, or year. Confirm Bach 1999 says what the paper claims it says (that
 \#P-hardness of sheaf cohomology concerns coherent sheaves on projective space,
-not finite cellular sheaves on graphs) — this is a load-bearing pre-emption and
+not finite cellular sheaves on graphs) — this is a critical pre-emption and
 a mischaracterization would be embarrassing.
 
 ## Q7. Is the three-tier visibility contract already named?

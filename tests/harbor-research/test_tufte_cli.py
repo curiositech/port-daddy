@@ -73,6 +73,42 @@ def write_blank_png(path: Path) -> None:
     write_rgb_png(path, 200, 200, lambda x, y: (255, 255, 255))
 
 
+def run_cli_without_pillow(args: list[str]) -> subprocess.CompletedProcess:
+    """Run the CLI in a child process where `import PIL` fails, so ink_audit
+    must take its stdlib PNG decoder rather than Pillow."""
+    import os
+    with TemporaryDirectory() as shim:
+        (Path(shim) / "PIL.py").write_text("raise ImportError('Pillow deliberately unavailable in this test')\n", encoding="utf-8")
+        env = dict(os.environ)
+        env["PYTHONPATH"] = shim + (os.pathsep + env["PYTHONPATH"] if env.get("PYTHONPATH") else "")
+        return subprocess.run([sys.executable, str(CLI), *args], capture_output=True, text=True, env=env)
+
+
+class TestStdlibDecoderFallback(unittest.TestCase):
+    """ink_audit degrades to its own PNG decoder when Pillow is absent, and
+    reads the same numbers off the same file either way."""
+
+    def test_audit_runs_without_pillow(self) -> None:
+        with TemporaryDirectory() as tmp:
+            png = Path(tmp) / "allink.png"
+            write_all_ink_png(png)
+            result = run_cli_without_pillow(["audit", str(png), "--json"])
+            self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
+            self.assertIn("ink_fraction", result.stdout)
+
+    def test_numbers_agree_with_and_without_pillow(self) -> None:
+        with TemporaryDirectory() as tmp:
+            png = Path(tmp) / "allink.png"
+            write_all_ink_png(png)
+            with_pillow = run_cli(["audit", str(png), "--json"])
+            without = run_cli_without_pillow(["audit", str(png), "--json"])
+            self.assertEqual(with_pillow.returncode, 0, msg=with_pillow.stderr)
+            self.assertEqual(without.returncode, 0, msg=without.stderr)
+            a = json.loads(with_pillow.stdout)
+            b = json.loads(without.stdout)
+            self.assertEqual(a[0]["ink_fraction"], b[0]["ink_fraction"])
+
+
 class TestAuditSubcommand(unittest.TestCase):
     def test_audit_clean_image_exits_zero_even_without_strict(self) -> None:
         with TemporaryDirectory() as tmp:

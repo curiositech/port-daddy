@@ -576,7 +576,7 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     overviewHref: '/whitepaper?paper=spawn-to-person',
     date: 'August 2026',
     pages: 50,
-    sizeKb: 801,
+    sizeKb: 802,
     status: 'Version 1.5 (textbook edition)',
     order: '05',
     chapter: 5,
@@ -807,7 +807,7 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     overviewHref: '/whitepaper?paper=anchor-protocol',
     date: 'August 2026',
     pages: 37,
-    sizeKb: 693,
+    sizeKb: 695,
     status: 'Version 1.5 (textbook edition)',
     order: '02',
     chapter: 2,
@@ -1321,6 +1321,14 @@ export interface LibraryChangelogEntry {
 }
 
 export const LIBRARY_CHANGELOG: LibraryChangelogEntry[] = [
+  {
+    dateIso: '2026-09-07',
+    date: 'September 7, 2026',
+    title: 'Page one says what is built; the book takes in the parts of the product it had left out',
+    summary:
+      'The front matter opens with what runs today, what is modelled and machine-checked but not running, and what is proposed and neither, and it names the discipline under which a claim about the harness earns its grade (a Genesis, a Voyage, a Wake, a Logbook, a Receipt). The kernel chapter prescribes the enforcement point below the agent as the substrate, places the hook harness beside the guard and the shim as instruments of the observed mode, and adds the second writer: Chartroom as institutional truth above the local harbor, projection or writer but never both, with the authority transfer by signed writer epoch. The Legible Swarm gains the operator’s instrument (the console’s panes read against the information floor, its commands as coordinated-mode work units) and the five modes of cooperation as supervision regimes. Whether the single-writer rail is the right collaboration model left the prose and became a pre-registered study (studies/substrate-study). Three typographic editions of the same book now build with every change, ten margin portraits with cleared licences sit beside the ideas they carry, and a register of 378 figurable ideas across the eight chapters is the work list for the drawings.',
+    chapters: ['single-writer-kernel', 'sealed-harbor', 'legible-swarm', 'spawn-to-person'],
+  },
   {
     dateIso: '2026-09-06',
     date: 'September 6, 2026',

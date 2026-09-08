@@ -32,7 +32,7 @@ One section per indexed idea (R1-R17, CR, B6, and every already-folded textbook 
 
 **Kind:** theorem  **Status:** folded
 
-> A human overseeing a fleet of software agents reads digests, not transcripts, and any digest that guarantees catching all k load-bearing artifacts among N while opening only m must carry at least log2 C(N,k) - log2 C(m,k) bits.
+> A human overseeing a fleet of software agents reads digests, not transcripts, and any digest that guarantees catching all k critical artifacts among N while opening only m must carry at least log2 C(N,k) - log2 C(m,k) bits.
 
 | Location | File | Labels | Sections |
 |---|---|---|---|
@@ -187,7 +187,7 @@ One section per indexed idea (R1-R17, CR, B6, and every already-folded textbook 
 
 **Kind:** result-family  **Status:** folded
 
-> The state machine (phase, policy, receipt, epoch/holder/stale-token, grants-with-parentage, effect journal, idempotency journal, settlement) satisfies six safety invariants in all 536 reachable states, each guard shown load-bearing by mutation.
+> The state machine (phase, policy, receipt, epoch/holder/stale-token, grants-with-parentage, effect journal, idempotency journal, settlement) satisfies six safety invariants in all 536 reachable states, each guard shown critical by mutation.
 
 | Location | File | Labels | Sections |
 |---|---|---|---|
@@ -295,7 +295,7 @@ One section per indexed idea (R1-R17, CR, B6, and every already-folded textbook 
 
 **Kind:** result-family  **Status:** folded
 
-> Unattested, the period-2 price never depends on the actual engine so swapping to a cheap one always pays; daemon-attested engine ids flip the incentive to the planner's efficiency rule at zero audit stake, and sanction-respecting reputation survives provider migration under three named clauses, each individually load-bearing.
+> Unattested, the period-2 price never depends on the actual engine so swapping to a cheap one always pays; daemon-attested engine ids flip the incentive to the planner's efficiency rule at zero audit stake, and sanction-respecting reputation survives provider migration under three named clauses, each individually critical.
 
 | Location | File | Labels | Sections |
 |---|---|---|---|

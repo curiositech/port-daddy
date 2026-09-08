@@ -302,6 +302,7 @@ export const SUBCOMMAND_TIERS: Record<string, Tier> = {
   'session done': 'notify',
   'session abandon': 'destructive', // marks session abandoned — affects others reading the trail
   'session takeover': 'notify',     // creates successor, preserves predecessor notes
+  'session find': 'silent',         // read-only recovery lookup; adopts context locally only
   'session rm': 'notify',           // archives session; notes and claim history stay append-only
   'session files': 'notify',        // add/rm of caller's own claims
 

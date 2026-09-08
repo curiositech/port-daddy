@@ -64,7 +64,7 @@ wrap "two agents, one lock, one holder at a time" "$TMP/s1.txt" "$TMP/session-sw
   timeout 300 python3 skills/harbor-results/scripts/c0_workunit.py 2>&1 \
     | sed -n '/^BASELINE/,/^Guards restored/p' | sed -E 's/ +$//'
 } | normalise > "$TMP/s2.txt"
-wrap "the work-unit machine: 536 states, every guard load-bearing" "$TMP/s2.txt" "$TMP/session-swk-workunit-check.tex"
+wrap "the work-unit machine: 536 states, every guard essential" "$TMP/s2.txt" "$TMP/session-swk-workunit-check.tex"
 
 # ---- sessions 3 and 4: model-checker traces, from the committed run logs -----
 # TLC is not re-run here (proofs.yml does that); the session is an excerpt of
