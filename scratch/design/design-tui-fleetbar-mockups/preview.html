@@ -1,0 +1,1333 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Port Daddy — Design Language Preview</title>
+
+<!--
+  Port Daddy Design Language — neobrutalism-inflected maritime control plane.
+
+  Sources of truth folded into this preview:
+  - neobrutalism-pro-files/{colors,borders,shadows,radius}.md  (token primitives)
+  - lib/maritime.ts                                            (PD's voice + ANSI palette)
+  - cli/utils/ui.ts                                            (Clack-based CLI surface)
+  - website-v2/src/styles/tokens.{source,semantic,roles}.css   (existing 3-tier web tokens)
+  - JADE/FIPA-ACL                                              (performative envelopes)
+  - design-system-creator + beautiful-cli + collage + typography (windags skills)
+
+  Mocked graphics: search for `<!-- nano banana:` comments. Each slot includes a
+  prompt; running `node docs/design/gen-mocks.mjs` (TODO) will regenerate via
+  Gemini's image gen and save into docs/design/mocks/. Today's preview uses
+  inline SVG placeholders styled in the same neobrutalist hand.
+-->
+
+<!-- Typography stack: 3 families (within the typography-expert "max 2 + mono" rule).
+     - Fraunces (variable: wght 100-900) — DISPLAY
+     - IBM Plex Sans (variable: wght 100-900) — BODY workhorse
+     - IBM Plex Mono (variable: wght 100-800) — CODE / CLI
+
+     Self-hosted under ./fonts/ — no external CDN. Fluid sizing via
+     clamp() against a Minor Third (1.2) ratio at 320px → Perfect Fourth
+     (1.333) at 1440px.
+
+     NOTE: Fraunces does not ship a `wdth` axis — only wght
+     and opsz. Visual contrast across the type spec uses weight + opsz. -->
+<link rel="stylesheet" href="./fonts/all.css">
+
+<style>
+/* =============================================================================
+   TOKENS — primitive layer (transcribed verbatim from neobrutalism-pro-files)
+   ============================================================================= */
+:root {
+  /* Neutral backgrounds */
+  --neutral-primary-soft: #FFFFFF;
+  --neutral-secondary-soft: #F5F5F0;
+  --neutral-tertiary: #EBEBEB;
+  --neutral-quaternary: #E0E0E0;
+  --gray: #AEAEAE;
+
+  /* Brand — neobrutalist mustard, paired with PD maritime status-error as secondary */
+  --brand-softer: #FFF9E0;
+  --brand-soft: #FFF3C4;
+  --brand: #FFDB33;          /* primary canary — neobrutalism signature */
+  --brand-medium: #FAE583;
+  --brand-strong: #FFCC00;
+
+  /* PD maritime — preserved as a deliberate second-brand accent */
+  --pd-danger: #BF2F2F;    /* status-error — danger/alert escalations */
+  --pd-sandstone: #D4C5A9;   /* harbor heritage warm tone (used sparingly) */
+  --pd-ebony: #1E1B18;       /* warm ebony — preferred over pure #000 in PD voice */
+
+  /* Status — graded from neobrutalism + extended for PD coordination states */
+  --success-soft: #ECFDF5;
+  --success: #16A34A;
+  --success-medium: #DCFCE7;
+  --success-strong: #15803D;
+  --danger-soft: #FEF2F2;
+  --danger: #E63946;
+  --danger-medium: #FECACA;
+  --danger-strong: #C41E30;
+  --warning-soft: #FFFBEB;
+  --warning: #F59E0B;
+  --warning-medium: #FEF3C7;
+  --warning-strong: #D97706;
+
+  /* Accent palette — used for actor identity dots, performative tags, ideas-trove */
+  --purple: #8B5CF6;
+  --sky: #0EA5E9;
+  --teal: #14B8A6;
+  --pink: #EC4899;
+  --cyan: #06B6D4;
+  --fuchsia: #D946EF;
+  --indigo: #6366F1;
+  --orange: #FB923C;
+
+  /* Text */
+  --text-heading: #000000;
+  --text-body: #5A5A5A;
+  --text-body-subtle: #6B7280;
+  --text-on-brand: #000000;        /* black on yellow — neobrutalism signature */
+  --fg-success: #16A34A;
+  --fg-danger: #E63946;
+  --fg-warning: #92400E;
+
+  /* Borders */
+  --border-default: #000000;
+  --border-light: #BFBFBF;
+  --border-muted: #E0E0E0;
+
+  /* Shadows — hard offset, no blur. The neobrutalism signature. */
+  --shadow-2xs: 1px 1px 0 0 var(--border-default);
+  --shadow-xs:  2px 2px 0 0 var(--border-default);
+  --shadow-sm:  3px 3px 0 0 var(--border-default);
+  --shadow-md:  4px 4px 0 0 var(--border-default);
+  --shadow-lg:  6px 6px 0 0 var(--border-default);
+  --shadow-xl:  10px 10px 0 1px var(--border-default);
+  --shadow-2xl: 16px 16px 0 1px var(--border-default);
+
+  /* Border widths */
+  --bw-default: 2px;
+  --bw-emphasis: 3px;
+
+  /* Radius — 0 by default, 9999 for pills only */
+  --radius-base: 0px;
+  --radius-pill: 9999px;
+
+  /* =========================================================================
+     TOKENS — semantic layer (PD coordination states)
+     One palette, three render targets (CSS / SwiftUI / ANSI). The CSS values
+     here are the canonical source; the JSON sidecar (TODO: design/tokens.json)
+     codegens the SwiftUI Color extensions and the lib/maritime.ts ANSI palette.
+     ========================================================================= */
+  --state-claim-active-bg: var(--success-medium);
+  --state-claim-active-fg: var(--success-strong);
+  --state-claim-active-border: var(--success);
+
+  --state-claim-stale-bg: var(--neutral-tertiary);
+  --state-claim-stale-fg: var(--text-body-subtle);
+  --state-claim-stale-border: var(--gray);
+
+  --state-awaiting-human-bg: var(--warning-medium);
+  --state-awaiting-human-fg: #92400E;                            /* warning-fg per neobrutalism — passes AA on warning-medium */
+  --state-awaiting-human-border: var(--warning);
+
+  --state-burning-cash-bg: #FFE4E4;
+  --state-burning-cash-fg: var(--pd-danger);
+  --state-burning-cash-border: var(--pd-danger);
+
+  --state-conflict-bg: var(--danger-medium);
+  --state-conflict-fg: var(--danger-strong);
+  --state-conflict-border: var(--danger);
+
+  --state-blocked-bg: var(--neutral-secondary-soft);
+  --state-blocked-fg: var(--text-body-subtle);
+  --state-blocked-border: var(--border-light);
+
+  --state-idle-bg: var(--neutral-primary-soft);
+  --state-idle-fg: var(--text-body-subtle);
+  --state-idle-border: var(--border-muted);
+
+  /* =========================================================================
+     TYPOGRAPHY — fluid scale, Minor Third → Perfect Fourth across viewports
+     Per typography-expert: clamp() against viewport, baseline grid 24px.
+     ========================================================================= */
+  --baseline: 1.5rem;                                            /* 24px */
+  --type-display-1: clamp(3.5rem, 2rem + 9vw, 11rem);            /* hero */
+  --type-display-2: clamp(2.75rem, 1.5rem + 6.5vw, 7.5rem);      /* section */
+  --type-h1: clamp(2.25rem, 1.5rem + 3vw, 4rem);
+  --type-h2: clamp(1.75rem, 1.25rem + 2vw, 2.75rem);
+  --type-h3: clamp(1.375rem, 1rem + 1.5vw, 2rem);
+  --type-h4: clamp(1.125rem, 0.9rem + 1vw, 1.5rem);
+  --type-body: clamp(1rem, 0.95rem + 0.25vw, 1.125rem);
+  --type-small: 0.875rem;
+  --type-eyebrow: 0.75rem;
+
+  /* Stacks */
+  --font-display: "Fraunces", "IBM Plex Sans", -apple-system, system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "Cascadia Code", "SF Mono", Menlo, monospace;
+}
+
+/* =============================================================================
+   GLOBAL — reset + body
+   ============================================================================= */
+*, *::before, *::after { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--neutral-secondary-soft);
+  color: var(--text-body);
+  font-family: var(--font-body);
+  font-size: var(--type-body);
+  font-weight: 460;                                              /* density on cream/yellow backgrounds */
+  line-height: var(--baseline);
+
+  font-variation-settings: "CASL" 0.4, "MONO" 0, "slnt" 0;
+
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Headings — Fraunces at extreme weight + tight tracking */
+h1, h2, h3, h4 {
+  font-family: var(--font-display);
+  color: var(--text-heading);
+  margin: 0 0 var(--baseline);
+  font-variation-settings: "wght" 800;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+h1 { font-size: var(--type-h1); letter-spacing: -0.025em; }
+h2 { font-size: var(--type-h2); letter-spacing: -0.022em; }
+h3 { font-size: var(--type-h3); letter-spacing: -0.018em; }
+h4 { font-size: var(--type-h4); letter-spacing: -0.015em; }
+
+p { margin: 0 0 var(--baseline); max-width: 65ch; }
+a { color: var(--text-heading); text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 4px; }
+code { font-family: var(--font-mono); font-size: 0.92em; background: var(--brand-softer); padding: 0.05em 0.35em; border: var(--bw-default) solid var(--border-default); }
+hr { border: 0; border-top: var(--bw-emphasis) solid var(--border-default); margin: calc(var(--baseline) * 2) 0; }
+section { padding: clamp(3rem, 8vw, 7rem) clamp(1.25rem, 5vw, 5rem); border-bottom: var(--bw-emphasis) solid var(--border-default); }
+.container { max-width: 1280px; margin: 0 auto; }
+
+/* =============================================================================
+   HERO — display type goes nuts here per spec
+   ============================================================================= */
+.hero {
+  background: var(--brand);
+  border-bottom: var(--bw-emphasis) solid var(--border-default);
+  padding: clamp(2rem, 6vw, 5rem) clamp(1.25rem, 5vw, 5rem) clamp(3rem, 8vw, 7rem);
+  position: relative;
+  overflow: hidden;
+}
+.hero__eyebrow {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: var(--type-eyebrow);
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  background: var(--neutral-primary-soft);
+  border: var(--bw-default) solid var(--border-default);
+  padding: 0.35rem 0.75rem;
+  box-shadow: var(--shadow-xs);
+  margin-bottom: var(--baseline);
+}
+.hero__title {
+  font-family: var(--font-display);
+  font-size: var(--type-display-1);
+  font-weight: 800;
+  font-variation-settings: "wght" 900;
+  letter-spacing: -0.045em;
+  line-height: 0.85;
+  margin: 0 0 var(--baseline);
+  color: var(--text-on-brand);
+  text-wrap: balance;
+}
+.hero__title em {
+  font-style: normal;
+  font-variation-settings: "wght" 300;
+  font-style: italic;
+}
+.hero__subtitle {
+  font-family: var(--font-display);
+  font-size: clamp(1.25rem, 0.75rem + 1.5vw, 2rem);
+  font-weight: 500;
+  font-variation-settings: "wght" 500;
+  line-height: 1.15;
+  max-width: 28ch;
+  color: var(--text-on-brand);
+  margin: 0 0 calc(var(--baseline) * 1.5);
+  text-wrap: balance;
+}
+.hero__cta-row { display: flex; gap: 1rem; flex-wrap: wrap; }
+
+/* Floating wordmark — anchor as PD's signature */
+.hero__anchor {
+  position: absolute;
+  right: clamp(1rem, 4vw, 5rem);
+  top: clamp(1rem, 4vw, 5rem);
+  width: clamp(80px, 12vw, 200px);
+  aspect-ratio: 1;
+  background: var(--pd-ebony);
+  border: var(--bw-emphasis) solid var(--border-default);
+  box-shadow: var(--shadow-xl);
+  display: grid;
+  place-items: center;
+  color: var(--brand);
+  font-family: var(--font-display);
+  font-size: clamp(2.5rem, 6vw, 5rem);
+  font-weight: 800;
+  font-variation-settings: "wght" 800;
+  transform: rotate(-3deg);
+}
+
+/* =============================================================================
+   BUTTONS — neobrutalist hard-edge, brand-on-black contrast
+   ============================================================================= */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-decoration: none;
+  padding: 0.75rem 1.25rem;
+  border: var(--bw-default) solid var(--border-default);
+  background: var(--neutral-primary-soft);
+  color: var(--text-heading);
+  cursor: pointer;
+  box-shadow: var(--shadow-md);
+  transition: transform 80ms ease, box-shadow 80ms ease;
+}
+.btn:hover { transform: translate(-2px, -2px); box-shadow: var(--shadow-lg); }
+.btn:active { transform: translate(2px, 2px); box-shadow: var(--shadow-2xs); }
+.btn--primary { background: var(--pd-ebony); color: var(--brand); }
+.btn--accent { background: var(--pd-danger); color: var(--neutral-primary-soft); }
+
+/* =============================================================================
+   TYPE SHOWCASE — going nuts on variable axes
+   ============================================================================= */
+.type-grid { display: flex; flex-direction: column; gap: 1rem; max-width: 70ch; }
+.type-spec { padding: 0.5rem 0; border-bottom: 2px dashed var(--border-light); }
+.type-spec__label { font-family: var(--font-mono); font-size: 0.85rem; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; color: var(--text-heading); margin-bottom: 0.25rem; }
+.type-spec__sample { font-family: var(--font-display); line-height: 0.95; letter-spacing: -0.03em; color: var(--text-heading); font-size: clamp(2rem, 5vw, 4rem); }
+.type-spec__caption { font-family: var(--font-mono); font-size: 0.95rem; margin-top: 0.5rem; color: var(--text-body-subtle); letter-spacing: 0.04em; }
+
+.axis-demo {
+  font-family: var(--font-display);
+  font-size: clamp(2.5rem, 6vw, 5rem);
+  line-height: 0.9;
+  letter-spacing: -0.04em;
+  color: var(--text-heading);
+}
+.axis-demo > div { padding: 0.25rem 0; border-bottom: var(--bw-default) dashed var(--border-light); }
+.axis-demo > div:last-child { border-bottom: 0; }
+.ax-200 { font-variation-settings: "wght" 200; }
+.ax-400 { font-variation-settings: "wght" 400; }
+.ax-600 { font-variation-settings: "wght" 600; }
+.ax-800 { font-variation-settings: "wght" 800; }
+.ax-w100 { font-weight: 100; }
+.ax-w500 { font-weight: 500; }
+.ax-w900 { font-weight: 900; }
+
+/* =============================================================================
+   COLOR & TOKEN GRID
+   ============================================================================= */
+.swatch-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 1rem; }
+.swatch {
+  border: var(--bw-default) solid var(--border-default);
+  box-shadow: var(--shadow-sm);
+  background: var(--neutral-primary-soft);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.swatch__chip { aspect-ratio: 1.4; }
+.swatch__meta { padding: 0.6rem 0.75rem; font-family: var(--font-mono); font-size: 0.78rem; line-height: 1.35; border-top: var(--bw-default) solid var(--border-default); }
+.swatch__meta b { display: block; font-size: 0.85rem; color: var(--text-heading); }
+.swatch__meta code { background: transparent; border: 0; padding: 0; }
+
+/* =============================================================================
+   COORDINATION STATE CARDS — the heart of the UX
+   ============================================================================= */
+.state-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; }
+.state-card {
+  background: var(--state-bg, var(--neutral-primary-soft));
+  border: var(--bw-default) solid var(--state-border, var(--border-default));
+  border-left-width: 8px;
+  box-shadow: var(--shadow-md);
+  padding: 1.25rem 1.5rem;
+  display: grid;
+  gap: 0.5rem;
+}
+.state-card__header { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }
+.state-card__name {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 800;
+  font-variation-settings: "wght" 800;
+  letter-spacing: -0.02em;
+  color: var(--state-fg, var(--text-heading));
+  margin: 0;
+}
+.state-card__symbol { font-family: var(--font-mono); font-size: 1.5rem; font-weight: 700; }
+.state-card__line {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  display: grid;
+  grid-template-columns: 64px 1fr;
+  gap: 0.5rem 0.75rem;
+}
+.state-card__line span:first-child { color: #374151; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600; }
+.state-card__line span:last-child { word-break: break-all; }
+.state-card[data-state="claim-active"]   { --state-bg: var(--state-claim-active-bg); --state-fg: var(--state-claim-active-fg); --state-border: var(--state-claim-active-border); }
+.state-card[data-state="awaiting-human"] { --state-bg: var(--state-awaiting-human-bg); --state-fg: var(--state-awaiting-human-fg); --state-border: var(--state-awaiting-human-border); }
+.state-card[data-state="burning-cash"]   { --state-bg: var(--state-burning-cash-bg); --state-fg: var(--state-burning-cash-fg); --state-border: var(--state-burning-cash-border); }
+.state-card[data-state="conflict"]       { --state-bg: var(--state-conflict-bg); --state-fg: var(--state-conflict-fg); --state-border: var(--state-conflict-border); }
+.state-card[data-state="blocked"]        { --state-bg: var(--state-blocked-bg); --state-fg: var(--state-blocked-fg); --state-border: var(--state-blocked-border); }
+.state-card[data-state="claim-stale"]    { --state-bg: var(--state-claim-stale-bg); --state-fg: var(--state-claim-stale-fg); --state-border: var(--state-claim-stale-border); }
+.state-card[data-state="idle"]           { --state-bg: var(--state-idle-bg); --state-fg: var(--state-idle-fg); --state-border: var(--state-idle-border); }
+
+/* =============================================================================
+   CLI MOCK — terminal pane in design language
+   ============================================================================= */
+.terminal {
+  background: var(--pd-ebony);
+  color: #F5F5F0;
+  font-family: var(--font-mono);
+  font-size: 0.92rem;
+  line-height: 1.55;
+  border: var(--bw-emphasis) solid var(--border-default);
+  box-shadow: var(--shadow-xl);
+  border-radius: var(--radius-base);
+  overflow: hidden;
+}
+.terminal__chrome {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  background: var(--neutral-primary-soft);
+  padding: 0.5rem 0.85rem;
+  border-bottom: var(--bw-default) solid var(--border-default);
+  color: var(--text-heading);
+}
+.terminal__dot { width: 12px; height: 12px; border-radius: var(--radius-pill); border: var(--bw-default) solid var(--border-default); }
+.terminal__title { margin-left: 0.5rem; font-size: 0.78rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }
+.terminal__body { padding: 1rem 1.15rem 1.25rem; white-space: pre; overflow-x: auto; }
+.t-prompt   { color: var(--brand); }
+.t-cmd      { color: #FFFFFF; font-weight: 500; }
+.t-ok       { color: #4ADE80; }
+.t-err      { color: #FCA5A5; }
+.t-warn     { color: #FBBF24; }
+.t-error    { color: #FF8B7C; }
+.t-dim      { color: #9CA3AF; }
+.t-info     { color: #93C5FD; }
+
+/* =============================================================================
+   DISTRESS CALLOUT — graded by maritime severity
+   ============================================================================= */
+.distress {
+  border: var(--bw-emphasis) solid var(--border-default);
+  background: var(--neutral-primary-soft);
+  box-shadow: var(--shadow-lg);
+  padding: 1.5rem 1.75rem;
+  position: relative;
+}
+.distress__band {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: var(--type-eyebrow);
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  padding: 0.35rem 0.75rem;
+  margin-bottom: 0.85rem;
+  background: var(--text-heading);
+  color: var(--neutral-primary-soft);
+}
+.distress[data-level="securité"] .distress__band { background: #92400E; }
+.distress[data-level="pan-pan"]  .distress__band { background: var(--pd-danger); color: #FFFFFF; }
+.distress[data-level="mayday"]   .distress__band { background: var(--danger-strong); color: #FFFFFF; }
+.distress h4 {
+  font-family: var(--font-display);
+  font-size: var(--type-h3);
+  margin: 0 0 0.5rem;
+}
+.distress__looked-in {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  background: var(--brand-softer);
+  border: var(--bw-default) solid var(--border-default);
+  padding: 0.5rem 0.75rem;
+  margin: 0.5rem 0;
+}
+.distress__fix {
+  font-family: var(--font-mono);
+  font-size: 0.92rem;
+  font-weight: 600;
+  background: var(--brand);
+  border: var(--bw-default) solid var(--border-default);
+  padding: 0.6rem 0.9rem;
+  display: inline-block;
+}
+
+/* =============================================================================
+   FIPA PERFORMATIVE TAGS — actor message envelopes
+   ============================================================================= */
+.perf-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  padding: 0.25rem 0.55rem;
+  border: var(--bw-default) solid var(--border-default);
+  background: var(--neutral-primary-soft);
+}
+/* All white-on-color performatives use 700-grade backgrounds (≥4.5:1 white text). */
+.perf-tag[data-perf="REQUEST"]         { background: #0369A1; color: #FFFFFF; }     /* sky-700 */
+.perf-tag[data-perf="INFORM"]          { background: var(--success-medium); color: #166534; } /* success-700 fg */
+.perf-tag[data-perf="AGREE"]           { background: #15803D; color: #FFFFFF; }     /* success-strong */
+.perf-tag[data-perf="REFUSE"]          { background: var(--danger-strong); color: #FFFFFF; }
+.perf-tag[data-perf="FAILURE"]         { background: #991B1B; color: #FFFFFF; }     /* danger-800 */
+.perf-tag[data-perf="CFP"]             { background: var(--brand); color: var(--text-heading); }
+.perf-tag[data-perf="PROPOSE"]         { background: #6D28D9; color: #FFFFFF; }     /* purple-700 */
+.perf-tag[data-perf="ACCEPT-PROPOSAL"] { background: #4338CA; color: #FFFFFF; }     /* indigo-700 */
+.perf-tag[data-perf="SUBSCRIBE"]       { background: #0F766E; color: #FFFFFF; }     /* teal-700 */
+.perf-tag[data-perf="QUERY-REF"]       { background: var(--cyan); color: var(--text-heading); }
+
+/* =============================================================================
+   MESSAGE ENVELOPE — actor mailbox row
+   ============================================================================= */
+.envelope {
+  border: var(--bw-default) solid var(--border-default);
+  background: var(--neutral-primary-soft);
+  box-shadow: var(--shadow-sm);
+  padding: 0.85rem 1rem;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 0.85rem 1rem;
+  align-items: center;
+}
+.envelope + .envelope { margin-top: 0.65rem; }
+.envelope__from {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-heading);
+}
+.envelope__from::after { content: " → "; color: var(--text-body-subtle); }
+.envelope__body {
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  color: var(--text-body);
+}
+.envelope__meta {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--text-body-subtle);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* =============================================================================
+   COST PILL + FLEETBAR STRIP
+   ============================================================================= */
+.cost-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.92rem;
+  background: var(--neutral-primary-soft);
+  border: var(--bw-default) solid var(--border-default);
+  box-shadow: var(--shadow-xs);
+  padding: 0.45rem 0.85rem;
+}
+.cost-pill__amount { font-weight: 700; color: var(--text-heading); }
+.cost-pill__cap { color: var(--text-body-subtle); }
+.cost-pill__bar {
+  position: relative;
+  width: 80px;
+  height: 8px;
+  background: var(--neutral-tertiary);
+  border: var(--bw-default) solid var(--border-default);
+}
+.cost-pill__bar::after {
+  content: "";
+  position: absolute;
+  inset: 0 30% 0 0;
+  background: var(--pd-danger);
+}
+.cost-pill[data-status="ok"] .cost-pill__bar::after { background: var(--success); inset: 0 75% 0 0; }
+.cost-pill[data-status="warn"] .cost-pill__bar::after { background: var(--warning); inset: 0 50% 0 0; }
+.cost-pill[data-status="crit"] .cost-pill__bar::after { background: var(--pd-danger); inset: 0 5% 0 0; }
+
+.fleetbar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--pd-ebony);
+  border: var(--bw-emphasis) solid var(--border-default);
+  box-shadow: var(--shadow-md);
+  padding: 0.5rem 0.85rem;
+  color: var(--neutral-primary-soft);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  width: fit-content;
+}
+.fleetbar__avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-pill);
+  border: var(--bw-default) solid var(--border-default);
+  background: var(--accent, var(--brand));
+  display: grid; place-items: center;
+  color: var(--text-on-brand);
+  font-weight: 700;
+  font-size: 0.75rem;
+}
+.fleetbar__avatar[data-state="awaiting"] { box-shadow: 0 0 0 3px var(--warning); }
+.fleetbar__avatar[data-state="conflict"] { box-shadow: 0 0 0 3px var(--danger); color: #FFFFFF; }
+.fleetbar__avatar[data-state="active"]   { box-shadow: 0 0 0 3px var(--success); }
+/* Override avatar text color when accent is dark (danger/ebony) */
+.fleetbar__avatar[style*="--pd-danger"], .fleetbar__avatar[style*="--danger"] { color: #FFFFFF; }
+.fleetbar__sep { width: 1px; height: 18px; background: rgba(255,255,255,0.25); margin: 0 0.25rem; }
+/* Lighter pill caps inside the dark fleetbar (parent fg overrides aren't enough — cap has its own rule) */
+.fleetbar .cost-pill__cap { color: #D1D5DB; }
+
+/* =============================================================================
+   HOCKNEY TIMELINE — multi-perspective screenshot collage
+   Per collage-layout-expert: imperfection IS the technique. ±2° rotation,
+   5–15% overlap, intentional gaps. Not a panorama.
+   ============================================================================= */
+.hockney {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 0;
+  padding: 2.5rem 0;
+}
+.hockney__tile {
+  aspect-ratio: 4/3;
+  border: var(--bw-default) solid var(--border-default);
+  background: var(--neutral-primary-soft);
+  box-shadow: var(--shadow-md);
+  position: relative;
+  overflow: hidden;
+}
+.hockney__tile:nth-child(1) { transform: rotate(-2.1deg) translate(8px, -4px); z-index: 6; }
+.hockney__tile:nth-child(2) { transform: rotate(1.4deg) translate(-12px, 6px); z-index: 5; }
+.hockney__tile:nth-child(3) { transform: rotate(-1.1deg) translate(-4px, -8px); z-index: 4; }
+.hockney__tile:nth-child(4) { transform: rotate(2.3deg) translate(6px, 4px); z-index: 3; }
+.hockney__tile:nth-child(5) { transform: rotate(-0.8deg) translate(-10px, -2px); z-index: 2; }
+.hockney__tile:nth-child(6) { transform: rotate(1.7deg) translate(4px, 8px); z-index: 1; }
+.hockney__caption {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  background: var(--neutral-primary-soft);
+  border-top: var(--bw-default) solid var(--border-default);
+  padding: 0.25rem 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-body-subtle);
+  display: flex; justify-content: space-between;
+}
+
+/* =============================================================================
+   IDEAS-TROVE BOARD — force-directed scatter, weighted by recurrence
+   ============================================================================= */
+.trove {
+  position: relative;
+  min-height: 420px;
+  background:
+    repeating-linear-gradient(0deg, transparent 0, transparent 22px, rgba(0,0,0,0.04) 22px, rgba(0,0,0,0.04) 23px),
+    repeating-linear-gradient(90deg, transparent 0, transparent 22px, rgba(0,0,0,0.04) 22px, rgba(0,0,0,0.04) 23px),
+    var(--brand-softer);
+  border: var(--bw-emphasis) solid var(--border-default);
+  box-shadow: var(--shadow-lg);
+  padding: 1rem;
+}
+.trove__card {
+  position: absolute;
+  background: var(--neutral-primary-soft);
+  border: var(--bw-default) solid var(--border-default);
+  box-shadow: var(--shadow-sm);
+  padding: 0.6rem 0.85rem;
+  font-family: var(--font-display);
+  line-height: 1.05;
+  letter-spacing: -0.015em;
+  max-width: 240px;
+}
+.trove__card[data-weight="big"]    { font-size: 1.5rem; font-variation-settings: "wght" 700; box-shadow: var(--shadow-md); }
+.trove__card[data-weight="medium"] { font-size: 1.05rem; font-variation-settings: "wght" 600; }
+.trove__card[data-weight="small"]  { font-size: 0.875rem; font-variation-settings: "wght" 500; opacity: 0.85; }
+.trove__card[data-tone="brand"]    { background: var(--brand); }
+.trove__card[data-tone="danger"]   { background: var(--pd-danger); color: var(--neutral-primary-soft); border-color: var(--border-default); }
+.trove__card[data-tone="purple"]   { background: #6D28D9; color: #FFFFFF; }    /* purple-700 for AA */
+
+/* =============================================================================
+   60/30/10 PANE LAYOUT (Tauri Bridge mock)
+   ============================================================================= */
+.bridge {
+  display: grid;
+  grid-template-columns: 6fr 3fr 1fr;
+  grid-template-rows: auto 1fr;
+  gap: 0;
+  border: var(--bw-emphasis) solid var(--border-default);
+  background: var(--pd-ebony);
+  box-shadow: var(--shadow-2xl);
+  height: 480px;
+  overflow: hidden;
+}
+.bridge > * {
+  border-right: var(--bw-default) solid var(--border-default);
+  background: var(--neutral-primary-soft);
+}
+.bridge > *:last-child { border-right: 0; }
+.bridge__chrome {
+  grid-column: 1 / -1;
+  background: var(--brand);
+  padding: 0.6rem 0.85rem;
+  border-bottom: var(--bw-default) solid var(--border-default);
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.bridge__hero    { padding: 1rem; overflow: auto; }
+.bridge__side    { padding: 0.85rem; overflow: auto; background: var(--neutral-secondary-soft); font-size: 0.85rem; }
+.bridge__rail    { padding: 0.5rem 0.35rem; background: var(--pd-ebony); display: grid; gap: 0.5rem; place-content: start center; }
+.bridge__hero h4 { margin-bottom: 0.4rem; }
+.bridge__rail .fleetbar__avatar { margin: 0 auto; }
+
+/* =============================================================================
+   UTILITY + LAYOUT
+   ============================================================================= */
+.eyebrow {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: var(--type-eyebrow);
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  background: var(--pd-ebony);
+  color: var(--brand);
+  padding: 0.3rem 0.7rem;
+  border: var(--bw-default) solid var(--border-default);
+  margin-bottom: var(--baseline);
+}
+.section-title { font-family: var(--font-display); font-size: clamp(2rem, 6vw, 4.5rem);
+  font-variation-settings: "wght" 800;
+  letter-spacing: -0.04em;
+  line-height: 0.85;
+  margin-bottom: var(--baseline);
+  text-wrap: balance;
+}
+.section-lede { font-size: clamp(1.05rem, 0.95rem + 0.5vw, 1.35rem); max-width: 60ch; color: var(--text-body); }
+.col-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 1.5rem; }
+.col-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; }
+.tnum  { font-variant-numeric: tabular-nums; }
+.smcp  { font-variant-caps: small-caps; letter-spacing: 0.05em; }
+.frac  { font-variant-numeric: diagonal-fractions; }
+.mt-3  { margin-top: calc(var(--baseline) * 1); }
+.mt-6  { margin-top: calc(var(--baseline) * 2); }
+
+/* =============================================================================
+   FOOTER
+   ============================================================================= */
+.footer {
+  background: var(--pd-ebony);
+  color: var(--neutral-primary-soft);
+  padding: clamp(2.5rem, 6vw, 5rem) clamp(1.25rem, 5vw, 5rem);
+  display: grid;
+  gap: var(--baseline);
+}
+.footer h2 {
+  color: var(--brand);
+  font-size: var(--type-display-2);
+  font-variation-settings: "wght" 200;
+  font-style: italic;
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+}
+.footer__meta {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: #C7C7BD;                                  /* lifted from --gray #AEAEAE for AA on ebony */
+  border-top: var(--bw-default) solid #3A3A3A;
+  padding-top: var(--baseline);
+}
+/* Code in dark contexts inverts to dark-on-brand for readability */
+.footer code, .terminal code, .bridge__rail code {
+  background: #2A2520;
+  color: var(--brand);
+  border-color: #3A3A3A;
+}
+
+/* =============================================================================
+   PRINT & REDUCED MOTION
+   ============================================================================= */
+@media (prefers-reduced-motion: reduce) {
+  .btn { transition: none; }
+}
+@media (prefers-color-scheme: dark) {
+  /* Per typography-expert: bump weight on dark mode to compensate apparent thinning */
+  :root { --text-body: #C7C7BD; }
+  body { font-weight: 460; }
+}
+</style>
+</head>
+<body>
+
+<!-- ============================================================================
+     HERO
+     ============================================================================ -->
+<header class="hero">
+  <div class="container">
+    <span class="hero__eyebrow">Port Daddy · Design Language v0 · 2026-05-05</span>
+    <h1 class="hero__title">
+      Multi-agent<br>
+      coordination<br>
+      <em>looks like this.</em>
+    </h1>
+    <p class="hero__subtitle">
+      One semantic palette. Three render targets. Zero soft shadows.
+      A maritime control plane for fleets that don't stomp on each other.
+    </p>
+    <div class="hero__cta-row">
+      <a class="btn btn--primary" href="#tokens">⚓ Tokens</a>
+      <a class="btn" href="#states">Coordination states</a>
+      <a class="btn btn--accent" href="#cli">CLI design</a>
+      <a class="btn" href="#bridge">Bridge mock</a>
+    </div>
+  </div>
+  <!-- nano banana: a hand-painted neobrutalist anchor stamp, mustard yellow
+       on warm ebony, 2px thick black outline, hard offset shadow, slight
+       rotation. SVG below is the placeholder. -->
+  <div class="hero__anchor" aria-hidden="true">⚓</div>
+</header>
+
+<!-- ============================================================================
+     TYPOGRAPHY SHOWCASE — going nuts on variable axes
+     ============================================================================ -->
+<section id="type">
+  <div class="container">
+    <span class="eyebrow">Typography</span>
+    <h2 class="section-title">Fraunces. IBM Plex Sans. JetBrains&nbsp;Mono.<br>Three families. Variable everything.</h2>
+    <p class="section-lede">
+      Display headlines run on Fraunces at three axes —
+      weight, width, optical size — to swing from <span style="font-variation-settings:'wght' 200">whisper</span>
+      to <span style="font-variation-settings:'wght' 800">slam</span> within the same family. Body type is IBM Plex Sans.
+      All numerics are tabular by default. Fractions render as <span class="frac">1/2</span>, <span class="frac">3/4</span>,
+      <span class="frac">7/12</span>. Small caps for <span class="smcp">actor names</span> and <span class="smcp">performatives</span>.
+    </p>
+
+    <div class="type-grid mt-6">
+
+      <div class="type-spec">
+        <div class="type-spec__label">Display 1 · Hero</div>
+        <div class="type-spec__sample">FLEET&nbsp;UP.</div>
+        <div class="type-spec__caption">Fraunces · opsz 96 · wght 800 · ls −0.045em</div>
+      </div>
+
+      <div class="type-spec">
+        <div class="type-spec__label">Display 2 · Section</div>
+        <div class="type-spec__sample">salvage.<br>recover.<br>resume.</div>
+        <div class="type-spec__caption">Fraunces · opsz 60 · wght 500</div>
+      </div>
+
+      <div class="type-spec">
+        <div class="type-spec__label">Body · 65ch max</div>
+        <div class="type-spec__sample" style="font-family:var(--font-body);font-size:1.5rem;line-height:1.5;color:var(--text-body);font-weight:460;">Coordination guard is enforcing. Three actors hold claims on <code>lib/auth.ts</code>. The cheap-classifier router chose Cloudflare Llama 3.2 1B — Anthropic credit not present.</div>
+        <div class="type-spec__caption">IBM Plex Sans · wght 420 · 1rem · 1.55 line-height</div>
+      </div>
+
+      <div class="type-spec">
+        <div class="type-spec__label">Mono · CLI</div>
+        <div class="type-spec__sample" style="font-family:var(--font-mono);font-size:1.25rem;line-height:1.55;color:var(--text-heading);"><span style="color:var(--success-strong)">✓</span> claim acquired<br><span style="color:var(--warning-strong)">⚠</span> awaiting human<br><span style="color:var(--pd-danger)">$</span> 23.40<span style="color:var(--text-body-subtle)"> / 50.00 cap</span></div>
+        <div class="type-spec__caption">IBM Plex Mono · tabular nums · 1rem</div>
+      </div>
+
+    </div>
+
+    <h3 class="mt-6">Variable axes — weight (200 → 800)</h3>
+    <div class="axis-demo">
+      <div class="ax-200">awaiting input.</div>
+      <div class="ax-400">in flight.</div>
+      <div class="ax-600">claim active.</div>
+      <div class="ax-800">CONFLICT.</div>
+    </div>
+
+    <h3 class="mt-6">Variable axes — full weight ladder (100 → 900)</h3>
+    <div class="axis-demo">
+      <div class="ax-w100">fleet · thin</div>
+      <div class="ax-w500">fleet · medium</div>
+      <div class="ax-w900">fleet · black</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================================
+     TOKEN SYSTEM
+     ============================================================================ -->
+<section id="tokens" style="background:var(--neutral-primary-soft)">
+  <div class="container">
+    <span class="eyebrow">Tokens · 3 tiers</span>
+    <h2 class="section-title">Primitive → Semantic → Component</h2>
+    <p class="section-lede">
+      Codegen target: one <code>tokens.semantic.yaml</code> compiles to CSS custom properties (web),
+      <code>Color</code> extensions (SwiftUI / FleetBar), and an ANSI palette in <code>lib/maritime.ts</code> (CLI).
+      Every surface lights up the same way when something needs attention.
+    </p>
+
+    <h3 class="mt-6">Brand & accent</h3>
+    <div class="swatch-grid">
+      <div class="swatch"><div class="swatch__chip" style="background:var(--brand)"></div><div class="swatch__meta"><b>brand</b><code>#FFDB33</code></div></div>
+      <div class="swatch"><div class="swatch__chip" style="background:var(--brand-strong)"></div><div class="swatch__meta"><b>brand-strong</b><code>#FFCC00</code></div></div>
+      <div class="swatch"><div class="swatch__chip" style="background:var(--pd-danger)"></div><div class="swatch__meta"><b>pd-danger</b><code>#BF2F2F</code></div></div>
+      <div class="swatch"><div class="swatch__chip" style="background:var(--pd-ebony)"></div><div class="swatch__meta" style="color:#FFF;background:var(--pd-ebony);border-top-color:var(--border-default)"><b style="color:#F5F5F0">pd-ebony</b><code>#1E1B18</code></div></div>
+      <div class="swatch"><div class="swatch__chip" style="background:var(--purple)"></div><div class="swatch__meta"><b>purple</b><code>#8B5CF6</code></div></div>
+      <div class="swatch"><div class="swatch__chip" style="background:var(--cyan)"></div><div class="swatch__meta"><b>cyan</b><code>#06B6D4</code></div></div>
+      <div class="swatch"><div class="swatch__chip" style="background:var(--teal)"></div><div class="swatch__meta"><b>teal</b><code>#14B8A6</code></div></div>
+      <div class="swatch"><div class="swatch__chip" style="background:var(--orange)"></div><div class="swatch__meta"><b>orange</b><code>#FB923C</code></div></div>
+    </div>
+
+    <h3 class="mt-6">Status</h3>
+    <div class="swatch-grid">
+      <div class="swatch"><div class="swatch__chip" style="background:var(--success)"></div><div class="swatch__meta"><b>success</b><code>#16A34A</code></div></div>
+      <div class="swatch"><div class="swatch__chip" style="background:var(--warning)"></div><div class="swatch__meta"><b>warning</b><code>#F59E0B</code></div></div>
+      <div class="swatch"><div class="swatch__chip" style="background:var(--danger)"></div><div class="swatch__meta"><b>danger</b><code>#E63946</code></div></div>
+      <div class="swatch"><div class="swatch__chip" style="background:var(--danger-strong)"></div><div class="swatch__meta"><b>danger-strong</b><code>#C41E30</code></div></div>
+    </div>
+
+    <h3 class="mt-6">Hard offset shadow ladder</h3>
+    <div class="col-3">
+      <div class="swatch" style="box-shadow:var(--shadow-xs)"><div class="swatch__chip" style="background:var(--neutral-secondary-soft)"></div><div class="swatch__meta"><b>shadow-xs</b><code>2px 2px 0 0</code></div></div>
+      <div class="swatch" style="box-shadow:var(--shadow-md)"><div class="swatch__chip" style="background:var(--neutral-secondary-soft)"></div><div class="swatch__meta"><b>shadow-md</b><code>4px 4px 0 0</code></div></div>
+      <div class="swatch" style="box-shadow:var(--shadow-xl)"><div class="swatch__chip" style="background:var(--neutral-secondary-soft)"></div><div class="swatch__meta"><b>shadow-xl</b><code>10px 10px 0 1px</code></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================================
+     COORDINATION STATES — semantic layer rendered for the eye
+     ============================================================================ -->
+<section id="states" style="background:var(--brand-softer)">
+  <div class="container">
+    <span class="eyebrow">Semantic states · the heart of the UX</span>
+    <h2 class="section-title">Seven states the user must read at a glance.</h2>
+    <p class="section-lede">
+      A token name maps to one CSS variable, one ANSI sequence, one SwiftUI Color.
+      FleetBar, dashboard, terminal, and Tauri Bridge all light up the same way.
+      Zane sees "burning cash" the same as Mira sees "awaiting human."
+    </p>
+
+    <div class="state-grid mt-6">
+      <div class="state-card" data-state="claim-active">
+        <div class="state-card__header">
+          <h4 class="state-card__name">claim-active</h4>
+          <span class="state-card__symbol">✓</span>
+        </div>
+        <div class="state-card__line"><span>Web</span><span><code>--state-claim-active-bg</code></span></div>
+        <div class="state-card__line"><span>CLI</span><span>ANSI 32 (green) · symbol ✓</span></div>
+        <div class="state-card__line"><span>Swift</span><span>Color.semanticClaim</span></div>
+        <div class="state-card__line"><span>Use</span><span>file claimed, heartbeat fresh ≤ 30 m</span></div>
+      </div>
+
+      <div class="state-card" data-state="awaiting-human">
+        <div class="state-card__header">
+          <h4 class="state-card__name">awaiting-human</h4>
+          <span class="state-card__symbol">⚠</span>
+        </div>
+        <div class="state-card__line"><span>Web</span><span><code>--state-awaiting-human-bg</code></span></div>
+        <div class="state-card__line"><span>CLI</span><span>ANSI 33 (yellow) + bell + bracket</span></div>
+        <div class="state-card__line"><span>Swift</span><span>Color.semanticAwaiting + dock-bounce</span></div>
+        <div class="state-card__line"><span>Use</span><span>HITL block — must be hard to ignore</span></div>
+      </div>
+
+      <div class="state-card" data-state="burning-cash">
+        <div class="state-card__header">
+          <h4 class="state-card__name">burning-cash</h4>
+          <span class="state-card__symbol">$</span>
+        </div>
+        <div class="state-card__line"><span>Web</span><span><code>--state-burning-cash-bg</code></span></div>
+        <div class="state-card__line"><span>CLI</span><span>ANSI 38;2;191;47;47 (danger)</span></div>
+        <div class="state-card__line"><span>Swift</span><span>Color.semanticDanger + flash</span></div>
+        <div class="state-card__line"><span>Use</span><span>cost cap proximity ≥ 80%</span></div>
+      </div>
+
+      <div class="state-card" data-state="conflict">
+        <div class="state-card__header">
+          <h4 class="state-card__name">conflict</h4>
+          <span class="state-card__symbol">✗</span>
+        </div>
+        <div class="state-card__line"><span>Web</span><span><code>--state-conflict-bg</code></span></div>
+        <div class="state-card__line"><span>CLI</span><span>ANSI 31 (red) · symbol ✗</span></div>
+        <div class="state-card__line"><span>Swift</span><span>Color.semanticConflict</span></div>
+        <div class="state-card__line"><span>Use</span><span>two actors want same surface</span></div>
+      </div>
+
+      <div class="state-card" data-state="blocked">
+        <div class="state-card__header">
+          <h4 class="state-card__name">blocked</h4>
+          <span class="state-card__symbol">↳</span>
+        </div>
+        <div class="state-card__line"><span>Web</span><span><code>--state-blocked-bg</code></span></div>
+        <div class="state-card__line"><span>CLI</span><span>ANSI 2 (dim) · indent guide</span></div>
+        <div class="state-card__line"><span>Swift</span><span>Color.semanticMuted</span></div>
+        <div class="state-card__line"><span>Use</span><span>"creds missing — pd setup &lt;backend&gt;"</span></div>
+      </div>
+
+      <div class="state-card" data-state="claim-stale">
+        <div class="state-card__header">
+          <h4 class="state-card__name">claim-stale</h4>
+          <span class="state-card__symbol">⊘</span>
+        </div>
+        <div class="state-card__line"><span>Web</span><span><code>--state-claim-stale-bg</code></span></div>
+        <div class="state-card__line"><span>CLI</span><span>ANSI 90 (bright black)</span></div>
+        <div class="state-card__line"><span>Swift</span><span>Color.semanticStale</span></div>
+        <div class="state-card__line"><span>Use</span><span>claimed, no heartbeat &gt; 30 m</span></div>
+      </div>
+
+      <div class="state-card" data-state="idle">
+        <div class="state-card__header">
+          <h4 class="state-card__name">idle</h4>
+          <span class="state-card__symbol">○</span>
+        </div>
+        <div class="state-card__line"><span>Web</span><span><code>--state-idle-bg</code></span></div>
+        <div class="state-card__line"><span>CLI</span><span>ANSI 37 (gray)</span></div>
+        <div class="state-card__line"><span>Swift</span><span>Color.semanticIdle</span></div>
+        <div class="state-card__line"><span>Use</span><span>actor declared, hasn't run lately</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================================
+     CLI MOCK
+     ============================================================================ -->
+<section id="cli" style="background:var(--neutral-secondary-soft)">
+  <div class="container">
+    <span class="eyebrow">CLI · beautiful-cli-design</span>
+    <h2 class="section-title">The terminal is a UI surface.</h2>
+    <p class="section-lede">
+      Every command speaks the same color language. Every error names what it tried, where it looked,
+      and the fix. Every output bypasses to <code>--json</code> when piped.
+    </p>
+
+    <div class="col-2 mt-6">
+
+      <div>
+        <h3>pd vibe — comms officer</h3>
+        <div class="terminal" role="img" aria-label="Terminal session of pd vibe">
+          <div class="terminal__chrome">
+            <span class="terminal__dot" style="background:#E63946"></span>
+            <span class="terminal__dot" style="background:#F59E0B"></span>
+            <span class="terminal__dot" style="background:#16A34A"></span>
+            <span class="terminal__title">pd vibe — port-daddy:fleet</span>
+          </div>
+<pre class="terminal__body"><span class="t-prompt">⚓</span> <span class="t-cmd">pd vibe</span>
+<span class="t-dim">routing through cloudflare/llama-3.2-1b · classifier</span>
+
+<span class="t-prompt">you</span> who's working on lib/auth.ts right now?
+
+<span class="t-prompt">comms</span> two actors hold claims:
+  <span class="t-info">simplifier</span>   <span class="t-dim">claim-active · 4m</span>
+  <span class="t-info">qa</span>           <span class="t-dim">claim-active · 11m</span>
+
+  <span class="t-dim">→ message either: pd inbox actor:simplifier "..."</span>
+
+<span class="t-prompt">you</span> has anyone touched cryptography?
+
+<span class="t-prompt">comms</span> last edits to crypto/* across all worktrees:
+  <span class="t-error">scout</span>     <span class="t-dim">crypto/envelope.ts · 2h ago · session-redteam-v2.5</span>
+  <span class="t-info">cartog</span>    <span class="t-dim">docs/redteam/v2.4.md · 3h ago</span>
+
+<span class="t-prompt">you</span> is the fleet healthy?
+
+<span class="t-prompt">comms</span> <span class="t-ok">✓</span> 8 of 10 actors active in last 12h
+        <span class="t-warn">⚠</span> spider not seen in 48h
+          <span class="t-dim">↳ Cloudflare creds rotated — pd setup cloudflare</span>
+        <span class="t-error">$</span> 23.40 / 50.00 daily cap <span class="t-dim">(47%)</span>
+</pre>
+        </div>
+      </div>
+
+      <div>
+        <h3>pd watch — pipeline dashboard</h3>
+        <div class="terminal" role="img" aria-label="Terminal pipeline dashboard">
+          <div class="terminal__chrome">
+            <span class="terminal__dot" style="background:#E63946"></span>
+            <span class="terminal__dot" style="background:#F59E0B"></span>
+            <span class="terminal__dot" style="background:#16A34A"></span>
+            <span class="terminal__title">pd watch --visual</span>
+          </div>
+<pre class="terminal__body"><span class="t-dim">╭─ Fleet Pipeline ────────────────────────────────╮</span>
+<span class="t-dim">│</span>  simplifier   <span class="t-ok">━━━━━━━━━━━━━━━━━━━━</span>  done   <span class="t-dim">2.1s</span>
+<span class="t-dim">│</span>  qa           <span class="t-ok">━━━━━━━━━━━━━━━━╸</span>───  82%    <span class="t-dim">1.4s</span>
+<span class="t-dim">│</span>  cartographer ⠋ <span class="t-info">scanning lib/**</span>            <span class="t-dim">0.6s</span>
+<span class="t-dim">│</span>  spider       <span class="t-warn">⚠ blocked: cloudflare 401</span>
+<span class="t-dim">│</span>  harvester    <span class="t-dim">○ idle (next 18:00)</span>
+<span class="t-dim">│</span>
+<span class="t-dim">│</span>  Elapsed: <span class="t-cmd">2.4s</span>     ETA: <span class="t-cmd">~0.6s</span>
+<span class="t-dim">╰─────────────────────────────────────────────────╯</span>
+
+<span class="t-prompt">⚓</span> <span class="t-cmd">pd costs --by backend --since 24h</span>
+
+  <span class="t-info">cloudflare</span>  $  0.04   <span class="t-dim">(2,450 calls · llama-3.2-1b)</span>
+  <span class="t-info">anthropic</span>   $ 21.18   <span class="t-dim">(  192 calls · sonnet-4.6)</span>
+  <span class="t-info">codex</span>       $  2.18   <span class="t-dim">(   71 calls · gpt-5.4-mini)</span>
+  <span class="t-info">ollama</span>      $  0.00   <span class="t-dim">(  408 calls · local)</span>
+  <span class="t-info">gemini</span>      $  0.00   <span class="t-dim">(   12 calls · 2.5-flash-lite)</span>
+                       ─────
+                       $ 23.40
+</pre>
+        </div>
+      </div>
+
+    </div>
+
+    <h3 class="mt-6">ui.distress — graded maritime severity</h3>
+    <div class="col-3">
+      <div class="distress" data-level="securité">
+        <div class="distress__band">securité</div>
+        <h4>Stale claim on lib/auth.ts</h4>
+        <p>simplifier hasn't reported in 47m. Claim still held; another actor will be advised before edit.</p>
+        <div class="distress__fix">pd lastseen simplifier</div>
+      </div>
+      <div class="distress" data-level="pan-pan">
+        <div class="distress__band">pan-pan</div>
+        <h4>Cloudflare credentials missing</h4>
+        <div class="distress__looked-in">
+          looked in:<br>
+          · ~/.port-daddy/secrets/cloudflare.json<br>
+          · $CLOUDFLARE_API_TOKEN<br>
+          · keychain: pd.cloudflare.token
+        </div>
+        <div class="distress__fix">pd setup cloudflare</div>
+      </div>
+      <div class="distress" data-level="mayday">
+        <div class="distress__band">mayday</div>
+        <h4>Daily spend cap reached — $50.00 / $50.00</h4>
+        <p>Anthropic backend disabled until 00:00 UTC. cheap-classifier resolver falling through to Cloudflare GLM.</p>
+        <div class="distress__fix">pd costs --raise-cap 75</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================================
+     FIPA PERFORMATIVE ENVELOPES
+     ============================================================================ -->
+<section id="performatives" style="background:var(--neutral-primary-soft)">
+  <div class="container">
+    <span class="eyebrow">Actor messaging · JADE / FIPA-ACL</span>
+    <h2 class="section-title">Every message wears a tag.</h2>
+    <p class="section-lede">
+      Performatives replace free-form strings on actor mailboxes. The cheap-classifier router dispatches by tag.
+      <code>actor:fix-it</code> subscribes to <code>CFP</code> on <code>test:fail</code> and bids with <code>PROPOSE</code>.
+    </p>
+
+    <div class="mt-6" style="display:grid;gap:0.65rem;">
+      <div class="envelope">
+        <span class="envelope__from">user</span>
+        <div class="envelope__body"><span class="perf-tag" data-perf="REQUEST">REQUEST</span> &nbsp; rewrite the OAuth flow on lib/auth.ts</div>
+        <div class="envelope__meta">14:22:08<br>turn-1</div>
+      </div>
+      <div class="envelope">
+        <span class="envelope__from">comms</span>
+        <div class="envelope__body"><span class="perf-tag" data-perf="CFP">CFP</span> &nbsp; rewrite OAuth on lib/auth.ts · cost ≤ $5 · ETA ≤ 30m</div>
+        <div class="envelope__meta">14:22:08<br>turn-1</div>
+      </div>
+      <div class="envelope">
+        <span class="envelope__from">simplifier</span>
+        <div class="envelope__body"><span class="perf-tag" data-perf="PROPOSE">PROPOSE</span> &nbsp; sonnet-4.6 · ~$2.40 · ~22m · confidence 0.86</div>
+        <div class="envelope__meta">14:22:09<br>turn-1</div>
+      </div>
+      <div class="envelope">
+        <span class="envelope__from">refactor-architect</span>
+        <div class="envelope__body"><span class="perf-tag" data-perf="PROPOSE">PROPOSE</span> &nbsp; haiku-4.5 · ~$0.40 · ~14m · confidence 0.71</div>
+        <div class="envelope__meta">14:22:09<br>turn-1</div>
+      </div>
+      <div class="envelope">
+        <span class="envelope__from">comms</span>
+        <div class="envelope__body"><span class="perf-tag" data-perf="ACCEPT-PROPOSAL">ACCEPT-PROPOSAL</span> &nbsp; → simplifier (confidence weight 0.86 &gt; 0.71)</div>
+        <div class="envelope__meta">14:22:10<br>turn-1</div>
+      </div>
+      <div class="envelope">
+        <span class="envelope__from">simplifier</span>
+        <div class="envelope__body"><span class="perf-tag" data-perf="AGREE">AGREE</span> &nbsp; lib/auth.ts claim acquired · session-rewrite-oauth-…</div>
+        <div class="envelope__meta">14:22:10<br>turn-1</div>
+      </div>
+      <div class="envelope">
+        <span class="envelope__from">simplifier</span>
+        <div class="envelope__body"><span class="perf-tag" data-perf="INFORM">INFORM</span> &nbsp; turn 7/12 · 1,840 in / 2,210 out · $0.34</div>
+        <div class="envelope__meta">14:34:51<br>turn-7</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================================
+     COLLAGE — Hockney transcript timeline + force-directed idea board
+     ============================================================================ -->
+<section id="collage" style="background:var(--neutral-secondary-soft)">
+  <div class="container">
+    <span class="eyebrow">Collage · imperfection IS the technique</span>
+    <h2 class="section-title">Multiple perspectives. One story.</h2>
+    <p class="section-lede">
+      The transcript timeline is a Hockney joiner — six screenshots across an editing session,
+      ±2° rotation, intentional gaps. Not a panorama; a record of attention. The ideas-trove board is
+      force-directed — weight comes from recurrence in this week's transcripts.
+    </p>
+
+    <h3 class="mt-6">pd watch --visual · Hockney timeline</h3>
+    <div class="hockney">
+      <!-- nano banana: 6 screenshots of Mira's Next.js dark-mode toggle work,
+           t=0..5 across a 2hr session, slight time-of-day light variation. -->
+      <div class="hockney__tile" style="background:linear-gradient(135deg,#FFE066 0%,#FFCC00 100%)">
+        <svg viewBox="0 0 100 75" width="100%" height="100%" preserveAspectRatio="xMidYMid slice"><rect x="6" y="6" width="50" height="8" fill="#1E1B18"/><rect x="6" y="20" width="78" height="3" fill="#1E1B18" opacity=".4"/><rect x="6" y="26" width="60" height="3" fill="#1E1B18" opacity=".4"/><rect x="6" y="32" width="70" height="3" fill="#1E1B18" opacity=".4"/><rect x="64" y="56" width="22" height="10" fill="#1E1B18"/></svg>
+        <div class="hockney__caption"><span>t=0</span><span>14:08:02</span></div>
+      </div>
+      <div class="hockney__tile" style="background:linear-gradient(135deg,#0EA5E9 0%,#06B6D4 100%)">
+        <svg viewBox="0 0 100 75" width="100%" height="100%" preserveAspectRatio="xMidYMid slice"><rect x="6" y="6" width="55" height="8" fill="#FFF"/><rect x="6" y="20" width="78" height="3" fill="#FFF" opacity=".7"/><rect x="6" y="26" width="60" height="3" fill="#FFF" opacity=".7"/><rect x="6" y="32" width="70" height="3" fill="#FFF" opacity=".7"/><rect x="64" y="56" width="22" height="10" fill="#FFDB33"/></svg>
+        <div class="hockney__caption"><span>t=1</span><span>14:23:11</span></div>
+      </div>
+      <div class="hockney__tile" style="background:linear-gradient(135deg,#1E1B18 0%,#3A3A3A 100%)">
+        <svg viewBox="0 0 100 75" width="100%" height="100%" preserveAspectRatio="xMidYMid slice"><rect x="6" y="6" width="55" height="8" fill="#FFDB33"/><rect x="6" y="20" width="78" height="3" fill="#F5F5F0" opacity=".6"/><rect x="6" y="26" width="60" height="3" fill="#F5F5F0" opacity=".6"/><rect x="6" y="32" width="70" height="3" fill="#F5F5F0" opacity=".6"/><rect x="64" y="56" width="22" height="10" fill="#FFDB33"/></svg>
+        <div class="hockney__caption"><span>t=2</span><span>14:41:50</span></div>
+      </div>
+      <div class="hockney__tile" style="background:linear-gradient(135deg,#FFDB33 0%,#FB923C 100%)">
+        <svg viewBox="0 0 100 75" width="100%" height="100%" preserveAspectRatio="xMidYMid slice"><rect x="6" y="6" width="58" height="8" fill="#1E1B18"/><rect x="6" y="20" width="78" height="3" fill="#1E1B18" opacity=".4"/><rect x="6" y="26" width="60" height="3" fill="#1E1B18" opacity=".4"/><rect x="6" y="32" width="70" height="3" fill="#1E1B18" opacity=".4"/><rect x="64" y="56" width="22" height="10" fill="#1E1B18"/></svg>
+        <div class="hockney__caption"><span>t=3</span><span>15:02:14</span></div>
+      </div>
+      <div class="hockney__tile" style="background:linear-gradient(135deg,#8B5CF6 0%,#6366F1 100%)">
+        <svg viewBox="0 0 100 75" width="100%" height="100%" preserveAspectRatio="xMidYMid slice"><rect x="6" y="6" width="58" height="8" fill="#FFF"/><rect x="6" y="20" width="78" height="3" fill="#FFF" opacity=".7"/><rect x="6" y="26" width="60" height="3" fill="#FFF" opacity=".7"/><rect x="6" y="32" width="70" height="3" fill="#FFF" opacity=".7"/><rect x="64" y="56" width="22" height="10" fill="#FFDB33"/></svg>
+        <div class="hockney__caption"><span>t=4</span><span>15:18:33</span></div>
+      </div>
+      <div class="hockney__tile" style="background:linear-gradient(135deg,#16A34A 0%,#15803D 100%)">
+        <svg viewBox="0 0 100 75" width="100%" height="100%" preserveAspectRatio="xMidYMid slice"><rect x="6" y="6" width="58" height="8" fill="#FFF"/><rect x="6" y="20" width="78" height="3" fill="#FFF" opacity=".7"/><rect x="6" y="26" width="60" height="3" fill="#FFF" opacity=".7"/><rect x="6" y="32" width="70" height="3" fill="#FFF" opacity=".7"/><rect x="64" y="56" width="22" height="10" fill="#FFDB33"/><rect x="56" y="42" width="30" height="2" fill="#FFF"/></svg>
+        <div class="hockney__caption"><span>t=5</span><span>15:34:07</span></div>
+      </div>
+    </div>
+
+    <h3 class="mt-6">harvester · ideas-trove board</h3>
+    <div class="trove">
+      <!-- nano banana: a corkboard of overlapping index cards in mustard,
+           danger, purple. Force-directed scatter. -->
+      <div class="trove__card" data-weight="big" data-tone="brand"      style="left:5%;top:8%;transform:rotate(-3deg)">pd swarm should support<br>contract-net out of the box</div>
+      <div class="trove__card" data-weight="medium"                     style="left:38%;top:14%;transform:rotate(2deg)">harvester runs daily 18:00,<br>tags transcripts <em>harvested</em></div>
+      <div class="trove__card" data-weight="big" data-tone="danger"     style="left:62%;top:6%;transform:rotate(-1deg)">FleetBar avatar ring<br>pulses on AWAITING</div>
+      <div class="trove__card" data-weight="small"                      style="left:18%;top:42%;transform:rotate(1deg)">CJK width fix in tables</div>
+      <div class="trove__card" data-weight="medium" data-tone="purple"  style="left:42%;top:46%;transform:rotate(-2deg)">JADE FSM behaviors<br>for multi-step actors</div>
+      <div class="trove__card" data-weight="small"                      style="left:70%;top:42%;transform:rotate(3deg)">pd archeology &lt;file&gt;</div>
+      <div class="trove__card" data-weight="medium"                     style="left:8%;top:70%;transform:rotate(-1deg)">imputed cost from plans.yaml,<br>weekly bot refresh</div>
+      <div class="trove__card" data-weight="big" data-tone="brand"      style="left:36%;top:72%;transform:rotate(2deg)">ui.distress({level, what,<br>lookedIn, fix})</div>
+      <div class="trove__card" data-weight="small"                      style="left:64%;top:74%;transform:rotate(-2deg)">pd nit → playwright repro</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================================
+     BRIDGE MOCK — 60/30/10 pane hierarchy
+     ============================================================================ -->
+<section id="bridge" style="background:var(--brand-softer)">
+  <div class="container">
+    <span class="eyebrow">Tauri Bridge · 60/30/10 hierarchy</span>
+    <h2 class="section-title">One hero pane. One transcript. One avatar rail.</h2>
+    <p class="section-lede">
+      Per collage-layout-expert: establish a 60/30/10 visual weight with one focal point. The Bridge
+      will land Tauri 2 + Rust + React, but the pane geometry is settled here in HTML first.
+    </p>
+
+    <div class="bridge mt-6">
+      <div class="bridge__chrome">
+        ⚓ port-daddy:fleet
+        <span class="cost-pill" data-status="warn"><span class="cost-pill__amount">$23.40</span><span class="cost-pill__cap">/ $50</span><span class="cost-pill__bar"></span></span>
+        <span style="margin-left:auto" class="perf-tag" data-perf="SUBSCRIBE">SUBSCRIBE</span>
+        <span class="perf-tag" data-perf="INFORM">INFORM</span>
+      </div>
+
+      <div class="bridge__hero">
+        <h4>simplifier · session-rewrite-oauth-…</h4>
+        <p style="font-family:var(--font-mono);font-size:0.85rem;line-height:1.55;margin:0">
+          <span style="color:var(--text-body-subtle)">turn 7</span> · model: <code>claude-sonnet-4-6</code> · backend: <code>anthropic</code><br><br>
+          Replacing the legacy redirect handler with a state-machine PKCE flow. Verified
+          callback timing under simulated network jitter (50–400ms). One open question on
+          token refresh sequencing — see note below.<br><br>
+          <span style="color:var(--success-strong)">✓</span> tests passing 142 / 142<br>
+          <span style="color:var(--warning-strong)">⚠</span> awaiting review on token refresh sequencing<br>
+          <span style="color:var(--text-body-subtle)">tokens: 1,840 in · 2,210 out · cached 320 in</span>
+        </p>
+      </div>
+
+      <div class="bridge__side">
+        <div class="state-card" data-state="awaiting-human" style="box-shadow:none;border-left-width:6px;padding:0.85rem;">
+          <div class="state-card__header" style="margin-bottom:0">
+            <h4 class="state-card__name" style="font-size:1.05rem">awaiting-human</h4>
+            <span class="state-card__symbol" style="font-size:1.05rem">⚠</span>
+          </div>
+          <p style="font-size:0.85rem;margin:0.4rem 0 0">simplifier wants OK on token refresh sequencing before merge.</p>
+          <button class="btn" style="margin-top:0.6rem;font-size:0.7rem;padding:0.4rem 0.7rem">REPLY ↩</button>
+        </div>
+        <div class="cost-pill" style="margin-top:0.85rem" data-status="ok"><span class="cost-pill__amount">spider</span><span class="cost-pill__cap">idle 48h</span><span class="cost-pill__bar"></span></div>
+        <div class="cost-pill" style="margin-top:0.65rem" data-status="warn"><span class="cost-pill__amount">qa</span><span class="cost-pill__cap">claim 11m</span><span class="cost-pill__bar"></span></div>
+      </div>
+
+      <div class="bridge__rail">
+        <div class="fleetbar__avatar" data-state="active"   style="--accent:var(--brand)">SI</div>
+        <div class="fleetbar__avatar" data-state="active"   style="--accent:var(--cyan)">QA</div>
+        <div class="fleetbar__avatar" data-state="awaiting" style="--accent:var(--warning)">CA</div>
+        <div class="fleetbar__avatar"                       style="--accent:var(--purple)">SP</div>
+        <div class="fleetbar__avatar" data-state="conflict" style="--accent:var(--danger-strong);color:#FFFFFF">DM</div>
+        <div class="fleetbar__avatar"                       style="--accent:var(--teal)">HV</div>
+      </div>
+    </div>
+
+    <div class="mt-6">
+      <span class="eyebrow">FleetBar (menu bar) preview</span>
+      <div class="fleetbar mt-3">
+        <div class="fleetbar__avatar" data-state="active"   style="--accent:var(--brand)">SI</div>
+        <div class="fleetbar__avatar" data-state="active"   style="--accent:var(--cyan)">QA</div>
+        <div class="fleetbar__avatar" data-state="awaiting" style="--accent:var(--warning)">CA</div>
+        <span class="fleetbar__sep"></span>
+        <span class="cost-pill" data-status="warn" style="background:transparent;border-color:rgba(255,255,255,0.4);color:#F5F5F0;box-shadow:none"><span class="cost-pill__amount" style="color:#FFDB33">$23.40</span><span class="cost-pill__cap">/ $50</span></span>
+        <span class="fleetbar__sep"></span>
+        <span class="perf-tag" data-perf="SUBSCRIBE" style="background:transparent;color:#F5F5F0;border-color:rgba(255,255,255,0.4)">awaiting · 1</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================================
+     FOOTER
+     ============================================================================ -->
+<footer class="footer">
+  <div class="container">
+    <h2><em>"Make agents behave well —<br>and read each other before they edit."</em></h2>
+    <div class="footer__meta">
+      <span class="smcp">port daddy · design language v0 · 2026-05-05</span><br>
+      Stack: Fraunces + IBM Plex Sans + IBM Plex Mono · neobrutalism-pro tokens · windags skills (jade · design-system-creator · beautiful-cli · collage · typography · design-trend) · WCAG AA verified for body text.
+      <br><br>
+      Mocked graphics in this preview are SVG placeholders. Search the source for
+      <code>nano banana:</code> comments — each slot includes a generation prompt.
+      Run <code>node docs/design/gen-mocks.mjs</code> (TBD) to regenerate via Gemini.
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

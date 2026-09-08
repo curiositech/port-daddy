@@ -1,0 +1,1184 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
+<title>Port Daddy — Living Filetree · Inspect / Spawn / Sitrep (motif study)</title>
+<!-- ════════════════════════════════════════════════════════════════════════════
+  MOTIF STUDY: INSPECT + EXPAND + ACT on a LIVING FILETREE.
+
+  The DOM owns layout + hit-testing (the worktree/agent tree). One <canvas>
+  "biofield" sits over it (pointer-events:none, mix-blend-mode) and owns the
+  ALIVE: firefly agents that flock toward the file they're working, pheromone
+  heat that accumulates under hot nodes, laser beams for inbox DMs, soundwave
+  ripples for broadcasts, falling-leaf notes, and a merge light-burst.
+
+  Click any node -> a 442px INSPECT panel slides in (transcript / sitrep / telos
+  / triggers, editable). Drag the SPAWN dock onto any folder -> a new firefly is
+  born there. A roll-up SITUATION REPORT aggregates the fleet. FOCUS dims
+  everything except the subtree tied to a chosen roadmap item.
+
+  Canon: warm paper (#f2eee6), brand #003fb8, accent-teal #006b5f, the v9 motion
+  curves (--swoosh/--snap/--ease/--float) and durations (<=480ms). 14px floor on
+  readable text. prefers-reduced-motion: canvas loop never starts, every event
+  still flips a DOM class so state is legible frozen. Sound is opt-in (default
+  off), WebAudio-only, master gain <=0.18, ramped envelopes (no clicks).
+  ──────────────────────────────────────────────────────────────────────────── -->
+<style>
+@font-face{font-family:'Geist';font-style:normal;font-weight:400;font-display:swap;src:url(https://cdn.jsdelivr.net/npm/@fontsource/geist@5.2.6/files/geist-latin-400-normal.woff2) format('woff2');}
+@font-face{font-family:'Geist';font-style:normal;font-weight:500;font-display:swap;src:url(https://cdn.jsdelivr.net/npm/@fontsource/geist@5.2.6/files/geist-latin-500-normal.woff2) format('woff2');}
+@font-face{font-family:'Geist';font-style:normal;font-weight:600;font-display:swap;src:url(https://cdn.jsdelivr.net/npm/@fontsource/geist@5.2.6/files/geist-latin-600-normal.woff2) format('woff2');}
+@font-face{font-family:'Geist';font-style:normal;font-weight:700;font-display:swap;src:url(https://cdn.jsdelivr.net/npm/@fontsource/geist@5.2.6/files/geist-latin-700-normal.woff2) format('woff2');}
+@font-face{font-family:'Geist Mono';font-style:normal;font-weight:400;font-display:swap;src:url(https://cdn.jsdelivr.net/npm/@fontsource/geist-mono@5.2.6/files/geist-mono-latin-400-normal.woff2) format('woff2');}
+@font-face{font-family:'Geist Mono';font-style:normal;font-weight:500;font-display:swap;src:url(https://cdn.jsdelivr.net/npm/@fontsource/geist-mono@5.2.6/files/geist-mono-latin-500-normal.woff2) format('woff2');}
+
+:root, [data-theme='light']{
+  --surface-base:#f2eee6; --surface-raised:#f7f3eb; --surface-strong:#e9e2d5;
+  --surface-overlay:rgba(247,243,235,.97); --surface-sunken:#e0d9cb;
+  --scrim:rgba(18,18,18,.42);
+  --text-primary:#121212; --text-secondary:#403b34; --text-muted:#5a544a; --text-inverse:#fbf7ef;
+  --brand-primary:#003fb8; --brand-accent:#006b5f;
+  --border-subtle:rgba(18,18,18,.16); --border-default:rgba(18,18,18,.34); --border-strong:#121212;
+  --status-success:#2d7a43; --status-warning:#a66f00; --status-error:#bf2f2f; --status-info:#0055ff;
+  --ph-hot:#a66f00; --ph-recent:#0055ff; --ph-cold:#6b6457; --ph-fail:#a51f1f;
+  --mayday:#a51f1f;
+  --blend:multiply;
+  --swoosh:cubic-bezier(.16,1,.3,1);
+  --snap:cubic-bezier(.34,1.56,.64,1);
+  --ease:cubic-bezier(.4,0,.2,1);
+  --float:cubic-bezier(.45,.05,.55,.95);
+  --dur-micro:140ms; --dur-quick:220ms; --dur-settle:340ms; --dur-flourish:480ms;
+  --sans:'Geist',system-ui,sans-serif; --mono:'Geist Mono',ui-monospace,monospace;
+}
+[data-theme='dark']{
+  --surface-base:#101216; --surface-raised:#181c22; --surface-strong:#222833;
+  --surface-overlay:rgba(20,24,30,.96); --surface-sunken:#0b0d11;
+  --scrim:rgba(0,0,0,.6);
+  --text-primary:#f5f3ed; --text-secondary:#d3cec2; --text-muted:#9c968a; --text-inverse:#121212;
+  --brand-primary:#7db4ff; --brand-accent:#7fe0cf;
+  --border-subtle:rgba(245,243,237,.18); --border-default:rgba(245,243,237,.4); --border-strong:#f5f3ed;
+  --status-success:#66d28a; --status-warning:#f2be51; --status-error:#ff7d7d; --status-info:#7db4ff;
+  --ph-hot:#f2be51; --ph-recent:#7db4ff; --ph-cold:#7a7368; --ph-fail:#ff7d7d;
+  --blend:screen;
+}
+*{box-sizing:border-box;}
+html,body{margin:0; height:100%;}
+body{
+  font-family:var(--sans); background:var(--surface-base); color:var(--text-primary);
+  font-size:15px; line-height:1.5; overflow:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+.eyebrow{font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.12em; color:var(--text-muted);}
+
+/* ── App shell ─────────────────────────────────────────────────────── */
+#app{display:grid; grid-template-rows:auto 1fr; height:100%;}
+header.mast{
+  display:flex; align-items:center; gap:16px; padding:12px 20px;
+  border-bottom:1px solid var(--border-subtle); background:var(--surface-raised);
+  position:relative; z-index:30;
+}
+.brand{display:flex; align-items:baseline; gap:10px;}
+.brand .mark{font-family:var(--mono); font-weight:700; font-size:16px; letter-spacing:-.02em;
+  color:var(--brand-primary);}
+.brand .sub{font-size:14px; color:var(--text-muted);}
+.mast-spacer{flex:1;}
+.mast button, .mast .chip{
+  font-family:var(--sans); font-size:14px; font-weight:600;
+  border:1px solid var(--border-subtle); background:var(--surface-base);
+  color:var(--text-primary); border-radius:7px; padding:7px 13px; cursor:pointer;
+  transition:transform var(--dur-micro) var(--snap), border-color var(--dur-quick) var(--ease), background var(--dur-quick) var(--ease);
+  display:inline-flex; align-items:center; gap:7px;
+}
+.mast button:hover{border-color:var(--border-default); transform:translateY(-1px);}
+.mast button:active{transform:translateY(0) scale(.97);}
+.mast button.primary{background:var(--brand-primary); color:var(--text-inverse); border-color:transparent;}
+.mast button.on{background:var(--brand-accent); color:var(--text-inverse); border-color:transparent;}
+.legend{display:flex; gap:14px; align-items:center; font-size:13px; color:var(--text-muted);}
+.legend .lk{display:inline-flex; align-items:center; gap:5px;}
+.legend .sw{width:10px; height:10px; border-radius:50%; box-shadow:0 0 6px currentColor;}
+
+/* ── Stage ─────────────────────────────────────────────────────────── */
+.stage{position:relative; overflow:hidden;}
+#scroll{position:absolute; inset:0; overflow:auto; padding:22px 26px 120px;}
+#biofield{position:absolute; inset:0; pointer-events:none; mix-blend-mode:var(--blend); z-index:5;}
+
+/* ── Worktree planes ───────────────────────────────────────────────── */
+.plane{
+  margin-bottom:18px; border:1px solid var(--border-subtle); border-radius:12px;
+  background:var(--surface-raised); position:relative;
+  transition:opacity var(--dur-settle) var(--ease), filter var(--dur-settle) var(--ease);
+}
+.plane.ghost{ background:color-mix(in srgb,var(--surface-raised) 86%, var(--brand-primary) 14%); }
+.plane.ghost.diverged{ background:color-mix(in srgb,var(--surface-raised) 86%, var(--status-warning) 14%); }
+.plane.focus-dim{opacity:.22; filter:saturate(.4);}
+.plane-head{
+  display:flex; align-items:center; gap:10px; padding:11px 16px;
+  border-bottom:1px solid var(--border-subtle); position:sticky; top:0;
+  background:inherit; border-radius:12px 12px 0 0; z-index:2;
+}
+.plane-head .br{font-family:var(--mono); font-size:14px; font-weight:700;}
+.plane-head .meta{font-size:13px; color:var(--text-muted); display:flex; gap:12px;}
+.plane-head .pill{
+  font-family:var(--mono); font-size:12px; font-weight:700; padding:2px 8px; border-radius:20px;
+  letter-spacing:.02em;
+}
+.pill.clean{background:color-mix(in srgb,var(--status-success) 18%,transparent); color:var(--status-success);}
+.pill.ahead{background:color-mix(in srgb,var(--status-info) 18%,transparent); color:var(--status-info);}
+.pill.diverged{background:color-mix(in srgb,var(--status-warning) 22%,transparent); color:var(--status-warning);}
+.plane-head .agentchip{
+  margin-left:auto; display:inline-flex; align-items:center; gap:6px;
+  font-family:var(--mono); font-size:13px; font-weight:600;
+  padding:3px 9px; border-radius:20px; border:1px solid var(--border-subtle);
+}
+.agentchip .pres{width:8px; height:8px; border-radius:50%; background:var(--brand-accent);
+  box-shadow:0 0 8px var(--brand-accent);}
+
+.tree{padding:8px 6px 12px;}
+
+/* ── File / dir nodes ──────────────────────────────────────────────── */
+.node{
+  display:flex; align-items:center; gap:9px; padding:5px 10px; border-radius:7px;
+  cursor:pointer; position:relative; user-select:none;
+  transition:background var(--dur-quick) var(--ease), transform var(--dur-micro) var(--snap);
+}
+.node:hover{background:var(--surface-strong); transform:translateX(2px);}
+.node.sel{background:color-mix(in srgb,var(--brand-primary) 14%,transparent);
+  box-shadow:inset 2px 0 0 var(--brand-primary);}
+.node .twist{width:14px; text-align:center; color:var(--text-muted); font-size:11px;
+  transition:transform var(--dur-quick) var(--ease); flex-shrink:0;}
+.node.open .twist{transform:rotate(90deg);}
+.node .ic{width:16px; flex-shrink:0; color:var(--text-muted);}
+.node .nm{font-family:var(--mono); font-size:14px; white-space:nowrap;}
+.node.dir .nm{font-weight:600;}
+.node .loc{font-size:12px; color:var(--text-muted); font-family:var(--mono);}
+.node .badges{margin-left:auto; display:flex; gap:5px; align-items:center;}
+.node .heat{
+  width:9px; height:9px; border-radius:2px; flex-shrink:0;
+}
+.node .heat.hot{background:var(--ph-hot);}
+.node .heat.recent{background:var(--ph-recent);}
+.node .heat.cold{background:var(--ph-cold); opacity:.5;}
+.node .heat.fail{background:var(--ph-fail);}
+.node .owner{font-family:var(--mono); font-size:11px; font-weight:700;
+  padding:1px 6px; border-radius:10px;}
+.node.dragover{background:color-mix(in srgb,var(--brand-accent) 22%,transparent);
+  box-shadow:inset 0 0 0 2px var(--brand-accent);}
+.node.dragover .nm::after{content:" ← drop to spawn here"; color:var(--brand-accent);
+  font-weight:700; font-size:13px;}
+.node.pulse{animation:nodePulse 1.4s var(--float) infinite;}
+@media (prefers-reduced-motion:reduce){ .node.pulse{animation:none; outline:1.5px dashed var(--ph-hot); outline-offset:-2px;} }
+@keyframes nodePulse{0%,100%{box-shadow:inset 2px 0 0 transparent;}50%{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ph-hot) 60%,transparent);}}
+.children{overflow:hidden;}
+.node.ghoststem .nm{font-style:italic; opacity:.7;}
+
+/* notes ground gutter */
+#ground{
+  position:absolute; left:0; right:0; bottom:0; height:62px; z-index:6;
+  display:flex; align-items:flex-end; gap:6px; padding:0 14px 10px;
+  pointer-events:none;
+  background:linear-gradient(to top, color-mix(in srgb,var(--surface-sunken) 80%,transparent), transparent);
+}
+.leaf{
+  font-family:var(--mono); font-size:12px; padding:3px 8px; border-radius:6px;
+  background:var(--surface-raised); border:1px solid var(--border-subtle);
+  color:var(--text-secondary); max-width:200px; white-space:nowrap; overflow:hidden;
+  text-overflow:ellipsis; pointer-events:auto; cursor:default; opacity:0;
+  animation:leafIn var(--dur-settle) var(--snap) forwards;
+}
+@media (prefers-reduced-motion:reduce){ .leaf{animation:none; opacity:1;} }
+@keyframes leafIn{0%{opacity:0; transform:translateY(-8px) rotate(-6deg);}100%{opacity:1; transform:none;}}
+
+/* ── Spawn dock ────────────────────────────────────────────────────── */
+#dock{
+  position:absolute; right:18px; bottom:84px; z-index:25;
+  display:flex; flex-direction:column; gap:10px; align-items:flex-end;
+}
+.spawn-orb{
+  width:60px; height:60px; border-radius:50%; cursor:grab;
+  background:radial-gradient(circle at 38% 34%, color-mix(in srgb,var(--brand-accent) 92%,#fff) 0%, var(--brand-accent) 55%, color-mix(in srgb,var(--brand-accent) 60%,#000) 100%);
+  box-shadow:0 4px 18px color-mix(in srgb,var(--brand-accent) 45%,transparent), 0 0 0 1px color-mix(in srgb,var(--brand-accent) 40%,transparent);
+  display:flex; align-items:center; justify-content:center;
+  color:#fff; font-family:var(--mono); font-weight:700; font-size:13px; text-align:center;
+  position:relative;
+  transition:transform var(--dur-quick) var(--snap), box-shadow var(--dur-quick) var(--ease);
+}
+.spawn-orb:hover{transform:scale(1.06);}
+.spawn-orb:active{cursor:grabbing; transform:scale(.94);}
+.spawn-orb::after{content:""; position:absolute; inset:-6px; border-radius:50%;
+  border:1.5px solid var(--brand-accent); opacity:.45;}
+@media (prefers-reduced-motion:no-preference){ .spawn-orb::after{animation:orbRing 2.2s var(--float) infinite;} }
+@keyframes orbRing{0%,100%{transform:scale(1); opacity:.45;}50%{transform:scale(1.18); opacity:0;}}
+.dock-hint{font-size:13px; color:var(--text-muted); background:var(--surface-overlay);
+  padding:5px 10px; border-radius:7px; border:1px solid var(--border-subtle); max-width:170px; text-align:right;}
+
+/* ── Inspect panel ─────────────────────────────────────────────────── */
+#inspect{
+  position:absolute; top:0; right:0; bottom:0; width:442px; max-width:92vw; z-index:40;
+  background:var(--surface-overlay); backdrop-filter:blur(18px) saturate(1.2);
+  border-left:1px solid var(--border-default); box-shadow:-12px 0 40px var(--scrim);
+  transform:translateX(105%); transition:transform var(--dur-flourish) var(--swoosh);
+  display:flex; flex-direction:column;
+}
+#inspect.open{transform:none;}
+@media (prefers-reduced-motion:reduce){ #inspect{transition:none;} }
+.ins-head{padding:18px 20px 12px; border-bottom:1px solid var(--border-subtle); position:relative;}
+.ins-head .kind{display:flex; align-items:center; gap:8px; margin-bottom:6px;}
+.ins-head h2{margin:0; font-family:var(--mono); font-size:17px; font-weight:700; word-break:break-all;}
+.ins-head .path{font-family:var(--mono); font-size:13px; color:var(--text-muted); margin-top:3px;}
+.ins-close{position:absolute; top:14px; right:16px; width:30px; height:30px; border-radius:7px;
+  border:1px solid var(--border-subtle); background:var(--surface-base); cursor:pointer;
+  font-size:18px; line-height:1; color:var(--text-secondary);}
+.ins-close:hover{border-color:var(--border-default);}
+.tabs{display:flex; gap:2px; padding:0 16px; border-bottom:1px solid var(--border-subtle);}
+.tab{font-family:var(--sans); font-size:13px; font-weight:600; padding:10px 12px; cursor:pointer;
+  color:var(--text-muted); border-bottom:2px solid transparent; background:none; border-top:0; border-left:0; border-right:0;
+  transition:color var(--dur-quick) var(--ease), border-color var(--dur-quick) var(--ease);}
+.tab.on{color:var(--brand-primary); border-bottom-color:var(--brand-primary);}
+.tab:hover{color:var(--text-primary);}
+.ins-body{flex:1; overflow:auto; padding:18px 20px;}
+.pane{display:none; animation:paneIn var(--dur-settle) var(--swoosh);}
+.pane.on{display:block;}
+@media (prefers-reduced-motion:reduce){ .pane{animation:none;} }
+@keyframes paneIn{0%{opacity:0; transform:translateY(6px);}100%{opacity:1; transform:none;}}
+
+.field{margin-bottom:16px;}
+.field label{display:block; font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.1em;
+  color:var(--text-muted); margin-bottom:5px;}
+.field textarea, .field input{
+  width:100%; font-family:var(--mono); font-size:14px; line-height:1.55;
+  border:1px solid var(--border-subtle); border-radius:8px; padding:10px 12px;
+  background:var(--surface-base); color:var(--text-primary); resize:vertical;
+  transition:border-color var(--dur-quick) var(--ease);
+}
+.field textarea:focus, .field input:focus{outline:none; border-color:var(--brand-primary);
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--brand-primary) 18%,transparent);}
+.transcript{font-family:var(--mono); font-size:13px; line-height:1.6;}
+.t-line{padding:7px 0; border-bottom:1px solid var(--border-subtle);}
+.t-line .who{font-weight:700; margin-right:7px;}
+.t-line.you .who{color:var(--brand-primary);}
+.t-line.agent .who{color:var(--brand-accent);}
+.t-line.sys .who{color:var(--text-muted);}
+.trig-row{display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid var(--border-subtle);}
+.trig-row .toggle{width:38px; height:22px; border-radius:11px; background:var(--surface-sunken);
+  border:1px solid var(--border-subtle); position:relative; cursor:pointer; flex-shrink:0;
+  transition:background var(--dur-quick) var(--ease);}
+.trig-row .toggle::after{content:""; position:absolute; top:2px; left:2px; width:16px; height:16px;
+  border-radius:50%; background:var(--text-inverse); box-shadow:0 1px 3px var(--scrim);
+  transition:transform var(--dur-quick) var(--snap);}
+.trig-row .toggle.on{background:var(--brand-accent);}
+.trig-row .toggle.on::after{transform:translateX(16px); background:#fff;}
+.trig-row .tlabel{font-family:var(--mono); font-size:14px;}
+.trig-row .tsub{font-size:12px; color:var(--text-muted);}
+.ins-foot{padding:14px 20px; border-top:1px solid var(--border-subtle); display:flex; gap:10px;}
+.ins-foot button{flex:1; font-family:var(--sans); font-weight:600; font-size:14px; padding:10px;
+  border-radius:8px; cursor:pointer; border:1px solid var(--border-subtle); background:var(--surface-base);
+  color:var(--text-primary); transition:transform var(--dur-micro) var(--snap);}
+.ins-foot button.primary{background:var(--brand-primary); color:var(--text-inverse); border-color:transparent;}
+.ins-foot button:active{transform:scale(.97);}
+.saveflash{animation:saveFlash var(--dur-flourish) var(--ease);}
+@keyframes saveFlash{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--status-success) 60%,transparent);}100%{box-shadow:0 0 0 8px transparent;}}
+
+/* ── Situation report drawer ───────────────────────────────────────── */
+#sitrep{
+  position:absolute; left:0; right:0; bottom:0; z-index:35;
+  background:var(--surface-overlay); backdrop-filter:blur(18px);
+  border-top:1px solid var(--border-default); box-shadow:0 -12px 40px var(--scrim);
+  transform:translateY(105%); transition:transform var(--dur-flourish) var(--swoosh);
+  max-height:64vh; overflow:auto;
+}
+#sitrep.open{transform:none;}
+@media (prefers-reduced-motion:reduce){ #sitrep{transition:none;} }
+.sit-head{display:flex; align-items:center; gap:12px; padding:16px 22px 10px;}
+.sit-head h2{margin:0; font-size:18px; font-weight:700;}
+.sit-head .ts{font-family:var(--mono); font-size:13px; color:var(--text-muted);}
+.sit-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:14px; padding:6px 22px 14px;}
+.stat{border:1px solid var(--border-subtle); border-radius:10px; padding:13px 15px; background:var(--surface-base);}
+.stat .big{font-family:var(--mono); font-size:28px; font-weight:700; line-height:1;}
+.stat .lbl{font-size:13px; color:var(--text-muted); margin-top:6px;}
+.stat .delta{font-size:13px; font-weight:700; margin-top:4px;}
+.delta.up{color:var(--status-success);} .delta.warn{color:var(--status-warning);} .delta.bad{color:var(--status-error);}
+.sit-rows{padding:0 22px 22px;}
+.sit-rows h3{font-size:14px; margin:14px 0 8px; display:flex; align-items:center; gap:8px;}
+.sit-line{display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid var(--border-subtle);
+  font-size:14px;}
+.sit-line .dot{width:9px; height:9px; border-radius:50%; flex-shrink:0;}
+.sit-line .who{font-family:var(--mono); font-weight:700; min-width:120px;}
+.sit-line .what{color:var(--text-secondary); flex:1;}
+.sit-line .badge{font-family:var(--mono); font-size:12px; font-weight:700; padding:2px 8px; border-radius:12px;}
+
+/* ── Focus roadmap bar ─────────────────────────────────────────────── */
+#focusbar{
+  position:absolute; top:0; left:50%; transform:translate(-50%,-110%);
+  z-index:36; background:var(--surface-overlay); backdrop-filter:blur(16px);
+  border:1px solid var(--border-default); border-top:0; border-radius:0 0 12px 12px;
+  box-shadow:0 12px 30px var(--scrim); padding:14px 18px; width:min(560px,92vw);
+  transition:transform var(--dur-flourish) var(--swoosh);
+}
+#focusbar.open{transform:translate(-50%,0);}
+@media (prefers-reduced-motion:reduce){ #focusbar{transition:none;} }
+.focus-title{font-size:14px; font-weight:700; margin-bottom:10px; display:flex; align-items:center; gap:8px;}
+.roadmap-item{display:flex; align-items:center; gap:10px; padding:9px 11px; border-radius:8px;
+  cursor:pointer; border:1px solid transparent; transition:background var(--dur-quick) var(--ease), border-color var(--dur-quick) var(--ease);}
+.roadmap-item:hover{background:var(--surface-strong);}
+.roadmap-item.active{border-color:var(--brand-primary); background:color-mix(in srgb,var(--brand-primary) 10%,transparent);}
+.roadmap-item .col{font-family:var(--mono); font-size:11px; font-weight:700; text-transform:uppercase;
+  letter-spacing:.08em; padding:2px 7px; border-radius:10px; flex-shrink:0;}
+.col.now{background:color-mix(in srgb,var(--status-info) 20%,transparent); color:var(--status-info);}
+.col.next{background:color-mix(in srgb,var(--status-warning) 22%,transparent); color:var(--status-warning);}
+.col.later{background:var(--surface-sunken); color:var(--text-muted);}
+.roadmap-item .ri-title{font-size:14px; flex:1;}
+.roadmap-item .ri-files{font-family:var(--mono); font-size:12px; color:var(--text-muted);}
+
+.toast{
+  position:absolute; bottom:24px; left:50%; transform:translate(-50%,20px);
+  z-index:60; background:var(--text-primary); color:var(--surface-base);
+  font-size:14px; font-weight:600; padding:11px 18px; border-radius:9px;
+  box-shadow:0 8px 30px var(--scrim); opacity:0; pointer-events:none;
+  transition:transform var(--dur-settle) var(--swoosh), opacity var(--dur-settle) var(--ease);
+}
+.toast.show{transform:translate(-50%,0); opacity:1;}
+
+.kbd{font-family:var(--mono); font-size:12px; background:var(--surface-sunken); border:1px solid var(--border-subtle);
+  border-radius:4px; padding:1px 6px;}
+</style>
+</head>
+<body>
+<div id="app">
+  <header class="mast">
+    <div class="brand">
+      <span class="mark">port·daddy</span>
+      <span class="sub">living filetree — inspect · spawn · sitrep</span>
+    </div>
+    <div class="mast-spacer"></div>
+    <div class="legend" aria-hidden="true">
+      <span class="lk"><span class="sw" style="color:var(--brand-accent)"></span>agent</span>
+      <span class="lk"><span class="sw" style="color:var(--ph-hot)"></span>hot</span>
+      <span class="lk"><span class="sw" style="color:var(--ph-recent)"></span>recent</span>
+      <span class="lk"><span class="sw" style="color:var(--ph-fail)"></span>failing</span>
+    </div>
+    <button id="btnFocus">Focus roadmap</button>
+    <button id="btnSitrep" class="primary">Situation report</button>
+    <button id="btnSound" title="Toggle fleet sound (default off)">Sound: off</button>
+    <button id="btnTheme" title="Toggle theme">◑</button>
+  </header>
+
+  <div class="stage">
+    <div id="scroll"><div id="trees"></div></div>
+    <canvas id="biofield"></canvas>
+    <div id="ground"></div>
+
+    <div id="dock">
+      <div class="dock-hint">Drag the orb onto any folder to <strong>spawn an agent</strong> there.</div>
+      <div class="spawn-orb" id="spawnOrb" draggable="false" tabindex="0" role="button"
+           aria-label="Spawn agent — drag onto a folder">+ spawn</div>
+    </div>
+
+    <!-- Inspect panel -->
+    <aside id="inspect" aria-hidden="true">
+      <div class="ins-head">
+        <div class="kind"><span class="eyebrow" id="insKind">FILE</span></div>
+        <h2 id="insTitle">—</h2>
+        <div class="path" id="insPath">—</div>
+        <button class="ins-close" id="insClose" aria-label="Close inspector">×</button>
+      </div>
+      <div class="tabs" role="tablist">
+        <button class="tab on" data-pane="transcript">Transcript</button>
+        <button class="tab" data-pane="sitrep">Sitrep</button>
+        <button class="tab" data-pane="telos">Telos</button>
+        <button class="tab" data-pane="triggers">Triggers</button>
+      </div>
+      <div class="ins-body">
+        <div class="pane on" data-pane="transcript"><div class="transcript" id="paneTranscript"></div></div>
+        <div class="pane" data-pane="sitrep"><div id="paneSitrep"></div></div>
+        <div class="pane" data-pane="telos">
+          <div class="field">
+            <label for="telosWhat">Telos — what this agent is for</label>
+            <textarea id="telosWhat" rows="3"></textarea>
+          </div>
+          <div class="field">
+            <label for="telosDone">Definition of done</label>
+            <textarea id="telosDone" rows="3"></textarea>
+          </div>
+          <div class="field">
+            <label for="telosScope">Claimed scope (files/regions)</label>
+            <input id="telosScope" />
+          </div>
+        </div>
+        <div class="pane" data-pane="triggers"><div id="paneTriggers"></div></div>
+      </div>
+      <div class="ins-foot">
+        <button id="insFocus">Focus fleet here</button>
+        <button class="primary" id="insSave">Save changes</button>
+      </div>
+    </aside>
+
+    <!-- Situation report -->
+    <section id="sitrep" aria-hidden="true">
+      <div class="sit-head">
+        <h2>Fleet situation report</h2>
+        <span class="ts" id="sitTs"></span>
+        <div style="margin-left:auto"><button class="ins-close" id="sitClose" style="position:static" aria-label="Close">×</button></div>
+      </div>
+      <div class="sit-grid" id="sitGrid"></div>
+      <div class="sit-rows" id="sitRows"></div>
+    </section>
+
+    <!-- Focus roadmap -->
+    <div id="focusbar" aria-hidden="true">
+      <div class="focus-title">Focus the fleet on a roadmap item</div>
+      <div id="roadmapList"></div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+  </div>
+</div>
+
+<script>
+'use strict';
+const REDUCE = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $ = (s,r=document)=>r.querySelector(s);
+const $$ = (s,r=document)=>[...r.querySelectorAll(s)];
+const esc = s => String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const rand = (a,b)=>a+Math.random()*(b-a);
+const now = ()=>performance.now()/1000;
+
+/* ────────────────────────────────────────────────────────────────────
+   DATA SPINE — grounded in real Port Daddy concepts.
+   In a live console this is the 4Hz reduce of: pd sessions --all-worktrees,
+   pd notes, pd pheromone/files, claims, activity SSE.
+   ──────────────────────────────────────────────────────────────────── */
+const AGENTS = [
+  {id:'cartographer', short:'CART', hue:'var(--brand-accent)', plane:'main',
+   telos:'Keep the roadmap implementation matrix honest and FK-linked.',
+   done:'Every ADR phase maps to a roadmap_item at the right horizon.',
+   scope:'lib/symbol-index.ts, docs/adr/**',
+   target:'lib/symbol-index.ts', state:'active',
+   transcript:[
+     ['sys','session begin · cartographer:roadmap-matrix'],
+     ['you','re-anchor the ADR-0043 phases against roadmap now/next'],
+     ['agent','reading docs/adr/0043… 3 phases lack a roadmap FK. claiming symbol-index.'],
+     ['agent','dropped pheromone hot on lib/symbol-index.ts — extracting symbols'],
+   ]},
+  {id:'gardener', short:'GARD', hue:'var(--ph-hot)', plane:'wt/gardener',
+   telos:'Auto-commit clean WIP, salvage stranded work, keep tree healthy.',
+   done:'Zero stranded diffs in any worktree; salvage queue empty.',
+   scope:'routes/spawn.ts, lib/spawner.ts',
+   target:'routes/spawn.ts', state:'active',
+   transcript:[
+     ['sys','session begin · gardener:salvage'],
+     ['agent','found 41 stranded lines in routes/spawn.ts — staging for review'],
+     ['agent','sent inbox DM to qa: "spawn route touched, re-run smoke?"'],
+   ]},
+  {id:'qa-adversary', short:'QA', hue:'var(--status-info)', plane:'wt/qa',
+   telos:'Adversarially break new routes before they merge.',
+   done:'Every new route has a failing-then-green regression under bun.',
+   scope:'tests/unit/spawn.test.js',
+   target:'tests/unit/spawn.test.js', state:'active',
+   transcript:[
+     ['sys','session begin · qa:adversary'],
+     ['agent','POST /sorties with no budget ceiling → expecting 400, got 500'],
+     ['agent','experience:failed pheromone on tests/unit/spawn.test.js'],
+   ]},
+  {id:'documentarian', short:'DOCS', hue:'var(--ph-recent)', plane:'main',
+   telos:'Keep AGENTS.md and ADRs in sync with shipped code.',
+   done:'No doc references a retired flag or unbuilt surface.',
+   scope:'AGENTS.md, README.md',
+   target:'README.md', state:'idle',
+   transcript:[
+     ['sys','session begin · documentarian:sync'],
+     ['agent','README pd-spawn section lags lib/spawner.ts by 2 backends — queued'],
+   ]},
+];
+
+function fileTree(){
+  return {name:'port-daddy', type:'dir', open:true, children:[
+    {name:'lib', type:'dir', open:true, children:[
+      {name:'symbol-index.ts', type:'file', loc:612, heat:'hot', owner:'CART'},
+      {name:'spawner.ts', type:'file', loc:434, heat:'recent', owner:'GARD'},
+      {name:'sugar.ts', type:'file', loc:288, heat:'cold'},
+      {name:'merge-queue.ts', type:'file', loc:201, heat:'recent'},
+      {name:'attention.ts', type:'file', loc:176, heat:'cold'},
+    ]},
+    {name:'routes', type:'dir', open:true, children:[
+      {name:'spawn.ts', type:'file', loc:158, heat:'hot', owner:'GARD'},
+      {name:'sugar.ts', type:'file', loc:142, heat:'cold'},
+      {name:'symbols.ts', type:'file', loc:96, heat:'recent', owner:'CART'},
+    ]},
+    {name:'tests', type:'dir', open:false, children:[
+      {name:'spawn.test.js', type:'file', loc:120, heat:'fail', owner:'QA'},
+      {name:'sugar.test.js', type:'file', loc:88, heat:'cold'},
+    ]},
+    {name:'docs', type:'dir', open:false, children:[
+      {name:'adr', type:'dir', open:false, children:[
+        {name:'0043-roadmap-matrix.md', type:'file', loc:212, heat:'recent', owner:'CART'},
+        {name:'0045-attestation.md', type:'file', loc:188, heat:'cold'},
+      ]},
+    ]},
+    {name:'README.md', type:'file', loc:940, heat:'recent', owner:'DOCS'},
+    {name:'AGENTS.md', type:'file', loc:410, heat:'cold'},
+  ]};
+}
+
+const PLANES = [
+  {id:'main', branch:'main', kind:'clean', kindLabel:'clean · HEAD', agent:null, ghost:false},
+  {id:'wt/gardener', branch:'feat/salvage-stranded', kind:'ahead', kindLabel:'+41 ahead', agent:'gardener', ghost:true},
+  {id:'wt/qa', branch:'qa/spawn-regression', kind:'diverged', kindLabel:'diverged · 1 fail', agent:'qa-adversary', ghost:true, diverged:true},
+];
+
+const ROADMAP = [
+  {id:'ri-1', col:'now', title:'pd attest — honest self-report', files:['lib/symbol-index.ts','docs/adr/0045-attestation.md']},
+  {id:'ri-2', col:'now', title:'tube → spawner router (fail-closed)', files:['routes/spawn.ts','lib/spawner.ts','tests/spawn.test.js']},
+  {id:'ri-3', col:'next', title:'roadmap implementation matrix FKs', files:['lib/symbol-index.ts','docs/adr/0043-roadmap-matrix.md']},
+  {id:'ri-4', col:'later', title:'shadow-DB experiments', files:['lib/merge-queue.ts']},
+];
+
+const NOTES = [
+  'Scope: routes/spawn.ts. Re-run smoke under bun.',
+  'qa: 500 not 400 on missing budget ceiling',
+  'cartographer claiming symbol-index regions',
+  'README spawn section lags by 2 backends',
+];
+
+/* ────────────────────────────────────────────────────────────────────
+   RENDER DOM TREE  (DOM owns layout + hit-testing)
+   ──────────────────────────────────────────────────────────────────── */
+const trees = $('#trees');
+const nodeIndex = new Map(); // path -> {el, node, planeId, relpath}
+
+function agentByShort(short){ return AGENTS.concat(spawned).find(a=>a.short===short); }
+
+function renderTree(){
+  trees.innerHTML='';
+  nodeIndex.clear();
+  for(const p of PLANES){
+    const plane = document.createElement('section');
+    plane.className = 'plane'+(p.ghost?' ghost':'')+(p.diverged?' diverged':'');
+    plane.dataset.plane = p.id;
+    const ag = p.agent ? AGENTS.find(a=>a.id===p.agent) : null;
+    plane.innerHTML = `
+      <div class="plane-head">
+        <span class="br">${esc(p.branch)}</span>
+        <span class="pill ${p.kind}">${esc(p.kindLabel)}</span>
+        ${ag?`<span class="agentchip" style="color:${ag.hue}"><span class="pres" style="background:${ag.hue};box-shadow:0 0 8px ${ag.hue}"></span>${esc(ag.short)} · ${esc(ag.id)}</span>`:'<span class="agentchip" style="margin-left:auto">no agent moored</span>'}
+      </div>
+      <div class="tree"></div>`;
+    const treeEl = $('.tree', plane);
+    const root = fileTree();
+    renderNodes(treeEl, root.children, p.id, '', 0);
+    trees.appendChild(plane);
+  }
+}
+
+function renderNodes(container, nodes, planeId, parentPath, depth){
+  for(const n of nodes){
+    const path = (parentPath?parentPath+'/':'')+n.name;
+    const fullPath = planeId+':'+path;
+    const el = document.createElement('div');
+    el.className = 'node '+(n.type)+(n.open?' open':'');
+    el.style.paddingLeft = (10 + depth*16)+'px';
+    el.dataset.path = fullPath;
+    el.dataset.type = n.type;
+    el.dataset.name = n.name;
+    el.dataset.relpath = path;
+    if(n.heat==='hot') el.classList.add('pulse');
+    const ag = n.owner ? agentByShort(n.owner) : null;
+    el.innerHTML = `
+      ${n.type==='dir'?'<span class="twist">▶</span>':'<span class="twist" style="visibility:hidden">▶</span>'}
+      <span class="ic">${n.type==='dir'?'▣':'·'}</span>
+      <span class="nm">${esc(n.name)}</span>
+      ${n.type==='file'?`<span class="loc">${n.loc}</span>`:''}
+      <span class="badges">
+        ${n.heat?`<span class="heat ${n.heat}" title="${n.heat}"></span>`:''}
+        ${ag?`<span class="owner" style="color:${ag.hue};background:color-mix(in srgb,${ag.hue} 16%,transparent)">${esc(ag.short)}</span>`:''}
+      </span>`;
+    container.appendChild(el);
+    nodeIndex.set(fullPath, {el, node:n, planeId, relpath:path});
+
+    if(n.type==='dir' && n.children){
+      const kids = document.createElement('div');
+      kids.className='children';
+      kids.style.display = n.open ? 'block':'none';
+      renderNodes(kids, n.children, planeId, path, depth+1);
+      container.appendChild(kids);
+      el.addEventListener('click', e=>{
+        e.stopPropagation();
+        n.open = !n.open;
+        el.classList.toggle('open', n.open);
+        kids.style.display = n.open?'block':'none';
+        openInspectDir(n, planeId, path);
+      });
+      el.addEventListener('dragover', e=>{ e.preventDefault(); el.classList.add('dragover'); });
+      el.addEventListener('dragleave', ()=> el.classList.remove('dragover'));
+      el.addEventListener('drop', e=>{ e.preventDefault(); el.classList.remove('dragover'); spawnAt(el, n, planeId, path); });
+    } else {
+      el.addEventListener('click', e=>{ e.stopPropagation(); openInspectFile(n, planeId, path); selectNode(el); });
+    }
+  }
+}
+
+function selectNode(el){
+  $$('.node.sel').forEach(x=>x.classList.remove('sel'));
+  el.classList.add('sel');
+}
+
+/* ────────────────────────────────────────────────────────────────────
+   BIOFIELD CANVAS — fireflies, pheromone heat, lasers, ripples, bursts.
+   ──────────────────────────────────────────────────────────────────── */
+const canvas = $('#biofield');
+const ctx2 = canvas.getContext('2d');
+const scroll = $('#scroll');
+let DPR=1, W=0, H=0;
+function resize(){
+  DPR = Math.min(window.devicePixelRatio||1, 2);
+  const r = canvas.getBoundingClientRect();
+  W=r.width; H=r.height;
+  canvas.width = W*DPR; canvas.height = H*DPR;
+  ctx2.setTransform(DPR,0,0,DPR,0,0);
+}
+window.addEventListener('resize', resize);
+
+function targetXY(short){
+  let best=null;
+  for(const [path,info] of nodeIndex){
+    if(info.node.owner===short){ best=info; break; }
+  }
+  if(!best) return null;
+  const r = best.el.getBoundingClientRect();
+  const cr = canvas.getBoundingClientRect();
+  return {x:r.left-cr.left+r.width-40, y:r.top-cr.top+r.height/2};
+}
+
+function makeGlow(color){
+  const s=64, c=document.createElement('canvas'); c.width=c.height=s;
+  const g=c.getContext('2d');
+  const grd=g.createRadialGradient(s/2,s/2,0,s/2,s/2,s/2);
+  grd.addColorStop(0, color);
+  grd.addColorStop(0.4, color.replace('rgb','rgba').replace(')',',0.5)'));
+  grd.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle=grd; g.beginPath(); g.arc(s/2,s/2,s/2,0,7); g.fill();
+  return c;
+}
+function resolveColor(v){
+  const probe=document.createElement('span'); probe.style.color=v; document.body.appendChild(probe);
+  const c=getComputedStyle(probe).color; probe.remove(); return c;
+}
+
+let glowSprites = {};
+function rebakeGlows(){
+  glowSprites = {};
+  AGENTS.concat(spawned).forEach(a=>{ glowSprites[a.id]=makeGlow(resolveColor(a.hue)); });
+}
+
+const spawned = [];
+let flies = [];
+function buildFlies(){
+  flies = AGENTS.map(a=>({
+    a, x:rand(80,Math.max(120,W-80)), y:rand(80,Math.max(120,H-200)), vx:0, vy:0,
+    seed:rand(0,100), idle:a.state==='idle'
+  }));
+}
+
+const heat = new Map();
+function depositHeat(path, amt, kind){
+  if(!path) return;
+  const cur = heat.get(path)||{v:0,kind};
+  cur.v = Math.min(1, cur.v+amt); cur.kind=kind; heat.set(path,cur);
+}
+function seedHeat(){
+  for(const [path,info] of nodeIndex){
+    const k=info.node.heat;
+    if(k==='hot') depositHeat(path,0.85,'hot');
+    else if(k==='recent') depositHeat(path,0.4,'recent');
+    else if(k==='fail') depositHeat(path,0.7,'fail');
+  }
+}
+
+const rings=[], beams=[], sparks=[], waves=[], bursts=[];
+function spawnRing(x,y,color){ rings.push({x,y,t:0,life:0.7,color}); }
+function spawnBeam(x1,y1,x2,y2,color){ beams.push({x1,y1,x2,y2,t:0,life:0.56,color}); }
+function spawnWave(x,y,color){ for(let i=0;i<3;i++) waves.push({x,y,t:-i*0.12,life:0.8,color}); }
+function spawnBurst(x,y){
+  bursts.push({x,y,t:0,life:0.24});
+  for(let i=0;i<10;i++){ const a=rand(0,7); sparks.push({x,y,vx:Math.cos(a)*rand(1,3),vy:Math.sin(a)*rand(1,3),t:0,life:0.4}); }
+}
+
+const heatColors = {hot:'166,111,0', recent:'0,85,255', fail:'165,31,31'};
+function heatRGB(kind){ return heatColors[kind]||'166,111,0'; }
+
+let running = !REDUCE;
+let paused = false;
+const io = new IntersectionObserver(es=>{ paused = !es[0].isIntersecting; }, {threshold:0});
+
+function frame(){
+  if(!running){ return; }
+  requestAnimationFrame(frame);
+  if(paused) return;
+  const t = now();
+  ctx2.clearRect(0,0,W,H);
+
+  // pheromone heat
+  ctx2.globalCompositeOperation = 'source-over';
+  for(const [path,h] of heat){
+    h.v *= 0.992; if(h.v<0.02){ continue; }
+    const info = nodeIndex.get(path); if(!info) continue;
+    const r = info.el.getBoundingClientRect(); const cr=canvas.getBoundingClientRect();
+    const x=r.left-cr.left+30, y=r.top-cr.top+r.height/2;
+    const rad = 26 + h.v*22;
+    const g = ctx2.createRadialGradient(x,y,0,x,y,rad);
+    g.addColorStop(0,`rgba(${heatRGB(h.kind)},${(0.16*h.v).toFixed(3)})`);
+    g.addColorStop(1,`rgba(${heatRGB(h.kind)},0)`);
+    ctx2.fillStyle=g; ctx2.beginPath(); ctx2.arc(x,y,rad,0,7); ctx2.fill();
+  }
+
+  // fireflies
+  ctx2.globalCompositeOperation = 'lighter';
+  for(const f of flies){
+    const tgt = targetXY(f.a.short);
+    let dx = Math.sin(t*0.7+f.seed)*0.4 + Math.sin(t*0.23+f.seed*3)*0.9;
+    let dy = Math.cos(t*0.6+f.seed*1.7)*0.4 + Math.sin(t*0.19+f.seed*2)*0.8;
+    f.vx += dx*0.04; f.vy += dy*0.04;
+    if(tgt){
+      const sx=tgt.x-f.x, sy=tgt.y-f.y, d=Math.hypot(sx,sy)||1;
+      if(d<160){ f.vx += (sx/d)*0.06; f.vy += (sy/d)*0.06; }
+    }
+    f.vx*=0.92; f.vy*=0.92;
+    const sp=Math.hypot(f.vx,f.vy), max=1.1;
+    if(sp>max){ f.vx=f.vx/sp*max; f.vy=f.vy/sp*max; }
+    f.x+=f.vx; f.y+=f.vy;
+    if(f.x<20){f.x=20;f.vx*=-.5;} if(f.x>W-20){f.x=W-20;f.vx*=-.5;}
+    if(f.y<20){f.y=20;f.vy*=-.5;} if(f.y>H-120){f.y=H-120;f.vy*=-.5;}
+
+    let alpha = 0.55 + 0.45*Math.sin(t*1.6+f.seed);
+    if(f.idle) alpha*=0.34;
+    const sprite = glowSprites[f.a.id]; const gs=44;
+    if(sprite){
+      ctx2.globalAlpha = Math.max(0,alpha)*0.9;
+      ctx2.drawImage(sprite, f.x-gs/2, f.y-gs/2, gs, gs);
+    }
+    ctx2.globalAlpha = Math.max(0,alpha);
+    ctx2.fillStyle = resolveColor(f.a.hue);
+    ctx2.beginPath(); ctx2.arc(f.x,f.y, f.idle?2.2:3.4, 0,7); ctx2.fill();
+    ctx2.globalAlpha=1;
+    f._x=f.x; f._y=f.y;
+  }
+
+  // beams
+  ctx2.globalCompositeOperation='lighter';
+  for(let i=beams.length-1;i>=0;i--){ const b=beams[i]; b.t+=1/60;
+    const p=Math.min(1,b.t/b.life); const e=1-Math.pow(1-p,3);
+    ctx2.strokeStyle=b.color; ctx2.globalAlpha=0.13*(1-p); ctx2.lineWidth=1.5;
+    ctx2.beginPath(); ctx2.moveTo(b.x1,b.y1); ctx2.lineTo(b.x2,b.y2); ctx2.stroke();
+    const hx=b.x1+(b.x2-b.x1)*e, hy=b.y1+(b.y2-b.y1)*e;
+    const tailE=Math.max(0,e-0.12), tx=b.x1+(b.x2-b.x1)*tailE, ty=b.y1+(b.y2-b.y1)*tailE;
+    ctx2.globalAlpha=0.9; ctx2.lineWidth=2.2;
+    ctx2.beginPath(); ctx2.moveTo(tx,ty); ctx2.lineTo(hx,hy); ctx2.stroke();
+    if(p>=1){ spawnRing(b.x2,b.y2,b.color); beams.splice(i,1); }
+  }
+  ctx2.globalAlpha=1;
+
+  // rings
+  for(let i=rings.length-1;i>=0;i--){ const r=rings[i]; r.t+=1/60;
+    const p=Math.min(1,r.t/r.life), e=1-Math.pow(1-p,3);
+    ctx2.strokeStyle=r.color; ctx2.globalAlpha=0.55*(1-p); ctx2.lineWidth=2*(1-p)+0.4;
+    ctx2.beginPath(); ctx2.arc(r.x,r.y, e*32, 0,7); ctx2.stroke();
+    if(p>=1) rings.splice(i,1);
+  }
+  ctx2.globalAlpha=1;
+
+  // waves
+  for(let i=waves.length-1;i>=0;i--){ const w=waves[i]; w.t+=1/60;
+    if(w.t<0) continue;
+    const p=Math.min(1,w.t/w.life), e=1-Math.pow(1-p,3);
+    ctx2.strokeStyle=w.color; ctx2.globalAlpha=0.5*(1-p); ctx2.lineWidth=2-1.7*p;
+    ctx2.beginPath(); ctx2.arc(w.x,w.y, e*48, 0,7); ctx2.stroke();
+    if(p>=1) waves.splice(i,1);
+  }
+  ctx2.globalAlpha=1;
+
+  // bursts + sparks
+  for(let i=bursts.length-1;i>=0;i--){ const b=bursts[i]; b.t+=1/60;
+    const p=Math.min(1,b.t/b.life);
+    const sc=0.2+p*2.2, s=20*sc;
+    ctx2.globalAlpha=(1-p); ctx2.fillStyle=p<0.5?'#fff':css('--brand-primary');
+    ctx2.beginPath(); ctx2.arc(b.x,b.y,s,0,7); ctx2.fill();
+    if(p>=1) bursts.splice(i,1);
+  }
+  for(let i=sparks.length-1;i>=0;i--){ const s=sparks[i]; s.t+=1/60;
+    s.vy+=0.05; s.vx*=0.96; s.vy*=0.96; s.x+=s.vx; s.y+=s.vy;
+    const p=Math.min(1,s.t/s.life);
+    ctx2.globalAlpha=(1-p); ctx2.fillStyle=css('--brand-primary');
+    ctx2.beginPath(); ctx2.arc(s.x,s.y,2,0,7); ctx2.fill();
+    if(p>=1) sparks.splice(i,1);
+  }
+  ctx2.globalAlpha=1;
+  ctx2.globalCompositeOperation='source-over';
+}
+
+/* ────────────────────────────────────────────────────────────────────
+   AMBIENT LIFE
+   ──────────────────────────────────────────────────────────────────── */
+function flyPos(short){ const f=flies.find(x=>x.a.short===short); return f?{x:f._x||f.x,y:f._y||f.y}:null; }
+
+function inboxDM(fromShort, toShort){
+  const a=flyPos(fromShort), b=flyPos(toShort);
+  if(a&&b&&!REDUCE){ spawnBeam(a.x,a.y,b.x,b.y, css('--status-info')); }
+  sound.zip();
+}
+function broadcast(fromShort){
+  const a=flyPos(fromShort);
+  if(a&&!REDUCE) spawnWave(a.x,a.y, css('--brand-primary'));
+  sound.bloop(380);
+}
+function dropLeaf(text){
+  const ground=$('#ground');
+  const leaf=document.createElement('div'); leaf.className='leaf'; leaf.textContent=text;
+  ground.appendChild(leaf);
+  while(ground.children.length>6) ground.removeChild(ground.firstChild);
+  sound.tok();
+}
+
+let ambientTimer=null;
+function startAmbient(){
+  if(ambientTimer) return;
+  const tick=()=>{
+    if(!REDUCE){
+      const r=Math.random();
+      if(r<0.4){ const live=AGENTS.filter(a=>a.state!=='idle'); if(live.length>=2){
+        const f=live[Math.floor(Math.random()*live.length)]; let t; do{ t=live[Math.floor(Math.random()*live.length)]; }while(t===f);
+        inboxDM(f.short,t.short);
+      }}
+      else if(r<0.62){ broadcast('CART'); }
+      else if(r<0.78){ const hk=[...nodeIndex.keys()].find(k=>nodeIndex.get(k).node.heat==='hot'); depositHeat(hk, 0.25, 'hot'); }
+    }
+    ambientTimer=setTimeout(tick, rand(2600,4200));
+  };
+  ambientTimer=setTimeout(tick, 1800);
+}
+
+/* ────────────────────────────────────────────────────────────────────
+   SOUND — WebAudio only, default off, master <=0.18, ramped envelopes.
+   ──────────────────────────────────────────────────────────────────── */
+const sound = (()=>{
+  let ctx=null, master=null, on=false, last={};
+  let bedOsc=[], bedGain=null, bedFilter=null, lfo=null;
+  function ensure(){
+    if(ctx) return;
+    ctx = new (window.AudioContext||window.webkitAudioContext)();
+    master = ctx.createGain(); master.gain.value=0.18; master.connect(ctx.destination);
+    bedFilter = ctx.createBiquadFilter(); bedFilter.type='lowpass'; bedFilter.frequency.value=300;
+    bedGain = ctx.createGain(); bedGain.gain.value=0.0;
+    bedFilter.connect(bedGain).connect(master);
+    [65.4,98].forEach(fr=>{ const o=ctx.createOscillator(); o.type='sine'; o.frequency.value=fr; o.connect(bedFilter); o.start(); bedOsc.push(o); });
+    lfo = ctx.createOscillator(); lfo.type='sine'; lfo.frequency.value=0.1;
+    const lg=ctx.createGain(); lg.gain.value=0.06; lfo.connect(lg).connect(bedGain.gain); lfo.start();
+  }
+  function gate(name,ms){ const t=performance.now(); if(last[name]&&t-last[name]<ms) return false; last[name]=t; return true; }
+  function blip(freq=440,dur=0.09,type='sine',peak=0.12){
+    if(!on||REDUCE) return; ensure(); if(ctx.state==='suspended') ctx.resume();
+    const o=ctx.createOscillator(), g=ctx.createGain(); o.type=type; o.frequency.value=freq;
+    const t=ctx.currentTime;
+    g.gain.setValueAtTime(0.0001,t); g.gain.linearRampToValueAtTime(peak,t+0.008);
+    g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+    o.connect(g).connect(master); o.start(t); o.stop(t+dur+0.02);
+  }
+  function sweep(f1,f2,dur,type='sine',peak=0.1){
+    if(!on||REDUCE) return; ensure(); if(ctx.state==='suspended') ctx.resume();
+    const o=ctx.createOscillator(), g=ctx.createGain(); o.type=type;
+    const t=ctx.currentTime; o.frequency.setValueAtTime(f1,t); o.frequency.linearRampToValueAtTime(f2,t+dur);
+    g.gain.setValueAtTime(0.0001,t); g.gain.linearRampToValueAtTime(peak,t+0.01); g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+    o.connect(g).connect(master); o.start(t); o.stop(t+dur+0.02);
+  }
+  return {
+    toggle(){ on=!on; if(on){ ensure(); if(ctx.state==='suspended') ctx.resume(); bedGain.gain.linearRampToValueAtTime(0.05, ctx.currentTime+2); } else if(bedGain){ bedGain.gain.linearRampToValueAtTime(0.0001, ctx.currentTime+0.6); } return on; },
+    isOn(){return on;},
+    bloop(f){ if(gate('bloop',80)) blip(f||440,0.09,'sine',0.1); },
+    zip(){ if(gate('zip',80)) sweep(400,900,0.14,'sine',0.08); },
+    tok(){ if(gate('tok',60)) blip(180,0.07,'triangle',0.1); },
+    pher(){ if(gate('pher',120)) sweep(600,200,0.2,'sine',0.05); },
+    merge(){ [659.25,830.6,1318.5].forEach((f,i)=>setTimeout(()=>blip(f,0.6,'sine',0.09-i*0.02),i*0)); },
+    spawn(){ [523,659,784].forEach((f,i)=>setTimeout(()=>blip(f,0.3,'sine',0.09),i*120)); },
+    done(){ blip(784,0.3,'sine',0.1); },
+    busier(n){ if(!on||!lfo||REDUCE) return; const t=ctx.currentTime; lfo.frequency.linearRampToValueAtTime(0.08+Math.min(0.07,n*0.012),t+4); bedFilter.frequency.linearRampToValueAtTime(200+Math.min(700,n*120),t+4); }
+  };
+})();
+
+/* ────────────────────────────────────────────────────────────────────
+   INSPECT PANEL
+   ──────────────────────────────────────────────────────────────────── */
+const inspect=$('#inspect');
+let current=null;
+
+function openInspectFile(node, planeId, relpath){
+  const ag = node.owner ? agentByShort(node.owner) : null;
+  current = {node, planeId, relpath, agent:ag};
+  $('#insKind').textContent = ag ? 'FILE · AGENT MOORED' : 'FILE';
+  $('#insTitle').textContent = node.name;
+  $('#insPath').textContent = planeId+' / '+relpath + (node.loc?`  ·  ${node.loc} loc`:'');
+  fillPanels(ag, node);
+  openInspect();
+  depositHeat(planeId+':'+relpath, 0.3, node.heat||'recent');
+  sound.pher();
+}
+function openInspectDir(node, planeId, relpath){
+  current = {node, planeId, relpath, agent:null};
+  $('#insKind').textContent='DIRECTORY';
+  $('#insTitle').textContent=node.name+'/';
+  $('#insPath').textContent=planeId+' / '+relpath;
+  fillPanels(null, node);
+  openInspect();
+}
+function openInspect(){ inspect.classList.add('open'); inspect.setAttribute('aria-hidden','false'); }
+function closeInspect(){ inspect.classList.remove('open'); inspect.setAttribute('aria-hidden','true');
+  $$('.node.sel').forEach(x=>x.classList.remove('sel')); }
+
+function fillPanels(ag, node){
+  const tEl=$('#paneTranscript');
+  if(ag){
+    tEl.innerHTML = ag.transcript.map(([who,txt])=>`<div class="t-line ${who}"><span class="who">${who==='you'?'you':who==='agent'?ag.short:'·sys'}</span>${esc(txt)}</div>`).join('');
+  } else {
+    tEl.innerHTML = `<div class="t-line sys"><span class="who">·sys</span>No agent moored on this ${node.type}. Drag the spawn orb here to assign one.</div>`;
+  }
+  const ownerName = ag?ag.id:'—';
+  $('#paneSitrep').innerHTML = `
+    <div class="field"><label>Owner</label><div style="font-family:var(--mono);font-size:14px">${esc(ownerName)}</div></div>
+    <div class="field"><label>Heat</label><div style="font-family:var(--mono);font-size:14px">${esc(node.heat||'cold')} ${node.heat==='fail'?'· test failing':''}</div></div>
+    <div class="field"><label>Last activity</label><div style="font-family:var(--mono);font-size:14px">${ag?'pheromone deposit · '+esc(ag.target):'idle'}</div></div>
+    <div class="field"><label>State</label><div style="font-family:var(--mono);font-size:14px">${ag?esc(ag.state):'unclaimed'}</div></div>`;
+  $('#telosWhat').value = ag?ag.telos:'';
+  $('#telosDone').value = ag?ag.done:'';
+  $('#telosScope').value = ag?ag.scope:'';
+  const trigs = ag ? [
+    ['On test fail','re-run regression under bun, DM qa', true],
+    ['On merge conflict','pause + escalate to operator', true],
+    ['On idle > 10m','release claims, dim', false],
+    ['On cost > cap','stop + mayday', true],
+  ] : [['Spawn first','assign an agent to enable triggers', false]];
+  $('#paneTriggers').innerHTML = trigs.map((tr,i)=>`
+    <div class="trig-row">
+      <div class="toggle ${tr[2]?'on':''}" data-i="${i}" role="switch" aria-checked="${tr[2]}" tabindex="0"></div>
+      <div><div class="tlabel">${esc(tr[0])}</div><div class="tsub">${esc(tr[1])}</div></div>
+    </div>`).join('');
+  $$('#paneTriggers .toggle').forEach(tg=>tg.addEventListener('click',()=>{
+    const on=tg.classList.toggle('on'); tg.setAttribute('aria-checked',on); sound.bloop(on?520:340);
+  }));
+}
+
+$$('.tab').forEach(tab=>tab.addEventListener('click',()=>{
+  $$('.tab').forEach(t=>t.classList.remove('on')); tab.classList.add('on');
+  $$('.pane').forEach(p=>p.classList.toggle('on', p.dataset.pane===tab.dataset.pane));
+}));
+$('#insClose').addEventListener('click', closeInspect);
+$('#insSave').addEventListener('click', e=>{
+  if(current&&current.agent){
+    current.agent.telos=$('#telosWhat').value;
+    current.agent.done=$('#telosDone').value;
+    current.agent.scope=$('#telosScope').value;
+  }
+  e.target.classList.remove('saveflash'); void e.target.offsetWidth; e.target.classList.add('saveflash');
+  sound.done(); toast('Saved — telos + triggers committed to '+(current?current.relpath:'node'));
+  if(current&&current.agent) broadcast(current.agent.short);
+});
+$('#insFocus').addEventListener('click', ()=>{
+  if(!current) return;
+  const ri = ROADMAP.find(r=>r.files.some(f=>current.relpath.endsWith(f.split('/').pop())));
+  applyFocus(ri?ri.id:null, true);
+  closeInspect();
+});
+
+/* ────────────────────────────────────────────────────────────────────
+   SPAWN — drag orb onto folder.
+   ──────────────────────────────────────────────────────────────────── */
+const orb=$('#spawnOrb');
+orb.setAttribute('draggable','true');
+orb.addEventListener('dragstart', e=>{ e.dataTransfer.setData('text/plain','spawn'); e.dataTransfer.effectAllowed='copy'; });
+orb.addEventListener('keydown', e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault();
+  const dir=[...nodeIndex.values()].find(i=>i.node.type==='dir'); if(dir) spawnAt(dir.el, dir.node, dir.planeId, dir.relpath); } });
+
+let spawnCount=0;
+const SPAWN_NAMES=['scout','wright','tender','lookout','mate'];
+function spawnAt(el, node, planeId, relpath){
+  spawnCount++;
+  const name=SPAWN_NAMES[(spawnCount-1)%SPAWN_NAMES.length];
+  const short=name.slice(0,4).toUpperCase();
+  const a={id:name+':'+relpath.split('/').pop(), short, hue:'var(--brand-primary)', plane:planeId,
+    telos:'(new) work the '+relpath+' surface', done:'(define)', scope:relpath, target:node.name, state:'active',
+    transcript:[['sys','session begin · '+name+':'+relpath],['agent','claiming '+relpath+' — drift toward it now']]};
+  spawned.push(a);
+  node.owner=short;
+  const r=el.getBoundingClientRect(), cr=canvas.getBoundingClientRect();
+  flies.push({a, x:r.left-cr.left+r.width-40, y:r.top-cr.top+r.height/2, vx:0, vy:0, seed:rand(0,100), idle:false});
+  rebakeGlows();
+  renderTree();
+  depositHeat(planeId+':'+relpath, 0.6, 'recent');
+  if(!REDUCE){ const p=flyPos(short); if(p){ spawnWave(p.x,p.y, css('--brand-accent')); spawnRing(p.x,p.y,css('--brand-accent')); } }
+  sound.spawn(); sound.busier(AGENTS.filter(x=>x.state!=='idle').length+spawned.length);
+  toast('Spawned '+name+' on '+relpath+' — firefly born');
+}
+
+/* ────────────────────────────────────────────────────────────────────
+   SITUATION REPORT
+   ──────────────────────────────────────────────────────────────────── */
+const sitrepEl=$('#sitrep');
+function openSitrep(){
+  buildSitrep();
+  sitrepEl.classList.add('open'); sitrepEl.setAttribute('aria-hidden','false');
+}
+function closeSitrep(){ sitrepEl.classList.remove('open'); sitrepEl.setAttribute('aria-hidden','true'); }
+function buildSitrep(){
+  const all=AGENTS.concat(spawned);
+  const live=all.filter(a=>a.state!=='idle').length;
+  const failing=[...nodeIndex.values()].filter(i=>i.node.heat==='fail').length;
+  const ahead=PLANES.filter(p=>p.kind==='ahead').length;
+  const diverged=PLANES.filter(p=>p.kind==='diverged').length;
+  $('#sitTs').textContent='as of '+new Date().toLocaleTimeString();
+  $('#sitGrid').innerHTML=`
+    <div class="stat"><div class="big">${live}</div><div class="lbl">agents active</div><div class="delta up">+${spawned.length} spawned this session</div></div>
+    <div class="stat"><div class="big">${PLANES.length}</div><div class="lbl">worktrees / planes</div><div class="delta ${diverged?'warn':'up'}">${ahead} ahead · ${diverged} diverged</div></div>
+    <div class="stat"><div class="big">${failing}</div><div class="lbl">failing surfaces</div><div class="delta ${failing?'bad':'up'}">${failing?'needs a green':'all green'}</div></div>
+    <div class="stat"><div class="big">${ROADMAP.filter(r=>r.col==='now').length}</div><div class="lbl">roadmap items at NOW</div><div class="delta">${ROADMAP.length} total tracked</div></div>`;
+  const rows = all.map(a=>{
+    const hue=a.hue;
+    const badgeKind = a.state==='idle'?'idle': (PLANES.find(p=>p.id===a.plane&&p.kind==='diverged')?'blocked':'on track');
+    const bgcol = badgeKind==='blocked'?'var(--status-warning)':badgeKind==='idle'?'var(--ph-cold)':'var(--status-success)';
+    return `<div class="sit-line">
+      <span class="dot" style="background:${hue};box-shadow:0 0 8px ${hue}"></span>
+      <span class="who" style="color:${hue}">${esc(a.short)}</span>
+      <span class="what">${esc(a.telos)}</span>
+      <span class="badge" style="color:${bgcol};background:color-mix(in srgb,${bgcol} 16%,transparent)">${badgeKind}</span>
+    </div>`;
+  }).join('');
+  $('#sitRows').innerHTML=`
+    <h3><span class="eyebrow">Fleet roll-up</span></h3>${rows}
+    <h3><span class="eyebrow">Recent comms</span></h3>
+    <div class="sit-line"><span class="dot" style="background:var(--status-info)"></span><span class="who">GARD→QA</span><span class="what">spawn route touched, re-run smoke?</span><span class="badge" style="color:var(--status-info);background:color-mix(in srgb,var(--status-info) 16%,transparent)">DM</span></div>
+    <div class="sit-line"><span class="dot" style="background:var(--brand-accent)"></span><span class="who">CART ⟂ all</span><span class="what">claiming symbol-index regions, hands off</span><span class="badge" style="color:var(--brand-accent);background:color-mix(in srgb,var(--brand-accent) 16%,transparent)">broadcast</span></div>`;
+}
+$('#btnSitrep').addEventListener('click', ()=>{ openSitrep(); sound.bloop(440); });
+$('#sitClose').addEventListener('click', closeSitrep);
+
+/* ────────────────────────────────────────────────────────────────────
+   FOCUS ON ROADMAP
+   ──────────────────────────────────────────────────────────────────── */
+const focusbar=$('#focusbar');
+function buildRoadmap(activeId){
+  $('#roadmapList').innerHTML = ROADMAP.map(r=>`
+    <div class="roadmap-item ${r.id===activeId?'active':''}" data-id="${r.id}">
+      <span class="col ${r.col}">${r.col}</span>
+      <span class="ri-title">${esc(r.title)}</span>
+      <span class="ri-files">${r.files.length} files</span>
+    </div>`).join('') + `<div class="roadmap-item" data-id=""><span class="col later">clear</span><span class="ri-title">Clear focus — show all</span></div>`;
+  $$('#roadmapList .roadmap-item').forEach(it=>it.addEventListener('click',()=>applyFocus(it.dataset.id||null,false)));
+}
+let focusId=null;
+function applyFocus(id, keepBarClosed){
+  focusId=id;
+  buildRoadmap(id);
+  const ri = id?ROADMAP.find(r=>r.id===id):null;
+  const matchBasenames = ri ? ri.files.map(f=>f.split('/').pop()) : null;
+  $$('.node').forEach(n=>n.classList.remove('pulse'));
+  for(const [path,info] of nodeIndex){
+    if(info.node.heat==='hot') info.el.classList.add('pulse');
+  }
+  $$('.plane').forEach(pl=>pl.classList.remove('focus-dim'));
+  if(ri){
+    $$('.plane').forEach(pl=>{
+      const hasMatch = [...pl.querySelectorAll('.node')].some(n=>matchBasenames.includes(n.dataset.name));
+      if(!hasMatch) pl.classList.add('focus-dim');
+    });
+    for(const [path,info] of nodeIndex){
+      if(matchBasenames.includes(info.node.name) && info.node.type==='file'){
+        info.el.classList.add('pulse');
+        depositHeat(path,0.7,'recent');
+      }
+    }
+    if(!REDUCE){ broadcast('CART'); }
+    toast('Fleet focused on: '+ri.title+' ('+ri.files.length+' files lit)');
+    sound.bloop(660);
+  } else {
+    toast('Focus cleared — full fleet visible');
+  }
+}
+$('#btnFocus').addEventListener('click', ()=>{
+  const open=focusbar.classList.toggle('open');
+  focusbar.setAttribute('aria-hidden', open?'false':'true');
+  if(open){ buildRoadmap(focusId); }
+  $('#btnFocus').classList.toggle('on', open);
+});
+document.addEventListener('click', e=>{
+  if(focusbar.classList.contains('open') && !focusbar.contains(e.target) && e.target!==$('#btnFocus')){
+    focusbar.classList.remove('open'); focusbar.setAttribute('aria-hidden','true'); $('#btnFocus').classList.remove('on');
+  }
+});
+
+/* ────────────────────────────────────────────────────────────────────
+   MISC — theme, toast, keyboard, merge demo
+   ──────────────────────────────────────────────────────────────────── */
+$('#btnTheme').addEventListener('click', ()=>{
+  const root=document.documentElement;
+  root.dataset.theme = root.dataset.theme==='dark'?'light':'dark';
+  rebakeGlows();
+});
+let toastTimer=null;
+function toast(msg){
+  const t=$('#toast'); t.textContent=msg; t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove('show'), 2600);
+}
+
+trees.addEventListener('dblclick', e=>{
+  const head=e.target.closest('.plane-head'); if(!head) return;
+  const plane=head.closest('.plane'); if(!plane.classList.contains('ghost')) return;
+  const cr=canvas.getBoundingClientRect(), r=head.getBoundingClientRect();
+  const x=r.left-cr.left+r.width*0.4, y=r.top-cr.top+r.height/2;
+  if(!REDUCE){ spawnBurst(x,y); }
+  plane.style.transition='opacity var(--dur-flourish) var(--ease)';
+  const pill=$('.pill',head); if(pill){ pill.className='pill clean'; pill.textContent='merged · clean'; }
+  plane.classList.remove('diverged');
+  sound.merge();
+  toast('Merge light-burst — '+($('.br',head).textContent)+' → main');
+});
+
+/* ── boot ── */
+renderTree();
+resize();
+buildFlies();
+rebakeGlows();
+seedHeat();
+io.observe(canvas);
+if(running) requestAnimationFrame(frame);
+startAmbient();
+NOTES.slice(0,2).forEach((n,i)=>setTimeout(()=>dropLeaf(n), 600+i*400));
+
+$('#btnSound').addEventListener('click', e=>{
+  const on=sound.toggle();
+  e.target.textContent='Sound: '+(on?'on':'off');
+  e.target.classList.toggle('on', on);
+  if(on){ sound.busier(AGENTS.filter(a=>a.state!=='idle').length); toast('Fleet breathing — sound on'); }
+});
+
+if(REDUCE){
+  function drawStatic(){
+    ctx2.clearRect(0,0,W,H);
+    for(const [path,info] of nodeIndex){
+      if(!info.node.owner) continue;
+      const ag=agentByShort(info.node.owner); if(!ag) continue;
+      const r=info.el.getBoundingClientRect(), cr=canvas.getBoundingClientRect();
+      ctx2.fillStyle=resolveColor(ag.hue);
+      ctx2.beginPath(); ctx2.arc(r.left-cr.left+r.width-40, r.top-cr.top+r.height/2, 4,0,7); ctx2.fill();
+    }
+  }
+  drawStatic();
+  window.addEventListener('resize', ()=>{ resize(); drawStatic(); });
+  scroll.addEventListener('scroll', drawStatic);
+}
+
+document.addEventListener('keydown', e=>{
+  if(e.key==='Escape'){ closeInspect(); closeSitrep(); focusbar.classList.remove('open'); }
+  if(e.key==='s'||e.key==='S'){ if(sitrepEl.classList.contains('open')) closeSitrep(); else openSitrep(); }
+  if(e.key==='m'||e.key==='M'){ $('#btnSound').click(); }
+});
+
+window.__protoReady = true;
+</script>
+</body>
+</html>
