@@ -455,7 +455,15 @@ describe('Coordination Guard', () => {
     for (const name of ['pre-commit', 'post-commit']) {
       const hookPath = join(process.cwd(), 'hooks', name);
       const source = readFileSync(hookPath, 'utf8');
-      expect(source.indexOf('hooks.disabled')).toBeGreaterThan(source.indexOf('#!/usr/bin/env zsh'));
+      // The shebang used to be asserted as the literal `#!/usr/bin/env zsh`,
+      // which stopped meaning anything the moment it was not: indexOf returns
+      // -1 and every ordering claim against it passes for free. Assert the
+      // shape instead -- a shebang on line 1, naming an interpreter POSIX
+      // guarantees, because a hook whose interpreter is missing exits 127 and
+      // a guard that exits 127 is a guard that is not running.
+      expect(source.startsWith('#!/bin/sh\n')).toBe(true);
+      expect(source).not.toMatch(/^#!.*\b(zsh|bash)\b/);
+      expect(source.indexOf('hooks.disabled')).toBeGreaterThan(0);
       expect(source.indexOf('hooks.disabled')).toBeLessThan(source.indexOf('git rev-parse'));
       const result = spawnSync(hookPath, [], {
         cwd: sandbox,
