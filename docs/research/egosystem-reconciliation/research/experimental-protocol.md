@@ -299,6 +299,27 @@ No stage advances on aggregate accuracy alone. Cross-scope leakage, unauthorized
 
 ## Reproducibility package
 
+### Preregistered demotion decisions
+
+Before collecting held-out results, freeze a practically meaningful effect
+size, uncertainty interval method, attention/cost ceiling and stopping rule.
+The operator approves those thresholds; this document does not invent human
+utility values. No threshold is tuned on D1a's invented cases or the test set.
+
+| Hypothesis | Observation that would demote it | Consequence for the plan |
+| --- | --- | --- |
+| H1 institutional state improves longitudinal reasoning | An adequately powered matched comparison excludes the preregistered useful improvement in temporal correctness/stale-policy errors, or exceeds the agreed attention/cost ceiling | Do not promote institutional projection as a superior reasoning mechanism; retain the cheaper baseline and revise the model |
+| H2 forward consequence analysis prevents material collisions | Held-out proof-premise validity/recall falls below the frozen gate, false alarms exceed the attention ceiling, or benefit disappears against the R17/structural baseline | Narrow the supported fragment or cut the added detector; do not ship additional alerts as success |
+| H3 controlled separation and synthesis outperform shared inquiry | Matched-budget controlled synthesis fails the useful-effect gate, increases correlated errors, or its apparent gain requires contamination of initial positions | Prefer the simpler condition; withdraw the independence/utility claim; redesign before another trial |
+| H4 execution-grounded provenance improves decisions | Its claimed benefit disappears under matched evidence access, or stale/misattributed receipts drive wrong decisions or unauthorized disclosure | Demote the provenance treatment, correct receipt fitness/attribution, and block deployment until the failed boundary is repaired |
+
+An underpowered or wide-interval result is **inconclusive**, not proof of benefit
+or equivalence. A privacy/authority violation stops the run regardless of the
+average score. Retain negative results and amendments with provenance; demotion
+changes a research claim or build priority, never grants new runtime authority.
+
+### Required artifacts
+
 - schemas and synthetic fixtures;
 - projector and scorer versions;
 - prompts and method charters;

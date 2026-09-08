@@ -14,7 +14,8 @@ This is not standing publication authority, authority for another PR, or a
 release of the Port Daddy halt. No reviewer requests, merge, deployment,
 workflow enablement or Port Daddy runtime operation are included.
 
-The scoped publication is a draft. A draft is not proof that all downstream
+The initial scoped publication was a draft; the operator subsequently marked
+it ready. Neither state is proof that all downstream
 automation is free or disabled; no zero-cost claim is made. The separate
 actuator design must address downstream effects explicitly.
 
@@ -32,8 +33,9 @@ dissent, and an impact preview before commitments change.
 The package contains a constitution, practitioner guide, event/API/authorization
 contracts, staged delivery plan, source and literature mapping, research protocol,
 solo synthesis record, a reusable local packet-audit skill, and a three-case
-interactive design study. Only the declaration auditor and static demonstration
-are executable deliverables. No runtime integration is claimed.
+interactive design study. The follow-through adds schema parity, a synthetic
+temporal/consequence harness reusing R17, and the existing Harbor integration
+contract. These offline programs are executable; no runtime integration is claimed.
 
 ## Roadmap and boundaries
 
@@ -42,10 +44,17 @@ No live roadmap access, reassignment or competing authority document was made.
 The proposed institutional event family reuses existing Harbor authority rather
 than introducing a parallel canonical store.
 
+The [Book review](https://github.com/curiositech/port-daddy/pull/10108#issuecomment-5582126644)
+describes an unregistered-row queue proposed in #10097. That checker/output is
+not present in this checkout and is not claimed as an implemented dependency.
+The missing association and downstream registrations remain honest gate gaps;
+the local delivery plan does not become a second registry during the halt.
+
 The change does not edit Chartroom, Relay publishers, session recovery, retrieval,
 Porthole, website, FleetBar or pd-console runtime. It adds one self-contained
-skill without modifying the public/internal operational Port Daddy skills or
-installing/activating anything.
+skill. The follow-through adds a research-reuse note to the internal contributor
+skill and makes the R17 script importable without automatically running its sweep.
+It does not install or activate anything or change the public operational skill.
 
 ## Review evidence
 
@@ -82,3 +91,14 @@ or enforced aggregate caps.
    aggregate cost boundary is demonstrably enforceable.
 
 This packet is content for those steps, not authorization to take them.
+
+## Follow-through publication hold
+
+The September 8 read-back still showed #10108 at `edd1a7403`, open and non-draft;
+#10109 was open and unmerged. The inspected webhook source includes both
+`synchronize` and `edited` as Fleet triggers. Local follow-through commits and
+[review replies](../meta/review-response-draft.md) are therefore held rather
+than pushed or posted. A future merge of the control change alone will not
+establish deployed no-spawn behavior. Confirm that external path is disabled,
+or obtain explicit authority for those exact downstream effects, before an
+update. No queue, merge, deployment or runtime activation is authorized here.

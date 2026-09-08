@@ -10,6 +10,10 @@ checks establish. Earlier activity is retained as history in the
 
 ## Executed evidence
 
+The original D0 evidence below is retained. The follow-through section records
+the later schema/replay work separately; it does not retroactively turn the
+initial preview checks into native or human-study evidence.
+
 | Check | Result | What it establishes |
 | --- | --- | --- |
 | Node local declaration suite | 50/50 pass | Tested input validation, declaration consistency and CLI exit behavior |
@@ -71,3 +75,39 @@ recorded in the interaction report. Its local load measurement is not a hosted
 The [delivery plan](delivery-plan.md) makes these future gates explicit. This
 package is ready for local examination; it is not a production-readiness verdict,
 accepted institutional policy, publication receipt or permission to resume.
+
+## September 8 offline follow-through
+
+| Check | Result | Boundary |
+| --- | --- | --- |
+| Packet suite plus independent Ajv schema parity | 67 tests pass | 50 original declaration tests and 17 string/revision schema locations; Ajv supplied by the existing repository dependency installation |
+| Temporal/consequence unittest suite | 31 tests pass | Synthetic replay, valid/recorded time, scoped exceptions, assertions, commitment acknowledgment/refusal/closure, departure, tenant separation, revocation, lineage and the reference interval-cost boundary; includes 100 seeded adapter/oracle comparisons |
+| Preview script CSP binding | One test passes, including tampered-script negative | Exact SHA-256 allowlist replaces `unsafe-inline`; pixels and interaction code unchanged |
+| Four longitudinal consequence cases | Expected results match | Keep analytics / remove analytics; remote ciphertext / server decryption; complete premise paths within the finite visible fragment |
+| Original R17 sweep after import refactor | 3,000 instances; 885 conflicts; 149 indirect; zero oracle/least-model disagreements | Same seed and finite corpus; not empirical H2 benefit |
+| Original R17 reduction and mutant | 16/16 reduction instances; mutant still misses 100/885 conflicts | Reproduces the original checks; not a new general theorem or production security proof |
+| Bounded binder coverage | `pass: false`, score 40; five open findings | Two resolutions not landed and three incomplete product coverage axes; not a product-readiness percentage |
+
+Reproduction from the repository root (no package lifecycle scripts):
+
+```sh
+node --test skills/project-epistemology-reconciliation/tests/*.test.mjs
+node --test docs/research/egosystem-reconciliation/harness/test_preview.mjs
+PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s docs/research/egosystem-reconciliation/harness -p 'test_*.py' -v
+PYTHONDONTWRITEBYTECODE=1 python3 docs/research/egosystem-reconciliation/harness/run_cases.py
+PYTHONDONTWRITEBYTECODE=1 python3 skills/harbor-results/scripts/b4_deontic_fragment.py
+```
+
+The Node parity suite needs Ajv from repository dependencies. On this linked
+worktree, `NODE_PATH` selected the existing primary checkout's `node_modules`;
+no dependencies or provider tools were installed. The standalone declaration
+suite still requires only Node. The Python harness needs only the standard library.
+
+The [harness contract](../harness/README.md) states limits and missing D1b work.
+The [Harbor integration contract](harbor-integration-contract.md) covers existing
+surfaces, separate participant views, tenancy, cold start and recovery. It does
+not establish native functionality. Neither new replay tests nor the unchanged
+HTML artifacts prove H1–H4, distributed isolation or operator usability.
+
+The strict reconciliation-skill validator and self-containment check pass after
+the change. Its reference index now reports eight support files and no orphans.

@@ -95,6 +95,15 @@ Retain dissent with its strongest argument, affected outcome and reopening
 condition. Group duplicates by structured proposition and scope, preserving
 original contributions and provenance.
 
+In the accompanying case notes, give retained dissent a review owner, next
+review date and a discharge condition (for example, its premise was corrected,
+the affected commitment closed, or its proposed action was abandoned). A due
+date asks for reassessment; it never expires an active blocker into approval.
+Discharged dissent can leave the default attention view while its disposition
+and permitted provenance remain addressable under the retention policy. Do not
+add a second lifecycle registry; link the existing case/commitment history.
+These richer notes are outside the small declaration packet's schema.
+
 ## 7. Present the impact preview
 
 Put these facts before the decision control: what stays applicable, what

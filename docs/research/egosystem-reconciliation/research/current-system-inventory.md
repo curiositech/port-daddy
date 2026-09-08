@@ -112,6 +112,22 @@ ADR-0032 is proposed and no `lib/unspider.ts` implementation is present on the f
 
 ## Source references
 
+### September 8 follow-through: previously unmapped sources
+
+- [Harbor Results R17](../../../../skills/harbor-results/references/results-compendium.md)
+  already supplies a bounded deontic-conflict fragment and reproducible checker.
+  The [D1a adapter](../harness/README.md) now reuses that checker. Its synthetic
+  oracle results establish neither real-project usefulness nor the advertised
+  optimized detector bound for the reference pair-enumerating implementation.
+- [The existing editor plan](../../../strategy/harbor-editor-battle-plan.md)
+  and `core/pd-console/src/editor_pane.rs` / `editor_sync.rs` establish source
+  placement for the cooperative surface. The editor is not a future blank slate.
+  Public `routes/editor-recovery.ts` mutations are still explicitly 503-gated.
+- [The integration contract](../final/harbor-integration-contract.md) connects
+  R2/R5/R9/R14/R17, participant transitions, existing authority, scoped views,
+  recovery and first use. These are requirements and bounded offline tests,
+  not evidence that existing production paths enforce the proposed semantics.
+
 - `docs/adr/0007-immutable-session-notes.md`
 - `docs/adr/0032-unspider-contradiction-finder.md`
 - `docs/adr/0041-durable-commitments-and-obligation-monitoring.md`

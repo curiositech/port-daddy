@@ -1,3 +1,4 @@
 type: added
 
 - **Project Epistemology has an offline research and design package.** A proposed reconciliation constitution, practitioner guide, architecture, dissent and experimental gates accompany a self-contained skill that audits structured declarations and a static three-case preview of proposed consequences. None activates a service, verifies real authorization, establishes research benefit or releases the operator halt.
+- Added schema/validator parity tests, a bounded synthetic temporal replay harness reusing Harbor R17, and an integration contract for the existing cooperative editor, participant continuity and scoped views. R17 imports no longer run its experiment sweep automatically; explicit execution preserves the seeded checks. D1b, empirical studies and native integration remain gated.
