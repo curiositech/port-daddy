@@ -295,9 +295,23 @@ def check_provenance_dir(dir_path: str, label: str, required: bool) -> list[str]
                 except (ValueError, OSError) as e:
                     failures.append(f"{label}: entry '{key}': {e}")
                 else:
-                    actual_ratio = w / h
-                    rel_err = abs(actual_ratio - expected_ratio) / expected_ratio
-                    if rel_err > ASPECT_TOLERANCE:
+                    if w <= 0 or h <= 0:
+                        # A header can declare a zero or negative dimension --
+                        # read_image_size reports the container's own size
+                        # fields and decodes nothing, so a corrupt or forged
+                        # header arrives here intact. Report it rather than
+                        # dividing by it.
+                        failures.append(
+                            f"{label}: entry '{key}': {os.path.basename(resolved)} "
+                            f"declares a {w}x{h} image, which is not a size an aspect "
+                            f"ratio can be taken from"
+                        )
+                        actual_ratio = None
+                        rel_err = None
+                    else:
+                        actual_ratio = w / h
+                        rel_err = abs(actual_ratio - expected_ratio) / expected_ratio
+                    if rel_err is not None and rel_err > ASPECT_TOLERANCE:
                         failures.append(
                             f"{label}: entry '{key}' declares {aspect_field}={declared!r} "
                             f"({expected_ratio:.4f}) but {os.path.basename(resolved)} is "

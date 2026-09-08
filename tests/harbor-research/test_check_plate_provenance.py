@@ -243,6 +243,26 @@ class TestAspectMismatch(unittest.TestCase):
             self.assertIn("off", result.stdout)
 
 
+    def test_zero_height_header_is_reported_not_divided_by(self) -> None:
+        """A header can declare a zero dimension. read_image_size hands back
+        whatever the container's size fields say -- it decodes nothing -- so
+        the aspect comparison used to divide by that zero and take the whole
+        run down with a traceback instead of naming the bad plate."""
+        with TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            make_repo(repo)
+            write_swiss_images(repo)
+            write_technical_images(repo)
+            write_swiss_provenance(repo, aspect="3:2")
+            write_technical_provenance(repo)
+            (repo / PLATES_REL / "swiss" / "cover.jpg").write_bytes(make_jpeg_bytes(W, 0))
+            result = run_checker(repo)
+            self.assertEqual(result.returncode, 1, msg=result.stdout + result.stderr)
+            self.assertNotIn("Traceback", result.stderr)
+            self.assertIn("cover.jpg", result.stdout)
+            self.assertIn(f"{W}x0", result.stdout)
+
+
 class TestMissingRequiredProvenance(unittest.TestCase):
     def test_required_dir_with_no_provenance_file_fails(self) -> None:
         with TemporaryDirectory() as tmp:
