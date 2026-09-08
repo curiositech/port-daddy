@@ -243,6 +243,13 @@ jobs:
       - name: Every \begin has its \end, and every source file balances
         run: python3 scripts/harbor-research/check_tex_environments.py
 
+      # A drawing shared by two chapters is invisible in either chapter's source
+      # and invisible in either standalone PDF; it shows only in the assembled
+      # Book, as one figure printed twice under two numbers. That is how seven
+      # of them survived to a 530-page draft until an outside reader noticed two.
+      - name: No drawing is rendered twice in the Book
+        run: python3 scripts/harbor-research/check_duplicate_figures.py
+
       - name: Margin citation short-forms are a fresh render of the bibliographies
         run: python3 scripts/harbor-research/build_cite_shortforms.py --check
 

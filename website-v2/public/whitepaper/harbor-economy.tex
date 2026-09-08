@@ -310,7 +310,7 @@ A mechanism designer &
   Thm.~\ref{thm:ms} \\
 A cryptographer / distributed-systems reviewer &
   \S\ref{sec:keystone} (the keystone) $\to$ \S\ref{sec:federation} &
-  Table~\ref{tab:keystone-split}, Fig.~\ref{fig:fh-xfer} \\
+  \S\ref{sec:keystone}; the transfer ceremony in \pdchapref{fh}{The Federated Harbor} \\
 A category theorist &
   \S\ref{sec:conservation} $\to$ \S\ref{sec:sheaf} &
   Fig.~\ref{fig:he-conservation-functor}, Conj.~\ref{conj:sheaf} \\
@@ -992,10 +992,10 @@ the series' single \emph{blocking} reconciliation: the identity primitive the
 whole market leans on covers a threat model that \emph{excludes the cross-operator
 adversary the market is defined by}.
 
-Table~\ref{tab:keystone-split} sets the two stones apart: the local root this
-paper leans on, and the cross-operator stone it does not yet have.
-
-\input{figures/tab-keystone-split}
+The keystone-split table in \pdchapref{stp}{From Spawn to Person} sets the two
+stones apart --- the local root that chapter leans on, and the cross-operator
+stone it hands forward. This is the chapter that inherits the handoff, so the
+table is not reprinted here; what follows is what the market does about it.
 
 \subsection{Local non-forgeable identity is the keystone --- for one operator}
 
@@ -1176,10 +1176,8 @@ authorization chain checked by protocol models plus a bounded Rust verification
 layer); \emph{this} section is the ceremony that rides that substrate across a
 boundary.
 
-\input{figures/fig-fh-xfer-ceremony}
-
-The four-message ceremony (Figure~\ref{fig:fh-xfer}, written out as
-Protocol~\ref{prot:xfer}) has one decisive liveness property: after message (3),
+The four-message ceremony is drawn in \pdchapref{fh}{The Federated Harbor}, which develops the
+protocol; written out as Protocol~\ref{prot:xfer} below, it has one decisive liveness property: after message (3),
 no further synchronous interaction with Harbor~$A$ is needed. The transferred card
 $C_B'$ is verifiable under Harbor~$B$'s key alone, so federation does not turn every
 authorization into a synchronous inter-machine round trip. The epoch root $R_A^{(e)}$
@@ -1253,11 +1251,9 @@ federation design \emph{refuses consensus} rather than trying to route around
 Fischer--Lynch--Paterson --- which is the correct reading of the impossibility the
 next box states.
 
-Table~\ref{tab:fh-topology} lists the four rails of the topology this section defends: independent
-harbors linked only by gossip and a shared witness log, with no global consensus
-step.
-
-\input{figures/tab-fh-topology}
+The topology this section defends has four rails --- independent harbors linked
+only by gossip and a shared witness log, with no global consensus step --- and
+they are tabulated in \pdchapref{fh}{The Federated Harbor}.
 
 \subsection{No consensus, by design}
 
@@ -1278,10 +1274,8 @@ state it as such rather than burying it.
 
 \subsection{Settlement and the cross-chain-deals lineage}\label{sec:fh-settlement}\label{sec:fh-escrow}
 
-Figure~\ref{fig:fh-settlement} places this construction against the atomic-swap and
+\pdchapref{fh}{The Federated Harbor} places this construction against the atomic-swap and
 adversarial-commerce baselines it is compared to below.
-
-\input{figures/fig-fh-settlement}
 
 The escrow construction states its trust assumption outright: it does \emph{not}
 claim trustless settlement. Its loss bound is conditional, and the condition is the whole
@@ -1316,7 +1310,8 @@ prove impossibility because the asset and adjudication models differ. (\Open{}.)
 
 \subsection{Revocation gossip and the equivocation race}\label{sec:fh-revocation}\label{sec:revocation}
 
-\input{figures/fig-fh-revocation-gossip}
+The gossip mechanism itself is drawn and analysed in \pdchapref{fh}{The Federated Harbor}; what this
+section prices is the window it leaves open.
 
 Federated revocation propagates by anti-entropy gossip
 (\textbf{Demers et al.}~1987~\pdcite{demers1987}) with a probabilistic-membership
@@ -1374,10 +1369,8 @@ case; the system must instead fail closed on stale roots or cap spend independen
 (\Open{}; analogue of the cleanup lower bound.)
 \end{conjecture}
 
-Figure~\ref{fig:fh-threat-bands} bands the window Conjecture~\ref{conj:eq-bound}
+The threat bands in \pdchapref{fh}{The Federated Harbor} set the window Conjecture~\ref{conj:eq-bound}
 must price against the connectivity assumptions each band needs.
-
-\input{figures/fig-fh-threat-bands}
 
 \pdexercisepointer*{\ref{ex:he-gossip-assumptions}}{\ref{ex:he-equivocation-lower-bound}}{\pageref{ex:he-gossip-assumptions}}
 
@@ -1549,9 +1542,9 @@ determined; only the reserve formula is open.
 
 \subsection{Cartels and wash-trading}\label{sec:fh-failure-modes}
 
-\input{figures/fig-cartel-game-inline}
-
-Multi-homing plus portable reputation enables cross-harbor \emph{cartels} --- a
+The per-round decision node and the closed-form sustainability inequality are
+drawn in \pdchapref{bonded}{The Bonded Commons}, which develops the repeated
+game. Multi-homing plus portable reputation enables cross-harbor \emph{cartels} --- a
 rating-agency cartel is the closest real-world analogue: several independent
 principals colluding to hold a shared reputation signal artificially favorable
 rather than competing on it. And a colluding requester$+$worker can
@@ -1564,7 +1557,7 @@ reputation returns (a concavity that caps the wash-trade payoff regardless of
 price), plus sampled adversarial re-audit of high-velocity pairs.
 
 Whether a cartel of colluding operators can actually hold its rating floor is a
-\emph{repeated} game, and that is what Figure~\ref{fig:cartel-game-inline} draws.
+\emph{repeated} game, and that is what the cartel game in \pdchapref{bonded}{The Bonded Commons} draws.
 Each round a member either \emph{colludes} (holds the agreed floor
 $q_{\mathrm{floor}}$, collecting the cartel payoff $\pi_C$) or \emph{defects}
 (undercuts the floor by $\varepsilon$ for a one-time gain $\pi_D$, after which the
@@ -2097,7 +2090,8 @@ model, which is exactly why worst-case dissemination time under partition is
 infinite rather than merely large.
 \end{pdsolution}
 \begin{pdexercise}[kind=Trace,rating=2]{ex:he-revocation-window-trace}
-Trace a revoked capability through Figure~\ref{fig:fh-revocation}: at which
+Trace a revoked capability through the revocation-gossip figure in
+  \pdchapref{fh}{The Federated Harbor}: at which
   harbor, and at what time, can it still be spent? That window is what
   Conjecture~\ref{conj:eq-bound} must price.
 \end{pdexercise}
@@ -2194,12 +2188,12 @@ the side worth paying to show up, and the flip to charging demand happens once a
 liquidity threshold is met, not on a calendar date.
 \end{pdsolution}
 \begin{pdexercise}[kind=Trace,rating=2]{ex:he-grim-trigger-delta}
-Use Figure~\ref{fig:cartel-game-inline} to identify the grim-trigger
+Use the cartel game in \pdchapref{bonded}{The Bonded Commons} to identify the grim-trigger
   condition under which the cartel is self-sustaining. What raises the critical
   discount factor $\delta$ enough to break it?
 \end{pdexercise}
 \begin{pdsolution}{ex:he-grim-trigger-delta}
-Under the grim-trigger timing Figure~\ref{fig:cartel-game-inline} draws,
+Under the grim-trigger timing \pdchapref{bonded}{The Bonded Commons} draws,
 collusion is self-sustaining exactly when the discounted colluding stream beats
 the one-shot defection payoff: $(\pi_C - p_d L)/(1-\delta(1-p_d)) \ge \pi_D$,
 equivalently $\delta \ge [\pi_D - \pi_C + p_d L]\,/\,[\pi_D(1-p_d)]$. Raising the

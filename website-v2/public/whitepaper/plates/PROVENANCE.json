@@ -203,10 +203,10 @@
   "frontispieces": {
     "generated": "2026-09-08",
     "model": "gemini-3-pro-image-preview",
-    "prompts": "scripts/whitepaper-plates/frontispiece_prompts.py",
+    "prompts": "scripts/whitepaper-plates/frontispiece_prompts.py (swiss, technical); scripts/whitepaper-plates/frontispiece-maritime.prompt.txt",
     "why": "The Leviathan brief measured against the plate already in the book: the cyclopean lens emitted nothing, the scroll was blank rather than a Float Plan of hashes, there was no subterranean Merkle-and-gearing cutaway, the sceptre was a plain staff, and the colossus waded in the harbour instead of towering over it. One plate also served all three editions, so the etching faced the Swiss edition's flat colour blocks.",
     "plates": {
-      "plates/frontispiece.jpg": "maritime, variant a, style-referenced to the previous etching",
+      "plates/frontispiece.jpg": "maritime, watercolour, variant w3. The first pass was a sepia intaglio engraving, which is the TECHNICAL edition's register -- the maritime plates are faded watercolour washes, so the frontispiece was out of family with the book it opens. Redrawn as a wash: a benign colossus at the water whose body is a swarm of small robots, one hand beckoning open-palmed rather than commanding, holding Hobbes's sword and crozier translated as a braided ethernet trunk and a fibre-optic crook. Copper commands, glass attests.",
       "plates/swiss/frontispiece.jpg": "swiss, variant c; a and b read as a toy robot and were rejected",
       "plates/technical/frontispiece.jpg": "technical, variant a"
     }
