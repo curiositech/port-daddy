@@ -829,7 +829,9 @@ every Port Daddy-provided interactive or Git hook exits before reading input,
 writing diagnostics, handling the `HALT` listening watch, inspecting a project,
 probing a daemon, or publishing a commit event.
 Removing that marker re-enables the normal project and daemon gates; it does not
-start Port Daddy or arm a project.
+start Port Daddy or arm a project. Port Daddy's commit hooks also no-op when a
+repository has no Coordination Guard configuration or when the local daemon's
+ready generation and fresh heartbeat cannot be verified.
 Hooks do not retry. After three consecutive unexpected exits or executions over
 250 ms, that hook opens a five-minute fail-open circuit: subsequent calls are
 immediate no-ops, the next turn gets one concise remediation notice, and

@@ -364,8 +364,13 @@ describe('Coordination Guard', () => {
     const merged = mergePreCommitHook(existing);
 
     expect(merged).toContain('Port Daddy Coordination Guard');
-    expect(merged).toContain('[ -e "${PD_HOME:-$HOME/.port-daddy}/hooks.disabled" ]');
+    expect(merged).toContain('[ ! -e "$pd_guard_home/hooks.disabled" ] || return 1');
     expect(merged.indexOf('hooks.disabled')).toBeLessThan(merged.indexOf('command -v pd'));
+    expect(merged).toContain('.portdaddy/coordination-guard.json');
+    expect(merged).toContain('daemon.ready');
+    expect(merged).toContain('daemon.pid');
+    expect(merged).toContain('heartbeat');
+    expect(merged).toContain('[ "$pd_guard_ready_pid" = "$pd_guard_daemon_pid" ]');
     expect(merged.indexOf('pd guard check --staged --hook')).toBeLessThan(merged.lastIndexOf('exit 0'));
   });
 
@@ -384,6 +389,52 @@ describe('Coordination Guard', () => {
     expect(merged.indexOf('pd guard check --staged --hook || exit $?')).toBeLessThan(
       merged.lastIndexOf('exit 0'),
     );
+  });
+
+  test('managed commit guard invokes pd only for a configured repo with a ready daemon', () => {
+    const scratchRoot = join(process.cwd(), '.scratch');
+    mkdirSync(scratchRoot, { recursive: true });
+    const repo = mkdtempSync(join(scratchRoot, 'pd-guard-hook-'));
+    const pdHome = join(repo, 'pd-home');
+    const fakeBin = join(repo, 'bin');
+    const called = join(repo, 'called');
+    const hook = join(repo, 'pre-commit');
+    mkdirSync(pdHome, { recursive: true });
+    mkdirSync(fakeBin, { recursive: true });
+    writeFileSync(join(fakeBin, 'pd'), '#!/bin/sh\nprintf called > "$PD_GUARD_CALLED"\n', { mode: 0o755 });
+    writeFileSync(hook, mergePreCommitHook(''), { mode: 0o755 });
+    expect(spawnSync('git', ['init'], { cwd: repo }).status).toBe(0);
+
+    const env = {
+      ...process.env,
+      PATH: `${fakeBin}:/usr/bin:/bin`,
+      PD_HOME: pdHome,
+      PD_GUARD_CALLED: called,
+    };
+    const run = () => spawnSync(hook, [], { cwd: repo, env, encoding: 'utf8' });
+
+    writeFileSync(join(pdHome, 'daemon.ready'), '4242\n');
+    writeFileSync(join(pdHome, 'daemon.pid'), '4242\n');
+    writeFileSync(join(pdHome, 'heartbeat'), '{}');
+    expect(run().status).toBe(0);
+    expect(existsSync(called)).toBe(false); // no Coordination Guard configuration
+
+    mkdirSync(join(repo, '.portdaddy'), { recursive: true });
+    writeFileSync(join(repo, '.portdaddy', 'coordination-guard.json'), '{"enabled":true,"mode":"enforce"}\n');
+    rmSync(join(pdHome, 'daemon.ready'));
+    expect(run().status).toBe(0);
+    expect(existsSync(called)).toBe(false); // daemon is not exactly ready
+
+    writeFileSync(join(pdHome, 'daemon.ready'), '4242\n');
+    expect(run().status).toBe(0);
+    expect(existsSync(called)).toBe(true);
+
+    rmSync(called);
+    writeFileSync(join(pdHome, 'hooks.disabled'), 'operator halt\n');
+    expect(run().status).toBe(0);
+    expect(existsSync(called)).toBe(false);
+
+    rmSync(repo, { recursive: true, force: true });
   });
 
   test('upgrades legacy guard block missing || exit $? in place', () => {
@@ -431,8 +482,10 @@ describe('Coordination Guard', () => {
     const merged = mergePostCommitHook(existing);
 
     expect(merged).toContain('Port Daddy Coordination Guard');
-    expect(merged).toContain('[ -e "${PD_HOME:-$HOME/.port-daddy}/hooks.disabled" ]');
+    expect(merged).toContain('[ ! -e "$pd_guard_home/hooks.disabled" ] || return 1');
     expect(merged.indexOf('hooks.disabled')).toBeLessThan(merged.indexOf('command -v pd'));
+    expect(merged).toContain('.portdaddy/coordination-guard.json');
+    expect(merged).toContain('[ "$pd_guard_age" -le 30 ]');
     expect(merged).toContain('pd guard check --post-commit --hook || true');
     expect(merged).toContain('port-daddy guard check --post-commit --hook || true');
     expect(merged).not.toContain('pd guard check --post-commit --hook || exit $?');
