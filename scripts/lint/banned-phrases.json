@@ -26,10 +26,12 @@
     "website-v2/public/whitepaper/plates/**/*.json",
     "whitepaper/textbook.json",
     "whitepaper/figures/figure-register.json",
-    "docs/harbor-research/exposition/**/*.json"
+    "docs/harbor-research/exposition/**/*.json",
+    "changelog.d/**/*.md"
   ],
   "exclude": [
     "**/CHANGELOG*.md",
+    "changelog.d/10077-banned-phrases.md",
     "**/*.pv",
     "**/*.tla",
     "**/*.cfg",

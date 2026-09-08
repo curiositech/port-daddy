@@ -8,9 +8,11 @@ import {
   collateReferences,
   compareNormalizedReferences,
   inlineInputs,
+  loadCiteShortforms,
   loadTextbook,
   namespaceLabels,
   renderChapter,
+  renderCiteShortformAliases,
   renderContents,
   renderSolutions,
   renderTextbookMap,
@@ -628,4 +630,86 @@ test('two genuinely different papers by the same authors in the same year stay d
   const x = 'Peter J. Ramadge and W. Murray Wonham.\n\\newblock Supervisory Control of a Class of Discrete Event Processes.\n\\newblock \\textit{SIAM J. Control}, 25(1), 1987.';
   const y = 'Peter J. Ramadge and W. Murray Wonham.\n\\newblock On the supremal controllable sublanguage of a given language.\n\\newblock \\textit{SIAM J. Control}, 25(3), 1987.';
   assert.notEqual(referenceFingerprint(x), referenceFingerprint(y));
+});
+
+// --- Wave 16 marginalia: \pdcite, \pdprov, \pdprovedon in Book vs standalone
+
+test('rewriteCitations rewrites \\pdcite the same way it rewrites \\cite, preserving the command name', () => {
+  const citationMap = new Map([['lampson1974', 'mega002'], ['saltzer1975protection', 'mega003']]);
+  assert.equal(
+    rewriteCitations('\\pdcite{lampson1974}', citationMap, 'chapter.tex'),
+    '\\pdcite{mega002}',
+  );
+  assert.equal(
+    rewriteCitations('\\pdcite{lampson1974,saltzer1975protection}', citationMap, 'chapter.tex'),
+    '\\pdcite{mega002,mega003}',
+  );
+  // \cite (never promoted, e.g. inside a footnote) still rewrites too.
+  assert.equal(rewriteCitations('\\cite{lampson1974}', citationMap, 'chapter.tex'), '\\cite{mega002}');
+});
+
+test('cleanStandaloneChrome and stripPaperApparatus leave \\pdcite, \\pdprov, and \\pdprovedon untouched', () => {
+  // Unlike \\pdopensolutions (Book-owned, stripped by cleanStandaloneChrome)
+  // or the abstract/keywords (stripped by stripPaperApparatus), these three
+  // macros are the SAME call in the Book and a standalone chapter -- the
+  // fold-back to an inline form happens inside the macro itself
+  // (\\ifpdmargincolumn, figures/pd-pedagogy.tex), not by the generator
+  // rewriting the chapter body, so nothing here should touch them.
+  const body = [
+    '\\section{A section}',
+    'A sentence with a citation~\\pdcite{lampson1974} and a number',
+    '$5.98$ \\pdprov{a7\\_experiment.py}{20260816}{verified}.',
+    '\\begin{pdclaim}{Theorem}{Example}\\label{thm:example}\\pdprovedon{thm:example}',
+    'Statement.',
+    '\\end{pdclaim}',
+  ].join('\n');
+
+  const cleaned = cleanStandaloneChrome(body);
+  assert.equal(cleaned, body, 'cleanStandaloneChrome must not alter the three macro calls');
+
+  const stripped = stripPaperApparatus(cleaned).body;
+  assert.match(stripped, /\\pdcite\{lampson1974\}/);
+  assert.match(stripped, /\\pdprov\{a7\\_experiment\.py\}\{20260816\}\{verified\}/);
+  assert.match(stripped, /\\pdprovedon\{thm:example\}/);
+});
+
+test('namespaceLabels leaves \\pdprovedon\'s own argument alone (it is the LOCAL promise label, not namespaced)', () => {
+  // \\pdprovedon is not in LABEL_COMMANDS: its argument must reach the Book
+  // exactly as written, matching the key build_discharge_pointers.py used
+  // when it generated figures/pd-discharges.tex's \\pdprovedonentry rows.
+  const body = '\\begin{pdclaim}{Theorem}{X}\\label{thm:example}\\pdprovedon{thm:example}\nBody.\\end{pdclaim}';
+  const namespaced = namespaceLabels(body, 'swk');
+  assert.match(namespaced, /\\label\{swk:thm:example\}/);
+  assert.match(namespaced, /\\pdprovedon\{thm:example\}/, '\\pdprovedon argument must stay un-namespaced');
+});
+
+test("renderCiteShortformAliases aliases each paper's local \\bibitem keys to their collated mega-keys", () => {
+  const prepared = [
+    { citationMap: new Map([['lampson1974', 'mega001'], ['unindexed2020', 'mega002']]) },
+    { citationMap: new Map([['lampson1974', 'mega001']]) }, // same reference, second chapter
+  ];
+  const shortforms = new Map([['lampson1974', 'Lampson 1974, \\textit{Protection}']]);
+
+  const rendered = renderCiteShortformAliases(prepared, shortforms);
+  assert.match(rendered, /\\pdciteshort\{mega001\}\{Lampson 1974, \\textit\{Protection\}\}/);
+  // unindexed2020 has no short form (an UNPARSED bibitem) -- no alias row, and
+  // no crash.
+  assert.doesNotMatch(rendered, /mega002/);
+  // The shared reference (mega001) is aliased once, not twice.
+  assert.equal(rendered.match(/mega001/g).length, 1);
+});
+
+test('loadCiteShortforms parses the generated \\pdciteshort table', () => {
+  const path = resolve('.cache/tmp-cite-shortforms-test.tex');
+  writeFileSync(
+    path,
+    '% generated\n\\pdciteshort{lampson1974}{Lampson 1974, \\textit{Protection}}\n',
+    'utf8',
+  );
+  try {
+    const map = loadCiteShortforms(path);
+    assert.equal(map.get('lampson1974'), 'Lampson 1974, \\textit{Protection}');
+  } finally {
+    rmSync(path, { force: true });
+  }
 });
