@@ -1356,10 +1356,18 @@ function generate({ textbook = loadTextbook(), out = resolve(repoRoot, defaultOu
       nearDuplicates.push(`${previous.key} (${previous.source}) / ${current.key} (${current.source}): ${shorter.slice(0, 60)}`);
     }
   }
+  // Was a warning; the sweep that gave each of the 15 pairs this report
+  // found one wording, applied in every chapter that cites it, is what
+  // made zero the number this class of defect is allowed to report from
+  // here on -- a warning nobody is looking at is how it grew to 15 in the
+  // first place. Fails the generator, the same way every other
+  // corpus-integrity problem in this file does.
   if (nearDuplicates.length) {
-    console.warn(`\n${nearDuplicates.length} reference(s) look like the same work cited two ways:`);
-    for (const line of nearDuplicates) console.warn(`  ${line}`);
-    console.warn('Give each work one wording in every chapter that cites it.\n');
+    throw new Error(
+      `${nearDuplicates.length} reference(s) look like the same work cited two ways:\n`
+        + nearDuplicates.map((line) => `  ${line}`).join('\n')
+        + '\nGive each work one wording in every chapter that cites it.',
+    );
   }
 
   const bibliography = [
