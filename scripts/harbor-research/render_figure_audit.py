@@ -179,11 +179,38 @@ def load_triage_dispositions() -> dict[str, set[str]]:
     return out
 
 
+def committed_first_seen() -> dict[str, str]:
+    """The `first_seen` date already recorded for each blocker id in the
+    committed blockers.json, or an empty map if the file is absent or
+    unreadable. This is the primary source: once a blocker's first sighting
+    has been written down, that date is a fact about the past and must not be
+    recomputed."""
+    path = os.path.join(REPO_ROOT, BLOCKERS_REL)
+    try:
+        with open(path, encoding="utf-8") as handle:
+            existing = json.load(handle)
+    except (OSError, ValueError):
+        return {}
+    if not isinstance(existing, list):
+        return {}
+    return {
+        entry["id"]: entry["first_seen"]
+        for entry in existing
+        if isinstance(entry, dict) and "id" in entry and "first_seen" in entry
+    }
+
+
 def first_seen(rel_path: str) -> str:
-    """The date of the earliest git commit that introduced this file, as
-    YYYY-MM-DD. Falls back to today (UTC-naive `date.today()`) if git has no
-    history for it (e.g. a file freshly created and not yet committed) so
-    the script still runs in a dirty working tree."""
+    """The date this figure's record was first written down, as YYYY-MM-DD,
+    for a blocker not already carried in the committed blockers.json.
+
+    Git is asked first and today is the fallback, but neither is consulted for
+    an id the committed file already knows -- see `committed_first_seen`. That
+    ordering is the whole point: `git log` answers differently on a shallow
+    clone (CI checks out with `fetch-depth: 1`, so the file's introducing
+    commit is not in the clone) than on a full one, and a value that changes
+    with clone depth would fail the freshness check on every CI run while
+    passing on every developer's machine."""
     try:
         out = subprocess.run(
             ["git", "log", "--follow", "--format=%ad", "--date=short", "--", rel_path],
@@ -281,6 +308,7 @@ def render_failures(records: list[tuple[str, dict]]) -> str:
 
 def render_blockers(records: list[tuple[str, dict]]) -> list[dict]:
     dispositions = load_triage_dispositions()
+    already_recorded = committed_first_seen()
     blockers = []
     for stem, rec in records:
         failed = [c for c in rec["summary"].get("failed_checks", []) if c in T1_T5]
@@ -298,7 +326,7 @@ def render_blockers(records: list[tuple[str, dict]]) -> list[dict]:
             "fragment": fragment_path,
             "chapter": chapter,
             "checks_failed": failed,
-            "first_seen": first_seen(rel_json_path),
+            "first_seen": already_recorded.get(stem) or first_seen(rel_json_path),
             "waiver": waiver,
         })
     blockers.sort(key=lambda b: b["id"])

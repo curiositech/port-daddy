@@ -124,6 +124,48 @@ class TestRenderFigureAudit(unittest.TestCase):
             ids = [b["id"] for b in blockers]
             self.assertEqual(ids, ["fig-aaa-first", "fig-zzz-last"])
 
+    def test_first_seen_is_kept_from_the_committed_file(self) -> None:
+        """A blocker's `first_seen` is a fact about the past, so once written
+        it survives a re-render even when nothing on disk could re-derive it.
+
+        This is what keeps the freshness check honest across clone depths.
+        The date used to come from `git log --follow`, which answers one thing
+        in a full clone and another in the shallow one CI checks out
+        (`actions/checkout@v4` defaults to `fetch-depth: 1`, so the commit that
+        introduced the figcheck record is not in the clone at all) -- so
+        blockers.json rendered as stale on every CI run and fresh on every
+        developer's machine. The tempdir here is not a git repository, which
+        is the sharper version of the same situation."""
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            write_json(root / FIGCHECK_REL / "fig-swk-alpha.json", record("fail", failed=["T1"]))
+            self.assertEqual(run(root, "--write").returncode, 0)
+
+            blockers_path = root / BLOCKERS_REL
+            blockers = json.loads(blockers_path.read_text(encoding="utf-8"))
+            blockers[0]["first_seen"] = "2024-01-02"
+            blockers_path.write_text(json.dumps(blockers, indent=2) + "\n", encoding="utf-8")
+
+            self.assertEqual(run(root, "--write").returncode, 0)
+            rewritten = json.loads(blockers_path.read_text(encoding="utf-8"))
+            self.assertEqual(rewritten[0]["first_seen"], "2024-01-02")
+            self.assertEqual(run(root, "--check").returncode, 0)
+
+    def test_first_seen_is_recorded_for_a_newly_appearing_blocker(self) -> None:
+        """Keeping the old dates must not stop a new blocker from getting one."""
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            write_json(root / FIGCHECK_REL / "fig-swk-alpha.json", record("fail", failed=["T1"]))
+            self.assertEqual(run(root, "--write").returncode, 0)
+
+            write_json(root / FIGCHECK_REL / "fig-anchor-beta.json", record("fail", failed=["T4"]))
+            self.assertEqual(run(root, "--write").returncode, 0)
+            blockers = json.loads((root / BLOCKERS_REL).read_text(encoding="utf-8"))
+            by_id = {b["id"]: b["first_seen"] for b in blockers}
+            self.assertEqual(sorted(by_id), ["fig-anchor-beta", "fig-swk-alpha"])
+            for stem, seen in by_id.items():
+                self.assertRegex(seen, r"^\d{4}-\d{2}-\d{2}$", msg=stem)
+
     def test_waiver_seeded_only_for_delete_or_table_disposition(self) -> None:
         with TemporaryDirectory() as tmp:
             root = Path(tmp)
