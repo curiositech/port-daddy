@@ -53,6 +53,12 @@ reading-time estimate, no learning-objective bullets, no result table. Those
 belong in the manifest (`mega-volume-epistemic-manifest.yaml`) and a
 front-matter "Guide to the chapters," never in the chapter's own opening.
 
+`scripts/chapter_lint.py`'s `chapter_opener_and_claim_labeling` floor checks
+the mechanical half of this mechanically: whether the first `\section`
+opens with prose or an epigraph macro rather than a cold table or claim
+environment (advisory today — no chapter in the corpus yet calls an
+`\epigraph` macro), and whether every claim-like environment is tagged.
+
 ## Body: proof discipline
 
 Every theorem is preceded by a labelled **Proof idea** in plain English
@@ -83,7 +89,10 @@ In order:
    depend on, not a restatement of every sentence in the chapter.
 2. **Exercises**, grouped by the section they test
    (`\pdexercisesfor{\S\ref{sec:x}}{Section title}`), never scattered mid-body
-   (`references/exercise-design.md` §Placement).
+   (`references/exercise-design.md` §Placement). `chapter_lint.py`'s
+   `exercises_at_chapter_end` floor checks this: every `pdexercise` cluster
+   must sit inside the chapter's own closing `\section{Exercises}` (advisory
+   today — the Book's chapters have not all been relocated yet).
 3. **"History and references"** (Nielsen–Chuang/CLRS's phrase) — citations for
    the whole chapter, with a locator into each source (page/section for a
    book, theorem number for a paper, script and seed for a number) as a

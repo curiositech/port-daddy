@@ -21,9 +21,12 @@ textbook-craft/
 │   ├── chapter-template.md         # The page-1/page-2 sequence and chapter-close order
 │   └── sources.md                  # Tiered source list, incl. the corpus files cited by path
 ├── scripts/
-│   └── chapter_lint.py             # Parses a .tex chapter, reports structure vs. this skill's floors
+│   └── chapter_lint.py             # Parses .tex chapter(s), reports structure vs. this skill's floors
+├── tests/
+│   └── test_chapter_lint.py        # Unit tests for chapter_lint.py's parsing and floors
 └── examples/
-    ├── chapter1-lint-report.txt    # A real, unfixed run against whitepaper/single-writer-kernel.tex
+    ├── chapter1-lint-report.txt    # A real run against whitepaper/single-writer-kernel.tex
+    ├── consolidated-lint-report.txt # The one-table report across all eight Book chapters
     └── README.md
 ```
 
@@ -36,6 +39,11 @@ textbook-craft/
 4. Auditing an existing chapter? Run:
    ```bash
    python3 skills/textbook-craft/scripts/chapter_lint.py path/to/chapter.tex
+   ```
+   Auditing every Book chapter at once? Run it with no path at all (it reads
+   `whitepaper/textbook.json`'s chapter list) for one consolidated table:
+   ```bash
+   python3 skills/textbook-craft/scripts/chapter_lint.py --strict
    ```
 5. Doubt a rule? Every one traces to `references/canon.md` or
    `references/learning-science.md`, each tiered per `references/sources.md`.

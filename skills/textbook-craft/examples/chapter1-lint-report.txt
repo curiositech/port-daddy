@@ -1,38 +1,81 @@
-chapter_lint: whitepaper/single-writer-kernel.tex  (2194 lines, 18 sections, 41 subsections)
-  imports figures/pd-pedagogy: False
+chapter_lint: whitepaper/single-writer-kernel.tex  (3011 lines, 20 sections, 44 subsections)
+  imports figures/pd-pedagogy: True
 
 Floors:
   [FAIL] worked_example_per_section
-         18/18 top-level sections have zero worked examples (pdexample/example): Where this paper sits, and what it promises; Reader's Map; The kernel as seven organs; The substrate organ: one writer, one file; Durability, split by fault class; The resource organ: claims, locks, and fair exclusion; The communication organ: the bus, stigmergy, and two delegation chains; The obligation \& enforcement organ: the sovereign's two arms ...
-  [FAIL] exercises_at_chapter_end
-         10/10 exercise clusters sit mid-body, outside a section titled 'Exercises' (Wave 12 finding F1: this is the exact defect the chapter-end apparatus was built to fix). Lines: 440, 534, 647, 794, 894, 1132, 1226, 1369, 1408, 1611
+         17/20 top-level sections have zero worked examples (pdexample/example): Where this paper sits, and what it promises; Reader's Map; The kernel as seven organs; The substrate organ: one writer, one file; Durability, split by fault class; The resource organ: claims, locks, and fair exclusion; The continuity organ: memory, checkpoint, and the foundation of the economy; The self-attestation organ: honest green ...
+  [PASS] exercises_at_chapter_end
+         all 44 exercise clusters sit inside the chapter's closing 'Exercises' section
   [FAIL] claims_carry_epistemic_kind
-         9/10 claim-like environments (theorem/lemma/definition/property/corollary) carry no nearby epistemic-kind tag (pdclaim kind, or a \Built/\Designed/\pdassurance-style maturity marker) -- the honesty ledger requires every claim state its own kind where it is made. Lines: 471 (definition), 715 (theorem), 923 (definition), 955 (theorem), 1000 (theorem), 1046 (property), 1054 (property), 1252 (property), 1317 (theorem)
-  [FAIL] no_tinted_box_macros
-         4 legacy tinted-box macro(s) defined with a fill= node, and this chapter does NOT \input{figures/pd-pedagogy} to neutralize them -- they render as tinted rectangles (page grammar requires typography + margin, never a fill): \keyidea (line 77), \pitfall (line 87), \exercises (line 99), \pullquote (line 63)
+         8/12 claim-like environments (theorem/lemma/definition/property/corollary) carry no epistemic-kind tag INSIDE THEIR OWN BODY (pdclaim kind, or a \Built/\Designed/\pdassurance-style maturity marker) -- the honesty ledger requires every claim state its own kind where it is made. Lines: 501 (definition), 783 (theorem), 1028 (definition), 1060 (theorem), 1105 (theorem), 1461 (property), 1469 (property), 1853 (theorem)
+  [PASS] no_tinted_box_macros
+         3 legacy tinted-box macro(s) defined with a fill= node, but whitepaper/figures/pd-pedagogy.tex's own \AtBeginDocument block re-\long\def's every one of their names as a run-in or margin head with plain prose -- the preamble definitions are cosmetic leftovers, never live at render time: \keyidea (line 95), \pitfall (line 105), \pullquote (line 81)
+  [PASS] imports_pd_pedagogy_twin
+         chapter \input{s} figures/pd-pedagogy -- the shared page grammar (claim boxes, boundaries, worked examples, exercises) is live
+  [WARN] chapter_opener_and_claim_labeling
+         opener: first \section opens with prose -- OK; claim labeling: 8/12 claim-like environments carry no kind tag (see claims_carry_epistemic_kind for detail)
   [PASS] at_most_one_interlude
          0 interludes
-  [FAIL] chapter_close_apparatus
-         missing: review
+  [PASS] chapter_close_apparatus
+         review/history/boundary sections all present (by title keyword match)
 
-Claims: 10 total, 1 tagged, 9 untagged.
+Claims: 12 total, 4 tagged, 8 untagged.
     property: 4
     theorem: 4
     definition: 2
+    pdclaim:Theorem: 1
+    pdclaim:Model-checked property: 1
 
-Worked examples: 0 total (pdexample/example), 0 pdsession transcript(s).
+Worked examples: 4 total (pdexample/example), 0 pdsession transcript(s).
+    1  The communication organ: the bus, stigmergy, and two delegation chains
+    2  The obligation \& enforcement organ: the sovereign's two arms
+    1  The invariants, stated as theorems
 
-Exercise clusters: 10 found.
-    line   440  \exercises           [MID-BODY]  in "The kernel as seven organs"
-    line   534  \exercises           [MID-BODY]  in "The substrate organ: one writer, one file"
-    line   647  \exercises           [MID-BODY]  in "Durability, split by fault class"
-    line   794  \exercises           [MID-BODY]  in "The resource organ: claims, locks, and fair exclusion"
-    line   894  \exercises           [MID-BODY]  in "The communication organ: the bus, stigmergy, and two delegation chains"
-    line  1132  \exercises           [MID-BODY]  in "The obligation \& enforcement organ: the sovereign's two arms"
-    line  1226  \exercises           [MID-BODY]  in "The continuity organ: memory, checkpoint, and the foundation of the economy"
-    line  1369  \exercises           [MID-BODY]  in "The invariants, stated as theorems"
-    line  1408  \exercises           [MID-BODY]  in "Cross-organ atomicity: a buildable defect, not a frontier"
-    line  1611  \exercises           [MID-BODY]  in "Threat model and the limits of mediation"
+Exercise clusters: 44 found.
+    line  2280  \pdexercisesfor      [chapter-end]  in "Exercises"
+    line  2282  \pdexercise          [chapter-end]  in "Exercises"
+    line  2288  \pdexercise          [chapter-end]  in "Exercises"
+    line  2294  \pdexercise          [chapter-end]  in "Exercises"
+    line  2301  \pdexercisesfor      [chapter-end]  in "Exercises"
+    line  2303  \pdexercise          [chapter-end]  in "Exercises"
+    line  2309  \pdexercise          [chapter-end]  in "Exercises"
+    line  2315  \pdexercise          [chapter-end]  in "Exercises"
+    line  2322  \pdexercisesfor      [chapter-end]  in "Exercises"
+    line  2324  \pdexercise          [chapter-end]  in "Exercises"
+    line  2330  \pdexercise          [chapter-end]  in "Exercises"
+    line  2336  \pdexercise          [chapter-end]  in "Exercises"
+    line  2343  \pdexercisesfor      [chapter-end]  in "Exercises"
+    line  2345  \pdexercise          [chapter-end]  in "Exercises"
+    line  2351  \pdexercise          [chapter-end]  in "Exercises"
+    line  2357  \pdexercise          [chapter-end]  in "Exercises"
+    line  2364  \pdexercisesfor      [chapter-end]  in "Exercises"
+    line  2366  \pdexercise          [chapter-end]  in "Exercises"
+    line  2372  \pdexercise          [chapter-end]  in "Exercises"
+    line  2378  \pdexercise          [chapter-end]  in "Exercises"
+    line  2385  \pdexercisesfor      [chapter-end]  in "Exercises"
+    line  2387  \pdexercise          [chapter-end]  in "Exercises"
+    line  2393  \pdexercise          [chapter-end]  in "Exercises"
+    line  2399  \pdexercise          [chapter-end]  in "Exercises"
+    line  2405  \pdexercise          [chapter-end]  in "Exercises"
+    line  2411  \pdexercise          [chapter-end]  in "Exercises"
+    line  2417  \pdexercise          [chapter-end]  in "Exercises"
+    line  2424  \pdexercisesfor      [chapter-end]  in "Exercises"
+    line  2426  \pdexercise          [chapter-end]  in "Exercises"
+    line  2432  \pdexercise          [chapter-end]  in "Exercises"
+    line  2438  \pdexercise          [chapter-end]  in "Exercises"
+    line  2445  \pdexercisesfor      [chapter-end]  in "Exercises"
+    line  2447  \pdexercise          [chapter-end]  in "Exercises"
+    line  2453  \pdexercise          [chapter-end]  in "Exercises"
+    line  2460  \pdexercise          [chapter-end]  in "Exercises"
+    line  2466  \pdexercise          [chapter-end]  in "Exercises"
+    line  2472  \pdexercise          [chapter-end]  in "Exercises"
+    line  2479  \pdexercisesfor      [chapter-end]  in "Exercises"
+    line  2481  \pdexercise          [chapter-end]  in "Exercises"
+    line  2487  \pdexercise          [chapter-end]  in "Exercises"
+    line  2494  \pdexercisesfor      [chapter-end]  in "Exercises"
+    line  2496  \pdexercise          [chapter-end]  in "Exercises"
+    line  2502  \pdexercise          [chapter-end]  in "Exercises"
+    line  2508  \pdexercise          [chapter-end]  in "Exercises"
 
 Interludes: 0
-Tinted-box macros: 4: \keyidea, \pitfall, \exercises, \pullquote
+Tinted-box macros: 3: \keyidea, \pitfall, \pullquote
