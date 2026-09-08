@@ -33,7 +33,7 @@ Load BEFORE extending, re-implementing, or designing anything adjacent to R1–R
 
 ## 5. Mutation-test the checker or it proves nothing
 **Context.** Model-checking the work-unit machine (R8) and the sealed room (R9).
-**Practice.** A green checker is unvalidated until seeded bugs turn it red: disable each guard / plant each leak and demand a counterexample. R8: all five guards proven load-bearing with shortest crimes (4,2,4,1,7 steps). R9: leaky gate and bypass both caught with witness traces.
+**Practice.** A green checker is unvalidated until seeded bugs turn it red: disable each guard / plant each leak and demand a counterexample. R8: all five guards proven critical with shortest crimes (4,2,4,1,7 steps). R9: leaky gate and bypass both caught with witness traces.
 **Rules.** (a) Ship the mutation suite with the checker; the suite *is* the checker's certificate. (b) BFS gives shortest counterexamples — human-readable crimes, gold for exposition and debugging. (c) Note which crime needs the longest trace: R8's wrong-principal payout walks the entire legitimate path before the one illegal step — exactly how the fraud would look in production, so the test doubles as a detection playbook.
 **Bit.** c0_workunit.py, c1_noninterference.py.
 

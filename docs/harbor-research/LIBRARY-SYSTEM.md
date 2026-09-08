@@ -103,9 +103,13 @@ attenuation vectors; the every-hop attenuation property is ProVerif's.
 | Propagated corrections | a correction that landed in one twin and not the other | `python3 scripts/harbor-research/check_propagated_corrections.py` | library-checks |
 | Reference index | missing labels, unclaimed theorems, drifted numbers, missing twin headers, stale index render | `python3 scripts/harbor-research/check_library_index.py --check-md` | library-checks |
 | Critique ledger | Markdown and JSON out of agreement, malformed status cells | `python3 scripts/harbor-research/check_critique_ledger.py` | library-checks |
+| Research program (`program.json`, what the site's `/research` page renders) | derived results/estate/ledger sections stale against `library-index.json`, `whitepaper/corpus.json`, `critique-ledger.json`; a paper, deep dive, wrong turn, or study on disk not listed (or listed and missing); a cited source path gone; a silence in `PORTHOLE-DECISIONS-FROM-THE-BOOK.md` not listed as an open problem; the site mirror `website-v2/src/data/harborResearchProgram.json` differing | `python3 scripts/harbor-research/check_research_program.py` (`--sync` regenerates the derived sections and the mirror) | library-checks; the site's vitest suite checks the mirror from its side |
 | Palette lockstep | a TeX color that disagrees with the light tokens, or unequal twin copies | `npm run test:figure-palette` (website-v2) | whitepaper-metadata, CI |
 | Publication metadata and digests | a committed PDF whose pages, size, or SHA-256 disagree with the catalog or `publication-digests.json` | `npm run test:whitepaper-metadata` (website-v2); `--fix` resyncs | whitepaper-metadata |
 | Doc citations | a repo path cited in a changed doc that does not exist | `node scripts/check-doc-citations.mjs` | doc-citation-guard |
+| Figure register/triage | a malformed row, an unknown enum value, a duplicate id, a chapter number out of step with `textbook.json`, or a `keep`/`restyle` fragment missing on disk | `python3 scripts/harbor-research/check_figure_register.py` | library-checks |
+| Figure audit render | `FIGURE-AUDIT-DIGEST.md`/`FIGURE-AUDIT-FAILURES.md` out of step with a fresh render of `figcheck/*.json` | `python3 scripts/harbor-research/render_figure_audit.py --check` (`--write` regenerates) | library-checks |
+| Figure blockers | a mechanical (T1-T5) figcheck failure with no waiver, or an expired one | `python3 scripts/harbor-research/check_figure_blockers.py` | library-checks; also gated per-PR by `figure-gates` (whitepaper-build.yml) |
 
 ## 6. Build and publish
 

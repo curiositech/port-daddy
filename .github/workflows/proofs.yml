@@ -645,6 +645,14 @@ jobs:
         working-directory: proofs/relay
         run: |
           set -euo pipefail
+          # A missing or empty log means TLC never ran for that config; say so
+          # instead of letting a grep on a nonexistent file read as "no error".
+          for cfg in baseline epoch rollback; do
+            if [ ! -s "CardRevocation_${cfg}.tlc.log" ]; then
+              echo "FAIL: CardRevocation_${cfg}.tlc.log is missing or empty -- TLC did not run for this config."
+              exit 1
+            fi
+          done
           for cfg in baseline epoch; do
             if grep -q "No error has been found" "CardRevocation_${cfg}.tlc.log"; then
               echo "PASS: CardRevocation_${cfg} -- TLC found no invariant violation."

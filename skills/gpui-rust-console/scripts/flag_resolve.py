@@ -7,7 +7,7 @@ Why: the FlagBadge is the console's at-a-glance status glyph. When you add a new
 agent state you must (1) map it to a flag in maritime.rs AND (2) keep the tooltip
 meanings coherent. This script lets an agent check "what flag does state X get, and
 is it the right ICS semantic?" without a `cargo run`, and the selftest pins the
-load-bearing mappings (HITL→Foxtrot, mayday→Juliett) the Rust tests also pin.
+critical mappings (HITL→Foxtrot, mayday→Juliett) the Rust tests also pin.
 
 Envelope command: `flag.resolve`
   payload: {"state": "awaiting-human"}  ->  full record

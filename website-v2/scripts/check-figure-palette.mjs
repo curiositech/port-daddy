@@ -57,6 +57,9 @@ const ALLOWED_HEX = new Set([
   'F2EEE6', // pdcream   — page ground              --surface-base
   'F7F3EB', // pdcreamraised — panels               --surface-raised
   'E9E2D5', // pdcreamstrong — inset wells          --surface-strong
+  '001489', // pdswissblue   — Swiss edition ink (print)  --print-swiss-blue
+  '582C83', // pdswissviolet — Swiss edition ink (print)  --print-swiss-violet
+  'DA291C', // pdswissred    — Swiss edition red (print)  --print-swiss-red
 ])
 
 // pd* color -> the light token it must equal. figures/pd-palette.tex is the
@@ -78,6 +81,9 @@ const PD_TOKEN_LOCKSTEP = {
   pdcream: '--surface-base',
   pdcreamraised: '--surface-raised',
   pdcreamstrong: '--surface-strong',
+  pdswissblue: '--print-swiss-blue',
+  pdswissviolet: '--print-swiss-violet',
+  pdswissred: '--print-swiss-red',
 }
 const PD_PALETTE_COPIES = [
   join(REPO, 'website-v2', 'public', 'whitepaper', 'figures', 'pd-palette.tex'),

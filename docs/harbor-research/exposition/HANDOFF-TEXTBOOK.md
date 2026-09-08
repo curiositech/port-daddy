@@ -97,12 +97,19 @@ Read the runs on the author's commits. After a bot regen: fast-forward, then
   figures use raw colour names; chapter 5 has two Roman-numeral chapter
   references left; fragments that name `hh*` colours directly bypass the
   edition overrides and stay maritime-coloured in the other two editions.
-- Marginalia (portraits of Lamport, Ostrom, Lampson, Parfit, Coase and title
-  pages): none placed. Candidates and their licence confidence are in
-  `MARGINALIA-CANDIDATES.md` / `marginalia-candidates.json`; the Commons API
-  answers from the sandbox now, so fetching and clearing them is unblocked. Rule:
-  no image without a sidecar JSON (source URL, author, licence in the allow-list,
-  retrieval date) and a credits page; at most one per section.
+- Marginalia: eleven portraits and title pages cleared against the Commons API
+  (licence, artist and sha1 in a sidecar per image; Coase not cleared, Ramadge
+  has no free portrait), converted to duotone at 1.3 in, ten placed with
+  `\pdmarginfigure{slug}{caption}` at the point where the person's idea is
+  critical, an Image credits page in the appendices, and a sidecar check in
+  the library-checks workflow. Lovelace is cleared but unplaced.
+- Editions: maritime keeps the watercolour; the technical edition carries the
+  engraving system (exploded drawings with empty callouts, white on the part's
+  ink for parts, on cream for chapters, recovered from the art-system commit
+  plus a Sealed Harbor plate and a cover in the same register); the Swiss
+  edition draws its cover and plates in TikZ from `SWISS-BRIEF.md` with three
+  registered print inks. Each edition has its own cover; the imprint is
+  Curiositech everywhere.
 
 ## 5. Standing instructions from the author
 

@@ -89,7 +89,7 @@ must not be cited as Econometrica's until the published version is checked.
 content, and locate the published wording of the "police the police without
 falling in an infinite regress" sentence with its page number.
 
-### 5. Bach 1999 — load-bearing content check for Paper 7
+### 5. Bach 1999 — critical content check for Paper 7
 
 > E. Bach, "Sheaf Cohomology is #P-hard," *Journal of Symbolic Computation*
 > 27(4):429–433, 1999. DOI `10.1006/jsco.1998.0261`.
@@ -99,7 +99,7 @@ category error — that #P-hardness of sheaf cohomology does not touch finite
 cellular sheaves on graphs. The bibliographic record is verified twice
 (Crossref + DBLP) and a summary generated from the paper confirms it concerns
 "a coherent sheaf on projective space," so the claim is well supported. But the
-primary PDF was never obtained, and a load-bearing pre-emption should rest on the
+primary PDF was never obtained, and a critical pre-emption should rest on the
 paper itself.
 
 **What to extract:** one sentence — the category the hardness result is stated

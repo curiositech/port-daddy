@@ -29,7 +29,7 @@ The honest L4 verdict ("the only cryptography that helps is the cryptography tha
 
 ### Attack 2 — The Cutter is a brokered-credential proxy. On a machine the operator's UID fully controls, it degrades to advisory the instant the agent declines to use it.
 
-This is the brutal one. The entire security value rests on a single load-bearing assumption buried in §3.1:
+This is the brutal one. The entire security value rests on a single decisive assumption buried in §3.1:
 
 > "a local daemon can enforce real OS-level confinement **only by being the thing that spawns the agent**."
 

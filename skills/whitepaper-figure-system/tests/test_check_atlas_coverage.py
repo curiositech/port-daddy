@@ -48,6 +48,40 @@ class AtlasCoverageTests(unittest.TestCase):
                 [path.name for path, _ in walked], ["root.tex", "a.tex", "b.tex"]
             )
 
+    def test_walk_tex_resolves_a_nested_input_from_the_document_root(self) -> None:
+        """TeX looks a relative \\input up from the directory the document is
+        compiled in, not from the directory of the file that issued it. So a
+        fragment in figures/ that says \\input{figures/other} is correct, and
+        resolving it against the including file's own directory would look for
+        figures/figures/other and find nothing."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "figures").mkdir()
+            (root / "root.tex").write_text("\\input{figures/a}\n", encoding="utf-8")
+            (root / "figures/a.tex").write_text(
+                "\\input{figures/b}\n", encoding="utf-8"
+            )
+            (root / "figures/b.tex").write_text("body\n", encoding="utf-8")
+            walked = coverage.walk_tex(root / "root.tex")
+            self.assertEqual(
+                [path.name for path, _ in walked], ["root.tex", "a.tex", "b.tex"]
+            )
+
+    def test_walk_tex_still_resolves_a_sibling_named_relatively(self) -> None:
+        """The document root is tried first, but a fragment naming its
+        neighbour by bare filename still resolves -- both spellings appear in
+        this corpus."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "figures").mkdir()
+            (root / "root.tex").write_text("\\input{figures/a}\n", encoding="utf-8")
+            (root / "figures/a.tex").write_text("\\input{b}\n", encoding="utf-8")
+            (root / "figures/b.tex").write_text("body\n", encoding="utf-8")
+            walked = coverage.walk_tex(root / "root.tex")
+            self.assertEqual(
+                [path.name for path, _ in walked], ["root.tex", "a.tex", "b.tex"]
+            )
+
     def test_walk_tex_fails_closed_on_unsupported_exhibit_environment(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

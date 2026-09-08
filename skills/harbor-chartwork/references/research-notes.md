@@ -1303,7 +1303,7 @@ Stated neutrally, without resolving them — that is the lead's call.
    one meaning" rule. The colorblind-safe and scientific-colormap literature
    (3.3a-b, 3.4b) treats *lightness/value* as the variable that must carry
    the real signal whenever a figure might be viewed by a colorblind reader
-   or printed in grayscale, with hue reduced to a secondary, non-load-bearing
+   or printed in grayscale, with hue reduced to a secondary, non-essential
    cue (Okabe-Ito's palette is explicitly luminance-spread; Crameri's
    sequential maps are defined by a monotonic lightness ramp, not by hue at
    all). A category system built primarily around distinct hues (as
