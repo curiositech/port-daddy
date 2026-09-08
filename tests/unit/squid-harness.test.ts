@@ -2267,6 +2267,27 @@ describe('Giant Squid Harness — ADR-0132 listening watch (halt sentinel)', () 
     spawnSync(bin('pd-hook-stop'), [], { input: JSON.stringify({ cwd: WORKSPACE, ...event }), env: env(extra), encoding: 'utf8' });
   const bash = (command: string, session = 'halt-s1') => ({ tool_name: 'Bash', tool_input: { command }, cwd: WORKSPACE, session_id: session });
 
+  test('global disable marker makes every direct tentacle a zero-work no-op', () => {
+    writeFileSync(join(SCRATCH, 'hooks.disabled'), 'operator halt\n');
+    hoist();
+    writeFileSync(MATRIX, 'PD_ALERT_TEST=must-not-be-read\n');
+
+    for (const hook of ['pd-hook-prompt', 'pd-hook-pre-tool', 'pd-hook-post-tool', 'pd-hook-stop', 'pd-hook-precompact'] as const) {
+      const result = spawnSync(bin(hook), ['unread-argument'], {
+        input: JSON.stringify(bash('pd status', `disabled-${hook}`)),
+        env: env({ PD_SITREP: 'enforce' }),
+        encoding: 'utf8',
+      });
+      expect(result.status).toBe(0);
+      expect(result.stdout).toBe('');
+      expect(result.stderr).toBe('');
+    }
+
+    expect(existsSync(DISTRESS)).toBe(false);
+    expect(existsSync(join(SCRATCH, 'squid'))).toBe(false);
+    expect(readFileSync(MATRIX, 'utf8')).toBe('PD_ALERT_TEST=must-not-be-read\n');
+  });
+
   function pathWithoutJqHalt(): string {
     const dir = join(SCRATCH, 'no-jq-bin-halt');
     mkdirSync(dir, { recursive: true });

@@ -413,7 +413,9 @@ function dirtyFiles(cwd = process.cwd()): string[] {
 function guardHookBlock(): string {
   return [
     HOOK_START,
-    'if command -v pd >/dev/null 2>&1; then',
+    'if [ -e "${PD_HOME:-$HOME/.port-daddy}/hooks.disabled" ]; then',
+    '  :',
+    'elif command -v pd >/dev/null 2>&1; then',
     '  pd guard check --staged --hook || exit $?',
     'elif command -v port-daddy >/dev/null 2>&1; then',
     '  port-daddy guard check --staged --hook || exit $?',
@@ -435,7 +437,9 @@ function guardHookBlock(): string {
 function guardPostCommitBlock(): string {
   return [
     HOOK_START,
-    'if command -v pd >/dev/null 2>&1; then',
+    'if [ -e "${PD_HOME:-$HOME/.port-daddy}/hooks.disabled" ]; then',
+    '  :',
+    'elif command -v pd >/dev/null 2>&1; then',
     '  pd guard check --post-commit --hook || true',
     'elif command -v port-daddy >/dev/null 2>&1; then',
     '  port-daddy guard check --post-commit --hook || true',

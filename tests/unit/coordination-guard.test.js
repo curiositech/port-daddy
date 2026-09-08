@@ -364,6 +364,8 @@ describe('Coordination Guard', () => {
     const merged = mergePreCommitHook(existing);
 
     expect(merged).toContain('Port Daddy Coordination Guard');
+    expect(merged).toContain('[ -e "${PD_HOME:-$HOME/.port-daddy}/hooks.disabled" ]');
+    expect(merged.indexOf('hooks.disabled')).toBeLessThan(merged.indexOf('command -v pd'));
     expect(merged.indexOf('pd guard check --staged --hook')).toBeLessThan(merged.lastIndexOf('exit 0'));
   });
 
@@ -429,6 +431,8 @@ describe('Coordination Guard', () => {
     const merged = mergePostCommitHook(existing);
 
     expect(merged).toContain('Port Daddy Coordination Guard');
+    expect(merged).toContain('[ -e "${PD_HOME:-$HOME/.port-daddy}/hooks.disabled" ]');
+    expect(merged.indexOf('hooks.disabled')).toBeLessThan(merged.indexOf('command -v pd'));
     expect(merged).toContain('pd guard check --post-commit --hook || true');
     expect(merged).toContain('port-daddy guard check --post-commit --hook || true');
     expect(merged).not.toContain('pd guard check --post-commit --hook || exit $?');

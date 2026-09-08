@@ -824,6 +824,12 @@ installed; session claims and notes are the cumulative outcome record.
 
 Provider configuration always calls the stable user-owned
 `~/.port-daddy/bin/pd-hook-*` shims, never a versioned Homebrew Cellar path.
+Creating `~/.port-daddy/hooks.disabled` is the operator emergency kill switch:
+every Port Daddy-provided interactive or Git hook exits before reading input,
+writing diagnostics, handling the `HALT` listening watch, inspecting a project,
+probing a daemon, or publishing a commit event.
+Removing that marker re-enables the normal project and daemon gates; it does not
+start Port Daddy or arm a project.
 Hooks do not retry. After three consecutive unexpected exits or executions over
 250 ms, that hook opens a five-minute fail-open circuit: subsequent calls are
 immediate no-ops, the next turn gets one concise remediation notice, and
