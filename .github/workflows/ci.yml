@@ -597,6 +597,51 @@ jobs:
         #   npm run sync:skill-mirrors
         run: node scripts/sync-skill-mirrors.mjs --check
 
+      - name: Use Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: The whole catalog can still fan out to every runtime
+        # WHY A FRESH BASE AND NOT --check. The per-runtime link trees
+        # (.claude/skills, .codex/skills, and fourteen more) are gitignored, so a
+        # CI checkout never has them and `--check` would report all 5203 missing
+        # on a perfectly healthy repo -- a gate that fails always teaches people
+        # to ignore it.
+        #
+        # What is worth guarding is that the CATALOG still resolves: every skill
+        # id reachable, every collision decided by source priority, every one of
+        # the sixteen runtime targets writable. Fanning out into a throwaway
+        # directory proves exactly that and nothing about anyone's checkout.
+        #
+        # This gate exists because nothing guarded the sync at all, and the drift
+        # that follows is silent: the repo's own project-scope tree was at 0 of
+        # 5203 links on 2026-09-08 with every check green, because no workflow
+        # and no git hook ever ran the sync or asked after it.
+        run: |
+          set -euo pipefail
+          BASE="$(mktemp -d)"
+          npx tsx scripts/sync-skills.ts --scope project --base "$BASE" --json > /tmp/skill-fanout.json
+          python3 - <<'PY'
+          import json, sys
+          d = json.load(open('/tmp/skill-fanout.json'))
+          errors = d.get('errors') or []
+          blocked = d.get('skippedExisting') or []
+          created = d.get('created') or []
+          skills = d.get('skillCount') or 0
+          print(f"fanned out {skills} skill(s) to {len(d.get('targets') or [])} runtime(s): "
+                f"{len(created)} link(s), {len(errors)} error(s), {len(blocked)} blocked")
+          if errors:
+              print('-- the catalog could not fan out:', file=sys.stderr)
+              for e in errors[:20]:
+                  print(f'     {e}', file=sys.stderr)
+              sys.exit(1)
+          if skills == 0 or not created:
+              print('-- fan-out produced no links, which means no catalog was found at all',
+                    file=sys.stderr)
+              sys.exit(1)
+          PY
+
       - name: Audit every skill bundle
         run: |
           python3 skills/skill-hygiene/scripts/audit_skill_library.py \
