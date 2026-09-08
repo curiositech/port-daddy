@@ -99,5 +99,8 @@ jobs:
       - name: Margin apparatus rules hold in every chapter
         run: python3 skills/tufte-evidence-design/scripts/margin_lint.py
 
+      - name: Every rendered plate has honest provenance and every TeX plate path resolves
+        run: python3 scripts/harbor-research/check_plate_provenance.py
+
       - name: Semantic figure atlas covers every canonical figure (no drift from textbook.json)
         run: python3 skills/whitepaper-figure-system/scripts/check_atlas_coverage.py
