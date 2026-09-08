@@ -63,6 +63,19 @@ def book_branch(text: str) -> str:
     said so in its own docstring before the sources had any way to express it.
     \ifpdbook is that way, so an \input sitting in the \else branch is not a
     Book input and must not be counted as one.
+    """
+    return pdbook_branch(text, book=True)
+
+
+def standalone_branch(text: str) -> str:
+    r"""Keep only what a standalone paper compiles: the \else branch of each
+    \ifpdbook, which is what check_standalone_figures.py counts against its
+    record. The same scanner, the other side of the conditional."""
+    return pdbook_branch(text, book=False)
+
+
+def pdbook_branch(text: str, book: bool) -> str:
+    r"""One side of every \ifpdbook conditional, text outside them untouched.
 
     A small scanner rather than a regex: the branches contain prose, nested
     \ifnum and \ifx from other macros, and the conditionals must nest.
@@ -74,8 +87,8 @@ def book_branch(text: str) -> str:
             out.append(text[i:])
             break
         out.append(text[i:m.start()])
-        # Walk from here, tracking nesting, collecting the true branch only.
-        depth, j, keep, taking = 0, m.end(), [], True
+        # Walk from here, tracking nesting, collecting the wanted branch only.
+        depth, j, keep, taking = 0, m.end(), [], book
         while j < n:
             nxt = min(
                 (x for x in (text.find('\\if', j), text.find('\\else', j),
@@ -95,7 +108,7 @@ def book_branch(text: str) -> str:
                 j = nxt + 3
             elif text.startswith('\\else', nxt):
                 if depth == 0:
-                    taking = False
+                    taking = not book
                 elif taking:
                     keep.append(text[nxt:nxt + 5])
                 j = nxt + 5

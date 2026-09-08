@@ -1,0 +1,131 @@
+{
+  "_comment": "Figure sites each STANDALONE paper compiles -- the \\else side of every \\ifpdbook in its twin-source chapter. Checked by scripts/harbor-research/check_standalone_figures.py; refresh with --write when a paper's figures change on purpose. A row that shrinks without such a commit is a Book-side edit that took a figure out of a submission paper.",
+  "papers": {
+    "single-writer-kernel": {
+      "source": "whitepaper/single-writer-kernel.tex",
+      "inputs": [
+        "fig-swk-claim-lifecycle",
+        "fig-swk-commitment-oracle",
+        "fig-swk-consistency-model",
+        "fig-swk-continuity-organs",
+        "fig-swk-controllability-quadrant",
+        "fig-swk-durability-faultclass",
+        "fig-swk-marker-decay",
+        "fig-swk-reference-monitor",
+        "fig-swk-single-writer",
+        "fig-swk-stack-map",
+        "fig-swk-workunit-machine",
+        "session-swk-lock-demo",
+        "session-swk-workunit-check"
+      ],
+      "inline_figures": 2,
+      "inline_tables": 11
+    },
+    "anchor-protocol": {
+      "source": "website-v2/public/whitepaper/anchor-protocol-whitepaper.tex",
+      "inputs": [
+        "fig-anchor-alg-confusion",
+        "fig-anchor-capability-attenuation",
+        "fig-anchor-card-lifecycle",
+        "fig-anchor-cuckoo-inline",
+        "fig-anchor-delegation-inline",
+        "fig-anchor-revocation-gossip",
+        "session-anchor-v6-attack"
+      ],
+      "inline_figures": 0,
+      "inline_tables": 5
+    },
+    "sealed-harbor": {
+      "source": "website-v2/public/whitepaper/sealed-harbor.tex",
+      "inputs": [
+        "fig-sealed-composition-crossover",
+        "fig-sealed-mutant-grid",
+        "fig-sealed-operating-curve",
+        "fig-sealed-pillar-pipeline",
+        "fig-sealed-two-worlds"
+      ],
+      "inline_figures": 0,
+      "inline_tables": 3
+    },
+    "legible-swarm": {
+      "source": "whitepaper/legible-swarm.tex",
+      "inputs": [
+        "legible-swarm-readpoverty",
+        "legible-swarm-roles",
+        "legible-swarm-sdt",
+        "legible-swarm-specialization",
+        "legible-swarm-split-ranker",
+        "legible-swarm-state-of-nature",
+        "legible-swarm-zoom-vs-potemkin"
+      ],
+      "inline_figures": 0,
+      "inline_tables": 13
+    },
+    "spawn-to-person": {
+      "source": "website-v2/public/whitepaper/spawn-to-person.tex",
+      "inputs": [
+        "fig-stp-deterrence-regime",
+        "fig-stp-judge-market",
+        "fig-stp-multidim-reputation",
+        "fig-stp-nomint-lineage",
+        "fig-stp-parfit-chain",
+        "fig-stp-probation-cliff",
+        "fig-stp-rate-the-raters",
+        "fig-stp-role-vs-person",
+        "fig-stp-sybil-whitewash",
+        "fig-stp-tombstone",
+        "tab-keystone-split"
+      ],
+      "inline_figures": 0,
+      "inline_tables": 7
+    },
+    "harbor-economy": {
+      "source": "website-v2/public/whitepaper/harbor-economy.tex",
+      "inputs": [
+        "fig-cartel-game-inline",
+        "fig-fh-revocation-gossip",
+        "fig-fh-settlement",
+        "fig-fh-threat-bands",
+        "fig-fh-xfer-ceremony",
+        "fig-he-assurance",
+        "fig-he-cold-start",
+        "fig-he-conservation-functor",
+        "fig-he-float-plan",
+        "fig-he-three-sided",
+        "tab-fh-topology",
+        "tab-keystone-split"
+      ],
+      "inline_figures": 0,
+      "inline_tables": 4
+    },
+    "bonded-commons": {
+      "source": "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
+      "inputs": [
+        "fig-bonded-key-custody",
+        "fig-cartel-game-inline",
+        "fig-governance-flow",
+        "fig-magic-link-inline",
+        "fig-sybil-inline",
+        "fig-worked-example",
+        "session-bc-delta30"
+      ],
+      "inline_figures": 3,
+      "inline_tables": 8
+    },
+    "federated-harbor": {
+      "source": "website-v2/public/whitepaper/federated-harbor-whitepaper.tex",
+      "inputs": [
+        "fig-fh-cycle-vs-cut",
+        "fig-fh-revocation-gossip",
+        "fig-fh-revocation-regime",
+        "fig-fh-settlement",
+        "fig-fh-threat-bands",
+        "fig-fh-xfer-ceremony",
+        "session-fh-rollback",
+        "tab-fh-topology"
+      ],
+      "inline_figures": 0,
+      "inline_tables": 0
+    }
+  }
+}
