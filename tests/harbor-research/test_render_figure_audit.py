@@ -124,6 +124,33 @@ class TestRenderFigureAudit(unittest.TestCase):
             ids = [b["id"] for b in blockers]
             self.assertEqual(ids, ["fig-aaa-first", "fig-zzz-last"])
 
+    def test_prefix_map_covers_exactly_the_chapters_textbook_json_declares(self) -> None:
+        """The renderer homes each figure by a static prefix table while the
+        rest of the figure system reads chapter numbers from textbook.json.
+        Two sources of truth drift silently: add or remove a chapter and the
+        renderer keeps mapping the old set, so a new chapter's figures land
+        under no chapter at all and nothing says so. Nothing in the fragment
+        names can be derived from the JSON (the legible-swarm fragments do not
+        follow the `fig-<prefix>-` shape), so the table stays — but its chapter
+        NUMBERS must be exactly the set textbook.json declares."""
+        import importlib.util
+
+        spec = importlib.util.spec_from_file_location("_rfa", SCRIPT)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+
+        textbook = json.loads(
+            (REPO_ROOT / "whitepaper" / "textbook.json").read_text(encoding="utf-8")
+        )
+        declared = sorted(c["number"] for c in textbook["chapters"])
+        mapped = sorted(n for _, n in module.PREFIX_TO_CHAPTER)
+
+        self.assertEqual(
+            mapped, declared,
+            msg="PREFIX_TO_CHAPTER and whitepaper/textbook.json disagree about "
+                "which chapters exist; add or remove the prefix row to match",
+        )
+
     def test_first_seen_is_kept_from_the_committed_file(self) -> None:
         """A blocker's `first_seen` is a fact about the past, so once written
         it survives a re-render even when nothing on disk could re-derive it.
