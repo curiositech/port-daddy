@@ -84,23 +84,23 @@ Rules, and why each is enforced or advisory:
                               plain running prose, not solely inside the
                               \\pdgloss macro's own arguments. A script
                               cannot judge whether the surrounding sentence
-                              is truly load-bearing, but it can check that
+                              truly carries the sentence, but it can check that
                               the term is not a complete stranger to the
                               prose around it.
 
   gloss-in-running-prose     ENFORCED, as a proxy. margin-apparatus.md
                               requires a margin device to sit in a
-                              load-bearing sentence, not stand alone the way
+                              sentence that carries the idea, not stand alone the way
                               a rejected pdmarginfigure candidate was "a
                               bibliography-adjacent mention" with no
                               supporting sentence (section 3, "Held back").
-                              A script cannot judge "load-bearing," but it CAN
+                              A script cannot judge whether a term carries its sentence, but it CAN
                               check the mechanical proxy: the paragraph
                               holding the \\pdgloss call has real prose beyond
                               the macro call itself. A \\pdgloss sitting alone
                               in its own paragraph fails this proxy even
                               though the underlying judgment (is the idea
-                              load-bearing) is not something this script can
+                              carrying the argument) is not something this script can
                               make.
 
   no-footnote-in-body        ADVISORY, not enforced. The task that added this
@@ -490,7 +490,7 @@ def check_gloss_in_running_prose(path: str, text: str, findings: list):
                 "message": (
                     f"\\pdgloss{{{call['args'][0]}}} sits with no surrounding sentence "
                     "(fewer than 20 non-whitespace characters of prose in its paragraph) -- "
-                    "margin-apparatus.md's load-bearing-sentence principle, applied to \\pdgloss"
+                    "margin-apparatus.md's carrying-sentence principle, applied to \\pdgloss"
                 ),
             })
 

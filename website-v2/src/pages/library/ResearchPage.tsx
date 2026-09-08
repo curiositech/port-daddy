@@ -284,7 +284,7 @@ export default function ResearchLibraryPage() {
                   Every headline claim in the library either has a proof
                   chapter behind it already, or it has one of these seven
                   papers. None of the seven is decoration — trace any one back
-                  far enough and it is load-bearing under a specific sentence
+                  far enough and it is foundational under a specific sentence
                   a product page makes.
                 </p>
               </blockquote>

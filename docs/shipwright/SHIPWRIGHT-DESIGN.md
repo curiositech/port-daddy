@@ -37,7 +37,7 @@ source, three surfaces.
 
 ---
 
-## 1. The three tracks (order is load-bearing)
+## 1. The three tracks (order is critical)
 
 | Track | What lands | Why first / later |
 |-------|-----------|-------------------|

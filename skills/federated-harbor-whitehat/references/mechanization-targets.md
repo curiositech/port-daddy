@@ -121,7 +121,7 @@ paths.
 ## Anti-patterns
 
 - Listing an artifact here without a "must prove" line. The "must
-  prove" is what makes the artifact load-bearing.
+  prove" is what makes the artifact foundational.
 - Listing an artifact that no defense counter references.
 - Forgetting to update this table when a new defense class lands.
 - Pointing a counter at a PENDING file across multiple rounds. One

@@ -67,7 +67,7 @@ this design lacks.
 contradiction sub-round runs with fixed perspectives, ≤ *N* turns per side, and a
 judge that may not declare consensus before the disagreement budget is spent.
 
-### 5. Termination — the load-bearing part
+### 5. Termination — the foundational part
 
 A parley with stop conditions of "until done" / "until consensus feels right" is
 hope, not a protocol. Every parley carries:

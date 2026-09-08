@@ -202,7 +202,7 @@ A taint tracker over a generative model faces a binary choice: mark every
 output token as tainted by everything the model read, which is useless, or
 miss semantic flows, which is unsound. The model taints everything it writes
 with everything it read. This is a design rationale, not a theorem, and it is
-the one load-bearing statement in this chapter that carries no proof and no
+the one decisive statement in this chapter that carries no proof and no
 script. It rests on the well-known static-analysis result beneath it, that
 certifying implicit flows soundly forces exactly this dichotomy: the label
 creep of the Denning certification lattice \cite{denning77} and the extra
@@ -843,7 +843,7 @@ detection and response, rather than pretending to cover unbounded breach
 damage.
 
 \begin{pdboundary}
-Independence and \emph{secrecy} of planting are load-bearing: an adversary who
+Independence and \emph{secrecy} of planting are decisive: an adversary who
 obtains the canary list with probability $0.3$ and strips all of them drops
 measured power from $0.9997$ to $0.698$ at $k=5$ [internal,
 \texttt{a4\_canary\_sprt.py}]; canary secrecy is part of the security

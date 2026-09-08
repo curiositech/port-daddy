@@ -127,7 +127,7 @@ tells:
 A draft section fails review if it commits any of these:
 
 1. **Jargon front-loading.** The first occurrence of a term used as
-   load-bearing vocabulary must be inline-defined or footnoted, even
+   foundational vocabulary must be inline-defined or footnoted, even
    if "every competent reader knows it." Federation introduces
    *new* primitives (cross-harbor capability tokens, federated
    audit logs, joint bond pools) — these must be defined the first
@@ -179,22 +179,22 @@ Does the prose state a theorem?
 Figures follow the property's blueprint style: cream surface
 `#f2eee6`, cobalt `#003fb8`, sage/teal `#006b5f`, ink `#1f1f1f`,
 crisp linework, hand-lettered italic labels. Reference image at
-`public/img/generated/_brand-reference/style-ref-blueprint.png`.
+`public/img/generated/_brand-reference/style-ref-blueprint.png` (not built yet).
 Match it. Do not regress to painterly or cinematic.
 
 ### When to inline a definition vs push to appendix
 
 ```
-Is the term load-bearing in the section that just introduced it?
+Is the term critical in the section that just introduced it?
   → YES: inline define on first use. A Tufte sidenote is fine.
   → NO: glossary entry at the back; do not interrupt the running
         text.
 
 Does the definition take more than ~3 lines to make precise?
-  → If load-bearing AND >3 lines: inline a one-line working
+  → If critical AND >3 lines: inline a one-line working
     definition, then a forward reference to the appendix where the
     full precise definition lives.
-  → If load-bearing AND ≤3 lines: inline the full definition.
+  → If critical AND ≤3 lines: inline the full definition.
 
 Does the term collide with a similar-but-different term in Anchor
   or Bonded?
@@ -278,7 +278,7 @@ arithmetic.
 > autonomy. Our novel approach combines well-known techniques to
 > provide a robust foundation for distributed agent commerce.
 
-Diagnosis: (a) every load-bearing noun ("cryptographic primitives,"
+Diagnosis: (a) every decisive noun ("cryptographic primitives,"
 "trustless coordination," "verifiable federation," "cross-harbor
 claims," "robust foundation") is a black box; (b) "leverages,"
 "ensures," "robust," "novel" are corporate-evenness markers; (c)
@@ -365,7 +365,7 @@ paper is from this lineage:
 - **"The federation refuses delegation chains exceeding depth
   [PLACEHOLDER-DEPTH-D]."** The paper commits to a finite depth and
   proves a closed-form bound on cross-harbor revocation latency as
-  a function of D. This is a load-bearing engineering choice; name
+  a function of D. This is a core engineering choice; name
   it as a placeholder until pinned.
 - **"Settlement is a separate sacrament."** Bonded settles locally.
   Federated Harbor settles cross-harbor with a distinct,
@@ -411,5 +411,5 @@ The skill begins as a single SKILL.md. As the paper grows:
   Federated Harbor claims that depend on Anchor or Bonded results.
 - `agents/` — drafting personas (per-chapter authors), once the
   paper grows beyond what one drafter can hold.
-- `scripts/check-section.sh` — runs the cardinal-sins grep, the
+- `scripts/voice-check.sh` — runs the cardinal-sins grep, the
   voice tells, and the page-bound check.
